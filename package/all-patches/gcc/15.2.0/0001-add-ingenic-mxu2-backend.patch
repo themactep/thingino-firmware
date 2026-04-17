@@ -1,0 +1,3706 @@
+--- a/gcc/config/mips/constraints.md
++++ b/gcc/config/mips/constraints.md
+@@ -32,6 +32,9 @@
+ (define_register_constraint "h" "NO_REGS"
+   "Formerly the @code{hi} register.  This constraint is no longer supported.")
+ 
++(define_register_constraint "q" "COP2_REGS"
++  "A COP2 register, used by MXU2 128-bit SIMD.")
++
+ (define_register_constraint "l" "TARGET_BIG_ENDIAN ? MD1_REG : MD0_REG"
+   "The @code{lo} register.  Use this register to store values that are
+    no bigger than a word.")
+@@ -423,3 +426,8 @@
+   (and (match_code "mem")
+        (match_operand 0 "lbu16_operand")))
+ 
++
++(define_constraint "YN"
++  "@internal"
++  (and (match_code "const_vector")
++       (match_test "mips_const_vector_same_int_p (op, mode, -16384, 16383)")))
+--- a/gcc/config/mips/mips.cc
++++ b/gcc/config/mips/mips.cc
+@@ -2531,7 +2531,8 @@
+ {
+   /* MSA LD.* and ST.* cannot support loading symbols via an immediate
+      operand.  */
+-  if (mode != MAX_MACHINE_MODE && MSA_SUPPORTED_MODE_P (mode))
++  if (mode != MAX_MACHINE_MODE
++      && (MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode)))
+     return 0;
+ 
+   return mips_symbol_insns_1 (type, mode) * (TARGET_MIPS16 ? 2 : 1);
+@@ -2658,9 +2659,10 @@
+     return false;
+ 
+   /* MSA LD.* and ST.* supports 10-bit signed offsets.  */
+-  if (MSA_SUPPORTED_MODE_P (mode)
++  if ((MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode))
+       && !mips_signed_immediate_p (INTVAL (x), 10,
+-				   mips_ldst_scaled_shift (mode)))
++				   MSA_SUPPORTED_MODE_P (mode)
++				   ? mips_ldst_scaled_shift (mode) : 0))
+     return false;
+ 
+   return true;
+@@ -2690,7 +2692,7 @@
+     return false;
+ 
+   /* MSA LD.* and ST.* cannot support loading symbols via %lo($base).  */
+-  if (MSA_SUPPORTED_MODE_P (mode))
++  if (MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode))
+     return false;
+ 
+   return true;
+@@ -2823,7 +2825,7 @@
+     return true;
+   if (ISA_HAS_LDX && mode == DImode)
+     return true;
+-  if (MSA_SUPPORTED_MODE_P (mode))
++  if (MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode))
+     return true;
+   return false;
+ }
+@@ -2864,6 +2866,7 @@
+   struct mips_address_info addr;
+   int factor;
+   bool msa_p = (!might_split_p && MSA_SUPPORTED_MODE_P (mode));
++  bool mxu2_p = (!might_split_p && MXU2_SUPPORTED_MODE_P (mode));
+ 
+   /* BLKmode is used for single unaligned loads and stores and should
+      not count as a multiword mode.  (GET_MODE_SIZE (BLKmode) is pretty
+@@ -2878,9 +2881,9 @@
+     switch (addr.type)
+       {
+       case ADDRESS_REG:
+-	if (msa_p)
++	if (msa_p || mxu2_p)
+ 	  {
+-	    /* MSA LD.* and ST.* supports 10-bit signed offsets.  */
++	    /* MSA and MXU2 LD.* and ST.* supports 10-bit signed offsets.  */
+ 	    if (mips_signed_immediate_p (INTVAL (addr.offset), 10,
+ 					 mips_ldst_scaled_shift (mode)))
+ 	      return 1;
+@@ -3039,8 +3042,10 @@
+       return mips_build_integer (codes, INTVAL (x));
+ 
+     case CONST_VECTOR:
+-      if (MSA_SUPPORTED_MODE_P (GET_MODE (x))
+-	  && mips_const_vector_same_int_p (x, GET_MODE (x), -512, 511))
++      if ((ISA_HAS_MSA && MSA_SUPPORTED_MODE_P (GET_MODE (x))
++	   && mips_const_vector_same_int_p (x, GET_MODE (x), -512, 511))
++	  || (ISA_HAS_MXU2 && MXU2_SUPPORTED_MODE_P (GET_MODE (x))
++	      && mips_const_vector_same_int_p (x, GET_MODE (x), -16384, 16383)))
+ 	return 1;
+       /* Fall through.  */
+     case CONST_DOUBLE:
+@@ -3134,7 +3139,13 @@
+   bool might_split_p;
+   rtx set;
+ 
+-  gcc_assert (MEM_P (mem));
++  /* MXU2 load/store builtins may pass non-MEM operands through
++     cost calculation paths.  Return a default cost.  */
++  if (!MEM_P (mem))
++    {
++      gcc_assert (ISA_HAS_MXU2);
++      return 1;
++    }
+   mode = GET_MODE (mem);
+ 
+   /* Try to prove that INSN does not need to be split.  */
+@@ -3899,7 +3910,7 @@
+   if (!register_operand (dest, mode)
+       && !register_operand (src, mode)
+       && (TARGET_MIPS16 || !const_0_operand (src, mode)
+-	  || MSA_SUPPORTED_MODE_P (mode)))
++	  || MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode)))
+     {
+       mips_emit_move (dest, force_reg (mode, src));
+       return true;
+@@ -5002,7 +5013,8 @@
+     }
+ 
+   /* Check if MSA moves need splitting.  */
+-  if (MSA_SUPPORTED_MODE_P (GET_MODE (dest)))
++  if (MSA_SUPPORTED_MODE_P (GET_MODE (dest))
++      || MXU2_SUPPORTED_MODE_P (GET_MODE (dest)))
+     return mips_split_128bit_move_p (dest, src);
+ 
+   /* Otherwise split all multiword moves.  */
+@@ -5019,7 +5031,8 @@
+   rtx low_dest;
+ 
+   gcc_checking_assert (mips_split_move_p (dest, src, split_type));
+-  if (MSA_SUPPORTED_MODE_P (GET_MODE (dest)))
++  if (MSA_SUPPORTED_MODE_P (GET_MODE (dest))
++      || MXU2_SUPPORTED_MODE_P (GET_MODE (dest)))
+     mips_split_128bit_move (dest, src);
+   else if (FP_REG_RTX_P (dest) || FP_REG_RTX_P (src))
+     {
+@@ -5145,6 +5158,25 @@
+   if (FP_REG_RTX_P (dest) && src == CONST0_RTX (GET_MODE (src)))
+     return false;
+ 
++  /* MXU2 COP2-to-COP2 moves can be done in a single instruction (orv).  */
++  if (MXU2_REG_RTX_P (src) && MXU2_REG_RTX_P (dest))
++    return false;
++
++  /* MXU2 loads and stores use lu1q/su1q.  */
++  if (MXU2_REG_RTX_P (dest) && MEM_P (src))
++    return false;
++  if (MXU2_REG_RTX_P (src) && MEM_P (dest))
++    return false;
++
++  /* MXU2 set to immediate const vector.  */
++  if (MXU2_REG_RTX_P (dest)
++      && mips_const_vector_same_int_p (src, GET_MODE (src), -16384, 16383))
++    return false;
++
++  /* MXU2 load zero immediate.  */
++  if (MXU2_REG_RTX_P (dest) && src == CONST0_RTX (GET_MODE (src)))
++    return false;
++
+   return true;
+ }
+ 
+@@ -5210,6 +5242,41 @@
+ 	    emit_insn (gen_msa_copy_s_d (d, new_src, GEN_INT (index)));
+ 	}
+     }
++  else if (MXU2_REG_RTX_P (dest))
++    {
++      /* GP -> COP2: use insfcpuw to insert each word element.
++	 Like MSA's msa_insert_w but for COP2 registers.  */
++      gcc_assert (!MEM_P (src));
++
++      rtx new_dest = dest;
++      if (GET_MODE (dest) != V4SImode)
++	new_dest = simplify_gen_subreg (V4SImode, dest, GET_MODE (dest), 0);
++
++      for (byte = 0, index = 0; byte < GET_MODE_SIZE (TImode);
++	   byte += UNITS_PER_WORD, index++)
++	{
++	  s = mips_subword_at_byte (src, byte);
++	  emit_insn (gen_mxu2_insfcpu_w (new_dest, new_dest, GEN_INT (index),
++					  force_reg (SImode, s)));
++	}
++    }
++  else if (MXU2_REG_RTX_P (src))
++    {
++      /* COP2 -> GP: use mtcpusw to extract each word element.
++	 Like MSA's msa_copy_s_w but for COP2 registers.  */
++      gcc_assert (!MEM_P (dest));
++
++      rtx new_src = src;
++      if (GET_MODE (src) != V4SImode)
++	new_src = simplify_gen_subreg (V4SImode, src, GET_MODE (src), 0);
++
++      for (byte = 0, index = 0; byte < GET_MODE_SIZE (TImode);
++	   byte += UNITS_PER_WORD, index++)
++	{
++	  d = mips_subword_at_byte (dest, byte);
++	  emit_insn (gen_mxu2_mtcpus_w (d, new_src, GEN_INT (index)));
++	}
++    }
+   else
+     {
+       low_dest = mips_subword_at_byte (dest, 0);
+@@ -5313,6 +5380,76 @@
+   emit_insn (gen_msa_insert_w (new_dest, high, new_dest, GEN_INT (1 << 3)));
+ }
+ 
++
++/* Split MXU2 insfcpu.d.  */
++void
++mips_split_mxu2_insert_d (rtx dest, rtx src1, rtx index, rtx src2)
++{
++  rtx low, high, new_dest, new_src1;
++  gcc_assert (GET_MODE (dest) == GET_MODE (src1));
++  gcc_assert ((GET_MODE (dest) == V2DImode
++	       && (GET_MODE (src2) == DImode || src2 == const0_rtx)));
++  low = mips_subword (src2, false);
++  high = mips_subword (src2, true);
++  new_dest = simplify_gen_subreg (V4SImode, dest, GET_MODE (dest), 0);
++  new_src1 = simplify_gen_subreg (V4SImode, src1, GET_MODE (src1), 0);
++  emit_insn (gen_mxu2_insfcpu_w (new_dest, new_src1,
++				  GEN_INT (INTVAL (index) * 2), low));
++  emit_insn (gen_mxu2_insfcpu_w (new_dest, new_dest,
++				  GEN_INT (INTVAL (index) * 2 + 1), high));
++}
++
++/* Split MXU2 mfcpu.d.  */
++void
++mips_split_mxu2_mfcpu_d (rtx dest, rtx src)
++{
++  rtx low, high, new_dest;
++  gcc_assert ((GET_MODE (dest) == V2DImode
++	       && (GET_MODE (src) == DImode || src == const0_rtx)));
++  if (src == const0_rtx)
++    { low = src; high = src; }
++  else
++    { low = mips_subword (src, false); high = mips_subword (src, true); }
++  new_dest = simplify_gen_subreg (V4SImode, dest, GET_MODE (dest), 0);
++  emit_insn (gen_mxu2_mfcpu_w (new_dest, low));
++  emit_insn (gen_mxu2_insfcpu_w (new_dest, new_dest, const1_rtx, high));
++  emit_insn (gen_mxu2_insfcpu_w (new_dest, new_dest, GEN_INT (3), high));
++}
++
++/* Split MXU2 mtcpu.d.  */
++void
++mips_split_mxu2_mtcpu_d (rtx dest, rtx src, rtx index,
++			  rtx (*gen_fn)(rtx, rtx, rtx))
++{
++  rtx low, high, new_src;
++  gcc_assert ((GET_MODE (src) == V2DImode && GET_MODE (dest) == DImode));
++  low = mips_subword (dest, false);
++  high = mips_subword (dest, true);
++  new_src = simplify_gen_subreg (V4SImode, src, GET_MODE (src), 0);
++  emit_insn (gen_fn (low, new_src, GEN_INT (INTVAL (index) * 2)));
++  emit_insn (gen_fn (high, new_src, GEN_INT (INTVAL (index) * 2 + 1)));
++}
++
++/* Expand MXU2 branch.  */
++void
++mips_expand_mxu2_branch (rtx *operands, rtx (*gen_fn)(rtx, rtx, rtx))
++{
++  rtx labelT = gen_label_rtx ();
++  rtx labelE = gen_label_rtx ();
++  rtx tmp = gen_fn (labelT, operands[1], const0_rtx);
++  tmp = emit_jump_insn (tmp);
++  JUMP_LABEL (tmp) = labelT;
++  emit_move_insn (operands[0], const0_rtx);
++  tmp = emit_jump_insn (gen_jump (labelE));
++  emit_barrier ();
++  JUMP_LABEL (tmp) = labelE;
++  emit_label (labelT);
++  LABEL_NUSES (labelT) = 1;
++  emit_move_insn (operands[0], const1_rtx);
++  emit_label (labelE);
++  LABEL_NUSES (labelE) = 1;
++}
++
+ /* Return true if a move from SRC to DEST in INSN should be split.  */
+ 
+ bool
+@@ -5341,6 +5478,7 @@
+   machine_mode mode = GET_MODE (dest);
+   bool dbl_p = (GET_MODE_SIZE (mode) == 8);
+   bool msa_p = MSA_SUPPORTED_MODE_P (mode);
++  bool mxu2_p = MXU2_SUPPORTED_MODE_P (mode);
+   enum mips_symbol_type symbol_type;
+ 
+   if (mips_split_move_p (dest, src, SPLIT_IF_NECESSARY))
+@@ -5354,6 +5492,14 @@
+       gcc_assert (mips_const_vector_same_int_p (src, mode, -512, 511));
+       return "ldi.%v0\t%w0,%E1";
+     }
++  if (mxu2_p
++      && dest_code == REG && MXU2_REG_P (REGNO (dest))
++      && src_code == CONST_VECTOR
++      && CONST_INT_P (CONST_VECTOR_ELT (src, 0)))
++    {
++      gcc_assert (mips_const_vector_same_int_p (src, mode, -16384, 16383));
++      return "li%v0\t%w0,%E1";
++    }
+ 
+   if ((src_code == REG && GP_REG_P (REGNO (src)))
+       || (!TARGET_MIPS16 && src == CONST0_RTX (mode)))
+@@ -5395,6 +5541,18 @@
+ 	      return dbl_p ? "dmtc1\t%z1,%0" : "mtc1\t%z1,%0";
+ 	    }
+ 
++	  /* MXU2: GP->COP2 scalar: use insfcpuw to insert into element N.
++	     Element index = (regno - COP2_REG_FIRST) % 4.
++	     XBurst has no mtc2 — COP2 is fully repurposed for MXU2.  */
++	  if (MXU2_REG_P (REGNO (dest)) && ISA_HAS_MXU2)
++	    {
++	      static char buf[64];
++	      int elem = (REGNO (dest) - COP2_REG_FIRST) & 3;
++	      int base = REGNO (dest) - elem;
++	      sprintf (buf, "insfcpuw\t$vr%d[%d],%%z1", base - COP2_REG_FIRST, elem);
++	      return buf;
++	    }
++
+ 	  if (ALL_COP_REG_P (REGNO (dest)))
+ 	    {
+ 	      static char retval[] = "dmtc_\t%z1,%0";
+@@ -5444,6 +5602,17 @@
+ 	      return dbl_p ? "dmfc1\t%0,%1" : "mfc1\t%0,%1";
+ 	    }
+ 
++	  /* MXU2: COP2->GP scalar: use mtcpusw to extract element N.
++	     Element index = (regno - COP2_REG_FIRST) % 4.  */
++	  if (MXU2_REG_P (REGNO (src)) && ISA_HAS_MXU2)
++	    {
++	      static char buf[64];
++	      int elem = (REGNO (src) - COP2_REG_FIRST) & 3;
++	      int base = REGNO (src) - elem;
++	      sprintf (buf, "mtcpusw\t%%0,$vr%d[%d]", base - COP2_REG_FIRST, elem);
++	      return buf;
++	    }
++
+ 	  if (ALL_COP_REG_P (REGNO (src)))
+ 	    {
+ 	      static char retval[] = "dmfc_\t%0,%1";
+@@ -5506,6 +5675,13 @@
+ 	  return dbl_p ? "dla\t%0,%1" : "la\t%0,%1";
+ 	}
+     }
++  if (src_code == REG && MXU2_REG_P (REGNO (src)) && mxu2_p)
++    {
++      if (dest_code == REG && MXU2_REG_P (REGNO (dest)))
++	return "orv\t%w0,%w1,%w1";
++      if (dest_code == MEM)
++	return "su1q\t%w1,%0";
++    }
+   if (src_code == REG && FP_REG_P (REGNO (src)))
+     {
+       if (dest_code == REG && FP_REG_P (REGNO (dest)))
+@@ -5526,6 +5702,11 @@
+ 	  return dbl_p ? "sdc1\t%1,%0" : "swc1\t%1,%0";
+ 	}
+     }
++  if (dest_code == REG && MXU2_REG_P (REGNO (dest)) && mxu2_p)
++    {
++      if (src_code == MEM)
++	return "lu1q\t%w0,%1";
++    }
+   if (dest_code == REG && FP_REG_P (REGNO (dest)))
+     {
+       if (src_code == MEM)
+@@ -5536,6 +5717,27 @@
+ 	  return dbl_p ? "ldc1\t%0,%1" : "lwc1\t%0,%1";
+ 	}
+     }
++  /* MXU2: MEM->COP2 scalar: lw to $at, then insfcpuw.  */
++  if (dest_code == REG && MXU2_REG_P (REGNO (dest))
++      && ISA_HAS_MXU2 && src_code == MEM)
++    {
++      static char buf[80];
++      int elem = (REGNO (dest) - COP2_REG_FIRST) & 3;
++      int base = REGNO (dest) - elem;
++      sprintf (buf, ".set\tnoat\n\tlw\t$1,%%1\n\tinsfcpuw\t$vr%d[%d],$1\n\t.set\tat", base - COP2_REG_FIRST, elem);
++      return buf;
++    }
++  /* MXU2: COP2->MEM scalar: mtcpusw to $at, then sw.  */
++  if (dest_code == MEM && src_code == REG
++      && MXU2_REG_P (REGNO (src)) && ISA_HAS_MXU2)
++    {
++      static char buf[80];
++      int elem = (REGNO (src) - COP2_REG_FIRST) & 3;
++      int base = REGNO (src) - elem;
++      sprintf (buf, ".set\tnoat\n\tmtcpusw\t$1,$vr%d[%d]\n\tsw\t$1,%%0\n\t.set\tat", base - COP2_REG_FIRST, elem);
++      return buf;
++    }
++
+   if (dest_code == REG && ALL_COP_REG_P (REGNO (dest)) && src_code == MEM)
+     {
+       static char retval[] = "l_c_\t%0,%1";
+@@ -9609,6 +9811,8 @@
+     case 'w':
+       if (code == REG && MSA_REG_P (REGNO (op)))
+ 	fprintf (file, "$w%s", &reg_names[REGNO (op)][2]);
++      else if (code == REG && MXU2_REG_P (REGNO (op)))
++	fprintf (file, "$v%s", &reg_names[REGNO (op)][2]);
+       else
+ 	output_operand_lossage ("invalid use of '%%%c'", letter);
+       break;
+@@ -13278,7 +13482,8 @@
+   size = GET_MODE_SIZE (mode);
+   mclass = GET_MODE_CLASS (mode);
+ 
+-  if (GP_REG_P (regno) && mode != CCFmode && !MSA_SUPPORTED_MODE_P (mode))
++  if (GP_REG_P (regno) && mode != CCFmode && !MSA_SUPPORTED_MODE_P (mode)
++      && !MXU2_SUPPORTED_MODE_P (mode))
+     return ((regno - GP_REG_FIRST) & 1) == 0 || size <= UNITS_PER_WORD;
+ 
+   /* For MSA, allow TImode and 128-bit vector modes in all FPR.  */
+@@ -13354,6 +13559,19 @@
+ 	}
+     }
+ 
++  /* For MXU2, COP2 regs hold 128-bit vector modes.  Also allow SImode
++     since V4SI uses 4 consecutive COP2 regs and subreg:SI element
++     access needs SImode support.  Require 4-register alignment for
++     vector modes.  */
++  if (MXU2_REG_P (regno) && ISA_HAS_MXU2)
++    {
++      if (MXU2_SUPPORTED_MODE_P (mode))
++	return ((regno - COP2_REG_FIRST) & 3) == 0;
++      if (mode == SImode)
++	return true;
++      return false;
++    }
++
+   if (ALL_COP_REG_P (regno))
+     return mclass == MODE_INT && size <= UNITS_PER_WORD;
+ 
+@@ -13429,6 +13647,12 @@
+        CCmode values, and CCmode is always considered to be 4 bytes wide.  */
+     return (GET_MODE_SIZE (mode) + 3) / 4;
+ 
++  /* For MXU2, 128-bit vector modes use 4 consecutive COP2 regs so that
++     subreg:SI at different byte offsets map to different register numbers,
++     preserving element index information for insfcpuw/mtcpusw output.  */
++  if (MXU2_REG_P (regno) && MXU2_SUPPORTED_MODE_P (mode))
++    return 4;
++
+   if (FP_REG_P (regno))
+     {
+       if (MSA_SUPPORTED_MODE_P (mode))
+@@ -13459,6 +13683,15 @@
+ 
+       left &= ~reg_class_contents[ST_REGS];
+     }
++  if (hard_reg_set_intersect_p (left, reg_class_contents[(int) COP2_REGS]))
++    {
++      if (mips_hard_regno_mode_ok (COP2_REG_FIRST, mode)
++	  && MXU2_SUPPORTED_MODE_P (mode))
++	{
++	  size = MIN (size, UNITS_PER_MXU2_REG);
++	  left &= ~reg_class_contents[(int) COP2_REGS];
++	}
++    }
+   if (hard_reg_set_intersect_p (left, reg_class_contents[(int) FP_REGS]))
+     {
+       if (mips_hard_regno_mode_ok (FP_REG_FIRST, mode))
+@@ -13492,6 +13725,10 @@
+   if (MSA_SUPPORTED_MODE_P (from) && MSA_SUPPORTED_MODE_P (to))
+     return true;
+ 
++  /* Allow conversions between different MXU2 vector modes.  */
++  if (MXU2_SUPPORTED_MODE_P (from) && MXU2_SUPPORTED_MODE_P (to))
++    return true;
++
+   /* Otherwise, there are several problems with changing the modes of
+      values in floating-point registers:
+ 
+@@ -13515,7 +13752,17 @@
+ 
+      We therefore disallow all mode changes involving FPRs.  */
+ 
+-  return !reg_classes_intersect_p (FP_REGS, rclass);
++  if (reg_classes_intersect_p (FP_REGS, rclass))
++    return false;
++
++  /* MXU2 COP2 registers can only hold 128-bit vector modes.  Prevent
++     subreg access between vector and scalar modes — the hardware has
++     no mtc2/mfc2/lwc2/swc2 support for MXU2 registers.  */
++  if (ISA_HAS_MXU2 && reg_classes_intersect_p (COP2_REGS, rclass)
++      && MXU2_SUPPORTED_MODE_P (from) != MXU2_SUPPORTED_MODE_P (to))
++    return false;
++
++  return true;
+ }
+ 
+ /* Implement target hook small_register_classes_for_mode_p.  */
+@@ -13546,7 +13793,7 @@
+       return TARGET_HARD_FLOAT && TARGET_PAIRED_SINGLE_FLOAT;
+ 
+     default:
+-      return MSA_SUPPORTED_MODE_P (mode);
++      return MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode);
+     }
+ }
+ 
+@@ -13825,6 +14072,14 @@
+       /* Otherwise, we need to reload through an integer register.  */
+       return GR_REGS;
+     }
++  if (reg_class_subset_p (rclass, COP2_REGS))
++    {
++      if (MEM_P (x) && MXU2_SUPPORTED_MODE_P (mode))
++	return NO_REGS;
++      if (GP_REG_P (regno))
++	return NO_REGS;
++      return GR_REGS;
++    }
+   if (FP_REG_P (regno))
+     return reg_class_subset_p (rclass, GR_REGS) ? NO_REGS : GR_REGS;
+ 
+@@ -13877,7 +14132,7 @@
+       return TARGET_LOONGSON_MMI;
+ 
+     default:
+-      return MSA_SUPPORTED_MODE_P (mode);
++      return MSA_SUPPORTED_MODE_P (mode) || MXU2_SUPPORTED_MODE_P (mode);
+     }
+ }
+ 
+@@ -15775,6 +16030,7 @@
+ AVAIL_NON_MIPS16 (loongson, TARGET_LOONGSON_MMI)
+ AVAIL_MIPS16E2_OR_NON_MIPS16 (cache, TARGET_CACHE_BUILTIN)
+ AVAIL_NON_MIPS16 (msa, TARGET_MSA)
++AVAIL_NON_MIPS16 (mxu2, TARGET_MXU2)
+ AVAIL_NON_MIPS16 (r6, mips_isa_rev >= 6)
+ 
+ /* Construct a mips_builtin_description from the given arguments.
+@@ -17015,6 +17271,8 @@
+   MSA_BUILTIN_PURE (cfcmsa, MIPS_SI_FTYPE_UQI),
+   MSA_BUILTIN_PURE (move_v, MIPS_V16QI_FTYPE_V16QI),
+ 
++#include "ingenic-mxu2.def"
++
+   /* Built-in functions for MIPSr6.  */
+   MIPSR6_BUILTIN_PURE (min_a_s, MIPS_SF_FTYPE_SF_SF),
+   MIPSR6_BUILTIN_PURE (min_a_d, MIPS_DF_FTYPE_DF_DF),
+@@ -17465,6 +17723,133 @@
+ 	}
+       break;
+ 
++    /* MXU2 immediate shifts (vashl/vashr/vlshr patterns):
++       convert scalar immediate to vector constant.  */
++    case CODE_FOR_mxu2_vashlv16qi3:
++    case CODE_FOR_mxu2_vashlv8hi3:
++    case CODE_FOR_mxu2_vashlv4si3:
++    case CODE_FOR_mxu2_vashlv2di3:
++    case CODE_FOR_mxu2_vashrv16qi3:
++    case CODE_FOR_mxu2_vashrv8hi3:
++    case CODE_FOR_mxu2_vashrv4si3:
++    case CODE_FOR_mxu2_vashrv2di3:
++    case CODE_FOR_mxu2_vlshrv16qi3:
++    case CODE_FOR_mxu2_vlshrv8hi3:
++    case CODE_FOR_mxu2_vlshrv4si3:
++    case CODE_FOR_mxu2_vlshrv2di3:
++      gcc_assert (has_target_p && nops == 3);
++      if (CONST_INT_P (ops[2].value))
++	{
++	  rangelo = 0;
++	  rangehi = GET_MODE_UNIT_BITSIZE (ops[0].mode) - 1;
++	  if (IN_RANGE (INTVAL (ops[2].value), rangelo, rangehi))
++	    {
++	      ops[2].mode = ops[0].mode;
++	      ops[2].value = mips_gen_const_int_vector (ops[2].mode,
++							INTVAL (ops[2].value));
++	    }
++	  else
++	    error_opno = 2;
++	}
++      break;
++
++    /* MXU2 rounding immediate shifts (srari/srlri):
++       these use unspec patterns with scalar const immediate,
++       no vector conversion needed — just validate range.  */
++    case CODE_FOR_mxu2_srari_b:
++    case CODE_FOR_mxu2_srari_h:
++    case CODE_FOR_mxu2_srari_w:
++    case CODE_FOR_mxu2_srari_d:
++    case CODE_FOR_mxu2_srlri_b:
++    case CODE_FOR_mxu2_srlri_h:
++    case CODE_FOR_mxu2_srlri_w:
++    case CODE_FOR_mxu2_srlri_d:
++      gcc_assert (has_target_p && nops == 3);
++      if (CONST_INT_P (ops[2].value))
++	{
++	  rangelo = 0;
++	  rangehi = GET_MODE_UNIT_BITSIZE (ops[0].mode) - 1;
++	  if (!IN_RANGE (INTVAL (ops[2].value), rangelo, rangehi))
++	    error_opno = 2;
++	}
++      break;
++
++    /* MXU2 immediate byte bitwise: scalar const_uimm8, no conversion.
++       Mask to 8 bits since GCC may sign-extend the UQI argument.  */
++    case CODE_FOR_mxu2_andib:
++    case CODE_FOR_mxu2_orib:
++    case CODE_FOR_mxu2_norib:
++    case CODE_FOR_mxu2_xorib:
++      gcc_assert (has_target_p && nops == 3);
++      if (CONST_INT_P (ops[2].value))
++	ops[2].value = GEN_INT (INTVAL (ops[2].value) & 0xFF);
++      break;
++
++    /* MXU2 load builtins: bypass maybe_expand_insn, call gen functions
++       directly to construct proper MEM RTL from pointer+offset args.  */
++    case CODE_FOR_mxu2_lu1q_b:
++      {
++	rtx target = gen_reg_rtx (V16QImode);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	emit_insn (gen_mxu2_lu1q_b (target, base, ops[2].value));
++	return target;
++      }
++    case CODE_FOR_mxu2_lu1qx_b:
++      {
++	rtx target = gen_reg_rtx (V16QImode);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	rtx offset = copy_to_mode_reg (Pmode, ops[2].value);
++	emit_insn (gen_mxu2_lu1qx_b (target, base, offset));
++	return target;
++      }
++    case CODE_FOR_mxu2_la1q_b:
++      {
++	rtx target = gen_reg_rtx (V16QImode);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	emit_insn (gen_mxu2_la1q_b (target, base, ops[2].value));
++	return target;
++      }
++    case CODE_FOR_mxu2_la1qx_b:
++      {
++	rtx target = gen_reg_rtx (V16QImode);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	rtx offset = copy_to_mode_reg (Pmode, ops[2].value);
++	emit_insn (gen_mxu2_la1qx_b (target, base, offset));
++	return target;
++      }
++    /* MXU2 store builtins: same approach, no target.
++       Force value into a register to avoid mem-to-mem moves.  */
++    case CODE_FOR_mxu2_su1q_b:
++      {
++	rtx value = copy_to_mode_reg (V16QImode, ops[0].value);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	emit_insn (gen_mxu2_su1q_b (value, base, ops[2].value));
++	return const0_rtx;
++      }
++    case CODE_FOR_mxu2_su1qx_b:
++      {
++	rtx value = copy_to_mode_reg (V16QImode, ops[0].value);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	rtx offset = copy_to_mode_reg (Pmode, ops[2].value);
++	emit_insn (gen_mxu2_su1qx_b (value, base, offset));
++	return const0_rtx;
++      }
++    case CODE_FOR_mxu2_sa1q_b:
++      {
++	rtx value = copy_to_mode_reg (V16QImode, ops[0].value);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	emit_insn (gen_mxu2_sa1q_b (value, base, ops[2].value));
++	return const0_rtx;
++      }
++    case CODE_FOR_mxu2_sa1qx_b:
++      {
++	rtx value = copy_to_mode_reg (V16QImode, ops[0].value);
++	rtx base = copy_to_mode_reg (Pmode, ops[1].value);
++	rtx offset = copy_to_mode_reg (Pmode, ops[2].value);
++	emit_insn (gen_mxu2_sa1qx_b (value, base, offset));
++	return const0_rtx;
++      }
++
+     case CODE_FOR_msa_insert_b:
+     case CODE_FOR_msa_insert_h:
+     case CODE_FOR_msa_insert_w:
+@@ -20232,6 +20617,9 @@
+       if (TARGET_MSA)
+ 	sorry ("MSA MIPS16 code");
+ 
++      if (TARGET_MXU2)
++	sorry ("MXU2 MIPS16 code");
++
+       if (!TARGET_EXPLICIT_RELOCS)
+ 	sorry ("MIPS16 requires %<-mexplicit-relocs%>");
+     }
+@@ -21114,6 +21502,16 @@
+       for (regno = DSP_ACC_REG_FIRST; regno <= DSP_ACC_REG_LAST; regno += 2)
+ 	mips_swap_registers (regno);
+     }
++  if (ISA_HAS_MXU2)
++    {
++      unsigned int regno;
++      for (regno = COP2_REG_FIRST; regno < COP2_REG_LAST; regno++)
++	{
++	  fixed_regs[regno] = 0;
++	  call_used_regs[regno] = 1;
++	}
++      fixed_regs[COP2_REG_LAST] = 1;
++    }
+ }
+ 
+ /* Implement EH_USES.  */
+--- a/gcc/config/mips/mips.h
++++ b/gcc/config/mips/mips.h
+@@ -519,6 +519,12 @@
+ 	  builtin_define ("__mips_msa_width=128");			\
+ 	}								\
+ 									\
++      if (TARGET_MXU2)						\
++	{							\
++	  builtin_define ("__mips_mxu2");			\
++	  builtin_define ("__mips_mxu2_width=128");		\
++	}							\
++									\
+       MIPS_CPP_SET_PROCESSOR ("_MIPS_ARCH", mips_arch_info);		\
+       MIPS_CPP_SET_PROCESSOR ("_MIPS_TUNE", mips_tune_info);		\
+ 									\
+@@ -1315,6 +1321,8 @@
+ /* The MSA ASE is available.  */
+ #define ISA_HAS_MSA		(TARGET_MSA && !TARGET_MIPS16)
+ 
++#define ISA_HAS_MXU2		(TARGET_MXU2 && !TARGET_MIPS16)
++
+ /* The MIPS16e V2 instructions are available.  */
+ #define ISA_HAS_MIPS16E2       (TARGET_MIPS16 && TARGET_MIPS16E2 \
+ 				&& !TARGET_64BIT)
+@@ -1464,6 +1472,7 @@
+ %{mcrc} %{mno-crc} \
+ %{mginv} %{mno-ginv} \
+ %{mmsa} %{mno-msa} \
++%{mmxu2} %{mno-mxu2} \
+ %{mloongson-mmi} %{mno-loongson-mmi} \
+ %{mloongson-ext} %{mno-loongson-ext} \
+ %{mloongson-ext2} %{mno-loongson-ext2} \
+@@ -1636,6 +1645,9 @@
+ /* Width of a MSA vector register in bits.  */
+ #define BITS_PER_MSA_REG (UNITS_PER_MSA_REG * BITS_PER_UNIT)
+ 
++#define UNITS_PER_MXU2_REG 16
++#define BITS_PER_MXU2_REG (UNITS_PER_MXU2_REG * BITS_PER_UNIT)
++
+ /* For MIPS, width of a floating point register.  */
+ #define UNITS_PER_FPREG (TARGET_FLOAT64 ? 8 : 4)
+ 
+@@ -1711,7 +1723,8 @@
+    MIPS_LONG_DOUBLE_TYPE_SIZE, unless under MSA the bigggest alignment is
+    BITS_PER_MSA_REG.  */
+ #define BIGGEST_ALIGNMENT \
+-  (ISA_HAS_MSA ? BITS_PER_MSA_REG : MIPS_LONG_DOUBLE_TYPE_SIZE)
++  ((ISA_HAS_MSA || ISA_HAS_MXU2) ? BITS_PER_MSA_REG \
++   : MIPS_LONG_DOUBLE_TYPE_SIZE)
+ 
+ /* All accesses must be aligned.  */
+ #define STRICT_ALIGNMENT (!ISA_HAS_UNALIGNED_ACCESS)
+@@ -1911,6 +1924,10 @@
+ #define MSA_REG_LAST  FP_REG_LAST
+ #define MSA_REG_NUM   FP_REG_NUM
+ 
++#define MXU2_REG_FIRST COP2_REG_FIRST
++#define MXU2_REG_LAST  COP2_REG_LAST
++#define MXU2_REG_NUM   COP2_REG_NUM
++
+ /* The DWARF 2 CFA column which tracks the return address from a
+    signal handler context.  This means that to maintain backwards
+    compatibility, no hard register can be assigned this column if it
+@@ -2001,9 +2018,12 @@
+   (MD_REG_P (REGNO) || DSP_ACC_REG_P (REGNO))
+ #define MSA_REG_P(REGNO) \
+   ((unsigned int) ((int) (REGNO) - MSA_REG_FIRST) < MSA_REG_NUM)
++#define MXU2_REG_P(REGNO) \
++  ((unsigned int) ((int) (REGNO) - MXU2_REG_FIRST) < MXU2_REG_NUM)
+ 
+ #define FP_REG_RTX_P(X) (REG_P (X) && FP_REG_P (REGNO (X)))
+ #define MSA_REG_RTX_P(X) (REG_P (X) && MSA_REG_P (REGNO (X)))
++#define MXU2_REG_RTX_P(X) (REG_P (X) && MXU2_REG_P (REGNO (X)))
+ 
+ /* True if X is (const (unspec [(const_int 0)] UNSPEC_GP)).  This is used
+    to initialize the mips16 gp pseudo register.  */
+@@ -2314,6 +2334,9 @@
+ #define IMM10_OPERAND(VALUE) \
+   ((unsigned HOST_WIDE_INT) (VALUE) + 0x200 < 0x400)
+ 
++#define IMM15_OPERAND(VALUE) \
++  ((unsigned HOST_WIDE_INT) (VALUE) + 0x4000 < 0x8000)
++
+ /* True if VALUE is a signed 16-bit number.  */
+ 
+ #define SMALL_OPERAND(VALUE) \
+@@ -2464,6 +2487,12 @@
+    && (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT		\
+        || GET_MODE_CLASS (MODE) == MODE_VECTOR_FLOAT))
+ 
++#define MXU2_SUPPORTED_MODE_P(MODE)			\
++  (ISA_HAS_MXU2					\
++   && GET_MODE_SIZE (MODE) == UNITS_PER_MXU2_REG	\
++   && (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT		\
++       || GET_MODE_CLASS (MODE) == MODE_VECTOR_FLOAT))
++
+ /* Temporary register that is used when restoring $gp after a call.  $4 and $5
+    are used for returning complex double values in soft-float code, so $6 is the
+    first suitable candidate for TARGET_MIPS16.  For !TARGET_MIPS16 we can use
+@@ -2798,10 +2827,10 @@
+   "$c0r8", "$c0r9", "$c0r10","$c0r11","$c0r12","$c0r13","$c0r14","$c0r15", \
+   "$c0r16","$c0r17","$c0r18","$c0r19","$c0r20","$c0r21","$c0r22","$c0r23", \
+   "$c0r24","$c0r25","$c0r26","$c0r27","$c0r28","$c0r29","$c0r30","$c0r31", \
+-  "$c2r0", "$c2r1", "$c2r2", "$c2r3", "$c2r4", "$c2r5", "$c2r6", "$c2r7",  \
+-  "$c2r8", "$c2r9", "$c2r10","$c2r11","$c2r12","$c2r13","$c2r14","$c2r15", \
+-  "$c2r16","$c2r17","$c2r18","$c2r19","$c2r20","$c2r21","$c2r22","$c2r23", \
+-  "$c2r24","$c2r25","$c2r26","$c2r27","$c2r28","$c2r29","$c2r30","$c2r31", \
++  "$vr0", "$vr1", "$vr2", "$vr3", "$vr4", "$vr5", "$vr6", "$vr7",  \
++  "$vr8", "$vr9", "$vr10","$vr11","$vr12","$vr13","$vr14","$vr15", \
++  "$vr16","$vr17","$vr18","$vr19","$vr20","$vr21","$vr22","$vr23", \
++  "$vr24","$vr25","$vr26","$vr27","$vr28","$vr29","$vr30","$vr31", \
+   "$c3r0", "$c3r1", "$c3r2", "$c3r3", "$c3r4", "$c3r5", "$c3r6", "$c3r7",  \
+   "$c3r8", "$c3r9", "$c3r10","$c3r11","$c3r12","$c3r13","$c3r14","$c3r15", \
+   "$c3r16","$c3r17","$c3r18","$c3r19","$c3r20","$c3r21","$c3r22","$c3r23", \
+--- a/gcc/config/mips/mips.md
++++ b/gcc/config/mips/mips.md
+@@ -8104,6 +8104,8 @@
+ ; The MIPS MSA Instructions.
+ (include "mips-msa.md")
+ 
++(include "mips-mxu2.md")
++
+ (define_c_enum "unspec" [
+   UNSPEC_ADDRESS_FIRST
+ ])
+--- a/gcc/config/mips/mips.opt
++++ b/gcc/config/mips/mips.opt
+@@ -328,6 +328,10 @@
+ Target Mask(MSA)
+ Use MIPS MSA Extension instructions.
+ 
++mmxu2
++Target Var(TARGET_MXU2)
++Use Ingenic MXU2 128-bit SIMD instructions.
++
+ mmt
+ Target Var(TARGET_MT)
+ Allow the use of MT instructions.
+--- a/gcc/config/mips/mips-protos.h
++++ b/gcc/config/mips/mips-protos.h
+@@ -353,6 +353,10 @@
+ extern void mips_expand_vec_unpack (rtx op[2], bool, bool);
+ extern void mips_expand_vec_reduc (rtx, rtx, rtx (*)(rtx, rtx, rtx));
+ extern void mips_expand_msa_reduc (rtx (*)(rtx, rtx, rtx), rtx, rtx);
++extern void mips_split_mxu2_insert_d(rtx,rtx,rtx,rtx);
++extern void mips_split_mxu2_mfcpu_d(rtx,rtx);
++extern void mips_split_mxu2_mtcpu_d(rtx,rtx,rtx,rtx(*)(rtx,rtx,rtx));
++extern void mips_expand_mxu2_branch(rtx*,rtx(*)(rtx,rtx,rtx));
+ extern void mips_expand_vec_minmax (rtx, rtx, rtx,
+ 				    rtx (*) (rtx, rtx, rtx), bool);
+ 
+--- a/gcc/config/mips/predicates.md
++++ b/gcc/config/mips/predicates.md
+@@ -73,6 +73,20 @@
+   (ior (match_operand 0 "const_imm10_operand")
+        (match_operand 0 "register_operand")))
+ 
++(define_predicate "aq10_4_operand"
++  (and (match_code "const_int")
++       (match_test "mips_signed_immediate_p (INTVAL (op), 10, 4)")))
++
++(define_predicate "const_imm15_operand"
++  (and (match_code "const_int")
++       (match_test "IN_RANGE (INTVAL (op), -16384, 16383)")))
++
++(define_predicate "const_vector_same_simm15_operand"
++  (match_code "const_vector")
++{
++  return mips_const_vector_same_int_p (op, mode, -16384, 16383);
++})
++
+ (define_predicate "aq10b_operand"
+   (and (match_code "const_int")
+        (match_test "mips_signed_immediate_p (INTVAL (op), 10, 0)")))
+--- a/gcc/config/mips/mips-ftypes.def
++++ b/gcc/config/mips/mips-ftypes.def
+@@ -36,6 +36,7 @@
+ DEF_MIPS_FTYPE (1, (DF, DF))
+ DEF_MIPS_FTYPE (2, (DF, DF, DF))
+ DEF_MIPS_FTYPE (1, (DF, V2DF))
++DEF_MIPS_FTYPE (2, (DF, V2DF, UQI))
+ 
+ DEF_MIPS_FTYPE (2, (DI, DI, DI))
+ DEF_MIPS_FTYPE (2, (DI, DI, SI))
+@@ -57,6 +58,7 @@
+ DEF_MIPS_FTYPE (2, (SF, SF, SF))
+ DEF_MIPS_FTYPE (1, (SF, V2SF))
+ DEF_MIPS_FTYPE (1, (SF, V4SF))
++DEF_MIPS_FTYPE (2, (SF, V4SF, UQI))
+ 
+ DEF_MIPS_FTYPE (2, (SI, DI, SI))
+ DEF_MIPS_FTYPE (2, (SI, POINTER, SI))
+@@ -154,6 +156,7 @@
+ DEF_MIPS_FTYPE (1, (V2DF, V2DF))
+ DEF_MIPS_FTYPE (2, (V2DF, V2DF, V2DF))
+ DEF_MIPS_FTYPE (3, (V2DF, V2DF, V2DF, V2DF))
++DEF_MIPS_FTYPE (3, (V2DF, V2DF, UQI, DF))
+ DEF_MIPS_FTYPE (2, (V2DF, V2DF, V2DI))
+ DEF_MIPS_FTYPE (1, (V2DF, V2DI))
+ DEF_MIPS_FTYPE (1, (V2DF, V4SF))
+@@ -219,6 +222,7 @@
+ DEF_MIPS_FTYPE (1, (V4SF, V4SF))
+ DEF_MIPS_FTYPE (2, (V4SF, V4SF, V4SF))
+ DEF_MIPS_FTYPE (3, (V4SF, V4SF, V4SF, V4SF))
++DEF_MIPS_FTYPE (3, (V4SF, V4SF, UQI, SF))
+ DEF_MIPS_FTYPE (2, (V4SF, V4SF, V4SI))
+ DEF_MIPS_FTYPE (1, (V4SF, V4SI))
+ DEF_MIPS_FTYPE (1, (V4SF, V8HI))
+--- a/gcc/config/mips/ingenic-mxu2.def
++++ b/gcc/config/mips/ingenic-mxu2.def
+@@ -0,0 +1,504 @@
++/* Define a MXU2 MIPS_BUILTIN_DIRECT function __builtin_mxu2_<INSN>
++   for instruction CODE_FOR_mxu2_<INSN>.  FUNCTION_TYPE is a
++   builtin_description field.  */
++#define MXU2_BUILTIN(INSN, FUNCTION_TYPE)				\
++    { CODE_FOR_mxu2_ ## INSN, MIPS_FP_COND_f,				\
++    "__builtin_mxu2_" #INSN,  MIPS_BUILTIN_DIRECT,			\
++    FUNCTION_TYPE, mips_builtin_avail_mxu2, false }
++
++/* Define a MXU2 MIPS_BUILTIN_DIRECT_NO_TARGET function __builtin_mxu2_<INSN>
++   for instruction CODE_FOR_mxu2_<INSN>.  FUNCTION_TYPE is a
++   builtin_description field.  */
++#define MXU2_NO_TARGET_BUILTIN(INSN, FUNCTION_TYPE)			\
++    { CODE_FOR_mxu2_ ## INSN, MIPS_FP_COND_f,				\
++    "__builtin_mxu2_" #INSN,  MIPS_BUILTIN_DIRECT_NO_TARGET,		\
++    FUNCTION_TYPE, mips_builtin_avail_mxu2, false }
++
++/* For ingenic MXU2 instructions.  */
++#define CODE_FOR_mxu2_add_b CODE_FOR_mxu2_addv16qi3
++#define CODE_FOR_mxu2_add_h CODE_FOR_mxu2_addv8hi3
++#define CODE_FOR_mxu2_add_w CODE_FOR_mxu2_addv4si3
++#define CODE_FOR_mxu2_add_d CODE_FOR_mxu2_addv2di3
++#define CODE_FOR_mxu2_sub_b CODE_FOR_mxu2_subv16qi3
++#define CODE_FOR_mxu2_sub_h CODE_FOR_mxu2_subv8hi3
++#define CODE_FOR_mxu2_sub_w CODE_FOR_mxu2_subv4si3
++#define CODE_FOR_mxu2_sub_d CODE_FOR_mxu2_subv2di3
++#define CODE_FOR_mxu2_mtfpu_w CODE_FOR_mxu2_mtfpu_w_f
++#define CODE_FOR_mxu2_mtfpu_d CODE_FOR_mxu2_mtfpu_d_f
++#define CODE_FOR_mxu2_insffpu_w CODE_FOR_mxu2_insffpu_w_f
++#define CODE_FOR_mxu2_insffpu_d CODE_FOR_mxu2_insffpu_d_f
++#define CODE_FOR_mxu2_mffpu_w CODE_FOR_mxu2_mffpu_w_f
++#define CODE_FOR_mxu2_mffpu_d CODE_FOR_mxu2_mffpu_d_f
++#define CODE_FOR_mxu2_sll_b CODE_FOR_mxu2_vashlv16qi3
++#define CODE_FOR_mxu2_sll_h CODE_FOR_mxu2_vashlv8hi3
++#define CODE_FOR_mxu2_sll_w CODE_FOR_mxu2_vashlv4si3
++#define CODE_FOR_mxu2_sll_d CODE_FOR_mxu2_vashlv2di3
++#define CODE_FOR_mxu2_sra_b CODE_FOR_mxu2_vashrv16qi3
++#define CODE_FOR_mxu2_sra_h CODE_FOR_mxu2_vashrv8hi3
++#define CODE_FOR_mxu2_sra_w CODE_FOR_mxu2_vashrv4si3
++#define CODE_FOR_mxu2_sra_d CODE_FOR_mxu2_vashrv2di3
++#define CODE_FOR_mxu2_srl_b CODE_FOR_mxu2_vlshrv16qi3
++#define CODE_FOR_mxu2_srl_h CODE_FOR_mxu2_vlshrv8hi3
++#define CODE_FOR_mxu2_srl_w CODE_FOR_mxu2_vlshrv4si3
++#define CODE_FOR_mxu2_srl_d CODE_FOR_mxu2_vlshrv2di3
++#define CODE_FOR_mxu2_divs_b CODE_FOR_mxu2_divv16qi3
++#define CODE_FOR_mxu2_divs_h CODE_FOR_mxu2_divv8hi3
++#define CODE_FOR_mxu2_divs_w CODE_FOR_mxu2_divv4si3
++#define CODE_FOR_mxu2_divs_d CODE_FOR_mxu2_divv2di3
++#define CODE_FOR_mxu2_divu_b CODE_FOR_mxu2_udivv16qi3
++#define CODE_FOR_mxu2_divu_h CODE_FOR_mxu2_udivv8hi3
++#define CODE_FOR_mxu2_divu_w CODE_FOR_mxu2_udivv4si3
++#define CODE_FOR_mxu2_divu_d CODE_FOR_mxu2_udivv2di3
++#define CODE_FOR_mxu2_mods_b CODE_FOR_mxu2_modv16qi3
++#define CODE_FOR_mxu2_mods_h CODE_FOR_mxu2_modv8hi3
++#define CODE_FOR_mxu2_mods_w CODE_FOR_mxu2_modv4si3
++#define CODE_FOR_mxu2_mods_d CODE_FOR_mxu2_modv2di3
++#define CODE_FOR_mxu2_modu_b CODE_FOR_mxu2_umodv16qi3
++#define CODE_FOR_mxu2_modu_h CODE_FOR_mxu2_umodv8hi3
++#define CODE_FOR_mxu2_modu_w CODE_FOR_mxu2_umodv4si3
++#define CODE_FOR_mxu2_modu_d CODE_FOR_mxu2_umodv2di3
++#define CODE_FOR_mxu2_mul_b CODE_FOR_mxu2_mulv16qi3
++#define CODE_FOR_mxu2_mul_h CODE_FOR_mxu2_mulv8hi3
++#define CODE_FOR_mxu2_mul_w CODE_FOR_mxu2_mulv4si3
++#define CODE_FOR_mxu2_mul_d CODE_FOR_mxu2_mulv2di3
++#define CODE_FOR_mxu2_li_b CODE_FOR_mxu2_liv16qi
++#define CODE_FOR_mxu2_li_h CODE_FOR_mxu2_liv8hi
++#define CODE_FOR_mxu2_li_w CODE_FOR_mxu2_liv4si
++#define CODE_FOR_mxu2_li_d CODE_FOR_mxu2_liv2di
++#define CODE_FOR_mxu2_andv CODE_FOR_mxu2_andv16qi3
++#define CODE_FOR_mxu2_orv CODE_FOR_mxu2_iorv16qi3
++#define CODE_FOR_mxu2_xorv CODE_FOR_mxu2_xorv16qi3
++#define CODE_FOR_mxu2_norv CODE_FOR_mxu2_norv_b
++#define CODE_FOR_mxu2_bselv CODE_FOR_mxu2_bselv_b
++#define CODE_FOR_mxu2_fadd_w CODE_FOR_mxu2_addv4sf3
++#define CODE_FOR_mxu2_fadd_d CODE_FOR_mxu2_addv2df3
++#define CODE_FOR_mxu2_fsub_w CODE_FOR_mxu2_subv4sf3
++#define CODE_FOR_mxu2_fsub_d CODE_FOR_mxu2_subv2df3
++#define CODE_FOR_mxu2_fmul_w CODE_FOR_mxu2_mulv4sf3
++#define CODE_FOR_mxu2_fmul_d CODE_FOR_mxu2_mulv2df3
++#define CODE_FOR_mxu2_fdiv_w CODE_FOR_mxu2_divv4sf3
++#define CODE_FOR_mxu2_fdiv_d CODE_FOR_mxu2_divv2df3
++#define CODE_FOR_mxu2_fsqrt_w CODE_FOR_mxu2_sqrtv4sf2
++#define CODE_FOR_mxu2_fsqrt_d CODE_FOR_mxu2_sqrtv2df2
++#define CODE_FOR_mxu2_bnez1q CODE_FOR_mxu2_bnez1q_b
++#define CODE_FOR_mxu2_beqz1q CODE_FOR_mxu2_beqz1q_b
++#define CODE_FOR_mxu2_lu1qx CODE_FOR_mxu2_lu1qx_b
++#define CODE_FOR_mxu2_lu1q CODE_FOR_mxu2_lu1q_b
++#define CODE_FOR_mxu2_su1qx CODE_FOR_mxu2_su1qx_b
++#define CODE_FOR_mxu2_su1q CODE_FOR_mxu2_su1q_b
++#define CODE_FOR_mxu2_la1qx CODE_FOR_mxu2_la1qx_b
++#define CODE_FOR_mxu2_la1q CODE_FOR_mxu2_la1q_b
++#define CODE_FOR_mxu2_sa1qx CODE_FOR_mxu2_sa1qx_b
++#define CODE_FOR_mxu2_sa1q CODE_FOR_mxu2_sa1q_b
++#define CODE_FOR_mxu2_shufv CODE_FOR_mxu2_shufv_b
++
++#define CODE_FOR_mxu2_fmax_w CODE_FOR_mxu2_smaxv4sf3
++#define CODE_FOR_mxu2_fmax_d CODE_FOR_mxu2_smaxv2df3
++#define CODE_FOR_mxu2_fmin_w CODE_FOR_mxu2_sminv4sf3
++#define CODE_FOR_mxu2_fmin_d CODE_FOR_mxu2_sminv2df3
++
++#define CODE_FOR_mxu2_slli_b CODE_FOR_mxu2_vashlv16qi3
++#define CODE_FOR_mxu2_slli_h CODE_FOR_mxu2_vashlv8hi3
++#define CODE_FOR_mxu2_slli_w CODE_FOR_mxu2_vashlv4si3
++#define CODE_FOR_mxu2_slli_d CODE_FOR_mxu2_vashlv2di3
++#define CODE_FOR_mxu2_srai_b CODE_FOR_mxu2_vashrv16qi3
++#define CODE_FOR_mxu2_srai_h CODE_FOR_mxu2_vashrv8hi3
++#define CODE_FOR_mxu2_srai_w CODE_FOR_mxu2_vashrv4si3
++#define CODE_FOR_mxu2_srai_d CODE_FOR_mxu2_vashrv2di3
++#define CODE_FOR_mxu2_srli_b CODE_FOR_mxu2_vlshrv16qi3
++#define CODE_FOR_mxu2_srli_h CODE_FOR_mxu2_vlshrv8hi3
++#define CODE_FOR_mxu2_srli_w CODE_FOR_mxu2_vlshrv4si3
++#define CODE_FOR_mxu2_srli_d CODE_FOR_mxu2_vlshrv2di3
++
++/* Built-in functions for Ingenic MXU2.	 */
++/* branch */
++MXU2_BUILTIN (bnez16b, MIPS_SI_FTYPE_UV16QI),
++MXU2_BUILTIN (bnez8h, MIPS_SI_FTYPE_UV8HI),
++MXU2_BUILTIN (bnez4w, MIPS_SI_FTYPE_UV4SI),
++MXU2_BUILTIN (bnez2d, MIPS_SI_FTYPE_UV2DI),
++MXU2_BUILTIN (bnez1q, MIPS_SI_FTYPE_UV16QI),
++MXU2_BUILTIN (beqz16b, MIPS_SI_FTYPE_UV16QI),
++MXU2_BUILTIN (beqz8h, MIPS_SI_FTYPE_UV8HI),
++MXU2_BUILTIN (beqz4w, MIPS_SI_FTYPE_UV4SI),
++MXU2_BUILTIN (beqz2d, MIPS_SI_FTYPE_UV2DI),
++MXU2_BUILTIN (beqz1q, MIPS_SI_FTYPE_UV16QI),
++
++/* compare */
++MXU2_BUILTIN (ceq_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (ceq_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (ceq_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (ceq_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (ceqz_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (ceqz_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (ceqz_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (ceqz_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (cne_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (cne_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (cne_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (cne_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (cnez_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (cnez_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (cnez_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (cnez_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (cles_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (cles_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (cles_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (cles_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (cleu_b, MIPS_V16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (cleu_h, MIPS_V8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (cleu_w, MIPS_V4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (cleu_d, MIPS_V2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (clez_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (clez_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (clez_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (clez_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (clts_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (clts_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (clts_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (clts_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (cltu_b, MIPS_V16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (cltu_h, MIPS_V8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (cltu_w, MIPS_V4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (cltu_d, MIPS_V2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (cltz_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (cltz_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (cltz_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (cltz_d, MIPS_V2DI_FTYPE_V2DI),
++
++/* integer arithmetic */
++MXU2_BUILTIN (adda_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (adda_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (adda_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (adda_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (addas_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (addas_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (addas_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (addas_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (addss_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (addss_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (addss_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (addss_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (adduu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (adduu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (adduu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (adduu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (add_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (add_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (add_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (add_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (subsa_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (subsa_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (subsa_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (subsa_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (subua_b, MIPS_V16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (subua_h, MIPS_V8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (subua_w, MIPS_V4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (subua_d, MIPS_V2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (subss_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (subss_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (subss_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (subss_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (subuu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (subuu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (subuu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (subuu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (subus_b, MIPS_V16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (subus_h, MIPS_V8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (subus_w, MIPS_V4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (subus_d, MIPS_V2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (sub_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (sub_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (sub_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (sub_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (aves_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (aves_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (aves_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (aves_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (aveu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (aveu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (aveu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (aveu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (avers_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (avers_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (avers_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (avers_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (averu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (averu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (averu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (averu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (divs_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (divs_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (divs_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (divs_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (divu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (divu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (divu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (divu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (mods_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (mods_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mods_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (mods_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (modu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (modu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (modu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (modu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (madd_b, MIPS_V16QI_FTYPE_V16QI_V16QI_V16QI),
++MXU2_BUILTIN (madd_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (madd_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (madd_d, MIPS_V2DI_FTYPE_V2DI_V2DI_V2DI),
++MXU2_BUILTIN (msub_b, MIPS_V16QI_FTYPE_V16QI_V16QI_V16QI),
++MXU2_BUILTIN (msub_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (msub_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (msub_d, MIPS_V2DI_FTYPE_V2DI_V2DI_V2DI),
++MXU2_BUILTIN (mul_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (mul_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mul_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (mul_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (maxa_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (maxa_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (maxa_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (maxa_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (maxs_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (maxs_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (maxs_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (maxs_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (maxu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (maxu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (maxu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (maxu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (mina_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (mina_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mina_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (mina_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (mins_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (mins_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mins_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (mins_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (minu_b, MIPS_UV16QI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (minu_h, MIPS_UV8HI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (minu_w, MIPS_UV4SI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (minu_d, MIPS_UV2DI_FTYPE_UV2DI_UV2DI),
++MXU2_BUILTIN (sats_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (sats_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (sats_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (sats_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (satu_b, MIPS_UV16QI_FTYPE_UV16QI_UQI),
++MXU2_BUILTIN (satu_h, MIPS_UV8HI_FTYPE_UV8HI_UQI),
++MXU2_BUILTIN (satu_w, MIPS_UV4SI_FTYPE_UV4SI_UQI),
++MXU2_BUILTIN (satu_d, MIPS_UV2DI_FTYPE_UV2DI_UQI),
++
++/* dot product */
++MXU2_BUILTIN (dotps_h, MIPS_V8HI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (dotps_w, MIPS_V4SI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (dotps_d, MIPS_V2DI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (dotpu_h, MIPS_UV8HI_FTYPE_UV16QI_UV16QI),
++MXU2_BUILTIN (dotpu_w, MIPS_UV4SI_FTYPE_UV8HI_UV8HI),
++MXU2_BUILTIN (dotpu_d, MIPS_UV2DI_FTYPE_UV4SI_UV4SI),
++MXU2_BUILTIN (dadds_h, MIPS_V8HI_FTYPE_V8HI_V16QI_V16QI),
++MXU2_BUILTIN (dadds_w, MIPS_V4SI_FTYPE_V4SI_V8HI_V8HI),
++MXU2_BUILTIN (dadds_d, MIPS_V2DI_FTYPE_V2DI_V4SI_V4SI),
++MXU2_BUILTIN (daddu_h, MIPS_UV8HI_FTYPE_UV8HI_UV16QI_UV16QI),
++MXU2_BUILTIN (daddu_w, MIPS_UV4SI_FTYPE_UV4SI_UV8HI_UV8HI),
++MXU2_BUILTIN (daddu_d, MIPS_UV2DI_FTYPE_UV2DI_UV4SI_UV4SI),
++MXU2_BUILTIN (dsubs_h, MIPS_V8HI_FTYPE_V8HI_V16QI_V16QI),
++MXU2_BUILTIN (dsubs_w, MIPS_V4SI_FTYPE_V4SI_V8HI_V8HI),
++MXU2_BUILTIN (dsubs_d, MIPS_V2DI_FTYPE_V2DI_V4SI_V4SI),
++MXU2_BUILTIN (dsubu_h, MIPS_V8HI_FTYPE_V8HI_UV16QI_UV16QI),
++MXU2_BUILTIN (dsubu_w, MIPS_V4SI_FTYPE_V4SI_UV8HI_UV8HI),
++MXU2_BUILTIN (dsubu_d, MIPS_V2DI_FTYPE_V2DI_UV4SI_UV4SI),
++
++/* bitwise */
++MXU2_BUILTIN (loc_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (loc_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (loc_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (loc_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (lzc_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (lzc_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (lzc_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (lzc_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (bcnt_b, MIPS_V16QI_FTYPE_V16QI),
++MXU2_BUILTIN (bcnt_h, MIPS_V8HI_FTYPE_V8HI),
++MXU2_BUILTIN (bcnt_w, MIPS_V4SI_FTYPE_V4SI),
++MXU2_BUILTIN (bcnt_d, MIPS_V2DI_FTYPE_V2DI),
++MXU2_BUILTIN (andv  , MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (andib , MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (norv  , MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (norib , MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (xorv  , MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (xorib , MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (orv   , MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (orib  , MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (bselv , MIPS_V16QI_FTYPE_V16QI_V16QI_V16QI),
++
++/* floating point  Arithmetic */
++MXU2_BUILTIN (fadd_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fadd_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fsub_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fsub_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fmul_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fmul_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fdiv_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fdiv_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fsqrt_w, MIPS_V4SF_FTYPE_V4SF),
++MXU2_BUILTIN (fsqrt_d, MIPS_V2DF_FTYPE_V2DF),
++MXU2_BUILTIN (fmadd_w, MIPS_V4SF_FTYPE_V4SF_V4SF_V4SF),
++MXU2_BUILTIN (fmadd_d, MIPS_V2DF_FTYPE_V2DF_V2DF_V2DF),
++MXU2_BUILTIN (fmsub_w, MIPS_V4SF_FTYPE_V4SF_V4SF_V4SF),
++MXU2_BUILTIN (fmsub_d, MIPS_V2DF_FTYPE_V2DF_V2DF_V2DF),
++MXU2_BUILTIN (fmax_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fmax_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fmaxa_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fmaxa_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fmin_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fmin_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fmina_w, MIPS_V4SF_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fmina_d, MIPS_V2DF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fclass_w, MIPS_V4SI_FTYPE_V4SF),
++MXU2_BUILTIN (fclass_d, MIPS_V2DI_FTYPE_V2DF),
++
++/* floating point conversion */
++MXU2_BUILTIN (fceq_w, MIPS_V4SI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fceq_d, MIPS_V2DI_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fcle_w, MIPS_V4SI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fcle_d, MIPS_V2DI_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fclt_w, MIPS_V4SI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fclt_d, MIPS_V2DI_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (fcor_w, MIPS_V4SI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (fcor_d, MIPS_V2DI_FTYPE_V2DF_V2DF),
++
++/* floating point conversion */
++MXU2_BUILTIN (vcvths, MIPS_V8HI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (vcvtsd, MIPS_V4SF_FTYPE_V2DF_V2DF),
++MXU2_BUILTIN (vcvtesh, MIPS_V4SF_FTYPE_V8HI),
++MXU2_BUILTIN (vcvteds, MIPS_V2DF_FTYPE_V4SF),
++MXU2_BUILTIN (vcvtosh, MIPS_V4SF_FTYPE_V8HI),
++MXU2_BUILTIN (vcvtods, MIPS_V2DF_FTYPE_V4SF),
++MXU2_BUILTIN (vcvtssw, MIPS_V4SF_FTYPE_V4SI),
++MXU2_BUILTIN (vcvtsdl, MIPS_V2DF_FTYPE_V2DI),
++MXU2_BUILTIN (vcvtusw, MIPS_V4SF_FTYPE_UV4SI),
++MXU2_BUILTIN (vcvtudl, MIPS_V2DF_FTYPE_UV2DI),
++MXU2_BUILTIN (vcvtsws, MIPS_V4SI_FTYPE_V4SF),
++MXU2_BUILTIN (vcvtsld, MIPS_V2DI_FTYPE_V2DF),
++MXU2_BUILTIN (vcvtuws, MIPS_UV4SI_FTYPE_V4SF),
++MXU2_BUILTIN (vcvtuld, MIPS_UV2DI_FTYPE_V2DF),
++MXU2_BUILTIN (vcvtrws, MIPS_V4SI_FTYPE_V4SF),
++MXU2_BUILTIN (vcvtrld, MIPS_V2DI_FTYPE_V2DF),
++MXU2_BUILTIN (vtruncsws, MIPS_V4SI_FTYPE_V4SF),
++MXU2_BUILTIN (vtruncsld, MIPS_V2DI_FTYPE_V2DF),
++MXU2_BUILTIN (vtruncuws, MIPS_UV4SI_FTYPE_V4SF),
++MXU2_BUILTIN (vtrunculd, MIPS_UV2DI_FTYPE_V2DF),
++MXU2_BUILTIN (vcvtqesh, MIPS_V4SF_FTYPE_V8HI),
++MXU2_BUILTIN (vcvtqedw, MIPS_V2DF_FTYPE_V4SI),
++MXU2_BUILTIN (vcvtqosh, MIPS_V4SF_FTYPE_V8HI),
++MXU2_BUILTIN (vcvtqodw, MIPS_V2DF_FTYPE_V4SI),
++MXU2_BUILTIN (vcvtqhs, MIPS_V8HI_FTYPE_V4SF_V4SF),
++MXU2_BUILTIN (vcvtqwd, MIPS_V4SI_FTYPE_V2DF_V2DF),
++
++/* fixed-point multiplication */
++MXU2_BUILTIN (maddq_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (maddq_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (maddqr_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (maddqr_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (msubq_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (msubq_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (msubqr_h, MIPS_V8HI_FTYPE_V8HI_V8HI_V8HI),
++MXU2_BUILTIN (msubqr_w, MIPS_V4SI_FTYPE_V4SI_V4SI_V4SI),
++MXU2_BUILTIN (mulq_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mulq_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (mulqr_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (mulqr_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++
++/* shift */
++MXU2_BUILTIN (sll_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (sll_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (sll_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (sll_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (slli_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (slli_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (slli_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (slli_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (sra_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (sra_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (sra_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (sra_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (srai_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (srai_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (srai_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (srai_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (srar_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (srar_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (srar_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (srar_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (srari_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (srari_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (srari_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (srari_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (srl_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (srl_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (srl_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (srl_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (srli_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (srli_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (srli_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (srli_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (srlr_b, MIPS_V16QI_FTYPE_V16QI_V16QI),
++MXU2_BUILTIN (srlr_h, MIPS_V8HI_FTYPE_V8HI_V8HI),
++MXU2_BUILTIN (srlr_w, MIPS_V4SI_FTYPE_V4SI_V4SI),
++MXU2_BUILTIN (srlr_d, MIPS_V2DI_FTYPE_V2DI_V2DI),
++MXU2_BUILTIN (srlri_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (srlri_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (srlri_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (srlri_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++
++/* Element permute */
++MXU2_BUILTIN (shufv, MIPS_V16QI_FTYPE_V16QI_V16QI_V16QI),
++MXU2_BUILTIN (insfcpu_b, MIPS_V16QI_FTYPE_V16QI_UQI_SI),
++MXU2_BUILTIN (insfcpu_h, MIPS_V8HI_FTYPE_V8HI_UQI_SI),
++MXU2_BUILTIN (insfcpu_w, MIPS_V4SI_FTYPE_V4SI_UQI_SI),
++MXU2_BUILTIN (insfcpu_d, MIPS_V2DI_FTYPE_V2DI_UQI_DI),
++MXU2_BUILTIN (insffpu_w, MIPS_V4SF_FTYPE_V4SF_UQI_SF),
++MXU2_BUILTIN (insffpu_d, MIPS_V2DF_FTYPE_V2DF_UQI_DF),
++MXU2_BUILTIN (insfmxu_b, MIPS_V16QI_FTYPE_V16QI_UQI_V16QI),
++MXU2_BUILTIN (insfmxu_h, MIPS_V8HI_FTYPE_V8HI_UQI_V8HI),
++MXU2_BUILTIN (insfmxu_w, MIPS_V4SI_FTYPE_V4SI_UQI_V4SI),
++MXU2_BUILTIN (insfmxu_d, MIPS_V2DI_FTYPE_V2DI_UQI_V2DI),
++MXU2_BUILTIN (repx_b, MIPS_V16QI_FTYPE_V16QI_SI),
++MXU2_BUILTIN (repx_h, MIPS_V8HI_FTYPE_V8HI_SI),
++MXU2_BUILTIN (repx_w, MIPS_V4SI_FTYPE_V4SI_SI),
++MXU2_BUILTIN (repx_d, MIPS_V2DI_FTYPE_V2DI_SI),
++MXU2_BUILTIN (repi_b, MIPS_V16QI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (repi_h, MIPS_V8HI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (repi_w, MIPS_V4SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (repi_d, MIPS_V2DI_FTYPE_V2DI_UQI),
++
++/* load/store */
++MXU2_BUILTIN (mtcpus_b, MIPS_SI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (mtcpus_h, MIPS_SI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (mtcpus_w, MIPS_SI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (mtcpus_d, MIPS_DI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (mtcpuu_b, MIPS_USI_FTYPE_V16QI_UQI),
++MXU2_BUILTIN (mtcpuu_h, MIPS_USI_FTYPE_V8HI_UQI),
++MXU2_BUILTIN (mtcpuu_w, MIPS_USI_FTYPE_V4SI_UQI),
++MXU2_BUILTIN (mtcpuu_d, MIPS_UDI_FTYPE_V2DI_UQI),
++MXU2_BUILTIN (mfcpu_b, MIPS_V16QI_FTYPE_SI),
++MXU2_BUILTIN (mfcpu_h, MIPS_V8HI_FTYPE_SI),
++MXU2_BUILTIN (mfcpu_w, MIPS_V4SI_FTYPE_SI),
++MXU2_BUILTIN (mfcpu_d, MIPS_V2DI_FTYPE_DI),
++MXU2_BUILTIN (mtfpu_w, MIPS_SF_FTYPE_V4SF_UQI),
++MXU2_BUILTIN (mtfpu_d, MIPS_DF_FTYPE_V2DF_UQI),
++MXU2_BUILTIN (mffpu_w, MIPS_V4SF_FTYPE_SF),
++MXU2_BUILTIN (mffpu_d, MIPS_V2DF_FTYPE_DF),
++MXU2_NO_TARGET_BUILTIN (ctcmxu, MIPS_VOID_FTYPE_UQI_SI),
++MXU2_BUILTIN (cfcmxu, MIPS_SI_FTYPE_UQI),
++MXU2_BUILTIN (lu1q , MIPS_V16QI_FTYPE_CVPOINTER_SI),
++MXU2_BUILTIN (lu1qx, MIPS_V16QI_FTYPE_CVPOINTER_SI),
++MXU2_BUILTIN (la1q , MIPS_V16QI_FTYPE_CVPOINTER_SI),
++MXU2_BUILTIN (la1qx, MIPS_V16QI_FTYPE_CVPOINTER_SI),
++MXU2_NO_TARGET_BUILTIN (su1q , MIPS_VOID_FTYPE_V16QI_CVPOINTER_SI),
++MXU2_NO_TARGET_BUILTIN (su1qx, MIPS_VOID_FTYPE_V16QI_CVPOINTER_SI),
++MXU2_NO_TARGET_BUILTIN (sa1q , MIPS_VOID_FTYPE_V16QI_CVPOINTER_SI),
++MXU2_NO_TARGET_BUILTIN (sa1qx, MIPS_VOID_FTYPE_V16QI_CVPOINTER_SI),
++MXU2_BUILTIN (li_b, MIPS_V16QI_FTYPE_HI),
++MXU2_BUILTIN (li_h, MIPS_V8HI_FTYPE_HI),
++MXU2_BUILTIN (li_w, MIPS_V4SI_FTYPE_HI),
++MXU2_BUILTIN (li_d, MIPS_V2DI_FTYPE_HI),
+--- a/gcc/config/mips/mips-mxu2.md
++++ b/gcc/config/mips/mips-mxu2.md
+@@ -0,0 +1,1833 @@
++;; Machine Description for MIPS INGENIC MXU2
++;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
++;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
++;;
++;; Copyright (C) 2014 Free Software Foundation, Inc.
++;; Contributed by Qian Liu, qian.liu@ingenic.com.
++;;
++;; This file is part of GCC.
++;;
++;; GCC is free software; you can redistribute it and/or modify
++;; it under the terms of the GNU General Public License as published by
++;; the Free Software Foundation; either version 3, or (at your option)
++;; any later version.
++;;
++;; GCC is distributed in the hope that it will be useful,
++;; but WITHOUT ANY WARRANTY; without even the implied warranty of
++;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++;; GNU General Public License for more details.
++;;
++;; You should have received a copy of the GNU General Public License
++;; along with GCC; see the file COPYING3.  If not see
++;; <http://www.gnu.org/licenses/>.
++;;
++
++(define_c_enum "unspec" [
++   UNSPEC_MXU2_BNEZ1Q
++   UNSPEC_MXU2_BEQZ1Q
++   UNSPEC_MXU2_BNEZ
++   UNSPEC_MXU2_BEQZ
++   UNSPEC_MXU2_CEQZ
++   UNSPEC_MXU2_CNEZ
++   UNSPEC_MXU2_CLEZ
++   UNSPEC_MXU2_CLTZ
++   UNSPEC_MXU2_AVES
++   UNSPEC_MXU2_AVEU
++   UNSPEC_MXU2_AVERS
++   UNSPEC_MXU2_AVERU
++   UNSPEC_MXU2_SUBUA
++   UNSPEC_MXU2_SUBSS
++
++   UNSPEC_MXU2_FMAX
++   UNSPEC_MXU2_FMAXA
++   UNSPEC_MXU2_FMIN
++   UNSPEC_MXU2_FMINA
++   UNSPEC_MXU2_FCLASS
++
++   UNSPEC_MXU2_MAXA
++   UNSPEC_MXU2_MAXS
++   UNSPEC_MXU2_MAXU
++   UNSPEC_MXU2_MINA
++   UNSPEC_MXU2_MINS
++   UNSPEC_MXU2_MINU
++   UNSPEC_MXU2_SATS
++   UNSPEC_MXU2_SATU
++   UNSPEC_MXU2_SLLI
++   UNSPEC_MXU2_SRAI
++   UNSPEC_MXU2_SRLI
++   UNSPEC_MXU2_SRAR
++   UNSPEC_MXU2_SRARI
++   UNSPEC_MXU2_SRLR
++   UNSPEC_MXU2_SRLRI
++   UNSPEC_MXU2_DOTPS
++   UNSPEC_MXU2_DOTPU
++   UNSPEC_MXU2_DADDS
++   UNSPEC_MXU2_DADDU
++   UNSPEC_MXU2_DSUBS
++   UNSPEC_MXU2_DSUBU
++   UNSPEC_MXU2_LOC
++   UNSPEC_MXU2_LZC
++   UNSPEC_MXU2_BCNT
++   UNSPEC_MXU2_ANDIB
++   UNSPEC_MXU2_NORIB
++   UNSPEC_MXU2_ORIB
++   UNSPEC_MXU2_XORIB
++   UNSPEC_MXU2_NORV
++   UNSPEC_MXU2_BSELV
++
++   UNSPEC_MXU2_VCVTHS
++   UNSPEC_MXU2_VCVTSD
++   UNSPEC_MXU2_VCVTESH
++   UNSPEC_MXU2_VCVTEDS
++   UNSPEC_MXU2_VCVTOSH
++   UNSPEC_MXU2_VCVTODS
++   UNSPEC_MXU2_VCVTS_F
++   UNSPEC_MXU2_VCVTU_F
++   UNSPEC_MXU2_VCVTSWS
++   UNSPEC_MXU2_VCVTSLD
++   UNSPEC_MXU2_VCVTUWS
++   UNSPEC_MXU2_VCVTULD
++   UNSPEC_MXU2_VCVTRWS
++   UNSPEC_MXU2_VCVTRLD
++   UNSPEC_MXU2_VTRUNCS
++   UNSPEC_MXU2_VTRUNCU
++   UNSPEC_MXU2_VCVTQESH
++   UNSPEC_MXU2_VCVTQEDW
++   UNSPEC_MXU2_VCVTQOSH
++   UNSPEC_MXU2_VCVTQODW
++   UNSPEC_MXU2_VCVTQHS
++   UNSPEC_MXU2_VCVTQWD
++
++   UNSPEC_MXU2_MADDQ
++   UNSPEC_MXU2_MADDQR
++   UNSPEC_MXU2_MSUBQ
++   UNSPEC_MXU2_MSUBQR
++   UNSPEC_MXU2_MULQ
++   UNSPEC_MXU2_MULQR
++
++   UNSPEC_MXU2_MTFPU
++   UNSPEC_MXU2_MFCPU
++   UNSPEC_MXU2_MFFPU
++   UNSPEC_MXU2_INSFCPU
++   UNSPEC_MXU2_INSFFPU
++   UNSPEC_MXU2_INSFMXU
++   UNSPEC_MXU2_REPX
++   UNSPEC_MXU2_REPI
++   UNSPEC_MXU2_SHUFV
++   UNSPEC_MXU2_SA1QX
++   UNSPEC_MXU2_LA1QX
++   UNSPEC_MXU2_SA1Q
++   UNSPEC_MXU2_LA1Q
++   UNSPEC_MXU2_SU1QX
++   UNSPEC_MXU2_SU1Q
++   UNSPEC_MXU2_LU1QX
++   UNSPEC_MXU2_LU1Q
++   UNSPEC_MXU2_CFCMXU
++   UNSPEC_MXU2_CTCMXU
++   UNSPEC_MXU2_FMADD
++   UNSPEC_MXU2_FMSUB
++])
++
++;; This attribute is used to form the MODE for reg_or_0_operand
++;; constraint.
++(define_mode_attr REGOR0
++  [(V2DF "DF")
++   (V4SF "SF")
++   (V2DI "DI")
++   (V4SI "SI")
++   (V8HI "SI")
++   (V16QI "SI")])
++
++;; This attribute qives define_insn suffix for instructions
++;; with need distinction between integer and floating point.
++(define_mode_attr mxu2fmt_f
++  [(V2DF  "d_f")
++   (V4SF  "w_f")
++   (V2DI  "d")
++   (V4SI  "w")
++   (V8HI  "h")
++   (V16QI "b")])
++
++(define_mode_attr br_mxu2fmt
++  [(V2DI  "2d")
++   (V4SI  "4w")
++   (V8HI  "8h")
++   (V16QI "16b")])
++
++(define_mode_attr mxu2fmt2
++  [(V2DF  "d")
++   (V4SF  "w")
++   (V2DI  "d")
++   (V4SI  "w")
++   (V8HI  "h")
++   (V16QI "b")])
++
++(define_mode_attr mxu2fmt
++  [(V2DF "d")
++   (V4SF "w")
++   (V2DI "d")
++   (V4SI "w")
++   (V8HI "h")
++   (V16QI "b")])
++
++;; All vector modes with 128 bits.
++(define_mode_iterator MXU2     [V2DF V4SF V2DI V4SI V8HI V16QI])
++
++;; Only integer modes.
++(define_mode_iterator IMXU2     [V2DI V4SI V8HI V16QI])
++
++;; As IMXU2 but excludeds V16QI.
++(define_mode_iterator IMXU2_XQ [V2DI V4SI V8HI])
++
++;; As IMXU2 but excludeds V2DI.
++(define_mode_iterator IMXU2_X      [V4SI V8HI V16QI])
++
++;; Only used with insert.
++(define_mode_iterator MXU2_3    [V16QI V8HI])
++
++;; Only floating-point modes.
++(define_mode_iterator FMXU2     [V2DF V4SF])
++
++(define_mode_attr FINT [(V4SF "V4SI") (V2DF "V2DI")])
++(define_mode_attr RES [(V2DF "DF") (V4SF "SF") (V2DI "DI") (V4SI "SI") (V8HI "SI") (V16QI "SI")])
++(define_mode_attr VHALFMODE [(V8HI "V16QI") (V4SI "V8HI") (V2DI "V4SI") (V2DF "V4SF")])
++(define_mode_attr unitfmt [(V2DF "d") (V4SF "s")])
++(define_mode_attr mxu2fmt_ivconv [(V2DF "l") (V4SF "w")])
++
++
++;; Standard vector operation patterns for MXU2.
++;; These enable C vector operations (a+b, a-b, etc.) and builtins
++;; that map through CODE_FOR_addv4si3, etc.
++
++(define_insn "mxu2_add<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(plus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		    (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "add<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_sub<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(minus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "sub<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_mul<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(mult:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		    (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "mul<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_div<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(div:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		   (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "divs<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_udiv<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(udiv:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		    (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "divu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_mod<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(mod:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		   (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "mods<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_umod<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(umod:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "modu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_and<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(and:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		   (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "andv\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_ior<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(ior:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		   (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "orv\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_xor<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(xor:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		   (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "xorv\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_one_cmpl<mode>2"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(not:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "norv\t%w0,%w1,%w1"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_neg<mode>2"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(neg:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "sub<mxu2fmt>\t%w0,%w0,%w1"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_vashl<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(ashift:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "sll<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_vashr<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(ashiftrt:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++			(match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "sra<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_vlshr<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(lshiftrt:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++			(match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "srl<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_smax<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(smax:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		    (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "maxs<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_smin<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(smin:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		    (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "mins<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_umax<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(umax:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "maxu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_umin<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(umin:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "minu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_ssadd<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(ss_plus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		       (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "addss<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_usadd<mode>3"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(us_plus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		       (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "adduu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++;; Float operations
++(define_insn "mxu2_add<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(plus:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		    (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fadd<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_sub<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(minus:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		     (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fsub<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_mul<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(mult:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		    (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fmul<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_div<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(div:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		   (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fdiv<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_sqrt<mode>2"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(sqrt:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fsqrt<mxu2fmt>\t%w0,%w1"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_smax<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(smax:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		    (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fmax<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++(define_insn "mxu2_smin<mode>3"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(smin:FMXU2 (match_operand:FMXU2 1 "register_operand" "q")
++		    (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "fmin<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode" "TI")])
++
++
++;; lat_mult1 for B/H 5; W 7; D 10;
++;; lat_mult2 for B 12 H 20 W 36 D 68
++;; lat_mult3 for float W 7 D 10
++;; lat_mult4 for float W 10 D 15
++;; lat_mult5 for float W 15 D 18
++
++(define_attr "lat_type"
++  "unknown, lat3, lat4, lat5, lat6, lat9, lat33,
++   lat_mult1, lat_mult2, lat_mult3, lat_mult4,
++   lat_mult5"
++ (const_string "unknown"))
++
++(define_attr "mxu2_execunit"
++  "unknown, mxu2_eu_mult, mxu2_eu_div"
++ (const_string "unknown"))
++
++;;
++;;Compare & Float point compare
++;;
++(define_code_iterator MXU2_FCC [ordered eq le lt])
++
++(define_code_attr mxu2_fcc
++    [(ordered   "fcor")
++     (eq        "fceq")
++     (le        "fcle")
++     (lt        "fclt")])
++
++(define_code_iterator MXU2_ICC [eq ne le leu lt ltu])
++
++(define_code_attr mxu2_icc
++    [(eq  "eq")
++     (ne  "ne")
++     (le  "les")
++     (leu "leu")
++     (lt  "lts")
++     (ltu "ltu")])
++
++;; 128bit MXU2 modes only in mxu2 registers or memmory
++;; an exception is allowing MXU2 modes for GP registers for arguments
++;; and return values.
++(define_insn "mov<mode>_mxu2"
++  [(set (match_operand:MXU2 0 "nonimmediate_operand" "=q,q,R,*d,q,q")
++	(match_operand:MXU2 1 "move_operand" "q,R,q,q,*d,qYGYN"))]
++  "ISA_HAS_MXU2
++   && (register_operand (operands[0], <MODE>mode)
++       || reg_or_0_operand (operands[1], <MODE>mode))"
++{  return mips_output_move (operands[0], operands[1]); }
++   [(set_attr "can_delay"    "yes,no,no,yes,yes,yes")
++   (set_attr "mode"     "TI")])
++
++(define_split
++  [(set (match_operand:MXU2 0 "nonimmediate_operand")
++	(match_operand:MXU2 1 "move_operand"))]
++  "reload_completed && TARGET_MXU2
++   && mips_split_128bit_move_p (operands[0], operands[1])"
++  [(const_int 0)]
++{
++  mips_split_128bit_move (operands[0], operands[1]);
++  DONE;
++})
++
++;;
++;;Float point conversion
++;;
++
++
++(define_insn "mxu2_vcvths"
++  [(set (match_operand:V8HI 0 "register_operand" "=q")
++	(unspec:V8HI [(match_operand:V4SF 1 "register_operand" "q")
++		      (match_operand:V4SF 2 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTHS))]
++  "ISA_HAS_MXU2"
++  "vcvths\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtsd"
++  [(set (match_operand:V4SF 0 "register_operand" "=q")
++	(unspec:V4SF [(match_operand:V2DF 1 "register_operand" "q")
++		      (match_operand:V2DF 2 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTSD))]
++  "ISA_HAS_MXU2"
++  "vcvtsd\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtesh"
++  [(set (match_operand:V4SF 0 "register_operand" "=q")
++	(unspec:V4SF [(match_operand:V8HI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTESH))]
++  "ISA_HAS_MXU2"
++  "vcvtesh\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvteds"
++  [(set (match_operand:V2DF 0 "register_operand" "=q")
++	(unspec:V2DF [(match_operand:V4SF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTEDS))]
++  "ISA_HAS_MXU2"
++  "vcvteds\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtosh"
++  [(set (match_operand:V4SF 0 "register_operand" "=q")
++	(unspec:V4SF [(match_operand:V8HI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTOSH))]
++  "ISA_HAS_MXU2"
++  "vcvtosh\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtods"
++  [(set (match_operand:V2DF 0 "register_operand" "=q")
++	(unspec:V2DF [(match_operand:V4SF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTODS))]
++  "ISA_HAS_MXU2"
++  "vcvtods\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++;; int -> float vcvtssw/dl  vcvtusw/dl
++(define_insn "mxu2_vcvts<FMXU2:unitfmt><FMXU2:mxu2fmt_ivconv>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:<FINT> 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTS_F))]
++  "ISA_HAS_MXU2"
++  "vcvts<FMXU2:unitfmt><FMXU2:mxu2fmt_ivconv>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtu<FMXU2:unitfmt><FMXU2:mxu2fmt_ivconv>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:<FINT> 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTU_F))]
++  "ISA_HAS_MXU2"
++  "vcvtu<FMXU2:unitfmt><FMXU2:mxu2fmt_ivconv>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;;vcvtsws/ vcvtsld
++(define_insn "mxu2_vcvtsws"
++  [(set (match_operand:V4SI 0 "register_operand" "=q")
++	(unspec:V4SI [(match_operand:V4SF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTSWS))]
++  "ISA_HAS_MXU2"
++  "vcvtsws\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++(define_insn "mxu2_vcvtsld"
++  [(set (match_operand:V2DI 0 "register_operand" "=q")
++	(unspec:V2DI [(match_operand:V2DF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTSLD))]
++  "ISA_HAS_MXU2"
++  "vcvtsld\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;;vcvtuws/ vcvtuld
++(define_insn "mxu2_vcvtuws"
++  [(set (match_operand:V4SI 0 "register_operand" "=q")
++	(unspec:V4SI [(match_operand:V4SF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTUWS))]
++  "ISA_HAS_MXU2"
++  "vcvtuws\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++(define_insn "mxu2_vcvtuld"
++  [(set (match_operand:V2DI 0 "register_operand" "=q")
++	(unspec:V2DI [(match_operand:V2DF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTULD))]
++  "ISA_HAS_MXU2"
++  "vcvtuld\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;; vcvtrws/ vcvtrld
++
++(define_insn "mxu2_vcvtrws"
++  [(set (match_operand:V4SI 0 "register_operand" "=q")
++	(unspec:V4SI [(match_operand:V4SF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTRWS))]
++  "ISA_HAS_MXU2"
++  "vcvtrws\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++(define_insn "mxu2_vcvtrld"
++  [(set (match_operand:V2DI 0 "register_operand" "=q")
++	(unspec:V2DI [(match_operand:V2DF 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTRLD))]
++  "ISA_HAS_MXU2"
++  "vcvtrld\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;;vtruncsws/ vtruncsld
++;;vtruncuws/ vtrunculd
++
++(define_insn "mxu2_vtruncs<FMXU2:mxu2fmt_ivconv><FMXU2:unitfmt>"
++  [(set (match_operand:<FINT> 0 "register_operand" "=q")
++	(unspec:<FINT> [(match_operand:FMXU2 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VTRUNCS))]
++  "ISA_HAS_MXU2"
++  "vtruncs<FMXU2:mxu2fmt_ivconv><FMXU2:unitfmt>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vtruncu<FMXU2:mxu2fmt_ivconv><FMXU2:unitfmt>"
++  [(set (match_operand:<FINT> 0 "register_operand" "=q")
++	(unspec:<FINT> [(match_operand:FMXU2 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VTRUNCU))]
++  "ISA_HAS_MXU2"
++  "vtruncu<FMXU2:mxu2fmt_ivconv><FMXU2:unitfmt>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;;
++;;vcvtqesh / vcvtqedw !!
++;;
++(define_insn "mxu2_vcvtqesh"
++  [(set (match_operand:V4SF 0 "register_operand" "=q")
++	(unspec:V4SF [(match_operand:V8HI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQESH))]
++  "ISA_HAS_MXU2"
++  "vcvtqesh\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++(define_insn "mxu2_vcvtqedw"
++  [(set (match_operand:V2DF 0 "register_operand" "=q")
++	(unspec:V2DF [(match_operand:V4SI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQEDW))]
++  "ISA_HAS_MXU2"
++  "vcvtqedw\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;;vcvtqosh/ vcvtqodw
++(define_insn "mxu2_vcvtqosh"
++  [(set (match_operand:V4SF 0 "register_operand" "=q")
++	(unspec:V4SF [(match_operand:V8HI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQOSH))]
++  "ISA_HAS_MXU2"
++  "vcvtqosh\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++(define_insn "mxu2_vcvtqodw"
++  [(set (match_operand:V2DF 0 "register_operand" "=q")
++	(unspec:V2DF [(match_operand:V4SI 1 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQODW))]
++  "ISA_HAS_MXU2"
++  "vcvtqodw\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++;; vcvtqhs/ vcvtqwd
++(define_insn "mxu2_vcvtqhs"
++  [(set (match_operand:V8HI 0 "register_operand" "=q")
++	(unspec:V8HI [(match_operand:V4SF 1 "register_operand" "q")
++		      (match_operand:V4SF 2 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQHS))]
++  "ISA_HAS_MXU2"
++  "vcvtqhs\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++(define_insn "mxu2_vcvtqwd"
++  [(set (match_operand:V4SI 0 "register_operand" "=q")
++	(unspec:V4SI [(match_operand:V2DF 1 "register_operand" "q")
++		      (match_operand:V2DF 2 "register_operand" "q")]
++		     UNSPEC_MXU2_VCVTQWD))]
++  "ISA_HAS_MXU2"
++  "vcvtqwd\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat9")])
++
++
++;;
++;; branch
++;;
++
++;;bnez1q
++(define_insn "mxu2_branchnz_1q_<mxu2fmt_f>"
++ [(set (pc) (if_then_else
++       	        (ne (unspec:SI [(match_operand:MXU2 1 "register_operand" "q")]
++	     	 	     UNSPEC_MXU2_BNEZ1Q)
++	        (match_operand:SI 2 "const_0_operand"))
++	     (label_ref (match_operand 0))
++	     (pc)))]
++  "ISA_HAS_MXU2"
++  {
++	return mips_output_conditional_branch (insn, operands,
++	       				      MIPS_BRANCH ("bnez1q", "%w1,%0"),
++	       				      MIPS_BRANCH ("beqz1q", "%w1,%0"));
++  }
++  [(set_attr "lat_type"	"lat3")])
++
++(define_expand "mxu2_bnez1q_<mxu2fmt_f>"
++ [(set (match_operand:SI 0 "register_operand" "=d")
++       (unspec:SI [(match_operand:MXU2 1 "register_operand" "q")]
++       UNSPEC_MXU2_BNEZ1Q))]
++ "ISA_HAS_MXU2"
++ {
++	mips_expand_mxu2_branch (operands, gen_mxu2_branchnz_1q_<MXU2:mxu2fmt_f>);
++	DONE;
++ })
++
++;;beqz1q
++(define_insn "mxu2_branchz_1q_<mxu2fmt_f>"
++ [(set (pc) (if_then_else
++       	        (eq (unspec:SI [(match_operand:MXU2 1 "register_operand" "q")]
++	     	 	     UNSPEC_MXU2_BEQZ1Q)
++	        (match_operand:SI 2 "const_0_operand"))
++	     (label_ref (match_operand 0))
++	     (pc)))]
++  "ISA_HAS_MXU2"
++  {
++	return mips_output_conditional_branch (insn, operands,
++	       				      MIPS_BRANCH ("beqz1q", "%w1,%0"),
++	       				      MIPS_BRANCH ("bnez1q", "%w1,%0"));
++  }
++  [(set_attr "lat_type"	"unknown")])
++
++(define_expand "mxu2_beqz1q_<mxu2fmt_f>"
++ [(set (match_operand:SI 0 "register_operand" "=d")
++       (unspec:SI [(match_operand:MXU2 1 "register_operand" "q")]
++       UNSPEC_MXU2_BEQZ1Q))]
++ "ISA_HAS_MXU2"
++ {
++	mips_expand_mxu2_branch (operands, gen_mxu2_branchz_1q_<MXU2:mxu2fmt_f>);
++	DONE;
++ })
++
++;; bnez<br_mxu2fmt>
++(define_insn "mxu2_branchnz_<br_mxu2fmt>"
++ [(set (pc) (if_then_else
++       	        (ne (unspec:SI [(match_operand:IMXU2 1 "register_operand" "q")]
++	     	 	     UNSPEC_MXU2_BNEZ)
++	        (match_operand:IMXU2 2 "const_0_operand"))
++	     (label_ref (match_operand 0))
++	     (pc)))]
++  "ISA_HAS_MXU2"
++  {
++	return mips_output_conditional_branch (insn, operands,
++	       				      MIPS_BRANCH ("bnez<br_mxu2fmt>", "%w1,%0"),
++	       				      MIPS_BRANCH ("beqz<br_mxu2fmt>", "%w1,%0"));
++  }
++  [(set_attr "lat_type"	"unknown")])
++
++(define_expand "mxu2_bnez<br_mxu2fmt>"
++ [(set (match_operand:SI 0 "register_operand" "=d")
++       (unspec:SI [(match_operand:IMXU2 1 "register_operand" "q")]
++       UNSPEC_MXU2_BNEZ))]
++ "ISA_HAS_MXU2"
++ {
++	mips_expand_mxu2_branch (operands, gen_mxu2_branchnz_<IMXU2:br_mxu2fmt>);
++	DONE;
++ })
++
++
++;; beqz<br_mxu2fmt>
++(define_insn "mxu2_branchz_<br_mxu2fmt>"
++ [(set (pc) (if_then_else
++       	        (eq (unspec:SI [(match_operand:IMXU2 1 "register_operand" "q")]
++	     	 	     UNSPEC_MXU2_BEQZ)
++	        (match_operand:IMXU2 2 "const_0_operand"))
++	     (label_ref (match_operand 0))
++	     (pc)))]
++  "ISA_HAS_MXU2"
++  {
++	return mips_output_conditional_branch (insn, operands,
++	       				      MIPS_BRANCH ("beqz<br_mxu2fmt>", "%w1,%0"),
++	       				      MIPS_BRANCH ("bnez<br_mxu2fmt>", "%w1,%0"));
++  }
++  [(set_attr "lat_type"	"unknown")])
++
++(define_expand "mxu2_beqz<br_mxu2fmt>"
++ [(set (match_operand:SI 0 "register_operand" "=d")
++       (unspec:SI [(match_operand:IMXU2 1 "register_operand" "q")]
++       UNSPEC_MXU2_BEQZ))]
++ "ISA_HAS_MXU2"
++ {
++	mips_expand_mxu2_branch (operands, gen_mxu2_branchz_<IMXU2:br_mxu2fmt>);
++	DONE;
++ })
++
++;;
++;; Compare
++;;
++
++(define_insn "mxu2_c<MXU2_ICC:mxu2_icc>_<IMXU2:mxu2fmt2>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(MXU2_ICC:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++		  (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "c<MXU2_ICC:mxu2_icc><IMXU2:mxu2fmt2>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_ceqz_<mxu2fmt2>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++	UNSPEC_MXU2_CEQZ))]
++  "ISA_HAS_MXU2"
++  "ceqz<mxu2fmt2>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_cnez_<mxu2fmt2>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++	UNSPEC_MXU2_CNEZ))]
++  "ISA_HAS_MXU2"
++  "cnez<mxu2fmt2>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_clez_<mxu2fmt2>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++	UNSPEC_MXU2_CLEZ))]
++  "ISA_HAS_MXU2"
++  "clez<mxu2fmt2>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_cltz_<mxu2fmt2>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++	UNSPEC_MXU2_CLTZ))]
++  "ISA_HAS_MXU2"
++  "cltz<mxu2fmt2>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++
++;;
++;; integer arithmetic
++;;
++
++;; adda,addas,addss,adduu
++(define_insn "mxu2_adda_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (plus:IMXU2 (abs:IMXU2 (match_operand:IMXU2 1 "register_operand" "q"))
++       		  (abs:IMXU2 (match_operand:IMXU2 2 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "adda<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_addas_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (ss_plus:IMXU2 (abs:IMXU2 (match_operand:IMXU2 1 "register_operand" "q"))
++       		  (abs:IMXU2 (match_operand:IMXU2 2 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "addas<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_addss_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (ss_plus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++          	     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "addss<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_adduu_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (us_plus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++       		     (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "adduu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++;;subsa,subua,subss,subuu,subus
++(define_insn "mxu2_subsa_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (abs:IMXU2 (minus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++       		             (match_operand:IMXU2 2 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "subsa<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_subua_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++       		     (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_SUBUA))]
++  "ISA_HAS_MXU2"
++  "subua<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_subss_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++          	     (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_SUBSS))]
++  "ISA_HAS_MXU2"
++  "subss<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_subuu_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (us_minus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++       		      (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "subuu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_subus_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (ss_minus:IMXU2 (match_operand:IMXU2 1 "register_operand" "q")
++       		      (match_operand:IMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "subus<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++;; aves,aveu avers,averu
++(define_insn "mxu2_aves_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_AVES))]
++  "ISA_HAS_MXU2"
++  "aves<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_aveu_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_AVEU))]
++  "ISA_HAS_MXU2"
++  "aveu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_avers_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_AVERS))]
++  "ISA_HAS_MXU2"
++  "avers<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_averu_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_AVERU))]
++  "ISA_HAS_MXU2"
++  "averu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat3")])
++
++
++;; madd,msub
++(define_insn "mxu2_madd_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(plus:IMXU2 (mult:IMXU2 (match_operand:IMXU2 2 "register_operand" "q")
++			      (match_operand:IMXU2 3 "register_operand" "q"))
++		   (match_operand:IMXU2 1 "register_operand" "0")))]
++  "ISA_HAS_MXU2"
++  "madd<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "mxu2_execunit" "mxu2_eu_mult")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_msub_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(minus:IMXU2 (match_operand:IMXU2 1 "register_operand" "0")
++		    (mult:IMXU2 (match_operand:IMXU2 2 "register_operand" "q")
++			       (match_operand:IMXU2 3 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "msub<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "mxu2_execunit" "mxu2_eu_mult")
++   (set_attr "lat_type" "lat_mult1")])
++
++;; maxa,maxs,maxu,mina,mins,minu
++(define_insn "mxu2_maxa_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MAXA))]
++  "ISA_HAS_MXU2"
++  "maxa<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_maxs_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MAXS))]
++  "ISA_HAS_MXU2"
++  "maxs<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_maxu_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MAXU))]
++  "ISA_HAS_MXU2"
++  "maxu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_mina_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MINA))]
++  "ISA_HAS_MXU2"
++  "mina<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_mins_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MINS))]
++  "ISA_HAS_MXU2"
++  "mins<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "lat6")])
++
++(define_insn "mxu2_minu_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MINU))]
++  "ISA_HAS_MXU2"
++  "minu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "lat6")])
++
++;;sats,stau
++(define_insn "mxu2_sats_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand 2 "const_<bitimm>_operand" "")]
++		     UNSPEC_MXU2_SATS))]
++  "ISA_HAS_MXU2"
++  "sats<mxu2fmt>\t%w0,%w1,%2"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_satu_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand 2 "const_<bitimm>_operand" "")]
++		     UNSPEC_MXU2_SATU))]
++  "ISA_HAS_MXU2"
++  "satu<mxu2fmt>\t%w0,%w1,%2"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat4")])
++
++;;
++;; Dot Product
++;;
++
++;; dotps dotpu dadds daddu dsubs dsubu
++(define_insn "mxu2_dotps_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<VHALFMODE> 1 "register_operand" "q")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")]
++		       UNSPEC_MXU2_DOTPS))]
++  "ISA_HAS_MXU2"
++  "dotps<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_dotpu_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<VHALFMODE> 1 "register_operand" "q")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")]
++		       UNSPEC_MXU2_DOTPU))]
++  "ISA_HAS_MXU2"
++  "dotpu<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_dadds_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<MODE> 1 "register_operand" "0")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")
++			(match_operand:<VHALFMODE> 3 "register_operand" "q")]
++		       UNSPEC_MXU2_DADDS))]
++  "ISA_HAS_MXU2"
++  "dadds<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_daddu_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<MODE> 1 "register_operand" "0")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")
++			(match_operand:<VHALFMODE> 3 "register_operand" "q")]
++		       UNSPEC_MXU2_DADDU))]
++  "ISA_HAS_MXU2"
++  "daddu<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_dsubs_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<MODE> 1 "register_operand" "0")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")
++			(match_operand:<VHALFMODE> 3 "register_operand" "q")]
++		       UNSPEC_MXU2_DSUBS))]
++  "ISA_HAS_MXU2"
++  "dsubs<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_dsubu_<mxu2fmt>"
++  [(set (match_operand:IMXU2_XQ 0 "register_operand" "=q")
++	(unspec:<MODE> [(match_operand:<MODE> 1 "register_operand" "0")
++			(match_operand:<VHALFMODE> 2 "register_operand" "q")
++			(match_operand:<VHALFMODE> 3 "register_operand" "q")]
++		       UNSPEC_MXU2_DSUBU))]
++  "ISA_HAS_MXU2"
++  "dsubu<mxu2fmt>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++;;
++;; Bitwise
++;;
++
++;; loc,lzc,bcnt,andib,norv,norib,orib,xorvib,bselv
++(define_insn "mxu2_loc_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++		       UNSPEC_MXU2_LOC))]
++  "ISA_HAS_MXU2"
++  "loc<mxu2fmt>\t%w0,%w1"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_lzc_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++		       UNSPEC_MXU2_LZC))]
++  "ISA_HAS_MXU2"
++  "lzc<mxu2fmt>\t%w0,%w1"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_bcnt_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")]
++		       UNSPEC_MXU2_BCNT))]
++  "ISA_HAS_MXU2"
++  "bcnt<mxu2fmt>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_andib"
++  [(set (match_operand:V16QI 0 "register_operand" "=q")
++	(unspec:V16QI [(match_operand:V16QI 1 "register_operand" "q")
++		      (match_operand  2 "const_uimm8_operand" )]
++		       UNSPEC_MXU2_ANDIB))]
++  "ISA_HAS_MXU2"
++  "andib\t%w0,%w1,%2"
++  [(set_attr "mode"     "TI")])
++
++(define_insn "mxu2_norib"
++  [(set (match_operand:V16QI 0 "register_operand" "=q")
++	(unspec:V16QI [(match_operand:V16QI 1 "register_operand" "q")
++		      (match_operand  2 "const_uimm8_operand" )]
++		       UNSPEC_MXU2_NORIB))]
++  "ISA_HAS_MXU2"
++  "norib\t%w0,%w1,%2"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_norv_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(and:IMXU2 ( not:IMXU2 (match_operand:IMXU2 1 "register_operand" "q"))
++		   ( not:IMXU2 (match_operand:IMXU2 2 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "norv\t%w0,%w1,%w2"
++  [(set_attr "alu_type"	"nor")
++   (set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat3")]
++)
++
++(define_insn "mxu2_orib"
++  [(set (match_operand:V16QI 0 "register_operand" "=q")
++	(unspec:V16QI [(match_operand:V16QI 1 "register_operand" "q")
++		      (match_operand  2 "const_uimm8_operand" )]
++		       UNSPEC_MXU2_ORIB))]
++  "ISA_HAS_MXU2"
++  "orib\t%w0,%w1,%2"
++  [(set_attr "mode"     "TI")])
++
++(define_insn "mxu2_xorib"
++  [(set (match_operand:V16QI 0 "register_operand" "=q")
++	(unspec:V16QI [(match_operand:V16QI 1 "register_operand" "q")
++		      (match_operand  2 "const_uimm8_operand" )]
++		       UNSPEC_MXU2_XORIB))]
++  "ISA_HAS_MXU2"
++  "xorib\t%w0,%w1,%2"
++  [(set_attr "type"	"arith")
++   (set_attr "mode"	"TI")])
++
++(define_insn "mxu2_bselv_<mxu2fmt>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(ior:IMXU2 (and:IMXU2 (not:IMXU2  (match_operand:IMXU2 3 "register_operand" "q"))
++		   (match_operand:IMXU2 1 "register_operand" "q"))
++		  (and:IMXU2 (match_dup 3)
++		    (match_operand:IMXU2 2 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++ "bselv\t%w0,%w1,%w2,%w3"
++ [(set_attr "type" "simd_bitmov")
++  (set_attr "mode" "<MODE>")
++  (set_attr "lat_type" "lat3")])
++
++;;
++;;Floating Point Arithmetic
++;;
++
++;; fmadd.fmsub,fmaxa,fmina,fclass
++(define_insn "mxu2_fmadd_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:FMXU2 2 "register_operand" "q")
++		       (match_operand:FMXU2 3 "register_operand" "q")
++		       (match_operand:FMXU2 1 "register_operand" "0")]
++		       UNSPEC_MXU2_FMADD))]
++  "ISA_HAS_MXU2"
++  "fmadd<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type"	"lat_mult5")])
++
++(define_insn "*mxu2_fmadd_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(plus:FMXU2 (mult:FMXU2 (match_operand:FMXU2 2 "register_operand" "q")
++			      (match_operand:FMXU2 3 "register_operand" "q"))
++		   (match_operand:FMXU2 1 "register_operand" "0")))]
++  "ISA_HAS_MXU2"
++  "fmadd<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type"	"lat_mult5")])
++
++(define_insn "mxu2_fmsub_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:FMXU2 1 "register_operand" "0")
++		       (match_operand:FMXU2 2 "register_operand" "q")
++		       (match_operand:FMXU2 3 "register_operand" "q")]
++		       UNSPEC_MXU2_FMSUB))]
++  "ISA_HAS_MXU2"
++  "fmsub<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type"	"lat_mult5")])
++
++(define_insn "*mxu2_fmsub_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(minus:FMXU2 (match_operand:FMXU2 1 "register_operand" "0")
++		     (mult:FMXU2 (match_operand:FMXU2 2 "register_operand" "q")
++			 (match_operand:FMXU2 3 "register_operand" "q"))))]
++  "ISA_HAS_MXU2"
++  "fmsub<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type"	"lat_mult5")])
++
++(define_insn "mxu2_fmaxa_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:FMXU2 1 "register_operand" "q")
++		      (match_operand:FMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_FMAXA))]
++  "ISA_HAS_MXU2"
++  "fmaxa<mxu2fmt2>\t%w0,%w1,%w2"
++ [(set_attr "mode"	"TI")
++  (set_attr "lat_type"	"lat6")])
++
++(define_insn "mxu2_fmina_<mxu2fmt2>"
++  [(set (match_operand:FMXU2 0 "register_operand" "=q")
++	(unspec:FMXU2 [(match_operand:FMXU2 1 "register_operand" "q")
++		      (match_operand:FMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_FMINA))]
++  "ISA_HAS_MXU2"
++  "fmina<mxu2fmt2>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type"	"lat6")])
++
++(define_insn "mxu2_fclass_<mxu2fmt2>"
++  [(set (match_operand:<VIMODE> 0 "register_operand" "=q")
++	(unspec:<VIMODE> [(match_operand:FMXU2 1 "register_operand" "q")]
++			 UNSPEC_MXU2_FCLASS))]
++  "ISA_HAS_MXU2"
++  "fclass<mxu2fmt2>\t%w0,%w1"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat3")])
++
++;;
++;; Floating point compare
++;;
++
++;; fceq fcle fclt fcor
++(define_insn "mxu2_<MXU2_FCC:mxu2_fcc>_<FMXU2:mxu2fmt2>"
++  [(set (match_operand:<VIMODE> 0 "register_operand" "=q")
++	(MXU2_FCC:<VIMODE> (match_operand:FMXU2 1 "register_operand" "q")
++		      (match_operand:FMXU2 2 "register_operand" "q")))]
++  "ISA_HAS_MXU2"
++  "<MXU2_FCC:mxu2_fcc><FMXU2:mxu2fmt2>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat4")])
++
++
++
++;;
++;; Fixed-point multiplication
++;;
++
++;;maddq maddqr msubq msubqr mulq mulqr
++
++;; Only integer modes for fixed-point madd_q/maddr_q.
++(define_mode_iterator QMXU2     [V4SI V8HI])
++
++(define_insn "mxu2_maddq_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "0")
++			  (match_operand:QMXU2 2 "register_operand" "q")
++			  (match_operand:QMXU2 3 "register_operand" "q")]
++		     UNSPEC_MXU2_MADDQ))]
++  "ISA_HAS_MXU2"
++  "maddq<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_maddqr_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "0")
++			  (match_operand:QMXU2 2 "register_operand" "q")
++			  (match_operand:QMXU2 3 "register_operand" "q")]
++		     UNSPEC_MXU2_MADDQR))]
++  "ISA_HAS_MXU2"
++  "maddqr<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_msubq_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "0")
++			  (match_operand:QMXU2 2 "register_operand" "q")
++			  (match_operand:QMXU2 3 "register_operand" "q")]
++		     UNSPEC_MXU2_MSUBQ))]
++  "ISA_HAS_MXU2"
++  "msubq<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_msubqr_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "0")
++			  (match_operand:QMXU2 2 "register_operand" "q")
++			  (match_operand:QMXU2 3 "register_operand" "q")]
++		     UNSPEC_MXU2_MSUBQR))]
++  "ISA_HAS_MXU2"
++  "msubqr<mxu2fmt2>\t%w0,%w2,%w3"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_mulq_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "q")
++		      (match_operand:QMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MULQ))]
++  "ISA_HAS_MXU2"
++  "mulq<mxu2fmt2>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++(define_insn "mxu2_mulqr_<mxu2fmt2>"
++  [(set (match_operand:QMXU2 0 "register_operand" "=q")
++	(unspec:QMXU2 [(match_operand:QMXU2 1 "register_operand" "q")
++		      (match_operand:QMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_MULQR))]
++  "ISA_HAS_MXU2"
++  "mulqr<mxu2fmt2>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++   (set_attr "lat_type" "lat_mult1")])
++
++;;
++;; shift
++;;
++
++;; srar srari srlr srlri
++(define_insn "mxu2_srar_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_SRAR))]
++  "ISA_HAS_MXU2"
++  "srar<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_srari_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand 2 "const_<bitimm>_operand" "")]
++		     UNSPEC_MXU2_SRARI))]
++  "ISA_HAS_MXU2"
++  "srari<mxu2fmt>\t%w0,%w1,%2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_srlr_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand:IMXU2 2 "register_operand" "q")]
++		     UNSPEC_MXU2_SRLR))]
++  "ISA_HAS_MXU2"
++  "srlr<mxu2fmt>\t%w0,%w1,%w2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat4")])
++
++(define_insn "mxu2_srlri_<mxu2fmt_f>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++		      (match_operand 2 "const_<bitimm>_operand" "")]
++		     UNSPEC_MXU2_SRLRI))]
++  "ISA_HAS_MXU2"
++  "srlri<mxu2fmt>\t%w0,%w1,%2"
++  [(set_attr "mode"	"TI")
++  (set_attr "lat_type" "lat4")])
++
++;;
++;; Element permute
++;;
++
++;; shufv
++(define_insn "mxu2_shufv_<mxu2fmt_f>"
++ [(set (match_operand:MXU2 0 "register_operand" "=q")
++       (unspec:MXU2 [(match_operand:MXU2 1 "register_operand" "q")
++       		    (match_operand:MXU2 2 "register_operand" "q")
++		    (match_operand:MXU2 3 "register_operand" "q")]
++		     UNSPEC_MXU2_SHUFV))]
++ "ISA_HAS_MXU2"
++ "shufv\t%w0,%w1,%w2,%w3"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++;;insfc(f)pu  -> insert
++(define_insn "mxu2_insfcpu_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "0")
++       	        (match_operand 2 "const_<indeximm>_operand" "")
++		(match_operand:<REGOR0> 3 "reg_or_0_operand" "dJ")]
++	       UNSPEC_MXU2_INSFCPU))]
++ "ISA_HAS_MXU2"
++ "insfcpu<mxu2fmt2>\t%w0[%2],%z3"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++; Similar to mxu2_ins*_<mxu2fmt> but with <UNITMODE>mode for operand 3.
++;; Note that insert.d and insert.d_f will be split later if !TARGET_64BIT.
++
++(define_insn "*mxu2_ins_<mxu2fmt_f>"
++  [(set (match_operand:MXU2_3 0 "register_operand" "=q")
++	(unspec:MXU2_3 [(match_operand:MXU2_3 1 "register_operand" "0")
++		       (match_operand 2 "const_<indeximm>_operand" "")
++		       (match_operand:<UNITMODE> 3 "reg_or_0_operand" "dJ")]
++		      UNSPEC_MXU2_INSFCPU))]
++  "ISA_HAS_MXU2"
++  "insfcpu<mxu2fmt>\t%w0[%2],%z3"
++  [(set_attr "mode"     "TI")
++  (set_attr "lat_type" "unknown")])
++
++(define_split
++  [(set (match_operand:V2DI 0 "register_operand")
++	(unspec:V2DI [(match_operand:V2DI 1 "register_operand")
++		      (match_operand 2 "const_0_or_1_operand")
++		      (match_operand:DI 3 "reg_or_0_operand")]
++		     UNSPEC_MXU2_INSFCPU))]
++  "reload_completed && ISA_HAS_MXU2"
++  [(const_int 0)]
++{
++  mips_split_mxu2_insert_d (operands[0], operands[1], operands[2], operands[3]);
++  DONE;
++})
++
++(define_insn "mxu2_insffpu_<mxu2fmt_f>"
++ [(set (match_operand:FMXU2 0 "register_operand" "=q")
++       (unspec:FMXU2 [(match_operand:FMXU2 1 "register_operand" "0")
++       	        (match_operand 2 "const_<indeximm>_operand" "")
++		(match_operand:<REGOR0> 3 "reg_or_0_operand" "f")]
++	       UNSPEC_MXU2_INSFFPU))]
++ "ISA_HAS_MXU2"
++ "insffpu<mxu2fmt2>\t%w0[%2],%z3"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++;;insfmxu --> insve
++(define_insn "mxu2_insfmxu_<mxu2fmt_f>"
++ [(set (match_operand:MXU2 0 "register_operand" "=q")
++       (unspec:MXU2 [(match_operand:MXU2 1 "register_operand" "0")
++       	        (match_operand 2 "const_<indeximm>_operand" "")
++		(match_operand:MXU2 3 "register_operand" "q")]
++	       UNSPEC_MXU2_INSFMXU))]
++ "ISA_HAS_MXU2"
++ "insfmxu<mxu2fmt2>\t%w0[%2],%w3[0]"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++;;repx/i --> splat/i
++(define_insn "mxu2_repx_<mxu2fmt_f>"
++ [(set (match_operand:MXU2 0 "register_operand" "=q")
++       (unspec:MXU2 [(match_operand:MXU2 1 "register_operand" "q")
++       		     (match_operand:SI 2 "reg_or_0_operand" "dJ")]
++		     UNSPEC_MXU2_REPX))]
++ "ISA_HAS_MXU2"
++ "repx<mxu2fmt2>\t%w0,%w1[%z2]"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++(define_insn "mxu2_repi_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (unspec:IMXU2 [(match_operand:IMXU2 1 "register_operand" "q")
++       		     (match_operand 2 "const_<indeximm>_operand" "")]
++		     UNSPEC_MXU2_REPI))]
++ "ISA_HAS_MXU2"
++ "repi<mxu2fmt2>\t%w0,%w1[%2]"
++ [(set_attr "mode" "TI")
++  (set_attr "lat_type" "lat3")])
++
++;;
++;; load/store
++;;
++
++;;
++;; mtcpu(s/u)
++;; Note that mtcpusd will be split later.
++(define_insn "mxu2_mtcpus_<mxu2fmt_f>"
++  [(set (match_operand:<RES> 0 "register_operand" "=d")
++	(sign_extend:<RES>
++	    (vec_select:<UNITMODE>
++		(match_operand:IMXU2 1 "register_operand" "q")
++		(parallel [(match_operand 2 "const_<indeximm>_operand" "")]))))]
++  "ISA_HAS_MXU2"
++  "mtcpus<mxu2fmt>\t%0,%w1[%2]"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat3")])
++
++(define_split
++  [(set (match_operand:<UNITMODE> 0 "register_operand")
++	(sign_extend:<UNITMODE>
++	    (vec_select:<UNITMODE>
++		(match_operand:V2DI 1 "register_operand")
++		(parallel [(match_operand 2 "const_0_or_1_operand")]))))]
++  "reload_completed && TARGET_MXU2"
++  [(const_int 0)]
++{
++  mips_split_mxu2_mtcpu_d (operands[0], operands[1], operands[2], gen_mxu2_mtcpus_w);
++  DONE;
++})
++;; Note that mtcpuud will be split later.
++(define_insn "mxu2_mtcpuu_<mxu2fmt_f>"
++  [(set (match_operand:<RES> 0 "register_operand" "=d")
++	(zero_extend:<RES>
++	    (vec_select:<UNITMODE>
++		(match_operand:IMXU2 1 "register_operand" "q")
++		(parallel [(match_operand 2 "const_<indeximm>_operand" "")]))))]
++  "ISA_HAS_MXU2"
++  "mtcpuu<mxu2fmt2>\t%0,%w1[%2]"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat3")])
++
++(define_split
++  [(set (match_operand:<RES> 0 "register_operand")
++	(zero_extend:<RES>
++	    (vec_select:<RES>
++		(match_operand:V2DI 1 "register_operand")
++		(parallel [(match_operand 2 "const_0_or_1_operand")]))))]
++  "reload_completed && TARGET_MXU2"
++  [(const_int 0)]
++{
++  mips_split_mxu2_mtcpu_d (operands[0], operands[1], operands[2], gen_mxu2_mtcpuu_w);
++  DONE;
++})
++
++
++;;mtfpu
++(define_insn "mxu2_mtfpu_<mxu2fmt_f>"
++  [(set (match_operand:<RES> 0 "register_operand" "=f")
++	(unspec:<RES> [(match_operand:FMXU2 1 "register_operand" "q")
++		       (match_operand 2 "const_<indeximm>_operand" "")]
++		      UNSPEC_MXU2_MTFPU))]
++  "ISA_HAS_MXU2"
++  "mtfpu<mxu2fmt2>\t%0,%w1[%2]"
++  [(set_attr "mode"     "TI")
++   (set_attr "lat_type" "lat3")])
++
++(define_split
++  [(set (match_operand:MXU2 0 "nonimmediate_operand")
++	(match_operand:MXU2 1 "move_operand"))]
++  "reload_completed && TARGET_MXU2
++   && mips_split_128bit_move_p (operands[0], operands[1])"
++  [(const_int 0)]
++{
++  mips_split_128bit_move (operands[0], operands[1]);
++  DONE;
++})
++
++;; mfcpu/ mffpu
++(define_insn "mxu2_mfcpu_<mxu2fmt_f>"
++ [(set (match_operand:IMXU2 0 "register_operand" "=q")
++       (unspec:IMXU2 [(match_operand:<REGOR0> 1 "reg_or_0_operand" "dJ")]
++       UNSPEC_MXU2_MFCPU))]
++ "ISA_HAS_MXU2"
++ "mfcpu<mxu2fmt2>\t%w0,%z1"
++  [(set_attr "lat_type" "lat3")])
++
++
++(define_split
++  [(set (match_operand:V2DI 0 "register_operand")
++	(unspec:V2DI [(match_operand:DI 1 "reg_or_0_operand")]
++		     UNSPEC_MXU2_MFCPU))]
++  "reload_completed && TARGET_MXU2"
++  [(const_int 0)]
++{
++  mips_split_mxu2_mfcpu_d (operands[0], operands[1]);
++  DONE;
++})
++
++(define_insn "mxu2_mffpu_<mxu2fmt_f>"
++ [(set (match_operand:FMXU2 0 "register_operand" "=q")
++       (unspec:FMXU2 [(match_operand:<REGOR0> 1 "reg_or_0_operand" "f")]
++       UNSPEC_MXU2_MFFPU))]
++ "ISA_HAS_MXU2"
++ "mffpu<mxu2fmt2>\t%w0,%z1"
++  [(set_attr "lat_type" "lat3")])
++
++;;ctcmxu/cfcmxu
++(define_insn "mxu2_ctcmxu"
++  [(unspec_volatile [(match_operand 0 "const_uimm5_operand" "")
++		     (match_operand:SI 1 "register_operand" "d")]
++		    UNSPEC_MXU2_CTCMXU)]
++  "ISA_HAS_MXU2"
++  "ctcmxu\t$%0,%1"
++  [(set_attr "mode"	"SI")
++   (set_attr "lat_type"	"lat3")])
++
++
++(define_insn "mxu2_cfcmxu"
++  [(unspec_volatile [(match_operand:SI 0 "register_operand" "d")
++  		     (match_operand 1 "const_uimm5_operand" "")]
++		    UNSPEC_MXU2_CFCMXU)]
++  "ISA_HAS_MXU2"
++  "cfcmxu\t%0,$%1"
++  [(set_attr "mode"	"SI")
++   (set_attr "lat_type"	"lat3")])
++
++;; lu1q,lu1qx
++(define_insn "mxu2_lu1qx_<MXU2:mxu2fmt_f>"
++  [(set (match_operand:MXU2 0 "register_operand"  "=q")
++	(mem:MXU2 (plus:SI (match_operand 1 "register_operand" "d")
++		(match_operand 2 "register_operand" "d"))))]
++  "ISA_HAS_MXU2"
++  "lu1qx\t%w0,%z2(%z1)"
++  [(set_attr "lat_type"	"lat5")
++  (set_attr "move_type" "load")
++  (set_attr "mode" "TI")
++  (set_attr "can_delay" "no")]
++)
++
++(define_insn "mxu2_lu1q_<MXU2:mxu2fmt_f>"
++  [ (set (match_operand:MXU2 0 "register_operand" "=q")
++	 (mem:MXU2 (plus:SI (match_operand:SI 1 "register_operand" "d")
++		 (match_operand:SI 2 "const_imm10_operand"))))]
++  "ISA_HAS_MXU2"
++  "lu1q\t%w0,%2(%z1)"
++  [(set_attr "lat_type"	"lat5")
++  (set_attr "move_type" "load")
++  (set_attr "can_delay" "no")
++  (set_attr "mode" "TI")]
++)
++
++;; la1q,la1qx
++(define_insn "mxu2_la1qx_<MXU2:mxu2fmt_f>"
++  [(set (match_operand:MXU2 0 "register_operand"  "=q")
++   (unspec:MXU2 [(mem:MXU2 (plus:SI (match_operand 1 "register_operand" "d")
++			    (match_operand 2 "register_operand" "d")))]
++   UNSPEC_MXU2_LA1QX))]
++  "ISA_HAS_MXU2"
++  "la1qx\t%w0,%z2(%z1)"
++  [(set_attr "lat_type"	"lat5")
++  (set_attr "move_type" "load")
++  (set_attr "mode" "TI")])
++
++(define_insn "mxu2_la1q_<MXU2:mxu2fmt_f>"
++  [(set (match_operand:MXU2 0 "register_operand"  "=q")
++   (unspec:MXU2 [(mem:MXU2 (plus:SI (match_operand:SI 1 "register_operand" "d")
++			    (match_operand 2 "aq10_4_operand"  "")))]
++    UNSPEC_MXU2_LA1Q))]
++  "ISA_HAS_MXU2"
++  "la1q\t%w0,%2(%z1)"
++  [(set_attr "lat_type"	"lat5")
++  (set_attr "move_type" "load")
++  (set_attr "mode" "TI")])
++
++
++;; Offset store
++;; su1qx,su1q
++(define_insn "mxu2_su1qx_<MXU2:mxu2fmt_f>"
++  [(set (mem:MXU2 (plus:SI (match_operand 1 "register_operand" "d")
++			   (match_operand 2 "register_operand" "d")))
++		  (match_operand:MXU2 0 "register_operand"  "q"))]
++  "ISA_HAS_MXU2"
++  "su1qx\t%w0,%z2(%z1)"
++  [(set_attr "lat_type" "unknown")
++   (set_attr "mode" "TI")
++   (set_attr "can_delay" "no")]
++)
++
++(define_insn "mxu2_su1q_<MXU2:mxu2fmt_f>"
++  [(set (mem:MXU2 (plus:SI (match_operand:SI 1 "register_operand" "d")
++	  (match_operand:SI 2 "const_imm10_operand" "YB")))
++	(match_operand:MXU2 0 "register_operand"  "q"))]
++  "ISA_HAS_MXU2"
++  "su1q\t%w0,%2(%z1)"
++  [(set_attr "lat_type" "unknown")
++   (set_attr "mode" "TI")
++   (set_attr "can_delay" "no")]
++)
++
++;; align 16 byte store
++;; sa1qx,sa1q
++(define_insn "mxu2_sa1qx_<MXU2:mxu2fmt_f>"
++  [(set (mem:MXU2 (plus:SI (match_operand 1 "register_operand" "d")
++   	              (match_operand 2 "register_operand" "d")))
++        (unspec:MXU2 [(match_operand:MXU2 0 "register_operand"  "q")]
++	UNSPEC_MXU2_SA1QX))]
++  "ISA_HAS_MXU2"
++  "sa1qx\t%w0,%z2(%z1)"
++  [(set_attr "lat_type" "unknown")
++   (set_attr "mode" "TI")])
++
++(define_insn "mxu2_sa1q_<MXU2:mxu2fmt_f>"
++  [(set (mem:MXU2 (plus:SI (match_operand 1 "register_operand" "d")
++   	              (match_operand 2 "aq10_4_operand" "")))
++        (unspec:MXU2 [(match_operand:MXU2 0 "register_operand"  "q")]
++	UNSPEC_MXU2_SA1Q))]
++  "ISA_HAS_MXU2"
++  "sa1q\t%w0,%2(%z1)"
++  [(set_attr "lat_type" "unknown")
++   (set_attr "mode" "TI")])
++
++;; li
++(define_insn "mxu2_li<mode>_insn"
++ [(set (match_operand:IMXU2 0  "register_operand" "=q")
++       (match_operand:IMXU2 1  "const_vector_same_simm15_operand" ""))]
++ "ISA_HAS_MXU2"
++ {
++    operands[1] = CONST_VECTOR_ELT (operands[1], 0);
++    return "li<mxu2fmt>\t%w0,%d1";
++ }
++ [(set_attr "lat_type" "lat3")])
++
++
++(define_expand "mxu2_li<mode>"
++ [(match_operand:IMXU2 0 "register_operand")
++  (match_operand 1 "const_imm15_operand")]
++ "ISA_HAS_MXU2"
++ {
++  if (<MODE>mode == V16QImode)
++    operands[1] = GEN_INT (trunc_int_for_mode (INTVAL (operands[1]),
++					       <UNITMODE>mode));
++  emit_insn (gen_mxu2_li<mode>_insn (operands[0],
++		  mips_gen_const_int_vector (<MODE>mode, INTVAL (operands[1]))));
++  DONE;
++ })
++
++(define_insn "mxu2_li0<mode>"
++ [(set (match_operand:FMXU2 0 "register_operand" "=q")
++       (match_operand 1 "const_0_operand"))]
++  "ISA_HAS_MXU2"
++  "li<mxu2fmt2>\t%w0,0"
++  [(set_attr "mode" "TI")
++   (set_attr "lat_type"	"lat3")])
++
+--- a/gcc/config/mips/mxu2.h
++++ b/gcc/config/mips/mxu2.h
+@@ -0,0 +1,432 @@
++/* MIPS MXU2 intrinsics include file.
++
++   Copyright (C) 2006 Ingenic Semiconductor CO.,LTD.
++   Contributed by Qian Liu, qian.liu@ingenic.com.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published
++   by the Free Software Foundation; either version 3, or (at your
++   option) any later version.
++
++   GCC is distributed in the hope that it will be useful, but WITHOUT
++   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
++   License for more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#ifndef _MXU2_H
++#define _MXU2_H 1
++
++#if defined(__mips_mxu2)
++typedef signed char v16i8 __attribute__((vector_size(16), aligned(16)));
++typedef unsigned char v16u8 __attribute__((vector_size(16), aligned(16)));
++typedef short v8i16 __attribute__((vector_size(16), aligned(16)));
++typedef unsigned short v8u16 __attribute__((vector_size(16), aligned(16)));
++typedef int v4i32 __attribute__((vector_size(16), aligned(16)));
++typedef unsigned int v4u32 __attribute__((vector_size(16), aligned(16)));
++typedef long long v2i64 __attribute__((vector_size(16), aligned(16)));
++typedef unsigned long long v2u64 __attribute__((vector_size(16), aligned(16)));
++typedef float v4f32 __attribute__((vector_size(16), aligned(16)));
++typedef double v2f64 __attribute__ ((vector_size(16), aligned(16)));
++
++/* The Intel API is flexible enough that we must allow aliasing with other
++   vector types, and their scalar components.  */
++typedef long long __m128i __attribute__ ((__vector_size__ (16), __may_alias__));
++typedef double __m128d __attribute__ ((__vector_size__ (16), __may_alias__));
++typedef float __m128 __attribute__ ((__vector_size__ (16), __may_alias__));
++
++
++
++#ifndef __clang__
++#define _mx128_bnez1q __builtin_mxu2_bnez1q
++#define _mx128_bnez16b __builtin_mxu2_bnez16b
++#define _mx128_bnez8h __builtin_mxu2_bnez8h
++#define _mx128_bnez4w __builtin_mxu2_bnez4w
++#define _mx128_bnez2d __builtin_mxu2_bnez2d
++#define _mx128_beqz1q __builtin_mxu2_beqz1q
++#define _mx128_beqz16b __builtin_mxu2_beqz16b
++#define _mx128_beqz8h __builtin_mxu2_beqz8h
++#define _mx128_beqz4w __builtin_mxu2_beqz4w
++#define _mx128_beqz2d __builtin_mxu2_beqz2d
++/* Compare */
++#define _mx128_ceq_b __builtin_mxu2_ceq_b
++#define _mx128_ceq_h __builtin_mxu2_ceq_h
++#define _mx128_ceq_w __builtin_mxu2_ceq_w
++#define _mx128_ceq_d __builtin_mxu2_ceq_d
++#define _mx128_ceqz_b __builtin_mxu2_ceqz_b
++#define _mx128_ceqz_h __builtin_mxu2_ceqz_h
++#define _mx128_ceqz_w __builtin_mxu2_ceqz_w
++#define _mx128_ceqz_d __builtin_mxu2_ceqz_d
++#define _mx128_cne_b __builtin_mxu2_cne_b
++#define _mx128_cne_h __builtin_mxu2_cne_h
++#define _mx128_cne_w __builtin_mxu2_cne_w
++#define _mx128_cne_d __builtin_mxu2_cne_d
++#define _mx128_cnez_b __builtin_mxu2_cnez_b
++#define _mx128_cnez_h __builtin_mxu2_cnez_h
++#define _mx128_cnez_w __builtin_mxu2_cnez_w
++#define _mx128_cnez_d __builtin_mxu2_cnez_d
++#define _mx128_cles_b __builtin_mxu2_cles_b
++#define _mx128_cles_h __builtin_mxu2_cles_h
++#define _mx128_cles_w __builtin_mxu2_cles_w
++#define _mx128_cles_d __builtin_mxu2_cles_d
++#define _mx128_cleu_b __builtin_mxu2_cleu_b
++#define _mx128_cleu_h __builtin_mxu2_cleu_h
++#define _mx128_cleu_w __builtin_mxu2_cleu_w
++#define _mx128_cleu_d __builtin_mxu2_cleu_d
++#define _mx128_clez_b __builtin_mxu2_clez_b
++#define _mx128_clez_h __builtin_mxu2_clez_h
++#define _mx128_clez_w __builtin_mxu2_clez_w
++#define _mx128_clez_d __builtin_mxu2_clez_d
++#define _mx128_clts_b __builtin_mxu2_clts_b
++#define _mx128_clts_h __builtin_mxu2_clts_h
++#define _mx128_clts_w __builtin_mxu2_clts_w
++#define _mx128_clts_d __builtin_mxu2_clts_d
++#define _mx128_cltu_b __builtin_mxu2_cltu_b
++#define _mx128_cltu_h __builtin_mxu2_cltu_h
++#define _mx128_cltu_w __builtin_mxu2_cltu_w
++#define _mx128_cltu_d __builtin_mxu2_cltu_d
++#define _mx128_cltz_b __builtin_mxu2_cltz_b
++#define _mx128_cltz_h __builtin_mxu2_cltz_h
++#define _mx128_cltz_w __builtin_mxu2_cltz_w
++#define _mx128_cltz_d __builtin_mxu2_cltz_d
++/* Integer Arithmetic */
++#define _mx128_adda_b __builtin_mxu2_adda_b
++#define _mx128_adda_h __builtin_mxu2_adda_h
++#define _mx128_adda_w __builtin_mxu2_adda_w
++#define _mx128_adda_d __builtin_mxu2_adda_d
++#define _mx128_addas_b __builtin_mxu2_addas_b
++#define _mx128_addas_h __builtin_mxu2_addas_h
++#define _mx128_addas_w __builtin_mxu2_addas_w
++#define _mx128_addas_d __builtin_mxu2_addas_d
++#define _mx128_addss_b __builtin_mxu2_addss_b
++#define _mx128_addss_h __builtin_mxu2_addss_h
++#define _mx128_addss_w __builtin_mxu2_addss_w
++#define _mx128_addss_d __builtin_mxu2_addss_d
++#define _mx128_adduu_b __builtin_mxu2_adduu_b
++#define _mx128_adduu_h __builtin_mxu2_adduu_h
++#define _mx128_adduu_w __builtin_mxu2_adduu_w
++#define _mx128_adduu_d __builtin_mxu2_adduu_d
++#define _mx128_add_b __builtin_mxu2_add_b
++#define _mx128_add_h __builtin_mxu2_add_h
++#define _mx128_add_w __builtin_mxu2_add_w
++#define _mx128_add_d __builtin_mxu2_add_d
++#define _mx128_subsa_b __builtin_mxu2_subsa_b
++#define _mx128_subsa_h __builtin_mxu2_subsa_h
++#define _mx128_subsa_w __builtin_mxu2_subsa_w
++#define _mx128_subsa_d __builtin_mxu2_subsa_d
++#define _mx128_subua_b __builtin_mxu2_subua_b
++#define _mx128_subua_h __builtin_mxu2_subua_h
++#define _mx128_subua_w __builtin_mxu2_subua_w
++#define _mx128_subua_d __builtin_mxu2_subua_d
++#define _mx128_subss_b __builtin_mxu2_subss_b
++#define _mx128_subss_h __builtin_mxu2_subss_h
++#define _mx128_subss_w __builtin_mxu2_subss_w
++#define _mx128_subss_d __builtin_mxu2_subss_d
++#define _mx128_subuu_b __builtin_mxu2_subuu_b
++#define _mx128_subuu_h __builtin_mxu2_subuu_h
++#define _mx128_subuu_w __builtin_mxu2_subuu_w
++#define _mx128_subuu_d __builtin_mxu2_subuu_d
++#define _mx128_subus_b __builtin_mxu2_subus_b
++#define _mx128_subus_h __builtin_mxu2_subus_h
++#define _mx128_subus_w __builtin_mxu2_subus_w
++#define _mx128_subus_d __builtin_mxu2_subus_d
++#define _mx128_sub_b __builtin_mxu2_sub_b
++#define _mx128_sub_h __builtin_mxu2_sub_h
++#define _mx128_sub_w __builtin_mxu2_sub_w
++#define _mx128_sub_d __builtin_mxu2_sub_d
++#define _mx128_aves_b __builtin_mxu2_aves_b
++#define _mx128_aves_h __builtin_mxu2_aves_h
++#define _mx128_aves_w __builtin_mxu2_aves_w
++#define _mx128_aves_d __builtin_mxu2_aves_d
++#define _mx128_aveu_b __builtin_mxu2_aveu_b
++#define _mx128_aveu_h __builtin_mxu2_aveu_h
++#define _mx128_aveu_w __builtin_mxu2_aveu_w
++#define _mx128_aveu_d __builtin_mxu2_aveu_d
++#define _mx128_avers_b __builtin_mxu2_avers_b
++#define _mx128_avers_h __builtin_mxu2_avers_h
++#define _mx128_avers_w __builtin_mxu2_avers_w
++#define _mx128_avers_d __builtin_mxu2_avers_d
++#define _mx128_averu_b __builtin_mxu2_averu_b
++#define _mx128_averu_h __builtin_mxu2_averu_h
++#define _mx128_averu_w __builtin_mxu2_averu_w
++#define _mx128_averu_d __builtin_mxu2_averu_d
++#define _mx128_divs_b __builtin_mxu2_divs_b
++#define _mx128_divs_h __builtin_mxu2_divs_h
++#define _mx128_divs_w __builtin_mxu2_divs_w
++#define _mx128_divs_d __builtin_mxu2_divs_d
++#define _mx128_divu_b __builtin_mxu2_divu_b
++#define _mx128_divu_h __builtin_mxu2_divu_h
++#define _mx128_divu_w __builtin_mxu2_divu_w
++#define _mx128_divu_d __builtin_mxu2_divu_d
++#define _mx128_mods_b __builtin_mxu2_mods_b
++#define _mx128_mods_h __builtin_mxu2_mods_h
++#define _mx128_mods_w __builtin_mxu2_mods_w
++#define _mx128_mods_d __builtin_mxu2_mods_d
++#define _mx128_modu_b __builtin_mxu2_modu_b
++#define _mx128_modu_h __builtin_mxu2_modu_h
++#define _mx128_modu_w __builtin_mxu2_modu_w
++#define _mx128_modu_d __builtin_mxu2_modu_d
++#define _mx128_madd_b __builtin_mxu2_madd_b
++#define _mx128_madd_h __builtin_mxu2_madd_h
++#define _mx128_madd_w __builtin_mxu2_madd_w
++#define _mx128_madd_d __builtin_mxu2_madd_d
++#define _mx128_msub_b __builtin_mxu2_msub_b
++#define _mx128_msub_h __builtin_mxu2_msub_h
++#define _mx128_msub_w __builtin_mxu2_msub_w
++#define _mx128_msub_d __builtin_mxu2_msub_d
++#define _mx128_mul_b __builtin_mxu2_mul_b
++#define _mx128_mul_h __builtin_mxu2_mul_h
++#define _mx128_mul_w __builtin_mxu2_mul_w
++#define _mx128_mul_d __builtin_mxu2_mul_d
++#define _mx128_maxa_b __builtin_mxu2_maxa_b
++#define _mx128_maxa_h __builtin_mxu2_maxa_h
++#define _mx128_maxa_w __builtin_mxu2_maxa_w
++#define _mx128_maxa_d __builtin_mxu2_maxa_d
++#define _mx128_maxs_b __builtin_mxu2_maxs_b
++#define _mx128_maxs_h __builtin_mxu2_maxs_h
++#define _mx128_maxs_w __builtin_mxu2_maxs_w
++#define _mx128_maxs_d __builtin_mxu2_maxs_d
++#define _mx128_maxu_b __builtin_mxu2_maxu_b
++#define _mx128_maxu_h __builtin_mxu2_maxu_h
++#define _mx128_maxu_w __builtin_mxu2_maxu_w
++#define _mx128_maxu_d __builtin_mxu2_maxu_d
++#define _mx128_mina_b __builtin_mxu2_mina_b
++#define _mx128_mina_h __builtin_mxu2_mina_h
++#define _mx128_mina_w __builtin_mxu2_mina_w
++#define _mx128_mina_d __builtin_mxu2_mina_d
++#define _mx128_mins_b __builtin_mxu2_mins_b
++#define _mx128_mins_h __builtin_mxu2_mins_h
++#define _mx128_mins_w __builtin_mxu2_mins_w
++#define _mx128_mins_d __builtin_mxu2_mins_d
++#define _mx128_minu_b __builtin_mxu2_minu_b
++#define _mx128_minu_h __builtin_mxu2_minu_h
++#define _mx128_minu_w __builtin_mxu2_minu_w
++#define _mx128_minu_d __builtin_mxu2_minu_d
++#define _mx128_sats_b __builtin_mxu2_sats_b
++#define _mx128_sats_h __builtin_mxu2_sats_h
++#define _mx128_sats_w __builtin_mxu2_sats_w
++#define _mx128_sats_d __builtin_mxu2_sats_d
++#define _mx128_satu_b __builtin_mxu2_satu_b
++#define _mx128_satu_h __builtin_mxu2_satu_h
++#define _mx128_satu_w __builtin_mxu2_satu_w
++#define _mx128_satu_d __builtin_mxu2_satu_d
++/* Dot */
++#define _mx128_dotps_h __builtin_mxu2_dotps_h
++#define _mx128_dotps_w __builtin_mxu2_dotps_w
++#define _mx128_dotps_d __builtin_mxu2_dotps_d
++#define _mx128_dotpu_h __builtin_mxu2_dotpu_h
++#define _mx128_dotpu_w __builtin_mxu2_dotpu_w
++#define _mx128_dotpu_d __builtin_mxu2_dotpu_d
++#define _mx128_dadds_h __builtin_mxu2_dadds_h
++#define _mx128_dadds_w __builtin_mxu2_dadds_w
++#define _mx128_dadds_d __builtin_mxu2_dadds_d
++#define _mx128_daddu_h __builtin_mxu2_daddu_h
++#define _mx128_daddu_w __builtin_mxu2_daddu_w
++#define _mx128_daddu_d __builtin_mxu2_daddu_d
++#define _mx128_dsubs_h __builtin_mxu2_dsubs_h
++#define _mx128_dsubs_w __builtin_mxu2_dsubs_w
++#define _mx128_dsubs_d __builtin_mxu2_dsubs_d
++#define _mx128_dsubu_h __builtin_mxu2_dsubu_h
++#define _mx128_dsubu_w __builtin_mxu2_dsubu_w
++#define _mx128_dsubu_d __builtin_mxu2_dsubu_d
++/* Bitwise */
++#define _mx128_loc_b __builtin_mxu2_loc_b
++#define _mx128_loc_h __builtin_mxu2_loc_h
++#define _mx128_loc_w __builtin_mxu2_loc_w
++#define _mx128_loc_d __builtin_mxu2_loc_d
++#define _mx128_lzc_b __builtin_mxu2_lzc_b
++#define _mx128_lzc_h __builtin_mxu2_lzc_h
++#define _mx128_lzc_w __builtin_mxu2_lzc_w
++#define _mx128_lzc_d __builtin_mxu2_lzc_d
++#define _mx128_bcnt_b __builtin_mxu2_bcnt_b
++#define _mx128_bcnt_h __builtin_mxu2_bcnt_h
++#define _mx128_bcnt_w __builtin_mxu2_bcnt_w
++#define _mx128_bcnt_d __builtin_mxu2_bcnt_d
++#define _mx128_andv __builtin_mxu2_andv
++#define _mx128_andib __builtin_mxu2_andib
++#define _mx128_norv __builtin_mxu2_norv
++#define _mx128_norib __builtin_mxu2_norib
++#define _mx128_orv __builtin_mxu2_orv
++#define _mx128_orib __builtin_mxu2_orib
++#define _mx128_xorv __builtin_mxu2_xorv
++#define _mx128_xorib __builtin_mxu2_xorib
++#define _mx128_bselv __builtin_mxu2_bselv
++/* Float Point Arithmetic */
++#define _mx128_fadd_w __builtin_mxu2_fadd_w
++#define _mx128_fadd_d __builtin_mxu2_fadd_d
++#define _mx128_fsub_w __builtin_mxu2_fsub_w
++#define _mx128_fsub_d __builtin_mxu2_fsub_d
++#define _mx128_fmul_w __builtin_mxu2_fmul_w
++#define _mx128_fmul_d __builtin_mxu2_fmul_d
++#define _mx128_fdiv_w __builtin_mxu2_fdiv_w
++#define _mx128_fdiv_d __builtin_mxu2_fdiv_d
++#define _mx128_fsqrt_w __builtin_mxu2_fsqrt_w
++#define _mx128_fsqrt_d __builtin_mxu2_fsqrt_d
++#define _mx128_fmadd_w __builtin_mxu2_fmadd_w
++#define _mx128_fmadd_d __builtin_mxu2_fmadd_d
++#define _mx128_fmsub_w __builtin_mxu2_fmsub_w
++#define _mx128_fmsub_d __builtin_mxu2_fmsub_d
++#define _mx128_fmax_w __builtin_mxu2_fmax_w
++#define _mx128_fmax_d __builtin_mxu2_fmax_d
++#define _mx128_fmaxa_w __builtin_mxu2_fmaxa_w
++#define _mx128_fmaxa_d __builtin_mxu2_fmaxa_d
++#define _mx128_fmin_w __builtin_mxu2_fmin_w
++#define _mx128_fmin_d __builtin_mxu2_fmin_d
++#define _mx128_fmina_w __builtin_mxu2_fmina_w
++#define _mx128_fmina_d __builtin_mxu2_fmina_d
++#define _mx128_fclass_w __builtin_mxu2_fclass_w
++#define _mx128_fclass_d __builtin_mxu2_fclass_d
++/* Float Point Compare */
++#define _mx128_fceq_w __builtin_mxu2_fceq_w
++#define _mx128_fceq_d __builtin_mxu2_fceq_d
++#define _mx128_fcle_w __builtin_mxu2_fcle_w
++#define _mx128_fcle_d __builtin_mxu2_fcle_d
++#define _mx128_fclt_w __builtin_mxu2_fclt_w
++#define _mx128_fclt_d __builtin_mxu2_fclt_d
++#define _mx128_fcor_w __builtin_mxu2_fcor_w
++#define _mx128_fcor_d __builtin_mxu2_fcor_d
++/*Float Point Conversion */
++#define _mx128_vcvths __builtin_mxu2_vcvths
++#define _mx128_vcvtsd __builtin_mxu2_vcvtsd
++#define _mx128_vcvtesh __builtin_mxu2_vcvtesh
++#define _mx128_vcvteds __builtin_mxu2_vcvteds
++#define _mx128_vcvtosh __builtin_mxu2_vcvtosh
++#define _mx128_vcvtods __builtin_mxu2_vcvtods
++#define _mx128_vcvtssw __builtin_mxu2_vcvtssw
++#define _mx128_vcvtsdl __builtin_mxu2_vcvtsdl
++#define _mx128_vcvtusw __builtin_mxu2_vcvtusw
++#define _mx128_vcvtudl __builtin_mxu2_vcvtudl
++#define _mx128_vcvtsws __builtin_mxu2_vcvtsws
++#define _mx128_vcvtsld __builtin_mxu2_vcvtsld
++#define _mx128_vcvtuws __builtin_mxu2_vcvtuws
++#define _mx128_vcvtuld __builtin_mxu2_vcvtuld
++#define _mx128_vcvtrws __builtin_mxu2_vcvtrws
++#define _mx128_vcvtrld __builtin_mxu2_vcvtrld
++#define _mx128_vtruncsws __builtin_mxu2_vtruncsws
++#define _mx128_vtruncsld __builtin_mxu2_vtruncsld
++#define _mx128_vtruncuws __builtin_mxu2_vtruncuws
++#define _mx128_vtrunculd __builtin_mxu2_vtrunculd
++#define _mx128_vcvtqesh __builtin_mxu2_vcvtqesh
++#define _mx128_vcvtqedw __builtin_mxu2_vcvtqedw
++#define _mx128_vcvtqosh __builtin_mxu2_vcvtqosh
++#define _mx128_vcvtqodw __builtin_mxu2_vcvtqodw
++#define _mx128_vcvtqhs __builtin_mxu2_vcvtqhs
++#define _mx128_vcvtqwd __builtin_mxu2_vcvtqwd
++/* Fixed Point Multiplication */
++#define _mx128_maddq_h __builtin_mxu2_maddq_h
++#define _mx128_maddq_w __builtin_mxu2_maddq_w
++#define _mx128_maddqr_h __builtin_mxu2_maddqr_h
++#define _mx128_maddqr_w __builtin_mxu2_maddqr_w
++#define _mx128_msubq_h __builtin_mxu2_msubq_h
++#define _mx128_msubq_w __builtin_mxu2_msubq_w
++#define _mx128_msubqr_h __builtin_mxu2_msubqr_h
++#define _mx128_msubqr_w __builtin_mxu2_msubqr_w
++#define _mx128_mulq_h __builtin_mxu2_mulq_h
++#define _mx128_mulq_w __builtin_mxu2_mulq_w
++#define _mx128_mulqr_h __builtin_mxu2_mulqr_h
++#define _mx128_mulqr_w __builtin_mxu2_mulqr_w
++/* Shift */
++#define _mx128_sll_b __builtin_mxu2_sll_b
++#define _mx128_sll_h __builtin_mxu2_sll_h
++#define _mx128_sll_w __builtin_mxu2_sll_w
++#define _mx128_sll_d __builtin_mxu2_sll_d
++#define _mx128_slli_b __builtin_mxu2_slli_b
++#define _mx128_slli_h __builtin_mxu2_slli_h
++#define _mx128_slli_w __builtin_mxu2_slli_w
++#define _mx128_slli_d __builtin_mxu2_slli_d
++#define _mx128_sra_b __builtin_mxu2_sra_b
++#define _mx128_sra_h __builtin_mxu2_sra_h
++#define _mx128_sra_w __builtin_mxu2_sra_w
++#define _mx128_sra_d __builtin_mxu2_sra_d
++#define _mx128_srai_b __builtin_mxu2_srai_b
++#define _mx128_srai_h __builtin_mxu2_srai_h
++#define _mx128_srai_w __builtin_mxu2_srai_w
++#define _mx128_srai_d __builtin_mxu2_srai_d
++#define _mx128_srar_b __builtin_mxu2_srar_b
++#define _mx128_srar_h __builtin_mxu2_srar_h
++#define _mx128_srar_w __builtin_mxu2_srar_w
++#define _mx128_srar_d __builtin_mxu2_srar_d
++#define _mx128_srari_b __builtin_mxu2_srari_b
++#define _mx128_srari_h __builtin_mxu2_srari_h
++#define _mx128_srari_w __builtin_mxu2_srari_w
++#define _mx128_srari_d __builtin_mxu2_srari_d
++#define _mx128_srl_b __builtin_mxu2_srl_b
++#define _mx128_srl_h __builtin_mxu2_srl_h
++#define _mx128_srl_w __builtin_mxu2_srl_w
++#define _mx128_srl_d __builtin_mxu2_srl_d
++#define _mx128_srli_b __builtin_mxu2_srli_b
++#define _mx128_srli_h __builtin_mxu2_srli_h
++#define _mx128_srli_w __builtin_mxu2_srli_w
++#define _mx128_srli_d __builtin_mxu2_srli_d
++#define _mx128_srlr_b __builtin_mxu2_srlr_b
++#define _mx128_srlr_h __builtin_mxu2_srlr_h
++#define _mx128_srlr_w __builtin_mxu2_srlr_w
++#define _mx128_srlr_d __builtin_mxu2_srlr_d
++#define _mx128_srlri_b __builtin_mxu2_srlri_b
++#define _mx128_srlri_h __builtin_mxu2_srlri_h
++#define _mx128_srlri_w __builtin_mxu2_srlri_w
++#define _mx128_srlri_d __builtin_mxu2_srlri_d
++/* Element Permute */
++#define _mx128_shufv __builtin_mxu2_shufv
++#define _mx128_insfcpu_b __builtin_mxu2_insfcpu_b
++#define _mx128_insfcpu_h __builtin_mxu2_insfcpu_h
++#define _mx128_insfcpu_w __builtin_mxu2_insfcpu_w
++#define _mx128_insfcpu_d __builtin_mxu2_insfcpu_d
++#define _mx128_insffpu_w __builtin_mxu2_insffpu_w
++#define _mx128_insffpu_d __builtin_mxu2_insffpu_d
++#define _mx128_insfmxu_b __builtin_mxu2_insfmxu_b
++#define _mx128_insfmxu_h __builtin_mxu2_insfmxu_h
++#define _mx128_insfmxu_w __builtin_mxu2_insfmxu_w
++#define _mx128_insfmxu_d __builtin_mxu2_insfmxu_d
++#define _mx128_repx_b __builtin_mxu2_repx_b
++#define _mx128_repx_h __builtin_mxu2_repx_h
++#define _mx128_repx_w __builtin_mxu2_repx_w
++#define _mx128_repx_d __builtin_mxu2_repx_d
++#define _mx128_repi_b __builtin_mxu2_repi_b
++#define _mx128_repi_h __builtin_mxu2_repi_h
++#define _mx128_repi_w __builtin_mxu2_repi_w
++#define _mx128_repi_d __builtin_mxu2_repi_d
++/* Load/Store */
++#define _mx128_mtcpus_b __builtin_mxu2_mtcpus_b
++#define _mx128_mtcpus_h __builtin_mxu2_mtcpus_h
++#define _mx128_mtcpus_w __builtin_mxu2_mtcpus_w
++#define _mx128_mtcpus_d __builtin_mxu2_mtcpus_d
++#define _mx128_mtcpuu_b __builtin_mxu2_mtcpuu_b
++#define _mx128_mtcpuu_h __builtin_mxu2_mtcpuu_h
++#define _mx128_mtcpuu_w __builtin_mxu2_mtcpuu_w
++#define _mx128_mtcpuu_d __builtin_mxu2_mtcpuu_d
++#define _mx128_mfcpu_b __builtin_mxu2_mfcpu_b
++#define _mx128_mfcpu_h __builtin_mxu2_mfcpu_h
++#define _mx128_mfcpu_w __builtin_mxu2_mfcpu_w
++#define _mx128_mfcpu_d __builtin_mxu2_mfcpu_d
++#define _mx128_mtfpu_w __builtin_mxu2_mtfpu_w
++#define _mx128_mtfpu_d __builtin_mxu2_mtfpu_d
++#define _mx128_mffpu_w __builtin_mxu2_mffpu_w
++#define _mx128_mffpu_d __builtin_mxu2_mffpu_d
++#define _mx128_ctcmxu __builtin_mxu2_ctcmxu
++#define _mx128_cfcmxu __builtin_mxu2_cfcmxu
++#define _mx128_lu1q __builtin_mxu2_lu1q
++#define _mx128_lu1qx __builtin_mxu2_lu1qx
++#define _mx128_la1q __builtin_mxu2_la1q
++#define _mx128_la1qx __builtin_mxu2_la1qx
++#define _mx128_su1q __builtin_mxu2_su1q
++#define _mx128_su1qx __builtin_mxu2_su1qx
++#define _mx128_sa1q __builtin_mxu2_sa1q
++#define _mx128_sa1qx __builtin_mxu2_sa1qx
++#define _mx128_li_b __builtin_mxu2_li_b
++#define _mx128_li_h __builtin_mxu2_li_h
++#define _mx128_li_w __builtin_mxu2_li_w
++#define _mx128_li_d __builtin_mxu2_li_d
++#endif /* __clang__ */
++#endif /* defined(__mips_mxu2) */
++#endif /* _MXU2_H */
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -485,7 +485,7 @@
+ mips*-*-*)
+ 	cpu_type=mips
+ 	d_target_objs="mips-d.o"
+-	extra_headers="loongson.h loongson-mmiintrin.h msa.h"
++	extra_headers="loongson.h loongson-mmiintrin.h msa.h mxu2.h"
+ 	extra_objs="frame-header-opt.o"
+ 	extra_options="${extra_options} g.opt fused-madd.opt mips/mips-tables.opt"
+ 	;;

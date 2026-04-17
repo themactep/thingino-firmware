@@ -1,0 +1,706 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ingenic Semiconductor <support@ingenic.com>
+Subject: [PATCH] mips: add Ingenic MXU2 128-bit SIMD instruction support
+
+Add assembler, disassembler and opcode support for the Ingenic MXU2
+128-bit SIMD extension found on XBurst1 (T20/T21/T23/T31) and
+XBurst2 (T40/T41) processors. MXU2 uses COP2 registers ($vr0-$vr31)
+for 128-bit vector operations.
+
+New assembler option: -mmxu2 / -mno-mxu2
+New disassembler option: -M mxu2
+
+364 instructions covering integer arithmetic, comparisons, shifts,
+bitwise ops, float point, dot product, element permute, type
+conversions, fixed-point multiply, and load/store operations.
+
+Branch instructions (bnez/beqz variants) use 10-bit PC-relative
+offset at bit position 6 with 2-bit right shift.
+
+Ported from Ingenic's GCC 7.2 toolchain (binutils 2017.11) to
+binutils 2.44.
+---
+--- a/include/opcode/mips.h
++++ b/include/opcode/mips.h
+@@ -233,7 +233,13 @@
+   OP_REG_MSA,
+ 
+   /* MSA control registers $0-$31.  */
+-  OP_REG_MSA_CTRL
++  OP_REG_MSA_CTRL,
++
++  /* Ingenic MXU2 vector registers $vr0-$vr31 (128-bit).  */
++  OP_REG_MXU128,
++
++  /* Ingenic MXU2 control registers.  */
++  OP_REG_MXU128_CR
+ };
+ 
+ /* Base class for all operands.  */
+@@ -1065,6 +1071,8 @@
+ /* The Enhanced VA Scheme (EVA) extension has instructions which are
+    only valid for the R6 ISA.  */
+ #define ASE_EVA_R6		0x02000000
++/* Ingenic MXU2 128-bit SIMD (XBurst1/XBurst2 COP2).  */
++#define ASE_MXU128		0x04000000
+ 
+ /* MIPS ISA defines, use instead of hardcoding ISA level.  */
+ 
+--- a/opcodes/mips-opc.c
++++ b/opcodes/mips-opc.c
+@@ -211,6 +211,25 @@
+     case 'x': REG (0, 0, GP);
+     case 'y': REG (5, 16, CONTROL);
+     case 'z': MAPPED_REG (0, 0, GP, reg_0_map);
++
++    case '=':
++      switch (p[1])
++	{
++	case 'h':  REG (5, 6,  MXU128);
++	case 'j':  REG (5, 11, MXU128);
++	case 'k':  SINT (15, 11);
++	case 'l':  SINT (10, 11);
++	case 'n':  UINT (6, 16);
++	case 's':  REG (5, 16, MXU128);
++	case 't':  REG (5, 21, MXU128);
++	case 'v':  SPECIAL (5, 16, IMM_INDEX);
++	case 'w':  SPECIAL (8, 16, IMM_INDEX);
++	case 'x':  REG (5, 6,  MXU128_CR);
++	case 'y':  UINT (8, 16);
++	case 'g':  BRANCH (10, 6, 2);
++	case 'L':  INT_ADJ (10, 11, 0x1ff, 4, false);
++	}
++      break;
+     }
+   return 0;
+ }
+@@ -429,6 +448,9 @@
+ /* Loongson EXTensions R2 (EXT2) instructions support.  */
+ #define LEXT2	ASE_LOONGSON_EXT2
+ 
++/* Ingenic MXU2 128-bit SIMD (XBurst1/XBurst2 COP2).  */
++#define MXU128	ASE_MXU128
++
+ /* The order of overloaded instructions matters.  Label arguments and
+    register arguments look the same. Instructions that can have either
+    for arguments must apear in the correct order in this table for the
+@@ -3419,6 +3441,371 @@
+ {"mtc3",		"t,G",		0x4c800000, 0xffe007ff,	RD_1|WR_C3|WR_CC|CM,	0,		I1,		0,	I3_33|EE|ALX },
+ {"mtc3",		"t,G,H",	0x4c800000, 0xffe007f8,	RD_1|WR_C3|WR_CC|CM,	0,		I32,		0,	I3_33|EE|ALX },
+ 
++/* Ingenic MXU2 128-bit SIMD instructions.  */
++{"bnez16b",		"=s,=g",	0x70800028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"bnez8h",		"=s,=g",	0x71800028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"bnez4w",		"=s,=g",	0x72800028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"bnez2d",		"=s,=g",	0x73800028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"bnez1q",		"=s,=g",	0x70800029, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"beqz16b",		"=s,=g",	0x70000028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"beqz8h",		"=s,=g",	0x71000028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"beqz4w",		"=s,=g",	0x72000028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"beqz2d",		"=s,=g",	0x73000028, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"beqz1q",		"=s,=g",	0x70000029, 0xffe0003f,	RD_1|CBD, 		0,		0,		MXU128,	0 },
++{"ceqb",		"=h,=j,=s",	0x4a000028, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"ceqh",		"=h,=j,=s",	0x4a000029, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"ceqw",		"=h,=j,=s",	0x4a00002a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"ceqd",		"=h,=j,=s",	0x4a00002b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cneb",		"=h,=j,=s",	0x4a00002c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cneh",		"=h,=j,=s",	0x4a00002d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cnew",		"=h,=j,=s",	0x4a00002e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cned",		"=h,=j,=s",	0x4a00002f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"ceqzb",		"=h,=j",	0x4bc00000, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"ceqzh",		"=h,=j",	0x4bc00001, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"ceqzw",		"=h,=j",	0x4bc00002, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"ceqzd",		"=h,=j",	0x4bc00003, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cnezb",		"=h,=j",	0x4bc00004, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cnezh",		"=h,=j",	0x4bc00005, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cnezw",		"=h,=j",	0x4bc00006, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cnezd",		"=h,=j",	0x4bc00007, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"clesb",		"=h,=j,=s",	0x4a000038, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"clesh",		"=h,=j,=s",	0x4a000039, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"clesw",		"=h,=j,=s",	0x4a00003a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"clesd",		"=h,=j,=s",	0x4a00003b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cleub",		"=h,=j,=s",	0x4a00003c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cleuh",		"=h,=j,=s",	0x4a00003d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cleuw",		"=h,=j,=s",	0x4a00003e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cleud",		"=h,=j,=s",	0x4a00003f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"clezb",		"=h,=j",	0x4bc0000c, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"clezh",		"=h,=j",	0x4bc0000d, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"clezw",		"=h,=j",	0x4bc0000e, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"clezd",		"=h,=j",	0x4bc0000f, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cltsb",		"=h,=j,=s",	0x4a000030, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltsh",		"=h,=j,=s",	0x4a000031, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltsw",		"=h,=j,=s",	0x4a000032, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltsd",		"=h,=j,=s",	0x4a000033, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltub",		"=h,=j,=s",	0x4a000034, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltuh",		"=h,=j,=s",	0x4a000035, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltuw",		"=h,=j,=s",	0x4a000036, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltud",		"=h,=j,=s",	0x4a000037, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"cltzb",		"=h,=j",	0x4bc00008, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cltzh",		"=h,=j",	0x4bc00009, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cltzw",		"=h,=j",	0x4bc0000a, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"cltzd",		"=h,=j",	0x4bc0000b, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"addab",		"=h,=j,=s",	0x4a200000, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addah",		"=h,=j,=s",	0x4a200001, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addaw",		"=h,=j,=s",	0x4a200002, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addad",		"=h,=j,=s",	0x4a200003, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addasb",		"=h,=j,=s",	0x4a200008, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addash",		"=h,=j,=s",	0x4a200009, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addasw",		"=h,=j,=s",	0x4a20000a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addasd",		"=h,=j,=s",	0x4a20000b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addssb",		"=h,=j,=s",	0x4a200010, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addssh",		"=h,=j,=s",	0x4a200011, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addssw",		"=h,=j,=s",	0x4a200012, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addssd",		"=h,=j,=s",	0x4a200013, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"adduub",		"=h,=j,=s",	0x4a200018, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"adduuh",		"=h,=j,=s",	0x4a200019, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"adduuw",		"=h,=j,=s",	0x4a20001a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"adduud",		"=h,=j,=s",	0x4a20001b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addb",		"=h,=j,=s",	0x4a200020, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addh",		"=h,=j,=s",	0x4a200021, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addw",		"=h,=j,=s",	0x4a200022, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"addd",		"=h,=j,=s",	0x4a200023, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subsab",		"=h,=j,=s",	0x4a200004, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subsah",		"=h,=j,=s",	0x4a200005, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subsaw",		"=h,=j,=s",	0x4a200006, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subsad",		"=h,=j,=s",	0x4a200007, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuab",		"=h,=j,=s",	0x4a20000c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuah",		"=h,=j,=s",	0x4a20000d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuaw",		"=h,=j,=s",	0x4a20000e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuad",		"=h,=j,=s",	0x4a20000f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subssb",		"=h,=j,=s",	0x4a200014, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subssh",		"=h,=j,=s",	0x4a200015, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subssw",		"=h,=j,=s",	0x4a200016, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subssd",		"=h,=j,=s",	0x4a200017, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuub",		"=h,=j,=s",	0x4a20001c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuuh",		"=h,=j,=s",	0x4a20001d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuuw",		"=h,=j,=s",	0x4a20001e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subuud",		"=h,=j,=s",	0x4a20001f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subusb",		"=h,=j,=s",	0x4a200024, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subush",		"=h,=j,=s",	0x4a200025, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subusw",		"=h,=j,=s",	0x4a200026, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subusd",		"=h,=j,=s",	0x4a200027, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subb",		"=h,=j,=s",	0x4a20002c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subh",		"=h,=j,=s",	0x4a20002d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subw",		"=h,=j,=s",	0x4a20002e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"subd",		"=h,=j,=s",	0x4a20002f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"avesb",		"=h,=j,=s",	0x4a200030, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"avesh",		"=h,=j,=s",	0x4a200031, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"avesw",		"=h,=j,=s",	0x4a200032, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"avesd",		"=h,=j,=s",	0x4a200033, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aveub",		"=h,=j,=s",	0x4a200038, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aveuh",		"=h,=j,=s",	0x4a200039, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aveuw",		"=h,=j,=s",	0x4a20003a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aveud",		"=h,=j,=s",	0x4a20003b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aversb",		"=h,=j,=s",	0x4a200034, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aversh",		"=h,=j,=s",	0x4a200035, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aversw",		"=h,=j,=s",	0x4a200036, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"aversd",		"=h,=j,=s",	0x4a200037, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"averub",		"=h,=j,=s",	0x4a20003c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"averuh",		"=h,=j,=s",	0x4a20003d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"averuw",		"=h,=j,=s",	0x4a20003e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"averud",		"=h,=j,=s",	0x4a20003f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divsb",		"=h,=j,=s",	0x4a400000, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divsh",		"=h,=j,=s",	0x4a400001, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divsw",		"=h,=j,=s",	0x4a400002, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divsd",		"=h,=j,=s",	0x4a400003, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divub",		"=h,=j,=s",	0x4a400008, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divuh",		"=h,=j,=s",	0x4a400009, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divuw",		"=h,=j,=s",	0x4a40000a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"divud",		"=h,=j,=s",	0x4a40000b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modsb",		"=h,=j,=s",	0x4a400010, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modsh",		"=h,=j,=s",	0x4a400011, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modsw",		"=h,=j,=s",	0x4a400012, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modsd",		"=h,=j,=s",	0x4a400013, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modub",		"=h,=j,=s",	0x4a400018, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"moduh",		"=h,=j,=s",	0x4a400019, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"moduw",		"=h,=j,=s",	0x4a40001a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"modud",		"=h,=j,=s",	0x4a40001b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maddb",		"=h,=j,=s",	0x4a40000c, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"maddh",		"=h,=j,=s",	0x4a40000d, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"maddw",		"=h,=j,=s",	0x4a40000e, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"maddd",		"=h,=j,=s",	0x4a40000f, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"msubb",		"=h,=j,=s",	0x4a400014, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"msubh",		"=h,=j,=s",	0x4a400015, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"msubw",		"=h,=j,=s",	0x4a400016, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"msubd",		"=h,=j,=s",	0x4a400017, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"mulb",		"=h,=j,=s",	0x4a400004, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulh",		"=h,=j,=s",	0x4a400005, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulw",		"=h,=j,=s",	0x4a400006, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"muld",		"=h,=j,=s",	0x4a400007, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxab",		"=h,=j,=s",	0x4a000000, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxah",		"=h,=j,=s",	0x4a000001, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxaw",		"=h,=j,=s",	0x4a000002, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxad",		"=h,=j,=s",	0x4a000003, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxsb",		"=h,=j,=s",	0x4a000008, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxsh",		"=h,=j,=s",	0x4a000009, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxsw",		"=h,=j,=s",	0x4a00000a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxsd",		"=h,=j,=s",	0x4a00000b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxub",		"=h,=j,=s",	0x4a000010, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxuh",		"=h,=j,=s",	0x4a000011, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxuw",		"=h,=j,=s",	0x4a000012, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maxud",		"=h,=j,=s",	0x4a000013, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minab",		"=h,=j,=s",	0x4a000004, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minah",		"=h,=j,=s",	0x4a000005, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minaw",		"=h,=j,=s",	0x4a000006, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minad",		"=h,=j,=s",	0x4a000007, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minsb",		"=h,=j,=s",	0x4a00000c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minsh",		"=h,=j,=s",	0x4a00000d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minsw",		"=h,=j,=s",	0x4a00000e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minsd",		"=h,=j,=s",	0x4a00000f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minub",		"=h,=j,=s",	0x4a000014, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minuh",		"=h,=j,=s",	0x4a000015, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minuw",		"=h,=j,=s",	0x4a000016, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"minud",		"=h,=j,=s",	0x4a000017, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpsh",		"=h,=j,=s",	0x4a400021, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpsw",		"=h,=j,=s",	0x4a400022, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpsd",		"=h,=j,=s",	0x4a400023, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpuh",		"=h,=j,=s",	0x4a400029, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpuw",		"=h,=j,=s",	0x4a40002a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dotpud",		"=h,=j,=s",	0x4a40002b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"daddsh",		"=h,=j,=s",	0x4a400025, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"daddsw",		"=h,=j,=s",	0x4a400026, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"daddsd",		"=h,=j,=s",	0x4a400027, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dadduh",		"=h,=j,=s",	0x4a40002d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dadduw",		"=h,=j,=s",	0x4a40002e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"daddud",		"=h,=j,=s",	0x4a40002f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubsh",		"=h,=j,=s",	0x4a400035, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubsw",		"=h,=j,=s",	0x4a400036, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubsd",		"=h,=j,=s",	0x4a400037, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubuh",		"=h,=j,=s",	0x4a40003d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubuw",		"=h,=j,=s",	0x4a40003e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"dsubud",		"=h,=j,=s",	0x4a40003f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"locb",		"=h,=j",	0x4bc00010, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"loch",		"=h,=j",	0x4bc00011, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"locw",		"=h,=j",	0x4bc00012, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"locd",		"=h,=j",	0x4bc00013, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"lzcb",		"=h,=j",	0x4bc00014, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"lzch",		"=h,=j",	0x4bc00015, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"lzcw",		"=h,=j",	0x4bc00016, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"lzcd",		"=h,=j",	0x4bc00017, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"bcntb",		"=h,=j",	0x4bc00030, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"bcnth",		"=h,=j",	0x4bc00031, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"bcntw",		"=h,=j",	0x4bc00032, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"bcntd",		"=h,=j",	0x4bc00033, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satsb",		"=h,=j,=n",	0x70000038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satsh",		"=h,=j,=n",	0x71000038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satsw",		"=h,=j,=n",	0x72000038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satsd",		"=h,=j,=n",	0x73000038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satub",		"=h,=j,=n",	0x70400038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satuh",		"=h,=j,=n",	0x71400038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satuw",		"=h,=j,=n",	0x72400038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"satud",		"=h,=j,=n",	0x73400038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"andv",		"=h,=j,=s",	0x4ac00038, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"andib",		"=h,=j,=y",	0x70000030, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"bselv",		"=h,=j,=s,=t",	0x70000019, 0xfc00003f,	WR_1|RD_2|RD_3|RD_4,	0,		0,		MXU128,	0 },
++{"norv",		"=h,=j,=s",	0x4ac00039, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"norib",		"=h,=j,=y",	0x71000030, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"orv", 		"=h,=j,=s",	0x4ac0003a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"orib",		"=h,=j,=y",	0x72000030, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"xorv", 		"=h,=j,=s",	0x4ac0003b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"xorib",		"=h,=j,=y",	0x73000030, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"faddw", 		"=h,=j,=s",	0x4b000000, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"faddd", 		"=h,=j,=s",	0x4b000001, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fsubw", 		"=h,=j,=s",	0x4b000002, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fsubd", 		"=h,=j,=s",	0x4b000003, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmulw", 		"=h,=j,=s",	0x4b000004, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmuld", 		"=h,=j,=s",	0x4b000005, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fdivw", 		"=h,=j,=s",	0x4b000006, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fdivd", 		"=h,=j,=s",	0x4b000007, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fsqrtw", 		"=h,=j",	0x4bc10000, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"fsqrtd", 		"=h,=j",	0x4bc10001, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"fmaddw", 		"=h,=j,=s",	0x4b000008, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"fmaddd", 		"=h,=j,=s",	0x4b000009, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"fmsubw", 		"=h,=j,=s",	0x4b00000a, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"fmsubd", 		"=h,=j,=s",	0x4b00000b, 0xffe0003f,	MOD_1|RD_2|RD_3,        0,		0,		MXU128,	0 },
++{"fmaxw", 		"=h,=j,=s",	0x4b000018, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmaxd", 		"=h,=j,=s",	0x4b000019, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmaxaw", 		"=h,=j,=s",	0x4b00001a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmaxad", 		"=h,=j,=s",	0x4b00001b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fminw", 		"=h,=j,=s",	0x4b00001c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fmind", 		"=h,=j,=s",	0x4b00001d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fminaw", 		"=h,=j,=s",	0x4b00001e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fminad", 		"=h,=j,=s",	0x4b00001f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fclassw", 		"=h,=j",	0x4bc10006, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"fclassd", 		"=h,=j",	0x4bc10007, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"fceqw", 		"=h,=j,=s",	0x4b000012, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fceqd", 		"=h,=j,=s",	0x4b000013, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fclew", 		"=h,=j,=s",	0x4b000016, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fcled", 		"=h,=j,=s",	0x4b000017, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fcltw", 		"=h,=j,=s",	0x4b000014, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fcltd", 		"=h,=j,=s",	0x4b000015, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fcorw", 		"=h,=j,=s",	0x4b000010, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"fcord", 		"=h,=j,=s",	0x4b000011, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"vcvths", 		"=h,=j,=s",	0x4b00000c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"vcvtsd", 		"=h,=j,=s",	0x4b00000d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"vcvtesh", 		"=h,=j",	0x4bc10020, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvteds", 		"=h,=j",	0x4bc10021, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtosh", 		"=h,=j",	0x4bc10028, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtods", 		"=h,=j",	0x4bc10029, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtssw", 		"=h,=j",	0x4bc10008, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtsdl", 		"=h,=j",	0x4bc10009, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtusw", 		"=h,=j",	0x4bc1000a, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtudl", 		"=h,=j",	0x4bc1000b, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtrws", 		"=h,=j",	0x4bc1001c, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtrld", 		"=h,=j",	0x4bc1001d, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtsws", 		"=h,=j",	0x4bc1000c, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtsld", 		"=h,=j",	0x4bc1000d, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtuws", 		"=h,=j",	0x4bc1000e, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtuld", 		"=h,=j",	0x4bc1000f, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vtruncsws", 		"=h,=j",	0x4bc10014, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vtruncsld", 		"=h,=j",	0x4bc10015, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vtruncuws", 		"=h,=j",	0x4bc10016, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vtrunculd", 		"=h,=j",	0x4bc10017, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtqesh", 		"=h,=j",	0x4bc10030, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtqedw", 		"=h,=j",	0x4bc10031, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtqosh", 		"=h,=j",	0x4bc10038, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtqodw", 		"=h,=j",	0x4bc10039, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"vcvtqhs", 		"=h,=j,=s",	0x4b00000e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"vcvtqwd", 		"=h,=j,=s",	0x4b00000f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maddqh",		"=h,=j,=s",	0x4b000030, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maddqw", 		"=h,=j,=s",	0x4b000031, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maddqrh",		"=h,=j,=s",	0x4b000032, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"maddqrw", 		"=h,=j,=s",	0x4b000033, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"msubqh",		"=h,=j,=s",	0x4b000034, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"msubqw", 		"=h,=j,=s",	0x4b000035, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"msubqrh",		"=h,=j,=s",	0x4b000036, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"msubqrw", 		"=h,=j,=s",	0x4b000037, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulqh",		"=h,=j,=s",	0x4b000028, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulqw", 		"=h,=j,=s",	0x4b000029, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulqrh",		"=h,=j,=s",	0x4b00002a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"mulqrw", 		"=h,=j,=s",	0x4b00002b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sllb",		"=h,=j,=s",	0x4a200028, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sllh",		"=h,=j,=s",	0x4a200029, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sllw",		"=h,=j,=s",	0x4a20002a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"slld",		"=h,=j,=s",	0x4a20002b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sllib",		"=h,=j,=n",	0x70800038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"sllih",		"=h,=j,=n",	0x71800038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"slliw",		"=h,=j,=n",	0x72800038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"sllid",		"=h,=j,=n",	0x73800038, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srab",		"=h,=j,=s",	0x4a000018, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srah",		"=h,=j,=s",	0x4a000019, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sraw",		"=h,=j,=s",	0x4a00001a, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srad",		"=h,=j,=s",	0x4a00001b, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"sraib",		"=h,=j,=n",	0x70000039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"sraih",		"=h,=j,=n",	0x71000039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"sraiw",		"=h,=j,=n",	0x72000039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"sraid",		"=h,=j,=n",	0x73000039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srarb",		"=h,=j,=s",	0x4a000020, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srarh",		"=h,=j,=s",	0x4a000021, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srarw",		"=h,=j,=s",	0x4a000022, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srard",		"=h,=j,=s",	0x4a000023, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srarib",		"=h,=j,=n",	0x70400039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srarih",		"=h,=j,=n",	0x71400039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srariw",		"=h,=j,=n",	0x72400039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srarid",		"=h,=j,=n",	0x73400039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlb",		"=h,=j,=s",	0x4a00001c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlh",		"=h,=j,=s",	0x4a00001d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlw",		"=h,=j,=s",	0x4a00001e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srld",		"=h,=j,=s",	0x4a00001f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlib",		"=h,=j,=n",	0x70800039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlih",		"=h,=j,=n",	0x71800039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srliw",		"=h,=j,=n",	0x72800039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlid",		"=h,=j,=n",	0x73800039, 0xffc0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlrb",		"=h,=j,=s",	0x4a000024, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlrh",		"=h,=j,=s",	0x4a000025, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlrw",		"=h,=j,=s",	0x4a000026, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlrd",		"=h,=j,=s",	0x4a000027, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"srlrib",		"=h,=j,=n",	0x70c00039, 0xffc0003f,	MOD_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlrih",		"=h,=j,=n",	0x71c00039, 0xffc0003f,	MOD_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlriw",		"=h,=j,=n",	0x72c00039, 0xffc0003f,	MOD_1|RD_2,	        0,		0,		MXU128,	0 },
++{"srlrid",		"=h,=j,=n",	0x73c00039, 0xffc0003f,	MOD_1|RD_2,	        0,		0,		MXU128,	0 },
++{"insfcpub",		"=h=w,d",	0x70000031, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfcpuh",		"=h=w,d",	0x71000031, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfcpuw",		"=h=w,d",	0x72000031, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insffpuw",		"=h=v,S",	0x4be00000, 0xffe0003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insffpud",		"=h=v,S",	0x4be00001, 0xffe0003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfmxub",		"=h=w,=j+&",	0x70000032, 0xff00003f, MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfmxuh",		"=h=w,=j+&",	0x71000032, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfmxuw",		"=h=w,=j+&",	0x72000032, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"insfmxud",		"=h=w,=j+&",	0x73000032, 0xff00003f,	MOD_1|RD_3,	        0,		0,		MXU128,	0 },
++{"repxb",		"=h,=j+*",	0x4a40001c, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"repxh",		"=h,=j+*",	0x4a40001d, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"repxw",		"=h,=j+*",	0x4a40001e, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"repxd",		"=h,=j+*",	0x4a40001f, 0xffe0003f,	WR_1|RD_2|RD_3,	        0,		0,		MXU128,	0 },
++{"repib",		"=h,=j=w",	0x70000035, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"repih",		"=h,=j=w",	0x71000035, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"repiw",		"=h,=j=w",	0x72000035, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"repid",		"=h,=j=w",	0x73000035, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"shufv",		"=h,=j,=s,=t",	0x70000018, 0xfc00003f,	WR_1|RD_2|RD_3|RD_4,    0,		0,		MXU128,	0 },
++{"lib", 		"=h,=k",	0x7000000c, 0xfc00003f, WR_1,	        	0,		0,		MXU128,	0 },
++{"lih", 	 	"=h,=k",	0x7000000d, 0xfc00003f, WR_1,	        	0,		0,		MXU128,	0 },
++{"liw", 		"=h,=k",	0x7000000e, 0xfc00003f,	WR_1,		        0,		0,		MXU128,	0 },
++{"lid", 		"=h,=k",	0x7000000f, 0xfc00003f,	WR_1,		        0,		0,		MXU128,	0 },
++{"lu1q", 		"=h,=l(s)",	0x70000014, 0xfc00003f,	WR_1|RD_3|LM|NODS,      0,		0,		MXU128,	0 },
++{"lu1qx", 		"=h,t(s)",	0x70000007, 0xfc00f83f,	WR_1|RD_2|RD_3|LM|NODS,      0,		0,		MXU128,	0 },
++{"su1q", 		"=h,=l(s)",	0x7000001c, 0xfc00003f,	WR_1|RD_3|SM|NODS,           0,		0,		MXU128,	0 },
++{"su1qx", 		"=h,t(s)",	0x70002007, 0xfc00f83f,	WR_1|RD_2|RD_3|SM|NODS,      0,		0,		MXU128,	0 },
++{"la1q", 		"=h,=L(s)",	0x7000002c, 0xfc00003f,	WR_1|RD_3|LM,	        0,		0,		MXU128,	0 },
++{"la1qx", 		"=h,t(s)",	0x70008007, 0xfc00f83f,	WR_1|RD_2|RD_3|LM,      0,		0,		MXU128,	0 },
++{"sa1q", 		"=h,=L(s)",	0x7000003c, 0xfc00003f,	WR_1|RD_3|SM,           0,		0,		MXU128,	0 },
++{"sa1qx", 		"=h,t(s)",	0x7000a007, 0xfc00f83f,	WR_1|RD_2|RD_3|SM,      0,		0,		MXU128,	0 },
++{"mtcpusb",		"d,=h=w",	0x70000033, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtcpush",		"d,=h=w",	0x71000033, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtcpusw",		"d,=h=w",	0x72000033, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtcpuub",		"d,=h=w",	0x70000034, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtcpuuh",		"d,=h=w",	0x71000034, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtcpuuw",		"d,=h=w",	0x72000034, 0xff00003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mfcpub",		"=h,d", 	0x4bc0003c, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mfcpuh",		"=h,d", 	0x4bc0003d, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mfcpuw",		"=h,d", 	0x4bc0003e, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtfpuw",		"D,=j=v", 	0x4be00004, 0xffe0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mtfpud",		"D,=j=v", 	0x4be00005, 0xffe0003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mffpuw",		"=h,S", 	0x4bc1003e, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"mffpud",		"=h,S", 	0x4bc1003f, 0xffff003f,	WR_1|RD_2,	        0,		0,		MXU128,	0 },
++{"ctcmxu",		"=x,d", 	0x4bc1003c, 0xffff003f,	RD_2|CM,	        0,		0,		MXU128,	0 },
++{"cfcmxu",		"d,=x", 	0x4bc1003d, 0xffff003f,	WR_1|CM,	        0,		0,		MXU128,	0 },
+ /* No hazard protection on coprocessor instructions--they shouldn't
+    change the state of the processor and if they do it's up to the
+    user to put in nops as necessary.  These are at the end so that the
+--- a/opcodes/mips-dis.c
++++ b/opcodes/mips-dis.c
+@@ -1009,6 +1009,12 @@
+       return true;
+     }
+ 
++  if (startswith (option, "mxu2"))
++    {
++      mips_ase |= ASE_MXU128;
++      return true;
++    }
++
+   return false;
+ }
+ 
+@@ -1259,6 +1265,14 @@
+ 		 msa_control_names[regno]);
+       break;
+ 
++    case OP_REG_MXU128:
++      infprintf (info->stream, dis_style_register, "$vr%d", regno);
++      break;
++
++    case OP_REG_MXU128_CR:
++      infprintf (info->stream, dis_style_register, "$%d", regno);
++      break;
++
+     }
+ }
+ 
+@@ -1974,7 +1988,7 @@
+ 	      print_insn_arg (info, &state, opcode, operand, base_pc,
+ 			      mips_extract_operand (operand, insn));
+ 	    }
+-	  if (*s == 'm' || *s == '+' || *s == '-')
++	  if (*s == 'm' || *s == '+' || *s == '-' || *s == '=')
+ 	    ++s;
+ 	  break;
+ 	}
+@@ -2770,6 +2784,10 @@
+ 		  N_("Recognize the Loongson EXTensions R2 (EXT2) "
+ 		     " instructions.\n"),
+ 		  MIPS_OPTION_ARG_NONE },
++  { "mxu2",
++		  N_("Recognize Ingenic MXU2 128-bit SIMD"
++		     " instructions.\n"),
++		  MIPS_OPTION_ARG_NONE },
+   { "gpr-names=", N_("Print GPR names according to specified ABI.\n\
+                   Default: based on binary being disassembled.\n"),
+ 		  MIPS_OPTION_ARG_ABI },
+--- a/gas/config/tc-mips.c
++++ b/gas/config/tc-mips.c
+@@ -1582,6 +1582,8 @@
+     OPTION_NO_LOONGSON_EXT,
+     OPTION_LOONGSON_EXT2,
+     OPTION_NO_LOONGSON_EXT2,
++    OPTION_MXU128,
++    OPTION_NO_MXU128,
+     OPTION_END_OF_ENUM
+   };
+ 
+@@ -1650,6 +1652,8 @@
+   {"mno-loongson-ext", no_argument, NULL, OPTION_NO_LOONGSON_EXT},
+   {"mloongson-ext2", no_argument, NULL, OPTION_LOONGSON_EXT2},
+   {"mno-loongson-ext2", no_argument, NULL, OPTION_NO_LOONGSON_EXT2},
++  {"mmxu2", no_argument, NULL, OPTION_MXU128},
++  {"mno-mxu2", no_argument, NULL, OPTION_NO_MXU128},
+ 
+   /* Old-style architecture options.  Don't add more of these.  */
+   {"m4650", no_argument, NULL, OPTION_M4650},
+@@ -1871,6 +1875,11 @@
+     OPTION_LOONGSON_EXT2, OPTION_NO_LOONGSON_EXT2,
+     0, 0, -1, -1,
+     -1 },
++
++  { "mxu2", ASE_MXU128, 0,
++    OPTION_MXU128, OPTION_NO_MXU128,
++    0, 0, -1, -1,
++    -1 },
+ };
+ 
+ /* The set of ASEs that require -mfp64.  */
+@@ -2704,6 +2713,7 @@
+ #define RTYPE_R5900_R	0x0200000
+ #define RTYPE_R5900_ACC	0x0400000
+ #define RTYPE_MSA	0x0800000
++#define RTYPE_MXU128	0x1000000
+ #define RWARN		0x8000000
+ 
+ #define GENERIC_REGISTER_NUMBERS \
+@@ -3594,7 +3604,8 @@
+ 	      used_bits &= ~0x6000;
+ 	  }
+ 	/* Skip prefix characters.  */
+-	if (decode_operand && (*s == '+' || *s == 'm' || *s == '-'))
++	if (decode_operand && (*s == '+' || *s == 'm' || *s == '-'
++	    || *s == '='))
+ 	  ++s;
+ 	opno += 1;
+ 	break;
+@@ -3833,6 +3844,11 @@
+       sprintf (regname, "$w%d", i);
+       symbol_table_insert (symbol_new (regname, reg_section,
+ 				       &zero_address_frag, RTYPE_MSA | i));
++
++      /* MXU2 register.  */
++      sprintf (regname, "$vr%d", i);
++      symbol_table_insert (symbol_new (regname, reg_section,
++				       &zero_address_frag, RTYPE_MXU128 | i));
+     }
+ 
+   obstack_init (&mips_operand_tokens);
+@@ -5059,6 +5075,8 @@
+     case OP_REG_CONTROL:
+       if (opcode->name[strlen (opcode->name) - 1] == '0')
+ 	return RTYPE_NUM | RTYPE_CP0;
++      if (opcode->name[strlen (opcode->name) - 1] == '2')
++	return RTYPE_NUM | RTYPE_MXU128;
+       return RTYPE_NUM;
+ 
+     case OP_REG_HW:
+@@ -5087,6 +5105,12 @@
+ 
+     case OP_REG_MSA_CTRL:
+       return RTYPE_NUM;
++
++    case OP_REG_MXU128:
++      return RTYPE_MXU128;
++
++    case OP_REG_MXU128_CR:
++      return RTYPE_NUM;
+     }
+   abort ();
+ }
+@@ -7556,12 +7580,26 @@
+ 		      (unsigned long) address_expr->X_add_number);
+ 	    if (!mips_relax_branch)
+ 	      {
+-		if ((address_expr->X_add_number + (1 << (shift + 15)))
+-		    & ~((1 << (shift + 16)) - 1))
+-		  as_bad (_("branch address range overflow (0x%lx)"),
+-			  (unsigned long) address_expr->X_add_number);
+-		ip->insn_opcode |= ((address_expr->X_add_number >> shift)
+-				    & 0xffff);
++		/* MXU2 branch: 10-bit offset at bit position 6.  */
++		if ((ip->insn_mo->ase & ASE_MXU128)
++		    && (ip->insn_mo->pinfo & INSN_COND_BRANCH_DELAY))
++		  {
++		    if ((address_expr->X_add_number + (1 << 11))
++			& ~((1 << 12) - 1))
++		      as_bad (_("branch address range overflow (0x%lx)"),
++			      (unsigned long) address_expr->X_add_number);
++		    ip->insn_opcode |= ((address_expr->X_add_number >> 2)
++					& 0x3ff) << 6;
++		  }
++		else
++		  {
++		    if ((address_expr->X_add_number + (1 << (shift + 15)))
++			& ~((1 << (shift + 16)) - 1))
++		      as_bad (_("branch address range overflow (0x%lx)"),
++			      (unsigned long) address_expr->X_add_number);
++		    ip->insn_opcode |= ((address_expr->X_add_number >> shift)
++					& 0xffff);
++		  }
+ 	      }
+ 	  }
+ 	  break;
+@@ -7718,8 +7756,10 @@
+ 	     && !mips_opts.warn_about_macros
+ 	     && (mips_opts.at || mips_pic == NO_PIC)
+ 	     /* Don't relax BPOSGE32/64 or BC1ANY2T/F and BC1ANY4T/F
+-	        as they have no complementing branches.  */
+-	     && !(ip->insn_mo->ase & (ASE_MIPS3D | ASE_DSP64 | ASE_DSP)));
++	        as they have no complementing branches.
++	        Don't relax MXU2 branches (non-standard encoding).  */
++	     && !(ip->insn_mo->ase & (ASE_MIPS3D | ASE_DSP64 | ASE_DSP
++				      | ASE_MXU128)));
+ 
+   if (!HAVE_CODE_COMPRESSION
+       && address_expr
+@@ -8373,6 +8413,15 @@
+ 	    }
+ 	  break;
+ 
++	case '=':
++	  switch (args[1])
++	    {
++	    case 'g':
++	      *offset_reloc = BFD_RELOC_16_PCREL_S2;
++	      break;
++	    }
++	  break;
++
+ 	case 'I':
+ 	  if (!match_const_int (&arg, &imm_expr.X_add_number))
+ 	    return false;
+@@ -8455,7 +8504,7 @@
+ 	abort ();
+ 
+       /* Skip prefixes.  */
+-      if (*args == '+' || *args == 'm' || *args == '-')
++      if (*args == '+' || *args == 'm' || *args == '-' || *args == '=')
+ 	args++;
+ 
+       if (mips_optional_operand_p (operand)
+@@ -9168,7 +9217,7 @@
+ 	    uval |= (uval << 5);
+ 	  insn_insert_operand (&insn, operand, uval);
+ 
+-	  if (*fmt == '+' || *fmt == 'm' || *fmt == '-')
++	  if (*fmt == '+' || *fmt == 'm' || *fmt == '-' || *fmt == '=')
+ 	    ++fmt;
+ 	  break;
+ 	}
+@@ -16145,7 +16194,22 @@
+       /* Update old instruction data.  */
+       insn = read_insn (buf);
+ 
+-      if (*valP + 0x20000 <= 0x3ffff)
++      /* MXU2 branch: 10-bit offset at bit position 6, shift 2.
++	 Detect by opcode 0x1C (bits 31:26) and func 0x28/0x29 (bits 5:0).  */
++      if (((insn >> 26) == 0x1c)
++	  && ((insn & 0x3f) == 0x28 || (insn & 0x3f) == 0x29))
++	{
++	  if (*valP + 0x800 <= 0xfff)
++	    {
++	      insn |= ((*valP >> 2) & 0x3ff) << 6;
++	      write_insn (buf, insn);
++	    }
++	  else
++	    as_bad_where (fixP->fx_file, fixP->fx_line,
++			  _("MXU2 branch address range overflow (%lx)"),
++			  (long) *valP);
++	}
++      else if (*valP + 0x20000 <= 0x3ffff)
+ 	{
+ 	  insn |= (*valP >> 2) & 0xffff;
+ 	  write_insn (buf, insn);
+@@ -20439,6 +20503,9 @@
+ -mloongson-ext2		generate Loongson EXTensions R2 (EXT2) instructions\n\
+ -mno-loongson-ext2	do not generate Loongson EXTensions R2 Instructions\n"));
+   fprintf (stream, _("\
++-mmxu2			generate Ingenic MXU2 128-bit SIMD instructions\n\
++-mno-mxu2		do not generate Ingenic MXU2 instructions\n"));
++  fprintf (stream, _("\
+ -minsn32		only generate 32-bit microMIPS instructions\n\
+ -mno-insn32		generate all microMIPS instructions\n"));
+ #if DEFAULT_MIPS_FIX_LOONGSON3_LLSC
