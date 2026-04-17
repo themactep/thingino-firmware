@@ -1332,6 +1332,50 @@
    return false;
  }
  
+@@ -22670,6 +23165,43 @@
+ 	all_same = false;
+     }
+ 
++  if (MXU2_SUPPORTED_MODE_P (vmode) && ISA_HAS_MXU2)
++    {
++      if (all_same)
++	{
++	  /* Splat: emit mfcpu (or mffpu for FP) — single MXU2 insn that
++	     broadcasts a scalar register to every lane.  */
++	  rtx same = XVECEXP (vals, 0, 0);
++	  rtx temp;
++	  if (CONST_INT_P (same) || GET_CODE (same) == CONST_DOUBLE)
++	    {
++	      /* All-constant splat: prefer the const_vector path, which
++		 may match the liw immediate pattern.  */
++	      emit_move_insn (target, gen_rtx_CONST_VECTOR (vmode, XVEC (vals, 0)));
++	      return;
++	    }
++	  temp = force_reg (imode, same);
++	  emit_insn (gen_rtx_SET (target, gen_rtx_VEC_DUPLICATE (vmode, temp)));
++	  return;
++	}
++      /* Non-uniform: build via vec_set inserts.  */
++      emit_move_insn (target, CONST0_RTX (vmode));
++      for (i = 0; i < nelt; i++)
++	{
++	  rtx temp = gen_reg_rtx (imode);
++	  emit_move_insn (temp, XVECEXP (vals, 0, i));
++	  switch (vmode)
++	    {
++	    case E_V16QImode: emit_insn (gen_vec_setv16qi (target, temp, GEN_INT (i))); break;
++	    case E_V8HImode:  emit_insn (gen_vec_setv8hi  (target, temp, GEN_INT (i))); break;
++	    case E_V4SImode:  emit_insn (gen_vec_setv4si  (target, temp, GEN_INT (i))); break;
++	    case E_V2DImode:  emit_insn (gen_vec_setv2di  (target, temp, GEN_INT (i))); break;
++	    default: gcc_unreachable ();
++	    }
++	}
++      return;
++    }
++
+   if (MSA_SUPPORTED_MODE_P (vmode))
+     {
+       if (all_same)
 --- a/gcc/config/mips/mips-ftypes.def
 +++ b/gcc/config/mips/mips-ftypes.def
 @@ -36,6 +36,7 @@
@@ -1493,6 +1537,15 @@
  ])
 --- a/gcc/config/mips/mips-msa.md
 +++ b/gcc/config/mips/mips-msa.md
+@@ -238,7 +238,7 @@
+ (define_expand "vec_init<mode><unitmode>"
+   [(match_operand:MSA 0 "register_operand")
+    (match_operand:MSA 1 "")]
+-  "ISA_HAS_MSA"
++  "ISA_HAS_MSA || ISA_HAS_MXU2"
+ {
+   mips_expand_vector_init (operands[0], operands[1]);
+   DONE;
 @@ -319,8 +319,22 @@
    [(match_operand:<UNITMODE> 0 "register_operand")
     (match_operand:IMSA 1 "register_operand")
@@ -1591,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1833 @@
+@@ -0,0 +1,1845 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -3255,6 +3308,18 @@
 +       UNSPEC_MXU2_MFCPU))]
 + "ISA_HAS_MXU2"
 + "mfcpu<mxu2fmt2>\t%w0,%z1"
++  [(set_attr "lat_type" "lat3")])
++
++;; Standard vec_duplicate entry point — broadcast a scalar to every
++;; lane via the MXU2 mfcpu insn. Without this pattern, GCC lowers
++;; (v4i32){x,x,x,x} to four insfcpuw calls (4 GP regs + 4 inserts).
++;; mfcpu is one instruction. Closes the matmul/dotp gap vs vendor.
++(define_insn "vec_duplicate<mode>"
++  [(set (match_operand:IMXU2 0 "register_operand" "=q")
++	(vec_duplicate:IMXU2
++	  (match_operand:<REGOR0> 1 "reg_or_0_operand" "dJ")))]
++  "ISA_HAS_MXU2"
++  "mfcpu<mxu2fmt2>\t%w0,%z1"
 +  [(set_attr "lat_type" "lat3")])
 +
 +
