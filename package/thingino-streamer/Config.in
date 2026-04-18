@@ -4,7 +4,8 @@ config BR2_PACKAGE_THINGINO_STREAMER
 choice
 	prompt "Streamer"
 	default BR2_PACKAGE_THINGINO_STREAMER_NONE if BR2_THINGINO_TOOLCHAIN
-	default BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT if !BR2_SOC_FAMILY = "a1"
+	default BR2_PACKAGE_THINGINO_STREAMER_NONE if BR2_SOC_FAMILY = "a1"
+	default BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT
 	help
 	  Select the camera streamer to use.
 
@@ -36,6 +37,11 @@ config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
 	  Strero streaming stack.
+
+config BR2_PACKAGE_THINGINO_STREAMER_NONE
+	bool "None"
+	help
+	  No streamer.
 
 endchoice
 

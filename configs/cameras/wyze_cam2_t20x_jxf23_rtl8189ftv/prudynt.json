@@ -1,0 +1,16 @@
+{
+  "stream0": {
+    "osd": {
+      "privacy": {
+        "enabled": false
+      }
+    }
+  },
+  "stream1": {
+    "osd": {
+      "privacy": {
+        "enabled": false
+      }
+    }
+  }
+}
