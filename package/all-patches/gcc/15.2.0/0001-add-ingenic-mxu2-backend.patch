@@ -1644,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1887 @@
+@@ -0,0 +1,1915 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -3520,18 +3520,46 @@
 +  (eq_attr "type" "simd_store")
 +  "mxu2_eu")
 +
++;; Catch-all for the ~100 MXU2 patterns that have lat_type set but no
++;; type attribute (addss/adduu/sub*, ave, madd/msub, max/min, sat, dotp,
++;; dadd/dsub, vcvt*, compare ops, conversions). Without this they fell
++;; through to "type unknown" and the scheduler treated them as 1-cycle
++;; ops. Vendor lat6 means "result in 6 cycles" — keep that pessimistic
++;; baseline; bypasses below give XBurst1 the actual forwarding latency.
++(define_insn_reservation "mxu2_simd_lat3" 3
++  (eq_attr "lat_type" "lat3")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_lat4" 4
++  (eq_attr "lat_type" "lat4")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_lat5" 5
++  (eq_attr "lat_type" "lat5")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_lat6" 6
++  (eq_attr "lat_type" "lat6")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_lat9" 9
++  (eq_attr "lat_type" "lat9")
++  "mxu2_eu")
++
 +;; Force 4-cycle bypass between simd arithmetic and a store consuming
 +;; its result. XBurst1 needs a 1-cycle gap between addv/addss and a
 +;; dependent su1q to avoid pipeline stall — this hint pushes the
 +;; scheduler to put an independent insn (typically addiu) between them.
-+(define_bypass 4 "mxu2_simd_arith" "mxu2_simd_store")
++(define_bypass 4 "mxu2_simd_arith,mxu2_simd_lat3,mxu2_simd_lat4,mxu2_simd_lat5,mxu2_simd_lat6"
++                 "mxu2_simd_store")
 +
 +;; Relax load→arith bypass to 3 cycles. Default reservation says lu1q
 +;; takes 5 cycles before its result is usable, but XBurst1 can forward
 +;; a load result into addv/addss after 3 cycles. The over-strict 5-cycle
 +;; latency prevented the scheduler from packing the byte-blend inner
 +;; loop tightly (image bench was 10% behind R5.2.1.sr03).
-+(define_bypass 3 "mxu2_simd_load" "mxu2_simd_arith")
++(define_bypass 3 "mxu2_simd_load"
++                 "mxu2_simd_arith,mxu2_simd_lat3,mxu2_simd_lat4,mxu2_simd_lat5,mxu2_simd_lat6")
 --- a/gcc/config/mips/mips.opt
 +++ b/gcc/config/mips/mips.opt
 @@ -328,6 +328,10 @@
