@@ -152,6 +152,7 @@ endif
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	bool "Streamer Packages"
 	default y if !BR2_THINGINO_TOOLCHAIN
+	select BR2_PACKAGE_THINGINO_STREAMER
 	help
 	  Thingino Streamer Packages
 	  Audio/Video Streaming related packages
