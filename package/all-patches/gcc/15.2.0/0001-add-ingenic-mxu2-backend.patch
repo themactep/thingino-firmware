@@ -1644,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1880 @@
+@@ -0,0 +1,1887 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -3525,6 +3525,13 @@
 +;; dependent su1q to avoid pipeline stall — this hint pushes the
 +;; scheduler to put an independent insn (typically addiu) between them.
 +(define_bypass 4 "mxu2_simd_arith" "mxu2_simd_store")
++
++;; Relax load→arith bypass to 3 cycles. Default reservation says lu1q
++;; takes 5 cycles before its result is usable, but XBurst1 can forward
++;; a load result into addv/addss after 3 cycles. The over-strict 5-cycle
++;; latency prevented the scheduler from packing the byte-blend inner
++;; loop tightly (image bench was 10% behind R5.2.1.sr03).
++(define_bypass 3 "mxu2_simd_load" "mxu2_simd_arith")
 --- a/gcc/config/mips/mips.opt
 +++ b/gcc/config/mips/mips.opt
 @@ -328,6 +328,10 @@
