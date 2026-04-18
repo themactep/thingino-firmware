@@ -30,6 +30,7 @@ UHTTPD_COMMON_ARGS="-t 0 -T 15 -k 10 -n 20 -N 100"
 UHTTPD_HTTP_LISTEN="80"
 UHTTPD_HTTPS_LISTEN="443"
 UHTTPD_PORTAL_HTTP_LISTEN="172.16.0.1:80"
+UHTTPD_ERROR_HANDLER="/x/legacy-url-recovery.cgi"
 
 # Additional uhttpd arguments
 # Add any extra arguments here

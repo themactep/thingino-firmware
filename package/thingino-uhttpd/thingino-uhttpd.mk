@@ -69,6 +69,9 @@ define THINGINO_UHTTPD_INSTALL_CONFIG
 	mkdir -p $(TARGET_DIR)/etc/ssl/certs $(TARGET_DIR)/etc/ssl/private
 	# Note: Complete web interface provided by thingino-webui package
 
+        # Install SSL certificate generation script (runs early at boot)
+        $(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S02ssl \
+                $(TARGET_DIR)/etc/init.d/S02ssl
         # Install startup script for uhttpd
         $(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S60uhttpd \
                 $(TARGET_DIR)/etc/init.d/S60uhttpd
@@ -76,14 +79,7 @@ define THINGINO_UHTTPD_INSTALL_CONFIG
                 $(TARGET_DIR)/etc/default/uhttpd
 endef
 
-# Install certificate generation script (disabled - file missing)
-# define THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
-#	$(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/generate-ssl-cert \
-#		$(TARGET_DIR)/usr/bin/generate-ssl-cert
-# endef
-
 THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CONFIG
-# THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
 
 # Note: uhttpd loads ustream-ssl dynamically via dlopen, no static linking needed
 
