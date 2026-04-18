@@ -116,7 +116,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_MP3
 
 config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	bool "TLS support (RTSPS, HTTPS)"
-	default y
+	default n
 	select BR2_PACKAGE_MBEDTLS
 	help
 	  Enable mbedTLS for RTSPS, RWD HTTPS signaling, and
