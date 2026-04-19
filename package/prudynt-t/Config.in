@@ -70,6 +70,25 @@ config BR2_PACKAGE_PRUDYNT_T_STATIC
 
 endchoice
 
+choice
+	prompt "Prudynt privacy control backend"
+	default BR2_PACKAGE_PRUDYNT_T_PRIVACY_BACKEND_LITE
+	help
+	  Select how /usr/sbin/privacy enforces privacy mode.
+
+config BR2_PACKAGE_PRUDYNT_T_PRIVACY_BACKEND_OSD
+	bool "OSD cover only (default)"
+	help
+	  Uses prudynt's built-in PRIVACY FIFO command only.
+
+config BR2_PACKAGE_PRUDYNT_T_PRIVACY_BACKEND_LITE
+	bool "Lightweight plugin (reduce encoder load + mute mic)"
+	select BR2_PACKAGE_THINGINO_PRIVACY_LITE
+	help
+	  Installs and uses a privacy plugin that keeps RTSP alive while
+	  reducing encoder workload (lower bitrate/fps) and muting the mic.
+endchoice
+
 config BR2_PACKAGE_PRUDYNT_T_AAC
 	bool "Enable AAC audio support"
 	depends on BR2_PACKAGE_PRUDYNT_T

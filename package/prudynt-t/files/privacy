@@ -1,14 +1,17 @@
 #!/bin/sh
 
 case "$1" in
-	on|off)
+	on | off)
+		if [ -x /usr/libexec/thingino/privacy-plugin-lite ]; then
+			exec /usr/libexec/thingino/privacy-plugin-lite "$@"
+		fi
 		[ -n "$2" ] && channel="ch=$2"
-		printf "PRIVACY $channel value=$1\n" > /run/prudynt/video_ctrl
+		printf "PRIVACY $channel value=$1\n" >/run/prudynt/video_ctrl
 		;;
 	*)
 		echo "Usage: $0 [on|off]"
 		exit 1
-	;;
+		;;
 esac
 
 exit 0
