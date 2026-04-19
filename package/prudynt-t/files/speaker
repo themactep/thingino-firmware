@@ -1,25 +1,34 @@
 #!/bin/sh
 
-get_audio() {
-  jct /etc/prudynt.json get "audio.$1"
+set_speaker_enabled() {
+  value="$1"
+  printf '{"audio":{"spk_enabled":%s},"action":{"restart_thread":4}}\n' "$value" | prudyntctl json - >/dev/null 2>&1
 }
 
-set_audio() {
-  jct /etc/prudynt.json set "audio.$1" "$2"
+get_speaker_enabled() {
+  jct /etc/prudynt.json get "audio.spk_enabled"
 }
 
 case "$1" in
   on)
-    set_audio "spk_enabled" "true"
+    set_speaker_enabled "true" || exit 1
     ;;
   off)
-    set_audio "spk_enabled" "false"
+    set_speaker_enabled "false" || exit 1
+    ;;
+  toggle)
+    if [ "$(get_speaker_enabled)" = "true" ]; then
+      set_speaker_enabled "false" || exit 1
+    else
+      set_speaker_enabled "true" || exit 1
+    fi
     ;;
   status)
-    get_audio "spk_enabled"
+    get_speaker_enabled
     ;;
   *)
-    echo "Not implemented"
+    echo "Usage: $0 {on|off|toggle|status}" >&2
+    exit 1
     ;;
 esac
 
