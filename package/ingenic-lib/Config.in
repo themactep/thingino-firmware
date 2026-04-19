@@ -3,6 +3,12 @@ config BR2_PACKAGE_INGENIC_LIB
 	help
 	  Ingenic IMP platform libraries
 
+config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
+	bool "libaudioProcess.so"
+	depends on BR2_PACKAGE_INGENIC_LIB
+	help
+	  Ingenic audio processing library.
+
 config BR2_PACKAGE_INGENIC_LIB_JZDL
 	bool "JZDL standalone inference (libjzdl.m.so — 609KB)"
 	depends on BR2_PACKAGE_INGENIC_LIB

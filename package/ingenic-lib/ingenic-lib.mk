@@ -92,6 +92,9 @@ define INGENIC_LIB_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(STAGING_DIR)/usr/lib/libalog.so
 
+	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),,\
+		$(RM) $(STAGING_DIR)/usr/lib/libaudioProcess.so \
+	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
 		$(INSTALL) -m 0644 \
 			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
@@ -111,6 +114,9 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(TARGET_DIR)/usr/lib/libalog.so
 
+	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),,\
+		$(RM) $(TARGET_DIR)/usr/lib/libaudioProcess.so \
+	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
 		$(INSTALL) -m 0644 \
 			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
