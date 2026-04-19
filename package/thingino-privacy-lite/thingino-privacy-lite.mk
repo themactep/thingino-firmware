@@ -1,0 +1,11 @@
+THINGINO_PRIVACY_LITE_SITE_METHOD = local
+THINGINO_PRIVACY_LITE_SITE = $(THINGINO_PRIVACY_LITE_PKGDIR)
+
+THINGINO_PRIVACY_LITE_DEPENDENCIES += thingino-jct
+
+define THINGINO_PRIVACY_LITE_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(THINGINO_PRIVACY_LITE_PKGDIR)/files/privacy-plugin-lite \
+		$(TARGET_DIR)/usr/libexec/thingino/privacy-plugin-lite
+endef
+
+$(eval $(generic-package))
