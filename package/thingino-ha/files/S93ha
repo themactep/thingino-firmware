@@ -54,10 +54,11 @@ stop() {
 	echo_title "Stopping HA daemon"
 
 	stop_daemon
-	killall -q ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q mosquitto_pub mosquitto_sub 2>/dev/null
 	if ! wait_for_ha_shutdown; then
-		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
-		start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
+		killall -q -9 ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
+		killall -q -9 mosquitto_pub mosquitto_sub 2>/dev/null
 		wait_for_ha_shutdown || true
 	fi
 }
