@@ -1,5 +1,6 @@
 config BR2_PACKAGE_OPEN_TX_ISP
 	bool "Open TX-ISP driver"
+	depends on BR2_SOC_FAMILY = "t31"
 	depends on BR2_PACKAGE_INGENIC_SDK
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP
