@@ -48,7 +48,7 @@ prompt_ip_address() {
 			return 0
 		fi
 	else
-		read -r -p "IP address for $selected_camera [optional, Enter=generic build]: " new_ip >&2
+		read -r -p "IP address [Enter=skip]: " new_ip >&2
 		if [ -z "$new_ip" ]; then
 			rm -f "$ip_memo_file"
 			return 0
