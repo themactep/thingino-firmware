@@ -225,5 +225,14 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset log target "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_TARGET))"; \
 	rset log file "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_FILE))"; \
 	\
+	rset filesource enabled "$(call raptor_bval,FILESOURCE_ENABLED)"; \
+	rset filesource video_file "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_VIDEO_FILE))"; \
+	rset filesource audio_file "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_AUDIO_FILE))"; \
+	rset filesource codec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_CODEC))"; \
+	rset filesource fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_FPS))"; \
+	rset filesource loop "$(call raptor_bval,FILESOURCE_LOOP)"; \
+	rset filesource audio_codec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_AUDIO_CODEC))"; \
+	rset filesource audio_sample_rate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_FILESOURCE_AUDIO_SAMPLE_RATE))"; \
+	\
 	true
 endef

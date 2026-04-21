@@ -83,6 +83,13 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 	  Peer-to-peer external sharing via WebTorrent trackers.
 	  View camera without port forwarding.
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RFS
+	bool "RFS (file source — MP4/Annex B)"
+	help
+	  File-based video+audio source. Replaces RVD+RAD on platforms
+	  without ISP/encoder hardware. Reads MP4 containers or raw
+	  Annex B H.264/H.265 files. No HAL dependency.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_RAC
 	bool "rac (audio record/playback tool)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_RAD

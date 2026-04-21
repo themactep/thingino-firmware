@@ -96,6 +96,9 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RWC),y)
 THINGINO_RAPTOR_TARGETS += rwc
 endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RFS),y)
+THINGINO_RAPTOR_TARGETS += rfs
+endif
 
 # Libraries are pre-built by their own packages and installed to staging.
 # Override LIB_HAL etc. to point at staging .a files.
