@@ -242,7 +242,6 @@ UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
-ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 EXTRAS_BIN := $(OUTPUT_DIR)/images/extras.jffs2
 
 # TODO: create a full binary file suffixed with the time of the last modification
@@ -637,7 +636,7 @@ clean: clean-nfs-debug
 	rm -rf $(OUTPUT_DIR)/extras
 	rm -f $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_FULL).sha256sum
 	rm -f $(FIRMWARE_BIN_NOBOOT) $(FIRMWARE_BIN_NOBOOT).sha256sum
-	rm -f $(ROOTFS_BIN) $(ROOTFS_TAR) $(EXTRAS_BIN) $(CONFIG_BIN)
+	rm -f $(ROOTFS_BIN) $(EXTRAS_BIN) $(CONFIG_BIN)
 #	$(UB_ENV_BIN) $(KERNEL_BIN)
 
 # remove all build files
@@ -646,7 +645,7 @@ distclean: clean-nfs-debug
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 # assemble final images
-pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
+pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) 
 	@$(TEAL) "$@"
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
@@ -932,11 +931,6 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
-
-# create .tar file of rootfs
-$(ROOTFS_TAR):
-	@$(TEAL) "$@"
-	$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-tar
 
 build-all:
 	@$(TEAL) "$@"
