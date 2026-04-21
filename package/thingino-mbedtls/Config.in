@@ -11,7 +11,9 @@ config BR2_PACKAGE_THINGINO_MBEDTLS
 config BR2_PACKAGE_THINGINO_MBEDTLS_JZ_CRYPTO_ALT
 	bool "Ingenic hardware AES acceleration"
 	depends on BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_INGENIC_SDK_JZ_AES
 	help
 	  Replace the software AES, CCM and GCM implementations with
 	  hardware-accelerated versions that use the Ingenic T-series
-	  AES engine via /dev/aes. Requires the jz-aes kernel module.
+	  AES engine via /dev/aes. Automatically enables the jz-aes
+	  kernel module.
