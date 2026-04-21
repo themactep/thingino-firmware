@@ -4,10 +4,11 @@ config BR2_PACKAGE_INGENIC_LIB
 	  Ingenic IMP platform libraries
 
 config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
-	bool "libaudioProcess.so"
+	bool "libaudioProcess.so (proprietary)"
 	depends on BR2_PACKAGE_INGENIC_LIB
 	help
-	  Ingenic audio processing library.
+	  Ingenic proprietary audio processing library.
+	  Overridden by libaudioprocess-neo when both are selected.
 
 config BR2_PACKAGE_INGENIC_LIB_JZDL
 	bool "JZDL standalone inference (libjzdl.m.so — 609KB)"

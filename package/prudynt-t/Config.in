@@ -9,7 +9,7 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_LIVE555
 	select BR2_PACKAGE_THINGINO_ONVIF
-	select BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
+	select BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS if !BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Video streamer for Ingenic T-series.
 	  Now uses JSON configuration format with json-c library.
