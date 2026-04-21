@@ -18,8 +18,14 @@ PORTAL_MODE_FLAG="/run/portal_mode"
 RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
 RESOLV_FILE="/etc/resolv.conf"
 RESOLV_WORKING_FILE="/tmp/resolv.conf"
-SOC_FAMILY=$(soc -f)
-SOC_MODEL=$(soc -m)
+_SOC_CACHE="/run/soc.env"
+if [ -f "$_SOC_CACHE" ]; then
+	. "$_SOC_CACHE"
+else
+	SOC_FAMILY=$(soc -f 2>/dev/null)
+	SOC_MODEL=$(soc -m 2>/dev/null)
+	printf 'SOC_FAMILY=%s\nSOC_MODEL=%s\n' "$SOC_FAMILY" "$SOC_MODEL" > "$_SOC_CACHE" 2>/dev/null || true
+fi
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json"
 TZNAME_FILE="/etc/timezone"
