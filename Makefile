@@ -394,9 +394,9 @@ ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "Copying images to TFTP root..."
 	@sudo mkdir -p $(TFTP_ROOT)
 	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
+	@if [ -f "$(FIRMWARE_BIN_NOBOOT)" ]; then sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT); fi
 	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
+	@if [ -f "$(FIRMWARE_BIN_NOBOOT).sha256sum" ]; then sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum; fi
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
 endif
