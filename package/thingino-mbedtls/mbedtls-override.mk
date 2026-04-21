@@ -124,6 +124,7 @@ define MBEDTLS_ENABLE_HTTP2_FEATURES
 
 	$(SED) "s://#define PSA_WANT_ECC_SECP_R1_521:#define PSA_WANT_ECC_SECP_R1_521:" \
 		$(@D)/include/psa/crypto_config.h || true
+
 endef
 
 # Disable problematic programs and tests that are causing linking issues
@@ -136,6 +137,14 @@ override MBEDTLS_CONF_OPTS += -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDT
 
 # Add the HTTP/2 configuration hook to mbedtls
 MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_ENABLE_HTTP2_FEATURES
+
+# mbedTLS 3.6.6 defaults MBEDTLS_PLATFORM_DEV_RANDOM to /dev/random.
+# On low-entropy systems this can block indefinitely in libcurl/uhttpd.
+define MBEDTLS_USE_URANDOM
+	$(SED) 's:#define MBEDTLS_PLATFORM_DEV_RANDOM "/dev/random":#define MBEDTLS_PLATFORM_DEV_RANDOM "/dev/urandom":' \
+		$(@D)/include/mbedtls/platform.h
+endef
+MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_USE_URANDOM
 
 ################################################################################
 #
