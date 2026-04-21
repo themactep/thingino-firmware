@@ -168,8 +168,9 @@ define GENERATE_MODULE_LOADER
 		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
 	fi
 
-	#JZ-AES
-	echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/jz-aes; \
+	if [ "$(BR2_INGENIC_SDK_JZ_AES)" = "y" ]; then \
+		echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/jz-aes; \
+	fi
 
 	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \
 		if [ -n "$(SENSOR_2_MODEL)" ] && [ "$(SENSOR_2_MODEL)" != "none" ]; then \
