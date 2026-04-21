@@ -1,0 +1,9 @@
+config BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
+	bool "ingenic-system-libs-neo (replaces stock libalog + libsysutils)"
+	depends on BR2_PACKAGE_INGENIC_LIB
+	help
+	  Open-source drop-in replacements for Ingenic SDK
+	  libalog.so and libsysutils.so. Thread-safe, 51% smaller.
+	  Overrides the stock blobs when selected.
+
+	  https://github.com/gtxaspec/ingenic-system-libs-neo
