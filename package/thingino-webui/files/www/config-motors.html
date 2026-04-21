@@ -107,6 +107,29 @@
                 <h4>Behavior</h4>
                 <small>Startup pose and homing logic.</small>
 
+                <p>
+                  <label for="motion_driver">Motion driver</label>
+                  <select class="form-select" id="motion_driver" name="motion_driver">
+                    <option value="legacy">Legacy (kernel-native)</option>
+                    <option value="profiled">Profiled (accel/decel ramping)</option>
+                  </select>
+                </p>
+
+                <p id="motion-driver-help" class="alert alert-secondary small mb-2">
+                  Legacy mode uses the stock kernel movement path. Profiled mode enables acceleration/deceleration ramping in motors-daemon.
+                </p>
+
+                <div id="motion-accel-fields" class="d-flex gap-2">
+                  <p>
+                    <label for="accel_pan">Pan acceleration</label>
+                    <input type="number" class="form-control" id="accel_pan" name="accel_pan" min="0" placeholder="0">
+                  </p>
+                  <p>
+                    <label for="accel_tilt">Tilt acceleration</label>
+                    <input type="number" class="form-control" id="accel_tilt" name="accel_tilt" min="0" placeholder="0">
+                  </p>
+                </div>
+
                 <p class="alert alert-info small">During boot, the camera rotates to its minimum limits and zeroes both axes.</p>
                 <p class="form-switch">
                   <input type="checkbox" class="form-check-input" id="homing" name="homing" value="true" data-help="Disable only when a fixed pose is required">

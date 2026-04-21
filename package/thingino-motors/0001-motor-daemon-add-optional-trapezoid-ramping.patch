@@ -1,0 +1,1476 @@
+diff --git a/src/motor-daemon.c b/src/motor-daemon.c
+index 41bc0a7..4a7814c 100644
+--- a/src/motor-daemon.c
++++ b/src/motor-daemon.c
+@@ -1,12 +1,14 @@
+ #include <ctype.h>
+ #include <errno.h>
+ #include <fcntl.h>
++#include <math.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <stdbool.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strings.h>
+ #include <syslog.h>
+ #include <unistd.h>
+ 
+@@ -25,6 +27,7 @@ typedef struct {
+   int max_steps; // maximum steps for axis
+   int home;      // center/home position
+   int speed;     // max/default speed for axis
++  int accel;     // acceleration in steps/s^2 (0 disables ramping)
+   int timeout;   // seconds
+ } AxisCfg;
+ 
+@@ -32,6 +35,7 @@ typedef struct {
+   bool gpio_invert;
+   bool homing;
+   bool is_spi;
++  bool limitless;
+   int gpio_power;
+   int gpio_switch;
+   char gpio_pan[MOTOR_GPIO_STR_LEN];
+@@ -49,12 +53,67 @@ typedef struct {
+ 
+ static MotorConfig g_cfg = {
+     .loglevel = 0,
+-    .pan = {0, 0, 0, 0},
+-    .tilt = {0, 0, 0, 0},
++    .pan = {0, 0, 0, 0, 0},
++    .tilt = {0, 0, 0, 0, 0},
+     .hw = {0},
+     .loaded = false,
+ };
+ 
++static bool debug_mode = false;
++static bool limits_seeded = false;
++
++static bool value_is_truthy(const char *value) {
++  if (!value || !*value)
++    return false;
++  if (!strcmp(value, "0"))
++    return false;
++  if (!strcasecmp(value, "false"))
++    return false;
++  if (!strcasecmp(value, "off"))
++    return false;
++  return true;
++}
++
++static bool env_debug_enabled(void) {
++  const char *env = getenv("DEBUG");
++  return value_is_truthy(env);
++}
++
++static void configure_logmask(void) {
++  int level = debug_mode ? LOG_DEBUG : LOG_INFO;
++  setlogmask(LOG_UPTO(level));
++}
++
++static void write_sysfs_bool(const char *path, bool enabled,
++                             const char *label) {
++  int fd = open(path, O_WRONLY);
++  if (fd < 0) {
++    if (debug_mode) {
++      syslog(LOG_DEBUG, "%s knob %s unavailable: %s", label ? label : "sysfs",
++             path, strerror(errno));
++    }
++    return;
++  }
++
++  const char *payload = enabled ? "1\n" : "0\n";
++  ssize_t written = write(fd, payload, strlen(payload));
++  if (written == -1 && debug_mode) {
++    syslog(LOG_DEBUG, "Failed to write '%s' to %s: %s", payload, path,
++           strerror(errno));
++  }
++  close(fd);
++}
++
++static void sync_kernel_debug(bool enabled) {
++  write_sysfs_bool("/sys/module/motor/parameters/debug", enabled,
++                   "Kernel debug");
++}
++
++static void sync_kernel_limit_mode(bool disable_limits) {
++  write_sysfs_bool("/sys/module/motor/parameters/nolimits", disable_limits,
++                   "Kernel nolimits");
++}
++
+ static int parse_loglevel(const char *s) {
+   if (!s)
+     return 0; // default DEBUG
+@@ -188,6 +247,8 @@ static void sanitize_axis_cfg(AxisCfg *axis) {
+     axis->max_steps = 0;
+   if (axis->speed < 0)
+     axis->speed = 0;
++  if (axis->accel < 0)
++    axis->accel = 0;
+   if (axis->timeout < 0)
+     axis->timeout = 0;
+   if (axis->home < 0)
+@@ -201,6 +262,7 @@ static void reset_config_defaults(void) {
+   g_cfg.pan = (AxisCfg){0};
+   g_cfg.tilt = (AxisCfg){0};
+   g_cfg.hw = (MotorHwCfg){0};
++  g_cfg.hw.limitless = false;
+   g_cfg.hw.gpio_switch = -1;
+   g_cfg.hw.gpio_power = -1;
+   g_cfg.loaded = false;
+@@ -220,6 +282,16 @@ static bool parse_modern_layout(JsonValue *root, JsonValue *motors) {
+     parsed = true;
+   }
+ 
++  const char *driver_mode = json_get_string_jct(motors, "motion_driver");
++  if (!driver_mode)
++    driver_mode = json_get_string_jct(motors, "driver");
++  if (!driver_mode)
++    driver_mode = json_get_string_jct(root, "motion_driver");
++  if (!driver_mode)
++    driver_mode = json_get_string_jct(root, "driver");
++  if (driver_mode)
++    parsed = true;
++
+   bool bool_value = false;
+   if (json_get_bool_jct(motors, "gpio_invert", &bool_value)) {
+     g_cfg.hw.gpio_invert = bool_value;
+@@ -233,6 +305,12 @@ static bool parse_modern_layout(JsonValue *root, JsonValue *motors) {
+     g_cfg.hw.is_spi = bool_value;
+     parsed = true;
+   }
++  bool limitless_value = false;
++  if (json_get_bool_jct(motors, "limitless", &limitless_value) ||
++      json_get_bool_jct(motors, "nolimits", &limitless_value)) {
++    g_cfg.hw.limitless = limitless_value;
++    parsed = true;
++  }
+ 
+   parsed |= json_get_int_jct(motors, "gpio_power", &g_cfg.hw.gpio_power);
+   parsed |= json_get_int_jct(motors, "gpio_switch", &g_cfg.hw.gpio_switch);
+@@ -263,6 +341,8 @@ static bool parse_modern_layout(JsonValue *root, JsonValue *motors) {
+   parsed |= json_get_int_jct(motors, "steps_tilt", &g_cfg.tilt.max_steps);
+   parsed |= json_get_int_jct(motors, "speed_pan", &g_cfg.pan.speed);
+   parsed |= json_get_int_jct(motors, "speed_tilt", &g_cfg.tilt.speed);
++  parsed |= json_get_int_jct(motors, "accel_pan", &g_cfg.pan.accel);
++  parsed |= json_get_int_jct(motors, "accel_tilt", &g_cfg.tilt.accel);
+   parsed |= json_get_int_jct(motors, "timeout_pan", &g_cfg.pan.timeout);
+   parsed |= json_get_int_jct(motors, "timeout_tilt", &g_cfg.tilt.timeout);
+   parsed |= json_get_int_jct(motors, "home_pan", &g_cfg.pan.home);
+@@ -283,11 +363,25 @@ static bool parse_legacy_layout(JsonValue *root) {
+     parsed = true;
+   }
+ 
++  const char *driver_mode = json_get_string_jct(root, "motion_driver");
++  if (!driver_mode)
++    driver_mode = json_get_string_jct(root, "driver");
++  if (driver_mode)
++    parsed = true;
++
++  bool limitless_value = false;
++  if (json_get_bool_jct(root, "limitless", &limitless_value) ||
++      json_get_bool_jct(root, "nolimits", &limitless_value)) {
++    g_cfg.hw.limitless = limitless_value;
++    parsed = true;
++  }
++
+   JsonValue *pan = get_object_item(root, "pan");
+   if (pan && pan->type == JSON_OBJECT) {
+     parsed |= json_get_int_jct(pan, "max_steps", &g_cfg.pan.max_steps);
+     parsed |= json_get_int_jct(pan, "home", &g_cfg.pan.home);
+     parsed |= json_get_int_jct(pan, "speed", &g_cfg.pan.speed);
++    parsed |= json_get_int_jct(pan, "accel", &g_cfg.pan.accel);
+     parsed |= json_get_int_jct(pan, "timeout", &g_cfg.pan.timeout);
+   }
+ 
+@@ -296,6 +390,7 @@ static bool parse_legacy_layout(JsonValue *root) {
+     parsed |= json_get_int_jct(tilt, "max_steps", &g_cfg.tilt.max_steps);
+     parsed |= json_get_int_jct(tilt, "home", &g_cfg.tilt.home);
+     parsed |= json_get_int_jct(tilt, "speed", &g_cfg.tilt.speed);
++    parsed |= json_get_int_jct(tilt, "accel", &g_cfg.tilt.accel);
+     parsed |= json_get_int_jct(tilt, "timeout", &g_cfg.tilt.timeout);
+   }
+ 
+@@ -427,10 +522,54 @@ struct motor_axis_speed {
+   int y_speed;
+ };
+ 
++struct async_move {
++  int x_steps;
++  int y_steps;
++  int speed;
++  unsigned int generation;
++};
++
+ int motorfd = -1;
+ struct request request_message; // object for IPC request from client
+ int last_known_speed = 900;  // Default speed (overridden by config if present)
+ bool motor_inverted = false; // Global flag for motor inversion
++static pthread_mutex_t motion_lock = PTHREAD_MUTEX_INITIALIZER;
++static unsigned int motion_generation = 0;
++static bool motion_cancelled = false;
++
++// Forward declaration used by motor_steps() before definition below.
++static int wait_until_idle(int timeout_ms, int poll_ms);
++static void compute_axis_speeds(int requested_speed, int *x_speed,
++                                int *y_speed);
++static void motor_set_axis_speed(int x_speed, int y_speed);
++static bool motion_is_cancelled(unsigned int generation);
++static void write_motion_active_flag(void);
++static void remove_motion_active_flag(void);
++static int get_motion_timeout_ms(void);
++
++static int sanitize_requested_speed(int requested, int fallback) {
++  int speed = (requested > 0) ? requested : fallback;
++
++  if (speed < MOTOR1_MIN_SPEED)
++    speed = MOTOR1_MIN_SPEED;
++  if (speed > MOTOR1_MAX_SPEED)
++    speed = MOTOR1_MAX_SPEED;
++
++  return speed;
++}
++
++static bool uses_shared_motor_data_channel(void) {
++  // Cameras with a switch GPIO typically multiplex one pulse channel
++  // between pan and tilt, so combined XY pulses must be serialized.
++  if (g_cfg.hw.gpio_switch >= 0)
++    return true;
++
++  if (g_cfg.hw.gpio_pan[0] != '\0' && g_cfg.hw.gpio_tilt[0] != '\0' &&
++      strcmp(g_cfg.hw.gpio_pan, g_cfg.hw.gpio_tilt) == 0)
++    return true;
++
++  return false;
++}
+ 
+ void motor_ioctl(int cmd, void *arg) {
+   // basically exists to not pass around the motor FD
+@@ -440,6 +579,50 @@ void motor_ioctl(int cmd, void *arg) {
+   }
+ }
+ 
++static void motor_steps_impl(int xsteps, int ysteps, int stepspeed,
++                             bool wait_before) {
++  struct motors_steps steps;
++
++  if (wait_before)
++    wait_until_idle(5000, 20); // avoid overlapping commands
++
++  // Apply the correct inversion based on the motor_inversion_state
++  steps.x = (motor_inversion_state & MOTOR_INVERT_X) ? -xsteps : xsteps;
++  steps.y = (motor_inversion_state & MOTOR_INVERT_Y) ? -ysteps : ysteps;
++
++  syslog(LOG_DEBUG, "Starting relative move");
++  int eff_speed_x = stepspeed;
++  int eff_speed_y = stepspeed;
++
++  compute_axis_speeds(stepspeed, &eff_speed_x, &eff_speed_y);
++
++  syslog(LOG_DEBUG, " -> steps, X %d (speed %d), Y %d (speed %d)\n", steps.x,
++         eff_speed_x, steps.y, eff_speed_y);
++
++  if (uses_shared_motor_data_channel() && steps.x != 0 && steps.y != 0) {
++    struct motors_steps x_only = {.x = steps.x, .y = 0};
++    struct motors_steps y_only = {.x = 0, .y = steps.y};
++    int timeout_ms = get_motion_timeout_ms();
++
++    syslog(LOG_DEBUG,
++           "Shared motor data channel detected, splitting XY move into X then Y");
++
++    motor_set_axis_speed(eff_speed_x, eff_speed_y);
++    motor_ioctl(MOTOR_MOVE, &x_only);
++    if (wait_until_idle(timeout_ms, 10) != 0)
++      return;
++
++    motor_set_axis_speed(eff_speed_x, eff_speed_y);
++    motor_ioctl(MOTOR_MOVE, &y_only);
++    syslog(LOG_DEBUG, "Finished setting split relative move");
++    return;
++  }
++
++  motor_set_axis_speed(eff_speed_x, eff_speed_y);
++  motor_ioctl(MOTOR_MOVE, &steps);
++  syslog(LOG_DEBUG, "Finished setting relative move");
++}
++
+ static void compute_axis_speeds(int requested_speed, int *x_speed,
+                                 int *y_speed) {
+   int xs = requested_speed;
+@@ -459,11 +642,65 @@ static void compute_axis_speeds(int requested_speed, int *x_speed,
+ }
+ 
+ static void motor_set_axis_speed(int x_speed, int y_speed) {
++  static bool axis_speed_unsupported_logged = false;
++
+   struct motor_axis_speed axis = {
+       .x_speed = x_speed,
+       .y_speed = y_speed,
+   };
+-  motor_ioctl(MOTOR_SPEED_AXIS, &axis);
++
++  int ret = ioctl(motorfd, MOTOR_SPEED_AXIS, &axis);
++  if (ret == 0)
++    return;
++
++  // Some kernels do not support per-axis speed ioctl (0x8).
++  if ((errno == EINVAL || errno == ENOTTY || errno == ENOSYS)) {
++    int fallback_speed = (x_speed < y_speed) ? x_speed : y_speed;
++    if (fallback_speed < MOTOR1_MIN_SPEED)
++      fallback_speed = MOTOR1_MIN_SPEED;
++    if (fallback_speed > MOTOR1_MAX_SPEED)
++      fallback_speed = MOTOR1_MAX_SPEED;
++    if (!axis_speed_unsupported_logged) {
++      syslog(LOG_INFO,
++             "MOTOR_SPEED_AXIS unsupported, falling back to MOTOR_SPEED");
++      axis_speed_unsupported_logged = true;
++    }
++    motor_ioctl(MOTOR_SPEED, &fallback_speed);
++    return;
++  }
++
++  syslog(LOG_ERR, "ioctl cmd 0x%x failed: %s", MOTOR_SPEED_AXIS,
++         strerror(errno));
++}
++
++static void seed_driver_limits_from_config(void) {
++  if (limits_seeded)
++    return;
++  if (!g_cfg.loaded)
++    return;
++  if (!g_cfg.hw.limitless)
++    return;
++  if (g_cfg.pan.max_steps <= 0 || g_cfg.tilt.max_steps <= 0)
++    return;
++
++  struct motor_reset_data data = {
++      .x_max_steps = (unsigned int)g_cfg.pan.max_steps,
++      .y_max_steps = (unsigned int)g_cfg.tilt.max_steps,
++  };
++
++  data.x_cur_step = (g_cfg.pan.home > 0 && g_cfg.pan.home < g_cfg.pan.max_steps)
++                        ? (unsigned int)g_cfg.pan.home
++                        : data.x_max_steps / 2;
++  data.y_cur_step =
++      (g_cfg.tilt.home > 0 && g_cfg.tilt.home < g_cfg.tilt.max_steps)
++          ? (unsigned int)g_cfg.tilt.home
++          : data.y_max_steps / 2;
++
++  syslog(LOG_INFO,
++         "Applying configured max steps to kernel (x=%u home=%u, y=%u home=%u)",
++         data.x_max_steps, data.x_cur_step, data.y_max_steps, data.y_cur_step);
++  motor_ioctl(MOTOR_RESET, &data);
++  limits_seeded = true;
+ }
+ 
+ static int read_uint_sysfs(const char *path, unsigned int *out) {
+@@ -497,7 +734,23 @@ static void motor_get_maxsteps_sysfs(unsigned int *maxx, unsigned int *maxy) {
+ }
+ 
+ void motor_status_get(struct motor_message *msg) {
++  if (!msg)
++    return;
++
++  // Kernel ioctl may not fill extension fields added in userspace struct.
++  memset(msg, 0, sizeof(*msg));
+   motor_ioctl(MOTOR_GET_STATUS, msg);
++
++  // Single source of truth: when configured, always expose configured limits.
++  // This keeps status, homing, clamping, and API responses consistent.
++  if (g_cfg.loaded) {
++    if (g_cfg.pan.max_steps > 0)
++      msg->x_max_steps = (unsigned int)g_cfg.pan.max_steps;
++    if (g_cfg.tilt.max_steps > 0)
++      msg->y_max_steps = (unsigned int)g_cfg.tilt.max_steps;
++  }
++
++  msg->inversion_state = (unsigned int)motor_inversion_state;
+ }
+ 
+ void motor_get_maxsteps(unsigned int *maxx, unsigned int *maxy) {
+@@ -516,24 +769,44 @@ int motor_is_busy() {
+ }
+ 
+ void motor_steps(int xsteps, int ysteps, int stepspeed) {
+-  struct motors_steps steps;
++  motor_steps_impl(xsteps, ysteps, stepspeed, true);
++}
+ 
+-  // Apply the correct inversion based on the motor_inversion_state
+-  steps.x = (motor_inversion_state & MOTOR_INVERT_X) ? -xsteps : xsteps;
+-  steps.y = (motor_inversion_state & MOTOR_INVERT_Y) ? -ysteps : ysteps;
++static int execute_profile_phase(int total, int phase_end, int xsteps,
++                                 int ysteps, int *moved_x, int *moved_y,
++                                 int *progress, int speed_now,
++                                 int timeout_ms, unsigned int generation) {
++  if (!moved_x || !moved_y || !progress)
++    return -1;
+ 
+-  syslog(LOG_DEBUG, "Starting relative move");
+-  int eff_speed_x = stepspeed;
+-  int eff_speed_y = stepspeed;
++  if (phase_end <= *progress)
++    return 0;
+ 
+-  compute_axis_speeds(stepspeed, &eff_speed_x, &eff_speed_y);
++  if (phase_end > total)
++    phase_end = total;
+ 
+-  syslog(LOG_DEBUG, " -> steps, X %d (speed %d), Y %d (speed %d)\n", steps.x,
+-         eff_speed_x, steps.y, eff_speed_y);
++  if (motion_is_cancelled(generation))
++    return -1;
+ 
+-  motor_set_axis_speed(eff_speed_x, eff_speed_y);
+-  motor_ioctl(MOTOR_MOVE, &steps);
+-  syslog(LOG_DEBUG, "Finished setting relative move");
++  int target_x =
++      (int)(((long long)xsteps * (long long)phase_end) / (long long)total);
++  int target_y =
++      (int)(((long long)ysteps * (long long)phase_end) / (long long)total);
++  int chunk_x = target_x - *moved_x;
++  int chunk_y = target_y - *moved_y;
++
++  *moved_x = target_x;
++  *moved_y = target_y;
++  *progress = phase_end;
++
++  if (chunk_x == 0 && chunk_y == 0)
++    return 0;
++
++  motor_steps_impl(chunk_x, chunk_y, speed_now, false);
++  if (wait_until_idle(timeout_ms, 10) != 0)
++    return -1;
++
++  return 0;
+ }
+ 
+ void motor_set_position(int xpos, int ypos, int stepspeed) {
+@@ -543,13 +816,10 @@ void motor_set_position(int xpos, int ypos, int stepspeed) {
+   int deltax = xpos - msg.x;
+   int deltay = ypos - msg.y;
+ 
+-  // Apply inversion to deltas based on the inversion state
+-  if (motor_inversion_state & MOTOR_INVERT_X) {
+-    deltax = -deltax;
+-  }
+-  if (motor_inversion_state & MOTOR_INVERT_Y) {
+-    deltay = -deltay;
+-  }
++  // Convert Y delta into the logical frame expected by motor_steps() where
++  // positive values mean "up". The kernel reports raw steps where positive
++  // deltas move the opposite direction, so flip here before handing over.
++  deltay = -deltay;
+ 
+   syslog(LOG_DEBUG, "Starting absolute move");
+   int eff_speed = stepspeed;
+@@ -577,6 +847,215 @@ static int wait_until_idle(int timeout_ms, int poll_ms) {
+   return -1;
+ }
+ 
++static int get_motion_timeout_ms(void) {
++  int to_s = 0;
++  if (g_cfg.loaded) {
++    to_s = (g_cfg.pan.timeout > g_cfg.tilt.timeout) ? g_cfg.pan.timeout
++                                                    : g_cfg.tilt.timeout;
++  }
++  if (to_s <= 0)
++    to_s = 10;
++  return to_s * 1000;
++}
++
++static int get_effective_accel(void) {
++  int a_pan = (g_cfg.loaded && g_cfg.pan.accel > 0) ? g_cfg.pan.accel : 0;
++  int a_tilt = (g_cfg.loaded && g_cfg.tilt.accel > 0) ? g_cfg.tilt.accel : 0;
++
++  if (a_pan > 0 && a_tilt > 0)
++    return (a_pan < a_tilt) ? a_pan : a_tilt;
++  if (a_pan > 0)
++    return a_pan;
++  return a_tilt;
++}
++
++static unsigned int motion_begin_new(void) {
++  unsigned int generation;
++
++  pthread_mutex_lock(&motion_lock);
++  motion_generation++;
++  motion_cancelled = false;
++  generation = motion_generation;
++  pthread_mutex_unlock(&motion_lock);
++
++  return generation;
++}
++
++static bool motion_is_cancelled(unsigned int generation) {
++  bool cancelled;
++
++  pthread_mutex_lock(&motion_lock);
++  cancelled = motion_cancelled || generation != motion_generation;
++  pthread_mutex_unlock(&motion_lock);
++
++  return cancelled;
++}
++
++static bool motion_is_current(unsigned int generation) {
++  bool is_current;
++
++  pthread_mutex_lock(&motion_lock);
++  is_current = generation == motion_generation;
++  pthread_mutex_unlock(&motion_lock);
++
++  return is_current;
++}
++
++static void motion_cancel_all(bool stop_now) {
++  pthread_mutex_lock(&motion_lock);
++  motion_cancelled = true;
++  motion_generation++;
++  pthread_mutex_unlock(&motion_lock);
++
++  if (stop_now)
++    motor_ioctl(MOTOR_STOP, NULL);
++}
++
++static int run_profiled_move(int xsteps, int ysteps, int requested_speed,
++                             unsigned int generation) {
++  const int total = (abs(xsteps) > abs(ysteps)) ? abs(xsteps) : abs(ysteps);
++  int max_speed_x = requested_speed;
++  int max_speed_y = requested_speed;
++  int moved_x = 0;
++  int moved_y = 0;
++  int progress = 0;
++  int timeout_ms = get_motion_timeout_ms();
++
++  if (total <= 0)
++    return 0;
++
++  compute_axis_speeds(requested_speed, &max_speed_x, &max_speed_y);
++
++  int max_speed = max_speed_x;
++  if (max_speed_y < max_speed)
++    max_speed = max_speed_y;
++  if (max_speed < MOTOR1_MIN_SPEED)
++    max_speed = MOTOR1_MIN_SPEED;
++
++  int accel = get_effective_accel();
++
++  if (accel <= 0 || total < 8) {
++    if (motion_is_cancelled(generation))
++      return -1;
++    motor_steps(xsteps, ysteps, max_speed);
++    if (wait_until_idle(timeout_ms, 10) != 0)
++      return -1;
++    return motion_is_cancelled(generation) ? -1 : 0;
++  }
++
++  // Small UI nudges feel jerky if driven at full speed with abrupt stops.
++  if (total < 32) {
++    int capped = (max_speed * 2) / 3;
++    if (capped < MOTOR1_MIN_SPEED)
++      capped = MOTOR1_MIN_SPEED;
++    if (max_speed > capped)
++      max_speed = capped;
++  }
++
++  int start_speed = (max_speed * 2) / 3;
++  if (start_speed < MOTOR1_MIN_SPEED)
++    start_speed = MOTOR1_MIN_SPEED;
++  if (start_speed > max_speed)
++    start_speed = max_speed;
++
++  double v0 = (double)start_speed;
++  double vmax = (double)max_speed;
++  double a = (double)accel;
++  double accel_steps_d = (vmax * vmax - v0 * v0) / (2.0 * a);
++  int accel_steps = (int)(accel_steps_d + 0.5);
++
++  if (accel_steps < 0)
++    accel_steps = 0;
++  if (accel_steps * 2 > total)
++    accel_steps = total / 2;
++
++  int cruise_steps = total - (2 * accel_steps);
++
++  int accel_end = accel_steps;
++  int cruise_end = accel_steps + cruise_steps;
++  int phase_speed = (start_speed + max_speed) / 2;
++  if (phase_speed < MOTOR1_MIN_SPEED)
++    phase_speed = MOTOR1_MIN_SPEED;
++  if (phase_speed > max_speed)
++    phase_speed = max_speed;
++
++  if (execute_profile_phase(total, accel_end, xsteps, ysteps, &moved_x,
++                            &moved_y, &progress, phase_speed, timeout_ms,
++                            generation) != 0)
++    return -1;
++
++  if (execute_profile_phase(total, cruise_end, xsteps, ysteps, &moved_x,
++                            &moved_y, &progress, max_speed, timeout_ms,
++                            generation) != 0)
++    return -1;
++
++  if (execute_profile_phase(total, total, xsteps, ysteps, &moved_x, &moved_y,
++                            &progress, phase_speed, timeout_ms,
++                            generation) != 0)
++    return -1;
++
++  return motion_is_cancelled(generation) ? -1 : 0;
++}
++
++static void *async_move_worker(void *arg) {
++  struct async_move *move = (struct async_move *)arg;
++
++  if (!move)
++    return NULL;
++
++  write_motion_active_flag();
++  (void)run_profiled_move(move->x_steps, move->y_steps, move->speed,
++                          move->generation);
++  if (motion_is_current(move->generation))
++    remove_motion_active_flag();
++  free(move);
++  return NULL;
++}
++
++static int start_profiled_move_async(int xsteps, int ysteps, int speed) {
++  pthread_t tid;
++  struct async_move *move = NULL;
++
++  // For rapid UI nudges, avoid hard-stopping on every new command.
++  // Generation handoff still cancels the previous profile at segment boundary.
++  motion_cancel_all(false);
++
++  move = calloc(1, sizeof(*move));
++  if (!move)
++    return -1;
++
++  move->x_steps = xsteps;
++  move->y_steps = ysteps;
++  move->speed = speed;
++  move->generation = motion_begin_new();
++
++  if (pthread_create(&tid, NULL, async_move_worker, move) != 0) {
++    free(move);
++    return -1;
++  }
++
++  pthread_detach(tid);
++  return 0;
++}
++
++static void dispatch_profiled_move(int xsteps, int ysteps, int speed,
++                                   const char *log_tag) {
++  if (start_profiled_move_async(xsteps, ysteps, speed) == 0) {
++    if (log_tag)
++      syslog(LOG_DEBUG, "%s", log_tag);
++    return;
++  }
++
++  // Fallback remains profiled: run synchronously if thread creation fails.
++  unsigned int generation = motion_begin_new();
++  write_motion_active_flag();
++  (void)run_profiled_move(xsteps, ysteps, speed, generation);
++  remove_motion_active_flag();
++
++  if (log_tag)
++    syslog(LOG_DEBUG, "%s (sync fallback)", log_tag);
++}
++
+ // Perform two-phase homing using relative moves and busy polling
+ // Phase 1: rotate halfway to one side;
+ // Phase 2: full way back to the opposite side
+@@ -590,8 +1069,20 @@ static int enhanced_homing_daemon(int stepspeed) {
+   unsigned int cfg_y = (g_cfg.loaded && g_cfg.tilt.max_steps > 0)
+                            ? (unsigned int)g_cfg.tilt.max_steps
+                            : 0;
+-  int x_max = cfg_x ? (int)cfg_x : (int)status.x_max_steps;
+-  int y_max = cfg_y ? (int)cfg_y : (int)status.y_max_steps;
++  int runtime_x = (status.x_max_steps > 0) ? (int)status.x_max_steps : 0;
++  int runtime_y = (status.y_max_steps > 0) ? (int)status.y_max_steps : 0;
++
++  // Prefer runtime-reported limits for homing sweep accuracy.
++  int x_max = runtime_x > 0 ? runtime_x : (cfg_x ? (int)cfg_x : 0);
++  int y_max = runtime_y > 0 ? runtime_y : (cfg_y ? (int)cfg_y : 0);
++
++  // If both are available, use the larger value to avoid undershooting edges
++  // on kernels that report slightly wider travel than config defaults.
++  if (cfg_x > 0 && x_max < (int)cfg_x)
++    x_max = (int)cfg_x;
++  if (cfg_y > 0 && y_max < (int)cfg_y)
++    y_max = (int)cfg_y;
++
+   if (x_max <= 0 || y_max <= 0) {
+     unsigned int sfx = 0, sfy = 0;
+     motor_get_maxsteps_sysfs(&sfx, &sfy);
+@@ -621,39 +1112,85 @@ static int enhanced_homing_daemon(int stepspeed) {
+   int t2_ms = (to_s > 0 ? to_s * 1000 : 15000);
+   int t3_ms = (to_s > 0 ? to_s * 1000 : 10000);
+ 
+-  // Phase 1: half to one side (negative logical direction)
+-  syslog(LOG_DEBUG, "Enhanced homing phase 1: x=%d y=%d speed=%d", -half_x,
+-         -half_y, stepspeed);
+-  motor_steps(-half_x, -half_y, stepspeed);
++    syslog(LOG_DEBUG,
++      "Enhanced homing limits/config: x_max=%d y_max=%d cfg_home=%d,%d "
++      "start=%d,%d",
++      x_max, y_max, g_cfg.pan.home, g_cfg.tilt.home, status.x, status.y);
++
++    // Requested relative homing sequence on both axes:
++    // 1) move by +max/2
++    // 2) move by -max
++    // 3) move by +max/2 (center)
++
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing pre-phase1: pos=%d,%d", status.x,
++      status.y);
++    syslog(LOG_DEBUG, "Enhanced homing phase 1: dx=%d dy=%d speed=%d", half_x,
++      half_y, stepspeed);
++    motor_steps(half_x, half_y, stepspeed);
+   if (wait_until_idle(t1_ms, 100) != 0) {
+     syslog(LOG_DEBUG,
+            "Timeout waiting for enhanced homing phase 1 to complete.");
+     return -1;
+   }
+-
+-  // Phase 2: full way to the opposite side (positive logical direction)
+-  syslog(LOG_DEBUG, "Enhanced homing phase 2: x=%d y=%d speed=%d", full_x,
+-         full_y, stepspeed);
+-  motor_steps(full_x, full_y, stepspeed);
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing post-phase1: pos=%d,%d", status.x,
++      status.y);
++
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing pre-phase2: pos=%d,%d", status.x,
++      status.y);
++    syslog(LOG_DEBUG, "Enhanced homing phase 2: dx=%d dy=%d speed=%d", -full_x,
++      -full_y, stepspeed);
++    motor_steps(-full_x, -full_y, stepspeed);
+   if (wait_until_idle(t2_ms, 100) != 0) {
+     syslog(LOG_DEBUG,
+            "Timeout waiting for enhanced homing phase 2 to complete.");
+     return -1;
+   }
+-
+-  // Phase 3: move to center position
+-  int center_x =
+-      (g_cfg.loaded && g_cfg.pan.home > 0) ? g_cfg.pan.home : (x_max / 2);
+-  int center_y =
+-      (g_cfg.loaded && g_cfg.tilt.home > 0) ? g_cfg.tilt.home : (y_max / 2);
+-  syslog(LOG_DEBUG, "Enhanced homing phase 3 (center): x=%d y=%d speed=%d",
+-         center_x, center_y, stepspeed);
+-  motor_set_position(center_x, center_y, stepspeed);
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing post-phase2: pos=%d,%d", status.x,
++      status.y);
++
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing pre-phase3: pos=%d,%d", status.x,
++      status.y);
++    syslog(LOG_DEBUG, "Enhanced homing phase 3: dx=%d dy=%d speed=%d", half_x,
++      half_y, stepspeed);
++    motor_steps(half_x, half_y, stepspeed);
+   if (wait_until_idle(t3_ms, 100) != 0) {
+     syslog(LOG_DEBUG,
+            "Timeout waiting for enhanced homing center move to complete.");
+     return -1;
+   }
++    motor_status_get(&status);
++    syslog(LOG_DEBUG, "Enhanced homing post-phase3: pos=%d,%d", status.x,
++      status.y);
++
++    int center_x = x_max / 2;
++    int center_y = y_max / 2;
++    if (g_cfg.loaded && g_cfg.pan.home > 0 && g_cfg.pan.home < x_max)
++      center_x = g_cfg.pan.home;
++    if (g_cfg.loaded && g_cfg.tilt.home > 0 && g_cfg.tilt.home < y_max)
++      center_y = g_cfg.tilt.home;
++
++    if (status.x != center_x || status.y != center_y) {
++      int corr_dx = center_x - status.x;
++      int corr_dy = center_y - status.y;
++      syslog(LOG_DEBUG,
++             "Enhanced homing center correction: current=%d,%d target=%d,%d "
++             "delta=%d,%d",
++             status.x, status.y, center_x, center_y, corr_dx, corr_dy);
++      motor_steps(corr_dx, corr_dy, stepspeed);
++      if (wait_until_idle(t3_ms, 100) != 0) {
++        syslog(LOG_DEBUG,
++               "Timeout waiting for enhanced homing center correction.");
++        return -1;
++      }
++      motor_status_get(&status);
++      syslog(LOG_DEBUG, "Enhanced homing post-correction: pos=%d,%d", status.x,
++             status.y);
++    }
+ 
+   syslog(LOG_DEBUG, "Enhanced homing completed successfully at center.");
+   return 0;
+@@ -801,6 +1338,11 @@ int main(int argc, char *argv[]) {
+   bool skip_reset = false; // Initialize skip_reset to false
+   pid_file = "/run/motors-daemon";
+ 
++  bool debug_requested = env_debug_enabled();
++  const char *debug_source = debug_requested ? "environment" : NULL;
++  debug_mode = debug_requested;
++  configure_logmask();
++
+   // Load configuration early
+   load_config_file();
+   if (g_cfg.loaded) {
+@@ -813,18 +1355,20 @@ int main(int argc, char *argv[]) {
+       last_known_speed = cfg_speed;
+   }
+ 
+-  // setlogmask(LOG_UPTO(LOG_DEBUG));
+-  while ((c = getopt(argc, argv, "dhp")) != -1) {
++  while ((c = getopt(argc, argv, "dhpD")) != -1) {
+     switch (c) {
+     case 'd':
+-      // setlogmask(LOG_UPTO(LOG_DEBUG));
++    case 'D':
++      debug_requested = true;
++      debug_source = "command line";
+       break;
+     case 'p':
+       skip_reset = true; // Set skip_reset to true if -p is provided
+       break;
+     default:
+       printf("Usage : \n"
+-             "\t -d enable debugging messages to syslog\n"
++             "\t -D enable debugging messages to syslog\n"
++             "\t -d legacy alias for -D\n"
+              "\t -h print this help message\n"
+              "\t -p skip reset position on launch\n"
+              "\t No option to start the daemon\n");
+@@ -832,6 +1376,22 @@ int main(int argc, char *argv[]) {
+       break;
+     }
+   }
++
++  if (debug_mode != debug_requested) {
++    debug_mode = debug_requested;
++    configure_logmask();
++  }
++
++  if (debug_mode) {
++    syslog(LOG_DEBUG, "motors-daemon debug logging enabled via %s",
++           debug_source ? debug_source : "environment");
++  } else {
++    syslog(LOG_INFO,
++           "motors-daemon running with concise logging (use -D or DEBUG=1 for "
++           "verbose output)");
++  }
++
++  sync_kernel_debug(debug_mode);
+   daemonsetup();
+   if (check_pid(pid_file) == 1) {
+     syslog(LOG_INFO, "Motors daemon is already running.");
+@@ -850,15 +1410,31 @@ int main(int argc, char *argv[]) {
+ 
+   // acquire control of motor device
+   motorfd = open("/dev/motor", 0);
++  if (motorfd == -1) {
++    syslog(LOG_ERR, "Unable to open /dev/motor: %s", strerror(errno));
++    exit(EXIT_FAILURE);
++  }
++
++  sync_kernel_limit_mode(g_cfg.hw.limitless);
++  if (g_cfg.hw.limitless) {
++    syslog(LOG_INFO, "Limitless PTZ mode enabled; relying on software stops");
++    seed_driver_limits_from_config();
++  }
+ 
+   // Reset/homing on startup, unless skipped via -p
+   if (!skip_reset) {
+     syslog(LOG_DEBUG, "== Enhanced homing on startup, please wait");
+     if (enhanced_homing_daemon(last_known_speed) != 0) {
+-      syslog(LOG_DEBUG, "Enhanced homing failed at startup, falling back to "
+-                        "legacy MOTOR_RESET.");
+-      memset(&motor_reset_data, 0, sizeof(motor_reset_data));
+-      motor_ioctl(MOTOR_RESET, &motor_reset_data);
++      if (g_cfg.hw.limitless) {
++        syslog(LOG_WARNING,
++               "Enhanced homing failed but legacy MOTOR_RESET skipped (no "
++               "limit switches)");
++      } else {
++        syslog(LOG_DEBUG, "Enhanced homing failed at startup, falling back to "
++                          "legacy MOTOR_RESET.");
++        memset(&motor_reset_data, 0, sizeof(motor_reset_data));
++        motor_ioctl(MOTOR_RESET, &motor_reset_data);
++      }
+     }
+   }
+ 
+@@ -923,12 +1499,18 @@ int main(int argc, char *argv[]) {
+              errno);
+     } else {
+       syslog(LOG_DEBUG, "request command is %c", request_message.command);
++      int request_speed = sanitize_requested_speed(0, last_known_speed);
+ 
+       if (request_message.speed != 0) {
+-        last_known_speed = request_message.speed;
+-        syslog(LOG_DEBUG, "Updating last known speed to %d", last_known_speed);
++        request_speed =
++            sanitize_requested_speed(request_message.speed, last_known_speed);
++        last_known_speed = request_speed;
++        motor_set_axis_speed(last_known_speed, last_known_speed);
++        syslog(LOG_DEBUG,
++               "Using request speed %d (last known updated to %d)",
++               request_speed, last_known_speed);
+       } else {
+-        syslog(LOG_DEBUG, "Using last known speed %d", last_known_speed);
++        syslog(LOG_DEBUG, "Using last known speed %d", request_speed);
+       }
+ 
+       switch (request_message.command) {
+@@ -936,10 +1518,76 @@ int main(int argc, char *argv[]) {
+         syslog(LOG_DEBUG, "request type is %c", request_message.type);
+         switch (request_message.type) {
+         case 'g': // relative movement
+-          motor_steps(request_message.x, request_message.y, last_known_speed);
++          motor_status_get(&motor_message);
++          {
++            int rel_x = request_message.x;
++            int rel_y = request_message.y;
++            int target_x = motor_message.x + rel_x;
++            int target_y = motor_message.y + rel_y;
++            int runtime_x_max =
++                (motor_message.x_max_steps > 0)
++                    ? (int)motor_message.x_max_steps
++                    : ((g_cfg.loaded && g_cfg.pan.max_steps > 0)
++                           ? g_cfg.pan.max_steps
++                           : 0);
++            int runtime_y_max =
++                (motor_message.y_max_steps > 0)
++                    ? (int)motor_message.y_max_steps
++                    : ((g_cfg.loaded && g_cfg.tilt.max_steps > 0)
++                           ? g_cfg.tilt.max_steps
++                           : 0);
++
++            if (runtime_x_max > 0) {
++              if (target_x < 0)
++                target_x = 0;
++              if (target_x > runtime_x_max)
++                target_x = runtime_x_max;
++            }
++            if (runtime_y_max > 0) {
++              if (target_y < 0)
++                target_y = 0;
++              if (target_y > runtime_y_max)
++                target_y = runtime_y_max;
++            }
++
++            // At edges, suppress tiny corrective oscillation from repeated
++            // relative pushes and stale position updates.
++            const int edge_deadband = 24;
++            if (runtime_x_max > 0) {
++              if ((target_x >= runtime_x_max - edge_deadband &&
++                   motor_message.x >= runtime_x_max - edge_deadband) ||
++                  (target_x <= edge_deadband &&
++                   motor_message.x <= edge_deadband)) {
++                target_x = motor_message.x;
++              }
++            }
++            if (runtime_y_max > 0) {
++              if ((target_y >= runtime_y_max - edge_deadband &&
++                   motor_message.y >= runtime_y_max - edge_deadband) ||
++                  (target_y <= edge_deadband &&
++                   motor_message.y <= edge_deadband)) {
++                target_y = motor_message.y;
++              }
++
++              // If we are already running at a mechanical edge, ignore
++              // additional relative Y nudges until motion settles.
++              if (motor_message.status == MOTOR_IS_RUNNING &&
++                  (motor_message.y <= edge_deadband ||
++                   motor_message.y >= runtime_y_max - edge_deadband)) {
++                target_y = motor_message.y;
++              }
++            }
++
++            rel_x = target_x - motor_message.x;
++            rel_y = target_y - motor_message.y;
++
++            request_message.x = rel_x;
++            request_message.y = rel_y;
++            dispatch_profiled_move(rel_x, rel_y, request_speed,
++                                  "Profiled driver move started");
++          }
+           syslog(LOG_DEBUG, "request x is %i", request_message.x);
+           syslog(LOG_DEBUG, "request y is %i", request_message.y);
+-          start_motion_active_tracker();
+           break;
+         case 'h': // absolute movement
+           motor_status_get(&motor_message);
+@@ -950,30 +1598,99 @@ int main(int argc, char *argv[]) {
+                                  // is as to not break anything
+           if (request_message.got_y == 0)
+             request_message.y = motor_message.y;
+-          motor_set_position(request_message.x, request_message.y,
+-                             last_known_speed);
++          {
++            int target_x = request_message.x;
++            int target_y = request_message.y;
++
++            int cfg_x_max = (g_cfg.loaded && g_cfg.pan.max_steps > 0)
++                                ? g_cfg.pan.max_steps
++                                : 0;
++            int cfg_y_max = (g_cfg.loaded && g_cfg.tilt.max_steps > 0)
++                                ? g_cfg.tilt.max_steps
++                                : 0;
++            int runtime_x_max =
++                (motor_message.x_max_steps > 0)
++                    ? (int)motor_message.x_max_steps
++                    : cfg_x_max;
++            int runtime_y_max =
++                (motor_message.y_max_steps > 0)
++                    ? (int)motor_message.y_max_steps
++                    : cfg_y_max;
++
++            // If UI requests configured edge but runtime edge is slightly
++            // larger, snap to runtime edge to avoid visible rebound.
++            if (runtime_x_max > 0 && cfg_x_max > 0 &&
++                target_x >= (cfg_x_max - 1) && runtime_x_max > cfg_x_max)
++              target_x = runtime_x_max;
++            if (runtime_y_max > 0 && cfg_y_max > 0 &&
++                target_y >= (cfg_y_max - 1) && runtime_y_max > cfg_y_max)
++              target_y = runtime_y_max;
++
++            if (runtime_x_max > 0) {
++              if (target_x < 0)
++                target_x = 0;
++              if (target_x > runtime_x_max)
++                target_x = runtime_x_max;
++            }
++            if (runtime_y_max > 0) {
++              if (target_y < 0)
++                target_y = 0;
++              if (target_y > runtime_y_max)
++                target_y = runtime_y_max;
++            }
++
++            // At mechanical edges, ignore tiny corrective nudges that cause
++            // bounce when command and current are already at the same edge.
++            const int edge_deadband = 24;
++            if (runtime_x_max > 0) {
++              if ((target_x >= runtime_x_max - edge_deadband &&
++                   motor_message.x >= runtime_x_max - edge_deadband) ||
++                  (target_x <= edge_deadband &&
++                   motor_message.x <= edge_deadband)) {
++                target_x = motor_message.x;
++              }
++            }
++            if (runtime_y_max > 0) {
++              if ((target_y >= runtime_y_max - edge_deadband &&
++                   motor_message.y >= runtime_y_max - edge_deadband) ||
++                  (target_y <= edge_deadband &&
++                   motor_message.y <= edge_deadband)) {
++                target_y = motor_message.y;
++              }
++            }
++
++            int rel_x = target_x - motor_message.x;
++            int rel_y = -(target_y - motor_message.y);
++
++            request_message.x = target_x;
++            request_message.y = target_y;
++            dispatch_profiled_move(rel_x, rel_y, request_speed,
++                                  "Profiled driver absolute move started");
++          }
+           syslog(LOG_DEBUG, "request x is %i", request_message.x);
+           syslog(LOG_DEBUG, "request y is %i", request_message.y);
+-          start_motion_active_tracker();
+           break;
+         case 'b': // go back
++          motion_cancel_all(true);
+           motor_ioctl(MOTOR_GOBACK, NULL);
+           start_motion_active_tracker();
+           break;
+         case 'c': // cruise
++          motion_cancel_all(true);
+           motor_ioctl(MOTOR_CRUISE, NULL);
+           start_motion_active_tracker();
+           break;
+         case 's': // stop
+-          motor_ioctl(MOTOR_STOP, NULL);
++          motion_cancel_all(true);
+           remove_motion_active_flag();
+           break;
+         }
+         break;
+       case 'r': // reset (homing)
++        motion_cancel_all(true);
+         syslog(LOG_DEBUG, "== Enhanced homing (reset), please wait");
+         write_motion_active_flag();
+-        if (enhanced_homing_daemon(last_known_speed) != 0) {
++        if (enhanced_homing_daemon(request_speed) != 0) {
+           syslog(LOG_DEBUG,
+                  "Enhanced homing failed, falling back to legacy MOTOR_RESET.");
+           memset(&motor_reset_data, 0, sizeof(motor_reset_data));
+@@ -1007,7 +1724,8 @@ int main(int argc, char *argv[]) {
+ 
+         break;
+       case 's': // set speed
+-        last_known_speed = request_message.speed;
++         last_known_speed =
++             sanitize_requested_speed(request_message.speed, last_known_speed);
+         motor_set_axis_speed(last_known_speed, last_known_speed);
+         syslog(LOG_DEBUG, "Set speed command, last known speed now %d",
+                last_known_speed);
+diff --git a/src/motor.c b/src/motor.c
+index 36f2839..b69de8f 100644
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -1,10 +1,12 @@
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <signal.h>
++#include <stdarg.h>
+ #include <stdbool.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strings.h>
+ #include <syslog.h>
+ #include <unistd.h>
+ 
+@@ -31,6 +33,72 @@ typedef struct {
+ } ClientCfg;
+ static ClientCfg c_cfg = {0};
+ 
++static bool debug_mode = false;
++
++enum motor_status {
++  MOTOR_IS_STOP,
++  MOTOR_IS_RUNNING,
++};
++
++struct request {
++  char command; // d,r,s,p,b,S,i,j (move, reset,set speed,get position, is
++                // busy,Status,initial,JSON)
++  char type;    // g,h,c,s (absolute,relative,cruise,stop)
++  int x;
++  int got_x;
++  int y;
++  int got_y;
++  int speed;           // Add speed to the request structure
++  bool speed_supplied; // Track if speed was supplied
++};
++
++struct motor_message {
++  int x;
++  int y;
++  enum motor_status status;
++  int speed;
++  /* these two members are not standard from the original kernel module */
++  unsigned int x_max_steps;
++  unsigned int y_max_steps;
++  unsigned int inversion_state; // Report the inversion state
++};
++
++static bool value_is_truthy(const char *value) {
++  if (!value || !*value)
++    return false;
++  if (!strcmp(value, "0"))
++    return false;
++  if (!strcasecmp(value, "false"))
++    return false;
++  if (!strcasecmp(value, "off"))
++    return false;
++  return true;
++}
++
++static bool env_debug_enabled(void) {
++  const char *env = getenv("DEBUG");
++  return value_is_truthy(env);
++}
++
++static void debug_log(const char *fmt, ...) {
++  if (!debug_mode)
++    return;
++  va_list ap;
++  va_start(ap, fmt);
++  vfprintf(stdout, fmt, ap);
++  fputc('\n', stdout);
++  fflush(stdout);
++  va_end(ap);
++}
++
++static void log_request(const char *label, const struct request *req) {
++  if (!debug_mode || !req)
++    return;
++  debug_log("%s cmd=%c type=%c x=%d y=%d speed=%d supplied=%d", label,
++            req->command, req->type, req->x, req->y, req->speed,
++            req->speed_supplied ? 1 : 0);
++}
++
+ static int json_get_int_jct(JsonValue *obj, const char *key, int *out) {
+   if (!obj || obj->type != JSON_OBJECT || !key || !out)
+     return 0;
+@@ -99,34 +167,6 @@ static void load_client_config(void) {
+ #define MOTOR_INVERT_Y 0x2
+ #define MOTOR_INVERT_BOTH 0x3
+ 
+-enum motor_status {
+-  MOTOR_IS_STOP,
+-  MOTOR_IS_RUNNING,
+-};
+-
+-struct request {
+-  char command; // d,r,s,p,b,S,i,j (move, reset,set speed,get position, is
+-                // busy,Status,initial,JSON)
+-  char type;    // g,h,c,s (absolute,relative,cruise,stop)
+-  int x;
+-  int got_x;
+-  int y;
+-  int got_y;
+-  int speed;           // Add speed to the request structure
+-  bool speed_supplied; // Track if speed was supplied
+-};
+-
+-struct motor_message {
+-  int x;
+-  int y;
+-  enum motor_status status;
+-  int speed;
+-  /* these two members are not standard from the original kernel module */
+-  unsigned int x_max_steps;
+-  unsigned int y_max_steps;
+-  unsigned int inversion_state; // Report the inversion state
+-};
+-
+ static void print_json_message(struct motor_message *message,
+                                bool include_limits) {
+   // One place to maintain JSON shape; values kept as strings for
+@@ -230,9 +270,16 @@ int main(int argc, char *argv[]) {
+   char *daemon_pid_file;
+   struct request request_message;
+   bool verbose = false; // Initialize verbose to false
++  bool has_command = false;
+ 
+   initialize_request_message(&request_message);
+ 
++  debug_mode = env_debug_enabled();
++  if (debug_mode) {
++    verbose = true;
++    debug_log("Debug logging enabled via environment");
++  }
++
+   // Load client config for defaults and set initial speed if provided
+   load_client_config();
+   {
+@@ -250,12 +297,23 @@ int main(int argc, char *argv[]) {
+       stepspeed = cfg_speed;
+   }
+ 
++  if (debug_mode) {
++    if (c_cfg.loaded) {
++      debug_log("Loaded config speeds pan=%d tilt=%d -> initial stepspeed=%d",
++                c_cfg.pan.speed, c_cfg.tilt.speed, stepspeed);
++    } else {
++      debug_log("No config file detected, using default stepspeed=%d",
++                stepspeed);
++    }
++  }
++
+   // openlog ("motors app", LOG_PID, LOG_USER);
+   daemon_pid_file = "/var/run/motors-daemon";
+   if (check_daemon(daemon_pid_file) == 0) {
+     printf("Motors daemon is NOT running, please start the daemon\n");
+     exit(EXIT_FAILURE);
+   }
++  debug_log("Motors daemon detected via %s", daemon_pid_file);
+   // should open socket here
+   struct sockaddr_un addr;
+ 
+@@ -264,92 +322,118 @@ int main(int argc, char *argv[]) {
+   if (serverfd == -1) {
+     exit(EXIT_FAILURE);
+   }
++  debug_log("Opening UNIX socket for %s", SV_SOCK_PATH);
+   memset(&addr, 0, sizeof(struct sockaddr_un));
+   addr.sun_family = AF_UNIX;
+   strncpy(addr.sun_path, SV_SOCK_PATH, sizeof(addr.sun_path) - 1);
+ 
+   // connect to the socket
++  debug_log("Connecting to %s", SV_SOCK_PATH);
+   if (connect(serverfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_un)) ==
+       -1)
+     exit(EXIT_FAILURE);
++  debug_log("Connected to %s (fd=%d)", SV_SOCK_PATH, serverfd);
+ 
+-  while ((c = getopt(argc, argv, "d:s:x:y:jipSrvbI:")) != -1) {
++  while ((c = getopt(argc, argv, "d:s:x:y:jipSrvbI:D")) != -1) {
+     switch (c) {
+     case 'd':
+       request_message.command = 'd';
+       direction = optarg[0];
++      has_command = true;
+       break;
+     case 's':
+       stepspeed = atoi(optarg);
+       request_message.speed = stepspeed;
+       request_message.speed_supplied =
+           true; // Set speed_supplied to true when speed is provided
+-      request_message.command = 's';
++      debug_log("Speed override requested: %d", stepspeed);
+       break;
+     case 'x':
+       request_message.x = atoi(optarg);
+       request_message.got_x = 1;
++      debug_log("Parsed X argument: %d", request_message.x);
+       break;
+     case 'y':
+       request_message.y = atoi(optarg);
+       request_message.got_y = 1;
++      debug_log("Parsed Y argument: %d", request_message.y);
+       break;
+     case 'j':
+       request_message.command = 'j';
++      has_command = true;
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+ 
+       struct motor_message status;
+       read(serverfd, &status, sizeof(struct motor_message));
++      debug_log("RX json status: x=%d y=%d speed=%d status=%d", status.x,
++                status.y, status.speed, status.status);
+ 
+       JSON_status(&status);
+       return 0;
+     case 'i':
+       // get all initial values
+       request_message.command = 'i';
++      has_command = true;
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+ 
+       struct motor_message initial;
+       read(serverfd, &initial, sizeof(struct motor_message));
++      debug_log("RX init: x=%d y=%d xmax=%u ymax=%u speed=%d invert=%u",
++                initial.x, initial.y, initial.x_max_steps, initial.y_max_steps,
++                initial.speed, initial.inversion_state);
+ 
+       JSON_initial(&initial);
+       return 0;
+     case 'p':
+       request_message.command = 'p';
++      has_command = true;
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+ 
+       struct motor_message pos;
+       read(serverfd, &pos, sizeof(struct motor_message));
++      debug_log("RX position: x=%d y=%d", pos.x, pos.y);
+ 
+       xy_pos(&pos);
+       return 0;
+     case 'v':
+       verbose = true; // Enable verbose mode
+       break;
++    case 'D':
++      debug_mode = true;
++      verbose = true;
++      debug_log("Debug logging enabled via -D flag");
++      break;
+     case 'r': // reset
+       request_message.command = 'r';
+-      if (verbose)
+-        print_request_message(&request_message);
+-      write(serverfd, &request_message, sizeof(struct request));
+-      return 0;
++      has_command = true;
++      break;
+     case 'S': // status
+       request_message.command = 'S';
++      has_command = true;
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+ 
+       struct motor_message stat;
+       read(serverfd, &stat, sizeof(struct motor_message));
++      debug_log("RX status: x=%d y=%d speed=%d status=%d", stat.x, stat.y,
++                stat.speed, stat.status);
+ 
+       show_status(&stat);
+       return 0;
+     case 'I': // Invert motor
+       request_message.command = 'I';
++      has_command = true;
+       if (optarg) {
+         if (strcmp(optarg, "x") == 0) {
+           request_message.type = 'x'; // Invert X
+@@ -367,16 +451,20 @@ int main(int argc, char *argv[]) {
+ 
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+       return 0;
+     case 'b': // is moving?
+       request_message.command = 'b';
++      has_command = true;
+       if (verbose)
+         print_request_message(&request_message);
++      log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+ 
+       struct motor_message busy;
+       read(serverfd, &busy, sizeof(struct motor_message));
++      debug_log("RX busy: status=%d", busy.status);
+       if (busy.status == MOTOR_IS_RUNNING) {
+         printf("1\n");
+         return (1);
+@@ -393,8 +481,7 @@ int main(int argc, char *argv[]) {
+           "\t -x X position/step (default 0)\n"
+           "\t -y Y position/step (default 0) .\n"
+           "\t -r reset to default pos.\n"
+-          "\t -v verbose mode, prints debugging information while app is "
+-          "running\n"
++          "\t -v verbose mode\n"
+           "\t -j return json string xpos,ypos,status.\n"
+           "\t -i return json string for all camera parameters\n"
+           "\t -p return xpos,ypos as a string\n"
+@@ -406,10 +493,15 @@ int main(int argc, char *argv[]) {
+     }
+   }
+ 
++  if (request_message.speed_supplied && !has_command) {
++    request_message.command = 's';
++  }
++
+   // If the command is speed only, send it and return
+   if (request_message.command == 's') {
+     if (verbose)
+       print_request_message(&request_message);
++    log_request("TX", &request_message);
+     write(serverfd, &request_message, sizeof(struct request));
+     return 0;
+   }
+@@ -457,11 +549,13 @@ int main(int argc, char *argv[]) {
+   }
+ 
+   // Print and send the final request message if it's a move command
+-  if (request_message.command == 'd') {
++  if (request_message.command == 'd' || request_message.command == 'r') {
+     if (verbose)
+       print_request_message(&request_message);
++    log_request("TX", &request_message);
+     write(serverfd, &request_message, sizeof(struct request));
+   }
+ 
++  debug_log("Command dispatched; exiting client");
+   return 0;
+ }

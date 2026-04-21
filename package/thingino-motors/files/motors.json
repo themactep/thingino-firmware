@@ -1,5 +1,6 @@
 {
   "motors": {
+    "motion_driver": "legacy",
     "gpio_invert": false,
     "gpio_pan": "",
     "gpio_switch": false,
@@ -8,6 +9,8 @@
     "pos_0": "2000,1000",
     "speed_pan": 900,
     "speed_tilt": 900,
+    "accel_pan": 0,
+    "accel_tilt": 0,
     "steps_pan": 4000,
     "steps_tilt": 2000
   }

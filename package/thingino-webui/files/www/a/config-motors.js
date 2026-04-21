@@ -22,6 +22,45 @@
   let initialLoadComplete = false;
   let motorIsSpi = false;
 
+  function normalizeMotionDriver(value) {
+    return value === "profiled" ? "profiled" : "legacy";
+  }
+
+  function updateMotionDriverInputs() {
+    const motionDriverEl = $("#motion_driver");
+    const accelWrap = $("#motion-accel-fields");
+    const help = $("#motion-driver-help");
+    const accelPan = $("#accel_pan");
+    const accelTilt = $("#accel_tilt");
+    if (!motionDriverEl) return;
+
+    const mode = normalizeMotionDriver(motionDriverEl.value);
+    const profiled = mode === "profiled";
+
+    if (accelWrap) {
+      accelWrap.classList.toggle("opacity-50", !profiled);
+    }
+    if (accelPan) {
+      accelPan.disabled = !profiled;
+      if (!profiled) accelPan.value = "0";
+    }
+    if (accelTilt) {
+      accelTilt.disabled = !profiled;
+      if (!profiled) accelTilt.value = "0";
+    }
+    if (help) {
+      if (profiled) {
+        help.className = "alert alert-info small mb-2";
+        help.textContent =
+          "Profiled mode active: acceleration fields control ramping in motors-daemon.";
+      } else {
+        help.className = "alert alert-secondary small mb-2";
+        help.textContent =
+          "Legacy mode active: acceleration values are ignored and saved as 0.";
+      }
+    }
+  }
+
   function showAlert(variant, message, timeout = 6000) {
     if (!message) return;
 
@@ -113,6 +152,13 @@
     setMotorFieldValue("steps_tilt", config.steps_tilt);
     setMotorFieldValue("speed_pan", config.speed_pan);
     setMotorFieldValue("speed_tilt", config.speed_tilt);
+    setMotorFieldValue("accel_pan", config.accel_pan);
+    setMotorFieldValue("accel_tilt", config.accel_tilt);
+    const motionDriverEl = $("#motion_driver");
+    if (motionDriverEl) {
+      const mode = normalizeMotionDriver(config.motion_driver);
+      motionDriverEl.value = mode;
+    }
     const homingEl = $("#homing");
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
@@ -125,6 +171,7 @@
     motorIsSpi = config.is_spi === true || config.is_spi === "true";
     setMotorPinInputsEnabled(!motorIsSpi);
     updateBadge(motorIsSpi);
+    updateMotionDriverInputs();
   }
 
   async function loadMotorsConfig(options = {}) {
@@ -211,6 +258,25 @@
     }
     if (!stepsTilt || parseInt(stepsTilt) <= 0) {
       errors.push("Tilt max steps must be a positive number");
+    }
+
+    const accelPan = formData.get("accel_pan");
+    const accelTilt = formData.get("accel_tilt");
+    if (accelPan !== null && accelPan !== "" && parseInt(accelPan) < 0) {
+      errors.push("Pan acceleration must be zero or positive");
+    }
+    if (accelTilt !== null && accelTilt !== "" && parseInt(accelTilt) < 0) {
+      errors.push("Tilt acceleration must be zero or positive");
+    }
+
+    const motionDriver = formData.get("motion_driver");
+    if (motionDriver !== "legacy" && motionDriver !== "profiled") {
+      errors.push("Motion driver must be legacy or profiled");
+    }
+
+    if (motionDriver !== "profiled") {
+      formData.set("accel_pan", "0");
+      formData.set("accel_tilt", "0");
     }
 
     if (errors.length > 0) {
@@ -332,6 +398,11 @@
   if (homingSwitch) {
     homingSwitch.addEventListener("change", updateHomingInputs);
     updateHomingInputs();
+  }
+
+  const motionDriverSelect = $("#motion_driver");
+  if (motionDriverSelect) {
+    motionDriverSelect.addEventListener("change", updateMotionDriverInputs);
   }
 
   loadMotorsConfig();
