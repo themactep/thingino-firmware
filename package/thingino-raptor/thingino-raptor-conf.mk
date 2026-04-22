@@ -58,6 +58,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset stream1 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_MIN_QP))"; \
 	rset stream1 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_MAX_QP))"; \
 	rset stream1 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_NR_VBS))"; \
+	rset stream1 ivdc "$(call raptor_bval,STREAM1_IVDC)"; \
 	rset stream1 osd_enabled "$(call raptor_bval,STREAM1_OSD_ENABLED)"; \
 	rset stream1 jpeg "$(call raptor_bval,STREAM1_JPEG)"; \
 	rset stream1 jpeg_quality "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_JPEG_QUALITY))"; \
@@ -69,6 +70,25 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset jpeg bufshare "$(call raptor_bval,JPEG_BUFSHARE)"; \
 	rset jpeg idle "$(call raptor_bval,JPEG_IDLE)"; \
 	\
+	rset image brightness "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_BRIGHTNESS))"; \
+	rset image contrast "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_CONTRAST))"; \
+	rset image saturation "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_SATURATION))"; \
+	rset image sharpness "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_SHARPNESS))"; \
+	rset image hue "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_HUE))"; \
+	rset image sinter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_SINTER))"; \
+	rset image temper "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_TEMPER))"; \
+	rset image ae_comp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_AE_COMP))"; \
+	rset image max_again "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_MAX_AGAIN))"; \
+	rset image max_dgain "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_MAX_DGAIN))"; \
+	rset image dpc_strength "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_DPC_STRENGTH))"; \
+	rset image drc_strength "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_DRC_STRENGTH))"; \
+	rset image defog_strength "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_DEFOG_STRENGTH))"; \
+	rset image highlight_depress "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_HIGHLIGHT_DEPRESS))"; \
+	rset image backlight_comp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_BACKLIGHT_COMP))"; \
+	rset image hflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_HFLIP))"; \
+	rset image vflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_VFLIP))"; \
+	\
+	rset ring refmode "$(call raptor_bval,RING_REFMODE)"; \
 	rset ring main_slots "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_MAIN_SLOTS))"; \
 	rset ring main_data_mb "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_MAIN_DATA_MB))"; \
 	rset ring sub_slots "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_SUB_SLOTS))"; \
@@ -124,6 +144,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset osd font_stroke "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_FONT_STROKE))"; \
 	rset osd stroke_color "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STROKE_COLOR))"; \
 	rset osd time_format "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIME_FORMAT))"; \
+	rset osd privacy_color "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_PRIVACY_COLOR))"; \
 	\
 	rset osd.timestamp visible "$(call raptor_bval,OSD_TIMESTAMP_VISIBLE)"; \
 	rset osd.timestamp template "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIMESTAMP_TEMPLATE))"; \
