@@ -125,26 +125,28 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset osd font_color "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_FONT_COLOR))"; \
 	rset osd font_stroke "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_FONT_STROKE))"; \
 	rset osd stroke_color "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STROKE_COLOR))"; \
-	rset osd time_enabled "$(call raptor_bval,OSD_TIME_ENABLED)"; \
 	rset osd time_format "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIME_FORMAT))"; \
-	rset osd uptime_enabled "$(call raptor_bval,OSD_UPTIME_ENABLED)"; \
-	rset osd text_enabled "$(call raptor_bval,OSD_TEXT_ENABLED)"; \
-	rset osd text_string "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TEXT_STRING))"; \
-	rset osd privacy_color "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_PRIVACY_COLOR))"; \
-	rset osd logo_enabled "$(call raptor_bval,OSD_LOGO_ENABLED)"; \
-	rset osd logo_path "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_PATH))"; \
-	rset osd logo_width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_WIDTH))"; \
-	rset osd logo_height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_HEIGHT))"; \
-	rset osd stream0_font_size "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM0_FONT_SIZE))"; \
-	rset osd stream0_time_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM0_TIME_POS))"; \
-	rset osd stream0_uptime_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM0_UPTIME_POS))"; \
-	rset osd stream0_text_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM0_TEXT_POS))"; \
-	rset osd stream0_logo_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM0_LOGO_POS))"; \
-	rset osd stream1_font_size "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM1_FONT_SIZE))"; \
-	rset osd stream1_time_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM1_TIME_POS))"; \
-	rset osd stream1_uptime_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM1_UPTIME_POS))"; \
-	rset osd stream1_text_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM1_TEXT_POS))"; \
-	rset osd stream1_logo_pos "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_STREAM1_LOGO_POS))"; \
+	\
+	rset osd.timestamp visible "$(call raptor_bval,OSD_TIMESTAMP_VISIBLE)"; \
+	rset osd.timestamp template "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIMESTAMP_TEMPLATE))"; \
+	rset osd.timestamp position "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIMESTAMP_POSITION))"; \
+	rset osd.timestamp max_chars "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_TIMESTAMP_MAX_CHARS))"; \
+	\
+	rset osd.uptime visible "$(call raptor_bval,OSD_UPTIME_VISIBLE)"; \
+	rset osd.uptime template "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_UPTIME_TEMPLATE))"; \
+	rset osd.uptime position "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_UPTIME_POSITION))"; \
+	rset osd.uptime max_chars "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_UPTIME_MAX_CHARS))"; \
+	\
+	rset osd.camera visible "$(call raptor_bval,OSD_CAMERA_VISIBLE)"; \
+	rset osd.camera template "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_CAMERA_TEMPLATE))"; \
+	rset osd.camera position "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_CAMERA_POSITION))"; \
+	rset osd.camera max_chars "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_CAMERA_MAX_CHARS))"; \
+	\
+	rset osd.logo visible "$(call raptor_bval,OSD_LOGO_VISIBLE)"; \
+	rset osd.logo path "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_PATH))"; \
+	rset osd.logo width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_WIDTH))"; \
+	rset osd.logo height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_HEIGHT))"; \
+	rset osd.logo position "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_OSD_LOGO_POSITION))"; \
 	\
 	rset ircut enabled "$(call raptor_bval,IRCUT_ENABLED)"; \
 	rset ircut mode "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_MODE))"; \
