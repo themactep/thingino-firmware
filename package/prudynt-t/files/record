@@ -6,6 +6,10 @@ PRUDYNT_APP="prudynt"
 PRUDYNT_CONFIG="/etc/prudynt.json"
 FIFO_PATH="/run/prudynt/mp4ctl"
 
+usage() {
+	echo "Usage: $0 [stop|start] [-c chan] [-t seconds] [-m mount] [-s dir] [-n template] [-x]" >&2
+}
+
 json_get() {
 	local file="$1"
 	local key="$2"
@@ -59,12 +63,44 @@ while getopts "c:m:n:s:t:x" flag; do
 		t) duration=$OPTARG ;;
 		x) one_time="true" ;;
 		*)
-			echo "Usage: $0 [-c chan] [-t seconds] [-m mount] [-s dir] [-n template] [-x]" >&2
+			usage
 			exit 1
 			;;
 	esac
 done
 shift "$((OPTIND - 1))"
+
+action="start"
+if [ -n "$1" ]; then
+	case "$1" in
+		start | stop)
+			action="$1"
+			shift
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+fi
+
+[ -n "$1" ] && {
+	usage
+	exit 1
+}
+
+if [ "$action" = "stop" ]; then
+	if [ ! -p "$FIFO_PATH" ]; then
+		echo_warning "Recorder control is not available"
+		exit 0
+	fi
+
+	if ! printf 'STOP\n' >"$FIFO_PATH"; then
+		echo_error "Failed to send STOP command"
+		exit 1
+	fi
+	exit 0
+fi
 
 device_path=$(expand_template "$device_path")
 
