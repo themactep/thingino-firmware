@@ -83,6 +83,13 @@ def generate_mtdparts_string(
     )
 
 
+def format_duration(duration_seconds):
+    """Format a duration in seconds as H:MM:SS."""
+    hours, remainder = divmod(max(duration_seconds, 0), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
+
+
 def main():
     parser = argparse.ArgumentParser(description='Save partition information to markdown file')
     parser.add_argument('output_file', help='Output markdown file path')
@@ -121,6 +128,7 @@ def main():
     parser.add_argument('extras_size_kb', type=int)
     parser.add_argument('upgrade_size_kb', type=int)
     parser.add_argument('flash_size_kb', type=int)
+    parser.add_argument('build_duration_seconds', type=int)
     parser.add_argument('flash_controller', nargs='?', default='jz_sfc')
 
     args = parser.parse_args()
@@ -200,6 +208,7 @@ MTD Partition Details
 {format_partition_table(partitions, 'hex')}
 
 Build: {args.git_branch}+{args.git_hash}, {args.build_date}
+Build Duration: {format_duration(args.build_duration_seconds)} ({args.build_duration_seconds}s)
 
 """
 
