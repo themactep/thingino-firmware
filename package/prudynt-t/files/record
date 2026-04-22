@@ -111,7 +111,7 @@ fi
 
 [ -z "$duration" ] && duration=60
 [ -z "$filename" ] && filename="%Y/%m/%d/%H-%M-%S"
-[ -z "$mount" ] && mount="/mnt/mmc"
+[ -z "$mount" ] && mount="/mnt/mmcblk0p1"
 [ -z "$stream_number" ] && stream_number=0
 
 if ! echo "$duration" | grep -Eq '^[0-9]+$' || [ "$duration" -le 0 ]; then
