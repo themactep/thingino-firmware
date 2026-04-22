@@ -56,19 +56,6 @@ else ifeq ($(SOC_FAMILY),t41)
 	SDK_VERSION := 1.2.0
 endif
 
-ifeq ($(KERNEL_VERSION),3.10.14)
-$(info KERNEL_VERSION: 3.10.14)
-else ifeq ($(KERNEL_VERSION),4.4.94)
-$(info KERNEL_VERSION: 4.4.94)
-else
-$(info KERNEL_VERSION: UNKNOWN)
-endif
-
-$(info SDK_VERSION: $(SDK_VERSION))
-$(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
-$(info SDK_LIBC_NAME: $(SDK_LIBC_NAME))
-$(info Building using libs for $(SDK_LIBC_NAME) GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
-
 ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
 	# For T40/T41/A1, use their native version regardless of libc type
 	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
