@@ -38,7 +38,6 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset stream0 gop "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_GOP))"; \
 	rset stream0 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_MIN_QP))"; \
 	rset stream0 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_MAX_QP))"; \
-	rset stream0 init_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_INIT_QP))"; \
 	rset stream0 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_NR_VBS))"; \
 	rset stream0 ivdc "$(call raptor_bval,STREAM0_IVDC)"; \
 	rset stream0 osd_enabled "$(call raptor_bval,STREAM0_OSD_ENABLED)"; \
@@ -58,7 +57,6 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset stream1 gop "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_GOP))"; \
 	rset stream1 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_MIN_QP))"; \
 	rset stream1 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_MAX_QP))"; \
-	rset stream1 init_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_INIT_QP))"; \
 	rset stream1 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_NR_VBS))"; \
 	rset stream1 osd_enabled "$(call raptor_bval,STREAM1_OSD_ENABLED)"; \
 	rset stream1 jpeg "$(call raptor_bval,STREAM1_JPEG)"; \
