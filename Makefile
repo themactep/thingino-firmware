@@ -349,7 +349,7 @@ define thingino_run_build
 	fi
 endef
 
-.PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
+.PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs
@@ -684,6 +684,10 @@ pack: $(FIRMWARE_BIN_FULL)
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 	@echo "Update Image: $(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin"
 
+build-info: pack
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/generate_build_info.sh "$(OUTPUT_DIR)"
+
 # rebuild a package with smart configuration check
 rebuild-%: force-config
 	@$(TEAL) "$@"
@@ -992,6 +996,7 @@ help:
 	  make cleanbuild     same as 'make' (clean + parallel build)\n\
 	  make build          serial build (no clean)\n\
 	  make pack           create firmware images\n\
+	  make build-info     generate post-build graphs and package analysis\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
