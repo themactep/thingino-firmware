@@ -33,7 +33,7 @@ DRY_RUN = False
 STASH_REF: Optional[str] = None
 STASH_SHA: Optional[str] = None
 
-HASH_RE = re.compile(r"^[a-f0-9]{40}$")
+HASH_RE = re.compile(r"^[a-f0-9]{7,40}$")
 
 
 def log_debug(msg: str) -> None:
@@ -70,6 +70,13 @@ def run_git(args: List[str], cwd: Optional[Path] = None, timeout: int = 60) -> T
 
 def is_valid_hash(s: str) -> bool:
     return bool(HASH_RE.match(s))
+
+
+def hashes_match(lhs: str, rhs: str) -> bool:
+    """
+    Treat abbreviated and full commit hashes as equal when one is a prefix of the other.
+    """
+    return lhs == rhs or lhs.startswith(rhs) or rhs.startswith(lhs)
 
 
 def get_short_hash(h: str) -> str:
@@ -331,8 +338,27 @@ def get_remote_hash(repo_url: str, branch: str) -> Optional[str]:
     return None
 
 
-def get_commit_log(repo_url: str, old_hash: str, new_hash: str) -> List[str]:
-    log_debug(f"Getting commit log for {repo_url} from {old_hash} to {new_hash}")
+def resolve_commit_hash(repo_dir: Path, commitish: str) -> Optional[str]:
+    """
+    Resolve commitish to a full 40-char commit hash in repo_dir.
+    """
+    code, out, err = run_git(["rev-parse", "--verify", f"{commitish}^{{commit}}"], cwd=repo_dir)
+    if code == 0 and is_valid_hash(out) and len(out) == 40:
+        return out
+
+    if is_valid_hash(commitish) and len(commitish) < 40:
+        code, out, err = run_git(["rev-list", "--all"], cwd=repo_dir, timeout=180)
+        if code == 0:
+            matches = [line for line in out.splitlines() if line.startswith(commitish)]
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                log_warn(f"Abbreviated hash '{commitish}' is ambiguous in fetched history")
+    return None
+
+
+def get_commit_log(repo_url: str, old_hash: str, new_hash: str, branch: str = "HEAD") -> List[str]:
+    log_debug(f"Getting commit log for {repo_url} from {old_hash} to {new_hash} (branch: {branch})")
     tmpdir = Path(tempfile.mkdtemp(prefix="pkg-git-"))
     try:
         # Lightweight repo: init + fetch only required commits
@@ -344,16 +370,52 @@ def get_commit_log(repo_url: str, old_hash: str, new_hash: str) -> List[str]:
         if code != 0:
             log_error(f"Failed to add remote: {err}")
             return []
-        # Fetch both commits with shallow depth and without blobs for speed
-        run_git(["fetch", "--quiet", "--depth=200", "--filter=blob:none", "origin", old_hash], cwd=tmpdir, timeout=180)
+
+        # Fetch branch history and the remote tip without blobs for speed.
+        # This gives us enough history to resolve abbreviated hashes locally.
+        run_git(["fetch", "--quiet", "--depth=200", "--filter=blob:none", "origin", branch], cwd=tmpdir, timeout=180)
         run_git(["fetch", "--quiet", "--depth=200", "--filter=blob:none", "origin", new_hash], cwd=tmpdir, timeout=180)
+
+        resolved_new_hash = resolve_commit_hash(tmpdir, new_hash)
+        if not resolved_new_hash:
+            log_error(f"Failed to resolve new hash '{new_hash}' in fetched history")
+            return []
+
+        resolved_old_hash = resolve_commit_hash(tmpdir, old_hash)
+        if not resolved_old_hash:
+            # Short hashes may point to commits older than the initial shallow depth.
+            # Deepen progressively to avoid cloning the full history in the common case.
+            for deepen in [400, 800, 1600, 3200, 6400]:
+                run_git(["fetch", "--quiet", f"--deepen={deepen}", "--filter=blob:none", "origin", branch], cwd=tmpdir, timeout=180)
+                resolved_old_hash = resolve_commit_hash(tmpdir, old_hash)
+                if resolved_old_hash:
+                    break
+
+        if not resolved_old_hash:
+            if is_valid_hash(old_hash) and len(old_hash) == 40:
+                run_git(["fetch", "--quiet", "--filter=blob:none", "origin", old_hash], cwd=tmpdir, timeout=180)
+                resolved_old_hash = resolve_commit_hash(tmpdir, old_hash)
+
+        if not resolved_old_hash:
+            log_warn(
+                f"Could not resolve old hash '{old_hash}' in fetched history; showing recent commits up to {get_short_hash(resolved_new_hash)}"
+            )
+            code, out, err = run_git([
+                "log", "--pretty=format:%h: %s", "--reverse", "-n", "30", resolved_new_hash
+            ], cwd=tmpdir, timeout=90)
+            if code == 0:
+                lines = [line for line in out.splitlines() if line.strip()]
+                if lines:
+                    return [f"(old hash {old_hash} not found; showing latest {len(lines)} commits)"] + lines
+            return []
+
         code, out, err = run_git([
-            "log", "--pretty=format:%h: %s", "--reverse", f"{old_hash}..{new_hash}"
+            "log", "--pretty=format:%h: %s", "--reverse", f"{resolved_old_hash}..{resolved_new_hash}"
         ], cwd=tmpdir, timeout=90)
         if code == 0:
             return [line for line in out.splitlines() if line.strip()]
         else:
-            log_error(f"Failed to get commit log between {old_hash} and {new_hash}: {err}")
+            log_error(f"Failed to get commit log between {resolved_old_hash} and {resolved_new_hash}: {err}")
             return []
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -448,7 +510,7 @@ def process_package(mk_path: Path) -> None:
 
     log_debug(f"  Remote hash: {remote_hash}")
 
-    if current_hash == remote_hash:
+    if hashes_match(current_hash, remote_hash):
         log_debug(f"Package {package_name} is up to date")
         return
 
@@ -463,7 +525,7 @@ def process_package(mk_path: Path) -> None:
     print(f"+ {remote_hash}")
 
     # Commit log
-    log_lines = get_commit_log(repo_url, current_hash, remote_hash)
+    log_lines = get_commit_log(repo_url, current_hash, remote_hash, branch)
     if log_lines:
         for line in log_lines:
             print(f"* {line}")
@@ -581,4 +643,3 @@ if __name__ == '__main__':
             log_info("Attempting to restore stashed changes before exit...")
             restore_stashed_changes()
         sys.exit(1)
-
