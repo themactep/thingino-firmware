@@ -420,8 +420,6 @@ endif
 # update repo and submodules with buildroot patch management
 update:
 	@$(TEAL) "$@"
-	@echo "=== UPDATING MAIN REPOSITORY ==="
-	git pull --rebase --autostash
 	@echo "=== UNPATCHING BUILDROOT OVERRIDES ==="
 	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
 		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort -r); do \
@@ -435,6 +433,8 @@ update:
 	else \
 		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
 	fi
+	@echo "=== UPDATING MAIN REPOSITORY ==="
+	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule init
 	git submodule update
