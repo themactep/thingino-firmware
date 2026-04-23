@@ -126,6 +126,7 @@ handle_post() {
 	accel_pan_value=${POST_accel_pan:-0}
 	accel_tilt_value=${POST_accel_tilt:-0}
 	motion_driver_value=${POST_motion_driver:-legacy}
+	preview_control_mode_value=${POST_preview_control_mode:-step}
 	steps_pan_value=$POST_steps_pan
 	steps_tilt_value=$POST_steps_tilt
 
@@ -155,6 +156,13 @@ handle_post() {
 			;;
 	esac
 
+	case "$preview_control_mode_value" in
+		step | continuous) ;;
+		*)
+			preview_control_mode_value="step"
+			;;
+	esac
+
 	if [ "true" != "$is_spi_value" ]; then
 		motors_set_value gpio_pan "$gpio_pan_1 $gpio_pan_2 $gpio_pan_3 $gpio_pan_4"
 		motors_set_value gpio_tilt "$gpio_tilt_1 $gpio_tilt_2 $gpio_tilt_3 $gpio_tilt_4"
@@ -167,6 +175,7 @@ handle_post() {
 	motors_set_value accel_pan "$accel_pan_value"
 	motors_set_value accel_tilt "$accel_tilt_value"
 	motors_set_value motion_driver "$motion_driver_value"
+	motors_set_value preview_control_mode "$preview_control_mode_value"
 	motors_set_value homing "$homing_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then

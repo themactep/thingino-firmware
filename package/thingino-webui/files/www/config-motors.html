@@ -119,6 +119,15 @@
                   Legacy mode uses the stock kernel movement path. Profiled mode enables acceleration/deceleration ramping in motors-daemon.
                 </p>
 
+                <p>
+                  <label for="preview_control_mode">Preview PTZ controls</label>
+                  <select class="form-select" id="preview_control_mode" name="preview_control_mode">
+                    <option value="step">Step move (click / double-click)</option>
+                    <option value="continuous">Continuous move (press and hold)</option>
+                  </select>
+                  <small class="text-secondary">Applies to motor controls in the preview overlay.</small>
+                </p>
+
                 <div id="motion-accel-fields" class="d-flex gap-2">
                   <p>
                     <label for="accel_pan">Pan acceleration</label>

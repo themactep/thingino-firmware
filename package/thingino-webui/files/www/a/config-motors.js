@@ -26,6 +26,10 @@
     return value === "profiled" ? "profiled" : "legacy";
   }
 
+  function normalizePreviewControlMode(value) {
+    return value === "continuous" ? "continuous" : "step";
+  }
+
   function updateMotionDriverInputs() {
     const motionDriverEl = $("#motion_driver");
     const accelWrap = $("#motion-accel-fields");
@@ -159,6 +163,12 @@
       const mode = normalizeMotionDriver(config.motion_driver);
       motionDriverEl.value = mode;
     }
+    const previewControlModeEl = $("#preview_control_mode");
+    if (previewControlModeEl) {
+      previewControlModeEl.value = normalizePreviewControlMode(
+        config.preview_control_mode,
+      );
+    }
     const homingEl = $("#homing");
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
@@ -272,6 +282,11 @@
     const motionDriver = formData.get("motion_driver");
     if (motionDriver !== "legacy" && motionDriver !== "profiled") {
       errors.push("Motion driver must be legacy or profiled");
+    }
+
+    const previewControlMode = formData.get("preview_control_mode");
+    if (previewControlMode !== "step" && previewControlMode !== "continuous") {
+      errors.push("Preview PTZ controls must be step or continuous");
     }
 
     if (motionDriver !== "profiled") {
