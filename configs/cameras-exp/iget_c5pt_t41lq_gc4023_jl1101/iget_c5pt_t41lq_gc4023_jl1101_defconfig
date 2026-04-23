@@ -1,5 +1,5 @@
 # NAME: Vanhua T55A (T41LQ, GC5603, ETH)
-# FRAG: soc-xburst2 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst2 core ssl
 BR2_ETHERNET=y
 BR2_SENSOR_GC4023=y
 BR2_SENSOR_1_NAME=gc4023

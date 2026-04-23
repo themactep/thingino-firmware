@@ -1,5 +1,5 @@
 # NAME: A1 Smart NVR v1.2 (A1N, ETH)
-# FRAG: soc-xburst2 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst2 core ssl
 BR2_ETHERNET=y
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS=y

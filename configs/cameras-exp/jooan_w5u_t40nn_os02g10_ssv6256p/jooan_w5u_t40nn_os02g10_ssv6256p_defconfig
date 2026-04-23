@@ -1,5 +1,5 @@
 # NAME: Jooan W5U (T40NN, OS02G10, SSV6256P)
-# FRAG: soc-xburst2 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst2 core ssl
 BR2_ETHERNET=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_SSV6X5X=y
