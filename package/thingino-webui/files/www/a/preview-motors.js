@@ -14,6 +14,27 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function ensureMotorParams() {
+  if (window.motorParams) {
+    return window.motorParams;
+  }
+  try {
+    const response = await fetch("/x/json-motor-params.cgi");
+    const motorParams = await response.json();
+    window.motorParams = motorParams;
+    return motorParams;
+  } catch (error) {
+    console.error("Failed to load motor parameters:", error);
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+    return window.motorParams;
+  }
+}
+
 async function moveMotor(dir, steps = 100, d = "g") {
   // Use motor parameters loaded from backend
   const motorParams = window.motorParams || {
@@ -43,13 +64,14 @@ async function moveMotor(dir, steps = 100, d = "g") {
 }
 
 // Initialize motor controls when DOM is ready
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   const uiConfig = window.thinginoUIConfig || {};
   const hasMotors = uiConfig.device && uiConfig.device.motors === true;
 
   if (!hasMotors) {
     return;
   }
+  await ensureMotorParams();
 
   const motorOverlay = $("#motor-overlay");
   if (motorOverlay) {
