@@ -283,6 +283,9 @@ jobs:
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
+      - name: Apply buildroot override patches
+        run: make update
+
       - name: Build toolchain
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
