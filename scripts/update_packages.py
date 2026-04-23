@@ -515,7 +515,6 @@ def process_package(mk_path: Path) -> None:
         print("---------------")
         print(repo_url)
         print(f"= {current_hash} (up to date)")
-        print()
         log_debug(f"Package {package_name} is up to date")
         return
 
