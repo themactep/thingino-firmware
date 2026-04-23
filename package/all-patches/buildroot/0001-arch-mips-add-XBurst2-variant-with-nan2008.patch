@@ -1,0 +1,28 @@
+diff --git a/arch/Config.in.mips b/arch/Config.in.mips
+index 29b4180d21..11477fa7f1 100644
+--- a/arch/Config.in.mips
++++ b/arch/Config.in.mips
+@@ -97,6 +97,15 @@ config BR2_mips_xburst
+ 	  to be used in order to prevent emitting these instructions.
+ 
+ 	  See http://www.ingenic.com/en/?xburst.html
++config BR2_mips_xburst2
++	bool "XBurst2"
++	depends on !BR2_ARCH_IS_64
++	select BR2_MIPS_NAN_2008
++	help
++	  The Ingenic XBurst2 core (T40, T41, A1) is a MIPS32R2
++	  microprocessor. The vendor SDK uses IEEE 754-2008 NaN
++	  encoding, so the toolchain must match with -mnan=2008.
++
+ config BR2_mips4
+ 	bool "MIPS IV"
+ config BR2_mips_64
+@@ -255,6 +264,7 @@ config BR2_GCC_TARGET_ARCH
+ 	default "m6201"		if BR2_mips_m6250
+ 	default "p5600"		if BR2_mips_p5600
+ 	default "mips32r2"	if BR2_mips_xburst
++	default "mips32r2"	if BR2_mips_xburst2
+ 	default "mips64"	if BR2_mips_64
+ 	default "mips64r2"	if BR2_mips_64r2
+ 	default "mips64r3"	if BR2_mips_64r3
