@@ -511,6 +511,11 @@ def process_package(mk_path: Path) -> None:
     log_debug(f"  Remote hash: {remote_hash}")
 
     if hashes_match(current_hash, remote_hash):
+        print(package_name)
+        print("---------------")
+        print(repo_url)
+        print(f"= {current_hash} (up to date)")
+        print()
         log_debug(f"Package {package_name} is up to date")
         return
 
