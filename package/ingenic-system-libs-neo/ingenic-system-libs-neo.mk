@@ -22,4 +22,12 @@ define INGENIC_SYSTEM_LIBS_NEO_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/libsysutils.so $(TARGET_DIR)/usr/lib/libsysutils.so
 endef
 
+define INGENIC_SYSTEM_LIBS_NEO_FINALIZE_TARGET
+	$(INSTALL) -m 0755 $(BUILD_DIR)/ingenic-system-libs-neo-$(INGENIC_SYSTEM_LIBS_NEO_VERSION)/libalog.so \
+		$(TARGET_DIR)/usr/lib/libalog.so
+	$(INSTALL) -m 0755 $(BUILD_DIR)/ingenic-system-libs-neo-$(INGENIC_SYSTEM_LIBS_NEO_VERSION)/libsysutils.so \
+		$(TARGET_DIR)/usr/lib/libsysutils.so
+endef
+INGENIC_SYSTEM_LIBS_NEO_TARGET_FINALIZE_HOOKS += INGENIC_SYSTEM_LIBS_NEO_FINALIZE_TARGET
+
 $(eval $(generic-package))
