@@ -288,10 +288,11 @@ jobs:
           PATCH_DIR="package/all-patches/buildroot"
           if [ -d "$PATCH_DIR" ]; then
             for patch in $(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do
-              if git -C buildroot apply --check "$patch" 2>/dev/null; then
+              abspatch="$(pwd)/$patch"
+              if git -C buildroot apply --check "$abspatch" 2>/dev/null; then
                 echo "Applying $patch"
-                git -C buildroot apply "$patch"
-              elif git -C buildroot apply -R --check "$patch" 2>/dev/null; then
+                git -C buildroot apply "$abspatch"
+              elif git -C buildroot apply -R --check "$abspatch" 2>/dev/null; then
                 echo "Already applied: $patch"
               else
                 echo "ERROR: failed to apply $patch"
