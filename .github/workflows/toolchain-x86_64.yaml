@@ -284,7 +284,7 @@ jobs:
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Apply buildroot override patches
-        run: make update
+        run: make update WORKFLOW=1
 
       - name: Build toolchain
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
