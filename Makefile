@@ -16,6 +16,8 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
+BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
 # Run dependency check before doing anything, but skip if WORKFLOW=1 or if .prereqs.done exists
 ifeq ($(WORKFLOW),)
@@ -420,9 +422,38 @@ update:
 	@$(TEAL) "$@"
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
+	@echo "=== UNPATCHING BUILDROOT OVERRIDES ==="
+	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
+		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort -r); do \
+			if git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
+				echo "Unapplying $$patch"; \
+				git -C "$(BUILDROOT_DIR)" apply -R "$$patch"; \
+			else \
+				echo "Skipping (not applied): $$patch"; \
+			fi; \
+		done; \
+	else \
+		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
+	fi
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule init
 	git submodule update
+	@echo "=== APPLYING BUILDROOT OVERRIDES ==="
+	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
+		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do \
+			if git -C "$(BUILDROOT_DIR)" apply --check "$$patch"; then \
+				echo "Applying $$patch"; \
+				git -C "$(BUILDROOT_DIR)" apply "$$patch"; \
+			elif git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
+				echo "Already applied: $$patch"; \
+			else \
+				echo "ERROR: failed to apply $$patch"; \
+				exit 1; \
+			fi; \
+		done; \
+	else \
+		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
+	fi
 	@echo "=== CHECKING EXTERNAL TOOLCHAIN BUNDLES ==="
 	BR2_DL_DIR=$(BR2_DL_DIR) \
 		$(SCRIPTS_DIR)/update_toolchain_bundles.sh
