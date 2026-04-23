@@ -260,7 +260,7 @@
           });
         }
 
-        pc = new RTCPeerConnection({ iceServers: [] });
+        pc = new RTCPeerConnection({ iceServers: [], bundlePolicy: "max-bundle" });
         pc.addTransceiver("video", { direction: "recvonly" });
         const audioTransceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
 
@@ -354,6 +354,7 @@
 
           response = await fetch(`/x/webrtc-whip.cgi?stream=${encodeURIComponent(stream)}`, {
             method: "POST",
+            cache: "no-store",
             headers: {
               "Content-Type": "application/sdp",
             },
