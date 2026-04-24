@@ -85,6 +85,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RSP
 	bool "RSP (RTMP/RTMPS stream push)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	help
 	  Push live video+audio to RTMP/RTMPS servers (YouTube Live,
