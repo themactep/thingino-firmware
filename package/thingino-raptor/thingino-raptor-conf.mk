@@ -254,6 +254,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset push audio "$(call raptor_bval,PUSH_AUDIO)"; \
 	rset push autostart "$(call raptor_bval,PUSH_AUTOSTART)"; \
 	rset push reconnect_ms "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_RECONNECT_MS))"; \
+	rset push tcp_sndbuf "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_TCP_SNDBUF))"; \
 	\
 	rset log level "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_LEVEL))"; \
 	rset log target "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_TARGET))"; \
