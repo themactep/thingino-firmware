@@ -354,7 +354,7 @@ endef
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
-	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -465,6 +465,12 @@ update_manual:
 bootstrap:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/dep_check.sh
+
+# Configure repository-local git hooks path for team pre-commit automation.
+setup-hooks:
+	@$(TEAL) "$@"
+	@git config core.hooksPath .githooks
+	@echo "Configured local git hooks path: $$(git config --get core.hooksPath)"
 
 build: BR2_MAKE_JOBS =
 build: $(U_BOOT_ENV_TXT)
@@ -1015,6 +1021,7 @@ help:
 	@echo -e "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
+	  make setup-hooks    configure local git hooks path (.githooks)\n\
 	  make update         update local repo and submodules (excludes buildroot)\n\
 	  make                build from scratch (clean + parallel) [DEFAULT]\n\
 	  make dev            serial build for debugging compilation errors\n\
