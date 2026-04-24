@@ -4,6 +4,7 @@
   const uiConfig = window.thinginoUIConfig || {};
   const globalConfig =
     uiConfig.controlBar || window.thinginoControlBarConfig || {};
+  const buttonBarCompactMedia = window.matchMedia("(max-width: 992px)");
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -46,14 +47,17 @@
     return icon;
   }
 
-  function appendLabelWithIcon(el, iconClass, title, label) {
+  function appendLabelWithIcon(el, iconClass, title, label, labelClass) {
     if (iconClass) {
       const icon = createIcon(iconClass, title);
       el.appendChild(icon);
-      el.appendChild(document.createTextNode(" "));
     }
     if (label) {
-      el.appendChild(document.createTextNode(label));
+      const text = document.createElement("span");
+      text.textContent = label;
+      if (labelClass) text.className = labelClass;
+      if (iconClass) text.classList.add("ms-1");
+      el.appendChild(text);
     }
   }
 
@@ -78,8 +82,38 @@
       options.icon,
       options.iconTitle || options.title,
       options.label,
+      "btn-label",
     );
     return button;
+  }
+
+  function syncButtonBarCompactState() {
+    const compact = buttonBarCompactMedia.matches;
+    const bars = document.querySelectorAll("#button-bar");
+    bars.forEach((bar) => {
+      bar.classList.toggle("is-compact", compact);
+
+      const buttons = bar.querySelectorAll(":scope > .btn-group > .btn");
+      buttons.forEach((button) => {
+        if (!button.dataset.originalTitle) {
+          button.dataset.originalTitle = button.title || "";
+        }
+
+        const label = button.querySelector(".btn-label");
+        const labelText = label ? label.textContent.trim() : "";
+
+        if (compact && labelText) {
+          button.title = labelText;
+          return;
+        }
+
+        if (button.dataset.originalTitle) {
+          button.title = button.dataset.originalTitle;
+        } else {
+          button.removeAttribute("title");
+        }
+      });
+    });
   }
 
   function createRecorderGroup() {
@@ -809,6 +843,13 @@
       const row = buildControlRow(placeholder);
       placeholder.parentNode.replaceChild(row, placeholder);
     });
+    syncButtonBarCompactState();
+  }
+
+  if (buttonBarCompactMedia.addEventListener) {
+    buttonBarCompactMedia.addEventListener("change", syncButtonBarCompactState);
+  } else if (buttonBarCompactMedia.addListener) {
+    buttonBarCompactMedia.addListener(syncButtonBarCompactState);
   }
 
   ready(mountControlBars);
