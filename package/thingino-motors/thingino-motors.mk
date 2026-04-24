@@ -17,7 +17,7 @@ endef
 else
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor.c -o $(@D)/motors -ljct
-	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct -lm
 endef
 
 define THINGINO_MOTORS_INSTALL_TARGET_CMDS
