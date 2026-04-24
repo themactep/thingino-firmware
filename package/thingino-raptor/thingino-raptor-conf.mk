@@ -176,6 +176,12 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset ircut adc_channel "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_ADC_CHANNEL))"; \
 	rset ircut adc_night "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_ADC_NIGHT))"; \
 	rset ircut adc_day "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_ADC_DAY))"; \
+	rset ircut photo_ev_day "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_EV_DAY))"; \
+	rset ircut photo_ev_1lux "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_EV_1LUX))"; \
+	rset ircut photo_ev_3lux "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_EV_3LUX))"; \
+	rset ircut photo_ev_6lux "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_EV_6LUX))"; \
+	rset ircut photo_rgain_rec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_RGAIN_REC))"; \
+	rset ircut photo_bgain_rec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PHOTO_BGAIN_REC))"; \
 	rset ircut night_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_NIGHT_THRESHOLD))"; \
 	rset ircut day_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_DAY_THRESHOLD))"; \
 	rset ircut hysteresis_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_HYSTERESIS_SEC))"; \
