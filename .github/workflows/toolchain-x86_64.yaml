@@ -276,13 +276,6 @@ jobs:
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
 
-      - name: Prepare buildroot cache
-        if: ${{ github.event.inputs.debug_enabled != 'true' }}
-        run: |
-          BOARD=${{ matrix.toolchain-version }} GROUP=github make source WORKFLOW=1
-          TIME=$(date -d @${SECONDS} +%M:%S)
-          echo "TIME=${TIME}" >> ${GITHUB_ENV}
-
       - name: Apply buildroot override patches
         run: |
           PATCH_DIR="package/all-patches/buildroot"
@@ -300,6 +293,13 @@ jobs:
               fi
             done
           fi
+
+      - name: Prepare buildroot cache
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
+        run: |
+          BOARD=${{ matrix.toolchain-version }} GROUP=github make source WORKFLOW=1
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Build toolchain
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
