@@ -490,7 +490,7 @@ file_size=$(stat -c%s $fw_file)
 [ "$file_size" -gt $part_size ] && \
 	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
 
-stop_services
+#stop_services
 
 # TODO: remove after most cameras upgrade to dynamic snapshot firmware
 echo_c 112 "\nRemove snapshot"
