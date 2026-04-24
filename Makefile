@@ -409,11 +409,8 @@ ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "Copying images to TFTP root..."
 	@sudo mkdir -p $(TFTP_ROOT)
 	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
-	@if [ -f "$(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin" ]; then sudo cp -f "$(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin" "$(TFTP_ROOT)/thingino-$(CAMERA)-update.bin"; fi
 	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	@if [ -f "$(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin.sha256sum" ]; then sudo cp -f "$(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin.sha256sum" "$(TFTP_ROOT)/thingino-$(CAMERA)-update.bin.sha256sum"; fi
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
-	@echo "TFTP: $(TFTP_ROOT)/thingino-$(CAMERA)-update.bin"
 endif
 	@date +%T
 
@@ -680,7 +677,6 @@ clean: clean-nfs-debug
 	rm -rf $(OUTPUT_DIR)/config
 	rm -rf $(OUTPUT_DIR)/extras
 	rm -f $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_FULL).sha256sum
-	rm -f $(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin $(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin.sha256sum
 	rm -f $(ROOTFS_BIN) $(EXTRAS_BIN) $(CONFIG_BIN)
 #	$(UB_ENV_BIN) $(KERNEL_BIN)
 
@@ -713,7 +709,6 @@ pack: $(FIRMWARE_BIN_FULL)
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(RED) "EXTRAS PARTITION IS TOO SMALL"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
-	@echo "Update Image: $(OUTPUT_DIR)/images/thingino-$(CAMERA)-update.bin"
 
 build-info: pack
 	@$(TEAL) "$@"
