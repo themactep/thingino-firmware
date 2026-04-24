@@ -242,6 +242,13 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset motion conf_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_CONF_THRESHOLD))"; \
 	rset motion nms_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_NMS_THRESHOLD))"; \
 	\
+	rset push enabled "$(call raptor_bval,PUSH_ENABLED)"; \
+	rset push url "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_URL))"; \
+	rset push stream "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_STREAM))"; \
+	rset push audio "$(call raptor_bval,PUSH_AUDIO)"; \
+	rset push autostart "$(call raptor_bval,PUSH_AUTOSTART)"; \
+	rset push reconnect_ms "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_RECONNECT_MS))"; \
+	\
 	rset log level "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_LEVEL))"; \
 	rset log target "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_TARGET))"; \
 	rset log file "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_FILE))"; \

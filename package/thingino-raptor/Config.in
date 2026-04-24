@@ -83,6 +83,14 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 	  Peer-to-peer external sharing via WebTorrent trackers.
 	  View camera without port forwarding.
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RSP
+	bool "RSP (RTMP/RTMPS stream push)"
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
+	help
+	  Push live video+audio to RTMP/RTMPS servers (YouTube Live,
+	  Twitch, Facebook Live). Requires TLS for RTMPS. Audio is
+	  transcoded to AAC if the ring codec is not AAC.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_RFS
 	bool "RFS (file source — MP4/Annex B)"
 	help

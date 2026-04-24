@@ -51,13 +51,14 @@ daemon_section() {
 		rmd)  echo "motion" ;;
 		rwd)  echo "webrtc" ;;
 		rwc)  echo "webcam" ;;
+		rsp)  echo "push" ;;
 		*)    echo "$1" ;;
 	esac
 }
 
 daemon_default_enabled() {
 	case $1 in
-		rmr|rmd|rwc) echo "false" ;;
+		rmr|rmd|rwc|rsp) echo "false" ;;
 		*) echo "true" ;;
 	esac
 }
@@ -95,6 +96,7 @@ start() {
 	start_daemon rmr
 	start_daemon rmd
 	start_daemon rwd
+	start_daemon rsp
 
 	echo "Done."
 }
@@ -119,7 +121,7 @@ stop() {
 	echo "Stopping Raptor Streaming System..."
 
 	# Stop consumers first, then producer (RVD) last
-	for d in rwd rmd rmr ric rhd rsd rod rad rvd; do
+	for d in rsp rwd rmd rmr ric rhd rsd rod rad rvd; do
 		stop_daemon $d
 	done
 
