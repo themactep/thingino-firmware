@@ -21,14 +21,30 @@ BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
 COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
-if grep -q "BR2_TOOLCHAIN_USES_GLIBC=y" $BR2_CONFIG; then
-	TOOLCHAIN="glibc"
-elif grep -q "BR2_TOOLCHAIN_USES_UCLIBC=y" $BR2_CONFIG; then
-	TOOLCHAIN="uclibc"
-elif grep -q "BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG; then
-	TOOLCHAIN="musl"
+if grep -q "^BR2_TOOLCHAIN_USES_GLIBC=y" "$BR2_CONFIG"; then
+	LIBC="glibc"
+elif grep -q "^BR2_TOOLCHAIN_USES_UCLIBC=y" "$BR2_CONFIG"; then
+	LIBC="uclibc"
+elif grep -q "^BR2_TOOLCHAIN_USES_MUSL=y" "$BR2_CONFIG"; then
+	LIBC="musl"
 else
-	echo "Unknown"
+	LIBC="unknown"
+fi
+
+if grep -q "^BR2_TOOLCHAIN_EXTERNAL=y" "$BR2_CONFIG"; then
+	TOOLCHAIN_TYPE="external"
+elif grep -q "^BR2_TOOLCHAIN_BUILDROOT=y" "$BR2_CONFIG"; then
+	TOOLCHAIN_TYPE="buildroot"
+else
+	TOOLCHAIN_TYPE="unknown"
+fi
+
+TOOLCHAIN_GCC=$(sed -rn 's/^BR2_GCC_VERSION="([^"]+)"/\1/p' "$BR2_CONFIG" | tail -n1)
+if [ -z "$TOOLCHAIN_GCC" ]; then
+	TOOLCHAIN_GCC=$(sed -rn 's/^BR2_TOOLCHAIN_(EXTERNAL|BUILDROOT)_GCC_([0-9]+)=y$/\2/p' "$BR2_CONFIG" | tail -n1)
+fi
+if [ -z "$TOOLCHAIN_GCC" ]; then
+	TOOLCHAIN_GCC="unknown"
 fi
 
 #
@@ -60,7 +76,10 @@ LOGO=thingino-logo-icon
 ANSI_COLOR=\"1;34\"
 HOME_URL=\"https://thingino.com/\"
 ARCHITECTURE=mips
-TOOLCHAIN=${TOOLCHAIN}
+LIBC=${LIBC}
+TOOLCHAIN=${LIBC}
+TOOLCHAIN_TYPE=${TOOLCHAIN_TYPE}
+TOOLCHAIN_GCC=${TOOLCHAIN_GCC}
 SOC=${SOC_FAMILY}
 SOC_ARCH=${SOC_ARCH}
 IMAGE_ID=${IMAGE_ID}
