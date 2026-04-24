@@ -617,6 +617,19 @@ textarea.nowrap {
   color: #fff;
 }
 
+@media (max-width: 992px) {
+  #button-bar.is-compact > .btn-group > .btn {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  #button-bar.is-compact > .btn-group > .btn .btn-label,
+  #button-bar.is-compact #daynight-text {
+    display: none;
+  }
+}
+
 #day_night_interval {
   display: inline-block;
   margin: auto 0.25rem;
@@ -841,4 +854,3 @@ table.send2services th:not(:first-child) {
 table.send2services td:first-child a {
   text-decoration: none;
 }
-
