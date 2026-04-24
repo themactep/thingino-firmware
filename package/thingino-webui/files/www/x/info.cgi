@@ -90,20 +90,20 @@ parse_section() {
   fi
 
   case "$qs" in
-    *=*)
-      for part in $(printf '%s' "$qs" | tr '&' '\n'); do
-        case "$part" in
-          name=*|section=*|tab=*)
-            value="${part#*=}"
-            break
-            ;;
-        esac
-      done
-      [ -z "$value" ] && value="${qs%%&*}"
-      ;;
-    *)
-      value="$qs"
-      ;;
+  *=*)
+    for part in $(printf '%s' "$qs" | tr '&' '\n'); do
+      case "$part" in
+      name=* | section=* | tab=*)
+        value="${part#*=}"
+        break
+        ;;
+      esac
+    done
+    [ -z "$value" ] && value="${qs%%&*}"
+    ;;
+  *)
+    value="$qs"
+    ;;
   esac
 
   value=$(urldecode "$value")
@@ -119,47 +119,48 @@ is_valid_section() {
 
 resolve_commands() {
   case "$1" in
-    dmesg|logcat|logread|lsmod)
-      cmd="$1"
-      ;;
-    crontab)
-      cmd="crontab -l"
-      extras=$(cat <<'EOF'
+  dmesg | logcat | logread | lsmod)
+    cmd="$1"
+    ;;
+  crontab)
+    cmd="crontab -l"
+    extras=$(
+      cat <<'EOF'
 <p><a href="https://devhints.io/cron">Cron syntax cheatsheet</a></p>
 <p><button class="btn btn-warning" onclick="editFile('/etc/cron/crontabs/root')">Edit file</button></p>
 EOF
-)
-      ;;
-    netstat)
-      cmd="netstat -a"
-      ;;
-    onvif)
-      cmd="cat /etc/onvif.json"
-      extras=$(button_restore_from_rom "/etc/onvif.json")
-      ;;
-    prudynt)
-      cmd="cat /etc/prudynt.json"
-      extras=$(button_restore_from_rom "/etc/prudynt.json")
-      ;;
-    release)
-      cmd="cat /etc/os-release"
-      ;;
-    status)
-      cmd="uptime; df -T; cat /proc/meminfo | grep Mem"
-      ;;
-    thingino)
-      cmd="cat /etc/thingino.json"
-      extras=$(button_restore_from_rom "/etc/thingino.json")
-      ;;
-    top)
-      cmd="top -n 1 -b"
-      ;;
-    weblog)
-      cmd="cat /tmp/webui.log"
-      ;;
-    *)
-      cmd="true"
-      ;;
+    )
+    ;;
+  netstat)
+    cmd="netstat -a"
+    ;;
+  onvif)
+    cmd="cat /etc/onvif.json"
+    extras=$(button_restore_from_rom "/etc/onvif.json")
+    ;;
+  prudynt)
+    cmd="cat /etc/prudynt.json"
+    extras=$(button_restore_from_rom "/etc/prudynt.json")
+    ;;
+  release)
+    cmd="cat /etc/os-release"
+    ;;
+  status)
+    cmd="date; uptime; df -T; cat /proc/meminfo | grep Mem"
+    ;;
+  thingino)
+    cmd="cat /etc/thingino.json"
+    extras=$(button_restore_from_rom "/etc/thingino.json")
+    ;;
+  top)
+    cmd="top -n 1 -b"
+    ;;
+  weblog)
+    cmd="cat /tmp/webui.log"
+    ;;
+  *)
+    cmd="true"
+    ;;
   esac
 }
 
@@ -175,24 +176,24 @@ handle_get() {
   output_json=$(collect_outputs "$cmd")
   extras_b64=$(printf '%s' "$extras" | base64 | tr -d '\n')
 
-  payload=$(cat <<EOF
+  payload=$(
+    cat <<EOF
 {
   "selected": "$(json_escape "$name")",
   "commands": $output_json,
   "extras_html_base64": "$(json_escape "$extras_b64")"
 }
 EOF
-)
+  )
 
   send_json "$payload"
 }
 
 case "$REQUEST_METHOD" in
-  GET|"")
-    handle_get
-    ;;
-  *)
-    json_error 405 "Method not allowed" "405 Method Not Allowed"
-    ;;
+GET | "")
+  handle_get
+  ;;
+*)
+  json_error 405 "Method not allowed" "405 Method Not Allowed"
+  ;;
 esac
-
