@@ -1,0 +1,24 @@
+Fix RTSP Date header format to RFC 1123 order
+
+RTSP responses should emit the Date header as:
+"DayOfWeek, DD Mon YYYY HH:MM:SS GMT"
+
+The upstream code emitted:
+"DayOfWeek, Mon DD YYYY HH:MM:SS GMT"
+
+That format is malformed for RTSP/HTTP-style date parsing and breaks
+clients that validate the header strictly.
+
+--- a/liveMedia/RTSPCommon.cpp
++++ b/liveMedia/RTSPCommon.cpp
+@@ -369,8 +369,8 @@
+   static const char* day[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+   static const char* month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+-  snprintf(buf, sizeof buf, "Date: %s, %s %02d %04d %02d:%02d:%02d GMT\r\n",
+-          day[time_tm.tm_wday], month[time_tm.tm_mon], time_tm.tm_mday,
++  snprintf(buf, sizeof buf, "Date: %s, %02d %s %04d %02d:%02d:%02d GMT\r\n",
++          day[time_tm.tm_wday], time_tm.tm_mday, month[time_tm.tm_mon],
+           1900 + time_tm.tm_year,
+           time_tm.tm_hour, time_tm.tm_min, time_tm.tm_sec);
+ #else
