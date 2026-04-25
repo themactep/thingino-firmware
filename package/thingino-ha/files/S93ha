@@ -4,6 +4,7 @@ DAEMON="ha-daemon"
 LOGFILE="/tmp/ha-daemon.log"
 
 . /usr/share/common
+. /usr/share/ha-common
 
 read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
@@ -11,11 +12,16 @@ read_config() {
 
 ha_processes_gone() {
 	local proc
-	for proc in ha-daemon ha-commands ha-discovery ha-state mosquitto_pub mosquitto_sub; do
+	for proc in ha-daemon ha-commands ha-discovery ha-state; do
 		if pidof "$proc" >/dev/null 2>&1; then
 			return 1
 		fi
 	done
+	if [ -n "$HA_CAMERA_ID" ]; then
+		if pgrep -f "mosquitto_.*${HA_CAMERA_ID}" >/dev/null 2>&1; then
+			return 1
+		fi
+	fi
 	return 0
 }
 
@@ -55,10 +61,14 @@ stop() {
 
 	stop_daemon
 	killall -q ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
-	killall -q mosquitto_pub mosquitto_sub 2>/dev/null
+	if [ -n "$HA_CAMERA_ID" ]; then
+		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
+	fi
 	if ! wait_for_ha_shutdown; then
 		killall -q -9 ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
-		killall -q -9 mosquitto_pub mosquitto_sub 2>/dev/null
+		if [ -n "$HA_CAMERA_ID" ]; then
+			pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
+		fi
 		wait_for_ha_shutdown || true
 	fi
 }
