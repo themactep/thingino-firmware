@@ -11,7 +11,7 @@ read_config() {
 
 ha_processes_gone() {
 	local proc
-	for proc in ha-daemon ha-commands ha-discovery ha-state; do
+	for proc in ha-daemon ha-commands ha-discovery ha-state mosquitto_pub mosquitto_sub; do
 		if pidof "$proc" >/dev/null 2>&1; then
 			return 1
 		fi
