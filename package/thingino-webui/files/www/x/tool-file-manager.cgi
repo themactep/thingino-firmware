@@ -4,20 +4,18 @@
 . /var/www/x/auth.sh
 require_auth
 
-. /usr/share/common
-
 json_escape() {
-  printf '%s' "$1" | sed \
-    -e 's/\\/\\\\/g' \
-    -e 's/"/\\"/g' \
-    -e "s/\r/\\r/g" \
-    -e "s/\n/\\n/g"
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e "s/\r/\\r/g" \
+		-e "s/\n/\\n/g"
 }
 
 send_json() {
-  status="${2:-200 OK}"
-  printf 'Status: %s\n' "$status"
-  cat <<EOF
+	status="${2:-200 OK}"
+	printf 'Status: %s\n' "$status"
+	cat <<EOF
 Content-Type: application/json
 Cache-Control: no-store
 Pragma: no-cache
@@ -25,147 +23,150 @@ Connection: close
 
 $1
 EOF
-  exit 0
+	exit 0
 }
 
 json_error() {
-  code="${1:-400}"
-  message="$2"
-  send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
+	code="${1:-400}"
+	message="$2"
+	send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
 }
 
 urldecode() {
-  printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
+	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
 
 get_param() {
-  local key="$1" qs="$QUERY_STRING" pair value
-  [ -z "$qs" ] && return 1
+	local key="$1" qs="$QUERY_STRING" pair value
+	[ -z "$qs" ] && return 1
 
-  local oldifs="$IFS"
-  IFS='&'
-  for pair in $qs; do
-    IFS="$oldifs"
-    case "$pair" in
-      "$key"=*)
-        value="${pair#*=}"
-        urldecode "$value"
-        IFS="$oldifs"
-        return 0
-        ;;
-      "$key")
-        printf ''
-        IFS="$oldifs"
-        return 0
-        ;;
-    esac
-    IFS='&'
-  done
-  IFS="$oldifs"
-  return 1
+	local oldifs="$IFS"
+	IFS='&'
+	for pair in $qs; do
+		IFS="$oldifs"
+		case "$pair" in
+			"$key"=*)
+				value="${pair#*=}"
+				urldecode "$value"
+				IFS="$oldifs"
+				return 0
+				;;
+			"$key")
+				printf ''
+				IFS="$oldifs"
+				return 0
+				;;
+		esac
+		IFS='&'
+	done
+	IFS="$oldifs"
+	return 1
 }
 
 handle_range_response() {
-  local file="$1"
-  if [ ! -f "$file" ]; then
-    printf 'Status: 404 Not Found\r\n'
-    printf 'Content-Type: text/plain\r\n\r\n'
-    printf 'File %s not found' "$file"
-    exit 0
-  fi
+	local file="$1"
+	if [ ! -f "$file" ]; then
+		printf 'Status: 404 Not Found\r\n'
+		printf 'Content-Type: text/plain\r\n\r\n'
+		printf 'File %s not found' "$file"
+		exit 0
+	fi
 
-  local length start end blocksize
-  length=$(stat -c%s "$file") || length=0
+	local length start end blocksize
+	length=$(stat -c%s "$file") || length=0
 
-  if ! env | grep -q '^HTTP_RANGE'; then
-    printf 'Status: 200 OK\r\n'
-    printf 'Content-Type: video/mp4\r\n'
-    printf 'Accept-Ranges: bytes\r\n'
-    printf 'Content-Length: %s\r\n' "$length"
-    printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
-    printf 'Cache-Control: no-store\r\n'
-    printf 'Pragma: no-cache\r\n'
-    printf '\r\n'
-    cat "$file"
-    exit 0
-  fi
+	if ! env | grep -q '^HTTP_RANGE'; then
+		printf 'Status: 200 OK\r\n'
+		printf 'Content-Type: video/mp4\r\n'
+		printf 'Accept-Ranges: bytes\r\n'
+		printf 'Content-Length: %s\r\n' "$length"
+		printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
+		printf 'Cache-Control: no-store\r\n'
+		printf 'Pragma: no-cache\r\n'
+		printf '\r\n'
+		cat "$file"
+		exit 0
+	fi
 
-  start=$(env | awk -F'[=-]' '/^HTTP_RANGE=/{print $3}')
-  [ -z "$start" ] && start=0
+	start=$(env | awk -F'[=-]' '/^HTTP_RANGE=/{print $3}')
+	[ -z "$start" ] && start=0
 
-  if [ "$start" -gt "$length" ]; then
-    printf 'HTTP/1.1 416 Requested Range Not Satisfiable\r\n'
-    printf 'Content-Range: bytes */%s\r\n' "$length"
-    printf '\r\n'
-    exit 0
-  fi
+	if [ "$start" -gt "$length" ]; then
+		printf 'HTTP/1.1 416 Requested Range Not Satisfiable\r\n'
+		printf 'Content-Range: bytes */%s\r\n' "$length"
+		printf '\r\n'
+		exit 0
+	fi
 
-  end=$(env | awk -F'[=-]' '/^HTTP_RANGE=/{print $4}')
-  [ -z "$end" ] && end=$((length - 1))
-  blocksize=$((end - start + 1))
+	end=$(env | awk -F'[=-]' '/^HTTP_RANGE=/{print $4}')
+	[ -z "$end" ] && end=$((length - 1))
+	blocksize=$((end - start + 1))
 
-  printf 'Status: 206 Partial Content\r\n'
-  printf 'Content-Range: bytes %s-%s/%s\r\n' "$start" "$end" "$length"
-  printf 'Content-Length: %s\r\n' "$blocksize"
-  printf 'Content-Type: video/mp4\r\n'
-  printf 'Accept-Ranges: bytes\r\n'
-  printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
-  printf 'Cache-Control: no-store\r\n'
-  printf 'Pragma: no-cache\r\n'
-  printf '\r\n'
-  dd if="$file" skip=$start bs=$blocksize count=1 iflag=skip_bytes 2>/dev/null
-  exit 0
+	printf 'Status: 206 Partial Content\r\n'
+	printf 'Content-Range: bytes %s-%s/%s\r\n' "$start" "$end" "$length"
+	printf 'Content-Length: %s\r\n' "$blocksize"
+	printf 'Content-Type: video/mp4\r\n'
+	printf 'Accept-Ranges: bytes\r\n'
+	printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
+	printf 'Cache-Control: no-store\r\n'
+	printf 'Pragma: no-cache\r\n'
+	printf '\r\n'
+	dd if="$file" skip=$start bs=$blocksize count=1 iflag=skip_bytes 2>/dev/null
+	exit 0
 }
 
 handle_download() {
-  local file="$1"
-  if [ ! -f "$file" ]; then
-    printf 'Status: 404 Not Found\r\n'
-    printf 'Content-Type: text/plain\r\n\r\n'
-    printf 'File %s not found' "$file"
-    exit 0
-  fi
+	local file="$1"
+	if [ ! -f "$file" ]; then
+		printf 'Status: 404 Not Found\r\n'
+		printf 'Content-Type: text/plain\r\n\r\n'
+		printf 'File %s not found' "$file"
+		exit 0
+	fi
 
-  local length modified timestamp server
-  length=$(stat -c%s "$file") || length=0
-  modified=$(stat -c%Y "$file") || modified=0
-  timestamp=$(TZ=GMT0 date +"%a, %d %b %Y %T %Z" --date="@$modified")
-  server="${SERVER_SOFTWARE:-thingino}"
+	local length modified timestamp server
+	length=$(stat -c%s "$file") || length=0
+	modified=$(stat -c%Y "$file") || modified=0
+	timestamp=$(TZ=GMT0 date +"%a, %d %b %Y %T %Z" --date="@$modified")
+	server="${SERVER_SOFTWARE:-thingino}"
 
-  printf 'Status: 200 OK\r\n'
-  printf 'Date: %s\r\n' "$timestamp"
-  printf 'Server: %s\r\n' "$server"
-  printf 'Content-Type: application/octet-stream\r\n'
-  printf 'Content-Length: %s\r\n' "$length"
-  printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
-  printf 'Cache-Control: no-store\r\n'
-  printf 'Pragma: no-cache\r\n'
-  printf '\r\n'
-  cat "$file"
-  exit 0
+	printf 'Status: 200 OK\r\n'
+	printf 'Date: %s\r\n' "$timestamp"
+	printf 'Server: %s\r\n' "$server"
+	printf 'Content-Type: application/octet-stream\r\n'
+	printf 'Content-Length: %s\r\n' "$length"
+	printf 'Content-Disposition: attachment; filename=%s\r\n' "$(basename "$file")"
+	printf 'Cache-Control: no-store\r\n'
+	printf 'Pragma: no-cache\r\n'
+	printf '\r\n'
+	cat "$file"
+	exit 0
 }
 
 build_breadcrumbs() {
-  local path="$1" json='[{"label":"Home","path":"/"}' accum=""
-  local rel="${path#/}"
-  [ -z "$rel" ] && { printf '%s]' "$json"; return; }
+	local path="$1" json='[{"label":"Home","path":"/"}' accum=""
+	local rel="${path#/}"
+	[ -z "$rel" ] && {
+		printf '%s]' "$json"
+		return
+	}
 
-  local oldifs="$IFS"
-  IFS='/'
-  for part in $rel; do
-    [ -z "$part" ] && continue
-    accum="$accum/$part"
-    json="$json,{\"label\":\"$(json_escape "$part")\",\"path\":\"$(json_escape "$accum")\"}"
-  done
-  IFS="$oldifs"
-  printf '%s]' "$json"
+	local oldifs="$IFS"
+	IFS='/'
+	for part in $rel; do
+		[ -z "$part" ] && continue
+		accum="$accum/$part"
+		json="$json,{\"label\":\"$(json_escape "$part")\",\"path\":\"$(json_escape "$accum")\"}"
+	done
+	IFS="$oldifs"
+	printf '%s]' "$json"
 }
 
 list_entries() {
-  local target="$1" json
-  [ -d "$target" ] || return 1
+	local target="$1" json
+	[ -d "$target" ] || return 1
 
-  json=$(LC_ALL=C ls -lnA --group-directories-first --full-time "$target" 2>/dev/null | awk -v base="$target" '
+	json=$(LC_ALL=C ls -lnA --group-directories-first --full-time "$target" 2>/dev/null | awk -v base="$target" '
 BEGIN { count=0 }
 function escape(str) {
   gsub(/\\/, "\\\\", str)
@@ -225,21 +226,21 @@ $1 == "total" { next }
 }
 ') || return 1
 
-  printf '[%s]' "$json"
+	printf '[%s]' "$json"
 }
 
 play_param=$(get_param "play")
 if [ -n "$play_param" ]; then
-  handle_range_response "$play_param"
+	handle_range_response "$play_param"
 fi
 
 dl_param=$(get_param "dl")
 if [ -n "$dl_param" ]; then
-  handle_download "$dl_param"
+	handle_download "$dl_param"
 fi
 
 if [ -n "$REQUEST_METHOD" ] && [ "$REQUEST_METHOD" != "GET" ]; then
-  json_error 405 "Method not allowed" "405 Method Not Allowed"
+	json_error 405 "Method not allowed" "405 Method Not Allowed"
 fi
 
 cd_param=$(get_param "cd")
@@ -253,7 +254,8 @@ breadcrumbs_json=$(build_breadcrumbs "$dir")
 parent=$(dirname "$dir")
 [ -n "$parent" ] || parent="/"
 
-payload=$(cat <<EOF
+payload=$(
+	cat <<EOF
 {
   "directory": "$(json_escape "$dir")",
   "parent": "$(json_escape "$parent")",
