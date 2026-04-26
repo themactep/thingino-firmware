@@ -4,7 +4,11 @@
 # The new watchdog monitors the streamer process directly instead of testing RTSP streams
 # This script is kept for compatibility but should not be used
 
-. /usr/share/common
+PORTAL_MODE_FLAG="/run/portal_mode"
+
+is_streamer_disabled() {
+	[ "true" = "$disable_streamer" ] || [ -f "$PORTAL_MODE_FLAG" ]
+}
 
 ENABLED=false
 INTERVAL=60
@@ -23,7 +27,7 @@ RESTART_LIMIT=3
 RESTART_DELAY=10
 
 RESTART_COUNT=0
-PID_FILE="/run/rtsp_watchdog.pid"  # PID file to store the background process ID
+PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID
 
 # Handle signals
 trap 'echo "Stream Watchdog: Stopping watchdog..."; cleanup; exit 0' INT TERM
@@ -38,35 +42,35 @@ watch() {
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
-			openRTSP -v -V -d 5 -t "$RTSP_URL" > /dev/null 2>&1 &
+			openRTSP -v -V -d 5 -t "$RTSP_URL" >/dev/null 2>&1 &
 			PID=$!
 
 			wait $PID
 			if [ $? -eq 0 ]; then
-				echo_info "Stream stream is active."
+				echo "Stream stream is active."
 				SUCCESS=true
-				RESTART_COUNT=0  # Reset the restart count after a successful check
+				RESTART_COUNT=0 # Reset the restart count after a successful check
 				break
 			else
-				echo_info "Attempt $i failed. Retrying in $RETRY_DELAY seconds..."
-				sleep $RETRY_DELAY  # Delay before retrying
+				echo "Attempt $i failed. Retrying in $RETRY_DELAY seconds..."
+				sleep $RETRY_DELAY # Delay before retrying
 			fi
 		done
 
 		if ! $SUCCESS; then
-			echo_warning "Stream stream is down, restarting server..."
+			echo "Stream stream is down, restarting server..."
 			service restart streamer
 
-			RESTART_COUNT=$((RESTART_COUNT+1))
+			RESTART_COUNT=$((RESTART_COUNT + 1))
 
 			# Delay before checking the stream again after a restart
-			echo_info "Waiting $RESTART_DELAY seconds before rechecking..."
+			echo "Waiting $RESTART_DELAY seconds before rechecking..."
 			sleep $RESTART_DELAY
 
 			if [ $RESTART_COUNT -ge $RESTART_LIMIT ]; then
-				echo_warning "Restart limit reached, nothing to log..."
+				echo "Restart limit reached, nothing to log..."
 				# ALERT!
-				RESTART_COUNT=0  # Reset the count after escalation
+				RESTART_COUNT=0 # Reset the count after escalation
 			fi
 		fi
 
@@ -76,31 +80,31 @@ watch() {
 }
 
 start() {
-	echo_title "Starting Stream Watchdog"
+	echo -c 15 "Starting Stream Watchdog"
 
 	if is_streamer_disabled; then
-		echo_error "Streamer disabled"
+		echo "Streamer disabled" >&2
 		exit 1
 	fi
 
 	watch &
-	echo $! > "$PID_FILE"  # Store the PID of the background process
+	echo $! >"$PID_FILE" # Store the PID of the background process
 }
 
 stop() {
-	echo_title "Stopping Stream Watchdog"
+	echo -c 15 "Stopping Stream Watchdog"
 
 	if [ -f "$PID_FILE" ]; then
 		PID=$(cat "$PID_FILE")
 		if kill -0 "$PID" 2>/dev/null; then
 			kill "$PID"
-			echo_info "Watchdog process stopped."
-			rm -f "$PID_FILE"  # Clean up the PID file
+			echo "Watchdog process stopped."
+			rm -f "$PID_FILE" # Clean up the PID file
 		else
-			echo_info "No running watchdog process found."
+			echo "No running watchdog process found."
 		fi
 	else
-		echo_info "PID file not found."
+		echo "PID file not found."
 	fi
 }
 
