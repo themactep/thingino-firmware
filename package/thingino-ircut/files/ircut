@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 MODE_FILE="/tmp/ircutmode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
@@ -10,58 +8,78 @@ pin2=$gpio_ircut_2
 
 # Backward compatibility
 if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then
-	read pin1 pin2 << EOF
+	read pin1 pin2 <<EOF
 $gpio_ircut
 EOF
 fi
 
 if [ -n "$pin1" ]; then
-	[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
-	case ${pin1:(-1)} in
-		o) pin1_on=0; pin1_off=1 ;;
-		O) pin1_on=1; pin1_off=0 ;;
+	case "$pin1" in
+		*[!0-9]*) ;;
+		*) pin1="${pin1}O" ;;
 	esac
-	pin1=${pin1:0:(-1)}
+	pin1_last=$(printf '%s' "$pin1" | tail -c 1)
+	case "$pin1_last" in
+		o)
+			pin1_on=0
+			pin1_off=1
+			;;
+		O)
+			pin1_on=1
+			pin1_off=0
+			;;
+	esac
+	pin1=${pin1%?}
 else
-	echo_error "Please define IRCUT pins in bootloader environment"
+	echo "Please define IRCUT pins in bootloader environment" >&2
 	exit 1
 fi
 
 if [ -n "$pin2" ]; then
-	[ "$pin2" = "${pin2//[^0-9]/}" ] && pin2="${pin2}O"
-	case ${pin2:(-1)} in
-		o) pin2_on=0; pin2_off=1 ;;
-		O) pin2_on=1; pin2_off=0 ;;
+	case "$pin2" in
+		*[!0-9]*) ;;
+		*) pin2="${pin2}O" ;;
 	esac
-	pin2=${pin2:0:(-1)}
+	pin2_last=$(printf '%s' "$pin2" | tail -c 1)
+	case "$pin2_last" in
+		o)
+			pin2_on=0
+			pin2_off=1
+			;;
+		O)
+			pin2_on=1
+			pin2_off=0
+			;;
+	esac
+	pin2=${pin2%?}
 fi
 
 ir_filter_off() {
 	if [ "$pin1" = "999" ] && [ -c /dev/tmi8152_ir_cut ]; then
-		echo -n 0 > /dev/tmi8152_ir_cut
+		echo -n 0 >/dev/tmi8152_ir_cut
 	else
-		gpio set "$pin1" "$pin1_off" > /dev/null
+		gpio set "$pin1" "$pin1_off" >/dev/null
 		if [ -n "$pin2" ]; then
-			gpio set "$pin2" "$pin2_on" > /dev/null
+			gpio set "$pin2" "$pin2_on" >/dev/null
 			usleep 10000
-			gpio set "$pin2" "$pin2_off" > /dev/null
+			gpio set "$pin2" "$pin2_off" >/dev/null
 		fi
 	fi
-	echo "0" > "$MODE_FILE"
+	echo "0" >"$MODE_FILE"
 }
 
 ir_filter_on() {
 	if [ "$pin1" = "999" ] && [ -c /dev/tmi8152_ir_cut ]; then
-		echo -n 1 > /dev/tmi8152_ir_cut
+		echo -n 1 >/dev/tmi8152_ir_cut
 	else
-		gpio set "$pin1" "$pin1_on" > /dev/null
+		gpio set "$pin1" "$pin1_on" >/dev/null
 		if [ -n "$pin2" ]; then
-			gpio set "$pin2" "$pin2_off" > /dev/null
+			gpio set "$pin2" "$pin2_off" >/dev/null
 			usleep 10000
-			gpio set "$pin1" "$pin1_off" > /dev/null
+			gpio set "$pin1" "$pin1_off" >/dev/null
 		fi
 	fi
-	echo "1" > "$MODE_FILE"
+	echo "1" >"$MODE_FILE"
 }
 
 case "$1" in
@@ -80,9 +98,9 @@ case "$1" in
 		;;
 	status)
 		case "$(cat "$MODE_FILE")" in
-			0) echo_info "IRCUT filter is removed" ;;
-			1) echo_info "IRCUT filter is set" ;;
-			*) echo_info "IRCUT filter is in unknown state" ;;
+			0) echo "IRCUT filter is removed" ;;
+			1) echo "IRCUT filter is set" ;;
+			*) echo "IRCUT filter is in unknown state" ;;
 		esac
 		;;
 	\? | read)

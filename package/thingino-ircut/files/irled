@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 show_help() {
 	echo "Usage: $0 <mode> <type>
 Where:
@@ -36,20 +34,28 @@ case "$type" in
 esac
 
 if [ -z "$pin" ]; then
-	echo_error "Please define LED GPIO pin"
+	echo "Please define LED GPIO pin" >&2
 	exit 1
 fi
 
 # default to output high
-if [ "$pin" = "${pin//[^0-9]/}" ]; then
-	pin="${pin}O"
-fi
-
-case ${pin:(-1)} in
-	o) pin_on=0; pin_off=1 ;;
-	O) pin_on=1; pin_off=0 ;;
+case "$pin" in
+	*[!0-9]*) ;;
+	*) pin="${pin}O" ;;
 esac
-pin=${pin:0:(-1)}
+
+pin_last=$(printf '%s' "$pin" | tail -c 1)
+case "$pin_last" in
+	o)
+		pin_on=0
+		pin_off=1
+		;;
+	O)
+		pin_on=1
+		pin_off=0
+		;;
+esac
+pin=${pin%?}
 
 case "$mode" in
 	0 | off)
@@ -69,7 +75,7 @@ case "$mode" in
 		fi
 		;;
 	*)
-		echo_error "Error: Unknown mode" >&2
+		echo "Error: Unknown mode" >&2
 		exit 1
 		;;
 esac

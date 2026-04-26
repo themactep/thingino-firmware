@@ -1,13 +1,11 @@
 #!/bin/sh
 
-. /usr/share/common
-
 start() {
-	echo_title "Initializing IR-CUT"
+	echo -c 15 "Initializing IR-CUT"
 
-	ircut off > /dev/null 2>&1
+	ircut off >/dev/null 2>&1
 	sleep 0.5
-	ircut on > /dev/null 2>&1
+	ircut on >/dev/null 2>&1
 }
 
 case "$1" in
