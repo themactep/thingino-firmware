@@ -47,5 +47,7 @@ comment "wolfSSL needs a toolchain w/ threads"
 # Include SSL library package definitions (not directly selectable, controlled by choice above)
 if BR2_PACKAGE_THINGINO_SSL
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mbedtls/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
+#source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
+#source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssh/Config.in"
 endif
