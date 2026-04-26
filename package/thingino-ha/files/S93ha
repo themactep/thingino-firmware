@@ -1,10 +1,23 @@
 #!/bin/sh
 
-DAEMON="ha-daemon"
+DAEMON="/usr/sbin/ha-daemon"
+PIDFILE="/run/ha-daemon.pid"
 LOGFILE="/tmp/ha-daemon.log"
 
-. /usr/share/common
-. /usr/share/ha-common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
@@ -36,36 +49,37 @@ wait_for_ha_shutdown() {
 }
 
 start() {
-	echo_title "Starting HA daemon"
+	echo -c 15 "Starting HA daemon"
 
 	if [ "true" != $(read_config "ha.enabled") ]; then
-		echo_error "Disabled"
+		echo "Disabled" >&2
 		exit 1
 	else
-		echo_info "Enabled"
+		echo "Enabled"
 	fi
 
 	host=$(read_config "ha.mqtt.host")
 	if [ -z "$host" ]; then
-		echo_error "HA MQTT host is not configured"
+		echo "HA MQTT host is not configured" >&2
 		exit 1
 	else
-		echo_info "HA MQTT host: $host"
+		echo "HA MQTT host: $host"
 	fi
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping HA daemon"
+	echo -c 15 "Stopping HA daemon"
 
 	stop_daemon
-	killall -q ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q ha-commands ha-discovery ha-state 2>/dev/null
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
 	if ! wait_for_ha_shutdown; then
-		killall -q -9 ha-daemon ha-commands ha-discovery ha-state 2>/dev/null
+		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
+		start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
 		if [ -n "$HA_CAMERA_ID" ]; then
 			pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 		fi
