@@ -124,7 +124,6 @@ define MBEDTLS_ENABLE_HTTP2_FEATURES
 
 	$(SED) "s://#define PSA_WANT_ECC_SECP_R1_521:#define PSA_WANT_ECC_SECP_R1_521:" \
 		$(@D)/include/psa/crypto_config.h || true
-
 endef
 
 # Disable problematic programs and tests that are causing linking issues
