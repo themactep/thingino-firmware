@@ -1,13 +1,45 @@
 #!/bin/sh
 
-DAEMON=wsd_simple_server
+DAEMON="/usr/sbin/wsd_simple_server"
+DAEMON_SHORT="wsd_simple_server"
 ONVIF_CONFIG=/etc/onvif.json
 MOTORS_CONFIG=/etc/motors.json
 MOTORS_BIN="/bin/motors"
-PORTAL_MODE_FLAG="/run/portal_mode"
 STRERO_RTSP_CONFIG=/etc/streamer.d/rtsp.json
+OS_RELEASE_FILE="/etc/os-release"
+SOC_MODEL="$(soc -m)"
 
-. /usr/share/common
+iface_default() {
+	local iface
+
+	[ -z "$iface" ] && iface=$(ip -4 r | awk '/default/{print $5; exit}')
+	[ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
+	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
+	[ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
+
+	echo "$iface"
+}
+
+is_gateway_reachable() {
+	[ -z "$iface" ] && return 1
+	ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1 ||
+		ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1
+}
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 iface="$(iface_default)"
 
@@ -28,15 +60,10 @@ strero_rtsp_pass() {
 }
 
 start() {
-	echo_title "Starting ONVIF discovery"
-
-	if [ -f "$PORTAL_MODE_FLAG" ]; then
-		echo "Disabled" >&2
-		exit 1
-	fi
+	echo -c 15 "Starting ONVIF discovery"
 
 	if ! is_gateway_reachable; then
-		echo_error "Disabled"
+		echo "Disabled" >&2
 		exit 1
 	fi
 
@@ -44,11 +71,12 @@ start() {
 	for active_iface in $(ip -4 -o addr show | awk '$2 != "lo" {print $2}' | sort -u); do
 		PIDFILE="/run/${DAEMON_SHORT}_${active_iface}.pid"
 		DAEMON_ARGS="-i $active_iface -x http://%s/onvif/device_service -m $CAMERA -n thingino -p $PIDFILE"
-		start_daemon
+		# shellcheck disable=SC2086
+		start_daemon $DAEMON_ARGS
 	done
 
 	tmpfile="$(mktemp -u).json"
-	echo '{}' > $tmpfile
+	echo '{}' >$tmpfile
 	jct $tmpfile set camera.manufacturer "Thingino"
 	jct $tmpfile set camera.model "$CAMERA"
 	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"
@@ -74,7 +102,7 @@ start() {
 }
 
 stop() {
-	echo_title "Stopping ONVIF discovery"
+	echo -c 15 "Stopping ONVIF discovery"
 
 	for pidfile in /run/${DAEMON_SHORT}_*.pid; do
 		[ -f "$pidfile" ] || continue
