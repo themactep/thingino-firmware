@@ -7,6 +7,11 @@ choice
 	help
 	  Select the web server implementation for thingino.
 
+config BR2_PACKAGE_THINGINO_WEBSERVER_NONE
+	bool "none"
+	help
+	  No web server. The camera agent remains available.
+
 config BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
 	bool "BusyBox httpd"
 	depends on BR2_PACKAGE_BUSYBOX
