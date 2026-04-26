@@ -1,17 +1,34 @@
 #!/bin/sh
 
+DAEMON="/usr/bin/thingino-button"
 DAEMON_ARGS="-d"
 
-. /usr/share/common
+PIDFILE="/run/thingino-button.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting Button service"
+	echo -c 15 "Starting Button service"
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping Button service"
+	echo -c 15 "Stopping Button service"
 
 	stop_daemon
 }
