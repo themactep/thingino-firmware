@@ -5,36 +5,34 @@ if [ "wlan0" != "$IFACE" ]; then
 	exit 0
 fi
 
-. /usr/share/common
-
 wlan0_missing() {
 	! test -f /etc/network/interfaces.d/wlan0
 }
 
 wlan0_disabled() {
-	! grep -q '^auto wlan0' /etc/network/interfaces.d/wlan0 > /dev/null
+	! grep -q '^auto wlan0' /etc/network/interfaces.d/wlan0 >/dev/null
 }
 
 wlan0_no_ssid() {
-	! grep -q 'ssid=' /etc/wpa_supplicant.conf > /dev/null
+	! grep -q 'ssid=' /etc/wpa_supplicant.conf >/dev/null
 }
 
 wlan0_no_pass() {
-	! grep -q 'psk=' /etc/wpa_supplicant.conf > /dev/null
+	! grep -q 'psk=' /etc/wpa_supplicant.conf >/dev/null
 }
 
 # exit 1 to stop the interface from being brought up, and dhcp being attempted
 if wlan0_missing; then
-	echo_error "WLAN interface not configured"
+	echo "WLAN interface not configured" >&2
 	exit 1
-elif wlan0_disabled ; then
-	echo_error "WLAN manually disabled"
+elif wlan0_disabled; then
+	echo "WLAN manually disabled" >&2
 	exit 1
 elif wlan0_no_ssid; then
-	echo_error "WLAN disabled, no SSID"
+	echo "WLAN disabled, no SSID" >&2
 	exit 1
 elif wlan0_no_pass; then
-	echo_error "WLAN disabled, no password"
+	echo "WLAN disabled, no password" >&2
 	exit 1
 fi
 
