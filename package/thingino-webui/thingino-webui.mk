@@ -289,6 +289,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	# CGI Scripts
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/api-key.cgi \
 		$(TARGET_DIR)/var/www/x/api-key.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/agent.cgi \
+		$(TARGET_DIR)/var/www/x/agent.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/auth.sh \
 		$(TARGET_DIR)/var/www/x/auth.sh
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/ch0.jpg \
@@ -341,6 +343,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-config-wireguard.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-zerotier.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-zerotier.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-agent-token.cgi \
+		$(TARGET_DIR)/var/www/x/json-agent-token.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-gphotos-token.cgi \
 		$(TARGET_DIR)/var/www/x/json-gphotos-token.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-gpio.cgi \
