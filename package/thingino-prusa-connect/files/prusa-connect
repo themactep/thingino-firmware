@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 PRUSA_CONFIG_FILE="/etc/prusa-connect.json"
 SERVICE_HELPER="/sbin/service"
 STATE_FILE="/run/prusa-connect/state"
@@ -34,7 +32,7 @@ ensure_jct() {
 }
 
 ensure_config_file() {
-	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' > "$PRUSA_CONFIG_FILE"
+	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' >"$PRUSA_CONFIG_FILE"
 }
 
 restart_service() {
@@ -115,7 +113,7 @@ case "$command" in
 		set_value info_interval "$1"
 		restart_service
 		;;
-	test|info|snapshot)
+	test | info | snapshot)
 		if [ ! -x "$DAEMON_BIN" ]; then
 			echo "Daemon binary not found" >&2
 			exit 1
