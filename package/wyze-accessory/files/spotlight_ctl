@@ -1,11 +1,9 @@
 #!/bin/sh
 
-. /usr/share/common
-
 PORT="/dev/ttyUSB0"
 
 send_command() {
-	printf "\xaa\x55\x43\x05\x16$1" > $PORT
+	printf "\xaa\x55\x43\x05\x16$1" >$PORT
 }
 
 case "$1" in
