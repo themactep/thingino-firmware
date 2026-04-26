@@ -8,4 +8,3 @@ printf "Pragma: no-cache\r\n"
 printf "Connection: close\r\n"
 printf "\r\n"
 printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=/"><title>Redirecting...</title></head><body><script>window.location.replace("/");</script></body></html>'
-
