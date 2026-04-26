@@ -1,22 +1,21 @@
 #!/bin/sh
 
 DAEMON="dusk2dawn"
-
-. /usr/share/common
+CRONTABS="/etc/cron/crontabs/root"
 
 start() {
-	echo_title "Setting $DAEMON"
+	echo -c 15 "Setting $DAEMON"
 
 	if [ ! -x /sbin/$DAEMON ]; then
-		echo_error "$DAEMON not found"
+		echo "$DAEMON not found" >&2
 		exit 1
 	fi
 
 	if grep -q $DAEMON $CRONTABS; then
-		echo_info "$DAEMON already in crontab"
+		echo "$DAEMON already in crontab"
 	else
-		printf "# run $DAEMON nightly at 0:00\n0 0 * * * $DAEMON\n" >> $CRONTABS
-		echo_info "$DAEMON added to crontab"
+		printf "# run $DAEMON nightly at 0:00\n0 0 * * * $DAEMON\n" >>$CRONTABS
+		echo "$DAEMON added to crontab"
 	fi
 }
 
