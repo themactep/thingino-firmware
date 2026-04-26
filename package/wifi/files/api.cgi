@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /usr/share/common
+OS_RELEASE_FILE="/etc/os-release"
 
 urldecode() {
 	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
@@ -28,7 +28,7 @@ parse_form_data() {
 		[ -n "$key" ] || continue
 		set_param "$(urldecode "$key")" "$(urldecode "$value")"
 	done <<-FORM
-	$(printf '%s' "$1" | tr '&' '\n')
+		$(printf '%s' "$1" | tr '&' '\n')
 	FORM
 }
 
@@ -55,12 +55,12 @@ get_info() {
 	wlan_mac=$(ip link show wlan0 2>/dev/null | awk '/ether/ {print $2}')
 
 	cat <<-EOF
-	{
-		"hostname": "$(json_encode "$hostname")",
-		"image_id": "$(json_encode "$image_id")",
-		"build_id": "$(json_encode "$build_id")",
-		"wlan_mac": "$(json_encode "$wlan_mac")"
-	}
+		{
+			"hostname": "$(json_encode "$hostname")",
+			"image_id": "$(json_encode "$image_id")",
+			"build_id": "$(json_encode "$build_id")",
+			"wlan_mac": "$(json_encode "$wlan_mac")"
+		}
 	EOF
 }
 
@@ -79,7 +79,7 @@ scan_networks() {
 	# Wait up to 8 seconds for ongoing scan to complete
 	while [ -f "$SCAN_LOCK" ] && [ $SCAN_WAIT -lt 8 ]; do
 		# Check if lock is stale (older than 15 seconds)
-		LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0) ))
+		LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
 		if [ $LOCK_AGE -gt 15 ]; then
 			rm -f "$SCAN_LOCK"
 			break
@@ -124,12 +124,12 @@ scan_networks() {
 			first=0
 		fi
 		cat <<-NETWORK
-		{
-			"ssid": "$(json_encode "$ssid")",
-			"bssid": "$(json_encode "$bssid")",
-			"signal": $signal,
-			"security": "$(json_encode "$security")"
-		}
+			{
+				"ssid": "$(json_encode "$ssid")",
+				"bssid": "$(json_encode "$bssid")",
+				"signal": $signal,
+				"security": "$(json_encode "$security")"
+			}
 		NETWORK
 	done
 
@@ -142,7 +142,7 @@ scan_networks() {
 parse_post() {
 	if [ "$REQUEST_METHOD" = "POST" ]; then
 		case "$CONTENT_LENGTH" in
-			''|*[!0-9]*) POST_DATA='' ;;
+			'' | *[!0-9]*) POST_DATA='' ;;
 			0) POST_DATA='' ;;
 			*) POST_DATA=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null) ;;
 		esac
@@ -174,17 +174,17 @@ save_config() {
 	bad_chars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
 	if [ -n "$bad_chars" ]; then
 		cat <<-EOF
-		{
-			"success": false,
-			"error": "Hostname cannot contain $bad_chars"
-		}
+			{
+				"success": false,
+				"error": "Hostname cannot contain $bad_chars"
+			}
 		EOF
 		return
 	fi
 
 	# Update hostname
 	hostname "$hostname"
-	echo "$hostname" > /etc/hostname
+	echo "$hostname" >/etc/hostname
 
 	# Update wlan settings
 	if [ "true" = "$wlan_ap" ]; then
@@ -194,14 +194,14 @@ save_config() {
 	fi
 
 	# Update timezone
-	echo "$timezone" > /etc/timezone
+	echo "$timezone" >/etc/timezone
 
 	# Update root password
 	printf '%s:%s\n' "root" "$rootpass" | chpasswd -c sha512
 
 	# Update SSH key if provided
 	if [ -n "$rootpkey" ]; then
-		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' > /root/.ssh/authorized_keys
+		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' >/root/.ssh/authorized_keys
 	fi
 
 	# Update interface for onvif
@@ -209,9 +209,9 @@ save_config() {
 
 	# Success response
 	cat <<-EOF
-	{
-		"success": true
-	}
+		{
+			"success": true
+		}
 	EOF
 
 	# Reboot in background

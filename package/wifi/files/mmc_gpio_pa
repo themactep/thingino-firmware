@@ -1,5 +1,10 @@
 #!/bin/sh
-. /usr/share/common
+
+set_gpio() {
+	echo "Set GPIO $1 to F$2 D$3"
+	gpio-diag "$1" func "$2" drive "$3"
+}
+
 set_gpio pa08 3 2
 set_gpio pa09 3 1
 set_gpio pa10 3 1
