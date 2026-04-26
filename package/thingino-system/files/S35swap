@@ -7,39 +7,39 @@
 # swap_file_size (if swap_type is 'file', in M, ex. 256M)
 # swap_partition_dev (if swap_type is 'partition')
 
-. /usr/share/common
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 setup_swap_partition() {
 	local partition="$1"
 
 	if [ -z "$partition" ] || [ ! -b "$partition" ]; then
-		echo_error "Invalid swap partition: $partition"
+		echo "Invalid swap partition: $partition" >&2
 		return 1
 	fi
 
 	# Check if partition is already in fstab
 	if ! grep -q "^$partition[[:space:]]\+none[[:space:]]\+swap" /etc/fstab; then
-		echo "$partition none swap sw 0 0" >> /etc/fstab
-		echo_info "Added swap entry for $partition to /etc/fstab"
+		echo "$partition none swap sw 0 0" >>/etc/fstab
+		echo "Added swap entry for $partition to /etc/fstab"
 	else
-		echo_warning "Swap entry for $partition already exists in /etc/fstab"
+		echo "Swap entry for $partition already exists in /etc/fstab"
 	fi
 
 	# Check if swap is already active
 	if grep -q "$partition" /proc/swaps; then
-		echo_warning "Swap partition $partition is already active"
+		echo "Swap partition $partition is already active"
 		return 0
 	fi
 
 	# Try to enable swap directly - if it works, it's already formatted
 	if swapon "$partition" 2>/dev/null; then
-		echo_info "Enabled swap on $partition (already formatted)"
+		echo "Enabled swap on $partition (already formatted)"
 	else
 		# Failed to swapon, format it and then enable
-		echo_info "Formatting $partition as swap"
+		echo "Formatting $partition as swap"
 		mkswap "$partition"
 		swapon "$partition"
-		echo_info "Enabled swap on $partition (newly formatted)"
+		echo "Enabled swap on $partition (newly formatted)"
 	fi
 
 	return 0
@@ -48,59 +48,59 @@ setup_swap_partition() {
 setup_swap_file() {
 	local swap_file="$1"
 	local swap_dir=$(dirname "$swap_file")
-	local size="${swap_file_size:-128M}"  # Default to 128M if not specified
+	local size="${swap_file_size:-128M}" # Default to 128M if not specified
 
 	if [ -z "$swap_file" ]; then
-		echo_error "Invalid swap file path: $swap_file"
+		echo "Invalid swap file path: $swap_file" >&2
 		return 1
 	fi
 
 	# Check if directory exists
 	if [ ! -d "$swap_dir" ]; then
-		echo_error "Swap file directory does not exist: $swap_dir"
+		echo "Swap file directory does not exist: $swap_dir" >&2
 		return 1
 	fi
 
 	# Create swap file if it doesn't exist
 	if [ ! -f "$swap_file" ]; then
-		echo_info "Creating swap file: $swap_file (size: $size)"
+		echo "Creating swap file: $swap_file (size: $size)"
 		fallocate -l "$size" "$swap_file"
 		chmod 600 "$swap_file"
 		mkswap "$swap_file"
 
 		# Add to fstab if not already there
 		if ! grep -q "^$swap_file[[:space:]]\+none[[:space:]]\+swap" /etc/fstab; then
-			echo "$swap_file none swap sw 0 0" >> /etc/fstab
-			echo_info "Added swap entry for $swap_file to /etc/fstab"
+			echo "$swap_file none swap sw 0 0" >>/etc/fstab
+			echo "Added swap entry for $swap_file to /etc/fstab"
 		fi
 
 		# Enable the newly created swap file
 		swapon "$swap_file"
-		echo_info "Enabled swap on $swap_file (newly created)"
+		echo "Enabled swap on $swap_file (newly created)"
 	else
 		# Check if already in fstab
 		if ! grep -q "^$swap_file[[:space:]]\+none[[:space:]]\+swap" /etc/fstab; then
-			echo "$swap_file none swap sw 0 0" >> /etc/fstab
-			echo_info "Added swap entry for $swap_file to /etc/fstab"
+			echo "$swap_file none swap sw 0 0" >>/etc/fstab
+			echo "Added swap entry for $swap_file to /etc/fstab"
 		else
-			echo_warning "Swap entry for $swap_file already exists in /etc/fstab"
+			echo "Swap entry for $swap_file already exists in /etc/fstab"
 		fi
 
 		# Check if swap is already active
 		if grep -q "$swap_file" /proc/swaps; then
-			echo_warning "Swap file $swap_file is already active"
+			echo "Swap file $swap_file is already active"
 			return 0
 		fi
 
 		# Try to enable swap directly - if it works, it's already formatted
 		if swapon "$swap_file" 2>/dev/null; then
-			echo_info "Enabled swap on $swap_file (already formatted)"
+			echo "Enabled swap on $swap_file (already formatted)"
 		else
 			# Failed to swapon, format it and then enable
-			echo_info "Formatting $swap_file as swap"
+			echo "Formatting $swap_file as swap"
 			mkswap "$swap_file"
 			swapon "$swap_file"
-			echo_info "Enabled swap on $swap_file (newly formatted)"
+			echo "Enabled swap on $swap_file (newly formatted)"
 		fi
 	fi
 
@@ -109,12 +109,12 @@ setup_swap_file() {
 
 start() {
 	if [ "$swap_enabled" != "true" ]; then
-		echo_error "Swap is not enabled."
+		echo "Swap is not enabled."
 		exit 0
 	fi
 
 	if [ -z "$swap_type" ]; then
-		echo_error "swap_type not defined in $CONFIG_JSON."
+		echo "swap_type not defined in $CONFIG_JSON." >&2
 		exit 1
 	fi
 
@@ -122,24 +122,24 @@ start() {
 		swap_file_size=$(echo "$swap_file_size" | tr '[:lower:]' '[:upper:]')
 	fi
 
-	echo_title "Configuring swap"
+	echo -c 15 "Configuring swap"
 	case "$swap_type" in
 		"partition")
 			if [ -z "$swap_partition_dev" ]; then
-				echo_error "swap_partition_dev not defined in $CONFIG_JSON. Exiting."
+				echo "swap_partition_dev not defined in $CONFIG_JSON. Exiting." >&2
 				exit 1
 			fi
 			setup_swap_partition "$swap_partition_dev"
 			;;
 		"file")
 			if [ -z "$swap_file_path" ]; then
-				echo_error "swap_file_path not defined in $CONFIG_JSON. Exiting."
+				echo "swap_file_path not defined in $CONFIG_JSON. Exiting." >&2
 				exit 1
 			fi
 			setup_swap_file "$swap_file_path"
 			;;
 		*)
-			echo_error "Invalid swap_type: $swap_type (should be 'file' or 'partition')"
+			echo "Invalid swap_type: $swap_type (should be 'file' or 'partition')" >&2
 			exit 1
 			;;
 	esac
