@@ -1,10 +1,11 @@
 #!/bin/sh
 
-. /usr/share/common
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
 
 # Exit early if paranoid mode is enabled (no internet access)
 if [ "$(jct "$CONFIG_JSON" get webui.paranoid 2>/dev/null)" = "true" ]; then
-	echo_info "Paranoid mode enabled, skipping (no internet access)"
+	echo "Paranoid mode enabled, skipping (no internet access)"
 	exit 0
 fi
 
@@ -47,7 +48,7 @@ time_with_offset() {
 	m=$(printf '%s' "$raw" | awk -F[T:] '{print $3}' | sed 's/^0*//')
 	[ -z "$h" ] && h=0
 	[ -z "$m" ] && m=0
-	echo $(( (1440 + h * 60 + m + $2) % 1440 ))
+	echo $(((1440 + h * 60 + m + $2) % 1440))
 }
 
 # Load defaults from prudynt.json
@@ -76,25 +77,25 @@ done
 [ -z "$date_arg" ] && date_arg="today"
 
 if [ -z "$lat" ]; then
-	echo_error "Latitude not configured"
+	echo "Latitude not configured" >&2
 	exit 1
 fi
 
 if [ -z "$lng" ]; then
-	echo_error "Longitude not configured"
+	echo "Longitude not configured" >&2
 	exit 1
 fi
 
-echo_info "Fetching sunrise/sunset for lat=$lat lng=$lng date=$date_arg"
+echo "Fetching sunrise/sunset for lat=$lat lng=$lng date=$date_arg"
 
-tz=$(tr ' ' '_' < /etc/timezone)
+tz=$(tr ' ' '_' </etc/timezone)
 
 [ "$verbose" = "true" ] && verbosity="--verbose" || verbosity="--silent"
 $CURL $verbosity --output "$API_DATA_FILE" \
 	--url "$API_URL?formatted=0&date=$date_arg&lat=$lat&lng=$lng&tzid=$tz"
 
 if [ ! -s "$API_DATA_FILE" ]; then
-	echo_error "Failed to fetch sunrise/sunset data"
+	echo "Failed to fetch sunrise/sunset data" >&2
 	exit 1
 fi
 
@@ -104,8 +105,8 @@ sr_time=$(time_with_offset "sunrise" "$offset_sr")
 ss_time=$(time_with_offset "sunset" "$offset_ss")
 rm -f "$API_DATA_FILE"
 
-echo_info "Sunrise cron: $(time_for_cron "$sr_time") (offset ${offset_sr}m)"
-echo_info "Sunset  cron: $(time_for_cron "$ss_time") (offset ${offset_ss}m)"
+echo "Sunrise cron: $(time_for_cron "$sr_time") (offset ${offset_sr}m)"
+echo "Sunset  cron: $(time_for_cron "$ss_time") (offset ${offset_ss}m)"
 
 tmpfile=$(mktemp)
 cp "$CRONTABS" "$tmpfile"
@@ -119,7 +120,7 @@ sed -i "/$SS_MARK/,+1d" "$tmpfile"
 	echo "$(time_for_cron "$sr_time") * * * daynight day"
 	echo "$SS_MARK"
 	echo "$(time_for_cron "$ss_time") * * * daynight night"
-} >> "$tmpfile"
+} >>"$tmpfile"
 cp "$tmpfile" "$CRONTABS"
 rm -f "$tmpfile"
 
