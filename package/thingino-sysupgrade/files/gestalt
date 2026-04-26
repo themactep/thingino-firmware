@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 OWNER="themactep"
 REPO="thingino-firmware"
 BASE_REPO_URL="https://api.github.com/repos/$OWNER/$REPO/contents/configs"
@@ -12,6 +10,29 @@ TEST_CAMERA_LIST="$BASE_REPO_URL/cameras-exp"
 
 LIST_URL=$PROD_CAMERA_LIST
 LIST_PATH="/tmp/gestalt_list.txt"
+
+get_terminal_height() {
+	local height
+
+	height=""
+	if command -v stty >/dev/null 2>&1; then
+		height=$(stty size 2>/dev/null | cut -d' ' -f1)
+	fi
+	if [ -z "$height" ] && command -v tput >/dev/null 2>&1; then
+		height=$(tput lines 2>/dev/null)
+	fi
+	if [ -z "$height" ] && [ -n "$LINES" ]; then
+		height=$LINES
+	fi
+	if [ -z "$height" ] && command -v ttysize >/dev/null 2>&1; then
+		height=$(ttysize h 2>/dev/null)
+	fi
+	if [ -z "$height" ] || [ "$height" -lt 10 ]; then
+		height=24
+	fi
+
+	echo "$height"
+}
 
 while getopts "dmh" opt; do
 	case $opt in
@@ -34,11 +55,11 @@ current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
 ntpd -nNq
 
 fetch_profiles() {
-	echo_info "Fetching available profiles..."
+	echo "Fetching available profiles..."
 	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | sed -En 's/\s*"name": "(.*)",/\1/p' 2>/dev/null)
 
 	if [ -z "$profiles" ]; then
-		echo_error "Error: gestalt list empty. Please try again later or check your network connection."
+		echo "Error: gestalt list empty. Please try again later or check your network connection." >&2
 		exit 1
 	fi
 
@@ -46,7 +67,7 @@ fetch_profiles() {
 	echo "$profiles" | while read line; do
 		profile="${line#thingino-}"
 		profile="${profile%.bin}"
-		echo "$count:$profile" >> $LIST_PATH
+		echo "$count:$profile" >>$LIST_PATH
 		count=$((count + 1))
 	done
 }
@@ -66,10 +87,10 @@ display_profiles_page() {
 		per_page=50
 	fi
 
-	total_count=$(wc -l < $LIST_PATH)
-	total_pages=$(( (total_count + per_page - 1) / per_page ))
-	start_line=$(( (page - 1) * per_page + 1 ))
-	end_line=$(( page * per_page ))
+	total_count=$(wc -l <$LIST_PATH)
+	total_pages=$(((total_count + per_page - 1) / per_page))
+	start_line=$(((page - 1) * per_page + 1))
+	end_line=$((page * per_page))
 
 	echo "Available profiles (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
@@ -124,8 +145,8 @@ while true; do
 			# Read the final character of the escape sequence
 			char3=$(dd bs=1 count=1 2>/dev/null)
 			case "$char3" in
-				"A") selection="up" ;;      # Up arrow
-				"B") selection="down" ;;    # Down arrow
+				"A") selection="up" ;;   # Up arrow
+				"B") selection="down" ;; # Down arrow
 				"5")
 					# Page Up - read the trailing ~
 					dd bs=1 count=1 2>/dev/null
@@ -175,42 +196,42 @@ while true; do
 	stty "$old_tty_settings"
 
 	case "$selection" in
-		"pgup"|"up")
+		"pgup" | "up")
 			if [ $current_page -gt 1 ]; then
 				current_page=$((current_page - 1))
 			fi
 			;;
-		"pgdn"|"down")
-			total_count=$(wc -l < $LIST_PATH)
+		"pgdn" | "down")
+			total_count=$(wc -l <$LIST_PATH)
 			terminal_height=$(get_terminal_height)
 			per_page=$((terminal_height - 8))
 			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
-			total_pages=$(( (total_count + per_page - 1) / per_page ))
+			total_pages=$(((total_count + per_page - 1) / per_page))
 			if [ $current_page -lt $total_pages ]; then
 				current_page=$((current_page + 1))
 			fi
 			;;
-		"f"|"F")
+		"f" | "F")
 			current_page=1
 			;;
-		"l"|"L")
-			total_count=$(wc -l < $LIST_PATH)
+		"l" | "L")
+			total_count=$(wc -l <$LIST_PATH)
 			terminal_height=$(get_terminal_height)
 			per_page=$((terminal_height - 8))
 			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
-			current_page=$(( (total_count + per_page - 1) / per_page ))
+			current_page=$(((total_count + per_page - 1) / per_page))
 			;;
-		"q"|"Q")
+		"q" | "Q")
 			exit 0
 			;;
 		[0-9]*)
 			selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
 			if [ -n "$selected_profile" ]; then
 				sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
-				echo_info "Device gestalt updated to $selected_profile"
+				echo "Device gestalt updated to $selected_profile"
 				break
 			else
-				echo_warning "Invalid selection. Please try again."
+				echo "Invalid selection. Please try again." >&2
 			fi
 			;;
 		*)
