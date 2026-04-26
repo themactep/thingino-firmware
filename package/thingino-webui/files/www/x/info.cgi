@@ -144,7 +144,7 @@ EOF
 			cmd="cat /etc/os-release"
 			;;
 		status)
-			cmd="uptime; df -T; cat /proc/meminfo | grep Mem"
+			cmd="date; uptime; df -T; cat /proc/meminfo | grep Mem"
 			;;
 		thingino)
 			cmd="cat /etc/thingino.json"
