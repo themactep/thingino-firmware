@@ -1,12 +1,10 @@
 #!/bin/sh
 
-. /usr/share/common
-
 MMC_MODULE="jzmmc_v12"
 MMC_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 set_gpio() {
-	echo_info "Set GPIO $1 to F$2 D$3"
+	echo "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
@@ -14,7 +12,7 @@ bool_is_true() {
 	local value
 	value=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
 	case "$value" in
-		1|true|yes|on)
+		1 | true | yes | on)
 			return 0
 			;;
 	esac
@@ -26,14 +24,13 @@ print_pin_state() {
 	local state="$2"
 
 	case "$pin" in
-		''|*[^0-9]*)
+		'' | *[^0-9]*)
 			return 1
 			;;
 	esac
 
 	case "$state" in
-		0|1)
-			;;
+		0 | 1) ;;
 		*)
 			return 1
 			;;
@@ -85,7 +82,7 @@ get_mmc_power_sequence() {
 			if print_pin_state "$pin" "$state"; then
 				emitted=$((emitted + 1))
 			else
-				echo_warning "Invalid GPIO pin '$pin' in gpio.mmc_power[$idx]"
+				echo "Invalid GPIO pin '$pin' in gpio.mmc_power[$idx]"
 			fi
 			idx=$((idx + 1))
 			continue
@@ -95,7 +92,7 @@ get_mmc_power_sequence() {
 			if parse_legacy_token "$entry"; then
 				emitted=$((emitted + 1))
 			else
-				echo_warning "Invalid gpio.mmc_power entry '$entry' at index $idx"
+				echo "Invalid gpio.mmc_power entry '$entry' at index $idx"
 			fi
 			idx=$((idx + 1))
 			continue
@@ -121,12 +118,12 @@ get_mmc_power_sequence() {
 		fi
 	fi
 
-		if entry=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power" 2>/dev/null); then
+	if entry=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power" 2>/dev/null); then
 		for token in $entry; do
 			if parse_legacy_token "$token"; then
 				emitted=$((emitted + 1))
 			else
-				echo_warning "Invalid gpio.mmc_power token '$token'"
+				echo "Invalid gpio.mmc_power token '$token'"
 			fi
 		done
 		[ "$emitted" -gt 0 ] && return 0
@@ -139,7 +136,7 @@ set_power() {
 	local sequence pin state
 
 	if ! sequence="$(get_mmc_power_sequence)"; then
-		echo_warning "No MMC power GPIO sequence defined"
+		echo "No MMC power GPIO sequence defined"
 		return
 	fi
 
@@ -148,23 +145,23 @@ set_power() {
 	# for the SD card to mount during boot
 	while IFS=' ' read -r pin state; do
 		[ -n "$pin" ] || continue
-		echo_info "Set GPIO $pin to $state"
+		echo "Set GPIO $pin to $state"
 		gpio set "$pin" "$state"
 	done <<-EOF
-	$sequence
+		$sequence
 	EOF
 }
 
 load_module() {
 	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
-		echo_error "$MMC_MODULE is already loaded"
+		echo "$MMC_MODULE is already loaded" >&2
 		exit 1
 	fi
 
-	echo_info "Load $MMC_MODULE $MMC_PARAM"
+	echo "Load $MMC_MODULE $MMC_PARAM"
 
 	if ! modprobe $MMC_MODULE $MMC_PARAM; then
-		echo_error "Failed to load module!"
+		echo "Failed to load module!" >&2
 		exit 1
 	fi
 
@@ -172,7 +169,7 @@ load_module() {
 }
 
 start() {
-	echo_title "Initializing MMC"
+	echo -c 15 "Initializing MMC"
 
 	gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd")
 	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
