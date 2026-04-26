@@ -1,9 +1,30 @@
 #!/bin/sh
 
-DAEMON="motors-daemon"
+DAEMON="/usr/bin/motors-daemon"
 DAEMON_ARGS="-d -p"
+PIDFILE="/run/motors-daemon.pid"
 
-. /usr/share/common
+ensure_command() {
+	if ! command -v "$1" >/dev/null 2>&1; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
+}
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 MOTORS_CONFIG="/etc/motors.json"
 
@@ -11,7 +32,7 @@ ensure_command "motors"
 
 set_motor_phases() {
 	if [ "$(echo $2 | wc -w)" -lt 4 ]; then
-		echo_error "Missing phase for ${1}motor"
+		echo "Missing phase for ${1}motor" >&2
 		exit 1
 	fi
 
@@ -23,12 +44,12 @@ set_motor_phases() {
 }
 
 home_motors() {
-	echo_info "Home motors"
+	echo "Home motors"
 	motors -r
 }
 
 set_motors_speed() {
-	echo_info "Set motors speed to $speed_pan"
+	echo "Set motors speed to $speed_pan"
 	motors -s $1
 }
 
@@ -45,29 +66,29 @@ position_motors() {
 		y=$((steps_tilt / 2))
 	fi
 
-	echo_info "Move to $x,$y"
+	echo "Move to $x,$y"
 	motors -d h -x $x -y $y
 }
 
 start() {
-	echo_title "Setting up motors"
+	echo -c 15 "Setting up motors"
 
-	   gpio_pan=$(jct $MOTORS_CONFIG get motors.gpio_pan)
-	  gpio_tilt=$(jct $MOTORS_CONFIG get motors.gpio_tilt)
+	gpio_pan=$(jct $MOTORS_CONFIG get motors.gpio_pan)
+	gpio_tilt=$(jct $MOTORS_CONFIG get motors.gpio_tilt)
 	gpio_switch=$(jct $MOTORS_CONFIG get motors.gpio_switch)
 	gpio_invert=$(jct $MOTORS_CONFIG get motors.gpio_invert)
-	  steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan)
-	 steps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt)
-	  speed_pan=$(jct $MOTORS_CONFIG get motors.speed_pan)
-	 speed_tilt=$(jct $MOTORS_CONFIG get motors.speed_tilt)
-	     homing=$(jct $MOTORS_CONFIG get motors.homing)
-	     is_spi=$(jct $MOTORS_CONFIG get motors.is_spi)
-	   invert_x=$(jct $MOTORS_CONFIG get motors.invert_x)
-	   invert_y=$(jct $MOTORS_CONFIG get motors.invert_y)
+	steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan)
+	steps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt)
+	speed_pan=$(jct $MOTORS_CONFIG get motors.speed_pan)
+	speed_tilt=$(jct $MOTORS_CONFIG get motors.speed_tilt)
+	homing=$(jct $MOTORS_CONFIG get motors.homing)
+	is_spi=$(jct $MOTORS_CONFIG get motors.is_spi)
+	invert_x=$(jct $MOTORS_CONFIG get motors.invert_x)
+	invert_y=$(jct $MOTORS_CONFIG get motors.invert_y)
 
-	[ -z "$gpio_pan" ] && echo_warning "gpio_pan is not set"
-	[ -z "$gpio_tilt" ] && echo_warning "gpio_tilt is not set"
-	[ -z "$gpio_switch" ] && echo_warning "gpio_switch is not set"
+	[ -z "$gpio_pan" ] && echo "gpio_pan is not set"
+	[ -z "$gpio_tilt" ] && echo "gpio_tilt is not set"
+	[ -z "$gpio_switch" ] && echo "gpio_switch is not set"
 
 	# defaults
 	[ -z "$steps_pan" ] && steps_pan=4000
@@ -76,7 +97,7 @@ start() {
 	[ -z "$speed_tilt" ] && speed_tilt=900
 
 	if grep -qE "^motor" /proc/modules; then
-		echo_info "Module motor already loaded."
+		echo "Module motor already loaded."
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
@@ -91,7 +112,7 @@ start() {
 		else
 			modprobe_args="$modprobe_args tcu_channels=2"
 
-			echo_info "Set GPIO per motor phase"
+			echo "Set GPIO per motor phase"
 			set_motor_phases "h" "$gpio_pan"
 			set_motor_phases "v" "$gpio_tilt"
 			modprobe_args="$modprobe_args hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4"
@@ -110,15 +131,16 @@ start() {
 			fi
 		fi
 
-		echo_info "Load motor module with parameters: $modprobe_args"
+		echo "Load motor module with parameters: $modprobe_args"
 
 		if ! modprobe motor $modprobe_args; then
-			echo_error "Failed to load motor module"
+			echo "Failed to load motor module" >&2
 			exit 1
 		fi
 	fi
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 	# FIXME: daemon should be reporting running state from the very first moment
 	sleep 1
 
@@ -126,7 +148,7 @@ start() {
 	set_motors_speed $speed_pan
 
 	if [ "false" = "$homing" ]; then
-		echo_info "Homing disabled"
+		echo "Homing disabled"
 	else
 		home_motors
 		position_motors
@@ -134,12 +156,12 @@ start() {
 }
 
 stop() {
-	echo_title "Stopping motors"
+	echo -c 15 "Stopping motors"
 
 	stop_daemon
 
 	if ! rmmod motor; then
-		echo_error "Failed to unload motor module."
+		echo "Failed to unload motor module." >&2
 		exit 1
 	fi
 }
