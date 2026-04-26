@@ -1,17 +1,34 @@
 #!/bin/sh
 
-. /usr/share/common
+DAEMON="/usr/bin/iad"
 
 DAEMON_ARGS="-r -c /etc/iad.json"
+PIDFILE="/run/iad.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting Ingenic Audio Daemon"
+	echo "Starting Ingenic Audio Daemon"
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping Ingenic Audio Daemon"
+	echo "Stopping Ingenic Audio Daemon"
 
 	stop_daemon
 }
@@ -35,6 +52,7 @@ case "$1" in
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
+		;;
 esac
 
 exit 0
