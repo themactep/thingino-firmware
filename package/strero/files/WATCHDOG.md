@@ -80,7 +80,7 @@ This allows the watchdog to maintain restart limits even if the watchdog itself 
 
 ## Integration
 
-The watchdog is designed to run before the streamer service (S94 vs S95) and integrates with the thingino service management system using the standard `/usr/share/common` functions.
+The watchdog is designed to run before the streamer service (S94 vs S95) and integrates with the thingino service management system using the standard service wrapper conventions.
 
 ## Differences from Old Stream Watchdog
 
