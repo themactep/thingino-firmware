@@ -2,8 +2,22 @@
 
 DAEMON="/usr/sbin/recordmgr"
 DAEMON_ARGS=""
+PIDFILE="/run/recordmgr.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- "$@"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return "$status"
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 CONFIG_FILE="/etc/prudynt.json"
 
@@ -26,24 +40,24 @@ debug_enabled() {
 }
 
 start() {
-	echo_title "Starting Recording Storage Manager"
+	echo -c 15 "Starting Recording Storage Manager"
 
 	if ! cleanup_enabled && ! timelapse_enabled; then
-		echo_info "Recording storage manager is disabled"
+		echo "Recording storage manager is disabled"
 		return 0
 	fi
 
 	DAEMON_ARGS=""
 	if debug_enabled; then
 		DAEMON_ARGS="--debug"
-		echo_info "Recording storage manager debug mode enabled"
+		echo "Recording storage manager debug mode enabled"
 	fi
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping Recording Storage Manager"
+	echo -c 15 "Stopping Recording Storage Manager"
 
 	stop_daemon
 }
