@@ -1,5 +1,5 @@
 # NAME: Wansview 106 (T31N, JXF37)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core ssl webcam
 BR2_AVPU_CLK_500MHZ=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_MOTORS=y
