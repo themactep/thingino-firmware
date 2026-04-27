@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 523c1bb0f6f93575a7a2774c60581843b9df72f0
+THINGINO_RAPTOR_VERSION = e0dd9f0
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -149,9 +149,14 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
 
-	# Init script
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
-		$(TARGET_DIR)/etc/init.d/S31raptor
+	# Init script — webcam variant includes USB gadget setup
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RWC)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor-webcam \
+			$(TARGET_DIR)/etc/init.d/S31raptor; \
+	else \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
+			$(TARGET_DIR)/etc/init.d/S31raptor; \
+	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/microphone \
