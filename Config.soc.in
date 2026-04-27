@@ -699,7 +699,7 @@ config BR2_THINGINO_AUDIO_DMIC
 	bool "DMIC Support"
 	depends on BR2_THINGINO_AUDIO
 	depends on BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
-	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION = 3.10.14
+	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION_3
 	help
 	  Enable Digital Microphone (DMIC) audio suport.
 
