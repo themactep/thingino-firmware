@@ -15,6 +15,13 @@ define SPI_TMI8152_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI0)
 endef
 
+ifeq ($(BR2_PACKAGE_SPI_TMI8152_MOTOR),y)
+define SPI_TMI8152_INSTALL_MOTOR
+	$(INSTALL) -D -m 0644 $(@D)/motor.ko \
+		$(TARGET_MODULES_PATH)/extra/motor.ko
+endef
+endif
+
 TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 define SPI_TMI8152_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
@@ -22,6 +29,8 @@ define SPI_TMI8152_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0644 $(@D)/tmi8152_spi_dev.ko \
 		$(TARGET_MODULES_PATH)/extra/tmi8152_spi_dev.ko
+
+	$(SPI_TMI8152_INSTALL_MOTOR)
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo tmi8152_spi_dev > $(TARGET_DIR)/etc/modules.d/tmi8152_spi_dev
