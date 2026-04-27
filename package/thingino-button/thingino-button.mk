@@ -1,21 +1,20 @@
 THINGINO_BUTTON_SITE_METHOD = git
-THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
+#THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
+THINGINO_BUTTON_SITE = https://github.com/themactep/thingino-button
 THINGINO_BUTTON_SITE_BRANCH = master
-THINGINO_BUTTON_VERSION = 6a88c8e5fc203ceabc721ad03e2e1be8deb81c80
+THINGINO_BUTTON_VERSION = c1e6f94680b8b8ad118241d3b57230fae47735d3
 
 define CHECK_MULTIPLE_GPIO_BUTTONS
 	if [ "$(BR2_THINGINO_DEV_DOORBELL)" != "y" ] && [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" != "y" ]; then \
-		button_count=0; \
-		while IFS= read -r line; do \
-			case "$$line" in \
-				gpio_button=*|gpio_button_*=*) \
-					button_count=$$((button_count + 1)); \
-					;; \
-			esac; \
-		done < $(U_BOOT_ENV_TXT); \
-		if [ "$$button_count" -gt 1 ]; then \
-			echo "KEY_1 TIMED 0.1 play /usr/share/sounds/chime_1.opus" \
-				>> $(TARGET_DIR)/etc/thingino-button.conf; \
+		if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
+			button_count=0; \
+			if which jct >/dev/null 2>&1; then \
+				button_count=$$(jct $(TARGET_DIR)/etc/thingino.json print 2>/dev/null | grep -c '"button_'); \
+			fi; \
+			if [ "$$button_count" -gt 1 ]; then \
+				echo "KEY_1 TIMED 0.1 play /usr/share/sounds/chime_1.opus" \
+					>> $(TARGET_DIR)/etc/thingino-button.conf; \
+			fi \
 		fi \
 	fi
 endef
