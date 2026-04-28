@@ -43,6 +43,7 @@ daemon_section() {
 	case $1 in
 		rvd)  echo "sensor" ;;
 		rsd)  echo "rtsp" ;;
+		rsd-555) echo "rtsp" ;;
 		rad)  echo "audio" ;;
 		rhd)  echo "http" ;;
 		rod)  echo "osd" ;;
@@ -58,7 +59,7 @@ daemon_section() {
 
 daemon_default_enabled() {
 	case $1 in
-		rmr|rmd|rwc|rsp) echo "false" ;;
+		rmr|rmd|rwc|rsp|rsd-555) echo "false" ;;
 		*) echo "true" ;;
 	esac
 }
@@ -91,6 +92,7 @@ start() {
 	# Core daemons
 	start_daemon rod
 	start_daemon rsd
+	start_daemon rsd-555
 	start_daemon rhd
 	start_daemon ric
 	start_daemon rmr

@@ -31,8 +31,16 @@ config BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	  ringdump, rac) are always included.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RSD
-	bool "RSD (RTSP server)"
+	bool "RSD (RTSP server — compy)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RSD555
+	bool "rsd-555 (RTSP server — live555)"
+	select BR2_PACKAGE_THINGINO_LIVE555
+	help
+	  Alternative RTSP server using live555 instead of compy.
+	  Statically linked — no shared live555 libs needed on device.
+	  Can run alongside or instead of RSD on a different port.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RAD
 	bool "RAD (audio capture/speaker)"

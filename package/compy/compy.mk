@@ -1,4 +1,4 @@
-COMPY_VERSION = c170e36
+COMPY_VERSION = f5c0391
 COMPY_SITE = https://github.com/gtxaspec/compy
 COMPY_SITE_METHOD = git
 COMPY_INSTALL_STAGING = YES
