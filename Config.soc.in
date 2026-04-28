@@ -8,7 +8,8 @@ config BR2_INGENIC_SOC_MODEL
 
 	  Supported models: t10l, t10n, t10a, t20l, t20n, t20x, t20z, t21l, t21n,
 	  t21x, t21zn, t21zl, t23n, t23dl, t23zn, t30l, t30n, t30x, t30a, t31l,
-	  t31lc, t31n, t31x, t31a, t31al, t31zl, t31zx, c100, t40n, t40nn, t40xp,
+	  t31lc, t31n, t31x, t31a, t31al, t31zl, t31zx, t32nq, t32vn, t33dl, t33l,
+	  t33lq, t33n, t33vl, t33vn, t33zl, t33zn, c100, t40n, t40nn, t40xp,
 	  t40a, t41lq, t41nq, t41zl, t41zn, t41zx, t41a, a1n, a1nt, a1x, a1l, a1a
 
 	  Note: Model name is case-insensitive.
@@ -23,6 +24,8 @@ config BR2_SOC_FAMILY
 	default "t23" if BR2_INGENIC_SOC_MODEL = "t23n" || BR2_INGENIC_SOC_MODEL = "t23dl" || BR2_INGENIC_SOC_MODEL = "t23zn"
 	default "t30" if BR2_INGENIC_SOC_MODEL = "t30l" || BR2_INGENIC_SOC_MODEL = "t30n" || BR2_INGENIC_SOC_MODEL = "t30x" || BR2_INGENIC_SOC_MODEL = "t30a"
 	default "t31" if BR2_INGENIC_SOC_MODEL = "t31l" || BR2_INGENIC_SOC_MODEL = "t31lc" || BR2_INGENIC_SOC_MODEL = "t31n" || BR2_INGENIC_SOC_MODEL = "t31x" || BR2_INGENIC_SOC_MODEL = "t31a" || BR2_INGENIC_SOC_MODEL = "t31al" || BR2_INGENIC_SOC_MODEL = "t31zl" || BR2_INGENIC_SOC_MODEL = "t31zx" || BR2_INGENIC_SOC_MODEL = "c100"
+	default "t32" if BR2_INGENIC_SOC_MODEL = "t32nq" || BR2_INGENIC_SOC_MODEL = "t32vn"
+	default "t33" if BR2_INGENIC_SOC_MODEL = "t33dl" || BR2_INGENIC_SOC_MODEL = "t33l" || BR2_INGENIC_SOC_MODEL = "t33lq" || BR2_INGENIC_SOC_MODEL = "t33n" || BR2_INGENIC_SOC_MODEL = "t33vl" || BR2_INGENIC_SOC_MODEL = "t33vn" || BR2_INGENIC_SOC_MODEL = "t33zl" || BR2_INGENIC_SOC_MODEL = "t33zn"
 	default "t40" if BR2_INGENIC_SOC_MODEL = "t40n" || BR2_INGENIC_SOC_MODEL = "t40nn" || BR2_INGENIC_SOC_MODEL = "t40xp" || BR2_INGENIC_SOC_MODEL = "t40a"
 	default "t41" if BR2_INGENIC_SOC_MODEL = "t41lq" || BR2_INGENIC_SOC_MODEL = "t41nq" || BR2_INGENIC_SOC_MODEL = "t41zl" || BR2_INGENIC_SOC_MODEL = "t41zn" || BR2_INGENIC_SOC_MODEL = "t41zx" || BR2_INGENIC_SOC_MODEL = "t41a"
 	default "a1" if BR2_INGENIC_SOC_MODEL = "a1n" || BR2_INGENIC_SOC_MODEL = "a1nt" || BR2_INGENIC_SOC_MODEL = "a1x" || BR2_INGENIC_SOC_MODEL = "a1l" || BR2_INGENIC_SOC_MODEL = "a1a"
@@ -698,7 +701,7 @@ config BR2_THINGINO_AUDIO_GPIO_LOW
 config BR2_THINGINO_AUDIO_DMIC
 	bool "DMIC Support"
 	depends on BR2_THINGINO_AUDIO
-	depends on BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION_3
 	help
 	  Enable Digital Microphone (DMIC) audio suport.
@@ -838,11 +841,11 @@ choice
 	prompt "Kernel version"
 	help
 	  Select the desired  kernel version
-	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31"
+	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
-	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
