@@ -18,7 +18,10 @@ endef
 ifeq ($(BR2_PACKAGE_SPI_TMI8152_MOTOR),y)
 define SPI_TMI8152_INSTALL_MOTOR
 	$(INSTALL) -D -m 0644 $(@D)/motor.ko \
-		$(TARGET_MODULES_PATH)/extra/motor.ko
+		$(TARGET_MODULES_PATH)/extra/tmi8152_spi_motor.ko
+	
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modprobe.d
+	echo "alias motor tmi8152_spi_motor" > $(TARGET_DIR)/etc/modprobe.d/00-tmi8152_spi_motor.conf
 endef
 endif
 
