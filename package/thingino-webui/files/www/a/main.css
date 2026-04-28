@@ -665,10 +665,6 @@ textarea.nowrap {
   padding: 1rem;
 }
 
-.preview-endpoints-header {
-  margin-bottom: 0.9rem;
-}
-
 .preview-endpoints-header h4 {
   color: #f80;
   font-size: 1rem;
@@ -688,29 +684,41 @@ textarea.nowrap {
 
 .preview-endpoint-item {
   align-items: flex-start;
-  background: rgba(4, 7, 11, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
   display: flex;
   gap: 0.75rem;
   overflow: hidden;
-  padding: 0.65rem 0.8rem;
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
 }
 
 .preview-endpoint-item:hover {
   background: rgba(10, 14, 21, 0.96);
-  border-color: rgba(255, 136, 0, 0.28);
-  transform: translateY(-1px);
 }
 
 .preview-endpoint-item.copied {
   background: rgba(255, 136, 0, 0.12);
-  border-color: rgba(255, 136, 0, 0.55);
-  box-shadow: 0 0 1rem rgba(255, 136, 0, 0.12);
 }
 
-.preview-endpoint-label {
+.preview-endpoint-link {
+  align-items: center;
+  color: var(--bs-body-color);
+  display: inline-flex;
+  gap: 0.3rem;
+  justify-content: center;
+  min-height: 2.0rem;
+  padding-right: 0.5rem;
+  text-decoration: underline 1px transparent;
+}
+
+.preview-endpoint-link:hover {
+  color: #fff;
+  background: rgba(10, 14, 21, 0.96);
+  border-color: rgba(255, 136, 0, 0.28);
+}
+
+.preview-endpoint-link.copied {
+  text-decoration: underline 1px red;
+}
+
+.preview-endpoint-short {
   color: #f8b25c;
   flex: 0 0 7.5rem;
   font-size: 0.85rem;
@@ -764,7 +772,6 @@ textarea.nowrap {
 
 .preview-endpoint-link:hover .preview-endpoint-hint {
   background: rgba(255, 136, 0, 0.16);
-  border-color: rgba(255, 136, 0, 0.4);
   color: #ffd39a;
 }
 
@@ -781,7 +788,6 @@ textarea.nowrap {
 
 .preview-endpoint-link.copied .preview-endpoint-hint {
   background: rgba(255, 136, 0, 0.18);
-  border-color: rgba(255, 136, 0, 0.4);
 }
 
 #page-texteditor .tab-pane {
