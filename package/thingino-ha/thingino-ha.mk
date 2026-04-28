@@ -7,6 +7,12 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 	$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \
 		$(THINGINO_HA_PKGDIR)/files/thingino-ha.json
 
+	# Preserve user overrides (common/camera/device) after HA defaults import.
+	for USER_CONFIG in $(THINGINO_USER_JSON_FILES); do \
+		[ -f "$$USER_CONFIG" ] && \
+			$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import "$$USER_CONFIG" || true; \
+	done
+
 	$(INSTALL) -D -m 0644 $(@D)/ha-common \
 		$(TARGET_DIR)/usr/share/ha-common
 	$(INSTALL) -D -m 0755 $(@D)/S93ha \
