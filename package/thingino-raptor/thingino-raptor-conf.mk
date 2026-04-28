@@ -128,6 +128,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset rtsp session_info "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_INFO))"; \
 	rset rtsp session_timeout "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_TIMEOUT))"; \
 	rset rtsp tcp_sndbuf "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TCP_SNDBUF))"; \
+	rset rtsp backchannel "$(call raptor_bval,RTSP_BACKCHANNEL)"; \
 	\
 	rset http enabled "$(call raptor_bval,HTTP_ENABLED)"; \
 	rset http port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_HTTP_PORT))"; \
