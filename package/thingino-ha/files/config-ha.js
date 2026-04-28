@@ -16,6 +16,7 @@
   const discoveryPrefix  = $('#ha_discovery_prefix');
   const stateInterval    = $('#ha_state_interval');
   const discoveryInterval = $('#ha_discovery_interval');
+  const otaCheckInterval = $('#ha_ota_check_interval');
   const haEnabled        = $('#ha_enabled');
 
   // Entity toggles
@@ -47,6 +48,7 @@
     submitButton.disabled = state;
     [mqttHost, mqttPort, mqttUsername, mqttPassword, mqttClientId, mqttSsl,
      deviceName, deviceModel, discoveryPrefix, stateInterval, discoveryInterval,
+     otaCheckInterval,
      haEnabled].forEach(function (el) { el.disabled = state; });
     entities.forEach(function (e) {
       const el = $('#ha_enable_' + e);
@@ -85,6 +87,7 @@
       discoveryPrefix.value   = sanitizeValue(d.discovery_prefix || '') || 'homeassistant';
       stateInterval.value     = sanitizeValue(String(d.state_interval || '')) || '15';
       discoveryInterval.value = sanitizeValue(String(d.discovery_interval || '')) || '3600';
+      otaCheckInterval.value  = sanitizeValue(String(d.ota_check_interval || '')) || '21600';
       haEnabled.checked       = d.enabled === true;
 
       entities.forEach(function (e) {
@@ -137,6 +140,7 @@
       discovery_prefix: sanitizeValue(discoveryPrefix.value) || 'homeassistant',
       state_interval: parseInt(sanitizeValue(stateInterval.value), 10) || 15,
       discovery_interval: parseInt(sanitizeValue(discoveryInterval.value), 10) || 3600,
+      ota_check_interval: parseInt(sanitizeValue(otaCheckInterval.value), 10) || 21600,
       mqtt: {
         host: sanitizeValue(mqttHost.value) || '',
         port: parseInt(sanitizeValue(mqttPort.value), 10) || 1883,

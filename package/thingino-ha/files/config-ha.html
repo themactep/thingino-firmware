@@ -93,6 +93,11 @@
                   <label for="ha_discovery_interval">Discovery re-publish interval (seconds)</label>
                   <input type="text" id="ha_discovery_interval" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="3600">
                 </p>
+                <p>
+                  <label for="ha_ota_check_interval">Firmware check interval (seconds)</label>
+                  <input type="text" id="ha_ota_check_interval" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="21600">
+                  <small>Used only by Firmware update entity (GitHub release checks)</small>
+                </p>
                 <p class="form-switch mt-3">
                   <input type="checkbox" id="ha_enabled" class="form-check-input" role="switch">
                   <label for="ha_enabled" class="form-check-label">Enable Home Assistant integration</label>

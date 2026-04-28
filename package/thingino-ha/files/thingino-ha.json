@@ -28,6 +28,7 @@
       "use_ssl": false,
       "username": ""
     },
+    "ota_check_interval": 21600,
     "state_interval": 15
   }
 }
