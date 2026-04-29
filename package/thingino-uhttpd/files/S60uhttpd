@@ -63,26 +63,22 @@ start() {
 		fi
 	fi
 
-	# Check if portal mode is active
+	# Portal mode: bind to portal IP, use error handler for captive portal detection
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
 		echo -c 15 "Starting uhttpd with Portal interface"
 
-		# Check if portal files exist
 		if [ ! -d "$UHTTPD_PORTAL_DOCROOT" ]; then
 			echo "Portal directory $UHTTPD_PORTAL_DOCROOT not found"
 			return 1
 		fi
 
-		# Portal mode configuration
-		# Portal mode uses HTTP only (no SSL) - bind to portal IP
-		DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_PORTAL_DOCROOT" "$UHTTPD_PORTAL_HTTP_LISTEN" "" "")"
+		DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_PORTAL_DOCROOT" "$UHTTPD_PORTAL_HTTP_LISTEN" "" "/x/portal.cgi")"
 
 		echo "Starting uhttpd with args: $DAEMON_ARGS_HTTP"
 		/usr/bin/$DAEMON $DAEMON_ARGS_HTTP 2>&1 &
 		local uhttpd_pid=$!
 		echo $uhttpd_pid >$PIDFILE
 
-		# Wait and verify it's running
 		sleep 3
 
 		if pgrep uhttpd >/dev/null 2>&1; then
