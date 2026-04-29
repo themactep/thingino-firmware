@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "Status: 302 Moved Temporarily
-Content-type: text/html; charset=UTF-8
-Location: http://thingino.local/
-"
+printf 'Status: 302 Found\r\n'
+printf 'Location: /index.html\r\n'
+printf 'Content-Type: text/html; charset=UTF-8\r\n'
+printf '\r\n'
