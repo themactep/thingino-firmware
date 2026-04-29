@@ -320,6 +320,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2ftp
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gphotos \
 		$(TARGET_DIR)/usr/sbin/send2gphotos
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gotify \
+		$(TARGET_DIR)/usr/sbin/send2gotify
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2mqtt \
 		$(TARGET_DIR)/usr/sbin/send2mqtt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ntfy \

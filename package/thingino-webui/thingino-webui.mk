@@ -154,6 +154,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-send2-ftp.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-gphotos.html \
 		$(TARGET_DIR)/var/www/tool-send2-gphotos.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-gotify.html \
+		$(TARGET_DIR)/var/www/tool-send2-gotify.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-mqtt.html \
 		$(TARGET_DIR)/var/www/tool-send2-mqtt.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-mqtt-sub.html \
@@ -252,6 +254,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-send2-ftp.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-gphotos.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-gphotos.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-gotify.js \
+		$(TARGET_DIR)/var/www/a/tool-send2-gotify.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-mqtt.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-mqtt.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-mqtt-sub.js \
