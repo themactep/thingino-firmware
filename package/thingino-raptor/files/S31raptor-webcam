@@ -91,15 +91,18 @@ start() {
 
 	# USB webcam: load gadget, switch to device mode, start RWC
 	if config_bool "webcam" "enabled" "false" && [ -x /usr/bin/rwc ]; then
-		modprobe g_webcam 2>/dev/null
-		sleep 1
-		usb-role -m device 2>/dev/null
-		sleep 1
-		soft=$(find /sys/devices -name soft_connect -path "*/dwc2/*" 2>/dev/null | head -1)
-		if [ -n "$soft" ]; then
-			echo connect > "$soft"
+		if ! lsmod 2>/dev/null | grep -q g_webcam; then
+			modprobe g_webcam 2>/dev/null
+			sleep 1
+			usb-role -m device 2>/dev/null
+			sleep 1
+			soft=$(find /sys/devices -name soft_connect -path "*/dwc2/*" 2>/dev/null | head -1)
+			if [ -n "$soft" ]; then
+				echo connect > "$soft"
+			fi
 		fi
 		start_daemon rwc
+		while :; do setsid /sbin/getty -n -l /bin/sh ttyGS0 0 vt100; sleep 1; done &
 	fi
 
 	echo "Done."
