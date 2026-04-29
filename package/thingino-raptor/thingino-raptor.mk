@@ -155,7 +155,7 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
 
 	# Init script — webcam variant includes USB gadget setup
-	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RWC)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor-webcam \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	else \
