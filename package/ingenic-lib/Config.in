@@ -3,23 +3,48 @@ config BR2_PACKAGE_INGENIC_LIB
 	help
 	  Ingenic IMP platform libraries
 
+if BR2_PACKAGE_INGENIC_LIB
+
+config BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	bool "libimp.so (core SDK)"
+	default y
+	help
+	  Ingenic IMP core library. Required by all streamers.
+
+config BR2_PACKAGE_INGENIC_LIB_LIBALOG
+	bool "libalog.so (proprietary)"
+	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
+	default y
+	help
+	  Ingenic proprietary logging library.
+	  Overridden by ingenic-system-libs-neo libalog when selected.
+
+config BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
+	bool "libsysutils.so (proprietary)"
+	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	default y
+	help
+	  Ingenic proprietary system utilities library.
+	  Overridden by ingenic-system-libs-neo libsysutils when selected.
+
 config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
 	bool "libaudioProcess.so (proprietary)"
-	depends on BR2_PACKAGE_INGENIC_LIB
+	default n if BR2_PACKAGE_LIBAUDIOPROCESS_NEO
+	default y
 	help
 	  Ingenic proprietary audio processing library.
-	  Overridden by libaudioprocess-neo when both are selected.
+	  Overridden by libaudioprocess-neo when selected.
 
 config BR2_PACKAGE_INGENIC_LIB_JZDL
 	bool "JZDL standalone inference (libjzdl.m.so — 609KB)"
-	depends on BR2_PACKAGE_INGENIC_LIB
 	help
 	  Standalone JZDL neural network inference library.
 	  Required for YOLOv5 and custom model detection.
 
 config BR2_PACKAGE_INGENIC_LIB_PERSONDET
 	bool "PersonDet IVS algorithm (libpersonDet_inf.so + libjzdl.so — 1.5MB)"
-	depends on BR2_PACKAGE_INGENIC_LIB
 	help
 	  Person detection via IVS pipeline using built-in model.
 	  No separate model file needed.
+
+endif

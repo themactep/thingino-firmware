@@ -56,66 +56,70 @@ else ifeq ($(SOC_FAMILY),t41)
 	SDK_VERSION := 1.2.6
 endif
 
+SDK_LIB_DIR = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)
+
 ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
-	# For T40/T41/A1, use their native version regardless of libc type
-	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+	LIBALOG_FILE = $(SDK_LIB_DIR)/libalog.so
 else
-	# For all other XBurst1 SoCs
 	ifeq ($(SDK_LIBC_NAME),uclibc)
-		# With uclibc, use T31 1.1.6 version
 		LIBALOG_FILE = $(@D)/T31/lib/1.1.6/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
 	else
-		# With non-uclibc (including T31 with glibc/musl), use their corresponding libc version
-		LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+		LIBALOG_FILE = $(SDK_LIB_DIR)/libalog.so
 	endif
 endif
 
 ACCEL_DIR = $(@D)/acceleration-modules
 
+# Staging: always install libimp + libalog + libsysutils for linking
 define INGENIC_LIB_INSTALL_STAGING_CMDS
-	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
-		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
-
+	$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libimp.so \
+		$(STAGING_DIR)/usr/lib/libimp.so
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(STAGING_DIR)/usr/lib/libalog.so
-
-	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),,\
-		$(RM) $(STAGING_DIR)/usr/lib/libaudioProcess.so \
+	$(if $(filter-out a1,$(SOC_FAMILY)),\
+		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libsysutils.so \
+			$(STAGING_DIR)/usr/lib/libsysutils.so \
 	)
-	$(if $(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),\
-		$(RM) $(STAGING_DIR)/usr/lib/libaudioProcess.so \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),\
+		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libaudioProcess.so \
+			$(STAGING_DIR)/usr/lib/libaudioProcess.so \
 	)
-	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
-		$(INSTALL) -m 0644 \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL),\
+		$(INSTALL) -D -m 0644 \
 			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
 			$(STAGING_DIR)/usr/lib/ \
 	)
-	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET), \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET),\
 		$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
 	)
 endef
 
+# Target: only install what's selected
 define INGENIC_LIB_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
-		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
-
-	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
-		$(TARGET_DIR)/usr/lib/libalog.so
-
-	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),,\
-		$(RM) $(TARGET_DIR)/usr/lib/libaudioProcess.so \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBIMP),\
+		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libimp.so \
+			$(TARGET_DIR)/usr/lib/libimp.so \
 	)
-	$(if $(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),\
-		$(RM) $(TARGET_DIR)/usr/lib/libaudioProcess.so \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBALOG),\
+		$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
+			$(TARGET_DIR)/usr/lib/libalog.so \
 	)
-	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
-		$(INSTALL) -m 0644 \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS),\
+		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libsysutils.so \
+			$(TARGET_DIR)/usr/lib/libsysutils.so \
+	)
+	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),\
+		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libaudioProcess.so \
+			$(TARGET_DIR)/usr/lib/libaudioProcess.so \
+	)
+	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL),\
+		$(INSTALL) -D -m 0644 \
 			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
 			$(TARGET_DIR)/usr/lib/ \
 	)
-	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET), \
+	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET),\
 		$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
