@@ -22,6 +22,11 @@ start() {
 		exit 1
 	fi
 
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Disabled" >&2
+		exit 1
+	fi
+
 	if ! is_gateway_reachable; then
 		echo_error "Disabled"
 		exit 1
