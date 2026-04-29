@@ -1,10 +1,5 @@
 #!/bin/sh
 
-die() {
-	echo "$1" >&2
-	exit 1
-}
-
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
@@ -31,7 +26,10 @@ Where command:
 }
 
 check_interface() {
-	ip link show $1 >/dev/null 2>&1 || die "Error: interface $1 does not exist."
+	ip link show $1 >/dev/null 2>&1 || {
+		echo "Error: interface $1 does not exist." >&2
+		exit 1
+	}
 }
 
 cli() {
