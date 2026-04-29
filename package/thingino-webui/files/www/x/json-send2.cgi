@@ -91,6 +91,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 	elif jct "$temp_json" get telegram >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
+	elif jct "$temp_json" get gotify >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
 	elif jct "$temp_json" get mqtt >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
