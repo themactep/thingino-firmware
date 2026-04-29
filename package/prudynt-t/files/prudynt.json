@@ -114,6 +114,7 @@
     "script_path": "/usr/sbin/motion",
     "send2email": false,
     "send2ftp": false,
+    "send2gotify": false,
     "send2mqtt": false,
     "send2ntfy": false,
     "send2storage": false,

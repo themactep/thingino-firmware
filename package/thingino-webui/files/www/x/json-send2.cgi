@@ -42,6 +42,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "email": $(get_domain_config email),
   "ftp": $(get_domain_config ftp),
   "telegram": $(get_domain_config telegram),
+  "gotify": $(get_domain_config gotify),
   "mqtt": $(get_domain_config mqtt),
   "webhook": $(get_domain_config webhook),
   "storage": $(get_domain_config storage),
@@ -88,6 +89,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get telegram >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
+	elif jct "$temp_json" get gotify >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get mqtt >/dev/null 2>&1; then
