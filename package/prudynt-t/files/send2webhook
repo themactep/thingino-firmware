@@ -60,21 +60,28 @@ else
 fi
 
 if [ -n "$file" ]; then
-	command="$command -F 'file=@$file'"
+	s_file=$(shell_escape "file=@$file")
+	command="$command -F $s_file"
 fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -F 'image=@$photo'"
+	s_photo=$(shell_escape "image=@$photo")
+	command="$command -F $s_photo"
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -F 'video=@$video'"
+	s_video=$(shell_escape "video=@$video")
+	command="$command -F $s_video"
 fi
 
-command="$command -F \"message=$message\""
-command="$command --url \"$url\""
+# --- Sanitize remaining values ---
+s_message=$(shell_escape "message=$message")
+s_url=$(shell_escape "$url")
+
+command="$command -F $s_message"
+command="$command --url $s_url"
 
 [ "true" = "$verbose" ] && echo_command "$command"
 
