@@ -15,6 +15,7 @@
   const deviceModel      = $('#ha_device_model');
   const discoveryPrefix  = $('#ha_discovery_prefix');
   const stateInterval    = $('#ha_state_interval');
+  const cameraInterval   = $('#ha_camera_interval');
   const discoveryInterval = $('#ha_discovery_interval');
   const otaCheckInterval = $('#ha_ota_check_interval');
   const haEnabled        = $('#ha_enabled');
@@ -23,7 +24,7 @@
   const entities = [
     'motion', 'motion_guard', 'ircut', 'daynight', 'privacy',
     'color', 'ir850', 'ir940', 'white_light', 'gain', 'rssi',
-    'snapshot', 'reboot', 'ota'
+    'snapshot', 'live_view', 'reboot', 'ota'
   ];
 
   function sanitizeValue(value) {
@@ -47,7 +48,8 @@
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     [mqttHost, mqttPort, mqttUsername, mqttPassword, mqttClientId, mqttSsl,
-     deviceName, deviceModel, discoveryPrefix, stateInterval, discoveryInterval,
+     deviceName, deviceModel, discoveryPrefix, stateInterval, cameraInterval,
+     discoveryInterval,
      otaCheckInterval,
      haEnabled].forEach(function (el) { el.disabled = state; });
     entities.forEach(function (e) {
@@ -86,6 +88,7 @@
       deviceModel.value       = sanitizeValue(d.device_model || '') || '';
       discoveryPrefix.value   = sanitizeValue(d.discovery_prefix || '') || 'homeassistant';
       stateInterval.value     = sanitizeValue(String(d.state_interval || '')) || '15';
+      cameraInterval.value    = sanitizeValue(String(d.camera_interval || '')) || '60';
       discoveryInterval.value = sanitizeValue(String(d.discovery_interval || '')) || '3600';
       otaCheckInterval.value  = sanitizeValue(String(d.ota_check_interval || '')) || '21600';
       haEnabled.checked       = d.enabled === true;
@@ -139,6 +142,7 @@
       device_model: sanitizeValue(deviceModel.value) || '',
       discovery_prefix: sanitizeValue(discoveryPrefix.value) || 'homeassistant',
       state_interval: parseInt(sanitizeValue(stateInterval.value), 10) || 15,
+      camera_interval: parseInt(sanitizeValue(cameraInterval.value), 10) || 60,
       discovery_interval: parseInt(sanitizeValue(discoveryInterval.value), 10) || 3600,
       ota_check_interval: parseInt(sanitizeValue(otaCheckInterval.value), 10) || 21600,
       mqtt: {

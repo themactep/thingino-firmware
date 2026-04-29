@@ -94,6 +94,10 @@
                   <input type="text" id="ha_discovery_interval" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="3600">
                 </p>
                 <p>
+                  <label for="ha_camera_interval">Live view snapshot interval (seconds)</label>
+                  <input type="text" id="ha_camera_interval" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="60">
+                </p>
+                <p>
                   <label for="ha_ota_check_interval">Firmware check interval (seconds)</label>
                   <input type="text" id="ha_ota_check_interval" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="21600">
                   <small>Used only by Firmware update entity (GitHub release checks)</small>
@@ -126,6 +130,10 @@
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_ota" class="form-check-input" role="switch">
                     <label for="ha_enable_ota" class="form-check-label">Firmware update</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_live_view" class="form-check-input" role="switch">
+                    <label for="ha_enable_live_view" class="form-check-label">Live view</label>
                   </p>
                 </div>
                 <h5>Switches</h5>
