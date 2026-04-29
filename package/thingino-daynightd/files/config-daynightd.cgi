@@ -42,7 +42,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
   enabled="$POST_enabled"
   threshold_low="$POST_threshold_low"
-  thershold_high="$POST_threshold_high"
+  threshold_high="$POST_threshold_high"
   hysteresis_factor="$POST_hysteresis_factor"
   controls_color="$POST_controls_color"
   controls_ir850="$POST_controls_ir850"
