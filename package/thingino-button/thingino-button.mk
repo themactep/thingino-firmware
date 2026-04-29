@@ -1,6 +1,5 @@
 THINGINO_BUTTON_SITE_METHOD = git
-#THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
-THINGINO_BUTTON_SITE = https://github.com/themactep/thingino-button
+THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
 THINGINO_BUTTON_SITE_BRANCH = master
 THINGINO_BUTTON_VERSION = c1e6f94680b8b8ad118241d3b57230fae47735d3
 
