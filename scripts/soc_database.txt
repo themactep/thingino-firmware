@@ -59,6 +59,20 @@ t41zn,t41,2,128,isvp_t41n_sfc_nor,isvp_t41n_sfc0_nand
 t41zx,t41,2,256,isvp_t41zx_sfc_nor,isvp_t41zx_sfc0_nand
 t41a,t41,2,512,isvp_t41a_sfc_nor,isvp_t41a_sfc0_nand
 
+# T32 Family
+t32nq,t32,1,128,isvp_t32nq_sfcnor,-
+t32vn,t32,1,128,isvp_t32vn_sfcnor,-
+
+# T33 Family
+t33dl,t33,1,64,isvp_t33dl_sfcnor,-
+t33l,t33,1,64,isvp_t33l_sfcnor,-
+t33lq,t33,1,64,isvp_t33lq_sfcnor,-
+t33n,t33,1,128,isvp_t33n_sfcnor,-
+t33vl,t33,1,64,isvp_t33vl_sfcnor,-
+t33vn,t33,1,128,isvp_t33vn_sfcnor,-
+t33zl,t33,1,64,isvp_t33zl_sfcnor,-
+t33zn,t33,1,128,isvp_t33zn_sfcnor,-
+
 # A1 Family
 a1n,a1,2,256,isvp_a1_all_lzma_sfc0nor,-
 a1nt,a1,2,256,isvp_a1_all_lzma_sfc0nor,-
