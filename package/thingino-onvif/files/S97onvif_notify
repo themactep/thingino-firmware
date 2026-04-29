@@ -3,11 +3,17 @@
 DAEMON="onvif_notify_server"
 DAEMON_ARGS="-c /etc/onvif.json -p /run/$DAEMON.pid"
 MOTION="/run/motion"
+PORTAL_MODE_FLAG="/run/portal_mode"
 
 . /usr/share/common
 
 start() {
 	echo_title "Starting ONVIF Notify service"
+
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Disabled" >&2
+		exit 1
+	fi
 
 	[ -d "$MOTION" ] || mkdir -p $MOTION
 

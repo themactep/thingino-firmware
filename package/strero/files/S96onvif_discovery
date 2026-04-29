@@ -4,6 +4,7 @@ DAEMON=wsd_simple_server
 ONVIF_CONFIG=/etc/onvif.json
 MOTORS_CONFIG=/etc/motors.json
 MOTORS_BIN="/bin/motors"
+PORTAL_MODE_FLAG="/run/portal_mode"
 STRERO_RTSP_CONFIG=/etc/streamer.d/rtsp.json
 
 . /usr/share/common
@@ -28,6 +29,11 @@ strero_rtsp_pass() {
 
 start() {
 	echo_title "Starting ONVIF discovery"
+
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Disabled" >&2
+		exit 1
+	fi
 
 	if ! is_gateway_reachable; then
 		echo_error "Disabled"
