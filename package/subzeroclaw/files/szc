@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "$#" -gt 0 ]; then
+	exec /usr/bin/subzeroclaw "$*" 2>/dev/null
+fi
+
+exec /usr/bin/subzeroclaw 2>/dev/null

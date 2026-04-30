@@ -27,9 +27,14 @@ endef
 
 define SUBZEROCLAW_INSTALL_TARGET_CMDS
 	$(INSTALL) -d -m 0755 $(TARGET_DIR)/etc/subzeroclaw/skills
-	$(INSTALL) -D -m 0755 $(@D)/subzeroclaw $(TARGET_DIR)/usr/bin/subzeroclaw
-	$(INSTALL) -D -m 0644 $(SUBZEROCLAW_PKGDIR)/files/config $(TARGET_DIR)/etc/subzeroclaw/config
-	$(INSTALL) -D -m 0644 $(SUBZEROCLAW_PKGDIR)/files/system.md $(TARGET_DIR)/etc/subzeroclaw/skills/system.md
+	$(INSTALL) -D -m 0755 $(@D)/subzeroclaw \
+		$(TARGET_DIR)/usr/bin/subzeroclaw
+	$(INSTALL) -D -m 0755 $(SUBZEROCLAW_PKGDIR)/files/szc \
+		$(TARGET_DIR)/usr/bin/szc
+	$(INSTALL) -D -m 0644 $(SUBZEROCLAW_PKGDIR)/files/config \
+		$(TARGET_DIR)/etc/subzeroclaw/config
+	$(INSTALL) -D -m 0644 $(SUBZEROCLAW_PKGDIR)/files/system.md \
+		$(TARGET_DIR)/etc/subzeroclaw/skills/system.md
 endef
 
 $(eval $(generic-package))
