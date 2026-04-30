@@ -735,7 +735,7 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall
 
 remove_bins:
 	@$(TEAL) "$@"
