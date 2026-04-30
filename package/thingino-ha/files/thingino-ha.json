@@ -10,6 +10,7 @@
     "enable_ir850": true,
     "enable_ir940": true,
     "enable_ircut": true,
+    "enable_live_view": true,
     "enable_motion": true,
     "enable_motion_guard": true,
     "enable_ota": true,
@@ -28,6 +29,8 @@
       "use_ssl": false,
       "username": ""
     },
-    "state_interval": 15
+    "ota_check_interval": 21600,
+    "state_interval": 15,
+    "camera_interval": 60
   }
 }

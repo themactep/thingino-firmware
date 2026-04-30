@@ -23,31 +23,6 @@ read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
 }
 
-ha_processes_gone() {
-	local proc
-	for proc in ha-daemon ha-commands ha-discovery ha-state; do
-		if pidof "$proc" >/dev/null 2>&1; then
-			return 1
-		fi
-	done
-	if [ -n "$HA_CAMERA_ID" ]; then
-		if pgrep -f "mosquitto_.*${HA_CAMERA_ID}" >/dev/null 2>&1; then
-			return 1
-		fi
-	fi
-	return 0
-}
-
-wait_for_ha_shutdown() {
-	local timeout=20
-	while [ "$timeout" -gt 0 ]; do
-		ha_processes_gone && return 0
-		sleep 1
-		timeout=$((timeout - 1))
-	done
-	return 1
-}
-
 start() {
 	echo -c 15 "Starting HA daemon"
 
@@ -96,6 +71,7 @@ case "$1" in
 		;;
 	restart)
 		stop
+		sleep 1
 		start
 		;;
 	*)
