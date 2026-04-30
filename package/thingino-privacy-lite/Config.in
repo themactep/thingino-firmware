@@ -1,0 +1,7 @@
+config BR2_PACKAGE_THINGINO_PRIVACY_LITE
+	bool "thingino-privacy-lite"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	help
+	  Lightweight privacy backend plugin for prudynt.
+	  It keeps stream sessions alive while reducing load by throttling
+	  encoder bitrate/fps and muting the microphone when privacy is on.

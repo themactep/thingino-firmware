@@ -1,0 +1,228 @@
+#!/bin/sh
+
+STATE_FILE="/run/prudynt/privacy-lite.state"
+ACTIVE_FILE="/run/prudynt/privacy-lite.active"
+FIFO="/run/prudynt/video_ctrl"
+JCT="/usr/bin/jct"
+IMP_CONTROL="/usr/sbin/imp-control"
+
+LITE_BITRATE="${PRIVACY_LITE_BITRATE:-96}"
+LITE_FPS="${PRIVACY_LITE_FPS:-2}"
+LITE_GOP="${PRIVACY_LITE_GOP:-2}"
+
+usage() {
+	echo "Usage: $0 [on|off] [0|1|all]"
+	exit 1
+}
+
+require_tool() {
+	if [ ! -x "$1" ]; then
+		echo "error: required tool not found: $1" >&2
+		exit 1
+	fi
+}
+
+parse_channel() {
+	case "$1" in
+		"" | all)
+			echo "0 1"
+			;;
+		0 | 1)
+			echo "$1"
+			;;
+		ch=0 | ch=1)
+			echo "${1#ch=}"
+			;;
+		*)
+			echo "error: invalid channel '$1' (use 0, 1, or all)" >&2
+			exit 1
+			;;
+	esac
+}
+
+send_privacy_fifo() {
+	local state="$1"
+	local channel="$2"
+
+	if [ ! -p "$FIFO" ]; then
+		echo "error: prudynt control FIFO is missing: $FIFO" >&2
+		exit 1
+	fi
+
+	case "$channel" in
+		"" | all)
+			printf "PRIVACY value=%s\n" "$state" >"$FIFO"
+			;;
+		0 | 1)
+			printf "PRIVACY ch=%s value=%s\n" "$channel" "$state" >"$FIFO"
+			;;
+		ch=0 | ch=1)
+			printf "PRIVACY %s value=%s\n" "$channel" "$state" >"$FIFO"
+			;;
+		*)
+			echo "error: invalid channel for FIFO: $channel" >&2
+			exit 1
+			;;
+	esac
+}
+
+write_active_state() {
+	cat >"$ACTIVE_FILE" <<EOF
+CH0_ACTIVE=$CH0_ACTIVE
+CH1_ACTIVE=$CH1_ACTIVE
+EOF
+}
+
+load_active_state() {
+	CH0_ACTIVE=0
+	CH1_ACTIVE=0
+	if [ -f "$ACTIVE_FILE" ]; then
+		# shellcheck disable=SC1090
+		. "$ACTIVE_FILE"
+	fi
+}
+
+backup_runtime_state() {
+	if [ -f "$STATE_FILE" ]; then
+		return 0
+	fi
+
+	BITRATE_0="$("$JCT" /etc/prudynt.json get stream0.bitrate)"
+	BITRATE_1="$("$JCT" /etc/prudynt.json get stream1.bitrate)"
+	FPS_0="$("$JCT" /etc/prudynt.json get stream0.fps)"
+	FPS_1="$("$JCT" /etc/prudynt.json get stream1.fps)"
+	MIC_ENABLED="$("$JCT" /etc/prudynt.json get audio.mic_enabled)"
+
+	cat >"$STATE_FILE" <<EOF
+BITRATE_0=$BITRATE_0
+BITRATE_1=$BITRATE_1
+FPS_0=$FPS_0
+FPS_1=$FPS_1
+MIC_ENABLED=$MIC_ENABLED
+EOF
+}
+
+throttle_channel() {
+	local channel="$1"
+
+	"$IMP_CONTROL" bitrate "$channel" "$LITE_BITRATE" || return 1
+	"$IMP_CONTROL" fps "$channel" "$LITE_FPS" 1 || return 1
+	"$IMP_CONTROL" gop "$channel" "$LITE_GOP" || return 1
+}
+
+restore_channel() {
+	local channel="$1"
+	local bitrate=""
+	local fps=""
+
+	if [ ! -f "$STATE_FILE" ]; then
+		echo "error: runtime state file missing: $STATE_FILE" >&2
+		exit 1
+	fi
+
+	# shellcheck disable=SC1090
+	. "$STATE_FILE"
+
+	case "$channel" in
+		0)
+			bitrate="$BITRATE_0"
+			fps="$FPS_0"
+			;;
+		1)
+			bitrate="$BITRATE_1"
+			fps="$FPS_1"
+			;;
+		*)
+			echo "error: invalid channel '$channel'" >&2
+			exit 1
+			;;
+	esac
+
+	"$IMP_CONTROL" bitrate "$channel" "$bitrate" || return 1
+	"$IMP_CONTROL" fps "$channel" "$fps" 1 || return 1
+	return 0
+}
+
+set_mic_enabled() {
+	local enabled="$1"
+	"$JCT" /etc/prudynt.json set audio.mic_enabled "$enabled"
+}
+
+restore_mic_state() {
+	if [ ! -f "$STATE_FILE" ]; then
+		echo "error: runtime state file missing: $STATE_FILE" >&2
+		exit 1
+	fi
+
+	# shellcheck disable=SC1090
+	. "$STATE_FILE"
+
+	set_mic_enabled "$MIC_ENABLED"
+}
+
+apply_on() {
+	local channels="$1"
+	local ch=""
+
+	backup_runtime_state
+	load_active_state
+	set_mic_enabled false
+
+	for ch in $channels; do
+		throttle_channel "$ch" || exit 1
+		if [ "$ch" = "0" ]; then
+			CH0_ACTIVE=1
+		else
+			CH1_ACTIVE=1
+		fi
+	done
+	write_active_state
+}
+
+apply_off() {
+	local channels="$1"
+	local ch=""
+
+	load_active_state
+
+	for ch in $channels; do
+		restore_channel "$ch" || exit 1
+		if [ "$ch" = "0" ]; then
+			CH0_ACTIVE=0
+		else
+			CH1_ACTIVE=0
+		fi
+	done
+	write_active_state
+
+	if [ "$CH0_ACTIVE" = "0" ] && [ "$CH1_ACTIVE" = "0" ]; then
+		restore_mic_state
+		rm -f "$STATE_FILE" "$ACTIVE_FILE"
+	fi
+}
+
+COMMAND="$1"
+CHANNEL_ARG="$2"
+
+[ -z "$COMMAND" ] && usage
+
+require_tool "$JCT"
+require_tool "$IMP_CONTROL"
+
+CHANNELS="$(parse_channel "$CHANNEL_ARG")"
+
+case "$COMMAND" in
+	on)
+		send_privacy_fifo on "$CHANNEL_ARG"
+		apply_on "$CHANNELS"
+		;;
+	off)
+		send_privacy_fifo off "$CHANNEL_ARG"
+		apply_off "$CHANNELS"
+		;;
+	*)
+		usage
+		;;
+esac
+
+exit 0
