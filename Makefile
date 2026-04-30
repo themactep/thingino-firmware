@@ -724,7 +724,7 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
 
 remove_bins:
 	@$(TEAL) "$@"
@@ -1025,7 +1025,7 @@ help:
 	  make build-info     generate post-build graphs and package analysis\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
-	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
+	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\
