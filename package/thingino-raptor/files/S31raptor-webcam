@@ -51,6 +51,8 @@ daemon_section() {
 		rmd)  echo "motion" ;;
 		rwd)  echo "webrtc" ;;
 		rwc)  echo "webcam" ;;
+		rsp)  echo "push" ;;
+		rsr)  echo "srt" ;;
 		*)    echo "$1" ;;
 	esac
 }
@@ -88,6 +90,8 @@ start() {
 	start_daemon rmr
 	start_daemon rmd
 	start_daemon rwd
+	start_daemon rsp
+	start_daemon rsr
 
 	# USB webcam: load gadget, switch to device mode, start RWC
 	if config_bool "webcam" "enabled" "false" && [ -x /usr/bin/rwc ]; then
@@ -112,7 +116,7 @@ stop() {
 	echo "Stopping Raptor Streaming System..."
 
 	# Stop consumers first, then producer (RVD) last
-	for d in rwc rwd rmd rmr ric rhd rsd rod rad rvd; do
+	for d in rsr rsp rwc rwd rmd rmr ric rhd rsd rod rad rvd; do
 		if pidof $d >/dev/null 2>&1; then
 			start-stop-daemon -K -x /usr/bin/$d 2>/dev/null
 			printf "  %-4s stopped\n" "$d"

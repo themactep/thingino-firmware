@@ -259,6 +259,15 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset push reconnect_ms "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_RECONNECT_MS))"; \
 	rset push tcp_sndbuf "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_PUSH_TCP_SNDBUF))"; \
 	\
+	rset srt enabled "$(call raptor_bval,SRT_ENABLED)"; \
+	rset srt port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_PORT))"; \
+	rset srt latency "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_LATENCY))"; \
+	rset srt passphrase "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_PASSPHRASE))"; \
+	rset srt pbkeylen "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_PBKEYLEN))"; \
+	rset srt max_clients "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_MAX_CLIENTS))"; \
+	rset srt stream "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SRT_STREAM))"; \
+	rset srt audio "$(call raptor_bval,SRT_AUDIO)"; \
+	\
 	rset log level "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_LEVEL))"; \
 	rset log target "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_TARGET))"; \
 	rset log file "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_FILE))"; \

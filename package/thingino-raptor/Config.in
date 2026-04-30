@@ -105,6 +105,14 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RSP
 	  Twitch, Facebook Live). Requires TLS for RTMPS. Audio is
 	  transcoded to AAC if the ring codec is not AAC.
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RSR
+	bool "RSR (SRT listener)"
+	select BR2_PACKAGE_LIBSRT
+	help
+	  SRT streaming listener. Serves live video+audio as MPEG-TS
+	  over SRT protocol. Multi-client, multi-stream via STREAMID,
+	  AES encryption. Compatible with ffplay, VLC, OBS, go2rtc.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_RFS
 	bool "RFS (file source — MP4/Annex B)"
 	help
