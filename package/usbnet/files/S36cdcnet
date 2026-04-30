@@ -21,7 +21,7 @@ decrement_mac() {
 }
 
 start() {
-	starting
+	echo -c 15 "Starting CDC Ethernet gadget"
 	# Skip gadget load if g_webcam composite already provides NCM
 	if ! lsmod 2>/dev/null | grep -q g_webcam; then
 		ethaddr=$(fw_printenv -n ethaddr)
