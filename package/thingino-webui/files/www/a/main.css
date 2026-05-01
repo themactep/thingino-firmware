@@ -701,46 +701,19 @@ textarea.nowrap {
 
 .preview-endpoint-short {
   color: #f8b25c;
-  flex: 0 0 7.5rem;
   font-size: 0.85rem;
   font-weight: 600;
-  line-height: 1.5;
-  margin-top: 0.1rem;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.preview-endpoint-link {
-  align-items: center;
-  color: var(--bs-body-color);
-  flex: 1;
-  display: flex;
-  gap: 0.75rem;
-  justify-content: space-between;
-  line-height: 1.5;
-  text-decoration: none;
-}
-
-.preview-endpoint-url {
-  color: #d7dee7;
-  flex: 1;
-  font-family: var(--bs-font-monospace);
-  font-size: 0.875rem;
-  overflow-wrap: anywhere;
 }
 
 .preview-endpoint-hint {
   align-items: center;
-  background: rgba(255, 136, 0, 0.08);
-  border: 1px solid rgba(255, 136, 0, 0.22);
-  border-radius: 999px;
   color: #f8b25c;
   display: inline-flex;
   flex-shrink: 0;
   font-size: 0.75rem;
   gap: 0.35rem;
-  padding: 0.15rem 0.55rem;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .preview-endpoint-link:hover {
