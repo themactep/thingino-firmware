@@ -68,6 +68,21 @@
         <div class="card-body">
           <div class="raptor-video-wrap">
             <video id="raptor-webrtc-video" autoplay muted playsinline></video>
+            <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
+              <div id="motor">
+                <div class="jst">
+                  <a class="s" data-dir="uc"></a>
+                  <a class="s" data-dir="ur"></a>
+                  <a class="s" data-dir="cr"></a>
+                  <a class="s" data-dir="dr"></a>
+                  <a class="s" data-dir="dc"></a>
+                  <a class="s" data-dir="dl"></a>
+                  <a class="s" data-dir="cl"></a>
+                  <a class="s" data-dir="ul"></a>
+                  <a class="b" data-dir="h"></a>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="raptor-hint mt-2" id="webrtc-status"></div>
         </div>
@@ -260,7 +275,7 @@
           });
         }
 
-        pc = new RTCPeerConnection({ iceServers: [] });
+        pc = new RTCPeerConnection({ iceServers: [], bundlePolicy: "max-bundle" });
         pc.addTransceiver("video", { direction: "recvonly" });
         const audioTransceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
 
@@ -354,6 +369,7 @@
 
           response = await fetch(`/x/webrtc-whip.cgi?stream=${encodeURIComponent(stream)}`, {
             method: "POST",
+            cache: "no-store",
             headers: {
               "Content-Type": "application/sdp",
             },
@@ -534,5 +550,6 @@
     });
   })();
 </script>
+<script src="/a/preview-motors.js"></script>
 </body>
 </html>
