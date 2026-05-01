@@ -21,10 +21,21 @@ decrement_mac() {
 }
 
 start() {
-	decrement_mac
 	echo -c 15 "Starting CDC Ethernet gadget"
-	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
-	usb-role -m device
+	# Skip gadget load if g_webcam composite already provides NCM
+	if ! lsmod 2>/dev/null | grep -q g_webcam; then
+		ethaddr=$(fw_printenv -n ethaddr)
+		decrement_mac
+		usb-role -m device
+		modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+	fi
+	# Wait for usb0 to appear
+	i=0
+	while [ $i -lt 50 ] && ! ip link show usb0 >/dev/null 2>&1; do
+		usleep 100000
+		i=$((i + 1))
+	done
+	ifconfig usb0 $CNET netmask 255.255.255.0 up 2>/dev/null
 	touch /run/udhcpd.leases
 	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf -d
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET /etc/udhcpd.conf 2>&1
