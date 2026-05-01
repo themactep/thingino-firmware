@@ -14,7 +14,12 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 MOTION_STOP_FILE="/run/motors.pid"
 
 MOTION_VIDEO_CHANNEL=0
-MOTION_VIDEO_LENGTH=10
+# Duration for motion clips (seconds). Read from config or default to 10.
+MOTION_VIDEO_LENGTH=$(jct /etc/prudynt.json get motion.video_length 2>/dev/null)
+[ -z "$MOTION_VIDEO_LENGTH" ] && MOTION_VIDEO_LENGTH=$(jct /etc/prudynt.json get recorder.duration 2>/dev/null)
+[ -z "$MOTION_VIDEO_LENGTH" ] && MOTION_VIDEO_LENGTH=10
+# Ensure it's a number
+[ "$MOTION_VIDEO_LENGTH" -eq "$MOTION_VIDEO_LENGTH" ] 2>/dev/null || MOTION_VIDEO_LENGTH=10
 
 domain=motion
 
@@ -75,12 +80,15 @@ start() {
 		done
 
 		# Wait for file to finish writing (size stops changing)
+		# Use clip duration + buffer as the wait cap instead of hardcoded 15s
+		max_wait_cap=$((MOTION_VIDEO_LENGTH + 10))
+		[ $max_wait_cap -lt 20 ] && max_wait_cap=20
 		prev_size=0
 		curr_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
 		stable_count=0
 		max_wait=0
 
-		while [ $stable_count -lt 2 ] && [ $max_wait -lt 15 ]; do
+		while [ $stable_count -lt 2 ] && [ $max_wait -lt $max_wait_cap ]; do
 			sleep 1
 			prev_size=$curr_size
 			curr_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
