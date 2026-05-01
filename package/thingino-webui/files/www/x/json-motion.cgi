@@ -72,7 +72,7 @@ case "$target" in
         ;;
     esac
     ;;
-  sensitivity | cooldown_time)
+  sensitivity | cooldown_time | video_length)
       jct /etc/prudynt.json set "motion.$target" $state
       json_ok "{\"target\":\"$target\",\"state\":$state}"
     ;;

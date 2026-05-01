@@ -121,7 +121,8 @@
     "send2telegram": false,
     "send2webhook": false,
     "sensitivity": 1,
-    "skip_frame_count": 5
+    "skip_frame_count": 5,
+    "video_length": 10
   },
   "recorder": {
     "autostart": false,
