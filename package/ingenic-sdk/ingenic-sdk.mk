@@ -1,10 +1,13 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = afa2026a232794ca0cc6ef1a3ab3463c8b2bc15a
+INGENIC_SDK_VERSION = 3efc0a108bc4c52b4c8bce219d6ae32e20558328
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
+
+# Ensure thingino-core is installed before ingenic-sdk so thingino.json is available
+INGENIC_SDK_DEPENDENCIES = thingino-core
 
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
@@ -67,31 +70,18 @@ LINUX_CONFIG_LOCALVERSION = \
 TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 
 define GENERATE_GPIO_USERKEYS_CONFIG
-	if [ -r $(U_BOOT_ENV_TXT) ]; then \
-		gpio_userkeys_config="gpio-userkeys gpio_config="\"; \
-		keycode=2; \
-		first_button=28; \
-		has_gpio_buttons=0; \
-		while IFS= read -r line; do \
-			case "$$line" in \
-				gpio_button=*) \
-					has_gpio_buttons=1; \
-					gpio_num=$${line#*=}; \
-					gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
-					gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
-					;; \
-				gpio_button_*=*) \
-					has_gpio_buttons=1; \
-					gpio_num=$${line#*=}; \
-					gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
-					gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
-					keycode=$$((keycode + 1)); \
-					;; \
-			esac; \
-		done < $(U_BOOT_ENV_TXT); \
-		if [ "$$has_gpio_buttons" -eq 1 ]; then \
-			gpio_userkeys_config=$${gpio_userkeys_config%;}; \
-			echo "$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
+		gpio_userkeys_config=""; \
+		keycode=28; \
+		if which jct >/dev/null 2>&1; then \
+			button_reset=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
+			if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
+				gpio_userkeys_config="$${keycode},$${button_reset},1"; \
+				keycode=$$((keycode + 1)); \
+			fi; \
+		fi; \
+		if [ -n "$$gpio_userkeys_config" ]; then \
+			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
 		fi; \
 	fi
 endef

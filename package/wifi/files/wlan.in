@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
@@ -28,7 +26,10 @@ Where command:
 }
 
 check_interface() {
-	ip link show $1 > /dev/null 2>&1 || die "Error: interface $1 does not exist."
+	ip link show $1 >/dev/null 2>&1 || {
+		echo "Error: interface $1 does not exist." >&2
+		exit 1
+	}
 }
 
 cli() {
@@ -52,7 +53,7 @@ cli() {
 		exit 0
 	fi
 
-	echo "$*" > "$CMD_FILE"
+	echo "$*" >"$CMD_FILE"
 	cat "$CMD_FILE"
 }
 
@@ -89,7 +90,7 @@ rssi() {
 	return
 	@endif@
 	@if WIFI_FAMILY_SSV@
-	echo "rf rssi" > $SSV_CMD_FILE
+	echo "rf rssi" >$SSV_CMD_FILE
 	cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
 	return
 	@endif@
@@ -173,7 +174,7 @@ network={
 	group=CCMP
 	psk=$psk
 }
-" > /etc/wpa_supplicant.conf
+" >/etc/wpa_supplicant.conf
 	else
 		{
 			echo "# created on $(date +%c)
@@ -192,7 +193,7 @@ network={
         bgscan=\"simple:30:-70:3600\"
 }
 "
-		} > /etc/wpa_supplicant.conf
+		} >/etc/wpa_supplicant.conf
 	fi
 }
 
@@ -250,28 +251,40 @@ temp() {
 
 case "$entry_command" in
 	wlancli)
-		cli "$@" ;;
+		cli "$@"
+		;;
 	wlaninfo)
-		exec wlan info ;;
+		exec wlan info
+		;;
 	wlanreset)
-		exec wlan reset ;;
+		exec wlan reset
+		;;
 	wlanrssi)
-		exec wlan rssi ;;
+		exec wlan rssi
+		;;
 	wlansetup)
-		exec wlan setup ;;
+		exec wlan setup
+		;;
 	wlantemp)
-		exec wlan temp ;;
+		exec wlan temp
+		;;
 	*)
 		# main case selection for wlan command if no specific entry_command match
 		case "$1" in
-			cli) shift; cli "$@" ;;
-			configure) shift; configure "$@" ;;
+			cli)
+				shift
+				cli "$@"
+				;;
+			configure)
+				shift
+				configure "$@"
+				;;
 			info) show_info ;;
 			reset) reset ;;
 			rssi) rssi ;;
 			setup) setup ;;
 			temp) temp ;;
-			*) show_help ;;  # only show help if no valid command is provided
+			*) show_help ;; # only show help if no valid command is provided
 		esac
 		;;
 esac

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-. /usr/share/common
+SOC_FAMILY=$(soc -f)
+SOC_MODEL=$(soc -m)
 
 # Format: GPIO CHANNEL FUNC PIN
 case "$SOC_FAMILY" in
@@ -77,8 +78,10 @@ esac
 list_gpios() {
 	echo "$pwm_table" | grep -v '^\s*$' | while read -r gpio pwm func pin; do
 		pin_name=$(echo "$pin" | awk '{print $NF}')
-		if [ "$SOC_MODEL" != "t31a" ] && [[ "$pin_name" == PC* ]]; then
-			continue
+		if [ "$SOC_MODEL" != "t31a" ]; then
+			case "$pin_name" in
+				PC*) continue ;;
+			esac
 		fi
 		echo "GPIO $gpio = $pwm ($pin)"
 	done

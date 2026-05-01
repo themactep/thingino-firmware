@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ "$#" -gt 0 ]; then
+	exec /usr/bin/subzeroclaw "$@" 2>/dev/null
+fi
+
+if [ ! -t 0 ]; then
+	input="$(cat)"
+	exec /usr/bin/subzeroclaw "$input" 2>/dev/null
+fi
+
+exec /usr/bin/subzeroclaw 2>/dev/null

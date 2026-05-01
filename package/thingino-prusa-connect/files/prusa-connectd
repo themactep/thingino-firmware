@@ -1,9 +1,9 @@
 #!/bin/sh
 
 DAEMON="/sbin/prusa-connectd"
-. /usr/share/common
 
 PRUSA_CONFIG_FILE="/etc/prusa-connect.json"
+OS_RELEASE_FILE="/etc/os-release"
 
 LOGGER_TAG="prusa-connect"
 STATE_DIR="/var/lib/prusa-connect"
@@ -27,6 +27,33 @@ LAST_SNAPSHOT_TS=0
 LAST_INFO_TS=0
 DISABLED_LOGGED="false"
 CRED_WARNED="false"
+
+ensure_dir() {
+	if [ -d "$1" ]; then
+		return 0
+	fi
+
+	mkdir -p "$1" || {
+		echo "Cannot create directory $1" >&2
+		return 1
+	}
+
+	[ -w "$1" ] || {
+		echo "Cannot write to $1" >&2
+		return 1
+	}
+}
+
+iface_default() {
+	local iface
+
+	iface=$(ip -4 r | awk '/default/{print $5; exit}')
+	[ -n "$iface" ] || iface=$(ip -4 r | awk '{print $3; exit}')
+	[ -n "$iface" ] || iface=$(ip -6 r | awk '/default/{print $5; exit}')
+	[ -n "$iface" ] || iface=$(ip -6 r | awk '{print $3; exit}')
+
+	echo "$iface"
+}
 
 log_msg() {
 	logger -t "$LOGGER_TAG" "$*"
@@ -65,13 +92,13 @@ reload_config() {
 }
 
 ensure_config_file() {
-	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' > "$PRUSA_CONFIG_FILE"
+	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' >"$PRUSA_CONFIG_FILE"
 }
 
 numeric_or_default() {
 	local value="$1" fallback="$2"
 	case "$value" in
-		''|' '*|*[!0-9]*) echo "$fallback" ;;
+		'' | ' '* | *[!0-9]*) echo "$fallback" ;;
 		*) echo "$value" ;;
 	esac
 }
@@ -139,6 +166,16 @@ curl_put() {
 
 build_info_payload() {
 	local iface ip4 mac ssid sensor_width sensor_height sensor_name
+	local build_id image_id manufacturer_id
+
+	if [ -r "$OS_RELEASE_FILE" ]; then
+		# shellcheck disable=SC1090
+		. "$OS_RELEASE_FILE"
+	fi
+	build_id=${BUILD_ID:-unknown}
+	image_id=${IMAGE_ID:-unknown}
+	manufacturer_id=${ID:-thingino}
+
 	iface=$(iface_default)
 	if [ -n "$iface" ]; then
 		ip4=$(ip -4 addr show "$iface" | awk '/inet /{print $2}' | head -n1)
@@ -155,12 +192,12 @@ build_info_payload() {
 {
   "config": {
     "name": "$(hostname -s)",
-    "firmware": "${BUILD_ID:-unknown}",
-    "manufacturer": "${ID:-thingino}",
-    "model": "${IMAGE_ID:-unknown}"
-  },
+      "firmware": "${build_id}",
+      "manufacturer": "${manufacturer_id}",
+      "model": "${image_id}"
+    },
 	"sensors": [
-		"${sensor_name:-unknown}"
+	  "${sensor_name:-unknown}"
 	],
   "resolution": {
     "width": ${sensor_width:-0},
@@ -204,9 +241,15 @@ check_online() {
 upload_snapshot() {
 	local tmp image_size code
 	tmp=$(mktemp "$RUN_DIR/snapshot.XXXXXX") || return 1
-	prudyntctl snapshot -c 0 > "$tmp" || { rm -f "$tmp"; return 1; }
+	prudyntctl snapshot -c 0 >"$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
 	image_size=$(stat -c %s "$tmp" 2>/dev/null || echo 0)
-	check_online || { rm -f "$tmp"; return 1; }
+	check_online || {
+		rm -f "$tmp"
+		return 1
+	}
 	code=$(curl_put "$tmp" "$SNAPSHOT_URL" "snapshot" "image/jpeg") || {
 		log_msg "Failed to push snapshot"
 		rm -f "$tmp"
@@ -277,7 +320,10 @@ run_oneshot() {
 	ensure_dir "$STATE_DIR"
 	ensure_dir "$RUN_DIR"
 	load_settings
-	missing_credentials && { echo "Missing token or fingerprint" >&2; exit 1; }
+	missing_credentials && {
+		echo "Missing token or fingerprint" >&2
+		exit 1
+	}
 	ensure_prereqs || exit 1
 	case "$1" in
 		info)
@@ -286,7 +332,7 @@ run_oneshot() {
 		snapshot)
 			upload_snapshot
 			;;
-		both|test|'')
+		both | test | '')
 			upload_info || true
 			upload_snapshot
 			;;
@@ -298,7 +344,7 @@ run_oneshot() {
 }
 
 case "$1" in
-	daemon|"")
+	daemon | "")
 		run_loop
 		;;
 	info)
@@ -307,7 +353,7 @@ case "$1" in
 	snapshot)
 		run_oneshot snapshot
 		;;
-	test|oneshot)
+	test | oneshot)
 		run_oneshot both
 		;;
 	*)

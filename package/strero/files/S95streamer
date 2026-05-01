@@ -1,6 +1,27 @@
 #!/bin/sh
 
-. /usr/share/common
+PORTAL_MODE_FLAG="/run/portal_mode"
+DAEMON="/usr/bin/streamer"
+PIDFILE="/run/streamer.pid"
+
+is_streamer_disabled() {
+	[ "true" = "$disable_streamer" ] || [ -f "$PORTAL_MODE_FLAG" ]
+}
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 #COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
 
@@ -14,17 +35,17 @@ check_ssl_certificates() {
 
 			# Check if certificates exist and are valid
 			if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
-				echo_info "TLS enabled but SSL certificates missing, generating..."
+				echo "TLS enabled but SSL certificates missing, generating..."
 				if command -v generate-ssl-certs.sh >/dev/null 2>&1; then
-					generate-ssl-certs.sh --quiet || echo_warning "Failed to generate SSL certificates"
+					generate-ssl-certs.sh --quiet || echo "Failed to generate SSL certificates"
 				else
-					echo_warning "SSL certificate generator not found"
+					echo "SSL certificate generator not found"
 				fi
 			else
 				# Check if certificate is expired or will expire soon (within 30 days)
 				if command -v openssl >/dev/null 2>&1; then
 					if ! openssl x509 -in "$CERT_FILE" -checkend 2592000 -noout >/dev/null 2>&1; then
-						echo_warning "SSL certificate expires within 30 days, consider regenerating"
+						echo "SSL certificate expires within 30 days, consider regenerating"
 					fi
 				fi
 			fi
@@ -33,10 +54,10 @@ check_ssl_certificates() {
 }
 
 start() {
-	echo_title "Starting Streamer"
+	echo -c 15 "Starting Streamer"
 
 	if is_streamer_disabled; then
-		echo_error "Streamer disabled"
+		echo "Streamer disabled" >&2
 		exit 1
 	fi
 
@@ -47,14 +68,12 @@ start() {
 }
 
 stop() {
-	echo_title "Stopping Streamer"
+	echo -c 15 "Stopping Streamer"
 
 	if is_streamer_disabled; then
-		echo_error "Streamer disabled"
+		echo "Streamer disabled" >&2
 		exit 1
 	fi
-
-	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"
 
 	stop_daemon
 }

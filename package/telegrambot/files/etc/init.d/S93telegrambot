@@ -1,17 +1,38 @@
 #!/bin/sh
 
 NAME="Telegram Bot daemon"
+DAEMON="/usr/sbin/telegrambot"
+PIDFILE="/run/telegrambot.pid"
+PORTAL_MODE_FLAG="/run/portal_mode"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
 	echo "Starting $NAME"
+
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Disabled" >&2
+		exit 1
+	fi
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping $NAME"
+	echo "Stopping $NAME"
 
 	stop_daemon
 }
@@ -21,8 +42,8 @@ status() {
 		echo "$NAME is running (pid $(cat "$PIDFILE"))"
 		return 0
 	fi
-	if pidof "$NAME" >/dev/null 2>&1; then
-		echo "$NAME is running (pid $(pidof $NAME))"
+	if pidof "$(basename "$DAEMON")" >/dev/null 2>&1; then
+		echo "$NAME is running (pid $(pidof "$(basename "$DAEMON")"))"
 		return 0
 	fi
 	echo "$NAME is not running"

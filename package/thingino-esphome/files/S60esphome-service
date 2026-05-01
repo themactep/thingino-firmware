@@ -1,10 +1,8 @@
 #!/bin/sh
 
-DAEMON="esphome-linux"
-PIDFILE="/var/run/$DAEMON.pid"
+DAEMON="/usr/bin/esphome-linux"
+PIDFILE="/var/run/$(basename "$DAEMON").pid"
 MDNS_SERVICE="/etc/mdns.d/esphome.service"
-
-. /usr/share/common
 
 get_mac_address() {
 	# Try to get MAC from primary interface
@@ -21,7 +19,7 @@ generate_mdns_service() {
 	local hostname=$(hostname)
 	local mac=$(get_mac_address)
 
-	cat > "$MDNS_SERVICE" <<EOF
+	cat >"$MDNS_SERVICE" <<EOF
 # ESPHome service definition for mdnsd (auto-generated)
 name $hostname
 type _esphomelib._tcp
@@ -34,7 +32,7 @@ txt network=ethernet
 txt friendly_name=$hostname
 EOF
 
-	echo_info "Generated mDNS service: $hostname (MAC: $mac)"
+	echo "Generated mDNS service: $hostname (MAC: $mac)"
 }
 
 start() {
@@ -45,15 +43,15 @@ start() {
 	wlan_ssid=$(fw_printenv wlan_ssid 2>/dev/null | cut -d'=' -f2)
 
 	if [ -z "$wlan_ssid" ]; then
-		echo_info "WiFi not configured, skipping ESPHome service"
+		echo "WiFi not configured, skipping ESPHome service"
 		return 0
 	fi
 
-	echo_info "Starting ESPHome service"
+	echo -c 15 "Starting ESPHome service"
 
 	# Check if already running
 	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-		echo_warning "ESPHome service already running"
+		echo "ESPHome service already running"
 		return 0
 	fi
 
@@ -66,16 +64,16 @@ start() {
 	fi
 
 	# Start daemon
-	start-stop-daemon -S -b -m -p "$PIDFILE" -x /usr/bin/$DAEMON \
-		&& echo_info "ESPHome service started" \
-		|| echo_error "Failed to start ESPHome service"
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" &&
+		echo "ESPHome service started" ||
+		echo "Failed to start ESPHome service" >&2
 }
 
 stop() {
-	echo_info "Stopping ESPHome service"
+	echo -c 15 "Stopping ESPHome service"
 
 	if [ ! -f "$PIDFILE" ]; then
-		echo_warning "ESPHome service not running"
+		echo "ESPHome service not running"
 		return 0
 	fi
 
@@ -97,7 +95,7 @@ stop() {
 		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
 	fi
 
-	echo_info "ESPHome service stopped"
+	echo "ESPHome service stopped"
 }
 
 restart() {
@@ -108,10 +106,10 @@ restart() {
 
 status() {
 	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-		echo_info "ESPHome service is running (PID: $(cat "$PIDFILE"))"
+		echo "ESPHome service is running (PID: $(cat "$PIDFILE"))"
 		return 0
 	else
-		echo_warning "ESPHome service is not running"
+		echo "ESPHome service is not running"
 		return 1
 	fi
 }

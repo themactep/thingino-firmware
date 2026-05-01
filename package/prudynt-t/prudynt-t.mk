@@ -275,6 +275,18 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(HOST_DIR)/bin/jct $(STAGING_DIR)/prudynt.json import "$(PRUDYNT_T_PKGDIR)/files/websockets.json"; \
 	fi
 
+	# Re-apply user prudynt overrides after package defaults (common/camera/device order)
+	for USER_PRUDYNT_CONFIG in $(THINGINO_USER_PRUDYNT_JSON_FILES); do \
+		if [ -s "$$USER_PRUDYNT_CONFIG" ]; then \
+			if [ ! -x "$(HOST_DIR)/bin/jct" ]; then \
+				echo "ERROR: host jct tool missing: $(HOST_DIR)/bin/jct"; \
+				exit 1; \
+			fi; \
+			echo "Applying user Prudynt override from $$USER_PRUDYNT_CONFIG"; \
+			$(HOST_DIR)/bin/jct $(STAGING_DIR)/prudynt.json import "$$USER_PRUDYNT_CONFIG"; \
+		fi; \
+	done
+
 	# Install the final, modified JSON file from staging to target
 	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
 		$(TARGET_DIR)/etc/prudynt.json
@@ -308,6 +320,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2ftp
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gphotos \
 		$(TARGET_DIR)/usr/sbin/send2gphotos
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gotify \
+		$(TARGET_DIR)/usr/sbin/send2gotify
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2mqtt \
 		$(TARGET_DIR)/usr/sbin/send2mqtt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ntfy \

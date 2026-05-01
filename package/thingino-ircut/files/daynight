@@ -1,6 +1,20 @@
 #!/bin/sh
 
-. /usr/share/common
+singleton() {
+	if [ -z "$1" ]; then
+		echo "Program name is missing" >&2
+		exit 1
+	fi
+
+	local appname pids
+
+	appname=$(basename "$1")
+	pids=$(pidof -o %PPID "$appname")
+	if [ -n "$pids" ]; then
+		echo "$appname is already running with PIDs $pids. Exiting" >&2
+		exit 1
+	fi
+}
 
 singleton $0
 
@@ -9,79 +23,79 @@ MODE_FILE="/tmp/nightmode.txt"
 
 controls_color() {
 	if [ "true" != "$day_night_color" ]; then
-		echo_warning "Color not enabled"
+		echo "Color not enabled"
 		return 1
 	fi
 }
 
 controls_ircut() {
 	if [ "true" != "$day_night_ircut" ]; then
-		echo_warning "IR-CUT filter not enabled"
+		echo "IR-CUT filter not enabled"
 		return 1
 	fi
 }
 
 controls_ir850() {
 	if [ "true" != "$day_night_ir850" ]; then
-		echo_warning "IR LED 850mn not enabled"
+		echo "IR LED 850mn not enabled"
 		return 1
 	fi
 
 	if [ -z "$gpio_ir850" ]; then
-		echo_warning "IR LED 850mn not configured"
+		echo "IR LED 850mn not configured"
 		return 1
 	fi
 }
 
 controls_ir940() {
 	if [ "true" != "$day_night_ir940" ]; then
-		echo_warning "IR LED 940mn not enabled"
+		echo "IR LED 940mn not enabled"
 		return 1
 	fi
 
 	if [ -z "$gpio_ir940" ]; then
-		echo_warning "IR LED 940mn not configured"
+		echo "IR LED 940mn not configured"
 		return 1
 	fi
 }
 
 controls_white() {
 	if [ "true" != "$day_night_white" ]; then
-		echo_warning "White Light not enabled"
+		echo "White Light not enabled"
 		return 1
 	fi
 
 	if [ -z "$gpio_white" ]; then
-		echo_warning "White Light not configured"
+		echo "White Light not configured"
 		return 1
 	fi
 }
 
 switch_to_day() {
-	echo_info "Switching to day mode..."
+	echo "Switching to day mode..."
 
 	if controls_ircut; then
-		echo_info "set IR-CUT filter"
+		echo "set IR-CUT filter"
 		ircut on &
 	fi
 
 	if controls_ir850; then
-		echo_info "turn IR LED 850mn OFF"
+		echo "turn IR LED 850mn OFF"
 		irled off ir850 &
 	fi
 
 	if controls_ir940; then
-		echo_info "turn IR LED 940mn OFF"
+		echo "turn IR LED 940mn OFF"
 		irled off ir940 &
 	fi
 
 	if controls_white; then
-		echo_info "turn White Light OFF"
+		echo "turn White Light OFF"
 		irled off white &
 	fi
 
 	if controls_color; then
-		echo_info "switch to color mode"
+		echo "switch to color mode"
 		color on &
 	fi
 
@@ -89,30 +103,30 @@ switch_to_day() {
 }
 
 switch_to_night() {
-	echo_info "Switched to night mode"
+	echo "Switched to night mode"
 
 	if controls_color; then
-		echo_info "switch to monocrome mode"
+		echo "switch to monocrome mode"
 		color off &
 	fi
 
 	if controls_ircut; then
-		echo_info "remove IR-CUT filter"
+		echo "remove IR-CUT filter"
 		ircut off &
 	fi
 
 	if controls_ir850; then
-		echo_info "turn IR LED 850mn ON"
+		echo "turn IR LED 850mn ON"
 		irled on ir850 &
 	fi
 
 	if controls_ir940; then
-		echo_info "- turn IR LED 940mn ON"
+		echo "- turn IR LED 940mn ON"
 		irled on ir940 &
 	fi
 
 	if controls_white; then
-		echo_info "- turn White Light ON"
+		echo "- turn White Light ON"
 		irled on white &
 	fi
 
@@ -156,15 +170,15 @@ case "$1" in
 		echo $state
 		;;
 	*)
-		echo_info "day_night_min: $day_night_min"
-		echo_info "day_night_max: $day_night_max"
-		echo_info "state: $state"
+		echo "day_night_min: $day_night_min"
+		echo "day_night_max: $day_night_max"
+		echo "state: $state"
 		if [ "day" = "$state" ]; then
-			echo_info "active range: 0-$day_night_max"
+			echo "active range: 0-$day_night_max"
 		else
-			echo_info "active range: $day_night_min-Infinity"
+			echo "active range: $day_night_min-Infinity"
 		fi
-		echo_info "value: $value"
+		echo "value: $value"
 
 		if [ "$reversed" -eq 0 ]; then
 			if [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
@@ -172,7 +186,7 @@ case "$1" in
 			elif [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
 			else
-				echo_info "within limits"
+				echo "within limits"
 			fi
 		else
 			if [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
@@ -180,7 +194,7 @@ case "$1" in
 			elif [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
 				switch_to_day
 			else
-				echo_info "within limits"
+				echo "within limits"
 			fi
 		fi
 		;;

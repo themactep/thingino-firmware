@@ -1,17 +1,34 @@
 #!/bin/sh
 
-. /usr/share/common
+DAEMON="/usr/bin/go2rtc"
 
 DAEMON_ARGS="-d -c /etc/go2rtc.yaml"
+PIDFILE="/run/go2rtc.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting Go2RTC"
+	echo -c 15 "Starting Go2RTC"
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping Go2RTC"
+	echo -c 15 "Stopping Go2RTC"
 
 	stop_daemon
 }
@@ -33,6 +50,7 @@ case "$1" in
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
+		;;
 esac
 
 exit 0

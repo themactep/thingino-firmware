@@ -1,17 +1,33 @@
 #!/bin/sh
 
-DAEMON="/sbin/prusa-connectd"
+DAEMON="/usr/sbin/prusa-connectd"
 DAEMON_ARGS="daemon"
+PIDFILE="/run/prusa-connectd.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting Prusa Connect service"
-	start_daemon
+	echo -c 15 "Starting Prusa Connect service"
+
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping Prusa Connect service"
+	echo -c 15 "Stopping Prusa Connect service"
 	stop_daemon
 }
 
@@ -31,7 +47,7 @@ case "$1" in
 	stop)
 		stop
 		;;
-	restart|reload)
+	restart | reload)
 		stop || true
 		sleep 1
 		start

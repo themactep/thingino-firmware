@@ -1,71 +1,69 @@
 #!/bin/sh
 #set -euo pipefail
 
-. /usr/share/common
-
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
 WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
 API_KEY_FILE=${API_KEY_FILE:-/etc/thingino-api.key}
 
 escape() {
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 if [ ! -f "$OS_RELEASE_FILE" ]; then
-  echo >&2 "Missing $OS_RELEASE_FILE"
-  exit 1
+	echo >&2 "Missing $OS_RELEASE_FILE"
+	exit 1
 fi
 
 start() {
-  if [ ! -f "$API_KEY_FILE" ]; then
-    echo_info "Generating API key"
-    new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
-    echo "$new_key" > "$API_KEY_FILE"
-    chmod 600 "$API_KEY_FILE"
-  fi
+	if [ ! -f "$API_KEY_FILE" ]; then
+		echo -c 15 "Generating API key"
+		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
+		echo "$new_key" >"$API_KEY_FILE"
+		chmod 600 "$API_KEY_FILE"
+	fi
 
-  hostname="$(hostname -s)"
-  timezone="$(cat /etc/timezone 2>/dev/null || echo UTC)"
-  image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
-  build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
-  build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
-  motors_enabled="false"
-  if [ -f /etc/motors.json ]; then
-    motors_enabled="true"
-  fi
-  soc="$(soc -f)"
+	hostname="$(hostname -s)"
+	timezone="$(cat /etc/timezone 2>/dev/null || echo UTC)"
+	image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
+	build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
+	build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
+	motors_enabled="false"
+	if [ -f /etc/motors.json ]; then
+		motors_enabled="true"
+	fi
+	soc="$(soc -f)"
 
-  {
-    echo "// generated at $(date +%c)"
-    echo "window.thinginoUIConfig = window.thinginoUIConfig || {};"
-    echo "window.thinginoUIConfig.footer = Object.assign({}, window.thinginoUIConfig.footer, {"
-    echo "  host: \"$(escape "$hostname")\","
-    echo "  buildInfo: \"$(escape "$image_id · $build_commit · $build_time")\""
-    echo "});"
-    echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
-    echo "  timezone: \"$(escape "$timezone")\","
-    echo "  motors: $motors_enabled,"
-    echo "  soc: \"$soc\""
-    echo "});"
-    echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"
-  } > "$WEBUI_JS_CONFIG"
+	{
+		echo "// generated at $(date +%c)"
+		echo "window.thinginoUIConfig = window.thinginoUIConfig || {};"
+		echo "window.thinginoUIConfig.footer = Object.assign({}, window.thinginoUIConfig.footer, {"
+		echo "  host: \"$(escape "$hostname")\","
+		echo "  buildInfo: \"$(escape "$image_id · $build_commit · $build_time")\""
+		echo "});"
+		echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
+		echo "  timezone: \"$(escape "$timezone")\","
+		echo "  motors: $motors_enabled,"
+		echo "  soc: \"$soc\""
+		echo "});"
+		echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"
+	} >"$WEBUI_JS_CONFIG"
 }
 
 stop() {
-  true
+	true
 }
 
 case "$1" in
-  start)
-    start
-    ;;
-  stop)
-    stop
-    ;;
-  *)
-    echo "Usage: $0 [start|stop]"
-    exit 1
-    ;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	*)
+		echo "Usage: $0 [start|stop]"
+		exit 1
+		;;
 esac
 
 exit 0

@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 if [ -z "$1" ]; then
 	echo "Usage: $0 <mmc port> [-r]" >&2
 	exit 1
@@ -9,7 +7,7 @@ fi
 
 endpoint="/sys/devices/platform/jzmmc_v1.2.$1/present"
 if [ ! -f "$endpoint" ]; then
-	echo_error "No endpoint $endpoint"
+	echo "No endpoint $endpoint" >&2
 	exit 1
 fi
 
@@ -19,6 +17,6 @@ if [ "$2" = "-r" ]; then
 else
 	action="INSERT"
 fi
-echo "$action" > "$endpoint"
+echo "$action" >"$endpoint"
 
 exit 0

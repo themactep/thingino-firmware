@@ -51,6 +51,19 @@ const stream_params = [
   "audio_enabled",
 ];
 const osd_params = ["enabled", "fontsize", "strokesize"];
+const previewEndpointState = {
+  rtsp: {
+    username: "thingino",
+    password: "thingino",
+    port: "554",
+  },
+  stream0: {
+    rtsp_endpoint: "ch0",
+  },
+  stream1: {
+    rtsp_endpoint: "ch1",
+  },
+};
 
 function rgba2color(hex8) {
   return hex8.substring(0, 7);
@@ -61,6 +74,198 @@ function rgba2alpha(hex8) {
   const alpha = parseInt(alphaHex, 16);
   return alpha;
 }
+
+function previewEndpointValue(value, fallback) {
+  return value === undefined || value === null || value === ""
+    ? fallback
+    : value;
+}
+
+function wrapIpv6Host(host) {
+  return host && host.includes(":") && !host.startsWith("[")
+    ? `[${host}]`
+    : host;
+}
+
+function formatPreviewHostWithPort(host, port, defaultPort) {
+  const numericPort = parseInt(port, 10);
+  if (!port || Number.isNaN(numericPort) || numericPort === defaultPort) {
+    return host;
+  }
+  return `${host}:${numericPort}`;
+}
+
+function buildPreviewOrigin() {
+  if (window.location && window.location.origin) {
+    return window.location.origin;
+  }
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
+function buildRtspCredential(user, pass) {
+  return `${encodeURIComponent(user)}:${encodeURIComponent(pass)}`;
+}
+
+let previewEndpointApiKey = "";
+
+function markPreviewEndpointCopied(link) {
+  if (!link) return;
+  link.classList.add("copied");
+  if (link._copyTimer) {
+    clearTimeout(link._copyTimer);
+  }
+  link._copyTimer = window.setTimeout(() => {
+    link.classList.remove("copied");
+    link._copyTimer = null;
+  }, 1200);
+}
+
+async function copyPreviewEndpoint(ev) {
+  ev.preventDefault();
+  const link = ev.currentTarget;
+  const url = link?.dataset?.copyUrl || link?.href || "";
+  const clipboard = window.thinginoClipboard;
+  if (!url || !clipboard || typeof clipboard.copy !== "function") {
+    if (typeof window.showAlert === "function") {
+      window.showAlert("warning", "Clipboard copy is not available.", 3000);
+    }
+    return;
+  }
+  try {
+    await clipboard.copy(url);
+    markPreviewEndpointCopied(link);
+  } catch (err) {
+    if (typeof window.showAlert === "function") {
+      window.showAlert("danger", "Unable to copy the endpoint.", 3000);
+    }
+  }
+}
+
+function buildPreviewEndpointUrl(baseUrl) {
+  if (!previewEndpointApiKey) {
+    return baseUrl;
+  }
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}token=${encodeURIComponent(previewEndpointApiKey)}`;
+}
+
+function renderPreviewEndpoints() {
+  const list = $("#preview-endpoint-list");
+  if (!list) return;
+  const host =
+    window.network_address || window.location.hostname || "localhost";
+  const httpOrigin = buildPreviewOrigin();
+  const rtspHost = formatPreviewHostWithPort(
+    wrapIpv6Host(host),
+    previewEndpointState.rtsp.port,
+    554,
+  );
+  const rtspAuth = buildRtspCredential(
+    previewEndpointState.rtsp.username,
+    previewEndpointState.rtsp.password,
+  );
+  const entries = [
+    {
+      label: "RTSP Ch0",
+      url: `rtsp://${rtspAuth}@${rtspHost}/${previewEndpointState.stream0.rtsp_endpoint}`,
+    },
+    {
+      label: "RTSP Ch1",
+      url: `rtsp://${rtspAuth}@${rtspHost}/${previewEndpointState.stream1.rtsp_endpoint}`,
+    },
+    {
+      label: "MJPEG Ch0",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch0.mjpg`),
+    },
+    {
+      label: "MJPEG Ch1",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch1.mjpg`),
+    },
+    {
+      label: "Snapshot Ch0",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch0.jpg`),
+    },
+    {
+      label: "Snapshot Ch1",
+      url: buildPreviewEndpointUrl(`${httpOrigin}/x/ch1.jpg`),
+    },
+  ];
+
+  list.innerHTML = "";
+  entries.forEach((entry) => {
+    const link = document.createElement("a");
+    link.className = "preview-endpoint-link";
+    link.href = entry.url;
+    link.rel = "noopener";
+    link.dataset.copyUrl = entry.url;
+    link.title = `${entry.label}: ${entry.url}`;
+    link.setAttribute("aria-label", `${entry.label} endpoint`);
+
+    const shortLabel = document.createElement("span");
+    shortLabel.className = "preview-endpoint-short";
+    shortLabel.textContent = entry.label;
+
+    const hint = document.createElement("span");
+    hint.className = "preview-endpoint-hint";
+    hint.innerHTML = '<i class="bi bi-clipboard"></i>';
+
+    link.appendChild(shortLabel);
+    link.appendChild(hint);
+    link.addEventListener("click", copyPreviewEndpoint);
+
+    list.appendChild(link);
+  });
+}
+
+function updatePreviewEndpointState(msg) {
+  if (msg.rtsp) {
+    previewEndpointState.rtsp.username = previewEndpointValue(
+      msg.rtsp.username,
+      previewEndpointState.rtsp.username,
+    );
+    previewEndpointState.rtsp.password = previewEndpointValue(
+      msg.rtsp.password,
+      previewEndpointState.rtsp.password,
+    );
+    previewEndpointState.rtsp.port = previewEndpointValue(
+      msg.rtsp.port,
+      previewEndpointState.rtsp.port,
+    );
+  }
+  if (msg.stream0) {
+    previewEndpointState.stream0.rtsp_endpoint = previewEndpointValue(
+      msg.stream0.rtsp_endpoint,
+      previewEndpointState.stream0.rtsp_endpoint,
+    );
+  }
+  if (msg.stream1) {
+    previewEndpointState.stream1.rtsp_endpoint = previewEndpointValue(
+      msg.stream1.rtsp_endpoint,
+      previewEndpointState.stream1.rtsp_endpoint,
+    );
+  }
+  renderPreviewEndpoints();
+}
+
+async function loadPreviewEndpointApiKey() {
+  try {
+    const response = await fetch("/x/api-key.cgi", { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.exists && data.api_key) {
+      previewEndpointApiKey = data.api_key;
+    }
+  } catch (err) {
+    console.warn("Could not load API key for preview endpoints:", err);
+  }
+}
+
+async function initPreviewEndpoints() {
+  await loadPreviewEndpointApiKey();
+  renderPreviewEndpoints();
+}
+
+initPreviewEndpoints();
 
 function handleOsdData(osd, streamIndex) {
   if (!osd) return;
@@ -266,6 +471,8 @@ function handleMessage(msg) {
     });
     handleOsdData(msg.stream1.osd, 1);
   }
+
+  updatePreviewEndpointState(msg);
 }
 
 async function loadMotorParams() {
@@ -730,7 +937,8 @@ const previewSliderIds = [
 
       sensorFilePath.textContent = data.file_path || "Unknown";
       sensorMd5.textContent = data.md5 || "Unknown";
-      if (sensorSocFamily) sensorSocFamily.textContent = data.soc_family || "Unknown";
+      if (sensorSocFamily)
+        sensorSocFamily.textContent = data.soc_family || "Unknown";
       if (sensorModel) sensorModel.textContent = data.sensor_model || "Unknown";
 
       sensorLoading.classList.add("d-none");

@@ -1,17 +1,33 @@
 #!/bin/sh
 
+DAEMON="/usr/bin/lightnvr"
 DAEMON_ARGS=""
+PIDFILE="/var/run/lightnvr.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting LightNVR"
+	echo -c 15 "Starting LightNVR"
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping LightNVR"
+	echo -c 15 "Stopping LightNVR"
 
 	stop_daemon
 }

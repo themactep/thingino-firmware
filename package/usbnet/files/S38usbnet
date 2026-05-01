@@ -1,11 +1,9 @@
 #!/bin/sh
 
-. /usr/share/common
-
 modulename="rndis_host"
 
 start() {
-	echo_title "Starting USB NET"
+	echo -c 15 "Starting USB NET"
 
 	if [ -n "$gpio_usbnet" ]; then
 		num=${gpio_usbnet%[oO]}
@@ -16,15 +14,15 @@ start() {
 			o) gpio_cmd="low" ;;
 		esac
 
-		echo_info "Set GPIO $num $gpio_cmd"
+		echo "Set GPIO $num $gpio_cmd"
 		gpio $gpio_cmd $num
 	fi
 
-	echo_info "Load usbserial module"
+	echo "Load usbserial module"
 	modprobe usbserial
 
 	if ! grep -q ^$modulename /proc/modules; then
-		echo_info "Load $modulename module"
+		echo "Load $modulename module"
 		modprobe $modulename
 	fi
 }

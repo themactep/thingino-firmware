@@ -1,37 +1,62 @@
 #!/bin/sh
 
-. /usr/share/common
+OS_RELEASE_FILE="/etc/os-release"
+
+die() {
+	echo "$1" >&2
+	exit 1
+}
+
+is_debug_mode() {
+	[ "0$((debug))" -gt 0 ] || [ "true" = "$debug" ]
+}
+
+print_release() {
+	if [ ! -f "$OS_RELEASE_FILE" ]; then
+		echo "$OS_RELEASE_FILE not found" >&2
+		return 1
+	fi
+
+	. "$OS_RELEASE_FILE"
+	echo "Thingino $IMAGE_ID [$BUILD_ID]"
+}
 
 start_usb_console() {
 	[ "true" = "$usb_console" ] || exit
 
-	modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" || \
+	modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" ||
 		die "Cannot load g_serial module"
 	usb-role -m device
 	sleep 2
 
-	echo -c 104 -e "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" > /dev/ttyGS0
+	echo -c 104 -e "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" >/dev/ttyGS0
 
-	stty -icanon min 0 time 20 -echo < /dev/ttyGS0
-	key=$(dd bs=1 count=1 2>/dev/null < /dev/ttyGS0)
-	stty sane < /dev/ttyGS0
+	stty -icanon min 0 time 20 -echo </dev/ttyGS0
+	key=$(dd bs=1 count=1 2>/dev/null </dev/ttyGS0)
+	stty sane </dev/ttyGS0
 
-	print_release > /dev/ttyGS0
+	print_release >/dev/ttyGS0
 
 	if [ "$key" = "f" ]; then
-		echo -c 118 "Failsafe mode..." > /dev/ttyGS0
+		echo -c 118 "Failsafe mode..." >/dev/ttyGS0
 		touch /tmp/.fs
-		. /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0
-		while :; do setsid /sbin/getty -n -l /bin/sh ttyGS0 0 vt100; sleep 1; done &
+		. /etc/profile >/dev/ttyGS0 2>&1 </dev/ttyGS0
+		while :; do
+			setsid /sbin/getty -n -l /bin/sh ttyGS0 0 vt100
+			sleep 1
+		done &
 	else
-		/etc/init.d/rcS > /dev/ttyGS0 2>&1
+		/etc/init.d/rcS >/dev/ttyGS0 2>&1
 		if is_debug_mode; then
-			. /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0
+			. /etc/profile >/dev/ttyGS0 2>&1 </dev/ttyGS0
 			cmd="-n -l /bin/sh"
 		else
 			cmd="-L"
 		fi
-		while :; do setsid /sbin/getty $cmd ttyGS0 0 vt100; sleep 1; done &
+		while :; do
+			setsid /sbin/getty $cmd ttyGS0 0 vt100
+			sleep 1
+		done &
 	fi
 
 	exit 0
@@ -51,4 +76,3 @@ case "$1" in
 		true
 		;;
 esac
-

@@ -313,7 +313,7 @@ make rebuild-telegrambot
 make rebuild-prudynt-t
 make rebuild-linux
 ```
-Equivalent to: `<package>-dirclean` + `<package>`
+Equivalent to: `<package>-dirclean` + `<package>` + `<package>-reinstall` + `target-finalize`
 
 ### Buildroot Package Targets (with `br-` prefix)
 

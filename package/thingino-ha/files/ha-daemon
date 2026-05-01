@@ -5,8 +5,14 @@
 
 . /usr/share/ha-common
 
-[ -n "$HA_CAMERA_ID" ] || { echo "ha-daemon: cannot determine camera MAC" >&2; exit 1; }
-[ -n "$HA_MQTT_HOST" ] || { echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+[ -n "$HA_CAMERA_ID" ] || {
+	echo "ha-daemon: cannot determine camera MAC" >&2
+	exit 1
+}
+[ -n "$HA_MQTT_HOST" ] || {
+	echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2
+	exit 1
+}
 
 # ---------------------------------------------------------------------------
 # Singleton: only one ha-daemon may run at a time.
@@ -24,9 +30,12 @@ if ! mkdir "$HA_LOCK_DIR" 2>/dev/null; then
 	fi
 	# Stale lock from a previous crash — take it over
 	rm -rf "$HA_LOCK_DIR"
-	mkdir "$HA_LOCK_DIR" 2>/dev/null || { echo "ha-daemon: cannot acquire lock" >&2; exit 1; }
+	mkdir "$HA_LOCK_DIR" 2>/dev/null || {
+		echo "ha-daemon: cannot acquire lock" >&2
+		exit 1
+	}
 fi
-printf '%s\n' "$$" > "${HA_LOCK_DIR}/pid"
+printf '%s\n' "$$" >"${HA_LOCK_DIR}/pid"
 
 # ---------------------------------------------------------------------------
 # Clear state cache on startup.
@@ -39,7 +48,10 @@ ha_state_cache_clear
 # ---------------------------------------------------------------------------
 # Publish discovery and start command subscriber
 # ---------------------------------------------------------------------------
-ha-discovery || { echo "ha-daemon: discovery failed" >&2; exit 1; }
+ha-discovery || {
+	echo "ha-daemon: discovery failed" >&2
+	exit 1
+}
 
 # Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
 run_commands() {
@@ -60,6 +72,43 @@ CMD_PID=$!
 ha-state force
 
 # ---------------------------------------------------------------------------
+# Camera snapshot publisher (background loop)
+# Captures a JPEG snapshot, base64-encodes it, and publishes over MQTT.
+# First snapshot is published immediately so HA shows an image right away.
+# Subsequent publishes happen at camera_interval (default 60s, min 5s).
+# ---------------------------------------------------------------------------
+if ha_entity_enabled live_view; then
+	CAMERA_INTERVAL=$(ha_cfg camera_interval)
+	case "$CAMERA_INTERVAL" in
+		'' | *[!0-9]*) CAMERA_INTERVAL=60 ;;
+	esac
+	[ "$CAMERA_INTERVAL" -lt 5 ] && CAMERA_INTERVAL=5
+
+	run_camera_snapshot() {
+		local mpub snap b64 first=1
+		while true; do
+			if [ "$first" = "1" ]; then
+				first=0
+			else
+				sleep "$CAMERA_INTERVAL"
+			fi
+			mpub=$(ha_mpub_cmd camera)
+			snap=$(mktemp /tmp/ha_snap.XXXXXX) || continue
+			prudyntctl snapshot -c 1 >"$snap" 2>/dev/null
+			if [ -s "$snap" ]; then
+				b64="${snap}.b64"
+				base64 "$snap" | tr -d '\n' >"$b64"
+				sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/live_view/image' -f $(_sq "$b64")" 2>/dev/null
+				rm -f "$b64"
+			fi
+			rm -f "$snap"
+		done
+	}
+	run_camera_snapshot &
+	CAMERA_PID=$!
+fi
+
+# ---------------------------------------------------------------------------
 # Cleanup on exit
 # ---------------------------------------------------------------------------
 cleanup() {
@@ -68,6 +117,8 @@ cleanup() {
 	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
 	kill "$CMD_PID" 2>/dev/null
 	wait "$CMD_PID" 2>/dev/null
+	[ -n "${CAMERA_PID:-}" ] && kill "$CAMERA_PID" 2>/dev/null
+	[ -n "${CAMERA_PID:-}" ] && wait "$CAMERA_PID" 2>/dev/null
 	rm -rf "$HA_LOCK_DIR"
 }
 trap cleanup EXIT INT TERM

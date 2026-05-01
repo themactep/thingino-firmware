@@ -1,9 +1,10 @@
 #!/bin/sh
 
-. /usr/share/common
-
 GPIO_FILE="/etc/gpio.conf"
-[ -f "$GPIO_FILE" ] || die "GPIO configuration file not found: $GPIO_FILE"
+[ -f "$GPIO_FILE" ] || {
+	echo "GPIO configuration file not found: $GPIO_FILE" >&2
+	exit 1
+}
 
 VALID_STATES="high low input"
 
@@ -11,7 +12,7 @@ VALID_STATES="high low input"
 MAX_GPIO=192
 
 start() {
-	echo_title "Setting GPIOs"
+	echo -c 15 "Setting GPIOs"
 
 	while IFS= read -r line; do
 		# Skip empty lines and comments
@@ -25,21 +26,21 @@ start() {
 			*"$state"*)
 				# pin is in valid range
 				if [ "$gpionum" -lt 0 ] || [ "$gpionum" -gt $MAX_GPIO ]; then
-					echo_warning "Invalid GPIO number: $gpionum in line: $line"
+					echo "Invalid GPIO number: $gpionum in line: $line"
 				else
 					gpio "$state" "$gpionum"
-					echo_info "GPIO $gpionum set to $state"
+					echo "GPIO $gpionum set to $state"
 
 					if [ -n "$3" ]; then
-						echo_info "Description: $3"
+						echo "Description: $3"
 					fi
 				fi
 				;;
 			*)
-				echo_warning "Invalid state: $state in line: $line"
+				echo "Invalid state: $state in line: $line"
 				;;
 		esac
-	done < $GPIO_FILE
+	done <$GPIO_FILE
 }
 
 case "$1" in

@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 IFACE=wlan0
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
@@ -18,7 +16,7 @@ bool_is_true() {
 	value="$1"
 	value=$(printf '%s' "$value" | tr 'A-Z' 'a-z')
 	case "$value" in
-		1|true|yes|on|enable|enabled)
+		1 | true | yes | on | enable | enabled)
 			return 0
 			;;
 	esac
@@ -32,18 +30,18 @@ normalize_state_value() {
 	value="$1"
 	[ -n "$value" ] || return 1
 	case "$value" in
-		0|1)
+		0 | 1)
 			printf '%s\n' "$value"
 			return 0
 			;;
 	esac
 	lower=$(printf '%s' "$value" | tr 'A-Z' 'a-z')
 	case "$lower" in
-		true|high|on|enable|enabled)
+		true | high | on | enable | enabled)
 			printf '1\n'
 			return 0
 			;;
-		false|low|off|disable|disabled)
+		false | low | off | disable | disabled)
 			printf '0\n'
 			return 0
 			;;
@@ -54,7 +52,7 @@ normalize_state_value() {
 emit_pin_command() {
 	local pin="$1" action="${2:-set}" state="$3"
 	case "$pin" in
-		''|*[^0-9]*)
+		'' | *[^0-9]*)
 			return 1
 			;;
 	esac
@@ -63,9 +61,9 @@ emit_pin_command() {
 			printf '%s toggle\n' "$pin"
 			return 0
 			;;
-		set|'')
+		set | '')
 			case "$state" in
-				0|1)
+				0 | 1)
 					printf '%s set %s\n' "$pin" "$state"
 					return 0
 					;;
@@ -97,7 +95,7 @@ parse_legacy_token() {
 			action="set"
 			state=1
 			;;
-		t|T|~)
+		t | T | ~)
 			action="toggle"
 			;;
 		'')
@@ -128,7 +126,7 @@ emit_wlan_object_path() {
 	[ -n "$raw_state" ] || raw_state=$(jct "$WLAN_CONFIG_JSON" get "$base.value" 2>/dev/null)
 	if [ -z "$action" ] && [ -n "$raw_state" ]; then
 		case "$(printf '%s' "$raw_state" | tr 'A-Z' 'a-z')" in
-			toggle|~)
+			toggle | ~)
 				action="toggle"
 				raw_state=""
 				;;
@@ -138,7 +136,7 @@ emit_wlan_object_path() {
 	toggle_flag=$(jct "$WLAN_CONFIG_JSON" get "$base.toggle" 2>/dev/null)
 	if [ "toggle" = "$action" ]; then
 		if bool_is_true "$toggle_flag"; then
-			echo_warning "Ignoring toggle flag at $base because action is already 'toggle'"
+			echo "Ignoring toggle flag at $base because action is already 'toggle'"
 		fi
 		emit_pin_command "$pin" "toggle"
 		return $?
@@ -151,7 +149,7 @@ emit_wlan_object_path() {
 		fi
 	fi
 	if ! state=$(normalize_state_value "$raw_state"); then
-		echo_warning "Invalid GPIO state '$raw_state' at $base"
+		echo "Invalid GPIO state '$raw_state' at $base"
 		return 1
 	fi
 	if bool_is_true "$toggle_flag"; then
@@ -185,7 +183,7 @@ get_wlan_sequence() {
 			if parse_legacy_token "$entry"; then
 				emitted=$((emitted + 1))
 			else
-				echo_warning "Invalid gpio.wlan entry '$entry' at index $idx"
+				echo "Invalid gpio.wlan entry '$entry' at index $idx"
 			fi
 			idx=$((idx + 1))
 			continue
@@ -203,7 +201,7 @@ get_wlan_sequence() {
 			if parse_legacy_token "$token"; then
 				emitted=$((emitted + 1))
 			else
-				echo_warning "Invalid gpio.wlan token '$token'"
+				echo "Invalid gpio.wlan token '$token'"
 			fi
 		done
 		[ "$emitted" -gt 0 ] && return 0
@@ -218,41 +216,40 @@ apply_wlan_sequence() {
 		[ -n "$pin" ] || continue
 		case "$action" in
 			toggle)
-				echo_info "Toggle GPIO $pin"
+				echo "Toggle GPIO $pin"
 				gpio toggle "$pin"
 				;;
-			set|'')
+			set | '')
 				[ -n "$state" ] || state=1
-				echo_info "Set GPIO $pin to $state"
+				echo "Set GPIO $pin to $state"
 				gpio set "$pin" "$state"
 				;;
 			*)
-				echo_warning "Unknown GPIO action '$action' for pin $pin"
+				echo "Unknown GPIO action '$action' for pin $pin"
 				continue
 				;;
 		esac
 		case " $wlan_pins_used " in
-			*" $pin "*)
-				;;
+			*" $pin "*) ;;
 			*)
 				wlan_pins_used="${wlan_pins_used:+$wlan_pins_used }$pin"
 				;;
 		esac
 	done <<-EOF
-$sequence
-EOF
+		$sequence
+	EOF
 }
 
 start() {
-	echo_title "Starting wireless interface"
+	echo -c 15 "Starting wireless interface"
 
 	if [ "true" = "$disable_wlan" ]; then
-		echo_error "WLAN disabled"
+		echo "WLAN disabled" >&2
 		exit 1
 	fi
 
 	if [ -z "$WLAN_MODULE_NAME" ]; then
-		echo_error "Wireless module name is not set"
+		echo "Wireless module name is not set" >&2
 		exit 1
 	fi
 
@@ -261,86 +258,86 @@ start() {
 	fi
 
 	if [ -z "$wlan_sequence" ]; then
-		echo_warning "Wireless module GPIO is not set"
+		echo "Wireless module GPIO is not set"
 	else
 		apply_wlan_sequence "$wlan_sequence"
 
 		if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
 			for pin in $wlan_pins_used; do
-				echo_info "Unexport GPIO pin $pin"
+				echo "Unexport GPIO pin $pin"
 				gpio unexport "$pin"
 			done
 		fi
 	fi
 
-@if WIFI_MODULE_IS_SDIO@
-	echo_info "$WLAN_MODULE_NAME is an SDIO module"
+	@if WIFI_MODULE_IS_SDIO@
+	echo "$WLAN_MODULE_NAME is an SDIO module"
 
 	if [ -d /proc/jz/mdio ]; then
-		echo_info "GMAC is enabled, disabling MSC1..."
+		echo "GMAC is enabled, disabling MSC1..."
 	else
-@if WIFI_SDIO_UNSUPPORTED@
-		echo_error "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@"
+		@if WIFI_SDIO_UNSUPPORTED@
+		echo "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@" >&2
 		exit 1
-@else@
-@if WIFI_SDIO_RETURN_EARLY@
-		echo_info "Skip GPIO setup for @SOC_MODEL@"
+		@else@
+		@if WIFI_SDIO_RETURN_EARLY@
+		echo "Skip GPIO setup for @SOC_MODEL@"
 		return 1
-@else@
-@if WIFI_SDIO_SET_GPIO@
-		echo_info "Set GPIO pins with /sbin/mmc_gpio"
+		@else@
+		@if WIFI_SDIO_SET_GPIO@
+		echo "Set GPIO pins with /sbin/mmc_gpio"
 		/sbin/mmc_gpio
-@else@
-		echo_info "Skip GPIO setup for @SOC_MODEL@"
-@endif@
-		echo_info "Send INSERT to MMC1"
+		@else@
+		echo "Skip GPIO setup for @SOC_MODEL@"
+		@endif@
+		echo "Send INSERT to MMC1"
 		mmc 1
-@endif@
-@endif@
-fi
-@endif@
+		@endif@
+		@endif@
+	fi
+	@endif@
 
-@if WIFI_IS_HI3881@
+	@if WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
 		if [ -f /usr/share/wifi/wifi_cfg ]; then
-			echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
+			echo "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
 			sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
 		else
-			echo_warning "Cannot preset MAC: /usr/share/wifi/wifi_cfg missing"
+			echo "Cannot preset MAC: /usr/share/wifi/wifi_cfg missing"
 		fi
 	fi
-@endif@
+	@endif@
 
 	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
-		echo_info "Module $WLAN_MODULE_NAME is already loaded"
+		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
-		echo_info "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
+		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
 		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
 
 	m=50 # limit to 5 seconds
 	while [ "$m" -gt 0 ]; do
 		grep -q $IFACE /proc/net/wireless && break
-		m=$((m-1))
+		m=$((m - 1))
 		sleep 0.1
 	done
 
-@if !WIFI_IS_HI3881@
+	@if !WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
-			echo_info "Bring interface $IFACE down"
+			echo "Bring interface $IFACE down"
 			ip link set dev $IFACE down
 		fi
 
-		echo_info "Set MAC address to $wlan_mac"
+		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
 	fi
-@endif@
+	@endif@
 	# play /usr/share/sounds/wificonnected.opus
 }
 
 stop() {
-	echo_title "Stopping wireless interface"
+	echo -c 15 "Stopping wireless interface"
 
 	ifdown $IFACE
 	# play /usr/share/sounds/wifidisconnected.opus

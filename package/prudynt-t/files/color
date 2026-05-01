@@ -7,13 +7,13 @@ MODE_FILE="/tmp/colormode.txt"
 # NB! ISP mode is set backwards: 0 - color, 1 - monochrome
 
 switch_to_color() {
-	imp-control ispmode 0
-	echo "1" > "$MODE_FILE"
+	imp-control color on
+	echo "1" >"$MODE_FILE"
 }
 
 switch_to_monochrome() {
-	imp-control ispmode 1
-	echo "0" > "$MODE_FILE"
+	imp-control color off
+	echo "0" >"$MODE_FILE"
 }
 
 case "$1" in

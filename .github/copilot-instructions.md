@@ -131,7 +131,7 @@ When using an override:
 4. edit the sources and confirm the changes work
 5. create a patch for the package using `git diff` and add it to the package directory
 
-To recompile a packages use `CAMERA=<camera_defconfig> make rebuild-<packagename>`, `rebuild-` shorthand combines `package-dirclean` and `package-build`.
+To recompile a packages use `CAMERA=<camera_defconfig> make rebuild-<packagename>`, `rebuild-` shorthand combines `package-dirclean`, `package-build`, `package-reinstall`, and `target-finalize`.
 
 ### SSH
 

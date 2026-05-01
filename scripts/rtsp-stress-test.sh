@@ -259,6 +259,7 @@ if [ "$RECOMMENDED_MATRIX" -eq 1 ]; then
 fi
 
 SSH_DEST="${SSH_USER}@${CAMERA_HOST}"
+SSH_CONTROL_DIR="$(mktemp -d /tmp/rtsp-stress-ssh.XXXXXX)"
 SSH_OPTS=(
 	-o ConnectTimeout=5
 	-o ServerAliveInterval=5
@@ -266,11 +267,12 @@ SSH_OPTS=(
 	-o StrictHostKeyChecking=accept-new
 	-o ControlMaster=auto
 	-o ControlPersist=600
-	-o ControlPath="${OUTPUT_DIR}/ssh-control-%C"
+	-o ControlPath="${SSH_CONTROL_DIR}/%C"
 )
 
 close_ssh_master() {
 	ssh "${SSH_OPTS[@]}" -O exit "$SSH_DEST" >/dev/null 2>&1 || true
+	rm -rf "$SSH_CONTROL_DIR"
 }
 
 trap close_ssh_master EXIT

@@ -1,36 +1,64 @@
 #!/bin/sh
 # Manages thingino config file
 
-. /usr/share/common
-
-if [ ! -f "$CONFIG_FILE" ]; then
-	echo_error "Config file $CONFIG_FILE not found"
-	exit 1
-fi
+CONFIG_FILE="${CONFIG_FILE:-/etc/web.conf}"
 
 show_help() {
-	local app=$(basename $0)
+	local app
+
+	app=$(basename "$0")
 	echo "Thingino System Config Tool
 Usage:
- $app g <param>           - Get parameter value
- $app s <param> <value>   - Set parameter value
- $app d <param>           - Delete parameter
- $app l [<filter>]        - List parameters matching filter
- $app --script <file>     - Import parameters from file (var=val format)
+ $app [-f <file>] g <param>           - Get parameter value
+ $app [-f <file>] s <param> <value>   - Set parameter value
+ $app [-f <file>] d <param>           - Delete parameter
+ $app [-f <file>] l [<filter>]        - List parameters matching filter
+ $app [-f <file>] --script <file>     - Import parameters from file (var=val format)
 " >&2
 	exit 1
 }
 
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-f | --file)
+			[ -n "$2" ] || show_help
+			CONFIG_FILE="$2"
+			shift 2
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+require_config_file() {
+	if [ ! -f "$CONFIG_FILE" ]; then
+		echo "Config file $CONFIG_FILE not found" >&2
+		exit 1
+	fi
+}
+
+ensure_config_file() {
+	[ -f "$CONFIG_FILE" ] && return 0
+	: >"$CONFIG_FILE" || {
+		echo "Cannot create config file $CONFIG_FILE" >&2
+		exit 1
+	}
+}
+
 backup() {
-	cp "$CONFIG_FILE" "/tmp/$(basename $CONFIG_FILE).$(date +%s).bak"
+	[ -f "$CONFIG_FILE" ] || return 0
+	cp "$CONFIG_FILE" "/tmp/$(basename "$CONFIG_FILE").$(date +%s).bak"
 }
 
 case "$1" in
 	g*)
+		require_config_file
 		[ -z "$2" ] && show_help
 		awk -F= "/^$2=/{gsub(/\"/,\"\",\$2);print \$2}" "$CONFIG_FILE"
 		;;
 	s*)
+		ensure_config_file
 		[ -z "$2" ] && show_help
 		# If no value provided or empty value, delete the parameter
 		if [ -z "$3" ] || [ "$3" = "" ]; then
@@ -43,24 +71,30 @@ case "$1" in
 				sed -i "/^$2=/c$2=\"$value\"" "$CONFIG_FILE"
 			else
 				tmpfile=$(mktemp)
-				cat "$CONFIG_FILE" > "$tmpfile"
-				echo "$2=\"$value\"" >> "$tmpfile"
+				cat "$CONFIG_FILE" >"$tmpfile"
+				echo "$2=\"$value\"" >>"$tmpfile"
 				sed -i "/^\s*$/d" "$tmpfile"
-				sort -u < "$tmpfile" > "$CONFIG_FILE"
+				sort -u <"$tmpfile" >"$CONFIG_FILE"
 			fi
 		fi
 		;;
 	d*)
+		require_config_file
 		[ -z "$2" ] && show_help
 		backup
 		sed -i "/^$2=/d" "$CONFIG_FILE"
 		;;
 	l*)
+		require_config_file
 		grep "$2" "$CONFIG_FILE"
 		;;
 	--script)
+		ensure_config_file
 		[ -z "$2" ] && show_help
-		[ -f "$2" ] || { echo_error "Script file $2 not found"; exit 1; }
+		[ -f "$2" ] || {
+			echo "Script file $2 not found" >&2
+			exit 1
+		}
 		backup
 		# Process all parameters at once
 		awk -F= 'NR==FNR && /^[a-zA-Z_][a-zA-Z0-9_]*=/ {
@@ -80,7 +114,7 @@ case "$1" in
 		}
 		END {
 			for (p in params) print p "=\"" params[p] "\""
-		}' "$2" "$CONFIG_FILE" | sort -u > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+		}' "$2" "$CONFIG_FILE" | sort -u >"$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 		;;
 	*)
 		show_help

@@ -207,6 +207,10 @@ define STRERO_INSTALL_TARGET_CMDS
 	# Install streamer service
 	$(INSTALL) -D -m 0755 $(STRERO_PKGDIR)/files/S95streamer \
 		$(TARGET_DIR)/etc/init.d/S95streamer
+	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(STRERO_PKGDIR)/files/S96onvif_discovery \
+			$(TARGET_DIR)/etc/init.d/S96onvif_discovery; \
+	fi
 
 	# Install watchdog configuration
 	$(INSTALL) -D -m 0644 $(STRERO_PKGDIR)/files/streamer-watchdog.conf \

@@ -1,10 +1,5 @@
 #!/bin/sh
 
-die() {
-	echo "$1" >&2
-	exit 1
-}
-
 gpiodir=/sys/class/gpio
 
 unexport=0
@@ -114,7 +109,10 @@ sweep_pins() {
 if [ -n "$2" ]; then
 	# sanitize converting to integer
 	pin=$(echo $2 | sed s/[^0-9]//g)
-	[ -z "$pin" ] && die "PIN $pin IS NOT SET"
+	if [ -z "$pin" ]; then
+		echo "PIN $pin IS NOT SET" >&2
+		exit 1
+	fi
 else
 	[ "list" != "$1" ] && show_help
 fi

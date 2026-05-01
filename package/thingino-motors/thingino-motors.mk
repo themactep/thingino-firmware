@@ -17,7 +17,7 @@ endef
 else
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor.c -o $(@D)/motors -ljct
-	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct -lm
 endef
 
 define THINGINO_MOTORS_INSTALL_TARGET_CMDS
@@ -49,13 +49,13 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 			exit 1; \
 		fi; \
 	fi
-	if [ -f "$(THINGINO_MOTORS_OVERRIDE_FILE)" ]; then \
+	if [ -s "$(THINGINO_MOTORS_OVERRIDE_FILE)" ]; then \
 		echo "Applying motors override from $(THINGINO_MOTORS_OVERRIDE_FILE)"; \
 		echo '$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$(THINGINO_MOTORS_OVERRIDE_FILE)"'; \
 		$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$(THINGINO_MOTORS_OVERRIDE_FILE)"; \
 	fi
 	for USER_MOTORS_CONFIG in $(THINGINO_USER_MOTORS_JSON_FILES); do \
-		if [ -f "$$USER_MOTORS_CONFIG" ]; then \
+		if [ -s "$$USER_MOTORS_CONFIG" ]; then \
 			echo "Applying user motors override from $$USER_MOTORS_CONFIG"; \
 			echo "$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import \"$$USER_MOTORS_CONFIG\""; \
 			$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$$USER_MOTORS_CONFIG"; \

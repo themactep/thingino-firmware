@@ -51,7 +51,7 @@ start() {
 	need_photo=false
 	need_video=false
 
-	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
+	for service in email ftp gphotos gotify mqtt ntfy storage telegram webhook; do
 		if [ "true" = "$(get_value send2${service})" ]; then
 			[ "true" = "$(jct /etc/send2.json get ${service}.send_photo 2>/dev/null)" ] && need_photo=true
 			[ "true" = "$(jct /etc/send2.json get ${service}.send_video 2>/dev/null)" ] && need_video=true
@@ -144,6 +144,12 @@ start() {
 	if [ "true" = "$(get_value send2gphotos)" ]; then
 		echo_info "Upload to Google Photos"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2gphotos &
+		send2_pids="$send2_pids $!"
+	fi
+
+	if [ "true" = "$(get_value send2gotify)" ]; then
+		echo_info "Send alert to Gotify"
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2gotify &
 		send2_pids="$send2_pids $!"
 	fi
 

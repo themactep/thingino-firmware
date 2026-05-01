@@ -1,21 +1,42 @@
 #!/bin/sh
 
-DAEMON="onvif_notify_server"
-DAEMON_ARGS="-c /etc/onvif.json -p /run/$DAEMON.pid"
+DAEMON="/usr/sbin/onvif_notify_server"
+PIDFILE="/run/onvif_notify_server.pid"
+DAEMON_ARGS="-c /etc/onvif.json -p $PIDFILE"
 MOTION="/run/motion"
+PORTAL_MODE_FLAG="/run/portal_mode"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting ONVIF Notify service"
+	echo -c 15 "Starting ONVIF Notify service"
+
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Disabled" >&2
+		exit 1
+	fi
 
 	[ -d "$MOTION" ] || mkdir -p $MOTION
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping ONVIF Notify service"
+	echo -c 15 "Stopping ONVIF Notify service"
 
 	stop_daemon
 }

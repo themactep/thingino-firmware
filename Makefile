@@ -91,6 +91,7 @@ THINGINO_USER_FRAGMENT_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.fra
 THINGINO_USER_MK_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.mk)
 THINGINO_USER_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/thingino.json)
 THINGINO_USER_MOTORS_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/motors.json)
+THINGINO_USER_PRUDYNT_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/overlay)
 THINGINO_USER_OPT_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/opt)
@@ -101,6 +102,7 @@ THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.fra
 THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.mk)
 THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/thingino.json)
 THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/motors.json)
+THINGINO_USER_PRUDYNT_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_CAMERA_DIR)/overlay)
 THINGINO_USER_OPT_DIRS += $(wildcard $(THINGINO_USER_CAMERA_DIR)/opt)
@@ -111,6 +113,7 @@ THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.fra
 THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.mk)
 THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/thingino.json)
 THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/motors.json)
+THINGINO_USER_PRUDYNT_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_DEVICE_DIR)/overlay)
 THINGINO_USER_OPT_DIRS += $(wildcard $(THINGINO_USER_DEVICE_DIR)/opt)
@@ -124,6 +127,7 @@ export THINGINO_USER_FRAGMENT_FILES
 export THINGINO_USER_MK_FILES
 export THINGINO_USER_JSON_FILES
 export THINGINO_USER_MOTORS_JSON_FILES
+export THINGINO_USER_PRUDYNT_JSON_FILES
 export THINGINO_USER_UENV_FILES
 export THINGINO_USER_OVERLAY_DIRS
 export THINGINO_USER_OPT_DIRS
@@ -155,6 +159,7 @@ $(call print_build_user_files_section,local.fragment,$(THINGINO_USER_FRAGMENT_FI
 $(call print_build_user_files_section,user local.mk,$(THINGINO_USER_MK_FILES))
 $(call print_build_user_files_section,thingino.json,$(THINGINO_USER_JSON_FILES))
 $(call print_build_user_files_section,motors.json,$(THINGINO_USER_MOTORS_JSON_FILES))
+$(call print_build_user_files_section,prudynt.json,$(THINGINO_USER_PRUDYNT_JSON_FILES))
 $(call print_build_user_files_section,local.uenv.txt,$(THINGINO_USER_UENV_FILES))
 $(call print_build_user_files_section,overlay files,$(THINGINO_USER_OVERLAY_FILES))
 $(call print_build_user_files_section,opt files,$(THINGINO_USER_OPT_FILES))
@@ -354,7 +359,7 @@ endef
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
-	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -466,6 +471,12 @@ bootstrap:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/dep_check.sh
 
+# Configure repository-local git hooks path for team pre-commit automation.
+setup-hooks:
+	@$(TEAL) "$@"
+	@git config core.hooksPath .githooks
+	@echo "Configured local git hooks path: $$(git config --get core.hooksPath)"
+
 build: BR2_MAKE_JOBS =
 build: $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
@@ -520,7 +531,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 ifeq ($(RAW_DEFCONFIG_MODE),y)
 	# preprocess a plain Buildroot defconfig used by GitHub workflows
 	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
-	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
 else
 	# add toolchain fragment (from preset selection)
 	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
@@ -529,7 +540,7 @@ else
 		exit 1; \
 	fi
 	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
-	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
 	# add other fragments
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
@@ -541,7 +552,7 @@ else
 		fi; \
 		echo "** add $$fragment_path"; \
 		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
-		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
+		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add kernel-specific headers based on SOC requirements
@@ -557,7 +568,7 @@ else
 	fi; \
 	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
-	sed 's/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	sed 's/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 	# add SOC-derived values
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
@@ -724,7 +735,7 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
 
 remove_bins:
 	@$(TEAL) "$@"
@@ -1015,6 +1026,7 @@ help:
 	@echo -e "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
+	  make setup-hooks    configure local git hooks path (.githooks)\n\
 	  make update         update local repo and submodules (excludes buildroot)\n\
 	  make                build from scratch (clean + parallel) [DEFAULT]\n\
 	  make dev            serial build for debugging compilation errors\n\
@@ -1025,7 +1037,7 @@ help:
 	  make build-info     generate post-build graphs and package analysis\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
-	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
+	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\
@@ -1101,6 +1113,7 @@ show-vars:
 	@echo "THINGINO_USER_FRAGMENT_FILES = $(THINGINO_USER_FRAGMENT_FILES)";
 	@echo "THINGINO_USER_JSON_FILES = $(THINGINO_USER_JSON_FILES)";
 	@echo "THINGINO_USER_MOTORS_JSON_FILES = $(THINGINO_USER_MOTORS_JSON_FILES)";
+	@echo "THINGINO_USER_PRUDYNT_JSON_FILES = $(THINGINO_USER_PRUDYNT_JSON_FILES)";
 	@echo "THINGINO_USER_MK_FILES = $(THINGINO_USER_MK_FILES)";
 	@echo "THINGINO_USER_OPT_DIRS = $(THINGINO_USER_OPT_DIRS)";
 	@echo "THINGINO_USER_OVERLAY_DIRS = $(THINGINO_USER_OVERLAY_DIRS)";
