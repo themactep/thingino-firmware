@@ -24,13 +24,13 @@ require_tool() {
 
 parse_channel() {
 	case "$1" in
-		""|all)
+		"" | all)
 			echo "0 1"
 			;;
-		0|1)
+		0 | 1)
 			echo "$1"
 			;;
-		ch=0|ch=1)
+		ch=0 | ch=1)
 			echo "${1#ch=}"
 			;;
 		*)
@@ -50,14 +50,14 @@ send_privacy_fifo() {
 	fi
 
 	case "$channel" in
-		""|all)
-			printf "PRIVACY value=%s\n" "$state" > "$FIFO"
+		"" | all)
+			printf "PRIVACY value=%s\n" "$state" >"$FIFO"
 			;;
-		0|1)
-			printf "PRIVACY ch=%s value=%s\n" "$channel" "$state" > "$FIFO"
+		0 | 1)
+			printf "PRIVACY ch=%s value=%s\n" "$channel" "$state" >"$FIFO"
 			;;
-		ch=0|ch=1)
-			printf "PRIVACY %s value=%s\n" "$channel" "$state" > "$FIFO"
+		ch=0 | ch=1)
+			printf "PRIVACY %s value=%s\n" "$channel" "$state" >"$FIFO"
 			;;
 		*)
 			echo "error: invalid channel for FIFO: $channel" >&2
@@ -67,7 +67,7 @@ send_privacy_fifo() {
 }
 
 write_active_state() {
-	cat > "$ACTIVE_FILE" << EOF
+	cat >"$ACTIVE_FILE" <<EOF
 CH0_ACTIVE=$CH0_ACTIVE
 CH1_ACTIVE=$CH1_ACTIVE
 EOF
@@ -93,7 +93,7 @@ backup_runtime_state() {
 	FPS_1="$("$JCT" /etc/prudynt.json get stream1.fps)"
 	MIC_ENABLED="$("$JCT" /etc/prudynt.json get audio.mic_enabled)"
 
-	cat > "$STATE_FILE" << EOF
+	cat >"$STATE_FILE" <<EOF
 BITRATE_0=$BITRATE_0
 BITRATE_1=$BITRATE_1
 FPS_0=$FPS_0
