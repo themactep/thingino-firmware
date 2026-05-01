@@ -8,19 +8,39 @@ SLOW_CACHE_FILE="/tmp/heartbeat_slow_cache.json"
 UPDATE_INTERVAL=1
 SLOW_UPDATE_INTERVAL=15
 PIDFILE="/var/run/heartbeat-daemon.pid"
+PRUDYNT_BIN="/usr/bin/prudynt"
+PRUDYNT_PIDFILE="/run/prudynt.pid"
+
+prudynt_is_running() {
+	local pid
+
+	[ -r "$PRUDYNT_PIDFILE" ] || return 1
+	IFS= read -r pid <"$PRUDYNT_PIDFILE" || return 1
+	[ -n "$pid" ] || return 1
+	kill -0 "$pid" 2>/dev/null
+}
+
+cleanup_runtime() {
+	rm -f \
+		"$PIDFILE" \
+		"$FAST_CACHE_FILE" \
+		"$FAST_CACHE_FILE.tmp" \
+		"$SLOW_CACHE_FILE" \
+		"$SLOW_CACHE_FILE.tmp"
+}
 
 read_first_field() {
-  local value _
+	local value _
 
-  if read -r value _ < "$1"; then
-    printf '%s\n' "$value"
-  else
-    printf '%s\n' "$2"
-  fi
+	if [ -r "$1" ] && read -r value _ <"$1"; then
+		printf '%s\n' "$value"
+	else
+		printf '%s\n' "$2"
+	fi
 }
 
 parse_prudynt_data() {
-  printf '%s\n' "$1" | awk '
+	printf '%s\n' "$1" | awk '
     BEGIN {
       color_mode = "null"
       mic_enabled = "false"
@@ -52,123 +72,141 @@ parse_prudynt_data() {
 }
 
 start() {
-  if [ ! -f "/bin/prudynt" ]; then
-    echo "Prudynt not found. Existing"
-    return 0
-  fi
+	if [ ! -x "$PRUDYNT_BIN" ]; then
+		echo "Prudynt not found. Exiting"
+		cleanup_runtime
+		return 0
+	fi
 
-  if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
-    echo "Heartbeat daemon already running"
-    return 0
-  fi
+	if ! prudynt_is_running; then
+		echo "Prudynt is not running. Exiting"
+		cleanup_runtime
+		return 0
+	fi
 
-  echo "Starting heartbeat daemon..."
-  heartbeat_loop &
-  echo $! > "$PIDFILE"
+	if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+		echo "Heartbeat daemon already running"
+		return 0
+	fi
+
+	echo "Starting heartbeat daemon..."
+	heartbeat_loop &
+	echo $! >"$PIDFILE"
 }
 
 stop() {
-  if [ -f "$PIDFILE" ]; then
-    echo "Stopping heartbeat daemon..."
-    kill $(cat "$PIDFILE") 2>/dev/null
-    rm -f "$PIDFILE"
-  fi
+	if [ -f "$PIDFILE" ]; then
+		echo "Stopping heartbeat daemon..."
+		kill $(cat "$PIDFILE") 2>/dev/null
+	fi
+
+	cleanup_runtime
 }
 
 heartbeat_loop() {
-  slow_counter=0
+	slow_counter=0
 
-  while true; do
-    ch0_rec="false"; [ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
-    ch1_rec="false"; [ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
-    motion_enabled="false"; [ -f "/run/prudynt/motion.active" ] && motion_enabled="true"
-    privacy_enabled="false"; [ -f "/run/prudynt/privacy.active" ] && privacy_enabled="true"
+	while true; do
+		if ! prudynt_is_running; then
+			cleanup_runtime
+			exit 0
+		fi
 
-    # Single prudyntctl call
-    prudynt_data=$(prudyntctl json - 2>/dev/null <<'EOF'
+		ch0_rec="false"
+		[ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
+		ch1_rec="false"
+		[ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
+		motion_enabled="false"
+		[ -f "/run/prudynt/motion.active" ] && motion_enabled="true"
+		privacy_enabled="false"
+		[ -f "/run/prudynt/privacy.active" ] && privacy_enabled="true"
+
+		# Single prudyntctl call
+		prudynt_data=$(
+			prudyntctl json - 2>/dev/null <<'EOF'
 {
   "image": {"running_mode": null},
   "audio": {"mic_enabled": null, "spk_enabled": null},
   "daynight": {"status": null, "enabled": null}
 }
 EOF
-)
+		)
 
-    parsed_prudynt=$(parse_prudynt_data "$prudynt_data")
-    old_ifs=$IFS
-    set -f
-    IFS='|'
-    set -- $parsed_prudynt
-    IFS=$old_ifs
-    set +f
+		parsed_prudynt=$(parse_prudynt_data "$prudynt_data")
+		old_ifs=$IFS
+		set -f
+		IFS='|'
+		set -- $parsed_prudynt
+		IFS=$old_ifs
+		set +f
 
-    color_mode=${1:-null}
-    mic_enabled=${2:-false}
-    spk_enabled=${3:-false}
-    total_gain=${4:-0}
-    daynight_enabled=${5:-false}
+		color_mode=${1:-null}
+		mic_enabled=${2:-false}
+		spk_enabled=${3:-false}
+		total_gain=${4:-0}
+		daynight_enabled=${5:-false}
 
-    printf '{"time_now":%s,"daynight_brightness":"%s","total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s}' \
-      "$(date +%s)" \
-      "$(read_first_field /run/prudynt/daynight_brightness "unknown")" \
-      "$total_gain" \
-      "$(read_first_field /run/prudynt/daynight_mode "unknown")" \
-      "$ch0_rec" \
-      "$ch1_rec" \
-      "$motion_enabled" \
-      "$privacy_enabled" \
-      "${color_mode:-null}" \
-      "${mic_enabled:-false}" \
-      "${spk_enabled:-false}" \
-      "${daynight_enabled:-false}" > "$FAST_CACHE_FILE.tmp"
-    printf '\n' >> "$FAST_CACHE_FILE.tmp"
+		printf '{"time_now":%s,"daynight_brightness":"%s","total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s}' \
+			"$(date +%s)" \
+			"$(read_first_field /run/prudynt/daynight_brightness "unknown")" \
+			"$total_gain" \
+			"$(read_first_field /run/prudynt/daynight_mode "unknown")" \
+			"$ch0_rec" \
+			"$ch1_rec" \
+			"$motion_enabled" \
+			"$privacy_enabled" \
+			"${color_mode:-null}" \
+			"${mic_enabled:-false}" \
+			"${spk_enabled:-false}" \
+			"${daynight_enabled:-false}" >"$FAST_CACHE_FILE.tmp"
+		printf '\n' >>"$FAST_CACHE_FILE.tmp"
 
-    mv "$FAST_CACHE_FILE.tmp" "$FAST_CACHE_FILE"
+		mv "$FAST_CACHE_FILE.tmp" "$FAST_CACHE_FILE"
 
-    if [ "$slow_counter" -le 0 ]; then
-      ircut_state=$(ircut read 2>/dev/null || echo "null")
-      ir850_state=$(light ir850 read 2>/dev/null || echo "null")
-      ir940_state=$(light ir940 read 2>/dev/null || echo "null")
-      white_state=$(light white read 2>/dev/null || echo "null")
+		if [ "$slow_counter" -le 0 ]; then
+			ircut_state=$(ircut read 2>/dev/null || echo "null")
+			ir850_state=$(light ir850 read 2>/dev/null || echo "null")
+			ir940_state=$(light ir940 read 2>/dev/null || echo "null")
+			white_state=$(light white read 2>/dev/null || echo "null")
 
-      wg_status=0
-      if command -v wg >/dev/null 2>&1; then
-        case "$(wg show wg0 2>/dev/null)" in
-          *"latest handshake"*) wg_status=1 ;;
-        esac
-      fi
+			wg_status=0
+			if command -v wg >/dev/null 2>&1; then
+				case "$(wg show wg0 2>/dev/null)" in
+					*"latest handshake"*) wg_status=1 ;;
+				esac
+			fi
 
-      printf '{"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}' \
-        "${ircut_state}" \
-        "${ir850_state}" \
-        "${ir940_state}" \
-        "${white_state}" \
-        "$wg_status" > "$SLOW_CACHE_FILE.tmp"
-      printf '\n' >> "$SLOW_CACHE_FILE.tmp"
+			printf '{"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}' \
+				"${ircut_state}" \
+				"${ir850_state}" \
+				"${ir940_state}" \
+				"${white_state}" \
+				"$wg_status" >"$SLOW_CACHE_FILE.tmp"
+			printf '\n' >>"$SLOW_CACHE_FILE.tmp"
 
-      mv "$SLOW_CACHE_FILE.tmp" "$SLOW_CACHE_FILE"
-      slow_counter=$SLOW_UPDATE_INTERVAL
-    fi
+			mv "$SLOW_CACHE_FILE.tmp" "$SLOW_CACHE_FILE"
+			slow_counter=$SLOW_UPDATE_INTERVAL
+		fi
 
-    slow_counter=$((slow_counter - 1))
-    sleep "$UPDATE_INTERVAL"
-  done
+		slow_counter=$((slow_counter - 1))
+		sleep "$UPDATE_INTERVAL"
+	done
 }
 
 case "$1" in
-  start)
-    start
-    ;;
-  stop)
-    stop
-    ;;
-  restart)
-    stop
-    sleep 1
-    start
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|restart}"
-    exit 1
-    ;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
 esac
