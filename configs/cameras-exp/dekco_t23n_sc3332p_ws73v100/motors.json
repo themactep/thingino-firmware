@@ -1,9 +1,12 @@
 {
   "motors": {
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
     "is_spi": false,
-    "steps_pan": "5900",
-    "steps_tilt": "900",
     "speed_pan": "900",
-    "speed_tilt": "900"
+    "speed_tilt": "900",
+    "steps_pan": "5900",
+    "steps_tilt": "900"
   }
 }
