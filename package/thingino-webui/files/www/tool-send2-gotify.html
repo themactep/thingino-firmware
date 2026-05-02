@@ -62,18 +62,24 @@
                   <input type="text" class="form-control" id="gotify_title" name="gotify_title" placeholder="Thingino Camera">
                 </p>
                 <p>
-                  <label for="gotify_message">Message</label>
+                  <label for="gotify_message">Message Body</label>
                   <textarea class="form-control" id="gotify_message" name="gotify_message" rows="3" placeholder="Motion detected at %Y-%m-%d %H:%M:%S"></textarea>
                   <small class="form-text text-secondary">Supports strftime variables</small>
                 </p>
+                <p>
+                  <label for="gotify_extras">Extras JSON</label>
+                  <textarea class="form-control font-monospace" id="gotify_extras" name="gotify_extras" rows="5" placeholder='{"client::display":{"contentType":"text/plain"}}'></textarea>
+                  <small class="form-text text-secondary">Optional JSON object sent as Gotify extras.</small>
+                </p>
                 <p class="form-switch">
-                  <input type="checkbox" class="form-check-input" id="gotify_send_photo" name="gotify_send_photo">
+                  <input type="checkbox" class="form-check-input" id="gotify_send_photo" name="gotify_send_photo" disabled>
                   <label class="form-check-label" for="gotify_send_photo">Send photo attachment</label>
                 </p>
                 <p class="form-switch">
-                  <input type="checkbox" class="form-check-input" id="gotify_send_video" name="gotify_send_video">
+                  <input type="checkbox" class="form-check-input" id="gotify_send_video" name="gotify_send_video" disabled>
                   <label class="form-check-label" for="gotify_send_video">Send video attachment</label>
                 </p>
+                <p class="mb-0 text-secondary small">Media attachments are disabled because current Gotify releases do not persist per-message uploads.</p>
               </div>
             </div>
           </div>

@@ -15,13 +15,15 @@ Where:
 	-t token     Application token
 	-n title     Message title
 	-m message   Message body
+	-e json      Extras JSON object
 	-z N         Priority (0-10)
-	-f file      Attach file
-	-S           Send photo
-	-V           Send video
 	-v           Verbose output
 " >&2
 	exit 0
+}
+
+json_escape() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e ':a;N;$!ba;s/\n/\\n/g'
 }
 
 read_config() {
@@ -32,30 +34,23 @@ read_config() {
 	title=$(get_value title)
 	token=$(get_value token)
 	url=$(get_value url)
+	extras=$(get_value extras)
 }
 
 read_config
 
-while getopts f:m:n:t:u:vz:SV flag; do
+while getopts e:m:n:t:u:vz: flag; do
 	case "$flag" in
-		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
+		e) extras=$OPTARG ;;
 		m) message=$OPTARG ;;
 		n) title=$OPTARG ;;
 		t) token=$OPTARG ;;
 		u) url=$OPTARG ;;
 		v) verbose="true" ;;
 		z) priority=$OPTARG ;;
-		S) send_photo="true" ;;
-		V) send_video="true" ;;
 		*) show_help ;;
 	esac
 done
-
-# use config settings only if not set from command line
-if [ -z "$file" ] && [ "true" != "$send_photo" ] && [ "true" != "$send_video" ]; then
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
-fi
 
 if [ -z "$url" ]; then
 	echo_error "Gotify URL is not set"
@@ -79,48 +74,32 @@ fi
 
 endpoint="${url%/}/message?token=$token"
 
-# Gotify supports file attachment via multipart form-data.
-# We send one attachment with precedence: file > snapshot > video.
-attachment=""
-if [ -n "$file" ] && [ -f "$file" ]; then
-	attachment="$file"
-elif [ "true" = "$send_photo" ]; then
-	attachment=$(copy_photo)
-elif [ "true" = "$send_video" ]; then
-	attachment=$(copy_video)
-fi
+payload_file=$(mktemp)
+add_to_garbage "$payload_file"
+
+{
+	printf '{\n'
+	printf '  "title": "%s",\n' "$(json_escape "$title")"
+	printf '  "message": "%s",\n' "$(json_escape "$message")"
+	printf '  "priority": %s' "$priority"
+	if [ -n "$extras" ] && [ "$extras" != "null" ]; then
+		printf ',\n  "extras": %s' "$extras"
+	fi
+	printf '\n}\n'
+} > "$payload_file"
 
 if [ "true" = "$verbose" ]; then
-	if [ -n "$attachment" ]; then
-		echo_command "curl --request POST --url \"$endpoint\" --form \"title=$title\" --form \"message=$message\" --form \"priority=$priority\" --form \"file=@$attachment\""
-	else
-		echo_command "curl --request POST --url \"$endpoint\" --form \"title=$title\" --form \"message=$message\" --form \"priority=$priority\""
-	fi
+	debug_command="curl --request POST --url \"$endpoint\" --header 'Content-Type: application/json' --data-binary @$payload_file"
+	echo_command "$debug_command"
 fi
 
-if [ -n "$attachment" ]; then
-	if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 \
+if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 \
 		$curl_verbosity \
-		--request POST \
 		--url "$endpoint" \
-		--form "title=$title" \
-		--form "message=$message" \
-		--form "priority=$priority" \
-		--form "file=@$attachment" >/dev/null; then
-		echo_error "Failed to send Gotify message"
-		exit 1
-	fi
-else
-	if ! curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 \
-		$curl_verbosity \
-		--request POST \
-		--url "$endpoint" \
-		--form "title=$title" \
-		--form "message=$message" \
-		--form "priority=$priority" >/dev/null; then
-		echo_error "Failed to send Gotify message"
-		exit 1
-	fi
+		--header 'Content-Type: application/json' \
+		--data-binary "@$payload_file" >/dev/null; then
+	echo_error "Failed to send Gotify message"
+	exit 1
 fi
 
 exit 0
