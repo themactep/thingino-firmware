@@ -85,10 +85,10 @@ CAMERA_IP=$(ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") 
 CAMERA_ID=$(camera_id)
 
 expand_topic() {
-	printf '%s' "$1" \
-		| sed -e "s/%hostname/$CAMERA_HOSTNAME/g" \
-		      -e "s/%ip/$CAMERA_IP/g" \
-		      -e "s/%id/$CAMERA_ID/g"
+	printf '%s' "$1" |
+		sed -e "s/%hostname/$CAMERA_HOSTNAME/g" \
+			-e "s/%ip/$CAMERA_IP/g" \
+			-e "s/%id/$CAMERA_ID/g"
 }
 
 # Read broker settings
@@ -155,4 +155,3 @@ sh -c "$CMD" | while IFS= read -r line; do
 		j=$((j + 1))
 	done
 done
-
