@@ -4,16 +4,68 @@ DAEMON="thingino-agentd"
 PIDFILE="/run/thingino-agentd.pid"
 BOOTSTRAP_CONFIG="/etc/thingino-agent-bootstrap.json"
 
-. /usr/share/common
+DAEMON_FULL="/usr/sbin/thingino-agentd"
+DAEMON_ARGS=""
+DAEMON_SYSLOG="false"
+
+THINGINO_CONFIG="$THINGINO_CONFIG"
+
+echo_error() {
+	echo "$1" >&2
+}
+
+echo_info() {
+	echo "- $1" >&2
+}
+
+echo_title() {
+	echo "$1 ..." >&2
+}
+
+start_daemon() {
+	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
+		start-stop-daemon -b -S -m -p "$PIDFILE" -x "$DAEMON_FULL" -- $DAEMON_ARGS 2>&1
+	else
+		start-stop-daemon -b -S -m -x "$DAEMON_FULL" -- $DAEMON_ARGS 2>&1
+	fi
+	return $?
+}
+
+stop_daemon() {
+	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
+		echo "- Stopping $DAEMON by PID from $PIDFILE"
+		start-stop-daemon -K -p "$PIDFILE"
+		rm -f "$PIDFILE"
+	fi
+
+	sleep 0.2
+	if pidof "$DAEMON" >/dev/null 2>&1; then
+		echo "- Killing $DAEMON by name"
+		start-stop-daemon -K -n "$DAEMON"
+	fi
+
+	sleep 0.2
+	if pidof "$DAEMON" >/dev/null 2>&1; then
+		echo "- Killing $DAEMON by name"
+		start-stop-daemon -K -s SIGKILL -n "$DAEMON"
+	fi
+
+	sleep 0.2
+	if pidof "$DAEMON" >/dev/null 2>&1; then
+		echo "- Killing $DAEMON by full process name $DAEMON_FULL"
+		start-stop-daemon -K -x "$DAEMON_FULL"
+	fi
+	return 0
+}
 
 apply_bootstrap_config() {
 	if [ -f "$BOOTSTRAP_CONFIG" ] && command -v jct >/dev/null 2>&1; then
-		jct /etc/thingino.json import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1 || true
+		jct "$THINGINO_CONFIG" import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1 || true
 	fi
 }
 
 read_config() {
-	jct /etc/thingino.json get "$1" 2>/dev/null | tr -d '\n'
+	jct "$THINGINO_CONFIG" get "$1" 2>/dev/null | tr -d '\n'
 }
 
 read_config_text() {
@@ -114,7 +166,7 @@ start() {
 	fi
 
 	if [ "true" != "$(read_config agent.enabled)" ]; then
-		echo_info "Disabled"
+		echo_info "Disabled in $THINGINO_CONFIG"
 		return 0
 	fi
 
