@@ -44,6 +44,7 @@
     "token": "",
     "title": "Thingino Camera",
     "message": "Motion detected at %Y-%m-%d %H:%M:%S",
+    "extras": "",
     "priority": 5,
     "send_photo": false,
     "send_video": false
