@@ -31,7 +31,7 @@ current_codec() {
 
 require_integer() {
 	case "$2" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			echo "record: $1 must be a non-negative integer" >&2
 			exit 1
 			;;
@@ -48,7 +48,7 @@ while getopts "t:r:c:m:n:s:xh" opt; do
 	case "$opt" in
 		t) DURATION=$OPTARG ;;
 		r) RATE=$OPTARG ;;
-		c|m|n|s|x)
+		c | m | n | s | x)
 			echo "record: option -$opt is not supported by the raptor rac wrapper" >&2
 			exit 1
 			;;
@@ -94,7 +94,7 @@ fi
 
 LIVE_CODEC=$(current_codec || true)
 case "$LIVE_CODEC" in
-	aac|opus)
+	aac | opus)
 		echo "record: current raptor audio codec is $LIVE_CODEC" >&2
 		echo "record: this rac build records raw encoded $LIVE_CODEC frames, not PCM16" >&2
 		echo "record: switch raptor audio codec to l16/pcmu/pcma before using this wrapper" >&2

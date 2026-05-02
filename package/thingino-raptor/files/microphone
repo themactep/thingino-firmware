@@ -48,7 +48,7 @@ config_get() {
 
 config_bool() {
 	case "$(config_get "$1" "$2" | tr 'A-Z' 'a-z')" in
-		1|true|yes|on) printf 'true' ;;
+		1 | true | yes | on) printf 'true' ;;
 		*) printf 'false' ;;
 	esac
 }

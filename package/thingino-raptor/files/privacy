@@ -9,8 +9,7 @@ state=${1:-}
 channel=${2:-all}
 
 case "$state" in
-	on|off)
-		;;
+	on | off) ;;
 	*)
 		usage
 		exit 1

@@ -29,7 +29,7 @@ EOF
 
 require_integer() {
 	case "$2" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			echo "play: $1 must be a non-negative integer" >&2
 			exit 1
 			;;
@@ -62,7 +62,7 @@ while getopts "v:g:r:f:l:d:Ash" opt; do
 		g) GAIN=$OPTARG ;;
 		r) RATE=$OPTARG ;;
 		s) READ_STDIN=1 ;;
-		f|l|d|A)
+		f | l | d | A)
 			echo "play: option -$opt is not supported by the raptor rac wrapper" >&2
 			exit 1
 			;;
@@ -90,7 +90,7 @@ case "$PATH_ARG" in
 		echo "play: stop is not supported by the raptor rac wrapper" >&2
 		exit 1
 		;;
-	esac
+esac
 
 if [ -n "$VOL" ]; then
 	require_integer volume "$VOL"
