@@ -1,0 +1,11 @@
+config BR2_PACKAGE_LIBSRT
+	bool "libsrt"
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_MBEDTLS
+	help
+	  SRT (Secure Reliable Transport) is a UDP-based transport
+	  protocol for low-latency live video streaming with ARQ
+	  retransmission and AES encryption.
+
+	  https://github.com/Haivision/srt

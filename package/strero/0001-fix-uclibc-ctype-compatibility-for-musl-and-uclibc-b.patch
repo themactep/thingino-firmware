@@ -1,0 +1,151 @@
+From c978505ed77a9eb19f03d6175dcfaf3db59c0666 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 9 Apr 2026 21:30:42 -0400
+Subject: [PATCH] fix uclibc ctype compatibility for musl and uclibc builds
+
+- uclibc_musl_shim.c: add __ctype_b_loc() and __ctype_tolower_loc()
+  so Ingenic SDK libs compiled with uClibc (e.g. libalog.so) can find
+  these symbols at runtime when running under musl. Tables are built
+  using musl's own ctype functions with uClibc's bit layout.
+- glibc_uclibc_compat.c: fix __ctype_tolower_loc() return type from
+  'const short**' to 'const int32_t**' matching the actual glibc ABI.
+---
+ src/glibc_uclibc_compat.c | 19 +++++-----
+ src/uclibc_musl_shim.c    | 74 +++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 80 insertions(+), 13 deletions(-)
+
+diff --git a/src/glibc_uclibc_compat.c b/src/glibc_uclibc_compat.c
+index 64f93f8..c6ccaef 100644
+--- a/src/glibc_uclibc_compat.c
++++ b/src/glibc_uclibc_compat.c
+@@ -7,25 +7,22 @@
+  */
+ 
+ #include <ctype.h>
+-#include <stddef.h>
++#include <stdint.h>
+ 
+ /**
+  * glibc provides __ctype_b_loc() and __ctype_tolower_loc() functions
+  * that return pointers to ctype tables. uclibc doesn't have these.
+- * We need to provide compatible implementations.
++ * Provide compatible stubs so glibc-compiled libraries can run on uclibc.
+  */
+ 
+-/* uclibc ctype compatibility */
+-const unsigned short** __ctype_b_loc(void)
++const unsigned short **__ctype_b_loc(void)
+ {
+-    static const unsigned short* ctype_b = NULL;
+-    static const unsigned short** ctype_b_ptr = &ctype_b;
+-    return ctype_b_ptr;
++    static const unsigned short *ctype_b = NULL;
++    return (const unsigned short **)&ctype_b;
+ }
+ 
+-const int** __ctype_tolower_loc(void)
++const int32_t **__ctype_tolower_loc(void)
+ {
+-    static const int* ctype_tolower = NULL;
+-    static const int** ctype_tolower_ptr = &ctype_tolower;
+-    return ctype_tolower_ptr;
++    static const int32_t *ctype_tolower = NULL;
++    return (const int32_t **)&ctype_tolower;
+ }
+diff --git a/src/uclibc_musl_shim.c b/src/uclibc_musl_shim.c
+index 38f53a8..a6b49ed 100644
+--- a/src/uclibc_musl_shim.c
++++ b/src/uclibc_musl_shim.c
+@@ -10,13 +10,12 @@
+ 
+ #define _GNU_SOURCE
+ #include <sys/stat.h>
++#include <ctype.h>
+ #include <errno.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <unistd.h>
+ 
+-#include <sys/stat.h>
+-
+ /*
+  * uClibc uses stat64/lseek64 functions that don't exist in musl.
+  * In musl, the regular stat/lseek functions are already 64-bit capable.
+@@ -41,3 +40,74 @@ int lstat64(const char* pathname, struct stat* statbuf)
+ {
+     return lstat(pathname, statbuf);
+ }
++
++/*
++ * Ingenic SDK libraries compiled with uClibc call __ctype_b_loc() and
++ * __ctype_tolower_loc() for character classification and conversion.
++ * musl does not provide these glibc/uclibc-style _loc variants, so we
++ * build the tables here using musl's own ctype functions and uclibc's
++ * bit layout (little-endian: _ISbit(n) = 1 << n).
++ */
++
++/* uClibc ctype bit flags for little-endian MIPS */
++#define _UCLIBC_ISupper  0x0001
++#define _UCLIBC_ISlower  0x0002
++#define _UCLIBC_ISalpha  0x0004
++#define _UCLIBC_ISdigit  0x0008
++#define _UCLIBC_ISxdigit 0x0010
++#define _UCLIBC_ISspace  0x0020
++#define _UCLIBC_ISpunct  0x0040
++#define _UCLIBC_IScntrl  0x0080
++#define _UCLIBC_ISblank  0x0100
++#define _UCLIBC_ISprint  0x0200
++#define _UCLIBC_ISgraph  0x0400
++#define _UCLIBC_ISalnum  0x0800
++
++/* Tables cover indices -128..255 (384 entries); pointer starts at [128] */
++static unsigned short ctype_b_table[384];
++static int32_t ctype_tolower_table[384];
++
++static const unsigned short *ctype_b_ptr;
++static const int32_t *ctype_tolower_ptr;
++
++static void ctype_tables_init(void)
++{
++    for (int i = 0; i < 384; i++) {
++        int c = i - 128;
++        unsigned short flags = 0;
++        unsigned char uc = (unsigned char)c;
++
++        if (isupper(uc))  flags |= _UCLIBC_ISupper;
++        if (islower(uc))  flags |= _UCLIBC_ISlower;
++        if (isalpha(uc))  flags |= _UCLIBC_ISalpha;
++        if (isdigit(uc))  flags |= _UCLIBC_ISdigit;
++        if (isxdigit(uc)) flags |= _UCLIBC_ISxdigit;
++        if (isspace(uc))  flags |= _UCLIBC_ISspace;
++        if (ispunct(uc))  flags |= _UCLIBC_ISpunct;
++        if (iscntrl(uc))  flags |= _UCLIBC_IScntrl;
++        if (isblank(uc))  flags |= _UCLIBC_ISblank;
++        if (isprint(uc))  flags |= _UCLIBC_ISprint;
++        if (isgraph(uc))  flags |= _UCLIBC_ISgraph;
++        if (isalnum(uc))  flags |= _UCLIBC_ISalnum;
++
++        ctype_b_table[i] = flags;
++        ctype_tolower_table[i] = tolower(uc);
++    }
++
++    ctype_b_ptr = &ctype_b_table[128];
++    ctype_tolower_ptr = &ctype_tolower_table[128];
++}
++
++const unsigned short **__ctype_b_loc(void)
++{
++    if (!ctype_b_ptr)
++        ctype_tables_init();
++    return (const unsigned short **)&ctype_b_ptr;
++}
++
++const int32_t **__ctype_tolower_loc(void)
++{
++    if (!ctype_tolower_ptr)
++        ctype_tables_init();
++    return (const int32_t **)&ctype_tolower_ptr;
++}
+-- 
+2.47.3
+

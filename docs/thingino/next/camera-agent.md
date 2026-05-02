@@ -38,6 +38,7 @@ keep its own internals.
 ## Non-responsibilities
 
 - streaming video itself
+- being hosted inside a particular streamer process
 - rendering the main user interface
 - being a generic automation broker
 - implementing every compatibility protocol directly inside the streamer
@@ -45,6 +46,13 @@ keep its own internals.
 ## Local adapter model
 
 The agent should not reimplement streamer internals. It should adapt to them.
+
+That boundary matters: the canonical API must be served by the camera agent,
+not by prudynt, raptor, strero, or any other streamer-specific daemon.
+
+The streamer should expose only the local control primitives it already owns.
+The agent consumes those primitives through a thin adapter layer and presents a
+stable network contract above them.
 
 Examples of likely local adapters:
 
@@ -217,4 +225,4 @@ Preferred model:
 - hub can change at least image, motion, privacy, daynight, and stream bitrate
 - hub can trigger snapshot, clip, and reboot
 - hub receives live events without polling-heavy behavior
-- prudynt-backed cameras work without the camera-hosted web UI package
+- at least one production adapter works end-to-end without the camera-hosted web UI package

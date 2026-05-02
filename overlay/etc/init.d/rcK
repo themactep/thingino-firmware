@@ -2,14 +2,24 @@
 
 echo -c 196 -e "\n\nGoing to reboot!\n"
 
-# Kill watchdog to trigger hw timer
-/etc/init.d/K99watchdog kill
-
 # Run init scripts in the desired order: F, K, S with reversed numerical order within each group.
+# Skip K99watchdog — handled after sync so the hardware watchdog stays armed as a fallback.
 for letter in F K S; do
-	for i in $(find /etc/init.d/ -name "${letter}*" -executable | sort -r); do
+	for i in $(find /etc/init.d/ -name "${letter}*" -executable | grep -v 'K99watchdog' | sort -r); do
 		/bin/sh -c "$i stop"
 	done
 done
+
+sync
+
+# Kill watchdog with SIGKILL (NOT SIGTERM) so it cannot write the magic 'V'
+# that would disarm the hardware watchdog. The hardware timer then expires
+# within the configured timeout (default 60 s) and forces a hardware reset —
+# guaranteed fallback if the kernel reboot path hangs.
+WD_PID=$(cat /var/run/watchdog.pid 2>/dev/null)
+[ -n "$WD_PID" ] && kill -9 "$WD_PID" 2>/dev/null
+killall -9 watchdog 2>/dev/null || true
+
+reboot -f 2>/dev/null || echo b >/proc/sysrq-trigger 2>/dev/null
 
 exit 0

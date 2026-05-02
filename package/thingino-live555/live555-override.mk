@@ -61,7 +61,7 @@ override define LIVE555_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/liveMedia
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/UsageEnvironment
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/BasicUsageEnvironment
-	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC)), \
+	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC) $(BR2_PACKAGE_THINGINO_RAPTOR_RSD555)), \
 		cd $(@D)/groupsock && $(TARGET_AR) cr libgroupsock.a *.o && \
 		cd $(@D)/liveMedia && $(TARGET_AR) cr libliveMedia.a *.o && \
 		cd $(@D)/UsageEnvironment && $(TARGET_AR) cr libUsageEnvironment.a *.o && \
@@ -76,7 +76,7 @@ override define LIVE555_INSTALL_STAGING_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/liveMedia install
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/UsageEnvironment install
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/BasicUsageEnvironment install
-	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC)), \
+	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC) $(BR2_PACKAGE_THINGINO_RAPTOR_RSD555)), \
 		$(INSTALL) -D -m 0644 $(@D)/groupsock/libgroupsock.a $(STAGING_DIR)/usr/lib/libgroupsock.a && \
 		$(INSTALL) -D -m 0644 $(@D)/liveMedia/libliveMedia.a $(STAGING_DIR)/usr/lib/libliveMedia.a && \
 		$(INSTALL) -D -m 0644 $(@D)/UsageEnvironment/libUsageEnvironment.a $(STAGING_DIR)/usr/lib/libUsageEnvironment.a && \

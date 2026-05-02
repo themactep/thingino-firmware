@@ -127,6 +127,40 @@ Each subscription object:
 | `enabled` | bool    | Whether this subscription is active.                     |
 | `action`  | string  | Shell command to run on message receipt.                 |
 
+### Thingino hub pairing and control
+
+When a camera is managed by the Thingino hub, the camera should subscribe to
+the hub command topic and forward the raw JSON payload to
+`telegram-cam-agent` unchanged:
+
+```json
+{
+  "mqtt_sub": {
+    "enabled": true,
+    "host": "192.168.88.20",
+    "port": 1883,
+    "username": "",
+    "password": "",
+    "use_ssl": false,
+    "subscriptions": [
+      {
+        "topic": "thingino/cam/%id/cmd",
+        "qos": 1,
+        "enabled": true,
+        "action": "telegram-cam-agent \"$MQTT_PAYLOAD\""
+      }
+    ]
+  }
+}
+```
+
+This is the subscription the hub expects for MQTT-driven camera actions such as
+registration refresh, Telegram command routing, and agent bootstrap pairing.
+
+Important: keep the action exactly as shown above, including the inner quotes
+around `$MQTT_PAYLOAD`. The payload is JSON, and `telegram-cam-agent` expects
+to receive it as a single shell argument.
+
 
 ---
 

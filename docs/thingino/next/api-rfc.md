@@ -9,7 +9,8 @@ desktop hub and a camera.
 
 It is intentionally small. The goal is not to model every internal detail on
 day one, but to define a stable and practical contract that works across
-streamer backends.
+streamer backends without teaching every client to fetch or return giant mixed
+camera blobs.
 
 ## Design goals
 
@@ -18,6 +19,17 @@ streamer backends.
 - explicit about capability detection and partial support
 - versioned from the beginning
 - separate control from media transport
+- make narrow resource reads and writes the default
+- reserve full-document config reads for explicit tooling only
+
+## Response scope rule
+
+Only `GET /config` may return the full persisted configuration.
+
+All other endpoints must return only the local resource they own, or a mutation
+envelope for that local resource.
+
+The target request tree is defined in [request-tree.md](request-tree.md).
 
 ## Transport
 
@@ -105,81 +117,51 @@ Example:
 }
 ```
 
-### `GET /capabilities`
+### `GET /capabilities/*`
 
-Returns what the camera can actually do.
+Returns only the capability subtree the caller asked for.
+
+Examples:
+
+- `GET /capabilities/image`
+- `GET /capabilities/daynight`
+- `GET /capabilities/streams`
+
+`GET /capabilities` may exist temporarily for migration, but it should not stay
+the default read path for the hub or local UI.
 
 Example:
 
 ```json
 {
-  "streams": {
-    "count": 2,
-    "rtsp": true,
-    "webrtc": false,
-    "snapshot": true,
-    "clip_recording": true
-  },
-  "audio": {
-    "input": true,
-    "output": false
-  },
-  "ptz": {
-    "enabled": false
-  },
   "daynight": {
     "enabled": true,
     "modes": ["auto", "day", "night"]
-  },
-  "privacy": {
-    "enabled": true
-  },
-  "firmware": {
-    "upgrade": true
   }
 }
 ```
 
-### `GET /state`
+### `GET /runtime/*`
 
-Returns runtime state suitable for dashboards and operational views.
+Returns runtime state for the requested subsystem only.
+
+Examples:
+
+- `GET /runtime/motion`
+- `GET /runtime/daynight`
+- `GET /runtime/streams/0`
+
+`GET /state` may exist during migration, but it should be treated as a legacy
+bootstrap route rather than the normal control-plane read.
 
 Example:
 
 ```json
 {
-  "system": {
-    "uptime_seconds": 12345,
-    "temperature_c": 54.2,
-    "streamer_running": true
-  },
-  "network": {
-    "ip": "192.168.1.50",
-    "online": true
-  },
   "motion": {
     "enabled": true,
     "active": false
-  },
-  "daynight": {
-    "mode": "auto",
-    "running_mode": "day"
-  },
-  "privacy": {
-    "enabled": false
-  },
-  "streams": [
-    {
-      "id": 0,
-      "codec": "h264",
-      "bitrate": 2048000,
-      "fps": {
-        "num": 15,
-        "den": 1
-      },
-      "healthy": true
-    }
-  ]
+  }
 }
 ```
 
@@ -191,27 +173,28 @@ The configuration schema should map to stable Thingino concepts rather than raw
 backend internals. Backend-specific fields can exist under a namespaced escape
 hatch when unavoidable.
 
-### `PATCH /config`
+This is the only endpoint allowed to return the whole config tree.
 
-Applies a partial config update.
+### `GET /settings/*`
+
+Returns the narrow config subtree or single setting requested by the path.
+
+Examples:
+
+- `GET /settings/image/hflip`
+- `GET /settings/image/anti-flicker`
+- `GET /settings/daynight/force-mode`
+- `GET /settings/streams/0/bitrate`
+
+### `PATCH /settings/*`
+
+Applies a narrow config change to the requested resource.
 
 Request example:
 
 ```json
 {
-  "image": {
-    "brightness": 128,
-    "anti_flicker": 1
-  },
-  "motion": {
-    "enabled": true
-  },
-  "streams": [
-    {
-      "id": 0,
-      "bitrate": 3072000
-    }
-  ]
+  "hflip": true
 }
 ```
 
@@ -221,15 +204,24 @@ Response example:
 {
   "status": "accepted",
   "applied": [
-    "image.brightness",
-    "image.anti_flicker",
-    "motion.enabled",
-    "streams[0].bitrate"
+    "settings.image.hflip"
   ],
   "staged": [],
   "restart_required": []
 }
 ```
+
+### `PATCH /config`
+
+Bulk patching the full config document should not be the default UI write path.
+
+If it exists during migration, scope it to:
+
+- config import and restore
+- advanced tooling
+- explicit administrative use
+
+Normal controls should use `PATCH /settings/*`.
 
 ## Actions
 

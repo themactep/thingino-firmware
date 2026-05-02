@@ -78,6 +78,122 @@ function decodeBase64String(encoded) {
   }
 }
 
+function agentApiUrl(path) {
+  const rawPath = String(path || "");
+  const normalized = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const queryIndex = normalized.indexOf("?");
+  const agentPath =
+    queryIndex >= 0 ? normalized.slice(0, queryIndex) : normalized;
+  const query = queryIndex >= 0 ? normalized.slice(queryIndex + 1) : "";
+  const params = new URLSearchParams(query);
+  params.set("agent_path", agentPath);
+  return `/x/agent.cgi?${params.toString()}`;
+}
+
+if (typeof window !== "undefined") {
+  window.agentApiUrl = agentApiUrl;
+}
+
+const AgentConfigCache = {
+  pending: null,
+  value: null,
+  fetchedAt: 0,
+};
+
+function invalidateAgentConfigCache() {
+  AgentConfigCache.pending = null;
+  AgentConfigCache.value = null;
+  AgentConfigCache.fetchedAt = 0;
+}
+
+async function getAgentConfig(options = {}) {
+  const { force = false, maxAgeMs = 3000 } = options;
+  const now = Date.now();
+  if (
+    !force &&
+    AgentConfigCache.value &&
+    now - AgentConfigCache.fetchedAt <= maxAgeMs
+  ) {
+    return AgentConfigCache.value;
+  }
+  if (!force && AgentConfigCache.pending) {
+    return AgentConfigCache.pending;
+  }
+
+  AgentConfigCache.pending = agentJsonRequest("/api/v1/config", {
+    cache: "no-store",
+  })
+    .then((payload) => {
+      AgentConfigCache.value = payload;
+      AgentConfigCache.fetchedAt = Date.now();
+      return payload;
+    })
+    .finally(() => {
+      AgentConfigCache.pending = null;
+    });
+
+  return AgentConfigCache.pending;
+}
+
+if (typeof window !== "undefined") {
+  window.getThinginoAgentConfig = getAgentConfig;
+  window.invalidateThinginoAgentConfig = invalidateAgentConfigCache;
+}
+
+function isPreviewBootPending() {
+  return (
+    typeof document !== "undefined" &&
+    document.body &&
+    document.body.id === "page-preview" &&
+    typeof window !== "undefined" &&
+    window.__thinginoPreviewBootPending === true
+  );
+}
+
+async function agentJsonRequest(path, options = {}) {
+  const requestOptions = { ...options };
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Accept", "application/json");
+
+  if (requestOptions.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+    requestOptions.body = JSON.stringify(requestOptions.body);
+  }
+
+  requestOptions.headers = headers;
+
+  const response = await fetch(agentApiUrl(path), requestOptions);
+  const text = await response.text();
+  const trimmedText = text ? text.trim() : "";
+  let payload = null;
+
+  if (trimmedText) {
+    try {
+      payload = JSON.parse(trimmedText);
+    } catch (_err) {
+      payload = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (payload && payload.error && payload.error.message) ||
+      (payload && payload.message) ||
+      (trimmedText && trimmedText.length <= 200 ? trimmedText : null) ||
+      `HTTP error ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.body = trimmedText;
+    throw error;
+  }
+
+  return payload;
+}
+
+function clearPendingButton(button) {
+  if (button) button.classList.remove("pending");
+}
+
 function hideDebugModal(ctx = debugModalCtx) {
   if (!ctx) return;
   if (ctx.modalInstance) {
@@ -1468,6 +1584,121 @@ function buildSendModalGrid() {
   const grid = $("#send-modal-grid");
   if (!grid) return;
 
+  const triggerBlobDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const resolveSnapshotStreamEnabled = (mediaConfig, streamKey) => {
+    const streams =
+      mediaConfig && typeof mediaConfig === "object"
+        ? mediaConfig.streams
+        : null;
+    if (!streams || typeof streams !== "object") {
+      return true;
+    }
+
+    const altStreamKey = streamKey === "ch0" ? "stream0" : "stream1";
+    const stream = streams[streamKey] || streams[altStreamKey] || null;
+    if (!stream || typeof stream !== "object") {
+      return false;
+    }
+
+    if (stream.available === false || stream.enabled === false) {
+      return false;
+    }
+
+    if (stream.snapshot_url === "" || stream.snapshot_url === null) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const setDownloadLinkEnabled = (link, enabled, unavailableMessage) => {
+    link.dataset.disabled = enabled ? "false" : "true";
+    link.classList.toggle("disabled", !enabled);
+    link.setAttribute("aria-disabled", enabled ? "false" : "true");
+    if (enabled) {
+      link.removeAttribute("tabindex");
+      link.title = link.dataset.enabledTitle || "Download snapshot";
+      return;
+    }
+    link.setAttribute("tabindex", "-1");
+    link.title = unavailableMessage;
+  };
+
+  const downloadSnapshot = async (streamId, fallbackUrl, triggerEl) => {
+    const button = triggerEl;
+    if (button) {
+      button.classList.add("disabled");
+      button.setAttribute("aria-disabled", "true");
+    }
+    try {
+      const response = await fetch(
+        agentApiUrl(`/api/v1/actions/snapshot?stream_id=${streamId}`),
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Accept: "image/jpeg, application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob || blob.size <= 0) {
+        throw new Error("empty snapshot response");
+      }
+
+      const contentType = String(blob.type || "").toLowerCase();
+      if (
+        contentType.includes("application/json") ||
+        contentType.startsWith("text/")
+      ) {
+        throw new Error(
+          `unexpected snapshot content type: ${contentType || "unknown"}`,
+        );
+      }
+
+      const stamp = new Date().toISOString().replace(/[.:]/g, "-");
+      triggerBlobDownload(blob, `snapshot-ch${streamId}-${stamp}.jpg`);
+    } catch (error) {
+      if (
+        typeof console !== "undefined" &&
+        typeof console.warn === "function"
+      ) {
+        console.warn(
+          "Agent snapshot download failed, falling back to legacy URL",
+          error,
+        );
+      }
+      if (typeof showAlert === "function") {
+        showAlert(
+          "warning",
+          "Agent snapshot download failed. Falling back to legacy snapshot endpoint.",
+          5000,
+        );
+      }
+      window.open(fallbackUrl, "_blank", "noopener");
+    } finally {
+      if (button) {
+        button.classList.remove("disabled");
+        button.removeAttribute("aria-disabled");
+      }
+    }
+  };
+
   const createIcon = (className) => {
     const icon = document.createElement("i");
     icon.className = className;
@@ -1530,22 +1761,81 @@ function buildSendModalGrid() {
 
   const downloadLinkCh0 = document.createElement("a");
   downloadLinkCh0.className = "btn btn-secondary w-100 text-start";
-  downloadLinkCh0.href = "/x/dl0.jpg";
+  downloadLinkCh0.href = "#";
   downloadLinkCh0.target = "_blank";
   downloadLinkCh0.title = "Download main stream";
+  downloadLinkCh0.dataset.enabledTitle = "Download main stream";
   downloadLinkCh0.appendChild(createIcon("bi bi-download"));
   downloadLinkCh0.appendChild(document.createTextNode(" Download Ch0"));
+  downloadLinkCh0.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (downloadLinkCh0.dataset.disabled === "true") {
+      if (typeof showAlert === "function") {
+        showAlert(
+          "info",
+          "Download Ch0 is unavailable for this camera stream.",
+          3500,
+        );
+      }
+      return;
+    }
+    downloadSnapshot(0, "/x/dl0.jpg", downloadLinkCh0);
+  });
   downloadGroup.appendChild(downloadLinkCh0);
 
   const downloadLinkCh1 = document.createElement("a");
   downloadLinkCh1.className = "btn btn-secondary w-100 text-start";
-  downloadLinkCh1.href = "/x/dl1.jpg";
+  downloadLinkCh1.href = "#";
   downloadLinkCh1.target = "_blank";
   downloadLinkCh1.download = "ch1-snapshot.jpg";
   downloadLinkCh1.title = "Download substream";
+  downloadLinkCh1.dataset.enabledTitle = "Download substream";
   downloadLinkCh1.appendChild(createIcon("bi bi-download"));
   downloadLinkCh1.appendChild(document.createTextNode(" Download Ch1"));
+  downloadLinkCh1.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (downloadLinkCh1.dataset.disabled === "true") {
+      if (typeof showAlert === "function") {
+        showAlert(
+          "info",
+          "Download Ch1 is unavailable for this camera stream.",
+          3500,
+        );
+      }
+      return;
+    }
+    downloadSnapshot(1, "/x/dl1.jpg", downloadLinkCh1);
+  });
   downloadGroup.appendChild(downloadLinkCh1);
+
+  agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
+    .then((mediaConfig) => {
+      const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
+      const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
+      setDownloadLinkEnabled(
+        downloadLinkCh0,
+        ch0Enabled,
+        "Download main stream is not available on this camera.",
+      );
+      setDownloadLinkEnabled(
+        downloadLinkCh1,
+        ch1Enabled,
+        "Download substream is not available on this camera.",
+      );
+    })
+    .catch((error) => {
+      if (
+        typeof console !== "undefined" &&
+        typeof console.warn === "function"
+      ) {
+        console.warn(
+          "Could not load media capabilities for send modal downloads",
+          error,
+        );
+      }
+      setDownloadLinkEnabled(downloadLinkCh0, true, "");
+      setDownloadLinkEnabled(downloadLinkCh1, true, "");
+    });
 
   downloadCol.appendChild(downloadGroup);
   grid.appendChild(downloadCol);

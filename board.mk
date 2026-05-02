@@ -11,8 +11,8 @@ ifeq ($(CURRENT_TARGETS),)
 CURRENT_TARGETS := all
 endif
 
-# Check if any current target is in the exempted list
-SKIP_CAMERA_SELECTION := $(strip $(foreach target,$(CURRENT_TARGETS),$(filter $(target),$(NOCAMERA_TARGETS))))
+# Skip camera selection only if ALL current targets are exempted (no target needs camera)
+SKIP_CAMERA_SELECTION := $(if $(filter-out $(NOCAMERA_TARGETS),$(CURRENT_TARGETS)),,yes)
 
 # If target is normally skipped but CAMERA was explicitly provided, honor it
 ifneq ($(SKIP_CAMERA_SELECTION),)

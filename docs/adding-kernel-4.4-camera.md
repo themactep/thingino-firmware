@@ -137,7 +137,7 @@ Create `brand_model_soc_sensor_wifi_defconfig`:
 
 ```bash
 # NAME: Brand Model (SOC, Sensor, WiFi)
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 toolchain core ssl
 
 # ISP Clock settings (adjust for your SOC)
 BR2_ISP_CLK_200MHZ=y

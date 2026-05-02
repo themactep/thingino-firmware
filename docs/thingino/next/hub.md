@@ -2,6 +2,8 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 The desktop hub is the primary monitoring and configuration surface for Thingino
@@ -19,6 +21,30 @@ Current characteristics:
 - camera roster, camera detail, and config pages
 - ONVIF device detail fetches for identity metadata
 - snapshot preview caching and camera registration state
+- native camera-agent client support with `/api/v1` defaults
+- self-signed HTTPS camera-agent support for remote TLS endpoints
+- database-backed action and coarse state history views
+- camera detail quick controls for native motion, privacy, day/night, image, stream, and send2 settings
+
+Recent implementation progress:
+
+- camera detail pages now render from cached supported-controls data instead of blocking on live native capability or config reads
+- quick controls now use narrow responses instead of full camera payloads where possible
+- manual refresh actions now queue work and acknowledge immediately instead of blocking the page
+- feedback for quick actions now floats above the page instead of shifting layout
+- live fleet events now have a dedicated `/events` page sourced from hub actions, MQTT registrations, and native camera-agent `/events`
+- runtime status cards now have a dedicated `/status` page instead of sharing the roster dashboard
+- dashboard now supports first-pass bulk actions for queued refreshes, rescans, and streaming service controls across selected cameras
+- dashboard bulk actions now persist per-camera results through redirect and expose retry controls for failed rows instead of only a summary flash
+- guided enrollment now lives on a dedicated `/enroll` page with a primary credentials-first connect flow
+- the hub now resolves the authoritative roster identity from discovery instead of asking the operator to type a camera ID during enrollment
+- pairing and connect flows can now repair camera-side MQTT command subscriptions, preserve a camera-reachable broker host, install the bootstrap over MQTT, and save the resulting native API token back into hub state
+- camera detail pages now expose direct `Connect to Hub` and `Pair` actions plus a copyable OTA rebuild command for the exact image and camera IP
+- camera pages now present setup as an explicit four-rung ladder: present on MQTT broker, has agent capability, registered on hub, paired
+- the normal per-camera workflow is now split into dedicated Camera, Info and ONVIF, Settings, Send2, Overrides, Native Actions, History, and Expert Config pages instead of one mixed detail surface
+- the hub now tolerates transient short native API reads instead of immediately collapsing a paired camera back to offline status during healthy-but-busy camera responses
+- partial override saves now preserve unrelated auth and token fields so editing a display name or another single override no longer breaks API access
+- camera history pages now include explicit config-change audit entries for native config writes, send2 writes, hub override saves, and enrollment updates
 
 This matters because the new architecture does not start from zero. The current
 hub should be treated as the first desktop control plane component and expanded
@@ -58,6 +84,10 @@ As the hub matures, this should include a local historical store for trend and
 timeline analysis. That store belongs in the hub because it is expensive in
 storage terms and does not help the camera do its primary job.
 
+That history store is no longer hypothetical; a first SQLite-backed action and
+coarse-state history layer already exists and should continue to grow only as a
+downstream analytics path.
+
 ## Camera relationship model
 
 The hub should treat each camera as an independently versioned device exposing a
@@ -74,6 +104,11 @@ Important rule: the hub must consume capabilities, not assumptions.
 - event feed
 - firmware version visibility
 - bulk operations for safe common settings
+
+Current near-term priorities:
+
+- keep reducing operator-visible friction in first-connect and recovery flows so probe and pairing details stay advanced tools instead of the main workflow
+- reduce remaining dependency on slow or broad reads such as send2 overview fetches when they become the next bottleneck
 
 For the existing hub, phase-one evolution should focus on adding Thingino API
 client capabilities next to the current MQTT and ONVIF logic.
@@ -144,6 +179,8 @@ Recommended safeguards:
 - simple bulk changes with preview
 - clear distinction between live state and saved config
 - no requirement to open the camera-hosted UI for normal operations
+- autodiscovery plus one obvious connect action using valid credentials for the normal path
+- setup state should be legible as a monotonic ladder rather than inferred from mixed symptoms such as probe freshness or page-specific control failures
 
 ## Deferred ideas
 
@@ -195,3 +232,8 @@ Recommended order:
 - move snapshot fetches to the canonical API when available
 
 This lets the hub remain useful while the camera-side service is being built.
+
+In practice this integration has already started and is now the active development phase.
+The next phase for development is still Phase 2: complete the hub as the normal
+management surface before expanding Phase 2a beyond its current lightweight
+history foundation.

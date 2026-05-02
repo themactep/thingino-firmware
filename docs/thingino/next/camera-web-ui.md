@@ -35,12 +35,25 @@ It should not be required for normal Thingino operation.
 If the camera UI exists, it should consume the same canonical camera agent API
 as the desktop hub. It should not call private streamer internals directly.
 
+More specifically:
+
+- normal controls must use narrow `/settings/*`, `/runtime/*`, and `/actions/*`
+	routes
+- the UI must not depend on bulk mixed camera payloads after every write
+- `GET /config` is reserved for explicit full-config views such as export,
+	import review, and advanced debugging
+
 ## Benefits
 
 - less duplicated logic
 - easier maintenance
 - consistent behavior between hub and local UI
 - simpler path to remove streamer-specific assumptions
+
+The desktop hub is already moving in this direction. The current operator flow is
+now centered on dedicated hub pages for camera controls, settings, send2,
+history, and recovery, with setup rendered as an explicit ladder instead of a
+page-specific collection of warnings.
 
 ## Packaging direction
 
@@ -56,6 +69,9 @@ Good candidates:
 - network diagnostics
 - basic camera info
 - minimal controls for image, motion, privacy, reboot
+- explicit config export and advanced debug view backed by `GET /config`
+- a last-resort local recovery surface when the hub cannot yet complete the
+	connect or pair flow
 
 Poor candidates:
 
@@ -63,6 +79,8 @@ Poor candidates:
 - multi-camera views
 - bulk editing workflows
 - heavy historical analytics
+- being the place where normal send2 routing or long-term configuration is
+	managed once the hub is available
 
 ## Exit criteria
 

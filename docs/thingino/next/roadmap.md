@@ -2,26 +2,86 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 This file turns the architecture into a sequence of work that can be reviewed,
 reassessed, and changed as implementation teaches us more.
 
-## Phase 1: Canonical camera API on prudynt-backed cameras
+## Phase 1: Streamer-agnostic camera agent with first adapter
 
-Goal: make one streamer backend controllable through a stable network API.
+Goal: make the canonical camera API independent from streamer ownership while
+proving it with a first backend adapter.
 
 Deliverables:
 
 - camera agent service exists
-- local prudynt adapter exists
-- API can expose capabilities, runtime state, and persisted config
+- API is served by the agent, not by a streamer-specific daemon
+- local prudynt adapter exists as the first backend glue layer
+- API request tree is split into narrow metadata, capability, runtime, settings,
+	and action resources
+- `GET /config` is the only full-config endpoint
+- API can expose capabilities, runtime state, and persisted config without
+	returning full camera blobs from routine writes
 - API supports a small set of actions: snapshot, clip, reboot, restart streamer
 - SSE event stream exists
+
+Current phase 1 status:
+
+- implemented in tree
+	- `package/thingino-agent` package exists
+	- agent core and adapter split exists
+	- prudynt adapter exists
+	- managed local-only listener lifecycle exists through `thingino-agentd` and `S95thingino-agent`
+	- compatibility routes exist
+	- narrow `/capabilities/*`, `/runtime/*`, and `/settings/*` routes now cover image, motion tuning, daynight, privacy, services, firmware, most first-pass stream controls, richer system runtime, network, and streaming service runtime
+	- `/health` exists
+	- `/events` and `/config/schema` exist
+	- narrow `PATCH` support now exists for stream `format` and `mode`
+	- first narrow stream OSD settings now exist for `osd/enabled`, `osd/time/enabled`, `osd/usertext/enabled`, and `osd/usertext/format`
+	- second narrow stream OSD settings now exist for `osd/time/format`, `osd/uptime/enabled`, and `osd/uptime/format`
+	- third narrow stream OSD settings now exist for `osd/brightness/enabled` and `osd/brightness/format`
+	- the remaining prudynt-backed OSD leaf settings now exist for top-level OSD controls plus the rest of the `brightness`, `time`, `uptime`, `usertext`, `logo`, and `privacy` trees on streams `0` and `1`
+	- first storage settings now exist for `storage/autostart`, `storage/channel`, `storage/device-path`, `storage/duration`, `storage/filename`, and `storage/mount`, with runtime storage exposed at `runtime/storage`
+	- first recorder runtime now exists at `runtime/recording`, reporting configured recorder defaults plus active clip state when prudynt exposes an active marker
+	- richer stream runtime now exists at `runtime/streams/{id}`, reporting stream fields plus RTSP listener state and per-stream recording activity
+	- first firmware lifecycle runtime now exists at `runtime/firmware`, reporting upgrade support, pending upgrade markers, and sysupgrade boot completion state
+	- first narrow send2 settings now exist for motion output enables and per-service `send_photo` or `send_video` flags, with `capabilities/send2` exposed through the agent-owned route tree
+	- snapshot, clip, privacy, daynight, reboot, and streamer service control paths exist
+	- managed listener lifecycle was live-validated on the flashed image through `127.0.0.1:1998`
+	- native local listener transport now exists for non-TLS mode, and the known local API tree is now daemon-owned end to end
+	- live validation proved representative native ownership first by removing selected runtime, settings, and action CGI files, and then by removing the remaining top-level route scripts plus `resource.cgi` while representative top-level, runtime, settings, schema, and SSE requests still passed through the daemon
+	- rebuilt image validation confirmed the in-image listener path end to end in both modes: native non-TLS on `127.0.0.1:1998/api/v1/*`, and TLS through the in-package mbedTLS proxy on `1998` forwarding to a loopback native backend listener, then restored the default disabled state afterward
+	- rebuilt live-camera validation now confirms the canonical served path is `/api/v1/*`: representative `/api/v1/device` requests return `200` in both native and TLS-proxy modes, while the retired `/x/api/v1/device` path returns `404`, then the default disabled state is restored afterward
+	- remote HTTPS listener exposure now works through the in-package mbedTLS proxy when explicitly enabled, and live validation now confirms remote non-TLS binds are rejected, remote TLS binds without `agent.token` are rejected, and authenticated remote HTTPS requests succeed when `agent.tls=true`, `agent.listen=0.0.0.0`, and `agent.token` is configured
+	- live validation now also confirms the stop or restart path cleans up prefork TLS proxy workers and the loopback backend listener cleanly before restoring the default disabled state
+	- hot validation confirmed agent-owned typed SSE events and machine-readable schema output on the live camera, including motion edges, recording completion, firmware pending transitions, health warnings, and streamer restart lifecycle
+	- rebuilt image validation confirmed the in-image `/events` and `/config/schema` paths end to end and restored the default disabled state afterward
+	- hot validation confirmed representative stream `format` and `mode` writes through the managed listener and restored the original values afterward
+	- hot validation confirmed representative OSD reads and writes through the managed listener and restored the original values afterward
+	- hot validation confirmed representative second-slice OSD reads and writes through the managed listener and restored the original values afterward
+	- hot validation confirmed representative third-slice OSD brightness reads and writes through the managed listener and restored the original values afterward
+	- hot validation confirmed representative remaining OSD leaf reads and writes through the managed listener, including top-level OSD, nested text position, and logo transparency paths, then restored the original values afterward
+	- hot validation confirmed representative storage reads and writes for `duration` and `mount`, plus runtime storage reporting against `/mnt/nfs`, then restored the original values afterward
+	- hot validation confirmed `runtime/recording` in both idle and active short-clip states, then restored the default disabled listener state afterward
+	- hot validation confirmed richer `runtime/streams/{id}` payloads directly and through the managed listener, and fixed aggregate `/runtime` stream entries to return runtime objects instead of stream config objects
+	- hot validation confirmed `runtime/firmware` in default idle state and with a simulated pending partial-upgrade marker, then restored the default disabled listener state afterward
+	- hot validation confirmed richer `runtime/system` and `health` payloads with load-average and memory fields from `/proc`, then restored the default disabled listener state afterward
+	- hot validation confirmed representative send2 capability reads plus send2 setting reads and writes through the managed listener and restored the original values afterward
+	- hot validation confirmed representative services and firmware capability reads through the managed listener
+	- corrected full-image OTA validation now confirms the running device hashes match the rebuilt target for `thingino-agentctl`, `lib.sh`, and the prudynt adapter, and revalidates representative stream, OSD, storage, send2, runtime, health, schema, and SSE hello behavior on the flashed image before restoring the default disabled listener state
+- partially implemented
+	- bulk `PATCH /config` remains for migration
+- not implemented yet
+	- additional backend adapters
 
 Review questions:
 
 - is the API small enough to stay stable
+- did we keep the northbound API independent from streamer process boundaries
+- are narrow resource endpoints sufficient for normal hub and UI flows
+- did we keep `GET /config` exceptional instead of making it the default read path
 - are we exposing the right capability model
 - are config writes clear about live apply versus restart required
 - is the camera footprint acceptable
@@ -38,6 +98,29 @@ Deliverables:
 - event feed
 - basic bulk operations
 - initial persistent history store for action logs and coarse state samples
+
+Current phase 2 status:
+
+- implemented in tree
+	- hub defaults now target the canonical `/api/v1` path instead of the retired `/x/api/v1` path
+	- hub-native API access now accepts self-signed HTTPS camera-agent endpoints so remote TLS exposure can be the normal camera-to-hub path
+	- camera registration now works end to end against remote HTTPS agent exposure with token auth on the live validation camera
+	- camera roster and detail views now survive native snapshot truncation by falling back to the raw snapshot URL instead of falsely marking cameras offline
+	- camera capability parsing now matches the current native agent schema for top-level `image`, `motion`, `daynight`, and `privacy` capability trees plus `backend.raw` config payloads
+	- camera detail pages now render from cached supported-controls data instead of blocking on live native capability, config, and state reads during page load
+	- quick controls for motion, privacy, anti-flicker, and day or night now return narrow deltas instead of full camera objects
+	- manual camera-page refresh actions for snapshot, native API, and ONVIF now queue background work and acknowledge immediately instead of blocking the page
+	- camera detail feedback now uses a floating toast so action notifications do not shift the page layout
+	- local history view exists with database-backed native action events and coarse state samples
+	- dashboard now includes a live event feed driven from hub actions, MQTT registrations, and native camera-agent `/events` subscriptions
+	- dashboard now supports first-pass bulk camera operations for queued refreshes, rescans, and streaming service actions
+	- dashboard now supports first-pass enrollment that writes static camera entries and immediately queues refresh or hydration work
+	- enrollment now includes a guided probe path with duplicate-IP detection plus immediate native API and ONVIF validation before save
+	- enrollment now also supports token handoff by generating a pairing bundle with a bearer token, `/etc/thingino-agent-bootstrap.json` payload, and exact `jct` or restart commands for the camera
+- partially implemented
+	- enrollment is now guided, validated, and can hand off a token plus bootstrap payload, but it is still a lightweight operator-assisted form rather than a fuller trust-onboarding workflow
+- not implemented yet
+	- deeper pairing features such as trust bootstrap beyond token handoff, camera-side token install automation, or duplicate-resolution guidance
 
 Review questions:
 
@@ -58,6 +141,19 @@ Deliverables:
 - state samples for key graphable fields
 - config change records or diffs
 - first timeline and graph views in the hub UI
+
+Current phase 2a status:
+
+- implemented in tree
+	- SQLite-backed history store exists in the hub
+	- native action history is recorded and shown on camera detail pages and history pages
+	- coarse probe or state samples exist for API probes and snapshot or probe status
+	- explicit config-change records now exist for native config patches, send2 writes, hub override saves, and enrollment changes, and those records are shown on camera history pages
+- partially implemented
+	- timeline view exists, but graph views are still absent
+	- state sampling is useful for coarse diagnosis but not yet broad enough for trend analysis across more camera subsystems
+- not implemented yet
+	- graph views for sampled state
 
 Review questions:
 
@@ -118,6 +214,12 @@ Review questions:
 - remote access productization
 
 These should stay deferred until the local network architecture works well.
+
+## Next recommended work
+
+- add richer per-camera result rendering and retry affordances for dashboard bulk actions
+- extend pairing beyond operator-assisted token handoff into fuller trust bootstrap or camera-side token install automation for first-time camera adoption
+- add lightweight graph views for the normalized history data that already exists
 
 ## Reassessment checklist
 

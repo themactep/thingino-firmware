@@ -2,10 +2,22 @@
 
 die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
 
-[ "$#" -ne 2 ] && die "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
+FORCE=0
+SKIP_SPACE_CHECK=0
+while getopts "fn" opt; do
+	case "$opt" in
+		f) FORCE=1 ;;
+		n) SKIP_SPACE_CHECK=1 ;;
+		*) die "Usage: $0 [-f] [-n] FIRMWARE_FILE IP_ADDRESS" ;;
+	esac
+done
+shift $((OPTIND - 1))
+
+[ "$#" -ne 2 ] && die "Usage: $0 [-f] [-n] FIRMWARE_FILE IP_ADDRESS"
 
 cleanup() {
-	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null;
+	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
+	printf '\033[0m' 2>/dev/null || true
 }
 
 remote_copy() {
@@ -153,7 +165,7 @@ check_and_free_space() {
 	[ "$retries" -eq 0 ] && die "Device did not come back online after memory remap reboot."
 
 	echo "Device is back online with remapped memory. Re-initializing SSH mux..."
-	ssh -fN $SSH_OPTS $REMOTE_HOST || die "Failed to re-initialize SSH connection after reboot"
+	ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || die "Failed to re-initialize SSH connection after reboot"
 
 	echo "Re-uploading sysupgrade utility (tmpfs was cleared on reboot)..."
 	upload_sysupgrade
@@ -194,7 +206,7 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o UserKnownHostsFile=/dev/null"
 
 echo "Initializing SSH connection to $REMOTE_HOST..."
-ssh -fN $SSH_OPTS $REMOTE_HOST || \
+ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
 	die "Failed to initialize ssh connection"
 
 echo "SSH connection initialized."
@@ -212,7 +224,11 @@ if [ -z "$REMOTE_IMAGE_ID" ]; then
 fi
 
 if [ "$LOCAL_IMAGE_ID" != "$REMOTE_IMAGE_ID" ]; then
-	die "Firmware IMAGE_ID mismatch: local=$LOCAL_IMAGE_ID, device=$REMOTE_IMAGE_ID"
+	if [ "$FORCE" -eq 1 ]; then
+		echo "Warning: IMAGE_ID mismatch: local=$LOCAL_IMAGE_ID, device=$REMOTE_IMAGE_ID (forced)"
+	else
+		die "Firmware IMAGE_ID mismatch: local=$LOCAL_IMAGE_ID, device=$REMOTE_IMAGE_ID (use -f to override)"
+	fi
 fi
 
 echo "Firmware compatibility verified."
@@ -230,8 +246,14 @@ upload_sysupgrade() {
 echo "Transferring sysupgrade utility to device..."
 upload_sysupgrade
 
-echo "Checking available space in /tmp on device..."
-check_and_free_space
+if [ "$SKIP_SPACE_CHECK" -eq 1 ]; then
+	echo "Skipping space/memory checks (-n)."
+	select_remote_fw_path
+	prepare_upload_memory
+else
+	echo "Checking available space in /tmp on device..."
+	check_and_free_space
+fi
 
 echo "Transferring firmware file to the device..."
 remote_copy $LOCAL_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \

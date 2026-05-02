@@ -1,0 +1,22 @@
+config BR2_PACKAGE_THINGINO_AGENT
+	bool "thingino-agent"
+	depends on BR2_PACKAGE_MBEDTLS || BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_PACKAGE_THINGINO_CORE
+	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_MBEDTLS_CERTGEN
+	help
+	  Standalone Thingino camera-agent groundwork.
+
+	  Installs a local camera-agent core (`thingino-agentctl`) plus thin
+	  backend adapters. The external API remains agent-owned; streamer-
+	  specific glue stays behind adapter scripts.
+
+	  The first shipped backend adapter targets prudynt, but the package
+	  layout is backend-neutral and keeps the northbound API independent
+	  from any particular streamer process.
+
+	  The current lifecycle path runs a native local listener for non-TLS
+	  mode and uses an in-package mbedTLS proxy for HTTPS exposure.
+
+comment "thingino-agent needs mbedTLS"
+	depends on !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_MBEDTLS

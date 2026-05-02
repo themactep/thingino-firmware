@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+
+PORTAL_MODE_FLAG="/run/portal_mode"
+CURL_CMD="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+
+no_internet() {
+	ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || return 0
+	return 1
+}
+
+portal_is_up() {
+	[ -f "$PORTAL_MODE_FLAG" ] || return 1
+	return 0
+}
+
+if [ -z "${1:-}" ]; then
+	cat >&2 <<EOF
+Usage: $0 "<phrase to say>"
+Shortcuts:
+	%ip     Tell IP address
+	%time   Tell recent time
+EOF
+	exit 1
+fi
+
+if no_internet; then
+	if portal_is_up; then
+		play /usr/share/sounds/configurationportalmode.opus
+	else
+		play /usr/share/sounds/configurationportalisdown.opus
+		play /usr/share/sounds/pleasepowercycletorestart.opus
+		exit 1
+	fi
+fi
+
+case "$1" in
+	%ip)
+		iface=$(ip r | awk '/default/{print $5}' | uniq)
+		ipaddr=$(ip r | sed -nE "/$iface/s/.+src ([0-9\.]+).+?/\\1/p" | uniq)
+		phrase="IP address is $ipaddr"
+		;;
+	%time)
+		phrase=$(date)
+		;;
+	*)
+		phrase="$*"
+		;;
+esac
+
+tmpfile=$(mktemp /tmp/tell.XXXXXX)
+trap 'rm -f "$tmpfile"' EXIT INT TERM
+
+set -- $CURL_CMD
+set -- "$@" --silent --get --url https://thingino.com/say2 --data-urlencode "q=$phrase" -o "$tmpfile"
+"$@"
+play "$tmpfile"

@@ -25,6 +25,10 @@ else
 INGENIC_SDK_EXTRA_CFLAGS = -DCONFIG_KERNEL_4_4_94
 endif
 
+ifeq ($(BR2_MIPS_NAN_2008),y)
+INGENIC_SDK_EXTRA_CFLAGS += -mnan=legacy
+endif
+
 ifeq ($(BR2_INGENIC_SDK_ISP_TRACE),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DCONFIG_JZ_ISP_TRACE
 define INGENIC_SDK_LINUX_CONFIG_FIXUPS
@@ -156,6 +160,10 @@ define GENERATE_MODULE_LOADER
 
 	if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
+	fi
+
+	if [ "$(BR2_INGENIC_SDK_JZ_AES)" = "y" ]; then \
+		echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/jz-aes; \
 	fi
 
 	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \

@@ -20,9 +20,13 @@ die() {
 }
 
 json_unquote() {
-	printf '%s' "$1" | sed \
-		-e 's/^"//' \
-		-e 's/"$//' \
+	value="$1"
+	case "$value" in
+		\"*\")
+			value=$(printf '%s' "$value" | sed -e 's/^"//' -e 's/"$//')
+			;;
+	esac
+	printf '%s' "$value" | sed \
 		-e 's/\\"/"/g' \
 		-e 's/\\\\/\\/g'
 }
