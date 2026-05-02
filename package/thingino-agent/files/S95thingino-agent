@@ -94,7 +94,7 @@ terminate_agent_pids() {
 ensure_pidfile() {
 	pid_dir=$(dirname "$PIDFILE")
 	[ -d "$pid_dir" ] || mkdir -p "$pid_dir"
-	: > "$PIDFILE"
+	: >"$PIDFILE"
 }
 
 stop_listener_fallback() {
@@ -121,7 +121,7 @@ start() {
 	port=$(read_config_text agent.port)
 	[ -n "$port" ] || port=1998
 	case "$port" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			echo_error "agent.port must be a positive integer"
 			return 1
 			;;
@@ -190,6 +190,6 @@ case "$1" in
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
 		;;
-	esac
+esac
 
 exit ${status:-0}

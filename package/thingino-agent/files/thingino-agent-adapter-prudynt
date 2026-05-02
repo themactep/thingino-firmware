@@ -4,9 +4,9 @@ THINGINO_AGENT_PRUDYNT_CONFIG="${THINGINO_AGENT_PRUDYNT_CONFIG:-/etc/prudynt.jso
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 
 thingino_agent_adapter_prudynt_detect() {
-	[ -f "$THINGINO_AGENT_PRUDYNT_CONFIG" ] \
-		|| command -v prudyntctl >/dev/null 2>&1 \
-		|| [ -f /etc/init.d/S31prudynt ]
+	[ -f "$THINGINO_AGENT_PRUDYNT_CONFIG" ] ||
+		command -v prudyntctl >/dev/null 2>&1 ||
+		[ -f /etc/init.d/S31prudynt ]
 }
 
 thingino_agent_adapter_prudynt_name() {
@@ -84,14 +84,17 @@ thingino_agent_prudynt_stream_count() {
 
 thingino_agent_prudynt_send2_service_supported() {
 	case "$1" in
-		email|ftp|gphotos|mqtt|ntfy|storage|telegram|webhook) return 0 ;;
-		*) echo "unsupported send2 service: $1" >&2; return 1 ;;
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		*)
+			echo "unsupported send2 service: $1" >&2
+			return 1
+			;;
 	esac
 }
 
 thingino_agent_prudynt_send2_service_has_send_video() {
 	case "$1" in
-		email|ftp|gphotos|mqtt|ntfy|storage|telegram|webhook) return 0 ;;
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
 		*) return 1 ;;
 	esac
 }
@@ -303,7 +306,7 @@ thingino_agent_prudynt_print_runtime_recording() {
 	configured_duration=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_recorder_raw duration)" null)
 	configured_mount=$(thingino_agent_prudynt_recorder_text mount)
 	record_root=$(thingino_agent_prudynt_storage_resolved_root)
-	storage_writable=$(thingino_agent_json_bool "$( [ "$(thingino_agent_prudynt_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false )")
+	storage_writable=$(thingino_agent_json_bool "$([ "$(thingino_agent_prudynt_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false)")
 	active=false
 	current_channel=null
 	current_duration=null
@@ -329,8 +332,8 @@ thingino_agent_prudynt_print_runtime_recording() {
 		current_directory=$active_directory
 		current_name_template=$active_name
 		case "$active_loop" in
-			1|true) loop=true ;;
-			0|false) loop=false ;;
+			1 | true) loop=true ;;
+			0 | false) loop=false ;;
 			*) loop=null ;;
 		esac
 	fi
@@ -394,8 +397,8 @@ thingino_agent_prudynt_firmware_boot_marked_complete() {
 	if command -v fw_printenv >/dev/null 2>&1; then
 		value=$(fw_printenv -n sysupgrade_complete 2>/dev/null | tr -d '\n')
 		case "$value" in
-			1|true|TRUE|yes|on) printf 'true' ;;
-			0|false|FALSE|no|off) printf 'false' ;;
+			1 | true | TRUE | yes | on) printf 'true' ;;
+			0 | false | FALSE | no | off) printf 'false' ;;
 			'') printf 'null' ;;
 			*) printf 'null' ;;
 		esac
@@ -454,14 +457,21 @@ thingino_agent_prudynt_daynight_running_mode() {
 		}
 	fi
 	if command -v prudyntctl >/dev/null 2>&1; then
-		state=$(prudyntctl json - 2>/dev/null <<'EOF'
+		state=$(
+			prudyntctl json - 2>/dev/null <<'EOF'
 {"image":{"running_mode":null}}
 EOF
-)
+		)
 		running=$(printf '%s' "$state" | grep -o '"running_mode":[^,}]*' | head -n 1 | cut -d: -f2 | tr -d ' "')
 		case "$running" in
-			0) printf 'day'; return 0 ;;
-			1) printf 'night'; return 0 ;;
+			0)
+				printf 'day'
+				return 0
+				;;
+			1)
+				printf 'night'
+				return 0
+				;;
 		esac
 	fi
 	printf 'unknown'
@@ -538,10 +548,10 @@ thingino_agent_prudynt_stream_healthy() {
 	enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" enabled)" false)
 	video_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" video_enabled)" false)
 	rtsp_listener_up=$(thingino_agent_prudynt_rtsp_listening)
-	if [ "$(thingino_agent_prudynt_streamer_running)" = true ] \
-		&& [ "$enabled" = true ] \
-		&& [ "$video_enabled" = true ] \
-		&& [ "$rtsp_listener_up" = true ]; then
+	if [ "$(thingino_agent_prudynt_streamer_running)" = true ] &&
+		[ "$enabled" = true ] &&
+		[ "$video_enabled" = true ] &&
+		[ "$rtsp_listener_up" = true ]; then
 		printf 'true'
 	else
 		printf 'false'
@@ -813,7 +823,7 @@ thingino_agent_adapter_prudynt_get_health() {
 	status=$(thingino_agent_prudynt_health_status)
 	printf '{'
 	printf '"status":%s,' "$(thingino_agent_json_string "$status")"
-	printf '"healthy":%s,' "$(thingino_agent_json_bool "$( [ "$status" = ok ] && printf true || printf false )")"
+	printf '"healthy":%s,' "$(thingino_agent_json_bool "$([ "$status" = ok ] && printf true || printf false)")"
 	printf '"backend":{"name":"prudynt","available":true},'
 	printf '"checks":{'
 	printf '"system":%s,' "$(thingino_agent_prudynt_print_runtime_system)"
@@ -1317,15 +1327,21 @@ thingino_agent_prudynt_setting_value() {
 
 thingino_agent_prudynt_validate_bool() {
 	case "$1" in
-		true|false) return 0 ;;
-		*) echo "boolean value required" >&2; return 1 ;;
+		true | false) return 0 ;;
+		*)
+			echo "boolean value required" >&2
+			return 1
+			;;
 	esac
 }
 
 thingino_agent_prudynt_validate_int() {
 	value=$1
 	case "$value" in
-		''|*[!0-9-]*) echo "integer value required" >&2; return 1 ;;
+		'' | *[!0-9-]*)
+			echo "integer value required" >&2
+			return 1
+			;;
 		*) return 0 ;;
 	esac
 }
@@ -1346,7 +1362,7 @@ thingino_agent_prudynt_validate_non_empty_string() {
 thingino_agent_prudynt_validate_stream_format() {
 	value=$(thingino_agent_prudynt_unquote_string "$1" | tr 'a-z' 'A-Z')
 	case "$value" in
-		H264|H265)
+		H264 | H265)
 			printf '%s' "$value"
 			return 0
 			;;
@@ -1360,7 +1376,7 @@ thingino_agent_prudynt_validate_stream_format() {
 thingino_agent_prudynt_validate_stream_mode() {
 	value=$(thingino_agent_prudynt_unquote_string "$1" | tr 'a-z' 'A-Z')
 	case "$value" in
-		CBR|VBR|SMART|FIXQP|CAPPED_VBR|CAPPED_QUALITY)
+		CBR | VBR | SMART | FIXQP | CAPPED_VBR | CAPPED_QUALITY)
 			printf '%s' "$value"
 			return 0
 			;;
@@ -1465,8 +1481,11 @@ thingino_agent_adapter_prudynt_set_setting() {
 		daynight/force-mode)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" force_mode) || return 1
 			case "$value" in
-				"day"|"night") ;;
-				*) echo "force_mode must be day or night" >&2; return 1 ;;
+				"day" | "night") ;;
+				*)
+					echo "force_mode must be day or night" >&2
+					return 1
+					;;
 			esac
 			thingino_agent_prudynt_apply_payload "{\"daynight\":{\"force_mode\":$value}}" || return 1
 			thingino_agent_prudynt_persist_value daynight.force_mode "$value"
@@ -1484,9 +1503,9 @@ thingino_agent_adapter_prudynt_set_setting() {
 				all) value='"all"' ;;
 				'"all"') ;;
 				*)
-				echo "privacy.channel must be all" >&2
-				return 1
-				;;
+					echo "privacy.channel must be all" >&2
+					return 1
+					;;
 			esac
 			thingino_agent_print_setting_update "$path" channel "$value"
 			;;
@@ -1766,8 +1785,8 @@ thingino_agent_adapter_prudynt_apply_config() {
 		stream0.osd.privacy.rotation \
 		stream0.osd.privacy.stroke_color \
 		stream0.osd.privacy.stroke_size \
-		stream0.osd.privacy.text; do \
-		thingino_agent_prudynt_persist_if_present "$source_file" "$field"; \
+		stream0.osd.privacy.text; do
+		thingino_agent_prudynt_persist_if_present "$source_file" "$field"
 	done
 	thingino_agent_prudynt_persist_if_present "$source_file" stream1.enabled
 	thingino_agent_prudynt_persist_if_present "$source_file" stream1.audio_enabled
@@ -1826,8 +1845,8 @@ thingino_agent_adapter_prudynt_apply_config() {
 		stream1.osd.privacy.rotation \
 		stream1.osd.privacy.stroke_color \
 		stream1.osd.privacy.stroke_size \
-		stream1.osd.privacy.text; do \
-		thingino_agent_prudynt_persist_if_present "$source_file" "$field"; \
+		stream1.osd.privacy.text; do
+		thingino_agent_prudynt_persist_if_present "$source_file" "$field"
 	done
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" email.send_photo
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" email.send_video
@@ -1865,7 +1884,7 @@ thingino_agent_adapter_prudynt_record() {
 		echo "record action is not supported on this camera" >&2
 		return 1
 	}
-	echo "START $file $duration $channel" > /run/prudynt/mp4ctl
+	echo "START $file $duration $channel" >/run/prudynt/mp4ctl
 	printf '{"status":"accepted","result":{"path":%s}}\n' "$(thingino_agent_json_string "$file")"
 }
 
@@ -1883,7 +1902,7 @@ thingino_agent_adapter_prudynt_privacy() {
 	if command -v privacy >/dev/null 2>&1 && [ "$channel" = "all" ]; then
 		privacy "$state"
 	else
-		printf 'PRIVACY ch=%s value=%s\n' "$channel" "$state" > /run/prudynt/video_ctrl
+		printf 'PRIVACY ch=%s value=%s\n' "$channel" "$state" >/run/prudynt/video_ctrl
 	fi
 	printf '{"status":"accepted"}\n'
 }
@@ -1900,7 +1919,7 @@ thingino_agent_adapter_prudynt_daynight() {
 			thingino_agent_prudynt_persist_value daynight.enabled true
 			printf '{"status":"accepted","mode":"auto"}\n'
 			;;
-		day|night)
+		day | night)
 			thingino_agent_prudynt_apply_payload "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$mode\"}}" || return 1
 			thingino_agent_prudynt_persist_value daynight.enabled false
 			thingino_agent_prudynt_persist_value daynight.force_mode "\"$mode\""
@@ -1930,7 +1949,7 @@ thingino_agent_adapter_prudynt_service() {
 		return 1
 	}
 	case "$action_name" in
-		start|stop|restart) ;;
+		start | stop | restart) ;;
 		*)
 			echo "service action must be start, stop, or restart" >&2
 			return 1
@@ -1945,22 +1964,31 @@ thingino_agent_adapter_prudynt_service() {
 }
 
 thingino_agent_adapter_prudynt_reboot() {
-	(sleep 1; reboot -f) >/dev/null 2>&1 &
+	(
+		sleep 1
+		reboot -f
+	) >/dev/null 2>&1 &
 	printf '{"status":"accepted","operation":"reboot"}\n'
 }
 
 thingino_agent_adapter_prudynt_send2_test() {
 	service=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
 	action=$(printf '%s' "${2:-test}" | tr 'A-Z' 'a-z')
-	[ -n "$service" ] || { echo "send2-test: service name required" >&2; return 1; }
+	[ -n "$service" ] || {
+		echo "send2-test: service name required" >&2
+		return 1
+	}
 	tool="/usr/sbin/send2${service}"
-	[ -x "$tool" ] || { echo "send2-test: unsupported service '$service'" >&2; return 1; }
+	[ -x "$tool" ] || {
+		echo "send2-test: unsupported service '$service'" >&2
+		return 1
+	}
 	# Suppress all tool output: the agent listener merges stderr into the
 	# response body, which would break JSON parsing. Report success/failure
 	# via exit code instead.
 	_send2_ok=true
 	case "$action" in
-		test)       "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
 		test-photo) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
 		test-video) "$tool" -V >/dev/null 2>&1 || _send2_ok=false ;;
 		*)

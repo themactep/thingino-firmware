@@ -22,7 +22,7 @@ config_text() {
 
 is_loopback_addr() {
 	case "$1" in
-		127.0.0.1|::1|localhost)
+		127.0.0.1 | ::1 | localhost)
 			return 0
 			;;
 		*)
@@ -33,7 +33,7 @@ is_loopback_addr() {
 
 config_bool() {
 	case "$(config_text "$1")" in
-		1|true|TRUE|yes|on)
+		1 | true | TRUE | yes | on)
 			return 0
 			;;
 		*)
@@ -116,11 +116,11 @@ port=$(config_text agent.port)
 [ -n "$port" ] || port=1998
 
 case "$port" in
-	''|*[!0-9]*)
+	'' | *[!0-9]*)
 		echo "agent.port must be a positive integer" >&2
 		exit 1
 		;;
-	esac
+esac
 
 if [ "$port" -le 0 ]; then
 	echo "agent.port must be greater than zero" >&2
@@ -164,7 +164,7 @@ if config_bool agent.tls; then
 	trap 'cleanup_tls_children; exit 0' INT TERM HUP
 	trap 'cleanup_tls_children' EXIT
 	case "$listen_addr" in
-		127.0.0.1|::1|localhost)
+		127.0.0.1 | ::1 | localhost)
 			: local-only listener
 			;;
 		*)

@@ -30,7 +30,7 @@ adapter_call() {
 select_adapter() {
 	configured=$(thingino_agent_text_config_value agent.backend)
 	case "$configured" in
-		""|auto)
+		"" | auto)
 			for candidate in prudynt null; do
 				func="thingino_agent_adapter_${candidate}_detect"
 				if command -v "$func" >/dev/null 2>&1 && "$func"; then
@@ -39,7 +39,7 @@ select_adapter() {
 				fi
 			done
 			;;
-		prudynt|null)
+		prudynt | null)
 			func="thingino_agent_adapter_${configured}_detect"
 			if command -v "$func" >/dev/null 2>&1 && "$func"; then
 				THINGINO_AGENT_ADAPTER=$configured

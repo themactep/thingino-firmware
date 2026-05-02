@@ -21,7 +21,7 @@ thingino_agent_adapter_null_get_health() {
 		"$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)" \
 		"$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)" \
 		"$(thingino_agent_json_string_or_null "$ip_addr")" \
-		"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")"
+		"$(thingino_agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)")"
 }
 
 thingino_agent_adapter_null_get_capabilities() {
@@ -80,7 +80,7 @@ thingino_agent_adapter_null_get_runtime() {
 				"$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)" \
 				"$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)" \
 				"$(thingino_agent_json_string_or_null "$ip_addr")" \
-				"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")" \
+				"$(thingino_agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)")" \
 				"$(thingino_agent_json_string_or_null "$(thingino_agent_firmware_version)")"
 			;;
 		system)
@@ -98,7 +98,7 @@ thingino_agent_adapter_null_get_runtime() {
 		network)
 			printf '{"ip":%s,"online":%s}\n' \
 				"$(thingino_agent_json_string_or_null "$ip_addr")" \
-				"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")"
+				"$(thingino_agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)")"
 			;;
 		motion)
 			printf '{"enabled":false,"active":false}\n'

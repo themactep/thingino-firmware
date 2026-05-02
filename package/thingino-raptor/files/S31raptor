@@ -9,7 +9,7 @@ SHMDIR=/dev/shm
 config_bool() {
 	val=$(sed -n "/^\[$1\]/,/^\[/{ /^$2\s*=/{s/.*=\s*//;s/\s*#.*//;p;q}}" "$CONF")
 	case "${val:-$3}" in
-		true|yes|1) return 0 ;;
+		true | yes | 1) return 0 ;;
 		*) return 1 ;;
 	esac
 }
@@ -41,26 +41,26 @@ start_daemon() {
 # Map daemon name to config section and default enabled state
 daemon_section() {
 	case $1 in
-		rvd)  echo "sensor" ;;
-		rsd)  echo "rtsp" ;;
+		rvd) echo "sensor" ;;
+		rsd) echo "rtsp" ;;
 		rsd-555) echo "rtsp" ;;
-		rad)  echo "audio" ;;
-		rhd)  echo "http" ;;
-		rod)  echo "osd" ;;
-		ric)  echo "ircut" ;;
-		rmr)  echo "recording" ;;
-		rmd)  echo "motion" ;;
-		rwd)  echo "webrtc" ;;
-		rwc)  echo "webcam" ;;
-		rsp)  echo "push" ;;
-		rsr)  echo "srt" ;;
-		*)    echo "$1" ;;
+		rad) echo "audio" ;;
+		rhd) echo "http" ;;
+		rod) echo "osd" ;;
+		ric) echo "ircut" ;;
+		rmr) echo "recording" ;;
+		rmd) echo "motion" ;;
+		rwd) echo "webrtc" ;;
+		rwc) echo "webcam" ;;
+		rsp) echo "push" ;;
+		rsr) echo "srt" ;;
+		*) echo "$1" ;;
 	esac
 }
 
 daemon_default_enabled() {
 	case $1 in
-		rmr|rmd|rwc|rsp|rsr|rsd-555) echo "false" ;;
+		rmr | rmd | rwc | rsp | rsr | rsd-555) echo "false" ;;
 		*) echo "true" ;;
 	esac
 }

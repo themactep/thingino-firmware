@@ -19,7 +19,7 @@ thingino_agent_json_string() {
 
 thingino_agent_json_bool() {
 	case "$1" in
-		1|true|TRUE|yes|on) printf 'true' ;;
+		1 | true | TRUE | yes | on) printf 'true' ;;
 		*) printf 'false' ;;
 	esac
 }
@@ -81,7 +81,7 @@ thingino_agent_firmware_version() {
 thingino_agent_hostname() {
 	value=$(hostname 2>/dev/null | tr -d '\n')
 	case "$value" in
-		""|"(none)") value="" ;;
+		"" | "(none)") value="" ;;
 	esac
 	[ -n "$value" ] || value=$(cat /etc/hostname 2>/dev/null | tr -d '\n')
 	[ -n "$value" ] || value=$(thingino_agent_os_release_value HOSTNAME)
