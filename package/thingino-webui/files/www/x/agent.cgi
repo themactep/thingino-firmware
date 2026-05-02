@@ -47,6 +47,15 @@ agent_base_url() {
 	fi
 }
 
+agent_request_urls() {
+	if [ "true" = "$(read_agent_config agent.tls)" ]; then
+		printf 'http://127.0.0.1:%s\n' "$(agent_backend_port)"
+		printf 'https://127.0.0.1:%s\n' "$(agent_listener_port)"
+	else
+		printf 'http://127.0.0.1:%s\n' "$(agent_listener_port)"
+	fi
+}
+
 agent_auth_header() {
 	token=$(read_agent_config_text agent.token)
 	[ -n "$token" ] || return 1
@@ -144,10 +153,10 @@ esac
 [ -n "$TARGET_PATH" ] || TARGET_PATH=$(extract_request_uri_path "${REQUEST_URI:-}")
 [ -n "$TARGET_PATH" ] || json_error '400 Bad Request' 'Missing agent path.'
 
-TARGET_URL="$(agent_base_url)$TARGET_PATH"
+TARGET_URL_BASE="$(agent_base_url)"
 FORWARD_QUERY=$(strip_query_param agent_path "${QUERY_STRING:-}")
 if [ -n "$FORWARD_QUERY" ]; then
-	TARGET_URL="$TARGET_URL?$FORWARD_QUERY"
+	TARGET_URL_BASE="$TARGET_URL_BASE?$FORWARD_QUERY"
 fi
 
 if [ "${REQUEST_METHOD:-GET}" = GET ] && is_event_stream_request; then
@@ -155,15 +164,15 @@ if [ "${REQUEST_METHOD:-GET}" = GET ] && is_event_stream_request; then
 	auth_header=$(agent_auth_header || true)
 	if [ -n "$HTTP_ACCEPT" ]; then
 		if [ -n "$auth_header" ]; then
-			exec curl -sS -N -H "$auth_header" -H "Accept: $HTTP_ACCEPT" "$TARGET_URL"
+			exec curl -sS -N -H "$auth_header" -H "Accept: $HTTP_ACCEPT" "$TARGET_URL_BASE"
 		else
-			exec curl -sS -N -H "Accept: $HTTP_ACCEPT" "$TARGET_URL"
+			exec curl -sS -N -H "Accept: $HTTP_ACCEPT" "$TARGET_URL_BASE"
 		fi
 	else
 		if [ -n "$auth_header" ]; then
-			exec curl -sS -N -H "$auth_header" -H 'Accept: text/event-stream' "$TARGET_URL"
+			exec curl -sS -N -H "$auth_header" -H 'Accept: text/event-stream' "$TARGET_URL_BASE"
 		else
-			exec curl -sS -N -H 'Accept: text/event-stream' "$TARGET_URL"
+			exec curl -sS -N -H 'Accept: text/event-stream' "$TARGET_URL_BASE"
 		fi
 	fi
 fi
@@ -201,7 +210,29 @@ if [ -n "$BODY_FILE" ]; then
 	set -- "$@" --data-binary "@$BODY_FILE"
 fi
 
-if ! curl "$@" "$TARGET_URL"; then
+curl_failed=1
+for candidate in $(agent_request_urls); do
+	TARGET_URL="$candidate$TARGET_PATH"
+	if [ -n "$FORWARD_QUERY" ]; then
+		TARGET_URL="$TARGET_URL?$FORWARD_QUERY"
+	fi
+	insecure_flag=""
+	case "$candidate" in
+		https://*) insecure_flag='-k' ;;
+	esac
+	if [ -n "$insecure_flag" ]; then
+		if curl "$@" "$insecure_flag" "$TARGET_URL"; then
+			curl_failed=0
+			break
+		fi
+	else
+		if curl "$@" "$TARGET_URL"; then
+			curl_failed=0
+			break
+		fi
+	fi
+done
+if [ "$curl_failed" -ne 0 ]; then
 	rm -f "$BODY_FILE" "$HEADERS_FILE" "$BODY_OUT"
 	json_error '502 Bad Gateway' 'Camera agent request failed.'
 fi
