@@ -4,6 +4,10 @@
 . /var/www/x/auth.sh
 require_auth
 
+. /usr/share/common 2>/dev/null || true
+: "${NTP_DEFAULT_FILE:=/etc/default/ntp.conf}"
+: "${NTP_WORKING_FILE:=/tmp/ntp.conf}"
+
 CONFIG_FILE="/etc/thingino.json"
 SYNC_STATUS_FILE="/run/sync_status"
 TMP_FILE=""
