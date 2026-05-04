@@ -4,7 +4,6 @@
 . /var/www/x/auth.sh
 require_auth
 
-. /usr/share/common 2>/dev/null || true
 : "${NTP_DEFAULT_FILE:=/etc/default/ntp.conf}"
 : "${NTP_WORKING_FILE:=/tmp/ntp.conf}"
 
