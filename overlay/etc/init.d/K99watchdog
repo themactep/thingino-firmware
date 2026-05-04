@@ -42,7 +42,7 @@ start() {
 	echo -c 15 "Starting watchdog"
 
 	if [ "false" = "$watchdog_enabled" ]; then
-		echo "$DAEMON is disabled" >&2
+		echo -c 160 -e "$DAEMON is disabled" >&2
 		exit 1
 	fi
 
