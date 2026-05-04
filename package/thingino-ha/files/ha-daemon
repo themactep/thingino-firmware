@@ -121,7 +121,13 @@ cleanup() {
 	[ -n "${CAMERA_PID:-}" ] && wait "$CAMERA_PID" 2>/dev/null
 	rm -rf "$HA_LOCK_DIR"
 }
-trap cleanup EXIT INT TERM
+on_signal() {
+	trap - EXIT INT TERM
+	cleanup
+	exit 0
+}
+trap cleanup EXIT
+trap on_signal INT TERM
 
 # ---------------------------------------------------------------------------
 # Periodic state + discovery refresh loop
