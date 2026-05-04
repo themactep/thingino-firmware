@@ -159,8 +159,8 @@ define WIFI_INSTALL_TARGET_CMDS
 	# WPA supplicant script
 	sed -e 's,@WLAN_STA_NETDEV@,$(WIFI_STA_NETDEV),g' \
 		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
-		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
-	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
+		$(WIFI_PKGDIR)/files/S40wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S40wpa_supplicant
+	chmod 0755 $(TARGET_DIR)/etc/init.d/S40wpa_supplicant
 
 	# Network interface config
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wlan0 \
