@@ -164,8 +164,8 @@ define WIFI_INSTALL_TARGET_CMDS
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
 	# Wired-gateway preempt shim (runs after network, stops WiFi if wired is up)
-	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S40wpa_supplicant \
-		$(TARGET_DIR)/etc/init.d/S40wpa_supplicant
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S40wired-gateway \
+		$(TARGET_DIR)/etc/init.d/S40wired-gateway
 
 	# Network interface config
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wlan0 \
