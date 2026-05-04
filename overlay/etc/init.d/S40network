@@ -4,7 +4,7 @@
 start() {
 	echo -c 15 "Starting network"
 	if [ -f /run/wlan_ap_mode ]; then
-		echo "WiFi AP mode, exiting"
+		echo -c 160 -e "WiFi AP mode, exiting" >&2
 		exit 0
 	fi
 
@@ -25,7 +25,7 @@ start() {
 		sleep 0.5
 		gpio set $pin $high
 	else
-		echo "Ethernet GPIO does not need a toggle"
+		echo -c 142 -e "Ethernet GPIO does not need a toggle" >&2
 	fi
 
 	ifup -v -a
