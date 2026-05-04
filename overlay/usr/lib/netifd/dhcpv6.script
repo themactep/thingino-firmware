@@ -272,8 +272,7 @@ teardown_interface() {
 					if ip -6 route del "$addr" dev "$device"; then
 						echo -c 240 -e "- Successfully removed route: $addr dev $device"
 					else
-						echo -c 142 -e "Failed to remove route: $addr dev $device" &
-						2
+						echo -c 142 -e "Failed to remove route: $addr dev $device" >&2
 					fi
 				fi
 			fi
