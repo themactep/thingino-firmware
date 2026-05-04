@@ -6,14 +6,14 @@ start() {
 	echo -c 15 "Setting initial system time"
 
 	if [ ! -f "$OS_RELEASE_FILE" ]; then
-		echo "No release file found, not setting system clock" >&2
+		echo -c 160 -e "No release file found, not setting system clock" >&2
 		exit 1
 	fi
 
 	if date -u -s "@$(awk -F'=' '/^TIME_STAMP/{print $2}' "$OS_RELEASE_FILE")" >/dev/null; then
-		echo "$(date) (fail-safe)"
+		echo -c 240 -e "- $(date) (fail-safe)"
 	else
-		echo "Failed to set time" >&2
+		echo -c 160 -e "Failed to set time" >&2
 		exit 1
 	fi
 }
