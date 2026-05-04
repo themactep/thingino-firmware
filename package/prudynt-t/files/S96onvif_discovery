@@ -51,12 +51,12 @@ start() {
 	echo -c 15 "Starting ONVIF discovery"
 
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
-		echo "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
 	if ! is_gateway_reachable; then
-		echo "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
