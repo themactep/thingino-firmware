@@ -11,7 +11,7 @@ start() {
 		start-stop-daemon -b -S -x /bin/env -- \
 			/bin/sh -c "$START_SCRIPT 2>&1 | logger -p daemon.info -t $0"
 	else
-		echo "Nothing to run"
+		echo -c 240 -e "- Nothing to run"
 	fi
 }
 
@@ -21,7 +21,7 @@ stop() {
 	if [ -x "$STOP_SCRIPT" ]; then
 		$STOP_SCRIPT
 	else
-		echo "Nothing to run"
+		echo -c 240 -e "- Nothing to run"
 	fi
 }
 
