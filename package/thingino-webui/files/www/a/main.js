@@ -806,7 +806,6 @@ function toggleAudio(device, state) {
   const param = device === "microphone" ? "mic_enabled" : "spk_enabled";
   const payload = JSON.stringify({
     audio: { [param]: state },
-    action: { restart_thread: ThreadAudio },
   });
   console.log(ts(), "===>", payload);
   fetch("/x/json-prudynt.cgi", {
