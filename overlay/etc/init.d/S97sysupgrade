@@ -6,11 +6,11 @@ start() {
 	echo -c 15 "Checking sysupgrade"
 
 	if [ "true" != "$(fw_printenv -n sysupgrade_complete)" ]; then
-		echo "Mark sysupgrade complete"
+		echo -c 240 -e "- Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
 
 		if [ -f "$PORTAL_MODE_FLAG" ]; then
-			echo "Portal mode is active"
+			echo -c 240 -e "- Portal mode is active"
 		else
 			play /usr/share/sounds/thingino.opus
 		fi
@@ -21,11 +21,8 @@ stop() {
 	echo -c 15 "Checking for upgrade"
 
 	if [ -f "/tmp/upgrade.me" ]; then
-		echo "Running full upgrade"
+		echo -c 142 -e "Running full upgrade" >&2
 		yes yes | sysupgrade -f
-	elif [ -f "/tmp/update.me" ]; then
-		echo "Running partial upgrade"
-		sysupgrade -p
 	fi
 }
 
