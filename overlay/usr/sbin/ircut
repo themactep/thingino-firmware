@@ -82,7 +82,7 @@ register_pin() {
 			return 0
 			;;
 		"" | *[!0-9])
-			echo "Ignoring invalid IRCUT pin '$pin'"
+			echo -c 142 -e "Ignoring invalid IRCUT pin '$pin'" >&2
 			return 0
 			;;
 	esac
@@ -98,7 +98,7 @@ register_pin() {
 		pin_count=2
 		return 0
 	fi
-	echo "Ignoring extra IRCUT pin '$pin'"
+	echo -c 142 -e "Ignoring extra IRCUT pin '$pin'" >&2
 }
 
 parse_pin_token() {
@@ -162,10 +162,10 @@ extract_node() {
 				idx=$((idx + 1))
 				[ "$ircut_disabled" -eq 0 ] || break
 			done
-			[ "$idx" -gt 0 ] || echo "Empty IRCUT array at $key"
+			[ "$idx" -gt 0 ] || echo -c 142 -e "Empty IRCUT array at $key" >&2
 			;;
 		"{")
-			echo "Unhandled IRCUT object at $key"
+			echo -c 142 -e "Unhandled IRCUT object at $key" >&2
 			;;
 		*)
 			parse_scalar_tokens "$raw" "$node_active"
@@ -180,7 +180,7 @@ load_ircut_config() {
 		extract_node "$CONFIG_ROOT" "$default_active"
 	fi
 	if [ "$pin_count" -eq 0 ] && [ "$ircut_disabled" -eq 0 ] && [ -n "$gpio_ircut" ]; then
-		echo "Falling back to gpio_ircut environment override"
+		echo -c 240 -e "- Falling back to gpio_ircut environment override"
 		parse_scalar_tokens "$gpio_ircut" "$default_active"
 	fi
 }
@@ -250,12 +250,12 @@ apply_single() {
 		level=$single_close_level
 		label="day"
 	fi
-	echo "Set IRCUT GPIO $pin1 to $level ($label)"
+	echo -c 240 -e "- Set IRCUT GPIO $pin1 to $level ($label)"
 	gpio_set_level "$pin1" "$level"
 }
 
 apply_dual_open() {
-	echo "IRCUT -> night (pin1 idle, pin2 assert)"
+	echo -c 240 -e "- IRCUT -> night (pin1 idle, pin2 assert)"
 	gpio_set_level "$pin1" "$pin1_idle"
 	gpio_set_level "$pin2" "$pin2_assert"
 	usleep "$IRCUT_PULSE_US"
@@ -263,7 +263,7 @@ apply_dual_open() {
 }
 
 apply_dual_close() {
-	echo "IRCUT -> day (pin1 assert, pin2 idle)"
+	echo -c 240 -e "- IRCUT -> day (pin1 assert, pin2 idle)"
 	gpio_set_level "$pin2" "$pin2_idle"
 	gpio_set_level "$pin1" "$pin1_assert"
 	usleep "$IRCUT_PULSE_US"
@@ -273,7 +273,7 @@ apply_dual_close() {
 apply_tmi() {
 	local target="$1"
 	[ -c /dev/tmi8152_ir_cut ] || {
-		echo "Missing /dev/tmi8152_ir_cut" >&2
+		echo -c 160 -e "Missing /dev/tmi8152_ir_cut" >&2
 		return 1
 	}
 	echo -n "$target" >/dev/tmi8152_ir_cut
@@ -296,7 +296,7 @@ apply_state() {
 			fi
 			;;
 		*)
-			echo "IRCUT control mode not initialized" >&2
+			echo -c 160 -e "IRCUT control mode not initialized" >&2
 			return 1
 			;;
 	esac
@@ -308,13 +308,13 @@ show_status() {
 	state=$(read_mode)
 	case "$state" in
 		0)
-			echo "IRCUT filter is removed"
+			echo -c 240 -e "- IRCUT filter is removed"
 			;;
 		1)
-			echo "IRCUT filter is set"
+			echo -c 240 -e "- IRCUT filter is set"
 			;;
 		*)
-			echo "IRCUT filter is in unknown state"
+			echo -c 240 -e "- IRCUT filter is in unknown state"
 			;;
 	esac
 }
@@ -322,13 +322,13 @@ show_status() {
 load_ircut_config
 
 if [ "$ircut_disabled" -eq 1 ]; then
-	echo "$disabled_reason"
+	echo -c 240 -e "- $disabled_reason"
 	exit 0
 fi
 
 case "$pin_count" in
 	0)
-		echo "No IRCUT pins defined in configuration" >&2
+		echo -c 160 -e "No IRCUT pins defined in configuration" >&2
 		exit 1
 		;;
 	1)
