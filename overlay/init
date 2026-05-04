@@ -1,6 +1,9 @@
 #!/bin/sh
 
-die() { printf "\e[38;5;160mInit: [ERROR] %s\e[0m\n" "$1" >&2; exit 1; }
+die() {
+	printf "\e[38;5;160mInit: [ERROR] %s\e[0m\n" "$1" >&2
+	exit 1
+}
 
 on_exit() {
 	mountpoint -q /proc && umount /proc
@@ -33,7 +36,7 @@ mount_jffs2() {
 		flash_eraseall -j /dev/$mtd
 	fi
 
-	mount -t jffs2 -o noatime /dev/$blk $target || \
+	mount -t jffs2 -o noatime /dev/$blk $target ||
 		die "Failed to mount /dev/$blk as $target!"
 }
 
@@ -67,11 +70,11 @@ mount_overlay() {
 trap 'on_exit "$@"' EXIT
 
 # Mount /proc
-mount -t proc proc /proc || \
+mount -t proc proc /proc ||
 	die "Failed to mount /proc!"
 
 # Skip if rootfs is NFS, MMC or RAM
-grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && \
+grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
 # Mount persisted overlay partition
