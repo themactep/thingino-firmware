@@ -33,16 +33,16 @@ start() {
 	fi
 
 	if [ -f "$NTP_WORKING_FILE" ]; then
-		echo "working configuration found"
+		echo -c 240 -e "- working configuration found"
 	else
 		if [ -f "$NTP_DEFAULT_FILE" ]; then
-			echo "default configuration found"
+			echo -c 240 -e "- default configuration found"
 		else
-			echo "restore default config from ROM"
+			echo -c 240 -e "- restore default config from ROM"
 			cp "/rom$NTP_DEFAULT_FILE" "$NTP_DEFAULT_FILE"
 		fi
 
-		echo "use default configuration"
+		echo -c 240 -e "- use default configuration"
 		cp "$NTP_DEFAULT_FILE" "$NTP_WORKING_FILE"
 	fi
 
@@ -50,11 +50,11 @@ start() {
 	start_daemon $DAEMON_ARGS
 
 	if [ "true" = "$wlanap_enabled" ]; then
-		echo "WLAN AP mode. Skip sync time"
+		echo -c 240 -e "- WLAN AP mode. Skip sync time"
 	elif [ -f /run/portal_mode ]; then
-		echo "Portal mode. Skip sync time"
+		echo -c 240 -e "- Portal mode. Skip sync time"
 	else
-		echo "Sync time"
+		echo -c 240 -e "- Sync time"
 		ntpd -q -N &
 	fi
 }
