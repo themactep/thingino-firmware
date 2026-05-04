@@ -14,8 +14,9 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && \
     busybox ca-certificates ccache cmake cpio curl dialog file flex fzf \
     gawk git golang-go libcrypt-dev libncurses-dev libusb-1.0-0-dev locales \
     lzop m4 mc nano perl python3 python3-jinja2 python3-jsonschema python3-yaml \
-    rsync ssh sudo u-boot-tools unzip vim wget whiptail zlib1g-dev && \
-    rm -rf /var/lib/apt/lists/*
+    rsync ssh sudo u-boot-tools unzip vim wget whiptail zlib1g-dev \
+    ripgrep shfmt nodejs npm && \
+rm -rf /var/lib/apt/lists/*
 
 # Set vim as default editor
 RUN update-alternatives --install /usr/bin/editor editor /usr/bin/vim 1 && \
