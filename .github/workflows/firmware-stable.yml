@@ -419,8 +419,6 @@ jobs:
           echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.squashfs
           echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.tar
           echo "debug sha" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
-          echo "debug" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
-          echo "debug sha" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
@@ -439,7 +437,6 @@ jobs:
           FULL_FW_KERNEL=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
           FULL_FW_ROOTFS=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
           FULL_FW_ROOTFS_TAR=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
-          UPDATE_FW=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
             echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
@@ -449,8 +446,6 @@ jobs:
             echo "FULL_FW_ROOTFS=${FULL_FW_ROOTFS}" >> ${GITHUB_ENV}
             echo "FULL_FW_ROOTFS_TAR=${FULL_FW_ROOTFS_TAR}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
-            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
-            echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found under: ${OUT_BASE}/${DYNAMIC_PART}*/images/"
             ls -la "${OUT_BASE}" || true
@@ -476,11 +471,9 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
-        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" "$UPDATE_FW_SHA" --clobber
+        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" --clobber
 
       - name: Package binaries for notification
         run: |
