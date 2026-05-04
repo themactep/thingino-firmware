@@ -37,19 +37,19 @@ case "$type" in
 		pin=$(get_config_pin ir850)
 		[ -z "$pin" ] && pin=$(get_config_pin ir940)
 		if [ -z "$pin" ]; then
-			echo "GPIO pins for either IR lights are not defined" >&2
+			echo -c 160 -e "GPIO pins for either IR lights are not defined" >&2
 			exit 1
 		fi
 		;;
 	ir850 | ir940 | white | flood)
 		pin=$(get_config_pin "$type")
 		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
-			echo "GPIO pin for $type light is not defined" >&2
+			echo -c 160 -e "GPIO pin for $type light is not defined" >&2
 			exit 1
 		fi
 		;;
 	*)
-		echo "Unknown light type $type" >&2
+		echo -c 160 -e "Unknown light type $type" >&2
 		show_help
 		;;
 esac
@@ -87,7 +87,7 @@ case "$mode" in
 		else
 			pin=$(get_config_pin "$type")
 			if [ -z "$pin" ]; then
-				echo "GPIO pin is missing" >&2
+				echo -c 160 -e "GPIO pin is missing" >&2
 				show_help
 			else
 				echo "$pin"
@@ -95,7 +95,7 @@ case "$mode" in
 		fi
 		;;
 	*)
-		echo "Error: Unknown mode" >&2
+		echo -c 160 -e "Error: Unknown mode" >&2
 		show_help
 		;;
 esac
