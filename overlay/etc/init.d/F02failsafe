@@ -1,8 +1,7 @@
 #!/bin/sh
 
-. /usr/share/common
-
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
+OS_RELEASE_FILE="/etc/os-release"
 
 usb_console=$(jct /dev/thingino.json get usb.console 2>/dev/null || fw_printenv -n usb_console)
 
@@ -20,7 +19,9 @@ start() {
 		return
 	fi
 
-	echo -c 104 -e "\nPress the [f] key to enter failsafe mode\n"
+	echo
+	echo -c 104 "Press the [f] key to enter failsafe mode"
+	echo
 
 	stty -icanon min 0 time 20 -echo
 	key=$(dd bs=1 count=1 2>/dev/null)
@@ -35,7 +36,8 @@ start() {
 
 	if [ -f "$OS_RELEASE_FILE" ]; then
 		. "$OS_RELEASE_FILE"
-		echo -c 208 -e "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
+		echo -c 208 "Thingino firmware built for $IMAGE_ID"
+		echo -c 208 "[$BUILD_ID]"
 	fi
 
 	/etc/init.d/rcS
