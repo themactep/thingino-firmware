@@ -105,15 +105,15 @@ configure_usb_power() {
 			target=$pin_off
 			state_desc="off"
 		fi
-		echo "Set USB power GPIO $USB_EN_PIN $state_desc via $CONFIG_JSON"
+		echo -c 240 -e "- Set USB power GPIO $USB_EN_PIN $state_desc via $CONFIG_JSON"
 		if ! gpio set "$USB_EN_PIN" "$target"; then
-			echo "Failed to set USB power GPIO $USB_EN_PIN to $target" >&2
+			echo -c 160 -e "Failed to set USB power GPIO $USB_EN_PIN to $target" >&2
 			return 1
 		fi
 		return 0
 	fi
 
-	echo "USB power GPIO is not set in thingino configuration"
+	echo -c 142 -e "USB power GPIO is not set in thingino configuration" >&2
 	return 1
 }
 
@@ -121,12 +121,12 @@ configure_usb_role() {
 	#FIXME: we should store the host type in the system config for USB-DIRECT devices, etc.
 	kernel_version=$(uname -r | cut -d. -f1-2)
 	if [ "$kernel_version" = "4.4" ]; then
-		echo "Setting USB controller to host mode"
+		echo -c 240 -e "- Setting USB controller to host mode"
 		usb-role -m host >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
-			echo "Failed to set USB controller to host mode"
+			echo -c 142 -e "Failed to set USB controller to host mode" >&2
 		else
-			echo "USB controller set to host mode"
+			echo -c 240 -e "- USB controller set to host mode"
 		fi
 	fi
 }
