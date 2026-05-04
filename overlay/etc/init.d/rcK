@@ -20,6 +20,6 @@ WD_PID=$(cat /var/run/watchdog.pid 2>/dev/null)
 [ -n "$WD_PID" ] && kill -9 "$WD_PID" 2>/dev/null
 killall -9 watchdog 2>/dev/null || true
 
-reboot -f 2>/dev/null || echo b > /proc/sysrq-trigger 2>/dev/null
+reboot -f 2>/dev/null || echo b >/proc/sysrq-trigger 2>/dev/null
 
 exit 0
