@@ -1,12 +1,27 @@
 #!/bin/sh
 
+DAEMON="/usr/sbin/dropbear"
 DAEMON_ARGS="-k -K 300 -R"
 DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
+PIDFILE="/run/dropbear.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting dropbear sshd"
+	echo -c 15 "Starting dropbear sshd"
 
 	umask 077
 
@@ -14,11 +29,12 @@ start() {
 		dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
 	fi
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping dropbear sshd"
+	echo -c 15 "Stopping dropbear sshd"
 
 	stop_daemon
 }
