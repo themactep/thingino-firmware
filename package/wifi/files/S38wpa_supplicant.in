@@ -231,6 +231,11 @@ start_client() {
 stop_client() {
 	echo "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+	if [ -f /var/run/udhcpc.${IFACE}.pid ]; then
+		kill $(cat /var/run/udhcpc.${IFACE}.pid) 2>/dev/null
+		sleep 1
+	fi
+	ip addr flush dev $IFACE 2>/dev/null
 }
 
 start() {
