@@ -1,19 +1,37 @@
 #! /bin/sh
 
-DAEMON="seedrng"
+DAEMON="$(command -v seedrng 2>/dev/null || echo /sbin/seedrng)"
 DAEMON_ARGS="-d /etc/seedrng"
-PIDFILE="/run/$DAEMON.pid"
+PIDFILE="/run/seedrng.pid"
 
-. /usr/share/common
+start_daemon() {
+	if [ ! -x "$DAEMON" ]; then
+		echo "seedrng not installed"
+		return 1
+	fi
+
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $DAEMON_ARGS
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting seedrng"
+	echo -c 15 "Starting seedrng"
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping seedrng"
+	echo -c 15 "Stopping seedrng"
 
 	stop_daemon
 }
