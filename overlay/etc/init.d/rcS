@@ -1,45 +1,20 @@
 #!/bin/sh
 
-. /usr/share/common
-
+# Set up the timezone
 TZCODE_FILE="/etc/TZ"
-if [ -f "$TZCODE_FILE" ]; then
+if [ -s "$TZCODE_FILE" ]; then
 	TZ="$(cat $TZCODE_FILE)"
 	export TZ
 else
-	echo_info "Cannot find $TZCODE_FILE"
+	echo -c 240 -e "- Cannot find $TZCODE_FILE"
 fi
-
-rm -f /run/boot
-
-sleep 0.1
-
-echo 0.5 > /run/boot
-
-execute_and_log() {
-	script="$1"
-	mkfifo /tmp/initlogpipe
-
-	while IFS= read -r line; do
-		clean_line=$(echo "$line" | awk '{ gsub(/\x1b\[[0-9;]*m/, ""); $1=$1; print }')
-		echo "$clean_line" | logger -p daemon.info -t "$script"
-		echo "$line"
-	done < /tmp/initlogpipe &
-
-	logger_pid=$!
-
-	/bin/sh -c "$script start" > /tmp/initlogpipe 2>&1
-
-	rm -f /tmp/initlogpipe
-}
 
 # Run init scripts in numerical order
 for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
 	/bin/sh -c "$i start"
 done
 
-service stop ledd
-
-# TODO: set indicator LED to the state defined by user.
+# stop blinking
+rm /run/ledd/*
 
 exit 0
