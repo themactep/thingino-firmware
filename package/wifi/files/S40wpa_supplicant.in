@@ -21,9 +21,11 @@ iface_exists() {
 }
 
 is_gateway_reachable() {
-        [ -z "$iface" ] && return 1
-        ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1 || \
-        ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
+	local iface="$1"
+
+	[ -z "$iface" ] && return 1
+	ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1 ||
+		ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1
 }
 
 ts() {
@@ -272,14 +274,12 @@ start() {
 	fi
 
 	# Wired interface is present
-	if iface=eth0 is_gateway_reachable; then
-		echo "Wired interface found" >&2
-		exit 1
-	fi
-	if iface_exists "usb0"; then
-		echo "Wired interface found" >&2
-		exit 1
-	fi
+	for iface in eth0 usb0; do
+		if is_gateway_reachable "$iface"; then
+			echo "Wired interface found" >&2
+			exit 1
+		fi
+	done
 
 	echo "Starting in $mode mode"
 	case "$mode" in
