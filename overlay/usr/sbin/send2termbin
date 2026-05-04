@@ -14,7 +14,7 @@ else
 fi
 
 if [ ! -s "$file" ]; then
-	echo "File $file is empty" >&2
+	echo -c 160 -e "File $file is empty" >&2
 	exit 1
 fi
 
