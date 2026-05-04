@@ -53,16 +53,16 @@ start() {
 	rsyslog_local=$(json_get rsyslog.local "$rsyslog_file")
 
 	if [ -z "$rsyslog_host" ]; then
-		echo "Remote logging not configured"
+		echo -c 142 -e "Remote logging not configured" >&2
 	elif [ "true" != "$rsyslog_enabled" ]; then
-		echo "Remote logging disabled"
+		echo -c 142 -e "Remote logging disabled" >&2
 	else
-		echo "Adding remote logging to $rsyslog_host:${rsyslog_port}"
+		echo -c 240 -e "- Adding remote logging to $rsyslog_host:${rsyslog_port}"
 		daemon_args="$daemon_args -R $rsyslog_host:${rsyslog_port}"
 	fi
 
 	if [ "true" = "$rsyslog_local" ] || [ "true" = "$rsyslog_file" ]; then
-		echo "Adding local logging"
+		echo -c 240 -e "- Adding local logging"
 		daemon_args="$daemon_args -L"
 	fi
 
