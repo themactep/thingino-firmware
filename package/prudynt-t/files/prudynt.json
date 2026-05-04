@@ -44,6 +44,11 @@
     "night_bin_path": "",
     "night_count_threshold": 6,
     "sample_interval_ms": 1000,
+    "schedule": {
+      "enabled": false,
+      "start_at": "",
+      "stop_at": ""
+    },
     "script_path": "/sbin/daynight",
     "settle_samples_for_gb_record": 20,
     "switch_above_percent": 80,
