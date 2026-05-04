@@ -1,0 +1,26 @@
+#!/bin/sh
+
+is_gateway_reachable() {
+	local iface="$1"
+
+	[ -z "$iface" ] && return 1
+	ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1 ||
+		ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1
+}
+
+case "$1" in
+	start)
+		for iface in eth0 usb0; do
+			if is_gateway_reachable "$iface"; then
+				echo "Wired interface found, stopping WiFi" >&2
+				/etc/init.d/S38wpa_supplicant stop
+				exit 0
+			fi
+		done
+		if [ -f /run/portal_mode ]; then
+			/etc/init.d/S38wpa_supplicant portal_confirmed
+		fi
+		;;
+esac
+
+exit 0

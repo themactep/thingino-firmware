@@ -156,11 +156,15 @@ define WIFI_INSTALL_TARGET_CMDS
 		--output $(TARGET_DIR)/etc/init.d/S36wireless $(WIFI_TEMPLATE_VARS)
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S36wireless
 
-	# WPA supplicant script
+	# WPA supplicant script (runs before network, so DHCP can get a lease)
 	sed -e 's,@WLAN_STA_NETDEV@,$(WIFI_STA_NETDEV),g' \
 		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
-		$(WIFI_PKGDIR)/files/S40wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S40wpa_supplicant
-	chmod 0755 $(TARGET_DIR)/etc/init.d/S40wpa_supplicant
+		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
+	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
+
+	# Wired-gateway preempt shim (runs after network, stops WiFi if wired is up)
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S40wpa_supplicant \
+		$(TARGET_DIR)/etc/init.d/S40wpa_supplicant
 
 	# Network interface config
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wlan0 \
