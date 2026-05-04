@@ -251,7 +251,7 @@ apply_targets() {
 			missing=1
 		fi
 	done
-	[ "$missing" -eq 0 ] || echo "One or more LED channels missing for requested color"
+	[ "$missing" -eq 0 ] || echo -c 142 -e "One or more LED channels missing for requested color" >&2
 	for letter in $LED_LETTERS; do
 		state="off"
 		for target in $TARGET_LIST; do
@@ -273,7 +273,7 @@ discover_leds() {
 discover_leds
 
 if [ "$CHANNEL_COUNT" -eq 0 ]; then
-	echo "No LED GPIO definitions found" >&2
+	echo -c 160 -e "No LED GPIO definitions found" >&2
 	exit 1
 fi
 
@@ -287,7 +287,7 @@ case "$arg" in
 esac
 
 resolve_targets "$color" || {
-	echo "Unsupported color '$1'" >&2
+	echo -c 160 -e "Unsupported color '$1'" >&2
 	exit 1
 }
 
