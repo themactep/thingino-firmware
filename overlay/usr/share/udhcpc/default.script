@@ -2,7 +2,7 @@
 # udhcpc script edited by Tim Riker <Tim@Rikers.org>
 
 if [ -z "$1" ]; then
-	echo "Error: should be called from udhcpc" >&2
+	echo -c 160 -e "Error: should be called from udhcpc" >&2
 	exit 0
 fi
 
@@ -47,13 +47,13 @@ case "$1" in
 		echo "Setting IP address $ip on $interface"
 		ip addr add $ip$NETMASK $BROADCAST dev $interface
 		if [ -n "$router" ]; then
-			echo "Deleting routers"
+			echo -c 240 -e "- Deleting routers"
 			while route del default gw 0.0.0.0 dev $interface; do
 				:
 			done
 
 			for i in $router; do
-				echo "Adding router $i"
+				echo -c 240 -e "- Adding router $i"
 				if [ "$subnet" = "255.255.255.255" ]; then
 					ip route add $i dev $interface
 				fi
