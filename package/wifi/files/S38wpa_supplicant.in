@@ -144,7 +144,7 @@ stop_portal() {
 	start-stop-daemon -K -q -x /sbin/dnsd
 
 	echo "Stop wpa_supplicant"
-	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+	start-stop-daemon -K -q -x $DAEMON_FULL
 
 	echo "Remove route ${PORTAL_CNET}.0/24 from $IFACE"
 	ip route delete ${PORTAL_CNET}.0/24 dev $IFACE
@@ -212,7 +212,7 @@ stop_access_point() {
 	start-stop-daemon -K -q -x /sbin/dnsd
 
 	echo "Stop wpa_supplicant"
-	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+	start-stop-daemon -K -q -x $DAEMON_FULL
 
 	echo "Remove IP address from $IFACE"
 	ip address delete dev $IFACE ${WLANAP_IP}/24
@@ -231,7 +231,7 @@ start_client() {
 
 stop_client() {
 	echo "Stop wpa_supplicant"
-	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+	start-stop-daemon -K -q -x $DAEMON_FULL
 	if [ -f /var/run/udhcpc.${IFACE}.pid ]; then
 		kill $(cat /var/run/udhcpc.${IFACE}.pid) 2>/dev/null
 		sleep 1
