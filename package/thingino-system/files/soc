@@ -125,8 +125,15 @@ print_soc_model() {
 			0x0031CCCC) soc="t31al" ;;
 			0x0031DDDD) soc="t31zc" ;;
 			0x0031EEEE) soc="t31lc" ;;
-			0x0031EE00) soc="qemu-t31" ;;
 			0x0032AAAA) soc="t32nq" ;;
+			0x0005EE00) soc="qemu-t10" ;;
+			0x0020EE00) soc="qemu-t20" ;;
+			0x0021EE00) soc="qemu-t21" ;;
+			0x0023EE00) soc="qemu-t23" ;;
+			0x0030EE00) soc="qemu-t30" ;;
+			0x0031EE00) soc="qemu-t31" ;;
+			0x0032EE00) soc="qemu-t32" ;;
+			0x0033EE00) soc="qemu-t33" ;;
 			*)
 				echo "Unknown SoC signature: $cpu_sig" >&2
 				soc="unknown"
