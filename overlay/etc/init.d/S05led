@@ -120,7 +120,7 @@ start() {
 	ensure_command gpio
 
 	if [ "$JSON_LED_COUNT" -eq 0 ]; then
-		echo "No LED pins defined in prudynt configuration"
+		echo -c 142 -e "No LED pins defined in prudynt configuration" >&2
 		return
 	fi
 
@@ -143,7 +143,7 @@ start() {
 			target=$pin_off
 			state_desc="off"
 		fi
-		echo "Set GPIO $pin $state_desc (LED $led_name)"
+		echo -c 240 -e "- Set GPIO $pin $state_desc (LED $led_name)"
 		gpio set "$pin" "$target"
 	done
 }
