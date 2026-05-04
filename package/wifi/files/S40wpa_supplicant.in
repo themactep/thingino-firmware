@@ -20,6 +20,12 @@ iface_exists() {
 	fi
 }
 
+is_gateway_reachable() {
+        [ -z "$iface" ] && return 1
+        ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1 || \
+        ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
+}
+
 ts() {
 	date -u +"%F %T"
 }
@@ -266,7 +272,7 @@ start() {
 	fi
 
 	# Wired interface is present
-	if iface_exists "eth0"; then
+	if iface=eth0 is_gateway_reachable; then
 		echo "Wired interface found" >&2
 		exit 1
 	fi
