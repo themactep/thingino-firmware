@@ -4,12 +4,12 @@
 # Read more at https://wiki.debian.org/BridgeNetworkConnections
 
 if [ ! -x /sbin/brctl ]; then
-	echo "No bridge ports control utility" >&2
+	echo -c 160 -e "No bridge ports control utility" >&2
 	exit 0
 fi
 
 if [ -z "$IF_BRIDGE_PORTS" ]; then
-	echo "No bridge ports defined" >&2
+	echo -c 160 -e "No bridge ports defined" >&2
 	exit 0
 fi
 
@@ -28,6 +28,6 @@ esac
 brctl delbr $IFACE
 
 for i in $INTERFACES; do
-	echo "Bringing down $i"
+	echo -c 240 -e "- Bringing down $i"
 	ip link set $i down
 done
