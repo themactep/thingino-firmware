@@ -21,28 +21,28 @@ singleton "$0"
 
 format_partition() {
 	unmount_partition $1
-	echo "Format partition"
+	echo -c 240 -e "- Format partition"
 	if ! $MKFS -n thingino $1 2>&1; then
-		echo "Cannot format $1 to $POST_fstype" >&2
+		echo -c 160 -e "Cannot format $1 to $POST_fstype" >&2
 		exit 1
 	fi
 }
 
 mount_partitions() {
-	echo "Mount partition"
+	echo -c 240 -e "- Mount partition"
 	echo /sbin/mdev >/proc/sys/kernel/hotplug
 	if ! mdev -s; then
-		echo "Cannot re-mount SD card" >&2
+		echo -c 160 -e "Cannot re-mount SD card" >&2
 		exit 1
 	fi
 }
 
 unmount_partition() {
-	echo "Unmount partition"
+	echo -c 240 -e "- Unmount partition"
 	local limit=5
 	while mountpoint -q $1; do
 		if [ "$limit" -le 0 ]; then
-			echo "Cannot unmount $1" >&2
+			echo -c 160 -e "Cannot unmount $1" >&2
 			exit 1
 		fi
 		umount -l $1 2>&1
@@ -52,7 +52,7 @@ unmount_partition() {
 }
 
 reinsert_sdcard() {
-	echo "Reinsert card"
+	echo -c 240 -e "- Reinsert card"
 	echo "" >/proc/sys/kernel/hotplug
 	mmc 0 -r
 	sleep 1
@@ -61,9 +61,9 @@ reinsert_sdcard() {
 }
 
 repartition_sdcard() {
-	echo "Repartition card"
+	echo -c 240 -e "- Repartition card"
 	if ! echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1; then
-		echo "Cannot create a partition on $1" >&2
+		echo -c 160 -e "Cannot create a partition on $1" >&2
 		exit 1
 	fi
 }
@@ -81,7 +81,7 @@ esac
 
 device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
 if [ -z "$device_name" ]; then
-	echo "No SD card device found" >&2
+	echo -c 160 -e "No SD card device found" >&2
 	exit 1
 fi
 
