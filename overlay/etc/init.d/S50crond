@@ -23,7 +23,7 @@ start() {
 	echo -c 15 "Starting crond"
 
 	if [ ! -x "$DAEMON" ]; then
-		echo "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
@@ -35,7 +35,7 @@ stop() {
 	echo -c 15 "Stopping crond"
 
 	if [ ! -x "$DAEMON" ]; then
-		echo "Disabled" >&2
+		echo -c 160 -e "Disabled" >&2
 		exit 1
 	fi
 
