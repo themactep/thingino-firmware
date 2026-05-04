@@ -105,7 +105,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-zerotier.html \
 		$(TARGET_DIR)/var/www/config-zerotier.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/firmware-reset.html \
-		$(TARGET_DIR)/var/www/config-reset.html
+		$(TARGET_DIR)/var/www/firmware-reset.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/gphotos-auth-callback.html \
 		$(TARGET_DIR)/var/www/gphotos-auth-callback.html
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/index.cgi \
