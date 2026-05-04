@@ -65,7 +65,7 @@ restore_led_states() {
 }
 
 start() {
-	echo "Starting LED daemon"
+	echo -c 15 "Starting LED daemon"
 
 	save_led_states
 	start_daemon || return 1
@@ -75,7 +75,7 @@ start() {
 }
 
 stop() {
-	echo "Stopping LED daemon"
+	echo -c 15 "Stopping LED daemon"
 
 	rm -f "$LEDD_DIR"/* 2>/dev/null || true
 	if [ -f "$PIDFILE" ]; then
