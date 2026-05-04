@@ -26,6 +26,7 @@ ts() {
 
 STA_IFACE=@WLAN_STA_NETDEV@
 AP_IFACE=@WLAN_AP_NETDEV@
+WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 
 CONFIG="/etc/$DAEMON_SHORT.conf"
 
@@ -236,6 +237,9 @@ stop_client() {
 		sleep 1
 	fi
 	ip addr flush dev $IFACE 2>/dev/null
+	if [ -n "$WLAN_MODULE_NAME" ] && grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
+		rmmod "$WLAN_MODULE_NAME" && echo "Unloaded $WLAN_MODULE_NAME"
+	fi
 }
 
 start() {
