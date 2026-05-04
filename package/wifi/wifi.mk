@@ -159,6 +159,7 @@ define WIFI_INSTALL_TARGET_CMDS
 	# WPA supplicant script (runs before network, so DHCP can get a lease)
 	sed -e 's,@WLAN_STA_NETDEV@,$(WIFI_STA_NETDEV),g' \
 		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
+		-e 's,@WLAN_MODULE_NAME@,$(WLAN_MODULE_NAME),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
