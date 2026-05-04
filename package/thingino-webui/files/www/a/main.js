@@ -804,7 +804,9 @@ function toggleAudio(device, state) {
   if (button) button.classList.add("pending");
 
   const param = device === "microphone" ? "mic_enabled" : "spk_enabled";
-  const payload = JSON.stringify({ audio: { [param]: state } });
+  const payload = JSON.stringify({
+    audio: { [param]: state },
+  });
   console.log(ts(), "===>", payload);
   fetch("/x/json-prudynt.cgi", {
     method: "POST",
