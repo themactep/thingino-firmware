@@ -1,0 +1,20 @@
+From: Alfonso Gamboa <gtxent@gmail.com>
+Subject: mips: only build FIT image for generic kernel
+
+MACH_INGENIC_SOC selects MIPS_GENERIC which unconditionally adds
+vmlinux.gz.itb to the all target. The ITB build requires bash and
+dtc in PATH which are not available in buildroot's per-package
+sandbox. Gate it behind MIPS_GENERIC_KERNEL instead so FIT images
+are only built when the generic board-agnostic kernel is selected.
+
+--- a/arch/mips/generic/Platform
++++ b/arch/mips/generic/Platform
+@@ -13,7 +13,7 @@
+ cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
+
+ load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
+-all-$(CONFIG_MIPS_GENERIC)	+= vmlinux.gz.itb
++all-$(CONFIG_MIPS_GENERIC_KERNEL)	+= vmlinux.gz.itb
+
+ its-y					:= vmlinux.its.S
+ its-$(CONFIG_FIT_IMAGE_FDT_BOSTON)	+= board-boston.its.S
