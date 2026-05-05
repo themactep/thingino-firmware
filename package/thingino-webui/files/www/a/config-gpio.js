@@ -92,9 +92,23 @@
         <div class="form-control-plaintext text-end" id="${name}_pin_value">${pin}</div>
       </div>
     </div>
-${
-  isPWMPin(pin)
-    ? `
+    <div class="row">
+      <label class="col-9" for="${name}_inv_value">Active low</label>
+      <div class="col">
+        <div class="form-control-plaintext text-end" id="${name}_inv_value">${isActiveLow ? "Yes" : "No"}</div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="col-9" for="${name}_lit">Active on boot</label>
+      <div class="col">
+        <div class="form-control-plaintext text-end">
+          <input class="form-check-input m-0" type="checkbox" id="${name}_lit" name="${name}_lit" value="true"${activeOnBoot ? " checked" : ""}>
+        </div>
+      </div>
+    </div>
+ ${
+   isPWMPin(pin)
+     ? `
     <div class="row">
       <label class="col-9" for="${name}_ch_value">GPIO PWM channel</label>
       <div class="col">
@@ -107,21 +121,9 @@ ${
         <input type="text" class="form-control text-end" id="${name}_lvl" name="${name}_lvl" pattern="[0-9]{1,3}" title="empty or a number" value="${pwmLvl}">
       </div>
     </div>
-`
-    : '<div class="text-warning">NOT A PWM PIN</div>'
-}
-    <div class="row">
-      <label class="col-9" for="${name}_inv_value">Active low</label>
-      <div class="col">
-        <div class="form-control-plaintext text-end" id="${name}_inv_value">${isActiveLow ? "Yes" : "No"}</div>
-      </div>
-    </div>
-    <div class="row mb-0">
-      <label class="col-9" for="${name}_lit">Active on boot</label>
-      <div class="col">
-        <input class="form-check-input" type="checkbox" id="${name}_lit" name="${name}_lit" value="true"${activeOnBoot ? " checked" : ""}>
-      </div>
-    </div>
+ `
+     : '<div class="text-warning">NOT A PWM PIN</div>'
+ }
   </div>
 </div>
 `;
@@ -155,15 +157,15 @@ ${
   </div>
   <div class="card-body">
     <div class="row mb-2">
-      <label class="col-9" for="ircut_pin1">GPIO pin 1 #</label>
+      <label class="col-9" for="ircut_pin1_value">GPIO pin 1 #</label>
       <div class="col">
-        <input type="text" class="form-control text-end" id="ircut_pin1" name="ircut_pin1" pattern="[0-9]{1,3}" value="${pin1 || ""}">
+        <div class="form-control-plaintext text-end" id="ircut_pin1_value">${pin1 || "-"}</div>
       </div>
     </div>
     <div class="row mb-2">
-      <label class="col-9" for="ircut_pin2">GPIO pin 2 #</label>
+      <label class="col-9" for="ircut_pin2_value">GPIO pin 2 #</label>
       <div class="col">
-        <input type="text" class="form-control text-end" id="ircut_pin2" name="ircut_pin2" pattern="[0-9]{1,3}" value="${pin2 || ""}">
+        <div class="form-control-plaintext text-end" id="ircut_pin2_value">${pin2 || "-"}</div>
       </div>
     </div>
   </div>
@@ -282,13 +284,6 @@ ${
         if (lvlEl && lvlEl.value) payload[name].lvl = lvlEl.value.trim();
       }
     });
-
-    const ircut_pin1 = $("#ircut_pin1")?.value.trim();
-    const ircut_pin2 = $("#ircut_pin2")?.value.trim();
-    if (ircut_pin1 && ircut_pin2) {
-      payload.ircut_pin1 = ircut_pin1;
-      payload.ircut_pin2 = ircut_pin2;
-    }
 
     saveConfig(payload);
   });
