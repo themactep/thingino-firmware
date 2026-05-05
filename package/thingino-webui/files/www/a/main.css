@@ -121,6 +121,40 @@ select {
   font-size: 1rem;
 }
 
+.password-reveal-wrapper {
+  position: relative;
+}
+
+.password-reveal-wrapper > input[type="password"],
+.password-reveal-wrapper > input[type="text"] {
+  padding-right: 2.25rem;
+}
+
+.password-reveal-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--bs-secondary-color);
+  display: inline-flex;
+  height: calc(100% - 0.5rem);
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 0.5rem;
+  top: 0.25rem;
+  width: 1.5rem;
+}
+
+.password-reveal-toggle:hover {
+  color: var(--bs-body-color);
+}
+
+.password-reveal-toggle:focus-visible {
+  border-radius: 0.25rem;
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 1px;
+}
+
 textarea {
   font-family: var(--bs-font-monospace);
   text-wrap: auto;

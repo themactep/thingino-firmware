@@ -2221,6 +2221,49 @@ window.confirm = thinginoConfirm;
 window.confirmAsync = thinginoConfirm;
 window.thinginoConfirm = thinginoConfirm;
 
+function initPasswordRevealToggles(root = document) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+
+  root
+    .querySelectorAll(
+      "input[type='password']:not([data-password-reveal-ready])",
+    )
+    .forEach((input) => {
+      if (!input.parentNode) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "password-reveal-wrapper";
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "password-reveal-toggle";
+      button.setAttribute("aria-label", "Show password");
+      button.innerHTML = '<i class="bi bi-eye"></i>';
+
+      button.addEventListener("click", () => {
+        const reveal = input.type === "password";
+        input.type = reveal ? "text" : "password";
+        button.setAttribute(
+          "aria-label",
+          reveal ? "Hide password" : "Show password",
+        );
+        button.setAttribute(
+          "title",
+          reveal ? "Hide password" : "Show password",
+        );
+        button.innerHTML = reveal
+          ? '<i class="bi bi-eye-slash"></i>'
+          : '<i class="bi bi-eye"></i>';
+        input.focus();
+      });
+
+      wrapper.appendChild(button);
+      input.dataset.passwordRevealReady = "1";
+    });
+}
+
 (() => {
   function initAll() {
     function toggleAuto(el) {
@@ -2271,14 +2314,8 @@ window.thinginoConfirm = thinginoConfirm;
       toggleAuto(el);
     });
 
-    // show password when checkbox is checked
-    $$(".password input[type=checkbox]").forEach((el) => {
-      el.addEventListener("change", (ev) => {
-        const pw = $("#" + ev.target.dataset["for"]);
-        pw.type = el.checked ? "text" : "password";
-        pw.focus();
-      });
-    });
+    // add password reveal toggles for password fields
+    initPasswordRevealToggles();
 
     // reload window when refresh button is clicked
     $$(".refresh").forEach((el) => {

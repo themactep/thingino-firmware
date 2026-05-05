@@ -46,7 +46,12 @@
 
             <div class="mb-3">
               <label for="password" class="form-label">Password</label>
-              <input type="password" class="form-control" id="password" name="password" required>
+              <div class="password-reveal-wrapper">
+                <input type="password" class="form-control" id="password" name="password" required>
+                <button type="button" class="password-reveal-toggle" id="password-toggle" aria-label="Show password">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
               <div class="form-text">Default password is "root"</div>
             </div>
 
@@ -70,6 +75,19 @@
     const form = document.getElementById('loginForm');
     const loginBtn = document.getElementById('loginBtn');
     const alertDiv = document.getElementById('alert');
+    const passwordField = document.getElementById('password');
+    const passwordToggle = document.getElementById('password-toggle');
+
+    passwordToggle.addEventListener('click', () => {
+      const reveal = passwordField.type === 'password';
+      passwordField.type = reveal ? 'text' : 'password';
+      passwordToggle.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+      passwordToggle.setAttribute('title', reveal ? 'Hide password' : 'Show password');
+      passwordToggle.innerHTML = reveal
+        ? '<i class="bi bi-eye-slash"></i>'
+        : '<i class="bi bi-eye"></i>';
+      passwordField.focus();
+    });
 
     function showAlert(message, type) {
       alertDiv.className = `alert alert-${type}`;
