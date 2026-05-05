@@ -25,7 +25,7 @@ endif
 
 # Set SDK version based on configuration
 ifeq ($(SOC_FAMILY),a1)
-	SDK_VERSION := 1.6.2
+	SDK_VERSION := 1.7.0
 else ifeq ($(SOC_FAMILY),c100)
 	ifeq ($(KERNEL_VERSION),3.10.14)
 		SDK_VERSION := 1.1.6
