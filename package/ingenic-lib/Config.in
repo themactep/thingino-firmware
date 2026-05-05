@@ -21,6 +21,7 @@ config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 
 config BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
 	bool "libsysutils.so (proprietary)"
+	depends on !BR2_SOC_FAMILY = "a1"
 	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
 	default y
 	help

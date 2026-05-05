@@ -70,7 +70,7 @@ endif
 
 ACCEL_DIR = $(@D)/acceleration-modules
 
-# Staging: always install libimp + libalog + libsysutils for linking
+# Staging: install core libs for linking (skip libsysutils on a1)
 define INGENIC_LIB_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libimp.so \
 		$(STAGING_DIR)/usr/lib/libimp.so
@@ -107,8 +107,10 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/usr/lib/libalog.so \
 	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS),\
+		$(if $(filter-out a1,$(SOC_FAMILY)),\
 		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libsysutils.so \
 			$(TARGET_DIR)/usr/lib/libsysutils.so \
+		) \
 	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),\
 		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libaudioProcess.so \
