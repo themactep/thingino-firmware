@@ -51,6 +51,11 @@
                   <input type="text" id="users" name="users" class="form-control" placeholder="user1 user2 user3">
                   <span class="hint text-secondary">Whitespace separated list of Telegram usernames</span>
                 </p>
+                <p>
+                  <label for="user_ids">Respond only to these user IDs</label>
+                  <input type="text" id="user_ids" name="user_ids" class="form-control" placeholder="123456789 987654321">
+                  <span class="hint text-secondary">Whitespace separated list of Telegram numeric user IDs</span>
+                </p>
               </div>
               <div class="col-12 col-lg-6">
                 <h4>Help</h4>
@@ -118,7 +123,7 @@
           <li>Give your bot a unique username ending in "bot" (e.g., "MyCameraBot")</li>
           <li>BotFather will provide you with a token - copy this token</li>
           <li>Paste the token in the "Bot token" field above</li>
-          <li>For "Respond only to these users", enter your Telegram username to restrict bot access</li>
+          <li>For "Respond only to these users", enter Telegram usernames and/or numeric user IDs to restrict bot access</li>
         </ol>
       </div>
       <div class="modal-footer">

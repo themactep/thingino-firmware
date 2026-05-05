@@ -5,6 +5,7 @@
   const enabledInput = $("#enabled");
   const tokenInput = $("#token");
   const usersInput = $("#users");
+  const userIdsInput = $("#user_ids");
   const submitButton = $("#telegrambot_submit");
   const reloadButton = $("#telegrambot-reload");
   const restartButton = $("#telegrambot-restart");
@@ -19,6 +20,7 @@
     enabledInput.disabled = state;
     tokenInput.disabled = state;
     usersInput.disabled = state;
+    userIdsInput.disabled = state;
     if (state) {
       showBusy(label || "Working...");
     } else {
@@ -95,6 +97,10 @@
         ? data.allowed_usernames.join(" ")
         : data.users || "";
       usersInput.value = users;
+      const userIds = Array.isArray(data.allowed_user_ids)
+        ? data.allowed_user_ids.join(" ")
+        : "";
+      userIdsInput.value = userIds;
 
       try {
         const statusResponse = await fetch("/x/ctl-telegrambot.cgi?status=1");
@@ -133,6 +139,9 @@
     try {
       const token = tokenInput.value.trim();
       const users = splitUsers(usersInput.value);
+      const userIds = splitUsers(userIdsInput.value)
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value) => Number.isInteger(value) && value > 0);
       const enabled = enabledInput.checked;
       const commands = Array.from(commandsTbody.querySelectorAll("tr"))
         .map((tr) => ({
@@ -145,6 +154,7 @@
       const payload = JSON.parse(JSON.stringify(originalConfig || {}));
       payload.token = token;
       payload.allowed_usernames = users;
+      payload.allowed_user_ids = userIds;
       payload.commands = commands;
       delete payload.enabled;
 
