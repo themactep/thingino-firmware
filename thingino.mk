@@ -46,7 +46,7 @@ export SOC_ARCH
 # default to older kernel if none set
 ifeq ($(KERNEL_VERSION),)
 	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.0
+		KERNEL_VERSION := 7.1-rc1
 	else ifeq ($(KERNEL_VERSION_4),y)
 		KERNEL_VERSION := 4.4.94
 	else ifeq ($(SOC_FAMILY),t41)
@@ -62,8 +62,8 @@ endif
 
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
-ifeq ($(KERNEL_VERSION),7.0)
-	KERNEL_BRANCH := ingenic-7.0-mainline
+ifeq ($(KERNEL_VERSION),7.1-rc1)
+	KERNEL_BRANCH := ingenic-7.1-rc1
 else ifeq ($(SOC_FAMILY),a1)
 	KERNEL_BRANCH := ingenic-a1
 else ifeq ($(SOC_FAMILY),c100)
@@ -102,7 +102,7 @@ ifeq ($(KERNEL_HASH),)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 
-ifeq ($(KERNEL_VERSION),7.0)
+ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
