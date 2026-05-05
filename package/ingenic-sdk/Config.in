@@ -1,6 +1,7 @@
 config BR2_PACKAGE_INGENIC_SDK
 	bool "Ingenic SDK"
-	default y
+	default y if !KERNEL_VERSION_7
+	depends on !KERNEL_VERSION_7
 	select BR2_LINUX_KERNEL
 	help
 	  Code from Ingenic SDK
