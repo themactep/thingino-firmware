@@ -1,5 +1,5 @@
-# wireguard-tools 1.0.20250521 was repacked upstream; allow the current tarball hash.
-sha256  61f520e7c1664ae9301fa36a2b8e90cf4680887a71f456c290d5d8b879f1e2e6  wireguard-tools-1.0.20250521.tar.xz
+# wireguard-tools 1.0.20260223
+sha256  af459827b80bfd31b83b08077f4b5843acb7d18ad9a33a2ef532d3090f291fbf  wireguard-tools-1.0.20260223.tar.xz
 
 # Locally calculated
 sha256  8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643  COPYING
