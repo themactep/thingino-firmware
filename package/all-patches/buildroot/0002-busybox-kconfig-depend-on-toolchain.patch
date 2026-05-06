@@ -1,0 +1,25 @@
+From 3e73ef5afa8bffbd2d4656e23c2d9cffb977308c Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Tue, 5 May 2026 23:03:40 -0400
+Subject: [PATCH] busybox: depend on toolchain during kconfig
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+---
+ package/busybox/busybox.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/package/busybox/busybox.mk b/package/busybox/busybox.mk
+index a33548c355..f3eb26eec9 100644
+--- a/package/busybox/busybox.mk
++++ b/package/busybox/busybox.mk
+@@ -126,6 +126,7 @@ BUSYBOX_KCONFIG_FILE = $(BUSYBOX_CONFIG_FILE)
+ BUSYBOX_KCONFIG_FRAGMENT_FILES = $(call qstrip,$(BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES))
+ BUSYBOX_KCONFIG_EDITORS = menuconfig xconfig gconfig
+ BUSYBOX_KCONFIG_OPTS = $(BUSYBOX_MAKE_OPTS)
++BUSYBOX_KCONFIG_DEPENDENCIES += toolchain
+ 
+ ifeq ($(BR2_PACKAGE_BUSYBOX_INDIVIDUAL_BINARIES),y)
+ define BUSYBOX_PERMISSIONS
+-- 
+2.53.0
+
