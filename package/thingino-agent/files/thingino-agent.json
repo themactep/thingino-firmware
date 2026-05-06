@@ -1,6 +1,6 @@
 {
   "agent": {
-    "enabled": false,
+    "enabled": true,
     "backend": "auto",
     "listen": "127.0.0.1",
     "port": 1998,

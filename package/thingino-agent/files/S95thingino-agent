@@ -8,7 +8,7 @@ DAEMON_FULL="/usr/sbin/thingino-agentd"
 DAEMON_ARGS=""
 DAEMON_SYSLOG="false"
 
-THINGINO_CONFIG="$THINGINO_CONFIG"
+THINGINO_CONFIG="/etc/thingino.json"
 
 echo_error() {
 	echo "$1" >&2
