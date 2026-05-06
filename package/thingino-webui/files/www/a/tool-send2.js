@@ -2,6 +2,17 @@
   "use strict";
 
   const endpoint = "/x/json-send2.cgi";
+  const serviceCapabilities = {
+    email: { photo: true, video: true },
+    ftp: { photo: true, video: true },
+    telegram: { photo: true, video: true },
+    gotify: { photo: false, video: false },
+    mqtt: { photo: true, video: false },
+    webhook: { photo: true, video: true },
+    storage: { photo: true, video: true },
+    ntfy: { photo: true, video: false },
+    gphotos: { photo: true, video: true },
+  };
 
   const motionEnabledInput = $("#motion_enabled");
   const motionSensitivityInput = $("#motion_sensitivity");
@@ -116,25 +127,32 @@
         const serviceData = data[service];
         const photoStatus = $(`#status-${service}-photo`);
         const videoStatus = $(`#status-${service}-video`);
+        const capabilities = serviceCapabilities[service] || {};
 
-        if (photoStatus && serviceData) {
-          const sendPhoto =
-            serviceData.send_photo !== false &&
-            serviceData.send_photo !== "false";
-          photoStatus.textContent = sendPhoto ? "✓" : "✗";
-          photoStatus.className = sendPhoto
+        const setStatus = (element, enabled) => {
+          if (!element) return;
+          element.textContent = enabled ? "✓" : "✗";
+          element.className = enabled
             ? "badge bg-success"
             : "badge bg-secondary";
+        };
+
+        if (photoStatus) {
+          const sendPhoto =
+            capabilities.photo === true &&
+            serviceData &&
+            (serviceData.send_photo === true ||
+              serviceData.send_photo === "true");
+          setStatus(photoStatus, sendPhoto);
         }
 
-        if (videoStatus && serviceData) {
+        if (videoStatus) {
           const sendVideo =
-            serviceData.send_video === true ||
-            serviceData.send_video === "true";
-          videoStatus.textContent = sendVideo ? "✓" : "✗";
-          videoStatus.className = sendVideo
-            ? "badge bg-success"
-            : "badge bg-secondary";
+            capabilities.video === true &&
+            serviceData &&
+            (serviceData.send_video === true ||
+              serviceData.send_video === "true");
+          setStatus(videoStatus, sendVideo);
         }
       });
     } catch (err) {
