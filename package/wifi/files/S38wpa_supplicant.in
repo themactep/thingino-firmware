@@ -237,9 +237,6 @@ stop_client() {
 		sleep 1
 	fi
 	ip addr flush dev $IFACE 2>/dev/null
-	if [ -n "$WLAN_MODULE_NAME" ] && grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
-		rmmod "$WLAN_MODULE_NAME" && echo "Unloaded $WLAN_MODULE_NAME"
-	fi
 }
 
 start() {
