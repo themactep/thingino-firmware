@@ -166,8 +166,11 @@ list_entries() {
 	local target="$1" json
 	[ -d "$target" ] || return 1
 
-	json=$(LC_ALL=C ls -lnA --group-directories-first --full-time "$target" 2>/dev/null | awk -v base="$target" '
-BEGIN { count=0 }
+	json=$(LC_ALL=C ls -lnA "$target" 2>/dev/null | awk -v base="$target" '
+BEGIN {
+  dir_count = 0
+  file_count = 0
+}
 function escape(str) {
   gsub(/\\/, "\\\\", str)
   gsub(/"/, "\\\"", str)
@@ -177,52 +180,49 @@ function escape(str) {
 }
 $1 == "total" { next }
 {
-  perm=$1
-  size=$5
-  date=$6
-  time=$7
-  start=9
-  if (start <= NF) {
-    name=$start
-  } else {
-    name=""
-  }
-  for (i=start+1; i<=NF; i++) {
-    name=name " " $i
+  perm = $1
+  size = $5
+  timestamp = $6 " " $7 " " $8
+  name = ""
+  for (i = 9; i <= NF; i++) {
+    name = name (i == 9 ? "" : OFS) $i
   }
   if (name == "") next
-  link_target=""
-  if (substr(perm,1,1) == "l") {
-    split(name, parts, " -> ")
-    name=parts[1]
+
+  link_target = ""
+  if (substr(perm, 1, 1) == "l") {
+    split(name, parts, / -> /)
+    name = parts[1]
     if (length(parts) > 1) {
-      link_target=parts[2]
+      link_target = parts[2]
     }
   }
-  path=base "/" name
+
+  path = base "/" name
   gsub(/\/+/, "/", path)
-  raw_path=path
-  is_dir = substr(perm,1,1) == "d" ? "true" : "false"
-  is_link = substr(perm,1,1) == "l" ? "true" : "false"
-  if (is_link == "true" && is_dir == "false") {
-    path_cmd=raw_path
-    gsub(/"/, "\\\"", path_cmd)
-    cmd="test -d \"" path_cmd "\""
-    if (system(cmd) == 0) {
-      is_dir="true"
-    }
+
+  is_dir = substr(perm, 1, 1) == "d" ? "true" : "false"
+  is_link = substr(perm, 1, 1) == "l" ? "true" : "false"
+  if (is_dir == "true") size = "-"
+
+  record = sprintf("{\"name\":\"%s\",\"path\":\"%s\",\"size\":\"%s\",\"perm\":\"%s\",\"time\":\"%s\",\"is_dir\":%s,\"is_link\":%s,\"link_target\":\"%s\"}", escape(name), escape(path), escape(size), escape(perm), escape(timestamp), is_dir, is_link, escape(link_target))
+
+  if (is_dir == "true") {
+    dirs[++dir_count] = record
+  } else {
+    files[++file_count] = record
   }
-  if (is_dir == "true") size="-"
-  split(time, tparts, "\.")
-  clean_time = tparts[1]
-  timestamp=date " " clean_time
-  name=escape(name)
-  path=escape(raw_path)
-  perm=escape(perm)
-  timestamp=escape(timestamp)
-  link_target=escape(link_target)
-  if (count++) printf(",")
-  printf("{\"name\":\"%s\",\"path\":\"%s\",\"size\":\"%s\",\"perm\":\"%s\",\"time\":\"%s\",\"is_dir\":%s,\"is_link\":%s,\"link_target\":\"%s\"}", name, path, size, perm, timestamp, is_dir, is_link, link_target)
+}
+END {
+  count = 0
+  for (i = 1; i <= dir_count; i++) {
+    if (count++) printf(",")
+    printf("%s", dirs[i])
+  }
+  for (i = 1; i <= file_count; i++) {
+    if (count++) printf(",")
+    printf("%s", files[i])
+  }
 }
 ') || return 1
 
