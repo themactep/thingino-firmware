@@ -16,6 +16,19 @@ send_error() {
 	send_json_response "{\"error\":{\"message\":\"$1\"}}"
 }
 
+default_domain_config() {
+	case "$1" in
+		gotify)
+			cat <<'EOF'
+{"url":"","token":"","title":"Thingino Camera","message":"Motion detected at %Y-%m-%d %H:%M:%S","extras":"","priority":5,"send_photo":false,"send_video":false}
+EOF
+			;;
+		*)
+			echo '{}'
+			;;
+	esac
+}
+
 # GET - Load configuration
 if [ "$REQUEST_METHOD" = "GET" ]; then
 	# Read motion config from prudynt
@@ -27,10 +40,16 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
 	# Helper to safely get config values
 	get_domain_config() {
+		local domain="$1"
+		local value=""
 		if [ -f "$config_file" ]; then
-			jct "$config_file" get "$1" 2>/dev/null || echo '{}'
+			value=$(jct "$config_file" get "$domain" 2>/dev/null)
+		fi
+
+		if [ -n "$value" ] && [ "$value" != "null" ]; then
+			echo "$value"
 		else
-			echo '{}'
+			default_domain_config "$domain"
 		fi
 	}
 
