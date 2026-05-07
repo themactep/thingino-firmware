@@ -32,7 +32,7 @@ CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS)
 
 .PHONY: docker-build
 docker-build:
-	@if ! $(CONTAINER_ENGINE) images | grep -q "$(DOCKER_IMAGE).*$(DOCKER_TAG)"; then \
+	@if ! $(CONTAINER_ENGINE) images --format=table | grep -q "$(DOCKER_IMAGE).*$(DOCKER_TAG)"; then \
 		echo "Building Docker image: $(DOCKER_IMAGE):$(DOCKER_TAG)"; \
 		$(CONTAINER_ENGINE) build --network=host \
 			--build-arg USER_ID=$(USER_ID) \
