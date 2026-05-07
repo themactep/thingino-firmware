@@ -83,7 +83,7 @@ fi
 DOCKER_IMAGE="thingino-builder"
 DOCKER_TAG="latest"
 
-if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE.*$DOCKER_TAG"; then
+if ! $CONTAINER_ENGINE images --format=table | grep -q "$DOCKER_IMAGE.*$DOCKER_TAG"; then
     print_info "Building container image..."
     run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
     print_success "Container image built"
