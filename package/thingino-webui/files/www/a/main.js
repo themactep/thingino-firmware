@@ -751,21 +751,32 @@ function toggleWireGuard(state) {
 
   const targetState = state ? 1 : 0;
   fetch("/x/json-wireguard.cgi?iface=wg0&state=" + targetState)
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.json();
+    .then(async (res) => {
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      console.log(ts(), "<===", JSON.stringify(data));
+
+      if (!res.ok || data.error) {
+        throw new Error(data?.error?.message || `HTTP error ${res.status}`);
+      }
+
+      return data;
     })
     .then((data) => {
-      console.log(ts(), "<===", JSON.stringify(data));
-      if (data.error) {
-        console.error("WireGuard toggle error:", data.error.message);
-        if (button) button.classList.remove("pending");
-      } else {
-        updateHeartbeatUi({ wg_status: targetState });
-      }
+      const nextStatus =
+        data && data.message && data.message.status !== undefined
+          ? data.message.status
+          : targetState;
+      updateHeartbeatUi({ wg_status: nextStatus });
     })
     .catch((err) => {
-      console.error("WireGuard toggle error", err);
+      if (typeof window.showOverlayMessage === "function") {
+        window.showOverlayMessage(
+          err.message || "Failed to toggle WireGuard",
+          "danger",
+        );
+      }
+      console.warn("WireGuard toggle error", err);
       if (button) button.classList.remove("pending");
     });
 }
