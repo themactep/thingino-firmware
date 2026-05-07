@@ -24,6 +24,8 @@
 
   function buildDefaultMenu() {
     const hasMotors = uiConfig.device && uiConfig.device.motors === true;
+    const flashOperationsEnabled =
+      uiConfig.device && uiConfig.device.flashOperations === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
@@ -51,6 +53,29 @@
       { label: "ZeroTier VPN", href: "/config-zerotier.html" },
       { type: "divider" },
       { label: "Reset...", href: "/reset.html" },
+    );
+
+    const toolsItems = [
+      { label: "File manager", href: "/tool-file-manager.html" },
+      { label: "Network test", href: "/tool-ping-trace.html" },
+      { label: "SD card", href: "/tool-sdcard.html" },
+      { label: "Send to services", href: "/tool-send2.html" },
+    ];
+
+    if (flashOperationsEnabled) {
+      toolsItems.push({
+        label: "Flash operations",
+        href: "/tool-upgrade.html",
+      });
+    }
+
+    toolsItems.push(
+      { type: "divider" },
+      {
+        label: "Reboot camera",
+        href: "/x/reboot.cgi",
+        className: "text-danger confirm",
+      },
     );
 
     return [
@@ -86,19 +111,7 @@
         type: "dropdown",
         id: "ddTools",
         label: "Tools",
-        items: [
-          { label: "File manager", href: "/tool-file-manager.html" },
-          { label: "Network test", href: "/tool-ping-trace.html" },
-          { label: "SD card", href: "/tool-sdcard.html" },
-          { label: "Send to services", href: "/tool-send2.html" },
-          { label: "Flash operations", href: "/tool-upgrade.html" },
-          { type: "divider" },
-          {
-            label: "Reboot camera",
-            href: "/x/reboot.cgi",
-            className: "text-danger confirm",
-          },
-        ],
+        items: toolsItems,
       },
       {
         type: "dropdown",

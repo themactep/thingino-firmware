@@ -31,6 +31,10 @@ start() {
 	if [ -f /etc/motors.json ]; then
 		motors_enabled="true"
 	fi
+	flash_operations_enabled="false"
+	if [ -f /var/www/tool-upgrade.html ]; then
+		flash_operations_enabled="true"
+	fi
 	soc="$(soc -f)"
 
 	{
@@ -43,6 +47,7 @@ start() {
 		echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
 		echo "  timezone: \"$(escape "$timezone")\","
 		echo "  motors: $motors_enabled,"
+		echo "  flashOperations: $flash_operations_enabled,"
 		echo "  soc: \"$soc\""
 		echo "});"
 		echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"

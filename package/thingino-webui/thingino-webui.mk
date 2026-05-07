@@ -172,8 +172,12 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-sensor-data.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-timelapse.html \
 		$(TARGET_DIR)/var/www/tool-timelapse.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-upgrade.html \
-		$(TARGET_DIR)/var/www/tool-upgrade.html
+	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-upgrade.html \
+			$(TARGET_DIR)/var/www/tool-upgrade.html; \
+	else \
+		rm -f $(TARGET_DIR)/var/www/tool-upgrade.html; \
+	fi
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/wait.html \
 		$(TARGET_DIR)/var/www/wait.html
 
@@ -272,8 +276,12 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-sensor-data.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-timelapse.js \
 		$(TARGET_DIR)/var/www/a/tool-timelapse.js
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-upgrade.js \
-		$(TARGET_DIR)/var/www/a/tool-upgrade.js
+	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-upgrade.js \
+			$(TARGET_DIR)/var/www/a/tool-upgrade.js; \
+	else \
+		rm -f $(TARGET_DIR)/var/www/a/tool-upgrade.js; \
+	fi
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/wait.js \
 		$(TARGET_DIR)/var/www/a/wait.js
 
@@ -435,8 +443,12 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-sdcard.cgi \
 		$(TARGET_DIR)/var/www/x/tool-sdcard.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-upgrade.cgi \
-		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
+	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-upgrade.cgi \
+			$(TARGET_DIR)/var/www/x/tool-upgrade.cgi; \
+	else \
+		rm -f $(TARGET_DIR)/var/www/x/tool-upgrade.cgi; \
+	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/wifi-scan.cgi \
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
