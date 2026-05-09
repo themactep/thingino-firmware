@@ -13,7 +13,7 @@
     "enable_live_view": true,
     "enable_motion": true,
     "enable_motion_guard": true,
-    "enable_ota": true,
+    "enable_ota": false,
     "enable_privacy": true,
     "enable_ptz": false,
     "enable_reboot": false,
