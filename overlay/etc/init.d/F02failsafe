@@ -11,7 +11,7 @@ start() {
 	fi
 
 	# Always enter failsafe if enable_failsafe is true
-	if [ "true" = "$enable_failsafe" ]; then
+	if [ "true" = $(fw_printenv -n enable_failsafe) ]; then
 		echo -c 118 "Automatically entering failsafe mode..."
 		touch /tmp/.fs
 		. /etc/profile
