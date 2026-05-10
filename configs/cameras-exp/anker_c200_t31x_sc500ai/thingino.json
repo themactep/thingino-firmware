@@ -1,5 +1,12 @@
 {
   "gpio": {
-    "led_w": 49
+    "button_reset": 57,
+    "ircut": "",
+    "led_w": {
+      "active_low": false,
+      "pin": 49
+    },
+    "mmc_cd": "",
+    "net": ""
   }
 }
