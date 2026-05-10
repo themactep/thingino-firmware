@@ -7,9 +7,10 @@ SHMDIR=/dev/shm
 
 # Read a boolean from raptor.conf: config_bool <section> <key> <default>
 config_bool() {
-	val=$(sed -n "/^\[$1\]/,/^\[/{ /^$2\s*=/{s/.*=\s*//;s/\s*#.*//;p;q}}" "$CONF")
-	case "${val:-$3}" in
-		true | yes | 1) return 0 ;;
+	val=$(raptorctl config get "$1" "$2" 2>/dev/null | tr -d '\r\n')
+	val=$(printf '%s' "${val:-$3}" | tr 'A-Z' 'a-z')
+	case "$val" in
+		true | yes | 1 | on) return 0 ;;
 		*) return 1 ;;
 	esac
 }

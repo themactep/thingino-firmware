@@ -32,7 +32,7 @@ raptor_conf_get() {
 	section="$1"
 	key="$2"
 
-	sed -n "/^\[$section\]/,/^\[/{ /^$key[[:space:]]*=/{s/^[^=]*=[[:space:]]*//;s/[[:space:]]*#.*$//;s/^[[:space:]]*//;s/[[:space:]]*$//;p;q}}" "$RAPTOR_CONFIG"
+	raptorctl config get "$section" "$key" 2>/dev/null
 }
 
 raptor_bool_default() {
