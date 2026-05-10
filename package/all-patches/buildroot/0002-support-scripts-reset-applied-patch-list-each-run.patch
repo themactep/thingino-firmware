@@ -1,0 +1,13 @@
+diff --git a/support/scripts/apply-patches.sh b/support/scripts/apply-patches.sh
+index 2acaa63e9f..ac1ad0ea89 100755
+--- a/support/scripts/apply-patches.sh
++++ b/support/scripts/apply-patches.sh
+@@ -157,7 +157,7 @@ function scan_patchdir {
+     fi
+ }
+ 
+-touch ${builddir}/.applied_patches_list
++: > ${builddir}/.applied_patches_list
+ scan_patchdir "$patchdir" "$patchpattern"
+ 
+ # Check for rejects...
