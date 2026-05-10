@@ -159,5 +159,4 @@ Versions are extracted from package `.mk` files.
 | `thingino-wireguard-tools` | Override | `wireguard-tools` | `1.0.20260223` | `1.0.20260223` |
 | `wireless_tools` | Override | `wireless_tools` | `$(WIRELESS_TOOLS_VERSION_MAJOR).pre9` | `n/a` |
 
-Last checked 2026-05-09 22:31:30
-
+Last checked 2026-05-10 02:40:59 UTC
