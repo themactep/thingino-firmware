@@ -4,8 +4,11 @@
 THINGNIO_CONF="/etc/thingino.json"
 
 # order: blue, green, white, yellow, red
-for color in "b g w y r"; do
-	PIN=$(jct "$THINGINO_CONF" "get.gpio.led_$color.pin" 2>/dev/null)
+for color in b g w y r; do
+	PIN=$(jct "$THINGINO_CONF" get "gpio.led_$color.pin" 2>/dev/null | tr -d '"')
+	case "$PIN" in
+		'' | *[!0-9]*) continue ;;
+	esac
 	if [ -n "$PIN" ]; then
 		echo "1000" >"/run/ledd/$PIN"
 		exit 0
