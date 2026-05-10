@@ -1,1 +1,2 @@
 gpio_default=18O 26i 42O 49o 57i
+gpio_button=57
