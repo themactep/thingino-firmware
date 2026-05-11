@@ -3,6 +3,7 @@
   const container = $("#gpio-container");
   const submitButton = $("#gpio_submit");
   let gpioData = {};
+  let ledData = {};
   let pwmPins = [];
 
   const gpioConfigs = [
@@ -14,7 +15,7 @@
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     container
-      .querySelectorAll("input, button.led-status")
+      .querySelectorAll("input, select, button.led-status")
       .forEach((el) => (el.disabled = state));
     if (state) {
       showBusy(label || "Working...");
@@ -169,6 +170,45 @@
     return card;
   }
 
+  function createStartupIndicatorCard() {
+    const startupIndicator = ledData.startup_indicator || "off";
+    const options = [
+      ["off", "Off"],
+      ["blue", "Blue"],
+      ["green", "Green"],
+      ["red", "Red"],
+      ["yellow", "Yellow"],
+      ["violet", "Violet"],
+      ["white", "White"],
+    ];
+
+    const card = document.createElement("div");
+    card.className = "col";
+    card.innerHTML = `
+<div class="card h-100 startup-indicator">
+  <div class="card-header">Startup indicator LED</div>
+  <div class="card-body">
+    <div class="row align-items-center">
+      <label class="col-7" for="startup_indicator">LED color</label>
+      <div class="col-5">
+        <select class="form-select text-end" id="startup_indicator" name="startup_indicator">
+          ${options
+            .map(
+              ([value, label]) =>
+                `<option value="${value}"${startupIndicator === value ? " selected" : ""}>${label}</option>`,
+            )
+            .join("")}
+        </select>
+      </div>
+    </div>
+    <div class="form-text mt-3">Applied by S99led during system startup.</div>
+  </div>
+</div>
+`;
+
+    return card;
+  }
+
   function setupTestButtons() {
     gpioConfigs.forEach(({ name }) => {
       const toggle = $("#" + name + "_toggle");
@@ -208,6 +248,7 @@
       const data = await response.json();
 
       gpioData = data.gpio || {};
+      ledData = data.led || {};
       pwmPins = (data.pwm_pins || "")
         .split(",")
         .map((p) => parseInt(p))
@@ -218,6 +259,7 @@
         const card = createGPIOCard(config);
         if (card) container.appendChild(card);
       });
+      container.appendChild(createStartupIndicatorCard());
       container.appendChild(createIRCutCard());
 
       setupTestButtons();
@@ -278,6 +320,8 @@
         if (lvlEl && lvlEl.value) payload[name].lvl = lvlEl.value.trim();
       }
     });
+
+	payload.startup_indicator = $("#startup_indicator")?.value || "off";
 
     saveConfig(payload);
   });
