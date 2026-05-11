@@ -192,6 +192,9 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset ircut gpio_ircut "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT))"; \
 	rset ircut gpio_ircut2 "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT2))"; \
 	rset ircut gpio_irled "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED))"; \
+	rset ircut gpio_irled2 "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED2))"; \
+	rset ircut ir850 "$(call raptor_bval,IRCUT_IR850)"; \
+	rset ircut ir940 "$(call raptor_bval,IRCUT_IR940)"; \
 	\
 	rset recording enabled "$(call raptor_bval,RECORDING_ENABLED)"; \
 	rset recording mode "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_MODE))"; \
