@@ -102,12 +102,6 @@ handle_post() {
 	TMP_FILE=$(mktemp /tmp/${DOMAIN}.XXXXXX)
 	echo '{}' >"$TMP_FILE"
 
-	save_gpio_pin "led_r"
-	save_gpio_pin "led_g"
-	save_gpio_pin "led_b"
-	save_gpio_pin "led_y"
-	save_gpio_pin "led_o"
-	save_gpio_pin "led_w"
 	save_gpio_pin "ir850"
 	save_gpio_pin "ir940"
 	save_gpio_pin "white"

@@ -14,7 +14,4 @@ for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
 	/bin/sh -c "$i start"
 done
 
-# stop blinking
-rm /run/ledd/*
-
 exit 0

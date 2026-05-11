@@ -56,6 +56,40 @@ fi
 
 [ -z "$n" ] && json_error "Required parameter 'n' is not set"
 
+if [ -d "/sys/class/leds/$n" ]; then
+  trigger_file="/sys/class/leds/$n/trigger"
+  brightness_file="/sys/class/leds/$n/brightness"
+  max_brightness=$(cat "/sys/class/leds/$n/max_brightness" 2>/dev/null)
+  case "$max_brightness" in
+    '' | *[!0-9]*) max_brightness=255 ;;
+  esac
+  [ -w "$trigger_file" ] && printf 'none\n' >"$trigger_file"
+  case "$s" in
+    0)
+      state=0
+      printf '0\n' >"$brightness_file"
+      ;;
+    1)
+      state=1
+      printf '%s\n' "$max_brightness" >"$brightness_file"
+      ;;
+    *)
+      current=$(cat "$brightness_file" 2>/dev/null)
+      case "$current" in
+        '' | *[!0-9]*) current=0 ;;
+      esac
+      if [ "$current" -gt 0 ]; then
+        printf '0\n' >"$brightness_file"
+      else
+        printf '%s\n' "$max_brightness" >"$brightness_file"
+      fi
+      state='"toggled"'
+      ;;
+  esac
+  printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n\r\n{"pin":"%s","status":%s}\n' "$n" "$state"
+  exit 0
+fi
+
 # Read GPIO pin from configuration file using jct (faster than grep)
 pin=$(jct /etc/thingino.json get gpio."$n".pin 2>/dev/null || jct /etc/thingino.json get gpio."$n" 2>/dev/null)
 [ -z "$pin" ] && json_error "GPIO '$n' is not configured"

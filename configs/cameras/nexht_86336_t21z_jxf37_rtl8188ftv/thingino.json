@@ -3,8 +3,6 @@
     "button_reset": 59,
     "ir850": 81,
     "ircut": "79 80",
-    "led_r": 78,
-    "led_w": 75,
     "mmc_cd": 52,
     "wlan": {
       "pin": 50,

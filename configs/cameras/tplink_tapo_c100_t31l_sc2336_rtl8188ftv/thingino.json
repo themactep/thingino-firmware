@@ -9,8 +9,6 @@
       "pin": 57,
       "active_low": true
     },
-    "led_g": 42,
-    "led_r": 43,
     "mmc_power": 60,
     "white": {
       "pin": 50,

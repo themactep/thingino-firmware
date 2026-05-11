@@ -76,6 +76,7 @@ endif
 include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
+export CAMERA_CONFIG_REAL
 
 CAMERA_IP_ADDRESS := $(strip $(IP))
 IP_OUTPUT_TAG := $(if $(CAMERA_IP_ADDRESS),$(shell printf '%s' "$(CAMERA_IP_ADDRESS)" | sed 's/[^A-Za-z0-9._-]/_/g'))

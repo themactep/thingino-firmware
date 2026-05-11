@@ -10,14 +10,6 @@
       "pin": 57,
       "active_low": true
     },
-    "led_g": {
-      "pin": 42,
-      "active_low": false
-    },
-    "led_r": {
-      "pin": 43,
-      "active_low": false
-    },
     "mmc_power": {
       "pin": 60,
       "active_low": true
