@@ -7,14 +7,6 @@
       "pwm_channel": 0
     },
     "ircut": 999,
-    "led_g": {
-      "pin": 42,
-      "active_low": false
-    },
-    "led_r": {
-      "pin": 43,
-      "active_low": false
-    },
     "mmc_cd": 57,
     "mmc_power": {
       "pin": 58,

@@ -3,10 +3,6 @@
     "button_reset": 14,
     "ir940": 50,
     "ircut": "10 11",
-    "led_b": {
-      "pin": 9,
-      "active_low": true
-    },
     "mmc_cd": 49
   }
 }

@@ -3,8 +3,6 @@
     "button_reset": 7,
     "ir850": 49,
     "ircut": "53 52",
-    "led_g": 11,
-    "led_r": 10,
     "mmc_cd": 57,
     "mmc_power": {
       "pin": 58,

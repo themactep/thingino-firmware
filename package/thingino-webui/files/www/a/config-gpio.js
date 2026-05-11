@@ -6,12 +6,6 @@
   let pwmPins = [];
 
   const gpioConfigs = [
-    { name: "led_r", label: "Red LED" },
-    { name: "led_g", label: "Green LED" },
-    { name: "led_b", label: "Blue LED" },
-    { name: "led_y", label: "Yellow LED" },
-    { name: "led_o", label: "Orange LED" },
-    { name: "led_w", label: "White LED" },
     { name: "ir850", label: "850 nm IR LED" },
     { name: "ir940", label: "940 nm IR LED" },
     { name: "white", label: "White LED" },
