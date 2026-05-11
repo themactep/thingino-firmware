@@ -4,6 +4,7 @@
   const submitButton = $("#gpio_submit");
   let gpioData = {};
   let ledData = {};
+  let availableStartupIndicators = [];
   let pwmPins = [];
 
   const gpioConfigs = [
@@ -172,15 +173,18 @@
 
   function createStartupIndicatorCard() {
     const startupIndicator = ledData.startup_indicator || "off";
-    const options = [
-      ["off", "Off"],
-      ["blue", "Blue"],
-      ["green", "Green"],
-      ["red", "Red"],
-      ["yellow", "Yellow"],
-      ["violet", "Violet"],
-      ["white", "White"],
-    ];
+    const optionMap = {
+      off: "Off",
+      blue: "Blue",
+      green: "Green",
+      red: "Red",
+      yellow: "Yellow",
+      violet: "Violet",
+      white: "White",
+    };
+    const options = ["off", ...availableStartupIndicators].filter(
+      (value, index, list) => list.indexOf(value) === index,
+    );
 
     const card = document.createElement("div");
     card.className = "col";
@@ -194,8 +198,8 @@
         <select class="form-select text-end" id="startup_indicator" name="startup_indicator">
           ${options
             .map(
-              ([value, label]) =>
-                `<option value="${value}"${startupIndicator === value ? " selected" : ""}>${label}</option>`,
+              (value) =>
+                `<option value="${value}"${startupIndicator === value ? " selected" : ""}>${optionMap[value] || value}</option>`,
             )
             .join("")}
         </select>
@@ -249,6 +253,10 @@
 
       gpioData = data.gpio || {};
       ledData = data.led || {};
+      availableStartupIndicators = (data.available_startup_indicators || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
       pwmPins = (data.pwm_pins || "")
         .split(",")
         .map((p) => parseInt(p))
@@ -321,7 +329,7 @@
       }
     });
 
-	payload.startup_indicator = $("#startup_indicator")?.value || "off";
+    payload.startup_indicator = $("#startup_indicator")?.value || "off";
 
     saveConfig(payload);
   });
