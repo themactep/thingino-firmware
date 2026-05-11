@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for galayou_g2_t31lc_sc2336_atbm6012bx */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

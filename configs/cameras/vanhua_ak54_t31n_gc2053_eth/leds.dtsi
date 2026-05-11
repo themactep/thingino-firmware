@@ -1,0 +1,7 @@
+/* generated from configs for vanhua_ak54_t31n_gc2053_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

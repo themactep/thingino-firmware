@@ -1,0 +1,11 @@
+/* generated from configs for vanhua_h53e_t31x_gc4023_eth_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 16 0 0>;
+			default-state = "off";
+		};
+	};
+};

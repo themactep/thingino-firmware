@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for pesita_x09_t31n_jxf23_rtl8189ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for xiaomi_xiaofang_t20l_jxf22_rtl8189ftv */
+/include/ "bull.dts"
+/include/ "leds.dtsi"

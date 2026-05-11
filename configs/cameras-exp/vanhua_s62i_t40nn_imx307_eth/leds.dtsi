@@ -1,0 +1,11 @@
+/* generated from configs for vanhua_s62i_t40nn_imx307_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 5 0 0>;
+			default-state = "off";
+		};
+	};
+};

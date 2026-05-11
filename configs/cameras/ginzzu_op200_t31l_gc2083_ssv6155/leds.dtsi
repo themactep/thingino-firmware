@@ -1,0 +1,11 @@
+/* generated from configs for ginzzu_op200_t31l_gc2083_ssv6155 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_white {
+			label = "thingino:led_white";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 13 0 0>;
+			default-state = "off";
+		};
+	};
+};

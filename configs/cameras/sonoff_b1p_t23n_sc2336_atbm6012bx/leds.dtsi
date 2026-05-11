@@ -1,0 +1,11 @@
+/* generated from configs for sonoff_b1p_t23n_sc2336_atbm6012bx */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 3 1 0>;
+			default-state = "off";
+		};
+	};
+};

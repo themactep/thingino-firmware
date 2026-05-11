@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for tplink_tapo_c100_t31l_sc2336_rtl8188ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

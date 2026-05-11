@@ -1,0 +1,11 @@
+/* generated from configs for anker_c200_t31x_sc500ai */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 17 0 0>;
+			default-state = "off";
+		};
+	};
+};

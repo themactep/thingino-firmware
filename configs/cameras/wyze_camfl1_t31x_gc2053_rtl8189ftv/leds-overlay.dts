@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wyze_camfl1_t31x_gc2053_rtl8189ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

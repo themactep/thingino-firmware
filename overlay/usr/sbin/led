@@ -1,19 +1,8 @@
 #!/bin/sh
-# LED controller that parses gpio.led_* definitions and drives channels
-# by color first-letter (r, g, b, y, c, m, w, ...). Supports numbers,
-# strings with o/O suffix, and structured pin objects.
+# LED controller using Linux LED class by color first-letter
+# (r, g, b, y, c, m, w, p).
 
-ensure_command() {
-	if ! command -v "$1" >/dev/null 2>&1; then
-		echo "Missing $1" >&2
-		exit 1
-	fi
-}
-
-CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
-JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
-CONFIG_ROOT="gpio"
-
+LEDS_CLASS_ROOT="/sys/class/leds"
 LED_LETTERS=""
 CHANNEL_COUNT=0
 
@@ -32,44 +21,6 @@ Colors, use the first letter:
 	exit 1
 }
 
-bool_flag() {
-	case "${1:-}" in
-		1 | true | TRUE | on | ON | yes | YES) echo 1 ;;
-		0 | false | FALSE | off | OFF | no | NO) echo 0 ;;
-		*) echo "${2:-0}" ;;
-	esac
-}
-
-jct_has() {
-	[ -n "$JCT_BIN" ] || return 1
-	[ -r "$CONFIG_JSON" ] || return 1
-	"$JCT_BIN" "$CONFIG_JSON" get "$1" >/dev/null 2>&1
-}
-
-jct_get() {
-	[ -n "$JCT_BIN" ] || return 1
-	[ -r "$CONFIG_JSON" ] || return 1
-	"$JCT_BIN" "$CONFIG_JSON" get "$1" 2>/dev/null
-}
-
-config_list_keys() {
-	[ -n "$JCT_BIN" ] || return 1
-	[ -r "$CONFIG_JSON" ] || return 1
-	"$JCT_BIN" "$CONFIG_JSON" path '$.gpio.*' --mode paths 2>/dev/null |
-		tr ',' '\n' |
-		sed -n 's/.*"\$\.\([^"[]*\)".*/\1/p'
-}
-
-get_bool_or_default() {
-	local key="$1" default="$2" raw
-	raw=$(jct_get "$key") || {
-		echo "$default"
-		return
-	}
-	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
-	bool_flag "$raw" "$default"
-}
-
 letter_in_list() {
 	case " $LED_LETTERS " in
 		*" $1 "*) return 0 ;;
@@ -77,24 +28,51 @@ letter_in_list() {
 	esac
 }
 
-register_channel() {
-	local letter="$1" pin="$2" active="$3"
-	local upper existed=1
-	[ -n "$letter" ] || return 1
-	[ -n "$pin" ] || return 1
-	case "$pin" in
-		'' | *-*) return 1 ;;
-		*[!0-9]*) return 1 ;;
+word_to_letter() {
+	case "$1" in
+		red | r) echo r ;;
+		green | g) echo g ;;
+		blue | b) echo b ;;
+		yellow | y) echo y ;;
+		cyan | c) echo c ;;
+		magenta | m) echo m ;;
+		white | w) echo w ;;
+		purple | p) echo p ;;
+		*) return 1 ;;
 	esac
+}
+
+resolve_letter_from_name() {
+	local name base token letter
+	name=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+	base=${name##*:}
+	for token in $(printf '%s' "$base" | tr '._-' '   '); do
+		letter=$(word_to_letter "$token" 2>/dev/null) || continue
+		echo "$letter"
+		return 0
+	done
+	letter=$(word_to_letter "${base#led_}" 2>/dev/null) && {
+		echo "$letter"
+		return 0
+	}
+	letter=$(word_to_letter "${base#led-}" 2>/dev/null) && {
+		echo "$letter"
+		return 0
+	}
+	case "$base" in
+		[rgbymcwp]) echo "$base" ;;
+		*) return 1 ;;
+	esac
+}
+
+register_channel() {
+	local letter="$1" class_path="$2" upper existed=1
+	[ -n "$letter" ] || return 1
+	[ -n "$class_path" ] || return 1
+	[ -d "$class_path" ] || return 1
+	[ -w "$class_path/brightness" ] || return 1
 	upper=$(printf '%s' "$letter" | tr '[:lower:]' '[:upper:]')
-	if [ "$active" = "1" ]; then
-		eval "LED_ON_${upper}=0"
-		eval "LED_OFF_${upper}=1"
-	else
-		eval "LED_ON_${upper}=1"
-		eval "LED_OFF_${upper}=0"
-	fi
-	eval "LED_PIN_${upper}='$pin'"
+	eval "LED_SYSFS_${upper}='$class_path'"
 	if ! letter_in_list "$letter"; then
 		LED_LETTERS="$LED_LETTERS $letter"
 		existed=0
@@ -102,108 +80,32 @@ register_channel() {
 	[ "$existed" -eq 0 ] && CHANNEL_COUNT=$((CHANNEL_COUNT + 1))
 }
 
-parse_scalar_pin() {
-	local raw="$1" default="$2" token suffix pin active
-	raw=$(printf '%s' "$raw" | tr -d '\r')
-	raw=${raw%\"}
-	raw=${raw#\"}
-	set -- $raw
-	token="$1"
-	[ -n "$token" ] || return 1
-	case "$token" in
-		-1) return 1 ;;
-		*[!0-9oO]*) return 1 ;;
-	esac
-	case "$token" in
-		*[oO])
-			pin=${token%?}
-			suffix=${token#$pin}
-			;;
-		*)
-			pin="$token"
-			suffix=""
-			;;
-	esac
-	case "$pin" in
-		'' | *[!0-9]*) return 1 ;;
-	esac
-	case "$suffix" in
-		o) active=1 ;;
-		O) active=0 ;;
-		*) active="$default" ;;
-	esac
-	[ -n "$active" ] || active=0
-	PARSED_PIN="$pin"
-	PARSED_ACTIVE="$active"
-	return 0
-}
-
-load_channel_definition() {
-	local base="$1" letter="$2" pin="" active=0 raw
-	local nested_active
-	[ -n "$letter" ] || return
-	active=$(get_bool_or_default "$base.active_low" 0)
-	if jct_has "$base.pin.pin"; then
-		pin=$(jct_get "$base.pin.pin")
-		nested_active=$(get_bool_or_default "$base.pin.active_low" "$active")
-		active="$nested_active"
-	else
-		if raw=$(jct_get "$base.pin" 2>/dev/null); then
-			parse_scalar_pin "$raw" "$active" && pin="$PARSED_PIN" && active="$PARSED_ACTIVE"
-		fi
-	fi
-	if [ -z "$pin" ] && raw=$(jct_get "$base" 2>/dev/null); then
-		parse_scalar_pin "$raw" "$active" && pin="$PARSED_PIN" && active="$PARSED_ACTIVE"
-	fi
-	[ -n "$pin" ] || return
-	register_channel "$letter" "$pin" "$active"
-}
-
-discover_from_config() {
-	local keys key base seen=""
-	[ -n "$JCT_BIN" ] || return
-	[ -r "$CONFIG_JSON" ] || return
-	keys=$(config_list_keys 2>/dev/null) || return
-	while IFS= read -r key; do
-		case "$key" in
-			gpio.led_*)
-				base=$(printf '%s' "$key" | cut -d'.' -f1-2)
-				case " $seen " in *" $base "*) continue ;; esac
-				seen="$seen $base"
-				suffix=${base#gpio.led_}
-				letter=$(printf '%s' "$suffix" | tr '[:upper:]' '[:lower:]' | cut -c1)
-				[ -n "$letter" ] || continue
-				load_channel_definition "$base" "$letter"
-				;;
-		esac
-	done <<EOF
-$keys
-EOF
-}
-
 channel_defined() {
-	local letter_u pin
+	local letter_u sysfs
 	letter_u=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
-	eval "pin=\${LED_PIN_${letter_u}:-}"
-	[ -n "$pin" ]
+	eval "sysfs=\${LED_SYSFS_${letter_u}:-}"
+	[ -n "$sysfs" ] && [ -d "$sysfs" ]
 }
 
 set_channel_state() {
-	local letter="$1" state="$2" letter_u pin level
+	local letter="$1" state="$2" letter_u level sysfs max
 	letter_u=$(printf '%s' "$letter" | tr '[:lower:]' '[:upper:]')
-	eval "pin=\${LED_PIN_${letter_u}:-}"
-	[ -n "$pin" ] || return 0
+	eval "sysfs=\${LED_SYSFS_${letter_u}:-}"
+	[ -n "$sysfs" ] || return 0
+	[ -d "$sysfs" ] || return 0
 	case "$state" in
 		on)
-			eval "level=\${LED_ON_${letter_u}:-}"
+			max=1
+			[ -r "$sysfs/max_brightness" ] && max=$(cat "$sysfs/max_brightness" 2>/dev/null)
+			level=${max:-1}
 			;;
 		off)
-			eval "level=\${LED_OFF_${letter_u}:-}"
+			level=0
 			;;
 		*) return 0 ;;
 	esac
-	[ -n "$level" ] || return 0
-	gpio set "$pin" "$level" >/dev/null
+	[ -w "$sysfs/trigger" ] && echo none >"$sysfs/trigger" 2>/dev/null
+	[ -w "$sysfs/brightness" ] && echo "$level" >"$sysfs/brightness" 2>/dev/null
 }
 
 resolve_targets() {
@@ -265,7 +167,15 @@ apply_targets() {
 }
 
 discover_leds() {
-	discover_from_config
+	local path base letter
+	[ -d "$LEDS_CLASS_ROOT" ] || return 0
+	for path in "$LEDS_CLASS_ROOT"/*; do
+		[ -d "$path" ] || continue
+		base=${path##*/}
+		letter=$(resolve_letter_from_name "$base" 2>/dev/null) || continue
+		channel_defined "$letter" && continue
+		register_channel "$letter" "$path"
+	done
 }
 
 [ $# -eq 1 ] || show_help
@@ -273,11 +183,9 @@ discover_leds() {
 discover_leds
 
 if [ "$CHANNEL_COUNT" -eq 0 ]; then
-	echo -c 160 -e "No LED GPIO definitions found" >&2
+	echo -c 160 -e "No LED class channels found" >&2
 	exit 1
 fi
-
-ensure_command gpio
 
 arg=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
 case "$arg" in

@@ -1,0 +1,7 @@
+/* generated from configs for szt_ct213_t23n_gc1084_atbm6012b */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

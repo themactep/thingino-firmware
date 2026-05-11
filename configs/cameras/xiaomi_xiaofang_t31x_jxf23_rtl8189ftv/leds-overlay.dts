@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for xiaomi_xiaofang_t31x_jxf23_rtl8189ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

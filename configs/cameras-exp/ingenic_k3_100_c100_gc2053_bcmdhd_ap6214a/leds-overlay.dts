@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for ingenic_k3_100_c100_gc2053_bcmdhd_ap6214a */
+/include/ "swan_c100.dts"
+/include/ "leds.dtsi"

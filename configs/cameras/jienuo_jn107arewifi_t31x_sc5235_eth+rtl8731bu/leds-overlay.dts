@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for jienuo_jn107arewifi_t31x_sc5235_eth+rtl8731bu */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

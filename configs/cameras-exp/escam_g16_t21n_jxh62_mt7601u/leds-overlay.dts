@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for escam_g16_t21n_jxh62_mt7601u */
+/include/ "turkey.dts"
+/include/ "leds.dtsi"

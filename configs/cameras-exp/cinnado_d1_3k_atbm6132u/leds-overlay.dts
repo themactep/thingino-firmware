@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for cinnado_d1_3k_atbm6132u */
+/include/ "marmot.dts"
+/include/ "leds.dtsi"

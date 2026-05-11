@@ -1,0 +1,7 @@
+/* generated from configs for howell_qj05t_t20l_sc2235_eth+rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

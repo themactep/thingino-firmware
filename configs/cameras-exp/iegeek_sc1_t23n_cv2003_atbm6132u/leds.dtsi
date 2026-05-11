@@ -1,0 +1,7 @@
+/* generated from configs for iegeek_sc1_t23n_cv2003_atbm6132u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

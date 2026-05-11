@@ -1,0 +1,20 @@
+{
+  "modules": {
+    "rtsp_session_manager": { "enabled": true },
+    "video_profiles": { "enabled": true },
+    "audio_io": { "enabled": true },
+    "mjpeg_stream": { "enabled": true },
+    "rtsp_stream": { "enabled": true },
+    "osd_suite": { "enabled": true },
+    "motion_detection": { "enabled": true },
+    "recorder": { "enabled": true },
+    "notifications": { "enabled": true },
+    "onvif": { "enabled": true },
+    "mqtt_bridge": { "enabled": true },
+    "helper_compat": { "enabled": true },
+    "fifo_compat": { "enabled": true },
+    "http_api": { "enabled": true },
+    "privacy_osd_policy": { "enabled": true },
+    "privacy_lite_policy": { "enabled": false }
+  }
+}

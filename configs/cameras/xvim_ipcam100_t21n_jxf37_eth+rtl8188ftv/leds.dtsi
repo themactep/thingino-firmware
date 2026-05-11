@@ -1,0 +1,7 @@
+/* generated from configs for xvim_ipcam100_t21n_jxf37_eth+rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wyze_vdb1_t31x_sc4236_rtl8189ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

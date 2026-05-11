@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wansview_w5_t21n_ps5260_eth+mt7601sta */
+/include/ "turkey.dts"
+/include/ "leds.dtsi"

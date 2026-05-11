@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for laview_l2_t31l_sc3338_atbm6012bx */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

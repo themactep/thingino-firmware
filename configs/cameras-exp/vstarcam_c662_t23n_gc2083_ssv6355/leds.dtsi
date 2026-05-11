@@ -1,0 +1,7 @@
+/* generated from configs for vstarcam_c662_t23n_gc2083_ssv6355 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

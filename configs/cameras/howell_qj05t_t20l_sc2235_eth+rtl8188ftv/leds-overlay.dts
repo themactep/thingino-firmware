@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for howell_qj05t_t20l_sc2235_eth+rtl8188ftv */
+/include/ "bull.dts"
+/include/ "leds.dtsi"

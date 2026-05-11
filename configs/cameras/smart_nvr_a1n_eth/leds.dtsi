@@ -1,0 +1,7 @@
+/* generated from configs for smart_nvr_a1n_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

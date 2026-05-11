@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for imou_ranger2_t31n_gc2053_eth+ssv6155 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

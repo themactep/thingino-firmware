@@ -1,0 +1,21 @@
+/* generated from configs for zte_k540v2_t31x_sc4336_eth+atbm6032 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 10 0 0>;
+			default-state = "off";
+		};
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 17 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 16 0 0>;
+			default-state = "off";
+		};
+	};
+};

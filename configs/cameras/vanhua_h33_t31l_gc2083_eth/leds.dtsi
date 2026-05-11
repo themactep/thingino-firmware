@@ -1,0 +1,11 @@
+/* generated from configs for vanhua_h33_t31l_gc2083_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 16 0 0>;
+			default-state = "off";
+		};
+	};
+};

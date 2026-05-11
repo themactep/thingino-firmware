@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for jooan_q3h_t30l_sc1235_rtl8189ftv */
+/include/ "monkey.dts"
+/include/ "leds.dtsi"

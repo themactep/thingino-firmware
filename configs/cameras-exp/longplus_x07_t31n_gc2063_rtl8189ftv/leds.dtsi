@@ -1,0 +1,7 @@
+/* generated from configs for longplus_x07_t31n_gc2063_rtl8189ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

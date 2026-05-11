@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for anker_c200_t31x_sc500ai */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

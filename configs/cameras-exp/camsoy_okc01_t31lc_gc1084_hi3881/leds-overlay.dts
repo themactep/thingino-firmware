@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for camsoy_okc01_t31lc_gc1084_hi3881 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

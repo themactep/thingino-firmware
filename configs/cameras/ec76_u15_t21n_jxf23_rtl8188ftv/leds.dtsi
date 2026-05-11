@@ -1,0 +1,11 @@
+/* generated from configs for ec76_u15_t21n_jxf23_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 14 0 0>;
+			default-state = "off";
+		};
+	};
+};

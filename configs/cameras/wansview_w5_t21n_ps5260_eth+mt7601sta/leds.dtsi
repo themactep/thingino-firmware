@@ -1,0 +1,7 @@
+/* generated from configs for wansview_w5_t21n_ps5260_eth+mt7601sta */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

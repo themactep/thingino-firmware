@@ -1,0 +1,7 @@
+/* generated from configs for eufy_t8441_t31x_sc3335_syn4343 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

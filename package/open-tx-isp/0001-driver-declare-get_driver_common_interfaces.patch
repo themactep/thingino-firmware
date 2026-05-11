@@ -1,0 +1,30 @@
+From 2222222222222222222222222222222222222222 Mon Sep 17 00:00:00 2001
+From: Copilot <223556219+Copilot@users.noreply.github.com>
+Date: Fri, 17 Apr 2026 16:05:00 +0000
+Subject: [PATCH] driver: declare get_driver_common_interfaces
+
+The core driver calls get_driver_common_interfaces() but no prototype is
+visible in this tree, which causes an implicit declaration build error
+with the kernel toolchain.
+
+Declare the external symbol with the expected pointer return type so the
+module compiles cleanly.
+---
+ driver/include/txx-funcs.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/driver/include/txx-funcs.h b/driver/include/txx-funcs.h
+index 6f6ef8c..4f9078a 100644
+--- a/driver/include/txx-funcs.h
++++ b/driver/include/txx-funcs.h
+@@ -331,6 +331,7 @@ struct net *private_get_init_net(void);
+ /* isp driver interface */
+ void private_get_isp_priv_mem(unsigned int *phyaddr, unsigned int *size);
+ 
++struct jz_driver_common_interfaces *get_driver_common_interfaces(void);
+ int private_driver_get_interface(void);
+ 
+ #endif /*__TXX_DRV_FUNCS_H__*/
+-- 
+2.49.0
+

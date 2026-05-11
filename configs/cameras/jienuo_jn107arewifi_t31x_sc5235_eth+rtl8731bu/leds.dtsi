@@ -1,0 +1,7 @@
+/* generated from configs for jienuo_jn107arewifi_t31x_sc5235_eth+rtl8731bu */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

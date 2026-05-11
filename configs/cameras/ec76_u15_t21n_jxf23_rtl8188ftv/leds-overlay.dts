@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for ec76_u15_t21n_jxf23_rtl8188ftv */
+/include/ "turkey.dts"
+/include/ "leds.dtsi"

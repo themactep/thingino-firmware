@@ -1,0 +1,16 @@
+/* generated from configs for wanjiaan_q2_t30x_sc2235_rtl8189ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 25 0 0>;
+			default-state = "off";
+		};
+		led_v {
+			label = "thingino:led_v";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 26 0 0>;
+			default-state = "off";
+		};
+	};
+};

@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for overtech_ov59wb_t31n_sc223a_rtl8188ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

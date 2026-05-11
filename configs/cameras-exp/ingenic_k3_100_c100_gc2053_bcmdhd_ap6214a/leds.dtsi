@@ -1,0 +1,7 @@
+/* generated from configs for ingenic_k3_100_c100_gc2053_bcmdhd_ap6214a */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

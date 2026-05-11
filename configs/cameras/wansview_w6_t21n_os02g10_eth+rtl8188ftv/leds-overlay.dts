@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wansview_w6_t21n_os02g10_eth+rtl8188ftv */
+/include/ "turkey.dts"
+/include/ "leds.dtsi"

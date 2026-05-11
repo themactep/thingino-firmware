@@ -1,0 +1,11 @@
+/* generated from configs for besder_w9q_t23n_os02n10_aic8800u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 22 0 0>;
+			default-state = "off";
+		};
+	};
+};

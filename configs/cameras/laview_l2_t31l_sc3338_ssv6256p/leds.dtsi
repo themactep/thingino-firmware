@@ -1,0 +1,11 @@
+/* generated from configs for laview_l2_t31l_sc3338_ssv6256p */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 9 1 0>;
+			default-state = "off";
+		};
+	};
+};

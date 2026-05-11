@@ -1,0 +1,16 @@
+/* generated from configs for wuuk_y0310_t31x_sc401ai_ssv6158 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 16 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 17 0 0>;
+			default-state = "off";
+		};
+	};
+};

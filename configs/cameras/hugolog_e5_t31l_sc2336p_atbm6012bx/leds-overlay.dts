@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for hugolog_e5_t31l_sc2336p_atbm6012bx */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

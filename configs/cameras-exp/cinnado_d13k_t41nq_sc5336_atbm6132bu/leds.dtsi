@@ -1,0 +1,16 @@
+/* generated from configs for cinnado_d13k_t41nq_sc5336_atbm6132bu */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 18 1 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 17 1 0>;
+			default-state = "off";
+		};
+	};
+};

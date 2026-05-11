@@ -1,0 +1,7 @@
+/* generated from configs for primecables_08361_t21n_sc2300_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

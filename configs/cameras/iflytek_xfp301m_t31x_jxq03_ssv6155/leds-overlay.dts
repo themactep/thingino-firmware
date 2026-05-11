@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for iflytek_xfp301m_t31x_jxq03_ssv6155 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

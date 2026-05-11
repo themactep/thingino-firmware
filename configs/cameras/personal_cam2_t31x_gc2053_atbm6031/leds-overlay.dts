@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for personal_cam2_t31x_gc2053_atbm6031 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

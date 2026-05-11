@@ -1,0 +1,16 @@
+/* generated from configs for iflytek_xfp301m_t31x_jxq03_ssv6155 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 16 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 17 0 0>;
+			default-state = "off";
+		};
+	};
+};

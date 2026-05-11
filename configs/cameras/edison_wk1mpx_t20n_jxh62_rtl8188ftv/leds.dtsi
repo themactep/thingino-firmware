@@ -1,0 +1,11 @@
+/* generated from configs for edison_wk1mpx_t20n_jxh62_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 20 0 0>;
+			default-state = "off";
+		};
+	};
+};

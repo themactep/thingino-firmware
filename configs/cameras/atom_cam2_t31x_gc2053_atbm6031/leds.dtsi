@@ -1,0 +1,7 @@
+/* generated from configs for atom_cam2_t31x_gc2053_atbm6031 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

@@ -1,0 +1,16 @@
+/* generated from configs for nexht_86336_t21z_jxf37_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 14 0 0>;
+			default-state = "off";
+		};
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 11 0 0>;
+			default-state = "off";
+		};
+	};
+};

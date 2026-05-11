@@ -1,0 +1,7 @@
+/* generated from configs for noorio_t110_t41nq_gc4023_aic8800d */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

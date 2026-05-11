@@ -1,0 +1,11 @@
+/* generated from configs for hugolog_e5_t31l_sc2336p_atbm6012bx */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 9 1 0>;
+			default-state = "off";
+		};
+	};
+};

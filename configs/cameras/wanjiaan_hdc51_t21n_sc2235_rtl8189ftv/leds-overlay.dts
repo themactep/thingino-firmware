@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wanjiaan_hdc51_t21n_sc2235_rtl8189ftv */
+/include/ "turkey.dts"
+/include/ "leds.dtsi"

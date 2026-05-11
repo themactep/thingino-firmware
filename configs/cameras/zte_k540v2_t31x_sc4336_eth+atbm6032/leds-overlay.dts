@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for zte_k540v2_t31x_sc4336_eth+atbm6032 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

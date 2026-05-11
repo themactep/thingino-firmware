@@ -1,0 +1,16 @@
+/* generated from configs for jooan_t2r_t23n_sc1a4t_ssv6355 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 25 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 26 0 0>;
+			default-state = "off";
+		};
+	};
+};

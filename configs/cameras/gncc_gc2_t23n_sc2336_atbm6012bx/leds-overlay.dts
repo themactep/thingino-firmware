@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for gncc_gc2_t23n_sc2336_atbm6012bx */
+/include/ "pike.dts"
+/include/ "leds.dtsi"

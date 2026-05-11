@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for vanhua_s62i_t40nn_imx307_eth */
+/include/ "shark.dts"
+/include/ "leds.dtsi"

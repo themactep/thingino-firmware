@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for noname_t10l_jxh42_mt7601 */
+/include/ "mango.dts"
+/include/ "leds.dtsi"

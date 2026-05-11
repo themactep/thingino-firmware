@@ -1,0 +1,11 @@
+/* generated from configs for vanhua_s37i_t31l_imx307_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 8 0 0>;
+			default-state = "off";
+		};
+	};
+};

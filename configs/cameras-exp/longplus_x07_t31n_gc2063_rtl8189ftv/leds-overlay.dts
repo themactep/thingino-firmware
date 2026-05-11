@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for longplus_x07_t31n_gc2063_rtl8189ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

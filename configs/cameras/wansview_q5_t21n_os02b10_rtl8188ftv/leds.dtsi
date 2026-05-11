@@ -1,0 +1,16 @@
+/* generated from configs for wansview_q5_t21n_os02b10_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 9 1 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 8 1 0>;
+			default-state = "off";
+		};
+	};
+};

@@ -1,0 +1,7 @@
+/* generated from configs for hc_3301ymt1_t31n_sc2332_eth+hi3881 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

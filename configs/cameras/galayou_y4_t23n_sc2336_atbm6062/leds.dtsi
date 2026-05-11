@@ -1,0 +1,11 @@
+/* generated from configs for galayou_y4_t23n_sc2336_atbm6062 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 8 0 0>;
+			default-state = "off";
+		};
+	};
+};

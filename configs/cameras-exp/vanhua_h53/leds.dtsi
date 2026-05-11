@@ -1,0 +1,7 @@
+/* generated from configs for vanhua_h53 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

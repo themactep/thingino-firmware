@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for vanhua_t55a_t41lq_gc5603_eth */
+/include/ "marmot.dts"
+/include/ "leds.dtsi"

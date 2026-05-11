@@ -14,7 +14,7 @@ for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
 	/bin/sh -c "$i start"
 done
 
-# stop blinking
-rm /run/ledd/*
+# stop boot LED blinking and restore previous LED state
+/etc/init.d/F00ledd stop >/dev/null 2>&1 || true
 
 exit 0

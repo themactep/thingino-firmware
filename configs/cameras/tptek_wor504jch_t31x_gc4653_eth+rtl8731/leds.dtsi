@@ -1,0 +1,7 @@
+/* generated from configs for tptek_wor504jch_t31x_gc4653_eth+rtl8731 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

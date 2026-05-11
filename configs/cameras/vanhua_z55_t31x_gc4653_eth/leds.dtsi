@@ -1,0 +1,7 @@
+/* generated from configs for vanhua_z55_t31x_gc4653_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for jooan_w5u_t40nn_os02g10_ssv6256p */
+/include/ "shark.dts"
+/include/ "leds.dtsi"

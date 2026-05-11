@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for aosu_c5l_t31l_sc3338_rtl8188ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

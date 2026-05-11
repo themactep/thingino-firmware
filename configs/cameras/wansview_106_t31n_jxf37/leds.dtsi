@@ -1,0 +1,11 @@
+/* generated from configs for wansview_106_t31n_jxf37 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 21 0 0>;
+			default-state = "off";
+		};
+	};
+};

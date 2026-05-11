@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wyze_cam3pro_t40xp_gc4653_rtl8192fs */
+/include/ "shark.dts"
+/include/ "leds.dtsi"

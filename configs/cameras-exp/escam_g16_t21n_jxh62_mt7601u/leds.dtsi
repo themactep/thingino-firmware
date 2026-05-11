@@ -1,0 +1,7 @@
+/* generated from configs for escam_g16_t21n_jxh62_mt7601u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

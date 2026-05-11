@@ -1,0 +1,7 @@
+/* generated from configs for cinnado_d1_3k_atbm6132u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

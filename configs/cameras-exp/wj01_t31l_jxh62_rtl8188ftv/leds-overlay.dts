@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wj01_t31l_jxh62_rtl8188ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

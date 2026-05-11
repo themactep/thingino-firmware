@@ -1,0 +1,7 @@
+/* generated from configs for litokam_m1_t31l_sc3336_atbm6012bx */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

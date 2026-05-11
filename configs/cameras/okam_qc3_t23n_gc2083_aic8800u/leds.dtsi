@@ -1,0 +1,7 @@
+/* generated from configs for okam_qc3_t23n_gc2083_aic8800u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

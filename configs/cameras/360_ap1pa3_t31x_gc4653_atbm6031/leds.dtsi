@@ -1,0 +1,16 @@
+/* generated from configs for 360_ap1pa3_t31x_gc4653_atbm6031 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 19 0 0>;
+			default-state = "off";
+		};
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 22 0 0>;
+			default-state = "off";
+		};
+	};
+};

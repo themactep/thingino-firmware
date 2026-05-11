@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wansview_y1_t31l_os02g10_atbm6031 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

@@ -1,0 +1,7 @@
+/* generated from configs for noname_green_t10_ov9712_ap6181 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

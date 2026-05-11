@@ -1,0 +1,7 @@
+/* generated from configs for galayou_y4_t31l_sc2336_atbm6032 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

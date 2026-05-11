@@ -1,0 +1,16 @@
+/* generated from configs for litokam_c1_t31l_sc2336_atbm6012b */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 8 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 9 0 0>;
+			default-state = "off";
+		};
+	};
+};

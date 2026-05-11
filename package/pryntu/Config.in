@@ -1,0 +1,21 @@
+config BR2_PACKAGE_PRYNTU
+	bool "pryntu"
+	depends on BR2_PACKAGE_THINGINO_STREAMER_PRYNTU
+	help
+	  Pryntu is a clean-room modular camera streaming daemon.
+
+if BR2_PACKAGE_PRYNTU
+
+config BR2_PACKAGE_PRYNTU_CONTROL_API
+	bool "Enable local HTTP control API"
+	default y
+	help
+	  Enables the local HTTP admin API and `pryntuctl` utility.
+
+config BR2_PACKAGE_PRYNTU_FIFO_COMPAT
+	bool "Enable FIFO privacy compatibility"
+	default y
+	help
+	  Enables PRIVACY command compatibility via `/run/pryntu/video_ctrl`.
+
+endif

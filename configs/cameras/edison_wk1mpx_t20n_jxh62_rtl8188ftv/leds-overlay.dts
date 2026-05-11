@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for edison_wk1mpx_t20n_jxh62_rtl8188ftv */
+/include/ "bull.dts"
+/include/ "leds.dtsi"

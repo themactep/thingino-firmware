@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for hamedal_c20_t31a_gc2053 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

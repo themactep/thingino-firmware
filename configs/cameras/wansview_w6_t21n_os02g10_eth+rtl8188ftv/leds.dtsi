@@ -1,0 +1,7 @@
+/* generated from configs for wansview_w6_t21n_os02g10_eth+rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

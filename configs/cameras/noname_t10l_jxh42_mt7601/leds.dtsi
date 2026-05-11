@@ -1,0 +1,11 @@
+/* generated from configs for noname_t10l_jxh42_mt7601 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 20 0 0>;
+			default-state = "off";
+		};
+	};
+};

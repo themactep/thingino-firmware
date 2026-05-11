@@ -1,0 +1,11 @@
+/* generated from configs for lsc_3215672_t23n_sc2331_atbm6012bx */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 19 1 0>;
+			default-state = "off";
+		};
+	};
+};

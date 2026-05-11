@@ -1,0 +1,21 @@
+/* generated from configs for aobocam_a12_t23dl_jxh63p_txw901u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 19 1 0>;
+			default-state = "off";
+		};
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 22 1 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 17 0 0>;
+			default-state = "off";
+		};
+	};
+};

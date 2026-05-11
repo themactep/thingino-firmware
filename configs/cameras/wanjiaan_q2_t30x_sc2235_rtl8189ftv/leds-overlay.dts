@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wanjiaan_q2_t30x_sc2235_rtl8189ftv */
+/include/ "monkey.dts"
+/include/ "leds.dtsi"

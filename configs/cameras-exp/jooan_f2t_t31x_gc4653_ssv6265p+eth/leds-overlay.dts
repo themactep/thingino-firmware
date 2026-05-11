@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for jooan_f2t_t31x_gc4653_ssv6265p+eth */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

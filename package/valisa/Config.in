@@ -1,0 +1,13 @@
+config BR2_PACKAGE_VALISA
+	bool "valisa"
+	depends on !BR2_SOC_FAMILY = "a1"
+	depends on BR2_PACKAGE_THINGINO_STREAMER_VALISA
+	depends on BR2_PACKAGE_THINGINO_JCT
+	help
+	  Modular open-source camera streamer for Ingenic SoCs.
+	  Replaces closed vendored SDK code with an open-stack solution.
+
+	  https://github.com/themactep/valisa
+
+comment "valisa needs thingino-jct"
+	depends on !BR2_PACKAGE_THINGINO_JCT

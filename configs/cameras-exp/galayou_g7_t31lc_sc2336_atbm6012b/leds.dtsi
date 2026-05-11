@@ -1,0 +1,7 @@
+/* generated from configs for galayou_g7_t31lc_sc2336_atbm6012b */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

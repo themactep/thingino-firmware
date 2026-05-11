@@ -1,0 +1,16 @@
+/* generated from configs for victure_pc420_t21n_jxf23_eth+rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 11 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 14 0 0>;
+			default-state = "off";
+		};
+	};
+};

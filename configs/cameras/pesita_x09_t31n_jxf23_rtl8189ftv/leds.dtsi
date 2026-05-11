@@ -1,0 +1,11 @@
+/* generated from configs for pesita_x09_t31n_jxf23_rtl8189ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 10 0 0>;
+			default-state = "off";
+		};
+	};
+};

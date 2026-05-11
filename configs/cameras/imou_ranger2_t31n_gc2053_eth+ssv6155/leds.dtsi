@@ -1,0 +1,16 @@
+/* generated from configs for imou_ranger2_t31n_gc2053_eth+ssv6155 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 11 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 10 0 0>;
+			default-state = "off";
+		};
+	};
+};

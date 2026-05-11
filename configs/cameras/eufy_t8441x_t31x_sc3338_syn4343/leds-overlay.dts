@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for eufy_t8441x_t31x_sc3338_syn4343 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

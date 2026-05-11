@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON=/usr/bin/pryntud
+PIDFILE=/run/pryntu.pid
+CONFIG=/etc/pryntu.conf
+
+is_running() {
+	[ -f "$PIDFILE" ] || return 1
+	PID="$(cat "$PIDFILE" 2>/dev/null)"
+	[ -n "$PID" ] || return 1
+	[ -d "/proc/$PID" ]
+}
+
+start() {
+	echo "Starting Pryntu"
+	if is_running; then
+		echo "Pryntu already running"
+		return 0
+	fi
+	rm -f "$PIDFILE"
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- -config "$CONFIG"
+}
+
+stop() {
+	echo "Stopping Pryntu"
+	start-stop-daemon -K -p "$PIDFILE" >/dev/null 2>&1 || true
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

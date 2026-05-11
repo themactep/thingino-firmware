@@ -1,0 +1,11 @@
+/* generated from configs for vanhua_t55a_t41lq_gc5603_eth */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpc} 15 0 0>;
+			default-state = "off";
+		};
+	};
+};

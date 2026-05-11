@@ -1,0 +1,16 @@
+/* generated from configs for tplink_tapo_c500_t31l_sc2336_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_g {
+			label = "thingino:led_g";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 10 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 11 0 0>;
+			default-state = "off";
+		};
+	};
+};

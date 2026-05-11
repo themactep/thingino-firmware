@@ -1,0 +1,7 @@
+/* generated from configs for jienuo_jn107ardwifi_t31l_gc2083_eth+rtl8131bu */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

@@ -1,0 +1,16 @@
+/* generated from configs for eufy_t8410c_t31x_sc3338_atbm6031x */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 29 0 0>;
+			default-state = "off";
+		};
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 30 0 0>;
+			default-state = "off";
+		};
+	};
+};

@@ -1,0 +1,11 @@
+/* generated from configs for galayou_g2_t31lc_sc2336_atbm6012bx */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "thingino:led_b";
+			gpios = <&{/soc/pinctrl@0x10010000/gpa} 9 1 0>;
+			default-state = "off";
+		};
+	};
+};

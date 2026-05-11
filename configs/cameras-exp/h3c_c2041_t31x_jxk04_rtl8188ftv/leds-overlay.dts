@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for h3c_c2041_t31x_jxk04_rtl8188ftv */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

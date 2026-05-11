@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for wyze_cam2_t20x_jxf22_rtl8189ftv */
+/include/ "bull.dts"
+/include/ "leds.dtsi"

@@ -1,89 +1,111 @@
 #!/bin/sh
 
-DAEMON="/usr/bin/ledd"
-PIDFILE="/run/ledd.pid"
-LEDD_DIR="/run/ledd"
 BLINK_INTERVAL="500"
 STATE_FILE="/run/ledd.state"
-CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
-JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
+LEDS_CLASS_ROOT="/sys/class/leds"
 
-start_daemon() {
-	if [ ! -x "$DAEMON" ]; then
-		echo "LED daemon not installed"
-		return 1
-	fi
+word_to_letter() {
+	case "$1" in
+		red | r) echo r ;;
+		green | g) echo g ;;
+		blue | b) echo b ;;
+		yellow | y) echo y ;;
+		cyan | c) echo c ;;
+		magenta | m) echo m ;;
+		white | w) echo w ;;
+		purple | p) echo p ;;
+		*) return 1 ;;
+	esac
+}
 
-	# Kill any stale instance before starting fresh
-	start-stop-daemon -K -o -x "$DAEMON" >/dev/null 2>&1 || true
-	rm -f "$PIDFILE"
-
-	mkdir -p "$LEDD_DIR"
-	"$DAEMON"
-	sleep 0.1
-	pidof -s ledd >"$PIDFILE" 2>/dev/null || true
+resolve_letter_from_name() {
+	local name base token letter
+	name=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+	base=${name##*:}
+	for token in $(printf '%s' "$base" | tr '._-' '   '); do
+		letter=$(word_to_letter "$token" 2>/dev/null) || continue
+		echo "$letter"
+		return 0
+	done
+	letter=$(word_to_letter "${base#led_}" 2>/dev/null) && {
+		echo "$letter"
+		return 0
+	}
+	letter=$(word_to_letter "${base#led-}" 2>/dev/null) && {
+		echo "$letter"
+		return 0
+	}
+	case "$base" in
+		[rgbymcwp]) echo "$base" ;;
+		*) return 1 ;;
+	esac
 }
 
 get_led_records() {
-	[ -n "$JCT_BIN" ] || return
-	[ -r "$CONFIG_JSON" ] || return
-	"$JCT_BIN" "$CONFIG_JSON" path '$.gpio.*' --mode paths 2>/dev/null |
-		tr ',' '\n' |
-		sed -n 's/.*"\$\.gpio\.\(led_[^".]*\)".*/\1/p' |
-		sort -u | while read -r name; do
-		pin=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.pin" 2>/dev/null) || true
-		[ -z "$pin" ] && pin=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name" 2>/dev/null) || true
-		pin=$(printf '%s' "$pin" | tr -d '"')
-		case "$pin" in
-			'' | *[!0-9]*) continue ;;
-		esac
-		active_low=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.active_low" 2>/dev/null | tr -d '"') || true
-		active_on_boot=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.active_on_boot" 2>/dev/null | tr -d '"') || true
-		echo "$pin:$active_low:$active_on_boot"
+	local path name letter
+	[ -d "$LEDS_CLASS_ROOT" ] || return
+	for path in "$LEDS_CLASS_ROOT"/*; do
+		[ -d "$path" ] || continue
+		[ -w "$path/brightness" ] || continue
+		name=${path##*/}
+		letter=$(resolve_letter_from_name "$name" 2>/dev/null) || continue
+		printf '%s\t%s\t%s\n' "$name" "$letter" "$path"
 	done
 }
 
 save_led_states() {
 	: >"$STATE_FILE"
-	get_led_records | while IFS=: read -r pin _active_low _active_on_boot; do
-		state=$(gpio read "$pin" 2>/dev/null) || continue
+	get_led_records | while IFS='	' read -r name _letter class_path; do
+		[ -r "$class_path/brightness" ] || continue
+		state=$(cat "$class_path/brightness" 2>/dev/null) || continue
 		case "$state" in
-			0 | 1) echo "$pin:$state" >>"$STATE_FILE" ;;
+			'' | *[!0-9]*) continue ;;
 		esac
+		printf '%s\t%s\n' "$name" "$state" >>"$STATE_FILE"
 	done
 }
 
 restore_led_states() {
+	local class_path
 	[ -f "$STATE_FILE" ] || return 0
-	while IFS=: read -r pin state; do
-		case "$pin:$state" in
-			*[!0-9:]* | : | *:) continue ;;
-		esac
-		gpio set "$pin" "$state" >/dev/null 2>&1 || true
+	while IFS='	' read -r name state; do
+		class_path=$(get_led_records | awk -F '\t' -v want="$name" '$1 == want {print $3; exit}')
+		[ -n "$class_path" ] || continue
+		[ -w "$class_path/trigger" ] && echo none >"$class_path/trigger" 2>/dev/null
+		[ -w "$class_path/brightness" ] && echo "$state" >"$class_path/brightness" 2>/dev/null
 	done <"$STATE_FILE"
 	rm -f "$STATE_FILE"
 }
 
-start() {
-	echo -c 15 "Starting LED daemon"
+start_led_class_blink() {
+	local class_path interval
+	class_path="$1"
+	interval="${2:-$BLINK_INTERVAL}"
+	[ -n "$class_path" ] || return 0
+	[ -d "$class_path" ] || return 0
+	[ -w "$class_path/trigger" ] && echo timer >"$class_path/trigger" 2>/dev/null
+	[ -w "$class_path/delay_on" ] && echo "$interval" >"$class_path/delay_on" 2>/dev/null
+	[ -w "$class_path/delay_off" ] && echo "$interval" >"$class_path/delay_off" 2>/dev/null
+}
 
+stop_led_class_blink() {
+	get_led_records | while IFS='	' read -r _name _letter class_path; do
+		[ -w "$class_path/trigger" ] && echo none >"$class_path/trigger" 2>/dev/null
+	done
+}
+
+start() {
+	echo -c 15 "Starting LED controller"
 	save_led_states
-	start_daemon || return 1
-	get_led_records | while IFS=: read -r pin _active_low _active_on_boot; do
-		echo "$BLINK_INTERVAL" >"$LEDD_DIR/$pin"
+
+	get_led_records | while IFS='	' read -r _name _letter class_path; do
+		start_led_class_blink "$class_path" "$BLINK_INTERVAL"
 	done
 }
 
 stop() {
-	echo -c 15 "Stopping LED daemon"
-
-	rm -f "$LEDD_DIR"/* 2>/dev/null || true
-	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		rm -f "$PIDFILE"
-	else
-		start-stop-daemon -K -o -x "$DAEMON" >/dev/null 2>&1 || true
-	fi
+	echo -c 15 "Stopping LED controller"
+	stop_led_class_blink
 	restore_led_states
 }
 

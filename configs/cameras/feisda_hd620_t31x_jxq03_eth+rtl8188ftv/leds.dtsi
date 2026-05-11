@@ -1,0 +1,7 @@
+/* generated from configs for feisda_hd620_t31x_jxq03_eth+rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

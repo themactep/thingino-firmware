@@ -1,0 +1,7 @@
+/* generated from configs for jooan_c9ts_t23n_sc2336p_atbm6132u */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

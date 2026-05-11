@@ -1,20 +1,33 @@
 #!/bin/sh
-# Find the first available indicator LED and start blinking
+# Find the first available indicator LED and start blinking.
 
-THINGNIO_CONF="/etc/thingino.json"
+LEDS_CLASS_ROOT="/sys/class/leds"
+
+find_led_by_color() {
+	local color="$1" path base
+	[ -d "$LEDS_CLASS_ROOT" ] || return 1
+	for path in "$LEDS_CLASS_ROOT"/*; do
+		[ -d "$path" ] || continue
+		base=${path##*/}
+		case "$base" in
+			"$color" | "led_$color" | "led-$color" | *:"$color" | *:"led_$color" | *:"led-$color")
+				echo "$path"
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
 
 # order: blue, green, white, yellow, red
-for color in b g w y r; do
-	PIN=$(jct "$THINGINO_CONF" get "gpio.led_$color.pin" 2>/dev/null | tr -d '"')
-	case "$PIN" in
-		'' | *[!0-9]*) continue ;;
-	esac
-	if [ -n "$PIN" ]; then
-		echo "1000" >"/run/ledd/$PIN"
-		exit 0
-	fi
+for color in blue green white yellow red b g w y r; do
+	LED_PATH=$(find_led_by_color "$color")
+	[ -n "$LED_PATH" ] || continue
+	[ -w "$LED_PATH/trigger" ] && echo timer >"$LED_PATH/trigger" 2>/dev/null
+	[ -w "$LED_PATH/delay_on" ] && echo 1000 >"$LED_PATH/delay_on" 2>/dev/null
+	[ -w "$LED_PATH/delay_off" ] && echo 1000 >"$LED_PATH/delay_off" 2>/dev/null
+	exit 0
 done
 
-echo -c 160 "No LED indicator GPIO found."
-
+echo -c 160 "No LED indicator found in LED class."
 exit 1

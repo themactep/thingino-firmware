@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for aobocam_a12_t23dl_jxh63p_txw901u */
+/include/ "pike.dts"
+/include/ "leds.dtsi"

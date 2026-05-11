@@ -1,0 +1,16 @@
+/* generated from configs for overtech_ov59wb_t31n_sc223a_rtl8188ftv */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led_r {
+			label = "thingino:led_r";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 25 0 0>;
+			default-state = "off";
+		};
+		led_w {
+			label = "thingino:led_w";
+			gpios = <&{/soc/pinctrl@0x10010000/gpb} 18 0 0>;
+			default-state = "off";
+		};
+	};
+};

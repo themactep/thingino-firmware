@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for iget_c5pt_t41lq_gc4023_jl1101 */
+/include/ "iget_c5pt_t41lq.dts"
+/include/ "leds.dtsi"

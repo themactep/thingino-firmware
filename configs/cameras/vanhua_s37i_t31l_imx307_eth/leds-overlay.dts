@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for vanhua_s37i_t31l_imx307_eth */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"

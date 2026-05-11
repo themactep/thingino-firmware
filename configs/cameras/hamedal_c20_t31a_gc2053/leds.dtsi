@@ -1,0 +1,7 @@
+/* generated from configs for hamedal_c20_t31a_gc2053 */
+/ {
+	leds {
+		compatible = "gpio-leds";
+		status = "disabled";
+	};
+};

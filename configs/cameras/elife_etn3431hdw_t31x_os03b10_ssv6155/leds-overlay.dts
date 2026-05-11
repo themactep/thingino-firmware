@@ -1,0 +1,4 @@
+/dts-v1/;
+/* generated overlay wrapper for elife_etn3431hdw_t31x_os03b10_ssv6155 */
+/include/ "swan_t31.dts"
+/include/ "leds.dtsi"
