@@ -14,6 +14,14 @@ define THINGINO_RAPTOR_PATCH_CONF
 		sed -i "/^\[$$1\]/,/^\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF" || true; \
 	}; \
 	\
+	if [ "$(BR2_THINGINO_IMAGE_SENSOR_QTY)" -gt 1 ] 2>/dev/null; then \
+		sed -i 's/^\[sensor\]/[sensor0]/' "$$CONF"; \
+		sed -i 's/^# \[sensor0\]/[sensor0]/' "$$CONF"; \
+		sed -i 's/^# \[sensor1\]/[sensor1]/' "$$CONF"; \
+		sed -i 's/^# \[mipi_switch\]/[mipi_switch]/' "$$CONF"; \
+		sed -i 's/^# \[sensor1_image\]/[sensor1_image]/' "$$CONF"; \
+	fi; \
+	\
 	rset sensor name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_NAME))"; \
 	rset sensor i2c_addr "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADDR))"; \
 	rset sensor i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADAPTER))"; \
@@ -26,6 +34,24 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset sensor video_interface "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_VIDEO_INTERFACE))"; \
 	rset sensor antiflicker "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_ANTIFLICKER))"; \
 	rset sensor low_latency "$(call raptor_bval,SENSOR_LOW_LATENCY)"; \
+	\
+	rset sensor0 name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_NAME))"; \
+	rset sensor0 i2c_addr "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_I2C_ADDR))"; \
+	rset sensor0 i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_I2C_ADAPTER))"; \
+	rset sensor0 sensor_id "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_SENSOR_ID))"; \
+	rset sensor0 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_WIDTH))"; \
+	rset sensor0 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_HEIGHT))"; \
+	\
+	rset sensor1 name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_NAME))"; \
+	rset sensor1 i2c_addr "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_I2C_ADDR))"; \
+	rset sensor1 i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_I2C_ADAPTER))"; \
+	rset sensor1 sensor_id "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_SENSOR_ID))"; \
+	\
+	rset mipi_switch enabled "$(call raptor_bval,MIPI_SWITCH_ENABLED)"; \
+	rset mipi_switch switch_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_GPIO))"; \
+	rset mipi_switch main_gstate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_MAIN_GSTATE))"; \
+	rset mipi_switch sec_gstate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_SEC_GSTATE))"; \
+	rset mipi_switch switch_gpio2 "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_GPIO2))"; \
 	\
 	rset stream0 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_WIDTH))"; \
 	rset stream0 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_HEIGHT))"; \
@@ -66,6 +92,38 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset stream1 jpeg_quality "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_JPEG_QUALITY))"; \
 	rset stream1 jpeg_fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM1_JPEG_FPS))"; \
 	\
+	if [ "$(BR2_THINGINO_IMAGE_SENSOR_QTY)" -gt 1 ] 2>/dev/null; then \
+		sed -i 's/^# \[sensor1_stream0\]/[sensor1_stream0]/' "$$CONF"; \
+		sed -i 's/^# \[sensor1_stream1\]/[sensor1_stream1]/' "$$CONF"; \
+	fi; \
+	rset sensor1_stream0 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_WIDTH))"; \
+	rset sensor1_stream0 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_HEIGHT))"; \
+	rset sensor1_stream0 fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_FPS))"; \
+	rset sensor1_stream0 codec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_CODEC))"; \
+	rset sensor1_stream0 profile "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_PROFILE))"; \
+	rset sensor1_stream0 bitrate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_BITRATE))"; \
+	rset sensor1_stream0 rc_mode "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_RC_MODE))"; \
+	rset sensor1_stream0 gop "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_GOP))"; \
+	rset sensor1_stream0 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_MIN_QP))"; \
+	rset sensor1_stream0 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_MAX_QP))"; \
+	rset sensor1_stream0 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S0_NR_VBS))"; \
+	rset sensor1_stream0 ivdc "$(call raptor_bval,S1S0_IVDC)"; \
+	rset sensor1_stream0 osd_enabled "$(call raptor_bval,S1S0_OSD_ENABLED)"; \
+	\
+	rset sensor1_stream1 enabled "$(call raptor_bval,S1S1_ENABLED)"; \
+	rset sensor1_stream1 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_WIDTH))"; \
+	rset sensor1_stream1 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_HEIGHT))"; \
+	rset sensor1_stream1 fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_FPS))"; \
+	rset sensor1_stream1 codec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_CODEC))"; \
+	rset sensor1_stream1 profile "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_PROFILE))"; \
+	rset sensor1_stream1 bitrate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_BITRATE))"; \
+	rset sensor1_stream1 rc_mode "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_RC_MODE))"; \
+	rset sensor1_stream1 gop "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_GOP))"; \
+	rset sensor1_stream1 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_MIN_QP))"; \
+	rset sensor1_stream1 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_MAX_QP))"; \
+	rset sensor1_stream1 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1S1_NR_VBS))"; \
+	rset sensor1_stream1 osd_enabled "$(call raptor_bval,S1S1_OSD_ENABLED)"; \
+	\
 	rset jpeg enabled "$(call raptor_bval,JPEG_ENABLED)"; \
 	rset jpeg quality "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_JPEG_QUALITY))"; \
 	rset jpeg fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_JPEG_FPS))"; \
@@ -89,6 +147,19 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset image backlight_comp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_BACKLIGHT_COMP))"; \
 	rset image hflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_HFLIP))"; \
 	rset image vflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IMAGE_VFLIP))"; \
+	\
+	rset sensor1_image brightness "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_BRIGHTNESS))"; \
+	rset sensor1_image contrast "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_CONTRAST))"; \
+	rset sensor1_image saturation "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_SATURATION))"; \
+	rset sensor1_image sharpness "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_SHARPNESS))"; \
+	rset sensor1_image hue "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_HUE))"; \
+	rset sensor1_image sinter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_SINTER))"; \
+	rset sensor1_image temper "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_TEMPER))"; \
+	rset sensor1_image ae_comp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_AE_COMP))"; \
+	rset sensor1_image max_again "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_MAX_AGAIN))"; \
+	rset sensor1_image max_dgain "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_MAX_DGAIN))"; \
+	rset sensor1_image hflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_HFLIP))"; \
+	rset sensor1_image vflip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_S1_IMAGE_VFLIP))"; \
 	\
 	rset ring refmode "$(call raptor_bval,RING_REFMODE)"; \
 	rset ring main_slots "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_MAIN_SLOTS))"; \
@@ -119,6 +190,10 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset rtsp max_clients "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_MAX_CLIENTS))"; \
 	rset rtsp endpoint_main "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_MAIN))"; \
 	rset rtsp endpoint_sub "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_SUB))"; \
+	rset rtsp endpoint_s1_main "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_S1_MAIN))"; \
+	rset rtsp endpoint_s1_sub "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_S1_SUB))"; \
+	rset rtsp endpoint_s2_main "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_S2_MAIN))"; \
+	rset rtsp endpoint_s2_sub "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_ENDPOINT_S2_SUB))"; \
 	rset rtsp username "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_USERNAME))"; \
 	rset rtsp password "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_PASSWORD))"; \
 	rset rtsp tls "$(call raptor_bval,RTSP_TLS)"; \

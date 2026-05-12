@@ -81,7 +81,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RWC
 	bool "RWC (USB webcam)"
-	default y if BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+	default y if BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG || BR2_THINGINO_DEV_WEBCAM
 	select BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 	help
 	  USB webcam daemon. Reads JPEG/H.264 frames from ring buffers
@@ -146,7 +146,6 @@ config BR2_PACKAGE_THINGINO_RAPTOR_OPUS
 
 config BR2_PACKAGE_THINGINO_RAPTOR_MP3
 	bool "MP3 audio decoding"
-	default y if FLASH_SIZE_MB > 8
 	select BR2_PACKAGE_LIBHELIX_MP3
 	help
 	  MP3 decoding for audio client (rac).
