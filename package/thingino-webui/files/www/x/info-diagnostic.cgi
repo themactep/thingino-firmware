@@ -52,7 +52,7 @@ handle_post() {
   if [ -n "$upload_data" ]; then
     local temp_file=$(mktemp)
     printf '%s' "$upload_data" > "$temp_file"
-    result=$(curl -s -T - telnet://tb.thingino.com:9999 < "$temp_file" 2>&1)
+    result=$(nc -w5 tb.thingino.com 9999 < "$temp_file" 2>&1)
     rm -f "$temp_file"
 
     if [ -z "$result" ]; then
