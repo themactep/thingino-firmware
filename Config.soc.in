@@ -1,3 +1,6 @@
+menu "Core Device Configuration"
+
+menu "SOC Configuration"
 config BR2_INGENIC_SOC_MODEL
 	string "SoC Model"
 	default ""
@@ -33,6 +36,8 @@ config BR2_SOC_FAMILY
 config BR2_SOC_RAM_MB
 	int "RAM size in MB"
 	default 64
+
+endmenu
 
 menu "IPU Configuration"
 depends on BR2_SOC_FAMILY = "a1"
@@ -78,7 +83,7 @@ config BR2_IPU_CLK_650MHZ
 endchoice
 endmenu
 
-menu "ISP Configuration"
+menu "ISP Options"
 depends on !BR2_SOC_FAMILY = "a1"
 
 choice
@@ -299,7 +304,7 @@ config BR2_THINGINO_NMEM_MB
 	  Specify reserved memory for the Neural Network module in MB.
 
 
-menu "ISP Debug Configuration"
+menu "ISP Kernel Module Configuration"
 
 choice
 	prompt "ISP Debug Print Level"
@@ -930,4 +935,5 @@ menu "Device Type"
 
 	comment "Device Type: NVR Selected"
 		depends on BR2_THINGINO_DEV_NVR
+endmenu
 endmenu
