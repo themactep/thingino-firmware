@@ -171,6 +171,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libflac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-aac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libimp-debug/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
@@ -233,7 +234,6 @@ config BR2_THINGINO_DEV_EXPERIMENTAL
 	  For developers only.
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libimp-debug/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
