@@ -1,16 +1,12 @@
 #!/bin/sh
 # Find the first available indicator LED and start blinking
 
-THINGNIO_CONF="/etc/thingino.json"
-
-# order: blue, green, white, yellow, red
-for color in b g w y r; do
-	PIN=$(jct "$THINGINO_CONF" get "gpio.led_$color.pin" 2>/dev/null | tr -d '"')
-	case "$PIN" in
-		'' | *[!0-9]*) continue ;;
-	esac
-	if [ -n "$PIN" ]; then
-		echo "1000" >"/run/ledd/$PIN"
+# order: blue, green, white, yellow, violet, red
+for color in b g w y v r; do
+	if [ -d "/sys/class/leds/led_$color" ]; then
+		[ -w "/sys/class/leds/led_$color/trigger" ] && printf 'timer\n' >"/sys/class/leds/led_$color/trigger"
+		[ -w "/sys/class/leds/led_$color/delay_on" ] && printf '1000\n' >"/sys/class/leds/led_$color/delay_on"
+		[ -w "/sys/class/leds/led_$color/delay_off" ] && printf '1000\n' >"/sys/class/leds/led_$color/delay_off"
 		exit 0
 	fi
 done

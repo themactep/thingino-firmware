@@ -69,7 +69,6 @@ Versions are extracted from package `.mk` files.
 | `thingino-ircut` | Added | `-` | `n/a` | `n/a` |
 | `thingino-jct` | Added | `-` | `n/a` | `46e15ef8a8688842bd7ef2d86ed03977360eeaa1` |
 | `thingino-kopt` | Added | `-` | `n/a` | `n/a` |
-| `thingino-ledd` | Added | `-` | `n/a` | `55535e396ea486ccf6ee8a5b1dd19f6d655746cf` |
 | `thingino-libble` | Added | `-` | `n/a` | `v0.0.4` |
 | `thingino-libubox` | Added | `-` | `n/a` | `1501e60e5554bd206c9b13532b7352e668508420` |
 | `thingino-logo` | Added | `-` | `n/a` | `n/a` |

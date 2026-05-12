@@ -123,12 +123,11 @@ execute_choice() {
 			esac
 			;;
 		ota)
-			local action="upgrade"
 			local warning="You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?"
 
 			# Fix for containers, or environments with broken privs
 
-			"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78 2>"$temp_ip"
+			"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA upgrade" 8 78 2>"$temp_ip"
 			exit_status=$?
 
 			if [ $exit_status -ne 0 ]; then
@@ -146,11 +145,11 @@ execute_choice() {
 			fi
 
 			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" 12 78; then
-				echo "Proceeding with OTA $action to $IP..."
+				echo "Proceeding with OTA upgrade to $IP..."
 				make $1 IP=$IP
 				exit
 			else
-				echo "OTA $action canceled by user."
+				echo "OTA upgrade canceled by user."
 			fi
 
 			rm -f $temp_ip

@@ -38,7 +38,7 @@ main_menu() {
 			"1" "$step1_label" \
 			"2" "Step 2: Select device" \
 			"3" "Step 3: Make firmware" \
-			"5" "Step 4: (Optional) OTA Firmware" \
+			"5" "Step 4: (Optional) OTA Firmware upgrade" \
 			3>&1 1>&2 2>&3)
 		exit_status
 	done
@@ -65,9 +65,6 @@ directly to your existing device via networking.  You'll need the IP address of 
 		"HELP 7")
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to \
 specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
-		"HELP 8")
-			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. \
-You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation." 8;;
 		*)
 			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult \
 the thingino wiki for more details.";;
@@ -84,13 +81,9 @@ function execute_choice() {
 			;;
 		5)	step5
 			;;
-		7)  ota "upgrade"
-			;;
-		8)  ota "update"
+		7)	ota
 			;;
 		"HELP 7") show_help "HELP 7"
-			;;
-		"HELP 8") show_help "HELP 8"
 			;;
 		*)	echo "Program terminated or invalid option."
 			;;
@@ -201,20 +194,11 @@ step5() {
 }
 
 ota() {
-	local action="$1"
-	local warning=""
-	local size=""
-
-	if [ "$action" == "upgrade" ]; then
-		warning="You are about to start a FULL UPGRADE, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution.\n\nAre you sure you want to continue with the flashing process?"
-		size=9
-	else
-		warning="Flashing will begin. Be careful, as this might disrupt the device's operation if it fails.\n\nAre you sure you want to continue?"
-		size=8
-	fi
+	local warning="You are about to start a FULL UPGRADE, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution.\n\nAre you sure you want to continue with the flashing process?"
+	local size=9
 
 	local temp_ip="$(mktemp)"
-	"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78 2>"$temp_ip"
+	"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA upgrade" 8 78 2>"$temp_ip"
 	local exit_status=$?
 
 	if [ $exit_status -ne 0 ]; then
@@ -232,14 +216,14 @@ ota() {
 	fi
 
 	if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" $size 78; then
-		echo "Proceeding with OTA $action to $IP..."
+		echo "Proceeding with OTA upgrade to $IP..."
 		BOARD=$camera_value make pack
-		BOARD=$camera_value make "${action}_ota" IP="$IP"
+		BOARD=$camera_value make ota IP="$IP"
 
-		"${DIALOG_COMMON[@]}" --msgbox "OTA $action complete, please check your device!\n\nReturning to main menu." 7 70
+		"${DIALOG_COMMON[@]}" --msgbox "OTA upgrade complete, please check your device!\n\nReturning to main menu." 7 70
 		exit
 	else
-		echo "OTA $action canceled by user."
+		echo "OTA upgrade canceled by user."
 	fi
 }
 
