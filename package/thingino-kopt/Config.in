@@ -40,11 +40,6 @@ config BR2_THINGINO_LED_B_ACTIVE_LOW
 	help
 	  Invert the blue LED output logic.
 
-config BR2_THINGINO_LED_B_ACTIVE_ON_BOOT
-	bool "Blue LED on at boot"
-	help
-	  Set the blue LED default state to on.
-
 config BR2_THINGINO_LED_G_GPIO
 	int "Green LED GPIO"
 	default -1
@@ -55,11 +50,6 @@ config BR2_THINGINO_LED_G_ACTIVE_LOW
 	bool "Green LED active low"
 	help
 	  Invert the green LED output logic.
-
-config BR2_THINGINO_LED_G_ACTIVE_ON_BOOT
-	bool "Green LED on at boot"
-	help
-	  Set the green LED default state to on.
 
 config BR2_THINGINO_LED_R_GPIO
 	int "Red LED GPIO"
@@ -72,11 +62,6 @@ config BR2_THINGINO_LED_R_ACTIVE_LOW
 	help
 	  Invert the red LED output logic.
 
-config BR2_THINGINO_LED_R_ACTIVE_ON_BOOT
-	bool "Red LED on at boot"
-	help
-	  Set the red LED default state to on.
-
 config BR2_THINGINO_LED_W_GPIO
 	int "White LED GPIO"
 	default -1
@@ -87,11 +72,6 @@ config BR2_THINGINO_LED_W_ACTIVE_LOW
 	bool "White LED active low"
 	help
 	  Invert the white LED output logic.
-
-config BR2_THINGINO_LED_W_ACTIVE_ON_BOOT
-	bool "White LED on at boot"
-	help
-	  Set the white LED default state to on.
 
 config BR2_THINGINO_LED_Y_GPIO
 	int "Yellow LED GPIO"
@@ -104,11 +84,6 @@ config BR2_THINGINO_LED_Y_ACTIVE_LOW
 	help
 	  Invert the yellow LED output logic.
 
-config BR2_THINGINO_LED_Y_ACTIVE_ON_BOOT
-	bool "Yellow LED on at boot"
-	help
-	  Set the yellow LED default state to on.
-
 config BR2_THINGINO_LED_V_GPIO
 	int "Violet LED GPIO"
 	default -1
@@ -119,11 +94,6 @@ config BR2_THINGINO_LED_V_ACTIVE_LOW
 	bool "Violet LED active low"
 	help
 	  Invert the violet LED output logic.
-
-config BR2_THINGINO_LED_V_ACTIVE_ON_BOOT
-	bool "Violet LED on at boot"
-	help
-	  Set the violet LED default state to on.
 
 endmenu
 
