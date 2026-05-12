@@ -41,11 +41,13 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset sensor0 sensor_id "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_SENSOR_ID))"; \
 	rset sensor0 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_WIDTH))"; \
 	rset sensor0 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_HEIGHT))"; \
+	rset sensor0 fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_FPS))"; \
 	\
 	rset sensor1 name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_NAME))"; \
 	rset sensor1 i2c_addr "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_I2C_ADDR))"; \
 	rset sensor1 i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_I2C_ADAPTER))"; \
 	rset sensor1 sensor_id "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_SENSOR_ID))"; \
+	rset sensor1 fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_FPS))"; \
 	\
 	rset mipi_switch enabled "$(call raptor_bval,MIPI_SWITCH_ENABLED)"; \
 	rset mipi_switch switch_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_GPIO))"; \
