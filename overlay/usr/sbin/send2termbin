@@ -18,7 +18,7 @@ if [ ! -s "$file" ]; then
 	exit 1
 fi
 
-curl -s -T - telnet://tb.thingino.com:9999 < "$file"
+nc -w5 tb.thingino.com 9999 < "$file"
 rm -f "$file"
 
 exit 0
