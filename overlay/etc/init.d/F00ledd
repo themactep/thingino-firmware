@@ -10,6 +10,7 @@ word_to_letter() {
 		green | g) echo g ;;
 		blue | b) echo b ;;
 		yellow | y) echo y ;;
+		violet | v) echo v ;;
 		cyan | c) echo c ;;
 		magenta | m) echo m ;;
 		white | w) echo w ;;
@@ -36,7 +37,7 @@ resolve_letter_from_name() {
 		return 0
 	}
 	case "$base" in
-		[rgbymcwp]) echo "$base" ;;
+		[rgbymcvwp]) echo "$base" ;;
 		*) return 1 ;;
 	esac
 }

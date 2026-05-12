@@ -1,37 +1,124 @@
 #!/bin/sh
-# Blinks a LED
+# Program a kernel LED trigger and exit immediately.
 
-PID_FILE="/run/blink.pid"
-echo $$ >"$PID_FILE"
+LEDS_CLASS_ROOT="/sys/class/leds"
 
-cleanup() {
-	# FIXME: set pin to the predefined default status
-	if [ -n "$pin" ]; then
-		gpio set $pin 0
-	fi
-
-	if [ -f "$PID_FILE" ]; then
-		rm "$PID_FILE"
-	fi
-
-	exit 0
+word_to_letter() {
+	case "$1" in
+		blue | b) echo b ;;
+		green | g) echo g ;;
+		red | r) echo r ;;
+		yellow | y) echo y ;;
+		violet | purple | v | p) echo v ;;
+		white | w) echo w ;;
+		*) return 1 ;;
+	esac
 }
-trap cleanup 1 2 3 6 15
+
+resolve_led_path() {
+	local name="$1" letter path base
+	[ -d "$LEDS_CLASS_ROOT" ] || return 1
+
+	case "$name" in
+		led_* | led-*)
+			path="$LEDS_CLASS_ROOT/$name"
+			[ -d "$path" ] || return 1
+			LED_PATH="$path"
+			return 0
+			;;
+	esac
+
+	letter=$(word_to_letter "$name" 2>/dev/null) || letter=""
+	for path in "$LEDS_CLASS_ROOT"/*; do
+		[ -d "$path" ] || continue
+		base=${path##*/}
+		case "$base" in
+			"$name" | "led_$name" | "led-$name" | *:"$name" | *:"led_$name" | *:"led-$name")
+				LED_PATH="$path"
+				return 0
+				;;
+		esac
+		[ -n "$letter" ] || continue
+		case "$base" in
+			"$letter" | "led_$letter" | "led-$letter" | *:"$letter" | *:"led_$letter" | *:"led-$letter")
+				LED_PATH="$path"
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
+
+set_led_on() {
+	local max_brightness
+	[ -w "$LED_PATH/trigger" ] && printf 'none\n' >"$LED_PATH/trigger"
+	max_brightness=$(cat "$LED_PATH/max_brightness" 2>/dev/null)
+	case "$max_brightness" in
+		'' | *[!0-9]*) max_brightness=255 ;;
+	esac
+	printf '%s\n' "$max_brightness" >"$LED_PATH/brightness"
+}
+
+set_led_off() {
+	[ -w "$LED_PATH/trigger" ] && printf 'none\n' >"$LED_PATH/trigger"
+	[ -w "$LED_PATH/brightness" ] && printf '0\n' >"$LED_PATH/brightness"
+}
+
+interval_to_ms() {
+	awk -v interval="$1" '
+		BEGIN {
+			if (interval !~ /^([0-9]+([.][0-9]*)?|[.][0-9]+)$/) {
+				exit 1
+			}
+			value = interval + 0
+			ms = int((value * 1000) + 0.5)
+			print ms
+		}
+	'
+}
 
 if [ "$#" -lt 1 ]; then
-	echo "Usage: blink <pin> [interval in sec.]" >&2
+	echo "Usage: blink <color|led_name> [interval in sec.|stop]" >&2
 	exit 1
 fi
 
-pin=$1
+target=$1
 interval=${2:-1}
+case "$interval" in
+	stop | off)
+		mode="stop"
+		;;
+	'')
+		echo "Invalid interval '$interval'" >&2
+		exit 1
+		;;
+	*)
+		mode="blink"
+		;;
+esac
 
-if [ "$interval" -eq 0 ]; then
-	gpio set $pin 1
-	sleep infinity
-else
-	while :; do
-		gpio toggle $pin
-		sleep $interval
-	done
+resolve_led_path "$target" || {
+	echo "Unknown LED '$target'" >&2
+	exit 1
+}
+
+if [ "$mode" = "stop" ]; then
+	set_led_off
+	exit 0
 fi
+
+interval_ms=$(interval_to_ms "$interval") || {
+	echo "Invalid interval '$interval'" >&2
+	exit 1
+}
+
+if [ "$interval_ms" -eq 0 ]; then
+	set_led_on
+	exit 0
+fi
+
+[ -w "$LED_PATH/trigger" ] && printf 'timer\n' >"$LED_PATH/trigger"
+[ -w "$LED_PATH/delay_on" ] && printf '%s\n' "$interval_ms" >"$LED_PATH/delay_on"
+[ -w "$LED_PATH/delay_off" ] && printf '%s\n' "$interval_ms" >"$LED_PATH/delay_off"
+
+exit 0

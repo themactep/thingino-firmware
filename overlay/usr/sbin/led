@@ -1,6 +1,6 @@
 #!/bin/sh
 # LED controller using Linux LED class by color first-letter
-# (r, g, b, y, c, m, w, p).
+# (r, g, b, y, v, c, m, w, p).
 
 LEDS_CLASS_ROOT="/sys/class/leds"
 LED_LETTERS=""
@@ -13,6 +13,7 @@ Colors, use the first letter:
   g - green
   b - blue
   y - yellow
+  v - violet
   c - cyan
   m - magenta
   w - white
@@ -34,6 +35,7 @@ word_to_letter() {
 		green | g) echo g ;;
 		blue | b) echo b ;;
 		yellow | y) echo y ;;
+		violet | v) echo v ;;
 		cyan | c) echo c ;;
 		magenta | m) echo m ;;
 		white | w) echo w ;;
@@ -60,7 +62,7 @@ resolve_letter_from_name() {
 		return 0
 	}
 	case "$base" in
-		[rgbymcwp]) echo "$base" ;;
+		[rgbymcvwp]) echo "$base" ;;
 		*) return 1 ;;
 	esac
 }
@@ -133,7 +135,7 @@ resolve_targets() {
 		c)
 			TARGET_LIST="g b"
 			;;
-		m | p)
+		m | p | v)
 			TARGET_LIST="r b"
 			;;
 		w)

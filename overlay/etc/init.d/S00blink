@@ -19,8 +19,8 @@ find_led_by_color() {
 	return 1
 }
 
-# order: blue, green, white, yellow, red
-for color in blue green white yellow red b g w y r; do
+# order: blue, green, white, yellow, violet, red
+for color in blue green white yellow violet red b g w y v r; do
 	LED_PATH=$(find_led_by_color "$color")
 	[ -n "$LED_PATH" ] || continue
 	[ -w "$LED_PATH/trigger" ] && echo timer >"$LED_PATH/trigger" 2>/dev/null
