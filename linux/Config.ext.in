@@ -35,6 +35,15 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEC3P
 
 		Compatible with Ingenic T40 based WyzeCam V3 Pro hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEV4
+	bool "WyzeCam V4"
+	help
+		Select this option to use the custom device tree for WyzeCam V4.
+		This will install the wyze_cam4_t41nq.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+
+		Compatible with Ingenic T41 based WyzeCam V4 hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_IGETC5PT
 	bool "iGET C5PT"
 	help
