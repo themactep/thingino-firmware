@@ -1,5 +1,7 @@
-menuconfig BR2_PACKAGE_USBNET
-	bool "USB Networking Options"
+menu "USB Networking Options"
+
+config BR2_PACKAGE_USBNET
+	bool "usbnet"
 	help
 	  Networking Device Options
 
@@ -96,3 +98,5 @@ config BR2_PACKAGE_USBNET_WWAN_SERIAL
 	  This automatically enables the Point-to-Point Protocol daemon (pppd)
 	  which is required for establishing cellular data connections with
 	  these devices.
+
+endmenu
