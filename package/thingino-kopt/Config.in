@@ -1,6 +1,7 @@
+menu "Kernel Options"
 
-menuconfig BR2_PACKAGE_THINGINO_KOPT
-	bool "Kernel Options"
+config BR2_PACKAGE_THINGINO_KOPT
+	bool "thingino-kopt"
 	help
 	  Per device kernel customization support.
 	  Items selected here will override the default kernel configuration.
@@ -339,7 +340,7 @@ if BR2_PACKAGE_THINGINO_KOPT_DWC2
 
 choice
 	prompt "DWC2 USB Mode Selection"
-	default BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+	default BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
@@ -396,3 +397,5 @@ config BR2_PACKAGE_THINGINO_KOPT_DMIC
 	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
 	help
 	  Enables I2S DMIC (Digital Microphone) support.
+
+endmenu
