@@ -17,7 +17,12 @@ menuconfig BR2_PACKAGE_WIFI
 	  You still need to add a Wi-Fi driver!
 
 if BR2_PACKAGE_WIFI
+
+menu "AICSemi"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-aic8800/Config.in"
+endmenu
+
+menu "AltoBeam"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6012b/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6012bx/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6031/Config.in"
@@ -25,31 +30,42 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6031x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6032/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6032x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6041/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062cu/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062s/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062u/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6132s/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6132u/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062s/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062cu/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6062u/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6441/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atk9/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcm43438/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcmdhd-ap6214a/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-hi3881/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-mt7601u/Config.in"
+endmenu
+
+menu "iComm Semi"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssv6158/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssv6x5x/Config.in"
+endmenu
+
+menu "Realtek"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8188eu/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8188eus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8188fu/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8189es/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8189fs/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8192fs/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8192eu/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8812au/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8192fs/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8733bu/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssv6x5x/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssv6158/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8812au/Config.in"
+endmenu
+
+menu "Other"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atk9/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcm43438/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-bcmdhd-ap6214a/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-hi3881/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-mt7601u/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssw101b/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-syn4343/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-txw901u/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ws73v100/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-wq9001/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ws73v100/Config.in"
+endmenu
+
 endif
