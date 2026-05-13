@@ -358,7 +358,7 @@ define thingino_run_build
 endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
-	dev fast help pack remove_bins repack sdk toolchain update upboot-ota \
+	dev fast help pack remove_bins repack sdk toolchain update \
 	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs setup-hooks
 
@@ -772,15 +772,6 @@ toolchain: defconfig
 	@$(TEAL) "$@"
 	$(BR2_MAKE) sdk
 
-# flash new uboot image to the camera
-upboot_ota:
-	@$(TEAL) "$@"
-	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
-	@fw_path="$(U_BOOT_BIN)"; \
-	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_U_BOOT_BIN)"; fi; \
-	test -f "$$fw_path" || { echo "ERROR: Neither $(U_BOOT_BIN) nor $(GENERIC_U_BOOT_BIN) was found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
-
 # flash compiled full image to the camera
 ota:
 	@$(TEAL) "$@"
@@ -1129,9 +1120,6 @@ help:
 	Buildroot Submodule Management:\n\
 	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
 	  \n\
-	  make upboot_ota IP=192.168.1.10\n\
-	                      upload bootloader to the camera\n\
-	                        over network, and flash it\n\n\
 	  make ota IP=192.168.1.10\n\
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
