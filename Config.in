@@ -100,6 +100,15 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_SYSTEM_PACKAGES
+
+config BR2_THINGINO_LIBSTDCPP
+	bool "Install libstdc++ on target"
+	default n
+	help
+	  Install libstdc++.so on the device. Required by packages
+	  that use C++ shared libraries (e.g. libsrt).
+	  Most devices do not need this.
+
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-lib/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-musl/Config.in"
