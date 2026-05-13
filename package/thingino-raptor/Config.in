@@ -164,14 +164,14 @@ config BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
 	bool "IVS detection (person/object/YOLO)"
 	default n
 	select BR2_PACKAGE_INGENIC_LIB_JZDL
+	select BR2_PACKAGE_INGENIC_LIB_PERSONDET
 	select BR2_PACKAGE_MAGIK_MODELS
 	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
 	select BR2_THINGINO_LIBSTDCPP
 	help
-	  JZDL YOLOv5 inference and motion bounding box tracking.
-	  Installs JZDL (609KB) and YOLOv5 model (870KB).
-	  Enable personDet separately in ingenic-lib for the
-	  built-in person detection algorithm (+1.5MB).
+	  IVS detection with JZDL YOLOv5 inference, person detection,
+	  and motion bounding box tracking. Installs JZDL, personDet,
+	  and YOLOv5 model.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
