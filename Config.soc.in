@@ -97,6 +97,8 @@ config BR2_AVPU_APLL
 	bool "APLL"
 config BR2_AVPU_MPLL
 	bool "MPLL"
+config BR2_AVPU_SCLKA
+	bool "SCLKA"
 config BR2_AVPU_VPLL
 	bool "VPLL"
 config BR2_AVPU_INTERNAL

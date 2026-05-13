@@ -242,6 +242,8 @@ ifeq ($(BR2_AVPU_APLL),y)
 	AVPU_CLK_SRC := clk_name=apll
 else ifeq ($(BR2_AVPU_MPLL),y)
 	AVPU_CLK_SRC := clk_name=mpll
+else ifeq ($(BR2_AVPU_SCLKA),y)
+	AVPU_CLK_SRC := clk_name=sclka
 else ifeq ($(BR2_AVPU_VPLL),y)
 	AVPU_CLK_SRC := clk_name=vpll
 else ifeq ($(BR2_AVPU_INTERNAL),y)
