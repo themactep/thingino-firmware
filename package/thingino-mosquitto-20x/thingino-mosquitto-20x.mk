@@ -12,7 +12,7 @@ THINGINO_MOSQUITTO_20X_LICENSE_FILES = LICENSE.txt epl-v20 edl-v10
 THINGINO_MOSQUITTO_20X_INSTALL_STAGING = YES
 
 THINGINO_MOSQUITTO_20X_MAKE_DIRS = lib client
-THINGINO_MOSQUITTO_20X_MAKE_OPTS = prefix=/usr WITH_CJSON=no
+THINGINO_MOSQUITTO_20X_MAKE_OPTS = prefix=/usr WITH_CJSON=no WITH_LIB_CPP=no
 
 ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_20X_USE_MBEDTLS),y)
 THINGINO_MOSQUITTO_20X_DEPENDENCIES += mbedtls
@@ -57,6 +57,12 @@ define THINGINO_MOSQUITTO_20X_INSTALL_STAGING_CMDS
 		DIRS="$(THINGINO_MOSQUITTO_20X_MAKE_DIRS)" \
 		$(THINGINO_MOSQUITTO_20X_MAKE_OPTS) \
 		DESTDIR=$(STAGING_DIR) install
+	rm -f \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.so \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.so.* \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.a \
+		$(STAGING_DIR)/usr/lib/pkgconfig/libmosquittopp.pc \
+		$(STAGING_DIR)/usr/include/mosquittopp.h
 endef
 
 define THINGINO_MOSQUITTO_20X_INSTALL_TARGET_CMDS
@@ -64,6 +70,12 @@ define THINGINO_MOSQUITTO_20X_INSTALL_TARGET_CMDS
 		DIRS="$(THINGINO_MOSQUITTO_20X_MAKE_DIRS)" \
 		$(THINGINO_MOSQUITTO_20X_MAKE_OPTS) \
 		DESTDIR=$(TARGET_DIR) install
+	rm -f \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.so \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.so.* \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.a \
+		$(TARGET_DIR)/usr/lib/pkgconfig/libmosquittopp.pc \
+		$(TARGET_DIR)/usr/include/mosquittopp.h
 	rm -f $(TARGET_DIR)/etc/mosquitto/*.example
 	$(THINGINO_MOSQUITTO_20X_INSTALL_TARGET_CONF)
 endef
