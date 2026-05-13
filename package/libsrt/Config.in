@@ -9,3 +9,14 @@ config BR2_PACKAGE_LIBSRT
 	  retransmission and AES encryption.
 
 	  https://github.com/Haivision/srt
+
+config BR2_PACKAGE_LIBSRT_STATIC_STDCXX
+	bool "Statically link libstdc++ into libsrt"
+	default y
+	depends on BR2_PACKAGE_LIBSRT
+	help
+	  Link libstdc++ statically so libstdc++.so is not needed
+	  on the device. Increases binary size slightly but removes
+	  the ~1MB libstdc++.so runtime dependency.
+
+	  If disabled, libstdc++.so will be installed on the device.

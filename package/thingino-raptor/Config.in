@@ -109,6 +109,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RSP
 config BR2_PACKAGE_THINGINO_RAPTOR_RSR
 	bool "RSR (SRT listener)"
 	select BR2_PACKAGE_LIBSRT
+	select BR2_THINGINO_LIBSTDCPP if !BR2_PACKAGE_LIBSRT_STATIC_STDCXX
 	help
 	  SRT streaming listener. Serves live video+audio as MPEG-TS
 	  over SRT protocol. Multi-client, multi-stream via STREAMID,
@@ -165,6 +166,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
 	select BR2_PACKAGE_INGENIC_LIB_JZDL
 	select BR2_PACKAGE_MAGIK_MODELS
 	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
+	select BR2_THINGINO_LIBSTDCPP
 	help
 	  JZDL YOLOv5 inference and motion bounding box tracking.
 	  Installs JZDL (609KB) and YOLOv5 model (870KB).
