@@ -160,18 +160,42 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	  Enable mbedTLS for RTSPS, RWD HTTPS signaling, and
 	  optional RHD HTTPS.
 
-config BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
-	bool "IVS detection (person/object/YOLO)"
+menuconfig BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
+	bool "IVS detection"
 	default n
-	select BR2_PACKAGE_INGENIC_LIB_JZDL
-	select BR2_PACKAGE_INGENIC_LIB_PERSONDET
-	select BR2_PACKAGE_MAGIK_MODELS
-	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
 	select BR2_THINGINO_LIBSTDCPP
 	help
-	  IVS detection with JZDL YOLOv5 inference, person detection,
-	  and motion bounding box tracking. Installs JZDL, personDet,
-	  and YOLOv5 model.
+	  Enable IVS (Intelligent Video Surveillance) detection in RVD.
+	  Select which detection backends to install below.
+
+if BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
+	bool "JZDL inference engine"
+	default y
+	select BR2_PACKAGE_INGENIC_LIB_JZDL
+	help
+	  Ingenic JZDL neural network inference engine (libjzdl.m.so).
+	  Required for YOLO and standalone NNA inference.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_YOLOV5
+	bool "YOLOv5 model (person/bicycle/car/motorcycle)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
+	select BR2_PACKAGE_MAGIK_MODELS
+	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
+	help
+	  4-class object detection model for JZDL (870KB).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_PERSONDET
+	bool "PersonDet algorithm (libpersonDet_inf.so)"
+	default y
+	select BR2_PACKAGE_INGENIC_LIB_PERSONDET
+	help
+	  Built-in person detection via IVS pipeline (1.5MB).
+	  No separate model file needed.
+
+endif
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
