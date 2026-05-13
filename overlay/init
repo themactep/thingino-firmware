@@ -31,13 +31,13 @@ mount_jffs2() {
 	[ -z "$mtd" ] && die "Partition $name not found!"
 
 	blk=$(awk -F: "/$name/{print \$1}" /proc/mtd | sed 's/mtd/mtdblock/')
-	if [ ! -e "/dev/$blk" ]; then
-		echo "Init: [WARNING] $name not found. Creating..."
-		flash_eraseall -j /dev/$mtd
-	fi
 
-	mount -t jffs2 -o noatime /dev/$blk $target ||
-		die "Failed to mount /dev/$blk as $target!"
+	mount -t jffs2 -o noatime /dev/$blk $target 2>/dev/null || {
+		echo "Init: [WARNING] $name empty or corrupt. Formatting..."
+		flash_eraseall -j /dev/$mtd
+		mount -t jffs2 -o noatime /dev/$blk $target ||
+			die "Failed to mount /dev/$blk as $target!"
+	}
 }
 
 prepare_overlay_dirs() {
