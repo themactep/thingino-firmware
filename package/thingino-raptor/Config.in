@@ -188,11 +188,13 @@ config BR2_PACKAGE_THINGINO_RAPTOR_IVS_YOLOV5
 	  4-class object detection model for JZDL (870KB).
 
 config BR2_PACKAGE_THINGINO_RAPTOR_IVS_PERSONDET
-	bool "PersonDet algorithm (libpersonDet_inf.so)"
-	default y
+	bool "PersonDet algorithm (libpersonDet_inf.so + MXU libs)"
+	default n
 	select BR2_PACKAGE_INGENIC_LIB_PERSONDET
+	select BR2_THINGINO_LIBSTDCPP
 	help
-	  Built-in person detection via IVS pipeline (1.5MB).
+	  Built-in person detection via IVS pipeline.
+	  Installs libpersonDet_inf.so + 4 MXU libs (~3.2MB total).
 	  No separate model file needed.
 
 endif
