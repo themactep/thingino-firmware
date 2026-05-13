@@ -16,6 +16,29 @@
 
 ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_212),y)
 
+# Build only the C library/client stack; skip libmosquittopp.
+MOSQUITTO_CONF_OPTS += -DWITH_LIB_CPP=OFF
+
+define THINGINO_MOSQUITTO_212_REMOVE_CPP_STAGING
+	rm -f \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.so \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.so.* \
+		$(STAGING_DIR)/usr/lib/libmosquittopp.a \
+		$(STAGING_DIR)/usr/lib/pkgconfig/libmosquittopp.pc \
+		$(STAGING_DIR)/usr/include/mosquittopp.h
+endef
+MOSQUITTO_POST_INSTALL_STAGING_HOOKS += THINGINO_MOSQUITTO_212_REMOVE_CPP_STAGING
+
+define THINGINO_MOSQUITTO_212_REMOVE_CPP_TARGET
+	rm -f \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.so \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.so.* \
+		$(TARGET_DIR)/usr/lib/libmosquittopp.a \
+		$(TARGET_DIR)/usr/lib/pkgconfig/libmosquittopp.pc \
+		$(TARGET_DIR)/usr/include/mosquittopp.h
+endef
+MOSQUITTO_POST_INSTALL_TARGET_HOOKS += THINGINO_MOSQUITTO_212_REMOVE_CPP_TARGET
+
 ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_212_USE_MBEDTLS),y)
 # mbedTLS backend: swap OpenSSL for mbedtls; keep cjson for client JSON output.
 # -DWITH_TLS=ON overrides mosquitto.mk's -DWITH_TLS=OFF (set when OpenSSL is

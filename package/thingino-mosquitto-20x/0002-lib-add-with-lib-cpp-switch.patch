@@ -1,0 +1,34 @@
+diff -urNa a/lib/Makefile b/lib/Makefile
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -1,6 +1,8 @@
+ include ../config.mk
+ 
+ .PHONY : really clean install
++
++WITH_LIB_CPP ?= yes
+ 
+ MOSQ_OBJS=mosquitto.o \
+ 		  actions.o \
+@@ -64,8 +66,10 @@
+ 
+ all : ${ALL_DEPS}
+ ifeq ($(WITH_SHARED_LIBRARIES),yes)
++ifeq ($(WITH_LIB_CPP),yes)
+ 	$(MAKE) -C cpp
+ endif
++endif
+ 
+ install : all
+ 	$(INSTALL) -d "${DESTDIR}${libdir}/"
+@@ -84,8 +88,10 @@
+ 	$(INSTALL) -m644 ../libmosquitto.pc.in "${DESTDIR}${libdir}/pkgconfig/libmosquitto.pc"
+ 	sed ${SEDINPLACE} -e "s#@CMAKE_INSTALL_PREFIX@#${prefix}#" -e "s#@CMAKE_INSTALL_LIBDIR@#lib${LIB_SUFFIX}#" -e "s#@VERSION@#${VERSION}#" "${DESTDIR}${libdir}/pkgconfig/libmosquitto.pc"
+ ifeq ($(WITH_SHARED_LIBRARIES),yes)
++ifeq ($(WITH_LIB_CPP),yes)
+ 	$(MAKE) -C cpp install
+ endif
++endif
+ 
+ uninstall :
+ 	-rm -f "${DESTDIR}${libdir}/libmosquitto.so.${SOVERSION}"
