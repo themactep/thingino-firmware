@@ -132,10 +132,7 @@ make CAMERA=your_camera cleanbuild
 ### Over-the-Air Update (OTA)
 
 ```bash
-# Flash bootloader only (rarely needed)
-make CAMERA=your_camera upboot_ota IP=192.168.1.10
-
-# Flash complete firmware including bootloader
+# Flash complete firmware image
 make CAMERA=your_camera ota IP=192.168.1.10
 ```
 

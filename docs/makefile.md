@@ -433,14 +433,6 @@ make ota IP=192.168.1.10
 If a session IP is already active, the same command can be run without repeating
 `IP=...`.
 
-**Warning**: Flashing bootloader can brick the camera if interrupted.
-
-#### `upboot_ota`
-Flash bootloader only.
-```bash
-make upboot_ota IP=192.168.1.10
-```
-
 ### TFTP Upload
 
 ```bash
