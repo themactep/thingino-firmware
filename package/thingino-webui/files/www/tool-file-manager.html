@@ -13,6 +13,12 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .sort-indicator::after { content: "⇅"; opacity: 0.3; font-size: 0.8em; }
+    .sort-indicator.asc::after { content: "↑"; opacity: 1; }
+    .sort-indicator.desc::after { content: "↓"; opacity: 1; }
+    th:hover .sort-indicator::after { opacity: 0.7; }
+  </style>
 </head>
 
 <body id="page-tool-file-manager">
@@ -48,10 +54,10 @@
         <table class="table align-middle" id="fileTable">
           <thead>
             <tr>
-              <th scope="col">Name</th>
-              <th scope="col" class="text-end">Size (bytes)</th>
-              <th scope="col">Permissions</th>
-              <th scope="col">Date</th>
+              <th scope="col" data-sort="name" style="cursor:pointer;user-select:none">Name <span class="sort-indicator" data-for="name"></span></th>
+              <th scope="col" class="text-end" data-sort="size" style="cursor:pointer;user-select:none">Size (bytes) <span class="sort-indicator" data-for="size"></span></th>
+              <th scope="col" data-sort="perm" style="cursor:pointer;user-select:none">Permissions <span class="sort-indicator" data-for="perm"></span></th>
+              <th scope="col" data-sort="time" style="cursor:pointer;user-select:none">Date <span class="sort-indicator" data-for="time"></span></th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -183,6 +189,9 @@
         </button>
         <button type="button" class="btn btn-success w-100 d-none" id="fileActionEdit">
           <i class="bi bi-pencil-square me-2"></i>Edit
+        </button>
+        <button type="button" class="btn btn-danger w-100 d-none" id="fileActionDelete">
+          <i class="bi bi-trash me-2"></i>Delete
         </button>
         <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">
           <i class="bi bi-x-circle me-2"></i>Close

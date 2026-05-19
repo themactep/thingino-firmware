@@ -205,7 +205,7 @@ $1 == "total" { next }
   is_link = substr(perm, 1, 1) == "l" ? "true" : "false"
   if (is_dir == "true") size = "-"
 
-  record = sprintf("{\"name\":\"%s\",\"path\":\"%s\",\"size\":\"%s\",\"perm\":\"%s\",\"time\":\"%s\",\"is_dir\":%s,\"is_link\":%s,\"link_target\":\"%s\"}", escape(name), escape(path), escape(size), escape(perm), escape(timestamp), is_dir, is_link, escape(link_target))
+  record = sprintf("{\"name\":\"%s\",\"path\":\"%s\",\"size\":\"%s\",\"perm\":\"%s\",\"time\":\"%s\",\"is_dir\":%s,\"is_link\":%s,\"link_target\":\"%s\",\"deletable\":%s}", escape(name), escape(path), escape(size), escape(perm), escape(timestamp), is_dir, is_link, escape(link_target), (path ~ /^\/(mnt|media)\//) ? "true" : "false")
 
   if (is_dir == "true") {
     dirs[++dir_count] = record
@@ -237,6 +237,26 @@ fi
 dl_param=$(get_param "dl")
 if [ -n "$dl_param" ]; then
 	handle_download "$dl_param"
+fi
+
+rm_param=$(get_param "rm")
+if [ -n "$rm_param" ]; then
+	if [ "$REQUEST_METHOD" != "POST" ]; then
+		json_error 405 "Method not allowed" "405 Method Not Allowed"
+	fi
+	resolved_file=$(cd "$(dirname "$rm_param")" 2>/dev/null && echo "$(pwd -P)/$(basename "$rm_param")") || json_error 404 "File not found" "404 Not Found"
+	case "$resolved_file" in
+		/mnt/* | /media/*) ;;
+		*) json_error 403 "Deletion only allowed on mounted partitions" "403 Forbidden" ;;
+	esac
+	if [ ! -e "$resolved_file" ]; then
+		json_error 404 "File not found" "404 Not Found"
+	fi
+	if rm -f "$resolved_file" 2>/dev/null; then
+		send_json '{"result":"ok"}'
+	else
+		json_error 500 "Failed to delete file"
+	fi
 fi
 
 if [ -n "$REQUEST_METHOD" ] && [ "$REQUEST_METHOD" != "GET" ]; then

@@ -29,6 +29,7 @@
   const fileActionDownload = $("#fileActionDownload");
   const fileActionView = $("#fileActionView");
   const fileActionEdit = $("#fileActionEdit");
+  const fileActionDelete = $("#fileActionDelete");
 
   // Image preview modal elements
   const imagePreviewModalEl = $("#imagePreviewModal");
@@ -53,6 +54,9 @@
     loading: false,
     lastSignature: "",
     watchTimer: null,
+    rawEntries: [],
+    sortColumn: "name",
+    sortDirection: "asc",
   };
 
   function encodePath(path) {
@@ -253,6 +257,53 @@
     });
   }
 
+  function sortEntries(entries) {
+    const { sortColumn, sortDirection } = state;
+    const dir = sortDirection === "asc" ? 1 : -1;
+
+    return [...entries].sort((a, b) => {
+      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+
+      let cmp = 0;
+      if (sortColumn === "name") {
+        cmp = (a.name || "").localeCompare(b.name || "");
+      } else if (sortColumn === "size") {
+        const sa = a.size === "-" ? 0 : parseInt(a.size, 10) || 0;
+        const sb = b.size === "-" ? 0 : parseInt(b.size, 10) || 0;
+        cmp = sa - sb;
+      } else if (sortColumn === "time") {
+        cmp = (a.time || "").localeCompare(b.time || "");
+      } else if (sortColumn === "perm") {
+        cmp = (a.perm || "").localeCompare(b.perm || "");
+      }
+      return cmp * dir;
+    });
+  }
+
+  function updateSortIndicators() {
+    document.querySelectorAll(".sort-indicator").forEach((el) => {
+      const col = el.dataset.for;
+      el.classList.remove("asc", "desc");
+      if (col === state.sortColumn) {
+        el.classList.add(state.sortDirection);
+      }
+    });
+  }
+
+  function handleSortClick(event) {
+    const th = event.target.closest("th[data-sort]");
+    if (!th) return;
+    const col = th.dataset.sort;
+    if (state.sortColumn === col) {
+      state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      state.sortColumn = col;
+      state.sortDirection = "asc";
+    }
+    updateSortIndicators();
+    renderEntries(sortEntries(state.rawEntries));
+  }
+
   function computeEntriesSignature(entries = []) {
     if (!entries.length) return "empty";
     return entries
@@ -302,13 +353,15 @@
 
       const entries = payload.entries || [];
       const resolvedPath = (payload && payload.directory) || normalized;
+      state.rawEntries = entries;
       const signature = computeEntriesSignature(entries);
       const pathChanged = resolvedPath !== state.currentPath;
       const hasChanged = signature !== state.lastSignature || pathChanged;
 
       if (!silent || hasChanged) {
         renderBreadcrumbs(payload.breadcrumbs || []);
-        renderEntries(entries);
+        renderEntries(sortEntries(entries));
+        updateSortIndicators();
         state.currentPath = resolvedPath;
         state.parentPath = payload.parent || "/";
         parentBtn.disabled =
@@ -345,6 +398,7 @@
   parentBtn.addEventListener("click", () =>
     loadDirectory(state.parentPath || "/", { pushHistory: true }),
   );
+  $("#fileTable thead").addEventListener("click", handleSortClick);
   function triggerDownload(link) {
     const url = link.href;
     const filename = link.dataset.downloadName || "download";
@@ -390,6 +444,7 @@
     }
 
     // For non-image, non-video files, show file actions modal
+    const entry = state.rawEntries.find((e) => e.path === filePath);
     fileActionName.textContent = fileName;
     fileActionPath.textContent = filePath;
 
@@ -413,6 +468,14 @@
       fileActionEdit.dataset.editFile = filePath;
     } else {
       fileActionEdit.classList.add("d-none");
+    }
+
+    // Show/hide delete button based on deletable flag
+    if (entry && entry.deletable) {
+      fileActionDelete.classList.remove("d-none");
+      fileActionDelete.dataset.deletePath = filePath;
+    } else {
+      fileActionDelete.classList.add("d-none");
     }
 
     // Hide view button since images/videos are handled above
@@ -657,6 +720,41 @@
         textEditorModal.show();
         loadTextFile(filePath);
       }, 150);
+    }
+  });
+
+  fileActionDelete.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const filePath = fileActionDelete.dataset.deletePath || "";
+    if (!filePath) return;
+
+    const confirmed = await confirm(
+      `Delete "${filePath}"? This action cannot be undone.`,
+      {
+        title: "Delete file",
+        confirmLabel: "Delete",
+        intent: "danger",
+      },
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `/x/tool-file-manager.cgi?rm=${encodePath(filePath)}`,
+        { method: "POST" },
+      );
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(
+          data.error ? data.error.message : `HTTP ${response.status}`,
+        );
+      }
+      showAlert("success", `Deleted: ${filePath.split("/").pop()}`);
+      const fileActionsModal = bootstrap.Modal.getInstance(fileActionsModalEl);
+      if (fileActionsModal) fileActionsModal.hide();
+      loadDirectory(state.currentPath, { silent: true });
+    } catch (error) {
+      showAlert("danger", `Delete failed: ${error.message}`);
     }
   });
 
