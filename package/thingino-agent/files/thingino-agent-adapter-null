@@ -125,6 +125,13 @@ thingino_agent_adapter_null_get_runtime() {
 			stream_id=${resource#streams/}
 			printf '{"id":%s,"enabled":false,"video_enabled":false,"audio_enabled":false,"width":null,"height":null,"fps":null,"bitrate":null,"format":null,"mode":null,"rtsp_endpoint":null,"rtsp_name":null,"rtsp_url":null,"rtsp_listener_up":false,"recording_active":false,"healthy":false}\n' "$stream_id"
 			;;
+		media)
+			printf '{"streams":{"ch0":{"available":false,"enabled":false,"snapshot_url":null},"ch1":{"available":false,"enabled":false,"snapshot_url":null}}}\n'
+			;;
+		heartbeat)
+			printf '{"time_now":%s,"uptime":%s,"daynight_brightness":null,"total_gain":null,"daynight_mode":"unknown","rec_ch0":false,"rec_ch1":false,"motion_enabled":false,"privacy_enabled":false,"color_mode":null,"mic_enabled":false,"spk_enabled":false,"daynight_enabled":false,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":0}\n' \
+				"$(date +%s)" "$(thingino_agent_uptime_seconds)"
+			;;
 		*)
 			echo "unsupported runtime resource: $resource" >&2
 			return 1

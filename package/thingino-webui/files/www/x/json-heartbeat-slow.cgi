@@ -1,28 +1,30 @@
 #!/bin/sh
 
-# Slow heartbeat status - serves daemon-maintained cache for expensive device state.
+# Slow heartbeat proxied from Thingino agent
 
 . /var/www/x/auth.sh
 require_auth
 
-CACHE_FILE="/tmp/heartbeat_slow_cache.json"
+THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
 
-read_cache_line() {
-  local line
-
-  if IFS= read -r line < "$1" || [ -n "$line" ]; then
-    printf '%s\n' "$line"
-  else
-    printf '{}\n'
-  fi
+agent_port() {
+	port=$(jct "$THINGINO_CONFIG" get agent.port 2>/dev/null | tr -d '\n"')
+	case "$port" in
+		'' | *[!0-9]*) port=1998 ;;
+		0) port=1998 ;;
+	esac
+	printf '%s' "$port"
 }
+
+AGENT_URL="http://127.0.0.1:$(agent_port)"
 
 printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-cache\r\n'
 printf 'Connection: close\r\n\r\n'
 
-if [ -r "$CACHE_FILE" ]; then
-  read_cache_line "$CACHE_FILE"
+data=$(curl -sS --max-time 2 "$AGENT_URL/api/v1/runtime/heartbeat" 2>/dev/null)
+if [ -n "$data" ]; then
+	printf '%s\n' "$data"
 else
-  printf '{}\n'
+	printf '{}\n'
 fi

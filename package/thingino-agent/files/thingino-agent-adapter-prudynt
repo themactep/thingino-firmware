@@ -1054,6 +1054,47 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 	esac
 }
 
+thingino_agent_prudynt_query_live() {
+	unset _heartbeat_color_mode _heartbeat_mic_enabled _heartbeat_spk_enabled _heartbeat_total_gain
+	if command -v prudyntctl >/dev/null 2>&1; then
+		_heartbeat_tmp=$(mktemp)
+		prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_heartbeat_tmp" 2>/dev/null
+		_heartbeat_color_mode=$(thingino_agent_json_config_value "$_heartbeat_tmp" image.running_mode)
+		_heartbeat_mic_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)
+		_heartbeat_spk_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)
+		_heartbeat_total_gain=$(thingino_agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
+		rm -f "$_heartbeat_tmp"
+	fi
+}
+
+thingino_agent_prudynt_heartbeat_brightness() {
+	awk 'NR == 1 { print $1 }' /run/prudynt/daynight_brightness 2>/dev/null | tr -d '\n'
+}
+
+thingino_agent_prudynt_heartbeat_hw_state() {
+	cmd=${1%% *}
+	command -v "$cmd" >/dev/null 2>&1 || {
+		printf 'null'
+		return 0
+	}
+	value=$(eval "$1 read" 2>/dev/null)
+	case "$value" in
+		'' | *[!0-9]*) printf 'null' ;;
+		*) printf '%s' "$value" ;;
+	esac
+}
+
+thingino_agent_prudynt_heartbeat_wg_status() {
+	if command -v wg >/dev/null 2>&1; then
+		case "$(wg show wg0 2>/dev/null)" in
+			*"latest handshake"*) printf '1' ;;
+			*) printf '0' ;;
+		esac
+	else
+		printf '0'
+	fi
+}
+
 thingino_agent_adapter_prudynt_get_runtime() {
 	resource=${1:-all}
 	case "$resource" in
@@ -1122,6 +1163,48 @@ thingino_agent_adapter_prudynt_get_runtime() {
 		streams/1)
 			thingino_agent_prudynt_print_stream_runtime 1
 			printf '\n'
+			;;
+		media)
+			has_snapshot=$(thingino_agent_prudynt_has_snapshot)
+			stream0_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field 0 enabled)" false)
+			stream1_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field 1 enabled)" false)
+			printf '{"streams":{"ch0":{"available":%s,"enabled":%s,"snapshot_url":%s},"ch1":{"available":%s,"enabled":%s,"snapshot_url":%s}}}\n' \
+				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$stream0_enabled" \
+				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream0_enabled" = true ] && printf '/x/dl0.jpg')")" \
+				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$stream1_enabled" \
+				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
+			;;
+		heartbeat)
+			thingino_agent_prudynt_query_live
+			_brightness=$(thingino_agent_prudynt_heartbeat_brightness)
+			_daynight_mode=$(thingino_agent_prudynt_daynight_running_mode)
+			_ircut_state=$(thingino_agent_prudynt_heartbeat_hw_state ircut)
+			_ir850_state=$(thingino_agent_prudynt_heartbeat_hw_state "light ir850")
+			_ir940_state=$(thingino_agent_prudynt_heartbeat_hw_state "light ir940")
+			_white_state=$(thingino_agent_prudynt_heartbeat_hw_state "light white")
+			_wg_status=$(thingino_agent_prudynt_heartbeat_wg_status)
+			printf '{'
+			printf '"time_now":%s,' "$(date +%s)"
+			printf '"uptime":%s,' "$(thingino_agent_uptime_seconds)"
+			printf '"daynight_brightness":%s,' "$(thingino_agent_json_string_or_null "$_brightness")"
+			printf '"total_gain":%s,' "$(thingino_agent_json_value_or "${_heartbeat_total_gain:-}" null)"
+			printf '"daynight_mode":%s,' "$(thingino_agent_json_string_or_null "$_daynight_mode")"
+			printf '"rec_ch0":%s,' "$(thingino_agent_prudynt_stream_recording_active 0)"
+			printf '"rec_ch1":%s,' "$(thingino_agent_prudynt_stream_recording_active 1)"
+			printf '"motion_enabled":%s,' "$(thingino_agent_prudynt_motion_active)"
+			printf '"privacy_enabled":%s,' "$(thingino_agent_prudynt_privacy_enabled)"
+			printf '"color_mode":%s,' "$(thingino_agent_json_value_or "${_heartbeat_color_mode:-}" null)"
+			printf '"mic_enabled":%s,' "$(thingino_agent_json_value_or "${_heartbeat_mic_enabled:-}" false)"
+			printf '"spk_enabled":%s,' "$(thingino_agent_json_value_or "${_heartbeat_spk_enabled:-}" false)"
+			printf '"daynight_enabled":%s,' "$(thingino_agent_prudynt_daynight_enabled)"
+			printf '"ircut_state":%s,' "$_ircut_state"
+			printf '"ir850_state":%s,' "$_ir850_state"
+			printf '"ir940_state":%s,' "$_ir940_state"
+			printf '"white_state":%s,' "$_white_state"
+			printf '"wg_status":%s' "$_wg_status"
+			printf '}\n'
 			;;
 		*)
 			echo "unsupported runtime resource: $resource" >&2
