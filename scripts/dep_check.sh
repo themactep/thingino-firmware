@@ -123,6 +123,9 @@ if [ -f /etc/os-release ]; then
 	. /etc/os-release
 	OS="$NAME"
 
+	# Common packages across all distros
+	default_packages="autoconf bc bison cpio cmake curl dialog file flex gawk git m4 make mtools nano parted patch perl rsync unzip wget ripgrep shfmt nodejs npm"
+
 	# Check ID_LIKE for Debian-based identification first
 	case "$ID_LIKE" in
 		*debian*)
@@ -131,7 +134,7 @@ if [ -f /etc/os-release ]; then
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="autoconf build-essential bc bison ccache cpio cmake curl dialog file flex gawk git libcrypt-dev libncurses-dev libusb-1.0-0-dev make mtools m4 nano parted perl python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail ripgrep shfmt nodejs npm"
+			packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-jsonschema"
 			;;
 		*)
 			case "$ID" in
@@ -141,35 +144,35 @@ if [ -f /etc/os-release ]; then
 					pkg_check_command="dpkg-query -W -f='\${Status}'"
 					pkg_install_cmd="apt-get install -y"
 					pkg_update_cmd="apt-get update"
-					packages="autoconf build-essential bc bison cpio cmake curl dialog file flex gawk git libcrypt-dev libncurses-dev libusb-1.0-0-dev m4 make mtools nano parted perl rsync unzip u-boot-tools vim-tiny wget whiptail ripgrep shfmt nodejs npm"
+					packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail"
 					;;
 				rhel | centos | fedora)
 					echo "RedHat-based"
 					pkg_manager="rpm"
 					pkg_check_command="rpm -q --whatprovides"
 					pkg_install_cmd="dnf install -y"
-					packages="autoconf gcc m4 make bc bison cpio cmake curl dialog file flex gawk git libxcrypt-devel nano parted ncurses-devel newt libusbx-devel perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
+					packages="$default_packages gcc libxcrypt-devel ncurses-devel newt libusbx-devel uboot-tools"
 					;;
 				arch)
 					echo "Arch-based"
 					pkg_manager="pacman"
 					pkg_check_command="pacman -Q"
 					pkg_install_cmd="pacman -S --noconfirm"
-					packages="autoconf base-devel bc bison cpio cmake curl dialog file flex gawk git libxcrypt m4 libnewt libusb make mtools nano parted ncurses perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
+					packages="$default_packages base-devel libxcrypt libnewt ncurses uboot-tools"
 					;;
 				alpine)
 					echo "Alpine Linux"
 					pkg_manager="apk"
 					pkg_check_command="apk info -e"
 					pkg_install_cmd="apk add"
-					packages="autoconf bash build-base bc bison cpio cmake curl dialog file findutils flex gawk git grep m4 mtools nano ncurses-dev newt parted libusb-dev make perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
+					packages="$default_packages bash build-base findutils grep libusb-dev ncurses-dev newt uboot-tools"
 					;;
 				opensuse*)
 					echo "OpenSUSE Tumbleweed"
 					pkg_manager="zypper"
 					pkg_check_command="zypper search -i"
 					pkg_install_cmd="zypper install -y"
-					packages="autoconf bc bison cpio cmake curl dialog file findutils flex gawk gcc git grep libxcrypt-devel m4 make mtools ncurses-devel newt parted libusb-1_0-devel perl rsync unzip u-boot-tools wget ripgrep shfmt nodejs npm"
+					packages="$default_packages gcc findutils grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel u-boot-tools"
 					;;
 				*)
 					echo "Unsupported OS: $ID"
