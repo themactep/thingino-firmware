@@ -73,22 +73,11 @@ LINUX_CONFIG_LOCALVERSION = \
 
 TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 
-define GENERATE_GPIO_USERKEYS_CONFIG
-	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
-		gpio_userkeys_config=""; \
-		keycode=28; \
-		if which jct >/dev/null 2>&1; then \
-			button_reset=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
-			if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-				gpio_userkeys_config="$${keycode},$${button_reset},1"; \
-				keycode=$$((keycode + 1)); \
-			fi; \
-		fi; \
-		if [ -n "$$gpio_userkeys_config" ]; then \
-			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
-		fi; \
-	fi
-endef
+# gpio-userkeys is loaded at runtime by overlay/etc/init.d/S11modules,
+# which reads gpio.button_reset from /etc/thingino.json and modprobes the
+# module with gpio_config="28,<pin>,1". Keeping the JSON as single source of
+# truth avoids the silent-no-op failure mode the old build-time hook had when
+# host-jct wasn't on PATH during ingenic-sdk install.
 
 # $(call INSTALL_SENSOR_BIN, model, bin_name, config_name, iq_override_path)
 define INSTALL_SENSOR_BIN
@@ -218,7 +207,6 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	fi
 
 	$(GENERATE_MODULE_LOADER)
-	$(GENERATE_GPIO_USERKEYS_CONFIG)
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
