@@ -53,6 +53,24 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_IGETC5PT
 
 		Compatible with Ingenic T41 based iGET C5PT hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_EUFYT8416
+	bool "Eufy T8416"
+	help
+		Select this option to use the custom device tree for Eufy T8416.
+		This will install the eufy_t8416_t40xp.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as shark.dts.
+
+		Compatible with Ingenic T40 based Eufy T8416 hardware.
+
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEPANV4
+	bool "Wyze Cam Pan v4"
+	help
+		Select this option to use the custom device tree for Wyze Cam Pan v4.
+		This will install the wyze_panv4_t32nq.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as goat.dts.
+
+		Compatible with Ingenic T32 based Wyze Cam Pan v4 hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_A1_SMART_NVR
 	bool "Smart NVR A1"
 	help
