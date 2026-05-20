@@ -5,7 +5,9 @@ MDEV="/sbin/mdev"
 start() {
 	echo -c 15 "Configuring mdev"
 
-	echo "$MDEV" >/proc/sys/kernel/hotplug
+	if [ -w /proc/sys/kernel/hotplug ]; then
+		echo "$MDEV" >/proc/sys/kernel/hotplug
+	fi
 	$MDEV -s
 }
 
