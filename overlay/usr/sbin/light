@@ -18,18 +18,56 @@ Where:
 get_config_pin() {
 	local type="$1"
 	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null ||
-		jct /etc/thingino.json get "gpio.$type" 2>/dev/null
+		jct /etc/thingino.json get "gpio.$type" 2>/dev/null ||
+		get_dt_pin "$type"
 }
 
 get_config_active_low() {
 	local type="$1"
-	jct /etc/thingino.json get "gpio.$type.active_low" 2>/dev/null || echo "false"
+	jct /etc/thingino.json get "gpio.$type.active_low" 2>/dev/null ||
+		get_dt_active_low "$type" ||
+		echo "false"
 }
 
 set_config_pin() {
 	local type="$1"
 	local pin="$2"
 	jct /etc/thingino.json set "gpio.$type.pin" "$pin" 2>/dev/null
+}
+
+dt_read_u32() {
+	local prop="$1" path="/proc/device-tree/thingino_ir/$prop" bytes
+	[ -r "$path" ] || return 1
+	bytes=$(od -An -N4 -tx1 "$path" 2>/dev/null | tr -d ' \n')
+	[ "${#bytes}" -eq 8 ] || return 1
+	printf '%d\n' "$((16#$bytes))"
+}
+
+get_dt_pin() {
+	local type="$1" prop
+	case "$type" in
+		ir850) prop="ir850-pin" ;;
+		ir940) prop="ir940-pin" ;;
+		white | flood) prop="white-pin" ;;
+		*) return 1 ;;
+	esac
+	dt_read_u32 "$prop"
+}
+
+get_dt_active_low() {
+	local type="$1" prop value
+	case "$type" in
+		ir850) prop="ir850-active-low" ;;
+		ir940) prop="ir940-active-low" ;;
+		white | flood) prop="white-active-low" ;;
+		*) return 1 ;;
+	esac
+	value=$(dt_read_u32 "$prop") || return 1
+	if [ "$value" -eq 1 ]; then
+		echo "true"
+	else
+		echo "false"
+	fi
 }
 
 case "$type" in

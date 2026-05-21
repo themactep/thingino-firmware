@@ -21,6 +21,18 @@ singleton $0
 MODE_FILE="/tmp/nightmode.txt"
 [ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
 
+populate_light_gpio() {
+	local type="$1" value
+	command -v light >/dev/null 2>&1 || return 1
+	value=$(light "$type" gpio 2>/dev/null)
+	[ -n "$value" ] || return 1
+	printf '%s\n' "$value"
+}
+
+[ -n "$gpio_ir850" ] || gpio_ir850=$(populate_light_gpio ir850)
+[ -n "$gpio_ir940" ] || gpio_ir940=$(populate_light_gpio ir940)
+[ -n "$gpio_white" ] || gpio_white=$(populate_light_gpio white)
+
 controls_color() {
 	if [ "true" != "$day_night_color" ]; then
 		echo "Color not enabled"
