@@ -1,3 +1,8 @@
 {
-  "gpio": {}
+  "gpio": {
+    "button_reset": 57,
+    "ircut": "",
+    "mmc_cd": "",
+    "net": ""
+  }
 }
