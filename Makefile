@@ -794,6 +794,7 @@ upload_tftp:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
+	if [ -n "$$IP" ]; then busybox tftp -l $(FIRMWARE_BIN_FULL) -r $$(printf '%02X%02X%02X%02X\n' $${IP//./ }) -p $(TFTP_IP_ADDRESS); fi
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
