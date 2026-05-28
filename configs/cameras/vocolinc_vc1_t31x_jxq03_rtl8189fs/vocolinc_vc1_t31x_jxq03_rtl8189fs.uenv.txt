@@ -1,3 +1,2 @@
 gpio_button=14
 gpio_default=7O 8o 9o 11O 47O 49o 52o 53o 59o 61o 62o 63o 64o
-mtdparts=jz_sfc:256k(boot),32k(env),224k(config),1504k(kernel),5344k(rootfs),-(extras)
