@@ -1,227 +1,37 @@
-menu "thingino-uboot "
-
-config BR2_PACKAGE_THINGINO_UBOOT
-	bool "U-Boot"
-	help
-	  Build "Das U-Boot" Boot Monitor, Thingino version.
-
-	  https://docs.u-boot.org/en/latest/
-
-if BR2_PACKAGE_THINGINO_UBOOT
-choice
-	prompt "Build system"
-	default BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG if BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
-	default BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_LEGACY
-
-config BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG
-	bool "Kconfig"
-	help
-	  Select this option if you use a recent U-Boot version (2015.04
-	  or newer), so that we use the Kconfig build system.
-
-config BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_LEGACY
-	bool "Legacy"
-	help
-	  Select this option if you use an old U-Boot (older than
-	  2015.04), so that we use the old build system.
-
-endchoice
-
-if BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_LEGACY
-config BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME
-	string "U-Boot board name"
-	help
-	  One of U-Boot supported boards to be built.
-	  This will be suffixed with _config to meet U-Boot standard
-	  naming. See boards.cfg in U-Boot source code for the list of
-	  available configurations.
-endif
+menu "Thingino U-Boot integration"
 
 choice
-	prompt "U-Boot Version"
+	prompt "U-Boot version"
+	default BR2_THINGINO_UBOOT_VERSION_2026_04
 	help
-	  Select the specific U-Boot version you want to use
+	  Select the U-Boot version to build.
 
-config BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
-	bool "2025.10"
+config BR2_THINGINO_UBOOT_VERSION_2026_07
+	bool "2026.07 (next)"
 
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION
-	bool "Custom version"
-	help
-	  This option allows to use a specific official versions
+config BR2_THINGINO_UBOOT_VERSION_2026_04
+	bool "2026.04 (buildroot)"
 
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_TARBALL
-	bool "Custom tarball"
+config BR2_THINGINO_UBOOT_VERSION_2013_07
+	bool "2013.07 (ingenic)"
 
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_GIT
-	bool "Custom Git repository"
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_HG
-	bool "Custom Mercurial repository"
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_SVN
-	bool "Custom Subversion repository"
-
+config BR2_THINGINO_UBOOT_VERSION_CUSTOM_FORK
+	bool "gtxaspec/u-boot-ingenic (custom fork)"
 endchoice
 
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION_VALUE
-	string "U-Boot version"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_TARBALL_LOCATION
-	string "URL of custom U-Boot tarball"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_TARBALL
-
-if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_GIT || BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_HG || BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_SVN
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_REPO_URL
-	string "URL of custom repository"
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_REPO_VERSION
-	string "Custom repository version"
-	help
-	  Revision to use in the typical format used by
-	  Git/Mercurial/Subversion E.G. a sha id, a tag, branch, ..
-
-endif
-
-config BR2_PACKAGE_THINGINO_UBOOT_VERSION
-	string
-	default "2025.10"	if BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
-	default BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION_VALUE \
-		if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION
-	default "custom"	if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_TARBALL
-	default BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_REPO_VERSION \
-		if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_GIT || BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_HG || BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_SVN
-
-config BR2_PACKAGE_THINGINO_UBOOT_PATCH
-	string "Custom U-Boot patches"
-	default BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_PATCH_DIR if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_PATCH_DIR != ""  # legacy
-	help
-	  A space-separated list of patches to apply to U-Boot.
-	  Each patch can be described as an URL, a local file path,
-	  or a directory. In the case of a directory, all files
-	  matching *.patch in the directory will be applied.
-
-	  Most users may leave this empty
-
-if BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG
-choice
-	prompt "U-Boot configuration"
-	default BR2_PACKAGE_THINGINO_UBOOT_USE_DEFCONFIG
-
-config BR2_PACKAGE_THINGINO_UBOOT_USE_DEFCONFIG
-	bool "Using an in-tree board defconfig file"
-
-config BR2_PACKAGE_THINGINO_UBOOT_USE_CUSTOM_CONFIG
-	bool "Using a custom board (def)config file"
-
-endchoice
-
-config BR2_PACKAGE_THINGINO_UBOOT_BOARD_DEFCONFIG
-	string "Board defconfig"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_USE_DEFCONFIG
-	help
-	  Name of the board for which U-Boot should be built, without
-	  the _defconfig suffix.
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_CONFIG_FILE
-	string "Configuration file path"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_USE_CUSTOM_CONFIG
-	help
-	  Path to the U-Boot configuration file.
-
-config BR2_PACKAGE_THINGINO_UBOOT_CONFIG_FRAGMENT_FILES
-	string "Additional configuration fragment files"
-	help
-	  A space-separated list of configuration fragment files,
-	  that will be merged to the main U-Boot configuration file.
-endif
-
-# Hidden boolean that allows to select BR2_PACKAGE_THINGINO_UBOOT_NEEDS_XXD when
-# needed.
-config BR2_PACKAGE_THINGINO_UBOOT_DEFAULT_ENV_FILE_ENABLED
-	bool
-	default y if BR2_PACKAGE_THINGINO_UBOOT_DEFAULT_ENV_FILE != ""
-	select BR2_PACKAGE_THINGINO_UBOOT_NEEDS_XXD
-
-config BR2_PACKAGE_THINGINO_UBOOT_DEFAULT_ENV_FILE
-	string "Text file with default environment"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG
-	help
-	  Text file containing the variables to be used as the default
-	  environment in U-Boot.
-
-	  If empty, let U-Boot generate the default environment from the
-	  source code and other U-Boot configuration values, which is
-	  the default behaviour.
-
-	  If set to the path to a file, instructs U-Boot to define the
-	  entire U-Boot default environment from the provided file,
-	  disabling all the default behaviour.
-
-	  From the U-Boot documentation:
-
-	    The format is the same as accepted by the mkenvimage tool,
-	    with lines containing key=value pairs. Blank lines and
-	    lines beginning with '#' are ignored.
-
-	  Based on the USE_DEFAULT_ENV_FILE and DEFAULT_ENV_FILE U-Boot
-	  configuration variables.
-
-	  For more info see:
-	  https://docs.u-boot.org/en/latest/usage/environment.html#external-environment-file
-
-	  Requires U-Boot >= v2018.05.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_DTC
-	bool "U-Boot needs dtc"
-	select BR2_PACKAGE_HOST_DTC
-	help
-	  Select this option if your U-Boot board configuration
-	  requires the Device Tree compiler to be available.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_PYTHON3
-	bool "U-Boot needs host python 3.x"
-	help
-	  Select this option if U-Boot needs a host Python 3.x
-	  interpreter. This is the case for some U-Boot
-	  configurations, after U-Boot 2020.01.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_PYLIBFDT
-	bool "U-Boot needs pylibfdt"
-	select BR2_PACKAGE_THINGINO_UBOOT_NEEDS_PYTHON3
-	help
-	  Select this option if your U-Boot board configuration
-	  requires the Python libfdt library to be available.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_PYELFTOOLS
-	bool "U-Boot needs pyelftools"
-	select BR2_PACKAGE_THINGINO_UBOOT_NEEDS_PYTHON3
-	help
-	  Select this option if your U-Boot board configuration
-	  requires the Python pyelftools library to be available.
-	  This is used by some rockchip SOCs for elf parsing.
-	  For example: rk3399 soc boards.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPENSSL
-	bool "U-Boot needs OpenSSL"
-	help
-	  Select this option if your U-Boot board configuration
-	  requires OpenSSL to be available on the host. This is
-	  typically the case when the board configuration has
-	  CONFIG_FIT_SIGNATURE enabled.
-
-config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_LZOP
-	bool "U-Boot needs lzop"
-	help
-	  Select this option if your U-Boot board configuration
-	  requires lzop to be available on the host. This is typically
-	  the case when the board configuration has CONFIG_SPL_LZO
-	  enabled.
+comment "Configure the base U-Boot package under Bootloaders"
 
 config BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
 	bool
+
+config BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
+	bool
+
+config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
+	bool "Enable SPI Flash BAR"
+	help
+	  Define this option to use the Bank addr/Extended addr
+	  support on SPI NOR flash chips which have sizes > 16Mbytes.
 
 config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 	bool "Reset PHY after being Configured"
@@ -236,115 +46,6 @@ config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET_ENLEVEL
 	default 0
 	depends on BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 
-menu "U-Boot binary format"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_BIN
-	bool "u-boot.bin"
-	default y
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_DTB
-	bool "u-boot.dtb"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_DTB_BIN
-	bool "u-boot-dtb.bin"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_NAND_BIN
-	bool "u-boot-nand.bin"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_ELF
-	bool "u-boot"
-	help
-	  Install the u-boot image, which is directly the ELF binary
-	  for the main U-Boot, potentially with debugging symbols.
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_REMAKE_ELF
-	bool "u-boot.elf"
-	help
-	  Install the u-boot.elf image, which is produced when
-	  CONFIG_REMAKE_ELF=y. It is an ELF image (u-boot.elf)
-	  produced from the raw U-Boot binary (u-boot.bin), which may
-	  already have been statically relocated and may already have
-	  a device-tree appended to it.
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_IMG
-	bool "u-boot.img"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_ITB
-	bool "u-boot.itb"
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM
-	bool "Custom (specify below)"
-	help
-	  On some platforms, the standard U-Boot binary is not called
-	  u-boot.bin, but u-boot<something>.bin. If this is your case,
-	  you should select this option and specify the correct name(s)
-	  in BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME.
-
-config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME
-	string "U-Boot binary format: custom names"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM
-	help
-	  In case the U-Boot binary for the target platform is not among
-	  the default names, one or more custom names can be listed
-	  here.
-	  Use space to separate multiple names.
-	  Example:
-	  u-boot_magic.bin
-
-endmenu
-
-config BR2_PACKAGE_THINGINO_UBOOT_SPL
-	bool "Install U-Boot SPL binary image"
-	help
-	  Install the U-Boot SPL binary image to the images
-	  directory.
-	  SPL is a first stage bootloader loaded into internal
-	  memory in charge of enabling and configuring the
-	  external memory (DDR), and load the u-boot program
-	  into DDR.
-
-config BR2_PACKAGE_THINGINO_UBOOT_SPL_NAME
-	string "U-Boot SPL/TPL binary image name(s)"
-	default "spl/u-boot-spl.bin"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_SPL
-	help
-	  A space-separated list of SPL/TPL binaries, generated during
-	  u-boot build. For most platforms SPL name is spl/u-boot-spl.bin
-	  and TPL name is tpl/u-boot-tpl.bin.
-
-config BR2_PACKAGE_THINGINO_UBOOT_INITIAL_ENV
-	bool "Install u-boot-initial-env"
-	help
-	  Install the U-Boot u-boot-initial-env on the target.
-
-	  This file is typically required by libubootenv.
-
-if BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_DTS_PATH
-	string "Device Tree Source file paths"
-	help
-	  Space-separated list of paths to device tree source files
-	  that will be copied to arch/ARCH/dts/ before starting the
-	  build.
-
-	  To use this device tree source file, the U-Boot configuration
-	  file must refer to it.
-
-endif
-
-config BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
-	bool
-
-config BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
-	bool
-
-config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
-	bool "Enable SPI Flash BAR"
-	help
-	  Define this option to use the Bank addr/Extended addr
-	  support on SPI NOR flash chips which have sizes > 16Mbytes.
-
 config BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE
 	bool "Enable ENV config from Buildroot"
 	help
@@ -353,14 +54,6 @@ config BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE
 	  selected device. This allows device-specific boot parameters to
 	  be managed through the Buildroot configuration system rather
 	  than hardcoded in U-Boot.
-
-config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_MAKEOPTS
-	string "Custom make options"
-	help
-	  List of custom make options passed at build time. Can be
-	  used for example to pass a DEVICE_TREE= value.
-
-endif # BR2_PACKAGE_THINGINO_UBOOT
 
 menu "Boot Configuration"
 

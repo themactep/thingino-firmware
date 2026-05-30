@@ -580,14 +580,14 @@ export FLASH_SIZE_MB
 # U-BOOT
 #
 
-ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME),)
+ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	# Get U-Boot board name based on flash type
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nand 2>/dev/null || echo "unknown")
 	else
 		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nor 2>/dev/null || echo "unknown")
 	endif
-	BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
+	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
@@ -609,32 +609,89 @@ else
 endif
 export UBOOT_FLASH_CONTROLLER
 
-ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
-	BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
+ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
+	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-with-spl-lzma.bin"
 endif
 
-ifneq ($(SOC_ARCH),)
-UBOOT_REPO := https://github.com/gtxaspec/ingenic-u-boot-$(SOC_ARCH)
-
-ifeq ($(SOC_FAMILY),t40)
-	UBOOT_REPO_BRANCH := t40
-else ifeq ($(SOC_FAMILY),t41)
-	UBOOT_REPO_BRANCH := t41
-else ifeq ($(SOC_FAMILY),a1)
-	UBOOT_REPO_BRANCH := a1
+ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
+ifeq ($(SOC_FAMILY),a1)
+	UBOOT_DEFCONFIG := isvp_a1_sfcnor
+else ifeq ($(SOC_FAMILY),t10)
+	UBOOT_DEFCONFIG := isvp_t10_sfcnor
+else ifeq ($(SOC_FAMILY),t20)
+	UBOOT_DEFCONFIG := isvp_t20_sfcnor
+else ifeq ($(SOC_FAMILY),t21)
+	UBOOT_DEFCONFIG := isvp_t21_sfcnor
+else ifeq ($(SOC_FAMILY),t23)
+	UBOOT_DEFCONFIG := isvp_t23_sfcnor
+else ifeq ($(SOC_FAMILY),t30)
+	UBOOT_DEFCONFIG := isvp_t30_sfcnor
+else ifeq ($(SOC_FAMILY),t31)
+	UBOOT_DEFCONFIG := isvp_t31_sfcnor
+else ifeq ($(SOC_FAMILY),t32)
+	UBOOT_DEFCONFIG := isvp_t32_sfcnor
+else ifeq ($(SOC_FAMILY),t33)
+	UBOOT_DEFCONFIG := isvp_t33_sfcnor
 else
-	UBOOT_REPO_BRANCH := master
+	UBOOT_DEFCONFIG := unsupported-$(SOC_MODEL)
+endif
+BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 
-UBOOT_REPO_VERSION := $(shell git ls-remote $(UBOOT_REPO) $(UBOOT_REPO_BRANCH) | head -1 | cut -f1)
+ifeq ($(SOC_MODEL),t10l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t10l.config
+else ifeq ($(SOC_MODEL),t20l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20l.config
+else ifeq ($(SOC_MODEL),t20x)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20x.config
+else ifeq ($(SOC_MODEL),t23dl)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t23dl.config
+else ifeq ($(SOC_MODEL),t30x)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t30x.config
+else ifeq ($(SOC_MODEL),t31a)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31a.config
+else ifeq ($(SOC_MODEL),t31al)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31al.config
+else ifeq ($(SOC_MODEL),t31l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31l.config
+else ifeq ($(SOC_MODEL),t31lc)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31lc.config
+else ifneq ($(filter t31x t31zx,$(SOC_MODEL)),)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31x.config
+else ifeq ($(SOC_MODEL),c100)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/c100.config
+else ifeq ($(SOC_MODEL),t32nq)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t32nq.config
+endif
+
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
+
+UBOOT_CONFIG_FRAGMENT_FILES :=
+ifneq ($(wildcard $(UBOOT_LAYOUT_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_LAYOUT_FRAGMENT)
+endif
+
+ifneq ($(wildcard $(UBOOT_VARIANT_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_VARIANT_FRAGMENT)
+endif
+
+UBOOT_BOARD_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/boards/$(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARDNAME)).config
+ifneq ($(wildcard $(UBOOT_BOARD_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_BOARD_FRAGMENT)
+endif
+
+ifeq ($(BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES),)
+	BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES := $(strip $(UBOOT_CONFIG_FRAGMENT_FILES))
 endif
 
 export UBOOT_BOARDNAME
-export UBOOT_REPO
-export UBOOT_REPO_BRANCH
-export UBOOT_REPO_VERSION
-export BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME
-export BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME
+export UBOOT_DEFCONFIG
+export UBOOT_VARIANT_FRAGMENT
+export UBOOT_CONFIG_FRAGMENT_FILES
+export BR2_TARGET_UBOOT_BOARDNAME
+export BR2_TARGET_UBOOT_BOARD_DEFCONFIG
+export BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES
+export BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME
 
 #
 # STREAMER
