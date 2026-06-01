@@ -425,11 +425,12 @@ dev: user-dirs defconfig build pack
 # Clean build from scratch with parallel compilation
 cleanbuild: user-dirs distclean defconfig build_fast pack
 	@$(TEAL) "$@"
-ifneq ($(TFTP_IP_ADDRESS),)
+ifneq ($(TFTP_ROOT),)
 	@echo "Copying images to TFTP root..."
 	@sudo mkdir -p $(TFTP_ROOT)
 	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
 	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	if [ -n "$$IP" ]; then sudo cp -f $(FIRMWARE_BIN_FULL) $$(TFTP_ROOT)/$(printf '%02X%02X%02X%02X\n' $${IP//./ }) || true; fi
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
 endif
 	@date +%T
@@ -814,8 +815,7 @@ ota:
 upload_tftp:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
-	if [ -n "$$IP" ]; then busybox tftp -l $(FIRMWARE_BIN_FULL) -r $$(printf '%02X%02X%02X%02X\n' $${IP//./ }) -p $(TFTP_IP_ADDRESS); fi
+	if [ -n "$$IP" ]; then busybox tftp -l $(FIRMWARE_BIN_FULL) -r $$(printf '%02X%02X%02X%02X\n' $${IP//./ }).img -p $(TFTP_IP_ADDRESS); fi
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
