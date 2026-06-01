@@ -1,0 +1,126 @@
+Add ANSI color support to echo command
+
+This patch extends the BusyBox echo command with ANSI 256-color support,
+adding three new options when FEATURE_FANCY_ECHO is enabled:
+
+- -c COLOR: Set foreground color (0-255)
+- -b COLOR: Set background color (0-255)
+- -a STATUS: Status alias shortcuts (info, ok, success, warn, warning, error, fail)
+
+Examples:
+  echo -c 32 "Green text"
+  echo -a error "Error message"
+  echo -c 255 -b 21 "White on blue"
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+--- a/coreutils/echo.c	2024-04-16 03:23:50.000000000 -0400
++++ b/coreutils/echo.c	2026-01-13 03:05:51.809723115 -0500
+@@ -41,13 +41,16 @@
+ /* http://www.opengroup.org/onlinepubs/007904975/utilities/echo.html */
+ 
+ //usage:#define echo_trivial_usage
+-//usage:	IF_FEATURE_FANCY_ECHO("[-neE] ") "[ARG]..."
++//usage:	IF_FEATURE_FANCY_ECHO("[-neE] [-c COLOR] [-b COLOR] [-a STATUS] ") "[ARG]..."
+ //usage:#define echo_full_usage "\n\n"
+ //usage:       "Print ARGs to stdout"
+ //usage:	IF_FEATURE_FANCY_ECHO( "\n"
+ //usage:     "\n	-n	No trailing newline"
+ //usage:     "\n	-e	Interpret backslash escapes (\\t=tab etc)"
+ //usage:     "\n	-E	Don't interpret backslash escapes (default)"
++//usage:     "\n	-c COLOR	Set foreground color (0-255)"
++//usage:     "\n	-b COLOR	Set background color (0-255)"
++//usage:     "\n	-a STATUS	Status alias (info, ok, success, warn, warning, error, fail)"
+ //usage:	)
+ //usage:
+ //usage:#define echo_example_usage
+@@ -98,6 +101,9 @@
+ #else
+ 	char nflag = 1;
+ 	char eflag = 0;
++	int fg_color = -1;
++	int bg_color = -1;
++	const char *color_suffix = "";
+ 
+ 	while ((arg = *++argv) != NULL) {
+ 		char n, e;
+@@ -110,6 +116,38 @@
+ 		 * Otherwise, the string should just be echoed.
+ 		 */
+ 		arg++;
++		
++		/* Handle options that take arguments */
++		if (*arg == 'c' && arg[1] == '\0') {
++			/* -c COLOR */
++			arg = *++argv;
++			if (!arg) goto just_echo;
++			fg_color = atoi(arg);
++			continue;
++		}
++		if (*arg == 'b' && arg[1] == '\0') {
++			/* -b COLOR */
++			arg = *++argv;
++			if (!arg) goto just_echo;
++			bg_color = atoi(arg);
++			continue;
++		}
++		if (*arg == 'a' && arg[1] == '\0') {
++			/* -a STATUS */
++			arg = *++argv;
++			if (!arg) goto just_echo;
++			if (strcmp(arg, "info") == 0) {
++				fg_color = 36; /* cyan */
++			} else if (strcmp(arg, "ok") == 0 || strcmp(arg, "success") == 0) {
++				fg_color = 32; /* green */
++			} else if (strcmp(arg, "warn") == 0 || strcmp(arg, "warning") == 0) {
++				fg_color = 33; /* yellow */
++			} else if (strcmp(arg, "error") == 0 || strcmp(arg, "fail") == 0) {
++				fg_color = 31; /* red */
++			}
++			continue;
++		}
++		
+ 		n = nflag;
+ 		e = eflag;
+ 		do {
+@@ -135,8 +173,26 @@
+ 		buflen += strlen(arg) + 1;
+ 		pp++;
+ 	}
++#if ENABLE_FEATURE_FANCY_ECHO
++	/* Add space for ANSI color codes */
++	buflen += 50; /* enough for color prefix and suffix */
++#endif
+ 	out = buffer = xmalloc(buflen + 1); /* +1 is needed for "no args" case */
+ 
++#if ENABLE_FEATURE_FANCY_ECHO
++	/* Add ANSI color prefix */
++	if (fg_color >= 0 || bg_color >= 0) {
++		if (fg_color >= 0 && bg_color >= 0) {
++			out += sprintf(out, "\033[38;5;%d;48;5;%dm", fg_color, bg_color);
++		} else if (fg_color >= 0) {
++			out += sprintf(out, "\033[38;5;%dm", fg_color);
++		} else {
++			out += sprintf(out, "\033[48;5;%dm", bg_color);
++		}
++		color_suffix = "\033[0m";
++	}
++#endif
++
+ 	while ((arg = *argv) != NULL) {
+ 		int c;
+ 
+@@ -179,6 +235,13 @@
+ 		*out++ = ' ';
+ 	}
+ 
++#if ENABLE_FEATURE_FANCY_ECHO
++	/* Add ANSI color reset suffix */
++	if (*color_suffix) {
++		out = stpcpy(out, color_suffix);
++	}
++#endif
++
+ 	if (nflag) {
+ 		*out++ = '\n';
+ 	}
