@@ -36,6 +36,8 @@
   const imagePreviewImg = $("#imagePreviewImg");
   const imagePreviewPath = $("#imagePreviewPath");
   const imagePreviewDownload = $("#imagePreviewDownload");
+  const imagePreviewDelete = $("#imagePreviewDelete");
+  const playerModalDelete = $("#playerModalDelete");
 
   // Text editor state
   const textEditorState = {
@@ -112,6 +114,42 @@
     return videoExtensions.includes(ext);
   }
 
+  function getEntryForPath(filePath) {
+    return state.rawEntries.find((e) => e.path === filePath);
+  }
+
+  async function deleteFile(filePath, modalInstance) {
+    if (!filePath) return;
+
+    const confirmed = await confirm(
+      `Delete "${filePath}"? This action cannot be undone.`,
+      {
+        title: "Delete file",
+        confirmLabel: "Delete",
+        intent: "danger",
+      },
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `/x/tool-file-manager.cgi?rm=${encodePath(filePath)}`,
+        { method: "POST" },
+      );
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(
+          data.error ? data.error.message : `HTTP ${response.status}`,
+        );
+      }
+      showAlert("success", `Deleted: ${filePath.split("/").pop()}`);
+      if (modalInstance) modalInstance.hide();
+      loadDirectory(state.currentPath, { silent: true });
+    } catch (error) {
+      showAlert("danger", `Delete failed: ${error.message}`);
+    }
+  }
+
   // Show image in preview modal
   function showImagePreview(fileName, filePath) {
     const imageUrl = `/x/tool-file-manager.cgi?dl=${encodePath(filePath)}`;
@@ -122,6 +160,15 @@
     imagePreviewPath.textContent = filePath;
     imagePreviewDownload.href = imageUrl;
     imagePreviewDownload.download = fileName;
+
+    // Show/hide delete button
+    const entry = getEntryForPath(filePath);
+    if (entry && entry.deletable) {
+      imagePreviewDelete.classList.remove("d-none");
+      imagePreviewDelete.dataset.deletePath = filePath;
+    } else {
+      imagePreviewDelete.classList.add("d-none");
+    }
 
     // Update modal title
     $("#imagePreviewModalLabel").textContent = `Image Preview: ${fileName}`;
@@ -137,6 +184,15 @@
     downloadBtn.href = `/x/tool-file-manager.cgi?dl=${encodePath(filePath)}`;
     downloadBtn.download = fileName;
     playerEl.src = `/x/tool-file-manager.cgi?play=${encodePath(filePath)}`;
+
+    // Show/hide delete button
+    const entry = getEntryForPath(filePath);
+    if (entry && entry.deletable) {
+      playerModalDelete.classList.remove("d-none");
+      playerModalDelete.dataset.deletePath = filePath;
+    } else {
+      playerModalDelete.classList.add("d-none");
+    }
 
     // Show the modal
     new bootstrap.Modal(playerModalEl).show();
@@ -726,36 +782,22 @@
   fileActionDelete.addEventListener("click", async (e) => {
     e.preventDefault();
     const filePath = fileActionDelete.dataset.deletePath || "";
-    if (!filePath) return;
+    const fileActionsModal = bootstrap.Modal.getInstance(fileActionsModalEl);
+    await deleteFile(filePath, fileActionsModal);
+  });
 
-    const confirmed = await confirm(
-      `Delete "${filePath}"? This action cannot be undone.`,
-      {
-        title: "Delete file",
-        confirmLabel: "Delete",
-        intent: "danger",
-      },
-    );
-    if (!confirmed) return;
+  playerModalDelete.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const filePath = playerModalDelete.dataset.deletePath || "";
+    const playerModal = bootstrap.Modal.getInstance(playerModalEl);
+    await deleteFile(filePath, playerModal);
+  });
 
-    try {
-      const response = await fetch(
-        `/x/tool-file-manager.cgi?rm=${encodePath(filePath)}`,
-        { method: "POST" },
-      );
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(
-          data.error ? data.error.message : `HTTP ${response.status}`,
-        );
-      }
-      showAlert("success", `Deleted: ${filePath.split("/").pop()}`);
-      const fileActionsModal = bootstrap.Modal.getInstance(fileActionsModalEl);
-      if (fileActionsModal) fileActionsModal.hide();
-      loadDirectory(state.currentPath, { silent: true });
-    } catch (error) {
-      showAlert("danger", `Delete failed: ${error.message}`);
-    }
+  imagePreviewDelete.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const filePath = imagePreviewDelete.dataset.deletePath || "";
+    const imageModal = bootstrap.Modal.getInstance(imagePreviewModalEl);
+    await deleteFile(filePath, imageModal);
   });
 
   textEditorModalEl.addEventListener("hidden.bs.modal", () => {
