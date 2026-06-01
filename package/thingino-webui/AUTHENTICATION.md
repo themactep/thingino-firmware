@@ -262,7 +262,7 @@ function heartbeat() {
 salt=$(echo "$stored_hash" | cut -d'$' -f3)
 
 # Generate hash with same salt
-test_hash=$(mkpasswd "$password" -S "$salt")
+test_hash=$(mkpasswd -m sha512 "$password" -S "$salt")
 
 # Compare hashes
 [ "$test_hash" = "$stored_hash" ]
