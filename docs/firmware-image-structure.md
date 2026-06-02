@@ -106,7 +106,7 @@ The build process:
 
 1. **Compilation**: Buildroot compiles all packages, kernel, and creates the rootfs
 2. **Partition Creation**:
-   - `u-boot-lzo-with-spl.bin` - bootloader binary
+   - `u-boot-with-spl-lzma.bin` - bootloader binary (LZMA-compressed payload)
    - `u-boot-env.bin` - environment binary from uenv.txt
    - `config.jffs2` - config partition from `user/common/overlay/` and layered user overlays
    - `uImage` - kernel binary

@@ -305,8 +305,11 @@ Purpose:
 
 Build behavior:
 
-1. `configs/common.uenv.txt` is read
-2. The camera's `<camera>.uenv.txt` is read
+1. `configs/common.uenv.txt` is read (provides universal defaults:
+   `baudrate=115200`, `panic_timeout=2`, `enable_updates=true`,
+   `loadaddr=0x80600000`)
+2. The camera's `<camera>.uenv.txt` is read (provides board-specific defaults:
+   `serialport=ttyS1`, `kernel_params`, `sdupdate`)
 3. User U-Boot fragments are read in scope order: global, then camera, then device
 4. Comment lines and blank lines are removed
 5. The combined file is deduplicated with `sort -u`

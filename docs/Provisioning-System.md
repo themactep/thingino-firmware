@@ -233,7 +233,7 @@ Sets U-Boot environment variables using `fw_setenv`. Common variables include:
 
 ### SYSTEM Section
 Configures Thingino system settings using the `conf` command. Examples:
-- `hostname`: Device hostname (will be applied on next boot)
+- `hostname`: Device hostname (auto-generated from SoC serial if not set; e.g. `ing-wyze-cam3-2937`)
 - `motion_detection`: Enable/disable motion detection
 - `rtsp_enabled`: Enable/disable RTSP streaming
 - `web_port`: Web interface port
