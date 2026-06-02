@@ -60,8 +60,6 @@ WIFI_AIC8800_MODULE_SUBDIRS = PCIE/driver_fw/driver/aic8800d80x2/aic8800_fdrv
 endif
 endif
 
-LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
-
 WIFI_AIC8800_FW_BASEDIR = $(TARGET_DIR)/usr/lib/firmware
 WIFI_AIC8800_FW_DIRS = aic8800 aic8800D80 aic8800D80X2 aic8800DC
 
@@ -77,7 +75,6 @@ WIFI_AIC8800_USB_8800_FW_FILES = \
 	fw_adid_rf.bin \
 	fw_adid_u03.bin \
 	fw_ble_scan.bin \
-	fw_ble_scan_ad_filter.bin \
 	fw_ble_scan_ad_filter_dcdc.bin \
 	fw_ble_scan_ad_filter_ldo.bin \
 	fw_patch.bin \
@@ -233,8 +230,8 @@ define WIFI_AIC8800_INSTALL_FILELIST
 endef
 
 define WIFI_AIC8800_INSTALL_FIRMWARE
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)
+	touch $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/modules.builtin.modinfo
 	$(INSTALL) -m 0755 -d $(WIFI_AIC8800_FW_BASEDIR)
 	for d in $(WIFI_AIC8800_FW_DIRS); do \
 		rm -rf $(WIFI_AIC8800_FW_BASEDIR)/$$d; \
