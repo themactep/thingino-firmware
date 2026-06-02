@@ -590,6 +590,13 @@ ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
 
+# Flash type used for U-Boot defconfig lookup
+ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+UBOOT_BOARD_FLASH := nand
+else
+UBOOT_BOARD_FLASH := nor
+endif
+
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC_NAND),y)
@@ -614,27 +621,7 @@ ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 endif
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
-ifeq ($(SOC_FAMILY),a1)
-	UBOOT_DEFCONFIG := isvp_a1_sfcnor
-else ifeq ($(SOC_FAMILY),t10)
-	UBOOT_DEFCONFIG := isvp_t10_sfcnor
-else ifeq ($(SOC_FAMILY),t20)
-	UBOOT_DEFCONFIG := isvp_t20_sfcnor
-else ifeq ($(SOC_FAMILY),t21)
-	UBOOT_DEFCONFIG := isvp_t21_sfcnor
-else ifeq ($(SOC_FAMILY),t23)
-	UBOOT_DEFCONFIG := isvp_t23_sfcnor
-else ifeq ($(SOC_FAMILY),t30)
-	UBOOT_DEFCONFIG := isvp_t30_sfcnor
-else ifeq ($(SOC_FAMILY),t31)
-	UBOOT_DEFCONFIG := isvp_t31_sfcnor
-else ifeq ($(SOC_FAMILY),t32)
-	UBOOT_DEFCONFIG := isvp_t32_sfcnor
-else ifeq ($(SOC_FAMILY),t33)
-	UBOOT_DEFCONFIG := isvp_t33_sfcnor
-else
-	UBOOT_DEFCONFIG := unsupported-$(SOC_MODEL)
-endif
+UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot $(UBOOT_BOARD_FLASH) 2>/dev/null || echo "unsupported-$(SOC_MODEL)")
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 
