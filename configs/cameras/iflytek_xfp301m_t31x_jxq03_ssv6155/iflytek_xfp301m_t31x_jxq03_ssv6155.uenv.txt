@@ -1,3 +1,4 @@
 gpio_button=50
 gpio_button_call=8
 gpio_default=8i 11o 50i 25ID 26IDU 51o 52o 53o 54o 61o 62o 63o 64o
+serialport=ttyS1

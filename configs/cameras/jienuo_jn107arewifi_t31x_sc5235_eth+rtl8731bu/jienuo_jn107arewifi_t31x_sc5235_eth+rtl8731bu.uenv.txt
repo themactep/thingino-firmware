@@ -7,3 +7,4 @@ gpio_button=11
 # set gpio strength: 36-2
 # set gpio strength: 37-2
 # set gpio pull: 59-90
+serialport=ttyS1

@@ -1,2 +1,3 @@
 gpio_default=18O 57o 58o 49o 52o 53o 59o 60o 61o 62o 63o
 pwm_ch_white=1
+serialport=ttyS1

@@ -1,1 +1,2 @@
 gpio_button=61
+serialport=ttyS1
