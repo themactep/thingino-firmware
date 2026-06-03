@@ -35,6 +35,14 @@ case "$1" in
 					/etc/init.d/S38wpa_supplicant stop
 					/etc/init.d/S36wireless stop
 					unload_wlan_module
+					@if WIFI_MODULE_IS_SDIO@
+					@if !WIFI_SDIO_UNSUPPORTED@
+					@if !WIFI_SDIO_RETURN_EARLY@
+					echo "Send REMOVE to MMC1"
+					mmc 1 -r
+					@endif@
+					@endif@
+					@endif@
 					exit 0
 				fi
 			done
