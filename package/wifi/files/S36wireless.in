@@ -273,28 +273,24 @@ start() {
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
 
-	if [ -d /proc/jz/mdio ]; then
-		echo "GMAC is enabled, disabling MSC1..."
-	else
-		@if WIFI_SDIO_UNSUPPORTED@
-		echo "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@" >&2
-		exit 1
-		@else@
-		@if WIFI_SDIO_RETURN_EARLY@
-		echo "Skip GPIO setup for @SOC_MODEL@"
-		return 1
-		@else@
-		@if WIFI_SDIO_SET_GPIO@
-		echo "Set GPIO pins with /sbin/mmc_gpio"
-		/sbin/mmc_gpio
-		@else@
-		echo "Skip GPIO setup for @SOC_MODEL@"
-		@endif@
-		echo "Send INSERT to MMC1"
-		mmc 1
-		@endif@
-		@endif@
-	fi
+	@if WIFI_SDIO_UNSUPPORTED@
+	echo "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@" >&2
+	exit 1
+	@else@
+	@if WIFI_SDIO_RETURN_EARLY@
+	echo "Skip GPIO setup for @SOC_MODEL@"
+	return 1
+	@else@
+	@if WIFI_SDIO_SET_GPIO@
+	echo "Set GPIO pins with /sbin/mmc_gpio"
+	/sbin/mmc_gpio
+	@else@
+	echo "Skip GPIO setup for @SOC_MODEL@"
+	@endif@
+	echo "Send INSERT to MMC1"
+	mmc 1
+	@endif@
+	@endif@
 	@endif@
 
 	@if WIFI_IS_HI3881@
