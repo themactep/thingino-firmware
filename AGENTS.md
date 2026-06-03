@@ -127,6 +127,25 @@ Installable skills for OpenCode/Copilot are maintained at
 These cover NFS dev deploy, package overrides, RTSP stress testing,
 diagnostics, OTA workflows, adding streamers, and more.
 
+## Git credentials
+
+Use the user's git config for commit/patch authorship:
+
+```bash
+git config user.name && git config user.email
+```
+
+Always supply `Signed-off-by:` matching the git config when creating patches.
+
+## Work procedures
+
+- **Never delete files irreversibly.** Files that need to be removed from the
+  build should be handled in one of these ways (in order of preference):
+  1. Ensure the file is committed into the repo so it can be restored later.
+  2. Rename in place to exclude from the build (e.g. `.patch` → `.patch.disabled`).
+  3. Move to a dedicated `trash/` directory (e.g. `trash/<original-path>/`),
+     leaving it up to the user to decide when to permanently delete.
+
 ## Important constraints
 
 - Repo path must not contain spaces (checked by `dep_check.sh`).
