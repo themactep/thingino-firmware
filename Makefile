@@ -1152,7 +1152,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
-$(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
+$(UB_ENV_BIN): $(U_BOOT_BIN) $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 

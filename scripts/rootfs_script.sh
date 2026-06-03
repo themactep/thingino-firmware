@@ -12,6 +12,10 @@ HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 
+if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
+	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+fi
+
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
