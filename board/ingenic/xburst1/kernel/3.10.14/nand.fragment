@@ -1,0 +1,21 @@
+# SPI-NAND + UBI/UBIFS support for XBurst1 (T31/T41-3.10) kernel 3.10.14
+#
+# Merged on top of <soc>.generic.config ONLY for NAND builds, via the
+# configs/fragments/flash-nand.fragment buildroot fragment (which a camera
+# profile pulls in by listing "flash-nand" on its "# FRAG:" line).
+# NOR builds never see this file, so their .config is unchanged.
+
+# --- Ingenic SFC NAND flash driver -------------------------------------------
+# The 3.10.14 BSP exposes the NAND driver as CONFIG_MTD_JZ_SFC_NAND
+# (drivers/mtd/devices/jz_sfc_nand.c). Switch the SFC from NOR to NAND.
+CONFIG_MTD_JZ_SFC_NAND=y
+
+# --- UBI ---------------------------------------------------------------------
+CONFIG_MTD_UBI=y
+CONFIG_MTD_UBI_BLOCK=y
+
+# --- UBIFS root filesystem ---------------------------------------------------
+CONFIG_UBIFS_FS=y
+CONFIG_UBIFS_FS_ADVANCED_COMPR=y
+CONFIG_UBIFS_FS_LZO=y
+CONFIG_UBIFS_FS_ZLIB=y

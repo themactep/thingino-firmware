@@ -1,0 +1,28 @@
+# SPI-NAND + UBI/UBIFS support for XBurst2 (T40/T41/A1) kernel 4.4.94
+#
+# Merged on top of <soc>.generic.config ONLY for NAND builds, via the
+# configs/fragments/flash-nand.fragment buildroot fragment (which a camera
+# profile pulls in by listing "flash-nand" on its "# FRAG:" line).
+# NOR builds never see this file, so their .config is unchanged.
+#
+# The base config already provides the MTD core we rely on:
+#   CONFIG_MTD=y, CONFIG_MTD_CMDLINE_PARTS=y, CONFIG_MTD_BLOCK=y,
+#   CONFIG_MTD_BLKDEVS=y, CONFIG_LZO_COMPRESS=y, CONFIG_ZLIB_INFLATE=y
+
+# --- Ingenic SFC NAND flash driver -------------------------------------------
+# XBurst2 parts use the v2 SFC controller (CONFIG_INGENIC_SFC_V2=y in base).
+# Switch the controller from NOR to NAND mode.
+CONFIG_MTD_INGENIC_SFC_V2_NANDFLASH=y
+# The v1 symbol is harmless on trees that lack it; included so the same
+# fragment also covers any XBurst2 board that builds the v1 controller.
+CONFIG_MTD_INGENIC_SFC_V1_NANDFLASH=y
+
+# --- UBI (unsorted block images: wear-levelling + bad-block management) -------
+CONFIG_MTD_UBI=y
+CONFIG_MTD_UBI_BLOCK=y
+
+# --- UBIFS root filesystem ---------------------------------------------------
+CONFIG_UBIFS_FS=y
+CONFIG_UBIFS_FS_ADVANCED_COMPR=y
+CONFIG_UBIFS_FS_LZO=y
+CONFIG_UBIFS_FS_ZLIB=y

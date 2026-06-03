@@ -1,0 +1,52 @@
+# SPI-NAND profile fragment.
+#
+# A NAND camera profile opts in by listing "flash-nand" on its "# FRAG:" line
+# AND setting FLASH_NAND=y in its defconfig body, e.g.:
+#   # FRAG: soc-xburst2 core ssl flash-nand
+#   FLASH_NAND=y
+#   FLASH_SIZE_MB=128
+#
+# This fragment is concatenated AFTER core.fragment, so the symbols below win.
+# NOR profiles never list it, so their build is byte-for-byte unchanged.
+#
+# It does:
+#   1) layers the per-kernel-branch NAND driver + UBI/UBIFS kernel fragment
+#   2) layers the BusyBox NAND/UBI applets back in
+#   3) keeps the squashfs rootfs and switches the boot flow to UBI/ubiblock
+#   4) pulls in host-mtd (ubinize) for the Makefile NAND pack stage
+#
+# The UBI layout (uboot-env/kernel/rootfs/overlay volumes), the full-chip image,
+# and the NAND geometry constants live in the Makefile $(FIRMWARE_BIN_FULL)
+# NAND branch. Geometry there assumes 2 KiB page / 128 KiB erase block — CONFIRM
+# against the real chip (U-Boot "mtd list" / kernel dmesg).
+
+# --- 1) kernel: NAND driver + UBI + UBIFS (auto-selects the right branch) -----
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/nand.fragment"
+
+# --- 2) userspace: BusyBox NAND/UBI applets -----------------------------------
+BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/package/busybox/busybox-nand.fragment"
+
+# --- 3) rootfs stays squashfs -------------------------------------------------
+# gtxaspec's UBI layout (t40-isvp-nand.dtsi) puts a read-only squashfs in the
+# "rootfs" UBI volume, mounted via ubiblock, with a separate read-write UBIFS
+# "overlay" volume. So thingino keeps building rootfs.squashfs (core.fragment);
+# the Makefile NAND pack stage wraps it — plus the kernel, an empty env volume,
+# and an empty overlay volume — into the UBI image with ubinize.
+# (UBIFS kernel support stays enabled in nand.fragment for the overlay volume;
+#  MTD_UBI_BLOCK provides the ubiblock device for the squashfs root.)
+
+# --- 4) boot flow: squashfs root via ubiblock ---------------------------------
+# Overrides the NOR root/rootfstype from core.fragment. These two ARE consumed
+# (THINGINO_GENERATE_UBOOT_ENV writes them into uenv.txt). The actual bootcmd is
+# NOT set here — BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD is unused by the build; the
+# bootcmd is generated in the Makefile $(U_BOOT_ENV_TXT) target (NAND branch).
+#
+# The kernel attaches the DT "ubi" partition (ubi.mtd=ubi), exposes the "rootfs"
+# volume as a block device (ubi.block=0,rootfs -> /dev/ubiblock0_2; rootfs is
+# pinned to vol_id 2 by the Makefile ubinize step) and mounts it read-only.
+BR2_PACKAGE_THINGINO_UBOOT_ROOT="/dev/ubiblock0_2"
+BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE="squashfs"
+
+# --- 5) host tools: ubinize / mkfs.ubifs for the Makefile NAND pack stage -----
+# host-mtd provides $(HOST_DIR)/sbin/ubinize and mkfs.ubifs.
+BR2_PACKAGE_HOST_MTD=y

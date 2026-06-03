@@ -192,7 +192,9 @@ THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOO
 THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
-UBOOT_BIN_NAME := $(if $(filter custom-fork 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+EARLY_SOC_MODEL := $(strip $(subst ",,$(BR2_INGENIC_SOC_MODEL)))
+UBOOT_BIN_NAME_DEFAULT := $(if $(filter custom-fork 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME := $(if $(and $(filter y,$(BR2_THINGINO_FLASH_NAND)),$(filter t40xp,$(EARLY_SOC_MODEL))),u-boot-with-spl-tiny-nand.bin,$(UBOOT_BIN_NAME_DEFAULT))
 
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
@@ -622,6 +624,7 @@ endif
 	fi
 	@echo "# $$(basename "$(THINGINO_UBOOT_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
 	@cat "$(THINGINO_UBOOT_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
@@ -737,6 +740,21 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	@echo ""
 	@echo "Flash to SD card:"
 	@echo "  sudo dd if=$(FIRMWARE_BIN_FULL) of=/dev/sdX bs=1M conv=fsync"
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	@$(ORANGE) "Camera: $(CAMERA) (SPI-NAND / UBI)"
+	@echo "Flash layout (from t40-isvp-nand.dtsi):"
+	@echo "  0x000000  boot : $(notdir $(U_BOOT_BIN)) (raw SPL + U-Boot)"
+	@echo "  0x100000  ubi  : UBI volumes uboot-env / kernel / rootfs(squashfs) / overlay(ubifs)"
+	@echo ""
+	@echo "Artifacts:"
+	@echo "  full chip : $(FIRMWARE_BIN_FULL)"
+	@echo "  ubi only  : $(OUTPUT_DIR)/images/rootfs.ubi"
+	@echo "  u-boot    : $(U_BOOT_BIN)"
+	@echo "  kernel    : $(KERNEL_BIN)"
+	@echo "  rootfs    : $(ROOTFS_BIN)"
+	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
 else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
@@ -955,6 +973,50 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 	@echo "  $(FAT_START_MB)MiB:     FAT32 (uImage)"
 	@echo "  $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB:     ext4 rootfs"
 
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+# SFC-NAND firmware image.
+#
+# Layout matches gtxaspec's t40-isvp-nand.dtsi:
+#   0x000000..0x100000  boot  : SPL + U-Boot (raw, from u-boot bin)
+#   0x100000..end       ubi   : multi-volume UBI, built here with ubinize
+#       vol 0 uboot-env : generated env image (CONFIG_ENV_IS_IN_UBI)
+#       vol 1 kernel    : uImage (U-Boot does "ubi read ... kernel; bootm")
+#       vol 2 rootfs    : squashfs, read-only via ubiblock (/dev/ubiblock0_2)
+#       vol 3 overlay   : empty UBIFS, read-write, autoresize to fill the chip
+#
+# Deliverables: a full-chip $(FIRMWARE_NAME_FULL) for the USB burner (which
+# handles OOB/ECC + bad blocks) AND the named artifacts already in images/
+# (U-Boot image, uImage, rootfs.squashfs, rootfs.ubi).
+#
+# NAND geometry — CONFIRM against the real chip (U-Boot "mtd list" / dmesg) and
+# override per-profile if different. 2 KiB page / 128 KiB erase block is typical
+# for these SPI-NAND parts and matches the dtsi comment.
+NAND_PEB   := 0x20000
+NAND_PAGE  := 0x800
+NAND_BOOT_SIZE := 0x100000
+UBI_IMG := $(OUTPUT_DIR)/images/rootfs.ubi
+UBINIZE_CFG := $(OUTPUT_DIR)/ubinize-nand.cfg
+
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(UB_ENV_BIN)
+	@$(TEAL) "$@"
+	# 1) generate the multi-volume ubinize config
+	@{ \
+	  printf '[uboot-env]\nmode=ubi\nvol_id=0\nvol_type=dynamic\nvol_name=uboot-env\nvol_size=256KiB\nimage=%s\n\n' "$(UB_ENV_BIN)"; \
+	  printf '[kernel]\nmode=ubi\nvol_id=1\nvol_type=static\nvol_name=kernel\nimage=%s\n\n' "$(KERNEL_BIN)"; \
+	  printf '[rootfs]\nmode=ubi\nvol_id=2\nvol_type=static\nvol_name=rootfs\nimage=%s\n\n' "$(ROOTFS_BIN)"; \
+	  printf '[overlay]\nmode=ubi\nvol_id=3\nvol_type=dynamic\nvol_name=overlay\nvol_size=512KiB\nvol_flags=autoresize\n'; \
+	} > $(UBINIZE_CFG)
+	# 2) assemble the UBI image (the "ubi" partition payload)
+	$(HOST_DIR)/sbin/ubinize -o $(UBI_IMG) -p $(NAND_PEB) -m $(NAND_PAGE) $(UBINIZE_CFG)
+	# 3) full-chip image: 1 MiB raw boot region (0xff-filled) + UBI at 0x100000
+	#    (NAND_BOOT_SIZE = 0x100000 = 1 MiB; dd needs a decimal/suffixed bs)
+	dd if=/dev/zero bs=1M count=1 status=none | tr '\000' '\377' > $@
+	dd if=$(U_BOOT_BIN) of=$@ conv=notrunc status=none
+	cat $(UBI_IMG) >> $@
+	@echo "NAND image: $@"
+	@echo "  boot  : 0x0       $(U_BOOT_BIN)"
+	@echo "  ubi   : 0x100000  $(UBI_IMG) (uboot-env/kernel/rootfs/overlay)"
+
 else
 # SFC (SPI flash) firmware image
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
@@ -1062,6 +1124,20 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	# MMC boot: set bootargs and load kernel from FAT partition
 	echo 'bootcmd=setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	# SFC-NAND boot: kernel + squashfs rootfs live in UBI volumes inside the
+	# "ubi" MTD partition.
+	#   U-Boot side: the "ubi" partition comes from U-Boot's device tree
+	#     (t40-isvp-nand.dtsi); "ubi part ubi" attaches it, then we read the
+	#     "kernel" volume and boot it.
+	#   Kernel side: the ingenic_sfc_v2 NAND driver registers its MTD as
+	#     "sfc_nand" and parses partitions from the cmdline (cmdlinepart) - it
+	#     does NOT read U-Boot's DT - so mtdparts= is REQUIRED here. boot is the
+	#     raw 1 MiB region, ubi is the rest. "ubi.mtd=ubi" then attaches it and
+	#     "ubi.block=0,rootfs" exposes the squashfs "rootfs" volume as
+	#     /dev/ubiblock0_2 (root=/dev/ubiblock0_2, rootfstype=squashfs come from
+	#     the flash-nand fragment via THINGINO_GENERATE_UBOOT_ENV).
+	echo 'bootcmd=ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=sfc_nand:1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
 else
 	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
