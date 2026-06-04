@@ -763,7 +763,7 @@ config BR2_THINGINO_BUTTON
 
 config BR2_THINGINO_DFU
 	bool "USB Cloner Support"
-	select BR2_PACKAGE_HOST_THINGINO_CLONER
+	select BR2_PACKAGE_HOST_THINGINO_DFU
 	help
 	  The device supports USB boot mode for flashing via thingino-dfu.
 	  Enables the host-side thingino-dfu tool, used by 'make dfu'.
