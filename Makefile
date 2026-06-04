@@ -271,7 +271,7 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 # fixed size partitions
 U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
-CONFIG_SIZE_KB := 256
+CONFIG_SIZE_KB := 384
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
