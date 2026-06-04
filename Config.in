@@ -193,6 +193,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 endif
 
 menu "Extra Packages"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/aw87xxx/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonpath/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
