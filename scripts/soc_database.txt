@@ -33,7 +33,7 @@ t30x,t30,1,128,isvp_t30_sfcnor_ddr128M,-
 t30a,t30,1,128,isvp_t30_sfcnor_ddr128M,-
 
 # T31 Family
-t31l,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand_lite
+t31l,t31,1,64,isvp_t31_sfcnor_lite,isvp_t31_sfcnand_lite
 t31lc,t31,1,64,isvp_t31_sfcnor,-
 t31n,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand
 t31x,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M

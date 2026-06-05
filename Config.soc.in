@@ -761,12 +761,12 @@ config BR2_THINGINO_BUTTON
 	help
 	  The hardware has a physical button wired to a GPIO.
 
-config BR2_THINGINO_CLONER
+config BR2_THINGINO_DFU
 	bool "USB Cloner Support"
-	select BR2_PACKAGE_HOST_THINGINO_CLONER
+	select BR2_PACKAGE_HOST_THINGINO_DFU
 	help
-	  The device supports USB boot mode for flashing via thingino-cloner.
-	  Enables the host-side thingino-cloner tool, used by 'make cloner'.
+	  The device supports USB boot mode for flashing via thingino-dfu.
+	  Enables the host-side thingino-dfu tool, used by 'make dfu'.
 
 config BR2_THINGINO_NNA
 	bool "Neural Network Acceleration Support"
