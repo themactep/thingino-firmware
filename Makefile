@@ -1066,6 +1066,7 @@ else
 	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
+	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
 	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$$(printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
@@ -1232,7 +1233,7 @@ run:
 dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-dfu -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-dfu/firmwares --reboot
+	$(HOST_DIR)/bin/thingino-dfu -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
 
 # Catch-all rule: forward undefined targets to buildroot
 # This allows running buildroot targets directly without the br- prefix
