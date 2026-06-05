@@ -14,7 +14,7 @@ HOST_THINGINO_DFU_DEPENDENCIES = host-pkgconf host-libusb host-zlib
 
 define HOST_THINGINO_DFU_INSTALL_FIRMWARES
 	mkdir -p $(HOST_DIR)/share/thingino-dfu
-	cp -r $(@D)/firmwares $(HOST_DIR)/share/thingino-dfu/
+	cp -r $(@D)/firmware $(HOST_DIR)/share/thingino-dfu/
 endef
 
 HOST_THINGINO_DFU_POST_INSTALL_HOOKS += HOST_THINGINO_DFU_INSTALL_FIRMWARES
