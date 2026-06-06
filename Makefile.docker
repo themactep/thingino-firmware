@@ -21,6 +21,7 @@ endif
 CONTAINER_RUN_OPTS := \
 	-v $(WORKSPACE_DIR):/workspace \
 	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/$(USERNAME)/dl \
+	-v $(shell readlink -f overrides):/overrides \
 	-w /workspace \
 	-e TERM=xterm-256color
 
