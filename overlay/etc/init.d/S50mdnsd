@@ -10,7 +10,6 @@ UHTTPD_HTTPS_LISTEN_DEFAULT="443"
 UHTTPD_CERT_DEFAULT="/etc/ssl/certs/uhttpd.crt"
 UHTTPD_KEY_DEFAULT="/etc/ssl/private/uhttpd.key"
 PRUDYNT_CONFIG="/etc/prudynt.json"
-RAPTOR_CONFIG="/etc/raptor.conf"
 STRERO_RTSP_CONFIG="/etc/streamer.d/rtsp.json"
 
 ensure_dir() {
@@ -115,8 +114,8 @@ raptor_conf_text() {
 	local section="$1"
 	local key="$2"
 
-	[ -f "$RAPTOR_CONFIG" ] || return
-	sed -n "/^\[$section\]/,/^\[/{ /^$key[[:space:]]*=/{s/^[^=]*=[[:space:]]*//;s/[[:space:]]*#.*$//;s/^[[:space:]]*//;s/[[:space:]]*$//;p;q}}" "$RAPTOR_CONFIG"
+	command -v raptorctl >/dev/null 2>&1 || return
+	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n'
 }
 
 raptor_bool_default() {
@@ -132,7 +131,7 @@ raptor_bool_default() {
 probe_rtsp_raptor() {
 	local enabled tls port
 
-	[ -f "$RAPTOR_CONFIG" ] || return 1
+	command -v raptorctl >/dev/null 2>&1 || return 1
 	enabled=$(raptor_bool_default rtsp enabled true)
 	[ "$enabled" = "true" ] || return 1
 

@@ -6,6 +6,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_LIBIMP_DEBUG
 	select BR2_PACKAGE_LIBSCHRIFT
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
@@ -81,7 +82,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RWC
 	bool "RWC (USB webcam)"
-	default y if BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+	default y if BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG || BR2_THINGINO_DEV_WEBCAM
 	select BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
 	help
 	  USB webcam daemon. Reads JPEG/H.264 frames from ring buffers
@@ -108,6 +109,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RSP
 config BR2_PACKAGE_THINGINO_RAPTOR_RSR
 	bool "RSR (SRT listener)"
 	select BR2_PACKAGE_LIBSRT
+	select BR2_THINGINO_LIBSTDCPP if !BR2_PACKAGE_LIBSRT_STATIC_STDCXX
 	help
 	  SRT streaming listener. Serves live video+audio as MPEG-TS
 	  over SRT protocol. Multi-client, multi-stream via STREAMID,
@@ -146,7 +148,6 @@ config BR2_PACKAGE_THINGINO_RAPTOR_OPUS
 
 config BR2_PACKAGE_THINGINO_RAPTOR_MP3
 	bool "MP3 audio decoding"
-	default y if FLASH_SIZE_MB > 8
 	select BR2_PACKAGE_LIBHELIX_MP3
 	help
 	  MP3 decoding for audio client (rac).
@@ -159,17 +160,44 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	  Enable mbedTLS for RTSPS, RWD HTTPS signaling, and
 	  optional RHD HTTPS.
 
-config BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
-	bool "IVS detection (person/object/YOLO)"
+menuconfig BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
+	bool "IVS detection"
 	default n
+	select BR2_THINGINO_LIBSTDCPP
+	help
+	  Enable IVS (Intelligent Video Surveillance) detection in RVD.
+	  Select which detection backends to install below.
+
+if BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
+	bool "JZDL inference engine"
+	default y
 	select BR2_PACKAGE_INGENIC_LIB_JZDL
+	help
+	  Ingenic JZDL neural network inference engine (libjzdl.m.so).
+	  Required for YOLO and standalone NNA inference.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_YOLOV5
+	bool "YOLOv5 model (person/bicycle/car/motorcycle)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_IVS_JZDL
 	select BR2_PACKAGE_MAGIK_MODELS
 	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
 	help
-	  JZDL YOLOv5 inference and motion bounding box tracking.
-	  Installs JZDL (609KB) and YOLOv5 model (870KB).
-	  Enable personDet separately in ingenic-lib for the
-	  built-in person detection algorithm (+1.5MB).
+	  4-class object detection model for JZDL (870KB).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_PERSONDET
+	bool "PersonDet algorithm (libpersonDet_inf.so + MXU libs)"
+	default n
+	select BR2_PACKAGE_INGENIC_LIB_PERSONDET
+	select BR2_THINGINO_LIBSTDCPP
+	help
+	  Built-in person detection via IVS pipeline.
+	  Installs libpersonDet_inf.so + 4 MXU libs (~3.2MB total).
+	  No separate model file needed.
+
+endif
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
