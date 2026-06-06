@@ -15,4 +15,4 @@ index d93ee36..413c5ca 100644
 +	if (strptime(date, "%a, %d %b %Y %H:%M:%S", &t) != NULL)
  		return timegm(&t);
 
- 	return 0;
+ 	return (time_t)-1;
