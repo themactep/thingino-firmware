@@ -11,6 +11,29 @@ Where:
 
 [ "$#" -lt 1 ] && show_help
 
+dt_read_u32() {
+	local prop="$1" path="/proc/device-tree/thingino_ir/$prop" bytes
+	[ -r "$path" ] || return 1
+	bytes=$(od -An -N4 -tx1 "$path" 2>/dev/null | tr -d ' \n')
+	[ "${#bytes}" -eq 8 ] || return 1
+	printf '%d\n' "$((16#$bytes))"
+}
+
+dt_pin_token() {
+	local pin_prop="$1" active_prop="$2" pin active
+	pin=$(dt_read_u32 "$pin_prop" 2>/dev/null) || return 1
+	active=$(dt_read_u32 "$active_prop" 2>/dev/null || echo 0)
+	if [ "$active" -eq 1 ]; then
+		printf '%so\n' "$pin"
+	else
+		printf '%sO\n' "$pin"
+	fi
+}
+
+[ -n "$gpio_ir850" ] || gpio_ir850=$(dt_pin_token ir850-pin ir850-active-low)
+[ -n "$gpio_ir940" ] || gpio_ir940=$(dt_pin_token ir940-pin ir940-active-low)
+[ -n "$gpio_white" ] || gpio_white=$(dt_pin_token white-pin white-active-low)
+
 # set parameters from cli, if empty
 [ -z "$mode" ] && mode=$1
 [ -z "$type" ] && type=$2
