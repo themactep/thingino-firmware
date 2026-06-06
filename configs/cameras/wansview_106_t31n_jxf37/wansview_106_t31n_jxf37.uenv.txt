@@ -1,1 +1,2 @@
 gpio_default=53o
+serialport=ttyS1
