@@ -361,7 +361,7 @@ endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update \
-	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
+	upload_tftp dfu ota br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
@@ -1123,10 +1123,10 @@ run:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
-cloner:
+dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-cloner -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-cloner/firmwares --reboot
+	$(HOST_DIR)/bin/thingino-dfu -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
 
 # Catch-all rule: forward undefined targets to buildroot
 # This allows running buildroot targets directly without the br- prefix
