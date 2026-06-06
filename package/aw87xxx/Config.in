@@ -1,0 +1,26 @@
+config BR2_PACKAGE_AW87XXX
+	bool "aw87xxx"
+	depends on BR2_LINUX_KERNEL
+	depends on !KERNEL_VERSION_7
+	help
+	  Awinic AW87xxx "Smart K" audio power amplifier kernel driver
+	  (I2C controlled, register/scene profiles). Builds the
+	  snd-soc-aw87xxx.ko module, auto-loads it, and installs an
+	  example AW87559 ACF firmware to /usr/lib/firmware.
+
+	  Bind via a device-tree node, e.g.:
+	      aw87xxx_pa@58 {
+	          compatible = "awinic,aw87xxx_pa";
+	          reg = <0x58>;
+	          reset-gpio = <...>;
+	      };
+	  Control is via sysfs:
+	      /sys/bus/i2c/devices/<bus>-00<addr>/profile
+
+	  The bundled firmware is tuned for the AW87559; boards with a
+	  different speaker/chip should ship their own aw87xxx_acf.bin.
+
+	  https://github.com/gtxaspec/aw87xxx
+
+comment "aw87xxx needs a Linux kernel to be built"
+	depends on !BR2_LINUX_KERNEL
