@@ -430,7 +430,7 @@ ifneq ($(TFTP_ROOT),)
 	@sudo mkdir -p $(TFTP_ROOT)
 	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
 	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	if [ -n "$$IP" ]; then sudo cp -f $(FIRMWARE_BIN_FULL) $$(TFTP_ROOT)/$(printf '%02X%02X%02X%02X\n' $${IP//./ }) || true; fi
+	if [ -n "$$IP" ]; then sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(printf '%02X%02X%02X%02X\n' $${IP//./ }) || true; fi
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
 endif
 	@date +%T
