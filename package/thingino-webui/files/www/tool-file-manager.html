@@ -85,6 +85,9 @@
       </div>
       <div class="modal-footer">
         <a href="#" class="btn btn-primary" id="playerModalDownload">Download</a>
+        <button type="button" class="btn btn-danger d-none" id="playerModalDelete">
+          <i class="bi bi-trash me-2"></i>Delete
+        </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -216,10 +219,13 @@
         <div>
           <small class="text-muted" id="imagePreviewPath"></small>
         </div>
-        <div>
+        <div class="d-flex gap-2">
           <a class="btn btn-primary" id="imagePreviewDownload" download>
             <i class="bi bi-download me-2"></i>Download
           </a>
+          <button type="button" class="btn btn-danger d-none" id="imagePreviewDelete">
+            <i class="bi bi-trash me-2"></i>Delete
+          </button>
         </div>
       </div>
     </div>
