@@ -226,6 +226,14 @@ ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
 endif
 
+TOOLCHAIN_SOC_TAG := $(SOC_ARCH)
+ifeq ($(SOC_ARCH),xburst1)
+ifeq ($(KERNEL_VERSION_4),y)
+TOOLCHAIN_SOC_TAG := xburst1_4_4
+endif
+endif
+export TOOLCHAIN_SOC_TAG
+
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 
 # hardcoded variables
