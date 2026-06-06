@@ -13,9 +13,9 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && \
     ack apt-utils apt-transport-https autoconf bc bison build-essential \
     busybox ca-certificates ccache cmake cpio curl dialog file flex fzf \
     gawk git golang-go libcrypt-dev libncurses-dev libusb-1.0-0-dev locales \
-    lzop m4 mc nano nodejs npm perl python3 python3-jinja2 python3-jsonschema \
-    python3-yaml ripgrep rsync shfmt ssh sudo u-boot-tools unzip vim wget \
-    whiptail zlib1g-dev && \
+    lzop m4 mc mtools nano nodejs npm parted perl python3 python3-jinja2 \
+    python3-jsonschema python3-yaml ripgrep rsync shfmt ssh sudo u-boot-tools \
+    unzip vim wget whiptail zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Set vim as default editor
