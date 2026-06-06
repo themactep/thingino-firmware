@@ -244,7 +244,7 @@ ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
 RED := printf '\033[1;38;5;160m%s\033[0m\n'
 
-ALIGN_BLOCK := 32768
+ALIGN_BLOCK := 65536
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
@@ -266,8 +266,8 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
 U_BOOT_SIZE_KB := 256
-UB_ENV_SIZE_KB := 32
-CONFIG_SIZE_KB := 224
+UB_ENV_SIZE_KB := 64
+CONFIG_SIZE_KB := 384
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
