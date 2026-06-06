@@ -41,7 +41,7 @@ IP ?=
 # TFTP server IP address to upload compiled images to (leave empty to disable TFTP copy)
 TFTP_IP_ADDRESS ?=
 # TFTP server root directory for local server
-TFTP_ROOT ?= /srv/tftp
+TFTP_ROOT ?=
 
 # Buildroot downloads directory
 # can be reused from environment, just export the value:
