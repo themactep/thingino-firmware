@@ -1,6 +1,7 @@
+menu "Kernel Options"
 
-menuconfig BR2_PACKAGE_THINGINO_KOPT
-	bool "Kernel Options"
+config BR2_PACKAGE_THINGINO_KOPT
+	bool "thingino-kopt"
 	help
 	  Per device kernel customization support.
 	  Items selected here will override the default kernel configuration.
@@ -18,8 +19,88 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
 	help
 	  Enable CIFS (SMB) networking support
 
+config BR2_PACKAGE_THINGINO_KOPT_LEDS
+	bool "GPIO LEDs"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable the kernel LED subsystem and gpio-leds platform driver.
+
+if BR2_PACKAGE_THINGINO_KOPT_LEDS
+
+menu "GPIO LED Configuration"
+
+config BR2_THINGINO_LED_B_GPIO
+	int "Blue LED GPIO"
+	default -1
+	help
+	  GPIO number for the blue status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_B_ACTIVE_LOW
+	bool "Blue LED active low"
+	help
+	  Invert the blue LED output logic.
+
+config BR2_THINGINO_LED_G_GPIO
+	int "Green LED GPIO"
+	default -1
+	help
+	  GPIO number for the green status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_G_ACTIVE_LOW
+	bool "Green LED active low"
+	help
+	  Invert the green LED output logic.
+
+config BR2_THINGINO_LED_R_GPIO
+	int "Red LED GPIO"
+	default -1
+	help
+	  GPIO number for the red status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_R_ACTIVE_LOW
+	bool "Red LED active low"
+	help
+	  Invert the red LED output logic.
+
+config BR2_THINGINO_LED_W_GPIO
+	int "White LED GPIO"
+	default -1
+	help
+	  GPIO number for the white status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_W_ACTIVE_LOW
+	bool "White LED active low"
+	help
+	  Invert the white LED output logic.
+
+config BR2_THINGINO_LED_Y_GPIO
+	int "Yellow LED GPIO"
+	default -1
+	help
+	  GPIO number for the yellow status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_Y_ACTIVE_LOW
+	bool "Yellow LED active low"
+	help
+	  Invert the yellow LED output logic.
+
+config BR2_THINGINO_LED_V_GPIO
+	int "Violet LED GPIO"
+	default -1
+	help
+	  GPIO number for the violet status LED. Set to -1 to disable.
+
+config BR2_THINGINO_LED_V_ACTIVE_LOW
+	bool "Violet LED active low"
+	help
+	  Invert the violet LED output logic.
+
+endmenu
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
-	bool "Developer Options"
+	bool "Kernel Development Options"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables Kernel Options for Development/Debugging (Valgrind, GDB, ltrace, etc)
@@ -286,3 +367,5 @@ config BR2_PACKAGE_THINGINO_KOPT_DMIC
 	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
 	help
 	  Enables I2S DMIC (Digital Microphone) support.
+
+endmenu

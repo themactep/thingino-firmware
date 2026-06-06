@@ -1,0 +1,51 @@
+#!/bin/sh
+
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+
+has_sysfs_leds() {
+	for path in /sys/class/leds/led_*; do
+		[ -d "$path" ] && return 0
+	done
+	return 1
+}
+
+start() {
+	echo -c 15 "Configuring LEDs"
+
+	if ! has_sysfs_leds; then
+		echo -c 142 -e "No kernel LED channels found" >&2
+		return
+	fi
+
+	# disable any indicator LED bonds
+	for path in /sys/class/leds/led_*; do
+		[ -w "$path/trigger" ] && printf 'none\n' >"$path/trigger"
+	done
+
+	startup_indicator=$(jct "$CONFIG_JSON" get led.startup_indicator 2>/dev/null | tr -d '\r\n"')
+	case "$startup_indicator" in
+		'' | off | none | 0 | false)
+			return
+			;;
+	esac
+
+	led "$startup_indicator"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

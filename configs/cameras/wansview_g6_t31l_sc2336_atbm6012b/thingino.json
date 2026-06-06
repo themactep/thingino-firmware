@@ -6,10 +6,6 @@
       "pwn_channel": 2
     },
     "ircut": "10 11",
-    "led_w": {
-      "pin": 9,
-      "active_low": true
-    },
     "mmc_cd": 49,
     "white": {
       "pin": 59,

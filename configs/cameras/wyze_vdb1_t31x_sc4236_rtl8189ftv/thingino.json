@@ -8,14 +8,6 @@
       "pwm_channel": 2
     },
     "ircut": "53 52",
-    "led_b": {
-      "pin": 39,
-      "active_low": false
-    },
-    "led_y": {
-      "pin": 38,
-      "active_low": false
-    },
     "mmc_cd": -1,
     "sub1g": 61,
     "white": {
