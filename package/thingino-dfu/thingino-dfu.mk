@@ -19,7 +19,7 @@ endef
 
 define HOST_THINGINO_DFU_INSTALL_UDEV_RULE
 	mkdir -p $(HOST_DIR)/lib/udev/rules.d
-	cp $(THINGINO_DFU_PKGDIR)/99-thingino-dfu.rules $(HOST_DIR)/lib/udev/rules.d/
+	cp $(HOST_THINGINO_DFU_PKGDIR)/99-thingino-dfu.rules $(HOST_DIR)/lib/udev/rules.d/
 endef
 
 HOST_THINGINO_DFU_POST_INSTALL_HOOKS += HOST_THINGINO_DFU_INSTALL_FIRMWARES
