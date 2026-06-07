@@ -1228,7 +1228,7 @@ show-vars:
 	@echo "ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM = $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)";
 	@echo "ISP_MEMOPT = $(ISP_MEMOPT)";
 	@echo "KERNEL_BRANCH = $(KERNEL_BRANCH)";
-	@echo "KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)";
+	@echo "KERNEL_HASH = $$(git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)";
 	@echo "KERNEL_SITE = $(KERNEL_SITE)";
 	@echo "KERNEL_TARBALL_URL = $(KERNEL_TARBALL_URL)";
 	@echo "KERNEL_VERSION = $(KERNEL_VERSION)";
