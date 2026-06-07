@@ -192,7 +192,13 @@ THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOO
 THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
-UBOOT_BIN_NAME := $(if $(filter custom-fork 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+# Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
+# Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
+ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
+ UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
+else
+ UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+endif
 
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
@@ -628,6 +634,7 @@ endif
 	@echo "# U-Boot board configuration" >> $(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
