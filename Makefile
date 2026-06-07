@@ -1005,7 +1005,7 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
 	done
 	# pack the data partition image
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/ \
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \
 		--eraseblock=$(ALIGN_BLOCK) --pad=$(DATA_PARTITION_SIZE)
 
 # rebuild kernel

@@ -13,9 +13,9 @@ on_exit() {
 format_overlay() {
 	dmesg | grep -q "jffs2.*: Magic bitmask.*not found" || return 0
 	echo -e "\e[38;5;208mInit: Invalid JFFS2 blocks detected. Formatting required.\e[0m" >&2
-	umount /data
-	flash_eraseall -j /dev/$(awk -F: '/data/{print $1}' /proc/mtd)
-	mount_jffs2 data /data
+	umount /overlay
+	flash_eraseall -j /dev/$(awk -F: '/"data"/{print $1}' /proc/mtd)
+	mount_jffs2 data /overlay
 	mount_overlay || return 1
 }
 
@@ -42,20 +42,20 @@ mount_jffs2() {
 }
 
 prepare_overlay_dirs() {
-	overlay_rootdir="/data/overlay/root"
-	overlay_workdir="/data/overlay/work"
+	overlay_rootdir="/overlay/root"
+	overlay_workdir="/overlay/work"
 	mkdir -p "$overlay_rootdir" || return 1
 	mkdir -p "$overlay_workdir" || return 1
 }
 
 cleanup_overlay_dirs() {
-	rmdir /data/overlay/work 2>/dev/null
-	rmdir /data/overlay/root 2>/dev/null
+	rmdir /overlay/work 2>/dev/null
+	rmdir /overlay/root 2>/dev/null
 }
 
 mount_overlay() {
 	if grep -q overlayfs /proc/filesystems; then
-		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/data/overlay overlay /mnt && return 0
+		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
 		prepare_overlay_dirs || return 1
 		mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
 		return 1
@@ -64,7 +64,7 @@ mount_overlay() {
 	prepare_overlay_dirs || return 1
 	mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
 	cleanup_overlay_dirs
-	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/data/overlay overlay /mnt && return 0
+	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
 	return 1
 }
 
@@ -79,7 +79,7 @@ grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
 # Mount data partition (single overlay covering whole filesystem)
-mount_jffs2 data /data
+mount_jffs2 data /overlay
 
 mount_overlay || die "Failed to mount overlay!"
 
@@ -89,4 +89,4 @@ mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
 
 # Move data partition to new root
-mount -o noatime,move /rom/data /data || die "Failed to move /data"
+mount -o noatime,move /rom/overlay /overlay || die "Failed to move /overlay"
