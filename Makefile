@@ -19,12 +19,9 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
-# Run dependency check before doing anything.
-# Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
+# Run dependency check before doing anything, but skip if WORKFLOW=1 or if .prereqs.done exists
 ifeq ($(WORKFLOW),)
-ifneq ($(filter update,$(MAKECMDGOALS)),)
-$(info Skipping dependency check for update target)
-else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
+ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 	_dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 	ifneq ($(lastword $(_dep_check)),0)
 	$(error Dependency check failed)
@@ -79,6 +76,7 @@ endif
 include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
+export CAMERA_CONFIG_REAL
 
 CAMERA_IP_ADDRESS := $(strip $(IP))
 IP_OUTPUT_TAG := $(if $(CAMERA_IP_ADDRESS),$(shell printf '%s' "$(CAMERA_IP_ADDRESS)" | sed 's/[^A-Za-z0-9._-]/_/g'))
@@ -188,6 +186,14 @@ TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(f
 TOOLCHAIN_LIBC_TAG := $(shell echo "$(TOOLCHAIN_LIBC_RAW)" | tr 'A-Z' 'a-z')
 TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc$(TOOLCHAIN_GCC_RAW)-$(TOOLCHAIN_LIBC_TAG).fragment
 
+# Resolve U-Boot version fragment
+THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | head -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
+THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2026_04)
+THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
+THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
+
+UBOOT_BIN_NAME := $(if $(filter custom-fork 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
 TOOLCHAIN_LIBC := $(if $(TOOLCHAIN_LIBC_TAG),$(TOOLCHAIN_LIBC_TAG),musl)
@@ -248,13 +254,10 @@ ALIGN_BLOCK := 65536
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
-ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
-U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
-GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
-else
-U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
-GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
-endif
+U_BOOT_BIN = $(OUTPUT_DIR)/images/$(UBOOT_BIN_NAME)
+GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/$(UBOOT_BIN_NAME)
+U_BOOT_VERSION = $(patsubst "%",%,$(BR2_TARGET_UBOOT_VERSION))
+U_BOOT_BUILD_DIR = $(OUTPUT_DIR)/build/uboot-$(U_BOOT_VERSION)
 
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
@@ -547,7 +550,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 ifeq ($(RAW_DEFCONFIG_MODE),y)
 	# preprocess a plain Buildroot defconfig used by GitHub workflows
 	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
-	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
 else
 	# add toolchain fragment (from preset selection)
 	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
@@ -556,7 +559,7 @@ else
 		exit 1; \
 	fi
 	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
-	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
 	# add other fragments
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
@@ -568,7 +571,7 @@ else
 		fi; \
 		echo "** add $$fragment_path"; \
 		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
-		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
+		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add kernel-specific headers based on SOC requirements
@@ -584,12 +587,19 @@ else
 	fi; \
 	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
-	sed 's/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	sed 's/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 	# add SOC-derived values
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
+	# append camera-specific overlay if it exists
+	@if [ -d "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay" ]; then \
+		sed -i 's|^\(BR2_ROOTFS_OVERLAY="\)\(.*\)"|\1\2 $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"|' $(OUTPUT_DIR)/.config; \
+		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
+	fi
 endif
 	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
 		if [ -f "$$file" ]; then \
@@ -607,6 +617,15 @@ endif
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
 		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
 	fi
+	# add U-Boot version fragment LAST so it overrides build system choice from core fragment
+	$(info * add U-Boot fragment $(THINGINO_UBOOT_FRAGMENT_FILE))
+	@if [ ! -f "$(THINGINO_UBOOT_FRAGMENT_FILE)" ]; then \
+		echo "ERROR: Missing U-Boot fragment $(THINGINO_UBOOT_FRAGMENT_FILE)"; \
+		exit 1; \
+	fi
+	@echo "# $$(basename "$(THINGINO_UBOOT_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
+	@cat "$(THINGINO_UBOOT_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@echo >> $(OUTPUT_DIR)/.config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file
@@ -715,6 +734,13 @@ distclean: clean-nfs-debug
 # assemble final images
 pack: $(FIRMWARE_BIN_FULL)
 	@$(TEAL) "$@"
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	@$(ORANGE) "Camera: $(CAMERA) (MMC boot)"
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
+	@echo ""
+	@echo "Flash to SD card:"
+	@echo "  sudo dd if=$(FIRMWARE_BIN_FULL) of=/dev/sdX bs=1M conv=fsync"
+else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
 	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$(shell printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
@@ -736,12 +762,17 @@ pack: $(FIRMWARE_BIN_FULL)
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(RED) "EXTRAS PARTITION IS TOO SMALL"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
+endif
 
 build-info: pack
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/generate_build_info.sh "$(OUTPUT_DIR)"
 
 # rebuild a package with smart configuration check
+rebuild-uboot: force-config
+	@$(TEAL) "$@"
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
+
 rebuild-%: force-config
 	@$(TEAL) "$@"
 	@PKG_NAME="$(subst rebuild-,,$@)"; \
@@ -787,7 +818,7 @@ ota:
 upload_tftp:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
+	if [ -n "$$IP" ]; then busybox tftp -l $(FIRMWARE_BIN_FULL) -r $$(printf '%02X%02X%02X%02X\n' $${IP//./ }).img -p $(TFTP_IP_ADDRESS); fi
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
@@ -871,12 +902,76 @@ $(OUTPUT_DIR)/.config:
 	@$(TEAL) "$@"
 	$(MAKE) force-config
 
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+# MMC SD card image layout:
+#   Block 0:      INGE header (total size + descriptor terminator)
+#   Block 1-33:   Reserved
+#   Block 34:     SPL (first SPL_PAD_TO bytes of u-boot-with-spl-lzma.bin)
+#   Block 86:     U-Boot image (remainder of u-boot-with-spl-lzma.bin)
+#   1MiB+:        FAT32 partition with uImage
+#   After FAT32:  ext4 partition for rootfs
+#
+# The SPL and U-Boot image are raw binary components extracted from
+# u-boot-with-spl-lzma.bin.
+
+SPL_PAD_TO := 26624
+SPL_BLOCK  := 34
+UBOOT_BLOCK := 86
+INGE_SIZE  := 512
+FAT_START_MB := 1
+FAT_SIZE_MB  := 16
+ROOTFS_MMC := $(OUTPUT_DIR)/images/rootfs.ext2
+
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
+	@$(TEAL) "$@"
+	@echo "Building MMC SD card image..."
+	# calculate image size
+	$(eval SD_SIZE_MB := $(shell echo $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) + ($$(stat -c%s $(ROOTFS_MMC)) / 1048576) + 4 ))))
+	# create blank image
+	dd if=/dev/zero of=$@ bs=1M count=$(SD_SIZE_MB) status=none
+	# generate INGE header at block 0: magic(4) + total_size_le32(4) + zeros(24) + terminator(4)
+	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
+	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size > $@.inge
+	dd if=$@.inge of=$@ bs=1 count=36 conv=notrunc status=none && rm -f $@.inge
+	# write SPL at block 34 (first SPL_PAD_TO bytes of U-Boot binary)
+	dd if=$(U_BOOT_BIN) of=$@ bs=512 seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none
+	# write U-Boot image at block 86 (after SPL_PAD_TO)
+	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$(SPL_PAD_TO) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
+	# create partition table (overwrites block 0 but leaves boot data alone)
+	parted $@ --script mklabel msdos \
+		mkpart primary fat32 $(FAT_START_MB)MiB $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB \
+		mkpart primary ext4 $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB 100%
+	# restore INGE header over MBR (bytes 0-35, partition table at 446+ untouched)
+	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
+	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size | dd of=$@ bs=1 count=36 conv=notrunc status=none
+	# populate FAT partition with kernel
+	dd if=/dev/zero of=$@.fat bs=1M count=$(FAT_SIZE_MB) status=none
+	mkfs.vfat -F 32 $@.fat > /dev/null
+	mcopy -i $@.fat $(KERNEL_BIN) ::uImage
+	dd if=$@.fat of=$@ bs=512 seek=$$(( $(FAT_START_MB) * 2048 )) conv=notrunc status=none && rm -f $@.fat
+	# populate ext4 rootfs partition
+	dd if=$(ROOTFS_MMC) of=$@ bs=512 seek=$$(( ($(FAT_START_MB) + $(FAT_SIZE_MB)) * 2048 )) conv=notrunc status=none
+	@echo "SD image: $@ ($(SD_SIZE_MB) MB)"
+	@echo "  Block 0:    INGE header"
+	@echo "  Block $(SPL_BLOCK):   SPL ($(SPL_PAD_TO) bytes)"
+	@echo "  Block $(UBOOT_BLOCK):   U-Boot image"
+	@echo "  $(FAT_START_MB)MiB:     FAT32 (uImage)"
+	@echo "  $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB:     ext4 rootfs"
+
+else
+# SFC (SPI flash) firmware image
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	@$(TEAL) "$@"
 	# create a blank slab
 	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
 	# add bootloader partition
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	# add U-Boot environment partition only if it does not overlap the bootloader payload
+	@if [ $(U_BOOT_BIN_SIZE) -le $(UB_ENV_OFFSET) ]; then \
+		dd if=$(UB_ENV_BIN) bs=$(UB_ENV_BIN_SIZE) seek=$(UB_ENV_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	else \
+		echo "Skipping U-Boot environment partition: bootloader overlaps env slot"; \
+	fi
 	# add config partition
 	dd if=$(CONFIG_BIN) bs=$(CONFIG_BIN_SIZE) seek=$(CONFIG_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	# add kernel partition
@@ -887,6 +982,7 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 	@if [ $(EXTRAS_BIN_SIZE) -gt 0 ]; then \
 	  dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
 	fi
+endif
 
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
@@ -936,22 +1032,23 @@ $(KERNEL_BIN):
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs (depends on kernel to ensure proper build order)
-# Pre-stamp thingino-uboot so Buildroot skips it during rootfs-squashfs.
+# Pre-stamp uboot so Buildroot skips it during rootfs-squashfs.
 # It will be dirclean'd and rebuilt properly in the $(U_BOOT_BIN) rule,
 # once partition sizes are known from the rootfs.
 $(ROOTFS_BIN): $(KERNEL_BIN)
 	@$(TEAL) "$@"
-	mkdir -p $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)
-	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/host
-	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/target
-	touch $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_downloaded \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_extracted \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_patched \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_configured \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_built \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_installed \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_target_installed \
-	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_images_installed
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
+	mkdir -p $(U_BOOT_BUILD_DIR)
+	mkdir -p $(OUTPUT_DIR)/per-package/uboot/host
+	mkdir -p $(OUTPUT_DIR)/per-package/uboot/target
+	touch $(U_BOOT_BUILD_DIR)/.stamp_downloaded \
+	      $(U_BOOT_BUILD_DIR)/.stamp_extracted \
+	      $(U_BOOT_BUILD_DIR)/.stamp_patched \
+	      $(U_BOOT_BUILD_DIR)/.stamp_configured \
+	      $(U_BOOT_BUILD_DIR)/.stamp_built \
+	      $(U_BOOT_BUILD_DIR)/.stamp_installed \
+	      $(U_BOOT_BUILD_DIR)/.stamp_target_installed \
+	      $(U_BOOT_BUILD_DIR)/.stamp_images_installed
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
 
 $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
@@ -965,19 +1062,23 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
 	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d' $@
-	# Add kernel address and size
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	# MMC boot: set bootargs and load kernel from FAT partition
+	echo 'bootcmd=setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
+else
+	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
 	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$$(printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
-	# Simplified bootcmd - no need for sq probe or run mtdparts
-	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM)console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${baseaddr} $${kern_addr} $${kern_size};bootm $${baseaddr}' >> $@
+	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
+endif
 	exit
 
 # Rebuild U-Boot with actual partition sizes after rootfs is ready
 $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
-	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) thingino-uboot-dirclean thingino-uboot)
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
@@ -1074,8 +1175,10 @@ show-vars:
 	@echo "BR2_EXTERNAL = $(BR2_EXTERNAL)";
 	@echo "BR2_LIBC_NAME = $(BR2_LIBC_NAME)";
 	@echo "BR2_MAKE = $(BR2_MAKE)";
-	@echo "BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME = $(BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME)";
-	@echo "BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME = $(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME)";
+	@echo "BR2_TARGET_UBOOT_BOARDNAME = $(BR2_TARGET_UBOOT_BOARDNAME)";
+	@echo "BR2_TARGET_UBOOT_BOARD_DEFCONFIG = $(BR2_TARGET_UBOOT_BOARD_DEFCONFIG)";
+	@echo "BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES = $(BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES)";
+	@echo "BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME = $(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME)";
 	@echo "BR2_TOOLCHAIN_EXTERNAL_URL = $(BR2_TOOLCHAIN_EXTERNAL_URL)";
 	@echo "CAMERA = $(CAMERA)";
 	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
@@ -1123,9 +1226,8 @@ show-vars:
 	@echo "THINGINO_USER_OVERLAY_DIRS = $(THINGINO_USER_OVERLAY_DIRS)";
 	@echo "THINGINO_USER_UENV_FILES = $(THINGINO_USER_UENV_FILES)";
 	@echo "UBOOT_BOARDNAME = $(UBOOT_BOARDNAME)";
-	@echo "UBOOT_REPO = $(UBOOT_REPO)";
-	@echo "UBOOT_REPO_BRANCH = $(UBOOT_REPO_BRANCH)";
-	@echo "UBOOT_REPO_VERSION = $(UBOOT_REPO_VERSION)";
+	@echo "UBOOT_DEFCONFIG = $(UBOOT_DEFCONFIG)";
+	@echo "UBOOT_CONFIG_FRAGMENT_FILES = $(UBOOT_CONFIG_FRAGMENT_FILES)";
 
 run:
 	@$(TEAL) "$@"

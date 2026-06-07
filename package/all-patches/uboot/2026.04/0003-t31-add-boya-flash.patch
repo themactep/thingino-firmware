@@ -1,0 +1,85 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 4 Jun 2026 00:00:00 +0000
+Subject: [PATCH] spi-nor: add Boya BY25Q64AS flash support
+
+The Cinnado D1 (T31L) uses a Boya BY25Q64AS SPI NOR flash
+(JEDEC ID 0x684017) which is not recognised by U-Boot's
+spi-nor-ids table, causing SPL SPI probe to fail with
+"unrecognized JEDEC id" and error -2 (ENOENT).
+
+Add the Boya vendor Kconfig entry and the BY25Q64AS chip
+ID so the flash is recognised at boot.  Enable it in the
+T31 SFC-NOR defconfigs (lite, standard, ddr128M).
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mtd/spi/Kconfig                           | 5 +++++
+ drivers/mtd/spi/spi-nor-ids.c                     | 5 +++++
+ configs/isvp_t31_sfcnor_lite_defconfig            | 1 +
+ configs/isvp_t31_sfcnor_defconfig                 | 1 +
+ configs/isvp_t31_sfcnor_ddr128M_defconfig         | 1 +
+ 5 files changed, 13 insertions(+)
+
+diff --git a/drivers/mtd/spi/Kconfig b/drivers/mtd/spi/Kconfig
+--- a/drivers/mtd/spi/Kconfig
++++ b/drivers/mtd/spi/Kconfig
+@@ -241,6 +241,11 @@ config SPI_FLASH_XTX
+ 	  Add support for various XTX (XTX Technology Limited)
+ 	  SPI flash chips (XT25xxx).
+ 
++config SPI_FLASH_BOYA
++	bool "Boya SPI flash support"
++	help
++	  Add support for Boya Microelectronics SPI flash chips (BY25xxx).
++
+ config SPI_FLASH_ZBIT
+ 	bool "ZBIT SPI flash support"
+ 	help
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi/spi-nor-ids.c
+@@ -717,6 +717,11 @@
+ 	{ INFO("xt25w01g", 0x0b651B, 0, 64 * 1024, 2048,
+ 	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+ #endif
++#ifdef CONFIG_SPI_FLASH_BOYA
++	/* Boya Microelectronics */
++	{ INFO("by25q64as", 0x684017, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
+ #ifdef CONFIG_SPI_FLASH_ZBIT
+ 	/* Zbit Semiconductor Inc. */
+ 	{ INFO("zb25vq128", 0x5e4018, 0, 64 * 1024, 256,
+diff --git a/configs/isvp_t31_sfcnor_lite_defconfig b/configs/isvp_t31_sfcnor_lite_defconfig
+--- a/configs/isvp_t31_sfcnor_lite_defconfig
++++ b/configs/isvp_t31_sfcnor_lite_defconfig
+@@ -76,6 +76,7 @@ CONFIG_SPI_FLASH_GIGADEVICE=y
+ CONFIG_SPI_FLASH_MACRONIX=y
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_BOYA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y
+diff --git a/configs/isvp_t31_sfcnor_defconfig b/configs/isvp_t31_sfcnor_defconfig
+--- a/configs/isvp_t31_sfcnor_defconfig
++++ b/configs/isvp_t31_sfcnor_defconfig
+@@ -76,6 +76,7 @@ CONFIG_SPI_FLASH_GIGADEVICE=y
+ CONFIG_SPI_FLASH_MACRONIX=y
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_BOYA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y
+diff --git a/configs/isvp_t31_sfcnor_ddr128M_defconfig b/configs/isvp_t31_sfcnor_ddr128M_defconfig
+--- a/configs/isvp_t31_sfcnor_ddr128M_defconfig
++++ b/configs/isvp_t31_sfcnor_ddr128M_defconfig
+@@ -76,6 +76,7 @@ CONFIG_SPI_FLASH_GIGADEVICE=y
+ CONFIG_SPI_FLASH_MACRONIX=y
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_BOYA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y

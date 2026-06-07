@@ -4,7 +4,7 @@
 # RootFS helper
 #
 
-BOOTLOADER=$(echo $BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME | tr -d '"')
+BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAME} | tr -d '"')
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}

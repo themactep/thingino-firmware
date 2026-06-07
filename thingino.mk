@@ -580,14 +580,21 @@ export FLASH_SIZE_MB
 # U-BOOT
 #
 
-ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME),)
+ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	# Get U-Boot board name based on flash type
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nand 2>/dev/null || echo "unknown")
 	else
 		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nor 2>/dev/null || echo "unknown")
 	endif
-	BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
+	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
+endif
+
+# Flash type used for U-Boot defconfig lookup
+ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+UBOOT_BOARD_FLASH := nand
+else
+UBOOT_BOARD_FLASH := nor
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
@@ -609,12 +616,14 @@ else
 endif
 export UBOOT_FLASH_CONTROLLER
 
-ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
-	BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
+ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
+	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-with-spl-lzma.bin"
 endif
 
-ifneq ($(SOC_ARCH),)
-UBOOT_REPO := https://github.com/gtxaspec/ingenic-u-boot-$(SOC_ARCH)
+ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
+UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot $(UBOOT_BOARD_FLASH) 2>/dev/null || echo "unsupported-$(SOC_MODEL)")
+BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
+endif
 
 ifeq ($(SOC_FAMILY),t40)
 	UBOOT_REPO_BRANCH := t40
@@ -626,15 +635,18 @@ else
 	UBOOT_REPO_BRANCH := master
 endif
 
+ifeq ($(BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES),)
 UBOOT_REPO_VERSION := $(shell git ls-remote $(UBOOT_REPO) $(UBOOT_REPO_BRANCH) | head -1 | cut -f1)
 endif
 
 export UBOOT_BOARDNAME
-export UBOOT_REPO
-export UBOOT_REPO_BRANCH
-export UBOOT_REPO_VERSION
-export BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME
-export BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME
+export UBOOT_DEFCONFIG
+export UBOOT_VARIANT_FRAGMENT
+export UBOOT_CONFIG_FRAGMENT_FILES
+export BR2_TARGET_UBOOT_BOARDNAME
+export BR2_TARGET_UBOOT_BOARD_DEFCONFIG
+export BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES
+export BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME
 
 #
 # STREAMER
