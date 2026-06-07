@@ -232,15 +232,15 @@ user/<camera>/<ip>/overlay/
 
 Purpose:
 
-- Seeds files into the writable config overlay partition
+- Seeds files into the writable data partition (overlayfs upperdir)
 - Best for user-specific config files, init scripts, certificates, and other
   files you want present on first boot but still editable on the device
 
 Build behavior:
 
-- `OUTPUT_DIR/config/` is rebuilt from scratch for each config image
+- `OUTPUT_DIR/data/overlay/` is rebuilt from scratch for each data image
 - Overlay directories are copied in scope order: global, then camera, then device
-- Packed into `images/config.jffs2`
+- Packed into `images/data.jffs2` as part of the overlay upperdir
 - Not included in `rootfs.squashfs`
 - Not included in `rootfs.tar`
 
@@ -272,21 +272,23 @@ user/<camera>/<ip>/opt/
 
 Purpose:
 
-- Adds user content to the extras partition mounted at `/opt`
-- Suitable for optional binaries, models, helper scripts, and other large or
-  user-managed add-ons that do not belong in the main rootfs
+- Adds user content directly into the overlay upperdir at `opt/`
+- The overlay covers the full filesystem, so these files appear at `/opt/`
+  at runtime, shadowing any package-installed files from the rootfs
+- Suitable for optional binaries, models, helper scripts, and other
+  user-managed add-ons
 
 Build behavior:
 
-- Files from `OUTPUT_DIR/target/opt/` are first copied into `OUTPUT_DIR/extras/`
-- Then user `opt/` directories are copied in scope order: global, then camera,
-  then device
-- The result is packed into `images/extras.jffs2`
+- User `opt/` directories are copied into `OUTPUT_DIR/data/overlay/opt/`
+  in scope order: global, then camera, then device
+- Packed into `images/data.jffs2` as part of the overlay upperdir
 
 Important detail:
 
-- The build now recreates `OUTPUT_DIR/extras/` before layering user content
 - If the same file exists in multiple scopes, the device-scoped copy wins
+- Files from `$(TARGET_DIR)/opt/` installed by packages remain in the rootfs
+  and are visible through the overlay lowerdir
 
 ### `local.uenv.txt`
 
