@@ -251,6 +251,7 @@ $(info OUTPUT_DIR: $(OUTPUT_DIR))
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 RSYNC := rsync --verbose --archive
+NPROC := $(shell nproc)
 
 # Reusable sed expression to substitute template variables in config fragments
 SED_CONFIG_VARS = sed \
@@ -526,7 +527,7 @@ build: BR2_MAKE_JOBS =
 build: $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 
-build_fast: BR2_MAKE_JOBS = -j$(shell nproc)
+build_fast: BR2_MAKE_JOBS = -j$(NPROC)
 build_fast: $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 
@@ -824,7 +825,7 @@ repack: remove_bins pack
 # build toolchain fast
 sdk: defconfig
 	@$(TEAL) "$@"
-	$(BR2_MAKE) -j$(shell nproc) sdk
+	$(BR2_MAKE) -j$(NPROC) sdk
 
 source: defconfig
 	@$(TEAL) "$@"
