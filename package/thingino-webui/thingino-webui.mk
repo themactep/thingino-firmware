@@ -70,6 +70,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/telegram-cam-agent \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-agent
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/heartbeat-lib.sh \
+		$(TARGET_DIR)/usr/libexec/thingino-webui/heartbeat-lib.sh
 
 	# HTML pages
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/401.html \

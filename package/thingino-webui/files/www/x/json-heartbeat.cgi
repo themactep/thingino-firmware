@@ -5,18 +5,7 @@
 . /var/www/x/auth.sh
 require_auth
 
-THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
-
-agent_port() {
-	port=$(jct "$THINGINO_CONFIG" get agent.port 2>/dev/null | tr -d '\n"')
-	case "$port" in
-		'' | *[!0-9]*) port=1998 ;;
-		0) port=1998 ;;
-	esac
-	printf '%s' "$port"
-}
-
-AGENT_URL="http://127.0.0.1:$(agent_port)"
+. /usr/libexec/thingino-webui/heartbeat-lib.sh
 HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-5}"
 HEARTBEAT_RETRY_MS=$((HEARTBEAT_INTERVAL * 1000))
 
@@ -33,7 +22,7 @@ send_headers
 
 while true; do
 	printf 'retry: %d\n' "$HEARTBEAT_RETRY_MS" || exit 0
-	data=$(curl -sS --max-time 2 "$AGENT_URL/api/v1/runtime/heartbeat" 2>/dev/null)
+	data=$(thingino_heartbeat_payload)
 	if [ -n "$data" ]; then
 		printf 'data: %s\n\n' "$data" || exit 0
 	else
