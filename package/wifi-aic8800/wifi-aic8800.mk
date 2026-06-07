@@ -75,7 +75,6 @@ WIFI_AIC8800_USB_8800_FW_FILES = \
 	fw_adid_rf.bin \
 	fw_adid_u03.bin \
 	fw_ble_scan.bin \
-	fw_ble_scan_ad_filter.bin \
 	fw_ble_scan_ad_filter_dcdc.bin \
 	fw_ble_scan_ad_filter_ldo.bin \
 	fw_patch.bin \
