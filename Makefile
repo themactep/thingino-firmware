@@ -252,6 +252,22 @@ $(info OUTPUT_DIR: $(OUTPUT_DIR))
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 RSYNC := rsync --verbose --archive
 
+# Reusable sed expression to substitute template variables in config fragments
+SED_CONFIG_VARS = sed \
+	's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; \
+	 s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; \
+	 s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; \
+	 s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; \
+	 s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; \
+	 s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; \
+	 s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; \
+	 s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; \
+	 s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; \
+	 s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; \
+	 s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; \
+	 s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; \
+	 s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g'
+
 ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
 RED := printf '\033[1;38;5;160m%s\033[0m\n'
@@ -277,6 +293,9 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 U_BOOT_SIZE_KB := 256
 UB_ENV_SIZE_KB := 64
 CONFIG_SIZE_KB := 384
+
+# U-Boot CONFIG_ENV_SIZE (must match the value in isvp_common.h for SPI NOR)
+UB_ENV_SIZE := 0x8000
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
@@ -556,7 +575,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 ifeq ($(RAW_DEFCONFIG_MODE),y)
 	# preprocess a plain Buildroot defconfig used by GitHub workflows
 	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
-	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
 else
 	# add toolchain fragment (from preset selection)
 	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
@@ -565,7 +584,7 @@ else
 		exit 1; \
 	fi
 	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
-	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@$(SED_CONFIG_VARS) "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
 	# add other fragments
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
@@ -577,7 +596,7 @@ else
 		fi; \
 		echo "** add $$fragment_path"; \
 		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
-		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
+		$(SED_CONFIG_VARS) "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add kernel-specific headers based on SOC requirements
@@ -593,7 +612,7 @@ else
 	fi; \
 	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
-	sed 's/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 	# add SOC-derived values
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
@@ -1092,7 +1111,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
-	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
+		$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 build-all:
 	@$(TEAL) "$@"
