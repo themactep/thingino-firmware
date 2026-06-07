@@ -13,8 +13,10 @@ on_exit() {
 format_overlay() {
 	dmesg | grep -q "jffs2.*: Magic bitmask.*not found" || return 0
 	echo -e "\e[38;5;208mInit: Invalid JFFS2 blocks detected. Formatting required.\e[0m" >&2
-	umount /overlay
-	flash_eraseall -j /dev/$configfs_dev
+	umount /data
+	flash_eraseall -j /dev/$(awk -F: '/data/{print $1}' /proc/mtd)
+	mount_jffs2 data /data
+	mkdir -p /data/overlay /data/opt
 	mount_overlay || return 1
 }
 
@@ -41,20 +43,20 @@ mount_jffs2() {
 }
 
 prepare_overlay_dirs() {
-	overlay_rootdir="/overlay/root"
-	overlay_workdir="/overlay/work"
+	overlay_rootdir="/data/overlay/root"
+	overlay_workdir="/data/overlay/work"
 	mkdir -p "$overlay_rootdir" || return 1
 	mkdir -p "$overlay_workdir" || return 1
 }
 
 cleanup_overlay_dirs() {
-	rmdir /overlay/work 2>/dev/null
-	rmdir /overlay/root 2>/dev/null
+	rmdir /data/overlay/work 2>/dev/null
+	rmdir /data/overlay/root 2>/dev/null
 }
 
 mount_overlay() {
 	if grep -q overlayfs /proc/filesystems; then
-		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
+		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/data/overlay overlay /mnt && return 0
 		prepare_overlay_dirs || return 1
 		mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
 		return 1
@@ -63,7 +65,7 @@ mount_overlay() {
 	prepare_overlay_dirs || return 1
 	mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
 	cleanup_overlay_dirs
-	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
+	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/data/overlay overlay /mnt && return 0
 	return 1
 }
 
@@ -77,8 +79,11 @@ mount -t proc proc /proc ||
 grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
-# Mount persisted overlay partition
-mount_jffs2 config /overlay
+# Mount data partition (merged config + extras)
+mount_jffs2 data /data
+
+# Create subdirectories for overlay upperdir and /opt
+mkdir -p /data/overlay /data/opt
 
 mount_overlay || die "Failed to mount overlay!"
 
@@ -86,8 +91,9 @@ mount_overlay || die "Failed to mount overlay!"
 pivot_root /mnt /mnt/rom || die "Failed to pivot_root!"
 mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
-mount -o noatime,move /rom/overlay /overlay
 
-# Mount writable extras into /opt
-mount_jffs2 extras /rom/opt || die "Failed to mount extras"
-mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
+# Move data partition to new root
+mount -o noatime,move /rom/data /data || die "Failed to move /data"
+
+# Bind /data/opt to /opt
+mount --bind /data/opt /opt || die "Failed to mount /opt"
