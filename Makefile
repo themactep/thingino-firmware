@@ -287,8 +287,7 @@ export U_BOOT_ENV_TXT
 
 ifeq ($(SKIP_CAMERA_SELECTION),)
 FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
-FLASH_SIZE     := $($(FLASH_SIZE_KB) * 1024)
-
+FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
@@ -328,9 +327,9 @@ ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) 
 EXTRAS_BIN_SIZE_ALIGNED = $(shell echo $$((($(EXTRAS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
-U_BOOT_PARTITION_SIZE := $($(U_BOOT_SIZE_KB) * 1024)
-UB_ENV_PARTITION_SIZE := $($(UB_ENV_SIZE_KB) * 1024)
-CONFIG_PARTITION_SIZE := $($(CONFIG_SIZE_KB) * 1024)
+U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
+UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
+CONFIG_PARTITION_SIZE := $(shell echo $$(($(CONFIG_SIZE_KB) * 1024)))
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
@@ -348,7 +347,7 @@ UPGRADE_SIZE_KB = $(shell echo $$(($(FLASH_SIZE_KB) - $(U_BOOT_SIZE_KB) - $(UB_E
 
 # dynamic partitions
 EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
-EXTRAS_LLIMIT := $($(ALIGN_BLOCK) * 5)
+EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 else
 FLASH_SIZE_KB :=
 FLASH_SIZE :=
