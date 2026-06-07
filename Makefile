@@ -334,8 +334,6 @@ KERNEL_SIZE_KB  = $(shell echo $$(($(KERNEL_PARTITION_SIZE) / 1024)))
 ROOTFS_SIZE_KB  = $(shell echo $$(($(ROOTFS_PARTITION_SIZE) / 1024)))
 DATA_SIZE_KB  = $(shell echo $$(($(FLASH_SIZE_KB) - $(ROOTFS_OFFSET) / 1024 - $(ROOTFS_SIZE_KB))))
 
-UPGRADE_SIZE_KB = $(shell echo $$(($(FLASH_SIZE_KB) - $(U_BOOT_SIZE_KB) - $(UB_ENV_SIZE_KB))))
-
 # dynamic partitions
 DATA_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(DATA_OFFSET))))
 else
@@ -344,6 +342,7 @@ FLASH_SIZE :=
 FLASH_SIZE_HEX :=
 U_BOOT_PARTITION_SIZE :=
 UB_ENV_PARTITION_SIZE :=
+endif
 endif
 
 # partition offsets
@@ -756,7 +755,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
-	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all))
 	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(SCRIPTS_DIR)/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
 		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
@@ -766,7 +765,7 @@ else
 		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
 		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
 		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
-		$(UPGRADE_SIZE_KB) $(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" $(UBOOT_FLASH_CONTROLLER) && \
+		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" $(UBOOT_FLASH_CONTROLLER) && \
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
@@ -1058,7 +1057,7 @@ else
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
-	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
 	exit

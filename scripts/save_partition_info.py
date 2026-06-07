@@ -67,8 +67,6 @@ def generate_mtdparts_string(
     kernel_kb,
     rootfs_kb,
     data_kb,
-    upgrade_kb,
-    kernel_offset,
     flash_kb,
     flash_controller="jz_sfc",
 ):
@@ -76,7 +74,6 @@ def generate_mtdparts_string(
     return (
         f"mtdparts={flash_controller}:{u_boot_kb}k(boot),{ub_env_kb}k(env),"
         f"{kernel_kb}k(kernel),{rootfs_kb}k(rootfs),{data_kb}k(data),"
-        f"{upgrade_kb}k@0x{kernel_offset:x}(upgrade),"
         f"{flash_kb}k@0(all)"
     )
 
@@ -119,7 +116,6 @@ def main():
     parser.add_argument('kernel_size_kb', type=int)
     parser.add_argument('rootfs_size_kb', type=int)
     parser.add_argument('data_size_kb', type=int)
-    parser.add_argument('upgrade_size_kb', type=int)
     parser.add_argument('flash_size_kb', type=int)
     parser.add_argument('build_duration_seconds', type=int)
     parser.add_argument('flash_controller', nargs='?', default='jz_sfc')
@@ -172,7 +168,6 @@ def main():
     generated_mtdparts = generate_mtdparts_string(
         args.u_boot_size_kb, args.ub_env_size_kb,
         args.kernel_size_kb, args.rootfs_size_kb, args.data_size_kb,
-        args.upgrade_size_kb, args.kernel_offset,
         args.flash_size_kb, args.flash_controller
     )
 
