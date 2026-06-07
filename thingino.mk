@@ -589,6 +589,7 @@ ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	endif
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
+UBOOT_BOARDNAME := $(subst ",,$(BR2_TARGET_UBOOT_BOARDNAME))
 
 # Flash type used for U-Boot defconfig lookup
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
@@ -624,6 +625,7 @@ ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
 UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot $(UBOOT_BOARD_FLASH) 2>/dev/null || echo "unsupported-$(SOC_MODEL)")
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
+UBOOT_DEFCONFIG := $(subst ",,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
 
 ifeq ($(SOC_FAMILY),t40)
 	UBOOT_REPO_BRANCH := t40

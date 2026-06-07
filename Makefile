@@ -592,8 +592,6 @@ else
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
-	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
-	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
 	# append camera-specific overlay if it exists
 	@if [ -d "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay" ]; then \
@@ -626,6 +624,11 @@ endif
 	@echo "# $$(basename "$(THINGINO_UBOOT_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
 	@cat "$(THINGINO_UBOOT_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
+	# add U-Boot board settings after version fragment (must come after build-system choice)
+	@echo "# U-Boot board configuration" >> $(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
+	@echo >>$(OUTPUT_DIR)/.config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file
