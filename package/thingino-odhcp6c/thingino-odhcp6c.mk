@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_ODHCP6C_VERSION = daf4ec3054e753c99fdcc3ac5464926548b38351
+THINGINO_ODHCP6C_VERSION = 24485bb4b35ab84c17c2e87bd561d026d4c15c00
 THINGINO_ODHCP6C_SITE = https://git.openwrt.org/project/odhcp6c.git
 THINGINO_ODHCP6C_SITE_METHOD = git
 THINGINO_ODHCP6C_LICENSE = GPL-2.0
