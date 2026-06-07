@@ -16,7 +16,6 @@ format_overlay() {
 	umount /data
 	flash_eraseall -j /dev/$(awk -F: '/data/{print $1}' /proc/mtd)
 	mount_jffs2 data /data
-	mkdir -p /data/overlay /data/opt
 	mount_overlay || return 1
 }
 
@@ -79,11 +78,8 @@ mount -t proc proc /proc ||
 grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
-# Mount data partition (merged config + extras)
+# Mount data partition (single overlay covering whole filesystem)
 mount_jffs2 data /data
-
-# Create subdirectories for overlay upperdir and /opt
-mkdir -p /data/overlay /data/opt
 
 mount_overlay || die "Failed to mount overlay!"
 
@@ -94,6 +90,3 @@ mount -o noatime,move /rom/dev /dev
 
 # Move data partition to new root
 mount -o noatime,move /rom/data /data || die "Failed to move /data"
-
-# Bind /data/opt to /opt
-mount --bind /data/opt /opt || die "Failed to mount /opt"

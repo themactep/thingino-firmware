@@ -343,7 +343,6 @@ FLASH_SIZE_HEX :=
 U_BOOT_PARTITION_SIZE :=
 UB_ENV_PARTITION_SIZE :=
 endif
-endif
 
 # partition offsets
 ifeq ($(SKIP_CAMERA_SELECTION),)
@@ -987,26 +986,23 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(DATA_BIN) $(KERNEL_BIN) $(RO
 	fi
 endif
 
-# create data partition image (merged config + extras)
+# create data partition image (merged config + extras, single overlay)
 $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
-	mkdir -p $(OUTPUT_DIR)/data/overlay $(OUTPUT_DIR)/data/opt
-	# add layered user overlays (config partition content)
+	mkdir -p $(OUTPUT_DIR)/data/overlay
+	# add layered user overlays (files that go into overlayfs upperdir)
 	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
 		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/; \
 	done
 	# delete stub files
 	find $(OUTPUT_DIR)/data/overlay -name ".*keep" -o -name ".empty" -delete
-	# extract /opt/ from target rootfs to the data partition
-	$(RSYNC) --exclude='.gitkeep' $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/data/opt/
-	# empty /opt/ in the rootfs
-	rm -rf $(OUTPUT_DIR)/target/opt/*
-	# add layered user extras so narrower scopes override broader ones
+	# add user opt files into the overlay (they'll be at /opt at runtime,
+	# shadowing any /opt files from the rootfs lowerdir)
 	for dir in $(THINGINO_USER_OPT_DIRS); do \
-		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/opt/; \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
 	done
 	# pack the data partition image
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/ \
