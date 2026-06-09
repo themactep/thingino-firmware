@@ -66,10 +66,10 @@ sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 # Add Thingino entries
 echo "NAME=Thingino
 ID=thingino
-VERSION=\"1 (Ciao)\"
+VERSION=\"2 (Figata)\"
 VERSION_ID=1
-VERSION_CODENAME=ciao
-PRETTY_NAME=\"Thingino 1 (Ciao)\"
+VERSION_CODENAME=figata
+PRETTY_NAME=\"Thingino 2 (Figata)\"
 ID_LIKE=buildroot
 CPE_NAME=\"cpe:/o:thinginoproject:thingino:1\"
 LOGO=thingino-logo-icon
