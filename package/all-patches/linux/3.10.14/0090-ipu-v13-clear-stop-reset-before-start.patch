@@ -1,0 +1,32 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 8 Jun 2026 14:30:00 +0300
+Subject: [PATCH] IPU v13: clear stop/reset trigger bits before starting on T20
+
+On T20 SoCs the IPU_TRIGGER register bits for STOP and RESET are
+level-sensitive.  The ipu_start() function calls __stop_ipu() and
+__reset_ipu() (which SET the respective bits), configures the IPU, and
+then calls __start_ipu() (which SETS the RUN bit) -- but STOP and RESET
+are never explicitly cleared.  On T31 hardware these bits are
+self-clearing (edge-triggered), so the driver works by accident.  On T20
+the IPU sees RUN|STOP|RESET simultaneously and hangs, timing out after
+2 seconds with IPU_STATUS showing an undefined MSTATUS=3.
+
+Fix by clearing STOP and RESET from IPU_TRIGGER before setting RUN.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+diff --git a/drivers/video/jz_ipu/jz_ipu_v13.c b/drivers/video/jz_ipu/jz_ipu_v13.c
+index abcdef1..0123456 100644
+--- a/drivers/video/jz_ipu/jz_ipu_v13.c
++++ b/drivers/video/jz_ipu/jz_ipu_v13.c
+@@ -790,6 +790,10 @@ static int ipu_start(struct jz_ipu *ipu, struct ipu_param *ipu_param)
+ 	__clear_ipu_out_end();
+ 	__ipu_enable_irq();
+ 
++	/* Clear any residual stop/reset bits before starting.
++	 * T20: level-sensitive; T31: self-clearing. */
++	reg_bit_clr(ipu, IPU_TRIGGER, IPU_STOP | IPU_RESET);
++
+ 	reg_write(ipu, IPU_REG_CTRL, 0xffffffff);
+ 
+ 	/* reg_bit_set(ipu, IPU_TRIGGER, 6<<6); */
