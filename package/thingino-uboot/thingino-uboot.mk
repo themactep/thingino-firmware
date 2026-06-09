@@ -116,4 +116,41 @@ define THINGINO_PATCH_DEV_ENV
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_PATCH_DEV_ENV
 
+# Drop the on-chip wired-Ethernet driver (DesignWare GMAC + PHY) when the board has no wired Ethernet.
+ifneq ($(BR2_ETHERNET),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_WIRED_ETH
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ETH_DESIGNWARE_INGENIC,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ETH_DESIGNWARE,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_PHY_ICPLUS,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_WIRED_ETH
+endif
+endif
+
+# Drop the USB-Ethernet host drivers when the board has no USB OTG data port (no dongle possible).
+ifneq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_USB_ETH
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_HOST_ETHER,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_ETHER_ASIX,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_USB_ETH
+endif
+endif
+
+# Drop the audio/sound subsystem (disabling CONFIG_SOUND cascades I2S + codecs) when the board has no audio.
+ifneq ($(BR2_THINGINO_AUDIO),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_AUDIO
+	$(call KCONFIG_DISABLE_OPT,CONFIG_CMD_SOUND,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SOUND,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
+endif
+endif
+
 endif
