@@ -103,4 +103,11 @@ get_value() {
 	jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
+# Escape a string for safe inclusion in a single-quoted shell argument.
+# Wraps the value in single quotes, escaping any embedded single quotes.
+# Usage: s_host=$(shell_escape "$host")
+shell_escape() {
+	printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
 trap _cleanup EXIT
