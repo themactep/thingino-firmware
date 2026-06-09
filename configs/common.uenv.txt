@@ -1,5 +1,9 @@
-# Platform ENV settings
 enable_updates=true
 loadaddr=0x80600000
 baudrate=115200
 panic_timeout=2
+overlay_wipe=$(UBOOT_OVERLAY_WIPE)
+check_reset=if test "${gpio_button}" != "" && test "${gpio_button}" != "-1"; then echo "checking for reset button hold"; if gpio input ${gpio_button}; then echo "RST: hold to factory reset"; sleep 2; if gpio input ${gpio_button}; then echo "RST: wiping overlay"; run overlay_wipe; echo "RST: done"; else echo "RST: released, skip"; fi; fi; fi
+mmc_power=if test "${gpio_mmc_power}" != "" && test "${gpio_mmc_power}" != "-1"; then if test "${gpio_mmc_power_active_low}" = "1"; then gpio clear ${gpio_mmc_power}; else gpio set ${gpio_mmc_power}; fi; sleep 1; fi; mmc rescan
+preboot=run mmc_power
+autoupdate=if test "${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 ${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if sf probe && sf erase 0 ${flash_len} && sf write ${loadaddr} 0 ${filesize}; then fatwrite mmc 0:1 ${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi
