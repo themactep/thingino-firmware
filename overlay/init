@@ -40,6 +40,21 @@ mount_jffs2() {
 	}
 }
 
+mount_ubifs() {
+	local volname target
+	volname=$1
+	[ -z "$volname" ] && die "Missing UBI volume name!"
+
+	target=$2
+	[ -z "$target" ] && target="/$volname"
+
+	# The kernel attaches the "ubi" MTD partition as ubi0 at boot via the
+	# "ubi.mtd=ubi" cmdline arg, so the named volume is reachable as ubi0:<vol>.
+	# A freshly ubinized empty volume is auto-formatted by UBIFS on first mount.
+	mount -t ubifs -o noatime ubi0:$volname $target 2>/dev/null ||
+		die "Failed to mount ubi0:$volname as $target!"
+}
+
 prepare_overlay_dirs() {
 	overlay_rootdir="/overlay/root"
 	overlay_workdir="/overlay/work"
@@ -77,8 +92,14 @@ mount -t proc proc /proc ||
 grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
-# Mount persisted overlay partition
-mount_jffs2 config /overlay
+# Mount persisted overlay partition (the writable upper layer for overlayfs).
+# NAND/UBI builds use the UBIFS "overlay" volume; NOR builds use the JFFS2
+# "config" partition. Detected by the "ubi.mtd=" cmdline arg set for NAND boot.
+if grep -q 'ubi\.mtd=' /proc/cmdline; then
+	mount_ubifs overlay /overlay
+else
+	mount_jffs2 config /overlay
+fi
 
 mount_overlay || die "Failed to mount overlay!"
 
@@ -88,6 +109,10 @@ mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
 
-# Mount writable extras into /opt
-mount_jffs2 extras /rom/opt || die "Failed to mount extras"
-mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
+# Mount writable extras into /opt (NOR only). gtxaspec's NAND UBI layout has no
+# "extras" volume; /opt stays as the read-only squashfs dir there until/unless
+# a dedicated UBI "extras" volume is added to the ubinize layout.
+if ! grep -q 'ubi\.mtd=' /proc/cmdline; then
+	mount_jffs2 extras /rom/opt || die "Failed to mount extras"
+	mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
+fi

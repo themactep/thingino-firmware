@@ -651,7 +651,14 @@ else ifeq ($(SOC_MODEL),t32nq)
 	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t32nq.config
 endif
 
+# NAND stores the U-Boot environment in a UBI volume, NOT at a raw flash
+# offset, so it needs a different layout fragment than NOR. Applying the NOR
+# fragment to a NAND build would wrongly point the env at a raw offset.
+ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
+endif
 
 UBOOT_CONFIG_FRAGMENT_FILES :=
 ifneq ($(wildcard $(UBOOT_LAYOUT_FRAGMENT)),)

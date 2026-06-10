@@ -51,26 +51,31 @@ endef
 UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_COPY_SHA1_HEADER
 
 define THINGINO_UBOOT_RMEM_SET_VALUE
+	touch $(THINGINO_UENV_TXT); \
+	set_uenv() { \
+		sed -i "/^$${1}=/d" $(THINGINO_UENV_TXT); \
+		echo "$${1}=$${2}" >> $(THINGINO_UENV_TXT); \
+	}; \
 	if [ -n "$(ISP_RMEM_MB)" ]; then \
 		if [ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ]; then \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_ISPMEM_MB) )) && \
 			ispmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_ISPMEM_MB)) * 0x100000 )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
-			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^ispmem=$(ISP_ISPMEM_MB)M@$$(printf '0x%x' $$ispmem_offset)" $(THINGINO_UENV_TXT) || echo "ispmem=$(ISP_ISPMEM_MB)M@$$(printf '0x%x' $$ispmem_offset)" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT); \
+			set_uenv osmem "$${osmem}M@0x0" && \
+			set_uenv ispmem "$(ISP_ISPMEM_MB)M@$$(printf '0x%x' $$ispmem_offset)" && \
+			set_uenv rmem "$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)"; \
 		elif [ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ]; then \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_NMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
 			nmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
-			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(THINGINO_UENV_TXT) || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(THINGINO_UENV_TXT); \
+			set_uenv osmem "$${osmem}M@0x0" && \
+			set_uenv rmem "$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" && \
+			set_uenv nmem "$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)"; \
 		else \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
-			grep -q "^osmem=$${osmem}M@0x0" $(THINGINO_UENV_TXT) || echo "osmem=$${osmem}M@0x0" >> $(THINGINO_UENV_TXT) && \
-			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(THINGINO_UENV_TXT) || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(THINGINO_UENV_TXT); \
+			set_uenv osmem "$${osmem}M@0x0" && \
+			set_uenv rmem "$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)"; \
 		fi; \
 	else \
 		echo "No ISP_RMEM_MB value set"; \

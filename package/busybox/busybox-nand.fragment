@@ -1,0 +1,20 @@
+# BusyBox applets for NAND / UBI management.
+#
+# These were removed globally in commit dcaa78888 ("busybox: remove nand and
+# ubi utils") because NOR devices don't need them. They are layered back in
+# ONLY for NAND builds via BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES, which is
+# set by configs/fragments/flash-nand.fragment. NOR images stay unchanged.
+#
+# Note: booting the UBIFS root needs no userspace tools (the kernel attaches
+# via the "ubi.mtd=" / "root=ubi0:rootfs" cmdline). These applets are for
+# on-device volume management and sysupgrade.
+CONFIG_NANDWRITE=y
+CONFIG_NANDDUMP=y
+CONFIG_UBIATTACH=y
+CONFIG_UBIDETACH=y
+CONFIG_UBIMKVOL=y
+CONFIG_UBIRMVOL=y
+CONFIG_UBIRSVOL=y
+CONFIG_UBIUPDATEVOL=y
+CONFIG_UBIRENAME=y
+CONFIG_FEATURE_VOLUMEID_UBIFS=y
