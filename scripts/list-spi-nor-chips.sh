@@ -22,7 +22,7 @@ TMPDIR=$(mktemp -d /tmp/uboot-spi-nor.XXXXXX)
 trap 'rm -rf "$TMPDIR"' EXIT
 
 # Chip-name prefixes recognised in the U-Boot jedec_spi_nor driver table
-CHIP_PREFIXES='gd25 w25p w25q w25x w25h w25m mx25 en25 xt25 fm25 zb25 by25 s25fl n25q at25 m25p sst25 sst26 mt25 cr25 em25 xc25 pn25 p25q a25l kd25 nrg'
+CHIP_PREFIXES='gd25 gm25 w25p w25q w25x w25h w25m mx25 en25 xt25 fm25 zb25 by25 s25fl n25q at25 m25p sst25 sst26 mt25 cr25 em25 xc25 pn25 p25q a25l kd25 nrg'
 
 build_grep_pattern() {
     local first=true
