@@ -19,6 +19,101 @@ if [ "$FOCUS_PERCENTAGE" -lt 0 ] || [ "$FOCUS_PERCENTAGE" -gt 100 ]; then
 	exit 1
 fi
 
+
+bool_is_true() {
+	local value
+	value=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	case "$value" in
+		1 | true | yes | on)
+			return 0
+			;;
+	esac
+	return 1
+}
+
+# returns pin= et active_low= from a string like "42", "42O", "42o"
+parse_gpio_string() {
+	local raw="$1"
+	# extract the numeric part (prefix)
+	pin=$(printf '%s' "$raw" | sed 's/[^0-9].*//')
+	# and the suffix
+	suffix=$(printf '%s' "$raw" | sed 's/^[0-9]*//')
+
+	# check that pin is valid and not empty
+	case "$pin" in
+		''|*[!0-9]*)
+			echo "Error: pin '$pin' is not a valid number" >&2
+			return 1
+			;;
+	esac
+
+	# interpret suffix
+	case "$suffix" in
+		'')   active_low="false" ;;   # implicit is false
+		'O')  active_low="false" ;;   # explicit false
+		'o')  active_low="true"  ;;   # explicit true
+		*)
+			echo "Error: unknown suffix '$suffix' in '$raw'" >&2
+			return 1
+			;;
+	esac
+	return 0
+}
+
+
+# get gpio
+
+MOTORS_CONFIG_JSON=/etc/motors.json
+
+# Case object : { "pin": "42", ...}
+if pin=$(jct "$MOTORS_CONFIG_JSON" get "motors.gpio_focus.pin" 2>/dev/null); then
+	# check pin is a number
+	case "$pin" in
+		''|*[!0-9]*)
+			echo "Error: pin '$pin' is not a valid number" >&2
+			exit 1
+			;;
+	esac
+	if ! active_low=$(jct "$MOTORS_CONFIG_JSON" get "motors.gpio_focus.active_low" 2>/dev/null); then
+		active_low="false"
+	fi
+
+	# check active_low
+	case "$active_low" in
+		true|false) ;;
+		*)
+			echo "Error: invalid active_low value '$active_low'" >&2
+			exit 1
+			;;
+	esac
+# Case string : "42", "42O", "42o"
+else
+	raw=$(jct "$MOTORS_CONFIG_JSON" get "motors.gpio_focus" 2>/dev/null) || {
+		echo "Error: motors.gpio_focus not found" >&2
+		exit 1
+	}
+	parse_gpio_string "$raw" || exit 1
+fi
+
+state=1
+if bool_is_true "$active_low"; then
+	state=0
+fi
+echo "## pin=$pin active_low=$active_low state=$state"
+
+
+# bring up gpio if needed
+
+if [ "$(gpio info $pin | grep DIR | cut -d' ' -f2)" != "out" ]; then
+	echo "## bringing gpio up"
+	gpio set $pin $state
+else
+	echo "## gpio already up"
+fi
+
+
+# and set focus
+
 # Convert percentage to DAC value (0-511)
 DAC_VALUE=$((FOCUS_PERCENTAGE * 511 / 100))
 
