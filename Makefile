@@ -1040,23 +1040,9 @@ $(KERNEL_BIN):
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs (depends on kernel to ensure proper build order)
-# Pre-stamp uboot so Buildroot skips it during rootfs-squashfs.
-# It will be dirclean'd and rebuilt properly in the $(U_BOOT_BIN) rule,
-# once partition sizes are known from the rootfs.
 $(ROOTFS_BIN): $(KERNEL_BIN)
 	@$(TEAL) "$@"
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
-	mkdir -p $(U_BOOT_BUILD_DIR)
-	mkdir -p $(OUTPUT_DIR)/per-package/uboot/host
-	mkdir -p $(OUTPUT_DIR)/per-package/uboot/target
-	touch $(U_BOOT_BUILD_DIR)/.stamp_downloaded \
-	      $(U_BOOT_BUILD_DIR)/.stamp_extracted \
-	      $(U_BOOT_BUILD_DIR)/.stamp_patched \
-	      $(U_BOOT_BUILD_DIR)/.stamp_configured \
-	      $(U_BOOT_BUILD_DIR)/.stamp_built \
-	      $(U_BOOT_BUILD_DIR)/.stamp_installed \
-	      $(U_BOOT_BUILD_DIR)/.stamp_target_installed \
-	      $(U_BOOT_BUILD_DIR)/.stamp_images_installed
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
 
 $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
