@@ -19,7 +19,6 @@ if [ "$FOCUS_PERCENTAGE" -lt 0 ] || [ "$FOCUS_PERCENTAGE" -gt 100 ]; then
 	exit 1
 fi
 
-
 bool_is_true() {
 	local value
 	value=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
@@ -59,7 +58,6 @@ parse_gpio_string() {
 	esac
 	return 0
 }
-
 
 # get gpio
 
@@ -101,7 +99,6 @@ if bool_is_true "$active_low"; then
 fi
 echo "## pin=$pin active_low=$active_low state=$state"
 
-
 # bring up gpio if needed
 
 if [ "$(gpio info $pin | grep DIR | cut -d' ' -f2)" != "out" ]; then
@@ -110,7 +107,6 @@ if [ "$(gpio info $pin | grep DIR | cut -d' ' -f2)" != "out" ]; then
 else
 	echo "## gpio already up"
 fi
-
 
 # and set focus
 
