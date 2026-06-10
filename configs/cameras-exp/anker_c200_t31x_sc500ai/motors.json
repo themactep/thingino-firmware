@@ -1,5 +1,5 @@
 {
   "motors": {
-    "gpio_focus": "42"
+    "gpio_focus": 42
   }
 }
