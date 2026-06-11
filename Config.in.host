@@ -1,5 +1,6 @@
 menu "Thingino host utilities"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in.host"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/scriba/Config.in.host"
 
 endmenu

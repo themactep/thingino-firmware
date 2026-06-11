@@ -374,7 +374,7 @@ endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update \
-	dfu ota br-% check-config force-config show-config-deps clean-config \
+	dfu ota scriba br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
 	show-vars run user-dirs setup-hooks
 
@@ -1239,6 +1239,18 @@ dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(HOST_DIR)/bin/thingino-dfu -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
+
+scriba:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run \`make\` first to build firmware."; exit 1; }
+	@if [ ! -x $(HOST_DIR)/bin/scriba ]; then \
+		echo "Building host-scriba..."; \
+		$(BR2_MAKE) host-scriba; \
+		if [ -x $(OUTPUT_DIR)/per-package/host-scriba/host/bin/scriba ] && [ ! -x $(HOST_DIR)/bin/scriba ]; then \
+			cp $(OUTPUT_DIR)/per-package/host-scriba/host/bin/scriba $(HOST_DIR)/bin/scriba; \
+		fi; \
+	fi
+	$(HOST_DIR)/bin/scriba -W $(FIRMWARE_BIN_FULL)
 
 # Catch-all rule: forward undefined targets to buildroot
 # This allows running buildroot targets directly without the br- prefix

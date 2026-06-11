@@ -306,3 +306,5 @@ config BR2_PACKAGE_SELECT_VALGRIND
 endif
 
 endmenu
+
+source "$BR2_EXTERNAL_THINGINO_PATH/Config.in.host"
