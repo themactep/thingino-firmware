@@ -4,9 +4,14 @@
 #
 ################################################################################
 
+# Note: Dependencies (host-libyaml, host-uboot-tools) are NOT declared here
+# because Buildroot parses external.mk before .config is loaded, so the
+# ifeq guard below always fails on first parse. By the second parse
+# (after .config) the package rules are already generated and the += is
+# ignored. These deps are handled directly in the top-level Makefile:
+#   - rebuild-% and rebuild-uboot targets list host-libyaml explicitly
+#   - $(ROOTFS_BIN) target builds host-libyaml before pre-stamping uboot
 ifeq ($(BR2_TARGET_UBOOT)$(BR_BUILDING),yy)
-
-UBOOT_DEPENDENCIES += host-libyaml host-uboot-tools
 THINGINO_OUTPUT_DIR = $(if $(OUTPUT_DIR),$(OUTPUT_DIR),$(BASE_DIR))
 THINGINO_BINARIES_DIR = $(if $(OUTPUT_DIR),$(OUTPUT_DIR)/images,$(BINARIES_DIR))
 THINGINO_UENV_TXT = $(if $(U_BOOT_ENV_TXT),$(U_BOOT_ENV_TXT),$(THINGINO_OUTPUT_DIR)/uenv.txt)
