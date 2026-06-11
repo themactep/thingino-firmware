@@ -153,4 +153,22 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
 endif
 endif
 
+# Inject this board's MMC card-detect + slot-power into the per-SoC U-Boot
+# device tree from thingino.json (the GPIOs are board-specific, so they can't
+# live in the shared .dts). The helper appends a vmmc-supply regulator and, on
+# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
+# so the mmc core powers and detects the slot natively, with no env gpio gate
+# or power-up. The helper reads thingino.json with python3 (already a U-Boot
+# build dependency via binman).
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_MMC_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-mmc-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
+endif
+
 endif
