@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_DFU_VERSION = 5090c4eba6da362a518ae1d2834e6cb56e531bd9
+THINGINO_DFU_VERSION = 31480d96c8914e6061015de611105c2e0cbcce47
 THINGINO_DFU_SITE = $(call github,wltechblog,thingino-dfu,$(THINGINO_DFU_VERSION))
 
 THINGINO_DFU_LICENSE = GPL-2.0
