@@ -373,11 +373,12 @@ define thingino_run_build
 	fi
 endef
 
-.PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild defconfig distclean \
-	dev fast help pack remove_bins repack sdk toolchain update \
-	dfu ota scriba br-% check-config force-config show-config-deps clean-config \
+.PHONY: all bootstrap build clean clean-nfs-debug cleanbuild \
+	defconfig dev distclean fast help pack repack remove_bins \
+	sdk toolchain update br-% \
+	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
-	show-vars run user-dirs setup-hooks
+	dfu scriba upload_serial ota run show-vars user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -1214,10 +1215,20 @@ run:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
+cloner:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
+	$(HOST_DIR)/bin/thingino-dfu --cloner \
+		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
+		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
+
+
 dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-dfu -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
+	$(HOST_DIR)/bin/thingino-dfu -i 0 \
+		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
+		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
 
 scriba:
 	@$(TEAL) "$@"
