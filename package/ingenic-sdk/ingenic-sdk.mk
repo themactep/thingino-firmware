@@ -133,7 +133,7 @@ define GENERATE_MODULE_LOADER
 		echo "hdmi_audio" > $(TARGET_DIR)/etc/modules.d/hdmi_audio; \
 	fi
 
-	if [ "$(SOC_FAMILY)" != "a1" ]; then \
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ] && [ "$(SOC_FAMILY)" != "a1" ]; then \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t30" ]; then \
@@ -145,8 +145,10 @@ define GENERATE_MODULE_LOADER
 		fi \
 	fi
 
-	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
+		fi \
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
