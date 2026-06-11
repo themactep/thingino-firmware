@@ -193,7 +193,7 @@ THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
 UBOOT_BIN_NAME := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
-AUTOUPDATE_PREFIX := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;run check_reset;)
+AUTOUPDATE_PREFIX := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;)
 
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
@@ -1053,15 +1053,6 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	for file in $(THINGINO_USER_UENV_FILES); do \
 		grep -v '^#' "$$file" | awk NF | tee -a $@; \
 	done
-	@J=$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json; \
-	if [ -f "$$J" ] && [ -x $(HOST_DIR)/bin/jct ] && ! grep -q '^gpio_mmc_power=' $@; then \
-		PIN=$$($(HOST_DIR)/bin/jct "$$J" get gpio.mmc_power.pin 2>/dev/null); \
-		AL=$$($(HOST_DIR)/bin/jct "$$J" get gpio.mmc_power.active_low 2>/dev/null); \
-		if echo "$$PIN" | grep -qE '^[0-9]+$$'; then \
-			echo "gpio_mmc_power=$$PIN" | tee -a $@; \
-			case "$$(echo "$$AL" | tr A-Z a-z)" in 1|true|yes|on) echo "gpio_mmc_power_active_low=1" | tee -a $@ ;; *) echo "gpio_mmc_power_active_low=0" | tee -a $@ ;; esac; \
-		fi; \
-	fi
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
 	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d' $@
@@ -1080,7 +1071,7 @@ endif
 		sed -i '/^autoupdate=/d; /^mmc_power=/d; /^preboot=/d; /^gpio_mmc_power=/d; /^gpio_mmc_power_active_low=/d; s|run autoupdate;||' $@; \
 	fi
 	@if ! grep -q '^BR2_THINGINO_BUTTON=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
-		sed -i '/^check_reset=/d; /^overlay_wipe=/d; /^gpio_button=/d; s|run check_reset;||' $@; \
+		sed -i '/^button_cmd_0_name=/d; /^button_cmd_0=/d; /^overlay_wipe=/d; /^gpio_button=/d' $@; \
 	fi
 	exit
 
