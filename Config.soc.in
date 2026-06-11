@@ -282,6 +282,7 @@ config BR2_THINGINO_RMEM_MB_AUTO
 
 config BR2_THINGINO_RMEM_MB
 	int "ISP Reserved RAM (rmem), MB"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 10 if BR2_SOC_RAM_MB = 32
 	default 23 if BR2_SOC_RAM_MB = 64
 	default 29 if BR2_SOC_RAM_MB = 128
@@ -291,6 +292,7 @@ config BR2_THINGINO_RMEM_MB
 config BR2_THINGINO_ISPMEM_MB
 	int "ISP Reserved RAM (ispmem), MB"
 	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 8
 	help
 	  Specify reserved memory for the ISP in MB.
@@ -895,7 +897,20 @@ menu "Device Type"
 		help
 		  Specifies the device type as a Small Board Computer (SBC) and installs configurations
 		  specific to this type.
+	config BR2_THINGINO_DEV_SEC
+		bool "Security System Hub"
+		help
+		  Specifies the device type as a Security System Hub and installs configurations
+		  specific to this type.
 	endchoice
+
+	config BR2_THINGINO_DEV_CAMERA
+		bool
+		default y if BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_WEBCAM
+		help
+		  Hidden helper: set for device types with an image sensor.
+		  Camera stack packages (streamer, ONVIF, IMP libraries, ISP
+		  kernel modules, rmem) are only installed when this is set.
 
 	config BR2_THINGINO_DEV_DOORBELL
 		bool "Doorbell"

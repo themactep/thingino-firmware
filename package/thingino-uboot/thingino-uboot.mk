@@ -88,7 +88,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
 	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
-	@sh -c 'case "$(THINGINO_UBOOT_FLASH_CONTROLLER)" in *nand*) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|echo RST: NAND overlay-wipe not yet wired|g" $(THINGINO_UENV_TXT) ;; *) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|sf probe \&\& sf erase 0x60000 0x40000|g" $(THINGINO_UENV_TXT) ;; esac'
+	@sh -c 'case "$(THINGINO_UBOOT_FLASH_CONTROLLER)" in *nand*) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|echo RST: NAND overlay-wipe not yet wired|g" $(THINGINO_UENV_TXT) ;; *) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|sf probe \&\& sf erase $(shell printf 0x%x $(CONFIG_OFFSET)) $(shell printf 0x%x $(CONFIG_PARTITION_SIZE))|g" $(THINGINO_UENV_TXT) ;; esac'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
@@ -151,6 +151,24 @@ define THINGINO_UBOOT_DISABLE_AUDIO
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
 endif
+endif
+
+# Inject this board's MMC card-detect + slot-power into the per-SoC U-Boot
+# device tree from thingino.json (the GPIOs are board-specific, so they can't
+# live in the shared .dts). The helper appends a vmmc-supply regulator and, on
+# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
+# so the mmc core powers and detects the slot natively, with no env gpio gate
+# or power-up. The helper reads thingino.json with python3 (already a U-Boot
+# build dependency via binman).
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_MMC_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-mmc-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
 endif
 
 endif
