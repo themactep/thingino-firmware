@@ -38,7 +38,7 @@ IP ?=
 # TFTP server IP address to upload compiled images to (leave empty to disable TFTP copy)
 TFTP_IP_ADDRESS ?=
 # TFTP server root directory for local server
-TFTP_ROOT ?= /srv/tftp
+TFTP_ROOT ?=
 
 # Buildroot downloads directory
 # can be reused from environment, just export the value:
@@ -1150,8 +1150,8 @@ help:
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\
 	  make run <bin>      run a target binary via QEMU (e.g. make run bin/ffmpeg)\n\
-	  make tftp-copy      copy image to TFTP server
-	  make tftp-upload    upload image to TFTP server
+	  make tftp-copy      copy image to TFTP server\n\
+	  make tftp-upload    upload image to TFTP server\n\
 	  \n\
 	Configuration Management:\n\
 	  make defconfig      configure buildroot (auto-detects changes)\n\
