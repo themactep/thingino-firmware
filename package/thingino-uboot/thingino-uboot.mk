@@ -93,7 +93,6 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
 	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
-	@sh -c 'case "$(THINGINO_UBOOT_FLASH_CONTROLLER)" in *nand*) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|echo RST: NAND overlay-wipe not yet wired|g" $(THINGINO_UENV_TXT) ;; *) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|sf probe \&\& sf erase $(shell printf 0x%x $(CONFIG_OFFSET)) $(shell printf 0x%x $(CONFIG_PARTITION_SIZE))|g" $(THINGINO_UENV_TXT) ;; esac'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
@@ -105,14 +104,13 @@ define THINGINO_PATCH_DEV_ENV
 		ROOTFS_BIN_SIZE=$$(stat -c%s $(THINGINO_BINARIES_DIR)/rootfs.squashfs); \
 		ROOTFS_SIZE_ALIGNED=$$(( ($$ROOTFS_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
 		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
-		KERNEL_OFFSET=$$(( $(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE) )); \
+		KERNEL_OFFSET=$$(( $(U_BOOT_PARTITION_SIZE) + $(UB_ENV_PARTITION_SIZE) )); \
 		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $$KERNEL_SIZE_ALIGNED )); \
-		KERNEL_OFFSET_HEX=$$(printf '0x%x' $$KERNEL_OFFSET); \
-		KERNEL_OFFSET_KB=$$(( $$KERNEL_OFFSET / 1024 )); \
-		FLASH_SIZE_BYTES=$$(( $(FLASH_SIZE_MB) * 1024 * 1024 )); \
+		ROOTFS_OFFSET_KB=$$(( $$ROOTFS_OFFSET / 1024 )); \
 		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
-		UPGRADE_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$KERNEL_OFFSET_KB )); \
-		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${UPGRADE_SIZE_KB}k@$${KERNEL_OFFSET_HEX}(upgrade),$${FLASH_SIZE_KB}k@0(all)"; \
+		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
+		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
+		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \

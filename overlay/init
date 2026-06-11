@@ -14,7 +14,8 @@ format_overlay() {
 	dmesg | grep -q "jffs2.*: Magic bitmask.*not found" || return 0
 	echo -e "\e[38;5;208mInit: Invalid JFFS2 blocks detected. Formatting required.\e[0m" >&2
 	umount /overlay
-	flash_eraseall -j /dev/$configfs_dev
+	flash_eraseall -j /dev/$(awk -F: '/"data"/{print $1}' /proc/mtd)
+	mount_jffs2 data /overlay
 	mount_overlay || return 1
 }
 
@@ -77,8 +78,8 @@ mount -t proc proc /proc ||
 grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
-# Mount persisted overlay partition
-mount_jffs2 config /overlay
+# Mount data partition (single overlay covering whole filesystem)
+mount_jffs2 data /overlay
 
 mount_overlay || die "Failed to mount overlay!"
 
@@ -86,8 +87,6 @@ mount_overlay || die "Failed to mount overlay!"
 pivot_root /mnt /mnt/rom || die "Failed to pivot_root!"
 mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
-mount -o noatime,move /rom/overlay /overlay
 
-# Mount writable extras into /opt
-mount_jffs2 extras /rom/opt || die "Failed to mount extras"
-mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
+# Move data partition to new root
+mount -o noatime,move /rom/overlay /overlay || die "Failed to move /overlay"

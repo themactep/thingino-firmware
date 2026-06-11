@@ -1,8 +1,7 @@
+autoupdate=if test "${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 ${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if sf probe && sf erase 0 ${flash_len} && sf write ${loadaddr} 0 ${filesize}; then fatwrite mmc 0:1 ${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi
+baudrate=115200
+button_cmd_0=echo "RST: factory reset"; run overlay_wipe
+button_cmd_0_name=reset
 enable_updates=true
 loadaddr=0x80600000
-baudrate=115200
 panic_timeout=2
-overlay_wipe=echo "wiping overlay"; $(UBOOT_OVERLAY_WIPE) && echo "overlay wipe done"
-button_cmd_0_name=reset
-button_cmd_0=echo "RST: factory reset"; run overlay_wipe
-autoupdate=if test "${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 ${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if sf probe && sf erase 0 ${flash_len} && sf write ${loadaddr} 0 ${filesize}; then fatwrite mmc 0:1 ${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi

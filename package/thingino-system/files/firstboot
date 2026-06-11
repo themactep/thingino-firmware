@@ -22,39 +22,24 @@ while getopts "efh" opt; do
 done
 
 wipe() {
-	extras_dev=$(awk '$4 ~ /"extras"/ {gsub(":","",$1); print $1}' /proc/mtd)
-	if [ -z "$extras_dev" ]; then
+	data_dev=$(awk '$4 ~ /"data"/ {gsub(":","",$1); print $1}' /proc/mtd)
+	if [ -z "$data_dev" ]; then
 		echo "Overlay partition not found!" >&2
 		exit 1
 	fi
-
-	configfs_data_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtd" substr($1,4)}' /proc/mtd)
-	if [ -z "$configfs_data_dev" ]; then
-		echo "Config partition not found!" >&2
-		exit 1
-	fi
-
-	#	if grep -q " /etc/config " /proc/mounts; then
-	#		umount -f /etc/config
-	#	fi
-
-	echo "Erasing config partition..."
-	flash_eraseall -j "${configfs_data_dev}"
-
-	echo "Erasing extras partition..."
-	flash_eraseall -j "/dev/${extras_dev}"
+	echo "Erasing overlay partition..."
+	flash_eraseall -j "/dev/${data_dev}"
 
 	if [ "$erase_mtd1" = true ]; then
 		echo "Erasing U-Boot ENV..."
 		flash_eraseall /dev/mtd1
 	fi
-
 	echo "Erase completed. Rebooting..."
 	reboot -f
 }
 
 warn() {
-	printf 'Warning\n\nThis action will reset the device to defaults and erase all configurations, leaving the device like the first boot.\n\nAll saved settings will be erased!\n\nAre you sure you want to proceed? (yes/no)\n'
+	printf 'Warning\nThis action will reset the device to defaults and erase all configurations, leaving the device like the first boot.\nAll saved settings will be erased!\nAre you sure you want to proceed? (yes/no)\n'
 	read response
 	if [ "$response" != "yes" ]; then
 		echo "Operation aborted." >&2

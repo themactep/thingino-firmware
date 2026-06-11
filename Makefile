@@ -225,9 +225,6 @@ GENERIC_OUTPUT_DIR = $(OUTPUT_BASE_DIR)
 
 HOST_DIR = $(OUTPUT_DIR)/host
 
-CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
-export CONFIG_PARTITION_DIR
-
 # include thingino makefile only when board configuration is available
 ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
@@ -247,6 +244,22 @@ $(info OUTPUT_DIR: $(OUTPUT_DIR))
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 RSYNC := rsync --verbose --archive
 NPROC := $(shell nproc)
+
+# Reusable sed expression to substitute template variables in config fragments
+SED_CONFIG_VARS = sed \
+	's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; \
+	 s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; \
+	 s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; \
+	 s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; \
+	 s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; \
+	 s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; \
+	 s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; \
+	 s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; \
+	 s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; \
+	 s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; \
+	 s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; \
+	 s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; \
+	 s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g'
 
 ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
@@ -272,13 +285,14 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 # fixed size partitions
 U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
-CONFIG_SIZE_KB := 384
+
+# U-Boot CONFIG_ENV_SIZE (must match the value in isvp_common.h for SPI NOR)
+UB_ENV_SIZE := 0x8000
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
-CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
+DATA_BIN := $(OUTPUT_DIR)/images/data.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
-EXTRAS_BIN := $(OUTPUT_DIR)/images/extras.jffs2
 
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
 
@@ -288,69 +302,56 @@ GENERIC_FIRMWARE_BIN_FULL := $(GENERIC_OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 UB_ENV_BIN_SIZE = $(shell stat -c%s $(UB_ENV_BIN))
-CONFIG_BIN_SIZE = $(shell stat -c%s $(CONFIG_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
-EXTRAS_BIN_SIZE = $(shell stat -c%s $(EXTRAS_BIN))
+DATA_BIN_SIZE = $(shell stat -c%s $(DATA_BIN))
 
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 
 U_BOOT_BIN_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 UB_ENV_BIN_SIZE_ALIGNED = $(shell echo $$((($(UB_ENV_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
-CONFIG_BIN_SIZE_ALIGNED = $(shell echo $$((($(CONFIG_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
-EXTRAS_BIN_SIZE_ALIGNED = $(shell echo $$((($(EXTRAS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
+DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
-CONFIG_PARTITION_SIZE := $(shell echo $$(($(CONFIG_SIZE_KB) * 1024)))
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE
-export CONFIG_PARTITION_SIZE
 export ALIGN_BLOCK
 
 # Partition sizes in KB for mtdparts
 KERNEL_SIZE_KB  = $(shell echo $$(($(KERNEL_PARTITION_SIZE) / 1024)))
 ROOTFS_SIZE_KB  = $(shell echo $$(($(ROOTFS_PARTITION_SIZE) / 1024)))
-EXTRAS_SIZE_KB  = $(shell echo $$(($(FLASH_SIZE_KB) - $(ROOTFS_OFFSET) / 1024 - $(ROOTFS_SIZE_KB))))
-
-UPGRADE_SIZE_KB = $(shell echo $$(($(FLASH_SIZE_KB) - $(U_BOOT_SIZE_KB) - $(UB_ENV_SIZE_KB) - $(CONFIG_SIZE_KB))))
+DATA_SIZE_KB  = $(shell echo $$(($(FLASH_SIZE_KB) - $(ROOTFS_OFFSET) / 1024 - $(ROOTFS_SIZE_KB))))
 
 # dynamic partitions
-EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
-EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
+DATA_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(DATA_OFFSET))))
 else
 FLASH_SIZE_KB :=
 FLASH_SIZE :=
 FLASH_SIZE_HEX :=
 U_BOOT_PARTITION_SIZE :=
 UB_ENV_PARTITION_SIZE :=
-CONFIG_PARTITION_SIZE :=
-EXTRAS_LLIMIT :=
 endif
 
 # partition offsets
 ifeq ($(SKIP_CAMERA_SELECTION),)
 U_BOOT_OFFSET := 0
 UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
-CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
-KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
+KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
-EXTRAS_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
-
-export CONFIG_OFFSET
+DATA_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 else
 U_BOOT_OFFSET :=
 UB_ENV_OFFSET :=
-CONFIG_OFFSET :=
 KERNEL_OFFSET :=
 ROOTFS_OFFSET :=
-EXTRAS_OFFSET :=
+DATA_OFFSET :=
 endif
 export FLASH_SIZE_MB
 
@@ -533,7 +534,7 @@ check-config: buildroot/Makefile
 	fi
 
 # Force configuration regeneration
-force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
+force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep
 	@$(TEAL) "$@"
 	# delete older config
 	$(info * remove existing .config file)
@@ -541,7 +542,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 ifeq ($(RAW_DEFCONFIG_MODE),y)
 	# preprocess a plain Buildroot defconfig used by GitHub workflows
 	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
-	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
 else
 	# add toolchain fragment (from preset selection)
 	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
@@ -550,7 +551,7 @@ else
 		exit 1; \
 	fi
 	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
-	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@$(SED_CONFIG_VARS) "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
 	# add other fragments
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
@@ -562,7 +563,7 @@ else
 		fi; \
 		echo "** add $$fragment_path"; \
 		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
-		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
+		$(SED_CONFIG_VARS) "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add kernel-specific headers based on SOC requirements
@@ -578,13 +579,11 @@ else
 	fi; \
 	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
-	sed 's/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_DEFCONFIG[)]/$(UBOOT_DEFCONFIG)/g; s/\$$[(]UBOOT_CONFIG_FRAGMENT_FILES[)]/$(subst /,\/,$(UBOOT_CONFIG_FRAGMENT_FILES))/g; s/\$$[(]U_BOOT_ENV_TXT[)]/$(subst /,\/,$(U_BOOT_ENV_TXT))/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 	# add SOC-derived values
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
-	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
-	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
 	# append camera-specific overlay if it exists
 	@if [ -d "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay" ]; then \
@@ -617,6 +616,12 @@ endif
 	@echo "# $$(basename "$(THINGINO_UBOOT_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
 	@cat "$(THINGINO_UBOOT_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
 	@echo >> $(OUTPUT_DIR)/.config
+	# add U-Boot board settings after version fragment (must come after build-system choice)
+	@echo "# U-Boot board configuration" >> $(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
+	@echo >>$(OUTPUT_DIR)/.config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file
@@ -711,10 +716,9 @@ clean-nfs-debug:
 clean: clean-nfs-debug
 	@$(TEAL) "$@"
 	rm -rf $(OUTPUT_DIR)/target
-	rm -rf $(OUTPUT_DIR)/config
-	rm -rf $(OUTPUT_DIR)/extras
+	rm -rf $(OUTPUT_DIR)/data
 	rm -f $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_FULL).sha256sum
-	rm -f $(ROOTFS_BIN) $(EXTRAS_BIN) $(CONFIG_BIN)
+	rm -f $(ROOTFS_BIN) $(DATA_BIN)
 #	$(UB_ENV_BIN) $(KERNEL_BIN)
 
 # remove all build files
@@ -734,23 +738,22 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
-	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$(shell printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all))
 	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(SCRIPTS_DIR)/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
 		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
 		$(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) \
 		$(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) \
-		$(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) \
 		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) \
 		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
-		$(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) \
-		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(CONFIG_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(EXTRAS_SIZE_KB) \
-		$(UPGRADE_SIZE_KB) $(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" $(UBOOT_FLASH_CONTROLLER) && \
+		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
+		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
+		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" $(UBOOT_FLASH_CONTROLLER) && \
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
 	@echo ""
-	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(RED) "EXTRAS PARTITION IS TOO SMALL"; fi
+	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
@@ -760,7 +763,7 @@ build-info: pack
 	$(SCRIPTS_DIR)/generate_build_info.sh "$(OUTPUT_DIR)"
 
 # rebuild a package with smart configuration check
-rebuild-uboot: force-config $(U_BOOT_ENV_TXT)
+rebuild-uboot: force-config
 	@$(TEAL) "$@"
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
@@ -777,7 +780,7 @@ rebuild-%: force-config
 
 remove_bins:
 	@$(TEAL) "$@"
-	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
+	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(DATA_BIN)
 
 repack: remove_bins pack
 	@$(TEAL) "$@"
@@ -899,12 +902,6 @@ $(OUTPUT_DIR)/.keep:
 	test -d $(OUTPUT_DIR) || mkdir -p $(OUTPUT_DIR)
 	touch $@
 
-# create config partition directory
-$(CONFIG_PARTITION_DIR)/.keep:
-	@$(TEAL) "$@"
-	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
-	touch $@
-
 # generate a base Buildroot config when missing
 $(OUTPUT_DIR)/.config:
 	@$(TEAL) "$@"
@@ -968,7 +965,7 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 
 else
 # SFC (SPI flash) firmware image
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(DATA_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 	@$(TEAL) "$@"
 	# create a blank slab
 	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
@@ -980,58 +977,37 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 	else \
 		echo "Skipping U-Boot environment partition: bootloader overlaps env slot"; \
 	fi
-	# add config partition
-	dd if=$(CONFIG_BIN) bs=$(CONFIG_BIN_SIZE) seek=$(CONFIG_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	# add kernel partition
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	# add rootfs partition
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
-	# add extras partition
-	@if [ $(EXTRAS_BIN_SIZE) -gt 0 ]; then \
-	  dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	# add data partition
+	@if [ $(DATA_BIN_SIZE) -gt 0 ]; then \
+	  dd if=$(DATA_BIN) bs=$(DATA_BIN_SIZE) seek=$(DATA_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
 	fi
 endif
 
-# create config partition image
-$(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
+# create data partition image (merged config + extras, single overlay)
+$(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
-	# rebuild config partition staging from layered user overlays
-	rm -rf $(CONFIG_PARTITION_DIR)
-	mkdir -p $(CONFIG_PARTITION_DIR)
+	rm -rf $(OUTPUT_DIR)/data
+	mkdir -p $(OUTPUT_DIR)/data/overlay
+	# add layered user overlays (files that go into overlayfs upperdir)
 	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
-		$(RSYNC) --archive "$$dir"/ $(CONFIG_PARTITION_DIR)/; \
+		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/; \
 	done
 	# delete stub files
-	find $(CONFIG_PARTITION_DIR)/ -name ".*keep" -o -name ".empty" -delete
-	# pack the config partition image
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
-		--eraseblock=$(ALIGN_BLOCK) --pad=$(CONFIG_PARTITION_SIZE)
-
-# create extras partition image
-$(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
-	@$(TEAL) "$@"
-	# remove older image if present
-	if [ -f $@ ]; then rm $@; fi
-	rm -rf $(OUTPUT_DIR)/extras
-	mkdir -p $(OUTPUT_DIR)/extras
-	# extract /opt/ from target rootfs to a separare directory
-	$(RSYNC) --exclude='.gitkeep' $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/
-	# empty /opt/ in the rootfs
-	rm -rf $(OUTPUT_DIR)/target/opt/*
-	# add layered user extras so narrower scopes override broader ones
+	find $(OUTPUT_DIR)/data/overlay -name ".*keep" -o -name ".empty" -delete
+	# add user opt files into the overlay (they'll be at /opt at runtime,
+	# shadowing any /opt files from the rootfs lowerdir)
 	for dir in $(THINGINO_USER_OPT_DIRS); do \
-		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/extras/; \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
 	done
-	# pack the extras partition image if directory has content, otherwise it will be created on first use
-	if [ -n "$$(find $(OUTPUT_DIR)/extras/ -type f 2>/dev/null)" ]; then \
-		$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
-			--eraseblock=$(ALIGN_BLOCK) --pad=$(EXTRAS_PARTITION_SIZE); \
-	else \
-		$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
-			--eraseblock=$(ALIGN_BLOCK); \
-	fi
+	# pack the data partition image
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \
+		--eraseblock=$(ALIGN_BLOCK) --pad=$(DATA_PARTITION_SIZE)
 
 # rebuild kernel
 $(KERNEL_BIN):
@@ -1055,7 +1031,8 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	done
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
-	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d' $@
+	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d; /^data_addr=/d; /^data_size=/d; /^overlay_wipe=/d' $@
+	echo 'overlay_wipe=echo "wiping overlay"; sf probe && sf erase $${data_addr} $${data_size} && echo "overlay wipe done"' >> $@
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	# MMC boot: set bootargs and load kernel from FAT partition
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
@@ -1063,8 +1040,10 @@ else
 	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
+	echo "data_addr=$$(printf '0x%x' $(DATA_OFFSET))" >> $@
+	echo "data_size=$$(printf '0x%x' $(DATA_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
-	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$$(printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
 	@if ! grep -q '^BR2_THINGINO_SDCARD=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
@@ -1082,7 +1061,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
-	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 build-all:
 	@$(TEAL) "$@"
