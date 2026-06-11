@@ -88,7 +88,7 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(THINGINO_UBOOT_FLASH_CONTROLLER)|g" $(THINGINO_UENV_TXT)
 	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_NMEM)||g" $(THINGINO_UENV_TXT)'
 	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(THINGINO_UENV_TXT) || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(THINGINO_UENV_TXT)'
-	@sh -c 'case "$(THINGINO_UBOOT_FLASH_CONTROLLER)" in *nand*) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|echo RST: NAND overlay-wipe not yet wired|g" $(THINGINO_UENV_TXT) ;; *) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|sf probe \&\& sf erase 0x60000 0x40000|g" $(THINGINO_UENV_TXT) ;; esac'
+	@sh -c 'case "$(THINGINO_UBOOT_FLASH_CONTROLLER)" in *nand*) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|echo RST: NAND overlay-wipe not yet wired|g" $(THINGINO_UENV_TXT) ;; *) sed -i "s|\$$(UBOOT_OVERLAY_WIPE)|sf probe \&\& sf erase $(shell printf 0x%x $(CONFIG_OFFSET)) $(shell printf 0x%x $(CONFIG_PARTITION_SIZE))|g" $(THINGINO_UENV_TXT) ;; esac'
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
