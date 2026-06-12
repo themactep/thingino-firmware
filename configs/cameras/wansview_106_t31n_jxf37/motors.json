@@ -1,0 +1,5 @@
+{
+  "motors": {
+    "gpio_focus": 51
+  }
+}
