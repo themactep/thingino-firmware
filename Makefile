@@ -286,9 +286,6 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
 
-# U-Boot CONFIG_ENV_SIZE (must match the value in isvp_common.h for SPI NOR)
-UB_ENV_SIZE := 0x8000
-
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 DATA_BIN := $(OUTPUT_DIR)/images/data.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -1062,7 +1059,8 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
-	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_SIZE) -o $@ $(U_BOOT_ENV_TXT)
+	# size must match U-Boot CONFIG_ENV_SIZE (configs/uboot/layout/sfcnor.config)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 build-all:
 	@$(TEAL) "$@"
