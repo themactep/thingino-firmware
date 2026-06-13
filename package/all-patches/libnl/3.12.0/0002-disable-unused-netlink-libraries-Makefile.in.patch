@@ -1,0 +1,548 @@
+--- libnl-3.12.0/Makefile.in	2025-12-04 16:10:13.000000000 -0500
++++ libnl-3.12.0-patched/Makefile.in	2026-06-12 17:50:36.500472647 -0400
+@@ -123,21 +123,26 @@
+ sbin_PROGRAMS = $(am__EXEEXT_8)
+ noinst_PROGRAMS = $(am__EXEEXT_7)
+ TESTS = $(am__EXEEXT_6)
+-@ENABLE_CLI_FALSE@am__append_1 = $(lib_cli_ltlibraries_cls) \
++@ENABLE_LIBNL_IDIAG_TRUE@am__append_1 = libnl-idiag-3.0.pc
++@ENABLE_LIBNL_NF_TRUE@am__append_2 = libnl-nf-3.0.pc
++@ENABLE_LIBNL_XFRM_TRUE@am__append_3 = libnl-xfrm-3.0.pc
++@ENABLE_LIBNL_IDIAG_TRUE@am__append_4 = lib/libnl-idiag-3.la
++@ENABLE_LIBNL_NF_TRUE@am__append_5 = lib/libnl-nf-3.la
++@ENABLE_CLI_FALSE@am__append_6 = $(lib_cli_ltlibraries_cls) \
+ @ENABLE_CLI_FALSE@	$(lib_cli_ltlibraries_qdisc) \
+ @ENABLE_CLI_FALSE@	src/lib/libnl-cli-3.la
+-@ENABLE_CLI_TRUE@am__append_2 = src/lib/libnl-cli-3.la
+-@ENABLE_CLI_TRUE@am__append_3 = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+-@ENABLE_CLI_INSTALL_BIN_TRUE@@ENABLE_CLI_TRUE@am__append_4 = $(cli_programs)
+-@ENABLE_CLI_INSTALL_BIN_FALSE@@ENABLE_CLI_INSTALL_SBIN_TRUE@@ENABLE_CLI_TRUE@am__append_5 = $(cli_programs)
+-@ENABLE_CLI_INSTALL_BIN_FALSE@@ENABLE_CLI_INSTALL_SBIN_FALSE@@ENABLE_CLI_TRUE@am__append_6 = $(cli_programs)
+-@ENABLE_CLI_FALSE@am__append_7 = $(cli_programs)
+-@WITH_CHECK_TRUE@am__append_8 = tests/libnl-test-util.la
+-@WITH_CHECK_TRUE@am__append_9 = tests/check-all
+-@ENABLE_STATIC_TRUE@@WITH_CHECK_TRUE@am__append_10 = tests/check-direct
+-@HAS_CXX_TRUE@am__append_11 = $(BUILD_HEADERS_OBJS_CXX)
+-@HAS_CXX_TRUE@am__append_12 = check-build-headers-cxx
+-@ENABLE_CLI_TRUE@am__append_13 = libnl-cli-3.0.pc
++@ENABLE_CLI_TRUE@am__append_7 = src/lib/libnl-cli-3.la
++@ENABLE_CLI_TRUE@am__append_8 = -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
++@ENABLE_CLI_INSTALL_BIN_TRUE@@ENABLE_CLI_TRUE@am__append_9 = $(cli_programs)
++@ENABLE_CLI_INSTALL_BIN_FALSE@@ENABLE_CLI_INSTALL_SBIN_TRUE@@ENABLE_CLI_TRUE@am__append_10 = $(cli_programs)
++@ENABLE_CLI_INSTALL_BIN_FALSE@@ENABLE_CLI_INSTALL_SBIN_FALSE@@ENABLE_CLI_TRUE@am__append_11 = $(cli_programs)
++@ENABLE_CLI_FALSE@am__append_12 = $(cli_programs)
++@WITH_CHECK_TRUE@am__append_13 = tests/libnl-test-util.la
++@WITH_CHECK_TRUE@am__append_14 = tests/check-all
++@ENABLE_STATIC_TRUE@@WITH_CHECK_TRUE@am__append_15 = tests/check-direct
++@HAS_CXX_TRUE@am__append_16 = $(BUILD_HEADERS_OBJS_CXX)
++@HAS_CXX_TRUE@am__append_17 = check-build-headers-cxx
++@ENABLE_CLI_TRUE@am__append_18 = libnl-cli-3.0.pc
+ subdir = .
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+ am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+@@ -381,37 +386,56 @@
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+ 	$(AM_CFLAGS) $(CFLAGS) $(lib_libnl_genl_3_la_LDFLAGS) \
+ 	$(LDFLAGS) -o $@
+-lib_libnl_idiag_3_la_DEPENDENCIES = lib/libnl-3.la
+-am_lib_libnl_idiag_3_la_OBJECTS = lib/idiag/libnl_idiag_3_la-idiag.lo \
+-	lib/idiag/libnl_idiag_3_la-idiag_meminfo_obj.lo \
+-	lib/idiag/libnl_idiag_3_la-idiag_msg_obj.lo \
+-	lib/idiag/libnl_idiag_3_la-idiag_req_obj.lo \
+-	lib/idiag/libnl_idiag_3_la-idiag_vegasinfo_obj.lo
++@ENABLE_LIBNL_IDIAG_TRUE@lib_libnl_idiag_3_la_DEPENDENCIES =  \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/libnl-3.la
++am__lib_libnl_idiag_3_la_SOURCES_DIST = lib/idiag/idiag.c \
++	lib/idiag/idiag_meminfo_obj.c lib/idiag/idiag_msg_obj.c \
++	lib/idiag/idiag_req_obj.c lib/idiag/idiag_vegasinfo_obj.c \
++	lib/idiag/nl-idiag.h
++@ENABLE_LIBNL_IDIAG_TRUE@am_lib_libnl_idiag_3_la_OBJECTS =  \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/libnl_idiag_3_la-idiag.lo \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/libnl_idiag_3_la-idiag_meminfo_obj.lo \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/libnl_idiag_3_la-idiag_msg_obj.lo \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/libnl_idiag_3_la-idiag_req_obj.lo \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/libnl_idiag_3_la-idiag_vegasinfo_obj.lo
+ lib_libnl_idiag_3_la_OBJECTS = $(am_lib_libnl_idiag_3_la_OBJECTS)
+ lib_libnl_idiag_3_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+ 	$(AM_CFLAGS) $(CFLAGS) $(lib_libnl_idiag_3_la_LDFLAGS) \
+ 	$(LDFLAGS) -o $@
+-lib_libnl_nf_3_la_DEPENDENCIES = lib/libnl-3.la lib/libnl-route-3.la
+-am_lib_libnl_nf_3_la_OBJECTS = lib/netfilter/libnl_nf_3_la-ct.lo \
+-	lib/netfilter/libnl_nf_3_la-ct_obj.lo \
+-	lib/netfilter/libnl_nf_3_la-exp.lo \
+-	lib/netfilter/libnl_nf_3_la-exp_obj.lo \
+-	lib/netfilter/libnl_nf_3_la-log.lo \
+-	lib/netfilter/libnl_nf_3_la-log_msg.lo \
+-	lib/netfilter/libnl_nf_3_la-log_msg_obj.lo \
+-	lib/netfilter/libnl_nf_3_la-log_obj.lo \
+-	lib/netfilter/libnl_nf_3_la-netfilter.lo \
+-	lib/netfilter/libnl_nf_3_la-nfnl.lo \
+-	lib/netfilter/libnl_nf_3_la-queue.lo \
+-	lib/netfilter/libnl_nf_3_la-queue_msg.lo \
+-	lib/netfilter/libnl_nf_3_la-queue_msg_obj.lo \
+-	lib/netfilter/libnl_nf_3_la-queue_obj.lo
++@ENABLE_LIBNL_IDIAG_TRUE@am_lib_libnl_idiag_3_la_rpath = -rpath \
++@ENABLE_LIBNL_IDIAG_TRUE@	$(libdir)
++@ENABLE_LIBNL_NF_TRUE@lib_libnl_nf_3_la_DEPENDENCIES = lib/libnl-3.la \
++@ENABLE_LIBNL_NF_TRUE@	lib/libnl-route-3.la
++am__lib_libnl_nf_3_la_SOURCES_DIST = lib/netfilter/ct.c \
++	lib/netfilter/ct_obj.c lib/netfilter/exp.c \
++	lib/netfilter/exp_obj.c lib/netfilter/log.c \
++	lib/netfilter/log_msg.c lib/netfilter/log_msg_obj.c \
++	lib/netfilter/log_obj.c lib/netfilter/netfilter.c \
++	lib/netfilter/nfnl.c lib/netfilter/nl-netfilter.h \
++	lib/netfilter/queue.c lib/netfilter/queue_msg.c \
++	lib/netfilter/queue_msg_obj.c lib/netfilter/queue_obj.c
++@ENABLE_LIBNL_NF_TRUE@am_lib_libnl_nf_3_la_OBJECTS =  \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-ct.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-ct_obj.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-exp.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-exp_obj.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-log.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-log_msg.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-log_msg_obj.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-log_obj.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-netfilter.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-nfnl.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-queue.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-queue_msg.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-queue_msg_obj.lo \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/libnl_nf_3_la-queue_obj.lo
+ lib_libnl_nf_3_la_OBJECTS = $(am_lib_libnl_nf_3_la_OBJECTS)
+ lib_libnl_nf_3_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+ 	$(AM_CFLAGS) $(CFLAGS) $(lib_libnl_nf_3_la_LDFLAGS) $(LDFLAGS) \
+ 	-o $@
++@ENABLE_LIBNL_NF_TRUE@am_lib_libnl_nf_3_la_rpath = -rpath $(libdir)
+ lib_libnl_route_3_la_DEPENDENCIES = lib/libnl-3.la \
+ 	lib/route/libnl-grammar.la
+ am_lib_libnl_route_3_la_OBJECTS =  \
+@@ -508,18 +532,6 @@
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+ 	$(AM_CFLAGS) $(CFLAGS) $(lib_libnl_route_3_la_LDFLAGS) \
+ 	$(LDFLAGS) -o $@
+-lib_libnl_xfrm_3_la_DEPENDENCIES = lib/libnl-3.la
+-am_lib_libnl_xfrm_3_la_OBJECTS = lib/xfrm/libnl_xfrm_3_la-ae.lo \
+-	lib/xfrm/libnl_xfrm_3_la-lifetime.lo \
+-	lib/xfrm/libnl_xfrm_3_la-sa.lo \
+-	lib/xfrm/libnl_xfrm_3_la-selector.lo \
+-	lib/xfrm/libnl_xfrm_3_la-sp.lo \
+-	lib/xfrm/libnl_xfrm_3_la-template.lo
+-lib_libnl_xfrm_3_la_OBJECTS = $(am_lib_libnl_xfrm_3_la_OBJECTS)
+-lib_libnl_xfrm_3_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+-	$(AM_CFLAGS) $(CFLAGS) $(lib_libnl_xfrm_3_la_LDFLAGS) \
+-	$(LDFLAGS) -o $@
+ lib_route_libnl_grammar_la_LIBADD =
+ am__objects_1 = lib/route/cls/libnl_grammar_la-ematch_grammar.lo \
+ 	lib/route/cls/libnl_grammar_la-ematch_syntax.lo \
+@@ -1001,12 +1013,6 @@
+ 	lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-red.Plo \
+ 	lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-sfq.Plo \
+ 	lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-tbf.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Plo \
+-	lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Plo \
+ 	src/$(DEPDIR)/genl_ctrl_list-genl-ctrl-list.Po \
+ 	src/$(DEPDIR)/idiag_socket_details-idiag-socket-details.Po \
+ 	src/$(DEPDIR)/nf_ct_add-nf-ct-add.Po \
+@@ -1130,7 +1136,7 @@
+ 	lib/cli/qdisc/pfifo.c lib/cli/qdisc/plug.c \
+ 	$(lib_libnl_3_la_SOURCES) $(lib_libnl_genl_3_la_SOURCES) \
+ 	$(lib_libnl_idiag_3_la_SOURCES) $(lib_libnl_nf_3_la_SOURCES) \
+-	$(lib_libnl_route_3_la_SOURCES) $(lib_libnl_xfrm_3_la_SOURCES) \
++	$(lib_libnl_route_3_la_SOURCES) \
+ 	$(nodist_lib_route_libnl_grammar_la_SOURCES) \
+ 	$(src_lib_libnl_cli_3_la_SOURCES) \
+ 	$(tests_libnl_test_util_la_SOURCES) src/genl-ctrl-list.c \
+@@ -1172,8 +1178,9 @@
+ 	lib/cli/qdisc/htb.c lib/cli/qdisc/ingress.c \
+ 	lib/cli/qdisc/pfifo.c lib/cli/qdisc/plug.c \
+ 	$(lib_libnl_3_la_SOURCES) $(lib_libnl_genl_3_la_SOURCES) \
+-	$(lib_libnl_idiag_3_la_SOURCES) $(lib_libnl_nf_3_la_SOURCES) \
+-	$(lib_libnl_route_3_la_SOURCES) $(lib_libnl_xfrm_3_la_SOURCES) \
++	$(am__lib_libnl_idiag_3_la_SOURCES_DIST) \
++	$(am__lib_libnl_nf_3_la_SOURCES_DIST) \
++	$(lib_libnl_route_3_la_SOURCES) \
+ 	$(src_lib_libnl_cli_3_la_SOURCES) \
+ 	$(tests_libnl_test_util_la_SOURCES) src/genl-ctrl-list.c \
+ 	src/idiag-socket-details.c src/nf-ct-add.c src/nf-ct-events.c \
+@@ -1624,17 +1631,16 @@
+ ACLOCAL_AMFLAGS = -I m4
+ 
+ ###############################################################################
+-lib_LTLIBRARIES = lib/libnl-3.la lib/libnl-route-3.la \
+-	lib/libnl-idiag-3.la lib/libnl-genl-3.la lib/libnl-nf-3.la \
+-	lib/libnl-xfrm-3.la $(am__append_2)
++lib_LTLIBRARIES = lib/libnl-3.la lib/libnl-route-3.la $(am__append_4) \
++	lib/libnl-genl-3.la $(am__append_5) $(am__append_7)
+ noinst_LTLIBRARIES = lib/route/libnl-grammar.la
+-check_LTLIBRARIES = $(am__append_1) $(am__append_8)
++check_LTLIBRARIES = $(am__append_6) $(am__append_13)
+ clean_local = clean-local-c-list
+-check_programs = $(am__append_9) $(am__append_10)
++check_programs = $(am__append_14) $(am__append_15)
+ check_local = check-local-c-list
+-check_build = check-build-headers $(am__append_12)
++check_build = check-build-headers $(am__append_17)
+ CLEANFILES = $(grammar_files_sources) $(grammar_files_headers) \
+-	$(BUILD_HEADERS_OBJS) $(am__append_11)
++	$(BUILD_HEADERS_OBJS) $(am__append_16)
+ 
+ ###############################################################################
+ EXTRA_DIST = lib/route/cls/ematch_grammar.l \
+@@ -1671,9 +1677,9 @@
+ DISTCHECK_CONFIGURE_FLAGS = \
+ 	--disable-dependency-tracking
+ 
+-pkgconfig_DATA = libnl-3.0.pc libnl-genl-3.0.pc libnl-idiag-3.0.pc \
+-	libnl-nf-3.0.pc libnl-route-3.0.pc libnl-xfrm-3.0.pc $(NULL) \
+-	$(am__append_13)
++pkgconfig_DATA = libnl-3.0.pc libnl-genl-3.0.pc libnl-route-3.0.pc \
++	$(NULL) $(am__append_1) $(am__append_2) $(am__append_3) \
++	$(am__append_18)
+ extra_cppflags = \
+ 	-std=gnu11 \
+ 	$(NULL)
+@@ -1927,6 +1933,7 @@
+ 	include/linux-private/linux/if_packet.h \
+ 	include/linux-private/linux/if_tunnel.h \
+ 	include/linux-private/linux/if_vlan.h \
++	include/linux-private/linux/ila.h \
+ 	include/linux-private/linux/in.h \
+ 	include/linux-private/linux/in6.h \
+ 	include/linux-private/linux/in_route.h \
+@@ -2180,27 +2187,27 @@
+ 	lib/route/libnl-grammar.la \
+ 	$(NULL)
+ 
+-lib_libnl_idiag_3_la_SOURCES = \
+-	lib/idiag/idiag.c \
+-	lib/idiag/idiag_meminfo_obj.c \
+-	lib/idiag/idiag_msg_obj.c \
+-	lib/idiag/idiag_req_obj.c \
+-	lib/idiag/idiag_vegasinfo_obj.c \
+-	lib/idiag/nl-idiag.h \
+-	$(NULL)
+-
+-EXTRA_lib_libnl_idiag_3_la_DEPENDENCIES = \
+-	libnl-idiag-3.sym
++@ENABLE_LIBNL_IDIAG_TRUE@lib_libnl_idiag_3_la_SOURCES = \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/idiag.c \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/idiag_meminfo_obj.c \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/idiag_msg_obj.c \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/idiag_req_obj.c \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/idiag_vegasinfo_obj.c \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/idiag/nl-idiag.h \
++@ENABLE_LIBNL_IDIAG_TRUE@	$(NULL)
++
++@ENABLE_LIBNL_IDIAG_TRUE@EXTRA_lib_libnl_idiag_3_la_DEPENDENCIES = \
++@ENABLE_LIBNL_IDIAG_TRUE@	libnl-idiag-3.sym
++
++@ENABLE_LIBNL_IDIAG_TRUE@lib_libnl_idiag_3_la_CPPFLAGS = \
++@ENABLE_LIBNL_IDIAG_TRUE@	$(lib_cppflags)
++
++@ENABLE_LIBNL_IDIAG_TRUE@lib_libnl_idiag_3_la_LDFLAGS = \
++@ENABLE_LIBNL_IDIAG_TRUE@	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
++@ENABLE_LIBNL_IDIAG_TRUE@	-Wl,--version-script=$(srcdir)/libnl-idiag-3.sym
+ 
+-lib_libnl_idiag_3_la_CPPFLAGS = \
+-	$(lib_cppflags)
+-
+-lib_libnl_idiag_3_la_LDFLAGS = \
+-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
+-	-Wl,--version-script=$(srcdir)/libnl-idiag-3.sym
+-
+-lib_libnl_idiag_3_la_LIBADD = \
+-	lib/libnl-3.la
++@ENABLE_LIBNL_IDIAG_TRUE@lib_libnl_idiag_3_la_LIBADD = \
++@ENABLE_LIBNL_IDIAG_TRUE@	lib/libnl-3.la
+ 
+ lib_libnl_genl_3_la_SOURCES = \
+ 	lib/genl/ctrl.c \
+@@ -2223,60 +2230,60 @@
+ lib_libnl_genl_3_la_LIBADD = \
+ 	lib/libnl-3.la
+ 
+-lib_libnl_nf_3_la_SOURCES = \
+-	lib/netfilter/ct.c \
+-	lib/netfilter/ct_obj.c \
+-	lib/netfilter/exp.c \
+-	lib/netfilter/exp_obj.c \
+-	lib/netfilter/log.c \
+-	lib/netfilter/log_msg.c \
+-	lib/netfilter/log_msg_obj.c \
+-	lib/netfilter/log_obj.c \
+-	lib/netfilter/netfilter.c \
+-	lib/netfilter/nfnl.c \
+-	lib/netfilter/nl-netfilter.h \
+-	lib/netfilter/queue.c \
+-	lib/netfilter/queue_msg.c \
+-	lib/netfilter/queue_msg_obj.c \
+-	lib/netfilter/queue_obj.c \
+-	$(NULL)
+-
+-lib_libnl_nf_3_la_CPPFLAGS = \
+-	$(lib_cppflags)
+-
+-EXTRA_lib_libnl_nf_3_la_DEPENDENCIES = \
+-	libnl-nf-3.sym
+-
+-lib_libnl_nf_3_la_LDFLAGS = \
+-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
+-	-Wl,--version-script=$(srcdir)/libnl-nf-3.sym
+-
+-lib_libnl_nf_3_la_LIBADD = \
+-	lib/libnl-3.la \
+-	lib/libnl-route-3.la
+-
+-lib_libnl_xfrm_3_la_SOURCES = \
+-	lib/xfrm/ae.c \
+-	lib/xfrm/lifetime.c \
+-	lib/xfrm/nl-xfrm.h \
+-	lib/xfrm/sa.c \
+-	lib/xfrm/selector.c \
+-	lib/xfrm/sp.c \
+-	lib/xfrm/template.c \
+-	$(NULL)
+-
+-lib_libnl_xfrm_3_la_CPPFLAGS = \
+-	$(lib_cppflags)
+-
+-lib_libnl_xfrm_3_la_LDFLAGS = \
+-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
+-	-Wl,--version-script=$(srcdir)/libnl-xfrm-3.sym
++@ENABLE_LIBNL_NF_TRUE@lib_libnl_nf_3_la_SOURCES = \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/ct.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/ct_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/exp.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/exp_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/log.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/log_msg.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/log_msg_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/log_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/netfilter.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/nfnl.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/nl-netfilter.h \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/queue.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/queue_msg.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/queue_msg_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	lib/netfilter/queue_obj.c \
++@ENABLE_LIBNL_NF_TRUE@	$(NULL)
++
++@ENABLE_LIBNL_NF_TRUE@lib_libnl_nf_3_la_CPPFLAGS = \
++@ENABLE_LIBNL_NF_TRUE@	$(lib_cppflags)
++
++@ENABLE_LIBNL_NF_TRUE@EXTRA_lib_libnl_nf_3_la_DEPENDENCIES = \
++@ENABLE_LIBNL_NF_TRUE@	libnl-nf-3.sym
++
++@ENABLE_LIBNL_NF_TRUE@lib_libnl_nf_3_la_LDFLAGS = \
++@ENABLE_LIBNL_NF_TRUE@	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
++@ENABLE_LIBNL_NF_TRUE@	-Wl,--version-script=$(srcdir)/libnl-nf-3.sym
++
++@ENABLE_LIBNL_NF_TRUE@lib_libnl_nf_3_la_LIBADD = \
++@ENABLE_LIBNL_NF_TRUE@	lib/libnl-3.la \
++@ENABLE_LIBNL_NF_TRUE@	lib/libnl-route-3.la
++
++@ENABLE_LIBNL_XFRM_TRUE@lib_libnl_xfrm_3_la_SOURCES = \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/ae.c \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/lifetime.c \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/nl-xfrm.h \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/sa.c \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/selector.c \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/sp.c \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/xfrm/template.c \
++@ENABLE_LIBNL_XFRM_TRUE@	$(NULL)
++
++@ENABLE_LIBNL_XFRM_TRUE@lib_libnl_xfrm_3_la_CPPFLAGS = \
++@ENABLE_LIBNL_XFRM_TRUE@	$(lib_cppflags)
++
++@ENABLE_LIBNL_XFRM_TRUE@lib_libnl_xfrm_3_la_LDFLAGS = \
++@ENABLE_LIBNL_XFRM_TRUE@	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) \
++@ENABLE_LIBNL_XFRM_TRUE@	-Wl,--version-script=$(srcdir)/libnl-xfrm-3.sym
+ 
+-EXTRA_lib_libnl_xfrm_3_la_DEPENDENCIES = \
+-	libnl-xfrm-3.sym
++@ENABLE_LIBNL_XFRM_TRUE@EXTRA_lib_libnl_xfrm_3_la_DEPENDENCIES = \
++@ENABLE_LIBNL_XFRM_TRUE@	libnl-xfrm-3.sym
+ 
+-lib_libnl_xfrm_3_la_LIBADD = \
+-	lib/libnl-3.la
++@ENABLE_LIBNL_XFRM_TRUE@lib_libnl_xfrm_3_la_LIBADD = \
++@ENABLE_LIBNL_XFRM_TRUE@	lib/libnl-3.la
+ 
+ lib_cli_ltlibraries_cls = \
+ 	lib/cli/cls/basic.la \
+@@ -2323,7 +2330,7 @@
+ lib_cli_qdisc_plug_la_LDFLAGS = $(lib_cli_ldflags)
+ 
+ ###############################################################################
+-src_lib_ldflags = $(am__append_3)
++src_lib_ldflags = $(am__append_8)
+ src_lib_libnl_cli_3_la_SOURCES = \
+ 	src/lib/addr.c \
+ 	src/lib/class.c \
+@@ -3089,7 +3096,7 @@
+ 	lib/idiag/$(am__dirstamp) lib/idiag/$(DEPDIR)/$(am__dirstamp)
+ 
+ lib/libnl-idiag-3.la: $(lib_libnl_idiag_3_la_OBJECTS) $(lib_libnl_idiag_3_la_DEPENDENCIES) $(EXTRA_lib_libnl_idiag_3_la_DEPENDENCIES) lib/$(am__dirstamp)
+-	$(AM_V_CCLD)$(lib_libnl_idiag_3_la_LINK) -rpath $(libdir) $(lib_libnl_idiag_3_la_OBJECTS) $(lib_libnl_idiag_3_la_LIBADD) $(LIBS)
++	$(AM_V_CCLD)$(lib_libnl_idiag_3_la_LINK) $(am_lib_libnl_idiag_3_la_rpath) $(lib_libnl_idiag_3_la_OBJECTS) $(lib_libnl_idiag_3_la_LIBADD) $(LIBS)
+ lib/netfilter/$(am__dirstamp):
+ 	@$(MKDIR_P) lib/netfilter
+ 	@: >>lib/netfilter/$(am__dirstamp)
+@@ -3131,7 +3138,7 @@
+ 	lib/netfilter/$(DEPDIR)/$(am__dirstamp)
+ 
+ lib/libnl-nf-3.la: $(lib_libnl_nf_3_la_OBJECTS) $(lib_libnl_nf_3_la_DEPENDENCIES) $(EXTRA_lib_libnl_nf_3_la_DEPENDENCIES) lib/$(am__dirstamp)
+-	$(AM_V_CCLD)$(lib_libnl_nf_3_la_LINK) -rpath $(libdir) $(lib_libnl_nf_3_la_OBJECTS) $(lib_libnl_nf_3_la_LIBADD) $(LIBS)
++	$(AM_V_CCLD)$(lib_libnl_nf_3_la_LINK) $(am_lib_libnl_nf_3_la_rpath) $(lib_libnl_nf_3_la_OBJECTS) $(lib_libnl_nf_3_la_LIBADD) $(LIBS)
+ lib/fib_lookup/$(am__dirstamp):
+ 	@$(MKDIR_P) lib/fib_lookup
+ 	@: >>lib/fib_lookup/$(am__dirstamp)
+@@ -3410,27 +3417,6 @@
+ 
+ lib/libnl-route-3.la: $(lib_libnl_route_3_la_OBJECTS) $(lib_libnl_route_3_la_DEPENDENCIES) $(EXTRA_lib_libnl_route_3_la_DEPENDENCIES) lib/$(am__dirstamp)
+ 	$(AM_V_CCLD)$(lib_libnl_route_3_la_LINK) -rpath $(libdir) $(lib_libnl_route_3_la_OBJECTS) $(lib_libnl_route_3_la_LIBADD) $(LIBS)
+-lib/xfrm/$(am__dirstamp):
+-	@$(MKDIR_P) lib/xfrm
+-	@: >>lib/xfrm/$(am__dirstamp)
+-lib/xfrm/$(DEPDIR)/$(am__dirstamp):
+-	@$(MKDIR_P) lib/xfrm/$(DEPDIR)
+-	@: >>lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-ae.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-lifetime.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-sa.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-selector.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-sp.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-lib/xfrm/libnl_xfrm_3_la-template.lo: lib/xfrm/$(am__dirstamp) \
+-	lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-
+-lib/libnl-xfrm-3.la: $(lib_libnl_xfrm_3_la_OBJECTS) $(lib_libnl_xfrm_3_la_DEPENDENCIES) $(EXTRA_lib_libnl_xfrm_3_la_DEPENDENCIES) lib/$(am__dirstamp)
+-	$(AM_V_CCLD)$(lib_libnl_xfrm_3_la_LINK) -rpath $(libdir) $(lib_libnl_xfrm_3_la_OBJECTS) $(lib_libnl_xfrm_3_la_LIBADD) $(LIBS)
+ lib/route/cls/libnl_grammar_la-ematch_grammar.lo:  \
+ 	lib/route/cls/$(am__dirstamp) \
+ 	lib/route/cls/$(DEPDIR)/$(am__dirstamp)
+@@ -3995,8 +3981,6 @@
+ 	-rm -f lib/route/link/*.lo
+ 	-rm -f lib/route/qdisc/*.$(OBJEXT)
+ 	-rm -f lib/route/qdisc/*.lo
+-	-rm -f lib/xfrm/*.$(OBJEXT)
+-	-rm -f lib/xfrm/*.lo
+ 	-rm -f src/*.$(OBJEXT)
+ 	-rm -f src/lib/*.$(OBJEXT)
+ 	-rm -f src/lib/*.lo
+@@ -4148,12 +4132,6 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-red.Plo@am__quote@ # am--include-marker
+ @AMDEP_TRUE@@am__include@ @am__quote@lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-sfq.Plo@am__quote@ # am--include-marker
+ @AMDEP_TRUE@@am__include@ @am__quote@lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-tbf.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Plo@am__quote@ # am--include-marker
+-@AMDEP_TRUE@@am__include@ @am__quote@lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Plo@am__quote@ # am--include-marker
+ @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/genl_ctrl_list-genl-ctrl-list.Po@am__quote@ # am--include-marker
+ @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/idiag_socket_details-idiag-socket-details.Po@am__quote@ # am--include-marker
+ @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/nf_ct_add-nf-ct-add.Po@am__quote@ # am--include-marker
+@@ -5248,48 +5226,6 @@
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+ @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_route_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/route/libnl_route_3_la-tc.lo `test -f 'lib/route/tc.c' || echo '$(srcdir)/'`lib/route/tc.c
+ 
+-lib/xfrm/libnl_xfrm_3_la-ae.lo: lib/xfrm/ae.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-ae.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-ae.lo `test -f 'lib/xfrm/ae.c' || echo '$(srcdir)/'`lib/xfrm/ae.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/ae.c' object='lib/xfrm/libnl_xfrm_3_la-ae.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-ae.lo `test -f 'lib/xfrm/ae.c' || echo '$(srcdir)/'`lib/xfrm/ae.c
+-
+-lib/xfrm/libnl_xfrm_3_la-lifetime.lo: lib/xfrm/lifetime.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-lifetime.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-lifetime.lo `test -f 'lib/xfrm/lifetime.c' || echo '$(srcdir)/'`lib/xfrm/lifetime.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/lifetime.c' object='lib/xfrm/libnl_xfrm_3_la-lifetime.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-lifetime.lo `test -f 'lib/xfrm/lifetime.c' || echo '$(srcdir)/'`lib/xfrm/lifetime.c
+-
+-lib/xfrm/libnl_xfrm_3_la-sa.lo: lib/xfrm/sa.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-sa.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-sa.lo `test -f 'lib/xfrm/sa.c' || echo '$(srcdir)/'`lib/xfrm/sa.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/sa.c' object='lib/xfrm/libnl_xfrm_3_la-sa.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-sa.lo `test -f 'lib/xfrm/sa.c' || echo '$(srcdir)/'`lib/xfrm/sa.c
+-
+-lib/xfrm/libnl_xfrm_3_la-selector.lo: lib/xfrm/selector.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-selector.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-selector.lo `test -f 'lib/xfrm/selector.c' || echo '$(srcdir)/'`lib/xfrm/selector.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/selector.c' object='lib/xfrm/libnl_xfrm_3_la-selector.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-selector.lo `test -f 'lib/xfrm/selector.c' || echo '$(srcdir)/'`lib/xfrm/selector.c
+-
+-lib/xfrm/libnl_xfrm_3_la-sp.lo: lib/xfrm/sp.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-sp.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-sp.lo `test -f 'lib/xfrm/sp.c' || echo '$(srcdir)/'`lib/xfrm/sp.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/sp.c' object='lib/xfrm/libnl_xfrm_3_la-sp.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-sp.lo `test -f 'lib/xfrm/sp.c' || echo '$(srcdir)/'`lib/xfrm/sp.c
+-
+-lib/xfrm/libnl_xfrm_3_la-template.lo: lib/xfrm/template.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/xfrm/libnl_xfrm_3_la-template.lo -MD -MP -MF lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Tpo -c -o lib/xfrm/libnl_xfrm_3_la-template.lo `test -f 'lib/xfrm/template.c' || echo '$(srcdir)/'`lib/xfrm/template.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Tpo lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Plo
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='lib/xfrm/template.c' object='lib/xfrm/libnl_xfrm_3_la-template.lo' libtool=yes @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_libnl_xfrm_3_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lib/xfrm/libnl_xfrm_3_la-template.lo `test -f 'lib/xfrm/template.c' || echo '$(srcdir)/'`lib/xfrm/template.c
+-
+ lib/route/cls/libnl_grammar_la-ematch_grammar.lo: lib/route/cls/ematch_grammar.c
+ @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lib_route_libnl_grammar_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lib/route/cls/libnl_grammar_la-ematch_grammar.lo -MD -MP -MF lib/route/cls/$(DEPDIR)/libnl_grammar_la-ematch_grammar.Tpo -c -o lib/route/cls/libnl_grammar_la-ematch_grammar.lo `test -f 'lib/route/cls/ematch_grammar.c' || echo '$(srcdir)/'`lib/route/cls/ematch_grammar.c
+ @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) lib/route/cls/$(DEPDIR)/libnl_grammar_la-ematch_grammar.Tpo lib/route/cls/$(DEPDIR)/libnl_grammar_la-ematch_grammar.Plo
+@@ -6596,7 +6532,6 @@
+ 	-rm -rf lib/route/cls/ematch/.libs lib/route/cls/ematch/_libs
+ 	-rm -rf lib/route/link/.libs lib/route/link/_libs
+ 	-rm -rf lib/route/qdisc/.libs lib/route/qdisc/_libs
+-	-rm -rf lib/xfrm/.libs lib/xfrm/_libs
+ 	-rm -rf src/.libs src/_libs
+ 	-rm -rf src/lib/.libs src/lib/_libs
+ 	-rm -rf tests/.libs tests/_libs
+@@ -7469,8 +7404,6 @@
+ 	-$(am__rm_f) lib/route/link/$(am__dirstamp)
+ 	-$(am__rm_f) lib/route/qdisc/$(DEPDIR)/$(am__dirstamp)
+ 	-$(am__rm_f) lib/route/qdisc/$(am__dirstamp)
+-	-$(am__rm_f) lib/xfrm/$(DEPDIR)/$(am__dirstamp)
+-	-$(am__rm_f) lib/xfrm/$(am__dirstamp)
+ 	-$(am__rm_f) src/$(DEPDIR)/$(am__dirstamp)
+ 	-$(am__rm_f) src/$(am__dirstamp)
+ 	-$(am__rm_f) src/lib/$(DEPDIR)/$(am__dirstamp)
+@@ -7633,12 +7566,6 @@
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-red.Plo
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-sfq.Plo
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-tbf.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Plo
+ 	-rm -f src/$(DEPDIR)/genl_ctrl_list-genl-ctrl-list.Po
+ 	-rm -f src/$(DEPDIR)/idiag_socket_details-idiag-socket-details.Po
+ 	-rm -f src/$(DEPDIR)/nf_ct_add-nf-ct-add.Po
+@@ -7940,12 +7867,6 @@
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-red.Plo
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-sfq.Plo
+ 	-rm -f lib/route/qdisc/$(DEPDIR)/libnl_route_3_la-tbf.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-ae.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-lifetime.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sa.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-selector.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-sp.Plo
+-	-rm -f lib/xfrm/$(DEPDIR)/libnl_xfrm_3_la-template.Plo
+ 	-rm -f src/$(DEPDIR)/genl_ctrl_list-genl-ctrl-list.Po
+ 	-rm -f src/$(DEPDIR)/idiag_socket_details-idiag-socket-details.Po
+ 	-rm -f src/$(DEPDIR)/nf_ct_add-nf-ct-add.Po
