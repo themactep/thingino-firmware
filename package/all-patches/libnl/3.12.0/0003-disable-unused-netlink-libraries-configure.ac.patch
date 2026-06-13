@@ -1,0 +1,35 @@
+--- libnl-3.12.0/configure.ac	2025-12-04 15:38:41.000000000 -0500
++++ libnl-3.12.0-patched/configure.ac	2026-06-12 16:06:08.171304288 -0400
+@@ -109,6 +109,21 @@
+ 
+ AC_CHECK_HEADERS(dlfcn.h, [], [])
+ 
++AC_ARG_ENABLE([libnl-idiag],
++    AS_HELP_STRING([--disable-libnl-idiag], [Do not build libnl-idiag-3]),
++    [enable_libnl_idiag="$enableval"], [enable_libnl_idiag="no"])
++AM_CONDITIONAL([ENABLE_LIBNL_IDIAG], [test "$enable_libnl_idiag" != "no"])
++
++AC_ARG_ENABLE([libnl-nf],
++    AS_HELP_STRING([--disable-libnl-nf], [Do not build libnl-nf-3]),
++    [enable_libnl_nf="$enableval"], [enable_libnl_nf="no"])
++AM_CONDITIONAL([ENABLE_LIBNL_NF], [test "$enable_libnl_nf" != "no"])
++
++AC_ARG_ENABLE([libnl-xfrm],
++    AS_HELP_STRING([--disable-libnl-xfrm], [Do not build libnl-xfrm-3]),
++    [enable_libnl_xfrm="$enableval"], [enable_libnl_xfrm="no"])
++AM_CONDITIONAL([ENABLE_LIBNL_XFRM], [test "$enable_libnl_xfrm" != "no"])
++
+ AC_ARG_ENABLE([pthreads],
+ 	AS_HELP_STRING([--disable-pthreads], [Disable pthreads support]),
+ 	[enable_pthreads="$enableval"], [enable_pthreads="yes"])
+@@ -179,6 +194,9 @@
+ echo
+ echo "    --enable-debug=$enable_debug"
+ echo "    --enable-cli=$enable_cli"
++echo "    --enable-libnl-idiag=$enable_libnl_idiag"
++echo "    --enable-libnl-nf=$enable_libnl_nf"
++echo "    --enable-libnl-xfrm=$enable_libnl_xfrm"
+ echo
+ echo "    check: $has_check"
+ echo "    CXX: $CXX_MSG (only used for tests)"
+

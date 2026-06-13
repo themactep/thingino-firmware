@@ -1,0 +1,79 @@
+--- libnl-3.12.0/Makefile.am	2025-11-30 02:47:11.000000000 -0500
++++ libnl-3.12.0-patched/Makefile.am	2026-06-12 17:50:19.443841940 -0400
+@@ -27,12 +27,21 @@
+ pkgconfig_DATA = \
+ 	libnl-3.0.pc \
+ 	libnl-genl-3.0.pc \
+-	libnl-idiag-3.0.pc \
+-	libnl-nf-3.0.pc \
+ 	libnl-route-3.0.pc \
+-	libnl-xfrm-3.0.pc \
+ 	$(NULL)
+ 
++if ENABLE_LIBNL_IDIAG
++pkgconfig_DATA += libnl-idiag-3.0.pc
++endif
++
++if ENABLE_LIBNL_NF
++pkgconfig_DATA += libnl-nf-3.0.pc
++endif
++
++if ENABLE_LIBNL_XFRM
++pkgconfig_DATA += libnl-xfrm-3.0.pc
++endif
++
+ extra_cppflags = \
+ 	-std=gnu11 \
+ 	$(NULL)
+@@ -278,6 +287,7 @@
+ 	include/linux-private/linux/if_packet.h \
+ 	include/linux-private/linux/if_tunnel.h \
+ 	include/linux-private/linux/if_vlan.h \
++	include/linux-private/linux/ila.h \
+ 	include/linux-private/linux/in.h \
+ 	include/linux-private/linux/in6.h \
+ 	include/linux-private/linux/in_route.h \
+@@ -576,6 +586,7 @@
+ 
+ $(lib_libnl_route_3_la_OBJECTS): $(grammar_files_headers)
+ 
++if ENABLE_LIBNL_IDIAG
+ lib_LTLIBRARIES += lib/libnl-idiag-3.la
+ 
+ lib_libnl_idiag_3_la_SOURCES = \
+@@ -595,6 +606,7 @@
+ 	-Wl,--version-script=$(srcdir)/libnl-idiag-3.sym
+ lib_libnl_idiag_3_la_LIBADD = \
+ 	lib/libnl-3.la
++endif
+ 
+ lib_LTLIBRARIES += lib/libnl-genl-3.la
+ 
+@@ -615,6 +627,7 @@
+ lib_libnl_genl_3_la_LIBADD = \
+ 	lib/libnl-3.la
+ 
++if ENABLE_LIBNL_NF
+ lib_LTLIBRARIES += lib/libnl-nf-3.la
+ 
+ lib_libnl_nf_3_la_SOURCES = \
+@@ -644,8 +657,9 @@
+ lib_libnl_nf_3_la_LIBADD  = \
+ 	lib/libnl-3.la \
+ 	lib/libnl-route-3.la
++endif
+ 
+-lib_LTLIBRARIES += lib/libnl-xfrm-3.la
++if ENABLE_LIBNL_XFRM
+ 
+ lib_libnl_xfrm_3_la_SOURCES = \
+ 	lib/xfrm/ae.c \
+@@ -665,6 +679,7 @@
+ 	libnl-xfrm-3.sym
+ lib_libnl_xfrm_3_la_LIBADD = \
+ 	lib/libnl-3.la
++endif
+ 
+ lib_cli_ltlibraries_cls = \
+ 	lib/cli/cls/basic.la \
+
