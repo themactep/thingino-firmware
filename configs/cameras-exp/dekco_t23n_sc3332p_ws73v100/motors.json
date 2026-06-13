@@ -1,8 +1,8 @@
 {
   "motors": {
     "homing": true,
-    "invert_x": false,
-    "invert_y": false,
+    "invert_x": 0,
+    "invert_y": 0,
     "is_spi": false,
     "speed_pan": "900",
     "speed_tilt": "900",
