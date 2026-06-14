@@ -7898,3 +7898,4 @@
  echo
  echo "    check: $has_check"
  echo "    CXX: $CXX_MSG (only used for tests)"
+
