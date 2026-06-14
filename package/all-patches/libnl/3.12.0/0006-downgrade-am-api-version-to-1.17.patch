@@ -1,0 +1,5 @@
+--- a/configure
++++ b/configure
+@@ -2915 +2915 @@
+-am__api_version='1.18'
++am__api_version='1.17'
