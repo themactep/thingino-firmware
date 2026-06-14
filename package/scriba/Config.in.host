@@ -1,0 +1,8 @@
+config BR2_PACKAGE_HOST_SCRIBA
+	bool "scriba for host"
+	help
+	  Flash chip programmer CLI for CH341A and EZP2019/2023 USB programmers.
+	  Reads, writes, erases, and verifies SPI NOR, SPI NAND, and EEPROM chips.
+	  Used by 'make scriba'.
+
+	  https://github.com/themactep/scriba

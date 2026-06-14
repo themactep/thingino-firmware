@@ -3,6 +3,7 @@
 die() { echo "$1" >&2; exit 1; }
 
 PRUDYNT_CONFIG_FILE="/etc/prudynt.json"
+RAPTOR_CONFIG_FILE="/etc/raptor.conf"
 
 show_help() {
 	echo "Thingino Diagnostics Script
@@ -158,7 +159,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	header "ENV"
 	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlan_ssid|wlan_mac|wlan_pass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
-	inforun "jct /etc/thingino.json print"
+	inforun "jct /etc/thingino.json print" "thingino.json"
 
 	infocat "/proc/cmdline" "CMDLINE"
 	inforun "gpio list" "GPIO"
@@ -186,6 +187,12 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "sensor -a" "sensor"
 
+	if [ -x /usr/bin/libimp-debug ]; then
+		inforun "libimp-debug --system_info" "libimp system_info"
+		inforun "libimp-debug --fs_info" "libimp fs_info"
+		inforun "libimp-debug --enc_info" "libimp enc_info"
+	fi
+
 	inforun "ps" "PS"
 	inforun "lsof" "LSOF"
 	inforun "dmesg" "DMESG"
@@ -193,7 +200,11 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
-	sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
+	if [ -f "$RAPTOR_CONFIG_FILE" ]; then
+		sed -E 's/^(password|passphrase|share_key|tls_key|key|url) = .*/\1 = REDACTED/' "$RAPTOR_CONFIG_FILE"
+	elif [ -f "$PRUDYNT_CONFIG_FILE" ]; then
+		sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
+	fi
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 

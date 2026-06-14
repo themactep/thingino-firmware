@@ -60,12 +60,26 @@ read_body() {
 }
 
 handle_get() {
+	available_startup_indicators=$(for path in /sys/class/leds/led_*; do
+		[ -d "$path" ] || continue
+		case "${path##*/}" in
+			led_b) printf 'blue\n' ;;
+			led_g) printf 'green\n' ;;
+			led_r) printf 'red\n' ;;
+			led_v) printf 'violet\n' ;;
+			led_w) printf 'white\n' ;;
+			led_y) printf 'yellow\n' ;;
+		esac
+	done | awk 'NF && !seen[$0]++ { printf "%s%s", sep, $0; sep="," }')
 	gpio_json=$(jct "$CONFIG_FILE" get gpio 2>/dev/null || echo '{}')
+	led_json=$(jct "$CONFIG_FILE" get led 2>/dev/null || echo '{}')
 	pwm_pins=$(pwm-ctrl -l 2>/dev/null | grep '^GPIO' | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
 
 	cat <<EOF
 {
   "gpio": $gpio_json,
+  "led": $led_json,
+	"available_startup_indicators": "$(json_escape "$available_startup_indicators")",
   "pwm_pins": "$(json_escape "$pwm_pins")"
 }
 EOF
@@ -95,6 +109,22 @@ save_gpio_pin() {
 	[ -n "$lvl" ] && jct "$TMP_FILE" set "$DOMAIN.$name.pwm_level" "$lvl" >/dev/null 2>&1
 }
 
+save_startup_indicator() {
+	local color
+	color=$(jct "$REQ_FILE" get "startup_indicator" 2>/dev/null | tr -d '\r\n"')
+	case "$color" in
+		'')
+			color="off"
+			;;
+		blue | green | red | violet | white | yellow | off) ;;
+		*)
+			return
+			;;
+	esac
+
+	jct "$TMP_FILE" set "led.startup_indicator" "$color" >/dev/null 2>&1
+}
+
 handle_post() {
 	read_body
 	ensure_config
@@ -102,15 +132,10 @@ handle_post() {
 	TMP_FILE=$(mktemp /tmp/${DOMAIN}.XXXXXX)
 	echo '{}' >"$TMP_FILE"
 
-	save_gpio_pin "led_r"
-	save_gpio_pin "led_g"
-	save_gpio_pin "led_b"
-	save_gpio_pin "led_y"
-	save_gpio_pin "led_o"
-	save_gpio_pin "led_w"
 	save_gpio_pin "ir850"
 	save_gpio_pin "ir940"
 	save_gpio_pin "white"
+	save_startup_indicator
 
 	ircut_pin1=$(jct "$REQ_FILE" get "ircut_pin1" 2>/dev/null)
 	ircut_pin2=$(jct "$REQ_FILE" get "ircut_pin2" 2>/dev/null)

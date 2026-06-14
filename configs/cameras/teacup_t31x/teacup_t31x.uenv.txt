@@ -1,0 +1,1 @@
+serialport=ttyS1

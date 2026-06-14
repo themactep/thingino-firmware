@@ -4,11 +4,21 @@ NFS_MOUNT="/mnt/nfs"
 
 nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
 
+network_is_active() {
+	command -v ip >/dev/null 2>&1 || return 1
+	ip -o -4 addr show up scope global 2>/dev/null | grep -q .
+}
+
 start() {
 	echo -c 15 "Mount $NFS_MOUNT"
 
 	if [ -z "$nfs_share" ]; then
 		echo -c 240 -e "- Mount share is not set"
+		return 0
+	fi
+
+	if ! network_is_active; then
+		echo -c 240 -e "- No active network connection"
 		return 0
 	fi
 

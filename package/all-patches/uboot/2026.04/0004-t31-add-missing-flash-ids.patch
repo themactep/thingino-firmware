@@ -1,0 +1,223 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 4 Jun 2026 00:00:00 +0000
+Subject: [PATCH] spi-nor: add missing SPI NOR flash chip IDs for Thingino
+ cameras
+
+Add support for 19 SPI NOR flash chips from various vendors found on
+Thingino cameras but not currently recognised by U-Boot's spi-nor-ids
+table, which causes SPL SPI probe to fail with "unrecognized JEDEC id".
+
+New vendor Kconfig entries: ESMT, NAVIONIX, DOSEM, ZETTA, FUDANMICRO,
+XD, FREMONT.
+
+Existing vendor additions: EON (EN25QH64, EN25QX128A),
+XMC (XM25QH64B, XM25QH128B), SILICONKAISER (SK25Q128),
+PUYA (PY25Q128HA), BOYA (BY25Q128AS), ZBIT (ZB25VQ64).
+
+All 19 chips use 3-byte addressing, 64KiB sectors, 4KiB sub-sectors,
+with SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ flags.
+
+Enable all new vendor configs in T31 SFC-NOR defconfigs (lite, standard,
+ddr128M).
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mtd/spi/Kconfig                           | 42 ++++++++++++++
+ drivers/mtd/spi/spi-nor-ids.c                     | 95 ++++++++++++++++++++++++++++++
+ configs/isvp_t31_sfcnor_lite_defconfig            |  7 ++
+ configs/isvp_t31_sfcnor_defconfig                 |  7 ++
+ configs/isvp_t31_sfcnor_ddr128M_defconfig         |  7 ++
+ 5 files changed, 158 insertions(+)diff --git a/drivers/mtd/spi/Kconfig b/drivers/mtd/spi/Kconfig
+--- a/drivers/mtd/spi/Kconfig
++++ b/drivers/mtd/spi/Kconfig
+@@ -251,6 +251,41 @@
+ 	help
+ 	  Add support for Zbit Semiconductor Inc. SPI flash chips (ZB25xxx).
+ 
++config SPI_FLASH_DOSEM
++	bool "DOSEM SPI flash support"
++	help
++	  Add support for DOSEM SPI flash chips (DQ25xxx).
++
++config SPI_FLASH_ESMT
++	bool "ESMT SPI flash support"
++	help
++	  Add support for ESMT (Elite Semiconductor Memory Technology) SPI flash chips (GM25Qxxx).
++
++config SPI_FLASH_FREMONT
++	bool "Fremont Micro SPI flash support"
++	help
++	  Add support for Fremont Micro SPI flash chips (FM25xxx).
++
++config SPI_FLASH_FUDANMICRO
++	bool "FudanMicro SPI flash support"
++	help
++	  Add support for FudanMicro SPI flash chips (FM25xxx, FS25xxx).
++
++config SPI_FLASH_NAVIONIX
++	bool "Navionix SPI flash support"
++	help
++	  Add support for Navionix SPI flash chips (NM25xxx).
++
++config SPI_FLASH_XD
++	bool "XD SPI flash support"
++	help
++	  Add support for XD SPI flash chips (XD25xxx).
++
++config SPI_FLASH_ZETTA
++	bool "Zetta SPI flash support"
++	help
++	  Add support for Zetta SPI flash chips (ZD25xxx).
++
+ endif
+ 
+ config SPI_FLASH_USE_4K_SECTORS
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi-nor-ids.c
+@@ -96,6 +96,17 @@
+ 	{ INFO("en25q128b",  0x1c3018, 0, 64 * 1024,  256, 0) },
+ 	{ INFO("en25qh128",  0x1c7018, 0, 64 * 1024,  256, 0) },
+ 	{ INFO("en25s64",    0x1c3817, 0, 64 * 1024,  128, SECT_4K) },
++	{ INFO("en25qh64",   0x1c7017, 0, 64 * 1024,  128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("en25qx128a", 0x1c7118, 0, 64 * 1024,  256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_ESMT
++	/* ESMT (Elite Semiconductor Memory Technology) */
++	{ INFO("gm25q64a",  0x1c4017, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("gm25q128a", 0x1c4018, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
+ #ifdef CONFIG_SPI_FRAM_FUJITSU
+ 	/* Fujitsu MB85RS256TY */
+@@ -394,10 +405,14 @@
+ 	{ INFO
+ 	 ("py25f01glc", 0x85631b, 0, 64 * 1024, 2048,
+ 	  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++	{ INFO
++	 ("py25q128ha", 0x852018, 0, 64 * 1024, 256,
++	  SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
+ 
+ #ifdef CONFIG_SPI_FLASH_SILICONKAISER
+ 	{ INFO("sk25lp128", 0x257018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("sk25q128", 0x256018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
+ 
+ #ifdef CONFIG_SPI_FLASH_STMICRO		/* STMICRO */
+@@ -676,6 +691,8 @@
+ 	{ INFO("XM25QH512C", 0x204020, 0, 64 * 1024, 1024, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+ 	{ INFO("XM25QU512C", 0x204120, 0, 64 * 1024, 1024, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+ 	{ INFO("XM25QH01D", 0x204021, 0, 64 * 1024, 2048, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++	{ INFO("XM25QH64B", 0x206017, 0, 64 * 1024, 128, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("XM25QH128B", 0x206018, 0, 64 * 1024, 256, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
+ #ifdef CONFIG_SPI_FLASH_XTX
+ 	/* XTX Technology Limited */
+@@ -721,11 +738,51 @@
+ 	/* Boya Microelectronics */
+ 	{ INFO("by25q64as", 0x684017, 0, 64 * 1024, 128,
+ 	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("by25q128as", 0x684018, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
+ #ifdef CONFIG_SPI_FLASH_ZBIT
+ 	/* Zbit Semiconductor Inc. */
++	{ INFO("zb25vq64", 0x5e4017, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ INFO("zb25vq128", 0x5e4018, 0, 64 * 1024, 256,
+ 	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ #endif
++#ifdef CONFIG_SPI_FLASH_NAVIONIX
++	/* Navionix */
++	{ INFO("nm25q128evb", 0x522118, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("nm25q64evb", 0x522217, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_DOSEM
++	/* DOSEM */
++	{ INFO("dq25q128al", 0x546018, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_FUDANMICRO
++	/* FudanMicro */
++	{ INFO("fm25w128", 0xa12818, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("fs25q064f2tfi1", 0xa14017, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("fm25q128a", 0xa14018, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_ZETTA
++	/* Zetta */
++	{ INFO("zd25q64b", 0xba3217, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_XD
++	/* XD */
++	{ INFO("xd25q128c", 0xd84018, 0, 64 * 1024, 256,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
++#ifdef CONFIG_SPI_FLASH_FREMONT
++	/* Fremont Micro */
++	{ INFO("fm25q64", 0xf83217, 0, 64 * 1024, 128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#endif
+ 	{ },
+ };
+diff --git a/configs/isvp_t31_sfcnor_lite_defconfig b/configs/isvp_t31_sfcnor_lite_defconfig
+--- a/configs/isvp_t31_sfcnor_lite_defconfig
++++ b/configs/isvp_t31_sfcnor_lite_defconfig
+@@ -77,6 +77,13 @@
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
+ CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSEM=y
++CONFIG_SPI_FLASH_ESMT=y
++CONFIG_SPI_FLASH_FREMONT=y
++CONFIG_SPI_FLASH_FUDANMICRO=y
++CONFIG_SPI_FLASH_NAVIONIX=y
++CONFIG_SPI_FLASH_XD=y
++CONFIG_SPI_FLASH_ZETTA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y
+diff --git a/configs/isvp_t31_sfcnor_defconfig b/configs/isvp_t31_sfcnor_defconfig
+--- a/configs/isvp_t31_sfcnor_defconfig
++++ b/configs/isvp_t31_sfcnor_defconfig
+@@ -77,6 +77,13 @@
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
+ CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSEM=y
++CONFIG_SPI_FLASH_ESMT=y
++CONFIG_SPI_FLASH_FREMONT=y
++CONFIG_SPI_FLASH_FUDANMICRO=y
++CONFIG_SPI_FLASH_NAVIONIX=y
++CONFIG_SPI_FLASH_XD=y
++CONFIG_SPI_FLASH_ZETTA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y
+diff --git a/configs/isvp_t31_sfcnor_ddr128M_defconfig b/configs/isvp_t31_sfcnor_ddr128M_defconfig
+--- a/configs/isvp_t31_sfcnor_ddr128M_defconfig
++++ b/configs/isvp_t31_sfcnor_ddr128M_defconfig
+@@ -77,6 +77,13 @@
+ CONFIG_SPI_FLASH_WINBOND=y
+ CONFIG_SPI_FLASH_XMC=y
+ CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSEM=y
++CONFIG_SPI_FLASH_ESMT=y
++CONFIG_SPI_FLASH_FREMONT=y
++CONFIG_SPI_FLASH_FUDANMICRO=y
++CONFIG_SPI_FLASH_NAVIONIX=y
++CONFIG_SPI_FLASH_XD=y
++CONFIG_SPI_FLASH_ZETTA=y
+ CONFIG_SPI_FLASH_ZBIT=y
+ CONFIG_ETH_DESIGNWARE=y
+ CONFIG_ETH_DESIGNWARE_INGENIC=y
+

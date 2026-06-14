@@ -1,2 +1,6 @@
 # Platform ENV settings
 enable_updates=true
+baseaddr=0x80600000
+loadaddr=0x80600000
+baudrate=115200
+panic_timeout=2

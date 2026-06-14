@@ -4,7 +4,7 @@
 # RootFS helper
 #
 
-BOOTLOADER=$(echo $BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME | tr -d '"')
+BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAME} | tr -d '"')
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}
@@ -148,6 +148,11 @@ fi
 
 if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py" ]; then
 	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py
+fi
+
+if ! grep -q ^BR2_THINGINO_LIBSTDCPP=y $BR2_CONFIG 2>/dev/null; then
+	rm -vf ${TARGET_DIR}/lib/libstdc++.so*
+	rm -vf ${TARGET_DIR}/usr/lib/libstdc++.so*
 fi
 
 if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then

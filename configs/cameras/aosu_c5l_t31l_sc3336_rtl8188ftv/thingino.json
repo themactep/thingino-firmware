@@ -3,8 +3,6 @@
     "button_reset": 50,
     "ir940": 14,
     "ircut": "59 60",
-    "led_b": 57,
-    "led_g": 58,
     "mmc_cd": 49,
     "white": 47,
     "wlan": {

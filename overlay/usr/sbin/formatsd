@@ -30,7 +30,9 @@ format_partition() {
 
 mount_partitions() {
 	echo -c 240 -e "- Mount partition"
-	echo /sbin/mdev >/proc/sys/kernel/hotplug
+	if [ -w /proc/sys/kernel/hotplug ]; then
+		echo /sbin/mdev >/proc/sys/kernel/hotplug
+	fi
 	if ! mdev -s; then
 		echo -c 160 -e "Cannot re-mount SD card" >&2
 		exit 1
@@ -53,7 +55,9 @@ unmount_partition() {
 
 reinsert_sdcard() {
 	echo -c 240 -e "- Reinsert card"
-	echo "" >/proc/sys/kernel/hotplug
+	if [ -w /proc/sys/kernel/hotplug ]; then
+		echo "" >/proc/sys/kernel/hotplug
+	fi
 	mmc 0 -r
 	sleep 1
 	mmc 0
