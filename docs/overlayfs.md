@@ -37,7 +37,7 @@ Camera-scoped and device-scoped user overlays follow the same pattern:
 
 Please note, files from user overlay are not part of the rootfs partition, and they are not packed into
 the .tar bundle or rootfs.squahsfs files in the output images/ directory! Instead, these files end up in
-the config.jffs2 partition image.
+the data.jffs2 partition image, which serves as the overlayfs upperdir covering the full filesystem.
 
 ### Size limits
 
