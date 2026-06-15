@@ -7,9 +7,6 @@
     "mmc_cd": 48,
     "mmc_power": "47o 54o",
     "sub1g": 59,
-    "wlan": {
-      "pin": 57,
-      "active_low": false
-    }
+    "wlan": 57
   }
 }

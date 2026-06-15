@@ -4,9 +4,6 @@
     "ircut": "57 58",
     "ttl_1": 51,
     "ttl_2": 54,
-    "white": {
-      "pin": 8,
-      "pwm_channel": 1
-    }
+    "white": 8
   }
 }

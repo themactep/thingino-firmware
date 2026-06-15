@@ -10,9 +10,6 @@
     },
     "speaker": 7,
     "white": 59,
-    "wlan": {
-      "pin": 6,
-      "active_low": false
-    }
+    "wlan": 6
   }
 }

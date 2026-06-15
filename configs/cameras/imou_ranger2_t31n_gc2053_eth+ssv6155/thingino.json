@@ -8,9 +8,6 @@
       "pin": 58,
       "active_low": true
     },
-    "wlan": {
-      "pin": 8,
-      "active_low": false
-    }
+    "wlan": 8
   }
 }

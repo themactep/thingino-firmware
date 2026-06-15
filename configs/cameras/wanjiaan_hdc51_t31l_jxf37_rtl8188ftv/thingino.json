@@ -1,10 +1,7 @@
 {
   "gpio": {
     "button_reset": 54,
-    "ircut": {
-      "pin": 49,
-      "active_low": false
-    },
+    "ircut": 49,
     "lds": 7,
     "mmc_cd": 51
   }
