@@ -287,9 +287,9 @@ U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
-DATA_BIN := $(OUTPUT_DIR)/images/data.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
+DATA_BIN := $(OUTPUT_DIR)/images/data.jffs2
 
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
 

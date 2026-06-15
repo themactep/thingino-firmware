@@ -252,7 +252,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LEDS
 endef
 endif
 
-################ USB MASS STORAGE##################
+################ USB MASS STORAGE ##################
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_USB_MASS_STORAGE
@@ -381,7 +381,7 @@ endif
 endif
 endif
 
-################### AUDIO #### #########################
+################### AUDIO #############################
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DMIC),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC
@@ -389,7 +389,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC
 endef
 endif
 
-################   NETFILTER   #########################
+################### NETFILTER #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_NETFILTER),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IP_ADVANCED_ROUTER)
