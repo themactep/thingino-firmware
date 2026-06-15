@@ -36,6 +36,11 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Run Makefile.docker without triggering host-side dep_check.sh from top-level Makefile
+run_makefile_docker() {
+    WORKFLOW=1 make -f Makefile.docker "$@"
+}
+
 # Minimum memory (MiB) for podman machine VM to avoid OOM during builds
 PODMAN_MIN_MEMORY_MB=8192
 
@@ -80,7 +85,7 @@ DOCKER_TAG="latest"
 
 if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE.*$DOCKER_TAG"; then
     print_info "Building container image..."
-    make -f Makefile.docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+    run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
     print_success "Container image built"
 else
     print_info "Container image already exists"
@@ -222,15 +227,15 @@ CMD="${1:-build}"
 case "$CMD" in
     shell)
         print_info "Starting interactive shell in container..."
-        make -f Makefile.docker docker-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     menuconfig|linux-menuconfig|busybox-menuconfig)
         print_info "Running $CMD in container..."
-        make -f Makefile.docker "docker-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker "docker-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     clean)
         print_info "Running clean build in container..."
-        make -f Makefile.docker docker-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     cleanbuild)
         # Select camera
@@ -248,7 +253,7 @@ case "$CMD" in
         print_info "Running CLEAN build (distclean + fast parallel)..."
 
         # Build with selected camera using cleanbuild target
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
@@ -266,7 +271,7 @@ case "$CMD" in
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
 
         # Build with selected camera using dev target (serial build with V=1)
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     ota)
         # Select camera
@@ -284,7 +289,7 @@ case "$CMD" in
         print_info "Running ota in container..."
 
         # Build with selected camera
-        make -f Makefile.docker docker-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        run_makefile_docker docker-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -302,10 +307,10 @@ case "$CMD" in
         print_info "Building firmware in container (parallel incremental)..."
 
         # Build with selected camera (uses default 'all' target which is incremental parallel)
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     info)
-        make -f Makefile.docker docker-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     images)
         print_info "Locating built firmware images..."
@@ -317,8 +322,8 @@ case "$CMD" in
         ;;
     rebuild-image)
         print_info "Rebuilding container image..."
-        make -f Makefile.docker docker-clean CONTAINER_ENGINE="$CONTAINER_ENGINE"
-        make -f Makefile.docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-clean CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
         print_success "Container image rebuilt"
         ;;
     *)
