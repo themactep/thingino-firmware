@@ -12,9 +12,6 @@
       "pin": 48,
       "active_low": true
     },
-    "wlan": {
-      "pin": 57,
-      "active_low": false
-    }
+    "wlan": 57
   }
 }

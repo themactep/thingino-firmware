@@ -5,9 +5,6 @@
     "ir850": 59,
     "ircut": "57 58",
     "mmc_cd": 49,
-    "wlan": {
-      "pin": 10,
-      "active_low": false
-    }
+    "wlan": 10
   }
 }

@@ -3,17 +3,8 @@
     "ir940": 72,
     "ircut": "25 26",
     "mmc_cd": 59,
-    "mmc_power": {
-      "pin": 43,
-      "active_low": true
-    },
-    "usb_en": {
-      "pin": 47,
-      "active_low": false
-    },
-    "wlan": {
-      "pin": 60,
-      "active_low": false
-    }
+    "mmc_power": 43,
+    "usb_en": 47,
+    "wlan": 60
   }
 }
