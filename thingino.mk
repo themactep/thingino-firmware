@@ -596,6 +596,13 @@ else
 UBOOT_BOARD_FLASH := nor
 endif
 
+# Flash type used for U-Boot defconfig lookup
+ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+UBOOT_BOARD_FLASH := nand
+else
+UBOOT_BOARD_FLASH := nor
+endif
+
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC_NAND),y)
