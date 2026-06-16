@@ -111,11 +111,12 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - Staged `/bin/sh` scripts → formatted with **shfmt** (`shfmt -w -i 0 -ci`).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 
-## Docker
+## Container Builds
 
 ```bash
-make docker-shell    # builds image (debian:trixie) and drops into container
-make docker-build    # build image only
+./build-container.sh              # build firmware in container
+./build-container.sh shell        # drop into container shell
+make -f Makefile.container container-pull  # pull container image only
 ```
 
 Container engine auto-detects podman → docker fallback.

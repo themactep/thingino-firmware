@@ -1,6 +1,9 @@
 # Docker/Podman Build Environment
 
-This directory contains a containerized build environment for Thingino firmware, providing a reproducible build setup independent of the host operating system.
+Thingino firmware builds inside a container using a prebuilt image from
+[ghcr.io/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image).
+The image is pulled automatically on first run — no local build of the
+container image is required.
 
 ## Quick Start
 
@@ -8,7 +11,7 @@ This directory contains a containerized build environment for Thingino firmware,
 
 Install either Podman (recommended) or Docker:
 
-**Podman** (recommended - rootless):
+**Podman** (recommended — rootless):
 ```bash
 sudo apt update
 sudo apt install podman
@@ -25,17 +28,17 @@ sudo usermod -aG docker $USER
 
 ```bash
 # Build firmware (non-interactive)
-./docker-build.sh
+./build-container.sh
 
 # Or use make
-make -f Makefile.docker docker-build-firmware
+make -f Makefile.container container-build-firmware
 ```
 
 ### Interactive Development
 
 ```bash
 # Open shell in container
-./docker-build.sh shell
+./build-container.sh shell
 
 # Inside the container, run standard make commands
 make menuconfig
@@ -50,91 +53,88 @@ make
 - **UID/GID Mapping**: Preserves file permissions on host
 - **Persistent Downloads**: Buildroot download cache shared with host
 - **No Root Required**: When using Podman
+- **Prebuilt Image**: No local container image build needed
 
 ## Usage
 
-### Wrapper Script (docker-build.sh)
+### Wrapper Script (build-container.sh)
 
-The `docker-build.sh` script provides convenient access to common build tasks:
+The `build-container.sh` script provides convenient access to common build tasks:
 
 ```bash
 # Build firmware
-./docker-build.sh build
+./build-container.sh build
 
 # Run menuconfig
-./docker-build.sh menuconfig
+./build-container.sh menuconfig
 
 # Open interactive shell
-./docker-build.sh shell
+./build-container.sh shell
 
 # Clean and rebuild
-./docker-build.sh clean
+./build-container.sh cleanbuild
 
 # Run any make target
-./docker-build.sh <target>
+./build-container.sh <target>
 
 # Show configuration
-./docker-build.sh info
+./build-container.sh info
 
-# Rebuild container image
-./docker-build.sh rebuild-image
+# Pull latest container image
+./build-container.sh rebuild-image
 ```
 
-### Makefile Integration (Makefile.docker)
+### Makefile Integration (Makefile.container)
 
 Use make targets directly:
 
 ```bash
-# Build container image
-make -f Makefile.docker docker-build
+# Pull container image
+make -f Makefile.container container-pull
 
 # Build firmware in container
-make -f Makefile.docker docker-build-firmware
+make -f Makefile.container container-build-firmware
 
 # Interactive shell
-make -f Makefile.docker docker-shell
+make -f Makefile.container container-shell
 
 # Configuration menus
-make -f Makefile.docker docker-menuconfig
-make -f Makefile.docker docker-linux-menuconfig
-make -f Makefile.docker docker-busybox-menuconfig
+make -f Makefile.container container-menuconfig
+make -f Makefile.container container-linux-menuconfig
+make -f Makefile.container container-busybox-menuconfig
 
 # Clean build
-make -f Makefile.docker docker-clean-build
+make -f Makefile.container container-clean-build
 
-# Remove container image
-make -f Makefile.docker docker-clean
+# Remove cached container image
+make -f Makefile.container container-clean
 
 # Show configuration
-make -f Makefile.docker docker-info
+make -f Makefile.container container-info
 ```
 
 ### Direct Container Commands
 
-For advanced usage:
+For advanced usage, you can run the prebuilt image directly:
 
 **Podman:**
 ```bash
-# Build image
-podman build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t thingino-builder .
-
-# Run build
 podman run --rm --userns=keep-id \
-  -v $(pwd):/home/builder/build \
-  -v $HOME/dl:/home/builder/dl \
-  thingino-builder make
+  -v $(pwd):/workspace \
+  -v dl:/home/builder/dl \
+  -w /workspace \
+  ghcr.io/themactep/thingino-builder-image:latest \
+  make
 ```
 
 **Docker:**
 ```bash
-# Build image
-docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t thingino-builder .
-
-# Run build
 docker run --rm --user $(id -u):$(id -g) \
-  -v $(pwd):/home/builder/build \
-  -v $HOME/dl:/home/builder/dl \
-  thingino-builder make
+  -v $(pwd):/workspace \
+  -v dl:/home/builder/dl \
+  -w /workspace \
+  ghcr.io/themactep/thingino-builder-image:latest \
+  make
 ```
 
 ## Configuration
@@ -144,26 +144,19 @@ docker run --rm --user $(id -u):$(id -g) \
     Variable            Default         Description
     ─────────────────────────────────────────────────────────────────────
     CONTAINER_ENGINE    auto-detected   Force specific engine: podman or docker
-    DL_DIR              $HOME/dl        Buildroot download cache directory
-
-### Build Arguments (Dockerfile)
-
-    Argument     Default    Description
-    ────────────────────────────────────────────────────────────
-    USER_ID      1000       User ID for file ownership
-    GROUP_ID     1000       Group ID for file ownership
-    USERNAME     builder    Username inside container
+    DL_DIR              dl              Buildroot download cache directory
+    CONTAINER_TAG          latest          Image tag (use 'local' for air-gapped)
 
 ## Volume Mounts
 
 The container mounts two directories:
 
-1. **Workspace** (`$(pwd)` → `/home/builder/build`)
+1. **Workspace** (`$(pwd)` → `/workspace`)
    - The Thingino firmware source code
    - Build outputs are written here
    - Files owned by your host user
 
-2. **Download Cache** (`$HOME/dl` → `/home/builder/dl`)
+2. **Download Cache** (`dl/` → `/home/builder/dl`)
    - Buildroot package downloads
    - Shared across builds to save bandwidth
    - Persistent across container runs
@@ -174,18 +167,18 @@ The container mounts two directories:
 
 ```bash
 # Clone repository
-git clone https://github.com/themactep/thingino-firmware.git
+git clone --recurse-submodules https://github.com/themactep/thingino-firmware.git
 cd thingino-firmware
 
-# Build in container (image built automatically)
-./docker-build.sh build
+# Build in container (image pulled automatically)
+./build-container.sh build
 ```
 
 ### Example 2: Development Workflow
 
 ```bash
 # Start interactive shell
-./docker-build.sh shell
+./build-container.sh shell
 
 # Inside container:
 make menuconfig          # Configure
@@ -193,7 +186,7 @@ make                     # Build
 make <package>-rebuild   # Rebuild specific package
 exit
 
-# Back on host - outputs in output/images/
+# Back on host — outputs in output/images/
 ls output/images/
 ```
 
@@ -206,37 +199,30 @@ ls output/images/
 set -e
 
 # Build firmware non-interactively
-./docker-build.sh build
+CAMERA=wyze_cam_v3 ./build-container.sh build
 
 # Verify outputs
 ls -lh output/images/*.bin
-
-# Upload artifacts
-# ...
 ```
 
-### Example 4: Custom Configuration
+## Air-Gapped Builds
+
+The prebuilt image is pulled from GitHub Container Registry by default. If
+you need to build in an environment without internet access, build the
+container image locally from the
+[thingino-builder-image](https://github.com/themactep/thingino-builder-image)
+repository:
 
 ```bash
-# Configure with specific defconfig
-./docker-build.sh shell
-
-# Inside container:
-make <board>_defconfig
-make menuconfig
-make savedefconfig
-exit
-
-# Commit the defconfig
-git add configs/
-git commit -m "Update defconfig"
+git clone https://github.com/themactep/thingino-builder-image.git
+cd thingino-builder-image
+podman build -t thingino-builder-image:local .
 ```
 
-### Example 5: Clean Build
+Then point the build scripts at your local image:
 
 ```bash
-# Clean everything and rebuild
-./docker-build.sh clean
+CONTAINER_TAG=local ./build-container.sh build
 ```
 
 ## Troubleshooting
@@ -249,18 +235,18 @@ If files in `output/` are owned by wrong user:
 
 **Solution**: Rebuild image with correct IDs:
 ```bash
-./docker-build.sh rebuild-image
+./build-container.sh rebuild-image
 ```
 
 ### Container Image Not Found
 
 ```bash
-Error: thingino-builder:latest: image not found
+Error: image not found
 ```
 
-**Solution**: Build the image:
+**Solution**: Pull the image:
 ```bash
-make -f Makefile.docker docker-build
+make -f Makefile.container container-pull
 ```
 
 ### Podman/Docker Not Found
@@ -278,15 +264,7 @@ Container builds require significant space (~20GB for full build).
 **Solution**:
 - Free up space on host
 - Clean old container images: `podman system prune -a`
-- Clean buildroot cache: `rm -rf $HOME/dl/*`
-
-### Network Issues in Container
-
-Some corporate networks block container registries.
-
-**Solution**:
-- Configure proxy: Edit `Dockerfile` to add `ENV http_proxy=...`
-- Use mirror: Modify base image in `Dockerfile`
+- Clean buildroot cache: `rm -rf dl/*`
 
 ### Slow Builds
 
@@ -298,81 +276,35 @@ First build downloads and compiles everything.
 - Share download cache (`DL_DIR`)
 - Use ccache (already configured)
 
-## Advanced Usage
-
-### Custom Download Directory
-
-```bash
-# Use specific download directory
-DL_DIR=/path/to/cache ./docker-build.sh build
-```
-
-### Force Specific Engine
-
-```bash
-# Force Docker even if Podman is available
-CONTAINER_ENGINE=docker ./docker-build.sh build
-```
-
-### Multiple Configurations
-
-```bash
-# Terminal 1: Build for board A
-./docker-build.sh shell
-make boardA_defconfig && make
-
-# Terminal 2: Build for board B (different workspace)
-cd ../thingino-firmware-boardB
-./docker-build.sh shell
-make boardB_defconfig && make
-```
-
-### Updating Base Image
-
-```bash
-# Get latest Debian testing base
-./docker-build.sh rebuild-image
-
-# Or manually
-make -f Makefile.docker docker-clean
-make -f Makefile.docker docker-build
-```
-
 ## Comparison with Host Build
 
     Aspect            Container Build              Host Build
     ─────────────────────────────────────────────────────────────────────────
     Dependencies      Isolated in container        Install on host
-    Reproducibility   ✅ Same across systems       ⚠️ Depends on host
-    Setup Time        Image build once             Install packages
+    Reproducibility   Same across systems          Depends on host
+    Setup Time        Image pulled once            Install packages
     Disk Space        ~10GB (image + build)        ~8GB (build only)
     Performance       ~5% overhead                 Native speed
-    Isolation         ✅ Safe from host            ⚠️ Affects host
-    CI/CD             ✅ Ideal                     Requires setup
+    Isolation         Safe from host               Affects host
+    CI/CD             Ideal                        Requires setup
 
 ## Files
 
     File                 Description
     ───────────────────────────────────────────────────────────────────────
-    Dockerfile           Container image definition
-    Makefile.docker      Make targets for container builds
-    docker-build.sh      Convenience wrapper script
-    .dockerignore        Files excluded from container build context
+    Makefile.container      Make targets for container builds
+    build-container.sh      Convenience wrapper script
 
 ## Container Image Details
 
-**Base Image**: `debian:testing`
+**Image**: `ghcr.io/themactep/thingino-builder-image:latest`
 
-**Installed Packages**:
-- Build tools: gcc, make, cmake, autoconf, etc.
-- Buildroot dependencies: flex, bison, ncurses, etc.
-- Cross-compiler: gcc-mipsel-linux-gnu
-- Utilities: git, vim, wget, rsync, etc.
-- Python: python3 with jinja2, jsonschema, yaml
+**Base**: Ubuntu 26.04 with build dependencies pre-installed.
 
-**User**: Non-root user (builder) with matching UID/GID
+**Source**: [github.com/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image)
 
-**Working Directory**: `/home/builder/build`
+For air-gapped environments, build the image locally from the source
+repository (see Air-Gapped Builds above).
 
 ## Security Considerations
 
@@ -387,16 +319,4 @@ make -f Makefile.docker docker-build
 - [Podman Documentation](https://docs.podman.io/)
 - [Docker Documentation](https://docs.docker.com/)
 - [Thingino Firmware](https://github.com/themactep/thingino-firmware)
-
-## Contributing
-
-When modifying the container setup:
-
-1. Test with both Podman and Docker
-2. Verify UID/GID mapping works correctly
-3. Ensure non-interactive mode works
-4. Update this documentation
-
-## License
-
-Same as Thingino firmware project.
+- [Thingino Builder Image](https://github.com/themactep/thingino-builder-image)

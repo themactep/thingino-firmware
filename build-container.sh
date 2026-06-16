@@ -4,12 +4,12 @@
 # Provides non-interactive containerized build environment
 #
 # Usage:
-#   ./docker-build.sh            # Build firmware (fast parallel)
-#   ./docker-build.sh dev        # Debug build (slow serial, stops at errors)
-#   ./docker-build.sh menuconfig # Run menuconfig in container
-#   ./docker-build.sh shell      # Open interactive shell
-#   ./docker-build.sh clean      # Clean build in container
-#   ./docker-build.sh ota        # Upgrade firmware OTA
+#   ./build-container.sh            # Build firmware (fast parallel)
+#   ./build-container.sh dev        # Debug build (slow serial, stops at errors)
+#   ./build-container.sh menuconfig # Run menuconfig in container
+#   ./build-container.sh shell      # Open interactive shell
+#   ./build-container.sh clean      # Clean build in container
+#   ./build-container.sh ota        # Upgrade firmware OTA
 #
 
 set -e
@@ -36,9 +36,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Run Makefile.docker without triggering host-side dep_check.sh from top-level Makefile
-run_makefile_docker() {
-    WORKFLOW=1 make -f Makefile.docker "$@"
+# Run Makefile.container without triggering host-side dep_check.sh from top-level Makefile
+run_makefile_container() {
+    WORKFLOW=1 make -f Makefile.container "$@"
 }
 
 # Minimum memory (MiB) for podman machine VM to avoid OOM during builds
@@ -80,12 +80,12 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
 fi
 
 # Pull image if needed
-DOCKER_IMAGE="ghcr.io/themactep/thingino-builder-image"
-DOCKER_TAG="latest"
+CONTAINER_IMAGE="ghcr.io/themactep/thingino-builder-image"
+CONTAINER_TAG="latest"
 
-if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE"; then
+if ! $CONTAINER_ENGINE images | grep -q "$CONTAINER_IMAGE"; then
     print_info "Pulling container image..."
-    run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+    run_makefile_container container-pull CONTAINER_ENGINE="$CONTAINER_ENGINE"
     print_success "Container image pulled"
 else
     print_info "Container image already exists"
@@ -227,15 +227,15 @@ CMD="${1:-build}"
 case "$CMD" in
     shell)
         print_info "Starting interactive shell in container..."
-        run_makefile_docker docker-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     menuconfig|linux-menuconfig|busybox-menuconfig)
         print_info "Running $CMD in container..."
-        run_makefile_docker "docker-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container "container-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     clean)
         print_info "Running clean build in container..."
-        run_makefile_docker docker-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     cleanbuild)
         # Select camera
@@ -253,7 +253,7 @@ case "$CMD" in
         print_info "Running CLEAN build (distclean + fast parallel)..."
 
         # Build with selected camera using cleanbuild target
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
@@ -271,7 +271,7 @@ case "$CMD" in
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
 
         # Build with selected camera using dev target (serial build with V=1)
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     ota)
         # Select camera
@@ -289,7 +289,7 @@ case "$CMD" in
         print_info "Running ota in container..."
 
         # Build with selected camera
-        run_makefile_docker docker-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        run_makefile_container container-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -307,10 +307,10 @@ case "$CMD" in
         print_info "Building firmware in container (parallel incremental)..."
 
         # Build with selected camera (uses default 'all' target which is incremental parallel)
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     info)
-        run_makefile_docker docker-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     images)
         print_info "Locating built firmware images..."
@@ -322,22 +322,22 @@ case "$CMD" in
         ;;
     rebuild-image)
         print_info "Pulling latest container image..."
-        run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-pull CONTAINER_ENGINE="$CONTAINER_ENGINE"
         print_success "Container image updated"
         ;;
     *)
         cat << 'EOF' >&2
 Unknown command. Available commands:
 
-  ./docker-build.sh                Build firmware (parallel incremental)
-  ./docker-build.sh cleanbuild     Clean + build from scratch (parallel)
-  ./docker-build.sh dev            Debug build (serial incremental, V=1, stops at errors)
-  ./docker-build.sh shell          Interactive shell in container
-  ./docker-build.sh menuconfig     Configure build options
-  ./docker-build.sh clean          Clean build artifacts
-  ./docker-build.sh info           Show container configuration
-  ./docker-build.sh rebuild-image  Pull latest container image
-  ./docker-build.sh ota            Upgrade firmware OTA (requires IP=x.x.x.x)
+  ./build-container.sh                Build firmware (parallel incremental)
+  ./build-container.sh cleanbuild     Clean + build from scratch (parallel)
+  ./build-container.sh dev            Debug build (serial incremental, V=1, stops at errors)
+  ./build-container.sh shell          Interactive shell in container
+  ./build-container.sh menuconfig     Configure build options
+  ./build-container.sh clean          Clean build artifacts
+  ./build-container.sh info           Show container configuration
+  ./build-container.sh rebuild-image  Pull latest container image
+  ./build-container.sh ota            Upgrade firmware OTA (requires IP=x.x.x.x)
 
 EOF
         exit 1

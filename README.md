@@ -48,6 +48,20 @@ make
 
 Read [Building from sources][7] article for more info.
 
+### Building in a Container
+
+```
+git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
+cd thingino-firmware
+./build-container.sh
+```
+
+The build uses a prebuilt image from
+[ghcr.io/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image),
+pulled automatically on first run. Requires Podman or Docker.
+
+Read [Building in a container](docs/container.md) for more info.
+
 ### Documentation
 
 - [Firmware Image Structure](docs/firmware-image-structure.md) - Partition layout and image assembly

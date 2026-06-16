@@ -1,0 +1,120 @@
+# Podman/Docker build configuration — uses prebuilt GHCR image
+CONTAINER_IMAGE := ghcr.io/themactep/thingino-builder-image
+CONTAINER_TAG := latest
+SHELL := /bin/bash
+CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+USER_ID := $(shell id -u)
+GROUP_ID := $(shell id -g)
+DL_DIR := dl
+
+# Directories
+WORKSPACE_DIR := $(shell pwd)
+
+# Container run command
+ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
+	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --userns=keep-id
+else
+	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --user $(USER_ID):$(GROUP_ID) --network=host
+endif
+
+CONTAINER_RUN_OPTS := \
+	-v $(WORKSPACE_DIR):/workspace \
+	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/builder/dl \
+	-v $(shell readlink -f overrides):/overrides \
+	-w /workspace \
+	-e TERM=xterm-256color
+
+# Workaround: prebuilt image ships uutils install which breaks Buildroot dep check.
+# Switch to GNU install on every container invocation.
+CONTAINER_PREBUILD := sudo update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100 2>/dev/null && true &&
+
+# Interactive container
+CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS)
+
+# Non-interactive container (with -i to receive signals, but no -t for non-TTY)
+CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS)
+
+.PHONY: container-pull
+container-pull:
+	@if ! $(CONTAINER_ENGINE) images | grep -q "$(CONTAINER_IMAGE)"; then \
+		echo "Pulling container image: $(CONTAINER_IMAGE):$(CONTAINER_TAG)"; \
+		$(CONTAINER_ENGINE) pull $(CONTAINER_IMAGE):$(CONTAINER_TAG); \
+	else \
+		echo "Container image $(CONTAINER_IMAGE):$(CONTAINER_TAG) already present"; \
+	fi
+
+.PHONY: container-shell
+container-shell: container-pull
+	@echo "Starting interactive shell in container..."
+	$(CONTAINER_RUN_INTERACTIVE) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) exec /bin/bash"
+
+.PHONY: container-make
+container-make: container-pull
+	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
+	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
+	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS) in container..."
+	@echo '#!/bin/bash' > /tmp/container-make-run.sh
+	@echo 'cleanup() {' >> /tmp/container-make-run.sh
+	@echo '    echo' >> /tmp/container-make-run.sh
+	@echo '    echo "Interrupted! Stopping container..."' >> /tmp/container-make-run.sh
+	@echo '    $(CONTAINER_ENGINE) stop -t 2 $$($(CONTAINER_ENGINE) ps -q --filter ancestor=$(CONTAINER_IMAGE):$(CONTAINER_TAG)) 2>/dev/null || true' >> /tmp/container-make-run.sh
+	@echo '    exit 130' >> /tmp/container-make-run.sh
+	@echo '}' >> /tmp/container-make-run.sh
+	@echo 'trap cleanup INT TERM' >> /tmp/container-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS)" &' >> /tmp/container-make-run.sh
+	@echo 'wait $$!' >> /tmp/container-make-run.sh
+	@chmod +x /tmp/container-make-run.sh
+	@/tmp/container-make-run.sh
+
+.PHONY: container-clean
+container-clean:
+	@echo "Removing container image..."
+	@echo "Stopping and removing containers using $(CONTAINER_IMAGE):$(CONTAINER_TAG)..."
+	@$(CONTAINER_ENGINE) ps -a --filter ancestor=$(CONTAINER_IMAGE):$(CONTAINER_TAG) -q | xargs -r $(CONTAINER_ENGINE) rm -f 2>/dev/null || true
+	$(CONTAINER_ENGINE) rmi $(CONTAINER_IMAGE):$(CONTAINER_TAG) || true
+
+.PHONY: container-info
+container-info:
+	@echo "Container Configuration:"
+	@echo "  Engine:     $(CONTAINER_ENGINE)"
+	@echo "  Image:      $(CONTAINER_IMAGE):$(CONTAINER_TAG)"
+	@echo "  User ID:    $(USER_ID)"
+	@echo "  Group ID:   $(GROUP_ID)"
+	@echo "  Workspace:  $(WORKSPACE_DIR)"
+	@echo "  Downloads:  $(DL_DIR)"
+
+# Convenience targets for building in container
+.PHONY: container-build-firmware
+container-build-firmware: container-pull
+	$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make"
+
+.PHONY: container-dev
+container-dev: container-pull
+	$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make dev"
+
+.PHONY: container-menuconfig
+container-menuconfig: container-pull
+	$(CONTAINER_RUN_INTERACTIVE) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make menuconfig"
+
+.PHONY: container-linux-menuconfig
+container-linux-menuconfig: container-pull
+	$(CONTAINER_RUN_INTERACTIVE) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make linux-menuconfig"
+
+.PHONY: container-busybox-menuconfig
+container-busybox-menuconfig: container-pull
+	$(CONTAINER_RUN_INTERACTIVE) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make busybox-menuconfig"
+
+.PHONY: container-clean-build
+container-clean-build: container-pull
+	$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make distclean && make"
+
+.PHONY: container-ota
+container-ota: container-pull
+	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
+	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
+	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
+	$(CONTAINER_RUN_INTERACTIVE) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make ota $(IP_ARG) $(CAMERA_ARG) $(GROUP_ARG)"
+
+# Allow make targets to be passed through to container
+%:
+	@:

@@ -6,7 +6,8 @@ This directory contains documentation for Thingino's Buildroot external tree.
 
 ### Docker/Podman Build Environment
 
-Containerized build environment for reproducible builds across all systems.
+Containerized build environment using a prebuilt image from
+[ghcr.io/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image).
 
 - **[Docker Build Environment](docker-build-environment.md)** - Complete guide to building in containers
 - **[Docker Quick Reference](docker-quick-reference.md)** - Quick command reference for container builds
@@ -40,7 +41,7 @@ Tools and workflows for managing local package source code overrides during deve
 
 ### Scripts
 
-- **Container build**: `docker-build.sh`
+- **Container build**: `build-container.sh`
 - **Package overrides**: `scripts/manage-package-overrides.sh`
 
 ## See Also

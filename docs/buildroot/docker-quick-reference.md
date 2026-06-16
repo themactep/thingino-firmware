@@ -5,7 +5,7 @@ Quick reference for building Thingino firmware in containers.
 ## One-Command Build
 
 ```bash
-./docker-build.sh
+./build-container.sh
 ```
 
 Then select a camera using **fzf** (fuzzy finder):
@@ -19,22 +19,25 @@ If fzf is not installed, falls back to whiptail/dialog menu.
 
 ```bash
 # Build firmware (fast parallel)
-./docker-build.sh
+./build-container.sh
 
 # Debug build (slow serial, stops at first error)
-./docker-build.sh dev
+./build-container.sh dev
 
 # Interactive shell
-./docker-build.sh shell
+./build-container.sh shell
 
 # Configuration
-./docker-build.sh menuconfig
+./build-container.sh menuconfig
 
 # Clean build
-./docker-build.sh clean
+./build-container.sh cleanbuild
 
 # Show info
-./docker-build.sh info
+./build-container.sh info
+
+# Pull latest container image
+./build-container.sh rebuild-image
 ```
 
 ## First Time Setup
@@ -46,34 +49,40 @@ sudo apt update && sudo apt install podman
 # Install fzf for better camera selection (optional but recommended)
 sudo apt install fzf
 
-# Build firmware
-./docker-build.sh
+# Build firmware (image pulled automatically)
+./build-container.sh
 ```
 
 Select your camera using fzf (type to filter) or menu navigation.
 
 ## File Locations
 
-- **Dockerfile**: `Dockerfile`
-- **Make include**: `Makefile.docker`
-- **Wrapper script**: `docker-build.sh`
-- **Build outputs**: `output/images/`
-- **Download cache**: `$HOME/dl/`
+- **Make include**: `Makefile.container`
+- **Wrapper script**: `build-container.sh`
+- **Build outputs**: `output/<branch>/<camera>/images/`
+- **Download cache**: `dl/`
+
+## Container Image
+
+The build uses a prebuilt image from
+[ghcr.io/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image).
+It is pulled automatically on first run.
+
+For air-gapped builds, build locally from the
+[thingino-builder-image](https://github.com/themactep/thingino-builder-image)
+repo and use `CONTAINER_TAG=local`.
 
 ## Troubleshooting
 
 ```bash
 # Build crashed? Run debug build to find the error
-./docker-build.sh dev
+./build-container.sh dev
 
-# Rebuild container image
-./docker-build.sh rebuild-image
+# Pull latest container image
+./build-container.sh rebuild-image
 
 # Check configuration
-./docker-build.sh info
-
-# Permission issues - rebuild with correct UID
-./docker-build.sh rebuild-image
+./build-container.sh info
 ```
 
 ### When Build Crashes
@@ -81,7 +90,7 @@ Select your camera using fzf (type to filter) or menu navigation.
 If your fast parallel build crashes, rerun with `dev` mode:
 
 ```bash
-./docker-build.sh dev
+./build-container.sh dev
 ```
 
 This uses serial compilation which:
