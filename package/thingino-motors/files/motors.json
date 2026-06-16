@@ -1,6 +1,7 @@
 {
   "motors": {
     "motion_driver": "legacy",
+    "gpio_focus": -1,
     "gpio_invert": false,
     "gpio_pan": "",
     "gpio_switch": false,
