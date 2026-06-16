@@ -288,7 +288,7 @@ jobs:
         if: steps.dl-cache.outputs.cache-hit != 'true'
         run: |
           echo "DL cache miss - downloading all Buildroot sources..."
-          make source WORKFLOW=1
+          BOARD= make source WORKFLOW=1
           echo "Source download complete"
           echo "Files in dl cache:"
           find ~/dl -type f | wc -l
