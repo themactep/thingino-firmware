@@ -330,6 +330,13 @@ jobs:
       - name: Use GNU coreutils install (workaround for uutils bug)
         run: update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100 || true
 
+      - name: Install 7zip (fallback until image is rebuilt)
+        run: |
+          if ! command -v 7z &>/dev/null; then
+            echo "7z not found - installing p7zip-full..."
+            apt-get update && apt-get install -y --no-install-recommends p7zip-full
+          fi
+
       - name: Checkout repository source
         uses: actions/checkout@v5
         with:
