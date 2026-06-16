@@ -58,7 +58,7 @@ env:
 
 jobs:
   check-updates:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
@@ -106,7 +106,7 @@ jobs:
           fi
 
   notify-no-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'false'
     steps:
@@ -116,7 +116,7 @@ jobs:
           echo "Skipping scheduled build. Manual runs always build."
 
   prepare-release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -162,7 +162,7 @@ jobs:
           fi
 
   notify-begin:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: prepare-release
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -200,7 +200,7 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -249,7 +249,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin, prepare-release]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     outputs:
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -503,7 +503,7 @@ jobs:
 
   finalize-release:
     needs: [buildroot, prepare-release, check-updates]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
       - name: Set timezone
@@ -584,7 +584,7 @@ jobs:
 
   notify-completion:
     needs: [finalize-release, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
       - name: Set timezone
