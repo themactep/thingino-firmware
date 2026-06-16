@@ -204,6 +204,7 @@ jobs:
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      dl_key: ${{ steps.dl_key.outputs.dl_key }}
     steps:
       - name: Set timezone
         run: |
@@ -245,9 +246,58 @@ jobs:
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
 
+      - name: Compute dl cache key
+        id: dl_key
+        run: |
+          KEY=$(git ls-tree HEAD buildroot | awk '{print $3}' | head -c 16)
+          echo "dl_key=dl-cache-${KEY}" >> $GITHUB_OUTPUT
+          echo "DL cache key: dl-cache-${KEY} (Buildroot commit: $(git ls-tree HEAD buildroot | awk '{print $3}'))"
+
+  prefetch-dl:
+    name: Prefetch buildroot sources
+    needs: [generate-matrix, check-updates]
+    if: needs.check-updates.outputs.should_build == 'true'
+    runs-on: ubuntu-26.04
+    container:
+      image: ghcr.io/themactep/thingino-builder-image:latest
+      options: --user root
+    steps:
+      - name: Setup gh workspace to container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout repository source
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: "0"
+
+      - name: Setup dl directory
+        run: mkdir -p ~/dl
+
+      - name: Restore dl cache
+        id: dl-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/dl
+          key: ${{ needs.generate-matrix.outputs.dl_key }}
+          restore-keys: |
+            dl-cache-
+
+      - name: Download buildroot sources
+        if: steps.dl-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "DL cache miss - downloading all Buildroot sources..."
+          make source WORKFLOW=1
+          echo "Source download complete"
+          echo "Files in dl cache:"
+          find ~/dl -type f | wc -l
+          echo "Size of dl cache:"
+          du -sh ~/dl/
+
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: [generate-matrix, notify-begin, prepare-release]
+    needs: [generate-matrix, notify-begin, prepare-release, prefetch-dl]
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     outputs:
@@ -265,6 +315,17 @@ jobs:
     steps:
       - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install GitHub CLI (fallback until image is rebuilt)
+        run: |
+          if ! command -v gh &>/dev/null; then
+            echo "gh not found - installing..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+              | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+              | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            apt-get update && apt-get install -y --no-install-recommends gh
+          fi
 
       - name: Use GNU coreutils install (workaround for uutils bug)
         run: update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100 || true
@@ -303,7 +364,7 @@ jobs:
           mkdir -p ~/.ccache
           mkdir -p ~/dl
 
-      - name: Restore build cache
+      - name: Restore ccache
         uses: actions/cache@v5
         if: always()
         with:
@@ -313,78 +374,13 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
 
-      - name: Fetch buildroot-dl-cache release
-        id: find_release
-        run: |
-          REPO="${{ github.repository }}"
-          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
-            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
-          fi
-          if [ -n "$RELEASE_TAG" ]; then
-            echo "Found release with tag: $RELEASE_TAG"
-            echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
-            echo "release_found=true" >> $GITHUB_OUTPUT
-          else
-            echo "Warning: Could not find appropriate release, continuing without cache"
-            echo "release_found=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Download buildroot-dl-cache files
-        id: download_cache
-        if: steps.find_release.outputs.release_found == 'true'
-        run: |
-          REPO="${{ github.repository }}"
-          RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
-          mkdir -p /tmp/dl-cache
-          echo "Downloading files from release with tag: $RELEASE_TAG"
-          set +e
-          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
-          DOWNLOAD_EXIT_CODE=$?
-          set -e
-          if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
-            echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
-            echo "download_succeeded=false" >> $GITHUB_OUTPUT
-          elif [ ! "$(ls -A /tmp/dl-cache/)" ]; then
-            echo "Warning: Download directory is empty, no files were downloaded."
-            echo "download_succeeded=false" >> $GITHUB_OUTPUT
-          else
-            echo "Download successful!"
-            echo "download_succeeded=true" >> $GITHUB_OUTPUT
-          fi
-          echo "Downloaded files:"
-          ls -la /tmp/dl-cache/ || echo "No files found."
-
-      - name: Extract buildroot-dl-cache
-        if: steps.download_cache.outputs.download_succeeded == 'true'
-        run: |
-          if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
-            echo "Extracting split ZIP files..."
-            cd ~
-            7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y
-          else
-            echo "Extracting single ZIP file..."
-            cd ~
-            7z x /tmp/dl-cache/buildroot-dl-cache.zip -y
-          fi
-          if [ -d ~/dl/dl ]; then
-            echo "Moving files from ~/dl/dl to ~/dl"
-            mv ~/dl/dl/* ~/dl/
-            rm -rf ~/dl/dl
-          fi
-          echo "Verifying extraction:"
-          ls -la ~/dl/
-          echo "Number of files in ~/dl:"
-          find ~/dl -type f | wc -l
-          echo "DL cache restored successfully"
-
-      - name: Download buildroot sources if cache missing
-        if: steps.find_release.outputs.release_found != 'true' || steps.download_cache.outputs.download_succeeded != 'true'
-        run: |
-          echo "Buildroot DL cache not available, downloading sources..."
-          BOARD=${{ matrix.thingino-version }} make source WORKFLOW=1
-          echo "Source download completed"
+      - name: Restore dl cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/dl
+          key: ${{ needs.generate-matrix.outputs.dl_key }}
+          restore-keys: |
+            dl-cache-
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
