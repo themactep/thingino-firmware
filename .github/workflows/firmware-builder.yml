@@ -258,6 +258,7 @@ jobs:
         shell: bash
     container:
       image: ghcr.io/themactep/thingino-builder-image:latest
+      options: --user root
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
