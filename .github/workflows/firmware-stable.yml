@@ -1,7 +1,7 @@
 name: firmware-stable
 on:
-  schedule:
-    - cron:  '30 8 * * 1'
+#  schedule:
+#    - cron:  '30 8 * * 1'
   workflow_dispatch:
     inputs:
       branch:
@@ -11,6 +11,8 @@ on:
         default: 'stable'
         options:
           - stable
+          - ciao
+          - figata
           - master
       tg_disabled:
         type: boolean
