@@ -9,7 +9,7 @@
 #   ./docker-build.sh menuconfig # Run menuconfig in container
 #   ./docker-build.sh shell      # Open interactive shell
 #   ./docker-build.sh clean      # Clean build in container
-#   ./docker-build.sh ota # Upgrade firmware OTA
+#   ./docker-build.sh ota        # Upgrade firmware OTA
 #
 
 set -e

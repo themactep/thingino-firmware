@@ -69,6 +69,24 @@ get_bool_or_default() {
 	bool_flag "$raw" "$default"
 }
 
+dt_u32() {
+	local prop="$1" path="/proc/device-tree/thingino_ir/$prop" bytes
+	[ -r "$path" ] || return 1
+	bytes=$(od -An -N4 -tx1 "$path" 2>/dev/null | tr -d ' \n')
+	[ "${#bytes}" -eq 8 ] || return 1
+	printf '%d\n' "$((16#$bytes))"
+}
+
+load_ircut_dt_config() {
+	local active pin
+
+	active=$(dt_u32 ircut-pin1-active-low 2>/dev/null || echo 0)
+	pin=$(dt_u32 ircut-pin1 2>/dev/null) && register_pin "$pin" "$active"
+
+	active=$(dt_u32 ircut-pin2-active-low 2>/dev/null || echo 0)
+	pin=$(dt_u32 ircut-pin2 2>/dev/null) && register_pin "$pin" "$active"
+}
+
 register_pin() {
 	local pin="$1" active_low="${2:-0}"
 	[ "$ircut_disabled" -eq 0 ] || return 0
@@ -178,6 +196,9 @@ load_ircut_config() {
 	if [ -n "$JCT_BIN" ] && [ -r "$CONFIG_JSON" ] && jct_has "$CONFIG_ROOT"; then
 		default_active=$(get_bool_or_default "$CONFIG_ROOT.active_low" 0)
 		extract_node "$CONFIG_ROOT" "$default_active"
+	fi
+	if [ "$pin_count" -eq 0 ] && [ "$ircut_disabled" -eq 0 ]; then
+		load_ircut_dt_config
 	fi
 	if [ "$pin_count" -eq 0 ] && [ "$ircut_disabled" -eq 0 ] && [ -n "$gpio_ircut" ]; then
 		echo -c 240 -e "- Falling back to gpio_ircut environment override"

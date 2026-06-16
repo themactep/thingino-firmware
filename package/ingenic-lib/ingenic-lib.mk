@@ -93,6 +93,10 @@ define INGENIC_LIB_INSTALL_STAGING_CMDS
 		$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_core.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_imgproc.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_merge.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_video.so \
 	)
 endef
 
@@ -125,6 +129,10 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 		$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
 			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_core.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_imgproc.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_merge.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/MXU/$(SDK_LIBC_NAME)/libmxu_video.so \
 	)
 endef
 

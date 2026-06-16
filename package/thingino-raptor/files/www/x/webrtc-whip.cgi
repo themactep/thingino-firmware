@@ -2,7 +2,6 @@
 
 set -eu
 
-RAPTOR_CONF="/etc/raptor.conf"
 BACKEND_BASE="https://127.0.0.1:8554"
 
 send_json() {
@@ -38,8 +37,7 @@ json_escape() {
 
 get_webrtc_value() {
 	key="$1"
-	sed -n '/^\[webrtc\]/,/^\[/p' "$RAPTOR_CONF" 2>/dev/null |
-		grep "^${key}[[:space:]]*=" | head -1 | cut -d= -f2- | tr -d ' \t\r\n'
+	raptorctl config get webrtc "$key" 2>/dev/null | tr -d ' \t\r\n'
 }
 
 qs_get() {

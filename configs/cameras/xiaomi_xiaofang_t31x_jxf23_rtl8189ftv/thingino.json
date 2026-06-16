@@ -3,14 +3,6 @@
     "button_reset": 51,
     "ir940": 49,
     "ircut": "52 53",
-    "led_b": {
-      "pin": 39,
-      "active_low": true
-    },
-    "led_r": {
-      "pin": 38,
-      "active_low": true
-    },
     "mmc_cd": 59,
     "mmc_power": {
       "pin": 48,
@@ -20,13 +12,7 @@
       "pin": 48,
       "active_low": true
     },
-    "usb_en": {
-      "pin": 47,
-      "active_low": false
-    },
-    "wlan": {
-      "pin": 57,
-      "active_low": false
-    }
+    "usb_en": 47,
+    "wlan": 57
   }
 }

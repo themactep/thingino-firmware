@@ -1,10 +1,8 @@
-menu "SSV6X5X"
-
 config BR2_PACKAGE_WIFI_SSV6X5X
 	select BR2_LINUX_KERNEL
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
-	bool "Enable SSV6X5X WiFi support"
+	bool "SSV6X5X Family"
 	default n
 	help
 	  Enable support for SSV6X5X USB based WiFi chips. You must select a specific chip model.
@@ -64,5 +62,3 @@ config BR2_PACKAGE_WIFI_SSV6X5X_SV6358
 endchoice
 
 endif
-
-endmenu

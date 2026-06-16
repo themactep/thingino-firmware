@@ -29,7 +29,7 @@ is_user_modified_hostname() {
 	fi
 
 	if echo "$hostname" | grep -i -q "^$(default_hostname)-[0-9a-f]\{4\}$"; then
-		echo -c 142 -e "Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed" >&2
+		echo -c 142 -e "Hostname $hostname is auto-generated and should be regenerated" >&2
 		return 1
 	fi
 
@@ -72,8 +72,13 @@ set_hostname() {
 }
 
 generate() {
-	local wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
-	local generated_hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
+	local unique_id
+	unique_id=$(command -v soc >/dev/null 2>&1 && soc -s 2>/dev/null)
+	[ -n "$unique_id" ] || unique_id=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac 2>/dev/null)
+	[ -n "$unique_id" ] || unique_id=$(fw_printenv -n ethaddr 2>/dev/null)
+	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/eth0/address 2>/dev/null | tr -d ':')
+	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/wlan0/address 2>/dev/null | tr -d ':')
+	local generated_hostname="$(default_hostname)-$(echo $unique_id | sed -E 's/://g;s/.*(.{4})$/\1/')"
 
 	echo -c 240 -e "- Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"

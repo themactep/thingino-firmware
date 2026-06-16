@@ -4,20 +4,9 @@
     "chime": 7,
     "ir940": 60,
     "ircut": "50 49",
-    "led_b": {
-      "pin": 39,
-      "active_low": false
-    },
-    "led_y": {
-      "pin": 38,
-      "active_low": false
-    },
     "mmc_cd": 48,
     "mmc_power": "47o 54o",
     "sub1g": 59,
-    "wlan": {
-      "pin": 57,
-      "active_low": false
-    }
+    "wlan": 57
   }
 }

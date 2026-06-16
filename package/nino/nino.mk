@@ -2,7 +2,7 @@
 # nino
 ################################################################################
 
-NINO_VERSION = adf76f94d30857e85e423635d502d6e5c43aed87
+NINO_VERSION = eec220383404129b4ca089d182fbdcfb73dac5cb
 NINO_SITE = https://github.com/evanlin96069/nino
 NINO_SITE_METHOD = git
 

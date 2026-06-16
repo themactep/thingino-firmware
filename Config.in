@@ -1,9 +1,9 @@
 menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
 
 config BR2_THINGINO_TOOLCHAIN
 	bool
@@ -69,15 +69,15 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	default y if !BR2_THINGINO_TOOLCHAIN
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
-	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB if BR2_THINGINO_DEV_CAMERA || BR2_THINGINO_AUDIO
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
 	select BR2_PACKAGE_THINGINO_CORE
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_LIBCURL
-	select BR2_PACKAGE_THINGINO_ONVIF if BR2_PACKAGE_PRUDYNT_T || BR2_PACKAGE_THINGINO_RAPTOR
-	select BR2_PACKAGE_THINGINO_UBOOT
+	select BR2_PACKAGE_THINGINO_ONVIF if (BR2_PACKAGE_PRUDYNT_T || BR2_PACKAGE_THINGINO_RAPTOR) && BR2_THINGINO_DEV_IPCAM
+	select BR2_TARGET_UBOOT
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_UBOOT_TOOLS
 	# buildroot package configuration
@@ -100,57 +100,64 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_SYSTEM_PACKAGES
+
+config BR2_THINGINO_LIBSTDCPP
+	bool "Install libstdc++ on target"
+	default n
+	help
+	  Install libstdc++.so on the device. Required by packages
+	  that use C++ shared libraries (e.g. libsrt).
+	  Most devices do not need this.
+
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-lib/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/magik-models/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-musl/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libaudioprocess-neo/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-system-libs-neo/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/open-tx-isp/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-system-libs-neo/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-uclibc/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libaudioprocess-neo/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/magik-models/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/open-tx-isp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/openimp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/subzeroclaw/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/telegrambot/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-core/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libubox/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ustream-ssl/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-odhcp6c/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluetooth/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluez/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-core/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-daynightd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-diag/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-dusk2dawn/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-gpio/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ledd/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libble/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libubox/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mmc/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mxml/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-motors/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mxml/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-nimble/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-odhcp6c/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-provision/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-prusa-connect/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ubus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
-
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ssl/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ubus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ustream-ssl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -163,47 +170,47 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_STREAMER_PACKAGES
+source "$BR2_EXTERNAL_THINGINO_PATH/package/compy/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/faac/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-aac/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libflac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc-mini/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-streamer/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/compy/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libflac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-aac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libimp-debug/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-logo/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-logo/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-privacy-lite/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-streamer/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 endif
 
 menu "Extra Packages"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
-
+source "$BR2_EXTERNAL_THINGINO_PATH/package/aw87xxx/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonpath/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libsrt/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/llhttp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/nino/Config.in"
-
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-esphome/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-agent/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-esphome/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libwebsockets/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-20x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-212/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/llhttp/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
 
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
@@ -213,7 +220,7 @@ config BR2_PACKAGE_SSHPASS
 endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
-	bool "Development Packages"
+	bool "Development Options / Packages"
 	select BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Thingino Development Packages
@@ -221,11 +228,25 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_DEV_PACKAGES
+
 config BR2_THINGINO_NFS
 	string "NFS Mount Point"
 	default "/nfs"
 	help
 	  NFS mount point for debug builds and development tools
+
+config BR2_THINGINO_DEV_EXPERIMENTAL
+	bool "Enable experimental items in menuconfig"
+	help
+	  Enables experimental options hidden in menuconfig.
+	  These features may be unstable, have unexpected behavior, or be non-functional.
+	  For developers only.
+
+source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"
 
 config BR2_THINGINO_TOOLCHAIN_BUILD
 	bool "Enable Toolchain Build"
@@ -251,6 +272,11 @@ config BR2_PACKAGE_SELECT_LTRACE
 comment "WARNING: ltrace is unsupported on musl; selection will not build ltrace"
 	depends on BR2_TOOLCHAIN_USES_MUSL && BR2_PACKAGE_SELECT_LTRACE
 
+config BR2_THINGINO_SINFO
+	bool "sinfo"
+	help
+	  A useful diagnostic kernel module for detecting I2C based sensors
+
 config BR2_PACKAGE_SELECT_STRACE
 	bool "strace"
 	select BR2_PACKAGE_STRACE
@@ -265,11 +291,6 @@ config BR2_PACKAGE_SELECT_TCPDUMP
 	help
 	  Select tcpdump package from Buildroot.
 
-config BR2_THINGINO_SINFO
-	bool "sinfo"
-	help
-	  A useful diagnostic kernel module for detecting I2C based sensors
-
 config BR2_PACKAGE_SELECT_VALGRIND
 	bool "valgrind"
 	select BR2_PACKAGE_VALGRIND
@@ -281,19 +302,6 @@ config BR2_PACKAGE_SELECT_VALGRIND
 	help
 	  Tool for debugging and profiling Linux programs.
 
-source "$BR2_EXTERNAL_THINGINO_PATH/package/libimp-debug/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
-
-config BR2_THINGINO_DEV_EXPERIMENTAL
-	bool "Enable experimental items in menuconfig"
-	help
-	  Enables experimental options hidden in menuconfig.
-	  These features may be unstable, have unexpected behavior, or be non-functional.
-	  For developers only.
 endif
 
 endmenu

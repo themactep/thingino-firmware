@@ -1,6 +1,9 @@
 {
   "admin_name": "Thingino Admin",
   "enable_updates": true,
+  "led": {
+    "startup_indicator": "off"
+  },
   "rsyslog": {
     "host": "",
     "local": false,

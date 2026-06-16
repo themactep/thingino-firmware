@@ -1,49 +1,21 @@
 #!/bin/sh
 set -eu
 
-RAPTOR_CONFIG="${RAPTOR_CONFIG:-/etc/raptor.conf}"
 RAPTOR_INIT="/etc/init.d/S31raptor"
 
 config_get() {
 	key=$1
 	default_value=$2
-	if command -v raptorctl >/dev/null 2>&1; then
-		value=$(raptorctl config get audio "$key" 2>/dev/null | tr -d '\n\r"')
-		if [ -n "$value" ]; then
-			printf '%s' "$value"
-			return 0
-		fi
-	fi
-	[ -r "$RAPTOR_CONFIG" ] || {
-		printf '%s' "$default_value"
-		return 0
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "microphone: raptorctl is not installed" >&2
+		exit 1
 	}
-	awk -v key="$key" -v default_value="$default_value" '
-		BEGIN { in_section = 0; value = "" }
-		{
-			line = $0
-			sub(/[[:space:]]*[#;].*$/, "", line)
-			if (line ~ "^[[:space:]]*\\[audio\\][[:space:]]*$") {
-				in_section = 1
-				next
-			}
-			if (in_section && line ~ "^[[:space:]]*\\[.*\\][[:space:]]*$") {
-				exit
-			}
-			if (in_section && line ~ "^[[:space:]]*" key "[[:space:]]*=") {
-				sub(/^[^=]*=[[:space:]]*/, "", line)
-				gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-				value = line
-				print value
-				exit
-			}
-		}
-		END {
-			if (value == "") {
-				print default_value
-			}
-		}
-	' "$RAPTOR_CONFIG" | tr -d '\n\r"'
+	value=$(raptorctl config get audio "$key" 2>/dev/null | tr -d '\n\r"')
+	if [ -n "$value" ]; then
+		printf '%s' "$value"
+	else
+		printf '%s' "$default_value"
+	fi
 }
 
 config_bool() {

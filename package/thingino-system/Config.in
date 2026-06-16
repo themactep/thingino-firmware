@@ -26,6 +26,6 @@ config BR2_PACKAGE_THINGINO_SYSTEM_SWAP
 config BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS
 	default y
 	bool "sensor utilities"
-	depends on BR2_PACKAGE_THINGINO_SYSTEM && !BR2_THINGINO_DEV_NVR
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_THINGINO_DEV_CAMERA
 	help
 	  Enables sensor utilities.

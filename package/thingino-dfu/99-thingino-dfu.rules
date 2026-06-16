@@ -1,0 +1,22 @@
+# Thingino DFU / cloner - USB access rules
+#
+# Grants non-root users (and WebUSB in Chrome/Edge) raw access to Ingenic SoCs
+# in every USB state they pass through while flashing:
+#   - bootrom         a108:c309  (T/A/C series: T10-T41, A1)   601a:4770 (X series - future DFU)
+#   - U-Boot DFU      a108:4d44  ("USB download gadget")
+# (the cloner "firmware stage" keeps the bootrom VID:PID - no separate USB ID.)
+#
+# Without this, requestDevice() in the browser can still enumerate the device
+# but USBDevice.open() fails with "SecurityError: Access denied", and the
+# native tool reports "access denied".
+#
+# Install (on the machine the device is plugged into):
+#   sudo cp 99-thingino-dfu.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# Then unplug and replug the device.
+
+# Ingenic VID a108 (T/A/C series): bootrom (c309), firmware (8887), U-Boot DFU gadget (4d44)
+SUBSYSTEM=="usb", ATTR{idVendor}=="a108", MODE="0666", TAG+="uaccess"
+
+# Ingenic VID 601a (X series - future DFU): bootrom (4770)
+SUBSYSTEM=="usb", ATTR{idVendor}=="601a", MODE="0666", TAG+="uaccess"

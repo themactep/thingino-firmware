@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_DFU_VERSION = 5090c4eba6da362a518ae1d2834e6cb56e531bd9
+THINGINO_DFU_VERSION = 41022e69dacd3d42d4e9adaf24fa04e667e3780a
 THINGINO_DFU_SITE = $(call github,wltechblog,thingino-dfu,$(THINGINO_DFU_VERSION))
 
 THINGINO_DFU_LICENSE = GPL-2.0
@@ -17,6 +17,12 @@ define HOST_THINGINO_DFU_INSTALL_FIRMWARES
 	cp -r $(@D)/firmware $(HOST_DIR)/share/thingino-dfu/
 endef
 
+define HOST_THINGINO_DFU_INSTALL_UDEV_RULE
+	mkdir -p $(HOST_DIR)/lib/udev/rules.d
+	cp $(HOST_THINGINO_DFU_PKGDIR)/99-thingino-dfu.rules $(HOST_DIR)/lib/udev/rules.d/
+endef
+
 HOST_THINGINO_DFU_POST_INSTALL_HOOKS += HOST_THINGINO_DFU_INSTALL_FIRMWARES
+HOST_THINGINO_DFU_POST_INSTALL_HOOKS += HOST_THINGINO_DFU_INSTALL_UDEV_RULE
 
 $(eval $(host-cmake-package))

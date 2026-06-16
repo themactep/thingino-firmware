@@ -23,14 +23,14 @@ reinsert the card
 ```
 sudo umount ${card}1
 sudo mkfs.fat ${card}1
-sudo dd if=u-boot-with-spl.bin of=$card bs=1024 seek=17
+sudo dd if=u-boot-with-spl-lzma.bin of=$card bs=1024 seek=17
 sync
 ```
 
 Note, that you use the card device pe se as the target, not a partition on it.
 
 ```
-fatload mmc 0 0x82000000 u-boot-with-spl.bin
+fatload mmc 0 0x82000000 u-boot-with-spl-lzma.bin
 bootm 0x82000000
 ```
 

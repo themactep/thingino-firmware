@@ -4,10 +4,7 @@
     "ir850": 59,
     "ircut": "50 49",
     "mmc_cd": 61,
-    "white": {
-      "pin": 60,
-      "active_low": false
-    },
+    "white": 60,
     "wlan": {
       "pin": 6,
       "toggle": true

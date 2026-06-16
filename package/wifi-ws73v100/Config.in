@@ -1,5 +1,3 @@
-menu "WS73V100"
-
 config BR2_PACKAGE_WIFI_WS73V100
 	bool "HiSilicon WS73V100 wireless support"
 	select BR2_LINUX_KERNEL
@@ -30,4 +28,3 @@ config BR2_PACKAGE_WIFI_WS73V100_USB
 endchoice
 
 endif
-endmenu

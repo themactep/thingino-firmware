@@ -1,3 +1,6 @@
+menu "Core Device Configuration"
+
+menu "SOC Configuration"
 config BR2_INGENIC_SOC_MODEL
 	string "SoC Model"
 	default ""
@@ -33,6 +36,8 @@ config BR2_SOC_FAMILY
 config BR2_SOC_RAM_MB
 	int "RAM size in MB"
 	default 64
+
+endmenu
 
 menu "IPU Configuration"
 depends on BR2_SOC_FAMILY = "a1"
@@ -78,7 +83,7 @@ config BR2_IPU_CLK_650MHZ
 endchoice
 endmenu
 
-menu "ISP Configuration"
+menu "ISP Options"
 depends on !BR2_SOC_FAMILY = "a1"
 
 choice
@@ -92,6 +97,8 @@ config BR2_AVPU_APLL
 	bool "APLL"
 config BR2_AVPU_MPLL
 	bool "MPLL"
+config BR2_AVPU_SCLKA
+	bool "SCLKA"
 config BR2_AVPU_VPLL
 	bool "VPLL"
 config BR2_AVPU_INTERNAL
@@ -275,6 +282,7 @@ config BR2_THINGINO_RMEM_MB_AUTO
 
 config BR2_THINGINO_RMEM_MB
 	int "ISP Reserved RAM (rmem), MB"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 10 if BR2_SOC_RAM_MB = 32
 	default 23 if BR2_SOC_RAM_MB = 64
 	default 29 if BR2_SOC_RAM_MB = 128
@@ -284,6 +292,7 @@ config BR2_THINGINO_RMEM_MB
 config BR2_THINGINO_ISPMEM_MB
 	int "ISP Reserved RAM (ispmem), MB"
 	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 8
 	help
 	  Specify reserved memory for the ISP in MB.
@@ -299,7 +308,7 @@ config BR2_THINGINO_NMEM_MB
 	  Specify reserved memory for the Neural Network module in MB.
 
 
-menu "ISP Debug Configuration"
+menu "ISP Kernel Module Configuration"
 
 choice
 	prompt "ISP Debug Print Level"
@@ -888,7 +897,20 @@ menu "Device Type"
 		help
 		  Specifies the device type as a Small Board Computer (SBC) and installs configurations
 		  specific to this type.
+	config BR2_THINGINO_DEV_SEC
+		bool "Security System Hub"
+		help
+		  Specifies the device type as a Security System Hub and installs configurations
+		  specific to this type.
 	endchoice
+
+	config BR2_THINGINO_DEV_CAMERA
+		bool
+		default y if BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_WEBCAM
+		help
+		  Hidden helper: set for device types with an image sensor.
+		  Camera stack packages (streamer, ONVIF, IMP libraries, ISP
+		  kernel modules, rmem) are only installed when this is set.
 
 	config BR2_THINGINO_DEV_DOORBELL
 		bool "Doorbell"
@@ -930,4 +952,5 @@ menu "Device Type"
 
 	comment "Device Type: NVR Selected"
 		depends on BR2_THINGINO_DEV_NVR
+endmenu
 endmenu

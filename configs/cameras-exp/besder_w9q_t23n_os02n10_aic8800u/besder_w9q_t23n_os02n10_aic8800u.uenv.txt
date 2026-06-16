@@ -1,4 +1,3 @@
-gpio_button=22
 gpio_ircut=57 58
 gpio_ir850=61
 gpio_led_r=54

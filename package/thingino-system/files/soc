@@ -54,7 +54,7 @@ print_wiki_line() {
 print_soc_family() {
 	model=$(print_soc_model)
 
-	family=$(echo "$model" | sed 's/\([at][0-9]*\).*/\1/')
+	family=$(echo "$model" | sed 's/^qemu-//; s/\([at][0-9]*\).*/\1/')
 	echo $family
 }
 
