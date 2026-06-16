@@ -266,6 +266,9 @@ jobs:
       - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Use GNU coreutils install (workaround for uutils bug)
+        run: update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100 || true
+
       - name: Checkout repository source
         uses: actions/checkout@v5
         with:
