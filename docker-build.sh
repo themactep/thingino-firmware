@@ -79,14 +79,14 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
     fi
 fi
 
-# Build image if needed
-DOCKER_IMAGE="thingino-builder"
+# Pull image if needed
+DOCKER_IMAGE="ghcr.io/themactep/thingino-builder-image"
 DOCKER_TAG="latest"
 
-if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE.*$DOCKER_TAG"; then
-    print_info "Building container image..."
+if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE"; then
+    print_info "Pulling container image..."
     run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
-    print_success "Container image built"
+    print_success "Container image pulled"
 else
     print_info "Container image already exists"
 fi
@@ -321,24 +321,23 @@ case "$CMD" in
         fi
         ;;
     rebuild-image)
-        print_info "Rebuilding container image..."
-        run_makefile_docker docker-clean CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        print_info "Pulling latest container image..."
         run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
-        print_success "Container image rebuilt"
+        print_success "Container image updated"
         ;;
     *)
         cat << 'EOF' >&2
 Unknown command. Available commands:
 
-  ./docker-build.sh              Build firmware (parallel incremental)
-  ./docker-build.sh cleanbuild   Clean + build from scratch (parallel)
-  ./docker-build.sh dev          Debug build (serial incremental, V=1, stops at errors)
-  ./docker-build.sh shell        Interactive shell in container
-  ./docker-build.sh menuconfig   Configure build options
-  ./docker-build.sh clean        Clean build artifacts
-  ./docker-build.sh info         Show container configuration
-  ./docker-build.sh rebuild-image Rebuild the container image
-    ./docker-build.sh ota          Upgrade firmware OTA (requires IP=x.x.x.x)
+  ./docker-build.sh                Build firmware (parallel incremental)
+  ./docker-build.sh cleanbuild     Clean + build from scratch (parallel)
+  ./docker-build.sh dev            Debug build (serial incremental, V=1, stops at errors)
+  ./docker-build.sh shell          Interactive shell in container
+  ./docker-build.sh menuconfig     Configure build options
+  ./docker-build.sh clean          Clean build artifacts
+  ./docker-build.sh info           Show container configuration
+  ./docker-build.sh rebuild-image  Pull latest container image
+  ./docker-build.sh ota            Upgrade firmware OTA (requires IP=x.x.x.x)
 
 EOF
         exit 1
