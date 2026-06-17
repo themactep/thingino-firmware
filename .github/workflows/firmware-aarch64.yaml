@@ -42,7 +42,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
@@ -100,7 +100,7 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -136,7 +136,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -145,7 +145,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: debian:trixie
+      image: debian:forky
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
@@ -163,7 +163,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq p7zip-full procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq lzop m4 p7zip-full perl python3 python3-setuptools procps rsync tzdata u-boot-tools unzip wget libncurses-dev swig python3-dev libssl-dev
 
       - name: Set timezone
         run: |
@@ -201,7 +201,7 @@ jobs:
           mkdir -p ~/dl
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         if: always()
         with:
           path: ~/.ccache
@@ -311,15 +311,13 @@ jobs:
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
-          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
-          echo "debug uboot" > ${HOME}/output/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
-          echo "debug kernel" > ${HOME}/output/${DYNAMIC_PART}/images/uImage
-          echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.squashfs
-          echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.tar
-          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
-          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
-          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
+          mkdir -p ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/
+          echo "debug" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
+          echo "debug uboot" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
+          echo "debug kernel" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/uImage
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/rootfs.squashfs
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/rootfs.tar
+          echo "debug sha" > ${GITHUB_WORKSPACE}/output/master/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
@@ -331,13 +329,13 @@ jobs:
       - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
-          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
-          FULL_FW_UBOOT=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
-          FULL_FW_KERNEL=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
-          FULL_FW_ROOTFS=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
-          FULL_FW_ROOTFS_TAR=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
+          OUT_BASE="${GITHUB_WORKSPACE}/output/master"
+          FW_PATH=${OUT_BASE}/${DYNAMIC_PART}/images/
+          FULL_FW=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          FULL_FW_UBOOT=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
+          FULL_FW_KERNEL=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
+          FULL_FW_ROOTFS=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
+          FULL_FW_ROOTFS_TAR=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
             echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
@@ -347,23 +345,22 @@ jobs:
             echo "FULL_FW_ROOTFS=${FULL_FW_ROOTFS}" >> ${GITHUB_ENV}
             echo "FULL_FW_ROOTFS_TAR=${FULL_FW_ROOTFS_TAR}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
-            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
-            echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
-            echo "Matching .bin files not found."
+            echo "Matching .bin files not found under: ${OUT_BASE}/${DYNAMIC_PART}*/images/"
+            ls -la "${OUT_BASE}" || true
             exit 1
           fi
 
       - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
-            ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+            ${{ github.workspace }}/output/master/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: thingino-${{ matrix.thingino-version }}-firmware
           path: |
@@ -373,11 +370,9 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
-        uses: softprops/action-gh-release@v2.1.0
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
@@ -385,7 +380,6 @@ jobs:
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW_SHA }}
 
       - name: Package binaries for notification
         run: |
@@ -413,7 +407,7 @@ jobs:
 
   notify-completion:
     needs: [buildroot, notify-begin]
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     if: always()
     steps:
       - name: Set timezone
