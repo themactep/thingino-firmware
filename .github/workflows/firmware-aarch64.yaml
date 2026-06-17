@@ -380,14 +380,7 @@ jobs:
 
       - name: Post compiled firmware artifacts to release
         if: ${{ github.event.inputs.skip_release != 'true' }}
-        uses: softprops/action-gh-release@v3.0.0
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          make_latest: false
-          prerelease: true
-          files: |
-            ${{ env.FULL_FW }}
-            ${{ env.FULL_FW_SHA }}
+        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" --clobber
 
       - name: Package binaries for notification
         run: |
