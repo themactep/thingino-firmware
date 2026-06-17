@@ -38,6 +38,11 @@ on:
         description: 'Debug: Generate dummy image files'
         required: false
         default: false
+      skip_release:
+        type: boolean
+        description: 'Do not publish to a GitHub release (test build)'
+        required: false
+        default: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -80,6 +85,7 @@ jobs:
           fetch-depth: "1"
 
       - name: Create release tag
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
@@ -91,6 +97,7 @@ jobs:
           fi
 
       - name: Create release
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
@@ -379,6 +386,7 @@ jobs:
             ${{ env.FULL_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -474,6 +482,7 @@ jobs:
           echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
       - name: Get release ID and Mark as Latest
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           echo "Environment variables:"
           echo "TAG_NAME: ${{ env.TAG_NAME }}"
