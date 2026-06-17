@@ -371,7 +371,7 @@ jobs:
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
-            ${{ github.workspace }}/output/master/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+            ${{ github.workspace }}/output/master/${{ matrix.thingino-version }}*/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v7.0.0
