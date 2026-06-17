@@ -244,7 +244,6 @@ jobs:
           JSON_MATRIX="${JSON_MATRIX%,}]}"
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
-
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin, prepare-release]
@@ -331,78 +330,16 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
 
-      - name: Fetch buildroot-dl-cache release
-        id: find_release
+      - name: Restore buildroot-dl-cache from image
         run: |
-          REPO="${{ github.repository }}"
-          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
-            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
-          fi
-          if [ -n "$RELEASE_TAG" ]; then
-            echo "Found release with tag: $RELEASE_TAG"
-            echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
-            echo "release_found=true" >> $GITHUB_OUTPUT
-          else
-            echo "Warning: Could not find appropriate release, continuing without cache"
-            echo "release_found=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Download buildroot-dl-cache files
-        id: download_cache
-        if: steps.find_release.outputs.release_found == 'true'
-        run: |
-          REPO="${{ github.repository }}"
-          RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
-          mkdir -p /tmp/dl-cache
-          echo "Downloading files from release with tag: $RELEASE_TAG"
-          set +e
-          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
-          DOWNLOAD_EXIT_CODE=$?
-          set -e
-          if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
-            echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
-            echo "download_succeeded=false" >> $GITHUB_OUTPUT
-          elif [ ! "$(ls -A /tmp/dl-cache/)" ]; then
-            echo "Warning: Download directory is empty, no files were downloaded."
-            echo "download_succeeded=false" >> $GITHUB_OUTPUT
-          else
-            echo "Download successful!"
-            echo "download_succeeded=true" >> $GITHUB_OUTPUT
-          fi
-          echo "Downloaded files:"
-          ls -la /tmp/dl-cache/ || echo "No files found."
-
-      - name: Extract buildroot-dl-cache
-        if: steps.download_cache.outputs.download_succeeded == 'true'
-        run: |
-          if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
-            echo "Extracting split ZIP files..."
-            cd ~
-            7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y
-          else
-            echo "Extracting single ZIP file..."
-            cd ~
-            7z x /tmp/dl-cache/buildroot-dl-cache.zip -y
-          fi
-          if [ -d ~/dl/dl ]; then
-            echo "Moving files from ~/dl/dl to ~/dl"
-            mv ~/dl/dl/* ~/dl/
-            rm -rf ~/dl/dl
-          fi
-          echo "Verifying extraction:"
-          ls -la ~/dl/
-          echo "Number of files in ~/dl:"
-          find ~/dl -type f | wc -l
-          echo "DL cache restored successfully"
-
-      - name: Download buildroot sources if cache missing
-        if: steps.find_release.outputs.release_found != 'true' || steps.download_cache.outputs.download_succeeded != 'true'
-        run: |
-          echo "Buildroot DL cache not available, downloading sources..."
-          BOARD=teacup_t31x IP= make source WORKFLOW=1
-          echo "Source download completed"
+          echo "Pulling dl cache from ghcr.io/themactep/thingino-dl:latest..."
+          docker pull ghcr.io/themactep/thingino-dl:latest
+          DL_CID=$(docker create ghcr.io/themactep/thingino-dl:latest)
+          docker cp "$DL_CID:/dl" ~/dl
+          docker rm "$DL_CID"
+          echo "DL cache restored:"
+          find ~/dl -maxdepth 1 -type d | wc -l
+          echo "directories"
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
