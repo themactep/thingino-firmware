@@ -216,7 +216,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "0"
+          fetch-depth: "1"
 
       - name: Debug checked out branch and commit
         run: |
@@ -257,7 +257,7 @@ jobs:
         shell: bash
     container:
       image: ghcr.io/themactep/thingino-builder-image:latest
-      options: --user root
+      options: --user root --volume /var/run/docker.sock:/var/run/docker.sock
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
@@ -286,12 +286,19 @@ jobs:
             apt-get update && apt-get install -y --no-install-recommends p7zip-full
           fi
 
+      - name: Install Docker CLI (fallback until image is rebuilt)
+        run: |
+          if ! command -v docker &>/dev/null; then
+            echo "docker not found - installing docker-cli..."
+            apt-get update && apt-get install -y --no-install-recommends docker-cli
+          fi
+
       - name: Checkout repository source
         uses: actions/checkout@v5
         with:
           submodules: 'true'
           ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "0"
+          fetch-depth: "1"
 
       - name: Debug checked out branch and commit
         run: |
