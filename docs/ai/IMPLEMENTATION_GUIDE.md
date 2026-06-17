@@ -131,7 +131,7 @@ Just one line! No makefile changes needed.
 ## Database Format Reference
 
 ```
-model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand
+model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand,uboot_image
   │      │     │     │           │                │
   │      │     │     │           │                └─ NAND board name (or "-")
   │      │     │     │           └───────────────── NOR board name

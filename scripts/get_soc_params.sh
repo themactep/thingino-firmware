@@ -4,7 +4,7 @@
 #
 # Parameters:
 #   soc_model: SoC model name (e.g., t31x, t40n)
-#   param: One of: family, arch, ram, uboot
+#   param: One of: family, arch, ram, uboot, uboot_image
 #   flash_type: (optional, only for uboot param) "nand" or "nor" (default: nor)
 
 set -e
@@ -15,7 +15,7 @@ FLASH_TYPE="${3:-nor}"
 
 if [ -z "$SOC_MODEL" ] || [ -z "$PARAM" ]; then
     echo "Usage: $0 <soc_model> <param> [flash_type]" >&2
-    echo "  param: family, arch, ram, uboot" >&2
+    echo "  param: family, arch, ram, uboot, uboot_image" >&2
     exit 1
 fi
 
@@ -55,6 +55,14 @@ RESULT=$(awk -F',' -v model="$SOC_MODEL_LOWER" -v param="$PARAM" -v flash="$FLAS
                 }
             } else {
                 print $5
+            }
+        } else if (param == "uboot_image") {
+            # Field 7 = U-Boot flash artifact name; "-"/empty -> the lzma SPL
+            # default, "u-boot-with-tpl-lzma.bin" on the TPL-chain SoCs.
+            if ($7 == "-" || $7 == "") {
+                print "u-boot-with-spl-lzma.bin"
+            } else {
+                print $7
             }
         }
         exit

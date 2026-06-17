@@ -230,6 +230,13 @@ ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
 endif
 
+# Capped XBurst1 SoCs (T10/T20/T21/T30) boot a TPL chain with modern u-boot; allow legacy names
+ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
+ifneq ($(SOC_MODEL),)
+UBOOT_BIN_NAME := $(shell $(SCRIPTS_DIR)/get_soc_params.sh $(SOC_MODEL) uboot_image 2>/dev/null || echo u-boot-with-spl-lzma.bin)
+endif
+endif
+
 TOOLCHAIN_SOC_TAG := $(SOC_ARCH)
 ifeq ($(SOC_ARCH),xburst1)
 ifeq ($(KERNEL_VERSION_4),y)
@@ -1207,6 +1214,7 @@ show-vars:
 	@echo "THINGINO_USER_UENV_FILES = $(THINGINO_USER_UENV_FILES)";
 	@echo "UBOOT_BOARDNAME = $(UBOOT_BOARDNAME)";
 	@echo "UBOOT_DEFCONFIG = $(UBOOT_DEFCONFIG)";
+	@echo "UBOOT_BIN_NAME = $(UBOOT_BIN_NAME)";
 	@echo "UBOOT_CONFIG_FRAGMENT_FILES = $(UBOOT_CONFIG_FRAGMENT_FILES)";
 
 run:

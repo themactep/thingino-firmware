@@ -31,8 +31,8 @@ else
     echo "✓ No duplicate models"
 fi
 
-# Check field count (should be 6 fields)
-INVALID_LINES=$(grep -v '^#' "$DB_FILE" | grep -v '^[[:space:]]*$' | awk -F',' 'NF != 6 {print NR": "$0}')
+# Check field count (should be 7 fields)
+INVALID_LINES=$(grep -v '^#' "$DB_FILE" | grep -v '^[[:space:]]*$' | awk -F',' 'NF != 7 {print NR": "$0}')
 if [ -n "$INVALID_LINES" ]; then
     echo "❌ ERROR: Lines with incorrect field count:"
     echo "$INVALID_LINES"

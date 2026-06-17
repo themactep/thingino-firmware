@@ -1,81 +1,84 @@
 # SoC Database for Thingino Firmware
-# Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand
+# Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand,uboot_image
 # arch: 1=xburst1, 2=xburst2
 # uboot_board_nand: use "-" if NAND not supported, or same as NOR if naming is same
+# uboot_image: U-Boot flash artifact buildroot extracts; "-" = default
+#   (u-boot-with-spl-lzma.bin). The TPL-chain SoCs (T10/T20/T21/T30, CONFIG_TPL=y)
+#   emit "u-boot-with-tpl-lzma.bin" instead.
 
 # T10 Family
-t10l,t10,1,64,isvp_t10_sfcnor,-
-t10n,t10,1,64,isvp_t10_sfcnor,-
-t10a,t10,1,64,isvp_t10_sfcnor,-
+t10l,t10,1,64,isvp_t10_sfcnor,-,u-boot-with-tpl-lzma.bin
+t10n,t10,1,64,isvp_t10_sfcnor,-,u-boot-with-tpl-lzma.bin
+t10a,t10,1,64,isvp_t10_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T20 Family
-t20l,t20,1,64,isvp_t20_sfcnor,-
-t20n,t20,1,64,isvp_t20_sfcnor,-
-t20x,t20,1,128,isvp_t20_sfcnor_ddr128M,-
-t20z,t20,1,64,isvp_t20_sfcnor,-
+t20l,t20,1,64,isvp_t20_sfcnor,-,u-boot-with-tpl-lzma.bin
+t20n,t20,1,64,isvp_t20_sfcnor,-,u-boot-with-tpl-lzma.bin
+t20x,t20,1,128,isvp_t20_sfcnor_ddr128M,-,u-boot-with-tpl-lzma.bin
+t20z,t20,1,64,isvp_t20_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T21 Family
-t21l,t21,1,64,isvp_t21_sfcnor,-
-t21n,t21,1,64,isvp_t21_sfcnor,-
-t21x,t21,1,128,isvp_t21_sfcnor,-
-t21zn,t21,1,64,isvp_t21_sfcnor,-
-t21zl,t21,1,64,isvp_t21_sfcnor,-
+t21l,t21,1,64,isvp_t21_sfcnor,-,u-boot-with-tpl-lzma.bin
+t21n,t21,1,64,isvp_t21_sfcnor,-,u-boot-with-tpl-lzma.bin
+t21x,t21,1,128,isvp_t21_sfcnor,-,u-boot-with-tpl-lzma.bin
+t21zn,t21,1,64,isvp_t21_sfcnor,-,u-boot-with-tpl-lzma.bin
+t21zl,t21,1,64,isvp_t21_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T23 Family
-t23n,t23,1,64,isvp_t23_sfcnor,-
-t23dl,t23,1,32,isvp_t23_sfcnor,-
-t23zn,t23,1,64,isvp_t23_sfcnor,-
+t23n,t23,1,64,isvp_t23_sfcnor,-,-
+t23dl,t23,1,32,isvp_t23_sfcnor,-,-
+t23zn,t23,1,64,isvp_t23_sfcnor,-,-
 
 # T30 Family
-t30l,t30,1,64,isvp_t30_sfcnor,-
-t30n,t30,1,64,isvp_t30_sfcnor,-
-t30x,t30,1,128,isvp_t30_sfcnor_ddr128M,-
-t30a,t30,1,128,isvp_t30_sfcnor_ddr128M,-
+t30l,t30,1,64,isvp_t30_sfcnor,-,u-boot-with-tpl-lzma.bin
+t30n,t30,1,64,isvp_t30_sfcnor,-,u-boot-with-tpl-lzma.bin
+t30x,t30,1,128,isvp_t30_sfcnor_ddr128M,-,u-boot-with-tpl-lzma.bin
+t30a,t30,1,128,isvp_t30_sfcnor_ddr128M,-,u-boot-with-tpl-lzma.bin
 
 # T31 Family
-t31l,t31,1,64,isvp_t31_sfcnor_lite,isvp_t31_sfcnand_lite
-t31lc,t31,1,64,isvp_t31_sfcnor,-
-t31n,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand
-t31x,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M
-t31a,t31,1,128,isvp_t31a_sfcnor,isvp_t31a_sfcnand_ddr128M
-t31al,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31al_sfcnand_ddr128M
-t31zl,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand_lite
-t31zx,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M
+t31l,t31,1,64,isvp_t31_sfcnor_lite,isvp_t31_sfcnand_lite,-
+t31lc,t31,1,64,isvp_t31_sfcnor,-,-
+t31n,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand,-
+t31x,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M,-
+t31a,t31,1,128,isvp_t31a_sfcnor,isvp_t31a_sfcnand_ddr128M,-
+t31al,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31al_sfcnand_ddr128M,-
+t31zl,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand_lite,-
+t31zx,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M,-
 
 # C100 Family (special case, see script for kernel version handling)
-c100,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_c100_sfcnand
+c100,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_c100_sfcnand,-
 
 # T40 Family
-t40n,t40,2,128,isvp_t40_sfcnor,isvp_t40n_sfcnand
-t40nn,t40,2,128,isvp_t40_sfcnor,isvp_t40n_sfcnand
-t40xp,t40,2,256,isvp_t40_sfcnor,isvp_t40xp_sfcnand
-t40a,t40,2,128,isvp_t40_sfcnor,isvp_t40a_sfcnand
+t40n,t40,2,128,isvp_t40_sfcnor,isvp_t40n_sfcnand,-
+t40nn,t40,2,128,isvp_t40_sfcnor,isvp_t40n_sfcnand,-
+t40xp,t40,2,256,isvp_t40_sfcnor,isvp_t40xp_sfcnand,-
+t40a,t40,2,128,isvp_t40_sfcnor,isvp_t40a_sfcnand,-
 
 # T41 Family
-t41lq,t41,2,64,isvp_t41lq_sfcnor,isvp_t41lq_sfc0_nand
-t41nq,t41,2,128,isvp_t41nq_sfcnor,isvp_t41nq_sfc0_nand
-t41zl,t41,2,64,isvp_t41lq_sfcnor,isvp_t41l_sfc0_nand
-t41zn,t41,2,128,isvp_t41nq_sfcnor,isvp_t41n_sfc0_nand
-t41zx,t41,2,256,isvp_t41nq_sfcnor,isvp_t41zx_sfc0_nand
-t41a,t41,2,512,isvp_t41nq_sfcnor,isvp_t41a_sfc0_nand
+t41lq,t41,2,64,isvp_t41lq_sfcnor,isvp_t41lq_sfc0_nand,-
+t41nq,t41,2,128,isvp_t41nq_sfcnor,isvp_t41nq_sfc0_nand,-
+t41zl,t41,2,64,isvp_t41lq_sfcnor,isvp_t41l_sfc0_nand,-
+t41zn,t41,2,128,isvp_t41nq_sfcnor,isvp_t41n_sfc0_nand,-
+t41zx,t41,2,256,isvp_t41nq_sfcnor,isvp_t41zx_sfc0_nand,-
+t41a,t41,2,512,isvp_t41nq_sfcnor,isvp_t41a_sfc0_nand,-
 
 # T32 Family
-t32nq,t32,1,128,isvp_t32_sfcnor,-
-t32vn,t32,1,128,isvp_t32_sfcnor,-
+t32nq,t32,1,128,isvp_t32_sfcnor,-,-
+t32vn,t32,1,128,isvp_t32_sfcnor,-,-
 
 # T33 Family
-t33dl,t33,1,64,isvp_t33_sfcnor,-
-t33l,t33,1,64,isvp_t33_sfcnor,-
-t33lq,t33,1,64,isvp_t33_sfcnor,-
-t33n,t33,1,128,isvp_t33_sfcnor,-
-t33vl,t33,1,64,isvp_t33_sfcnor,-
-t33vn,t33,1,128,isvp_t33_sfcnor,-
-t33zl,t33,1,64,isvp_t33_sfcnor,-
-t33zn,t33,1,128,isvp_t33_sfcnor,-
+t33dl,t33,1,64,isvp_t33_sfcnor,-,-
+t33l,t33,1,64,isvp_t33_sfcnor,-,-
+t33lq,t33,1,64,isvp_t33_sfcnor,-,-
+t33n,t33,1,128,isvp_t33_sfcnor,-,-
+t33vl,t33,1,64,isvp_t33_sfcnor,-,-
+t33vn,t33,1,128,isvp_t33_sfcnor,-,-
+t33zl,t33,1,64,isvp_t33_sfcnor,-,-
+t33zn,t33,1,128,isvp_t33_sfcnor,-,-
 
 # A1 Family
-a1n,a1,2,256,isvp_a1_sfcnor,-
-a1nt,a1,2,256,isvp_a1_sfcnor,-
-a1x,a1,2,256,isvp_a1_sfcnor,-
-a1l,a1,2,128,isvp_a1_sfcnor,-
-a1a,a1,2,512,isvp_a1_sfcnor,-
+a1n,a1,2,256,isvp_a1_sfcnor,-,-
+a1nt,a1,2,256,isvp_a1_sfcnor,-,-
+a1x,a1,2,256,isvp_a1_sfcnor,-,-
+a1l,a1,2,128,isvp_a1_sfcnor,-,-
+a1a,a1,2,512,isvp_a1_sfcnor,-,-
