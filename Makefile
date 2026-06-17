@@ -497,8 +497,7 @@ build: BR2_MAKE_JOBS =
 build: $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 
-build_fast: BR2_MAKE_JOBS = -j$(shell expr $(NPROC) + 2)
-
+build_fast: BR2_MAKE_JOBS = -j$(NPROC)
 build_fast: $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 
