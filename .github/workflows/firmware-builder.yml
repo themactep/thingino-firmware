@@ -324,14 +324,14 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p ~/.ccache
+          mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
 
       - name: Restore ccache
         uses: actions/cache@v5
         if: always()
         with:
-          path: ~/.ccache
+          path: ~/.buildroot-ccache
           key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-

@@ -130,7 +130,7 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p ~/.ccache
+          mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
 
       - name: Download buildroot sources
