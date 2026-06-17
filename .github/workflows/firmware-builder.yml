@@ -295,6 +295,12 @@ jobs:
           echo "Size of dl cache:"
           du -sh ~/dl/
 
+      - name: Save dl cache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/dl
+          key: ${{ needs.generate-matrix.outputs.dl_key }}
+
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin, prepare-release, prefetch-dl]
