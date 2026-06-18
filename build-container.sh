@@ -9,6 +9,7 @@
 #   ./build-container.sh menuconfig # Run menuconfig in container
 #   ./build-container.sh shell      # Open interactive shell
 #   ./build-container.sh clean      # Clean build in container
+#   ./build-container.sh nuke       # Destroy all container images and dl cache
 #   ./build-container.sh ota        # Upgrade firmware OTA
 #
 
@@ -79,16 +80,40 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
     fi
 fi
 
-# Pull image if needed
+# Check for fresh container image
 CONTAINER_IMAGE="ghcr.io/themactep/thingino-builder-image"
 CONTAINER_TAG="latest"
+case "$(uname -m)" in
+    x86_64)  ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+    *)       ARCH="$(uname -m)" ;;
+esac
 
-if ! $CONTAINER_ENGINE images | grep -q "$CONTAINER_IMAGE"; then
+print_info "Checking for container image updates..."
+
+# Get local digest
+LOCAL_DIGEST=$($CONTAINER_ENGINE inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" --format '{{index .RepoDigests 0}}' 2>/dev/null | sed 's/.*@//')
+
+# Get remote digest for current platform
+REMOTE_DIGEST=""
+if command -v skopeo >/dev/null 2>&1; then
+    REMOTE_DIGEST=$(skopeo inspect "docker://$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+        | python3 -c "import sys,json; print(json.load(sys.stdin).get('Digest',''))" 2>/dev/null)
+elif [ "$CONTAINER_ENGINE" = "podman" ]; then
+    REMOTE_DIGEST=$(podman manifest inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+        | python3 -c "import sys,json; m=json.load(sys.stdin); print(next((x['digest'] for x in m.get('manifests',[]) if x.get('platform',{}).get('architecture')=='$ARCH'),''))" 2>/dev/null)
+fi
+
+if [ -z "$LOCAL_DIGEST" ]; then
     print_info "Pulling container image..."
-    run_makefile_container container-pull CONTAINER_ENGINE="$CONTAINER_ENGINE"
-    print_success "Container image pulled"
+    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+    print_success "Pulled new container image"
+elif [ -n "$REMOTE_DIGEST" ] && [ "$LOCAL_DIGEST" = "$REMOTE_DIGEST" ]; then
+    print_info "Container image is current"
 else
-    print_info "Container image already exists"
+    print_info "Updating container image..."
+    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+    print_success "Updated container image"
 fi
 
 # Function to select camera
@@ -237,6 +262,11 @@ case "$CMD" in
         print_info "Running clean build in container..."
         run_makefile_container container-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
+    nuke)
+        print_info "Destroying all container images and dl cache..."
+        run_makefile_container container-nuke CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        print_success "All container artifacts removed"
+        ;;
     cleanbuild)
         # Select camera
         CAMERA=$(select_camera)
@@ -326,21 +356,22 @@ case "$CMD" in
         print_success "Container image updated"
         ;;
     *)
-        cat << 'EOF' >&2
-Unknown command. Available commands:
+        # Select camera
+        CAMERA=$(select_camera)
 
-  ./build-container.sh                Build firmware (parallel incremental)
-  ./build-container.sh cleanbuild     Clean + build from scratch (parallel)
-  ./build-container.sh dev            Debug build (serial incremental, V=1, stops at errors)
-  ./build-container.sh shell          Interactive shell in container
-  ./build-container.sh menuconfig     Configure build options
-  ./build-container.sh clean          Clean build artifacts
-  ./build-container.sh info           Show container configuration
-  ./build-container.sh rebuild-image  Pull latest container image
-  ./build-container.sh ota            Upgrade firmware OTA (requires IP=x.x.x.x)
+        # Strip any ANSI codes that might have been captured
+        CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
 
-EOF
-        exit 1
+        if [ -z "$CAMERA" ]; then
+            print_error "No camera selected"
+            exit 1
+        fi
+
+        print_success "Selected camera: $CAMERA"
+        print_info "Running '$*' in container..."
+
+        # Pass all arguments through as make targets
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="$*" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
 esac
 
