@@ -6,6 +6,8 @@ CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 DL_DIR := dl
+DL_IMAGE := ghcr.io/themactep/thingino-dl
+DL_CONTAINER := thingino-dl-cache
 
 # Directories
 WORKSPACE_DIR := $(shell pwd)
@@ -18,30 +20,73 @@ else
 endif
 
 CONTAINER_RUN_OPTS := \
+	--volumes-from $(DL_CONTAINER) \
 	-v $(WORKSPACE_DIR):/workspace \
-	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/builder/dl \
 	-v $(shell readlink -f overrides):/overrides \
 	-w /workspace \
-	-e TERM=xterm-256color
+	-e TERM=xterm-256color \
+	-e BR2_DL_DIR=/dl
+
+# Mount external THINGINO_USER_DIR into container if set outside workspace.
+# Default (user/ inside workspace) is already visible via the workspace mount.
+USER_DIR_MOUNT :=
+USER_DIR_LABEL := (default: workspace/user/)
+ifdef THINGINO_USER_DIR
+  ifeq ($(THINGINO_USER_DIR),/dev/null)
+    USER_DIR_MOUNT := -e THINGINO_USER_DIR=/dev/null
+    USER_DIR_LABEL := /dev/null (PRISTINE)
+  else
+    _USER_DIR_REAL := $(shell readlink -f "$(THINGINO_USER_DIR)" 2>/dev/null || echo "$(THINGINO_USER_DIR)")
+    _USER_DIR_IN_WS := $(or $(filter $(WORKSPACE_DIR),$(_USER_DIR_REAL)),$(filter $(WORKSPACE_DIR)/%,$(_USER_DIR_REAL)))
+    ifeq ($(_USER_DIR_IN_WS),)
+      USER_DIR_MOUNT := -v $(_USER_DIR_REAL):/user-dir -e THINGINO_USER_DIR=/user-dir
+      USER_DIR_LABEL := $(THINGINO_USER_DIR) → /user-dir (mounted)
+    else
+      USER_DIR_LABEL := $(THINGINO_USER_DIR) (in workspace)
+    endif
+  endif
+endif
 
 # Workaround: prebuilt image ships uutils install which breaks Buildroot dep check.
 # Switch to GNU install on every container invocation.
 CONTAINER_PREBUILD := sudo update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100 2>/dev/null && true &&
 
 # Interactive container
-CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS)
+CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS) $(USER_DIR_MOUNT)
 
 # Non-interactive container (with -i to receive signals, but no -t for non-TTY)
-CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS)
+CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS) $(USER_DIR_MOUNT)
 
 .PHONY: container-pull
-container-pull:
+container-pull: dl-container
 	@if ! $(CONTAINER_ENGINE) images | grep -q "$(CONTAINER_IMAGE)"; then \
 		echo "Pulling container image: $(CONTAINER_IMAGE):$(CONTAINER_TAG)"; \
 		$(CONTAINER_ENGINE) pull $(CONTAINER_IMAGE):$(CONTAINER_TAG); \
 	else \
 		echo "Container image $(CONTAINER_IMAGE):$(CONTAINER_TAG) already present"; \
 	fi
+
+.PHONY: dl-pull
+dl-pull:
+	$(CONTAINER_ENGINE) pull $(DL_IMAGE):latest || \
+		echo "Warning: Could not pull dl cache image. Downloads will be needed."
+
+.PHONY: dl-container
+dl-container: dl-pull
+	@if ! $(CONTAINER_ENGINE) ps -a --format '{{.Names}}' | grep -q '^$(DL_CONTAINER)$$'; then \
+		echo "Creating dl cache helper container..."; \
+		$(CONTAINER_ENGINE) create --name $(DL_CONTAINER) $(DL_IMAGE):latest /bin/true; \
+		$(CONTAINER_ENGINE) create --name $(DL_CONTAINER)-src $(DL_IMAGE):latest /bin/true; \
+		$(CONTAINER_ENGINE) export $(DL_CONTAINER)-src | tar -x --strip-components=1 --directory=$$($(CONTAINER_ENGINE) inspect $(DL_CONTAINER) --format '{{range .Mounts}}{{if eq .Destination "/dl"}}{{.Source}}{{end}}{{end}}') dl/; \
+		$(CONTAINER_ENGINE) rm $(DL_CONTAINER)-src >/dev/null; \
+		echo "dl cache volume populated"; \
+	else \
+		echo "dl cache helper container already exists"; \
+	fi
+
+.PHONY: dl-clean
+dl-clean:
+	$(CONTAINER_ENGINE) rm -f $(DL_CONTAINER) || true
 
 .PHONY: container-shell
 container-shell: container-pull
@@ -73,15 +118,31 @@ container-clean:
 	@$(CONTAINER_ENGINE) ps -a --filter ancestor=$(CONTAINER_IMAGE):$(CONTAINER_TAG) -q | xargs -r $(CONTAINER_ENGINE) rm -f 2>/dev/null || true
 	$(CONTAINER_ENGINE) rmi $(CONTAINER_IMAGE):$(CONTAINER_TAG) || true
 
+.PHONY: container-nuke
+container-nuke: container-clean
+	@echo "Removing dl cache container and volume..."
+	@$(CONTAINER_ENGINE) ps -a --filter reference=$(DL_IMAGE) -q | xargs -r $(CONTAINER_ENGINE) rm -f 2>/dev/null || true
+	$(CONTAINER_ENGINE) rm -f $(DL_CONTAINER) 2>/dev/null || true
+	$(CONTAINER_ENGINE) rmi $(DL_IMAGE):latest 2>/dev/null || true
+	@echo "Pruning unused volumes..."
+	$(CONTAINER_ENGINE) volume prune -f 2>/dev/null || true
+	@echo "Pruning unused images..."
+	$(CONTAINER_ENGINE) image prune -f 2>/dev/null || true
+	@echo "All container artifacts removed."
+
 .PHONY: container-info
 container-info:
 	@echo "Container Configuration:"
 	@echo "  Engine:     $(CONTAINER_ENGINE)"
 	@echo "  Image:      $(CONTAINER_IMAGE):$(CONTAINER_TAG)"
+	@echo "  DL Image:   $(DL_IMAGE):latest"
+	@echo "  DL Cache:   $(DL_CONTAINER)"
+	@echo "  DL Source:  container volume"
 	@echo "  User ID:    $(USER_ID)"
 	@echo "  Group ID:   $(GROUP_ID)"
 	@echo "  Workspace:  $(WORKSPACE_DIR)"
 	@echo "  Downloads:  $(DL_DIR)"
+	@echo "  User Dir:   $(USER_DIR_LABEL)"
 
 # Convenience targets for building in container
 .PHONY: container-build-firmware
