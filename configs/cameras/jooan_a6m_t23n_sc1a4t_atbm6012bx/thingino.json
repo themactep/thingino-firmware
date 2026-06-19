@@ -5,6 +5,9 @@
     "ircut": "50 49",
     "mmc_cd": 61,
     "white": 60,
-    "wlan": 6
+    "wlan": {
+      "pin": 6,
+      "toggle": true
+    }
   }
 }
