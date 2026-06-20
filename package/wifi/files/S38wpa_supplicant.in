@@ -66,6 +66,11 @@ esac
 
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
+case "$WLAN_MODULE_NAME" in
+	atbm*)
+		DAEMON_ARGS="-D wext $DAEMON_ARGS"
+		;;
+esac
 if [ "true" = "$debug" ]; then
 	DAEMON_ARGS="$DAEMON_ARGS -dd"
 fi
@@ -262,6 +267,39 @@ start() {
 	fi
 
 	echo "Starting in $mode mode"
+
+	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
+	case "$WLAN_MODULE_NAME" in
+		atbm*)
+			if [ "$mode" = "client" ]; then
+				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
+				wifi_pass=$(grep 'psk=' $CONFIG | head -1 | sed 's/.*psk="\([^"]*\)".*/\1/')
+				if [ -n "$wifi_ssid" ] && [ -n "$wifi_pass" ]; then
+					echo "Connecting via mcu_test: $wifi_ssid"
+					mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"
+					echo "Waiting for MCU WiFi connection..."
+					sleep 10
+					hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
+					if [ -n "$hex_ip" ] && [ ${#hex_ip} -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
+						ip_addr=$(printf '%d.%d.%d.%d' 0x${hex_ip:6:2} 0x${hex_ip:4:2} 0x${hex_ip:2:2} 0x${hex_ip:0:2})
+						gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
+						echo "MCU DHCP IP: $ip_addr"
+						ip link set $IFACE up
+						ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
+						ip route add default via $gateway dev $IFACE 2>/dev/null || true
+						echo "nameserver $gateway" > /tmp/resolv.conf
+					else
+						echo "WARNING: Could not get IP from MCU DHCP"
+					fi
+					sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
+				else
+					echo "Missing SSID or password for mcu_test"
+				fi
+				exit 0
+			fi
+			;;
+	esac
+
 	case "$mode" in
 		portal) prepare_portal ;;
 		ap) start_access_point ;;

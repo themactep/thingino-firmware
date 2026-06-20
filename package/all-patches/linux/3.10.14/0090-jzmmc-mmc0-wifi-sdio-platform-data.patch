@@ -1,0 +1,79 @@
+From: thingino <thingino@opensensor>
+Subject: [PATCH] mmc: T23ZN: configure ATBM6461 SDIO WiFi on MMC1 (PB8-PB14)
+
+The ATBM6461 SDIO WiFi chip on the Wansview A1 (T23ZN) is wired to
+MMC1 (PB8-PB14, GPIO_FUNC_1), not MMC0.  Three changes are required:
+
+1. platform.c: the MSC1_PORTB pin-function entry in platform_devio_array
+   is commented out with C++ comments, so GPIO_FUNC_1 is never applied
+   to PB8-PB14 at boot.  Uncomment it so the pins are correctly muxed
+   when CONFIG_JZMMC_V12_MMC1_PB_4BIT is selected.
+
+2. mmc.c: sdio_pdata.ocr_avail only covers 2.9-3.1 V.  The ATBM6461
+   is a 3.3 V device; expand the range to 2.7-3.6 V so CMD5 OCR
+   negotiation succeeds and mmc_select_voltage() does not return -EINVAL.
+
+3. jzmmc_v12.c: jzmmc_manual_detect() leaves `host` uninitialised on
+   entry, then calls dev_err(host->dev, ...) when the host is not found,
+   causing a NULL dereference.  Initialise host to NULL and replace the
+   NULL-unsafe dev_err with pr_err().  The ATBM6461 binary correctly
+   calls this function with index=1 (MMC1).
+
+Signed-off-by: thingino <thingino@opensensor>
+--- a/arch/mips/xburst/soc-t23/common/platform.c
++++ b/arch/mips/xburst/soc-t23/common/platform.c
+@@ -39,9 +39,9 @@
+ #ifdef CONFIG_JZMMC_V12_MMC1_PA_4BIT
+ 	MSC1_PORTA,
+ #endif
+-//#ifdef CONFIG_JZMMC_V12_MMC1_PB_4BIT
+-//	MSC1_PORTB,
+-//#endif
++#ifdef CONFIG_JZMMC_V12_MMC1_PB_4BIT
++	MSC1_PORTB,
++#endif
+ #ifdef CONFIG_JZMMC_V12_MMC1_PC_4BIT
+ 	MSC1_PORTC,
+ #endif
+--- a/arch/mips/xburst/soc-t23/chip-t23/isvp/common/mmc.c
++++ b/arch/mips/xburst/soc-t23/chip-t23/isvp/common/mmc.c
+@@ -81,7 +81,9 @@
+ #else
+ 	 .removal  			= MANUAL,
+ 	 .sdio_clk			= 1,
+-	 .ocr_avail			= MMC_VDD_29_30 | MMC_VDD_30_31,
++	 .ocr_avail			= MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 |
++				  MMC_VDD_31_32 | MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_34_35 |
++				  MMC_VDD_35_36,
+ 	 .capacity  			= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ,
+ 	 .max_freq                       = CONFIG_MMC1_MAX_FREQ,
+ 	 .recovery_info			= NULL,
+--- a/drivers/mmc/host/jzmmc_v12.c
++++ b/drivers/mmc/host/jzmmc_v12.c
+@@ -1197,19 +1197,19 @@
+  */
+ int jzmmc_manual_detect(int index, int on)
+ {
+-	struct jzmmc_host *host;
++	struct jzmmc_host *host = NULL;
+ 	struct list_head *pos;
+
+ 	list_for_each(pos, &manual_list) {
+-		host = list_entry(pos, struct jzmmc_host, list);
+-		if (host->index == index)
+-			break;
+-		else
+-			host = NULL;
++		struct jzmmc_host *h = list_entry(pos, struct jzmmc_host, list);
++		if (h->index == index) {
++			host = h;
++			break;
++		}
+ 	}
+
+ 	if (!host) {
+-		dev_err(host->dev, "no manual card detect\n");
++		pr_err("jzmmc: no MANUAL host found for index %d\n", index);
+ 		return -1;
+ 	}
+

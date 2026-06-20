@@ -1,0 +1,15 @@
+config BR2_PACKAGE_WIFI_ATBM6461
+	bool "AltoBeam ATBM6461 (binary)"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Binary WiFi+MCU driver for AltoBeam ATBM6461 SDIO.
+	  Used in Wansview A1 (T23ZN / AJCloud ZRT platform).
+
+	  Source unavailable; .ko extracted from stock recovery initramfs.
+	  Vermagic is patched at build time to match the kernel version.
+	  Kernel localversion must be short enough to fit (≤9 chars including
+	  the leading dash), e.g. CONFIG_LOCALVERSION="-Archon".
+
+	  Also builds z7682_disable_wdt from recovered source and ships
+	  librtos.so for MCU watchdog communication via /dev/atbm_ioctl.

@@ -146,6 +146,20 @@ configure() {
 		exit 1
 	fi
 
+	@if WIFI_FAMILY_ATBM@
+	# ATBM6461 uses mcu_test for WiFi connection via MCU, not wpa_supplicant.
+	# Store plain text credentials for mcu_test to read at boot.
+	{
+		echo "# created on $(date +%c)"
+		echo "ctrl_interface=/run/wpa_supplicant"
+		echo ""
+		echo "network={"
+		echo "        ssid=\"$ssid\""
+		echo "        psk=\"$password\""
+		echo "}"
+	} >/etc/wpa_supplicant.conf
+	return
+	@endif@
 	# Derive PSK hex from passphrase so the plain password is never stored on disk.
 	# If the caller already supplied a 64-char hex PSK, use it directly.
 	local psk
