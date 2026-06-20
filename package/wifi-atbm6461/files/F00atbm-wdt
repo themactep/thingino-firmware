@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# Disable ATBM6461 MCU hardware watchdog.
+#
+# The ATBM6461 has a hardware watchdog managed by its embedded MCU.  It fires
+# ~13 seconds after power-on unless explicitly disabled by rtos_cmd_send(0x13).
+# This script runs as an F-script (before the F02failsafe 2-second wait) to
+# guarantee the watchdog is disabled well within the 13-second window.
+#
+# The JZ SoC MMC/SDIO controller (CONFIG_JZMMC_V12_MMC0=y) is built into the
+# kernel, so the SDIO bus is available from the start of userspace.
+#
+# Sequence:
+#   1. insmod the WiFi+MCU driver (creates /dev/atbm_ioctl)
+#   2. z7682_disable_wdt opens /dev/atbm_ioctl and sends DISABLE_MCU_WDT (0x13)
+#      (librtos.so rtos_cmd_is_ready polls up to 5 s for the device to appear)
+#
+# S36wireless will skip re-loading the module if it is already in /proc/modules.
+
+start() {
+	KVER=$(uname -r)
+	MODDIR="/usr/lib/modules/${KVER}"
+	MODULE="${MODDIR}/extra/atbm6461_wifi_sdio.ko"
+
+	# jzmmc_v12 exports jzmmc_manual_detect which atbm6461_wifi_sdio.ko
+	# requires. It is built as a module (=m) so load it first.
+	JZMMC="${MODDIR}/kernel/drivers/mmc/host/jzmmc_v12.ko"
+	if ! grep -q "^jzmmc_v12 " /proc/modules 2>/dev/null; then
+		if [ -f "$JZMMC" ]; then
+			insmod "$JZMMC"
+		else
+			echo "ATBM6461: jzmmc_v12.ko not found at $JZMMC" >&2
+			exit 1
+		fi
+	fi
+
+	if grep -q "^atbm6461_wifi_sdio " /proc/modules 2>/dev/null; then
+		echo "ATBM6461: module already loaded"
+	elif [ -f "$MODULE" ]; then
+		echo "ATBM6461: loading module"
+		insmod "$MODULE" atbm_printk_mask=0
+	else
+		echo "ATBM6461: module not found at $MODULE" >&2
+		exit 1
+	fi
+
+	echo "ATBM6461: disabling MCU watchdog"
+	/usr/bin/z7682_disable_wdt
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		:
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0
