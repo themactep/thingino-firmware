@@ -1,7 +1,5 @@
-FAAC_SITE_METHOD = git
-FAAC_SITE = https://github.com/knik0/faac
-FAAC_SITE_BRANCH = master
-FAAC_VERSION = 02fee83d97e5db0644c0622a2b15ed6e6db461fe
+FAAC_VERSION = 1.50
+FAAC_SITE = $(call github,knik0,faac,faac-$(FAAC_VERSION))
 
 FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
 FAAC_LICENSE_FILES = COPYING
@@ -19,7 +17,7 @@ FAAC_LIBFAAC_SRCS = bitstream.c blockswitch.c channels.c cpu_compute.c \
 define FAAC_CONFIGURE_CMDS
 	printf '%s\n' \
 		'#define PACKAGE "faac"' \
-		'#define PACKAGE_VERSION "1.40.0"' \
+		'#define PACKAGE_VERSION "1.50"' \
 		'#define HAVE_GETOPT_H 1' \
 		'#define HAVE_STDINT_H 1' \
 		'#define HAVE_SYS_TIME_H 1' \
@@ -61,7 +59,7 @@ define FAAC_INSTALL_STAGING_CMDS
 		'' \
 		'Name: FAAC' \
 		'Description: Freeware Advanced Audio Coder' \
-		'Version: 1.40.0' \
+		'Version: 1.50' \
 		'Libs: -L$${libdir} -lfaac' \
 		'Libs.private: -lm' \
 		'Cflags: -I$${includedir}' \
