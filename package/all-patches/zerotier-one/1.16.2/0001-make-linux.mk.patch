@@ -1,0 +1,59 @@
+
+--- a/make-linux.mk	2025-09-11 13:52:09.000000000 -0400
++++ b/make-linux.mk	2025-12-24 02:26:57.880065996 -0500
+@@ -15,6 +15,9 @@
+ DESTDIR?=
+ EXTRA_DEPS?=
+ 
++# Add libatomic for architectures that need it (e.g., MIPS for 64-bit atomic ops)
++LDLIBS+=-latomic
++
+ include objects.mk
+ 
+ ifeq ($(ZT_CONTROLLER),1)
+@@ -82,11 +85,11 @@
+ 	# C25519 in particular is almost UNUSABLE in -O0 even on a 3ghz box!
+ node/Salsa20.o node/SHA512.o node/C25519.o node/Poly1305.o: CXXFLAGS=-Wall -O2 -g -pthread $(INCLUDES) $(DEFS)
+ else
+-	CFLAGS?=-O3 -fstack-protector
++	CFLAGS?=-Os
+ 	override CFLAGS+=-Wall -Wno-deprecated -pthread $(INCLUDES) -DNDEBUG $(DEFS)
+-	CXXFLAGS?=-O3 -fstack-protector
++	CXXFLAGS?=-Os
+ 	override CXXFLAGS+=-Wall -Wno-deprecated -std=c++17 -pthread $(INCLUDES) -DNDEBUG $(DEFS)
+-	LDFLAGS?=-pie -Wl,-z,relro,-z,now
++	LDFLAGS?=
+ 	ZT_CARGO_FLAGS=--release
+ endif
+ 
+@@ -337,7 +340,7 @@
+ 
+ # Static builds, which are currently done for a number of Linux targets
+ ifeq ($(ZT_STATIC),1)
+-	override LDFLAGS+=-static
++	override LDFLAGS+=-static-libstdc++
+ endif
+ 
+ # For building an official semi-static binary on CentOS 7
+@@ -389,9 +392,9 @@
+ 	override CORE_OBJS+=ext/arm32-neon-salsa2012-asm/salsa2012.o
+ endif
+ 
+-# Position Independence
+-override CFLAGS+=-fPIC -fPIE
+-override CXXFLAGS+=-fPIC -fPIE
++# Position Independence and Link Time Optimization
++override CFLAGS+=-flto
++override CXXFLAGS+=-flto
+ 
+ # Non-executable stack
+ override LDFLAGS+=-Wl,-z,noexecstack
+@@ -418,7 +421,7 @@
+ $(ONE_OBJS): zeroidc smeeclient
+ 
+ libzerotiercore.a:	FORCE
+-	make CFLAGS="-O3 -fstack-protector -fPIC" CXXFLAGS="-O3 -std=c++17 -fstack-protector -fPIC" $(CORE_OBJS)
++	make CFLAGS="-Os -flto" CXXFLAGS="-Os -std=c++17 -flto" $(CORE_OBJS)
+ 	ar rcs libzerotiercore.a $(CORE_OBJS)
+ 	ranlib libzerotiercore.a
+ 

@@ -1,5 +1,5 @@
 ZEROTIER_ONE_VERSION = 1.16.2
-ZEROTIER_ONE_SITE = $(call github,zerotier,ZeroTierOne,$(ZEROTIER_ONE_VERSION))
+ZEROTIER_ONE_SITE = https://github.com/zerotier/ZeroTierOne/archive/refs/tags/$(ZEROTIER_ONE_VERSION)
 
 ZEROTIER_ONE_LICENSE = BUSL-1.1
 ZEROTIER_ONE_LICENSE_FILES = LICENSE.txt
