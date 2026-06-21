@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 21 Jun 2026 14:00:00 -0400
+Subject: [PATCH] CMakeLists: fix mbedtls lib name and modernize cmake policy
+ version
+
+Two fixes to the top-level CMakeLists.txt:
+
+  1. DEP_LIBS listed "tfpsacrypto" but the library is libmbedcrypto.so
+     (link with -lmbedcrypto). The wrong name made the final link of
+     libpeer.so fail with "cannot find -ltfpsacrypto".
+
+  2. CMake 4.x removed compatibility with cmake_minimum_required(VERSION
+     < 3.5). Forward -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to each
+     ExternalProject_Add sub-build (cJSON 3.0, libsrtp 3.12, usrsctp 3.0)
+     so they configure under a modern host cmake.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ CMakeLists.txt | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -31,7 +31,7 @@
+ link_directories(${CMAKE_BINARY_DIR}/dist/lib)
+ 
+ # Use system mbedTLS libraries from staging directory
+-set(DEP_LIBS "srtp2" "usrsctp" "mbedtls" "tfpsacrypto" "mbedx509" "cjson")
++set(DEP_LIBS "srtp2" "usrsctp" "mbedtls" "mbedcrypto" "mbedx509" "cjson")
+ # Extended debug information (symbols, source code, and macro definitions)
+ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3")
+ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
+@@ -72,6 +72,7 @@
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cJSON
+   CMAKE_ARGS
+     -DCMAKE_C_FLAGS="-fPIC"
++    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+     -DBUILD_SHARED_LIBS=off
+     -DENABLE_CJSON_TEST=off
+     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/dist
+@@ -84,6 +85,7 @@
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libsrtp
+   CMAKE_ARGS
+     -DCMAKE_C_FLAGS="-fPIC"
++    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+     -DTEST_APPS=off
+     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/dist
+     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+@@ -93,6 +95,7 @@
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/usrsctp
+   CMAKE_ARGS
+     -DCMAKE_C_FLAGS="-fPIC"
++    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+     -Dsctp_build_programs=off
+     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/dist
+     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}

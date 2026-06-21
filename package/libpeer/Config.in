@@ -2,7 +2,7 @@ config BR2_PACKAGE_LIBPEER
 	bool "libpeer"
 	depends on BR2_TOOLCHAIN_HAS_THREADS
 	depends on !BR2_STATIC_LIBS
-	select BR2_PACKAGE_MBEDTLS_WEBRTC_DTLS if BR2_PACKAGE_MBEDTLS
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP if BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_LIBSRTP
 	help
 	  libpeer is a lightweight WebRTC library for embedded systems.

@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 21 Jun 2026 14:30:00 -0400
+Subject: [PATCH] port dtls_srtp.c to mbedtls 3.x RNG argument signatures
+
+mbedtls 3.x made the RNG callback mandatory on the APIs that previously
+took it implicitly via the context:
+
+  - mbedtls_x509write_crt_pem() now requires (f_rng, p_rng) args
+  - mbedtls_ssl_cookie_setup() now requires (f_rng, p_rng) args
+  - mbedtls_ssl_conf_rng() is still required (f_rng documented as
+    mandatory); the prior "RNG is set automatically" comment was
+    incorrect, and without this call DTLS handshakes fail at runtime.
+
+Pass mbedtls_ctr_drbg_random / &dtls_srtp->ctr_drbg (already seeded in
+dtls_srtp_selfsign_cert) to each of these calls.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/dtls_srtp.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/dtls_srtp.c b/src/dtls_srtp.c
+--- a/src/dtls_srtp.c
++++ b/src/dtls_srtp.c
+@@ -127,7 +127,7 @@
+ 
+   mbedtls_x509write_crt_set_validity(&crt, "20180101000000", "20280101000000");
+ 
+-  ret = mbedtls_x509write_crt_pem(&crt, cert_buf, 2 * RSA_KEY_LENGTH);
++  ret = mbedtls_x509write_crt_pem(&crt, cert_buf, 2 * RSA_KEY_LENGTH, mbedtls_ctr_drbg_random, &dtls_srtp->ctr_drbg);
+ 
+   if (ret < 0) {
+     LOGE("mbedtls_x509write_crt_pem failed -0x%.4x", (unsigned int)-ret);
+@@ -183,7 +183,7 @@
+ 
+   mbedtls_ssl_conf_own_cert(&dtls_srtp->conf, &dtls_srtp->cert, &dtls_srtp->pkey);
+ 
+-  // mbedtls_ssl_conf_rng removed in newer mbedTLS - RNG is set automatically
++  mbedtls_ssl_conf_rng(&dtls_srtp->conf, mbedtls_ctr_drbg_random, &dtls_srtp->ctr_drbg);
+ 
+   mbedtls_ssl_conf_read_timeout(&dtls_srtp->conf, 1000);
+ 
+@@ -195,7 +195,7 @@
+ 
+     mbedtls_ssl_cookie_init(&dtls_srtp->cookie_ctx);
+ 
+-    mbedtls_ssl_cookie_setup(&dtls_srtp->cookie_ctx);
++    mbedtls_ssl_cookie_setup(&dtls_srtp->cookie_ctx, mbedtls_ctr_drbg_random, &dtls_srtp->ctr_drbg);
+ 
+     mbedtls_ssl_conf_dtls_cookies(&dtls_srtp->conf, mbedtls_ssl_cookie_write, mbedtls_ssl_cookie_check, &dtls_srtp->cookie_ctx);
+ 
