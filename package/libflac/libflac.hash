@@ -1,0 +1,5 @@
+# Locally calculated
+sha256  abb0b23301af85ee2564c48effbdeab9126aab863ade0855e13219b98e29eeeb  libflac-2.4.1.tar.gz
+
+# License files
+sha256  fa27cb11f13f97b0c5f3ff363b1e2610c6efe87ed175779cb2a78e44eb19d34c  src/libflac/COPYING.Xiph
