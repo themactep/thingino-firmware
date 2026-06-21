@@ -1,6 +1,9 @@
 config BR2_PACKAGE_LIBDATACHANNEL
 	bool "libdatachannel (tiny WebRTC C++ library)"
 	select BR2_PACKAGE_LIBJUICE
+	select BR2_PACKAGE_USRSCTP
+	select BR2_PACKAGE_PLOG
+	select BR2_PACKAGE_LIBSRTP
 	depends on BR2_TOOLCHAIN_HAS_THREADS
 	depends on !BR2_STATIC_LIBS
 	help
