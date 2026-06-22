@@ -1,0 +1,6 @@
+# Locally calculated
+sha256  abb0b23301af85ee2564c48effbdeab9126aab863ade0855e13219b98e29eeeb  libhelix-mp3-2.4.1.tar.gz
+
+# License files
+sha256  86cd65f6dd725044f6cd23e8ddab1dd447722d58b74bc6b9a3a13088fa8b44fa  src/libhelix-mp3/LICENSE.txt
+sha256  2333af002fd705cc1d78b8a7221e7e987a5d235337a9db54edccd60753fca287  src/libhelix-mp3/RPSL.txt
