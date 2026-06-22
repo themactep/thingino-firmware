@@ -21,15 +21,9 @@ WIFI_ATBM6461_KERN_LOCALVER = $(call qstrip,$(shell \
 	awk -F= '/^CONFIG_LOCALVERSION=/ {v=$$2} END {print v}' \
 		$(LINUX_DIR)/.config 2>/dev/null))
 
-# Patch vermagic in the binary .ko from "-Immortal" to the build kernel version.
-# Uses patch_vermagic.py which handles both in-place replacement (shorter)
-# and objcopy --update-section expansion (longer) of the .modinfo section.
+# The .ko is pre-patched to __isvp_pike_1.0__ in source.
+# Only z7682_disable_wdt needs to be compiled at build time.
 define WIFI_ATBM6461_BUILD_CMDS
-	python3 $(@D)/files/patch_vermagic.py \
-		$(@D)/files/atbm6461_wifi_sdio.ko \
-		$(@D)/atbm6461_wifi_sdio_patched.ko \
-		"$(WIFI_ATBM6461_KERN_LOCALVER)" \
-		"$(TARGET_CROSS)objcopy"
 	$(TARGET_CC) $(TARGET_CFLAGS) -o $(@D)/z7682_disable_wdt \
 		$(@D)/files/z7682_disable_wdt.c \
 		-L$(@D)/files -lrtos \
@@ -73,7 +67,7 @@ endef
 WIFI_ATBM6461_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6461_INSTALL_CONFIGS
 
 define WIFI_ATBM6461_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0644 $(@D)/atbm6461_wifi_sdio_patched.ko \
+	$(INSTALL) -D -m 0644 $(@D)/files/atbm6461_wifi_sdio.ko \
 		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)/extra/atbm6461_wifi_sdio.ko
 endef
 
