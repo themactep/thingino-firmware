@@ -1,0 +1,29 @@
+From: thingino <thingino@opensensor>
+Subject: [PATCH] mips/xburst/soc-t23: remove select TRACEPOINTS from CHIP_T23
+
+The older ISVP SDK used by stock OEM T23 firmware (e.g. Ingenic "Immortal"
+kernel, driver date 2024-1204) did not select TRACEPOINTS in CHIP_T23.
+Without TRACEPOINTS, struct module is 0x118 bytes.  Our kernel's newer
+SDK added "select TRACEPOINTS", making struct module 0x120 bytes.
+
+Binary .ko files compiled against the older OEM SDK embed a 0x118-byte
+struct module.  When the newer kernel tries to reference-count such a
+module it reads module->refptr from offset 0x11c -- four bytes past the
+end of the embedded struct -- finding zero and crashing in module_put:
+
+  CPU 0 Unable to handle kernel paging request at virtual address 00000004
+  epc == 800790e8  (module_put+0x2c)
+
+The T23 platform does not use kernel tracepoints / ftrace at runtime.
+Removing the select keeps CHIP_T23's struct module layout identical to
+the OEM SDK, allowing pre-built binary .ko files to load safely.  All
+in-tree modules built from source will be recompiled against the new
+(smaller) struct layout and remain consistent.
+
+Signed-off-by: thingino <thingino@opensensor>
+--- a/arch/mips/xburst/soc-t23/Kconfig
++++ b/arch/mips/xburst/soc-t23/Kconfig
+@@ -8,3 +8,2 @@
+        bool "chip-t23"
+-       select TRACEPOINTS
+        select SYS_SUPPORTS_HIGHMEM

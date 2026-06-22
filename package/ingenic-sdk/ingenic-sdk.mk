@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = ff16c633c3fb81b24e8b0d7549773ec5232be469
+INGENIC_SDK_VERSION = 8addc4a9acc93a4547dbd2a937f30a8c9745520a
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -37,6 +37,25 @@ endef
 endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
+
+# Sensors that exist for T31 but not yet for T23 — fall back to the T31 driver.
+# The T23 and T31 share the same 3.10.14 ISP framework and MIPI controller, so
+# T31 sensor sources compile and run correctly on T23.
+INGENIC_SDK_T23_T31_SENSOR_FALLBACKS = os02g10
+
+define INGENIC_SDK_T23_SENSOR_FALLBACK
+	if [ "$(SOC_FAMILY)" = "t23" ]; then \
+		for sensor in $(INGENIC_SDK_T23_T31_SENSOR_FALLBACKS); do \
+			t23_src="$(@D)/3.10.14/sensor-src/t23/$$sensor.c"; \
+			t31_src="$(@D)/3.10.14/sensor-src/t31/$$sensor.c"; \
+			if [ ! -f "$$t23_src" ] && [ -f "$$t31_src" ]; then \
+				echo "ingenic-sdk: copying T31 $$sensor driver to T23"; \
+				cp "$$t31_src" "$$t23_src"; \
+			fi; \
+		done; \
+	fi
+endef
+INGENIC_SDK_PRE_BUILD_HOOKS += INGENIC_SDK_T23_SENSOR_FALLBACK
 
 # Per-camera IQ file overrides (paths relative to BR2_EXTERNAL root)
 ifneq ($(call qstrip,$(BR2_SENSOR_1_IQ_FILE)),)
@@ -146,8 +165,7 @@ define GENERATE_MODULE_LOADER
 	fi
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
-		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || \
-			[ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
 		fi \
 	fi
