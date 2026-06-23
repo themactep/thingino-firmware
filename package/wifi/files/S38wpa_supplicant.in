@@ -67,7 +67,7 @@ esac
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 case "$WLAN_MODULE_NAME" in
-	atbm*)
+	atbm6461*)
 		DAEMON_ARGS="-D wext $DAEMON_ARGS"
 		;;
 esac
@@ -270,7 +270,7 @@ start() {
 
 	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 	case "$WLAN_MODULE_NAME" in
-		atbm*)
+		atbm6461*)
 			if [ "$mode" = "client" ]; then
 				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
 				wifi_pass=$(grep 'psk=' $CONFIG | head -1 | sed 's/.*psk="\([^"]*\)".*/\1/')
