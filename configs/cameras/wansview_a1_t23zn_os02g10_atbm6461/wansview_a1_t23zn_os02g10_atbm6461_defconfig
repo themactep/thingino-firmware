@@ -10,8 +10,10 @@
 # NOTES:
 #  - OS02G10 T23 sensor driver not yet in ingenic-sdk; port from ZRT SDK
 #    os/drivers/sensor-t23/zeratul/os02g10/ or from ingenic-sdk-matteius t31/os02g10.c
-#  - ATBM6461 .ko is a binary blob (no upstream source); vermagic patched at build time
-#    to match CONFIG_LOCALVERSION (must be ≤9 chars via wansview_a1_t23zn.kernel.config)
+#  - ATBM6461 .ko is a binary blob (no upstream source); vermagic is patched at
+#    build time by package/wifi-atbm6461 to match CONFIG_LOCALVERSION.
+#  - MCU WiFi/battery commands are provided by package/atbm6461-tools. Do not
+#    add per-camera mcu_test binaries under this profile overlay.
 #  - MCU watchdog (~13s timeout) is disabled by z7682_disable_wdt via librtos.so
 #    on /dev/atbm_ioctl; S02atbm-wdt init script runs at early boot before S36wireless
 #  - Reset button is MCU-managed (key_enable/key_disable via rtos_cmd_send, not a GPIO);

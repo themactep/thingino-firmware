@@ -1,0 +1,8 @@
+config BR2_PACKAGE_ATBM6461_TOOLS
+	bool "ATBM6461 MCU tools"
+	depends on BR2_PACKAGE_WIFI_ATBM6461
+	help
+	  Source-built userspace tools for the ATBM6461 WiFi MCU command
+	  interface. Provides an mcu_test-compatible command for WiFi setup,
+	  battery queries, PIR/RTC settings, and firmware update helpers.
+	  This replaces per-camera binary mcu_test overlays.
