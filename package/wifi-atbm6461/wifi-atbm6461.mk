@@ -60,8 +60,6 @@ define WIFI_ATBM6461_INSTALL_CONFIGS
 	$(INSTALL) -D -m 0755 $(@D)/z7682_disable_wdt \
 		$(TARGET_DIR)/usr/bin/z7682_disable_wdt
 
-	$(INSTALL) -D -m 0755 $(@D)/files/F00atbm-wdt \
-		$(TARGET_DIR)/etc/init.d/F00atbm-wdt
 endef
 
 WIFI_ATBM6461_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6461_INSTALL_CONFIGS
