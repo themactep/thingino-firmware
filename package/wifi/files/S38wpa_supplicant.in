@@ -275,23 +275,38 @@ start() {
 				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
 				wifi_pass=$(grep 'psk=' $CONFIG | head -1 | sed 's/.*psk="\([^"]*\)".*/\1/')
 				if [ -n "$wifi_ssid" ] && [ -n "$wifi_pass" ]; then
+					if ! command -v mcu_test >/dev/null 2>&1; then
+						echo "mcu_test not found; ATBM6461 client connection cannot start" >&2
+						exit 1
+					fi
+					echo "Bring $IFACE up"
+					ip link set $IFACE up
 					echo "Connecting via mcu_test: $wifi_ssid"
-					mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"
+					if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
+						echo "WARNING: mcu_test WiFi command failed"
+					fi
 					echo "Waiting for MCU WiFi connection..."
-					sleep 10
-					hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
+					i=0
+					hex_ip=""
+					while [ "$i" -lt 30 ]; do
+						hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
+						[ -n "$hex_ip" ] && break
+						i=$((i + 1))
+						sleep 1
+					done
 					if [ -n "$hex_ip" ] && [ ${#hex_ip} -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
 						ip_addr=$(printf '%d.%d.%d.%d' 0x${hex_ip:6:2} 0x${hex_ip:4:2} 0x${hex_ip:2:2} 0x${hex_ip:0:2})
 						gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
 						echo "MCU DHCP IP: $ip_addr"
-						ip link set $IFACE up
 						ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
 						ip route add default via $gateway dev $IFACE 2>/dev/null || true
 						echo "nameserver $gateway" > /tmp/resolv.conf
+						sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
 					else
 						echo "WARNING: Could not get IP from MCU DHCP"
+						ip link show $IFACE
+						iwconfig $IFACE 2>/dev/null || true
 					fi
-					sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
 				else
 					echo "Missing SSID or password for mcu_test"
 				fi
