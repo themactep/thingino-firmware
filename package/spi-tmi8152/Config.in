@@ -3,3 +3,13 @@ config BR2_PACKAGE_SPI_TMI8152
 	select BR2_LINUX_KERNEL
 	help
 	  TMI8152 experimental driver
+
+if BR2_PACKAGE_SPI_TMI8152
+
+config BR2_PACKAGE_SPI_TMI8152_MOTOR
+	bool "Install motor module"
+	default n
+	help
+	  Install motor module from spi-tmi8152 overriding the motor module from SDK
+
+endif
