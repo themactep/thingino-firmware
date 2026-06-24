@@ -149,6 +149,7 @@ configure() {
 	@if WIFI_ATBM6461@
 	# ATBM6461 uses mcu_test for WiFi connection via MCU, not wpa_supplicant.
 	# Store plain text credentials for mcu_test to read at boot.
+	password=$(printf '%s' "$password" | tr -d '\r\n\t')
 	{
 		echo "# created on $(date +%c)"
 		echo "ctrl_interface=/run/wpa_supplicant"

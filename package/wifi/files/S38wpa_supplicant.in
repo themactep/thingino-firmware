@@ -279,10 +279,12 @@ start() {
 						echo "mcu_test not found; ATBM6461 client connection cannot start" >&2
 						exit 1
 					fi
-					echo "Bring $IFACE up"
-					ip link set $IFACE up
-					echo "Connecting via mcu_test: $wifi_ssid"
-					if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
+				echo "Bring $IFACE up"
+				ip link set $IFACE up
+				echo "Waiting for SDIO link to stabilize..."
+				sleep 3
+				echo "Connecting via mcu_test: $wifi_ssid"
+				if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
 						echo "WARNING: mcu_test WiFi command failed"
 					fi
 					echo "Waiting for MCU WiFi connection..."
