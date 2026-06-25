@@ -108,28 +108,40 @@ if [ "true" = "$verbose" ]; then
 else
 	command="$CURL --silent"
 fi
-command="$command --mail-from $from_address --mail-rcpt $to_address"
-[ -n "$username" ] && [ -n "$password" ] && command="$command --user '$username:$password'"
+
+# --- Sanitize config values for safe shell interpolation ---
+s_from_address=$(shell_escape "$from_address")
+s_to_address=$(shell_escape "$to_address")
+s_host=$(shell_escape "$host")
+s_username_password=$(shell_escape "$username:$password")
+s_from_name=$(shell_escape "From: \"$from_name\" <$from_address>")
+s_to_name=$(shell_escape "To: \"$to_name\" <$to_address>")
+s_email_date=$(shell_escape "Date: $email_date")
+s_subject=$(shell_escape "Subject: $subject")
+s_body=$(shell_escape "=${body};type=text/plain")
+
+command="$command --mail-from $s_from_address --mail-rcpt $s_to_address"
+[ -n "$username" ] && [ -n "$password" ] && command="$command --user $s_username_password"
 
 if [ "true" = "$use_ssl" ]; then
-	command="$command --url smtps://$host:$port --ssl-reqd"
+	command="$command --url smtps://$s_host:$port --ssl-reqd"
 	[ "true" = "$trust_cert" ] && command="$command --insecure"
 else
-	command="$command --url smtp://$host:$port"
+	command="$command --url smtp://$s_host:$port"
 fi
 
 email_date=$(date -uR)
 email_body=${body//"/\\"}
-command="$command -H 'From: \"$from_name\" <$from_address>'"
-command="$command -H 'To: \"$to_name\" <$to_address>'"
-command="$command -H 'Date: $email_date'"
-command="$command -H 'Subject: $subject'"
+command="$command -H $s_from_name"
+command="$command -H $s_to_name"
+command="$command -H $(shell_escape \"Date: $email_date\")"
+command="$command -H $s_subject"
 command="$command -F '=(;type=multipart/mixed'"
-command="$command -F \"=${body};type=text/plain\""
+command="$command -F $s_body"
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -F 'snapshot=@$photo;type=image/jpeg;encoder=base64'"
+	command="$command -F $(shell_escape \"snapshot=@$photo;type=image/jpeg;encoder=base64\")"
 fi
 
 if [ "true" = "$send_video" ]; then
@@ -140,7 +152,7 @@ if [ "true" = "$send_video" ]; then
 		mp4) mime="video/mp4" ;;
 		*) mime="application/octet-stream" ;;
 	esac
-	command="$command -F 'video=@$video;type=$mime;encoder=base64'"
+	command="$command -F $(shell_escape \"video=@$video;type=$mime;encoder=base64\")"
 fi
 
 command="$command -F '=)'"

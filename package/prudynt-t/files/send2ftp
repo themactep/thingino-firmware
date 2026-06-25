@@ -97,8 +97,8 @@ if [ "true" = "$send_photo" ]; then
 fi
 
 url="ftp://"
-[ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
-url="$url@$host:$port"
+[ -n "$username" ] && [ -n "$password" ] && url="$url$(shell_escape "$username:$password")"
+url="$url@$(shell_escape "$host"):$port"
 if [ -n "$path" ]; then
 	path="$(date +"$path")"
 	url="$url/${path// /%20}"
@@ -110,7 +110,7 @@ for local_file in $queue; do
 	else
 		command="$CURL --silent"
 	fi
-	command="$command --url $url/$(basename $local_file) --upload-file $local_file --ftp-create-dirs"
+	command="$command --url $(shell_escape "$url/$(basename $local_file)") --upload-file $(shell_escape "$local_file") --ftp-create-dirs"
 
 	[ "true" = "$verbose" ] && echo_command "$command"
 

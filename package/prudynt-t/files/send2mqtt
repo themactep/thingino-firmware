@@ -23,11 +23,6 @@ message_looks_like_json() {
 	esac
 }
 
-escape_single_quotes() {
-	# Escape single quotes for safe inclusion inside single-quoted strings
-	printf "%s" "$1" | sed "s/'/'\\\\''/g"
-}
-
 show_help() {
 	echo "Usage: $0 [options]
 Where:
@@ -111,22 +106,32 @@ fi
 
 message=$(date +"$message")
 
-command="mosquitto_pub -h $host -p $port -i $client_id"
+# --- Sanitize config values for safe shell interpolation ---
+s_client_id=$(shell_escape "$client_id")
+s_host=$(shell_escape "$host")
+s_username=$(shell_escape "$username")
+s_password=$(shell_escape "$password")
+s_topic=$(shell_escape "$topic")
+s_topic_photo=$(shell_escape "$topic_photo")
+s_topic_video=$(shell_escape "$topic_video")
+s_message=$(shell_escape "$message")
+
+command="mosquitto_pub -h $s_host -p $port -i $s_client_id"
 
 [ "true" = "$verbose" ] && command="$command -d"
-[ -n "$username" ] && command="$command -u $username"
-[ -n "$password" ] && command="$command -P $password"
+[ -n "$username" ] && command="$command -u $s_username"
+[ -n "$password" ] && command="$command -P $s_password"
 
 failed=0
 
 if message_looks_like_json "$message"; then
 	tmpfile="$(mktemp -u).json"
-	echo "$message" > $tmpfile
-	send_command="$command -t $topic -f $tmpfile"
+	echo "$message" > "$tmpfile"
+	s_tmpfile=$(shell_escape "$tmpfile")
+	send_command="$command -t $s_topic -f $s_tmpfile"
 	garbage="$garbage $tmpfile"
 else
-	sanitized_message=$(escape_single_quotes "$message")
-	send_command="$command -t $topic -m '$sanitized_message'"
+	send_command="$command -t $s_topic -m $s_message"
 fi
 
 [ "true" = "$verbose" ] && echo_command "$send_command"
@@ -136,7 +141,8 @@ if ! sh -c "$send_command"; then
 fi
 
 if [ -n "$file" ] && [ -f "$file" ]; then
-	send_command="$command -t $topic -f '$file'"
+	s_file=$(shell_escape "$file")
+	send_command="$command -t $s_topic -f $s_file"
 	[ "true" = "$verbose" ] && echo_command "$send_command"
 	if ! sh -c "$send_command"; then
 		echo_error "Failed to send file via MQTT"
@@ -150,7 +156,8 @@ if [ "true" = "$send_photo" ]; then
 		echo_error "Failed to get photo"
 		failed=1
 	else
-		send_command="$command -t $topic_photo -f '$photo'"
+		s_photo=$(shell_escape "$photo")
+		send_command="$command -t $s_topic_photo -f $s_photo"
 		[ "true" = "$verbose" ] && echo_command "$send_command"
 		if ! sh -c "$send_command"; then
 			echo_error "Failed to send photo via MQTT"
@@ -165,7 +172,8 @@ if [ "true" = "$send_video" ]; then
 		echo_error "Failed to get video"
 		failed=1
 	else
-		send_command="$command -t $topic_video -f '$video'"
+		s_video=$(shell_escape "$video")
+		send_command="$command -t $s_topic_video -f $s_video"
 		[ "true" = "$verbose" ] && echo_command "$send_command"
 		if ! sh -c "$send_command"; then
 			echo_error "Failed to send video via MQTT"
