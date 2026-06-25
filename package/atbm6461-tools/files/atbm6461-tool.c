@@ -66,6 +66,7 @@ static void usage(const char *prog)
 	printf("  --set_detect_range=[threshold]\n");
 	printf("  --set_pir_type=[type]\n");
 	printf("  --set_rtc_mode=[mode]\n");
+	printf("  --send-raw=[cmd_id]        probe a raw RTOS command ID\n");
 	printf("  --upgrade_fw [=<file_path>]\n");
 }
 
@@ -344,6 +345,29 @@ static int handle_option(int argc, char **argv, int *index)
 		if (take_arg(argc, argv, index, &value) < 0)
 			return upgrade_firmware(NULL);
 		return upgrade_firmware(value);
+	}
+
+	if (strcmp(name, "send-raw") == 0) {
+		int cmd_id;
+		unsigned char buf[256];
+		int out_len;
+		int ret, i;
+
+		if (take_arg(argc, argv, index, &value) < 0) {
+			puts("send-raw requires a command ID");
+			return -1;
+		}
+		cmd_id = atoi(value);
+		memset(buf, 0, sizeof(buf));
+		out_len = sizeof(buf);
+		ret = rtos_cmd_send(cmd_id, NULL, 0, buf, &out_len,
+				    RTOS_TIMEOUT_SHORT_MS);
+		printf("id=%d ret=%d out_len=%d hex=",
+		       cmd_id, ret, out_len);
+		for (i = 0; i < out_len && i < 16; i++)
+			printf("%02x", buf[i]);
+		putchar('\n');
+		return ret >= 0 ? 0 : 1;
 	}
 
 	return -2;
