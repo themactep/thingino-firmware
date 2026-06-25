@@ -13,6 +13,9 @@
 .bash_history
 .wget-hsts
 
+# Generated
+*.pyc
+
 # Buildroot
 /.cache
 /.ccache
