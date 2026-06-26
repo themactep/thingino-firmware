@@ -25,6 +25,13 @@ read_type2() {
 	type2=$((($type2_raw >> 16) & 0xFFFF))
 }
 
+read_t33id() {
+	# T33 variant selector: byte at 0x1354021f (byte 3 of the word at 0x1354021C),
+	# not type1/type2 like the other families.
+	t33id_raw=$(devmem 0x1354021C)
+	t33id=$((($t33id_raw >> 24) & 0xFF))
+}
+
 print_soc_clocks() {
 	cpu_speed=$(grep "apll" /proc/jz/clock/clocks | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /MHz/) print $i}')
 	echo "CPU Speed: $cpu_speed"
@@ -71,12 +78,12 @@ print_soc_model() {
 			$((0x6666))) soc="t41zx" ;;
 			$((0x7777))) soc="t40xp" ;;
 			#$((0x7777))) soc="t41zn" ;; # overlap with t40xp
-			$((0x8888))) soc="t40nn" ;;
+			$((0x8888))) soc="t40nn" ;; # 0x8888 also names t41lc (same silicon, diff SKU)
 			$((0x9999))) soc="t41lq" ;;
 			$((0xAAAA))) soc="t41nq" ;;
-			#$((0xAAAA))) soc="t41xq" ;;
-			#$((0x????))) soc="t41zm" ;; # verify on chip
-			#$((0x????))) soc="t41zg" ;; # verify on chip
+			$((0x2222))) soc="t41xq" ;;
+			$((0xBBBB))) soc="t41zm" ;;
+			$((0xCCCC))) soc="t41zg" ;;
 			*) soc="unknown_t4x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x1)) ]; then
@@ -85,9 +92,21 @@ print_soc_model() {
 			$((0x1111))) soc="a1n" ;;
 			$((0x2222))) soc="a1x" ;;
 			$((0x3333))) soc="a1l" ;;
-			$((0x4444))) soc="a1a" ;;
+			$((0x4444))) soc="a1a" ;; # real vendor SKU (uboot a1a_ddr_para); 0x4444 by convention, confirm on a real A1A chip
 			$((0x5555))) soc="a1nt" ;;
 			*) soc="unknown_a1x" ;;
+		esac
+	elif [ "$cpuid" -eq $((0x33)) ]; then # T33: variant byte at 0x1354021f, not type1/type2
+		read_t33id
+		case "$t33id" in
+			$((0x99))) soc="t33l" ;;
+			$((0x33))|$((0xAA))) soc="t33n" ;;
+			$((0x44))) soc="t33a" ;;
+			$((0x55))) soc="t33zl" ;;
+			$((0x77))) soc="t33zn" ;;
+			$((0xCC))) soc="t33vl" ;;
+			$((0xDD))) soc="t33vn" ;;
+			*) soc="unknown_t33" ;;
 		esac
 	else
 		# For all other chips, use type1
@@ -95,22 +114,23 @@ print_soc_model() {
 		cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | $type1)))
 		case "$cpu_sig" in
 			0x00050000) soc="t10" ;;
-			#0x01011111) soc="c100" ;;
+			# C100 is a die-shrink of T31A (cpuid 0x31 / type1 0x4444 -> detected as t31a above);
+			# no distinct C100 chip id exists. (old guess: #0x01011111) soc="c100")
 			0x20000000) soc="t20ax" ;;
 			0x20001111) soc="t20n" ;;
 			0x20002222) soc="t20x" ;;
 			0x20003333) soc="t20l" ;;
 			0x20006666) soc="t20z" ;;
 			0x00211111) soc="t21n" ;;
+			0x00212222) soc="t21x" ;; # 0x2222 by T-family convention; confirm on a t21x chip
 			0x00213333) soc="t21l" ;;
-			#0x002????) soc="t21x" ;;
 			0x00215555) soc="t21z" ;;
 			0x00231111) soc="t23n" ;;
 			0x00232222) soc="t23x" ;;
 			0x00233333) soc="t23dl" ;;
+			0x00235555) soc="t23dn" ;;
+			0x00236666) soc="t23zx" ;;
 			0x00237777) soc="t23zn" ;;
-			#0x0023????) soc="t23dn" ;;
-			#0x0023????) soc="t23zx" ;;
 			0x00301111) soc="t30n" ;;
 			0x00302222) soc="t30x" ;;
 			0x00303333) soc="t30l" ;;
@@ -125,6 +145,7 @@ print_soc_model() {
 			0x0031CCCC) soc="t31al" ;;
 			0x0031DDDD) soc="t31zc" ;;
 			0x0031EEEE) soc="t31lc" ;;
+			0x00329999) soc="t32lq" ;;
 			0x0032AAAA) soc="t32nq" ;;
 			0x0005EE00) soc="qemu-t10" ;;
 			0x0020EE00) soc="qemu-t20" ;;
