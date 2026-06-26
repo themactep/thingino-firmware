@@ -4,12 +4,13 @@
 # Provides non-interactive containerized build environment
 #
 # Usage:
-#   ./docker-build.sh            # Build firmware (fast parallel)
-#   ./docker-build.sh dev        # Debug build (slow serial, stops at errors)
-#   ./docker-build.sh menuconfig # Run menuconfig in container
-#   ./docker-build.sh shell      # Open interactive shell
-#   ./docker-build.sh clean      # Clean build in container
-#   ./docker-build.sh ota # Upgrade firmware OTA
+#   ./build-container.sh            # Build firmware (fast parallel)
+#   ./build-container.sh dev        # Debug build (slow serial, stops at errors)
+#   ./build-container.sh menuconfig # Run menuconfig in container
+#   ./build-container.sh shell      # Open interactive shell
+#   ./build-container.sh clean      # Clean build in container
+#   ./build-container.sh nuke       # Destroy all container images and dl cache
+#   ./build-container.sh ota        # Upgrade firmware OTA
 #
 
 set -e
@@ -36,9 +37,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Run Makefile.docker without triggering host-side dep_check.sh from top-level Makefile
-run_makefile_docker() {
-    WORKFLOW=1 make -f Makefile.docker "$@"
+# Run Makefile.container without triggering host-side dep_check.sh from top-level Makefile
+run_makefile_container() {
+    WORKFLOW=1 make -f Makefile.container "$@"
 }
 
 # Minimum memory (MiB) for podman machine VM to avoid OOM during builds
@@ -79,16 +80,40 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
     fi
 fi
 
-# Build image if needed
-DOCKER_IMAGE="thingino-builder"
-DOCKER_TAG="latest"
+# Check for fresh container image
+CONTAINER_IMAGE="ghcr.io/themactep/thingino-builder-image"
+CONTAINER_TAG="latest"
+case "$(uname -m)" in
+    x86_64)  ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+    *)       ARCH="$(uname -m)" ;;
+esac
 
-if ! $CONTAINER_ENGINE images | grep -q "$DOCKER_IMAGE.*$DOCKER_TAG"; then
-    print_info "Building container image..."
-    run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
-    print_success "Container image built"
+print_info "Checking for container image updates..."
+
+# Get local digest
+LOCAL_DIGEST=$($CONTAINER_ENGINE inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" --format '{{index .RepoDigests 0}}' 2>/dev/null | sed 's/.*@//')
+
+# Get remote digest for current platform
+REMOTE_DIGEST=""
+if command -v skopeo >/dev/null 2>&1; then
+    REMOTE_DIGEST=$(skopeo inspect "docker://$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+        | python3 -c "import sys,json; print(json.load(sys.stdin).get('Digest',''))" 2>/dev/null)
+elif [ "$CONTAINER_ENGINE" = "podman" ]; then
+    REMOTE_DIGEST=$(podman manifest inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+        | python3 -c "import sys,json; m=json.load(sys.stdin); print(next((x['digest'] for x in m.get('manifests',[]) if x.get('platform',{}).get('architecture')=='$ARCH'),''))" 2>/dev/null)
+fi
+
+if [ -z "$LOCAL_DIGEST" ]; then
+    print_info "Pulling container image..."
+    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+    print_success "Pulled new container image"
+elif [ -n "$REMOTE_DIGEST" ] && [ "$LOCAL_DIGEST" = "$REMOTE_DIGEST" ]; then
+    print_info "Container image is current"
 else
-    print_info "Container image already exists"
+    print_info "Updating container image..."
+    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+    print_success "Updated container image"
 fi
 
 # Function to select camera
@@ -227,15 +252,20 @@ CMD="${1:-build}"
 case "$CMD" in
     shell)
         print_info "Starting interactive shell in container..."
-        run_makefile_docker docker-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-shell CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     menuconfig|linux-menuconfig|busybox-menuconfig)
         print_info "Running $CMD in container..."
-        run_makefile_docker "docker-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container "container-$CMD" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     clean)
         print_info "Running clean build in container..."
-        run_makefile_docker docker-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-clean-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        ;;
+    nuke)
+        print_info "Destroying all container images and dl cache..."
+        run_makefile_container container-nuke CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        print_success "All container artifacts removed"
         ;;
     cleanbuild)
         # Select camera
@@ -253,7 +283,7 @@ case "$CMD" in
         print_info "Running CLEAN build (distclean + fast parallel)..."
 
         # Build with selected camera using cleanbuild target
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
@@ -271,7 +301,7 @@ case "$CMD" in
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
 
         # Build with selected camera using dev target (serial build with V=1)
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     ota)
         # Select camera
@@ -289,7 +319,7 @@ case "$CMD" in
         print_info "Running ota in container..."
 
         # Build with selected camera
-        run_makefile_docker docker-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        run_makefile_container container-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -307,10 +337,10 @@ case "$CMD" in
         print_info "Building firmware in container (parallel incremental)..."
 
         # Build with selected camera (uses default 'all' target which is incremental parallel)
-        run_makefile_docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     info)
-        run_makefile_docker docker-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     images)
         print_info "Locating built firmware images..."
@@ -321,27 +351,27 @@ case "$CMD" in
         fi
         ;;
     rebuild-image)
-        print_info "Rebuilding container image..."
-        run_makefile_docker docker-clean CONTAINER_ENGINE="$CONTAINER_ENGINE"
-        run_makefile_docker docker-build CONTAINER_ENGINE="$CONTAINER_ENGINE"
-        print_success "Container image rebuilt"
+        print_info "Pulling latest container image..."
+        run_makefile_container container-pull CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        print_success "Container image updated"
         ;;
     *)
-        cat << 'EOF' >&2
-Unknown command. Available commands:
+        # Select camera
+        CAMERA=$(select_camera)
 
-  ./docker-build.sh              Build firmware (parallel incremental)
-  ./docker-build.sh cleanbuild   Clean + build from scratch (parallel)
-  ./docker-build.sh dev          Debug build (serial incremental, V=1, stops at errors)
-  ./docker-build.sh shell        Interactive shell in container
-  ./docker-build.sh menuconfig   Configure build options
-  ./docker-build.sh clean        Clean build artifacts
-  ./docker-build.sh info         Show container configuration
-  ./docker-build.sh rebuild-image Rebuild the container image
-    ./docker-build.sh ota          Upgrade firmware OTA (requires IP=x.x.x.x)
+        # Strip any ANSI codes that might have been captured
+        CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
 
-EOF
-        exit 1
+        if [ -z "$CAMERA" ]; then
+            print_error "No camera selected"
+            exit 1
+        fi
+
+        print_success "Selected camera: $CAMERA"
+        print_info "Running '$*' in container..."
+
+        # Pass all arguments through as make targets
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="$*" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
 esac
 
