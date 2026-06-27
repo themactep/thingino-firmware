@@ -1,0 +1,30 @@
+# SPI-NAND profile fragment.
+#
+# A NAND camera profile opts in by listing "flash-nand" on its "# FRAG:" line
+# and selecting the NAND flash type in its defconfig body, e.g.:
+#   # FRAG: soc-xburst2 core ssl flash-nand
+#   BR2_THINGINO_FLASH_NAND=y
+#   FLASH_SIZE_MB=128
+#
+# Concatenated AFTER core.fragment, so the symbols below win. NOR profiles never
+# list it, so their build is byte-for-byte unchanged.
+#
+# The U-Boot side (defconfig isvp_<soc>_sfcnand, env-in-UBI layout) is resolved
+# automatically from the soc_database / thingino.mk NAND wiring. The UBI volume
+# layout and the full-chip image are assembled in the Makefile NAND branch.
+
+# kernel: NAND driver + UBI + UBIFS, per SOC_ARCH / KERNEL_VERSION
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/nand.fragment"
+
+# BusyBox NAND/UBI applets are re-added by thingino-system's busybox config
+# fixup (THINGINO_SYSTEM_BUSYBOX_CONFIG_FIXUPS_NAND), gated on this flash type.
+
+# host tools: ubinize / mkfs.ubifs for the Makefile NAND pack stage
+BR2_PACKAGE_HOST_MTD=y
+
+# root: the rootfs stays squashfs (built by core.fragment); the Makefile NAND
+# branch wraps it in the "rootfs" UBI volume, mounted read-only via ubiblock,
+# with a separate read-write UBIFS "overlay" volume. root= / rootfstype= here
+# are consumed by the uenv generation (override the NOR values from core).
+BR2_PACKAGE_THINGINO_UBOOT_ROOT="/dev/ubiblock0_2"
+BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE="squashfs"

@@ -1,0 +1,28 @@
+# SPI-NAND + UBI/UBIFS support for XBurst2 (T40/T41) kernel 4.4.94.
+#
+# Merged on top of <soc>.generic.config ONLY for NAND builds, via
+# configs/fragments/flash-nand.fragment (a profile opts in by listing
+# "flash-nand" on its "# FRAG:" line). NOR builds never see this file, so their
+# .config is unchanged.
+#
+# The base config already provides the MTD core: CONFIG_MTD=y,
+# CONFIG_MTD_CMDLINE_PARTS=y, CONFIG_MTD_BLOCK=y, CONFIG_LZO_COMPRESS=y.
+
+# Ingenic SFC controller in NAND mode. XBurst2 uses the v2 controller; the v1
+# symbol is harmless on trees that lack it and covers any v1-based board.
+CONFIG_MTD_INGENIC_SFC_V2_NANDFLASH=y
+CONFIG_MTD_INGENIC_SFC_V1_NANDFLASH=y
+
+# UBI: wear-levelling + bad-block management; ubiblock exposes the read-only
+# squashfs "rootfs" volume as a block device for root mounting.
+CONFIG_MTD_UBI=y
+CONFIG_MTD_UBI_BLOCK=y
+# Match the fork U-Boot (CONFIG_MTD_UBI_FASTMAP=y); without it the kernel does a
+# full scan on attach and discards the fastmap U-Boot wrote, every boot.
+CONFIG_MTD_UBI_FASTMAP=y
+
+# UBIFS: the read-write "overlay" volume.
+CONFIG_UBIFS_FS=y
+CONFIG_UBIFS_FS_ADVANCED_COMPR=y
+CONFIG_UBIFS_FS_LZO=y
+CONFIG_UBIFS_FS_ZLIB=y
