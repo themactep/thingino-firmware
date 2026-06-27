@@ -14,6 +14,20 @@ config BR2_SENSOR_1_NAME
 	help
 	  Select the sensor model for your device
 
+config BR2_SENSOR_ISP_FW
+	string "ISP firmware version for sensor IQ"
+	default "2.20" if BR2_SOC_FAMILY = "t23"
+	default ""
+	help
+	  Select sensor IQ tuning for a specific ISP firmware version.
+	  IQ is taken from sensor-iq/<soc>/<version>/ when that file exists,
+	  otherwise from the flat per-soc default. Only meaningful where a
+	  SoC ships IQ for multiple ISP firmware versions.
+
+	  t23 defaults to "2.20" (current firmware); set "2.10" for the
+	  older firmware. Other SoCs have a single version (leave empty).
+	  The value must match the ISP driver/firmware actually in use.
+
 config BR2_SENSOR_2_NAME
 	string "Image Sensor Model [Sensor 2]"
 	default "none"
