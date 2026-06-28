@@ -14,6 +14,10 @@
       $("#ntfy_token").value = ntfy.token || "";
       $("#ntfy_use_ssl").checked =
         ntfy.use_ssl !== false && ntfy.use_ssl !== "false";
+      $("#ntfy_send_photo").checked =
+        ntfy.send_photo === true || ntfy.send_photo === "true";
+      $("#ntfy_send_video").checked =
+        ntfy.send_video === true || ntfy.send_video === "true";
     });
   }
 
@@ -28,6 +32,8 @@
           password: $("#ntfy_password").value.trim(),
           token: $("#ntfy_token").value.trim(),
           use_ssl: $("#ntfy_use_ssl").checked,
+          send_photo: $("#ntfy_send_photo").checked,
+          send_video: $("#ntfy_send_video").checked,
           enabled: true,
         },
       })),
