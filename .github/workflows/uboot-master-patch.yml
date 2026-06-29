@@ -1,0 +1,107 @@
+# Regenerate the squashed U-Boot patch that buildroot applies on top of the
+# pinned upstream release.
+#
+# thingino builds the upstream U-Boot *release* tarball (BR2_TARGET_UBOOT_VERSION,
+# currently 2026.04) and, via the global patch dir (BR2_GLOBAL_PATCH_DIR =
+# package/all-patches), applies package/all-patches/uboot/<version>/*.patch to it
+# with `patch -p1`. This workflow regenerates that single patch as the full diff
+# from the upstream release tag to our fork branch (gtxaspec/u-boot
+# ingenic-t-series): it carries everything between the two trees - the upstream
+# work merged since the release plus our T-series port - so "release tree + this
+# one patch" reproduces our exact fork tree. Same model as the existing
+# package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch.
+#
+# Manual trigger only. Binary files (binman self-test blobs) are excluded: GNU
+# patch cannot apply git binary hunks, and the firmware build never touches them.
+
+name: Regenerate U-Boot master patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      fork_repo:
+        description: "U-Boot fork repository (HTTPS URL)"
+        required: true
+        default: "https://github.com/gtxaspec/u-boot.git"
+      fork_ref:
+        description: "Fork branch or tag to diff against"
+        required: true
+        default: "ingenic-t-series"
+      base_tag:
+        description: "Upstream release tag to diff from (matches BR2_TARGET_UBOOT_VERSION)"
+        required: true
+        default: "v2026.04"
+
+permissions:
+  contents: write
+
+concurrency: uboot-master-patch
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout thingino-firmware
+        uses: actions/checkout@v4
+
+      - name: Fetch upstream release + fork branch
+        run: |
+          set -euxo pipefail
+          git init uboot
+          git -C uboot remote add upstream https://github.com/u-boot/u-boot.git
+          git -C uboot remote add fork "${{ inputs.fork_repo }}"
+          # A two-tree diff only needs each tip's complete snapshot, so a depth-1
+          # fetch of the two refs is enough (no shared history required).
+          git -C uboot fetch --depth=1 upstream \
+            "refs/tags/${{ inputs.base_tag }}:refs/tags/${{ inputs.base_tag }}"
+          git -C uboot fetch --depth=1 fork \
+            "${{ inputs.fork_ref }}:refs/heads/fork-ref"
+
+      - name: Generate the patch (text-only, patch -p1 compatible)
+        run: |
+          set -euxo pipefail
+          base="${{ inputs.base_tag }}"
+          # GNU patch (buildroot's tool) cannot apply git binary hunks; drop any
+          # binary files from the diff. --no-renames keeps these paths plain.
+          mapfile -t bins < <(git -C uboot diff --no-renames --numstat "$base" fork-ref \
+                              | awk '$1=="-" || $2=="-" { print $3 }')
+          excludes=()
+          for f in "${bins[@]}"; do excludes+=(":(exclude)$f"); done
+          if [ "${#bins[@]}" -gt 0 ]; then
+            printf 'Excluding binary file: %s\n' "${bins[@]}"
+          fi
+          # --no-renames so renames become delete+add full hunks (GNU patch has no
+          # rename support); default a/ b/ prefixes => applied with -p1.
+          git -C uboot -c core.quotepath=false diff --no-renames --no-color \
+            "$base" fork-ref -- . "${excludes[@]}" > uboot-master.patch
+          ls -l uboot-master.patch
+          # Belt-and-suspenders: no git binary hunks may remain.
+          ! grep -qE '^Binary files|GIT binary patch' uboot-master.patch
+
+      - name: Verify it applies to a pristine release tree (buildroot's patch cmd)
+        run: |
+          set -euxo pipefail
+          base="${{ inputs.base_tag }}"
+          rm -rf verify && mkdir verify
+          git -C uboot archive "$base" | tar -x -C verify
+          # Exactly buildroot/support/scripts/apply-patches.sh, plus --dry-run.
+          patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N --dry-run \
+            < uboot-master.patch
+
+      - name: Place patch and commit if it changed
+        run: |
+          set -euxo pipefail
+          ver="${{ inputs.base_tag }}"; ver="${ver#v}"        # v2026.04 -> 2026.04
+          dest="package/all-patches/uboot/${ver}/0001-uboot-master.patch"
+          mkdir -p "$(dirname "$dest")"
+          mv uboot-master.patch "$dest"
+          if git diff --quiet -- "$dest"; then
+            echo "No change to $dest"
+            exit 0
+          fi
+          sha="$(git -C uboot rev-parse fork-ref)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$dest"
+          git commit -m "uboot: regenerate ${ver} master patch (${{ inputs.fork_ref }} @ ${sha:0:12})"
+          git push
