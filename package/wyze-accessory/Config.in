@@ -25,11 +25,6 @@ config BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL
 	bool "Wyze Doorbell Chime"
 	depends on BR2_PACKAGE_WYZE_ACCESSORY
 	help
-	  Userspace program for pairing and controlling the wireless chime on the Wyze Doorbell V1
-
-config BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC
-	depends on BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL
-	string "Chime MAC"
-	default "00:11:22:33"
-	help
-	  Specifies the MAC address for the Wyze Doorbell Chime
+	  Userspace program for pairing and controlling the wireless chime on the Wyze Doorbell V1.
+	  Supports multiple chimes stored in /etc/thingino.json with day/night-aware
+	  event routing via doorbell_event.

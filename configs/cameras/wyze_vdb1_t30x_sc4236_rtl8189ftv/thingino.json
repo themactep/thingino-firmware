@@ -8,5 +8,18 @@
     "sub1g": 60,
     "white": 89,
     "wlan": 57
+  },
+  "chime": {
+    "units": [],
+    "groups": {},
+    "events": {
+      "button_press": {
+        "sound": "DOORBELL_1",
+        "volume": "5",
+        "repeat": "2",
+        "day": { "group": "all" },
+        "night": { "group": "nighttime", "volume": "2" }
+      }
+    }
   }
 }

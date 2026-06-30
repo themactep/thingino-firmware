@@ -81,12 +81,14 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstr
 define GENERATE_GPIO_USERKEYS_CONFIG
 	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
 		gpio_userkeys_config=""; \
-		keycode=28; \
 		if which jct >/dev/null 2>&1; then \
 			button_reset=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
 			if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-				gpio_userkeys_config="$${keycode},$${button_reset},1"; \
-				keycode=$$((keycode + 1)); \
+				gpio_userkeys_config="28,$${button_reset},1"; \
+			fi; \
+			button_chime=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
+			if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
+				gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 			fi; \
 		fi; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
