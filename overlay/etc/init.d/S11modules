@@ -13,6 +13,27 @@ load_modules() {
 	done <$file
 }
 
+load_gpio_userkeys() {
+	# Resolve the reset-button pin from /etc/thingino.json and load
+	# gpio-userkeys with it. Single source of truth for the GPIO -> KEY_ENTER
+	# mapping that thingino-button consumes via /dev/input/event*.
+	# Skips quietly if the module is absent, jct is missing, or the JSON has
+	# no gpio.button_reset set.
+	[ -r /etc/thingino.json ] || return 0
+	command -v jct >/dev/null 2>&1 || return 0
+
+	local pin
+	pin=$(jct /etc/thingino.json get gpio.button_reset 2>/dev/null | tr -d '\r\n"')
+	case "$pin" in
+		"" | null) return 0 ;;
+		*[!0-9]*) echo "S11modules: invalid gpio.button_reset '$pin'"; return 0 ;;
+	esac
+
+	# KEY_ENTER (28) is what thingino-button.conf maps. The ',1' is ACTIVE_LOW.
+	echo -c 240 -e "- Loading gpio-userkeys gpio_config=\"28,$pin,1\""
+	modprobe gpio-userkeys gpio_config="28,$pin,1"
+}
+
 start() {
 	echo -c 15 "Loading kernel modules"
 
@@ -20,6 +41,8 @@ start() {
 	[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do
 		load_modules $conf
 	done
+
+	load_gpio_userkeys
 }
 
 case "$1" in
