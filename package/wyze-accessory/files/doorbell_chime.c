@@ -669,10 +669,14 @@ static void chime_store(const char *name, const unsigned char *mac8)
 
     mac8_to_str(mac8, mac_str);
 
-    idx = chime_find_free_index();
+    /* Reuse existing slot if this name is already stored */
+    idx = chime_find_index(name);
     if (idx < 0) {
-        fprintf(stderr, "Error: too many chimes (max %d)\n", MAX_CHIMES);
-        return;
+        idx = chime_find_free_index();
+        if (idx < 0) {
+            fprintf(stderr, "Error: too many chimes (max %d)\n", MAX_CHIMES);
+            return;
+        }
     }
 
     snprintf(key, sizeof(key), "chime.units.%d.name", idx);
