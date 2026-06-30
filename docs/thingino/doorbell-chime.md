@@ -359,6 +359,26 @@ To change the button behaviour, edit the `chime.events.button_press`
 section in `/etc/thingino.json`. Changes take effect on the next button
 press — no reboot needed.
 
+No-chime alarm
+--------------
+
+When the doorbell boots with no chimes paired, the indicator LEDs flash
+in an alternating blue/yellow pattern to signal that the doorbell is
+not yet usable.  This alarm runs from `S14doorbell-alarm` and stops
+automatically within two seconds of a successful pairing.
+
+You can stop the alarm manually at any time:
+
+```
+/etc/init.d/S14doorbell-alarm stop
+```
+
+The alarm can be disabled permanently by removing the init script:
+
+```
+rm /etc/init.d/S14doorbell-alarm
+```
+
 Build-time configuration
 ------------------------
 

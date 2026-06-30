@@ -38,6 +38,7 @@
  * Built by Buildroot via wyze-accessory.mk using $(TARGET_CC) $(TARGET_CFLAGS).
  */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -331,7 +332,7 @@ static int list_group_names(char **names, int max_names)
     while (*p && gcount < max_names) {
         p = strstr(p, "$.chime.groups.");
         if (!p) break;
-        p += 14;
+        p += 15;
         end = strchr(p, '"');
         if (!end) break;
         if (end - p > 0 && end - p < MAX_NAME) {
@@ -683,6 +684,20 @@ static void chime_store(const char *name, const unsigned char *mac8)
     chime_group_add("all", name);
 
     printf("Stored chime '%s' (%s)\n", name, mac_str);
+
+    /* Stop the no-chime alarm if running */
+    {
+        FILE *pf = fopen("/run/doorbell_alarm.pid", "r");
+        if (pf) {
+            int pid;
+            if (fscanf(pf, "%d", &pid) == 1 && pid > 0) {
+                kill(pid, SIGTERM);
+            }
+            fclose(pf);
+            unlink("/run/doorbell_alarm.pid");
+        }
+        system("led off 2>/dev/null");
+    }
 }
 
 /* ──────────────────── high-level commands ───────────────────────── */

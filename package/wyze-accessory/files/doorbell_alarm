@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# doorbell_alarm – Signal when no chimes are paired
+#
+# Checks /etc/thingino.json for paired chimes.  If none are found,
+# flashes the indicator LEDs in an alternating pattern until a chime
+# is paired.  The doorbell_ctrl binary stops the alarm automatically
+# after a successful pair.
+#
+# Run at boot via S14doorbell-alarm; stops itself when chimes appear.
+#
+
+CONFIG="/etc/thingino.json"
+PIDFILE="/run/doorbell_alarm.pid"
+
+# Don't start if doorbell_ctrl isn't installed
+[ -x /usr/sbin/doorbell_ctrl ] || exit 0
+
+# Kill any stale instance
+[ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
+rm -f "$PIDFILE"
+
+# Check for paired chimes — exit quietly if any exist
+if doorbell_ctrl list 2>/dev/null | grep -q '^ '; then
+	exit 0
+fi
+
+# No chimes paired — enter alarm mode
+echo $$ >"$PIDFILE"
+logger -t doorbell_alarm "No chimes paired – signaling alarm"
+
+# Flash blue and yellow LEDs alternately until chimes appear
+while true; do
+	if doorbell_ctrl list 2>/dev/null | grep -q '^ '; then
+		break
+	fi
+	led b 2>/dev/null
+	sleep 1
+	led y 2>/dev/null
+	sleep 1
+done
+
+# Chimes found — stop alarm
+led off 2>/dev/null
+rm -f "$PIDFILE"
+logger -t doorbell_alarm "Chimes paired – alarm cleared"
