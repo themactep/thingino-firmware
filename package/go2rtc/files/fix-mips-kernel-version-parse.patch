@@ -1,0 +1,11 @@
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -964,7 +964,7 @@
+ func parseRelease(rel string) (major, minor, patch int, ok bool) {
+ 	// Strip anything after a dash or plus.
+ 	for i := 0; i < len(rel); i++ {
+-		if rel[i] == '-' || rel[i] == '+' {
++		if rel[i] == '-' || rel[i] == '+' || rel[i] == '_' {
+ 			rel = rel[:i]
+ 			break
+ 		}
