@@ -249,21 +249,22 @@ re-pair the remaining chimes.
 ### thingino.json schema
 
 All chime configuration lives under a single `"chime"` key in
-`/etc/thingino.json`. Chimes are stored in the `units` array and
-organised into named groups:
+`/etc/thingino.json`.  Each chime is stored by its MAC ID (8-char hex
+without colons) in the `units` object.  Groups reference these IDs, so
+renaming a chime never breaks group membership:
 
 ```json
 {
   "chime": {
-    "units": [
-      { "name": "living_room", "mac": "77:AB:62:77" },
-      { "name": "kitchen",     "mac": "11:22:33:44" },
-      { "name": "basement",    "mac": "55:66:77:88" }
-    ],
+    "units": {
+      "77DA39F9": { "name": "living_room", "mac": "77:DA:39:F9" },
+      "11223344": { "name": "kitchen",     "mac": "11:22:33:44" },
+      "55667788": { "name": "basement",    "mac": "55:66:77:88" }
+    },
     "groups": {
-      "all":       ["living_room", "kitchen", "basement"],
-      "daytime":   ["living_room", "kitchen"],
-      "nighttime": ["living_room"]
+      "all":       ["77DA39F9", "11223344", "55667788"],
+      "daytime":   ["77DA39F9", "11223344"],
+      "nighttime": ["77DA39F9"]
     }
   }
 }
@@ -272,17 +273,15 @@ organised into named groups:
 You can edit entries directly with `jct`:
 
 ```
-# Add a chime
-jct /etc/thingino.json set chime.units.0.name "office"
-jct /etc/thingino.json set chime.units.0.mac "AA:BB:CC:DD"
+# Rename a chime (groups are unaffected — they reference the ID)
+jct /etc/thingino.json set chime.units.77DA39F9.name "office"
 
 # Add or replace a group
-jct /etc/thingino.json set chime.groups.daytime '["living_room","kitchen"]'
+jct /etc/thingino.json import group_patch.json
 ```
 
-Groups are JSON arrays of chime names. When a chime is paired with a
-name, it is automatically added to the `"all"` group. You must manually
-add it to any other groups you want.
+When a chime is paired with a name, it is automatically added to the
+`"all"` group.  You must manually add it to any other groups you want.
 
 Event-driven dispatch
 ---------------------
@@ -309,7 +308,7 @@ The `events` object lives inside the `chime` key:
 ```json
 {
   "chime": {
-    "units": [],
+    "units": {},
     "groups": {},
     "events": {
       "button_press": {

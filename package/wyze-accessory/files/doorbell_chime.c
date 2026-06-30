@@ -1,41 +1,17 @@
 /*
  * doorbell_chime.c – Wyze Doorbell V1 Chime Controller
  *
- * This is a superset of the original doorbell_chime and a drop-in
- * replacement for it.  The two commands end-users will call most are:
- *
- *   pair – full 8-step pairing sequence with the CC1310 sub-GHz radio
- *   play – trigger a sound/volume/repeat on an already-paired chime
- *
- * This implementation can also serve as a base for other Wyze sensors
- * that use the same serial protocol.
- *
- * Protocol (TX, host → device): AA 55 53 [LEN] [CMD] [payload] [CHK_HI][CHK_LO]
- * Protocol (RX, device → host): 55 AA 53 [LEN] [CMD] [payload] [CHK_HI][CHK_LO]
- *   LEN = payload_len + 1(cmd) + 2(cksum)
- *
- * Pairing sequence (reverse-engineered from WyzeSensePy / Wyze protocol):
- *   1. SUB1G_INIT       TX 0x14 0xFF
- *   2. DELETE_ALL       TX 0x3F           [optional: -D flag]
- *   3. START_PAIRING    TX 0x1C 0x01
- *   4. NOTIFY_SCAN   ← RX 0x20           chime broadcasts MAC when in pairing mode
- *   5. CHALLENGE        TX 0x21 <MAC8> <CHALLENGE_R[16]>
- *   6. CHALLENGE_RESP ← RX 0x22
- *   7. VERIFY_RESULT    TX 0x23 <MAC8> 0xFF 0x04
- *   8. STOP_PAIRING     TX 0x1C 0x00
- *
- * MAC wire format: 8 upper-case ASCII hex chars, no colons.
- *   Command line "77:AB:62:77" → wire bytes 0x37 0x37 0x41 0x42 0x36 0x32 0x37 0x37
- *   (each character's ASCII value, not the decoded byte value)
- *
  * Chime persistence (thingino.json):
  *   { "chime": {
- *       "units":  [ {"name":"...","mac":"XX:XX:XX:XX"}, ... ],
- *       "groups": { "groupname": ["name1","name2"], ... },
+ *       "units":  { "<MAC_ID>": {"name":"...","mac":"XX:XX:XX:XX"}, ... },
+ *       "groups": { "groupname": ["<MAC_ID>","<MAC_ID>"], ... },
  *       "events": { "eventname": { "sound":"...", ... }, ... }
  *   } }
  *
- * Built by Buildroot via wyze-accessory.mk using $(TARGET_CC) $(TARGET_CFLAGS).
+ * MAC_ID is the 8-char hex MAC without colons (e.g. "77DA39F9").
+ * Groups reference MAC_IDs, so renaming a chime never breaks groups.
+ *
+ * Built by Buildroot via wyze-accessory.mk.
  */
 
 #include <signal.h>
@@ -54,30 +30,25 @@
 #endif
 
 #define DEVICE          "/dev/ttyS0"
-#define DEFAULT_VOLUME  5   /* 1–32 (device accepts up to ~32) */
-#define DEFAULT_REPEAT  1   /* times to play */
+#define DEFAULT_VOLUME  5
+#define DEFAULT_REPEAT  1
 #define CONFIG_FILE     "/etc/thingino.json"
 #define MAX_CHIMES      16
 #define MAX_NAME        32
+#define MAC_ID_LEN      8   /* MAC without colons, e.g. "77DA39F9" */
 
 /* 16-byte challenge R (from WyzeSensePy Scan()) */
 static const unsigned char CHALLENGE_R[16] = {
     'O','k','5','H','P','N','Q','4','l','f','7','7','u','7','5','4'
 };
 
-static int debug_mode = 0;  /* -d / --debug */
-static int do_delete  = 0;  /* -D / --delete: clear pairings before pair */
+static int debug_mode = 0;
+static int do_delete  = 0;
 
-/* Print only when debug is on */
 #define dbg(fmt, ...) do { if (debug_mode) printf(fmt, ##__VA_ARGS__); } while (0)
 
-/* ──────────────────────────── MAC ──────────────────────────────── */
+/* ──────────────────────────── MAC helpers ───────────────────────── */
 
-/*
- * Parse "XX:XX:XX:XX" → 8 upper-case ASCII hex chars (wire format).
- * E.g. "00:11:22:33" → {'0','0','1','1','2','2','3','3'}
- * Returns 0 on success, -1 on invalid input.
- */
 static int parse_mac(const char *s, unsigned char *mac8)
 {
     int j = 0;
@@ -89,16 +60,35 @@ static int parse_mac(const char *s, unsigned char *mac8)
     return (j == 8) ? 0 : -1;
 }
 
-/* A string containing ':' is treated as a MAC address. */
 static int looks_like_mac(const char *s) { return !!strchr(s, ':'); }
+
+/* Convert "XX:XX:XX:XX" → "XXXXXXXX" (MAC ID).  Caller provides 9 bytes. */
+static void mac_to_id(const char *mac_str, char *id)
+{
+    int j = 0;
+    for (; *mac_str && j < MAC_ID_LEN; mac_str++) {
+        if (*mac_str == ':') continue;
+        id[j++] = (char)toupper((unsigned char)*mac_str);
+    }
+    id[j] = '\0';
+}
+
+static void mac8_to_str(const unsigned char *mac8, char *out)
+{
+    snprintf(out, 20, "%c%c:%c%c:%c%c:%c%c",
+             mac8[0], mac8[1], mac8[2], mac8[3],
+             mac8[4], mac8[5], mac8[6], mac8[7]);
+}
+
+static void mac8_to_id(const unsigned char *mac8, char *id)
+{
+    snprintf(id, MAC_ID_LEN + 1, "%c%c%c%c%c%c%c%c",
+             mac8[0], mac8[1], mac8[2], mac8[3],
+             mac8[4], mac8[5], mac8[6], mac8[7]);
+}
 
 /* ──────────────────────────── jct helpers ──────────────────────── */
 
-/*
- * Read a value from thingino.json using jct.
- * Returns 0 on success (value in 'out', stripped of trailing newline and
- * wrapping quotes), -1 if key not found or error.
- */
 static int jct_config_read(const char *key, char *out, size_t out_size)
 {
     char cmd[256];
@@ -111,12 +101,9 @@ static int jct_config_read(const char *key, char *out, size_t out_size)
     if (!fgets(out, (int)out_size, pipe)) { pclose(pipe); return -1; }
     pclose(pipe);
 
-    /* strip trailing newline */
     len = strlen(out);
     while (len > 0 && (out[len-1] == '\n' || out[len-1] == '\r'))
         out[--len] = '\0';
-
-    /* jct wraps string values in quotes; strip them */
     if (len >= 2 && out[0] == '"' && out[len-1] == '"') {
         memmove(out, out + 1, len - 2);
         out[len - 2] = '\0';
@@ -124,87 +111,172 @@ static int jct_config_read(const char *key, char *out, size_t out_size)
     return 0;
 }
 
-/*
- * Set a value in thingino.json using jct.
- * Uses explicit path so new keys can be created.
- * Returns 0 on success, -1 on error.
- */
 static int jct_config_set(const char *key, const char *value)
 {
     char cmd[512];
-    int rc;
-
     snprintf(cmd, sizeof(cmd), "jct %s set %s '%s' 2>/dev/null",
              CONFIG_FILE, key, value);
+    return system(cmd) == 0 ? 0 : -1;
+}
+
+/* Remove an entire subtree via import of a null patch. */
+static int jct_config_remove(const char *key)
+{
+    char patch_path[] = "/tmp/jct_rm.XXXXXX";
+    char cmd[512];
+    int fd, rc;
+    FILE *f;
+
+    fd = mkstemp(patch_path);
+    if (fd < 0) return -1;
+    f = fdopen(fd, "w");
+    if (!f) { close(fd); return -1; }
+    fprintf(f, "{%s:null}\n", key);
+    fclose(f);
+
+    snprintf(cmd, sizeof(cmd), "jct %s import %s 2>/dev/null",
+             CONFIG_FILE, patch_path);
     rc = system(cmd);
+    unlink(patch_path);
     return (rc == 0) ? 0 : -1;
 }
 
-/* Return true if a jct value is empty or null (JSON null or string "null"). */
 static int jct_val_is_empty(const char *val)
 {
     return !val[0] || !strcmp(val, "null");
 }
 
 /*
- * Collect chime names from chime.units[] array.
- * Iterates indices 0..MAX_CHIMES-1, reads each .name field.
- * Returns count, fills names[] (caller must free each with free()).
+ * Collect chime IDs (MAC IDs) from chime.units{} object keys.
+ * Returns count, fills ids[] (caller must free each).
  */
-static int jct_list_chime_names(char **names, int max_names)
+static int jct_list_chime_ids(char **ids, int max_ids)
 {
-    int count = 0, i;
+    char cmd[256], buf[4096], *p, *end;
+    FILE *pipe;
+    int count = 0;
 
-    for (i = 0; i < MAX_CHIMES && count < max_names; i++) {
-        char key[64], name[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", i);
-        if (jct_config_read(key, name, sizeof(name)) < 0)
-            break;
-        if (jct_val_is_empty(name))
-            continue;
-        names[count] = strdup(name);
-        if (names[count]) count++;
+    snprintf(cmd, sizeof(cmd),
+             "jct %s path '$.chime.units.*~' --mode paths 2>/dev/null",
+             CONFIG_FILE);
+    pipe = popen(cmd, "r");
+    if (!pipe) return 0;
+
+    buf[0] = '\0';
+    (void)!fread(buf, 1, sizeof(buf) - 1, pipe);
+    pclose(pipe);
+
+    p = buf;
+    while (*p && count < max_ids) {
+        p = strstr(p, "$.chime.units.");
+        if (!p) break;
+        p += 14;  /* skip "$.chime.units." */
+        end = strchr(p, '"');
+        if (!end) break;
+        if (end - p == MAC_ID_LEN) {
+            ids[count] = strndup(p, MAC_ID_LEN);
+            if (ids[count]) count++;
+        }
+        p = end + 1;
     }
     return count;
 }
 
-/* Free name list allocated by jct_list_chime_names. */
-static void free_chime_names(char **names, int count)
+static void free_id_list(char **ids, int count)
 {
     int i;
-    for (i = 0; i < count; i++) free(names[i]);
+    for (i = 0; i < count; i++) free(ids[i]);
 }
 
-/* Look up a chime's MAC by name. Returns 0 on success, -1 if not found. */
-static int chime_lookup_mac(const char *name, unsigned char *mac8)
+/* Get chime name by MAC ID. Returns name in static buffer, or NULL. */
+static const char *chime_get_name(const char *id)
 {
-    int i;
+    static char name[MAX_NAME];
+    char key[64];
+    snprintf(key, sizeof(key), "chime.units.%s.name", id);
+    if (jct_config_read(key, name, sizeof(name)) < 0) return NULL;
+    if (jct_val_is_empty(name)) return NULL;
+    return name;
+}
 
-    for (i = 0; i < MAX_CHIMES; i++) {
-        char key[64], unit_name[64], mac_str[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", i);
-        if (jct_config_read(key, unit_name, sizeof(unit_name)) < 0)
-            break;
-        if (jct_val_is_empty(unit_name))
-            continue;
-        if (strcmp(unit_name, name))
-            continue;
-        snprintf(key, sizeof(key), "chime.units.%d.mac", i);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) < 0)
-            return -1;
-        if (jct_val_is_empty(mac_str))
-            return -1;
-        return parse_mac(mac_str, mac8);
+/*
+ * Resolve a user-facing identifier (name, MAC-ID, or XX:XX:XX:XX)
+ * to a MAC ID and wire-format MAC.  Returns 0 on success.
+ */
+static int chime_resolve(const char *arg, char *id_out, unsigned char *mac8)
+{
+    char mac_str[64], key[64], id[MAC_ID_LEN + 1];
+
+    /* 1. colon-separated MAC → strip to ID, get MAC from config */
+    if (looks_like_mac(arg)) {
+        mac_to_id(arg, id);
+        snprintf(key, sizeof(key), "chime.units.%s.mac", id);
+        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+            && !jct_val_is_empty(mac_str)) {
+            if (id_out) strcpy(id_out, id);
+            return parse_mac(mac_str, mac8);
+        }
+        return -1;
+    }
+
+    /* 2. try as MAC ID directly */
+    if (strlen(arg) == MAC_ID_LEN) {
+        snprintf(key, sizeof(key), "chime.units.%s.mac", arg);
+        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+            && !jct_val_is_empty(mac_str)) {
+            if (id_out) strcpy(id_out, arg);
+            return parse_mac(mac_str, mac8);
+        }
+    }
+
+    /* 3. search by name */
+    {
+        char *ids[MAX_CHIMES];
+        int count = jct_list_chime_ids(ids, MAX_CHIMES);
+        int i;
+        for (i = 0; i < count; i++) {
+            const char *nm = chime_get_name(ids[i]);
+            if (nm && !strcmp(nm, arg)) {
+                snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
+                if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+                    && !jct_val_is_empty(mac_str)) {
+                    if (id_out) strcpy(id_out, ids[i]);
+                    int rc = parse_mac(mac_str, mac8);
+                    free_id_list(ids, count);
+                    return rc;
+                }
+            }
+        }
+        free_id_list(ids, count);
     }
     return -1;
 }
 
 /*
- * Read group members from chime.groups.<group> JSON array.
- * Returns count, fills names[] (caller must free).
+ * Find the MAC ID for a given name.  Returns static string or NULL.
  */
+static const char *chime_id_by_name(const char *name)
+{
+    static char id[MAC_ID_LEN + 1];
+    char *ids[MAX_CHIMES];
+    int count = jct_list_chime_ids(ids, MAX_CHIMES);
+    int i;
+    for (i = 0; i < count; i++) {
+        const char *nm = chime_get_name(ids[i]);
+        if (nm && !strcmp(nm, name)) {
+            strcpy(id, ids[i]);
+            free_id_list(ids, count);
+            return id;
+        }
+    }
+    free_id_list(ids, count);
+    return NULL;
+}
+
+/* ──────────────────────────── groups ───────────────────────────── */
+
 static int chime_group_members_list(const char *group_name,
-                                    char **names, int max_names)
+                                    char **ids, int max_ids)
 {
     char cmd[256], buf[4096], *p, *end;
     FILE *pipe;
@@ -220,30 +292,24 @@ static int chime_group_members_list(const char *group_name,
     (void)!fread(buf, 1, sizeof(buf) - 1, pipe);
     pclose(pipe);
 
-    /* Parse JSON array of strings like ["living_room","kitchen"] */
     p = buf;
-    while (*p && count < max_names) {
+    while (*p && count < max_ids) {
         p = strchr(p, '"');
         if (!p) break;
         p++;
         end = strchr(p, '"');
         if (!end) break;
-        if (end - p > 0 && end - p < MAX_NAME) {
-            names[count] = strndup(p, (size_t)(end - p));
-            if (names[count]) count++;
+        if (end - p == MAC_ID_LEN) {
+            ids[count] = strndup(p, MAC_ID_LEN);
+            if (ids[count]) count++;
         }
         p = end + 1;
     }
     return count;
 }
 
-/*
- * Write a group back as a JSON array using jct import.
- * jct set cannot store JSON arrays (treats everything as a string),
- * so we write a patch file and import it.
- */
 static void chime_group_write(const char *group_name,
-                              char **names, int count)
+                              char **ids, int count)
 {
     char patch_path[] = "/tmp/jct_grp.XXXXXX";
     char cmd[512];
@@ -258,7 +324,7 @@ static void chime_group_write(const char *group_name,
     fprintf(f, "{\"chime\":{\"groups\":{\"%s\":[", group_name);
     for (i = 0; i < count; i++) {
         if (i > 0) fputc(',', f);
-        fprintf(f, "\"%s\"", names[i]);
+        fprintf(f, "\"%s\"", ids[i]);
     }
     fprintf(f, "]}}}\n");
     fclose(f);
@@ -269,50 +335,39 @@ static void chime_group_write(const char *group_name,
     unlink(patch_path);
 }
 
-/*
- * Add a chime name to a group (no-op if already present).
- */
-static void chime_group_add(const char *group_name, const char *chime_name)
+static void chime_group_add(const char *group_name, const char *id)
 {
     char *members[MAX_CHIMES];
     int count = chime_group_members_list(group_name, members, MAX_CHIMES);
     int i, found = 0;
 
     for (i = 0; i < count; i++) {
-        if (!strcmp(members[i], chime_name)) { found = 1; break; }
+        if (!strcmp(members[i], id)) { found = 1; break; }
     }
     if (!found) {
-        members[count] = strdup(chime_name);
+        members[count] = strdup(id);
         if (members[count]) count++;
     }
     chime_group_write(group_name, members, count);
     for (i = 0; i < count; i++) free(members[i]);
 }
 
-/*
- * Remove a chime name from a group.
- */
-static void chime_group_remove(const char *group_name, const char *chime_name)
+static void chime_group_remove(const char *group_name, const char *id)
 {
     char *members[MAX_CHIMES];
     int count = chime_group_members_list(group_name, members, MAX_CHIMES);
     int i, j = 0;
 
     for (i = 0; i < count; i++) {
-        if (strcmp(members[i], chime_name)) {
+        if (strcmp(members[i], id)) {
             members[j++] = members[i];
         } else {
             free(members[i]);
         }
     }
     chime_group_write(group_name, members, j);
-    /* remaining members already freed above */
 }
 
-/*
- * Collect group names from chime.groups object keys.
- * Returns count, fills names[] (caller must free each).
- */
 static int list_group_names(char **names, int max_names)
 {
     char cmd[256], buf[4096], *p, *end;
@@ -344,68 +399,6 @@ static int list_group_names(char **names, int max_names)
     return gcount;
 }
 
-/*
- * Find the first free (or empty) index in chime.units[].
- * Returns index, or -1 if full.
- */
-static int chime_find_free_index(void)
-{
-    int i;
-
-    for (i = 0; i < MAX_CHIMES; i++) {
-        char key[64], name[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", i);
-        if (jct_config_read(key, name, sizeof(name)) < 0)
-            return i;  /* index doesn't exist yet */
-        if (jct_val_is_empty(name))
-            return i;  /* reuse deleted slot */
-    }
-    return -1;  /* array full */
-}
-
-/*
- * Find the index of a chime by name. Returns index or -1.
- */
-static int chime_find_index(const char *name)
-{
-    int i;
-
-    for (i = 0; i < MAX_CHIMES; i++) {
-        char key[64], unit_name[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", i);
-        if (jct_config_read(key, unit_name, sizeof(unit_name)) < 0)
-            break;
-        if (jct_val_is_empty(unit_name))
-            continue;
-        if (!strcmp(unit_name, name))
-            return i;
-    }
-    return -1;
-}
-
-/*
- * Find the index of a chime by MAC string. Returns index or -1.
- */
-static int chime_find_index_by_mac(const char *mac_str)
-{
-    int i;
-
-    for (i = 0; i < MAX_CHIMES; i++) {
-        char key[64], name[64], mac[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", i);
-        if (jct_config_read(key, name, sizeof(name)) < 0)
-            break;
-        if (jct_val_is_empty(name))
-            continue;
-        snprintf(key, sizeof(key), "chime.units.%d.mac", i);
-        if (jct_config_read(key, mac, sizeof(mac)) < 0)
-            continue;
-        if (!strcmp(mac, mac_str))
-            return i;
-    }
-    return -1;
-}
-
 /* ──────────────────────────── sounds ───────────────────────────── */
 
 static const struct { const char *name; int id; } SOUNDS[] = {
@@ -419,7 +412,6 @@ static const struct { const char *name; int id; } SOUNDS[] = {
 };
 #define N_SOUNDS ((int)(sizeof(SOUNDS) / sizeof(SOUNDS[0])))
 
-/* Returns ID 1-19 for a sound name or decimal integer, -1 on error. */
 static int resolve_sound(const char *arg)
 {
     int i;
@@ -450,10 +442,6 @@ static unsigned short pkt_sum(const unsigned char *d, int n)
     return s;
 }
 
-/*
- * Build TX frame into buf: AA 55 53 [LEN=plen+3] [cmd] [payload] [CHK_HI][CHK_LO]
- * Returns total length.
- */
 static int build_pkt(unsigned char *buf, unsigned char cmd,
                      const unsigned char *payload, int plen)
 {
@@ -481,7 +469,7 @@ static int configure_serial(int fd)
     tty.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL | INLCR);
     tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
     tty.c_oflag &= ~OPOST;
-    tty.c_cc[VMIN] = 0; tty.c_cc[VTIME] = 0;  /* non-blocking reads */
+    tty.c_cc[VMIN] = 0; tty.c_cc[VTIME] = 0;
     if (tcsetattr(fd, TCSANOW, &tty)) { perror("tcsetattr"); return -1; }
     return 0;
 }
@@ -495,7 +483,6 @@ static int open_serial(void)
     return fd;
 }
 
-/* Send a packet; 120 ms settling time after write. */
 static void send_pkt(int fd, const unsigned char *pkt, int n, const char *desc)
 {
     hex_dump(desc, pkt, n);
@@ -503,7 +490,6 @@ static void send_pkt(int fd, const unsigned char *pkt, int n, const char *desc)
     usleep(120000);
 }
 
-/* Non-blocking read with select() timeout. */
 static int timed_read(int fd, unsigned char *buf, int max, int timeout_sec)
 {
     fd_set fds; struct timeval tv = { timeout_sec, 0 };
@@ -531,13 +517,6 @@ static void rx_push(const unsigned char *d, int n)
 
 static void rx_clear(void) { _rxlen = 0; }
 
-/*
- * Scan accumulator for a packet matching 'code'.
- * RX magic: 55 AA 53
- *   NOTIFICATION: 55 AA 53 LEN code payload CHK_HI CHK_LO  (LEN < 0x70)
- *   ACK (7 bytes): 55 AA 53 code 00 CHK_HI CHK_LO
- * On match, consumes the frame and optionally fills body/body_len.
- */
 static int scan_for(unsigned char code, unsigned char *body, int *body_len)
 {
     int i;
@@ -545,7 +524,6 @@ static int scan_for(unsigned char code, unsigned char *body, int *body_len)
         if (_rxbuf[i] != 0x55 || _rxbuf[i+1] != 0xAA || _rxbuf[i+2] != 0x53)
             continue;
 
-        /* NOTIFICATION (length-prefixed) */
         unsigned char plen = _rxbuf[i+3];
         if (plen < 0x70) {
             int tot = plen + 4;
@@ -565,7 +543,6 @@ static int scan_for(unsigned char code, unsigned char *body, int *body_len)
             }
         }
 
-        /* ACK (7-byte fixed frame) */
         {
             unsigned short csc = pkt_sum(_rxbuf + i, 5);
             unsigned short csr = ((unsigned short)_rxbuf[i+5] << 8) | _rxbuf[i+6];
@@ -579,10 +556,6 @@ static int scan_for(unsigned char code, unsigned char *body, int *body_len)
     return 0;
 }
 
-/*
- * Wait up to timeout_sec for a specific response code.
- * Returns 1 on success, 0 on timeout.
- */
 static int wait_for(int fd, unsigned char code, int timeout_sec,
                     unsigned char *body, int *body_len, const char *ctx)
 {
@@ -649,61 +622,29 @@ static void do_verify(int fd, const unsigned char *mac8) {
 
 /* ─────────────────── chime JSON persistence ─────────────────────── */
 
-/* Format wire-format MAC (8 ASCII bytes) back to XX:XX:XX:XX string. */
-static void mac8_to_str(const unsigned char *mac8, char *out)
-{
-    snprintf(out, 20, "%c%c:%c%c:%c%c:%c%c",
-             mac8[0], mac8[1], mac8[2], mac8[3],
-             mac8[4], mac8[5], mac8[6], mac8[7]);
-}
-
-/*
- * Store a newly-paired chime in chime.units[] array.
- * Also adds it to the "all" group.
- */
 static void chime_store(const char *name, const unsigned char *mac8)
 {
-    char mac_str[20];
-    char key[64];
-    int idx;
+    char mac_str[20], id[MAC_ID_LEN + 1], key[64];
 
     mac8_to_str(mac8, mac_str);
+    mac8_to_id(mac8, id);
 
-    /* MAC is the true unique id: match by MAC first, then name */
-    idx = chime_find_index_by_mac(mac_str);
-    if (idx >= 0) {
-        /* Same chime, maybe renamed — update the name */
-        snprintf(key, sizeof(key), "chime.units.%d.name", idx);
-        jct_config_set(key, name);
-    } else {
-        idx = chime_find_index(name);
-        if (idx < 0) {
-            idx = chime_find_free_index();
-            if (idx < 0) {
-                fprintf(stderr, "Error: too many chimes (max %d)\n", MAX_CHIMES);
-                return;
-            }
-        }
-        /* New chime (or replacement for old name) — store both fields */
-        snprintf(key, sizeof(key), "chime.units.%d.name", idx);
-        jct_config_set(key, name);
-        snprintf(key, sizeof(key), "chime.units.%d.mac", idx);
-        jct_config_set(key, mac_str);
-    }
+    snprintf(key, sizeof(key), "chime.units.%s.name", id);
+    jct_config_set(key, name);
+    snprintf(key, sizeof(key), "chime.units.%s.mac", id);
+    jct_config_set(key, mac_str);
 
-    /* Add to "all" group if not already a member */
-    chime_group_add("all", name);
+    chime_group_add("all", id);
 
-    printf("Stored chime '%s' (%s)\n", name, mac_str);
+    printf("Stored chime '%s' (%s) [%s]\n", name, mac_str, id);
 
     /* Stop the no-chime alarm if running */
     {
         FILE *pf = fopen("/run/doorbell_alarm.pid", "r");
         if (pf) {
             int pid;
-            if (fscanf(pf, "%d", &pid) == 1 && pid > 0) {
+            if (fscanf(pf, "%d", &pid) == 1 && pid > 0)
                 kill(pid, SIGTERM);
-            }
             fclose(pf);
             unlink("/run/doorbell_alarm.pid");
         }
@@ -713,24 +654,20 @@ static void chime_store(const char *name, const unsigned char *mac8)
 
 /* ──────────────────── high-level commands ───────────────────────── */
 
-/*
- * cmd_pair: full 8-step pairing sequence.
- */
 static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
 {
     unsigned char mac8[8], body[64];
     int body_len = 0, got_mac = 0;
 
-    /* Warn if this name already exists (re-pairing a factory-reset chime) */
     if (name && name[0]) {
-        int existing = chime_find_index(name);
-        if (existing >= 0) {
+        const char *existing_id = chime_id_by_name(name);
+        if (existing_id) {
             fprintf(stderr,
-                    "Note: chime '%s' already exists in config.\n"
+                    "Note: chime '%s' already exists (ID %s).\n"
                     "Use -D to clear radio pairings first if the chime was\n"
                     "factory-reset (hold button 10+ s until fast blue flash).\n"
                     "Without -D, the existing radio pairing is reused.\n\n",
-                    name);
+                    name, existing_id);
         }
     }
 
@@ -790,7 +727,6 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
 
     printf("Done! Listen for the success tone from the chime.\n");
 
-    /* Store in thingino.json, auto-generating a name if needed */
     if (name && name[0]) {
         chime_store(name, mac8);
     } else {
@@ -801,13 +737,10 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
     }
 }
 
-/*
- * cmd_list: list all chime units and groups from chime.units[] / chime.groups.
- */
 static void cmd_list(FILE *out)
 {
-    char *names[MAX_CHIMES];
-    int count = jct_list_chime_names(names, MAX_CHIMES);
+    char *ids[MAX_CHIMES];
+    int count = jct_list_chime_ids(ids, MAX_CHIMES);
     int i;
 
     if (count == 0) {
@@ -817,15 +750,16 @@ static void cmd_list(FILE *out)
 
     fprintf(out, "Chimes (%d):\n", count);
     for (i = 0; i < count; i++) {
-        unsigned char mac8[8];
-        if (chime_lookup_mac(names[i], mac8) == 0) {
-            char mac_str[20];
-            mac8_to_str(mac8, mac_str);
-            fprintf(out, "  %-16s %s\n", names[i], mac_str);
+        const char *nm = chime_get_name(ids[i]);
+        char key[64], mac_str[64];
+        snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
+        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+            && !jct_val_is_empty(mac_str)) {
+            fprintf(out, "  %-16s %s  [%s]\n",
+                    nm ? nm : "(unnamed)", mac_str, ids[i]);
         }
     }
 
-    /* Show groups */
     fprintf(out, "\nGroups:\n");
     {
         char *group_names[MAX_CHIMES];
@@ -841,8 +775,10 @@ static void cmd_list(FILE *out)
                 int m;
                 fprintf(out, "  %-16s ", group_names[g]);
                 for (m = 0; m < mcount; m++) {
+                    const char *nm = chime_get_name(members[m]);
                     if (m > 0) fputs(", ", out);
-                    fputs(members[m], out);
+                    if (nm) fputs(nm, out);
+                    else fputs(members[m], out);
                     free(members[m]);
                 }
                 fputc('\n', out);
@@ -851,48 +787,27 @@ static void cmd_list(FILE *out)
         }
     }
 
-    free_chime_names(names, count);
+    free_id_list(ids, count);
 }
 
-/*
- * cmd_unpair: remove a chime from chime.units[] (by name or MAC).
- * Also removes the name from all groups.
- */
-static void cmd_unpair(const char *name_or_mac)
+static void cmd_unpair(const char *arg)
 {
-    char target_name[64];
-    int idx;
+    char id[MAC_ID_LEN + 1];
+    unsigned char mac8[8];
 
-    if (looks_like_mac(name_or_mac)) {
-        idx = chime_find_index_by_mac(name_or_mac);
-        if (idx < 0) {
-            fprintf(stderr, "Chime with MAC %s not found.\n", name_or_mac);
-            return;
-        }
-        /* Get the name for messaging */
-        {
-            char key[64];
-            snprintf(key, sizeof(key), "chime.units.%d.name", idx);
-            jct_config_read(key, target_name, sizeof(target_name));
-        }
-    } else {
-        idx = chime_find_index(name_or_mac);
-        if (idx < 0) {
-            fprintf(stderr, "Chime '%s' not found.\n", name_or_mac);
-            return;
-        }
-        snprintf(target_name, sizeof(target_name), "%s", name_or_mac);
+    if (chime_resolve(arg, id, mac8) < 0) {
+        fprintf(stderr, "Chime '%s' not found.\n", arg);
+        return;
     }
 
-    printf("Removing chime '%s'\n", target_name);
+    printf("Removing chime '%s' [%s]\n",
+           chime_get_name(id) ? chime_get_name(id) : id, id);
 
-    /* Clear the unit slot */
+    /* Remove from config */
     {
         char key[64];
-        snprintf(key, sizeof(key), "chime.units.%d.name", idx);
-        jct_config_set(key, "");
-        snprintf(key, sizeof(key), "chime.units.%d.mac", idx);
-        jct_config_set(key, "");
+        snprintf(key, sizeof(key), "chime.units.%s", id);
+        jct_config_remove(key);
     }
 
     /* Remove from all groups */
@@ -901,15 +816,12 @@ static void cmd_unpair(const char *name_or_mac)
         int gcount = list_group_names(group_names, MAX_CHIMES);
         int g;
         for (g = 0; g < gcount; g++) {
-            chime_group_remove(group_names[g], target_name);
+            chime_group_remove(group_names[g], id);
             free(group_names[g]);
         }
     }
 }
 
-/*
- * cmd_play: trigger a sound on an already-paired chime.
- */
 static void cmd_play(int fd, const unsigned char *mac8,
                      int sound, int volume, int repeat)
 {
@@ -923,23 +835,10 @@ static void cmd_play(int fd, const unsigned char *mac8,
     wait_for(fd, 0x70, 3, NULL, NULL, "PLAY ACK");
 }
 
-/*
- * Resolve a name-or-MAC argument to a wire-format MAC.
- */
-static int resolve_mac(const char *arg, unsigned char *mac8)
-{
-    if (looks_like_mac(arg))
-        return parse_mac(arg, mac8);
-    return chime_lookup_mac(arg, mac8);
-}
-
-/*
- * cmd_play_all: play to all chimes in chime.units[].
- */
 static void cmd_play_all(int fd, int sound, int volume, int repeat)
 {
-    char *names[MAX_CHIMES];
-    int count = jct_list_chime_names(names, MAX_CHIMES);
+    char *ids[MAX_CHIMES];
+    int count = jct_list_chime_ids(ids, MAX_CHIMES);
     int i;
 
     if (count == 0) {
@@ -948,19 +847,21 @@ static void cmd_play_all(int fd, int sound, int volume, int repeat)
     }
 
     for (i = 0; i < count; i++) {
+        char key[64], mac_str[64];
         unsigned char mac8[8];
-        if (chime_lookup_mac(names[i], mac8) == 0) {
-            printf("Playing %s...\n", names[i]);
+        snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
+        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+            && parse_mac(mac_str, mac8) == 0) {
+            printf("Playing %s [%s]...\n",
+                   chime_get_name(ids[i]) ? chime_get_name(ids[i]) : ids[i],
+                   ids[i]);
             cmd_play(fd, mac8, sound, volume, repeat);
             usleep(500000);
         }
     }
-    free_chime_names(names, count);
+    free_id_list(ids, count);
 }
 
-/*
- * cmd_play_group: play to all chimes in a named group.
- */
 static void cmd_play_group(int fd, const char *group_name,
                            int sound, int volume, int repeat)
 {
@@ -974,9 +875,14 @@ static void cmd_play_group(int fd, const char *group_name,
     }
 
     for (i = 0; i < count; i++) {
+        char key[64], mac_str[64];
         unsigned char mac8[8];
-        if (chime_lookup_mac(members[i], mac8) == 0) {
-            printf("Playing %s...\n", members[i]);
+        snprintf(key, sizeof(key), "chime.units.%s.mac", members[i]);
+        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
+            && parse_mac(mac_str, mac8) == 0) {
+            const char *nm = chime_get_name(members[i]);
+            printf("Playing %s [%s]...\n",
+                   nm ? nm : members[i], members[i]);
             cmd_play(fd, mac8, sound, volume, repeat);
             usleep(500000);
         } else {
@@ -993,21 +899,22 @@ static void usage(const char *prog)
 {
     printf("Wyze Doorbell V1 Chime Controller\n\n");
     printf("Usage:\n");
-    printf("  %s [-d] [-D] pair [<NAME>] [<MAC>]       # pair and optionally store\n", prog);
+    printf("  %s [-d] [-D] pair [<NAME>] [<MAC>]       # pair and store\n", prog);
     printf("  %s [-d] list                              # list stored chimes\n", prog);
-    printf("  %s [-d] unpair <NAME|MAC>                 # remove from config\n", prog);
-    printf("  %s [-d] <NAME|MAC> <SOUND> [VOL] [REP]    # play on one chime\n", prog);
-    printf("  %s [-d] play <NAME|MAC> <SOUND> [VOL] [REP]\n", prog);
+    printf("  %s [-d] unpair <NAME|MAC|ID>              # remove from config\n", prog);
+    printf("  %s [-d] <NAME|ID> <SOUND> [VOL] [REP]     # play on one chime\n", prog);
+    printf("  %s [-d] play <NAME|ID> <SOUND> [VOL] [REP]\n", prog);
     printf("  %s [-d] play-all <SOUND> [VOL] [REP]      # play on all chimes\n", prog);
     printf("  %s [-d] play-group <GROUP> <SOUND> [VOL] [REP]\n", prog);
     printf("  %s [-d] init|delete|start|stop            # low-level commands\n", prog);
     printf("  %s [-d] challenge|verify <MAC>            # pairing steps\n", prog);
     printf("\nOptions:\n");
-    printf("  -d, --debug    Show TX/RX hex dumps and protocol steps\n");
-    printf("  -D, --delete   Delete existing radio pairings before pairing\n");
+    printf("  -d, --debug    Show TX/RX hex dumps\n");
+    printf("  -D, --delete   Clear radio pairings before pairing\n");
     printf("  -h, --help     Show this help\n");
-    printf("\nMAC: XX:XX:XX:XX (e.g. 00:11:22:33); detected by ':' in argument.\n");
-    printf("NAME: alphanumeric name for this chime (stored in thingino.json).\n");
+    printf("\nNAME: alphanumeric label (stored in thingino.json)\n");
+    printf("ID:   8-char hex MAC without colons, e.g. 77DA39F9\n");
+    printf("MAC:  XX:XX:XX:XX colon format; detected by ':'\n");
     printf("VOLUME default=%d (1-32), REPEAT default=%d (1-255)\n\n",
            DEFAULT_VOLUME, DEFAULT_REPEAT);
     printf("Sounds (name or number 1-19):\n");
@@ -1017,13 +924,12 @@ static void usage(const char *prog)
     printf("  SIMPLE_2(16)    SIMPLE_3(17)   SIMPLE_4(18)   INTRUDER(19)\n\n");
     printf("Examples:\n");
     printf("  %s pair living_room            # pair and store as 'living_room'\n", prog);
-    printf("  %s -p kitchen                  # pair and store as 'kitchen'\n", prog);
     printf("  %s list                        # show all stored chimes\n", prog);
     printf("  %s living_room DOORBELL_1 5 2  # play via name\n", prog);
     printf("  %s play-all 6 5 2              # DOORBELL_1 on all chimes\n", prog);
     printf("  %s play-group daytime 6 5 2    # DOORBELL_1 on daytime group\n", prog);
     printf("  %s unpair kitchen              # remove kitchen from config\n", prog);
-    printf("  %s -D pair basement            # delete all, then pair new\n", prog);
+    printf("  %s -D pair basement            # delete all pairings, then pair\n", prog);
 }
 
 /* ──────────────────────────── main ─────────────────────────────── */
@@ -1033,7 +939,6 @@ int main(int argc, char **argv)
     const char *prog = argv[0];
     int pair_flag = 0;
 
-    /* Strip leading option flags */
     while (argc > 1) {
         if      (!strcmp(argv[1], "-d") || !strcmp(argv[1], "--debug"))  debug_mode = 1;
         else if (!strcmp(argv[1], "-D") || !strcmp(argv[1], "--delete")) do_delete  = 1;
@@ -1046,29 +951,25 @@ int main(int argc, char **argv)
 
     if (argc < 2) { usage(prog); return EXIT_FAILURE; }
 
-    /* ── list (no serial needed) ─────────────────────────────── */
     if (!strcmp(argv[1], "list")) {
         cmd_list(stdout);
         return EXIT_SUCCESS;
     }
 
-    /* ── unpair (no serial needed) ───────────────────────────── */
     if (!strcmp(argv[1], "unpair")) {
         if (argc < 3) {
-            fprintf(stderr, "%s: unpair requires a name or MAC\n", prog);
+            fprintf(stderr, "%s: unpair requires a name, MAC, or ID\n", prog);
             return EXIT_FAILURE;
         }
         cmd_unpair(argv[2]);
         return EXIT_SUCCESS;
     }
 
-    /* ── all other commands need serial ──────────────────────── */
     {
         const char *cmd = argv[1];
         int is_cmd = !looks_like_mac(cmd);
         int fd = open_serial();
 
-        /* Locate MAC anywhere in remaining args (detected by ':') */
         unsigned char mac8_hint[8];
         int have_hint_mac = 0;
         int i;
@@ -1081,7 +982,6 @@ int main(int argc, char **argv)
             }
         }
 
-        /* ── pair ──────────────────────────────────────────────── */
         if (pair_flag || (is_cmd && !strcmp(cmd, "pair"))) {
             const char *name = NULL;
             for (i = 2; i < argc; i++) {
@@ -1092,14 +992,13 @@ int main(int argc, char **argv)
             }
             cmd_pair(fd, name, have_hint_mac ? mac8_hint : NULL);
 
-        /* ── play (named command) ──────────────────────────────── */
         } else if (is_cmd && !strcmp(cmd, "play")) {
             unsigned char mac8[8];
             if (argc < 3) {
-                fprintf(stderr, "%s: play requires NAME|MAC and SOUND\n", prog);
+                fprintf(stderr, "%s: play requires NAME|ID and SOUND\n", prog);
                 close(fd); return EXIT_FAILURE;
             }
-            if (resolve_mac(argv[2], mac8) < 0) {
+            if (chime_resolve(argv[2], NULL, mac8) < 0) {
                 fprintf(stderr, "%s: unknown chime '%s'\n", prog, argv[2]);
                 close(fd); return EXIT_FAILURE;
             }
@@ -1123,7 +1022,6 @@ int main(int argc, char **argv)
                 cmd_play(fd, mac8, sound, vol, rep);
             }
 
-        /* ── play-all ──────────────────────────────────────────── */
         } else if (is_cmd && !strcmp(cmd, "play-all")) {
             int sound, vol, rep;
             if (argc < 3) {
@@ -1139,7 +1037,6 @@ int main(int argc, char **argv)
             rep = (argc >= 5) ? atoi(argv[4]) : DEFAULT_REPEAT;
             cmd_play_all(fd, sound, vol, rep);
 
-        /* ── play-group ────────────────────────────────────────── */
         } else if (is_cmd && !strcmp(cmd, "play-group")) {
             int sound, vol, rep;
             if (argc < 4) {
@@ -1155,7 +1052,6 @@ int main(int argc, char **argv)
             rep = (argc >= 6) ? atoi(argv[5]) : DEFAULT_REPEAT;
             cmd_play_group(fd, argv[2], sound, vol, rep);
 
-        /* ── low-level standalone commands ────────────────────── */
         } else if (is_cmd && !strcmp(cmd, "init")) {
             do_init(fd);
             printf("sub-GHz radio initialised.\n");
@@ -1183,16 +1079,15 @@ int main(int argc, char **argv)
             do_verify(fd, mac8_hint);
             printf("Verify-result sent.\n");
 
-        /* ── positional play: <NAME|MAC> <SOUND> [VOL] [REP] ─── */
         } else {
             unsigned char mac8[8];
             int sound, vol, rep;
-            if (resolve_mac(argv[1], mac8) < 0) {
+            if (chime_resolve(argv[1], NULL, mac8) < 0) {
                 fprintf(stderr, "%s: unknown chime '%s'\n", prog, argv[1]);
                 close(fd); return EXIT_FAILURE;
             }
             if (argc < 3) {
-                fprintf(stderr, "Usage: %s <NAME|MAC> <SOUND> [VOLUME] [REPEAT]\n", prog);
+                fprintf(stderr, "Usage: %s <NAME|ID> <SOUND> [VOLUME] [REPEAT]\n", prog);
                 close(fd); return EXIT_FAILURE;
             }
             sound = resolve_sound(argv[2]);

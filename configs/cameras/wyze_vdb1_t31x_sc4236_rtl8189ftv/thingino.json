@@ -10,7 +10,7 @@
     "wlan": 57
   },
   "chime": {
-    "units": [],
+    "units": {},
     "groups": {},
     "events": {
       "button_press": {
