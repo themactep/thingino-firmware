@@ -257,9 +257,9 @@ renaming a chime never breaks group membership:
 {
   "chime": {
     "units": {
-      "77DA39F9": { "name": "living_room", "mac": "77:DA:39:F9" },
-      "11223344": { "name": "kitchen",     "mac": "11:22:33:44" },
-      "55667788": { "name": "basement",    "mac": "55:66:77:88" }
+      "77DA39F9": { "name": "living_room" },
+      "11223344": { "name": "kitchen" },
+      "55667788": { "name": "basement" }
     },
     "groups": {
       "all":       ["77DA39F9", "11223344", "55667788"],
@@ -270,14 +270,15 @@ renaming a chime never breaks group membership:
 }
 ```
 
-You can edit entries directly with `jct`:
+The MAC address is derived from the ID (insert colons every two
+characters: `77DA39F9` → `77:DA:39:F9`).  You only need to store the
+human-readable name.
 
 ```
 # Rename a chime (groups are unaffected — they reference the ID)
 jct /etc/thingino.json set chime.units.77DA39F9.name "office"
 
-# Add or replace a group
-jct /etc/thingino.json import group_patch.json
+# Add a group (write as JSON via import or direct edit)
 ```
 
 When a chime is paired with a name, it is automatically added to the

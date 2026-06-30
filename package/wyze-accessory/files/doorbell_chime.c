@@ -80,6 +80,25 @@ static void mac8_to_str(const unsigned char *mac8, char *out)
              mac8[4], mac8[5], mac8[6], mac8[7]);
 }
 
+/* ID "77DA39F9" → wire-format mac8.  Returns 0 on success. */
+static int id_to_mac8(const char *id, unsigned char *mac8)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        if (!isxdigit((unsigned char)id[i])) return -1;
+        mac8[i] = (unsigned char)toupper((unsigned char)id[i]);
+    }
+    return 0;
+}
+
+/* ID "77DA39F9" → display string "77:DA:39:F9". */
+static void id_to_mac_str(const char *id, char *out)
+{
+    snprintf(out, 20, "%c%c:%c%c:%c%c:%c%c",
+             id[0], id[1], id[2], id[3],
+             id[4], id[5], id[6], id[7]);
+}
+
 static void mac8_to_id(const unsigned char *mac8, char *id)
 {
     snprintf(id, MAC_ID_LEN + 1, "%c%c%c%c%c%c%c%c",
@@ -205,27 +224,23 @@ static const char *chime_get_name(const char *id)
  */
 static int chime_resolve(const char *arg, char *id_out, unsigned char *mac8)
 {
-    char mac_str[64], key[64], id[MAC_ID_LEN + 1];
+    char id[MAC_ID_LEN + 1];
 
-    /* 1. colon-separated MAC → strip to ID, get MAC from config */
+    /* 1. colon-separated MAC → strip to ID, derive mac8 */
     if (looks_like_mac(arg)) {
         mac_to_id(arg, id);
-        snprintf(key, sizeof(key), "chime.units.%s.mac", id);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-            && !jct_val_is_empty(mac_str)) {
+        if (chime_get_name(id)) {
             if (id_out) strcpy(id_out, id);
-            return parse_mac(mac_str, mac8);
+            return id_to_mac8(id, mac8);
         }
         return -1;
     }
 
     /* 2. try as MAC ID directly */
     if (strlen(arg) == MAC_ID_LEN) {
-        snprintf(key, sizeof(key), "chime.units.%s.mac", arg);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-            && !jct_val_is_empty(mac_str)) {
+        if (chime_get_name(arg)) {
             if (id_out) strcpy(id_out, arg);
-            return parse_mac(mac_str, mac8);
+            return id_to_mac8(arg, mac8);
         }
     }
 
@@ -237,14 +252,10 @@ static int chime_resolve(const char *arg, char *id_out, unsigned char *mac8)
         for (i = 0; i < count; i++) {
             const char *nm = chime_get_name(ids[i]);
             if (nm && !strcmp(nm, arg)) {
-                snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
-                if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-                    && !jct_val_is_empty(mac_str)) {
-                    if (id_out) strcpy(id_out, ids[i]);
-                    int rc = parse_mac(mac_str, mac8);
-                    free_id_list(ids, count);
-                    return rc;
-                }
+                if (id_out) strcpy(id_out, ids[i]);
+                int rc = id_to_mac8(ids[i], mac8);
+                free_id_list(ids, count);
+                return rc;
             }
         }
         free_id_list(ids, count);
@@ -631,8 +642,6 @@ static void chime_store(const char *name, const unsigned char *mac8)
 
     snprintf(key, sizeof(key), "chime.units.%s.name", id);
     jct_config_set(key, name);
-    snprintf(key, sizeof(key), "chime.units.%s.mac", id);
-    jct_config_set(key, mac_str);
 
     chime_group_add("all", id);
 
@@ -751,13 +760,10 @@ static void cmd_list(FILE *out)
     fprintf(out, "Chimes (%d):\n", count);
     for (i = 0; i < count; i++) {
         const char *nm = chime_get_name(ids[i]);
-        char key[64], mac_str[64];
-        snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-            && !jct_val_is_empty(mac_str)) {
-            fprintf(out, "  %-16s %s  [%s]\n",
-                    nm ? nm : "(unnamed)", mac_str, ids[i]);
-        }
+        char mac_str[20];
+        id_to_mac_str(ids[i], mac_str);
+        fprintf(out, "  %-16s %s  [%s]\n",
+                nm ? nm : "(unnamed)", mac_str, ids[i]);
     }
 
     fprintf(out, "\nGroups:\n");
@@ -847,11 +853,8 @@ static void cmd_play_all(int fd, int sound, int volume, int repeat)
     }
 
     for (i = 0; i < count; i++) {
-        char key[64], mac_str[64];
         unsigned char mac8[8];
-        snprintf(key, sizeof(key), "chime.units.%s.mac", ids[i]);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-            && parse_mac(mac_str, mac8) == 0) {
+        if (id_to_mac8(ids[i], mac8) == 0) {
             printf("Playing %s [%s]...\n",
                    chime_get_name(ids[i]) ? chime_get_name(ids[i]) : ids[i],
                    ids[i]);
@@ -875,11 +878,8 @@ static void cmd_play_group(int fd, const char *group_name,
     }
 
     for (i = 0; i < count; i++) {
-        char key[64], mac_str[64];
         unsigned char mac8[8];
-        snprintf(key, sizeof(key), "chime.units.%s.mac", members[i]);
-        if (jct_config_read(key, mac_str, sizeof(mac_str)) == 0
-            && parse_mac(mac_str, mac8) == 0) {
+        if (id_to_mac8(members[i], mac8) == 0) {
             const char *nm = chime_get_name(members[i]);
             printf("Playing %s [%s]...\n",
                    nm ? nm : members[i], members[i]);
