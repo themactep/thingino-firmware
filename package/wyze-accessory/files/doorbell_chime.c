@@ -703,6 +703,55 @@ static void chime_store(const char *name, const unsigned char *mac8)
 /* ──────────────────── high-level commands ───────────────────────── */
 
 /*
+ * cmd_discover: passive scan for an already-paired chime.
+ * Puts radio in listening mode, captures the chime's MAC broadcast
+ * (no challenge/verify — chime must be put in pairing mode by the user).
+ */
+static void cmd_discover(int fd, const char *name)
+{
+    unsigned char mac8[8], body[64];
+    int body_len = 0;
+
+    printf("1. Unplug chime 10+ s, plug back in.\n");
+    printf("2. Hold button until slow blue flash (~3-4 s).\n");
+    printf("3. Press ENTER when LED is slowly flashing blue...\n");
+    getchar();
+
+    rx_clear();
+
+    dbg("── [1] SUB1G_INIT ──\n");
+    do_init(fd);
+
+    dbg("── [2] START_PAIRING (passive scan) ──\n");
+    do_start_pairing(fd);
+    usleep(400000);
+
+    printf("Listening for chime broadcast (45 s)...\n");
+    if (wait_for(fd, 0x20, 45, body, &body_len, "CHIME_ANNOUNCE")) {
+        if (body_len >= 9) {
+            memcpy(mac8, body + 1, 8);
+            dbg("── [3] STOP_PAIRING ──\n");
+            do_stop_pairing(fd);
+
+            printf("Discovered chime MAC: %.8s\n", mac8);
+
+            if (name && name[0]) {
+                chime_store(name, mac8);
+            } else {
+                char auto_name[16];
+                snprintf(auto_name, sizeof(auto_name), "chime_%c%c%c%c",
+                         mac8[4], mac8[5], mac8[6], mac8[7]);
+                chime_store(auto_name, mac8);
+            }
+            return;
+        }
+    }
+
+    fprintf(stderr, "Error: no chime broadcast received.\n");
+    do_stop_pairing(fd);
+}
+
+/*
  * cmd_pair: full 8-step pairing sequence.
  */
 static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
@@ -970,6 +1019,7 @@ static void usage(const char *prog)
     printf("Wyze Doorbell V1 Chime Controller\n\n");
     printf("Usage:\n");
     printf("  %s [-d] [-D] pair [<NAME>] [<MAC>]       # pair and optionally store\n", prog);
+    printf("  %s [-d] [-D] discover [<NAME>]             # scan already-paired chime\n", prog);
     printf("  %s [-d] list                              # list stored chimes\n", prog);
     printf("  %s [-d] unpair <NAME|MAC>                 # remove from config\n", prog);
     printf("  %s [-d] <NAME|MAC> <SOUND> [VOL] [REP]    # play on one chime\n", prog);
@@ -1067,6 +1117,17 @@ int main(int argc, char **argv)
                 }
             }
             cmd_pair(fd, name, have_hint_mac ? mac8_hint : NULL);
+
+        /* ── discover (passive scan, no challenge/verify) ──────── */
+        } else if (is_cmd && !strcmp(cmd, "discover")) {
+            const char *name = NULL;
+            for (i = 2; i < argc; i++) {
+                if (!looks_like_mac(argv[i])) {
+                    name = argv[i];
+                    break;
+                }
+            }
+            cmd_discover(fd, name);
 
         /* ── play (named command) ──────────────────────────────── */
         } else if (is_cmd && !strcmp(cmd, "play")) {

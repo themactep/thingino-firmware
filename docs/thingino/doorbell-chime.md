@@ -42,6 +42,7 @@ doorbell_ctrl [-d] [-D] <command> [arguments...]
 | Command                                    | Description                                         |
 |--------------------------------------------|-----------------------------------------------------|
 | `pair [<NAME>] [<MAC>]`                    | Full 8-step pairing sequence (see below)            |
+| `discover [<NAME>]`                        | Passive scan for an already-paired chime            |
 | `list`                                     | List all stored chimes and groups                   |
 | `unpair <NAME\|MAC>`                       | Remove a chime from the config                      |
 | `play <NAME\|MAC> <SOUND> [VOL] [REP]`     | Trigger a sound on one chime by name or MAC         |
@@ -128,6 +129,23 @@ chime under a friendly name in `/etc/thingino.json`.
 | No sound after "Done!"             | Chime may already be paired. Try `doorbell_ctrl play <NAME> DOORBELL_1 5` to test. |
 | Pairing works but chime is silent  | Chime volume may be too low. Test with `DOORBELL_1` at volume 8. |
 | LED flashes **fast** blue          | Chime is in factory-reset mode, not pairing mode. Wait for it to settle, then start over. |
+
+### Discovering an already-paired chime
+
+If the chime was paired with the original Wyze firmware (or a previous
+Thingino installation), the radio already knows about it.  Use `discover`
+to passively capture its MAC without the challenge/verify handshake:
+
+```
+doorbell_ctrl discover living_room
+```
+
+Like `pair`, put the chime in pairing mode (unplug, replug, hold button
+until slow blue flash) before running the command.  The tool listens for
+the chime's broadcast, captures the MAC, and stores it in `thingino.json`.
+
+This is faster than a full `pair` and won't disturb existing radio
+pairings.
 
 Playing sounds
 --------------
