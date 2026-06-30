@@ -710,6 +710,19 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
     unsigned char mac8[8], body[64];
     int body_len = 0, got_mac = 0;
 
+    /* Warn if this name already exists (re-pairing a factory-reset chime) */
+    if (name && name[0]) {
+        int existing = chime_find_index(name);
+        if (existing >= 0) {
+            fprintf(stderr,
+                    "Note: chime '%s' already exists in config.\n"
+                    "Use -D to clear radio pairings first if the chime was\n"
+                    "factory-reset (hold button 10+ s until fast blue flash).\n"
+                    "Without -D, the existing radio pairing is reused.\n\n",
+                    name);
+        }
+    }
+
     printf("1. Unplug chime 10+ s, plug back in.\n");
     printf("2. Hold button until slow blue flash (~3-4 s).\n");
     printf("3. Press ENTER when LED is slowly flashing blue...\n");

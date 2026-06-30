@@ -144,6 +144,27 @@ The full pairing sequence runs, but since the chime is already in the
 radio's pairing table, the handshake succeeds without altering anything.
 The chime exits pairing mode cleanly.
 
+### Re-pairing a factory-reset chime
+
+If the chime has been factory-reset (hold its button 10+ seconds until
+the LED flashes **fast** blue), the radio still holds the old pairing
+but the chime has lost its key.  You have two options:
+
+**Single chime (or don't mind re-pairing others):**
+
+```
+doorbell_ctrl -D pair <name>
+```
+
+This clears all radio pairings and runs a fresh pairing.  Any other
+paired chimes must be re-paired afterward with `pair <name>` (without `-D`).
+
+**Preserve other pairings:** If you have multiple chimes and only want
+to replace one, run `pair` **without** `-D`.  The radio will negotiate
+a new key with the factory-reset chime while keeping existing pairings
+intact.  The tool prints a reminder about the `-D` option when the
+chime name is already in the config.
+
 Playing sounds
 --------------
 
