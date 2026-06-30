@@ -669,22 +669,29 @@ static void chime_store(const char *name, const unsigned char *mac8)
 
     mac8_to_str(mac8, mac_str);
 
-    /* Reuse existing slot if this name is already stored */
-    idx = chime_find_index(name);
-    if (idx < 0) {
-        idx = chime_find_free_index();
+    /* MAC is the true unique id: match by MAC first, then name */
+    idx = chime_find_index_by_mac(mac_str);
+    if (idx >= 0) {
+        /* Same chime, maybe renamed — update the name */
+        snprintf(key, sizeof(key), "chime.units.%d.name", idx);
+        jct_config_set(key, name);
+    } else {
+        idx = chime_find_index(name);
         if (idx < 0) {
-            fprintf(stderr, "Error: too many chimes (max %d)\n", MAX_CHIMES);
-            return;
+            idx = chime_find_free_index();
+            if (idx < 0) {
+                fprintf(stderr, "Error: too many chimes (max %d)\n", MAX_CHIMES);
+                return;
+            }
         }
+        /* New chime (or replacement for old name) — store both fields */
+        snprintf(key, sizeof(key), "chime.units.%d.name", idx);
+        jct_config_set(key, name);
+        snprintf(key, sizeof(key), "chime.units.%d.mac", idx);
+        jct_config_set(key, mac_str);
     }
 
-    snprintf(key, sizeof(key), "chime.units.%d.name", idx);
-    jct_config_set(key, name);
-    snprintf(key, sizeof(key), "chime.units.%d.mac", idx);
-    jct_config_set(key, mac_str);
-
-    /* Add to "all" group */
+    /* Add to "all" group if not already a member */
     chime_group_add("all", name);
 
     printf("Stored chime '%s' (%s)\n", name, mac_str);
