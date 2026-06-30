@@ -28,7 +28,8 @@
  *   Command line "77:AB:62:77" → wire bytes 0x37 0x37 0x41 0x42 0x36 0x32 0x37 0x37
  *   (each character's ASCII value, not the decoded byte value)
  *
- * Build (MIPS / thingino):
+ * Built by Buildroot via wyze-accessory.mk (WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL)
+ * using $(TARGET_CC) $(TARGET_CFLAGS).  For manual testing:
  *   mipsel-linux-gnu-gcc -march=mips32 -O2 -static \
  *     -fno-builtin -Wall -Wextra doorbell_chime.c -o doorbell_chime
  */
@@ -48,7 +49,7 @@
 #endif
 
 #define DEVICE          "/dev/ttyS0"
-#define DEFAULT_VOLUME  5   /* 1–8 typical; device accepts up to ~32 */
+#define DEFAULT_VOLUME  5   /* 1–32 (device accepts up to ~32) */
 #define DEFAULT_REPEAT  1   /* times to play */
 
 /* 16-byte challenge R (from WyzeSensePy Scan()) */
@@ -397,7 +398,7 @@ static void cmd_pair(int fd, const unsigned char *mac8_hint)
 
 /*
  * cmd_play: trigger a sound on an already-paired chime.
- * sound: 1-19, volume: 1-8 (up to 32 accepted), repeat: 1-255
+ * sound: 1-19, volume: 1-32, repeat: 1-255
  */
 static void cmd_play(int fd, const unsigned char *mac8,
                      int sound, int volume, int repeat)
@@ -428,7 +429,7 @@ static void usage(const char *prog)
     printf("  -D, --delete   Delete existing pairings before pairing\n");
     printf("  -h, --help     Show this help\n");
     printf("\nMAC: XX:XX:XX:XX (e.g. 00:11:22:33); detected by ':' in any argument.\n");
-    printf("VOLUME default=%d (1-8), REPEAT default=%d (1-255)\n\n",
+    printf("VOLUME default=%d (1-32), REPEAT default=%d (1-255)\n\n",
            DEFAULT_VOLUME, DEFAULT_REPEAT);
     printf("Sounds (name or number 1-19):\n");
     printf("  SPACE_WAVE(1)   WIND_CHIME(2)  CURIOSITY(3)   SURPRISE(4)   CHEERFUL(5)\n");
@@ -485,7 +486,7 @@ int main(int argc, char **argv)
 
     /* ── pair ─────────────────────────────────────────────────── */
     if (pair_flag ||
-        (is_cmd && (!strcmp(cmd, "pair") || !strcmp(cmd, "-p")))) {
+        (is_cmd && !strcmp(cmd, "pair"))) {
         cmd_pair(fd, have_mac ? mac8 : NULL);
 
     /* ── play (named) ─────────────────────────────────────────── */
@@ -523,18 +524,24 @@ int main(int argc, char **argv)
     /* ── low-level standalone commands ───────────────────────── */
     } else if (is_cmd && !strcmp(cmd, "init")) {
         do_init(fd);
+        printf("sub-GHz radio initialised.\n");
     } else if (is_cmd && !strcmp(cmd, "delete")) {
         do_delete_all(fd);
+        printf("All pairings deleted.\n");
     } else if (is_cmd && !strcmp(cmd, "start")) {
         do_start_pairing(fd);
+        printf("Pairing mode started.\n");
     } else if (is_cmd && !strcmp(cmd, "stop")) {
         do_stop_pairing(fd);
+        printf("Pairing mode stopped.\n");
     } else if (is_cmd && !strcmp(cmd, "challenge")) {
         if (!have_mac) { fprintf(stderr, "%s: challenge requires a MAC\n", prog); close(fd); return EXIT_FAILURE; }
         do_challenge(fd, mac8);
+        printf("Challenge sent.\n");
     } else if (is_cmd && !strcmp(cmd, "verify")) {
         if (!have_mac) { fprintf(stderr, "%s: verify requires a MAC\n", prog); close(fd); return EXIT_FAILURE; }
         do_verify(fd, mac8);
+        printf("Verify-result sent.\n");
 
     /* ── positional play: <MAC> <SOUND> [VOL] [REP] ─────────── */
     } else if (have_mac && mac_idx == 1) {
@@ -550,6 +557,14 @@ int main(int argc, char **argv)
         }
         int vol = (argc >= 4) ? atoi(argv[3]) : DEFAULT_VOLUME;
         int rep = (argc >= 5) ? atoi(argv[4]) : DEFAULT_REPEAT;
+        if (vol < 1 || vol > 32) {
+            fprintf(stderr, "%s: volume %d out of range (1-32)\n", prog, vol);
+            close(fd); return EXIT_FAILURE;
+        }
+        if (rep < 1 || rep > 255) {
+            fprintf(stderr, "%s: repeat %d out of range (1-255)\n", prog, rep);
+            close(fd); return EXIT_FAILURE;
+        }
         cmd_play(fd, mac8, sound, vol, rep);
 
     } else {
