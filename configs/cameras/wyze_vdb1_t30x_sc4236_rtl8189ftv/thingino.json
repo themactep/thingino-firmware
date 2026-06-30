@@ -7,9 +7,6 @@
     "mmc_cd": -1,
     "sub1g": 60,
     "white": 89,
-    "wlan": {
-      "pin": 57,
-      "active_low": false
-    }
+    "wlan": 57
   }
 }

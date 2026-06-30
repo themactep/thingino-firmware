@@ -7,13 +7,7 @@
       "1": 51,
       "2": 54
     },
-    "white": {
-      "pin": 8,
-      "pwm_channel": 1
-    },
-    "wlan": {
-      "pin": 14,
-      "active_low": false
-    }
+    "white": 8,
+    "wlan": 14
   }
 }

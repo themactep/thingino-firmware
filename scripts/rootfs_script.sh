@@ -12,6 +12,12 @@ HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 
+# NAND keeps the U-Boot env in the UBI "uboot-env" volume, so fw_printenv/setenv
+# must target that volume instead of a raw MTD offset (the NOR default).
+if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
+	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+fi
+
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
@@ -66,10 +72,10 @@ sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 # Add Thingino entries
 echo "NAME=Thingino
 ID=thingino
-VERSION=\"1 (Ciao)\"
+VERSION=\"2 (Figata)\"
 VERSION_ID=1
-VERSION_CODENAME=ciao
-PRETTY_NAME=\"Thingino 1 (Ciao)\"
+VERSION_CODENAME=figata
+PRETTY_NAME=\"Thingino 2 (Figata)\"
 ID_LIKE=buildroot
 CPE_NAME=\"cpe:/o:thinginoproject:thingino:1\"
 LOGO=thingino-logo-icon

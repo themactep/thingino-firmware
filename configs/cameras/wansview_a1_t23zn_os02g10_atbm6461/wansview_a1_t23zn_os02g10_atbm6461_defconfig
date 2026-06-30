@@ -1,0 +1,43 @@
+# NAME: Wansview A1 (T23ZN, OS02G10, ATBM6461)
+# FRAG: soc-xburst1 core ssl
+#
+# SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
+# Sensor: OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
+# WiFi:   AltoBeam ATBM6461, SDIO, also manages hardware MCU watchdog
+# Flash:  16MB NOR SPI
+# UART:   ttyS1
+#
+# NOTES:
+#  - OS02G10 T23 sensor driver not yet in ingenic-sdk; port from ZRT SDK
+#    os/drivers/sensor-t23/zeratul/os02g10/ or from ingenic-sdk-matteius t31/os02g10.c
+#  - ATBM6461 .ko is a binary blob (no upstream source); vermagic is patched at
+#    build time by package/wifi-atbm6461 to match CONFIG_LOCALVERSION.
+#  - MCU WiFi/battery commands are provided by package/atbm6461-tools. Do not
+#    add per-camera mcu_test binaries under this profile overlay.
+#  - MCU watchdog (~13s timeout) is disabled by z7682_disable_wdt via librtos.so
+#    on /dev/atbm_ioctl; S02atbm-wdt init script runs at early boot before S36wireless
+#  - Reset button is MCU-managed (key_enable/key_disable via rtos_cmd_send, not a GPIO);
+#    BR2_THINGINO_BUTTON is not set — a custom z7682_daemon integration is needed
+#  - GPIO: ircut=57 (single-pin, phwi0 double/single states), ir940=38 (phwi1),
+#    phwi2=GPIO16 (role TBD: audio amp?), led_b=49, led_r=50
+#    All assignments from AJCloud binary analysis; verify on hardware
+
+BR2_ISP_CLKA_600MHZ=y
+BR2_ISP_CLKA_SCLKA=y
+BR2_ISP_CLK_200MHZ=y
+BR2_ISP_CLK_SCLKA=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6461=y
+BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_WEXT=y
+BR2_SENSOR_1_NAME="os02g10"
+BR2_INGENIC_SOC_MODEL="t23zn"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_DEV_BATTERY=y
+BR2_THINGINO_RMEM_MB=18
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/wansview_a1_t23zn_os02g10_atbm6461/wansview_a1_t23zn.kernel.config"
+BR2_ISP_PRINT_LEVEL_0=y

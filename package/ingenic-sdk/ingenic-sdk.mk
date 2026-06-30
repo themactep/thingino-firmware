@@ -1,13 +1,18 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = ff16c633c3fb81b24e8b0d7549773ec5232be469
+INGENIC_SDK_VERSION = 127e2fc7a3938b6dee54d4415b1aba084de547c9
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
 
 # Ensure thingino-core is installed before ingenic-sdk so thingino.json is available
 INGENIC_SDK_DEPENDENCIES = thingino-core
+
+# Optional ISP firmware version for sensor IQ selection. When set, IQ tuning is
+# taken from sensor-iq/<soc>/<version>/ (e.g. t23 2.10) instead of the flat
+# per-soc default. Empty selects the primary version.
+SENSOR_ISP_FW = $(call qstrip,$(BR2_SENSOR_ISP_FW))
 
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
@@ -98,10 +103,14 @@ define INSTALL_SENSOR_BIN
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
 		else \
-			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
+			iqdir=$(@D)/sensor-iq/$(SOC_FAMILY); \
+			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
+				iqdir=$$iqdir/$(SENSOR_ISP_FW); \
+			fi; \
+			$(INSTALL) -D -m 0644 $$iqdir/$(2).bin \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
-			if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
-				$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
+			if [ -f $$iqdir/$(2)-cust.bin ]; then \
+				$(INSTALL) -D -m 0644 $$iqdir/$(2)-cust.bin \
 					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
 			fi; \
 		fi; \
@@ -133,7 +142,7 @@ define GENERATE_MODULE_LOADER
 		echo "hdmi_audio" > $(TARGET_DIR)/etc/modules.d/hdmi_audio; \
 	fi
 
-	if [ "$(SOC_FAMILY)" != "a1" ]; then \
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ] && [ "$(SOC_FAMILY)" != "a1" ]; then \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t30" ]; then \
@@ -145,8 +154,10 @@ define GENERATE_MODULE_LOADER
 		fi \
 	fi
 
-	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
+	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
+		fi \
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \

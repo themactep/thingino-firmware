@@ -10,9 +10,10 @@ This directory contains a data-driven system for managing SoC parameters.
 ## Database Format
 
 ```
-# Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand
+# Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand,uboot_image
 # arch: 1=xburst1, 2=xburst2
 # uboot_board_nand: use "-" if NAND not supported
+# uboot_image: "-" = u-boot-with-spl-lzma.bin (default); "u-boot-with-tpl-lzma.bin" for TPL SoCs (T10/T20/T21/T30)
 ```
 
 ## Script Usage

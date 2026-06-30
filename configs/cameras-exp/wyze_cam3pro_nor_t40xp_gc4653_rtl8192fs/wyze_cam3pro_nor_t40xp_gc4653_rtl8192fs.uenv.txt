@@ -1,4 +1,3 @@
-gpio_button=107
 gpio_default=105O 106O
 gpio_ir940=66
 gpio_ircut=119 118

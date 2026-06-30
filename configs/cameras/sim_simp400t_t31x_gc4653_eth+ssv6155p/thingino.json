@@ -3,9 +3,6 @@
     "button_reset": 62,
     "ir850": 50,
     "ircut": "54 51",
-    "wlan": {
-      "pin": 11,
-      "active_low": false
-    }
+    "wlan": 11
   }
 }

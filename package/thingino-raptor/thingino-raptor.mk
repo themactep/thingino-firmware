@@ -62,8 +62,12 @@ ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT),y)
 THINGINO_RAPTOR_MAKE_OPTS += WEBTORRENT=1
 endif
 
-# Per-daemon build targets (RVD + tools always built)
-THINGINO_RAPTOR_TARGETS = rvd raptorctl ringdump
+# Per-daemon build targets (tools always built)
+THINGINO_RAPTOR_TARGETS = raptorctl ringdump
+
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RVD),y)
+THINGINO_RAPTOR_TARGETS += rvd
+endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RAC),y)
 THINGINO_RAPTOR_TARGETS += rac

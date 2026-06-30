@@ -282,6 +282,7 @@ config BR2_THINGINO_RMEM_MB_AUTO
 
 config BR2_THINGINO_RMEM_MB
 	int "ISP Reserved RAM (rmem), MB"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 10 if BR2_SOC_RAM_MB = 32
 	default 23 if BR2_SOC_RAM_MB = 64
 	default 29 if BR2_SOC_RAM_MB = 128
@@ -291,6 +292,7 @@ config BR2_THINGINO_RMEM_MB
 config BR2_THINGINO_ISPMEM_MB
 	int "ISP Reserved RAM (ispmem), MB"
 	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20"
+	default 0 if !BR2_THINGINO_DEV_CAMERA
 	default 8
 	help
 	  Specify reserved memory for the ISP in MB.
@@ -761,12 +763,12 @@ config BR2_THINGINO_BUTTON
 	help
 	  The hardware has a physical button wired to a GPIO.
 
-config BR2_THINGINO_CLONER
+config BR2_THINGINO_DFU
 	bool "USB Cloner Support"
-	select BR2_PACKAGE_HOST_THINGINO_CLONER
+	select BR2_PACKAGE_HOST_THINGINO_DFU
 	help
-	  The device supports USB boot mode for flashing via thingino-cloner.
-	  Enables the host-side thingino-cloner tool, used by 'make cloner'.
+	  The device supports USB boot mode for flashing via thingino-dfu.
+	  Enables the host-side thingino-dfu tool, used by 'make dfu'.
 
 config BR2_THINGINO_NNA
 	bool "Neural Network Acceleration Support"
@@ -855,7 +857,7 @@ config KERNEL_VERSION_3
 	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
-	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_7
 	bool "Kernel 7.1"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
@@ -895,13 +897,33 @@ menu "Device Type"
 		help
 		  Specifies the device type as a Small Board Computer (SBC) and installs configurations
 		  specific to this type.
+	config BR2_THINGINO_DEV_SEC
+		bool "Security System Hub"
+		help
+		  Specifies the device type as a Security System Hub and installs configurations
+		  specific to this type.
 	endchoice
+
+	config BR2_THINGINO_DEV_CAMERA
+		bool
+		default y if BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_WEBCAM
+		help
+		  Hidden helper: set for device types with an image sensor.
+		  Camera stack packages (streamer, ONVIF, IMP libraries, ISP
+		  kernel modules, rmem) are only installed when this is set.
 
 	config BR2_THINGINO_DEV_DOORBELL
 		bool "Doorbell"
 		depends on BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC
 		help
 		  Specifies the device features as a Doorbell and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_BATTERY
+		bool "Battery Powered"
+		depends on BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC
+		help
+		  Specifies the device features as a battery powered device and installs configurations
 		  specific to this type.
 
 	config BR2_THINGINO_DEV_SIREN

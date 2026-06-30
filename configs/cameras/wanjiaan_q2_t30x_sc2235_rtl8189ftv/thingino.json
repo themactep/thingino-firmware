@@ -4,9 +4,6 @@
     "call": 54,
     "ircut": 81,
     "mmc_cd": 59,
-    "wlan": {
-      "pin": 62,
-      "active_low": false
-    }
+    "wlan": 62
   }
 }

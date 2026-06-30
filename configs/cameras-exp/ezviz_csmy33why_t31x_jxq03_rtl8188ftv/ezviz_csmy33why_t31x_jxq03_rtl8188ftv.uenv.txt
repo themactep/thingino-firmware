@@ -1,4 +1,3 @@
-gpio_button=6
 gpio_default=25ID 26IDU
 gpio_ir850=14
 gpio_led_b=8

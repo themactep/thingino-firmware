@@ -1,4 +1,4 @@
-GO2RTC_VERSION = 1.9.12
+GO2RTC_VERSION = 1.9.14
 GO2RTC_SITE = $(call github,AlexxIT,go2rtc,v$(GO2RTC_VERSION))
 
 GO2RTC_LICENSE = MIT
@@ -19,6 +19,16 @@ GO2RTC_LDFLAGS = -s -w
 
 # Disable inlining and bounds checking for smaller binary
 GO2RTC_BUILD_OPTS = -gcflags=all="-l -B"
+
+# Patch Go runtime to handle Ingenic kernel version strings that use
+# double-underscore separators instead of dashes, e.g.:
+#   3.10.14__isvp_swan_1.0__
+# Without this, parseRelease() panics with:
+#   fatal error: failed to parse kernel version from uname
+define GO2RTC_FIX_KERNEL_VERSION_PARSING
+	patch -d $(HOST_GO_ROOT) -p1 -N < $(GO2RTC_PKGDIR)/files/fix-mips-kernel-version-parse.patch || true
+endef
+GO2RTC_PRE_BUILD_HOOKS += GO2RTC_FIX_KERNEL_VERSION_PARSING
 
 define GO2RTC_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(GO2RTC_PKGDIR)/files/go2rtc.yaml \

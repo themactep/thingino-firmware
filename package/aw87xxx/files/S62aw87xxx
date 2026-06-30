@@ -1,0 +1,61 @@
+#!/bin/sh
+
+MODULE="snd_soc_aw87xxx"
+PROFILE="Voice"
+
+aw_nodes() {
+	for p in /sys/bus/i2c/devices/*/profile; do
+		[ -e "$p" ] && echo "$p"
+	done
+}
+
+set_profile() {
+	for n in $(aw_nodes); do
+		echo "$1" > "$n" 2>/dev/null
+	done
+}
+
+wait_ready() {
+	i=0
+	while [ "$i" -lt 50 ]; do
+		for n in $(aw_nodes); do
+			grep -qi "$PROFILE" "$n" 2>/dev/null && return 0
+		done
+		sleep 0.1
+		i=$((i + 1))
+	done
+	return 1
+}
+
+start() {
+	echo -c 15 "Starting aw87xxx amp ($PROFILE)"
+	modprobe "$MODULE" 2>/dev/null
+	if wait_ready; then
+		set_profile "$PROFILE"
+	else
+		echo "aw87xxx: no device, or firmware not loaded" >&2
+	fi
+}
+
+stop() {
+	set_profile "Off"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

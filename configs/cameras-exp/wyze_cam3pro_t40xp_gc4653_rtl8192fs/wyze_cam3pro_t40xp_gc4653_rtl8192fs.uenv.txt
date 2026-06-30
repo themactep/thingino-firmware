@@ -1,4 +1,3 @@
-gpio_button=107
 gpio_default=105O 106O
 gpio_ir940=66
 gpio_ircut=119 118
@@ -11,3 +10,4 @@ gpio_mmc_power=71o
 gpio_speaker=-1
 gpio_white=67
 gpio_wlan=57
+serialport=ttyS1

@@ -1,16 +1,17 @@
 name: firmware-stable
 on:
-  schedule:
-    - cron:  '30 8 * * 1'
+#  schedule:
+#    - cron:  '30 8 * * 1'
   workflow_dispatch:
     inputs:
       branch:
         type: choice
         description: 'Branch to build from'
         required: false
-        default: 'stable'
+        default: 'ciao'
         options:
-          - stable
+          - ciao
+          - figata
           - master
       tg_disabled:
         type: boolean
@@ -56,14 +57,14 @@ env:
 
 jobs:
   check-updates:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
       - name: Debug checked out branch and commit
@@ -104,7 +105,7 @@ jobs:
           fi
 
   notify-no-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'false'
     steps:
@@ -114,7 +115,7 @@ jobs:
           echo "Skipping scheduled build. Manual runs always build."
 
   prepare-release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -134,7 +135,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: "1"
 
       - name: Create release tag
@@ -160,7 +161,7 @@ jobs:
           fi
 
   notify-begin:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: prepare-release
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -185,7 +186,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: "1"
 
       - name: Send build start notification via Telegram
@@ -198,7 +199,7 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
@@ -214,7 +215,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: "0"
 
       - name: Debug checked out branch and commit
@@ -247,7 +248,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin, prepare-release]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     outputs:
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -288,7 +289,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: 'true'
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: "0"
 
       - name: Debug checked out branch and commit
@@ -315,14 +316,14 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p ~/.ccache
+          mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
 
       - name: Restore build cache
         uses: actions/cache@v5
         if: always()
         with:
-          path: ~/.ccache
+          path: ~/.buildroot-ccache
           key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
@@ -412,13 +413,13 @@ jobs:
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          mkdir -p ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/
-          echo "debug" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
-          echo "debug uboot" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
-          echo "debug kernel" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/uImage
-          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.squashfs
-          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.tar
-          echo "debug sha" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
+          mkdir -p ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/
+          echo "debug" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
+          echo "debug uboot" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
+          echo "debug kernel" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/uImage
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/rootfs.squashfs
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/rootfs.tar
+          echo "debug sha" > ${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
@@ -430,7 +431,7 @@ jobs:
       - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          OUT_BASE="${GITHUB_WORKSPACE}/output/stable"
+          OUT_BASE="${GITHUB_WORKSPACE}/output/${{ github.event.inputs.branch }}"
           FW_PATH=${OUT_BASE}/${DYNAMIC_PART}/images/
           FULL_FW=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
           FULL_FW_UBOOT=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
@@ -458,7 +459,7 @@ jobs:
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
-            ${{ github.workspace }}/output/stable/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+            ${{ github.workspace }}/output/${{ github.event.inputs.branch }}/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v7.0.0
@@ -501,7 +502,7 @@ jobs:
 
   finalize-release:
     needs: [buildroot, prepare-release, check-updates]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
       - name: Set timezone
@@ -517,12 +518,12 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: 'false'
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Generate release notes
         id: release_notes
         run: |
-          GIT_HASH=$(git ls-remote origin "refs/heads/stable" | cut -f1 | cut -c1-7)
+          GIT_HASH=$(git ls-remote origin "refs/heads/${{ github.event.inputs.branch }}" | cut -f1 | cut -c1-7)
           LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
@@ -539,7 +540,7 @@ jobs:
                 | reverse
                 | .[]
                 | select(
-                    .commit.message != "Merge remote-tracking branch '\''origin/stable'\''"
+                    .commit.message != "Merge remote-tracking branch '\''origin/${{ github.event.inputs.branch }}'\''"
                     and (.commit.message | contains("workflow") | not)
                     and (.commit.message | contains("Merge pull request #") | not)
                   )
@@ -582,7 +583,7 @@ jobs:
 
   notify-completion:
     needs: [finalize-release, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
       - name: Set timezone
@@ -596,7 +597,7 @@ jobs:
       - name: Checkout repository source
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.branch || 'stable' }}
+          ref: ${{ github.event.inputs.branch }}
           fetch-depth: "1"
 
       - name: Send notify completion summary

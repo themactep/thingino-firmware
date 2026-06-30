@@ -7,6 +7,5 @@ gpio_scl=58
 gpio_mmc_cd=59
 gpio_ir850=61
 gpio_wlan=62O
-gpio_button=64
 gpio_led_b=72o
 gpio_led_g=73o

@@ -34,6 +34,8 @@ STASH_REF: Optional[str] = None
 STASH_SHA: Optional[str] = None
 
 HASH_RE = re.compile(r"^[a-f0-9]{7,40}$")
+SOURCE_RE = re.compile(r'\bsource\s+"([^"]*Config\.in\.host)"')
+BR2_VAR_RE = re.compile(r'\$\(?BR2_EXTERNAL_\w+\)?')
 
 
 def log_debug(msg: str) -> None:
@@ -302,6 +304,13 @@ def parse_mk_file(mk_path: Path) -> Optional[Tuple[str, str, str, str]]:
             site = m.group(1).strip().strip('"')
             continue
 
+    # Handle $(call github,user,repo[,version]) helper
+    if site_method != 'git' and site and site.startswith('$('):
+        m = re.match(r'^\$\(call\s+github,\s*([^,]+),\s*([^,]+)', site)
+        if m:
+            site_method = 'git'
+            site = f"https://github.com/{m.group(1).strip()}/{m.group(2).strip()}.git"
+
     # Filter conditions
     if site_method != 'git':
         return None
@@ -515,6 +524,7 @@ def process_package(mk_path: Path) -> None:
         print("---------------")
         print(repo_url)
         print(f"= {current_hash} (up to date)")
+        print()
         log_debug(f"Package {package_name} is up to date")
         return
 
@@ -560,6 +570,82 @@ def process_package(mk_path: Path) -> None:
         log_debug(f"Skipping update for package {package_name}")
 
 
+def resolve_source_path(path_str: str, config_file_dir: Path) -> Optional[Path]:
+    """
+    Resolve a Kconfig ``source`` path to a real filesystem path.
+    Handles ``$BR2_EXTERNAL_*`` variables and relative references
+    rooted at either the config file's directory, the project root,
+    or ``buildroot/``.
+    """
+    # Strip shell variable references like $BR2_EXTERNAL_THINGINO_PATH
+    # or ${BR2_EXTERNAL_THINGINO_PATH}
+    resolved = BR2_VAR_RE.sub(str(PROJECT_ROOT), path_str)
+
+    candidate = Path(resolved)
+    if candidate.is_absolute():
+        return candidate if candidate.exists() else None
+
+    # Try relative to the containing Config.in.host
+    candidate = (config_file_dir / resolved).resolve()
+    if candidate.exists():
+        return candidate
+
+    # Try relative to project root
+    candidate = (PROJECT_ROOT / resolved).resolve()
+    if candidate.exists():
+        return candidate
+
+    # Try relative to buildroot directory
+    candidate = (PROJECT_ROOT / "buildroot" / resolved).resolve()
+    if candidate.exists():
+        return candidate
+
+    return None
+
+
+def find_mk_from_host_config() -> List[Path]:
+    """
+    Discover package ``.mk`` files by scanning ``Config.in.host``
+    ``source`` directives.
+
+    Returns a list of ``.mk`` paths whose directory name matches the
+    file name (same filter as the glob-based discovery in ``main()``).
+    """
+    seen: set[Path] = set()
+    mk_files: List[Path] = []
+
+    host_configs: List[Path] = [
+        PROJECT_ROOT / "Config.in.host",
+    ]
+    host_configs.extend(PACKAGE_DIR.rglob("Config.in.host"))
+
+    for cfg in host_configs:
+        if not cfg.is_file():
+            continue
+        try:
+            text = cfg.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+
+        cfg_dir = cfg.parent
+        for m in SOURCE_RE.finditer(text):
+            target = resolve_source_path(m.group(1), cfg_dir)
+            if target is None:
+                continue
+
+            pkg_dir = target.parent
+            if not pkg_dir.is_dir():
+                continue
+
+            # Apply the same naming heuristic as the glob-based discovery
+            expected_mk = pkg_dir / f"{pkg_dir.name}.mk"
+            if expected_mk.is_file() and expected_mk not in seen:
+                seen.add(expected_mk)
+                mk_files.append(expected_mk)
+
+    return mk_files
+
+
 def main() -> int:
     global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN
 
@@ -587,6 +673,7 @@ def main() -> int:
         stash_uncommitted_changes()
 
     # Find .mk files whose filename matches the package directory name
+    seen: set[Path] = set()
     mk_files: List[Path] = []
     if args.patterns:
         # Filter packages by provided glob patterns against package directory names
@@ -596,7 +683,9 @@ def main() -> int:
                 continue
             name = pkg_dir.name
             if any(fnmatch.fnmatch(name, pat) for pat in args.patterns):
-                mk_files.append(mk_path)
+                if mk_path not in seen:
+                    seen.add(mk_path)
+                    mk_files.append(mk_path)
         if not mk_files:
             log_error(f"No packages matched patterns: {' '.join(args.patterns)}")
             return 1
@@ -604,7 +693,17 @@ def main() -> int:
         for mk_path in PACKAGE_DIR.rglob('*.mk'):
             pkg_dir = mk_path.parent
             if mk_path.name == f"{pkg_dir.name}.mk":
-                mk_files.append(mk_path)
+                if mk_path not in seen:
+                    seen.add(mk_path)
+                    mk_files.append(mk_path)
+
+    # Additionally discover packages from Config.in.host source directives
+    host_mk = find_mk_from_host_config()
+    for mk in host_mk:
+        if mk not in seen:
+            seen.add(mk)
+            if not args.patterns or any(fnmatch.fnmatch(mk.parent.name, pat) for pat in args.patterns):
+                mk_files.append(mk)
 
     for mk in sorted(mk_files):
         log_debug(f"Examining package: {mk.parent.name}")

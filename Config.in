@@ -69,14 +69,14 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	default y if !BR2_THINGINO_TOOLCHAIN
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
-	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB if BR2_THINGINO_DEV_CAMERA || BR2_THINGINO_AUDIO
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
 	select BR2_PACKAGE_THINGINO_CORE
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_LIBCURL
-	select BR2_PACKAGE_THINGINO_ONVIF if BR2_PACKAGE_PRUDYNT_T || BR2_PACKAGE_THINGINO_RAPTOR
+	select BR2_PACKAGE_THINGINO_ONVIF if (BR2_PACKAGE_PRUDYNT_T || BR2_PACKAGE_THINGINO_RAPTOR) && BR2_THINGINO_DEV_IPCAM
 	select BR2_TARGET_UBOOT
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_UBOOT_TOOLS
@@ -193,6 +193,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 endif
 
 menu "Extra Packages"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/aw87xxx/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonpath/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
@@ -201,7 +202,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/llhttp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/nino/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-agent/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-cloner/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-esphome/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
@@ -305,3 +305,5 @@ config BR2_PACKAGE_SELECT_VALGRIND
 endif
 
 endmenu
+
+source "$BR2_EXTERNAL_THINGINO_PATH/Config.in.host"

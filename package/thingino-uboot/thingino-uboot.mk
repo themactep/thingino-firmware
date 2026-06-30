@@ -4,9 +4,14 @@
 #
 ################################################################################
 
+# Note: Dependencies (host-libyaml, host-uboot-tools) are NOT declared here
+# because Buildroot parses external.mk before .config is loaded, so the
+# ifeq guard below always fails on first parse. By the second parse
+# (after .config) the package rules are already generated and the += is
+# ignored. These deps are handled directly in the top-level Makefile:
+#   - rebuild-% and rebuild-uboot targets list host-libyaml explicitly
+#   - $(ROOTFS_BIN) target builds host-libyaml before pre-stamping uboot
 ifeq ($(BR2_TARGET_UBOOT)$(BR_BUILDING),yy)
-
-UBOOT_DEPENDENCIES += host-libyaml host-uboot-tools
 THINGINO_OUTPUT_DIR = $(if $(OUTPUT_DIR),$(OUTPUT_DIR),$(BASE_DIR))
 THINGINO_BINARIES_DIR = $(if $(OUTPUT_DIR),$(OUTPUT_DIR)/images,$(BINARIES_DIR))
 THINGINO_UENV_TXT = $(if $(U_BOOT_ENV_TXT),$(U_BOOT_ENV_TXT),$(THINGINO_OUTPUT_DIR)/uenv.txt)
@@ -99,14 +104,13 @@ define THINGINO_PATCH_DEV_ENV
 		ROOTFS_BIN_SIZE=$$(stat -c%s $(THINGINO_BINARIES_DIR)/rootfs.squashfs); \
 		ROOTFS_SIZE_ALIGNED=$$(( ($$ROOTFS_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
 		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
-		KERNEL_OFFSET=$$(( $(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE) )); \
+		KERNEL_OFFSET=$$(( $(U_BOOT_PARTITION_SIZE) + $(UB_ENV_PARTITION_SIZE) )); \
 		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $$KERNEL_SIZE_ALIGNED )); \
-		KERNEL_OFFSET_HEX=$$(printf '0x%x' $$KERNEL_OFFSET); \
-		KERNEL_OFFSET_KB=$$(( $$KERNEL_OFFSET / 1024 )); \
-		FLASH_SIZE_BYTES=$$(( $(FLASH_SIZE_MB) * 1024 * 1024 )); \
+		ROOTFS_OFFSET_KB=$$(( $$ROOTFS_OFFSET / 1024 )); \
 		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
-		UPGRADE_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$KERNEL_OFFSET_KB )); \
-		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${UPGRADE_SIZE_KB}k@$${KERNEL_OFFSET_HEX}(upgrade),$${FLASH_SIZE_KB}k@0(all)"; \
+		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
+		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
+		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \
@@ -114,5 +118,60 @@ define THINGINO_PATCH_DEV_ENV
 	fi
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_PATCH_DEV_ENV
+
+# Drop the on-chip wired-Ethernet driver (DesignWare GMAC + PHY) when the board has no wired Ethernet.
+ifneq ($(BR2_ETHERNET),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_WIRED_ETH
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ETH_DESIGNWARE_INGENIC,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_ETH_DESIGNWARE,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_PHY_ICPLUS,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_WIRED_ETH
+endif
+endif
+
+# Drop the USB-Ethernet host drivers when the board has no USB OTG data port (no dongle possible).
+ifneq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_USB_ETH
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_HOST_ETHER,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_ETHER_ASIX,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_USB_ETH
+endif
+endif
+
+# Drop the audio/sound subsystem (disabling CONFIG_SOUND cascades I2S + codecs) when the board has no audio.
+ifneq ($(BR2_THINGINO_AUDIO),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_DISABLE_AUDIO
+	$(call KCONFIG_DISABLE_OPT,CONFIG_CMD_SOUND,$(@D)/.config)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SOUND,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
+endif
+endif
+
+# Inject this board's MMC card-detect + slot-power into the per-SoC U-Boot
+# device tree from thingino.json (the GPIOs are board-specific, so they can't
+# live in the shared .dts). The helper appends a vmmc-supply regulator and, on
+# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
+# so the mmc core powers and detects the slot natively, with no env gpio gate
+# or power-up. The helper reads thingino.json with python3 (already a U-Boot
+# build dependency via binman).
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_MMC_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-mmc-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
+endif
 
 endif

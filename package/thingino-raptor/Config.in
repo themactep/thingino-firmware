@@ -32,8 +32,17 @@ config BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	default y
 	help
 	  Build and install all raptor daemons. Disable to select
-	  individual daemons below. RVD (video) and tools (raptorctl,
-	  ringdump, rac) are always included.
+	  individual daemons below. Tools (raptorctl, ringdump) are
+	  always included.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RVD
+	bool "RVD (sensor video capture)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL || BR2_THINGINO_DEV_CAMERA
+	help
+	  Live sensor video capture daemon. Produces the video ring
+	  buffers consumed by RSD/RHD/ROD/RWC/RWD/RMR/RMD/RSP/RSR.
+	  Disable for audio-only deployments (e.g. a security hub
+	  running just RAD); RFS can substitute as a file-based source.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RSD
 	bool "RSD (RTSP server — compy)"

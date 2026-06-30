@@ -4,9 +4,6 @@
     "ir940": 9,
     "ircut": "57 58",
     "mmc_cd": 49,
-    "wlan": {
-      "pin": 8,
-      "active_low": false
-    }
+    "wlan": 8
   }
 }
