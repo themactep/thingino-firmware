@@ -60,7 +60,14 @@ static int parse_mac(const char *s, unsigned char *mac8)
     return (j == 8) ? 0 : -1;
 }
 
-static int looks_like_mac(const char *s) { return !!strchr(s, ':'); }
+/* Recognise colon-separated MAC or 8-char hex MAC-ID. */
+static int looks_like_mac(const char *s)
+{
+    if (strchr(s, ':')) return 1;
+    if (strlen(s) != 8) return 0;
+    while (*s) { if (!isxdigit((unsigned char)*s)) return 0; s++; }
+    return 1;
+}
 
 /* Convert "XX:XX:XX:XX" → "XXXXXXXX" (MAC ID).  Caller provides 9 bytes. */
 static void mac_to_id(const char *mac_str, char *id)
