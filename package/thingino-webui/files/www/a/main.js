@@ -1529,6 +1529,27 @@ function attachSliderButtons(root = document) {
 
 document.addEventListener("DOMContentLoaded", () => {
   attachSliderButtons();
+
+  /* Check if doorbell chime is configured and show warning if not */
+  fetch("/x/json-chime-status.cgi")
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.configured === false) {
+        const banner = document.createElement("div");
+        banner.className =
+          "alert alert-warning text-center rounded-0 mb-0 py-2";
+        banner.innerHTML =
+          '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
+          "No doorbell chime configured. " +
+          '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
+          "to enable the doorbell.";
+        const main = document.querySelector("main");
+        if (main) main.insertBefore(banner, main.firstChild);
+      }
+    })
+    .catch(() => {
+      /* Silently ignore — doorbell feature not installed */
+    });
 });
 
 window.attachSliderButtons = attachSliderButtons;
