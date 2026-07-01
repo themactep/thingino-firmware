@@ -23,19 +23,71 @@
     <div data-app-controls></div>
 
     <section>
-      <div class="card mb-3">
-        <div class="card-header">
-          <h2 class="card-title">Dusk2Dawn</h2>
-          <small>Switch day/night mode automatically at sunrise and sunset</small>
-        </div>
-        <div class="card-body">
-          <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            The <strong>thingino-dusk2dawn</strong> package is not installed.
-            Rebuild the firmware with this package selected to enable Sun tracking.
+      <form id="dusk2dawn-form" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Dusk2Dawn</h2>
+            <small>Switch day/night mode automatically at sunrise and sunset based on your location</small>
+            <button type="button" class="btn btn-outline-secondary" id="dusk2dawn-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row row-cols-lg-3 g-4">
+              <div class="col">
+                <p class="form-switch mt-3">
+                  <input type="checkbox" id="daynight_sun_enabled" name="daynight_sun_enabled" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_sun_enabled" class="form-check-label">Enable Sun tracking</label>
+                </p>
+              </div>
+              <div class="col">
+                <div class="row g-1">
+                  <div class="col">
+                    <p>
+                      <label for="daynight_sun_latitude" class="form-label">Latitude</label>
+                      <input type="text" id="daynight_sun_latitude" name="daynight_sun_latitude" class="form-control" value="">
+                    </p>
+                  </div>
+                  <div class="col">
+                    <p>
+                      <label for="daynight_sun_longitude" class="form-label">Longitude</label>
+                      <input type="text" id="daynight_sun_longitude" name="daynight_sun_longitude" class="form-control" value="">
+                    </p>
+                  </div>
+                </div>
+                <p>
+                  <button type="button" id="geolocate-btn" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-geo-alt"></i> Use my location
+                  </button>
+                  <a href="https://my-coordinates.com/" target="_blank" class="small ms-2">Find manually</a>
+                </p>
+              </div>
+              <div class="col">
+                <div class="row g-1">
+                  <div class="col">
+                    <p>
+                      <label for="daynight_sun_sunrise_offset" class="form-label">Sunrise offset</label>
+                      <input type="text" id="daynight_sun_sunrise_offset" name="daynight_sun_sunrise_offset" class="form-control" value="">
+                      <span class="hint text-secondary">minutes</span>
+                    </p>
+                  </div>
+                  <div class="col">
+                    <p>
+                      <label for="daynight_sun_sunset_offset" class="form-label">Sunset offset</label>
+                      <input type="text" id="daynight_sun_sunset_offset" name="daynight_sun_sunset_offset" class="form-control" value="">
+                      <span class="hint text-secondary">minutes</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </div><!-- .card -->
+
+        <button type="button" id="dusk2dawn-save" class="btn btn-primary">
+          <i class="bi bi-floppy me-1"></i> Save changes
+        </button>
+      </form>
     </section>
   </div>
 </main>
@@ -49,5 +101,6 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/config-dusk2dawn.js"></script>
 </body>
 </html>

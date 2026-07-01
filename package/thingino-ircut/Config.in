@@ -1,4 +1,0 @@
-config BR2_PACKAGE_THINGINO_IRCUT
-	bool "thingino-ircut"
-	help
-	  Installs userspace scripts and configuration files to control IRCUT

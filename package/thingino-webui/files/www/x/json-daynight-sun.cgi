@@ -5,7 +5,7 @@
 . /var/www/x/auth.sh
 require_auth
 
-CONFIG_FILE="/etc/prudynt.json"
+CONFIG_FILE="${THINGINO_CONFIG:-/etc/thingino.json}"
 DOMAIN="daynight.sun"
 REQ_FILE=""
 

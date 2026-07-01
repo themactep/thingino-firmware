@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const endpoint = "/x/json-prudynt.cgi";
+  const endpoint = "/x/json-config-daynight.cgi";
   const dayNightParams = [
     "enabled",
     "total_gain_night_threshold",
@@ -69,13 +69,10 @@
     });
   }
 
-  async function requestPrudynt(payload) {
-    const body =
-      typeof payload === "string" ? payload : JSON.stringify(payload);
+  async function requestConfig() {
     const response = await fetch(endpoint, {
-      method: "POST",
+      method: "GET",
       headers: { "Content-Type": "application/json" },
-      body,
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const text = await response.text();
@@ -83,24 +80,8 @@
     try {
       return JSON.parse(text);
     } catch (err) {
-      throw new Error("Invalid JSON from prudynt");
+      throw new Error("Invalid JSON from config");
     }
-  }
-
-  function buildReadPayload() {
-    const controls = {};
-    dayNightControls.forEach((control) => {
-      controls[control] = null;
-    });
-    const schedule = {};
-    dayNightScheduleParams.forEach((param) => {
-      schedule[param] = null;
-    });
-    const daynight = { controls, schedule };
-    dayNightParams.forEach((param) => {
-      daynight[param] = null;
-    });
-    return { daynight };
   }
 
   let updatingFromBackend = false;
@@ -158,11 +139,11 @@
       setReloadBusy(true);
     }
     try {
-      const data = await requestPrudynt(buildReadPayload());
-      if (!data || !data.daynight) {
+      const data = await requestConfig();
+      if (!data || Object.keys(data).length === 0) {
         throw new Error("Missing daynight payload");
       }
-      applyDaynightConfig(data.daynight);
+      applyDaynightConfig(data);
       if (!initialLoadComplete) {
         if (contentWrap) contentWrap.classList.remove("d-none");
         if (typeof window.attachSliderButtons === "function") {
@@ -191,9 +172,15 @@
 
   async function sendDaynightUpdate(payload) {
     try {
-      const data = await requestPrudynt(payload);
-      if (data && data.daynight) {
-        applyDaynightConfig(data.daynight);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (data) {
+        applyDaynightConfig(data);
       }
     } catch (err) {
       console.error("Failed to update daynight setting", err);
@@ -346,8 +333,8 @@
           daynight.controls = controls;
           const payload = { daynight };
 
-          // Save daynight (thresholds, controls, schedule) via prudynt-save
-          const response = await fetch("/x/json-prudynt-save.cgi", {
+          // Save daynight (thresholds, controls, schedule) to thingino.json
+          const response = await fetch("/x/json-config-daynight.cgi", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -365,7 +352,7 @@
           showAlert(
             "success",
             data.message ||
-              "Configuration saved successfully to /etc/prudynt.json",
+              "Configuration saved successfully to /etc/thingino.json",
             3000,
           );
         } catch (err) {

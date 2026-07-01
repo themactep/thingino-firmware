@@ -25,12 +25,7 @@
   },
   "daynight": {
     "controls": {
-      "binswitch": false,
-      "color": true,
-      "ir850": true,
-      "ir940": true,
-      "ircut": true,
-      "white": false
+      "binswitch": false
     },
     "day_bin_path": "",
     "day_count_threshold": 4,
@@ -44,18 +39,11 @@
     "night_bin_path": "",
     "night_count_threshold": 6,
     "sample_interval_ms": 1000,
-    "schedule": {
-      "enabled": false,
-      "start_at": "",
-      "stop_at": ""
-    },
     "script_path": "/sbin/daynight",
     "settle_samples_for_gb_record": 20,
     "switch_above_percent": 80,
     "switch_below_percent": 15,
-    "tolerance_percent": 50,
-    "total_gain_day_threshold": 300,
-    "total_gain_night_threshold": 3000
+    "tolerance_percent": 50
   },
   "general": {
     "allocation_tracking_enabled": false,
