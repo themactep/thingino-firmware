@@ -55,8 +55,18 @@ doorbell_ctrl [-d] [-D] <command> [arguments...]
 | `challenge <MAC>`                          | Send challenge to a chime (low-level)               |
 | `verify <MAC>`                             | Send verify-result to a chime (low-level)           |
 
-The MAC address is written in `XX:XX:XX:XX` colon-separated format. It can
-appear anywhere in the arguments — the tool auto-detects strings containing `:`.
+Chime identifiers can be given in any of three forms:
+
+| Form         | Example        | Description                              |
+|--------------|----------------|------------------------------------------|
+| Name         | `living_room`  | Friendly label stored in `thingino.json` |
+| MAC ID       | `77DA39F9`     | 8 hex chars, no colons                   |
+| MAC (colon)  | `77:DA:39:F9`  | Traditional colon-separated format       |
+
+All three are interchangeable — `doorbell_ctrl` normalises them
+internally to the canonical MAC ID.  The colon form can appear
+anywhere in the arguments; 8-char hex strings and names are
+detected by context.
 
 Chime names are alphanumeric labels stored in `/etc/thingino.json`. Once a
 chime is paired with a name, you can use that name instead of the MAC in
@@ -92,16 +102,17 @@ chime under a friendly name in `/etc/thingino.json`.
    ```
 
    If you know the chime's MAC address (printed on the label), provide it
-   as a fallback:
+   as a fallback (any form works):
 
    ```
+   doorbell_ctrl pair kitchen 77AB6277
    doorbell_ctrl pair kitchen 77:AB:62:77
    ```
 
    With `-D` to clear old pairings first:
 
    ```
-   doorbell_ctrl -D pair basement 77:AB:62:77
+   doorbell_ctrl -D pair basement 77AB6277
    ```
 
 3. **Press Enter** when prompted. The tool then:
@@ -173,6 +184,7 @@ name or MAC:
 
 ```
 doorbell_ctrl living_room DOORBELL_1 5 2
+doorbell_ctrl 77AB6277 DOORBELL_1 5 2
 doorbell_ctrl 77:AB:62:77 DOORBELL_1 5 2
 ```
 
@@ -224,13 +236,13 @@ Example output:
 
 ```
 Chimes (3):
-  living_room      77:AB:62:77
-  kitchen          11:22:33:44
-  basement         55:66:77:88
+  living_room      77:AB:62:77  [77AB6277]
+  kitchen          11:22:33:44  [11223344]
+  basement         55:66:77:88  [55667788]
 
 Groups:
-  all              living_room kitchen basement
-  daytime          living_room kitchen
+  all              living_room, kitchen, basement
+  daytime          living_room, kitchen
   nighttime        living_room
 ```
 
@@ -238,6 +250,7 @@ Groups:
 
 ```
 doorbell_ctrl unpair kitchen
+doorbell_ctrl unpair 11223344
 doorbell_ctrl unpair 11:22:33:44
 ```
 
@@ -462,8 +475,8 @@ For low-level protocol exploration, use the individual step commands:
 ```
 doorbell_ctrl init       # initialise radio
 doorbell_ctrl start      # enter pairing mode
-doorbell_ctrl challenge 77:AB:62:77   # send challenge
-doorbell_ctrl verify 77:AB:62:77      # send verify-result
+doorbell_ctrl challenge 77AB6277   # send challenge
+doorbell_ctrl verify 77:AB:62:77    # send verify-result
 doorbell_ctrl stop       # exit pairing mode
 doorbell_ctrl delete     # clear all pairings
 ```
