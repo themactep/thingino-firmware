@@ -13,11 +13,10 @@ require_auth
 CONFIG_FILE="/etc/thingino.json"
 
 json_escape() {
-	printf '%s' "$1" | sed \
+	printf '%s' "$1" | tr '\n' '\r' | sed \
 		-e 's/\\/\\\\/g' \
 		-e 's/"/\\"/g' \
-		-e "s/\r/\\r/g" \
-		-e "s/\n/\\n/g"
+		-e 's/\r/\\n/g'
 }
 
 send_json() {
