@@ -541,7 +541,11 @@
 
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
-    setStatus("Native WebRTC client ready. Click Connect.");
+    setStatus("Connecting...");
+    startWebrtc().catch((err) => {
+      console.warn("Auto-connect failed:", err);
+      setStatus("Auto-connect failed. Click Connect to try again.");
+    });
 
     window.addEventListener("pagehide", () => {
       if (pc || sessionResource) {
