@@ -68,6 +68,12 @@
         <div class="card-body">
           <div class="raptor-video-wrap">
             <video id="raptor-webrtc-video" autoplay muted playsinline></video>
+            <div class="position-absolute top-50 start-50 translate-middle text-center" id="webrtc-connecting-overlay" style="display:none;">
+              <div class="spinner-border text-light mb-2" role="status" style="width:3rem;height:3rem;">
+                <span class="visually-hidden">Connecting...</span>
+              </div>
+              <div class="text-light small">Establishing connection...</div>
+            </div>
             <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
               <div id="motor">
                 <div class="jst">
@@ -148,6 +154,17 @@
       return sdp.includes("a=ice-ufrag:") && sdp.includes("a=ice-pwd:");
     }
 
+    function setConnectingUi(active) {
+      const overlay = document.getElementById("webrtc-connecting-overlay");
+      if (overlay) overlay.style.display = active ? "" : "none";
+      if (active) {
+        connectButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Connecting…';
+        connectButton.disabled = true;
+      } else {
+        connectButton.disabled = false;
+      }
+    }
+
     function setConnectedUi(connected) {
       connectButton.innerHTML = connected
         ? '<i class="bi bi-stop-circle"></i> Disconnect'
@@ -155,6 +172,7 @@
       muteButton.style.display = connected ? "" : "none";
       talkButton.style.display = connected ? "" : "none";
       streamSelect.disabled = connected;
+      if (connected) setConnectingUi(false);
     }
 
     function setSoundButton(enabled) {
@@ -212,6 +230,7 @@
       video.srcObject = null;
       video.muted = true;
       setSoundButton(false);
+      setConnectingUi(false);
       setConnectedUi(false);
       setStatus(reason);
       isConnecting = false;
@@ -223,6 +242,7 @@
       }
       isConnecting = true;
       setStatus("Connecting...");
+      setConnectingUi(true);
 
       try {
         const staleSession = sessionStorage.getItem(sessionStorageKey);
