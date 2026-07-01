@@ -1538,7 +1538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.configured !== undefined) {
         document.querySelectorAll(".doorbell-nav").forEach((el) => {
           const li = el.closest("li");
-          if (li) li.hidden = false;
+          if (li) li.classList.remove("d-none");
         });
       }
       /* Show warning banner if no chimes are configured */

@@ -294,7 +294,7 @@
 
     (section.items || []).forEach((item) => {
       const itemLi = document.createElement("li");
-      if (item.hidden) itemLi.hidden = true;
+      if (item.hidden) itemLi.classList.add("d-none");
       if (item.type === "divider") {
         const divider = document.createElement("hr");
         divider.className = item.className || "dropdown-divider";
@@ -314,7 +314,7 @@
   function createLinkItem(item) {
     const li = document.createElement("li");
     li.className = "nav-item";
-    if (item.hidden) li.hidden = true;
+    if (item.hidden) li.classList.add("d-none");
     li.appendChild(createAnchor(item, "nav-link"));
     return li;
   }
