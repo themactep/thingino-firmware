@@ -29,7 +29,12 @@
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
-      { label: "Doorbell Chime", href: "/config-doorbell.html" },
+      {
+        label: "Doorbell Chime",
+        href: "/config-doorbell.html",
+        className: "doorbell-nav",
+        hidden: true,
+      },
     ];
 
     if (hasMotors) {
@@ -289,6 +294,7 @@
 
     (section.items || []).forEach((item) => {
       const itemLi = document.createElement("li");
+      if (item.hidden) itemLi.hidden = true;
       if (item.type === "divider") {
         const divider = document.createElement("hr");
         divider.className = item.className || "dropdown-divider";
@@ -308,6 +314,7 @@
   function createLinkItem(item) {
     const li = document.createElement("li");
     li.className = "nav-item";
+    if (item.hidden) li.hidden = true;
     li.appendChild(createAnchor(item, "nav-link"));
     return li;
   }

@@ -1534,6 +1534,13 @@ document.addEventListener("DOMContentLoaded", () => {
   fetch("/x/json-chime-status.cgi")
     .then((r) => r.json())
     .then((data) => {
+      /* Reveal nav item if doorbell feature is present */
+      if (data.configured !== undefined) {
+        document
+          .querySelectorAll(".doorbell-nav")
+          .forEach((el) => (el.hidden = false));
+      }
+      /* Show warning banner if no chimes are configured */
       if (data.configured === false) {
         const banner = document.createElement("div");
         banner.className =
