@@ -91,6 +91,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/config-audio.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-gpio.html \
 		$(TARGET_DIR)/var/www/config-gpio.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-doorbell.html \
+		$(TARGET_DIR)/var/www/config-doorbell.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-motors.html \
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-network.html \
@@ -199,6 +201,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/config-admin.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-gpio.js \
 		$(TARGET_DIR)/var/www/a/config-gpio.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-doorbell.js \
+		$(TARGET_DIR)/var/www/a/config-doorbell.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-motors.js \
 		$(TARGET_DIR)/var/www/a/config-motors.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-network.js \
@@ -354,6 +358,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-config-admin.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-gpio.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-gpio.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-doorbell.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-doorbell.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-network.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-network.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-mqtt-sub.cgi \

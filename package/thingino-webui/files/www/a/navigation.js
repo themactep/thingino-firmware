@@ -29,6 +29,7 @@
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
+      { label: "Doorbell Chime", href: "/config-doorbell.html" },
     ];
 
     if (hasMotors) {
