@@ -1,0 +1,40 @@
+From: Paul <paul@thingino.com>
+Date: Wed, 1 Jul 2026 03:50:00 -0400
+Subject: [PATCH] fix timed fire buffer overflow in thingino-button
+
+The timed_fires[].count field is incremented on every key press when
+adding TIMED_FIRE entries, but never reset. On key release, entries are
+deactivated (active = 0) but count stays at its peak value. After 100+
+presses on the same key, writes go past entries[MAX_CONFIGS] and
+corrupt adjacent memory including the count field itself, causing the
+check loop to read garbage entry->config pointers, resulting in a
+SIGSEGV.
+
+Fix:
+1. Add bounds check on TIMED_FIRE entry creation to cap at MAX_CONFIGS.
+2. Reset count to 0 on key release after deactivating all entries, since
+   all entries for that key are inactive at that point and the next press
+   will start fresh from index 0.
+
+Signed-off-by: Paul <paul@thingino.com>
+
+--- a/thingino-button.c
++++ b/thingino-button.c
+@@ -340,6 +340,9 @@
+ 							gettimeofday(&press_times[ev.code], NULL);
+ 							// log_message("Press time recorded for key code %d\n", ev.code);
+ 						} else if (ev.code == config->key_code && strcmp(config->action, ACTION_TIMED_FIRE) == 0) {
++							if (timed_fires[ev.code].count >= MAX_CONFIGS) {
++								continue;
++							}
+ 							TimedFireEntry entry = {0};
+ 							gettimeofday(&entry.press_time, NULL);
+ 							entry.config = config;
+@@ -384,6 +387,7 @@
+ 					for (int i = 0; i < timed_fires[ev.code].count; i++) {
+ 						timed_fires[ev.code].entries[i].active = 0;
+ 					}
++					timed_fires[ev.code].count = 0;
+ 				}
+ 			}
+ 		} else if (n == -1 && errno != EAGAIN) {

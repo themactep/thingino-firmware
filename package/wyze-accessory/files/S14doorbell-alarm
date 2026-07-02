@@ -1,0 +1,43 @@
+#!/bin/sh
+
+DAEMON="/usr/sbin/doorbell_alarm"
+PIDFILE="/run/doorbell_alarm.pid"
+
+start() {
+	echo -c 15 "Checking doorbell chime alarm"
+
+	# Only activate if doorbell chime feature is present
+	[ -x "$DAEMON" ] || return 0
+
+	# Run in background; it will daemonise itself if needed
+	"$DAEMON" &
+}
+
+stop() {
+	echo -c 15 "Stopping doorbell chime alarm"
+	if [ -f "$PIDFILE" ]; then
+		kill "$(cat "$PIDFILE")" 2>/dev/null
+		rm -f "$PIDFILE"
+	fi
+	led off 2>/dev/null
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart | reload)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
+
+exit 0

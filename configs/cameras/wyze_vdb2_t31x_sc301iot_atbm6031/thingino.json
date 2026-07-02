@@ -8,5 +8,25 @@
     "mmc_power": "47o 54o",
     "sub1g": 59,
     "wlan": 57
+  },
+  "chime": {
+    "units": {},
+    "groups": {},
+    "events": {
+      "button_press": {
+        "day": {
+          "sound": "DOORBELL_1",
+          "volume": "5",
+          "repeat": "2",
+          "group": "all"
+        },
+        "night": {
+          "sound": "DOORBELL_1",
+          "volume": "2",
+          "repeat": "1",
+          "group": "nighttime"
+        }
+      }
+    }
   }
 }

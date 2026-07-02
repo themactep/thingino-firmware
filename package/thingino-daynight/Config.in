@@ -1,0 +1,5 @@
+config BR2_PACKAGE_THINGINO_DAYNIGHT
+	bool "thingino-daynight"
+	help
+	  Installs userspace scripts and configuration files for day/night
+	  switching, IRCUT control, IR LED control, and sun-based automation.

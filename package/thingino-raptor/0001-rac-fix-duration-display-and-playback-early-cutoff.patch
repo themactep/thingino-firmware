@@ -1,0 +1,44 @@
+diff --git a/rac/rac_play.c b/rac/rac_play.c
+index fd77081..1d347dd 100644
+--- a/rac/rac_play.c
++++ b/rac/rac_play.c
+@@ -211,7 +211,6 @@ int cmd_play(const char *src, int sample_rate)
+ 	}
+ 
+ 	int ret = 0;
+-	int64_t start_time = rss_timestamp_us();
+ 	uint64_t total_samples = 0;
+ 	rac_pacer_t pacer;
+ 	pacer_init(&pacer, sample_rate);
+@@ -567,12 +566,29 @@ int cmd_play(const char *src, int sample_rate)
+ 	}
+ 
+ done:
++	/* Publish trailing silence so the AO thread keeps feeding the hardware
++	 * output pipeline while the tail of the real audio drains through the
++	 * DMA / ALSA buffer.  Without this, the last ~100 ms can be truncated
++	 * when the ring is destroyed before the hardware finishes playing. */
++	if (ring) {
++		int chunk = sample_rate / 50; /* 20 ms frame size in samples */
++		int16_t *silence = calloc(chunk, sizeof(int16_t));
++		if (silence) {
++			for (int i = 0; i < 15 && g_running; i++) {
++				rss_ring_publish(ring, (const uint8_t *)silence,
++						 chunk * 2, rss_timestamp_us(), 0, 0);
++				usleep(20000);
++			}
++			free(silence);
++		}
++	}
++
+ 	/* Let AO thread drain remaining frames, then destroy so it reconnects next time */
+-	usleep(100000);
++	usleep(200000);
+ 	rss_ring_destroy(ring);
+ 	if (!is_stdin)
+ 		fclose(in);
+-	double duration = (double)(rss_timestamp_us() - start_time) / 1000000.0;
++	double duration = (double)total_samples / sample_rate;
+ 	fprintf(stderr, "rac: played %.1fs, %llu samples\n", duration,
+ 		(unsigned long long)total_samples);
+ 	return ret;

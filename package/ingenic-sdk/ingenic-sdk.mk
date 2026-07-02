@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 7ed50a713e00d071fa1dd2013452ffc5b9c2304c
+INGENIC_SDK_VERSION = 1efae00965a13bc56ff88bdc17ea16c6566e7d82
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -81,12 +81,14 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstr
 define GENERATE_GPIO_USERKEYS_CONFIG
 	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
 		gpio_userkeys_config=""; \
-		keycode=28; \
 		if which jct >/dev/null 2>&1; then \
 			button_reset=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
 			if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-				gpio_userkeys_config="$${keycode},$${button_reset},1"; \
-				keycode=$$((keycode + 1)); \
+				gpio_userkeys_config="28,$${button_reset},1"; \
+			fi; \
+			button_chime=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
+			if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
+				gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 			fi; \
 		fi; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
@@ -155,8 +157,7 @@ define GENERATE_MODULE_LOADER
 	fi
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
-		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || \
-			[ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
 		fi \
 	fi

@@ -1,7 +1,6 @@
 #!/bin/sh
 
 DAEMON="dusk2dawn"
-PRUDYNT_CONFIG="/etc/prudynt.json"
 CRONTABS_FLASH="/etc/cron/crontabs/root"
 CRONTABS_RAM="/run/cron/crontabs/root"
 
@@ -9,7 +8,7 @@ CRONTABS_RAM="/run/cron/crontabs/root"
 CRONTABS="$CRONTABS_RAM"
 
 sun_enabled() {
-	[ "$(jct "$PRUDYNT_CONFIG" get daynight.sun.enabled 2>/dev/null)" = "true" ]
+	[ "$(jct "$CONFIG_JSON" get daynight.sun.enabled 2>/dev/null)" = "true" ]
 }
 
 ensure_ram_crontab() {

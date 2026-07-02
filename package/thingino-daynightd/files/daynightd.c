@@ -212,6 +212,15 @@ static int read_config(const char *config_file) {
     }
 
     /* Brightness thresholds */
+    /* Read daynight thresholds from thingino.json compatible section */
+    v = get_nested_item(root, "daynight.total_gain_day_threshold");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.threshold_low = (float)v->value.number.real;
+    }
+    v = get_nested_item(root, "daynight.total_gain_night_threshold");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.threshold_high = (float)v->value.number.real;
+    }
     v = get_nested_item(root, "brightness.threshold_low");
     if (v && v->type == JSON_NUMBER) {
         g_config.threshold_low = (float)v->value.number.real;
@@ -746,14 +755,14 @@ static int write_brightness_value(float brightness, float avg_brightness, daynig
 
     FILE *fp;
     const char *mode_str;
-    const char *dir_path = "/run/daynight";
-    const char *file_path = "/run/daynight/value";
+    const char *dir_path = "/run/thingino";
+    const char *file_path = "/run/thingino/daynight_value";
 
-    /* Try /run/daynight first, fallback to /tmp/daynight if permission denied */
+    /* Try /run/thingino first, fallback to /tmp/thingino if permission denied */
     if (mkdir(dir_path, 0755) != 0 && errno != EEXIST) {
         if (errno == EACCES || errno == EPERM) {
-            dir_path = "/tmp/daynight";
-            file_path = "/tmp/daynight/value";
+            dir_path = "/tmp/thingino";
+            file_path = "/tmp/thingino/daynight_value";
             if (mkdir(dir_path, 0755) != 0 && errno != EEXIST) {
                 log_message(LOG_WARNING, "Failed to create daynight directory: %s", strerror(errno));
                 return -1;
@@ -1066,10 +1075,8 @@ int main(int argc, char *argv[]) {
     log_message(LOG_INFO, "Shutting down daynightd");
 
     /* Remove brightness value file */
-    unlink("/run/daynight/value");
-    unlink("/tmp/daynight/value");
-    rmdir("/run/daynight"); /* Remove directory if empty */
-    rmdir("/tmp/daynight"); /* Remove directory if empty */
+    unlink("/run/thingino/daynight_value");
+    unlink("/tmp/thingino/daynight_value");
 
     if (g_config.enable_syslog) {
         closelog();

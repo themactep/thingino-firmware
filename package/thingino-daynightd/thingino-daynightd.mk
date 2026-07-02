@@ -20,7 +20,6 @@ endef
 
 define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/daynightd      $(TARGET_DIR)/usr/bin/daynightd
-	$(INSTALL) -D -m 0755 $(@D)/files/daynight       $(TARGET_DIR)/usr/sbin/daynight
 	$(INSTALL) -D -m 0644 $(@D)/files/daynightd.json $(TARGET_DIR)/etc/daynightd.json
 	$(INSTALL) -D -m 0755 $(@D)/files/S97daynightd   $(TARGET_DIR)/etc/init.d/S97daynightd
 endef
