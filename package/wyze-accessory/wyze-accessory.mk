@@ -4,13 +4,18 @@ WYZE_ACCESSORY_SITE = $(WYZE_ACCESSORY_PKGDIR)/files
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL
 	$(TARGET_CC) $(TARGET_CFLAGS) -o $(TARGET_DIR)/usr/sbin/doorbell_ctrl $(WYZE_ACCESSORY_PKGDIR)/files/doorbell_chime.c $(TARGET_LDFLAGS)
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/doorbell_event \
+		$(TARGET_DIR)/usr/sbin/doorbell_event
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/doorbell_alarm \
+		$(TARGET_DIR)/usr/sbin/doorbell_alarm
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/S14doorbell-alarm \
+		$(TARGET_DIR)/etc/init.d/S14doorbell-alarm
 endef
 
 define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
-	echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_1 TIMED 0.1 play /usr/share/sounds/th-doorbell_3.opus" \
+	echo -e "KEY_1 RELEASE 0 doorbell_event button_press\nKEY_1 TIMED 0.1 play /usr/share/sounds/th-doorbell_3.opus" \
 		>> $(TARGET_DIR)/etc/thingino-button.conf
-	#echo -e "61 high doorbell chime" >> $(TARGET_DIR)/etc/gpio.conf
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT

@@ -29,6 +29,12 @@
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
+      {
+        label: "Doorbell Chime",
+        href: "/config-doorbell.html",
+        className: "doorbell-nav",
+        hidden: true,
+      },
     ];
 
     if (hasMotors) {
@@ -288,6 +294,7 @@
 
     (section.items || []).forEach((item) => {
       const itemLi = document.createElement("li");
+      if (item.hidden) itemLi.classList.add("d-none");
       if (item.type === "divider") {
         const divider = document.createElement("hr");
         divider.className = item.className || "dropdown-divider";
@@ -307,6 +314,7 @@
   function createLinkItem(item) {
     const li = document.createElement("li");
     li.className = "nav-item";
+    if (item.hidden) li.classList.add("d-none");
     li.appendChild(createAnchor(item, "nav-link"));
     return li;
   }
@@ -614,6 +622,51 @@
     }
   }
 
+  let doorbellCheckDone = false;
+
+  function checkDoorbellStatus() {
+    if (doorbellCheckDone) return;
+    doorbellCheckDone = true;
+
+    const doorbellEls = document.querySelectorAll(".doorbell-nav");
+    if (!doorbellEls.length) return;
+
+    fetch("/x/json-chime-status.cgi")
+      .then((r) => r.json())
+      .then((data) => {
+        /* Reveal nav item if doorbell feature is present */
+        if (data.configured !== undefined) {
+          doorbellEls.forEach((el) => {
+            const li = el.closest("li");
+            if (li) li.classList.remove("d-none");
+          });
+        }
+        /* Show warning banner if no chimes are configured */
+        if (data.configured === false) {
+          const banner = document.createElement("div");
+          banner.className =
+            "alert alert-warning text-center rounded-0 mb-3 py-2";
+          banner.innerHTML =
+            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
+            "No doorbell chime configured. " +
+            '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
+            "to enable the doorbell.";
+          const container = document.querySelector("main .container");
+          if (container) {
+            const section = container.querySelector("section");
+            if (section) {
+              container.insertBefore(banner, section);
+            } else {
+              container.appendChild(banner);
+            }
+          }
+        }
+      })
+      .catch(() => {
+        /* Silently ignore — doorbell feature not installed */
+      });
+  }
+
   function mountNavigation() {
     const nav = buildNav(menuData);
     const placeholder = $("[data-app-nav]");
@@ -628,6 +681,7 @@
     highlightActive(nav, globalConfig.activePath);
     attachPrudyntHandlers(nav);
     ensureControlBarScript();
+    checkDoorbellStatus();
   }
 
   ready(mountNavigation);

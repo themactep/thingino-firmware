@@ -41,10 +41,23 @@ mount_jffs2() {
 	}
 }
 
+mount_ubifs() {
+	local volname target
+	volname=$1
+	[ -z "$volname" ] && die "Missing UBI volume name!"
+
+	target=$2
+	[ -z "$target" ] && target="/$volname"
+
+	mount -t ubifs -o noatime ubi0:$volname $target 2>/dev/null ||
+		die "Failed to mount ubi0:$volname as $target!"
+}
+
 prepare_overlay_dirs() {
 	overlay_rootdir="/overlay/root"
 	overlay_workdir="/overlay/work"
 	mkdir -p "$overlay_rootdir" || return 1
+	rm -rf "$overlay_workdir"
 	mkdir -p "$overlay_workdir" || return 1
 }
 
@@ -79,7 +92,11 @@ grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline &&
 	die "Not an MTD RootFS!"
 
 # Mount data partition (single overlay covering whole filesystem)
-mount_jffs2 data /overlay
+if grep -q 'ubi\.mtd=' /proc/cmdline; then
+	mount_ubifs overlay /overlay
+else
+	mount_jffs2 data /overlay
+fi
 
 mount_overlay || die "Failed to mount overlay!"
 

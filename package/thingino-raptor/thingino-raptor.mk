@@ -179,6 +179,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/microphone
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/speaker \
 		$(TARGET_DIR)/usr/sbin/speaker
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/color \
+		$(TARGET_DIR)/usr/sbin/color
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \

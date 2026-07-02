@@ -1,0 +1,91 @@
+#!/bin/sh
+#
+# doorbell_event – Event-driven chime dispatcher for Thingino
+#
+# Reads chime.events configuration from /etc/thingino.json, determines
+# day/night state from /tmp/nightmode.txt, applies mode-specific
+# overrides, and calls doorbell_ctrl with the correct group, sound,
+# volume, and repeat count.
+#
+# Usage: doorbell_event <event_name>
+#
+# thingino.json schema (chime.events section):
+#   "chime": {
+#     "events": {
+#       "<event_name>": {
+#         "sound": "DOORBELL_1",
+#         "volume": "5",
+#         "repeat": "2",
+#         "group": "all",
+#         "day":   { "group": "daytime" },
+#         "night": { "group": "nighttime", "volume": "2" }
+#       }
+#     }
+#   }
+#
+# - "sound" is required (name or number, 1–19).
+# - If no "group" is set (and no day/night override), play-all is used.
+# - "day" and "night" objects override the top-level defaults for that mode.
+# - Day/night state: /tmp/nightmode.txt contains "day" or "night".
+#
+
+CONFIG="/etc/thingino.json"
+NIGHTMODE="/tmp/nightmode.txt"
+
+[ $# -ge 1 ] || {
+	echo "Usage: $0 <event_name>" >&2
+	exit 1
+}
+EVENT="$1"
+
+# Determine day/night state (default: day)
+MODE="day"
+if [ -f "$NIGHTMODE" ]; then
+	MODE=$(cat "$NIGHTMODE" 2>/dev/null)
+fi
+[ -z "$MODE" ] && MODE="day"
+
+# Read a config key, strip quotes, treat "null" as empty
+jctval() {
+	local val
+	val=$(jct "$CONFIG" get "$1" 2>/dev/null | tr -d '"')
+	if [ "$val" = "null" ] || [ "$val" = "NULL" ]; then
+		echo ""
+	else
+		echo "$val"
+	fi
+}
+
+sound=$(jctval "chime.events.$EVENT.sound")
+volume=$(jctval "chime.events.$EVENT.volume")
+repeat=$(jctval "chime.events.$EVENT.repeat")
+group=$(jctval "chime.events.$EVENT.group")
+
+# Mode-specific overrides
+mode_group=$(jctval "chime.events.$EVENT.$MODE.group")
+mode_volume=$(jctval "chime.events.$EVENT.$MODE.volume")
+mode_repeat=$(jctval "chime.events.$EVENT.$MODE.repeat")
+
+[ -n "$mode_group" ] && group="$mode_group"
+[ -n "$mode_volume" ] && volume="$mode_volume"
+[ -n "$mode_repeat" ] && repeat="$mode_repeat"
+
+# Require a sound
+if [ -z "$sound" ]; then
+	echo "doorbell_event: no sound configured for event '$EVENT'" >&2
+	exit 2
+fi
+
+# Build argument list safely
+set -- doorbell_ctrl
+if [ -n "$group" ]; then
+	set -- "$@" play-group "$group"
+else
+	set -- "$@" play-all
+fi
+set -- "$@" "$sound"
+[ -n "$volume" ] && set -- "$@" "$volume"
+[ -n "$repeat" ] && set -- "$@" "$repeat"
+
+echo "[doorbell_event] $EVENT ($MODE) → $*"
+exec "$@"

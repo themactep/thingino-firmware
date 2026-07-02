@@ -289,9 +289,9 @@
 
   saveTextBtn.addEventListener("click", saveTextFile);
 
-  reloadTextBtn.addEventListener("click", () => {
+  reloadTextBtn.addEventListener("click", async () => {
     if (textEditorState.isModified) {
-      if (!confirm("Discard unsaved changes and reload?")) return;
+      if (!(await confirm("Discard unsaved changes and reload?"))) return;
     }
     if (textEditorState.currentFile) {
       loadTextFile(textEditorState.currentFile);
@@ -300,10 +300,12 @@
 
   downloadBackupBtn.addEventListener("click", downloadBackupFromMemory);
 
-  textEditorModalEl.addEventListener("hidden.bs.modal", () => {
+  textEditorModalEl.addEventListener("hidden.bs.modal", async () => {
     if (textEditorState.isModified) {
       if (
-        confirm("You have unsaved changes. Do you want to save before closing?")
+        await confirm(
+          "You have unsaved changes. Do you want to save before closing?",
+        )
       ) {
         saveTextFile();
       }

@@ -9,7 +9,6 @@ if [ "$(jct "$CONFIG_JSON" get webui.paranoid 2>/dev/null)" = "true" ]; then
 	exit 0
 fi
 
-PRUDYNT_CONFIG="/etc/prudynt.json"
 API_URL="https://api.sunrise-sunset.org/json"
 API_DATA_FILE="/tmp/sunrise-sunset.tmp"
 # Write cron entries to tmpfs — no flash writes
@@ -31,9 +30,9 @@ Where:
 	exit 1
 }
 
-# Read a value from prudynt.json, stripping surrounding quotes
-prudynt_get() {
-	jct "$PRUDYNT_CONFIG" get "$1" 2>/dev/null | tr -d '"'
+# Read a value from thingino.json, stripping surrounding quotes
+config_get() {
+	jct "$CONFIG_JSON" get "$1" 2>/dev/null | tr -d '"'
 }
 
 time_for_cron() {
@@ -51,11 +50,11 @@ time_with_offset() {
 	echo $(((1440 + h * 60 + m + $2) % 1440))
 }
 
-# Load defaults from prudynt.json
-lat=$(prudynt_get "daynight.sun.latitude")
-lng=$(prudynt_get "daynight.sun.longitude")
-offset_sr=$(prudynt_get "daynight.sun.sunrise_offset")
-offset_ss=$(prudynt_get "daynight.sun.sunset_offset")
+# Load defaults from thingino.json
+lat=$(config_get "daynight.sun.latitude")
+lng=$(config_get "daynight.sun.longitude")
+offset_sr=$(config_get "daynight.sun.sunrise_offset")
+offset_ss=$(config_get "daynight.sun.sunset_offset")
 
 # Defaults for offsets if unset
 [ -z "$offset_sr" ] && offset_sr=0

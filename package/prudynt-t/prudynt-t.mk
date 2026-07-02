@@ -305,8 +305,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/timelapse \
 		$(TARGET_DIR)/usr/sbin/timelapse
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/daynight \
-		$(TARGET_DIR)/usr/sbin/daynight
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/metrics \
 		$(TARGET_DIR)/var/www/x/metrics
 

@@ -784,24 +784,9 @@
     return bar;
   }
 
-  function buildTimeColumn(className) {
-    const col = document.createElement("div");
-    col.className = className;
-    const link = document.createElement("a");
-    link.href = "/config-time.html";
-    link.id = "time-now";
-    link.className =
-      "link-underline link-underline-opacity-0 link-underline-opacity-75-hover";
-    col.appendChild(link);
-    return col;
-  }
-
   function buildControlRow(placeholder) {
     const defaults = {
       wrapperClass: globalConfig.wrapperClass || "",
-      timeRowClass:
-        globalConfig.timeRowClass || "row my-2 x-small align-items-center",
-      timeColClass: globalConfig.clockColClass || "col-12 text-lg-end",
       buttonRowClass:
         globalConfig.rowClass || "row my-2 x-small align-items-center",
       buttonColClass: globalConfig.btnColClass || "col-12",
@@ -813,15 +798,6 @@
     if (wrapperClass) wrapper.className = wrapperClass;
     wrapper.setAttribute("data-generated-controls", "true");
 
-    const timeRow = document.createElement("div");
-    timeRow.className =
-      placeholder.dataset.clockRow ||
-      placeholder.dataset.timeRow ||
-      defaults.timeRowClass;
-    timeRow.appendChild(
-      buildTimeColumn(placeholder.dataset.clockCol || defaults.timeColClass),
-    );
-
     const buttonRow = document.createElement("div");
     buttonRow.className =
       placeholder.dataset.rowClass || defaults.buttonRowClass;
@@ -830,7 +806,6 @@
     buttonCol.appendChild(buildButtonBar());
     buttonRow.appendChild(buttonCol);
 
-    wrapper.appendChild(timeRow);
     wrapper.appendChild(buttonRow);
     return wrapper;
   }

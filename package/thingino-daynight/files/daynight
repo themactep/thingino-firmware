@@ -1,0 +1,212 @@
+#!/bin/sh
+# Unified day/night switching script for Thingino
+# Reads control flags from thingino.json, toggles hardware via ircut/light/color
+# Installed by thingino-daynight; called by streamers (prudynt, raptor, daynightd)
+
+# --- Utility functions (self-contained, no external helpers) ---
+
+echo_info() { echo -c 240 -e "- $1" >&2; }
+echo_error() { echo -c 160 -e "$1" >&2; }
+
+singleton() {
+	if [ -z "$1" ]; then
+		echo_error "Program name is missing"
+		exit 1
+	fi
+
+	local appname pids
+	appname=$(basename "$1")
+	pids=$(pidof -o %PPID "$appname")
+	if [ -n "$pids" ]; then
+		echo_error "$appname is already running with PIDs $pids. Exiting"
+		exit 1
+	fi
+}
+
+singleton "$0"
+
+# --- Config paths ---
+
+THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
+MODE_FILE="/run/thingino/daynight_mode"
+
+mkdir -p /run/thingino
+[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# --- GPIO discovery for IR LEDs ---
+
+populate_light_gpio() {
+	local type="$1" value
+	command_present light || return 1
+	value=$(light "$type" gpio 2>/dev/null)
+	[ -n "$value" ] || return 1
+	printf '%s\n' "$value"
+}
+
+[ -n "$gpio_ir850" ] || gpio_ir850=$(populate_light_gpio ir850)
+[ -n "$gpio_ir940" ] || gpio_ir940=$(populate_light_gpio ir940)
+[ -n "$gpio_white" ] || gpio_white=$(populate_light_gpio white)
+
+# --- Load control flags from thingino.json ---
+
+load_controls() {
+	local v
+	if command_present jct && [ -f "$THINGINO_CONFIG" ]; then
+		v=$(jct "$THINGINO_CONFIG" get daynight.controls.color 2>/dev/null) && day_night_color="$v" || day_night_color="${day_night_color:-true}"
+		v=$(jct "$THINGINO_CONFIG" get daynight.controls.ircut 2>/dev/null) && day_night_ircut="$v" || day_night_ircut="${day_night_ircut:-true}"
+		v=$(jct "$THINGINO_CONFIG" get daynight.controls.ir850 2>/dev/null) && day_night_ir850="$v" || day_night_ir850="${day_night_ir850:-true}"
+		v=$(jct "$THINGINO_CONFIG" get daynight.controls.ir940 2>/dev/null) && day_night_ir940="$v" || day_night_ir940="${day_night_ir940:-true}"
+		v=$(jct "$THINGINO_CONFIG" get daynight.controls.white 2>/dev/null) && day_night_white="$v" || day_night_white="${day_night_white:-false}"
+	fi
+}
+
+# --- Control guard functions ---
+
+controls_ircut() {
+	load_controls
+	[ "true" = "$day_night_ircut" ] || {
+		echo_info "IR-CUT filter not enabled"
+		return 1
+	}
+}
+
+controls_ir850() {
+	load_controls
+	[ "true" = "$day_night_ir850" ] || {
+		echo_info "IR LED 850nm not enabled"
+		return 1
+	}
+	[ -n "$gpio_ir850" ] || {
+		echo_info "IR LED 850nm not configured"
+		return 1
+	}
+}
+
+controls_ir940() {
+	load_controls
+	[ "true" = "$day_night_ir940" ] || {
+		echo_info "IR LED 940nm not enabled"
+		return 1
+	}
+	[ -n "$gpio_ir940" ] || {
+		echo_info "IR LED 940nm not configured"
+		return 1
+	}
+}
+
+controls_white() {
+	load_controls
+	[ "true" = "$day_night_white" ] || {
+		echo_info "White Light not enabled"
+		return 1
+	}
+	[ -n "$gpio_white" ] || {
+		echo_info "White Light not configured"
+		return 1
+	}
+}
+
+controls_color() {
+	load_controls
+	[ "true" = "$day_night_color" ] || {
+		echo_info "Color not enabled"
+		return 1
+	}
+}
+
+# --- Mode switching ---
+
+switch_to_day() {
+	echo_info "Switching to day mode..."
+
+	if controls_ircut && command_present ircut; then
+		echo_info "  set IR-CUT filter"
+		ircut on &
+	fi
+
+	if controls_ir850 && command_present light; then
+		echo_info "  turn IR LED 850nm OFF"
+		light ir850 off &
+	fi
+
+	if controls_ir940 && command_present light; then
+		echo_info "  turn IR LED 940nm OFF"
+		light ir940 off &
+	fi
+
+	if controls_white && command_present light; then
+		echo_info "  turn White Light OFF"
+		light white off &
+	fi
+
+	if controls_color && command_present color; then
+		echo_info "  switch to color mode"
+		color on &
+	fi
+
+	echo "day" >"$MODE_FILE"
+}
+
+switch_to_night() {
+	echo_info "Switching to night mode..."
+
+	if controls_color && command_present color; then
+		echo_info "  switch to monochrome mode"
+		color off &
+	fi
+
+	if controls_ircut && command_present ircut; then
+		echo_info "  remove IR-CUT filter"
+		ircut off &
+	fi
+
+	if controls_ir850 && command_present light; then
+		echo_info "  turn IR LED 850nm ON"
+		light ir850 on &
+	fi
+
+	if controls_ir940 && command_present light; then
+		echo_info "  turn IR LED 940nm ON"
+		light ir940 on &
+	fi
+
+	if controls_white && command_present light; then
+		echo_info "  turn White Light ON"
+		light white on &
+	fi
+
+	echo "night" >"$MODE_FILE"
+}
+
+# --- Entry point ---
+
+state=$(awk 'NR==1 {print $1}' "$MODE_FILE" 2>/dev/null || echo "day")
+
+case "$1" in
+	night)
+		switch_to_night
+		;;
+	day)
+		switch_to_day
+		;;
+	~ | toggle)
+		if [ "day" = "$state" ]; then
+			switch_to_night
+		else
+			switch_to_day
+		fi
+		;;
+	\? | read | status)
+		echo "$state"
+		;;
+	*)
+		echo_info "Usage: $0 {day|night|toggle|read}"
+		echo_info "Current state: $state"
+		;;
+esac
+
+exit 0
