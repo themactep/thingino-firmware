@@ -79,6 +79,8 @@ do_pair() {
 	[ -z "$name" ] && json_error 400 "Name is required for pairing"
 	output=$(doorbell_ctrl pair "$name" 2>&1 </dev/null)
 	rc=$?
+	# Restart LED indicator daemon to pick up the new chime
+	/etc/init.d/S14doorbell-alarm restart >/dev/null 2>&1 &
 	send_json "{\"status\":\"ok\",\"message\":\"$(json_escape "$output")\",\"rc\":$rc}"
 }
 
@@ -87,6 +89,8 @@ do_unpair() {
 	[ -z "$id" ] && json_error 400 "Chime ID is required"
 	output=$(doorbell_ctrl unpair "$id" 2>&1)
 	rc=$?
+	# Restart LED indicator daemon to reflect changes
+	/etc/init.d/S14doorbell-alarm restart >/dev/null 2>&1 &
 	send_json "{\"status\":\"ok\",\"message\":\"$(json_escape "$output")\",\"rc\":$rc}"
 }
 
