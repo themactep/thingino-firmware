@@ -1,85 +1,51 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Paul Philippov <paul@themactep.com>
 Date: Wed, 2 Jul 2026 00:00:00 +0000
-Subject: [PATCH] fix __fgetc_unlocked/__fputc_unlocked interposition recursion
+Subject: [PATCH] remove __fgetc_unlocked/__fputc_unlocked shim (uclibc provides them)
 
 The shim defines __fgetc_unlocked and __fputc_unlocked to satisfy
-Ingenic libimp library dependencies.  These functions call fgetc()
-and fputc() respectively, expecting to delegate to uClibc-ng.
+Ingenic libimp library dependencies.  However, uClibc-ng already
+exports these functions as global symbols:
 
-However, uClibc-ng's own fgetc() and fputc() implementations
-internally branch to __fgetc_unlocked / __fputc_unlocked, which
-the shim interposes with its own strong symbols.  This creates
-an interposition cycle:
+  00048f70 g  __fgetc_unlocked
+  00049210 g  __fputc_unlocked
 
-  shim's __fgetc_unlocked -> uclibc's fgetc -> shim's __fgetc_unlocked
+The shim's definitions shadow uClibc-ng's, causing symbol interposition
+that creates an infinite recursion cycle:
 
-Each iteration pushes a new stack frame; the stack overflows and hits
-the guard page, producing:
+  shim::__fgetc_unlocked -> uclibc::fgetc -> shim::__fgetc_unlocked
 
-  do_page_fault(): sending SIGSEGV to prudynt for invalid write access
+(because uclibc's fgetc internally branches to __fgetc_unlocked).
 
-Unlike the open64/fopen64/fseeko64 cases (which were macro-expansion
-bugs fixed with #undef), this is a runtime symbol interposition
-problem.  No preprocessor directive can fix it.
-
-Fix by using dlsym(RTLD_NEXT, ...) to obtain uClibc-ng's own
-implementation pointers on first call, bypassing the shim's
-interposed symbols.  RTLD_NEXT and dlsym are declared manually
-rather than pulling in <dlfcn.h>, which would trigger conflicting
-type declarations (fseeko64: off_t vs __off64_t).
+Fix: remove the redundant shim definitions entirely so uClibc-ng's
+native implementations are used directly.  No dlsym tricks needed.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 
-diff --git a/uclibc_shim.c b/uclibc_shim.c
-index c893048..feacf53 100644
 --- a/uclibc_shim.c
 +++ b/uclibc_shim.c
-@@ -9,6 +9,13 @@
- #include <sys/syscall.h> // For syscall numbers and syscall interface
- #include <stdint.h>      // For standard integer types
- #include <ctype.h>       // For character type functions
-+/* RTLD_NEXT and dlsym — declared manually rather than pulling in
-+   <dlfcn.h> which would trigger conflicting declarations (fseeko64:
-+   off_t vs __off64_t). */
-+#ifndef RTLD_NEXT
-+#define RTLD_NEXT  ((void *)-1l)
-+#endif
-+extern void *dlsym(void *__handle, const char *__name);
- 
- /*
-  * Shim to create missing function calls in the ingenic libimp library.
-@@ -36,8 +43,14 @@ void __assert(const char *msg, const char *file, int line) {
+@@ -36,10 +36,8 @@ void __assert(const char *msg, const char *file, int line) {
+ 	abort();
  }
  
- int __fgetc_unlocked(FILE *stream) {
+-int __fgetc_unlocked(FILE *stream) {
 -	DEBUG_PRINT(stderr, "[WARNING] Called __fgetc_unlocked. This is a shim and does nothing.\n");
 -	return fgetc(stream);
-+	static int (*real___fgetc_unlocked)(FILE *) = NULL;
-+
-+	if (!real___fgetc_unlocked) {
-+		real___fgetc_unlocked = dlsym(RTLD_NEXT, "__fgetc_unlocked");
-+		if (!real___fgetc_unlocked)
-+			abort();
-+	}
-+	return real___fgetc_unlocked(stream);
- }
+-}
++/* uClibc-ng already exports __fgetc_unlocked and __fputc_unlocked —
++   do not redefine them here. */
  
  // Custom mmap implementations address an Ingenic library bug affecting memory mapping offsets.
-@@ -62,8 +75,14 @@ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+ // Using musl, the library requires specific handling of offsets, necessitating these workarounds.
+@@ -63,10 +61,7 @@ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+ 
  /* Required for Xburst2 libraries */
  
- int __fputc_unlocked(int c, FILE *stream) {
+-int __fputc_unlocked(int c, FILE *stream) {
 -	DEBUG_PRINT(stderr, "[WARNING] Called __fputc_unlocked. This is a shim and does nothing.\n");
 -	return fputc(c, stream);
-+	static int (*real___fputc_unlocked)(int, FILE *) = NULL;
-+
-+	if (!real___fputc_unlocked) {
-+		real___fputc_unlocked = dlsym(RTLD_NEXT, "__fputc_unlocked");
-+		if (!real___fputc_unlocked)
-+			abort();
-+	}
-+	return real___fputc_unlocked(c, stream);
- }
+-}
++/* uClibc-ng already provides __fputc_unlocked — removed. */
  
  #undef fopen
+ FILE* fopen64(const char *path, const char *mode) {
