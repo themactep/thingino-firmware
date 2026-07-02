@@ -71,7 +71,18 @@ by patch 0001) call into stdio, which triggers the `__fputc_unlocked` cycle.)
 
 ## Fix
 
-Use `dlsym(RTLD_NEXT, …)` to obtain uClibc-ng's original implementation
+Including `<dlfcn.h>` pulls in additional headers that make the `fseeko64`
+declaration visible (`__off64_t` offset), which conflicts with the shim's
+`off_t` type.  Instead, `RTLD_NEXT` and `dlsym` are declared manually:
+
+```c
+#ifndef RTLD_NEXT
+#define RTLD_NEXT  ((void *)-1l)
+#endif
+extern void *dlsym(void *__handle, const char *__name);
+```
+
+Then use `dlsym(RTLD_NEXT, …)` to obtain uClibc-ng's original implementation
 pointers on first call, bypassing the shim's interposed symbols entirely:
 
 ```c
