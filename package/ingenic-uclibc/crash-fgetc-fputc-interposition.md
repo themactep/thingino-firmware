@@ -1,13 +1,32 @@
-__fgetc_unlocked / __fputc_unlocked interposition recursion in libuclibcshim.so
-=================================================================================
+Symbol interposition crashes in libuclibcshim.so
+===============================================
 
 **Last updated:** 2026-07-02
 
+## Summary of changes
+
+| File | Action |
+|------|--------|
+| `package/ingenic-uclibc/0001-remove-redundant-shim-definitions.patch` | **New** accumulated patch removing all 6 redundant functions in one step. |
+| `package/ingenic-uclibc/0001-fix-open64-….patch` | **Deleted** — `#undef` workaround superseded. |
+| `package/ingenic-uclibc/0002-fix-fgetc-….patch` | **Deleted** — partial fix superseded. |
+| `package/ingenic-uclibc/crash-fgetc-fputc-interposition.md` | **Updated** to document the full fix. |
+| `overrides/ingenic-uclibc/uclibc_shim.c` | **Optional** local override for dev iteration. |
+| `local.mk` | **Optional** `INGENIC_UCLIBC_OVERRIDE_SRCDIR` for dev iteration. |
+
+**Functions removed from the shim** (all provided by uClibc-ng):
+`__fgetc_unlocked`, `__fputc_unlocked`, `fopen64`, `open64`, `fseeko64`, `mmap64`.
+
+**Functions kept:** `mmap` (off>>12 workaround), `__assert`, `__pthread_*`
+stubs, ctype compat.
+
 ## Symptoms
 
-After fixing the `open64`/`fopen64`/`fseeko64` macro recursion (patch 0001),
-`prudynt` still crashes with SIGSEGV in `libuclibcshim.so`:
+`prudynt` crashes with SIGSEGV in `libuclibcshim.so` at various offsets,
+all with the same pattern: stack guard page fault (address ending in
+`0xfe0`/`0xfe8`), epc and ra inside the shim.
 
+Example (__fgetc_unlocked/__fputc_unlocked interposition):
 ```
 [    8.623642] do_page_fault() #2: sending SIGSEGV to prudynt for invalid write access to
 [    8.623642] 7f14efe0
@@ -15,92 +34,80 @@ After fixing the `open64`/`fopen64`/`fseeko64` macro recursion (patch 0001),
 [    8.623692] ra  = 77b15c00 in libuclibcshim.so[77b15000+1000]
 ```
 
+Example (open64/fopen64/fseeko64 interposition):
+```
+[   10.537123] do_page_fault() #2: sending SIGSEGV to prudynt for invalid write access to
+[   10.537123] 7f784fe8
+[   10.537137] epc = 76ef1c24 in libuclibcshim.so[76ef1000+1000]
+[   10.537157] ra  = 76ef1c5c in libuclibcshim.so[76ef1000+1000]
+```
+
 Key indicators:
 
-- **Fault address `0x7f14efe0`** — inside the stack guard page (4 KB guard below
-  the valid stack region), consistent with stack exhaustion from recursion.
-- **`epc = libuclibcshim.so + 0xbc8`** — inside `__fputc_unlocked`, writing to
-  the stack (`sw gp,16(sp)` in the function prologue on a recursive call).
-- **`ra = libuclibcshim.so + 0xc00`** — return address pointing back into the
-  call chain.
+- **Fault address ending in `0xfe0`/`0xfe8`** — inside the stack guard page,
+  consistent with stack exhaustion from recursion.
+- **`epc` and `ra` both in the shim** — the crash is inside a shim function
+  that is calling itself recursively.
+- **`ra - epc` ≈ 0x38** — the return address is 56 bytes ahead, consistent
+  with a function calling itself.
 
 ## Root cause
 
-This is a **runtime symbol interposition** problem, not a preprocessor macro
-bug. The shim defines `__fgetc_unlocked` and `__fputc_unlocked` with strong
-symbols to satisfy Ingenic libimp dependencies. These functions call `fgetc()`
-and `fputc()` expecting to delegate to uClibc-ng.
+The shim defines multiple functions that are **already provided by uClibc-ng**:
 
-However, uClibc-ng's own `fgetc()` and `fputc()` implementations internally
-**branch to** `__fgetc_unlocked` / `__fputc_unlocked`.  Verified in the
-disassembly of uClibc-ng 1.0.57:
+| Shim function    | uClibc-ng provides | Interposition problem |
+|-----------------|--------------------|------------------------|
+| `__fgetc_unlocked` | ✓ `00048f70 g`   | shim → fgetc → uclibc's __fgetc_unlocked (interposed!) |
+| `__fputc_unlocked` | ✓ `00049210 g`   | shim → fputc → uclibc's __fputc_unlocked (interposed!) |
+| `fopen64`       | ✓ `0003fb80 g`     | shim → fopen → uclibc's fopen64 (interposed!) |
+| `open64`        | ✓ `000167f0 g`     | shim → open → uclibc's open64 (interposed!) |
+| `fseeko64`      | ✓ `0003fe80 g`     | shim → fseeko → uclibc's fseeko64 (interposed!) |
+| `mmap64`        | ✓ `00016740 g`     | present but redundant |
 
-```asm
-; fgetc buffer-empty slow path at 0x479f0:
-    lw   t9,-32192(gp)
-    b    48f70 <__fgetc_unlocked>
-```
+Because uClibc-ng is built with `-D_FILE_OFFSET_BITS=64` (__USE_FILE_OFFSET64
+always defined), all code compiled against it calls the `*64` variants.
+The shim exports strong symbols with the same names, **interposing** on
+uClibc-ng's real implementations.
 
-Because the shim exports `__fgetc_unlocked` as a strong symbol, it **interposes**
-(shadows) uClibc-ng's own implementation.  The result is an interposition cycle:
-
+For `__fgetc_unlocked`/`__fputc_unlocked`:
 ```
 shim's __fgetc_unlocked → uclibc's fgetc → uclibc's __fgetc_unlocked (interposed!)
                                                       ↓
                             shim's __fgetc_unlocked ←──┘
 ```
 
-Each iteration pushes a new stack frame.  The stack overflows and hits the
-guard page, producing the SIGSEGV.
+For `fopen64`/`open64`/`fseeko64`, the same interposition cycle occurs
+because uclibc-ng's internal implementations branch to the `*64` variants
+through PLT entries that the shim shadows.
 
-Note: uClibc-ng's `stdio.h` uses the parenthesised macro trick (`(fgetc)(…)`)
-to prevent preprocessor re-expansion, so `#undef` directives (as used in patch
-0001) cannot fix this.  The recursion happens through the dynamic linker's
-symbol resolution, not the preprocessor.
-
-## Affected functions
-
-| Function | Offset | Calls (in source) | Actually reaches | Result |
-|---|---|---|---|---|
-| `__fgetc_unlocked` | `0x9ac` | `fgetc(stream)` | uclibc's `fgetc` → branches to shim's `__fgetc_unlocked` | 🔴 Stack overflow → **SIGSEGV** |
-| `__fputc_unlocked` | `0xb00` | `fputc(c, stream)` | uclibc's `fputc` → branches to shim's `__fputc_unlocked` | 🔴 Stack overflow → **SIGSEGV** |
-
-(The crash prologue instruction lands in `__fputc_unlocked`'s prologue at
-offset `0xbc8` because the shim's `open64`/`fopen64`/`fseeko64` (now fixed
-by patch 0001) call into stdio, which triggers the `__fputc_unlocked` cycle.)
+Note: the `#undef` approach (former patch 0001) only prevents **compile-time**
+macro expansion (`fopen` → `fopen64`).  It cannot fix **runtime** symbol
+interposition through the dynamic linker's PLT/GOT mechanism.
 
 ## Fix
 
-Removing the shim's `__fgetc_unlocked` and `__fputc_unlocked` definitions
-entirely, because uClibc-ng already exports them as global functions:
+Remove **all six** redundant shim definitions.  uClibc-ng provides each
+of them natively.  The only shim functions that remain are:
 
-- `00048f70 g  __fgetc_unlocked`
-- `00049210 g  __fputc_unlocked`
+- `mmap()` — has a required `off>>12` workaround for an Ingenic MMU bug
+- `__assert()` — not provided by uClibc-ng
+- `__pthread_register_cancel()` / `__pthread_unregister_cancel()` — stubs
+- ctype-compat functions (`__ctype_b_loc`, etc.) — glibc compat layer
 
-The shim's definitions are redundant and cause symbol interposition.  Deleting
-them lets uClibc-ng's native implementations handle all calls directly.
-No `dlsym` tricks needed.
+Removed:
+- `__fgetc_unlocked()` — uclibc-ng exports `00048f70 g`
+- `__fputc_unlocked()` — uclibc-ng exports `00049210 g`
+- `fopen64()` — uclibc-ng exports `0003fb80 g`
+- `open64()` — uclibc-ng exports `000167f0 g`
+- `fseeko64()` — uclibc-ng exports `0003fe80 g`
+- `mmap64()` — uclibc-ng exports `00016740 g`
 
-```c
-- int __fgetc_unlocked(FILE *stream) {
-- 	DEBUG_PRINT(...);
-- 	return fgetc(stream);
-- }
-+ /* uClibc-ng already exports __fgetc_unlocked and __fputc_unlocked —
-+    do not redefine them here. */
+This is implemented in a single accumulated patch:
 
-...
+    package/ingenic-uclibc/0001-remove-redundant-shim-definitions.patch
 
-- int __fputc_unlocked(int c, FILE *stream) {
-- 	DEBUG_PRINT(...);
-- 	return fputc(c, stream);
-- }
-+ /* uClibc-ng already provides __fputc_unlocked — removed. */
-```
-
-This is implemented in the patch:
-
-    package/ingenic-uclibc/0002-fix-fgetc-fputc-unlocked-interposition.patch
+This replaces the previous two-patch approach (0001 #undef + 0002 partial
+removal).
 
 ## Rebuild
 
