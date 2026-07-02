@@ -17,6 +17,9 @@ NIGHTMODE="/tmp/nightmode.txt"
 
 [ -x /usr/sbin/doorbell_ctrl ] || exit 0
 
+# Only run on cameras with doorbell chime configured
+jct /etc/thingino.json get chime 2>/dev/null | grep -q . || exit 0
+
 # Kill stale instance
 [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
 rm -f "$PIDFILE"
