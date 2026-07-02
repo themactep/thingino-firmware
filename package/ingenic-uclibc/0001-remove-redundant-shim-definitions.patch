@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 2 Jul 2026 00:00:00 +0000
+Subject: [PATCH] remove redundant shim definitions (provided by uclibc-ng)
+
+The shim defines several functions that are already exported by
+uClibc-ng as strong global symbols:
+
+  00048f70 g  __fgetc_unlocked
+  00049210 g  __fputc_unlocked
+  0003fb80 g  fopen64
+  000167f0 g  open64
+  0003fe80 g  fseeko64
+  00016740 g  mmap64
+
+The shim's definitions shadow uClibc-ng's via symbol interposition,
+creating infinite recursion cycles through the PLT/GOT:
+
+  shim::__fgetc_unlocked -> uclibc::fgetc -> shim::__fgetc_unlocked
+  shim::fopen64 -> uclibc::fopen  -> shim::fopen64
+
+A #undef workaround (former patch) only fixed compile-time macro
+expansion; it cannot prevent runtime interposition through the
+dynamic linker.
+
+Fix: remove all six redundant functions.  uClibc-ng's native
+implementations handle all calls directly.  The only shim functions
+kept are those not provided by uClibc-ng (__assert, __pthread_*
+stubs, ctype compat) and mmap (which has a required off>>12
+workaround for an Ingenic library bug).
+
+This single accumulated patch supersedes the previous two-patch
+approach (0001 #undef workaround + 0002 partial removal).
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+--- a/uclibc_shim.c
++++ b/uclibc_shim.c
+@@ -35,10 +35,8 @@
+ 	abort();
+ }
+ 
+-int __fgetc_unlocked(FILE *stream) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called __fgetc_unlocked. This is a shim and does nothing.\n");
+-	return fgetc(stream);
+-}
++/* uClibc-ng already exports __fgetc_unlocked and __fputc_unlocked —
++   do not redefine them here. */
+ 
+ // Custom mmap implementations address an Ingenic library bug affecting memory mapping offsets.
+ // Using musl, the library requires specific handling of offsets, necessitating these workarounds.
+@@ -61,43 +59,10 @@
+ 
+ /* Required for Xburst2 libraries */
+ 
+-int __fputc_unlocked(int c, FILE *stream) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called __fputc_unlocked. This is a shim and does nothing.\n");
+-	return fputc(c, stream);
+-}
+-
+-FILE* fopen64(const char *path, const char *mode) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called fopen64. This is a shim and does nothing.\n");
+-	return fopen(path, mode);
+-}
+-
+-int open64(const char *path, int flags, ...) {
+-	mode_t mode = 0;
+-
+-	// Mode is only provided if O_CREAT is passed in flags
+-	if (flags & O_CREAT) {
+-		va_list args;
+-		va_start(args, flags);
+-		mode = va_arg(args, mode_t);
+-		va_end(args);
+-	}
+-
+-	DEBUG_PRINT(stderr, "[WARNING] Called open64. This is a shim and does nothing.\n");
+-	if (flags & O_CREAT) {
+-		return open(path, flags, mode);
+-	} else {
+-		return open(path, flags);
+-	}
+-}
+-
+-int fseeko64(FILE *stream, off_t offset, int whence) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called fseeko64. This is a shim and does nothing.\n");
+-	return fseeko(stream, offset, whence);
+-}
+-
+-void* mmap64(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+-return (void *)syscall(SYS_mmap2, start, len, prot, flags, fd, off >> 12);
+-}
++/* uClibc-ng already provides __fputc_unlocked, fopen64, open64,
++   fseeko64, and mmap64 — do not redefine them here.  Only mmap()
++   is kept because libimp needs the off>>12 workaround for an
++   Ingenic MMU offset bug. */
+ 
+ /* End Required for Xburst2 libraries */
+ 
