@@ -1,0 +1,26 @@
+From: Thingino <thingino@localhost>
+Subject: [PATCH] Fix mkimage path in u-boot-lzo.img target
+
+The u-boot-lzo.img target added by the thingino patch calls bare
+`mkimage` instead of the build-tree version at `$(obj)tools/mkimage`.
+This breaks when the host system doesn't have mkimage installed
+(e.g. in CI containers). Use the same pattern as the adjacent
+u-boot.img rule.
+
+Signed-off-by: Thingino <thingino@localhost>
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -472,7 +472,7 @@ endif
+ 
+ $(obj)u-boot-lzo.img:		$(obj)u-boot.bin
+ 		lzop -9 -f -o u-boot-lzo.bin $(obj)u-boot.bin
+-		mkimage -A mips -O u-boot -T firmware -C lzo -a $(CONFIG_SYS_TEXT_BASE) -e $(CONFIG_SYS_UBOOT_START) \
++		$(obj)tools/mkimage -A mips -O u-boot -T firmware -C lzo -a $(CONFIG_SYS_TEXT_BASE) -e $(CONFIG_SYS_UBOOT_START) \
+ 			-n "u-boot-lzo.img" -d u-boot-lzo.bin  $@
+ 
+ $(obj)u-boot.img:	$(obj)u-boot.bin
