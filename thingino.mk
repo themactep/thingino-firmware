@@ -86,6 +86,12 @@ else ifeq ($(SOC_FAMILY),t31)
 	else
 		KERNEL_BRANCH := ingenic-t31
 	endif
+else ifeq ($(SOC_FAMILY),t32)
+	ifeq ($(KERNEL_VERSION),4.4.94)
+		KERNEL_BRANCH := ingenic-t32-4.4.94
+	else
+		KERNEL_BRANCH := ingenic-t32
+	endif
 else ifeq ($(SOC_FAMILY),t23)
 	ifeq ($(KERNEL_VERSION),4.4.94)
 		KERNEL_BRANCH := ingenic-t23-4.4.94
