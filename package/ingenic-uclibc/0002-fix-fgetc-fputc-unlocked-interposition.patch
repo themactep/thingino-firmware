@@ -25,23 +25,31 @@ problem.  No preprocessor directive can fix it.
 
 Fix by using dlsym(RTLD_NEXT, ...) to obtain uClibc-ng's own
 implementation pointers on first call, bypassing the shim's
-interposed symbols.
+interposed symbols.  RTLD_NEXT and dlsym are declared manually
+rather than pulling in <dlfcn.h>, which would trigger conflicting
+type declarations (fseeko64: off_t vs __off64_t).
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 
 diff --git a/uclibc_shim.c b/uclibc_shim.c
-index c893048..1541083 100644
+index c893048..feacf53 100644
 --- a/uclibc_shim.c
 +++ b/uclibc_shim.c
-@@ -9,6 +9,7 @@
+@@ -9,6 +9,13 @@
  #include <sys/syscall.h> // For syscall numbers and syscall interface
  #include <stdint.h>      // For standard integer types
  #include <ctype.h>       // For character type functions
-+#include <dlfcn.h>       // For dlsym / RTLD_NEXT
++/* RTLD_NEXT and dlsym — declared manually rather than pulling in
++   <dlfcn.h> which would trigger conflicting declarations (fseeko64:
++   off_t vs __off64_t). */
++#ifndef RTLD_NEXT
++#define RTLD_NEXT  ((void *)-1l)
++#endif
++extern void *dlsym(void *__handle, const char *__name);
  
  /*
   * Shim to create missing function calls in the ingenic libimp library.
-@@ -36,8 +37,14 @@ void __assert(const char *msg, const char *file, int line) {
+@@ -36,8 +43,14 @@ void __assert(const char *msg, const char *file, int line) {
  }
  
  int __fgetc_unlocked(FILE *stream) {
@@ -58,7 +66,7 @@ index c893048..1541083 100644
  }
  
  // Custom mmap implementations address an Ingenic library bug affecting memory mapping offsets.
-@@ -62,8 +69,14 @@ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+@@ -62,8 +75,14 @@ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
  /* Required for Xburst2 libraries */
  
  int __fputc_unlocked(int c, FILE *stream) {
