@@ -71,45 +71,32 @@ by patch 0001) call into stdio, which triggers the `__fputc_unlocked` cycle.)
 
 ## Fix
 
-Including `<dlfcn.h>` pulls in additional headers that make the `fseeko64`
-declaration visible (`__off64_t` offset), which conflicts with the shim's
-`off_t` type.  Instead, `RTLD_NEXT` and `dlsym` are declared manually:
+Removing the shim's `__fgetc_unlocked` and `__fputc_unlocked` definitions
+entirely, because uClibc-ng already exports them as global functions:
+
+- `00048f70 g  __fgetc_unlocked`
+- `00049210 g  __fputc_unlocked`
+
+The shim's definitions are redundant and cause symbol interposition.  Deleting
+them lets uClibc-ng's native implementations handle all calls directly.
+No `dlsym` tricks needed.
 
 ```c
-#ifndef RTLD_NEXT
-#define RTLD_NEXT  ((void *)-1l)
-#endif
-extern void *dlsym(void *__handle, const char *__name);
+- int __fgetc_unlocked(FILE *stream) {
+- 	DEBUG_PRINT(...);
+- 	return fgetc(stream);
+- }
++ /* uClibc-ng already exports __fgetc_unlocked and __fputc_unlocked —
++    do not redefine them here. */
+
+...
+
+- int __fputc_unlocked(int c, FILE *stream) {
+- 	DEBUG_PRINT(...);
+- 	return fputc(c, stream);
+- }
++ /* uClibc-ng already provides __fputc_unlocked — removed. */
 ```
-
-Then use `dlsym(RTLD_NEXT, …)` to obtain uClibc-ng's original implementation
-pointers on first call, bypassing the shim's interposed symbols entirely:
-
-```c
-int __fgetc_unlocked(FILE *stream) {
-    static int (*real___fgetc_unlocked)(FILE *) = NULL;
-    if (!real___fgetc_unlocked) {
-        real___fgetc_unlocked = dlsym(RTLD_NEXT, "__fgetc_unlocked");
-        if (!real___fgetc_unlocked) abort();
-    }
-    return real___fgetc_unlocked(stream);
-}
-
-int __fputc_unlocked(int c, FILE *stream) {
-    static int (*real___fputc_unlocked)(int, FILE *) = NULL;
-    if (!real___fputc_unlocked) {
-        real___fputc_unlocked = dlsym(RTLD_NEXT, "__fputc_unlocked");
-        if (!real___fputc_unlocked) abort();
-    }
-    return real___fputc_unlocked(c, stream);
-}
-```
-
-`RTLD_NEXT` instructs the dynamic linker to skip the calling shared object
-(libuclibcshim.so) and return the **next** definition of the symbol — which is
-uClibc-ng's own `__fgetc_unlocked` / `__fputc_unlocked`.  The function pointer
-is cached in a `static` variable, so `dlsym` is called at most once per
-function (first use).
 
 This is implemented in the patch:
 
