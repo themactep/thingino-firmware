@@ -1088,12 +1088,13 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	# SFC-NAND boot: kernel + squashfs rootfs live in UBI volumes inside the
 	# "ubi" MTD partition (layout from the fork's t40-isvp-nand.dtsi).
 	#   U-Boot: "ubi part ubi" attaches it, then reads + boots the "kernel" volume.
-	#   Kernel: the ingenic SFC-NAND driver registers its MTD as "sfc_nand" and
+	#   Kernel: the ingenic SFC-NAND driver registers its MTD under the SFC
+	#     controller name (sfc_nand single-SFC, sfc0_nand on T41's dual SFC) and
 	#     parses partitions from the cmdline (cmdlinepart) - it does NOT read
 	#     U-Boot's DT - so mtdparts= is REQUIRED. "ubi.mtd=ubi" attaches the rest
 	#     as ubi0; "ubi.block=0,rootfs" exposes the squashfs "rootfs" volume as
 	#     /dev/ubiblock0_2. root= / rootfstype= come from the flash-nand fragment.
-	echo 'bootcmd=ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=sfc_nand:1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
+	echo 'bootcmd=ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=$(UBOOT_FLASH_CONTROLLER):1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
 else
 	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@

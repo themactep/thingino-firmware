@@ -8,10 +8,15 @@
 # The base config already provides the MTD core: CONFIG_MTD=y,
 # CONFIG_MTD_CMDLINE_PARTS=y, CONFIG_MTD_BLOCK=y, CONFIG_LZO_COMPRESS=y.
 
-# Ingenic SFC controller in NAND mode. XBurst2 uses the v2 controller; the v1
-# symbol is harmless on trees that lack it and covers any v1-based board.
+# Ingenic SFC controller in NAND mode. XBurst2 uses the v2 controller.
+#
+# The <soc>.generic.config base ships CONFIG_MTD_INGENIC_SFC_V2_NORFLASH=y. Left
+# enabled, the NOR and NAND halves both pull in ingenic_sfc_common/drv and both
+# bind the single "ingenic-sfc" platform driver, so the NAND chip never attaches.
+# Turn NOR off here; NOR profiles never include this fragment, so they are
+# unaffected.
+# CONFIG_MTD_INGENIC_SFC_V2_NORFLASH is not set
 CONFIG_MTD_INGENIC_SFC_V2_NANDFLASH=y
-CONFIG_MTD_INGENIC_SFC_V1_NANDFLASH=y
 
 # UBI: wear-levelling + bad-block management; ubiblock exposes the read-only
 # squashfs "rootfs" volume as a block device for root mounting.
