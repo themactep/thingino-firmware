@@ -1,46 +1,68 @@
 #!/bin/sh
 #
-# doorbell_alarm – Signal when no chimes are paired
+# doorbell_alarm – Doorbell chime LED indicator
 #
-# Checks /etc/thingino.json for paired chimes.  If none are found,
-# flashes the indicator LEDs in an alternating pattern until a chime
-# is paired.  The doorbell_ctrl binary stops the alarm automatically
-# after a successful pair.
+# When chimes are paired, lights the indicator LED:
+#   blue  = day mode
+#   yellow = night mode
+# When no chimes are paired, flashes alternating blue/yellow alarm.
+# Monitors /tmp/nightmode.txt for mode changes.
 #
-# Run at boot via S14doorbell-alarm; stops itself when chimes appear.
+# Run at boot via S14doorbell-alarm.
 #
 
 CONFIG="/etc/thingino.json"
 PIDFILE="/run/doorbell_alarm.pid"
+NIGHTMODE="/tmp/nightmode.txt"
 
-# Don't start if doorbell_ctrl isn't installed
 [ -x /usr/sbin/doorbell_ctrl ] || exit 0
 
-# Kill any stale instance
+# Kill stale instance
 [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
 rm -f "$PIDFILE"
-
-# Check for paired chimes — exit quietly if any exist
-if doorbell_ctrl list 2>/dev/null | grep -q '^ '; then
-	exit 0
-fi
-
-# No chimes paired — enter alarm mode
 echo $$ >"$PIDFILE"
-logger -t doorbell_alarm "No chimes paired – signaling alarm"
 
-# Flash blue and yellow LEDs alternately until chimes appear
+last_mode=""
+
 while true; do
-	if doorbell_ctrl list 2>/dev/null | grep -q '^ '; then
-		break
-	fi
-	led b 2>/dev/null
-	sleep 1
-	led y 2>/dev/null
-	sleep 1
-done
+	have_chimes=0
+	doorbell_ctrl list 2>/dev/null | grep -q '^ ' && have_chimes=1
 
-# Chimes found — stop alarm
-led off 2>/dev/null
-rm -f "$PIDFILE"
-logger -t doorbell_alarm "Chimes paired – alarm cleared"
+	MODE="day"
+	if [ -f "$NIGHTMODE" ]; then
+		MODE=$(cat "$NIGHTMODE" 2>/dev/null)
+	fi
+	[ -z "$MODE" ] && MODE="day"
+
+	if [ "$have_chimes" -eq 0 ]; then
+		# No chimes — flash alarm
+		logger -t doorbell_alarm "No chimes paired – signaling alarm"
+		while true; do
+			if doorbell_ctrl list 2>/dev/null | grep -q '^ '; then
+				break
+			fi
+			led b 2>/dev/null
+			sleep 0.8
+			led off 2>/dev/null
+			sleep 0.2
+			led y 2>/dev/null
+			sleep 0.8
+			led off 2>/dev/null
+			sleep 0.2
+		done
+		last_mode=""
+		continue
+	fi
+
+	# Chimes present — steady LED, update on mode change
+	if [ "$MODE" != "$last_mode" ]; then
+		if [ "$MODE" = "night" ]; then
+			led y 2>/dev/null
+		else
+			led b 2>/dev/null
+		fi
+		last_mode="$MODE"
+	fi
+
+	sleep 5
+done
