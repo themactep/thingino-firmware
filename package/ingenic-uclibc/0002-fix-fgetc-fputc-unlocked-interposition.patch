@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 2 Jul 2026 00:00:00 +0000
+Subject: [PATCH] fix __fgetc_unlocked/__fputc_unlocked interposition recursion
+
+The shim defines __fgetc_unlocked and __fputc_unlocked to satisfy
+Ingenic libimp library dependencies.  These functions call fgetc()
+and fputc() respectively, expecting to delegate to uClibc-ng.
+
+However, uClibc-ng's own fgetc() and fputc() implementations
+internally branch to __fgetc_unlocked / __fputc_unlocked, which
+the shim interposes with its own strong symbols.  This creates
+an interposition cycle:
+
+  shim's __fgetc_unlocked -> uclibc's fgetc -> shim's __fgetc_unlocked
+
+Each iteration pushes a new stack frame; the stack overflows and hits
+the guard page, producing:
+
+  do_page_fault(): sending SIGSEGV to prudynt for invalid write access
+
+Unlike the open64/fopen64/fseeko64 cases (which were macro-expansion
+bugs fixed with #undef), this is a runtime symbol interposition
+problem.  No preprocessor directive can fix it.
+
+Fix by using dlsym(RTLD_NEXT, ...) to obtain uClibc-ng's own
+implementation pointers on first call, bypassing the shim's
+interposed symbols.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+diff --git a/uclibc_shim.c b/uclibc_shim.c
+index c893048..1541083 100644
+--- a/uclibc_shim.c
++++ b/uclibc_shim.c
+@@ -9,6 +9,7 @@
+ #include <sys/syscall.h> // For syscall numbers and syscall interface
+ #include <stdint.h>      // For standard integer types
+ #include <ctype.h>       // For character type functions
++#include <dlfcn.h>       // For dlsym / RTLD_NEXT
+ 
+ /*
+  * Shim to create missing function calls in the ingenic libimp library.
+@@ -36,8 +37,14 @@ void __assert(const char *msg, const char *file, int line) {
+ }
+ 
+ int __fgetc_unlocked(FILE *stream) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called __fgetc_unlocked. This is a shim and does nothing.\n");
+-	return fgetc(stream);
++	static int (*real___fgetc_unlocked)(FILE *) = NULL;
++
++	if (!real___fgetc_unlocked) {
++		real___fgetc_unlocked = dlsym(RTLD_NEXT, "__fgetc_unlocked");
++		if (!real___fgetc_unlocked)
++			abort();
++	}
++	return real___fgetc_unlocked(stream);
+ }
+ 
+ // Custom mmap implementations address an Ingenic library bug affecting memory mapping offsets.
+@@ -62,8 +69,14 @@ void *mmap(void *start, size_t len, int prot, int flags, int fd, uint32_t off) {
+ /* Required for Xburst2 libraries */
+ 
+ int __fputc_unlocked(int c, FILE *stream) {
+-	DEBUG_PRINT(stderr, "[WARNING] Called __fputc_unlocked. This is a shim and does nothing.\n");
+-	return fputc(c, stream);
++	static int (*real___fputc_unlocked)(int, FILE *) = NULL;
++
++	if (!real___fputc_unlocked) {
++		real___fputc_unlocked = dlsym(RTLD_NEXT, "__fputc_unlocked");
++		if (!real___fputc_unlocked)
++			abort();
++	}
++	return real___fputc_unlocked(c, stream);
+ }
+ 
+ #undef fopen
