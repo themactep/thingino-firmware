@@ -14,7 +14,7 @@ This solution replaces **390 lines** of repetitive `ifeq/else ifeq` statements i
 ## Database Structure
 
 ```
-Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand
+Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand,uboot_image
 
 Fields:
   - model: SoC model name (t31x, t40n, etc.)
@@ -23,6 +23,7 @@ Fields:
   - ram_mb: RAM size in megabytes
   - uboot_board_nor: U-Boot board name for NOR flash
   - uboot_board_nand: U-Boot board name for NAND flash (or "-" if not supported)
+  - uboot_image: U-Boot flash artifact buildroot extracts ("-" = u-boot-with-spl-lzma.bin; "u-boot-with-tpl-lzma.bin" for the TPL SoCs)
 ```
 
 ## Query Script Usage

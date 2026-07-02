@@ -8,7 +8,7 @@ import subprocess
 import argparse
 import fnmatch
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Callable
 
 BLUE = "\033[0;34m"
 YELLOW = "\033[1;33m"
@@ -36,6 +36,10 @@ STASH_SHA: Optional[str] = None
 HASH_RE = re.compile(r"^[a-f0-9]{7,40}$")
 SOURCE_RE = re.compile(r'\bsource\s+"([^"]*Config\.in\.host)"')
 BR2_VAR_RE = re.compile(r'\$\(?BR2_EXTERNAL_\w+\)?')
+GITHUB_CALL_RE = re.compile(
+    r'^\$\(call\s+github,\s*([^,]+),\s*([^,]+?)(?:\s*,\s*(.+?))?\s*\)$'
+)
+GITHUB_URL_RE = re.compile(r'github\.com/([^/]+)/([^/]+?)(?:\.git|/|$)')
 
 
 def log_debug(msg: str) -> None:
@@ -83,6 +87,132 @@ def hashes_match(lhs: str, rhs: str) -> bool:
 
 def get_short_hash(h: str) -> str:
     return h[:7]
+
+
+# ── Release bundle helpers ──────────────────────────────────────────────
+
+def _build_tag_template(version_arg: str) -> str:
+    """
+    Convert a ``$(call github)`` version argument into a template string
+    with ``{v}`` as the version placeholder.
+    Examples: ``v$(GO2RTC_VERSION)`` → ``v{v}``,
+              ``$(USRSCTP_VERSION)`` → ``{v}``,
+              ``v$(THINGINO_WOLFSSL_VERSION)-stable`` → ``v{v}-stable``.
+    """
+    return re.sub(r'\$\([^)]*_VERSION\)|\$\(VERSION\)', '{v}', version_arg)
+
+
+def apply_tag_template(template: str, version: str) -> str:
+    """Apply a tag template to produce the full git tag."""
+    return template.replace('{v}', version)
+
+
+def extract_version_from_tag(template: str, tag: str) -> Optional[str]:
+    """
+    Given a tag template (with ``{v}`` placeholder) and a full git tag,
+    extract the version portion.
+    Returns ``None`` if the tag does not match the template.
+    """
+    prefix, suffix = template.split('{v}', 1)
+    if not tag.startswith(prefix):
+        return None
+    inner = tag[len(prefix):]
+    if suffix:
+        if not inner.endswith(suffix):
+            return None
+        inner = inner[:-len(suffix)]
+    return inner
+
+
+def extract_github_info(site: str, pkg_upper: str, source: Optional[str] = None) -> Optional[Tuple[str, str, str]]:
+    """
+    Extract (user, repo, tag_template) from a ``_SITE`` value (and optionally
+    ``_SOURCE``) for GitHub-hosted projects.
+
+    The tag_template uses ``{v}`` as a placeholder for the version string.
+    Returns ``None`` if the site does not appear to be GitHub-hosted.
+    """
+    m = GITHUB_CALL_RE.match(site)
+    if m:
+        user = m.group(1).strip()
+        repo = m.group(2).strip()
+        version_arg = m.group(3).strip() if m.group(3) else None
+        if version_arg:
+            template = _build_tag_template(version_arg)
+        else:
+            template = '{v}'
+        return user, repo, template
+
+    # Direct GitHub URL (e.g. https://github.com/user/repo)
+    m = GITHUB_URL_RE.search(site)
+    if m:
+        user = m.group(1)
+        repo = m.group(2).rstrip('/')
+        # If _SOURCE is set, try to derive the template from it
+        if source:
+            src_template = _build_tag_template(source)
+            # Strip .tar.gz / .tar.xz / .zip suffixes
+            src_template = re.sub(r'\.(tar\.(gz|bz2|xz|lz)|zip)$', '', src_template)
+            if '{v}' in src_template:
+                return user, repo, src_template
+        return user, repo, '{v}'
+
+    return None
+
+
+def get_latest_tag(repo_url: str, current_tag: str) -> Optional[str]:
+    """
+    Fetch all tags from a git repo and return the most recent version tag
+    that shares a version-number pattern with *current_tag*.
+    """
+    code, out, err = run_git(["ls-remote", "--tags", repo_url], timeout=120)
+    if code != 0:
+        log_error(f"Failed to fetch tags for {repo_url}: {err}")
+        return None
+    if not out:
+        return None
+
+    tags: set[str] = set()
+    for line in out.splitlines():
+        parts = line.split('\t')
+        if len(parts) < 2:
+            continue
+        ref = parts[1]
+        m = re.match(r'refs/tags/(.+)$', ref)
+        if m:
+            tag = m.group(1)
+            if tag.endswith('^{}'):
+                continue
+            tags.add(tag)
+
+    has_v = current_tag.startswith('v')
+
+    def is_versionish(tag: str) -> bool:
+        v = tag[1:] if tag.startswith('v') else tag
+        return bool(re.match(r'^\d+(\.\d+)*', v))
+
+    def version_tuple(tag: str) -> tuple:
+        v = tag[1:] if tag.startswith('v') else tag
+        nums = re.findall(r'\d+', v)
+        return tuple(int(n) for n in nums)
+
+    candidates = [t for t in tags if t.startswith('v') == has_v and is_versionish(t)]
+    if not candidates:
+        return None
+    candidates.sort(key=version_tuple)
+    return candidates[-1]
+
+
+def compare_tags(current: str, latest: str) -> bool:
+    """
+    Return ``True`` when *latest* is strictly newer than *current* by
+    numerical version-component comparison.
+    """
+    def vtuple(tag: str) -> tuple:
+        v = tag[1:] if tag.startswith('v') else tag
+        nums = re.findall(r'\d+', v)
+        return tuple(int(n) for n in nums)
+    return vtuple(latest) > vtuple(current)
 
 
 def check_git_working_directory() -> bool:
@@ -255,7 +385,8 @@ def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_h
 
 def parse_mk_file(mk_path: Path) -> Optional[Tuple[str, str, str, str]]:
     """
-    Return (package_name, repo_url, branch, version_hash) if git-sourced with static hash, else None.
+    Return (package_name, repo_url, branch, version_hash) if git-sourced with
+    static hash and an explicit branch (rolling commit), else None.
     """
     pkg_dir = mk_path.parent
     package_name = pkg_dir.name
@@ -322,8 +453,10 @@ def parse_mk_file(mk_path: Path) -> Optional[Tuple[str, str, str, str]]:
     if not is_valid_hash(version):
         return None
 
-    # Default to HEAD if branch is unspecified to respect the remote's default branch
-    return package_name, site, (branch or 'HEAD'), version
+    # Only consider packages that explicitly set a branch (rolling commits)
+    if branch is None:
+        return None
+    return package_name, site, branch, version
 
 
 def get_remote_hash(repo_url: str, branch: str) -> Optional[str]:
@@ -461,6 +594,91 @@ def update_package_mk(mk_path: Path, package_name: str, old_hash: str, new_hash:
         return False
 
 
+def parse_mk_file_release(mk_path: Path) -> Optional[Tuple[str, str, str, str, str, str]]:
+    """
+    Return ``(package_name, repo_url, tag_template, current_tag, raw_version, branch)``
+    if the package fetches a GitHub release bundle (via ``$(call github)``,
+    ``_SITE_METHOD = git`` with a tag, or a direct GitHub archive URL).
+
+    Returns ``None`` for packages that use commit hashes (handled by
+    ``parse_mk_file``), non-GitHub URLs, or packages that cannot be parsed.
+    """
+    pkg_dir = mk_path.parent
+    package_name = pkg_dir.name
+    pkg_upper = package_name.upper().replace('-', '_')
+
+    site_method = None
+    site = None
+    version = None
+    source = None
+    branch = None
+
+    try:
+        with mk_path.open('r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except Exception as e:
+        log_warn(f"Failed to read {mk_path}: {e}")
+        return None
+
+    re_site_method = re.compile(rf"^{re.escape(pkg_upper)}_SITE_METHOD\s*=\s*(.+)$")
+    re_site = re.compile(rf"^{re.escape(pkg_upper)}_SITE\s*=\s*(.+)$")
+    re_version = re.compile(rf"^{re.escape(pkg_upper)}_VERSION\s*=\s*(.+)$")
+    re_source = re.compile(rf"^{re.escape(pkg_upper)}_SOURCE\s*=\s*(.+)$")
+    re_site_branch = re.compile(rf"^{re.escape(pkg_upper)}_SITE_BRANCH\s*=\s*(.+)$")
+    re_branch_alt = re.compile(rf"^{re.escape(pkg_upper)}_BRANCH\s*=\s*(.+)$")
+
+    for line in lines:
+        line = line.rstrip('\n')
+        m = re_site_method.match(line)
+        if m:
+            site_method = m.group(1).strip().strip('"')
+            continue
+        m = re_site.match(line)
+        if m and site is None:
+            site = m.group(1).strip().strip('"')
+            continue
+        m = re_version.match(line)
+        if m and version is None:
+            v = m.group(1).strip().strip('"')
+            version = v
+            continue
+        m = re_source.match(line)
+        if m and source is None:
+            source = m.group(1).strip().strip('"')
+            continue
+        m = re_site_branch.match(line)
+        if m and branch is None:
+            branch = m.group(1).strip().strip('"')
+            continue
+        m = re_branch_alt.match(line)
+        if m and branch is None:
+            branch = m.group(1).strip().strip('"')
+            continue
+
+    if not site or not version:
+        return None
+    if '$(' in version:
+        return None
+
+    # Skip git packages with commit hashes — handled by parse_mk_file()
+    if site_method == 'git' and is_valid_hash(version):
+        return None
+
+    # Skip local packages
+    if site_method == 'local':
+        return None
+
+    gh_info = extract_github_info(site, pkg_upper, source)
+    if not gh_info:
+        return None
+
+    user, repo, tag_template = gh_info
+    repo_url = f"https://github.com/{user}/{repo}.git"
+    current_tag = apply_tag_template(tag_template, version)
+
+    return package_name, repo_url, tag_template, current_tag, version, (branch or 'HEAD')
+
+
 def prompt_yes_no(package_name: str, old_hash: str, new_hash: str) -> bool:
     old_short = get_short_hash(old_hash)
     new_short = get_short_hash(new_hash)
@@ -484,6 +702,139 @@ def prompt_yes_no(package_name: str, old_hash: str, new_hash: str) -> bool:
         return False
 
 
+def process_package_release(mk_path: Path, package_name: str, repo_url: str,
+                            tag_template: str, current_tag: str, raw_version: str,
+                            branch: str = 'HEAD') -> None:
+    global PACKAGES_WITH_UPDATES, PACKAGES_UPDATED
+
+    log_info(f"Processing package (release bundle): {package_name}")
+    log_debug(f"  Repository: {repo_url}")
+    log_debug(f"  Current tag: {current_tag}")
+
+    latest_tag = get_latest_tag(repo_url, current_tag)
+    if not latest_tag:
+        # No tags found — fall back to hash-based comparison if version is a commit hash
+        if is_valid_hash(raw_version) and raw_version != 'HEAD':
+            log_warn(f"No version tags found for {package_name}, falling back to hash comparison")
+            remote_hash = get_remote_hash(repo_url, branch)
+            if not remote_hash:
+                log_error(f"Failed to get remote hash for {package_name}")
+                return
+
+            log_debug(f"  Remote hash: {remote_hash}")
+
+            if hashes_match(raw_version, remote_hash):
+                print(package_name)
+                print("---------------")
+                print(repo_url)
+                print(f"= {raw_version} (up to date)")
+                print()
+                log_debug(f"Package {package_name} is up to date")
+                return
+
+            PACKAGES_WITH_UPDATES += 1
+
+            print(package_name)
+            print("---------------")
+            print(repo_url)
+            print(f"- {raw_version}")
+            print(f"+ {remote_hash}")
+            print()
+            sys.stdout.flush()
+
+            if DRY_RUN:
+                return
+
+            if prompt_yes_no(package_name, raw_version, remote_hash):
+                if update_package_mk(mk_path, package_name, raw_version, remote_hash):
+                    log_lines = get_commit_log(repo_url, raw_version, remote_hash, branch)
+                    if create_package_commit(package_name, mk_path, raw_version, remote_hash, log_lines):
+                        PACKAGES_UPDATED += 1
+                        UPDATED_PACKAGES.append(f"{package_name}:{get_short_hash(raw_version)}->{get_short_hash(remote_hash)}")
+            return
+
+        log_warn(f"No version tags found for {package_name} (repo may use rolling commits)")
+        return
+
+    log_debug(f"  Latest tag: {latest_tag}")
+
+    if hashes_match(current_tag, latest_tag):
+        print(package_name)
+        print("---------------")
+        print(repo_url)
+        print(f"= {current_tag} (up to date)")
+        print()
+        log_debug(f"Package {package_name} is up to date")
+        return
+
+    if not compare_tags(current_tag, latest_tag):
+        log_debug(f"Package {package_name} {current_tag} is not older than {latest_tag}")
+        return
+
+    PACKAGES_WITH_UPDATES += 1
+
+    print(package_name)
+    print("---------------")
+    print(repo_url)
+    print(f"- {current_tag}")
+    print(f"+ {latest_tag}")
+    print()
+    sys.stdout.flush()
+
+    if DRY_RUN:
+        return
+
+    if prompt_yes_no(f"{package_name} ({current_tag} → {latest_tag})", current_tag, latest_tag):
+        new_version = extract_version_from_tag(tag_template, latest_tag)
+        if new_version is None:
+            log_error(f"Cannot extract version from tag '{latest_tag}' using template '{tag_template}'")
+            return
+
+        if update_package_mk_version(mk_path, package_name, raw_version, new_version):
+            log_lines: List[str] = []
+            if create_package_commit(package_name, mk_path, current_tag, latest_tag, log_lines):
+                PACKAGES_UPDATED += 1
+                UPDATED_PACKAGES.append(f"{package_name}:{current_tag}->{latest_tag}")
+        else:
+            log_error(f"Failed to update package {package_name}")
+
+
+def update_package_mk_version(mk_path: Path, package_name: str, old_version: str, new_version: str) -> bool:
+    """
+    Replace the ``_VERSION`` value in a ``.mk`` file.
+    Separate helper because ``update_package_mk`` logs about hashes.
+    """
+    pkg_upper = package_name.upper().replace('-', '_')
+    try:
+        text = mk_path.read_text(encoding='utf-8', errors='ignore')
+    except Exception as e:
+        log_error(f"Failed to read {mk_path}: {e}")
+        return False
+
+    pattern = re.compile(
+        rf"^(?P<prefix>{re.escape(pkg_upper)}_VERSION\s*=\s*){re.escape(old_version)}(?P<suffix>\s*(#.*)?)$",
+        re.MULTILINE,
+    )
+    new_text, n = pattern.subn(rf"\g<prefix>{new_version}\g<suffix>", text, count=1)
+    if n == 0:
+        log_error(f"Did not find a VERSION line with '{old_version}' in {mk_path}")
+        return False
+
+    backup = mk_path.with_suffix(mk_path.suffix + ".backup")
+    try:
+        backup.write_text(text, encoding='utf-8')
+        mk_path.write_text(new_text, encoding='utf-8')
+        log_success(f"Updated {mk_path}: {old_version} → {new_version}")
+        return True
+    except Exception as e:
+        log_error(f"Failed to write update to {mk_path}: {e}")
+        try:
+            mk_path.write_text(text, encoding='utf-8')
+        except Exception:
+            pass
+        return False
+
+
 def print_summary() -> None:
     print("", file=sys.stderr)
     print(f"{BLUE}=== SUMMARY REPORT ==={NC}", file=sys.stderr)
@@ -503,6 +854,9 @@ def process_package(mk_path: Path) -> None:
 
     parsed = parse_mk_file(mk_path)
     if not parsed:
+        release_parsed = parse_mk_file_release(mk_path)
+        if release_parsed:
+            process_package_release(mk_path, *release_parsed)
         return
 
     package_name, repo_url, branch, current_hash = parsed
@@ -649,7 +1003,7 @@ def find_mk_from_host_config() -> List[Path]:
 def main() -> int:
     global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN
 
-    parser = argparse.ArgumentParser(description="Check Git-sourced package hashes and interactively update.")
+    parser = argparse.ArgumentParser(description="Check Git-sourced package hashes and GitHub release-bundle versions, then interactively update.")
     parser.add_argument("patterns", nargs="*", help="Optional package name patterns (glob), e.g., wifi-* thingino-*")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Only check for updates; do not prompt or modify files")
