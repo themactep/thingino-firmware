@@ -10,3 +10,4 @@ gpio_mmc_power=71o
 gpio_speaker=-1
 gpio_white=67
 gpio_wlan=57
+serialport=ttyS1
