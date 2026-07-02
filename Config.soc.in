@@ -919,6 +919,13 @@ menu "Device Type"
 		  Specifies the device features as a Doorbell and installs configurations
 		  specific to this type.
 
+	config BR2_THINGINO_DEV_BATTERY
+		bool "Battery Powered"
+		depends on BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC
+		help
+		  Specifies the device features as a battery powered device and installs configurations
+		  specific to this type.
+
 	config BR2_THINGINO_DEV_SIREN
 		bool "Siren"
 		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
