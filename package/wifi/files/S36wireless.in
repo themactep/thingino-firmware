@@ -329,6 +329,7 @@ start() {
 	done
 
 	@if !WIFI_IS_HI3881@
+	@if !WIFI_ATBM6461@
 	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo "Bring interface $IFACE down"
@@ -338,6 +339,7 @@ start() {
 		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
 	fi
+	@endif@
 	@endif@
 	# play /usr/share/sounds/wificonnected.opus
 }

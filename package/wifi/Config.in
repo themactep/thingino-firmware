@@ -37,7 +37,9 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6132s/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6132u/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6162s/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6162u/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/atbm6461-tools/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6441/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6461/Config.in"
 endmenu
 
 menu "iComm Semi"
