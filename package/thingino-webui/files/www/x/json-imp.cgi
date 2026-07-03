@@ -73,6 +73,7 @@ case "$cmd" in
     ;;
   daynight)
     echo "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$val\"}}" | prudyntctl json - >/dev/null 2>&1
+    /sbin/daynight "$val" >/dev/null 2>&1
     ;;
   ir850 | ir940 | white)
     echo '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1

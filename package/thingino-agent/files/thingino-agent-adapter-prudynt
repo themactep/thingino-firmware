@@ -449,6 +449,13 @@ thingino_agent_prudynt_daynight_force_mode() {
 }
 
 thingino_agent_prudynt_daynight_running_mode() {
+	if [ -f /run/thingino/daynight_mode ]; then
+		mode=$(awk 'NR == 1 { print $1 }' /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
+		[ -n "$mode" ] && {
+			printf '%s' "$mode"
+			return 0
+		}
+	fi
 	if [ -f /run/prudynt/daynight_mode ]; then
 		mode=$(awk 'NR == 1 { print $1 }' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
 		[ -n "$mode" ] && {
@@ -1056,15 +1063,22 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 
 thingino_agent_prudynt_query_live() {
 	unset _heartbeat_color_mode _heartbeat_mic_enabled _heartbeat_spk_enabled _heartbeat_total_gain
-	if command -v prudyntctl >/dev/null 2>&1; then
-		_heartbeat_tmp=$(mktemp)
-		prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_heartbeat_tmp" 2>/dev/null
-		_heartbeat_color_mode=$(thingino_agent_json_config_value "$_heartbeat_tmp" image.running_mode)
-		_heartbeat_mic_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)
-		_heartbeat_spk_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)
-		_heartbeat_total_gain=$(thingino_agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
-		rm -f "$_heartbeat_tmp"
+	if [ -f /run/thingino/daynight_mode ]; then
+		_mode=$(awk 'NR==1{print \$1}' /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
+		case "$_mode" in
+			day) _heartbeat_color_mode=0 ;;
+			night) _heartbeat_color_mode=1 ;;
+		esac
+	elif [ -f /run/prudynt/daynight_mode ]; then
+		_mode=$(awk 'NR==1{print \$1}' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
+		case "$_mode" in
+			day) _heartbeat_color_mode=0 ;;
+			night) _heartbeat_color_mode=1 ;;
+		esac
 	fi
+	_heartbeat_mic_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.enabled)" true)
+	_heartbeat_spk_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.ao_enabled)" false)
+	_heartbeat_total_gain="-1"
 }
 
 thingino_agent_prudynt_heartbeat_brightness() {
