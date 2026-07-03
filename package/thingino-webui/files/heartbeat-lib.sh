@@ -22,7 +22,7 @@ thingino_heartbeat_agent_url() {
 
 thingino_heartbeat_agent_request() {
 	path=$1
-	curl -sS --max-time 2 "$(thingino_heartbeat_agent_url)$path" 2>/dev/null
+	curl -sS --max-time 0.5 "$(thingino_heartbeat_agent_url)$path" 2>/dev/null
 }
 
 thingino_heartbeat_agent_backend_name() {
@@ -259,24 +259,50 @@ thingino_heartbeat_raptor_payload() {
 		"$(thingino_heartbeat_wireguard_status)"
 }
 
+thingino_heartbeat_native_payload() {
+	now=$(date +%s)
+	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
+
+	daynight_mode="unknown"
+	if [ -r /run/thingino/daynight_mode ]; then
+		daynight_mode=$(cat /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
+	elif [ -r /run/prudynt/daynight_mode ]; then
+		daynight_mode=$(cat /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
+	fi
+	daynight_enabled="false"
+	if command -v jct >/dev/null 2>&1 && [ -f /etc/prudynt.json ]; then
+		_val=$(jct /etc/prudynt.json get daynight.enabled 2>/dev/null | tr -d '\n"')
+		[ -n "$_val" ] && daynight_enabled=$_val
+	fi
+
+	rec_ch0="false"; rec_ch1="false"
+	[ -f /run/prudynt/mp4ctl-ch0.active ] && rec_ch0="true"
+	[ -f /run/prudynt/mp4ctl-ch1.active ] && rec_ch1="true"
+
+	motion_enabled="false"
+	[ -f /run/prudynt/motion.active ] && motion_enabled="true"
+
+	privacy_enabled="false"
+	[ -f /run/prudynt/privacy.active ] && privacy_enabled="true"
+
+	mic_enabled="true"
+	[ -f /run/prudynt/mic.active ] || mic_enabled="false"
+	spk_enabled="false"
+	[ -f /run/prudynt/spk.active ] && spk_enabled="true"
+
+	wg_status="0"
+	if command -v wg >/dev/null 2>&1; then
+		case "$(wg show wg0 2>/dev/null)" in
+			*"latest handshake"*) wg_status="1" ;;
+		esac
+	fi
+
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":null,"total_gain":null,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":null,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":%s}\n' \
+		"$now" "$uptime" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
+		"$motion_enabled" "$privacy_enabled" "$mic_enabled" "$spk_enabled" \
+		"$daynight_enabled" "$wg_status"
+}
+
 thingino_heartbeat_payload() {
-	agent_heartbeat=$(thingino_heartbeat_agent_request /api/v1/runtime/heartbeat)
-	agent_backend=$(thingino_heartbeat_agent_backend_name || true)
-
-	if [ "$agent_backend" = "none" ] && thingino_heartbeat_raptor_available; then
-		thingino_heartbeat_raptor_payload
-		return 0
-	fi
-
-	if [ -n "$agent_heartbeat" ]; then
-		printf '%s\n' "$agent_heartbeat"
-		return 0
-	fi
-
-	if thingino_heartbeat_raptor_available; then
-		thingino_heartbeat_raptor_payload
-		return 0
-	fi
-
-	printf '{}\n'
+	thingino_heartbeat_native_payload
 }
