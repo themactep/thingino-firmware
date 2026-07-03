@@ -26,16 +26,18 @@
     const hasMotors = uiConfig.device && uiConfig.device.motors === true;
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
+    const hasDoorbell = uiConfig.device && uiConfig.device.doorbell === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
-      {
+    ];
+
+    if (hasDoorbell) {
+      settingsItems.push({
         label: "Doorbell Chime",
         href: "/config-doorbell.html",
-        className: "doorbell-nav",
-        hidden: true,
-      },
-    ];
+      });
+    }
 
     if (hasMotors) {
       settingsItems.push({
@@ -628,19 +630,11 @@
     if (doorbellCheckDone) return;
     doorbellCheckDone = true;
 
-    const doorbellEls = document.querySelectorAll(".doorbell-nav");
-    if (!doorbellEls.length) return;
+    if (!(uiConfig.device && uiConfig.device.doorbell === true)) return;
 
     fetch("/x/json-chime-status.cgi")
       .then((r) => r.json())
       .then((data) => {
-        /* Reveal nav item if doorbell feature is present */
-        if (data.configured !== undefined) {
-          doorbellEls.forEach((el) => {
-            const li = el.closest("li");
-            if (li) li.classList.remove("d-none");
-          });
-        }
         /* Show warning banner if no chimes are configured */
         if (data.configured === false) {
           const banner = document.createElement("div");
@@ -663,7 +657,7 @@
         }
       })
       .catch(() => {
-        /* Silently ignore — doorbell feature not installed */
+        /* Silently ignore */
       });
   }
 
