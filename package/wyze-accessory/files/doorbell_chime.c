@@ -10,9 +10,9 @@
  *
  * MAC_ID is the 8-char hex MAC without colons (e.g. "77DA39F9"); the
  * colon-form MAC is derived from it, not stored.  Groups reference
- * MAC_IDs, so renaming a chime never breaks groups.  Note: unpair
- * rebuilds the units object preserving only "name"; any new per-unit
- * field must also be copied in chime_units_remove().
+ * MAC_IDs, so renaming a chime never breaks groups.
+ *
+ * Requires jct with the 'del' command (>= 61c80e3).
  *
  * Built by Buildroot via wyze-accessory.mk.
  */
@@ -282,38 +282,24 @@ static const char *chime_get_name(const char *id, char *out, size_t out_size)
 }
 
 /*
- * Remove one unit from chime.units.  jct has no delete operation and
- * importing null only empties a value while keeping its key, so the
- * whole units object is nulled and the remaining units re-imported.
- * Returns 0 if the unit is gone afterwards.
+ * Remove one unit from chime.units via jct's 'del' command, which
+ * deletes exactly that key (json_object_object_del) and leaves every
+ * other unit — and any fields they carry — untouched.  rm_id is a
+ * validated hex MAC ID: safe to embed in the shell command, and free of
+ * the '.' that del uses to split its dotted path.  Returns 0 if the
+ * unit is gone afterwards.
  */
 static int chime_units_remove(const char *rm_id)
 {
+    char cmd[128];
     char *ids[MAX_CHIMES];
-    char json[4096];
-    int count, i, off, keep = 0, still = 0;
+    int count, i, still = 0;
 
-    count = jct_list_chime_ids(ids, MAX_CHIMES);
-    off = snprintf(json, sizeof(json), "{\"chime\":{\"units\":{");
-    for (i = 0; i < count; i++) {
-        const char *nm;
-        char nmbuf[MAX_NAME];
-        if (!strcmp(ids[i], rm_id)) continue;
-        nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
-        if (off < (int)sizeof(json) - 80) {
-            off += snprintf(json + off, sizeof(json) - (size_t)off,
-                            "%s\"%s\":{\"name\":\"%s\"}",
-                            keep ? "," : "", ids[i], nm ? nm : "");
-            keep++;
-        }
-    }
-    snprintf(json + off, sizeof(json) - (size_t)off, "}}}");
-    free_id_list(ids, count);
+    snprintf(cmd, sizeof(cmd), "jct %s del chime.units.%s 2>/dev/null",
+             CONFIG_FILE, rm_id);
+    if (system(cmd) != 0) return -1;
 
-    if (jct_import_str("{\"chime\":{\"units\":null}}") < 0) return -1;
-    if (keep && jct_import_str(json) < 0) return -1;
-
-    /* jct import cannot be trusted to report errors: verify. */
+    /* del reports success even for an absent key; confirm it is gone. */
     count = jct_list_chime_ids(ids, MAX_CHIMES);
     for (i = 0; i < count; i++)
         if (!strcmp(ids[i], rm_id)) still = 1;
