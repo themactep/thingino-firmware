@@ -71,6 +71,24 @@
     if (saveButton) saveButton.disabled = true;
 
     try {
+      // Sync FPS from form to prudynt before saving, so night-mode
+      // halving doesn't get persisted.
+      const fpsSync = {};
+      [0, 1].forEach((sid) => {
+        const el = $(`#stream${sid}_fps`);
+        if (el && el.value) {
+          fpsSync[`stream${sid}`] = { fps: parseInt(el.value, 10) };
+        }
+      });
+      if (Object.keys(fpsSync).length > 0) {
+        fpsSync.action = { restart_thread: 0 };
+        await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fpsSync),
+        });
+      }
+
       const payload = { action: { save_config: null } };
       const response = await fetch(endpoint, {
         method: "POST",
