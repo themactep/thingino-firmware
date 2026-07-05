@@ -224,13 +224,6 @@
     rightCol.appendChild(powerText);
     rightCol.appendChild(buildInfo);
 
-    const timeEl = document.createElement("a");
-    timeEl.id = "time-now";
-    timeEl.href = "/config-time.html";
-    timeEl.className =
-      "mt-1 d-inline-block link-underline link-underline-opacity-0 link-underline-opacity-75-hover";
-    rightCol.appendChild(timeEl);
-
     row.appendChild(leftCol);
     row.appendChild(rightCol);
     container.appendChild(row);

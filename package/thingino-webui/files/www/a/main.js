@@ -917,43 +917,8 @@ async function toggleButton(el) {
     });
 }
 
-function resolveDeviceTimezone() {
-  const uiConfig = window.thinginoUIConfig || {};
-  const deviceTimezone =
-    uiConfig.device && typeof uiConfig.device.timezone === "string"
-      ? uiConfig.device.timezone.trim()
-      : "";
-  if (deviceTimezone) return deviceTimezone;
-  if (typeof uiConfig.timezone === "string" && uiConfig.timezone.trim())
-    return uiConfig.timezone.trim();
-  return "";
-}
-
 function updateHeartbeatUi(json) {
   if (!json) return;
-  const timeNowEl = $("#time-now");
-  if (timeNowEl && json.time_now != null && json.time_now !== "") {
-    const d = new Date(json.time_now * 1000);
-    const configuredTimezone = resolveDeviceTimezone();
-    const heartbeatTimezone =
-      typeof json.timezone === "string" ? json.timezone.trim() : "";
-    const timezoneLabel = configuredTimezone || heartbeatTimezone;
-    const timeZoneId = timezoneLabel
-      ? timezoneLabel.replaceAll(" ", "_")
-      : "UTC";
-    let options = {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: timeZoneId,
-    };
-    const formatted = d.toLocaleString(navigator.language, options);
-    timeNowEl.textContent = timezoneLabel
-      ? formatted + " " + timezoneLabel
-      : formatted;
-  }
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&
