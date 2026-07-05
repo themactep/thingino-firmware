@@ -3,17 +3,23 @@
  *
  * Chime persistence (thingino.json):
  *   { "chime": {
- *       "units":  { "<MAC_ID>": {"name":"...","mac":"XX:XX:XX:XX"}, ... },
+ *       "units":  { "<MAC_ID>": {"name":"..."}, ... },
  *       "groups": { "groupname": ["<MAC_ID>","<MAC_ID>"], ... },
  *       "events": { "eventname": { "sound":"...", ... }, ... }
  *   } }
  *
- * MAC_ID is the 8-char hex MAC without colons (e.g. "77DA39F9").
- * Groups reference MAC_IDs, so renaming a chime never breaks groups.
+ * MAC_ID is the 8-char hex MAC without colons (e.g. "77DA39F9"); the
+ * colon-form MAC is derived from it, not stored.  Groups reference
+ * MAC_IDs, so renaming a chime never breaks groups.  Note: unpair
+ * rebuilds the units object preserving only "name"; any new per-unit
+ * field must also be copied in chime_units_remove().
  *
  * Built by Buildroot via wyze-accessory.mk.
  */
 
+#define _DEFAULT_SOURCE   /* popen, strndup, usleep, mkstemp, kill, ... */
+
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,28 +51,50 @@ static const unsigned char CHALLENGE_R[16] = {
 static int debug_mode = 0;
 static int do_delete  = 0;
 
-#define dbg(fmt, ...) do { if (debug_mode) printf(fmt, ##__VA_ARGS__); } while (0)
+/* Portable variadic form: the format is __VA_ARGS__'s first argument,
+ * so no GNU ',##' extension is needed and it stays ISO C99-clean. */
+#define dbg(...) do { if (debug_mode) printf(__VA_ARGS__); } while (0)
 
 /* ──────────────────────────── MAC helpers ───────────────────────── */
 
 static int parse_mac(const char *s, unsigned char *mac8)
 {
     int j = 0;
-    for (; *s && j < 8; s++) {
+    for (; *s; s++) {
         if (*s == ':') continue;
-        if (!isxdigit((unsigned char)*s)) return -1;
+        if (!isxdigit((unsigned char)*s) || j >= 8) return -1;
         mac8[j++] = (unsigned char)toupper((unsigned char)*s);
     }
     return (j == 8) ? 0 : -1;
 }
 
-/* Recognise colon-separated MAC or 8-char hex MAC-ID. */
+/* Recognise colon-separated MAC or 8-char hex MAC-ID: exactly 8 hex
+ * digits, optionally colon-separated, nothing else. */
 static int looks_like_mac(const char *s)
 {
-    if (strchr(s, ':')) return 1;
-    if (strlen(s) != 8) return 0;
-    while (*s) { if (!isxdigit((unsigned char)*s)) return 0; s++; }
-    return 1;
+    int hex = 0;
+    if (!strchr(s, ':') && strlen(s) != MAC_ID_LEN) return 0;
+    for (; *s; s++) {
+        if (*s == ':') continue;
+        if (!isxdigit((unsigned char)*s)) return 0;
+        hex++;
+    }
+    return hex == MAC_ID_LEN;
+}
+
+/*
+ * Chime and group names end up in shell commands, JSONPath queries and
+ * JSON patches: restrict them to [A-Za-z0-9_-] so no quoting or
+ * escaping is ever needed.
+ */
+static int valid_name(const char *s)
+{
+    size_t n = 0;
+    for (; s[n]; n++) {
+        if (!isalnum((unsigned char)s[n]) && s[n] != '_' && s[n] != '-')
+            return 0;
+    }
+    return n > 0 && n < MAX_NAME;
 }
 
 /* Convert "XX:XX:XX:XX" → "XXXXXXXX" (MAC ID).  Caller provides 9 bytes. */
@@ -145,10 +173,12 @@ static int jct_config_set(const char *key, const char *value)
     return system(cmd) == 0 ? 0 : -1;
 }
 
-/* Remove an entire subtree via import of a null patch. */
-static int jct_config_remove(const char *key)
+/* Import a JSON patch via a temp file.  Note: jct import exits 0 even
+ * when the patch fails to parse, so callers must verify the result
+ * themselves when it matters. */
+static int jct_import_str(const char *json)
 {
-    char patch_path[] = "/tmp/jct_rm.XXXXXX";
+    char patch_path[] = "/tmp/jct_patch.XXXXXX";
     char cmd[512];
     int fd, rc;
     FILE *f;
@@ -156,9 +186,9 @@ static int jct_config_remove(const char *key)
     fd = mkstemp(patch_path);
     if (fd < 0) return -1;
     f = fdopen(fd, "w");
-    if (!f) { close(fd); return -1; }
-    fprintf(f, "{%s:null}\n", key);
-    fclose(f);
+    if (!f) { close(fd); unlink(patch_path); return -1; }
+    fprintf(f, "%s\n", json);
+    if (fclose(f) != 0) { unlink(patch_path); return -1; }
 
     snprintf(cmd, sizeof(cmd), "jct %s import %s 2>/dev/null",
              CONFIG_FILE, patch_path);
@@ -173,12 +203,25 @@ static int jct_val_is_empty(const char *val)
 }
 
 /*
+ * Skip past the key separator in a jct path: either ".key" or
+ * "['key']" / "[\"key\"]" (jct uses bracket notation when the key is
+ * not a plain identifier, e.g. a MAC ID starting with a digit).
+ * Returns pointer to the key, or NULL if neither form matches.
+ */
+static char *jct_path_key(char *p)
+{
+    if (*p == '.') return p + 1;
+    if (p[0] == '[' && (p[1] == '\'' || p[1] == '"')) return p + 2;
+    return NULL;
+}
+
+/*
  * Collect chime IDs (MAC IDs) from chime.units{} object keys.
  * Returns count, fills ids[] (caller must free each).
  */
 static int jct_list_chime_ids(char **ids, int max_ids)
 {
-    char cmd[256], buf[4096], *p, *end;
+    char cmd[256], buf[4096], *p, *key, *end;
     FILE *pipe;
     int count = 0;
 
@@ -188,22 +231,31 @@ static int jct_list_chime_ids(char **ids, int max_ids)
     pipe = popen(cmd, "r");
     if (!pipe) return 0;
 
-    buf[0] = '\0';
-    (void)!fread(buf, 1, sizeof(buf) - 1, pipe);
+    {
+        size_t got = fread(buf, 1, sizeof(buf) - 1, pipe);
+        buf[got] = '\0';
+    }
     pclose(pipe);
 
     p = buf;
     while (*p && count < max_ids) {
-        p = strstr(p, "$.chime.units.");
+        p = strstr(p, "chime.units");
         if (!p) break;
-        p += 14;  /* skip "$.chime.units." */
-        end = strchr(p, '"');
-        if (!end) break;
-        if (end - p == MAC_ID_LEN) {
-            ids[count] = strndup(p, MAC_ID_LEN);
-            if (ids[count]) count++;
+        p += 11;  /* skip "chime.units" */
+        key = jct_path_key(p);
+        if (!key) continue;
+        end = key + strcspn(key, "'\"]");
+        if (end - key == MAC_ID_LEN) {
+            int hex = 1, k;
+            for (k = 0; k < MAC_ID_LEN; k++)
+                if (!isxdigit((unsigned char)key[k])) hex = 0;
+            /* only hex IDs: these keys are re-embedded in jct commands */
+            if (hex) {
+                ids[count] = strndup(key, MAC_ID_LEN);
+                if (ids[count]) count++;
+            }
         }
-        p = end + 1;
+        p = end;
     }
     return count;
 }
@@ -214,15 +266,59 @@ static void free_id_list(char **ids, int count)
     for (i = 0; i < count; i++) free(ids[i]);
 }
 
-/* Get chime name by MAC ID. Returns name in static buffer, or NULL. */
-static const char *chime_get_name(const char *id)
+/*
+ * Get a chime's name by MAC ID into caller buffer 'out' (>= MAX_NAME).
+ * Returns 'out' on success, NULL if the unit has no name.  Writing into
+ * a caller buffer (rather than a shared static) lets two names be held
+ * live at once, e.g. in a single printf.
+ */
+static const char *chime_get_name(const char *id, char *out, size_t out_size)
 {
-    static char name[MAX_NAME];
     char key[64];
     snprintf(key, sizeof(key), "chime.units.%s.name", id);
-    if (jct_config_read(key, name, sizeof(name)) < 0) return NULL;
-    if (jct_val_is_empty(name)) return NULL;
-    return name;
+    if (jct_config_read(key, out, out_size) < 0) return NULL;
+    if (jct_val_is_empty(out)) return NULL;
+    return out;
+}
+
+/*
+ * Remove one unit from chime.units.  jct has no delete operation and
+ * importing null only empties a value while keeping its key, so the
+ * whole units object is nulled and the remaining units re-imported.
+ * Returns 0 if the unit is gone afterwards.
+ */
+static int chime_units_remove(const char *rm_id)
+{
+    char *ids[MAX_CHIMES];
+    char json[4096];
+    int count, i, off, keep = 0, still = 0;
+
+    count = jct_list_chime_ids(ids, MAX_CHIMES);
+    off = snprintf(json, sizeof(json), "{\"chime\":{\"units\":{");
+    for (i = 0; i < count; i++) {
+        const char *nm;
+        char nmbuf[MAX_NAME];
+        if (!strcmp(ids[i], rm_id)) continue;
+        nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
+        if (off < (int)sizeof(json) - 80) {
+            off += snprintf(json + off, sizeof(json) - (size_t)off,
+                            "%s\"%s\":{\"name\":\"%s\"}",
+                            keep ? "," : "", ids[i], nm ? nm : "");
+            keep++;
+        }
+    }
+    snprintf(json + off, sizeof(json) - (size_t)off, "}}}");
+    free_id_list(ids, count);
+
+    if (jct_import_str("{\"chime\":{\"units\":null}}") < 0) return -1;
+    if (keep && jct_import_str(json) < 0) return -1;
+
+    /* jct import cannot be trusted to report errors: verify. */
+    count = jct_list_chime_ids(ids, MAX_CHIMES);
+    for (i = 0; i < count; i++)
+        if (!strcmp(ids[i], rm_id)) still = 1;
+    free_id_list(ids, count);
+    return still ? -1 : 0;
 }
 
 /*
@@ -233,31 +329,27 @@ static int chime_resolve(const char *arg, char *id_out, unsigned char *mac8)
 {
     char id[MAC_ID_LEN + 1];
 
-    /* 1. colon-separated MAC → strip to ID, derive mac8 */
+    /* 1. MAC or bare MAC-ID (8 hex digits) → strip to ID, derive mac8.
+     * Anything else must NOT reach chime_get_name: it would be embedded
+     * in a shell command. */
     if (looks_like_mac(arg)) {
+        char nmbuf[MAX_NAME];
         mac_to_id(arg, id);
-        if (chime_get_name(id)) {
+        if (chime_get_name(id, nmbuf, sizeof nmbuf)) {
             if (id_out) strcpy(id_out, id);
             return id_to_mac8(id, mac8);
         }
         return -1;
     }
 
-    /* 2. try as MAC ID directly */
-    if (strlen(arg) == MAC_ID_LEN) {
-        if (chime_get_name(arg)) {
-            if (id_out) strcpy(id_out, arg);
-            return id_to_mac8(arg, mac8);
-        }
-    }
-
-    /* 3. search by name */
+    /* 2. search by name */
     {
         char *ids[MAX_CHIMES];
+        char nmbuf[MAX_NAME];
         int count = jct_list_chime_ids(ids, MAX_CHIMES);
         int i;
         for (i = 0; i < count; i++) {
-            const char *nm = chime_get_name(ids[i]);
+            const char *nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
             if (nm && !strcmp(nm, arg)) {
                 if (id_out) strcpy(id_out, ids[i]);
                 int rc = id_to_mac8(ids[i], mac8);
@@ -271,24 +363,25 @@ static int chime_resolve(const char *arg, char *id_out, unsigned char *mac8)
 }
 
 /*
- * Find the MAC ID for a given name.  Returns static string or NULL.
+ * Find the MAC ID for a given name into 'id_out' (>= MAC_ID_LEN + 1;
+ * may be NULL for an existence check).  Returns 0 if found, else -1.
  */
-static const char *chime_id_by_name(const char *name)
+static int chime_id_by_name(const char *name, char *id_out)
 {
-    static char id[MAC_ID_LEN + 1];
     char *ids[MAX_CHIMES];
+    char nmbuf[MAX_NAME];
     int count = jct_list_chime_ids(ids, MAX_CHIMES);
-    int i;
+    int i, rc = -1;
     for (i = 0; i < count; i++) {
-        const char *nm = chime_get_name(ids[i]);
+        const char *nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
         if (nm && !strcmp(nm, name)) {
-            strcpy(id, ids[i]);
-            free_id_list(ids, count);
-            return id;
+            if (id_out) strcpy(id_out, ids[i]);
+            rc = 0;
+            break;
         }
     }
     free_id_list(ids, count);
-    return NULL;
+    return rc;
 }
 
 /* ──────────────────────────── groups ───────────────────────────── */
@@ -300,14 +393,17 @@ static int chime_group_members_list(const char *group_name,
     FILE *pipe;
     int count = 0;
 
+    if (!valid_name(group_name)) return 0;
     snprintf(cmd, sizeof(cmd),
-             "jct %s path '$.chime.groups.%s[*]' --mode values 2>/dev/null",
+             "jct %s path \"$.chime.groups['%s'][*]\" --mode values 2>/dev/null",
              CONFIG_FILE, group_name);
     pipe = popen(cmd, "r");
     if (!pipe) return 0;
 
-    buf[0] = '\0';
-    (void)!fread(buf, 1, sizeof(buf) - 1, pipe);
+    {
+        size_t got = fread(buf, 1, sizeof(buf) - 1, pipe);
+        buf[got] = '\0';
+    }
     pclose(pipe);
 
     p = buf;
@@ -329,28 +425,17 @@ static int chime_group_members_list(const char *group_name,
 static void chime_group_write(const char *group_name,
                               char **ids, int count)
 {
-    char patch_path[] = "/tmp/jct_grp.XXXXXX";
-    char cmd[512];
-    int fd, i;
-    FILE *f;
+    char json[1024];
+    int off, i;
 
-    fd = mkstemp(patch_path);
-    if (fd < 0) return;
-    f = fdopen(fd, "w");
-    if (!f) { close(fd); return; }
-
-    fprintf(f, "{\"chime\":{\"groups\":{\"%s\":[", group_name);
-    for (i = 0; i < count; i++) {
-        if (i > 0) fputc(',', f);
-        fprintf(f, "\"%s\"", ids[i]);
-    }
-    fprintf(f, "]}}}\n");
-    fclose(f);
-
-    snprintf(cmd, sizeof(cmd), "jct %s import %s 2>/dev/null",
-             CONFIG_FILE, patch_path);
-    system(cmd);
-    unlink(patch_path);
+    if (!valid_name(group_name)) return;
+    off = snprintf(json, sizeof(json), "{\"chime\":{\"groups\":{\"%s\":[",
+                   group_name);
+    for (i = 0; i < count && off < (int)sizeof(json) - 16; i++)
+        off += snprintf(json + off, sizeof(json) - (size_t)off,
+                        "%s\"%s\"", i ? "," : "", ids[i]);
+    snprintf(json + off, sizeof(json) - (size_t)off, "]}}}");
+    jct_import_str(json);
 }
 
 static void chime_group_add(const char *group_name, const char *id)
@@ -362,7 +447,7 @@ static void chime_group_add(const char *group_name, const char *id)
     for (i = 0; i < count; i++) {
         if (!strcmp(members[i], id)) { found = 1; break; }
     }
-    if (!found) {
+    if (!found && count < MAX_CHIMES) {
         members[count] = strdup(id);
         if (members[count]) count++;
     }
@@ -388,7 +473,7 @@ static void chime_group_remove(const char *group_name, const char *id)
 
 static int list_group_names(char **names, int max_names)
 {
-    char cmd[256], buf[4096], *p, *end;
+    char cmd[256], buf[4096], *p, *key, *end;
     FILE *pipe;
     int gcount = 0;
 
@@ -398,21 +483,24 @@ static int list_group_names(char **names, int max_names)
     pipe = popen(cmd, "r");
     if (!pipe) return 0;
 
-    buf[0] = '\0';
-    (void)!fread(buf, 1, sizeof(buf) - 1, pipe);
+    {
+        size_t got = fread(buf, 1, sizeof(buf) - 1, pipe);
+        buf[got] = '\0';
+    }
     pclose(pipe);
     p = buf;
     while (*p && gcount < max_names) {
-        p = strstr(p, "$.chime.groups.");
+        p = strstr(p, "chime.groups");
         if (!p) break;
-        p += 15;
-        end = strchr(p, '"');
-        if (!end) break;
-        if (end - p > 0 && end - p < MAX_NAME) {
-            names[gcount] = strndup(p, (size_t)(end - p));
+        p += 12;  /* skip "chime.groups" */
+        key = jct_path_key(p);
+        if (!key) continue;
+        end = key + strcspn(key, "'\"]");
+        if (end - key > 0 && end - key < MAX_NAME) {
+            names[gcount] = strndup(key, (size_t)(end - key));
             if (names[gcount]) gcount++;
         }
-        p = end + 1;
+        p = end;
     }
     return gcount;
 }
@@ -432,12 +520,26 @@ static const struct { const char *name; int id; } SOUNDS[] = {
 
 static int resolve_sound(const char *arg)
 {
+    char *end;
+    long n;
     int i;
     for (i = 0; i < N_SOUNDS; i++)
         if (!strcmp(arg, SOUNDS[i].name)) return SOUNDS[i].id;
+    n = strtol(arg, &end, 10);
+    return (end != arg && *end == '\0' && n >= 1 && n <= N_SOUNDS)
+           ? (int)n : -1;
+}
+
+/* Parse a decimal argument within [lo, hi]; -1 and a message on error. */
+static int parse_int_arg(const char *s, int lo, int hi, const char *what)
+{
     char *end;
-    long n = strtol(arg, &end, 10);
-    return (*end == '\0' && n >= 1 && n <= 19) ? (int)n : -1;
+    long n = strtol(s, &end, 10);
+    if (end == s || *end != '\0' || n < lo || n > hi) {
+        fprintf(stderr, "invalid %s '%s' (%d-%d)\n", what, s, lo, hi);
+        return -1;
+    }
+    return (int)n;
 }
 
 /* ──────────────────────────── packet helpers ────────────────────── */
@@ -494,17 +596,33 @@ static int configure_serial(int fd)
 
 static int open_serial(void)
 {
-    int fd = open(DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    /* O_CLOEXEC: the fd must not leak into the jct/led children we
+     * spawn via popen()/system() while it is open. */
+    int fd = open(DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
     if (fd < 0) { perror("open " DEVICE); exit(EXIT_FAILURE); }
     if (configure_serial(fd) < 0) { close(fd); exit(EXIT_FAILURE); }
     dbg("[+] %s: 115200 8N1 raw\n", DEVICE);
     return fd;
 }
 
+/* The fd is O_NONBLOCK: handle partial writes and EAGAIN. */
 static void send_pkt(int fd, const unsigned char *pkt, int n, const char *desc)
 {
+    int off = 0;
     hex_dump(desc, pkt, n);
-    if (write(fd, pkt, n) != n) perror("write");
+    while (off < n) {
+        ssize_t w = write(fd, pkt + off, (size_t)(n - off));
+        if (w < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                usleep(5000);
+                continue;
+            }
+            perror("write");
+            break;
+        }
+        off += (int)w;
+    }
     usleep(120000);
 }
 
@@ -519,54 +637,67 @@ static int timed_read(int fd, unsigned char *buf, int max, int timeout_sec)
 
 /* ──────────────────────────── RX frame engine ───────────────────── */
 
-static unsigned char _rxbuf[2048];
-static int           _rxlen = 0;
+static unsigned char rx_buf[2048];
+static int           rx_len = 0;
 
 static void rx_push(const unsigned char *d, int n)
 {
-    if (_rxlen + n > (int)sizeof(_rxbuf)) {
-        int drop = _rxlen + n - (int)sizeof(_rxbuf);
-        memmove(_rxbuf, _rxbuf + drop, _rxlen - drop);
-        _rxlen -= drop;
+    if (n <= 0) return;
+    if (n >= (int)sizeof(rx_buf)) {         /* keep only the tail */
+        d += n - (int)sizeof(rx_buf);
+        n = (int)sizeof(rx_buf);
+        rx_len = 0;
     }
-    memcpy(_rxbuf + _rxlen, d, n);
-    _rxlen += n;
+    if (rx_len + n > (int)sizeof(rx_buf)) {
+        int drop = rx_len + n - (int)sizeof(rx_buf);
+        memmove(rx_buf, rx_buf + drop, (size_t)(rx_len - drop));
+        rx_len -= drop;
+    }
+    memcpy(rx_buf + rx_len, d, (size_t)n);
+    rx_len += n;
 }
 
-static void rx_clear(void) { _rxlen = 0; }
+static void rx_clear(void) { rx_len = 0; }
 
+/*
+ * Find and consume one frame with the given code.  Two RX formats:
+ *   long:  55 AA 53 <plen> <code> <body...> <sum16>   (plen = body+3)
+ *   ACK:   55 AA 53 <code> <flag> <sum16>             (7 bytes fixed)
+ * Both are tried at each sync position; the checksum decides.  Frames
+ * for other codes are left in the buffer for a later wait_for().
+ */
 static int scan_for(unsigned char code, unsigned char *body, int *body_len)
 {
     int i;
-    for (i = 0; i + 7 <= _rxlen; i++) {
-        if (_rxbuf[i] != 0x55 || _rxbuf[i+1] != 0xAA || _rxbuf[i+2] != 0x53)
+    for (i = 0; i + 7 <= rx_len; i++) {
+        if (rx_buf[i] != 0x55 || rx_buf[i+1] != 0xAA || rx_buf[i+2] != 0x53)
             continue;
 
-        unsigned char plen = _rxbuf[i+3];
+        unsigned char plen = rx_buf[i+3];
         if (plen < 0x70) {
             int tot = plen + 4;
-            if (i + tot <= _rxlen) {
-                unsigned short csc = pkt_sum(_rxbuf + i, tot - 2);
-                unsigned short csr = ((unsigned short)_rxbuf[i+tot-2] << 8) | _rxbuf[i+tot-1];
-                if (csc == csr && _rxbuf[i+4] == code) {
+            if (i + tot <= rx_len) {
+                unsigned short csc = pkt_sum(rx_buf + i, tot - 2);
+                unsigned short csr = ((unsigned short)rx_buf[i+tot-2] << 8) | rx_buf[i+tot-1];
+                if (csc == csr && rx_buf[i+4] == code) {
                     if (body && body_len) {
                         int bl = tot - 7;
                         *body_len = (bl > 0 && bl <= 64) ? bl : 0;
-                        if (*body_len) memcpy(body, _rxbuf + i + 5, *body_len);
+                        if (*body_len) memcpy(body, rx_buf + i + 5, *body_len);
                     }
-                    memmove(_rxbuf, _rxbuf + i + tot, _rxlen - i - tot);
-                    _rxlen -= i + tot;
+                    memmove(rx_buf, rx_buf + i + tot, rx_len - i - tot);
+                    rx_len -= i + tot;
                     return 1;
                 }
             }
         }
 
         {
-            unsigned short csc = pkt_sum(_rxbuf + i, 5);
-            unsigned short csr = ((unsigned short)_rxbuf[i+5] << 8) | _rxbuf[i+6];
-            if (csc == csr && _rxbuf[i+3] == code) {
-                memmove(_rxbuf, _rxbuf + i + 7, _rxlen - i - 7);
-                _rxlen -= i + 7;
+            unsigned short csc = pkt_sum(rx_buf + i, 5);
+            unsigned short csr = ((unsigned short)rx_buf[i+5] << 8) | rx_buf[i+6];
+            if (csc == csr && rx_buf[i+3] == code) {
+                memmove(rx_buf, rx_buf + i + 7, rx_len - i - 7);
+                rx_len -= i + 7;
                 return 1;
             }
         }
@@ -648,7 +779,8 @@ static void chime_store(const char *name, const unsigned char *mac8)
     mac8_to_id(mac8, id);
 
     snprintf(key, sizeof(key), "chime.units.%s.name", id);
-    jct_config_set(key, name);
+    if (jct_config_set(key, name) < 0)
+        fprintf(stderr, "Warning: failed to write %s\n", CONFIG_FILE);
 
     chime_group_add("all", id);
 
@@ -659,7 +791,7 @@ static void chime_store(const char *name, const unsigned char *mac8)
         FILE *pf = fopen("/run/doorbell_alarm.pid", "r");
         if (pf) {
             int pid;
-            if (fscanf(pf, "%d", &pid) == 1 && pid > 0)
+            if (fscanf(pf, "%d", &pid) == 1 && pid > 1)
                 kill(pid, SIGTERM);
             fclose(pf);
             unlink("/run/doorbell_alarm.pid");
@@ -670,14 +802,62 @@ static void chime_store(const char *name, const unsigned char *mac8)
 
 /* ──────────────────── high-level commands ───────────────────────── */
 
-static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
+/*
+ * While a pairing is in progress the doorbell's sub-GHz radio is in
+ * pairing mode; a bare Ctrl-C would leave it there.  Arm a handler over
+ * that window that takes the radio back out before exiting.
+ */
+static volatile sig_atomic_t g_pair_fd = -1;
+
+static void pair_abort(int sig)
+{
+    (void)sig;
+    if (g_pair_fd >= 0) {
+        /* async-signal-safe: pure build_pkt + a single write(), no stdio */
+        unsigned char p = 0x00, pkt[16];
+        int n = build_pkt(pkt, 0x1C, &p, 1);
+        (void)!write((int)g_pair_fd, pkt, (size_t)n);
+    }
+    _exit(130);   /* 128 + SIGINT */
+}
+
+static void pair_set_handler(int fd, void (*h)(int))
+{
+    struct sigaction sa;
+    sa.sa_handler = h;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    g_pair_fd = fd;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+}
+
+static void pair_arm(int fd)   { pair_set_handler(fd, pair_abort); }
+static void pair_disarm(void)  { pair_set_handler(-1, SIG_DFL); }
+
+static int cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
 {
     unsigned char mac8[8], body[64];
     int body_len = 0, got_mac = 0;
 
+    /* The tool handles at most MAX_CHIMES units; a fuller config would
+     * be truncated by the next unpair rebuild, so refuse up front.
+     * Re-pairing an existing name overwrites and is always allowed. */
+    {
+        char *ids[MAX_CHIMES];
+        int count = jct_list_chime_ids(ids, MAX_CHIMES);
+        free_id_list(ids, count);
+        if (count >= MAX_CHIMES &&
+            !(name && name[0] && chime_id_by_name(name, NULL) == 0)) {
+            fprintf(stderr, "Chime limit reached (%d); unpair one first.\n",
+                    MAX_CHIMES);
+            return -1;
+        }
+    }
+
     if (name && name[0]) {
-        const char *existing_id = chime_id_by_name(name);
-        if (existing_id) {
+        char existing_id[MAC_ID_LEN + 1];
+        if (chime_id_by_name(name, existing_id) == 0) {
             fprintf(stderr,
                     "Note: chime '%s' already exists (ID %s).\n"
                     "Use -D to clear radio pairings first if the chime was\n"
@@ -704,6 +884,7 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
     }
 
     dbg("── [3] START_PAIRING ──\n");
+    pair_arm(fd);          /* radio now enters pairing mode */
     do_start_pairing(fd);
     usleep(400000);
 
@@ -723,7 +904,8 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
         } else {
             fprintf(stderr, "Error: no chime announcement and no MAC given.\n");
             do_stop_pairing(fd);
-            return;
+            pair_disarm();
+            return -1;
         }
     }
 
@@ -740,6 +922,7 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
 
     dbg("── [8] STOP_PAIRING ──\n");
     do_stop_pairing(fd);
+    pair_disarm();         /* radio out of pairing mode */
 
     printf("Done! Listen for the success tone from the chime.\n");
 
@@ -751,6 +934,7 @@ static void cmd_pair(int fd, const char *name, const unsigned char *mac8_hint)
                  mac8[4], mac8[5], mac8[6], mac8[7]);
         chime_store(auto_name, mac8);
     }
+    return 0;
 }
 
 static void cmd_list(FILE *out)
@@ -766,7 +950,8 @@ static void cmd_list(FILE *out)
 
     fprintf(out, "Chimes (%d):\n", count);
     for (i = 0; i < count; i++) {
-        const char *nm = chime_get_name(ids[i]);
+        char nmbuf[MAX_NAME];
+        const char *nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
         char mac_str[20];
         id_to_mac_str(ids[i], mac_str);
         fprintf(out, "  %-16s %s  [%s]\n",
@@ -788,7 +973,8 @@ static void cmd_list(FILE *out)
                 int m;
                 fprintf(out, "  %-16s ", group_names[g]);
                 for (m = 0; m < mcount; m++) {
-                    const char *nm = chime_get_name(members[m]);
+                    char nmbuf[MAX_NAME];
+                    const char *nm = chime_get_name(members[m], nmbuf, sizeof nmbuf);
                     if (m > 0) fputs(", ", out);
                     if (nm) fputs(nm, out);
                     else fputs(members[m], out);
@@ -803,24 +989,37 @@ static void cmd_list(FILE *out)
     free_id_list(ids, count);
 }
 
-static void cmd_unpair(const char *arg)
+static int cmd_unpair(const char *arg)
 {
     char id[MAC_ID_LEN + 1];
     unsigned char mac8[8];
 
     if (chime_resolve(arg, id, mac8) < 0) {
-        fprintf(stderr, "Chime '%s' not found.\n", arg);
-        return;
+        /* also accept a stored but nameless ID */
+        char *ids[MAX_CHIMES];
+        int n, k, found = 0;
+        if (looks_like_mac(arg)) {
+            mac_to_id(arg, id);
+            n = jct_list_chime_ids(ids, MAX_CHIMES);
+            for (k = 0; k < n; k++)
+                if (!strcmp(ids[k], id)) found = 1;
+            free_id_list(ids, n);
+        }
+        if (!found) {
+            fprintf(stderr, "Chime '%s' not found.\n", arg);
+            return -1;
+        }
     }
 
-    printf("Removing chime '%s' [%s]\n",
-           chime_get_name(id) ? chime_get_name(id) : id, id);
-
-    /* Remove from config */
     {
-        char key[64];
-        snprintf(key, sizeof(key), "chime.units.%s", id);
-        jct_config_remove(key);
+        char nmbuf[MAX_NAME];
+        const char *nm = chime_get_name(id, nmbuf, sizeof nmbuf);
+        printf("Removing chime '%s' [%s]\n", nm ? nm : id, id);
+    }
+
+    if (chime_units_remove(id) < 0) {
+        fprintf(stderr, "Failed to remove '%s' from %s\n", id, CONFIG_FILE);
+        return -1;
     }
 
     /* Remove from all groups */
@@ -833,6 +1032,7 @@ static void cmd_unpair(const char *arg)
             free(group_names[g]);
         }
     }
+    return 0;
 }
 
 static void cmd_play(int fd, const unsigned char *mac8,
@@ -848,7 +1048,7 @@ static void cmd_play(int fd, const unsigned char *mac8,
     wait_for(fd, 0x70, 3, NULL, NULL, "PLAY ACK");
 }
 
-static void cmd_play_all(int fd, int sound, int volume, int repeat)
+static int cmd_play_all(int fd, int sound, int volume, int repeat)
 {
     char *ids[MAX_CHIMES];
     int count = jct_list_chime_ids(ids, MAX_CHIMES);
@@ -856,24 +1056,25 @@ static void cmd_play_all(int fd, int sound, int volume, int repeat)
 
     if (count == 0) {
         fprintf(stderr, "No chimes configured.\n");
-        return;
+        return -1;
     }
 
     for (i = 0; i < count; i++) {
         unsigned char mac8[8];
         if (id_to_mac8(ids[i], mac8) == 0) {
-            printf("Playing %s [%s]...\n",
-                   chime_get_name(ids[i]) ? chime_get_name(ids[i]) : ids[i],
-                   ids[i]);
+            char nmbuf[MAX_NAME];
+            const char *nm = chime_get_name(ids[i], nmbuf, sizeof nmbuf);
+            printf("Playing %s [%s]...\n", nm ? nm : ids[i], ids[i]);
             cmd_play(fd, mac8, sound, volume, repeat);
             usleep(500000);
         }
     }
     free_id_list(ids, count);
+    return 0;
 }
 
-static void cmd_play_group(int fd, const char *group_name,
-                           int sound, int volume, int repeat)
+static int cmd_play_group(int fd, const char *group_name,
+                          int sound, int volume, int repeat)
 {
     char *members[MAX_CHIMES];
     int count = chime_group_members_list(group_name, members, MAX_CHIMES);
@@ -881,13 +1082,14 @@ static void cmd_play_group(int fd, const char *group_name,
 
     if (count == 0) {
         fprintf(stderr, "Group '%s' not found or empty.\n", group_name);
-        return;
+        return -1;
     }
 
     for (i = 0; i < count; i++) {
         unsigned char mac8[8];
         if (id_to_mac8(members[i], mac8) == 0) {
-            const char *nm = chime_get_name(members[i]);
+            char nmbuf[MAX_NAME];
+            const char *nm = chime_get_name(members[i], nmbuf, sizeof nmbuf);
             printf("Playing %s [%s]...\n",
                    nm ? nm : members[i], members[i]);
             cmd_play(fd, mac8, sound, volume, repeat);
@@ -898,6 +1100,7 @@ static void cmd_play_group(int fd, const char *group_name,
         }
         free(members[i]);
     }
+    return 0;
 }
 
 /* ──────────────────────────── help ─────────────────────────────── */
@@ -918,11 +1121,13 @@ static void usage(const char *prog)
     printf("\nOptions:\n");
     printf("  -d, --debug    Show TX/RX hex dumps\n");
     printf("  -D, --delete   Clear radio pairings before pairing\n");
+    printf("  -p, --pair     Treat the arguments as a pair request\n");
     printf("  -h, --help     Show this help\n");
-    printf("\nNAME: alphanumeric label (stored in thingino.json)\n");
+    printf("\nNAME: 1-%d chars of A-Za-z0-9_- (stored in thingino.json)\n",
+           MAX_NAME - 1);
     printf("ID:   8-char hex MAC without colons, e.g. 77DA39F9\n");
     printf("MAC:  XX:XX:XX:XX colon format; detected by ':'\n");
-    printf("VOLUME default=%d (1-32), REPEAT default=%d (1-255)\n\n",
+    printf("VOLUME default=%d (1-8), REPEAT default=%d (1-255)\n\n",
            DEFAULT_VOLUME, DEFAULT_REPEAT);
     printf("Sounds (name or number 1-19):\n");
     printf("  SPACE_WAVE(1)   WIND_CHIME(2)  CURIOSITY(3)   SURPRISE(4)   CHEERFUL(5)\n");
@@ -952,6 +1157,10 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[1], "-p") || !strcmp(argv[1], "--pair"))   pair_flag  = 1;
         else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
             { usage(prog); return EXIT_SUCCESS; }
+        else if (argv[1][0] == '-') {
+            fprintf(stderr, "%s: unknown option '%s'\n", prog, argv[1]);
+            return EXIT_FAILURE;
+        }
         else break;
         argc--; argv++;
     }
@@ -968,8 +1177,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "%s: unpair requires a name, MAC, or ID\n", prog);
             return EXIT_FAILURE;
         }
-        cmd_unpair(argv[2]);
-        return EXIT_SUCCESS;
+        return cmd_unpair(argv[2]) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
     }
 
     {
@@ -997,11 +1205,18 @@ int main(int argc, char **argv)
                     break;
                 }
             }
-            cmd_pair(fd, name, have_hint_mac ? mac8_hint : NULL);
+            if (name && !valid_name(name)) {
+                fprintf(stderr, "%s: invalid name '%s' (1-%d chars of A-Za-z0-9_-)\n",
+                        prog, name, MAX_NAME - 1);
+                close(fd); return EXIT_FAILURE;
+            }
+            if (cmd_pair(fd, name, have_hint_mac ? mac8_hint : NULL) < 0) {
+                close(fd); return EXIT_FAILURE;
+            }
 
         } else if (is_cmd && !strcmp(cmd, "play")) {
             unsigned char mac8[8];
-            if (argc < 3) {
+            if (argc < 4) {
                 fprintf(stderr, "%s: play requires NAME|ID and SOUND\n", prog);
                 close(fd); return EXIT_FAILURE;
             }
@@ -1016,16 +1231,11 @@ int main(int argc, char **argv)
                     fprintf(stderr, "%s: invalid sound '%s'\n", prog, argv[3]);
                     close(fd); return EXIT_FAILURE;
                 }
-                vol = (argc >= 5) ? atoi(argv[4]) : DEFAULT_VOLUME;
-                rep = (argc >= 6) ? atoi(argv[5]) : DEFAULT_REPEAT;
-                if (vol < 1 || vol > 32) {
-                    fprintf(stderr, "%s: volume %d out of range (1-32)\n", prog, vol);
-                    close(fd); return EXIT_FAILURE;
-                }
-                if (rep < 1 || rep > 255) {
-                    fprintf(stderr, "%s: repeat %d out of range (1-255)\n", prog, rep);
-                    close(fd); return EXIT_FAILURE;
-                }
+                vol = (argc >= 5) ? parse_int_arg(argv[4], 1, 8, "volume")
+                                  : DEFAULT_VOLUME;
+                rep = (argc >= 6) ? parse_int_arg(argv[5], 1, 255, "repeat")
+                                  : DEFAULT_REPEAT;
+                if (vol < 0 || rep < 0) { close(fd); return EXIT_FAILURE; }
                 cmd_play(fd, mac8, sound, vol, rep);
             }
 
@@ -1040,9 +1250,14 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%s: invalid sound '%s'\n", prog, argv[2]);
                 close(fd); return EXIT_FAILURE;
             }
-            vol = (argc >= 4) ? atoi(argv[3]) : DEFAULT_VOLUME;
-            rep = (argc >= 5) ? atoi(argv[4]) : DEFAULT_REPEAT;
-            cmd_play_all(fd, sound, vol, rep);
+            vol = (argc >= 4) ? parse_int_arg(argv[3], 1, 8, "volume")
+                              : DEFAULT_VOLUME;
+            rep = (argc >= 5) ? parse_int_arg(argv[4], 1, 255, "repeat")
+                              : DEFAULT_REPEAT;
+            if (vol < 0 || rep < 0) { close(fd); return EXIT_FAILURE; }
+            if (cmd_play_all(fd, sound, vol, rep) < 0) {
+                close(fd); return EXIT_FAILURE;
+            }
 
         } else if (is_cmd && !strcmp(cmd, "play-group")) {
             int sound, vol, rep;
@@ -1050,14 +1265,23 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%s: play-group requires GROUP and SOUND\n", prog);
                 close(fd); return EXIT_FAILURE;
             }
+            if (!valid_name(argv[2])) {
+                fprintf(stderr, "%s: invalid group '%s'\n", prog, argv[2]);
+                close(fd); return EXIT_FAILURE;
+            }
             sound = resolve_sound(argv[3]);
             if (sound < 1) {
                 fprintf(stderr, "%s: invalid sound '%s'\n", prog, argv[3]);
                 close(fd); return EXIT_FAILURE;
             }
-            vol = (argc >= 5) ? atoi(argv[4]) : DEFAULT_VOLUME;
-            rep = (argc >= 6) ? atoi(argv[5]) : DEFAULT_REPEAT;
-            cmd_play_group(fd, argv[2], sound, vol, rep);
+            vol = (argc >= 5) ? parse_int_arg(argv[4], 1, 8, "volume")
+                              : DEFAULT_VOLUME;
+            rep = (argc >= 6) ? parse_int_arg(argv[5], 1, 255, "repeat")
+                              : DEFAULT_REPEAT;
+            if (vol < 0 || rep < 0) { close(fd); return EXIT_FAILURE; }
+            if (cmd_play_group(fd, argv[2], sound, vol, rep) < 0) {
+                close(fd); return EXIT_FAILURE;
+            }
 
         } else if (is_cmd && !strcmp(cmd, "init")) {
             do_init(fd);
@@ -1102,16 +1326,11 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%s: invalid sound '%s'\n", prog, argv[2]);
                 close(fd); return EXIT_FAILURE;
             }
-            vol = (argc >= 4) ? atoi(argv[3]) : DEFAULT_VOLUME;
-            rep = (argc >= 5) ? atoi(argv[4]) : DEFAULT_REPEAT;
-            if (vol < 1 || vol > 32) {
-                fprintf(stderr, "%s: volume %d out of range (1-32)\n", prog, vol);
-                close(fd); return EXIT_FAILURE;
-            }
-            if (rep < 1 || rep > 255) {
-                fprintf(stderr, "%s: repeat %d out of range (1-255)\n", prog, rep);
-                close(fd); return EXIT_FAILURE;
-            }
+            vol = (argc >= 4) ? parse_int_arg(argv[3], 1, 8, "volume")
+                              : DEFAULT_VOLUME;
+            rep = (argc >= 5) ? parse_int_arg(argv[4], 1, 255, "repeat")
+                              : DEFAULT_REPEAT;
+            if (vol < 0 || rep < 0) { close(fd); return EXIT_FAILURE; }
             cmd_play(fd, mac8, sound, vol, rep);
         }
 

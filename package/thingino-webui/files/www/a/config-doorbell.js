@@ -268,7 +268,7 @@
     html += "</select></div>";
 
     // Volume
-    html += `<div class="col-md-2"><label class="form-label">Volume</label><input class="form-control ev-volume" type="number" min="1" max="32" value="${esc(ev.volume || "5")}"></div>`;
+    html += `<div class="col-md-2"><label class="form-label">Volume</label><input class="form-control ev-volume" type="number" min="1" max="8" value="${esc(ev.volume || "5")}"></div>`;
 
     // Repeat
     html += `<div class="col-md-2"><label class="form-label">Repeat</label><input class="form-control ev-repeat" type="number" min="1" max="255" value="${esc(ev.repeat || "2")}"></div>`;
@@ -294,7 +294,7 @@
     html += "</select></div>";
 
     // Night volume
-    html += `<div class="col-md-1"><label class="form-label">Night vol</label><input class="form-control ev-nightvol" type="number" min="1" max="32" value="${esc((ev.night || {}).volume || "")}"></div>`;
+    html += `<div class="col-md-1"><label class="form-label">Night vol</label><input class="form-control ev-nightvol" type="number" min="1" max="8" value="${esc((ev.night || {}).volume || "")}"></div>`;
 
     html += "</div>";
     html += `<button class="btn btn-primary btn-sm save-event-btn" data-event="${esc(ename)}">Save</button>`;
