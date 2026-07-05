@@ -922,10 +922,12 @@ function updateHeartbeatUi(json) {
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&
+    json.daynight_brightness !== null &&
     json.daynight_brightness !== "unknown" &&
     json.daynight_brightness !== "";
   const hasTotalGain =
     typeof json.total_gain !== "undefined" &&
+    json.total_gain !== null &&
     json.total_gain !== "unknown" &&
     json.total_gain !== "" &&
     json.total_gain >= 0;
