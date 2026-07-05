@@ -237,8 +237,8 @@
         div.className = `stat-card ${metric.key}`;
         div.innerHTML = `
           <div class="stat-label">${metric.label}</div>
-          <div class="stat-value">${stat.latest.toFixed(1)}</div>
-          <div class="stat-detail">Min: ${stat.min.toFixed(1)} | Max: ${stat.max.toFixed(1)} | Avg: ${stat.avg.toFixed(1)}</div>
+          <div class="stat-value">${stat.latest > 10 ? Math.round(stat.latest) : stat.latest.toFixed(1)}</div>
+          <div class="stat-detail">Min: ${stat.min > 10 ? Math.round(stat.min) : stat.min.toFixed(1)} | Max: ${stat.max > 10 ? Math.round(stat.max) : stat.max.toFixed(1)}</div>
         `;
         container.appendChild(div);
       });
@@ -376,7 +376,7 @@
           .map((m) => {
             const series = this.data[m.key];
             const value = series ? series[idx] : undefined;
-            return typeof value === "number" ? value.toFixed(2) : "";
+            return typeof value === "number" ? (value > 10 ? Math.round(value) : value.toFixed(2)) : "";
           })
           .join(",");
         return `"${label}",${values}`;
