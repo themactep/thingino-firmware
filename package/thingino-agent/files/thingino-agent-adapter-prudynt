@@ -1078,7 +1078,15 @@ thingino_agent_prudynt_query_live() {
 	fi
 	_heartbeat_mic_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.enabled)" true)
 	_heartbeat_spk_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.ao_enabled)" false)
-	_heartbeat_total_gain="-1"
+	if command -v prudyntctl >/dev/null 2>&1; then
+		_heartbeat_tmp=$(mktemp)
+		prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_heartbeat_tmp" 2>/dev/null
+		[ -z "${_heartbeat_color_mode+x}" ] && _heartbeat_color_mode=$(thingino_agent_json_config_value "$_heartbeat_tmp" image.running_mode)
+		_heartbeat_mic_enabled=$(thingino_agent_json_value_or "$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)" "$_heartbeat_mic_enabled")
+		_heartbeat_spk_enabled=$(thingino_agent_json_value_or "$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)" "$_heartbeat_spk_enabled")
+		_heartbeat_total_gain=$(thingino_agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
+		rm -f "$_heartbeat_tmp"
+	fi
 }
 
 thingino_agent_prudynt_heartbeat_brightness() {
