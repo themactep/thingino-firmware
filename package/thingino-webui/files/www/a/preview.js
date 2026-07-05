@@ -429,12 +429,6 @@ function handleMessage(msg) {
     $("#privacy").checked = msg.privacy.enabled;
   }
 
-  // if (msg.rtsp) {
-  //   const r = msg.rtsp;
-  //   if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-  //     $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-  // }
-
   // Handle image params
   if (msg.image) {
     const imageParams = [
@@ -723,6 +717,7 @@ loadInitialData().then(async () => {
   const restartBackoffMaxMs = 60000;
   let lastLoadTime = Date.now();
   let isWindowVisible = true;
+  let isModalOpen = false;
   let focusTimeoutId = null;
   let nextRestartAt = 0;
   let restartBackoffMs = restartBackoffInitialMs;
@@ -785,6 +780,7 @@ loadInitialData().then(async () => {
     const now = Date.now();
     if (
       isWindowVisible &&
+      !isModalOpen &&
       now - lastLoadTime > timeout &&
       now >= nextRestartAt
     ) {
@@ -838,7 +834,8 @@ loadInitialData().then(async () => {
     previewModal.addEventListener("show.bs.modal", () => {
       // Save current small preview source
       savedPreviewSrc = preview.src;
-      // Stop the small preview
+      // Stop the small preview and suppress watchdog restarts
+      isModalOpen = true;
       preview.src = ImageNoStream;
       // Load main stream (ch0) in full-screen modal
       previewFullsize.src = "/x/ch0.mjpg?" + new Date().getTime();
@@ -858,6 +855,8 @@ loadInitialData().then(async () => {
       // Stop the full-screen stream
       previewFullsize.src = ImageNoStream;
       previewFullsize.style.transform = "";
+      // Allow watchdog to restart the small preview again
+      isModalOpen = false;
       // Restart the small preview
       if (savedPreviewSrc && isWindowVisible) {
         preview.src =
