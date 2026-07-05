@@ -31,6 +31,9 @@
             <button type="button" class="btn btn-outline-secondary" id="preview-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
+            <button type="button" class="btn btn-outline-secondary" id="preview-osd" title="OSD overlay settings">
+              <i class="bi bi-fonts"></i> OSD
+            </button>
           </div><!-- .card-header -->
           <div class="card-body">
             <div id="frame" class="position-relative mb-2">
@@ -71,6 +74,344 @@
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
 <script src="/a/preview-motors.js"></script>
+<script>
+/**
+ * SEI OSD Overlay Renderer — SVG-based.
+ * Polls /x/json-osd-sei.cgi and renders OSD as SVG <text> elements
+ * over the MJPEG preview.  SVG gives proper variable-width text strokes.
+ */
+(function () {
+  'use strict';
+  var POLL_MS = 1000, OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
+  var SEI_URL = '/x/json-osd-sei.cgi', timer = null;
+
+  function pcol(h) {
+    if (!h || h.length < 7) return '#ffffff';
+    return h.slice(0,7);
+  }
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function repaint() {
+    window._seiRepaint = repaint;
+    var img = document.getElementById(IMG_ID);
+    var svg = document.getElementById(OVERLAY_ID);
+    if (!img || !svg) return;
+    var cw = img.clientWidth, ch = img.clientHeight;
+    if (!cw || !ch || !svg.dataset.sw) return;
+    var sw = parseFloat(svg.dataset.sw), sh = parseFloat(svg.dataset.sh);
+    var rot = parseInt(svg.dataset.rot) || 0;
+    var sx = cw / (sw || 1), sy = ch / (sh || 1);
+    var fs = parseInt(svg.dataset.fs) || 16;
+    var fsOrig = parseInt(svg.dataset.fsOrig) || fs;
+    var stw = svg.dataset.stw || '1.5';
+    var fw = svg.dataset.fw || 'normal';
+    var fscale = fs / (fsOrig || 1);  // scale w/h when font size changes
+
+    img.style.transform = rot ? 'rotate(' + rot + 'deg)' : '';
+    var frame = document.getElementById('frame');
+    if (frame) frame.style.minHeight = (rot === 90 || rot === 270) ? cw + 'px' : '';
+
+    var vw, vh;
+    if (rot === 90 || rot === 270) {
+      vw = ch; vh = cw;
+      svg.style.left = ((cw - ch) / 2) + 'px'; svg.style.top = '0';
+      img.style.marginTop = ((cw - ch) / 2) + 'px';
+    } else {
+      vw = cw; vh = ch;
+      svg.style.left = '0'; svg.style.top = '0';
+      img.style.marginTop = '';
+    }
+    svg.setAttribute('viewBox', '0 0 ' + vw + ' ' + vh);
+    svg.setAttribute('width', vw);
+    svg.setAttribute('height', vh);
+
+    var texts = svg.querySelectorAll('text');
+    for (var i = 0; i < texts.length; i++) {
+      var c = texts[i];
+      var rx = parseFloat(c.dataset.rx)||0, ry = parseFloat(c.dataset.ry)||0;
+      var rw = parseFloat(c.dataset.rw)||0, rh = parseFloat(c.dataset.rh)||0;
+      rw *= fscale; rh *= fscale;
+      var x, y, anchor, baseline;
+      if (rx > 0)      { x = rx * sx;               anchor = 'start'; }
+      else if (rx < 0) { x = vw + rx * sx;           anchor = 'end'; }
+      else             { x = vw / 2;                  anchor = 'middle'; }
+      if (ry > 0)      { y = ry * sy;                 baseline = 'hanging'; }
+      else if (ry < 0) { y = vh + ry * sy;            baseline = 'text-after-edge'; }
+      else             { y = vh / 2;                   baseline = 'central'; }
+      c.setAttribute('x', x);
+      c.setAttribute('y', y);
+      c.setAttribute('text-anchor', anchor);
+      c.setAttribute('dominant-baseline', baseline);
+      c.setAttribute('font-size', fs);
+      c.setAttribute('font-weight', fw);
+      c.setAttribute('stroke-width', stw);
+    }
+
+    var fsi = document.getElementById('preview_fullsize');
+    if (fsi && fsi.src && fsi.src.indexOf('nostream') === -1) {
+      fsi.style.transform = rot ? 'rotate(' + rot + 'deg)' : '';
+    }
+  }
+
+  async function poll() {
+    try {
+      var r = await fetch(SEI_URL);
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d || !d.elements || !d.elements.length) return;
+      var svg = document.getElementById(OVERLAY_ID);
+      var frame = document.getElementById('frame');
+      var img = document.getElementById(IMG_ID);
+      if (!img || !frame) return;
+
+      var structKey = '';
+      for (var i = 0; i < d.elements.length; i++) {
+        structKey += d.elements[i].t + ',' + d.elements[i].x + ',' + d.elements[i].y + ',' + d.elements[i].w + ',' + d.elements[i].h + ';';
+      }
+      var rebuild = !svg || svg.dataset.seiHash !== structKey;
+
+      if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = OVERLAY_ID;
+        svg.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:10;';
+        frame.appendChild(svg);
+      }
+
+      if (rebuild) {
+        var h = '';
+        for (var i = 0; i < d.elements.length; i++) {
+          var el = d.elements[i];
+          h += '<text data-rx="'+el.x+'" data-ry="'+el.y+'" data-rw="'+el.w+'" data-rh="'+el.h+'" data-sei-type="'+el.t+'" fill="'+pcol(el.color)+'" stroke="'+pcol(el.stroke)+'">'+esc(el.text)+'</text>';
+        }
+        svg.innerHTML = h;
+        svg.dataset.sw = d.sw || 0;
+        svg.dataset.sh = d.sh || 0;
+        svg.dataset.rot = d.rotation || 0;
+        svg.dataset.seiHash = structKey;
+        // Set image dimensions from stream resolution to prevent layout shift
+        if (d.sw && d.sh) {
+          img.setAttribute('width', d.sw);
+          img.setAttribute('height', d.sh);
+        }
+        if (d.elements.length) {
+          svg.dataset.fs = d.elements[0].fs || 16;
+          svg.dataset.fsOrig = d.elements[0].fs || 16;
+        }
+      } else {
+        var texts = svg.querySelectorAll('text');
+        for (var i = 0; i < texts.length && i < d.elements.length; i++) {
+          if (texts[i].dataset.seiPrev !== d.elements[i].text) {
+            texts[i].textContent = d.elements[i].text;
+            texts[i].dataset.seiPrev = d.elements[i].text;
+          }
+        }
+      }
+      repaint();
+    } catch (_) {}
+  }
+
+  function start() {
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, POLL_MS);
+    window.addEventListener('resize', repaint);
+  }
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', start);
+  else
+    start();
+})();
+</script>
+
+<!-- OSD Settings Modal -->
+<div class="modal fade" id="osdModal" tabindex="-1" aria-labelledby="osdModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="osdModalLabel">OSD Overlay Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Font</label>
+          <select class="form-select" id="osd-font">
+            <option value="monospace">Monospace (default)</option>
+          </select>
+          <small class="text-muted" id="osd-font-hint"></small>
+        </div>
+        <div class="row mb-3">
+          <div class="col">
+            <label class="form-label">Font Size</label>
+            <input type="range" class="form-range" id="osd-fontsize" min="8" max="128" value="32">
+            <small class="text-muted" id="osd-fontsize-val">32</small>
+          </div>
+          <div class="col">
+            <label class="form-label">Weight</label>
+            <select class="form-select" id="osd-weight">
+              <option value="normal">Normal</option>
+              <option value="bold">Bold</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="form-label">Outline</label>
+            <input type="range" class="form-range" id="osd-stroke" min="0" max="10" value="1">
+            <small class="text-muted" id="osd-stroke-val">1</small>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col">
+            <label class="form-label">Text Color</label>
+            <input type="color" class="form-control form-control-color" id="osd-color" value="#ffffff">
+          </div>
+          <div class="col">
+            <label class="form-label">Outline Color</label>
+            <input type="color" class="form-control form-control-color" id="osd-stroke-color" value="#000000">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="osd-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var osdBtn = document.getElementById('preview-osd');
+  if (!osdBtn) return;
+
+  var STORAGE_KEY = 'sei-osd-settings';
+
+  function loadSettings() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+    catch(_) { return {}; }
+  }
+  function saveSettings(s) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); console.log('sei-osd saved', s); }
+    catch(e) { console.error('sei-osd save error', e); }
+  }
+
+  // Apply saved settings on load
+  function restoreSettings(){
+    var s = loadSettings();
+    if (!s.fs && !s.ff && !s.fc && !s.fw) return;
+    var svg = document.getElementById('sei-osd-overlay');
+    if (!svg || !svg.querySelector('text')) { setTimeout(restoreSettings, 200); return; }
+    if (s.ff) svg.style.setProperty('--sei-ff', s.ff);
+    if (s.fs) { svg.dataset.fs = s.fs; svg.style.setProperty('--sei-fs', s.fs + 'px'); }
+    if (s.stw) svg.dataset.stw = s.stw;
+    if (s.fw) svg.dataset.fw = s.fw;
+    if (s.fc || s.sc || s.stw || s.fs || s.fw) {
+      var texts = svg.querySelectorAll('text');
+      for (var i = 0; i < texts.length; i++) {
+        if (s.fc) texts[i].setAttribute('fill', s.fc);
+        if (s.sc) texts[i].setAttribute('stroke', s.sc);
+        if (s.stw) texts[i].setAttribute('stroke-width', s.stw);
+        if (s.fw) texts[i].setAttribute('font-weight', s.fw);
+        if (s.fs) texts[i].setAttribute('font-size', s.fs);
+      }
+    }
+    // Force a repaint to recalculate positions
+    var repaintFn = window._seiRepaint;
+    if (repaintFn) repaintFn();
+  }
+  restoreSettings();
+
+  // Populate font list from client machine
+  (function populateFonts(){
+    var sel = document.getElementById('osd-font');
+    if (!sel) return;
+    // Detect installed fonts by canvas text measurement.
+    // Compares each candidate width against the generic monospace fallback.
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    ctx.font = '72px monospace';
+    var refWidth = ctx.measureText('Miiilll').width;
+    var candidates = [
+      'Courier New','Consolas','DejaVu Sans Mono','Fira Code','Hack',
+      'Inconsolata','JetBrains Mono','Liberation Mono','Menlo','Monaco',
+      'Noto Sans Mono','PT Mono','Roboto Mono','SF Mono',
+      'Source Code Pro','Ubuntu Mono','Victor Mono','Cascadia Code',
+      'Droid Sans Mono'
+    ];
+    var found = 0;
+    candidates.forEach(function(f){
+      ctx.font = '72px "' + f + '", monospace';
+      if (ctx.measureText('Miiilll').width !== refWidth) {
+        sel.add(new Option(f, f)); found++;
+      }
+    });
+    if (!found) sel.add(new Option('monospace', 'monospace'));
+    document.getElementById('osd-font-hint').textContent = found + ' fonts found';
+  })();
+
+  osdBtn.addEventListener('click', function(){
+    var svg = document.getElementById('sei-osd-overlay');
+    var saved = loadSettings();
+    var t0 = svg ? svg.querySelector('text') : null;
+    var curFS = svg ? (parseInt(svg.dataset.fs) || 32) : (saved.fs || 32);
+    var curSW = svg ? (parseFloat(svg.dataset.stw) || 1) : (saved.stw || 1);
+    var curWT = svg ? (svg.dataset.fw || 'normal') : (saved.fw || 'normal');
+    var curFF = (svg ? svg.style.getPropertyValue('--sei-ff') : '') || saved.ff || '';
+    curFF = curFF.replace(/'/g,'');
+    var curC = t0 ? t0.getAttribute('fill') : (saved.fc || '#ffffff');
+    var curS = t0 ? t0.getAttribute('stroke') : (saved.sc || '#000000');
+    if (curC && curC.length >= 7) curC = curC.slice(0,7);
+    if (curS && curS.length >= 7) curS = curS.slice(0,7);
+    document.getElementById('osd-fontsize').value = curFS;
+    document.getElementById('osd-fontsize-val').textContent = curFS;
+    document.getElementById('osd-stroke').value = curSW;
+    document.getElementById('osd-stroke-val').textContent = curSW;
+    document.getElementById('osd-weight').value = curWT;
+    document.getElementById('osd-color').value = curC || '#ffffff';
+    document.getElementById('osd-stroke-color').value = curS || '#000000';
+    var sel = document.getElementById('osd-font');
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === curFF) { sel.selectedIndex = i; break; }
+    }
+    new bootstrap.Modal('#osdModal').show();
+  });
+
+  document.getElementById('osd-fontsize').addEventListener('input', function(){
+    document.getElementById('osd-fontsize-val').textContent = this.value;
+  });
+  document.getElementById('osd-stroke').addEventListener('input', function(){
+    document.getElementById('osd-stroke-val').textContent = this.value;
+  });
+
+  document.getElementById('osd-apply').addEventListener('click', function(){
+    var ff = document.getElementById('osd-font').value;
+    if (ff.indexOf(' ') !== -1) ff = "'" + ff + "'";
+    ff += ', monospace';
+    var fs = document.getElementById('osd-fontsize').value;
+    var sw = document.getElementById('osd-stroke').value;
+    var wt = document.getElementById('osd-weight').value;
+    var fc = document.getElementById('osd-color').value + 'CC';
+    var sc = document.getElementById('osd-stroke-color').value + 'CC';
+    var svg = document.getElementById('sei-osd-overlay');
+    if (!svg) return;
+    svg.style.setProperty('--sei-ff', ff);
+    svg.style.setProperty('--sei-fs', fs + 'px');
+    svg.dataset.fs = fs;  // fsOrig stays — used for scale factor
+    svg.dataset.stw = sw;
+    svg.dataset.fw = wt;
+    // Update existing text elements immediately
+    var texts = svg.querySelectorAll('text');
+    for (var i = 0; i < texts.length; i++) {
+      texts[i].setAttribute('fill', fc);
+      texts[i].setAttribute('stroke', sc);
+      texts[i].setAttribute('stroke-width', sw);
+      texts[i].setAttribute('font-size', fs);
+      texts[i].setAttribute('font-weight', wt);
+    }
+    try { if (window._seiRepaint) window._seiRepaint(); } catch(e) {}
+    saveSettings({ff: ff, fs: fs, stw: sw, fw: wt, fc: fc, sc: sc});
+    bootstrap.Modal.getInstance('#osdModal').hide();
+  });
+})();
+</script>
 
 </body>
 </html>
