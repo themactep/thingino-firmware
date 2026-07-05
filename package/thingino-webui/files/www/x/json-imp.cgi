@@ -66,13 +66,24 @@ val=$(printf '%s' "$POST_DATA" | sed -n 's/.*"val"[[:space:]]*:[[:space:]]*"\{0,
 
 case "$cmd" in
   auto)
-    echo '{"daynight":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+    case "$val" in
+      1 | true | on)
+        echo '{"daynight":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+        jct /etc/prudynt.json set daynight.enabled true >/dev/null 2>&1
+        ;;
+      0 | false | off)
+        echo '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+        jct /etc/prudynt.json set daynight.enabled false >/dev/null 2>&1
+        /sbin/daynight day >/dev/null 2>&1
+        ;;
+    esac
     ;;
   color)
     echo "{\"daynight\":{\"enabled\":false},\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
     ;;
   daynight)
     echo "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$val\"}}" | prudyntctl json - >/dev/null 2>&1
+    jct /etc/prudynt.json set daynight.enabled false >/dev/null 2>&1
     /sbin/daynight "$val" >/dev/null 2>&1
     ;;
   ir850 | ir940 | white)
