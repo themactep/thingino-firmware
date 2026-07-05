@@ -472,6 +472,9 @@ function handleMessage(msg) {
     handleOsdData(msg.stream1.osd, 1);
   }
 
+  // Override FPS from config file so night-mode halving doesn't persist
+  loadConfigFps();
+
   updatePreviewEndpointState(msg);
 }
 
@@ -1450,6 +1453,22 @@ if (saveConfigBtn) {
 }
 
 fetchImagingState();
+
+async function loadConfigFps() {
+  try {
+    const resp = await fetch("/etc/prudynt.json", { cache: "no-store" });
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    if (cfg.stream0 && cfg.stream0.fps !== undefined && cfg.stream0.fps !== 0) {
+      const el0 = $("#stream0_fps");
+      if (el0) el0.value = cfg.stream0.fps;
+    }
+    if (cfg.stream1 && cfg.stream1.fps !== undefined && cfg.stream1.fps !== 0) {
+      const el1 = $("#stream1_fps");
+      if (el1) el1.value = cfg.stream1.fps;
+    }
+  } catch (_) { /* ignore */ }
+}
 
 // Add reload button handler
 const reloadBtn = $("#preview-reload");
