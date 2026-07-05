@@ -123,14 +123,16 @@ controls_color() {
 switch_to_day() {
 	echo_info "Switching to day mode..."
 
-	# Restore daytime FPS
-	if command_present prudyntctl; then
+	# Restore daytime FPS from config
+	if command_present jct && command_present prudyntctl && [ -f /etc/prudynt.json ]; then
 		for stream in stream0 stream1; do
-			if [ -f "/tmp/daynight_fps_${stream}" ]; then
-				day_fps=$(cat "/tmp/daynight_fps_${stream}")
+			day_fps=$(jct /etc/prudynt.json get "$stream.fps" 2>/dev/null | tr -d '\n"')
+			if [ -z "$day_fps" ] || [ "$day_fps" = "0" ] || [ "$day_fps" = "null" ]; then
+				day_fps=30
+			fi
+			if [ -n "$day_fps" ] && [ "$day_fps" -gt 1 ] 2>/dev/null; then
 				echo_info "  ${stream}: fps -> ${day_fps}"
-				prudyntctl json "{\"${stream}\":{\"fps\":${day_fps}}}" >/dev/null 2>&1 &
-				rm -f "/tmp/daynight_fps_${stream}"
+				prudyntctl json "{\"${stream}\":{\"fps\":${day_fps}}}" >/dev/null 2>&1
 			fi
 		done
 	fi
@@ -170,7 +172,6 @@ switch_to_night() {
 	if command_present jct && command_present prudyntctl && [ -f /etc/prudynt.json ]; then
 		for stream in stream0 stream1; do
 			day_fps=$(jct /etc/prudynt.json get "$stream.fps" 2>/dev/null | tr -d '\n"')
-			# If config says 0 (auto), read actual running FPS from prudynt
 			if [ -z "$day_fps" ] || [ "$day_fps" = "0" ] || [ "$day_fps" = "null" ]; then
 				_tmp=$(mktemp)
 				prudyntctl json "{\"${stream}\":{\"fps\":null}}" >"$_tmp" 2>/dev/null
@@ -178,11 +179,10 @@ switch_to_night() {
 				rm -f "$_tmp"
 			fi
 			if [ -n "$day_fps" ] && [ "$day_fps" -gt 1 ] 2>/dev/null; then
-				echo "$day_fps" >"/tmp/daynight_fps_${stream}"
 				night_fps=$(( day_fps / 2 ))
 				[ "$night_fps" -lt 1 ] && night_fps=1
 				echo_info "  ${stream}: fps ${day_fps} -> ${night_fps}"
-				prudyntctl json "{\"${stream}\":{\"fps\":${night_fps}}}" >/dev/null 2>&1 &
+				prudyntctl json "{\"${stream}\":{\"fps\":${night_fps}}}" >/dev/null 2>&1
 			fi
 		done
 	fi
