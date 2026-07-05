@@ -1081,7 +1081,7 @@ function updateHeartbeatUi(json) {
     const micBtn = $("#microphone");
     if (micBtn) {
       micBtn.classList.remove("pending");
-      const isActive = json.mic_enabled === true;
+      const isActive = json.mic_enabled && json.mic_enabled !== 0 && json.mic_enabled !== "false";
       micBtn.classList.toggle("active", isActive);
       const img = micBtn.querySelector("img");
       if (img) {
@@ -1095,7 +1095,7 @@ function updateHeartbeatUi(json) {
     const spkBtn = $("#speaker");
     if (spkBtn) {
       spkBtn.classList.remove("pending");
-      const isActive = json.spk_enabled === true;
+      const isActive = json.spk_enabled && json.spk_enabled !== 0 && json.spk_enabled !== "false";
       spkBtn.classList.toggle("active", isActive);
       const img = spkBtn.querySelector("img");
       if (img) {
