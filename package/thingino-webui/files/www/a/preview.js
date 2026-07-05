@@ -842,11 +842,22 @@ loadInitialData().then(async () => {
       preview.src = ImageNoStream;
       // Load main stream (ch0) in full-screen modal
       previewFullsize.src = "/x/ch0.mjpg?" + new Date().getTime();
+      // Apply SEI rotation to full-screen image
+      fetch("/x/json-osd-sei.cgi")
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (d) {
+          if (d && d.rotation)
+            previewFullsize.style.transform = "rotate(" + d.rotation + "deg)";
+        })
+        .catch(function () {});
     });
 
     previewModal.addEventListener("hidden.bs.modal", () => {
       // Stop the full-screen stream
       previewFullsize.src = ImageNoStream;
+      previewFullsize.style.transform = "";
       // Restart the small preview
       if (savedPreviewSrc && isWindowVisible) {
         preview.src =
@@ -1467,7 +1478,9 @@ async function loadConfigFps() {
       const el1 = $("#stream1_fps");
       if (el1) el1.value = cfg.stream1.fps;
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 // Add reload button handler

@@ -985,3 +985,18 @@ table.send2services th:not(:first-child) {
 table.send2services td:first-child a {
   text-decoration: none;
 }
+
+/* ── SEI OSD overlay ── */
+#sei-osd-overlay {
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  z-index: 10;
+}
+#sei-osd-overlay text {
+  font-family: var(--sei-ff, monospace);
+  font-size: var(--sei-fs, 16px);
+  paint-order: stroke fill;
+}
