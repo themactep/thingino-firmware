@@ -10,7 +10,7 @@
     mqtt: { photo: true, video: false },
     webhook: { photo: true, video: true },
     storage: { photo: true, video: true },
-    ntfy: { photo: true, video: false },
+    ntfy: { photo: true, video: true },
     gphotos: { photo: true, video: true },
   };
 
