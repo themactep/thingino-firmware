@@ -1,9 +1,16 @@
 {
   "stream0": {
-    "rotation": 270
+    "rotation": 90,
+    "osd": {
+      "mode": "metadata"
+    }
   },
   "stream1": {
     "height": 384,
-    "width": 576
+    "width": 576,
+    "rotation": 90,
+    "osd": {
+      "mode": "metadata"
+    }
   }
 }
