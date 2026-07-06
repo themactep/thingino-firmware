@@ -22,35 +22,36 @@
   <div class="container">
     <div data-app-controls></div>
 
-    <h3>Sensor IQ File</h3>
+    <section>
+      <h3>Sensor IQ File</h3>
 
-    <div class="row mb-3">
-      <div class="col-12 col-xl-4">
-        <div id="frame" class="position-relative">
-          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+      <div class="row mb-3">
+        <div class="col-12 col-xl-4">
+          <div id="frame" class="position-relative">
+            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+          </div>
+        </div>
+        <div class="col col-xl-8">
+          <h4>Sensor IQ file</h4>
+          <small>This file contains image quality settings for the image sensor</small>
+          <p class="alert alert-secondary" id="sensor-info">
+            <span id="sensor-loading">Loading sensor information...</span>
+            <span id="sensor-details" class="d-none">
+              File: <span id="sensor-file-path"></span><br>
+              MD5: <span id="sensor-md5"></span>
+            </span>
+          </p>
+          <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase" id="sensor-soc-family"></span>
+            and <span class="fw-bold text-uppercase" id="sensor-model"></span>, e.g. from a stock firmware backup.</p>
+          <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
+            <i class="bi bi-upload"></i> Upload Sensor IQ File
+          </button>
+          <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
+            <i class="bi bi-floppy me-1"></i> Save configuration to file
+          </button>
         </div>
       </div>
-      <div class="col col-xl-8">
-        <h4>Sensor IQ file</h4>
-        <small>This file contains image quality settings for the image sensor</small>
-        <p class="alert alert-secondary" id="sensor-info">
-          <span id="sensor-loading">Loading sensor information...</span>
-          <span id="sensor-details" class="d-none">
-            File: <span id="sensor-file-path"></span><br>
-            MD5: <span id="sensor-md5"></span>
-          </span>
-        </p>
-        <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase" id="sensor-soc-family"></span>
-          and <span class="fw-bold text-uppercase" id="sensor-model"></span>, e.g. from a stock firmware backup.</p>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
-          <i class="bi bi-upload"></i> Upload Sensor IQ File
-        </button>
-
-        <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
-          <i class="bi bi-floppy me-1"></i> Save configuration to file
-        </button>
-      </div>
-    </div>
+    </section>
   </div>
 </main>
 
@@ -85,7 +86,6 @@
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
-
 <script src="/a/streamer-config.js"></script>
 </body>
 <script>

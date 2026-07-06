@@ -996,7 +996,12 @@ table.send2services td:first-child a {
   z-index: 10;
 }
 #sei-osd-overlay text {
+  fill: #f8a100;
   font-family: var(--sei-ff, monospace);
   font-size: var(--sei-fs, 16px);
   paint-order: stroke fill;
+  stroke: #000;
+  stroke-linejoin: round;
+  stroke-width: 4px;
+  text-anchor: middle;
 }

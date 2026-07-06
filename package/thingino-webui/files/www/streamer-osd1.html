@@ -22,125 +22,126 @@
   <div class="container">
     <div data-app-controls></div>
 
-    <h3>Substream OSD</h3>
+    <section>
+      <h3>Substream OSD</h3>
 
-    <div class="row mb-3">
-      <div class="col-12 col-xl-4">
-        <div id="frame" class="position-relative">
-          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+      <div class="row mb-3">
+        <div class="col-12 col-xl-4">
+          <div id="frame" class="position-relative">
+            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+          </div>
+        </div>
+        <div class="col col-xl-8">
+          <div class="row g-2">
+            <div class="col">
+              <p class="form-switch">
+                <input type="hidden" id="osd1_enabled-false" name="osd1_enabled" value="false">
+                <input type="checkbox" id="osd1_enabled" name="osd1_enabled" value="true" role="switch" class="form-check-input">
+                <label for="osd1_enabled" class="form-check-label">OSD enabled</label>
+              </p>
+              <p>
+                <label class="d-block">Font file</label>
+                <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#mdFont">Upload or restore default font</button>
+              </p>
+              <p>
+                <label for="osd1_fontsize">Size</label>
+                <input type="text" id="osd1_fontsize" name="osd1_fontsize" class="form-control" value="">
+              </p>
+              <p>
+                <label for="osd1_strokesize">Shadow</label>
+                <input type="text" id="osd1_strokesize" name="osd1_strokesize" class="form-control" value="">
+              </p>
+            </div>
+            <div class="col">
+              <p class="form-switch">
+                <input type="hidden" id="osd1_logo_enabled-false" name="osd1_logo_enabled" value="false">
+                <input type="checkbox" id="osd1_logo_enabled" name="osd1_logo_enabled" value="true" role="switch" class="form-check-input">
+                <label for="osd1_logo_enabled" class="form-check-label">Logo</label>
+              </p>
+              <p>
+                <label for="osd1_logo_position">Position (x,y)</label>
+                <input type="text" id="osd1_logo_position" name="osd1_logo_position" class="form-control" value="">
+              </p>
+            </div>
+            <div class="col">
+              <p class="form-switch">
+                <input type="hidden" id="osd1_time_enabled-false" name="osd1_time_enabled" value="false">
+                <input type="checkbox" id="osd1_time_enabled" name="osd1_time_enabled" value="true" role="switch" class="form-check-input">
+                <label for="osd1_time_enabled" class="form-check-label">Time</label>
+              </p>
+              <p>
+                <label for="osd1_time_position">Position (x,y)</label>
+                <input type="text" id="osd1_time_position" name="osd1_time_position" class="form-control" value="">
+              </p>
+              <p id="osd1_time_fillcolor_wrap" class="file">
+                <label for="osd1_time_fillcolor">Color</label>
+                <input type="color" id="osd1_time_fillcolor" name="osd1_time_fillcolor" class="form-control input-color">
+                <input type="range" id="osd1_time_fillcolor-alpha" name="osd1_time_fillcolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+              <p id="osd1_time_strokecolor_wrap" class="file">
+                <label for="osd1_time_strokecolor">Shadow</label>
+                <input type="color" id="osd1_time_strokecolor" name="osd1_time_strokecolor" class="form-control input-color">
+                <input type="range" id="osd1_time_strokecolor-alpha" name="osd1_time_strokecolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+              <p>
+                <label for="osd1_time_format">Format</label>
+                <input type="text" id="osd1_time_format" name="osd1_time_format" class="form-control" value="">
+              </p>
+            </div>
+            <div class="col">
+              <p class="form-switch">
+                <input type="hidden" id="osd1_uptime_enabled-false" name="osd1_uptime_enabled" value="false">
+                <input type="checkbox" id="osd1_uptime_enabled" name="osd1_uptime_enabled" value="true" role="switch" class="form-check-input">
+                <label for="osd1_uptime_enabled" class="form-check-label">Uptime</label>
+              </p>
+              <p>
+                <label for="osd1_uptime_position">Position (x,y)</label>
+                <input type="text" id="osd1_uptime_position" name="osd1_uptime_position" class="form-control" value="">
+              </p>
+              <p>
+                <label for="osd1_uptime_fillcolor">Color</label>
+                <input type="color" id="osd1_uptime_fillcolor" name="osd1_uptime_fillcolor" class="form-control input-color">
+                <input type="range" id="osd1_uptime_fillcolor-alpha" name="osd1_uptime_fillcolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+              <p>
+                <label for="osd1_uptime_strokecolor">Shadow</label>
+                <input type="color" id="osd1_uptime_strokecolor" name="osd1_uptime_strokecolor" class="form-control input-color">
+                <input type="range" id="osd1_uptime_strokecolor-alpha" name="osd1_uptime_strokecolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+            </div>
+            <div class="col">
+              <p class="form-switch">
+                <input type="hidden" id="osd1_usertext_enabled-false" name="osd1_usertext_enabled" value="false">
+                <input type="checkbox" id="osd1_usertext_enabled" name="osd1_usertext_enabled" value="true" role="switch" class="form-check-input">
+                <label for="osd1_usertext_enabled" class="form-check-label">User text</label>
+              </p>
+              <p>
+                <label for="osd1_usertext_position">Position (x,y)</label>
+                <input type="text" id="osd1_usertext_position" name="osd1_usertext_position" class="form-control" value="">
+              </p>
+              <p>
+                <label for="osd1_usertext_fillcolor">Color</label>
+                <input type="color" id="osd1_usertext_fillcolor" name="osd1_usertext_fillcolor" class="form-control input-color">
+                <input type="range" id="osd1_usertext_fillcolor-alpha" name="osd1_usertext_fillcolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+              <p>
+                <label for="osd1_usertext_strokecolor">Shadow</label>
+                <input type="color" id="osd1_usertext_strokecolor" name="osd1_usertext_strokecolor" class="form-control input-color">
+                <input type="range" id="osd1_usertext_strokecolor-alpha" name="osd1_usertext_strokecolor-alpha" min=0 max=255 step=1 class="expert">
+              </p>
+              <p>
+                <label for="osd1_usertext_format">Format</label>
+                <input type="text" id="osd1_usertext_format" name="osd1_usertext_format" class="form-control" value="">
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="col col-xl-8">
-        <div class="row g-2">
-          <div class="col">
-            <p class="form-switch">
-              <input type="hidden" id="osd1_enabled-false" name="osd1_enabled" value="false">
-              <input type="checkbox" id="osd1_enabled" name="osd1_enabled" value="true" role="switch" class="form-check-input">
-              <label for="osd1_enabled" class="form-check-label">OSD enabled</label>
-            </p>
-            <p>
-              <label class="d-block">Font file</label>
-              <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#mdFont">Upload or restore default font</button>
-            </p>
-            <p>
-              <label for="osd1_fontsize">Size</label>
-              <input type="text" id="osd1_fontsize" name="osd1_fontsize" class="form-control" value="">
-            </p>
-            <p>
-              <label for="osd1_strokesize">Shadow</label>
-              <input type="text" id="osd1_strokesize" name="osd1_strokesize" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="form-switch">
-              <input type="hidden" id="osd1_logo_enabled-false" name="osd1_logo_enabled" value="false">
-              <input type="checkbox" id="osd1_logo_enabled" name="osd1_logo_enabled" value="true" role="switch" class="form-check-input">
-              <label for="osd1_logo_enabled" class="form-check-label">Logo</label>
-            </p>
-            <p>
-              <label for="osd1_logo_position">Position (x,y)</label>
-              <input type="text" id="osd1_logo_position" name="osd1_logo_position" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="form-switch">
-              <input type="hidden" id="osd1_time_enabled-false" name="osd1_time_enabled" value="false">
-              <input type="checkbox" id="osd1_time_enabled" name="osd1_time_enabled" value="true" role="switch" class="form-check-input">
-              <label for="osd1_time_enabled" class="form-check-label">Time</label>
-            </p>
-            <p>
-              <label for="osd1_time_position">Position (x,y)</label>
-              <input type="text" id="osd1_time_position" name="osd1_time_position" class="form-control" value="">
-            </p>
-            <p id="osd1_time_fillcolor_wrap" class="file">
-              <label for="osd1_time_fillcolor">Color</label>
-              <input type="color" id="osd1_time_fillcolor" name="osd1_time_fillcolor" class="form-control input-color">
-              <input type="range" id="osd1_time_fillcolor-alpha" name="osd1_time_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-            <p id="osd1_time_strokecolor_wrap" class="file">
-              <label for="osd1_time_strokecolor">Shadow</label>
-              <input type="color" id="osd1_time_strokecolor" name="osd1_time_strokecolor" class="form-control input-color">
-              <input type="range" id="osd1_time_strokecolor-alpha" name="osd1_time_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-            <p>
-              <label for="osd1_time_format">Format</label>
-              <input type="text" id="osd1_time_format" name="osd1_time_format" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="form-switch">
-              <input type="hidden" id="osd1_uptime_enabled-false" name="osd1_uptime_enabled" value="false">
-              <input type="checkbox" id="osd1_uptime_enabled" name="osd1_uptime_enabled" value="true" role="switch" class="form-check-input">
-              <label for="osd1_uptime_enabled" class="form-check-label">Uptime</label>
-            </p>
-            <p>
-              <label for="osd1_uptime_position">Position (x,y)</label>
-              <input type="text" id="osd1_uptime_position" name="osd1_uptime_position" class="form-control" value="">
-            </p>
-            <p>
-              <label for="osd1_uptime_fillcolor">Color</label>
-              <input type="color" id="osd1_uptime_fillcolor" name="osd1_uptime_fillcolor" class="form-control input-color">
-              <input type="range" id="osd1_uptime_fillcolor-alpha" name="osd1_uptime_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-            <p>
-              <label for="osd1_uptime_strokecolor">Shadow</label>
-              <input type="color" id="osd1_uptime_strokecolor" name="osd1_uptime_strokecolor" class="form-control input-color">
-              <input type="range" id="osd1_uptime_strokecolor-alpha" name="osd1_uptime_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="form-switch">
-              <input type="hidden" id="osd1_usertext_enabled-false" name="osd1_usertext_enabled" value="false">
-              <input type="checkbox" id="osd1_usertext_enabled" name="osd1_usertext_enabled" value="true" role="switch" class="form-check-input">
-              <label for="osd1_usertext_enabled" class="form-check-label">User text</label>
-            </p>
-            <p>
-              <label for="osd1_usertext_position">Position (x,y)</label>
-              <input type="text" id="osd1_usertext_position" name="osd1_usertext_position" class="form-control" value="">
-            </p>
-            <p>
-              <label for="osd1_usertext_fillcolor">Color</label>
-              <input type="color" id="osd1_usertext_fillcolor" name="osd1_usertext_fillcolor" class="form-control input-color">
-              <input type="range" id="osd1_usertext_fillcolor-alpha" name="osd1_usertext_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-            <p>
-              <label for="osd1_usertext_strokecolor">Shadow</label>
-              <input type="color" id="osd1_usertext_strokecolor" name="osd1_usertext_strokecolor" class="form-control input-color">
-              <input type="range" id="osd1_usertext_strokecolor-alpha" name="osd1_usertext_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-            </p>
-            <p>
-              <label for="osd1_usertext_format">Format</label>
-              <input type="text" id="osd1_usertext_format" name="osd1_usertext_format" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-        </div><!-- .row -->
-      </div><!-- .col -->
-    </div><!-- .row -->
-
-    <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
-      <i class="bi bi-floppy me-1"></i> Save configuration to file
-    </button>
-  </div><!-- .container -->
+      <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
+        <i class="bi bi-floppy me-1"></i> Save configuration to file
+      </button>
+    </section>
+  </div>
 </main>
 
 <footer data-app-footer></footer>
@@ -178,7 +179,6 @@
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
-
 <script src="/a/streamer-config.js"></script>
 </body>
 <script>

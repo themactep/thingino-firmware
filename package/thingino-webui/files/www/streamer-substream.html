@@ -22,89 +22,90 @@
   <div class="container">
     <div data-app-controls></div>
 
-    <h3>RTSP Substream</h3>
+    <section>
+      <h3>RTSP Substream</h3>
 
-    <div class="row mb-3">
-      <div class="col-12 col-xl-4">
-        <div id="frame" class="position-relative">
-          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+      <div class="row mb-3">
+        <div class="col-12 col-xl-4">
+          <div id="frame" class="position-relative">
+            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+          </div>
         </div>
-      </div>
-      <div class="col col-xl-8">
-        <div class="row g-2">
-          <div class="col">
-            <p>
-              <label for="stream1_width">Width</label>
-              <input type="text" id="stream1_width" name="stream1_width" class="form-control" value="">
-            </p>
-            <p>
-              <label for="stream1_height">Height</label>
-              <input type="text" id="stream1_height" name="stream1_height" class="form-control" value="">
-            </p>
-            <p>
-              <label for="stream1_format">Format</label>
-              <select class="form-select" id="stream1_format" name="stream1_format">
-                <option value="">- Select -</option>
-              </select>
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p>
-              <label for="stream1_fps">FPS</label>
-              <input type="text" id="stream1_fps" name="stream1_fps" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="30" data-step="1">
-            </p>
-            <p>
-              <label for="stream1_gop">GOP</label>
-              <input type="text" id="stream1_gop" name="stream1_gop" class="form-control" value="">
-            </p>
-            <p>
-              <label for="stream1_max_gop">Max GOP</label>
-              <input type="text" id="stream1_max_gop" name="stream1_max_gop" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p>
-              <label for="stream1_mode">Mode</label>
-              <select class="form-select" id="stream1_mode" name="stream1_mode">
-                <option value="">- Select -</option>
-              </select>
-            </p>
-            <p>
-              <label for="stream1_bitrate">Bitrate</label>
-              <input type="text" id="stream1_bitrate" name="stream1_bitrate" class="form-control" value="">
-            </p>
-            <p>
-              <label for="stream1_profile">Profile</label>
-              <input type="text" id="stream1_profile" name="stream1_profile" class="form-control" value="">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p>
-              <label for="stream1_buffers">Buffers</label>
-              <input type="text" id="stream1_buffers" name="stream1_buffers" class="form-control" value="">
-            </p>
-            <p>
-              <label for="stream1_rtsp_endpoint">RTSP Endpoint</label>
-              <input type="text" id="stream1_rtsp_endpoint" name="stream1_rtsp_endpoint" class="form-control" value="">
-            </p>
-            <p class="form-switch">
-              <input type="hidden" id="stream1_enabled-false" name="stream1_enabled" value="false">
-              <input type="checkbox" id="stream1_enabled" name="stream1_enabled" value="true" role="switch" class="form-check-input">
-              <label for="stream1_enabled" class="form-check-label">Stream enabled</label>
-            </p>
-            <p class="form-switch">
-              <input type="hidden" id="stream1_audio_enabled-false" name="stream1_audio_enabled" value="false">
-              <input type="checkbox" id="stream1_audio_enabled" name="stream1_audio_enabled" value="true" role="switch" class="form-check-input">
-              <label for="stream1_audio_enabled" class="form-check-label">Audio in stream</label>
-            </p>
+        <div class="col col-xl-8">
+          <div class="row g-2">
+            <div class="col">
+              <p>
+                <label for="stream1_width">Width</label>
+                <input type="text" id="stream1_width" name="stream1_width" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_height">Height</label>
+                <input type="text" id="stream1_height" name="stream1_height" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_format">Format</label>
+                <select class="form-select" id="stream1_format" name="stream1_format">
+                  <option value="">- Select -</option>
+                </select>
+              </p>
+            </div><!-- .col -->
+            <div class="col">
+              <p>
+                <label for="stream1_fps">FPS</label>
+                <input type="text" id="stream1_fps" name="stream1_fps" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="30" data-step="1">
+              </p>
+              <p>
+                <label for="stream1_gop">GOP</label>
+                <input type="text" id="stream1_gop" name="stream1_gop" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_max_gop">Max GOP</label>
+                <input type="text" id="stream1_max_gop" name="stream1_max_gop" class="form-control" value="">
+              </p>
+            </div><!-- .col -->
+            <div class="col">
+              <p>
+                <label for="stream1_mode">Mode</label>
+                <select class="form-select" id="stream1_mode" name="stream1_mode">
+                  <option value="">- Select -</option>
+                </select>
+              </p>
+              <p>
+                <label for="stream1_bitrate">Bitrate</label>
+                <input type="text" id="stream1_bitrate" name="stream1_bitrate" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_profile">Profile</label>
+                <input type="text" id="stream1_profile" name="stream1_profile" class="form-control" value="">
+              </p>
+            </div><!-- .col -->
+            <div class="col">
+              <p>
+                <label for="stream1_buffers">Buffers</label>
+                <input type="text" id="stream1_buffers" name="stream1_buffers" class="form-control" value="">
+              </p>
+              <p>
+                <label for="stream1_rtsp_endpoint">RTSP Endpoint</label>
+                <input type="text" id="stream1_rtsp_endpoint" name="stream1_rtsp_endpoint" class="form-control" value="">
+              </p>
+              <p class="form-switch">
+                <input type="hidden" id="stream1_enabled-false" name="stream1_enabled" value="false">
+                <input type="checkbox" id="stream1_enabled" name="stream1_enabled" value="true" role="switch" class="form-check-input">
+                <label for="stream1_enabled" class="form-check-label">Stream enabled</label>
+              </p>
+              <p class="form-switch">
+                <input type="hidden" id="stream1_audio_enabled-false" name="stream1_audio_enabled" value="false">
+                <input type="checkbox" id="stream1_audio_enabled" name="stream1_audio_enabled" value="true" role="switch" class="form-check-input">
+                <label for="stream1_audio_enabled" class="form-check-label">Audio in stream</label>
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-
-    <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
-      <i class="bi bi-floppy me-1"></i> Save configuration to file
-    </button>
+      <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
+        <i class="bi bi-floppy me-1"></i> Save configuration to file
+      </button>
+    </section>
   </div>
 </main>
 

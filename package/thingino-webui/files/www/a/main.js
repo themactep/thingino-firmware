@@ -650,10 +650,44 @@ function toggleRecording(channel) {
     })
     .then((text) => {
       if (!text) {
-        console.log(`Empty response (assumed success)`);
+        console.error(
+          `Empty response from recording control (prudynt may not be running)`,
+        );
+        if (button) button.classList.remove("pending");
+        const reason = "No response from streamer (prudynt may not be running)";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
         return;
       }
-      const data = JSON.parse(text);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("Failed to parse recording response:", parseErr);
+        if (button) button.classList.remove("pending");
+        const reason = "Invalid response from streamer";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
+        return;
+      }
       console.log(`Response received:`, data);
       if (data.mp4 && data.mp4[action]) {
         if (data.mp4[action] === "ok") {
@@ -663,23 +697,59 @@ function toggleRecording(channel) {
             ch0: channel === 0 ? newState : recordingState.ch0,
             ch1: channel === 1 ? newState : recordingState.ch1,
           });
+          if (typeof showAlert === "function") {
+            showAlert(
+              "success",
+              `Recording ${action}ed on channel ${channel}`,
+              3000,
+            );
+          }
         } else {
           console.error("Recording control error:", data.mp4[action]);
           if (button) button.classList.remove("pending");
-          alert(
-            `Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`,
-          );
+          const reason = data.mp4[action];
+          if (typeof showAlert === "function") {
+            showAlert(
+              "danger",
+              `Failed to ${action} recording on channel ${channel}: ${reason}`,
+              8000,
+            );
+          } else {
+            alert(
+              `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            );
+          }
         }
       } else {
-        console.error("Unexpected response:", data);
+        console.error("Unexpected response structure:", data);
         if (button) button.classList.remove("pending");
-        alert(`Failed to ${action} recording on channel ${channel}`);
+        const reason = "Unexpected response from streamer";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
       }
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      const reason = err.message || "Network error or streamer unreachable";
+      if (typeof showAlert === "function") {
+        showAlert(
+          "danger",
+          `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          8000,
+        );
+      } else {
+        alert(`Failed to ${action} recording on channel ${channel}: ${reason}`);
+      }
     });
 }
 
@@ -1081,7 +1151,10 @@ function updateHeartbeatUi(json) {
     const micBtn = $("#microphone");
     if (micBtn) {
       micBtn.classList.remove("pending");
-      const isActive = json.mic_enabled && json.mic_enabled !== 0 && json.mic_enabled !== "false";
+      const isActive =
+        json.mic_enabled &&
+        json.mic_enabled !== 0 &&
+        json.mic_enabled !== "false";
       micBtn.classList.toggle("active", isActive);
       const img = micBtn.querySelector("img");
       if (img) {
@@ -1095,7 +1168,10 @@ function updateHeartbeatUi(json) {
     const spkBtn = $("#speaker");
     if (spkBtn) {
       spkBtn.classList.remove("pending");
-      const isActive = json.spk_enabled && json.spk_enabled !== 0 && json.spk_enabled !== "false";
+      const isActive =
+        json.spk_enabled &&
+        json.spk_enabled !== 0 &&
+        json.spk_enabled !== "false";
       spkBtn.classList.toggle("active", isActive);
       const img = spkBtn.querySelector("img");
       if (img) {
