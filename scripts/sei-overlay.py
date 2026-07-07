@@ -361,6 +361,7 @@ def generate_ass(groups, timeline, font_name: str, border_width: int,
     ass += "[Events]\n"
     ass += "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
 
+    layer = 0
     for start_pts, end_pts, text, elem in time_events:
         x_raw = elem.get("x", 0)
         y_raw = elem.get("y", 0)
@@ -378,9 +379,10 @@ def generate_ass(groups, timeline, font_name: str, border_width: int,
         end_ass = _pts_to_ass_time(end_pts)
         text_escaped = text.replace("\\", "\\\\").replace("\n", "\\N")
         tag = (f"{{\\an{alignment}\\fs{fs}\\c{primary}\\bord{border_width}}}")
-        ass += (f"Dialogue: 0,{start_ass},{end_ass},Default,,"
+        ass += (f"Dialogue: {layer},{start_ass},{end_ass},Default,,"
                 f"{margin_l:04d},{margin_r:04d},{margin_v:04d},,"
                 f"{tag}{text_escaped}\n")
+        layer += 1
 
     return ass
 
