@@ -85,8 +85,8 @@
   var POLL_MS = 1000, OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
   var SEI_URL = '/x/json-osd-sei.cgi', timer = null;
 
-  function pcol(h) {
-    if (!h || h.length < 7) return '#ffffff';
+  function pcol(h, dflt) {
+    if (!h || h.length < 7) return dflt || '#ffffff';
     return h.slice(0,7);
   }
   function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -181,7 +181,7 @@
         var h = '';
         for (var i = 0; i < d.elements.length; i++) {
           var el = d.elements[i];
-          h += '<text data-rx="'+el.x+'" data-ry="'+el.y+'" data-rw="'+el.w+'" data-rh="'+el.h+'" data-sei-type="'+el.t+'" fill="'+pcol(el.color)+'" stroke="'+pcol(el.stroke)+'">'+esc(el.text)+'</text>';
+          h += '<text data-rx="'+el.x+'" data-ry="'+el.y+'" data-rw="'+el.w+'" data-rh="'+el.h+'" data-sei-type="'+el.t+'" fill="'+pcol(el.color,'#ffffff')+'" stroke="'+pcol(el.stroke,'#000000')+'">'+esc(el.text)+'</text>';
         }
         svg.innerHTML = h;
         svg.dataset.sw = d.sw || 0;
@@ -225,53 +225,38 @@
 
 <!-- OSD Settings Modal -->
 <div class="modal fade" id="osdModal" tabindex="-1" aria-labelledby="osdModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="osdModalLabel">OSD Overlay Settings</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Font</label>
-          <select class="form-select" id="osd-font">
-            <option value="monospace">Monospace (default)</option>
-          </select>
-          <small class="text-muted" id="osd-font-hint"></small>
-        </div>
-        <div class="row mb-3">
-          <div class="col">
-            <label class="form-label">Font Size</label>
-            <input type="range" class="form-range" id="osd-fontsize" min="8" max="72" value="16">
-            <small class="text-muted" id="osd-fontsize-val">16</small>
+        <p class="form-switch mb-2">
+          <input type="checkbox" id="osd-enabled" role="switch" class="form-check-input">
+          <label for="osd-enabled" class="form-check-label">OSD enabled</label>
+        </p>
+        <div id="osd-elements-list" class="mb-2"></div>
+        <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">
+          <i class="bi bi-plus-lg me-1"></i> Add element
+        </button>
+        <details class="mb-0">
+          <summary class="text-muted small">Visual settings (local only)</summary>
+          <div class="row mt-2">
+            <div class="col-6"><label class="form-label small">Font Size</label>
+              <input type="range" class="form-range" id="osd-fontsize" min="8" max="72" value="16">
+              <small class="text-muted" id="osd-fontsize-val">16</small>
+            </div>
+            <div class="col-6"><label class="form-label small">Outline</label>
+              <input type="range" class="form-range" id="osd-stroke" min="0" max="10" value="1">
+              <small class="text-muted" id="osd-stroke-val">1</small>
+            </div>
           </div>
-          <div class="col">
-            <label class="form-label">Weight</label>
-            <select class="form-select" id="osd-weight">
-              <option value="normal">Normal</option>
-              <option value="bold">Bold</option>
-            </select>
-          </div>
-          <div class="col">
-            <label class="form-label">Outline</label>
-            <input type="range" class="form-range" id="osd-stroke" min="0" max="10" value="1">
-            <small class="text-muted" id="osd-stroke-val">1</small>
-          </div>
-        </div>
-        <div class="row mb-3">
-          <div class="col">
-            <label class="form-label">Text Color</label>
-            <input type="color" class="form-control form-control-color" id="osd-color" value="#ffffff">
-          </div>
-          <div class="col">
-            <label class="form-label">Outline Color</label>
-            <input type="color" class="form-control form-control-color" id="osd-stroke-color" value="#000000">
-          </div>
-        </div>
+        </details>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="osd-apply">Apply</button>
+        <button type="button" class="btn btn-primary" id="osd-save">Save to config</button>
       </div>
     </div>
   </div>
@@ -279,99 +264,111 @@
 
 <script>
 (function(){
-  var osdBtn = document.getElementById('preview-osd');
-  if (!osdBtn) return;
-
   var STORAGE_KEY = 'sei-osd-settings';
+  var API = '/x/json-prudynt.cgi';
+  var TYPES = ['text','gain','hostname','ipaddress','timestamp','uptime'];
+  var DEFAULTS = {
+    text: {format:'', position:'10,10'},
+    gain: {format:'%s', position:'10,-10'},
+    hostname: {format:'%s', position:'0,10'},
+    ipaddress: {format:'%s', position:'0,30'},
+    timestamp: {format:'%F %T', position:'10,10'},
+    uptime: {format:'%02lu:%02lu:%02lu', position:'-10,10'}
+  };
 
   function loadSettings() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
     catch(_) { return {}; }
   }
   function saveSettings(s) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); console.log('sei-osd saved', s); }
-    catch(e) { console.error('sei-osd save error', e); }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+    catch(e) {}
   }
 
-  // Apply saved settings on load
-  function restoreSettings(){
-    var s = loadSettings();
-    if (!s.fs && !s.ff && !s.fc && !s.fw) return;
-    var svg = document.getElementById('sei-osd-overlay');
-    if (!svg || !svg.querySelector('text')) { setTimeout(restoreSettings, 200); return; }
-    if (s.ff) svg.style.setProperty('--sei-ff', s.ff);
-    if (s.fs) { svg.dataset.fs = s.fs; svg.style.setProperty('--sei-fs', s.fs + 'px'); }
-    if (s.stw) svg.dataset.stw = s.stw;
-    if (s.fw) svg.dataset.fw = s.fw;
-    if (s.fc || s.sc || s.stw || s.fs || s.fw) {
-      var texts = svg.querySelectorAll('text');
-      for (var i = 0; i < texts.length; i++) {
-        if (s.fc) texts[i].setAttribute('fill', s.fc);
-        if (s.sc) texts[i].setAttribute('stroke', s.sc);
-        if (s.stw) texts[i].setAttribute('stroke-width', s.stw);
-        if (s.fw) texts[i].setAttribute('font-weight', s.fw);
-        if (s.fs) texts[i].setAttribute('font-size', s.fs);
-      }
-    }
-    // Force a repaint to recalculate positions
-    var repaintFn = window._seiRepaint;
-    if (repaintFn) repaintFn();
-  }
-  restoreSettings();
-
-  // Populate font list from client machine
-  (function populateFonts(){
-    var sel = document.getElementById('osd-font');
-    if (!sel) return;
-    // Detect installed fonts by canvas text measurement.
-    // Compares each candidate width against the generic monospace fallback.
-    var canvas = document.createElement('canvas');
-    var ctx = canvas.getContext('2d');
-    ctx.font = '72px monospace';
-    var refWidth = ctx.measureText('Miiilll').width;
-    var candidates = [
-      'Courier New','Consolas','DejaVu Sans Mono','Fira Code','Hack',
-      'Inconsolata','JetBrains Mono','Liberation Mono','Menlo','Monaco',
-      'Noto Sans Mono','PT Mono','Roboto Mono','SF Mono',
-      'Source Code Pro','Ubuntu Mono','Victor Mono','Cascadia Code',
-      'Droid Sans Mono'
-    ];
-    var found = 0;
-    candidates.forEach(function(f){
-      ctx.font = '72px "' + f + '", monospace';
-      if (ctx.measureText('Miiilll').width !== refWidth) {
-        sel.add(new Option(f, f)); found++;
-      }
+  function createRow(name, type, format, position) {
+    var row = document.createElement('div');
+    row.className = 'osd-el-row d-flex gap-1 align-items-end mb-1';
+    row.innerHTML =
+      '<input class="form-control form-control-sm elem-name" placeholder="id" style="flex:0 0 100px" value="' + (name||'') + '">' +
+      '<select class="form-select form-select-sm elem-type" style="flex:0 0 150px">' +
+        TYPES.map(function(t){ return '<option value="'+t+'"' + (t===type?' selected':'') + '>'+t+'</option>'; }).join('') +
+      '</select>' +
+      '<input class="form-control form-control-sm elem-format" placeholder="format" style="flex:1 1 auto" value="' + (format||'') + '">' +
+      '<input class="form-control form-control-sm elem-position" placeholder="x,y" style="flex:0 0 70px" value="' + (position||'') + '">' +
+      '<button class="btn btn-outline-danger btn-sm elem-remove flex-shrink-0" title="Remove">&times;</button>';
+    row.querySelector('.elem-type').addEventListener('change', function(){
+      var d = DEFAULTS[this.value];
+      row.querySelector('.elem-format').value = d.format;
+      row.querySelector('.elem-position').value = d.position;
     });
-    if (!found) sel.add(new Option('monospace', 'monospace'));
-    document.getElementById('osd-font-hint').textContent = found + ' fonts found';
-  })();
+    row.querySelector('.elem-remove').addEventListener('click', function(){ row.remove(); });
+    return row;
+  }
 
-  osdBtn.addEventListener('click', function(){
+  function collectElements() {
+    var elems = {};
+    document.querySelectorAll('#osd-elements-list .osd-el-row').forEach(function(row){
+      var name = row.querySelector('.elem-name').value.trim();
+      if (!name) return;
+      elems[name] = {
+        type: row.querySelector('.elem-type').value,
+        format: row.querySelector('.elem-format').value,
+        position: row.querySelector('.elem-position').value
+      };
+    });
+    return elems;
+  }
+
+  function loadElements(elems) {
+    var list = document.getElementById('osd-elements-list');
+    list.innerHTML = '';
+    if (!elems) return;
+    Object.keys(elems).forEach(function(name){
+      var el = elems[name];
+      list.appendChild(createRow(name, el.type, el.format, el.position));
+    });
+  }
+
+  function loadOsdConfig() {
+    fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({osd:{enabled:null,elements:null}})})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.enabled !== undefined) document.getElementById('osd-enabled').checked = d.enabled !== false;
+      loadElements(d.elements);
+    }).catch(function(){});
+  }
+
+  // Restore visual settings
+  function restoreVisuals(){
+    var s = loadSettings();
     var svg = document.getElementById('sei-osd-overlay');
-    var saved = loadSettings();
-    var t0 = svg ? svg.querySelector('text') : null;
-    var curFS = svg ? (parseInt(svg.dataset.fs) || 32) : (saved.fs || 32);
-    var curSW = svg ? (parseFloat(svg.dataset.stw) || 1) : (saved.stw || 1);
-    var curWT = svg ? (svg.dataset.fw || 'normal') : (saved.fw || 'normal');
-    var curFF = (svg ? svg.style.getPropertyValue('--sei-ff') : '') || saved.ff || '';
-    curFF = curFF.replace(/'/g,'');
-    var curC = t0 ? t0.getAttribute('fill') : (saved.fc || '#ffffff');
-    var curS = t0 ? t0.getAttribute('stroke') : (saved.sc || '#000000');
-    if (curC && curC.length >= 7) curC = curC.slice(0,7);
-    if (curS && curS.length >= 7) curS = curS.slice(0,7);
-    document.getElementById('osd-fontsize').value = curFS;
-    document.getElementById('osd-fontsize-val').textContent = curFS;
-    document.getElementById('osd-stroke').value = curSW;
-    document.getElementById('osd-stroke-val').textContent = curSW;
-    document.getElementById('osd-weight').value = curWT;
-    document.getElementById('osd-color').value = curC || '#ffffff';
-    document.getElementById('osd-stroke-color').value = curS || '#000000';
-    var sel = document.getElementById('osd-font');
-    for (var i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].value === curFF) { sel.selectedIndex = i; break; }
+    if (!svg || !svg.querySelector('text')) { setTimeout(restoreVisuals, 200); return; }
+    if (s.fs) { svg.dataset.fs = s.fs; }
+    if (s.stw) svg.dataset.stw = s.stw;
+    if (s.fs || s.stw) {
+      var texts = svg.querySelectorAll('text');
+      for (var i=0;i<texts.length;i++) {
+        if (s.fs) texts[i].setAttribute('font-size', s.fs);
+        if (s.stw) texts[i].setAttribute('stroke-width', s.stw);
+      }
+      if (window._seiRepaint) window._seiRepaint();
     }
+  }
+  restoreVisuals();
+
+  document.getElementById('preview-osd').addEventListener('click', function(){
+    loadOsdConfig();
+    var s = loadSettings();
+    document.getElementById('osd-fontsize').value = s.fs || 16;
+    document.getElementById('osd-fontsize-val').textContent = s.fs || 16;
+    document.getElementById('osd-stroke').value = s.stw || 1;
+    document.getElementById('osd-stroke-val').textContent = s.stw || 1;
     new bootstrap.Modal('#osdModal').show();
+  });
+
+  document.getElementById('osd-add-element').addEventListener('click', function(){
+    document.getElementById('osd-elements-list').appendChild(createRow('', 'text', '', ''));
   });
 
   document.getElementById('osd-fontsize').addEventListener('input', function(){
@@ -381,34 +378,39 @@
     document.getElementById('osd-stroke-val').textContent = this.value;
   });
 
-  document.getElementById('osd-apply').addEventListener('click', function(){
-    var ff = document.getElementById('osd-font').value;
-    if (ff.indexOf(' ') !== -1) ff = "'" + ff + "'";
-    ff += ', monospace';
-    var fs = document.getElementById('osd-fontsize').value;
-    var sw = document.getElementById('osd-stroke').value;
-    var wt = document.getElementById('osd-weight').value;
-    var fc = document.getElementById('osd-color').value + 'CC';
-    var sc = document.getElementById('osd-stroke-color').value + 'CC';
+  document.getElementById('osd-save').addEventListener('click', async function(){
+    var btn = document.getElementById('osd-save');
+    var confirmed = await confirm('Save OSD elements to /etc/prudynt.json?');
+    if (!confirmed) return;
+    btn.disabled = true;
+    try {
+      var payload = { osd: { enabled: document.getElementById('osd-enabled').checked, elements: collectElements() }, action: { save_config: null } };
+      var r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      var msg = await r.json();
+      if (msg.action && msg.action.save_config === 'ok') {
+        if (typeof showAlert === 'function') showAlert('success', 'OSD configuration saved.', 4000);
+        bootstrap.Modal.getInstance('#osdModal').hide();
+      }
+    } catch(e) {
+      if (typeof showAlert === 'function') showAlert('danger', 'Failed: ' + e.message, 6000);
+    } finally { btn.disabled = false; }
+
+    // Save visual settings locally
+    saveSettings({
+      fs: document.getElementById('osd-fontsize').value,
+      stw: document.getElementById('osd-stroke').value
+    });
     var svg = document.getElementById('sei-osd-overlay');
-    if (!svg) return;
-    svg.style.setProperty('--sei-ff', ff);
-    svg.style.setProperty('--sei-fs', fs + 'px');
-    svg.dataset.fs = fs;  // fsOrig stays — used for scale factor
-    svg.dataset.stw = sw;
-    svg.dataset.fw = wt;
-    // Update existing text elements immediately
-    var texts = svg.querySelectorAll('text');
-    for (var i = 0; i < texts.length; i++) {
-      texts[i].setAttribute('fill', fc);
-      texts[i].setAttribute('stroke', sc);
-      texts[i].setAttribute('stroke-width', sw);
-      texts[i].setAttribute('font-size', fs);
-      texts[i].setAttribute('font-weight', wt);
+    if (svg) {
+      svg.dataset.fs = document.getElementById('osd-fontsize').value;
+      svg.dataset.stw = document.getElementById('osd-stroke').value;
+      var texts = svg.querySelectorAll('text');
+      for (var i=0;i<texts.length;i++) {
+        texts[i].setAttribute('font-size', svg.dataset.fs);
+        texts[i].setAttribute('stroke-width', svg.dataset.stw);
+      }
+      if (window._seiRepaint) window._seiRepaint();
     }
-    try { if (window._seiRepaint) window._seiRepaint(); } catch(e) {}
-    saveSettings({ff: ff, fs: fs, stw: sw, fw: wt, fc: fc, sc: sc});
-    bootstrap.Modal.getInstance('#osdModal').hide();
   });
 })();
 </script>

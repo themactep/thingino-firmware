@@ -143,10 +143,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-main.html \
 		$(TARGET_DIR)/var/www/streamer-main.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd0.html \
-		$(TARGET_DIR)/var/www/streamer-osd0.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd1.html \
-		$(TARGET_DIR)/var/www/streamer-osd1.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd.html \
+		$(TARGET_DIR)/var/www/streamer-osd.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-sensor.html \
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-substream.html \
