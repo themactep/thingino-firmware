@@ -242,7 +242,7 @@ def group_timeline(timeline):
 #  Time interpolation helpers
 # ──────────────────────────────────────────────────────────────────────
 
-INTERPOLATED_TYPES = {"time"}
+INTERPOLATED_TYPES = {"timestamp"}
 
 def _parse_datetime(text: str):
     return datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
@@ -364,9 +364,10 @@ def generate_ass(groups, timeline, font_name: str, border_width: int,
     for start_pts, end_pts, text, elem in time_events:
         x_raw = elem.get("x", 0)
         y_raw = elem.get("y", 0)
-        color_hex = elem.get("color", "#FFFFFFFF")
-        stroke_hex = elem.get("stroke", "#000000CC")
-        fs = elem.get("fs", 32)
+
+        # Use reasonable defaults — new SEI format doesn't include colors/sizes
+        fs = 32
+        primary = "&H00FFFFFF"  # white
 
         alignment = _ass_alignment(x_raw, y_raw)
         margin_l = abs(x_raw) if x_raw > 0 else 0
@@ -375,7 +376,6 @@ def generate_ass(groups, timeline, font_name: str, border_width: int,
 
         start_ass = _pts_to_ass_time(start_pts)
         end_ass = _pts_to_ass_time(end_pts)
-        primary = _ass_color(color_hex)
         text_escaped = text.replace("\\", "\\\\").replace("\n", "\\N")
         tag = (f"{{\\an{alignment}\\fs{fs}\\c{primary}\\bord{border_width}}}")
         ass += (f"Dialogue: 0,{start_ass},{end_ass},Default,,"
@@ -641,9 +641,8 @@ def process_one(input_file: str, output_file: str, args):
             print(f"SRT written → {srt_path}", file=sys.stderr)
             return
         else:
-            # Use the first element's stroke as the Style outline colour
-            first_elem = timeline[0]["sei"]["elements"][0]
-            stroke_color = _ass_color(first_elem.get("stroke", "#000000CC"))
+            # Use black outline as default (new SEI doesn't carry colors)
+            stroke_color = "&HCC000000"
             ass_content = generate_ass(groups, timeline, args.font, args.border_width,
                                         stroke_color, rotation, sw, sh)
             ass_path = Path(args.output) if args.output else Path(input_file).with_suffix(".ass")
@@ -664,8 +663,7 @@ def process_one(input_file: str, output_file: str, args):
     print(f"Stream rotation: {rotation}°", file=sys.stderr)
 
     # ── Generate ASS subtitle file ─────────────────────────────────
-    first_elem = timeline[0]["sei"]["elements"][0]
-    stroke_color = _ass_color(first_elem.get("stroke", "#000000CC"))
+    stroke_color = "&HCC000000"
     ass_content = generate_ass(groups, timeline, args.font, args.border_width,
                                 stroke_color, rotation, sw, sh)
 
