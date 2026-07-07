@@ -50,7 +50,7 @@ const stream_params = [
   "rtsp_endpoint",
   "audio_enabled",
 ];
-const osd_params = ["enabled", "fontsize", "strokesize"];
+const osd_params = ["enabled"];
 const previewEndpointState = {
   rtsp: {
     username: "thingino",
@@ -277,39 +277,6 @@ function handleOsdData(osd, streamIndex) {
       el.disabled = false;
     }
   }
-  if (osd.font_size !== undefined) {
-    const el = $(`#osd${streamIndex}_fontsize`);
-    if (el) {
-      el.value = osd.font_size;
-      el.disabled = false;
-    }
-  }
-  if (osd.stroke_size !== undefined) {
-    const el = $(`#osd${streamIndex}_strokesize`);
-    if (el) {
-      el.value = osd.stroke_size;
-      el.disabled = false;
-    }
-  }
-
-  // Logo element
-  if (osd.logo) {
-    if (osd.logo.enabled !== undefined) {
-      const el = $(`#osd${streamIndex}_logo_enabled`);
-      if (el) {
-        el.checked = osd.logo.enabled;
-        el.disabled = false;
-      }
-    }
-    if (osd.logo.position !== undefined) {
-      const el = $(`#osd${streamIndex}_logo_position`);
-      if (el) {
-        el.value = osd.logo.position;
-        el.disabled = false;
-      }
-    }
-  }
-
   // Time element
   if (osd.time) {
     if (osd.time.enabled !== undefined) {
@@ -333,21 +300,6 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
-    if (osd.time.fill_color) {
-      const el = $(`#osd${streamIndex}_time_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.time.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.time.stroke_color) {
-      const el = $(`#osd${streamIndex}_time_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.time.stroke_color);
-        el.disabled = false;
-      }
-    }
-  }
 
   // Uptime element
   if (osd.uptime) {
@@ -365,21 +317,6 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
-    if (osd.uptime.fill_color) {
-      const el = $(`#osd${streamIndex}_uptime_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.uptime.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.uptime.stroke_color) {
-      const el = $(`#osd${streamIndex}_uptime_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.uptime.stroke_color);
-        el.disabled = false;
-      }
-    }
-  }
 
   // Usertext element
   if (osd.usertext) {
@@ -404,21 +341,6 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
-    if (osd.usertext.fill_color) {
-      const el = $(`#osd${streamIndex}_usertext_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.usertext.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.usertext.stroke_color) {
-      const el = $(`#osd${streamIndex}_usertext_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.usertext.stroke_color);
-        el.disabled = false;
-      }
-    }
-  }
 }
 
 function handleMessage(msg) {
@@ -520,28 +442,19 @@ async function loadConfig() {
       osd: {
         enabled: null,
         font_path: null,
-        font_size: null,
-        stroke_size: null,
-        logo: { enabled: null, position: null },
         time: {
           enabled: null,
           format: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
         uptime: {
           enabled: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
         usertext: {
           enabled: null,
           format: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
       },
     },
@@ -562,28 +475,19 @@ async function loadConfig() {
       osd: {
         enabled: null,
         font_path: null,
-        font_size: null,
-        stroke_size: null,
-        logo: { enabled: null, position: null },
         time: {
           enabled: null,
           format: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
         uptime: {
           enabled: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
         usertext: {
           enabled: null,
           format: null,
           position: null,
-          fill_color: null,
-          stroke_color: null,
         },
       },
     },
@@ -1232,33 +1136,6 @@ function sendOsdUpdate(streamId, osdPayload) {
   sendToEndpoint(payload);
 }
 
-function setFont(streamId) {
-  const fontSizeInput = $(`#osd${streamId}_fontsize`);
-  const strokeSizeInput = $(`#osd${streamId}_strokesize`);
-  if (!fontSizeInput || !strokeSizeInput) return;
-
-  const payload = {};
-
-  const fontSize = Number(fontSizeInput.value);
-  if (!Number.isNaN(fontSize)) {
-    payload.font_size = fontSize;
-  }
-
-  const strokeSize = Number(strokeSizeInput.value);
-  if (!Number.isNaN(strokeSize)) {
-    payload.stroke_size = strokeSize;
-  }
-
-  if (Object.keys(payload).length === 0) return;
-  console.log(ts(), "setFont for stream", streamId, ":", payload);
-  // Font changes require Video + OSD thread restart for immediate effect
-  const fullPayload = {
-    [`stream${streamId}`]: { osd: payload },
-    action: { restart_thread: ThreadVideo | ThreadOSD },
-  };
-  sendToEndpoint(fullPayload);
-}
-
 // Setup OSD controls for both stream0 and stream1
 [0, 1].forEach((streamId) => {
   // Configuration for OSD controls
@@ -1266,18 +1143,6 @@ function setFont(streamId) {
     {
       id: "enabled",
       handler: (e) => sendOsdUpdate(streamId, { enabled: e.target.checked }),
-    },
-    { id: "fontsize", handler: () => setFont(streamId) },
-    { id: "strokesize", handler: () => setFont(streamId) },
-    {
-      id: "logo_enabled",
-      handler: (e) =>
-        sendOsdUpdate(streamId, { logo: { enabled: e.target.checked } }),
-    },
-    {
-      id: "logo_position",
-      handler: (e) =>
-        sendOsdUpdate(streamId, { logo: { position: e.target.value } }),
     },
     {
       id: "time_enabled",
@@ -1295,20 +1160,6 @@ function setFont(streamId) {
         sendOsdUpdate(streamId, { time: { position: e.target.value } }),
     },
     {
-      id: "time_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          time: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "time_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          time: { stroke_color: e.target.value + "ff" },
-        }),
-    },
-    {
       id: "uptime_enabled",
       handler: (e) =>
         sendOsdUpdate(streamId, { uptime: { enabled: e.target.checked } }),
@@ -1317,20 +1168,6 @@ function setFont(streamId) {
       id: "uptime_position",
       handler: (e) =>
         sendOsdUpdate(streamId, { uptime: { position: e.target.value } }),
-    },
-    {
-      id: "uptime_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          uptime: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "uptime_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          uptime: { stroke_color: e.target.value + "ff" },
-        }),
     },
     {
       id: "usertext_enabled",
@@ -1346,20 +1183,6 @@ function setFont(streamId) {
       id: "usertext_position",
       handler: (e) =>
         sendOsdUpdate(streamId, { usertext: { position: e.target.value } }),
-    },
-    {
-      id: "usertext_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          usertext: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "usertext_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          usertext: { stroke_color: e.target.value + "ff" },
-        }),
     },
   ];
 
