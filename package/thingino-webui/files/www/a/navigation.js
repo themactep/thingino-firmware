@@ -139,9 +139,8 @@
         items: [
           { label: "Image Quality", href: "/streamer-image.html" },
           { label: "RTSP Main stream", href: "/streamer-main.html" },
-          { label: "Main stream OSD", href: "/streamer-osd0.html" },
+          { label: "OSD Elements", href: "/streamer-osd.html" },
           { label: "RTSP Substream", href: "/streamer-substream.html" },
-          { label: "Substream OSD", href: "/streamer-osd1.html" },
           { label: "Sensor IQ File", href: "/streamer-sensor.html" },
           { type: "divider" },
           { label: "Streamer config", href: "/info.html?prudynt" },
