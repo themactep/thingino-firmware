@@ -25,28 +25,14 @@
   },
   "daynight": {
     "controls": {},
-    "day_count_threshold": 4,
     "enabled": true,
-    "ev_day_low_primary": 0,
-    "ev_day_low_secondary": 0,
-    "ev_night_high": 0,
-    "gb_gain_absolute": 145,
-    "gb_gain_delta": 15,
     "loglevel": "INFO",
-    "night_count_threshold": 6,
     "sample_interval_ms": 1000,
-    "script_path": "/sbin/daynight",
-    "settle_samples_for_gb_record": 20,
-    "switch_above_percent": 80,
-    "switch_below_percent": 15,
-    "tolerance_percent": 50
+    "script_path": "/sbin/daynight"
   },
   "general": {
-    "audio_debug_verbose": false,
     "imp_polling_timeout": 500,
-    "loglevel": "INFO",
-    "memory_monitoring_enabled": true,
-    "timestamp_validation_enabled": true
+    "loglevel": "INFO"
   },
   "http": {
     "api_enabled": true,
