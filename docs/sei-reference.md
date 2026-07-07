@@ -117,5 +117,39 @@ ffprobe -v error -show_entries frame=side_data_list INPUT
 Thingino embeds OSD overlay metadata in H.264 SEI type 5 (user data
 unregistered) with UUID `a1b2c3d4-e5f6-4780-abcd-ef1234567890`.
 
-See [`osd-sei-metadata-plan.md`](osd-sei-metadata-plan.md) for the JSON
-schema, HTTP API, and web UI rendering details.
+Each SEI payload is a JSON object:
+
+```json
+{
+  "v": 1,
+  "sw": 1920, "sh": 1080, "rotation": 0,
+  "elements": [
+    {"t": "timestamp", "text": "2026-07-07 13:21:20", "x": 10, "y": 10},
+    {"t": "hostname",  "text": "ing-cam",            "x": 0,  "y": 10},
+    {"t": "ipaddress", "text": "192.168.1.100",      "x": 0,  "y": 30},
+    {"t": "uptime",    "text": "01:23:45",           "x": -10, "y": 10},
+    {"t": "gain",      "text": "312",                "x": 10, "y": -10}
+  ]
+}
+```
+
+### Element types
+
+| Type | Data source |
+|------|-------------|
+| `timestamp` | Current date/time (strftime format from config) |
+| `hostname` | Camera hostname |
+| `ipaddress` | Camera IP address |
+| `uptime` | System uptime (days:hours:minutes) |
+| `gain` | ISP total gain value |
+| `text` | Static text from config |
+
+### Position convention
+
+| Value | Meaning |
+|---|---|
+| `> 0` | Offset from left / top edge |
+| `0` | Centred horizontally / vertically |
+| `< 0` | Offset from right / bottom edge (absolute value) |
+
+See [`sei-overlay.md`](sei-overlay.md) for the extraction and overlay tool.
