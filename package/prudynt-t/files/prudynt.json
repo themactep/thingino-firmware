@@ -211,7 +211,7 @@
       },
       "host": {
         "type": "hostname",
-        "format": "%hostname",
+        "format": "%s",
         "position": "0,10"
       },
       "uptime": {
@@ -221,7 +221,7 @@
       },
       "gain": {
         "type": "gain",
-        "format": "%d",
+        "format": "%s",
         "position": "10,-10"
       }
     },
