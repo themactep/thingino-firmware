@@ -152,29 +152,31 @@
     "max_gop": 60,
     "mode": "CBR",
     "osd": {
-      "brightness": {
-        "enabled": false,
-        "format": "%b",
-        "position": "10,-10"
-      },
       "enabled": true,
+      "elements": {
+        "clock": {
+          "type": "timestamp",
+          "format": "%F %T",
+          "position": "10,10"
+        },
+        "host": {
+          "type": "hostname",
+          "format": "%hostname",
+          "position": "0,10"
+        },
+        "uptime": {
+          "type": "uptime",
+          "format": "%02lu:%02lu:%02lu",
+          "position": "-10,10"
+        },
+        "gain": {
+          "type": "gain",
+          "format": "%d",
+          "position": "10,-10"
+        }
+      },
       "privacy": {
         "enabled": true
-      },
-      "time": {
-        "enabled": true,
-        "format": "%F %T",
-        "position": "10,10"
-      },
-      "uptime": {
-        "enabled": true,
-        "format": "Uptime: %02lu:%02lu:%02lu",
-        "position": "-10,10"
-      },
-      "usertext": {
-        "enabled": true,
-        "format": "%hostname",
-        "position": "0,10"
       }
     },
     "pb_delta": -1,
@@ -202,29 +204,31 @@
     "max_gop": 60,
     "mode": "CBR",
     "osd": {
-      "brightness": {
-        "enabled": false,
-        "format": "%b",
-        "position": "5,-5"
-      },
       "enabled": true,
+      "elements": {
+        "clock": {
+          "type": "timestamp",
+          "format": "%F %T",
+          "position": "10,10"
+        },
+        "host": {
+          "type": "hostname",
+          "format": "%hostname",
+          "position": "0,10"
+        },
+        "uptime": {
+          "type": "uptime",
+          "format": "%02lu:%02lu:%02lu",
+          "position": "-10,10"
+        },
+        "gain": {
+          "type": "gain",
+          "format": "%d",
+          "position": "10,-10"
+        }
+      },
       "privacy": {
         "enabled": true
-      },
-      "time": {
-        "enabled": true,
-        "format": "%F %T",
-        "position": "5,5"
-      },
-      "uptime": {
-        "enabled": true,
-        "format": "Uptime: %02lu:%02lu:%02lu",
-        "position": "-5,5"
-      },
-      "usertext": {
-        "enabled": true,
-        "format": "%hostname",
-        "position": "0,5"
       }
     },
     "pb_delta": -1,
