@@ -39,29 +39,7 @@
                 <input type="checkbox" id="osd1_enabled" name="osd1_enabled" value="true" role="switch" class="form-check-input">
                 <label for="osd1_enabled" class="form-check-label">OSD enabled</label>
               </p>
-              <p>
-                <label class="d-block">Font file</label>
-                <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#mdFont">Upload or restore default font</button>
-              </p>
-              <p>
-                <label for="osd1_fontsize">Size</label>
-                <input type="text" id="osd1_fontsize" name="osd1_fontsize" class="form-control" value="">
-              </p>
-              <p>
-                <label for="osd1_strokesize">Shadow</label>
-                <input type="text" id="osd1_strokesize" name="osd1_strokesize" class="form-control" value="">
-              </p>
-            </div>
-            <div class="col">
-              <p class="form-switch">
-                <input type="hidden" id="osd1_logo_enabled-false" name="osd1_logo_enabled" value="false">
-                <input type="checkbox" id="osd1_logo_enabled" name="osd1_logo_enabled" value="true" role="switch" class="form-check-input">
-                <label for="osd1_logo_enabled" class="form-check-label">Logo</label>
-              </p>
-              <p>
-                <label for="osd1_logo_position">Position (x,y)</label>
-                <input type="text" id="osd1_logo_position" name="osd1_logo_position" class="form-control" value="">
-              </p>
+
             </div>
             <div class="col">
               <p class="form-switch">
@@ -73,16 +51,7 @@
                 <label for="osd1_time_position">Position (x,y)</label>
                 <input type="text" id="osd1_time_position" name="osd1_time_position" class="form-control" value="">
               </p>
-              <p id="osd1_time_fillcolor_wrap" class="file">
-                <label for="osd1_time_fillcolor">Color</label>
-                <input type="color" id="osd1_time_fillcolor" name="osd1_time_fillcolor" class="form-control input-color">
-                <input type="range" id="osd1_time_fillcolor-alpha" name="osd1_time_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
-              <p id="osd1_time_strokecolor_wrap" class="file">
-                <label for="osd1_time_strokecolor">Shadow</label>
-                <input type="color" id="osd1_time_strokecolor" name="osd1_time_strokecolor" class="form-control input-color">
-                <input type="range" id="osd1_time_strokecolor-alpha" name="osd1_time_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
+
               <p>
                 <label for="osd1_time_format">Format</label>
                 <input type="text" id="osd1_time_format" name="osd1_time_format" class="form-control" value="">
@@ -98,16 +67,7 @@
                 <label for="osd1_uptime_position">Position (x,y)</label>
                 <input type="text" id="osd1_uptime_position" name="osd1_uptime_position" class="form-control" value="">
               </p>
-              <p>
-                <label for="osd1_uptime_fillcolor">Color</label>
-                <input type="color" id="osd1_uptime_fillcolor" name="osd1_uptime_fillcolor" class="form-control input-color">
-                <input type="range" id="osd1_uptime_fillcolor-alpha" name="osd1_uptime_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
-              <p>
-                <label for="osd1_uptime_strokecolor">Shadow</label>
-                <input type="color" id="osd1_uptime_strokecolor" name="osd1_uptime_strokecolor" class="form-control input-color">
-                <input type="range" id="osd1_uptime_strokecolor-alpha" name="osd1_uptime_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
+
             </div>
             <div class="col">
               <p class="form-switch">
@@ -119,16 +79,7 @@
                 <label for="osd1_usertext_position">Position (x,y)</label>
                 <input type="text" id="osd1_usertext_position" name="osd1_usertext_position" class="form-control" value="">
               </p>
-              <p>
-                <label for="osd1_usertext_fillcolor">Color</label>
-                <input type="color" id="osd1_usertext_fillcolor" name="osd1_usertext_fillcolor" class="form-control input-color">
-                <input type="range" id="osd1_usertext_fillcolor-alpha" name="osd1_usertext_fillcolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
-              <p>
-                <label for="osd1_usertext_strokecolor">Shadow</label>
-                <input type="color" id="osd1_usertext_strokecolor" name="osd1_usertext_strokecolor" class="form-control input-color">
-                <input type="range" id="osd1_usertext_strokecolor-alpha" name="osd1_usertext_strokecolor-alpha" min=0 max=255 step=1 class="expert">
-              </p>
+
               <p>
                 <label for="osd1_usertext_format">Format</label>
                 <input type="text" id="osd1_usertext_format" name="osd1_usertext_format" class="form-control" value="">
@@ -146,30 +97,6 @@
 
 <footer data-app-footer></footer>
 
-<div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fs-4" id="mdlFont">Upload font file</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="fontUploadForm" class="mb-4" method="post" action="/x/preview.cgi" enctype="multipart/form-data">
-          <input type="hidden" name="form" value="font">
-          <div class="mb-3">
-            <label for="fontfile">Upload a TTF file</label>
-            <input type="file" class="form-control" id="fontfile" name="fontfile" accept=".ttf,.otf" required>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">Upload font</button>
-        </form>
-        <form method="post" action="/x/preview.cgi" enctype="multipart/form-data">
-          <input type="hidden" name="form" value="font-reset">
-          <button type="submit" class="btn btn-outline-danger w-100">Restore firmware font</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
   integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>

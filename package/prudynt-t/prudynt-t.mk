@@ -15,7 +15,6 @@ endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
-PRUDYNT_T_DEPENDENCIES += libschrift
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -358,13 +357,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
 
-	# assets
-	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
-		$(TARGET_DIR)/usr/share/fonts/default.ttf
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
