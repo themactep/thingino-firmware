@@ -300,6 +300,7 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
+  }
 
   // Uptime element
   if (osd.uptime) {
@@ -317,6 +318,7 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
+  }
 
   // Usertext element
   if (osd.usertext) {
@@ -341,6 +343,7 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
+  }
 }
 
 function handleMessage(msg) {
