@@ -151,34 +151,6 @@
     "max_bitrate": 0,
     "max_gop": 60,
     "mode": "CBR",
-    "osd": {
-      "enabled": true,
-      "elements": {
-        "clock": {
-          "type": "timestamp",
-          "format": "%F %T",
-          "position": "10,10"
-        },
-        "host": {
-          "type": "hostname",
-          "format": "%hostname",
-          "position": "0,10"
-        },
-        "uptime": {
-          "type": "uptime",
-          "format": "%02lu:%02lu:%02lu",
-          "position": "-10,10"
-        },
-        "gain": {
-          "type": "gain",
-          "format": "%d",
-          "position": "10,-10"
-        }
-      },
-      "privacy": {
-        "enabled": true
-      }
-    },
     "pb_delta": -1,
     "profile": 2,
     "qp_init": -1,
@@ -203,34 +175,6 @@
     "max_bitrate": 0,
     "max_gop": 60,
     "mode": "CBR",
-    "osd": {
-      "enabled": true,
-      "elements": {
-        "clock": {
-          "type": "timestamp",
-          "format": "%F %T",
-          "position": "10,10"
-        },
-        "host": {
-          "type": "hostname",
-          "format": "%hostname",
-          "position": "0,10"
-        },
-        "uptime": {
-          "type": "uptime",
-          "format": "%02lu:%02lu:%02lu",
-          "position": "-10,10"
-        },
-        "gain": {
-          "type": "gain",
-          "format": "%d",
-          "position": "10,-10"
-        }
-      },
-      "privacy": {
-        "enabled": true
-      }
-    },
     "pb_delta": -1,
     "profile": 2,
     "qp_init": -1,
@@ -256,5 +200,33 @@
     "jpeg_idle_fps": 1,
     "jpeg_path": "/tmp/snapshot_ch1.jpg",
     "jpeg_quality": 75
+  },
+  "osd": {
+    "enabled": true,
+    "elements": {
+      "clock": {
+        "type": "timestamp",
+        "format": "%F %T",
+        "position": "10,10"
+      },
+      "host": {
+        "type": "hostname",
+        "format": "%hostname",
+        "position": "0,10"
+      },
+      "uptime": {
+        "type": "uptime",
+        "format": "%02lu:%02lu:%02lu",
+        "position": "-10,10"
+      },
+      "gain": {
+        "type": "gain",
+        "format": "%d",
+        "position": "10,-10"
+      }
+    },
+    "privacy": {
+      "enabled": true
+    }
   }
 }
