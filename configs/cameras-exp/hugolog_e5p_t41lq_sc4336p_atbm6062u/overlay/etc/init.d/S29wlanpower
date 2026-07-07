@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# Power the ATBM6062 USB WiFi module.
+# On the Hugolog E5P, GPIO 60 (PB28) gates VBUS/power to the on-board
+# USB WiFi. Nothing in the kernel drives it, so assert it here before
+# S36wireless loads the driver. (drvvbus-in-DTS is the eventual clean fix.)
+#
+WLAN_PWR_GPIO=60
+
+case "$1" in
+	start|"")
+		gpio set "$WLAN_PWR_GPIO" 1
+		;;
+	stop)
+		gpio set "$WLAN_PWR_GPIO" 0
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+exit 0

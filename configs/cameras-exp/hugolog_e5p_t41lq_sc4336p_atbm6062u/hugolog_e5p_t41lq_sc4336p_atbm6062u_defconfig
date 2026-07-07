@@ -1,0 +1,44 @@
+# NAME: Hugolog E5P (T41LQ, SC4336P, ATBM6062U)
+# FRAG: soc-xburst2 core ssl
+BR2_AVPU_APLL=y
+BR2_AVPU_CLK_550MHZ=y
+BR2_ISP_CLKA_550MHZ=y
+BR2_ISP_CLKA_SCLKA=y
+BR2_ISP_CLKS_550MHZ=y
+BR2_ISP_CLKS_SCLKA=y
+BR2_ISP_CLK_300MHZ=y
+BR2_ISP_CLK_VPLL=y
+BR2_INGENIC_SOC_MODEL="t41lq"
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0_NOR=y
+BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6062U=y
+BR2_SENSOR_1_NAME="sc4336p"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_NAME="sc4336p"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_VIDEO_INTERFACE="0"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=71
+BR2_THINGINO_BUTTON=y
+BR2_THINGINO_SDCARD=y
+BR2_THINGINO_RMEM_MB=24
+BR2_THINGINO_NMEM_MB=0
+BR2_THINGINO_FLASH_NOR=y
+FLASH_SIZE_MB=16
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS=y
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_HUGOLOGE5P=y
+
+# Stock (GV/Brovision ODM firmware, T41 "isvp_marmot" 3.10.14 kernel):
+#   bootargs mem=40M rmem=19M nmem=5M (64MB total -> T41LQ)
+#   This board multi-sources sc5336/sc4336p/sc200ai (stock auto-detects via
+#   sinfo). The unit on the bench answers i2c0@0x30 with chip-id 0x9c42 =
+#   SC4336P (sc5336=0xce50, sc200ai=0xcb1c). Other units may differ.
+#   Stock sc4336p ISP: clks=vpll@594M isp_clk=300M direct_mode=1
+#           ivdc_mem_line=256 isp_memopt=2; avpu sclka@552M.
+# WLAN power = GPIO 60 active-high (verified on device: AltoBeam enumerates on USB
+# only with 60 high; stock gv-gpio table id14, the special-cased entry).
+# GPIO 71 as audio amp enable is a best guess (stock holds it high at boot;
+# id 19 in the stock table).
+# stock also ships atbm613x_wifi_usb.ko (ATBM6132U) as alternate sourcing;
+# this unit runs atbm606x_wifi_usb.ko (verified on device 2026-07-06)

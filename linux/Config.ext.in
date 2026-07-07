@@ -62,6 +62,15 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_EUFYT8416
 
 		Compatible with Ingenic T40 based Eufy T8416 hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_HUGOLOGE5P
+	bool "Hugolog E5P"
+	help
+		Select this option to use the custom device tree for Hugolog E5P.
+		This will install the hugolog_e5p_t41lq.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+
+		Compatible with Ingenic T41 based Hugolog E5P hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEPANV4
 	bool "Wyze Cam Pan v4"
 	help
