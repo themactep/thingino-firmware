@@ -3,6 +3,7 @@
  *
  * Polls /api/v1/osd-sei and renders OSD elements as positioned HTML
  * overlays on top of the MJPEG preview <img>.
+ * Works with the simplified SEI format: { t, text, x, y }
  */
 (function () {
   "use strict";
@@ -10,47 +11,14 @@
   const POLL_INTERVAL_MS = 1000;
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
+  const FONT_SIZE = 14; // px base size, scaled with image
 
   let timer = null;
 
-  /** Resolve negative / centered positions relative to container size */
-  function resolvePos(rawPos, elemSize, containerSize) {
-    if (rawPos < 0) return Math.max(containerSize - elemSize + rawPos, 0);
-    if (rawPos === 0) return Math.max((containerSize - elemSize) / 2, 0);
+  function resolvePos(rawPos, containerSize) {
+    if (rawPos < 0) return Math.max(containerSize + rawPos, 0);
+    if (rawPos === 0) return Math.max(containerSize / 2, 0);
     return rawPos;
-  }
-
-  /** Parse "#RRGGBBAA" color to CSS rgba() */
-  function parseColor(hex) {
-    if (!hex || hex.length < 7) return "rgba(255,255,255,0.8)";
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const a = hex.length >= 9 ? parseInt(hex.slice(7, 9), 16) / 255 : 1;
-    return `rgba(${r},${g},${b},${a})`;
-  }
-
-  function buildOverlayHTML(elements) {
-    let html = "";
-    for (const el of elements) {
-      html += `<div data-sei-type="${el.t}" style="
-          position:absolute;
-          left:${el.x}px; top:${el.y}px;
-          width:${el.w}px; height:${el.h}px;
-          color:${parseColor(el.color)};
-          font-family:monospace;
-          font-size:${el.h * 0.72}px;
-          line-height:${el.h}px;
-          white-space:nowrap;
-          pointer-events:none;
-          text-shadow:
-            -1px -1px 0 ${parseColor(el.stroke)},
-             1px -1px 0 ${parseColor(el.stroke)},
-            -1px  1px 0 ${parseColor(el.stroke)},
-             1px  1px 0 ${parseColor(el.stroke)};
-        ">${escapeHTML(el.text)}</div>`;
-    }
-    return html;
   }
 
   function escapeHTML(str) {
@@ -59,40 +27,41 @@
     return div.innerHTML;
   }
 
-  /** Position overlay elements relative to the preview image */
+  function buildOverlayHTML(elements) {
+    let html = "";
+    for (const el of elements) {
+      const cls =
+        el.t === "gain" ? "sei-gain" : el.t === "timestamp" ? "sei-time" : "";
+      html += `<div class="sei-el ${cls}" data-sei-x="${el.x}" data-sei-y="${el.y}"
+        style="position:absolute;white-space:nowrap;pointer-events:none;
+        color:#fff;font-family:monospace;
+        text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+        ">${escapeHTML(el.text)}</div>`;
+    }
+    return html;
+  }
+
   function reposition() {
     const img = document.getElementById(PREVIEW_IMG_ID);
     const overlay = document.getElementById(OVERLAY_ID);
     if (!img || !overlay) return;
 
     const rect = img.getBoundingClientRect();
-    const imgW = img.naturalWidth || rect.width;
-    const imgH = img.naturalHeight || rect.height;
-    const scaleX = rect.width / (imgW || 1);
-    const scaleY = rect.height / (imgH || 1);
+    const scaleX = rect.width / (img.naturalWidth || rect.width || 1);
+    const scaleY = rect.height / (img.naturalHeight || rect.height || 1);
+    const fontSize = Math.round(FONT_SIZE * Math.min(scaleX, scaleY));
 
     overlay.style.left = rect.left + "px";
     overlay.style.top = rect.top + "px";
     overlay.style.width = rect.width + "px";
     overlay.style.height = rect.height + "px";
 
-    const children = overlay.children;
-    for (let i = 0; i < children.length; i++) {
-      const el = children[i];
-      const rawX = parseFloat(el.dataset.rawX) || 0;
-      const rawY = parseFloat(el.dataset.rawY) || 0;
-      const rawW = parseFloat(el.dataset.rawW) || 0;
-      const rawH = parseFloat(el.dataset.rawH) || 0;
-
-      const x = resolvePos(rawX, rawW * scaleX, rect.width);
-      const y = resolvePos(rawY, rawH * scaleY, rect.height);
-
-      el.style.left = x + "px";
-      el.style.top = y + "px";
-      el.style.width = rawW * scaleX + "px";
-      el.style.height = rawH * scaleY + "px";
-      el.style.fontSize = rawH * scaleY * 0.72 + "px";
-      el.style.lineHeight = rawH * scaleY + "px";
+    for (const el of overlay.querySelectorAll(".sei-el")) {
+      const rawX = parseFloat(el.dataset.seiX) || 0;
+      const rawY = parseFloat(el.dataset.seiY) || 0;
+      el.style.left = resolvePos(rawX, rect.width) + "px";
+      el.style.top = resolvePos(rawY, rect.height) + "px";
+      el.style.fontSize = fontSize + "px";
     }
   }
 
@@ -107,7 +76,6 @@
       const img = document.getElementById(PREVIEW_IMG_ID);
       if (!img) return;
 
-      // Create overlay container if needed
       if (!overlay) {
         const wrapper = document.createElement("div");
         wrapper.style.cssText = "position:relative;display:inline-block;";
@@ -121,20 +89,9 @@
         wrapper.appendChild(overlay);
       }
 
-      // Store raw positions on elements for repositioning
       overlay.innerHTML = buildOverlayHTML(data.elements);
-      const children = overlay.children;
-      for (let i = 0; i < children.length; i++) {
-        children[i].dataset.rawX = data.elements[i].x;
-        children[i].dataset.rawY = data.elements[i].y;
-        children[i].dataset.rawW = data.elements[i].w;
-        children[i].dataset.rawH = data.elements[i].h;
-      }
-
       reposition();
-    } catch (_) {
-      // Silently ignore network/parse errors
-    }
+    } catch (_) {}
   }
 
   function start() {
@@ -154,7 +111,6 @@
     if (overlay) overlay.remove();
   }
 
-  // Start when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", start);
   } else {
