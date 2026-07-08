@@ -6,20 +6,22 @@ require_auth
 
 printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n'
 
+MOTORS_CONFIG="/etc/thingino.json"
+
 # Get motor config values
-steps_pan_val=$(jct /etc/motors.json get motors.steps_pan 2>/dev/null)
+steps_pan_val=$(jct "$MOTORS_CONFIG" get motors.steps_pan 2>/dev/null)
 [ -z "$steps_pan_val" ] && steps_pan_val=0
-steps_tilt_val=$(jct /etc/motors.json get motors.steps_tilt 2>/dev/null)
+steps_tilt_val=$(jct "$MOTORS_CONFIG" get motors.steps_tilt 2>/dev/null)
 [ -z "$steps_tilt_val" ] && steps_tilt_val=0
-accel_pan_val=$(jct /etc/motors.json get motors.accel_pan 2>/dev/null)
+accel_pan_val=$(jct "$MOTORS_CONFIG" get motors.accel_pan 2>/dev/null)
 [ -z "$accel_pan_val" ] && accel_pan_val=0
-accel_tilt_val=$(jct /etc/motors.json get motors.accel_tilt 2>/dev/null)
+accel_tilt_val=$(jct "$MOTORS_CONFIG" get motors.accel_tilt 2>/dev/null)
 [ -z "$accel_tilt_val" ] && accel_tilt_val=0
-motion_driver_val=$(jct /etc/motors.json get motors.motion_driver 2>/dev/null)
+motion_driver_val=$(jct "$MOTORS_CONFIG" get motors.motion_driver 2>/dev/null)
 [ -z "$motion_driver_val" ] && motion_driver_val=legacy
-preview_control_mode_val=$(jct /etc/motors.json get motors.preview_control_mode 2>/dev/null)
+preview_control_mode_val=$(jct "$MOTORS_CONFIG" get motors.preview_control_mode 2>/dev/null)
 [ -z "$preview_control_mode_val" ] && preview_control_mode_val=step
-pos_0_val=$(jct /etc/motors.json get motors.pos_0 2>/dev/null)
+pos_0_val=$(jct "$MOTORS_CONFIG" get motors.pos_0 2>/dev/null)
 pos_0_x_val=$(echo $pos_0_val | awk -F',' '{print $1}')
 [ -z "$pos_0_x_val" ] && pos_0_x_val=0
 pos_0_y_val=$(echo $pos_0_val | awk -F',' '{print $2}')

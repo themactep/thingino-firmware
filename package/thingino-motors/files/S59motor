@@ -26,7 +26,7 @@ stop_daemon() {
 	start-stop-daemon -K -x "$DAEMON"
 }
 
-MOTORS_CONFIG="/etc/motors.json"
+MOTORS_CONFIG="/etc/thingino.json"
 
 ensure_command "motors"
 

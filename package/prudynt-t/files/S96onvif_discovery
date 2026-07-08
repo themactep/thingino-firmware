@@ -3,7 +3,7 @@
 DAEMON="/usr/sbin/wsd_simple_server"
 DAEMON_SHORT="wsd_simple_server"
 ONVIF_CONFIG=/etc/onvif.json
-MOTORS_CONFIG=/etc/motors.json
+MOTORS_CONFIG=/etc/thingino.json
 MOTORS_BIN="/bin/motors"
 PORTAL_MODE_FLAG="/run/portal_mode"
 

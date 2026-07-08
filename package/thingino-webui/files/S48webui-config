@@ -28,7 +28,7 @@ start() {
 	build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
 	motors_enabled="false"
-	if [ -f /etc/motors.json ]; then
+	if jct /etc/thingino.json get motors >/dev/null 2>&1; then
 		motors_enabled="true"
 	fi
 	flash_operations_enabled="false"
