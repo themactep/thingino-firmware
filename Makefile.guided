@@ -28,22 +28,20 @@ edit:
 			"1" "Camera Config (edit-defconfig)" \
 			"2" "Thingino Config (edit-thingino)" \
 			"3" "Camera U-Boot Environment (edit-uenv)" \
-			"4" "Motor Configuration (edit-thingino)" \
 			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
-			"5" "Local Makefile (edit-localmk)" \
-			"6" "Local Fragment (edit-localfragment)" \
-			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
+			"4" "Local Makefile (edit-localmk)" \
+			"5" "Local Fragment (edit-localfragment)" \
+			"6" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
 		\
 		[ -z "$$CHOICE" ] && continue; \
 		\
 		case "$$CHOICE" in \
 			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
-			"2") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config" ;; \
+			"2") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json" ;; \
 			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
-			"4") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json" ;; \
-			"5") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
-			"6") FILE="$(THINGINO_USER_DIR)/common/local.fragment" ;; \
-			"7") FILE="$(THINGINO_USER_DIR)/common/local.uenv.txt" ;; \
+			"4") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
+			"5") FILE="$(THINGINO_USER_DIR)/common/local.fragment" ;; \
+			"6") FILE="$(THINGINO_USER_DIR)/common/local.uenv.txt" ;; \
 			*) echo "Invalid option"; continue ;; \
 		esac; \
 		\
@@ -59,9 +57,6 @@ edit-thingino:
 
 edit-uenv:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
-
-edit-motors:
-	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json)
 
 edit-localmk:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/local.mk)
