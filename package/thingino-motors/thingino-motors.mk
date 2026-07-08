@@ -1,5 +1,5 @@
 THINGINO_MOTORS_SITE_METHOD = git
-THINGINO_MOTORS_SITE = https://github.com/themactep/thingino-motors.git
+THINGINO_MOTORS_SITE = https://github.com/gtxaspec/ingenic-motor.git
 THINGINO_MOTORS_SITE_BRANCH = master
 THINGINO_MOTORS_VERSION = c27bb9a64368e3bfe838b20002a557244a47ec98
 THINGINO_MOTORS_LICENSE = MIT
