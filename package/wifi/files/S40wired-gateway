@@ -48,6 +48,10 @@ case "$1" in
 					@endif@
 					@endif@
 					@endif@
+					if [ -f /run/portal_mode ]; then
+						echo "Remove PORTAL_MODE_FLAG"
+						rm /run/portal_mode
+					fi
 					exit 0
 				fi
 			done
