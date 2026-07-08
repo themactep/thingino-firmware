@@ -334,6 +334,17 @@ start() {
 
 		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
+		@if WIFI_MODULE_IS_SDIO@
+		@if !WIFI_SDIO_UNSUPPORTED@
+		@if !WIFI_SDIO_RETURN_EARLY@
+		if [ $? -ne 0 ]; then
+			echo "MAC address set fail, wlan0 is probably not connected, fix broken mmc0 due to failed mmc1 INSERT. "
+			mmc 0 -r
+			mmc 0
+		fi
+		@endif@
+		@endif@
+		@endif@
 	fi
 	@endif@
 	@endif@

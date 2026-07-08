@@ -38,8 +38,10 @@ case "$1" in
 					@if WIFI_MODULE_IS_SDIO@
 					@if !WIFI_SDIO_UNSUPPORTED@
 					@if !WIFI_SDIO_RETURN_EARLY@
-					echo "Send REMOVE to MMC1"
+					echo "Send REMOVE to MMC1. Also fix broken MMC0 due to mmc 1 -r"
 					mmc 1 -r
+					mmc 0 -r
+					mmc 0
 					@endif@
 					@endif@
 					@endif@
