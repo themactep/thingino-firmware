@@ -4,5 +4,20 @@
     "ir850": 49,
     "ircut": "79 80",
     "mmc_cd": 52
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "81 82 51 53",
+    "gpio_switch": -1,
+    "gpio_tilt": "77 76 75 78",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "1680,452",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 3360,
+    "steps_tilt": 905
   }
 }

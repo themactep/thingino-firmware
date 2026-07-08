@@ -7,5 +7,20 @@
     "white": 60,
     "speaker": 63,
     "mmc_cd": 61
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "61 62 63 49",
+    "gpio_switch": -1,
+    "gpio_tilt": "59 52 53 64",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "255,66",
+    "speed_pan": 500,
+    "speed_tilt": 500,
+    "steps_pan": 510,
+    "steps_tilt": 132
   }
 }
