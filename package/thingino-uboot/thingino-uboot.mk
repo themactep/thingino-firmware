@@ -174,4 +174,26 @@ endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
 endif
 
+# On PTZ cameras with a GPIO/TCU stepper (BR2_THINGINO_MOTORS_TCU), the
+# pan/tilt phase pins drive a coil array. From power-on until the Linux motor
+# driver parks them they can hold a coil energised (the coils cook). Inject a
+# gpio-hog per phase pin into this board's U-Boot leaf .dts (read from
+# thingino.json, invert-aware park level) to hold them de-energised through the
+# boot window, and enable CONFIG_GPIO_HOG so U-Boot acts on the hogs. SPI
+# (ms419xx) and DW9714 focus units are not TCU, so they are skipped.
+ifeq ($(BR2_THINGINO_MOTORS_TCU),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_MOTOR_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-motor-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+	$(call KCONFIG_ENABLE_OPT,CONFIG_GPIO_HOG,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MOTOR_DT
+endif
+endif
+
 endif
