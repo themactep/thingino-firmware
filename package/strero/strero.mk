@@ -182,6 +182,7 @@ define STRERO_BUILD_CMDS
 		$(if $(BR2_PACKAGE_STRERO_TLS_OPENSSL),RTMPS_BACKEND_OPENSSL=1,) \
 		$(if $(BR2_PACKAGE_STRERO_TLS_MBEDTLS),RTMPS_BACKEND_MBEDTLS=1,) \
 		$(if $(BR2_PACKAGE_STRERO_WEBRTC),WEBRTC_ENABLED=1,) \
+		DEBUG_STRIP=0 \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 
