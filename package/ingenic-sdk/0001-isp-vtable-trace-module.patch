@@ -12,9 +12,9 @@ Signed-off-by: Paul Philippov <paul@thingino.com>
 ---
 --- a/3.10.14/isp/t31/tx-isp-module.c
 +++ b/3.10.14/isp/t31/tx-isp-module.c
-@@ -14,8 +14,18 @@
- extern int tx_isp_init(void);
- extern void tx_isp_exit(void);
+@@ -16,8 +16,18 @@
+ extern int tx_isp_sinfo_init(void);
+ extern void tx_isp_sinfo_exit(void);
  
 +#ifdef CONFIG_JZ_ISP_TRACE
 +#include <mach/txx-funcs.h>
@@ -28,6 +28,6 @@ Signed-off-by: Paul Philippov <paul@thingino.com>
 +	jz_isp_vtable_trace_init(
 +		(struct jz_driver_common_interfaces *)get_driver_common_interfaces());
 +#endif
- 	return tx_isp_init();
- }
- 
+ 	int ret = tx_isp_init();
+ 	if (!ret)
+ 		tx_isp_sinfo_init();
