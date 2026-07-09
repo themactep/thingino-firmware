@@ -15,10 +15,92 @@ config BR2_INGENIC_SDK_ISP_TRACE
 	  vtable entry to the kernel log. Useful for open-driver development.
 	  Check dmesg | grep jz_isp_trace on the camera.
 
+# --- hidden capability helpers -----------------------------------------
+# Encode per-SoC / per-kernel availability once, so the component options
+# below can pick a correct default without repeating the SoC lists. Keyed
+# on BR2_SOC_FAMILY, which already collapses c100 into the t31 family
+# (matching the SDK's c100 -> t31 directory symlink).
+config BR2_INGENIC_SDK_HAS_AVPU
+	bool
+	default y if BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+
+config BR2_INGENIC_SDK_HAS_NNA
+	bool
+	default y if BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
+
+config BR2_INGENIC_SDK_HAS_MPSYS
+	bool
+	default y if BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+
+config BR2_INGENIC_SDK_K310
+	bool
+	default y if KERNEL_VERSION_3
+
+menu "SDK components"
+	depends on BR2_PACKAGE_INGENIC_SDK
+
+comment "ISP and the sensor driver are always built."
+
+# Each option defaults to the value that is correct for the selected SoC
+# and kernel. You may override any of them, but enabling a component on a
+# SoC that lacks it will fail to build. (Audio follows the top-level
+# BR2_THINGINO_AUDIO switch and is not repeated here.)
+
+config BR2_INGENIC_SDK_AVPU
+	bool "AVPU video encoder"
+	default y if BR2_INGENIC_SDK_HAS_AVPU
+	help
+	  Hardware H.264/H.265 encoder. Present on T31, C100, T40 and T41
+	  only; leave enabled on those and disabled elsewhere.
+
+config BR2_INGENIC_SDK_SOC_NNA
+	bool "NNA neural accelerator"
+	default y if BR2_INGENIC_SDK_HAS_NNA
+	help
+	  Neural network accelerator. Present on T40, T41 and A1 only.
+
+config BR2_INGENIC_SDK_MPSYS
+	bool "MPSYS + hardware TRNG"
+	default y if BR2_INGENIC_SDK_HAS_MPSYS
+	help
+	  Multi-processor system driver and the jz-dtrng hardware random
+	  number generator. Present on T40 and T41 only.
+
+config BR2_INGENIC_SDK_GPIO_USERKEYS
+	bool "GPIO user keys"
+	depends on BR2_INGENIC_SDK_K310
+	default y
+	help
+	  gpio-userkeys input driver. 3.10 kernels only.
+
 config BR2_INGENIC_SDK_JZ_AES
 	bool "jz-aes hardware AES module"
-	depends on BR2_PACKAGE_INGENIC_SDK
+	depends on BR2_INGENIC_SDK_K310
+	default y
 	help
-	  Load the jz-aes kernel module at boot. Provides hardware AES-128
-	  acceleration via /dev/aes (ECB/CBC, DMA, IRQ). Useful for TLS
-	  offload (RTSPS, HTTPS) on Ingenic SoCs.
+	  Hardware AES-128 via /dev/aes (ECB/CBC, DMA, IRQ), useful for TLS
+	  offload (RTSPS, HTTPS). 3.10 kernels only. When enabled it is also
+	  auto-loaded at boot.
+
+config BR2_INGENIC_SDK_TCU_ALLOC
+	bool "TCU channel allocator"
+	depends on BR2_INGENIC_SDK_K310
+	help
+	  Central TCU-channel ownership registry (3.10 kernels only). The
+	  SDK's motor driver links against its symbols; enable this if you
+	  enable "Motor driver (SDK copy)" above. Off by default, matching
+	  the historical build.
+
+config BR2_INGENIC_SDK_PWM
+	bool "PWM driver (SDK copy)"
+	help
+	  The SDK's PWM driver. Superseded by the standalone ingenic-pwm
+	  package; enable this only if you are not using that package.
+
+config BR2_INGENIC_SDK_MOTOR
+	bool "Motor driver (SDK copy)"
+	help
+	  The SDK's PTZ motor driver. Superseded by the standalone
+	  thingino-motors package; enable this only if you are not using it.
+
+endmenu

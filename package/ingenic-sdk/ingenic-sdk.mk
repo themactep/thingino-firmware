@@ -15,13 +15,24 @@ INGENIC_SDK_DEPENDENCIES = thingino-core
 SENSOR_ISP_FW = $(call qstrip,$(BR2_SENSOR_ISP_FW))
 
 # Map thingino's config onto the SDK's own CONFIG_INGENIC_* component
-# switches. The SDK no longer reads BR2_* symbols itself; anything we do
-# not set here keeps the SDK's per-SoC default.
+# switches, driven by the "SDK components" menu in this package's Config.in.
+# The SDK no longer reads BR2_* symbols itself.
 #
-# Motors are deliberately not mapped: motor.ko comes from the separate
-# thingino-motors package, so the SDK's copy stays off.
+# Each mapping forces an explicit y/n so the menu is authoritative: the
+# Config.in default already carries the SoC/kernel-correct value, and an
+# override there wins. Audio follows the top-level BR2_THINGINO_AUDIO
+# switch rather than a component-menu entry.
 INGENIC_SDK_COMPONENTS = \
-	CONFIG_INGENIC_AUDIO=$(if $(BR2_THINGINO_AUDIO),y,n)
+	CONFIG_INGENIC_AUDIO=$(if $(BR2_THINGINO_AUDIO),y,n) \
+	CONFIG_INGENIC_AVPU=$(if $(BR2_INGENIC_SDK_AVPU),y,n) \
+	CONFIG_INGENIC_SOC_NNA=$(if $(BR2_INGENIC_SDK_SOC_NNA),y,n) \
+	CONFIG_INGENIC_MPSYS=$(if $(BR2_INGENIC_SDK_MPSYS),y,n) \
+	CONFIG_INGENIC_JZ_DTRNG=$(if $(BR2_INGENIC_SDK_MPSYS),y,n) \
+	CONFIG_INGENIC_GPIO_USERKEYS=$(if $(BR2_INGENIC_SDK_GPIO_USERKEYS),y,n) \
+	CONFIG_INGENIC_JZ_AES=$(if $(BR2_INGENIC_SDK_JZ_AES),y,n) \
+	CONFIG_INGENIC_TCU_ALLOC=$(if $(BR2_INGENIC_SDK_TCU_ALLOC),y,n) \
+	CONFIG_INGENIC_PWM=$(if $(BR2_INGENIC_SDK_PWM),y,n) \
+	CONFIG_INGENIC_MOTOR=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
 
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
