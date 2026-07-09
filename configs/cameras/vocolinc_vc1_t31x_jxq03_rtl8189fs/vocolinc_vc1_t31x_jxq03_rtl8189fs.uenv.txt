@@ -1,0 +1,3 @@
+gpio_button=14
+gpio_default=7O 8o 9o 11o 47O 49o 52o 53o 59o 61o 62o 63o 64o
+serialport=ttyS1

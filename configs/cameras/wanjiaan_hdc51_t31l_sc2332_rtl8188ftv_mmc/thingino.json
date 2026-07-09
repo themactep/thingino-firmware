@@ -1,0 +1,8 @@
+{
+  "gpio": {
+    "button_reset": 54,
+    "ircut": "57 58",
+    "lds": 7,
+    "mmc_cd": 51
+  }
+}
