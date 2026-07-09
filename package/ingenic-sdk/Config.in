@@ -67,11 +67,15 @@ config BR2_INGENIC_SDK_MPSYS
 	  number generator. Present on T40 and T41 only.
 
 config BR2_INGENIC_SDK_GPIO_USERKEYS
-	bool "GPIO user keys"
+	bool "GPIO user keys (physical buttons)"
 	depends on BR2_INGENIC_SDK_K310
 	default y
 	help
-	  gpio-userkeys input driver. 3.10 kernels only.
+	  gpio-userkeys driver: feeds GPIO buttons (reset, chime) into the
+	  input subsystem for the thingino-button daemon. Auto-loaded with
+	  the camera's configured button pins when any are defined in
+	  thingino.json. 3.10 kernels only. Disable only on cameras with no
+	  physical buttons.
 
 config BR2_INGENIC_SDK_JZ_AES
 	bool "jz-aes hardware AES module"
