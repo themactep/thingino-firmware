@@ -9,7 +9,7 @@ printf 'Cache-Control: no-cache\r\n'
 printf 'Connection: close\r\n'
 printf '\r\n'
 
-SENSOR_MODEL=$(cat /proc/jz/sensor/name 2>/dev/null)
+SENSOR_MODEL=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null)
 SOC_MODEL=$(soc -f 2>/dev/null)
 SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
 
