@@ -6,5 +6,20 @@
     "mmc_cd": 48,
     "mmc_power": "47o 54o",
     "wlan": 58
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "52 53 57 51",
+    "gpio_switch": -1,
+    "gpio_tilt": "59 61 62 63",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "2000,275",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 4000,
+    "steps_tilt": 550
   }
 }

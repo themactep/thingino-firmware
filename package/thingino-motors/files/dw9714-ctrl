@@ -32,7 +32,7 @@ bool_is_true() {
 
 # get gpio
 
-MOTORS_CONFIG_JSON=/etc/motors.json
+MOTORS_CONFIG_JSON=/etc/thingino.json
 
 # Case object : { "pin": 42, ...}
 if pin=$(jct "$MOTORS_CONFIG_JSON" get "motors.gpio_focus.pin" 2>/dev/null); then

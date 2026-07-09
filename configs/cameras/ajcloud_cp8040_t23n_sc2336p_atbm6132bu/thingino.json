@@ -5,5 +5,20 @@
     "ircut": "57 58",
     "mmc_cd": 50,
     "wlan": "47O 47o"
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "61 62 63 49",
+    "gpio_switch": -1,
+    "gpio_tilt": "59 52 53 64",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "2050,600",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 4100,
+    "steps_tilt": 1200
   }
 }
