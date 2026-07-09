@@ -23,6 +23,8 @@ SENSOR_ISP_FW = $(call qstrip,$(BR2_SENSOR_ISP_FW))
 # override there wins. Audio follows the top-level BR2_THINGINO_AUDIO
 # switch rather than a component-menu entry.
 INGENIC_SDK_COMPONENTS = \
+	CONFIG_INGENIC_ISP=$(if $(BR2_THINGINO_DEV_CAMERA),y,n) \
+	CONFIG_INGENIC_SENSOR=$(if $(BR2_THINGINO_DEV_CAMERA),y,n) \
 	CONFIG_INGENIC_AUDIO=$(if $(BR2_THINGINO_AUDIO),y,n) \
 	CONFIG_INGENIC_AVPU=$(if $(BR2_INGENIC_SDK_AVPU),y,n) \
 	CONFIG_INGENIC_SOC_NNA=$(if $(BR2_INGENIC_SDK_SOC_NNA),y,n) \
@@ -184,13 +186,11 @@ define GENERATE_MODULE_LOADER
 		fi \
 	fi
 
-	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ]; then \
-		if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-			echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
-		fi \
+	if [ "$(BR2_INGENIC_SDK_AVPU)" = "y" ]; then \
+		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
 	fi
 
-	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
+	if [ "$(BR2_INGENIC_SDK_PWM)" = "y" ]; then \
 		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 	fi

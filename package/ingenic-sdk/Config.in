@@ -39,18 +39,24 @@ config BR2_INGENIC_SDK_K310
 menu "SDK components"
 	depends on BR2_PACKAGE_INGENIC_SDK
 
-comment "ISP and the sensor driver are always built."
-
 # Each option defaults to the value that is correct for the selected SoC
 # and kernel. You may override any of them, but enabling a component on a
 # SoC that lacks it will fail to build. (Audio follows the top-level
 # BR2_THINGINO_AUDIO switch and is not repeated here.)
 
+# The ISP core and sensor driver follow the device type: they build for
+# camera devices (BR2_THINGINO_DEV_CAMERA, i.e. IP Camera / Webcam) and
+# are omitted for non-camera types (NVR, SBC, Security System Hub), which
+# use the SoC for audio/compute only. Handled in the .mk mapping, not a
+# separate switch here -- the same signal already gates the modules.d
+# load lines, so build and load stay consistent.
+
 config BR2_INGENIC_SDK_AVPU
 	bool "AVPU video encoder"
-	default y if BR2_INGENIC_SDK_HAS_AVPU
+	default y if BR2_INGENIC_SDK_HAS_AVPU && BR2_THINGINO_DEV_CAMERA
 	help
-	  Hardware H.264/H.265 encoder. Present on T31, C100, T40 and T41
+	  Hardware H.264/H.265 encoder. Only needed on camera devices, and
+	  present on T31, C100, T40 and T41
 	  only; leave enabled on those and disabled elsewhere.
 
 config BR2_INGENIC_SDK_SOC_NNA
@@ -80,31 +86,38 @@ config BR2_INGENIC_SDK_GPIO_USERKEYS
 config BR2_INGENIC_SDK_JZ_AES
 	bool "jz-aes hardware AES module"
 	depends on BR2_INGENIC_SDK_K310
-	default y
 	help
-	  Hardware AES-128 via /dev/aes (ECB/CBC, DMA, IRQ), useful for TLS
-	  offload (RTSPS, HTTPS). 3.10 kernels only. When enabled it is also
-	  auto-loaded at boot.
+	  Hardware AES-128 via /dev/aes (ECB/CBC, DMA, IRQ). 3.10 kernels
+	  only. Off unless something needs it: the mbedtls hardware-AES
+	  option (BR2_PACKAGE_THINGINO_MBEDTLS_JZ_CRYPTO_ALT) selects this
+	  automatically. When enabled it is auto-loaded at boot.
+
+config BR2_INGENIC_SDK_PWM
+	bool "PWM driver"
+	default y if BR2_THINGINO_PWM_ENABLE
+	help
+	  The SDK's PWM kernel modules (pwm_core, pwm_hal). This is the
+	  kernel side; the standalone ingenic-pwm package is the userspace
+	  utility that drives it. Defaults on for boards that enable PWM
+	  (BR2_THINGINO_PWM_ENABLE), which is also what auto-loads the
+	  modules.
+
+config BR2_INGENIC_SDK_MOTOR
+	bool "Motor driver"
+	default y if BR2_PACKAGE_THINGINO_MOTORS
+	select BR2_INGENIC_SDK_TCU_ALLOC if BR2_INGENIC_SDK_K310
+	help
+	  The SDK's PTZ motor kernel module. This is the kernel side; the
+	  standalone thingino-motors package is the userspace utility that
+	  drives it. Defaults on when that package is selected. On 3.10 it
+	  needs the TCU allocator, pulled in automatically.
 
 config BR2_INGENIC_SDK_TCU_ALLOC
 	bool "TCU channel allocator"
 	depends on BR2_INGENIC_SDK_K310
 	help
 	  Central TCU-channel ownership registry (3.10 kernels only). The
-	  SDK's motor driver links against its symbols; enable this if you
-	  enable "Motor driver (SDK copy)" above. Off by default, matching
-	  the historical build.
-
-config BR2_INGENIC_SDK_PWM
-	bool "PWM driver (SDK copy)"
-	help
-	  The SDK's PWM driver. Superseded by the standalone ingenic-pwm
-	  package; enable this only if you are not using that package.
-
-config BR2_INGENIC_SDK_MOTOR
-	bool "Motor driver (SDK copy)"
-	help
-	  The SDK's PTZ motor driver. Superseded by the standalone
-	  thingino-motors package; enable this only if you are not using it.
+	  motor driver links against its symbols and selects this; you do
+	  not normally need to set it by hand.
 
 endmenu
