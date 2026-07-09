@@ -190,6 +190,9 @@ define STRERO_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/bin/streamer \
 		$(TARGET_DIR)/usr/bin/streamer
 
+	# Copy to NFS share for dev iteration (camera mounts /mnt/nfs)
+	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/streamer /nfs/streamer || true
+
 	# Install the JSON configuration file
 	$(INSTALL) -D -m 0644 $(@D)/res/streamer.json \
 		$(TARGET_DIR)/etc/streamer.json
