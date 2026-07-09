@@ -13,7 +13,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 	PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-PRUDYNT_T_DEPENDENCIES += thingino-live555
+#PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
@@ -101,11 +101,7 @@ endif
 
 # Add include paths
 PRUDYNT_CFLAGS += \
-	-I$(STAGING_DIR)/usr/include \
-	-I$(STAGING_DIR)/usr/include/liveMedia \
-	-I$(STAGING_DIR)/usr/include/groupsock \
-	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
-	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+	-I$(STAGING_DIR)/usr/include
 
 # OpenSSL support - link against OpenSSL if available and live555 uses it
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
