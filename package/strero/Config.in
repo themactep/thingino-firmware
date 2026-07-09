@@ -17,7 +17,6 @@ if BR2_PACKAGE_STRERO
 config BR2_PACKAGE_STRERO_AUDIO
 	bool "Audio module support"
 	depends on BR2_PACKAGE_STRERO
-	select BR2_THINGINO_LIBSTDCPP
 	help
 	  Enable audio capture and streaming module for Strero.
 	  Adds audio input, encoding and RTSP audio streaming capabilities.
@@ -25,7 +24,6 @@ config BR2_PACKAGE_STRERO_AUDIO
 	  Supported codecs: G.711A, G.711U, OPUS
 	  Audio capture: 8kHz, 16kHz, 48kHz sample rates
 	  Additional memory usage: ~1-2MB for audio processing
-	  Requires libstdc++ for libaudioProcess.so
 
 config BR2_PACKAGE_STRERO_AUDIO_CODECS
 	bool "Audio codecs support"
