@@ -14,12 +14,22 @@ INGENIC_SDK_DEPENDENCIES = thingino-core
 # per-soc default. Empty selects the primary version.
 SENSOR_ISP_FW = $(call qstrip,$(BR2_SENSOR_ISP_FW))
 
+# Map thingino's config onto the SDK's own CONFIG_INGENIC_* component
+# switches. The SDK no longer reads BR2_* symbols itself; anything we do
+# not set here keeps the SDK's per-SoC default.
+#
+# Motors are deliberately not mapped: motor.ko comes from the separate
+# thingino-motors package, so the SDK's copy stays off.
+INGENIC_SDK_COMPONENTS = \
+	CONFIG_INGENIC_AUDIO=$(if $(BR2_THINGINO_AUDIO),y,n)
+
 INGENIC_SDK_MODULE_MAKE_OPTS = \
 	SOC_FAMILY=$(SOC_FAMILY) \
 	KERNEL_VERSION=$(KERNEL_VERSION) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
 	SENSOR_1_MODEL=$(SENSOR_1_MODEL) \
+	$(INGENIC_SDK_COMPONENTS) \
 	$(MULTI_SENSOR_ENABLED) \
 	$(MULTI_SENSOR_1_ENABLED) \
 	$(MULTI_SENSOR_2_ENABLED)
