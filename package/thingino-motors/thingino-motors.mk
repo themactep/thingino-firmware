@@ -7,29 +7,24 @@ THINGINO_MOTORS_LICENSE_FILES = LICENSE
 
 THINGINO_MOTORS_DEPENDENCIES += host-thingino-jct thingino-jct
 
-THINGINO_MOTORS_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/motors.json
-
 define THINGINO_MOTORS_INSTALL_JSON_CMDS
-	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/motors.json \
-		$(TARGET_DIR)/etc/motors.json
+	# Import base motors defaults into thingino.json
+	if [ -f "$(THINGINO_MOTORS_PKGDIR)/files/motors.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
+		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(THINGINO_MOTORS_PKGDIR)/files/motors.json"; \
+	fi
 
-	# Apply camera and user motors overrides using host jct
-	if [ -n "$(THINGINO_USER_MOTORS_JSON_FILES)" ] || [ -f "$(THINGINO_MOTORS_OVERRIDE_FILE)" ]; then \
+	# Apply user motors overrides
+	if [ -n "$(THINGINO_USER_MOTORS_JSON_FILES)" ]; then \
 		if [ ! -x "$(HOST_DIR)/bin/jct" ]; then \
 			echo "ERROR: host jct tool missing: $(HOST_DIR)/bin/jct"; \
 			exit 1; \
 		fi; \
 	fi
-	if [ -s "$(THINGINO_MOTORS_OVERRIDE_FILE)" ]; then \
-		echo "Applying motors override from $(THINGINO_MOTORS_OVERRIDE_FILE)"; \
-		echo '$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$(THINGINO_MOTORS_OVERRIDE_FILE)"'; \
-		$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$(THINGINO_MOTORS_OVERRIDE_FILE)"; \
-	fi
 	for USER_MOTORS_CONFIG in $(THINGINO_USER_MOTORS_JSON_FILES); do \
 		if [ -s "$$USER_MOTORS_CONFIG" ]; then \
 			echo "Applying user motors override from $$USER_MOTORS_CONFIG"; \
-			echo "$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import \"$$USER_MOTORS_CONFIG\""; \
-			$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/motors.json import "$$USER_MOTORS_CONFIG"; \
+			echo "$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \"$$USER_MOTORS_CONFIG\""; \
+			$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$$USER_MOTORS_CONFIG"; \
 		fi; \
 	done
 endef

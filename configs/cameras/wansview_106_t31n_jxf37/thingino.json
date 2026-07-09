@@ -3,5 +3,8 @@
     "ircut": "",
     "mmc_cd": "",
     "net": ""
+  },
+  "motors": {
+    "gpio_focus": 51
   }
 }

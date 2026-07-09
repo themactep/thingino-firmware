@@ -6,5 +6,20 @@
     "mmc_cd": 61,
     "white": 60,
     "wlan": 6
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "14 54 52 53",
+    "gpio_switch": 17,
+    "gpio_tilt": "14 54 52 53",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "4300,1000",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 8600,
+    "steps_tilt": 2000
   }
 }

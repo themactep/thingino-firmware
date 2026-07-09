@@ -5,7 +5,7 @@
 require_auth
 
 motors_domain="motors"
-motors_config_file="/etc/motors.json"
+motors_config_file="/etc/thingino.json"
 
 json_escape() {
 	printf '%s' "$1" | sed \
