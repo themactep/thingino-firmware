@@ -1,9 +1,9 @@
 INGENIC_SDK_SITE_METHOD = git
-INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
-INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 3e578d1a80d1d9a588db4e1e5e6c8ba0dbc79128
+INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
+INGENIC_SDK_SITE_BRANCH = main
+INGENIC_SDK_VERSION = 703bbd6e1a740b7636628b3d4180447525afce0c
 
-INGENIC_SDK_LICENSE = GPL-3.0
+INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
 
 # Ensure thingino-core is installed before ingenic-sdk so thingino.json is available
