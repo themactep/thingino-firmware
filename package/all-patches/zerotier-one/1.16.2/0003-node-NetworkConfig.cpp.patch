@@ -1,0 +1,30 @@
+
+--- a/node/NetworkConfig.cpp	2025-09-11 13:52:09.000000000 -0400
++++ b/node/NetworkConfig.cpp	2025-12-24 01:17:33.921414047 -0500
+@@ -49,17 +49,17 @@
+ 	, ssoClientID()
+ {
+ 	name[0] = 0;
+-	memset(specialists, 0, sizeof(uint64_t) * ZT_MAX_NETWORK_SPECIALISTS);
+-	memset(routes, 0, sizeof(ZT_VirtualNetworkRoute) * ZT_MAX_NETWORK_ROUTES);
+-	memset(rules, 0, sizeof(ZT_VirtualNetworkRule) * ZT_MAX_NETWORK_RULES);
+-	memset(&dns, 0, sizeof(ZT_VirtualNetworkDNS));
+-	memset(authenticationURL, 0, sizeof(authenticationURL));
+-	memset(issuerURL, 0, sizeof(issuerURL));
+-	memset(centralAuthURL, 0, sizeof(centralAuthURL));
+-	memset(ssoNonce, 0, sizeof(ssoNonce));
+-	memset(ssoState, 0, sizeof(ssoState));
+-	memset(ssoClientID, 0, sizeof(ssoClientID));
++	std::fill(std::begin(specialists), std::end(specialists), uint64_t{0});
++	std::fill(std::begin(routes), std::end(routes), ZT_VirtualNetworkRoute{});
++	std::fill(std::begin(rules), std::end(rules), ZT_VirtualNetworkRule{});
++	dns = ZT_VirtualNetworkDNS{};
++	std::fill(std::begin(authenticationURL), std::end(authenticationURL), char{0});
++	std::fill(std::begin(issuerURL), std::end(issuerURL), char{0});
++	std::fill(std::begin(centralAuthURL), std::end(centralAuthURL), char{0});
++	std::fill(std::begin(ssoNonce), std::end(ssoNonce), char{0});
++	std::fill(std::begin(ssoState), std::end(ssoState), char{0});
++	std::fill(std::begin(ssoClientID), std::end(ssoClientID), char{0});
+ 	strncpy(ssoProvider, "default", sizeof(ssoProvider));
+ 	ssoProvider[sizeof(ssoProvider) - 1] = 0;
+ }
