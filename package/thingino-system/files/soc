@@ -100,7 +100,7 @@ print_soc_model() {
 		read_t33id
 		case "$t33id" in
 			$((0x99))) soc="t33l" ;;
-			$((0x33))|$((0xAA))) soc="t33n" ;;
+			$((0x33)) | $((0xAA))) soc="t33n" ;;
 			$((0x44))) soc="t33a" ;;
 			$((0x55))) soc="t33zl" ;;
 			$((0x77))) soc="t33zn" ;;
@@ -173,7 +173,7 @@ print_soc_architecture() {
 				return
 				;;
 		esac
-	done < /proc/cpuinfo
+	done </proc/cpuinfo
 
 	echo "XBurst2"
 }

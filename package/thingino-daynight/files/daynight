@@ -5,7 +5,7 @@
 
 # --- Utility functions (self-contained, no external helpers) ---
 
-echo_info()  { echo -c 240 -e "- $1" >&2; }
+echo_info() { echo -c 240 -e "- $1" >&2; }
 echo_error() { echo -c 160 -e "$1" >&2; }
 
 singleton() {
@@ -68,30 +68,54 @@ load_controls() {
 
 controls_ircut() {
 	load_controls
-	[ "true" = "$day_night_ircut" ] || { echo_info "IR-CUT filter not enabled"; return 1; }
+	[ "true" = "$day_night_ircut" ] || {
+		echo_info "IR-CUT filter not enabled"
+		return 1
+	}
 }
 
 controls_ir850() {
 	load_controls
-	[ "true" = "$day_night_ir850" ] || { echo_info "IR LED 850nm not enabled"; return 1; }
-	[ -n "$gpio_ir850" ] || { echo_info "IR LED 850nm not configured"; return 1; }
+	[ "true" = "$day_night_ir850" ] || {
+		echo_info "IR LED 850nm not enabled"
+		return 1
+	}
+	[ -n "$gpio_ir850" ] || {
+		echo_info "IR LED 850nm not configured"
+		return 1
+	}
 }
 
 controls_ir940() {
 	load_controls
-	[ "true" = "$day_night_ir940" ] || { echo_info "IR LED 940nm not enabled"; return 1; }
-	[ -n "$gpio_ir940" ] || { echo_info "IR LED 940nm not configured"; return 1; }
+	[ "true" = "$day_night_ir940" ] || {
+		echo_info "IR LED 940nm not enabled"
+		return 1
+	}
+	[ -n "$gpio_ir940" ] || {
+		echo_info "IR LED 940nm not configured"
+		return 1
+	}
 }
 
 controls_white() {
 	load_controls
-	[ "true" = "$day_night_white" ] || { echo_info "White Light not enabled"; return 1; }
-	[ -n "$gpio_white" ] || { echo_info "White Light not configured"; return 1; }
+	[ "true" = "$day_night_white" ] || {
+		echo_info "White Light not enabled"
+		return 1
+	}
+	[ -n "$gpio_white" ] || {
+		echo_info "White Light not configured"
+		return 1
+	}
 }
 
 controls_color() {
 	load_controls
-	[ "true" = "$day_night_color" ] || { echo_info "Color not enabled"; return 1; }
+	[ "true" = "$day_night_color" ] || {
+		echo_info "Color not enabled"
+		return 1
+	}
 }
 
 # --- Mode switching ---
