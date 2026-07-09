@@ -788,6 +788,8 @@ build-info: pack
 # rebuild a package with smart configuration check
 rebuild-uboot: force-config
 	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
 rebuild-%: force-config
@@ -799,6 +801,8 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
 
 remove_bins:
