@@ -124,7 +124,7 @@ if [ -f /etc/os-release ]; then
 	OS="$NAME"
 
 	# Common packages across all distros
-	default_packages="autoconf bc bison cpio cmake curl dialog file flex gawk git m4 make mtools nano parted patch perl rsync unzip wget ripgrep shfmt nodejs npm"
+	default_packages="autoconf bc bison cpio cmake curl dialog file flex gawk git m4 make mtools nano parted patch perl rsync swig unzip wget ripgrep shfmt nodejs npm"
 
 	# Check ID_LIKE for Debian-based identification first
 	case "$ID_LIKE" in
