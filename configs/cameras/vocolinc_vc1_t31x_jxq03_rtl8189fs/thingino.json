@@ -5,7 +5,6 @@
     "ircut": "57 58",
     "mmc_cd": 50,
     "wlan": {
-      "active_low": false,
       "pin": 47,
       "toggle": true
     }
