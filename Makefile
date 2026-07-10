@@ -1269,20 +1269,12 @@ run:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
-cloner:
-	@$(TEAL) "$@"
-	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-dfu --cloner \
-		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
-		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
-
-
 dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-dfu -i 0 \
-		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
-		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
+	$(HOST_DIR)/bin/thingino-dfu \
+		-w $(FIRMWARE_BIN_FULL) \
+		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware
 
 scriba:
 	@$(TEAL) "$@"
