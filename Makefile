@@ -1160,6 +1160,7 @@ help:
 	  make force-config   force configuration regeneration\n\
 	  make show-config-deps  show configuration dependencies\n\
 	  make clean-config   remove configuration files\n\
+	  make PRISTINE=1     ignore user files\n\
 	  \n\
 	Buildroot Submodule Management:\n\
 	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
