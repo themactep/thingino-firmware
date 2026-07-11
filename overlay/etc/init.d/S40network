@@ -3,8 +3,11 @@
 
 start() {
 	echo -c 15 "Starting network"
-	if [ -f /run/wlan_ap_mode ]; then
-		echo -c 160 -e "WiFi AP mode, exiting" >&2
+	if [ -f /run/wlan_ap_mode ] || [ -f /run/portal_mode ]; then
+		echo -c 160 -e "WiFi in AP/portal mode, skipping network bring-up" >&2
+		# Ensure loopback is up (normally done by ifup -a)
+		ip addr add 127.0.0.1/8 dev lo 2>/dev/null || true
+		ip link set lo up 2>/dev/null || true
 		exit 0
 	fi
 
