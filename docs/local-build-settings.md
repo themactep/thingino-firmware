@@ -179,38 +179,7 @@ Example:
     "enabled": true,
     "host": "192.168.1.10",
     "port": 1883
-  }
-}
-```
-
-### `motors.json`
-
-Paths:
-
-```text
-user/common/motors.json
-user/<camera>/motors.json
-user/<camera>/<ip>/motors.json
-```
-
-Purpose:
-
-- Adds or overrides entries in `/etc/motors.json`
-- This is the user-scoped JSON add-on hook for PTZ and motor tuning values
-
-Build behavior:
-
-1. The package default `motors.json` is installed first
-2. The camera's `motors.json` is imported next, if present
-3. User `motors.json` files are imported in scope order: global, then camera, then device
-
-That means device-scoped user values win over camera-scoped user values, which
-win over global user values, which win over package and camera defaults.
-
-Example:
-
-```json
-{
+  },
   "motors": {
     "steps_pan": 2000,
     "steps_tilt": 1100,
@@ -329,16 +298,11 @@ The user-scoped JSON import hooks wired into the build are:
 user/common/thingino.json
 user/<camera>/thingino.json
 user/<camera>/<ip>/thingino.json
-
-user/common/motors.json
-user/<camera>/motors.json
-user/<camera>/<ip>/motors.json
 ```
 
 Other JSON files are handled differently:
 
 - `/etc/thingino.json` supports user-layered import through `thingino.json`
-- `/etc/motors.json` supports user-layered import through `motors.json`
 - `/etc/prudynt.json` camera defaults are controlled through camera-scoped
   `prudynt.json`, not through `THINGINO_USER_DIR`
 - Other JSON configs such as `/etc/prudynt.json` or `/etc/timelapse.json` do not

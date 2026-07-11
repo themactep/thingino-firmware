@@ -94,7 +94,6 @@ endif
 THINGINO_USER_FRAGMENT_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.fragment)
 THINGINO_USER_MK_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.mk)
 THINGINO_USER_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/thingino.json)
-THINGINO_USER_MOTORS_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/motors.json)
 THINGINO_USER_PRUDYNT_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/overlay)
@@ -105,7 +104,6 @@ ifdef THINGINO_USER_CAMERA_DIR
 THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.fragment)
 THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.mk)
 THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/thingino.json)
-THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/motors.json)
 THINGINO_USER_PRUDYNT_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_CAMERA_DIR)/overlay)
@@ -116,7 +114,6 @@ ifdef THINGINO_USER_DEVICE_DIR
 THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.fragment)
 THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.mk)
 THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/thingino.json)
-THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/motors.json)
 THINGINO_USER_PRUDYNT_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/prudynt.json)
 THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_DEVICE_DIR)/overlay)
@@ -130,7 +127,6 @@ export THINGINO_ROOT_LOCAL_MK_FILES
 export THINGINO_USER_FRAGMENT_FILES
 export THINGINO_USER_MK_FILES
 export THINGINO_USER_JSON_FILES
-export THINGINO_USER_MOTORS_JSON_FILES
 export THINGINO_USER_PRUDYNT_JSON_FILES
 export THINGINO_USER_UENV_FILES
 export THINGINO_USER_OVERLAY_DIRS
@@ -162,7 +158,6 @@ $(call print_build_user_files_section,repo local.mk,$(THINGINO_ROOT_LOCAL_MK_FIL
 $(call print_build_user_files_section,local.fragment,$(THINGINO_USER_FRAGMENT_FILES))
 $(call print_build_user_files_section,user local.mk,$(THINGINO_USER_MK_FILES))
 $(call print_build_user_files_section,thingino.json,$(THINGINO_USER_JSON_FILES))
-$(call print_build_user_files_section,motors.json,$(THINGINO_USER_MOTORS_JSON_FILES))
 $(call print_build_user_files_section,prudynt.json,$(THINGINO_USER_PRUDYNT_JSON_FILES))
 $(call print_build_user_files_section,local.uenv.txt,$(THINGINO_USER_UENV_FILES))
 $(call print_build_user_files_section,overlay files,$(THINGINO_USER_OVERLAY_FILES))
@@ -414,7 +409,7 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 endif
 
 # Create user directory skeleton for common, per-camera, and per-device levels
-USER_DIR_FILES := local.fragment local.mk local.uenv.txt thingino.json motors.json
+USER_DIR_FILES := local.fragment local.mk local.uenv.txt thingino.json
 
 define create_user_dir
 	@mkdir -p $(1)/overlay $(1)/opt
@@ -1223,7 +1218,6 @@ show-vars:
 	@echo "THINGINO_USER_DIR = $(THINGINO_USER_DIR)";
 	@echo "THINGINO_USER_FRAGMENT_FILES = $(THINGINO_USER_FRAGMENT_FILES)";
 	@echo "THINGINO_USER_JSON_FILES = $(THINGINO_USER_JSON_FILES)";
-	@echo "THINGINO_USER_MOTORS_JSON_FILES = $(THINGINO_USER_MOTORS_JSON_FILES)";
 	@echo "THINGINO_USER_PRUDYNT_JSON_FILES = $(THINGINO_USER_PRUDYNT_JSON_FILES)";
 	@echo "THINGINO_USER_MK_FILES = $(THINGINO_USER_MK_FILES)";
 	@echo "THINGINO_USER_OPT_DIRS = $(THINGINO_USER_OPT_DIRS)";
@@ -1243,7 +1237,6 @@ cloner:
 	$(HOST_DIR)/bin/thingino-dfu --cloner \
 		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
 		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
-
 
 dfu:
 	@$(TEAL) "$@"
