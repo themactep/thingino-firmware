@@ -105,27 +105,42 @@ else
 	command="$command --silent"
 fi
 
+if [ -n "$message" ]; then
+	message="$(date +"$message")"
+fi
+
+# --- Sanitize config values for safe shell interpolation ---
+s_token=$(shell_escape "Authorization: Bearer $token")
+s_userpass=$(shell_escape "$username:$password")
+s_message=$(shell_escape "Message: $message")
+s_host_topic=$(shell_escape "$host/$topic")
+
 if [ -n "$token" ]; then
-	command="$command -H 'Authorization: Bearer $token'"
+	command="$command -H $s_token"
 elif [ -n "$username" ] && [ -n "$password" ]; then
-	command="$command -u $username:$password"
+	command="$command -u $s_userpass"
 fi
 
 if [ -n "$message" ]; then
-	message="$(date +"$message")"
-	command="$command -H 'Message: $message'"
+	command="$command -H $s_message"
 fi
 
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
 if [ -n "$filename" ] && [ -f "$filename" ]; then
-	command="$command -T $filename -H 'Filename: $filename'"
+	s_filename=$(shell_escape "$filename")
+	s_filename_header=$(shell_escape "Filename: $filename")
+	command="$command -T $s_filename -H $s_filename_header"
 elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -T $photo -H 'Filename: $photo'"
+	s_photo=$(shell_escape "$photo")
+	s_photo_header=$(shell_escape "Filename: $photo")
+	command="$command -T $s_photo -H $s_photo_header"
 elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -T $video -H 'Filename: $video'"
+	s_video=$(shell_escape "$video")
+	s_video_header=$(shell_escape "Filename: $video")
+	command="$command -T $s_video -H $s_video_header"
 fi
 
 #[ -n "$title" ] && command="$command -H 'Title: $title'"
@@ -138,7 +153,7 @@ fi
 #[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
 #[ -n "$call" ] && [ -n "$twilio_token" ] && command="$command -H 'Call: $call' -u :$twilio_token"
 
-command="$command $host/$topic"
+command="$command $s_host_topic"
 
 [ "true" = "$verbose" ] && echo_command "$command"
 

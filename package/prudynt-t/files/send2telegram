@@ -80,7 +80,12 @@ fi
 
 command="curl --silent --tlsv1.2 --tls-max 1.2"
 [ "true" = "$verbose" ] && command="$command --verbose"
-command="$command -F 'chat_id=$channel'"
+
+# --- Sanitize config values for safe shell interpolation ---
+s_channel=$(shell_escape "chat_id=$channel")
+s_token_url=$(shell_escape "https://api.telegram.org/bot$token/")
+
+command="$command -F $s_channel"
 [ "true" = "$silent" ] && command="$command -F 'disable_notification=true'"
 command="$command -F 'rand=$RANDOM'"
 
@@ -92,15 +97,15 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 
 	photo=$(copy_photo)
 	caption=$(parse_caption $photo)
-	command="$command -F 'photo=@$photo'"
+	command="$command -F $(shell_escape \"photo=@$photo\")"
 	[ -n "$message" ] && caption="$caption $message"
 	media='{"type":"photo","media":"attach://photo","caption":"'$caption'"},'
 
 	video=$(copy_video)
-	command="$command -F 'video=@$video'"
+	command="$command -F $(shell_escape \"video=@$video\")"
 	media=$media'{"type":"video","media":"attach://video"}'
 
-	command="$command -F 'media=[$media]' $url"
+	command="$command -F $(shell_escape \"media=[$media]\") $(shell_escape "$url")"
 
 elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
@@ -108,7 +113,7 @@ elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
 	caption="$(parse_caption $video)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'video=@$video' -F 'caption=\"$caption\"' $url"
+	command="$command -F $(shell_escape \"video=@$video\") -F $(shell_escape \"caption=\"$caption\"\") $(shell_escape "$url")"
 
 elif [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto
@@ -116,19 +121,19 @@ elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	caption="$(parse_caption $photo)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'photo=@$photo' -F 'caption=\"$caption\"' $url"
+	command="$command -F $(shell_escape \"photo=@$photo\") -F $(shell_escape \"caption=\"$caption\"\") $(shell_escape "$url")"
 
 elif [ -n "$message" ]; then
 	# https://core.telegram.org/bots/api#sendmessage
 	url="${url}sendMessage"
-	command="$command -F 'text=$message' $url"
+	command="$command -F $(shell_escape \"text=$message\") $(shell_escape "$url")"
 
 elif [ -n "$file" ] && [ -f "$file" ]; then
 	# https://core.telegram.org/bots/api#senddocument
 	url="${url}sendDocument"
 	caption="$(parse_caption $file)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'document=@$1' -F 'caption=\"$caption\"' $url"
+	command="$command -F $(shell_escape \"document=@$1\") -F $(shell_escape \"caption=\"$caption\"\") $(shell_escape "$url")"
 
 else
 	echo_error "Nothing to send"
