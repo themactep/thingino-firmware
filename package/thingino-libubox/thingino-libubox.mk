@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_LIBUBOX_VERSION = 1fe93d2fefb213ec987763e7e94ce5eaa757bfc3
+THINGINO_LIBUBOX_VERSION = 17f527fb6c30bf9073104f03337c2b7c03158bdb
 THINGINO_LIBUBOX_SITE = https://git.openwrt.org/project/libubox.git
 THINGINO_LIBUBOX_SITE_METHOD = git
 THINGINO_LIBUBOX_LICENSE = ISC, BSD-3-Clause
