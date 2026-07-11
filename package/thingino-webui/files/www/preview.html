@@ -132,12 +132,12 @@
       var rw = parseFloat(c.dataset.rw)||0, rh = parseFloat(c.dataset.rh)||0;
       rw *= fscale; rh *= fscale;
       var x, y, anchor, baseline;
-      if (rx > 0)      { x = rx * sx;               anchor = 'start'; }
-      else if (rx < 0) { x = vw + rx * sx;           anchor = 'end'; }
-      else             { x = vw / 2;                  anchor = 'middle'; }
-      if (ry > 0)      { y = ry * sy;                 baseline = 'hanging'; }
-      else if (ry < 0) { y = vh + ry * sy;            baseline = 'text-after-edge'; }
-      else             { y = vh / 2;                   baseline = 'central'; }
+      if (rx > 0)      { x = rx * sx;      anchor = 'start'; }
+      else if (rx < 0) { x = vw + rx * sx; anchor = 'end'; }
+      else             { x = vw / 2;       anchor = 'middle'; }
+      if (ry > 0)      { y = ry * sy;      baseline = 'hanging'; }
+      else if (ry < 0) { y = vh + ry * sy; baseline = 'text-after-edge'; }
+      else             { y = vh / 2;       baseline = 'central'; }
       c.setAttribute('x', x);
       c.setAttribute('y', y);
       c.setAttribute('text-anchor', anchor);

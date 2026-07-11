@@ -13,7 +13,6 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 	PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-#PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
@@ -352,7 +351,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	fi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
-
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
