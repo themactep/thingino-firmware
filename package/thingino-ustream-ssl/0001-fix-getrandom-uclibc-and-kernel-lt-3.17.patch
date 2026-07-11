@@ -1,5 +1,5 @@
---- a/ustream-mbedtls.c	2026-03-17 15:12:42.981678124 -0400
-+++ b/ustream-mbedtls.c	2026-03-17 15:13:08.798212320 -0400
+--- a/ustream-mbedtls.c
++++ b/ustream-mbedtls.c
 @@ -17,11 +17,14 @@
   */
  
@@ -15,7 +15,7 @@
  
  #include "ustream-ssl.h"
  #include "ustream-internal.h"
-@@ -115,17 +118,28 @@
+@@ -143,17 +146,28 @@
  
  static int _random(void *ctx, unsigned char *out, size_t len)
  {
@@ -33,11 +33,11 @@
  
 -	if (!f)
 -		f = fopen("/dev/urandom", "r");
--	if (fread(out, len, 1, f) != 1)
+-	if (!f || fread(out, len, 1, f) != 1)
 +	if (r == (ssize_t)len)
 +		return 0;
 +
-+	/* getrandom() not available (kernel < 3.17) - fall back to /dev/urandom */
++	/* getrandom() not available (kernel < 3.17) - fall through to /dev/urandom */
 +	if (r != -1 || errno != ENOSYS)
  		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
  #endif
