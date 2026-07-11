@@ -44,10 +44,14 @@ export IP
 ifdef CAMERA
 CAMERA_CONFIG := $(shell find $(CAMERA_SUBDIR) -name "$(CAMERA)_defconfig")
 else
-# Check if CAMERA was provided via command line
+# CAMERA not provided. If IP is set, try to auto-detect camera from the device.
+ifneq ($(strip $(IP)),)
+DETECTED_CAMERA := $(shell $(SCRIPTS_DIR)/detect_camera_from_ip.sh $(IP))
+endif
+# Fall back to interactive selection (auto-detected camera passed as suggestion)
 ifeq ($(CAMERA),)
 # Use select_camera script for interactive selection (it handles memo internally)
-CAMERA := $(shell $(SCRIPTS_DIR)/select_camera.sh $(CAMERA_SUBDIR) $(BUILD_MEMO) $(if $(IP_EXPLICIT),0,1) 2>/dev/tty | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g' | tr -d '\n\r')
+CAMERA := $(shell $(SCRIPTS_DIR)/select_camera.sh $(CAMERA_SUBDIR) $(BUILD_MEMO) $(if $(IP_EXPLICIT),0,1) $(DETECTED_CAMERA) 2>/dev/tty | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g' | tr -d '\n\r')
 # Check if selection was cancelled
 ifeq ($(CAMERA),)
 $(error Camera selection cancelled)
@@ -63,9 +67,6 @@ export IP
 endif
 # After selection, find the config file
 CAMERA_CONFIG := $(shell find $(CAMERA_SUBDIR)/$(CAMERA) -name "$(CAMERA)_defconfig")
-else
-# CAMERA was provided via command line, find its config
-CAMERA_CONFIG := $(shell find $(CAMERA_SUBDIR) -name "$(CAMERA)_defconfig")
 endif
 endif
 
