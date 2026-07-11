@@ -7,7 +7,7 @@ MOTION="/run/motion"
 PORTAL_MODE_FLAG="/run/portal_mode"
 
 start_daemon() {
-	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
 }
 
 stop_daemon() {
