@@ -17,6 +17,7 @@ if BR2_PACKAGE_STRERO
 config BR2_PACKAGE_STRERO_AUDIO
 	bool "Audio module support"
 	depends on BR2_PACKAGE_STRERO
+	default y
 	help
 	  Enable audio capture and streaming module for Strero.
 	  Adds audio input, encoding and RTSP audio streaming capabilities.
@@ -31,6 +32,7 @@ config BR2_PACKAGE_STRERO_AUDIO_CODECS
 	depends on BR2_PACKAGE_FAAC
 	depends on BR2_PACKAGE_OPUS
 	depends on BR2_PACKAGE_LIBHELIX_AAC
+	default y
 	help
 	  Enable additional audio codecs for Strero audio module.
 	  Adds support for AAC, OPUS, and PCM audio encoding formats.
@@ -41,11 +43,13 @@ config BR2_PACKAGE_STRERO_HTTP
 	depends on BR2_PACKAGE_STRERO
 	default y
 	help
-	  Enable HTTP API server module with endpoints for monitoring, media access, and ONVIF.
-	  Provides comprehensive HTTP API with JSON endpoints, snapshot access, and MJPEG streaming.
+	  Enable HTTP API server module with endpoints for monitoring, media access,
+	  and ONVIF.
+	  Provides comprehensive HTTP API with JSON endpoints, snapshot access, and
+	  MJPEG streaming.
 	  Includes configurable endpoint control and performance tuning options.
-
-	  Features: JSON API endpoints, snapshot/MJPEG streaming, configurable security
+	  Features: JSON API endpoints, snapshot/MJPEG streaming, configurable
+	  security.
 	  Endpoints: /status.json, /snap0.jpg, /stream0.mjpeg, /metrics, /onvif/*
 	  Additional memory usage: ~100KB for HTTP server and request handling
 
@@ -57,10 +61,11 @@ config BR2_PACKAGE_STRERO_IMAGE_GRAB
 	  Enable image grabbing module for capturing JPEG, NV12, and YUV frames.
 	  Provides programmatic access to capture still images from video streams
 	  with support for multiple formats and configurable quality settings.
-
-	  Features: JPEG/NV12/YUV capture, configurable quality, thread-safe operation
-	  Use cases: Snapshot capture, image processing, computer vision applications
-	  Additional memory usage: ~50KB for frame capture and format conversion
+	  Features: JPEG/NV12/YUV capture, configurable quality, thread-safe
+	  operation.
+	  Use cases: Snapshot capture, image processing, computer vision
+	  applications.
+	  Additional memory usage: ~50KB for frame capture and format conversion.
 
 config BR2_PACKAGE_STRERO_IMP_CONTROL
 	bool "IMP image quality control module support"
@@ -70,10 +75,10 @@ config BR2_PACKAGE_STRERO_IMP_CONTROL
 	  Enable IMP image quality control module with HTTP API endpoints.
 	  Provides real-time control of image quality parameters including
 	  brightness, contrast, saturation, and sharpness via HTTP API.
-
-	  Features: Real-time IMP parameter control, HTTP API endpoints, parameter validation
+	  Features: Real-time IMP parameter control, HTTP API endpoints, parameter
+	  validation.
 	  Endpoints: /imp/params.json (GET), /imp/params (POST), /imp/reset (POST)
-	  Additional memory usage: ~50KB for parameter management and API handling
+	  Additional memory usage: ~50KB for parameter management and API handling.
 
 config BR2_PACKAGE_STRERO_METRICS
 	bool "System metrics module support"
@@ -84,9 +89,9 @@ config BR2_PACKAGE_STRERO_METRICS
 	  Collects process, stream, and system metrics with configurable intervals.
 	  Provides Prometheus metrics, JSON status, and health check endpoints.
 
-	  Features: CPU/memory monitoring, stream statistics, HTTP endpoints
-	  Endpoints: /metrics, /status.json, /health.json, /info.json
-	  Additional memory usage: ~200KB for metrics collection and history
+	  Features: CPU/memory monitoring, stream statistics, HTTP endpoints.
+	  Endpoints: /metrics, /status.json, /health.json, /info.json.
+	  Additional memory usage: ~200KB for metrics collection and history.
 
 config BR2_PACKAGE_STRERO_MOTION
 	bool "Motion detection module support"
@@ -94,12 +99,15 @@ config BR2_PACKAGE_STRERO_MOTION
 	default y
 	help
 	  Enable IVS-based motion detection module with configurable ROI regions.
-	  Provides hardware-accelerated motion detection using Ingenic IVS (Intelligent Video Surveillance).
-	  Supports multiple regions of interest, sensitivity control, and script execution on motion events.
-
-	  Features: Hardware-accelerated detection, configurable ROI regions, script execution
-	  IVS support: Uses Ingenic IMP_IVS motion detection algorithms
-	  Additional memory usage: ~150KB for IVS processing and motion state management
+	  Provides hardware-accelerated motion detection using Ingenic IVS
+	  (Intelligent Video Surveillance).
+	  Supports multiple regions of interest, sensitivity control, and script
+	  execution on motion events.
+	  Features: Hardware-accelerated detection, configurable ROI regions,
+	  script execution.
+	  IVS support: Uses Ingenic IMP_IVS motion detection algorithms.
+	  Additional memory usage: ~150KB for IVS processing and motion state
+	  management.
 
 config BR2_PACKAGE_STRERO_ONVIF
 	bool "ONVIF protocol support"
@@ -108,10 +116,9 @@ config BR2_PACKAGE_STRERO_ONVIF
 	help
 	  Enable ONVIF protocol support with WS-Discovery and SOAP services.
 	  Adds device discovery, snapshot retrieval, and stream URI services.
-
-	  Features: WS-Discovery, Device/Media services, SOAP endpoints
-	  Standards compliance: ONVIF Profile S compatible
-	  Additional memory usage: ~500KB for ONVIF services
+	  Features: WS-Discovery, Device/Media services, SOAP endpoints.
+	  Standards compliance: ONVIF Profile S compatible.
+	  Additional memory usage: ~500KB for ONVIF services.
 
 config BR2_PACKAGE_STRERO_OSD
 	bool "OSD timestamp overlay module support"
@@ -119,13 +126,16 @@ config BR2_PACKAGE_STRERO_OSD
 	select BR2_PACKAGE_LIBSCHRIFT
 	default y
 	help
-	  Enable OSD (On-Screen Display) timestamp overlay module with dedicated update thread.
-	  Provides real-time timestamp overlays on video streams with precise timing control.
-	  Only updates OSD when RTSP clients are connected to conserve system resources.
-
-	  Features: Real-time timestamp overlay, client-aware updates, dedicated thread
-	  Timing: Precise 1-second intervals, independent of frame processing
-	  Additional memory usage: ~50KB for OSD processing and thread management
+	  Enable OSD (On-Screen Display) timestamp overlay module with dedicated
+	  update thread.
+	  Provides real-time timestamp overlays on video streams with precise
+	  timing control.
+	  Only updates OSD when RTSP clients are connected to conserve system
+	  resources.
+	  Features: Real-time timestamp overlay, client-aware updates, dedicated
+	  thread.
+	  Timing: Precise 1-second intervals, independent of frame processing.
+	  Additional memory usage: ~50KB for OSD processing and thread management.
 
 config BR2_PACKAGE_STRERO_PHOTOSENSING
 	bool "Photosensing module support"
@@ -135,10 +145,10 @@ config BR2_PACKAGE_STRERO_PHOTOSENSING
 	  Enable automatic day/night mode switching based on light conditions.
 	  Monitors ISO values and white balance statistics to automatically
 	  switch between day and night ISP modes and control IR cut filter.
-
-	  Features: Automatic mode switching, IR cut filter control, configurable thresholds
-	  Hardware support: GPIO-based IR cut filter control (gpio79/gpio80)
-	  Additional memory usage: ~100KB for photosensing processing
+	  Features: Automatic mode switching, IR cut filter control, configurable
+	  thresholds.
+	  Hardware support: GPIO-based IR cut filter control (gpio79/gpio80).
+	  Additional memory usage: ~100KB for photosensing processing.
 
 config BR2_PACKAGE_STRERO_RTSP
 	bool "RTSP streaming server module support"
@@ -148,10 +158,9 @@ config BR2_PACKAGE_STRERO_RTSP
 	  Enable RTSP streaming server module for real-time video streaming.
 	  Provides RFC-compliant RTSP server with H.264/H.265 video streaming,
 	  multi-client support, and optional authentication.
-
-	  Features: RTSP/RTP streaming, multi-client support, H.264/H.265 codecs
-	  Standards: RFC 2326 (RTSP), RFC 3984 (H.264 RTP), RFC 7798 (H.265 RTP)
-	  Additional memory usage: ~200KB for RTSP server and client management
+	  Features: RTSP/RTP streaming, multi-client support, H.264/H.265 codecs.
+	  Standards: RFC 2326 (RTSP), RFC 3984 (H.264 RTP), RFC 7798 (H.265 RTP).
+	  Additional memory usage: ~200KB for RTSP server and client management.
 
 config BR2_PACKAGE_STRERO_RTSPS
 	bool "RTSPS (RTSP over TLS) secure streaming support"
@@ -162,10 +171,9 @@ config BR2_PACKAGE_STRERO_RTSPS
 	  Enable RTSPS (RTSP over TLS/SSL) for secure encrypted video streaming.
 	  Provides encrypted RTSP connections using the same TLS backend as RTMPS.
 	  Supports both server certificates and optional client authentication.
-
-	  Features: Encrypted RTSP streaming, TLS 1.2+, certificate support
-	  Security: End-to-end encryption, optional client verification
-	  Additional memory usage: ~100KB for TLS contexts and encryption
+	  Features: Encrypted RTSP streaming, TLS 1.2+, certificate support.
+	  Security: End-to-end encryption, optional client verification.
+	  Additional memory usage: ~100KB for TLS contexts and encryption.
 	  Default port: 322 (RTSPS standard port)
 
 config BR2_PACKAGE_STRERO_RTMP_CLIENT
@@ -174,12 +182,13 @@ config BR2_PACKAGE_STRERO_RTMP_CLIENT
 	default y
 	help
 	  Enable RTMP streaming client module for live streaming to platforms.
-	  Provides RTMP client for pushing camera streams to YouTube Live, Twitch,
-	  Facebook Live, and other RTMP ingest servers for live broadcasting.
-
-	  Features: RTMP client, multi-platform streaming, H.264/H.265 support
-	  Platforms: YouTube Live, Twitch, Facebook Live, custom RTMP servers
-	  Additional memory usage: ~250KB for RTMP protocol and connection handling
+	  Provides RTMP client for pushing camera streams to YouTube Live,
+	  Twitch, Facebook Live, and other RTMP ingest servers for live
+	  broadcasting.
+	  Features: RTMP client, multi-platform streaming, H.264/H.265 support.
+	  Platforms: YouTube Live, Twitch, Facebook Live, custom RTMP servers.
+	  Additional memory usage: ~250KB for RTMP protocol and connection
+	  handling.
 
 config BR2_PACKAGE_STRERO_RTMP_SERVER
 	bool "RTMP streaming server module support"
@@ -189,10 +198,10 @@ config BR2_PACKAGE_STRERO_RTMP_SERVER
 	  Enable RTMP streaming server module for receiving live streams.
 	  Provides RTMP server for receiving streams from OBS/FFmpeg and other
 	  RTMP clients for local recording, testing, and development purposes.
-
-	  Features: RTMP server, multi-client support, H.264/H.265 support
-	  Use cases: Local recording, development testing, backup streams
-	  Additional memory usage: ~200KB for RTMP protocol and connection handling
+	  Features: RTMP server, multi-client support, H.264/H.265 support.
+	  Use cases: Local recording, development testing, backup streams.
+	  Additional memory usage: ~200KB for RTMP protocol and connection
+	  handling.
 
 if BR2_PACKAGE_STRERO_RTMP_CLIENT || BR2_PACKAGE_STRERO_RTSP
 
