@@ -264,6 +264,13 @@ config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
 	help
 	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
 
+config BR2_PACKAGE_THINGINO_KOPT_IPV6
+	bool "IPv6"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	select BR2_PACKAGE_THINGINO_ODHCP6C
+	help
+	  Enable IPv6 networking support.
+
 config BR2_PACKAGE_THINGINO_KOPT_PWM
 	bool "PWM"
 	depends on BR2_PACKAGE_THINGINO_KOPT
