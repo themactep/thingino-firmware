@@ -1,0 +1,30 @@
+{
+  "gpio": {
+    "button_reset": 14,
+    "ir850": 50,
+    "ircut": "17 16",
+    "mmc_cd": 49,
+    "mmc_power": {
+      "pin": 60,
+      "active_low": true
+    },
+    "speaker": 7,
+    "white": 59,
+    "wlan": 6
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "58 53 52 54",
+    "gpio_switch": -1,
+    "gpio_tilt": "63 62 61 51",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "1984,1152",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 3900,
+    "steps_tilt": 2200
+  }
+}
