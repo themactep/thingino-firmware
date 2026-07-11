@@ -170,10 +170,7 @@
 
       this.chart.data.labels.push(timeStr);
 
-      if (
-        jsonData.total_gain_night_threshold !== undefined &&
-        this.nightThreshold === null
-      ) {
+      if (jsonData.total_gain_night_threshold !== undefined) {
         this.nightThreshold = parseInt(jsonData.total_gain_night_threshold, 10);
         this.dayThreshold = parseInt(jsonData.total_gain_day_threshold, 10);
         if (!Number.isNaN(this.nightThreshold)) {
@@ -376,7 +373,11 @@
           .map((m) => {
             const series = this.data[m.key];
             const value = series ? series[idx] : undefined;
-            return typeof value === "number" ? (value > 10 ? Math.round(value) : value.toFixed(2)) : "";
+            return typeof value === "number"
+              ? value > 10
+                ? Math.round(value)
+                : value.toFixed(2)
+              : "";
           })
           .join(",");
         return `"${label}",${values}`;
