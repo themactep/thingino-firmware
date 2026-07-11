@@ -1241,8 +1241,8 @@ cloner:
 dfu:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(HOST_DIR)/bin/thingino-dfu -i 0 -b \
-		-w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) \
+	$(HOST_DIR)/bin/thingino-dfu \
+		-w $(FIRMWARE_BIN_FULL) \
 		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware
 
 scriba:
