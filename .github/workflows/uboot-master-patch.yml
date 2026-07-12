@@ -1,8 +1,8 @@
 # Regenerate the squashed U-Boot patch that buildroot applies on top of the
 # pinned upstream release.
 #
-# thingino builds the upstream U-Boot *release* tarball (BR2_TARGET_UBOOT_VERSION,
-# currently 2026.04) and, via the global patch dir (BR2_GLOBAL_PATCH_DIR =
+# thingino builds the upstream U-Boot *release* tarball (BR2_TARGET_UBOOT_VERSION)
+# and, via the global patch dir (BR2_GLOBAL_PATCH_DIR =
 # package/all-patches), applies package/all-patches/uboot/<version>/*.patch to it
 # with `patch -p1`. This workflow regenerates that single patch as the full diff
 # from the upstream release tag to our fork branch (gtxaspec/u-boot
@@ -30,7 +30,7 @@ on:
       base_tag:
         description: "Upstream release tag to diff from (matches BR2_TARGET_UBOOT_VERSION)"
         required: true
-        default: "v2026.04"
+        default: "v2026.07"
 
 permissions:
   contents: write
