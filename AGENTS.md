@@ -146,6 +146,8 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
   2. Rename in place to exclude from the build (e.g. `.patch` → `.patch.disabled`).
   3. Move to a dedicated `trash/` directory (e.g. `trash/<original-path>/`),
      leaving it up to the user to decide when to permanently delete.
+- **Never search outside the working directory!** If you need something you cannot
+  find - ask the user. **Full home search is prohibited under any circumstances!**
 
 ## Important constraints
 
