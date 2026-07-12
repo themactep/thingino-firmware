@@ -1,0 +1,235 @@
+diff --git a/arch/mips/dts/t41nq-isvp.dts b/arch/mips/dts/t41nq-isvp.dts
+index 07f1100c..00c1014c 100644
+--- a/arch/mips/dts/t41nq-isvp.dts
++++ b/arch/mips/dts/t41nq-isvp.dts
+@@ -20,6 +20,6 @@
+ 		0x0000000a 0x0000000a 0x00000008	/* memcfg cl cwl */
+ 		0x00001d50 0x00010006 0x00020018 0x00030000 0x00000000 0x00000000	/* mr0 mr1 mr2 mr3 mr10 mr63 */
+ 		0x030e0d0c 0x07060504 0x0b0a0908 0x0f020100 0x13121110	/* remap1..5 */
+-		0x00000000 0x00000000 0x0000000f 0x0000000f 0x00000003 0x00000003 0x00000014 0x00000014 0x0000008b 0x00000000 0x00000001 0x00000002 0x00000011 0x00000011 0x0000000a 0x00000008 0x00000008 0x0000000a 0x00000003	/* par[19] (efuse drive/ODT/skew) */
++		0x00000000 0x00000000 0x0000000f 0x0000000f 0x0000000f 0x0000000f 0x0000000f 0x0000000f 0x0000008b 0x00000000 0x00000001 0x00000002 0x00000011 0x00000011 0x0000000a 0x00000008 0x00000008 0x0000000a 0x00000003	/* par[19] (efuse drive/ODT/skew) */
+ 	>;
+ };
+diff --git a/arch/mips/mach-xburst/t41/Kconfig b/arch/mips/mach-xburst/t41/Kconfig
+index 83af26bf..c7768099 100644
+--- a/arch/mips/mach-xburst/t41/Kconfig
++++ b/arch/mips/mach-xburst/t41/Kconfig
+@@ -29,4 +29,17 @@ config SPL_T41_SFC_NAND_BOOT
+ 	  (isvp_t41nq_sfc0_nand_defconfig). The driver lives in
+ 	  arch/mips/mach-xburst/t41/sfc_nand.c (ported from T40).
+ 
++config T41_VENDOR_PAD_INIT
++	bool "T41 SPL: DML16-Z533 vendor pad/USB-PHY init"
++	depends on SPL
++	select BOARD_LATE_INIT
++	default n
++	help
++	  Replay the pad-function and CPM USB-PHY register writes that
++	  the stock DML16-Z533 (Hichip/Vanhua T41NQ) SPL performs before
++	  DDR init. Required on that board for the on-board RTL8733BU
++	  USB WiFi to stay enumerated and for the SD card slot to
++	  initialise. Harmless but board-specific; leave disabled for
++	  other T41 boards.
++
+ endif
+diff --git a/arch/mips/mach-xburst/t41/soc.c b/arch/mips/mach-xburst/t41/soc.c
+index 2d4b22b5..066b3ec7 100644
+--- a/arch/mips/mach-xburst/t41/soc.c
++++ b/arch/mips/mach-xburst/t41/soc.c
+@@ -50,6 +50,34 @@ void board_init_f(ulong dummy)
+ 	/* Disable watchdog */
+ 	writel(0, (void __iomem *)(WDT_BASE + 0x04));
+ 
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++	/*
++	 * Board pad/function init transliterated from the stock
++	 * DML16-Z533 (Hichip/Vanhua T41NQ) SPL at 0x83c-0x8b8. The
++	 * stock SPL programs these before DDR/PLL init; without them
++	 * the on-board RTL8733BU USB WiFi drops off the bus ~2 s after
++	 * enumeration and the SD card never completes ACMD41 init.
++	 * Registers: GPIO function strobes (PB6-14/16-19 -> func3,
++	 * PB15 -> func0 + pad cfg), two undocumented pad-config blocks
++	 * at 0x10011000/0x10012000, and the CPM USB PHY ref-clock
++	 * registers (USBVBFIL/USBPCR1) set to stock values.
++	 */
++	writel(0x000f7fc0, (void __iomem *)0xb0010134); /* PB PAT1S */
++	writel(0x000f7fc0, (void __iomem *)0xb0010144); /* PB PAT0S */
++	writel(0x00008000, (void __iomem *)0xb0010138); /* PB15 PAT1C */
++	writel(0x00008000, (void __iomem *)0xb00101a4); /* PB15 pad cfg */
++	writel(0xffffffff, (void __iomem *)0xb0011134); /* pad blk B */
++	writel(0xffffffff, (void __iomem *)0xb0011148);
++	writel(0xffffffff, (void __iomem *)0xb0012134); /* pad blk C */
++	writel(0xffffffff, (void __iomem *)0xb0012148);
++	writel(0xe0700000, (void __iomem *)0xb0010044); /* PA PAT0S 20-22,29-31 */
++	writel(0xe0700000, (void __iomem *)0xb0010038); /* PA PAT1C */
++	writel(0xe0700000, (void __iomem *)0xb0010028); /* PA MSKC -> func1 */
++	writel(0x0000002f, (void __iomem *)0xb0011110); /* pad blk B +0x110 */
++	writel(0x00ff0080, (void __iomem *)0xb0000044); /* USBVBFIL */
++	writel(0x8a800090, (void __iomem *)0xb0000048); /* USBPCR1 (stock) */
++#endif
++
+ 	/*
+ 	 * XBurst2 CCU tweak - exactly match vendor T40 U-Boot 2013
+ 	 * (board_init_f, 0x80001ccc): CCU +0xfe0 |= 0x18 (bits 3,4 -
+diff --git a/board/ingenic/isvp-t41/isvp-t41.c b/board/ingenic/isvp-t41/isvp-t41.c
+index ccc51a09..632d7071 100644
+--- a/board/ingenic/isvp-t41/isvp-t41.c
++++ b/board/ingenic/isvp-t41/isvp-t41.c
+@@ -49,7 +49,7 @@ int dram_init(void)
+  * Untested on real T41 silicon. Bring-up sequence transliterated
+  * from the working A1 a1_usb_phy_init().
+  */
+-static void t41_usb_phy_init(void)
++static __maybe_unused void t41_usb_phy_init(void)
+ {
+ 	void __iomem *cpm = (void __iomem *)CPM_BASE;
+ 	u32 v;
+@@ -61,21 +61,35 @@ static void t41_usb_phy_init(void)
+ 	udelay(40);
+ 	clrbits_le32(cpm + CPM_SRBC0, SRBC_USB_SR);
+ 
+-	setbits_le32(cpm + CPM_USBPCR1,
+-		     BIT(8) | BIT(9) | BIT(28) | BIT(29) | BIT(30));
+-	clrbits_le32(cpm + CPM_USBPCR1, BIT(19));	/* WORD_IF0 */
++	/*
++	 * USBPCR1: measured 0xBAA00090 on the working stock firmware
++	 * (DML16-Z533 T41NQ). The A1-derived value set BIT(8)|BIT(9)
++	 * (ref-clock divider) and BIT(30), which the stock SPL leaves
++	 * clear; with them set the RTL8733BU on this board drops off
++	 * the bus ~2 s after enumeration.
++	 */
++	setbits_le32(cpm + CPM_USBPCR1, BIT(28) | BIT(29));
++	clrbits_le32(cpm + CPM_USBPCR1,
++		     BIT(8) | BIT(9) | BIT(30) | BIT(19) /* WORD_IF0 */);
+ 	v = readl(cpm + CPM_USBPCR1);
+ 	v &= ~(0x7u << 23);
+ 	v |= (5u << 23);
+ 	writel(v, cpm + CPM_USBPCR1);
+ 
+-	writel(0, cpm + CPM_USBVBFIL);
++	writel(0x00ff0080, cpm + CPM_USBVBFIL);	/* stock value */
+ 	setbits_le32(cpm + CPM_USBRDT, USBRDT_VBFIL_LD_EN);
+ 
++	/*
++	 * USBPCR: stock runs the port host-only with the OTG session
++	 * FSM disabled and register-mode VBUS-valid (0xC09919B8):
++	 * OTG_DISABLE=1, VBUSVLDEXTSEL=1, COMMONONN=0. The A1-derived
++	 * inverse left the OTG FSM running, which tears the port down
++	 * on this board.
++	 */
+ 	v = readl(cpm + CPM_USBPCR);
+-	v |= USBPCR_USB_MODE_ORG | USBPCR_COMMONONN;
+-	v &= ~(USBPCR_OTG_DISABLE | USBPCR_SIDDQ | USBPCR_IDPULLUP_MASK |
+-	       USBPCR_VBUSVLDEXT | USBPCR_VBUSVLDEXTSEL);
++	v |= USBPCR_USB_MODE_ORG | USBPCR_OTG_DISABLE | USBPCR_VBUSVLDEXTSEL;
++	v &= ~(USBPCR_COMMONONN | USBPCR_SIDDQ | USBPCR_IDPULLUP_MASK |
++	       USBPCR_VBUSVLDEXT);
+ 	writel(v, cpm + CPM_USBPCR);
+ 
+ 	setbits_le32(cpm + CPM_USBPCR, USBPCR_POR);
+@@ -118,13 +132,105 @@ void otg_phy_init(struct dwc2_udc *dev)
+ }
+ #endif /* CONFIG_USB || CONFIG_USB_GADGET */
+ 
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++/*
++ * Normalize the CPM clock-gate/CDR and USB-PHY register state to what
++ * the stock DML16-Z533 U-Boot leaves behind at its prompt (measured
++ * with md.l on both bootloaders on real silicon). Linux inherits much
++ * of this state: with the thingino defaults the SD card never
++ * completes ACMD41 init (stale CE/divider in MSC0CDR) and the
++ * RTL8733BU USB WiFi drops off the bus (USBPCR1/USBVBFIL).
++ */
++static void t41_vendor_cpm_state(void)
++{
++	void __iomem *cpm = (void __iomem *)CPM_BASE;
++
++	/*
++	 * PB pad-config block, reg +0x110 = 0x2f (stock). Without this
++	 * the RTL8733BU drops off the USB bus ~2 s after enumeration.
++	 * The SPL-time write does not stick (cleared during U-Boot
++	 * proper init), so it must be (re)applied here.
++	 */
++	writel(0x0000002f, (void __iomem *)0xb0011110);
++
++	/*
++	 * PB pad attribute reg +0x030: stock clears bits 28/29/30 (pins
++	 * PB28 eth-rst, PB29 wifi-pwr, PB30). Thingino leaves them set,
++	 * which leaves the RTL8733BU power pad marginal -> the chip
++	 * browns out ~4 s after RF starts (all bulk-IN URBs -71 at once).
++	 * Clear bits 29/30 (wifi side) but PRESERVE bit 28 (PB28) so the
++	 * on-chip Ethernet reset stays in the state thingino's dwmac
++	 * driver expects. (Full-vendor value 0x8e7e0000 also clears bit
++	 * 28 and breaks Ethernet on this board.)
++	 */
++	{
++		u32 v = readl((void __iomem *)0xb0011030);
++		v &= ~((1u << 29) | (1u << 30));
++		writel(v, (void __iomem *)0xb0011030);
++	}
++
++	/* pinmux: PA20-22, PA29-31 to device function 1 (stock) */
++	writel(0xe0700000, (void __iomem *)0xb0010044); /* PA PAT0S */
++	writel(0xe0700000, (void __iomem *)0xb0010038); /* PA PAT1C */
++	writel(0xe0700000, (void __iomem *)0xb0010028); /* PA MSKC */
++
++	/* clock gates: stock runs CLKGR0 bit12, CLKGR1 bits 3,17 ungated */
++	clrbits_le32(cpm + 0x20, BIT(12));
++	clrbits_le32(cpm + 0x28, BIT(3) | BIT(17));
++
++	/* CDRs exactly as stock (incl. MSC0CDR cleared of stale CE/div) */
++	writel(0x800000ff, cpm + 0x64);
++	writel(0x00108000, cpm + 0x68);	/* MSC0CDR */
++	writel(0x40108000, cpm + 0x6c);
++	writel(0x001000ff, cpm + 0x70);
++	writel(0x0000007f, cpm + 0x78);
++	writel(0x6000011b, cpm + 0x7c);
++	writel(0x4000000f, cpm + 0x80);
++	writel(0x4000000f, cpm + 0xa8);
++	writel(0x4000000f, cpm + 0xac);
++	writel(0x00000001, cpm + 0xb0);
++	writel(0x0000000f, cpm + 0xbc);
++
++	/* USB PHY register file exactly as stock U-Boot leaves it;
++	 * the kernel inno-PHY driver does its own POR bring-up on top. */
++	writel(0x00ff0080, cpm + CPM_USBVBFIL);
++	writel(0x8a800090, cpm + CPM_USBPCR1);
++	writel(0x00000004, cpm + CPM_USBRDT);
++	writel(0x409919b8, cpm + CPM_USBPCR);
++}
++#endif
++
+ int board_init(void)
+ {
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++	/*
++	 * Stock U-Boot never brings the USB PHY up (OPCR SPENDN0 stays
++	 * 0 until Linux); it only leaves the register file preset.
++	 * Mimic that instead of running the A1-derived PHY bring-up.
++	 */
++	t41_vendor_cpm_state();
++#else
+ #if defined(CONFIG_USB) || defined(CONFIG_USB_GADGET)
+ 	t41_usb_phy_init();
+ #endif
++#endif
++	return 0;
++}
++
++#ifdef CONFIG_T41_VENDOR_PAD_INIT
++/*
++ * Re-apply the vendor CPM state after all of U-Boot proper's own
++ * driver probing: the DM clk/mmc path re-dirties MSC0CDR (stale
++ * CE + divider) after board_init(), and Linux inherits whatever is
++ * left here. board_late_init() is the last hook before autoboot;
++ * the boot command itself (sf read + bootm) touches no clocks.
++ */
++int board_late_init(void)
++{
++	t41_vendor_cpm_state();
+ 	return 0;
+ }
++#endif
+ 
+ int checkboard(void)
+ {

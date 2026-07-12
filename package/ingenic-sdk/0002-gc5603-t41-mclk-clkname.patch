@@ -1,0 +1,58 @@
+--- a/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 11:28:06.164283773 +0000
++++ b/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 11:28:06.244284703 +0000
+@@ -1035,18 +1035,18 @@
+ 
+ 	switch (info->mclk) {
+ 		case TISP_SENSOR_MCLK0:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim0");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim0");
++			sclka = private_devm_clk_get(&client->dev, "mux_cim");
++			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim");
+ 			set_sensor_mclk_function(0);
+ 			break;
+ 		case TISP_SENSOR_MCLK1:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim1");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim1");
++			sclka = private_devm_clk_get(&client->dev, "mux_cim");
++			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim");
+ 			set_sensor_mclk_function(1);
+ 			break;
+ 		case TISP_SENSOR_MCLK2:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim2");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim2");
++			sclka = private_devm_clk_get(&client->dev, "mux_cim");
++			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim");
+ 			set_sensor_mclk_function(2);
+ 			break;
+ 		default:
+@@ -1059,19 +1059,20 @@
+ 	}
+ 
+ 	rate = private_clk_get_rate(sensor->mclk);
+-	if (((rate / 1000) % 27000) != 0) {
+-		ret = clk_set_parent(sclka, clk_get(NULL, "epll"));
+-		sclka = private_devm_clk_get(&client->dev, "epll");
+-		if (IS_ERR(sclka)) {
+-			pr_err("get sclka failed\n");
++	{
++		/* gc5603 30fps mode is designed for 27 MHz MCLK. This SoC has no
++		 * EPLL (only APLL 1104 / MPLL 1400 / VPLL 1080); APLL cannot divide
++		 * to 27 MHz. VPLL is a valid mux_cim parent and 1080/40 = 27 MHz.
++		 * Without a true 27 MHz the ISP AE fps calc stalls the pipeline. */
++		struct clk *vpll = clk_get(NULL, "vpll");
++		if (IS_ERR_OR_NULL(vpll)) {
++			pr_warn("gc5603: vpll unavailable, keeping mclk parent\n");
+ 		} else {
+-			rate = private_clk_get_rate(sclka);
+-			if (((rate / 1000) % 27000) != 0) {
+-				private_clk_set_rate(sclka, 891000000);
+-			}
++			ret = clk_set_parent(sclka, vpll);
++			if (ret)
++				pr_warn("gc5603: reparent mux_cim to vpll failed\n");
+ 		}
+ 	}
+-
+ 	private_clk_set_rate(sensor->mclk, 27000000);
+ 	private_clk_prepare_enable(sensor->mclk);
+ 

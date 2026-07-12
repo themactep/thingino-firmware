@@ -1,0 +1,11 @@
+--- a/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 00:08:43.747554634 +0000
++++ b/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 00:08:43.747554634 +0000
+@@ -41,6 +41,8 @@
+ static int pwdn_gpio = -1;
+ static int wdr_bufsize = 2 * 4800 * 400;//cache lines corrponding on VPB1
+ static int shvflip = 1;
++module_param(shvflip, int, 0644);
++MODULE_PARM_DESC(shvflip, "Sensor HV flip: 0=none 1=mirror(hflip) 2=flip(vflip) 3=mirror+flip(180)");
+ 
+ struct regval_list {
+ 	uint16_t reg_num;

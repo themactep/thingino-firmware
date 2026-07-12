@@ -1,0 +1,19 @@
+--- a/hal/hal_com.c	2026-07-11 14:18:59.729022707 +0300
++++ b/hal/hal_com.c	2026-07-11 14:18:59.732022707 +0300
+@@ -1552,7 +1552,15 @@
+ 		ret = _SUCCESS;
+ 
+ #if defined(CONFIG_USB_HCI) || defined(CONFIG_PCI_HCI)
+-	if ((hci_type == RTW_USB || hci_type == RTW_PCIE)
++	/*
++	 * DML16-Z533 (T41NQ + RTL8733BU): powering the MAC off here leaves
++	 * the chip's internal MCU catatonic - it keeps its USB attachment
++	 * but stops serving vendor requests, so the later netdev_open()
++	 * hal init fails with -EPROTO on every register access and only a
++	 * hard power cycle revives it. Keep the MAC powered between probe
++	 * and first open instead.
++	 */
++	if (0 && (hci_type == RTW_USB || hci_type == RTW_PCIE)
+ 		&& !rtw_is_hw_init_completed(adapter))
+ 		rtw_hal_power_off(adapter);
+ #endif

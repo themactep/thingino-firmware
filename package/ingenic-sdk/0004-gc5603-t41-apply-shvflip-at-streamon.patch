@@ -1,0 +1,18 @@
+--- a/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 03:04:38.546509149 +0000
++++ b/4.4.94/sensor-src/t41/gc5603.c	2026-07-12 03:04:38.576509488 +0000
+@@ -820,6 +820,7 @@
+ 	return 0;
+ }
+ 
++static int sensor_set_hvflip(struct tx_isp_subdev *sd, int enable);
+ static int sensor_init(struct tx_isp_subdev *sd, struct tx_isp_initarg *init)
+ {
+ 	struct tx_isp_sensor *sensor = sd_to_sensor_device(sd);
+@@ -850,6 +851,7 @@
+ 		}
+ 		if (sensor->video.state == TX_ISP_MODULE_INIT) {
+ 			ret = sensor_write_array(sd, sensor_stream_on);
++			sensor_set_hvflip(sd, shvflip);
+ 			sensor->video.state = TX_ISP_MODULE_RUNNING;
+ 			pr_debug("%s stream on\n", SENSOR_NAME);
+ 			sensor->video.state = TX_ISP_MODULE_RUNNING;

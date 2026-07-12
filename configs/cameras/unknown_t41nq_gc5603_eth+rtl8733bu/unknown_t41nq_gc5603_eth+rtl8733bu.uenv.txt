@@ -1,0 +1,5 @@
+serialport=ttyS1
+gpio_default=81o 82o
+gpio_ir850=81
+gpio_ircut=49 50
+gpio_white=82

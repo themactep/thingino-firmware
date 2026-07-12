@@ -1,0 +1,19 @@
+{
+  "gpio": {
+    "ir850": 81,
+    "ircut": "49 50",
+    "white": 82,
+    "wlan": 61,
+    "button_reset": 59
+  },
+  "daynight": {
+    "controls": {
+      "color": true,
+      "ir850": true,
+      "ir940": true,
+      "ircut": true,
+      "white": false
+    },
+    "enabled": false
+  }
+}

@@ -44,6 +44,16 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEV4
 
 		Compatible with Ingenic T41 based WyzeCam V4 hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_UNKNOWNT41NQ
+	bool "Unknown T41NQ GC5603 (eth+rtl8733bu)"
+	help
+		Select this option to use the custom device tree for the
+		unknown/no-name T41NQ + GC5603 board. This installs the
+		unknown_t41nq_gc5603.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+		Provides USB host mode (dr_mode = "host") for the onboard
+		RTL8733BU USB WiFi. Compatible with Ingenic T41NQ hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_IGETC5PT
 	bool "iGET C5PT"
 	help

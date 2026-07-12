@@ -9,7 +9,8 @@ THINGINO_DTS_MAPPINGS = \
         IGETC5PT|iget_c5pt_t41lq|marmot \
         HUGOLOGE5P|hugolog_e5p_t41lq|marmot \
         WYZEV4|wyze_cam4_t41nq|marmot \
-        WYZEPANV4|wyze_panv4_t32nq|goat
+        WYZEPANV4|wyze_panv4_t32nq|goat \
+        UNKNOWNT41NQ|unknown_t41nq_gc5603|marmot
 
 THINGINO_LED_CONFIG = $(BR2_CONFIG)
 THINGINO_LED_HEADER = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/thingino_leds.h
