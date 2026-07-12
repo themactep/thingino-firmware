@@ -30,7 +30,7 @@ make run CMD="bin/ffmpeg --help"  # QEMU run target binary
 ## Repo layout
 
 ```
-configs/cameras/<camera_name>/   # per-camera defconfig + .config + .uenv.txt + overlay/
+configs/cameras/<camera_name>/   # per-camera defconfig + .config + uenv.txt + overlay/
 package/<name>/                  # Buildroot packages (mk + Config.in)
 overlay/                         # root filesystem overlay (applied to all builds)
 board/ingenic/                   # DTB patches, post-build scripts, board files

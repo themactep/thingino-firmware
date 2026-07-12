@@ -32,7 +32,7 @@ The firmware consists of the following partitions, written sequentially to flash
 Contains the bootloader that initializes the hardware and loads the kernel.
 
 #### Env Partition (64 KB, fixed)
-Stores U-Boot environment variables in a binary format generated from the `.uenv.txt` configuration files.
+Stores U-Boot environment variables in a binary format generated from the `uenv.txt` configuration files.
 
 #### Kernel Partition (dynamic size)
 Contains the Linux kernel image. Size is calculated based on the actual kernel size, aligned to 64 KB blocks.

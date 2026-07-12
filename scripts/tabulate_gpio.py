@@ -12,8 +12,8 @@ today = datetime.now().astimezone().strftime("%Y:%m:%d %H:%M:%S %Z %z")
 
 envdir = "environment/"
 model2settings = {}
-for file in glob.glob(f"{envdir}*.uenv.txt"):
-    model = file.replace(envdir, "").replace(".uenv.txt", "")
+for file in glob.glob(f"{envdir}*/uenv.txt"):
+    model = file.replace(envdir, "").replace("/uenv.txt", "")
     with open(file, "r") as env_file:
         settings = dict(map(lambda l : tuple(l.split("=", 1)), 
                     filter(lambda s: s.strip() != "", env_file.read().split("\n"))))

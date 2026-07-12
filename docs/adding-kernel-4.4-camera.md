@@ -185,7 +185,7 @@ KERNEL_VERSION_4=y
 
 ### 2.3 Create U-Boot Environment File
 
-Create `brand_model_soc_sensor_wifi.uenv.txt`:
+Create `uenv.txt`:
 
 ```bash
 # Add any camera-specific U-Boot environment variables
