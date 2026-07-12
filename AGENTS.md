@@ -61,7 +61,7 @@ substituted during assembly.
 User config layers (scoped, each additive):
 `user/<common>/` > `user/<camera>/` > `user/<camera>/<ip>/`
 Each can contain `local.fragment`, `local.mk`, `local.uenv.txt`, `thingino.json`,
-`motors.json`, `prudynt.json`, `overlay/`, `opt/`.
+`prudynt.json`, `overlay/`, `opt/`.
 
 Config fragments and per-camera overlay are merged at build time into the
 config and rootfs partitions respectively.
