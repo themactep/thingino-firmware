@@ -148,6 +148,8 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
      leaving it up to the user to decide when to permanently delete.
 - **Never search outside the working directory!** If you need something you cannot
   find - ask the user. **Full home search is prohibited under any circumstances!**
+- Running rebuilds always preserve the full compilation log to grep for data
+  later instead of live-grepping the output.
 
 ## Important constraints
 
