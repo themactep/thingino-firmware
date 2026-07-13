@@ -701,6 +701,10 @@ ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
 	STREAMER := raptor
 else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
 	STREAMER := prudynt
+else ifeq ($(BR2_PACKAGE_STRERO),y)
+	STREAMER := strero
+else ifeq ($(BR2_PACKAGE_TIMPS),y)
+	STREAMER := timps
 else
 	STREAMER := prudynt
 endif
