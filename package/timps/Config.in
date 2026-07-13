@@ -1,0 +1,64 @@
+config BR2_PACKAGE_TIMPS
+	bool "timps"
+	depends on !BR2_SOC_FAMILY = "a1"
+	depends on BR2_PACKAGE_THINGINO_STREAMER_TIMPS
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	help
+	  Tiny IMP Streamer — a minimal, dependency-light RTSP / fragmented-MP4 /
+	  MJPEG streamer for Ingenic SoC IP cameras.
+
+	  Built straight on the vendor libimp — no live555, libconfig,
+	  libwebsockets or libschrift. A lightweight alternative to prudynt-t
+	  and raptor for the Thingino ecosystem.
+
+	  https://github.com/Lu-Fi/timps
+
+if BR2_PACKAGE_TIMPS
+
+config BR2_PACKAGE_TIMPS_FAAC
+	bool "AAC audio support (libfaac)"
+	default y
+	select BR2_PACKAGE_FAAC
+	help
+	  Enable software AAC audio encoding via libfaac. This enables
+	  browser-compatible audio in the fMP4 preview and RTSP streams.
+	  Without this, only G.711 audio is available.
+
+config BR2_PACKAGE_TIMPS_CONTROL
+	bool "Live control endpoint (/control)"
+	default y
+	help
+	  Enable the live JSON control API at /control. Provides runtime
+	  configuration, status, and camera control without restarting.
+	  Disable to save ~15KB of binary size and reduce attack surface.
+
+config BR2_PACKAGE_TIMPS_DAYNIGHT
+	bool "Automatic day/night detection"
+	default y
+	help
+	  Enable the native automatic day/night detection thread. Monitors
+	  sensor brightness and switches ISP day/night mode and IR-cut
+	  filter automatically. Disable if using an external photosensing
+	  solution.
+
+config BR2_PACKAGE_TIMPS_TLS
+	bool "TLS support (HTTPS + RTSPS via mbedTLS)"
+	default y
+	select BR2_PACKAGE_MBEDTLS
+	help
+	  Enable mbedTLS for HTTPS (HTTP preview port) and RTSPS (RTSP
+	  over TLS on port 322). Requires TLS certificates at
+	  /etc/ssl/certs/httpd.crt and /etc/ssl/private/httpd.key.
+
+config BR2_PACKAGE_TIMPS_SRT
+	bool "SRT output (libsrt)"
+	select BR2_PACKAGE_LIBSRT
+	help
+	  Enable MPEG-TS over SRT output in listener mode. The camera
+	  acts as an SRT listener, serving live video+audio.
+	  Playback: ffplay srt://<ip>:9000
+
+endif # BR2_PACKAGE_TIMPS

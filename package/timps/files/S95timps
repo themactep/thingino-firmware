@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# S95timps - start/stop Tiny IMP Streamer
+#
+
+case "$1" in
+	start)
+		echo "Starting timpsd..."
+		start-stop-daemon -S -b -m -p /var/run/timpsd.pid \
+			-x /usr/bin/timpsd -- -c /etc/timps.conf
+		;;
+	stop)
+		echo "Stopping timpsd..."
+		start-stop-daemon -K -p /var/run/timpsd.pid 2>/dev/null
+		;;
+	restart)
+		"$0" stop
+		sleep 1
+		"$0" start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0
