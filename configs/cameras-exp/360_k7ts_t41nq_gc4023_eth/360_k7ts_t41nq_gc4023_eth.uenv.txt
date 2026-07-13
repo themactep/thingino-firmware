@@ -1,0 +1,9 @@
+gpio_default=58i 59o 60O 81O
+gpio_ir850=79
+gpio_ircut=49 50
+gpio_led_g=81o
+#gpio_mmc_cd=58
+gpio_mmc_power=59o
+gpio_speaker=63
+gpio_white=80
+serialport=ttyS1
