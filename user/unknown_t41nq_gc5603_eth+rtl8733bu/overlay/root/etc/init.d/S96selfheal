@@ -5,14 +5,14 @@
 # thingino's crond runs with `-c /etc/cron/crontabs`, so the root crontab is
 # /etc/cron/crontabs/root. We append two lines (guarded by a marker so this is
 # safe to run on every boot and never duplicates):
-#   * * * * * /sbin/selfheal.sh check            (network + daemon watchdog)
-#   0 3 * * * /sbin/selfheal.sh reboot-scheduled (staggered nightly reboot)
+#   * * * * * /usr/sbin/selfheal.sh check            (network + daemon watchdog)
+#   0 3 * * * /usr/sbin/selfheal.sh reboot-scheduled (staggered nightly reboot)
 #
 # thingino ships that file with a commented-out `#0 3 * * * reboot -f` example;
 # we leave it untouched and add our own (staggered, logged) reboot instead.
 
 CRONTAB=/etc/cron/crontabs/root
-SCRIPT=/sbin/selfheal.sh
+SCRIPT=/usr/sbin/selfheal.sh
 MARKER="# --- self-heal watchdog"
 
 start() {
