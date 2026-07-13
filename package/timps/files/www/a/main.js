@@ -1,0 +1,2942 @@
+const ThreadRtsp = 1;
+const ThreadVideo = 2;
+const ThreadAudio = 4;
+const ThreadOSD = 8;
+
+const ImageNoStream = "/a/nostream.svg";
+
+let max = 0;
+
+if (typeof window !== "undefined") {
+  window.network_address =
+    window.network_address || window.location.hostname || "";
+}
+
+let recordingState = {
+  ch0: false,
+  ch1: false,
+};
+// NATIVE: the timelapse lives in timps (timelapse.* keys in timps.conf, the
+// Timelapse Recorder page edits them); the control-bar button only toggles
+// timelapse.enabled via /control, so all we track here is that flag.
+let timelapseState = {
+  enabled: false,
+};
+let timelapseStateLoaded = false;
+const HeartBeatReconnectDelay = 5 * 1000;
+const HeartBeatMaxReconnectDelay = 120 * 1000;
+const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
+const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
+
+// The control bar (this file) is loaded on every page, but the tiny timps
+// native API client a/timps-api.js is only <script>-included on the streamer/
+// preview pages. The control-bar write actions (motion / mic / privacy) now
+// talk to timps /control directly, so load timps-api.js on demand where it
+// isn't already present. Resolves with window.timpsApi.
+let _timpsApiPromise = null;
+function timpsApiReady() {
+  if (window.timpsApi) return Promise.resolve(window.timpsApi);
+  if (_timpsApiPromise) return _timpsApiPromise;
+  _timpsApiPromise = new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = "/a/timps-api.js";
+    sc.onload = () =>
+      window.timpsApi
+        ? resolve(window.timpsApi)
+        : reject(new Error("timps-api.js loaded but window.timpsApi missing"));
+    sc.onerror = () => reject(new Error("failed to load timps-api.js"));
+    document.head.appendChild(sc);
+  });
+  return _timpsApiPromise;
+}
+const SlowHeartbeatPollInterval = 15 * 1000;
+let heartbeatSource = null;
+let slowHeartbeatTimer = null;
+let slowHeartbeatInFlight = false;
+let currentReconnectDelay = HeartBeatReconnectDelay;
+let debugModalCtx = null;
+
+// Password check state - must be initialized before heartbeat can start
+let isDefaultPassword = false;
+let passwordCheckComplete = false;
+
+function $(n) {
+  return document.querySelector(n);
+}
+
+function $$(n) {
+  return document.querySelectorAll(n);
+}
+
+function $n(n) {
+  return document.createElement(n);
+}
+
+function decodeBase64String(encoded) {
+  if (!encoded) return "";
+  try {
+    const binary = atob(encoded);
+    if (window.TextDecoder) {
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    }
+    return binary;
+  } catch (err) {
+    console.warn("Failed to decode base64 payload", err);
+    return "";
+  }
+}
+
+function agentApiUrl(path) {
+  const rawPath = String(path || "");
+  const normalized = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const queryIndex = normalized.indexOf("?");
+  const agentPath =
+    queryIndex >= 0 ? normalized.slice(0, queryIndex) : normalized;
+  const query = queryIndex >= 0 ? normalized.slice(queryIndex + 1) : "";
+  const params = new URLSearchParams(query);
+  params.set("agent_path", agentPath);
+  return `/x/agent.cgi?${params.toString()}`;
+}
+
+if (typeof window !== "undefined") {
+  window.agentApiUrl = agentApiUrl;
+}
+
+const AgentConfigCache = {
+  pending: null,
+  value: null,
+  fetchedAt: 0,
+};
+
+function invalidateAgentConfigCache() {
+  AgentConfigCache.pending = null;
+  AgentConfigCache.value = null;
+  AgentConfigCache.fetchedAt = 0;
+}
+
+async function getAgentConfig(options = {}) {
+  const { force = false, maxAgeMs = 3000 } = options;
+  const now = Date.now();
+  if (
+    !force &&
+    AgentConfigCache.value &&
+    now - AgentConfigCache.fetchedAt <= maxAgeMs
+  ) {
+    return AgentConfigCache.value;
+  }
+  if (!force && AgentConfigCache.pending) {
+    return AgentConfigCache.pending;
+  }
+
+  AgentConfigCache.pending = agentJsonRequest("/api/v1/config", {
+    cache: "no-store",
+  })
+    .then((payload) => {
+      AgentConfigCache.value = payload;
+      AgentConfigCache.fetchedAt = Date.now();
+      return payload;
+    })
+    .finally(() => {
+      AgentConfigCache.pending = null;
+    });
+
+  return AgentConfigCache.pending;
+}
+
+if (typeof window !== "undefined") {
+  window.getThinginoAgentConfig = getAgentConfig;
+  window.invalidateThinginoAgentConfig = invalidateAgentConfigCache;
+}
+
+function isPreviewBootPending() {
+  return (
+    typeof document !== "undefined" &&
+    document.body &&
+    document.body.id === "page-preview" &&
+    typeof window !== "undefined" &&
+    window.__thinginoPreviewBootPending === true
+  );
+}
+
+async function agentJsonRequest(path, options = {}) {
+  const requestOptions = { ...options };
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Accept", "application/json");
+
+  if (requestOptions.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+    requestOptions.body = JSON.stringify(requestOptions.body);
+  }
+
+  requestOptions.headers = headers;
+
+  const response = await fetch(agentApiUrl(path), requestOptions);
+  const text = await response.text();
+  const trimmedText = text ? text.trim() : "";
+  let payload = null;
+
+  if (trimmedText) {
+    try {
+      payload = JSON.parse(trimmedText);
+    } catch (_err) {
+      payload = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (payload && payload.error && payload.error.message) ||
+      (payload && payload.message) ||
+      (trimmedText && trimmedText.length <= 200 ? trimmedText : null) ||
+      `HTTP error ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.body = trimmedText;
+    throw error;
+  }
+
+  return payload;
+}
+
+function clearPendingButton(button) {
+  if (button) button.classList.remove("pending");
+}
+
+function hideDebugModal(ctx = debugModalCtx) {
+  if (!ctx) return;
+  if (ctx.modalInstance) {
+    ctx.modalInstance.hide();
+  } else {
+    ctx.modalEl.classList.remove("show");
+    ctx.modalEl.style.display = "none";
+    ctx.modalEl.setAttribute("aria-hidden", "true");
+    ctx.modalEl.removeAttribute("aria-modal");
+    if (ctx.buttonRef) ctx.buttonRef.classList.remove("active");
+  }
+}
+
+function showDebugModal(ctx = debugModalCtx) {
+  if (!ctx) return;
+  if (ctx.modalInstance) {
+    ctx.modalInstance.show();
+  } else {
+    ctx.modalEl.classList.add("show");
+    ctx.modalEl.style.display = "block";
+    ctx.modalEl.removeAttribute("aria-hidden");
+    ctx.modalEl.setAttribute("aria-modal", "true");
+  }
+}
+
+function ensureDebugModalStructure() {
+  if (debugModalCtx) return debugModalCtx;
+  const modalEl = document.createElement("div");
+  modalEl.id = "debugInfoModal";
+  modalEl.className = "modal fade";
+  modalEl.tabIndex = -1;
+  modalEl.setAttribute("aria-hidden", "true");
+  modalEl.innerHTML = `
+	  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title">Debug information</h5>
+	        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <p class="text-body-secondary mb-0">No debug information available.</p>
+	      </div>
+	    </div>
+	  </div>`;
+  document.body.appendChild(modalEl);
+  const modalBody = modalEl.querySelector(".modal-body");
+  let modalInstance = null;
+  if (window.bootstrap && window.bootstrap.Modal) {
+    modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+  const ctx = {
+    modalEl,
+    modalBody,
+    modalInstance,
+    buttonRef: null,
+  };
+  const closeBtn = modalEl.querySelector(".btn-close");
+  if (closeBtn && (!window.bootstrap || !window.bootstrap.Modal)) {
+    closeBtn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      hideDebugModal(ctx);
+    });
+  }
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    if (ctx.buttonRef) ctx.buttonRef.classList.remove("active");
+  });
+  debugModalCtx = ctx;
+  return ctx;
+}
+
+function populateDebugModalContent() {
+  const ctx = ensureDebugModalStructure();
+  if (!ctx || !ctx.modalBody) return ctx;
+  const fragment = document.createDocumentFragment();
+  $$(".ui-debug").forEach((panel) => {
+    const clone = panel.cloneNode(true);
+    clone.classList.remove("d-none");
+    fragment.appendChild(clone);
+  });
+  ctx.modalBody.innerHTML = "";
+  if (!fragment.childNodes.length) {
+    const placeholder = document.createElement("p");
+    placeholder.className = "text-body-secondary mb-0";
+    placeholder.textContent = "No debug information available.";
+    ctx.modalBody.appendChild(placeholder);
+  } else {
+    ctx.modalBody.appendChild(fragment);
+  }
+  return ctx;
+}
+
+const ThemeState = {
+  endpoint: "/x/json-config-webui.cgi",
+  preferenceKey: "thingino-theme-preference",
+  activeKey: "thingino-theme-active",
+};
+
+function safeStorageGet(key) {
+  try {
+    if (!window.localStorage) return null;
+    return localStorage.getItem(key);
+  } catch (err) {
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    if (!window.localStorage) return;
+    if (value === null || typeof value === "undefined" || value === "") {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, value);
+  } catch (err) {
+    // Best effort cache, ignore failures
+  }
+}
+
+function applyThemeAttribute(theme) {
+  if (!theme) return;
+  let resolvedTheme = theme;
+
+  // Resolve 'auto' based on time of day
+  if (theme === "auto") {
+    const hour = new Date().getHours();
+    resolvedTheme = hour >= 8 && hour < 20 ? "light" : "dark";
+  }
+
+  document.documentElement.setAttribute("data-bs-theme", resolvedTheme);
+}
+
+function rememberThemeState(activeTheme, preferenceTheme) {
+  if (activeTheme) {
+    safeStorageSet(ThemeState.activeKey, activeTheme);
+    applyThemeAttribute(activeTheme);
+  }
+  if (preferenceTheme) {
+    safeStorageSet(ThemeState.preferenceKey, preferenceTheme);
+  }
+}
+
+async function refreshThemeFromServer() {
+  if (typeof fetch !== "function") return;
+  try {
+    const response = await fetch(ThemeState.endpoint, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const preference = data && (data.theme || (data.webui && data.webui.theme));
+    const active = (data && data.active_theme) || preference;
+    rememberThemeState(active, preference);
+  } catch (err) {
+    if (typeof console !== "undefined" && typeof console.debug === "function") {
+      console.debug(
+        "Theme refresh skipped",
+        err && err.message ? err.message : err,
+      );
+    }
+  }
+}
+
+(function initThemeBridge() {
+  const cachedTheme = safeStorageGet(ThemeState.activeKey);
+  if (cachedTheme) {
+    applyThemeAttribute(cachedTheme);
+  }
+  refreshThemeFromServer();
+})();
+
+window.thinginoTheme = {
+  apply: applyThemeAttribute,
+  remember: rememberThemeState,
+  refresh: refreshThemeFromServer,
+  getPreference: () => safeStorageGet(ThemeState.preferenceKey),
+  getActive: () => safeStorageGet(ThemeState.activeKey),
+};
+
+function ts() {
+  return Math.floor(Date.now());
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function hasNavigatorClipboard() {
+  return (
+    typeof navigator !== "undefined" &&
+    !!navigator.clipboard &&
+    !!window.isSecureContext
+  );
+}
+
+function fallbackClipboardCopy(text) {
+  return new Promise((resolve, reject) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+    try {
+      textarea.focus();
+      textarea.select();
+      const successful = document.execCommand("copy");
+      if (successful) {
+        resolve(true);
+      } else {
+        reject(new Error("clipboard-fallback"));
+      }
+    } catch (err) {
+      reject(err);
+    } finally {
+      textarea.remove();
+    }
+  });
+}
+
+async function copyTextToClipboard(text) {
+  const value =
+    typeof text === "string"
+      ? text
+      : text === null || typeof text === "undefined"
+        ? ""
+        : String(text);
+  if (!value) {
+    return Promise.reject(new Error("clipboard-empty"));
+  }
+  if (hasNavigatorClipboard()) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (err) {
+      // Fallback below
+    }
+  }
+  return fallbackClipboardCopy(value);
+}
+
+const clipboardApi = window.thinginoClipboard || {};
+clipboardApi.copy = copyTextToClipboard;
+clipboardApi.fallbackCopy = fallbackClipboardCopy;
+clipboardApi.canUseNavigator = hasNavigatorClipboard;
+window.thinginoClipboard = clipboardApi;
+
+function setProgressBar(id, value, maxvalue, name) {
+  const el = $(id);
+  const safeMax = Number(maxvalue);
+  if (!el || !Number.isFinite(safeMax) || safeMax <= 0) return;
+  const safeValue = Math.max(0, Number(value) || 0);
+  const valuePercent = Math.min(
+    100,
+    Math.max(0, Math.round((safeValue / safeMax) * 100)),
+  );
+  el.setAttribute("aria-valuemin", "0");
+  el.setAttribute("aria-valuemax", safeMax);
+  el.setAttribute("aria-valuenow", safeValue);
+  el.style.width = valuePercent + "%";
+  el.title =
+    (name || "Usage") + ": " + safeValue + "KiB (" + valuePercent + "%)";
+}
+
+function setValue(data, domain, name) {
+  const id = `#${domain}_${name}`;
+  const el = $(id);
+  if (!el) return;
+  const value = data[name];
+  if (typeof value === "undefined") return;
+
+  el.disabled = false;
+  const wrapper = el.closest(
+    ".range, .number-range, .number, .select, .boolean, .file, .form-switch",
+  );
+  if (wrapper) wrapper.classList.remove("disabled");
+
+  if (el.type === "checkbox") {
+    el.checked = value;
+  } else {
+    el.value = value;
+    if (el.type === "range") {
+      $(`${id}-show`).textContent = value;
+    }
+    // Also update modal slider for number_range fields
+    const slider = $(`${id}-slider`);
+    if (slider) {
+      slider.value = value;
+      slider.disabled = false;
+      const sliderValue = $(`${id}-slider-value`);
+      if (sliderValue) sliderValue.textContent = value;
+    }
+  }
+}
+
+function updateRecordingIcons() {
+  $$("#recorder-ch0, #recorder-ch1").forEach((button) => {
+    const channel = parseInt(button.dataset.channel);
+    const isRecording = recordingState[`ch${channel}`];
+    button.classList.remove("pending");
+    button.classList.toggle("active", isRecording);
+    button.classList.toggle("recorder-active", isRecording);
+  });
+}
+
+function updateRecordingState(state) {
+  recordingState.ch0 = state.ch0;
+  recordingState.ch1 = state.ch1;
+  updateRecordingIcons();
+}
+
+function applyTimelapseState(timelapse = {}) {
+  timelapseState = {
+    enabled: timelapse.enabled === true || timelapse.enabled === 1,
+  };
+  timelapseStateLoaded = true;
+  updateTimelapseButtonState();
+}
+
+function updateTimelapseButtonState() {
+  const timelapseBtn = $("#timelapse");
+  if (!timelapseBtn) return;
+
+  timelapseBtn.classList.remove("pending");
+  timelapseBtn.classList.toggle("active", timelapseState.enabled === true);
+}
+
+async function loadTimelapseState() {
+  // NATIVE: the timelapse state comes straight from timps GET /control
+  // ("timelapse":{...} - see a/tool-timelapse.js for the settings page).
+  const api = await timpsApiReady();
+  const json = await api.get();
+  applyTimelapseState((json && json.timelapse) || {});
+  return timelapseState;
+}
+
+async function toggleTimelapse() {
+  const timelapseBtn = $("#timelapse");
+  if (timelapseBtn) timelapseBtn.classList.add("pending");
+
+  try {
+    // always refresh: the config is edited on the Timelapse Recorder page,
+    // so the in-memory state here goes stale
+    await loadTimelapseState();
+
+    const nextEnabled = !timelapseState.enabled;
+    const api = await timpsApiReady();
+    // timelapse.enabled persists to timps.conf and the running timelapse
+    // thread picks it up live (like the record buttons above)
+    await api.set({ timelapse: { enabled: nextEnabled } });
+    await loadTimelapseState();
+    if (typeof showAlert === "function") {
+      showAlert(
+        "success",
+        nextEnabled ? "Timelapse enabled." : "Timelapse disabled.",
+        2500,
+      );
+    }
+  } catch (err) {
+    console.error("Timelapse toggle failed:", err);
+    updateTimelapseButtonState();
+    if (typeof showAlert === "function") {
+      showAlert("danger", err.message || "Failed to toggle timelapse.", 5000);
+    }
+  }
+}
+
+function toggleRecording(channel) {
+  const button = $(`#recorder-ch${channel}`);
+  const isRecording = recordingState[`ch${channel}`];
+  const want = isRecording ? 0 : 1; // manual override on/off
+  if (button) button.classList.add("pending");
+
+  // NATIVE: timps records ONE channel at a time (record.channel). The REC ch0 /
+  // ch1 buttons pick WHICH stream to record: starting sets record.channel to the
+  // clicked channel AND record.active=1 (so ch0 really records ch0); stopping
+  // sets active=0. The heartbeat reports the real rec_chN state back.
+  const payload = want
+    ? { record: { channel: channel, active: 1 } }
+    : { record: { active: 0 } };
+  timpsApiReady()
+    .then((api) => api.set(payload))
+    .then(() =>
+      updateRecordingState({
+        ch0: !!want && channel === 0,
+        ch1: !!want && channel === 1,
+      }),
+    )
+    .catch((err) => {
+      console.error("Recording toggle error", err);
+      if (button) button.classList.remove("pending");
+      if (typeof showAlert === "function")
+        showAlert("danger", "Failed to toggle recording: " + (err.message || err));
+    });
+}
+
+function toggleMotion(state) {
+  const button = $("#motion");
+  if (button) button.classList.add("pending");
+
+  // NATIVE: timps motion detection is toggled through /control (LIVE)
+  timpsApiReady()
+    .then((api) => api.set({ motion: { enabled: state ? 1 : 0 } }))
+    .then(() => updateHeartbeatUi({ motion_enabled: state ? 1 : 0 }))
+    .catch((err) => {
+      console.error("Motion toggle error", err);
+      if (button) button.classList.remove("pending");
+    });
+}
+
+function togglePrivacy(state) {
+  const button = $("#privacy");
+  if (button) button.classList.add("pending");
+
+  // NATIVE: timps privacy is per-region (no global switch), so this quick
+  // toggle enables/disables ALL configured cover regions on every stream.
+  timpsApiReady()
+    .then((api) =>
+      api.get().then((json) => {
+        const priv = json.privacy || {};
+        const payload = {};
+        Object.keys(priv).forEach((s) => {
+          payload[s] = {};
+          Object.keys(priv[s]).forEach((n) => {
+            payload[s][n] = { enabled: state ? 1 : 0 };
+          });
+        });
+        return Object.keys(payload).length ? api.set({ privacy: payload }) : null;
+      }),
+    )
+    .then(() => updateHeartbeatUi({ privacy_enabled: state ? 1 : 0 }))
+    .catch((err) => {
+      console.error("Privacy toggle error", err);
+      if (button) button.classList.remove("pending");
+    });
+}
+
+function toggleWireGuard(state) {
+  const button = $("#wireguard");
+  if (button) button.classList.add("pending");
+
+  const targetState = state ? 1 : 0;
+  fetch("/x/json-wireguard.cgi?iface=wg0&state=" + targetState)
+    .then(async (res) => {
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      console.log(ts(), "<===", JSON.stringify(data));
+
+      if (!res.ok || data.error) {
+        throw new Error(data?.error?.message || `HTTP error ${res.status}`);
+      }
+
+      return data;
+    })
+    .then((data) => {
+      const nextStatus =
+        data && data.message && data.message.status !== undefined
+          ? data.message.status
+          : targetState;
+      updateHeartbeatUi({ wg_status: nextStatus });
+    })
+    .catch((err) => {
+      if (typeof window.showOverlayMessage === "function") {
+        window.showOverlayMessage(
+          err.message || "Failed to toggle WireGuard",
+          "danger",
+        );
+      }
+      console.warn("WireGuard toggle error", err);
+      if (button) button.classList.remove("pending");
+    });
+}
+
+function toggleDayNight(mode) {
+  const button = $("#daynight");
+  if (button) button.classList.add("pending");
+
+  const payload = JSON.stringify({ cmd: "daynight", val: mode });
+  console.log("Sending daynight payload:", payload);
+  fetch("/x/json-imp.cgi", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return res.text();
+    })
+    .then((text) => {
+      if (text) {
+        const data = JSON.parse(text);
+        console.log(ts(), "<===", JSON.stringify(data));
+      }
+      // Update button state immediately from the known target mode
+      updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
+    })
+    .catch((err) => {
+      console.error("DayNight toggle error", err);
+      if (button) button.classList.remove("pending");
+    });
+}
+
+// Grey out an audio control-bar button the streamer declared unsupported
+// (e.g. the Speaker on timps, which has no audio-output pipeline).
+function disableAudioButton(device, reason) {
+  const button = $("#" + device);
+  if (!button) return;
+  button.classList.remove("pending", "active");
+  button.disabled = true;
+  button.classList.add("disabled");
+  if (reason) button.title = reason;
+}
+
+function toggleAudio(device, state) {
+  const button = $("#" + device);
+  if (button) button.classList.add("pending");
+
+  // timps has no audio-output (speaker) pipeline: grey the speaker button out.
+  if (device !== "microphone") {
+    disableAudioButton(device, "No speaker output on timps");
+    if (typeof window.showOverlayMessage === "function")
+      window.showOverlayMessage("The timps streamer has no speaker output.", "info");
+    return;
+  }
+
+  // NATIVE: the mic button is the live mute. mic_enabled=false -> audio.mute 1,
+  // true -> 0. Applied through timps /control.
+  timpsApiReady()
+    .then((api) => api.set({ audio: { mute: state ? 0 : 1 } }))
+    .then(() => updateHeartbeatUi({ mic_enabled: state }))
+    .catch((err) => {
+      console.error("Audio toggle error", err);
+      if (button) button.classList.remove("pending");
+    });
+}
+
+function toggleTheme() {
+  const htmlEl = document.documentElement;
+  const currentTheme = htmlEl.getAttribute("data-bs-theme");
+  const newTheme = currentTheme === "dark" ? "light" : "dark";
+
+  htmlEl.setAttribute("data-bs-theme", newTheme);
+
+  const themeBtn = $("#theme-toggle");
+  if (themeBtn) {
+    const img = themeBtn.querySelector("img");
+    if (img) {
+      img.src = newTheme === "dark" ? "/a/brilliance.svg" : "/a/brilliance.svg";
+      img.alt = newTheme === "dark" ? "Light mode" : "Dark mode";
+    }
+  }
+}
+
+async function toggleButton(el) {
+  if (!el) return;
+  const currentState = el.classList.contains("active") ? 1 : 0;
+  let newState = currentState ? 0 : 1;
+
+  // Special handling for color button: ISP mode 0=color, 1=b&w
+  // When active (color mode), we want to send 1 to switch to b&w
+  // When inactive (b&w mode), we want to send 0 to switch to color
+  if (el.id === "color") {
+    newState = currentState ? 1 : 0;
+  }
+
+  el.classList.add("pending");
+
+  const payload = JSON.stringify({ cmd: el.id, val: newState });
+  console.log("Sending to json-imp.cgi:", payload);
+  await fetch("/x/json-imp.cgi", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data.message);
+      // Map button IDs to their heartbeat UI keys and update immediately
+      const keyMap = {
+        color: { color_mode: newState },
+        ircut: { ircut_state: newState },
+        ir850: { ir850_state: newState },
+        ir940: { ir940_state: newState },
+        white: { white_state: newState },
+        auto: {
+          daynight_enabled: newState,
+          daynight_mode: newState ? undefined : "day",
+        },
+      };
+      const update = keyMap[el.id];
+      if (update) {
+        // Remove undefined values (e.g. daynight_mode when enabling auto)
+        Object.keys(update).forEach(
+          (k) => update[k] === undefined && delete update[k],
+        );
+        updateHeartbeatUi(update);
+      } else {
+        el.classList.remove("pending");
+      }
+    })
+    .catch((err) => {
+      console.error("toggleButton error", err);
+      el.classList.remove("pending");
+    });
+}
+
+function resolveDeviceTimezone() {
+  const uiConfig = window.thinginoUIConfig || {};
+  const deviceTimezone =
+    uiConfig.device && typeof uiConfig.device.timezone === "string"
+      ? uiConfig.device.timezone.trim()
+      : "";
+  if (deviceTimezone) return deviceTimezone;
+  if (typeof uiConfig.timezone === "string" && uiConfig.timezone.trim())
+    return uiConfig.timezone.trim();
+  return "";
+}
+
+function updateHeartbeatUi(json) {
+  if (!json) return;
+  const timeNowEl = $("#time-now");
+  if (timeNowEl && json.time_now != null && json.time_now !== "") {
+    const d = new Date(json.time_now * 1000);
+    const configuredTimezone = resolveDeviceTimezone();
+    const heartbeatTimezone =
+      typeof json.timezone === "string" ? json.timezone.trim() : "";
+    const timezoneLabel = configuredTimezone || heartbeatTimezone;
+    const timeZoneId = timezoneLabel
+      ? timezoneLabel.replaceAll(" ", "_")
+      : "UTC";
+    let options = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: timeZoneId,
+    };
+    const formatted = d.toLocaleString(navigator.language, options);
+    timeNowEl.textContent = timezoneLabel
+      ? formatted + " " + timezoneLabel
+      : formatted;
+  }
+
+  const hasBrightness =
+    typeof json.daynight_brightness !== "undefined" &&
+    json.daynight_brightness !== "unknown" &&
+    json.daynight_brightness !== "";
+  const hasTotalGain =
+    typeof json.total_gain !== "undefined" &&
+    json.total_gain !== "unknown" &&
+    json.total_gain !== "" &&
+    json.total_gain >= 0;
+  const hasMode =
+    typeof json.daynight_mode !== "undefined" &&
+    json.daynight_mode !== "unknown" &&
+    json.daynight_mode !== "";
+  if (hasTotalGain || hasBrightness || hasMode) {
+    // const icon = dayNightIcon(json.daynight_mode);
+    // const label = hasTotalGain ? `${icon} ${json.total_gain}` : (hasBrightness ? `${icon} ${json.daynight_brightness}` : icon);
+    const label = hasTotalGain
+      ? json.total_gain
+      : hasBrightness
+        ? json.daynight_brightness
+        : "---";
+    $$(".dnd-gain").forEach((el) => (el.textContent = label));
+  }
+
+  const uptimeEl = $("#uptime");
+  if (uptimeEl && typeof json.uptime !== "undefined" && json.uptime !== "")
+    uptimeEl.textContent = "Uptime:️ " + json.uptime;
+
+  updateRecordingState({
+    ch0: json.rec_ch0 === true,
+    ch1: json.rec_ch1 === true,
+  });
+
+  // Update motion detection icon
+  if (typeof json.motion_enabled !== "undefined") {
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.classList.remove("pending");
+      motionBtn.classList.toggle("active", json.motion_enabled === true);
+    }
+  }
+
+  // Update privacy icon
+  if (typeof json.privacy_enabled !== "undefined") {
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.classList.remove("pending");
+      privacyBtn.classList.toggle("active", json.privacy_enabled === true);
+    }
+  }
+
+  // Update wireguard icon
+  if (typeof json.wg_status !== "undefined") {
+    const wireguardBtn = $("#wireguard");
+    if (wireguardBtn) {
+      wireguardBtn.classList.remove("pending");
+      wireguardBtn.classList.toggle("active", json.wg_status === 1);
+    }
+  }
+
+  // Update daynight mode button
+  if (typeof json.daynight_mode !== "undefined") {
+    const daynightBtn = $("#daynight");
+    if (daynightBtn) {
+      daynightBtn.classList.remove("pending");
+      const isNight = json.daynight_mode === "night";
+      const isAutoEnabled =
+        json.daynight_enabled === true || json.daynight_enabled === 1;
+      daynightBtn.classList.toggle("active", isAutoEnabled);
+      daynightBtn.classList.toggle("is-night", isNight);
+      daynightBtn.classList.toggle("is-day", !isNight);
+
+      // Update button text and icon based on photosensing state
+      const daynightText = $("#daynight-text");
+      const daynightIcon = daynightBtn.querySelector("i");
+
+      if (daynightText) {
+        daynightText.textContent = isAutoEnabled
+          ? "Auto"
+          : isNight
+            ? "Night"
+            : "Day";
+      }
+
+      if (daynightIcon) {
+        daynightIcon.className = isNight ? "bi bi-moon-stars" : "bi bi-sun";
+      }
+    }
+
+    // Update Day button active state
+    const dayBtn = $("#day");
+    if (dayBtn) {
+      const isAutoEnabled =
+        json.daynight_enabled === true || json.daynight_enabled === 1;
+      const isDay = json.daynight_mode === "day";
+      dayBtn.classList.toggle("active", !isAutoEnabled && isDay);
+    }
+
+    // Update Night button active state
+    const nightBtn = $("#night");
+    if (nightBtn) {
+      const isAutoEnabled =
+        json.daynight_enabled === true || json.daynight_enabled === 1;
+      const isNight = json.daynight_mode === "night";
+      nightBtn.classList.toggle("active", !isAutoEnabled && isNight);
+    }
+  }
+
+  // Update color mode button
+  if (typeof json.color_mode !== "undefined" && json.color_mode !== null) {
+    const colorBtn = $("#color");
+    if (colorBtn) {
+      colorBtn.classList.remove("pending");
+      // ISP mode: 0 = color, 1 = b&w, so active when 0
+      colorBtn.classList.toggle("active", json.color_mode === 0);
+    }
+  }
+
+  // Update ircut button
+  if (typeof json.ircut_state !== "undefined" && json.ircut_state !== null) {
+    const ircutBtn = $("#ircut");
+    if (ircutBtn) {
+      ircutBtn.classList.remove("pending");
+      ircutBtn.classList.toggle("active", json.ircut_state === 1);
+    }
+  }
+
+  // Update ir850 button
+  if (typeof json.ir850_state !== "undefined" && json.ir850_state !== null) {
+    const ir850Btn = $("#ir850");
+    if (ir850Btn) {
+      ir850Btn.classList.remove("pending");
+      ir850Btn.classList.toggle("active", json.ir850_state === 1);
+    }
+  }
+
+  // Update ir940 button
+  if (typeof json.ir940_state !== "undefined" && json.ir940_state !== null) {
+    const ir940Btn = $("#ir940");
+    if (ir940Btn) {
+      ir940Btn.classList.remove("pending");
+      ir940Btn.classList.toggle("active", json.ir940_state === 1);
+    }
+  }
+
+  // Update white LED button
+  if (typeof json.white_state !== "undefined" && json.white_state !== null) {
+    const whiteBtn = $("#white");
+    if (whiteBtn) {
+      whiteBtn.classList.remove("pending");
+      whiteBtn.classList.toggle("active", json.white_state === 1);
+    }
+  }
+
+  // Update microphone button
+  if (typeof json.mic_enabled !== "undefined") {
+    const micBtn = $("#microphone");
+    if (micBtn) {
+      micBtn.classList.remove("pending");
+      const isActive = json.mic_enabled === true;
+      micBtn.classList.toggle("active", isActive);
+      const img = micBtn.querySelector("img");
+      if (img) {
+        img.src = isActive ? "/a/mic.svg" : "/a/mic-mute.svg";
+      }
+    }
+  }
+
+  // Speaker unsupported by the streamer (timps has no audio-output
+  // pipeline): keep the button greyed out instead of showing a dead toggle
+  if (json.spk_supported === false) {
+    disableAudioButton("speaker", "No speaker output on timps");
+  }
+
+  // Update speaker button
+  if (json.spk_supported !== false && typeof json.spk_enabled !== "undefined") {
+    const spkBtn = $("#speaker");
+    if (spkBtn) {
+      spkBtn.classList.remove("pending");
+      const isActive = json.spk_enabled === true;
+      spkBtn.classList.toggle("active", isActive);
+      const img = spkBtn.querySelector("img");
+      if (img) {
+        img.src = isActive ? "/a/volume-up.svg" : "/a/volume-mute.svg";
+      }
+    }
+  }
+
+  // Update Auto button
+  if (
+    typeof json.daynight_enabled !== "undefined" &&
+    json.daynight_enabled !== null
+  ) {
+    const autoBtn = $("#auto");
+    if (autoBtn) {
+      autoBtn.classList.remove("pending");
+      // heartbeat sends daynight_enabled as a JSON boolean, so accept true too
+      // (=== 1 alone left the Auto item un-highlighted in the menu)
+      autoBtn.classList.toggle(
+        "active",
+        json.daynight_enabled === true || json.daynight_enabled === 1,
+      );
+    }
+  }
+}
+
+function startHeartbeatSse() {
+  // Check password state before starting SSE
+  if (!passwordCheckComplete || isDefaultPassword) {
+    console.log(
+      "startHeartbeatSse blocked: passwordCheckComplete=" +
+        passwordCheckComplete +
+        ", isDefaultPassword=" +
+        isDefaultPassword,
+    );
+    return;
+  }
+
+  if (heartbeatSource) return;
+  heartbeatSource = new EventSource(HeartBeatEndpoint);
+  heartbeatSource.onmessage = (event) => {
+    try {
+      currentReconnectDelay = HeartBeatReconnectDelay;
+      updateHeartbeatUi(JSON.parse(event.data));
+    } catch (error) {
+      console.error("Heartbeat SSE payload error", error);
+    }
+  };
+  heartbeatSource.onerror = (error) => {
+    console.error("Heartbeat SSE error", error);
+    heartbeatSource.close();
+    heartbeatSource = null;
+    console.log(`Reconnecting in ${currentReconnectDelay / 1000}s`);
+    setTimeout(heartbeat, currentReconnectDelay); // Use heartbeat() instead of startHeartbeatSse()
+    // Double the delay for next failure, capped at max
+    currentReconnectDelay = Math.min(
+      currentReconnectDelay * 2,
+      HeartBeatMaxReconnectDelay,
+    );
+  };
+}
+
+async function fetchSlowHeartbeatStatus() {
+  if (
+    slowHeartbeatInFlight ||
+    !passwordCheckComplete ||
+    isDefaultPassword ||
+    document.hidden
+  ) {
+    return;
+  }
+
+  slowHeartbeatInFlight = true;
+
+  try {
+    const response = await fetch(SlowHeartbeatEndpoint, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Slow heartbeat request failed: ${response.status}`);
+    }
+
+    updateHeartbeatUi(await response.json());
+  } catch (error) {
+    console.error("Slow heartbeat fetch error", error);
+  } finally {
+    slowHeartbeatInFlight = false;
+    scheduleSlowHeartbeatStatus();
+  }
+}
+
+function scheduleSlowHeartbeatStatus(delay = SlowHeartbeatPollInterval) {
+  if (slowHeartbeatTimer) {
+    clearTimeout(slowHeartbeatTimer);
+    slowHeartbeatTimer = null;
+  }
+
+  if (!passwordCheckComplete || isDefaultPassword || document.hidden) {
+    return;
+  }
+
+  slowHeartbeatTimer = setTimeout(() => {
+    slowHeartbeatTimer = null;
+    fetchSlowHeartbeatStatus();
+  }, delay);
+}
+
+function startSlowHeartbeatStatus() {
+  if (slowHeartbeatTimer || slowHeartbeatInFlight) {
+    return;
+  }
+
+  fetchSlowHeartbeatStatus();
+}
+
+function cleanupHeartbeatResources() {
+  if (heartbeatSource) {
+    heartbeatSource.close();
+    heartbeatSource = null;
+  }
+  if (slowHeartbeatTimer) {
+    clearTimeout(slowHeartbeatTimer);
+    slowHeartbeatTimer = null;
+  }
+  slowHeartbeatInFlight = false;
+  currentReconnectDelay = HeartBeatReconnectDelay;
+}
+
+window.addEventListener("beforeunload", cleanupHeartbeatResources);
+window.addEventListener("pagehide", cleanupHeartbeatResources);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    cleanupHeartbeatResources();
+  } else {
+    // Only restart heartbeat if password check is complete and password is OK
+    if (passwordCheckComplete && !isDefaultPassword) {
+      heartbeat();
+    }
+  }
+});
+
+function heartbeat() {
+  console.trace("heartbeat() called");
+  // Don't start heartbeat until password check is complete
+  if (!passwordCheckComplete) {
+    console.log("Heartbeat disabled: password check not complete");
+    return;
+  }
+  // Don't start heartbeat if using default password
+  if (isDefaultPassword) {
+    console.log("Heartbeat disabled: default password in use");
+    return;
+  }
+  startHeartbeatSse();
+  startSlowHeartbeatStatus();
+}
+
+function initCopyToClipboard() {
+  const clipboard = window.thinginoClipboard;
+  $$(".cb").forEach(function (el) {
+    el.title = "Click to copy to clipboard";
+    el.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      const target = ev.currentTarget || ev.target;
+      const text = target && target.textContent ? target.textContent : "";
+      if (!text || !clipboard || typeof clipboard.copy !== "function") return;
+      if (target && typeof target.animate === "function") {
+        target.animate({ backgroundColor: "#f80" }, 250);
+      }
+      clipboard.copy(text).catch((err) => {
+        if (
+          typeof console !== "undefined" &&
+          typeof console.warn === "function"
+        ) {
+          console.warn("Clipboard copy failed", err);
+        }
+      });
+    });
+  });
+}
+
+// Shared quick actions for the Send modal to avoid duplicating markup.
+const sendModalTargets = [
+  { key: "email", label: "Email", icon: "bi bi-envelope-at" },
+  { key: "ftp", label: "FTP", icon: "bi bi-postage" },
+  { key: "mqtt", label: "MQTT", icon: "bi bi-postage" },
+  { key: "ntfy", label: "Ntfy", icon: "bi bi-postage" },
+  { key: "storage", label: "Storage", icon: "bi bi-sd-card" },
+  { key: "telegram", label: "Telegram", icon: "bi bi-telegram" },
+  { key: "webhook", label: "Webhook", icon: "bi bi-postage" },
+];
+
+let busyBarCtx = null;
+let busyBarTimeout = null;
+const BUSY_BAR_TTL = 20000; // 20 seconds
+
+function ensureBusyBar() {
+  if (busyBarCtx) return busyBarCtx;
+  const barEl = document.createElement("div");
+  barEl.id = "thinginoBusyBar";
+  barEl.style.cssText =
+    "position:fixed;top:0;left:0;right:0;height:4px;z-index:9999;background:#000;overflow:hidden;";
+  barEl.innerHTML =
+    '<div class="progress-bar" style="width:0;height:100%;background:linear-gradient(90deg,#0d6efd,#0dcaf0);transition:width 0.3s ease;"></div>';
+  document.body.insertBefore(barEl, document.body.firstChild);
+  const progressBar = barEl.querySelector(".progress-bar");
+  busyBarCtx = { barEl, progressBar };
+  return busyBarCtx;
+}
+
+function showBusy(message) {
+  const ctx = ensureBusyBar();
+
+  // Clear any existing timeout
+  if (busyBarTimeout) {
+    clearTimeout(busyBarTimeout);
+    busyBarTimeout = null;
+  }
+
+  // Animate progress bar
+  ctx.progressBar.style.width = "0%";
+  setTimeout(() => (ctx.progressBar.style.width = "70%"), 10);
+
+  // Set timeout to auto-hide with warning
+  busyBarTimeout = setTimeout(() => {
+    console.warn(
+      "Busy bar timeout reached - auto-hiding after",
+      BUSY_BAR_TTL / 1000,
+      "seconds",
+    );
+    hideBusy();
+    if (typeof showAlert === "function") {
+      showAlert(
+        "warning",
+        "Operation timed out. Please try again or check your connection.",
+        8000,
+      );
+    } else {
+      alert("Operation timed out. Please try again or check your connection.");
+    }
+  }, BUSY_BAR_TTL);
+}
+
+function hideBusy() {
+  // Clear the timeout when manually hiding
+  if (busyBarTimeout) {
+    clearTimeout(busyBarTimeout);
+    busyBarTimeout = null;
+  }
+
+  if (!busyBarCtx) {
+    console.warn("hideBusy: busyBarCtx is null");
+    return;
+  }
+
+  // Complete the progress bar then hide
+  busyBarCtx.progressBar.style.width = "100%";
+  setTimeout(() => {
+    if (busyBarCtx && busyBarCtx.progressBar) {
+      busyBarCtx.progressBar.style.width = "0%";
+    }
+  }, 300);
+}
+
+window.showBusy = showBusy;
+window.hideBusy = hideBusy;
+
+// Universal slider modal system
+let sliderModalInstance = null;
+let sliderModalElement = null;
+
+function ensureSliderModal() {
+  if (sliderModalElement) return sliderModalElement;
+
+  let modal = $("#thinginoSliderModal");
+  if (modal) {
+    sliderModalElement = modal;
+    return modal;
+  }
+
+  modal = document.createElement("div");
+  modal.className = "modal fade";
+  modal.id = "thinginoSliderModal";
+  modal.tabIndex = -1;
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = `
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="sliderModalTitle"></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="d-flex justify-content-between mb-2">
+						<span id="sliderModalMin"></span>
+						<span class="fw-bold" id="sliderModalValue"></span>
+						<span id="sliderModalMax"></span>
+					</div>
+					<input type="range" id="sliderModalRange" class="form-range">
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>`;
+  document.body.appendChild(modal);
+  sliderModalElement = modal;
+
+  if (window.bootstrap && window.bootstrap.Modal) {
+    sliderModalInstance = new bootstrap.Modal(modal);
+  }
+
+  return modal;
+}
+
+function openSliderModal(inputId) {
+  const input = $("#" + inputId);
+  if (!input) return;
+
+  const min =
+    parseInt(input.dataset.min) || parseInt(input.getAttribute("min")) || 0;
+  const max =
+    parseInt(input.dataset.max) || parseInt(input.getAttribute("max")) || 100;
+  const step =
+    parseInt(input.dataset.step) || parseInt(input.getAttribute("step")) || 1;
+  const label =
+    input.parentElement.parentElement.querySelector("label")?.textContent ||
+    "Value";
+
+  const modal = ensureSliderModal();
+  const slider = $("#sliderModalRange");
+  const valueDisplay = $("#sliderModalValue");
+  const titleEl = $("#sliderModalTitle");
+  const minEl = $("#sliderModalMin");
+  const maxEl = $("#sliderModalMax");
+
+  if (!slider) return;
+
+  titleEl.textContent = label;
+  minEl.textContent = min;
+  maxEl.textContent = max;
+  slider.min = min;
+  slider.max = max;
+  slider.step = step;
+  slider.value = input.value || min;
+  valueDisplay.textContent = slider.value;
+
+  // Store initial value
+  const initialValue = input.value;
+
+  // Only update display while sliding, don't update input
+  slider.oninput = function () {
+    valueDisplay.textContent = this.value;
+  };
+
+  // Remove old hidden listener if exists
+  const oldHiddenHandler = sliderModalElement?._hiddenHandler;
+  if (oldHiddenHandler) {
+    sliderModalElement.removeEventListener("hidden.bs.modal", oldHiddenHandler);
+  }
+
+  // Update input only when modal closes
+  const hiddenHandler = function () {
+    const finalValue = slider.value;
+    if (finalValue !== initialValue) {
+      input.value = finalValue;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  // Store handler reference for cleanup
+  if (sliderModalElement) {
+    sliderModalElement._hiddenHandler = hiddenHandler;
+    sliderModalElement.addEventListener("hidden.bs.modal", hiddenHandler, {
+      once: true,
+    });
+  }
+
+  if (sliderModalInstance) {
+    sliderModalInstance.show();
+  }
+}
+
+// Initialize slider buttons on page load
+function attachSliderButtons(root = document) {
+  root.querySelectorAll(".number-range .dropdown-toggle").forEach((button) => {
+    if (button.dataset.sliderInitialized) return;
+    button.dataset.sliderInitialized = "true";
+    button.addEventListener("click", (e) => {
+      e.preventDefault();
+      const input = button
+        .closest(".input-group")
+        ?.querySelector('input[type="text"]');
+      if (input && input.id) {
+        openSliderModal(input.id);
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  attachSliderButtons();
+
+  /* Check if doorbell chime is configured and show warning if not */
+  if (document.querySelector(".doorbell-nav")) {
+    fetch("/x/json-chime-status.cgi")
+      .then((r) => r.json())
+      .then((data) => {
+        /* Reveal nav item if doorbell feature is present */
+        if (data.configured !== undefined) {
+          document.querySelectorAll(".doorbell-nav").forEach((el) => {
+            const li = el.closest("li");
+            if (li) li.classList.remove("d-none");
+          });
+        }
+        /* Show warning banner if no chimes are configured */
+        if (data.configured === false) {
+          const banner = document.createElement("div");
+          banner.className =
+            "alert alert-warning text-center rounded-0 mb-0 py-2";
+          banner.innerHTML =
+            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
+            "No doorbell chime configured. " +
+            '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
+            "to enable the doorbell.";
+          const main = document.querySelector("main");
+          if (main) main.insertBefore(banner, main.firstChild);
+        }
+      })
+      .catch(() => {
+        /* Silently ignore — doorbell feature not installed */
+      });
+  }
+});
+
+window.attachSliderButtons = attachSliderButtons;
+
+// Unified slider initialization function (deprecated - kept for compatibility)
+function initSlider(id) {
+  const input = $("#" + id);
+  const slider = $("#" + id + "-slider");
+  const sliderValue = $("#" + id + "-slider-value");
+
+  if (!input || !slider || !sliderValue) return;
+
+  const min = parseInt(slider.getAttribute("min")) || 0;
+  const max = parseInt(slider.getAttribute("max")) || 100;
+
+  slider.addEventListener("input", function () {
+    input.value = this.value;
+    sliderValue.textContent = this.value;
+  });
+
+  input.addEventListener("input", function () {
+    const val = parseInt(this.value) || min;
+    const clampedVal = Math.max(min, Math.min(max, val));
+    slider.value = clampedVal;
+    sliderValue.textContent = clampedVal;
+  });
+}
+
+function initSliders(sliderIds) {
+  if (Array.isArray(sliderIds)) {
+    sliderIds.forEach(initSlider);
+  }
+}
+
+window.initSlider = initSlider;
+window.initSliders = initSliders;
+
+function ensureSendModal() {
+  if ($("#sendModal")) return;
+  const modal = document.createElement("div");
+  modal.className = "modal fade";
+  modal.id = "sendModal";
+  modal.tabIndex = -1;
+  modal.setAttribute("aria-labelledby", "sendModalLabel");
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = `
+	  <div class="modal-dialog modal-lg">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title" id="sendModalLabel">Send snapshot/videoclip to...</h5>
+	        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <div class="row g-2" id="send-modal-grid"></div>
+	      </div>
+	    </div>
+	  </div>`;
+  document.body.appendChild(modal);
+}
+
+function buildSendModalGrid() {
+  ensureSendModal();
+  const grid = $("#send-modal-grid");
+  if (!grid) return;
+
+  const triggerBlobDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const resolveSnapshotStreamEnabled = (mediaConfig, streamKey) => {
+    const streams =
+      mediaConfig && typeof mediaConfig === "object"
+        ? mediaConfig.streams
+        : null;
+    if (!streams || typeof streams !== "object") {
+      return true;
+    }
+
+    const altStreamKey = streamKey === "ch0" ? "stream0" : "stream1";
+    const stream = streams[streamKey] || streams[altStreamKey] || null;
+    if (!stream || typeof stream !== "object") {
+      return false;
+    }
+
+    if (stream.available === false || stream.enabled === false) {
+      return false;
+    }
+
+    if (stream.snapshot_url === "" || stream.snapshot_url === null) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const setDownloadLinkEnabled = (link, enabled, unavailableMessage) => {
+    link.dataset.disabled = enabled ? "false" : "true";
+    link.classList.toggle("disabled", !enabled);
+    link.setAttribute("aria-disabled", enabled ? "false" : "true");
+    if (enabled) {
+      link.removeAttribute("tabindex");
+      link.title = link.dataset.enabledTitle || "Download snapshot";
+      return;
+    }
+    link.setAttribute("tabindex", "-1");
+    link.title = unavailableMessage;
+  };
+
+  const downloadSnapshot = async (streamId, fallbackUrl, triggerEl) => {
+    const button = triggerEl;
+    if (button) {
+      button.classList.add("disabled");
+      button.setAttribute("aria-disabled", "true");
+    }
+    try {
+      const response = await fetch(
+        agentApiUrl(`/api/v1/actions/snapshot?stream_id=${streamId}`),
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Accept: "image/jpeg, application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob || blob.size <= 0) {
+        throw new Error("empty snapshot response");
+      }
+
+      const contentType = String(blob.type || "").toLowerCase();
+      if (
+        contentType.includes("application/json") ||
+        contentType.startsWith("text/")
+      ) {
+        throw new Error(
+          `unexpected snapshot content type: ${contentType || "unknown"}`,
+        );
+      }
+
+      const stamp = new Date().toISOString().replace(/[.:]/g, "-");
+      triggerBlobDownload(blob, `snapshot-ch${streamId}-${stamp}.jpg`);
+    } catch (error) {
+      if (
+        typeof console !== "undefined" &&
+        typeof console.warn === "function"
+      ) {
+        console.warn(
+          "Agent snapshot download failed, falling back to legacy URL",
+          error,
+        );
+      }
+      if (typeof showAlert === "function") {
+        showAlert(
+          "warning",
+          "Agent snapshot download failed. Falling back to legacy snapshot endpoint.",
+          5000,
+        );
+      }
+      window.open(fallbackUrl, "_blank", "noopener");
+    } finally {
+      if (button) {
+        button.classList.remove("disabled");
+        button.removeAttribute("aria-disabled");
+      }
+    }
+  };
+
+  const createIcon = (className) => {
+    const icon = document.createElement("i");
+    icon.className = className;
+    return icon;
+  };
+
+  grid.innerHTML = "";
+
+  sendModalTargets.forEach((target) => {
+    const col = document.createElement("div");
+    col.className = "col-12 col-lg-6";
+
+    const group = document.createElement("div");
+    group.className = "btn-group d-flex gap-1";
+    group.setAttribute("role", "group");
+
+    const mainBtn = document.createElement("button");
+    mainBtn.type = "button";
+    mainBtn.className = "btn btn-secondary text-start w-100";
+    mainBtn.dataset.sendto = target.key;
+    mainBtn.title = "Send as configured";
+    mainBtn.appendChild(createIcon(target.icon));
+    mainBtn.appendChild(document.createTextNode(` ${target.label}`));
+    group.appendChild(mainBtn);
+
+    const photoBtn = document.createElement("button");
+    photoBtn.type = "button";
+    photoBtn.className = "btn btn-secondary flex-shrink-0";
+    photoBtn.dataset.sendto = target.key;
+    photoBtn.dataset.type = "photo";
+    photoBtn.title = "Send photo only";
+    photoBtn.appendChild(createIcon("bi bi-image"));
+    group.appendChild(photoBtn);
+
+    const videoBtn = document.createElement("button");
+    videoBtn.type = "button";
+    videoBtn.className = "btn btn-secondary flex-shrink-0";
+    videoBtn.dataset.sendto = target.key;
+    videoBtn.dataset.type = "video";
+    videoBtn.title = "Send video only";
+    videoBtn.appendChild(createIcon("bi bi-film"));
+    group.appendChild(videoBtn);
+
+    const configLink = document.createElement("a");
+    configLink.className = "btn btn-secondary flex-shrink-0";
+    configLink.href = `/tool-send2.html`;
+    configLink.title = "Configure";
+    configLink.appendChild(createIcon("bi bi-gear"));
+    group.appendChild(configLink);
+
+    col.appendChild(group);
+    grid.appendChild(col);
+  });
+
+  const downloadCol = document.createElement("div");
+  downloadCol.className = "col-12 col-lg-6";
+  const downloadGroup = document.createElement("div");
+  downloadGroup.className = "btn-group d-flex gap-1";
+  downloadGroup.setAttribute("role", "group");
+
+  const downloadLinkCh0 = document.createElement("a");
+  downloadLinkCh0.className = "btn btn-secondary w-100 text-start";
+  downloadLinkCh0.href = "#";
+  downloadLinkCh0.target = "_blank";
+  downloadLinkCh0.title = "Download main stream";
+  downloadLinkCh0.dataset.enabledTitle = "Download main stream";
+  downloadLinkCh0.appendChild(createIcon("bi bi-download"));
+  downloadLinkCh0.appendChild(document.createTextNode(" Download Ch0"));
+  downloadLinkCh0.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (downloadLinkCh0.dataset.disabled === "true") {
+      if (typeof showAlert === "function") {
+        showAlert(
+          "info",
+          "Download Ch0 is unavailable for this camera stream.",
+          3500,
+        );
+      }
+      return;
+    }
+    downloadSnapshot(0, "/x/dl0.jpg", downloadLinkCh0);
+  });
+  downloadGroup.appendChild(downloadLinkCh0);
+
+  const downloadLinkCh1 = document.createElement("a");
+  downloadLinkCh1.className = "btn btn-secondary w-100 text-start";
+  downloadLinkCh1.href = "#";
+  downloadLinkCh1.target = "_blank";
+  downloadLinkCh1.download = "ch1-snapshot.jpg";
+  downloadLinkCh1.title = "Download substream";
+  downloadLinkCh1.dataset.enabledTitle = "Download substream";
+  downloadLinkCh1.appendChild(createIcon("bi bi-download"));
+  downloadLinkCh1.appendChild(document.createTextNode(" Download Ch1"));
+  downloadLinkCh1.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (downloadLinkCh1.dataset.disabled === "true") {
+      if (typeof showAlert === "function") {
+        showAlert(
+          "info",
+          "Download Ch1 is unavailable for this camera stream.",
+          3500,
+        );
+      }
+      return;
+    }
+    downloadSnapshot(1, "/x/dl1.jpg", downloadLinkCh1);
+  });
+  downloadGroup.appendChild(downloadLinkCh1);
+
+  agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
+    .then((mediaConfig) => {
+      const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
+      const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
+      setDownloadLinkEnabled(
+        downloadLinkCh0,
+        ch0Enabled,
+        "Download main stream is not available on this camera.",
+      );
+      setDownloadLinkEnabled(
+        downloadLinkCh1,
+        ch1Enabled,
+        "Download substream is not available on this camera.",
+      );
+    })
+    .catch((error) => {
+      if (
+        typeof console !== "undefined" &&
+        typeof console.warn === "function"
+      ) {
+        console.warn(
+          "Could not load media capabilities for send modal downloads",
+          error,
+        );
+      }
+      setDownloadLinkEnabled(downloadLinkCh0, true, "");
+      setDownloadLinkEnabled(downloadLinkCh1, true, "");
+    });
+
+  downloadCol.appendChild(downloadGroup);
+  grid.appendChild(downloadCol);
+}
+
+function ensureDebugControl(attempt = 0) {
+  const debugPanels = $$(".ui-debug");
+  if (!debugPanels.length) return;
+  debugPanels.forEach((panel) => panel.classList.add("d-none"));
+  const footerStack = $("#footer-action-stack");
+  if (!footerStack) {
+    if (attempt < 20) {
+      window.setTimeout(() => ensureDebugControl(attempt + 1), 150);
+    }
+    return;
+  }
+  let debugBtn = $("#debug");
+  if (!debugBtn) {
+    debugBtn = document.createElement("button");
+    debugBtn.type = "button";
+    debugBtn.id = "debug";
+    debugBtn.value = "1";
+    debugBtn.title = "Debug info";
+    debugBtn.className = "btn btn-outline-secondary btn-sm w-100";
+    debugBtn.innerHTML = '<i class="bi bi-bug"></i> Debug';
+    footerStack.appendChild(debugBtn);
+  } else if (debugBtn.parentElement !== footerStack) {
+    footerStack.appendChild(debugBtn);
+  }
+  if (debugBtn.dataset.bound === "true") return;
+  debugBtn.dataset.bound = "true";
+  debugBtn.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    const ctx = ensureDebugModalStructure();
+    const isVisible = ctx.modalEl.classList.contains("show");
+    if (isVisible) {
+      hideDebugModal(ctx);
+      return;
+    }
+    ctx.buttonRef = debugBtn;
+    populateDebugModalContent();
+    debugBtn.classList.add("active");
+    showDebugModal(ctx);
+  });
+}
+
+const ConfirmDefaults = {
+  title: "Confirm action",
+  message: "Are you sure you want to continue?",
+  confirmLabel: "Continue",
+  cancelLabel: "Cancel",
+  intent: "danger",
+};
+
+let confirmModalCtx = null;
+const confirmProcessedElements = new WeakSet();
+const confirmFormSubmitters = new WeakMap();
+let confirmMutationObserver = null;
+let confirmScanScheduled = false;
+
+function ensureConfirmModalStructure() {
+  if (confirmModalCtx) return confirmModalCtx;
+  const modalEl = document.createElement("div");
+  modalEl.id = "thinginoConfirmModal";
+  modalEl.className = "modal fade";
+  modalEl.tabIndex = -1;
+  modalEl.setAttribute("aria-hidden", "true");
+  modalEl.innerHTML = `
+	  <div class="modal-dialog modal-dialog-centered">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title" data-confirm-title>${ConfirmDefaults.title}</h5>
+	        <button type="button" class="btn-close" data-confirm-close aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <p class="mb-0" data-confirm-message>${ConfirmDefaults.message}</p>
+	      </div>
+	      <div class="modal-footer gap-2">
+	        <button type="button" class="btn btn-outline-secondary" data-confirm-cancel>${ConfirmDefaults.cancelLabel}</button>
+	        <button type="button" class="btn btn-primary" data-confirm-accept>${ConfirmDefaults.confirmLabel}</button>
+	      </div>
+	    </div>
+	  </div>`;
+  const mountTarget = document.body || document.documentElement;
+  mountTarget.appendChild(modalEl);
+  const ctx = {
+    modalEl,
+    titleEl: modalEl.querySelector("[data-confirm-title]"),
+    messageEl: modalEl.querySelector("[data-confirm-message]"),
+    confirmBtn: modalEl.querySelector("[data-confirm-accept]"),
+    cancelBtn: modalEl.querySelector("[data-confirm-cancel]"),
+    closeBtn: modalEl.querySelector("[data-confirm-close]"),
+    modalInstance: null,
+  };
+  if (window.bootstrap && window.bootstrap.Modal) {
+    ctx.modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+  if (ctx.closeBtn && (!window.bootstrap || !window.bootstrap.Modal)) {
+    ctx.closeBtn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      hideConfirmModalInstant(ctx);
+    });
+  }
+  confirmModalCtx = ctx;
+  return ctx;
+}
+
+function hideConfirmModalInstant(ctx) {
+  if (!ctx || !ctx.modalEl) return;
+  ctx.modalEl.classList.remove("show");
+  ctx.modalEl.style.display = "none";
+  ctx.modalEl.setAttribute("aria-hidden", "true");
+  ctx.modalEl.removeAttribute("aria-modal");
+}
+
+function resolveConfirmIntentClass(intent) {
+  switch ((intent || ConfirmDefaults.intent).toLowerCase()) {
+    case "warning":
+      return "btn-warning";
+    case "success":
+      return "btn-success";
+    case "primary":
+      return "btn-primary";
+    case "danger":
+    default:
+      return "btn-danger";
+  }
+}
+
+function normalizeConfirmOptions(messageOrOptions, extraOptions) {
+  const normalized = { ...ConfirmDefaults };
+  const assignFrom = (source) => {
+    if (!source) return;
+    if (typeof source === "string") {
+      normalized.message = source;
+      return;
+    }
+    if (typeof source !== "object") return;
+    if (source.title) normalized.title = source.title;
+    if (source.message) normalized.message = source.message;
+    if (source.confirmLabel) normalized.confirmLabel = source.confirmLabel;
+    if (source.cancelLabel) normalized.cancelLabel = source.cancelLabel;
+    if (source.intent) normalized.intent = source.intent;
+  };
+  assignFrom(messageOrOptions);
+  assignFrom(extraOptions);
+  if (!normalized.message) normalized.message = ConfirmDefaults.message;
+  return normalized;
+}
+
+function showConfirmDialog(options) {
+  const ctx = ensureConfirmModalStructure();
+  if (!ctx) {
+    return Promise.resolve(true);
+  }
+  ctx.titleEl.textContent = options.title || ConfirmDefaults.title;
+  ctx.messageEl.textContent = options.message || ConfirmDefaults.message;
+  ctx.confirmBtn.textContent =
+    options.confirmLabel || ConfirmDefaults.confirmLabel;
+  ctx.cancelBtn.textContent =
+    options.cancelLabel || ConfirmDefaults.cancelLabel;
+  ctx.confirmBtn.className = "btn " + resolveConfirmIntentClass(options.intent);
+  return new Promise((resolve) => {
+    let finished = false;
+    const handleConfirm = (ev) => {
+      if (ev) ev.preventDefault();
+      finalize(true);
+    };
+    const handleCancel = (ev) => {
+      if (ev) ev.preventDefault();
+      finalize(false);
+    };
+    const handleHidden = () => finalize(false);
+    const cleanup = () => {
+      ctx.confirmBtn.removeEventListener("click", handleConfirm);
+      ctx.cancelBtn.removeEventListener("click", handleCancel);
+      if (ctx.closeBtn) ctx.closeBtn.removeEventListener("click", handleCancel);
+      ctx.modalEl.removeEventListener("hidden.bs.modal", handleHidden);
+    };
+    const hideModal = () => {
+      if (ctx.modalInstance && window.bootstrap && window.bootstrap.Modal) {
+        ctx.modalInstance.hide();
+      } else {
+        hideConfirmModalInstant(ctx);
+      }
+    };
+    const finalize = (result) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      hideModal();
+      resolve(result);
+    };
+    ctx.confirmBtn.addEventListener("click", handleConfirm);
+    ctx.cancelBtn.addEventListener("click", handleCancel);
+    if (ctx.closeBtn) ctx.closeBtn.addEventListener("click", handleCancel);
+    ctx.modalEl.addEventListener("hidden.bs.modal", handleHidden, {
+      once: true,
+    });
+    if (window.bootstrap && window.bootstrap.Modal) {
+      ctx.modalInstance = window.bootstrap.Modal.getOrCreateInstance(
+        ctx.modalEl,
+      );
+      ctx.modalInstance.show();
+    } else {
+      ctx.modalEl.classList.add("show");
+      ctx.modalEl.style.display = "block";
+      ctx.modalEl.removeAttribute("aria-hidden");
+      ctx.modalEl.setAttribute("aria-modal", "true");
+    }
+  });
+}
+
+function getElementConfirmOptions(element) {
+  if (!element || !element.dataset) return {};
+  const opts = {};
+  const { dataset } = element;
+  if (dataset.confirmMessage) opts.message = dataset.confirmMessage;
+  else if (dataset.confirm) opts.message = dataset.confirm;
+  if (dataset.confirmTitle) opts.title = dataset.confirmTitle;
+  if (dataset.confirmIntent) opts.intent = dataset.confirmIntent;
+  if (dataset.confirmConfirm) opts.confirmLabel = dataset.confirmConfirm;
+  else if (dataset.confirmAction) opts.confirmLabel = dataset.confirmAction;
+  if (dataset.confirmCancel) opts.cancelLabel = dataset.confirmCancel;
+  return opts;
+}
+
+function isSubmitControl(element) {
+  if (!element) return false;
+  const tag = element.tagName;
+  const type = (element.getAttribute("type") || "").toLowerCase();
+  if (tag === "BUTTON") {
+    return type === "" || type === "submit";
+  }
+  if (tag === "INPUT") {
+    return type === "submit" || type === "image";
+  }
+  return false;
+}
+
+function attachConfirmTrigger(element) {
+  if (!element || confirmProcessedElements.has(element)) return;
+  const skip =
+    element.dataset &&
+    (element.dataset.confirmSkip === "true" ||
+      element.dataset.confirmSkip === "1");
+  if (skip) return;
+  confirmProcessedElements.add(element);
+  const form = element.closest("form");
+  if (form && isSubmitControl(element)) {
+    bindConfirmFormSubmit(form, element);
+    return;
+  }
+  bindConfirmClick(element);
+}
+
+function bindConfirmClick(element) {
+  element.addEventListener("click", (ev) =>
+    handleConfirmableClick(ev, element),
+  );
+}
+
+function bindConfirmFormSubmit(form, trigger) {
+  let submitters = confirmFormSubmitters.get(form);
+  if (!submitters) {
+    submitters = new Set();
+    confirmFormSubmitters.set(form, submitters);
+    form.addEventListener(
+      "submit",
+      (ev) => handleConfirmableSubmit(ev, form),
+      true,
+    );
+  }
+  submitters.add(trigger);
+}
+
+async function handleConfirmableClick(ev, element) {
+  if (element.dataset.confirmBypass === "1") {
+    delete element.dataset.confirmBypass;
+    return;
+  }
+  if (element.disabled) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  const options = getElementConfirmOptions(element);
+  const confirmed = await window.confirm(options.message, options);
+  if (!confirmed) return;
+  element.dataset.confirmBypass = "1";
+  window.setTimeout(() => {
+    if (typeof element.click === "function") {
+      element.click();
+      return;
+    }
+    if (element.tagName === "A" && element.href) {
+      if (element.target && element.target !== "_self") {
+        window.open(element.href, element.target, "noopener");
+      } else {
+        window.location.href = element.href;
+      }
+    }
+  }, 0);
+}
+
+async function handleConfirmableSubmit(ev, form) {
+  if (form.dataset.confirmBypass === "1") {
+    delete form.dataset.confirmBypass;
+    return;
+  }
+  const submitters = confirmFormSubmitters.get(form);
+  if (!submitters || !submitters.size) return;
+  const trigger = ev.submitter;
+  if (!trigger || !submitters.has(trigger)) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  const options = getElementConfirmOptions(trigger);
+  const confirmed = await window.confirm(options.message, options);
+  if (!confirmed) return;
+  form.dataset.confirmBypass = "1";
+  const submitAgain = () => {
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit(trigger);
+    } else {
+      form.submit();
+    }
+  };
+  window.setTimeout(submitAgain, 0);
+}
+
+function scanConfirmTriggers(root = document) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll(".confirm").forEach(attachConfirmTrigger);
+}
+
+function scheduleConfirmScan() {
+  if (confirmScanScheduled) return;
+  confirmScanScheduled = true;
+  const run = () => {
+    confirmScanScheduled = false;
+    scanConfirmTriggers();
+  };
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(run);
+  } else {
+    window.setTimeout(run, 100);
+  }
+}
+
+function initConfirmObserver() {
+  if (confirmMutationObserver || !window.MutationObserver) return;
+  const target = document.body || document.documentElement;
+  if (!target) return;
+  confirmMutationObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (
+        mutation.type === "childList" &&
+        mutation.addedNodes &&
+        mutation.addedNodes.length
+      ) {
+        scheduleConfirmScan();
+        break;
+      }
+    }
+  });
+  confirmMutationObserver.observe(target, { childList: true, subtree: true });
+}
+
+const nativeConfirm =
+  typeof window !== "undefined" && typeof window.confirm === "function"
+    ? window.confirm.bind(window)
+    : () => true;
+
+function thinginoConfirm(messageOrOptions, extraOptions) {
+  const options = normalizeConfirmOptions(messageOrOptions, extraOptions);
+  return showConfirmDialog(options);
+}
+
+thinginoConfirm.defaults = ConfirmDefaults;
+thinginoConfirm.normalize = normalizeConfirmOptions;
+thinginoConfirm.fromElement = getElementConfirmOptions;
+thinginoConfirm.scan = scanConfirmTriggers;
+
+window.nativeConfirm = nativeConfirm;
+window.confirm = thinginoConfirm;
+window.confirmAsync = thinginoConfirm;
+window.thinginoConfirm = thinginoConfirm;
+
+function initPasswordRevealToggles(root = document) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+
+  root
+    .querySelectorAll(
+      "input[type='password']:not([data-password-reveal-ready])",
+    )
+    .forEach((input) => {
+      if (!input.parentNode) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "password-reveal-wrapper";
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "password-reveal-toggle";
+      button.setAttribute("aria-label", "Show password");
+      button.innerHTML = '<i class="bi bi-eye"></i>';
+
+      button.addEventListener("click", () => {
+        const reveal = input.type === "password";
+        input.type = reveal ? "text" : "password";
+        button.setAttribute(
+          "aria-label",
+          reveal ? "Hide password" : "Show password",
+        );
+        button.setAttribute(
+          "title",
+          reveal ? "Hide password" : "Show password",
+        );
+        button.innerHTML = reveal
+          ? '<i class="bi bi-eye-slash"></i>'
+          : '<i class="bi bi-eye"></i>';
+        input.focus();
+      });
+
+      wrapper.appendChild(button);
+      input.dataset.passwordRevealReady = "1";
+    });
+}
+
+(() => {
+  function initAll() {
+    function toggleAuto(el) {
+      const id = el.dataset.for;
+      const p = $("#" + id);
+      const s = $("#" + id + "-show");
+      if (el.checked) {
+        el.dataset.value = p.value;
+        p.value = "auto";
+        p.disabled = true;
+        s.textContent = "--";
+      } else {
+        p.value = el.dataset.value;
+        p.disabled = false;
+        s.textContent = p.value;
+      }
+    }
+
+    $$("form,input").forEach((el) => (el.autocomplete = "off"));
+
+    const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]');
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl),
+    );
+
+    // Populate the shared Send modal once the DOM is ready.
+    buildSendModalGrid();
+
+    // ranges
+    $$("input[type=range]").forEach((el) => {
+      el.addEventListener("change", (ev) => {
+        if ($("#" + ev.target.id + "-show"))
+          $("#" + ev.target.id + "-show").textContent = ev.target.value;
+      });
+      el.addEventListener("input", (ev) => {
+        if ($("#" + ev.target.id + "-show"))
+          $("#" + ev.target.id + "-show").textContent = ev.target.value;
+      });
+    });
+
+    // scan for confirmable buttons and observe future additions
+    scanConfirmTriggers();
+    initConfirmObserver();
+
+    // toggle auto value
+    $$("input.auto-value").forEach((el) => {
+      el.addEventListener("click", (ev) => toggleAuto(ev.target));
+      toggleAuto(el);
+    });
+
+    // add password reveal toggles for password fields
+    initPasswordRevealToggles();
+
+    // reload window when refresh button is clicked
+    $$(".refresh").forEach((el) => {
+      el.addEventListener("click", (ev) => {
+        window.location.reload();
+      });
+    });
+
+    // set links to external resources to open in a new window.
+    $$("a[href^=http]").forEach((el) => (el.target = "_blank"));
+
+    // handle sendto buttons
+    $$("button[data-sendto]").forEach((el) => {
+      if (el.dataset.sendtoBypass === "1" || el.dataset.sendtoBypass === "true")
+        return;
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const options = getElementConfirmOptions(el);
+        const confirmed = await confirm(
+          options.message || "Send this action now?",
+          options,
+        );
+        if (!confirmed) return;
+        const params = { to: el.dataset.sendto };
+        if (el.dataset.type) {
+          params.type = el.dataset.type;
+        }
+        fetch("/x/send.cgi", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(params).toString(),
+        })
+          .then((res) => res.json())
+          .then((data) => console.log(data));
+      });
+    });
+
+    // async output of a command running on camera
+    const outputEl = $("pre#output");
+    if (outputEl) {
+      let commandInFlight = false;
+
+      async function* makeLineIterator(reader) {
+        const td = new TextDecoder("utf-8");
+        let { value: chunk, done: readerDone } = await reader.read();
+        chunk = chunk ? td.decode(chunk) : "";
+        const re = /\r\n|\n|\r/gm;
+        let startIndex = 0;
+        let result;
+        for (;;) {
+          result = re.exec(chunk);
+          if (!result) {
+            if (readerDone) break;
+            let remainder = chunk.substring(startIndex);
+            ({ value: chunk, done: readerDone } = await reader.read());
+            chunk = remainder + (chunk ? td.decode(chunk) : "");
+            startIndex = re.lastIndex = 0;
+            continue;
+          }
+          const lineContent = chunk.substring(startIndex, result.index);
+          const lineEnding = result[0];
+          yield { line: lineContent, ending: lineEnding };
+          startIndex = re.lastIndex;
+        }
+        if (startIndex < chunk.length)
+          yield { line: chunk.substring(startIndex), ending: "" };
+      }
+
+      const finalizeStream = () => {
+        commandInFlight = false;
+        if ("true" === outputEl.dataset["reboot"]) {
+          window.location.href = "/x/reboot.cgi";
+        } else {
+          outputEl.innerHTML += "\n--- finished ---\n";
+        }
+        outputEl.dispatchEvent(new CustomEvent("thingino:command-finished"));
+      };
+
+      async function streamCommand(url) {
+        if (!url || commandInFlight) return;
+        commandInFlight = true;
+        try {
+          const streamResponse = await fetch(url);
+          if (!streamResponse.ok) {
+            outputEl.innerHTML =
+              "Error: server returned " +
+              streamResponse.status +
+              " " +
+              streamResponse.statusText +
+              "\n";
+            return;
+          }
+          for await (let { line, ending } of makeLineIterator(
+            streamResponse.body.getReader(),
+          )) {
+            const re1 = /\u001b\[1;(\d+)m/;
+            const re2 = /\u001b\[0m/;
+            line = line
+              .replace(re1, '<span class="ansi-$1">')
+              .replace(re2, "</span>");
+
+            // Handle carriage return - replace last line instead of adding new
+            if (ending === "\r") {
+              // Carriage return: replace the last line
+              const lines = outputEl.innerHTML.split("\n");
+              if (lines.length > 0) {
+                lines[lines.length - 1] = line;
+                outputEl.innerHTML = lines.join("\n");
+              } else {
+                outputEl.innerHTML = line;
+              }
+            } else {
+              // Normal newline: add new line
+              outputEl.innerHTML += line + "\n";
+            }
+
+            outputEl.scrollTop = outputEl.scrollHeight;
+          }
+        } finally {
+          finalizeStream();
+        }
+      }
+
+      const startStreaming = (command, options = {}) => {
+        if (commandInFlight) return;
+        const streamOverride =
+          options.stream || outputEl.dataset["stream"] || "";
+        const encodedOverride =
+          options.encoded || outputEl.dataset["encoded"] || "";
+        const resolvedCommand = command || outputEl.dataset["cmd"] || "";
+        let streamUrl = "";
+        let encodedValue = "";
+
+        if (streamOverride) {
+          streamUrl = streamOverride;
+        } else if (encodedOverride) {
+          encodedValue = encodedOverride;
+          streamUrl = "/x/run.cgi?cmd=" + encodedOverride;
+        } else if (resolvedCommand) {
+          encodedValue = btoa(resolvedCommand);
+          streamUrl = "/x/run.cgi?cmd=" + encodedValue;
+        } else {
+          return;
+        }
+        if (options.reboot !== undefined) {
+          outputEl.dataset["reboot"] = options.reboot ? "true" : "false";
+        }
+        outputEl.dataset["cmd"] = resolvedCommand;
+        outputEl.dataset["stream"] = streamOverride || "";
+        outputEl.dataset["encoded"] = encodedValue;
+        outputEl.innerHTML = "";
+        outputEl.dispatchEvent(
+          new CustomEvent("thingino:command-start", {
+            detail: { cmd: resolvedCommand },
+          }),
+        );
+        streamCommand(streamUrl);
+      };
+
+      if (
+        outputEl.dataset["cmd"] ||
+        outputEl.dataset["stream"] ||
+        outputEl.dataset["encoded"]
+      ) {
+        startStreaming(outputEl.dataset["cmd"] || "", {
+          stream: outputEl.dataset["stream"] || "",
+          encoded: outputEl.dataset["encoded"] || "",
+        });
+      }
+
+      outputEl.addEventListener("thingino:start-command", (ev) => {
+        const detail = ev.detail || {};
+        if (detail.reboot !== undefined) {
+          outputEl.dataset["reboot"] = detail.reboot ? "true" : "false";
+        }
+        if (detail.cmd || detail.stream || detail.encoded) {
+          startStreaming(detail.cmd || "", {
+            reboot: detail.reboot,
+            stream: detail.stream,
+            encoded: detail.encoded,
+          });
+        }
+      });
+    }
+
+    initCopyToClipboard();
+    // Don't start heartbeat here - wait for password check to complete
+
+    // setup recording button handlers
+    $$("#recorder-ch0, #recorder-ch1").forEach((button) => {
+      button.addEventListener("click", function (e) {
+        e.preventDefault();
+        const channel = parseInt(this.dataset.channel);
+        // State is managed by recordingState and will be toggled by toggleRecording
+        toggleRecording(channel);
+      });
+    });
+
+    const timelapseBtn = $("#timelapse");
+    if (timelapseBtn) {
+      timelapseBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleTimelapse();
+      });
+    }
+
+    // setup motion button handler
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleMotion(!motionBtn.classList.contains("active"));
+      });
+    }
+
+    // setup privacy button handler
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        togglePrivacy(!privacyBtn.classList.contains("active"));
+      });
+    }
+
+    // setup wireguard button handler
+    const wireguardBtn = $("#wireguard");
+    if (wireguardBtn) {
+      wireguardBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleWireGuard(!wireguardBtn.classList.contains("active"));
+      });
+    }
+
+    // setup daynight button handler
+    const daynightBtn = $("#daynight");
+    if (daynightBtn) {
+      daynightBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const currentlyNight = daynightBtn.classList.contains("is-night");
+        const newMode = currentlyNight ? "day" : "night";
+        toggleDayNight(newMode);
+      });
+    }
+
+    // setup day mode button handler
+    const dayBtn = $("#day");
+    if (dayBtn) {
+      dayBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleDayNight("day");
+      });
+    }
+
+    // setup night mode button handler
+    const nightBtn = $("#night");
+    if (nightBtn) {
+      nightBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleDayNight("night");
+      });
+    }
+
+    // setup microphone button handler
+    const micBtn = $("#microphone");
+    if (micBtn) {
+      micBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleAudio("microphone", !micBtn.classList.contains("active"));
+      });
+    }
+
+    // setup speaker button handler
+    const spkBtn = $("#speaker");
+    if (spkBtn) {
+      spkBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleAudio("speaker", !spkBtn.classList.contains("active"));
+      });
+    }
+
+    ensureDebugControl();
+
+    // setup camera control buttons (color, ircut, ir850, ir940, white)
+    $$("#auto, #color, #ircut, #ir850, #ir940, #white").forEach((el) => {
+      if (el) {
+        el.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          toggleButton(el);
+        });
+      }
+    });
+
+    // setup theme toggle link handler
+    const themeBtn = $("#theme-toggle");
+    if (themeBtn) {
+      themeBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        toggleTheme();
+      });
+    }
+
+    updateRecordingIcons();
+    loadTimelapseState().catch((err) => {
+      console.error("Unable to load timelapse state:", err);
+      updateTimelapseButtonState();
+    });
+  }
+
+  // Create universal alert area (uses existing global-message-overlay)
+  function createAlertArea() {
+    // The global-message-overlay is created by footer.js
+    // This is just for compatibility - can be removed later
+  }
+
+  // Universal alert function - delegates to global message overlay
+  window.showAlert = function (type, message, timeout = 6000) {
+    if (!message) return;
+
+    // Map alert types to variants
+    const variantMap = {
+      success: "success",
+      danger: "danger",
+      warning: "info",
+      info: "info",
+      primary: "info",
+      secondary: "info",
+    };
+
+    const variant = variantMap[type] || "info";
+
+    // Use the global message system from footer.js
+    if (
+      window.thinginoFooter &&
+      typeof window.thinginoFooter.showMessage === "function"
+    ) {
+      window.thinginoFooter.showMessage(message, variant);
+    } else {
+      // Fallback: create and show message directly
+      let el = $("#global-message-overlay");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "global-message-overlay";
+        el.className = "global-message-overlay";
+        el.setAttribute("role", "status");
+        el.setAttribute("aria-live", "polite");
+        document.body.appendChild(el);
+      }
+      el.textContent = message;
+      el.dataset.variant = variant;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), timeout);
+    }
+  };
+
+  window.clearAlerts = function () {
+    const el = $("#global-message-overlay");
+    if (el) el.classList.remove("show");
+    if (
+      window.thinginoFooter &&
+      typeof window.thinginoFooter.hideMessage === "function"
+    ) {
+      window.thinginoFooter.hideMessage();
+    }
+  };
+
+  // Shared overlay message helper - delegates to footer or falls back to showAlert.
+  // Exposed globally so per-page scripts don't need to duplicate this function.
+  window.showOverlayMessage = function (message, variant = "info") {
+    if (
+      window.thinginoFooter &&
+      typeof window.thinginoFooter.showMessage === "function"
+    ) {
+      window.thinginoFooter.showMessage(message, variant);
+      return;
+    }
+    const fallbackType = variant === "danger" ? "danger" : "info";
+    window.showAlert(fallbackType, message);
+  };
+
+  // ---- Shared helpers for tool-send2-*.js service modules ----
+  const _send2Endpoint = "/x/json-send2.cgi";
+
+  // Load send2 config and call populateFn(data) with the parsed JSON.
+  window.send2Load = async function (serviceName, populateFn) {
+    showBusy(`Loading ${serviceName} settings...`);
+    try {
+      const response = await fetch(_send2Endpoint, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to load configuration");
+      const data = await response.json();
+      await populateFn(data);
+    } catch (err) {
+      console.error(`Failed to load ${serviceName} config:`, err);
+      showAlert(
+        "danger",
+        `Failed to load ${serviceName} settings: ${err.message || err}`,
+      );
+    } finally {
+      hideBusy();
+    }
+  };
+
+  // Handle form submit: validate, POST the payload returned by buildPayloadFn(), show result.
+  window.send2Save = async function (serviceName, form, event, buildPayloadFn) {
+    event.preventDefault();
+    if (!form.checkValidity()) {
+      event.stopPropagation();
+      form.classList.add("was-validated");
+      return;
+    }
+    showBusy(`Saving ${serviceName} settings...`);
+    try {
+      const payload = buildPayloadFn();
+      const response = await fetch(_send2Endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error("Failed to save settings");
+      const result = await response.json();
+      if (result.error)
+        throw new Error(result.error.message || "Failed to save settings");
+      showAlert("success", `${serviceName} settings saved successfully.`, 3000);
+      form.classList.remove("was-validated");
+    } catch (err) {
+      console.error(`Failed to save ${serviceName} settings:`, err);
+      showAlert("danger", `Failed to save settings: ${err.message || err}`);
+    } finally {
+      hideBusy();
+    }
+  };
+
+  // Wire up a reload button to re-run loadConfigFn and show a confirmation message.
+  window.send2SetupReload = function (button, serviceName, loadConfigFn) {
+    if (!button) return;
+    button.addEventListener("click", async () => {
+      try {
+        button.disabled = true;
+        await loadConfigFn();
+        showAlert(
+          "info",
+          `${serviceName} settings reloaded from camera.`,
+          3000,
+        );
+      } catch (err) {
+        showAlert("danger", `Failed to reload ${serviceName} settings.`);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  };
+
+  window.addEventListener("load", initAll);
+  window.addEventListener("DOMContentLoaded", createAlertArea);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if ($("#preview")) $("#preview").src = ImageNoStream;
+    } else if (typeof window.restartStreamPreview === "function") {
+      // preview.js owns the stream URL (direct-to-timps, token + channel)
+      window.restartStreamPreview();
+    }
+  });
+
+  // Global modal focus management - prevent aria-hidden focus conflicts for all modals
+  document.addEventListener("hide.bs.modal", (event) => {
+    const modal = event.target;
+
+    // Check if the modal element itself has focus
+    if (document.activeElement === modal) {
+      modal.blur();
+    }
+
+    // Also check for any focused elements within the modal
+    const focusedElement = modal.querySelector(":focus");
+    if (focusedElement) {
+      focusedElement.blur();
+    }
+  });
+
+  // Check session status and default password
+  async function checkSessionAndPassword() {
+    try {
+      const response = await fetch("/x/session-status.cgi", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        // Session check failed - redirect to login
+        window.location.href = "/login.html";
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!data.authenticated) {
+        // Not authenticated - redirect to login
+        window.location.href = "/login.html";
+        return;
+      }
+
+      // Check if using default password
+      if (data.is_default_password) {
+        isDefaultPassword = true;
+        passwordCheckComplete = true;
+        showPasswordWarningModal();
+      } else {
+        isDefaultPassword = false;
+        passwordCheckComplete = true;
+        heartbeat();
+      }
+    } catch (err) {
+      console.error("Session check failed:", err);
+      // On error, redirect to login
+      window.location.href = "/login.html";
+    }
+  }
+
+  function showPasswordWarningModal() {
+    // Don't show on password change page itself
+    if (window.location.pathname.includes("config-webui.html")) {
+      return;
+    }
+
+    const modalId = "passwordWarningModal";
+    let modal = $("#" + modalId);
+
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = modalId;
+      modal.className = "modal fade";
+      modal.setAttribute("data-bs-backdrop", "static");
+      modal.setAttribute("data-bs-keyboard", "false");
+      modal.innerHTML = `
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content border-warning">
+						<div class="modal-header bg-warning text-dark">
+							<h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Security Warning</h5>
+						</div>
+						<div class="modal-body">
+							<div id="password-warning-message">
+								<p><strong>You are using the default password "root".</strong></p>
+								<p>For security reasons, you must change the password immediately.</p>
+							</div>
+							<div id="password-change-alert" class="alert d-none" role="alert"></div>
+							<form id="password-change-form">
+								<div class="mb-3">
+									<label for="new-password" class="form-label">New Password</label>
+									<input type="password" class="form-control" id="new-password" required minlength="4">
+									<div class="form-text">Minimum 4 characters</div>
+								</div>
+								<div class="mb-3">
+									<label for="confirm-password" class="form-label">Confirm Password</label>
+									<input type="password" class="form-control" id="confirm-password" required minlength="4">
+								</div>
+							</form>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-warning" id="change-password-btn">Change Password</button>
+						</div>
+					</div>
+				</div>
+			`;
+      document.body.appendChild(modal);
+
+      // Add event handler for password change
+      const form = modal.querySelector("#password-change-form");
+      const newPasswordInput = modal.querySelector("#new-password");
+      const confirmPasswordInput = modal.querySelector("#confirm-password");
+      const changeBtn = modal.querySelector("#change-password-btn");
+      const alertDiv = modal.querySelector("#password-change-alert");
+
+      function showAlert(message, type) {
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        alertDiv.classList.remove("d-none");
+      }
+
+      function hideAlert() {
+        alertDiv.classList.add("d-none");
+      }
+
+      changeBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        hideAlert();
+
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        if (!newPassword || newPassword.length < 4) {
+          showAlert("Password must be at least 4 characters long.", "danger");
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          showAlert("Passwords do not match.", "danger");
+          return;
+        }
+
+        if (newPassword === "root") {
+          showAlert(
+            'Please choose a password different from "root".',
+            "danger",
+          );
+          return;
+        }
+
+        // Close SSE connection BEFORE changing password to prevent auth prompts
+        if (typeof cleanupHeartbeatResources === "function") {
+          cleanupHeartbeatResources();
+        }
+
+        // Disable button and show loading state
+        changeBtn.disabled = true;
+        changeBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2"></span>Changing...';
+
+        try {
+          const response = await fetch("/x/json-config-webui.cgi", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: newPassword }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || (result && result.error)) {
+            const message =
+              result && result.error && result.error.message
+                ? result.error.message
+                : "Failed to change password";
+            throw new Error(message);
+          }
+
+          // Success!
+          showAlert(
+            "Password changed successfully! Closing dialog...",
+            "success",
+          );
+          changeBtn.textContent = "Password Changed";
+
+          // Password changed - mark as secure and close modal
+          isDefaultPassword = false;
+
+          // Close modal and start heartbeat
+          setTimeout(() => {
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) bsModal.hide();
+            // Start heartbeat now that password is secure
+            if (!heartbeatSource) {
+              heartbeat();
+            }
+          }, 1500);
+        } catch (err) {
+          showAlert(err.message || "Failed to change password.", "danger");
+          changeBtn.disabled = false;
+          changeBtn.textContent = "Change Password";
+        }
+      });
+    }
+
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+  }
+
+  // Run session and password check after page loads
+  if (
+    window.location.pathname !== "/401.html" &&
+    window.location.pathname !== "/login.html"
+  ) {
+    window.addEventListener("load", () => {
+      setTimeout(checkSessionAndPassword, 100);
+    });
+  }
+})();
