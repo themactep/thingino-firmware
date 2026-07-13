@@ -1,0 +1,8 @@
+#!/bin/sh
+# Drive the speaker amplifier enable (GPIO 63 / PB31, active-high) on this unit.
+# Vendor audio.ko default: spk_gpio=63, spk_level=1. Without this the speaker
+# stays muted despite raptor ao_enabled=true.
+case "$1" in
+  start) gpio set 63 ;;
+  stop)  gpio clear 63 ;;
+esac

@@ -223,24 +223,11 @@
 	gpio_keys: gpio_keys {
 		   compatible = "gpio-keys";
 
-		   power {
-			   label = "Power";
-			   linux,code = <KEY_POWER>;
-			   gpios = <&gpa 30 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
-			   gpio-key,wakeup;
-		   };
-            bootsel0 {
-                label = "bootsel0";
-                linux,code = <KEY_HOME>;
-                gpios = <&gpc 0 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
-            };
-
-            bootsel1 {
-                label = "bootsel1";
-                linux,code = <KEY_BACK>;
-                gpios = <&gpc 1 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
-            };
-
+                   reset {
+                           label = "reset";
+                           linux,code = <KEY_ENTER>;
+                           gpios = <&gpb 27 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+                   };
 	   };
 };
 

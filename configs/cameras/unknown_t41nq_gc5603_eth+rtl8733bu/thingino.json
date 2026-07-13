@@ -3,8 +3,7 @@
     "ir850": 81,
     "ircut": "49 50",
     "white": 82,
-    "wlan": 61,
-    "button_reset": 59
+    "wlan": 61
   },
   "daynight": {
     "controls": {

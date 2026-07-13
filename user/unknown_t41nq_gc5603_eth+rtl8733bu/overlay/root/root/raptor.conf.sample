@@ -1,0 +1,92 @@
+[sensor]
+name = gc5603
+i2c_addr = 0x31
+fps = 30
+rst_gpio = 18
+pwdn_gpio = -1
+mclk = 1
+video_interface = 0
+
+[stream0]
+width = 2880
+height = 1620
+fps = 30
+bitrate = 3000000
+
+[stream1]
+width = 1280
+height = 720
+fps = 30
+bitrate = 768000
+
+[ring]
+refmode = true
+
+[audio]
+codec = aac
+volume = 92
+gain = 32
+ao_enabled = true
+
+[rtsp]
+max_clients = 4
+endpoint_main = ch0
+endpoint_sub = ch1
+username = thingino
+password = thingino
+backchannel = true
+
+[http]
+port = 8443
+max_clients = 4
+username = thingino
+password = thingino
+https = true
+
+[osd.timestamp]
+type = text
+visible = true
+template = %time%
+position = top_left
+align = left
+max_chars = 22
+
+[osd.uptime]
+type = text
+visible = true
+template = %uptime%
+position = top_right
+align = right
+max_chars = 18
+
+[osd.camera]
+type = text
+visible = true
+template = Camera
+position = top_center
+align = center
+max_chars = 14
+update = change
+
+[osd.logo]
+type = image
+visible = true
+path = /usr/share/images/thingino_100x30.bgra
+width = 100
+height = 30
+position = bottom_right
+
+[ircut]
+trigger = gain
+night_threshold = 490000
+day_threshold = 390000
+
+[webrtc]
+enabled = true
+cert = /etc/ssl/certs/uhttpd.crt
+key = /etc/ssl/private/uhttpd.key
+username = thingino
+password = thingino
+
+[log]
+level = info

@@ -1,0 +1,58 @@
+#!/bin/sh
+#
+# S99runonce - one-time per-flash provisioning for the DML16-Z533 (T41NQ + GC5603).
+#
+# Runs on every boot but acts only once, guarded by a flag on the overlay
+# (/etc/.provisioned). It therefore re-runs after a factory reset + reflash,
+# which is exactly when the overlay is fresh again.
+#
+# S99 = last, so daemons it wants to disable/fix have already started.
+
+FLAG=/etc/.provisioned
+
+case "$1" in
+	start)
+		[ -f "$FLAG" ] && exit 0
+
+		# 1. Disable thingino-daynightd.
+		#    raptor's RIC daemon handles the IR-cut relay (trigger=gain in
+		#    /etc/raptor.conf). daynightd's init script starts the daemon
+		#    UNCONDITIONALLY (it ignores thingino.json daynight.enabled), so
+		#    leaving it running means two systems fight over day/night.
+		for f in /etc/init.d/S*daynight*; do
+			[ -e "$f" ] || continue
+			"$f" stop 2>/dev/null
+			rm -f "$f"          # overlayfs whiteout -> won't start next boot
+		done
+
+		# 2. Fix thingino-button input device.
+		#    DEVICE=auto does not find the DTS gpio-keys device on this 4.4.94
+		#    kernel; point it at the evdev node explicitly, then restart it.
+		if [ -f /etc/thingino-button.conf ]; then
+			sed -i 's|^DEVICE=auto|DEVICE=/dev/input/event0|' /etc/thingino-button.conf
+			/etc/init.d/S15thingino-button restart 2>/dev/null
+		fi
+
+		# promote the tuned master raptor.conf into place (defconfig-generated /etc one
+		# lacks the per-unit ircut/adc tuning; full copy avoids duplicate-line merge).
+		if [ -f /root/raptor.conf ]; then
+			cp /root/raptor.conf /etc/raptor.conf
+			/etc/init.d/S31raptor restart 2>/dev/null
+		fi
+
+		# 3. (optional) Disable ONVIF - no PTZ, Frigate uses RTSP directly:
+		#for f in /etc/init.d/S*onvif*; do
+		#	[ -e "$f" ] || continue
+		#	"$f" stop 2>/dev/null; rm -f "$f"
+		#done
+
+		touch "$FLAG"
+		logger -t runonce "one-time provisioning done (daynightd off, button device set)"
+		;;
+	stop)
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac

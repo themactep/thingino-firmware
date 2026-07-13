@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# S95wifi-tune - quiet down the RTL8733BU so it stops starving the ISP.
+#
+# The RTL8733BU firmware power-save and Turbo-EDCA re-tuning run periodically and
+# introduce real-time latency spikes on the shared USB/CPU path. On this T41 that
+# starves the ISP AE thread (isp_fw_process -> D state) and freezes the video.
+# Disabling both removes the periodic disruption. Runtime-only knobs, so re-apply
+# on every boot once wlan0 has associated.
+#
+# NOTE: keeping the video streams light (see /etc/raptor.conf) matters just as much
+# on wifi - a full-res 30fps main stream will still overload the pipeline.
+
+RTW=/proc/net/rtl8733bu/wlan0
+
+case "$1" in
+	start)
+		(
+			# wait (up to 30 s) for the interface proc dir to appear
+			i=0
+			while [ ! -d "$RTW" ] && [ "$i" -lt 30 ]; do i=$((i+1)); sleep 1; done
+			[ -d "$RTW" ] || exit 0
+			echo 0 > "$RTW/en_fwps"        2>/dev/null   # firmware power-save off
+			echo 1 > "$RTW/dis_turboedca"  2>/dev/null   # Turbo-EDCA re-tuning off
+			logger -t wifi-tune "RTL8733BU: fw_ps off, turbo-edca off"
+
+			# 802.11 STATION power-save OFF. This camera is mains-powered and must
+			# stay associated and reachable at all times. With PS on, the station
+			# dozes between beacons; that adds latency and, worse, lets the AP age
+			# the client out -> the "camera drops off the network" symptom, the
+			# actual root cause of the drops. The tiny extra power draw is
+			# irrelevant here.
+			#
+			# Measured facts on this build: `iw` is NOT installed (wireless-tools
+			# provides only iwconfig); the module param rtw_power_mgnt is already 0
+			# yet the driver still turns PS *on* at association; iwconfig WEXT
+			# power-off is confirmed to flip it off and hold. So the runtime WEXT
+			# toggle, applied once wlan0 is up, is the real lever. (The self-heal
+			# watchdog re-asserts it every minute in case a re-association turns it
+			# back on - see /sbin/selfheal.sh ensure_ps_off.)
+			iwconfig wlan0 power off 2>/dev/null
+			ps=$(iwconfig wlan0 2>/dev/null | sed -n 's/.*Power Management:\([A-Za-z]*\).*/\1/p')
+			logger -t wifi-tune "RTL8733BU: 802.11 power-save off (now: ${ps:-?})"
+		) &
+		;;
+	stop)
+		[ -d "$RTW" ] && { echo 1 > "$RTW/en_fwps" 2>/dev/null; echo 0 > "$RTW/dis_turboedca" 2>/dev/null; }
+		;;
+	restart|reload)
+		# Re-apply the tuning (e.g. after a Wi-Fi re-association, called from the
+		# self-heal watchdog). Deliberately just re-run start rather than
+		# stop+start: stop would briefly re-enable power-save / fw-ps, and every
+		# knob here is an idempotent runtime setting that is safe to re-assert.
+		"$0" start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

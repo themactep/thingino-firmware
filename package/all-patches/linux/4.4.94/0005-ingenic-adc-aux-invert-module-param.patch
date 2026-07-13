@@ -1,0 +1,46 @@
+ingenic_adc_aux: add 'invert' module param to flip inverted-polarity sensors
+
+Some boards (e.g. this DML16-Z533 T41NQ) wire the day/night photoresistor so
+that bright light gives a LOW value and darkness gives a HIGH value - the
+inverse of what consumers expect. raptor's RIC day/night reads AUX0 assuming
+higher = brighter and has no invert option, so with an inverted LDR it never
+switches (measured: bright = 0, darkest = ~14997 of a ~17995 full scale).
+
+Add a module parameter 'invert': a reference ceiling. When non-zero the value
+returned to userspace becomes (invert - reading), clamped at 0 to avoid
+underflow. Applied to the final (scaled) value RIC reads, so tuning is
+intuitive: pick invert slightly above full scale (e.g. 20000) and bright->high,
+dark->low. Evaluated per sample, so runtime writable via
+/sys/module/ingenic_adc_aux/parameters/invert . Default 0 = unchanged.
+
+Enable with ingenic_adc_aux.invert=20000 on the kernel cmdline, or echo it at
+runtime. Only AUX0 (the LDR) is consumed for day/night on this board.
+
+Signed-off-by: Oskari Rauta <oskari.rauta@gmail.com>
+
+--- a/drivers/mfd/ingenic_adc_aux.c
++++ b/drivers/mfd/ingenic_adc_aux.c
+@@ -33,6 +33,14 @@
+ 
+ static unsigned long int VREF_ADC = 1800;
+ 
++/* Inverted-polarity sensor support: when non-zero, the value returned to
++ * userspace becomes (invert - reading), clamped at 0. For a photoresistor wired
++ * bright=low / dark=high, set invert slightly above full scale (e.g. 20000) so
++ * bright->high, dark->low as raptor RIC day/night expects. 0 = disabled. */
++static unsigned int invert = 0;
++module_param(invert, uint, 0644);
++MODULE_PARM_DESC(invert, "reference ceiling; returned value = invert - reading (0 = disabled), e.g. 20000");
++
+ #define AUXCONST   4096
+ 
+ #define ADC_MAGIC_NUMBER	'A'
+@@ -148,6 +156,8 @@
+ 	ingenic_adc_aux->cell->disable(ingenic_adc_aux->pdev);
+ 
+ 	sadc_volt = sadc_volt * VREF_ADC*10 / AUXCONST;
++	if (invert)
++		sadc_volt = (sadc_volt < invert) ? (invert - sadc_volt) : 0;
+ 
+ 	return sadc_volt;
+ }

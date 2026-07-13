@@ -1,0 +1,24 @@
+#!/bin/sh
+
+VALUE=20000
+
+case "$1" in
+	start)
+        [ -f /sys/module/ingenic_adc_aux/parameters/invert ] || exit 0
+        echo "Inverting ADC values from offset $VALUE"
+        echo $VALUE > /sys/module/ingenic_adc_aux/parameters/invert
+		;;
+	stop)
+        [ -f /sys/module/ingenic_adc_aux/parameters/invert ] || exit 0
+        echo 0 > /sys/module/ingenic_adc_aux/parameters/invert
+		;;
+	restart)
+		"$0" start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

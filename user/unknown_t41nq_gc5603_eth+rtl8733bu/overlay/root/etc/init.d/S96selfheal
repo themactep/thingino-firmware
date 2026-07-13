@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# S96selfheal - install the self-heal cron entries, idempotently, every boot.
+#
+# thingino's crond runs with `-c /etc/cron/crontabs`, so the root crontab is
+# /etc/cron/crontabs/root. We append two lines (guarded by a marker so this is
+# safe to run on every boot and never duplicates):
+#   * * * * * /sbin/selfheal.sh check            (network + daemon watchdog)
+#   0 3 * * * /sbin/selfheal.sh reboot-scheduled (staggered nightly reboot)
+#
+# thingino ships that file with a commented-out `#0 3 * * * reboot -f` example;
+# we leave it untouched and add our own (staggered, logged) reboot instead.
+
+CRONTAB=/etc/cron/crontabs/root
+SCRIPT=/sbin/selfheal.sh
+MARKER="# --- self-heal watchdog"
+
+start() {
+	chmod +x "$SCRIPT" 2>/dev/null
+
+	if ! grep -qF "$MARKER" "$CRONTAB" 2>/dev/null; then
+		# create the file (with a header) if it does not exist yet
+		[ -f "$CRONTAB" ] || { mkdir -p "$(dirname "$CRONTAB")"; : > "$CRONTAB"; }
+		cat >> "$CRONTAB" <<EOF
+
+$MARKER (S96selfheal, do not edit this block) ---
+* * * * * $SCRIPT check
+0 3 * * * $SCRIPT reboot-scheduled
+EOF
+		# busybox crond reloads on crontab mtime change; nudge it as well.
+		kill -HUP "$(pidof crond)" 2>/dev/null
+		logger -t selfheal "cron entries installed"
+	fi
+}
+
+case "$1" in
+	start) start ;;
+	stop)  : ;;   # nothing to tear down; cron entries persist by design
+	restart|reload) start ;;
+	*) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac
+
+exit 0
