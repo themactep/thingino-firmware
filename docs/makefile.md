@@ -12,6 +12,7 @@ This document provides comprehensive documentation for working with the Thingino
 - [Package Management](#package-management)
 - [Buildroot Integration](#buildroot-integration)
 - [Firmware Deployment](#firmware-deployment)
+  - [Overlay Backup](#overlay-backup)
 - [Shared Host Directory](#shared-host-directory)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
@@ -441,6 +442,27 @@ make upload_tftp TFTP_IP_ADDRESS=192.168.1.254
 
 Uploads the full firmware image to TFTP server for network installation.
 
+### Overlay Backup
+
+#### `backup-overlay`
+Back up the `/overlay/` filesystem from a running camera to a local tarball.
+No camera profile required — the image name is auto-detected from the device.
+
+```bash
+make backup-overlay IP=192.168.1.10
+```
+
+Tarballs are stored in `THINGINO_BACKUP_DIR` (default: `~/.thingino/backups/`)
+with a timestamped filename: `<camera>-<ip>-<YYYYMMDD-HHMMSS>.tar.gz`.
+
+```bash
+# Custom backup directory
+make backup-overlay IP=192.168.1.10 THINGINO_BACKUP_DIR=/mnt/nas/camera-backups
+```
+
+See [overlay-backup.md](overlay-backup.md) for full details including restore
+instructions and troubleshooting.
+
 ---
 
 ## Shared Host Directory
@@ -805,7 +827,8 @@ make rebuild-<package>        # Rebuild package
 make <package>-menuconfig     # Configure package (kernel, busybox, etc.)
 
 # Deploy
-make ota IP=x.x.x.x           # Flash full firmware
+make ota IP=x.x.x.x               # Flash full firmware
+make backup-overlay IP=x.x.x.x    # Backup /overlay/ from camera
 
 # Clean
 make clean                    # Clean build artifacts
