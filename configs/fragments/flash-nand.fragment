@@ -22,6 +22,15 @@ BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/board/inge
 # host tools: ubinize / mkfs.ubifs for the Makefile NAND pack stage
 BR2_PACKAGE_HOST_MTD=y
 
+# kernel cmdline mtd-id: the mtdparts= mtd-id in the generated bootargs must
+# match the kernel SFC NAND driver's mtd name ("sfc_nand" on the t40 4.4 tree,
+# "sfc0_nand" on t41), NOT the NOR default "jz_sfc" from core.fragment, or the
+# cmdline partition parser silently matches nothing and UBI finds no "ubi" mtd.
+# NAND_FLASH_CONTROLLER_SYM is resolved per SoC in thingino.mk; a camera
+# defconfig (appended after fragments) can still override the choice.
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_$(NAND_FLASH_CONTROLLER_SYM)=y
+
 # root: the rootfs stays squashfs (built by core.fragment); the Makefile NAND
 # branch wraps it in the "rootfs" UBI volume, mounted read-only via ubiblock,
 # with a separate read-write UBIFS "overlay" volume. root= / rootfstype= here

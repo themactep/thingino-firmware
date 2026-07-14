@@ -603,6 +603,17 @@ else
 UBOOT_BOARD_FLASH := nor
 endif
 
+# Kconfig choice suffix for the kernel SFC NAND mtd-id: the mtdparts= mtd-id in
+# the generated bootargs must match the kernel driver's mtd name, which differs
+# per SoC kernel tree ("sfc_nand" on the t40 4.4 tree, "sfc0_nand" on t41).
+# Substituted into flash-nand.fragment by SED_CONFIG_VARS.
+ifeq ($(SOC_FAMILY),t41)
+NAND_FLASH_CONTROLLER_SYM := SFC0_NAND
+else
+NAND_FLASH_CONTROLLER_SYM := SFC_NAND
+endif
+export NAND_FLASH_CONTROLLER_SYM
+
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC_NAND),y)

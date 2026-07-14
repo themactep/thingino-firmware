@@ -254,6 +254,7 @@ SED_CONFIG_VARS = sed \
 	 s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; \
 	 s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; \
 	 s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; \
+	 s/\$$[(]NAND_FLASH_CONTROLLER_SYM[)]/$(NAND_FLASH_CONTROLLER_SYM)/g; \
 	 s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; \
 	 s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; \
 	 s/\$$[(]KERNEL_BRANCH[)]/$(KERNEL_BRANCH)/g; \
