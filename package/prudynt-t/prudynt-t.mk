@@ -197,7 +197,7 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_OPUS=$(PRUDYNT_T_USE_OPUS) \
 		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
-		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
+		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
