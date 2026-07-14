@@ -609,8 +609,10 @@ endif
 # Substituted into flash-nand.fragment by SED_CONFIG_VARS.
 ifeq ($(SOC_FAMILY),t41)
 NAND_FLASH_CONTROLLER_SYM := SFC0_NAND
+NAND_FLASH_CONTROLLER := sfc0_nand
 else
 NAND_FLASH_CONTROLLER_SYM := SFC_NAND
+NAND_FLASH_CONTROLLER := sfc_nand
 endif
 export NAND_FLASH_CONTROLLER_SYM
 
@@ -628,6 +630,12 @@ else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC1_NAND),y)
 	UBOOT_FLASH_CONTROLLER := sfc1_nand
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM),y)
 	UBOOT_FLASH_CONTROLLER := $(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING))
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	# The top-level make only includes the camera defconfig (board.mk), not the
+	# fragments, so the FLASH_CONTROLLER choice set by flash-nand.fragment is
+	# invisible here unless the camera defconfig sets it. Fall back to the same
+	# per-SoC NAND mtd-id the fragment resolves to.
+	UBOOT_FLASH_CONTROLLER := $(NAND_FLASH_CONTROLLER)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
