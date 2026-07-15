@@ -1090,7 +1090,16 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	#     U-Boot's DT - so mtdparts= is REQUIRED. "ubi.mtd=ubi" attaches the rest
 	#     as ubi0; "ubi.block=0,rootfs" exposes the squashfs "rootfs" volume as
 	#     /dev/ubiblock0_2. root= / rootfstype= come from the flash-nand fragment.
-	echo 'bootcmd=ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=$(UBOOT_FLASH_CONTROLLER):1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=$(UBOOT_FLASH_CONTROLLER):1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
+	# NAND autoupdate: the sf (SPI-NOR) autoupdate from common.uenv.txt cannot flash
+	# NAND, so replace it with a full-chip mtd erase + write of the NAND
+	# thingino-<camera>.bin (placed on the SD card as autoupdate-full.bin). "mtd write"
+	# adds ECC/OOB and skips bad blocks; the whole-chip erase clears stale UBI PEBs.
+	# HW-validated on T40XP: the bootrom loads an mtd-written SPL. Prepended
+	# $(AUTOUPDATE_PREFIX) above wires it into the NAND bootcmd (the sf path already
+	# had it); both are stripped for non-SDCARD builds by the guard below.
+	sed -i '/^autoupdate=/d' $@
+	echo 'autoupdate=if test "$${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 $${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if mtd erase spi-nand0 && mtd write spi-nand0 $${loadaddr} 0x0 $${filesize}; then fatwrite mmc 0:1 $${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi' >> $@
 else
 	# SFC boot: read kernel from SPI flash
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
