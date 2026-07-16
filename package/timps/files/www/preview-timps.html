@@ -56,6 +56,33 @@
       height: 100%;
       pointer-events: none;
     }
+    /* PTZ overlay: only the 9 joystick buttons (which together fill its
+       300px hover-reveal circle, see a/main.css #motor/.jst) should take
+       the pointer - everything else must fall through to the native
+       <video controls> bar and click-to-play surface underneath. main.css
+       reveals the joystick via visibility:hidden -> visible on #motor:hover,
+       but visibility:hidden elements are never hit-tested (even with
+       pointer-events:auto), so making #motor itself click-through would
+       stop it from ever detecting the hover that reveals it. Swapping the
+       hide/reveal to opacity keeps the buttons hit-testable while still
+       starting invisible, so hovering the circle still reveals them exactly
+       as before - only the container layers around/behind them become
+       click-through. */
+    #motor-overlay,
+    #motor,
+    .jst {
+      pointer-events: none;
+    }
+    .jst {
+      visibility: visible !important;
+      opacity: 0;
+    }
+    #motor:hover .jst {
+      opacity: 1;
+    }
+    .jst a {
+      pointer-events: auto;
+    }
     .ms-hint {
       font-size: 0.875rem;
       color: var(--bs-secondary-color);
@@ -95,7 +122,7 @@
         </div>
         <div class="card-body">
           <div class="ms-video-wrap">
-            <video id="ms-video" autoplay muted controls playsinline></video>
+            <video id="ms-video" autoplay muted controls playsinline disableremoteplayback></video>
             <canvas id="motion-overlay" style="display:none" aria-hidden="true"></canvas>
             <div class="position-absolute top-50 start-50 translate-middle text-center" id="ms-connecting-overlay" style="display:none;">
               <div class="spinner-border text-light mb-2" role="status" style="width:3rem;height:3rem;">
@@ -199,15 +226,19 @@
     // live SPS server-side; a static page cannot, so probe common strings.
     // The init segment carries the real avcC/hvcC, so a generic profile in
     // the MIME string is fine for MSE.
-    function pickMime() {
+    function pickMime(MS) {
       const candidates = [
         'video/mp4; codecs="avc1.640028, mp4a.40.2"', // H.264 High + AAC
         'video/mp4; codecs="avc1.640028"',            // H.264 High, video only
         'video/mp4; codecs="hvc1.1.6.L123.B0, mp4a.40.2"', // H.265 + AAC
         'video/mp4; codecs="hvc1.1.6.L123.B0"'        // H.265, video only
       ];
+      // isTypeSupported must be queried on whichever MSE class we'll actually
+      // construct (ManagedMediaSource on iOS) - the bare global MediaSource
+      // is undefined there, so calling it unqualified throws before this
+      // function even gets a chance to fall back to progressive playback.
       for (const m of candidates) {
-        if (MediaSource.isTypeSupported(m)) return m;
+        if (MS && MS.isTypeSupported(m)) return m;
       }
       return null;
     }
@@ -246,9 +277,15 @@
       const tok = info && info.token
         ? "&token=" + encodeURIComponent(info.token) : "";
       const src = base + "/stream.mp4?chn=" + chn + tok;
-      const mime = pickMime();
+      // iOS Safari never exposes window.MediaSource; since iOS 17.1 it
+      // exposes window.ManagedMediaSource instead (requires
+      // disableremoteplayback, set on the <video> tag above). Desktop
+      // browsers keep using plain MediaSource. Mirrors the fix already
+      // applied to timps's own embedded player (src/mp4/httpd.c PLAYER_TAIL).
+      const MS = window.ManagedMediaSource || window.MediaSource;
+      const mime = pickMime(MS);
 
-      if (!window.MediaSource || !mime) {
+      if (!MS || !mime) {
         // no MSE (e.g. old iOS Safari): let the <video> try progressive mp4
         video.src = src;
         setConnectedUi(true);
@@ -256,12 +293,13 @@
         return;
       }
 
-      const ms = new MediaSource();
+      const ms = new MS();
       mediaSource = ms;
       video.src = URL.createObjectURL(ms);
 
       ms.addEventListener("sourceopen", async () => {
         if (session !== mySession) return;   // superseded while opening
+        try { ms.duration = Infinity; } catch (e) { /* Safari live-MSE hint */ }
         let sb;
         try {
           sb = ms.addSourceBuffer(mime);
