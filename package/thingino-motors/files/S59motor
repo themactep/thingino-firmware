@@ -101,17 +101,15 @@ start() {
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
-		# invert_x/invert_y apply to both SPI and GPIO/TCU steppers
-		if [ -n "$invert_x" ]; then
-			modprobe_args="$modprobe_args invert_x=$invert_x"
-		fi
-
-		if [ -n "$invert_y" ]; then
-			modprobe_args="$modprobe_args invert_y=$invert_y"
-		fi
-
 		if [ "true" = "$is_spi" ]; then
-			: # nothing else needed here; invert_x/invert_y already added above
+			# invert_x/invert_y are real module params only on the SPI driver.
+			if [ -n "$invert_x" ]; then
+				modprobe_args="$modprobe_args invert_x=$invert_x"
+			fi
+
+			if [ -n "$invert_y" ]; then
+				modprobe_args="$modprobe_args invert_y=$invert_y"
+			fi
 		else
 			modprobe_args="$modprobe_args tcu_channels=2"
 
@@ -146,6 +144,14 @@ start() {
 	start_daemon $DAEMON_ARGS
 	# FIXME: daemon should be reporting running state from the very first moment
 	sleep 1
+
+	# GPIO/TCU driver has no invert_x/invert_y module params (SPI-only); apply
+	# inversion at runtime via IPC instead. Daemon starts un-inverted on every
+	# boot, so this must run every time, not just on first module load.
+	if [ "true" != "$is_spi" ]; then
+		[ "true" = "$invert_x" ] && motors -I x
+		[ "true" = "$invert_y" ] && motors -I y
+	fi
 
 	# FIXME: motors may have different speeds for pan and tilt
 	set_motors_speed $speed_pan
