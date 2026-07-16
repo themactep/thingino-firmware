@@ -715,7 +715,19 @@ loadInitialData().then(async () => {
     `${timpsMediaUrl("live", chn)}&_=${Date.now()}`;
 
   // Preview
-  const timeout = 15000;
+  // NOTE on `timeout`: this is a coarse last-resort safety net, not a
+  // per-frame liveness check. A multipart/x-mixed-replace <img> only ever
+  // fires ONE "load" event, for the very first part - the browser does not
+  // re-fire it for subsequent MJPEG frames, so `lastLoadTime` never advances
+  // once the stream is up. A short timeout here would therefore force a
+  // reconnect of an otherwise perfectly healthy, continuously streaming
+  // preview every `timeout` ms forever (confirmed: server-side stream_mjpeg()
+  // has no time/byte cap, connections were closing client-side every ~15s
+  // while still transferring MBs of live JPEG data). This only exists to
+  // recover a stream that goes truly silent without the browser ever firing
+  // "error" (e.g. the camera's JPEG source hangs, or a network stall drops
+  // packets without a socket-level error) - genuinely rare, so it can be long.
+  const timeout = 120000;
   const restartBackoffInitialMs = 15000;
   const restartBackoffMaxMs = 60000;
   let lastLoadTime = Date.now();
