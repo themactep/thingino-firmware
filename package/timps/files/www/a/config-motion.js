@@ -183,11 +183,24 @@
     }
   }
 
+  // cols/rows/sensitivity all interact (axis limits are re-clamped against
+  // max_cells), so a remote change just re-runs the normal full load instead
+  // of patching one field - cheap (one GET) and always internally consistent.
+  function onConfigEvent(type, data) {
+    if (!data || loading) return;
+    if (!data.resync && (typeof data.key !== "string" || data.key.indexOf("motion.") !== 0))
+      return;
+    const ae = document.activeElement;
+    if (ae && controls.indexOf(ae) >= 0) return; // don't fight the user mid-edit
+    loadMotion();
+  }
+
   function init() {
     setDisabled(true); // greyed until the streamer confirms support
     drawGridPreview(5, 5);
     bind();
     loadMotion();
+    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }
 
   if (document.readyState === "loading") {

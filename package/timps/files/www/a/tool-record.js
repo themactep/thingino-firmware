@@ -33,6 +33,13 @@
     { id: "rec_minfree",  key: "min_free_mb", type: "int"  },
   ];
 
+  // reverse of FIELDS (timps "record.<key>" -> page field id), so another
+  // open tab/client changing a setting shows up here live instead of only on
+  // next reload. "active" (manual start/stop) is not covered: it never goes
+  // through the config-sync push, only the settings fields below do.
+  var REVERSE = {};
+  FIELDS.forEach(function (f) { REVERSE["record." + f.key] = f.id; });
+
   var form = $("recForm");
   var reloadBtn = $("rec-reload");
   var saveBtn = $("rec-save");
@@ -118,8 +125,22 @@
     });
   }
 
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; }
+    var id = REVERSE[data.key];
+    if (!id) return;
+    var f = FIELDS.find(function (x) { return x.id === id; });
+    var el = $(id);
+    // don't fight the user mid-edit on this same field
+    if (!f || !el || document.activeElement === el) return;
+    if (f.type === "bool") el.checked = (data.value === "1" || data.value === "true");
+    else el.value = data.value;
+  }
+
   if (form) form.addEventListener("submit", save);
   if (reloadBtn) reloadBtn.addEventListener("click", load);
+  window.timpsApi.events("config", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });

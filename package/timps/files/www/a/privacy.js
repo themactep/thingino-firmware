@@ -22,6 +22,7 @@
   var streamW = 1920, streamH = 1080;
   var regions = [];            // [{enabled,x,y,w,h,color}] in STREAM coords
   var selected = -1;
+  var dragging = false;        // true while a box move/resize drag is live
 
   var stage = document.getElementById("pm-stage");
   var img = document.getElementById("pm-img");
@@ -154,6 +155,7 @@
 
   function startDrag(ev, n, mode) {
     ev.preventDefault();
+    dragging = true;
     select(n);
     var s = scale();
     var r = regions[n];
@@ -174,6 +176,7 @@
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       try { ev.target.releasePointerCapture(e.pointerId); } catch (er) { /* ok */ }
+      dragging = false;
       send(n);
     }
     window.addEventListener("pointermove", move);
@@ -300,6 +303,27 @@
     });
   }
 
+  /* ---- live sync: another open tab/client editing a mask on this stream --- */
+
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; }
+    var m = /^privacy(\d+)\.(\d+)\.(\w+)$/.exec(data.key || "");
+    if (!m) return;
+    var s = Number(m[1]), n = Number(m[2]), leaf = m[3];
+    if (s !== streamIdx || n < 0 || n >= regions.length || dragging) return;
+    var ae = document.activeElement;
+    // don't fight the user mid-drag/mid-edit of this same mask's list row
+    if (ae && ae.id && ae.id.indexOf("pm-") === 0) return;
+    var r = regions[n];
+    if (leaf === "enabled") r.enabled = (data.value === "1" || data.value === "true") ? 1 : 0;
+    else if (leaf === "x" || leaf === "y" || leaf === "w" || leaf === "h")
+      r[leaf] = parseInt(data.value, 10) || 0;
+    else if (leaf === "color") r.color = data.value;
+    else return;
+    render();
+  }
+
   if (streamSel) streamSel.addEventListener("change", function () {
     streamIdx = parseInt(streamSel.value, 10) || 0;
     load();
@@ -307,6 +331,7 @@
   if (addBtn) addBtn.addEventListener("click", addMask);
   if (reloadBtn) reloadBtn.addEventListener("click", load);
   window.addEventListener("resize", renderBoxes);
+  if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });

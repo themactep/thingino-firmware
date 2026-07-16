@@ -148,8 +148,29 @@
     });
   }
 
+  /* ---- live sync: another open tab/client changing enabled/thresholds ---- */
+
+  var TIMPS_REVERSE = {
+    "daynight.enabled": "daynight_enabled",
+    "daynight.total_gain_night_threshold": "daynight_total_gain_night_threshold",
+    "daynight.total_gain_day_threshold": "daynight_total_gain_day_threshold",
+  };
+
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; }
+    var id = TIMPS_REVERSE[data.key];
+    if (!id) return;
+    var el = $(id);
+    // don't fight the user mid-edit on this same field
+    if (!el || document.activeElement === el) return;
+    if (id === "daynight_enabled") el.checked = (data.value === "1" || data.value === "true");
+    else el.value = Math.round(Number(data.value));
+  }
+
   if (saveBtn) saveBtn.addEventListener("click", save, { capture: true });
   if (reloadBtn) reloadBtn.addEventListener("click", load);
+  window.timpsApi.events("config", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });
