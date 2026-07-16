@@ -41,7 +41,11 @@ read_config_text() {
 
 default_snapshot_url() {
 	[ -n "$1" ] || return 1
-	printf 'http://%s/x/ch0.jpg' "$1"
+	# /onvif/image.cgi works on every streamer: thingino-onvif symlinks it to
+	# x/ch0.jpg on prudynt/raptor images, and timps repoints it to its own
+	# /snapshot.jpg endpoint (see package/timps/timps.mk). x/ch0.jpg itself
+	# doesn't exist on timps images.
+	printf 'http://%s/onvif/image.cgi' "$1"
 }
 
 default_api_base_url() {
