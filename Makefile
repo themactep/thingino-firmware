@@ -188,7 +188,11 @@ THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
 UBOOT_BIN_NAME := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
-AUTOUPDATE_PREFIX := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;)
+# loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
+# (env partition included) and resets, so an env imported before flashing would
+# be lost. Running after means uenv.txt is applied on the first boot of the
+# freshly flashed firmware (autoupdate skips via its .done marker by then).
+AUTOUPDATE_PREFIX := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;run loaduenv;)
 
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
@@ -1111,7 +1115,7 @@ else
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
 	@if ! grep -q '^BR2_THINGINO_SDCARD=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
-		sed -i '/^autoupdate=/d; /^mmc_power=/d; /^preboot=/d; /^gpio_mmc_power=/d; /^gpio_mmc_power_active_low=/d; s|run autoupdate;||' $@; \
+		sed -i '/^autoupdate=/d; /^loaduenv=/d; /^mmc_power=/d; /^preboot=/d; /^gpio_mmc_power=/d; /^gpio_mmc_power_active_low=/d; s|run autoupdate;||; s|run loaduenv;||' $@; \
 	fi
 	@if ! grep -q '^BR2_THINGINO_BUTTON=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
 		sed -i '/^button_cmd_0_name=/d; /^button_cmd_0=/d; /^overlay_wipe=/d; /^gpio_button=/d' $@; \

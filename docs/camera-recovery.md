@@ -16,6 +16,16 @@ new firmware from a FAT32 SD card. The firmware should be in a file named
 `autoupdate-full.bin`. Insert the SD card into the camera and power it on. The
 camera will automatically flash the firmware.
 
+The bootloader also looks for a `uenv.txt` on the same card: a plain text file
+with `name=value` lines (CRLF line endings are fine) that is imported into the
+U-Boot environment and saved to flash. Use it to preseed settings such as WiFi
+credentials alongside a firmware flash. Each file is applied once, then marked
+done with a flag file on the card (`autoupdate-full.done`, `uenv.done`); delete
+the flag file to apply it again. If both files are present, the firmware is
+flashed first and `uenv.txt` is imported on the first boot of the new firmware.
+Setting `enable_updates=false` in the saved environment disables both
+mechanisms.
+
 If camera bootloader is not working, you can try to recover it by booting the
 camera from an SD card. Prepare such a card by flashing a bootloader image
 from the [Thingino bootloader repository][uboot-msc0] to it. Insert the card
