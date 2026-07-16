@@ -42,12 +42,24 @@ EOF
   echo "$session_id"
 }
 
+# Session IDs are 32 lowercase-hex chars; reject anything else before use
+# as a path component (see commit message for the LFI this closes).
+# Usage: is_valid_session_id <session_id>
+is_valid_session_id() {
+  case "$1" in
+    '' | *[!0-9a-f]*) return 1 ;;
+  esac
+  return 0
+}
+
 # Validate and update session
 # Usage: validate_session <session_id>
 # Returns: 0 if valid, 1 if invalid
 validate_session() {
   local session_id="$1"
   local session_file="$SESSION_DIR/$session_id"
+
+  is_valid_session_id "$session_id" || return 1
 
   # Check if session file exists
   [ -f "$session_file" ] || return 1
@@ -68,6 +80,7 @@ get_session_data() {
   local key="$2"
   local session_file="$SESSION_DIR/$session_id"
 
+  is_valid_session_id "$session_id" || return 1
   [ -f "$session_file" ] || return 1
 
   . "$session_file"
@@ -78,6 +91,7 @@ get_session_data() {
 # Usage: delete_session <session_id>
 delete_session() {
   local session_id="$1"
+  is_valid_session_id "$session_id" || return 1
   rm -f "$SESSION_DIR/$session_id"
 }
 
@@ -89,6 +103,11 @@ cleanup_sessions() {
 
 # Extract session ID from Cookie header
 # Usage: get_session_from_cookie
+#
+# Strips per-cookie leading whitespace before matching (see commit message
+# for the auth redirect-loop bug this fixes), takes the last match if
+# duplicates exist, and restricts the result to the session-ID hex charset.
 get_session_from_cookie() {
-  echo "$HTTP_COOKIE" | tr ';' '\n' | grep "^${COOKIE_NAME}=" | cut -d= -f2 | tr -d ' '
+  printf '%s\n' "$HTTP_COOKIE" | tr ';' '\n' | sed 's/^[[:space:]]*//' \
+    | grep "^${COOKIE_NAME}=" | tail -n 1 | cut -d= -f2- | tr -cd '0-9a-f'
 }
