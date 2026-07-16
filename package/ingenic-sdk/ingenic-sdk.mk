@@ -7,7 +7,7 @@ INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
 
 # Ensure thingino-core is installed before ingenic-sdk so thingino.json is available
-INGENIC_SDK_DEPENDENCIES = thingino-core
+INGENIC_SDK_DEPENDENCIES = thingino-core host-thingino-jct
 
 # Optional ISP firmware version for sensor IQ selection. When set, IQ tuning is
 # taken from sensor-iq/<soc>/<version>/ (e.g. t23 2.10) instead of the flat
@@ -78,18 +78,25 @@ LINUX_CONFIG_LOCALVERSION = \
 
 TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 
+# Use the host jct tool by absolute path, not a bare `which jct`: the
+# host PATH is not guaranteed to carry it, and a silent miss here drops
+# the button config with no error. host-thingino-jct is a build
+# dependency (above) so the tool exists when this runs.
+INGENIC_SDK_JCT = $(HOST_DIR)/bin/jct
+
 define GENERATE_GPIO_USERKEYS_CONFIG
 	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
+		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
+			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
+		fi; \
 		gpio_userkeys_config=""; \
-		if which jct >/dev/null 2>&1; then \
-			button_reset=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
-			if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-				gpio_userkeys_config="28,$${button_reset},1"; \
-			fi; \
-			button_chime=$$(jct $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
-			if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
-				gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
-			fi; \
+		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
+		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
+			gpio_userkeys_config="28,$${button_reset},1"; \
+		fi; \
+		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
+		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
+			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 		fi; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
 			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
