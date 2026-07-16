@@ -216,6 +216,8 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset http https "$(call raptor_bval,HTTP_HTTPS)"; \
 	rset http cert "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_HTTP_CERT))"; \
 	rset http key "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_HTTP_KEY))"; \
+	rset http exif_timestamp "$(call raptor_bval,HTTP_EXIF_TIMESTAMP)"; \
+	rset http sign_snapshots "$(call raptor_bval,HTTP_SIGN_SNAPSHOTS)"; \
 	\
 	rset osd enabled "$(call raptor_bval,OSD_ENABLED)"; \
 	rset osd isp_osd "$(call raptor_bval,OSD_ISP_OSD)"; \
