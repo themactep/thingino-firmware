@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.3.0
+TIMPS_VERSION = v1.3.3
 
 # Submodule provides the IMP headers (ingenic-headers).
 TIMPS_GIT_SUBMODULES = YES
@@ -74,6 +74,7 @@ define TIMPS_BUILD_CMDS
 		PLATFORM=$(shell echo $(SOC_FAMILY) | tr a-z A-Z) \
 		IMP_LIB=$(STAGING_DIR)/usr/lib \
 		IMPLIBS="$(TIMPS_IMPLIBS)" \
+		FAACLIB="-lfaac" \
 		CFLAGS="$(TIMPS_CFLAGS)" \
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
