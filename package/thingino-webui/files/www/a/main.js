@@ -2838,41 +2838,61 @@ function initPasswordRevealToggles(root = document) {
     }
   });
 
-  // Check session status and default password
-  async function checkSessionAndPassword() {
+  // Check session status and default password.
+  // Only a definitive 401/403 or authenticated:false triggers a redirect;
+  // transient failures retry with backoff instead of bouncing to /login.html.
+  async function checkSessionAndPassword(attempt) {
+    attempt = attempt || 0;
+    let data = null;
+
     try {
       const response = await fetch("/x/session-status.cgi", {
         cache: "no-store",
       });
 
-      if (!response.ok) {
-        // Session check failed - redirect to login
+      if (response.status === 401 || response.status === 403) {
+        // definitive auth refusal from the server
         window.location.href = "/login.html";
         return;
       }
 
-      const data = await response.json();
-
-      if (!data.authenticated) {
-        // Not authenticated - redirect to login
-        window.location.href = "/login.html";
-        return;
+      if (response.ok) {
+        data = await response.json(); // non-JSON throws -> retry path
       }
-
-      // Check if using default password
-      if (data.is_default_password) {
-        isDefaultPassword = true;
-        passwordCheckComplete = true;
-        showPasswordWarningModal();
-      } else {
-        isDefaultPassword = false;
-        passwordCheckComplete = true;
-        heartbeat();
-      }
+      // any other status (5xx, 0-length proxy error, ...) -> retry path
     } catch (err) {
       console.error("Session check failed:", err);
-      // On error, redirect to login
+    }
+
+    if (!data || typeof data.authenticated === "undefined") {
+      if (attempt < 2) {
+        setTimeout(
+          () => checkSessionAndPassword(attempt + 1),
+          1000 * (attempt + 1),
+        );
+      } else {
+        console.error(
+          "Session status endpoint unreachable - staying on page instead of redirecting to login",
+        );
+      }
+      return;
+    }
+
+    if (!data.authenticated) {
+      // Not authenticated - redirect to login
       window.location.href = "/login.html";
+      return;
+    }
+
+    // Check if using default password
+    if (data.is_default_password) {
+      isDefaultPassword = true;
+      passwordCheckComplete = true;
+      showPasswordWarningModal();
+    } else {
+      isDefaultPassword = false;
+      passwordCheckComplete = true;
+      heartbeat();
     }
   }
 
