@@ -206,6 +206,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset rtsp session_timeout "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_TIMEOUT))"; \
 	rset rtsp tcp_sndbuf "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TCP_SNDBUF))"; \
 	rset rtsp backchannel "$(call raptor_bval,RTSP_BACKCHANNEL)"; \
+	rset rtsp sei_timecode "$(call raptor_bval,RTSP_SEI_TIMECODE)"; \
 	\
 	rset http enabled "$(call raptor_bval,HTTP_ENABLED)"; \
 	rset http port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_HTTP_PORT))"; \
@@ -283,6 +284,9 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset recording prebuffer_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_PREBUFFER_SEC))"; \
 	rset recording clip_length_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_CLIP_LENGTH_SEC))"; \
 	rset recording clip_max_mb "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_CLIP_MAX_MB))"; \
+	rset recording sei_timecode "$(call raptor_bval,RECORDING_SEI_TIMECODE)"; \
+	rset recording sign "$(call raptor_bval,RECORDING_SIGN)"; \
+	rset recording sign_key "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_SIGN_KEY))"; \
 	\
 	rset webrtc enabled "$(call raptor_bval,WEBRTC_ENABLED)"; \
 	rset webrtc udp_port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_UDP_PORT))"; \
