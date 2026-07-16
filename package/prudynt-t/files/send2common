@@ -33,7 +33,14 @@ copy_photo() {
 	fi
 
 	local tmpfile="$(mktemp -u).jpg"
-	prudyntctl snapshot -c 0 > "$tmpfile"
+	if command -v prudyntctl >/dev/null 2>&1; then
+		prudyntctl snapshot -c 0 > "$tmpfile"
+	elif command -v timpsd >/dev/null 2>&1; then
+		# timps images have no prudyntctl; pull a still straight from timps's
+		# own local HTTP server instead. Loopback connections skip auth (see
+		# httpd.c), so no token is needed here.
+		curl --silent "http://127.0.0.1:8880/snapshot.jpg?chn=0" > "$tmpfile"
+	fi
 	add_to_garbage "$tmpfile"
 	echo "$tmpfile"
 }
@@ -50,6 +57,15 @@ copy_video() {
 	fi
 
 	local tmpfile="$(mktemp -u).mp4"
+
+	# On-demand clip triggering only exists via prudynt's mp4ctl FIFO today;
+	# timps has no equivalent, so fail fast instead of waiting on a FIFO that
+	# will never appear.
+	if ! command -v prudyntctl >/dev/null 2>&1; then
+		echo "send2: on-demand video clips are not supported on this streamer" >&2
+		echo "$tmpfile"
+		return 1
+	fi
 
 	# Check if mp4ctl interface exists
 	if [ ! -e "/run/prudynt/mp4ctl" ]; then

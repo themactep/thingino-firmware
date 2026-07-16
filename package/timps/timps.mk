@@ -165,9 +165,46 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	if [ -f $(TARGET_DIR)/etc/httpd.conf ]; then \
 		sed -i 's#^P:/mjpeg:.*#P:/mjpeg:http://127.0.0.1:8880/stream.mjpeg#' \
 			$(TARGET_DIR)/etc/httpd.conf ; \
+		sed -i '\#^P:/onvif/image\.cgi:#d' $(TARGET_DIR)/etc/httpd.conf ; \
+		echo 'P:/onvif/image.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=0' \
+			>> $(TARGET_DIR)/etc/httpd.conf ; \
 	fi
+	# ch0.jpg above was thingino-onvif's snapshot source (onvif/image.cgi ->
+	# x/ch0.jpg); with it gone that symlink is dangling. timps has no static
+	# snapshot file, so proxy the ONVIF snapshot URL straight to timps's own
+	# endpoint instead (same P: mechanism as /mjpeg above; loopback so no
+	# token is needed, see httpd.c's 127.0.0.0/8 auth bypass).
+	rm -f $(TARGET_DIR)/var/www/onvif/image.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+endif
+
+# NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
+# webhook + the send2common helpers they share). This lives under
+# package/prudynt-t/files/ for historical reasons but its content is
+# streamer-agnostic: send2common's copy_photo()/copy_video() already fall
+# back to timps's own local snapshot endpoint when prudyntctl is absent.
+# thingino-webui's telegram-cam-agent (MQTT "snap"/"clip" commands) and the
+# stock Send-to config pages are installed on every image regardless of
+# streamer (gated only on BR2_THINGINO_DEV_IPCAM), so without this the
+# scripts they call are simply missing on a timps image. Install from a
+# finalize hook (not a normal package dependency) so this doesn't require
+# enabling the prudynt-t Buildroot package itself.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM),yy)
+PRUDYNT_T_FILES_DIR = $(PRUDYNT_T_PKGDIR)/files
+define TIMPS_INSTALL_SEND2
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/prudynt-helpers \
+		$(TARGET_DIR)/usr/share/prudynt-helpers
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/send2common \
+		$(TARGET_DIR)/usr/share/send2common
+	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
+	done
+	[ -f $(TARGET_DIR)/etc/send2.json ] || \
+		$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/send2.json \
+			$(TARGET_DIR)/etc/send2.json
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_SEND2
 endif
 
 # NOTE: preview page. thingino-webui picks the preview page (preview.html) at
