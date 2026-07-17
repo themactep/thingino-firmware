@@ -180,10 +180,14 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
 endif
 
 # NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
-# webhook + the send2common helpers they share). This lives under
-# package/prudynt-t/files/ for historical reasons but its content is
-# streamer-agnostic: send2common's copy_photo()/copy_video() already fall
-# back to timps's own local snapshot endpoint when prudyntctl is absent.
+# webhook + the send2common helper they share). The unmodified send2* tools and
+# prudynt-helpers are re-installed as-is from package/prudynt-t/files/. The two
+# files timps has to ADAPT are shipped as timps's OWN copies under
+# package/timps/files/ instead of patching the shared prudynt-t / thingino-webui
+# files: send2common (prudyntctl -> timps /snapshot.jpg fallback) and
+# telegram-cam-register (snapshot via /onvif/image.cgi instead of /x/ch0.jpg).
+# Re-sync those two from upstream when the shared originals change (e.g. the
+# send2 shell-injection hardening).
 # thingino-webui's telegram-cam-agent (MQTT "snap"/"clip" commands) and the
 # stock Send-to config pages are installed on every image regardless of
 # streamer (gated only on BR2_THINGINO_DEV_IPCAM), so without this the
@@ -195,8 +199,10 @@ PRUDYNT_T_FILES_DIR = $(PRUDYNT_T_PKGDIR)/files
 define TIMPS_INSTALL_SEND2
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/prudynt-helpers \
 		$(TARGET_DIR)/usr/share/prudynt-helpers
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/send2common \
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/send2common \
 		$(TARGET_DIR)/usr/share/send2common
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
+		$(TARGET_DIR)/usr/sbin/telegram-cam-register
 	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
 		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
