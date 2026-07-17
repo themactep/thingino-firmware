@@ -59,12 +59,13 @@
     return { sx: dw / streamW, sy: dh / streamH, dw: dw, dh: dh };
   }
 
-  function clampRegion(r) {
-    r.w = Math.max(MIN, Math.min(streamW, Math.round(r.w)));
-    r.h = Math.max(MIN, Math.min(streamH, Math.round(r.h)));
-    r.x = Math.max(0, Math.min(streamW - r.w, Math.round(r.x)));
-    r.y = Math.max(0, Math.min(streamH - r.h, Math.round(r.y)));
+  function clampRegionTo(r, W, H) {
+    r.w = Math.max(MIN, Math.min(W, Math.round(r.w)));
+    r.h = Math.max(MIN, Math.min(H, Math.round(r.h)));
+    r.x = Math.max(0, Math.min(W - r.w, Math.round(r.x)));
+    r.y = Math.max(0, Math.min(H - r.h, Math.round(r.y)));
   }
+  function clampRegion(r) { clampRegionTo(r, streamW, streamH); }
 
   function send(n) {
     var r = regions[n];
@@ -78,12 +79,14 @@
     if (applyBoth && otherW > 0 && otherH > 0) {
       var o = 1 - streamIdx;               // only two video streams
       var fx = otherW / streamW, fy = otherH / streamH;
+      // scale, then clamp against the OTHER stream's bounds + MIN so the mirror
+      // can't round past its width/height or shrink below the minimum edge.
+      var mr = { x: r.x * fx, y: r.y * fy, w: r.w * fx, h: r.h * fy };
+      clampRegionTo(mr, otherW, otherH);
       payload[o] = {};
       payload[o][n] = {
         enabled: r.enabled ? 1 : 0,
-        x: Math.round(r.x * fx), y: Math.round(r.y * fy),
-        w: Math.max(1, Math.round(r.w * fx)),
-        h: Math.max(1, Math.round(r.h * fy)),
+        x: mr.x, y: mr.y, w: mr.w, h: mr.h,
         color: r.color,
       };
     }
@@ -355,8 +358,14 @@
   var bothChk = document.getElementById("pm-both");
   if (bothChk) bothChk.addEventListener("change", function () {
     applyBoth = bothChk.checked;
-    // enabling mirrors the current masks onto the other stream immediately
-    if (applyBoth) regions.forEach(function (r, n) { send(n); });
+    // Enabling mirrors the current masks onto the other stream immediately, but
+    // ONLY the enabled ones: mirroring disabled slots would push enabled:0 onto
+    // the other stream and wipe masks that exist only there.
+    if (applyBoth) {
+      var any = false;
+      regions.forEach(function (r, n) { if (r.enabled) { send(n); any = true; } });
+      if (any) toast("info", "Enabled masks mirrored onto the other stream.", 2500);
+    }
   });
   window.addEventListener("resize", renderBoxes);
   if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);

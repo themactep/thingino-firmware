@@ -24,13 +24,15 @@ DEL=$(urldec "$(qval del)")
 safe() { case "$1" in ""|/*|*..*) return 1 ;; *) return 0 ;; esac; }
 
 if [ -n "$DEL" ]; then
-  if safe "$DEL" && [ -f "$BASE/$DEL" ]; then rm -f "$BASE/$DEL"; printf 'Content-Type: application/json\r\n\r\n{"ok":true}\n'
+  if safe "$DEL" && [ -f "$BASE/$DEL" ] && [ ! -L "$BASE/$DEL" ]; then rm -f "$BASE/$DEL"; printf 'Content-Type: application/json\r\n\r\n{"ok":true}\n'
   else printf 'Status: 400 Bad Request\r\n\r\n'; fi
   exit 0
 fi
 
 if [ -n "$FILE" ]; then
-  if ! safe "$FILE" || [ ! -f "$BASE/$FILE" ]; then printf 'Status: 404 Not Found\r\n\r\n'; exit 0; fi
+  # reject traversal, missing files, and symlinks (a planted symlink on an
+  # ext-formatted SD could otherwise exfiltrate arbitrary files)
+  if ! safe "$FILE" || [ ! -f "$BASE/$FILE" ] || [ -L "$BASE/$FILE" ]; then printf 'Status: 404 Not Found\r\n\r\n'; exit 0; fi
   F="$BASE/$FILE"; SZ=$(stat -c%s "$F" 2>/dev/null || echo 0)
   printf 'Status: 200 OK\r\n'
   printf 'Content-Type: video/mp4\r\n'
@@ -49,6 +51,9 @@ printf '{"base":"%s","files":[' "$BASE"
 i=0
 for f in $(find "$BASE" -type f -name '*.mp4' 2>/dev/null | sort -r); do
   rel=${f#"$BASE"/}
+  # JSON-escape the filename (backslash + double-quote) so an odd name on the SD
+  # can't break the JSON or inject into the WebUI.
+  rel=$(printf '%s' "$rel" | sed 's/\\/\\\\/g; s/"/\\"/g')
   sz=$(stat -c%s "$f" 2>/dev/null || echo 0)
   mt=$(stat -c%Y "$f" 2>/dev/null || echo 0)
   [ $i -gt 0 ] && printf ','

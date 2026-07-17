@@ -226,13 +226,23 @@
     // live SPS server-side; a static page cannot, so probe common strings.
     // The init segment carries the real avcC/hvcC, so a generic profile in
     // the MIME string is fine for MSE.
-    function pickMime(MS) {
-      const candidates = [
-        'video/mp4; codecs="avc1.640028, mp4a.40.2"', // H.264 High + AAC
-        'video/mp4; codecs="avc1.640028"',            // H.264 High, video only
-        'video/mp4; codecs="hvc1.1.6.L123.B0, mp4a.40.2"', // H.265 + AAC
-        'video/mp4; codecs="hvc1.1.6.L123.B0"'        // H.265, video only
+    //
+    // CRITICAL: only advertise an mp4a (AAC) audio track when timps actually
+    // muxes AAC into the fMP4. With PCM (G.711) audio the stream is video-only
+    // (httpd.c can_audio = acodec==AAC), so a SourceBuffer typed with mp4a would
+    // reject the 1-track init segment (MSE requires the init tracks to match the
+    // codecs string) and tear down the whole MediaSource -> black player, no
+    // video at all. When wantAac is false we therefore probe video-only strings.
+    function pickMime(MS, wantAac) {
+      const vOnly = [
+        'video/mp4; codecs="avc1.640028"',            // H.264 High
+        'video/mp4; codecs="hvc1.1.6.L123.B0"'        // H.265
       ];
+      const withAac = [
+        'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+        'video/mp4; codecs="hvc1.1.6.L123.B0, mp4a.40.2"'
+      ];
+      const candidates = wantAac ? withAac.concat(vOnly) : vOnly;
       // isTypeSupported must be queried on whichever MSE class we'll actually
       // construct (ManagedMediaSource on iOS) - the bare global MediaSource
       // is undefined there, so calling it unqualified throws before this
@@ -241,6 +251,19 @@
         if (MS && MS.isTypeSupported(m)) return m;
       }
       return null;
+    }
+
+    // Ask timps (GET /control) whether audio is enabled AND AAC; anything else
+    // (pcma/pcmu/disabled/unreachable) means the fMP4 is video-only, so we must
+    // NOT claim an AAC track to MSE. Uses the same token that unlocks /control.
+    async function streamHasAac(apiBase, tok) {
+      try {
+        const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
+                              { cache: "no-store" });
+        if (!r.ok) return false;
+        const j = await r.json();
+        return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
+      } catch (e) { return false; }   // unreachable -> safe video-only
     }
 
     async function stopStream(reason = "Disconnected") {
@@ -264,7 +287,7 @@
     // Port of timps's embedded MSE player (src/mp4/httpd.c PLAYER_TAIL):
     // sequence mode, append queue with pump(), eviction of data >10 s behind
     // playback, live-edge jump when drifting >6 s behind.
-    async function startStream() {
+    async function startStream(forceVideoOnly = false) {
       if (running) return;
       running = true;
       const mySession = ++session;   // this attempt owns the player now
@@ -283,7 +306,11 @@
       // browsers keep using plain MediaSource. Mirrors the fix already
       // applied to timps's own embedded player (src/mp4/httpd.c PLAYER_TAIL).
       const MS = window.ManagedMediaSource || window.MediaSource;
-      const mime = pickMime(MS);
+      // Advertise AAC to MSE only if timps is actually muxing it; a video-only
+      // stream (PCM audio) with an mp4a-typed SourceBuffer shows no video.
+      const wantAac = forceVideoOnly ? false : await streamHasAac(base, tok);
+      if (session !== mySession) return;   // superseded during the /control probe
+      const mime = pickMime(MS, wantAac);
 
       if (!MS || !mime) {
         // no MSE (e.g. old iOS Safari): let the <video> try progressive mp4
@@ -308,6 +335,14 @@
           return;
         }
         sb.mode = "sequence";
+        // Safety net: if we advertised AAC but the init segment is video-only
+        // (e.g. audio pipeline degraded after the /control probe), MSE fails the
+        // append asynchronously here. Retry once forcing a video-only buffer so
+        // the video still shows instead of a black player.
+        sb.addEventListener("error", () => {
+          if (session !== mySession || forceVideoOnly || !/mp4a/.test(mime)) return;
+          stopStream("Retrying video-only…").then(() => startStream(true));
+        });
         let dead = false;
         const q = [];
         let busy = false;

@@ -3,23 +3,70 @@
 # S95timps - start/stop Tiny IMP Streamer
 #
 
+PIDFILE=/var/run/timpsd.pid
+DAEMON=/usr/bin/timpsd
+CONF=/etc/timps.conf
+
+# Read a "key = value" from timps.conf (strips inline comments + quotes).
+conf_get() {
+	sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$CONF" 2>/dev/null \
+		| sed 's/[[:space:]]*#.*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/' \
+		| head -n1
+}
+
+# If TLS is requested but the cert/key are missing, generate a self-signed pair
+# so timpsd doesn't fail to bind the HTTPS/RTSPS listener on first boot.
+ensure_tls_certs() {
+	[ "$(conf_get http.https)" = "1" ] || [ "$(conf_get rtsp.tls)" = "1" ] || return 0
+	crt=$(conf_get http.tls_cert); key=$(conf_get http.tls_key)
+	[ -n "$crt" ] && [ -n "$key" ] || return 0
+	[ -s "$crt" ] && [ -s "$key" ] && return 0
+	[ -x /usr/bin/generate-timps-tls-certs.sh ] || return 0
+	/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" >/dev/null 2>&1
+}
+
+# Wait for the daemon to actually exit (IMP/rmem teardown can take a while);
+# starting a new instance too early makes ISP init fail.
+wait_stop() {
+	i=0
+	while [ $i -lt 50 ]; do
+		[ -f "$PIDFILE" ] || return 0
+		p=$(cat "$PIDFILE" 2>/dev/null)
+		[ -n "$p" ] && kill -0 "$p" 2>/dev/null || return 0
+		i=$((i + 1))
+		usleep 100000 2>/dev/null || sleep 1
+	done
+	return 1
+}
+
 case "$1" in
 	start)
 		echo "Starting timpsd..."
-		start-stop-daemon -S -b -m -p /var/run/timpsd.pid \
-			-x /usr/bin/timpsd -- -c /etc/timps.conf
+		ensure_tls_certs
+		start-stop-daemon -S -b -m -p "$PIDFILE" \
+			-x "$DAEMON" -- -c "$CONF"
 		;;
 	stop)
 		echo "Stopping timpsd..."
-		start-stop-daemon -K -p /var/run/timpsd.pid 2>/dev/null
+		start-stop-daemon -K -p "$PIDFILE" 2>/dev/null
+		wait_stop || echo "timpsd still stopping..."
+		rm -f "$PIDFILE"
 		;;
 	restart)
 		"$0" stop
-		sleep 1
+		wait_stop
 		"$0" start
 		;;
+	status)
+		if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
+			echo "timpsd running (pid $(cat "$PIDFILE"))"
+			exit 0
+		fi
+		echo "timpsd not running"
+		exit 1
+		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|status}"
 		exit 1
 		;;
 esac

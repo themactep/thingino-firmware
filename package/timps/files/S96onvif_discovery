@@ -140,8 +140,14 @@ configure_raptor_onvif_profiles() {
 timps_conf_get() {
 	key="$1"
 	esc=$(echo "$key" | sed 's/[.[\*^$]/\\&/g')
-	sed -n "s/^[[:space:]]*${esc}[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
-		"$TIMPS_CONFIG" 2>/dev/null | head -n1 | sed 's/[[:space:]]*$//'
+	# Match the daemon's parser (config.c): capture the whole value, then strip an
+	# inline comment only when the '#' is preceded by whitespace (so a literal
+	# 'p#ss' is kept), trim trailing space, and unquote a "..."/'...' value. The
+	# old "[^#]*" capture truncated at the first '#' and left quotes in place,
+	# yielding different ONVIF creds than timps enforces -> clients locked out.
+	sed -n "s/^[[:space:]]*${esc}[[:space:]]*=[[:space:]]*\(.*\)$/\1/p" \
+		"$TIMPS_CONFIG" 2>/dev/null | head -n1 \
+		| sed 's/[[:space:]]\{1,\}#.*$//; s/[[:space:]]*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/'
 }
 
 timps_bool_default() {
@@ -165,7 +171,7 @@ timps_rtsp_port() {
 	if [ "$(timps_rtsp_scheme)" = "rtsps" ]; then
 		port=$(timps_conf_get rtsp.tls_port); [ -n "$port" ] || port="322"
 	else
-		port=$(timps_conf_get rtsp.port);     [ -n "$port" ] || port="8554"
+		port=$(timps_conf_get rtsp.port);     [ -n "$port" ] || port="554"
 	fi
 	echo "$port"
 }
@@ -250,8 +256,11 @@ start() {
 		start_daemon $DAEMON_ARGS
 	done
 
-	tmpfile="$(mktemp -u).json"
-	echo '{}' >$tmpfile
+	# Create the temp file atomically (mktemp, mode 0600, O_EXCL) instead of the
+	# old "mktemp -u" predictable name + redirect, which a local attacker could
+	# pre-plant as a symlink for this root-run script to follow.
+	tmpfile="$(mktemp /tmp/onvif.XXXXXX)" || exit 1
+	echo '{}' >"$tmpfile"
 	jct $tmpfile set camera.manufacturer "Thingino"
 	jct $tmpfile set camera.model "$CAMERA"
 	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"

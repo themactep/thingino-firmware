@@ -152,7 +152,13 @@
             label: "Restart streamer",
             href: "#",
             id: "restart-prudynt-nav",
-            className: "text-danger confirm",
+            /* NOTE: no "confirm" class here on purpose. footer.js's
+             * restartPrudynt() shows its OWN confirm dialog; adding the generic
+             * .confirm layer too makes two dialogs share the one Bootstrap modal
+             * -> the second show() is a no-op mid hide-animation and auto-cancels
+             * -> the /x/restart-prudynt.cgi fetch never fires (streamer never
+             * restarts). One confirm only. */
+            className: "text-danger",
             trackActive: false,
           },
         ],
