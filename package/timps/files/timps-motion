@@ -1,0 +1,74 @@
+#!/bin/sh
+# timps motion -> send2 bridge. Set as motion.on_motion in /etc/timps.conf so
+# timps runs it on every motion event. Mirrors prudynt's motion script but
+# captures via timps: a snapshot over HTTP and an on-demand fMP4 clip via the
+# /control record.clip action. The per-service "send on motion" toggles live in
+# /etc/prudynt.json:motion.send2X (the stock thingino-webui "Send to" page
+# writes them there regardless of streamer). Runs detached so it never stalls
+# timps's motion loop; a flock stops overlapping events from piling up.
+
+PRUDYNT_JSON=/etc/prudynt.json
+SEND2_JSON=/etc/send2.json
+CHAN=0
+CLIP_SECS=6
+
+port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
+[ -n "$port" ] || port=8880
+BASE="http://127.0.0.1:$port"
+
+SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
+
+get_motion() { jct "$PRUDYNT_JSON" get "motion.$1" 2>/dev/null; }
+
+run() {
+	need_photo=false; need_video=false; any=false
+	for s in $SERVICES; do
+		[ "true" = "$(get_motion send2${s})" ] || continue
+		any=true
+		[ "true" = "$(jct "$SEND2_JSON" get ${s}.send_photo 2>/dev/null)" ] && need_photo=true
+		[ "true" = "$(jct "$SEND2_JSON" get ${s}.send_video 2>/dev/null)" ] && need_video=true
+	done
+	[ "$any" = "true" ] || exit 0
+
+	ts=$(date +%Y%m%d_%H%M%S)
+	MOTION_PHOTO_FILE="/tmp/motion_${ts}.jpg"
+	MOTION_VIDEO_FILE="/tmp/motion_${ts}.mp4"
+
+	# capture once, shared by all services (send2common reuses these files)
+	if [ "$need_photo" = "true" ]; then
+		curl --silent "$BASE/snapshot.jpg?chn=$CHAN" > "$MOTION_PHOTO_FILE"
+		[ -s "$MOTION_PHOTO_FILE" ] || MOTION_PHOTO_FILE=""
+	else
+		MOTION_PHOTO_FILE=""
+	fi
+	if [ "$need_video" = "true" ]; then
+		curl --silent --max-time 20 -X POST "$BASE/control" \
+			-d "{\"record\":{\"clip\":\"$MOTION_VIDEO_FILE\",\"seconds\":$CLIP_SECS}}" \
+			>/dev/null 2>&1
+		[ -s "$MOTION_VIDEO_FILE" ] || MOTION_VIDEO_FILE=""
+	else
+		MOTION_VIDEO_FILE=""
+	fi
+
+	pids=""
+	for s in $SERVICES; do
+		[ "true" = "$(get_motion send2${s})" ] || continue
+		command -v send2${s} >/dev/null 2>&1 || continue
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" \
+			send2${s} &
+		pids="$pids $!"
+	done
+
+	for p in $pids; do while kill -0 "$p" 2>/dev/null; do sleep 1; done; done
+	[ -n "$MOTION_PHOTO_FILE" ] && rm -f "$MOTION_PHOTO_FILE"
+	[ -n "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
+}
+
+# detach so timps's motion loop isn't blocked for the clip duration; a flock
+# (when available) stops overlapping events from piling up.
+if command -v flock >/dev/null 2>&1; then
+	( flock -n 9 || exit 0; run ) 9>/run/timps-motion.lock &
+else
+	run &
+fi
+exit 0

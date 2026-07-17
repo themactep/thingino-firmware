@@ -204,6 +204,8 @@ define TIMPS_INSTALL_SEND2
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-motion \
+		$(TARGET_DIR)/usr/sbin/timps-motion
 	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
 		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
