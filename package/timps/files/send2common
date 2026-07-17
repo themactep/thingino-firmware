@@ -24,15 +24,17 @@ _cleanup() {
 copy_photo() {
 	# Use existing photo from motion if available
 	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
-		# Copy to temp file immediately to avoid race condition with cleanup
-		local tmpfile="$(mktemp -u).jpg"
+		# Create atomically (mktemp, not "mktemp -u") so cp can't follow a symlink
+		# pre-planted at a predictable name in the sticky /tmp; pin to /tmp so a
+		# hostile TMPDIR can't redirect it.
+		local tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
 		cp "$MOTION_PHOTO_FILE" "$tmpfile"
 		add_to_garbage "$tmpfile"
 		echo "$tmpfile"
 		return
 	fi
 
-	local tmpfile="$(mktemp -u).jpg"
+	local tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
 	if command -v prudyntctl >/dev/null 2>&1; then
 		prudyntctl snapshot -c 0 > "$tmpfile"
 	elif command -v timpsd >/dev/null 2>&1; then
@@ -48,15 +50,18 @@ copy_photo() {
 copy_video() {
 	# Use existing video from motion if available
 	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
-		# Copy to temp file immediately to avoid race condition with cleanup
-		local tmpfile="$(mktemp -u).mp4"
+		# Create atomically (see copy_photo): cp target must not be a planted symlink.
+		local tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
 		cp "$MOTION_VIDEO_FILE" "$tmpfile"
 		add_to_garbage "$tmpfile"
 		echo "$tmpfile"
 		return
 	fi
 
-	local tmpfile="$(mktemp -u).mp4"
+	# Clip target: record_clip()/prudynt create the file themselves with O_EXCL,
+	# so it must NOT pre-exist -> name only (mktemp -u), but pinned to /tmp so it
+	# satisfies record_clip's required /tmp/ prefix regardless of TMPDIR.
+	local tmpfile="$(mktemp -u /tmp/send2_clip.XXXXXX)"
 
 	# timps: no prudyntctl / mp4ctl FIFO. Ask timps for an on-demand fMP4 clip
 	# via its /control endpoint (record.clip). Loopback skips auth; the request

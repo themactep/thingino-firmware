@@ -98,7 +98,12 @@
 
       var tdWhen = document.createElement("td"); tdWhen.textContent = label;
       var tdSeg = document.createElement("td");
-      tdSeg.innerHTML = '<span class="text-secondary small">' + f.file + "</span>";
+      // textContent, not innerHTML: the segment name comes from the SD card and
+      // must never be interpreted as HTML (stored-XSS otherwise).
+      var segSpan = document.createElement("span");
+      segSpan.className = "text-secondary small";
+      segSpan.textContent = f.file;
+      tdSeg.appendChild(segSpan);
       var tdSize = document.createElement("td"); tdSize.className = "text-end"; tdSize.textContent = human(f.size);
 
       tr.appendChild(tdWhen); tr.appendChild(tdSeg); tr.appendChild(tdSize); tr.appendChild(actions);

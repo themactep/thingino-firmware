@@ -6,7 +6,10 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.3.9
+TIMPS_VERSION = v1.4.0
+TIMPS_LICENSE = MIT
+# Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
+# once it exists so legal-info can capture it.
 
 
 # Submodule provides the IMP headers (ingenic-headers).
@@ -73,6 +76,7 @@ define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		PLATFORM=$(shell echo $(SOC_FAMILY) | tr a-z A-Z) \
+		VERSION=$(TIMPS_VERSION) \
 		IMP_LIB=$(STAGING_DIR)/usr/lib \
 		IMPLIBS="$(TIMPS_IMPLIBS)" \
 		FAACLIB="-lfaac" \
@@ -92,9 +96,6 @@ define TIMPS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/timpsd \
 		$(TARGET_DIR)/usr/bin/timpsd
 
-	# Copy to NFS share for dev iteration
-	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/timpsd /nfs/timpsd || true
-
 	# Install default configuration file
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/timps.conf \
 		$(TARGET_DIR)/etc/timps.conf
@@ -112,6 +113,13 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# Install the self-test helper
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
 		$(TARGET_DIR)/usr/bin/timps-selftest
+
+	# Motion->send2 bridge. timps.conf's motion.on_motion points at this path, so
+	# install it unconditionally: otherwise imp_motion.c runs system() on a
+	# missing script on every motion event. It no-ops cleanly when the send2
+	# toolkit/config are absent (the send2 hook below adds those when WEBUI is on).
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-motion \
+		$(TARGET_DIR)/usr/sbin/timps-motion
 
 	# Install the day/night ISP hook (/usr/sbin/color) when native day/night
 	# detection is enabled; timps calls it to drive the ircut/light/gain
@@ -195,7 +203,11 @@ endif
 # scripts they call are simply missing on a timps image. Install from a
 # finalize hook (not a normal package dependency) so this doesn't require
 # enabling the prudynt-t Buildroot package itself.
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM),yy)
+#
+# Gated on TIMPS_CONTROL as well: timps-motion and send2common POST to timps's
+# /control endpoint; with CONTROL compiled out those calls hit a dead port, so
+# don't ship the bridge at all in that configuration.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM)$(BR2_PACKAGE_TIMPS_CONTROL),yyy)
 PRUDYNT_T_FILES_DIR = $(PRUDYNT_T_PKGDIR)/files
 define TIMPS_INSTALL_SEND2
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/prudynt-helpers \
@@ -204,8 +216,6 @@ define TIMPS_INSTALL_SEND2
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
-	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-motion \
-		$(TARGET_DIR)/usr/sbin/timps-motion
 	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
 		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
@@ -225,7 +235,10 @@ endif
 # WebUI is present. preview-timps.html lives in THIS package (files/www/)
 # together with the rest of the timps WebUI overlay, so thingino-webui stays
 # pristine.
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+# Gated on TIMPS_CONTROL too: preview-timps.html pulls /x/timps-token.cgi, which
+# is only installed by the WebUI-overlay hook (same gate), so shipping preview
+# without CONTROL would leave a broken token fetch.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_PACKAGE_TIMPS_CONTROL),yy)
 TIMPS_PREVIEW_SRC = $(TIMPS_PKGDIR)/files/www/preview-timps.html
 define TIMPS_INSTALL_PREVIEW
 	$(INSTALL) -D -m 0644 $(TIMPS_PREVIEW_SRC) \
@@ -247,6 +260,10 @@ define TIMPS_DISABLE_DAYNIGHTD
 		sed -i '/config-photosensing\.html/d' \
 			$(TARGET_DIR)/var/www/a/navigation.js ; \
 	fi
+	# Also drop the page + script so the orphaned "Photosensing" config (it
+	# drives the now-disabled daynightd) isn't reachable by direct URL.
+	rm -f $(TARGET_DIR)/var/www/config-photosensing.html \
+	      $(TARGET_DIR)/var/www/a/config-photosensing.js
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_DISABLE_DAYNIGHTD
 endif

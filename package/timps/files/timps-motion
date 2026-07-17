@@ -30,25 +30,31 @@ run() {
 	done
 	[ "$any" = "true" ] || exit 0
 
-	# unpredictable names: a guessable /tmp path lets a local user pre-plant a
-	# symlink and redirect the snapshot/clip write (record_clip also uses O_EXCL).
-	MOTION_PHOTO_FILE="$(mktemp -u /tmp/motion_XXXXXX).jpg"
-	MOTION_VIDEO_FILE="$(mktemp -u /tmp/motion_XXXXXX).mp4"
-
 	# capture once, shared by all services (send2common reuses these files)
+	MOTION_PHOTO_FILE=""; MOTION_VIDEO_FILE=""
 	if [ "$need_photo" = "true" ]; then
-		curl --silent "$BASE/snapshot.jpg?chn=$CHAN" > "$MOTION_PHOTO_FILE"
-		[ -s "$MOTION_PHOTO_FILE" ] || MOTION_PHOTO_FILE=""
-	else
-		MOTION_PHOTO_FILE=""
+		# Create the target atomically (mktemp, mode 0600) so curl's redirect
+		# can't be aimed at a symlink pre-planted in the sticky /tmp. Explicit
+		# /tmp template ignores any hostile TMPDIR.
+		MOTION_PHOTO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
+		if [ -n "$MOTION_PHOTO_FILE" ]; then
+			curl --silent "$BASE/snapshot.jpg?chn=$CHAN" > "$MOTION_PHOTO_FILE"
+			[ -s "$MOTION_PHOTO_FILE" ] || { rm -f "$MOTION_PHOTO_FILE"; MOTION_PHOTO_FILE=""; }
+		fi
 	fi
 	if [ "$need_video" = "true" ]; then
-		curl --silent --max-time 20 -X POST "$BASE/control" \
-			-d "{\"record\":{\"clip\":\"$MOTION_VIDEO_FILE\",\"seconds\":$CLIP_SECS}}" \
-			>/dev/null 2>&1
-		[ -s "$MOTION_VIDEO_FILE" ] || MOTION_VIDEO_FILE=""
-	else
-		MOTION_VIDEO_FILE=""
+		# record_clip() creates the file itself with O_CREAT|O_EXCL|O_NOFOLLOW, so
+		# the path must NOT pre-exist -> name only (mktemp -u). O_EXCL turns a
+		# planted symlink into a failed clip, never an arbitrary overwrite; the
+		# explicit /tmp template keeps it under record_clip's required /tmp/ prefix
+		# regardless of TMPDIR.
+		MOTION_VIDEO_FILE="$(mktemp -u /tmp/motion_XXXXXX 2>/dev/null)"
+		if [ -n "$MOTION_VIDEO_FILE" ]; then
+			curl --silent --max-time 20 -X POST "$BASE/control" \
+				-d "{\"record\":{\"clip\":\"$MOTION_VIDEO_FILE\",\"seconds\":$CLIP_SECS}}" \
+				>/dev/null 2>&1
+			[ -s "$MOTION_VIDEO_FILE" ] || MOTION_VIDEO_FILE=""
+		fi
 	fi
 
 	pids=""
@@ -60,7 +66,9 @@ run() {
 		pids="$pids $!"
 	done
 
-	for p in $pids; do while kill -0 "$p" 2>/dev/null; do sleep 1; done; done
+	# wait on the actual child PIDs (not kill -0 polling, which hangs on a
+	# recycled PID that a long-lived unrelated process may inherit).
+	[ -n "$pids" ] && wait $pids 2>/dev/null
 	[ -n "$MOTION_PHOTO_FILE" ] && rm -f "$MOTION_PHOTO_FILE"
 	[ -n "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
 }
