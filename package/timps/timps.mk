@@ -6,7 +6,8 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.3.3
+TIMPS_VERSION = v1.3.9
+
 
 # Submodule provides the IMP headers (ingenic-headers).
 TIMPS_GIT_SUBMODULES = YES
@@ -165,9 +166,54 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	if [ -f $(TARGET_DIR)/etc/httpd.conf ]; then \
 		sed -i 's#^P:/mjpeg:.*#P:/mjpeg:http://127.0.0.1:8880/stream.mjpeg#' \
 			$(TARGET_DIR)/etc/httpd.conf ; \
+		sed -i '\#^P:/onvif/image\.cgi:#d' $(TARGET_DIR)/etc/httpd.conf ; \
+		echo 'P:/onvif/image.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=0' \
+			>> $(TARGET_DIR)/etc/httpd.conf ; \
 	fi
+	# ch0.jpg above was thingino-onvif's snapshot source (onvif/image.cgi ->
+	# x/ch0.jpg); with it gone that symlink is dangling. timps has no static
+	# snapshot file, so proxy the ONVIF snapshot URL straight to timps's own
+	# endpoint instead (same P: mechanism as /mjpeg above; loopback so no
+	# token is needed, see httpd.c's 127.0.0.0/8 auth bypass).
+	rm -f $(TARGET_DIR)/var/www/onvif/image.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+endif
+
+# NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
+# webhook + the send2common helper they share). The unmodified send2* tools and
+# prudynt-helpers are re-installed as-is from package/prudynt-t/files/. The two
+# files timps has to ADAPT are shipped as timps's OWN copies under
+# package/timps/files/ instead of patching the shared prudynt-t / thingino-webui
+# files: send2common (prudyntctl -> timps /snapshot.jpg fallback) and
+# telegram-cam-register (snapshot via /onvif/image.cgi instead of /x/ch0.jpg).
+# Re-sync those two from upstream when the shared originals change (e.g. the
+# send2 shell-injection hardening).
+# thingino-webui's telegram-cam-agent (MQTT "snap"/"clip" commands) and the
+# stock Send-to config pages are installed on every image regardless of
+# streamer (gated only on BR2_THINGINO_DEV_IPCAM), so without this the
+# scripts they call are simply missing on a timps image. Install from a
+# finalize hook (not a normal package dependency) so this doesn't require
+# enabling the prudynt-t Buildroot package itself.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM),yy)
+PRUDYNT_T_FILES_DIR = $(PRUDYNT_T_PKGDIR)/files
+define TIMPS_INSTALL_SEND2
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/prudynt-helpers \
+		$(TARGET_DIR)/usr/share/prudynt-helpers
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/send2common \
+		$(TARGET_DIR)/usr/share/send2common
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
+		$(TARGET_DIR)/usr/sbin/telegram-cam-register
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-motion \
+		$(TARGET_DIR)/usr/sbin/timps-motion
+	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
+	done
+	[ -f $(TARGET_DIR)/etc/send2.json ] || \
+		$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/send2.json \
+			$(TARGET_DIR)/etc/send2.json
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_SEND2
 endif
 
 # NOTE: preview page. thingino-webui picks the preview page (preview.html) at

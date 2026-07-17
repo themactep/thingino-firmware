@@ -176,6 +176,32 @@
     else el.value = v;
   }
 
+  // reverse of FIELD_MAP (timps "video<idx>.<key>" -> page field suffix), so
+  // another open tab/client changing a setting shows up here live instead of
+  // only on next reload. "Audio in stream" mirrors the global audio.enabled
+  // switch, which both stream pages share.
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (suffix) {
+    REVERSE["video" + idx + "." + FIELD_MAP[suffix].key] = suffix;
+  });
+
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; }
+    if (data.key === "audio.enabled") {
+      var au = $id(P + "audio_enabled");
+      if (au && document.activeElement !== au) au.checked = !!Number(data.value);
+      return;
+    }
+    var suffix = REVERSE[data.key];
+    if (!suffix) return;
+    var el = $id(P + suffix);
+    if (!el || document.activeElement === el) return;
+    var video = {};
+    video[FIELD_MAP[suffix].key] = data.value;
+    populate(suffix, FIELD_MAP[suffix], video);
+  }
+
   function wireControls() {
     populateSelectors();
     Object.keys(FIELD_MAP).forEach(function (suffix) {
@@ -254,6 +280,7 @@
   function init() {
     wireControls();
     load();
+    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }
 
   if (document.readyState === "loading")

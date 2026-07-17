@@ -56,6 +56,14 @@
   var CODEC_TO_TIMPS = { AAC: "aac", G711U: "pcmu", G711A: "pcma" };
   var CODEC_FROM_TIMPS = { aac: "AAC", pcmu: "G711U", pcma: "G711A" };
 
+  // reverse of FIELD_MAP (timps "audio.<key>" -> page field id), so another
+  // open tab/client changing a setting shows up here live instead of only on
+  // next reload.
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (id) {
+    REVERSE["audio." + FIELD_MAP[id].key] = id;
+  });
+
   function $id(id) { return document.getElementById(id); }
 
   function toast(type, message, ms) {
@@ -270,9 +278,22 @@
       });
   }
 
+  // don't fight the user mid-drag on this same page; the value will land
+  // anyway once they let go and post their own change
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(false); return; }
+    var id = REVERSE[data.key];
+    if (!id) return;
+    var el = $id(id);
+    if (!el || document.activeElement === el) return;
+    populate(id, data.value);
+  }
+
   function init() {
     wireControls();
     load(false);
+    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }
 
   if (document.readyState === "loading")

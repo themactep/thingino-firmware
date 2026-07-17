@@ -158,9 +158,34 @@
       });
   }
 
+  // reverse of FIELD_MAP (timps "image.<key>" -> page field id), so another
+  // open tab/client changing a setting (e.g. brightness) via /control shows
+  // up here live instead of only on next reload. temper_strength mirrors
+  // send()'s noise_reduction special case (one slider, two backend keys).
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (id) {
+    REVERSE["image." + FIELD_MAP[id]] = id;
+  });
+  REVERSE["image.temper_strength"] = "noise_reduction"; // after the loop: a
+  // future FIELD_MAP entry literally named "temper_strength" must not win
+  // over this intentional alias (mirrors send()'s special case).
+
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; } // this client lapped an eviction
+    var id = REVERSE[data.key];
+    if (!id) return;
+    var el = $id(id);
+    // don't fight the user mid-drag on this same page; the value will
+    // land anyway once they let go and post their own change
+    if (!el || document.activeElement === el) return;
+    populate(id, data.value);
+  }
+
   function init() {
     wireControls();
     load();
+    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }
 
   if (document.readyState === "loading")

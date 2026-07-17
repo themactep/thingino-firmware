@@ -352,9 +352,28 @@
       });
   }
 
+  // OSD item leaves interact (color+alpha share one "color" value, position
+  // is one combined "x,y" field), so a remote change for THIS stream's
+  // section (osdS.N.* or the shared osd.enabled master) just re-runs the
+  // normal full load instead of patching a single leaf - cheap (one GET) and
+  // always internally consistent.
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (!data.resync) {
+      var key = data.key || "";
+      if (key !== "osd.enabled" && key.indexOf(SEC + ".") !== 0) return;
+    }
+    var ae = document.activeElement;
+    // don't fight the user mid-edit on this page
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT" || ae.tagName === "TEXTAREA"))
+      return;
+    load();
+  }
+
   function init() {
     wireControls();
     load();
+    if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }
 
   if (document.readyState === "loading")

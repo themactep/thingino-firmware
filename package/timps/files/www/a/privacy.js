@@ -20,8 +20,11 @@
   var maxRegions = 4;
   var streamIdx = 0;
   var streamW = 1920, streamH = 1080;
+  var applyBoth = false;       // mirror every change onto the other stream
+  var otherW = 0, otherH = 0;  // other stream's resolution (for scaling)
   var regions = [];            // [{enabled,x,y,w,h,color}] in STREAM coords
   var selected = -1;
+  var dragging = false;        // true while a box move/resize drag is live
 
   var stage = document.getElementById("pm-stage");
   var img = document.getElementById("pm-img");
@@ -70,6 +73,20 @@
       enabled: r.enabled ? 1 : 0,
       x: r.x, y: r.y, w: r.w, h: r.h, color: r.color,
     };
+    // "apply to both": mirror the mask onto the other stream, scaled to its
+    // resolution (streams differ, e.g. 1920x1080 main vs 640x360 sub).
+    if (applyBoth && otherW > 0 && otherH > 0) {
+      var o = 1 - streamIdx;               // only two video streams
+      var fx = otherW / streamW, fy = otherH / streamH;
+      payload[o] = {};
+      payload[o][n] = {
+        enabled: r.enabled ? 1 : 0,
+        x: Math.round(r.x * fx), y: Math.round(r.y * fy),
+        w: Math.max(1, Math.round(r.w * fx)),
+        h: Math.max(1, Math.round(r.h * fy)),
+        color: r.color,
+      };
+    }
     window.timpsApi.set({ privacy: payload }).catch(function (err) {
       console.error("privacy set failed:", err);
       toast("danger", "Failed to update mask: " + (err.message || err));
@@ -154,6 +171,7 @@
 
   function startDrag(ev, n, mode) {
     ev.preventDefault();
+    dragging = true;
     select(n);
     var s = scale();
     var r = regions[n];
@@ -174,6 +192,7 @@
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       try { ev.target.releasePointerCapture(e.pointerId); } catch (er) { /* ok */ }
+      dragging = false;
       send(n);
     }
     window.addEventListener("pointermove", move);
@@ -278,6 +297,12 @@
       if (v.width > 0 && v.height > 0) { streamW = v.width; streamH = v.height; }
       stage.style.aspectRatio = streamW + " / " + streamH;
 
+      // other stream's resolution, for the "apply to both" scaling
+      var ovi = 1 - streamIdx;
+      var ov = (json.video && (json.video[ovi] || json.video[String(ovi)])) || {};
+      otherW = ov.width > 0 ? ov.width : 0;
+      otherH = ov.height > 0 ? ov.height : 0;
+
       var priv = (json.privacy && (json.privacy[streamIdx] || json.privacy[String(streamIdx)])) || {};
       regions = [];
       for (var n = 0; n < maxRegions; n++) {
@@ -300,13 +325,41 @@
     });
   }
 
+  /* ---- live sync: another open tab/client editing a mask on this stream --- */
+
+  function onConfigEvent(type, data) {
+    if (!data) return;
+    if (data.resync) { load(); return; }
+    var m = /^privacy(\d+)\.(\d+)\.(\w+)$/.exec(data.key || "");
+    if (!m) return;
+    var s = Number(m[1]), n = Number(m[2]), leaf = m[3];
+    if (s !== streamIdx || n < 0 || n >= regions.length || dragging) return;
+    var ae = document.activeElement;
+    // don't fight the user mid-drag/mid-edit of this same mask's list row
+    if (ae && ae.id && ae.id.indexOf("pm-") === 0) return;
+    var r = regions[n];
+    if (leaf === "enabled") r.enabled = (data.value === "1" || data.value === "true") ? 1 : 0;
+    else if (leaf === "x" || leaf === "y" || leaf === "w" || leaf === "h")
+      r[leaf] = parseInt(data.value, 10) || 0;
+    else if (leaf === "color") r.color = data.value;
+    else return;
+    render();
+  }
+
   if (streamSel) streamSel.addEventListener("change", function () {
     streamIdx = parseInt(streamSel.value, 10) || 0;
     load();
   });
   if (addBtn) addBtn.addEventListener("click", addMask);
   if (reloadBtn) reloadBtn.addEventListener("click", load);
+  var bothChk = document.getElementById("pm-both");
+  if (bothChk) bothChk.addEventListener("change", function () {
+    applyBoth = bothChk.checked;
+    // enabling mirrors the current masks onto the other stream immediately
+    if (applyBoth) regions.forEach(function (r, n) { send(n); });
+  });
   window.addEventListener("resize", renderBoxes);
+  if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });
