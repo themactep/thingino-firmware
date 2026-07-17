@@ -20,6 +20,8 @@
   var maxRegions = 4;
   var streamIdx = 0;
   var streamW = 1920, streamH = 1080;
+  var applyBoth = false;       // mirror every change onto the other stream
+  var otherW = 0, otherH = 0;  // other stream's resolution (for scaling)
   var regions = [];            // [{enabled,x,y,w,h,color}] in STREAM coords
   var selected = -1;
   var dragging = false;        // true while a box move/resize drag is live
@@ -71,6 +73,20 @@
       enabled: r.enabled ? 1 : 0,
       x: r.x, y: r.y, w: r.w, h: r.h, color: r.color,
     };
+    // "apply to both": mirror the mask onto the other stream, scaled to its
+    // resolution (streams differ, e.g. 1920x1080 main vs 640x360 sub).
+    if (applyBoth && otherW > 0 && otherH > 0) {
+      var o = 1 - streamIdx;               // only two video streams
+      var fx = otherW / streamW, fy = otherH / streamH;
+      payload[o] = {};
+      payload[o][n] = {
+        enabled: r.enabled ? 1 : 0,
+        x: Math.round(r.x * fx), y: Math.round(r.y * fy),
+        w: Math.max(1, Math.round(r.w * fx)),
+        h: Math.max(1, Math.round(r.h * fy)),
+        color: r.color,
+      };
+    }
     window.timpsApi.set({ privacy: payload }).catch(function (err) {
       console.error("privacy set failed:", err);
       toast("danger", "Failed to update mask: " + (err.message || err));
@@ -281,6 +297,12 @@
       if (v.width > 0 && v.height > 0) { streamW = v.width; streamH = v.height; }
       stage.style.aspectRatio = streamW + " / " + streamH;
 
+      // other stream's resolution, for the "apply to both" scaling
+      var ovi = 1 - streamIdx;
+      var ov = (json.video && (json.video[ovi] || json.video[String(ovi)])) || {};
+      otherW = ov.width > 0 ? ov.width : 0;
+      otherH = ov.height > 0 ? ov.height : 0;
+
       var priv = (json.privacy && (json.privacy[streamIdx] || json.privacy[String(streamIdx)])) || {};
       regions = [];
       for (var n = 0; n < maxRegions; n++) {
@@ -330,6 +352,12 @@
   });
   if (addBtn) addBtn.addEventListener("click", addMask);
   if (reloadBtn) reloadBtn.addEventListener("click", load);
+  var bothChk = document.getElementById("pm-both");
+  if (bothChk) bothChk.addEventListener("change", function () {
+    applyBoth = bothChk.checked;
+    // enabling mirrors the current masks onto the other stream immediately
+    if (applyBoth) regions.forEach(function (r, n) { send(n); });
+  });
   window.addEventListener("resize", renderBoxes);
   if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
 
