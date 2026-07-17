@@ -1,0 +1,9 @@
+{
+  "gpio": {
+    "button_reset": "50IDU",
+    "ir940": 9,
+    "ircut": "57 58",
+    "mmc_cd": 49,
+    "wlan": 8
+  }
+}
