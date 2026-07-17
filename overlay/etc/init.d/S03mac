@@ -57,6 +57,24 @@ fi
 wlan_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $w1 $w2 $w3 $w4 $w5)
 echo -c 240 -e "- Generated WLAN MAC: $wlan_mac"
 
+# Generate USB MAC = ETH MAC - 1 with carry
+u1=$m1; u2=$m2; u3=$m3; u4=$m4; u5=$(( (m5 - 1) & 255 ))
+if [ "$u5" -eq 255 ]; then
+	u4=$(( (m4 - 1) & 255 ))
+	if [ "$u4" -eq 255 ]; then
+		u3=$(( (m3 - 1) & 255 ))
+		if [ "$u3" -eq 255 ]; then
+			u2=$(( (m2 - 1) & 255 ))
+			if [ "$u2" -eq 255 ]; then
+				u1=$(( (m1 - 1) & 255 ))
+			fi
+		fi
+	fi
+fi
+usb_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $u1 $u2 $u3 $u4 $u5)
+echo -c 240 -e "- Generated USB MAC: $usb_mac"
+
 # Persist to thingino.json
 jct "$CONFIG_JSON" set eth.mac "$eth_mac"
 jct "$CONFIG_JSON" set wlan.mac "$wlan_mac"
+jct "$CONFIG_JSON" set usb.mac "$usb_mac"

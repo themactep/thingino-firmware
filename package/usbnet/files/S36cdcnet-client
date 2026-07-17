@@ -19,7 +19,7 @@ decrement_mac() {
 }
 
 start() {
-	usbmac=$(fw_printenv -n usbmac)
+	usbmac=$(jct /etc/thingino.json get usb.mac 2>/dev/null || fw_printenv -n uabmac 2>/dev/null)
 	if [ -z "$usbmac" ]; then
 		decrement_mac
 		daddr=$ethaddr
@@ -28,7 +28,7 @@ start() {
 	fi
 
 	echo -c 15 "Starting CDC Ethernet client gadget"
-	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
+	modprobe g_ncm iManufacturer=thingino host_addr=$(jct /etc/thingino.json get eth.mac 2>/dev/null || fw_printenv -n ethaddr 2>/dev/null) dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 }
 
