@@ -24,10 +24,16 @@ start() {
 	echo -c 15 "Starting CDC Ethernet gadget"
 	# Skip gadget load if g_webcam composite already provides NCM
 	if ! lsmod 2>/dev/null | grep -q g_webcam; then
-		ethaddr=$(fw_printenv -n ethaddr)
-		decrement_mac
+		usbmac=$(jct /etc/thingino.json get usb.mac 2>/dev/null || fw_printenv -n uabmac 2>/dev/null)
+		ethaddr=$(jct /etc/thingino.json get eth.mac 2>/dev/null || fw_printenv -n ethaddr 2>/dev/null)
+		if [ -z "$usbmac" ]; then
+			decrement_mac
+			daddr=$ethaddr
+		else
+			daddr=$usbmac
+		fi
 		usb-role -m device
-		modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+		modprobe g_ncm iManufacturer=thingino host_addr=$(jct /etc/thingino.json get eth.mac 2>/dev/null || fw_printenv -n ethaddr 2>/dev/null) dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
 	fi
 	# Wait for usb0 to appear
 	i=0
