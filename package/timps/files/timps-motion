@@ -30,9 +30,10 @@ run() {
 	done
 	[ "$any" = "true" ] || exit 0
 
-	ts=$(date +%Y%m%d_%H%M%S)
-	MOTION_PHOTO_FILE="/tmp/motion_${ts}.jpg"
-	MOTION_VIDEO_FILE="/tmp/motion_${ts}.mp4"
+	# unpredictable names: a guessable /tmp path lets a local user pre-plant a
+	# symlink and redirect the snapshot/clip write (record_clip also uses O_EXCL).
+	MOTION_PHOTO_FILE="$(mktemp -u /tmp/motion_XXXXXX).jpg"
+	MOTION_VIDEO_FILE="$(mktemp -u /tmp/motion_XXXXXX).mp4"
 
 	# capture once, shared by all services (send2common reuses these files)
 	if [ "$need_photo" = "true" ]; then
