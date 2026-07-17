@@ -8,6 +8,9 @@ TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
 TIMPS_VERSION = v1.3.6
 
+TIMPS_SITE_METHOD = local
+TIMPS_SITE = /home/lfiebach/prudyv2/microstream
+
 # Submodule provides the IMP headers (ingenic-headers).
 TIMPS_GIT_SUBMODULES = YES
 

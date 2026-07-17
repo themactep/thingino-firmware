@@ -58,9 +58,25 @@ copy_video() {
 
 	local tmpfile="$(mktemp -u).mp4"
 
-	# On-demand clip triggering only exists via prudynt's mp4ctl FIFO today;
-	# timps has no equivalent, so fail fast instead of waiting on a FIFO that
-	# will never appear.
+	# timps: no prudyntctl / mp4ctl FIFO. Ask timps for an on-demand fMP4 clip
+	# via its /control endpoint (record.clip). Loopback skips auth; the request
+	# blocks server-side until the file is written.
+	if command -v timpsd >/dev/null 2>&1; then
+		port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
+		[ -n "$port" ] || port=8880
+		curl --silent --max-time 20 -X POST "http://127.0.0.1:$port/control" \
+			-d "{\"record\":{\"clip\":\"$tmpfile\",\"seconds\":6}}" >/dev/null 2>&1
+		if [ -s "$tmpfile" ]; then
+			add_to_garbage "$tmpfile"
+			echo "$tmpfile"
+			return 0
+		fi
+		echo "send2: timps clip capture failed" >&2
+		echo "$tmpfile"
+		return 1
+	fi
+
+	# On-demand clip triggering otherwise only exists via prudynt's mp4ctl FIFO.
 	if ! command -v prudyntctl >/dev/null 2>&1; then
 		echo "send2: on-demand video clips are not supported on this streamer" >&2
 		echo "$tmpfile"
