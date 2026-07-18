@@ -121,6 +121,21 @@ make -f Makefile.container container-pull  # pull container image only
 
 Container engine auto-detects podman → docker fallback.
 
+## Parallel development (git worktrees)
+
+One task, one branch, one worktree, one agent. See `docs/worktrees.md`.
+
+```bash
+scripts/worktree.sh create <branch> [base]   # worktree + buildroot submodule + patches + shared dl
+scripts/worktree.sh sync                     # rebase onto origin/master (NOT `make update`!)
+scripts/worktree.sh remove <branch>          # after PR merge; branch is preserved
+scripts/worktree.sh list
+```
+
+- Never run `make update` in a feature worktree — use `sync`.
+- Container builds don't work from linked worktrees (`.git` gitfile path); build on host.
+- `local.mk`, `user/`, `overrides/` are gitignored and not carried into new worktrees.
+
 ## Thingino skills
 
 Installable skills for OpenCode/Copilot are maintained at
