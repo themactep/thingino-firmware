@@ -108,12 +108,22 @@ fetch_timps_control() {
 	[ "$TIMPS_CONTROL_TRIED" = "1" ] && return
 	TIMPS_CONTROL_TRIED=1
 
-	if [ "$(timps_http_scheme)" = "https" ]; then
-		TIMPS_CONTROL_JSON=$(wget -q -T 3 --no-check-certificate -O - \
-			"https://127.0.0.1:$(timps_http_port)/control" 2>/dev/null)
+	scheme=$(timps_http_scheme)
+	url="$scheme://127.0.0.1:$(timps_http_port)/control"
+
+	# Prefer curl: busybox wget returns nothing for timps' httpd /control reply
+	# on some builds, whereas curl (a hard dep of the snapshot CGI) works. Fall
+	# back to wget only if curl is absent.
+	if command -v curl >/dev/null 2>&1; then
+		if [ "$scheme" = "https" ]; then
+			TIMPS_CONTROL_JSON=$(curl -sk -m 3 "$url" 2>/dev/null)
+		else
+			TIMPS_CONTROL_JSON=$(curl -s -m 3 "$url" 2>/dev/null)
+		fi
+	elif [ "$scheme" = "https" ]; then
+		TIMPS_CONTROL_JSON=$(wget -q -T 3 --no-check-certificate -O - "$url" 2>/dev/null)
 	else
-		TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - \
-			"http://127.0.0.1:$(timps_http_port)/control" 2>/dev/null)
+		TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - "$url" 2>/dev/null)
 	fi
 }
 
