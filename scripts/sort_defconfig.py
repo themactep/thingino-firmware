@@ -6,7 +6,8 @@ Layout rules (see also the "sort-defconfigs" skill):
   * Header: the leading run of comment/blank lines (# NAME:, # FRAG:,
     prose hardware notes) is left untouched.
   * Footer: the trailing run of blank lines and freeform comments
-    (notes that are not commented-out config entries) is left untouched.
+    (notes that are not commented-out config entries) is left untouched,
+    except that trailing blank lines are stripped.
   * Body: everything in between is sorted in stable C-locale (byte)
     order. The sort key is the full line with any leading '#' and
     whitespace stripped:
@@ -74,6 +75,8 @@ def sort_defconfig(text):
         out.append(entry)
     out.extend(pending)  # dangling comments, keep before footer
     out.extend(lines[j:])
+    while out and out[-1].strip() == "":
+        out.pop()
     return "\n".join(out) + "\n"
 
 
