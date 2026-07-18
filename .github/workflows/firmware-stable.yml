@@ -74,21 +74,6 @@ jobs:
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: 0
-
-      - name: Debug checked out branch and commit
-        run: |
-          echo "Checked out branch:"
-          git branch -a
-          echo "HEAD SHA:"
-          git rev-parse HEAD
-          echo "Last commit:"
-          git log --oneline -1
-
       - name: Check for updates since last release
         id: check
         run: |
@@ -98,17 +83,20 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          LATEST_RELEASE=$(gh release list --repo ${{ github.repository }} --json tagName,name | jq -r '.[] | select(.name | startswith("firmware-")) | .tagName' | head -1)
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          LATEST_RELEASE=$(gh release list --repo "$REPO" --json tagName,name | jq -r '.[] | select(.name | startswith("firmware-")) | .tagName' | head -1)
           if [[ -z "$LATEST_RELEASE" ]]; then
             echo "No previous firmware release found - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "Latest firmware release: $LATEST_RELEASE"
-          LATEST_RELEASE_COMMIT=$(gh api repos/${{ github.repository }}/git/ref/tags/$LATEST_RELEASE | jq -r '.object.sha')
-          CURRENT_COMMIT=$(git rev-parse HEAD)
+          # SHAs entirely via the API — no checkout needed
+          LATEST_RELEASE_COMMIT=$(gh api "repos/$REPO/git/ref/tags/$LATEST_RELEASE" --jq '.object.sha')
+          CURRENT_COMMIT=$(gh api "repos/$REPO/commits/$BRANCH" --jq '.sha')
           echo "Latest release commit: $LATEST_RELEASE_COMMIT"
-          echo "Current commit: $CURRENT_COMMIT"
+          echo "Current commit:        $CURRENT_COMMIT"
           if [[ "$LATEST_RELEASE_COMMIT" == "$CURRENT_COMMIT" ]]; then
             echo "No new commits since last release - skipping build"
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -145,34 +133,19 @@ jobs:
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "1"
-
-      - name: Create release tag
+      - name: Create pre-release (tag + release via API)
         if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
-          else
-            echo "Tag $TAG_NAME already exists."
-          fi
-
-      - name: Create release
-        if: ${{ github.event.inputs.skip_release != 'true' }}
-        continue-on-error: true
-        run: |
-          TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
-            echo "Release $TAG_NAME does not exist. Creating pre-release."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
-          else
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+          if gh release view "$TAG_NAME" --repo "$REPO" >/dev/null 2>&1; then
             echo "Release $TAG_NAME already exists."
+          else
+            echo "Creating pre-release $TAG_NAME at tip of $BRANCH"
+            # gh release create makes the (lightweight) tag at --target AND the release in one API call
+            gh release create "$TAG_NAME" --repo "$REPO" --target "$BRANCH" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
           fi
 
   notify-begin:
@@ -591,16 +564,11 @@ jobs:
           echo "GIT_HASH=${{ needs.buildroot.outputs.git_hash }}" >> $GITHUB_ENV
           echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
-      - name: Checkout repository source
-        uses: actions/checkout@v5
-        with:
-          submodules: 'false'
-          ref: ${{ github.event.inputs.branch }}
-
       - name: Generate release notes
         id: release_notes
         run: |
-          GIT_HASH=$(git ls-remote origin "refs/heads/${{ github.event.inputs.branch }}" | cut -f1 | cut -c1-7)
+          # branch-tip short SHA via the API — no checkout / git remote needed
+          GIT_HASH=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.inputs.branch || github.ref_name }}" --jq '.sha' | cut -c1-7)
           LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
