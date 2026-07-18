@@ -398,6 +398,17 @@ function handleMessage(msg) {
 }
 
 async function loadMotorParams() {
+  const uiConfig = window.thinginoUIConfig || {};
+  const hasMotors = uiConfig.device && uiConfig.device.motors === true;
+  if (!hasMotors) {
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+    return;
+  }
   try {
     const response = await fetch("/x/json-motor-params.cgi");
     const motorParams = await response.json();
