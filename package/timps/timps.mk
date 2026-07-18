@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.4.0
+TIMPS_VERSION = v1.4.1
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -174,8 +174,10 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	if [ -f $(TARGET_DIR)/etc/httpd.conf ]; then \
 		sed -i 's#^P:/mjpeg:.*#P:/mjpeg:http://127.0.0.1:8880/stream.mjpeg#' \
 			$(TARGET_DIR)/etc/httpd.conf ; \
-		sed -i '\#^P:/onvif/image\.cgi:#d' $(TARGET_DIR)/etc/httpd.conf ; \
+		sed -i '\#^P:/onvif/image#d' $(TARGET_DIR)/etc/httpd.conf ; \
 		echo 'P:/onvif/image.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=0' \
+			>> $(TARGET_DIR)/etc/httpd.conf ; \
+		echo 'P:/onvif/image1.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=1' \
 			>> $(TARGET_DIR)/etc/httpd.conf ; \
 	fi
 	# ch0.jpg above was thingino-onvif's snapshot source (onvif/image.cgi ->

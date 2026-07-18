@@ -209,10 +209,22 @@ configure_timps_onvif_profiles() {
 
 	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
 	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
-	# timps snapshots are served by its own HTTP server (per-stream via ?chn=N,
-	# needs videoN.jpeg = true). No RTSP audio backchannel: timps is one-way.
-	jct "$tmpfile" set profiles.stream0.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=0"
-	jct "$tmpfile" set profiles.stream1.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=1"
+	# timps snapshots come from its own HTTP server (per-stream via ?chn=N, needs
+	# videoN.jpeg = true). Prefer the WebUI's port-80 loopback proxies
+	# (/onvif/image[1].cgi -> 127.0.0.1:8880/snapshot.jpg): timps skips auth for
+	# loopback, so the snapshot works for EVERY NVR regardless of http.pass and
+	# regardless of the ?token= that onvif_simple_server appends (timps ignores
+	# it). Fall back to the direct :8880 URL (authenticated) when the proxies
+	# can't apply: no WebUI overlay, a non-default http.port, or TLS-only http
+	# (the proxy target is plain http). No RTSP audio backchannel: timps is one-way.
+	if [ "$http_scheme" = "http" ] && [ "$http_port" = "8880" ] && \
+	   grep -q '^P:/onvif/image1\.cgi:' /etc/httpd.conf 2>/dev/null; then
+		jct "$tmpfile" set profiles.stream0.snapurl "http://%s/onvif/image.cgi"
+		jct "$tmpfile" set profiles.stream1.snapurl "http://%s/onvif/image1.cgi"
+	else
+		jct "$tmpfile" set profiles.stream0.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=0"
+		jct "$tmpfile" set profiles.stream1.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=1"
+	fi
 }
 
 # ----------------------------------------------------------------- daemons ---
