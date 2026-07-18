@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.4.1
+TIMPS_VERSION = v1.4.3
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -138,11 +138,22 @@ endef
 # installed via a TARGET_FINALIZE_HOOK so they override the thingino-webui
 # copies regardless of package build order, and only when both the WebUI and the
 # timps /control endpoint are enabled. The whole directory is installed (CGIs and
-# the .sh lib alike; busybox httpd executes anything under /x/ regardless of
-# extension). The WebUI's own prudynt-flavored bridge CGIs (they shell out to the
-# absent prudyntctl) are purged so a timps image carries no dead endpoints, and
-# the busybox httpd "/mjpeg" convenience alias is repointed at timps's own MJPEG
-# endpoint (localhost -> no auth needed; uses the default http.port 8880).
+# the .sh lib alike; the webserver executes anything under the /x/ CGI prefix
+# regardless of extension - uhttpd via "-x /x", busybox httpd via its /x/
+# convention). The WebUI's own prudynt-flavored bridge CGIs (they shell out to
+# the absent prudyntctl) are purged so a timps image carries no dead endpoints.
+#
+# Snapshots: files/www/x/ch0.jpg is a timps-flavored snapshot CGI installed
+# under four names (ch0/ch1 inline, dl0/dl1 download - see the script header);
+# /var/www/onvif/image[1].cgi are symlinks into /x/ so ONVIF snapurls work.
+# This mirrors stock thingino-onvif's "ln -sf /var/www/x/ch0.jpg image.cgi"
+# pattern, the ONLY snapshot mechanism that works on uhttpd: uhttpd resolves
+# the symlink to a physical path under its /x CGI prefix and executes it,
+# whereas a script placed directly in /var/www/onvif/ would be served as a
+# static file, and busybox-httpd "P:" proxy lines in /etc/httpd.conf are
+# simply ignored (uhttpd never reads that file). The old "/mjpeg" busybox
+# proxy alias is dropped for the same reason; nothing references it anymore
+# (the preview streams :8880/stream.mp4 and :8880/stream.mjpeg directly).
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_PACKAGE_TIMPS_CONTROL),yy)
 define TIMPS_INSTALL_WEBUI_CGIS
 	# timps-flavored WebUI: overlay every timps-specific asset over the stock
@@ -169,23 +180,25 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	      $(TARGET_DIR)/var/www/x/json-prudynt-config.cgi \
 	      $(TARGET_DIR)/var/www/x/json-prudynt-save.cgi \
 	      $(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
-	rm -f $(TARGET_DIR)/var/www/x/ch0.mjpg $(TARGET_DIR)/var/www/x/ch1.mjpg \
-	      $(TARGET_DIR)/var/www/x/ch0.jpg  $(TARGET_DIR)/var/www/x/ch1.jpg
-	if [ -f $(TARGET_DIR)/etc/httpd.conf ]; then \
-		sed -i 's#^P:/mjpeg:.*#P:/mjpeg:http://127.0.0.1:8880/stream.mjpeg#' \
-			$(TARGET_DIR)/etc/httpd.conf ; \
-		sed -i '\#^P:/onvif/image#d' $(TARGET_DIR)/etc/httpd.conf ; \
-		echo 'P:/onvif/image.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=0' \
-			>> $(TARGET_DIR)/etc/httpd.conf ; \
-		echo 'P:/onvif/image1.cgi:http://127.0.0.1:8880/snapshot.jpg?chn=1' \
-			>> $(TARGET_DIR)/etc/httpd.conf ; \
+	rm -f $(TARGET_DIR)/var/www/x/ch0.mjpg $(TARGET_DIR)/var/www/x/ch1.mjpg
+	# Snapshot CGIs: the x/ loop above already replaced the stock prudynt
+	# x/ch0.jpg with timps's loopback-fetch script; clone it to the other
+	# three names the WebUI expects (channel/disposition are derived from the
+	# invoked name, so the copies are byte-identical). This also replaces the
+	# stock prudynt dl0/dl1.jpg download CGIs referenced by a/main.js.
+	for n in ch1.jpg dl0.jpg dl1.jpg ; do \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/x/ch0.jpg \
+			$(TARGET_DIR)/var/www/x/$$n ; \
+	done
+	# ONVIF snapshot URLs: recreate thingino-onvif's stock symlink (an earlier
+	# timps revision deleted it) and add the ch1 counterpart, since timps's
+	# S96onvif_discovery publishes /onvif/image.cgi AND /onvif/image1.cgi as
+	# the per-profile snapurls. Symlink-into-/x is what makes uhttpd execute
+	# them as CGIs (see the NOTE above). Only when ONVIF is in the image.
+	if [ -d $(TARGET_DIR)/var/www/onvif ]; then \
+		ln -sf /var/www/x/ch0.jpg $(TARGET_DIR)/var/www/onvif/image.cgi ; \
+		ln -sf /var/www/x/ch1.jpg $(TARGET_DIR)/var/www/onvif/image1.cgi ; \
 	fi
-	# ch0.jpg above was thingino-onvif's snapshot source (onvif/image.cgi ->
-	# x/ch0.jpg); with it gone that symlink is dangling. timps has no static
-	# snapshot file, so proxy the ONVIF snapshot URL straight to timps's own
-	# endpoint instead (same P: mechanism as /mjpeg above; loopback so no
-	# token is needed, see httpd.c's 127.0.0.0/8 auth bypass).
-	rm -f $(TARGET_DIR)/var/www/onvif/image.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
 endif
