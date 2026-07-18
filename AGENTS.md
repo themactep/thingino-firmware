@@ -109,6 +109,8 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 
 - `package/thingino-webui/files/www/a/*.js` → formatted with **Prettier**.
 - Staged `/bin/sh` scripts → formatted with **shfmt** (`shfmt -w -i 0 -ci`).
+- Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
+  (see `docs/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 
 ## Container Builds
