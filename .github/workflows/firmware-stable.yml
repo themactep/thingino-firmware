@@ -379,8 +379,9 @@ jobs:
             --jq '.assets[] | select(.name | startswith("buildroot-dl-cache")) | .url' > /tmp/dl-urls.txt
           echo "parts:"; cat /tmp/dl-urls.txt
           set +e
-          # -x/-s: connections+segments per file, -j: files at once; segmented multi-connection
-          aria2c -x8 -s8 -j8 -k5M --continue=true --auto-file-renaming=false \
+          # -j high so all (now ~7 smaller) parts download concurrently; modest -x/-s per file
+          # since the speed comes from more concurrent parts, not more connections per part
+          aria2c -x4 -s4 -j16 -k5M --continue=true --auto-file-renaming=false \
                  --console-log-level=warn --summary-interval=0 \
                  --dir=/tmp/dl-cache -i /tmp/dl-urls.txt
           DOWNLOAD_EXIT_CODE=$?
