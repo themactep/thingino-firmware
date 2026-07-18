@@ -387,6 +387,10 @@ fi
 check_upgrade_partitions
 
 # work in $workdir
+if [ -d "$workdir" ] && [ "$(dirname "$self")" != "$workdir" ]; then
+	echo_c 112 "\nRemove stale $workdir from a previous run"
+	rm -rf "$workdir"
+fi
 if [ ! -d "$workdir" ]; then
 	echo_c 112 "\nCreate $workdir directory"
 	if ! mkdir -p "$workdir"; then
@@ -402,18 +406,31 @@ if [ -z "$upgrade" ]; then
 		echo_c 112 "\nUpgrade from a remote file"
 		url="$1"
 	else
-		echo_c 112 "\nUpgrade from a local file $fw_file"
-		if [ -f "$fw_file" ]; then
-			echo "Found $fw_file"
-		else
-			ufile="$(realpath "$1")"
-			if [ ! -r "$ufile" ]; then
-				die "Cannot find file $ufile (from $(pwd))"
-			fi
-			echo "Found $ufile"
-			mv -fv "$ufile" "$fw_file"
-			ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
+		echo_c 112 "\nUpgrade from a local file"
+		ufile="$(realpath "$1" 2>/dev/null)"
+		if [ -z "$ufile" ] || [ ! -r "$ufile" ]; then
+			die "Cannot find file $1 (from $(pwd))"
 		fi
+		echo "Found $ufile"
+		case "$ufile" in
+			"$fw_file")
+				# Re-run after the file was already relocated into the workdir.
+				;;
+			"$SD_CARD_ROOT"/*)
+				# Flash directly from the SD card, do not pull the file into tmpfs.
+				echo "Using firmware in place on the SD card"
+				fw_file="$ufile"
+				;;
+			*)
+				# Remove stale leftovers so they do not eat tmpfs space.
+				rm -f "$fw_file"
+				if ! mv -fv "$ufile" "$fw_file"; then
+					rm -f "$fw_file"
+					die "Cannot move $ufile to $fw_file"
+				fi
+				ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
+				;;
+		esac
 	fi
 fi
 
