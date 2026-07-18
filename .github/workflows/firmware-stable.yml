@@ -562,7 +562,7 @@ jobs:
         run: |
           # branch-tip short SHA via the API — no checkout / git remote needed
           GIT_HASH=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.inputs.branch || github.ref_name }}" --jq '.sha' | cut -c1-7)
-          LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
+          LAST_RELEASE_TAG=$(gh release list --repo "${{ github.repository }}" --limit 2 --json tagName -q '.[1].tagName')
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
             echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
@@ -604,16 +604,16 @@ jobs:
           echo "Checking GH authentication status..."
           gh auth status
           echo "Attempting to fetch release URL for tag ${TAG_NAME}..."
-          RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --json url -q ".url")
+          RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --json url -q ".url")
           echo "RELEASE_URL: $RELEASE_URL"
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
             if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
               echo "Release notes file exists, including --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --draft=false --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             else
               echo "Release notes file does not exist, skipping --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes ""
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --draft=false --prerelease=false --notes ""
             fi
             echo "Release marked as latest"
           else
