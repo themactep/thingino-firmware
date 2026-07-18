@@ -37,6 +37,51 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 	$(THINGINO_MOTORS_INSTALL_JSON_CMDS)
 endef
 else
+
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+# Web pages must be installed after thingino-webui so that the navigation
+# and preview markers exist and asset tags can be re-applied on top.
+THINGINO_MOTORS_DEPENDENCIES += thingino-webui
+
+define THINGINO_MOTORS_INSTALL_WWW_CMDS
+	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/config-motors.html \
+		$(TARGET_DIR)/var/www/config-motors.html
+	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/a/config-motors.js \
+		$(TARGET_DIR)/var/www/a/config-motors.js
+	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/a/preview-motors.js \
+		$(TARGET_DIR)/var/www/a/preview-motors.js
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor-params.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-params.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor-stream.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-stream.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motors-config.cgi \
+		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
+
+	# Insert motors links into the web UI navigation at build time
+	$(SED) 's|/\* THINGINO_MOTORS_NAV_ITEMS \*/|settingsItems.push({ label: "Pan/Tilt motors", href: "/config-motors.html" });|' \
+		$(TARGET_DIR)/var/www/a/navigation.js
+
+	# Enable motor controls on the preview page
+	$(SED) 's|<!-- THINGINO_MOTORS_PREVIEW_SCRIPT -->|<script src="/a/preview-motors.js"></script>|' \
+		$(TARGET_DIR)/var/www/preview.html
+
+	# Re-apply cache-busting asset tags so motors pages are covered
+	@asset_tag="$$(LC_ALL=C find $(THINGINO_MOTORS_PKGDIR)/files/www/a $(THINGINO_WEBUI_PKGDIR)/files/www/a \
+		-type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)"; \
+	[ -n "$$asset_tag" ] || asset_tag="$$(date +%s)"; \
+	python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_asset_tag.py" "$$asset_tag" "$(TARGET_DIR)/var/www"
+
+	# Re-apply CDN fallbacks when local vendor files are present
+	@vendor_src="$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor"; \
+	if [ -d "$$vendor_src" ] && \
+		[ -n "$$(find "$$vendor_src" -maxdepth 2 -type f ! -name '*.md' ! -name '.gitkeep' 2>/dev/null | head -1)" ]; then \
+		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_cdn_fallback.py" "$(TARGET_DIR)/var/www"; \
+	fi
+endef
+endif
+
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor.c -o $(@D)/motors -ljct
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct -lm
@@ -62,6 +107,8 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/ptz_presets.conf
 
 	$(THINGINO_MOTORS_INSTALL_JSON_CMDS)
+
+	$(THINGINO_MOTORS_INSTALL_WWW_CMDS)
 endef
 endif
 

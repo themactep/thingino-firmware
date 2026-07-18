@@ -23,7 +23,6 @@
   }
 
   function buildDefaultMenu() {
-    const hasMotors = uiConfig.device && uiConfig.device.motors === true;
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
     const hasDoorbell = uiConfig.device && uiConfig.device.doorbell === true;
@@ -39,12 +38,7 @@
       });
     }
 
-    if (hasMotors) {
-      settingsItems.push({
-        label: "Pan/Tilt motors",
-        href: "/config-motors.html",
-      });
-    }
+    /* THINGINO_MOTORS_NAV_ITEMS */
 
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
