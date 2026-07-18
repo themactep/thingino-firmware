@@ -74,7 +74,8 @@ jobs:
   build-caches:
     name: ${{ matrix.caches-version }}
     needs: notify-begin
-    runs-on: ubuntu-24.04
+    # arm64: firmware builds now default to arm64, so the cache must hold the aarch64 toolchain
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
     defaults:
@@ -141,9 +142,17 @@ jobs:
           mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
 
-      - name: Download buildroot sources
+      - name: Download buildroot sources (all cache variants)
         run: |
-          BOARD=${{ matrix.caches-version }} GROUP=github make source WORKFLOW=1
+          # One shared ~/dl. build_cache pulls every package + all wifi (xburst1 toolchain);
+          # the variant configs add the other toolchain tags + their kernel/u-boot.
+          for cfg in build_cache build_cache_xburst1_44 build_cache_xburst2; do
+            echo "::group::make source — $cfg"
+            BOARD=$cfg GROUP=github make source WORKFLOW=1
+            # `make source` does not fetch the external toolchain tarball; pull it explicitly
+            BOARD=$cfg GROUP=github make br-toolchain-external-custom-source WORKFLOW=1 || echo "toolchain-source skipped for $cfg"
+            echo "::endgroup::"
+          done
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 

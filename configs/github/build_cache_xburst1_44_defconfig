@@ -1,0 +1,10 @@
+# NAME: dl-cache variant — XBurst1 + 4.4 kernel (TOOLCHAIN_SOC_TAG=xburst1_4_4)
+# FRAG: soc-xburst1 core ssl
+# Minimal: exists only to pull the xburst1_4_4 toolchain + 4.4 kernel + u-boot.
+# Packages/wifi are already covered by the main build_cache entry.
+BR2_INGENIC_SOC_MODEL="t31l"
+KERNEL_VERSION_4=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6031=y
+BR2_SENSOR_1_NAME="sc2336"
+FLASH_SIZE_MB=8
