@@ -3,8 +3,9 @@
 
 Layout rules (see also the "sort-defconfigs" skill):
 
-  * Header: the leading run of comment/blank lines (# NAME:, # FRAG:,
-    prose hardware notes) is left untouched.
+  * Header: only the leading '# NAME:' and '# FRAG:' comment lines
+    are left untouched. Any other leading comments are treated as part
+    of the body.
   * Footer: the trailing run of blank lines and freeform comments
     (notes that are not commented-out config entries) is left untouched,
     except that trailing blank lines are stripped.
@@ -16,7 +17,7 @@ Layout rules (see also the "sort-defconfigs" skill):
         BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG=y;
       - commented-out entries (#BR2_...=..., # FLASH_...=...) sort by
         their option name, next to their active siblings;
-      - freeform annotation comments stay attached to the entry that
+      - freeform annotation comments are glued to the entry that
         follows them and move with it;
       - blank lines inside the body are dropped;
       - duplicate keys keep their relative order (stable sort).
@@ -34,15 +35,16 @@ import re
 import sys
 
 COMMENTED_ENTRY = re.compile(r"^#\s*(BR2_|FLASH_)[A-Za-z0-9_]*=")
+HEADER_LINE = re.compile(r"^\s*#\s*(NAME|FRAG):")
 
 
 def sort_defconfig(text):
     lines = text.splitlines()
     n = len(lines)
 
-    # header: leading run of comment/blank lines
+    # header: leading '# NAME:' / '# FRAG:' lines only
     i = 0
-    while i < n and (lines[i].strip() == "" or lines[i].lstrip().startswith("#")):
+    while i < n and HEADER_LINE.match(lines[i]):
         i += 1
 
     # footer: trailing run of blank lines and freeform comments
