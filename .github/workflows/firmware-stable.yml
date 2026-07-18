@@ -619,12 +619,6 @@ jobs:
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
-      - name: Checkout repository source
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "1"
-
       - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
@@ -637,4 +631,7 @@ jobs:
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
+          gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=${{ github.event.inputs.branch || github.ref_name }}" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
+          chmod +x /tmp/tg-notify.sh
+          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
