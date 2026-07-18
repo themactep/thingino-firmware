@@ -4,6 +4,14 @@ on:
 #    - cron:  '30 8 * * 1'
   workflow_dispatch:
     inputs:
+      runner_arch:
+        type: choice
+        description: 'Build worker architecture'
+        required: false
+        default: 'arm64'
+        options:
+          - arm64
+          - x86_64
       branch:
         type: choice
         description: 'Branch to build from'
@@ -42,6 +50,11 @@ on:
         type: string
         description: 'Comma-separated list of boards to build (e.g. board1,board2)'
         required: false
+      skip_release:
+        type: boolean
+        description: 'Do not publish to a GitHub release (test build)'
+        required: false
+        default: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -139,6 +152,7 @@ jobs:
           fetch-depth: "1"
 
       - name: Create release tag
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
@@ -150,6 +164,7 @@ jobs:
           fi
 
       - name: Create release
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
@@ -264,7 +279,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin, prepare-release]
-    runs-on: ubuntu-26.04
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     timeout-minutes: 30
     outputs:
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -535,6 +550,7 @@ jobs:
             ${{ env.FULL_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" --clobber
 
       - name: Package binaries for notification
@@ -620,6 +636,7 @@ jobs:
           echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
       - name: Get release ID and Mark as Latest
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           echo "Environment variables:"
           echo "TAG_NAME: ${{ env.TAG_NAME }}"
