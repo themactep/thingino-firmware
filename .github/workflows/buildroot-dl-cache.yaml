@@ -164,10 +164,8 @@ jobs:
         run: |
           mkdir -p /tmp/dl-archive
           cd ~/
-          # ZIP store mode (no compression) for speed. Small -v parts (~384M) so consumers
-          # fetch them in parallel: GitHub throttles each release asset to ~50-100 MiB/s, so
-          # more concurrent parts = higher aggregate download throughput (no 1GB long pole).
-          7z a -tzip -mx=0 -v384m /tmp/dl-archive/buildroot-dl-cache.zip dl/
+          # Using ZIP format with store method (no compression) for maximum speed
+          7z a -tzip -mx=0 -v1024m /tmp/dl-archive/buildroot-dl-cache.zip dl/
 
       - name: Check archive files
         run: |

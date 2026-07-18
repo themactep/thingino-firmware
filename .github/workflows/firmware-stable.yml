@@ -272,7 +272,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests aria2 autoconf build-essential bc ca-certificates cmake cpio curl file gawk gh git jq lzop m4 make p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc ca-certificates cmake cpio curl file gawk gh git jq lzop m4 make p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
       - name: Set timezone
         run: |
           ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
@@ -373,18 +373,9 @@ jobs:
           REPO="${{ github.repository }}"
           RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
           mkdir -p /tmp/dl-cache
-          echo "Downloading dl-cache parts in parallel (aria2c) from release: $RELEASE_TAG"
-          # public per-asset download URLs for the split zip parts
-          gh release view "$RELEASE_TAG" --repo "$REPO" --json assets \
-            --jq '.assets[] | select(.name | startswith("buildroot-dl-cache")) | .url' > /tmp/dl-urls.txt
-          echo "parts:"; cat /tmp/dl-urls.txt
+          echo "Downloading files from release with tag: $RELEASE_TAG"
           set +e
-          # -j16 so all ~7 parts download at once; keep per-file connections LOW (-x4): GitHub
-          # throttles the runner above ~30 total connections, so more conns = lower aggregate.
-          # ~110 MiB/s sustained is GitHub's per-runner release-asset cap — this is near the floor.
-          aria2c -x4 -s4 -j16 -k5M --continue=true --auto-file-renaming=false \
-                 --console-log-level=warn --summary-interval=0 \
-                 --dir=/tmp/dl-cache -i /tmp/dl-urls.txt
+          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
           DOWNLOAD_EXIT_CODE=$?
           set -e
           if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
