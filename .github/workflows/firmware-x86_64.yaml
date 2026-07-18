@@ -151,6 +151,22 @@ jobs:
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
 
+      - name: Ensure ccache release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          # Single pre-matrix create so the fan-out jobs only ever upload/download (no create races).
+          if gh release view ccache --repo "$REPO" >/dev/null 2>&1; then
+            echo "'ccache' release already exists"
+          else
+            echo "Creating rolling 'ccache' release"
+            gh release create ccache --repo "$REPO" \
+              --title "ccache" \
+              --notes "Rolling per-branch build ccache (compiler cache). Not a firmware release; do not flash." \
+              --latest=false
+          fi
+
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
@@ -202,10 +218,10 @@ jobs:
       - name: Configure environment variables
         id: env
         run: |
-          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
-          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          # ccache is stored per-branch on the rolling 'ccache' release; this workflow builds master.
+          echo "CACHE_CHANNEL=master" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
@@ -218,15 +234,28 @@ jobs:
           mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
 
-      - name: Restore build cache
-        uses: actions/cache@v5
-        if: always()
-        with:
-          path: ~/.buildroot-ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
+      - name: Restore ccache from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAM: ${{ matrix.thingino-version }}
+        run: |
+          REPO="${{ github.repository }}"
+          CAM_SAFE=$(printf '%s' "$CAM" | tr -c 'A-Za-z0-9._-' '-')
+          mkdir -p /tmp/cc
+          # Restore this branch's cache; fall back to master for a warm start (restore-keys analog).
+          CANDIDATES="$CACHE_CHANNEL"
+          [ "$CACHE_CHANNEL" != "master" ] && CANDIDATES="$CACHE_CHANNEL master"
+          restored=""
+          for CH in $CANDIDATES; do
+            ASSET="ccache-${CH}-${CAM_SAFE}.zip"
+            if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
+              echo "Restoring $ASSET"
+              cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null
+              restored="$ASSET"
+              break
+            fi
+          done
+          [ -z "$restored" ] && echo "No ccache asset for ${CAM_SAFE} yet — cold build"
 
       - name: Fetch buildroot-dl-cache release
         id: find_release
@@ -316,10 +345,32 @@ jobs:
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
+        env:
+          CCACHE_MAXSIZE: "1G"   # bound the per-branch cache so its release asset stays well under 2 GiB
         run: |
           BOARD=${{ matrix.thingino-version }} make fast WORKFLOW=1
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Save ccache to release
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAM: ${{ matrix.thingino-version }}
+        run: |
+          REPO="${{ github.repository }}"
+          CAM_SAFE=$(printf '%s' "$CAM" | tr -c 'A-Za-z0-9._-' '-')
+          ASSET="ccache-${CACHE_CHANNEL}-${CAM_SAFE}.zip"
+          # Guard: never overwrite a good cache with an empty one from an early build failure.
+          SZ_MB=$(du -sm ~/.buildroot-ccache 2>/dev/null | cut -f1)
+          if [ "${SZ_MB:-0}" -lt 5 ]; then
+            echo "ccache is only ${SZ_MB:-0} MB — skipping upload (cold/failed build)"
+            exit 0
+          fi
+          mkdir -p /tmp/cc
+          cd ~ && 7z a -tzip -mx=0 "/tmp/cc/${ASSET}" .buildroot-ccache >/dev/null
+          echo "Uploading ${ASSET} ($(du -h /tmp/cc/${ASSET} | cut -f1))"
+          gh release upload ccache --repo "$REPO" --clobber "/tmp/cc/${ASSET}"
 
       - name: Generate debug dummy firmware for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
