@@ -220,8 +220,10 @@ jobs:
         run: |
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-          # ccache is stored per-branch on the rolling 'ccache' release; this workflow builds master.
+          # ccache is stored per-branch + per-arch on the rolling 'ccache' release; this workflow builds master.
           echo "CACHE_CHANNEL=master" >> $GITHUB_ENV
+          # X64 / ARM64 — caches never share across host arch (different host + cross compilers).
+          echo "CACHE_ARCH=${{ runner.arch }}" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
@@ -247,7 +249,7 @@ jobs:
           [ "$CACHE_CHANNEL" != "master" ] && CANDIDATES="$CACHE_CHANNEL master"
           restored=""
           for CH in $CANDIDATES; do
-            ASSET="ccache-${CH}-${CAM_SAFE}.zip"
+            ASSET="ccache-${CH}-${CACHE_ARCH}-${CAM_SAFE}.zip"
             if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
               echo "Restoring $ASSET"
               cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null
@@ -360,7 +362,7 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           CAM_SAFE=$(printf '%s' "$CAM" | tr -c 'A-Za-z0-9._-' '-')
-          ASSET="ccache-${CACHE_CHANNEL}-${CAM_SAFE}.zip"
+          ASSET="ccache-${CACHE_CHANNEL}-${CACHE_ARCH}-${CAM_SAFE}.zip"
           # Guard: never overwrite a good cache with an empty one from an early build failure.
           SZ_MB=$(du -sm ~/.buildroot-ccache 2>/dev/null | cut -f1)
           if [ "${SZ_MB:-0}" -lt 5 ]; then
