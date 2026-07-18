@@ -112,6 +112,22 @@ jobs:
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
 
+      - name: Ensure ccache release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          # Single pre-matrix create so the fan-out jobs only ever upload/download (no create races).
+          if gh release view ccache --repo "$REPO" >/dev/null 2>&1; then
+            echo "'ccache' release already exists"
+          else
+            echo "Creating rolling 'ccache' release"
+            gh release create ccache --repo "$REPO" \
+              --title "ccache" \
+              --notes "Rolling per-branch build ccache (compiler cache). Not a firmware release; do not flash." \
+              --latest=false
+          fi
+
   build-toolchain:
     name: ${{ matrix.toolchain-version }}
     needs: [generate-matrix, notify-begin]
@@ -177,6 +193,10 @@ jobs:
           echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          # ccache is stored per-branch + per-arch on the rolling 'ccache' release; toolchains build master.
+          echo "CACHE_CHANNEL=master" >> $GITHUB_ENV
+          # X64 / ARM64 — caches never share across host arch (different host + cross compilers).
+          echo "CACHE_ARCH=${{ runner.arch }}" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
@@ -185,7 +205,24 @@ jobs:
 
       - name: Setup cache directories
         run: |
+          mkdir -p ~/.buildroot-ccache
           mkdir -p ~/dl
+
+      - name: Restore ccache from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TC: ${{ matrix.toolchain-version }}
+        run: |
+          REPO="${{ github.repository }}"
+          TC_SAFE=$(printf '%s' "$TC" | tr -c 'A-Za-z0-9._-' '-')
+          mkdir -p /tmp/cc
+          ASSET="ccache-${CACHE_CHANNEL}-${CACHE_ARCH}-${TC_SAFE}.zip"
+          if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
+            echo "Restoring $ASSET"
+            cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null
+          else
+            echo "No ccache asset for ${TC_SAFE} yet — cold build"
+          fi
 
       - name: Fetch buildroot-dl-cache release
         id: find_release
@@ -282,8 +319,30 @@ jobs:
 
       - name: Build toolchain
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
+        env:
+          CCACHE_MAXSIZE: "1800M"   # toolchain caches are larger; keep the asset under the 2 GiB limit
         run: |
           BOARD=${{ matrix.toolchain-version }} GROUP=github make sdk WORKFLOW=1
+
+      - name: Save ccache to release
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TC: ${{ matrix.toolchain-version }}
+        run: |
+          REPO="${{ github.repository }}"
+          TC_SAFE=$(printf '%s' "$TC" | tr -c 'A-Za-z0-9._-' '-')
+          ASSET="ccache-${CACHE_CHANNEL}-${CACHE_ARCH}-${TC_SAFE}.zip"
+          # Guard: never overwrite a good cache with an empty one from an early build failure.
+          SZ_MB=$(du -sm ~/.buildroot-ccache 2>/dev/null | cut -f1)
+          if [ "${SZ_MB:-0}" -lt 5 ]; then
+            echo "ccache is only ${SZ_MB:-0} MB — skipping upload (cold/failed build)"
+            exit 0
+          fi
+          mkdir -p /tmp/cc
+          cd ~ && 7z a -tzip -mx=0 "/tmp/cc/${ASSET}" .buildroot-ccache >/dev/null
+          echo "Uploading ${ASSET} ($(du -h /tmp/cc/${ASSET} | cut -f1))"
+          gh release upload ccache --repo "$REPO" --clobber "/tmp/cc/${ASSET}"
 
       - name: Generate debug dummy toolchain for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
