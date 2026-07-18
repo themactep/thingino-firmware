@@ -98,6 +98,20 @@ make
 - If a non-empty session `IP` is active, the directory becomes `output/<branch>/<camera>-<kernel>-<libc>-<ip>`
 - Can be overridden manually
 
+**`THINGINO_OUTPUT_ROOT_DIR`** / **`THINGINO_OUTPUT_DIR`** - Namespaced output overrides
+- Safe to export in the global shell environment (e.g. `.bashrc`) without
+  clashing with other projects that use generic `OUTPUT_DIR` names
+- Take precedence over `OUTPUT_ROOT_DIR` / `OUTPUT_DIR`
+- `THINGINO_OUTPUT_ROOT_DIR` moves the whole output tree while keeping the
+  per-branch/per-camera layout: `<root>/<branch>/<camera>-<kernel>-<libc>`
+- `THINGINO_OUTPUT_DIR` forces the exact output directory, bypassing the
+  branch/camera subpaths (not recommended globally — all cameras would share
+  one directory)
+```bash
+export THINGINO_OUTPUT_ROOT_DIR=/mnt/fastdisk/thingino-output
+make
+```
+
 ### Advanced Variables
 
 **`WORKFLOW`** - Skip dependency checks (used in CI/CD)
@@ -633,6 +647,11 @@ make linux
 # Set OUTPUT_DIR before building
 export OUTPUT_DIR=/path/to/custom/output
 make
+
+# Or use the THINGINO_-prefixed variants, safe for the global environment:
+export THINGINO_OUTPUT_ROOT_DIR=/path/to/output/root   # keeps <branch>/<camera> layout
+export THINGINO_OUTPUT_DIR=/path/to/exact/output/dir   # exact directory
+make
 ```
 
 **Problem**: Build artifacts from different branches interfering
@@ -847,6 +866,8 @@ export GROUP=github                  # Camera group
 export IP=192.168.1.10               # Camera IP / device-specific build scope
 export BR2_DL_DIR=/path/to/downloads # Download cache
 export OUTPUT_DIR=/custom/path       # Build output
+export THINGINO_OUTPUT_ROOT_DIR=/custom/root  # Output root (safe globally, keeps layout)
+export THINGINO_OUTPUT_DIR=/custom/path       # Exact output dir (namespaced)
 ```
 
 ---
