@@ -314,7 +314,7 @@ jobs:
         with:
           submodules: 'true'
           ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "0"
+          fetch-depth: "1"
 
       - name: Debug checked out branch and commit
         run: |
