@@ -246,18 +246,19 @@ jobs:
           mkdir -p /tmp/cc
           # Restore this branch's cache; fall back to master for a warm start (restore-keys analog).
           CANDIDATES="$CACHE_CHANNEL"
-          [ "$CACHE_CHANNEL" != "master" ] && CANDIDATES="$CACHE_CHANNEL master"
+          [ "$CACHE_CHANNEL" = "master" ] || CANDIDATES="$CACHE_CHANNEL master"
           restored=""
           for CH in $CANDIDATES; do
             ASSET="ccache-${CH}-${CACHE_ARCH}-${CAM_SAFE}.zip"
             if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
               echo "Restoring $ASSET"
-              cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null
+              ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
               restored="$ASSET"
               break
             fi
           done
-          [ -z "$restored" ] && echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          [ -n "$restored" ] || echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          exit 0   # ccache restore is best-effort — never fail the build on it
 
       - name: Fetch buildroot-dl-cache release
         id: find_release
@@ -370,9 +371,10 @@ jobs:
             exit 0
           fi
           mkdir -p /tmp/cc
-          cd ~ && 7z a -tzip -mx=0 "/tmp/cc/${ASSET}" .buildroot-ccache >/dev/null
-          echo "Uploading ${ASSET} ($(du -h /tmp/cc/${ASSET} | cut -f1))"
-          gh release upload ccache --repo "$REPO" --clobber "/tmp/cc/${ASSET}"
+          ( cd ~ && 7z a -tzip -mx=0 "/tmp/cc/${ASSET}" .buildroot-ccache >/dev/null ) || echo "  7z rc=$? during pack (non-fatal)"
+          echo "Uploading ${ASSET} ($(du -h /tmp/cc/${ASSET} 2>/dev/null | cut -f1))"
+          gh release upload ccache --repo "$REPO" --clobber "/tmp/cc/${ASSET}" || echo "  ccache upload failed (non-fatal)"
+          exit 0   # ccache save is best-effort — never fail the build on it
 
       - name: Generate debug dummy firmware for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
