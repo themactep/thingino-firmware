@@ -171,12 +171,6 @@ jobs:
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
           echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "1"
-
       - name: Send build start notification via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
@@ -184,7 +178,10 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+          # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
+          gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=${{ github.event.inputs.branch || github.ref_name }}" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
+          chmod +x /tmp/tg-notify.sh
+          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
     runs-on: ubuntu-26.04
@@ -197,33 +194,22 @@ jobs:
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
 
-      - name: Configure GH workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: "0"
-
-      - name: Debug checked out branch and commit
-        run: |
-          echo "Checked out branch:"
-          git branch -a
-          echo "HEAD SHA:"
-          git rev-parse HEAD
-          echo "Last commit:"
-          git log --oneline -1
-
       - name: Generate device matrix
         id: set-matrix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
           if [[ -n "${{ github.event.inputs.board_list }}" ]]; then
             CONFIGS=$(echo "${{ github.event.inputs.board_list }}" | tr ',' '\n')
-          elif [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
           else
-            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
+            # camera defconfigs via the git-trees API — no checkout needed
+            CONFIGS=$(gh api "repos/$REPO/git/trees/$BRANCH?recursive=1" --jq \
+              '.tree[].path | select(test("^configs/cameras/.*_defconfig$")) | sub(".*/";"") | sub("_defconfig$";"")' | sort)
+            if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
+              CONFIGS=$(echo "$CONFIGS" | grep teacup)
+            fi
           fi
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
