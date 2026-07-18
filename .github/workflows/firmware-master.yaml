@@ -1,18 +1,15 @@
-name: firmware-x86_64
+name: firmware-master
 on:
-  schedule:
-    # 00:30 PST / Nightly
-    - cron:  '30 8 * * *'
   workflow_dispatch:
     inputs:
       runner_arch:
         type: choice
         description: 'Build worker architecture'
         required: false
-        default: 'x86_64'
+        default: 'arm64'
         options:
-          - x86_64
           - arm64
+          - x86_64
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
@@ -170,7 +167,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ${{ (github.event.inputs.runner_arch == 'arm64') && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -251,13 +248,17 @@ jobs:
           for CH in $CANDIDATES; do
             ASSET="ccache-${CH}-${CACHE_ARCH}-${CAM_SAFE}.zip"
             if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
-              echo "Restoring $ASSET"
+              echo "Restoring $ASSET ($(du -h "/tmp/cc/$ASSET" 2>/dev/null | cut -f1))"
               ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
               restored="$ASSET"
               break
             fi
           done
-          [ -n "$restored" ] || echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          if [ -n "$restored" ]; then
+            echo "ccache dir now: $(du -sh ~/.buildroot-ccache 2>/dev/null | cut -f1) in $(find ~/.buildroot-ccache -type f 2>/dev/null | wc -l) files"
+          else
+            echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          fi
           exit 0   # ccache restore is best-effort — never fail the build on it
 
       - name: Fetch buildroot-dl-cache release

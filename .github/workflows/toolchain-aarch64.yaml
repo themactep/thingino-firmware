@@ -218,8 +218,9 @@ jobs:
           mkdir -p /tmp/cc
           ASSET="ccache-${CACHE_CHANNEL}-${CACHE_ARCH}-${TC_SAFE}.zip"
           if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
-            echo "Restoring $ASSET"
+            echo "Restoring $ASSET ($(du -h "/tmp/cc/$ASSET" 2>/dev/null | cut -f1))"
             ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
+            echo "ccache dir now: $(du -sh ~/.buildroot-ccache 2>/dev/null | cut -f1) in $(find ~/.buildroot-ccache -type f 2>/dev/null | wc -l) files"
           else
             echo "No ccache asset for ${TC_SAFE} yet — cold build"
           fi

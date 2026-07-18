@@ -354,13 +354,17 @@ jobs:
           for CH in $CANDIDATES; do
             ASSET="ccache-${CH}-${CACHE_ARCH}-${CAM_SAFE}.zip"
             if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
-              echo "Restoring $ASSET"
+              echo "Restoring $ASSET ($(du -h "/tmp/cc/$ASSET" 2>/dev/null | cut -f1))"
               ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
               restored="$ASSET"
               break
             fi
           done
-          [ -n "$restored" ] || echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          if [ -n "$restored" ]; then
+            echo "ccache dir now: $(du -sh ~/.buildroot-ccache 2>/dev/null | cut -f1) in $(find ~/.buildroot-ccache -type f 2>/dev/null | wc -l) files"
+          else
+            echo "No ccache asset for ${CAM_SAFE} yet — cold build"
+          fi
           exit 0   # ccache restore is best-effort — never fail the build on it
 
       - name: Fetch buildroot-dl-cache release
