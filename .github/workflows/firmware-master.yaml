@@ -75,20 +75,15 @@ jobs:
           TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: "master"
-          fetch-depth: "1"
-
       - name: Create release tag
         if: ${{ github.event.inputs.skip_release != 'true' }}
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
+          REPO="${{ github.repository }}"
+          # create the tag ref straight on the remote (no checkout/push needed)
+          if ! gh api repos/$REPO/git/ref/tags/$TAG_NAME &>/dev/null; then
+            gh api repos/$REPO/git/refs -f ref="refs/tags/$TAG_NAME" -f sha="${{ github.sha }}"
           else
             echo "Tag $TAG_NAME already exists."
           fi
@@ -112,7 +107,10 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+          # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
+          gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=master" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
+          chmod +x /tmp/tg-notify.sh
+          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
     runs-on: ubuntu-26.04
@@ -123,22 +121,17 @@ jobs:
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
 
-      - name: Configure GH workspace
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          ref: "master"
-          fetch-depth: "1"
-
       - name: Generate device matrix
         id: set-matrix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          REPO="${{ github.repository }}"
+          # camera defconfigs via the git-trees API — no checkout needed
+          CONFIGS=$(gh api "repos/$REPO/git/trees/master?recursive=1" --jq \
+            '.tree[].path | select(test("^configs/cameras/.*_defconfig$")) | sub(".*/";"") | sub("_defconfig$";"")' | sort)
           if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
-          else
-            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
+            CONFIGS=$(echo "$CONFIGS" | grep teacup)
           fi
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
@@ -484,16 +477,11 @@ jobs:
           echo "GIT_HASH=${{ needs.buildroot.outputs.git_hash }}" >> $GITHUB_ENV
           echo "TAG_NAME=${{ needs.buildroot.outputs.tag_name }}" >> $GITHUB_ENV
 
-      - name: Checkout repository source
-        uses: actions/checkout@v5
-        with:
-          submodules: 'false'
-          ref: "master"
-
       - name: Generate release notes
         id: release_notes
         run: |
-          LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
+          REPO="${{ github.repository }}"
+          LAST_RELEASE_TAG=$(gh release list --repo "$REPO" --limit 2 --json tagName -q '.[1].tagName')
 
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
@@ -538,17 +526,17 @@ jobs:
           echo "Checking GH authentication status..."
           gh auth status
           echo "Attempting to fetch release URL for tag ${TAG_NAME}..."
-          RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --json url -q ".url")
+          RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --json url -q ".url")
           echo "RELEASE_URL: $RELEASE_URL"
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
             if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
               echo "Release notes file exists, including --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             else
               echo "Release notes file does not exist, skipping --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes ""
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --prerelease=false --notes ""
             fi
             echo "Release marked as latest"
           else
@@ -567,4 +555,7 @@ jobs:
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
+          gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=master" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
+          chmod +x /tmp/tg-notify.sh
+          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
