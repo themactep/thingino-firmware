@@ -130,23 +130,36 @@ check_and_free_space() {
 
 	echo "Not enough upload headroom on the device. Attempting to free memory by remapping rmem..."
 
-	local osmem rmem_val osmem_mb osmem_addr rmem_mb rmem_addr new_osmem_mb
+	local osmem rmem_val ispmem_val osmem_mb osmem_addr rmem_mb rmem_addr ispmem_mb ispmem_addr new_osmem_mb remap_cmd remap_msg
 	osmem=$(remote_run "fw_printenv -n osmem" | tr -d '[:space:]')
 	rmem_val=$(remote_run "fw_printenv -n rmem" | tr -d '[:space:]')
+	ispmem_val=$(remote_run "fw_printenv -n ispmem 2>/dev/null" | tr -d '[:space:]')
 
 	osmem_mb=$(echo "$osmem" | sed 's/M@.*//')
 	osmem_addr=$(echo "$osmem" | sed 's/.*@//')
 	rmem_mb=$(echo "$rmem_val" | sed 's/M@.*//')
 	rmem_addr=$(echo "$rmem_val" | sed 's/.*@//')
+	ispmem_mb=$(echo "$ispmem_val" | sed 's/M@.*//')
+	ispmem_addr=$(echo "$ispmem_val" | sed 's/.*@//')
 
 	if [ -z "$rmem_mb" ] || [ "$rmem_mb" -le 0 ]; then
 		die "Not enough upload headroom and rmem is not set or already zero. Cannot proceed."
 	fi
 
 	new_osmem_mb=$(( osmem_mb + rmem_mb ))
-	echo "Remapping memory: osmem ${osmem_mb}M -> ${new_osmem_mb}M, rmem ${rmem_mb}M -> 0M (at ${rmem_addr})"
+	remap_cmd="fw_setenv rmem 0M@${rmem_addr}"
+	remap_msg="rmem ${rmem_mb}M -> 0M (at ${rmem_addr})"
 
-	remote_run "fw_setenv osmem ${new_osmem_mb}M@${osmem_addr} && fw_setenv rmem 0M@${rmem_addr} && reboot" || true
+	# Some SoCs (t20/t10) also reserve ispmem between osmem and rmem; fold it into osmem too.
+	if is_integer "$ispmem_mb" && [ "$ispmem_mb" -gt 0 ]; then
+		new_osmem_mb=$(( new_osmem_mb + ispmem_mb ))
+		remap_cmd="$remap_cmd && fw_setenv ispmem 0M@${ispmem_addr}"
+		remap_msg="$remap_msg, ispmem ${ispmem_mb}M -> 0M (at ${ispmem_addr})"
+	fi
+
+	echo "Remapping memory: osmem ${osmem_mb}M -> ${new_osmem_mb}M, ${remap_msg}"
+
+	remote_run "fw_setenv osmem ${new_osmem_mb}M@${osmem_addr} && $remap_cmd && reboot" || true
 
 	echo "Closing SSH mux..."
 	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null || true
