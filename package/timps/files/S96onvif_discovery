@@ -7,7 +7,6 @@ MOTORS_CONFIG=/etc/thingino.json
 MOTORS_BIN="/bin/motors"
 PORTAL_MODE_FLAG="/run/portal_mode"
 
-RAPTOR_CONFIG=/etc/raptor.conf
 TIMPS_CONFIG=/etc/timps.conf
 OS_RELEASE_FILE="/etc/os-release"
 SOC_MODEL="$(soc -m)"
@@ -27,111 +26,6 @@ is_gateway_reachable() {
 	[ -z "$iface" ] && return 1
 	ping -c 1 -W 1 -I $iface $(ip -4 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1 ||
 		ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') >/dev/null 2>&1
-}
-
-# ------------------------------------------------------------------ raptor ---
-raptor_conf_get() {
-	section="$1"
-	key="$2"
-
-	raptorctl config get "$section" "$key" 2>/dev/null
-}
-
-raptor_bool_default() {
-	section="$1"
-	key="$2"
-	default="$3"
-
-	val=$(raptor_conf_get "$section" "$key" | tr 'A-Z' 'a-z')
-	[ -n "$val" ] || val="$default"
-
-	case "$val" in
-		true | yes | 1 | on) echo "true" ;;
-		false | no | 0 | off) echo "false" ;;
-		*) echo "$default" ;;
-	esac
-}
-
-raptor_rtsp_scheme() {
-	if [ "$(raptor_bool_default rtsp tls true)" = "true" ]; then
-		echo "rtsps"
-	else
-		echo "rtsp"
-	fi
-}
-
-raptor_rtsp_port() {
-	port=$(raptor_conf_get rtsp port)
-	if [ -n "$port" ]; then
-		echo "$port"
-	elif [ "$(raptor_rtsp_scheme)" = "rtsps" ]; then
-		echo "322"
-	else
-		echo "554"
-	fi
-}
-
-raptor_rtsp_endpoint() {
-	case "$1" in
-		0)
-			key="endpoint_main"
-			def="ch0"
-			;;
-		1)
-			key="endpoint_sub"
-			def="ch1"
-			;;
-		*)
-			echo ""
-			return
-			;;
-	esac
-
-	ep=$(raptor_conf_get rtsp "$key")
-	[ -n "$ep" ] || ep="$def"
-	echo "${ep#/}"
-}
-
-raptor_webrtc_enabled() {
-	raptor_bool_default webrtc enabled true
-}
-
-raptor_webrtc_scheme() {
-	if [ "$(raptor_bool_default webrtc https true)" = "true" ]; then
-		echo "https"
-	else
-		echo "http"
-	fi
-}
-
-raptor_webrtc_port() {
-	port=$(raptor_conf_get webrtc http_port)
-	[ -n "$port" ] || port="8554"
-	echo "$port"
-}
-
-configure_raptor_onvif_profiles() {
-	rtsp_scheme=$(raptor_rtsp_scheme)
-	rtsp_port=$(raptor_rtsp_port)
-	endpoint_main=$(raptor_rtsp_endpoint 0)
-	endpoint_sub=$(raptor_rtsp_endpoint 1)
-
-	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
-	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
-	jct "$tmpfile" set audio.backchannel.uri "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
-
-	if [ "$(raptor_webrtc_enabled)" = "true" ]; then
-		webrtc_scheme=$(raptor_webrtc_scheme)
-		webrtc_port=$(raptor_webrtc_port)
-		stream0_width=$(jct "$tmpfile" get profiles.stream0.width 2>/dev/null | tr -d '\n')
-		stream0_height=$(jct "$tmpfile" get profiles.stream0.height 2>/dev/null | tr -d '\n')
-
-		jct "$tmpfile" set profiles.webrtc.name "WebRTC"
-		[ -n "$stream0_width" ] && jct "$tmpfile" set profiles.webrtc.width "$stream0_width"
-		[ -n "$stream0_height" ] && jct "$tmpfile" set profiles.webrtc.height "$stream0_height"
-		jct "$tmpfile" set profiles.webrtc.type "H264"
-		jct "$tmpfile" set profiles.webrtc.url "${webrtc_scheme}://%s:${webrtc_port}/webrtc.html"
-	fi
 }
 
 # ------------------------------------------------------------------- timps ---
@@ -199,6 +93,93 @@ timps_http_port() {
 	echo "$port"
 }
 
+# ---- live fallback via GET /control -----------------------------------------
+# videoN.width/height/fps are "config-first with auto-detect" keys: when they
+# are absent from timps.conf the real values only exist inside the running
+# daemon. GET /control on loopback needs no auth (timps' httpd skips auth for
+# 127.0.0.0/8) and dumps them as one line of JSON:
+#   "video":{"0":{...,"codec":"h264","width":1920,"height":1080,"fps":25,
+#   "bitrate":3000,...,"rtsp_path":"/ch0"},"1":{...}},"osd":{...
+# Fetched lazily (only when a needed key is missing) and at most once.
+TIMPS_CONTROL_JSON=""
+TIMPS_CONTROL_TRIED=0
+
+fetch_timps_control() {
+	[ "$TIMPS_CONTROL_TRIED" = "1" ] && return
+	TIMPS_CONTROL_TRIED=1
+
+	if [ "$(timps_http_scheme)" = "https" ]; then
+		TIMPS_CONTROL_JSON=$(wget -q -T 3 --no-check-certificate -O - \
+			"https://127.0.0.1:$(timps_http_port)/control" 2>/dev/null)
+	else
+		TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - \
+			"http://127.0.0.1:$(timps_http_port)/control" 2>/dev/null)
+	fi
+}
+
+# timps_live_get <stream> <field>: pull one scalar out of the cached /control
+# dump. Scope to the "video" object first and cut at the "osd" marker that
+# directly follows it (stream ids like "0":{ repeat later under "osd0"). The
+# per-stream object is flat, so "N":{[^}]*} captures it whole; the needed
+# numeric fields all precede rtsp_path, the only free-form string in it.
+timps_live_get() {
+	json=${TIMPS_CONTROL_JSON#*\"video\":\{}
+	[ "$json" = "$TIMPS_CONTROL_JSON" ] && return
+	json=${json%%\"osd\"*}
+	echo "$json" \
+		| sed -n "s/.*\"$1\":{\([^}]*\)}.*/\1/p" \
+		| sed -n "s/.*\"$2\":\"\{0,1\}\([^\",}]*\).*/\1/p"
+}
+
+# Write profiles.streamN.<field> only for values we actually determined: a
+# skipped key keeps the daemon's onvif.json default, which beats writing 0.
+jct_set_stream_num() {
+	case "$3" in
+		"" | 0 | *[!0-9]*) ;;
+		*) jct "$tmpfile" set "profiles.stream$1.$2" "$3" ;;
+	esac
+}
+
+# Populate the per-profile video encoder parameters so ONVIF clients report
+# the camera's real values instead of the onvif.json template defaults
+# (1920x1080/640x360, H264, 30 fps, 5000 kbps). onvif_simple_server reads
+# profiles.streamN.width/.height (get_int_from_json) and .type ("H264"/"H265",
+# conf.c). framerate/bitrate are written under those names for the daemon too;
+# the currently pinned onvif_simple_server still hardcodes FrameRateLimit/
+# BitrateLimit in its XML templates and will use these keys once it learns
+# them - they are correct, forward-compatible metadata either way.
+# Config-first: timps.conf; auto-detected keys fall back to live /control.
+set_timps_video_params() {
+	n="$1"
+
+	width=$(timps_conf_get "video$n.width")
+	height=$(timps_conf_get "video$n.height")
+	fps=$(timps_conf_get "video$n.fps")
+	bitrate=$(timps_conf_get "video$n.bitrate")
+	codec=$(timps_conf_get "video$n.codec" | tr 'A-Z' 'a-z')
+
+	if [ -z "$width" ] || [ -z "$height" ] || [ -z "$fps" ] || \
+	   [ -z "$bitrate" ] || [ -z "$codec" ]; then
+		fetch_timps_control
+		[ -n "$width" ]   || width=$(timps_live_get "$n" width)
+		[ -n "$height" ]  || height=$(timps_live_get "$n" height)
+		[ -n "$fps" ]     || fps=$(timps_live_get "$n" fps)
+		[ -n "$bitrate" ] || bitrate=$(timps_live_get "$n" bitrate)
+		[ -n "$codec" ]   || codec=$(timps_live_get "$n" codec)
+	fi
+
+	jct_set_stream_num "$n" width "$width"
+	jct_set_stream_num "$n" height "$height"
+	jct_set_stream_num "$n" framerate "$fps"
+	jct_set_stream_num "$n" bitrate "$bitrate"
+
+	# map timps' codec spelling to the daemon's profile type enum
+	case "$codec" in
+		h264) jct "$tmpfile" set "profiles.stream$n.type" "H264" ;;
+		h265 | hevc) jct "$tmpfile" set "profiles.stream$n.type" "H265" ;;
+	esac
+}
+
 configure_timps_onvif_profiles() {
 	rtsp_scheme=$(timps_rtsp_scheme)
 	rtsp_port=$(timps_rtsp_port)
@@ -210,21 +191,26 @@ configure_timps_onvif_profiles() {
 	jct "$tmpfile" set profiles.stream0.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
 	jct "$tmpfile" set profiles.stream1.url "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_sub}"
 	# timps snapshots come from its own HTTP server (per-stream via ?chn=N, needs
-	# videoN.jpeg = true). Prefer the WebUI's port-80 loopback proxies
-	# (/onvif/image[1].cgi -> 127.0.0.1:8880/snapshot.jpg): timps skips auth for
-	# loopback, so the snapshot works for EVERY NVR regardless of http.pass and
-	# regardless of the ?token= that onvif_simple_server appends (timps ignores
-	# it). Fall back to the direct :8880 URL (authenticated) when the proxies
-	# can't apply: no WebUI overlay, a non-default http.port, or TLS-only http
-	# (the proxy target is plain http). No RTSP audio backchannel: timps is one-way.
-	if [ "$http_scheme" = "http" ] && [ "$http_port" = "8880" ] && \
-	   grep -q '^P:/onvif/image1\.cgi:' /etc/httpd.conf 2>/dev/null; then
+	# videoN.jpeg = true). Prefer the WebUI's port-80 snapshot CGIs:
+	# /onvif/image[1].cgi are symlinks into the /x CGI prefix (-> x/ch0.jpg,
+	# x/ch1.jpg; shipped by package/timps/timps.mk) whose script fetches
+	# timps's /snapshot.jpg over loopback (timps skips auth for 127.0.0.0/8)
+	# and derives timps's port/scheme from /etc/timps.conf itself, so a
+	# non-default http.port or TLS-only http is fine. The ?token= that
+	# onvif_simple_server appends to the snapurl satisfies the WebUI auth
+	# layer (auth.sh verify_api_key). Fall back to the direct URL
+	# (authenticated via http.pass) only when the WebUI snapshot CGIs aren't
+	# installed. No RTSP audio backchannel: timps is one-way.
+	if [ -x /var/www/x/ch1.jpg ] && [ -e /var/www/onvif/image1.cgi ]; then
 		jct "$tmpfile" set profiles.stream0.snapurl "http://%s/onvif/image.cgi"
 		jct "$tmpfile" set profiles.stream1.snapurl "http://%s/onvif/image1.cgi"
 	else
 		jct "$tmpfile" set profiles.stream0.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=0"
 		jct "$tmpfile" set profiles.stream1.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=1"
 	fi
+
+	set_timps_video_params 0
+	set_timps_video_params 1
 }
 
 # ----------------------------------------------------------------- daemons ---
@@ -280,19 +266,13 @@ start() {
 	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release | tr -d "\n")"
 	jct $tmpfile set server.ifs $iface
 
-	# Pick the credential/URL source from the active streamer. timps stores its
-	# RTSP user/pass and stream paths in /etc/timps.conf; raptor answers via
-	# raptorctl. Sourcing ONVIF auth from the wrong one is what makes clients
-	# fail to log in.
-	if [ -f "$TIMPS_CONFIG" ]; then
-		configure_timps_onvif_profiles
-		username=$(timps_conf_get rtsp.user | tr -d '\n')
-		password=$(timps_conf_get rtsp.pass | tr -d '\n')
-	else
-		configure_raptor_onvif_profiles
-		username=$(raptor_conf_get rtsp username | tr -d '\n')
-		password=$(raptor_conf_get rtsp password | tr -d '\n')
-	fi
+	# timps is the only streamer this package ships with, and /etc/timps.conf
+	# always exists on a timps image: configure the profiles and source the
+	# ONVIF credentials from it unconditionally. (raptor images install their
+	# own S96onvif_discovery from the raptor package.)
+	configure_timps_onvif_profiles
+	username=$(timps_conf_get rtsp.user | tr -d '\n')
+	password=$(timps_conf_get rtsp.pass | tr -d '\n')
 
 	# Only write credentials when auth is actually configured. An empty
 	# "username":"" string is NOT the same as "no auth": onvif_simple_server
