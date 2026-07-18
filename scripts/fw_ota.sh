@@ -62,7 +62,7 @@ is_integer() {
 
 prepare_upload_memory() {
 	echo "Freeing memory before upload..."
-	remote_run "rm -f /tmp/snapshot.jpg; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
+	remote_run "rm -f /tmp/snapshot.jpg; rm -rf /tmp/sysupgrade /tmp/fw.bin; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
 		echo "Warning: failed to free memory before upload."
 }
 
@@ -214,6 +214,7 @@ REMOTE_HOST="root@$CAMERA_IP_ADDRESS"
 REMOTE_SCRIPT="/tmp/sup"
 
 SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
+-o ServerAliveCountMax=30 \
 -o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
