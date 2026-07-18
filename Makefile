@@ -210,6 +210,13 @@ $(info TOOLCHAIN_LIBC: $(TOOLCHAIN_LIBC))
 endif
 
 # working directory - set after CAMERA is defined
+# THINGINO_-prefixed variants allow safe overrides from the global environment
+ifdef THINGINO_OUTPUT_ROOT_DIR
+OUTPUT_ROOT_DIR := $(THINGINO_OUTPUT_ROOT_DIR)
+endif
+ifdef THINGINO_OUTPUT_DIR
+OUTPUT_DIR := $(THINGINO_OUTPUT_DIR)
+endif
 OUTPUT_ROOT_DIR ?= $(BR2_EXTERNAL)/output
 OUTPUT_BASE_DIR = $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)-$(TOOLCHAIN_LIBC)
 ifeq ($(SKIP_CAMERA_SELECTION),)
