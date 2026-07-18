@@ -109,13 +109,16 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 
 - `package/thingino-webui/files/www/a/*.js` → formatted with **Prettier**.
 - Staged `/bin/sh` scripts → formatted with **shfmt** (`shfmt -w -i 0 -ci`).
+- Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
+  (see `docs/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 
-## Docker
+## Container Builds
 
 ```bash
-make docker-shell    # builds image (debian:trixie) and drops into container
-make docker-build    # build image only
+./build-container.sh              # build firmware in container
+./build-container.sh shell        # drop into container shell
+make -f Makefile.container container-pull  # pull container image only
 ```
 
 Container engine auto-detects podman → docker fallback.
@@ -145,6 +148,8 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
   2. Rename in place to exclude from the build (e.g. `.patch` → `.patch.disabled`).
   3. Move to a dedicated `trash/` directory (e.g. `trash/<original-path>/`),
      leaving it up to the user to decide when to permanently delete.
+- **Never search outside the working directory!** If you need something you cannot
+  find - ask the user. **Full home search is prohibited under any circumstances!**
 
 ## Important constraints
 
