@@ -379,9 +379,9 @@ jobs:
             --jq '.assets[] | select(.name | startswith("buildroot-dl-cache")) | .url' > /tmp/dl-urls.txt
           echo "parts:"; cat /tmp/dl-urls.txt
           set +e
-          # -j high so all (now ~7 smaller) parts download concurrently; modest -x/-s per file
-          # since the speed comes from more concurrent parts, not more connections per part
-          aria2c -x4 -s4 -j16 -k5M --continue=true --auto-file-renaming=false \
+          # -j16 so all ~7 parts download at once, and -x8/-s8 so each part gets enough
+          # connections — per-part throughput scales with connections up to GitHub's per-asset cap
+          aria2c -x8 -s8 -j16 -k5M --continue=true --auto-file-renaming=false \
                  --console-log-level=warn --summary-interval=0 \
                  --dir=/tmp/dl-cache -i /tmp/dl-urls.txt
           DOWNLOAD_EXIT_CODE=$?
