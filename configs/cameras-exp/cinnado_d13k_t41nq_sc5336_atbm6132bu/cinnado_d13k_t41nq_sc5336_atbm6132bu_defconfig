@@ -1,7 +1,5 @@
 # NAME: Cinnado D1 3K (T41NQ, SC5336, ATBM6132UB)
 # FRAG: soc-xburst2 core ssl
-# adding these because I had them for the GNCC P5 port; not sure they are needed...
-# BR2_THINGINO_MOTORS=y
 BR2_AVPU_APLL=y
 BR2_AVPU_CLK_550MHZ=y
 BR2_INGENIC_SOC_MODEL="t41nq"
@@ -17,8 +15,10 @@ BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6132U=y
 BR2_SENSOR_1_NAME="sc5336"
 BR2_THINGINO_AUDIO=y
+# adding these because I had them for the GNCC P5 port; not sure they are needed...
 BR2_THINGINO_AUDIO_GPIO=57
 BR2_THINGINO_BUTTON=y
+# BR2_THINGINO_MOTORS=y
 BR2_THINGINO_NMEM_MB=8
 BR2_THINGINO_RMEM_MB=64
 BR2_THINGINO_SDCARD=y
