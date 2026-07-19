@@ -10,7 +10,7 @@
 //
 // Wire protocol (115200 8N1 raw):
 //   SoC -> MCU : AA 55 43 LEN OP [DATA..] SUMhi SUMlo   (LEN = 1+ndata+2)
-//   MCU -> SoC : 55 AA OP  LEN [DATA..] SUMhi SUMlo     (total = LEN+4)
+//   MCU -> SoC : 55 AA 43 LEN OP [DATA..] SUMhi SUMlo   (total = LEN+4)
 //   SUM = 16-bit sum of every byte before the 2-byte checksum, big-endian.
 //
 // Commands (id / req op / resp op):
@@ -57,8 +57,11 @@
 
 #define FRAME_MAX 256
 #define CONTROL_SOCKET "/run/floodlightd.sock"
-#define CONTROL_MAX 256
+#define CONTROL_MAX 512
 #define CONTROL_CLIENTS 8
+#define PIR_ZONES 3
+#define PIR_BASELINE_SAMPLES 20
+#define PIR_RISE_MIN 17
 
 enum light_mode {
 	LIGHT_AUTO,
@@ -73,6 +76,16 @@ struct control_client {
 	char buf[CONTROL_MAX];
 };
 
+struct pir_filter {
+	uint16_t baseline[PIR_BASELINE_SAMPLES];
+	uint32_t baseline_sum;
+	unsigned int baseline_pos;
+	uint16_t previous;
+	uint16_t previous2;
+	unsigned int rising_samples;
+	int have_previous;
+};
+
 /* ---- config (overridable via CLI) ---- */
 static const char *g_tty   = "/dev/ttyS2";
 static speed_t     g_baud  = B115200;
@@ -81,6 +94,8 @@ static int         g_bright_mode = 0;     /* set-brightness mode byte        */
 static int         g_ramp_100ms  = 5;     /* ramp duration, units of 100 ms  */
 static int         g_motion_hold = 30;    /* seconds to hold flood after motion */
 static int         g_poll_ms     = 500;   /* PIR poll cadence (0 = passive)   */
+static int         g_pir_sensitivity = 255; /* stock default, range 0..255     */
+static int         g_pir_zone_mask = 7;  /* bit 0=left, 1=middle, 2=right     */
 static const char *g_hook  = "/etc/floodlightd/motion.sh"; /* run on motion   */
 static const char *g_control_path = CONTROL_SOCKET;
 static int         g_foreground = 0;
@@ -94,7 +109,12 @@ static time_t g_last_motion = 0;
 static time_t g_override_until = 0;
 static enum light_mode g_light_mode = LIGHT_AUTO;
 static int g_light_level = 0;
-static uint16_t g_pir[3];
+static uint16_t g_pir_raw[PIR_ZONES];
+static int g_pir_motion[PIR_ZONES];
+static struct pir_filter g_pir_filter[PIR_ZONES];
+static unsigned long g_pir_frames;
+static unsigned long g_pir_nonzero_frames;
+static int g_zero_pir_warned;
 
 static void on_sig(int s) { (void)s; g_run = 0; }
 
@@ -122,15 +142,28 @@ static long override_remaining(void)
 	return remaining > 0 ? remaining : 0;
 }
 
+static int pir_threshold(void)
+{
+	if (g_pir_sensitivity < 103) return 140;
+	if (g_pir_sensitivity < 154) return 120;
+	return 22;
+}
+
 static int state_json(char *buf, size_t size, const char *event)
 {
 	return snprintf(buf, size,
 		"{\"event\":\"%s\",\"mode\":\"%s\",\"light\":%s,"
 		"\"level\":%d,\"auto_brightness\":%d,\"hold\":%d,"
-		"\"override_remaining\":%ld,\"pir\":[%u,%u,%u]}\n",
+		"\"override_remaining\":%ld,\"pir_raw\":[%u,%u,%u],"
+		"\"pir_motion\":[%d,%d,%d],\"pir_frames\":%lu,"
+		"\"pir_nonzero_frames\":%lu,\"pir_sensitivity\":%d,"
+		"\"pir_threshold\":%d,\"pir_zone_mask\":%d}\n",
 		event, light_mode_name(), g_light_level > 0 ? "true" : "false",
 		g_light_level, g_bright_on, g_motion_hold, override_remaining(),
-		g_pir[0], g_pir[1], g_pir[2]);
+		g_pir_raw[0], g_pir_raw[1], g_pir_raw[2],
+		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2],
+		g_pir_frames, g_pir_nonzero_frames, g_pir_sensitivity,
+		pir_threshold(), g_pir_zone_mask);
 }
 
 static int control_write(int fd, const char *buf, size_t len)
@@ -187,13 +220,17 @@ static int tty_open(const char *dev, speed_t baud)
 {
 	int fd = open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (fd < 0) return -1;
+	/* Match stock ttys2_open(): open nonblocking, then immediately clear the
+	 * file status flags before configuring the line.  Leaving O_NONBLOCK set
+	 * can drop commands with EAGAIN when the MCU is being polled. */
+	if (fcntl(fd, F_SETFL, 0) != 0) { close(fd); return -1; }
 
 	struct termios t;
 	if (tcgetattr(fd, &t) != 0) { close(fd); return -1; }
 	cfmakeraw(&t);
-	t.c_cflag |= (CLOCAL | CREAD);
-	t.c_cflag &= ~CRTSCTS;
-	t.c_cc[VMIN]  = 0;
+	t.c_cflag &= ~(CSIZE | CSTOPB | PARENB | CRTSCTS);
+	t.c_cflag |= (CS8 | CLOCAL | CREAD);
+	t.c_cc[VMIN]  = 1;
 	t.c_cc[VTIME] = 0;
 	cfsetispeed(&t, baud);
 	cfsetospeed(&t, baud);
@@ -275,8 +312,8 @@ static void resume_auto(const char *source)
 {
 	g_light_mode = LIGHT_AUTO;
 	g_override_until = 0;
-	if (g_pir[0] || g_pir[1] || g_pir[2]) {
-		g_last_motion = time(NULL);
+	if (g_last_motion && (g_motion_hold <= 0 ||
+	    time(NULL) - g_last_motion < g_motion_hold)) {
 		floodlight_set(g_bright_on, source);
 	} else {
 		floodlight_set(0, source);
@@ -284,29 +321,90 @@ static void resume_auto(const char *source)
 	monitor_emit("{\"event\":\"mode\",\"mode\":\"auto\",\"source\":\"%s\"}", source);
 }
 
+/* Wyze's fixed 4.53.2 PIR path does not send an initialization command to the
+ * CH554.  It filters the three raw 16-bit samples in iCamera: a 20-sample
+ * running baseline, a sensitivity-dependent delta (140/120/22), and a rising
+ * edge of at least 17 counts.  It also rejects values outside the useful PIR
+ * range.  This is a compact equivalent of that stateful host-side filter. */
+static int pir_filter_sample(int zone, uint16_t raw)
+{
+	struct pir_filter *filter = &g_pir_filter[zone];
+	int threshold = pir_threshold();
+	int rising = 0;
+
+	if (!(g_pir_zone_mask & (1 << zone))) return 0;
+	if (raw > 2000 || raw >= threshold + 75) return 0;
+	if (filter->have_previous && raw == filter->previous) return 0;
+
+	if (!filter->have_previous || raw < filter->previous) {
+		filter->rising_samples = 0;
+	} else {
+		filter->rising_samples++;
+		if (filter->rising_samples >= 2 &&
+		    ((unsigned int)(raw - filter->previous) >= PIR_RISE_MIN ||
+		     (unsigned int)(raw - filter->previous2) >= PIR_RISE_MIN))
+			rising = 1;
+	}
+
+	filter->previous2 = filter->previous;
+	filter->previous = raw;
+	filter->have_previous = 1;
+
+	filter->baseline_sum -= filter->baseline[filter->baseline_pos];
+	filter->baseline[filter->baseline_pos] = raw;
+	filter->baseline_sum += raw;
+	filter->baseline_pos = (filter->baseline_pos + 1) % PIR_BASELINE_SAMPLES;
+
+	if (rising && raw > filter->baseline_sum / PIR_BASELINE_SAMPLES + threshold) {
+		filter->rising_samples = 0;
+		return 1;
+	}
+	return 0;
+}
+
+static void pir_filter_reset(void)
+{
+	memset(g_pir_filter, 0, sizeof g_pir_filter);
+	memset(g_pir_motion, 0, sizeof g_pir_motion);
+}
+
 static void update_pir(uint16_t left, uint16_t mid, uint16_t right)
 {
-	int was_active = g_pir[0] || g_pir[1] || g_pir[2];
-	int active = left || mid || right;
-	int changed = left != g_pir[0] || mid != g_pir[1] || right != g_pir[2];
-	g_pir[0] = left;
-	g_pir[1] = mid;
-	g_pir[2] = right;
+	uint16_t raw[PIR_ZONES] = { left, mid, right };
+	int changed = left != g_pir_raw[0] || mid != g_pir_raw[1] || right != g_pir_raw[2];
+	int active;
 
-	if (changed)
-		monitor_emit("{\"event\":\"pir\",\"left\":%u,\"middle\":%u,\"right\":%u}",
-			left, mid, right);
+	g_pir_frames++;
+	if (left || mid || right) g_pir_nonzero_frames++;
+	for (int i = 0; i < PIR_ZONES; i++) {
+		g_pir_raw[i] = raw[i];
+		g_pir_motion[i] = pir_filter_sample(i, raw[i]);
+	}
+	active = g_pir_motion[0] || g_pir_motion[1] || g_pir_motion[2];
+
+	if (changed || active || g_pir_frames == 1)
+		monitor_emit("{\"event\":\"pir\",\"raw\":[%u,%u,%u],"
+			"\"motion\":[%d,%d,%d],\"frames\":%lu}",
+			left, mid, right, g_pir_motion[0], g_pir_motion[1],
+			g_pir_motion[2], g_pir_frames);
+	if (!g_zero_pir_warned && g_pir_frames >= 20 && !g_pir_nonzero_frames) {
+		g_zero_pir_warned = 1;
+		logv(LOG_WARNING, "PIR frames are valid but all samples are zero; check PIR board/connector");
+		monitor_emit("{\"event\":\"diagnostic\",\"pir\":\"all_zero\","
+			"\"frames\":%lu}", g_pir_frames);
+	}
 	if (!active) return;
 
 	g_last_motion = time(NULL);
-	if (!was_active) {
-		char zones[32];
-		snprintf(zones, sizeof zones, "%u %u %u", left, mid, right);
-		logv(LOG_INFO, "PIR motion L=%u M=%u R=%u", left, mid, right);
-		monitor_emit("{\"event\":\"motion\",\"left\":%u,\"middle\":%u,\"right\":%u}",
-			left, mid, right);
-		run_hook(zones);
-	}
+	char zones[32];
+	snprintf(zones, sizeof zones, "%d %d %d",
+		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2]);
+	logv(LOG_INFO, "PIR motion L=%d M=%d R=%d (raw %u/%u/%u)",
+		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2], left, mid, right);
+	monitor_emit("{\"event\":\"motion\",\"zones\":[%d,%d,%d],"
+		"\"raw\":[%u,%u,%u]}", g_pir_motion[0], g_pir_motion[1],
+		g_pir_motion[2], left, mid, right);
+	run_hook(zones);
 	if (g_light_mode == LIGHT_AUTO && g_light_level != g_bright_on)
 		floodlight_set(g_bright_on, "motion");
 }
@@ -359,20 +457,17 @@ static void rx_feed(const uint8_t *in, int n)
 				continue;
 			}
 			int total = rxbuf[3] + 4;             /* LEN + 4 */
+			/* This CH554 firmware reports LEN=5 for its ten-byte brightness
+			 * reply.  Account for that known one-byte error before deciding
+			 * whether a complete frame is buffered. */
+			if (rxlen >= 5 && rxbuf[4] == OP_BRIGHTNESS_REPORT && rxbuf[3] == 5)
+				total++;
 			if (total < 6 || total > FRAME_MAX) {  /* bogus length */
 				memmove(rxbuf, rxbuf + 1, --rxlen);
 				continue;
 			}
 			if (rxlen < total) break;              /* wait for more */
 			uint16_t got = (rxbuf[total - 2] << 8) | rxbuf[total - 1];
-			/* Brightness reports from this CH554 revision under-report LEN by
-			 * one byte.  Accept the extra byte only when it makes a complete,
-			 * checksum-valid frame. */
-			if (cksum(rxbuf, total - 2) != got && rxlen > total) {
-				uint16_t extended = (rxbuf[total - 1] << 8) | rxbuf[total];
-				if (cksum(rxbuf, total - 1) == extended) total++;
-				got = (rxbuf[total - 2] << 8) | rxbuf[total - 1];
-			}
 			if (cksum(rxbuf, total - 2) == got)
 				handle_frame(rxbuf, total);
 			else
@@ -411,7 +506,7 @@ static int control_command(int slot, char *line)
 	char *arg2 = strtok_r(NULL, " \t\r\n", &save);
 	char *extra = strtok_r(NULL, " \t\r\n", &save);
 	int fd = g_clients[slot].fd;
-	int level, seconds;
+	int level, seconds, value;
 
 	if (!command) {
 		control_error(fd, "empty command");
@@ -466,8 +561,32 @@ static int control_command(int slot, char *line)
 		control_send_state(fd, "state");
 		return 0;
 	}
+	if (!strcmp(command, "sensitivity")) {
+		if (!arg1 || arg2 || extra || parse_number(arg1, 0, 255, &value) != 0) {
+			control_error(fd, "sensitivity 0..255");
+			return 0;
+		}
+		g_pir_sensitivity = value;
+		pir_filter_reset();
+		monitor_emit("{\"event\":\"pir_config\",\"sensitivity\":%d,"
+			"\"threshold\":%d}", g_pir_sensitivity, pir_threshold());
+		control_send_state(fd, "state");
+		return 0;
+	}
+	if (!strcmp(command, "zones")) {
+		if (!arg1 || arg2 || extra || parse_number(arg1, 0, 7, &value) != 0) {
+			control_error(fd, "zones 0..7 (bitmask: left=1 middle=2 right=4)");
+			return 0;
+		}
+		g_pir_zone_mask = value;
+		pir_filter_reset();
+		monitor_emit("{\"event\":\"pir_config\",\"zone_mask\":%d}",
+			g_pir_zone_mask);
+		control_send_state(fd, "state");
+		return 0;
+	}
 
-	control_error(fd, "status|monitor|auto|on|off");
+	control_error(fd, "status|monitor|auto|on|off|sensitivity|zones");
 	return 0;
 }
 
@@ -551,8 +670,10 @@ static void control_client_usage(const char *program)
 		"  %s monitor\n"
 		"  %s auto [hold_seconds [brightness]]\n"
 		"  %s on [brightness [seconds]]\n"
-		"  %s off [seconds]\n",
-		program, program, program, program, program);
+		"  %s off [seconds]\n"
+		"  %s sensitivity 0..255\n"
+		"  %s zones 0..7\n",
+		program, program, program, program, program, program, program);
 }
 
 static int control_client_main(int argc, char **argv)
@@ -622,6 +743,8 @@ static void usage(const char *p)
 	  "  -r RAMP     ramp duration in 100ms units (default 5)\n"
 	  "  -t SECS     seconds to hold flood after last motion (default 30)\n"
 	  "  -p MS       PIR poll interval ms, 0=passive (default 500)\n"
+	  "  -S LEVEL    PIR sensitivity 0-255 (stock default 255)\n"
+	  "  -z MASK     PIR zone mask: left=1 middle=2 right=4 (default 7)\n"
 	  "  -H PATH     motion hook script (default /etc/floodlightd/motion.sh)\n"
 	  "  -s PATH     control socket (default /run/floodlightd.sock)\n"
 	  "  -f          run in foreground\n"
@@ -636,7 +759,7 @@ int main(int argc, char **argv)
 
 	for (int i = 0; i < CONTROL_CLIENTS; i++) g_clients[i].fd = -1;
 	int c;
-	while ((c = getopt(argc, argv, "d:b:B:m:r:t:p:H:s:fvh")) != -1) {
+	while ((c = getopt(argc, argv, "d:b:B:m:r:t:p:S:z:H:s:fvh")) != -1) {
 		switch (c) {
 		case 'd': g_tty = optarg; break;
 		case 'b': g_baud = (atoi(optarg) == 9600) ? B9600 : B115200; break;
@@ -645,12 +768,19 @@ int main(int argc, char **argv)
 		case 'r': g_ramp_100ms = atoi(optarg); break;
 		case 't': g_motion_hold = atoi(optarg); break;
 		case 'p': g_poll_ms = atoi(optarg); break;
+		case 'S': g_pir_sensitivity = atoi(optarg); break;
+		case 'z': g_pir_zone_mask = atoi(optarg); break;
 		case 'H': g_hook = optarg; break;
 		case 's': g_control_path = optarg; break;
 		case 'f': g_foreground = 1; break;
 		case 'v': g_verbose = 1; break;
 		default: usage(argv[0]); return c == 'h' ? 0 : 1;
 		}
+	}
+	if (g_pir_sensitivity < 0 || g_pir_sensitivity > 255 ||
+	    g_pir_zone_mask < 0 || g_pir_zone_mask > 7) {
+		usage(argv[0]);
+		return 1;
 	}
 
 	if (!g_foreground) openlog("floodlightd", LOG_PID, LOG_DAEMON);
