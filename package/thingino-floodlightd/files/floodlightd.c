@@ -52,6 +52,7 @@
 #define OP_GET_PIR        0xBC
 /* MCU->SoC opcodes are req+1 (0x45,0x47,0x3D,0x53,0xBD). Async motion is also
  * reported as a 0xBD PIR frame; confirm the exact async op on live hardware. */
+#define OP_BRIGHTNESS_REPORT 0x45
 #define OP_PIR_REPORT     0xBD
 
 #define FRAME_MAX 256
@@ -327,6 +328,15 @@ static void handle_frame(const uint8_t *f, int n)
 		uint8_t m = dlen > 1 ? f[5] : 0;
 		uint8_t r = dlen > 2 ? f[6] : 0;
 		update_pir(l, m, r);
+	} else if (op == OP_BRIGHTNESS_REPORT) {
+		int dlen = n - 4 - 2;
+		if (dlen > 0 && f[4] <= 100) {
+			int changed = g_light_level != f[4];
+			g_light_level = f[4];
+			if (changed)
+				monitor_emit("{\"event\":\"light\",\"on\":%s,\"level\":%d,\"source\":\"mcu\"}",
+					g_light_level ? "true" : "false", g_light_level);
+		}
 	}
 }
 
@@ -655,6 +665,8 @@ int main(int argc, char **argv)
 
 	/* ask the MCU for its firmware version once (handy in logs) */
 	mcu_send(OP_GET_SOFTWARE, NULL, 0);
+	/* Synchronize status with the MCU's current light state. */
+	mcu_send(OP_GET_BRIGHTNESS, NULL, 0);
 
 	struct timespec last_poll = {0};
 	while (g_run) {
