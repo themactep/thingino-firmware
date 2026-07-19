@@ -1,0 +1,14 @@
+config BR2_PACKAGE_THINGINO_FLOODLIGHTD
+	bool "thingino-floodlightd"
+	help
+	  Userspace daemon for the Wyze Floodlight v2 (T41) CH554 MCU.
+
+	  The floodlight white LEDs, the 3-zone PIR motion array and the
+	  siren are managed by an external CH554 MCU on /dev/ttyS2.
+	  floodlightd speaks the stock serial protocol: it reports PIR
+	  motion (per zone) to a hook script and drives the floodlight
+	  brightness in response to motion.
+
+	  Requires UART2 (ttyS2) enabled in the device tree.
+
+	  See docs/wyze-floodlightv2-mcu-protocol.md for the protocol.

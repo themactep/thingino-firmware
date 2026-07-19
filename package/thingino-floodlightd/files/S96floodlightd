@@ -1,0 +1,61 @@
+#!/bin/sh
+
+DAEMON="/usr/bin/floodlightd"
+PIDFILE="/run/floodlightd.pid"
+CONF="/etc/floodlightd.conf"
+
+# Optional key=value overrides in /etc/floodlightd.conf, e.g.:
+#   TTY=/dev/ttyS2
+#   BAUD=115200
+#   BRIGHTNESS=100
+#   RAMP=5
+#   HOLD=30
+#   POLL=500
+#   HOOK=/etc/floodlightd/motion.sh
+#   SOCKET=/run/floodlightd.sock
+[ -f "$CONF" ] && . "$CONF"
+
+build_args() {
+	ARGS=""
+	[ -n "$TTY" ] && ARGS="$ARGS -d $TTY"
+	[ -n "$BAUD" ] && ARGS="$ARGS -b $BAUD"
+	[ -n "$BRIGHTNESS" ] && ARGS="$ARGS -B $BRIGHTNESS"
+	[ -n "$MODE" ] && ARGS="$ARGS -m $MODE"
+	[ -n "$RAMP" ] && ARGS="$ARGS -r $RAMP"
+	[ -n "$HOLD" ] && ARGS="$ARGS -t $HOLD"
+	[ -n "$POLL" ] && ARGS="$ARGS -p $POLL"
+	[ -n "$HOOK" ] && ARGS="$ARGS -H $HOOK"
+	[ -n "$SOCKET" ] && ARGS="$ARGS -s $SOCKET"
+	echo "$ARGS"
+}
+
+start() {
+	echo -c 15 "Starting floodlightd"
+	# shellcheck disable=SC2046
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $(build_args)
+}
+
+stop() {
+	echo -c 15 "Stopping floodlightd"
+	start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart | reload)
+		stop || true
+		sleep 1
+		start
+		;;
+	status)
+		/usr/bin/floodlightctl status
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload|status}"
+		exit 1
+		;;
+esac
+
+exit 0

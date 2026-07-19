@@ -71,6 +71,15 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_HUGOLOGE5P
 
 		Compatible with Ingenic T41 based Hugolog E5P hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEFLOODV2
+	bool "Wyze Floodlight v2"
+	help
+		Select this option to use the custom device tree for Wyze Floodlight v2.
+		This will install the wyze_floodlightv2_t41nq.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+
+		Compatible with Ingenic T41 based Wyze Floodlight v2 hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEPANV4
 	bool "Wyze Cam Pan v4"
 	help
