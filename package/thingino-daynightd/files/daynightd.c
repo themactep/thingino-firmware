@@ -139,6 +139,9 @@ typedef struct {
     /* Algorithm thresholds — total_gain based (T20) */
     int      tg_night_threshold;
     int      tg_day_threshold;
+    /* Brightness-% thresholds (system-facing, override raw if > 0) */
+    int      night_threshold_pct;
+    int      day_threshold_pct;
     int      night_count_threshold;
     int      day_count_threshold;
 
@@ -349,6 +352,8 @@ static void set_config_defaults(void) {
     g_config.ev_day_threshold       = DEFAULT_EV_DAY_THRESHOLD;
     g_config.tg_night_threshold     = DEFAULT_TG_NIGHT_THRESHOLD;
     g_config.tg_day_threshold       = DEFAULT_TG_DAY_THRESHOLD;
+    g_config.night_threshold_pct    = -1;
+    g_config.day_threshold_pct      = -1;
     g_config.night_count_threshold  = DEFAULT_NIGHT_COUNT;
     g_config.day_count_threshold    = DEFAULT_DAY_COUNT;
     g_config.sample_interval_ms     = DEFAULT_SAMPLE_INTERVAL_MS;
@@ -390,6 +395,9 @@ static int read_config(const char *config_file) {
     v = get_nested_item(root, "daynight.enabled");
     if (v && v->type == JSON_BOOL) g_config.enabled = v->value.boolean;
 
+    /* Raw thresholds (internal use).  If only the brightness-% keys
+       (night_threshold / day_threshold) are present, the raw values
+       stay at defaults and will be overridden after platform detection. */
     v = get_nested_item(root, "daynight.ev_night_threshold");
     if (v && v->type == JSON_NUMBER)
         g_config.ev_night_threshold = (int)v->value.number.integer;
@@ -405,6 +413,16 @@ static int read_config(const char *config_file) {
     v = get_nested_item(root, "daynight.tg_day_threshold");
     if (v && v->type == JSON_NUMBER)
         g_config.tg_day_threshold = (int)v->value.number.integer;
+
+    /* Brightness-% thresholds (system-facing).  These override the
+       raw values once the platform is known. */
+    v = get_nested_item(root, "daynight.night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.night_threshold_pct = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.day_threshold_pct = (int)v->value.number.integer;
 
     v = get_nested_item(root, "daynight.night_count_threshold");
     if (v && v->type == JSON_NUMBER)
@@ -770,6 +788,22 @@ static int raw_threshold_to_pct(int raw, bool use_total_gain) {
     return result;
 }
 
+/* Convert brightness % to raw ev_log2 threshold value (inverse of above). */
+static int pct_to_raw_ev(int pct) {
+    if (pct <= 0) return 2000000;
+    if (pct >= 100) return 200000;
+    double lo = 200000.0, hi = 2000000.0;
+    double log_val = log(lo) + (1.0 - (double)pct / 100.0) * (log(hi) - log(lo));
+    return (int)(exp(log_val) + 0.5);
+}
+
+/* Convert brightness % to raw total_gain threshold value. */
+static int pct_to_raw_tg(int pct) {
+    if (pct <= 0) return 8000;
+    if (pct >= 100) return 100;
+    return 100 + ((100 - pct) * (8000 - 100) / 100);
+}
+
 /* =========================================================================
  * Schedule check
  * ========================================================================= */
@@ -1049,6 +1083,20 @@ static int main_loop(void) {
     log_message(LOG_INFO, "Starting main loop (platform=%s, signal=%s)",
                 g_state.use_total_gain ? "T20" : "T31",
                 g_state.use_total_gain ? "total_gain" : "ev_log2");
+
+    /* Apply brightness-% thresholds from config if set (> 0).
+       These override the raw defaults loaded earlier. */
+    if (g_state.use_total_gain) {
+        if (g_config.night_threshold_pct > 0)
+            g_config.tg_night_threshold = pct_to_raw_tg(g_config.night_threshold_pct);
+        if (g_config.day_threshold_pct > 0)
+            g_config.tg_day_threshold = pct_to_raw_tg(g_config.day_threshold_pct);
+    } else {
+        if (g_config.night_threshold_pct > 0)
+            g_config.ev_night_threshold = pct_to_raw_ev(g_config.night_threshold_pct);
+        if (g_config.day_threshold_pct > 0)
+            g_config.ev_day_threshold = pct_to_raw_ev(g_config.day_threshold_pct);
+    }
 
     g_state.running = true;
     g_state.current_mode = MODE_UNKNOWN;
