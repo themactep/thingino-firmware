@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.3.3
+TIMPS_VERSION = v1.4.6
 
 # Submodule provides the IMP headers (ingenic-headers).
 TIMPS_GIT_SUBMODULES = YES
