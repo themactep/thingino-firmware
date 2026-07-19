@@ -30,6 +30,7 @@ dev: $(TARGET)
 install: $(TARGET)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 $(TARGET) $(DESTDIR)$(BINDIR)/
+	ln -sf $(TARGET) $(DESTDIR)$(BINDIR)/floodlightctl
 
 clean:
 	rm -f $(TARGET)
