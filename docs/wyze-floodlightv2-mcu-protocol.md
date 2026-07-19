@@ -114,6 +114,11 @@ A userspace daemon should:
 4. Map to thingino night mode using the verified SoC GPIOs: IR-cut 49/50,
    IR LED 81, status LEDs 38/39, amp 63, button 62.
 
+The implemented daemon keeps exclusive ownership of the UART and exposes a
+local control socket through `floodlightctl`. See
+`docs/wyze-floodlightv2-floodlightd.md` for PIR/auto mode, monitoring, and
+manual/timed control.
+
 DTS: UART2 is enabled in `board/ingenic/dts/wyze_floodlightv2_t41nq.dts` so
 `/dev/ttyS2` exists.
 

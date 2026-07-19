@@ -140,6 +140,7 @@ static int control_write(int fd, const char *buf, size_t len)
 			if (errno == EINTR) continue;
 			return -1;
 		}
+		if (written == 0) return -1;
 		buf += written;
 		len -= written;
 	}
