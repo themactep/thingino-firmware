@@ -26,7 +26,7 @@ For users who want a dependable version of Thingino without needing to build or 
 
 **Master Branch**
 
-The development hub for new features and experimental changes. Includes advanced features like Matroska, Opus, and improved file recording for Prudynt. These are still in development and may not be stable.
+The development hub for new features and experimental changes. Includes advanced features, and uses the new [raptor][13] streamer. These are still in development and may not be stable.
 
 Only for developers and contributors who can build the project themselves and actively participate in improving the code.
 
@@ -84,3 +84,4 @@ Read [Building from sources][7] article for more info.
 [10]: https://github.com/user-attachments/assets/5e74827c-47f9-4ea0-b523-d12a199a9974
 [11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain-x86_64.yaml/badge.svg
 [12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-stable.yml/badge.svg
+[13]: http://github.com/gtxaspec/raptor
