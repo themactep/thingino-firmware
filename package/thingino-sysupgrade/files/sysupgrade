@@ -533,7 +533,10 @@ echo_c 112 "\nPartitions"
 cat /proc/mtd
 
 echo_c 208 "Switch to Stage 2.\n"
-if ! PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
+watchdog_device=$(jct /dev/thingino.json get watchdog.device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
+if ! WATCHDOG_DEV="$watchdog_device" PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
 	echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi

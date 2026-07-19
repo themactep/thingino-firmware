@@ -18,6 +18,56 @@ flash_firmware() {
 	flashcp -v $fw_file $mtd_dev
 }
 
+WATCHDOG_DEV="${WATCHDOG_DEV:-/dev/watchdog}"
+wd_stop_flag="/tmp/sysupgrade/wd.stop"
+wd_active=""
+
+takeover_watchdog() {
+	pidof watchdog >/dev/null 2>&1 || return 0
+	[ -c "$WATCHDOG_DEV" ] || return 0
+
+	echo_c 112 "\nTaking over hardware watchdog"
+
+	# SIGTERM lets the busybox watchdog daemon write the magic 'V' that
+	# disarms the hardware timer. If it dies any other way (e.g. SIGBUS
+	# once the rootfs is erased under it), the timer stays armed with
+	# nobody feeding it and hard-resets the SoC in the middle of the flash.
+	killall watchdog 2>/dev/null
+
+	local i=0
+	while pidof watchdog >/dev/null 2>&1; do
+		i=$((i + 1))
+		if [ $i -gt 10 ]; then
+			echo "Watchdog daemon did not exit, leaving it alone."
+			return 0
+		fi
+		sleep 1
+	done
+
+	# Re-arm and feed the watchdog from tmpfs: a full system hang during
+	# flashing still triggers a hardware reset, but erasing the rootfs
+	# cannot kill the feeder.
+	rm -f "$wd_stop_flag"
+	(
+		exec 3>"$WATCHDOG_DEV" || exit 1
+		while [ ! -f "$wd_stop_flag" ]; do
+			echo . >&3
+			sleep 2
+		done
+		echo V >&3
+		exec 3>&-
+	) &
+	wd_active="true"
+	echo "Hardware watchdog is now fed from tmpfs."
+}
+
+disarm_watchdog() {
+	[ "true" = "$wd_active" ] || return 0
+	echo "Disarming hardware watchdog."
+	: >"$wd_stop_flag"
+	wd_active=""
+}
+
 stop_streamer() {
 	echo_c 112 "\nStopping streamer in detached stage"
 	if [ -x /etc/init.d/S31raptor ]; then
@@ -75,6 +125,7 @@ detach_and_flash() {
 
 		echo "=== Flash operation started at $(date) ==="
 		stop_streamer
+		takeover_watchdog
 
 		MAX_TRIES=3
 		x=0
@@ -94,6 +145,7 @@ detach_and_flash() {
 		done
 		echo "Flashing failed after $MAX_TRIES attempts!"
 		echo "WARNING: You may need to perform a recovery flash restore before rebooting the camera!"
+		disarm_watchdog
 		exit 1
 	) </dev/null &
 
