@@ -181,8 +181,17 @@
         const response = await fetch(this.sensorsUrl);
         if (!response.ok) return;
         const s = await response.json();
-        if (!s || !s.night_threshold) return;
 
+        /* Prefer brightness % thresholds from config (night_threshold_pct / day_threshold_pct)
+           merged in by the CGI. Fall back to converting raw signal thresholds. */
+        const np = parseInt(s.night_threshold_pct, 10);
+        const dp = parseInt(s.day_threshold_pct, 10);
+        if (!Number.isNaN(np) && !Number.isNaN(dp) && np > 0 && dp > 0) {
+          this.thresholds = { night_pct: np, day_pct: dp };
+          return;
+        }
+
+        if (!s.night_threshold) return;
         const useTG = s.total_gain > 0;
         const convert = useTG
           ? (v) => this.tgToBrightness(v)

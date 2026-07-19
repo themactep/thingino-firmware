@@ -37,9 +37,7 @@ const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
-const SlowHeartbeatPollInterval = 15 * 1000;
 let heartbeatSource = null;
-let slowHeartbeatTimer = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
 let debugModalCtx = null;
@@ -1256,31 +1254,11 @@ async function fetchSlowHeartbeatStatus() {
     console.error("Slow heartbeat fetch error", error);
   } finally {
     slowHeartbeatInFlight = false;
-    scheduleSlowHeartbeatStatus();
   }
-}
-
-function scheduleSlowHeartbeatStatus(delay = SlowHeartbeatPollInterval) {
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
-  }
-
-  if (!passwordCheckComplete || isDefaultPassword || document.hidden) {
-    return;
-  }
-
-  slowHeartbeatTimer = setTimeout(() => {
-    slowHeartbeatTimer = null;
-    fetchSlowHeartbeatStatus();
-  }, delay);
 }
 
 function startSlowHeartbeatStatus() {
-  if (slowHeartbeatTimer || slowHeartbeatInFlight) {
-    return;
-  }
-
+  if (slowHeartbeatInFlight) return;
   fetchSlowHeartbeatStatus();
 }
 
@@ -1288,10 +1266,6 @@ function cleanupHeartbeatResources() {
   if (heartbeatSource) {
     heartbeatSource.close();
     heartbeatSource = null;
-  }
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
   }
   slowHeartbeatInFlight = false;
   currentReconnectDelay = HeartBeatReconnectDelay;

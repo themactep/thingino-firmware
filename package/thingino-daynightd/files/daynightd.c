@@ -750,6 +750,26 @@ static int compute_brightness_pct(const sensor_sample_t *s) {
     return -1;
 }
 
+/* Convert a raw threshold value to brightness % for external display.
+   Uses the same mapping as compute_brightness_pct but for raw ints. */
+static int raw_threshold_to_pct(int raw, bool use_total_gain) {
+    if (use_total_gain) {
+        int lo = 100, hi = 8000;
+        if (raw <= lo) return 100;
+        if (raw >= hi) return 0;
+        return 100 - ((raw - lo) * 100 / (hi - lo));
+    }
+    /* ev_log2: log mapping */
+    double lo = 200000.0, hi = 2000000.0;
+    if (raw <= (int)lo) return 100;
+    if (raw >= (int)hi) return 0;
+    double pct = 100.0 * (1.0 - (log((double)raw) - log(lo)) / (log(hi) - log(lo)));
+    int result = (int)(pct + 0.5);
+    if (result < 0) result = 0;
+    if (result > 100) result = 100;
+    return result;
+}
+
 /* =========================================================================
  * Schedule check
  * ========================================================================= */
@@ -865,6 +885,9 @@ static void write_sensors_json(const sensor_sample_t *s) {
     last_time = s->time_now;
     last_pct = s->brightness_pct;
 
+    int night_pct = raw_threshold_to_pct(s->night_threshold, g_state.use_total_gain);
+    int day_pct   = raw_threshold_to_pct(s->day_threshold, g_state.use_total_gain);
+
     FILE *fp = fopen(SENSORS_FILE, "w");
     if (!fp) return;
     /* Single fprintf to minimise syscalls */
@@ -876,8 +899,8 @@ static void write_sensors_json(const sensor_sample_t *s) {
         "\"isp_digital_gain\":%d,\"max_isp_digital_gain\":%d,"
         "\"wb_rgain\":%d,\"wb_bgain\":%d,\"wb_color_temp\":%d,"
         "\"daynight_brightness\":%d,"
-        "\"primary_signal\":%d,\"night_threshold\":%d,"
-        "\"day_threshold\":%d,\"mode\":\"%s\","
+        "\"primary_signal\":%d,\"night_threshold\":%d,\"night_threshold_pct\":%d,"
+        "\"day_threshold\":%d,\"day_threshold_pct\":%d,\"mode\":\"%s\","
         "\"isp_mode\":\"%s\"}\n",
         (long long)s->time_now, s->platform,
         s->ev_log2, s->ev_us, s->total_gain, s->gain_log2,
@@ -886,7 +909,8 @@ static void write_sensors_json(const sensor_sample_t *s) {
         s->digital_gain, s->isp_digital_gain, s->max_isp_digital_gain,
         s->wb_rgain, s->wb_bgain, s->wb_color_temp,
         s->brightness_pct,
-        s->primary_signal, s->night_threshold, s->day_threshold,
+        s->primary_signal, s->night_threshold, night_pct,
+        s->day_threshold, day_pct,
         s->daynight_mode, s->isp_mode);
     fclose(fp);
 }
@@ -925,6 +949,8 @@ static void write_history_json(void) {
     for (int i = 0; i < total; i++) {
         int idx = (g_history.head - total + i + HISTORY_MAX_ENTRIES) % HISTORY_MAX_ENTRIES;
         const sensor_sample_t *s = &g_history.samples[idx];
+        int night_pct = raw_threshold_to_pct(s->night_threshold, g_state.use_total_gain);
+        int day_pct   = raw_threshold_to_pct(s->day_threshold, g_state.use_total_gain);
         if (i > 0) fprintf(fp, ",");
         fprintf(fp, "{");
         fprintf(fp, "\"time_now\":%lld", (long long)s->time_now);
@@ -937,7 +963,9 @@ static void write_history_json(void) {
         fprintf(fp, ",\"daynight_brightness\":%d", s->brightness_pct);
         fprintf(fp, ",\"primary_signal\":%d", s->primary_signal);
         fprintf(fp, ",\"night_threshold\":%d", s->night_threshold);
+        fprintf(fp, ",\"night_threshold_pct\":%d", night_pct);
         fprintf(fp, ",\"day_threshold\":%d", s->day_threshold);
+        fprintf(fp, ",\"day_threshold_pct\":%d", day_pct);
         fprintf(fp, ",\"daynight_mode\":\"%s\"", s->daynight_mode);
         fprintf(fp, ",\"isp_mode\":\"%s\"", s->isp_mode);
         fprintf(fp, "}");
