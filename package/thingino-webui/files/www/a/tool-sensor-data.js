@@ -148,7 +148,7 @@
         const history = await response.json();
         if (!Array.isArray(history) || history.length === 0) return;
 
-        history.forEach((sample) => this.addDataPoint(sample, false));
+        history.forEach((sample) => this.addDataPoint(sample, true, false));
         this.trimData();
         this.updateChart();
       } catch (error) {
@@ -197,8 +197,12 @@
       }
     }
 
-    addDataPoint(jsonData, updateChart = true) {
-      const timestamp = new Date(parseInt(jsonData.time_now, 10) * 1000);
+    addDataPoint(jsonData, isHistory = false, updateChart = true) {
+      /* History samples carry their own time_now; live SSE uses browser time */
+      const timestamp =
+        isHistory && jsonData.time_now
+          ? new Date(parseInt(jsonData.time_now, 10) * 1000)
+          : new Date();
       const timeStr = timestamp.toLocaleTimeString();
 
       this.chart.data.labels.push(timeStr);
