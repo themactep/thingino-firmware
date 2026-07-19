@@ -23,6 +23,10 @@
 #define TELEGRAM_TEXT_MAX 4096
 #endif
 
+#ifndef MAX_RESPONSE_SIZE
+#define MAX_RESPONSE_SIZE (128 * 1024)
+#endif
+
 // Forward decl from jct (not in header)
 extern JsonValue *parse_json_string(const char *json_str);
 
@@ -114,6 +118,8 @@ typedef struct {
 static size_t write_cb(void *contents, size_t size, size_t nmemb, void *userp) {
   size_t realsize = size * nmemb;
   Memory *mem = (Memory *)userp;
+  if (mem->size + realsize > MAX_RESPONSE_SIZE)
+    return 0;
   char *ptr = realloc(mem->data, mem->size + realsize + 1);
   if (!ptr)
     return 0;
