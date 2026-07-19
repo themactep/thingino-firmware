@@ -1,0 +1,4 @@
+--- a/Makefile
++++ b/Makefile
+@@ -0,0 +0,1 @@
++INSTALL_MOD_STRIP = --strip-unneeded

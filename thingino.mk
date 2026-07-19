@@ -60,6 +60,17 @@ ifeq ($(KERNEL_VERSION),)
 	endif
 endif
 
+# Kernel source configuration.
+# 3.10.14: uses BR2_LINUX_KERNEL_CUSTOM_VERSION (official kernel.org tarball
+#   + U-Boot-style cumulative patch from package/all-patches/linux/3.10.14/).
+# All other versions: use custom git repo (github.com/gtxaspec/thingino-linux).
+ifeq ($(KERNEL_VERSION),3.10.14)
+# Official kernel.org tarball -- no custom git needed
+KERNEL_SITE :=
+KERNEL_BRANCH :=
+KERNEL_HASH :=
+KERNEL_TARBALL_URL :=
+else
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
@@ -107,6 +118,8 @@ ifeq ($(KERNEL_HASH),)
 	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+
+endif # custom git vs official kernel
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
