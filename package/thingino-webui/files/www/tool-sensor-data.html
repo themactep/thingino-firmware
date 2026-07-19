@@ -28,40 +28,48 @@
 
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
       margin-bottom: 1rem;
     }
 
     .stat-card {
-      padding: 0.5rem;
+      padding: 0.35rem;
       border: 1px solid #e0e0e0;
       border-radius: 0.25rem;
       background-color: var(--bs-body-bg);
       text-align: center;
     }
 
-    .stat-card.daynight_brightness .stat-value {
-      color: #B8FF4D;
-    }
-
-    .stat-label {
-      font-size: 0.875rem;
+    .stat-card .stat-label {
+      font-size: 0.7rem;
       font-weight: 700;
       color: #999;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.1rem;
     }
 
-    .stat-value {
-      font-size: 1.75rem;
+    .stat-card .stat-value {
+      font-size: 1.35rem;
       font-weight: bold;
       color: var(--bs-body-color);
     }
 
-    .stat-detail {
-      font-size: 0.75rem;
+    .stat-card .stat-detail {
+      font-size: 0.65rem;
       color: #999;
-      margin-top: 0.25rem;
+      margin-top: 0.1rem;
+    }
+
+    .stat-card.daynight_brightness .stat-value {
+      color: #B8FF4D;
+    }
+
+    .stat-card.night-threshold .stat-value {
+      color: #ff6464;
+    }
+
+    .stat-card.day-threshold .stat-value {
+      color: #64b4ff;
     }
 
     .stream-status {

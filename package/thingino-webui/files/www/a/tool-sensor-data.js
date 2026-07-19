@@ -178,29 +178,19 @@
 
     async loadThresholds() {
       try {
+        /* Read brightness % thresholds directly from config.
+           No conversion needed — config is the source of truth. */
         const response = await fetch(this.sensorsUrl);
         if (!response.ok) return;
         const s = await response.json();
+        if (!s) return;
 
-        /* Prefer brightness % thresholds from config (night_threshold_pct / day_threshold_pct)
-           merged in by the CGI. Fall back to converting raw signal thresholds. */
         const np = parseInt(s.night_threshold_pct, 10);
         const dp = parseInt(s.day_threshold_pct, 10);
         if (!Number.isNaN(np) && !Number.isNaN(dp) && np > 0 && dp > 0) {
           this.thresholds = { night_pct: np, day_pct: dp };
-          return;
+          this.updateStatsDisplay();
         }
-
-        if (!s.night_threshold) return;
-        const useTG = s.total_gain > 0;
-        const convert = useTG
-          ? (v) => this.tgToBrightness(v)
-          : (v) => this.evToBrightness(v);
-
-        this.thresholds = {
-          night_pct: convert(s.night_threshold),
-          day_pct: convert(s.day_threshold),
-        };
       } catch (error) {
         console.error("Failed to load thresholds:", error);
       }
@@ -267,6 +257,19 @@
       if (!container) return;
       container.innerHTML = "";
 
+      /* Night threshold card */
+      if (this.thresholds) {
+        const nightCard = document.createElement("div");
+        nightCard.className = "stat-card night-threshold";
+        nightCard.innerHTML = `
+          <div class="stat-label">Night Thr</div>
+          <div class="stat-value">${this.thresholds.night_pct}%</div>
+          <div class="stat-detail">switch to night below</div>
+        `;
+        container.appendChild(nightCard);
+      }
+
+      /* Brightness card (from live data) */
       this.metrics.forEach((metric) => {
         const stat = this.stats[metric.key];
         if (!stat) return;
@@ -279,6 +282,18 @@
         `;
         container.appendChild(div);
       });
+
+      /* Day threshold card */
+      if (this.thresholds) {
+        const dayCard = document.createElement("div");
+        dayCard.className = "stat-card day-threshold";
+        dayCard.innerHTML = `
+          <div class="stat-label">Day Thr</div>
+          <div class="stat-value">${this.thresholds.day_pct}%</div>
+          <div class="stat-detail">switch to day above</div>
+        `;
+        container.appendChild(dayCard);
+      }
     }
 
     updateChart() {
