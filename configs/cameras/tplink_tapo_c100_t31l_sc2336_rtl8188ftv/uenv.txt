@@ -1,2 +1,1 @@
 gpio_default=42o 43o 49o 50O 57o 60o 62i 63o
-serialport=ttyS1

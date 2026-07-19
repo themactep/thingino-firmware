@@ -10,3 +10,4 @@ mmc_power=if test \"${gpio_mmc_power}\" != \"\" && test \"${gpio_mmc_power}\" !=
 overlay_wipe=$(UBOOT_OVERLAY_WIPE)
 panic_timeout=2
 preboot=run mmc_power
+serialport=ttyS1
