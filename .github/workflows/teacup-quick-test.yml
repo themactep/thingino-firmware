@@ -5,6 +5,15 @@ on:
     branches:
       - stable
   workflow_dispatch:
+    inputs:
+      branch:
+        type: choice
+        description: 'Branch to run the teacup test on'
+        required: false
+        default: 'stable'
+        options:
+          - stable
+          - master
 
 env:
   BR2_DL_DIR: ~/dl
@@ -20,7 +29,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: 0
 
       - name: Wait for cooldown (10 minutes)
@@ -28,6 +37,8 @@ jobs:
 
       - name: Check for new commits after cooldown
         id: check-latest
+        # push-debounce only (keyed to the triggering commit); a manual run builds the branch you picked
+        if: github.event_name == 'push'
         run: |
           git fetch origin stable
           LATEST_SHA=$(git rev-parse origin/stable)
