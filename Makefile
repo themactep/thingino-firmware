@@ -821,7 +821,7 @@ ota:
 	@fw_path="$(FIRMWARE_BIN_FULL)"; \
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
+	$(SCRIPTS_DIR)/fw_ota.sh $(if $(filter 1 y yes true,$(FORCE)),-f) "$$fw_path" $(CAMERA_IP_ADDRESS)
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
