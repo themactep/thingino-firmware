@@ -222,7 +222,7 @@
     "jpeg_quality": 75
   },
   "stream3": {
-    "enabled": true,
+    "enabled": false,
     "fps": 15,
     "jpeg_channel": 1,
     "jpeg_idle_fps": 1,
