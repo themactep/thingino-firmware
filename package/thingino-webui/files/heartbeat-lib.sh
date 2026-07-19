@@ -334,9 +334,6 @@ thingino_heartbeat_native_payload() {
 	if [ -f /etc/thingino.json ] && command -v jct >/dev/null 2>&1; then
 		_val=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null | tr -d '\n"')
 		case "$_val" in true | 1) daynight_enabled=1 ;; *) daynight_enabled=0 ;; esac
-	elif [ -f /etc/prudynt.json ] && command -v jct >/dev/null 2>&1; then
-		_val=$(jct /etc/prudynt.json get daynight.enabled 2>/dev/null | tr -d '\n"')
-		case "$_val" in true | 1) daynight_enabled=1 ;; *) daynight_enabled=0 ;; esac
 	fi
 
 	rec_ch0=0

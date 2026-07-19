@@ -23,21 +23,6 @@
     "tap_enabled": true,
     "tap_path": "/run/prudynt/audio_mic.pcm"
   },
-  "daynight": {
-    "controls": {
-      "color": true,
-      "ir850": true,
-      "ir940": true,
-      "ircut": true,
-      "white": false
-    },
-    "enabled": true,
-    "loglevel": "INFO",
-    "sample_interval_ms": 1000,
-    "script_path": "/sbin/daynight",
-    "total_gain_day_threshold": 300,
-    "total_gain_night_threshold": 3000
-  },
   "general": {
     "imp_polling_timeout": 500,
     "loglevel": "INFO"
