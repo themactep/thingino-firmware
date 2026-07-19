@@ -6,7 +6,6 @@
  */
 #include "json_config.h"
 
-#include <fcntl.h>
 #include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
@@ -18,7 +17,6 @@
 #include <unistd.h>
 
 #include <curl/curl.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 
 #ifndef TELEGRAM_TEXT_MAX
@@ -35,6 +33,31 @@ static void handle_signal(int sig) {
   g_running = 0;
 }
 
+/*
+ * Shared curl handle, reused across all API calls.
+ *
+ * curl_easy_reset() keeps live connections, the TLS session cache and the
+ * DNS cache, so consecutive long-poll cycles reuse one persistent HTTPS
+ * connection instead of paying for a fresh DNS lookup + TCP + TLS handshake
+ * on every request — which is very expensive on small MIPS SoCs.
+ */
+static CURL *g_curl = NULL;
+
+static CURL *acquire_curl(void) {
+  if (g_curl)
+    curl_easy_reset(g_curl);
+  else
+    g_curl = curl_easy_init();
+  return g_curl;
+}
+
+static void release_curl(void) {
+  if (g_curl) {
+    curl_easy_cleanup(g_curl);
+    g_curl = NULL;
+  }
+}
+
 static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
   (void)clientp;
   (void)dltotal;
@@ -45,9 +68,8 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 }
 
 static void print_usage(const char *prog) {
-  fprintf(stderr, "Usage: %s [-f] [-d] [-c <config>]", prog);
-  fprintf(stderr, "\n  -f run in foreground (disable daemon mode)\n");
-  fprintf(stderr, "  -d   enable debug log level\n");
+  fprintf(stderr, "Usage: %s [-d] [-c <config>]", prog);
+  fprintf(stderr, "\n  -d   enable debug log level\n");
   fprintf(stderr, "  -c   specify configuration file path\n");
 }
 
@@ -103,7 +125,7 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *userp) {
 }
 
 static int http_get(const char *url, long timeout_s, Memory *out, long *status_code) {
-  CURL *curl = curl_easy_init();
+  CURL *curl = acquire_curl();
   if (!curl)
     return -1;
   out->data = NULL;
@@ -145,7 +167,6 @@ static int http_get(const char *url, long timeout_s, Memory *out, long *status_c
   } else if (code != 200) {
     syslog(LOG_WARNING, "HTTP GET %s failed: HTTP %ld", safe_url[0] ? safe_url : url, code);
   }
-  curl_easy_cleanup(curl);
   if (res != CURLE_OK) {
     free(out->data);
     out->data = NULL;
@@ -156,7 +177,7 @@ static int http_get(const char *url, long timeout_s, Memory *out, long *status_c
 }
 
 static int http_post_json(const char *url, const char *json, long timeout_s, Memory *out) {
-  CURL *curl = curl_easy_init();
+  CURL *curl = acquire_curl();
   if (!curl)
     return -1;
   out->data = NULL;
@@ -203,7 +224,6 @@ static int http_post_json(const char *url, const char *json, long timeout_s, Mem
   }
 
   curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
 
   if (res != CURLE_OK || code != 200) {
     free(out->data);
@@ -273,7 +293,6 @@ typedef struct {
   char token[128];
   char api_url[64];
   int polling_timeout;
-  int daemonize;
   char state_file[128];
   long long allowed_ids[8];
   int allowed_count;
@@ -454,7 +473,6 @@ static int load_config_file(const char *path, Config *cfg) {
   snprintf(cfg->api_url, sizeof(cfg->api_url), "%s", "https://api.telegram.org");
   snprintf(cfg->state_file, sizeof(cfg->state_file), "%s", "/run/telegrambot.state");
   cfg->polling_timeout = 30;
-  cfg->daemonize = 1;
   cfg->log_priority = LOG_INFO;
   cfg->publish_menu = 1;
 
@@ -466,7 +484,6 @@ static int load_config_file(const char *path, Config *cfg) {
   read_string(root, "api_url", cfg->api_url, cfg->api_url, sizeof(cfg->api_url));
   read_string(root, "state_file", cfg->state_file, cfg->state_file, sizeof(cfg->state_file));
   cfg->polling_timeout = (int)read_long(root, "polling_timeout", cfg->polling_timeout);
-  cfg->daemonize = read_bool(root, "daemon", cfg->daemonize);
   /* logging level */
   {
     char lvl[16];
@@ -800,44 +817,20 @@ static int poll_once(const Config *cfg, long *offset_io) {
   return n;
 }
 
-static void daemonize_self(void) {
-  pid_t pid = fork();
-  if (pid < 0)
-    exit(EXIT_FAILURE);
-  if (pid > 0)
-    exit(EXIT_SUCCESS);
-  if (setsid() < 0)
-    exit(EXIT_FAILURE);
-  signal(SIGHUP, SIG_IGN);
-  pid = fork();
-  if (pid < 0)
-    exit(EXIT_FAILURE);
-  if (pid > 0)
-    exit(EXIT_SUCCESS);
-  umask(027);
-  chdir("/");
-  for (int fd = 0; fd < 3; ++fd)
-    close(fd);
-  int fd0 = open("/dev/null", O_RDWR);
-  if (fd0 >= 0) {
-    dup2(fd0, 0);
-    dup2(fd0, 1);
-    dup2(fd0, 2);
-    if (fd0 > 2)
-      close(fd0);
-  }
-}
-
+/*
+ * The bot always runs in the foreground; backgrounding is handled
+ * exclusively by start-stop-daemon so the pid it tracks stays valid.
+ * Self-daemonization made the tracked pid exit immediately: the stale
+ * pid file let every service restart leak one more instance, and the
+ * duplicates then fought over getUpdates (Telegram 409) in a TLS
+ * reconnect storm.
+ */
 int main(int argc, char **argv) {
   const char *config_path = "/etc/telegrambot.json";
-  int force_foreground = 0;
   int force_debug = 0;
   int opt;
-  while ((opt = getopt(argc, argv, "fdc:")) != -1) {
+  while ((opt = getopt(argc, argv, "dc:")) != -1) {
     switch (opt) {
-    case 'f':
-      force_foreground = 1;
-      break;
     case 'd':
       force_debug = 1;
       break;
@@ -852,9 +845,7 @@ int main(int argc, char **argv) {
   if (optind < argc)
     config_path = argv[optind];
 
-  int log_options = LOG_PID | LOG_CONS;
-  if (force_foreground)
-    log_options |= LOG_PERROR;
+  int log_options = LOG_PID | LOG_CONS | LOG_PERROR;
 
   openlog("telegrambot", log_options, LOG_DAEMON);
   signal(SIGINT, handle_signal);
@@ -866,22 +857,18 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  if (force_foreground)
-    cfg.daemonize = 0;
   if (force_debug)
     cfg.log_priority = LOG_DEBUG;
 
-  if (!cfg.daemonize && !(log_options & LOG_PERROR)) {
-    log_options |= LOG_PERROR;
-    closelog();
-    openlog("telegrambot", log_options, LOG_DAEMON);
-  }
+  /* Clamp the long-poll timeout to a sane range: a zero/tiny value would
+   * turn getUpdates into a tight request loop hammering the API. */
+  if (cfg.polling_timeout < 10)
+    cfg.polling_timeout = 10;
+  if (cfg.polling_timeout > 300)
+    cfg.polling_timeout = 300;
 
   /* Apply log mask based on configured level */
   setlogmask(LOG_UPTO(cfg.log_priority));
-
-  if (cfg.daemonize)
-    daemonize_self();
 
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
@@ -890,22 +877,39 @@ int main(int argc, char **argv) {
     publish_bot_menu(&cfg);
 
   long offset = load_offset(cfg.state_file);
+  long saved_offset = offset;
 
   syslog(LOG_INFO, "Telegram bot started. Poll timeout=%d", cfg.polling_timeout);
 
+  int backoff = 5;
   while (g_running) {
+    time_t started = time(NULL);
     int rc = poll_once(&cfg, &offset);
     if (rc >= 0) {
-      if (offset > 0)
+      backoff = 5;
+      if (offset > 0 && offset != saved_offset) {
         save_offset(cfg.state_file, offset);
+        saved_offset = offset;
+      }
+      /* If the server did not honor the long poll (empty result returned
+       * almost immediately), pause briefly so we never spin in a hot
+       * request loop. */
+      if (rc == 0 && time(NULL) - started < 2)
+        sleep(1);
     } else {
       if (!g_running)
         break;
-      syslog(LOG_WARNING, "Polling failed; sleeping");
-      sleep(5);
+      /* Exponential backoff: transient network failures on these cameras
+       * are common, and each retry costs a full TLS setup attempt. */
+      syslog(LOG_WARNING, "Polling failed; retrying in %d s", backoff);
+      sleep(backoff);
+      backoff *= 2;
+      if (backoff > 300)
+        backoff = 300;
     }
   }
 
+  release_curl();
   curl_global_cleanup();
   syslog(LOG_INFO, "Telegram bot stopped");
   closelog();
