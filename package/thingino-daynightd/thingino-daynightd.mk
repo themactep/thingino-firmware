@@ -22,6 +22,14 @@ define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/daynightd      $(TARGET_DIR)/usr/bin/daynightd
 	$(INSTALL) -D -m 0755 $(@D)/files/S10daynightd   $(TARGET_DIR)/etc/init.d/S10daynightd
 
+	# Userspace control scripts (merged from thingino-daynight)
+	$(INSTALL) -D -m 0755 $(@D)/files/S06ircut       $(TARGET_DIR)/etc/init.d/S06ircut
+	$(INSTALL) -D -m 0755 $(@D)/files/S07dusk2dawn   $(TARGET_DIR)/etc/init.d/S07dusk2dawn
+	$(INSTALL) -D -m 0755 $(@D)/files/daynight       $(TARGET_DIR)/usr/sbin/daynight
+	$(INSTALL) -D -m 0755 $(@D)/files/light          $(TARGET_DIR)/usr/sbin/light
+	$(INSTALL) -D -m 0755 $(@D)/files/ircut          $(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(@D)/files/dusk2dawn      $(TARGET_DIR)/usr/sbin/dusk2dawn
+
 	# Web UI config pages
 	$(INSTALL) -D -m 0644 $(@D)/files/www/config-photosensing.html \
 		$(TARGET_DIR)/var/www/config-photosensing.html

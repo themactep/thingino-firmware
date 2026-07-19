@@ -179,7 +179,7 @@ switch_to_night() {
 				rm -f "$_tmp"
 			fi
 			if [ -n "$day_fps" ] && [ "$day_fps" -gt 1 ] 2>/dev/null; then
-				night_fps=$(( day_fps / 2 ))
+				night_fps=$((day_fps / 2))
 				[ "$night_fps" -lt 1 ] && night_fps=1
 				echo_info "  ${stream}: fps ${day_fps} -> ${night_fps}"
 				prudyntctl json "{\"${stream}\":{\"fps\":${night_fps}}}" >/dev/null 2>&1
