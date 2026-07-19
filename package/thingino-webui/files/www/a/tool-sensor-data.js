@@ -6,6 +6,7 @@
     constructor() {
       this.sseUrl = "/x/json-heartbeat.cgi";
       this.historyUrl = "/x/json-daynight-history.cgi";
+      this.sensorsUrl = "/x/json-daynight-sensors.cgi";
       this.maxPoints = 300;
       this.data = {};
       this.chart = null;
@@ -13,6 +14,7 @@
       this.isPaused = false;
       this.modeData = [];
       this.stats = {};
+      this.thresholds = null; /* {night_pct, day_pct} */
 
       this.metrics = [
         { key: "daynight_brightness", label: "Brightness %", color: "#B8FF4D" },
@@ -28,7 +30,8 @@
     }
 
     async loadHistoryAndStartStream() {
-      await this.loadHistory();
+      await Promise.all([this.loadHistory(), this.loadThresholds()]);
+      this.updateChart();
       this.startStream();
     }
 
@@ -153,6 +156,47 @@
       }
     }
 
+    /* Convert raw signal to brightness % using same formulas as daynightd */
+    evToBrightness(ev) {
+      const lo = 200000,
+        hi = 2000000;
+      if (ev <= lo) return 100;
+      if (ev >= hi) return 0;
+      return Math.round(
+        100 *
+          (1 - (Math.log(ev) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))),
+      );
+    }
+
+    tgToBrightness(tg) {
+      const lo = 100,
+        hi = 8000;
+      if (tg <= lo) return 100;
+      if (tg >= hi) return 0;
+      return Math.round(100 - ((tg - lo) * 100) / (hi - lo));
+    }
+
+    async loadThresholds() {
+      try {
+        const response = await fetch(this.sensorsUrl);
+        if (!response.ok) return;
+        const s = await response.json();
+        if (!s || !s.night_threshold) return;
+
+        const useTG = s.total_gain > 0;
+        const convert = useTG
+          ? (v) => this.tgToBrightness(v)
+          : (v) => this.evToBrightness(v);
+
+        this.thresholds = {
+          night_pct: convert(s.night_threshold),
+          day_pct: convert(s.day_threshold),
+        };
+      } catch (error) {
+        console.error("Failed to load thresholds:", error);
+      }
+    }
+
     addDataPoint(jsonData, updateChart = true) {
       const timestamp = new Date(parseInt(jsonData.time_now, 10) * 1000);
       const timeStr = timestamp.toLocaleTimeString();
@@ -243,6 +287,33 @@
           pointBorderWidth: 1,
         });
       });
+
+      /* Threshold reference lines */
+      if (this.thresholds) {
+        const len = this.chart.data.labels.length || 2;
+        const addLine = (value, label, color) => {
+          this.chart.data.datasets.push({
+            label: label,
+            data: Array(len).fill(value),
+            borderColor: color,
+            borderWidth: 1,
+            borderDash: [6, 4],
+            tension: 0,
+            fill: false,
+            pointRadius: 0,
+          });
+        };
+        addLine(
+          this.thresholds.night_pct,
+          `${this.thresholds.night_pct}% night thr`,
+          "rgba(255,100,100,0.6)",
+        );
+        addLine(
+          this.thresholds.day_pct,
+          `${this.thresholds.day_pct}% day thr`,
+          "rgba(100,180,255,0.6)",
+        );
+      }
 
       if (this.modeData.length > 0) {
         this.chart.data.datasets.push({
