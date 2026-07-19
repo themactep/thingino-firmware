@@ -10,3 +10,4 @@ gpio_motor_invert=true
 gpio_motor_v=9 11 14 16
 gpio_speaker=63
 gpio_wlan=48O
+serialport=ttyS1

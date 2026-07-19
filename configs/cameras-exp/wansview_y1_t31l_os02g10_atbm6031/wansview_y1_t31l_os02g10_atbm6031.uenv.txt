@@ -8,3 +8,4 @@ gpio_scl=17
 gpio_sda=16
 gpio_speaker=7o
 gpio_wlan=47O
+serialport=ttyS1

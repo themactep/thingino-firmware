@@ -11,3 +11,4 @@ gpio_wlan=62O
 gpio_speaker=63
 gpio_led_b=72o
 gpio_led_g=73o
+serialport=ttyS1

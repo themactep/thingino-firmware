@@ -3,3 +3,4 @@ gpio_ir850=67
 gpio_ircut=118 119
 gpio_led_r=69
 gpio_white=66
+serialport=ttyS1

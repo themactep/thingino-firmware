@@ -1,1 +1,2 @@
 gpio_ircut=-1
+serialport=ttyS1

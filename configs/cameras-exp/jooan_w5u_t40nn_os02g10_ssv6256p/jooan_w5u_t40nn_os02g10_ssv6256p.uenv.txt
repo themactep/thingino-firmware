@@ -11,3 +11,4 @@ gpio_motor_h=112 111 110 109
 gpio_motor_v=108 107 106 105
 gpio_speaker=63
 gpio_wlan=122O
+serialport=ttyS1
