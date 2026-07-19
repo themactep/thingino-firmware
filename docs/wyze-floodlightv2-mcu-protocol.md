@@ -51,13 +51,14 @@ three-data-byte brightness command.
 
 ### MCU → SoC (response/event) — parsed by `sub_4523f4` (`serial_pkg_check`)
 ```
-+------+------+--------+------+-----------+--------+--------+
-| 0x55 | 0xAA | OPCODE | LEN  | DATA[...] | SUM_hi | SUM_lo |
-+------+------+--------+------+-----------+--------+--------+
-  [0]    [1]     [2]     [3]
++------+------+------+------+--------+-----------+--------+--------+
+| 0x55 | 0xAA | 0x43 | LEN  | OPCODE | DATA[...] | SUM_hi | SUM_lo |
++------+------+------+------+--------+-----------+--------+--------+
+  [0]    [1]    [2]    [3]     [4]      [5..]
 ```
 - Preamble `0x55 0xAA` (opposite order from the request).
-- `OPCODE` = the response opcode (request opcode + 1; see table).
+- `0x43` is the same class byte used in requests.
+- `OPCODE` at byte [4] is the response opcode (request opcode + 1; see table).
 - `LEN` at byte [3]; total frame = `LEN + 4`.
 - Trailing 2-byte checksum, same big-endian 16-bit additive scheme; the parser rejects on
   mismatch and on `LEN != payloadlen+4`.
@@ -88,20 +89,24 @@ All single-opcode commands use `sub_452a7c(opcode)`. Only **set brightness**
 ## PIR / motion
 
 - 3 zones: **left / middle / right** (`floodlight2 left/middle/right PIR`,
-  JSON `"PIR":[l,m,r]`). Per-zone enable + `PIRSensitivity` are floodlight2
-  user-config items (paracfg 0x9d–0xb6), pushed to the MCU.
-- Motion arrives as MCU→SoC frames dispatched to callbacks registered via
-  `floodlight2_pir_alarm_serial_set_callback` (sub_4536d4, list `data_7d91dc`).
-  Handler `sub_454514`: event `*arg1 == 1` ⇒ set motion-active flag
-  (`data_7d91c2c`) + timestamp `time()`. `get pir value` (0xBC/0xBD) is the
-  polled path for raw zone values.
+  JSON `"PIR":[l,m,r]`). Per-zone enable and `PIRSensitivity` are host-side
+  `iCamera` settings. They are not sent to the MCU; the serial dispatch table
+  contains no PIR initialization/configuration command.
+- `get pir value` (0xBC/0xBD) returns three little-endian 16-bit samples in
+  right/middle/left wire order. `iCamera` reverses them for its public
+  left/middle/right order.
+- Firmware 4.53.2.8995's PIR fix is in the host-side filter. It uses a
+  20-sample per-zone baseline, a minimum 17-count rise, rejects samples above
+  2000, and maps sensitivity to a delta threshold: `<103` → 140, `103..153`
+  → 120, `>=154` → 22. The stock default is sensitivity 255 with all three
+  zones enabled.
 
 ## Cloud/config bridge (not serial)
 
 `sub_4583c0` parses cloud JSON `floodlightInfo` (switch, brightness,
 PIRMotionFilter, PIRSensitivity, PIR[3], motionWarning, ambientlight,
-sirenLightFlash) into paracfg items, which the floodlight2 loop then pushes to
-the MCU via the commands above.
+sirenLightFlash) into paracfg items. Brightness is sent to the MCU; PIR
+sensitivity and zone enables configure `iCamera`'s sample filter.
 
 ## Implication for thingino `floodlightd`
 
@@ -122,6 +127,5 @@ manual/timed control.
 DTS: UART2 is enabled in `board/ingenic/dts/wyze_floodlightv2_t41nq.dts` so
 `/dev/ttyS2` exists.
 
-_TODO / to confirm on live hardware: exact set-brightness `B1` semantics; the
-async motion-event opcode & payload layout (scope `ttyS2` or capture at 0xBD);
+_TODO / to confirm on live hardware: exact set-brightness `B1` semantics and
 whether any revision uses 9600 baud._

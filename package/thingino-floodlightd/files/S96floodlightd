@@ -11,6 +11,8 @@ CONF="/etc/floodlightd.conf"
 #   RAMP=5
 #   HOLD=30
 #   POLL=500
+#   SENSITIVITY=255
+#   ZONES=7
 #   HOOK=/etc/floodlightd/motion.sh
 #   SOCKET=/run/floodlightd.sock
 [ -f "$CONF" ] && . "$CONF"
@@ -24,6 +26,8 @@ build_args() {
 	[ -n "$RAMP" ] && ARGS="$ARGS -r $RAMP"
 	[ -n "$HOLD" ] && ARGS="$ARGS -t $HOLD"
 	[ -n "$POLL" ] && ARGS="$ARGS -p $POLL"
+	[ -n "$SENSITIVITY" ] && ARGS="$ARGS -S $SENSITIVITY"
+	[ -n "$ZONES" ] && ARGS="$ARGS -z $ZONES"
 	[ -n "$HOOK" ] && ARGS="$ARGS -H $HOOK"
 	[ -n "$SOCKET" ] && ARGS="$ARGS -s $SOCKET"
 	echo "$ARGS"
