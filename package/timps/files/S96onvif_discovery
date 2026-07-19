@@ -111,20 +111,31 @@ fetch_timps_control() {
 	scheme=$(timps_http_scheme)
 	url="$scheme://127.0.0.1:$(timps_http_port)/control"
 
-	# Prefer curl: busybox wget returns nothing for timps' httpd /control reply
-	# on some builds, whereas curl (a hard dep of the snapshot CGI) works. Fall
-	# back to wget only if curl is absent.
-	if command -v curl >/dev/null 2>&1; then
-		if [ "$scheme" = "https" ]; then
-			TIMPS_CONTROL_JSON=$(curl -sk -m 3 "$url" 2>/dev/null)
+	# S96 runs right after S95timps starts the daemon; at boot timps' httpd may
+	# not have bound its port yet, so the first /control fetch returns nothing
+	# and framerate/bitrate never reach onvif.json until the next S96 run. Retry
+	# (bounded, ~10s) until the daemon answers. curl preferred (busybox wget
+	# returns an empty body for timps' /control on some builds); wget only as a
+	# fallback when curl is absent.
+	i=0
+	while [ "$i" -lt 10 ]; do
+		if command -v curl >/dev/null 2>&1; then
+			if [ "$scheme" = "https" ]; then
+				TIMPS_CONTROL_JSON=$(curl -sk -m 3 "$url" 2>/dev/null)
+			else
+				TIMPS_CONTROL_JSON=$(curl -s -m 3 "$url" 2>/dev/null)
+			fi
+		elif [ "$scheme" = "https" ]; then
+			TIMPS_CONTROL_JSON=$(wget -q -T 3 --no-check-certificate -O - "$url" 2>/dev/null)
 		else
-			TIMPS_CONTROL_JSON=$(curl -s -m 3 "$url" 2>/dev/null)
+			TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - "$url" 2>/dev/null)
 		fi
-	elif [ "$scheme" = "https" ]; then
-		TIMPS_CONTROL_JSON=$(wget -q -T 3 --no-check-certificate -O - "$url" 2>/dev/null)
-	else
-		TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - "$url" 2>/dev/null)
-	fi
+		case "$TIMPS_CONTROL_JSON" in
+			*'"video"'*) return ;;          # daemon answered
+		esac
+		i=$((i + 1))
+		sleep 1
+	done
 }
 
 # timps_live_get <stream> <field>: pull one scalar out of the cached /control
