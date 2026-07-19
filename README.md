@@ -31,9 +31,7 @@ The development hub for new features and experimental changes. Includes advanced
 Only for developers and contributors who can build the project themselves and actively participate in improving the code.
 
 > [!WARNING]
-> The master branch uses a highly experimental U-Boot with minimal compatibility.
-> - Upgrading via `autoupdate-full.bin` does **not** work.
-> - Access to the SD card from U-Boot does **not** work.
+> The master branch uses a highly experimental maineline U-Boot.
 > - Having access to the UART port on the camera and unbricking skills is **highly recommended** when building images from the master branch.
 
 This structure allows us to maintain a reliable version (stable) for most users while continuing to innovate and test new features (master). Critical fixes and matured features from master will be gradually integrated into stable for broader use.
