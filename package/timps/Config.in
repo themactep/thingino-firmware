@@ -63,4 +63,25 @@ config BR2_PACKAGE_TIMPS_SRT
 	  acts as an SRT listener, serving live video+audio.
 	  Playback: ffplay srt://<ip>:9000
 
+config BR2_PACKAGE_TIMPS_ROTATE
+	bool "Image rotation (90/180/270)"
+	default n
+	help
+	  Enable per-stream image rotation. 180 is available on all SoCs
+	  (realised as a global ISP Hflip+Vflip); hardware 90/270 rotation
+	  is available on T40/T41 (I2D) and T31 (FrameSource rotate).
+	  Rotation is restart-required. Disabled by default: when off, no
+	  rotation code is compiled in (byte-identical build).
+
+config BR2_PACKAGE_TIMPS_SW_ROTATE
+	bool "Software 90/270 on SoCs without hardware rotate (T23)"
+	depends on BR2_PACKAGE_TIMPS_ROTATE
+	default n
+	help
+	  Enable software 90/270 rotation on SoCs that lack a hardware
+	  rotate path (T23). The frame is transposed in software per frame
+	  and fed to the unbound YuvEncode API. CPU-heavy on the single-core
+	  T23, H264 only, software OSD only (no hardware OSD/privacy on the
+	  rotated stream), and enlarges the binary. Leave off unless needed.
+
 endif # BR2_PACKAGE_TIMPS
