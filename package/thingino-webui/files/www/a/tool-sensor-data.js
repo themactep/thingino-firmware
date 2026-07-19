@@ -11,15 +11,10 @@
       this.chart = null;
       this.eventSource = null;
       this.isPaused = false;
-      this.nightThreshold = null;
-      this.dayThreshold = null;
       this.modeData = [];
       this.stats = {};
 
       this.metrics = [
-        { key: "ev", label: "Exposure Time (EV)", color: "#FF6384" },
-        { key: "total_gain", label: "Total Gain", color: "#36A2EB" },
-        { key: "ae_luma", label: "AE Luma", color: "#FFCE56" },
         { key: "daynight_brightness", label: "Brightness %", color: "#B8FF4D" },
       ];
 
@@ -170,16 +165,10 @@
 
       this.chart.data.labels.push(timeStr);
 
-      if (jsonData.total_gain_night_threshold !== undefined) {
-        this.nightThreshold = parseInt(jsonData.total_gain_night_threshold, 10);
-        this.dayThreshold = parseInt(jsonData.total_gain_day_threshold, 10);
-        if (!Number.isNaN(this.nightThreshold)) {
-          this.chart.options.scales.y.max = this.nightThreshold + 200;
-        }
+      if (jsonData.daynight_mode !== undefined) {
+        const currentMode = jsonData.daynight_mode === "night" ? 1 : 0;
+        this.modeData.push(currentMode);
       }
-
-      const currentMode = jsonData.daynight_mode === "night" ? 1 : 0;
-      this.modeData.push(currentMode);
 
       this.metrics.forEach((metric) => {
         if (!(metric.key in jsonData)) return;
@@ -260,32 +249,6 @@
           pointBorderWidth: 1,
         });
       });
-
-      if (this.nightThreshold !== null && this.data.total_gain) {
-        const labelCount = this.chart.data.labels.length;
-        if (!Number.isNaN(this.nightThreshold)) {
-          this.chart.data.datasets.push({
-            label: `Night Threshold (${this.nightThreshold})`,
-            data: Array(labelCount).fill(this.nightThreshold),
-            borderColor: "rgba(255, 0, 0, 0.7)",
-            borderWidth: 1,
-            borderDash: [5, 5],
-            fill: false,
-            pointRadius: 0,
-          });
-        }
-        if (this.dayThreshold !== null && !Number.isNaN(this.dayThreshold)) {
-          this.chart.data.datasets.push({
-            label: `Day Threshold (${this.dayThreshold})`,
-            data: Array(labelCount).fill(this.dayThreshold),
-            borderColor: "rgba(0, 255, 0, 0.7)",
-            borderWidth: 1,
-            borderDash: [5, 5],
-            fill: false,
-            pointRadius: 0,
-          });
-        }
-      }
 
       if (this.modeData.length > 0) {
         this.chart.data.datasets.push({

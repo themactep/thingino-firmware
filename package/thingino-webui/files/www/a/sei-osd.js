@@ -1,19 +1,18 @@
 /**
  * SEI OSD Overlay Renderer
  *
- * Polls /api/v1/osd-sei and renders OSD elements as positioned HTML
- * overlays on top of the MJPEG preview <img>.
- * Works with the simplified SEI format: { t, text, x, y }
+ * Subscribes to /x/json-osd-sei.cgi SSE stream and renders OSD elements
+ * as positioned HTML overlays on top of the MJPEG preview <img>.
  */
 (function () {
   "use strict";
 
-  const POLL_INTERVAL_MS = 1000;
+  const SSE_URL = "/x/json-osd-sei.cgi";
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
-  const FONT_SIZE = 14; // px base size, scaled with image
+  const FONT_SIZE = 14;
 
-  let timer = null;
+  let source = null;
 
   function resolvePos(rawPos, containerSize) {
     if (rawPos < 0) return Math.max(containerSize + rawPos, 0);
@@ -65,29 +64,33 @@
     }
   }
 
-  async function poll() {
+  function ensureOverlay() {
+    let overlay = document.getElementById(OVERLAY_ID);
+    const img = document.getElementById(PREVIEW_IMG_ID);
+    if (!img) return overlay;
+
+    if (!overlay) {
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:relative;display:inline-block;";
+      img.parentNode.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+
+      overlay = document.createElement("div");
+      overlay.id = OVERLAY_ID;
+      overlay.style.cssText =
+        "position:absolute;left:0;top:0;pointer-events:none;overflow:hidden;z-index:10;";
+      wrapper.appendChild(overlay);
+    }
+    return overlay;
+  }
+
+  function handleEvent(event) {
     try {
-      const resp = await fetch("/api/v1/osd-sei");
-      if (!resp.ok) return;
-      const data = await resp.json();
+      const data = JSON.parse(event.data);
       if (!data || !data.elements || !data.elements.length) return;
 
-      let overlay = document.getElementById(OVERLAY_ID);
-      const img = document.getElementById(PREVIEW_IMG_ID);
-      if (!img) return;
-
-      if (!overlay) {
-        const wrapper = document.createElement("div");
-        wrapper.style.cssText = "position:relative;display:inline-block;";
-        img.parentNode.insertBefore(wrapper, img);
-        wrapper.appendChild(img);
-
-        overlay = document.createElement("div");
-        overlay.id = OVERLAY_ID;
-        overlay.style.cssText =
-          "position:absolute;left:0;top:0;pointer-events:none;overflow:hidden;z-index:10;";
-        wrapper.appendChild(overlay);
-      }
+      const overlay = ensureOverlay();
+      if (!overlay) return;
 
       overlay.innerHTML = buildOverlayHTML(data.elements);
       reposition();
@@ -95,16 +98,23 @@
   }
 
   function start() {
-    if (timer) return;
-    poll();
-    timer = setInterval(poll, POLL_INTERVAL_MS);
+    if (source) return;
+
+    source = new EventSource(SSE_URL);
+    source.onmessage = handleEvent;
+    source.onerror = function () {
+      source.close();
+      source = null;
+      setTimeout(start, 5000);
+    };
+
     window.addEventListener("resize", reposition);
   }
 
   function stop() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
+    if (source) {
+      source.close();
+      source = null;
     }
     window.removeEventListener("resize", reposition);
     const overlay = document.getElementById(OVERLAY_ID);

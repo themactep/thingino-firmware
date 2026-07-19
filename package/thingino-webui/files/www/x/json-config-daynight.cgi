@@ -1,10 +1,11 @@
 #!/bin/sh
 
 # thingino day/night configuration access
-# GET  → returns current daynight config from /etc/thingino.json
-# POST → updates daynight config in /etc/thingino.json
+# Backed by /etc/thingino.json under the "daynight" key.
+# Defaults merged at build time by thingino-daynightd package.
+# GET  → returns current daynight config
+# POST → updates daynight config
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 
@@ -29,15 +30,13 @@ json_escape() {
 
 send_json() {
 	status="${2:-200 OK}"
-	printf 'Status: %s\n' "$status"
-	cat <<EOF
-Content-Type: application/json
-Cache-Control: no-store
-Pragma: no-cache
-Connection: close
-
-$1
-EOF
+	printf 'Status: %s\r\n' "$status"
+	printf 'Content-Type: application/json\r\n'
+	printf 'Cache-Control: no-store\r\n'
+	printf 'Pragma: no-cache\r\n'
+	printf 'Connection: close\r\n'
+	printf '\r\n'
+	printf '%s\n' "$1"
 	exit 0
 }
 
@@ -47,65 +46,30 @@ json_error() {
 	send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
 }
 
-ensure_config() {
-	if [ ! -f "$CONFIG_FILE" ]; then
-		umask 077
-		echo '{}' >"$CONFIG_FILE"
-	fi
-}
-
 read_domain_json() {
-	ensure_config
+	if [ ! -f "$CONFIG_FILE" ]; then
+		printf '{}'
+		return
+	fi
 	local data
 	data=$(jct "$CONFIG_FILE" get "$DOMAIN" 2>/dev/null)
 	case "$data" in
-		"" | null)
-			data='{}'
-			;;
+		"" | null) printf '{}' ;;
+		*) printf '%s' "$data" ;;
 	esac
-	printf '%s' "$data"
 }
 
-apply_defaults() {
-	ensure_config
-	local current
-	current=$(jct "$CONFIG_FILE" get "$DOMAIN" 2>/dev/null)
-	if [ -z "$current" ] || [ "$current" = "null" ]; then
-		# Initialize with defaults
-		jct "$CONFIG_FILE" set "$DOMAIN.enabled" true >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.controls.color" true >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.controls.ircut" true >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.controls.ir850" true >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.controls.ir940" true >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.controls.white" false >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.total_gain_day_threshold" 300 >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.total_gain_night_threshold" 3000 >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.script_path" "/sbin/daynight" >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.schedule.enabled" false >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.schedule.start_at" "" >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.schedule.stop_at" "" >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.sun.enabled" false >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.sun.latitude" "" >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.sun.longitude" "" >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.sun.sunrise_offset" 0 >/dev/null 2>&1
-		jct "$CONFIG_FILE" set "$DOMAIN.sun.sunset_offset" 0 >/dev/null 2>&1
+handle_get() {
+	send_json "$(read_domain_json)"
+}
+
+handle_post() {
+	read_body
+	jct "$CONFIG_FILE" import "$REQ_FILE" >/dev/null 2>&1
+	if [ -f /run/daynightd.pid ]; then
+		kill -HUP "$(cat /run/daynightd.pid)" 2>/dev/null || true
 	fi
-}
-
-write_daynight() {
-	ensure_config
-	TMP_FILE=$(mktemp /tmp/thingino-${DOMAIN}.XXXXXX)
-	echo '{}' >"$TMP_FILE"
-
-	# Get current daynight config first to preserve unchanged keys
-	current_data=$(jct "$CONFIG_FILE" get "$DOMAIN" 2>/dev/null || echo '{}')
-	echo "$current_data" | jct "$TMP_FILE" import /dev/stdin >/dev/null 2>&1
-
-	# Apply changes from request
-	jct "$TMP_FILE" import "$REQ_FILE" >/dev/null 2>&1
-
-	# Merge back into the main config
-	jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
+	send_json "$(read_domain_json)"
 }
 
 read_body() {
@@ -115,17 +79,6 @@ read_body() {
 	else
 		cat >"$REQ_FILE"
 	fi
-}
-
-handle_get() {
-	apply_defaults
-	send_json "$(read_domain_json)"
-}
-
-handle_post() {
-	read_body
-	write_daynight
-	send_json "$(read_domain_json)"
 }
 
 case "$REQUEST_METHOD" in

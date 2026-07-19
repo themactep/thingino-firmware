@@ -1,46 +1,81 @@
 /**
  * SEI Rotation — applies CSS rotation to preview <img> elements
- * based on stream rotation from /x/json-osd-sei.cgi.
- * Lightweight, no overlay. Include on any page with a preview image.
+ * via SSE stream from /x/json-osd-sei.cgi.
  */
 (function () {
   "use strict";
-  var SEI_URL = "/x/json-osd-sei.cgi";
+  var SSE_URL = "/x/json-osd-sei.cgi";
   var IMG_IDS = ["preview"];
+  var source = null;
+  var applied = false;
 
   function rotateImg(img, rot) {
-    if (rot) {
-      img.style.transform = "rotate(" + rot + "deg)";
+    if (rot) img.style.transform = "rotate(" + rot + "deg)";
+    var frame = document.getElementById("frame");
+    if (frame) {
+      if (rot === 90 || rot === 270) {
+        var pad = img.clientWidth - img.clientHeight;
+        if (pad > 0) {
+          frame.style.paddingBottom = pad / 2 + "px";
+          frame.style.paddingTop = pad / 2 + "px";
+        }
+      } else {
+        frame.style.paddingBottom = "";
+        frame.style.paddingTop = "";
+      }
     }
   }
 
-  function apply() {
-    fetch(SEI_URL)
-      .then(function (r) {
-        if (!r.ok) return;
-        return r.json();
-      })
-      .then(function (d) {
-        if (!d || !d.rotation) return;
-        var rot = d.rotation;
-        for (var i = 0; i < IMG_IDS.length; i++) {
-          var img = document.getElementById(IMG_IDS[i]);
-          if (img) rotateImg(img, rot);
-        }
-      })
-      .catch(function () {});
+  function handleEvent(event) {
+    try {
+      var d = JSON.parse(event.data);
+      if (!d || !d.rotation) return;
+      var rot = d.rotation;
+      for (var i = 0; i < IMG_IDS.length; i++) {
+        var img = document.getElementById(IMG_IDS[i]);
+        if (img) rotateImg(img, rot);
+      }
+      applied = true;
+    } catch (_) {}
   }
 
-  // Apply once on load
+  function start() {
+    if (source) return;
+    source = new EventSource(SSE_URL);
+    source.onmessage = handleEvent;
+    source.onerror = function () {
+      source.close();
+      source = null;
+      if (!applied) setTimeout(start, 3000);
+    };
+  }
+
+  // Also re-apply on preview src change (preview.js replaces the img)
+  var observer = new MutationObserver(function () {
+    if (applied) {
+      // Re-apply to new img elements
+      setTimeout(function () {
+        if (source && source.readyState === EventSource.OPEN) return;
+        start();
+      }, 200);
+    }
+  });
+  function watch() {
+    for (var i = 0; i < IMG_IDS.length; i++) {
+      var img = document.getElementById(IMG_IDS[i]);
+      if (img && img.parentNode) {
+        observer.observe(img.parentNode, { childList: true });
+      }
+    }
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", apply);
+    document.addEventListener("DOMContentLoaded", function () {
+      start();
+      watch();
+    });
   } else {
-    apply();
+    start();
+    watch();
   }
-
-  // Retry faster initially (preview.js changes src after load)
-  setTimeout(apply, 500);
-  setTimeout(apply, 1500);
-  // Keep checking periodically
-  setInterval(apply, 5000);
 })();

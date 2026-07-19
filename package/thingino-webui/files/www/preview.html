@@ -82,8 +82,8 @@
  */
 (function () {
   'use strict';
-  var POLL_MS = 1000, OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
-  var SEI_URL = '/x/json-osd-sei.cgi', timer = null;
+  var OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
+  var SSE_URL = '/x/json-osd-sei.cgi', source = null;
 
   function pcol(h, dflt) {
     if (!h || h.length < 7) return dflt || '#ffffff';
@@ -153,12 +153,7 @@
     }
   }
 
-  async function poll() {
-    try {
-      var r = await fetch(SEI_URL);
-      if (!r.ok) return;
-      var d = await r.json();
-      if (!d || !d.elements || !d.elements.length) return;
+  function update(d) {
       var svg = document.getElementById(OVERLAY_ID);
       var frame = document.getElementById('frame');
       var img = document.getElementById(IMG_ID);
@@ -207,13 +202,25 @@
         }
       }
       repaint();
+  }
+
+  function handleEvent(event) {
+    try {
+      var d = JSON.parse(event.data);
+      if (!d || !d.elements || !d.elements.length) return;
+      update(d);
     } catch (_) {}
   }
 
   function start() {
-    if (timer) return;
-    poll();
-    timer = setInterval(poll, POLL_MS);
+    if (source) return;
+    source = new EventSource(SSE_URL);
+    source.onmessage = handleEvent;
+    source.onerror = function () {
+      source.close();
+      source = null;
+      setTimeout(start, 5000);
+    };
     window.addEventListener('resize', repaint);
   }
   if (document.readyState === 'loading')

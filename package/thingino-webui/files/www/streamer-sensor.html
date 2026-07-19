@@ -87,6 +87,7 @@
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
 <script src="/a/streamer-config.js"></script>
+<script src="/a/sei-rotate.js"></script>
 </body>
 <script>
 (function(){var u='/x/json-osd-sei.cgi',done=!1;function a(){var img=document.getElementById('preview');if(!img||!img.clientWidth)return;fetch(u).then(function(r){return r.ok?r.json():null}).then(function(d){if(!d||!d.rotation)return;var r=d.rotation,f=document.getElementById('frame');img.style.transform='rotate('+r+'deg)';if(r==90||r==270){var pad=img.clientWidth-img.clientHeight;if(pad>0){f.style.paddingBottom=(pad/2)+'px';f.style.paddingTop=(pad/2)+'px'}done=!0}else{f.style.paddingBottom='';f.style.paddingTop=''}}).catch(function(){})}function t(){if(!done)a();setTimeout(t,500)}setTimeout(t,500)})();

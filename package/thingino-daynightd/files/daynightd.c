@@ -7,6 +7,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
+ *
+ * Single source of truth for day/night photosensing on Thingino.
+ * Supports T31/T23/T21/T30 (via /proc/jz/isp/isp-m0) and
+ * T20 (via /proc/jz/isp/isp_info).
+ * Uses ISP total_gain as primary signal when available (T20),
+ * falling back to EV log2 (T31).
  */
 
 #include <stdio.h>
@@ -26,98 +32,204 @@
 #include <sys/wait.h>
 #include <json_config.h>
 #include <ctype.h>
+#include <math.h>
 
-/* Configuration defaults optimized for Thingino/Ingenic systems */
-#define DEFAULT_DEVICE "/dev/isp-m0"
-#define DEFAULT_CONFIG_FILE "/etc/daynightd.json"
-#define DEFAULT_PID_FILE "/run/daynightd.pid"
-#define DEFAULT_THRESHOLD_LOW 30.0f
-#define DEFAULT_THRESHOLD_HIGH 70.0f
-#define DEFAULT_SAMPLE_INTERVAL_MS 500
+/* =========================================================================
+ * Configuration defaults
+ * ========================================================================= */
+
+#define DEFAULT_CONFIG_FILE       "/etc/thingino.json"
+#define DEFAULT_PID_FILE          "/run/daynightd.pid"
+#define DEFAULT_SAMPLE_INTERVAL_MS 1000
 #define DEFAULT_TRANSITION_DELAY_S 5
-#define DEFAULT_HYSTERESIS_FACTOR 0.1f
+#define DEFAULT_HYSTERESIS_FACTOR  0.15f
 
-/* Thingino-specific paths and commands */
-#define THINGINO_DAYNIGHT_SCRIPT "/sbin/daynight"
+/* EV log2 thresholds — for /proc/jz/isp/isp-m0 on T31/T23.
+ * Day scenes: ~200K-500K, Night scenes: ~600K-2M+.
+ * Default: switch to night > 550000, switch to day < 350000 */
+#define DEFAULT_EV_NIGHT_THRESHOLD  550000
+#define DEFAULT_EV_DAY_THRESHOLD    350000
 
-/* Ingenic ISP proc filesystem paths */
-#define ISP_M0_PATH "/proc/jz/isp/isp-m0"
-#define ISP_FS_PATH "/proc/jz/isp/isp-fs"
+/* Total-gain thresholds — for platforms that expose ISP total gain directly
+ * (T20 via /proc/jz/isp/isp_info has "ISP total gain" field).
+ * Day scenes: ~200-1000, Night scenes: ~2000-6000+.
+ * Default: switch to night > 2000, switch to day < 800 */
+#define DEFAULT_TG_NIGHT_THRESHOLD  2000
+#define DEFAULT_TG_DAY_THRESHOLD    800
+#define DEFAULT_NIGHT_COUNT         6
+#define DEFAULT_DAY_COUNT           4
 
-/* Test paths for development */
-#ifdef DEBUG
-#define TEST_ISP_M0_PATH "/tmp/test-isp-m0"
-#else
-#define TEST_ISP_M0_PATH ISP_M0_PATH
-#endif
+/* Thingino paths */
+#define THINGINO_DAYNIGHT_SCRIPT   "/sbin/daynight"
+#define ISP_M0_PATH                "/proc/jz/isp/isp-m0"   /* T31/T23/T21/T30 */
+#define ISP_INFO_PATH              "/proc/jz/isp/isp_info" /* T20 */
 
-/* Thingino system integration */
-#define BRIGHTNESS_SAMPLES 10
-#define MAX_COMMAND_LEN 256
-#define MAX_OUTPUT_LEN 1024
+/* Run dir */
+#define RUN_DIR                    "/run/thingino"
+#define MODE_FILE                  "/run/thingino/daynight_mode"
+#define BRIGHTNESS_FILE            "/run/thingino/daynight_brightness"
+#define SENSORS_FILE               "/run/thingino/daynight_sensors"
+#define VALUE_FILE                 "/run/thingino/daynight_value"
+#define HISTORY_FILE               "/run/thingino/daynight_history"
 
-/* Day/Night modes */
+/* Ring buffer */
+#define HISTORY_MAX_ENTRIES        300
+
+/* Misc */
+#define MAX_COMMAND_LEN            256
+#define MAX_LINE_LEN               256
+#define MAX_PATH_LEN               256
+#define BRIGHTNESS_SAMPLES         10
+
+/* =========================================================================
+ * Types
+ * ========================================================================= */
+
 typedef enum {
     MODE_DAY = 0,
     MODE_NIGHT = 1,
     MODE_UNKNOWN = -1
 } daynight_mode_t;
 
-/* Configuration structure */
+/* Raw sensor sample — platform-agnostic, fields parsed if available.
+ * T31/T23: /proc/jz/isp/isp-m0
+ * T20:     /proc/jz/isp/isp_info */
 typedef struct {
-    char device_path[256];
-    char config_file[256];
-    char pid_file[256];
-    float threshold_low;
-    float threshold_high;
-    int sample_interval_ms;
-    int transition_delay_s;
-    float hysteresis_factor;
+    int64_t  time_now;
+    int      ev;
+    int      ev_log2;           /* T31: ISP EV value log2; T20: ISP exposure log2 id */
+    int      ev_us;
+    int      total_gain;        /* T20: ISP total gain (direct); T31: approximated from gains */
+    int      integration_time;
+    int      max_integration_time;
+    int      analog_gain;
+    int      max_analog_gain;
+    int      digital_gain;
+    int      isp_digital_gain;
+    int      max_isp_digital_gain;
+    int      gain_log2;         /* T20 only */
+    int      wb_rgain;
+    int      wb_bgain;
+    int      wb_color_temp;
+    int      brightness_pct;
+    int      primary_signal;    /* the value used for decision (total_gain or ev_log2) */
+    int      night_threshold;   /* active night threshold */
+    int      day_threshold;     /* active day threshold */
+    char     isp_mode[32];
+    char     daynight_mode[16];
+    char     platform[8];       /* "t31" or "t20" */
+} sensor_sample_t;
 
-    bool enable_syslog;
-    bool daemon_mode;
-    int log_level;  /* 0=FATAL,1=ERROR,2=WARN,3=INFO,4=DEBUG,5=TRACE */
+/* Ring buffer */
+typedef struct {
+    sensor_sample_t samples[HISTORY_MAX_ENTRIES];
+    int             head;
+    int             count;
+} history_buffer_t;
+
+/* Daynight configuration */
+typedef struct {
+    char     config_file[MAX_PATH_LEN];
+    char     pid_file[MAX_PATH_LEN];
+    char     script_path[MAX_PATH_LEN];
+
+    /* Algorithm thresholds — EV log2 based (T31/T23) */
+    int      ev_night_threshold;
+    int      ev_day_threshold;
+    /* Algorithm thresholds — total_gain based (T20) */
+    int      tg_night_threshold;
+    int      tg_day_threshold;
+    int      night_count_threshold;
+    int      day_count_threshold;
+
+    /* Timing */
+    int      sample_interval_ms;
+    int      transition_delay_s;
+    float    hysteresis_factor;
+
+    /* Schedule */
+    bool     schedule_enabled;
+    char     schedule_start_at[8];
+    char     schedule_stop_at[8];
+
+    /* Controls — which hardware to toggle on mode change */
+    bool     controls_color;
+    bool     controls_ircut;
+    bool     controls_ir850;
+    bool     controls_ir940;
+    bool     controls_white;
+
+    /* System */
+    bool     enabled;           /* master enable for photosensing */
+    bool     daemon_mode;
+    bool     enable_syslog;
+    int      log_level;         /* 0=FATAL..5=TRACE */
+
+    /* Force mode */
+    char     force_mode[16];    /* "day", "night", or "" for auto */
 } daynight_config_t;
 
-/* Runtime state for Thingino system */
+/* Runtime state */
 typedef struct {
     daynight_mode_t current_mode;
-    daynight_mode_t pending_mode;
-    struct timeval last_transition;
-    float brightness_history[BRIGHTNESS_SAMPLES];
-    int brightness_index;
-    bool running;
-
+    struct timeval  last_transition;
+    float           brightness_history[BRIGHTNESS_SAMPLES];
+    int             brightness_index;
+    bool            running;
+    int             night_count;
+    int             day_count;
+    bool            initial_mode_set;
+    int             anti_flap_cooldown;
+    int             initial_night_confirm;
+    int             initial_day_confirm;
+    int             initial_fallback_countdown;
+    sensor_sample_t latest_sample;
+    bool            use_total_gain;  /* true if platform provides total_gain (T20) */
 } daynight_state_t;
 
-/* Global variables */
-static daynight_config_t g_config;
-static daynight_state_t g_state;
-static volatile sig_atomic_t g_terminate_flag = 0;
+/* =========================================================================
+ * Globals
+ * ========================================================================= */
 
-/* Function prototypes */
+static daynight_config_t g_config;
+static daynight_state_t  g_state;
+static history_buffer_t  g_history;
+static volatile sig_atomic_t g_terminate_flag = 0;
+static volatile sig_atomic_t g_reload_flag    = 0;
+static volatile sig_atomic_t g_force_day_flag  = 0;
+static volatile sig_atomic_t g_force_night_flag = 0;
+
+/* =========================================================================
+ * Forward declarations
+ * ========================================================================= */
+
 static void signal_handler(int sig);
-static int read_config(const char *config_file);
-static int init_thingino_system(void);
-static int execute_command(const char *command, char *output, size_t output_size);
-static float calculate_brightness_from_isp(void);
-static float calculate_brightness_thingino(void);
-static int trigger_mode_change(daynight_mode_t new_mode, float level_value, float threshold_value, bool is_forced);
-static int apply_day_settings_thingino(void);
-static int apply_night_settings_thingino(void);
-static void log_message(int level, const char *format, ...);
-static int create_pid_file(void);
+static int  read_config(const char *config_file);
+static int  parse_isp(sensor_sample_t *s);
+static int  parse_isp_m0(sensor_sample_t *s);
+static int  parse_isp_info(sensor_sample_t *s);
+static int  execute_command(const char *command, char *output, size_t output_size);
+static int  apply_mode(daynight_mode_t new_mode);
+static void log_message(int level, const char *format, ...) __attribute__((format(printf, 2, 3)));
+static int  create_pid_file(void);
 static void remove_pid_file(void);
 static void daemonize(void);
-static int parse_debug_level_string(const char *s);
-static const char* log_level_name(int level);
+static int  parse_log_level_string(const char *s);
+static const char *log_level_name(int level);
+static int  main_loop(void);
+static void write_state_files(const sensor_sample_t *s, daynight_mode_t mode);
+static void history_push(const sensor_sample_t *s);
+static bool is_within_schedule(void);
+static int  compute_brightness_pct(const sensor_sample_t *s);
+static void write_mode_file(daynight_mode_t mode);
+static void write_sensors_json(const sensor_sample_t *s);
+static void write_history_json(void);
+static int  load_force_mode_from_config(void);
 
-static int main_loop(void);
-static int write_brightness_value(float brightness, float avg_brightness, daynight_mode_t mode);
+/* =========================================================================
+ * Signal handler
+ * ========================================================================= */
 
-/*
- * Signal handler for graceful shutdown
- */
 static void signal_handler(int sig) {
     switch (sig) {
         case SIGTERM:
@@ -126,42 +238,45 @@ static void signal_handler(int sig) {
             g_state.running = false;
             break;
         case SIGUSR1:
-            /* Force day mode */
-            g_state.pending_mode = MODE_DAY;
+            g_force_day_flag = 1;
             break;
         case SIGUSR2:
-            /* Force night mode */
-            g_state.pending_mode = MODE_NIGHT;
+            g_force_night_flag = 1;
             break;
         case SIGHUP:
-            /* Reload configuration */
-            read_config(g_config.config_file);
-
+            g_reload_flag = 1;
             break;
     }
 }
-/* Parse case-insensitive debug level string to numeric 0..5; returns -1 if invalid */
-static int parse_debug_level_string(const char *s) {
+
+/* =========================================================================
+ * Log level parsing
+ * ========================================================================= */
+
+static int parse_log_level_string(const char *s) {
     if (!s) return -1;
-    /* Trim leading/trailing whitespace */
-    const char *start = s; while (*start && isspace((unsigned char)*start)) start++;
+    const char *start = s;
+    while (*start && isspace((unsigned char)*start)) start++;
     const char *end = start + strlen(start);
     while (end > start && isspace((unsigned char)end[-1])) end--;
     size_t len = (size_t)(end - start);
     if (len == 0 || len > 16) return -1;
+
     char buf[17];
-    for (size_t i = 0; i < len; ++i) buf[i] = (char)toupper((unsigned char)start[i]);
+    for (size_t i = 0; i < len; ++i)
+        buf[i] = (char)toupper((unsigned char)start[i]);
     buf[len] = '\0';
-    if (!strcmp(buf, "FATAL")) return 0;
-    if (!strcmp(buf, "ERROR")) return 1;
+
+    if (!strcmp(buf, "FATAL"))   return 0;
+    if (!strcmp(buf, "ERROR"))   return 1;
     if (!strcmp(buf, "WARN") || !strcmp(buf, "WARNING")) return 2;
-    if (!strcmp(buf, "INFO")) return 3;
-    if (!strcmp(buf, "DEBUG")) return 4;
-    if (!strcmp(buf, "TRACE")) return 5;
+    if (!strcmp(buf, "INFO"))    return 3;
+    if (!strcmp(buf, "DEBUG"))   return 4;
+    if (!strcmp(buf, "TRACE"))   return 5;
     return -1;
 }
 
-static const char* log_level_name(int level) {
+static const char *log_level_name(int level) {
     switch (level) {
         case 0: return "FATAL";
         case 1: return "ERROR";
@@ -173,748 +288,1019 @@ static const char* log_level_name(int level) {
     }
 }
 
+/* =========================================================================
+ * Logging
+ * ========================================================================= */
 
-/*
- * Load configuration from JSON file with safe defaults
- */
-static int read_config(const char *config_file) {
-    int result = 0;
+static void log_message(int level, const char *format, ...) {
+    int msg_level_num;
+    switch (level) {
+        case LOG_EMERG:  case LOG_ALERT: case LOG_CRIT:
+            msg_level_num = 0; break;
+        case LOG_ERR:    msg_level_num = 1; break;
+        case LOG_WARNING: msg_level_num = 2; break;
+        case LOG_INFO:   msg_level_num = 3; break;
+        case LOG_DEBUG:  msg_level_num = 4; break;
+        default:         msg_level_num = 4; break;
+    }
 
-    /* Set defaults */
-    strncpy(g_config.device_path, DEFAULT_DEVICE, sizeof(g_config.device_path) - 1);
+    if (msg_level_num > g_config.log_level) return;
+
+    const char *level_str;
+    switch (level) {
+        case LOG_EMERG: case LOG_ALERT: case LOG_CRIT:
+            level_str = "FATAL"; break;
+        case LOG_ERR:    level_str = "ERROR"; break;
+        case LOG_WARNING: level_str = "WARN"; break;
+        case LOG_INFO:   level_str = "INFO"; break;
+        case LOG_DEBUG:
+            level_str = (g_config.log_level >= 5) ? "TRACE" : "DEBUG"; break;
+        default: level_str = "UNKNOWN"; break;
+    }
+
+    va_list args;
+    char buffer[512];
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    if (g_config.enable_syslog)
+        syslog(level, "[%s] %s", level_str, buffer);
+
+    if (!g_config.daemon_mode || g_config.log_level > 0) {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        fprintf(stderr, "[%lld.%03lld] %s: %s\n",
+                (long long)tv.tv_sec, (long long)(tv.tv_usec / 1000),
+                level_str, buffer);
+    }
+}
+
+/* =========================================================================
+ * Configuration loading
+ * ========================================================================= */
+
+static void set_config_defaults(void) {
     strncpy(g_config.config_file, DEFAULT_CONFIG_FILE, sizeof(g_config.config_file) - 1);
     strncpy(g_config.pid_file, DEFAULT_PID_FILE, sizeof(g_config.pid_file) - 1);
-    g_config.threshold_low = DEFAULT_THRESHOLD_LOW;
-    g_config.threshold_high = DEFAULT_THRESHOLD_HIGH;
-    g_config.sample_interval_ms = DEFAULT_SAMPLE_INTERVAL_MS;
-    g_config.transition_delay_s = DEFAULT_TRANSITION_DELAY_S;
-    g_config.hysteresis_factor = DEFAULT_HYSTERESIS_FACTOR;
+    strncpy(g_config.script_path, THINGINO_DAYNIGHT_SCRIPT, sizeof(g_config.script_path) - 1);
 
+    g_config.ev_night_threshold     = DEFAULT_EV_NIGHT_THRESHOLD;
+    g_config.ev_day_threshold       = DEFAULT_EV_DAY_THRESHOLD;
+    g_config.tg_night_threshold     = DEFAULT_TG_NIGHT_THRESHOLD;
+    g_config.tg_day_threshold       = DEFAULT_TG_DAY_THRESHOLD;
+    g_config.night_count_threshold  = DEFAULT_NIGHT_COUNT;
+    g_config.day_count_threshold    = DEFAULT_DAY_COUNT;
+    g_config.sample_interval_ms     = DEFAULT_SAMPLE_INTERVAL_MS;
+    g_config.transition_delay_s     = DEFAULT_TRANSITION_DELAY_S;
+    g_config.hysteresis_factor      = DEFAULT_HYSTERESIS_FACTOR;
+
+    g_config.schedule_enabled = false;
+    g_config.schedule_start_at[0] = '\0';
+    g_config.schedule_stop_at[0]  = '\0';
+
+    g_config.controls_color = true;
+    g_config.controls_ircut = true;
+    g_config.controls_ir850 = true;
+    g_config.controls_ir940 = true;
+    g_config.controls_white = false;
+
+    g_config.enabled       = true;
+    g_config.daemon_mode   = true;
     g_config.enable_syslog = true;
-    g_config.daemon_mode = true;
-    g_config.log_level = 3; /* default INFO */
+    g_config.log_level     = 3;  /* INFO */
 
-    /* Load JSON using jct */
+    g_config.force_mode[0] = '\0';
+}
+
+static int read_config(const char *config_file) {
+    set_config_defaults();
+    strncpy(g_config.config_file, config_file, sizeof(g_config.config_file) - 1);
+    g_config.config_file[sizeof(g_config.config_file) - 1] = '\0';
+
     JsonValue *root = load_config(config_file);
     if (!root) {
-        log_message(LOG_WARNING, "Config file %s not found or invalid, using defaults", config_file);
+        log_message(LOG_WARNING, "Config file %s not found, using defaults", config_file);
         return 0;
     }
 
-    /* Extract configuration values from nested JSON structure */
-
-    /* Device path */
     JsonValue *v;
-    v = get_nested_item(root, "device_path");
-    if (v && v->type == JSON_STRING && v->value.string) {
-        strncpy(g_config.device_path, v->value.string, sizeof(g_config.device_path) - 1);
-        g_config.device_path[sizeof(g_config.device_path) - 1] = '\0';
-    }
 
-    /* Brightness thresholds */
-    /* Read daynight thresholds from thingino.json compatible section */
-    v = get_nested_item(root, "daynight.total_gain_day_threshold");
-    if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_low = (float)v->value.number.real;
-    }
-    v = get_nested_item(root, "daynight.total_gain_night_threshold");
-    if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_high = (float)v->value.number.real;
-    }
-    v = get_nested_item(root, "brightness.threshold_low");
-    if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_low = (float)v->value.number.real;
-    }
-    v = get_nested_item(root, "brightness.threshold_high");
-    if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_high = (float)v->value.number.real;
-    }
-    v = get_nested_item(root, "brightness.hysteresis_factor");
-    if (v && v->type == JSON_NUMBER) {
-        g_config.hysteresis_factor = (float)v->value.number.real;
-    }
+    /* --- daynight section --- */
+    v = get_nested_item(root, "daynight.enabled");
+    if (v && v->type == JSON_BOOL) g_config.enabled = v->value.boolean;
 
-    /* Timing configuration */
-    v = get_nested_item(root, "timing.sample_interval_ms");
-    if (v && v->type == JSON_NUMBER) {
+    v = get_nested_item(root, "daynight.ev_night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.ev_night_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.ev_day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.ev_day_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.tg_night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.tg_night_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.tg_day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.tg_day_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.night_count_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.night_count_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.day_count_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.day_count_threshold = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.sample_interval_ms");
+    if (v && v->type == JSON_NUMBER)
         g_config.sample_interval_ms = (int)v->value.number.integer;
-    }
-    v = get_nested_item(root, "timing.transition_delay_s");
-    if (v && v->type == JSON_NUMBER) {
+
+    v = get_nested_item(root, "daynight.transition_delay_s");
+    if (v && v->type == JSON_NUMBER)
         g_config.transition_delay_s = (int)v->value.number.integer;
+
+    v = get_nested_item(root, "daynight.script_path");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.script_path, v->value.string, sizeof(g_config.script_path) - 1);
+        g_config.script_path[sizeof(g_config.script_path) - 1] = '\0';
     }
 
-    /* System configuration */
+    v = get_nested_item(root, "daynight.loglevel");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        int lvl = parse_log_level_string(v->value.string);
+        if (lvl >= 0) g_config.log_level = lvl;
+    }
+
+    /* Controls */
+    v = get_nested_item(root, "daynight.controls.color");
+    if (v && v->type == JSON_BOOL) g_config.controls_color = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ircut");
+    if (v && v->type == JSON_BOOL) g_config.controls_ircut = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ir850");
+    if (v && v->type == JSON_BOOL) g_config.controls_ir850 = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ir940");
+    if (v && v->type == JSON_BOOL) g_config.controls_ir940 = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.white");
+    if (v && v->type == JSON_BOOL) g_config.controls_white = v->value.boolean;
+
+    /* Schedule */
+    v = get_nested_item(root, "daynight.schedule.enabled");
+    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    v = get_nested_item(root, "daynight.schedule.start_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_start_at, v->value.string,
+                sizeof(g_config.schedule_start_at) - 1);
+    }
+    v = get_nested_item(root, "daynight.schedule.stop_at");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.schedule_stop_at, v->value.string,
+                sizeof(g_config.schedule_stop_at) - 1);
+    }
+
+    /* Force mode */
+    v = get_nested_item(root, "daynight.force_mode");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.force_mode, v->value.string, sizeof(g_config.force_mode) - 1);
+        g_config.force_mode[sizeof(g_config.force_mode) - 1] = '\0';
+    }
+
+    /* System section */
     v = get_nested_item(root, "system.enable_syslog");
-    if (v && v->type == JSON_BOOL) {
-        g_config.enable_syslog = v->value.boolean;
-    }
+    if (v && v->type == JSON_BOOL) g_config.enable_syslog = v->value.boolean;
     v = get_nested_item(root, "system.daemon_mode");
-    if (v && v->type == JSON_BOOL) {
-        g_config.daemon_mode = v->value.boolean;
-    }
-
-    /* Log level from string debug_level only; default INFO when absent/invalid */
+    if (v && v->type == JSON_BOOL) g_config.daemon_mode = v->value.boolean;
     v = get_nested_item(root, "system.debug_level");
-    if (v) {
-        if (v->type == JSON_STRING && v->value.string) {
-            int lvl = parse_debug_level_string(v->value.string);
-            if (lvl >= 0) {
-                g_config.log_level = lvl;
-            } else {
-                static int warned_invalid = 0;
-                if (!warned_invalid) {
-                    log_message(LOG_WARNING, "Invalid debug_level '%s' in %s; defaulting to INFO", v->value.string, g_config.config_file);
-                    warned_invalid = 1;
-                }
-                g_config.log_level = 3;
-            }
-        } else {
-            static int warned_type = 0;
-            if (!warned_type) {
-                log_message(LOG_WARNING, "debug_level must be a string in %s; defaulting to INFO", g_config.config_file);
-                warned_type = 1;
-            }
-            g_config.log_level = 3;
-        }
-    } else {
-        g_config.log_level = 3; /* Absent -> default INFO */
+    if (v && v->type == JSON_STRING && v->value.string) {
+        int lvl = parse_log_level_string(v->value.string);
+        if (lvl >= 0) g_config.log_level = lvl;
     }
-
     v = get_nested_item(root, "system.pid_file");
     if (v && v->type == JSON_STRING && v->value.string) {
         strncpy(g_config.pid_file, v->value.string, sizeof(g_config.pid_file) - 1);
         g_config.pid_file[sizeof(g_config.pid_file) - 1] = '\0';
     }
 
-    /* Cleanup */
+    /* Backward compat: flat threshold keys */
+    v = get_nested_item(root, "ev_night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.ev_night_threshold = (int)v->value.number.integer;
+    v = get_nested_item(root, "ev_day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.ev_day_threshold = (int)v->value.number.integer;
+    v = get_nested_item(root, "tg_night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.tg_night_threshold = (int)v->value.number.integer;
+    v = get_nested_item(root, "tg_day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.tg_day_threshold = (int)v->value.number.integer;
+
     free_json_value(root);
 
-    /* Validate configuration */
-    if (g_config.threshold_low >= g_config.threshold_high) {
-        log_message(LOG_ERR, "Invalid thresholds: low=%.1f >= high=%.1f",
-                   g_config.threshold_low, g_config.threshold_high);
+    /* Validate */
+    if (g_config.ev_day_threshold >= g_config.ev_night_threshold) {
+        log_message(LOG_ERR, "Invalid EV thresholds: day=%d >= night=%d",
+                    g_config.ev_day_threshold, g_config.ev_night_threshold);
         return -1;
     }
-
+    if (g_config.tg_day_threshold >= g_config.tg_night_threshold) {
+        log_message(LOG_ERR, "Invalid total_gain thresholds: day=%d >= night=%d",
+                    g_config.tg_day_threshold, g_config.tg_night_threshold);
+        return -1;
+    }
     if (g_config.sample_interval_ms < 100 || g_config.sample_interval_ms > 60000) {
-        log_message(LOG_WARNING, "Sample interval %d ms out of range, using default",
-                   g_config.sample_interval_ms);
+        log_message(LOG_WARNING, "Sample interval %d ms out of range, using %d",
+                    g_config.sample_interval_ms, DEFAULT_SAMPLE_INTERVAL_MS);
         g_config.sample_interval_ms = DEFAULT_SAMPLE_INTERVAL_MS;
     }
 
-    log_message(LOG_INFO, "Configuration loaded: thresholds=%.1f/%.1f, interval=%dms",
-               g_config.threshold_low, g_config.threshold_high, g_config.sample_interval_ms);
+    log_message(LOG_INFO, "Config loaded: platform thresholds ev=%d/%d tg=%d/%d",
+                g_config.ev_day_threshold, g_config.ev_night_threshold,
+                g_config.tg_day_threshold, g_config.tg_night_threshold);
 
-    return result;
-}
-
-/*
- * Initialize Thingino system integration
- */
-static int init_thingino_system(void) {
-    log_message(LOG_INFO, "Initializing Thingino system integration");
-
-    /* Test basic system functionality */
-    char output[MAX_OUTPUT_LEN];
-    if (execute_command("echo 'System test'", output, sizeof(output)) != 0) {
-        log_message(LOG_ERR, "Basic system command execution failed");
-        return -1;
-    }
-
-    // Initialize IR cut filter
-    execute_command("ircut off", NULL, 0);
-    usleep(500000);
-    execute_command("ircut on", NULL, 0);
-
-    log_message(LOG_INFO, "Thingino system initialized successfully");
     return 0;
 }
 
-/*
- * Execute system command and capture output
- */
-static int execute_command(const char *command, char *output, size_t output_size) {
-    FILE *fp;
-    int status;
+static int load_force_mode_from_config(void) {
+    JsonValue *root = load_config(g_config.config_file);
+    if (!root) return -1;
 
-    if (output) {
-        output[0] = '\0';
+    JsonValue *v = get_nested_item(root, "daynight.force_mode");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.force_mode, v->value.string, sizeof(g_config.force_mode) - 1);
+        g_config.force_mode[sizeof(g_config.force_mode) - 1] = '\0';
+    } else {
+        g_config.force_mode[0] = '\0';
     }
 
-    log_message(LOG_DEBUG, "Executing command: %s", command);
+    v = get_nested_item(root, "daynight.schedule.enabled");
+    if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+    v = get_nested_item(root, "daynight.enabled");
+    if (v && v->type == JSON_BOOL) g_config.enabled = v->value.boolean;
 
-    fp = popen(command, "r");
+    v = get_nested_item(root, "daynight.controls.color");
+    if (v && v->type == JSON_BOOL) g_config.controls_color = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ircut");
+    if (v && v->type == JSON_BOOL) g_config.controls_ircut = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ir850");
+    if (v && v->type == JSON_BOOL) g_config.controls_ir850 = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.ir940");
+    if (v && v->type == JSON_BOOL) g_config.controls_ir940 = v->value.boolean;
+    v = get_nested_item(root, "daynight.controls.white");
+    if (v && v->type == JSON_BOOL) g_config.controls_white = v->value.boolean;
+
+    free_json_value(root);
+
+    log_message(LOG_INFO, "Config reloaded: force=%s sched=%s enabled=%s",
+                g_config.force_mode[0] ? g_config.force_mode : "auto",
+                g_config.schedule_enabled ? "on" : "off",
+                g_config.enabled ? "yes" : "no");
+    return 0;
+}
+
+/* =========================================================================
+ * ISP data parsing — platform-specific
+ * ========================================================================= */
+
+static void init_sample(sensor_sample_t *s) {
+    memset(s, 0, sizeof(*s));
+    s->time_now = (int64_t)time(NULL);
+    s->ev = -1;
+    s->ev_log2 = -1;
+    s->ev_us = -1;
+    s->total_gain = -1;
+    s->integration_time = -1;
+    s->max_integration_time = -1;
+    s->analog_gain = -1;
+    s->max_analog_gain = -1;
+    s->digital_gain = -1;
+    s->isp_digital_gain = -1;
+    s->max_isp_digital_gain = -1;
+    s->gain_log2 = -1;
+    s->wb_rgain = -1;
+    s->wb_bgain = -1;
+    s->wb_color_temp = -1;
+    s->brightness_pct = -1;
+    s->primary_signal = -1;
+    s->isp_mode[0] = '\0';
+    s->daynight_mode[0] = '\0';
+    s->platform[0] = '\0';
+}
+
+/* Parse /proc/jz/isp/isp-m0 — T31, T23, T21, T30 */
+static int parse_isp_m0(sensor_sample_t *s) {
+    FILE *fp = fopen(ISP_M0_PATH, "r");
+    if (!fp) return -1;
+
+    char line[MAX_LINE_LEN];
+    strncpy(s->platform, "t31", sizeof(s->platform) - 1);
+
+    while (fgets(line, sizeof(line), fp)) {
+        if (strstr(line, "ISP Runing Mode :"))
+            sscanf(line, "ISP Runing Mode : %31s", s->isp_mode);
+        else if (strstr(line, "SENSOR Integration Time :"))
+            sscanf(line, "SENSOR Integration Time : %d lines", &s->integration_time);
+        else if (strstr(line, "SENSOR Max Integration Time :"))
+            sscanf(line, "SENSOR Max Integration Time : %d lines", &s->max_integration_time);
+        else if (strstr(line, "MAX SENSOR analog gain :"))
+            sscanf(line, "MAX SENSOR analog gain : %d", &s->max_analog_gain);
+        else if (strstr(line, "SENSOR analog gain :"))
+            sscanf(line, "SENSOR analog gain : %d", &s->analog_gain);
+        else if (strstr(line, "SENSOR digital gain :"))
+            sscanf(line, "SENSOR digital gain : %d", &s->digital_gain);
+        else if (strstr(line, "MAX ISP digital gain :"))
+            sscanf(line, "MAX ISP digital gain : %d", &s->max_isp_digital_gain);
+        else if (strstr(line, "ISP digital gain :"))
+            sscanf(line, "ISP digital gain : %d", &s->isp_digital_gain);
+        else if (strstr(line, "ISP EV value log2:"))
+            sscanf(line, "ISP EV value log2: %d", &s->ev_log2);
+        else if (strstr(line, "ISP EV value us:"))
+            sscanf(line, "ISP EV value us: %d", &s->ev_us);
+        else if (strstr(line, "ISP EV value:"))
+            sscanf(line, "ISP EV value: %d", &s->ev);
+        else if (strstr(line, "ISP WB weighted rgain:"))
+            sscanf(line, "ISP WB weighted rgain: %d", &s->wb_rgain);
+        else if (strstr(line, "ISP WB weighted bgain:"))
+            sscanf(line, "ISP WB weighted bgain: %d", &s->wb_bgain);
+        else if (strstr(line, "ISP WB color temperature:"))
+            sscanf(line, "ISP WB color temperature: %d", &s->wb_color_temp);
+    }
+    fclose(fp);
+
+    /* T31 does not expose ISP total gain; approximate from available gains.
+     * Use EV log2 as the primary decision signal. */
+    s->total_gain = -1;  /* not available in isp-m0 */
+    if (s->ev_log2 > 0) {
+        s->primary_signal = s->ev_log2;
+    }
+
+    return 0;
+}
+
+/* Parse /proc/jz/isp/isp_info — T20 */
+static int parse_isp_info(sensor_sample_t *s) {
+    FILE *fp = fopen(ISP_INFO_PATH, "r");
+    if (!fp) return -1;
+
+    char line[MAX_LINE_LEN];
+    strncpy(s->platform, "t20", sizeof(s->platform) - 1);
+
+    while (fgets(line, sizeof(line), fp)) {
+        if (strstr(line, "ISP Runing Mode :"))
+            sscanf(line, "ISP Runing Mode : %31s", s->isp_mode);
+        else if (strstr(line, "SENSOR Integration Time :"))
+            sscanf(line, "SENSOR Integration Time : %d lines", &s->integration_time);
+        else if (strstr(line, "MAX SENSOR analog gain :"))
+            sscanf(line, "MAX SENSOR analog gain : %d", &s->max_analog_gain);
+        else if (strstr(line, "SENSOR analog gain :"))
+            sscanf(line, "SENSOR analog gain : %d", &s->analog_gain);
+        else if (strstr(line, "SENSOR digital gain :"))
+            sscanf(line, "SENSOR digital gain : %d", &s->digital_gain);
+        else if (strstr(line, "MAX ISP digital gain :"))
+            sscanf(line, "MAX ISP digital gain : %d", &s->max_isp_digital_gain);
+        else if (strstr(line, "ISP digital gain :"))
+            sscanf(line, "ISP digital gain : %d", &s->isp_digital_gain);
+        /* T20-specific fields */
+        else if (strstr(line, "ISP total gain :"))
+            sscanf(line, "ISP total gain : %d", &s->total_gain);
+        else if (strstr(line, "ISP gain log2 id :"))
+            sscanf(line, "ISP gain log2 id : %d", &s->gain_log2);
+        else if (strstr(line, "ISP exposure log2 id:"))
+            sscanf(line, "ISP exposure log2 id: %d", &s->ev_log2);
+        else if (strstr(line, "ISP WB rg :"))
+            sscanf(line, "ISP WB rg : %d", &s->wb_rgain);
+        else if (strstr(line, "ISP WB bg :"))
+            sscanf(line, "ISP WB bg : %d", &s->wb_bgain);
+        else if (strstr(line, "ISP WB Temperature :"))
+            sscanf(line, "ISP WB Temperature : %d", &s->wb_color_temp);
+    }
+    fclose(fp);
+
+    /* T20: use total_gain as primary signal when available */
+    if (s->total_gain > 0) {
+        s->primary_signal = s->total_gain;
+    } else if (s->ev_log2 > 0) {
+        s->primary_signal = s->ev_log2;
+    }
+
+    return 0;
+}
+
+/* Try both platform proc paths; prefer isp-m0 (T31), fallback to isp_info (T20) */
+static int parse_isp(sensor_sample_t *s) {
+    init_sample(s);
+
+    if (parse_isp_m0(s) == 0) {
+        log_message(LOG_DEBUG, "Parsed isp-m0 (T31)");
+        return 0;
+    }
+
+    if (parse_isp_info(s) == 0) {
+        log_message(LOG_DEBUG, "Parsed isp_info (T20)");
+        return 0;
+    }
+
+    log_message(LOG_DEBUG, "No ISP proc file found");
+    return -1;
+}
+
+/* =========================================================================
+ * Brightness percentage calculation
+ * ========================================================================= */
+
+static int compute_brightness_pct(const sensor_sample_t *s) {
+    /* T20 with total_gain: map total_gain 0..8000 → 100%..0% */
+    if (s->total_gain > 0) {
+        int lo = 100;    /* bright */
+        int hi = 8000;   /* dark */
+        int val = s->total_gain;
+        if (val <= lo) return 100;
+        if (val >= hi) return 0;
+        return 100 - ((val - lo) * 100 / (hi - lo));
+    }
+
+    /* T31 with ev_log2: use logarithmic mapping */
+    if (s->ev_log2 > 0) {
+        double lo = 200000.0;   /* bright: 100% */
+        double hi = 2000000.0;  /* dark: 0% */
+        double ev = (double)s->ev_log2;
+        if (ev <= lo) return 100;
+        if (ev >= hi) return 0;
+        double log_ev = log(ev);
+        double log_lo = log(lo);
+        double log_hi = log(hi);
+        double pct = 100.0 * (1.0 - (log_ev - log_lo) / (log_hi - log_lo));
+        int result = (int)(pct + 0.5);
+        if (result < 0) result = 0;
+        if (result > 100) result = 100;
+        return result;
+    }
+
+    /* Fallback: integration time ratio */
+    if (s->integration_time >= 0 && s->max_integration_time > 0) {
+        float ratio = (float)s->integration_time / (float)s->max_integration_time;
+        int pct = (int)((1.0f - ratio) * 100.0f);
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        return pct;
+    }
+
+    return -1;
+}
+
+/* =========================================================================
+ * Schedule check
+ * ========================================================================= */
+
+static bool is_within_schedule(void) {
+    if (!g_config.schedule_enabled) return true;
+    if (g_config.schedule_start_at[0] == '\0' || g_config.schedule_stop_at[0] == '\0')
+        return true;
+
+    int start_h = 0, start_m = 0, stop_h = 0, stop_m = 0;
+    if (sscanf(g_config.schedule_start_at, "%d:%d", &start_h, &start_m) != 2 ||
+        sscanf(g_config.schedule_stop_at, "%d:%d", &stop_h, &stop_m) != 2)
+        return true;
+
+    time_t now = time(NULL);
+    struct tm *lt = localtime(&now);
+    int cur_mins = lt->tm_hour * 60 + lt->tm_min;
+    int start_mins = start_h * 60 + start_m;
+    int stop_mins = stop_h * 60 + stop_m;
+
+    if (start_mins <= stop_mins)
+        return cur_mins >= start_mins && cur_mins < stop_mins;
+    else
+        return cur_mins >= start_mins || cur_mins < stop_mins;
+}
+
+/* =========================================================================
+ * Command execution
+ * ========================================================================= */
+
+static int execute_command(const char *command, char *output, size_t output_size) {
+    if (output) output[0] = '\0';
+    log_message(LOG_DEBUG, "Exec: %s", command);
+
+    FILE *fp = popen(command, "r");
     if (!fp) {
-        log_message(LOG_ERR, "Failed to execute command: %s", command);
+        log_message(LOG_ERR, "popen failed: %s", command);
         return -1;
     }
 
     if (output && output_size > 0) {
         if (fgets(output, output_size, fp) != NULL) {
-            /* Remove trailing newline */
             size_t len = strlen(output);
-            if (len > 0 && output[len-1] == '\n') {
-                output[len-1] = '\0';
-            }
+            if (len > 0 && output[len - 1] == '\n')
+                output[len - 1] = '\0';
         }
     }
 
-    status = pclose(fp);
+    int status = pclose(fp);
     if (status != 0) {
-        log_message(LOG_DEBUG, "Command failed with status: %d", status);
+        log_message(LOG_DEBUG, "Command returned %d: %s", status, command);
         return -1;
     }
-
     return 0;
 }
 
-/*
- * Calculate brightness from Ingenic ISP parameters
- * Uses direct ISP data for accurate brightness detection
- */
-static float calculate_brightness_from_isp(void) {
-    FILE *fp;
-    char line[256];
-    float brightness = -1.0f;
+/* =========================================================================
+ * Mode application
+ * ========================================================================= */
 
-    /* ISP parameters for brightness calculation */
-    int integration_time = -1;
-    int max_integration_time = -1;
-    int analog_gain = -1;
-    int digital_gain = -1;
-    int isp_digital_gain = -1;
-    int ev_value = -1;
-    int current_brightness = -1;
-    char current_mode[32] = {0};
-
-    fp = fopen(TEST_ISP_M0_PATH, "r");
-    if (!fp) {
-        log_message(LOG_DEBUG, "Cannot read ISP parameters from %s: %s", TEST_ISP_M0_PATH, strerror(errno));
-        return -1.0f;
-    }
-
-    /* Parse ISP parameters */
-    while (fgets(line, sizeof(line), fp)) {
-        if (strstr(line, "ISP Runing Mode :")) {
-            sscanf(line, "ISP Runing Mode : %31s", current_mode);
-        } else if (strstr(line, "SENSOR Integration Time :")) {
-            sscanf(line, "SENSOR Integration Time : %d lines", &integration_time);
-        } else if (strstr(line, "SENSOR Max Integration Time :")) {
-            sscanf(line, "SENSOR Max Integration Time : %d lines", &max_integration_time);
-        } else if (strstr(line, "SENSOR analog gain :")) {
-            sscanf(line, "SENSOR analog gain : %d", &analog_gain);
-        } else if (strstr(line, "SENSOR digital gain :")) {
-            sscanf(line, "SENSOR digital gain : %d", &digital_gain);
-        } else if (strstr(line, "ISP digital gain :")) {
-            sscanf(line, "ISP digital gain : %d", &isp_digital_gain);
-        } else if (strstr(line, "ISP EV value:")) {
-            sscanf(line, "ISP EV value: %d", &ev_value);
-        } else if (strstr(line, "Brightness :")) {
-            sscanf(line, "Brightness : %d", &current_brightness);
-        }
-    }
-
-    fclose(fp);
-
-    /* Calculate brightness based on ISP parameters */
-    if (integration_time >= 0 && max_integration_time > 0) {
-        /* Primary method: Use integration time ratio */
-        float exposure_ratio = (float)integration_time / (float)max_integration_time;
-
-        /* Lower integration time = brighter scene */
-        brightness = (1.0f - exposure_ratio) * 100.0f;
-
-        /* Adjust for gain - higher gain indicates darker scene */
-        if (analog_gain >= 0) {
-            float gain_factor = 1.0f + (analog_gain / 160.0f); /* Max gain is 160 */
-            brightness = brightness / gain_factor;
-        }
-
-        if (isp_digital_gain > 0) {
-            float digital_gain_factor = 1.0f + (isp_digital_gain / 80.0f); /* Max is 80 */
-            brightness = brightness / digital_gain_factor;
-        }
-
-        /* Clamp to valid range */
-        if (brightness < 0) brightness = 0;
-        if (brightness > 100.0f) brightness = 100.0f;
-
-        log_message(LOG_DEBUG, "ISP brightness: %.1f%% (int_time: %d/%d, gain: %d, mode: %s)",
-                   brightness, integration_time, max_integration_time, analog_gain, current_mode);
-
-    } else if (current_brightness >= 0) {
-        /* Fallback: Use ISP brightness setting */
-        brightness = ((float)current_brightness / 255.0f) * 100.0f;
-        log_message(LOG_DEBUG, "ISP brightness from setting: %.1f%% (raw: %d)", brightness, current_brightness);
-
-    } else if (strlen(current_mode) > 0) {
-        /* Last resort: Use current mode */
-        if (strcmp(current_mode, "Day") == 0) {
-            brightness = 75.0f;
-        } else if (strcmp(current_mode, "Night") == 0) {
-            brightness = 25.0f;
-        }
-        log_message(LOG_DEBUG, "ISP brightness from mode: %.1f%% (mode: %s)", brightness, current_mode);
-    }
-
-    return brightness;
-}
-
-/*
- * Calculate brightness using Thingino-specific methods
- * This function uses multiple approaches to determine scene brightness
- */
-static float calculate_brightness_thingino(void) {
-    char output[MAX_OUTPUT_LEN];
-    float brightness = -1.0f;
-
-    /* Method 1: Try reading ISP parameters directly (most accurate) */
-    brightness = calculate_brightness_from_isp();
-    if (brightness >= 0) {
-        /* Update brightness history for smoothing */
-        g_state.brightness_history[g_state.brightness_index] = brightness;
-        g_state.brightness_index = (g_state.brightness_index + 1) % BRIGHTNESS_SAMPLES;
-        return brightness;
-    }
-
-    /* Method 2: Simple Thingino script fallback (if ISP unavailable) */
-    if (brightness < 0) {
-        if (execute_command(THINGINO_DAYNIGHT_SCRIPT " status", output, sizeof(output)) == 0) {
-            if (strstr(output, "day") != NULL) {
-                brightness = 80.0f;
-            } else if (strstr(output, "night") != NULL) {
-                brightness = 20.0f;
-            }
-            log_message(LOG_DEBUG, "Brightness from daynight script: %.1f%%", brightness);
-        }
-    }
-
-    /* Method 3: Fallback - use time-based heuristic */
-    if (brightness < 0) {
-        time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        int hour = tm_info->tm_hour;
-
-        /* Simple time-based brightness estimation */
-        if (hour >= 6 && hour <= 18) {
-            brightness = 70.0f; /* Assume day time */
-        } else {
-            brightness = 25.0f; /* Assume night time */
-        }
-
-        log_message(LOG_DEBUG, "Using time-based brightness estimation: %.1f%% (hour: %d)",
-                   brightness, hour);
-    }
-
-    /* Update brightness history for smoothing */
-    if (brightness >= 0) {
-        g_state.brightness_history[g_state.brightness_index] = brightness;
-        g_state.brightness_index = (g_state.brightness_index + 1) % BRIGHTNESS_SAMPLES;
-
-        log_message(LOG_DEBUG, "Calculated brightness: %.1f%%", brightness);
-    }
-
-    return brightness;
-}
-
-/*
- * Trigger mode change with hysteresis and transition delay
- */
-static int trigger_mode_change(daynight_mode_t new_mode, float level_value, float threshold_value, bool is_forced) {
-    struct timeval now, diff;
-
-    if (new_mode == g_state.current_mode) {
-        return 0;  /* No change needed */
-    }
-
-    gettimeofday(&now, NULL);
-
-    /* Check transition delay */
-    if (g_state.current_mode != MODE_UNKNOWN) {
-        timersub(&now, &g_state.last_transition, &diff);
-        if (diff.tv_sec < g_config.transition_delay_s) {
-            log_message(LOG_DEBUG, "Transition delay not met, waiting...");
-            return 0;
-        }
-    }
-
-    if (is_forced) {
-        log_message(LOG_INFO, "Mode change (forced): %s -> %s",
-                   (g_state.current_mode == MODE_DAY) ? "DAY" :
-                   (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN",
-                   (new_mode == MODE_DAY) ? "DAY" : "NIGHT");
-    } else {
-        log_message(LOG_INFO, "Mode change: %s -> %s (level=%.1f%%, threshold=%.1f%%)",
-                   (g_state.current_mode == MODE_DAY) ? "DAY" :
-                   (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN",
-                   (new_mode == MODE_DAY) ? "DAY" : "NIGHT",
-                   level_value, threshold_value);
-    }
-
-    /* Apply mode-specific settings */
-    int result = 0;
-    if (new_mode == MODE_DAY) {
-        result = apply_day_settings_thingino();
-    } else {
-        result = apply_night_settings_thingino();
-    }
-
-    if (result == 0) {
-        g_state.current_mode = new_mode;
-        g_state.last_transition = now;
-    }
-
-    return result;
-}
-
-/*
- * Apply day mode camera settings using Thingino daynight script
- */
-static int apply_day_settings_thingino(void) {
+static int apply_mode(daynight_mode_t new_mode) {
     char command[MAX_COMMAND_LEN];
+    const char *arg = (new_mode == MODE_DAY) ? "day" : "night";
+    const char *label = (new_mode == MODE_DAY) ? "DAY" : "NIGHT";
 
-    log_message(LOG_DEBUG, "Applying day mode settings");
+    log_message(LOG_INFO, "Applying %s mode via %s", label, g_config.script_path);
 
-    snprintf(command, sizeof(command), "%s day", THINGINO_DAYNIGHT_SCRIPT);
+    snprintf(command, sizeof(command), "%s %s", g_config.script_path, arg);
     if (execute_command(command, NULL, 0) != 0) {
         log_message(LOG_ERR, "Failed to execute: %s", command);
         return -1;
     }
 
-    log_message(LOG_DEBUG, "Day mode applied successfully");
+    write_mode_file(new_mode);
+    log_message(LOG_INFO, "%s mode applied successfully", label);
     return 0;
 }
 
-/*
- * Apply night mode camera settings using Thingino daynight script
- */
-static int apply_night_settings_thingino(void) {
-    char command[MAX_COMMAND_LEN];
+/* =========================================================================
+ * State file writers
+ * ========================================================================= */
 
-    log_message(LOG_DEBUG, "Applying night mode settings");
-
-    snprintf(command, sizeof(command), "%s night", THINGINO_DAYNIGHT_SCRIPT);
-    if (execute_command(command, NULL, 0) != 0) {
-        log_message(LOG_ERR, "Failed to execute: %s", command);
-        return -1;
+static void ensure_run_dir(void) {
+    if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
+        log_message(LOG_WARNING, "Cannot create %s: %s", RUN_DIR, strerror(errno));
     }
-
-    log_message(LOG_DEBUG, "Night mode applied successfully");
-    return 0;
 }
 
-/*
- * Logging function with syslog support
- */
-static void log_message(int level, const char *format, ...) {
-    /* Map syslog levels to numeric severity: 0=FATAL,1=ERROR,2=WARN,3=INFO,4=DEBUG,5=TRACE */
-    int msg_level_num;
-    switch (level) {
-        case LOG_EMERG:
-        case LOG_ALERT:
-        case LOG_CRIT:
-            msg_level_num = 0; /* FATAL */
-            break;
-        case LOG_ERR:
-            msg_level_num = 1; /* ERROR */
-            break;
-        case LOG_WARNING:
-            msg_level_num = 2; /* WARN */
-            break;
-        case LOG_INFO:
-            msg_level_num = 3; /* INFO */
-            break;
-        case LOG_DEBUG:
-            msg_level_num = 4; /* DEBUG (TRACE would be 5) */
-            break;
-        default:
-            msg_level_num = 4; /* Treat unknown as DEBUG */
-            break;
-    }
+static void write_mode_file(daynight_mode_t mode) {
+    ensure_run_dir();
+    const char *str = (mode == MODE_DAY) ? "day" : "night";
+    FILE *fp = fopen(MODE_FILE, "w");
+    if (fp) { fprintf(fp, "%s\n", str); fclose(fp); }
+}
 
-    /* Drop messages more verbose than configured threshold */
-    if (msg_level_num > g_config.log_level) {
+static void write_brightness_file(int pct) {
+    ensure_run_dir();
+    static int last_pct = -999;
+    if (pct == last_pct) return;
+    last_pct = pct;
+
+    FILE *fp = fopen(BRIGHTNESS_FILE, "w");
+    if (fp) { fprintf(fp, "%d\n", pct); fclose(fp); }
+}
+
+static void write_sensors_json(const sensor_sample_t *s) {
+    ensure_run_dir();
+    /* Dedup: skip if same second and same brightness */
+    static int64_t last_time = 0;
+    static int last_pct = -1;
+    if (s->time_now == last_time && s->brightness_pct == last_pct)
         return;
-    }
+    last_time = s->time_now;
+    last_pct = s->brightness_pct;
 
-    /* Human-readable label for both console and syslog */
-    const char *level_str;
-    switch (level) {
-        case LOG_EMERG:
-        case LOG_ALERT:
-        case LOG_CRIT: level_str = "FATAL"; break;
-        case LOG_ERR: level_str = "ERROR"; break;
-        case LOG_WARNING: level_str = "WARN"; break;
-        case LOG_INFO: level_str = "INFO"; break;
-        case LOG_DEBUG: level_str = (g_config.log_level >= 5) ? "TRACE" : "DEBUG"; break;
-        default: level_str = "UNKNOWN"; break;
-    }
+    FILE *fp = fopen(SENSORS_FILE, "w");
+    if (!fp) return;
+    /* Single fprintf to minimise syscalls */
+    fprintf(fp,
+        "{\"time_now\":%lld,\"platform\":\"%s\",\"ev_log2\":%d,"
+        "\"ev_us\":%d,\"total_gain\":%d,\"gain_log2\":%d,"
+        "\"integration_time\":%d,\"max_integration_time\":%d,"
+        "\"analog_gain\":%d,\"max_analog_gain\":%d,\"digital_gain\":%d,"
+        "\"isp_digital_gain\":%d,\"max_isp_digital_gain\":%d,"
+        "\"wb_rgain\":%d,\"wb_bgain\":%d,\"wb_color_temp\":%d,"
+        "\"daynight_brightness\":%d,"
+        "\"primary_signal\":%d,\"night_threshold\":%d,"
+        "\"day_threshold\":%d,\"mode\":\"%s\","
+        "\"isp_mode\":\"%s\"}\n",
+        (long long)s->time_now, s->platform,
+        s->ev_log2, s->ev_us, s->total_gain, s->gain_log2,
+        s->integration_time, s->max_integration_time,
+        s->analog_gain, s->max_analog_gain,
+        s->digital_gain, s->isp_digital_gain, s->max_isp_digital_gain,
+        s->wb_rgain, s->wb_bgain, s->wb_color_temp,
+        s->brightness_pct,
+        s->primary_signal, s->night_threshold, s->day_threshold,
+        s->daynight_mode, s->isp_mode);
+    fclose(fp);
+}
 
-    va_list args;
-    char buffer[512];
+static void write_value_file(const sensor_sample_t *s, daynight_mode_t mode) {
+    ensure_run_dir();
+    static int last_bright = -1;
+    static int last_signal = -1;
+    static int last_tg = -1;
+    static daynight_mode_t last_mode = MODE_UNKNOWN;
+    if (s->brightness_pct == last_bright && s->primary_signal == last_signal &&
+        s->total_gain == last_tg && mode == last_mode)
+        return;
+    last_bright = s->brightness_pct;
+    last_signal = s->primary_signal;
+    last_tg = s->total_gain;
+    last_mode = mode;
 
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-
-    if (g_config.enable_syslog) {
-        syslog(level, "[%s] %s", level_str, buffer);
-    }
-
-    if (!g_config.daemon_mode || g_config.log_level > 0) {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        fprintf(stderr, "[%lld.%03lld] %s: %s\n",
-                (long long)tv.tv_sec, (long long)(tv.tv_usec / 1000), level_str, buffer);
+    const char *mode_str = (mode == MODE_DAY) ? "day" :
+                           (mode == MODE_NIGHT) ? "night" : "unknown";
+    FILE *fp = fopen(VALUE_FILE, "w");
+    if (fp) {
+        fprintf(fp, "%d %d %d %s\n", s->brightness_pct, s->primary_signal,
+                s->total_gain, mode_str);
+        fclose(fp);
     }
 }
 
-/*
- * Create PID file for daemon management
- */
-static int create_pid_file(void) {
-    FILE *fp;
+static void write_history_json(void) {
+    ensure_run_dir();
+    FILE *fp = fopen(HISTORY_FILE, "w");
+    if (!fp) return;
 
-    fp = fopen(g_config.pid_file, "w");
+    fprintf(fp, "[");
+    int total = g_history.count;
+    for (int i = 0; i < total; i++) {
+        int idx = (g_history.head - total + i + HISTORY_MAX_ENTRIES) % HISTORY_MAX_ENTRIES;
+        const sensor_sample_t *s = &g_history.samples[idx];
+        if (i > 0) fprintf(fp, ",");
+        fprintf(fp, "{");
+        fprintf(fp, "\"time_now\":%lld", (long long)s->time_now);
+        fprintf(fp, ",\"ev_log2\":%d", s->ev_log2);
+        fprintf(fp, ",\"analog_gain\":%d", s->analog_gain);
+        fprintf(fp, ",\"isp_digital_gain\":%d", s->isp_digital_gain);
+        fprintf(fp, ",\"wb_rgain\":%d", s->wb_rgain);
+        fprintf(fp, ",\"wb_bgain\":%d", s->wb_bgain);
+        fprintf(fp, ",\"wb_color_temp\":%d", s->wb_color_temp);
+        fprintf(fp, ",\"daynight_brightness\":%d", s->brightness_pct);
+        fprintf(fp, ",\"primary_signal\":%d", s->primary_signal);
+        fprintf(fp, ",\"night_threshold\":%d", s->night_threshold);
+        fprintf(fp, ",\"day_threshold\":%d", s->day_threshold);
+        fprintf(fp, ",\"daynight_mode\":\"%s\"", s->daynight_mode);
+        fprintf(fp, ",\"isp_mode\":\"%s\"", s->isp_mode);
+        fprintf(fp, "}");
+    }
+    fprintf(fp, "]\n");
+    fclose(fp);
+}
+
+static void write_state_files(const sensor_sample_t *s, daynight_mode_t mode) {
+    write_brightness_file(s->brightness_pct);
+    write_sensors_json(s);
+    write_value_file(s, mode);
+}
+
+/* =========================================================================
+ * History ring buffer
+ * ========================================================================= */
+
+static void history_push(const sensor_sample_t *s) {
+    g_history.samples[g_history.head] = *s;
+    g_history.head = (g_history.head + 1) % HISTORY_MAX_ENTRIES;
+    if (g_history.count < HISTORY_MAX_ENTRIES)
+        g_history.count++;
+}
+
+/* =========================================================================
+ * PID file
+ * ========================================================================= */
+
+static int create_pid_file(void) {
+    FILE *fp = fopen(g_config.pid_file, "w");
     if (!fp) {
-        log_message(LOG_ERR, "Failed to create PID file %s: %s",
-                   g_config.pid_file, strerror(errno));
+        log_message(LOG_ERR, "Cannot create PID file %s: %s",
+                    g_config.pid_file, strerror(errno));
         return -1;
     }
-
     fprintf(fp, "%d\n", getpid());
     fclose(fp);
-
     return 0;
 }
 
-/*
- * Remove PID file on exit
- */
 static void remove_pid_file(void) {
     unlink(g_config.pid_file);
 }
 
-/*
- * Daemonize process
- */
+/* =========================================================================
+ * Daemonize
+ * ========================================================================= */
+
 static void daemonize(void) {
-    pid_t pid;
-
-    /* Fork off the parent process */
+    pid_t pid = fork();
+    if (pid < 0) { log_message(LOG_ERR, "fork failed"); exit(EXIT_FAILURE); }
+    if (pid > 0) exit(EXIT_SUCCESS);
+    if (setsid() < 0) { log_message(LOG_ERR, "setsid failed"); exit(EXIT_FAILURE); }
     pid = fork();
-    if (pid < 0) {
-        log_message(LOG_ERR, "Fork failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    /* Exit parent process */
-    if (pid > 0) {
-        exit(EXIT_SUCCESS);
-    }
-
-    /* Create new session */
-    if (setsid() < 0) {
-        log_message(LOG_ERR, "setsid failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    /* Fork again to prevent acquiring controlling terminal */
-    pid = fork();
-    if (pid < 0) {
-        log_message(LOG_ERR, "Second fork failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    if (pid > 0) {
-        exit(EXIT_SUCCESS);
-    }
-
-    /* Change working directory to root */
-    if (chdir("/") < 0) {
-        log_message(LOG_ERR, "chdir failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    /* Close standard file descriptors */
+    if (pid < 0) { log_message(LOG_ERR, "fork2 failed"); exit(EXIT_FAILURE); }
+    if (pid > 0) exit(EXIT_SUCCESS);
+    chdir("/");
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-
-    /* Redirect to /dev/null */
-    open("/dev/null", O_RDONLY);  /* stdin */
-    open("/dev/null", O_WRONLY);  /* stdout */
-    open("/dev/null", O_WRONLY);  /* stderr */
+    open("/dev/null", O_RDONLY);
+    open("/dev/null", O_WRONLY);
+    open("/dev/null", O_WRONLY);
 }
 
-/*
- * Write current brightness value to /run/daynight/value for monitoring
- */
-static int write_brightness_value(float brightness, float avg_brightness, daynight_mode_t mode) {
+/* =========================================================================
+ * Main loop
+ * ========================================================================= */
 
-    FILE *fp;
-    const char *mode_str;
-    const char *dir_path = "/run/thingino";
-    const char *file_path = "/run/thingino/daynight_value";
-
-    /* Try /run/thingino first, fallback to /tmp/thingino if permission denied */
-    if (mkdir(dir_path, 0755) != 0 && errno != EEXIST) {
-        if (errno == EACCES || errno == EPERM) {
-            dir_path = "/tmp/thingino";
-            file_path = "/tmp/thingino/daynight_value";
-            if (mkdir(dir_path, 0755) != 0 && errno != EEXIST) {
-                log_message(LOG_WARNING, "Failed to create daynight directory: %s", strerror(errno));
-                return -1;
-            }
-        } else {
-            log_message(LOG_WARNING, "Failed to create %s directory: %s", dir_path, strerror(errno));
-            return -1;
-        }
-    }
-
-    /* Open value file for writing */
-    fp = fopen(file_path, "w");
-    if (!fp) {
-        log_message(LOG_WARNING, "Failed to write brightness value to %s: %s", file_path, strerror(errno));
-        return -1;
-    }
-
-    /* Convert mode to string */
-    switch (mode) {
-        case MODE_DAY: mode_str = "day"; break;
-        case MODE_NIGHT: mode_str = "night"; break;
-        default: mode_str = "unknown"; break;
-    }
-
-    /* Write brightness data in simple format */
-    fprintf(fp, "%.1f %.1f %s\n", brightness, avg_brightness, mode_str);
-    fclose(fp);
-
-    return 0;
-}
-
-/*
- * Main processing loop with hysteresis logic
- */
 static int main_loop(void) {
-    float brightness, avg_brightness;
-    float threshold_low_hyst, threshold_high_hyst;
-    daynight_mode_t target_mode;
-    int i, sample_count;
+    int i;
 
-    /* Log suppression state: only report when values change */
-    static int last_brightness_d10 = -1;
-    static int last_avg_d10 = -1;
-    static daynight_mode_t last_mode = MODE_UNKNOWN;
+    /* Determine platform signal on first parse */
+    sensor_sample_t probe;
+    g_state.use_total_gain = false;
+    if (parse_isp(&probe) == 0 && probe.total_gain > 0) {
+        g_state.use_total_gain = true;
+    }
 
-    /* Calculate hysteresis thresholds */
-    float hyst_range = (g_config.threshold_high - g_config.threshold_low) * g_config.hysteresis_factor;
-    threshold_low_hyst = g_config.threshold_low + hyst_range;
-    threshold_high_hyst = g_config.threshold_high - hyst_range;
-
-    log_message(LOG_INFO, "Starting main loop with thresholds: %.1f/%.1f (hysteresis: %.1f/%.1f)",
-               g_config.threshold_low, g_config.threshold_high,
-               threshold_low_hyst, threshold_high_hyst);
+    log_message(LOG_INFO, "Starting main loop (platform=%s, signal=%s)",
+                g_state.use_total_gain ? "T20" : "T31",
+                g_state.use_total_gain ? "total_gain" : "ev_log2");
 
     g_state.running = true;
     g_state.current_mode = MODE_UNKNOWN;
     g_state.brightness_index = 0;
+    g_state.night_count = 0;
+    g_state.day_count = 0;
+    g_state.initial_mode_set = false;
+    g_state.anti_flap_cooldown = 0;
+    g_state.initial_night_confirm = 0;
+    g_state.initial_day_confirm = 0;
+    g_state.initial_fallback_countdown = g_config.night_count_threshold * 3;
 
-    /* Initialize brightness history */
-    for (i = 0; i < BRIGHTNESS_SAMPLES; i++) {
-        g_state.brightness_history[i] = 50.0f;  /* Neutral starting value */
-    }
+    for (i = 0; i < BRIGHTNESS_SAMPLES; i++)
+        g_state.brightness_history[i] = 50.0f;
+
+    const int anti_flap_iterations = 30;
+
+    /* Log suppression */
+    int last_primary_d10 = -1;
+    int last_bright_pct = -1;
+    daynight_mode_t last_logged_mode = MODE_UNKNOWN;
+    int log_counter = 0;
 
     while (g_state.running && !g_terminate_flag) {
-        /* Calculate current brightness using Thingino methods */
-        brightness = calculate_brightness_thingino();
-        if (brightness < 0) {
-            log_message(LOG_ERR, "Brightness calculation failed");
+        /* Handle signals */
+        if (g_reload_flag) {
+            g_reload_flag = 0;
+            load_force_mode_from_config();
+        }
+        if (g_force_day_flag) {
+            g_force_day_flag = 0;
+            log_message(LOG_INFO, "Signal: force DAY");
+            if (g_state.current_mode != MODE_DAY) {
+                apply_mode(MODE_DAY);
+                g_state.current_mode = MODE_DAY;
+                g_state.night_count = 0;
+                g_state.day_count = 0;
+                g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+                g_state.initial_mode_set = true;
+            }
+        }
+        if (g_force_night_flag) {
+            g_force_night_flag = 0;
+            log_message(LOG_INFO, "Signal: force NIGHT");
+            if (g_state.current_mode != MODE_NIGHT) {
+                apply_mode(MODE_NIGHT);
+                g_state.current_mode = MODE_NIGHT;
+                g_state.night_count = 0;
+                g_state.day_count = 0;
+                g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+                g_state.initial_mode_set = true;
+            }
+        }
+
+        /* Read sensor data */
+        sensor_sample_t s;
+        if (parse_isp(&s) != 0) {
+            log_message(LOG_ERR, "Failed to read ISP data");
             usleep(g_config.sample_interval_ms * 1000);
             continue;
         }
 
-        /* Calculate smoothed average brightness */
-        avg_brightness = 0.0f;
-        sample_count = 0;
+        /* Re-detect platform if it changed (shouldn't, but be safe) */
+        if (s.total_gain > 0 && !g_state.use_total_gain) {
+            g_state.use_total_gain = true;
+            log_message(LOG_INFO, "Switched to total_gain signal (T20 detected)");
+        }
+
+        /* Compute brightness */
+        s.brightness_pct = compute_brightness_pct(&s);
+
+        /* Set active thresholds based on platform */
+        if (g_state.use_total_gain) {
+            s.night_threshold = g_config.tg_night_threshold;
+            s.day_threshold   = g_config.tg_day_threshold;
+        } else {
+            s.night_threshold = g_config.ev_night_threshold;
+            s.day_threshold   = g_config.ev_day_threshold;
+        }
+
+        /* Update brightness history */
+        g_state.brightness_history[g_state.brightness_index] = (float)s.brightness_pct;
+        g_state.brightness_index = (g_state.brightness_index + 1) % BRIGHTNESS_SAMPLES;
+
+        /* Compute average brightness */
+        float avg_brightness = 0.0f;
+        int sample_count = 0;
         for (i = 0; i < BRIGHTNESS_SAMPLES; i++) {
             if (g_state.brightness_history[i] >= 0) {
                 avg_brightness += g_state.brightness_history[i];
                 sample_count++;
             }
         }
+        if (sample_count > 0) avg_brightness /= (float)sample_count;
 
-        if (sample_count > 0) {
-            avg_brightness /= sample_count;
-        } else {
-            avg_brightness = brightness;
+        bool within_schedule = is_within_schedule();
+
+        /* --- Initial mode detection --- */
+        if (!g_state.initial_mode_set) {
+            daynight_mode_t initial = MODE_UNKNOWN;
+            int sig = s.primary_signal;
+            int night_thr = s.night_threshold;
+            int day_thr = s.day_threshold;
+
+            if (sig > night_thr) {
+                initial = MODE_NIGHT;
+            } else if (sig > 0 && sig < day_thr) {
+                initial = MODE_DAY;
+            }
+
+            bool commit = false;
+            if (initial == MODE_NIGHT) {
+                g_state.initial_day_confirm = 0;
+                commit = (++g_state.initial_night_confirm >= 2);
+            } else if (initial == MODE_DAY) {
+                g_state.initial_night_confirm = 0;
+                commit = (++g_state.initial_day_confirm >= 2);
+            } else {
+                if (g_state.initial_night_confirm > 0) --g_state.initial_night_confirm;
+                if (g_state.initial_day_confirm > 0) --g_state.initial_day_confirm;
+                --g_state.initial_fallback_countdown;
+            }
+
+            if (commit) {
+                apply_mode(initial);
+                g_state.current_mode = initial;
+                g_state.initial_mode_set = true;
+                if (initial == MODE_NIGHT)
+                    g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+
+                log_message(LOG_INFO, "Initial mode: %s (sig=%d, thr_day=%d thr_night=%d)",
+                            (initial == MODE_DAY) ? "DAY" : "NIGHT",
+                            sig, day_thr, night_thr);
+            } else if (g_state.initial_fallback_countdown <= 0) {
+                apply_mode(MODE_NIGHT);
+                g_state.current_mode = MODE_NIGHT;
+                g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+                g_state.initial_mode_set = true;
+                log_message(LOG_WARNING, "Initial detection timeout, defaulting to NIGHT");
+            }
+
+            strncpy(s.daynight_mode,
+                    (g_state.current_mode == MODE_DAY) ? "day" :
+                    (g_state.current_mode == MODE_NIGHT) ? "night" : "unknown",
+                    sizeof(s.daynight_mode) - 1);
+
+            history_push(&s);
+            write_state_files(&s, g_state.current_mode);
+            if (g_history.count % 60 == 0) write_history_json();
+
+            usleep(g_config.sample_interval_ms * 1000);
+            continue;
         }
 
+        /* --- Force mode from config --- */
+        static char last_force_mode[16] = "";
+        bool was_forced = (last_force_mode[0] != '\0');
+        bool now_forced = (g_config.force_mode[0] != '\0');
 
-        /* Track decision context for logging */
-        float used_threshold = -1.0f;
-        bool forced = false;
+        if (now_forced) {
+            daynight_mode_t forced = MODE_UNKNOWN;
+            if (strcmp(g_config.force_mode, "day") == 0)
+                forced = MODE_DAY;
+            else if (strcmp(g_config.force_mode, "night") == 0)
+                forced = MODE_NIGHT;
 
-        /* Determine target mode with hysteresis */
+            if (forced != MODE_UNKNOWN && forced != g_state.current_mode) {
+                log_message(LOG_INFO, "Force mode from config: %s", g_config.force_mode);
+                apply_mode(forced);
+                g_state.current_mode = forced;
+                g_state.night_count = 0;
+                g_state.day_count = 0;
+                g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+            }
+        } else if (was_forced && !now_forced) {
+            /* Force mode cleared — re-enter photosensing */
+            log_message(LOG_INFO, "Force mode cleared, resuming photosensing");
+            g_state.initial_mode_set = false;
+            g_state.night_count = 0;
+            g_state.day_count = 0;
+            g_state.initial_night_confirm = 0;
+            g_state.initial_day_confirm = 0;
+            g_state.initial_fallback_countdown = g_config.night_count_threshold * 3;
+        }
+        strncpy(last_force_mode, g_config.force_mode, sizeof(last_force_mode) - 1);
+
+        /* --- Main hysteresis --- */
+        int sig = s.primary_signal;
+        int night_thr = s.night_threshold;
+        int day_thr = s.day_threshold;
+        daynight_mode_t target_mode = g_state.current_mode;
+
         if (g_state.current_mode == MODE_DAY) {
-            /* In day mode, switch to night only if below low threshold */
-            if (avg_brightness < g_config.threshold_low) {
-                target_mode = MODE_NIGHT;
-                used_threshold = g_config.threshold_low;
+            if (sig > night_thr) {
+                if (++g_state.night_count >= g_config.night_count_threshold)
+                    target_mode = MODE_NIGHT;
             } else {
-                target_mode = MODE_DAY;
+                if (g_state.night_count > 0) --g_state.night_count;
             }
         } else if (g_state.current_mode == MODE_NIGHT) {
-            /* In night mode, switch to day only if above high threshold */
-            if (avg_brightness > g_config.threshold_high) {
-                target_mode = MODE_DAY;
-                used_threshold = g_config.threshold_high;
+            if (sig > 0 && sig < day_thr) {
+                if (++g_state.day_count >= g_config.day_count_threshold)
+                    target_mode = MODE_DAY;
             } else {
-                target_mode = MODE_NIGHT;
+                if (g_state.day_count > 0) --g_state.day_count;
             }
         } else {
-            /* Unknown mode, use hysteresis thresholds */
-            if (avg_brightness < threshold_low_hyst) {
+            if (sig > night_thr)
                 target_mode = MODE_NIGHT;
-                used_threshold = threshold_low_hyst;
-            } else if (avg_brightness > threshold_high_hyst) {
+            else if (sig > 0 && sig < day_thr)
                 target_mode = MODE_DAY;
-                used_threshold = threshold_high_hyst;
-            } else {
-                target_mode = g_state.current_mode;  /* Stay in current mode */
-            }
         }
 
-        /* Handle forced mode changes via signals */
-        if (g_state.pending_mode != MODE_UNKNOWN) {
-            target_mode = g_state.pending_mode;
-            g_state.pending_mode = MODE_UNKNOWN;
-            forced = true;
-            log_message(LOG_INFO, "Forced mode change requested");
-        }
-
-        /* Apply mode change if needed */
+        /* Apply mode change */
         if (target_mode != g_state.current_mode && target_mode != MODE_UNKNOWN) {
-            trigger_mode_change(target_mode, avg_brightness, used_threshold, forced);
+            struct timeval now, diff;
+            gettimeofday(&now, NULL);
+            if (g_state.current_mode != MODE_UNKNOWN) {
+                timersub(&now, &g_state.last_transition, &diff);
+                if (diff.tv_sec < g_config.transition_delay_s) {
+                    log_message(LOG_DEBUG, "Transition delay: %ld/%ds",
+                                (long)diff.tv_sec, g_config.transition_delay_s);
+                    g_state.night_count = 0;
+                    g_state.day_count = 0;
+                    target_mode = g_state.current_mode;
+                }
+            }
+
+            if (target_mode != g_state.current_mode) {
+                if (!g_config.enabled) {
+                    log_message(LOG_DEBUG, "Skip: photosensing disabled");
+                } else if (!within_schedule) {
+                    log_message(LOG_DEBUG, "Skip: outside schedule");
+                } else if (g_state.anti_flap_cooldown > 0) {
+                    log_message(LOG_DEBUG, "Skip: anti-flap cooldown %d",
+                                g_state.anti_flap_cooldown);
+                    g_state.anti_flap_cooldown--;
+                } else {
+                    log_message(LOG_INFO, "Switch: %s -> %s (sig=%d, nCnt=%d, dCnt=%d)",
+                                (g_state.current_mode == MODE_DAY) ? "DAY" : "NIGHT",
+                                (target_mode == MODE_DAY) ? "DAY" : "NIGHT",
+                                sig, g_state.night_count, g_state.day_count);
+                    apply_mode(target_mode);
+                    g_state.current_mode = target_mode;
+                    gettimeofday(&g_state.last_transition, NULL);
+                    g_state.night_count = 0;
+                    g_state.day_count = 0;
+                    g_state.anti_flap_cooldown = anti_flap_iterations;
+                }
+            }
+        } else {
+            if (g_state.anti_flap_cooldown > 0)
+                g_state.anti_flap_cooldown--;
         }
 
-        int b10 = (int)(brightness * 10.0f + 0.5f);
-        int avg10 = (int)(avg_brightness * 10.0f + 0.5f);
-        if (b10 != last_brightness_d10 || avg10 != last_avg_d10 || g_state.current_mode != last_mode) {
-            log_message(LOG_DEBUG, "Brightness: %.1f%% (avg: %.1f%%), Mode: %s",
-                       brightness, avg_brightness,
-                       (g_state.current_mode == MODE_DAY) ? "DAY" :
-                       (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN");
-            last_brightness_d10 = b10;
-            last_avg_d10 = avg10;
-            last_mode = g_state.current_mode;
+        /* Update sample with current mode */
+        strncpy(s.daynight_mode,
+                (g_state.current_mode == MODE_DAY) ? "day" :
+                (g_state.current_mode == MODE_NIGHT) ? "night" : "unknown",
+                sizeof(s.daynight_mode) - 1);
+
+        /* Periodic logging */
+        int p10 = s.primary_signal / (g_state.use_total_gain ? 100 : 10000);
+        if (p10 != last_primary_d10 || s.brightness_pct != last_bright_pct ||
+            g_state.current_mode != last_logged_mode || ++log_counter >= 30) {
+            log_counter = 0;
+            log_message(LOG_DEBUG, "%s=%d bright=%d%% mode=%s sched=%s nCnt=%d dCnt=%d",
+                        g_state.use_total_gain ? "tg" : "evlog2",
+                        s.primary_signal, s.brightness_pct, s.daynight_mode,
+                        within_schedule ? "in" : "out",
+                        g_state.night_count, g_state.day_count);
+            last_primary_d10 = p10;
+            last_bright_pct = s.brightness_pct;
+            last_logged_mode = g_state.current_mode;
         }
 
-        /* Write brightness value to /run/daynight/value for monitoring */
-        write_brightness_value(brightness, avg_brightness, g_state.current_mode);
+        history_push(&s);
+        write_state_files(&s, g_state.current_mode);
+        if (g_history.count % 60 == 0) write_history_json();
 
-        /* Sleep until next sample */
         usleep(g_config.sample_interval_ms * 1000);
     }
 
@@ -922,44 +1308,37 @@ static int main_loop(void) {
     return 0;
 }
 
-/*
- * Print usage information
- */
-static void print_usage(const char *program_name) {
-    printf("Usage: %s [OPTIONS]\n", program_name);
+/* =========================================================================
+ * Usage
+ * ========================================================================= */
+
+static void print_usage(const char *prog) {
+    printf("Usage: %s [OPTIONS]\n", prog);
     printf("\nOptions:\n");
-    printf("  -c, --config FILE    Configuration file (default: %s)\n", DEFAULT_CONFIG_FILE);
-    printf("  -d, --device DEVICE  Video device (default: %s)\n", DEFAULT_DEVICE);
-    printf("  -f, --foreground     Run in foreground (don't daemonize)\n");
+    printf("  -c, --config FILE    Config file (default: %s)\n", DEFAULT_CONFIG_FILE);
+    printf("  -f, --foreground     Run in foreground\n");
     printf("  -p, --pid-file FILE  PID file (default: %s)\n", DEFAULT_PID_FILE);
     printf("  -v, --verbose        Increase verbosity\n");
-    printf("  -h, --help           Show this help message\n");
-    printf("  -V, --version        Show version information\n");
+    printf("  -h, --help           Show this help\n");
+    printf("  -V, --version        Show version\n");
     printf("\nSignals:\n");
     printf("  SIGUSR1              Force day mode\n");
     printf("  SIGUSR2              Force night mode\n");
     printf("  SIGHUP               Reload configuration\n");
     printf("  SIGTERM/SIGINT       Graceful shutdown\n");
-    printf("\nExample configuration file:\n");
-    printf("  threshold_low = 30.0\n");
-    printf("  threshold_high = 70.0\n");
-    printf("  sample_interval_ms = 1000\n");
-    printf("  transition_delay_s = 5\n");
-    printf("\n");
 }
 
-/*
- * Main function
- */
+/* =========================================================================
+ * Main
+ * ========================================================================= */
+
 int main(int argc, char *argv[]) {
     int opt;
-    int option_index = 0;
     const char *config_file = DEFAULT_CONFIG_FILE;
     bool foreground = false;
 
     static struct option long_options[] = {
         {"config",     required_argument, 0, 'c'},
-        {"device",     required_argument, 0, 'd'},
         {"foreground", no_argument,       0, 'f'},
         {"pid-file",   required_argument, 0, 'p'},
         {"verbose",    no_argument,       0, 'v'},
@@ -968,85 +1347,49 @@ int main(int argc, char *argv[]) {
         {0, 0, 0, 0}
     };
 
-    /* Initialize state */
     memset(&g_config, 0, sizeof(g_config));
     memset(&g_state, 0, sizeof(g_state));
+    memset(&g_history, 0, sizeof(g_history));
     g_state.current_mode = MODE_UNKNOWN;
-    g_state.pending_mode = MODE_UNKNOWN;
 
-    /* Parse command line options */
-    while ((opt = getopt_long(argc, argv, "c:d:fp:vhV", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:fp:vhV", long_options, NULL)) != -1) {
         switch (opt) {
-            case 'c':
-                config_file = optarg;
-                break;
-            case 'd':
-                strncpy(g_config.device_path, optarg, sizeof(g_config.device_path) - 1);
-                break;
-            case 'f':
-                foreground = true;
-                break;
+            case 'c': config_file = optarg; break;
+            case 'f': foreground = true; break;
             case 'p':
                 strncpy(g_config.pid_file, optarg, sizeof(g_config.pid_file) - 1);
                 break;
             case 'v':
                 if (g_config.log_level < 5) g_config.log_level++;
                 break;
-            case 'h':
-                print_usage(argv[0]);
-                exit(EXIT_SUCCESS);
+            case 'h': print_usage(argv[0]); exit(EXIT_SUCCESS);
             case 'V':
-                printf("daynightd version 1.0.0 for Thingino firmware\n");
-                printf("Built for MIPS Ingenic XBurst embedded systems\n");
+                printf("daynightd v2.0.0 for Thingino firmware\n");
                 exit(EXIT_SUCCESS);
-            default:
-                print_usage(argv[0]);
-                exit(EXIT_FAILURE);
+            default: print_usage(argv[0]); exit(EXIT_FAILURE);
         }
     }
 
-    /* Load configuration */
     if (read_config(config_file) != 0) {
         fprintf(stderr, "Failed to load configuration\n");
         exit(EXIT_FAILURE);
     }
 
-    /* Override daemon mode if foreground requested */
     if (foreground) {
         g_config.daemon_mode = false;
         g_config.enable_syslog = false;
     }
 
-    /* Initialize logging */
-    if (g_config.enable_syslog) {
+    if (g_config.enable_syslog)
         openlog("daynightd", LOG_PID | LOG_CONS, LOG_DAEMON);
-    }
 
-    log_message(LOG_INFO, "Starting daynightd v1.0.0");
-    log_message(LOG_INFO, "Log level set to %s", log_level_name(g_config.log_level));
+    log_message(LOG_INFO, "Starting daynightd v2.0.0 [%s]",
+                log_level_name(g_config.log_level));
 
+    ensure_run_dir();
 
-    /* Check if already running */
-    FILE *pid_fp = fopen(g_config.pid_file, "r");
-    if (pid_fp) {
-        pid_t existing_pid;
-        if (fscanf(pid_fp, "%d", &existing_pid) == 1) {
-            if (kill(existing_pid, 0) == 0) {
-                log_message(LOG_ERR, "Daemon already running with PID %d", existing_pid);
-                fclose(pid_fp);
-                exit(EXIT_FAILURE);
-            }
-        }
-        fclose(pid_fp);
-    }
+    /* PID file exclusivity is handled by start-stop-daemon */
 
-    /* Initialize Thingino system */
-    if (init_thingino_system() != 0) {
-        log_message(LOG_ERR, "Failed to initialize Thingino system");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Setup signal handlers */
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
     signal(SIGUSR1, signal_handler);
@@ -1054,33 +1397,20 @@ int main(int argc, char *argv[]) {
     signal(SIGHUP, signal_handler);
     signal(SIGPIPE, SIG_IGN);
 
-    /* Daemonize if requested */
-    if (g_config.daemon_mode) {
-        daemonize();
-    }
+    if (g_config.daemon_mode) daemonize();
 
-    /* Create PID file */
     if (create_pid_file() != 0) {
-        log_message(LOG_ERR, "Failed to create PID file");
+        log_message(LOG_ERR, "Cannot create PID file");
         exit(EXIT_FAILURE);
     }
-
-    /* Register cleanup function */
     atexit(remove_pid_file);
 
-    /* Run main loop */
     int result = main_loop();
 
-    /* Cleanup */
     log_message(LOG_INFO, "Shutting down daynightd");
+    unlink(VALUE_FILE);
+    unlink(SENSORS_FILE);
 
-    /* Remove brightness value file */
-    unlink("/run/thingino/daynight_value");
-    unlink("/tmp/thingino/daynight_value");
-
-    if (g_config.enable_syslog) {
-        closelog();
-    }
-
+    if (g_config.enable_syslog) closelog();
     return result;
 }

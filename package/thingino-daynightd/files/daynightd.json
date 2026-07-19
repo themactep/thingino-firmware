@@ -1,18 +1,32 @@
 {
-  "device_path": "/dev/isp-m0",
-  "brightness": {
-    "threshold_low": 25.0,
-    "threshold_high": 75.0,
-    "hysteresis_factor": 0.1
-  },
-  "timing": {
-    "sample_interval_ms": 500,
-    "transition_delay_s": 5
-  },
-  "system": {
-    "enable_syslog": true,
-    "daemon_mode": true,
-    "debug_level": "INFO",
-    "pid_file": "/run/daynightd.pid"
+  "daynight": {
+    "enabled": true,
+
+    "night_threshold": 50,
+    "day_threshold": 70,
+    "night_count_threshold": 6,
+    "day_count_threshold": 4,
+
+    "sample_interval_ms": 1000,
+    "transition_delay_s": 5,
+
+    "script_path": "/sbin/daynight",
+    "loglevel": "INFO",
+
+    "controls": {
+      "color": true,
+      "ircut": true,
+      "ir850": true,
+      "ir940": true,
+      "white": false
+    },
+
+    "schedule": {
+      "enabled": false,
+      "start_at": "06:00",
+      "stop_at": "22:00"
+    },
+
+    "force_mode": ""
   }
 }

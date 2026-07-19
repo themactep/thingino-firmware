@@ -123,21 +123,21 @@ endif
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_DEBUG),y)
 	# Debug build: disable optimizations, add debug symbols
 	PRUDYNT_CFLAGS += -O0 -g -fno-omit-frame-pointer
-	PRUDYNT_CFLAGS += -Wnull-dereference -Wformat=2 -Wformat-security -Wstack-protector
-	PRUDYNT_CFLAGS += -fstack-protector-strong -D_FORTIFY_SOURCE=2
+	PRUDYNT_CFLAGS += -Wnull-dereference -Wformat=2 -Wformat-security
 	PRUDYNT_CFLAGS += -DDEBUG_BUILD=1 -DMEMORY_SAFETY_CHECKS=1
 
-	# Sanitizer support - simplified approach to avoid makefile complexity
-	# Try AddressSanitizer first (better cross-compilation support)
-ifneq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-	# For glibc/uclibc toolchains, try both sanitizers
+	# Advanced hardening: AddressSanitizer + stack protector.
+	# Only glibc toolchains reliably ship libasan, SSP runtime, and
+	# FORTIFY_SOURCE support. External uclibc/musl toolchains (e.g.
+	# Ingenic MIPS) typically lack all three.
+ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	PRUDYNT_CFLAGS += -fsanitize=address
 	PRUDYNT_LDFLAGS += -fsanitize=address
-$(info [PRUDYNT DEBUG] AddressSanitizer enabled for non-musl toolchain)
+	PRUDYNT_CFLAGS += -fstack-protector-strong -Wstack-protector -D_FORTIFY_SOURCE=2
+$(info [PRUDYNT DEBUG] AddressSanitizer + stack protector + FORTIFY (glibc))
 else
-	# For musl toolchains, use alternative memory safety features
 	PRUDYNT_CFLAGS += -fstack-clash-protection
-$(info [PRUDYNT DEBUG] Alternative memory safety flags enabled for musl toolchain)
+$(info [PRUDYNT DEBUG] Lightweight hardening: stack-clash only (no libasan/SSP))
 endif
 
 	# Prevent buildroot from stripping debug builds
@@ -367,11 +367,11 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "Built with debug symbols and memory safety features" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug symbols: /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Unstripped binary: /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
-		echo "Memory safety features: stack protection, fortify source, debug flags" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
-		if [ "$(BR2_TOOLCHAIN_USES_MUSL)" = "y" ]; then \
-			echo "Toolchain: musl (AddressSanitizer disabled, alternative protections enabled)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+		echo "Memory safety features: debug flags" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+		if [ "$(BR2_TOOLCHAIN_USES_GLIBC)" = "y" ]; then \
+			echo "Toolchain: glibc (AddressSanitizer + stack protector + FORTIFY)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		else \
-			echo "Toolchain: glibc/uclibc (AddressSanitizer enabled)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+			echo "Toolchain: uclibc/musl (lightweight hardening, no libasan/SSP)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		fi; \
 		echo "" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Usage (from camera with NFS mounted):" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \

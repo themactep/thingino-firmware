@@ -2,11 +2,12 @@
   "use strict";
 
   const endpoint = "/x/json-config-daynight.cgi";
-  const dayNightParams = [
-    "enabled",
-    "total_gain_night_threshold",
-    "total_gain_day_threshold",
-  ];
+
+  // Config uses universal brightness percent (0-100) for thresholds.
+  // Daynightd converts to platform-specific units internally.
+  let platformParams = ["night_threshold", "day_threshold"];
+
+  const dayNightParams = ["enabled", "force_mode", ...platformParams];
   const dayNightScheduleParams = ["enabled", "start_at", "stop_at"];
   const dayNightControls = ["color", "ircut", "ir850", "ir940", "white"];
 

@@ -36,26 +36,36 @@
             <div class="row row-cols-lg-3 g-4">
               <div class="col">
                 <h4>Thresholds</h4>
-                <small>Maximum and minimum boundaries of Day/Night modes</small>
+                <small>Day/night switching boundaries in brightness percent (0–100).</small>
                 <p class="form-switch">
                   <input type="hidden" id="daynight_enabled-false" name="daynight_enabled" value="false">
                   <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
                   <label for="daynight_enabled" class="form-check-label">Enable photosensing on boot</label>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_total_gain_night_threshold">Switch to night mode above</label>
+                  <label for="daynight_night_threshold">Switch to night below brightness</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_total_gain_night_threshold" name="daynight_total_gain_night_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="40000" data-step="1">
+                    <input type="text" id="daynight_night_threshold" name="daynight_night_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_total_gain_day_threshold">Switch to day mode below</label>
+                  <label for="daynight_day_threshold">Switch to day above brightness</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_total_gain_day_threshold" name="daynight_total_gain_day_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="40000" data-step="1">
+                    <input type="text" id="daynight_day_threshold" name="daynight_day_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
+                <p>
+                  <label for="daynight_force_mode">Preferred boot mode</label>
+                  <select id="daynight_force_mode" name="daynight_force_mode" class="form-control">
+                    <option value="">Auto (photosensing)</option>
+                    <option value="day">Day</option>
+                    <option value="night">Night</option>
+                  </select>
+                  <small class="text-secondary">Lock camera to a specific mode at boot. Overrides photosensing.</small>
+                </p>
+
               </div>
               <div class="col">
                 <h4>Controls</h4>

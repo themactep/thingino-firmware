@@ -260,81 +260,87 @@ thingino_heartbeat_raptor_payload() {
 }
 
 thingino_heartbeat_native_payload() {
-	# Try prudyntctl first (fast, rich data on all platforms)
+	# Quick path: read daynight mode and brightness from daynightd's files.
+	# For full sensor data (total_gain, EV, etc), read /run/thingino/daynight_sensors.
+	# Also try prudyntctl for mic/spk/image data which only prudynt can provide.
+
+	now=$(date +%s)
+	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
+
+	# daynightd is the single source of truth for photosensing
+	daynight_mode="unknown"
+	if [ -r /run/thingino/daynight_mode ]; then
+		daynight_mode=$(cat /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
+	fi
+
+	daynight_brightness="null"
+	if [ -r /run/thingino/daynight_brightness ]; then
+		_v=$(cat /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n')
+		[ -n "$_v" ] && daynight_brightness=$_v
+	fi
+
+	# Sensor telemetry from daynightd's JSON file.
+	# Use brightness_percent for the button display (0-100, user-friendly).
+	# ev_log2 / primary_signal are available in the sensor file for charts.
+	total_gain="null"
+	if [ -r /run/thingino/daynight_sensors ] && command -v jct >/dev/null 2>&1; then
+		_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null | tr -d '\n"')
+		[ -n "$_bp" ] && [ "$_bp" != "null" ] && total_gain=$_bp
+	fi
+
+	_color_mode="null"
+	case "$daynight_mode" in
+		day) _color_mode=0 ;;
+		night) _color_mode=1 ;;
+	esac
+
+	# Audio and image from prudyntctl (prudynt still owns these)
+	mic_enabled=0
+	spk_enabled=0
+	unset _mic_queried _spk_queried
 	if command -v prudyntctl >/dev/null 2>&1; then
 		_tmp=$(mktemp)
-		if timeout 1 prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_tmp" 2>/dev/null; then
-			now=$(date +%s)
-			uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
-			_cm=$(jct "$_tmp" get image.running_mode 2>/dev/null | tr -d '\n"')
-			case "$_cm" in 1) _cm=1 ;; *) _cm=0 ;; esac
-			_mic=$(jct "$_tmp" get audio.mic_enabled 2>/dev/null | tr -d '\n"')
-			case "$_mic" in true | 1) _mic=1 ;; *) _mic=0 ;; esac
-			_spk=$(jct "$_tmp" get audio.spk_enabled 2>/dev/null | tr -d '\n"')
-			case "$_spk" in true | 1) _spk=1 ;; *) _spk=0 ;; esac
-			_tg=$(jct "$_tmp" get daynight.status.total_gain 2>/dev/null | tr -d '\n"')
-			[ -n "$_tg" ] && [ "$_tg" != "null" ] || _tg="null"
-			_bp=$(jct "$_tmp" get daynight.status.brightness_percent 2>/dev/null | tr -d '\n"')
-			[ -n "$_bp" ] && [ "$_bp" != "null" ] || _bp="null"
-			_dm=$(jct "$_tmp" get daynight.status.mode 2>/dev/null | tr -d '\n"')
-			[ -n "$_dm" ] && [ "$_dm" != "null" ] || _dm="unknown"
-			_de=$(jct /etc/prudynt.json get daynight.enabled 2>/dev/null | tr -d '\n"')
-			case "$_de" in true | 1) _de=1 ;; *) _de=0 ;; esac
-			rm -f "$_tmp"
-
-			wg_status="0"
-			if command -v wg >/dev/null 2>&1; then
-				case "$(wg show wg0 2>/dev/null)" in
-					*"latest handshake"*) wg_status="1" ;;
-				esac
+		if timeout 1 prudyntctl json '{"audio":{"mic_enabled":null,"spk_enabled":null},"image":{"running_mode":null}}' >"$_tmp" 2>/dev/null; then
+			_mic_val=$(jct "$_tmp" get audio.mic_enabled 2>/dev/null | tr -d '\n"')
+			case "$_mic_val" in true | 1)
+				mic_enabled=1
+				_mic_queried=1
+				;;
+			*)
+				mic_enabled=0
+				_mic_queried=1
+				;;
+			esac
+			_spk_val=$(jct "$_tmp" get audio.spk_enabled 2>/dev/null | tr -d '\n"')
+			case "$_spk_val" in true | 1)
+				spk_enabled=1
+				_spk_queried=1
+				;;
+			*)
+				spk_enabled=0
+				_spk_queried=1
+				;;
+			esac
+			# Use image.running_mode from prudynt as color_mode if daynight_mode unknown
+			if [ "$daynight_mode" = "unknown" ]; then
+				_cm=$(jct "$_tmp" get image.running_mode 2>/dev/null | tr -d '\n"')
+				case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
 			fi
-			printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":0,"rec_ch1":0,"motion_enabled":0,"privacy_enabled":0,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":%s}\n' \
-				"$now" "$uptime" "$_bp" "$_tg" "$_dm" "$_cm" "$_mic" "$_spk" "$_de" "$wg_status"
-			return 0
 		fi
 		rm -f "$_tmp"
 	fi
 
-	# Fallback: procfs-based for T20 or when prudyntctl unavailable
-	now=$(date +%s)
-	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
-
-	daynight_mode="unknown"
-	if [ -r /run/thingino/daynight_mode ]; then
-		daynight_mode=$(cat /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
-	elif [ -r /run/prudynt/daynight_mode ]; then
-		daynight_mode=$(cat /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
-	fi
-
-	daynight_brightness="null"
-	if [ -r /run/prudynt/daynight_brightness ]; then
-		_v=$(cat /run/prudynt/daynight_brightness 2>/dev/null | tr -d '\n')
-		[ -n "$_v" ] && daynight_brightness=$_v
-	fi
-	total_gain="null"
-	if [ -r /proc/jz/isp/isp_info ] && [ -r /proc/jz/isp/isp_de_hilight ]; then
-		_gb=$(grep "ISP WB bg" /proc/jz/isp/isp_info 2>/dev/null | grep -oE '[0-9]+' | tail -1)
-		_h3=$(sed -n 's/^hist3:\([0-9]*\).*/\1/p' /proc/jz/isp/isp_de_hilight 2>/dev/null)
-		_h4=$(sed -n 's/^hist4:\([0-9]*\).*/\1/p' /proc/jz/isp/isp_de_hilight 2>/dev/null)
-		_h0=$(sed -n 's/^hist0:\([0-9]*\).*/\1/p' /proc/jz/isp/isp_de_hilight 2>/dev/null)
-		_h1=$(sed -n 's/^hist1:\([0-9]*\).*/\1/p' /proc/jz/isp/isp_de_hilight 2>/dev/null)
-		total=$(( ${_h0:-0} + ${_h1:-0} + ${_h3:-0} + ${_h4:-0} ))
-		if [ "$total" -gt 0 ] && [ -n "$_gb" ]; then
-			dark_pct=$(( 100 - (${_h3:-0} + ${_h4:-0}) * 100 / total ))
-			gb_gain=$(( _gb < 260 ? 260 - _gb : 0 ))
-			dark_bonus=$(( dark_pct > 50 ? (dark_pct - 50) * 5 : 0 ))
-			total_gain=$(( gb_gain + dark_bonus ))
-		fi
-	fi
 	daynight_enabled="false"
-	if command -v jct >/dev/null 2>&1 && [ -f /etc/prudynt.json ]; then
+	if [ -f /etc/thingino.json ] && command -v jct >/dev/null 2>&1; then
+		_val=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null | tr -d '\n"')
+		case "$_val" in true | 1) daynight_enabled=1 ;; *) daynight_enabled=0 ;; esac
+	elif [ -f /etc/prudynt.json ] && command -v jct >/dev/null 2>&1; then
 		_val=$(jct /etc/prudynt.json get daynight.enabled 2>/dev/null | tr -d '\n"')
 		case "$_val" in true | 1) daynight_enabled=1 ;; *) daynight_enabled=0 ;; esac
-	else
-		daynight_enabled=0
 	fi
 
-	rec_ch0=0; rec_ch1=0
+	rec_ch0=0
+	rec_ch1=0
 	[ -f /run/prudynt/mp4ctl-ch0.active ] && rec_ch0=1
 	[ -f /run/prudynt/mp4ctl-ch1.active ] && rec_ch1=1
 
@@ -344,10 +350,13 @@ thingino_heartbeat_native_payload() {
 	privacy_enabled=0
 	[ -f /run/prudynt/privacy.active ] && privacy_enabled=1
 
-	mic_enabled=1
-	[ -f /run/prudynt/mic.active ] || mic_enabled=0
-	spk_enabled=0
-	[ -f /run/prudynt/spk.active ] && spk_enabled=1
+	# mic/spk: prefer prudyntctl query, fall back to runtime files
+	if [ -z "${_mic_queried:-}" ]; then
+		mic_enabled=0
+		[ -f /run/prudynt/mic.active ] && mic_enabled=1
+		spk_enabled=0
+		[ -f /run/prudynt/spk.active ] && spk_enabled=1
+	fi
 
 	wg_status="0"
 	if command -v wg >/dev/null 2>&1; then
@@ -356,9 +365,9 @@ thingino_heartbeat_native_payload() {
 		esac
 	fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":null,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":%s}\n' \
 		"$now" "$uptime" "$daynight_brightness" "$total_gain" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
-		"$motion_enabled" "$privacy_enabled" "$mic_enabled" "$spk_enabled" \
+		"$motion_enabled" "$privacy_enabled" "$_color_mode" "$mic_enabled" "$spk_enabled" \
 		"$daynight_enabled" "$wg_status"
 }
 
