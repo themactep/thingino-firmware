@@ -42,6 +42,24 @@
                   <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
                   <label for="daynight_enabled" class="form-check-label">Enable photosensing on boot</label>
                 </p>
+                <p>
+                  <label for="daynight_initial_mode">Startup mode</label>
+                  <select id="daynight_initial_mode" name="daynight_initial_mode" class="form-control">
+                    <option value="">Auto-detect</option>
+                    <option value="day">Day</option>
+                    <option value="night">Night</option>
+                  </select>
+                  <small class="text-secondary">Sets IRCUT/IR LEDs at boot before first reading. Photosensing takes over after.</small>
+                </p>
+                <p>
+                  <label for="daynight_force_mode">Lock mode</label>
+                  <select id="daynight_force_mode" name="daynight_force_mode" class="form-control">
+                    <option value="">Off (photosensing active)</option>
+                    <option value="day">Day</option>
+                    <option value="night">Night</option>
+                  </select>
+                  <small class="text-secondary">Permanently lock camera to this mode. Overrides photosensing entirely.</small>
+                </p>
                 <p class="number-range">
                   <label for="daynight_night_threshold">Switch to night below brightness</label>
                   <span class="input-group">
@@ -56,16 +74,6 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-                <p>
-                  <label for="daynight_force_mode">Preferred boot mode</label>
-                  <select id="daynight_force_mode" name="daynight_force_mode" class="form-control">
-                    <option value="">Auto (photosensing)</option>
-                    <option value="day">Day</option>
-                    <option value="night">Night</option>
-                  </select>
-                  <small class="text-secondary">Lock camera to a specific mode at boot. Overrides photosensing.</small>
-                </p>
-
               </div>
               <div class="col">
                 <h4>Controls</h4>

@@ -170,6 +170,8 @@ typedef struct {
 
     /* Force mode */
     char     force_mode[16];    /* "day", "night", or "" for auto */
+    /* Initial mode — apply at boot before first sensor read */
+    char     initial_mode[16];  /* "day", "night", or "" for auto-detect */
 } daynight_config_t;
 
 /* Runtime state */
@@ -376,6 +378,7 @@ static void set_config_defaults(void) {
     g_config.log_level     = 3;  /* INFO */
 
     g_config.force_mode[0] = '\0';
+    g_config.initial_mode[0] = '\0';
 }
 
 static int read_config(const char *config_file) {
@@ -483,6 +486,13 @@ static int read_config(const char *config_file) {
     if (v && v->type == JSON_STRING && v->value.string) {
         strncpy(g_config.force_mode, v->value.string, sizeof(g_config.force_mode) - 1);
         g_config.force_mode[sizeof(g_config.force_mode) - 1] = '\0';
+    }
+
+    /* Initial mode — apply at boot, before first sensor read */
+    v = get_nested_item(root, "daynight.initial_mode");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.initial_mode, v->value.string, sizeof(g_config.initial_mode) - 1);
+        g_config.initial_mode[sizeof(g_config.initial_mode) - 1] = '\0';
     }
 
     /* System section */
@@ -1100,6 +1110,28 @@ static int main_loop(void) {
 
     g_state.running = true;
     g_state.current_mode = MODE_UNKNOWN;
+
+    /* Apply initial mode (if configured) before first sensor read.
+       This immediately sets up IRCUT/IR LEDs so the camera isn't in
+       an undefined state during the first sensor sampling cycles.
+       Normal hysteresis then takes over — the initial mode will
+       "linger" if sensor readings stay in the hysteresis zone. */
+    if (g_config.initial_mode[0] != '\0') {
+        daynight_mode_t init_mode = MODE_UNKNOWN;
+        if (strcmp(g_config.initial_mode, "day") == 0)
+            init_mode = MODE_DAY;
+        else if (strcmp(g_config.initial_mode, "night") == 0)
+            init_mode = MODE_NIGHT;
+        if (init_mode != MODE_UNKNOWN) {
+            apply_mode(init_mode);
+            g_state.current_mode = init_mode;
+            g_state.initial_mode_set = true;
+            g_state.anti_flap_cooldown = 30 / 2;
+            log_message(LOG_INFO, "Initial mode applied: %s (from config)",
+                        g_config.initial_mode);
+        }
+    }
+
     g_state.brightness_index = 0;
     g_state.night_count = 0;
     g_state.day_count = 0;

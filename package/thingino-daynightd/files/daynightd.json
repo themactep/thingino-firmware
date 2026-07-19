@@ -27,6 +27,7 @@
       "stop_at": "22:00"
     },
 
-    "force_mode": ""
+    "force_mode": "",
+    "initial_mode": ""
   }
 }
