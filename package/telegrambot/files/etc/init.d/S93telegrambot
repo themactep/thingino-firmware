@@ -52,6 +52,14 @@ start() {
 		exit 1
 	fi
 
+	# Only start if a bot token has been configured
+	local token
+	token=$(jct /etc/telegrambot.json get token 2>/dev/null)
+	if [ -z "$token" ]; then
+		echo "Skipped: no bot token configured" >&2
+		exit 0
+	fi
+
 	if daemon_running; then
 		echo "Already running" >&2
 		exit 0
