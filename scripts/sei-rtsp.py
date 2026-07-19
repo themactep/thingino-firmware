@@ -675,7 +675,7 @@ def main():
         # ffplay can't do RTSP output, but it can apply filters via -vf.
         # We use ffplay for local preview.
         cmd = [
-            "ffplay", "-v", "info",
+            "ffplay", "-v", "info", "-hide_banner",
             "-vf", vf,
             "-window_title", "SEI RTSP Overlay",
         ]
