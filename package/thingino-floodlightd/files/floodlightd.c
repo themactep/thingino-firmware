@@ -94,7 +94,7 @@ static time_t g_last_motion = 0;
 static time_t g_override_until = 0;
 static enum light_mode g_light_mode = LIGHT_AUTO;
 static int g_light_level = 0;
-static uint8_t g_pir[3];
+static uint16_t g_pir[3];
 
 static void on_sig(int s) { (void)s; g_run = 0; }
 
@@ -284,7 +284,7 @@ static void resume_auto(const char *source)
 	monitor_emit("{\"event\":\"mode\",\"mode\":\"auto\",\"source\":\"%s\"}", source);
 }
 
-static void update_pir(uint8_t left, uint8_t mid, uint8_t right)
+static void update_pir(uint16_t left, uint16_t mid, uint16_t right)
 {
 	int was_active = g_pir[0] || g_pir[1] || g_pir[2];
 	int active = left || mid || right;
@@ -311,28 +311,30 @@ static void update_pir(uint8_t left, uint8_t mid, uint8_t right)
 		floodlight_set(g_bright_on, "motion");
 }
 
-/* ---- RX frame parser (MCU->SoC): 55 AA OP LEN DATA.. SUMhi SUMlo ---- */
+/* ---- RX frame parser (MCU->SoC): 55 AA 43 LEN OP DATA.. SUMhi SUMlo ---- */
 static void handle_frame(const uint8_t *f, int n)
 {
-	uint8_t op = f[2];
+	uint8_t op = f[4];
 	if (g_verbose) {
 		char hex[FRAME_MAX * 3]; int p = 0;
 		for (int k = 0; k < n && k < FRAME_MAX; k++) p += sprintf(hex + p, "%02x ", f[k]);
 		logv(LOG_DEBUG, "RX op=0x%02x: %s", op, hex);
 	}
 	if (op == OP_PIR_REPORT) {
-		/* payload = DATA between byte[4] and n-2. Zone layout confirmed as
-		 * left/middle/right; treat any nonzero zone as motion. */
-		int dlen = n - 4 - 2;
-		uint8_t l = dlen > 0 ? f[4] : 0;
-		uint8_t m = dlen > 1 ? f[5] : 0;
-		uint8_t r = dlen > 2 ? f[6] : 0;
+		/* The CH554 returns three little-endian 16-bit PIR values in
+		 * right/middle/left order.  Stock iCamera reverses the pairs when it
+		 * presents the public left/middle/right values. */
+		int dlen = n - 5 - 2;
+		if (dlen < 6) return;
+		uint16_t r = f[5] | ((uint16_t)f[6] << 8);
+		uint16_t m = f[7] | ((uint16_t)f[8] << 8);
+		uint16_t l = f[9] | ((uint16_t)f[10] << 8);
 		update_pir(l, m, r);
 	} else if (op == OP_BRIGHTNESS_REPORT) {
-		int dlen = n - 4 - 2;
-		if (dlen > 0 && f[4] <= 100) {
-			int changed = g_light_level != f[4];
-			g_light_level = f[4];
+		int dlen = n - 5 - 2;
+		if (dlen > 0 && f[5] <= 100) {
+			int changed = g_light_level != f[5];
+			g_light_level = f[5];
 			if (changed)
 				monitor_emit("{\"event\":\"light\",\"on\":%s,\"level\":%d,\"source\":\"mcu\"}",
 					g_light_level ? "true" : "false", g_light_level);
@@ -352,7 +354,7 @@ static void rx_feed(const uint8_t *in, int n)
 
 		/* need at least preamble+op+len */
 		while (rxlen >= 4) {
-			if (rxbuf[0] != RX_PRE0 || rxbuf[1] != RX_PRE1) {
+			if (rxbuf[0] != RX_PRE0 || rxbuf[1] != RX_PRE1 || rxbuf[2] != TX_CLASS) {
 				memmove(rxbuf, rxbuf + 1, --rxlen); /* resync */
 				continue;
 			}
@@ -363,6 +365,14 @@ static void rx_feed(const uint8_t *in, int n)
 			}
 			if (rxlen < total) break;              /* wait for more */
 			uint16_t got = (rxbuf[total - 2] << 8) | rxbuf[total - 1];
+			/* Brightness reports from this CH554 revision under-report LEN by
+			 * one byte.  Accept the extra byte only when it makes a complete,
+			 * checksum-valid frame. */
+			if (cksum(rxbuf, total - 2) != got && rxlen > total) {
+				uint16_t extended = (rxbuf[total - 1] << 8) | rxbuf[total];
+				if (cksum(rxbuf, total - 1) == extended) total++;
+				got = (rxbuf[total - 2] << 8) | rxbuf[total - 1];
+			}
 			if (cksum(rxbuf, total - 2) == got)
 				handle_frame(rxbuf, total);
 			else
@@ -688,7 +698,16 @@ int main(int argc, char **argv)
 		if (rc > 0 && FD_ISSET(g_fd, &rfds)) {
 			uint8_t buf[128];
 			int r = read(g_fd, buf, sizeof buf);
-			if (r > 0) rx_feed(buf, r);
+			if (r > 0) {
+				if (g_verbose) {
+					char hex[sizeof buf * 3 + 1];
+					int p = 0;
+					for (int k = 0; k < r; k++)
+						p += snprintf(hex + p, sizeof hex - p, "%02x ", buf[k]);
+					logv(LOG_DEBUG, "RX raw: %s", hex);
+				}
+				rx_feed(buf, r);
+			}
 			else if (r == 0 || (r < 0 && errno != EAGAIN && errno != EINTR))
 				logv(LOG_WARNING, "ttyS2 read: %s", strerror(errno));
 		}
