@@ -247,6 +247,12 @@ fi
 
 echo "Firmware compatibility verified."
 
+free_overlay_space() {
+	echo "Freeing overlay space on device..."
+	remote_run "rm -rf /overlay/var /overlay/usr 2>/dev/null; mount -o remount / 2>/dev/null; echo done" >/dev/null || \
+		echo "Warning: failed to free overlay space (non-fatal)"
+}
+
 upload_sysupgrade() {
 	remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 		die "Failed to transfer sysupgrade utility"
@@ -256,6 +262,8 @@ upload_sysupgrade() {
 		die "Failed to set execute permissions on sysupgrade utility"
 	echo "Sysupgrade utility installed successfully."
 }
+
+free_overlay_space
 
 echo "Transferring sysupgrade utility to device..."
 upload_sysupgrade
