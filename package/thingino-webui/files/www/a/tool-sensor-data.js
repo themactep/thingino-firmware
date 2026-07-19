@@ -4,8 +4,8 @@
 
   class SensorDataCollector {
     constructor() {
-      this.sseUrl = "/x/json-timegraph-stream.cgi";
-      this.historyUrl = "/x/json-prudynt.cgi";
+      this.sseUrl = "/x/json-heartbeat.cgi";
+      this.historyUrl = "/x/json-daynight-history.cgi";
       this.maxPoints = 300;
       this.data = {};
       this.chart = null;
@@ -95,10 +95,10 @@
             y: {
               display: true,
               min: 0,
-              max: 3200,
+              max: 100,
               title: {
                 display: true,
-                text: "Raw Value",
+                text: "Brightness %",
               },
             },
             y1: {
@@ -139,16 +139,10 @@
     }
 
     async loadHistory() {
-      const requestBody = { daynight: { history: null } };
       try {
-        const response = await fetch(this.historyUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
+        const response = await fetch(this.historyUrl);
         if (!response.ok) return;
-        const json = await response.json();
-        const history = json?.daynight?.history;
+        const history = await response.json();
         if (!Array.isArray(history) || history.length === 0) return;
 
         history.forEach((sample) => this.addDataPoint(sample, false));
@@ -176,7 +170,7 @@
           this.data[metric.key] = [];
         }
         const value = parseFloat(jsonData[metric.key]);
-        if (!Number.isNaN(value)) {
+        if (!Number.isNaN(value) && value >= 0) {
           this.data[metric.key].push(value);
           this.updateStats(metric.key, value);
         }

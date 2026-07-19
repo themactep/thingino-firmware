@@ -410,8 +410,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-system-usage.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-telegrambot.cgi \
 		$(TARGET_DIR)/var/www/x/json-telegrambot.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-timegraph-stream.cgi \
-		$(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-daynight-history.cgi \
+		$(TARGET_DIR)/var/www/x/json-daynight-history.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-wireguard.cgi \
 		$(TARGET_DIR)/var/www/x/json-wireguard.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/legacy-url-recovery.cgi \
