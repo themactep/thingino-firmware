@@ -7,8 +7,10 @@ config BR2_PACKAGE_THINGINO_FLOODLIGHTD
 	  siren are managed by an external CH554 MCU on /dev/ttyS2.
 	  floodlightd speaks the stock serial protocol: it reports PIR
 	  motion (per zone) to a hook script and drives the floodlight
-	  brightness in response to motion.
+	  brightness in response to motion. floodlightctl provides status,
+	  event monitoring, PIR/auto mode, and manual or timed overrides.
 
 	  Requires UART2 (ttyS2) enabled in the device tree.
 
-	  See docs/wyze-floodlightv2-mcu-protocol.md for the protocol.
+	  See docs/wyze-floodlightv2-mcu-protocol.md for the protocol and
+	  docs/wyze-floodlightv2-floodlightd.md for operator commands.
