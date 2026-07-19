@@ -20,19 +20,45 @@ env:
   FORCE_UNSAFE_CONFIGURE: 1
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   TERM: linux
+  TZ: UTC
 
 jobs:
   build-teacup:
-    # ubuntu-26.04-arm to match stable's build runner + ccache assets (ccache-stable-ARM64-*); the dl-cache is arch-agnostic
+    # Build inside a debian container (like firmware-stable) so the toolchain uses GNU coreutils,
+    # not the ubuntu-26.04 runner's uutils 'install', which Buildroot rejects.
     runs-on: ubuntu-26.04-arm
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
     steps:
+      - name: Update package manager sources
+        run: apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc ca-certificates cmake cpio curl file gawk gh git jq lzop m4 make p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
+
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Setup gh workspace to container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
+          submodules: 'true'
           ref: ${{ github.event.inputs.branch || 'stable' }}
-          fetch-depth: 0
+          fetch-depth: "1"
 
       - name: Wait for cooldown (10 minutes)
+        # push only: a manual run builds immediately (no debounce needed)
+        if: github.event_name == 'push'
         run: sleep 600
 
       - name: Check for new commits after cooldown
@@ -41,7 +67,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           git fetch origin stable
-          LATEST_SHA=$(git rev-parse origin/stable)
+          LATEST_SHA=$(git rev-parse FETCH_HEAD)
           if [[ "$LATEST_SHA" != "$GITHUB_SHA" ]]; then
             echo "Newer commit detected ($LATEST_SHA), skipping this run."
             exit 78
