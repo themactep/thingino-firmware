@@ -32,14 +32,15 @@ stop_daemon() {
 		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
 	fi
 
-	# Catch instances a stale pidfile does not cover
-	if daemon_running; then
-		start-stop-daemon -K -x "$DAEMON"
-	fi
-
 	if ! wait_for_exit; then
-		start-stop-daemon -K -s 9 -x "$DAEMON"
-		wait_for_exit
+		# Catch instances a stale pidfile does not cover
+		if daemon_running; then
+			start-stop-daemon -K -x "$DAEMON"
+		fi
+		if ! wait_for_exit; then
+			start-stop-daemon -K -s 9 -x "$DAEMON"
+			wait_for_exit
+		fi
 	fi
 	rm -f "$PIDFILE"
 }
