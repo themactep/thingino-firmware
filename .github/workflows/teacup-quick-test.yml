@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - stable
+  workflow_dispatch:
 
 env:
   BR2_DL_DIR: ~/dl
