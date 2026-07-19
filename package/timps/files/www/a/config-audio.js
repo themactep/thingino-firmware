@@ -33,11 +33,14 @@
     audio_mic_vol: { key: "volume", live: true },
     audio_mic_gain: { key: "gain", live: true },
     audio_mic_alc_gain: { key: "alc_gain", live: true },
-    audio_mic_high_pass_filter: { key: "high_pass", live: true },
-    audio_mic_agc_enabled: { key: "agc", live: true },
-    audio_mic_agc_target_level_dbfs: { key: "agc_target_dbfs", live: true },
-    audio_mic_agc_compression_gain_db: { key: "agc_compression_db", live: true },
-    audio_mic_noise_suppression: { key: "ns", live: true },
+    // high_pass/agc/ns are restart-required: libimp runs these DSP modules on
+    // its own record thread and frees them unlocked, so a live toggle races the
+    // vendor thread -> crash. Persist + "applies on restart", like codec.
+    audio_mic_high_pass_filter: { key: "high_pass", live: false },
+    audio_mic_agc_enabled: { key: "agc", live: false },
+    audio_mic_agc_target_level_dbfs: { key: "agc_target_dbfs", live: false },
+    audio_mic_agc_compression_gain_db: { key: "agc_compression_db", live: false },
+    audio_mic_noise_suppression: { key: "ns", live: false },
     audio_mic_format: { key: "codec", live: false },
     audio_mic_sample_rate: { key: "samplerate", live: false },
     audio_mic_bitrate: { key: "bitrate", live: false },
