@@ -7,18 +7,46 @@ HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 
 # ---------------------------------------------------------------------------
 # Config helpers
+#
+# jct re-parses the whole JSON config file on every invocation. ha-state and
+# ha-commands query many keys per poll cycle, so at a 15s state interval the
+# uncached lookups used to fork dozens of jct processes per minute — pure
+# scheduler/VM pressure on a small SoC. Resolved values are cached in /tmp
+# and the cache is invalidated whenever the config file changes.
 # ---------------------------------------------------------------------------
+_HA_CFG_CACHE_DIR="/tmp/ha_cfg_cache"
+_HA_CFG_MTIME="$(stat -c %Y "$HA_CONFIG_FILE" 2>/dev/null || echo 0) $HA_CONFIG_FILE"
+if [ ! -d "$_HA_CFG_CACHE_DIR" ] ||
+	[ "$(cat "$_HA_CFG_CACHE_DIR/.mtime" 2>/dev/null)" != "$_HA_CFG_MTIME" ]; then
+	rm -rf "$_HA_CFG_CACHE_DIR"
+	mkdir -p "$_HA_CFG_CACHE_DIR"
+	printf '%s' "$_HA_CFG_MTIME" >"$_HA_CFG_CACHE_DIR/.mtime"
+fi
+
+# Look up a raw config key, forking jct only on a cache miss.
+# Cache hits are served with the shell builtin 'read' — zero exec.
+_ha_cfg_lookup() {
+	local key="$1" cache val=""
+	cache="$_HA_CFG_CACHE_DIR/$key"
+	if [ -f "$cache" ]; then
+		IFS= read -r val <"$cache" || true
+		printf '%s' "$val"
+		return 0
+	fi
+	val=$(jct "$HA_CONFIG_FILE" get "$key" 2>/dev/null | tr -d '"')
+	printf '%s' "$val" >"$cache" 2>/dev/null
+	printf '%s' "$val"
+}
 
 ha_cfg() {
-	jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null | tr -d '"'
+	_ha_cfg_lookup "ha.$1"
 }
 
 _ha_mqtt_cfg() {
-	local key="$1"
 	local val
-	val=$(jct "$HA_CONFIG_FILE" get "ha.mqtt.${key}" 2>/dev/null | tr -d '"')
+	val=$(_ha_cfg_lookup "ha.mqtt.$1")
 	if [ -z "$val" ]; then
-		val=$(jct "$HA_CONFIG_FILE" get "mqtt_sub.${key}" 2>/dev/null | tr -d '"')
+		val=$(_ha_cfg_lookup "mqtt_sub.$1")
 	fi
 	printf '%s' "$val"
 }
@@ -55,16 +83,26 @@ fi
 
 # ---------------------------------------------------------------------------
 # MQTT broker settings
+# Resolved once per process tree: ha-daemon exports them, so ha-state,
+# ha-commands and ha-discovery children inherit instead of re-resolving.
+# Broker changes require a daemon restart (same as before — S93ha reads the
+# host at start time).
 # ---------------------------------------------------------------------------
-HA_MQTT_HOST=$(_ha_mqtt_cfg host)
-HA_MQTT_PORT=$(_ha_mqtt_cfg port)
-HA_MQTT_USER=$(_ha_mqtt_cfg username)
-HA_MQTT_PASS=$(_ha_mqtt_cfg password)
-HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
-HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
+if [ -z "$_HA_MQTT_CFG_READY" ]; then
+	HA_MQTT_HOST=$(_ha_mqtt_cfg host)
+	HA_MQTT_PORT=$(_ha_mqtt_cfg port)
+	HA_MQTT_USER=$(_ha_mqtt_cfg username)
+	HA_MQTT_PASS=$(_ha_mqtt_cfg password)
+	HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
+	HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
 
-HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
-HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
+	HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
+	HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
+
+	_HA_MQTT_CFG_READY=1
+	export _HA_MQTT_CFG_READY HA_MQTT_HOST HA_MQTT_PORT HA_MQTT_USER \
+		HA_MQTT_PASS HA_MQTT_SSL HA_MQTT_CLIENT_PREFIX
+fi
 
 # Delay between individual MQTT publishes within a batch session (microseconds).
 # Prevents burst-flooding the broker when many entities are published at once.

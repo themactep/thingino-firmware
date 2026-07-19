@@ -102,8 +102,14 @@ use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
 
 port="${port:-1883}"
 
-# Build topic arguments from enabled subscriptions
+# Build topic arguments and precompile dispatch rules from enabled
+# subscriptions. Doing this once at startup keeps the per-message loop free
+# of jct forks — previously the config was re-read (3 jct invocations per
+# subscription) for every incoming message, which is expensive on chatty
+# topics. Config changes require a service restart, matching the existing
+# behavior for broker settings.
 TOPICS=""
+RULE_COUNT=0
 i=0
 while true; do
 	topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.topic" 2>/dev/null | tr -d '"')
@@ -111,8 +117,18 @@ while true; do
 	enabled=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.enabled" 2>/dev/null)
 	qos=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.qos" 2>/dev/null | tr -d '"')
 	if [ "$enabled" = "true" ]; then
-		topic=$(expand_topic "$topic")
-		TOPICS="$TOPICS -t $topic -q ${qos:-0}"
+		expanded=$(expand_topic "$topic")
+		TOPICS="$TOPICS -t $expanded -q ${qos:-0}"
+
+		action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.action" 2>/dev/null)
+		action=$(json_unquote "$action")
+		if [ -n "$action" ]; then
+			# Convert MQTT wildcards to shell glob patterns
+			pattern=$(printf '%s' "$expanded" | sed -e 's/+/[^\/]*/g' -e 's/#/.*/g')
+			eval "RULE_PATTERN_$RULE_COUNT=\$pattern"
+			eval "RULE_ACTION_$RULE_COUNT=\$action"
+			RULE_COUNT=$((RULE_COUNT + 1))
+		fi
 	fi
 	i=$((i + 1))
 done
@@ -128,30 +144,22 @@ CMD="$CMD $TOPICS"
 
 start_presence_heartbeat
 
-# Run subscriber loop
+# Run subscriber loop. Matching uses only shell builtins against the rules
+# precompiled at startup — no process is forked unless an action fires.
 sh -c "$CMD" | while IFS= read -r line; do
 	mqtt_topic="${line%% *}"
 	mqtt_payload="${line#* }"
+	[ -n "$mqtt_topic" ] || continue
 
-	# Match against all enabled subscriptions and run their action
 	j=0
-	while true; do
-		sub_topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.topic" 2>/dev/null | tr -d '"')
-		[ -n "$sub_topic" ] || break
-		sub_enabled=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.enabled" 2>/dev/null)
-		sub_action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.action" 2>/dev/null)
-		sub_action=$(json_unquote "$sub_action")
-
-		if [ "$sub_enabled" = "true" ] && [ -n "$sub_action" ]; then
-			# Expand shorthands, then convert MQTT wildcards to shell glob patterns
-			expanded=$(expand_topic "$sub_topic")
-			pattern=$(printf '%s' "$expanded" | sed -e 's/+/[^\/]*/g' -e 's/#/.*/g')
-			case "$mqtt_topic" in
-				$pattern)
-					MQTT_TOPIC="$mqtt_topic" MQTT_PAYLOAD="$mqtt_payload" sh -c "$sub_action"
-					;;
-			esac
-		fi
+	while [ "$j" -lt "$RULE_COUNT" ]; do
+		eval "pattern=\$RULE_PATTERN_$j"
+		eval "action=\$RULE_ACTION_$j"
+		case "$mqtt_topic" in
+			$pattern)
+				MQTT_TOPIC="$mqtt_topic" MQTT_PAYLOAD="$mqtt_payload" sh -c "$action"
+				;;
+		esac
 		j=$((j + 1))
 	done
 done

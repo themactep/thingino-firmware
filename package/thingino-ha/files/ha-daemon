@@ -53,13 +53,24 @@ ha-discovery || {
 	exit 1
 }
 
-# Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
+# Restart ha-commands automatically if it exits (e.g. transient broker disconnect).
+# The restart delay escalates while the subscriber keeps failing fast (broker
+# down, auth error) so we do not spin in a tight reconnect cycle; it resets
+# after a healthy run.
 run_commands() {
-	local mpub
+	local mpub delay=5 started ran
 	while true; do
+		started=$(date +%s)
 		ha-commands
-		echo "ha-daemon: ha-commands exited, restarting in 5s..."
-		sleep 5
+		ran=$(($(date +%s) - started))
+		if [ "$ran" -ge 60 ]; then
+			delay=5
+		else
+			delay=$((delay * 2))
+			[ "$delay" -gt 60 ] && delay=60
+		fi
+		echo "ha-daemon: ha-commands exited after ${ran}s, restarting in ${delay}s..."
+		sleep "$delay"
 		mpub=$(ha_mpub_cmd daemon)
 		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
 	done
@@ -132,11 +143,19 @@ trap on_signal INT TERM
 # ---------------------------------------------------------------------------
 # Periodic state + discovery refresh loop
 # ---------------------------------------------------------------------------
+# Sanitize intervals: a non-numeric or zero value would turn the poll loop
+# into a hot spin (sleep 0) hammering the whole system.
 STATE_INTERVAL=$(ha_cfg state_interval)
-STATE_INTERVAL="${STATE_INTERVAL:-15}"
+case "$STATE_INTERVAL" in
+	'' | *[!0-9]*) STATE_INTERVAL=15 ;;
+esac
+[ "$STATE_INTERVAL" -lt 5 ] && STATE_INTERVAL=5
 
 DISC_INTERVAL=$(ha_cfg discovery_interval)
-DISC_INTERVAL="${DISC_INTERVAL:-3600}"
+case "$DISC_INTERVAL" in
+	'' | *[!0-9]*) DISC_INTERVAL=3600 ;;
+esac
+[ "$DISC_INTERVAL" -lt 60 ] && DISC_INTERVAL=60
 
 elapsed=0
 while true; do
