@@ -84,4 +84,34 @@ config BR2_PACKAGE_TIMPS_SW_ROTATE
 	  T23, H264 only, software OSD only (no hardware OSD/privacy on the
 	  rotated stream), and enlarges the binary. Leave off unless needed.
 
+config BR2_PACKAGE_TIMPS_BACKCHANNEL
+	bool "ONVIF audio backchannel (client -> speaker)"
+	default n
+	help
+	  Enable the ONVIF audio backchannel: an RTSP client can send audio
+	  to the camera to play through its speaker (talk-back). Decoded
+	  audio is piped at RUNTIME to /bin/iac (ingenic-audiodaemon), which
+	  owns IMP_AO - timps never links or opens the speaker device itself,
+	  exactly like prudynt/raptor. G.711 (PCMU/PCMA) decode is pure C, no
+	  extra library. Restart-required. Disabled by default; when off, no
+	  backchannel code is compiled in.
+
+	  NOTE: this does NOT force the ingenic-audiodaemon package (that
+	  would drag in libwebsockets, which fails to build on some uClibc
+	  toolchains). For a working speaker you must ALSO enable
+	  BR2_PACKAGE_INGENIC_AUDIODAEMON yourself, OR have /bin/iac already
+	  on the device. Without it, timps reports the backchannel as
+	  unavailable (SETUP -> 551) but the rest keeps working.
+
+config BR2_PACKAGE_TIMPS_BC_AAC
+	bool "AAC backchannel decode (libhelix-aac)"
+	depends on BR2_PACKAGE_TIMPS_BACKCHANNEL
+	default n
+	select BR2_PACKAGE_LIBHELIX_AAC
+	help
+	  Also accept AAC (mpeg4-generic) on the backchannel, decoded via
+	  libhelix-aac (the same decoder prudynt uses). Better audio quality
+	  than G.711 but higher latency and an extra dependency. Leave off
+	  for a G.711-only, dependency-light backchannel.
+
 endif # BR2_PACKAGE_TIMPS
