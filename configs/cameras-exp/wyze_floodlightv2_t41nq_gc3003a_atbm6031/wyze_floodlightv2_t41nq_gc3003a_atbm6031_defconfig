@@ -1,62 +1,21 @@
 # NAME: Wyze Floodlight v2 (T41NQ, GC3003A, ATBM6031)
 # FRAG: soc-xburst2 core ssl
-BR2_AVPU_SCLKA=y
 BR2_AVPU_CLK_550MHZ=y
+BR2_AVPU_SCLKA=y
 BR2_INGENIC_SOC_MODEL="t41nq"
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS=y
+BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEFLOODV2=y
+BR2_PACKAGE_THINGINO_FLOODLIGHTD=y
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
+BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0_NOR=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y
 BR2_SENSOR_1_NAME="gc3003a"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
 BR2_THINGINO_BUTTON=y
-BR2_PACKAGE_THINGINO_FLOODLIGHTD=y
-BR2_THINGINO_SDCARD=y
-BR2_THINGINO_RMEM_MB=20
 BR2_THINGINO_NMEM_MB=8
+BR2_THINGINO_RMEM_MB=20
+BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=16
-BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
-BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0_NOR=y
-BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y
-BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS=y
-BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEFLOODV2=y
-
-# Derived from stock firmware dump wyze_floodlightv2C.bin (Wyze product
-# HL_CAM3P, appver 4.53.3.9759, T41 "isvp_marmot" 4.4.94 kernel).
-#
-# VERIFIED FROM STOCK (dump):
-#   SoC          : T41 (marmot). Board strings enumerate T41A/L/LQ/N/NQ/ZL/ZN/ZX;
-#                  stock loads soc-nna.ko (NPU) + avpu -> "Q" NPU variant. NQ chosen
-#                  to match the Wyze T41 sibling (wyze_cam4_t41nq).
-#   Sensor       : gc3003a, MIPI 2-lane, 2304x1296@30, i2c0 @0x37, MCLK 27MHz.
-#                  Stock: insmod sensor_gc3003a_t41.ko shvflip=1
-#   ISP/encoder  : tx-isp-t41 isp_memopt=1 direct_mode=1 ivdc_mem_line=540;
-#                  avpu clk_name=sclka avpu_clk=552000000 (BR2_AVPU_CLK_550MHZ nearest).
-#   WiFi         : ATBM603x SDIO (stock atbm603x_wifi_sdio.ko) on msc1 (non-removable);
-#                  2.4GHz-only per atbm_txpwer_dcxo_cfg (b/gn gains only) -> ATBM6031.
-#                  Power/reset via mmc1_pwrseq reset-gpio GPC8 = GPIO 72 (in DTS).
-#   SD card      : msc0, cd-gpio GPB26 = GPIO 58 (active-low), power GPB29 = GPIO 61.
-#   Flash        : 16MB NOR on SFC0.
-#   Console      : ttyS1 (uart1-pb), matches Wyze T41 convention.
-#
-# GPIO map RECOVERED from stock iCamera .dynsym + Binary Ninja decompilation of
-# g_gpioParaMap (14 entries) and the gpio_write/gpio_read call sites:
-#   62  reset button   in   (gpio_key_check_loop -> gpio_read(0x3e), active-low)
-#   81  IR LED 850nm   out  (sdkgpio_irled_on -> gpio_write(0x51,1))
-#   63  spk/amp enable out  (sdkspeaker_pa_set_mode -> gpio_write(0x3f)) -> AUDIO_GPIO
-#   50  IR-cut A       out  (sub_46f5a8 "IRcut on" -> gpio_write(0x32,1))
-#   49  IR-cut B       out  (same, gpio_write(0x31,1) 100ms later)
-#   38  status LED (b) out  (sub_46f7f0 arg2 -> gpio_write(0x26))
-#   39  status LED (a) out  (sub_46f7f0 arg1 -> gpio_write(0x27), boot level 1)
-# Remaining map pins resolved by RE (NOT floodlight/PIR):
-#   59 in  = SD card-detect (sdk_device_check_mmc_insert gpio_read(0x3b), "sd EJECT")
-#   57 in  = SD "sd_cd_ex_pin" aux (gpio_dir_get/set(0x39))
-#   60, 79 = not driven as GPIO by the app (coincidental constants only)
-#   3x pin -1 = unpopulated (irled_2/"expand" stub returns -1).
-#
-# FLOODLIGHT + 3-ZONE PIR + SIREN are NOT SoC GPIOs: they hang off an external MCU
-# on /dev/ttyS2 (UART2, uart2-pc = GPC13/14+GPC19/20; enabled in the DTS). Stock
-# productservices/floodlight2/ttyS2/ttyS2.c opens ttyS2 @ 115200 8N1 raw and
-# exchanges binary frames; PIR motion arrives as serial events dispatched to
-# callbacks, floodlight brightness/PIRSensitivity/siren are sent as serial commands.
-# -> A thingino userspace daemon on /dev/ttyS2 is required to drive motion+flood+siren.
-# RMEM/NMEM copied from wyze_cam4_t41nq (same SoC); stock used isp_memopt=1.

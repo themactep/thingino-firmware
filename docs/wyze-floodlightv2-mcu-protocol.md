@@ -5,6 +5,9 @@ app 4.53.3.9759). Source module in the binary: `protocol.c` + `flood_light2.c`
 + `productservices/floodlight2/ttyS2/ttyS2.c`. All addresses are from the
 extracted `extracted_floodlight/iCamera` (MIPSEL, T41).
 
+See `docs/wyze-floodlightv2-hardware.md` for the board identification, SoC
+GPIO map, and device-tree choices recovered from the stock firmware.
+
 The floodlight LEDs, 3-zone PIR array, and siren are managed by an external
 **CH554** MCU. The SoC talks to it over **`/dev/ttyS2`**. There are **no SoC
 GPIOs** for flood/PIR/siren — everything is this serial protocol.
