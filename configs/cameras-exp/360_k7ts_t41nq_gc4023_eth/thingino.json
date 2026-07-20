@@ -1,0 +1,38 @@
+{
+  "gpio": {
+    "button_reset": {
+      "pin": 62,
+      "active_low": true
+    },
+    "eth": 60,
+    "ir850": "79",
+    "ircut": "50 49",
+    "led_g": {
+      "pin": 81,
+      "active_low": true
+    },
+    "mmc_cd":{
+      "pin": 58,
+      "active_low": true
+    },
+    "mmc_power":{
+      "pin": 59,
+      "active_low": true
+    },
+    "white": "80"
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "70 71 72 73",
+    "gpio_tilt": "68 67 66 69",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "1950,700",
+    "speed_pan": 700,
+    "speed_tilt": 700,
+    "steps_pan": 3900,
+    "steps_tilt": 1400
+  }
+}

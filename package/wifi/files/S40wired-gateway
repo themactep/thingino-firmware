@@ -19,6 +19,9 @@ has_wired_uplink() {
 	local iface="$1"
 
 	[ -z "$iface" ] && return 1
+	if echo "$iface" |grep -q usb; then
+		grep -q "up" "/sys/class/net/$iface/operstate" || return 1
+	fi
 	ip link show "$iface" >/dev/null 2>&1 || return 1
 	ip -4 route show default dev "$iface" | grep -q . && return 0
 	ip -6 route show default dev "$iface" | grep -q . && return 0
@@ -35,6 +38,20 @@ case "$1" in
 					/etc/init.d/S38wpa_supplicant stop
 					/etc/init.d/S36wireless stop
 					unload_wlan_module
+					@if WIFI_MODULE_IS_SDIO@
+					@if !WIFI_SDIO_UNSUPPORTED@
+					@if !WIFI_SDIO_RETURN_EARLY@
+					echo "Send REMOVE to MMC1. Also fix broken MMC0 due to mmc 1 -r"
+					mmc 1 -r
+					mmc 0 -r
+					mmc 0
+					@endif@
+					@endif@
+					@endif@
+					if [ -f /run/portal_mode ]; then
+						echo "Remove PORTAL_MODE_FLAG"
+						rm /run/portal_mode
+					fi
 					exit 0
 				fi
 			done
