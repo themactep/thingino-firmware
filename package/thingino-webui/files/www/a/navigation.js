@@ -80,7 +80,6 @@
       { label: "Privacy screen", href: "/config-privacy.html" },
       { label: "RTSP/ONVIF access", href: "/config-rtsp.html" },
       { label: "Remote logging", href: "/config-syslog.html" },
-      { label: "Telegram Bot", href: "/config-telegrambot.html" },
       { label: "Time", href: "/config-time.html" },
       { label: "Web Interface", href: "/config-webui.html" },
       { label: "WireGuard VPN", href: "/config-wireguard.html" },
