@@ -62,13 +62,14 @@
 <script>
 /**
  * SEI OSD Overlay Renderer — SVG-based.
- * Polls /x/json-osd-sei.cgi and renders OSD as SVG <text> elements
- * over the MJPEG preview.  SVG gives proper variable-width text strokes.
+ * Fetches JSON from prudynt every 2s and renders OSD as SVG <text>
+ * elements over the MJPEG preview.
  */
 (function () {
   'use strict';
   var OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
-  var SSE_URL = '/x/json-osd-sei.cgi', source = null;
+  var POLL_URL = 'http://' + window.location.hostname + ':8080/api/v1/osd-sei';
+  var POLL_MS = 2000, timer = null;
 
   function pcol(h, dflt) {
     if (!h || h.length < 7) return dflt || '#ffffff';
@@ -90,7 +91,7 @@
     var fsOrig = parseInt(svg.dataset.fsOrig) || fs;
     var stw = svg.dataset.stw || '1.5';
     var fw = svg.dataset.fw || 'normal';
-    var fscale = fs / (fsOrig || 1);  // scale w/h when font size changes
+    var fscale = fs / (fsOrig || 1);
 
     img.style.transform = rot ? 'rotate(' + rot + 'deg)' : '';
     var frame = document.getElementById('frame');
@@ -168,7 +169,6 @@
         svg.dataset.sh = d.sh || 0;
         svg.dataset.rot = d.rotation || 0;
         svg.dataset.seiHash = structKey;
-        // Set image dimensions from stream resolution to prevent layout shift
         if (d.sw && d.sh) {
           img.setAttribute('width', d.sw);
           img.setAttribute('height', d.sh);
@@ -189,23 +189,19 @@
       repaint();
   }
 
-  function handleEvent(event) {
-    try {
-      var d = JSON.parse(event.data);
-      if (!d || !d.elements || !d.elements.length) return;
-      update(d);
-    } catch (_) {}
+  function poll() {
+    fetch(POLL_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.elements && d.elements.length) update(d);
+      })
+      .catch(function () {});
   }
 
   function start() {
-    if (source) return;
-    source = new EventSource(SSE_URL);
-    source.onmessage = handleEvent;
-    source.onerror = function () {
-      source.close();
-      source = null;
-      setTimeout(start, 5000);
-    };
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, POLL_MS);
     window.addEventListener('resize', repaint);
   }
   if (document.readyState === 'loading')

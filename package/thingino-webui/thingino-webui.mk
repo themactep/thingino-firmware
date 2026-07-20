@@ -340,8 +340,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-imp.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-motion.cgi \
 		$(TARGET_DIR)/var/www/x/json-motion.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-osd-sei.cgi \
-		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-prudynt.cgi \
 		$(TARGET_DIR)/var/www/x/json-prudynt.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-prudynt-config.cgi \
