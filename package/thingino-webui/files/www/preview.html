@@ -244,6 +244,14 @@
               <small class="text-muted" id="osd-stroke-val">1</small>
             </div>
           </div>
+          <div class="row mt-2">
+            <div class="col-6"><label class="form-label small">Text Color</label>
+              <input type="color" class="form-control form-control-color" id="osd-color" value="#ffffff">
+            </div>
+            <div class="col-6"><label class="form-label small">Outline Color</label>
+              <input type="color" class="form-control form-control-color" id="osd-stroke-color" value="#000000">
+            </div>
+          </div>
         </details>
       </div>
       <div class="modal-footer">
@@ -338,11 +346,13 @@
     if (!svg || !svg.querySelector('text')) { setTimeout(restoreVisuals, 200); return; }
     if (s.fs) { svg.dataset.fs = s.fs; }
     if (s.stw) svg.dataset.stw = s.stw;
-    if (s.fs || s.stw) {
+    if (s.fs || s.stw || s.fc || s.sc) {
       var texts = svg.querySelectorAll('text');
       for (var i=0;i<texts.length;i++) {
         if (s.fs) texts[i].setAttribute('font-size', s.fs);
         if (s.stw) texts[i].setAttribute('stroke-width', s.stw);
+        if (s.fc) texts[i].setAttribute('fill', s.fc);
+        if (s.sc) texts[i].setAttribute('stroke', s.sc);
       }
       if (window._seiRepaint) window._seiRepaint();
     }
@@ -356,6 +366,8 @@
     document.getElementById('osd-fontsize-val').textContent = s.fs || 16;
     document.getElementById('osd-stroke').value = s.stw || 1;
     document.getElementById('osd-stroke-val').textContent = s.stw || 1;
+    document.getElementById('osd-color').value = s.fc || '#ffffff';
+    document.getElementById('osd-stroke-color').value = s.sc || '#000000';
     new bootstrap.Modal('#osdModal').show();
   });
 
@@ -390,16 +402,22 @@
     // Save visual settings locally
     saveSettings({
       fs: document.getElementById('osd-fontsize').value,
-      stw: document.getElementById('osd-stroke').value
+      stw: document.getElementById('osd-stroke').value,
+      fc: document.getElementById('osd-color').value,
+      sc: document.getElementById('osd-stroke-color').value
     });
     var svg = document.getElementById('sei-osd-overlay');
     if (svg) {
       svg.dataset.fs = document.getElementById('osd-fontsize').value;
       svg.dataset.stw = document.getElementById('osd-stroke').value;
+      var fc = document.getElementById('osd-color').value;
+      var sc = document.getElementById('osd-stroke-color').value;
       var texts = svg.querySelectorAll('text');
       for (var i=0;i<texts.length;i++) {
         texts[i].setAttribute('font-size', svg.dataset.fs);
         texts[i].setAttribute('stroke-width', svg.dataset.stw);
+        texts[i].setAttribute('fill', fc);
+        texts[i].setAttribute('stroke', sc);
       }
       if (window._seiRepaint) window._seiRepaint();
     }
