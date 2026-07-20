@@ -21,24 +21,7 @@ define THINGINO_DAYNIGHTD_BUILD_CMDS
 	$(MAKE) $(THINGINO_DAYNIGHTD_MAKE_OPTS) -C $(@D)/files all
 endef
 
-define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/files/daynightd      $(TARGET_DIR)/usr/bin/daynightd
-	$(INSTALL) -D -m 0755 $(@D)/files/S10daynightd   $(TARGET_DIR)/etc/init.d/S10daynightd
-
-	# Userspace control scripts (merged from thingino-daynight)
-	$(INSTALL) -D -m 0755 $(@D)/files/S06ircut       $(TARGET_DIR)/etc/init.d/S06ircut
-	$(INSTALL) -D -m 0755 $(@D)/files/S07dusk2dawn   $(TARGET_DIR)/etc/init.d/S07dusk2dawn
-	$(INSTALL) -D -m 0755 $(@D)/files/daynight       $(TARGET_DIR)/usr/sbin/daynight
-	$(INSTALL) -D -m 0755 $(@D)/files/light          $(TARGET_DIR)/usr/sbin/light
-	$(INSTALL) -D -m 0755 $(@D)/files/ircut          $(TARGET_DIR)/usr/sbin/ircut
-	$(INSTALL) -D -m 0755 $(@D)/files/dusk2dawn      $(TARGET_DIR)/usr/sbin/dusk2dawn
-
-	# Import daynight defaults into thingino.json
-	if [ -f "$(@D)/files/daynightd.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
-		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(@D)/files/daynightd.json"; \
-	fi
-endef
-
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 define THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
@@ -62,9 +45,26 @@ define THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/files/daynightd.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/daynightd.webui.json
 endef
-
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
-THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS += $(THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS)
 endif
+
+define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/files/daynightd      $(TARGET_DIR)/usr/bin/daynightd
+	$(INSTALL) -D -m 0755 $(@D)/files/S10daynightd   $(TARGET_DIR)/etc/init.d/S10daynightd
+
+	# Userspace control scripts (merged from thingino-daynight)
+	$(INSTALL) -D -m 0755 $(@D)/files/S06ircut       $(TARGET_DIR)/etc/init.d/S06ircut
+	$(INSTALL) -D -m 0755 $(@D)/files/S07dusk2dawn   $(TARGET_DIR)/etc/init.d/S07dusk2dawn
+	$(INSTALL) -D -m 0755 $(@D)/files/daynight       $(TARGET_DIR)/usr/sbin/daynight
+	$(INSTALL) -D -m 0755 $(@D)/files/light          $(TARGET_DIR)/usr/sbin/light
+	$(INSTALL) -D -m 0755 $(@D)/files/ircut          $(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(@D)/files/dusk2dawn      $(TARGET_DIR)/usr/sbin/dusk2dawn
+
+	# Import daynight defaults into thingino.json
+	if [ -f "$(@D)/files/daynightd.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
+		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(@D)/files/daynightd.json"; \
+	fi
+
+	$(THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS)
+endef
 
 $(eval $(generic-package))

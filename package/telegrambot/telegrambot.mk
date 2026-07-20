@@ -29,15 +29,7 @@ define TELEGRAMBOT_BUILD_CMDS
 		$(@D)/telegrambot.o $(TELEGRAMBOT_LIBS)
 endef
 
-define TELEGRAMBOT_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/telegrambot \
-		$(TARGET_DIR)/usr/sbin/telegrambot
-	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/etc/init.d/S93telegrambot \
-		$(TARGET_DIR)/etc/init.d/S93telegrambot
-	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
-		$(TARGET_DIR)/etc/telegrambot.json
-endef
-
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 define TELEGRAMBOT_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
@@ -53,9 +45,16 @@ define TELEGRAMBOT_INSTALL_WWW_CMDS
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/telegrambot.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/telegrambot.webui.json
 endef
-
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
-TELEGRAMBOT_INSTALL_TARGET_CMDS += $(TELEGRAMBOT_INSTALL_WWW_CMDS)
 endif
+
+define TELEGRAMBOT_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/telegrambot \
+		$(TARGET_DIR)/usr/sbin/telegrambot
+	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/etc/init.d/S93telegrambot \
+		$(TARGET_DIR)/etc/init.d/S93telegrambot
+	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
+		$(TARGET_DIR)/etc/telegrambot.json
+	$(TELEGRAMBOT_INSTALL_WWW_CMDS)
+endef
 
 $(eval $(generic-package))

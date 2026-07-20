@@ -25,19 +25,7 @@ define ZEROTIER_ONE_BUILD_CMDS
 	$(MAKE) $(ZEROTIER_ONE_MAKE_OPTS) -C $(@D) all
 endef
 
-define ZEROTIER_ONE_INSTALL_TARGET_CMDS
-	$(MAKE) -C $(@D) DESTDIR=$(TARGET_DIR) install
-
-	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotier.json \
-		$(TARGET_DIR)/etc/zerotier.json
-	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier \
-		$(TARGET_DIR)/etc/init.d/S90zerotier
-	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisdown.opus \
-		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisdown.opus
-	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisup.opus \
-		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisup.opus
-endef
-
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 define ZEROTIER_ONE_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
@@ -53,9 +41,20 @@ define ZEROTIER_ONE_INSTALL_WWW_CMDS
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotier.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/zerotier.webui.json
 endef
-
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
-ZEROTIER_ONE_INSTALL_TARGET_CMDS += $(ZEROTIER_ONE_INSTALL_WWW_CMDS)
 endif
+
+define ZEROTIER_ONE_INSTALL_TARGET_CMDS
+	$(MAKE) -C $(@D) DESTDIR=$(TARGET_DIR) install
+
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotier.json \
+		$(TARGET_DIR)/etc/zerotier.json
+	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier \
+		$(TARGET_DIR)/etc/init.d/S90zerotier
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisdown.opus \
+		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisdown.opus
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisup.opus \
+		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisup.opus
+	$(ZEROTIER_ONE_INSTALL_WWW_CMDS)
+endef
 
 $(eval $(generic-package))
