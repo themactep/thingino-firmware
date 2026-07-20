@@ -76,7 +76,6 @@
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
       { label: "Audio", href: "/config-audio.html" },
-      { label: "Privacy screen", href: "/config-privacy.html" },
       { label: "RTSP/ONVIF access", href: "/config-rtsp.html" },
       { label: "Remote logging", href: "/config-syslog.html" },
       { label: "Time", href: "/config-time.html" },
