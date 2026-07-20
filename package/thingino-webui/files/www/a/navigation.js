@@ -71,7 +71,6 @@
       uiConfig.device && uiConfig.device.flashOperations === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
-      { label: "GPIO pins", href: "/config-gpio.html" },
     ];
 
     settingsItems.push(
