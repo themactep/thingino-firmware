@@ -90,16 +90,18 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
 		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
+		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset); \
 		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
 			gpio_userkeys_config="28,$${button_reset},1"; \
 		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
+		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime); \
 		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
 			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 		fi; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
 			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+		else \
+			echo "WARNING: gpio-userkeys config not generated - no button_reset/chime found in thingino.json"; \
 		fi; \
 	fi
 endef
