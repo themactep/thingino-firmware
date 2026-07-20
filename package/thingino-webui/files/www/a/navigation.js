@@ -82,7 +82,6 @@
       { label: "Remote logging", href: "/config-syslog.html" },
       { label: "Time", href: "/config-time.html" },
       { label: "Web Interface", href: "/config-webui.html" },
-      { label: "WireGuard VPN", href: "/config-wireguard.html" },
       { type: "divider" },
       { label: "Reset...", href: "/reset.html" },
     );
