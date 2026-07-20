@@ -106,8 +106,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/config-webui.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-wireguard.html \
 		$(TARGET_DIR)/var/www/config-wireguard.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-zerotier.html \
-		$(TARGET_DIR)/var/www/config-zerotier.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/firmware-reset.html \
 		$(TARGET_DIR)/var/www/firmware-reset.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/gphotos-auth-callback.html \
@@ -202,8 +200,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/config-webui.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-wireguard.js \
 		$(TARGET_DIR)/var/www/a/config-wireguard.js
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-zerotier.js \
-		$(TARGET_DIR)/var/www/a/config-zerotier.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/control-bar.js \
 		$(TARGET_DIR)/var/www/a/control-bar.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/firmware-reset.js \
@@ -299,8 +295,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/nostream.svg
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/wireguard.svg \
 		$(TARGET_DIR)/var/www/a/wireguard.svg
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/zerotier.svg \
-		$(TARGET_DIR)/var/www/a/zerotier.svg
 
 	# CGI Scripts
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/api-key.cgi \
@@ -356,8 +350,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-config-webui.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-wireguard.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-wireguard.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-zerotier.cgi \
-		$(TARGET_DIR)/var/www/x/json-config-zerotier.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-agent-token.cgi \
 		$(TARGET_DIR)/var/www/x/json-agent-token.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-gphotos-token.cgi \

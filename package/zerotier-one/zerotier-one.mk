@@ -13,6 +13,9 @@ ZEROTIER_ONE_MAKE_OPTS = ZT_SSO_SUPPORTED=0 \
 ZEROTIER_ONE_DEPENDENCIES = \
 	libminiupnpc \
 	libnatpmp
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+ZEROTIER_ONE_DEPENDENCIES += thingino-webui
+endif
 
 define ZEROTIER_ONE_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_TUN,m)
@@ -33,6 +36,21 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisdown.opus
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisup.opus \
 		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisup.opus
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -d $(TARGET_DIR)/var/www/x
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/www/config-zerotier.html \
+		$(TARGET_DIR)/var/www/config-zerotier.html
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/www/a/config-zerotier.js \
+		$(TARGET_DIR)/var/www/a/config-zerotier.js
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/www/a/zerotier.svg \
+		$(TARGET_DIR)/var/www/a/zerotier.svg
+	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/www/x/json-config-zerotier.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-zerotier.cgi
+	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotier.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/zerotier.webui.json
+endif
 endef
 
 $(eval $(generic-package))
