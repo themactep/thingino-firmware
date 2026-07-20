@@ -78,8 +78,6 @@
       { label: "Network", href: "/config-network.html" },
       { label: "Audio", href: "/config-audio.html" },
       { label: "Privacy screen", href: "/config-privacy.html" },
-      { label: "Photosensing", href: "/config-photosensing.html" },
-      { label: "Dusk2Dawn", href: "/config-dusk2dawn.html" },
       { label: "RTSP/ONVIF access", href: "/config-rtsp.html" },
       { label: "Remote logging", href: "/config-syslog.html" },
       { label: "Telegram Bot", href: "/config-telegrambot.html" },
