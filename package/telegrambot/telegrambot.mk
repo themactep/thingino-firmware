@@ -36,7 +36,9 @@ define TELEGRAMBOT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S93telegrambot
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
 		$(TARGET_DIR)/etc/telegrambot.json
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+endef
+
+define TELEGRAMBOT_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
@@ -50,7 +52,10 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 		$(TARGET_DIR)/var/www/x/ctl-telegrambot.cgi
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/telegrambot.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/telegrambot.webui.json
-endif
 endef
+
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+TELEGRAMBOT_INSTALL_TARGET_CMDS += $(TELEGRAMBOT_INSTALL_WWW_CMDS)
+endif
 
 $(eval $(generic-package))

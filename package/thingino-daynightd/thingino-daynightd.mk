@@ -33,8 +33,13 @@ define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/ircut          $(TARGET_DIR)/usr/sbin/ircut
 	$(INSTALL) -D -m 0755 $(@D)/files/dusk2dawn      $(TARGET_DIR)/usr/sbin/dusk2dawn
 
-	# Web UI config pages
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	# Import daynight defaults into thingino.json
+	if [ -f "$(@D)/files/daynightd.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
+		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(@D)/files/daynightd.json"; \
+	fi
+endef
+
+define THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
@@ -56,12 +61,10 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 		$(TARGET_DIR)/var/www/x/json-daynight-history.cgi
 	$(INSTALL) -D -m 0644 $(@D)/files/daynightd.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/daynightd.webui.json
-endif
-
-	# Import daynight defaults into thingino.json
-	if [ -f "$(@D)/files/daynightd.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
-		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(@D)/files/daynightd.json"; \
-	fi
 endef
+
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS += $(THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS)
+endif
 
 $(eval $(generic-package))

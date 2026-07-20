@@ -36,7 +36,9 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisdown.opus
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisup.opus \
 		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisup.opus
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+endef
+
+define ZEROTIER_ONE_INSTALL_WWW_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
@@ -50,7 +52,10 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 		$(TARGET_DIR)/var/www/x/json-config-zerotier.cgi
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotier.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/zerotier.webui.json
-endif
 endef
+
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+ZEROTIER_ONE_INSTALL_TARGET_CMDS += $(ZEROTIER_ONE_INSTALL_WWW_CMDS)
+endif
 
 $(eval $(generic-package))
