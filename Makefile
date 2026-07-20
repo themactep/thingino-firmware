@@ -1070,11 +1070,15 @@ $(ROOTFS_BIN): $(KERNEL_BIN)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
 
-$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt $(THINGINO_USER_UENV_FILES)
+CAMERA_UENV_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt)
+
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
 	@$(TEAL) "$@"
 	rm -f $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt | awk NF | tee -a $@
+	if [ -f "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt" ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt | awk NF | tee -a $@; \
+	fi
 	for file in $(THINGINO_USER_UENV_FILES); do \
 		grep -v '^#' "$$file" | awk NF | tee -a $@; \
 	done
