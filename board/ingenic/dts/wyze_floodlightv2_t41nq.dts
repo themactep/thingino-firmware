@@ -129,7 +129,7 @@
 			interrupt-names = "tcu_int0";
 			interrupts = <0x1b>;
 			interrupt-controller;
-			status = "ok";
+			status = "okay";
 
 			channel0 {
 				compatible = "ingenic,tcu_chn0";
@@ -250,7 +250,7 @@
 			uart0-pin {
 
 				uart0-pb {
-					ingenic,pinmux = <0x05 0x13 0x16>;
+					ingenic,pinmux = <0x05 0x13 0x13 0x05 0x16 0x16>;
 					ingenic,pinmux-funcsel = <0x00>;
 				};
 
@@ -390,7 +390,7 @@
 
 				msc0-pb {
 					ingenic,pinmux = <0x05 0x00 0x05>;
-					ingenic,pinmux-funcsel = <0x00>;
+					ingenic,pinmux-funcsel = <0x05>;
 					linux,phandle = <0x14>;
 					phandle = <0x14>;
 				};
@@ -530,7 +530,7 @@
 				};
 
 				spi1-pb {
-					ingenic,pinmux = <0x05 0x1b 0x1d>;
+					ingenic,pinmux = <0x05 0x1b 0x1e>;
 					ingenic,pinmux-funcsel = <0x02>;
 				};
 			};
@@ -759,7 +759,6 @@
 			reg = <0x10000000 0x1000 0x10060000 0x1000>;
 			dr_mode = "host";
 			ingenic,drvvbus-gpio = <0x00>;
-			#ingenic,drvvbus-gpio = <0x05 0x1b 0x00 0x00>;
 			status = "okay";
 			linux,phandle = <0x13>;
 			phandle = <0x13>;
@@ -780,7 +779,7 @@
 			reg = <0x10070000 0x1000>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x12>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		dtrng@0x10072000 {
@@ -1071,11 +1070,8 @@
 
 	mmc1_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		/* Ingenic's 4.4 pwrseq implementation uses 0 before power-on and
-		 * 1 after power-on, the inverse of upstream reset semantics.  Mark
-		 * the active-low ATBM reset as active-high here so that the physical
-		 * GPC8 sequence is low (assert) followed by high (deassert). */
-		reset-gpios = <0x06 0x08 0x00 0x00>;
+		power-off-delay-us = <0x186a0>;
+		reset-gpios = <0x06 0x08 0x01 0x00>;
 		linux,phandle = <0x17>;
 		phandle = <0x17>;
 	};

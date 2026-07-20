@@ -28,11 +28,10 @@ device tree.
 
 Wi-Fi reset is GPC8 (GPIO 72). It is described by the MSC1
 `mmc-pwrseq-simple` node so the reset is sequenced as part of bringing up the
-SDIO device. The Ingenic 4.4 power-sequence driver requests the GPIO before
-userspace and drives 0 before power-on followed by 1 after power-on. For that
-reason, the device tree uses active-high GPIO flags even though the physical
-reset signal is active-low. UART0 must remain disabled because its `uart0-pc`
-pin group also claims GPC8.
+SDIO device. The stock device tree marks the physical reset signal active-low
+and specifies a 100 ms power-off delay. The power-sequence driver owns the GPIO
+before userspace and asserts it low before power-on, then deasserts it high.
+UART0 must remain disabled because its `uart0-pc` pin group also claims GPC8.
 
 ## SoC GPIO map
 
