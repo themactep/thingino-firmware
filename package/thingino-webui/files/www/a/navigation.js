@@ -69,18 +69,10 @@
   function buildDefaultMenu() {
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
-    const hasDoorbell = uiConfig.device && uiConfig.device.doorbell === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
       { label: "GPIO pins", href: "/config-gpio.html" },
     ];
-
-    if (hasDoorbell) {
-      settingsItems.push({
-        label: "Doorbell Chime",
-        href: "/config-doorbell.html",
-      });
-    }
 
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
@@ -659,43 +651,6 @@
     }
   }
 
-  let doorbellCheckDone = false;
-
-  function checkDoorbellStatus() {
-    if (doorbellCheckDone) return;
-    doorbellCheckDone = true;
-
-    if (!(uiConfig.device && uiConfig.device.doorbell === true)) return;
-
-    fetch("/x/json-chime-status.cgi")
-      .then((r) => r.json())
-      .then((data) => {
-        /* Show warning banner if no chimes are configured */
-        if (data.configured === false) {
-          const banner = document.createElement("div");
-          banner.className =
-            "alert alert-warning text-center rounded-0 mb-3 py-2";
-          banner.innerHTML =
-            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
-            "No doorbell chime configured. " +
-            '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
-            "to enable the doorbell.";
-          const container = document.querySelector("main .container");
-          if (container) {
-            const section = container.querySelector("section");
-            if (section) {
-              container.insertBefore(banner, section);
-            } else {
-              container.appendChild(banner);
-            }
-          }
-        }
-      })
-      .catch(() => {
-        /* Silently ignore */
-      });
-  }
-
   function mountNavigation() {
     const nav = buildNav(menuData);
     const placeholder = $("[data-app-nav]");
@@ -710,7 +665,6 @@
     highlightActive(nav, globalConfig.activePath);
     attachPrudyntHandlers(nav);
     ensureControlBarScript();
-    checkDoorbellStatus();
   }
 
   ready(mountNavigation);

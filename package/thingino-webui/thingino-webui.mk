@@ -462,16 +462,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
-	if [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" = "y" ]; then \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-doorbell.html \
-			$(TARGET_DIR)/var/www/config-doorbell.html; \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-doorbell.js \
-			$(TARGET_DIR)/var/www/a/config-doorbell.js; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-doorbell.cgi \
-			$(TARGET_DIR)/var/www/x/json-config-doorbell.cgi; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-chime-status.cgi \
-			$(TARGET_DIR)/var/www/x/json-chime-status.cgi; \
-	fi
 endef
 
 # Plugin assembly finalize hook — runs after every package is installed,

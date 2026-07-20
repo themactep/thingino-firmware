@@ -31,10 +31,6 @@ start() {
 	if [ -f /var/www/tool-upgrade.html ]; then
 		flash_operations_enabled="true"
 	fi
-	doorbell_enabled="false"
-	if [ -f /var/www/x/json-chime-status.cgi ]; then
-		doorbell_enabled="true"
-	fi
 	soc="$(soc -f)"
 
 	{
@@ -48,7 +44,7 @@ start() {
 		echo "  timezone: \"$(escape "$timezone")\","
 		echo "  motors: false,"
 		echo "  flashOperations: $flash_operations_enabled,"
-		echo "  doorbell: $doorbell_enabled,"
+		echo "  doorbell: false,"
 		echo "  soc: \"$soc\""
 		echo "});"
 		echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"
