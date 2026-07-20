@@ -14,9 +14,6 @@
       ]
     }
   ],
-  "scripts": [
-    "/a/config-motors.js"
-  ],
   "styles": [],
   "preview": {
     "scripts": [
