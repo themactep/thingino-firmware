@@ -44,6 +44,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 THINGINO_MOTORS_DEPENDENCIES += thingino-webui
 
 define THINGINO_MOTORS_INSTALL_WWW_CMDS
+	mkdir -p $(TARGET_DIR)/var/www/a $(TARGET_DIR)/var/www/x $(TARGET_DIR)/var/www/a/plugins
 	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/config-motors.html \
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/a/config-motors.js \

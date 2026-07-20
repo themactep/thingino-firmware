@@ -13,6 +13,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL
 endef
 
 define WYZE_ACCESSORY_INSTALL_WWW_CMDS_DOORBELL
+	mkdir -p $(TARGET_DIR)/var/www/a $(TARGET_DIR)/var/www/x $(TARGET_DIR)/var/www/a/plugins
 	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/config-doorbell.html \
 		$(TARGET_DIR)/var/www/config-doorbell.html
 	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/config-doorbell.js \
