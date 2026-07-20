@@ -27,10 +27,6 @@ start() {
 	image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
-	motors_enabled="false"
-	if jct /etc/thingino.json get motors >/dev/null 2>&1; then
-		motors_enabled="true"
-	fi
 	flash_operations_enabled="false"
 	if [ -f /var/www/tool-upgrade.html ]; then
 		flash_operations_enabled="true"
@@ -50,7 +46,7 @@ start() {
 		echo "});"
 		echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
 		echo "  timezone: \"$(escape "$timezone")\","
-		echo "  motors: $motors_enabled,"
+		echo "  motors: false,"
 		echo "  flashOperations: $flash_operations_enabled,"
 		echo "  doorbell: $doorbell_enabled,"
 		echo "  soc: \"$soc\""

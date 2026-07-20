@@ -22,6 +22,50 @@
     return base + "?ts=" + assetTag;
   }
 
+  function applyPluginNav(menu) {
+    const plugins = (uiConfig && uiConfig.plugins) || {};
+    for (const [, plugin] of Object.entries(plugins)) {
+      if (!plugin.nav) continue;
+      for (const contribution of plugin.nav) {
+        const sectionId = contribution.section;
+        if (!sectionId) continue;
+        const section = menu.find(
+          (item) => item.type === "dropdown" && item.id === sectionId,
+        );
+        if (!section || !section.items) continue;
+        const items = section.items;
+        const newItems = contribution.items || [];
+        if (!newItems.length) continue;
+        const position = contribution.position || "append";
+        let idx;
+        if (position === "append") {
+          idx = items.length;
+        } else if (position === "prepend") {
+          idx = 0;
+        } else if (position.startsWith("after:")) {
+          const label = position.slice(6).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found + 1;
+        } else if (position.startsWith("before:")) {
+          const label = position.slice(7).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found;
+        } else if (position.startsWith("index:")) {
+          idx = parseInt(position.slice(6), 10) || 0;
+          idx = Math.max(0, Math.min(idx, items.length));
+        } else {
+          idx = items.length;
+        }
+        items.splice.apply(items, [idx, 0].concat(newItems));
+      }
+    }
+    return menu;
+  }
+
   function buildDefaultMenu() {
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
@@ -37,8 +81,6 @@
         href: "/config-doorbell.html",
       });
     }
-
-    /* THINGINO_MOTORS_NAV_ITEMS */
 
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
@@ -183,8 +225,8 @@
 
   const menuData =
     Array.isArray(globalConfig.items) && globalConfig.items.length
-      ? globalConfig.items
-      : buildDefaultMenu();
+      ? applyPluginNav(globalConfig.items)
+      : applyPluginNav(buildDefaultMenu());
 
   function ready(fn) {
     if (document.readyState === "loading") {

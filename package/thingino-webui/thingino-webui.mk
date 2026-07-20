@@ -474,4 +474,13 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	fi
 endef
 
+# Plugin assembly finalize hook — runs after every package is installed,
+# discovers *.webui.json manifests, merges nav/scripts/styles, and
+# re-applies asset tags and CDN fallbacks.
+define THINGINO_WEBUI_ASSEMBLE_PLUGINS
+	@python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/assemble_plugins.py" "$(TARGET_DIR)" || \
+		printf 'thingino-webui: plugin assembly failed (non-fatal)\n'
+endef
+THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_ASSEMBLE_PLUGINS
+
 $(eval $(generic-package))

@@ -1,0 +1,39 @@
+{
+  "name": "motors",
+  "label": "Pan/Tilt Motors",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:GPIO pins",
+      "items": [
+        {
+          "label": "Pan/Tilt motors",
+          "href": "/config-motors.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    "/a/config-motors.js"
+  ],
+  "styles": [],
+  "preview": {
+    "scripts": [
+      "/a/preview-motors.js"
+    ],
+    "html": "<div class=\"position-absolute top-50 start-50 translate-middle\" id=\"motor-overlay\" style=\"display:none\">\n  <div id=\"motor\">\n    <div class=\"jst\">\n      <a class=\"s\" data-dir=\"uc\"></a>\n      <a class=\"s\" data-dir=\"ur\"></a>\n      <a class=\"s\" data-dir=\"cr\"></a>\n      <a class=\"s\" data-dir=\"dr\"></a>\n      <a class=\"s\" data-dir=\"dc\"></a>\n      <a class=\"s\" data-dir=\"dl\"></a>\n      <a class=\"s\" data-dir=\"cl\"></a>\n      <a class=\"s\" data-dir=\"ul\"></a>\n      <a class=\"b\" data-dir=\"h\"></a>\n    </div>\n  </div>\n</div>"
+  },
+  "featureFlags": {
+    "motors": true
+  },
+  "cgi": [
+    "/x/json-motor.cgi",
+    "/x/json-motor-params.cgi",
+    "/x/json-motor-stream.cgi",
+    "/x/json-motors-config.cgi"
+  ],
+  "pages": [
+    "/config-motors.html"
+  ]
+}
