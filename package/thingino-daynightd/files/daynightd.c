@@ -11,7 +11,7 @@
  * Single source of truth for day/night photosensing on Thingino.
  * Supports T31/T23/T21/T30 (via /proc/jz/isp/isp-m0) and
  * T20 (via /proc/jz/isp/isp_info).
- * Uses ISP total_gain as primary signal when available (T20),
+ * Uses ISP gain_log2 as primary signal when available (T20),
  * falling back to EV log2 (T31).
  */
 
@@ -50,12 +50,6 @@
 #define DEFAULT_EV_NIGHT_THRESHOLD  550000
 #define DEFAULT_EV_DAY_THRESHOLD    350000
 
-/* Total-gain thresholds — for platforms that expose ISP total gain directly
- * (T20 via /proc/jz/isp/isp_info has "ISP total gain" field).
- * Day scenes: ~200-1000, Night scenes: ~2000-6000+.
- * Default: switch to night > 2000, switch to day < 800 */
-#define DEFAULT_TG_NIGHT_THRESHOLD  2000
-#define DEFAULT_TG_DAY_THRESHOLD    800
 #define DEFAULT_NIGHT_COUNT         6
 #define DEFAULT_DAY_COUNT           4
 
@@ -112,7 +106,7 @@ typedef struct {
     int      wb_bgain;
     int      wb_color_temp;
     int      brightness_pct;
-    int      primary_signal;    /* the value used for decision (total_gain or ev_log2) */
+    int      primary_signal;    /* the value used for decision (gain_log2 or ev_log2) */
     int      night_threshold;   /* active night threshold */
     int      day_threshold;     /* active day threshold */
     char     isp_mode[32];
@@ -133,12 +127,9 @@ typedef struct {
     char     pid_file[MAX_PATH_LEN];
     char     script_path[MAX_PATH_LEN];
 
-    /* Algorithm thresholds — EV log2 based (T31/T23) */
+    /* Algorithm thresholds — EV log2 based (T31/T23/T20) */
     int      ev_night_threshold;
     int      ev_day_threshold;
-    /* Algorithm thresholds — total_gain based (T20) */
-    int      tg_night_threshold;
-    int      tg_day_threshold;
     /* Brightness-% thresholds (system-facing, override raw if > 0) */
     int      night_threshold_pct;
     int      day_threshold_pct;
@@ -189,7 +180,7 @@ typedef struct {
     int             initial_day_confirm;
     int             initial_fallback_countdown;
     sensor_sample_t latest_sample;
-    bool            use_total_gain;  /* true if platform provides total_gain (T20) */
+    bool            use_total_gain;  /* true if platform provides gain_log2 (T20) */
 } daynight_state_t;
 
 /* =========================================================================
@@ -352,8 +343,6 @@ static void set_config_defaults(void) {
 
     g_config.ev_night_threshold     = DEFAULT_EV_NIGHT_THRESHOLD;
     g_config.ev_day_threshold       = DEFAULT_EV_DAY_THRESHOLD;
-    g_config.tg_night_threshold     = DEFAULT_TG_NIGHT_THRESHOLD;
-    g_config.tg_day_threshold       = DEFAULT_TG_DAY_THRESHOLD;
     g_config.night_threshold_pct    = -1;
     g_config.day_threshold_pct      = -1;
     g_config.night_count_threshold  = DEFAULT_NIGHT_COUNT;
@@ -409,16 +398,6 @@ static int read_config(const char *config_file) {
     if (v && v->type == JSON_NUMBER)
         g_config.ev_day_threshold = (int)v->value.number.integer;
 
-    v = get_nested_item(root, "daynight.tg_night_threshold");
-    if (v && v->type == JSON_NUMBER)
-        g_config.tg_night_threshold = (int)v->value.number.integer;
-
-    v = get_nested_item(root, "daynight.tg_day_threshold");
-    if (v && v->type == JSON_NUMBER)
-        g_config.tg_day_threshold = (int)v->value.number.integer;
-
-    /* Brightness-% thresholds (system-facing).  These override the
-       raw values once the platform is known. */
     v = get_nested_item(root, "daynight.night_threshold");
     if (v && v->type == JSON_NUMBER)
         g_config.night_threshold_pct = (int)v->value.number.integer;
@@ -518,12 +497,12 @@ static int read_config(const char *config_file) {
     v = get_nested_item(root, "ev_day_threshold");
     if (v && v->type == JSON_NUMBER)
         g_config.ev_day_threshold = (int)v->value.number.integer;
-    v = get_nested_item(root, "tg_night_threshold");
+    v = get_nested_item(root, "ev_night_threshold");
     if (v && v->type == JSON_NUMBER)
-        g_config.tg_night_threshold = (int)v->value.number.integer;
-    v = get_nested_item(root, "tg_day_threshold");
+        g_config.ev_night_threshold = (int)v->value.number.integer;
+    v = get_nested_item(root, "ev_day_threshold");
     if (v && v->type == JSON_NUMBER)
-        g_config.tg_day_threshold = (int)v->value.number.integer;
+        g_config.ev_day_threshold = (int)v->value.number.integer;
 
     free_json_value(root);
 
@@ -533,20 +512,14 @@ static int read_config(const char *config_file) {
                     g_config.ev_day_threshold, g_config.ev_night_threshold);
         return -1;
     }
-    if (g_config.tg_day_threshold >= g_config.tg_night_threshold) {
-        log_message(LOG_ERR, "Invalid total_gain thresholds: day=%d >= night=%d",
-                    g_config.tg_day_threshold, g_config.tg_night_threshold);
-        return -1;
-    }
     if (g_config.sample_interval_ms < 100 || g_config.sample_interval_ms > 60000) {
         log_message(LOG_WARNING, "Sample interval %d ms out of range, using %d",
                     g_config.sample_interval_ms, DEFAULT_SAMPLE_INTERVAL_MS);
         g_config.sample_interval_ms = DEFAULT_SAMPLE_INTERVAL_MS;
     }
 
-    log_message(LOG_INFO, "Config loaded: platform thresholds ev=%d/%d tg=%d/%d",
-                g_config.ev_day_threshold, g_config.ev_night_threshold,
-                g_config.tg_day_threshold, g_config.tg_night_threshold);
+    log_message(LOG_INFO, "Config loaded: platform thresholds ev=%d/%d",
+                g_config.ev_day_threshold, g_config.ev_night_threshold);
 
     return 0;
 }
@@ -706,10 +679,9 @@ static int parse_isp_info(sensor_sample_t *s) {
     }
     fclose(fp);
 
-    /* T20: use total_gain as primary signal when available */
-    if (s->total_gain > 0) {
-        s->primary_signal = s->total_gain;
-    } else if (s->ev_log2 > 0) {
+    /* T20: use exposure_log2_id as primary signal (combines gain+integration,
+     * same metric as T31 ev_log2). */
+    if (s->ev_log2 > 0) {
         s->primary_signal = s->ev_log2;
     }
 
@@ -739,17 +711,8 @@ static int parse_isp(sensor_sample_t *s) {
  * ========================================================================= */
 
 static int compute_brightness_pct(const sensor_sample_t *s) {
-    /* T20 with total_gain: map total_gain 0..8000 → 100%..0% */
-    if (s->total_gain > 0) {
-        int lo = 100;    /* bright */
-        int hi = 8000;   /* dark */
-        int val = s->total_gain;
-        if (val <= lo) return 100;
-        if (val >= hi) return 0;
-        return 100 - ((val - lo) * 100 / (hi - lo));
-    }
-
-    /* T31 with ev_log2: use logarithmic mapping */
+    /* Use ev_log2 for both T20 (exposure_log2_id) and T31 (ISP EV value log2).
+     * Both are log2 of total exposure (integration × gain) and map the same way. */
     if (s->ev_log2 > 0) {
         double lo = 200000.0;   /* bright: 100% */
         double hi = 2000000.0;  /* dark: 0% */
@@ -779,14 +742,8 @@ static int compute_brightness_pct(const sensor_sample_t *s) {
 }
 
 /* Convert a raw threshold value to brightness % for external display.
-   Uses the same mapping as compute_brightness_pct but for raw ints. */
-static int raw_threshold_to_pct(int raw, bool use_total_gain) {
-    if (use_total_gain) {
-        int lo = 100, hi = 8000;
-        if (raw <= lo) return 100;
-        if (raw >= hi) return 0;
-        return 100 - ((raw - lo) * 100 / (hi - lo));
-    }
+   Uses the same ev_log2 mapping as compute_brightness_pct. */
+static int raw_threshold_to_pct(int raw) {
     /* ev_log2: log mapping */
     double lo = 200000.0, hi = 2000000.0;
     if (raw <= (int)lo) return 100;
@@ -805,13 +762,6 @@ static int pct_to_raw_ev(int pct) {
     double lo = 200000.0, hi = 2000000.0;
     double log_val = log(lo) + (1.0 - (double)pct / 100.0) * (log(hi) - log(lo));
     return (int)(exp(log_val) + 0.5);
-}
-
-/* Convert brightness % to raw total_gain threshold value. */
-static int pct_to_raw_tg(int pct) {
-    if (pct <= 0) return 8000;
-    if (pct >= 100) return 100;
-    return 100 + ((100 - pct) * (8000 - 100) / 100);
 }
 
 /* =========================================================================
@@ -929,8 +879,8 @@ static void write_sensors_json(const sensor_sample_t *s) {
     last_time = s->time_now;
     last_pct = s->brightness_pct;
 
-    int night_pct = raw_threshold_to_pct(s->night_threshold, g_state.use_total_gain);
-    int day_pct   = raw_threshold_to_pct(s->day_threshold, g_state.use_total_gain);
+    int night_pct = raw_threshold_to_pct(s->night_threshold);
+    int day_pct   = raw_threshold_to_pct(s->day_threshold);
 
     FILE *fp = fopen(SENSORS_FILE, "w");
     if (!fp) return;
@@ -993,8 +943,8 @@ static void write_history_json(void) {
     for (int i = 0; i < total; i++) {
         int idx = (g_history.head - total + i + HISTORY_MAX_ENTRIES) % HISTORY_MAX_ENTRIES;
         const sensor_sample_t *s = &g_history.samples[idx];
-        int night_pct = raw_threshold_to_pct(s->night_threshold, g_state.use_total_gain);
-        int day_pct   = raw_threshold_to_pct(s->day_threshold, g_state.use_total_gain);
+        int night_pct = raw_threshold_to_pct(s->night_threshold);
+        int day_pct   = raw_threshold_to_pct(s->day_threshold);
         if (i > 0) fprintf(fp, ",");
         fprintf(fp, "{");
         fprintf(fp, "\"time_now\":%lld", (long long)s->time_now);
@@ -1086,27 +1036,20 @@ static int main_loop(void) {
     /* Determine platform signal on first parse */
     sensor_sample_t probe;
     g_state.use_total_gain = false;
-    if (parse_isp(&probe) == 0 && probe.total_gain > 0) {
+    if (parse_isp(&probe) == 0 && probe.gain_log2 >= 0) {
         g_state.use_total_gain = true;
     }
 
     log_message(LOG_INFO, "Starting main loop (platform=%s, signal=%s)",
                 g_state.use_total_gain ? "T20" : "T31",
-                g_state.use_total_gain ? "total_gain" : "ev_log2");
+                g_state.use_total_gain ? "gain_log2" : "ev_log2");
 
     /* Apply brightness-% thresholds from config if set (> 0).
        These override the raw defaults loaded earlier. */
-    if (g_state.use_total_gain) {
-        if (g_config.night_threshold_pct > 0)
-            g_config.tg_night_threshold = pct_to_raw_tg(g_config.night_threshold_pct);
-        if (g_config.day_threshold_pct > 0)
-            g_config.tg_day_threshold = pct_to_raw_tg(g_config.day_threshold_pct);
-    } else {
-        if (g_config.night_threshold_pct > 0)
-            g_config.ev_night_threshold = pct_to_raw_ev(g_config.night_threshold_pct);
-        if (g_config.day_threshold_pct > 0)
-            g_config.ev_day_threshold = pct_to_raw_ev(g_config.day_threshold_pct);
-    }
+    if (g_config.night_threshold_pct > 0)
+        g_config.ev_night_threshold = pct_to_raw_ev(g_config.night_threshold_pct);
+    if (g_config.day_threshold_pct > 0)
+        g_config.ev_day_threshold = pct_to_raw_ev(g_config.day_threshold_pct);
 
     g_state.running = true;
     g_state.current_mode = MODE_UNKNOWN;
@@ -1192,22 +1135,17 @@ static int main_loop(void) {
         }
 
         /* Re-detect platform if it changed (shouldn't, but be safe) */
-        if (s.total_gain > 0 && !g_state.use_total_gain) {
+        if (s.gain_log2 >= 0 && !g_state.use_total_gain) {
             g_state.use_total_gain = true;
-            log_message(LOG_INFO, "Switched to total_gain signal (T20 detected)");
+            log_message(LOG_INFO, "Switched to gain_log2 signal (T20 detected)");
         }
 
         /* Compute brightness */
         s.brightness_pct = compute_brightness_pct(&s);
 
-        /* Set active thresholds based on platform */
-        if (g_state.use_total_gain) {
-            s.night_threshold = g_config.tg_night_threshold;
-            s.day_threshold   = g_config.tg_day_threshold;
-        } else {
-            s.night_threshold = g_config.ev_night_threshold;
-            s.day_threshold   = g_config.ev_day_threshold;
-        }
+        /* Set active thresholds (ev_log2 for both T20 and T31) */
+        s.night_threshold = g_config.ev_night_threshold;
+        s.day_threshold   = g_config.ev_day_threshold;
 
         /* Update brightness history */
         g_state.brightness_history[g_state.brightness_index] = (float)s.brightness_pct;
@@ -1391,12 +1329,12 @@ static int main_loop(void) {
                 sizeof(s.daynight_mode) - 1);
 
         /* Periodic logging */
-        int p10 = s.primary_signal / (g_state.use_total_gain ? 100 : 10000);
+        int p10 = s.primary_signal / 10000;
         if (p10 != last_primary_d10 || s.brightness_pct != last_bright_pct ||
             g_state.current_mode != last_logged_mode || ++log_counter >= 30) {
             log_counter = 0;
             log_message(LOG_DEBUG, "%s=%d bright=%d%% mode=%s sched=%s nCnt=%d dCnt=%d",
-                        g_state.use_total_gain ? "tg" : "evlog2",
+                        "evlog2",
                         s.primary_signal, s.brightness_pct, s.daynight_mode,
                         within_schedule ? "in" : "out",
                         g_state.night_count, g_state.day_count);
