@@ -64,6 +64,33 @@ config BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL
 	  A relative path is resolved from the camera config directory; an
 	  absolute path is used as-is. Leaving this empty disables SPL forging.
 
+config BR2_PACKAGE_THINGINO_UBOOT_T32_INIT_BYPASS
+	bool "T32 secure-boot init-table bypass"
+	depends on BR2_SOC_FAMILY = "t32"
+	help
+	  Inject an INGE init-table into the SPL header that clears the
+	  secure-boot enable flag before signature verification runs, so
+	  an unsigned locally-built U-Boot is accepted by the T32 bootrom.
+	  Uses scripts/patch_t32_init_bypass.py on the final U-Boot image.
+
+config BR2_PACKAGE_THINGINO_UBOOT_T40_INIT_BYPASS
+	bool "T40 secure-boot init-table bypass"
+	depends on BR2_SOC_FAMILY = "t40"
+	help
+	  Inject an INGE init-table into the SPL header that clears the
+	  secure-boot enable flag before signature verification runs, so
+	  an unsigned locally-built U-Boot is accepted by the T40 bootrom.
+	  Uses scripts/patch_t40_init_bypass.py on the final U-Boot image.
+
+config BR2_PACKAGE_THINGINO_UBOOT_T41_INIT_BYPASS
+	bool "T41 secure-boot init-table bypass"
+	depends on BR2_SOC_FAMILY = "t41"
+	help
+	  Inject an INGE init-table into the SPL header that clears the
+	  secure-boot enable flag before signature verification runs, so
+	  an unsigned locally-built U-Boot is accepted by the T41 bootrom.
+	  Uses scripts/patch_t41_init_bypass.py on the final U-Boot image.
+
 menu "Boot Configuration"
 
 config BR2_PACKAGE_THINGINO_UBOOT_ROOT

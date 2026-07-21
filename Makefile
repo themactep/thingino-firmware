@@ -1160,6 +1160,21 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	else \
 		echo "T31 secure-boot: disabled (set T31_SECURE_BOOT=1 or configure BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL)"; \
 	fi
+	@if grep -q '^BR2_PACKAGE_THINGINO_UBOOT_T32_INIT_BYPASS=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		echo "T32 init-table bypass: injecting"; \
+		cp -f "$@" "$@.prebypass"; \
+		python3 $(SCRIPTS_DIR)/patch_t32_init_bypass.py "$@.prebypass" -o "$@"; \
+	fi
+	@if grep -q '^BR2_PACKAGE_THINGINO_UBOOT_T40_INIT_BYPASS=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		echo "T40 init-table bypass: injecting"; \
+		cp -f "$@" "$@.prebypass"; \
+		python3 $(SCRIPTS_DIR)/patch_t40_init_bypass.py "$@.prebypass" -o "$@"; \
+	fi
+	@if grep -q '^BR2_PACKAGE_THINGINO_UBOOT_T41_INIT_BYPASS=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		echo "T41 init-table bypass: injecting"; \
+		cp -f "$@" "$@.prebypass"; \
+		python3 $(SCRIPTS_DIR)/patch_t41_init_bypass.py "$@.prebypass" -o "$@"; \
+	fi
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
