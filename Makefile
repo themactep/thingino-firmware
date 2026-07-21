@@ -281,6 +281,13 @@ GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/$(UBOOT_BIN_NAME)
 U_BOOT_VERSION = $(patsubst "%",%,$(BR2_TARGET_UBOOT_VERSION))
 U_BOOT_BUILD_DIR = $(OUTPUT_DIR)/build/uboot-$(U_BOOT_VERSION)
 
+T31_SECURE_BOOT ?= 0
+# Pre-extracted reference SPL path from defconfig; override on command line
+T31_REFERENCE_SPL ?= $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL=' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | cut -d'=' -f2 | tr -d '"')),))
+T31_NONCE_OFFSET ?=
+T31_EXPONENT ?= auto
+T31_WORKERS ?=
+
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
 
@@ -382,7 +389,8 @@ endef
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
-	dfu scriba upload_serial ota run show-vars user-dirs setup-hooks
+	dfu scriba upload_serial ota run show-vars user-dirs setup-hooks \
+	t31-verify-spl t31-forge-spl test-t31-spl-tools
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -1126,11 +1134,50 @@ endif
 $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
+	@if [ "$(T31_SECURE_BOOT)" = "1" ]; then \
+		test -n "$(T31_REFERENCE_SPL)" || { echo "ERROR: set T31_REFERENCE_SPL for secure T31 builds"; exit 1; }; \
+		test -n "$(T31_NONCE_OFFSET)" || { echo "ERROR: set T31_NONCE_OFFSET for secure T31 builds"; exit 1; }; \
+		cp -f "$@" "$@.unsigned"; \
+		python3 $(SCRIPTS_DIR)/t31_spl_forge.py \
+			--reference "$(T31_REFERENCE_SPL)" \
+			--candidate "$@.unsigned" \
+			--output "$@" \
+			--nonce-offset "$(T31_NONCE_OFFSET)" \
+			--exponent "$(T31_EXPONENT)" \
+			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)"); \
+	fi
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
 	# size must match U-Boot CONFIG_ENV_SIZE (configs/uboot/layout/sfcnor.config)
 	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
+
+t31-verify-spl:
+	$(info -------------------------------- $@)
+	@image="$(or $(IMAGE),$(U_BOOT_BIN))"; \
+		test -f "$$image" || { echo "ERROR: image not found: $$image"; exit 1; }; \
+		python3 $(SCRIPTS_DIR)/t31_spl_verify.py "$$image" \
+			--exponent "$(T31_EXPONENT)" \
+			$(if $(T31_HASH_END),--hash-end "$(T31_HASH_END)")
+
+t31-forge-spl:
+	$(info -------------------------------- $@)
+	@test -n "$(T31_REFERENCE_SPL)" || { echo "ERROR: set T31_REFERENCE_SPL"; exit 1; }
+	@test -n "$(T31_NONCE_OFFSET)" || { echo "ERROR: set T31_NONCE_OFFSET"; exit 1; }
+	@candidate="$(or $(CANDIDATE),$(U_BOOT_BIN))"; \
+		output="$(or $(OUTPUT),$(basename $(U_BOOT_BIN)).t31.bin)"; \
+		test -f "$$candidate" || { echo "ERROR: candidate not found: $$candidate"; exit 1; }; \
+		python3 $(SCRIPTS_DIR)/t31_spl_forge.py \
+			--reference "$(T31_REFERENCE_SPL)" \
+			--candidate "$$candidate" \
+			--output "$$output" \
+			--nonce-offset "$(T31_NONCE_OFFSET)" \
+			--exponent "$(T31_EXPONENT)" \
+			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)")
+
+test-t31-spl-tools:
+	$(info -------------------------------- $@)
+	python3 -m unittest discover -s $(SCRIPTS_DIR)/tests -p 'test_t31_spl_tools.py'
 
 build-all:
 	@$(TEAL) "$@"
@@ -1191,6 +1238,8 @@ help:
 	  make build          serial build (no clean)\n\
 	  make pack           create firmware images\n\
 	  make build-info     generate post-build graphs and package analysis\n\
+	  make t31-verify-spl IMAGE=<spl.bin>\n\
+	  make t31-forge-spl T31_REFERENCE_SPL=<stock-spl-header.bin> T31_NONCE_OFFSET=<off> [CANDIDATE=<spl.bin>]\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\

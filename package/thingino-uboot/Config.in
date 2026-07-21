@@ -55,6 +55,16 @@ config BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE
 	  be managed through the Buildroot configuration system rather
 	  than hardcoded in U-Boot.
 
+config BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL
+	string "T31 secure-boot reference SPL header path"
+	depends on BR2_SOC_FAMILY = "t31"
+	help
+	  Path to a 0x800-byte vendor-signed T31 SPL header containing the
+	  hash-end field, public key, and signature. Only the header is
+	  needed (extracted automatically by t31_spl_extract.py).
+	  A relative path is resolved from the Thingino repository root; an
+	  absolute path is used as-is. Leaving this empty disables SPL forging.
+
 menu "Boot Configuration"
 
 config BR2_PACKAGE_THINGINO_UBOOT_ROOT
