@@ -282,7 +282,9 @@ U_BOOT_VERSION = $(patsubst "%",%,$(BR2_TARGET_UBOOT_VERSION))
 U_BOOT_BUILD_DIR = $(OUTPUT_DIR)/build/uboot-$(U_BOOT_VERSION)
 
 # Pre-extracted reference SPL path from defconfig; override on command line
-T31_REFERENCE_SPL ?= $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL=' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | cut -d'=' -f2 | tr -d '"')),))
+T31_REFERENCE_SPL ?= $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL=' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | cut -d'=' -f2 | tr -d '"')),)
+# Resolve relative paths to camera config directory
+T31_REFERENCE_SPL := $(if $(filter /%, $(T31_REFERENCE_SPL)),$(T31_REFERENCE_SPL),$(if $(CAMERA_CONFIG_REAL),$(dir $(CAMERA_CONFIG_REAL))$(T31_REFERENCE_SPL),$(T31_REFERENCE_SPL)))
 # Auto-enable secure boot when reference SPL is configured
 T31_SECURE_BOOT ?= $(if $(T31_REFERENCE_SPL),1,0)
 T31_NONCE_OFFSET ?=
@@ -1136,7 +1138,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 	@if [ "$(T31_SECURE_BOOT)" = "1" ]; then \
-		$(info T31 secure-boot: enabled (reference SPL: $(T31_REFERENCE_SPL))) ; \
+		echo "T31 secure-boot: enabled (reference SPL: $(T31_REFERENCE_SPL))"; \
 		test -n "$(T31_REFERENCE_SPL)" || { echo "ERROR: set T31_REFERENCE_SPL for secure T31 builds"; exit 1; }; \
 		test -n "$(T31_NONCE_OFFSET)" || { echo "ERROR: set T31_NONCE_OFFSET for secure T31 builds"; exit 1; }; \
 		cp -f "$@" "$@.unsigned"; \
@@ -1148,7 +1150,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 			--exponent "$(T31_EXPONENT)" \
 			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)"); \
 	else \
-		$(info T31 secure-boot: disabled (set T31_SECURE_BOOT=1 or configure BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL)) ; \
+		echo "T31 secure-boot: disabled (set T31_SECURE_BOOT=1 or configure BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL)"; \
 	fi
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
