@@ -1155,6 +1155,9 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 			--candidate "$@.unsigned" \
 			--output "$@" \
 			--nonce-offset "$(T31_NONCE_OFFSET)" \
+			$(if $(T31_NONCE_OFFSET2),--nonce-offset2 "$(T31_NONCE_OFFSET2)") \
+			$(if $(T31_NONCE_OFFSET3),--nonce-offset3 "$(T31_NONCE_OFFSET3)") \
+			$(if $(T31_NONCE_OFFSET4),--nonce-offset4 "$(T31_NONCE_OFFSET4)") \
 			--exponent "$(T31_EXPONENT)" \
 			$(if $(T31_HASH_END),--hash-end "$(T31_HASH_END)") \
 			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)"); \

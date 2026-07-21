@@ -2,4 +2,6 @@
 # Keep the stock SPL path user-supplied since it is host/workspace specific.
 
 T31_NONCE_OFFSET ?= 0x3290
+T31_NONCE_OFFSET2 ?= 0x3300
+T31_NONCE_OFFSET3 ?= 0x3c00
 T31_HASH_END ?= 0x4b80

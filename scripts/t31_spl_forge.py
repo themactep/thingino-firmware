@@ -37,6 +37,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--nonce-offset", type=parse_int, required=True, help="Offset relative to payload start")
+    parser.add_argument("--nonce-offset2", type=parse_int, help="Fallback nonce offset if primary fails")
+    parser.add_argument("--nonce-offset3", type=parse_int, help="Fallback nonce offset if primary+2 fail")
+    parser.add_argument("--nonce-offset4", type=parse_int, help="Fallback nonce offset if primary+2+3 fail")
     parser.add_argument("--sig-offset", type=parse_int, default=DEFAULT_SIG_OFFSET)
     parser.add_argument("--key-offset", type=parse_int, default=DEFAULT_KEY_OFFSET)
     parser.add_argument("--payload-offset", type=parse_int, default=DEFAULT_PAYLOAD_OFFSET)
@@ -48,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--nonce-limit", type=parse_int, default=0x100000000)
     parser.add_argument("--nonce-byteorder", choices=("little", "big"), default="little")
     parser.add_argument("--native", choices=("auto", "always", "never"), default="auto")
+    parser.add_argument("--retry", type=int, default=256, help="Max retries with a salt byte if no match found (default: 256)")
+    parser.add_argument("--retry-offset", type=parse_int, help="Offset (relative to payload) for retry salt byte (default: auto-detect padding)")
+    parser.add_argument("--random-start", action="store_true", help="Use random nonce start position on each retry")
     return parser
 
 
@@ -206,7 +212,8 @@ def find_nonce(
             return nonce
         if args.native == "always":
             raise SystemExit("native nonce helper unavailable or failed")
-        print("native helper unavailable, falling back to Python search")
+    if args.native == "auto":
+        return None
     return find_nonce_python(payload, target_prefix, nonce_offset, args)
 
 
@@ -229,8 +236,16 @@ def main() -> int:
     if absolute_nonce_offset + 4 > len(merged):
         raise SystemExit("nonce offset is outside the merged image")
 
-    payload = bytes(merged[args.payload_offset : base_result.hash_end])
-    relative_nonce_offset = absolute_nonce_offset - args.payload_offset
+    retry_offset = args.retry_offset
+    if retry_offset is None:
+        for off in range(args.nonce_offset - 64, args.nonce_offset, 4):
+            if off >= 4 and off + 4 <= base_result.hash_end - args.payload_offset:
+                retry_offset = off
+                break
+        if retry_offset is None:
+            raise SystemExit("cannot find a safe retry offset; set --retry-offset manually")
+    absolute_retry_offset = args.payload_offset + retry_offset
+
     target_prefix = base_result.target_word.to_bytes(4, "big")
 
     print(f"reference    : {args.reference}")
@@ -241,22 +256,78 @@ def main() -> int:
     print(f"exponent     : {base_result.exponent}")
     print(f"workers      : {args.workers or (mp.cpu_count() or 1)}")
     print(f"backend      : {args.native}")
+    print(f"retry_offset : 0x{retry_offset:x}")
 
-    nonce = find_nonce(
-        payload,
-        target_prefix,
-        relative_nonce_offset,
-        args,
-        candidate_path=args.candidate,
-        payload_offset=args.payload_offset,
-        hash_end=base_result.hash_end,
-        target_word=base_result.target_word,
-    )
+    offsets = [(args.nonce_offset, "primary")]
+    if args.nonce_offset2 is not None:
+        offsets.append((args.nonce_offset2, "secondary"))
+    if args.nonce_offset3 is not None:
+        offsets.append((args.nonce_offset3, "tertiary"))
+    if args.nonce_offset4 is not None:
+        offsets.append((args.nonce_offset4, "quaternary"))
+
+    nonce = None
+    found_offset = 0
+    for n_off, label in offsets:
+        abs_off = args.payload_offset + n_off
+        if abs_off + 4 > len(merged):
+            print(f"  {label} nonce offset 0x{n_off:x} outside image, skipping")
+            continue
+
+        if n_off != offsets[0][0]:
+            print(f"  trying {label} nonce offset: 0x{n_off:x}")
+
+        absolute_nonce_offset = abs_off
+
+        for salt in range(args.retry):
+            merged[absolute_retry_offset] = salt & 0xFF
+
+            payload = bytes(merged[args.payload_offset : base_result.hash_end])
+            relative_nonce_offset = n_off
+
+            if salt > 0:
+                print(f"  salt=0x{salt & 0xFF:02x}")
+
+        import tempfile
+        search_path = args.candidate
+        if salt > 0:
+            tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+            tmp.write(bytes(merged))
+            tmp.close()
+            search_path = Path(tmp.name)
+
+        nonce = find_nonce(
+            payload,
+            target_prefix,
+            relative_nonce_offset,
+            args,
+            candidate_path=search_path,
+            payload_offset=args.payload_offset,
+            hash_end=base_result.hash_end,
+            target_word=base_result.target_word,
+        )
+
+        if salt > 0:
+            try:
+                os.unlink(search_path)
+            except OSError:
+                pass
+
+        if nonce is not None:
+            found_offset = absolute_nonce_offset
+            if salt > 0:
+                print(f"  found with salt 0x{salt & 0xFF:02x}")
+            break
+
+        if nonce is not None:
+            break
+        print(f"  no collision at {label} offset 0x{n_off:x}")
+
     if nonce is None:
-        print("no collision found in the requested nonce range")
+        print("no collision found at any nonce offset")
         return 1
 
-    patch_nonce(merged, absolute_nonce_offset, nonce, args.nonce_byteorder)
+    patch_nonce(merged, found_offset, nonce, args.nonce_byteorder)
 
     patch_crc7(merged, skip=SKIP_SIZE, end=base_result.hash_end)
     crc7_value = merged[CRC_POSITION]
