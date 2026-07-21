@@ -52,6 +52,9 @@ endif
 export THINGINO_USER_DIR
 THINGINO_USER_COMMON_DIR := $(THINGINO_USER_DIR)/common
 
+# Global backup directory for camera overlay archives
+THINGINO_BACKUP_DIR ?= $(HOME)/.thingino/backups
+
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
 GIT_HASH = "$(shell git show -s --format=%H | cut -c1-7)"
@@ -383,7 +386,7 @@ endef
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
-	dfu scriba upload_serial ota run show-vars user-dirs setup-hooks
+	dfu scriba upload_serial ota backup-overlay run show-vars user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -831,6 +834,12 @@ ota:
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
 	$(SCRIPTS_DIR)/fw_ota.sh $(if $(filter 1 y yes true,$(FORCE)),-f) "$$fw_path" $(CAMERA_IP_ADDRESS)
 
+# backup /overlay from a camera to a local tarball
+backup-overlay:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	$(SCRIPTS_DIR)/backup_overlay.sh $(CAMERA_IP_ADDRESS) $(THINGINO_BACKUP_DIR)
+
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
 	@$(TEAL) "$@"
@@ -1223,6 +1232,9 @@ help:
 	  make ota IP=192.168.1.10\n\
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
+	  make backup-overlay IP=192.168.1.10\n\
+	                      backup /overlay/ from camera to\n\
+	                        $(THINGINO_BACKUP_DIR)\n\n\
 	"
 
 # Print key variables commonly needed for tooling
@@ -1283,6 +1295,7 @@ show-vars:
 	@echo "THINGINO_USER_OPT_DIRS = $(THINGINO_USER_OPT_DIRS)";
 	@echo "THINGINO_USER_OVERLAY_DIRS = $(THINGINO_USER_OVERLAY_DIRS)";
 	@echo "THINGINO_USER_UENV_FILES = $(THINGINO_USER_UENV_FILES)";
+	@echo "THINGINO_BACKUP_DIR = $(THINGINO_BACKUP_DIR)";
 	@echo "UBOOT_BOARDNAME = $(UBOOT_BOARDNAME)";
 	@echo "UBOOT_DEFCONFIG = $(UBOOT_DEFCONFIG)";
 	@echo "UBOOT_BIN_NAME = $(UBOOT_BIN_NAME)";
