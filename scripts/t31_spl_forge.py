@@ -11,13 +11,18 @@ from queue import Empty
 import subprocess
 
 from t31_spl_utils import (
+    CRC_POSITION,
     DEFAULT_HASH_END_FIELD_OFFSET,
     DEFAULT_KEY_OFFSET,
     DEFAULT_PAYLOAD_OFFSET,
     DEFAULT_SIG_OFFSET,
+    SKIP_SIZE,
+    compute_crc7,
     merge_reference_header,
     parse_int,
+    patch_crc7,
     patch_nonce,
+    read_u32_le,
     select_verification_result,
     verify_image,
 )
@@ -252,6 +257,10 @@ def main() -> int:
         return 1
 
     patch_nonce(merged, absolute_nonce_offset, nonce, args.nonce_byteorder)
+
+    patch_crc7(merged, skip=SKIP_SIZE, end=base_result.hash_end)
+    crc7_value = merged[CRC_POSITION]
+
     verified = verify_image(
         bytes(merged),
         sig_offset=args.sig_offset,
@@ -268,6 +277,7 @@ def main() -> int:
     args.output.write_bytes(merged)
     print(f"nonce        : 0x{nonce:08x}")
     print(f"hash word 0  : 0x{verified.hash_word:08x}")
+    print(f"crc7         : 0x{crc7_value:02x}")
     print("status       : forged image written successfully")
     return 0
 
