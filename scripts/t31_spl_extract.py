@@ -83,10 +83,7 @@ def main() -> int:
             )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    # Only the header (hash-end field, signature, key) is needed for forging.
-    # Truncate the written reference to DEFAULT_PAYLOAD_OFFSET bytes.
-    header_only = spl[:DEFAULT_PAYLOAD_OFFSET]
-    args.output.write_bytes(header_only)
+    args.output.write_bytes(spl)
 
     print(f"firmware    : {args.firmware}")
     print(f"output      : {args.output}")
