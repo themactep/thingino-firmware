@@ -220,7 +220,8 @@ static int  compute_brightness_pct(const sensor_sample_t *s);
 static void write_mode_file(daynight_mode_t mode);
 static void write_sensors_json(const sensor_sample_t *s);
 static void write_history_json(void);
-static int  load_force_mode_from_config(void);
+static int  reload_config(void);
+static int  pct_to_raw_ev(int pct);
 
 /* =========================================================================
  * Signal handler
@@ -524,11 +525,14 @@ static int read_config(const char *config_file) {
     return 0;
 }
 
-static int load_force_mode_from_config(void) {
+static int reload_config(void) {
     JsonValue *root = load_config(g_config.config_file);
     if (!root) return -1;
 
-    JsonValue *v = get_nested_item(root, "daynight.force_mode");
+    JsonValue *v;
+
+    /* Force mode */
+    v = get_nested_item(root, "daynight.force_mode");
     if (v && v->type == JSON_STRING && v->value.string) {
         strncpy(g_config.force_mode, v->value.string, sizeof(g_config.force_mode) - 1);
         g_config.force_mode[sizeof(g_config.force_mode) - 1] = '\0';
@@ -536,11 +540,15 @@ static int load_force_mode_from_config(void) {
         g_config.force_mode[0] = '\0';
     }
 
+    /* Schedule */
     v = get_nested_item(root, "daynight.schedule.enabled");
     if (v && v->type == JSON_BOOL) g_config.schedule_enabled = v->value.boolean;
+
+    /* Master enable */
     v = get_nested_item(root, "daynight.enabled");
     if (v && v->type == JSON_BOOL) g_config.enabled = v->value.boolean;
 
+    /* Controls */
     v = get_nested_item(root, "daynight.controls.color");
     if (v && v->type == JSON_BOOL) g_config.controls_color = v->value.boolean;
     v = get_nested_item(root, "daynight.controls.ircut");
@@ -552,12 +560,50 @@ static int load_force_mode_from_config(void) {
     v = get_nested_item(root, "daynight.controls.white");
     if (v && v->type == JSON_BOOL) g_config.controls_white = v->value.boolean;
 
+    /* Thresholds (brightness-%) */
+    v = get_nested_item(root, "daynight.night_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.night_threshold_pct = (int)v->value.number.integer;
+    v = get_nested_item(root, "daynight.day_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.day_threshold_pct = (int)v->value.number.integer;
+    v = get_nested_item(root, "daynight.night_count_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.night_count_threshold = (int)v->value.number.integer;
+    v = get_nested_item(root, "daynight.day_count_threshold");
+    if (v && v->type == JSON_NUMBER)
+        g_config.day_count_threshold = (int)v->value.number.integer;
+
+    /* Convert brightness-% thresholds to raw EV values */
+    if (g_config.night_threshold_pct > 0)
+        g_config.ev_night_threshold = pct_to_raw_ev(g_config.night_threshold_pct);
+    if (g_config.day_threshold_pct > 0)
+        g_config.ev_day_threshold = pct_to_raw_ev(g_config.day_threshold_pct);
+
+    /* Timing */
+    v = get_nested_item(root, "daynight.sample_interval_ms");
+    if (v && v->type == JSON_NUMBER)
+        g_config.sample_interval_ms = (int)v->value.number.integer;
+    v = get_nested_item(root, "daynight.transition_delay_s");
+    if (v && v->type == JSON_NUMBER)
+        g_config.transition_delay_s = (int)v->value.number.integer;
+
+    /* Initial mode */
+    v = get_nested_item(root, "daynight.initial_mode");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.initial_mode, v->value.string, sizeof(g_config.initial_mode) - 1);
+        g_config.initial_mode[sizeof(g_config.initial_mode) - 1] = '\0';
+    } else {
+        g_config.initial_mode[0] = '\0';
+    }
+
     free_json_value(root);
 
-    log_message(LOG_INFO, "Config reloaded: force=%s sched=%s enabled=%s",
+    log_message(LOG_INFO, "Config reloaded: force=%s sched=%s enabled=%s ev=%d/%d",
                 g_config.force_mode[0] ? g_config.force_mode : "auto",
                 g_config.schedule_enabled ? "on" : "off",
-                g_config.enabled ? "yes" : "no");
+                g_config.enabled ? "yes" : "no",
+                g_config.ev_day_threshold, g_config.ev_night_threshold);
     return 0;
 }
 
@@ -1099,7 +1145,7 @@ static int main_loop(void) {
         /* Handle signals */
         if (g_reload_flag) {
             g_reload_flag = 0;
-            load_force_mode_from_config();
+            reload_config();
         }
         if (g_force_day_flag) {
             g_force_day_flag = 0;
