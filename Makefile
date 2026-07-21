@@ -1156,6 +1156,7 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 			--output "$@" \
 			--nonce-offset "$(T31_NONCE_OFFSET)" \
 			--exponent "$(T31_EXPONENT)" \
+			$(if $(T31_HASH_END),--hash-end "$(T31_HASH_END)") \
 			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)"); \
 	else \
 		echo "T31 secure-boot: disabled (set T31_SECURE_BOOT=1 or configure BR2_PACKAGE_THINGINO_UBOOT_T31_REFERENCE_SPL)"; \
@@ -1202,6 +1203,7 @@ t31-forge-spl:
 			--output "$$output" \
 			--nonce-offset "$(T31_NONCE_OFFSET)" \
 			--exponent "$(T31_EXPONENT)" \
+			$(if $(T31_HASH_END),--hash-end "$(T31_HASH_END)") \
 			$(if $(T31_WORKERS),--workers "$(T31_WORKERS)")
 
 test-t31-spl-tools:
