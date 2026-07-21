@@ -110,7 +110,7 @@ $(info CAMERA = $(CAMERA))
 include $(CAMERA_CONFIG_REAL)
 
 # read optional camera-local make fragment for non-Buildroot build defaults
-CAMERA_MK_REAL := $(shell realpath "$(dir $(CAMERA_CONFIG_REAL))/$(CAMERA).mk" 2>/dev/null)
+CAMERA_MK_REAL := $(realpath $(dir $(CAMERA_CONFIG_REAL))/$(CAMERA).mk)
 ifneq ($(CAMERA_MK_REAL),)
 $(info CAMERA_MK_REAL = $(CAMERA_MK_REAL))
 include $(CAMERA_MK_REAL)
