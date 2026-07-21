@@ -167,6 +167,9 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
   find - ask the user. **Full home search is prohibited under any circumstances!**
 - Running rebuilds always preserve the full compilation log to grep for data
   later instead of live-grepping the output.
+- Rebuilding a package, use both CAMERA and IP values. If you do not know the
+  correct camera's IP address - ask the user for help.
+- Use modern effective tools: ripgrep instead of just grep.
 
 ## WebUI Plugins
 
