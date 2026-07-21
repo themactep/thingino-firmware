@@ -15,6 +15,7 @@
 
 # Generated
 *.pyc
+/scripts/.t31_nonce_search_fast
 
 # Buildroot
 /.cache
