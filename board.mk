@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # Targets that don't require board selection
-NOCAMERA_TARGETS := help bootstrap setup-hooks update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs t31-verify-spl t31-forge-spl test-t31-spl-tools
+NOCAMERA_TARGETS := help bootstrap setup-hooks update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs backup-overlay t31-verify-spl t31-forge-spl test-t31-spl-tools
 
 # Check if current target is exempted from board selection
 # MAKECMDGOALS contains the targets specified on command line
