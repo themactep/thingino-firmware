@@ -1019,8 +1019,8 @@ function updateHeartbeatUi(json) {
     uptimeEl.textContent = "Uptime:️ " + json.uptime;
 
   updateRecordingState({
-    ch0: json.rec_ch0 && json.rec_ch0 !== 0 && json.rec_ch0 !== "false",
-    ch1: json.rec_ch1 && json.rec_ch1 !== 0 && json.rec_ch1 !== "false",
+    ch0: json.rec_ch0 === true || json.rec_ch0 === 1,
+    ch1: json.rec_ch1 === true || json.rec_ch1 === 1,
   });
 
   // Update motion detection icon
@@ -1030,9 +1030,7 @@ function updateHeartbeatUi(json) {
       motionBtn.classList.remove("pending");
       motionBtn.classList.toggle(
         "active",
-        json.motion_enabled &&
-          json.motion_enabled !== 0 &&
-          json.motion_enabled !== "false",
+        json.motion_enabled === true || json.motion_enabled === 1,
       );
     }
   }
@@ -1044,9 +1042,7 @@ function updateHeartbeatUi(json) {
       privacyBtn.classList.remove("pending");
       privacyBtn.classList.toggle(
         "active",
-        json.privacy_enabled &&
-          json.privacy_enabled !== 0 &&
-          json.privacy_enabled !== "false",
+        json.privacy_enabled === true || json.privacy_enabled === 1,
       );
     }
   }
