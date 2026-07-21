@@ -1019,8 +1019,8 @@ function updateHeartbeatUi(json) {
     uptimeEl.textContent = "Uptime:️ " + json.uptime;
 
   updateRecordingState({
-    ch0: json.rec_ch0 === true,
-    ch1: json.rec_ch1 === true,
+    ch0: json.rec_ch0 && json.rec_ch0 !== 0 && json.rec_ch0 !== "false",
+    ch1: json.rec_ch1 && json.rec_ch1 !== 0 && json.rec_ch1 !== "false",
   });
 
   // Update motion detection icon
@@ -1028,7 +1028,12 @@ function updateHeartbeatUi(json) {
     const motionBtn = $("#motion");
     if (motionBtn) {
       motionBtn.classList.remove("pending");
-      motionBtn.classList.toggle("active", json.motion_enabled === true);
+      motionBtn.classList.toggle(
+        "active",
+        json.motion_enabled &&
+          json.motion_enabled !== 0 &&
+          json.motion_enabled !== "false",
+      );
     }
   }
 
@@ -1037,7 +1042,12 @@ function updateHeartbeatUi(json) {
     const privacyBtn = $("#privacy");
     if (privacyBtn) {
       privacyBtn.classList.remove("pending");
-      privacyBtn.classList.toggle("active", json.privacy_enabled === true);
+      privacyBtn.classList.toggle(
+        "active",
+        json.privacy_enabled &&
+          json.privacy_enabled !== 0 &&
+          json.privacy_enabled !== "false",
+      );
     }
   }
 
@@ -1186,7 +1196,10 @@ function updateHeartbeatUi(json) {
     const autoBtn = $("#auto");
     if (autoBtn) {
       autoBtn.classList.remove("pending");
-      autoBtn.classList.toggle("active", json.daynight_enabled === 1);
+      autoBtn.classList.toggle(
+        "active",
+        json.daynight_enabled === true || json.daynight_enabled === 1,
+      );
     }
   }
 }

@@ -348,10 +348,26 @@ function handleOsdData(osd, streamIndex) {
 
 function handleMessage(msg) {
   if (msg.motion && msg.motion.enabled !== undefined) {
-    $("#motion").checked = msg.motion.enabled;
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.classList.toggle(
+        "active",
+        msg.motion.enabled !== 0 &&
+          msg.motion.enabled !== false &&
+          msg.motion.enabled !== "false",
+      );
+    }
   }
   if (msg.privacy && msg.privacy.enabled !== undefined) {
-    $("#privacy").checked = msg.privacy.enabled;
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.classList.toggle(
+        "active",
+        msg.privacy.enabled !== 0 &&
+          msg.privacy.enabled !== false &&
+          msg.privacy.enabled !== "false",
+      );
+    }
   }
 
   // Handle image params
