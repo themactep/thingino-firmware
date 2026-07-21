@@ -1185,6 +1185,18 @@ static int main_loop(void) {
                 g_state.initial_night_confirm = 0;
                 commit = (++g_state.initial_day_confirm >= 2);
             } else {
+                /* Signal in hysteresis dead zone.  If we already have a valid
+                   mode (e.g. transitioning from force mode), preserve it.
+                   On cold boot (current_mode == UNKNOWN) keep counting down
+                   to the fallback. */
+                if (g_state.current_mode != MODE_UNKNOWN) {
+                    g_state.initial_mode_set = true;
+                    g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+                    log_message(LOG_INFO,
+                                "Initial mode: %s (kept, sig=%d in hysteresis zone thr_day=%d thr_night=%d)",
+                                (g_state.current_mode == MODE_DAY) ? "DAY" : "NIGHT",
+                                sig, day_thr, night_thr);
+                }
                 if (g_state.initial_night_confirm > 0) --g_state.initial_night_confirm;
                 if (g_state.initial_day_confirm > 0) --g_state.initial_day_confirm;
                 --g_state.initial_fallback_countdown;
