@@ -1,0 +1,47 @@
+kbuild: fix kernel 4.4 module build with GNU make >= 4.4
+
+Two problems building this driver out-of-tree (make -C $KDIR M=...) with
+GNU make 4.4+:
+
+1. The bare `export` (export-all-variables) directive poisons the recursive
+   kbuild sub-make parse under make 4.4+, aborting with:
+       scripts/Makefile.lib:393: *** prerequisites cannot be defined in recipes.
+   Comment it out (an explicit `export WIFI_PROJ_DIR` remains just above).
+
+2. $(PWD) resolves to the *kernel* build dir under `make -C $KDIR`, not the
+   driver source tree, so:
+     - the driver .config (installed by the package PRE_CONFIGURE hook) was
+       never read, and
+     - hal_apollo/ (a separate sub-make) re-includes $(WIFI_PROJ_DIR)/.config,
+       which pointed at the kernel dir -> CONFIG_ATBM_SDIO_BUS was unset ->
+       SDIO_BUS/-DSDIO_BUS missing -> fwio.c fails with DOWNLOAD_ITCM_ADDR,
+       DOWNLOAD_BLOCK_SIZE, ALTOBEAM_WIFI_HDR_FLAG undeclared.
+   Use $(src) (the module source dir kbuild sets) for both.
+
+Verified: builds hal_apollo/atbm6031.ko clean against linux 4.4.94 with
+GNU make 4.4.1.
+
+Signed-off-by: thingino
+
+--- a/Makefile
++++ b/Makefile
+@@ -3,7 +3,7 @@
+ #CONFIG_ATBM601x: 1T1R 80211b/g/n, HT20
+ #if yout want to change .conf ,please do make menuconfig in current path
+ ############################################################################
+--include $(PWD)/.config
++-include $(src)/.config
+ ############################################################################
+ #
+ #	The Follow Code Of The Makefile Should Not Be Changed
+@@ -12,8 +12,8 @@
+ PWD:=$(shell pwd)
+ WIFI_INSTALL_DIR := $(PWD)/driver_install
+
+-export WIFI_PROJ_DIR=$(PWD)
+-export
++export WIFI_PROJ_DIR=$(src)
++#export # export-all breaks kbuild sub-make parse with GNU make >= 4.4
+ -include $(src)/Makefile.build.kernel
+
+ export DRIVER_PATH ?= $(PWD)

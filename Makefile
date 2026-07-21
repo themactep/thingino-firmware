@@ -271,6 +271,7 @@ SED_CONFIG_VARS = sed \
 ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
 RED := printf '\033[1;38;5;160m%s\033[0m\n'
+GREEN := printf '\033[1;38;5;40m%s\033[0m\n'
 
 ALIGN_BLOCK := 65536
 
@@ -783,6 +784,13 @@ else
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
+	@echo ""
+	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
+		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
+		if [ $$H -gt 0 ]; then HMS=$$(printf '%dh %02dm %02ds' $$H $$M $$S); \
+		elif [ $$M -gt 0 ]; then HMS=$$(printf '%dm %02ds' $$M $$S); \
+		else HMS=$$(printf '%ds' $$S); fi; \
+		$(GREEN) "Total build time: $$HMS"
 
 build-info: pack
 	@$(TEAL) "$@"
@@ -832,7 +840,7 @@ ota:
 	@fw_path="$(FIRMWARE_BIN_FULL)"; \
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
+	$(SCRIPTS_DIR)/fw_ota.sh $(if $(filter 1 y yes true,$(FORCE)),-f) "$$fw_path" $(CAMERA_IP_ADDRESS)
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:

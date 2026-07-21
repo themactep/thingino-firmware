@@ -321,12 +321,17 @@ start() {
 		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
 
-	m=50 # limit to 5 seconds
+	# SDIO discovery and firmware loading run asynchronously after modprobe.
+	# Wait for the netdev itself so later services do not race its creation.
+	m=300 # limit to 30 seconds
 	while [ "$m" -gt 0 ]; do
-		grep -q $IFACE /proc/net/wireless && break
+		ip link show dev "$IFACE" >/dev/null 2>&1 && break
 		m=$((m - 1))
 		sleep 0.1
 	done
+	if ! ip link show dev "$IFACE" >/dev/null 2>&1; then
+		echo "Wireless interface $IFACE did not appear after module load" >&2
+	fi
 
 	@if !WIFI_IS_HI3881@
 	@if !WIFI_ATBM6461@

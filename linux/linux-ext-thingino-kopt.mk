@@ -9,6 +9,7 @@ THINGINO_DTS_MAPPINGS = \
 	HUGOLOGE5P|hugolog_e5p_t41lq|marmot \
 	IGETC5PT|iget_c5pt_t41lq|marmot \
 	WYZEV4|wyze_cam4_t41nq|marmot \
+	WYZEFLOODV2|wyze_floodlightv2_t41nq|marmot \
 	WYZEPANV4|wyze_panv4_t32nq|goat
 
 THINGINO_LED_CONFIG = $(BR2_CONFIG)
