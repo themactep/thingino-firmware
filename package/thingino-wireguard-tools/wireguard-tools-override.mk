@@ -37,4 +37,12 @@ endef
 WIREGUARD_TOOLS_POST_INSTALL_TARGET_HOOKS += WIREGUARD_TOOLS_INSTALL_WEBUI
 endif
 
+define WIREGUARD_TOOLS_INSTALL_SCRIPTS
+	$(INSTALL) -D -m 0755 $(THINGINO_EXTERNAL_PATH)/package/thingino-wireguard-tools/files/S42wireguard \
+		$(TARGET_DIR)/etc/init.d/S42wireguard
+	$(INSTALL) -D -m 0755 $(THINGINO_EXTERNAL_PATH)/package/thingino-wireguard-tools/files/wireguard-watchdog \
+		$(TARGET_DIR)/usr/sbin/wireguard-watchdog
+endef
+WIREGUARD_TOOLS_POST_INSTALL_TARGET_HOOKS += WIREGUARD_TOOLS_INSTALL_SCRIPTS
+
 endif # BR2_PACKAGE_WIREGUARD_TOOLS
