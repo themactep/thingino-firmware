@@ -129,23 +129,34 @@ the device can extract and inspect it before committing to the full install.
 ### Prerequisites
 
 - A completed firmware build for the target camera (`CAMERA=... make`)
-- The package does **not** need to be enabled in the firmware config —
-  `make bundle-<pkg>` builds it on-demand
+- The package **must be enabled** in the Buildroot config (e.g. via
+  `make menuconfig`).  It does *not* need to be included in the original
+  firmware build — you can enable it after the fact and `make bundle-<pkg>`
+  will build only the new package.
 - A `.bundle` file in the package directory
 
 ### Via Make (recommended)
 
 ```bash
+# 1. Enable the package in menuconfig
+make menuconfig   # e.g. Streamer Packages → [*] go2rtc
+
+# 2. Build and bundle (single command)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make bundle-go2rtc
 ```
 
 This single command:
 
-1. Runs Buildroot's `<pkg>` target — configures, builds, and installs the
-   package into `per-package/<pkg>/target/` (or the global `target/` if
-   per-package directories are disabled)
-2. Collects the files listed in the `.bundle` manifest
-3. Produces `<output-dir>/bundles/<name>-<version>-<soc_family>.tgz`
+1. **Cleans** any previous build of the package (`<pkg>-dirclean`)
+2. **Builds** the package via Buildroot's `<pkg>` target — configures, compiles,
+   and installs into `per-package/<pkg>/target/`
+3. **Strips** ELF binaries using the cross-compile strip tool
+4. **Detects WebUI plugins**: if a `<pkg>.webui.json` manifest exists in the
+   package's `files/` directory, rebuilds `thingino-webui` and runs
+   `target-finalize` to assemble the plugin into the global target directory
+5. **Collects** the files listed in the `.bundle` manifest from both the
+   per-package target and the global `target/` directory
+6. Produces `<output-dir>/bundles/<name>-<version>-<soc_family>.tgz`
 
 ### Via script (advanced)
 
@@ -174,18 +185,54 @@ Lines starting with `#` are comments.  Blank lines are ignored.
 
 ### How it works
 
-The `make bundle-<pkg>` target calls Buildroot's `<pkg>` target, which
-configures, builds, and installs the package.  Buildroot places the installed
-files in `per-package/<pkg>/target/` (when `BR2_PER_PACKAGE_DIRECTORIES=y`)
-or in the global `target/` directory.
+The `make bundle-<pkg>` target:
 
-`make-bundle.sh` then:
+1. Runs `<pkg>-dirclean` to clean any previous build artifacts
+2. Runs `<pkg>` — Buildroot configures, builds, and installs the package into
+   `per-package/<pkg>/target/`
+3. If a `<pkg>.webui.json` manifest exists, runs `thingino-webui-rebuild` +
+   `target-finalize` to assemble the WebUI plugin into the global `target/`
+   (see [WebUI plugins](#webui-plugins) below)
+4. Calls `make-bundle.sh`, which:
+   - Reads the `.bundle` file from `package/<pkg>/`
+   - Copies listed files, first from `per-package/<pkg>/target/`, then falling
+     back to the global `target/` for files assembled there (e.g. WebUI output)
+   - Strips ELF binaries with the cross-compile strip tool
+   - Determines the package version from `build/<pkg>-<version>/`
+   - Reads `SOC_FAMILY` from the build config
+   - Generates the `.tgz` archive with embedded `.thingino-pkg.json` manifest
 
-1. Reads the `.bundle` file from `package/<pkg>/`
-2. Copies listed files from the per-package or global target directory
-3. Determines the package version from `build/<pkg>-<version>/`
-4. Reads `SOC_FAMILY` from the build config
-5. Generates the `.tgz` archive with embedded manifest
+### WebUI plugins
+
+Packages that use the [WebUI plugin system](plugin-system.md) can include their
+web files in the bundle.  When `make bundle-<pkg>` detects a
+`files/<pkg>.webui.json` manifest, it rebuilds the webui and runs
+`target-finalize` to trigger `assemble_plugins.py`.  The assembled output
+(`plugins.js`, modified HTML pages, injected script tags) is included in the
+bundle.
+
+**Caveat**: the assembled webui files overwrite the camera's existing webui
+pages.  This is fine for a single plugin, but installing multiple webui plugins
+from separate bundles may cause the last-installed plugin's `plugins.js` to
+overwrite earlier ones.  Full multi-plugin support is a Phase 2 feature.
+
+The `.bundle` file for a webui plugin should list:
+- The plugin's own files (HTML pages, JS, CGI, `.webui.json` manifest)
+- The assembled `var/www/a/plugins.js`
+
+Example from `package/telegrambot/telegrambot.bundle`:
+
+```
+usr/sbin/telegrambot
+etc/init.d/S93telegrambot
+etc/telegrambot.json
+var/www/config-telegrambot.html
+var/www/a/config-telegrambot.js
+var/www/x/json-telegrambot.cgi
+var/www/x/ctl-telegrambot.cgi
+var/www/a/plugins/telegrambot.webui.json
+var/www/a/plugins.js
+```
 
 ---
 
@@ -433,14 +480,17 @@ etc/init.d/S97go2rtc
 ### 2. Enable and build
 
 Enable `BR2_THINGINO_PACKAGES=y` in your config (already done if you followed
-[Enabling the system](#enabling-the-system)).  The package itself does *not*
-need to be enabled — `make bundle-go2rtc` builds it on-demand.
+[Enabling the system](#enabling-the-system)).  Then enable go2rtc itself via
+menuconfig and bundle it:
 
 ```bash
+# Enable go2rtc in menuconfig
+make menuconfig   # Streamer Packages → [*] go2rtc
+
 # First build the base firmware (only needed once)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make
 
-# Then build and bundle go2rtc (builds the package from source, then packs it)
+# Build and bundle go2rtc (dirclean → build → strip → pack)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make bundle-go2rtc
 ```
 
@@ -450,6 +500,7 @@ Output:
 >>> go2rtc 1.9.14 Building
 ...
 >>> go2rtc 1.9.14 Installing to target
+Stripping binaries...
 Collecting files from .../per-package/go2rtc/target...
   usr/bin/go2rtc
   etc/go2rtc.yaml
@@ -534,6 +585,7 @@ ssh root@192.168.1.42 thingino-pkg files go2rtc
 | No signature verification | Malicious bundles could run hooks | Only install from trusted sources |
 | Busybox `wget` only | No HTTPS cert validation | Use HTTPS URLs; full TLS verification planned |
 | SD card VFAT | No symlinks, no +x bits | Use ext4-formatted SD card |
+| WebUI plugin multi-install | Installing two webui plugin bundles overwrites `plugins.js` | Install webui plugins together in one bundle, or rebuild firmware |
 
 ### Planned for Phase 2
 
