@@ -2,7 +2,7 @@ config BR2_PACKAGE_THINGINO_PKG
 	bool "thingino-pkg"
 	help
 	  Thingino Package Manager — installs, removes, and lists
-	  precompiled bundle packages (.tpb files) on the device.
+	  precompiled bundle packages (.tgz files) on the device.
 
 	  Commands: install, remove, list, info, files
 

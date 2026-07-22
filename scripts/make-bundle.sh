@@ -1,5 +1,5 @@
 #!/bin/bash
-# make-bundle.sh — Produce a .tpb (Thingino Package Bundle) from a built package.
+# make-bundle.sh — Produce a .tgz (Thingino Package Bundle) from a built package.
 #
 # Usage:
 #   ./scripts/make-bundle.sh <package> <camera> <output-dir>
@@ -13,7 +13,7 @@
 #   make bundle-go2rtc CAMERA=atom_cam2_t31x_gc2053_atbm6031
 #
 # Output:
-#   <output-dir>/bundles/go2rtc-1.9.14-t31.tpb
+#   <output-dir>/bundles/go2rtc-1.9.14-t31.tgz
 
 set -eu
 
@@ -148,7 +148,7 @@ echo ""
 
 # Create bundle
 mkdir -p "$BUNDLE_DIR"
-BUNDLE_NAME="${PKG_NAME}-${PKG_VERSION}-${SOC_FAMILY}.tpb"
+BUNDLE_NAME="${PKG_NAME}-${PKG_VERSION}-${SOC_FAMILY}.tgz"
 BUNDLE_PATH="$BUNDLE_DIR/$BUNDLE_NAME"
 
 echo "Creating $BUNDLE_PATH..."

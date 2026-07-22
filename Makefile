@@ -1181,7 +1181,7 @@ help:
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
-	  make bundle-<pkg>   create a .tpb bundle for <pkg> (requires CAMERA=)\n\
+	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\

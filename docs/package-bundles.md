@@ -1,7 +1,7 @@
 # Package Bundle System
 
 Thingino's package bundle system lets you install precompiled software on a
-running camera **without reflashing firmware**.  A bundle is a single `.tpb`
+running camera **without reflashing firmware**.  A bundle is a single `.tgz`
 (Thingino Package Bundle) file — a compressed tar archive with a JSON manifest —
 that is downloaded to the camera and extracted on top of the live filesystem.
 
@@ -49,7 +49,7 @@ system makes that a single command:
 
 ```sh
 # On the camera:
-thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tpb
+thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tgz
 ```
 
 ---
@@ -108,10 +108,10 @@ Both are small — together they add roughly 60 KB to the firmware.
 
 ## Bundle format
 
-A `.tpb` file is a **gzip-compressed tar archive** containing:
+A `.tgz` file is a **gzip-compressed tar archive** containing:
 
 ```
-<name>-<version>-<soc_family>.tpb
+<name>-<version>-<soc_family>.tgz
 ├── .thingino-pkg.json        ← manifest (always the first entry)
 ├── usr/bin/go2rtc
 ├── etc/go2rtc.yaml
@@ -145,7 +145,7 @@ This single command:
    package into `per-package/<pkg>/target/` (or the global `target/` if
    per-package directories are disabled)
 2. Collects the files listed in the `.bundle` manifest
-3. Produces `<output-dir>/bundles/<name>-<version>-<soc_family>.tpb`
+3. Produces `<output-dir>/bundles/<name>-<version>-<soc_family>.tgz`
 
 ### Via script (advanced)
 
@@ -185,7 +185,7 @@ or in the global `target/` directory.
 2. Copies listed files from the per-package or global target directory
 3. Determines the package version from `build/<pkg>-<version>/`
 4. Reads `SOC_FAMILY` from the build config
-5. Generates the `.tpb` archive with embedded manifest
+5. Generates the `.tgz` archive with embedded manifest
 
 ---
 
@@ -210,7 +210,7 @@ thingino-pkg files   <name>
 ### Install from URL
 
 ```sh
-thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tpb
+thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tgz
 ```
 
 The script:
@@ -229,23 +229,23 @@ The script:
 
 ```sh
 # scp the bundle to the camera first
-scp -O go2rtc-1.9.14-t31.tpb root@192.168.1.42:/tmp/
+scp -O go2rtc-1.9.14-t31.tgz root@192.168.1.42:/tmp/
 
 # Then install
-ssh root@192.168.1.42 thingino-pkg install /tmp/go2rtc-1.9.14-t31.tpb
+ssh root@192.168.1.42 thingino-pkg install /tmp/go2rtc-1.9.14-t31.tgz
 ```
 
 ### Force a specific tier
 
 ```sh
 # Force SD card (fails if no SD card present)
-thingino-pkg install /tmp/bundle.tpb -t sdcard
+thingino-pkg install /tmp/bundle.tgz -t sdcard
 
 # Force overlay even if tight on space
-thingino-pkg install /tmp/bundle.tpb -t overlay
+thingino-pkg install /tmp/bundle.tgz -t overlay
 
 # Volatile install for testing (lost on reboot)
-thingino-pkg install /tmp/bundle.tpb -t tmp
+thingino-pkg install /tmp/bundle.tgz -t tmp
 ```
 
 ---
@@ -369,7 +369,7 @@ Rules:
 
 ### `.thingino-pkg.json`
 
-Embedded in every `.tpb` file.  Stored on device at
+Embedded in every `.tgz` file.  Stored on device at
 `/overlay/.pkg/manifests/<name>.json` after install.
 
 ```json
@@ -456,7 +456,7 @@ Collecting files from .../per-package/go2rtc/target...
   etc/init.d/S97go2rtc
 Collected 3 files
 
-Bundle created: .../bundles/go2rtc-1.9.14-t31.tpb
+Bundle created: .../bundles/go2rtc-1.9.14-t31.tgz
   Package:    go2rtc 1.9.14
   SOC family: t31
   Files:      3
@@ -466,8 +466,8 @@ Bundle created: .../bundles/go2rtc-1.9.14-t31.tpb
 ### 3. Transfer and install
 
 ```bash
-scp -O output/.../bundles/go2rtc-1.9.14-t31.tpb root@192.168.1.42:/tmp/
-ssh root@192.168.1.42 thingino-pkg install /tmp/go2rtc-1.9.14-t31.tpb
+scp -O output/.../bundles/go2rtc-1.9.14-t31.tgz root@192.168.1.42:/tmp/
+ssh root@192.168.1.42 thingino-pkg install /tmp/go2rtc-1.9.14-t31.tgz
 ```
 
 Camera output:

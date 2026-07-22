@@ -1,6 +1,6 @@
 #!/bin/sh
 # thingino-pkg — Thingino Package Manager
-# Installs, removes, and lists precompiled bundle packages (.tpb).
+# Installs, removes, and lists precompiled bundle packages (.tgz).
 
 set -e
 
@@ -33,7 +33,7 @@ json_get() {
 cmd_install() {
 	local url="$1"
 	local tier="${2:-auto}"
-	local tmpbundle="/tmp/pkg-$$.tpb"
+	local tmpbundle="/tmp/pkg-$$.tgz"
 
 	[ -z "$url" ] && {
 		echo "Usage: thingino-pkg install <url|file> [-t sdcard|overlay|tmp|auto]"
@@ -376,15 +376,15 @@ show_usage() {
 	echo "Usage: thingino-pkg <command> [args]"
 	echo ""
 	echo "Commands:"
-	echo "  install <url|file> [-t sdcard|overlay|tmp|auto]  Install a .tpb bundle"
+	echo "  install <url|file> [-t sdcard|overlay|tmp|auto]  Install a .tgz bundle"
 	echo "  remove  <name>                                    Remove a package"
 	echo "  list                                              List installed packages"
 	echo "  info    <name>                                    Show package manifest"
 	echo "  files   <name>                                    List files from a package"
 	echo ""
 	echo "Examples:"
-	echo "  thingino-pkg install https://example.com/go2rtc-1.9.8-t31.tpb"
-	echo "  thingino-pkg install /tmp/mybundle.tpb -t sdcard"
+	echo "  thingino-pkg install https://example.com/go2rtc-1.9.8-t31.tgz"
+	echo "  thingino-pkg install /tmp/mybundle.tgz -t sdcard"
 	echo "  thingino-pkg list"
 	echo "  thingino-pkg remove go2rtc"
 }
