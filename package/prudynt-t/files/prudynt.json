@@ -23,36 +23,9 @@
     "tap_enabled": true,
     "tap_path": "/run/prudynt/audio_mic.pcm"
   },
-  "daynight": {
-    "controls": {
-      "binswitch": false
-    },
-    "day_bin_path": "",
-    "day_count_threshold": 4,
-    "enabled": true,
-    "ev_day_low_primary": 0,
-    "ev_day_low_secondary": 0,
-    "ev_night_high": 0,
-    "gb_gain_absolute": 145,
-    "gb_gain_delta": 15,
-    "loglevel": "INFO",
-    "night_bin_path": "",
-    "night_count_threshold": 6,
-    "sample_interval_ms": 1000,
-    "script_path": "/sbin/daynight",
-    "settle_samples_for_gb_record": 20,
-    "switch_above_percent": 80,
-    "switch_below_percent": 15,
-    "tolerance_percent": 50
-  },
   "general": {
-    "allocation_tracking_enabled": false,
-    "audio_debug_verbose": false,
     "imp_polling_timeout": 500,
-    "loglevel": "INFO",
-    "memory_monitoring_enabled": true,
-    "osd_pool_size": -1,
-    "timestamp_validation_enabled": true
+    "loglevel": "INFO"
   },
   "http": {
     "api_enabled": true,
@@ -117,6 +90,34 @@
     "skip_frame_count": 5,
     "video_length": 10
   },
+  "osd": {
+    "enabled": true,
+    "elements": {
+      "clock": {
+        "type": "timestamp",
+        "format": "%F %T",
+        "position": "10,10"
+      },
+      "host": {
+        "type": "hostname",
+        "format": "%s",
+        "position": "0,10"
+      },
+      "uptime": {
+        "type": "uptime",
+        "format": "%02lu:%02lu:%02lu",
+        "position": "-10,10"
+      },
+      "gain": {
+        "type": "gain",
+        "format": "%s",
+        "position": "10,-10"
+      }
+    },
+    "privacy": {
+      "enabled": true
+    }
+  },
   "recorder": {
     "autostart": false,
     "channel": 0,
@@ -163,81 +164,14 @@
     "max_bitrate": 0,
     "max_gop": 60,
     "mode": "CBR",
-    "osd": {
-      "brightness": {
-        "enabled": false,
-        "fill_color": "#FFFFFFCC",
-        "format": "%b",
-        "position": "10,-10",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "enabled": true,
-      "font_path": "/usr/share/fonts/default.ttf",
-      "font_size": 32,
-      "logo": {
-        "enabled": true,
-        "height": 30,
-        "path": "/usr/share/images/thingino_100x30.bgra",
-        "position": "-20,-20",
-        "rotation": 0,
-        "transparency": 128,
-        "width": 100
-      },
-      "privacy": {
-        "enabled": true,
-        "fill_color": "#FF4C4CFF",
-        "font_size": 16384,
-        "image_height": 0,
-        "image_path": "",
-        "image_width": 0,
-        "layer": 16,
-        "opacity": 255,
-        "position": "0,-120",
-        "rotation": 0,
-        "stroke_color": "#000000FF",
-        "stroke_size": 2,
-        "text": "PRIVACY ENABLED"
-      },
-      "start_delay": 0,
-      "stroke_size": 4,
-      "time": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "%F %T",
-        "position": "10,10",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "uptime": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "Uptime: %02lu:%02lu:%02lu",
-        "position": "-10,10",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "usertext": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "%hostname",
-        "position": "0,10",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      }
-    },
     "pb_delta": -1,
-    "profile": 2,
+    "profile": 1,
     "qp_init": -1,
     "qp_max": -1,
     "qp_min": -1,
     "rotation": 0,
     "rtsp_endpoint": "ch0",
     "rtsp_info": "stream0",
-    "scale_enabled": false,
-    "scale_height": 0,
-    "scale_width": 0,
-    "video_enabled": true,
     "width": 0
   },
   "stream1": {
@@ -254,81 +188,14 @@
     "max_bitrate": 0,
     "max_gop": 60,
     "mode": "CBR",
-    "osd": {
-      "brightness": {
-        "enabled": false,
-        "fill_color": "#FFFFFFCC",
-        "format": "%b",
-        "position": "5,-5",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "enabled": true,
-      "font_path": "/usr/share/fonts/default.ttf",
-      "font_size": 13,
-      "logo": {
-        "enabled": true,
-        "height": 30,
-        "path": "/usr/share/images/thingino_100x30.bgra",
-        "position": "-5,-5",
-        "rotation": 0,
-        "transparency": 128,
-        "width": 100
-      },
-      "privacy": {
-        "enabled": true,
-        "fill_color": "#FF4C4CFF",
-        "font_size": 16384,
-        "image_height": 0,
-        "image_path": "",
-        "image_width": 0,
-        "layer": 16,
-        "opacity": 255,
-        "position": "0,-120",
-        "rotation": 0,
-        "stroke_color": "#000000FF",
-        "stroke_size": 2,
-        "text": "PRIVACY ENABLED"
-      },
-      "start_delay": 0,
-      "stroke_size": 2,
-      "time": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "%F %T",
-        "position": "5,5",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "uptime": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "Uptime: %02lu:%02lu:%02lu",
-        "position": "-5,5",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      },
-      "usertext": {
-        "enabled": true,
-        "fill_color": "#FFFFFFCC",
-        "format": "%hostname",
-        "position": "0,5",
-        "rotation": 0,
-        "stroke_color": "#000000CC"
-      }
-    },
     "pb_delta": -1,
-    "profile": 2,
+    "profile": 1,
     "qp_init": -1,
     "qp_max": -1,
     "qp_min": -1,
     "rotation": 0,
     "rtsp_endpoint": "ch1",
     "rtsp_info": "stream1",
-    "scale_enabled": false,
-    "scale_height": 0,
-    "scale_width": 0,
-    "video_enabled": true,
     "width": 640
   },
   "stream2": {
@@ -340,7 +207,7 @@
     "jpeg_quality": 75
   },
   "stream3": {
-    "enabled": true,
+    "enabled": false,
     "fps": 15,
     "jpeg_channel": 1,
     "jpeg_idle_fps": 1,
