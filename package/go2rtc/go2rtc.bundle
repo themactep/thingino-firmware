@@ -1,0 +1,5 @@
+# Files included in the go2rtc bundle
+# Paths relative to target root (/)
+usr/bin/go2rtc
+etc/go2rtc.yaml
+etc/init.d/S97go2rtc

@@ -1,0 +1,5 @@
+# Files included in the telegrambot bundle
+# Paths relative to target root (/)
+usr/sbin/telegrambot
+etc/init.d/S93telegrambot
+etc/telegrambot.json

@@ -214,6 +214,23 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 
+menuconfig BR2_THINGINO_PACKAGES
+	bool "Package Bundle System"
+	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_THINGINO_PKG
+	help
+	  On-device package manager for installing precompiled
+	  software bundles on Thingino cameras.
+
+	  Includes thingino-pkg, which can download and install
+	  bundle packages (.tpb files) without reflashing firmware.
+
+	  https://github.com/themactep/thingino-firmware
+
+if BR2_THINGINO_PACKAGES
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-pkg/Config.in"
+endif
+
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
 

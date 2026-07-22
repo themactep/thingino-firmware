@@ -1,0 +1,425 @@
+#!/bin/sh
+# thingino-pkg — Thingino Package Manager
+# Installs, removes, and lists precompiled bundle packages (.tpb).
+
+set -e
+
+PKG_DIR="/overlay/.pkg"
+MANIFEST_DIR="$PKG_DIR/manifests"
+FILES_DIR="$PKG_DIR/files"
+SD_MOUNT="/mnt/mmcblk0p1"
+SD_PKG_DIR="$SD_MOUNT/pkg"
+
+init() {
+	mkdir -p "$MANIFEST_DIR" "$FILES_DIR"
+}
+
+overlay_free_kb() {
+	df -k /overlay 2>/dev/null | awk 'NR==2{print $4}'
+}
+
+soc_family() {
+	soc -f 2>/dev/null || echo "unknown"
+}
+
+sd_available() {
+	mountpoint -q "$SD_MOUNT" 2>/dev/null && [ -w "$SD_MOUNT" ]
+}
+
+json_get() {
+	jct "$1" get "$2" 2>/dev/null
+}
+
+cmd_install() {
+	local url="$1"
+	local tier="${2:-auto}"
+	local tmpbundle="/tmp/pkg-$$.tpb"
+
+	[ -z "$url" ] && {
+		echo "Usage: thingino-pkg install <url|file> [-t sdcard|overlay|tmp|auto]"
+		return 1
+	}
+
+	# Download or copy the bundle
+	case "$url" in
+		http://* | https://*)
+			echo "Downloading $url..."
+			wget -q --show-progress -O "$tmpbundle" "$url" || {
+				echo "Download failed"
+				return 1
+			}
+			;;
+		*)
+			[ -f "$url" ] || {
+				echo "File not found: $url"
+				return 1
+			}
+			cp "$url" "$tmpbundle"
+			;;
+	esac
+
+	# Extract manifest from bundle
+	local tmpmanifest="/tmp/pkg-$$.json"
+	tar -xOf "$tmpbundle" .thingino-pkg.json >"$tmpmanifest" 2>/dev/null || {
+		echo "Invalid bundle: no .thingino-pkg.json manifest found"
+		rm -f "$tmpbundle"
+		return 1
+	}
+
+	# Read manifest fields
+	local name version bundle_soc size_kb
+	name=$(json_get "$tmpmanifest" name)
+	version=$(json_get "$tmpmanifest" version)
+	bundle_soc=$(json_get "$tmpmanifest" soc_family)
+	size_kb=$(json_get "$tmpmanifest" size_kb)
+
+	[ -z "$name" ] && {
+		echo "Invalid manifest: missing 'name'"
+		rm -f "$tmpbundle" "$tmpmanifest"
+		return 1
+	}
+
+	# Check SOC compatibility
+	local my_soc
+	my_soc=$(soc_family)
+	if [ -n "$bundle_soc" ] && [ "$bundle_soc" != "$my_soc" ]; then
+		echo "SOC mismatch: bundle is for '$bundle_soc', this device is '$my_soc'"
+		rm -f "$tmpbundle" "$tmpmanifest"
+		return 1
+	fi
+
+	# Check if already installed
+	if [ -f "$MANIFEST_DIR/$name.json" ]; then
+		local installed_ver
+		installed_ver=$(json_get "$MANIFEST_DIR/$name.json" version)
+		echo "Package '$name' version $installed_ver is already installed."
+		echo "Run 'thingino-pkg remove $name' first to upgrade."
+		rm -f "$tmpbundle" "$tmpmanifest"
+		return 1
+	fi
+
+	# Check conflicts
+	local conflicts
+	conflicts=$(json_get "$tmpmanifest" conflicts)
+	if [ -n "$conflicts" ] && [ "$conflicts" != "null" ]; then
+		for c in $conflicts; do
+			if [ -f "$MANIFEST_DIR/$c.json" ]; then
+				echo "Conflict: package '$c' is installed and conflicts with '$name'"
+				rm -f "$tmpbundle" "$tmpmanifest"
+				return 1
+			fi
+		done
+	fi
+
+	# Determine install target
+	local install_to extract_root
+	case "$tier" in
+		sdcard)
+			sd_available || {
+				echo "SD card not available"
+				rm -f "$tmpbundle" "$tmpmanifest"
+				return 1
+			}
+			install_to="sdcard"
+			extract_root="$SD_PKG_DIR/$name"
+			;;
+		overlay | data)
+			install_to="overlay"
+			extract_root="/"
+			;;
+		tmp)
+			install_to="tmp"
+			extract_root="/tmp/pkg/$name"
+			;;
+		auto)
+			if [ -n "$size_kb" ] && [ "$size_kb" -gt 0 ] 2>/dev/null; then
+				local free_kb
+				free_kb=$(overlay_free_kb)
+				if [ "$size_kb" -lt "$free_kb" ]; then
+					install_to="overlay"
+					extract_root="/"
+				elif sd_available; then
+					install_to="sdcard"
+					extract_root="$SD_PKG_DIR/$name"
+					echo "Bundle needs ${size_kb}KB, overlay has ${free_kb}KB free"
+					echo "→ installing to SD card ($SD_PKG_DIR/$name)"
+				else
+					echo "Not enough space: needs ${size_kb}KB, overlay has ${free_kb}KB free"
+					echo "No SD card available. Use '-t tmp' for volatile install."
+					rm -f "$tmpbundle" "$tmpmanifest"
+					return 1
+				fi
+			else
+				install_to="overlay"
+				extract_root="/"
+			fi
+			;;
+		*)
+			echo "Unknown tier: $tier (use: sdcard, overlay, tmp, auto)"
+			rm -f "$tmpbundle" "$tmpmanifest"
+			return 1
+			;;
+	esac
+
+	# Count files for reporting
+	local file_count
+	file_count=$(tar -tzf "$tmpbundle" 2>/dev/null | grep -v '^\.thingino-pkg\.json$' | grep -v '/$' | wc -l)
+
+	# Extract
+	echo "Installing $name $version to $install_to..."
+	if [ "$install_to" = "sdcard" ]; then
+		mkdir -p "$extract_root"
+		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=.thingino-pkg.json 2>/dev/null || {
+			echo "Extraction failed"
+			rm -rf "$extract_root"
+			rm -f "$tmpbundle" "$tmpmanifest"
+			return 1
+		}
+	else
+		[ "$install_to" = "tmp" ] &&
+			echo "Warning: tmpfs install is volatile (lost on reboot)"
+
+		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=.thingino-pkg.json 2>/dev/null || {
+			echo "Extraction failed"
+			rm -f "$tmpbundle" "$tmpmanifest"
+			return 1
+		}
+	fi
+
+	# Save manifest
+	cp "$tmpmanifest" "$MANIFEST_DIR/$name.json"
+
+	# Save file list for later removal
+	tar -tzf "$tmpbundle" 2>/dev/null | grep -v '^\.thingino-pkg\.json$' | grep -v '/$' \
+		>"$FILES_DIR/$name.files"
+
+	# Create symlinks for SD card installs
+	if [ "$install_to" = "sdcard" ]; then
+		create_sd_symlinks "$name" "$extract_root"
+	fi
+
+	# Run post-install
+	local post_install
+	post_install=$(json_get "$tmpmanifest" post_install)
+	if [ -n "$post_install" ] && [ "$post_install" != "null" ]; then
+		echo "Running post-install..."
+		eval "$post_install" || true
+	fi
+
+	rm -f "$tmpbundle" "$tmpmanifest"
+	echo "Done: $name $version ($file_count files)"
+}
+
+create_sd_symlinks() {
+	local name="$1"
+	local src_dir="$2"
+	local filelist="$FILES_DIR/$name.files"
+
+	echo "Creating symlinks..."
+	while IFS= read -r file; do
+		[ -z "$file" ] && continue
+		local target="/$file"
+		local src="$src_dir/$file"
+
+		# Skip directories
+		[ -f "$src" ] || continue
+
+		# Only link if nothing exists at target
+		if [ -e "$target" ] || [ -L "$target" ]; then
+			echo "  skip: $target (already exists)"
+			continue
+		fi
+
+		mkdir -p "$(dirname "$target")" 2>/dev/null || true
+		ln -sf "$src" "$target"
+	done <"$filelist"
+}
+
+cmd_remove() {
+	local name="$1"
+
+	[ -z "$name" ] && {
+		echo "Usage: thingino-pkg remove <name>"
+		return 1
+	}
+
+	local manifest="$MANIFEST_DIR/$name.json"
+	[ -f "$manifest" ] || {
+		echo "Package '$name' is not installed"
+		return 1
+	}
+
+	# Run pre-remove hook
+	local pre_remove
+	pre_remove=$(json_get "$manifest" pre_remove)
+	if [ -n "$pre_remove" ] && [ "$pre_remove" != "null" ]; then
+		echo "Running pre-remove..."
+		eval "$pre_remove" || true
+	fi
+
+	# Remove tracked files
+	local filelist="$FILES_DIR/$name.files"
+	if [ -f "$filelist" ]; then
+		echo "Removing files..."
+		while IFS= read -r file; do
+			[ -z "$file" ] && continue
+			local target="/$file"
+			if [ -f "$target" ]; then
+				rm -f "$target"
+			elif [ -L "$target" ]; then
+				rm -f "$target"
+			fi
+		done <"$filelist"
+		rm -f "$filelist"
+	fi
+
+	rm -f "$manifest"
+
+	# Clean up SD card directory
+	local sd_dir="$SD_PKG_DIR/$name"
+	[ -d "$sd_dir" ] && rm -rf "$sd_dir"
+
+	echo "Removed $name"
+}
+
+cmd_list() {
+	local count=0
+
+	for manifest in "$MANIFEST_DIR"/*.json; do
+		[ -f "$manifest" ] || continue
+		count=$((count + 1))
+
+		local name version size_kb desc
+		name=$(json_get "$manifest" name)
+		version=$(json_get "$manifest" version)
+		size_kb=$(json_get "$manifest" size_kb)
+		desc=$(json_get "$manifest" description)
+
+		if [ "$count" -eq 1 ]; then
+			echo ""
+		fi
+		printf "  %-24s %-10s %8s KB" "$name" "${version:-?}" "${size_kb:-?}"
+		[ -n "$desc" ] && [ "$desc" != "null" ] && printf "  %s" "$desc"
+		echo ""
+	done
+
+	if [ "$count" -eq 0 ]; then
+		echo "(no packages installed)"
+	else
+		echo ""
+		echo "$count package(s) installed"
+	fi
+}
+
+cmd_info() {
+	local name="$1"
+	[ -z "$name" ] && {
+		echo "Usage: thingino-pkg info <name>"
+		return 1
+	}
+
+	local manifest="$MANIFEST_DIR/$name.json"
+	[ -f "$manifest" ] || {
+		echo "Package '$name' is not installed"
+		return 1
+	}
+
+	# Pretty-print the manifest JSON
+	while IFS= read -r line; do
+		printf "  %s\n" "$line"
+	done <"$manifest"
+
+	# Show storage location
+	local filelist="$FILES_DIR/$name.files"
+	if [ -f "$filelist" ]; then
+		local first
+		first=$(head -1 "$filelist")
+		if [ -n "$first" ]; then
+			local target="/$first"
+			if [ -L "$target" ]; then
+				echo "  # installed to SD card"
+			fi
+		fi
+	fi
+}
+
+cmd_files() {
+	local name="$1"
+	[ -z "$name" ] && {
+		echo "Usage: thingino-pkg files <name>"
+		return 1
+	}
+
+	local filelist="$FILES_DIR/$name.files"
+	[ -f "$filelist" ] || {
+		echo "Package '$name' is not installed or has no file list"
+		return 1
+	}
+
+	while IFS= read -r file; do
+		[ -z "$file" ] && continue
+		local target="/$file"
+		if [ -L "$target" ]; then
+			printf "  %-40s → %s\n" "$target" "$(readlink "$target")"
+		elif [ -f "$target" ]; then
+			printf "  %-40s   (%s bytes)\n" "$target" "$(stat -c%s "$target" 2>/dev/null || echo '?')"
+		else
+			printf "  %-40s   missing\n" "$target"
+		fi
+	done <"$filelist"
+
+	echo ""
+	echo "Files tracked by '$name' manifest"
+}
+
+show_usage() {
+	echo "Usage: thingino-pkg <command> [args]"
+	echo ""
+	echo "Commands:"
+	echo "  install <url|file> [-t sdcard|overlay|tmp|auto]  Install a .tpb bundle"
+	echo "  remove  <name>                                    Remove a package"
+	echo "  list                                              List installed packages"
+	echo "  info    <name>                                    Show package manifest"
+	echo "  files   <name>                                    List files from a package"
+	echo ""
+	echo "Examples:"
+	echo "  thingino-pkg install https://example.com/go2rtc-1.9.8-t31.tpb"
+	echo "  thingino-pkg install /tmp/mybundle.tpb -t sdcard"
+	echo "  thingino-pkg list"
+	echo "  thingino-pkg remove go2rtc"
+}
+
+# --- main ---
+init
+
+case "${1:-}" in
+	install)
+		shift
+		tier="auto"
+		while getopts "t:" opt 2>/dev/null; do
+			case "$opt" in
+				t) tier="$OPTARG" ;;
+			esac
+		done
+		shift $((OPTIND - 1)) 2>/dev/null || true
+		cmd_install "${1:-}" "$tier"
+		;;
+	remove | uninstall)
+		shift
+		cmd_remove "${1:-}"
+		;;
+	list | ls)
+		cmd_list
+		;;
+	info | show)
+		shift
+		cmd_info "${1:-}"
+		;;
+	files)
+		shift
+		cmd_files "${1:-}"
+		;;
+	*)
+		show_usage
+		;;
+esac
