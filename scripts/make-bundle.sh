@@ -69,6 +69,13 @@ BUNDLE_FILES=$(grep -v '^\s*#' "$BUNDLE_FILE" | grep -v '^\s*$' || true)
 WORK_DIR=$(mktemp -d -t bundle-XXXXX)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
+# Find cross-compile strip tool
+STRIP=$(ls "$OUTPUT_DIR/host/bin/"*-linux-strip 2>/dev/null | head -1)
+if [ -z "$STRIP" ] || [ ! -x "$STRIP" ]; then
+	echo "WARNING: strip tool not found, binaries will be unstripped"
+	STRIP=""
+fi
+
 # Collect files from target directory
 echo "Collecting files from $TARGET_DIR..."
 FILE_COUNT=0
@@ -103,6 +110,12 @@ $BUNDLE_FILES
 EOF
 
 echo "Collected $FILE_COUNT files"
+
+# Strip binaries
+if [ -n "$STRIP" ]; then
+	echo "Stripping binaries..."
+	find "$WORK_DIR" -type f -exec "$STRIP" {} \; 2>/dev/null || true
+fi
 
 # Refuse to create an empty bundle
 if [ "$FILE_COUNT" -eq 0 ]; then

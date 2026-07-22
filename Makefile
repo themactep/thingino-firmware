@@ -822,7 +822,7 @@ rebuild-%: force-config
 
 bundle-%:
 	@$(TEAL) "$@"
-	@$(BR2_MAKE) $(subst bundle-,,$@)
+	@$(BR2_MAKE) $(subst bundle-,,$@)-dirclean $(subst bundle-,,$@)
 	@$(BR2_EXTERNAL)/scripts/make-bundle.sh "$(subst bundle-,,$@)" "$(CAMERA)" "$(OUTPUT_DIR)"
 
 remove_bins:
