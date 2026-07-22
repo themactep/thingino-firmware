@@ -145,11 +145,6 @@ if ha_entity_enabled rssi; then
 		rssi=$(wpa_cli -i "$_wifi_iface" signal_poll 2>/dev/null | awk -F= '/^RSSI=/{print $2}')
 	fi
 
-	# iw (requires iw package)
-	if [ -z "$rssi" ] && [ -n "$_wifi_iface" ] && command -v iw >/dev/null 2>&1; then
-		rssi=$(iw "$_wifi_iface" link 2>/dev/null | awk '/signal:/{print $2}')
-	fi
-
 	# /proc/net/wireless (legacy fallback)
 	if [ -z "$rssi" ] && [ -f /proc/net/wireless ]; then
 		rssi=$(awk 'NR>2{val=$4; sub(/\..*$/, "", val); if (val+0 != 0) {print val+0; exit}}' \
