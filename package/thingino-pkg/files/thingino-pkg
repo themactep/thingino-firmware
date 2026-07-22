@@ -60,8 +60,8 @@ cmd_install() {
 
 	# Extract manifest from bundle (handles both ./ prefix and unprefixed paths)
 	local tmpmanifest="/tmp/pkg-$$.json"
-	tar -xOf "$tmpbundle" thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
-		tar -xOf "$tmpbundle" ./thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
+	zcat "$tmpbundle" | tar -xO thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
+		zcat "$tmpbundle" | tar -xO ./thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
 		{
 			echo "Invalid bundle: no thingino-pkg.json manifest found"
 			rm -f "$tmpbundle"
@@ -102,7 +102,7 @@ cmd_install() {
 
 	# Check conflicts
 	local conflicts
-	conflicts=$(json_get "$tmpmanifest" conflicts)
+	conflicts=$(json_get "$tmpmanifest" conflicts || true)
 	if [ -n "$conflicts" ] && [ "$conflicts" != "null" ]; then
 		for c in $conflicts; do
 			if [ -f "$MANIFEST_DIR/$c.json" ]; then
@@ -165,34 +165,36 @@ cmd_install() {
 
 	# Count files for reporting
 	local file_count
-	file_count=$(tar -tzf "$tmpbundle" 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' | wc -l)
+	file_count=$(zcat "$tmpbundle" | tar -t 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' | wc -l)
 
 	# Extract
 	echo "Installing $name $version to $install_to..."
 	if [ "$install_to" = "sdcard" ]; then
 		mkdir -p "$extract_root"
-		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=thingino-pkg.json 2>/dev/null || {
+		zcat "$tmpbundle" | tar -C "$extract_root" -x 2>/dev/null || {
 			echo "Extraction failed"
 			rm -rf "$extract_root"
 			rm -f "$tmpbundle" "$tmpmanifest"
 			return 1
 		}
+		rm -f "$extract_root/thingino-pkg.json"
 	else
 		[ "$install_to" = "tmp" ] &&
 			echo "Warning: tmpfs install is volatile (lost on reboot)"
 
-		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=thingino-pkg.json 2>/dev/null || {
+		zcat "$tmpbundle" | tar -C "$extract_root" -x 2>/dev/null || {
 			echo "Extraction failed"
 			rm -f "$tmpbundle" "$tmpmanifest"
 			return 1
 		}
+		rm -f "$extract_root/thingino-pkg.json"
 	fi
 
 	# Save manifest
 	cp "$tmpmanifest" "$MANIFEST_DIR/$name.json"
 
 	# Save file list for later removal
-	tar -tzf "$tmpbundle" 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' \
+	zcat "$tmpbundle" | tar -t 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' \
 		>"$FILES_DIR/$name.files"
 
 	# Create symlinks for SD card installs
@@ -202,7 +204,7 @@ cmd_install() {
 
 	# Run post-install
 	local post_install
-	post_install=$(json_get "$tmpmanifest" post_install)
+	post_install=$(json_get "$tmpmanifest" post_install || true)
 	if [ -n "$post_install" ] && [ "$post_install" != "null" ]; then
 		echo "Running post-install..."
 		eval "$post_install" || true
@@ -253,7 +255,7 @@ cmd_remove() {
 
 	# Run pre-remove hook
 	local pre_remove
-	pre_remove=$(json_get "$manifest" pre_remove)
+	pre_remove=$(json_get "$manifest" pre_remove || true)
 	if [ -n "$pre_remove" ] && [ "$pre_remove" != "null" ]; then
 		echo "Running pre-remove..."
 		eval "$pre_remove" || true
@@ -295,7 +297,7 @@ cmd_list() {
 		name=$(json_get "$manifest" name)
 		version=$(json_get "$manifest" version)
 		size_kb=$(json_get "$manifest" size_kb)
-		desc=$(json_get "$manifest" description)
+		desc=$(json_get "$manifest" description || true)
 
 		if [ "$count" -eq 1 ]; then
 			echo ""
