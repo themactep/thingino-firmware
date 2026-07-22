@@ -61,8 +61,8 @@ thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tgz
 ```
 ┌─────────────────────────────────┐
 │  /  (overlayfs, writable)       │
-│    ┌─ upper: /overlay (JFFS2)  │  ← bundle files land here
-│    └─ lower: /rom    (squashfs) │  ← read-only factory image
+│   ┌─ upper: /overlay (JFFS2)    │  ← bundle files land here
+│   └─ lower: /rom    (squashfs)  │  ← read-only factory image
 └─────────────────────────────────┘
 ```
 
