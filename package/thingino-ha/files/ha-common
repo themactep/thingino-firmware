@@ -43,10 +43,10 @@ ha_cfg() {
 }
 
 _ha_mqtt_cfg() {
-	local val
-	val=$(_ha_cfg_lookup "ha.mqtt.$1")
-	if [ -z "$val" ]; then
-		val=$(_ha_cfg_lookup "mqtt_sub.$1")
+	local key="$1" val
+	val=$(_ha_cfg_lookup "ha.mqtt.$key")
+	if [ -z "$val" ] && [ "$key" != "tls_skip_verify" ]; then
+		val=$(_ha_cfg_lookup "mqtt_sub.$key")
 	fi
 	printf '%s' "$val"
 }
@@ -94,6 +94,7 @@ if [ -z "$_HA_MQTT_CFG_READY" ]; then
 	HA_MQTT_USER=$(_ha_mqtt_cfg username)
 	HA_MQTT_PASS=$(_ha_mqtt_cfg password)
 	HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
+	HA_MQTT_TLS_SKIP_VERIFY=$(_ha_mqtt_cfg tls_skip_verify)
 	HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
 
 	HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
@@ -101,7 +102,7 @@ if [ -z "$_HA_MQTT_CFG_READY" ]; then
 
 	_HA_MQTT_CFG_READY=1
 	export _HA_MQTT_CFG_READY HA_MQTT_HOST HA_MQTT_PORT HA_MQTT_USER \
-		HA_MQTT_PASS HA_MQTT_SSL HA_MQTT_CLIENT_PREFIX
+		HA_MQTT_PASS HA_MQTT_SSL HA_MQTT_TLS_SKIP_VERIFY HA_MQTT_CLIENT_PREFIX
 fi
 
 # Delay between individual MQTT publishes within a batch session (microseconds).
@@ -119,7 +120,10 @@ ha_mpub_cmd() {
 	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
 	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
 	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
+	if [ "$HA_MQTT_SSL" = "true" ]; then
+		cmd="$cmd --capath /etc/ssl/certs"
+		[ "$HA_MQTT_TLS_SKIP_VERIFY" = "true" ] && cmd="$cmd --insecure"
+	fi
 	printf '%s' "$cmd"
 }
 
@@ -129,7 +133,10 @@ ha_msub_cmd() {
 	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
 	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
 	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
+	if [ "$HA_MQTT_SSL" = "true" ]; then
+		cmd="$cmd --capath /etc/ssl/certs"
+		[ "$HA_MQTT_TLS_SKIP_VERIFY" = "true" ] && cmd="$cmd --insecure"
+	fi
 	printf '%s' "$cmd"
 }
 

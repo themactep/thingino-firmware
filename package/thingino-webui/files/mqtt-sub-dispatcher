@@ -97,6 +97,7 @@ port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
 username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
 password=$(jct "$CONFIG_FILE" get mqtt_sub.password 2>/dev/null | tr -d '"')
 use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
+tls_skip_verify=$(jct "$CONFIG_FILE" get mqtt_sub.tls_skip_verify 2>/dev/null)
 
 [ -n "$host" ] || die "mqtt_sub.host is not configured"
 
@@ -139,7 +140,10 @@ done
 CMD="mosquitto_sub -h $host -p $port -v -F \"%t %p\""
 [ -n "$username" ] && CMD="$CMD -u $username"
 [ -n "$password" ] && CMD="$CMD -P $password"
-[ "$use_ssl" = "true" ] && CMD="$CMD --capath /etc/ssl/certs"
+if [ "$use_ssl" = "true" ]; then
+	CMD="$CMD --capath /etc/ssl/certs"
+	[ "$tls_skip_verify" = "true" ] && CMD="$CMD --insecure"
+fi
 CMD="$CMD $TOPICS"
 
 start_presence_heartbeat

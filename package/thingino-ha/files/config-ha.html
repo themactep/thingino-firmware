@@ -65,6 +65,12 @@
                   <input type="checkbox" id="ha_mqtt_use_ssl" class="form-check-input" role="switch">
                   <label for="ha_mqtt_use_ssl" class="form-check-label">Use SSL/TLS</label>
                 </p>
+                <p class="form-switch d-none" id="ha_mqtt_tls_skip_verify_row">
+                  <input type="checkbox" id="ha_mqtt_tls_skip_verify" class="form-check-input" role="switch">
+                  <label for="ha_mqtt_tls_skip_verify" class="form-check-label">Skip TLS certificate verification</label>
+                  <br>
+                  <small class="form-text text-secondary">Insecure: MQTT broker identity will not be verified</small>
+                </p>
               </div>
 
               <!-- Device & Timing -->

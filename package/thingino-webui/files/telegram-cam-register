@@ -76,7 +76,10 @@ clear_registration() {
 	set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -n -r
 	[ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 	[ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
-	[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+	if [ "$mqtt_use_ssl" = "true" ]; then
+		set -- "$@" --capath /etc/ssl/certs
+		[ "$mqtt_tls_skip_verify" = "true" ] && set -- "$@" --insecure
+	fi
 	exec mosquitto_pub "$@"
 }
 
@@ -92,6 +95,7 @@ mqtt_port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
 mqtt_username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
 mqtt_password=$(jct "$CONFIG_FILE" get mqtt_sub.password 2>/dev/null | tr -d '"')
 mqtt_use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
+mqtt_tls_skip_verify=$(jct "$CONFIG_FILE" get mqtt_sub.tls_skip_verify 2>/dev/null)
 
 [ -n "$mqtt_host" ] || exit 1
 [ -n "$mqtt_port" ] || mqtt_port=1883
@@ -126,6 +130,9 @@ payload=$(printf '{"camera_id":"%s","name":"%s","hostname":"%s","ip":"%s","snaps
 set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -m "$payload" -r
 [ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 [ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
-[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+if [ "$mqtt_use_ssl" = "true" ]; then
+	set -- "$@" --capath /etc/ssl/certs
+	[ "$mqtt_tls_skip_verify" = "true" ] && set -- "$@" --insecure
+fi
 
 exec mosquitto_pub "$@"

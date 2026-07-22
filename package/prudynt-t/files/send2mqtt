@@ -54,6 +54,7 @@ read_config() {
 	port=$(get_value port)
 	send_photo=$(get_value send_photo)
 	send_video=$(get_value send_video)
+	tls_skip_verify=$(get_value tls_skip_verify)
 	topic=$(get_value topic)
 	topic_photo=$(get_value topic_photo)
 	topic_video=$(get_value topic_video)
@@ -116,6 +117,10 @@ command="mosquitto_pub -h $host -p $port -i $client_id"
 [ "true" = "$verbose" ] && command="$command -d"
 [ -n "$username" ] && command="$command -u $username"
 [ -n "$password" ] && command="$command -P $password"
+if [ "true" = "$(get_value use_ssl)" ]; then
+	command="$command --capath /etc/ssl/certs"
+	[ "true" = "$tls_skip_verify" ] && command="$command --insecure"
+fi
 
 failed=0
 

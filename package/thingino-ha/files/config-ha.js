@@ -9,6 +9,8 @@
   const mqttPassword = $('#ha_mqtt_password');
   const mqttClientId = $('#ha_mqtt_client_id_prefix');
   const mqttSsl      = $('#ha_mqtt_use_ssl');
+  const mqttTlsSkipVerify = $('#ha_mqtt_tls_skip_verify');
+  const mqttTlsSkipVerifyRow = $('#ha_mqtt_tls_skip_verify_row');
 
   // Device & timing
   const deviceName       = $('#ha_device_name');
@@ -37,6 +39,12 @@
     return trimmed;
   }
 
+  function updateTlsSkipVerifyState() {
+    var enabled = mqttSsl.checked;
+    mqttTlsSkipVerifyRow.classList.toggle('d-none', !enabled);
+    mqttTlsSkipVerify.disabled = !enabled;
+  }
+
   function showOverlayMessage(message, variant = 'info') {
     if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
       window.thinginoFooter.showMessage(message, variant);
@@ -47,7 +55,7 @@
 
   function toggleBusy(state, label) {
     submitButton.disabled = state;
-    [mqttHost, mqttPort, mqttUsername, mqttPassword, mqttClientId, mqttSsl,
+    [mqttHost, mqttPort, mqttUsername, mqttPassword, mqttClientId, mqttSsl, mqttTlsSkipVerify,
      deviceName, deviceModel, discoveryPrefix, stateInterval, cameraInterval,
      discoveryInterval,
      otaCheckInterval,
@@ -83,6 +91,8 @@
       mqttPassword.value = sanitizeValue(mqtt.password || '') || '';
       mqttClientId.value = sanitizeValue(mqtt.client_id_prefix || '') || 'thingino-ha';
       mqttSsl.checked    = mqtt.use_ssl === true;
+      mqttTlsSkipVerify.checked = mqtt.tls_skip_verify === true;
+      updateTlsSkipVerifyState();
 
       deviceName.value        = sanitizeValue(d.device_name || '') || '';
       deviceModel.value       = sanitizeValue(d.device_model || '') || '';
@@ -105,6 +115,7 @@
     } finally {
       if (!preserveBusy) {
         toggleBusy(false);
+        updateTlsSkipVerifyState();
       }
     }
   }
@@ -130,6 +141,7 @@
       showAlert('danger', err.message || 'Failed to save Home Assistant settings.');
     } finally {
       toggleBusy(false);
+      updateTlsSkipVerifyState();
     }
   }
 
@@ -151,7 +163,8 @@
         username: sanitizeValue(mqttUsername.value) || '',
         password: sanitizeValue(mqttPassword.value) || '',
         client_id_prefix: sanitizeValue(mqttClientId.value) || 'thingino-ha',
-        use_ssl: mqttSsl.checked
+        use_ssl: mqttSsl.checked,
+        tls_skip_verify: mqttTlsSkipVerify.checked
       }
     };
 
@@ -178,5 +191,6 @@
     });
   }
 
+  mqttSsl.addEventListener('change', updateTlsSkipVerifyState);
   loadConfig();
 })();

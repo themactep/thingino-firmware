@@ -27,6 +27,7 @@
       "password": "",
       "port": 1883,
       "use_ssl": false,
+      "tls_skip_verify": false,
       "username": ""
     },
     "ota_check_interval": 21600,

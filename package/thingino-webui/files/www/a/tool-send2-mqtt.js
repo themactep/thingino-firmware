@@ -2,6 +2,15 @@
   "use strict";
 
   const form = $("#mqttForm");
+  const mqttSsl = $("#mqtt_use_ssl");
+  const mqttTlsSkipVerify = $("#mqtt_tls_skip_verify");
+  const mqttTlsSkipVerifyRow = $("#mqtt_tls_skip_verify_row");
+
+  function updateTlsSkipVerifyState() {
+    var enabled = mqttSsl.checked;
+    mqttTlsSkipVerifyRow.classList.toggle("d-none", !enabled);
+    mqttTlsSkipVerify.disabled = !enabled;
+  }
 
   async function loadConfig() {
     await send2Load("MQTT", (data) => {
@@ -13,8 +22,11 @@
       $("#mqtt_password").value = mqtt.password || "";
       $("#mqtt_use_ssl").checked =
         mqtt.use_ssl === true || mqtt.use_ssl === "true";
+      $("#mqtt_tls_skip_verify").checked =
+        mqtt.tls_skip_verify === true || mqtt.tls_skip_verify === "true";
       $("#mqtt_topic").value = mqtt.topic || "";
       $("#mqtt_message").value = mqtt.message || "";
+      updateTlsSkipVerifyState();
     });
   }
 
@@ -28,6 +40,7 @@
           username: $("#mqtt_username").value.trim(),
           password: $("#mqtt_password").value.trim(),
           use_ssl: $("#mqtt_use_ssl").checked,
+          tls_skip_verify: $("#mqtt_tls_skip_verify").checked,
           topic: $("#mqtt_topic").value.trim(),
           message: $("#mqtt_message").value.trim(),
           enabled: true,
@@ -36,6 +49,7 @@
     );
   }
 
+  mqttSsl.addEventListener("change", updateTlsSkipVerifyState);
   send2SetupReload($("#mqtt-reload"), "MQTT", loadConfig);
   loadConfig();
 })();
