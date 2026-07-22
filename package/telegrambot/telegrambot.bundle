@@ -7,9 +7,10 @@ etc/init.d/S93telegrambot
 etc/telegrambot.json
 
 # WebUI plugin (requires thingino-webui rebuild during bundle creation)
+# Note: plugins.js is NOT included — thingino-pkg rebuilds it from
+# all installed manifests on install/remove to support multiple plugins.
 var/www/config-telegrambot.html
 var/www/a/config-telegrambot.js
 var/www/x/json-telegrambot.cgi
 var/www/x/ctl-telegrambot.cgi
 var/www/a/plugins/telegrambot.webui.json
-var/www/a/plugins.js
