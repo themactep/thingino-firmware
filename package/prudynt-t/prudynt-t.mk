@@ -2,7 +2,7 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = f4b32289359d176fb0795d9f3735af0bd9d6d2fd
+PRUDYNT_T_VERSION = ac02b8014ab64d8ff3c3f8b49a9af0586ee7ad9e
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -13,9 +13,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 	PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
-PRUDYNT_T_DEPENDENCIES += libschrift
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -102,11 +100,7 @@ endif
 
 # Add include paths
 PRUDYNT_CFLAGS += \
-	-I$(STAGING_DIR)/usr/include \
-	-I$(STAGING_DIR)/usr/include/liveMedia \
-	-I$(STAGING_DIR)/usr/include/groupsock \
-	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
-	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+	-I$(STAGING_DIR)/usr/include
 
 # OpenSSL support - link against OpenSSL if available and live555 uses it
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
@@ -129,21 +123,21 @@ endif
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_DEBUG),y)
 	# Debug build: disable optimizations, add debug symbols
 	PRUDYNT_CFLAGS += -O0 -g -fno-omit-frame-pointer
-	PRUDYNT_CFLAGS += -Wnull-dereference -Wformat=2 -Wformat-security -Wstack-protector
-	PRUDYNT_CFLAGS += -fstack-protector-strong -D_FORTIFY_SOURCE=2
+	PRUDYNT_CFLAGS += -Wnull-dereference -Wformat=2 -Wformat-security
 	PRUDYNT_CFLAGS += -DDEBUG_BUILD=1 -DMEMORY_SAFETY_CHECKS=1
 
-	# Sanitizer support - simplified approach to avoid makefile complexity
-	# Try AddressSanitizer first (better cross-compilation support)
-ifneq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-	# For glibc/uclibc toolchains, try both sanitizers
+	# Advanced hardening: AddressSanitizer + stack protector.
+	# Only glibc toolchains reliably ship libasan, SSP runtime, and
+	# FORTIFY_SOURCE support. External uclibc/musl toolchains (e.g.
+	# Ingenic MIPS) typically lack all three.
+ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	PRUDYNT_CFLAGS += -fsanitize=address
 	PRUDYNT_LDFLAGS += -fsanitize=address
-$(info [PRUDYNT DEBUG] AddressSanitizer enabled for non-musl toolchain)
+	PRUDYNT_CFLAGS += -fstack-protector-strong -Wstack-protector -D_FORTIFY_SOURCE=2
+$(info [PRUDYNT DEBUG] AddressSanitizer + stack protector + FORTIFY (glibc))
 else
-	# For musl toolchains, use alternative memory safety features
 	PRUDYNT_CFLAGS += -fstack-clash-protection
-$(info [PRUDYNT DEBUG] Alternative memory safety flags enabled for musl toolchain)
+$(info [PRUDYNT DEBUG] Lightweight hardening: stack-clash only (no libasan/SSP))
 endif
 
 	# Prevent buildroot from stripping debug builds
@@ -203,7 +197,7 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_OPUS=$(PRUDYNT_T_USE_OPUS) \
 		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
-		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
+		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
@@ -358,14 +352,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
 
-	# assets
-	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
-		$(TARGET_DIR)/usr/share/fonts/default.ttf
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
-
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
 		echo "Installing debug tools and documentation to NFS..."; \
@@ -381,11 +367,11 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "Built with debug symbols and memory safety features" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug symbols: /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Unstripped binary: /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
-		echo "Memory safety features: stack protection, fortify source, debug flags" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
-		if [ "$(BR2_TOOLCHAIN_USES_MUSL)" = "y" ]; then \
-			echo "Toolchain: musl (AddressSanitizer disabled, alternative protections enabled)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+		echo "Memory safety features: debug flags" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+		if [ "$(BR2_TOOLCHAIN_USES_GLIBC)" = "y" ]; then \
+			echo "Toolchain: glibc (AddressSanitizer + stack protector + FORTIFY)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		else \
-			echo "Toolchain: glibc/uclibc (AddressSanitizer enabled)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+			echo "Toolchain: uclibc/musl (lightweight hardening, no libasan/SSP)" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		fi; \
 		echo "" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Usage (from camera with NFS mounted):" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
