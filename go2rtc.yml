@@ -1,0 +1,20 @@
+# go2rtc config: Thingino camera → WebRTC / MSE / MP4
+streams:
+  camera_127: rtsp://thingino:thingino@192.168.88.127:554/ch0
+  camera_129: rtsp://thingino:thingino@192.168.88.129:554/ch0
+
+api:
+  listen: :1984
+
+webrtc:
+  listen: :8555
+  candidates:
+    - 192.168.88.20:8555
+
+# MSE tuning: align segment duration to camera GOP (~1 second)
+# Longer segments ensure each starts with a keyframe
+mse:
+  segment: 2s
+
+log:
+  level: trace

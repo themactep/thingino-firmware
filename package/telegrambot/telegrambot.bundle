@@ -1,5 +1,15 @@
 # Files included in the telegrambot bundle
 # Paths relative to target root (/)
+#
+# Bot daemon and config
 usr/sbin/telegrambot
 etc/init.d/S93telegrambot
 etc/telegrambot.json
+
+# WebUI plugin (requires thingino-webui rebuild during bundle creation)
+var/www/config-telegrambot.html
+var/www/a/config-telegrambot.js
+var/www/x/json-telegrambot.cgi
+var/www/x/ctl-telegrambot.cgi
+var/www/a/plugins/telegrambot.webui.json
+var/www/a/plugins.js

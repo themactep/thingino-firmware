@@ -88,8 +88,12 @@ while IFS= read -r file; do
 
 	src="$TARGET_DIR/$file"
 	if [ ! -e "$src" ]; then
-		echo "WARNING: file not found in target: $file"
-		continue
+		# Fall back to global target/ (e.g. for webui files assembled there)
+		src="$OUTPUT_DIR/target/$file"
+		if [ ! -e "$src" ]; then
+			echo "WARNING: file not found: $file"
+			continue
+		fi
 	fi
 
 	dest="$WORK_DIR/$file"
