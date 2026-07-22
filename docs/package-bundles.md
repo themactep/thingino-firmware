@@ -112,14 +112,14 @@ A `.tgz` file is a **gzip-compressed tar archive** containing:
 
 ```
 <name>-<version>-<soc_family>.tgz
-├── .thingino-pkg.json        ← manifest (always the first entry)
+├── thingino-pkg.json        ← manifest (always the first entry)
 ├── usr/bin/go2rtc
 ├── etc/go2rtc.yaml
 └── etc/init.d/S97go2rtc
 ```
 
 All file paths are **relative to `/`** (no leading slash).  The manifest is
-always named `.thingino-pkg.json` and must be the first file in the archive so
+always named `thingino-pkg.json` and must be the first file in the archive so
 the device can extract and inspect it before committing to the full install.
 
 ---
@@ -200,7 +200,7 @@ The `make bundle-<pkg>` target:
    - Strips ELF binaries with the cross-compile strip tool
    - Determines the package version from `build/<pkg>-<version>/`
    - Reads `SOC_FAMILY` from the build config
-   - Generates the `.tgz` archive with embedded `.thingino-pkg.json` manifest
+   - Generates the `.tgz` archive with embedded `thingino-pkg.json` manifest
 
 ### WebUI plugins
 
@@ -263,7 +263,7 @@ thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tgz
 The script:
 
 1. Downloads the bundle to `/tmp`
-2. Extracts the `.thingino-pkg.json` manifest and validates it:
+2. Extracts the `thingino-pkg.json` manifest and validates it:
    - **SOC check**: manifest `soc_family` must match the device (`soc -f`)
    - **Conflict check**: manifest `conflicts` list checked against installed packages
    - **Already-installed check**: refuses if an older version is present (remove first)
@@ -414,7 +414,7 @@ Rules:
 
 ## Manifest reference
 
-### `.thingino-pkg.json`
+### `thingino-pkg.json`
 
 Embedded in every `.tgz` file.  Stored on device at
 `/overlay/.pkg/manifests/<name>.json` after install.

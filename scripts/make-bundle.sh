@@ -132,7 +132,7 @@ fi
 SIZE_KB=$(((TOTAL_SIZE + 1023) / 1024))
 
 # Generate manifest
-MANIFEST="$WORK_DIR/.thingino-pkg.json"
+MANIFEST="$WORK_DIR/thingino-pkg.json"
 cat > "$MANIFEST" <<MANIFEST_EOF
 {
   "name": "$PKG_NAME",

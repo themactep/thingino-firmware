@@ -58,13 +58,15 @@ cmd_install() {
 			;;
 	esac
 
-	# Extract manifest from bundle
+	# Extract manifest from bundle (handles both ./ prefix and unprefixed paths)
 	local tmpmanifest="/tmp/pkg-$$.json"
-	tar -xOf "$tmpbundle" .thingino-pkg.json >"$tmpmanifest" 2>/dev/null || {
-		echo "Invalid bundle: no .thingino-pkg.json manifest found"
-		rm -f "$tmpbundle"
-		return 1
-	}
+	tar -xOf "$tmpbundle" thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
+		tar -xOf "$tmpbundle" ./thingino-pkg.json >"$tmpmanifest" 2>/dev/null ||
+		{
+			echo "Invalid bundle: no thingino-pkg.json manifest found"
+			rm -f "$tmpbundle"
+			return 1
+		}
 
 	# Read manifest fields
 	local name version bundle_soc size_kb
@@ -163,13 +165,13 @@ cmd_install() {
 
 	# Count files for reporting
 	local file_count
-	file_count=$(tar -tzf "$tmpbundle" 2>/dev/null | grep -v '^\.thingino-pkg\.json$' | grep -v '/$' | wc -l)
+	file_count=$(tar -tzf "$tmpbundle" 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' | wc -l)
 
 	# Extract
 	echo "Installing $name $version to $install_to..."
 	if [ "$install_to" = "sdcard" ]; then
 		mkdir -p "$extract_root"
-		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=.thingino-pkg.json 2>/dev/null || {
+		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=thingino-pkg.json 2>/dev/null || {
 			echo "Extraction failed"
 			rm -rf "$extract_root"
 			rm -f "$tmpbundle" "$tmpmanifest"
@@ -179,7 +181,7 @@ cmd_install() {
 		[ "$install_to" = "tmp" ] &&
 			echo "Warning: tmpfs install is volatile (lost on reboot)"
 
-		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=.thingino-pkg.json 2>/dev/null || {
+		tar -C "$extract_root" -xzf "$tmpbundle" --exclude=thingino-pkg.json 2>/dev/null || {
 			echo "Extraction failed"
 			rm -f "$tmpbundle" "$tmpmanifest"
 			return 1
@@ -190,7 +192,7 @@ cmd_install() {
 	cp "$tmpmanifest" "$MANIFEST_DIR/$name.json"
 
 	# Save file list for later removal
-	tar -tzf "$tmpbundle" 2>/dev/null | grep -v '^\.thingino-pkg\.json$' | grep -v '/$' \
+	tar -tzf "$tmpbundle" 2>/dev/null | grep -v 'thingino-pkg.json$' | grep -v '/$' \
 		>"$FILES_DIR/$name.files"
 
 	# Create symlinks for SD card installs
