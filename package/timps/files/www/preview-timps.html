@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<!--
+  thingino · timps preview
+
+  Native MSE/fMP4 player (no iframe): fetches
+      http://<location.hostname>:8880/stream.mp4?chn=N
+  from timpsd and feeds it into a MediaSource SourceBuffer. The
+  buffering/eviction/live-edge logic is a port of timps's own embedded
+  player (src/mp4/httpd.c, PLAYER_TAIL). The motor joystick overlay and
+  /a/preview-motors.js are taken over UNCHANGED from preview-raptor.html, so
+  PTZ keeps working through thingino's /x/json-motor.cgi.
+
+  IMPORTANT - KNOWN LIMITATION (mixed content):
+  The video is loaded from plain HTTP on port 8880. If this web UI itself is
+  served over HTTPS, browsers block the http://<camera>:8880 request as mixed
+  content and the preview stays black. Workarounds: serve the web UI over
+  HTTP, or reverse-proxy timps's HTTP port under the same HTTPS origin.
+
+  If you change http.port in /etc/timps.conf, adjust MS_PORT below.
+-->
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · timps preview</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .ms-video-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    .ms-video-wrap video {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      object-fit: contain;
+    }
+    /* live motion-grid overlay (drawn by /a/preview-motion.js); it never
+       captures the pointer, so the motor joystick keeps working */
+    #motion-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    /* PTZ overlay: only the 9 joystick buttons (which together fill its
+       300px hover-reveal circle, see a/main.css #motor/.jst) should take
+       the pointer - everything else must fall through to the native
+       <video controls> bar and click-to-play surface underneath. main.css
+       reveals the joystick via visibility:hidden -> visible on #motor:hover,
+       but visibility:hidden elements are never hit-tested (even with
+       pointer-events:auto), so making #motor itself click-through would
+       stop it from ever detecting the hover that reveals it. Swapping the
+       hide/reveal to opacity keeps the buttons hit-testable while still
+       starting invisible, so hovering the circle still reveals them exactly
+       as before - only the container layers around/behind them become
+       click-through. */
+    #motor-overlay,
+    #motor,
+    .jst {
+      pointer-events: none;
+    }
+    .jst {
+      visibility: visible !important;
+      opacity: 0;
+    }
+    #motor:hover .jst {
+      opacity: 1;
+    }
+    .jst a {
+      pointer-events: auto;
+    }
+    .ms-hint {
+      font-size: 0.875rem;
+      color: var(--bs-secondary-color);
+    }
+  </style>
+</head>
+
+<body id="page-preview">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <h2 class="card-title mb-0">timps Live View</h2>
+            <small>Native fMP4/MSE player (no iframe), stream from port 8880</small>
+          </div>
+          <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" id="ms-stream" title="Select stream" style="width:auto; min-width: 140px;">
+              <option value="0">Main stream</option>
+              <option value="1">Sub stream</option>
+            </select>
+            <!-- motion-grid overlay toggle: hidden until /a/preview-motion.js
+                 confirms this timps build has IMP_IVS motion detection -->
+            <button type="button" class="btn btn-outline-secondary" id="ms-motion"
+              title="Motion grid overlay" style="display:none">
+              <i class="bi bi-grid-3x3"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="ms-connect" title="Connect/Disconnect stream">
+              <i class="bi bi-play-circle"></i> Connect
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="ms-video-wrap">
+            <video id="ms-video" autoplay muted controls playsinline disableremoteplayback></video>
+            <canvas id="motion-overlay" style="display:none" aria-hidden="true"></canvas>
+            <div class="position-absolute top-50 start-50 translate-middle text-center" id="ms-connecting-overlay" style="display:none;">
+              <div class="spinner-border text-light mb-2" role="status" style="width:3rem;height:3rem;">
+                <span class="visually-hidden">Connecting...</span>
+              </div>
+              <div class="text-light small">Connecting...</div>
+            </div>
+            <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
+              <div id="motor">
+                <div class="jst">
+                  <a class="s" data-dir="uc"></a>
+                  <a class="s" data-dir="ur"></a>
+                  <a class="s" data-dir="cr"></a>
+                  <a class="s" data-dir="dr"></a>
+                  <a class="s" data-dir="dc"></a>
+                  <a class="s" data-dir="dl"></a>
+                  <a class="s" data-dir="cl"></a>
+                  <a class="s" data-dir="ul"></a>
+                  <a class="b" data-dir="h"></a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ms-hint mt-2" id="ms-status"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script>
+  (function () {
+    // timps's HTTP server port (http.port in /etc/timps.conf)
+    const MS_PORT = 8880;
+
+    const video = document.getElementById("ms-video");
+    const connectButton = document.getElementById("ms-connect");
+    const streamSelect = document.getElementById("ms-stream");
+    const status = document.getElementById("ms-status");
+    const overlay = document.getElementById("ms-connecting-overlay");
+    if (!video || !connectButton || !streamSelect || !status) return;
+
+    let host = location.hostname || "127.0.0.1";
+    if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
+    let base = "http://" + host + ":" + MS_PORT;   /* updated from the token info (scheme/port) */
+
+    // Per-boot timps token, fetched ONCE and shared with preview-motion.js
+    // (which subscribes to /events with it). Appended as ?token= to the
+    // /stream.mp4 fetch so the preview also works when http.user is set in
+    // timps.conf - the token unlocks media viewing + /control + /events,
+    // never RTSP. Resolves to null when the endpoint is unavailable (e.g.
+    // prudynt build); the stream is then fetched without a token and the
+    // existing 401 fallback message still applies.
+    window.timpsTokenInfo = window.timpsTokenInfo ||
+      fetch("/x/timps-token.cgi", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+    const params = new URLSearchParams(window.location.search);
+    const defaultStream = params.get("stream") || sessionStorage.getItem("ms.stream") || "0";
+
+    let mediaSource = null;
+    let abortCtrl = null;
+    let running = false;
+    // Monotonic stream-session token: every start/stop bumps it. The async
+    // MSE plumbing of an old session (reader loop, sourceopen tail) checks
+    // its captured token before touching shared state/UI, so switching
+    // streams live (stop+start in quick succession) can never let the dying
+    // session kill or "disconnect" the new one.
+    let session = 0;
+
+    function setStatus(message) { status.textContent = message; }
+
+    function setConnectingUi(active) {
+      if (overlay) overlay.style.display = active ? "" : "none";
+      if (active) {
+        connectButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Connecting…';
+        connectButton.disabled = true;
+      } else {
+        connectButton.disabled = false;
+      }
+    }
+
+    function setConnectedUi(connected) {
+      connectButton.innerHTML = connected
+        ? '<i class="bi bi-stop-circle"></i> Disconnect'
+        : '<i class="bi bi-play-circle"></i> Connect';
+      // the stream select stays enabled while connected: picking another
+      // stream live tears the player down and rebuilds it on the new channel
+      if (connected) setConnectingUi(false);
+    }
+
+    // The embedded timps player derives the exact codec string from the
+    // live SPS server-side; a static page cannot, so probe common strings.
+    // The init segment carries the real avcC/hvcC, so a generic profile in
+    // the MIME string is fine for MSE.
+    //
+    // CRITICAL: only advertise an mp4a (AAC) audio track when timps actually
+    // muxes AAC into the fMP4. With PCM (G.711) audio the stream is video-only
+    // (httpd.c can_audio = acodec==AAC), so a SourceBuffer typed with mp4a would
+    // reject the 1-track init segment (MSE requires the init tracks to match the
+    // codecs string) and tear down the whole MediaSource -> black player, no
+    // video at all. When wantAac is false we therefore probe video-only strings.
+    function pickMime(MS, wantAac) {
+      const vOnly = [
+        'video/mp4; codecs="avc1.640028"',            // H.264 High
+        'video/mp4; codecs="hvc1.1.6.L123.B0"'        // H.265
+      ];
+      const withAac = [
+        'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+        'video/mp4; codecs="hvc1.1.6.L123.B0, mp4a.40.2"'
+      ];
+      const candidates = wantAac ? withAac.concat(vOnly) : vOnly;
+      // isTypeSupported must be queried on whichever MSE class we'll actually
+      // construct (ManagedMediaSource on iOS) - the bare global MediaSource
+      // is undefined there, so calling it unqualified throws before this
+      // function even gets a chance to fall back to progressive playback.
+      for (const m of candidates) {
+        if (MS && MS.isTypeSupported(m)) return m;
+      }
+      return null;
+    }
+
+    // Ask timps (GET /control) whether audio is enabled AND AAC; anything else
+    // (pcma/pcmu/disabled/unreachable) means the fMP4 is video-only, so we must
+    // NOT claim an AAC track to MSE. Uses the same token that unlocks /control.
+    async function streamHasAac(apiBase, tok) {
+      try {
+        const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
+                              { cache: "no-store" });
+        if (!r.ok) return false;
+        const j = await r.json();
+        return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
+      } catch (e) { return false; }   // unreachable -> safe video-only
+    }
+
+    async function stopStream(reason = "Disconnected") {
+      session++;              // invalidate all async work of the old session
+      running = false;
+      if (abortCtrl) {
+        try { abortCtrl.abort(); } catch (e) { /* ignore */ }
+        abortCtrl = null;
+      }
+      if (mediaSource) {
+        try { if (mediaSource.readyState === "open") mediaSource.endOfStream(); } catch (e) { /* ignore */ }
+        mediaSource = null;
+      }
+      video.removeAttribute("src");
+      try { video.load(); } catch (e) { /* ignore */ }
+      setConnectingUi(false);
+      setConnectedUi(false);
+      setStatus(reason);
+    }
+
+    // Port of timps's embedded MSE player (src/mp4/httpd.c PLAYER_TAIL):
+    // sequence mode, append queue with pump(), eviction of data >10 s behind
+    // playback, live-edge jump when drifting >6 s behind.
+    async function startStream(forceVideoOnly = false) {
+      if (running) return;
+      running = true;
+      const mySession = ++session;   // this attempt owns the player now
+      setStatus("Connecting...");
+      setConnectingUi(true);
+
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const info = await window.timpsTokenInfo;
+      if (info) base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT);
+      const tok = info && info.token
+        ? "&token=" + encodeURIComponent(info.token) : "";
+      const src = base + "/stream.mp4?chn=" + chn + tok;
+      // iOS Safari never exposes window.MediaSource; since iOS 17.1 it
+      // exposes window.ManagedMediaSource instead (requires
+      // disableremoteplayback, set on the <video> tag above). Desktop
+      // browsers keep using plain MediaSource. Mirrors the fix already
+      // applied to timps's own embedded player (src/mp4/httpd.c PLAYER_TAIL).
+      const MS = window.ManagedMediaSource || window.MediaSource;
+      // Advertise AAC to MSE only if timps is actually muxing it; a video-only
+      // stream (PCM audio) with an mp4a-typed SourceBuffer shows no video.
+      const wantAac = forceVideoOnly ? false : await streamHasAac(base, tok);
+      if (session !== mySession) return;   // superseded during the /control probe
+      const mime = pickMime(MS, wantAac);
+
+      if (!MS || !mime) {
+        // no MSE (e.g. old iOS Safari): let the <video> try progressive mp4
+        video.src = src;
+        setConnectedUi(true);
+        setStatus("MSE unavailable - direct playback attempt");
+        return;
+      }
+
+      const ms = new MS();
+      mediaSource = ms;
+      video.src = URL.createObjectURL(ms);
+
+      ms.addEventListener("sourceopen", async () => {
+        if (session !== mySession) return;   // superseded while opening
+        try { ms.duration = Infinity; } catch (e) { /* Safari live-MSE hint */ }
+        let sb;
+        try {
+          sb = ms.addSourceBuffer(mime);
+        } catch (e) {
+          video.src = src;
+          return;
+        }
+        sb.mode = "sequence";
+        // Safety net: if we advertised AAC but the init segment is video-only
+        // (e.g. audio pipeline degraded after the /control probe), MSE fails the
+        // append asynchronously here. Retry once forcing a video-only buffer so
+        // the video still shows instead of a black player.
+        sb.addEventListener("error", () => {
+          if (session !== mySession || forceVideoOnly || !/mp4a/.test(mime)) return;
+          stopStream("Retrying video-only…").then(() => startStream(true));
+        });
+        let dead = false;
+        const q = [];
+        let busy = false;
+
+        const stop = () => {
+          dead = true;
+          try { if (ms.readyState === "open") ms.endOfStream(); } catch (e) { /* ignore */ }
+        };
+        // drop buffered data older than ~10s behind playback so the
+        // SourceBuffer never fills up during a long-running live stream
+        const evict = () => {
+          try {
+            if (sb.buffered.length) {
+              const s = sb.buffered.start(0), e = video.currentTime - 10;
+              if (e > s + 4 && !sb.updating) sb.remove(s, e);
+            }
+          } catch (e) { /* ignore */ }
+        };
+        const pump = () => {
+          if (dead || busy || sb.updating || ms.readyState !== "open" || !q.length) return;
+          busy = true;
+          const c = q[0];
+          try { sb.appendBuffer(c); q.shift(); }
+          catch (e) {
+            busy = false;
+            if (e.name === "QuotaExceededError") evict(); else stop();
+          }
+        };
+        sb.addEventListener("updateend", () => {
+          busy = false;
+          if (video.buffered.length) {
+            if (video.currentTime < video.buffered.start(0)) video.currentTime = video.buffered.start(0);
+            // keep close to the live edge; if we drift >6s behind, jump forward
+            const end = video.buffered.end(video.buffered.length - 1);
+            if (end - video.currentTime > 6) video.currentTime = end - 1;
+          }
+          evict();
+          pump();
+        });
+        sb.addEventListener("error", stop);
+
+        const ctrl = new AbortController();
+        abortCtrl = ctrl;
+        try {
+          const res = await fetch(src, { signal: ctrl.signal, cache: "no-store" });
+          if (session !== mySession) {           // superseded mid-connect
+            try { ctrl.abort(); } catch (e) { /* ignore */ }
+            stop();
+            return;
+          }
+          if (!res.ok || !res.body) {
+            await stopStream("Connect failed: HTTP " + res.status +
+              (res.status === 401 ? " (timps HTTP auth - open " + base + " once and log in)" : ""));
+            return;
+          }
+          setConnectedUi(true);
+          setStatus("Connected (" + (chn === "1" ? "sub" : "main") + " stream)");
+          const rd = res.body.getReader();
+          while (true) {
+            const { done, value } = await rd.read();
+            if (done || dead || session !== mySession) break;
+            q.push(value);
+            pump();
+          }
+        } catch (e) {
+          if (session === mySession && running) {
+            setStatus("Stream error: " + (e && e.message ? e.message : e) +
+              " - if the web UI runs on HTTPS this is likely blocked mixed content (see page source)");
+          }
+        }
+        stop();
+        // only the still-current session may flip the UI back to disconnected
+        if (session === mySession && running) {
+          setConnectedUi(false);
+          setConnectingUi(false);
+          running = false;
+        }
+      });
+    }
+
+    // live main/sub switch: selecting another stream while playing tears the
+    // MSE player down and rebuilds it on the new ?chn= (a different
+    // resolution/SPS needs a fresh MediaSource) - no manual Disconnect needed
+    streamSelect.addEventListener("change", () => {
+      sessionStorage.setItem("ms.stream", streamSelect.value || "0");
+      if (running) {
+        stopStream("Switching stream...").then(startStream);
+      }
+    });
+
+    connectButton.addEventListener("click", () => {
+      if (running) stopStream(); else startStream();
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (running) stopStream();
+    });
+
+    streamSelect.value = defaultStream === "1" ? "1" : "0";
+    setConnectedUi(false);
+    startStream().catch((err) => {
+      console.warn("Auto-connect failed:", err);
+      setStatus("Auto-connect failed. Click Connect to try again.");
+    });
+  })();
+</script>
+<script src="/a/preview-motors.js"></script>
+<script src="/a/preview-motion.js"></script>
+</body>
+</html>
