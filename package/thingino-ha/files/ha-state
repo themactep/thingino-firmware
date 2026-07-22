@@ -131,16 +131,31 @@ fi
 # WiFi RSSI sensor
 if ha_entity_enabled rssi; then
 	rssi=""
-	if command -v iw >/dev/null 2>&1; then
-		for iface in $(ls /sys/class/net/ 2>/dev/null | grep wlan); do
-			rssi=$(iw "$iface" link 2>/dev/null | awk '/signal:/{print $2}')
-			[ -n "$rssi" ] && break
-		done
+
+	# Find a wireless interface
+	_wifi_iface=""
+	for _if in $(ls /sys/class/net/ 2>/dev/null); do
+		[ -d "/sys/class/net/$_if/wireless" ] || continue
+		_wifi_iface="$_if"
+		break
+	done
+
+	# wpa_cli signal_poll (most reliable on Thingino cameras)
+	if [ -z "$rssi" ] && [ -n "$_wifi_iface" ] && command -v wpa_cli >/dev/null 2>&1; then
+		rssi=$(wpa_cli -i "$_wifi_iface" signal_poll 2>/dev/null | awk -F= '/^RSSI=/{print $2}')
 	fi
+
+	# iw (requires iw package)
+	if [ -z "$rssi" ] && [ -n "$_wifi_iface" ] && command -v iw >/dev/null 2>&1; then
+		rssi=$(iw "$_wifi_iface" link 2>/dev/null | awk '/signal:/{print $2}')
+	fi
+
+	# /proc/net/wireless (legacy fallback)
 	if [ -z "$rssi" ] && [ -f /proc/net/wireless ]; then
 		rssi=$(awk 'NR>2{val=$4; sub(/\..*$/, "", val); if (val+0 != 0) {print val+0; exit}}' \
 			/proc/net/wireless 2>/dev/null)
 	fi
+
 	[ -n "$rssi" ] && [ "$rssi" != "0" ] && ha_pub_state rssi "$rssi" "$FORCE"
 fi
 
