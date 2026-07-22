@@ -153,7 +153,7 @@ This single command:
 3. **Strips** ELF binaries using the cross-compile strip tool
 4. **Detects WebUI plugins**: if a `<pkg>.webui.json` manifest exists in the
    package's `files/` directory, rebuilds `thingino-webui` and runs
-   `target-finalize` to assemble the plugin into the global target directory
+   `target/` directory, then runs `assemble_plugins.py` to inject the plugin
 5. **Collects** the files listed in the `.bundle` manifest from both the
    per-package target and the global `target/` directory
 6. Produces `<output-dir>/bundles/<name>-<version>-<soc_family>.tgz`
@@ -190,8 +190,9 @@ The `make bundle-<pkg>` target:
 1. Runs `<pkg>-dirclean` to clean any previous build artifacts
 2. Runs `<pkg>` — Buildroot configures, builds, and installs the package into
    `per-package/<pkg>/target/`
-3. If a `<pkg>.webui.json` manifest exists, runs `thingino-webui-rebuild` +
-   `target-finalize` to assemble the WebUI plugin into the global `target/`
+3. If a `<pkg>.webui.json` manifest exists, **rsyncs** the plugin's web files
+   into the global `target/` and runs `assemble_plugins.py` directly to inject
+   the plugin into `plugins.js` and the HTML pages
    (see [WebUI plugins](#webui-plugins) below)
 4. Calls `make-bundle.sh`, which:
    - Reads the `.bundle` file from `package/<pkg>/`
@@ -206,8 +207,8 @@ The `make bundle-<pkg>` target:
 
 Packages that use the [WebUI plugin system](plugin-system.md) can include their
 web files in the bundle.  When `make bundle-<pkg>` detects a
-`files/<pkg>.webui.json` manifest, it rebuilds the webui and runs
-`target-finalize` to trigger `assemble_plugins.py`.  The assembled output
+`files/<pkg>.webui.json` manifest, it rsyncs the plugin files into the
+global target and runs `assemble_plugins.py` directly.  The assembled output
 (`plugins.js`, modified HTML pages, injected script tags) is included in the
 bundle.
 

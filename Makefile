@@ -824,8 +824,10 @@ bundle-%:
 	@$(TEAL) "$@"
 	@$(BR2_MAKE) $(subst bundle-,,$@)-dirclean $(subst bundle-,,$@)
 	@if [ -f "$(BR2_EXTERNAL)/package/$(subst bundle-,,$@)/files/$(subst bundle-,,$@).webui.json" ]; then \
-		echo "  WebUI plugin detected, rebuilding + finalizing..."; \
-		$(BR2_MAKE) thingino-webui-rebuild target-finalize; \
+		echo "  WebUI plugin detected, assembling..."; \
+		PKG="$(subst bundle-,,$@)"; \
+		rsync -a "$(OUTPUT_DIR)/per-package/$$PKG/target/var/www/" "$(OUTPUT_DIR)/target/var/www/"; \
+		python3 "$(BR2_EXTERNAL)/package/thingino-webui/scripts/assemble_plugins.py" "$(OUTPUT_DIR)/target" || true; \
 	fi
 	@$(BR2_EXTERNAL)/scripts/make-bundle.sh "$(subst bundle-,,$@)" "$(CAMERA)" "$(OUTPUT_DIR)"
 
