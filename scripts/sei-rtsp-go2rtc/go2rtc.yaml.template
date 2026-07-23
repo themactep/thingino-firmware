@@ -1,0 +1,40 @@
+# go2rtc configuration template for Thingino SEI OSD overlay
+#
+# This file is a template. The run.sh script generates the actual config
+# by substituting placeholders with the computed drawtext filter chain.
+#
+# Architecture:
+#   camera_raw  – direct RTSP from the Thingino camera
+#   camera_osd  – ffmpeg process with drawtext overlay, served as a stream
+#
+# The companion sei-extract binary parses SEI NAL units from the raw
+# stream and writes per-element text files that ffmpeg's drawtext filter
+# reads with reload=1 on every frame.
+#
+# Usage:
+#   ./run.sh rtsp://camera:554/stream [options]
+#   go2rtc -c <generated-config.yaml>
+
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"
+  candidates:
+    - "stun:stun.l.google.com:19302"
+
+log:
+  level: info
+
+streams:
+  # Raw camera stream (passthrough, no transcoding)
+  camera_raw:
+    __CAMERA_RAW_SRC__
+
+  # Overlaid stream – ffmpeg applies drawtext from sei-extract text files
+  camera_osd:
+    __CAMERA_OSD_EXEC__
