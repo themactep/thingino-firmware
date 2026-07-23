@@ -100,6 +100,7 @@ handle_post() {
 	new_username=$(jct "$REQ_FILE" get username 2>/dev/null)
 	new_password=$(jct "$REQ_FILE" get password 2>/dev/null)
 	new_use_ssl=$(jct "$REQ_FILE" get use_ssl 2>/dev/null)
+	new_tls_skip_verify=$(jct "$REQ_FILE" get tls_skip_verify 2>/dev/null)
 	new_subscriptions=$(jct "$REQ_FILE" get subscriptions 2>/dev/null)
 
 	enabled=$(normalize_bool "$new_enabled")
@@ -108,6 +109,7 @@ handle_post() {
 	username=$(strip_json_string "$new_username")
 	password=$(strip_json_string "$new_password")
 	use_ssl=$(normalize_bool "$new_use_ssl")
+	tls_skip_verify=$(normalize_bool "$new_tls_skip_verify")
 
 	[ -n "$port" ] || port="1883"
 
@@ -129,6 +131,7 @@ handle_post() {
     "username": "$(json_escape "$username")",
     "password": "$(json_escape "$password")",
     "use_ssl": $use_ssl,
+    "tls_skip_verify": $tls_skip_verify,
     "subscriptions": ${new_subscriptions:-[]}
   }
 }
