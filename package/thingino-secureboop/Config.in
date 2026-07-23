@@ -1,0 +1,39 @@
+config BR2_PACKAGE_THINGINO_SECUREBOOP
+	bool "Thingino secure-boot bypass (secureboop)"
+	help
+	  Bypass secure boot on locked-down Ingenic cameras so
+	  locally-built unsigned U-Boot images can boot.
+
+	  T31: Collision-based SPL forging — requires a vendor-signed
+	  reference SPL binary supplied by the user.
+	  T32/T40/T41: INGE init-table injection that clears the
+	  secure-boot flag before signature verification runs.
+
+if BR2_PACKAGE_THINGINO_SECUREBOOP
+
+config BR2_PACKAGE_THINGINO_SECUREBOOP_T31_REFERENCE_SPL
+	string "T31 reference SPL path"
+	depends on BR2_SOC_FAMILY = "t31"
+	help
+	  Path to a vendor-signed T31 SPL binary whose secure-boot
+	  header, key, and signature will be applied to the locally
+	  built image.  A relative path is resolved from the camera
+	  config directory; an absolute path is used as-is.
+
+config BR2_PACKAGE_THINGINO_SECUREBOOP_T31_NONCE_OFFSETS
+	string "T31 nonce offsets"
+	depends on BR2_SOC_FAMILY = "t31"
+	help
+	  Space-separated list of nonce offsets (hex) to try, in order.
+	  The forge tool tries each offset until a collision is found.
+	  Example: "0x3290 0x3300 0x3c00"
+
+config BR2_PACKAGE_THINGINO_SECUREBOOP_T31_HASH_END
+	string "T31 hash end"
+	depends on BR2_SOC_FAMILY = "t31"
+	default "0x4b80"
+	help
+	  Offset (hex) where the SHA-256 hash calculation ends in the
+	  SPL payload.  Usually 0x4b80 for T31.
+
+endif

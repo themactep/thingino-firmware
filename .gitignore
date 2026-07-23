@@ -15,6 +15,7 @@
 
 # Generated
 *.pyc
+/package/thingino-secureboop/.t31_nonce_search_fast
 
 # Buildroot
 /.cache
