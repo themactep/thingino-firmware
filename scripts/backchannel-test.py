@@ -13,8 +13,8 @@ PORT = 554
 USER = "thingino"
 PASS = "thingino"
 
-FREQ = 440          # Hz
-DURATION = 3        # seconds
+FREQ = 320          # Hz
+DURATION = 1        # seconds
 SAMPLE_RATE = 8000  # PCMU is always 8kHz
 
 # ── helpers ──────────────────────────────────────────────────────────────────
