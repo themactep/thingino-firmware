@@ -1,5 +1,9 @@
 LINUX_EXTENSIONS += thingino-kopt
 
+# Run LED header/patch after patches too — the cumulative thingino patch
+# ships its own board_base.c which overwrites the PRE_PATCH changes.
+LINUX_POST_PATCH_HOOKS += THINGINO_KOPT_PREPARE_KERNEL
+
 # Mappings for DTS configurations
 # Format: CONFIG_SUFFIX|CAMERA_MODEL|DESTINATION_FILE
 THINGINO_DTS_MAPPINGS = \
