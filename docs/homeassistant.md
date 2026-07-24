@@ -36,6 +36,8 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `ota_check_interval` | `21600` | Seconds between GitHub firmware release checks (Firmware update entity) |
 | `device_name` | `""` | Override device name (defaults to hostname) |
 | `device_model` | `""` | Override device model string |
+| `mqtt.use_ssl` | `false` | Connect to the MQTT broker with TLS using the system CA bundle |
+| `mqtt.tls_skip_verify` | `false` | Skip broker certificate verification when TLS is enabled. Insecure; use only for self-signed or otherwise untrusted broker certificates |
 | `enable_motion` | `true` | Binary sensor: motion detected |
 | `enable_motion_guard` | `true` | Switch: enable/disable motion detection |
 | `enable_ircut` | `true` | Switch: IR cut filter |
@@ -63,6 +65,7 @@ Disable individual entities you don't want:
 jct /etc/thingino.json set ha.enable_reboot false
 jct /etc/thingino.json set ha.enable_ptz true   # enable PTZ buttons
 ```
+
 
 ## MQTT topic layout
 
