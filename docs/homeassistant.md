@@ -47,6 +47,8 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `enable_ir850` | `true` | Switch: 850 nm IR LED |
 | `enable_ir940` | `true` | Switch: 940 nm IR LED |
 | `enable_white_light` | `true` | Switch: white light |
+| `enable_firmware_version` | `true` | Sensor: firmware version (e.g. "ciao+9a88c72") |
+| `enable_firmware_timestamp` | `true` | Sensor: firmware build timestamp (e.g. "2026-07-24 03:04:32 UTC") |
 | `enable_gain` | `false` | Sensor: ISP gain (proxy for lux) |
 | `enable_rssi` | `true` | Sensor: WiFi signal strength (dBm) |
 | `enable_snapshot` | `true` | Button: take snapshot |
@@ -83,6 +85,8 @@ camera's primary interface MAC without separators (e.g. `0244dd22592e`).
 | IR LED 850 nm | `cameras/<id>/ir850/state` | `cameras/<id>/ir850/set` |
 | IR LED 940 nm | `cameras/<id>/ir940/state` | `cameras/<id>/ir940/set` |
 | White Light | `cameras/<id>/white/state` | `cameras/<id>/white/set` |
+| Firmware version | `cameras/<id>/firmware_version/state` | — |
+| Firmware build | `cameras/<id>/firmware_timestamp/state` | — |
 | Gain | `cameras/<id>/gain/state` | — |
 | WiFi RSSI | `cameras/<id>/rssi/state` | — |
 | Snapshot | — | `cameras/<id>/snapshot/set` |

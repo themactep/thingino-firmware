@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DAEMON="/usr/sbin/ha-daemon"
+DAEMON_NAME="ha-daemon"
 PIDFILE="/run/ha-daemon.pid"
 LOGFILE="/tmp/ha-daemon.log"
 
@@ -8,25 +9,52 @@ start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
 }
 
+# ha-daemon is a shell script: matching with -x compares /proc/PID/exe,
+# which points to the interpreter, not the script. Match by name instead.
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		start-stop-daemon -K -p "$PIDFILE" -n "$DAEMON_NAME"
 		status=$?
 		rm -f "$PIDFILE"
 		return $status
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	start-stop-daemon -K -n "$DAEMON_NAME"
 }
 
 read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
 }
 
+ha_processes_gone() {
+	local proc
+	for proc in ha-daemon ha-commands ha-discovery ha-state; do
+		if pidof "$proc" >/dev/null 2>&1; then
+			return 1
+		fi
+	done
+	if [ -n "$HA_CAMERA_ID" ]; then
+		if pgrep -f "mosquitto_.*${HA_CAMERA_ID}" >/dev/null 2>&1; then
+			return 1
+		fi
+	fi
+	return 0
+}
+
+wait_for_ha_shutdown() {
+	local timeout=20
+	while [ "$timeout" -gt 0 ]; do
+		ha_processes_gone && return 0
+		sleep 1
+		timeout=$((timeout - 1))
+	done
+	return 1
+}
+
 start() {
 	echo -c 15 "Starting HA daemon"
 
-	if [ "true" != $(read_config "ha.enabled") ]; then
+	if [ "true" != "$(read_config "ha.enabled")" ]; then
 		echo "Disabled" >&2
 		exit 1
 	else
@@ -46,6 +74,9 @@ start() {
 
 stop() {
 	echo -c 15 "Stopping HA daemon"
+
+	# Provides HA_CAMERA_ID, needed to match this camera's mosquitto clients
+	[ -f /usr/share/ha-common ] && . /usr/share/ha-common
 
 	stop_daemon
 	killall -q ha-commands ha-discovery ha-state 2>/dev/null
