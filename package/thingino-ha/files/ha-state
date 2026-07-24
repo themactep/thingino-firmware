@@ -40,11 +40,16 @@ if [ "$FORCE" = "1" ]; then
 	eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 fi
 
-# Doorbell binary sensor (momentary: ON when /tmp/doorbell_pressed exists)
+# Doorbell binary sensor (momentary: doorbell_event publishes ON instantly,
+# then touches /tmp/doorbell_pressed so we clear it to OFF on next poll).
 if ha_entity_enabled doorbell; then
 	if [ -f /tmp/doorbell_pressed ]; then
 		rm -f /tmp/doorbell_pressed
-		ha_pub_state doorbell ON "$FORCE"
+		# Force-publish both ON and OFF so HA sees a clean pulse.
+		# doorbell_event already published ON with retain; we confirm
+		# it and then immediately clear so the retained ON is overwritten.
+		ha_pub_state doorbell ON 1
+		ha_pub_state doorbell OFF 1
 	else
 		ha_pub_state doorbell OFF "$FORCE"
 	fi

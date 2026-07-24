@@ -85,8 +85,15 @@ set -- "$@" "$sound"
 [ -n "$volume" ] && set -- "$@" "$volume"
 [ -n "$repeat" ] && set -- "$@" "$repeat"
 
-# Notify Home Assistant (if HA integration is active) via flag file.
-# /tmp/doorbell_pressed is polled by ha-state every state_interval seconds.
+# Notify Home Assistant immediately if the HA integration is active.
+# Publish ON directly via MQTT so HA automations fire without delay.
+# The flag file is also touched so ha-state clears it to OFF on its next
+# poll cycle (the retained ON would otherwise stick until overwritten).
+if [ -f /usr/share/ha-common ] &&
+	[ "$(jct /etc/thingino.json get ha.enable_doorbell 2>/dev/null | tr -d '"')" = "true" ]; then
+	. /usr/share/ha-common
+	ha_pub_state doorbell ON 1
+fi
 touch /tmp/doorbell_pressed 2>/dev/null || true
 
 echo "[doorbell_event] $EVENT ($MODE) → $*"
