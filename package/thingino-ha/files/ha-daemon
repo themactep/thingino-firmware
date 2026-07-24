@@ -72,7 +72,7 @@ run_commands() {
 		echo "ha-daemon: ha-commands exited after ${ran}s, restarting in ${delay}s..."
 		sleep "$delay"
 		mpub=$(ha_mpub_cmd daemon)
-		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
+		eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
 	done
 }
 run_commands &
@@ -97,19 +97,20 @@ if ha_entity_enabled live_view; then
 
 	run_camera_snapshot() {
 		local mpub snap b64 first=1
+		# The publish command is invariant — build it once, not per iteration
+		mpub=$(ha_mpub_cmd camera)
 		while true; do
 			if [ "$first" = "1" ]; then
 				first=0
 			else
 				sleep "$CAMERA_INTERVAL"
 			fi
-			mpub=$(ha_mpub_cmd camera)
 			snap=$(mktemp /tmp/ha_snap.XXXXXX) || continue
 			prudyntctl snapshot -c 1 >"$snap" 2>/dev/null
 			if [ -s "$snap" ]; then
 				b64="${snap}.b64"
 				base64 "$snap" | tr -d '\n' >"$b64"
-				sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/live_view/image' -f $(_sq "$b64")" 2>/dev/null
+				eval "$mpub -t 'cameras/${HA_CAMERA_ID}/live_view/image' -f $(_sq "$b64")" 2>/dev/null
 				rm -f "$b64"
 			fi
 			rm -f "$snap"
@@ -125,7 +126,7 @@ fi
 cleanup() {
 	local mpub
 	mpub=$(ha_mpub_cmd daemon)
-	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+	eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
 	kill "$CMD_PID" 2>/dev/null
 	wait "$CMD_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && kill "$CAMERA_PID" 2>/dev/null

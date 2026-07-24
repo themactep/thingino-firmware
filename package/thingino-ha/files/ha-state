@@ -31,11 +31,14 @@ FORCE=0
 # at the end with rate limiting instead of firing simultaneously.
 ha_pub_begin
 
-# Re-assert availability so a stale retained 'offline' never keeps entities
-# unavailable while we're running. Published directly (not queued) so it
-# reaches the broker immediately before any state values.
-mpub=$(ha_mpub_cmd state)
-sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+# Assert availability on startup sync only. The 'online' message is retained
+# by the broker, ha-commands re-publishes it after every reconnect, and the
+# LWT 'offline' is not retained — so re-asserting it on every poll cycle
+# would only add a needless MQTT connection every state_interval seconds.
+if [ "$FORCE" = "1" ]; then
+	mpub=$(ha_mpub_cmd state)
+	eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+fi
 
 # Motion binary sensor
 if ha_entity_enabled motion; then
@@ -112,6 +115,31 @@ if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
 			ha_pub_state white OFF "$FORCE"; }
 fi
 
+# Firmware version & build sensors (both parse the same COMMIT_ID field)
+# Format: "release+commit, YYYY-MM-DD HH:MM:SS +0000"
+#   firmware_version → "release+commit"
+#   firmware_timestamp   → "YYYY-MM-DD HH:MM:SS UTC"
+if ha_entity_enabled firmware_version || ha_entity_enabled firmware_timestamp; then
+	raw=""
+	for f in /etc/os-release /usr/lib/os-release; do
+		[ -f "$f" ] || continue
+		raw=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+		[ -n "$raw" ] && break
+	done
+	if [ -n "$raw" ]; then
+		if ha_entity_enabled firmware_version; then
+			short_ver="${raw%%, *}"
+			ha_pub_state firmware_version "$short_ver" "$FORCE"
+		fi
+		if ha_entity_enabled firmware_timestamp; then
+			build="${raw#*, }"
+			build="${build% +0000}"
+			build="${build} UTC"
+			ha_pub_state firmware_timestamp "$build" "$FORCE"
+		fi
+	fi
+fi
+
 # Gain sensor
 if ha_entity_enabled gain; then
 	gain=""
@@ -155,7 +183,34 @@ if ha_entity_enabled rssi; then
 fi
 
 # Firmware update entity
+# The whole block is skipped between scheduled checks: the installed version
+# cannot change at runtime and 'latest' only changes when a check runs. Both
+# topics are published retained so HA recovers them after its own restart.
 if ha_entity_enabled ota; then
+	cache_dir="/tmp/ha_ota_cache_${HA_CAMERA_ID}"
+	latest_cache="${cache_dir}/latest"
+	next_check_cache="${cache_dir}/next_check_epoch"
+
+	now=$(date +%s 2>/dev/null)
+	case "$now" in
+		'' | *[!0-9]*) now=0 ;;
+	esac
+
+	next_check=""
+	[ -f "$next_check_cache" ] && IFS= read -r next_check <"$next_check_cache"
+	case "$next_check" in
+		'' | *[!0-9]*) next_check="" ;;
+	esac
+
+	ota_due=0
+	if [ "$FORCE" = "1" ] || [ "$now" -eq 0 ] || [ -z "$next_check" ] || [ "$now" -ge "$next_check" ]; then
+		ota_due=1
+	fi
+else
+	ota_due=0
+fi
+
+if [ "$ota_due" = "1" ]; then
 	mpub=$(ha_mpub_cmd state)
 	installed=""
 	build_date=""
@@ -177,17 +232,9 @@ if ha_entity_enabled ota; then
 		}
 	done
 	[ -z "$installed" ] && installed="unknown"
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
+	eval "$mpub -r -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
 
-	cache_dir="/tmp/ha_ota_cache_${HA_CAMERA_ID}"
-	latest_cache="${cache_dir}/latest"
-	next_check_cache="${cache_dir}/next_check_epoch"
 	mkdir -p "$cache_dir" 2>/dev/null
-
-	now=$(date +%s 2>/dev/null)
-	case "$now" in
-		'' | *[!0-9]*) now=0 ;;
-	esac
 
 	seed=$(printf '%s' "$HA_CAMERA_ID" | cksum | awk '{print $1}')
 	startup_jitter=$((seed % 301))
@@ -201,11 +248,6 @@ if ha_entity_enabled ota; then
 	latest=""
 	[ -f "$latest_cache" ] && latest=$(cat "$latest_cache" 2>/dev/null | tr -cd '[:alnum:]._-')
 
-	next_check=""
-	[ -f "$next_check_cache" ] && next_check=$(cat "$next_check_cache" 2>/dev/null)
-	case "$next_check" in
-		'' | *[!0-9]*) next_check="" ;;
-	esac
 	if [ -z "$next_check" ] && [ "$now" -gt 0 ]; then
 		next_check=$((now + startup_jitter))
 		printf '%s\n' "$next_check" >"$next_check_cache"
@@ -244,7 +286,7 @@ if ha_entity_enabled ota; then
 		printf '%s\n' "$next_check" >"$next_check_cache"
 	fi
 
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
+	eval "$mpub -r -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
 fi
 
 # Flush all queued state publishes with rate limiting.

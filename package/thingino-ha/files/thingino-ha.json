@@ -6,6 +6,8 @@
     "discovery_prefix": "homeassistant",
     "enable_color": true,
     "enable_daynight": true,
+    "enable_firmware_timestamp": true,
+    "enable_firmware_version": true,
     "enable_gain": false,
     "enable_ir850": true,
     "enable_ir940": true,

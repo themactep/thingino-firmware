@@ -138,6 +138,22 @@ else
 	ha_clear_disc switch white
 fi
 
+# Sensor: Firmware version
+if ha_entity_enabled firmware_version; then
+	ha_pub_disc sensor firmware_version \
+		"{\"name\":\"Firmware Version\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_version\",\"state_topic\":\"${ST}/firmware_version/state\",\"icon\":\"mdi:package-up\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc sensor firmware_version
+fi
+
+# Sensor: Firmware build timestamp
+if ha_entity_enabled firmware_timestamp; then
+	ha_pub_disc sensor firmware_timestamp \
+		"{\"name\":\"Firmware Build\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_timestamp\",\"state_topic\":\"${ST}/firmware_timestamp/state\",\"icon\":\"mdi:calendar-clock\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc sensor firmware_timestamp
+fi
+
 # Sensor: Gain
 if ha_entity_enabled gain; then
 	ha_pub_disc sensor gain \
@@ -196,6 +212,6 @@ ha_pub_flush
 
 # Mark device online (published directly, not queued — must happen after flush)
 mpub=$(ha_mpub_cmd disc)
-sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 
 echo "ha-discovery: registered ${DEVICE_NAME} (${HA_CAMERA_ID}) on ${HA_MQTT_HOST}:${HA_MQTT_PORT}"
