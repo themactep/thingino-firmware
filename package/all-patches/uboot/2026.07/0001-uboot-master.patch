@@ -40963,10 +40963,10 @@ index 7c4ee8b6..5628f8c1 100644
  dtb-$(CONFIG_SOC_JR2) += jr2_pcb110.dtb jr2_pcb111.dtb serval2_pcb112.dtb
 diff --git a/arch/mips/dts/a1-isvp-dfu.dtsi b/arch/mips/dts/a1-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..d0c44cd6
+index 00000000..05ff4ef2
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp-dfu.dtsi
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,181 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 USB-boot DFU-loader board body, shared by every A1
@@ -41103,7 +41103,9 @@ index 00000000..d0c44cd6
 +	gmac0: ethernet@b30b0000 {
 +		compatible = "ingenic,a1-gmac";
 +		reg = <0xb30b0000 0x10000>;
-+		clocks = <&cgu A1_CLK_GMAC0>;
++		clocks = <&cgu A1_CLK_GMAC0>,
++			 <&cgu A1_CLK_GMAC0_TX>,
++			 <&cgu A1_CLK_GMAC0_PTP>;
 +		phy-mode = "rmii";
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000c8>;
@@ -41148,10 +41150,10 @@ index 00000000..d0c44cd6
 +};
 diff --git a/arch/mips/dts/a1-isvp.dtsi b/arch/mips/dts/a1-isvp.dtsi
 new file mode 100644
-index 00000000..6e1875c0
+index 00000000..34664b2e
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp.dtsi
-@@ -0,0 +1,229 @@
+@@ -0,0 +1,231 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 board body, shared by every A1 SKU. The per-SKU
@@ -41338,7 +41340,9 @@ index 00000000..6e1875c0
 +	gmac0: ethernet@b30b0000 {
 +		compatible = "ingenic,a1-gmac";
 +		reg = <0xb30b0000 0x10000>;
-+		clocks = <&cgu A1_CLK_GMAC0>;
++		clocks = <&cgu A1_CLK_GMAC0>,
++			 <&cgu A1_CLK_GMAC0_TX>,
++			 <&cgu A1_CLK_GMAC0_PTP>;
 +		phy-mode = "rmii";
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000c8>;
@@ -41835,10 +41839,10 @@ index 00000000..07193c24
 +#endif
 diff --git a/arch/mips/dts/t10.dtsi b/arch/mips/dts/t10.dtsi
 new file mode 100644
-index 00000000..7d8afb16
+index 00000000..c210400c
 --- /dev/null
 +++ b/arch/mips/dts/t10.dtsi
-@@ -0,0 +1,262 @@
+@@ -0,0 +1,261 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t10-cgu.h>
@@ -42035,11 +42039,10 @@ index 00000000..7d8afb16
 +	 * GMAC-PHY-control register (CPM + 0xe8). Same glue as T31.
 +	 */
 +	gmac: ethernet@134b0000 {
-+		compatible = "ingenic,t31-gmac";
++		compatible = "ingenic,t10-gmac";
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T10_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -42111,10 +42114,10 @@ index 00000000..26cb3f88
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10l-isvp-dfu.dts b/arch/mips/dts/t10l-isvp-dfu.dts
 new file mode 100644
-index 00000000..21fab16e
+index 00000000..f8386d79
 --- /dev/null
 +++ b/arch/mips/dts/t10l-isvp-dfu.dts
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,85 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T10, DFU/USB-boot loader variant.
@@ -42189,6 +42192,16 @@ index 00000000..21fab16e
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
 +	>;
++};
++
++/*
++ * Ethernet in the DFU loader, like the other XBurst1 loaders: the
++ * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
++ * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
++ * board DT declares its own ingenic,reset-gpio.
++ */
++&gmac {
++	status = "okay";
 +};
 diff --git a/arch/mips/dts/t10l-isvp-u-boot.dtsi b/arch/mips/dts/t10l-isvp-u-boot.dtsi
 new file mode 100644
@@ -42301,10 +42314,10 @@ index 00000000..26cb3f88
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10n-isvp-dfu.dts b/arch/mips/dts/t10n-isvp-dfu.dts
 new file mode 100644
-index 00000000..5e8b0f7a
+index 00000000..350954b6
 --- /dev/null
 +++ b/arch/mips/dts/t10n-isvp-dfu.dts
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,85 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T10, DFU/USB-boot loader variant.
@@ -42379,6 +42392,16 @@ index 00000000..5e8b0f7a
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
 +	>;
++};
++
++/*
++ * Ethernet in the DFU loader, like the other XBurst1 loaders: the
++ * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
++ * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
++ * board DT declares its own ingenic,reset-gpio.
++ */
++&gmac {
++	status = "okay";
 +};
 diff --git a/arch/mips/dts/t10n-isvp-u-boot.dtsi b/arch/mips/dts/t10n-isvp-u-boot.dtsi
 new file mode 100644
@@ -42546,10 +42569,10 @@ index 00000000..ddaf1fea
 +&cgu { bootph-pre-ram; bootph-some-ram; };
 diff --git a/arch/mips/dts/t20-isvp-dfu.dtsi b/arch/mips/dts/t20-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..ef69089d
+index 00000000..e9928523
 --- /dev/null
 +++ b/arch/mips/dts/t20-isvp-dfu.dtsi
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,69 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20 shared DFU/USB-boot board body.
@@ -42608,6 +42631,16 @@ index 00000000..ef69089d
 +&otg {
 +	status = "okay";
 +	dr_mode = "peripheral";		/* gadget bind for DFU/g_dnl */
++};
++
++/*
++ * Ethernet in the DFU loader, like the other XBurst1 loaders: the
++ * MAC-PHY clock derives from the per-variant MPLL via the CGU clk
++ * driver. No PHY reset GPIO here - board-specific; a wired-ethernet
++ * board DT declares its own ingenic,reset-gpio.
++ */
++&gmac {
++	status = "okay";
 +};
 diff --git a/arch/mips/dts/t20-isvp-uboot-common.dtsi b/arch/mips/dts/t20-isvp-uboot-common.dtsi
 new file mode 100644
@@ -42877,10 +42910,10 @@ index 00000000..b5ec2b2f
 +};
 diff --git a/arch/mips/dts/t20.dtsi b/arch/mips/dts/t20.dtsi
 new file mode 100644
-index 00000000..911af96d
+index 00000000..eb97da05
 --- /dev/null
 +++ b/arch/mips/dts/t20.dtsi
-@@ -0,0 +1,254 @@
+@@ -0,0 +1,253 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t20-cgu.h>
@@ -43070,11 +43103,10 @@ index 00000000..911af96d
 +	 * GMAC-PHY-control register (CPM + 0xe8). Same glue as T31.
 +	 */
 +	gmac: ethernet@134b0000 {
-+		compatible = "ingenic,t31-gmac";
++		compatible = "ingenic,t20-gmac";
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T20_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -43762,10 +43794,10 @@ index 00000000..2d1daac9
 +};
 diff --git a/arch/mips/dts/t21.dtsi b/arch/mips/dts/t21.dtsi
 new file mode 100644
-index 00000000..58de477e
+index 00000000..b06aa5ea
 --- /dev/null
 +++ b/arch/mips/dts/t21.dtsi
-@@ -0,0 +1,254 @@
+@@ -0,0 +1,253 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t21-cgu.h>
@@ -43960,7 +43992,6 @@ index 00000000..58de477e
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "mii";
 +		max-speed = <100>;
-+		macphy-rate = <25000000>;
 +		clocks = <&cgu T21_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		status = "disabled";
@@ -44254,10 +44285,10 @@ index 00000000..67c875cd
 +&ddr { bootph-all; };		/* leaf .dts supplies ingenic,sdram-params */
 diff --git a/arch/mips/dts/t23-isvp-dfu.dtsi b/arch/mips/dts/t23-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..7585bfda
+index 00000000..71b5d057
 --- /dev/null
 +++ b/arch/mips/dts/t23-isvp-dfu.dtsi
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,73 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T23 shared DFU/USB-boot board body.
@@ -44319,6 +44350,17 @@ index 00000000..7585bfda
 +&otg {
 +	status = "okay";
 +	dr_mode = "peripheral";		/* gadget bind for DFU/g_dnl */
++};
++
++/*
++ * Ethernet in the DFU loader, like the T31/T21 loaders: the per-variant
++ * loader carries its own MPLL plan and the MAC-PHY clock derives from it
++ * via the CGU clk driver. External RMII PHY, reset on PB28 (board DTs
++ * override where it differs).
++ */
++&gmac {
++	status = "okay";
++	ingenic,reset-gpio = <&gpb 28 GPIO_ACTIVE_LOW>;
 +};
 diff --git a/arch/mips/dts/t23-isvp-uboot-common.dtsi b/arch/mips/dts/t23-isvp-uboot-common.dtsi
 new file mode 100644
@@ -44579,10 +44621,10 @@ index 00000000..ec7aeba9
 +};
 diff --git a/arch/mips/dts/t23.dtsi b/arch/mips/dts/t23.dtsi
 new file mode 100644
-index 00000000..1ff52665
+index 00000000..ca58aa34
 --- /dev/null
 +++ b/arch/mips/dts/t23.dtsi
-@@ -0,0 +1,256 @@
+@@ -0,0 +1,255 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t23-cgu.h>
@@ -44770,11 +44812,10 @@ index 00000000..1ff52665
 +	 * GMAC-PHY-control register (CPM + 0xe8). Same glue as T31.
 +	 */
 +	gmac: ethernet@134b0000 {
-+		compatible = "ingenic,t31-gmac";
++		compatible = "ingenic,t23-gmac";
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T23_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -44849,7 +44890,7 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23dl-isvp-dfu.dts b/arch/mips/dts/t23dl-isvp-dfu.dts
 new file mode 100644
-index 00000000..458079c8
+index 00000000..8be790b7
 --- /dev/null
 +++ b/arch/mips/dts/t23dl-isvp-dfu.dts
 @@ -0,0 +1,42 @@
@@ -44876,8 +44917,8 @@ index 00000000..458079c8
 +		0x02000000				/* 32 MB */
 +		0x09288940 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fe 0x00002200 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080523	/* TIMING1..3 */
++		0x16240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -44905,7 +44946,7 @@ index 00000000..6c5ef9ed
 +#include "t23-isvp-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23dl-isvp.dts b/arch/mips/dts/t23dl-isvp.dts
 new file mode 100644
-index 00000000..918202aa
+index 00000000..b88384d5
 --- /dev/null
 +++ b/arch/mips/dts/t23dl-isvp.dts
 @@ -0,0 +1,27 @@
@@ -44931,8 +44972,8 @@ index 00000000..918202aa
 +		0x02000000				/* 32 MB */
 +		0x09288940 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fe 0x00002200 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080523	/* TIMING1..3 */
++		0x16240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -44946,13 +44987,13 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23dn-isvp-dfu.dts b/arch/mips/dts/t23dn-isvp-dfu.dts
 new file mode 100644
-index 00000000..c5cfac16
+index 00000000..d4689d72
 --- /dev/null
 +++ b/arch/mips/dts/t23dn-isvp-dfu.dts
 @@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23DN DFU/USB-boot loader (DDR2 32 MB, CPU 1000 MHz).
++ * Ingenic ISVP-T23DN DFU/USB-boot loader (DDR2 64 MB, CPU 1400 MHz).
 + * Per-variant loader: its own clocks/DDR; do not reuse across variants.
 + */
 +
@@ -44965,16 +45006,16 @@ index 00000000..c5cfac16
 +};
 +
 +&ddr {
-+	/* T23DN: DDR2 32 MB M14D2561616A (4-bank), CPU 1000 / DDR 500 MHz. */
++	/* T23DN: DDR2 64 MB M14D5121632A (4-bank), CPU 1400 / DDR 600 MHz. */
 +	ingenic,sdram-params = <
-+		0x07d05900 0x07d05900 0x9a073310	/* APLL1000 MPLL1000 CPCCR */
++		0x15e0d100 0x06405100 0x9a0b5510	/* APLL1400 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
-+		13 9 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
-+		0x02000000				/* 32 MB */
-+		0x09288940 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fe 0x00002200 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170707 0x2007041e	/* TIMING1..3 */
-+		0x12240031 0xff060405 0x32170505	/* TIMING4..6 */
++		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x04000000				/* 64 MB */
++		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45002,13 +45043,13 @@ index 00000000..6c5ef9ed
 +#include "t23-isvp-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23dn-isvp.dts b/arch/mips/dts/t23dn-isvp.dts
 new file mode 100644
-index 00000000..b82e4492
+index 00000000..790b59bb
 --- /dev/null
 +++ b/arch/mips/dts/t23dn-isvp.dts
 @@ -0,0 +1,27 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23DN (DDR2 32 MB M14D2561616A, CPU 1000 MHz / DDR 500), SFC-NOR.
++ * Ingenic ISVP-T23DN (DDR2 64 MB M14D5121632A, CPU 1400 MHz / DDR 600), SFC-NOR.
 + */
 +
 +/dts-v1/;
@@ -45020,16 +45061,16 @@ index 00000000..b82e4492
 +};
 +
 +&ddr {
-+	/* T23DN: DDR2 32 MB M14D2561616A (4-bank), CPU 1000 / DDR 500 MHz. */
++	/* T23DN: DDR2 64 MB M14D5121632A (4-bank), CPU 1400 / DDR 600 MHz. */
 +	ingenic,sdram-params = <
-+		0x07d05900 0x07d05900 0x9a073310	/* APLL1000 MPLL1000 CPCCR */
++		0x15e0d100 0x06405100 0x9a0b5510	/* APLL1400 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
-+		13 9 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
-+		0x02000000				/* 32 MB */
-+		0x09288940 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fe 0x00002200 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170707 0x2007041e	/* TIMING1..3 */
-+		0x12240031 0xff060405 0x32170505	/* TIMING4..6 */
++		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x04000000				/* 64 MB */
++		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45043,7 +45084,7 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23n-isvp-dfu.dts b/arch/mips/dts/t23n-isvp-dfu.dts
 new file mode 100644
-index 00000000..fba81e67
+index 00000000..502dc5f1
 --- /dev/null
 +++ b/arch/mips/dts/t23n-isvp-dfu.dts
 @@ -0,0 +1,44 @@
@@ -45072,8 +45113,8 @@ index 00000000..fba81e67
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45161,7 +45202,7 @@ index 00000000..03889dce
 +#endif
 diff --git a/arch/mips/dts/t23n-isvp.dts b/arch/mips/dts/t23n-isvp.dts
 new file mode 100644
-index 00000000..a6ad7ee6
+index 00000000..92498fd3
 --- /dev/null
 +++ b/arch/mips/dts/t23n-isvp.dts
 @@ -0,0 +1,28 @@
@@ -45188,8 +45229,8 @@ index 00000000..a6ad7ee6
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45203,7 +45244,7 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23nhp-isvp-dfu.dts b/arch/mips/dts/t23nhp-isvp-dfu.dts
 new file mode 100644
-index 00000000..e77ec8c8
+index 00000000..c6869e57
 --- /dev/null
 +++ b/arch/mips/dts/t23nhp-isvp-dfu.dts
 @@ -0,0 +1,42 @@
@@ -45230,8 +45271,8 @@ index 00000000..e77ec8c8
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45259,7 +45300,7 @@ index 00000000..6c5ef9ed
 +#include "t23-isvp-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23nhp-isvp.dts b/arch/mips/dts/t23nhp-isvp.dts
 new file mode 100644
-index 00000000..fab420d0
+index 00000000..f5e3133e
 --- /dev/null
 +++ b/arch/mips/dts/t23nhp-isvp.dts
 @@ -0,0 +1,27 @@
@@ -45285,8 +45326,8 @@ index 00000000..fab420d0
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
 +		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
++		0x050f0a06 0x021c0807 0x20080723	/* TIMING1..3 */
++		0x1f240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45397,13 +45438,13 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23x-isvp-dfu.dts b/arch/mips/dts/t23x-isvp-dfu.dts
 new file mode 100644
-index 00000000..300f6889
+index 00000000..aafac536
 --- /dev/null
 +++ b/arch/mips/dts/t23x-isvp-dfu.dts
 @@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23X DFU/USB-boot loader (DDR2 64 MB, CPU 1000 MHz).
++ * Ingenic ISVP-T23X DFU/USB-boot loader (DDR2 128 MB, CPU 1188 MHz).
 + * Per-variant loader: its own clocks/DDR; do not reuse across variants.
 + */
 +
@@ -45416,16 +45457,16 @@ index 00000000..300f6889
 +};
 +
 +&ddr {
-+	/* T23X: DDR2 64 MB M14D5121632A (4-bank), CPU 1000 / DDR 500 MHz. */
++	/* T23X: DDR2 128 MB M14D1G1664A (8-bank), CPU 1188 / DDR 600 MHz. */
 +	ingenic,sdram-params = <
-+		0x07d05900 0x07d05900 0x9a073310	/* APLL1000 MPLL1000 CPCCR */
++		0x1290d100 0x06405100 0x9a0b5510	/* APLL1188 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
-+		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
-+		0x04000000				/* 64 MB */
-+		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fc 0x00002400 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
-+		0x1a240031 0xff060405 0x32170505	/* TIMING4..6 */
++		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x08000000				/* 128 MB */
++		0x0aa88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020f8 0x00002800 0x00910001	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
++		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45453,13 +45494,13 @@ index 00000000..6c5ef9ed
 +#include "t23-isvp-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23x-isvp.dts b/arch/mips/dts/t23x-isvp.dts
 new file mode 100644
-index 00000000..31e5e6fa
+index 00000000..aab84bdc
 --- /dev/null
 +++ b/arch/mips/dts/t23x-isvp.dts
 @@ -0,0 +1,27 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23X (DDR2 64 MB M14D5121632A, CPU 1000 MHz / DDR 500), SFC-NOR.
++ * Ingenic ISVP-T23X (DDR2 128 MB M14D1G1664A, CPU 1188 MHz / DDR 600), SFC-NOR.
 + */
 +
 +/dts-v1/;
@@ -45471,16 +45512,16 @@ index 00000000..31e5e6fa
 +};
 +
 +&ddr {
-+	/* T23X: DDR2 64 MB M14D5121632A (4-bank), CPU 1000 / DDR 500 MHz. */
++	/* T23X: DDR2 128 MB M14D1G1664A (8-bank), CPU 1188 / DDR 600 MHz. */
 +	ingenic,sdram-params = <
-+		0x07d05900 0x07d05900 0x9a073310	/* APLL1000 MPLL1000 CPCCR */
++		0x1290d100 0x06405100 0x9a0b5510	/* APLL1188 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
-+		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
-+		0x04000000				/* 64 MB */
-+		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fc 0x00002400 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
-+		0x1a240031 0xff060405 0x32170505	/* TIMING4..6 */
++		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x08000000				/* 128 MB */
++		0x0aa88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020f8 0x00002800 0x00910001	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
++		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000f73				/* MR0 */
 +	>;
 +};
@@ -45494,13 +45535,13 @@ index 00000000..eaa657c1
 +#include "t23-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23zn-isvp-dfu.dts b/arch/mips/dts/t23zn-isvp-dfu.dts
 new file mode 100644
-index 00000000..5d34f7c1
+index 00000000..07691852
 --- /dev/null
 +++ b/arch/mips/dts/t23zn-isvp-dfu.dts
 @@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23ZN DFU/USB-boot loader (DDR2 64 MB, CPU 1188 MHz).
++ * Ingenic ISVP-T23ZN DFU/USB-boot loader (DDR2 64 MB, CPU 1400 MHz).
 + * Per-variant loader: its own clocks/DDR; do not reuse across variants.
 + */
 +
@@ -45513,17 +45554,17 @@ index 00000000..5d34f7c1
 +};
 +
 +&ddr {
-+	/* T23ZN: DDR2 64 MB M14D5121632A (4-bank), CPU 1188 / DDR 600 MHz. */
++	/* T23ZN: DDR2 64 MB M14D5121632A (4-bank), CPU 1400 / DDR 400 MHz. */
 +	ingenic,sdram-params = <
-+		0x1290d100 0x06405100 0x9a0b5510	/* APLL1188 MPLL1200 CPCCR */
-+		0 0					/* ddr_cdr (MPLL/2); DDR2 */
++		0x15e0d100 0x06405100 0x9a0b5510	/* APLL1400 MPLL1200 CPCCR */
++		2 0					/* ddr_cdr (MPLL/3 = 400); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
-+		0x00000f73				/* MR0 */
++		0x000020fc 0x00002400 0x00c20001	/* MMAP0 MMAP1 REFCNT */
++		0x040d0606 0x02120607 0x20060418	/* TIMING1..3 */
++		0x14240031 0xff060405 0x32120505	/* TIMING4..6 */
++		0x00000b73				/* MR0 */
 +	>;
 +};
 +
@@ -45550,13 +45591,13 @@ index 00000000..6c5ef9ed
 +#include "t23-isvp-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t23zn-isvp.dts b/arch/mips/dts/t23zn-isvp.dts
 new file mode 100644
-index 00000000..8534c182
+index 00000000..8b1e7bf0
 --- /dev/null
 +++ b/arch/mips/dts/t23zn-isvp.dts
 @@ -0,0 +1,27 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * Ingenic ISVP-T23ZN (DDR2 64 MB M14D5121632A, CPU 1188 MHz; param-identical to T23N), SFC-NOR.
++ * Ingenic ISVP-T23ZN (DDR2 64 MB M14D5121632A, CPU 1400 MHz / DDR 400; per vendor T23Z binary), SFC-NOR.
 + */
 +
 +/dts-v1/;
@@ -45568,17 +45609,17 @@ index 00000000..8534c182
 +};
 +
 +&ddr {
-+	/* T23ZN: DDR2 64 MB M14D5121632A (4-bank), CPU 1188 / DDR 600 MHz (== T23N). */
++	/* T23ZN: DDR2 64 MB M14D5121632A (4-bank), CPU 1400 / DDR 400 MHz (== T23N). */
 +	ingenic,sdram-params = <
-+		0x1290d100 0x06405100 0x9a0b5510	/* APLL1188 MPLL1200 CPCCR */
-+		0 0					/* ddr_cdr (MPLL/2); DDR2 */
++		0x15e0d100 0x06405100 0x9a0b5510	/* APLL1400 MPLL1200 CPCCR */
++		2 0					/* ddr_cdr (MPLL/3 = 400); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
 +		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020fc 0x00002400 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
-+		0x00000f73				/* MR0 */
++		0x000020fc 0x00002400 0x00c20001	/* MMAP0 MMAP1 REFCNT */
++		0x040d0606 0x02120607 0x20060418	/* TIMING1..3 */
++		0x14240031 0xff060405 0x32120505	/* TIMING4..6 */
++		0x00000b73				/* MR0 */
 +	>;
 +};
 diff --git a/arch/mips/dts/t30-isvp-dfu-uboot-common.dtsi b/arch/mips/dts/t30-isvp-dfu-uboot-common.dtsi
@@ -45643,10 +45684,10 @@ index 00000000..a86ccb57
 +&cgu { bootph-pre-ram; bootph-some-ram; };
 diff --git a/arch/mips/dts/t30-isvp-dfu.dtsi b/arch/mips/dts/t30-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..0dc80dae
+index 00000000..4840dc49
 --- /dev/null
 +++ b/arch/mips/dts/t30-isvp-dfu.dtsi
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,70 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T30 shared DFU/USB-boot board body.
@@ -45705,6 +45746,17 @@ index 00000000..0dc80dae
 +&otg {
 +	status = "okay";
 +	dr_mode = "peripheral";		/* gadget bind for DFU/g_dnl */
++};
++
++/*
++ * Ethernet in the DFU loader, like the T31/T21/T23 loaders: the
++ * per-variant loader carries its own MPLL plan and the MAC-PHY clock
++ * derives from it via the CGU clk driver. No PHY reset GPIO here: it
++ * is board-specific (PB28 is taken on some T30 boards - EBUSY), so a
++ * wired-ethernet board DT declares its own ingenic,reset-gpio.
++ */
++&gmac {
++	status = "okay";
 +};
 diff --git a/arch/mips/dts/t30-isvp-uboot-common.dtsi b/arch/mips/dts/t30-isvp-uboot-common.dtsi
 new file mode 100644
@@ -45960,10 +46012,10 @@ index 00000000..488e7809
 +};
 diff --git a/arch/mips/dts/t30.dtsi b/arch/mips/dts/t30.dtsi
 new file mode 100644
-index 00000000..eef317b7
+index 00000000..0d60d2e3
 --- /dev/null
 +++ b/arch/mips/dts/t30.dtsi
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,254 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t30-cgu.h>
@@ -46157,7 +46209,6 @@ index 00000000..eef317b7
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T30_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -46229,7 +46280,7 @@ index 00000000..24a1736e
 +#include "t30-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t30a-isvp-dfu.dts b/arch/mips/dts/t30a-isvp-dfu.dts
 new file mode 100644
-index 00000000..a133018a
+index 00000000..b843ad51
 --- /dev/null
 +++ b/arch/mips/dts/t30a-isvp-dfu.dts
 @@ -0,0 +1,28 @@
@@ -46250,14 +46301,14 @@ index 00000000..a133018a
 +&ddr {
 +	/* T30A: DDR2 128 MB M14D1G1664A (8-bank), CPU 864 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x09508820 0x09508820 0x9a0b5510	/* APLL1200 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x08000000				/* 128 MB */
 +		0x0aa88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020f8 0x00002800 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170807 0x2008051d	/* TIMING1..3 */
-+		0x1f240031 0xff060405 0x32170505	/* TIMING4..6 */
++		0x000020f8 0x00002800 0x00910003	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
++		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000e73				/* MR0 */
 +	>;
 +};
@@ -46278,7 +46329,7 @@ index 00000000..751afda5
 +#endif
 diff --git a/arch/mips/dts/t30a-isvp.dts b/arch/mips/dts/t30a-isvp.dts
 new file mode 100644
-index 00000000..631eb7f5
+index 00000000..ef857d02
 --- /dev/null
 +++ b/arch/mips/dts/t30a-isvp.dts
 @@ -0,0 +1,35 @@
@@ -46299,14 +46350,14 @@ index 00000000..631eb7f5
 +	/* T30A: DDR2 128 MB M14D1G1664A (8-bank), CPU 864 / DDR 500 MHz
 +	 * (param-identical to T30X). */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x09508820 0x09508820 0x9a0b5510	/* APLL1200 MPLL1200 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x08000000				/* 128 MB */
 +		0x0aa88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020f8 0x00002800 0x00f20001	/* MMAP0 MMAP1 REFCNT */
-+		0x040e0806 0x02170807 0x2008051d	/* TIMING1..3 */
-+		0x1f240031 0xff060405 0x32170505	/* TIMING4..6 */
++		0x000020f8 0x00002800 0x00910003	/* MMAP0 MMAP1 REFCNT */
++		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
++		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
 +		0x00000e73				/* MR0 */
 +	>;
 +};
@@ -46327,7 +46378,7 @@ index 00000000..24a1736e
 +#include "t30-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t30l-isvp-dfu.dts b/arch/mips/dts/t30l-isvp-dfu.dts
 new file mode 100644
-index 00000000..a859a736
+index 00000000..4ceb7c8c
 --- /dev/null
 +++ b/arch/mips/dts/t30l-isvp-dfu.dts
 @@ -0,0 +1,27 @@
@@ -46347,7 +46398,7 @@ index 00000000..a859a736
 +&ddr {
 +	/* T30L: DDR2 64 MB M14D5121632A (4-bank), CPU 720 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x07705040 0x07c08820 0x9a073310	/* APLL720 MPLL1000 CPCCR */
++		0x07c05040 0x07c08820 0x9a073310	/* APLL750 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
@@ -46375,7 +46426,7 @@ index 00000000..78d88bdb
 +#endif
 diff --git a/arch/mips/dts/t30l-isvp.dts b/arch/mips/dts/t30l-isvp.dts
 new file mode 100644
-index 00000000..acfa0c77
+index 00000000..6f6e0e1f
 --- /dev/null
 +++ b/arch/mips/dts/t30l-isvp.dts
 @@ -0,0 +1,27 @@
@@ -46395,7 +46446,7 @@ index 00000000..acfa0c77
 +&ddr {
 +	/* T30L: DDR2 64 MB M14D5121632A (4-bank), CPU 720 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x07705040 0x07c08820 0x9a073310	/* APLL720 MPLL1000 CPCCR */
++		0x07c05040 0x07c08820 0x9a073310	/* APLL750 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
@@ -46416,7 +46467,7 @@ index 00000000..24a1736e
 +#include "t30-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t30n-isvp-dfu.dts b/arch/mips/dts/t30n-isvp-dfu.dts
 new file mode 100644
-index 00000000..5a1076cb
+index 00000000..55b24eb3
 --- /dev/null
 +++ b/arch/mips/dts/t30n-isvp-dfu.dts
 @@ -0,0 +1,29 @@
@@ -46438,7 +46489,7 @@ index 00000000..5a1076cb
 +&ddr {
 +	/* T30N: DDR2 64 MB M14D5121632A (4-bank), CPU 864 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x04a04840 0x07c08820 0x9a073310	/* APLL900 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
@@ -46466,7 +46517,7 @@ index 00000000..7458ad97
 +#endif
 diff --git a/arch/mips/dts/t30n-isvp.dts b/arch/mips/dts/t30n-isvp.dts
 new file mode 100644
-index 00000000..12ad40b8
+index 00000000..c30b90c0
 --- /dev/null
 +++ b/arch/mips/dts/t30n-isvp.dts
 @@ -0,0 +1,27 @@
@@ -46486,7 +46537,7 @@ index 00000000..12ad40b8
 +&ddr {
 +	/* T30N: DDR2 64 MB M14D5121632A (4-bank), CPU 864 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x04a04840 0x07c08820 0x9a073310	/* APLL900 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x04000000				/* 64 MB */
@@ -46507,7 +46558,7 @@ index 00000000..24a1736e
 +#include "t30-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t30x-isvp-dfu.dts b/arch/mips/dts/t30x-isvp-dfu.dts
 new file mode 100644
-index 00000000..6f3b386a
+index 00000000..37a75900
 --- /dev/null
 +++ b/arch/mips/dts/t30x-isvp-dfu.dts
 @@ -0,0 +1,30 @@
@@ -46530,7 +46581,7 @@ index 00000000..6f3b386a
 +&ddr {
 +	/* T30X: DDR2 128 MB M14D1G1664A (8-bank), CPU 864 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x04a04840 0x07c08820 0x9a073310	/* APLL900 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x08000000				/* 128 MB */
@@ -46558,7 +46609,7 @@ index 00000000..25bf3c3d
 +#endif
 diff --git a/arch/mips/dts/t30x-isvp.dts b/arch/mips/dts/t30x-isvp.dts
 new file mode 100644
-index 00000000..b2f13ea4
+index 00000000..a0c3eca1
 --- /dev/null
 +++ b/arch/mips/dts/t30x-isvp.dts
 @@ -0,0 +1,34 @@
@@ -46578,7 +46629,7 @@ index 00000000..b2f13ea4
 +&ddr {
 +	/* T30X: DDR2 128 MB M14D1G1664A (8-bank), CPU 864 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04704840 0x07c08820 0x9a073310	/* APLL864 MPLL1000 CPCCR */
++		0x04a04840 0x07c08820 0x9a073310	/* APLL900 MPLL1000 CPCCR */
 +		0 0					/* ddr_cdr (MPLL/2); DDR2 */
 +		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x08000000				/* 128 MB */
@@ -46992,10 +47043,10 @@ index 00000000..8c050944
 +};
 diff --git a/arch/mips/dts/t31.dtsi b/arch/mips/dts/t31.dtsi
 new file mode 100644
-index 00000000..538e48ab
+index 00000000..ee95c91b
 --- /dev/null
 +++ b/arch/mips/dts/t31.dtsi
-@@ -0,0 +1,262 @@
+@@ -0,0 +1,261 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t31-cgu.h>
@@ -47195,7 +47246,6 @@ index 00000000..538e48ab
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T31_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -47747,10 +47797,10 @@ index 00000000..44af40f4
 +&ddr { bootph-all; };		/* leaf .dts supplies ingenic,sdram-params */
 diff --git a/arch/mips/dts/t32-isvp-dfu.dtsi b/arch/mips/dts/t32-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..c7b3391b
+index 00000000..ef3c4500
 --- /dev/null
 +++ b/arch/mips/dts/t32-isvp-dfu.dtsi
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,70 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T32 shared DFU/USB-boot board body.
@@ -47810,6 +47860,16 @@ index 00000000..c7b3391b
 +&otg {
 +	status = "okay";
 +	dr_mode = "peripheral";		/* gadget bind for DFU/g_dnl */
++};
++
++/*
++ * Ethernet in the DFU loader, like the other loaders: the MAC-PHY
++ * clock derives from the per-variant MPLL via the CGU clk driver.
++ * No PHY reset GPIO here - board-specific; a wired-ethernet board DT
++ * declares its own ingenic,reset-gpio.
++ */
++&gmac {
++	status = "okay";
 +};
 diff --git a/arch/mips/dts/t32-isvp-uboot-common.dtsi b/arch/mips/dts/t32-isvp-uboot-common.dtsi
 new file mode 100644
@@ -48073,10 +48133,10 @@ index 00000000..bcbd594b
 +};
 diff --git a/arch/mips/dts/t32.dtsi b/arch/mips/dts/t32.dtsi
 new file mode 100644
-index 00000000..8240a22f
+index 00000000..b9c3112f
 --- /dev/null
 +++ b/arch/mips/dts/t32.dtsi
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,269 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t32-cgu.h>
@@ -48216,7 +48276,6 @@ index 00000000..8240a22f
 +		reg = <0x134b0000 0x2000>;
 +		phy-mode = "rmii";
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		clocks = <&cgu T32_CLK_GMAC>;
 +		ingenic,mode-reg = <0x100000e8>;
 +		pinctrl-names = "default";
@@ -49400,10 +49459,10 @@ index 00000000..eacce116
 +&uart1 { bootph-all; };
 diff --git a/arch/mips/dts/t40-isvp-dfu.dtsi b/arch/mips/dts/t40-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..c5233a74
+index 00000000..7e6099c8
 --- /dev/null
 +++ b/arch/mips/dts/t40-isvp-dfu.dtsi
-@@ -0,0 +1,194 @@
+@@ -0,0 +1,193 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T40 USB-boot DFU-loader board body, shared by every
@@ -49572,7 +49631,6 @@ index 00000000..c5233a74
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000e8>;
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -49701,10 +49759,10 @@ index 00000000..2d3ed2f3
 +&msc0 { bootph-all; };
 diff --git a/arch/mips/dts/t40-isvp.dtsi b/arch/mips/dts/t40-isvp.dtsi
 new file mode 100644
-index 00000000..f42c3c12
+index 00000000..8e7c478c
 --- /dev/null
 +++ b/arch/mips/dts/t40-isvp.dtsi
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,256 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T40 board body, shared by every T40 SKU and boot mode.
@@ -49914,7 +49972,6 @@ index 00000000..f42c3c12
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000e8>;
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -50648,10 +50705,10 @@ index 00000000..60032641
 +&uart1 { bootph-all; };
 diff --git a/arch/mips/dts/t41-isvp-dfu.dtsi b/arch/mips/dts/t41-isvp-dfu.dtsi
 new file mode 100644
-index 00000000..06c97a04
+index 00000000..78ce8eda
 --- /dev/null
 +++ b/arch/mips/dts/t41-isvp-dfu.dtsi
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,204 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T41 USB-boot DFU-loader board body, shared by every
@@ -50831,7 +50888,6 @@ index 00000000..06c97a04
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000e8>;
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -51028,10 +51084,10 @@ index 00000000..0081a0d6
 +&msc0 { bootph-all; };
 diff --git a/arch/mips/dts/t41-isvp.dtsi b/arch/mips/dts/t41-isvp.dtsi
 new file mode 100644
-index 00000000..12c960e5
+index 00000000..c8f88dfb
 --- /dev/null
 +++ b/arch/mips/dts/t41-isvp.dtsi
-@@ -0,0 +1,251 @@
+@@ -0,0 +1,250 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T41 SFC-NOR board body, shared by every T41 SKU.
@@ -51250,7 +51306,6 @@ index 00000000..12c960e5
 +		phy-handle = <&gmac0_phy>;
 +		ingenic,mode-reg = <0xb00000e8>;
 +		max-speed = <100>;
-+		macphy-rate = <50000000>;
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_mac0>;
 +		status = "okay";
@@ -116894,10 +116949,10 @@ index 00000000..752c4747
 +obj-$(CONFIG_CLK_INGENIC_T41) += clk-t41.o
 diff --git a/drivers/clk/ingenic/clk-a1.c b/drivers/clk/ingenic/clk-a1.c
 new file mode 100644
-index 00000000..ce5f77d6
+index 00000000..6cc21bd7
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-a1.c
-@@ -0,0 +1,283 @@
+@@ -0,0 +1,299 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic A1 (XBurst2) CGU (Clock/Power Manager) clock driver.
@@ -116916,11 +116971,12 @@ index 00000000..ce5f77d6
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <dt-bindings/clock/ingenic,a1-cgu.h>
 +
-+#define A1_CLK_COUNT		(A1_CLK_OTG2 + 1)
++#define A1_CLK_COUNT		(A1_CLK_GMAC0_PTP + 1)
 +
 +/* CPM at physical 0x10000000, reached through the uncached KSEG1 window. */
 +#define A1_CPM_BASE		0xb0000000
@@ -116933,6 +116989,8 @@ index 00000000..ce5f77d6
 +#define CPM_CLKGR1		0x38
 +#define CPM_SFC0CDR		0x90
 +#define CPM_MAC0CDR		0xc0
++#define CPM_MAC0TXCDR		0xc4
++#define CPM_MAC0PTPCDR		0xcc
 +#define CPM_MAC1CDR		0xd0
 +
 +#define EXT_RATE		24000000UL
@@ -116951,6 +117009,7 @@ index 00000000..ce5f77d6
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, NO_GATE = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
 +	u8 src;		/* CDR source select [31:30]: 1=MPLL, 3=EPLL */
++	u8 exact;	/* rate must divide the fixed source exactly */
 +};
 +
 +#define NO_GATE 0xffff
@@ -116975,7 +117034,15 @@ index 00000000..ce5f77d6
 +	[A1_CLK_TCU]   = { 0, 0, 0, 0, CPM_CLKGR0, 5 },
 +	[A1_CLK_OST]   = { 0, 0, 0, 0, CPM_CLKGR0, 6 },
 +	[A1_CLK_AIC]   = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
-+	[A1_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 8, 3 },
++	/*
++	 * The three GMAC dividers all source from EPLL by the vendor
++	 * design (fixed src): MAC0CDR = RMII 50 MHz refclk, MAC0TXCDR =
++	 * 25 MHz, MAC0PTPCDR = 50 MHz. Exact division required - the
++	 * refclk feeds the RMII PHY (+-50 ppm).
++	 */
++	[A1_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 8, 3, 1 },
++	[A1_CLK_GMAC0_TX] = { CPM_MAC0TXCDR, 29, 28, 27, NO_GATE, 0, 3, 1 },
++	[A1_CLK_GMAC0_PTP] = { CPM_MAC0PTPCDR, 29, 28, 27, NO_GATE, 0, 3, 1 },
 +	[A1_CLK_GMAC1] = { CPM_MAC1CDR, 29, 28, 27, CPM_CLKGR1, 10, 3 },
 +	[A1_CLK_DMAC]  = { 0, 0, 0, 0, CPM_CLKGR1, 3 },
 +	[A1_CLK_EFUSE] = { 0, 0, 0, 0, CPM_CLKGR0, 4 },
@@ -117098,6 +117165,10 @@ index 00000000..ce5f77d6
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
 +	v = cpm_r(p, d->cdr);
 +	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
@@ -117183,10 +117254,10 @@ index 00000000..ce5f77d6
 +};
 diff --git a/drivers/clk/ingenic/clk-t10.c b/drivers/clk/ingenic/clk-t10.c
 new file mode 100644
-index 00000000..d5233fad
+index 00000000..ecbfc039
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t10.c
-@@ -0,0 +1,284 @@
+@@ -0,0 +1,380 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T10 CGU (Clock/Power Manager) clock driver.
@@ -117220,6 +117291,7 @@ index 00000000..d5233fad
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -117243,6 +117315,15 @@ index 00000000..d5233fad
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
 +
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
++
++/* Source-mux input indices (2-bit fields; 1-bit fields allow 0/1). */
++#define SRC_SCLKA		0
++#define SRC_MPLL		1
++#define SRC_VPLL		2
++
 +#define EXT_RATE		24000000UL
 +#define RTC_RATE		32768UL
 +
@@ -117258,6 +117339,7 @@ index 00000000..d5233fad
 +			 * 0 = single bit (0=APLL 1=MPLL) */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -117271,7 +117353,8 @@ index 00000000..d5233fad
 +static const struct t10_clk_desc t10_clks[T10_CLK_COUNT] = {
 +	[T10_CLK_SFC]  = { CPM_SSICDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 20 },
 +	[T10_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 4 },
-+	[T10_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 31, 0, CPM_CLKGR1, 4 },
++	/* GMAC feeds the RMII PHY 50 MHz ref: exact division required. */
++	[T10_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 31, 0, CPM_CLKGR1, 4, 1 },
 +	[T10_CLK_UART1] = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T10_CLK_OTG]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T10_CLK_TCU]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -117358,12 +117441,47 @@ index 00000000..d5233fad
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a source-mux input, gated on the PLL lock bit so an absent
++ * or idle PLL can never be selected as a clock source.
++ */
++static ulong t10_src_rate(struct t10_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[SRC_SCLKA] = CPM_CPAPCR,
++		[SRC_MPLL] = CPM_CPMPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg) || !pll_reg[src])
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t10_cdr_program(struct t10_cgu_priv *p,
++			    const struct t10_clk_desc *d, u32 src, u32 div)
++{
++	u32 src_mask = (d->src_2bit ? 0x3u : 0x1u) << d->src_shift;
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(src_mask | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << d->src_shift) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t10_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t10_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t10_clk_desc *d;
 +	ulong parent;
-+	u32 div, v, src_mask, src_mpll;
++	u32 src, div;
 +
 +	if (clk->id >= T10_CLK_COUNT)
 +		return -EINVAL;
@@ -117372,32 +117490,80 @@ index 00000000..d5233fad
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = SRC_MPLL;
++	parent = t10_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/* Retarget the mux to a locked PLL that divides exactly. */
++		static const u8 alt[] = { SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r;
++
++			if (alt[i] == SRC_VPLL && !d->src_2bit)
++				continue;	/* 1-bit mux: APLL/MPLL only */
++			r = t10_src_rate(p, alt[i]);
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	if (d->src_2bit) {
-+		src_mask = 0x3u << d->src_shift;
-+		src_mpll = 1u << d->src_shift;		/* [.. :..] = 01 */
-+	} else {
-+		src_mask = 0x1u << d->src_shift;
-+		src_mpll = 1u << d->src_shift;		/* single bit = 1 */
-+	}
-+
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(src_mask | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= src_mpll | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t10_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t10_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t10_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t10_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T10_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t10_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T10_CLK_APLL:
++		src = SRC_SCLKA;
++		break;
++	case T10_CLK_MPLL:
++		src = SRC_MPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (src == SRC_VPLL && !d->src_2bit)
++		return -EINVAL;	/* 1-bit mux: APLL/MPLL only */
++	if (!t10_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t10_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t10_clk_gate(struct clk *clk, bool enable)
@@ -117445,6 +117611,7 @@ index 00000000..d5233fad
 +	.of_xlate = t10_clk_of_xlate,
 +	.get_rate = t10_clk_get_rate,
 +	.set_rate = t10_clk_set_rate,
++	.set_parent = t10_clk_set_parent,
 +	.enable	  = t10_clk_enable,
 +	.disable  = t10_clk_disable,
 +};
@@ -117473,10 +117640,10 @@ index 00000000..d5233fad
 +};
 diff --git a/drivers/clk/ingenic/clk-t20.c b/drivers/clk/ingenic/clk-t20.c
 new file mode 100644
-index 00000000..fb46bc6f
+index 00000000..59148cc8
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t20.c
-@@ -0,0 +1,283 @@
+@@ -0,0 +1,384 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T20 CGU (Clock/Power Manager) clock driver.
@@ -117509,6 +117676,7 @@ index 00000000..fb46bc6f
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -117532,6 +117700,16 @@ index 00000000..fb46bc6f
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
 +
++#define CPM_CPVPCR		0xe0	/* VPLL */
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
++
++/* Source-mux input indices (2-bit fields; 1-bit fields allow 0/1). */
++#define SRC_SCLKA		0
++#define SRC_MPLL		1
++#define SRC_VPLL		2
++
 +#define EXT_RATE		24000000UL
 +#define RTC_RATE		32768UL
 +
@@ -117547,6 +117725,7 @@ index 00000000..fb46bc6f
 +			 * 0 = single bit (0=APLL 1=MPLL) */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -117560,7 +117739,8 @@ index 00000000..fb46bc6f
 +static const struct t20_clk_desc t20_clks[T20_CLK_COUNT] = {
 +	[T20_CLK_SFC]  = { CPM_SSICDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 20 },
 +	[T20_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 4 },
-+	[T20_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 30, 1, CPM_CLKGR1, 4 },
++	/* GMAC feeds the RMII PHY 50 MHz ref: exact division required. */
++	[T20_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 30, 1, CPM_CLKGR1, 4, 1 },
 +	[T20_CLK_UART1] = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T20_CLK_OTG]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T20_CLK_TCU]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -117647,12 +117827,48 @@ index 00000000..fb46bc6f
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a source-mux input, gated on the PLL lock bit so an absent
++ * or idle PLL can never be selected as a clock source.
++ */
++static ulong t20_src_rate(struct t20_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[SRC_SCLKA] = CPM_CPAPCR,
++		[SRC_MPLL] = CPM_CPMPCR,
++		[SRC_VPLL] = CPM_CPVPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg) || !pll_reg[src])
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t20_cdr_program(struct t20_cgu_priv *p,
++			    const struct t20_clk_desc *d, u32 src, u32 div)
++{
++	u32 src_mask = (d->src_2bit ? 0x3u : 0x1u) << d->src_shift;
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(src_mask | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << d->src_shift) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t20_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t20_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t20_clk_desc *d;
 +	ulong parent;
-+	u32 div, v, src_mask, src_mpll;
++	u32 src, div;
 +
 +	if (clk->id >= T20_CLK_COUNT)
 +		return -EINVAL;
@@ -117661,32 +117877,83 @@ index 00000000..fb46bc6f
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = SRC_MPLL;
++	parent = t20_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/* Retarget the mux to a locked PLL that divides exactly. */
++		static const u8 alt[] = { SRC_VPLL, SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r;
++
++			if (alt[i] == SRC_VPLL && !d->src_2bit)
++				continue;	/* 1-bit mux: APLL/MPLL only */
++			r = t20_src_rate(p, alt[i]);
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	if (d->src_2bit) {
-+		src_mask = 0x3u << d->src_shift;
-+		src_mpll = 1u << d->src_shift;		/* [.. :..] = 01 */
-+	} else {
-+		src_mask = 0x1u << d->src_shift;
-+		src_mpll = 1u << d->src_shift;		/* single bit = 1 */
-+	}
-+
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(src_mask | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= src_mpll | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t20_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t20_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t20_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t20_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T20_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t20_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T20_CLK_APLL:
++		src = SRC_SCLKA;
++		break;
++	case T20_CLK_MPLL:
++		src = SRC_MPLL;
++		break;
++	case T20_CLK_VPLL:
++		src = SRC_VPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (src == SRC_VPLL && !d->src_2bit)
++		return -EINVAL;	/* 1-bit mux: APLL/MPLL only */
++	if (!t20_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t20_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t20_clk_gate(struct clk *clk, bool enable)
@@ -117734,6 +118001,7 @@ index 00000000..fb46bc6f
 +	.of_xlate = t20_clk_of_xlate,
 +	.get_rate = t20_clk_get_rate,
 +	.set_rate = t20_clk_set_rate,
++	.set_parent = t20_clk_set_parent,
 +	.enable	  = t20_clk_enable,
 +	.disable  = t20_clk_disable,
 +};
@@ -117762,10 +118030,10 @@ index 00000000..fb46bc6f
 +};
 diff --git a/drivers/clk/ingenic/clk-t21.c b/drivers/clk/ingenic/clk-t21.c
 new file mode 100644
-index 00000000..37e3e73a
+index 00000000..6ff01516
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t21.c
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,359 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T21 CGU (Clock/Power Manager) clock driver.
@@ -117785,6 +118053,7 @@ index 00000000..37e3e73a
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -117812,8 +118081,13 @@ index 00000000..37e3e73a
 +/* CDR source field [31:30]: 0=sclka(~apll) 1=mpll 2=vpll */
 +#define CDR_SRC_SHIFT		30
 +#define CDR_SRC_MASK		(3u << CDR_SRC_SHIFT)
-+#define CDR_SRC_MPLL		(1u << CDR_SRC_SHIFT)
++#define CDR_SRC_SCLKA		0
++#define CDR_SRC_MPLL		1
++#define CDR_SRC_VPLL		2
 +#define CDR_DIV_MASK		0xffu
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
 +
 +struct t21_clk_desc {
 +	u16 cdr;	/* CPM CDR register offset, 0 = no divider */
@@ -117822,6 +118096,7 @@ index 00000000..37e3e73a
 +	u8 stop;	/* clock-stop bit in cdr */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -117835,7 +118110,14 @@ index 00000000..37e3e73a
 +	[T21_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T21_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
 +	[T21_CLK_MSC1] = { CPM_MSC1CDR, 29, 28, 27, CPM_CLKGR0, 5 },
-+	[T21_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4 },
++	/*
++	 * The GMAC leaf feeds the embedded ePHY 25 MHz reference: the
++	 * divider must land exactly, and the source mux may retarget to
++	 * whichever PLL divides exactly (MPLL preferred; vendor route
++	 * {APLL, MPLL, VPLL, EPLL} - EPLL is left at reset and the lock
++	 * gate excludes an idle PLL, so it is not a candidate).
++	 */
++	[T21_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
 +	[T21_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T21_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T21_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -117916,12 +118198,47 @@ index 00000000..37e3e73a
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a CDR source-mux input, gated on the PLL lock bit so an
++ * absent or idle PLL can never be selected as a clock source.
++ */
++static ulong t21_src_rate(struct t21_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[CDR_SRC_SCLKA] = CPM_CPAPCR,
++		[CDR_SRC_MPLL] = CPM_CPMPCR,
++		[CDR_SRC_VPLL] = CPM_CPVPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg))
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t21_cdr_program(struct t21_cgu_priv *p,
++			    const struct t21_clk_desc *d, u32 src, u32 div)
++{
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t21_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t21_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t21_clk_desc *d;
 +	ulong parent;
-+	u32 div, v;
++	u32 src, div;
 +
 +	if (clk->id >= T21_CLK_COUNT)
 +		return -EINVAL;
@@ -117930,24 +118247,78 @@ index 00000000..37e3e73a
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu_clks_set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = CDR_SRC_MPLL;
++	parent = t21_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/* Retarget the mux to a locked PLL that divides exactly. */
++		static const u8 alt[] = { CDR_SRC_VPLL, CDR_SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r = t21_src_rate(p, alt[i]);
++
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= CDR_SRC_MPLL | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t21_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t21_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t21_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t21_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T21_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t21_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T21_CLK_APLL:
++		src = CDR_SRC_SCLKA;
++		break;
++	case T21_CLK_MPLL:
++		src = CDR_SRC_MPLL;
++		break;
++	case T21_CLK_VPLL:
++		src = CDR_SRC_VPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (!t21_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t21_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t21_clk_gate(struct clk *clk, bool enable)
@@ -117995,6 +118366,7 @@ index 00000000..37e3e73a
 +	.of_xlate = t21_clk_of_xlate,
 +	.get_rate = t21_clk_get_rate,
 +	.set_rate = t21_clk_set_rate,
++	.set_parent = t21_clk_set_parent,
 +	.enable	  = t21_clk_enable,
 +	.disable  = t21_clk_disable,
 +};
@@ -118023,10 +118395,10 @@ index 00000000..37e3e73a
 +};
 diff --git a/drivers/clk/ingenic/clk-t23.c b/drivers/clk/ingenic/clk-t23.c
 new file mode 100644
-index 00000000..342b2f8b
+index 00000000..4c0e4a41
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t23.c
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,347 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T23 CGU (Clock/Power Manager) clock driver.
@@ -118046,6 +118418,7 @@ index 00000000..342b2f8b
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -118075,8 +118448,12 @@ index 00000000..342b2f8b
 +/* CDR source field [31:30]: 0=sclka(~apll) 1=mpll (T23 has no vpll) */
 +#define CDR_SRC_SHIFT		30
 +#define CDR_SRC_MASK		(3u << CDR_SRC_SHIFT)
-+#define CDR_SRC_MPLL		(1u << CDR_SRC_SHIFT)
++#define CDR_SRC_SCLKA		0
++#define CDR_SRC_MPLL		1
 +#define CDR_DIV_MASK		0xffu
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
 +
 +struct t23_clk_desc {
 +	u16 cdr;	/* CPM CDR register offset, 0 = no divider */
@@ -118085,6 +118462,7 @@ index 00000000..342b2f8b
 +	u8 stop;	/* clock-stop bit in cdr */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -118098,7 +118476,14 @@ index 00000000..342b2f8b
 +static const struct t23_clk_desc t23_clks[T23_CLK_COUNT] = {
 +	[T23_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T23_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
-+	[T23_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4 },
++	/*
++	 * The GMAC leaf feeds the RMII PHY 50 MHz reference (+-50 ppm):
++	 * exact division required. T23 has no VPLL, so the only
++	 * alternative source is SCLKA; every current SKU's MPLL
++	 * (1200/1000) divides 50 MHz exactly, making the retarget a
++	 * safety net.
++	 */
++	[T23_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
 +	[T23_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T23_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T23_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -118177,12 +118562,46 @@ index 00000000..342b2f8b
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a CDR source-mux input, gated on the PLL lock bit so an
++ * absent or idle PLL can never be selected as a clock source.
++ */
++static ulong t23_src_rate(struct t23_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[CDR_SRC_SCLKA] = CPM_CPAPCR,
++		[CDR_SRC_MPLL] = CPM_CPMPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg))
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t23_cdr_program(struct t23_cgu_priv *p,
++			    const struct t23_clk_desc *d, u32 src, u32 div)
++{
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t23_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t23_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t23_clk_desc *d;
 +	ulong parent;
-+	u32 div, v;
++	u32 src, div;
 +
 +	if (clk->id >= T23_CLK_COUNT)
 +		return -EINVAL;
@@ -118191,24 +118610,68 @@ index 00000000..342b2f8b
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu_clks_set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = CDR_SRC_MPLL;
++	parent = t23_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		ulong r = t23_src_rate(p, CDR_SRC_SCLKA);
++
++		if (r >= rate && !(r % rate)) {
++			src = CDR_SRC_SCLKA;
++			parent = r;
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= CDR_SRC_MPLL | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t23_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t23_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t23_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t23_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T23_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t23_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T23_CLK_APLL:
++		src = CDR_SRC_SCLKA;
++		break;
++	case T23_CLK_MPLL:
++		src = CDR_SRC_MPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (!t23_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t23_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t23_clk_gate(struct clk *clk, bool enable)
@@ -118256,6 +118719,7 @@ index 00000000..342b2f8b
 +	.of_xlate = t23_clk_of_xlate,
 +	.get_rate = t23_clk_get_rate,
 +	.set_rate = t23_clk_set_rate,
++	.set_parent = t23_clk_set_parent,
 +	.enable	  = t23_clk_enable,
 +	.disable  = t23_clk_disable,
 +};
@@ -118284,10 +118748,10 @@ index 00000000..342b2f8b
 +};
 diff --git a/drivers/clk/ingenic/clk-t30.c b/drivers/clk/ingenic/clk-t30.c
 new file mode 100644
-index 00000000..64d2bb5f
+index 00000000..74549df0
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t30.c
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,359 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T30 CGU (Clock/Power Manager) clock driver.
@@ -118307,6 +118771,7 @@ index 00000000..64d2bb5f
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -118334,8 +118799,13 @@ index 00000000..64d2bb5f
 +/* CDR source field [31:30]: 0=sclka(~apll) 1=mpll 2=vpll */
 +#define CDR_SRC_SHIFT		30
 +#define CDR_SRC_MASK		(3u << CDR_SRC_SHIFT)
-+#define CDR_SRC_MPLL		(1u << CDR_SRC_SHIFT)
++#define CDR_SRC_SCLKA		0
++#define CDR_SRC_MPLL		1
++#define CDR_SRC_VPLL		2
 +#define CDR_DIV_MASK		0xffu
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
 +
 +struct t30_clk_desc {
 +	u16 cdr;	/* CPM CDR register offset, 0 = no divider */
@@ -118344,6 +118814,7 @@ index 00000000..64d2bb5f
 +	u8 stop;	/* clock-stop bit in cdr */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -118357,7 +118828,14 @@ index 00000000..64d2bb5f
 +	[T30_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T30_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
 +	[T30_CLK_MSC1] = { CPM_MSC1CDR, 29, 28, 27, CPM_CLKGR0, 5 },
-+	[T30_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4 },
++	/*
++	 * The GMAC leaf feeds the RMII PHY 50 MHz reference (+-50 ppm):
++	 * exact division required; the mux may retarget to a locked PLL
++	 * that divides exactly (MPLL preferred; vendor route
++	 * {APLL, MPLL, VPLL, EPLL}). All T30 SKU MPLLs (1000/1200)
++	 * divide 50 MHz exactly, so the retarget is a safety net.
++	 */
++	[T30_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
 +	[T30_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T30_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T30_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -118438,12 +118916,47 @@ index 00000000..64d2bb5f
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a CDR source-mux input, gated on the PLL lock bit so an
++ * absent or idle PLL can never be selected as a clock source.
++ */
++static ulong t30_src_rate(struct t30_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[CDR_SRC_SCLKA] = CPM_CPAPCR,
++		[CDR_SRC_MPLL] = CPM_CPMPCR,
++		[CDR_SRC_VPLL] = CPM_CPVPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg))
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t30_cdr_program(struct t30_cgu_priv *p,
++			    const struct t30_clk_desc *d, u32 src, u32 div)
++{
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t30_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t30_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t30_clk_desc *d;
 +	ulong parent;
-+	u32 div, v;
++	u32 src, div;
 +
 +	if (clk->id >= T30_CLK_COUNT)
 +		return -EINVAL;
@@ -118452,24 +118965,78 @@ index 00000000..64d2bb5f
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu_clks_set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = CDR_SRC_MPLL;
++	parent = t30_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/* Retarget the mux to a locked PLL that divides exactly. */
++		static const u8 alt[] = { CDR_SRC_VPLL, CDR_SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r = t30_src_rate(p, alt[i]);
++
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= CDR_SRC_MPLL | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t30_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t30_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t30_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t30_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T30_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t30_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T30_CLK_APLL:
++		src = CDR_SRC_SCLKA;
++		break;
++	case T30_CLK_MPLL:
++		src = CDR_SRC_MPLL;
++		break;
++	case T30_CLK_VPLL:
++		src = CDR_SRC_VPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (!t30_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t30_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t30_clk_gate(struct clk *clk, bool enable)
@@ -118517,6 +119084,7 @@ index 00000000..64d2bb5f
 +	.of_xlate = t30_clk_of_xlate,
 +	.get_rate = t30_clk_get_rate,
 +	.set_rate = t30_clk_set_rate,
++	.set_parent = t30_clk_set_parent,
 +	.enable	  = t30_clk_enable,
 +	.disable  = t30_clk_disable,
 +};
@@ -118545,10 +119113,10 @@ index 00000000..64d2bb5f
 +};
 diff --git a/drivers/clk/ingenic/clk-t31.c b/drivers/clk/ingenic/clk-t31.c
 new file mode 100644
-index 00000000..0c598a1f
+index 00000000..de170704
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t31.c
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,385 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T31 CGU (Clock/Power Manager) clock driver.
@@ -118571,6 +119139,7 @@ index 00000000..0c598a1f
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -118610,8 +119179,13 @@ index 00000000..0c598a1f
 +/* CDR source field [31:30]: 0=sclka(~apll) 1=mpll 2=vpll */
 +#define CDR_SRC_SHIFT		30
 +#define CDR_SRC_MASK		(3u << CDR_SRC_SHIFT)
-+#define CDR_SRC_MPLL		(1u << CDR_SRC_SHIFT)
++#define CDR_SRC_SCLKA		0
++#define CDR_SRC_MPLL		1
++#define CDR_SRC_VPLL		2
 +#define CDR_DIV_MASK		0xffu
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
 +
 +struct t31_clk_desc {
 +	u16 cdr;	/* CPM CDR register offset, 0 = no divider */
@@ -118620,6 +119194,7 @@ index 00000000..0c598a1f
 +	u8 stop;	/* clock-stop bit in cdr */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, 0xffff = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE 0xffff
@@ -118636,7 +119211,14 @@ index 00000000..0c598a1f
 +	[T31_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T31_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
 +	[T31_CLK_MSC1] = { CPM_MSC1CDR, 29, 28, 27, CPM_CLKGR0, 5 },
-+	[T31_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4 },
++	/*
++	 * The GMAC leaf feeds the RMII PHY reference, which tolerates
++	 * only +-50 ppm: the divider must land the rate exactly, and
++	 * the source mux may be retargeted to whichever PLL divides
++	 * exactly (MPLL preferred for vendor parity, then VPLL - the
++	 * SPL pins VPLL at 1200 MHz on every T31 variant).
++	 */
++	[T31_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
 +	[T31_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T31_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T31_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -118719,12 +119301,47 @@ index 00000000..0c598a1f
 +	       ((cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1);
 +}
 +
++/*
++ * Rate of a CDR source-mux input, gated on the PLL lock bit so an
++ * absent or idle PLL can never be selected as a clock source.
++ */
++static ulong t31_src_rate(struct t31_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[CDR_SRC_SCLKA] = CPM_CPAPCR,
++		[CDR_SRC_MPLL] = CPM_CPMPCR,
++		[CDR_SRC_VPLL] = CPM_CPVPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg))
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
++/* Program a CDR leaf: source mux + divider, one CE/BUSY sequence. */
++static void t31_cdr_program(struct t31_cgu_priv *p,
++			    const struct t31_clk_desc *d, u32 src, u32 div)
++{
++	u32 v = cpm_r(p, d->cdr);
++
++	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
++}
++
 +static ulong t31_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t31_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t31_clk_desc *d;
 +	ulong parent;
-+	u32 div, v;
++	u32 src, div;
 +
 +	if (clk->id >= T31_CLK_COUNT)
 +		return -EINVAL;
@@ -118733,24 +119350,84 @@ index 00000000..0c598a1f
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu_clks_set). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = CDR_SRC_MPLL;
++	parent = t31_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/*
++		 * MPLL is a per-variant DDR-driven setpoint and cannot
++		 * always divide exactly (T31X 1200 MHz can, T31N/L 1008
++		 * and T31A 1500 cannot land 50 MHz). Retarget the mux:
++		 * try VPLL, then SCLKA, requiring a locked PLL and an
++		 * exact division.
++		 */
++		static const u8 alt[] = { CDR_SRC_VPLL, CDR_SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r = t31_src_rate(p, alt[i]);
++
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
-+	v = cpm_r(p, d->cdr);
-+	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
-+	v |= CDR_SRC_MPLL | BIT(d->ce) | (div - 1);
-+	cpm_w(p, d->cdr, v);
-+
-+	while (cpm_r(p, d->cdr) & BIT(d->busy))
-+		;
++	t31_cdr_program(p, d, src, div);
 +
 +	return parent / div;
++}
++
++static int t31_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t31_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t31_clk_desc *d;
++	u32 src, div;
++
++	if (clk->id >= T31_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t31_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T31_CLK_APLL:
++		src = CDR_SRC_SCLKA;
++		break;
++	case T31_CLK_MPLL:
++		src = CDR_SRC_MPLL;
++		break;
++	case T31_CLK_VPLL:
++		src = CDR_SRC_VPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (!t31_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider; the consumer re-rates afterwards. */
++	div = (cpm_r(p, d->cdr) & CDR_DIV_MASK) + 1;
++	t31_cdr_program(p, d, src, div);
++
++	return 0;
 +}
 +
 +static int t31_clk_gate(struct clk *clk, bool enable)
@@ -118798,6 +119475,7 @@ index 00000000..0c598a1f
 +	.of_xlate = t31_clk_of_xlate,
 +	.get_rate = t31_clk_get_rate,
 +	.set_rate = t31_clk_set_rate,
++	.set_parent = t31_clk_set_parent,
 +	.enable	  = t31_clk_enable,
 +	.disable  = t31_clk_disable,
 +};
@@ -118826,10 +119504,10 @@ index 00000000..0c598a1f
 +};
 diff --git a/drivers/clk/ingenic/clk-t32.c b/drivers/clk/ingenic/clk-t32.c
 new file mode 100644
-index 00000000..52d665b5
+index 00000000..4e6dbbc7
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t32.c
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,386 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T32 CGU (Clock/Power Manager) clock driver.
@@ -118852,6 +119530,7 @@ index 00000000..52d665b5
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <linux/delay.h>
@@ -118879,7 +119558,12 @@ index 00000000..52d665b5
 +/* CDR source field [31:30]: 0=APLL 1=MPLL 2=VPLL */
 +#define CDR_SRC_SHIFT		30
 +#define CDR_SRC_MASK		(3u << CDR_SRC_SHIFT)
-+#define CDR_SRC_MPLL		(1u << CDR_SRC_SHIFT)
++#define CDR_SRC_SCLKA		0
++#define CDR_SRC_MPLL		1
++#define CDR_SRC_VPLL		2
++
++/* CPxPCR PLL lock status (bit 3 = PLL stable). */
++#define PLL_ON			BIT(3)
 +#define CDR_DIV_MASK		0xffu
 +
 +struct t32_clk_desc {
@@ -118890,6 +119574,7 @@ index 00000000..52d665b5
 +	u8 h_freq;	/* extra /2 bit position (NO_HFREQ = none) */
 +	u16 gate_reg;	/* CLKGR0/CLKGR1 offset, NO_GATE = no gate */
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
++	u8 exact;	/* rate must divide exactly; may retarget the source */
 +};
 +
 +#define NO_GATE  0xffff
@@ -118907,7 +119592,8 @@ index 00000000..52d665b5
 +	[T32_CLK_SFC]   = { CPM_SFC0CDR, 29, 28, 27, NO_HFREQ, CPM_CLKGR0, 17 },
 +	[T32_CLK_MSC0]  = { CPM_MSC0CDR, 29, 28, 27, 20,       CPM_CLKGR0, 3 },
 +	[T32_CLK_MSC1]  = { CPM_MSC1CDR, 29, 28, 27, 20,       CPM_CLKGR0, 4 },
-+	[T32_CLK_GMAC]  = { CPM_MACCDR,  29, 28, 27, NO_HFREQ, CPM_CLKGR1, 0 },
++	/* GMAC feeds the RMII PHY 50 MHz ref: exact division required. */
++	[T32_CLK_GMAC]  = { CPM_MACCDR,  29, 28, 27, NO_HFREQ, CPM_CLKGR1, 0, 1 },
 +	[T32_CLK_UART0] = { 0, 0, 0, 0, NO_HFREQ, CPM_CLKGR0, 11 },
 +	[T32_CLK_UART1] = { 0, 0, 0, 0, NO_HFREQ, CPM_CLKGR0, 12 },
 +	[T32_CLK_OTG]   = { 0, 0, 0, 0, NO_HFREQ, CPM_CLKGR0, 2 },
@@ -118997,12 +119683,32 @@ index 00000000..52d665b5
 +	return rate;
 +}
 +
++/*
++ * Rate of a CDR source-mux input, gated on the PLL lock bit so an
++ * absent or idle PLL can never be selected as a clock source.
++ */
++static ulong t32_src_rate(struct t32_cgu_priv *p, u32 src)
++{
++	static const u16 pll_reg[] = {
++		[CDR_SRC_SCLKA] = CPM_CPAPCR,
++		[CDR_SRC_MPLL] = CPM_CPMPCR,
++		[CDR_SRC_VPLL] = CPM_CPVPCR,
++	};
++
++	if (src >= ARRAY_SIZE(pll_reg))
++		return 0;
++	if (!(cpm_r(p, pll_reg[src]) & PLL_ON))
++		return 0;
++
++	return pll_rate(p, pll_reg[src]);
++}
++
 +static ulong t32_clk_set_rate(struct clk *clk, ulong rate)
 +{
 +	struct t32_cgu_priv *p = dev_get_priv(clk->dev);
 +	const struct t32_clk_desc *d;
 +	ulong parent;
-+	u32 div, v;
++	u32 src, div, v;
 +	bool use_hfreq = false;
 +
 +	if (clk->id >= T32_CLK_COUNT)
@@ -119012,8 +119718,27 @@ index 00000000..52d665b5
 +	if (!d->cdr || !rate)
 +		return -ENOSYS;
 +
-+	/* Source the leaf clock from MPLL (matches the vendor cgu table). */
-+	parent = pll_rate(p, CPM_CPMPCR);
++	src = CDR_SRC_MPLL;
++	parent = t32_src_rate(p, src);
++
++	if (d->exact && (!parent || parent % rate)) {
++		/* Retarget the mux to a locked PLL that divides exactly. */
++		static const u8 alt[] = { CDR_SRC_VPLL, CDR_SRC_SCLKA };
++		int i;
++
++		for (i = 0; i < ARRAY_SIZE(alt); i++) {
++			ulong r = t32_src_rate(p, alt[i]);
++
++			if (r >= rate && !(r % rate)) {
++				src = alt[i];
++				parent = r;
++				break;
++			}
++		}
++	}
++
++	if (!parent)
++		return -ENODEV;
 +
 +	div = DIV_ROUND_CLOSEST(parent, rate);
 +	if (!div)
@@ -119033,20 +119758,68 @@ index 00000000..52d665b5
 +	}
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
 +	v = cpm_r(p, d->cdr);
 +	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
 +	if (d->h_freq != NO_HFREQ)
 +		v &= ~BIT(d->h_freq);
-+	v |= CDR_SRC_MPLL | BIT(d->ce) | (div - 1);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
 +	if (use_hfreq)
 +		v |= BIT(d->h_freq);
 +	cpm_w(p, d->cdr, v);
 +
 +	while (cpm_r(p, d->cdr) & BIT(d->busy))
 +		;
++	/* CE stays set - clearing it kills the clock on real silicon. */
 +
 +	return use_hfreq ? parent / div / 2 : parent / div;
++}
++
++static int t32_clk_set_parent(struct clk *clk, struct clk *parent)
++{
++	struct t32_cgu_priv *p = dev_get_priv(clk->dev);
++	const struct t32_clk_desc *d;
++	u32 src, div, v;
++
++	if (clk->id >= T32_CLK_COUNT)
++		return -EINVAL;
++
++	d = &t32_clks[clk->id];
++	if (!d->cdr)
++		return -ENOSYS;
++
++	switch (parent->id) {
++	case T32_CLK_APLL:
++		src = CDR_SRC_SCLKA;
++		break;
++	case T32_CLK_MPLL:
++		src = CDR_SRC_MPLL;
++		break;
++	case T32_CLK_VPLL:
++		src = CDR_SRC_VPLL;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	if (!t32_src_rate(p, src))
++		return -ENODEV;
++
++	/* Keep the current divider/hfreq; the consumer re-rates afterwards. */
++	v = cpm_r(p, d->cdr);
++	div = (v & CDR_DIV_MASK) + 1;
++	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
++	v |= (src << CDR_SRC_SHIFT) | BIT(d->ce) | (div - 1);
++	cpm_w(p, d->cdr, v);
++
++	while (cpm_r(p, d->cdr) & BIT(d->busy))
++		;
++
++	return 0;
 +}
 +
 +static int t32_clk_gate(struct clk *clk, bool enable)
@@ -119094,6 +119867,7 @@ index 00000000..52d665b5
 +	.of_xlate = t32_clk_of_xlate,
 +	.get_rate = t32_clk_get_rate,
 +	.set_rate = t32_clk_set_rate,
++	.set_parent = t32_clk_set_parent,
 +	.enable	  = t32_clk_enable,
 +	.disable  = t32_clk_disable,
 +};
@@ -119391,10 +120165,10 @@ index 00000000..7654567a
 +};
 diff --git a/drivers/clk/ingenic/clk-t40.c b/drivers/clk/ingenic/clk-t40.c
 new file mode 100644
-index 00000000..45b377c5
+index 00000000..86532e0d
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t40.c
-@@ -0,0 +1,317 @@
+@@ -0,0 +1,328 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T40 (XBurst2) CGU (Clock/Power Manager) clock driver.
@@ -119413,6 +120187,7 @@ index 00000000..45b377c5
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <dt-bindings/clock/ingenic,t40-cgu.h>
@@ -119477,6 +120252,7 @@ index 00000000..45b377c5
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
 +	u8 src;		/* CDR source select [31:30]: 1=MPLL */
 +	u8 msc;		/* MSC-type CDR: fixed /2, EXT_SEL/H_FREQ bits */
++	u8 exact;	/* rate must divide the fixed source exactly */
 +};
 +
 +#define NO_GATE 0xffff
@@ -119501,7 +120277,12 @@ index 00000000..45b377c5
 +	[T40_CLK_TCU]   = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
 +	[T40_CLK_OST]   = { 0, 0, 0, 0, CPM_CLKGR1, 11 },
 +	[T40_CLK_AIC]   = { 0, 0, 0, 0, CPM_CLKGR0, 11 },
-+	[T40_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
++	/*
++	 * GMAC0 feeds the RMII PHY 50 MHz reference (+-50 ppm): exact
++	 * division required. Every T40 SKU MPLL (T40N 1000 / T40XP 1200
++	 * / T40A 1400 MHz) divides 50 MHz exactly.
++	 */
++	[T40_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 4, 1, 0, 1 },
 +	[T40_CLK_GMAC1] = { 0, 0, 0, 0, NO_GATE, 0 },	/* T40 has one GMAC */
 +	[T40_CLK_DMAC]  = { 0, 0, 0, 0, CPM_CLKGR0, 22 },	/* PDMA */
 +	[T40_CLK_EFUSE] = { 0, 0, 0, 0, CPM_CLKGR0, 1 },
@@ -119625,6 +120406,10 @@ index 00000000..45b377c5
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
 +	v = cpm_r(p, d->cdr);
 +	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
@@ -119714,10 +120499,10 @@ index 00000000..45b377c5
 +};
 diff --git a/drivers/clk/ingenic/clk-t41.c b/drivers/clk/ingenic/clk-t41.c
 new file mode 100644
-index 00000000..50622557
+index 00000000..557c39e5
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t41.c
-@@ -0,0 +1,326 @@
+@@ -0,0 +1,337 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T41 (XBurst2) CGU (Clock/Power Manager) clock driver.
@@ -119743,6 +120528,7 @@ index 00000000..50622557
 +
 +#include <clk-uclass.h>
 +#include <dm.h>
++#include <dm/device_compat.h>
 +#include <asm/io.h>
 +#include <linux/bitops.h>
 +#include <dt-bindings/clock/ingenic,t41-cgu.h>
@@ -119809,6 +120595,7 @@ index 00000000..50622557
 +	u8 gate_bit;	/* gate bit (set = clock disabled) */
 +	u8 src;		/* CDR source select [31:30]: 1=MPLL on T41 */
 +	u8 msc;		/* MSC-type CDR: fixed /2, EXT_SEL/H_FREQ bits */
++	u8 exact;	/* rate must divide the fixed source exactly */
 +};
 +
 +#define NO_GATE 0xffff
@@ -119834,7 +120621,12 @@ index 00000000..50622557
 +	[T41_CLK_TCU]   = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
 +	[T41_CLK_OST]   = { 0, 0, 0, 0, CPM_CLKGR1, 11 },
 +	[T41_CLK_AIC]   = { 0, 0, 0, 0, CPM_CLKGR0, 11 },
-+	[T41_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
++	/*
++	 * GMAC0 feeds the RMII PHY 50 MHz reference (+-50 ppm): exact
++	 * division required. The T41 SKU MPLLs (1400/1500/...) divide
++	 * 50 MHz exactly.
++	 */
++	[T41_CLK_GMAC0] = { CPM_MAC0CDR, 29, 28, 27, CPM_CLKGR1, 4, 1, 0, 1 },
 +	[T41_CLK_GMAC1] = { 0, 0, 0, 0, NO_GATE, 0 },	/* T41 has one GMAC */
 +	[T41_CLK_DMAC]  = { 0, 0, 0, 0, CPM_CLKGR0, 22 },	/* PDMA */
 +	[T41_CLK_EFUSE] = { 0, 0, 0, 0, CPM_CLKGR0, 1 },
@@ -119957,6 +120749,10 @@ index 00000000..50622557
 +		div = 1;
 +	if (div > 256)
 +		div = 256;
++	if (d->exact && parent % rate)
++		dev_warn(clk->dev,
++			 "clk %lu: no exact divider, %lu Hz off target %lu Hz\n",
++			 clk->id, parent / div, rate);
 +
 +	v = cpm_r(p, d->cdr);
 +	v &= ~(CDR_SRC_MASK | BIT(d->stop) | BIT(d->busy) | CDR_DIV_MASK);
@@ -126298,7 +127094,7 @@ index 311b5701..d51d422a 100644
  };
  
 diff --git a/drivers/net/dwc_eth_xgmac.h b/drivers/net/dwc_eth_xgmac.h
-index 90c2e229..2b8db198 100644
+index 90c2e229..e906f145 100644
 --- a/drivers/net/dwc_eth_xgmac.h
 +++ b/drivers/net/dwc_eth_xgmac.h
 @@ -241,6 +241,7 @@ struct xgmac_config {
@@ -126309,17 +127105,26 @@ index 90c2e229..2b8db198 100644
  	phy_interface_t (*interface)(const struct udevice *dev);
  	struct xgmac_ops *ops;
  };
-@@ -297,3 +298,4 @@ void xgmac_flush_buffer_generic(void *buf, size_t size);
+@@ -271,6 +272,8 @@ struct xgmac_priv {
+ 	struct reset_ctl reset_ctl;
+ 	struct reset_ctl_bulk reset_bulk;
+ 	struct clk clk_common;
++	struct clk clk_tx;
++	struct clk clk_ptp_ref;
+ 	struct mii_dev *mii;
+ 	struct phy_device *phy;
+ 	ofnode phy_of_node;
+@@ -297,3 +300,4 @@ void xgmac_flush_buffer_generic(void *buf, size_t size);
  int xgmac_null_ops(struct udevice *dev);
  
  extern struct xgmac_config xgmac_socfpga_config;
 +extern struct xgmac_config xgmac_a1_config;
 diff --git a/drivers/net/dwc_eth_xgmac_ingenic.c b/drivers/net/dwc_eth_xgmac_ingenic.c
 new file mode 100644
-index 00000000..74e2d5d2
+index 00000000..9af2eb00
 --- /dev/null
 +++ b/drivers/net/dwc_eth_xgmac_ingenic.c
-@@ -0,0 +1,263 @@
+@@ -0,0 +1,224 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic A1 glue for the Synopsys DWC_ether_xgmac driver.
@@ -126354,61 +127159,13 @@ index 00000000..74e2d5d2
 +
 +/*
 + * The GMAC needs three CGU dividers running, all sourced from EPLL,
-+ * or its register/MDIO block is unresponsive. clk-a1 drives MAC0CDR
-+ * via the DT clock; MAC0TXCDR and MAC0PTPCDR are poked here. RMII
-+ * rates: MAC0CDR 50 MHz refclk, MAC0TXCDR 25 MHz, MAC0PTPCDR 50 MHz.
++ * or its register/MDIO block is unresponsive. All three are DT clocks
++ * owned by clk-a1 (MAC0CDR, MAC0TXCDR, MAC0PTPCDR). RMII rates:
++ * 50 MHz refclk, 25 MHz TX, 50 MHz PTP.
 + */
 +#define A1_XGMAC_RMII_REFCLK	50000000
 +#define A1_XGMAC_TX_CLK		25000000
 +#define A1_XGMAC_PTP_CLK	50000000
-+
-+#define A1_CPM_BASE		0xb0000000
-+#define A1_CPM_CPEPCR		0x18		/* EPLL config */
-+#define A1_CPM_MAC0TXCDR	0xc4
-+#define A1_CPM_MAC0PTPCDR	0xcc
-+#define A1_CDR_SRC_EPLL		(3u << 30)	/* CDR source select [31:30] */
-+#define A1_CDR_CE		BIT(29)		/* clock-change enable */
-+#define A1_CDR_BUSY		BIT(28)
-+#define A1_CDR_STOP		BIT(27)
-+
-+static ulong a1_epll_rate(void)
-+{
-+	u32 v = readl((void __iomem *)(A1_CPM_BASE + A1_CPM_CPEPCR));
-+	u32 m = (v >> 20) & 0xfff;
-+	u32 n = (v >> 14) & 0x3f;
-+	u32 od1 = (v >> 11) & 0x7;
-+	u32 od0 = (v >> 8) & 0x7;
-+
-+	if (!n)
-+		n = 1;
-+	if (!od1)
-+		od1 = 1;
-+	if (!od0)
-+		od0 = 1;
-+
-+	return (ulong)((u64)24000000 * m / n / od1 / od0);
-+}
-+
-+/* Program one EPLL-sourced GMAC CGU divider for the requested rate. */
-+static void a1_xgmac_set_cdr(u32 cdr_off, ulong rate)
-+{
-+	void __iomem *cdr = (void __iomem *)(A1_CPM_BASE + cdr_off);
-+	u32 div = a1_epll_rate() / rate;
-+	u32 v;
-+
-+	if (!div)
-+		div = 1;
-+	if (div > 256)
-+		div = 256;
-+
-+	v = readl(cdr);
-+	v &= ~(A1_CDR_SRC_EPLL | A1_CDR_BUSY | A1_CDR_STOP | 0xff);
-+	v |= A1_CDR_SRC_EPLL | A1_CDR_CE | (div - 1);
-+	writel(v, cdr);
-+
-+	while (readl(cdr) & A1_CDR_BUSY)
-+		;
-+}
 +
 +static int xgmac_probe_resources_a1(struct udevice *dev)
 +{
@@ -126447,6 +127204,16 @@ index 00000000..74e2d5d2
 +		dev_err(dev, "failed to get GMAC clock: %d\n", ret);
 +		return ret;
 +	}
++	ret = clk_get_by_index(dev, 1, &xgmac->clk_tx);
++	if (ret) {
++		dev_err(dev, "failed to get GMAC TX clock: %d\n", ret);
++		return ret;
++	}
++	ret = clk_get_by_index(dev, 2, &xgmac->clk_ptp_ref);
++	if (ret) {
++		dev_err(dev, "failed to get GMAC PTP clock: %d\n", ret);
++		return ret;
++	}
 +
 +	/*
 +	 * The A1 has no cache-coherent DMA path. Re-point the XGMAC
@@ -126472,10 +127239,9 @@ index 00000000..74e2d5d2
 +	if (ret && ret != -ENOSYS && ret != -ENOTSUPP)
 +		return ret;
 +
-+	/* MAC0CDR (the RMII refclk) via the DT clock; the other two direct. */
 +	clk_set_rate(&xgmac->clk_common, A1_XGMAC_RMII_REFCLK);
-+	a1_xgmac_set_cdr(A1_CPM_MAC0TXCDR, A1_XGMAC_TX_CLK);
-+	a1_xgmac_set_cdr(A1_CPM_MAC0PTPCDR, A1_XGMAC_PTP_CLK);
++	clk_set_rate(&xgmac->clk_tx, A1_XGMAC_TX_CLK);
++	clk_set_rate(&xgmac->clk_ptp_ref, A1_XGMAC_PTP_CLK);
 +
 +	return 0;
 +}
@@ -126585,10 +127351,10 @@ index 00000000..74e2d5d2
 +};
 diff --git a/drivers/net/dwmac_ingenic.c b/drivers/net/dwmac_ingenic.c
 new file mode 100644
-index 00000000..341916c4
+index 00000000..cd165ff1
 --- /dev/null
 +++ b/drivers/net/dwmac_ingenic.c
-@@ -0,0 +1,607 @@
+@@ -0,0 +1,452 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic XBurst1 T-series GMAC glue for the DesignWare MAC.
@@ -126606,13 +127372,14 @@ index 00000000..341916c4
 + *    and uses a 25 MHz MAC-PHY clock. This mirrors the vendor
 + *    jz4775-9161.c PHY_TYPE_OMNI path (branch T21-1.0.33).
 + *
-+ * The vendor calls _clk_set_rate(MACPHY, rate); mainline has no such
-+ * API, so program CPM_MACCDR directly using the same CE/BUSY sequence
-+ * that the (hardware-proven) MSC clock setup uses - and, like that
-+ * one, never clear CE afterwards or the clock dies on real silicon.
++ * The MAC-PHY clock is owned by each SoC's CGU clk driver (real
++ * set_rate with exact-division source policy); this glue only asks
++ * the clk API for the topology-derived rate: 50 MHz for the RMII
++ * reference, 25 MHz for the T21 embedded ePHY.
 + */
 +
 +#include <asm/io.h>
++#include <clk.h>
 +#include <dm.h>
 +#include <phy.h>
 +#include <malloc.h>
@@ -126637,30 +127404,20 @@ index 00000000..341916c4
 +#define INGENIC_ETH_EPHY_RESET		BIT(3)		/* soft-reset pulse */
 +#define INGENIC_ETH_EPHY_RSTSTAT	BIT(24)		/* reset-done status */
 +
-+/* CPM (0xb0000000): GMAC gate in CLKGR1, MAC clock divider MACCDR. */
-+#define T31_CPM_BASE			0xb0000000
-+#define T31_CPM_CPMPCR			0x14		/* MPLL config */
-+#define T31_CPM_CPVPCR			0xe0		/* VPLL config (XBurst1) */
-+#define T31_CPM_CLKGR1			0x28
-+#define T31_CPM_CLKGR1_GMAC		BIT(4)
-+#define T31_CPM_MACCDR			0x54
-+#define MACCDR_SRC_MPLL			(1u << 30)	/* {APLL,MPLL,VPLL} idx 1 */
-+#define MACCDR_SRC_VPLL			(2u << 30)	/* {APLL,MPLL,VPLL} idx 2 */
-+#define MACCDR_CE			BIT(29)
-+#define MACCDR_BUSY			BIT(28)
-+#define MACCDR_STOP_SHIFT		27
-+#define MACCDR_DIV_MASK			0xffu
++/*
++ * MAC-PHY clock targets: the RMII reference is 50 MHz by spec; the T21
++ * embedded ePHY runs 25 MHz (vendor OMNI path).
++ */
++#define MACPHY_RATE_RMII		50000000
++#define MACPHY_RATE_EPHY		25000000
 +
-+/* XBurst1 CPxPCR status bits (T31-family M/N/OD1/OD0 PLL registers). */
-+#define XB1_PLL_ON			BIT(3)		/* PLL stable/lock */
-+
-+#define EXTAL_HZ			24000000u
 +
 +/*
 + * Undocumented CPM word the vendor OMNI path writes before enabling
 + * the embedded PHY (ePHY analog/clock seed). Not in any T21 CPM
 + * header; replicated verbatim from vendor jz4775-9161.c.
 + */
++#define T21_CPM_BASE			0xb0000000
 +#define T21_CPM_EPHY_SEED_OFF		0x50
 +#define T21_CPM_EPHY_SEED_VAL		0xc8007016u
 +
@@ -126689,17 +127446,12 @@ index 00000000..341916c4
 +#define T21_EPHY_PB_PINS		(BIT(7) | BIT(15))
 +
 +struct dwmac_ingenic_data {
-+	u32 mpll_hz;		/* MACCDR parent (MPLL) rate, 0 = read at runtime */
 +	bool inner_phy;		/* T21 embedded ePHY (no ext PHY/reset) */
-+	bool t40_pll;		/* T40 CPMPCR layout (vs T41/A1) for the runtime read */
-+	bool xb1_pll;		/* XBurst1 T31/T23/T20 CPxPCR layout + VPLL fallback */
-+	bool t21_pll;		/* XBurst1 T21/T30 CPxPCR layout (single OD) */
 +};
 +
 +struct dwmac_ingenic_plat {
 +	struct dw_eth_pdata dw_eth_pdata;
 +	const struct dwmac_ingenic_data *socdata;
-+	unsigned int macphy_rate;
 +	unsigned int max_speed;
 +	void __iomem *cpm_phyc_reg;
 +	void __iomem *mac_base;
@@ -126714,7 +127466,6 @@ index 00000000..341916c4
 +
 +	pdata->socdata = (const struct dwmac_ingenic_data *)
 +			 dev_get_driver_data(dev);
-+	pdata->macphy_rate = dev_read_u32_default(dev, "macphy-rate", 50000000);
 +	pdata->max_speed = dev_read_u32_default(dev, "max-speed", 100);
 +	cpm_reg = dev_read_u32_default(dev, "ingenic,mode-reg", 0);
 +	if (!cpm_reg)
@@ -126730,158 +127481,28 @@ index 00000000..341916c4
 +}
 +
 +/*
-+ * Read live MPLL rate from CPM_CPMPCR. The XBurst2 PLL register has two
-+ * INCOMPATIBLE layouts - the integer params live in different bit fields
-+ * and combine with different formulas:
-+ *
-+ *  - T41 / A1: PLLM@20(9b), PLLN@14(6b), PLLOD0@11(3b), PLLOD1@7(4b);
-+ *    rate = EXTAL * (M+1) * 2 / ((N+1) * 2^OD0 * (OD1+1)).
-+ *    (T41NQ M=0x15d,N=2,OD0=1,OD1=1 -> 24M*350*2/(3*2*2) = 1400 MHz.)
-+ *
-+ *  - T40: PLLM@20(9b), PLLN@14(6b), PLLOD1@11(3b), PLLOD0@8(3b);
-+ *    rate = EXTAL * M / (N * OD1 * OD0)  - raw dividers, no +1, no 2x.
-+ *    (T40N M=125,N=1,OD1=3,OD0=1 -> 24M*125/(1*3*1) = 1000 MHz;
-+ *     T40XP M=100,N=1,OD1=2,OD0=1 -> 1200 MHz.)
-+ *
-+ * Running the T40 register through the T41 formula yields 126 MHz, which
-+ * mis-sizes the MACCDR divider so the RMII reference clock comes out ~10x
-+ * too fast and the PHY never completes auto-negotiation. Pick the layout
-+ * per SoC. Reading at runtime (vs a static mpll_hz) lets the many SKUs
-+ * that share one DT compatible (T40N 1000 / T40XP 1200 / T40A 1400; the
-+ * T41 matrix 1400/1500/...) all resolve their own MPLL.
++ * The SoC's CGU clk driver owns the MAC clock (source-mux selection,
++ * exact-divider policy, gate); this glue only asks for a rate.
 + */
-+/*
-+ * Read an XBurst1 (T31-family) PLL: M@20(12b), N@14(6b), OD1@11(3b),
-+ * OD0@8(3b); rate = EXTAL * M / (N * OD1 * OD0). Returns 0 when the
-+ * PLL is not locked (XB1_PLL_ON clear), so an absent or idle PLL can
-+ * never be chosen as a clock source.
-+ */
-+static unsigned long xb1_pll_hz(void __iomem *cpm, u32 off)
++static int macphy_clk_init_cgu(struct udevice *dev, unsigned long rate)
 +{
-+	u32 v = readl(cpm + off);
-+	u32 m = (v >> 20) & 0xfff;
-+	u32 n = (v >> 14) & 0x3f;
-+	u32 od1 = (v >> 11) & 0x7;
-+	u32 od0 = (v >> 8) & 0x7;
++	struct clk clk;
++	ulong ret;
++	int err;
 +
-+	if (!(v & XB1_PLL_ON))
-+		return 0;
++	err = clk_get_by_index(dev, 0, &clk);
++	if (err)
++		return err;
 +
-+	if (!n)
-+		n = 1;
-+	if (!od1)
-+		od1 = 1;
-+	if (!od0)
-+		od0 = 1;
++	err = clk_enable(&clk);
++	if (err)
++		return err;
 +
-+	return (unsigned long)((u64)EXTAL_HZ * m / n / od1 / od0);
-+}
++	ret = clk_set_rate(&clk, rate);
++	if (IS_ERR_VALUE(ret))
++		return (int)ret;
 +
-+/*
-+ * Read an XBurst1 T21/T30 PLL: M@20(9b), N@14(6b), OD@11(3b);
-+ * rate = EXTAL * 2 * (M+1) / ((N+1) * 2^OD). Mirrors the clk-t21/t30
-+ * pll_rate decode; these two SoCs share neither the T31-family fields
-+ * (12-bit M, two ODs) nor the XBurst2 layouts.
-+ */
-+static unsigned long t21_pll_hz(void __iomem *cpm, u32 off)
-+{
-+	u32 v = readl(cpm + off);
-+	u32 m = (v >> 20) & 0x1ff;
-+	u32 n = (v >> 14) & 0x3f;
-+	u32 od = (v >> 11) & 0x7;
-+	u64 rate = (u64)EXTAL_HZ * 2 * (m + 1);
-+
-+	return (unsigned long)(rate / ((n + 1) * (od ? (1u << od) : 1u)));
-+}
-+
-+static unsigned long read_mpll_hz(void __iomem *cpm, bool t40_pll)
-+{
-+	u32 cpmpcr = readl(cpm + T31_CPM_CPMPCR);
-+	unsigned int m = (cpmpcr >> 20) & 0x1ff;
-+	unsigned int n = (cpmpcr >> 14) & 0x3f;
-+
-+	if (t40_pll) {
-+		unsigned int od1 = (cpmpcr >> 11) & 0x7;
-+		unsigned int od0 = (cpmpcr >> 8) & 0x7;
-+
-+		return (unsigned long)((u64)EXTAL_HZ * m / (n * od1 * od0));
-+	} else {
-+		unsigned int od0 = (cpmpcr >> 11) & 0x7;
-+		unsigned int od1 = (cpmpcr >> 7) & 0xf;
-+		/* EXTAL*(M+1)*2 can exceed 2^32 (T41NQ 24M*350*2 = 16.8G);
-+		 * compute in u64 then divide back into 32-bit range. */
-+		u64 vco = (u64)EXTAL_HZ * (m + 1) * 2;
-+
-+		return (unsigned long)(vco / ((n + 1) * (1u << od0) * (od1 + 1)));
-+	}
-+}
-+
-+static int macphy_clk_init(struct dwmac_ingenic_plat *pdata)
-+{
-+	void __iomem *cpm = (void __iomem *)T31_CPM_BASE;
-+	unsigned long parent_hz;
-+	u32 src, div, v;
-+
-+	/* Ungate the GMAC functional clock. */
-+	clrbits_le32(cpm + T31_CPM_CLKGR1, T31_CPM_CLKGR1_GMAC);
-+
-+	/*
-+	 * MAC-PHY clock source + divider. Vendor clk_set_rate (non-MSC):
-+	 * cdr = pll/rate - 1. External RMII wants 50 MHz; the T21
-+	 * inner ePHY wants 25 MHz. Same CE/BUSY dance as the MSC clock;
-+	 * leave CE set.
-+	 *
-+	 * The RMII reference tolerates only +-50 ppm, so the divider must
-+	 * land the target rate EXACTLY; on the T31 family MPLL is a
-+	 * per-variant DDR-driven setpoint that cannot always do that
-+	 * (T31X 1200 MHz / 24 = 50.0, but T31N/T31L run MPLL at 1008 MHz
-+	 * and 1008/20 = 50.4 MHz - 8000 ppm off, the PHY drops to 10M
-+	 * with dead RX). The SPL pins VPLL at 1200 MHz on every T31
-+	 * variant, so when MPLL cannot divide exactly, source from VPLL
-+	 * (MACCDR source index 2, vendor route {APLL, MPLL, VPLL}).
-+	 * MPLL stays preferred for vendor parity; the fallback only
-+	 * engages for a locked VPLL that divides exactly, so SoCs that
-+	 * share this compatible without a VPLL MAC route (e.g. T23,
-+	 * route {APLL, MPLL, -1}) keep their MPLL behavior.
-+	 *
-+	 * The poll is bounded: on a board where the MAC-PHY clock can't
-+	 * lock, an unbounded wait would hang U-Boot forever at "Net:".
-+	 * Time out instead so the boot continues without ethernet.
-+	 */
-+	parent_hz = pdata->socdata->mpll_hz;
-+	if (!parent_hz) {
-+		if (pdata->socdata->xb1_pll)
-+			parent_hz = xb1_pll_hz(cpm, T31_CPM_CPMPCR);
-+		else if (pdata->socdata->t21_pll)
-+			parent_hz = t21_pll_hz(cpm, T31_CPM_CPMPCR);
-+		else
-+			parent_hz = read_mpll_hz(cpm, pdata->socdata->t40_pll);
-+	}
-+	if (parent_hz < pdata->macphy_rate)
-+		return -EINVAL;
-+
-+	src = MACCDR_SRC_MPLL;
-+	if (pdata->socdata->xb1_pll && parent_hz % pdata->macphy_rate) {
-+		unsigned long vpll_hz = xb1_pll_hz(cpm, T31_CPM_CPVPCR);
-+
-+		if (vpll_hz >= pdata->macphy_rate &&
-+		    !(vpll_hz % pdata->macphy_rate)) {
-+			src = MACCDR_SRC_VPLL;
-+			parent_hz = vpll_hz;
-+		}
-+	}
-+
-+	div = DIV_ROUND_CLOSEST(parent_hz, pdata->macphy_rate);
-+	if (parent_hz % pdata->macphy_rate)
-+		printf("dwmac: no exact MAC-PHY divider, %lu Hz off target %u Hz\n",
-+		       parent_hz / div, pdata->macphy_rate);
-+	v = readl(cpm + T31_CPM_MACCDR);
-+	v &= ~((3u << 30) | (3u << MACCDR_STOP_SHIFT) | MACCDR_DIV_MASK);
-+	v |= src | MACCDR_CE | ((div - 1) & MACCDR_DIV_MASK);
-+	writel(v, cpm + T31_CPM_MACCDR);
-+
-+	return wait_for_bit_le32(cpm + T31_CPM_MACCDR, MACCDR_BUSY,
-+				 false, 100, false);
++	return 0;
 +}
 +
 +/* Mux the GMAC RMII pins to device function 0 on GPIO port B. */
@@ -126913,7 +127534,7 @@ index 00000000..341916c4
 +	/* Vendor jz_net_initialize order: clk_set_rate(MACPHY,50M),
 +	 * 50 ms settle, mux the RMII pins, then select RMII in the CPM
 +	 * GMAC-PHY-control register. */
-+	ret = macphy_clk_init(pdata);
++	ret = macphy_clk_init_cgu(dev, MACPHY_RATE_RMII);
 +	if (ret) {
 +		dev_err(dev, "MAC-PHY clock did not lock (%d)\n", ret);
 +		return ret;
@@ -127034,7 +127655,7 @@ index 00000000..341916c4
 +		return -EINVAL;
 +	}
 +
-+	v = macphy_clk_init(pdata);		/* 25 MHz (DT macphy-rate) */
++	v = macphy_clk_init_cgu(dev, MACPHY_RATE_EPHY);	/* 25 MHz */
 +	if (v) {
 +		dev_err(dev, "MAC-PHY clock did not lock (%d)\n", (int)v);
 +		return v;
@@ -127053,7 +127674,7 @@ index 00000000..341916c4
 +
 +	/* ePHY analog/clock seed (undocumented CPM word, vendor verbatim). */
 +	writel(T21_CPM_EPHY_SEED_VAL,
-+	       (void __iomem *)(T31_CPM_BASE + T21_CPM_EPHY_SEED_OFF));
++	       (void __iomem *)(T21_CPM_BASE + T21_CPM_EPHY_SEED_OFF));
 +
 +	/* Enable the embedded PHY. */
 +	v = readl(phyc);
@@ -127132,51 +127753,41 @@ index 00000000..341916c4
 +}
 +
 +static const struct dwmac_ingenic_data t31_gmac_data = {
-+	.mpll_hz = 0,			/* read at runtime: per-variant MPLL
-+					 * (T31X 1200 / T31N,T31L 1008 MHz);
-+					 * VPLL fallback when MPLL is inexact */
-+	.xb1_pll = true,		/* T31/T23/T20 CPxPCR M/N/OD1/OD0 */
++	.inner_phy = false,
++};
++
++static const struct dwmac_ingenic_data t23_gmac_data = {
++	.inner_phy = false,
++};
++
++static const struct dwmac_ingenic_data t20_gmac_data = {
 +	.inner_phy = false,
 +};
 +
 +static const struct dwmac_ingenic_data t32_gmac_data = {
-+	.mpll_hz = 0,			/* read MPLL from CPM at runtime:
-+					 * 1200 MHz (LQ/NQ/XQ classes) vs
-+					 * 1400 MHz (VN/VX/VNP @700) */
-+	.inner_phy = false,		/* external RMII PHY */
-+	.t40_pll = true,		/* T32 CPMPCR is the raw M/N/OD form */
++	.inner_phy = false,
 +};
 +
 +static const struct dwmac_ingenic_data t21_gmac_data = {
-+	.mpll_hz = 0,			/* read at runtime: T21N runs MPLL at
-+					 * 900 MHz but T21HP at 1000 MHz; a
-+					 * static 900 put 27.8 MHz on the HP
-+					 * ePHY's 25 MHz reference */
-+	.t21_pll = true,
 +	.inner_phy = true,
 +};
 +
 +static const struct dwmac_ingenic_data t30_gmac_data = {
-+	.mpll_hz = 0,			/* read at runtime: all T30 SKUs run
-+					 * MPLL at 1000 MHz (the shared static
-+					 * 1200 made the RMII ref 41.7 MHz) */
-+	.t21_pll = true,		/* T30 shares the T21 CPxPCR layout */
 +};
 +
 +static const struct dwmac_ingenic_data t40_gmac_data = {
-+	.mpll_hz = 0,			/* read MPLL from CPM at runtime */
-+	.inner_phy = false,		/* external RMII PHY */
-+	.t40_pll = true,		/* T40 CPMPCR layout */
++	.inner_phy = false,
 +};
 +
 +static const struct dwmac_ingenic_data t41_gmac_data = {
-+	.mpll_hz = 0,			/* read MPLL from CPM at runtime */
-+	.inner_phy = false,		/* external RMII PHY */
-+	.t40_pll = false,		/* T41/A1 CPMPCR layout */
++	.inner_phy = false,
 +};
 +
 +static const struct udevice_id dwmac_ingenic_ids[] = {
 +	{ .compatible = "ingenic,t31-gmac", .data = (ulong)&t31_gmac_data },
++	{ .compatible = "ingenic,t23-gmac", .data = (ulong)&t23_gmac_data },
++	{ .compatible = "ingenic,t20-gmac", .data = (ulong)&t20_gmac_data },
++	{ .compatible = "ingenic,t10-gmac", .data = (ulong)&t20_gmac_data },
 +	{ .compatible = "ingenic,t32-gmac", .data = (ulong)&t32_gmac_data },
 +	{ .compatible = "ingenic,t21-gmac", .data = (ulong)&t21_gmac_data },
 +	{ .compatible = "ingenic,t30-gmac", .data = (ulong)&t30_gmac_data },
@@ -158684,10 +159295,10 @@ index e41baea6..36db4780 100644
   * pinctrl_generic_set_state() - Generic set_state operation
 diff --git a/include/dt-bindings/clock/ingenic,a1-cgu.h b/include/dt-bindings/clock/ingenic,a1-cgu.h
 new file mode 100644
-index 00000000..c5e4b413
+index 00000000..0484ac36
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,a1-cgu.h
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,38 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,a1-cgu DT binding.
@@ -158722,6 +159333,8 @@ index 00000000..c5e4b413
 +#define A1_CLK_EFUSE		21
 +#define A1_CLK_OTG1		22
 +#define A1_CLK_OTG2		23
++#define A1_CLK_GMAC0_TX		24
++#define A1_CLK_GMAC0_PTP	25
 +
 +#endif /* __DT_BINDINGS_CLOCK_A1_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t10-cgu.h b/include/dt-bindings/clock/ingenic,t10-cgu.h
