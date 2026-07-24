@@ -167,3 +167,9 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
+
+# ---------------------------------------------------------------------------
+# Check for busybox long-option usage in init scripts (fatal on violations).
+# Thingino disables CONFIG_LONG_OPTS; --long-options silently fail at runtime.
+# ---------------------------------------------------------------------------
+$BR2_EXTERNAL/scripts/check-busybox-lopts.sh "${TARGET_DIR}" 1
