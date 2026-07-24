@@ -85,5 +85,9 @@ set -- "$@" "$sound"
 [ -n "$volume" ] && set -- "$@" "$volume"
 [ -n "$repeat" ] && set -- "$@" "$repeat"
 
+# Notify Home Assistant (if HA integration is active) via flag file.
+# /tmp/doorbell_pressed is polled by ha-state every state_interval seconds.
+touch /tmp/doorbell_pressed 2>/dev/null || true
+
 echo "[doorbell_event] $EVENT ($MODE) → $*"
 exec "$@"

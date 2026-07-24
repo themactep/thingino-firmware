@@ -53,7 +53,7 @@ _ha_mqtt_cfg() {
 
 # Entities the integration knows about. Their enable flags are memoized
 # into exported HA_EN_<entity> variables by the environment block below.
-HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light gain rssi ota firmware_version firmware_timestamp live_view snapshot reboot"
+HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light gain rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
 
 ha_entity_enabled() {
 	local flag

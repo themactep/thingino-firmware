@@ -24,7 +24,7 @@
 
   // Entity toggles
   const entities = [
-    'motion', 'motion_guard', 'ircut', 'daynight', 'privacy',
+    'motion', 'doorbell', 'motion_guard', 'ircut', 'daynight', 'privacy',
     'color', 'ir850', 'ir940', 'white_light', 'gain', 'rssi',
     'snapshot', 'live_view', 'reboot', 'ota',
     'firmware_version', 'firmware_timestamp'

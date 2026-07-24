@@ -1,0 +1,197 @@
+# =============================================================================
+# Thingino Camera Dashboard — picture-elements YAML variant
+# =============================================================================
+# No custom card required — uses Home Assistant's built-in picture-elements.
+#
+# Paste this into a manual card, or save it as a dashboard view.
+#
+# Replace:
+#   <CAMERA_IP>     — your camera's IP (e.g. 192.168.1.42)
+#   <MAC>           — camera MAC without colons, lowercase (e.g. 0244dd22592e)
+#   <CAMERA_ENTITY> — your HA camera entity (e.g. camera.thingino_stream)
+# =============================================================================
+
+type: picture-elements
+image: http://<CAMERA_IP>/cgi-bin/snapshot.cgi
+camera_image: camera.<CAMERA_ENTITY>
+camera_view: live
+title: Thingino Camera Controls
+
+elements:
+  # ---- Top row: status badges ----
+  - type: state-badge
+    entity: binary_sensor.thingino_<MAC>_motion
+    style:
+      top: 8px
+      left: 8px
+
+  - type: state-label
+    entity: sensor.thingino_<MAC>_rssi
+    style:
+      top: 8px
+      right: 8px
+      color: white
+      background: rgba(0,0,0,0.5)
+      padding: 2px 6px
+      border-radius: 4px
+      font-size: 0.8rem
+
+  # ---- Bottom bar: control buttons ----
+  # Color Mode
+  - type: state-icon
+    entity: switch.thingino_<MAC>_color
+    tap_action:
+      action: toggle
+    icon: mdi:palette
+    style:
+      bottom: 60px
+      left: 5%
+      "--mdc-icon-size": "28px"
+
+  # Day/Night
+  - type: state-icon
+    entity: select.thingino_<MAC>_daynight
+    tap_action:
+      action: call-service
+      service: select.select_option
+      service_data:
+        entity_id: select.thingino_<MAC>_daynight
+        option: |
+          {{ 'night' if states('select.thingino_<MAC>_daynight') == 'day' else 'day' }}
+    icon: mdi:theme-light-dark
+    style:
+      bottom: 60px
+      left: 18%
+      "--mdc-icon-size": "28px"
+
+  # IR Cut Filter
+  - type: state-icon
+    entity: switch.thingino_<MAC>_ircut
+    tap_action:
+      action: toggle
+    icon: mdi:camera-iris
+    style:
+      bottom: 60px
+      left: 31%
+      "--mdc-icon-size": "28px"
+
+  # IR LED 850nm
+  - type: state-icon
+    entity: switch.thingino_<MAC>_ir850
+    tap_action:
+      action: toggle
+    icon: mdi:led-on
+    style:
+      bottom: 60px
+      left: 44%
+      "--mdc-icon-size": "28px"
+
+  # Motion Guard
+  - type: state-icon
+    entity: switch.thingino_<MAC>_motion_guard
+    tap_action:
+      action: toggle
+    icon: mdi:motion-sensor
+    style:
+      bottom: 60px
+      left: 57%
+      "--mdc-icon-size": "28px"
+
+  # Privacy Screen
+  - type: state-icon
+    entity: switch.thingino_<MAC>_privacy
+    tap_action:
+      action: toggle
+    icon: mdi:eye-off
+    style:
+      bottom: 60px
+      left: 70%
+      "--mdc-icon-size": "28px"
+
+  # White Light
+  - type: state-icon
+    entity: switch.thingino_<MAC>_white
+    tap_action:
+      action: toggle
+    icon: mdi:lightbulb
+    style:
+      bottom: 60px
+      left: 83%
+      "--mdc-icon-size": "28px"
+
+  # Snapshot button
+  - type: state-icon
+    entity: button.thingino_<MAC>_snapshot
+    tap_action:
+      action: call-service
+      service: button.press
+      service_data:
+        entity_id: button.thingino_<MAC>_snapshot
+    icon: mdi:camera
+    style:
+      bottom: 18px
+      left: 92%
+      "--mdc-icon-size": "28px"
+
+  # ---- Labels under icons ----
+  - type: state-label
+    entity: switch.thingino_<MAC>_color
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 2%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: custom:text-element
+    text: Day/Night
+    style:
+      bottom: 42px
+      left: 16%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: state-label
+    entity: switch.thingino_<MAC>_ircut
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 29%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: state-label
+    entity: switch.thingino_<MAC>_ir850
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 42%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: state-label
+    entity: switch.thingino_<MAC>_motion_guard
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 55%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: state-label
+    entity: switch.thingino_<MAC>_privacy
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 68%
+      font-size: 0.6rem
+      color: lightgray
+
+  - type: state-label
+    entity: switch.thingino_<MAC>_white
+    attribute: friendly_name
+    style:
+      bottom: 42px
+      left: 81%
+      font-size: 0.6rem
+      color: lightgray

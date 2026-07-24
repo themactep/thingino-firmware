@@ -6,6 +6,7 @@
     "discovery_prefix": "homeassistant",
     "enable_color": true,
     "enable_daynight": true,
+    "enable_doorbell": false,
     "enable_firmware_timestamp": true,
     "enable_firmware_version": true,
     "enable_gain": false,

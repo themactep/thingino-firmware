@@ -40,6 +40,16 @@ if [ "$FORCE" = "1" ]; then
 	eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 fi
 
+# Doorbell binary sensor (momentary: ON when /tmp/doorbell_pressed exists)
+if ha_entity_enabled doorbell; then
+	if [ -f /tmp/doorbell_pressed ]; then
+		rm -f /tmp/doorbell_pressed
+		ha_pub_state doorbell ON "$FORCE"
+	else
+		ha_pub_state doorbell OFF "$FORCE"
+	fi
+fi
+
 # Motion binary sensor
 if ha_entity_enabled motion; then
 	[ -f /run/motion/motion_alarm ] &&
