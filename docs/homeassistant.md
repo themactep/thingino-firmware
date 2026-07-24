@@ -39,6 +39,7 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `mqtt.use_ssl` | `false` | Connect to the MQTT broker with TLS using the system CA bundle |
 | `mqtt.tls_skip_verify` | `false` | Skip broker certificate verification when TLS is enabled. Insecure; use only for self-signed or otherwise untrusted broker certificates |
 | `enable_motion` | `true` | Binary sensor: motion detected |
+| `enable_doorbell` | `false` | Binary sensor: doorbell button pressed |
 | `enable_motion_guard` | `true` | Switch: enable/disable motion detection |
 | `enable_ircut` | `true` | Switch: IR cut filter |
 | `enable_daynight` | `true` | Select: day / night mode |
@@ -77,6 +78,7 @@ camera's primary interface MAC without separators (e.g. `0244dd22592e`).
 | Entity | State topic | Command topic |
 |--------|-------------|---------------|
 | Motion detected | `cameras/<id>/motion/state` | — |
+| Doorbell | `cameras/<id>/doorbell/state` | — |
 | Motion Guard | `cameras/<id>/motion_guard/state` | `cameras/<id>/motion_guard/set` |
 | IR Cut Filter | `cameras/<id>/ircut/state` | `cameras/<id>/ircut/set` |
 | Day/Night Mode | `cameras/<id>/daynight/state` | `cameras/<id>/daynight/set` |

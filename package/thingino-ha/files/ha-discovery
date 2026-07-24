@@ -74,6 +74,14 @@ else
 	ha_clear_disc binary_sensor motion
 fi
 
+# Binary sensor: Doorbell button pressed
+if ha_entity_enabled doorbell; then
+	ha_pub_disc binary_sensor doorbell \
+		"{\"name\":\"Doorbell\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_doorbell\",\"state_topic\":\"${ST}/doorbell/state\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"device_class\":\"sound\",\"icon\":\"mdi:doorbell\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc binary_sensor doorbell
+fi
+
 # Switch: Motion Guard
 if ha_entity_enabled motion_guard; then
 	ha_pub_disc switch motion_guard \
