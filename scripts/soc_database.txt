@@ -12,7 +12,7 @@ t10n,t10,1,64,isvp_t10n_sfcnor,-,u-boot-with-tpl-lzma.bin
 t10a,t10,1,64,isvp_t10n_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T20 Family
-t20l,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
+t20l,t20,1,64,isvp_t20l_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20n,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20x,t20,1,128,isvp_t20x_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20z,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
