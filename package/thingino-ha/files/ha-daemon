@@ -82,6 +82,13 @@ CMD_PID=$!
 # Subsequent calls in the loop below only publish changed values.
 ha-state force
 
+# Re-publish discovery after a delay in case HA's MQTT integration connected
+# after the initial publish and missed the retained discovery messages.
+(
+	sleep 30
+	ha-discovery
+) &
+
 # ---------------------------------------------------------------------------
 # Camera snapshot publisher (background loop)
 # Captures a JPEG snapshot, base64-encodes it, and publishes over MQTT.
