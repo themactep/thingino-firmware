@@ -45,6 +45,14 @@ while true; do
 	# Restart using the init script
 	/etc/init.d/S93ha restart 2>/dev/null
 
+	# Re-publish discovery after 30s to ensure HA picks up the camera.
+	# Without this, HA may miss the retained discovery messages if its
+	# MQTT integration reconnected mid-restart.
+	(
+		sleep 30
+		ha-discovery
+	) &
+
 	# Escalating backoff if it keeps dying
 	if [ "$backoff" -eq 0 ]; then
 		backoff=5
