@@ -27,6 +27,8 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/ha-commands
 	$(INSTALL) -D -m 0755 $(@D)/ha-event \
 		$(TARGET_DIR)/usr/sbin/ha-event
+	$(INSTALL) -D -m 0755 $(@D)/ha-watchdog \
+		$(TARGET_DIR)/usr/sbin/ha-watchdog
 
   # Web UI
   $(INSTALL) -D -m 0644 $(@D)/config-ha.html \
@@ -36,5 +38,12 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
   $(INSTALL) -D -m 0755 $(@D)/json-config-ha.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-ha.cgi
 endef
+
+ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL),y)
+define THINGINO_HA_ENABLE_DOORBELL
+	$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json set ha.enable_doorbell true
+endef
+THINGINO_HA_INSTALL_TARGET_CMDS += THINGINO_HA_ENABLE_DOORBELL
+endif
 
 $(eval $(generic-package))

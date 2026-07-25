@@ -10,8 +10,9 @@
 . /var/www/x/auth.sh
 require_auth
 
+bypass=$(jct /etc/thingino.json get chime.bypass 2>/dev/null | tr -d '"')
 count=$(jct /etc/thingino.json path '$.chime.units.*~' --mode paths 2>/dev/null | grep -c '"')
-if [ "$count" -gt 0 ]; then
+if [ "$count" -gt 0 ] || [ "$bypass" = "true" ]; then
 	value=true
 else
 	value=false

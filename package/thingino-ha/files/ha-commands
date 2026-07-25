@@ -6,8 +6,14 @@
 
 . /usr/share/ha-common
 
-[ -n "$HA_CAMERA_ID" ] || { echo "ha-commands: cannot determine camera MAC" >&2; exit 1; }
-[ -n "$HA_MQTT_HOST" ] || { echo "ha-commands: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+[ -n "$HA_CAMERA_ID" ] || {
+	echo "ha-commands: cannot determine camera MAC" >&2
+	exit 1
+}
+[ -n "$HA_MQTT_HOST" ] || {
+	echo "ha-commands: ha.mqtt.host (or mqtt_sub.host) not configured" >&2
+	exit 1
+}
 
 # Disable prudynt's automatic day/night management before manual hardware control.
 # Without this, prudynt may immediately undo hardware changes.
@@ -40,8 +46,8 @@ dispatch() {
 
 	# cameras/<id>/entity/set → entity
 	local entity
-	entity=$(printf '%s' "$topic" \
-		| sed "s|cameras/${HA_CAMERA_ID}/||; s|/set\$||; s|/|_|g")
+	entity=$(printf '%s' "$topic" |
+		sed "s|cameras/${HA_CAMERA_ID}/||; s|/set\$||; s|/|_|g")
 
 	case "$entity" in
 
@@ -50,12 +56,12 @@ dispatch() {
 			# motion event script which has a singleton guard and may fail silently
 			# if a motion event is already in progress.
 			case "$payload" in
-				on|ON|1|true)
+				on | ON | 1 | true)
 					printf '{"motion":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
 					jct /etc/prudynt.json set motion.enabled true >/dev/null 2>&1
 					ha_pub_state motion_guard ON
 					;;
-				off|OFF|0|false)
+				off | OFF | 0 | false)
 					printf '{"motion":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
 					jct /etc/prudynt.json set motion.enabled false >/dev/null 2>&1
 					ha_pub_state motion_guard OFF
@@ -66,8 +72,14 @@ dispatch() {
 		ircut)
 			prudynt_disable_auto
 			case "$payload" in
-				on|ON|day|1)   ircut on;  ha_pub_state ircut ON  ;;
-				off|OFF|night|0) ircut off; ha_pub_state ircut OFF ;;
+				on | ON | day | 1)
+					ircut on
+					ha_pub_state ircut ON
+					;;
+				off | OFF | night | 0)
+					ircut off
+					ha_pub_state ircut OFF
+					;;
 			esac
 			;;
 
@@ -75,23 +87,26 @@ dispatch() {
 			# Use prudyntctl to set force_mode — this controls both ISP processing
 			# and hardware (ircut, LEDs, color) through prudynt's day/night engine.
 			case "$payload" in
-				day|night)
-					printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$payload" \
-						| prudyntctl json - >/dev/null 2>&1
+				day | night)
+					printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$payload" |
+						prudyntctl json - >/dev/null 2>&1
 					ha_pub_state daynight "$payload"
 					;;
 			esac
 			# Daynight changes ircut/color/ir850 — re-sync all states after settle
-			{ sleep 2; ha-state; } &
+			{
+				sleep 2
+				ha-state
+			} &
 			;;
 
 		privacy)
 			case "$payload" in
-				on|ON|1)
+				on | ON | 1)
 					privacy on
 					ha_pub_state privacy ON
 					;;
-				off|OFF|0)
+				off | OFF | 0)
 					privacy off
 					ha_pub_state privacy OFF
 					;;
@@ -101,14 +116,14 @@ dispatch() {
 		color)
 			# running_mode: 0 = color, 1 = monochrome
 			case "$payload" in
-				on|ON|1)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":0}}' \
-						| prudyntctl json - >/dev/null 2>&1
+				on | ON | 1)
+					printf '{"daynight":{"enabled":false},"image":{"running_mode":0}}' |
+						prudyntctl json - >/dev/null 2>&1
 					ha_pub_state color ON
 					;;
-				off|OFF|0)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":1}}' \
-						| prudyntctl json - >/dev/null 2>&1
+				off | OFF | 0)
+					printf '{"daynight":{"enabled":false},"image":{"running_mode":1}}' |
+						prudyntctl json - >/dev/null 2>&1
 					ha_pub_state color OFF
 					;;
 			esac
@@ -117,11 +132,11 @@ dispatch() {
 		ir850)
 			prudynt_disable_auto
 			case "$payload" in
-				on|ON|1)
+				on | ON | 1)
 					light ir850 on
 					ha_pub_state ir850 ON
 					;;
-				off|OFF|0)
+				off | OFF | 0)
 					light ir850 off
 					ha_pub_state ir850 OFF
 					;;
@@ -131,11 +146,11 @@ dispatch() {
 		ir940)
 			prudynt_disable_auto
 			case "$payload" in
-				on|ON|1)
+				on | ON | 1)
 					light ir940 on
 					ha_pub_state ir940 ON
 					;;
-				off|OFF|0)
+				off | OFF | 0)
 					light ir940 off
 					ha_pub_state ir940 OFF
 					;;
@@ -145,11 +160,11 @@ dispatch() {
 		white)
 			prudynt_disable_auto
 			case "$payload" in
-				on|ON|1)
+				on | ON | 1)
 					light white on
 					ha_pub_state white ON
 					;;
-				off|OFF|0)
+				off | OFF | 0)
 					light white off
 					ha_pub_state white OFF
 					;;
@@ -157,15 +172,11 @@ dispatch() {
 			;;
 
 		snapshot)
-			prudyntctl snapshot -c 0 > "/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
+			prudyntctl snapshot -c 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
 			;;
 
 		reboot)
 			[ "$payload" = "1" ] && reboot
-			;;
-
-		firmware)
-			[ "$payload" = "install" ] && (touch /tmp/webupgrade; sysupgrade -p) &
 			;;
 
 		*)
@@ -188,11 +199,14 @@ echo "ha-commands: topics: cameras/${HA_CAMERA_ID}/+/set"
 # the "already connected, closing old connection" flood in the broker log.
 MSUB_FIFO="/tmp/ha_msub_${HA_CAMERA_ID}.fifo"
 rm -f "$MSUB_FIFO"
-mkfifo "$MSUB_FIFO" || { echo "ha-commands: cannot create fifo" >&2; exit 1; }
+mkfifo "$MSUB_FIFO" || {
+	echo "ha-commands: cannot create fifo" >&2
+	exit 1
+}
 
 # In BusyBox ash, 'sh -c "simple_command"' execs the command directly, so
 # MSUB_PID is the mosquitto_sub PID itself.
-sh -c "$MSUB" > "$MSUB_FIFO" 2>&1 &
+sh -c "$MSUB" >"$MSUB_FIFO" 2>&1 &
 MSUB_PID=$!
 
 cleanup_sub() {
@@ -205,7 +219,7 @@ trap cleanup_sub EXIT INT TERM
 while IFS= read -r line; do
 	# mosquitto_sub error lines start with "Error" or contain "Connection"
 	case "$line" in
-		Error*|*"Connection refused"*|*"authentication"*|*"not authorised"*)
+		Error* | *"Connection refused"* | *"authentication"* | *"not authorised"*)
 			echo "ha-commands: broker error: $line" >&2
 			;;
 		*)
@@ -216,6 +230,6 @@ while IFS= read -r line; do
 			dispatch "$mqtt_topic" "$mqtt_payload"
 			;;
 	esac
-done < "$MSUB_FIFO"
+done <"$MSUB_FIFO"
 
 echo "ha-commands: mosquitto_sub exited" >&2

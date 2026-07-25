@@ -36,14 +36,41 @@
     if (timeout) setTimeout(() => (el.hidden = true), timeout);
   }
 
+  let bypassMode = false;
+
   async function loadConfig() {
     try {
       const data = await apiFetch();
       chimeData = data.chime || { units: {}, groups: {}, events: {} };
       soundList = data.sounds || [];
+      bypassMode = data.bypass === true;
       renderAll();
+      updateBypassUI();
     } catch (err) {
       showMsg("Failed to load config: " + err.message, "danger");
+    }
+  }
+
+  function updateBypassUI() {
+    const sw = $("#bypass-switch");
+    if (sw) sw.checked = bypassMode;
+  }
+
+  async function setBypass(enabled) {
+    try {
+      const data = await apiFetch({ action: "set-bypass", bypass: enabled });
+      bypassMode = data.bypass === true;
+      updateBypassUI();
+      showMsg(
+        bypassMode
+          ? "Chime bypass enabled. Button events still fire."
+          : "Chime bypass disabled.",
+        "success",
+        3000,
+      );
+    } catch (err) {
+      showMsg("Failed to set bypass: " + err.message, "danger");
+      updateBypassUI();
     }
   }
 
@@ -643,6 +670,10 @@
       } catch (err) {
         showMsg("Rename failed: " + err.message, "danger");
       }
+    });
+
+    $("#bypass-switch")?.addEventListener("change", function () {
+      setBypass(this.checked);
     });
 
     $("#reload-btn")?.addEventListener("click", () => {

@@ -202,12 +202,14 @@ else
 	ha_clear_disc button reboot
 fi
 
-# Update: OTA firmware
+# Sensor: Latest firmware version (read-only, updates must be done via SSH)
 if ha_entity_enabled ota; then
-	ha_pub_disc update firmware \
-		"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware\",\"state_topic\":\"${ST}/firmware/state\",\"latest_version_topic\":\"${ST}/firmware/latest\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"install\",\"device_class\":\"firmware\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	ha_clear_disc update firmware
+	ha_pub_disc sensor firmware_latest \
+		"{\"name\":\"Firmware Latest\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_latest\",\"state_topic\":\"${ST}/firmware_latest/state\",\"icon\":\"mdi:cloud-download\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc update firmware
+	ha_clear_disc sensor firmware_latest
 fi
 
 # PTZ: always cleared (handled by dedicated ONVIF/RTSP integrations)

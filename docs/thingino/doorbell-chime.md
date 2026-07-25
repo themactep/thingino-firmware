@@ -435,6 +435,36 @@ The alarm can be disabled permanently by removing the init script:
 rm /etc/init.d/S14doorbell-alarm
 ```
 
+Chime-free mode (bypass)
+------------------------
+
+If you use the doorbell only for Home Assistant button events and don't
+want a physical chime, enable **chime bypass** from the Web UI
+(**Settings → Doorbell Chime**) or from the command line:
+
+```
+jct /etc/thingino.json set chime.bypass true
+/etc/init.d/S14doorbell-alarm restart
+```
+
+When bypass is active:
+
+- The alternating blue/yellow no-chime alarm is suppressed.
+- The warning banner on the web UI is hidden.
+- Button presses still fire Home Assistant MQTT notifications
+  (`doorbell` entity) and trigger the brief LED blink.
+- No attempt is made to contact a physical chime — the
+  `doorbell_ctrl` call is skipped entirely.
+
+To disable bypass and restore normal chime operation:
+
+```
+jct /etc/thingino.json set chime.bypass false
+/etc/init.d/S14doorbell-alarm restart
+```
+
+Or toggle the switch on the **Doorbell Chime** settings page.
+
 Build-time configuration
 ------------------------
 
