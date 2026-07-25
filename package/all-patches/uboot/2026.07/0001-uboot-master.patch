@@ -47043,10 +47043,10 @@ index 00000000..8c050944
 +};
 diff --git a/arch/mips/dts/t31.dtsi b/arch/mips/dts/t31.dtsi
 new file mode 100644
-index 00000000..ee95c91b
+index 00000000..bf37c1d3
 --- /dev/null
 +++ b/arch/mips/dts/t31.dtsi
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,278 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t31-cgu.h>
@@ -47101,6 +47101,23 @@ index 00000000..ee95c91b
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed source muxes to the vendor
++		 * bootloader contract (vendor cgu_clks_set): the 3.10
++		 * kernel computes dividers from the parent it inherits
++		 * and its clk_set_parent drops parent-only changes, so
++		 * these must agree with the kernel drivers' defaults
++		 * (AVPU/ISP/MACPHY = MPLL, CIM = VPLL). Parents only -
++		 * rates remain the OS's requests.
++		 */
++		assigned-clocks = <&cgu T31_CLK_VPU>,
++				  <&cgu T31_CLK_ISP>,
++				  <&cgu T31_CLK_CIM>,
++				  <&cgu T31_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T31_CLK_MPLL>,
++					 <&cgu T31_CLK_MPLL>,
++					 <&cgu T31_CLK_VPLL>,
++					 <&cgu T31_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -119113,10 +119130,10 @@ index 00000000..74549df0
 +};
 diff --git a/drivers/clk/ingenic/clk-t31.c b/drivers/clk/ingenic/clk-t31.c
 new file mode 100644
-index 00000000..de170704
+index 00000000..8441e6c1
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t31.c
-@@ -0,0 +1,385 @@
+@@ -0,0 +1,400 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T31 CGU (Clock/Power Manager) clock driver.
@@ -119152,7 +119169,7 @@ index 00000000..de170704
 + * defines IDs up to T31_CLK_CE_I2SR; U-Boot only implements the leaf
 + * clocks its drivers consume.
 + */
-+#define T31_CLK_COUNT		(T31_CLK_CE_I2SR + 1)
++#define T31_CLK_COUNT		(T31_CLK_VPU + 1)
 +
 +/*
 + * CPM is at physical 0x10000000; access it through the uncached MIPS
@@ -119165,6 +119182,9 @@ index 00000000..de170704
 +#define CPM_CPCCR		0x00
 +#define CPM_CPAPCR		0x10	/* APLL */
 +#define CPM_CPMPCR		0x14	/* MPLL */
++#define CPM_AVPUCDR		0x30	/* VPU */
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
 +#define CPM_MACCDR		0x54
@@ -119219,6 +119239,18 @@ index 00000000..de170704
 +	 * SPL pins VPLL at 1200 MHz on every T31 variant).
 +	 */
 +	[T31_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor bootloader contract (AVPU/ISP = MPLL, CIM =
++	 * VPLL) that the 3.10 kernel's clock code was designed against -
++	 * its cgu_set_parent silently drops parent-only changes, so a
++	 * driver's parent request only lands when the inherited selector
++	 * already agrees. Parents only; rates stay the OS's business.
++	 */
++	[T31_CLK_VPU]  = { CPM_AVPUCDR, 29, 28, 27, NO_GATE, 0 },
++	[T31_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, NO_GATE, 0 },
++	[T31_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, NO_GATE, 0 },
 +	[T31_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T31_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T31_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -159763,10 +159795,10 @@ index 00000000..9713cf2f
 +#endif /* __DT_BINDINGS_CLOCK_T30_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t31-cgu.h b/include/dt-bindings/clock/ingenic,t31-cgu.h
 new file mode 100644
-index 00000000..0ac6d131
+index 00000000..c14ec098
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t31-cgu.h
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,75 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t31-cgu DT binding.
@@ -159839,6 +159871,7 @@ index 00000000..0ac6d131
 +#define T31_CLK_DIV_I2SR	55
 +#define T31_CLK_CE_I2ST		56
 +#define T31_CLK_CE_I2SR		57
++#define T31_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T31_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t32-cgu.h b/include/dt-bindings/clock/ingenic,t32-cgu.h
