@@ -14,8 +14,7 @@ die() {
 
 flash_firmware() {
 	echo_c 112 "\nFlashing firmware to $mtd_dev"
-	flash_eraseall $mtd_dev
-	flashcp -v $fw_file $mtd_dev
+	flashcp -v -A $fw_file $mtd_dev
 }
 
 WATCHDOG_DEV="${WATCHDOG_DEV:-/dev/watchdog}"
@@ -23,48 +22,43 @@ wd_stop_flag="/tmp/sysupgrade/wd.stop"
 wd_active=""
 
 takeover_watchdog() {
-	pidof watchdog >/dev/null 2>&1 || return 0
 	[ -c "$WATCHDOG_DEV" ] || return 0
 
 	echo_c 112 "\nTaking over hardware watchdog"
 
+	# The Ingenic JZ_WDT driver only allows one opener at a time, so we
+	# must stop the existing daemon before we can open the device.
 	# SIGTERM lets the busybox watchdog daemon write the magic 'V' that
-	# disarms the hardware timer. If it dies any other way (e.g. SIGBUS
-	# once the rootfs is erased under it), the timer stays armed with
-	# nobody feeding it and hard-resets the SoC in the middle of the flash.
-	killall watchdog 2>/dev/null
+	# disarms the hardware timer, then close its fd cleanly.
+	if pidof watchdog >/dev/null 2>&1; then
+		killall watchdog 2>/dev/null
 
-	local i=0
-	while pidof watchdog >/dev/null 2>&1; do
-		i=$((i + 1))
-		if [ $i -gt 10 ]; then
-			echo "Watchdog daemon did not exit, leaving it alone."
-			return 0
-		fi
-		sleep 1
-	done
-
-	# Re-arm and feed the watchdog from tmpfs: a full system hang during
-	# flashing still triggers a hardware reset, but erasing the rootfs
-	# cannot kill the feeder.
-	rm -f "$wd_stop_flag"
-	(
-		exec 3>"$WATCHDOG_DEV" || exit 1
-		while [ ! -f "$wd_stop_flag" ]; do
-			echo . >&3
-			sleep 2
+		local i=0
+		while pidof watchdog >/dev/null 2>&1; do
+			i=$((i + 1))
+			if [ $i -gt 10 ]; then
+				echo "Watchdog daemon did not exit, leaving it alone."
+				return 0
+			fi
+			sleep 1
 		done
-		echo V >&3
-		exec 3>&-
-	) &
+	fi
+
+	# Run the real busybox watchdog from tmpfs so erasing rootfs
+	# cannot kill it. 10-second timeout means fast recovery if the
+	# flash hangs; feed interval is half that (5s).
+	rm -f "$wd_stop_flag"
+	watchdog -T 10 -t 5 -F "$WATCHDOG_DEV" &
 	wd_active="true"
-	echo "Hardware watchdog is now fed from tmpfs."
+	echo "Hardware watchdog is now fed from tmpfs (10s timeout)."
 }
 
 disarm_watchdog() {
 	[ "true" = "$wd_active" ] || return 0
 	echo "Disarming hardware watchdog."
-	: >"$wd_stop_flag"
+	# SIGTERM makes the watchdog applet write 'V' and exit cleanly.
+	killall watchdog 2>/dev/null
+	sleep 1
 	wd_active=""
 }
 
