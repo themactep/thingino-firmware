@@ -41,6 +41,8 @@ json_error() {
 handle_get() {
 	chime=$(jct "$CONFIG_FILE" get chime 2>/dev/null)
 	[ -z "$chime" ] && chime='{"units":{},"groups":{},"events":{}}'
+	bypass=$(jct "$CONFIG_FILE" get chime.bypass 2>/dev/null | tr -d '"')
+	[ -z "$bypass" ] || [ "$bypass" = "null" ] && bypass=false
 
 	sounds='['
 	first=1
@@ -54,7 +56,7 @@ handle_get() {
 	done
 	sounds="$sounds]"
 
-	send_json "{\"chime\":$chime,\"sounds\":$sounds}"
+	send_json "{\"chime\":$chime,\"sounds\":$sounds,\"bypass\":$bypass}"
 }
 
 # ── POST helpers ──────────────────────────────────────────────────
@@ -176,6 +178,17 @@ do_save_event() {
 	send_json '{"status":"ok","message":"Event configuration saved"}'
 }
 
+do_set_bypass() {
+	val=$(get_field bypass)
+	case "$val" in
+		true | false) ;;
+		*) json_error 400 "bypass must be true or false" ;;
+	esac
+	jct "$CONFIG_FILE" set chime.bypass "$val" 2>/dev/null
+	/etc/init.d/S14doorbell-alarm restart >/dev/null 2>&1 &
+	send_json "{\"status\":\"ok\",\"bypass\":$val}"
+}
+
 do_save_group() {
 	group=$(get_field group)
 	members=$(get_field members)
@@ -219,6 +232,7 @@ elif [ "$REQUEST_METHOD" = "POST" ]; then
 		play-group) do_play_group ;;
 		save-event) do_save_event ;;
 		save-group) do_save_group ;;
+		set-bypass) do_set_bypass ;;
 		*) json_error 400 "Unknown action: $action" ;;
 	esac
 else

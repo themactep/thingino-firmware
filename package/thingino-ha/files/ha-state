@@ -247,7 +247,6 @@ if [ "$ota_due" = "1" ]; then
 		}
 	done
 	[ -z "$installed" ] && installed="unknown"
-	eval "$mpub -r -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
 
 	mkdir -p "$cache_dir" 2>/dev/null
 
@@ -301,7 +300,7 @@ if [ "$ota_due" = "1" ]; then
 		printf '%s\n' "$next_check" >"$next_check_cache"
 	fi
 
-	eval "$mpub -r -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
+	ha_pub_state firmware_latest "${latest:-$installed}" 1
 fi
 
 # Flush all queued state publishes with rate limiting.

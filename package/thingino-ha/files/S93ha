@@ -4,6 +4,8 @@ DAEMON="/usr/sbin/ha-daemon"
 DAEMON_NAME="ha-daemon"
 PIDFILE="/run/ha-daemon.pid"
 LOGFILE="/tmp/ha-daemon.log"
+WATCHDOG="/usr/sbin/ha-watchdog"
+WATCHDOG_PIDFILE="/run/ha-watchdog.pid"
 
 start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
@@ -28,7 +30,7 @@ read_config() {
 
 ha_processes_gone() {
 	local proc
-	for proc in ha-daemon ha-commands ha-discovery ha-state; do
+	for proc in ha-daemon ha-commands ha-discovery ha-state ha-watchdog; do
 		if pidof "$proc" >/dev/null 2>&1; then
 			return 1
 		fi
@@ -70,6 +72,11 @@ start() {
 	fi
 
 	start_daemon
+
+	# Start watchdog to respawn ha-daemon if it crashes
+	if [ -x "$WATCHDOG" ]; then
+		start-stop-daemon -S -b -m -p "$WATCHDOG_PIDFILE" -x "$WATCHDOG"
+	fi
 }
 
 stop() {
@@ -79,7 +86,8 @@ stop() {
 	[ -f /usr/share/ha-common ] && . /usr/share/ha-common
 
 	stop_daemon
-	killall -q ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q ha-watchdog ha-commands ha-discovery ha-state 2>/dev/null
+	rm -f "$WATCHDOG_PIDFILE"
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi

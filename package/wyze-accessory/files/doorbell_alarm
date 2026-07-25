@@ -26,8 +26,20 @@ rm -f "$PIDFILE"
 echo $$ >"$PIDFILE"
 
 last_mode=""
+bypass_logged=0
 
 while true; do
+	# Check for bypass mode — no chime required, no alarm
+	BYPASS=$(jct "$CONFIG" get chime.bypass 2>/dev/null | tr -d '"')
+	if [ "$BYPASS" = "true" ]; then
+		[ "$bypass_logged" = "0" ] && logger -t doorbell_alarm "Chime bypass active – alarm suppressed"
+		bypass_logged=1
+		led off 2>/dev/null
+		sleep 30
+		continue
+	fi
+	bypass_logged=0
+
 	have_chimes=0
 	doorbell_ctrl list 2>/dev/null | grep -q '^ ' && have_chimes=1
 
