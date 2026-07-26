@@ -14,7 +14,6 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make dev    # serial build (noisy, for deb
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make menuconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make ota
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make rebuild-<pkg>   # dirclean + rebuild + reinstall + finalize
 make build-all                  # builds every camera in configs/cameras/
 make run CMD="bin/ffmpeg --help"  # QEMU run target binary
@@ -170,6 +169,12 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
 - Rebuilding a package, use both CAMERA and IP values. If you do not know the
   correct camera's IP address - ask the user for help.
 - Use modern effective tools: ripgrep instead of just grep.
+- **Never flash or upload** anything to the camera unless you were explicitly
+  ordered to do so by the user.
+- Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
+  file to the shared directory on the PC. The file then can be acceessed on the
+  camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is
+  accessible as /mnt/nfs/prudynt on the camera. The can be used for rapid development.
 
 ## WebUI Plugins
 
