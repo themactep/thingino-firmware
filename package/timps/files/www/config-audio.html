@@ -156,6 +156,43 @@
           </div><!-- .card-body -->
         </div><!-- .card -->
 
+        <div class="card mb-3" id="backchannel-card">
+          <div class="card-header">
+            <h2 class="card-title">ONVIF Audio Backchannel</h2>
+            <small>Two-way audio: an ONVIF client sends audio to the camera over RTSP, played out via <code>/bin/iac</code>. Requires the <code>ingenic-audiodaemon</code> package on the device. Changes apply after a streamer restart.</small>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-3 mb-3">
+              <div class="col">
+                <p class="form-switch">
+                  <input type="hidden" id="audio_backchannel_enabled-false" name="audio_backchannel_enabled" value="false">
+                  <input type="checkbox" id="audio_backchannel_enabled" name="audio_backchannel_enabled" value="true" role="switch" class="form-check-input">
+                  <label for="audio_backchannel_enabled" class="form-check-label">Enable backchannel</label>
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <p class="select" id="audio_backchannel_codec_wrap">
+                  <label for="audio_backchannel_codec">Codec</label>
+                  <select class="form-select" id="audio_backchannel_codec" name="audio_backchannel_codec">
+                    <option value="">- Select -</option>
+                    <option value="PCMU">G.711 &micro;-law (PCMU)</option>
+                    <option value="PCMA">G.711 A-law (PCMA)</option>
+                    <option value="AAC">AAC</option>
+                  </select>
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <p class="select" id="audio_backchannel_rate_wrap">
+                  <label for="audio_backchannel_rate">Speaker sampling, Hz</label>
+                  <select class="form-select" id="audio_backchannel_rate" name="audio_backchannel_rate" data-option-values="8000,12000,16000,24000,48000">
+                    <option value="">- Select -</option>
+                  </select>
+                </p>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
         <button type="button" id="save-prudynt-config" class="btn btn-primary">
           <i class="bi bi-floppy me-1"></i> Save configuration to file
         </button>
