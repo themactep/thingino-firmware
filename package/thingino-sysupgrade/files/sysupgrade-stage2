@@ -14,7 +14,18 @@ die() {
 
 flash_firmware() {
 	echo_c 112 "\nFlashing firmware to $mtd_dev"
-	flashcp -v -A $fw_file $mtd_dev
+	local test_output
+	test_output=$(flashcp -A 2>&1) || true
+	case "$test_output" in
+		*"unrecognized option"*)
+			echo_c 112 "flashcp lacks -A support; erasing partition first"
+			flash_eraseall $mtd_dev
+			flashcp -v $fw_file $mtd_dev
+			;;
+		*)
+			flashcp -v -A $fw_file $mtd_dev
+			;;
+	esac
 }
 
 WATCHDOG_DEV="${WATCHDOG_DEV:-/dev/watchdog}"

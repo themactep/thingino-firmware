@@ -20,7 +20,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date echo flashcp killall pidof reboot rm sh sleep sync tail watchdog"
+bbapplets="date echo flashcp flash_eraseall killall pidof reboot rm sh sleep sync tail watchdog"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
