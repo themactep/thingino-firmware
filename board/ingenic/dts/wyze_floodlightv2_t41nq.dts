@@ -1097,4 +1097,15 @@
 		linux,phandle = <0x17>;
 		phandle = <0x17>;
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		setup {
+			label = "Setup";
+			linux,code = <0x1c>;
+			gpios = <0x05 0x1e 0x01 0x00>;
+			debounce-interval = <0x32>;
+		};
+	};
 };
