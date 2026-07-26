@@ -5,8 +5,6 @@
   const audioParams = [
     "mic_enabled",
     "mic_format",
-    "mic_sample_rate",
-    "mic_bitrate",
     "mic_vol",
     "mic_gain",
     "mic_alc_gain",
