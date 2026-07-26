@@ -1071,7 +1071,29 @@
 	mmc1_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		power-off-delay-us = <0x186a0>;
-		reset-gpios = <0x06 0x08 0x01 0x00>;
+		/* GPC8 = ATBM6031 reset (active-low signal on the board).
+		 *
+		 * Flags cell MUST be 0x00 (ACTIVE_HIGH) here, NOT 0x01 as stock
+		 * fl.dts has it. Ingenic's drivers/mmc/core/pwrseq_simple.c is
+		 * polarity-INVERTED vs mainline:
+		 *     pre_power_on  -> set_gpios_value(0)   (mainline: 1)
+		 *     post_power_on -> set_gpios_value(1)   (mainline: 0)
+		 *     power_off     -> set_gpios_value(0)
+		 * i.e. logical 1 means "card running". With ACTIVE_LOW (0x01),
+		 * gpiod maps that logical 1 to a PHYSICAL LOW, so post_power_on
+		 * asserts reset exactly when the chip must come out of it -> the
+		 * ATBM sits in reset for the whole scan and every response-bearing
+		 * command returns -145/-ETIMEDOUT (MIPS errno) on CMD5.
+		 * Confirmed on HW: forcing GPC8 high via
+		 *   devmem 0x10012044 32 0x100   (GPC base 0x10012000, PxPAT0S 0x44)
+		 * flips CMD5 from -145 (INT 0x18000 = ERROR|TIMEOUT, no response)
+		 * to -88/-EILSEQ (INT 0x48000 = ERROR|END_BIT, response received).
+		 * With 0x00: pre_power_on drives LOW (reset during power ramp),
+		 * post_power_on drives HIGH (release) - a correct reset pulse.
+		 * NOTE: power-off-delay-us above is silently ignored by this
+		 * pwrseq variant (it parses no delay properties); kept for parity
+		 * with stock. */
+		reset-gpios = <0x06 0x08 0x00 0x00>;
 		linux,phandle = <0x17>;
 		phandle = <0x17>;
 	};
