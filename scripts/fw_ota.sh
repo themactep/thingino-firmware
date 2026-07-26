@@ -67,26 +67,15 @@ prepare_upload_memory() {
 }
 
 wait_for_reboot_after_detach() {
-	local previous_uptime current_uptime retries saw_disconnect
+	local retries
 
-	previous_uptime="$1"
 	retries=120
-	saw_disconnect=0
 
 	echo "Waiting for detached flash to reboot the device..."
 	while [ "$retries" -gt 0 ]; do
-		if current_uptime=$(remote_uptime_seconds); then
-			if [ -n "$current_uptime" ] && [ "$current_uptime" -lt "$previous_uptime" ]; then
-				echo "Device rebooted successfully."
-				return 0
-			fi
-
-			if [ "$saw_disconnect" -eq 1 ]; then
-				echo "Device is back online after reboot."
-				return 0
-			fi
-		else
-			saw_disconnect=1
+		if remote_run "test ! -f /tmp/needs_reboot" 2>/dev/null; then
+			echo "Device rebooted successfully (/tmp/needs_reboot is gone)."
+			return 0
 		fi
 
 		retries=$(( retries - 1 ))
@@ -159,7 +148,13 @@ check_and_free_space() {
 
 	echo "Remapping memory: osmem ${osmem_mb}M -> ${new_osmem_mb}M, ${remap_msg}"
 
-	remote_run "fw_setenv osmem ${new_osmem_mb}M@${osmem_addr} && $remap_cmd && reboot" || true
+	# Plant a tmpfs marker to verify the camera actually reboots.
+	# /tmp is on tmpfs and gets wiped on every reboot, so if the
+	# marker is still present after we reconnect, the camera did
+	# NOT reboot (e.g. shutdown stalled on a stuck init script).
+	remote_run "touch /tmp/needs_reboot" || true
+
+	remote_run "fw_setenv osmem ${new_osmem_mb}M@${osmem_addr} && $remap_cmd && reboot -f" || true
 
 	echo "Closing SSH mux..."
 	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null || true
@@ -177,7 +172,21 @@ check_and_free_space() {
 	done
 	[ "$retries" -eq 0 ] && die "Device did not come back online after memory remap reboot."
 
-	echo "Device is back online with remapped memory. Re-initializing SSH mux..."
+	echo "Device is back online. Verifying reboot..."
+	if remote_run "test -f /tmp/needs_reboot" 2>/dev/null; then
+		die "Device did NOT reboot after memory remap (/tmp/needs_reboot still exists). The camera may be stalled on shutdown. Aborting to prevent bricking."
+	fi
+	echo "Reboot confirmed (/tmp/needs_reboot is gone)."
+
+	# Verify memory remap actually persisted across the reboot
+	local actual_osmem
+	actual_osmem=$(remote_run "fw_printenv -n osmem" | tr -d '[:space:]')
+	if [ "$actual_osmem" != "${new_osmem_mb}M@${osmem_addr}" ]; then
+		die "Memory remap did not persist across reboot: osmem=$actual_osmem expected=${new_osmem_mb}M@${osmem_addr}. Aborting."
+	fi
+	echo "Memory remap verified: osmem=$actual_osmem."
+
+	echo "Re-initializing SSH mux..."
 	ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || die "Failed to re-initialize SSH connection after reboot"
 
 	echo "Re-uploading sysupgrade utility (tmpfs was cleared on reboot)..."
@@ -288,8 +297,9 @@ hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
 
 echo "Firmware file transferred and SHA256 checksum verified."
 
-pre_flash_uptime=$(remote_uptime_seconds)
-[ -z "$pre_flash_uptime" ] && die "Failed to read device uptime before flashing"
+# Plant a tmpfs marker so we can verify the camera actually reboots
+# after the detached flash completes.
+remote_run "touch /tmp/needs_reboot" || true
 
 ota_log=$(mktemp)
 remote_run "$REMOTE_SCRIPT -x $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | tee "$ota_log" >/dev/null
@@ -302,7 +312,7 @@ if grep -q "Rebooting" "$ota_log"; then
 fi
 
 if grep -q "Flash process running with PID" "$ota_log"; then
-	if wait_for_reboot_after_detach "$pre_flash_uptime"; then
+	if wait_for_reboot_after_detach; then
 		rm -f "$ota_log"
 		echo "Firmware flashed successfully. Device is rebooting."
 		exit 0
