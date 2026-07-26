@@ -61,7 +61,8 @@ get_info() {
 			"hostname": "$(json_encode "$hostname")",
 			"image_id": "$(json_encode "$image_id")",
 			"build_id": "$(json_encode "$build_id")",
-			"wlan_mac": "$(json_encode "$wlan_mac")"
+			"wlan_mac": "$(json_encode "$wlan_mac")",
+			"features": ["wlan_psk", "rootpass_hash"]
 		}
 	EOF
 }
