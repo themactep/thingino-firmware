@@ -57,6 +57,10 @@ The apparent GPIO 60 and 79 references are coincidental constants rather than
 GPIO writes. Three `-1` entries in the stock map represent unpopulated
 functions.
 
+Thingino exposes the reset/setup button through a `gpio-keys` device-tree node
+as `KEY_ENTER`. The `thingino-button` service uses that event for the short
+press IP announcement and the configured long-press reset actions.
+
 ## Floodlight controller
 
 The floodlight LEDs, three-zone PIR array, and siren are not connected to SoC
