@@ -16,7 +16,6 @@
     "spk_enabled",
     "spk_vol",
     "spk_gain",
-    "spk_sample_rate",
     "force_stereo",
   ];
 
