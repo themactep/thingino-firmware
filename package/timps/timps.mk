@@ -85,6 +85,22 @@ ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
 	TIMPS_LIBS += -lhelix-aac
 endif
 
+# Ingenic SDK blobs (libimp/libalog/libsysutils) reference libc symbols their
+# original vendor toolchain exported that modern uClibc-ng/musl dropped (e.g.
+# the glibc-2.2-era __ctype_b/__ctype_tolower bare-pointer symbols T10/T20/T21/
+# T30's libalog still calls). ingenic-uclibc/ingenic-musl (already a
+# TIMPS_DEPENDENCIES above) build libuclibcshim/libmuslshim to paper over
+# exactly this gap - link it, same as prudynt-t does (PRUDYNT_SHIM_LIB).
+# --no-as-needed/--as-needed: nothing in timps calls these symbols directly
+# (only the vendor blob does), so the linker's default --as-needed would
+# otherwise drop the shim from DT_NEEDED as "unused".
+ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+	TIMPS_LIBS += -Wl,--no-as-needed -lmuslshim -Wl,--as-needed
+endif
+ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+	TIMPS_LIBS += -Wl,--no-as-needed -luclibcshim -Wl,--as-needed
+endif
+
 define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -220,6 +236,23 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	fi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+endif
+
+# NOTE: motors-detection fix. Stock S48webui-config reports
+# window.thinginoUIConfig.device.motors=true whenever /etc/thingino.json HAS a
+# "motors" key at all - but configs/common.thingino.json ships one on every
+# board (empty gpio_pan/gpio_tilt, a disabled-by-default placeholder), so any
+# board without its OWN motors override (i.e. every non-PTZ camera) still
+# shows the preview page's PTZ joystick overlay. Our copy checks the actual
+# GPIO pins are configured instead. Independent of TIMPS_CONTROL - it's about
+# the preview page in general, not the /control API - so only gated on the
+# WebUI being present at all (nothing to override otherwise).
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+define TIMPS_INSTALL_WEBUI_CONFIG_FIX
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S48webui-config \
+		$(TARGET_DIR)/etc/init.d/S48webui-config
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
 endif
 
 # NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
