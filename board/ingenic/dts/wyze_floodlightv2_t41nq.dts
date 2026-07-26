@@ -1099,7 +1099,8 @@
 	};
 
 	gpio_keys {
-		compatible = "gpio-keys";
+		compatible = "gpio-keys-polled";
+		poll-interval = <0x14>;
 
 		setup {
 			label = "Setup";

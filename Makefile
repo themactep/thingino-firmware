@@ -1099,7 +1099,9 @@ $(ROOTFS_BIN): $(KERNEL_BIN)
 
 $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	@$(TEAL) "$@"
-	touch $@
+	# Recreate the generated environment so changed memory settings do not
+	# coexist with stale definitions from a previous incremental build.
+	: > $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
 	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
 	for file in $(THINGINO_USER_UENV_FILES); do \
