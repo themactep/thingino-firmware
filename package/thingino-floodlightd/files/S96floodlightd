@@ -13,6 +13,9 @@ CONF="/etc/floodlightd.conf"
 #   POLL=500
 #   SENSITIVITY=255
 #   ZONES=7
+#   ACTIVE_MODE=always
+#   ACTIVE_WINDOW=18:00-06:00
+#   DAYNIGHT_FILE=/run/thingino/daynight_mode
 #   HOOK=/etc/floodlightd/motion.sh
 #   SOCKET=/run/floodlightd.sock
 [ -f "$CONF" ] && . "$CONF"
@@ -28,6 +31,9 @@ build_args() {
 	[ -n "$POLL" ] && ARGS="$ARGS -p $POLL"
 	[ -n "$SENSITIVITY" ] && ARGS="$ARGS -S $SENSITIVITY"
 	[ -n "$ZONES" ] && ARGS="$ARGS -z $ZONES"
+	[ -n "$ACTIVE_MODE" ] && ARGS="$ARGS -a $ACTIVE_MODE"
+	[ -n "$ACTIVE_WINDOW" ] && ARGS="$ARGS -w $ACTIVE_WINDOW"
+	[ -n "$DAYNIGHT_FILE" ] && ARGS="$ARGS -D $DAYNIGHT_FILE"
 	[ -n "$HOOK" ] && ARGS="$ARGS -H $HOOK"
 	[ -n "$SOCKET" ] && ARGS="$ARGS -s $SOCKET"
 	echo "$ARGS"

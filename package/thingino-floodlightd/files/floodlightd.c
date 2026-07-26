@@ -57,7 +57,7 @@
 
 #define FRAME_MAX 256
 #define CONTROL_SOCKET "/run/floodlightd.sock"
-#define CONTROL_MAX 512
+#define CONTROL_MAX 1024
 #define CONTROL_CLIENTS 8
 #define PIR_ZONES 3
 #define PIR_BASELINE_SAMPLES 20
@@ -67,6 +67,12 @@ enum light_mode {
 	LIGHT_AUTO,
 	LIGHT_MANUAL_ON,
 	LIGHT_MANUAL_OFF,
+};
+
+enum active_policy {
+	ACTIVE_ALWAYS,
+	ACTIVE_NIGHT,
+	ACTIVE_CLOCK,
 };
 
 struct control_client {
@@ -96,6 +102,10 @@ static int         g_motion_hold = 30;    /* seconds to hold flood after motion 
 static int         g_poll_ms     = 500;   /* PIR poll cadence (0 = passive)   */
 static int         g_pir_sensitivity = 255; /* stock default, range 0..255     */
 static int         g_pir_zone_mask = 7;  /* bit 0=left, 1=middle, 2=right     */
+static enum active_policy g_active_policy = ACTIVE_ALWAYS;
+static int         g_active_start = 18 * 60; /* minutes after local midnight */
+static int         g_active_end   = 6 * 60;
+static const char *g_daynight_file = "/run/thingino/daynight_mode";
 static const char *g_hook  = "/etc/floodlightd/motion.sh"; /* run on motion   */
 static const char *g_control_path = CONTROL_SOCKET;
 static int         g_foreground = 0;
@@ -110,11 +120,15 @@ static time_t g_override_until = 0;
 static enum light_mode g_light_mode = LIGHT_AUTO;
 static int g_light_level = 0;
 static uint16_t g_pir_raw[PIR_ZONES];
-static int g_pir_motion[PIR_ZONES];
+static int g_pir_trigger[PIR_ZONES];
+static time_t g_pir_motion_time[PIR_ZONES];
 static struct pir_filter g_pir_filter[PIR_ZONES];
 static unsigned long g_pir_frames;
 static unsigned long g_pir_nonzero_frames;
+static unsigned long g_pir_motion_events;
+static unsigned long g_pir_suppressed_events;
 static int g_zero_pir_warned;
+static int g_active_now = -1;
 
 static void on_sig(int s) { (void)s; g_run = 0; }
 
@@ -149,21 +163,142 @@ static int pir_threshold(void)
 	return 22;
 }
 
+static const char *active_policy_name(void)
+{
+	switch (g_active_policy) {
+	case ACTIVE_NIGHT: return "night";
+	case ACTIVE_CLOCK: return "clock";
+	default: return "always";
+	}
+}
+
+static int parse_clock(const char *text, int *minutes)
+{
+	char *end;
+	long hour, minute;
+
+	if (!text || strlen(text) != 5 || text[2] != ':') return -1;
+	errno = 0;
+	hour = strtol(text, &end, 10);
+	if (errno || end != text + 2) return -1;
+	errno = 0;
+	minute = strtol(text + 3, &end, 10);
+	if (errno || *end || hour < 0 || hour > 23 || minute < 0 || minute > 59)
+		return -1;
+	*minutes = (int)(hour * 60 + minute);
+	return 0;
+}
+
+static int parse_active_window(const char *text, int *start, int *end)
+{
+	char from[6], to[6];
+
+	if (!text || strlen(text) != 11 || text[5] != '-') return -1;
+	memcpy(from, text, 5);
+	from[5] = '\0';
+	memcpy(to, text + 6, 5);
+	to[5] = '\0';
+	return parse_clock(from, start) == 0 && parse_clock(to, end) == 0 ? 0 : -1;
+}
+
+static int set_active_policy(const char *text)
+{
+	if (!strcmp(text, "always")) g_active_policy = ACTIVE_ALWAYS;
+	else if (!strcmp(text, "night")) g_active_policy = ACTIVE_NIGHT;
+	else if (!strcmp(text, "clock")) g_active_policy = ACTIVE_CLOCK;
+	else return -1;
+	return 0;
+}
+
+static void format_active_window(char *buf, size_t size)
+{
+	unsigned int start = (unsigned int)g_active_start % (24 * 60);
+	unsigned int end = (unsigned int)g_active_end % (24 * 60);
+
+	snprintf(buf, size, "%02u:%02u-%02u:%02u",
+		start / 60, start % 60, end / 60, end % 60);
+}
+
+static int read_daynight_state(char *state, size_t size)
+{
+	FILE *fp;
+	char value[16];
+
+	if (size) snprintf(state, size, "unknown");
+	fp = fopen(g_daynight_file, "r");
+	if (!fp) return -1;
+	if (fscanf(fp, "%15s", value) != 1) {
+		fclose(fp);
+		return -1;
+	}
+	fclose(fp);
+	if (strcmp(value, "day") && strcmp(value, "night")) return -1;
+	if (size) snprintf(state, size, "%s", value);
+	return !strcmp(value, "night");
+}
+
+static int active_policy_now(char *daynight_state, size_t state_size)
+{
+	time_t now;
+	struct tm local;
+	int minute;
+
+	if (daynight_state && state_size)
+		snprintf(daynight_state, state_size, "n/a");
+	if (g_active_policy == ACTIVE_ALWAYS) return 1;
+	if (g_active_policy == ACTIVE_NIGHT)
+		return read_daynight_state(daynight_state, state_size) == 1;
+
+	now = time(NULL);
+	if (!localtime_r(&now, &local)) return 0;
+	minute = local.tm_hour * 60 + local.tm_min;
+	if (g_active_start == g_active_end) return 1;
+	if (g_active_start < g_active_end)
+		return minute >= g_active_start && minute < g_active_end;
+	return minute >= g_active_start || minute < g_active_end;
+}
+
+static int pir_motion_latched(int zone, time_t now)
+{
+	if (!g_pir_motion_time[zone]) return 0;
+	if (g_motion_hold <= 0) return 1;
+	return now < g_pir_motion_time[zone] ||
+	       now - g_pir_motion_time[zone] < g_motion_hold;
+}
+
 static int state_json(char *buf, size_t size, const char *event)
 {
+	time_t now = time(NULL);
+	char window[16], daynight_state[16];
+	int motion[PIR_ZONES];
+	int active_now = active_policy_now(daynight_state, sizeof daynight_state);
+	long last_motion_ago = g_last_motion ? (long)(now - g_last_motion) : -1;
+
+	if (last_motion_ago < 0 && g_last_motion) last_motion_ago = 0;
+	for (int i = 0; i < PIR_ZONES; i++)
+		motion[i] = pir_motion_latched(i, now);
+	format_active_window(window, sizeof window);
 	return snprintf(buf, size,
 		"{\"event\":\"%s\",\"mode\":\"%s\",\"light\":%s,"
 		"\"level\":%d,\"auto_brightness\":%d,\"hold\":%d,"
 		"\"override_remaining\":%ld,\"pir_raw\":[%u,%u,%u],"
-		"\"pir_motion\":[%d,%d,%d],\"pir_frames\":%lu,"
+		"\"pir_trigger\":[%d,%d,%d],\"pir_motion\":[%d,%d,%d],"
+		"\"pir_frames\":%lu,"
 		"\"pir_nonzero_frames\":%lu,\"pir_sensitivity\":%d,"
-		"\"pir_threshold\":%d,\"pir_zone_mask\":%d}\n",
+		"\"pir_threshold\":%d,\"pir_zone_mask\":%d,"
+		"\"motion_events\":%lu,\"suppressed_events\":%lu,"
+		"\"last_motion_ago\":%ld,\"active_policy\":\"%s\","
+		"\"active_now\":%s,\"active_window\":\"%s\","
+		"\"daynight_state\":\"%s\"}\n",
 		event, light_mode_name(), g_light_level > 0 ? "true" : "false",
 		g_light_level, g_bright_on, g_motion_hold, override_remaining(),
 		g_pir_raw[0], g_pir_raw[1], g_pir_raw[2],
-		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2],
+		g_pir_trigger[0], g_pir_trigger[1], g_pir_trigger[2],
+		motion[0], motion[1], motion[2],
 		g_pir_frames, g_pir_nonzero_frames, g_pir_sensitivity,
-		pir_threshold(), g_pir_zone_mask);
+		pir_threshold(), g_pir_zone_mask, g_pir_motion_events,
+		g_pir_suppressed_events, last_motion_ago, active_policy_name(),
+		active_now ? "true" : "false", window, daynight_state);
 }
 
 static int control_write(int fd, const char *buf, size_t len)
@@ -308,11 +443,31 @@ static int floodlight_set(int level, const char *source)
 	return 0;
 }
 
+static void refresh_active_state(const char *source)
+{
+	char daynight_state[16];
+	int active = active_policy_now(daynight_state, sizeof daynight_state);
+
+	if (active == g_active_now) {
+		if (!active && g_light_mode == LIGHT_AUTO && g_light_level > 0)
+			floodlight_set(0, "inactive_window");
+		return;
+	}
+	g_active_now = active;
+	logv(LOG_INFO, "automatic PIR actions %s (policy=%s, daynight=%s)",
+		active ? "enabled" : "disabled", active_policy_name(), daynight_state);
+	monitor_emit("{\"event\":\"active\",\"active\":%s,\"policy\":\"%s\","
+		"\"daynight_state\":\"%s\",\"source\":\"%s\"}",
+		active ? "true" : "false", active_policy_name(), daynight_state, source);
+	if (!active && g_light_mode == LIGHT_AUTO && g_light_level > 0)
+		floodlight_set(0, "inactive_window");
+}
+
 static void resume_auto(const char *source)
 {
 	g_light_mode = LIGHT_AUTO;
 	g_override_until = 0;
-	if (g_last_motion && (g_motion_hold <= 0 ||
+	if (active_policy_now(NULL, 0) && g_last_motion && (g_motion_hold <= 0 ||
 	    time(NULL) - g_last_motion < g_motion_hold)) {
 		floodlight_set(g_bright_on, source);
 	} else {
@@ -365,45 +520,59 @@ static int pir_filter_sample(int zone, uint16_t raw)
 static void pir_filter_reset(void)
 {
 	memset(g_pir_filter, 0, sizeof g_pir_filter);
-	memset(g_pir_motion, 0, sizeof g_pir_motion);
+	memset(g_pir_trigger, 0, sizeof g_pir_trigger);
+	memset(g_pir_motion_time, 0, sizeof g_pir_motion_time);
 }
 
 static void update_pir(uint16_t left, uint16_t mid, uint16_t right)
 {
 	uint16_t raw[PIR_ZONES] = { left, mid, right };
 	int changed = left != g_pir_raw[0] || mid != g_pir_raw[1] || right != g_pir_raw[2];
-	int active;
+	int triggered;
+	time_t now;
 
 	g_pir_frames++;
 	if (left || mid || right) g_pir_nonzero_frames++;
 	for (int i = 0; i < PIR_ZONES; i++) {
 		g_pir_raw[i] = raw[i];
-		g_pir_motion[i] = pir_filter_sample(i, raw[i]);
+		g_pir_trigger[i] = pir_filter_sample(i, raw[i]);
 	}
-	active = g_pir_motion[0] || g_pir_motion[1] || g_pir_motion[2];
+	triggered = g_pir_trigger[0] || g_pir_trigger[1] || g_pir_trigger[2];
 
-	if (changed || active || g_pir_frames == 1)
+	if (changed || triggered || g_pir_frames == 1)
 		monitor_emit("{\"event\":\"pir\",\"raw\":[%u,%u,%u],"
-			"\"motion\":[%d,%d,%d],\"frames\":%lu}",
-			left, mid, right, g_pir_motion[0], g_pir_motion[1],
-			g_pir_motion[2], g_pir_frames);
+			"\"trigger\":[%d,%d,%d],\"frames\":%lu}",
+			left, mid, right, g_pir_trigger[0], g_pir_trigger[1],
+			g_pir_trigger[2], g_pir_frames);
 	if (!g_zero_pir_warned && g_pir_frames >= 20 && !g_pir_nonzero_frames) {
 		g_zero_pir_warned = 1;
 		logv(LOG_WARNING, "PIR frames are valid but all samples are zero; check PIR board/connector");
 		monitor_emit("{\"event\":\"diagnostic\",\"pir\":\"all_zero\","
 			"\"frames\":%lu}", g_pir_frames);
 	}
-	if (!active) return;
+	if (!triggered) return;
+	if (!active_policy_now(NULL, 0)) {
+		g_pir_suppressed_events++;
+		monitor_emit("{\"event\":\"motion_suppressed\",\"zones\":[%d,%d,%d],"
+			"\"raw\":[%u,%u,%u],\"policy\":\"%s\"}",
+			g_pir_trigger[0], g_pir_trigger[1], g_pir_trigger[2],
+			left, mid, right, active_policy_name());
+		return;
+	}
 
-	g_last_motion = time(NULL);
+	now = time(NULL);
+	g_last_motion = now;
+	g_pir_motion_events++;
+	for (int i = 0; i < PIR_ZONES; i++)
+		if (g_pir_trigger[i]) g_pir_motion_time[i] = now;
 	char zones[32];
 	snprintf(zones, sizeof zones, "%d %d %d",
-		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2]);
+		g_pir_trigger[0], g_pir_trigger[1], g_pir_trigger[2]);
 	logv(LOG_INFO, "PIR motion L=%d M=%d R=%d (raw %u/%u/%u)",
-		g_pir_motion[0], g_pir_motion[1], g_pir_motion[2], left, mid, right);
+		g_pir_trigger[0], g_pir_trigger[1], g_pir_trigger[2], left, mid, right);
 	monitor_emit("{\"event\":\"motion\",\"zones\":[%d,%d,%d],"
-		"\"raw\":[%u,%u,%u]}", g_pir_motion[0], g_pir_motion[1],
-		g_pir_motion[2], left, mid, right);
+		"\"raw\":[%u,%u,%u]}", g_pir_trigger[0], g_pir_trigger[1],
+		g_pir_trigger[2], left, mid, right);
 	run_hook(zones);
 	if (g_light_mode == LIGHT_AUTO && g_light_level != g_bright_on)
 		floodlight_set(g_bright_on, "motion");
@@ -506,7 +675,7 @@ static int control_command(int slot, char *line)
 	char *arg2 = strtok_r(NULL, " \t\r\n", &save);
 	char *extra = strtok_r(NULL, " \t\r\n", &save);
 	int fd = g_clients[slot].fd;
-	int level, seconds, value;
+	int level, seconds, value, start, end;
 
 	if (!command) {
 		control_error(fd, "empty command");
@@ -585,8 +754,27 @@ static int control_command(int slot, char *line)
 		control_send_state(fd, "state");
 		return 0;
 	}
+	if (!strcmp(command, "active")) {
+		if (!arg1 || extra ||
+		    ((!strcmp(arg1, "always") || !strcmp(arg1, "night")) && arg2) ||
+		    (!strcmp(arg1, "clock") &&
+		     (!arg2 || parse_active_window(arg2, &start, &end) != 0)) ||
+		    (strcmp(arg1, "always") && strcmp(arg1, "night") &&
+		     strcmp(arg1, "clock"))) {
+			control_error(fd, "active always|night|clock HH:MM-HH:MM");
+			return 0;
+		}
+		if (!strcmp(arg1, "clock")) {
+			g_active_start = start;
+			g_active_end = end;
+		}
+		set_active_policy(arg1);
+		refresh_active_state("control");
+		control_send_state(fd, "state");
+		return 0;
+	}
 
-	control_error(fd, "status|monitor|auto|on|off|sensitivity|zones");
+	control_error(fd, "status|monitor|auto|on|off|sensitivity|zones|active");
 	return 0;
 }
 
@@ -672,8 +860,9 @@ static void control_client_usage(const char *program)
 		"  %s on [brightness [seconds]]\n"
 		"  %s off [seconds]\n"
 		"  %s sensitivity 0..255\n"
-		"  %s zones 0..7\n",
-		program, program, program, program, program, program, program);
+		"  %s zones 0..7\n"
+		"  %s active always|night|clock HH:MM-HH:MM\n",
+		program, program, program, program, program, program, program, program);
 }
 
 static int control_client_main(int argc, char **argv)
@@ -745,6 +934,9 @@ static void usage(const char *p)
 	  "  -p MS       PIR poll interval ms, 0=passive (default 500)\n"
 	  "  -S LEVEL    PIR sensitivity 0-255 (stock default 255)\n"
 	  "  -z MASK     PIR zone mask: left=1 middle=2 right=4 (default 7)\n"
+	  "  -a POLICY   automatic action policy: always|night|clock\n"
+	  "  -w WINDOW   local clock window HH:MM-HH:MM (default 18:00-06:00)\n"
+	  "  -D PATH     day/night state file (default /run/thingino/daynight_mode)\n"
 	  "  -H PATH     motion hook script (default /etc/floodlightd/motion.sh)\n"
 	  "  -s PATH     control socket (default /run/floodlightd.sock)\n"
 	  "  -f          run in foreground\n"
@@ -759,7 +951,8 @@ int main(int argc, char **argv)
 
 	for (int i = 0; i < CONTROL_CLIENTS; i++) g_clients[i].fd = -1;
 	int c;
-	while ((c = getopt(argc, argv, "d:b:B:m:r:t:p:S:z:H:s:fvh")) != -1) {
+	int option_error = 0;
+	while ((c = getopt(argc, argv, "d:b:B:m:r:t:p:S:z:a:w:D:H:s:fvh")) != -1) {
 		switch (c) {
 		case 'd': g_tty = optarg; break;
 		case 'b': g_baud = (atoi(optarg) == 9600) ? B9600 : B115200; break;
@@ -770,6 +963,14 @@ int main(int argc, char **argv)
 		case 'p': g_poll_ms = atoi(optarg); break;
 		case 'S': g_pir_sensitivity = atoi(optarg); break;
 		case 'z': g_pir_zone_mask = atoi(optarg); break;
+		case 'a':
+			if (set_active_policy(optarg) != 0) option_error = 1;
+			break;
+		case 'w':
+			if (parse_active_window(optarg, &g_active_start, &g_active_end) != 0)
+				option_error = 1;
+			break;
+		case 'D': g_daynight_file = optarg; break;
 		case 'H': g_hook = optarg; break;
 		case 's': g_control_path = optarg; break;
 		case 'f': g_foreground = 1; break;
@@ -778,7 +979,8 @@ int main(int argc, char **argv)
 		}
 	}
 	if (g_pir_sensitivity < 0 || g_pir_sensitivity > 255 ||
-	    g_pir_zone_mask < 0 || g_pir_zone_mask > 7) {
+	    g_pir_zone_mask < 0 || g_pir_zone_mask > 7 ||
+	    !g_daynight_file || !*g_daynight_file || option_error) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -807,8 +1009,10 @@ int main(int argc, char **argv)
 	mcu_send(OP_GET_SOFTWARE, NULL, 0);
 	/* Synchronize status with the MCU's current light state. */
 	mcu_send(OP_GET_BRIGHTNESS, NULL, 0);
+	refresh_active_state("startup");
 
 	struct timespec last_poll = {0};
+	time_t last_active_check = time(NULL);
 	while (g_run) {
 		fd_set rfds;
 		FD_ZERO(&rfds);
@@ -848,6 +1052,12 @@ int main(int argc, char **argv)
 
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
+		time_t wall_now = time(NULL);
+
+		if (wall_now != last_active_check) {
+			refresh_active_state("clock");
+			last_active_check = wall_now;
+		}
 
 		/* poll PIR value on cadence (active mode) */
 		if (g_poll_ms > 0) {
@@ -858,14 +1068,14 @@ int main(int argc, char **argv)
 
 		/* Timed manual overrides return to PIR/auto mode. */
 		if (g_light_mode != LIGHT_AUTO && g_override_until &&
-		    time(NULL) >= g_override_until) {
+		    wall_now >= g_override_until) {
 			logv(LOG_INFO, "manual override expired; resuming auto mode");
 			resume_auto("timer");
 		}
 
 		/* turn flood off after the PIR hold window expires */
 		if (g_light_mode == LIGHT_AUTO && g_light_level > 0 && g_motion_hold > 0 &&
-		    time(NULL) - g_last_motion >= g_motion_hold) {
+		    wall_now - g_last_motion >= g_motion_hold) {
 			floodlight_set(0, "motion_timeout");
 			logv(LOG_INFO, "flood off (motion hold expired)");
 		}

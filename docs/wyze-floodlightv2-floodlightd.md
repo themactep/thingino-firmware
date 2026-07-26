@@ -27,8 +27,12 @@ valid 0xBD replies arrive but the first 20 all contain six zero data bytes,
 the daemon emits an `all_zero` diagnostic. That means the UART protocol is
 working but the PIR daughterboard/sensor path is not producing samples.
 
-The `pir_raw` status array is the MCU's left/middle/right sample data;
-`pir_motion` is the host-side filtered result. `pir_frames` proves replies are
+The `pir_raw` status array is the MCU's left/middle/right sample data.
+`pir_trigger` is the instantaneous host-filter result and normally returns to
+zero on the next poll. `pir_motion` latches each accepted zone for the
+configured `HOLD` period, so normal `status` calls can observe recent motion.
+`motion_events`, `suppressed_events`, and `last_motion_ago` show the cumulative
+accepted/schedule-suppressed activity. `pir_frames` proves replies are
 arriving, while `pir_nonzero_frames` distinguishes an idle sensor from a dead
 all-zero sensor path.
 
@@ -57,6 +61,27 @@ and 154–255 is high. Enable zones with a bitmask (`left=1`, `middle=2`,
 ```sh
 floodlightctl zones 7
 ```
+
+Masks can be combined: `1` left, `2` middle, `4` right, `3` left+middle,
+`5` left+right, `6` middle+right, `7` all, and `0` none.
+
+Choose when PIR is allowed to run the motion hook and control the light:
+
+```sh
+# Any time
+floodlightctl active always
+
+# Only while Thingino's day/night service reports night
+floodlightctl active night
+
+# Fixed local-time window; overnight windows are supported
+floodlightctl active clock 18:00-06:00
+```
+
+Raw PIR sampling and status continue outside the active period, but detected
+motion is counted in `suppressed_events` and does not run the hook or change
+the light. When an active period ends, a PIR-controlled light is turned off;
+manual overrides are not affected.
 
 ## Manual control
 
@@ -104,6 +129,9 @@ HOLD=30
 POLL=500
 SENSITIVITY=255
 ZONES=7
+ACTIVE_MODE=always
+ACTIVE_WINDOW=18:00-06:00
+DAYNIGHT_FILE=/run/thingino/daynight_mode
 RAMP=5
 HOOK=/etc/floodlightd/motion.sh
 ```
@@ -114,9 +142,17 @@ HOOK=/etc/floodlightd/motion.sh
 
 `BRIGHTNESS` is the PIR-triggered level, `HOLD` is seconds after the last
 motion detection, and `POLL` is the PIR polling interval in milliseconds.
-`SENSITIVITY` is 0–255 and `ZONES` is the enable bitmask. Keep polling enabled:
-the MCU exposes raw PIR readings through the 0xBC/0xBD request/reply path; no
-separate PIR initialization command exists.
+`SENSITIVITY` is 0–255 and `ZONES` is the enable bitmask.
+
+`ACTIVE_MODE` can be `always`, `night`, or `clock`. `night` reads
+`DAYNIGHT_FILE` and fails closed while that state is missing or unknown; it
+works with Thingino's astronomical dusk-to-dawn service because that service
+writes `day` or `night` to `/run/thingino/daynight_mode`. `clock` uses
+`ACTIVE_WINDOW` in the camera's local time. Equal start/end times mean all
+day. Ensure the camera timezone is configured before using a clock window.
+
+Keep polling enabled: the MCU exposes raw PIR readings through the 0xBC/0xBD
+request/reply path; no separate PIR initialization command exists.
 
 The executable hook receives one argument containing three 0/1 motion-zone
 flags:
