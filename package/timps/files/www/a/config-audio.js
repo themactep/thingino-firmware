@@ -44,9 +44,25 @@
     audio_mic_format: { key: "codec", live: false },
     audio_mic_sample_rate: { key: "samplerate", live: false },
     audio_mic_bitrate: { key: "bitrate", live: false },
+    // ONVIF backchannel (client -> camera speaker via /bin/iac): a separate
+    // pipeline from the AO controls below, gated on caps.backchannel.available
+    // (compiled in AND /bin/iac present) instead of "value present in audio{}"
+    // - the backend always echoes these three keys even when the feature is
+    // compiled out, so BC_FIELDS gets its own enable check in load().
+    audio_backchannel_enabled: { key: "backchannel", live: false },
+    audio_backchannel_codec: { key: "backchannel_codec", live: false },
+    audio_backchannel_rate: { key: "backchannel_rate", live: false },
   };
 
-  // no audio output (AO) pipeline in timps: these controls never enable
+  var BC_FIELDS = [
+    "audio_backchannel_enabled",
+    "audio_backchannel_codec",
+    "audio_backchannel_rate",
+  ];
+
+  // no audio output (AO) pipeline in timps: these controls never enable.
+  // (Distinct from the backchannel card above, which uses its own /bin/iac
+  // speaker path and is NOT covered by this limitation.)
   var UNSUPPORTED = [
     "audio_spk_vol",
     "audio_spk_gain",
@@ -58,6 +74,11 @@
   // timps cannot encode (G726/OPUS/PCM) are disabled in wireControls().
   var CODEC_TO_TIMPS = { AAC: "aac", G711U: "pcmu", G711A: "pcma" };
   var CODEC_FROM_TIMPS = { aac: "AAC", pcmu: "G711U", pcma: "G711A" };
+
+  // backchannel_codec is a small int (0=PCMU 1=PCMA 2=AAC), not a string like
+  // the mic codec above - see config.h.
+  var BC_CODEC_TO_TIMPS = { PCMU: 0, PCMA: 1, AAC: 2 };
+  var BC_CODEC_FROM_TIMPS = { 0: "PCMU", 1: "PCMA", 2: "AAC" };
 
   // reverse of FIELD_MAP (timps "audio.<key>" -> page field id), so another
   // open tab/client changing a setting shows up here live instead of only on
@@ -130,6 +151,8 @@
     if (el.type === "checkbox") el.checked = !!Number(value);
     else if (id === "audio_mic_format")
       el.value = CODEC_FROM_TIMPS[String(value).toLowerCase()] || "";
+    else if (id === "audio_backchannel_codec")
+      el.value = BC_CODEC_FROM_TIMPS[Number(value)] || "";
     else el.value = value;
   }
 
@@ -145,6 +168,9 @@
     else if (id === "audio_mic_format") {
       value = CODEC_TO_TIMPS[el.value];
       if (!value) return;
+    } else if (id === "audio_backchannel_codec") {
+      value = BC_CODEC_TO_TIMPS[el.value];
+      if (value === undefined) return;
     } else {
       value = parseInt(el.value, 10);
       if (isNaN(value)) return;
@@ -171,6 +197,7 @@
     populateDynamicSelect($id("audio_mic_sample_rate"));
     populateDynamicSelect($id("audio_mic_bitrate"));
     populateDynamicSelect($id("audio_spk_sample_rate"));
+    populateDynamicSelect($id("audio_backchannel_rate"));
 
     // codecs timps cannot encode stay listed but not selectable
     var fmt = $id("audio_mic_format");
@@ -201,7 +228,9 @@
       note.id = "timps-no-ao-note";
       note.className = "d-block text-warning";
       note.textContent =
-        "Not available: this streamer has no audio output (speaker) pipeline. Stereo capture is not supported either.";
+        "Not available: timps has no direct audio-output pipeline for these " +
+        "controls, and stereo capture is not supported either. (ONVIF two-way " +
+        "audio uses a separate /bin/iac backchannel - see below.)";
       spkHead.parentNode.insertBefore(note, spkHead.nextSibling);
     }
 
@@ -268,6 +297,35 @@
             : audio[map.key] !== undefined;
           setEnabled(id, on);
         });
+
+        // backchannel keys are always echoed in audio{} even when the
+        // feature is compiled out, so gate them on caps.backchannel.available
+        // (USE_BACKCHANNEL compiled in AND /bin/iac present) instead.
+        var bcAvailable = !!(
+          json.caps &&
+          json.caps.backchannel &&
+          json.caps.backchannel.available
+        );
+        BC_FIELDS.forEach(function (id) { setEnabled(id, bcAvailable); });
+        var bcNote = $id("timps-no-bc-note");
+        if (!bcAvailable) {
+          if (!bcNote) {
+            var card = $id("backchannel-card");
+            var body = card && card.querySelector(".card-body");
+            if (body) {
+              bcNote = document.createElement("small");
+              bcNote.id = "timps-no-bc-note";
+              bcNote.className = "d-block text-warning mb-2";
+              bcNote.textContent =
+                "Not available: backchannel is either not compiled into this " +
+                "build or /bin/iac (ingenic-audiodaemon) is missing on the device.";
+              body.insertBefore(bcNote, body.firstChild);
+            }
+          }
+        } else if (bcNote) {
+          bcNote.remove();
+        }
+
         var offline = $id("timps-offline-notice");
         if (offline) offline.remove();
         if (silent) toast("info", "Audio settings reloaded.", 3000);

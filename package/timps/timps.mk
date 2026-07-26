@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.4.6
+TIMPS_VERSION = v1.5.0
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -33,6 +33,15 @@ endif
 
 ifeq ($(BR2_PACKAGE_TIMPS_SRT),y)
 	TIMPS_DEPENDENCIES += libsrt
+endif
+
+# Audio backchannel: timps only runtime-execs /bin/iac, it does NOT link the
+# audiodaemon - so we deliberately do NOT depend on/select ingenic-audiodaemon
+# here (that pulls libwebsockets, which fails on some uClibc toolchains). Enable
+# BR2_PACKAGE_INGENIC_AUDIODAEMON separately if you want /bin/iac on the image.
+# AAC decode, however, IS linked, so libhelix-aac stays a hard dependency.
+ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
+	TIMPS_DEPENDENCIES += libhelix-aac
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -72,6 +81,10 @@ ifeq ($(BR2_PACKAGE_TIMPS_SRT),y)
 	TIMPS_LIBS += -lsrt
 endif
 
+ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
+	TIMPS_LIBS += -lhelix-aac
+endif
+
 define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -88,6 +101,12 @@ define TIMPS_BUILD_CMDS
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
+		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
+		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
+		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
+		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
+		HELIXLIB="-lhelix-aac" \
+		HELIX_INC=$(STAGING_DIR)/usr/include \
 		-C $(@D) target
 endef
 

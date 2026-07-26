@@ -13,6 +13,7 @@ FAAC_INSTALL_STAGING = YES
 # built and installed when BR2_PACKAGE_FAAC_INSTALL_BIN is enabled.
 FAAC_CONF_OPTS = \
 	-Dfrontend=$(if $(BR2_PACKAGE_FAAC_INSTALL_BIN),true,false) \
-	-Dmax-channels=2
+	-Dmax-channels=2 \
+	-Dsbr-decimation=4
 
 $(eval $(meson-package))
