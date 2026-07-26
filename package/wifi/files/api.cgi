@@ -14,9 +14,11 @@ set_param() {
 		action) PARAM_action="$value" ;;
 		hostname) PARAM_hostname="$value" ;;
 		rootpass) PARAM_rootpass="$value" ;;
+		rootpass_hash) PARAM_rootpass_hash="$value" ;;
 		rootpkey) PARAM_rootpkey="$value" ;;
 		timezone) PARAM_timezone="$value" ;;
 		wlan_pass) PARAM_wlan_pass="$value" ;;
+		wlan_psk) PARAM_wlan_psk="$value" ;;
 		wlan_ssid) PARAM_wlan_ssid="$value" ;;
 		wlan_ap) PARAM_wlan_ap="$value" ;;
 		*) ;;
@@ -154,9 +156,11 @@ parse_post() {
 save_config() {
 	hostname="$PARAM_hostname"
 	rootpass="$PARAM_rootpass"
+	rootpass_hash="$PARAM_rootpass_hash"
 	rootpkey="$PARAM_rootpkey"
 	timezone="$PARAM_timezone"
 	wlan_pass="$PARAM_wlan_pass"
+	wlan_psk="$PARAM_wlan_psk"
 	wlan_ssid="$PARAM_wlan_ssid"
 	wlan_ap="$PARAM_wlan_ap"
 
@@ -169,6 +173,29 @@ save_config() {
 	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
 
 	# FIXME: Sanitize ssid and password
+
+	# A client that can hash locally sends these instead, so neither secret
+	# crosses the portal in the clear. The portal AP is open, so anything sent
+	# as plaintext is readable by anyone in range.
+	if [ -n "$wlan_psk" ] && ! echo "$wlan_psk" | grep -qE '^[0-9a-fA-F]{64}$'; then
+		cat <<-EOF
+			{
+				"success": false,
+				"error": "wlan_psk must be 64 hex characters"
+			}
+		EOF
+		return
+	fi
+
+	if [ -n "$rootpass_hash" ] && ! echo "$rootpass_hash" | grep -q '^\$6\$'; then
+		cat <<-EOF
+			{
+				"success": false,
+				"error": "rootpass_hash must be a SHA-512 crypt string"
+			}
+		EOF
+		return
+	fi
 
 	# Validate hostname
 	bad_chars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
@@ -186,18 +213,27 @@ save_config() {
 	hostname "$hostname"
 	echo "$hostname" >/etc/hostname
 
-	# Update wlan settings
+	# Update wlan settings. `wlan configure` already accepts a 64-hex PSK in
+	# place of a passphrase, so a pre-derived one just passes straight through.
+	wlan_secret="$wlan_pass"
+	[ -n "$wlan_psk" ] && wlan_secret="$wlan_psk"
+
 	if [ "true" = "$wlan_ap" ]; then
-		wlan configure "$wlan_ssid" "$wlan_pass" ap
+		wlan configure "$wlan_ssid" "$wlan_secret" ap
 	else
-		wlan configure "$wlan_ssid" "$wlan_pass"
+		wlan configure "$wlan_ssid" "$wlan_secret"
 	fi
 
 	# Update timezone
 	echo "$timezone" >/etc/timezone
 
-	# Update root password
-	printf '%s:%s\n' "root" "$rootpass" | chpasswd -c sha512
+	# Update root password. -e takes an already-encrypted field, so a client
+	# that hashed it locally never sends the plaintext.
+	if [ -n "$rootpass_hash" ]; then
+		printf '%s:%s\n' "root" "$rootpass_hash" | chpasswd -e
+	else
+		printf '%s:%s\n' "root" "$rootpass" | chpasswd -c sha512
+	fi
 
 	# Update SSH key if provided
 	if [ -n "$rootpkey" ]; then
