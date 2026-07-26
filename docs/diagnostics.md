@@ -54,3 +54,10 @@ generate a diagnostics report and save it to the card.
 
 For repeated RTSP/UDP or RTSP/TCP playback testing from a host machine, see
 `rtsp-stress-test.md`.
+
+
+### WebRTC diagnostic in a web browser
+
+Open <chrome://webrtc-internals/> in a Chrome based web browser to get detailed
+information on active WebRTC sessions.
+
