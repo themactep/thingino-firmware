@@ -1,7 +1,10 @@
 #!/bin/sh
 
 DAEMON="/usr/bin/thingino-button"
-DAEMON_ARGS="-d"
+# start-stop-daemon already backgrounds the process below. Keep the button
+# reader in the foreground of that managed child so the PID file identifies
+# the real process instead of an intermediate process from a second daemonize.
+DAEMON_ARGS="-s"
 
 PIDFILE="/run/thingino-button.pid"
 

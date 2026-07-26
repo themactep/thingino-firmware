@@ -2,7 +2,11 @@
   "gpio": {
     "button_reset": 62,
     "ir850": 81,
-    "ircut": [50, 49],
+    "ircut": {
+      "pin": [50, 49],
+      "mode": "level-sequence",
+      "delay_us": 100000
+    },
     "led_r": 38,
     "led_b": 39,
     "spk_en": 63,

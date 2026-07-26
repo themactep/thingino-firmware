@@ -16,9 +16,8 @@ The stock firmware identifies the platform as T41 `isvp_marmot` and runs a
 | Storage | 16 MB SPI NOR on SFC0, plus an SD card on MSC0. The SD card uses active-low card detect on GPB26 (GPIO 58) and power on GPB29 (GPIO 61). |
 | Console | UART1 on the `uart1-pb` pin group, exposed as `/dev/ttyS1`. |
 
-The Thingino reserved-memory values are inherited from the Wyze Cam v4 because
-it uses the same SoC. The stock firmware confirms `isp_memopt=1`, but not those
-exact reserved-memory sizes.
+Thingino reserves 30 MiB for the camera subsystem on this profile. The stock
+firmware confirms `isp_memopt=1`, but not the exact reserved-memory size.
 
 ## Device-tree details
 
@@ -42,8 +41,8 @@ The following map was recovered from the stock `iCamera` dynamic symbols,
 |-----:|----------|----------------------|
 | 38 | Status LED B | Second argument to the stock status-LED function. |
 | 39 | Status LED A | First argument to the stock status-LED function; boot level is 1. |
-| 49 | IR-cut B | Driven 100 ms after GPIO 50 by the stock IR-cut function. |
-| 50 | IR-cut A | First output driven by the stock IR-cut function. |
+| 49 | IR-cut B | Set to the requested retained level 100 ms after GPIO 50 by the stock IR-cut function. |
+| 50 | IR-cut A | First output set to the requested retained level by the stock IR-cut function. |
 | 57 | Auxiliary SD detect | Named `sd_cd_ex_pin` by the stock application. |
 | 58 | Kernel SD card detect | Active-low GPB26 in the stock device tree. |
 | 59 | Application SD card detect | Read by the stock `sdk_device_check_mmc_insert` path. |
@@ -57,9 +56,16 @@ The apparent GPIO 60 and 79 references are coincidental constants rather than
 GPIO writes. Three `-1` entries in the stock map represent unpopulated
 functions.
 
-Thingino exposes the reset/setup button through a `gpio-keys` device-tree node
-as `KEY_ENTER`. The `thingino-button` service uses that event for the short
-press IP announcement and the configured long-press reset actions.
+The floodlight's IR-cut actuator differs from the usual two-wire pulse
+actuator. Stock `IRcut on` sets GPIO 50 high, waits 100 ms, then sets GPIO 49
+high; `IRcut off` performs the same sequence low. The Thingino camera profile
+therefore selects the `level-sequence` IR-cut mode with a 100 ms inter-pin
+delay.
+
+Thingino exposes the reset/setup button through a polled `gpio-keys` device-tree
+node as `KEY_ENTER`, matching the stock application's direct polling of GPIO
+62. The `thingino-button` service uses that event for the short-press IP
+announcement and the configured long-press reset actions.
 
 ## Floodlight controller
 
