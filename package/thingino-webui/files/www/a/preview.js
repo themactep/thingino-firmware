@@ -66,7 +66,20 @@ const previewEndpointState = {
 };
 
 function rgba2color(hex8) {
-  return hex8.substring(0, 7);
+  if (typeof hex8 !== "string") return "#000000";
+  let value = hex8.trim();
+  if (/^0x[0-9a-fA-F]{8}$/i.test(value)) {
+    // 0xAARRGGBB → treat as #RRGGBBAA for the picker
+    const hex = value.slice(2);
+    value = "#" + hex.slice(2) + hex.slice(0, 2);
+  }
+  if (/^#[0-9a-fA-F]{8}$/i.test(value)) {
+    return value.substring(0, 7);
+  }
+  if (/^#[0-9a-fA-F]{6}$/i.test(value)) {
+    return value;
+  }
+  return value.substring(0, 7);
 }
 
 function rgba2alpha(hex8) {

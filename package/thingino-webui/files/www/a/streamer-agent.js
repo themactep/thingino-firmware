@@ -196,6 +196,7 @@
         rtsp_endpoint: s.rtsp_endpoint,
         format: s.format,
         mode: s.mode,
+        osd: s.osd || undefined,
       };
     });
     return msg;

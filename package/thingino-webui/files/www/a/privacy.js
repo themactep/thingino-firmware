@@ -220,10 +220,7 @@
     const alphaHex = Number.isInteger(safeAlpha)
       ? safeAlpha.toString(16).padStart(2, "0").toUpperCase()
       : "FF";
-    if (isRaptorAgent()) {
-      // Raptor / agent OSD colors are #AARRGGBB.
-      return "#" + alphaHex + safeColor.slice(1);
-    }
+    // Agent / prudynt use #RRGGBBAA; raptor adapter converts to 0xAARRGGBB.
     return safeColor + alphaHex;
   }
 
@@ -233,20 +230,15 @@
     }
     let normalized = hex8.trim();
     if (/^0x[0-9a-fA-F]{8}$/i.test(normalized)) {
-      normalized = "#" + normalized.slice(2).toUpperCase();
+      // Legacy raptor 0xAARRGGBB → #RRGGBBAA
+      const hex = normalized.slice(2).toUpperCase();
+      normalized = "#" + hex.slice(2) + hex.slice(0, 2);
     }
     if (!/^#[0-9a-fA-F]{8}$/.test(normalized)) {
       return { color: "#000000", alpha: 255 };
     }
     normalized = normalized.toUpperCase();
-    if (isRaptorAgent()) {
-      // #AARRGGBB
-      return {
-        color: "#" + normalized.substring(3, 9),
-        alpha: parseInt(normalized.substring(1, 3), 16),
-      };
-    }
-    // #RRGGBBAA (prudynt)
+    // #RRGGBBAA
     return {
       color: normalized.substring(0, 7),
       alpha: parseInt(normalized.substring(7, 9), 16),

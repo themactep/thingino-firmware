@@ -750,7 +750,43 @@ thingino_agent_prudynt_print_stream_config() {
 	printf '"profile":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" profile)" null)"
 	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" rtsp_endpoint)")"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" format)")"
-	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" mode)")"
+	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" mode)")"
+	printf '"osd":'
+	thingino_agent_prudynt_print_stream_osd "$stream_id"
+	printf '}'
+}
+
+thingino_agent_prudynt_print_stream_osd() {
+	stream_id=$1
+	printf '{'
+	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" enabled)" false)"
+	printf '"font_path":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" font_path)")"
+	printf '"font_size":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" font_size)" null)"
+	printf '"stroke_size":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" stroke_size)" null)"
+	printf '"logo":{'
+	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" logo.enabled)" false)"
+	printf '"position":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" logo.position)")"
+	printf '},'
+	printf '"time":{'
+	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" time.enabled)" false)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" time.format)")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" time.position)")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" time.fill_color)")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" time.stroke_color)")"
+	printf '},'
+	printf '"uptime":{'
+	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" uptime.enabled)" false)"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" uptime.position)")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" uptime.fill_color)")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" uptime.stroke_color)")"
+	printf '},'
+	printf '"usertext":{'
+	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_osd_field "$stream_id" usertext.enabled)" false)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" usertext.format)")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" usertext.position)")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" usertext.fill_color)")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_osd_text_field "$stream_id" usertext.stroke_color)")"
+	printf '}'
 	printf '}'
 }
 
