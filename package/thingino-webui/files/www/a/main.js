@@ -633,48 +633,23 @@ function toggleRecording(channel) {
 
   if (button) button.classList.add("pending");
 
-  const payload = isRecording
-    ? JSON.stringify({ mp4: { stop: { channel: channel } } })
-    : JSON.stringify({ mp4: { start: { channel: channel } } });
-
-  console.log(`Sending payload: ${payload}`);
-
-  fetch("/x/json-prudynt.cgi", {
+  agentJsonRequest("/api/v1/actions/record", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+    body: { action, stream_id: channel },
+    cache: "no-store",
   })
-    .then((response) => {
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-      return response.text();
-    })
-    .then((text) => {
-      if (!text) {
-        console.log(`Empty response (assumed success)`);
+    .then((data) => {
+      console.log(`Response received:`, data);
+      if (data && data.status === "accepted") {
+        const newState = action === "start";
+        updateRecordingState({
+          ch0: channel === 0 ? newState : recordingState.ch0,
+          ch1: channel === 1 ? newState : recordingState.ch1,
+        });
         return;
       }
-      const data = JSON.parse(text);
-      console.log(`Response received:`, data);
-      if (data.mp4 && data.mp4[action]) {
-        if (data.mp4[action] === "ok") {
-          console.log(`Recording ${action} successful on channel ${channel}`);
-          const newState = action === "start";
-          updateRecordingState({
-            ch0: channel === 0 ? newState : recordingState.ch0,
-            ch1: channel === 1 ? newState : recordingState.ch1,
-          });
-        } else {
-          console.error("Recording control error:", data.mp4[action]);
-          if (button) button.classList.remove("pending");
-          alert(
-            `Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`,
-          );
-        }
-      } else {
-        console.error("Unexpected response:", data);
-        if (button) button.classList.remove("pending");
-        alert(`Failed to ${action} recording on channel ${channel}`);
-      }
+      if (button) button.classList.remove("pending");
+      alert(`Failed to ${action} recording on channel ${channel}`);
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
