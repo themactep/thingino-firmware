@@ -178,6 +178,36 @@ thingino_heartbeat_daynight_auto_enabled() {
 	printf '%s' "$(thingino_heartbeat_bool_json "$([ "$mode" = auto ] && printf true || printf false)")"
 }
 
+thingino_heartbeat_raptor_privacy_enabled() {
+	state_file="${THINGINO_AGENT_RAPTOR_PRIVACY_STATE:-/run/thingino-agent/raptor-privacy}"
+	if [ -r "$state_file" ]; then
+		value=$(sed -n '1p' "$state_file" 2>/dev/null | tr -d '\r\n')
+		case "$value" in
+			true | false)
+				printf '%s' "$value"
+				return 0
+				;;
+		esac
+	fi
+
+	# Optional live hint: ROD may expose a privacy OSD element.
+	if command -v raptorctl >/dev/null 2>&1; then
+		elements=$(raptorctl rod elements 2>/dev/null || true)
+		if [ -n "$elements" ] && printf '%s\n' "$elements" | grep -q '"name"[[:space:]]*:[[:space:]]*"privacy"'; then
+			if printf '%s\n' "$elements" | grep -q '"name"[[:space:]]*:[[:space:]]*"privacy"[^}]*"visible"[[:space:]]*:[[:space:]]*true\|"visible"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"privacy"'; then
+				printf 'true'
+				return 0
+			fi
+			if printf '%s\n' "$elements" | grep '"name"[[:space:]]*:[[:space:]]*"privacy"' | grep -q '"visible"[[:space:]]*:[[:space:]]*false'; then
+				printf 'false'
+				return 0
+			fi
+		fi
+	fi
+
+	printf 'false'
+}
+
 thingino_heartbeat_record_channel() {
 	value=$(thingino_heartbeat_config_get recording stream 0)
 	case "$value" in
@@ -239,7 +269,7 @@ thingino_heartbeat_raptor_payload() {
 			;;
 	esac
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":false,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
 		"$now" \
 		"$uptime" \
 		"$daynight_brightness" \
@@ -248,6 +278,7 @@ thingino_heartbeat_raptor_payload() {
 		"$rec_ch0" \
 		"$rec_ch1" \
 		"$(thingino_heartbeat_config_bool_json motion enabled false)" \
+		"$(thingino_heartbeat_raptor_privacy_enabled)" \
 		"$color_mode" \
 		"$(thingino_heartbeat_command_bool microphone "$(thingino_heartbeat_config_bool_json audio enabled true)")" \
 		"$(thingino_heartbeat_command_bool speaker "$(thingino_heartbeat_config_bool_json audio ao_enabled false)")" \
