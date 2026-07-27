@@ -88,7 +88,8 @@ credentials_from_card() {
 
 timeout() {
 	sleep 600 &&
-		play /usr/share/sounds/configurationportalisdown.opus &&
+		(play /usr/share/sounds/configurationportalisdown.opus 2>/dev/null || \
+			play /usr/share/sounds/configurationportalisdown.wav) &&
 		$0 stop
 }
 
@@ -133,7 +134,8 @@ finish_portal() {
 	start-stop-daemon -S -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf -d
 
 	echo "Portal started at $(ts)"
-	play /usr/share/sounds/configurationportalisup.opus
+	play /usr/share/sounds/configurationportalisup.opus 2>/dev/null || \
+		play /usr/share/sounds/configurationportalisup.wav
 
 	echo "Start timeout countdown"
 	timeout &
