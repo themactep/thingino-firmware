@@ -22,7 +22,6 @@ ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 	GCC_BUILD_TYPE += CONFIG_MUSL_BUILD=n
 	# Add explicit library links for uClibc
 	INGENIC_AUDIODAEMON_LDFLAGS += -lpthread -ldl
-	INGENIC_AUDIODAEMON_DEPENDENCIES += ingenic-uclibc
 endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
@@ -38,6 +37,10 @@ INGENIC_AUDIODAEMON_LDFLAGS = $(TARGET_LDFLAGS) \
 ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 define INGENIC_AUDIODAEMON_BUILD_CMDS
 	$(MAKE) version -C $(@D)
+	# Create compatibility stubs for glibc-specific functions
+	echo 'const unsigned short **__ctype_b_loc(void) { static const unsigned short *p = 0; return &p; }' > $(@D)/uclibc_compat.c
+	echo 'const int **__ctype_tolower_loc(void) { static const int *p = 0; return &p; }' >> $(@D)/uclibc_compat.c
+	$(TARGET_CC) -c $(@D)/uclibc_compat.c -o $(@D)/uclibc_compat.o
 	$(MAKE) $(GCC_BUILD_TYPE) CROSS_COMPILE=$(TARGET_CROSS) \
 	PLATFORM=$(AUDIODAEMON_SOC_CONFIG) \
 	CFLAGS="$(CFLAGS) $(INGENIC_AUDIODAEMON_CFLAGS) \
@@ -50,7 +53,7 @@ define INGENIC_AUDIODAEMON_BUILD_CMDS
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/cjson \
 	-DCONFIG_$(AUDIODAEMON_SOC_CONFIG)" \
-	LDFLAGS="$(INGENIC_AUDIODAEMON_LDFLAGS) -Wl,--no-as-needed -luclibcshim -Wl,--as-needed" \
+	LDFLAGS="$(INGENIC_AUDIODAEMON_LDFLAGS) $(@D)/uclibc_compat.o" \
 	all -C $(@D)
 endef
 else
