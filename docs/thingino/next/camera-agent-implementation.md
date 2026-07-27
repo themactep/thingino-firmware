@@ -20,6 +20,9 @@ Implemented in tree:
 - `thingino-agentctl` now acts as agent-owned core dispatch
 - backend adapter loading exists
 - prudynt adapter exists as the first real backend glue layer
+- raptor adapter exists as a first-pass second backend glue layer
+- raptor OSD leaves map stream `osd_enabled` plus font/time/uptime/usertext/logo settings onto global `[osd]` / `[osd.<element>]` (shared across streams)
+- raptor motion send2 output enables persist in `/etc/thingino.json` (`motion.send2*`)
 - null adapter exists as fallback when no backend is active
 - compatibility endpoints exist for `/device`, `/capabilities`, `/state`, `/config`, and current action routes
 - narrow resource endpoints are installed for selected `/capabilities/*`, `/runtime/*`, and `/settings/*` paths
@@ -86,7 +89,8 @@ Validated on flashed image:
 
 Not implemented yet:
 
-- additional backend adapters beyond prudynt
+- remaining raptor gaps: brightness/privacy OSD leaves, live motion→send2 hook, fuller hot validation of OSD/motion-output leaves
+- additional backend adapters beyond prudynt and raptor
 
 ## First implementation target
 
@@ -150,6 +154,9 @@ Example split:
 - prudynt adapter
 	- converts canonical image, motion, daynight, snapshot, and record operations
 		into `prudyntctl`, FIFOs, init scripts, and runtime-file reads
+- raptor adapter
+	- converts the same canonical resources into `raptorctl`, `/etc/raptor.conf`,
+		`S31raptor`, and daemon status sockets
 - future adapters
 	- expose the same canonical resources through their own local glue
 
