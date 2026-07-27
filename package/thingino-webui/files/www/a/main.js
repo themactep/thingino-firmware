@@ -687,24 +687,24 @@ function toggleMotion(state) {
   const button = $("#motion");
   if (button) button.classList.add("pending");
 
-  const payload = JSON.stringify({ motion: { enabled: state } });
-  fetch("/x/json-prudynt.cgi", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+  agentJsonRequest("/api/v1/settings/motion/enabled", {
+    method: "PATCH",
+    body: { enabled: state },
+    cache: "no-store",
   })
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.text();
-    })
-    .then((text) => {
-      if (text) {
-        const data = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(data));
-        if (data.motion && data.motion.enabled !== undefined) {
-          updateHeartbeatUi({ motion_enabled: data.motion.enabled });
-          return;
-        }
+    .then((data) => {
+      console.log(ts(), "<===", JSON.stringify(data));
+      if (data && data.resource && data.resource.enabled !== undefined) {
+        updateHeartbeatUi({ motion_enabled: data.resource.enabled });
+        return;
+      }
+      if (data && data.enabled !== undefined) {
+        updateHeartbeatUi({ motion_enabled: data.enabled });
+        return;
+      }
+      if (data && data.motion && data.motion.enabled !== undefined) {
+        updateHeartbeatUi({ motion_enabled: data.motion.enabled });
+        return;
       }
       updateHeartbeatUi({ motion_enabled: state });
     })
@@ -718,24 +718,20 @@ function togglePrivacy(state) {
   const button = $("#privacy");
   if (button) button.classList.add("pending");
 
-  const payload = JSON.stringify({ privacy: { enabled: state } });
-  fetch("/x/json-prudynt.cgi", {
+  agentJsonRequest("/api/v1/actions/privacy", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+    body: { enabled: state },
+    cache: "no-store",
   })
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.text();
-    })
-    .then((text) => {
-      if (text) {
-        const data = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(data));
-        if (data.privacy && data.privacy.enabled !== undefined) {
-          updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
-          return;
-        }
+    .then((data) => {
+      console.log(ts(), "<===", JSON.stringify(data));
+      if (data && data.privacy && data.privacy.enabled !== undefined) {
+        updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
+        return;
+      }
+      if (data && data.enabled !== undefined) {
+        updateHeartbeatUi({ privacy_enabled: data.enabled });
+        return;
       }
       updateHeartbeatUi({ privacy_enabled: state });
     })
