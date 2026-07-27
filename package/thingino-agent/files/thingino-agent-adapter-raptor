@@ -318,6 +318,129 @@ thingino_agent_raptor_image_bool() {
 	thingino_agent_raptor_bool01_to_json "$(thingino_agent_raptor_image_raw "$1")" false
 }
 
+# Map UI / prudynt-style WB mode integers onto raptor set-wb names (and back).
+thingino_agent_raptor_wb_mode_to_int() {
+	mode=$(printf '%s' "$1" | tr 'A-Z' 'a-z' | tr '-' '_')
+	case "$mode" in
+		auto | 0) printf '0' ;;
+		manual | 1) printf '1' ;;
+		daylight | day_light | day | 2) printf '2' ;;
+		cloudy | 3) printf '3' ;;
+		incandescent | 4) printf '4' ;;
+		fluorescent | flourescent | 5) printf '5' ;;
+		twilight | 6) printf '6' ;;
+		shade | 7) printf '7' ;;
+		warm_fluorescent | warm_flourescent | 8) printf '8' ;;
+		custom | 9) printf '9' ;;
+		*) printf '0' ;;
+	esac
+}
+
+thingino_agent_raptor_wb_mode_from_int() {
+	case "$1" in
+		0) printf 'auto' ;;
+		1) printf 'manual' ;;
+		2) printf 'daylight' ;;
+		3) printf 'cloudy' ;;
+		4) printf 'incandescent' ;;
+		5) printf 'fluorescent' ;;
+		6) printf 'twilight' ;;
+		7) printf 'shade' ;;
+		8) printf 'warm_fluorescent' ;;
+		9) printf 'custom' ;;
+		*)
+			# Already a name?
+			printf '%s' "$(printf '%s' "$1" | tr 'A-Z' 'a-z' | tr '-' '_')"
+			;;
+	esac
+}
+
+thingino_agent_raptor_wb_json() {
+	_wb_cache="/tmp/thingino-agent-raptor-wb.$$"
+	if [ ! -s "$_wb_cache" ]; then
+		command -v raptorctl >/dev/null 2>&1 || return 0
+		raptorctl rvd get-wb >"$_wb_cache" 2>/dev/null || {
+			rm -f "$_wb_cache"
+			return 0
+		}
+	fi
+	cat "$_wb_cache" 2>/dev/null
+}
+
+thingino_agent_raptor_wb_mode_raw() {
+	# Prefer get-wb: get-isp's wb_mode can lag behind the live WB state.
+	wb=$(thingino_agent_raptor_wb_json)
+	if [ -n "$wb" ]; then
+		mode=$(thingino_agent_raptor_json_string_field mode "$wb")
+		if [ -n "$mode" ]; then
+			printf '%s' "$mode"
+			return 0
+		fi
+	fi
+	isp=$(thingino_agent_raptor_isp_json)
+	if [ -n "$isp" ]; then
+		mode=$(thingino_agent_raptor_json_string_field wb_mode "$isp")
+		if [ -n "$mode" ]; then
+			printf '%s' "$mode"
+			return 0
+		fi
+	fi
+	thingino_agent_raptor_config_get image wb_mode
+}
+
+thingino_agent_raptor_wb_gain_raw() {
+	# $1 = r|b — prefer live get-wb, then ISP, then persisted image.wb_{r,b}
+	channel=$1
+	wb=$(thingino_agent_raptor_wb_json)
+	if [ -n "$wb" ]; then
+		value=$(thingino_agent_raptor_json_number_field "${channel}_gain" "$wb")
+		if [ -n "$value" ]; then
+			printf '%s' "$value"
+			return 0
+		fi
+	fi
+	isp=$(thingino_agent_raptor_isp_json)
+	if [ -n "$isp" ]; then
+		value=$(thingino_agent_raptor_json_number_field "wb_$channel" "$isp")
+		if [ -n "$value" ]; then
+			printf '%s' "$value"
+			return 0
+		fi
+	fi
+	thingino_agent_raptor_config_get image "wb_$channel"
+}
+
+thingino_agent_raptor_profile_to_int() {
+	value=$(printf '%s' "$1" | tr 'A-Z' 'a-z' | tr -d '"')
+	case "$value" in
+		0 | base | baseline) printf '0' ;;
+		1 | main) printf '1' ;;
+		2 | high) printf '2' ;;
+		*)
+			echo "profile must be 0/1/2 or baseline/main/high" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_profile_to_name() {
+	case "$1" in
+		0) printf 'baseline' ;;
+		1) printf 'main' ;;
+		2) printf 'high' ;;
+		base | baseline) printf 'baseline' ;;
+		main) printf 'main' ;;
+		high) printf 'high' ;;
+		*)
+			thingino_agent_raptor_profile_to_int "$1" >/dev/null 2>&1 || {
+				printf 'high'
+				return 0
+			}
+			thingino_agent_raptor_profile_to_name "$(thingino_agent_raptor_profile_to_int "$1")"
+			;;
+	esac
+}
+
 thingino_agent_raptor_motion_enabled() {
 	thingino_agent_raptor_config_bool motion enabled false
 }
@@ -721,6 +844,12 @@ thingino_agent_raptor_print_stream_config() {
 	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
 	printf '"gop":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" gop)" null)"
 	printf '"buffers":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" nr_vbs)" null)"
+	_profile_raw=$(thingino_agent_raptor_stream_field "$stream_id" profile)
+	if [ -n "$_profile_raw" ]; then
+		printf '"profile":%s,' "$(thingino_agent_json_string "$(thingino_agent_raptor_profile_to_name "$_profile_raw")")"
+	else
+		printf '"profile":null,'
+	fi
 	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
 	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
@@ -1162,6 +1291,10 @@ thingino_agent_adapter_raptor_get_config() {
 	printf '"saturation":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw saturation)" null)"
 	printf '"sharpness":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw sharpness)" null)"
 	printf '"anti_flicker":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get sensor antiflicker)" null)"
+	printf '"ae_compensation":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw ae_comp)" null)"
+	printf '"core_wb_mode":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_mode_to_int "$(thingino_agent_raptor_wb_mode_raw)")" null)"
+	printf '"wb_rgain":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_gain_raw r)" null)"
+	printf '"wb_bgain":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_gain_raw b)" null)"
 	printf '"hflip":%s,' "$(thingino_agent_raptor_image_bool hflip)"
 	printf '"vflip":%s' "$(thingino_agent_raptor_image_bool vflip)"
 	printf '},'
@@ -1328,6 +1461,12 @@ thingino_agent_raptor_osd_spec() {
 		logo/position) printf 'osd.logo|position|position|text|element:logo\n' ;;
 		logo/width) printf 'osd.logo|width|width|int|element:logo\n' ;;
 		logo/height) printf 'osd.logo|height|height|int|element:logo\n' ;;
+		privacy/enabled) printf 'osd.privacy|visible|enabled|bool|element:privacy\n' ;;
+		privacy/text) printf 'osd.privacy|template|text|text|element:privacy\n' ;;
+		privacy/position) printf 'osd.privacy|position|position|text|element:privacy\n' ;;
+		privacy/font-size) printf 'osd.privacy|font_size|font_size|int|element:privacy\n' ;;
+		privacy/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
+		privacy/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		*) return 1 ;;
 	esac
 }
@@ -1395,7 +1534,7 @@ thingino_agent_raptor_osd_apply_runtime() {
 				position)
 					thingino_agent_raptor_ctl rod set-position "$elem" "$value" >/dev/null 2>&1 || true
 					;;
-				template | path | width | height)
+				template | path | width | height | font_size)
 					thingino_agent_raptor_ctl rod set-element "$elem" "$key=$value" >/dev/null 2>&1 || true
 					;;
 			esac
@@ -1619,6 +1758,18 @@ thingino_agent_adapter_raptor_get_setting() {
 		image/vflip)
 			thingino_agent_print_setting_leaf vflip "$(thingino_agent_raptor_image_bool vflip)"
 			;;
+		image/ae-compensation)
+			thingino_agent_print_setting_leaf ae_compensation "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw ae_comp)" null)"
+			;;
+		image/core-wb-mode)
+			thingino_agent_print_setting_leaf core_wb_mode "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_mode_to_int "$(thingino_agent_raptor_wb_mode_raw)")" null)"
+			;;
+		image/wb-rgain)
+			thingino_agent_print_setting_leaf wb_rgain "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_gain_raw r)" null)"
+			;;
+		image/wb-bgain)
+			thingino_agent_print_setting_leaf wb_bgain "$(thingino_agent_json_value_or "$(thingino_agent_raptor_wb_gain_raw b)" null)"
+			;;
 		audio/mic-enabled)
 			thingino_agent_print_setting_leaf mic_enabled "$(thingino_agent_raptor_command_bool microphone "$(thingino_agent_raptor_config_bool audio enabled true)")"
 			;;
@@ -1691,6 +1842,16 @@ thingino_agent_adapter_raptor_get_setting() {
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/buffers}
 			thingino_agent_print_setting_leaf buffers "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" nr_vbs)" null)"
+			;;
+		streams/[01]/profile)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/profile}
+			_profile_raw=$(thingino_agent_raptor_stream_field "$stream_id" profile)
+			if [ -n "$_profile_raw" ]; then
+				printf '{"profile":%s}\n' "$(thingino_agent_json_string "$(thingino_agent_raptor_profile_to_name "$_profile_raw")")"
+			else
+				printf '{"profile":null}\n'
+			fi
 			;;
 		streams/[01]/rtsp-endpoint)
 			stream_id=${path#streams/}
@@ -1794,6 +1955,71 @@ thingino_agent_adapter_raptor_set_setting() {
 			thingino_agent_raptor_config_set image vflip "$raw" || return 1
 			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" vflip "$value"
+			;;
+		image/ae-compensation)
+			value=$(thingino_agent_raptor_setting_value "$body_file" ae_compensation) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-ae-comp "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image ae_comp "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" ae_compensation "$value"
+			;;
+		image/core-wb-mode)
+			value=$(thingino_agent_raptor_setting_value "$body_file" core_wb_mode) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			wb_mode_int=$value
+			mode=$(thingino_agent_raptor_wb_mode_from_int "$wb_mode_int")
+			r_gain=$(thingino_agent_raptor_wb_gain_raw r)
+			b_gain=$(thingino_agent_raptor_wb_gain_raw b)
+			[ -n "$r_gain" ] || r_gain=256
+			[ -n "$b_gain" ] || b_gain=256
+			case "$mode" in
+				manual | custom)
+					thingino_agent_raptor_ctl rvd set-wb "$mode" "$r_gain" "$b_gain" >/dev/null 2>&1 || return 1
+					;;
+				*)
+					thingino_agent_raptor_ctl rvd set-wb "$mode" >/dev/null 2>&1 || return 1
+					;;
+			esac
+			thingino_agent_raptor_config_set image wb_mode "$mode" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" core_wb_mode "$wb_mode_int"
+			;;
+		image/wb-rgain)
+			value=$(thingino_agent_raptor_setting_value "$body_file" wb_rgain) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			wb_rgain=$value
+			mode=$(thingino_agent_raptor_wb_mode_raw)
+			[ -n "$mode" ] || mode=manual
+			case "$mode" in
+				manual | custom) ;;
+				*) mode=manual ;;
+			esac
+			b_gain=$(thingino_agent_raptor_wb_gain_raw b)
+			[ -n "$b_gain" ] || b_gain=256
+			thingino_agent_raptor_ctl rvd set-wb "$mode" "$wb_rgain" "$b_gain" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image wb_mode "$mode" || return 1
+			thingino_agent_raptor_config_set image wb_r "$wb_rgain" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" wb_rgain "$wb_rgain"
+			;;
+		image/wb-bgain)
+			value=$(thingino_agent_raptor_setting_value "$body_file" wb_bgain) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			wb_bgain=$value
+			mode=$(thingino_agent_raptor_wb_mode_raw)
+			[ -n "$mode" ] || mode=manual
+			case "$mode" in
+				manual | custom) ;;
+				*) mode=manual ;;
+			esac
+			r_gain=$(thingino_agent_raptor_wb_gain_raw r)
+			[ -n "$r_gain" ] || r_gain=256
+			thingino_agent_raptor_ctl rvd set-wb "$mode" "$r_gain" "$wb_bgain" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image wb_mode "$mode" || return 1
+			thingino_agent_raptor_config_set image wb_b "$wb_bgain" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" wb_bgain "$wb_bgain"
 			;;
 		audio/mic-enabled)
 			value=$(thingino_agent_raptor_setting_value "$body_file" mic_enabled) || return 1
@@ -1996,6 +2222,17 @@ thingino_agent_adapter_raptor_set_setting() {
 			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" nr_vbs "$value" || return 1
 			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" buffers "$value"
+			;;
+		streams/[01]/profile)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/profile}
+			value=$(thingino_agent_raptor_setting_value "$body_file" profile) || return 1
+			profile_int=$(thingino_agent_raptor_profile_to_int "$value") || return 1
+			profile_name=$(thingino_agent_raptor_profile_to_name "$profile_int")
+			# Encoder profile is persisted; applies after streamer restart.
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" profile "$profile_int" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" profile "$(thingino_agent_json_string "$profile_name")"
 			;;
 		streams/[01]/rtsp-endpoint)
 			stream_id=${path#streams/}

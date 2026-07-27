@@ -747,6 +747,7 @@ thingino_agent_prudynt_print_stream_config() {
 	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" bitrate)" null)"
 	printf '"gop":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" gop)" null)"
 	printf '"buffers":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" buffers)" null)"
+	printf '"profile":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" profile)" null)"
 	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" rtsp_endpoint)")"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" format)")"
 	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" mode)")"
@@ -1243,6 +1244,10 @@ thingino_agent_adapter_prudynt_get_config() {
 	printf '"saturation":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.saturation)" null)"
 	printf '"sharpness":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.sharpness)" null)"
 	printf '"anti_flicker":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.anti_flicker)" null)"
+	printf '"ae_compensation":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.ae_compensation)" null)"
+	printf '"core_wb_mode":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.core_wb_mode)" null)"
+	printf '"wb_rgain":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.wb_rgain)" null)"
+	printf '"wb_bgain":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.wb_bgain)" null)"
 	printf '"hflip":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.hflip)" false)"
 	printf '"vflip":%s' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw image.vflip)" false)"
 	printf '},'
@@ -1295,6 +1300,18 @@ thingino_agent_adapter_prudynt_get_setting() {
 			;;
 		image/vflip)
 			thingino_agent_print_setting_leaf vflip "$(thingino_agent_prudynt_raw image.vflip)"
+			;;
+		image/ae-compensation)
+			thingino_agent_print_setting_leaf ae_compensation "$(thingino_agent_prudynt_raw image.ae_compensation)"
+			;;
+		image/core-wb-mode)
+			thingino_agent_print_setting_leaf core_wb_mode "$(thingino_agent_prudynt_raw image.core_wb_mode)"
+			;;
+		image/wb-rgain)
+			thingino_agent_print_setting_leaf wb_rgain "$(thingino_agent_prudynt_raw image.wb_rgain)"
+			;;
+		image/wb-bgain)
+			thingino_agent_print_setting_leaf wb_bgain "$(thingino_agent_prudynt_raw image.wb_bgain)"
 			;;
 		audio/mic-enabled)
 			thingino_agent_print_setting_leaf mic_enabled "$(thingino_agent_prudynt_raw audio.mic_enabled)"
@@ -1355,6 +1372,9 @@ thingino_agent_adapter_prudynt_get_setting() {
 		streams/0/buffers)
 			thingino_agent_print_setting_leaf buffers "$(thingino_agent_prudynt_stream_field 0 buffers)"
 			;;
+		streams/0/profile)
+			thingino_agent_print_setting_leaf profile "$(thingino_agent_prudynt_stream_field 0 profile)"
+			;;
 		streams/0/rtsp-endpoint)
 			printf '{"rtsp_endpoint":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field 0 rtsp_endpoint)")"
 			;;
@@ -1390,6 +1410,9 @@ thingino_agent_adapter_prudynt_get_setting() {
 			;;
 		streams/1/buffers)
 			thingino_agent_print_setting_leaf buffers "$(thingino_agent_prudynt_stream_field 1 buffers)"
+			;;
+		streams/1/profile)
+			thingino_agent_print_setting_leaf profile "$(thingino_agent_prudynt_stream_field 1 profile)"
 			;;
 		streams/1/rtsp-endpoint)
 			printf '{"rtsp_endpoint":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field 1 rtsp_endpoint)")"
@@ -1569,6 +1592,34 @@ thingino_agent_adapter_prudynt_set_setting() {
 			thingino_agent_prudynt_persist_value image.vflip "$value"
 			thingino_agent_print_setting_update "$path" vflip "$value"
 			;;
+		image/ae-compensation)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" ae_compensation) || return 1
+			thingino_agent_prudynt_validate_int "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"image\":{\"ae_compensation\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value image.ae_compensation "$value"
+			thingino_agent_print_setting_update "$path" ae_compensation "$value"
+			;;
+		image/core-wb-mode)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" core_wb_mode) || return 1
+			thingino_agent_prudynt_validate_int "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"image\":{\"core_wb_mode\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value image.core_wb_mode "$value"
+			thingino_agent_print_setting_update "$path" core_wb_mode "$value"
+			;;
+		image/wb-rgain)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" wb_rgain) || return 1
+			thingino_agent_prudynt_validate_int "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"image\":{\"wb_rgain\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value image.wb_rgain "$value"
+			thingino_agent_print_setting_update "$path" wb_rgain "$value"
+			;;
+		image/wb-bgain)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" wb_bgain) || return 1
+			thingino_agent_prudynt_validate_int "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"image\":{\"wb_bgain\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value image.wb_bgain "$value"
+			thingino_agent_print_setting_update "$path" wb_bgain "$value"
+			;;
 		audio/mic-enabled)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" mic_enabled) || return 1
 			thingino_agent_prudynt_validate_bool "$value" || return 1
@@ -1711,6 +1762,23 @@ thingino_agent_adapter_prudynt_set_setting() {
 			thingino_agent_prudynt_persist_value stream0.buffers "$value"
 			thingino_agent_print_setting_update "$path" buffers "$value"
 			;;
+		streams/0/profile)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" profile) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			if thingino_agent_prudynt_validate_int "$value" 2>/dev/null; then
+				thingino_agent_prudynt_apply_payload "{\"stream0\":{\"profile\":$value}}" || return 1
+				thingino_agent_prudynt_persist_value stream0.profile "$value"
+				thingino_agent_print_setting_update "$path" profile "$value"
+			else
+				[ -n "$value" ] || {
+					echo "non-empty profile required" >&2
+					return 1
+				}
+				thingino_agent_prudynt_apply_payload "{\"stream0\":{\"profile\":$(thingino_agent_json_string "$value")}}" || return 1
+				thingino_agent_prudynt_persist_value stream0.profile "$(thingino_agent_json_string "$value")"
+				thingino_agent_print_setting_update "$path" profile "$(thingino_agent_json_string "$value")"
+			fi
+			;;
 		streams/0/rtsp-endpoint)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" rtsp_endpoint) || return 1
 			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
@@ -1794,6 +1862,23 @@ thingino_agent_adapter_prudynt_set_setting() {
 			thingino_agent_prudynt_apply_payload "{\"stream1\":{\"buffers\":$value}}" || return 1
 			thingino_agent_prudynt_persist_value stream1.buffers "$value"
 			thingino_agent_print_setting_update "$path" buffers "$value"
+			;;
+		streams/1/profile)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" profile) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			if thingino_agent_prudynt_validate_int "$value" 2>/dev/null; then
+				thingino_agent_prudynt_apply_payload "{\"stream1\":{\"profile\":$value}}" || return 1
+				thingino_agent_prudynt_persist_value stream1.profile "$value"
+				thingino_agent_print_setting_update "$path" profile "$value"
+			else
+				[ -n "$value" ] || {
+					echo "non-empty profile required" >&2
+					return 1
+				}
+				thingino_agent_prudynt_apply_payload "{\"stream1\":{\"profile\":$(thingino_agent_json_string "$value")}}" || return 1
+				thingino_agent_prudynt_persist_value stream1.profile "$(thingino_agent_json_string "$value")"
+				thingino_agent_print_setting_update "$path" profile "$(thingino_agent_json_string "$value")"
+			fi
 			;;
 		streams/1/rtsp-endpoint)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" rtsp_endpoint) || return 1
