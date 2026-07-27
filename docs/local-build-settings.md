@@ -161,12 +161,30 @@ Purpose:
 
 Build behavior:
 
-1. `configs/common.thingino.json` is installed first
-2. The camera's `thingino.json` is imported next, if present
-3. User JSON files are imported in scope order: global, then camera, then device
+1. `configs/common.thingino.json` is installed as the base
+2. The camera's `thingino.json` is staged as `10-camera.json`
+3. Each package that contributes defaults drops a JSON fragment into
+   `/usr/share/thingino-defaults/<NN>-<name>.json` during its install step
+4. At `target-finalize`, `thingino-core` merges all staged fragments in
+   sorted priority order, then applies user configs last
 
-That means device-scoped user values win over camera-scoped user values, which
-win over global user values, which win over common and camera defaults.
+Merge order (later wins for conflicting keys):
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| base | `configs/common.thingino.json` | Common defaults |
+| `10-camera.json` | camera `thingino.json` | Per-camera overrides |
+| `20-agent.json` | `thingino-agent` | Agent defaults |
+| `30-motors.json` | `thingino-motors` | Motor defaults |
+| `40-daynightd.json` | `thingino-daynightd` | Day/night defaults |
+| `50-ha.json` | `thingino-ha` | Home Assistant defaults |
+| `55-ha-doorbell.json` | `thingino-ha` (conditional) | Doorbell entity |
+| user common | `user/common/thingino.json` | User global overrides |
+| user camera | `user/<camera>/thingino.json` | User camera overrides |
+| user device | `user/<camera>/<ip>/thingino.json` | User device overrides |
+
+Device-scoped user values win over camera-scoped user values, which
+win over global user values, which win over package and camera defaults.
 
 Example:
 
