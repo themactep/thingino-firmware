@@ -7,8 +7,11 @@
  *        LIVE controls are enabled only when their timps key is listed in
  *        caps.audio (the SoC capability matrix); the persist+restart keys
  *        (codec/samplerate/bitrate) are deliberately NOT in caps.audio, so
- *        they enable when the audio object carries them. Speaker and stereo
- *        controls stay greyed out: timps has no audio-output (AO) pipeline.
+ *        they enable when the audio object carries them. Speaker volume/gain
+ *        are live too (caps.audio carries spk_volume/spk_gain when an AO
+ *        pipeline is compiled in); speaker sampling and stereo capture stay
+ *        greyed out. A test-sound control (dropdown + Play/Stop) is shown when
+ *        caps.play.available is set, driving the play queue via /control.
  * Save:  LIVE keys (volume/gain/alc_gain/high_pass/agc/agc_target_dbfs/
  *        agc_compression_db/ns) go straight to timpsApi.set({audio:{...}}),
  *        debounced so slider drags coalesce into one POST; timps applies
@@ -44,12 +47,30 @@
     audio_mic_format: { key: "codec", live: false },
     audio_mic_sample_rate: { key: "samplerate", live: false },
     audio_mic_bitrate: { key: "bitrate", live: false },
+    // speaker AO volume/gain: live, gated on caps.audio carrying spk_volume/
+    // spk_gain (only when timps is built with a play or backchannel pipeline).
+    audio_spk_vol: { key: "spk_volume", live: true },
+    audio_spk_gain: { key: "spk_gain", live: true },
+    // ONVIF backchannel (client -> camera speaker via native IMP_AO): gated on
+    // caps.backchannel.available (compiled in) instead of "value present in
+    // audio{}" - the backend always echoes these three keys even when the
+    // feature is compiled out, so BC_FIELDS gets its own enable check in load().
+    audio_backchannel_enabled: { key: "backchannel", live: false },
+    audio_backchannel_codec: { key: "backchannel_codec", live: false },
+    audio_backchannel_rate: { key: "backchannel_rate", live: false },
   };
 
-  // no audio output (AO) pipeline in timps: these controls never enable
+  var BC_FIELDS = [
+    "audio_backchannel_enabled",
+    "audio_backchannel_codec",
+    "audio_backchannel_rate",
+  ];
+
+  // no control surface for these in timps: the speaker sampling rate is fixed
+  // by the pipeline (not a settable AO attribute) and stereo capture is not
+  // supported. Speaker volume/gain ARE live now (see FIELD_MAP), so they are
+  // no longer here.
   var UNSUPPORTED = [
-    "audio_spk_vol",
-    "audio_spk_gain",
     "audio_spk_sample_rate",
     "audio_force_stereo",
   ];
@@ -167,6 +188,53 @@
     }
   }
 
+  // Test-sound control: a dropdown of system sounds (from caps.play.sounds)
+  // plus Play/Stop. Hidden entirely unless caps.play.available (the play queue
+  // is compiled in) - see applyPlayCaps().
+  function wireTestSound() {
+    var playBtn = $id("audio_spk_test_play");
+    var stopBtn = $id("audio_spk_test_stop");
+    var sel = $id("audio_spk_test_sound");
+    if (playBtn)
+      playBtn.addEventListener("click", function () {
+        if (!sel || !sel.value || !window.timpsApi) return;
+        playBtn.classList.add("opacity-75");
+        window.timpsApi
+          .set({ speaker: { play: sel.value } })
+          .catch(function (err) {
+            toast("danger", "Play failed: " + (err.message || err));
+          })
+          .then(function () { playBtn.classList.remove("opacity-75"); });
+      });
+    if (stopBtn)
+      stopBtn.addEventListener("click", function () {
+        if (!window.timpsApi) return;
+        window.timpsApi.set({ speaker: { stop: 1 } }).catch(function (err) {
+          toast("danger", "Stop failed: " + (err.message || err));
+        });
+      });
+  }
+
+  // show/populate (or hide) the test-sound control from GET caps.play
+  function applyPlayCaps(caps) {
+    var wrap = $id("spk-test-wrap");
+    if (!wrap) return;
+    var play = (caps && caps.play) || {};
+    if (!play.available) { wrap.classList.add("d-none"); return; }
+    wrap.classList.remove("d-none");
+    var sel = $id("audio_spk_test_sound");
+    if (sel && sel.dataset.soundsReady !== "1") {
+      sel.innerHTML = '<option value="">- Select sound -</option>';
+      (play.sounds || []).forEach(function (name) {
+        var opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+      sel.dataset.soundsReady = "1";
+    }
+  }
+
   function wireControls() {
     populateDynamicSelect($id("audio_mic_sample_rate"));
     populateDynamicSelect($id("audio_mic_bitrate"));
@@ -190,20 +258,10 @@
       el.addEventListener("change", function () { send(id); });
     });
 
-    // speaker + stereo: no AO pipeline in timps, keep greyed out + a note
+    // speaker sampling + stereo capture: no control surface, keep greyed out
     UNSUPPORTED.forEach(function (id) { setEnabled(id, false); });
-    var spkHead = Array.prototype.find.call(
-      document.querySelectorAll("main h4"),
-      function (h) { return /speaker/i.test(h.textContent); },
-    );
-    if (spkHead && !$id("timps-no-ao-note")) {
-      var note = document.createElement("small");
-      note.id = "timps-no-ao-note";
-      note.className = "d-block text-warning";
-      note.textContent =
-        "Not available: this streamer has no audio output (speaker) pipeline. Stereo capture is not supported either.";
-      spkHead.parentNode.insertBefore(note, spkHead.nextSibling);
-    }
+
+    wireTestSound();
 
     // timps applies + persists every change immediately; the button is
     // kept only to reassure users trained on the old save-to-file step.
@@ -268,6 +326,37 @@
             : audio[map.key] !== undefined;
           setEnabled(id, on);
         });
+
+        // backchannel keys are always echoed in audio{} even when the
+        // feature is compiled out, so gate them on caps.backchannel.available
+        // (USE_BACKCHANNEL compiled in; speaker output is native IMP_AO) instead.
+        var bcAvailable = !!(
+          json.caps &&
+          json.caps.backchannel &&
+          json.caps.backchannel.available
+        );
+        BC_FIELDS.forEach(function (id) { setEnabled(id, bcAvailable); });
+
+        applyPlayCaps(json.caps);
+        var bcNote = $id("timps-no-bc-note");
+        if (!bcAvailable) {
+          if (!bcNote) {
+            var card = $id("backchannel-card");
+            var body = card && card.querySelector(".card-body");
+            if (body) {
+              bcNote = document.createElement("small");
+              bcNote.id = "timps-no-bc-note";
+              bcNote.className = "d-block text-warning mb-2";
+              bcNote.textContent =
+                "Not available: the audio backchannel is not compiled into this " +
+                "build.";
+              body.insertBefore(bcNote, body.firstChild);
+            }
+          }
+        } else if (bcNote) {
+          bcNote.remove();
+        }
+
         var offline = $id("timps-offline-notice");
         if (offline) offline.remove();
         if (silent) toast("info", "Audio settings reloaded.", 3000);
