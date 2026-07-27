@@ -1,2 +1,1 @@
 gpio_default=49i 50i 57i 58i
-serialport=ttyS1

@@ -1,0 +1,2194 @@
+#!/bin/sh
+
+THINGINO_AGENT_RAPTOR_CONFIG="${THINGINO_AGENT_RAPTOR_CONFIG:-/etc/raptor.conf}"
+THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
+THINGINO_AGENT_RAPTOR_PRIVACY_STATE="${THINGINO_AGENT_RAPTOR_PRIVACY_STATE:-/run/thingino-agent/raptor-privacy}"
+
+thingino_agent_adapter_raptor_detect() {
+	[ -f "$THINGINO_AGENT_RAPTOR_CONFIG" ] ||
+		command -v raptorctl >/dev/null 2>&1 ||
+		[ -f /etc/init.d/S31raptor ]
+}
+
+thingino_agent_adapter_raptor_name() {
+	printf 'raptor'
+}
+
+thingino_agent_raptor_json_string_field() {
+	key=$1
+	json=$2
+	printf '%s\n' "$json" |
+		sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+		head -n 1
+}
+
+thingino_agent_raptor_json_number_field() {
+	key=$1
+	json=$2
+	printf '%s\n' "$json" |
+		sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*\(-\{0,1\}[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p' |
+		head -n 1
+}
+
+thingino_agent_raptor_json_bool_field() {
+	key=$1
+	json=$2
+	value=$(printf '%s\n' "$json" |
+		sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' |
+		head -n 1)
+	case "$value" in
+		true | false)
+			printf '%s' "$value"
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_config_get() {
+	section=$1
+	key=$2
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
+}
+
+thingino_agent_raptor_config_bool() {
+	value=$(thingino_agent_raptor_config_get "$1" "$2" | tr 'A-Z' 'a-z')
+	case "$value" in
+		1 | true | yes | on) printf 'true' ;;
+		0 | false | no | off) printf 'false' ;;
+		*)
+			if [ -n "$3" ]; then
+				printf '%s' "$3"
+			else
+				printf 'false'
+			fi
+			;;
+	esac
+}
+
+thingino_agent_raptor_config_set() {
+	section=$1
+	key=$2
+	value=$3
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "raptorctl is not available" >&2
+		return 1
+	}
+	raptorctl config set "$section" "$key" "$value" >/dev/null 2>&1 || {
+		echo "failed to set raptor config $section.$key" >&2
+		return 1
+	}
+}
+
+thingino_agent_raptor_config_save() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl config save >/dev/null 2>&1 || true
+}
+
+thingino_agent_raptor_ctl() {
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "raptorctl is not available" >&2
+		return 1
+	}
+	raptorctl "$@"
+}
+
+thingino_agent_raptor_daemon_status() {
+	daemon=$1
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl "$daemon" status 2>/dev/null || true
+}
+
+thingino_agent_raptor_streamer_running() {
+	pidof rvd >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_network_ip() {
+	thingino_agent_default_ip
+}
+
+thingino_agent_raptor_network_online() {
+	ip_addr=$(thingino_agent_raptor_network_ip)
+	[ -n "$ip_addr" ] && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_health_status() {
+	if [ "$(thingino_agent_raptor_streamer_running)" = true ] && [ "$(thingino_agent_raptor_network_online)" = true ]; then
+		printf 'ok'
+	else
+		printf 'degraded'
+	fi
+}
+
+thingino_agent_raptor_service_script() {
+	[ -f /etc/init.d/S31raptor ] && printf '/etc/init.d/S31raptor'
+}
+
+thingino_agent_raptor_streaming_controllable() {
+	[ -n "$(thingino_agent_raptor_service_script)" ] && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_has_snapshot() {
+	command -v raptorctl >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_has_clip() {
+	if command -v raptorctl >/dev/null 2>&1 && { [ -x /usr/bin/rmr ] || pidof rmr >/dev/null 2>&1; }; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+thingino_agent_raptor_has_privacy() {
+	if command -v privacy >/dev/null 2>&1 || command -v raptorctl >/dev/null 2>&1; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+thingino_agent_raptor_has_daynight() {
+	if command -v raptorctl >/dev/null 2>&1 || [ -x /usr/bin/ric ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+thingino_agent_raptor_has_ptz() {
+	command -v motors >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_stream_count() {
+	printf '2'
+}
+
+thingino_agent_raptor_send2_service_supported() {
+	case "$1" in
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		*)
+			echo "unsupported send2 service: $1" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_send2_service_has_send_video() {
+	case "$1" in
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+thingino_agent_raptor_send2_raw() {
+	service=$1
+	field=$2
+	thingino_agent_json_config_value "$THINGINO_AGENT_SEND2_CONFIG" "$service.$field"
+}
+
+thingino_agent_raptor_print_send2_capabilities() {
+	printf '{'
+	sep=''
+	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
+		printf '%s"%s":{"enabled":true,"send_photo":true,"send_video":%s}' \
+			"$sep" "$service" \
+			"$(thingino_agent_json_bool "$(thingino_agent_raptor_send2_service_has_send_video "$service" && printf true || printf false)")"
+		sep=,
+	done
+	printf '}'
+}
+
+thingino_agent_raptor_print_service_capabilities() {
+	streaming_service=false
+	[ -n "$(thingino_agent_raptor_service_script)" ] && streaming_service=true
+	printf '{"streaming":{"start":%s,"stop":%s,"restart":%s}}' \
+		"$(thingino_agent_json_bool "$streaming_service")" \
+		"$(thingino_agent_json_bool "$streaming_service")" \
+		"$(thingino_agent_json_bool "$streaming_service")"
+}
+
+thingino_agent_raptor_firmware_upgrade_supported() {
+	command -v sysupgrade >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_firmware_pending_full() {
+	[ -f /tmp/upgrade.me ] && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_firmware_pending_partial() {
+	[ -f /tmp/update.me ] && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_firmware_boot_marked_complete() {
+	if command -v fw_printenv >/dev/null 2>&1; then
+		value=$(fw_printenv -n sysupgrade_complete 2>/dev/null | tr -d '\n')
+		case "$value" in
+			1 | true | TRUE | yes | on) printf 'true' ;;
+			0 | false | FALSE | no | off) printf 'false' ;;
+			'') printf 'null' ;;
+			*) printf 'null' ;;
+		esac
+	else
+		printf 'null'
+	fi
+}
+
+thingino_agent_raptor_firmware_pending_action() {
+	if [ "$(thingino_agent_raptor_firmware_pending_full)" = true ]; then
+		printf 'full'
+	elif [ "$(thingino_agent_raptor_firmware_pending_partial)" = true ]; then
+		printf 'partial'
+	else
+		printf 'none'
+	fi
+}
+
+thingino_agent_raptor_print_firmware_capabilities() {
+	printf '{"upgrade":%s}' "$(thingino_agent_json_bool "$(thingino_agent_raptor_firmware_upgrade_supported)")"
+}
+
+thingino_agent_raptor_print_runtime_firmware() {
+	printf '{'
+	printf '"upgrade_supported":%s,' "$(thingino_agent_json_bool "$(thingino_agent_raptor_firmware_upgrade_supported)")"
+	printf '"pending_full":%s,' "$(thingino_agent_json_bool "$(thingino_agent_raptor_firmware_pending_full)")"
+	printf '"pending_partial":%s,' "$(thingino_agent_json_bool "$(thingino_agent_raptor_firmware_pending_partial)")"
+	printf '"pending_action":%s,' "$(thingino_agent_json_string "$(thingino_agent_raptor_firmware_pending_action)")"
+	printf '"boot_marked_complete":%s,' "$(thingino_agent_raptor_firmware_boot_marked_complete)"
+	printf '"current_version":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_firmware_version)")"
+	printf '}'
+}
+
+thingino_agent_raptor_bool01_to_json() {
+	case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
+		1 | true | yes | on) printf 'true' ;;
+		0 | false | no | off) printf 'false' ;;
+		*)
+			if [ -n "$2" ]; then
+				printf '%s' "$2"
+			else
+				printf 'false'
+			fi
+			;;
+	esac
+}
+
+thingino_agent_raptor_json_bool_to_01() {
+	case "$1" in
+		true) printf '1' ;;
+		false) printf '0' ;;
+		*)
+			echo "boolean value required" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_isp_json() {
+	# Cache one get-isp call per adapter invocation when possible via a temp file
+	# keyed by PID; callers that need multiple fields reuse it.
+	_isp_cache="/tmp/thingino-agent-raptor-isp.$$"
+	if [ ! -s "$_isp_cache" ]; then
+		command -v raptorctl >/dev/null 2>&1 || return 0
+		raptorctl rvd get-isp >"$_isp_cache" 2>/dev/null || {
+			rm -f "$_isp_cache"
+			return 0
+		}
+	fi
+	cat "$_isp_cache" 2>/dev/null
+}
+
+thingino_agent_raptor_image_raw() {
+	key=$1
+	isp=$(thingino_agent_raptor_isp_json)
+	if [ -n "$isp" ]; then
+		value=$(thingino_agent_raptor_json_number_field "$key" "$isp")
+		if [ -n "$value" ]; then
+			printf '%s' "$value"
+			return 0
+		fi
+		# Some ISP dumps use nested objects; fall through to config.
+	fi
+	thingino_agent_raptor_config_get image "$key"
+}
+
+thingino_agent_raptor_image_bool() {
+	thingino_agent_raptor_bool01_to_json "$(thingino_agent_raptor_image_raw "$1")" false
+}
+
+thingino_agent_raptor_motion_enabled() {
+	thingino_agent_raptor_config_bool motion enabled false
+}
+
+thingino_agent_raptor_motion_active() {
+	status=$(thingino_agent_raptor_daemon_status rmd)
+	state=$(thingino_agent_raptor_json_string_field state "$status")
+	case "$state" in
+		active | triggered | detecting)
+			printf 'true'
+			return 0
+			;;
+	esac
+	if thingino_agent_raptor_json_bool_field active "$status" >/dev/null 2>&1; then
+		thingino_agent_raptor_json_bool_field active "$status"
+		return 0
+	fi
+	if thingino_agent_raptor_json_bool_field motion "$status" >/dev/null 2>&1; then
+		thingino_agent_raptor_json_bool_field motion "$status"
+		return 0
+	fi
+	printf 'false'
+}
+
+thingino_agent_raptor_daynight_mode_config() {
+	mode=$(thingino_agent_raptor_config_get ircut mode | tr 'A-Z' 'a-z')
+	[ -n "$mode" ] || mode=auto
+	printf '%s' "$mode"
+}
+
+thingino_agent_raptor_daynight_enabled() {
+	case "$(thingino_agent_raptor_daynight_mode_config)" in
+		auto) printf 'true' ;;
+		*) printf 'false' ;;
+	esac
+}
+
+thingino_agent_raptor_daynight_force_mode() {
+	case "$(thingino_agent_raptor_daynight_mode_config)" in
+		day | night)
+			thingino_agent_json_string "$(thingino_agent_raptor_daynight_mode_config)"
+			;;
+		*)
+			printf 'null'
+			;;
+	esac
+}
+
+thingino_agent_raptor_daynight_running_mode() {
+	status=$(thingino_agent_raptor_daemon_status ric)
+	mode=$(thingino_agent_raptor_json_string_field state "$status")
+	case "$mode" in
+		day | night)
+			printf '%s' "$mode"
+			return 0
+			;;
+	esac
+	mode=$(thingino_agent_raptor_json_string_field mode "$status")
+	case "$mode" in
+		day | night)
+			printf '%s' "$mode"
+			return 0
+			;;
+	esac
+	if [ -r /tmp/ircutmode.txt ]; then
+		value=$(sed -n '1p' /tmp/ircutmode.txt 2>/dev/null | tr -d '\r\n ')
+		case "$value" in
+			0)
+				printf 'night'
+				return 0
+				;;
+			1)
+				printf 'day'
+				return 0
+				;;
+		esac
+	fi
+	printf 'unknown'
+}
+
+thingino_agent_raptor_daynight_target_mode() {
+	case "$(thingino_agent_raptor_daynight_mode_config)" in
+		auto) printf 'auto' ;;
+		day) printf 'day' ;;
+		night) printf 'night' ;;
+		*) printf 'auto' ;;
+	esac
+}
+
+thingino_agent_raptor_privacy_parse_enabled() {
+	# RVD privacy responses look like: {"status":"ok","privacy":["on","off"],...}
+	# There is no privacy field on `rod status` / `rvd status`.
+	json=$1
+	privacy_list=$(printf '%s\n' "$json" |
+		sed -n 's/.*"privacy"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' |
+		head -n 1)
+	if [ -n "$privacy_list" ]; then
+		case "$privacy_list" in
+			*\"on\"*)
+				printf 'true'
+				return 0
+				;;
+			*)
+				printf 'false'
+				return 0
+				;;
+		esac
+	fi
+	if thingino_agent_raptor_json_bool_field audio_muted "$json" >/dev/null 2>&1; then
+		thingino_agent_raptor_json_bool_field audio_muted "$json"
+		return 0
+	fi
+	return 1
+}
+
+thingino_agent_raptor_privacy_write_state() {
+	enabled=$1
+	mkdir -p "$(dirname "$THINGINO_AGENT_RAPTOR_PRIVACY_STATE")" 2>/dev/null || true
+	printf '%s\n' "$enabled" >"$THINGINO_AGENT_RAPTOR_PRIVACY_STATE" 2>/dev/null || true
+}
+
+thingino_agent_raptor_privacy_enabled() {
+	if [ -r "$THINGINO_AGENT_RAPTOR_PRIVACY_STATE" ]; then
+		value=$(sed -n '1p' "$THINGINO_AGENT_RAPTOR_PRIVACY_STATE" 2>/dev/null | tr -d '\r\n')
+		case "$value" in
+			true | false)
+				printf '%s' "$value"
+				return 0
+				;;
+		esac
+	fi
+
+	# Optional live hint: ROD may expose a "privacy" OSD element whose visibility
+	# tracks the last privacy toggle (raptorctl show/hide-element).
+	elements=$(thingino_agent_raptor_ctl rod elements 2>/dev/null || true)
+	if [ -n "$elements" ]; then
+		printf '%s\n' "$elements" | grep -q '"name"[[:space:]]*:[[:space:]]*"privacy"' || {
+			printf 'false'
+			return 0
+		}
+		# Prefer a privacy object that includes visible:true
+		if printf '%s\n' "$elements" | grep -q '"name"[[:space:]]*:[[:space:]]*"privacy"[^}]*"visible"[[:space:]]*:[[:space:]]*true\|"visible"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"privacy"'; then
+			printf 'true'
+			return 0
+		fi
+		if printf '%s\n' "$elements" | grep '"name"[[:space:]]*:[[:space:]]*"privacy"' | grep -q '"visible"[[:space:]]*:[[:space:]]*false'; then
+			printf 'false'
+			return 0
+		fi
+	fi
+
+	printf 'false'
+}
+
+thingino_agent_raptor_stream_section() {
+	printf 'stream%s' "$1"
+}
+
+thingino_agent_raptor_stream_enabled() {
+	stream_id=$1
+	if [ "$stream_id" = 0 ]; then
+		printf 'true'
+		return 0
+	fi
+	thingino_agent_raptor_config_bool "$(thingino_agent_raptor_stream_section "$stream_id")" enabled true
+}
+
+thingino_agent_raptor_stream_audio_enabled() {
+	thingino_agent_raptor_config_bool audio enabled true
+}
+
+thingino_agent_raptor_stream_field() {
+	stream_id=$1
+	field=$2
+	thingino_agent_raptor_config_get "$(thingino_agent_raptor_stream_section "$stream_id")" "$field"
+}
+
+thingino_agent_raptor_stream_format() {
+	codec=$(thingino_agent_raptor_stream_field "$1" codec | tr 'a-z' 'A-Z')
+	case "$codec" in
+		H264 | H265) printf '%s' "$codec" ;;
+		*) printf '%s' "$codec" ;;
+	esac
+}
+
+thingino_agent_raptor_stream_mode() {
+	mode=$(thingino_agent_raptor_stream_field "$1" rc_mode | tr 'a-z' 'A-Z')
+	case "$mode" in
+		CBR | VBR | FIXQP | CAPPED_VBR | CAPPED_QUALITY | SMART) printf '%s' "$mode" ;;
+		CAPPED) printf 'CAPPED_VBR' ;;
+		*) printf '%s' "$mode" ;;
+	esac
+}
+
+thingino_agent_raptor_rtsp_port() {
+	port=$(thingino_agent_raptor_config_get rtsp port)
+	if [ -n "$port" ]; then
+		printf '%s' "$port"
+		return 0
+	fi
+	case "$(thingino_agent_raptor_config_bool rtsp tls false)" in
+		true) printf '322' ;;
+		*) printf '554' ;;
+	esac
+}
+
+thingino_agent_raptor_rtsp_scheme() {
+	case "$(thingino_agent_raptor_config_bool rtsp tls false)" in
+		true) printf 'rtsps' ;;
+		*) printf 'rtsp' ;;
+	esac
+}
+
+thingino_agent_raptor_rtsp_endpoint() {
+	stream_id=$1
+	case "$stream_id" in
+		0)
+			key=endpoint_main
+			def=ch0
+			;;
+		1)
+			key=endpoint_sub
+			def=ch1
+			;;
+		*)
+			printf ''
+			return 0
+			;;
+	esac
+	ep=$(thingino_agent_raptor_config_get rtsp "$key")
+	[ -n "$ep" ] || ep=$def
+	printf '%s' "${ep#/}"
+}
+
+thingino_agent_raptor_stream_rtsp_url() {
+	stream_id=$1
+	ip_addr=$(thingino_agent_raptor_network_ip)
+	[ -n "$ip_addr" ] || return 0
+	endpoint=$(thingino_agent_raptor_rtsp_endpoint "$stream_id")
+	[ -n "$endpoint" ] || return 0
+	printf '%s://%s:%s/%s' \
+		"$(thingino_agent_raptor_rtsp_scheme)" \
+		"$ip_addr" \
+		"$(thingino_agent_raptor_rtsp_port)" \
+		"$endpoint"
+}
+
+thingino_agent_raptor_rtsp_listening() {
+	port=$(thingino_agent_raptor_rtsp_port)
+	if command -v netstat >/dev/null 2>&1; then
+		netstat -lnt 2>/dev/null | grep -q ":${port} " && printf 'true' && return 0
+	fi
+	if command -v ss >/dev/null 2>&1; then
+		ss -lnt 2>/dev/null | grep -q ":${port} " && printf 'true' && return 0
+	fi
+	pidof rsd >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_recording_active() {
+	status=$(thingino_agent_raptor_daemon_status rmr)
+	if thingino_agent_raptor_json_bool_field recording "$status" >/dev/null 2>&1; then
+		thingino_agent_raptor_json_bool_field recording "$status"
+		return 0
+	fi
+	printf 'false'
+}
+
+thingino_agent_raptor_record_channel() {
+	value=$(thingino_agent_raptor_config_get recording stream)
+	case "$value" in
+		'' | *[!0-9]*) printf '0' ;;
+		*) printf '%s' "$value" ;;
+	esac
+}
+
+thingino_agent_raptor_stream_recording_active() {
+	stream_id=$1
+	if [ "$(thingino_agent_raptor_recording_active)" != true ]; then
+		printf 'false'
+		return 0
+	fi
+	[ "$(thingino_agent_raptor_record_channel)" = "$stream_id" ] && printf 'true' || printf 'false'
+}
+
+thingino_agent_raptor_stream_healthy() {
+	stream_id=$1
+	if [ "$(thingino_agent_raptor_streamer_running)" != true ]; then
+		printf 'false'
+		return 0
+	fi
+	if [ "$(thingino_agent_raptor_stream_enabled "$stream_id")" != true ]; then
+		printf 'false'
+		return 0
+	fi
+	printf 'true'
+}
+
+thingino_agent_raptor_storage_path() {
+	path=$(thingino_agent_raptor_config_get recording storage_path)
+	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
+	printf '%s' "$path"
+}
+
+thingino_agent_raptor_storage_mount() {
+	path=$(thingino_agent_raptor_storage_path)
+	case "$path" in
+		/mnt/*)
+			printf '%s' "$path" | awk -F/ '{print "/" $2 "/" $3}'
+			;;
+		*)
+			printf '%s' "$path"
+			;;
+	esac
+}
+
+thingino_agent_raptor_storage_is_mounted() {
+	mount_point=$(thingino_agent_raptor_storage_mount)
+	[ -n "$mount_point" ] || {
+		printf 'false'
+		return 0
+	}
+	if mount 2>/dev/null | grep -q " on ${mount_point} "; then
+		printf 'true'
+	elif [ -d "$mount_point" ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+thingino_agent_raptor_print_runtime_storage() {
+	mount_point=$(thingino_agent_raptor_storage_mount)
+	record_root=$(thingino_agent_raptor_storage_path)
+	mounted=$(thingino_agent_raptor_storage_is_mounted)
+	writable=false
+	[ "$mounted" = true ] && [ -w "$mount_point" ] && writable=true
+	total_kib=null
+	used_kib=null
+	available_kib=null
+	filesystem=
+	if [ "$mounted" = true ] && [ -n "$mount_point" ]; then
+		df_line=$(df -k "$mount_point" 2>/dev/null | awk 'NR == 2 { print }')
+		if [ -n "$df_line" ]; then
+			filesystem=$(printf '%s' "$df_line" | awk '{ print $1 }')
+			total_kib=$(printf '%s' "$df_line" | awk '{ print $2 }')
+			used_kib=$(printf '%s' "$df_line" | awk '{ print $3 }')
+			available_kib=$(printf '%s' "$df_line" | awk '{ print $4 }')
+		fi
+	fi
+	printf '{'
+	printf '"configured_mount":%s,' "$(thingino_agent_json_string_or_null "$mount_point")"
+	printf '"mounted":%s,' "$(thingino_agent_json_bool "$mounted")"
+	printf '"filesystem":%s,' "$(thingino_agent_json_string_or_null "$filesystem")"
+	printf '"record_root":%s,' "$(thingino_agent_json_string_or_null "$record_root")"
+	printf '"writable":%s,' "$(thingino_agent_json_bool "$writable")"
+	printf '"total_kib":%s,' "$(thingino_agent_json_value_or "$total_kib" null)"
+	printf '"used_kib":%s,' "$(thingino_agent_json_value_or "$used_kib" null)"
+	printf '"available_kib":%s' "$(thingino_agent_json_value_or "$available_kib" null)"
+	printf '}'
+}
+
+thingino_agent_raptor_print_runtime_recording() {
+	supported=$(thingino_agent_json_bool "$(thingino_agent_raptor_has_clip)")
+	configured_autostart=$(thingino_agent_raptor_config_bool recording enabled false)
+	configured_channel=$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording stream)" null)
+	configured_duration=$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording clip_length_sec)" null)
+	configured_mount=$(thingino_agent_raptor_storage_mount)
+	record_root=$(thingino_agent_raptor_storage_path)
+	storage_writable=$(thingino_agent_json_bool "$([ "$(thingino_agent_raptor_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false)")
+	active=$(thingino_agent_raptor_recording_active)
+	current_channel=null
+	[ "$active" = true ] && current_channel=$(thingino_agent_raptor_record_channel)
+	printf '{'
+	printf '"supported":%s,' "$supported"
+	printf '"active":%s,' "$(thingino_agent_json_bool "$active")"
+	printf '"configured_autostart":%s,' "$configured_autostart"
+	printf '"configured_channel":%s,' "$configured_channel"
+	printf '"configured_duration_seconds":%s,' "$configured_duration"
+	printf '"configured_mount":%s,' "$(thingino_agent_json_string_or_null "$configured_mount")"
+	printf '"record_root":%s,' "$(thingino_agent_json_string_or_null "$record_root")"
+	printf '"writable":%s,' "$storage_writable"
+	printf '"current_channel":%s,' "$current_channel"
+	printf '"current_duration_seconds":null,'
+	printf '"current_path":null,'
+	printf '"current_mount":%s,' "$(thingino_agent_json_string_or_null "$configured_mount")"
+	printf '"current_directory":null,'
+	printf '"current_name_template":null,'
+	printf '"loop":null'
+	printf '}'
+}
+
+thingino_agent_raptor_print_stream_config() {
+	stream_id=$1
+	printf '{'
+	printf '"id":%s,' "$stream_id"
+	printf '"enabled":%s,' "$(thingino_agent_raptor_stream_enabled "$stream_id")"
+	printf '"audio_enabled":%s,' "$(thingino_agent_raptor_stream_audio_enabled)"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
+	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
+	printf '}'
+}
+
+thingino_agent_raptor_print_stream_runtime() {
+	stream_id=$1
+	enabled=$(thingino_agent_raptor_stream_enabled "$stream_id")
+	rtsp_listener_up=$(thingino_agent_raptor_rtsp_listening)
+	healthy=$(thingino_agent_raptor_stream_healthy "$stream_id")
+	printf '{'
+	printf '"id":%s,' "$stream_id"
+	printf '"enabled":%s,' "$enabled"
+	printf '"video_enabled":%s,' "$enabled"
+	printf '"audio_enabled":%s,' "$(thingino_agent_raptor_stream_audio_enabled)"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
+	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
+	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
+	printf '"rtsp_name":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
+	printf '"rtsp_url":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_rtsp_url "$stream_id")")"
+	printf '"rtsp_listener_up":%s,' "$(thingino_agent_json_bool "$rtsp_listener_up")"
+	printf '"recording_active":%s,' "$(thingino_agent_json_bool "$(thingino_agent_raptor_stream_recording_active "$stream_id")")"
+	printf '"healthy":%s' "$(thingino_agent_json_bool "$healthy")"
+	printf '}'
+}
+
+thingino_agent_raptor_print_runtime_system() {
+	printf '{'
+	printf '"uptime_seconds":%s,' "$(thingino_agent_uptime_seconds)"
+	printf '"hostname":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
+	printf '"streamer_running":%s,' "$(thingino_agent_raptor_streamer_running)"
+	printf '"load_average_1m":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 1)" null)"
+	printf '"load_average_5m":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 2)" null)"
+	printf '"load_average_15m":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 3)" null)"
+	printf '"memory_total_kib":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemTotal)" null)"
+	printf '"memory_free_kib":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemFree)" null)"
+	printf '"memory_available_kib":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)"
+	printf '"memory_used_kib":%s' "$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)"
+	printf '}'
+}
+
+thingino_agent_raptor_print_runtime_network() {
+	ip_addr=$(thingino_agent_raptor_network_ip)
+	printf '{'
+	printf '"ip":%s,' "$(thingino_agent_json_string_or_null "$ip_addr")"
+	printf '"online":%s' "$(thingino_agent_json_bool "$([ -n "$ip_addr" ] && printf true || printf false)")"
+	printf '}'
+}
+
+thingino_agent_raptor_print_runtime_streaming_service() {
+	running=$(thingino_agent_raptor_streamer_running)
+	controllable=$(thingino_agent_raptor_streaming_controllable)
+	printf '{'
+	printf '"name":"streaming",'
+	printf '"running":%s,' "$running"
+	printf '"healthy":%s,' "$running"
+	printf '"controllable":%s' "$controllable"
+	printf '}'
+}
+
+thingino_agent_raptor_event_append_path() {
+	existing=$1
+	path=$2
+	if [ -n "$existing" ]; then
+		printf '%s,%s' "$existing" "$(thingino_agent_json_string "$path")"
+	else
+		thingino_agent_json_string "$path"
+	fi
+}
+
+thingino_agent_raptor_heartbeat_hw_state() {
+	cmd=${1%% *}
+	command -v "$cmd" >/dev/null 2>&1 || {
+		printf 'null'
+		return 0
+	}
+	value=$(eval "$1 read" 2>/dev/null)
+	case "$value" in
+		'' | *[!0-9]*) printf 'null' ;;
+		*) printf '%s' "$value" ;;
+	esac
+}
+
+thingino_agent_raptor_heartbeat_wg_status() {
+	if ip link show wg0 2>/dev/null | grep -q 'state UP'; then
+		printf '1'
+	else
+		printf '0'
+	fi
+}
+
+thingino_agent_raptor_command_bool() {
+	command_name=$1
+	default_value=$2
+	if ! command -v "$command_name" >/dev/null 2>&1; then
+		printf '%s' "$default_value"
+		return 0
+	fi
+	value=$("$command_name" status 2>/dev/null | tr -d '\r\n')
+	case "$value" in
+		true | false) printf '%s' "$value" ;;
+		*) printf '%s' "$default_value" ;;
+	esac
+}
+
+thingino_agent_adapter_raptor_get_health() {
+	status=$(thingino_agent_raptor_health_status)
+	printf '{'
+	printf '"status":%s,' "$(thingino_agent_json_string "$status")"
+	printf '"healthy":%s,' "$(thingino_agent_json_bool "$([ "$status" = ok ] && printf true || printf false)")"
+	printf '"backend":{"name":"raptor","available":true},'
+	printf '"checks":{'
+	printf '"system":%s,' "$(thingino_agent_raptor_print_runtime_system)"
+	printf '"network":%s,' "$(thingino_agent_raptor_print_runtime_network)"
+	printf '"streaming":%s' "$(thingino_agent_raptor_print_runtime_streaming_service)"
+	printf '}'
+	printf '}\n'
+}
+
+thingino_agent_adapter_raptor_get_events() {
+	retry_ms=3000
+	printf 'retry: %s\n\n' "$retry_ms" || exit 0
+	thingino_agent_sse_emit hello "$(thingino_agent_sse_payload hello '"backend":"raptor","stream":"agent"')" || exit 0
+
+	last_motion_active=$(thingino_agent_raptor_motion_active)
+	last_streamer_running=$(thingino_agent_raptor_streamer_running)
+	last_health_status=$(thingino_agent_raptor_health_status)
+	last_firmware_action=$(thingino_agent_raptor_firmware_pending_action)
+	last_stream0_recording=$(thingino_agent_raptor_stream_recording_active 0)
+	last_stream1_recording=$(thingino_agent_raptor_stream_recording_active 1)
+	last_stream0_healthy=$(thingino_agent_raptor_stream_healthy 0)
+	last_stream1_healthy=$(thingino_agent_raptor_stream_healthy 1)
+	last_recording_active=$(thingino_agent_raptor_recording_active)
+	keepalive_counter=0
+
+	while true; do
+		sleep 2 || exit 0
+		keepalive_counter=$((keepalive_counter + 1))
+		changed_paths=
+
+		current_motion_active=$(thingino_agent_raptor_motion_active)
+		if [ "$current_motion_active" != "$last_motion_active" ]; then
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" motion.active)
+			if [ "$current_motion_active" = true ]; then
+				thingino_agent_sse_emit motion.started "$(thingino_agent_sse_payload motion.started '"active":true')" || exit 0
+			else
+				thingino_agent_sse_emit motion.stopped "$(thingino_agent_sse_payload motion.stopped '"active":false')" || exit 0
+			fi
+		fi
+
+		current_streamer_running=$(thingino_agent_raptor_streamer_running)
+		if [ "$current_streamer_running" != "$last_streamer_running" ]; then
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" system.streamer_running)
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" services.streaming.running)
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" services.streaming.healthy)
+			if [ "$last_streamer_running" != true ] && [ "$current_streamer_running" = true ]; then
+				thingino_agent_sse_emit streamer.restarted "$(thingino_agent_sse_payload streamer.restarted '"service":"streaming"')" || exit 0
+			fi
+		fi
+
+		current_stream0_recording=$(thingino_agent_raptor_stream_recording_active 0)
+		[ "$current_stream0_recording" != "$last_stream0_recording" ] &&
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" streams.0.recording_active)
+		current_stream1_recording=$(thingino_agent_raptor_stream_recording_active 1)
+		[ "$current_stream1_recording" != "$last_stream1_recording" ] &&
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" streams.1.recording_active)
+
+		current_stream0_healthy=$(thingino_agent_raptor_stream_healthy 0)
+		[ "$current_stream0_healthy" != "$last_stream0_healthy" ] &&
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" streams.0.healthy)
+		current_stream1_healthy=$(thingino_agent_raptor_stream_healthy 1)
+		[ "$current_stream1_healthy" != "$last_stream1_healthy" ] &&
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" streams.1.healthy)
+
+		current_recording_active=$(thingino_agent_raptor_recording_active)
+		if [ "$current_recording_active" != "$last_recording_active" ]; then
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" recording.active)
+			if [ "$last_recording_active" = true ] && [ "$current_recording_active" != true ]; then
+				record_fields=$(printf '"stream_id":%s,"path":null,"duration_seconds":null' \
+					"$(thingino_agent_json_value_or "$(thingino_agent_raptor_record_channel)" null)")
+				thingino_agent_sse_emit record.completed "$(thingino_agent_sse_payload record.completed "$record_fields")" || exit 0
+			fi
+		fi
+
+		current_firmware_action=$(thingino_agent_raptor_firmware_pending_action)
+		if [ "$current_firmware_action" != "$last_firmware_action" ]; then
+			changed_paths=$(thingino_agent_raptor_event_append_path "$changed_paths" firmware.pending_action)
+			case "$current_firmware_action" in
+				none) firmware_phase=idle ;;
+				*) firmware_phase=pending ;;
+			esac
+			firmware_fields=$(printf '"action":%s,"phase":%s' \
+				"$(thingino_agent_json_string "$current_firmware_action")" \
+				"$(thingino_agent_json_string "$firmware_phase")")
+			thingino_agent_sse_emit firmware.progress "$(thingino_agent_sse_payload firmware.progress "$firmware_fields")" || exit 0
+		fi
+
+		current_health_status=$(thingino_agent_raptor_health_status)
+		if [ "$current_health_status" != "$last_health_status" ] && [ "$current_health_status" != ok ]; then
+			health_fields=$(printf '"status":%s,"network_online":%s,"streamer_running":%s' \
+				"$(thingino_agent_json_string "$current_health_status")" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_network_online)")" \
+				"$(thingino_agent_json_bool "$current_streamer_running")")
+			thingino_agent_sse_emit health.warning "$(thingino_agent_sse_payload health.warning "$health_fields")" || exit 0
+		fi
+
+		if [ -n "$changed_paths" ]; then
+			thingino_agent_sse_emit state.changed "$(thingino_agent_sse_payload state.changed "\"paths\":[${changed_paths}]")" || exit 0
+			keepalive_counter=0
+		elif [ "$keepalive_counter" -ge 3 ]; then
+			thingino_agent_sse_emit keepalive "$(thingino_agent_sse_payload keepalive '')" || exit 0
+			keepalive_counter=0
+		fi
+
+		last_motion_active=$current_motion_active
+		last_streamer_running=$current_streamer_running
+		last_health_status=$current_health_status
+		last_firmware_action=$current_firmware_action
+		last_stream0_recording=$current_stream0_recording
+		last_stream1_recording=$current_stream1_recording
+		last_stream0_healthy=$current_stream0_healthy
+		last_stream1_healthy=$current_stream1_healthy
+		last_recording_active=$current_recording_active
+	done
+}
+
+thingino_agent_adapter_raptor_get_capabilities() {
+	group=${1:-all}
+	case "$group" in
+		all)
+			printf '{'
+			printf '"backend":{"name":"raptor"},'
+			printf '"image":{"brightness":true,"contrast":true,"saturation":true,"sharpness":true,"anti_flicker":true,"hflip":true,"vflip":true},'
+			printf '"motion":{"enabled":true,"sensitivity":true,"cooldown_time":true},'
+			printf '"daynight":{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]},' \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_daynight)")" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_daynight)")"
+			printf '"privacy":{"enabled":%s},' "$(thingino_agent_json_bool "$(thingino_agent_raptor_has_privacy)")"
+			printf '"storage":{"configured":true,"runtime":true},'
+			printf '"streams":{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true},' \
+				"$(thingino_agent_raptor_stream_count)" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_snapshot)")" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_clip)")"
+			printf '"services":%s,' "$(thingino_agent_raptor_print_service_capabilities)"
+			printf '"send2":%s,' "$(thingino_agent_raptor_print_send2_capabilities)"
+			printf '"ptz":{"enabled":%s},' "$(thingino_agent_json_bool "$(thingino_agent_raptor_has_ptz)")"
+			printf '"firmware":%s' "$(thingino_agent_raptor_print_firmware_capabilities)"
+			printf '}\n'
+			;;
+		image)
+			printf '{"brightness":true,"contrast":true,"saturation":true,"sharpness":true,"anti_flicker":true,"hflip":true,"vflip":true}\n'
+			;;
+		motion)
+			printf '{"enabled":true,"sensitivity":true,"cooldown_time":true}\n'
+			;;
+		daynight)
+			printf '{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]}\n' \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_daynight)")" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_daynight)")"
+			;;
+		privacy)
+			printf '{"enabled":%s}\n' "$(thingino_agent_json_bool "$(thingino_agent_raptor_has_privacy)")"
+			;;
+		storage)
+			printf '{"configured":true,"runtime":true}\n'
+			;;
+		streams)
+			printf '{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true}\n' \
+				"$(thingino_agent_raptor_stream_count)" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_snapshot)")" \
+				"$(thingino_agent_json_bool "$(thingino_agent_raptor_has_clip)")"
+			;;
+		services)
+			thingino_agent_raptor_print_service_capabilities
+			printf '\n'
+			;;
+		send2)
+			thingino_agent_raptor_print_send2_capabilities
+			printf '\n'
+			;;
+		firmware)
+			thingino_agent_raptor_print_firmware_capabilities
+			printf '\n'
+			;;
+		*)
+			echo "unsupported capability resource: $group" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_get_runtime() {
+	resource=${1:-all}
+	case "$resource" in
+		all)
+			printf '{'
+			printf '"system":%s,' "$(thingino_agent_raptor_print_runtime_system)"
+			printf '"network":%s,' "$(thingino_agent_raptor_print_runtime_network)"
+			printf '"motion":{"enabled":%s,"active":%s},' \
+				"$(thingino_agent_raptor_motion_enabled)" "$(thingino_agent_raptor_motion_active)"
+			printf '"daynight":{"enabled":%s,"target_mode":%s,"running_mode":%s},' \
+				"$(thingino_agent_raptor_daynight_enabled)" \
+				"$(thingino_agent_json_string "$(thingino_agent_raptor_daynight_target_mode)")" \
+				"$(thingino_agent_json_string "$(thingino_agent_raptor_daynight_running_mode)")"
+			printf '"privacy":{"enabled":%s},' "$(thingino_agent_raptor_privacy_enabled)"
+			printf '"storage":%s,' "$(thingino_agent_raptor_print_runtime_storage)"
+			printf '"recording":%s,' "$(thingino_agent_raptor_print_runtime_recording)"
+			printf '"firmware":%s,' "$(thingino_agent_raptor_print_runtime_firmware)"
+			printf '"services":{"streaming":%s},' "$(thingino_agent_raptor_print_runtime_streaming_service)"
+			printf '"streams":['
+			thingino_agent_raptor_print_stream_runtime 0
+			printf ','
+			thingino_agent_raptor_print_stream_runtime 1
+			printf ']'
+			printf '}\n'
+			;;
+		system)
+			thingino_agent_raptor_print_runtime_system
+			printf '\n'
+			;;
+		network)
+			thingino_agent_raptor_print_runtime_network
+			printf '\n'
+			;;
+		motion)
+			printf '{"enabled":%s,"active":%s}\n' "$(thingino_agent_raptor_motion_enabled)" "$(thingino_agent_raptor_motion_active)"
+			;;
+		daynight)
+			printf '{"enabled":%s,"target_mode":%s,"running_mode":%s}\n' \
+				"$(thingino_agent_raptor_daynight_enabled)" \
+				"$(thingino_agent_json_string "$(thingino_agent_raptor_daynight_target_mode)")" \
+				"$(thingino_agent_json_string "$(thingino_agent_raptor_daynight_running_mode)")"
+			;;
+		privacy)
+			printf '{"enabled":%s}\n' "$(thingino_agent_raptor_privacy_enabled)"
+			;;
+		storage)
+			thingino_agent_raptor_print_runtime_storage
+			printf '\n'
+			;;
+		recording)
+			thingino_agent_raptor_print_runtime_recording
+			printf '\n'
+			;;
+		firmware)
+			thingino_agent_raptor_print_runtime_firmware
+			printf '\n'
+			;;
+		services/streaming)
+			thingino_agent_raptor_print_runtime_streaming_service
+			printf '\n'
+			;;
+		streams/0)
+			thingino_agent_raptor_print_stream_runtime 0
+			printf '\n'
+			;;
+		streams/1)
+			thingino_agent_raptor_print_stream_runtime 1
+			printf '\n'
+			;;
+		media)
+			has_snapshot=$(thingino_agent_raptor_has_snapshot)
+			stream0_enabled=$(thingino_agent_raptor_stream_enabled 0)
+			stream1_enabled=$(thingino_agent_raptor_stream_enabled 1)
+			printf '{"streams":{"ch0":{"available":%s,"enabled":%s,"snapshot_url":%s},"ch1":{"available":%s,"enabled":%s,"snapshot_url":%s}}}\n' \
+				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$stream0_enabled" \
+				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream0_enabled" = true ] && printf '/x/dl0.jpg')")" \
+				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$stream1_enabled" \
+				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
+			;;
+		heartbeat)
+			ric_status=$(thingino_agent_raptor_daemon_status ric)
+			daynight_mode=$(thingino_agent_raptor_daynight_running_mode)
+			daynight_brightness=$(thingino_agent_raptor_json_number_field ae_luma "$ric_status")
+			total_gain=$(thingino_agent_raptor_json_number_field total_gain "$ric_status")
+			case "$daynight_mode" in
+				day) color_mode=0 ;;
+				night) color_mode=1 ;;
+				*) color_mode=null ;;
+			esac
+			printf '{'
+			printf '"time_now":%s,' "$(date +%s)"
+			printf '"uptime":%s,' "$(thingino_agent_uptime_seconds)"
+			printf '"daynight_brightness":%s,' "$(thingino_agent_json_value_or "$daynight_brightness" null)"
+			printf '"total_gain":%s,' "$(thingino_agent_json_value_or "$total_gain" null)"
+			printf '"daynight_mode":%s,' "$(thingino_agent_json_string "$daynight_mode")"
+			printf '"rec_ch0":%s,' "$(thingino_agent_raptor_stream_recording_active 0)"
+			printf '"rec_ch1":%s,' "$(thingino_agent_raptor_stream_recording_active 1)"
+			printf '"motion_enabled":%s,' "$(thingino_agent_raptor_motion_enabled)"
+			printf '"privacy_enabled":%s,' "$(thingino_agent_raptor_privacy_enabled)"
+			printf '"color_mode":%s,' "$color_mode"
+			printf '"mic_enabled":%s,' "$(thingino_agent_raptor_command_bool microphone "$(thingino_agent_raptor_config_bool audio enabled true)")"
+			printf '"spk_enabled":%s,' "$(thingino_agent_raptor_command_bool speaker "$(thingino_agent_raptor_config_bool audio ao_enabled false)")"
+			printf '"daynight_enabled":%s,' "$(thingino_agent_raptor_daynight_enabled)"
+			printf '"ircut_state":%s,' "$(thingino_agent_raptor_heartbeat_hw_state ircut)"
+			printf '"ir850_state":%s,' "$(thingino_agent_raptor_heartbeat_hw_state "light ir850")"
+			printf '"ir940_state":%s,' "$(thingino_agent_raptor_heartbeat_hw_state "light ir940")"
+			printf '"white_state":%s,' "$(thingino_agent_raptor_heartbeat_hw_state "light white")"
+			printf '"wg_status":%s' "$(thingino_agent_raptor_heartbeat_wg_status)"
+			printf '}\n'
+			;;
+		*)
+			echo "unsupported runtime resource: $resource" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_get_config() {
+	printf '{'
+	printf '"image":{'
+	printf '"brightness":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw brightness)" null)"
+	printf '"contrast":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw contrast)" null)"
+	printf '"saturation":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw saturation)" null)"
+	printf '"sharpness":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw sharpness)" null)"
+	printf '"anti_flicker":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get sensor antiflicker)" null)"
+	printf '"hflip":%s,' "$(thingino_agent_raptor_image_bool hflip)"
+	printf '"vflip":%s' "$(thingino_agent_raptor_image_bool vflip)"
+	printf '},'
+	printf '"motion":{"enabled":%s},' "$(thingino_agent_raptor_motion_enabled)"
+	printf '"daynight":{"enabled":%s,"force_mode":%s},' \
+		"$(thingino_agent_raptor_daynight_enabled)" "$(thingino_agent_raptor_daynight_force_mode)"
+	printf '"privacy":{"enabled":%s,"channel":"all"},' "$(thingino_agent_raptor_privacy_enabled)"
+	printf '"storage":{'
+	printf '"autostart":%s,' "$(thingino_agent_raptor_config_bool recording enabled false)"
+	printf '"channel":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording stream)" null)"
+	printf '"device_path":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_storage_path)")"
+	printf '"duration":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording clip_length_sec)" null)"
+	printf '"filename":null,'
+	printf '"mount":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_storage_mount)")"
+	printf '},'
+	printf '"streams":['
+	thingino_agent_raptor_print_stream_config 0
+	printf ','
+	thingino_agent_raptor_print_stream_config 1
+	printf '],'
+	printf '"backend":{"name":"raptor","raw":{'
+	printf '"config_path":%s' "$(thingino_agent_json_string "$THINGINO_AGENT_RAPTOR_CONFIG")"
+	printf '}}'
+	printf '}\n'
+}
+
+thingino_agent_raptor_setting_value() {
+	body_file=$1
+	field=$2
+	value=$(thingino_agent_json_config_value "$body_file" "$field")
+	[ -n "$value" ] || {
+		echo "missing field '$field'" >&2
+		return 1
+	}
+	printf '%s' "$value"
+}
+
+thingino_agent_raptor_validate_bool() {
+	case "$1" in
+		true | false) return 0 ;;
+		*)
+			echo "boolean value required" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_validate_int() {
+	case "$1" in
+		'' | *[!0-9-]*)
+			echo "integer value required" >&2
+			return 1
+			;;
+		*) return 0 ;;
+	esac
+}
+
+thingino_agent_raptor_unquote_string() {
+	printf '%s' "$1" | tr -d '"'
+}
+
+thingino_agent_raptor_validate_stream_format() {
+	value=$(thingino_agent_raptor_unquote_string "$1" | tr 'a-z' 'A-Z')
+	case "$value" in
+		H264 | H265)
+			printf '%s' "$value"
+			return 0
+			;;
+		*)
+			echo "stream format must be H264 or H265" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_validate_stream_mode() {
+	value=$(thingino_agent_raptor_unquote_string "$1" | tr 'a-z' 'A-Z')
+	case "$value" in
+		CBR | VBR | SMART | FIXQP | CAPPED_VBR | CAPPED_QUALITY)
+			printf '%s' "$value"
+			return 0
+			;;
+		*)
+			echo "stream mode must be CBR, VBR, SMART, FIXQP, CAPPED_VBR, or CAPPED_QUALITY" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_mode_to_rc() {
+	printf '%s' "$1" | tr 'A-Z' 'a-z'
+}
+
+thingino_agent_raptor_format_to_codec() {
+	printf '%s' "$1" | tr 'A-Z' 'a-z'
+}
+
+thingino_agent_raptor_send2_motion_key() {
+	printf 'motion.send2%s' "$1"
+}
+
+thingino_agent_raptor_send2_motion_enabled() {
+	service=$1
+	key=$(thingino_agent_raptor_send2_motion_key "$service")
+	thingino_agent_json_value_or "$(thingino_agent_json_config_value "$THINGINO_CONFIG_FILE" "$key")" false
+}
+
+thingino_agent_raptor_send2_motion_set() {
+	service=$1
+	value=$2
+	key=$(thingino_agent_raptor_send2_motion_key "$service")
+	command -v jct >/dev/null 2>&1 || {
+		echo "jct is not available" >&2
+		return 1
+	}
+	[ -f "$THINGINO_CONFIG_FILE" ] || {
+		echo "missing $THINGINO_CONFIG_FILE" >&2
+		return 1
+	}
+	jct "$THINGINO_CONFIG_FILE" set "$key" "$value" >/dev/null 2>&1 || {
+		echo "failed to persist motion send2 flag" >&2
+		return 1
+	}
+}
+
+# Map canonical OSD leaf paths onto raptor's global [osd] / [osd.<element>] model.
+# Raptor OSD is mostly global; streamN only owns osd_enabled. Stream-scoped agent
+# paths still work — both streams read/write the same global element config.
+thingino_agent_raptor_osd_element_name() {
+	case "$1" in
+		time) printf 'timestamp' ;;
+		uptime) printf 'uptime' ;;
+		usertext) printf 'camera' ;;
+		logo) printf 'logo' ;;
+		privacy) printf 'privacy' ;;
+		*) return 1 ;;
+	esac
+}
+
+thingino_agent_raptor_osd_spec() {
+	# relative|config_section|config_key|response_key|value_type|runtime_hint
+	case "$1" in
+		enabled) printf 'stream|osd_enabled|enabled|bool|stream\n' ;;
+		font-path) printf 'osd|font|font_path|text|global\n' ;;
+		font-size) printf 'osd|font_size|font_size|int|font_size\n' ;;
+		stroke-size) printf 'osd|font_stroke|stroke_size|int|stroke_size\n' ;;
+		time/enabled) printf 'osd.timestamp|visible|enabled|bool|element:timestamp\n' ;;
+		time/format) printf 'osd|time_format|format|text|time_format\n' ;;
+		time/position) printf 'osd.timestamp|position|position|text|element:timestamp\n' ;;
+		time/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
+		time/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
+		uptime/enabled) printf 'osd.uptime|visible|enabled|bool|element:uptime\n' ;;
+		uptime/format) printf 'osd.uptime|template|format|text|element:uptime\n' ;;
+		uptime/position) printf 'osd.uptime|position|position|text|element:uptime\n' ;;
+		uptime/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
+		uptime/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
+		usertext/enabled) printf 'osd.camera|visible|enabled|bool|element:camera\n' ;;
+		usertext/format) printf 'osd.camera|template|format|text|element:camera\n' ;;
+		usertext/position) printf 'osd.camera|position|position|text|element:camera\n' ;;
+		usertext/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
+		usertext/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
+		logo/enabled) printf 'osd.logo|visible|enabled|bool|element:logo\n' ;;
+		logo/path) printf 'osd.logo|path|path|text|element:logo\n' ;;
+		logo/position) printf 'osd.logo|position|position|text|element:logo\n' ;;
+		logo/width) printf 'osd.logo|width|width|int|element:logo\n' ;;
+		logo/height) printf 'osd.logo|height|height|int|element:logo\n' ;;
+		*) return 1 ;;
+	esac
+}
+
+thingino_agent_raptor_parse_osd_path() {
+	path=$1
+	stream_id=${path#streams/}
+	stream_id=${stream_id%%/*}
+	relative=${path#streams/$stream_id/osd/}
+	[ -n "$stream_id" ] && [ "$relative" != "$path" ] || return 1
+	case "$stream_id" in
+		0 | 1) ;;
+		*) return 1 ;;
+	esac
+	spec=$(thingino_agent_raptor_osd_spec "$relative") || return 1
+	printf '%s|%s|%s\n' "$stream_id" "$relative" "$spec"
+}
+
+thingino_agent_raptor_osd_color_to_raptor() {
+	value=$(thingino_agent_raptor_unquote_string "$1")
+	case "$value" in
+		0x* | 0X*) printf '%s' "$value" ;;
+		\#????????)
+			# #AARRGGBB -> 0xAARRGGBB
+			printf '0x%s' "$(printf '%s' "$value" | tr -d '#' | tr 'a-f' 'A-F')"
+			;;
+		\#??????)
+			printf '0xFF%s' "$(printf '%s' "$value" | tr -d '#' | tr 'a-f' 'A-F')"
+			;;
+		*) printf '%s' "$value" ;;
+	esac
+}
+
+thingino_agent_raptor_osd_apply_runtime() {
+	hint=$1
+	key=$2
+	value=$3
+	case "$hint" in
+		stream) ;;
+		global) ;;
+		font_size)
+			thingino_agent_raptor_ctl rod set-font-size "$value" >/dev/null 2>&1 || true
+			;;
+		stroke_size)
+			thingino_agent_raptor_ctl rod set-stroke-size "$value" >/dev/null 2>&1 || true
+			;;
+		font_color)
+			thingino_agent_raptor_ctl rod set-font-color "$value" >/dev/null 2>&1 || true
+			;;
+		stroke_color)
+			thingino_agent_raptor_ctl rod set-stroke-color "$value" >/dev/null 2>&1 || true
+			;;
+		time_format)
+			thingino_agent_raptor_ctl rod set-time-format "$value" >/dev/null 2>&1 || true
+			;;
+		element:*)
+			elem=${hint#element:}
+			case "$key" in
+				visible)
+					case "$value" in
+						true | 1 | on) thingino_agent_raptor_ctl rod show-element "$elem" >/dev/null 2>&1 || true ;;
+						*) thingino_agent_raptor_ctl rod hide-element "$elem" >/dev/null 2>&1 || true ;;
+					esac
+					;;
+				position)
+					thingino_agent_raptor_ctl rod set-position "$elem" "$value" >/dev/null 2>&1 || true
+					;;
+				template | path | width | height)
+					thingino_agent_raptor_ctl rod set-element "$elem" "$key=$value" >/dev/null 2>&1 || true
+					;;
+			esac
+			;;
+	esac
+}
+
+thingino_agent_raptor_print_osd_setting() {
+	path=$1
+	parsed=$(thingino_agent_raptor_parse_osd_path "$path") || {
+		echo "unsupported setting path: $path" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	stream_id=$1
+	section=$3
+	config_key=$4
+	response_key=$5
+	value_type=$6
+
+	if [ "$section" = stream ]; then
+		raw=$(thingino_agent_raptor_config_bool "$(thingino_agent_raptor_stream_section "$stream_id")" osd_enabled true)
+		thingino_agent_print_setting_leaf "$response_key" "$raw"
+		return 0
+	fi
+
+	raw=$(thingino_agent_raptor_config_get "$section" "$config_key")
+	case "$value_type" in
+		bool)
+			thingino_agent_print_setting_leaf "$response_key" "$(thingino_agent_raptor_bool01_to_json "$raw" false)"
+			;;
+		int)
+			thingino_agent_print_setting_leaf "$response_key" "$(thingino_agent_json_value_or "$raw" null)"
+			;;
+		text)
+			printf '{"%s":%s}\n' "$response_key" "$(thingino_agent_json_string_or_null "$raw")"
+			;;
+		*)
+			echo "unsupported OSD value type: $value_type" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_set_osd_setting() {
+	path=$1
+	body_file=$2
+	parsed=$(thingino_agent_raptor_parse_osd_path "$path") || {
+		echo "unsupported setting path: $path" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	stream_id=$1
+	section=$3
+	config_key=$4
+	response_key=$5
+	value_type=$6
+	runtime_hint=$7
+
+	raw_value=$(thingino_agent_raptor_setting_value "$body_file" "$response_key") || return 1
+	case "$value_type" in
+		bool)
+			thingino_agent_raptor_validate_bool "$raw_value" || return 1
+			json_value=$raw_value
+			persist_value=$raw_value
+			;;
+		int)
+			thingino_agent_raptor_validate_int "$raw_value" || return 1
+			json_value=$raw_value
+			persist_value=$raw_value
+			;;
+		text)
+			text_value=$(thingino_agent_raptor_unquote_string "$raw_value")
+			case "$response_key" in
+				fill_color | stroke_color)
+					persist_value=$(thingino_agent_raptor_osd_color_to_raptor "$text_value")
+					;;
+				*)
+					persist_value=$text_value
+					;;
+			esac
+			json_value=$(thingino_agent_json_string "$persist_value")
+			;;
+		*)
+			echo "unsupported OSD value type: $value_type" >&2
+			return 1
+			;;
+	esac
+
+	if [ "$section" = stream ]; then
+		thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" osd_enabled "$persist_value" || return 1
+		thingino_agent_raptor_config_save
+		thingino_agent_print_setting_update "$path" "$response_key" "$json_value"
+		return 0
+	fi
+
+	thingino_agent_raptor_config_set "$section" "$config_key" "$persist_value" || return 1
+	thingino_agent_raptor_config_save
+	thingino_agent_raptor_osd_apply_runtime "$runtime_hint" "$config_key" "$persist_value"
+	thingino_agent_print_setting_update "$path" "$response_key" "$json_value"
+}
+
+thingino_agent_raptor_print_storage_setting() {
+	path=$1
+	case "$path" in
+		storage/autostart)
+			thingino_agent_print_setting_leaf autostart "$(thingino_agent_raptor_config_bool recording enabled false)"
+			;;
+		storage/channel)
+			thingino_agent_print_setting_leaf channel "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording stream)" null)"
+			;;
+		storage/device-path)
+			printf '{"device_path":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_storage_path)")"
+			;;
+		storage/duration)
+			thingino_agent_print_setting_leaf duration "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get recording clip_length_sec)" null)"
+			;;
+		storage/filename)
+			printf '{"filename":null}\n'
+			;;
+		storage/mount)
+			printf '{"mount":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_storage_mount)")"
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_raptor_set_storage_setting() {
+	path=$1
+	body_file=$2
+	case "$path" in
+		storage/autostart)
+			value=$(thingino_agent_raptor_setting_value "$body_file" autostart) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			thingino_agent_raptor_config_set recording enabled "$value" || return 1
+			thingino_agent_raptor_config_save
+			if [ "$value" = true ]; then
+				thingino_agent_raptor_ctl rmr enable >/dev/null 2>&1 || true
+			else
+				thingino_agent_raptor_ctl rmr disable >/dev/null 2>&1 || true
+			fi
+			thingino_agent_print_setting_update "$path" autostart "$value"
+			;;
+		storage/channel)
+			value=$(thingino_agent_raptor_setting_value "$body_file" channel) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_config_set recording stream "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" channel "$value"
+			;;
+		storage/duration)
+			value=$(thingino_agent_raptor_setting_value "$body_file" duration) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_config_set recording clip_length_sec "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" duration "$value"
+			;;
+		storage/device-path)
+			value=$(thingino_agent_raptor_setting_value "$body_file" device_path) || return 1
+			value=$(thingino_agent_raptor_unquote_string "$value")
+			[ -n "$value" ] || {
+				echo "non-empty string required" >&2
+				return 1
+			}
+			thingino_agent_raptor_config_set recording storage_path "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" device_path "$(thingino_agent_json_string "$value")"
+			;;
+		storage/mount)
+			value=$(thingino_agent_raptor_setting_value "$body_file" mount) || return 1
+			value=$(thingino_agent_raptor_unquote_string "$value")
+			[ -n "$value" ] || {
+				echo "non-empty string required" >&2
+				return 1
+			}
+			thingino_agent_raptor_config_set recording storage_path "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" mount "$(thingino_agent_json_string "$value")"
+			;;
+		storage/filename)
+			echo "storage.filename is not supported by the raptor backend" >&2
+			return 1
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_get_setting() {
+	path=$1
+	case "$path" in
+		image/brightness)
+			thingino_agent_print_setting_leaf brightness "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw brightness)" null)"
+			;;
+		image/contrast)
+			thingino_agent_print_setting_leaf contrast "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw contrast)" null)"
+			;;
+		image/saturation)
+			thingino_agent_print_setting_leaf saturation "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw saturation)" null)"
+			;;
+		image/sharpness)
+			thingino_agent_print_setting_leaf sharpness "$(thingino_agent_json_value_or "$(thingino_agent_raptor_image_raw sharpness)" null)"
+			;;
+		image/anti-flicker)
+			thingino_agent_print_setting_leaf anti_flicker "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get sensor antiflicker)" null)"
+			;;
+		image/hflip)
+			thingino_agent_print_setting_leaf hflip "$(thingino_agent_raptor_image_bool hflip)"
+			;;
+		image/vflip)
+			thingino_agent_print_setting_leaf vflip "$(thingino_agent_raptor_image_bool vflip)"
+			;;
+		motion/enabled)
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_raptor_motion_enabled)"
+			;;
+		motion/sensitivity)
+			thingino_agent_print_setting_leaf sensitivity "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get motion sensitivity)" null)"
+			;;
+		motion/cooldown-time)
+			thingino_agent_print_setting_leaf cooldown_time "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get motion cooldown_sec)" null)"
+			;;
+		motion/outputs/send2/*)
+			service=${path#motion/outputs/send2/}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_raptor_send2_motion_enabled "$service")"
+			;;
+		daynight/enabled)
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_raptor_daynight_enabled)"
+			;;
+		daynight/force-mode)
+			printf '{"force_mode":%s}\n' "$(thingino_agent_raptor_daynight_force_mode)"
+			;;
+		privacy/enabled)
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_raptor_privacy_enabled)"
+			;;
+		privacy/channel)
+			thingino_agent_print_setting_leaf channel '"all"'
+			;;
+		storage/*)
+			thingino_agent_raptor_print_storage_setting "$path"
+			;;
+		streams/[01]/enabled)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/enabled}
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_raptor_stream_enabled "$stream_id")"
+			;;
+		streams/[01]/audio-enabled)
+			thingino_agent_print_setting_leaf audio_enabled "$(thingino_agent_raptor_stream_audio_enabled)"
+			;;
+		streams/[01]/width)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/width}
+			thingino_agent_print_setting_leaf width "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" width)" null)"
+			;;
+		streams/[01]/height)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/height}
+			thingino_agent_print_setting_leaf height "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" height)" null)"
+			;;
+		streams/[01]/fps)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/fps}
+			thingino_agent_print_setting_leaf fps "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" fps)" null)"
+			;;
+		streams/[01]/bitrate)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/bitrate}
+			thingino_agent_print_setting_leaf bitrate "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
+			;;
+		streams/[01]/format)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/format}
+			printf '{"format":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
+			;;
+		streams/[01]/mode)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/mode}
+			printf '{"mode":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
+			;;
+		streams/[01]/osd/*)
+			thingino_agent_raptor_print_osd_setting "$path"
+			;;
+		send2/services/*/send-photo)
+			rest=${path#send2/services/}
+			service=${rest%/send-photo}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			thingino_agent_print_setting_leaf send_photo "$(thingino_agent_json_value_or "$(thingino_agent_raptor_send2_raw "$service" send_photo)" true)"
+			;;
+		send2/services/*/send-video)
+			rest=${path#send2/services/}
+			service=${rest%/send-video}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			thingino_agent_raptor_send2_service_has_send_video "$service" || {
+				echo "send_video is not supported for send2 service '$service'" >&2
+				return 1
+			}
+			thingino_agent_print_setting_leaf send_video "$(thingino_agent_json_value_or "$(thingino_agent_raptor_send2_raw "$service" send_video)" false)"
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_set_setting() {
+	path=$1
+	body_file=$2
+	case "$path" in
+		image/brightness)
+			value=$(thingino_agent_raptor_setting_value "$body_file" brightness) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-brightness "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image brightness "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" brightness "$value"
+			;;
+		image/contrast)
+			value=$(thingino_agent_raptor_setting_value "$body_file" contrast) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-contrast "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image contrast "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" contrast "$value"
+			;;
+		image/saturation)
+			value=$(thingino_agent_raptor_setting_value "$body_file" saturation) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-saturation "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image saturation "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" saturation "$value"
+			;;
+		image/sharpness)
+			value=$(thingino_agent_raptor_setting_value "$body_file" sharpness) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-sharpness "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image sharpness "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" sharpness "$value"
+			;;
+		image/anti-flicker)
+			value=$(thingino_agent_raptor_setting_value "$body_file" anti_flicker) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-antiflicker "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set sensor antiflicker "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" anti_flicker "$value"
+			;;
+		image/hflip)
+			value=$(thingino_agent_raptor_setting_value "$body_file" hflip) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			raw=$(thingino_agent_raptor_json_bool_to_01 "$value") || return 1
+			thingino_agent_raptor_ctl rvd set-hflip "$raw" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image hflip "$raw" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" hflip "$value"
+			;;
+		image/vflip)
+			value=$(thingino_agent_raptor_setting_value "$body_file" vflip) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			raw=$(thingino_agent_raptor_json_bool_to_01 "$value") || return 1
+			thingino_agent_raptor_ctl rvd set-vflip "$raw" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set image vflip "$raw" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" vflip "$value"
+			;;
+		motion/enabled)
+			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			thingino_agent_raptor_config_set motion enabled "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" enabled "$value"
+			;;
+		motion/sensitivity)
+			value=$(thingino_agent_raptor_setting_value "$body_file" sensitivity) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rmd sensitivity "$value" >/dev/null 2>&1 || true
+			thingino_agent_raptor_config_set motion sensitivity "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" sensitivity "$value"
+			;;
+		motion/cooldown-time)
+			value=$(thingino_agent_raptor_setting_value "$body_file" cooldown_time) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_config_set motion cooldown_sec "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" cooldown_time "$value"
+			;;
+		motion/outputs/send2/*)
+			service=${path#motion/outputs/send2/}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			thingino_agent_raptor_send2_motion_set "$service" "$value" || return 1
+			thingino_agent_print_setting_update "$path" enabled "$value"
+			;;
+		daynight/enabled)
+			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			if [ "$value" = true ]; then
+				thingino_agent_raptor_ctl ric mode auto >/dev/null 2>&1 || return 1
+				thingino_agent_raptor_config_set ircut mode auto || return 1
+			else
+				mode=$(thingino_agent_raptor_daynight_running_mode)
+				case "$mode" in
+					day | night) ;;
+					*) mode=day ;;
+				esac
+				thingino_agent_raptor_ctl ric mode "$mode" >/dev/null 2>&1 || return 1
+				thingino_agent_raptor_config_set ircut mode "$mode" || return 1
+			fi
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" enabled "$value"
+			;;
+		daynight/force-mode)
+			value=$(thingino_agent_raptor_setting_value "$body_file" force_mode) || return 1
+			value=$(thingino_agent_raptor_unquote_string "$value")
+			case "$value" in
+				day | night) ;;
+				*)
+					echo "force_mode must be day or night" >&2
+					return 1
+					;;
+			esac
+			thingino_agent_raptor_ctl ric mode "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set ircut mode "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" force_mode "$(thingino_agent_json_string "$value")"
+			;;
+		privacy/enabled)
+			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			if [ "$value" = true ]; then
+				state=on
+			else
+				state=off
+			fi
+			thingino_agent_adapter_raptor_privacy "$state" all >/dev/null || return 1
+			thingino_agent_print_setting_update "$path" enabled "$value"
+			;;
+		privacy/channel)
+			value=$(thingino_agent_raptor_setting_value "$body_file" channel) || return 1
+			case "$value" in
+				all) value='"all"' ;;
+				'"all"') ;;
+				*)
+					echo "privacy.channel must be all" >&2
+					return 1
+					;;
+			esac
+			thingino_agent_print_setting_update "$path" channel "$value"
+			;;
+		storage/*)
+			thingino_agent_raptor_set_storage_setting "$path" "$body_file"
+			;;
+		streams/[01]/enabled)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/enabled}
+			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			if [ "$stream_id" = 0 ]; then
+				if [ "$value" = true ]; then
+					thingino_agent_raptor_ctl rvd stream-start 0 >/dev/null 2>&1 || true
+				else
+					thingino_agent_raptor_ctl rvd stream-stop 0 >/dev/null 2>&1 || true
+				fi
+			else
+				thingino_agent_raptor_config_set stream1 enabled "$value" || return 1
+				thingino_agent_raptor_config_save
+				if [ "$value" = true ]; then
+					thingino_agent_raptor_ctl rvd stream-start 1 >/dev/null 2>&1 || true
+				else
+					thingino_agent_raptor_ctl rvd stream-stop 1 >/dev/null 2>&1 || true
+				fi
+			fi
+			thingino_agent_print_setting_update "$path" enabled "$value"
+			;;
+		streams/[01]/audio-enabled)
+			value=$(thingino_agent_raptor_setting_value "$body_file" audio_enabled) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			thingino_agent_raptor_config_set audio enabled "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" audio_enabled "$value"
+			;;
+		streams/[01]/width)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/width}
+			value=$(thingino_agent_raptor_setting_value "$body_file" width) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			height=$(thingino_agent_raptor_stream_field "$stream_id" height)
+			[ -n "$height" ] || height=1080
+			thingino_agent_raptor_ctl rvd set-resolution "$stream_id" "$value" "$height" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" width "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" width "$value"
+			;;
+		streams/[01]/height)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/height}
+			value=$(thingino_agent_raptor_setting_value "$body_file" height) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			width=$(thingino_agent_raptor_stream_field "$stream_id" width)
+			[ -n "$width" ] || width=1920
+			thingino_agent_raptor_ctl rvd set-resolution "$stream_id" "$width" "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" height "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" height "$value"
+			;;
+		streams/[01]/fps)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/fps}
+			value=$(thingino_agent_raptor_setting_value "$body_file" fps) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-fps "$stream_id" "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" fps "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" fps "$value"
+			;;
+		streams/[01]/bitrate)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/bitrate}
+			value=$(thingino_agent_raptor_setting_value "$body_file" bitrate) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-bitrate "$stream_id" "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" bitrate "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" bitrate "$value"
+			;;
+		streams/[01]/format)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/format}
+			value=$(thingino_agent_raptor_setting_value "$body_file" format) || return 1
+			value=$(thingino_agent_raptor_validate_stream_format "$value") || return 1
+			codec=$(thingino_agent_raptor_format_to_codec "$value")
+			thingino_agent_raptor_ctl rvd set-codec "$stream_id" "$codec" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" codec "$codec" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" format "$(thingino_agent_json_string "$value")"
+			;;
+		streams/[01]/mode)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/mode}
+			value=$(thingino_agent_raptor_setting_value "$body_file" mode) || return 1
+			value=$(thingino_agent_raptor_validate_stream_mode "$value") || return 1
+			rc_mode=$(thingino_agent_raptor_mode_to_rc "$value")
+			bitrate=$(thingino_agent_raptor_stream_field "$stream_id" bitrate)
+			[ -n "$bitrate" ] || bitrate=3000000
+			thingino_agent_raptor_ctl rvd set-rc-mode "$stream_id" "$rc_mode" "$bitrate" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" rc_mode "$rc_mode" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" mode "$(thingino_agent_json_string "$value")"
+			;;
+		streams/[01]/osd/*)
+			thingino_agent_raptor_set_osd_setting "$path" "$body_file"
+			;;
+		send2/services/*/send-photo)
+			rest=${path#send2/services/}
+			service=${rest%/send-photo}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			value=$(thingino_agent_raptor_setting_value "$body_file" send_photo) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
+				jct "$THINGINO_AGENT_SEND2_CONFIG" set "$service.send_photo" "$value" >/dev/null 2>&1 || {
+					echo "failed to persist send2 configuration" >&2
+					return 1
+				}
+			fi
+			thingino_agent_print_setting_update "$path" send_photo "$value"
+			;;
+		send2/services/*/send-video)
+			rest=${path#send2/services/}
+			service=${rest%/send-video}
+			thingino_agent_raptor_send2_service_supported "$service" || return 1
+			thingino_agent_raptor_send2_service_has_send_video "$service" || {
+				echo "send_video is not supported for send2 service '$service'" >&2
+				return 1
+			}
+			value=$(thingino_agent_raptor_setting_value "$body_file" send_video) || return 1
+			thingino_agent_raptor_validate_bool "$value" || return 1
+			if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
+				jct "$THINGINO_AGENT_SEND2_CONFIG" set "$service.send_video" "$value" >/dev/null 2>&1 || {
+					echo "failed to persist send2 configuration" >&2
+					return 1
+				}
+			fi
+			thingino_agent_print_setting_update "$path" send_video "$value"
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_apply_config() {
+	source_file=$1
+	[ -n "$source_file" ] || {
+		echo "usage: thingino-agentctl apply-config <json-file>" >&2
+		return 1
+	}
+	[ -s "$source_file" ] || {
+		echo "configuration payload is empty" >&2
+		return 1
+	}
+
+	# Apply a conservative subset of canonical fields when present.
+	for field in brightness contrast saturation sharpness; do
+		value=$(thingino_agent_json_config_value "$source_file" "image.$field")
+		[ -n "$value" ] || continue
+		thingino_agent_raptor_ctl rvd "set-$field" "$value" >/dev/null 2>&1 || true
+		thingino_agent_raptor_config_set image "$field" "$value" || true
+	done
+	for field in hflip vflip; do
+		value=$(thingino_agent_json_config_value "$source_file" "image.$field")
+		[ -n "$value" ] || continue
+		raw=$(thingino_agent_raptor_json_bool_to_01 "$value" 2>/dev/null) || continue
+		thingino_agent_raptor_ctl rvd "set-$field" "$raw" >/dev/null 2>&1 || true
+		thingino_agent_raptor_config_set image "$field" "$raw" || true
+	done
+
+	value=$(thingino_agent_json_config_value "$source_file" motion.enabled)
+	[ -n "$value" ] && thingino_agent_raptor_config_set motion enabled "$value"
+
+	value=$(thingino_agent_json_config_value "$source_file" daynight.enabled)
+	case "$value" in
+		true) thingino_agent_raptor_ctl ric mode auto >/dev/null 2>&1 || true ;;
+		false)
+			force=$(thingino_agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
+			case "$force" in
+				day | night) thingino_agent_raptor_ctl ric mode "$force" >/dev/null 2>&1 || true ;;
+			esac
+			;;
+	esac
+
+	thingino_agent_raptor_config_save
+	printf '{"status":"accepted","applied":["config"],"staged":[],"restart_required":[]}\n'
+}
+
+thingino_agent_adapter_raptor_snapshot() {
+	channel=${1:-0}
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "snapshot is not supported on this camera" >&2
+		return 1
+	}
+	tmp=$(mktemp /tmp/thingino-agent-snap.XXXXXX.jpg) || return 1
+	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
+		rm -f "$tmp"
+		echo "failed to capture snapshot" >&2
+		return 1
+	fi
+	cat "$tmp"
+	rm -f "$tmp"
+}
+
+thingino_agent_adapter_raptor_record() {
+	duration=${1:-10}
+	channel=${2:-0}
+	file=${3:-/tmp/clip_$(date +%Y%m%d_%H%M%S).mp4}
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "record action is not supported on this camera" >&2
+		return 1
+	}
+	# Prefer motion-clip helper; falls back to RMR start.
+	if raptorctl test-motion "$duration" >/dev/null 2>&1; then
+		printf '{"status":"accepted","result":{"path":%s}}\n' "$(thingino_agent_json_string "$file")"
+		return 0
+	fi
+	raptorctl rmr start >/dev/null 2>&1 || {
+		echo "record action is not supported on this camera" >&2
+		return 1
+	}
+	(
+		sleep "$duration"
+		raptorctl rmr stop >/dev/null 2>&1 || true
+	) >/dev/null 2>&1 &
+	printf '{"status":"accepted","result":{"path":%s,"channel":%s}}\n' \
+		"$(thingino_agent_json_string "$file")" \
+		"$(thingino_agent_json_value_or "$channel" 0)"
+}
+
+thingino_agent_adapter_raptor_privacy() {
+	state=$1
+	channel=${2:-all}
+	[ -n "$state" ] || {
+		echo "usage: thingino-agentctl privacy <on|off> [channel]" >&2
+		return 1
+	}
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "privacy action is not supported on this camera" >&2
+		return 1
+	}
+
+	# Privacy state lives in RVD (rod privacy is redirected). Capture the
+	# command response — status queries do not include the privacy array.
+	if [ "$channel" = "all" ]; then
+		resp=$(raptorctl rod privacy "$state" 2>/dev/null) || return 1
+	else
+		resp=$(raptorctl rod privacy "$state" "$channel" 2>/dev/null) || return 1
+	fi
+
+	enabled=$(thingino_agent_raptor_privacy_parse_enabled "$resp" || true)
+	case "$enabled" in
+		true | false) ;;
+		*)
+			case "$state" in
+				on) enabled=true ;;
+				*) enabled=false ;;
+			esac
+			;;
+	esac
+	thingino_agent_raptor_privacy_write_state "$enabled"
+	printf '{"status":"accepted"}\n'
+}
+
+thingino_agent_adapter_raptor_daynight() {
+	mode=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	[ -n "$mode" ] || {
+		echo "usage: thingino-agentctl daynight <auto|day|night>" >&2
+		return 1
+	}
+	case "$mode" in
+		auto | day | night)
+			thingino_agent_raptor_ctl ric mode "$mode" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set ircut mode "$mode" || return 1
+			thingino_agent_raptor_config_save
+			printf '{"status":"accepted","mode":%s}\n' "$(thingino_agent_json_string "$mode")"
+			;;
+		*)
+			echo "daynight mode must be auto, day, or night" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_raptor_service() {
+	service_name=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	action_name=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
+	case "$service_name" in
+		streaming)
+			script=$(thingino_agent_raptor_service_script)
+			;;
+		*)
+			echo "unsupported service: $service_name" >&2
+			return 1
+			;;
+	esac
+	[ -n "$script" ] || {
+		echo "$service_name service control is not supported on this camera" >&2
+		return 1
+	}
+	case "$action_name" in
+		start | stop | restart) ;;
+		*)
+			echo "service action must be start, stop, or restart" >&2
+			return 1
+			;;
+	esac
+	"$script" "$action_name" >/dev/null 2>&1 || {
+		echo "failed to $action_name $service_name service" >&2
+		return 1
+	}
+	printf '{"status":"accepted","service":%s,"operation":%s}\n' \
+		"$(thingino_agent_json_string "$service_name")" "$(thingino_agent_json_string "$action_name")"
+}
+
+thingino_agent_adapter_raptor_reboot() {
+	(
+		sleep 1
+		reboot -f
+	) >/dev/null 2>&1 &
+	printf '{"status":"accepted","operation":"reboot"}\n'
+}
+
+thingino_agent_adapter_raptor_send2_test() {
+	service=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
+	action=$(printf '%s' "${2:-test}" | tr 'A-Z' 'a-z')
+	[ -n "$service" ] || {
+		echo "send2-test: service name required" >&2
+		return 1
+	}
+	tool="/usr/sbin/send2${service}"
+	[ -x "$tool" ] || {
+		echo "send2-test: unsupported service '$service'" >&2
+		return 1
+	}
+	_send2_ok=true
+	case "$action" in
+		test) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-photo) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-video) "$tool" -V >/dev/null 2>&1 || _send2_ok=false ;;
+		*)
+			echo "send2-test: unsupported action '$action'" >&2
+			return 1
+			;;
+	esac
+	if [ "$_send2_ok" = "false" ]; then
+		printf '{"status":"error","service":%s,"action":%s,"message":"send2 test failed"}\n' \
+			"$(thingino_agent_json_string "$service")" \
+			"$(thingino_agent_json_string "$action")"
+		return 1
+	fi
+	printf '{"status":"ok","service":%s,"action":%s}\n' \
+		"$(thingino_agent_json_string "$service")" \
+		"$(thingino_agent_json_string "$action")"
+}

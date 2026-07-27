@@ -138,7 +138,7 @@ fi
 #[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
 #[ -n "$call" ] && [ -n "$twilio_token" ] && command="$command -H 'Call: $call' -u :$twilio_token"
 
-command="$command $host/$topic"
+command="$command $host:$port/$topic"
 
 [ "true" = "$verbose" ] && echo_command "$command"
 

@@ -1,2 +1,1 @@
 gpio_default=25ID 26ID 61o 62o
-serialport=ttyS1

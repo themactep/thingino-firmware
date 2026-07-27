@@ -106,7 +106,15 @@ else ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_DEV),y)
 # For IPC and NVR: use minimal configuration with selective enabling
 THINGINO_FFMPEG_CONF_OPTS += \
 	$(THINGINO_FFMPEG_DISABLE_JUNK) \
+	--enable-protocol=file \
+	--enable-protocol=tcp \
+	--enable-protocol=udp \
+	--enable-parser=h264 \
+	--enable-parser=aac \
 	--enable-muxer=segment \
+	--enable-muxer=mp4 \
+	--enable-bsf=h264_mp4toannexb \
+	--enable-bsf=aac_adtastoasc \
 	--disable-shared \
 	--enable-static \
 	--extra-cflags="-Os -flto-partition=none" \
@@ -307,6 +315,11 @@ define THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
 	rm -rf $(TARGET_DIR)/usr/share/ffmpeg/examples
 endef
 
+define THINGINO_FFMPEG_COPY_TO_NFS
+	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/ffmpeg /nfs/ffmpeg || true
+endef
+
+THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_COPY_TO_NFS
 THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
 
 $(eval $(autotools-package))

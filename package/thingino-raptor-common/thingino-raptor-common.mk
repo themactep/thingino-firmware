@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_COMMON_VERSION = 0d665bf03e9cb78e8fa6e722746782100d343d86
+THINGINO_RAPTOR_COMMON_VERSION = 75d83e8bd2c6d2a2c8ef2b8a7040d74b84236d04
 THINGINO_RAPTOR_COMMON_SITE = https://github.com/gtxaspec/raptor-common
 THINGINO_RAPTOR_COMMON_SITE_METHOD = git
 THINGINO_RAPTOR_COMMON_INSTALL_STAGING = YES
@@ -11,7 +11,7 @@ endef
 define THINGINO_RAPTOR_COMMON_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/librss_common.so \
 		$(STAGING_DIR)/usr/lib/librss_common.so
-	for h in rss_common.h rss_net.h rss_http.h rss_tls.h rss_ts.h rss_sei.h rss_sign.h rss_jpeg.h cJSON.h; do \
+	for h in rss_common.h rss_net.h rss_http.h rss_tls.h rss_ts.h rss_sei.h rss_sign.h rss_jpeg.h rss_aac.h cJSON.h; do \
 		$(INSTALL) -D -m 0644 $(@D)/include/$$h \
 			$(STAGING_DIR)/usr/include/$$h; \
 	done

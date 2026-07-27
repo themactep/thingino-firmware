@@ -159,6 +159,9 @@ start() {
 	echo_title "Starting Thingino agent listener"
 	apply_bootstrap_config
 
+	# Kill any existing listener on our port before starting
+	stop_listener_fallback
+
 	if [ "true" != "$(read_config agent.enabled)" ]; then
 		echo_info "Disabled in $THINGINO_CONFIG"
 		return 0

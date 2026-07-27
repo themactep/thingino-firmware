@@ -1,0 +1,32 @@
+#!/bin/sh
+# Immediate MQTT event publisher for camera-side state changes.
+# Called by event scripts (motion, privacy, etc.) to push state to
+# Home Assistant the moment the change happens, without waiting for
+# the periodic ha-daemon poll cycle.
+#
+# Usage: ha-event <entity> <value>
+# Example: ha-event motion ON
+#          ha-event motion OFF
+#          ha-event privacy ON
+#
+# Sources ha-common for MQTT config. Silently exits if HA is not configured.
+
+ENTITY="$1"
+VALUE="$2"
+
+[ -n "$ENTITY" ] || exit 0
+[ -n "$VALUE" ] || exit 0
+
+# Bail silently if HA is not installed
+[ -f /usr/share/ha-common ] || exit 0
+
+. /usr/share/ha-common
+
+# Bail silently if MQTT host is not configured
+[ -n "$HA_MQTT_HOST" ] || exit 0
+
+# Bail if this entity is not enabled
+ha_entity_enabled "$ENTITY" || exit 0
+
+# Publish immediately with force=1 (bypasses change-detection cache)
+ha_pub_state "$ENTITY" "$VALUE" 1

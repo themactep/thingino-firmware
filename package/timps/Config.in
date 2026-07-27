@@ -63,4 +63,121 @@ config BR2_PACKAGE_TIMPS_SRT
 	  acts as an SRT listener, serving live video+audio.
 	  Playback: ffplay srt://<ip>:9000
 
+config BR2_PACKAGE_TIMPS_ROTATE
+	bool "Image rotation (90/180/270)"
+	default n
+	help
+	  Enable per-stream image rotation. 180 is available on all SoCs
+	  (realised as a global ISP Hflip+Vflip); hardware 90/270 rotation
+	  is available on T40/T41 (I2D) and T31 (FrameSource rotate).
+	  Rotation is restart-required. Disabled by default: when off, no
+	  rotation code is compiled in (byte-identical build).
+
+config BR2_PACKAGE_TIMPS_SW_ROTATE
+	bool "Software 90/270 on SoCs without hardware rotate (T23)"
+	depends on BR2_PACKAGE_TIMPS_ROTATE
+	default n
+	help
+	  Enable software 90/270 rotation on SoCs that lack a hardware
+	  rotate path (T23). The frame is transposed in software per frame
+	  and fed to the unbound YuvEncode API. CPU-heavy on the single-core
+	  T23, H264 only, software OSD only (no hardware OSD/privacy on the
+	  rotated stream), and enlarges the binary. Leave off unless needed.
+
+config BR2_PACKAGE_TIMPS_BACKCHANNEL
+	bool "ONVIF audio backchannel (client -> speaker)"
+	default n
+	help
+	  Enable the ONVIF audio backchannel: an RTSP client can send audio
+	  to the camera to play through its speaker (talk-back). timps decodes
+	  the incoming RTP to PCM and drives the speaker (IMP_AO) NATIVELY -
+	  it owns the audio-output device directly, no external /bin/iac
+	  (ingenic-audiodaemon) helper is needed anymore. G.711 (PCMU/PCMA)
+	  decode is pure C, no extra library. Restart-required. Disabled by
+	  default; when off, no backchannel code is compiled in.
+
+config BR2_PACKAGE_TIMPS_BC_AAC
+	bool "AAC backchannel decode (libhelix-aac)"
+	depends on BR2_PACKAGE_TIMPS_BACKCHANNEL
+	default n
+	select BR2_PACKAGE_LIBHELIX_AAC
+	help
+	  Also accept AAC (mpeg4-generic) on the backchannel, decoded via
+	  libhelix-aac (the same decoder prudynt uses). Better audio quality
+	  than G.711 but higher latency and an extra dependency. Leave off
+	  for a G.711-only, dependency-light backchannel.
+
+config BR2_PACKAGE_TIMPS_PLAY
+	bool "System-sound play queue (/usr/sbin/play)"
+	default n
+	help
+	  Install /usr/sbin/play and have timps serve a play FIFO at
+	  /run/timps/audio_out. This lets other parts of thingino play system
+	  sounds through the camera speaker (native IMP_AO): the WiFi
+	  captive-portal prompts, the post-upgrade chime, and the Home
+	  Assistant ESPHome media_player/TTS integration all shell out to
+	  `play`. Decodes WAV and raw PCM16 out of the box. Restart-required.
+	  Disabled by default; when off, no play-queue code is compiled in and
+	  those integrations are silent no-ops on a timps image.
+
+config BR2_PACKAGE_TIMPS_PLAY_OPUS
+	bool "Opus playback in the play queue (opusfile)"
+	depends on BR2_PACKAGE_TIMPS_PLAY
+	default n
+	select BR2_PACKAGE_OPUSFILE
+	help
+	  Also decode Ogg-Opus files in the play queue, via opusfile (pulls in
+	  libopus + libogg). thingino's shipped system sounds
+	  (/usr/share/sounds/*.opus, the thingino-sounds package) are Ogg-Opus,
+	  so enable this if you want those to play. Leave off for a
+	  WAV/PCM-only, dependency-light play queue.
+
+choice
+	prompt "Audio backchannel preset"
+	default BR2_PACKAGE_TIMPS_AUDIO_PRESET_MANUAL
+	help
+	  Backchannel + play queue + the matching thingino-sounds format are
+	  five separate knobs (BACKCHANNEL/BC_AAC/PLAY/PLAY_OPUS here, plus
+	  thingino-sounds' own format choice) that need to agree with each
+	  other and with how much flash headroom the board actually has -
+	  easy to get wrong one knob at a time. These two presets bundle the
+	  combinations that are known to work; pick Manual to keep setting
+	  the individual options above yourself.
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MANUAL
+	bool "Manual (use the individual options above)"
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_FULL
+	bool "Full (backchannel + AAC + Opus play queue)"
+	select BR2_PACKAGE_TIMPS_BACKCHANNEL
+	select BR2_PACKAGE_TIMPS_BC_AAC
+	select BR2_PACKAGE_TIMPS_PLAY
+	select BR2_PACKAGE_TIMPS_PLAY_OPUS
+	select BR2_PACKAGE_THINGINO_SOUNDS
+	select BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
+	help
+	  Two-way audio with AAC backchannel quality, plus a system-sound
+	  play queue that plays the stock Opus sound files. ~395KB of
+	  codec/library footprint (opusfile+opus+libogg+libhelix-aac) -
+	  needs a board with flash headroom. Confirmed fitting on T31-family
+	  boards; too big for a ~5MB T20 rootfs partition this session.
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MINIMAL
+	bool "Minimal (backchannel + G.711 play queue, no extra codecs)"
+	select BR2_PACKAGE_TIMPS_BACKCHANNEL
+	select BR2_PACKAGE_TIMPS_PLAY
+	select BR2_PACKAGE_THINGINO_SOUNDS
+	# The sound-file format is a Kconfig `choice`, which cannot be forced with
+	# `select`; thingino-sounds instead defaults to G.711 whenever TIMPS_PLAY is
+	# on without TIMPS_PLAY_OPUS (exactly this preset), so no select is needed.
+	help
+	  Two-way audio (G.711 only, no AAC) plus a system-sound play queue
+	  using the G.711 mu-law sound files - zero extra codec libraries,
+	  since timps' G.711 decoder is always built in. The
+	  smallest-footprint way to get backchannel + play working on a
+	  flash-constrained board; confirmed on a T20 board with a ~5MB
+	  rootfs partition this session.
+
+endchoice
+
 endif # BR2_PACKAGE_TIMPS
