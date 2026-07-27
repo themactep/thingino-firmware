@@ -101,6 +101,9 @@
         height: "height",
         fps: "fps",
         bitrate: "bitrate",
+        gop: "gop",
+        buffers: "buffers",
+        rtsp_endpoint: "rtsp-endpoint",
         format: "format",
         mode: "mode",
       };
@@ -177,6 +180,9 @@
         height: s.height,
         fps: s.fps,
         bitrate: s.bitrate,
+        gop: s.gop,
+        buffers: s.buffers,
+        rtsp_endpoint: s.rtsp_endpoint,
         format: s.format,
         mode: s.mode,
       };
@@ -188,11 +194,8 @@
     if (!isRaptor()) return;
     const doc = root || document;
     const unsupported = [
-      "gop",
       "max_gop",
-      "buffers",
       "profile",
-      "rtsp_endpoint",
       "wb_bgain",
       "wb_rgain",
       "ae_compensation",

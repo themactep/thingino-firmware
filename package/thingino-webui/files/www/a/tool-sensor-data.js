@@ -122,6 +122,7 @@
     isSensorSample(jsonData) {
       if (!jsonData || typeof jsonData !== "object") return false;
       if (jsonData.error) return false;
+      if (jsonData.type === "sensor.sample") return true;
       // Agent typed events use {type, ts, ...} without ISP metric fields.
       if (typeof jsonData.type === "string" && jsonData.time_now === undefined) {
         return false;
@@ -136,7 +137,7 @@
       if (this.eventSource) return;
 
       this.eventSource = new EventSource(this.sseUrl);
-      this.eventSource.onmessage = (event) => {
+      const onSample = (event) => {
         if (this.isPaused) return;
         try {
           const json = JSON.parse(event.data);
@@ -146,6 +147,8 @@
           console.error("Failed to parse SSE data:", error);
         }
       };
+      this.eventSource.onmessage = onSample;
+      this.eventSource.addEventListener("sensor.sample", onSample);
 
       this.eventSource.onerror = (error) => {
         console.error("SSE connection error:", error);
