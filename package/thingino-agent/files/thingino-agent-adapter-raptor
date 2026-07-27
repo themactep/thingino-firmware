@@ -852,7 +852,51 @@ thingino_agent_raptor_print_stream_config() {
 	fi
 	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
-	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
+	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
+	printf '"osd":'
+	thingino_agent_raptor_print_stream_osd "$stream_id"
+	printf '}'
+}
+
+thingino_agent_raptor_print_stream_osd() {
+	# Raptor ROD is mostly global; streamN only owns osd_enabled. Both streams
+	# still expose the same element tree so OSD pages can hydrate via GET /config.
+	stream_id=$1
+	printf '{'
+	printf '"enabled":%s,' "$(thingino_agent_raptor_config_bool "$(thingino_agent_raptor_stream_section "$stream_id")" osd_enabled true)"
+	printf '"font_path":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd font)")"
+	printf '"font_size":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get osd font_size)" null)"
+	printf '"stroke_size":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get osd font_stroke)" null)"
+	printf '"logo":{'
+	printf '"enabled":%s,' "$(thingino_agent_raptor_config_bool osd.logo visible false)"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.logo position)")"
+	printf '"path":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.logo path)")"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get osd.logo width)" null)"
+	printf '"height":%s' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_config_get osd.logo height)" null)"
+	printf '},'
+	printf '"time":{'
+	printf '"enabled":%s,' "$(thingino_agent_raptor_config_bool osd.timestamp visible false)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd time_format)")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.timestamp position)")"
+	_fill=$(thingino_agent_raptor_config_get osd font_color)
+	_stroke=$(thingino_agent_raptor_config_get osd stroke_color)
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && thingino_agent_raptor_osd_color_to_ui "$_fill")")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && thingino_agent_raptor_osd_color_to_ui "$_stroke")")"
+	printf '},'
+	printf '"uptime":{'
+	printf '"enabled":%s,' "$(thingino_agent_raptor_config_bool osd.uptime visible false)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.uptime template)")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.uptime position)")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && thingino_agent_raptor_osd_color_to_ui "$_fill")")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && thingino_agent_raptor_osd_color_to_ui "$_stroke")")"
+	printf '},'
+	printf '"usertext":{'
+	printf '"enabled":%s,' "$(thingino_agent_raptor_config_bool osd.camera visible false)"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.camera template)")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_config_get osd.camera position)")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && thingino_agent_raptor_osd_color_to_ui "$_fill")")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && thingino_agent_raptor_osd_color_to_ui "$_stroke")")"
+	printf '}'
 	printf '}'
 }
 
@@ -1486,17 +1530,40 @@ thingino_agent_raptor_parse_osd_path() {
 }
 
 thingino_agent_raptor_osd_color_to_raptor() {
+	# WebUI / prudynt colors are #RRGGBBAA. Raptor ROD wants 0xAARRGGBB.
 	value=$(thingino_agent_raptor_unquote_string "$1")
 	case "$value" in
-		0x* | 0X*) printf '%s' "$value" ;;
+		0x* | 0X*)
+			printf '%s' "$value"
+			;;
 		\#????????)
-			# #AARRGGBB -> 0xAARRGGBB
-			printf '0x%s' "$(printf '%s' "$value" | tr -d '#' | tr 'a-f' 'A-F')"
+			hex=$(printf '%s' "$value" | tr -d '#' | tr 'a-f' 'A-F')
+			rgb=$(printf '%s' "$hex" | cut -c1-6)
+			aa=$(printf '%s' "$hex" | cut -c7-8)
+			printf '0x%s%s' "$aa" "$rgb"
 			;;
 		\#??????)
 			printf '0xFF%s' "$(printf '%s' "$value" | tr -d '#' | tr 'a-f' 'A-F')"
 			;;
-		*) printf '%s' "$value" ;;
+		*)
+			printf '%s' "$value"
+			;;
+	esac
+}
+
+thingino_agent_raptor_osd_color_to_ui() {
+	# 0xAARRGGBB / #AARRGGBB -> #RRGGBBAA for preview.js rgba2color().
+	value=$(thingino_agent_raptor_unquote_string "$1")
+	hex=$(printf '%s' "$value" | sed 's/^0[xX]//;s/^#//' | tr 'a-f' 'A-F')
+	case "$hex" in
+		????????)
+			aa=$(printf '%s' "$hex" | cut -c1-2)
+			rgb=$(printf '%s' "$hex" | cut -c3-8)
+			printf '#%s%s' "$rgb" "$aa"
+			;;
+		*)
+			printf '%s' "$value"
+			;;
 	esac
 }
 
@@ -1573,6 +1640,13 @@ thingino_agent_raptor_print_osd_setting() {
 			thingino_agent_print_setting_leaf "$response_key" "$(thingino_agent_json_value_or "$raw" null)"
 			;;
 		text)
+			case "$response_key" in
+				fill_color | stroke_color)
+					if [ -n "$raw" ]; then
+						raw=$(thingino_agent_raptor_osd_color_to_ui "$raw")
+					fi
+					;;
+			esac
 			printf '{"%s":%s}\n' "$response_key" "$(thingino_agent_json_string_or_null "$raw")"
 			;;
 		*)
