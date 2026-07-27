@@ -5,7 +5,7 @@ THINGINO_DAYNIGHTD_LICENSE = GPL-2.0
 THINGINO_DAYNIGHTD_LICENSE_FILES = LICENSE
 
 # Dependencies
-THINGINO_DAYNIGHTD_DEPENDENCIES += thingino-core thingino-jct host-thingino-jct
+THINGINO_DAYNIGHTD_DEPENDENCIES += thingino-core thingino-jct
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 THINGINO_DAYNIGHTD_DEPENDENCIES += thingino-webui
 endif
@@ -59,10 +59,9 @@ define THINGINO_DAYNIGHTD_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/ircut          $(TARGET_DIR)/usr/sbin/ircut
 	$(INSTALL) -D -m 0755 $(@D)/files/dusk2dawn      $(TARGET_DIR)/usr/sbin/dusk2dawn
 
-	# Import daynight defaults into thingino.json
-	if [ -f "$(@D)/files/daynightd.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
-		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(@D)/files/daynightd.json"; \
-	fi
+	# Stage defaults for later merge by thingino-core
+	$(INSTALL) -D -m 0644 $(@D)/files/daynightd.json \
+		$(TARGET_DIR)/usr/share/thingino-defaults/40-daynightd.json
 
 	$(THINGINO_DAYNIGHTD_INSTALL_WWW_CMDS)
 endef

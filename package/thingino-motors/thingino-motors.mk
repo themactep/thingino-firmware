@@ -5,28 +5,12 @@ THINGINO_MOTORS_VERSION = 10c46de54c07de903d9b72e3d784e74e8981aad4
 THINGINO_MOTORS_LICENSE = MIT
 THINGINO_MOTORS_LICENSE_FILES = LICENSE
 
-THINGINO_MOTORS_DEPENDENCIES += host-thingino-jct thingino-jct
+THINGINO_MOTORS_DEPENDENCIES += thingino-jct
 
 define THINGINO_MOTORS_INSTALL_JSON_CMDS
-	# Import base motors defaults into thingino.json
-	if [ -f "$(THINGINO_MOTORS_PKGDIR)/files/motors.json" ] && [ -f "$(TARGET_DIR)/etc/thingino.json" ]; then \
-		$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$(THINGINO_MOTORS_PKGDIR)/files/motors.json"; \
-	fi
-
-	# Apply user motors overrides
-	if [ -n "$(THINGINO_USER_MOTORS_JSON_FILES)" ]; then \
-		if [ ! -x "$(HOST_DIR)/bin/jct" ]; then \
-			echo "ERROR: host jct tool missing: $(HOST_DIR)/bin/jct"; \
-			exit 1; \
-		fi; \
-	fi
-	for USER_MOTORS_CONFIG in $(THINGINO_USER_MOTORS_JSON_FILES); do \
-		if [ -s "$$USER_MOTORS_CONFIG" ]; then \
-			echo "Applying user motors override from $$USER_MOTORS_CONFIG"; \
-			echo "$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \"$$USER_MOTORS_CONFIG\""; \
-			$(HOST_DIR)/bin/jct "$(TARGET_DIR)/etc/thingino.json" import "$$USER_MOTORS_CONFIG"; \
-		fi; \
-	done
+	# Stage defaults for later merge by thingino-core
+	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/motors.json \
+		$(TARGET_DIR)/usr/share/thingino-defaults/30-motors.json
 endef
 
 ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY),y)
