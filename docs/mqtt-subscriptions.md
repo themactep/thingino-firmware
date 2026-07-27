@@ -97,6 +97,7 @@ resource-constrained hardware.
   "username": "myuser",
   "password": "secret",
   "use_ssl": false,
+  "tls_skip_verify": false,
   "subscriptions": [
     {
       "topic": "cameras/%id/reboot",
@@ -116,7 +117,9 @@ resource-constrained hardware.
 | `username`      | string  | Optional broker username.                          |
 | `password`      | string  | Optional broker password.                          |
 | `use_ssl`       | bool    | Enable TLS using system CA bundle.                 |
+| `tls_skip_verify` | bool | Skip broker certificate verification when TLS is enabled. Insecure; use only for self-signed or otherwise untrusted broker certificates. Default: `false`. |
 | `subscriptions` | array   | List of subscription objects (see below).          |
+
 
 Each subscription object:
 
@@ -494,6 +497,7 @@ subscriptions for a single camera, all scoped under `cameras/%id/`:
   "username": "camera",
   "password": "secret",
   "use_ssl": false,
+  "tls_skip_verify": false,
   "subscriptions": [
     { "topic": "cameras/%id/reboot",           "qos": 1, "enabled": true,  "action": "reboot" },
     { "topic": "cameras/%id/snapshot",         "qos": 1, "enabled": true,  "action": "prudyntctl snapshot -c 0 > /tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" },
