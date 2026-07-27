@@ -108,6 +108,48 @@ USE_FZF=0 ./build-container.sh
 - Preserves file ownership with UID/GID mapping
 - Persistent download cache
 - No root access required (with Podman)
+- Auto SELinux volume labels on Enforcing hosts (see below)
+
+## SELinux hosts (Fedora, Bazzite, RHEL, CentOS Stream)
+
+On SELinux **Enforcing** systems, unlabeled bind mounts often fail inside the
+container with errors like:
+
+```text
+make: stat: Makefile: Permission denied
+```
+
+`Makefile.container` detects this with `getenforce` and, only when the result is
+`Enforcing`, appends a shared `:z` label to workspace bind mounts. That keeps
+the host IDE and the container able to share the tree.
+
+| Host situation | Default mount suffix | Notes |
+|---|---|---|
+| SELinux Enforcing (`getenforce` → `Enforcing`) | `:z` | Auto-enabled |
+| SELinux Permissive / Disabled, or no SELinux | _(none)_ | Debian, Ubuntu, most CI images |
+| Manual override | see below | |
+
+Override if needed:
+
+```bash
+# Force shared label even when detection fails
+CONTAINER_VOLUME_LABEL=z ./build-container.sh shell
+
+# Private label (container-only; usually worse for local IDE workflows)
+CONTAINER_VOLUME_LABEL=Z ./build-container.sh shell
+
+# Disable labeling entirely
+CONTAINER_VOLUME_LABEL=none ./build-container.sh shell
+```
+
+Confirm the active choice with:
+
+```bash
+make -f Makefile.container container-info
+```
+
+`:z` / `:Z` are SELinux mount options. On non-SELinux hosts they are unused
+because detection leaves mounts unlabeled unless you force an override.
 
 ## Requirements
 
