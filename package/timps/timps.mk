@@ -335,22 +335,25 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_PREVIEW
 endif
 
 # NOTE: native day/night. When timps detects day/night itself
-# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd daemon must never
-# autostart (double switching), and the WebUI "Photosensing" page (which
-# configures daynightd) is dropped from the navigation. Done as a finalize
-# hook so it wins regardless of package build order; both steps are
-# idempotent and no-ops when the files are absent.
+# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd system daemon must
+# never autostart (it would double-switch against timps's own detection
+# thread), so its init script is removed. Done as a finalize hook so it wins
+# regardless of package build order; idempotent, a no-op when absent.
+#
+# The WebUI "Photosensing" page is deliberately KEPT: files/www/a/
+# config-photosensing.js is a timps-native overlay that talks straight to
+# /control (daynight.enabled / daynight.total_gain_{night,day}_threshold - see
+# its header) and is the config UI for timps's own detection, NOT the stock
+# page that drove daynightd. Earlier revisions of this hook deleted the page and
+# tried to strip its nav entry; that left the control-bar.js "Photosensing
+# Config" link (shipped unchanged from thingino-webui) pointing at a removed
+# page, so it dead-ended on Preview. Keeping the page - installed by the
+# TIMPS_INSTALL_WEBUI_CGIS overlay above - makes that link resolve correctly.
+# (The page's Controls/Schedule columns still use the board daynight script's
+# legacy /x/json-config-daynight.cgi best-effort; absent-CGI is handled in-page.)
 ifeq ($(BR2_PACKAGE_TIMPS_DAYNIGHT),y)
 define TIMPS_DISABLE_DAYNIGHTD
 	rm -f $(TARGET_DIR)/etc/init.d/S97daynightd
-	if [ -f $(TARGET_DIR)/var/www/a/navigation.js ]; then \
-		sed -i '/config-photosensing\.html/d' \
-			$(TARGET_DIR)/var/www/a/navigation.js ; \
-	fi
-	# Also drop the page + script so the orphaned "Photosensing" config (it
-	# drives the now-disabled daynightd) isn't reachable by direct URL.
-	rm -f $(TARGET_DIR)/var/www/config-photosensing.html \
-	      $(TARGET_DIR)/var/www/a/config-photosensing.js
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_DISABLE_DAYNIGHTD
 endif
