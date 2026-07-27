@@ -79,13 +79,22 @@
 
     if (payload.image) {
       const img = payload.image;
-      ["brightness", "contrast", "saturation", "sharpness", "hflip", "vflip"].forEach(
-        (key) => {
-          if (img[key] !== undefined && img[key] !== null) {
-            queue("image/" + key.replace(/_/g, "-"), { [key]: img[key] });
-          }
-        },
-      );
+      [
+        "brightness",
+        "contrast",
+        "saturation",
+        "sharpness",
+        "hflip",
+        "vflip",
+        "ae_compensation",
+        "core_wb_mode",
+        "wb_rgain",
+        "wb_bgain",
+      ].forEach((key) => {
+        if (img[key] !== undefined && img[key] !== null) {
+          queue("image/" + key.replace(/_/g, "-"), { [key]: img[key] });
+        }
+      });
       if (img.anti_flicker !== undefined && img.anti_flicker !== null) {
         queue("image/anti-flicker", { anti_flicker: img.anti_flicker });
       }
@@ -103,6 +112,7 @@
         bitrate: "bitrate",
         gop: "gop",
         buffers: "buffers",
+        profile: "profile",
         rtsp_endpoint: "rtsp-endpoint",
         format: "format",
         mode: "mode",
@@ -130,7 +140,7 @@
           stroke_size: osd.stroke_size,
         });
       }
-      ["time", "uptime", "usertext", "logo"].forEach((section) => {
+      ["time", "uptime", "usertext", "logo", "privacy"].forEach((section) => {
         const node = osd[section];
         if (!node || typeof node !== "object") return;
         Object.keys(node).forEach((key) => {
@@ -182,6 +192,7 @@
         bitrate: s.bitrate,
         gop: s.gop,
         buffers: s.buffers,
+        profile: s.profile,
         rtsp_endpoint: s.rtsp_endpoint,
         format: s.format,
         mode: s.mode,
@@ -193,14 +204,8 @@
   function hideRaptorUnsupportedControls(root) {
     if (!isRaptor()) return;
     const doc = root || document;
-    const unsupported = [
-      "max_gop",
-      "profile",
-      "wb_bgain",
-      "wb_rgain",
-      "ae_compensation",
-      "core_wb_mode",
-    ];
+    // max_gop has no raptor backend; keep hidden.
+    const unsupported = ["max_gop"];
     [0, 1].forEach((id) => {
       unsupported.forEach((param) => {
         const el = doc.querySelector("#stream" + id + "_" + param);
@@ -233,4 +238,4 @@
     configToPreviewMessage,
     hideRaptorUnsupportedControls,
   };
-})(typeof window !== "undefined" ? window : globalThis);
+})(window);
