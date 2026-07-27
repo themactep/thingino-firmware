@@ -78,7 +78,10 @@ Kernel source: `github.com/gtxaspec/thingino-linux`.
 
 ## Streamers
 
-Default is `prudynt`. Set `BR2_PACKAGE_RAPTOR_IPC=y` to use `raptor` instead.
+Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
+`stable` still defaults to `prudynt`. Select explicitly via the Streamer choice
+in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
+`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
 ## Firmware image
 
