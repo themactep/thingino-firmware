@@ -2,31 +2,45 @@
 
 DAEMON_ARGS="-f -c /etc/cron/crontabs"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
-	starting
-	[ -f $DAEMON_FULL ] || quit "Disabled"
-	start_daemon_with_pid
+	echo_title "Starting crond"
+
+	if [ ! -f $DAEMON_FULL ]; then
+		echo_error "Disabled"
+		exit 1
+	fi
+
+	start_daemon
 }
 
 stop() {
-	stopping
-	[ -f $DAEMON_FULL ] || quit "Disabled"
-	stop_daemon_with_pid
+	echo_title "Stopping crond"
+
+	if [ ! -f $DAEMON_FULL ]; then
+		echo_error "Disabled"
+		exit 1
+	fi
+
+	stop_daemon
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
 		;;
-	reload | restart)
+	stop)
+		stop
+		;;
+	restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

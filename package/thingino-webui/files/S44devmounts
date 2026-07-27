@@ -1,0 +1,60 @@
+#!/bin/sh
+
+. /usr/share/common
+
+MOUNT_SHARE=
+MOUNT_POINT="/var/www"
+
+start() {
+	echo_title "Mounting $MOUNT_SHARE to $MOUNT_POINT"
+
+	if mountpoint -q $MOUNT_POINT; then
+		echo_error "Already mounted"
+	fi
+
+	echo_info "Remove mountpoint $MOUNT_POINT"
+	rm -r $MOUNT_POINT
+
+	echo_info "Create mountpoint $MOUNT_POINT"
+	mkdir $MOUNT_POINT
+
+	echo_info "Mounting $MOUNT_SHARE to $MOUNT_POINT"
+	mount -t nfs -o nolock,tcp,nfsvers=3 $MOUNT_SHARE $MOUNT_POINT
+}
+
+stop() {
+	echo_title "Unmounting $MOUNT_POINT"
+
+	if ! mountpoint -q $MOUNT_POINT; then
+		echo_error "Nothing to unmount"
+	fi
+
+	echo_info "Unmounting $MOUNT_POINT"
+	umount $MOUNT_POINT
+
+	echo_info "Remove whiteout from overlay"
+	rm -r /overlay$MOUNT_POINT
+
+	echo_info "Remount overlay"
+	mount -o remount /
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+
+exit 0

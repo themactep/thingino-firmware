@@ -1,0 +1,170 @@
+#!/bin/sh
+
+. /usr/share/common
+
+ensure_command "openRTSP"
+ensure_command "jct"
+
+CLIP_FILE="/tmp/vbuffer.mp4"
+LOCK_FILE="/tmp/vbuffer.lock"
+TEMP_FILE="/tmp/vbuffer.tmp"
+
+STREAMER_APP="streamer"
+STREAMER_CONF_FILE="/etc/streamer.json"
+
+SELF_NAME="$(basename "$0")"
+
+if ! is_streamer_running; then
+	echo_error "Streamer is not running"
+	exit 1
+fi
+
+if is_streamer_disabled; then
+	echo_error "Streamer disabled"
+	exit 1
+fi
+
+# "parameter"
+read_config() {
+	echo_info "Read $1 from $STREAMER_CONF_FILE"
+	jct "$STREAMER_CONF_FILE" get "$1"
+}
+
+# "default"
+read_fps() {
+	echo_info "Read fps from logcat"
+	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
+}
+
+# "position"
+read_size() {
+	echo_info "Read stream data from logcat ($1-th parameter)"
+	logcat | grep "VBMCreatePool()-${stream_number}: w=" | head -1 | awk -F '[= ]' "{print \$$1}"
+}
+
+start() {
+	echo_title "Starting video buffer"
+
+	if pidof -o $$ $SELF_NAME > /dev/null; then
+		echo_error "is already running"
+		exit 1
+	fi
+
+	motion_enabled=$(jct "$STREAMER_CONF_FILE" get "motion.enabled")
+	if [ "true" != "$motion_enabled" ]; then
+		echo_error "Motion Guard disabled"
+		exit 1
+	fi
+
+	record_duration=10
+	record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
+	record_videofmt="mp4"
+
+	stream_number=1
+
+	stream_fps=$(read_fps "25")
+	if [ -z "$stream_fps" ]; then
+		echo_info "fps unknown, use default"
+		stream_fps="25"
+	fi
+
+	stream_height=$(read_size "7")
+	if [ -z "$stream_height" ]; then
+		echo_info "height unknown, use default"
+		stream_height="1080"
+	fi
+
+	stream_width=$(read_size "5" "1920")
+	if [ -z "$stream_width" ]; then
+		echo_info "width unknown, use default"
+		stream_width="1920"
+	fi
+
+	# FIXME: based on default stream endpoint name, won't work on custom endpoints
+	stream_endpoint="ch$stream_number"
+	rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
+
+	rtsp_username=$(read_config "username")
+	if [ -z "$rtsp_username" ]; then
+		echo_info "username unknown, use default"
+		rtsp_username="thingino"
+	fi
+
+	rtsp_password=$(read_config "password")
+	if [ -z "$rtsp_password" ]; then
+		echo_info "password unknown, use default"
+		rtsp_password="thingino"
+	fi
+
+	case "$record_videofmt" in
+		avi) vformat="-i" ;;
+		mov) vformat="-q -y -H" ;;
+		mp4) vformat="-4 -y -H" ;;
+		  *) echo_error "Unknown video format $record_videofmt"
+	esac
+
+	while : ; do
+		openRTSP -V -u $rtsp_username $rtsp_password \
+			-w $stream_width -h $stream_height -f $stream_fps \
+			-d $record_duration $vformat \
+			-t $rtsp_stream > "$TEMP_FILE" \
+			2>/dev/null
+		while [ -f "$LOCK_FILE" ]; do
+			age=$(( $(date +%s) - $(date +%s -r "$LOCK_FILE") ))
+			if [ "$age" -gt 100 ]; then
+				echo_info "Lock file is expired"
+				rm -f "$LOCK_FILE"
+			fi
+			echo -n "."
+			sleep 1
+		done
+		mv -f "$TEMP_FILE" "$CLIP_FILE"
+	done &
+}
+
+# FIXME: $0 does not work here
+stop() {
+	echo_title "Stopping video buffer"
+
+	pid=$(pidof -o %PPID -s $SELF_NAME)
+	if [ -z "$pid" ]; then
+		echo_info "Nothing to stop"
+	else
+		while [ -n "$pid" ]; do
+			kill -9 $pid > /dev/null
+			pid=$(pidof -o %PPID -s $SELF_NAME)
+		done
+	fi
+
+	if [ -f "$CLIP_FILE" ]; then
+		rm -f "$CLIP_FILE"
+	fi
+
+	if [ -f "$LOCK_FILE" ]; then
+		rm -f "$LOCK_FILE"
+	fi
+
+	if [ -f "$TEMP_FILE" ]; then
+		sleep $record_duration
+		rm "$TEMP_FILE"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		usage "{start|stop|restart}"
+		;;
+esac
+
+exit 0

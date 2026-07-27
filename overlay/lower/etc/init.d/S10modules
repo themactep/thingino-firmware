@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 load_modules() {
 	local file=$1
@@ -8,30 +8,35 @@ load_modules() {
 
 	while read -r module args; do
 		case "$module" in
-			"" | "#"*)
-				continue
-				;;
+			"" | "#"*) continue ;;
 		esac
-		run "modprobe $module $args"
+		echo_info "Loading $module $args"
+		modprobe $module $args
 	done < $file
+}
+
+start() {
+	echo_title "Loading kernel modules"
+
+	load_modules /etc/modules
+	[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do
+		load_modules $conf
+	done
 }
 
 case "$1" in
 	start)
-		starting
-		load_modules /etc/modules
-		[ -d /etc/modules.d ] || quit
-		for conf in /etc/modules.d/*; do
-			load_modules $conf
-		done
-		check_result
+		start
 		;;
 	stop)
-		stopping
-		ok
+		true
+		;;
+	restart)
+		start
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

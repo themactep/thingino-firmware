@@ -1,7 +1,7 @@
 FAAC_SITE_METHOD = git
 FAAC_SITE = https://github.com/knik0/faac
 FAAC_SITE_BRANCH = master
-FAAC_VERSION = 0ef84165678c406da2e2dcd57c1ecb176f416771
+FAAC_VERSION = 05f85a53d56f4c563524c5ffc2ebb2dd98fa7180
 # $(shell git ls-remote $(FAAC_SITE) $(FAAC_SITE_BRANCH) | head -1 | cut -f1)
 
 FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
@@ -32,18 +32,25 @@ define FAAC_CONFIGURE_CMDS
 endef
 
 define FAAC_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib
-	$(INSTALL) -m 0755 -D $(@D)/libfaac/.libs/libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/
+	$(INSTALL) -D -m 0755 $(@D)/libfaac/.libs/libfaac.so.0.0.0 \
+		$(TARGET_DIR)/usr/lib/libfaac.so.0.0.0
+
 	ln -sf libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/libfaac.so.0
 	ln -sf libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/libfaac.so
 endef
 
 define FAAC_INSTALL_STAGING_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/libfaac/.libs/libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/
+	$(INSTALL) -D -m 0644 $(@D)/include/faac.h \
+		$(STAGING_DIR)/usr/include/faac.h
+
+	$(INSTALL) -D -m 0644 $(@D)/include/faaccfg.h \
+		$(STAGING_DIR)/usr/include/faaccfg.h
+
+	$(INSTALL) -D -m 0755 $(@D)/libfaac/.libs/libfaac.so.0.0.0 \
+		$(STAGING_DIR)/usr/lib/libfaac.so.0.0.0
+
 	ln -sf libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/libfaac.so.0
 	ln -sf libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/libfaac.so
-	$(INSTALL) -m 0644 -D $(@D)/include/faac.h $(STAGING_DIR)/usr/include/faac.h
-	$(INSTALL) -m 0644 -D $(@D)/include/faaccfg.h $(STAGING_DIR)/usr/include/faaccfg.h
 endef
 
 $(eval $(autotools-package))

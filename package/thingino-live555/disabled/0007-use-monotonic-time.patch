@@ -1,0 +1,51 @@
+
+--- a/liveMedia/RTPSink.cpp
++++ b/liveMedia/RTPSink.cpp
+@@ -21,8 +21,19 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
+ #include "RTPSink.hh"
+ #include "Base64.hh"
+ #include "GroupsockHelper.hh"
++#include <chrono>
+ 
+-////////// RTPSink //////////
++// Monotonic time helper function for embedded systems
++static void getMonotonicTime(struct timeval* tv) {
++  static auto start_time = std::chrono::steady_clock::now();
++  auto now = std::chrono::steady_clock::now();
++  auto elapsed = now - start_time;
++  auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
++  tv->tv_sec = elapsed_us / 1000000;
++  tv->tv_usec = elapsed_us % 1000000;
++}
++
++////////// RTPSink /////////
+ 
+ Boolean RTPSink::lookupByName(UsageEnvironment& env, char const* sinkName,
+ 				RTPSink*& resultSink) {
+@@ -172,7 +183,7 @@ RTPSink::RTPSink(UsageEnvironment& env,
+     fNumChannels(numChannels), fEstimatedBitrate(0) {
+   fRTPPayloadFormatName
+     = strDup(rtpPayloadFormatName == NULL ? "???" : rtpPayloadFormatName);
+-  gettimeofday(&fCreationTime, NULL);
++  getMonotonicTime(&fCreationTime);
+   fTotalOctetCountStartTime = fCreationTime;
+   resetPresentationTimes();
+ 
+@@ -302,7 +313,7 @@ RTPTransmissionStats::RTPTransmissionStats(RTPSink& rtpSink, u_int32_t SSRC)
+     fLastSRTime(0), fDiffSR_RRTime(0), fAtLeastTwoRRsHaveBeenReceived(False), fFirstPacket(True),
+     fTotalOctetCount_hi(0), fTotalOctetCount_lo(0),
+     fTotalPacketCount_hi(0), fTotalPacketCount_lo(0) {
+-  gettimeofday(&fTimeCreated, NULL);
++  getMonotonicTime(&fTimeCreated);
+ 
+   fLastOctetCount = rtpSink.octetCount();
+   fLastPacketCount = rtpSink.packetCount();
+@@ -323,7 +334,7 @@ void RTPTransmissionStats
+     fOldLastPacketNumReceived = fLastPacketNumReceived;
+     fOldTotNumPacketsLost = fTotNumPacketsLost;
+   }
+-  gettimeofday(&fTimeReceived, NULL);
++  getMonotonicTime(&fTimeReceived);
+ 
+   fLastFromAddress = lastFromAddress;
+   fPacketLossRatio = lossStats>>24;

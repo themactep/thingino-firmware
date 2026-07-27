@@ -1,0 +1,4 @@
+config BR2_PACKAGE_THINGINO_BLUEZ
+	bool "thingino-bluez"
+	help
+	  BlueZ compilation of bluetooth/bluetooth.h library for use with thingino-libble

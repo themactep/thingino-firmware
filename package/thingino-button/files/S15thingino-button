@@ -2,21 +2,26 @@
 
 DAEMON_ARGS="-d"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
-	starting
+	echo_title "Starting Button service"
+
 	start_daemon
 }
 
 stop() {
-	stopping
-	stop_daemon_process
+	echo_title "Stopping Button service"
+
+	stop_daemon
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	restart | reload)
 		stop || true
@@ -24,7 +29,8 @@ case "$1" in
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
 		;;
 esac
 

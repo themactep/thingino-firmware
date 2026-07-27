@@ -1,67 +1,145 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="ftp"
-
-. /sbin/common-plugins
+. /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
-	echo "Usage: $0 [-s host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
-  -s host     FTP server FQDN or IP address.
-  -p port     FTP server port.
-  -d path     Directory on server, relative to FTP root.
-  -f file     File to upload.
-  -u username FTP username.
-  -P password FTP password.
-  -v          Verbose output.
-  -h          Show this help.
-"
-	quit_clean 0
+	echo "Usage: $0 [options]
+Where:
+	-s host     FTP server FQDN or IP address.
+	-p port     FTP server port.
+	-d path     Directory on server, relative to FTP root.
+	-f file     File to upload.
+	-u username FTP username.
+	-P password FTP password.
+	-v          Verbose output.
+	-V          If -f not specified, sends the video currently in vbuffer.
+	-S          If -f not specified, sends the current camera snapshot.
+	-h          Show this help.
+" >&2
+	exit 0
 }
 
-# override config values with command line arguments
-while getopts d:f:p:P:s:u:vh flag; do
+read_config() {
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	    host=$(jct $CONFIG_FILE get ftp.host)
+	    port=$(jct $CONFIG_FILE get ftp.port)
+	username=$(jct $CONFIG_FILE get ftp.username)
+	password=$(jct $CONFIG_FILE get ftp.password)
+	    path=$(jct $CONFIG_FILE get ftp.path)
+	template=$(jct $CONFIG_FILE get ftp.template)
+}
+
+# Files to send
+queue=""
+
+add_to_queue() {
+	local ext="${1##*.}"
+	local tempfile="$(mktemp -u).$ext"
+	cp -f "$1" "$tempfile"
+	queue="$queue $tempfile"
+}
+
+read_config
+
+while getopts d:f:hp:P:s:Su:vV flag; do
 	case "$flag" in
-		d) ftp_path=$OPTARG ;;
-		f) ftp_file=$OPTARG ;;
-		p) ftp_port=$OPTARG ;;
-		P) ftp_password=$OPTARG ;;
-		s) ftp_host=$OPTARG ;;
-		u) ftp_user=$OPTARG ;;
+		d) path=$OPTARG ;;
+		f) file=$OPTARG ;;
+		p) port=$OPTARG ;;
+		P) password=$OPTARG ;;
+		s) host=$OPTARG ;;
+		u) username=$OPTARG ;;
 		v) verbose="true" ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$ftp_enabled" ] && die "Sending to FTP is disabled."
-# validate mandatory values
-[ -z "$ftp_host" ] && die "FTP host not found"
+if [ -z "$host" ]; then
+	echo_error "FTP host not found"
+	exit 1
+fi
 
-# assign default values if not set
-[ -z "$ftp_port" ] && ftp_port=21
-[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
+if [ -z "$port" ]; then
+	port=21
+fi
 
-if [ -z "$ftp_file" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
+if [ -z "$username" ]; then
+	ftp_username="anonymous"
+	ftp_password="anonymous"
+fi
 
-	ftp_file=$attachment
+if [ -z "$file" ]; then
+	if [ "true" = "$send_video" ]; then
+		check_vbuffer
+
+		inode=$(stat -c%i $VBUFFER_FILE)
+
+		# Video preceeding the event
+		video1=$(copy_video)
+		add_to_queue "$video1"
+
+		# Wait until the inode changes, meaning the video buffer file was recreated
+		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+			n=$((n + 1))
+			if [ "$n" -ge 10 ]; then
+				echo_error "Give up after $n attempts."
+				exit 1
+			fi
+			sleep 1
+		done
+
+		# Video following the event
+		video2=$(copy_video)
+		add_to_queue "$video2"
+	fi
+
+	if [ "true" = "$send_photo" ]; then
+		photo=$(copy_photo)
+		add_to_queue "$photo"
+	fi
+else
+	add_to_queue "$file"
 fi
 
 url="ftp://"
-[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && url="$url$ftp_user:$ftp_password"
-url="$url@$ftp_host:$ftp_port"
-[ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
-url="$url/$(date +"$ftp_template")"
+if [ -n "$username" ] && [ -n "$password" ]; then
+	url="$url$username:$password"
+fi
+url="$url@$host:$port"
+if [ -n "$path" ]; then
+	url="$url/${path// /%20}"
+fi
 
-build_cmd "$CURL"
-[ "true" = "$ftp_socks5_enabled" ] && use_socks5
-build_cmd "--url $url"
-build_cmd "--upload-file $ftp_file"
-build_cmd "--ftp-create-dirs"
+n=0
+for local_file in $queue; do
+	ext="${local_file##*.}"
+	filename=$(date +"$template-$(printf %02d $n)").$ext
+	final_url="$url/$filename"
 
-log_and_run "$command"
+	set -x
+	if [ "true" = "$verbose" ]; then
+		command="$CURL --verbose"
+	else
+		command="$CURL --silent"
+	fi
+	command="$command --url $final_url --upload-file $local_file --ftp-create-dirs"
+	set +x
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
+	if [ "true" = "$verbose" ]; then
+		echo_command "$command"
+	fi
 
-quit_clean 0
+	if ! sh -c "$command"; then
+		echo_error "Failed to upload file to FTP server"
+		exit 1
+	fi
+
+	n=$(($n + 1))
+done
+
+exit 0

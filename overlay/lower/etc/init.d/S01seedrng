@@ -1,19 +1,38 @@
 #! /bin/sh
 
+DAEMON="seedrng"
 DAEMON_ARGS="-d /etc/seedrng"
+PIDFILE="/run/$DAEMON.pid"
 
-. /etc/init.d/rc.common
+. /usr/share/common
+
+start() {
+	echo_title "Starting seedrng"
+
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping seedrng"
+
+	stop_daemon
+}
 
 case "$1" in
 	start)
-		starting
-		start_daemon
+		start
 		;;
 	stop)
-		stopping
-		stop_daemon
+		stop
+		;;
+	restart)
+		stop
+		start
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
+
+exit 0

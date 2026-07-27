@@ -1,23 +1,43 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
+
+start() {
+	echo_title "Checking sysupgrade"
+
+	if [ "true" != "$sysupgrade_complete" ]; then
+		echo_info "Mark sysupgrade complete"
+		fw_setenv sysupgrade_complete true
+		play /usr/share/sounds/thingino.opus
+	fi
+}
+
+stop() {
+	echo_title "Checking for upgrade"
+
+	if [ -f "/tmp/upgrade.me" ]; then
+		echo_warning "Running full upgrade"
+		yes yes | sysupgrade -f
+	elif [ -f "/tmp/update.me" ]; then
+		echo_warning "Running partial upgrade"
+		sysupgrade -p
+	fi
+}
 
 case "$1" in
 	start)
-		starting
-		[ "true" = "$(fw_printenv -n sysupgrade_complete)" ] && ok && quit
-		run "fw_setenv sysupgrade_complete true"
-		# play_sound thingino.pcm
+		start
 		;;
 	stop)
-		stopping
-		if [ -f "/tmp/upgrade.me" ]; then
-			sysupgrade -p
-		fi
-		ok
+		stop
+		;;
+	restart)
+		stop
+		start
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

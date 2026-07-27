@@ -1,0 +1,7 @@
+root@ing-wyze-cam2-e1e2 ~# cat /proc/jz/isp/isp_de_hilight
+de_hilight_strength:7
+hist0:36090
+hist1:13633
+hist3:3601
+hist4:7669
+

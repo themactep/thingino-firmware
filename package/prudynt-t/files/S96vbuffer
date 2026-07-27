@@ -1,74 +1,109 @@
 #!/bin/sh
 
-plugin="vbuffer"
+. /usr/share/common
 
-. /sbin/common
-. /etc/init.d/rc.common
+ensure_command "openRTSP"
+ensure_command "jct"
+
+SELF_NAME="$(basename "$0")"
+STREAMER_APP="prudynt"
+STREAMER_CONF_FILE="/etc/prudynt.json"
 
 # "parameter" "default"
 read_config() {
-	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+	jct "$STREAMER_CONF_FILE" get "$1"
 	[ -z "$_" ] || echo "$2"
 }
 
-# "parameter" "default"
-read_logcat() {
-	logcat | grep 'VBMCreatePool()-1: w=' | head -1 | awk -F '[= ]' "{print \$$1}"
-	[ -z "$_" ] || echo "$2"
-}
+stream_number=1
+stream_endpoint=$(read_config stream${stream_number}.rtsp_endpoint ch1)
+rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 
-rtsp_username=$(read_config "username" "thingino")
-rtsp_password=$(read_config "password" "thingino")
-rtsp_width=$(read_logcat "5" "640")
-rtsp_height=$(read_logcat "7" "360")
-rtsp_fps=25
-clip_duration=5
-clip_format="-q"
-clipfile="/tmp/$plugin.mov"
-lockfile=/tmp/$plugin.lock
-tmpfile=/tmp/$plugin.tmp
+vformat="-4"
+record_videofmt="mp4"
+record_duration=10
+
+CLIP_FILE="/tmp/vbuffer.${record_videofmt}"
+LOCK_FILE="/tmp/vbuffer.lock"
+TEMP_FILE="/tmp/vbuffer.tmp"
+
+if ! is_streamer_running; then
+	echo_error "Streamer is not running"
+	exit 1
+fi
+
+if is_streamer_disabled; then
+	echo_error "Streamer disabled"
+	exit 1
+fi
 
 start() {
-	starting
-	pidof -o $$ S96vbuffer > /dev/null && quit "is already running"
+	echo_title "Starting video buffer"
 
-	is_streamer_disabled && quit "Streamer disabled"
-	is_streamer_running || quit "Streamer is not running"
-	command -v openRTSP >/dev/null || die "openRTSP not found"
-	ok
+	if pidof -o $$ $SELF_NAME > /dev/null; then
+		echo_error "is already running"
+		exit 1
+	fi
+
+	rtsp_username=$(read_config rtsp.username thingino)
+	rtsp_password=$(read_config rtsp.password thingino)
+	stream_width=$(read_config stream${stream_number}.width 640)
+	stream_height=$(read_config stream${stream_number}.height 360)
+	stream_fps=$(read_config stream${stream_number}.fps 25)
 
 	while : ; do
 		openRTSP -V -u $rtsp_username $rtsp_password \
-			-w $rtsp_width -h $rtsp_height -f $rtsp_fps \
-			-d $clip_duration -v $clip_format -H \
-			-t rtsp://[::1]/ch1 > "$tmpfile" 2>/dev/null
-		while [ -f "$lockfile" ]; do
-			age=$(( $(date +%s) - $(date +%s -r "$lockfile") ))
-			[ $age -gt 100 ] && rm "$lockfile"
+			-w $stream_width -h $stream_height -f $stream_fps \
+			-d $record_duration $vformat \
+			-t $rtsp_stream > "$TEMP_FILE" \
+			2>/dev/null
+		while [ -f "$LOCK_FILE" ]; do
+			age=$(( $(date +%s) - $(date +%s -r "$LOCK_FILE") ))
+			if [ "$age" -gt 100 ]; then
+				echo_info "Lock file is expired"
+				rm -f "$LOCK_FILE"
+			fi
 			echo -n "."
 			sleep 1
 		done
-		mv -f "$tmpfile" "$clipfile"
+		mv -f "$TEMP_FILE" "$CLIP_FILE"
 	done &
 }
 
 # FIXME: $0 does not work here
 stop() {
-	stopping
-	pid=$(pidof -o %PPID -s S96vbuffer)
-	[ -z "$pid" ] && quit "Nothing to stop"
-	while [ -n "$pid" ]; do
-		kill -9 $pid > /dev/null
-		pid=$(pidof -o %PPID -s S96vbuffer)
-	done
-	rm -f $clipfile $lockfile
-	inotifyd rmlater $tmpfile
-	ok
+	echo_title "Stopping video buffer"
+
+	pid=$(pidof -o %PPID -s $SELF_NAME)
+	if [ -z "$pid" ]; then
+		echo_info "Nothing to stop"
+	else
+		while [ -n "$pid" ]; do
+			kill -9 $pid > /dev/null
+			pid=$(pidof -o %PPID -s $SELF_NAME)
+		done
+	fi
+
+	if [ -f "$CLIP_FILE" ]; then
+		rm -f "$CLIP_FILE"
+	fi
+
+	if [ -f "$LOCK_FILE" ]; then
+		rm -f "$LOCK_FILE"
+	fi
+
+	if [ -f "$TEMP_FILE" ]; then
+		sleep $record_duration
+		rm "$TEMP_FILE"
+	fi
 }
 
 case "$1" in
-	start|stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	restart)
 		stop || true
@@ -76,7 +111,7 @@ case "$1" in
 		start
 		;;
 	*)
-		die "Usage $0 <start|stop>"
+		usage "{start|stop|restart}"
 		;;
 esac
 

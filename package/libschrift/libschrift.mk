@@ -14,12 +14,16 @@ define LIBSCHRIFT_BUILD_CMDS
 endef
 
 define LIBSCHRIFT_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/libschrift.so $(TARGET_DIR)/usr/lib/libschrift.so
+	$(INSTALL) -D -m 0755 $(@D)/libschrift.so \
+		$(TARGET_DIR)/usr/lib/libschrift.so
 endef
 
 define LIBSCHRIFT_INSTALL_STAGING_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/libschrift.so $(STAGING_DIR)/usr/lib/libschrift.so
-	$(INSTALL) -m 0644 -D $(@D)/schrift.h $(STAGING_DIR)/usr/include/schrift.h
+	$(INSTALL) -D -m 0755 $(@D)/libschrift.so \
+		$(STAGING_DIR)/usr/lib/libschrift.so
+
+	$(INSTALL) -D -m 0644 $(@D)/schrift.h \
+		$(STAGING_DIR)/usr/include/schrift.h
 endef
 
 $(eval $(generic-package))

@@ -1,45 +1,90 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="webhook"
-
-. /sbin/common-plugins
+. /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
-	echo "Usage: $0 [-u url] [-v] [-h]
-  -u url      Webhook URL.
-  -v          Verbose output.
-  -h          Show this help.
-"
-	quit_clean 0
+	echo "Usage: $0 [options]
+Where:
+	-m message  Message to send to webhook.
+	-s          Attach snapshot to the webhook.
+	-c          Attach videoclips to the webhook.
+	-u url      Webhook URL.
+	-v          Verbose output.
+	-h          Show this help.
+" >&2
+	exit 0
 }
 
-# override config values with command line arguments
-while getopts u:vh flag; do
+read_config {
+        local CONFIG_FILE=/etc/send2.json
+        [ -f "$CONFIG_FILE" ] || return
+
+	       url=$(jct $CONFIG_FILE get webhook.url)
+           message=$(jct $CONFIG_FILE get webhook.message)
+        send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
+        send_video=$(jct $CONFIG_FILE get webhook.send_video)
+}
+
+read_config
+
+while getopts chm:su:v flag; do
 	case "$flag" in
-		u) webhook_url=$OPTARG ;;
+		m) message=$OPTARG ;;
+		s) send_photo="true" ;;
+		c) send_video="true" ;;
+		u) url=$OPTARG ;;
 		v) verbose="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$webhook_enabled" ] && die "Sending to webhook is disabled."
-# validate mandatory values
-[ -z "$webhook_url" ] && die "Webhook URL not found"
-
-build_cmd "$CURL"
-[ "true" = "$webhook_socks5_enabled" ] && use_socks5
-
-if [ "true" = "$webhook_attach_snapshot" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-
-	build_cmd "-F 'image=@$attachment'"
+if [ -z "$url" ]; then
+	echo_error "Webhook URL not found"
+	exit 1
 fi
-build_cmd "--url \"$webhook_url\""
 
-log_and_run "$command"
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
+fi
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
+if [ "true" = "$send_photo" ]; then
+	photo=$(copy_photo)
+	command="$command -F 'image=@$photo'"
+fi
 
-quit_clean 0
+if [ "true" = "$send_video" ]; then
+	check_vbuffer
+	inode=$(stat -c%i $VBUFFER_FILE)
+
+	video1=$(copy_video)
+	command="$command -F 'video1=@$video1'"
+
+	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+		n=$((n + 1))
+		if [ "$n" -ge 10 ]; then
+			echo_error "Give up after $n attempts."
+			exit 1
+		fi
+		sleep 1
+	done
+
+	video2=$(copy_video)
+	command="$command -F 'video2=@$video2'"
+fi
+
+command="$command -F \"message=$message\""
+command="$command --url \"$url\""
+
+if [ "true" = "$verbose" ]; then
+	echo_command "$command"
+fi
+
+if ! sh -c "$command" >/dev/null; then
+	echo_error "Failed to send webhook message"
+	exit 1
+fi
+
+exit 0

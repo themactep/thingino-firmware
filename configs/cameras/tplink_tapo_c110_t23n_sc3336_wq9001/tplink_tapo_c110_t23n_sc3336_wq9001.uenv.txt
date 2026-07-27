@@ -1,0 +1,12 @@
+gpio_button=62
+gpio_default=42o 43o 49o 50O 57o 60o 62i 63o
+gpio_ir850=49O
+gpio_ircut=57o
+gpio_led_g=42O
+gpio_led_r=43O
+gpio_mmc_power=60o
+gpio_speaker=63O
+gpio_white=50o
+gpio_wlan=51
+pwm_ch_ir850=0
+pwm_ch_white=1

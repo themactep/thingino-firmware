@@ -2,46 +2,36 @@ Wyze
 ----
 - https://www.wyze.com/
 
-also [Hualai](hualai.md), [ATOM](atom.md)
+See [Hualai](hualai.md)
 
-Cloud:
-- https://www.hualai.com/
-- [TUTK/ThroughTek](https://www.tutk.com/)
-
-### Models
-
-| FCC            | Model                                 | SOC   | CMOS   | RES            | SPI    | WIFI       | Link                                   |
-|----------------|---------------------------------------|-------|--------|----------------|--------|------------|----------------------------------------|
-| 2ANJHNSCAMUS1  | Neos Smart Cam                        | T10?  |        |                |        | RTL8189FTV |                                        |
-| 2ANJHWVOD1     | Wyze Cam Outdoor                      | T20X  |        |                |        | RTL8189FTV |                                        |
-| 2ANJHWYZEC02   | Wyze Cam V2                           | T20   | JX-F22 | 1920x1080 @ 60 |        | RTL8189FTV |                                        |
-| 2ANJHWYZEC02   | Wyze Cam V2                           | T20   | JX-F23 | 1920x1080 @ 30 |        | RTL8189FTV |                                        |
-| 2ANJHWYZEC1    | Wyze Cam V1                           | SN97  |        |                |        | USB?       |                                        |
-| 2ANJHWYZEC2    | Wyze Cam V2                           | T20?  |        |                |        |            |                                        |
-| 2ANJHWYZECP1   | Wyze Cam Pan V1                       | T20X  |        |                |        | RTL8189FTV |                                        |
-| 2AUIUWDB1A     |                                       |       |        |                |        |            |                                        |
-| 2AUIUWVDB1     |                                       |       |        |                |        |            |                                        |
-| 2AUIUWVDB1A    | Wyze DoorBell                         | T31ZX |        |                | 25Q128 | RTL8189FTV |                                        |
-| 2AUIUWVDWDV2   |                                       |       |        |                |        |            |                                        |
-| 2AUIUWVOD2     | Wyze Cam Outdoor V2                   | T20?  |        |                |        | RTL8189FTV |                                        |
-| 2AUIUWWDPCA    |                                       |       |        |                |        |            |                                        |
-| 2AUIUWWVDP     |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZEC3    |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZEC3A   | Wyze Cam V3                           | T31X  | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
-| 2AUIUWYZEC3B   | Wyze Cam V3                           | T31ZX | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
-| 2AUIUWYZEC3C   | Wyze Cam V3                           | T31ZX | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
-| 2AUIUWYZEC3F   | Wyze Cam V3                           | T31A  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
-| 2AUIUWYZEC3P   | Wyze Cam v3 Pro                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECFL2  |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECFLP  |                                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECGS   | Wyze Cam OG, Wyze Cam OG Telephoto 3x |       |        |                |        |            |                                        |
-| 2AUIUWYZECOP   | Wyze Battery Cam Pro                  |       |        |                |        |            |                                        |
-| 2AUIUWYZECP2   | Wyze Cam Pan v2                       |       |        |                |        |            |                                        |
-| 2AUIUWYZECP2A  | Wyze Cam Pan v2                       | T20?  |        |                |        |            |                                        |
-| 2AUIUWYZECPAN3 | Wyze Cam Pam V3                       | T31X  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
-
-JX-F22 
-JX-F23
+| FCC            | Model     | Name                                  | SOC   | CMOS   | RES            | SPI    | WIFI       | Link                                   |
+|----------------|-----------|---------------------------------------|-------|--------|----------------|--------|------------|----------------------------------------|
+| 2ANJHWVOD1     |           | Wyze Cam Outdoor                      | T20X  |        |                |        | RTL8189FTV |                                        |
+| 2ANJHWYZEC02   |           | Wyze Cam V2                           | T20   | JX-F22 | 1920x1080 @ 60 |        | RTL8189FTV |                                        |
+| 2ANJHWYZEC02   |           | Wyze Cam V2                           | T20   | JX-F23 | 1920x1080 @ 30 |        | RTL8189FTV |                                        |
+| 2ANJHWYZEC1    |           | Wyze Cam V1                           | SN97  |        |                |        | USB?       |                                        |
+| 2ANJHWYZEC2    |           | Wyze Cam V2                           | T20?  |        |                |        |            |                                        |
+| 2ANJHWYZECP1   |           | Wyze Cam Pan V1                       | T20X  |        |                |        | RTL8189FTV |                                        |
+| 2AUIUWDB1A     |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWVDB1     |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWVDB1A    |           | Wyze DoorBell                         | T31ZX |        |                | 25Q128 | RTL8189FTV |                                        |
+| 2AUIUWVDWDV2   |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWVOD2     |           | Wyze Cam Outdoor V2                   | T20?  |        |                |        | RTL8189FTV |                                        |
+| 2AUIUWWDPCA    |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWWVDP     |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWYZEC3    | WYZEC3    |                                       |       |        |                |        |            |                                        |
+| 2AUIUWYZEC3A   | WYZEC3A   | Wyze Cam V3                           | T31X  | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
+| 2AUIUWYZEC3B   | WYZEC3B   | Wyze Cam V3                           | T31ZX | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
+| 2AUIUWYZEC3C   | WYZEC3C   | Wyze Cam V3                           | T31ZX | GC2053 |                | 25Q128 | RTL8189FTV | https://www.wyze.com/products/wyze-cam |
+| 2AUIUWYZEC3F   | WYZEC3F   | Wyze Cam V3                           | T31A  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
+| 2AUIUWYZEC3P   |           | Wyze Cam v3 Pro                       |       |        |                |        |            |                                        |
+| 2AUIUWYZECFL2  |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWYZECFLP  |           |                                       |       |        |                |        |            |                                        |
+| 2AUIUWYZECGS   |           | Wyze Cam OG, Wyze Cam OG Telephoto 3x |       |        |                |        |            |                                        |
+| 2AUIUWYZECOP   |           | Wyze Battery Cam Pro                  |       |        |                |        |            |                                        |
+| 2AUIUWYZECP2   |           | Wyze Cam Pan v2                       |       |        |                |        |            |                                        |
+| 2AUIUWYZECP2A  |           | Wyze Cam Pan v2                       | T20?  |        |                |        |            |                                        |
+| 2AUIUWYZECPAN3 |           | Wyze Cam Pam V3                       | T31X  | GC2053 |                | 25Q128 | ATBM6031   | https://www.wyze.com/products/wyze-cam |
 
 ### Modifications
 

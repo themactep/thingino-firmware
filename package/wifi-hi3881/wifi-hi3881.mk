@@ -8,7 +8,6 @@ WIFI_HI3881_LICENSE = GPL-2.0
 
 HI3881_MODULE_NAME = hi3881
 
-
 WIFI_HI3881_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR) \
 	ARCH=$(KERNEL_ARCH) \
@@ -35,20 +34,25 @@ define WIFI_HI3881_BUILD_CMDS
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
+
 define WIFI_HI3881_INSTALL_CONFIGS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(@D)/firmware/wifi_cfg/fcc/wifi_cfg
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware
-	$(INSTALL) -m 644 $(@D)/firmware/hi3881_fw.bin $(TARGET_DIR)/lib/firmware/hi3881_fw.bin
+
+	$(INSTALL) -D -m 0644 $(@D)/firmware/wifi_cfg/fcc/wifi_cfg \
+		$(TARGET_DIR)/usr/share/wifi/wifi_cfg
+
+	$(INSTALL) -D -m 0644 $(@D)/firmware/hi3881_fw.bin \
+		$(TARGET_DIR)/lib/firmware/hi3881_fw.bin
+
 	sed -i 's|ADDR_FILE_FILES=1,0xe4800,/vendor/firmware/hisilicon/hi3881_fw.bin;|ADDR_FILE_FILES=1,0xe4800,/lib/firmware/hi3881_fw.bin;|' $(TARGET_DIR)/usr/share/wifi/wifi_cfg
 endef
 
 WIFI_HI3881_POST_INSTALL_TARGET_HOOKS += WIFI_HI3881_INSTALL_CONFIGS
 
 define WIFI_HI3881_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 755 $(@D)/driver/$(HI3881_MODULE_NAME).ko $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/$(HI3881_MODULE_NAME).ko
+	$(INSTALL) -D -m 0755 $(@D)/driver/$(HI3881_MODULE_NAME).ko \
+		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/$(HI3881_MODULE_NAME).ko
 endef
 
 $(eval $(kernel-module))

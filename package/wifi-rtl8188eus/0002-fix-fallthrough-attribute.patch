@@ -1,0 +1,28 @@
+From 8946c1070b98d9388daa4664314353db70c50449 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 22 Sep 2025 01:19:54 -0400
+Subject: [PATCH] Fix fallthrough attribute compilation error
+
+---
+ core/rtw_mlme_ext.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/core/rtw_mlme_ext.c b/core/rtw_mlme_ext.c
+index da471c1..213b8d6 100644
+--- a/core/rtw_mlme_ext.c
++++ b/core/rtw_mlme_ext.c
+@@ -1832,9 +1832,9 @@ void mgt_dispatcher(_adapter *padapter, union recv_frame *precv_frame)
+ 		else
+ 			ptable->func = &OnAuthClient;
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+-	__attribute__ ((fallthrough));
++	/* fall through */
+ #else
+-			__attribute__ ((__fallthrough__));
++			/* fall through */
+ #endif
+ 	case WIFI_ASSOCREQ:
+ 	case WIFI_REASSOCREQ:
+-- 
+2.47.3
+

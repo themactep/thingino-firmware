@@ -1,0 +1,7 @@
+gpio_button=59
+gpio_default=51i 52o 53o 59i 63o
+gpio_led_b=52o
+gpio_led_r=53o
+gpio_mmc_cd=51
+gpio_speaker=63
+gpio_wlan=62o

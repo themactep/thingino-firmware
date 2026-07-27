@@ -1,18 +1,27 @@
 #!/bin/sh
 
+. /usr/share/common
+
+PORT="/dev/ttyUSB0"
+
+send_command() {
+	printf "\xaa\x55\x43\x05\x16$1" > $PORT
+}
+
 case "$1" in
-	"on_high")
-		printf "\xaa\x55\x43\x05\x16\xff\x07\x02\x63" > /dev/ttyUSB0
+	high | on_high)
+		send_command "\xff\x07\x02\x63"
 		;;
-	"on_low")
-		printf "\xaa\x55\x43\x05\x16\x33\x07\x01\x97" > /dev/ttyUSB0
+	low | on_low)
+		send_command "\x33\x07\x01\x97"
 		;;
-	"off")
-		printf "\xaa\x55\x43\x05\x16\x00\x07\x01\x64" > /dev/ttyUSB0
+	off)
+		send_command "\x00\x07\x01\x64"
 		;;
 	*)
-		echo "usage: spotlight_ctl on_high"
-		echo "usage: spotlight_ctl on_low"
-		echo "usage: spotlight_ctl off"
+		echo "Usage: $0 [high|low|off]"
+		exit 1
 		;;
 esac
+
+exit 0

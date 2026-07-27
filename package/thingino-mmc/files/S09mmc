@@ -1,68 +1,73 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 MMC_MODULE="jzmmc_v12"
-MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
-MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
-
-# Default CD-PIN for Ingenic PB27 (GPIO59)
-[ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
 set_gpio() {
-	info "Set GPIO $1 to F$2 D$3"
+	echo_info "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
 set_power() {
 	# Set additional MMC GPIOs
-	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
-	for gpio in $MMC_GPIO_PWR; do
+	# This needs to run AFTER the driver has been loaded
+	# for the SD card to mount during boot
+	for gpio in $gpio_mmc_power; do
 		[ "${#gpio}" -ne 3 ] && continue
 		[ "${gpio%[oO]}" = "$gpio" ] && continue
 
 		case "${gpio#??}" in
 			"O")
-				info "Set GPIO "${gpio%[oO]}" high"
-				run "gpio set "${gpio%[oO]}" 1"
+				echo_info "Set GPIO "${gpio%[oO]}" high"
+				gpio set "${gpio%[oO]}" 1
 				;;
 			"o")
-				info "Set GPIO "${gpio%[oO]}" low"
-				run "gpio set "${gpio%[oO]}" 0"
+				echo_info "Set GPIO "${gpio%[oO]}" low"
+				gpio set "${gpio%[oO]}" 0
 				;;
 		esac
 	done
 }
 
 load_module() {
-	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
-	info "Load $MMC_MODULE $MMC_PARAM"
-	modprobe $MMC_MODULE $MMC_PARAM || die "Failed to load module!"
+	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
+		echo_error "$MMC_MODULE is already loaded"
+		exit 1
+	fi
+
+	echo_info "Load $MMC_MODULE $MMC_PARAM"
+
+	if ! modprobe $MMC_MODULE $MMC_PARAM; then
+		echo_error "Failed to load module!"
+		exit 1
+	fi
+
 	set_power
 }
 
 start() {
-	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
+	echo_title "Initializing MMC"
+
+	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module
 }
 
 case "$1" in
 	start)
-		starting
 		start
-		check_result
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
-	reload | restart)
+	restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
 		;;
 esac
 

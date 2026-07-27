@@ -1,0 +1,138 @@
+diff --git a/src/shared/uhid.c b/src/shared/uhid.c
+index 20bd267..63c5154 100644
+--- a/src/shared/uhid.c
++++ b/src/shared/uhid.c
+@@ -30,6 +30,8 @@
+ #define MIN(x, y) ((x) < (y) ? (x) : (y))
+ #endif
+
++/* Kernel 3.10 compatibility - UHID_CREATE2/INPUT2 added in 3.11+ */
++
+ struct uhid_replay {
+ 	bool active;
+ 	struct queue *out;
+@@ -179,10 +181,12 @@ static bool uhid_read_handler(struct io *io, void *user_data)
+ 		return false;
+
+ 	switch (ev.type) {
++#if defined(UHID_GET_REPORT) && defined(UHID_SET_REPORT)
+ 	case UHID_GET_REPORT:
+ 	case UHID_SET_REPORT:
+ 		bt_uhid_record(uhid, false, &ev);
+ 		break;
++#endif
+ 	}
+
+ 	uhid_notify(uhid, &ev);
+@@ -397,8 +401,13 @@ int bt_uhid_create(struct bt_uhid *uhid, const char *name, bdaddr_t *src,
+ 	struct uhid_event ev;
+ 	int err;
+
++#ifdef UHID_CREATE2
+ 	if (!uhid || !name || rd_size > sizeof(ev.u.create2.rd_data))
+ 		return -EINVAL;
++#else
++	if (!uhid || !name || rd_size > sizeof(ev.u.create.rd_data))
++		return -EINVAL;
++#endif
+
+ 	if (uhid->created)
+ 		return 0;
+@@ -412,6 +421,7 @@ int bt_uhid_create(struct bt_uhid *uhid, const char *name, bdaddr_t *src,
+ 	}
+
+ 	memset(&ev, 0, sizeof(ev));
++#ifdef UHID_CREATE2
+ 	ev.type = UHID_CREATE2;
+ 	strncpy((char *) ev.u.create2.name, name,
+ 			sizeof(ev.u.create2.name) - 1);
+@@ -433,6 +443,30 @@ int bt_uhid_create(struct bt_uhid *uhid, const char *name, bdaddr_t *src,
+ 	if (rd_size)
+ 		memcpy(ev.u.create2.rd_data, rd_data, rd_size);
+ 	ev.u.create2.rd_size = rd_size;
++#else
++	/* Fallback to UHID_CREATE for kernel 3.10 */
++	ev.type = UHID_CREATE;
++	strncpy((char *) ev.u.create.name, name,
++			sizeof(ev.u.create.name) - 1);
++	if (src)
++		sprintf((char *)ev.u.create.phys,
++			"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
++			src->b[5], src->b[4], src->b[3], src->b[2], src->b[1],
++			src->b[0]);
++	if (dst)
++		sprintf((char *)ev.u.create.uniq,
++			"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
++			dst->b[5], dst->b[4], dst->b[3], dst->b[2], dst->b[1],
++			dst->b[0]);
++	ev.u.create.vendor = vendor;
++	ev.u.create.product = product;
++	ev.u.create.version = version;
++	ev.u.create.country = country;
++	ev.u.create.bus = BUS_BLUETOOTH;
++	if (rd_size)
++		memcpy(ev.u.create.rd_data, rd_data, rd_size);
++	ev.u.create.rd_size = rd_size;
++#endif
+
+ 	err = bt_uhid_send(uhid, &ev);
+ 	if (err)
+@@ -465,14 +499,22 @@ int bt_uhid_input(struct bt_uhid *uhid, uint8_t number, const void *data,
+ 			size_t size)
+ {
+ 	struct uhid_event ev;
++#ifdef UHID_INPUT2
+ 	struct uhid_input2_req *req = &ev.u.input2;
++#else
++	struct uhid_input_req *req = &ev.u.input;
++#endif
+ 	size_t len = 0;
+
+ 	if (!uhid)
+ 		return -EINVAL;
+
+ 	memset(&ev, 0, sizeof(ev));
++#ifdef UHID_INPUT2
+ 	ev.type = UHID_INPUT2;
++#else
++	ev.type = UHID_INPUT;
++#endif
+
+ 	if (number) {
+ 		req->data[len++] = number;
+@@ -497,6 +539,7 @@ int bt_uhid_input(struct bt_uhid *uhid, uint8_t number, const void *data,
+
+ int bt_uhid_set_report_reply(struct bt_uhid *uhid, uint8_t id, uint8_t status)
+ {
++#if defined(UHID_SET_REPORT_REPLY)
+ 	struct uhid_event ev;
+ 	struct uhid_set_report_reply_req *rsp = &ev.u.set_report_reply;
+
+@@ -512,11 +555,16 @@ int bt_uhid_set_report_reply(struct bt_uhid *uhid, uint8_t id, uint8_t status)
+ 		return 0;
+
+ 	return bt_uhid_send(uhid, &ev);
++#else
++	/* UHID_SET_REPORT_REPLY not available in kernel 3.10 */
++	return 0;
++#endif
+ }
+
+ int bt_uhid_get_report_reply(struct bt_uhid *uhid, uint8_t id, uint8_t number,
+ 				uint8_t status, const void *data, size_t size)
+ {
++#if defined(UHID_GET_REPORT_REPLY)
+ 	struct uhid_event ev;
+ 	struct uhid_get_report_reply_req *rsp = &ev.u.get_report_reply;
+ 	size_t len = 0;
+@@ -545,6 +593,10 @@ done:
+ 		return 0;
+
+ 	return bt_uhid_send(uhid, &ev);
++#else
++	/* UHID_GET_REPORT_REPLY not available in kernel 3.10 */
++	return 0;
++#endif
+ }
+
+ int bt_uhid_destroy(struct bt_uhid *uhid, bool force)

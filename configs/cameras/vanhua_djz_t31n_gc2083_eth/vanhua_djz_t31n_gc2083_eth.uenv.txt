@@ -1,0 +1,4 @@
+gpio_default=18O 57o 58o
+gpio_ir940=50
+gpio_ircut=57 58
+gpio_white=49

@@ -1,26 +1,26 @@
 #!/bin/sh
 
-. /sbin/common
+die() { echo "$1" >&2; exit 1; }
+
+PRUDYNT_CONFIG_FILE="/etc/prudynt.json"
 
 show_help() {
-	echo -e "Thingino Diagnostics Script\n"
-	echo -e "Generate diagnostics log shared via termbin.com\n"
-	echo "Usage: $0 [-l [path]]"
-	echo "Where:"
-	echo "  -l    Save the log to a local file instead of uploading."
-	echo "        Optional: specify a custom path (default: /tmp)"
+	echo "Thingino Diagnostics Script
+Generate diagnostics log shared via tb.thingino.com
+
+Usage: $0 [-l [path]]
+Where:
+	-l	Save the log to a local file instead of uploading.
+		Optional: specify a custom path (default: /tmp)
+"
 	exit 0
 }
 
 header() {
-	local border="=============================================="
-	local width=46
-	local text="$1"
-	local text_length=${#text}
-	local padding=$(((width - text_length - 2) / 2))
-	local left_border=${border:0:padding}
-	local right_border=${border:0:(width - padding - text_length - 2)}
-	echo -e "$border\n$left_border $text $right_border\n$border"
+	local len=$((73 - ${#1}))
+	echo -en "\n\n===[ $1 ]"
+	for i in $(seq 1 $len); do echo -n "="; done
+	echo -e "\n\n"
 }
 
 infocat() {
@@ -30,8 +30,9 @@ infocat() {
 }
 
 inforun() {
-	[ -n "$2" ] && header "$2"
-	eval $1
+	tmp=$(mktemp) || exit 1
+	eval "$1" >"$tmp" && [ -s "$tmp" ] && { [ -n "$2" ] && header "$2"; cat "$tmp"; }
+	rm -f "$tmp"
 }
 
 local_file=""
@@ -42,37 +43,29 @@ while getopts ":lh" opt; do
 			local_file="yes"
 			shift $((OPTIND-1))
 			output_path="${1:-/tmp}"
-			if [ ! -d "$output_path" ]; then
-				echo_c 160 "Error: Directory $output_path does not exist" >&2
-				exit 1
-			fi
-			if [ ! -w "$output_path" ]; then
-				echo_c 160 "Error: Directory $output_path is not writable" >&2
-				exit 1
-			fi
+			[ -d "$output_path" ] || die "Error: Directory $output_path does not exist"
+			[ -w "$output_path" ] || die "Error: Directory $output_path is not writable"
 			;;
 		h)
 			show_help
 			;;
 		\?)
-			echo_c 160 "Invalid option: -$OPTARG" >&2
+			echo "Invalid option: -$OPTARG"
 			show_help
 			;;
 	esac
 done
 
-if is_interactive_shell; then
-	echo_c 208 "Thingino Diagnostics"
-	[ -z "$local_file" ] && echo_c 11 "This script requires network access."
-	echo -e "\nThis script generates a log file for sharing with developers \
-for diagnostic issues.\nThe log may contain sensitive or personal information, \
-make sure to review it before sending the link!\nWe use termbin to share the log. \
-Please review their use policy at https://www.termbin.com/\n"
+if [ -t 0 ]; then
+	echo "Thingino Diagnostics"
+	[ -z "$local_file" ] && echo "This script requires network access."
+	echo "
+This script generates a log file for sharing with developers for diagnostic issues.
+The log may contain sensitive information, please review it before sharing the link!
+We use a self-hosted fiche server to share the log. Files are stored for 1 week.
+"
 	read -p "Do you wish to proceed? (yes/no): " response
-	if [ "yes" != "$response" ]; then
-		echo_c 160 "Operation aborted by the user."
-		exit 1
-	fi
+	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
 
 if [ -n "$local_file" ]; then
@@ -88,27 +81,28 @@ fi
 	inforun "grep -a \"Thingino\" /dev/mtd0"
 	infocat "/etc/os-release" "THINGINO"
 	inforun "soc;soc -w" "SOC"
-	inforun "dmesg" "DMESG"
-	inforun "logread" "SYSLOG"
-	inforun "logcat" "LOGCAT"
-	inforun "ps" "PS"
-	inforun "df -h" "DF"
-	inforun "ipcs" "IPC"
-	inforun "lsmod" "KMOD"
-
-	header "KMOD-2"
-	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
-
-	inforun "lsusb" "USB"
-	inforun "free -h" "MEMORY"
-	inforun "lsof" "LSOF"
-	inforun "mount" "MOUNT"
-	inforun "gpio list" "GPIO"
 
 	header "ENV"
-	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanmac|wlanpass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
+	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlan_ssid|wlan_mac|wlan_pass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
 	infocat "/proc/cmdline" "CMDLINE"
+	inforun "gpio list" "GPIO"
+	inforun "df -h" "DF"
+	inforun "ipcs" "IPC"
+	inforun "find /sys -path '*mmc*vendor' -type f -exec sh -c 'echo \"Vendor: \$1\"; cat \"\$1\"; dev=\"\${1/vendor/device}\"; [ -f \"\$dev\" ] && { echo \"Device: \$dev\"; cat \"\$dev\"; }' _ {} \;" "MMC"
+
+	inforun "lsmod" "KMOD"
+	header "KMOD-2"
+	for file in /etc/modules.d/*; do
+		echo "== $file =="
+		cat "$file"
+	done
+
+	[ -d /sys/bus/usb/devices/ ] && inforun "lsusb" "USB"
+
+	inforun "free -h" "MEMORY"
+	inforun "mount" "MOUNT"
+
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
 	infocat "/proc/jz/isp/isp-m0" "isp-m0"
@@ -117,19 +111,28 @@ fi
 
 	inforun "sensor -a" "sensor"
 
+	inforun "ps" "PS"
+	inforun "lsof" "LSOF"
+	inforun "dmesg" "DMESG"
+	inforun "logcat -t" "LOGCAT"
+	inforun "logread" "SYSLOG"
+
 	header "streamer"
-	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
+	sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 
+sed -E -i 's/(openRTSP -V -u) (\w*) (\w*) (.*)$/\1 REDACTED REDACTED \4/' $output_file
+
 if [ -z "$local_file" ]; then
-	url=$(cat "$output_file" | send2termbin)
+	url=$(send2termbin < $output_file)
 	rm -f "$output_file"
 
 	[ -z "$url" ] && die "\nThere was an error."
 
-	echo -e "\nYour diagnostics log link:\n$url"
+	echo "Your diagnostics log link:"
+	echo "$url"
 else
 	echo "Diagnostics log saved locally at $output_file"
 fi

@@ -1,0 +1,147 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-tools me-2"></i>System Maintenance</h1>
+    <p class="text-muted">System maintenance operations and configuration management</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="row g-4">
+      <!-- System Operations -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-power me-2"></i>System Operations</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-warning" onclick="rebootSystem()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Reboot System
+              </button>
+              <button class="btn btn-outline-danger" onclick="factoryReset()">
+                <i class="bi bi-exclamation-triangle me-1"></i>Factory Reset
+              </button>
+            </div>
+            <div class="mt-3">
+              <small class="text-muted">
+                <strong>Warning:</strong> Factory reset erases all settings and returns to defaults!
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Management -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-file-earmark-arrow-down me-2"></i>Configuration</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-info" onclick="exportConfig()">
+                <i class="bi bi-download me-1"></i>Export Config
+              </button>
+              <button class="btn btn-outline-secondary" onclick="importConfig()">
+                <i class="bi bi-upload me-1"></i>Import Config
+              </button>
+            </div>
+            <div class="mt-3">
+              <small class="text-muted">
+                Backup and restore your camera configuration settings.
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Status -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-activity me-2"></i>System Status</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3">
+                <div class="text-center">
+                  <div class="h5 mb-1">{{system_uptime}}</div>
+                  <small class="text-muted">Uptime</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <div class="h5 mb-1">{{system_load}}</div>
+                  <small class="text-muted">Load Average</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <div class="h5 mb-1">{{system_memory}}</div>
+                  <small class="text-muted">Memory Usage</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <div class="h5 mb-1">{{system_storage}}</div>
+                  <small class="text-muted">Storage Usage</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function rebootSystem() {
+        if (confirm('Are you sure you want to reboot the system? This will disconnect all users.')) {
+            fetch('/lua/api/system/reboot', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert('System is rebooting... Please wait 30-60 seconds before reconnecting.');
+                    setTimeout(() => {
+                        window.location.href = '/lua/login';
+                    }, 5000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to reboot system');
+                });
+        }
+    }
+
+    function factoryReset() {
+        if (confirm('WARNING: This will erase ALL settings and return to factory defaults. Are you sure?')) {
+            if (confirm('This action cannot be undone. Continue with factory reset?')) {
+                fetch('/lua/api/system/factory-reset', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Factory reset initiated. System will reboot with default settings.');
+                        setTimeout(() => {
+                            window.location.href = '/lua/login';
+                        }, 5000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to perform factory reset');
+                    });
+            }
+        }
+    }
+
+    function exportConfig() {
+        window.location.href = '/lua/api/system/export-config';
+    }
+
+    function importConfig() {
+        alert('Config import feature coming soon...');
+    }
+</script>
+
+{{include:footer}}

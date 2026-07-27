@@ -1,20 +1,29 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
+
+MDEV="/sbin/mdev"
+
+start() {
+	echo_title "Configuring mdev"
+
+	echo "$MDEV" > /proc/sys/kernel/hotplug
+	$MDEV -s
+}
 
 case "$1" in
 	start)
-		starting
-		run "echo /sbin/mdev > /proc/sys/kernel/hotplug"
-		run "/sbin/mdev -s"
-		check_result
+		start
 		;;
 	stop)
-		stopping
-		ok
+		true
+		;;
+	restart)
+		start
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

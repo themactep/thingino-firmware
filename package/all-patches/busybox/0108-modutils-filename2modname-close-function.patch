@@ -1,0 +1,8 @@
+--- a/modutils/modutils.c	2024-04-16 03:23:50.000000000 -0400
++++ b/modutils/modutils.c	2025-10-18 00:05:00.000000000 -0400
+@@ -116,1 +116,3 @@
+-	modname[i] = '\0';
++	modname[i] = '\0';
++	return modname;
++}
+

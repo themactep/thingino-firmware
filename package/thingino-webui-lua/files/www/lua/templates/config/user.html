@@ -1,0 +1,55 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-person-lock me-2"></i><span data-i18n="config.user.title">User Management</span></h1>
+    <p class="text-muted" data-i18n="config.user.subtitle">Configure root user password and session settings</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card config-form">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-person-lock me-2"></i><span data-i18n="config.user.settings">Root User Settings</span></h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/lua/config/user">
+          <div class="mb-3">
+            <label for="admin_password" class="form-label" data-i18n="config.user.root_password">Root Password</label>
+            <input type="password" id="admin_password" name="admin_password" class="form-control" data-i18n-placeholder="config.user.password_placeholder">
+            <div class="form-text" data-i18n="config.user.password_help">Minimum 8 characters for root user</div>
+          </div>
+          <div class="mb-3">
+            <label for="admin_password_confirm" class="form-label" data-i18n="config.user.confirm_password">Confirm Password</label>
+            <input type="password" id="admin_password_confirm" name="admin_password_confirm" class="form-control" data-i18n-placeholder="config.user.confirm_placeholder">
+          </div>
+          <div class="mb-3">
+            <label for="session_timeout" class="form-label" data-i18n="config.user.session_timeout">Session Timeout (min)</label>
+            <input type="number" id="session_timeout" name="session_timeout" class="form-control" value="{{config_session_timeout}}" min="5" max="1440">
+            <div class="form-text" data-i18n="config.user.session_help">Auto logout after inactivity</div>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i><span data-i18n="config.user.save_settings">Save User Settings</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Password confirmation validation
+    document.getElementById('admin_password_confirm').addEventListener('input', function() {
+        const password = document.getElementById('admin_password').value;
+        const confirm = this.value;
+
+        if (password && confirm && password !== confirm) {
+            this.setCustomValidity(window.i18n?.t('config.user.passwords_no_match') || 'Passwords do not match');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+</script>
+
+{{include:footer}}

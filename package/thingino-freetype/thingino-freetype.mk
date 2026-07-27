@@ -1,9 +1,9 @@
-THINGINO_FREETYPE_VERSION = 2.13.2
+THINGINO_FREETYPE_VERSION = 2.14.1
 THINGINO_FREETYPE_SOURCE = freetype-$(THINGINO_FREETYPE_VERSION).tar.xz
 THINGINO_FREETYPE_SITE = http://download.savannah.gnu.org/releases/freetype
 THINGINO_FREETYPE_INSTALL_STAGING = YES
 THINGINO_FREETYPE_MAKE_OPTS = CCexe="$(HOSTCC)"
-THINGINO_FREETYPE_LICENSE = Dual FTL/GPL-2.0+
+THINGINO_FREETYPE_LICENSE = FTL or GPL-2.0+
 THINGINO_FREETYPE_LICENSE_FILES = LICENSE.TXT docs/FTL.TXT docs/GPLv2.TXT
 THINGINO_FREETYPE_CPE_ID_VENDOR = freetype
 THINGINO_FREETYPE_DEPENDENCIES = host-pkgconf
@@ -11,8 +11,13 @@ THINGINO_FREETYPE_CONFIG_SCRIPTS = freetype-config
 
 # harfbuzz already depends on freetype so disable harfbuzz in freetype to avoid
 # a circular dependency
-THINGINO_FREETYPE_CONF_OPTS = --without-harfbuzz --disable-largefile --disable-mmap --without-png \
-	--without-brotli --without-zlib
+THINGINO_FREETYPE_CONF_OPTS = \
+	--without-harfbuzz \
+	--disable-largefile \
+	--disable-mmap \
+	--without-png \
+	--without-brotli \
+	--without-zlib
 
 HOST_THINGINO_FREETYPE_DEPENDENCIES = host-pkgconf
 HOST_THINGINO_FREETYPE_CONF_OPTS = \

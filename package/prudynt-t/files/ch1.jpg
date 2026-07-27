@@ -1,0 +1,19 @@
+#!/bin/sh
+# BusyBox httpd CGI for snapshot channel 1
+# Optional query: q=85 for JPEG quality override
+
+echo "Content-Type: image/jpeg"
+echo
+
+Q=""
+case "$QUERY_STRING" in
+	q=*) Q=${QUERY_STRING#q=} ;;
+	*) Q="" ;;
+esac
+
+if [ -n "$Q" ]; then
+	prudyntctl snapshot -c 1 -q "$Q"
+else
+	prudyntctl snapshot -c 1
+fi
+

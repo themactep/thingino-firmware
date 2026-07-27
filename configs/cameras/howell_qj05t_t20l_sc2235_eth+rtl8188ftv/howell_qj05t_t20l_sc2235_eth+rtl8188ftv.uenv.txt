@@ -1,0 +1,5 @@
+gpio_button=60
+gpio_default=25o 26o 77o 60i
+gpio_ircds=true
+gpio_ircut=26 25
+gpio_speaker=77O

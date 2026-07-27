@@ -1,93 +1,156 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="email"
-
-EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-
-. /sbin/common-plugins
+. /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
-	echo "Usage: $0 [-f address] [-t address] [-s subject] [-b body] [-v] [-h]
-  -f address  Sender's email address
-  -t address  Recipient's email address
-  -s subject  Subject line.
-  -b body     Letter body.
-  -k          Ignore SSL certificate validity.
-  -v          Verbose output.
-  -h          Show this help.
-"
-	quit_clean 0
+	echo "Usage: $0 [options]
+Where:
+	-f address  Sender's email address
+	-t address  Recipient's email address
+	-n host     SMTP server host.
+	-p port     SMTP server port.
+	-s subject  Subject line.
+	-b body     Letter body.
+	-k          Ignore SSL certificate validity.
+	-v          Verbose output.
+	-h          Show this help.
+" >&2
+	exit 0
 }
 
-# override config values with command line arguments
-while getopts b:f:ks:t:vh flag; do
+read_config() {
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	from_address=$(jct $CONFIG_FILE get email.from_address)
+	   from_name=$(jct $CONFIG_FILE get email.from_name)
+	  to_address=$(jct $CONFIG_FILE get email.to_address)
+	     to_name=$(jct $CONFIG_FILE get email.to_name)
+	     subject=$(jct $CONFIG_FILE get email.subject)
+	        body=$(jct $CONFIG_FILE get email.body)
+	        host=$(jct $CONFIG_FILE get email.host)
+	        port=$(jct $CONFIG_FILE get email.port)
+	    username=$(jct $CONFIG_FILE get email.username)
+	    password=$(jct $CONFIG_FILE get email.password)
+	     use_ssl=$(jct $CONFIG_FILE get email.use_ssl)
+	  trust_cert=$(jct $CONFIG_FILE get email.trust_cert)
+	  send_photo=$(jct $CONFIG_FILE get email.send_photo)
+	  send_video=$(jct $CONFIG_FILE get email.send_video)
+}
+
+read_config
+
+while getopts b:f:hkn:p:s:t:v flag; do
 	case "$flag" in
-		b) email_body=$OPTARG ;;
-		f) email_from_address=$OPTARG ;;
-		k) email_insecure_ssl="true" ;;
-		s) email_subject=$OPTARG ;;
-		t) email_to_address=$OPTARG ;;
+		b) body=$OPTARG ;;
+		f) from_address=$OPTARG ;;
+		h) host=$OPTARG ;;
+		k) use_ssl="true" ;;
+		p) port=$OPTARG ;;
+		s) subject=$OPTARG ;;
+		t) to_address=$OPTARG ;;
 		v) verbose="true" ;;
-		h | *) show_help ;;
+		*) show_help ;;
 	esac
 done
 
-[ "false" = "$email_enabled" ] && die "Sending to email is disabled."
-# validate mandatory values
-[ -z "$email_smtp_host" ] && die "SMTP host not found in config"
-[ -z "$email_smtp_port" ] && die "SMTP port not found in config"
-[ -z "$email_from_address" ] && die "Sender's email address not found"
-[ -z "$email_to_address" ] && die "Recipient's email address not found"
-
-echo "$email_from_address" | grep -E -q $EMAIL_FORMAT || die "Invalid sender email address format"
-echo "$email_to_address" | grep -E -q $EMAIL_FORMAT || die "Invalid recipient email address format"
-
-# assign default values if not set
-[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
-[ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
-[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
-
-build_cmd "$CURL --mail-from $email_from_address --mail-rcpt $email_to_address"
-[ "true" = "$verbose" ] && build_cmd "--verbose"
-
-[ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ] && \
-	build_cmd "--user '$email_smtp_username:$email_smtp_password'"
-if [ "true" = "$email_smtp_use_ssl" ]; then
-	build_cmd "--url smtps://$email_smtp_host:$email_smtp_port --ssl"
-	[ "true" = "$email_insecure_ssl" ] && build_cmd "--insecure"
-else
-	build_cmd "--url smtp://$email_smtp_host:$email_smtp_port"
+if [ -z "$host" ]; then
+	echo_error "SMTP host not found"
+	exit 1
 fi
 
-if [ "true" = "$email_attach_snapshot" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-
-	email_body="$(date -R)"
-	build_cmd "-H 'Subject: $email_subject'"
-	build_cmd "-H 'From: \"$email_from_name\" <$email_from_address>'"
-	build_cmd "-H 'To: \"$email_to_name\" <$email_to_address>'"
-	build_cmd "-F '=(;type=multipart/mixed'"
-	build_cmd "-F '=$email_body;type=text/plain'"
-	build_cmd "-F 'file=@$attachment;type=image/jpeg;encoder=base64'"
-	build_cmd "-F '=)'"
-else
-	email_file="/tmp/email.$$.txt"
-	{
-		echo "From: $email_from_name <$email_from_address>"
-		echo "To: $email_to_name <$email_to_address>"
-		echo "Subject: $email_subject"
-		echo "Date: $(date -R)"
-		echo ""
-		echo "$email_body"
-	} >> $email_file
-	build_cmd "--upload-file $email_file"
+if [ -z "$port" ]; then
+	port=25
 fi
 
-log_and_run "$command"
+if [ -z "$from_address" ]; then
+	echo_error "Sender's email address not found"
+	exit 1
+fi
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+if [ -z "$to_address" ]; then
+	echo_error "Recipient's email address not found"
+	exit 1
+fi
 
-[ -f "$email_file" ] && rm -f $email_file
+if [ -z "$body" ]; then
+	echo_error "Email body not found"
+	exit 1
+fi
 
-quit_clean 0
+if ! echo "$from_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
+	echo_error "Invalid sender email address format"
+	exit 1
+fi
+
+if ! echo "$to_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
+	echo_error "Invalid recipient email address format"
+	exit 1
+fi
+
+if [ -z "$from_name" ]; then
+	from_name="Thingino Camera"
+fi
+
+if [ -z "$to_name" ]; then
+	to_name="Thingino Camera Admin"
+fi
+
+if [ -z "$subject" ]; then
+	subject="Snapshot from Thingino Camera"
+fi
+
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
+fi
+command="$command --mail-from $from_address --mail-rcpt $to_address"
+
+if [ -n "$username" ] && [ -n "$password" ]; then
+	command="$command --user '$username:$password'"
+fi
+
+if [ "true" = "$use_ssl" ]; then
+	command="$command --url smtps://$host:$port --ssl"
+	[ "true" = "$trust_cert" ] && command="$command --insecure"
+else
+	command="$command --url smtp://$host:$port"
+fi
+
+email_body=${body//"/\\"}
+command="$command -H 'From: \"$from_name\" <$from_address>'"
+command="$command -H 'To: \"$to_name\" <$to_address>'"
+command="$command -H 'Subject: $subject'"
+command="$command -F '=(;type=multipart/mixed'"
+command="$command -F \"=${body};type=text/plain\""
+
+if [ "true" = "$send_photo" ]; then
+	photo=$(copy_photo)
+	command="$command -F 'snapshot=@$photo;type=image/jpeg;encoder=base64'"
+fi
+
+if [ "true" = "$send_video" ]; then
+	video="$(copy_video)"
+	case "${VBUFFER_FILE##*.}" in
+		mkv) mime="video/matroska" ;;
+		mov) mime="video/quicktime" ;;
+		mp4) mime="video/mp4" ;;
+		*) mime="application/octet-stream" ;;
+	esac
+	command="$command -F 'video=@$video;type=$mime;encoder=base64'"
+fi
+
+command="$command -F '=)'"
+
+if [ "true" = "$verbose" ]; then
+	echo_command "$command"
+fi
+
+if ! sh -c "$command" >/dev/null; then
+	echo_error "Failed to send email"
+	exit 1
+fi
+
+exit 0

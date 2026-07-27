@@ -1,0 +1,10 @@
+config BR2_PACKAGE_LIBDATACHANNEL
+	bool "libdatachannel (tiny WebRTC C++ library)"
+	select BR2_PACKAGE_LIBJUICE
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	help
+	  Minimal WebRTC C++ library for embedded/IoT (https://github.com/paullouisageneau/libdatachannel)
+
+comment "libdatachannel needs a toolchain w/ threads, dynamic library"
+	depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

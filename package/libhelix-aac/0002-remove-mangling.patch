@@ -1,0 +1,12 @@
+diff --git a/src/libhelix-aac/statname.h b/src/libhelix-aac/statname.h
+index 2899ca9..37278c0 100644
+--- a/src/libhelix-aac/statname.h
++++ b/src/libhelix-aac/statname.h
+@@ -50,7 +50,6 @@
+     all the C functions and global variables will be mangled by the preprocessor
+      e.g. void DCT4(...) becomes void raac_DCT4(...)
+ */
+-#define STAT_PREFIX		raac
+ 
+ #define STATCC1(x,y,z)	STATCC2(x,y,z)
+ #define STATCC2(x,y,z)	x##y##z

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+. /usr/share/common
+
+start() {
+	echo_title "Configuring DNS"
+
+	if [ -f "$RESOLV_DEFAULT_FILE" ]; then
+		cat "$RESOLV_DEFAULT_FILE" > "$RESOLV_WORKING_FILE"
+		echo_info "Using default DNS servers"
+	else
+		echo_info "No static DNS servers found"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,83 @@
+diff --git a/libavcodec/mips/Makefile b/libavcodec/mips/Makefile
+index f1c1c79..d512763 100644
+--- a/libavcodec/mips/Makefile
++++ b/libavcodec/mips/Makefile
+@@ -61,14 +61,17 @@ OBJS-$(CONFIG_MPEG4_DECODER)              += mips/xvididct_init_mips.o
+ OBJS-$(CONFIG_VC1DSP)                     += mips/vc1dsp_init_mips.o
+ OBJS-$(CONFIG_WMV2DSP)                    += mips/wmv2dsp_init_mips.o
+ OBJS-$(CONFIG_VIDEODSP)                   += mips/videodsp_init.o
+-MSA-OBJS-$(CONFIG_HEVC_DECODER)           += mips/hevcdsp_msa.o            \
+-                                             mips/hevc_mc_uni_msa.o        \
+-                                             mips/hevc_mc_uniw_msa.o       \
+-                                             mips/hevc_mc_bi_msa.o         \
+-                                             mips/hevc_mc_biw_msa.o        \
+-                                             mips/hevc_idct_msa.o          \
+-                                             mips/hevc_lpf_sao_msa.o       \
+-                                             mips/hevcpred_msa.o
++# Disabled all HEVC MSA optimizations due to type incompatibility errors with GCC 7.2.0:
++#MSA-OBJS-$(CONFIG_HEVC_DECODER)           += mips/hevcdsp_msa.o            \
++#                                             mips/hevc_mc_uni_msa.o        \
++#                                             mips/hevc_mc_uniw_msa.o       \
++#                                             mips/hevc_mc_bi_msa.o         \
++#                                             mips/hevc_mc_biw_msa.o        \
++#                                             mips/hevc_idct_msa.o          \
++#                                             mips/hevc_lpf_sao_msa.o       \
++#                                             mips/hevcpred_msa.o
++#   mips/hevcpred_msa.o
++#   mips/hevcpred_msa.o
+ MSA-OBJS-$(CONFIG_VP9_DECODER)            += mips/vp9_mc_msa.o             \
+                                              mips/vp9_lpf_msa.o            \
+                                              mips/vp9_idct_msa.o           \
+diff --git a/libavcodec/mips/hevc_mc_uniw_msa.c b/libavcodec/mips/hevc_mc_uniw_msa.c
+index 502a502..9a8f7dd 100644
+--- a/libavcodec/mips/hevc_mc_uniw_msa.c
++++ b/libavcodec/mips/hevc_mc_uniw_msa.c
+@@ -1329,7 +1329,7 @@ static void hevc_hz_uniwgt_8t_48w_msa(const uint8_t *src,
+                     vec0, vec1, vec2, vec3);
+         PCKEV_H2_SH(dst9, dst8, dst11, dst10, vec4, vec5);
+         PCKEV_B2_UB(vec1, vec0, vec3, vec2, out0, out1);
+-        out2 = __msa_pckev_b((v16i8) vec5, (v16i8) vec4);
++        out2 = (v16u8) __msa_pckev_b((v16i8) vec5, (v16i8) vec4);
+         ST_UB2(out0, out1, dst, 16);
+         ST_UB(out2, dst + 32);
+         dst += dst_stride;
+@@ -1655,7 +1655,7 @@ static void hevc_vt_uniwgt_8t_8w_msa(const uint8_t *src,
+              offset_vec, dst0, dst1, dst2, dst3);
+         CLIP_SW4_0_255(dst0, dst1, dst2, dst3);
+         PCKEV_H2_SH(dst1, dst0, dst3, dst2, vec0, vec1);
+-        out0 = __msa_pckev_b((v16i8) vec1, (v16i8) vec0);
++        out0 = (v16u8) __msa_pckev_b((v16i8) dst1, (v16i8) dst0);
+         ST_D2(out0, 0, 1, dst, dst_stride);
+     }
+ }
+@@ -2172,7 +2172,7 @@ static void hevc_hv_uniwgt_8t_8multx2mult_msa(const uint8_t *src,
+ 
+     filter_vec = LD_SH(filter_x);
+     UNPCK_R_SB_SH(filter_vec, filter_vec);
+-    SPLATI_W4_SW(filter_vec, filt0, filt1, filt2, filt3);
++    SPLATI_W4_SH(filter_vec, 0, filt0, 1, filt1, 2, filt2, 3, filt3);
+ 
+     filter_vec = LD_SH(filter_y);
+     UNPCK_R_SB_SH(filter_vec, filter_vec);
+@@ -2631,7 +2631,7 @@ static void hevc_hz_uniwgt_4t_4x2_msa(const uint8_t *src,
+     SRAR_W2_SW(dst0, dst1, rnd_vec);
+     ADD2(dst0, offset_vec, dst1, offset_vec, dst0, dst1);
+     CLIP_SW2_0_255(dst0, dst1);
+-    vec0 = __msa_pckev_h((v8i16) dst1, (v8i16) dst0);
++    vec0 = (v16i8) __msa_pckev_h((v8i16) dst1, (v8i16) dst0);
+     out = (v16u8) __msa_pckev_b((v16i8) vec0, (v16i8) vec0);
+     ST_W2(out, 0, 1, dst, dst_stride);
+     dst += (4 * dst_stride);
+diff --git a/libavcodec/mips/hevcpred_msa.c b/libavcodec/mips/hevcpred_msa.c
+index a682471..38cd392 100644
+--- a/libavcodec/mips/hevcpred_msa.c
++++ b/libavcodec/mips/hevcpred_msa.c
+@@ -18,7 +18,7 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
+-#include "libavcodec/hevc/dec.h"
++#include "libavcodec/hevc/hevcdec.h"
+ #include "libavutil/mips/generic_macros_msa.h"
+ #include "hevcpred_mips.h"
+ 

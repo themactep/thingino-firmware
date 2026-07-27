@@ -1,0 +1,272 @@
+{{include:header}}
+
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-wifi me-2"></i><span data-i18n="info.network.title">Network Information</span>
+                </h1>
+                <p class="text-muted" data-i18n="info.network.subtitle">Network interfaces, connectivity, and status</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-ethernet me-2"></i>Network Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Status:</span>
+                                <span class="badge bg-success">Connected</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Interface:</span>
+                                <span class="text-muted">{{primary_interface}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>IP Address:</span>
+                                <span class="text-muted">{{ip_address}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Netmask:</span>
+                                <span class="text-muted">{{netmask}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Gateway:</span>
+                                <span class="text-muted">{{gateway}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>MAC Address:</span>
+                                <span class="text-muted">{{mac_address}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-dns me-2"></i>DNS & Connectivity
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Hostname:</span>
+                                <span class="text-muted">{{hostname}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Primary DNS:</span>
+                                <span class="text-muted">{{dns_primary}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Secondary DNS:</span>
+                                <span class="text-muted">{{dns_secondary}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>DHCP:</span>
+                                <span class="text-muted">{{dhcp_status}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Internet Access:</span>
+                                <span class="badge bg-success">Available</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-list me-2"></i>Network Interfaces
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Interface</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>IP Address</th>
+                                        <th>MAC Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><i class="bi bi-wifi me-2"></i>wlan0</td>
+                                        <td>WiFi</td>
+                                        <td><span class="badge bg-success">UP</span></td>
+                                        <td>{{wlan0_ip}}</td>
+                                        <td>{{wlan0_mac}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-ethernet me-2"></i>eth0</td>
+                                        <td>Ethernet</td>
+                                        <td><span class="badge bg-secondary">DOWN</span></td>
+                                        <td>N/A</td>
+                                        <td>{{eth0_mac}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-arrow-repeat me-2"></i>lo</td>
+                                        <td>Loopback</td>
+                                        <td><span class="badge bg-success">UP</span></td>
+                                        <td>127.0.0.1</td>
+                                        <td>N/A</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightning me-2"></i>Network Tools
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100" onclick="refreshPage()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-info w-100" onclick="pingTest()">
+                                    <i class="bi bi-wifi me-1"></i>Ping Test
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-warning w-100" onclick="restartNetwork()">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Restart
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-success w-100" onclick="exportNetworkInfo()">
+                                    <i class="bi bi-download me-1"></i>Export
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="/lua/config/network" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-gear me-1"></i>Configure
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-light w-100" onclick="scanWiFi()">
+                                    <i class="bi bi-search me-1"></i>WiFi Scan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        function pingTest() {
+            alert('Running ping test to 8.8.8.8...');
+            fetch('/lua/api/network/ping', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Ping test successful!\nLatency: ${data.latency}ms\nPacket loss: ${data.packet_loss}%`);
+                    } else {
+                        alert('Ping test failed: ' + (data.error || 'Network unreachable'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to run ping test');
+                });
+        }
+        
+        function restartNetwork() {
+            if (confirm('Restart network services? This may disconnect you temporarily.')) {
+                fetch('/lua/api/network/restart', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Network restart initiated. Please wait 10-15 seconds before refreshing.');
+                        setTimeout(() => window.location.reload(), 15000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to restart network');
+                    });
+            }
+        }
+        
+        function exportNetworkInfo() {
+            const networkInfo = {
+                status: {
+                    interface: '{{primary_interface}}',
+                    ip_address: '{{ip_address}}',
+                    mac_address: '{{mac_address}}',
+                    hostname: '{{hostname}}'
+                },
+                dns: {
+                    primary: '{{dns_primary}}',
+                    secondary: '{{dns_secondary}}'
+                },
+                interfaces: {
+                    wlan0: { ip: '{{wlan0_ip}}', mac: '{{wlan0_mac}}' },
+                    eth0: { mac: '{{eth0_mac}}' }
+                },
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(networkInfo, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thingino-network-info-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function scanWiFi() {
+            alert(window.i18n?.t('js.alert.wifi_scanning') || 'Scanning for WiFi networks...');
+            fetch('/lua/api/network/wifi-scan', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.networks) {
+                        let message = (window.i18n?.t('js.alert.wifi_networks_found') || 'Available WiFi Networks:') + '\n\n';
+                        data.networks.forEach(network => {
+                            message += `${network.ssid} (${network.signal}dBm) - ${network.security}\n`;
+                        });
+                        alert(message);
+                    } else {
+                        alert((window.i18n?.t('js.alert.wifi_scan_failed') || 'WiFi scan failed') + ': ' + (data.error || (window.i18n?.t('js.alert.no_networks_found') || 'No networks found')));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(window.i18n?.t('js.alert.wifi_scan_error') || 'Failed to scan WiFi networks');
+                });
+        }
+        
+        // Auto-refresh every 30 seconds
+        setInterval(refreshPage, 30000);
+    </script>
+
+{{include:footer}}

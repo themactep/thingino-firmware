@@ -1,0 +1,10 @@
+gpio_button=51i
+gpio_default=25ID 26IDU
+gpio_ir940=60
+gpio_ircut=50 49
+gpio_led_b=38
+gpio_led_y=39
+gpio_mmc_cd=48
+gpio_mmc_power=54o
+gpio_speaker=63
+gpio_wlan=58O

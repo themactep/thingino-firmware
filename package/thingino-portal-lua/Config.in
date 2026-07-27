@@ -1,0 +1,24 @@
+config BR2_PACKAGE_THINGINO_PORTAL_LUA
+	bool "thingino-portal-lua"
+	depends on BR2_PACKAGE_THINGINO_UHTTPD
+	depends on BR2_PACKAGE_LUA
+	select BR2_PACKAGE_BUSYBOX_SHOW_OTHERS
+	select BR2_PACKAGE_THINGINO_WPA_SUPPLICANT
+	select BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_AP_SUPPORT
+	help
+	  Thingino captive portal for initial camera configuration.
+	  Uses uhttpd with Lua instead of busybox httpd with haserl.
+
+	  Provides a web interface for configuring:
+	  - Hostname
+	  - Root password and SSH key
+	  - WiFi network credentials
+	  - WiFi access point mode
+	  - Timezone settings
+
+	  The portal automatically starts when no network configuration
+	  is detected and provides captive portal functionality for
+	  easy device setup.
+
+comment "thingino-portal-lua needs uhttpd and lua"
+	depends on !BR2_PACKAGE_THINGINO_UHTTPD || !BR2_PACKAGE_LUA

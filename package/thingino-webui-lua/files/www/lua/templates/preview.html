@@ -1,0 +1,653 @@
+{{include:header}}
+
+<div class="row mb-3">
+  <h1 class="h3 mb-0"><i class="bi bi-camera me-2"></i>Camera Preview</h1>
+  <p class="text-muted mb-0">Live video stream and camera controls</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card video-container">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <h5 class="card-title mb-0 me-3"><i class="bi bi-play-circle me-2"></i>Stream</h5>
+          <span id="streamBadge" class="badge bg-secondary"><i class="bi bi-camera-video-off me-1"></i>Offline</span>
+        </div>
+        <div class="btn-group" role="group">
+          <button class="btn btn-sm btn-outline-light" onclick="takeSnapshot()" title="Take Snapshot">
+            <i class="bi bi-camera"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-light" onclick="toggleFullscreen()" title="Fullscreen">
+            <i class="bi bi-fullscreen"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-light" onclick="refreshStream()" title="Refresh Stream">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div id="videoStream" class="video-placeholder position-relative">
+          <!-- MJPEG Video Stream -->
+          <img id="mjpegStream" class="w-100 h-auto" style="display: none; object-fit: contain;" alt="Live Camera Stream" ondblclick="takeSnapshot()">
+          <!-- Placeholder (shown when stream is not active) -->
+          <div id="streamPlaceholder" class="p-5 text-center bg-dark h-100">
+            <i class="bi bi-camera-video-off fs-1 text-muted mb-3"></i>
+            <h4 class="text-muted">Camera Stream</h4>
+            <p class="text-muted">Live video stream will appear here</p>
+            <p class="text-muted"><small>Test MJPEG Stream Available</small></p>
+          </div>
+
+          <!-- Picture-in-Picture Snapshot Overlay -->
+          <div id="snapshotOverlay" class="snapshot-pip" style="display: none;">
+            <div class="snapshot-pip-header">
+              <span><i class="bi bi-image me-1"></i>Snapshot</span>
+              <div class="snapshot-pip-controls">
+                <button class="btn btn-sm btn-outline-light me-1" onclick="downloadSnapshot()" title="Download">
+                  <i class="bi bi-download"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light" onclick="closeSnapshot()" title="Close">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </div>
+            <div class="snapshot-pip-body">
+              <img id="snapshotImage" class="snapshot-pip-image" alt="Camera Snapshot">
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-center">
+          <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Double-click on the stream to take a snapshot</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-joystick me-2"></i>Pan/Tilt & Positions</h5>
+          </div>
+          <div class="card-body">
+            <div class="row mb-4">
+              <div class="col-6">
+                <label class="form-label">Pan/Tilt Control</label>
+                <div class="camera-grid">
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('up-left')" title="Up-Left"><i class="bi bi-arrow-up-left"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('up')" title="Up"><i class="bi bi-arrow-up"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('up-right')" title="Up-Right"><i class="bi bi-arrow-up-right"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('left')" title="Left"><i class="bi bi-arrow-left"></i></button>
+                  <button type="button" class="btn btn-primary-light" onclick="moveCamera('home')" title="Home Position"><i class="bi bi-house"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('right')" title="Right"><i class="bi bi-arrow-right"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('down-left')" title="Down-Left"><i class="bi bi-arrow-down-left"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('down')" title="Down"><i class="bi bi-arrow-down"></i></button>
+                  <button type="button" class="btn btn-outline-light" onclick="moveCamera('down-right')" title="Down-Right"><i class="bi bi-arrow-down-right"></i></button>
+                </div>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Quick Positions</label>
+                <div class="preset-grid">
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(1)" title="Position 1" id="preset1">1</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(2)" title="Position 2" id="preset2">2</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(3)" title="Position 3" id="preset3">3</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(4)" title="Position 4" id="preset4">4</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(5)" title="Position 5" id="preset5">5</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(6)" title="Position 6" id="preset6">6</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(7)" title="Position 7" id="preset7">7</button>
+                  <button type="button" class="btn btn-outline-info btn-sm" onclick="handlePresetClick(8)" title="Position 8" id="preset8">8</button>
+                  <button type="button" class="btn btn-outline-success btn-sm" onclick="toggleSaveMode()" title="Save Current Position" id="saveBtn">
+                    <i class="bi bi-bookmark-plus"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-moon me-2"></i>Night Vision & Lighting</h5>
+          </div>
+          <div class="card-body">
+            <!-- Day/Night Mode Switch -->
+            <div class="mb-3">
+              <label class="form-label">Camera Mode</label>
+              <div class="btn-group w-100" role="group">
+                <button type="button" class="btn btn-outline-warning active" id="dayModeBtn" onclick="setDayNightMode('day')">
+                  <i class="bi bi-sun me-1"></i>Day
+                </button>
+                <button type="button" class="btn btn-outline-warning" id="nightModeBtn" onclick="setDayNightMode('night')">
+                  <i class="bi bi-moon me-1"></i>Night
+                </button>
+              </div>
+            </div>
+            <!-- Advanced Controls Toggle -->
+            <div class="mb-3">
+              <button class="btn btn-outline-secondary btn-sm w-100" onclick="toggleAdvancedControls()" id="advancedToggleBtn">
+                <i class="bi bi-chevron-down me-1"></i>Advanced Controls
+              </button>
+            </div>
+            <!-- Advanced Controls Panel -->
+            <div class="night-vision-advanced" id="nightVisionAdvanced">
+              <div class="night-vision-grid">
+                <button type="button" class="btn btn-outline-danger btn-sm" id="ir850Btn" onclick="toggleIR('850')" title="850nm IR LEDs"><i class="bi bi-lightbulb me-1"></i>850nm</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" id="ir940Btn" onclick="toggleIR('940')" title="940nm IR LEDs"><i class="bi bi-lightbulb me-1"></i>940nm</button>
+                <button type="button" class="btn btn-outline-light btn-sm" id="whiteLightBtn" onclick="toggleWhiteLight()" title="White Light"><i class="bi bi-sun me-1"></i>White</button>
+                <button type="button" class="btn btn-outline-info btn-sm" id="irCutBtn" onclick="toggleIRCut()" title="IR Cut Filter"><i class="bi bi-camera-reels me-1"></i>IR Cut</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>Stream Info</h5>
+          </div>
+          <div class="card-body">
+            <h6 class="text-light mb-2"><i class="bi bi-camera-video me-1"></i>Main Stream</h6>
+            <div class="camera-info mb-3">
+              <div class="info-item">
+                <span class="info-label">Resolution:</span>
+                <span class="info-value" id="mainResolution">Loading...</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">FPS:</span>
+                <span class="info-value" id="mainFps">Loading...</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Bitrate:</span>
+                <span class="info-value" id="mainBitrate">Loading...</span>
+              </div>
+            </div>
+            <h6 class="text-light mb-2"><i class="bi bi-camera me-1"></i>Sub Stream</h6>
+            <div class="camera-info">
+              <div class="info-item">
+                <span class="info-label">Resolution:</span>
+                <span class="info-value" id="subResolution">Loading...</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">FPS:</span>
+                <span class="info-value" id="subFps">Loading...</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Bitrate:</span>
+                <span class="info-value" id="subBitrate">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-8">
+        <div class="card">
+          <div class="card-header">
+            <h6 class="card-title mb-1"><i class="bi bi-play-circle me-1"></i>RTSP Streams</h6>
+          </div>
+          <div class="card-body">
+            <div class="text-muted">
+              <p class="small mb-2">This web preview is for camera positioning and configuration only. For high-quality streaming, use the RTSP feed directly.</p>
+              <div class="mb-2">
+                <small class="text-light d-block mb-1">Main Stream (High Quality):</small>
+                <div class="bg-dark p-2 rounded position-relative copyable" onclick="copyToClipboard(this)" title="Click to copy URL">
+                  <code class="text-info small" id="mainStreamUrl">Loading...</code>
+                  <i class="bi bi-clipboard position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="cursor: pointer;"></i>
+                </div>
+              </div>
+              <div class="mb-2">
+                <small class="text-light d-block mb-1">Sub Stream (Lower Quality):</small>
+                <div class="bg-dark p-2 rounded position-relative copyable" onclick="copyToClipboard(this)" title="Click to copy URL">
+                  <code class="text-warning small" id="subStreamUrl">Loading...</code>
+                  <i class="bi bi-clipboard position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="cursor: pointer;"></i>
+                </div>
+              </div>
+              <p class="small mt-2 mb-0">Open with MPV, VLC, OBS, or any RTSP-compatible player</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    let streamActive = false;
+    let websocket = null;
+
+    function startStream() {
+        console.log('Starting MJPEG stream...');
+        const mjpegImg = document.getElementById('mjpegStream');
+        const placeholder = document.getElementById('streamPlaceholder');
+
+        mjpegImg.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        const timestamp = new Date().getTime();
+        // Use the local camera's snapshot with auto-refresh for pseudo-streaming
+        const localUrl = `/lua/api/camera/snapshot?t=${timestamp}`;
+
+        mjpegImg.onload = function () {
+            console.log('Camera snapshot loaded successfully');
+            onStreamLoad();
+            // Auto-refresh for pseudo-streaming effect
+            setTimeout(() => {
+                if (streamActive) {
+                    const newTimestamp = new Date().getTime();
+                    mjpegImg.src = `/lua/api/camera/snapshot?t=${newTimestamp}`;
+                }
+            }, 1000); // Refresh every 1 second
+        };
+
+        mjpegImg.onerror = function () {
+            console.log('Camera snapshot failed, showing error...');
+            onStreamError();
+        };
+
+        mjpegImg.src = localUrl;
+        console.log('Starting camera snapshot stream:', localUrl);
+    }
+
+    function stopStream() {
+        console.log('Stopping stream...');
+
+        if (websocket) {
+            websocket.close();
+            websocket = null;
+        }
+
+        const mjpegImg = document.getElementById('mjpegStream');
+        const placeholder = document.getElementById('streamPlaceholder');
+
+        mjpegImg.style.display = 'none';
+        mjpegImg.src = '';
+        mjpegImg.onload = null;
+        mjpegImg.onerror = null;
+        placeholder.style.display = 'block';
+
+        placeholder.innerHTML = `
+            <i class="bi bi-camera-video-off fs-1 text-muted mb-3"></i>
+            <h4 class="text-muted">Camera Stream</h4>
+            <p class="text-muted">Live video stream will appear here</p>
+            <p class="text-muted"><small>Test MJPEG Stream Available</small></p>
+        `;
+
+        updateStreamStatus(false);
+    }
+
+    function onStreamLoad() {
+        console.log('MJPEG stream loaded successfully');
+        updateStreamStatus(true);
+    }
+
+    function onStreamError() {
+        console.error('MJPEG stream failed to load');
+        const mjpegImg = document.getElementById('mjpegStream');
+        const placeholder = document.getElementById('streamPlaceholder');
+
+        mjpegImg.style.display = 'none';
+        placeholder.style.display = 'block';
+
+        placeholder.innerHTML = `
+            <i class="bi bi-exclamation-triangle fs-1 text-warning mb-3"></i>
+            <h4 class="text-warning">Stream Error</h4>
+            <p class="text-muted">Unable to connect to MJPEG stream</p>
+            <p class="text-muted"><small>Check camera connection and credentials</small></p>
+        `;
+
+        updateStreamStatus(false);
+    }
+
+    function updateStreamStatus(active) {
+        streamActive = active;
+        const badge = document.getElementById('streamBadge');
+
+        if (active) {
+            badge.className = 'badge bg-success';
+            badge.innerHTML = '<i class="bi bi-record-circle me-1"></i>Live';
+        } else {
+            badge.className = 'badge bg-secondary';
+            badge.innerHTML = '<i class="bi bi-camera-video-off me-1"></i>Offline';
+        }
+    }
+
+    function takeSnapshot() {
+        fetch('/lua/api/camera/snapshot')
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const img = document.getElementById('snapshotImage');
+                const overlay = document.getElementById('snapshotOverlay');
+                img.src = url;
+                overlay.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Failed to take snapshot:', error);
+                alert('Failed to take snapshot');
+            });
+    }
+
+    function closeSnapshot() {
+        const overlay = document.getElementById('snapshotOverlay');
+        overlay.style.display = 'none';
+    }
+
+    function downloadSnapshot() {
+        const img = document.getElementById('snapshotImage');
+        if (img.src) {
+            const a = document.createElement('a');
+            a.href = img.src;
+            a.download = `snapshot_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.jpg`;
+            a.click();
+        } else {
+            alert('No snapshot available. Take a snapshot first.');
+        }
+    }
+
+    function refreshStream() {
+        if (streamActive) {
+            stopStream();
+            setTimeout(startStream, 1000);
+        } else {
+            startStream();
+        }
+    }
+
+    function toggleFullscreen() {
+        const videoContainer = document.getElementById('videoStream');
+        if (!document.fullscreenElement) {
+            videoContainer.requestFullscreen().catch(err => {
+                console.error('Error attempting to enable fullscreen:', err);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    // Camera control functions
+    function moveCamera(direction) {
+        console.log('Moving camera:', direction);
+        fetch('/lua/api/camera/move', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({direction: direction})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Camera move failed:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Camera move error:', error);
+            });
+    }
+
+    function setDayNightMode(mode) {
+        const dayBtn = document.getElementById('dayModeBtn');
+        const nightBtn = document.getElementById('nightModeBtn');
+
+        if (mode === 'day') {
+            dayBtn.classList.add('active');
+            dayBtn.classList.remove('btn-outline-warning');
+            dayBtn.classList.add('btn-warning');
+
+            nightBtn.classList.remove('active');
+            nightBtn.classList.add('btn-outline-warning');
+            nightBtn.classList.remove('btn-warning');
+
+            console.log('Day mode activated');
+        } else {
+            nightBtn.classList.add('active');
+            nightBtn.classList.remove('btn-outline-warning');
+            nightBtn.classList.add('btn-warning');
+
+            dayBtn.classList.remove('active');
+            dayBtn.classList.add('btn-outline-warning');
+            dayBtn.classList.remove('btn-warning');
+
+            console.log('Night mode activated');
+        }
+    }
+
+    function toggleAdvancedControls() {
+        const advanced = document.getElementById('nightVisionAdvanced');
+        const toggleBtn = document.getElementById('advancedToggleBtn');
+        const icon = toggleBtn.querySelector('i');
+
+        if (advanced.classList.contains('show')) {
+            advanced.classList.remove('show');
+            icon.className = 'bi bi-chevron-down me-1';
+            console.log('Advanced controls hidden');
+        } else {
+            advanced.classList.add('show');
+            icon.className = 'bi bi-chevron-up me-1';
+            console.log('Advanced controls shown');
+        }
+    }
+
+    function toggleIR(type) {
+        const btn = document.getElementById(`ir${type}Btn`);
+        const isActive = btn.classList.contains('active');
+
+        if (isActive) {
+            btn.classList.remove('active');
+            btn.classList.add('btn-outline-danger');
+            btn.classList.remove('btn-danger');
+        } else {
+            btn.classList.add('active');
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-danger');
+        }
+
+        console.log(`IR ${type}nm:`, !isActive ? 'ON' : 'OFF');
+    }
+
+    function toggleWhiteLight() {
+        const btn = document.getElementById('whiteLightBtn');
+        const isActive = btn.classList.contains('active');
+
+        if (isActive) {
+            btn.classList.remove('active');
+            btn.classList.add('btn-outline-light');
+            btn.classList.remove('btn-light');
+        } else {
+            btn.classList.add('active');
+            btn.classList.remove('btn-outline-light');
+            btn.classList.add('btn-light');
+        }
+
+        console.log('White Light:', !isActive ? 'ON' : 'OFF');
+    }
+
+    function toggleIRCut() {
+        const btn = document.getElementById('irCutBtn');
+        const isActive = btn.classList.contains('active');
+
+        if (isActive) {
+            btn.classList.remove('active');
+            btn.classList.add('btn-outline-info');
+            btn.classList.remove('btn-info');
+        } else {
+            btn.classList.add('active');
+            btn.classList.remove('btn-outline-info');
+            btn.classList.add('btn-info');
+        }
+
+        console.log('IR Cut Filter:', !isActive ? 'ON' : 'OFF');
+    }
+
+    // Preset position functions
+    let saveMode = false;
+
+    function handlePresetClick(position) {
+        if (saveMode) {
+            // Save current position to the clicked slot
+            saveToPreset(position);
+        } else {
+            // Go to the preset position
+            gotoPreset(position);
+        }
+    }
+
+    function gotoPreset(position) {
+        console.log('Going to preset position:', position);
+        fetch('/lua/api/camera/preset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'goto', position: position})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`Moved to preset position ${position}`);
+                } else {
+                    console.error('Preset goto failed:', data.error);
+                    alert(`Failed to go to position ${position}: ${data.error || 'Unknown error'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Preset goto error:', error);
+                alert(`Error going to position ${position}`);
+            });
+    }
+
+    function saveToPreset(position) {
+        console.log('Saving current position as preset:', position);
+        fetch('/lua/api/camera/preset', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'save', position: position})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`Saved current position as preset ${position}`);
+                    // Exit save mode after successful save
+                    exitSaveMode();
+                } else {
+                    console.error('Preset save failed:', data.error);
+                    alert(`Failed to save position ${position}: ${data.error || 'Unknown error'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Preset save error:', error);
+                alert(`Error saving position ${position}`);
+            });
+    }
+
+    function toggleSaveMode() {
+        if (saveMode) {
+            exitSaveMode();
+        } else {
+            enterSaveMode();
+        }
+    }
+
+    function enterSaveMode() {
+        saveMode = true;
+        const grid = document.querySelector('.preset-grid');
+        const saveBtn = document.getElementById('saveBtn');
+        const saveBtnIcon = saveBtn.querySelector('i');
+
+        grid.classList.add('save-mode');
+        saveBtnIcon.className = 'bi bi-x-lg';
+        saveBtn.title = 'Cancel Save Mode';
+
+        // Update preset button titles
+        for (let i = 1; i <= 8; i++) {
+            const btn = document.getElementById(`preset${i}`);
+            btn.title = `Save to Position ${i}`;
+        }
+
+        console.log('Entered save mode - click a position to save current camera position');
+    }
+
+    function exitSaveMode() {
+        saveMode = false;
+        const grid = document.querySelector('.preset-grid');
+        const saveBtn = document.getElementById('saveBtn');
+        const saveBtnIcon = saveBtn.querySelector('i');
+
+        grid.classList.remove('save-mode');
+        saveBtnIcon.className = 'bi bi-bookmark-plus';
+        saveBtn.title = 'Save Current Position';
+
+        // Restore preset button titles
+        for (let i = 1; i <= 8; i++) {
+            const btn = document.getElementById(`preset${i}`);
+            btn.title = `Position ${i}`;
+        }
+
+        console.log('Exited save mode');
+    }
+
+    // Load RTSP configuration
+    function loadRtspConfig() {
+        console.log('Loading RTSP configuration...');
+        fetch('/lua/api/rtsp/config')
+            .then(response => {
+                console.log('RTSP config response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('RTSP config data:', data);
+                if (data.success) {
+                    document.getElementById('mainStreamUrl').textContent = data.config.main_stream_url;
+                    document.getElementById('subStreamUrl').textContent = data.config.sub_stream_url;
+
+                    // Update main stream parameters
+                    document.getElementById('mainResolution').textContent = data.config.main_stream_params.resolution;
+                    document.getElementById('mainFps').textContent = data.config.main_stream_params.fps;
+                    document.getElementById('mainBitrate').textContent = data.config.main_stream_params.bitrate;
+
+                    // Update sub stream parameters
+                    document.getElementById('subResolution').textContent = data.config.sub_stream_params.resolution;
+                    document.getElementById('subFps').textContent = data.config.sub_stream_params.fps;
+                    document.getElementById('subBitrate').textContent = data.config.sub_stream_params.bitrate;
+
+                    console.log('RTSP URLs and stream parameters updated successfully');
+                } else {
+                    console.error('Failed to load RTSP config:', data.error);
+                    document.getElementById('mainStreamUrl').textContent = 'Configuration error';
+                    document.getElementById('subStreamUrl').textContent = 'Configuration error';
+
+                    // Set error for stream parameters
+                    const errorText = 'Error';
+                    document.getElementById('mainResolution').textContent = errorText;
+                    document.getElementById('mainFps').textContent = errorText;
+                    document.getElementById('mainBitrate').textContent = errorText;
+                    document.getElementById('subResolution').textContent = errorText;
+                    document.getElementById('subFps').textContent = errorText;
+                    document.getElementById('subBitrate').textContent = errorText;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching RTSP config:', error);
+                document.getElementById('mainStreamUrl').textContent = 'Network error - check console';
+                document.getElementById('subStreamUrl').textContent = 'Network error - check console';
+
+                // Set error for stream parameters
+                const errorText = 'Network error';
+                document.getElementById('mainResolution').textContent = errorText;
+                document.getElementById('mainFps').textContent = errorText;
+                document.getElementById('mainBitrate').textContent = errorText;
+                document.getElementById('subResolution').textContent = errorText;
+                document.getElementById('subFps').textContent = errorText;
+                document.getElementById('subBitrate').textContent = errorText;
+            });
+    }
+
+
+
+    // Auto-start stream when page loads
+    window.addEventListener('load', function() {
+        console.log('Page loaded, starting stream automatically...');
+        startStream();
+        loadRtspConfig();
+    });
+</script>
+
+{{include:footer}}

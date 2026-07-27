@@ -1,0 +1,12 @@
+config BR2_PACKAGE_THINGINO_MXML
+	bool "thingino-mxml"
+	help
+	  Mini-XML is a small XML parsing library that you can use to
+	  read XML and XML-like data files in your application without
+	  requiring large non-standard libraries.
+
+	  This is a Thingino shadow package providing the latest mxml v4.0.4
+	  with modern API and security fixes, overriding the older
+	  version in Buildroot.
+
+	  https://www.msweet.org/mxml

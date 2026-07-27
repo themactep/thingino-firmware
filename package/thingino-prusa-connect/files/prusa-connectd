@@ -1,0 +1,322 @@
+#!/bin/sh
+
+DAEMON="/sbin/prusa-connectd"
+. /usr/share/common
+
+PRUSA_CONFIG_FILE="/etc/prusa-connect.json"
+
+LOGGER_TAG="prusa-connect"
+STATE_DIR="/var/lib/prusa-connect"
+RUN_DIR="/run/prusa-connect"
+STATE_FILE="$RUN_DIR/state"
+INFO_LAST="$STATE_DIR/info.last"
+INFO_TMP="$RUN_DIR/info.json.tmp"
+SNAPSHOT_PATH="${SNAPSHOT_FILE:-/tmp/snapshot.jpg}"
+PIDFILE="$RUN_DIR/prusa-connectd.pid"
+PRUSA_CONNECT_SNAPSHOT_URL="${PRUSA_CONNECT_SNAPSHOT_URL:-https://webcam.connect.prusa3d.com/c/snapshot}"
+PRUSA_CONNECT_INFO_URL="${PRUSA_CONNECT_INFO_URL:-https://webcam.connect.prusa3d.com/c/info}"
+PRUSA_CONNECT_ONLINE_HOST="${PRUSA_CONNECT_ONLINE_HOST:-webcam.connect.prusa3d.com}"
+PRUSA_CONNECT_INTERVAL_DEFAULT="${PRUSA_CONNECT_INTERVAL_DEFAULT:-60}"
+PRUSA_CONNECT_INFO_INTERVAL_DEFAULT="${PRUSA_CONNECT_INFO_INTERVAL_DEFAULT:-600}"
+PRUSA_CONNECT_CURL_BIN="${PRUSA_CONNECT_CURL_BIN:-/bin/curl}"
+PRUSA_CONNECT_CURL_EXTRA="${PRUSA_CONNECT_CURL_EXTRA:-}"
+
+PRUSA_CONFIG_MTIME=0
+LAST_SNAPSHOT_STATUS=""
+LAST_INFO_STATUS=""
+LAST_SNAPSHOT_TS=0
+LAST_INFO_TS=0
+DISABLED_LOGGED="false"
+CRED_WARNED="false"
+
+log_msg() {
+	logger -t "$LOGGER_TAG" "$*"
+}
+
+write_state() {
+	cat <<EOF >"$STATE_FILE"
+last_snapshot_status=$LAST_SNAPSHOT_STATUS
+last_snapshot_ts=$LAST_SNAPSHOT_TS
+last_info_status=$LAST_INFO_STATUS
+last_info_ts=$LAST_INFO_TS
+enabled=$ENABLED
+interval=$INTERVAL
+info_interval=$INFO_INTERVAL
+EOF
+}
+
+json_get() {
+	local key="$1" default="$2" value
+	ensure_config_file
+	value=$(jct "$PRUSA_CONFIG_FILE" get "$key" 2>/dev/null)
+	if [ -z "$value" ] || [ "$value" = null ]; then
+		value="$default"
+	fi
+	printf '%s\n' "$value"
+}
+
+reload_config() {
+	local mtime
+	[ -f "$PRUSA_CONFIG_FILE" ] || return
+	mtime=$(stat -c %Y "$PRUSA_CONFIG_FILE" 2>/dev/null || echo 0)
+	if [ "$mtime" -ne "$PRUSA_CONFIG_MTIME" ]; then
+		PRUSA_CONFIG_MTIME=$mtime
+		log_msg "Reloaded $PRUSA_CONFIG_FILE"
+	fi
+}
+
+ensure_config_file() {
+	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' > "$PRUSA_CONFIG_FILE"
+}
+
+numeric_or_default() {
+	local value="$1" fallback="$2"
+	case "$value" in
+		''|' '*|*[!0-9]*) echo "$fallback" ;;
+		*) echo "$value" ;;
+	esac
+}
+
+clamp_interval() {
+	local value="$1" min="$2" max="$3"
+	[ "$value" -lt "$min" ] && value="$min"
+	[ "$value" -gt "$max" ] && value="$max"
+	echo "$value"
+}
+
+load_settings() {
+	ensure_config_file
+	reload_config
+	ENABLED=$(json_get enabled false)
+	TOKEN=$(json_get token "")
+	FINGERPRINT=$(json_get fingerprint "")
+	SNAPSHOT_URL=$(json_get snapshot_url "$PRUSA_CONNECT_SNAPSHOT_URL")
+	INFO_URL=$(json_get info_url "$PRUSA_CONNECT_INFO_URL")
+	ONLINE_HOST=$(json_get online_host "$PRUSA_CONNECT_ONLINE_HOST")
+	CURL_BIN=$(json_get curl_bin "$PRUSA_CONNECT_CURL_BIN")
+	CURL_EXTRA=$(json_get curl_extra "$PRUSA_CONNECT_CURL_EXTRA")
+	INTERVAL=$(numeric_or_default "$(json_get interval "$PRUSA_CONNECT_INTERVAL_DEFAULT")" "$PRUSA_CONNECT_INTERVAL_DEFAULT")
+	INTERVAL=$(clamp_interval "$INTERVAL" 10 3600)
+	INFO_INTERVAL=$(numeric_or_default "$(json_get info_interval "$PRUSA_CONNECT_INFO_INTERVAL_DEFAULT")" "$PRUSA_CONNECT_INFO_INTERVAL_DEFAULT")
+	INFO_INTERVAL=$(clamp_interval "$INFO_INTERVAL" 60 86400)
+}
+
+online() {
+	[ -z "$ONLINE_HOST" ] && return 0
+	ping -q -4 -c1 -W2 "$ONLINE_HOST" >/dev/null 2>&1 && return 0
+	ping -q -6 -c1 -W2 "$ONLINE_HOST" >/dev/null 2>&1
+}
+
+ensure_prereqs() {
+	command -v "$CURL_BIN" >/dev/null 2>&1 || {
+		log_msg "Missing curl binary ($CURL_BIN)"
+		return 1
+	}
+	return 0
+}
+
+curl_put() {
+	local payload="$1" url="$2" type="$3" content_type="$4"
+	local resp_file="$RUN_DIR/${type}.resp" err_file="$RUN_DIR/${type}.err"
+	local http_code
+	set -- "$CURL_BIN" -X PUT "$url" \
+		-H "Accept: text/plain" \
+		-H "Content-type: $content_type" \
+		-H "Fingerprint: $FINGERPRINT" \
+		-H "Token: $TOKEN" \
+		--data-binary "@$payload" \
+		--compressed \
+		--silent \
+		--show-error \
+		--output "$resp_file" \
+		--write-out "%{http_code}"
+	if [ -n "$CURL_EXTRA" ]; then
+		# shellcheck disable=SC2086
+		set -- "$@" $CURL_EXTRA
+	fi
+	http_code=$("$@" 2>"$err_file") || return 1
+	echo "$http_code"
+}
+
+build_info_payload() {
+	local iface ip4 mac ssid sensor_width sensor_height sensor_name
+	iface=$(iface_default)
+	if [ -n "$iface" ]; then
+		ip4=$(ip -4 addr show "$iface" | awk '/inet /{print $2}' | head -n1)
+		mac=$(cat /sys/class/net/$iface/address 2>/dev/null)
+		if command -v iw >/dev/null 2>&1; then
+			ssid=$(iw dev "$iface" link | sed -n 's/.*SSID: \(.*\)/\1/p' | head -n1)
+		fi
+		[ -n "$ssid" ] || ssid=$(iwconfig "$iface" 2>/dev/null | sed -n 's/.*ESSID:"\(.*\)".*/\1/p')
+	fi
+	sensor_width=$(sensor width 2>/dev/null)
+	sensor_height=$(sensor height 2>/dev/null)
+	sensor_name=$(sensor name 2>/dev/null)
+	cat <<EOF >"$INFO_TMP"
+{
+  "config": {
+    "name": "$(hostname -s)",
+    "firmware": "${BUILD_ID:-unknown}",
+    "manufacturer": "${ID:-thingino}",
+    "model": "${IMAGE_ID:-unknown}"
+  },
+	"sensors": [
+		"${sensor_name:-unknown}"
+	],
+  "resolution": {
+    "width": ${sensor_width:-0},
+    "height": ${sensor_height:-0}
+  },
+  "network_info": {
+    "wifi_mac": "${mac:-}",
+    "wifi_ipv4": "${ip4:-}",
+    "wifi_ssid": "${ssid:-}"
+  }
+}
+EOF
+}
+
+upload_info() {
+	build_info_payload || return 1
+	if [ -f "$INFO_LAST" ] && cmp -s "$INFO_TMP" "$INFO_LAST"; then
+		return 0
+	fi
+	check_online || return 1
+	local code
+	code=$(curl_put "$INFO_TMP" "$INFO_URL" "info" "application/json") || {
+		log_msg "Failed to push metadata"
+		return 1
+	}
+	LAST_INFO_TS=$(date +%s)
+	LAST_INFO_STATUS="$code"
+	cp "$INFO_TMP" "$INFO_LAST"
+	write_state
+	log_msg "Info update HTTP $code"
+}
+
+check_online() {
+	if online; then
+		return 0
+	fi
+	log_msg "Prusa Connect host unreachable ($ONLINE_HOST)"
+	return 1
+}
+
+upload_snapshot() {
+	local tmp image_size code
+	if [ ! -s "$SNAPSHOT_PATH" ]; then
+		log_msg "Snapshot not ready at $SNAPSHOT_PATH"
+		return 1
+	fi
+	tmp=$(mktemp "$RUN_DIR/snapshot.XXXXXX") || return 1
+	cp "$SNAPSHOT_PATH" "$tmp" || { rm -f "$tmp"; return 1; }
+	image_size=$(stat -c %s "$tmp" 2>/dev/null || echo 0)
+	check_online || { rm -f "$tmp"; return 1; }
+	code=$(curl_put "$tmp" "$SNAPSHOT_URL" "snapshot" "image/jpeg") || {
+		log_msg "Failed to push snapshot"
+		rm -f "$tmp"
+		return 1
+	}
+	LAST_SNAPSHOT_TS=$(date +%s)
+	LAST_SNAPSHOT_STATUS="$code"
+	write_state
+	rm -f "$tmp"
+	log_msg "Snapshot upload HTTP $code size=$image_size"
+}
+
+missing_credentials() {
+	[ -z "$TOKEN" ] || [ -z "$FINGERPRINT" ]
+}
+
+run_loop() {
+	ensure_dir "$STATE_DIR"
+	ensure_dir "$RUN_DIR"
+	touch "$STATE_FILE"
+	LAST_SNAPSHOT_TS=0
+	LAST_INFO_TS=0
+	write_state
+	log_msg "Prusa Connect daemon started"
+	local next_snapshot=0 next_info=0 now
+	trap 'log_msg "Prusa Connect daemon stopping"; exit 0' INT TERM
+	while true; do
+		load_settings
+		if [ "$ENABLED" != "true" ]; then
+			if [ "$DISABLED_LOGGED" != "true" ]; then
+				log_msg "Service disabled via config"
+				DISABLED_LOGGED="true"
+			fi
+			CRED_WARNED="false"
+			sleep 15
+			continue
+		fi
+		DISABLED_LOGGED="false"
+		if missing_credentials; then
+			if [ "$CRED_WARNED" != "true" ]; then
+				log_msg "Token or fingerprint missing; waiting"
+				CRED_WARNED="true"
+			fi
+			sleep 15
+			continue
+		fi
+		CRED_WARNED="false"
+		if ! ensure_prereqs; then
+			sleep 15
+			continue
+		fi
+		now=$(date +%s)
+		[ "$next_info" -eq 0 ] && next_info=$((now))
+		[ "$next_snapshot" -eq 0 ] && next_snapshot=$((now))
+		if [ "$now" -ge "$next_info" ]; then
+			upload_info || true
+			next_info=$((now + INFO_INTERVAL))
+		fi
+		if [ "$now" -ge "$next_snapshot" ]; then
+			upload_snapshot || true
+			next_snapshot=$((now + INTERVAL))
+		fi
+		sleep 1
+	done
+}
+
+run_oneshot() {
+	ensure_dir "$STATE_DIR"
+	ensure_dir "$RUN_DIR"
+	load_settings
+	missing_credentials && { echo "Missing token or fingerprint" >&2; exit 1; }
+	ensure_prereqs || exit 1
+	case "$1" in
+		info)
+			upload_info
+			;;
+		snapshot)
+			upload_snapshot
+			;;
+		both|test|'')
+			upload_info || true
+			upload_snapshot
+			;;
+		*)
+			echo "Unknown subcommand: $1" >&2
+			return 1
+			;;
+	esac
+}
+
+case "$1" in
+	daemon|"")
+		run_loop
+		;;
+	info)
+		run_oneshot info
+		;;
+	snapshot)
+		run_oneshot snapshot
+		;;
+	test|oneshot)
+		run_oneshot both
+		;;
+	*)
+		echo "Usage: $0 [daemon|info|snapshot|test]" >&2
+		exit 1
+		;;
+esac

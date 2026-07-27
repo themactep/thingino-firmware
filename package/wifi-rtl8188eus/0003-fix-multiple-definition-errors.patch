@@ -1,0 +1,39 @@
+From 5e55a32061904e5f513f1f35d3675a7458a98847 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 22 Sep 2025 01:23:10 -0400
+Subject: [PATCH] Fix multiple definition errors for MAC address utility
+ functions
+
+---
+ include/ieee80211.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/ieee80211.h b/include/ieee80211.h
+index 5ba92b5..a2c4534 100644
+--- a/include/ieee80211.h
++++ b/include/ieee80211.h
+@@ -1529,18 +1529,18 @@ enum ieee80211_state {
+ 	(((Addr[2]) & 0xff) == 0xff) && (((Addr[3]) & 0xff) == 0xff) && (((Addr[4]) & 0xff) == 0xff) && \
+ 				     (((Addr[5]) & 0xff) == 0xff))
+ #else
+-extern __inline int is_multicast_mac_addr(const u8 *addr)
++static inline int is_multicast_mac_addr(const u8 *addr)
+ {
+ 	return (addr[0] != 0xff) && (0x01 & addr[0]);
+ }
+ 
+-extern __inline int is_broadcast_mac_addr(const u8 *addr)
++static inline int is_broadcast_mac_addr(const u8 *addr)
+ {
+ 	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
+ 		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
+ }
+ 
+-extern __inline int is_zero_mac_addr(const u8 *addr)
++static inline int is_zero_mac_addr(const u8 *addr)
+ {
+ 	return ((addr[0] == 0x00) && (addr[1] == 0x00) && (addr[2] == 0x00) &&   \
+ 		(addr[3] == 0x00) && (addr[4] == 0x00) && (addr[5] == 0x00));
+-- 
+2.47.3
+

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_LIBFLAC
+	bool "libflac lightweight FLAC decoder"
+	help
+	  libflac bundles the ESP8266Audio port of Xiph's reference FLAC decoder,
+	  providing a reduced dependency footprint for embedded systems.
+
+	  https://github.com/earlephilhower/ESP8266Audio/tree/master/src/libflac

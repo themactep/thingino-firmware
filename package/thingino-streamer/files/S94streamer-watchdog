@@ -1,0 +1,276 @@
+#!/bin/sh
+
+. /usr/share/common
+
+# Set up daemon command for common system
+COMMAND="$0 watchdog_loop"
+
+# Watchdog configuration (defaults)
+ENABLED=true
+CHECK_INTERVAL=10
+RESTART_DELAY=5
+MAX_RESTART_ATTEMPTS=5
+RESTART_COOLDOWN=300
+
+# Load configuration from file if it exists
+WATCHDOG_CONFIG="/etc/default/streamer-watchdog"
+if [ -f "$WATCHDOG_CONFIG" ]; then
+    . "$WATCHDOG_CONFIG"
+fi
+
+# Process monitoring
+STREAMER_PROCESS="streamer"
+STREAMER_SERVICE="streamer"
+STREAMER_LOCK_FILE="/run/streamer.lock"
+STREAMER_PID_FILE="/run/streamer.pid"
+WATCHDOG_STATE_FILE="/run/streamer-watchdog.state"
+
+# Logging
+LOG_TAG="WATCHDOG"
+
+# State variables (persisted to state file)
+restart_count=0
+last_restart_time=0
+watchdog_start_time=0
+
+# Signal handling
+trap 'echo_info "[$LOG_TAG] Stopping watchdog..."; cleanup_and_exit' INT TERM
+
+cleanup_and_exit() {
+    rm -f "$PIDFILE" "$WATCHDOG_STATE_FILE"
+    exit 0
+}
+
+# Load state from file
+load_state() {
+    if [ -f "$WATCHDOG_STATE_FILE" ]; then
+        . "$WATCHDOG_STATE_FILE"
+    else
+        restart_count=0
+        last_restart_time=0
+        watchdog_start_time=$(date +%s)
+        save_state
+    fi
+}
+
+# Save state to file
+save_state() {
+    cat > "$WATCHDOG_STATE_FILE" << EOF
+restart_count=$restart_count
+last_restart_time=$last_restart_time
+watchdog_start_time=$watchdog_start_time
+EOF
+}
+
+# Check if streamer process is running
+is_streamer_running() {
+    # Method 1: Check PID file from service management
+    if [ -f "$STREAMER_PID_FILE" ]; then
+        streamer_pid=$(cat "$STREAMER_PID_FILE" 2>/dev/null)
+        if [ -n "$streamer_pid" ] && kill -0 "$streamer_pid" 2>/dev/null; then
+            return 0
+        else
+            echo_warning "[$LOG_TAG] PID file contains stale PID: $streamer_pid"
+        fi
+    fi
+
+    # Method 2: Check if process exists by name
+    if pidof "$STREAMER_PROCESS" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Method 3: Check lock file exists and contains valid PID
+    if [ -f "$STREAMER_LOCK_FILE" ] && [ -r "$STREAMER_LOCK_FILE" ]; then
+        lock_pid=$(head -n1 "$STREAMER_LOCK_FILE" 2>/dev/null | tr -d '\n')
+        if [ -n "$lock_pid" ] && [ "$lock_pid" -gt 0 ] 2>/dev/null; then
+            if kill -0 "$lock_pid" 2>/dev/null; then
+                return 0
+            else
+                echo_warning "[$LOG_TAG] Lock file contains stale PID: $lock_pid"
+            fi
+        fi
+    fi
+
+    return 1
+}
+
+# Check if we should restart (respecting cooldown and max attempts)
+should_restart() {
+    current_time=$(date +%s)
+
+    # Check if we've exceeded max restart attempts
+    if [ "$restart_count" -ge "$MAX_RESTART_ATTEMPTS" ]; then
+        time_since_start=$((current_time - watchdog_start_time))
+        if [ "$time_since_start" -lt "$RESTART_COOLDOWN" ]; then
+            echo_warning "[$LOG_TAG] Max restart attempts ($MAX_RESTART_ATTEMPTS) reached, waiting for cooldown"
+            return 1
+        else
+            # Reset counter after cooldown period
+            echo_info "[$LOG_TAG] Cooldown period expired, resetting restart counter"
+            restart_count=0
+            watchdog_start_time=$current_time
+            save_state
+        fi
+    fi
+
+    # Check restart delay since last restart
+    if [ "$last_restart_time" -gt 0 ]; then
+        time_since_restart=$((current_time - last_restart_time))
+        if [ "$time_since_restart" -lt "$RESTART_DELAY" ]; then
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# Restart streamer service
+restart_streamer() {
+    if ! should_restart; then
+        return 1
+    fi
+
+    current_time=$(date +%s)
+    restart_count=$((restart_count + 1))
+    last_restart_time=$current_time
+
+    echo_warning "[$LOG_TAG] Restarting streamer service (attempt $restart_count/$MAX_RESTART_ATTEMPTS)"
+
+    # Stop streamer service gracefully using service command
+    echo_info "[$LOG_TAG] Stopping streamer service..."
+    service stop "$STREAMER_SERVICE" >/dev/null 2>&1
+
+    # Wait for process to fully stop
+    sleep 3
+
+    # Force kill if still running
+    if pidof "$STREAMER_PROCESS" >/dev/null 2>&1; then
+        echo_warning "[$LOG_TAG] Force killing remaining streamer processes"
+        killall -9 "$STREAMER_PROCESS" 2>/dev/null || true
+        sleep 1
+    fi
+
+    # Clean up stale files
+    rm -f "$STREAMER_LOCK_FILE" "$STREAMER_PID_FILE"
+
+    # Start streamer service using service command
+    echo_info "[$LOG_TAG] Starting streamer service..."
+    if service start "$STREAMER_SERVICE" >/dev/null 2>&1; then
+        # Wait a moment for service to start
+        sleep 2
+        if is_streamer_running; then
+            echo_info "[$LOG_TAG] Streamer service started successfully"
+            save_state
+            return 0
+        else
+            echo_error "[$LOG_TAG] Streamer service failed to start properly"
+            save_state
+            return 1
+        fi
+    else
+        echo_error "[$LOG_TAG] Failed to start streamer service"
+        save_state
+        return 1
+    fi
+}
+
+# Main watchdog loop
+watchdog_loop() {
+    echo_info "[$LOG_TAG] Starting watchdog monitoring (PID: $$)"
+    echo_info "[$LOG_TAG] Check interval: ${CHECK_INTERVAL}s, Max restarts: $MAX_RESTART_ATTEMPTS"
+
+    load_state
+
+    while true; do
+        if ! is_streamer_running; then
+            echo_warning "[$LOG_TAG] Streamer process not running"
+
+            if restart_streamer; then
+                echo_info "[$LOG_TAG] Waiting ${RESTART_DELAY}s before next check"
+                sleep "$RESTART_DELAY"
+            else
+                echo_warning "[$LOG_TAG] Restart skipped or failed"
+            fi
+        fi
+
+        sleep "$CHECK_INTERVAL"
+    done
+}
+
+start() {
+    echo_title "Starting Streamer Watchdog"
+
+    if [ "$ENABLED" != "true" ]; then
+        echo_info "Streamer watchdog disabled"
+        exit 0
+    fi
+
+    if is_streamer_disabled; then
+        echo_error "Streamer disabled"
+        exit 1
+    fi
+
+    # Use the common daemon management system
+    start_daemon
+}
+
+stop() {
+    echo_title "Stopping Streamer Watchdog"
+
+    # Use the common daemon management system
+    stop_daemon
+
+    # Clean up state file
+    rm -f "$WATCHDOG_STATE_FILE"
+}
+
+status() {
+    if [ -f "$PIDFILE" ]; then
+        watchdog_pid=$(cat "$PIDFILE" 2>/dev/null)
+        if [ -n "$watchdog_pid" ] && kill -0 "$watchdog_pid" 2>/dev/null; then
+            echo_info "Streamer watchdog is running (PID: $watchdog_pid)"
+
+            if [ -f "$WATCHDOG_STATE_FILE" ]; then
+                load_state
+                echo_info "Restart count: $restart_count/$MAX_RESTART_ATTEMPTS"
+                if [ "$last_restart_time" -gt 0 ]; then
+                    echo_info "Last restart: $(date -d "@$last_restart_time" 2>/dev/null || echo "unknown")"
+                fi
+            fi
+            return 0
+        else
+            echo_warning "Watchdog PID file exists but process not running"
+            return 1
+        fi
+    else
+        echo_info "Streamer watchdog is not running"
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        sleep 1
+        start
+        ;;
+    status)
+        status
+        ;;
+    watchdog_loop)
+        # This is called by start_daemon to run the actual watchdog
+        watchdog_loop
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit 0

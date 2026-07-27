@@ -1,0 +1,58 @@
+#!/bin/sh
+
+. /usr/share/common
+
+if [ "$provisioning_enabled" != "true" ]; then
+	exit 0
+fi
+
+# Convert hex string to ASCII
+hex_to_ascii() {
+	echo "$1" | sed 's/../\\x&/g' | xargs -0 printf
+}
+
+# Set provisioning server and log
+set_provisioning_server() {
+	local server="$1"
+	local type="$2"
+	echo_info "DHCP Option 160 ($type): $server"
+	conf s provisioning_server "$server"
+	echo_info "Set provisioning_server to $server"
+}
+
+# DHCP Option 160 handler
+case "$1" in
+	bound|renew)
+		if [ -n "$opt160" ]; then
+			echo_info "DHCP Option 160 received: $opt160"
+
+			# Try to parse as hex IP address first (8 hex characters)
+			if [ ${#opt160} -eq 8 ]; then
+				IP_ADDR=$(printf "%d.%d.%d.%d" \
+					0x${opt160:0:2} \
+					0x${opt160:2:2} \
+					0x${opt160:4:2} \
+					0x${opt160:6:2})
+
+				case "$IP_ADDR" in
+					*.*.*.* )
+						# Valid IP address format - check if it's actually valid
+						if echo "$IP_ADDR" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+							set_provisioning_server "$IP_ADDR" "IP address"
+						else
+							DECODED_STRING=$(hex_to_ascii "$opt160")
+							set_provisioning_server "$DECODED_STRING" "domain name"
+						fi
+						;;
+					*)
+						DECODED_STRING=$(hex_to_ascii "$opt160")
+						set_provisioning_server "$DECODED_STRING" "domain name"
+						;;
+				esac
+			else
+				DECODED_STRING=$(hex_to_ascii "$opt160")
+				set_provisioning_server "$DECODED_STRING" "domain name"
+			fi
+		fi
+		;;
+esac

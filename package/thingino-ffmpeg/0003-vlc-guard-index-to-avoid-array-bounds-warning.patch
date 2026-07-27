@@ -1,0 +1,11 @@
+--- a/libavcodec/vlc.c
++++ b/libavcodec/vlc.c
+@@ -440,7 +440,7 @@ static void add_level(VLC_MULTI_ELEM *ta
+             code = curcode + (buf[t].code >> curlen);
+             newlimit = curlimit - l;
+             l  += curlen;
+-            if (is16bit) info.val16[curlevel] = sym;
++            if (is16bit) { if ((unsigned)curlevel < FF_ARRAY_ELEMS(info.val16)) info.val16[curlevel] = sym; }
+             else info.val8[curlevel] = sym&0xFF;
+ 
+             if (curlevel) { // let's not add single entries

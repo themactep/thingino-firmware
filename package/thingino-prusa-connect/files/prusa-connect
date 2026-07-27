@@ -1,0 +1,128 @@
+#!/bin/sh
+
+. /usr/share/common
+
+PRUSA_CONFIG_FILE="/etc/prusa-connect.json"
+SERVICE_HELPER="/sbin/service"
+STATE_FILE="/run/prusa-connect/state"
+DAEMON_BIN="/sbin/prusa-connectd"
+INIT_NAME="prusa-connect"
+
+usage() {
+	cat <<'EOF'
+Usage: prusa-connect <command>
+Commands:
+  status                       Show service and last upload status
+  enable|disable               Toggle service (writes config)
+  set-token <token>            Store Prusa Connect token
+  set-fingerprint <uuid>       Store camera fingerprint/UUID
+  setup <token> <uuid>         Set both token and fingerprint
+  generate-fingerprint         Print a new UUID (does not store)
+  set-interval <seconds>       Set snapshot interval
+  set-info-interval <seconds>  Set metadata refresh interval
+  test                         Run one metadata + snapshot upload
+  info|snapshot                Run single metadata or snapshot upload
+EOF
+	exit 1
+}
+
+ensure_jct() {
+	command -v jct >/dev/null 2>&1 || {
+		echo "Error: jct helper not found" >&2
+		exit 1
+	}
+}
+
+ensure_config_file() {
+	[ -f "$PRUSA_CONFIG_FILE" ] || echo '{}' > "$PRUSA_CONFIG_FILE"
+}
+
+restart_service() {
+	if [ -x "$SERVICE_HELPER" ]; then
+		$SERVICE_HELPER "$INIT_NAME" restart >/dev/null 2>&1 || true
+	else
+		/etc/init.d/S67prusa-connect restart >/dev/null 2>&1 || true
+	fi
+}
+
+set_value() {
+	local key="$1" value="$2"
+	ensure_jct
+	ensure_config_file
+	jct "$PRUSA_CONFIG_FILE" set "$key" "$value" >/dev/null
+}
+
+show_state() {
+	if [ -s "$STATE_FILE" ]; then
+		cat "$STATE_FILE"
+	else
+		echo "state=unknown"
+	fi
+}
+
+command="$1"
+[ -z "$command" ] && usage
+shift
+
+case "$command" in
+	status)
+		if [ -x "$SERVICE_HELPER" ]; then
+			$SERVICE_HELPER "$INIT_NAME" status || true
+		else
+			/etc/init.d/S67prusa-connect status || true
+		fi
+		show_state
+		;;
+	enable)
+		set_value enabled true
+		restart_service
+		;;
+	disable)
+		set_value enabled false
+		restart_service
+		;;
+	set-token)
+		[ -n "$1" ] || usage
+		set_value token "$1"
+		restart_service
+		;;
+	set-fingerprint)
+		[ -n "$1" ] || usage
+		set_value fingerprint "$1"
+		restart_service
+		;;
+	setup)
+		[ -n "$1" ] && [ -n "$2" ] || usage
+		set_value token "$1"
+		set_value fingerprint "$2"
+		set_value enabled true
+		restart_service
+		;;
+	generate-fingerprint)
+		if command -v uuidgen >/dev/null 2>&1; then
+			uuidgen
+		else
+			cat /proc/sys/kernel/random/uuid
+		fi
+		;;
+	set-interval)
+		[ -n "$1" ] || usage
+		set_value interval "$1"
+		restart_service
+		;;
+	set-info-interval)
+		[ -n "$1" ] || usage
+		set_value info_interval "$1"
+		restart_service
+		;;
+	test|info|snapshot)
+		if [ ! -x "$DAEMON_BIN" ]; then
+			echo "Daemon binary not found" >&2
+			exit 1
+		fi
+		"$DAEMON_BIN" "$command"
+		;;
+	*)
+		usage
+		;;
+esac

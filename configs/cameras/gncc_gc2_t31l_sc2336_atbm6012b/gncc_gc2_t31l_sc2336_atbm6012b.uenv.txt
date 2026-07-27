@@ -1,0 +1,9 @@
+gpio_button=14
+gpio_default=6O 7O 8o 9O 10o 11o 14I 18O 42o 43o 49i 50o
+gpio_ir850=50
+gpio_ircut=10 11
+gpio_led_g=8
+gpio_led_r=9
+gpio_mmc_cd=49
+gpio_speaker=7o
+gpio_wlan=6O

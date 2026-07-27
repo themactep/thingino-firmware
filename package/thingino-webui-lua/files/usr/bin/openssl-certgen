@@ -1,0 +1,193 @@
+#!/bin/sh
+
+# OpenSSL Certificate Generator for Thingino
+# This script generates SSL certificates using OpenSSL tools and libraries
+# Usage: openssl-certgen -h hostname -c cert_file -k key_file [-d days] [-s key_size]
+
+HOSTNAME=""
+CERT_FILE=""
+KEY_FILE=""
+DAYS=3650  # 10 years default
+KEY_SIZE=256  # 256-bit ECDSA (fast and secure for embedded devices)
+
+# Parse command line arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--hostname)
+            HOSTNAME="$2"
+            shift 2
+            ;;
+        -c|--cert)
+            CERT_FILE="$2"
+            shift 2
+            ;;
+        -k|--key)
+            KEY_FILE="$2"
+            shift 2
+            ;;
+        -d|--days)
+            DAYS="$2"
+            shift 2
+            ;;
+        -s|--key-size)
+            KEY_SIZE="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $0 -h hostname -c cert_file -k key_file [-d days] [-s key_size]"
+            echo "  -h, --hostname   Hostname for certificate CN"
+            echo "  -c, --cert       Output certificate file"
+            echo "  -k, --key        Output private key file"
+            echo "  -d, --days       Certificate validity in days (default: 3650)"
+            echo "  -s, --key-size   Key size in bits (default: 256 for ECDSA, 2048 for RSA)"
+            echo "                   ECDSA: 224, 256, 384, 521"
+            echo "                   RSA: 1024, 2048, 3072, 4096"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate required parameters
+if [ -z "$HOSTNAME" ] || [ -z "$CERT_FILE" ] || [ -z "$KEY_FILE" ]; then
+    echo "Error: Missing required parameters"
+    echo "Usage: $0 -h hostname -c cert_file -k key_file [-d days] [-s key_size]"
+    exit 1
+fi
+
+# Create directories if they don't exist
+mkdir -p "$(dirname "$CERT_FILE")" "$(dirname "$KEY_FILE")"
+
+# Function to generate ECDSA certificate (preferred for embedded devices)
+generate_ecdsa_certificate() {
+    local curve_name
+    
+    # Map key size to curve name
+    case "$KEY_SIZE" in
+        224)
+            curve_name="secp224r1"
+            ;;
+        256)
+            curve_name="prime256v1"
+            ;;
+        384)
+            curve_name="secp384r1"
+            ;;
+        521)
+            curve_name="secp521r1"
+            ;;
+        *)
+            echo "Warning: Unsupported ECDSA key size $KEY_SIZE, using 256-bit"
+            KEY_SIZE=256
+            curve_name="prime256v1"
+            ;;
+    esac
+    
+    echo "Generating ECDSA private key ($KEY_SIZE-bit)..."
+    if ! openssl ecparam -genkey -name "$curve_name" -out "$KEY_FILE" 2>/dev/null; then
+        echo "Failed to generate ECDSA private key"
+        return 1
+    fi
+    
+    echo "Generating self-signed ECDSA certificate..."
+    if ! openssl req -new -x509 -key "$KEY_FILE" -out "$CERT_FILE" \
+        -days "$DAYS" -subj "/C=US/ST=CA/L=San Francisco/O=Thingino/OU=Camera/CN=$HOSTNAME/emailAddress=admin@thingino.local" \
+        -sha256 2>/dev/null; then
+        echo "Failed to generate ECDSA certificate"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to generate RSA certificate (fallback)
+generate_rsa_certificate() {
+    # Validate RSA key size
+    case "$KEY_SIZE" in
+        1024|2048|3072|4096)
+            ;;
+        224|256|384|521)
+            echo "Converting ECDSA key size to RSA equivalent..."
+            case "$KEY_SIZE" in
+                224|256)
+                    KEY_SIZE=2048
+                    ;;
+                384)
+                    KEY_SIZE=3072
+                    ;;
+                521)
+                    KEY_SIZE=4096
+                    ;;
+            esac
+            ;;
+        *)
+            echo "Warning: Unsupported RSA key size $KEY_SIZE, using 2048-bit"
+            KEY_SIZE=2048
+            ;;
+    esac
+    
+    echo "Generating RSA private key ($KEY_SIZE-bit)..."
+    if ! openssl genrsa -out "$KEY_FILE" "$KEY_SIZE" 2>/dev/null; then
+        echo "Failed to generate RSA private key"
+        return 1
+    fi
+    
+    echo "Generating self-signed RSA certificate..."
+    if ! openssl req -new -x509 -key "$KEY_FILE" -out "$CERT_FILE" \
+        -days "$DAYS" -subj "/C=US/ST=CA/L=San Francisco/O=Thingino/OU=Camera/CN=$HOSTNAME/emailAddress=admin@thingino.local" \
+        -sha256 2>/dev/null; then
+        echo "Failed to generate RSA certificate"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Main certificate generation logic
+echo "Generating SSL certificate for hostname: $HOSTNAME"
+
+# Check if OpenSSL is available
+if ! command -v openssl >/dev/null 2>&1; then
+    echo "ERROR: OpenSSL command not found"
+    echo "Please ensure OpenSSL is installed and available in PATH"
+    exit 1
+fi
+
+# Try ECDSA first (preferred for embedded devices due to smaller size and faster operations)
+if generate_ecdsa_certificate; then
+    echo "ECDSA certificate generated successfully"
+    success=1
+else
+    echo "ECDSA generation failed, trying RSA..."
+    if generate_rsa_certificate; then
+        echo "RSA certificate generated successfully"
+        success=1
+    else
+        echo "RSA generation also failed"
+        success=0
+    fi
+fi
+
+if [ "$success" = "1" ]; then
+    # Set proper permissions
+    chmod 600 "$KEY_FILE"
+    chmod 644 "$CERT_FILE"
+    
+    echo "Certificate files created:"
+    echo "  Certificate: $CERT_FILE"
+    echo "  Private key: $KEY_FILE"
+    
+    # Display certificate information
+    echo ""
+    echo "Certificate information:"
+    openssl x509 -in "$CERT_FILE" -text -noout | grep -E "(Subject:|Not Before:|Not After:|Public Key Algorithm:|Signature Algorithm:)" 2>/dev/null || true
+    
+    exit 0
+else
+    echo "ERROR: Certificate generation failed"
+    echo "Please check OpenSSL installation and try again"
+    exit 1
+fi

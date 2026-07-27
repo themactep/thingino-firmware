@@ -1,0 +1,32 @@
+--- a/configure
++++ b/configure
+@@ -13404,7 +13404,7 @@
+      fi
+
+ else $as_nop
+-  enable_float_approx=$has_float_approx
++  enable_float_approx=yes
+ fi
+
+
+@@ -15639,7 +15639,7 @@
+ then :
+   enableval=$enable_extra_programs;
+ else $as_nop
+-  enable_extra_programs=yes
++  enable_extra_programs=no
+ fi
+
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -14,7 +14,8 @@
+
+ @SET_MAKE@
+
+-
++AM_CFLAGS = -ffunction-sections -fdata-sections
++AM_LDFLAGS = -Wl,--gc-sections -Wl,-z,max-page-size=0x1000
+
+
+ VPATH = @srcdir@

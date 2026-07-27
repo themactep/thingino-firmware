@@ -2,7 +2,10 @@ Hualai
 ------
 - https://www.hualaikeji.com/
 
-also [ATOM](atom.md), [Wyze](wyze.md)
+also [Azarton](azarton.md), [ATOM](atom.md), [Wyze](wyze.md)
 
-| FCC             | Model         | SOC         | CMOS | RES | SPI    | WIFI   | Link |
-|-----------------|---------------|-------------|------|-----|--------|--------|------|
+FCC: https://fccid.io/2ANJH
+
+Cloud:
+- https://www.hualai.com/
+- [TUTK/ThroughTek](https://www.tutk.com/)

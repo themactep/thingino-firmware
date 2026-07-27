@@ -1,0 +1,29 @@
+#!/bin/sh
+
+. /usr/share/common
+
+case "$1" in
+	bound | renew)
+		if [ -L $RESOLV_WORKING_FILE ]; then
+			echo "Create linked $RESOLV_WORKING_FILE"
+			[ -e $RESOLV_WORKING_FILE ] || touch $RESOLV_WORKING_FILE
+		fi
+
+		:> "$RESOLV_WORKING_FILE"
+
+		if [ -n "$domain" ]; then
+			echo "Populate $RESOLV_WORKING_FILE with domain $domain"
+			echo "search $domain" >> "$RESOLV_WORKING_FILE"
+		fi
+
+		for i in $dns; do
+			echo "Populate $RESOLV_WORKING_FILE with nameserver $i"
+			echo "nameserver $i" >> "$RESOLV_WORKING_FILE"
+		done
+		;;
+	rebound)
+		sync_time
+		;;
+esac
+
+exit 0

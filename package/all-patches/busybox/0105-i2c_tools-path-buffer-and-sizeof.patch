@@ -1,0 +1,43 @@
+--- a/miscutils/i2c_tools.c	2024-04-16 03:23:50.000000000 -0400
++++ b/miscutils/i2c_tools.c	2025-10-17 22:48:59.960446765 -0400
+@@ -1129,7 +1129,7 @@
+ {
+ 	const char *const i2cdev_path = "/sys/class/i2c-dev";
+ 
+-	char path[NAME_MAX], name[128];
++	char path[PATH_MAX], name[128];
+ 	struct dirent *de, *subde;
+ 	enum adapter_type adt;
+ 	DIR *dir, *subdir;
+@@ -1149,11 +1149,11 @@
+ 			continue;
+ 
+ 		/* Simple version for ISA chips. */
+-		snprintf(path, NAME_MAX, "%s/%s/name",
++		snprintf(path, sizeof(path), "%s/%s/name",
+ 			 i2cdev_path, de->d_name);
+ 		fp = fopen_for_read(path);
+ 		if (fp == NULL) {
+-			snprintf(path, NAME_MAX,
++			snprintf(path, sizeof(path),
+ 				 "%s/%s/device/name",
+ 				 i2cdev_path, de->d_name);
+ 			fp = fopen_for_read(path);
+@@ -1161,7 +1161,7 @@
+ 
+ 		/* Non-ISA chips require the hard-way. */
+ 		if (fp == NULL) {
+-			snprintf(path, NAME_MAX,
++			snprintf(path, sizeof(path),
+ 				 "%s/%s/device/name",
+ 				 i2cdev_path, de->d_name);
+ 			subdir = opendir(path);
+@@ -1173,7 +1173,7 @@
+ 					continue;
+ 
+ 				if (is_prefixed_with(subde->d_name, "i2c-")) {
+-					snprintf(path, NAME_MAX,
++					snprintf(path, sizeof(path),
+ 						 "%s/%s/device/%s/name",
+ 						 i2cdev_path, de->d_name,
+ 						 subde->d_name);

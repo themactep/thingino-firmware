@@ -1,0 +1,13 @@
+diff --git a/schrift.c b/schrift.c
+index eb39376..f7772aa 100644
+--- a/schrift.c
++++ b/schrift.c
+@@ -1541,7 +1541,7 @@ render_outline(Outline *outl, double transform[6], SFT_Image image)
+ 	
+ 	numPixels = (unsigned int) image.width * (unsigned int) image.height;
+ 
+-	STACK_ALLOC(cells, Cell, 128 * 128, numPixels);
++	STACK_ALLOC(cells, Cell, 32 * 32, numPixels);
+ 	if (!cells) {
+ 		return -1;
+ 	}

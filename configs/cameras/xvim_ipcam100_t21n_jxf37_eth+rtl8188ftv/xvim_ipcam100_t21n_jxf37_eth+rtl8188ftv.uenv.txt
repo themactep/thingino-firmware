@@ -1,0 +1,10 @@
+gpio_button=50
+gpio_default=81O
+gpio_ircds=true
+gpio_ircut=80 79
+gpio_mmc_cd=52
+gpio_motor_h=49 40 48 47
+gpio_motor_v=60 39 38 41
+gpio_speaker=63o
+gpio_white=81o
+gpio_wlan=82O

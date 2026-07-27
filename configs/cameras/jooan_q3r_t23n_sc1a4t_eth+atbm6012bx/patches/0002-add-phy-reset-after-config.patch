@@ -1,0 +1,67 @@
+--- a/drivers/net/jz4775-9161.c
++++ b/drivers/net/jz4775-9161.c
+@@ -484,6 +484,16 @@
+ 
+ #endif
+ 	printf("ETH:   GMAC init finish\n");
++
++#if defined (CONFIG_PHY_RESET_AFTER_CONFIG)
++	printf("ETH:   PHY Reset gpio %d, level %d\n", CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(10);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(50);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(10);
++#endif
+ 	return 1;
+ }
+ 
+@@ -802,6 +812,16 @@
+ 	} else {
+ 		gmacdev->PhyBase = phy_id;
+ 	}
++
++#if defined (CONFIG_PHY_RESET_AFTER_CONFIG)
++	printf("ETH:   PHY Reset gpio %d, level %d\n", CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(10);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(50);
++	gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++	mdelay(10);
++#endif
+ #endif //CONFIG_NET_PHY_TYPE
+ 	udelay(100000);
+ 
+@@ -878,6 +898,15 @@
+ 		printf("phy read 0x%lx = 0x%x\n", addr, data);
+ 
+ 	} else if (strcmp(cmd, "reset") == 0) {
++#if defined (CONFIG_PHY_RESET_AFTER_CONFIG)
++		printf("eth phy reset %d, %d\n", CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++		gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++		mdelay(10);
++		gpio_direction_output(CONFIG_GPIO_PHY_RESET, CONFIG_GPIO_PHY_RESET_ENLEVEL);
++		mdelay(50);
++		gpio_direction_output(CONFIG_GPIO_PHY_RESET, !CONFIG_GPIO_PHY_RESET_ENLEVEL);
++		mdelay(10);
++#endif
+ #ifdef CONFIG_GPIO_IP101G_RESET
+ 		printf("eth phy reset %d, %d\n", CONFIG_GPIO_IP101G_RESET, CONFIG_GPIO_IP101G_RESET_ENLEVEL);
+ 		gpio_direction_output(CONFIG_GPIO_IP101G_RESET, !CONFIG_GPIO_IP101G_RESET_ENLEVEL);
+--- a/config.mk
++++ b/config.mk
+@@ -200,6 +200,12 @@
+ HOSTCFLAGS	+= -DCONFIG_FIT_SIGNATURE
+ endif
+ 
++ifdef CONFIG_PHY_RESET_AFTER_CONFIG
++CPPFLAGS += -DCONFIG_PHY_RESET_AFTER_CONFIG
++CPPFLAGS += -DCONFIG_GPIO_PHY_RESET=$(CONFIG_GPIO_PHY_RESET)
++CPPFLAGS += -DCONFIG_GPIO_PHY_RESET_ENLEVEL=$(CONFIG_GPIO_PHY_RESET_ENLEVEL)
++endif
++
+ # Enable for BAR for 32MB Chips
+ ifdef CONFIG_SPI_FLASH_BAR
+ CPPFLAGS += -DCONFIG_SPI_FLASH_BAR

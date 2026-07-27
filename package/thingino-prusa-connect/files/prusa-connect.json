@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "token": "",
+  "fingerprint": "",
+  "interval": 60,
+  "info_interval": 600,
+  "online_host": "webcam.connect.prusa3d.com",
+  "snapshot_url": "https://webcam.connect.prusa3d.com/c/snapshot",
+  "info_url": "https://webcam.connect.prusa3d.com/c/info",
+  "curl_bin": "/bin/curl",
+  "curl_extra": ""
+}

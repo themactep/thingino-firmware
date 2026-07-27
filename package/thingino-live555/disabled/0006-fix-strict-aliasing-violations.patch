@@ -1,0 +1,54 @@
+
+--- a/BasicUsageEnvironment/include/DelayQueue.hh
++++ b/BasicUsageEnvironment/include/DelayQueue.hh
+@@ -74,12 +74,46 @@ protected:
+   }
+ 
+ private:
+-  time_base_seconds& secs() {
+-    return (time_base_seconds&)fTv.tv_sec;
++  // Safe accessors that avoid strict aliasing violations
++  time_base_seconds getSecs() const {
++    return static_cast<time_base_seconds>(fTv.tv_sec);
+   }
+-  time_base_seconds& usecs() {
+-    return (time_base_seconds&)fTv.tv_usec;
++  void setSecs(time_base_seconds val) {
++    fTv.tv_sec = static_cast<decltype(fTv.tv_sec)>(val);
+   }
++  time_base_seconds getUsecs() const {
++    return static_cast<time_base_seconds>(fTv.tv_usec);
++  }
++  void setUsecs(time_base_seconds val) {
++    fTv.tv_usec = static_cast<decltype(fTv.tv_usec)>(val);
++  }
++
++  // Legacy reference-returning methods for compatibility
++  // These use a proxy class to avoid aliasing violations
++  class SecsProxy {
++    Timeval* tv;
++  public:
++    SecsProxy(Timeval* t) : tv(t) {}
++    operator time_base_seconds() const { return tv->getSecs(); }
++    SecsProxy& operator=(time_base_seconds val) { tv->setSecs(val); return *this; }
++    SecsProxy& operator+=(time_base_seconds val) { tv->setSecs(tv->getSecs() + val); return *this; }
++    SecsProxy& operator-=(time_base_seconds val) { tv->setSecs(tv->getSecs() - val); return *this; }
++    SecsProxy& operator++() { tv->setSecs(tv->getSecs() + 1); return *this; }
++    SecsProxy& operator--() { tv->setSecs(tv->getSecs() - 1); return *this; }
++  };
++
++  class UsecsProxy {
++    Timeval* tv;
++  public:
++    UsecsProxy(Timeval* t) : tv(t) {}
++    operator time_base_seconds() const { return tv->getUsecs(); }
++    UsecsProxy& operator=(time_base_seconds val) { tv->setUsecs(val); return *this; }
++    UsecsProxy& operator+=(time_base_seconds val) { tv->setUsecs(tv->getUsecs() + val); return *this; }
++    UsecsProxy& operator-=(time_base_seconds val) { tv->setUsecs(tv->getUsecs() - val); return *this; }
++  };
++
++  SecsProxy secs() { return SecsProxy(this); }
++  UsecsProxy usecs() { return UsecsProxy(this); }
+ 
+   struct timeval fTv;
+ };

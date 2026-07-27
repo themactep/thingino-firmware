@@ -1,0 +1,57 @@
+config BR2_PACKAGE_THINGINO_MBEDTLS
+	bool "thingino-mbedtls"
+	depends on !BR2_PACKAGE_MBEDTLS
+	help
+	  Thingino enhanced mbed TLS with WebRTC DTLS compatibility.
+	  Based on mbed TLS (formerly known as PolarSSL) with additional
+	  cipher suites and configurations optimized for embedded WebRTC
+	  applications.
+
+	  This shadow package provides enhanced DTLS support for WebRTC
+	  while maintaining the lightweight footprint needed for embedded
+	  systems.
+
+	  https://tls.mbed.org/
+
+if BR2_PACKAGE_THINGINO_MBEDTLS
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_PROGRAMS
+	bool "mbedtls programs"
+	depends on BR2_USE_MMU # fork()
+	help
+	  This option enables the installation and the build of
+	  mbed TLS companion programs.
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_COMPRESSION
+	bool "enable compression support"
+	select BR2_PACKAGE_ZLIB
+	help
+	  Enable support for compression of the content data before it
+	  enters the secure channel as described in RFC 3749.
+
+	  Warning: TLS compression may make you vulnerable to the
+	  CRIME attack. You should not enable it unless you know for
+	  sure CRIME and similar attacks are not applicable to your
+	  particular situation.
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_DTLS_SRTP
+	bool "enable DTLS-SRTP support"
+	default y
+	help
+	  Enable support for negotiation of DTLS-SRTP (RFC 5764)
+	  through the use_srtp extension.
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_WEBRTC_DTLS
+	bool "enable WebRTC DTLS compatibility"
+	default y
+	select BR2_PACKAGE_THINGINO_MBEDTLS_DTLS_SRTP
+	help
+	  Enable enhanced cipher suite support for WebRTC DTLS compatibility.
+	  This includes RSA key exchange, additional hash algorithms, and
+	  broader cipher suite support for better browser compatibility.
+	  Note: This increases binary size but improves WebRTC interoperability.
+
+endif
+
+comment "thingino-mbedtls conflicts with mbedtls"
+	depends on BR2_PACKAGE_MBEDTLS

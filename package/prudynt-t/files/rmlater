@@ -1,4 +1,0 @@
-#!/bin/sh
-# run delayed rm by a signal from inotifyd
-[ -f "$2" ] && rm "$2"
-exit 0

@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON="ble-provision"
+PIDFILE="/var/run/$DAEMON.pid"
+
+start() {
+	# Check if WiFi is already configured
+	wlan_ssid=$(fw_printenv -n wlan_ssid 2>/dev/null)
+
+	if [ -n "$wlan_ssid" ]; then
+		echo "WiFi already configured (SSID: $wlan_ssid), skipping BLE provisioning"
+		return 0
+	fi
+	
+	echo "Starting $DAEMON: WiFi not configured, enabling BLE provisioning"
+	start-stop-daemon -S -q -b -m -p $PIDFILE -x /usr/bin/$DAEMON
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+
+stop() {
+	echo "Stopping $DAEMON"
+	start-stop-daemon -K -q -p $PIDFILE
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	rm -f $PIDFILE
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+esac
+
+exit $?

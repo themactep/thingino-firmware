@@ -1,0 +1,5 @@
+gpio_default=14O 18O 57o 58o 49o 52o 53o 59o 60o 61o 62o 63o
+gpio_ircut=57 58
+gpio_motor_h=63 62 61 60
+gpio_motor_v=59 52 53 49
+gpio_wlan=14O

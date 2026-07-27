@@ -2,27 +2,42 @@
 
 echo "Run as $0 $*"
 
+# Releases older that the timestamp below
+# are not eligible for partial updates.
+RUBICON="1740787200" # 2025-03-01
+
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
 GITHUB_URL="https://github.com"
 PAD="\t\t\t    "
 
+SIZE_256K=262144
+SIZE_320K=327680
+SIZE_512K=524288
+
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
-fw_file="$workdir/fw.bin"
+
+SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
 bbapplets="echo flash_eraseall flashcp reboot sh sleep"
 upgrade=""
+gestalt_app="/sbin/gestalt"
 
 bye() {
 	die "\n\n\tMaybe next time..."
 }
 
+report_size() {
+	printf "%-20s %12s\n" "$1" "$2"
+}
+
 check_network() {
+	echo "Check connection to $url"
 	curl -m 5 -I $1 >/dev/null 2>&1 && return
 	red "No internet?\n"
 	ip a
@@ -30,14 +45,70 @@ check_network() {
 }
 
 check_free_space() {
-	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
-	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
-	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
-	local offset="${2:-0}"
-	dl_size=$((dl_size - offset))
-	free_space=$((free_space * 1024 * 1024))
-	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
-	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	local dl_size dl_size_offsetted flash_size free_space offset
+
+	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
+	if [ -z "$dl_size" ]; then
+		if [ ! -f "$gestalt_app" ]; then
+			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/gestalt"
+			download "$gestalt_url" "$gestalt"
+			chmod +x "$gestalt"
+		fi
+		echo "Cannot get remote file size. Camera profile name may have changed."
+		die "Please run gestalt and select the correct profile."
+	fi
+
+	if [ "$dl_size" -le 0 ]; then
+		die "Remote file size is zero"
+	fi
+	report_size "Remote file size" "$dl_size"
+
+	offset="${2:-0}"
+	report_size "Remote file offset" "$offset"
+	if [ "$dl_size" -le $offset ]; then
+		die "Remote file size is less than offset"
+	fi
+
+	flash_size=$(full_upgrade_partition_size)
+	if [ "$dl_size" -gt $flash_size ]; then
+		die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	fi
+	report_size "Full flash size" "$flash_size"
+
+	free_space=$(available_free_space)
+	report_size "Available space" "$free_space"
+
+	dl_size_offsetted=$((dl_size - offset))
+	report_size "Download size" "$dl_size_offsetted"
+
+	if [ "$dl_size_offsetted" -gt $free_space ]; then
+		die "Not enough free space to download firmware"
+	fi
+}
+
+available_free_space() {
+	echo $(($(df -m $dl_dir | awk 'NR==2{print $4}') * 1024 * 1024))
+}
+
+full_upgrade_partition_name() {
+	awk -F: '/"all"$/{print $1}' /proc/mtd
+}
+
+full_upgrade_partition_size() {
+	echo $(($(awk '/"all"$/{print "0x" $2}' /proc/mtd)))
+}
+
+partial_upgrade_partition_name() {
+	awk -F: '/"upgrade"$/{print $1}' /proc/mtd
+}
+
+partial_upgrade_partition_size() {
+	echo $(($(awk '/"upgrade"$/{print "0x" $2}' /proc/mtd)))
+}
+
+check_upgrade_partitions() {
+	grep -q '"all"' /proc/mtd || \
+		die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 }
 
 cleanup() {
@@ -47,8 +118,13 @@ cleanup() {
 }
 
 clone_app() {
-	local target="$2"
-	[ -z "$target" ] && target="$(basename $1)"
+	local target
+
+	target="$2"
+	if [ -z "$target" ]; then
+		target="$(basename $1)"
+	fi
+
 	if ! cp -vf "$1" "$workdir/$target"; then
 		say "Error: Failed to copy $1 to $workdir/$target"
 		cleanup
@@ -64,11 +140,12 @@ die() {
 
 # url file options
 download() {
-	local file="$2"
+	local file
+
+	file="$2"
 	[ -z "$file" ] && file="$fw_file"
-	if ! curl -fL# --url "$1" -o "$file" $3; then
-		return 1  # Return an error code instead of exiting
-	fi
+	echo "Downloading from $1 to $file"
+	curl -fL# --url "$1" -o "$file" $3 || return 1
 }
 
 expand_bb() {
@@ -77,24 +154,49 @@ expand_bb() {
 }
 
 extract_bootloader() {
+	if [ "$U_BOOT_MAGIC" != "$(xxd -l 4 -p $1)" ]; then
+		die "$1 image does not start with a bootloader!"
+	fi
+
 	truncate -s 256K $1
 }
 
 handle_payload() {
+	echo "Change directory to $dl_dir"
+
+	if [ ! -d "$dl_dir" ]; then
+		die "Cannot change directory to $dl_dir"
+	fi
+
+	if [ ! -w "$dl_dir" ]; then
+		die "Cannot write to $dl_dir"
+	fi
+
+	if ! cd $dl_dir; then
+		die "Cannot change directory to $dl_dir"
+	fi
+
 	if [ "local" = "$upgrade" ]; then
-		say "Upgrading from a provided file"
+		say "Upgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
-			check_free_space $1
-			download $1 || die "Cannot download $1 to $fw_file"
+			check_free_space "$1"
+			if ! download $1; then
+				die "Cannot download $1 to $fw_file"
+			fi
 		else
-			[ -f "$fw_file" ] || die "Cannot find $fw_file"
+			if [ ! -f "$fw_file" ]; then
+				die "Cannot find $fw_file"
+			fi
 		fi
 	else
-		say "Upgrading from GitHub"
+		say "Upgrade from GitHub"
+
 		data=/etc/os-release
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
-		[ -z "$profile" ] && die "Building profile is not set in $data"
+		if [ -z "$profile" ]; then
+			die "Building profile is not set in $data"
+		fi
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
 		if [ -n "$release_date" ]; then
@@ -103,9 +205,15 @@ handle_payload() {
 		else
 			gh_url="$gh_url/latest/download"
 		fi
+
 		bin_url="$gh_url/thingino-$profile.bin"
+
 		if [ "part" = "$upgrade" ]; then
-			offset=327680
+			case "$(partial_upgrade_partition_name)" in
+				mtd5) offset=$SIZE_320K ;;
+				mtd6) offset=$SIZE_512K ;;
+				*) die "Unknown partial upgrade partition name" ;;
+			esac
 			bin_file="thingino-$profile-update.bin"
 		else
 			offset=0
@@ -114,21 +222,35 @@ handle_payload() {
 		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
 
-		check_free_space $bin_url $offset
+		check_free_space "$bin_url" "$offset"
 
-		#\n- $bin_url\n- $sha_url"
-		say "Downloading firmware from:\n$bin_url"
-		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
-		say "Downloading checksum from:\n$sha_url"
-		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
+		say "Download checksum from $sha_url"
+		if ! download "$sha_url" "tempsha256sum"; then
+			die "Cannot download checksum file."
+		fi
 
-		say "Verifying downloaded file"
-		sed -i '/^#/d' $sha_file
-		sha256sum -c $sha_file || die "Checksum does not match!"
+		grep -v '^#' "tempsha256sum" > $sha_file
 
-		rm $sha_file
-		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
+		say "Download firmware from $bin_url"
+		if ! download "$bin_url" "$bin_file" "-C $offset"; then
+			die "Cannot download firmware from specified URL."
+		fi
+
+		say "Verify downloaded file"
+		if ! sha256sum -c $sha_file; then
+			die "Checksum does not match!"
+		fi
+
+		say "Clean up"
+		rm -v $sha_file
+
+		say "Relocate downloaded file"
+		if ! mv -fv "$bin_file" "$fw_file"; then
+			die "Cannot move $bin_file to $fw_file"
+		fi
 	fi
+
+	cd -
 }
 
 flush_memory() {
@@ -169,43 +291,102 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S50httpd | S97sysupgrade)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wireguard | S42wifiap | S30dropbear | S50dropbear | S97sysupgrade)
 				continue
+				;;
+			S50httpd)
+				[ -f "/tmp/webupgrade" ] && continue
 				;;
 			*)
 				sh -c "$i stop"
 				;;
 		esac
 	done
+
+	say "Running processes:"
+	ps w
+}
+
+unmount_config() {
+	mountpoint -q /etc/config || return 0
+	say "Unmount config"
+	umount /etc/config
 }
 
 update_self() {
-	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
+	local GH_DL_URL
+
+	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
 	chmod +x $workdir/$stage1app
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
 	chmod +x /sbin/$stage2app
 }
 
-# mandate virtual partitions
-grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+dl_dir="/tmp"
+fw_file="$workdir/fw.bin"
+if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
+	echo "Not enough free space in $dl_dir to download firmware!"
+	if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
+		echo "Mountpoint $SD_CARD_ROOT is writable, using it for download."
+		dl_dir="$SD_CARD_ROOT"
+		fw_file="$SD_CARD_ROOT/fw.bin"
+		if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
+			echo "Not enough free space in $dl_dir to download firmware!"
+			echo "Please consider performing upgrade from an SD card."
+			exit 1
+		fi
+	else
+		echo "Please consider performing upgrade from an SD card."
+		exit 1
+	fi
+else
+	echo "Downloading firmware into $dl_dir, there is enough free space."
+fi
+
+check_upgrade_partitions
 
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		b) bootloader_only="true" ;;
-		d) requested_date=$OPTARG ;;
-		f) upgrade="full"; url="$GITHUB_URL" ;;
-		p) upgrade="part"; url="$GITHUB_URL" ;;
-		x) selfupdate="false" ;;
-		h | *) show_help ;;
+		b)
+			upgrade="boot"
+			url="$GITHUB_URL"
+			;;
+		d)
+			requested_date=$OPTARG
+			;;
+		f)
+			upgrade="full"
+			url="$GITHUB_URL"
+			;;
+		p)
+			RELEASE_DATE_TIME=$(sed -En 's/^BUILD_TIME="(.+) \+0000"/\1/p' /etc/os-release)
+			RELEASE_TIMESTAMP=$(date -ud "$RELEASE_DATE_TIME" +%s)
+			if [ "$RELEASE_TIMESTAMP" -lt $RUBICON ]; then
+				echo "Build time: $RELEASE_DATE_TIME ($RELEASE_TIMESTAMP < $RUBICON)"
+				echo "Your firmware build date is too old for a partial upgrade due to breaking changes."
+				echo "Please back up your configuration and perform a full upgrade instead."
+				exit 1
+			fi
+			upgrade="part"
+			url="$GITHUB_URL"
+			;;
+		x)
+			selfupdate="false"
+			;;
+		h | *)
+			show_help
+			;;
 	esac
 done
 shift "$((OPTIND - 1))"
 
 if [ -n "$requested_date" ]; then
-	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
-		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ] || [ "boot" = "$upgrade" ]; then
+		if ! release_date=$(date -d "$requested_date" +%F); then
+			die "Invalid date: $requested_date"
+		fi
 	else
 		say "Release date only works with upgrades from GitHub"
 	fi
@@ -213,8 +394,10 @@ fi
 
 # work in $workdir
 if [ ! -d $workdir ]; then
-	say "Creating $workdir directory"
-	mkdir -p $workdir || die "Cannot create $workdir directory"
+	say "Create $workdir directory"
+	if ! mkdir -p $workdir; then
+		die "Cannot create $workdir directory"
+	fi
 fi
 
 if [ -z "$upgrade" ]; then
@@ -230,24 +413,30 @@ if [ -z "$upgrade" ]; then
 			say "Found $fw_file"
 		else
 			ufile="$(realpath "$1")"
-			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
+			if [ ! -r "$ufile" ]; then
+				die "Cannot find file $ufile (from $(pwd))"
+			fi
 			say "Found $ufile"
-			mv -v "$ufile" "$fw_file"
+			mv -fv "$ufile" "$fw_file"
+			ORIGINAL_ARG="${ORIGINAL_ARG/$ufile/$fw_file}"
 		fi
 	fi
 fi
 
-cd $workdir || die "Cannot change directory to $workdir"
+if ! cd $workdir; then
+	die "Cannot change directory to $workdir"
+fi
 
-if [ "$(dirname $self)" != "$workdir" ]; then
+if [ "$(dirname "$self")" != "$workdir" ]; then
 	if [ "true" = "$selfupdate" ]; then
-		say "Updating self"
+		say "Update self"
 		update_self
 	else
 		say "Skip self-update"
 		cp "$self" "$workdir/$stage1app"
 	fi
-	say "Re-running script from $workdir"
+
+	say "Re-run script from $workdir"
 	exec $workdir/$stage1app $ORIGINAL_ARG
 fi
 
@@ -274,11 +463,7 @@ $PAD|____/ |_| \___/|_|
 		echo -n "$i"
 		[ "$i" -gt 0 ] && echo -n " .. "
 		read -t 1 -n 1 keypress
-		if [ $? -eq 0 ]; then
-			if [ "$keypress" = "" ]; then
-				break
-			fi
-		fi
+		[ $? -eq 0 ] && [ "" = "$keypress" ] && break
 		i=$((i-1))
 	done
 	clear
@@ -286,38 +471,56 @@ fi
 
 trap cleanup 2 6 15
 
-[ -n "$url" ] && check_network "$url"
+if [ -n "$url" ]; then
+	check_network "$url"
+fi
 
 handle_payload "$@"
 
-case "$(xxd -l 4 -p $fw_file)" in
-	"$U_BOOT_MAGIC") [ "$(stat -c%s $fw_file)" -le 262144 ] && mtd_dev="mtd0" || mtd_dev="mtd6" ;;
-	"$KERNEL_MAGIC") mtd_dev="mtd5" ;;
-	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
-	*) die "Unknown file" ;;
-esac
-
-file_size=$(stat -c%s $fw_file)
-part_size="$((0x$(awk "/^$mtd_dev/{print \$2}" /proc/mtd)))"
-[ "$file_size" -gt $part_size ] && \
-	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
-
-if [ "true" = "$bootloader_only" ]; then
-	[ "mtd5" = "$mtd_dev" ] || die "Userland image does not have a bootloader!"
+# upgrade bootloader only
+if [ "boot" = "$upgrade" ]; then
 	extract_bootloader "$fw_file"
 	flashcp -v $fw_file /dev/mtd0
 	exit 0
 fi
 
+# FIXME: Do we really need that if we have already flashed bootloader above?
+# [ "$(stat -c%s $fw_file)" -le $SIZE_256K ]
+
+case "$(xxd -l 4 -p "$fw_file")" in
+	"$U_BOOT_MAGIC")
+		echo "Bootloader detected"
+	 	mtd_dev=$(full_upgrade_partition_name)
+		part_size=$(full_upgrade_partition_size)
+		;;
+	"$KERNEL_MAGIC")
+		echo "Kernel detected"
+		mtd_dev=$(partial_upgrade_partition_name)
+		part_size=$(partial_upgrade_partition_size)
+		;;
+	"$ROOTFS_MAGIC")
+		echo "RootFS detected"
+		die "We cannot flash only rootfs"
+		;;
+	*)
+		die "Unknown file"
+		;;
+esac
+
+file_size=$(stat -c%s $fw_file)
+[ "$file_size" -gt $part_size ] && \
+	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
+
 stop_services
 remove_snapshot
 flush_memory
+unmount_config
 
 clone_app /bin/busybox
 clone_app /sbin/$stage2app
 for a in $bbapplets; do expand_bb $a; done
 
-say "Switching to Stage 2.\n"
+say "Switch to Stage 2.\n"
 if ! PATH="/tmp/sysupgrade" exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
 	red "Error: Failed to execute $workdir/$stage2app"
 	cleanup

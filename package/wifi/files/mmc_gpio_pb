@@ -1,0 +1,8 @@
+#!/bin/sh
+. /usr/share/common
+set_gpio pb08 1 2
+set_gpio pb09 1 1
+set_gpio pb10 1 1
+set_gpio pb11 1 1
+set_gpio pb13 1 1
+set_gpio pb14 1 1

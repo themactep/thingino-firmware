@@ -1,19 +1,20 @@
 #!/bin/sh
 
-LINK_FILE="/var/run/boot"
+LINK_FILE="/run/boot"
 DAEMON_ARGS="0.05 $LINK_FILE"
 
-. /etc/init.d/rc.common
-
+. /usr/share/common
 
 start() {
-	starting
+	echo_title "Starting LED daemon"
+
 	start_daemon
 	touch $LINK_FILE
 }
 
 stop() {
-	stopping
+	echo_title "Stopping LED daemon"
+
 	rm -f $LINK_FILE
 	stop_daemon
 }

@@ -1,0 +1,8 @@
+config BR2_PACKAGE_NINO
+	bool "nino"
+	help
+	  Nino is a tiny, cross-platform, emacs-like terminal text editor
+	  written in C, with UTF-8 support.
+
+	  https://github.com/evanlin96069/nino
+

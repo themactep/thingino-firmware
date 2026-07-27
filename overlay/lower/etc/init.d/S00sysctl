@@ -1,0 +1,32 @@
+#!/bin/sh
+
+. /usr/share/common
+
+start() {
+	echo_title "Applying sysctl settings"
+
+	if sysctl -q -p; then
+		echo_info "Sysctl settings applied"
+	else
+		echo_error "Failed to apply sysctl settings"
+		exit 1
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

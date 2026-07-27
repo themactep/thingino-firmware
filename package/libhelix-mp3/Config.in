@@ -1,0 +1,7 @@
+config BR2_PACKAGE_LIBHELIX_MP3
+	bool "libhelix-mp3 Fixed-point MP3 decoder"
+	help
+	  libhelix-mp3 provides the Helix fixed-point MP3 decoder extracted from the
+	  ESP8266Audio project and is suitable for resource-constrained systems.
+
+	  https://github.com/earlephilhower/ESP8266Audio/tree/master/src/libhelix-mp3

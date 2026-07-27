@@ -1,10 +1,18 @@
 name: buildroot-dl-cache
 on:
   schedule:
-    # 23:00 PST / Sunday
+    # 22:00 PST / Sunday
     - cron:  '00 06 * * 0'
   workflow_dispatch:
     inputs:
+      branch:
+        type: choice
+        description: 'Branch to build cache from'
+        required: false
+        default: 'master'
+        options:
+          - master
+          - stable
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
@@ -25,7 +33,7 @@ env:
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
   TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
-  TZ: America/Los_Angeles
+  TZ: UTC
 
 jobs:
   notify-begin:
@@ -43,6 +51,7 @@ jobs:
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Configure Environment Variables
+        id: set_env
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
@@ -50,7 +59,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "master"
+          ref: ${{ github.event.inputs.branch || 'master' }}
           fetch-depth: "1"
 
       - name: Send build start notifcation via Telegram
@@ -70,7 +79,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: debian:bookworm
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix:
@@ -84,7 +93,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget p7zip-full
 
       - name: Set timezone
         run: |
@@ -99,7 +108,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-          ref: "master"
+          ref: ${{ github.event.inputs.branch || 'master' }}
           fetch-depth: "1"
 
       - name: Configure environment variables
@@ -110,8 +119,11 @@ jobs:
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          DATE_TAG=$(date +'%Y-%m-%d')
+          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
+          TAG_NAME="$TAG_NAME-$DATE_TAG"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "RELEASE_NAME=buildroot-dl-cache-$DATE_TAG" >> $GITHUB_ENV
 
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
@@ -123,7 +135,7 @@ jobs:
 
       - name: Download buildroot sources
         run: |
-          BOARD=${{ matrix.caches-version }} make source
+          BOARD=${{ matrix.caches-version }} GROUP=github make source WORKFLOW=1
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
@@ -131,11 +143,29 @@ jobs:
         run: |
           find ~/dl/ -type d -name git -exec rm -rf {} +
 
-      - name: Save Buildroot DL cache
-        uses: actions/cache/save@v4
+      - name: Compress DL directory with ZIP (store mode)
+        run: |
+          mkdir -p /tmp/dl-archive
+          cd ~/
+          # Using ZIP format with store method (no compression) for maximum speed
+          7z a -tzip -mx=0 -v1536m /tmp/dl-archive/buildroot-dl-cache.zip dl/
+
+      - name: Check archive files
+        run: |
+          ls -la /tmp/dl-archive/
+          echo "Archive created with the following parts:"
+          ls -lh /tmp/dl-archive/buildroot-dl-cache*.zip*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.1.0
         with:
-          path: ~/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          name: "buildroot-dl-cache"
+          tag_name: "${{ env.TAG_NAME }}"
+          files: /tmp/dl-archive/buildroot-dl-cache*.zip*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          make_latest: false
 
       - name: Send error notification
         if: ${{ env.TG_DISABLED == 'false' && failure() }}
@@ -165,7 +195,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'false'
-          ref: "master"
+          ref: ${{ github.event.inputs.branch || 'master' }}
 
       - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}

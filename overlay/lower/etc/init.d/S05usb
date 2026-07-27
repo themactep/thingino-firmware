@@ -1,25 +1,74 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
+
+configure_usb_power() {
+	if [ -z "$gpio_usb_en" ]; then
+		echo_warning "USB power GPIO is not set"
+		return 1
+	fi
+
+	if [ "$gpio_usb_en" = "${gpio_usb_en//[^0-9]/}" ]; then
+		gpio_usb_en="${gpio_usb_en}O"
+	fi
+
+	pin="${gpio_usb_en:0:-1}"
+	case "${gpio_usb_en#$pin}" in
+		o)
+			if ! gpio set $pin 0; then
+				echo_error "Failed to set USB power GPIO $pin to $state"
+				return 1
+			fi
+			;;
+		O)
+			if ! gpio set $pin 1; then
+				echo_error "Failed to set USB power GPIO $pin to $state"
+				return 1
+			fi
+			;;
+		*)
+			echo_error "Invalid state $state"
+			return 1
+			;;
+	esac
+
+	echo_info "Set USB power GPIO $pin to $state"
+	return 0
+}
+
+configure_usb_role() {
+	#FIXME: we should store the host type in the system config for USB-DIRECT devices, etc.
+	kernel_version=`uname -r | cut -d. -f1-2`
+	if [ "$kernel_version" = "4.4" ]; then
+		echo_info "Setting USB controller to host mode"
+		usb-role -m host >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			echo_warning "Failed to set USB controller to host mode"
+		else
+			echo_info "USB controller set to host mode"
+		fi
+	fi
+}
+
+start() {
+	echo_title "Configuring USB"
+	configure_usb_power
+	configure_usb_role
+}
 
 case "$1" in
 	start)
-		starting
-		gpio_control "gpio_usb_en"
-		case "$?" in
-			0) ok ;;
-			1) quit "GPIO power is not set" ;;
-			2) die "GPIO is in invalid state" ;;
-			3) die "GPIO command failed" ;;
-			*) die "Unknown exit code $?" ;;
-		esac
+		start
 		;;
 	stop)
-		stopping
-		ok
+		true
+		;;
+	restart)
+		start
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

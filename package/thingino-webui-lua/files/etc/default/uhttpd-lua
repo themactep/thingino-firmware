@@ -1,0 +1,25 @@
+# uhttpd-lua configuration file
+# This file is sourced by the init script
+
+# Debug mode disabled for production (reduces size)
+UHTTPD_DEBUG=0
+
+# Enable automatic watchdog monitoring
+# Set to 1 to enable, 0 to disable
+UHTTPD_WATCHDOG=1
+
+# HTTP-only mode disabled - HTTPS working properly
+UHTTPD_DEBUG_HTTP_ONLY=0
+
+# Watchdog configuration (used by uhttpd-watchdog script)
+WATCHDOG_INTERVAL=30     # Check interval in seconds
+HANG_TIMEOUT=60          # Timeout before considering hung
+MAX_RESTARTS=5           # Maximum restarts in time window
+RESTART_WINDOW=300       # Time window in seconds (5 minutes)
+
+# SSL debugging disabled for production
+SSL_DEBUG=0
+
+# Additional uhttpd arguments
+# Add any extra arguments here
+EXTRA_ARGS=""

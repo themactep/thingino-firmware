@@ -35,16 +35,47 @@ config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enable native wired Ethernet support on the SoC.
+
+if BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+
+choice
+	prompt "MAC Version"
+	default BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
+
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
 	bool "JZ_MAC V12"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable the Ingenic ethernet V12 driver
+
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
 	bool "JZ_MAC V13"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable the Ingenic ethernet V13 driver
+endchoice
+
+choice
+	prompt "MAC Clock Rate"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
+	default BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_50MHZ
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_25MHZ
+	bool "25 MHz"
+	help
+	  Select 25 MHz clock for internal PHY
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_50MHZ
+	bool "50 MHz"
+	help
+	  Select 50 MHz clock for external PHY
+endchoice
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_VALUE
+	int
+	default 25000000 if BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_25MHZ
+	default 50000000
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
 	bool "JZ_MAC Internal PHY"
 	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
@@ -58,58 +89,87 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC
 	select BR2_PACKAGE_THINGINO_MMC
 	help
 	  Enable MMC support for SD/MMC and SDIO devices
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC0
 	bool "Enable MMC0"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  Enables the MMC0 on the SoC, typically used for SD/MMC cards.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT
 	bool "MMC0 1-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0 && BR2_SOC_FAMILY_INGENIC_T23
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0 && (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31)
 	help
 	  Force 1 bit mode for MMC0 on T23 based SoCs
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT
+	bool "Boot from MMC"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
+	help
+	  Enables booting the rootfs from an MMC card
+
+if BR2_PACKAGE_THINGINO_KOPT_MMC0
+
+choice
+	prompt "MMC0 PB Mode"
+	default BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
 	bool "MMC0 PB 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
 	help
-	  Enables 4 bit support for MMC0 on GPIO PB
+	  Enables 4-bit support for MMC0 on GPIO PB.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT
 	bool "MMC0 PB 8-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
 	help
-	  Enables 8 bit support for MMC0 on GPIO PB
+	  Enables 8-bit support for MMC0 on GPIO PB.
+
+endchoice
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1
 	bool "Enable MMC1"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  Enables the MMC1 on the SoC, typically used for SDIO WiFi modules.
+
+if BR2_PACKAGE_THINGINO_KOPT_MMC1
+
+choice
+	prompt "MMC1 Mode Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT
 	bool "MMC1 PA 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 4 bit support for MMC1 on GPIO PA
+	  Enables 4-bit support for MMC1 on GPIO PA.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT
 	bool "MMC1 PB 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 4 bit support for MMC1 on GPIO PB
+	  Enables 4-bit support for MMC1 on GPIO PB.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT
 	bool "MMC1 PB 8-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 8 bit support for MMC1 on GPIO PB
+	  Enables 8-bit support for MMC1 on GPIO PB.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT
 	bool "MMC1 PC 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21
 	help
-	  Enables 4 bit support for MMC1 on GPIO PC
+	  Enables 4-bit support for MMC1 on GPIO PC.
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT
 	bool "MMC1 PD 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
 	help
-	  Enables 4 bit support for MMC1 on GPIO PD
+	  Enables 4-bit support for MMC1 on GPIO PD.
+
+endchoice
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
 	bool "Netfilter"
@@ -140,12 +200,14 @@ config BR2_PACKAGE_THINGINO_KOPT_UART
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables additional UART ports
-config BR2_PACKAGE_THINGINO_KOPT_UART0
+
+config BR2_PACKAGE_THINGINO_KOPT_UART_UART0
 	bool "UART0"
 	depends on BR2_PACKAGE_THINGINO_KOPT_UART
 	help
 	  Enables UART0 on the SoC
-config BR2_PACKAGE_THINGINO_KOPT_UART2
+
+config BR2_PACKAGE_THINGINO_KOPT_UART_UART2
 	bool "UART2"
 	depends on BR2_PACKAGE_THINGINO_KOPT_UART
 	help
@@ -156,32 +218,45 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enable the DWC2 USB driver
+
+if BR2_PACKAGE_THINGINO_KOPT_DWC2
+
+choice
+	prompt "DWC2 USB Mode Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
-	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	select BR2_PACKAGE_USBNET
 	select BR2_PACKAGE_USBNET_CDC_ETHER
+	select BR2_PACKAGE_USBNET_CDC_NCM
 	select BR2_PACKAGE_USBNET_ASIX
 	help
 	  Enable the DWC2 USB driver with OTG support.
 	  Recommended for devices that have USB data ports.
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "USB Wi-Fi Module Only"
-	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	help
-	  Enable the DWC2 USB driver with WiFi only support.
+	  Enable the DWC2 USB driver with WiFi-only support.
 	  Recommended for devices that use WiFi chipsets internally connected via USB.
+
+endchoice
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_I2C
 	bool "I2C Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables additional I2C ports
+
 config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
 	bool "I2C1"
 	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
 	help
 	  Enables I2C1 on the SoC
+
 config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
 	bool "I2C2"
 	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
@@ -193,3 +268,15 @@ config BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables USB Mass Storage device class support.
+
+config BR2_PACKAGE_THINGINO_KOPT_EXTFS
+	bool "EXT2/EXT4 Filesystem Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables EXT2 and EXT4 filesystem support with all dependencies.
+
+config BR2_PACKAGE_THINGINO_KOPT_DMIC
+	bool "I2S DMIC Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
+	help
+	  Enables I2S DMIC (Digital Microphone) support.

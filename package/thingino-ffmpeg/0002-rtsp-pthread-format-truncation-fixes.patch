@@ -1,0 +1,29 @@
+--- a/libavformat/rtsp.c
++++ b/libavformat/rtsp.c
+@@ -1631,9 +1631,9 @@ int ff_rtsp_make_setup_request(AVFormatC
+         } else if (rt->server_type == RTSP_SERVER_REAL ||
+                    rt->server_type == RTSP_SERVER_WMS)
+             av_strlcat(transport, ";mode=play", sizeof(transport));
+-        snprintf(cmd, sizeof(cmd),
+-                 "Transport: %s\r\n",
+-                 transport);
++        av_strlcpy(cmd, "Transport: ", sizeof(cmd));
++        av_strlcat(cmd, transport, sizeof(cmd));
++        av_strlcat(cmd, "\r\n", sizeof(cmd));
+         if (rt->accept_dynamic_rate)
+             av_strlcat(cmd, "x-Dynamic-Rate: 0\r\n", sizeof(cmd));
+         if (CONFIG_RTPDEC && i == 0 && rt->server_type == RTSP_SERVER_REAL) {
+
+
+diff --git a/libavcodec/pthread_frame.c b/libavcodec/pthread_frame.c
+--- a/libavcodec/pthread_frame.c
++++ b/libavcodec/pthread_frame.c
+@@ -184,7 +184,7 @@ static void thread_set_name(PerThreadContext *p)
+     AVCodecContext *avctx = p->avctx;
+     int idx = p - p->parent->threads;
+-    char name[16];
++    char name[32];
+
+     snprintf(name, sizeof(name), "av:%.7s:df%d", avctx->codec->name, idx);
+
+     ff_thread_setname(name);

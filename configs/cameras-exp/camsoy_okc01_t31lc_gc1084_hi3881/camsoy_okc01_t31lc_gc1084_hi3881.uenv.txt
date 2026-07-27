@@ -1,0 +1,8 @@
+gpio_default=18O 49O 50o 53i 54i 57i 58i 60O 61i 62O 63i 64i
+gpio_ir940=60
+gpio_led_b=49
+gpio_led_r=50
+gpio_mmc_cd=61
+gpio_mmc_power=62
+gpio_scl=58
+gpio_sda=57

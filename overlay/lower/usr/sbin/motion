@@ -1,41 +1,81 @@
 #!/bin/sh
+# Triggered on a motion event
 
-plugin="motion"
+. /usr/share/common
 
-. /sbin/common-plugins
-singleton
+singleton "$0"
 
 MOTION_ALARM="/run/motion/motion_alarm"
-MOTION_ALARM_DIR=$(dirname $MOTION_ALARM)
-[ -d $MOTION_ALARM_DIR ] || mkdir -p $MOTION_ALARM_DIR
+MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
+[ -d "$MOTION_ALARM_DIR" ] || mkdir -p "$MOTION_ALARM_DIR"
 
 MOTION_STOP_FILE="/run/motors.pid"
 
 start() {
-	[ -f $MOTION_STOP_FILE ] && exit 0
+	echo_info "Start motion"
+	if [ -f "$MOTION_STOP_FILE" ]; then
+		echo_error "Motor motion file present. Exiting."
+		exit 1
+	fi
 
-	touch $MOTION_ALARM
+	echo_info "Set $MOTION_ALARM"
+	touch "$MOTION_ALARM"
 
-	[ "true" = "$motion_send2email"    ] && send2email
-	[ "true" = "$motion_send2ftp"      ] && send2ftp
-	[ "true" = "$motion_send2mqtt"     ] && send2mqtt
-	[ "true" = "$motion_send2telegram" ] && send2telegram motion
-	[ "true" = "$motion_send2webhook"  ] && send2webhook
-	[ "true" = "$motion_send2yadisk"   ] && send2yadisk
-	[ "true" = "$motion_playonspeaker" ] && playonspeaker
+	if [ "true" = "$motion_send2email" ]; then
+		echo_info "Send alert to email"
+		send2email &
+	fi
+
+	if [ "true" = "$motion_send2ftp" ]; then
+		echo_info "Send alert to FTP"
+		send2ftp &
+	fi
+
+	if [ "true" = "$motion_send2mqtt" ]; then
+		echo_info "Send alert to MQTT"
+		send2mqtt &
+	fi
+
+	if [ "true" = "$motion_send2telegram" ]; then
+		echo_info "Send alert to Telegram"
+		send2telegram motion &
+	fi
+
+	if [ "true" = "$motion_send2webhook" ]; then
+		echo_info "Send alert to WebHook"
+		send2webhook &
+	fi
+
+	if [ "true" = "$motion_send2ntfy" ]; then
+		echo_info "Send alert to Ntfy"
+		send2ntfy &
+	fi
+
+	if [ "true" = "$motion_playonspeaker" ]; then
+		echo_info "Send alert to play on speaker"
+		playonspeaker &
+	fi
 }
 
 stop() {
-	[ -f $MOTION_ALARM ] && rm -f $MOTION_ALARM
+	echo_info "Stop motion"
+
+	if [ -f "$MOTION_ALARM" ]; then
+		echo_info "Remove $MOTION_ALARM"
+		rm -f "$MOTION_ALARM"
+	fi
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	*)
 		start
 		;;
 esac
 
-quit_clean 0
+exit 0

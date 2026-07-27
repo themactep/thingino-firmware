@@ -1,28 +1,36 @@
 #!/bin/sh
+# Formats SD card
 
-. /sbin/common
+. /usr/share/common
+
+singleton "$0"
 
 format_partition() {
 	unmount_partition $1
-	echo_c 36 "Format partition"
-	echo_c 144 "$MKFS -n thingino $1"
-	$MKFS -n thingino $1 2>&1 || die "Cannot format $1 to $POST_fstype"
+	echo_info "Format partition"
+	if ! $MKFS -n thingino $1 2>&1; then
+		echo_error "Cannot format $1 to $POST_fstype"
+		exit 1
+	fi
 }
 
 mount_partitions() {
-	echo_c 36 "Mount partition"
-	echo_c 144 "echo /sbin/mdev > /proc/sys/kernel/hotplug"
+	echo_info "Mount partition"
 	echo /sbin/mdev > /proc/sys/kernel/hotplug
-	echo_c 144 "mdev -s"
-	mdev -s || die "Cannot re-mount SD card"
+	if ! mdev -s; then
+		echo_error "Cannot re-mount SD card"
+		exit 1
+	fi
 }
 
 unmount_partition() {
-	echo_c 36 "Unmount partition"
+	echo_info "Unmount partition"
 	local limit=5
 	while mountpoint -q $1; do
-		[ "$limit" -gt 0 ] || die "Cannot unmount $1"
-		echo_c 144 "umount -l $1"
+		if [ "$limit" -le 0 ]; then
+			echo_error "Cannot unmount $1"
+			exit 1
+		fi
 		umount -l $1 2>&1
 		sleep 0.5
 		limit=$((limit-1))
@@ -30,17 +38,20 @@ unmount_partition() {
 }
 
 reinsert_sdcard() {
-	echo_c 36 "Reinsert card"
-	echo_c 144 "echo \"\" > /proc/sys/kernel/hotplug"
+	echo_info "Reinsert card"
 	echo "" > /proc/sys/kernel/hotplug
-	echo_c 144 "mmc 0 -r; sleep 1; mmc 0; sleep 1"
-	mmc 0 -r; sleep 1; mmc 0; sleep 1
+	mmc 0 -r
+	sleep 1
+	mmc 0
+	sleep 1
 }
 
 repartition_sdcard() {
-	echo_c 36 "Repartition card"
-	echo_c 144 "echo -e 'o\nn\np\n1\n\n\nt\n$FSTYPE\nw' | fdisk $1"
-	echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1 || die "Cannot create a partition on $1"
+	echo_info "Repartition card"
+	if ! echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1; then
+		echo_error "Cannot create a partition on $1"
+		exit 1
+	fi
 }
 
 case "$1" in
@@ -55,7 +66,10 @@ case "$1" in
 esac
 
 device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
-[ -z "$device_name" ] && die "No SD card device found"
+if [ -z "$device_name" ]; then
+	echo_error "No SD card device found"
+	exit 1
+fi
 
 unmount_partition  "/mnt/${device_name}p1"
 repartition_sdcard "/dev/${device_name}"

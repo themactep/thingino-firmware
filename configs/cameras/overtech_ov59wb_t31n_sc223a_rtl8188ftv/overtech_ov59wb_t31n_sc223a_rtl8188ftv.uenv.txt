@@ -1,0 +1,8 @@
+gpio_button=62
+gpio_ir850=49
+gpio_ircut=52 53
+gpio_led_r=57
+gpio_led_w=50
+gpio_mmc_cd=59
+gpio_speaker=63O
+gpio_wlan=61o

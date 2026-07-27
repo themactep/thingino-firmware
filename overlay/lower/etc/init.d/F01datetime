@@ -1,0 +1,34 @@
+#!/bin/sh
+
+. /usr/share/common
+
+start() {
+	echo_title "Setting initial system time"
+
+	if [ ! -f "$OS_RELEASE_FILE" ]; then
+		echo_error "No release file found, not setting system clock"
+		exit 1
+	fi
+
+	if date -u -s "@$(stat -c%X "$OS_RELEASE_FILE")" >/dev/null; then
+		echo_info "$(date) (fail-safe)"
+	else
+		echo_error "Failed to set time"
+		exit 1
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+
+exit 0

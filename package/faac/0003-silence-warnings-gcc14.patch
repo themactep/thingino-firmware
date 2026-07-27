@@ -1,0 +1,122 @@
+diff --git a/libfaac/bitstream.c b/libfaac/bitstream.c
+index 63e8318..bafa216 100644
+--- a/libfaac/bitstream.c
++++ b/libfaac/bitstream.c
+@@ -30,6 +30,12 @@ Copyright (c) 1997.
+ 
+ #include "coder.h"
+ #include "channels.h"
++/* Mark static functions possibly unused under DRM builds */
++#if defined(DRM) && defined(__GNUC__)
++#define FAAC_UNUSED __attribute__((unused))
++#else
++#define FAAC_UNUSED
++#endif
+ #include "huff2.h"
+ #include "bitstream.h"
+ #include "util.h"
+@@ -68,16 +74,16 @@ static int WriteICS(CoderInfo *coderInfo,
+                     int commonWindow,
+                     int objectType,
+                     int writeFlag);
+-static int WritePulseData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WritePulseData(CoderInfo *coderInfo,
+                           BitStream *bitStream,
+                           int writeFlag);
+ static int WriteTNSData(CoderInfo *coderInfo,
+                         BitStream *bitStream,
+                         int writeFlag);
+-static int WriteGainControlData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WriteGainControlData(CoderInfo *coderInfo,
+                                 BitStream *bitStream,
+                                 int writeFlag);
+-static int WriteSpectralData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WriteSpectralData(CoderInfo *coderInfo,
+                              BitStream *bitStream,
+                              int writeFlag);
+ static int WriteAACFillBits(BitStream* bitStream,
+@@ -103,7 +109,7 @@ static void calc_CRC(BitStream *bitStream, int len);
+ #endif
+ 
+ 
+-static int WriteFAACStr(BitStream *bitStream, char *version, int write)
++static int FAAC_UNUSED WriteFAACStr(BitStream *bitStream, char *version, int write)
+ {
+   int i;
+   char str[200];
+@@ -612,7 +618,7 @@ static int WriteICS(CoderInfo *coderInfo,
+     return bits;
+ }
+ 
+-static int WritePulseData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WritePulseData(CoderInfo *coderInfo,
+                           BitStream *bitStream,
+                           int writeFlag)
+ {
+@@ -714,7 +720,7 @@ static int WriteTNSData(CoderInfo *coderInfo,
+     return bits;
+ }
+ 
+-static int WriteGainControlData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WriteGainControlData(CoderInfo *coderInfo,
+                                 BitStream *bitStream,
+                                 int writeFlag)
+ {
+@@ -729,7 +735,7 @@ static int WriteGainControlData(CoderInfo *coderInfo,
+     return bits;
+ }
+ 
+-static int WriteSpectralData(CoderInfo *coderInfo,
++static int FAAC_UNUSED WriteSpectralData(CoderInfo *coderInfo,
+                              BitStream *bitStream,
+                              int writeFlag)
+ {
+diff --git a/libfaac/fft.c b/libfaac/fft.c
+index 250ddce..c62e649 100644
+--- a/libfaac/fft.c
++++ b/libfaac/fft.c
+@@ -72,8 +72,8 @@ void rfft( FFT_Tables *fft_tables, double *x, int logm )
+ 
+     int nfft = 0;
+ 
+-    kiss_fft_scalar fin[1 << MAXLOGR];
+-    kiss_fft_cpx    fout[1 << MAXLOGR];
++    kiss_fft_scalar fin[1 << MAXLOGR] = {0};
++    kiss_fft_cpx    fout[1 << MAXLOGR] = {0};
+ 
+     if ( logm > MAXLOGR )
+ 	{
+@@ -124,8 +124,8 @@ void fft( FFT_Tables *fft_tables, double *xr, double *xi, int logm )
+ {
+     int nfft = 0;
+ 
+-    kiss_fft_cpx    fin[1 << MAXLOGM];
+-    kiss_fft_cpx    fout[1 << MAXLOGM];
++    kiss_fft_cpx    fin[1 << MAXLOGM] = {0};
++    kiss_fft_cpx    fout[1 << MAXLOGM] = {0};
+ 
+     if ( logm > MAXLOGM )
+ 	{
+@@ -177,8 +177,8 @@ void ffti( FFT_Tables *fft_tables, double *xr, double *xi, int logm )
+ {
+     int nfft = 0;
+ 
+-    kiss_fft_cpx    fin[1 << MAXLOGM];
+-    kiss_fft_cpx    fout[1 << MAXLOGM];
++    kiss_fft_cpx    fin[1 << MAXLOGM] = {0};
++    kiss_fft_cpx    fout[1 << MAXLOGM] = {0};
+ 
+     if ( logm > MAXLOGM )
+ 	{
+diff --git a/libfaac/quantize.c b/libfaac/quantize.c
+index 02586c9..34bb48a 100644
+--- a/libfaac/quantize.c
++++ b/libfaac/quantize.c
+@@ -174,6 +174,7 @@ static void qlevel(CoderInfo *coderInfo,
+ #endif
+     int gsize = coderInfo->groups.len[gnum];
+     double pnsthr = 0.1 * pnslevel;
++	(void)pnsthr; /* may be unused under DRM builds */
+ #ifdef __SSE2__
+     int cpuid[4];
+     int sse2 = 0;

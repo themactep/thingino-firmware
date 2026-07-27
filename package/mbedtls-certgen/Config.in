@@ -1,0 +1,19 @@
+config BR2_PACKAGE_MBEDTLS_CERTGEN
+	bool "mbedtls-certgen"
+	depends on BR2_PACKAGE_MBEDTLS || BR2_PACKAGE_THINGINO_MBEDTLS
+	help
+	  A lightweight certificate generation utility using mbedTLS.
+
+	  This tool generates self-signed SSL certificates for embedded
+	  devices using the mbedTLS library. It provides a minimal
+	  alternative to the full mbedTLS programs suite, saving
+	  significant space (~500KB+) while providing only the
+	  certificate generation functionality needed.
+
+	  Features:
+	  - RSA and ECDSA key generation
+	  - Self-signed certificate creation
+	  - Configurable validity periods
+	  - Minimal memory footprint
+
+	  https://github.com/themactep/thingino-firmware

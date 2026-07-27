@@ -5,17 +5,24 @@ USBNET_SITE = $(USBNET_PKGDIR)/files
 
 ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM),y)
 USBNET_INSTALL_TARGET_CMDS = \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/usb0-cdc $(TARGET_DIR)/etc/network/interfaces.d/usb0; \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/S36cdcnet $(TARGET_DIR)/etc/init.d/S36cdcnet; \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/udhcpd.conf $(TARGET_DIR)/etc/udhcpd.conf; \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/dnsd.conf $(TARGET_DIR)/etc/dnsd.conf
+	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S36cdcnet \
+		$(TARGET_DIR)/etc/init.d/S36cdcnet; \
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/usb0-cdc \
+		$(TARGET_DIR)/etc/network/interfaces.d/usb0; \
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/udhcpd.conf \
+		$(TARGET_DIR)/etc/udhcpd.conf; \
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/dnsd.conf \
+		$(TARGET_DIR)/etc/dnsd.conf
 else ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT),y)
 USBNET_INSTALL_TARGET_CMDS = \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/S36cdcnet-client $(TARGET_DIR)/etc/init.d/S36cdcnet; \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/usb0 $(TARGET_DIR)/etc/network/interfaces.d/usb0
+	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S36cdcnet-client \
+		$(TARGET_DIR)/etc/init.d/S36cdcnet; \
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/usb0 \
+		$(TARGET_DIR)/etc/network/interfaces.d/usb0
 else
 USBNET_INSTALL_TARGET_CMDS = \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/usb0 $(TARGET_DIR)/etc/network/interfaces.d/usb0
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/usb0 \
+		$(TARGET_DIR)/etc/network/interfaces.d/usb0
 endif
 
 ifeq ($(or $(BR2_PACKAGE_USBNET_USB_DIRECT_NCM), $(BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT)),y)
@@ -36,7 +43,8 @@ define USBNET_LINUX_CONFIG_FIXUPS_WWAN_SERIAL
 	$(call KCONFIG_SET_OPT,CONFIG_USB_SERIAL_OPTION,m)
 endef
 define USBNET_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/S38usbnet $(TARGET_DIR)/etc/init.d/S38usbnet
+	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S38usbnet \
+		$(TARGET_DIR)/etc/init.d/S38usbnet
 endef
 endif
 
@@ -51,6 +59,13 @@ ifeq ($(BR2_PACKAGE_USBNET_CDC_ETHER),y)
 define USBNET_LINUX_CONFIG_FIXUPS_CDC_ETHER
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_USBNET)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_NET_CDCETHER)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_USBNET_CDC_NCM),y)
+define USBNET_LINUX_CONFIG_FIXUPS_CDC_NCM
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_USBNET)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_NET_CDC_NCM)
 endef
 endif
 
@@ -85,6 +100,7 @@ define USBNET_LINUX_CONFIG_FIXUPS
 	$(call USBNET_LINUX_CONFIG_FIXUPS_ASIX)
 	$(call USBNET_LINUX_CONFIG_FIXUPS_ASIX_179_178A)
 	$(call USBNET_LINUX_CONFIG_FIXUPS_R8152)
+	$(call USBNET_LINUX_CONFIG_FIXUPS_CDC_NCM)
 endef
 
 $(eval $(generic-package))

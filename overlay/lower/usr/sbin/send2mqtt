@@ -1,61 +1,134 @@
-#!/bin/sh
+#!/bin/env sh
+# Sends data to MQTT server
+# https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
+# https://mosquitto.org/documentation/
 
-plugin="mqtt"
-
-. /sbin/common-plugins
+. /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
-	echo "Usage: $0 [-t topic] [-m message] [-s] [-v] [-h]
-  -t topic    MQTT topic.
-  -m message  Message playload.
-  -s          Send a snapshot.
-  -v          Verbose output.
-  -h          Show this help.
-"
-	quit_clean 0
+	echo "Usage: $0 [options]
+Where:
+	-h host      Server host.
+	-j           Message is JSON.
+	-m message   Message body.
+	-s           Send a snapshot.
+	-t topic     Topic.
+	-u username  Username.
+	-w password  Password.
+	-v           Verbose output.
+" >&2
+	exit 0
 }
 
-# override config values with command line arguments
-while getopts m:st:vh flag; do
+read_config() {
+	local CONFIG_NAME=/etc/send2.json
+	[ -f "$CONFIG_NAME" ] || return
+
+	       host=$(jct $CONFIG_NAME get mqtt.host)
+	       port=$(jct $CONFIG_NAME get mqtt.port)
+	   username=$(jct $CONFIG_NAME get mqtt.username)
+	   password=$(jct $CONFIG_NAME get mqtt.password)
+	      topic=$(jct $CONFIG_NAME get mqtt.topic)
+	    message=$(jct $CONFIG_NAME get mqtt.message)
+	    is_json=$(jct $CONFIG_NAME get mqtt.is_json)
+	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
+	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
+}
+
+read_config
+
+while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
-		m) mqtt_message=$OPTARG ;;
-		s) mqtt_send_snap="true" ;;
-		t) mqtt_topic=$OPTARG ;;
+		h) host=$OPTARG ;;
+		j) is_json="true" ;;
+		m) message=$OPTARG ;;
+		s) send_photo="true" ;;
+		t) topic=$OPTARG ;;
+		u) username=$OPTARG ;;
+		w) password=$OPTARG ;;
 		v) verbose="true" ;;
-		h | *) show_help ;;
+		*) show_help ;;
 	esac
 done
 
-[ "false" = "$mqtt_enabled" ] && die "Sending to MQTT broker is disabled."
-# validate mandatory values
-[ -z "$mqtt_host" ] && die "MQTT broker host not found in config"
-[ -z "$mqtt_port" ] && die "MQTT broker port not found in config"
-[ -z "$mqtt_topic" ] && die "MQTT topic not found"
-[ -z "$mqtt_message" ] && die "MQTT message template not found"
-[ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && die "MQTT topic for sending snapshot not found in config"
+if [ -z "$host" ]; then
+	echo_error "MQTT broker host is not set"
+	exit 1
+fi
 
-# assign default values if not set
-[ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
+if [ -z "$port" ]; then
+	echo_error "MQTT broker port is not set"
+	exit 1
+fi
 
-# parse strftime templates
-mqtt_message=$(date +"$mqtt_message")
+if [ -z "$topic" ]; then
+	echo_error "MQTT topic not found"
+	exit 1
+fi
 
-build_cmd "mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-# MQTT credentials, if given
-[ -n "$mqtt_username" ] && build_cmd "-u $mqtt_username"
-[ -n "$mqtt_password" ] && build_cmd "-P $mqtt_password"
-[ "true" = "$mqtt_socks5_enabled" ] && use_socks5
+if [ -z "$message" ]; then
+	echo_error "MQTT message template not found"
+	exit 1
+fi
+
+if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
+	echo_error "MQTT topic for sending snapshot not found in config"
+	exit 1
+fi
+
+if [ -z "$client_id" ]; then
+	client_id="$network_hostname"
+fi
+
+message=$(date +"$mqtt_message")
+
+command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+
+if [ "true" = "$verbose" ]; then
+	command="$command -d"
+fi
+
+if [ -n "$username" ]; then
+	command="$command -u $username"
+fi
+
+if [ -n "$password" ]; then
+	command="$command -P $password"
+fi
+
+mqtt_failed=0
+
+if [ "true" = "$is_json" ]; then
+	tmpfile=$(mktemp)
+	echo "$message" > $tmpfile
+	send_command="$command -t $topic -f $tmpfile"
+	garbage="$garbage $tmpfile"
+else
+	send_command="$command -t $topic -m '$message'"
+fi
+
+if [ "true" = "$verbose" ]; then
+	echo_command "$send_command"
+fi
+
+if ! sh -c "$send_command"; then
+	echo_error "Failed to send MQTT message"
+	mqtt_failed=1
+fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-	build_cmd "-t $mqtt_snap_topic -f \"$attachment\""
-else
-	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
+	photo=$(copy_photo)
+	send_command="$command -t $topic_photo -f '$photo'"
+
+	if [ "true" = "$verbose" ]; then
+		echo_command "$send_command"
+	fi
+
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send snapshot via MQTT"
+		mqtt_failed=1
+	fi
 fi
-log_and_run "$command"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat $LOG_FILE
-
-quit_clean 0
+exit $mqtt_failed

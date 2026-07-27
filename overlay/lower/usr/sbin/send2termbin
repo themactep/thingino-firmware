@@ -1,22 +1,26 @@
-#!/bin/sh
+#!/bin/env sh
 
-. /sbin/common
+. /usr/share/common
 
 if [ -t 0 ]; then
-	[ -z "$1" ] && die "Usage: $0 <command>"
+	if [ -z "$1" ]; then
+		echo "Usage: $0 <command>" >&2
+		exit 1
+	fi
 
 	file=$(mktemp)
-	sh -c "$*" > $file 2>&1
+	sh -c "$*" > "$file" 2>&1
 else
 	file=$(mktemp)
-	cat - > $file
+	cat - > "$file"
 fi
 
-[ -s "$file" ] || die "File $file is empty"
+if [ ! -s "$file" ]; then
+	echo_error "File $file is empty"
+	exit 1
+fi
 
-url=$(cat "$file" | curl -s -T - telnet://termbin.com:9999)
-echo $url
-
-rm -f $file
+curl -s -T - telnet://tb.thingino.com:9999 < "$file"
+rm -f "$file"
 
 exit 0

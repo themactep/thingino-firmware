@@ -1,0 +1,3 @@
+# Kernel fragment to enable developer options
+CONFIG_KALLSYMS=y
+CONFIG_STACKTRACE=y

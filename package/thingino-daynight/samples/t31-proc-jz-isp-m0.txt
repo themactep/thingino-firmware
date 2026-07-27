@@ -1,0 +1,40 @@
+root@ing-wyze-cam3-556c ~# cat /proc/jz/isp/isp-m0
+****************** ISP INFO **********************
+Software Version : H20221206a
+SENSOR NAME : gc2053
+SENSOR OUTPUT WIDTH : 1920
+SENSOR OUTPUT HEIGHT : 1080
+ISP OUTPUT FPS : 25 / 1
+SENSOR OUTPUT RAW PATTERN : RGGB
+ISP Top Value : 0xb5742249
+ISP Runing Mode : Day
+ISP Custom Mode : Disable
+ISP WDR Mode : Disable
+SENSOR Integration Time : 104 lines
+SENSOR Max Integration Time : 1410 lines
+SENSOR analog gain : 0
+MAX SENSOR analog gain : 160
+SENSOR digital gain : 0
+MAX SENSOR digital gain : 0
+ISP digital gain : 0
+MAX ISP digital gain : 80
+ISP Tgain DB : 0
+ISP EV value: 104
+ISP EV value log2: 439854
+ISP EV value us: 2933
+ISP EV min int: 1
+ISP EV min again: 1024
+ISP WB weighted rgain: 474
+ISP WB weighted bgain: 485
+ISP WB color temperature: 5283
+ISP AWB Start rgain 264: bgain 245
+Saturation : 128
+Saturation : 128
+Sharpness : 128
+Contrast : 128
+Brightness : 128
+Antiflicker : 2
+Mirror: Disable, Flip: Disable
+Antiflicker nodes: 4: step : 295. 591. 886. 1182.
+debug : ch0 done 12767,ip done 12784,0,0,0,0,0,0
+debug1 : 0,0,900

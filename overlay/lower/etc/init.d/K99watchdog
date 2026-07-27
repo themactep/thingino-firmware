@@ -1,42 +1,43 @@
 #!/bin/sh
 
-DAEMON_ARGS="-T 60 /dev/watchdog"
+DAEMON="watchdog"
+DAEMON_ARGS="-T ${watchdog_timeout:-60} ${watchdog_device:-/dev/watchdog}"
+PIDFILE="/var/run/$DAEMON.pid"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
-	starting
-	[ "true" = "$(fw_printenv -n disable_watchdog)" ] && quit "Disabled"
+	echo_title "Starting watchdog"
+
+	if [ "true" = "$watchdog_disabled" ]; then
+		echo_error "$DAEMON is disabled"
+		exit 1
+	fi
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping watchdog"
+
 	stop_daemon
 }
 
-kill() {
-	stopping
-	kill_daemon
-}
-
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
 		;;
-
-	reload | restart)
+	stop | kill)
+		stop
+		;;
+	restart)
 		stop
 		sleep 1
 		start
 		;;
-
-	kill)
-		kill
-		;;
-
 	*)
-		die "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

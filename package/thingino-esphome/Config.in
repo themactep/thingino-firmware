@@ -1,0 +1,51 @@
+config BR2_PACKAGE_THINGINO_ESPHOME
+	bool "thingino-esphome"
+	depends on BR2_USE_MMU # meson
+	depends on BR2_TOOLCHAIN_HAS_THREADS # dbus
+	select BR2_THINGINO_LIBBLE if BR2_PACKAGE_THINGINO_BLUETOOTH
+	help
+	  ESPHome Linux service for Thingino cameras.
+
+	  A lightweight TCP service implementing the ESPHome Native API,
+	  allowing Thingino cameras to function as ESPHome devices
+	  discoverable by Home Assistant.
+
+	  Features:
+	  - MediaPlayer plugin for audio playback via Home Assistant
+	  - Bluetooth Proxy for BLE device scanning (optional, requires BR2_PACKAGE_THINGINO_BLUETOOTH)
+	  - Auto-discovery via mDNS (_esphomelib._tcp)
+	  - Plugin architecture for extensibility
+	  - Native integration with Home Assistant
+
+	  Optional features (enable via fragments):
+	  - Bluetooth Proxy: Include BR2_PACKAGE_THINGINO_BLUETOOTH=y in camera defconfig
+	    Requires BLE-capable hardware (ATBM6031x, SSV6158, etc.)
+
+	  Recommended:
+	  - mDNS service (mdnsd or avahi-daemon) for auto-discovery
+	  - ingenic-audiodaemon for MediaPlayer functionality
+
+	  https://github.com/yinzara/esphome-linux
+
+if BR2_PACKAGE_THINGINO_ESPHOME
+
+config BR2_PACKAGE_THINGINO_ESPHOME_WAKE_WORD
+	bool "Wake word detection support"
+	select BR2_PACKAGE_INGENIC_TFLITE_MICRO
+	select BR2_PACKAGE_ESP_MICROSPEECH_FEATURES
+	help
+	  Enable on-device wake word detection using TensorFlow Lite Micro.
+
+	  This allows the camera to listen for wake words (like "Thingino!")
+	  and trigger voice assistant interactions with Home Assistant.
+
+	  Requires:
+	  - ingenic-tflite-micro (auto-selected)
+	  - esp-microspeech-features (auto-selected)
+	  - ingenic-audiodaemon for microphone input
+
+endif
+
+comment "thingino-esphome needs a toolchain w/ threads"
+	depends on BR2_USE_MMU
+	depends on !BR2_TOOLCHAIN_HAS_THREADS

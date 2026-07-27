@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_LIBBLE
+	bool "thingino-libble"
+	# Auto-select the appropriate BLE backend based on WiFi chip
+	select BR2_PACKAGE_THINGINO_NIMBLE if BR2_PACKAGE_WIFI_ATBM6012BX || BR2_PACKAGE_WIFI_ATBM6031X || BR2_PACKAGE_WIFI_ATBM6032X
+	select BR2_PACKAGE_THINGINO_BLUEZ if !BR2_PACKAGE_WIFI_ATBM6012BX && !BR2_PACKAGE_WIFI_ATBM6031X && !BR2_PACKAGE_WIFI_ATBM6032X
+	help
+	  BLE library for C++ applications.
+	  Automatically uses NimBLE for ATBM WiFi chips with BLE support,
+	  or BlueZ for other systems.

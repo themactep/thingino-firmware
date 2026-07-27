@@ -1,0 +1,44 @@
+config BR2_PACKAGE_THINGINO_RT_TESTS
+bool "thingino-rt-tests"
+depends on BR2_USE_MMU # fork()
+depends on !BR2_STATIC_LIBS # dlopen()
+depends on BR2_TOOLCHAIN_HAS_THREADS
+# No Python dependencies - hwlatdetect excluded for minimal footprint
+help
+  Real-time testing suite for embedded Linux systems.
+  
+  This package provides a comprehensive set of programs to test
+  various real-time features of the Linux kernel, including:
+  
+  - cyclictest: High resolution timer latency test
+  - pi_stress: Priority inheritance mutex stress test
+  - signaltest: Signal handling latency test
+  - rt-migrate-test: Real-time task migration test
+  - ptsematest: POSIX semaphore test
+  - sigwaittest: Signal wait test
+  - svsematest: SysV semaphore test
+  - pmqtest: POSIX message queue test
+  - sendme: Signal round-trip test
+  - pip_stress: Priority inheritance pipe stress test
+  - hackbench: Scheduler benchmark
+
+  Optimized for embedded targets with cross-compilation support
+  and musl libc compatibility. Python components (hwlatdetect) and
+  documentation are excluded to minimize footprint.
+  
+  https://git.kernel.org/pub/scm/utils/rt-tests/rt-tests.git
+
+if BR2_PACKAGE_THINGINO_RT_TESTS
+
+config BR2_PACKAGE_THINGINO_RT_TESTS_INIT_SCRIPT
+bool "Install cyclictest init script"
+default n
+help
+  Install a SysV init script to run cyclictest as a service
+  for continuous real-time monitoring.
+
+endif
+
+comment "thingino-rt-tests needs a toolchain w/ threads, dynamic library"
+depends on BR2_USE_MMU
+depends on !BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS

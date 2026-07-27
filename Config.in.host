@@ -1,0 +1,5 @@
+menu "Thingino host utilities"
+
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in.host"
+
+endmenu

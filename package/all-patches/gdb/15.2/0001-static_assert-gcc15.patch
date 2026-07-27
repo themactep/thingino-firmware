@@ -1,0 +1,34 @@
+diff --git a/opcodes/mips-formats.h b/opcodes/mips-formats.h
+index 90df710..bda601c 100644
+--- a/opcodes/mips-formats.h
++++ b/opcodes/mips-formats.h
+@@ -48,8 +48,7 @@
+ 
+ #define MAPPED_INT(SIZE, LSB, MAP, PRINT_HEX) \
+   { \
+-    typedef char ATTRIBUTE_UNUSED \
+-      static_assert[(1 << (SIZE)) == ARRAY_SIZE (MAP)]; \
++    _Static_assert ((1U << (SIZE)) == ARRAY_SIZE (MAP), "mips-formats: MAP size mismatch"); \
+     static const struct mips_mapped_int_operand op = { \
+       { OP_MAPPED_INT, SIZE, LSB }, MAP, PRINT_HEX \
+     }; \
+@@ -82,8 +81,7 @@
+ 
+ #define MAPPED_REG(SIZE, LSB, BANK, MAP) \
+   { \
+-    typedef char ATTRIBUTE_UNUSED \
+-      static_assert[(1 << (SIZE)) == ARRAY_SIZE (MAP)]; \
++    _Static_assert ((1U << (SIZE)) == ARRAY_SIZE (MAP), "mips-formats: REG MAP size mismatch"); \
+     static const struct mips_reg_operand op = { \
+       { OP_REG, SIZE, LSB }, OP_REG_##BANK, MAP \
+     }; \
+@@ -92,8 +90,7 @@
+ 
+ #define OPTIONAL_MAPPED_REG(SIZE, LSB, BANK, MAP) \
+   { \
+-    typedef char ATTRIBUTE_UNUSED \
+-      static_assert[(1 << (SIZE)) == ARRAY_SIZE (MAP)]; \
++    _Static_assert ((1U << (SIZE)) == ARRAY_SIZE (MAP), "mips-formats: OPT REG MAP size mismatch"); \
+     static const struct mips_reg_operand op = { \
+       { OP_OPTIONAL_REG, SIZE, LSB }, OP_REG_##BANK, MAP \
+     }; \

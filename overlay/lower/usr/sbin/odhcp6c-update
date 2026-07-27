@@ -1,28 +1,33 @@
 #!/bin/sh
 
+. /usr/share/common
+
 if [ -z "$2" ]; then
-	echo "Error: should be run by odhcp6c"
+	echo_error "Error: should be run by odhcp6c"
 	exit 1
 fi
 
 # Define the base directory for tracking DHCPv6 data
 DHCP6_DATA_BASE="/var/run/odhcp6c"
-mkdir -p "$DHCP6_DATA_BASE" || { echo "Error: cannot create $DHCP6_DATA_BASE"; exit 1; }
+if ! mkdir -p "$DHCP6_DATA_BASE"; then
+	echo_error "Error: cannot create $DHCP6_DATA_BASE"
+	exit 1
+fi
 
 write_lease() {
-	local device="$1"
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	local device lease_file address preferred valid
 
+	device="$1"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 	{
 		echo "lease6 {"
 		echo "  interface \"$device\";"
 		for addr in $ADDRESSES; do
-			local address="${addr%%,*}"
-			local preferred="${addr#*,}"
+			address="${addr%%,*}"
+			preferred="${addr#*,}"
 			preferred="${preferred%%,*}"
-			local valid="${addr#*,}"
+			valid="${addr#*,}"
 			valid="${valid##*,}"
-
 			echo "    iaaddr $address {"
 			echo "      starts $(date +%s);"
 			echo "      preferred-life $preferred;"
@@ -107,9 +112,11 @@ write_lease() {
 
 # Extract DNS information and domain search from the lease file
 extract_dns_and_domains() {
-	local lease_file="$1"
-	local dns=""
-	local domains=""
+	local lease_file dns domains
+
+	lease_file="$1"
+	dns=""
+	domains=""
 
 	if [ -f "$lease_file" ]; then
 		while read -r line; do
@@ -132,8 +139,10 @@ extract_dns_and_domains() {
 
 # Update resolv.conf with DNS information and search domains
 update_resolv() {
-	local dns="$1"
-	local domains="$2"
+	local dns domains
+
+	dns="$1"
+	domains="$2"
 
 	(
 		flock 9
@@ -142,14 +151,18 @@ update_resolv() {
 
 		# Add unique search domains to resolv.conf
 		for domain in $domains; do
-			grep -q "search $domain" /tmp/resolv.conf.tmp || echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
-			echo "added search $domain"
+			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
+				echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			fi
+			echo_info "added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
-			grep -q "nameserver $c" /tmp/resolv.conf.tmp || echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
-			echo "added nameserver $c"
+			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
+				echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			fi
+			echo_info "added nameserver $c"
 		done
 
 		# Move the temporary file to /tmp/resolv.conf
@@ -163,34 +176,36 @@ update_resolv() {
 
 # Add an address and track it
 add_address() {
-	local address="$1"
+	local address addr dev_opts dev_name pref_lft valid_lft
+
+	address="$1"
 
 	# Separate the address and options properly
-	local addr="${address%% dev *}"
-	local dev_opts="${address#* dev }"
+	addr="${address%% dev *}"
+	dev_opts="${address#* dev }"
 
 	# Extract the individual components from dev_opts
-	local dev_name="${dev_opts%% *}"  # Device name (e.g., eth0)
-	local pref_lft="${dev_opts##*preferred_lft }"
-	pref_lft="${pref_lft%% valid_lft*}"  # preferred_lft value
-	local valid_lft="${dev_opts##*valid_lft }"  # valid_lft value
+	dev_name="${dev_opts%% *}"
+	pref_lft="${dev_opts##*preferred_lft }"
+	pref_lft="${pref_lft%% valid_lft*}"
+	valid_lft="${dev_opts##*valid_lft }"
 
 	# Check if the address already exists
 	if ip -6 address show dev "$dev_name" | grep -q "$addr"; then
-		echo "Address already exists: $addr dev $dev_name, updating lifetimes"
+		echo_warning "Address already exists: $addr dev $dev_name, updating lifetimes"
 
 		# Update the address with the new preferred and valid lifetimes
 		ip -6 address change "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-			echo "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+			echo_warning "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 			return 1
 		}
 		return 0
 	fi
 
-	echo "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+	echo_info "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 
 	ip -6 address add "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-		echo "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+		echo_warning "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 		return 1
 	}
 
@@ -199,69 +214,75 @@ add_address() {
 }
 
 setup_interface() {
-	local device="$1"
+	local device addr preferred valid lease_file
+
+	device="$1"
 
 	# Add and track addresses
 	for entry in $ADDRESSES; do
-		local addr="${entry%%,*}"
+		addr="${entry%%,*}"
 		entry="${entry#*,}"
-		local preferred="${entry%%,*}"
+		preferred="${entry%%,*}"
 		entry="${entry#*,}"
-		local valid="${entry%%,*}"
+		valid="${entry%%,*}"
 
 		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid"
 	done
 
 	# Extract DNS information and search domains from the lease file
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 	read -r dns domains < <(extract_dns_and_domains "$lease_file")
 
 	# Call update_resolv to update resolv.conf with DNS information and search domains
-	[ -n "$dns" ] && update_resolv "$dns" "$domains"
+	if [ -n "$dns" ]; then
+		update_resolv "$dns" "$domains"
+	fi
 
 	# Write the lease information to a file
 	write_lease "$device"
 }
 
 teardown_interface() {
-	local device="$1"
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	local device lease_file addr
+
+	device="$1"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 
 	# Check if the lease file exists
 	if [ -f "$lease_file" ]; then
-		echo "Attempting to remove addresses and routes from $device"
+		echo_info "Attempting to remove addresses and routes from $device"
 
 		# Read the lease file line by line
 		while read -r line; do
 			# Look for lines containing "iaaddr" and extract the address
 			if echo "$line" | grep -E -q "^\s*iaaddr\s"; then
 				# Extract the address (removing any subnet mask and braces)
-				local addr=$(echo "$line" | awk '{print $2}' | sed 's/[{}]//g' | cut -d'/' -f1)
+				addr=$(echo "$line" | awk '{print $2}' | sed 's/[{}]//g' | cut -d'/' -f1)
 
 				# Attempt to remove the address from the interface
 				if [ -n "$addr" ]; then
 					# Attempt to remove the address
 					if ip -6 address del "$addr" dev "$device"; then
-						echo "Successfully removed address: $addr dev $device"
+						echo_info "Successfully removed address: $addr dev $device"
 					else
-						echo "Failed to remove address: $addr dev $device"
+						echo_warning "Failed to remove address: $addr dev $device"
 					fi
 
 					# Attempt to remove the route for this address
 					if ip -6 route del "$addr" dev "$device"; then
-						echo "Successfully removed route: $addr dev $device"
+						echo_info "Successfully removed route: $addr dev $device"
 					else
-						echo "Failed to remove route: $addr dev $device"
+						echo_warning "Failed to remove route: $addr dev $device"
 					fi
 				fi
 			fi
 		done < "$lease_file"
 
 		# Remove the lease file after processing
-		echo "Removing lease file: $lease_file"
+		echo_info "Removing lease file: $lease_file"
 		rm -f "$lease_file"
 	else
-		echo "No existing lease file found for $device."
+		echo_warning "No existing lease file found for $device"
 	fi
 }
 
@@ -272,20 +293,24 @@ teardown_interface() {
 		bound)
 			teardown_interface "$1"
 			setup_interface "$1"
-		;;
-		informed|updated|rebound|ra-updated)
+			;;
+		informed | updated | rebound | ra-updated)
 			setup_interface "$1"
-		;;
-		stopped|unbound)
+			;;
+		stopped | unbound)
 			teardown_interface "$1"
-		;;
+			;;
 		started)
 			teardown_interface "$1"
-		;;
+			;;
 	esac
 
 	# Execute user-defined rules if present
-	[ -f /etc/odhcp6c.user ] && . /etc/odhcp6c.user
+	if [ -f /etc/odhcp6c.user ]; then
+		. /etc/odhcp6c.user
+	fi
 ) 8>/tmp/odhcp6c.lock.$1
 
 rm -f /tmp/odhcp6c.lock.$1
+
+exit 0

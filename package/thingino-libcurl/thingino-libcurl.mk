@@ -1,4 +1,4 @@
-THINGINO_LIBCURL_VERSION = 8.11.0
+THINGINO_LIBCURL_VERSION = 8.17.0
 THINGINO_LIBCURL_SOURCE = curl-$(THINGINO_LIBCURL_VERSION).tar.xz
 THINGINO_LIBCURL_SITE = https://curl.se/download
 THINGINO_LIBCURL_DEPENDENCIES = host-pkgconf \
@@ -28,7 +28,9 @@ THINGINO_LIBCURL_CONF_OPTS = \
 # https://nvd.nist.gov/vuln/detail/CVE-2024-32928
 THINGINO_LIBCURL_IGNORE_CVES += CVE-2024-32928
 
-ifeq ($(BR2_TOOLCHAIN_HAS_THREADS),y)
+# threaded resolver cannot be used with c-ares
+# https://github.com/curl/curl/commit/d364f1347f05c53eea5d25a15b4ad8a62ecc85b8
+ifeq ($(BR2_TOOLCHAIN_HAS_THREADS)x$(BR2_PACKAGE_C_ARES),yx)
 THINGINO_LIBCURL_CONF_OPTS += --enable-threaded-resolver
 else
 THINGINO_LIBCURL_CONF_OPTS += --disable-threaded-resolver
@@ -90,7 +92,7 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_WOLFSSL),y)
 THINGINO_LIBCURL_CONF_OPTS += --with-wolfssl=$(STAGING_DIR)/usr
 THINGINO_LIBCURL_CONF_OPTS += --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
-THINGINO_LIBCURL_DEPENDENCIES += thingino-wolfssl
+THINGINO_LIBCURL_DEPENDENCIES += wolfssl
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-wolfssl
 endif

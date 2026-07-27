@@ -1,0 +1,5 @@
+config BR2_PACKAGE_SPI_TMI8152
+	bool "TMI8152 driver"
+	select BR2_LINUX_KERNEL
+	help
+	  TMI8152 experimental driver

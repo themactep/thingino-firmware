@@ -1,11 +1,12 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start_usb_console() {
-	is_usb_console || exit
+	[ "true" = "$usb_console" ] || exit
 
-	modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" || die "Cannot load g_serial module"
+	modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" || \
+		die "Cannot load g_serial module"
 	usb-role -m device
 	sleep 2
 

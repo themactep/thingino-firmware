@@ -1,13 +1,22 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
-if [ "$IFACE" = "wlan0" ]; then
-	if [ -z "$(fw_printenv -n wlanssid)" ] || [ -z "$(fw_printenv -n wlanpass)" ]; then
-		info "wlan0 disabled, no SSID/pass"
-		exit 1
-	elif [ "$(fw_printenv -n disable_wlan)" = "true" ]; then
-		info "WLAN manually disabled."
-		exit 1
-	fi
+# only work on a WLAN interface
+if [ "wlan0" != "$IFACE" ]; then
+	exit 0
 fi
+
+. /usr/share/common
+
+# exit 1 to stop the interface from being brought up, and dhcp being attempted
+if [ -z "$wlan_ssid" ]; then
+	echo_error "WLAN disabled, no SSID"
+	exit 1
+elif [ -z "$wlan_pass" ]; then
+	echo_error "WLAN disabled, no password"
+	exit 1
+elif [ "$disable_wlan" = "true" ]; then
+	echo_error "WLAN manually disabled."
+	exit 1
+fi
+
+exit 0

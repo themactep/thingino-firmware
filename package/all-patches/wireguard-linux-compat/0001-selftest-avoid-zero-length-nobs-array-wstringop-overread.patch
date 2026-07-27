@@ -1,0 +1,37 @@
+--- a/src/crypto/zinc/chacha20/chacha20.c	2022-06-27 00:00:00.000000000 +0000
++++ b/src/crypto/zinc/chacha20/chacha20.c	2025-10-18 00:45:00.000000000 +0000
+@@ -23,7 +23,8 @@
+ #elif defined(CONFIG_ZINC_ARCH_MIPS)
+ #include "chacha20-mips-glue.c"
+ #else
+-static bool *const chacha20_nobs[] __initconst = { };
++static bool __initdata chacha20_dummy_nob;
++static bool *const chacha20_nobs[] __initconst = { &chacha20_dummy_nob };
+ static void __init chacha20_fpu_init(void)
+ {
+ }
+--- a/src/crypto/zinc/blake2s/blake2s.c	2022-06-27 00:00:00.000000000 +0000
++++ b/src/crypto/zinc/blake2s/blake2s.c	2025-10-18 00:45:00.000000000 +0000
+@@ -84,7 +84,8 @@
+ #if defined(CONFIG_ZINC_ARCH_X86_64)
+ #include "blake2s-x86_64-glue.c"
+ #else
+-static bool *const blake2s_nobs[] __initconst = { };
++static bool __initdata blake2s_dummy_nob;
++static bool *const blake2s_nobs[] __initconst = { &blake2s_dummy_nob };
+ static void __init blake2s_fpu_init(void)
+ {
+ }
+--- a/src/crypto/zinc/curve25519/curve25519.c	2022-06-27 00:00:00.000000000 +0000
++++ b/src/crypto/zinc/curve25519/curve25519.c	2025-10-18 00:45:00.000000000 +0000
+@@ -24,7 +24,8 @@
+ #elif defined(CONFIG_ZINC_ARCH_ARM)
+ #include "curve25519-arm-glue.c"
+ #else
+-static bool *const curve25519_nobs[] __initconst = { };
++static bool __initdata curve25519_dummy_nob;
++static bool *const curve25519_nobs[] __initconst = { &curve25519_dummy_nob };
+ static void __init curve25519_fpu_init(void)
+ {
+ }
+

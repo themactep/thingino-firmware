@@ -1,6 +1,0 @@
-# NAME: T20L, SC2232, ETH
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
-BR2_ETHERNET=y
-BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12=y
-BR2_SENSOR_SC2232=y
-BR2_SOC_INGENIC_T20L=y

@@ -1,35 +1,40 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 DAEMON_ARGS="-r -c /etc/iad.json"
 
 start() {
-	starting
+	echo_title "Starting Ingenic Audio Daemon"
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Ingenic Audio Daemon"
+
 	stop_daemon
 }
 
 restart() {
 	stop || true
 	sleep 1
-	reload
-}
-
-reload() {
 	start
 }
 
 case "$1" in
-	start | stop | restart | reload)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 esac
 
 exit 0

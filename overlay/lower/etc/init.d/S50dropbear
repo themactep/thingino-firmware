@@ -1,34 +1,42 @@
 #!/bin/sh
 
-DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
-# -k              Disable remote port forwarding
-# -K <keepalive>  (0 is never, default 0, in seconds)
-# -b bannerfile   Display the contents of bannerfile before user login
-# -R              Create hostkeys as required
+DAEMON_ARGS="-k -K 300 -R"
+DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
+	echo_title "Starting dropbear sshd"
+
 	umask 077
-	starting
-	start_daemon_with_pid
+
+	if [ ! -f $DROPBEAR_KEY_FILE ]; then
+		dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
+	fi
+
+	start_daemon
 }
 
 stop() {
-	stopping
-	stop_daemon_with_pid
+	echo_title "Stopping dropbear sshd"
+
+	stop_daemon
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
 		;;
-	reload | restart)
+	stop)
+		stop
+		;;
+	restart)
 		stop
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

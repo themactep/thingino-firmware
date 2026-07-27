@@ -2,23 +2,28 @@
 
 DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
-	starting
-	start_daemon_with_pid
+	echo_title "Starting mdnsd"
+
+	start_daemon
 }
 
 stop() {
-	stopping
-	stop_daemon_with_pid
+	echo_title "Stopping mdnsd"
+
+	stop_daemon
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
 		;;
-	reload | restart)
+	stop)
+		stop
+		;;
+	restart)
 		stop
 		sleep 1
 		start

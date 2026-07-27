@@ -1,14 +1,13 @@
 #!/bin/sh
 
-. /sbin/common
+. /usr/share/common
 
 gpiodir=/sys/class/gpio
 
 unexport=0
 
 show_help() {
-	echo "
-Usage: $0 <command with params>
+	echo "Usage: $0 <command with params>
 Commands:
 	export <pin>		Export <pin> from kernel space
 	unexport <pin>		Release <pin> back to the kernel space
@@ -24,18 +23,13 @@ Legacy:
 	high <pin>		Set <pin1> output state to HIGH
 	low <pin>		Set <pin1> output state to LOW
 	clear <pin>		Set pin1 output state to LOW
-"
+" >&2
 	exit 1
 }
 
 list_pins() {
 	grep -q /sys/kernel/debug /proc/mounts || mount -t debugfs none /sys/kernel/debug
 	cat /sys/kernel/debug/gpio
-}
-
-log_and_run() {
-	[ -n "$DEBUG" ] && echo -e "$1"
-	eval "$1"
 }
 
 claim_pin() {

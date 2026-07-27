@@ -7,11 +7,11 @@ WIFI_SYN4343_VERSION = a874170026892c58352a5be37c4c0f1f6767f295
 WIFI_SYN4343_MODULE_MAKE_OPTS = \
 	KVER=$(LINUX_VERSION_PROBED) \
 	KSRC=$(LINUX_DIR) \
-        CONFIG_BCMDHD=m \
-        CONFIG_BCMDHD_SDIO=y \
-        CONFIG_BCMDHD_OOB=y \
-        CONFIG_CFG80211=y \
-        CONFIG_BCMDHD_AG=y
+	CONFIG_BCMDHD=m \
+	CONFIG_BCMDHD_SDIO=y \
+	CONFIG_BCMDHD_OOB=y \
+	CONFIG_CFG80211=y \
+	CONFIG_BCMDHD_AG=y
 
 define WIFI_SYN4343_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
@@ -29,10 +29,14 @@ define WIFI_SYN4343_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_SYN4343_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib/firmware
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN4343_PKGDIR)/files/fw_bcm43436b0.bin
-        $(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN4343_PKGDIR)/files/fw_bcm43438a1.bin
-        $(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN4343_PKGDIR)/files/nv_bcm4343.txt
+	$(INSTALL) -D -m 0644 $(WIFI_SYN4343_PKGDIR)/files/fw_bcm43436b0.bin \
+		$(TARGET_DIR)/usr/lib/firmware/fw_bcm43436b0.bin
+
+	$(INSTALL) -D -m 0644 $(WIFI_SYN4343_PKGDIR)/files/fw_bcm43438a1.bin \
+		$(TARGET_DIR)/usr/lib/firmware/fw_bcm43438a1.bin
+
+	$(INSTALL) -D -m 0644 $(WIFI_SYN4343_PKGDIR)/files/nv_bcm4343.txt \
+		$(TARGET_DIR)/usr/lib/firmware/nv_bcm4343.txt
 endef
 
 $(eval $(kernel-module))

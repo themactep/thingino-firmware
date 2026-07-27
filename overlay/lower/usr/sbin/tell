@@ -1,11 +1,14 @@
 #!/bin/sh
+# TTS client
+
+. /usr/share/common
 
 if [ -z "$1" ]; then
-	echo "Usage: $0 \"phrase to say\"
+	echo "Usage: $0 \"<phrase to say>\"
 Shortcuts:
- %ip     Tell IP address
- %time   Tell recent time
-"
+	%ip     Tell IP address
+	%time   Tell recent time
+" >&2
 	exit 1
 fi
 
@@ -20,6 +23,8 @@ case "$1" in
 		phrase="$*" ;;
 esac
 
-curl --silent --get --url "https://thingino.com/say" --data-urlencode q="$phrase" | iac -s
+tmpfile="$(mktemp -u).opus"
+$CURL --silent --get --url https://thingino.com/say2 --data-urlencode q="$phrase" -o $tmpfile
+play $tmpfile && rm $tmpfile
 
 exit 0

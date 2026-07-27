@@ -1,0 +1,42 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-hdd me-2"></i>Storage & Logging Configuration</h1>
+    <p class="text-muted">Configure logging levels and storage settings</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card config-form">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-hdd me-2"></i>Storage & Logging Settings</h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/lua/config/storage">
+          <div class="mb-3">
+            <label for="log_level" class="form-label">Log Level</label>
+            <select id="log_level" name="log_level" class="form-select">
+              <option value="error" {{log_level_error_selected}}>Error</option>
+              <option value="warning" {{log_level_warning_selected}}>Warning</option>
+              <option value="info" {{log_level_info_selected}}>Info</option>
+              <option value="debug" {{log_level_debug_selected}}>Debug</option>
+            </select>
+            <div class="form-text">Higher levels include all lower level messages</div>
+          </div>
+          <div class="mb-3">
+            <label for="log_retention" class="form-label">Log Retention (days)</label>
+            <input type="number" id="log_retention" name="log_retention" class="form-control" value="{{config_log_retention}}" min="1" max="365">
+            <div class="form-text">How long to keep log files before automatic cleanup</div>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Storage Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{include:footer}}
