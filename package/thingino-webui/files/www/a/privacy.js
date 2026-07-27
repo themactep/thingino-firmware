@@ -56,12 +56,23 @@
   }
 
   async function persistPrudyntConfig() {
+    const agent = window.thinginoStreamerAgent;
     const confirmed = await confirm(
-      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+      (agent && agent.saveConfirmMessage && agent.saveConfirmMessage()) ||
+        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
     );
     if (!confirmed) return false;
     if (saveButton) saveButton.disabled = true;
     try {
+      if (agent && agent.saveStreamerConfig) {
+        await agent.saveStreamerConfig();
+        showAlert(
+          "success",
+          (agent.saveSuccessMessage && agent.saveSuccessMessage()) ||
+            "Configuration saved.",
+        );
+        return true;
+      }
       const payload = { action: { save_config: null } };
       const response = await fetch(endpoint, {
         method: "POST",
@@ -229,6 +240,42 @@
       setReloadBusy(true);
     }
     try {
+      const agent = window.thinginoStreamerAgent;
+      if (agent && agent.isRaptor && agent.isRaptor() && agent.preferAgent()) {
+        const data = await agent.agentRequest(
+          "/api/v1/settings/privacy/enabled",
+          { cache: "no-store" },
+        );
+        applyPrivacyConfig(0, { enabled: !!(data && data.enabled) });
+        // Hide stream1 / OSD privacy extras on raptor
+        streamIds.forEach((streamId) => {
+          [
+            ...standardFields.filter((f) => f !== "enabled"),
+            "fill_color",
+            "stroke_color",
+            "fill_alpha",
+            "stroke_alpha",
+          ].forEach((field) => {
+            const el = $(`#privacy${streamId}_${field}`);
+            if (!el) return;
+            const wrap =
+              el.closest(".mb-3, .col, .form-check, .row > div") ||
+              el.parentElement;
+            if (wrap) wrap.classList.add("d-none");
+            el.disabled = true;
+          });
+          if (streamId === 1) {
+            const section = $("#privacy-stream-1") || $(`#privacy1_enabled`);
+            if (section && section.closest) {
+              const wrap = section.closest(".card, .mb-4, section") || section.parentElement;
+              if (wrap) wrap.classList.add("d-none");
+            }
+          }
+        });
+        success = true;
+        return true;
+      }
+
       const data = await requestPrudynt(buildRequestPayload());
       const stream0 = data?.stream0?.osd?.privacy;
       const stream1 = data?.stream1?.osd?.privacy;
@@ -256,6 +303,31 @@
 
   async function sendPrivacyUpdate(streamId, payload) {
     try {
+      const agent = window.thinginoStreamerAgent;
+      if (
+        agent &&
+        agent.preferAgent &&
+        agent.preferAgent() &&
+        Object.prototype.hasOwnProperty.call(payload, "enabled") &&
+        Object.keys(payload).length === 1
+      ) {
+        await agent.agentRequest("/api/v1/actions/privacy", {
+          method: "POST",
+          body: { enabled: !!payload.enabled },
+          cache: "no-store",
+        });
+        applyPrivacyConfig(streamId, { enabled: !!payload.enabled });
+        return;
+      }
+      if (agent && agent.isRaptor && agent.isRaptor()) {
+        showAlert(
+          "warning",
+          "Detailed privacy OSD controls are not available on raptor yet.",
+          4000,
+        );
+        return;
+      }
+
       const body = {
         [`stream${streamId}`]: { osd: { privacy: payload } },
         action: { restart_thread: ThreadVideo | ThreadOSD },
