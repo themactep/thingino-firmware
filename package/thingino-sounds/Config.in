@@ -18,4 +18,22 @@ config BR2_PACKAGE_THINGINO_SOUNDS_CHIMES
 	help
 	  Install the Thingino chime sound files.
 
+choice
+	prompt "Sound file format"
+	default BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
+	help
+	  Opus is smaller on-disk and higher quality, but needs timps'
+	  TIMPS_PLAY_OPUS (opusfile+opus+libogg, ~200KB flash) to decode.
+	  G.711 needs no extra library (timps' G.711 decoder is always
+	  built in) at the cost of somewhat larger sound files - the
+	  better choice on boards too flash-constrained for TIMPS_PLAY_OPUS.
+
+config BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
+	bool "Opus"
+
+config BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711
+	bool "G.711 mu-law (WAV)"
+
+endchoice
+
 endif
