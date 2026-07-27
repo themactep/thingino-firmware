@@ -167,7 +167,9 @@ config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MINIMAL
 	select BR2_PACKAGE_TIMPS_BACKCHANNEL
 	select BR2_PACKAGE_TIMPS_PLAY
 	select BR2_PACKAGE_THINGINO_SOUNDS
-	select BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711
+	# The sound-file format is a Kconfig `choice`, which cannot be forced with
+	# `select`; thingino-sounds instead defaults to G.711 whenever TIMPS_PLAY is
+	# on without TIMPS_PLAY_OPUS (exactly this preset), so no select is needed.
 	help
 	  Two-way audio (G.711 only, no AAC) plus a system-sound play queue
 	  using the G.711 mu-law sound files - zero extra codec libraries,

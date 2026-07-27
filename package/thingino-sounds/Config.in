@@ -20,6 +20,13 @@ config BR2_PACKAGE_THINGINO_SOUNDS_CHIMES
 
 choice
 	prompt "Sound file format"
+	# A choice member cannot be forced with `select`, so presets can't pick
+	# the format that way. Drive it from the real constraint instead: if timps
+	# can play sounds but has no Opus decoder (TIMPS_PLAY && !TIMPS_PLAY_OPUS,
+	# e.g. the MINIMAL audio preset), G.711 is the only format it can actually
+	# decode, so default to it. Otherwise keep the smaller/higher-quality Opus.
+	default BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711 \
+		if BR2_PACKAGE_TIMPS_PLAY && !BR2_PACKAGE_TIMPS_PLAY_OPUS
 	default BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
 	help
 	  Opus is smaller on-disk and higher quality, but needs timps'
