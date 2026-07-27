@@ -194,6 +194,18 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S96onvif_discovery; \
 	fi
 
+	# Motion -> send2 bridge. RMD has no on_motion script hook, so a
+	# small watcher polls rmd status and invokes raptor-motion on edges.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RMD)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/raptor-motion \
+			$(TARGET_DIR)/usr/sbin/raptor-motion; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/raptor-motion-watch \
+			$(TARGET_DIR)/usr/sbin/raptor-motion-watch; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S32raptor-motion \
+			$(TARGET_DIR)/etc/init.d/S32raptor-motion; \
+		ln -sf raptor-motion $(TARGET_DIR)/usr/sbin/motion; \
+	fi
+
 	# Patch raptor.conf with buildroot config overrides
 	$(call THINGINO_RAPTOR_PATCH_CONF)
 

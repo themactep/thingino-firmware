@@ -1,0 +1,213 @@
+#!/bin/sh
+# raptor-motion — motion -> send2 bridge for the Raptor streamer.
+#
+# Invoked by raptor-motion-watch on RMD idle->active (and active->idle for stop).
+# Mirrors prudynt's /usr/sbin/motion and timps's /usr/sbin/timps-motion:
+# capture shared photo/video once, then fan out to enabled send2* services.
+#
+# Output enables live in /etc/thingino.json (agent/WebUI path) with a fallback
+# to /etc/prudynt.json for older configs. Service credentials stay in
+# /etc/send2.json.
+
+THINGINO_JSON="${THINGINO_JSON:-/etc/thingino.json}"
+PRUDYNT_JSON="${PRUDYNT_JSON:-/etc/prudynt.json}"
+SEND2_JSON="${SEND2_JSON:-/etc/send2.json}"
+MOTION_ALARM="${MOTION_ALARM:-/run/motion/motion_alarm}"
+CHAN="${MOTION_CHANNEL:-0}"
+CLIP_SECS="${MOTION_CLIP_SECS:-10}"
+
+SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
+
+. /usr/share/prudynt-helpers 2>/dev/null || true
+
+get_motion() {
+	key=$1
+	val=
+	if [ -f "$THINGINO_JSON" ] && command -v jct >/dev/null 2>&1; then
+		val=$(jct "$THINGINO_JSON" get "motion.$key" 2>/dev/null)
+	fi
+	if [ -z "$val" ] && [ -f "$PRUDYNT_JSON" ] && command -v jct >/dev/null 2>&1; then
+		val=$(jct "$PRUDYNT_JSON" get "motion.$key" 2>/dev/null)
+	fi
+	printf '%s' "$val"
+}
+
+ensure_rmr() {
+	pidof rmr >/dev/null 2>&1 && return 0
+	raptorctl config set recording enabled true >/dev/null 2>&1 || true
+	if command -v start-stop-daemon >/dev/null 2>&1 && [ -x /usr/bin/rmr ]; then
+		start-stop-daemon -S -b -x /usr/bin/rmr -- -c /etc/raptor.conf >/dev/null 2>&1 || true
+	elif [ -x /usr/bin/rmr ]; then
+		/usr/bin/rmr -c /etc/raptor.conf >/dev/null 2>&1 &
+	else
+		return 1
+	fi
+	i=0
+	while [ "$i" -lt 20 ]; do
+		pidof rmr >/dev/null 2>&1 && return 0
+		sleep 0.1 2>/dev/null || usleep 100000 2>/dev/null || sleep 1
+		i=$((i + 1))
+	done
+	pidof rmr >/dev/null 2>&1
+}
+
+raptor_storage_path() {
+	path=$(raptorctl config get recording storage_path 2>/dev/null | tr -d '\r\n"')
+	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
+	printf '%s' "$path"
+}
+
+raptor_newest_clip() {
+	clips="$(raptor_storage_path)/clips"
+	[ -d "$clips" ] || return 1
+	newest=""
+	newest_mtime=0
+	for f in "$clips"/*/*.mp4 "$clips"/*.mp4; do
+		[ -f "$f" ] || continue
+		mtime=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+		if [ "$mtime" -ge "$newest_mtime" ]; then
+			newest=$f
+			newest_mtime=$mtime
+		fi
+	done
+	[ -n "$newest" ] || return 1
+	printf '%s' "$newest"
+}
+
+wait_stable() {
+	path=$1
+	max=${2:-20}
+	i=0
+	while [ ! -f "$path" ] && [ "$i" -lt "$max" ]; do
+		sleep 1
+		i=$((i + 1))
+	done
+	[ -f "$path" ] || return 1
+	prev=0
+	curr=$(stat -c%s "$path" 2>/dev/null || echo 0)
+	stable=0
+	i=0
+	while [ "$stable" -lt 2 ] && [ "$i" -lt "$max" ]; do
+		sleep 1
+		prev=$curr
+		curr=$(stat -c%s "$path" 2>/dev/null || echo 0)
+		if [ "$curr" -eq "$prev" ] && [ "$curr" -gt 0 ]; then
+			stable=$((stable + 1))
+		else
+			stable=0
+		fi
+		i=$((i + 1))
+	done
+	[ -s "$path" ]
+}
+
+start() {
+	need_photo=false
+	need_video=false
+	any=false
+
+	for s in $SERVICES; do
+		[ "true" = "$(get_motion send2${s})" ] || continue
+		any=true
+		[ "true" = "$(jct "$SEND2_JSON" get ${s}.send_photo 2>/dev/null)" ] && need_photo=true
+		[ "true" = "$(jct "$SEND2_JSON" get ${s}.send_video 2>/dev/null)" ] && need_video=true
+	done
+
+	# Always stamp the motion alarm + HA edge even when no send2 target is armed.
+	mkdir -p "$(dirname "$MOTION_ALARM")" 2>/dev/null || true
+	touch "$MOTION_ALARM"
+	[ -x /usr/sbin/ha-event ] && ha-event motion ON &
+
+	[ "$any" = "true" ] || exit 0
+
+	MOTION_PHOTO_FILE=""
+	MOTION_VIDEO_FILE=""
+
+	if [ "$need_photo" = "true" ]; then
+		MOTION_PHOTO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
+		if [ -n "$MOTION_PHOTO_FILE" ]; then
+			if ! raptorctl rvd save jpeg "$MOTION_PHOTO_FILE" "$CHAN" >/dev/null 2>&1 ||
+				[ ! -s "$MOTION_PHOTO_FILE" ]; then
+				rm -f "$MOTION_PHOTO_FILE"
+				MOTION_PHOTO_FILE=""
+			fi
+		fi
+	fi
+
+	if [ "$need_video" = "true" ]; then
+		if ensure_rmr; then
+			before=$(raptor_newest_clip 2>/dev/null || true)
+			# If RMD already started a clip (motion.record=true), just wait;
+			# otherwise start/stop our own timed clip.
+			status=$(raptorctl rmr status 2>/dev/null || true)
+			already=no
+			printf '%s' "$status" | grep -q '"recording"[[:space:]]*:[[:space:]]*true' && already=yes
+			printf '%s' "$status" | grep -q '"clip"[[:space:]]*:[[:space:]]*true' && already=yes
+			if [ "$already" != "yes" ]; then
+				raptorctl rmr start >/dev/null 2>&1 || true
+				owned=yes
+			else
+				owned=no
+			fi
+			sleep "$CLIP_SECS"
+			if [ "$owned" = "yes" ]; then
+				raptorctl rmr stop >/dev/null 2>&1 || true
+				sleep 1
+			fi
+			clip=$(raptor_newest_clip 2>/dev/null || true)
+			if [ -n "$clip" ] && [ "$clip" != "$before" ] && wait_stable "$clip" 15; then
+				MOTION_VIDEO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
+				if [ -n "$MOTION_VIDEO_FILE" ]; then
+					cp "$clip" "$MOTION_VIDEO_FILE" || {
+						rm -f "$MOTION_VIDEO_FILE"
+						MOTION_VIDEO_FILE=""
+					}
+				fi
+			fi
+		fi
+	fi
+
+	pids=""
+	for s in $SERVICES; do
+		[ "true" = "$(get_motion send2${s})" ] || continue
+		command -v "send2${s}" >/dev/null 2>&1 || continue
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" \
+			"send2${s}" &
+		pids="$pids $!"
+	done
+
+	[ -n "$pids" ] && wait $pids 2>/dev/null
+	[ -n "$MOTION_PHOTO_FILE" ] && rm -f "$MOTION_PHOTO_FILE"
+	[ -n "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
+}
+
+stop() {
+	if [ -f "$MOTION_ALARM" ]; then
+		rm -f "$MOTION_ALARM"
+		[ -x /usr/sbin/ha-event ] && ha-event motion OFF &
+	fi
+}
+
+# Detach start so the watcher never blocks on clip duration; flock stops overlap.
+run_start() {
+	if command -v flock >/dev/null 2>&1; then
+		(flock -n 9 || exit 0; start) 9>/run/raptor-motion.lock
+	else
+		start
+	fi
+}
+
+case "${1:-start}" in
+	start)
+		run_start &
+		;;
+	stop)
+		stop
+		;;
+	*)
+		echo "Usage: $0 {start|stop}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

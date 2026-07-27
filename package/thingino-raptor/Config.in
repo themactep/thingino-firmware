@@ -17,11 +17,15 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 	select BR2_PACKAGE_THINGINO_RAPTOR_HAL
 	select BR2_PACKAGE_THINGINO_RAPTOR_IPC
 	select BR2_PACKAGE_THINGINO_RAPTOR_COMMON
+	select BR2_PACKAGE_THINGINO_SEND2
+	select BR2_PACKAGE_THINGINO_JCT
 	help
 	  Raptor Streaming System (RSS) -- modular microservice streamer
 	  for Ingenic SoCs. Replaces prudynt-t with independent daemons:
 	  RVD (video), RAD (audio), RSD (RTSP), ROD (OSD), RHD (HTTP),
 	  RIC (IR-cut), RMR (recording), plus raptorctl management CLI.
+	  Selects thingino-send2 so motion alerts and WebUI Send-to pages
+	  work without the prudynt package.
 
 if BR2_PACKAGE_THINGINO_RAPTOR
 

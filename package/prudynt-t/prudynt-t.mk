@@ -302,31 +302,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/metrics \
 		$(TARGET_DIR)/var/www/x/metrics
 
-	# send2 scripts
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/send2.json \
-		$(TARGET_DIR)/etc/send2.json
+	# Shared helpers for motion/timelapse/audio scripts. send2* tools now ship
+	# from package/thingino-send2 (selected via Config.in).
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/prudynt-helpers \
 		$(TARGET_DIR)/usr/share/prudynt-helpers
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/send2common \
-		$(TARGET_DIR)/usr/share/send2common
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2email \
-		$(TARGET_DIR)/usr/sbin/send2email
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ftp \
-		$(TARGET_DIR)/usr/sbin/send2ftp
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gphotos \
-		$(TARGET_DIR)/usr/sbin/send2gphotos
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gotify \
-		$(TARGET_DIR)/usr/sbin/send2gotify
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2mqtt \
-		$(TARGET_DIR)/usr/sbin/send2mqtt
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ntfy \
-		$(TARGET_DIR)/usr/sbin/send2ntfy
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2storage \
-		$(TARGET_DIR)/usr/sbin/send2storage
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2telegram \
-		$(TARGET_DIR)/usr/sbin/send2telegram
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2webhook \
-		$(TARGET_DIR)/usr/sbin/send2webhook
 
 	# scripts (audio)
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/microphone \

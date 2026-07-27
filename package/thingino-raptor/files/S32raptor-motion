@@ -1,0 +1,49 @@
+#!/bin/sh
+# S32raptor-motion — start/stop the RMD -> send2 motion watcher
+
+DAEMON=/usr/sbin/raptor-motion-watch
+PIDFILE=/run/raptor-motion-watch.pid
+NAME=raptor-motion-watch
+
+start() {
+	[ -x "$DAEMON" ] || return 0
+	# Only useful when RMD is installed.
+	[ -x /usr/bin/rmd ] || return 0
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo "$NAME already running"
+		return 0
+	fi
+	echo "Starting $NAME..."
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop() {
+	echo "Stopping $NAME..."
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON" 2>/dev/null || true
+		rm -f "$PIDFILE"
+	else
+		killall raptor-motion-watch 2>/dev/null || true
+	fi
+	# Clear any latch left behind.
+	[ -x /usr/sbin/raptor-motion ] && /usr/sbin/raptor-motion stop 2>/dev/null || true
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

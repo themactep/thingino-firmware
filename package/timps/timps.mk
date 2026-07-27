@@ -275,39 +275,25 @@ endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
 endif
 
-# NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
-# webhook + the send2common helper they share). The unmodified send2* tools and
-# prudynt-helpers are re-installed as-is from package/prudynt-t/files/. The two
-# files timps has to ADAPT are shipped as timps's OWN copies under
-# package/timps/files/ instead of patching the shared prudynt-t / thingino-webui
-# files: send2common (prudyntctl -> timps /snapshot.jpg fallback) and
-# telegram-cam-register (snapshot via /onvif/image.cgi instead of /x/ch0.jpg).
-# Re-sync those two from upstream when the shared originals change (e.g. the
-# send2 shell-injection hardening).
-# thingino-webui's telegram-cam-agent (MQTT "snap"/"clip" commands) and the
-# stock Send-to config pages are installed on every image regardless of
-# streamer (gated only on BR2_THINGINO_DEV_IPCAM), so without this the
-# scripts they call are simply missing on a timps image. Install from a
-# finalize hook (not a normal package dependency) so this doesn't require
-# enabling the prudynt-t Buildroot package itself.
-#
-# Gated on TIMPS_CONTROL as well: timps-motion and send2common POST to timps's
-# /control endpoint; with CONTROL compiled out those calls hit a dead port, so
-# don't ship the bridge at all in that configuration.
+# NOTE: send-to-* notification toolkit now lives in package/thingino-send2.
+# Timps still ships its own send2common (timps snapshot/clip fallbacks) and
+# telegram-cam-register overlay via a finalize hook so they win over the shared
+# package regardless of build order. Gated on TIMPS_CONTROL: timps-motion and
+# send2common POST to timps's /control endpoint.
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM)$(BR2_PACKAGE_TIMPS_CONTROL),yyy)
-PRUDYNT_T_FILES_DIR = $(PRUDYNT_T_PKGDIR)/files
+THINGINO_SEND2_FILES_DIR = $(THINGINO_SEND2_PKGDIR)/files
 define TIMPS_INSTALL_SEND2
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/prudynt-helpers \
+	$(INSTALL) -D -m 0644 $(THINGINO_SEND2_FILES_DIR)/prudynt-helpers \
 		$(TARGET_DIR)/usr/share/prudynt-helpers
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/send2common \
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
 	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
-		$(INSTALL) -D -m 0755 $(PRUDYNT_T_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
+		$(INSTALL) -D -m 0755 $(THINGINO_SEND2_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
 	[ -f $(TARGET_DIR)/etc/send2.json ] || \
-		$(INSTALL) -D -m 0644 $(PRUDYNT_T_FILES_DIR)/send2.json \
+		$(INSTALL) -D -m 0644 $(THINGINO_SEND2_FILES_DIR)/send2.json \
 			$(TARGET_DIR)/etc/send2.json
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_SEND2
