@@ -132,4 +132,50 @@ config BR2_PACKAGE_TIMPS_PLAY_OPUS
 	  so enable this if you want those to play. Leave off for a
 	  WAV/PCM-only, dependency-light play queue.
 
+choice
+	prompt "Audio backchannel preset"
+	default BR2_PACKAGE_TIMPS_AUDIO_PRESET_MANUAL
+	help
+	  Backchannel + play queue + the matching thingino-sounds format are
+	  five separate knobs (BACKCHANNEL/BC_AAC/PLAY/PLAY_OPUS here, plus
+	  thingino-sounds' own format choice) that need to agree with each
+	  other and with how much flash headroom the board actually has -
+	  easy to get wrong one knob at a time. These two presets bundle the
+	  combinations that are known to work; pick Manual to keep setting
+	  the individual options above yourself.
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MANUAL
+	bool "Manual (use the individual options above)"
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_FULL
+	bool "Full (backchannel + AAC + Opus play queue)"
+	select BR2_PACKAGE_TIMPS_BACKCHANNEL
+	select BR2_PACKAGE_TIMPS_BC_AAC
+	select BR2_PACKAGE_TIMPS_PLAY
+	select BR2_PACKAGE_TIMPS_PLAY_OPUS
+	select BR2_PACKAGE_THINGINO_SOUNDS
+	select BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
+	help
+	  Two-way audio with AAC backchannel quality, plus a system-sound
+	  play queue that plays the stock Opus sound files. ~395KB of
+	  codec/library footprint (opusfile+opus+libogg+libhelix-aac) -
+	  needs a board with flash headroom. Confirmed fitting on T31-family
+	  boards; too big for a ~5MB T20 rootfs partition this session.
+
+config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MINIMAL
+	bool "Minimal (backchannel + G.711 play queue, no extra codecs)"
+	select BR2_PACKAGE_TIMPS_BACKCHANNEL
+	select BR2_PACKAGE_TIMPS_PLAY
+	select BR2_PACKAGE_THINGINO_SOUNDS
+	select BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711
+	help
+	  Two-way audio (G.711 only, no AAC) plus a system-sound play queue
+	  using the G.711 mu-law sound files - zero extra codec libraries,
+	  since timps' G.711 decoder is always built in. The
+	  smallest-footprint way to get backchannel + play working on a
+	  flash-constrained board; confirmed on a T20 board with a ~5MB
+	  rootfs partition this session.
+
+endchoice
+
 endif # BR2_PACKAGE_TIMPS
