@@ -719,6 +719,9 @@ thingino_agent_raptor_print_stream_config() {
 	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" height)" null)"
 	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" fps)" null)"
 	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
+	printf '"gop":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" gop)" null)"
+	printf '"buffers":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" nr_vbs)" null)"
+	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_format "$stream_id")")"
 	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_stream_mode "$stream_id")")"
 	printf '}'
@@ -934,6 +937,20 @@ thingino_agent_adapter_raptor_get_events() {
 			keepalive_counter=0
 		elif [ "$keepalive_counter" -ge 3 ]; then
 			thingino_agent_sse_emit keepalive "$(thingino_agent_sse_payload keepalive '')" || exit 0
+			# Sensor sample for timegraph / tooling (ric exposure metrics).
+			ric_status=$(thingino_agent_raptor_daemon_status ric)
+			ae_luma=$(thingino_agent_raptor_json_number_field ae_luma "$ric_status")
+			total_gain=$(thingino_agent_raptor_json_number_field total_gain "$ric_status")
+			ev=$(thingino_agent_raptor_json_number_field ev "$ric_status")
+			daynight_mode=$(thingino_agent_raptor_daynight_running_mode)
+			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":%s,"daynight_mode":%s' \
+				"$(date +%s)" \
+				"$(thingino_agent_json_value_or "$ae_luma" null)" \
+				"$(thingino_agent_json_value_or "$ae_luma" null)" \
+				"$(thingino_agent_json_value_or "$total_gain" null)" \
+				"$(thingino_agent_json_value_or "$ev" null)" \
+				"$(thingino_agent_json_string "$daynight_mode")")
+			thingino_agent_sse_emit sensor.sample "$(thingino_agent_sse_payload sensor.sample "$sensor_fields")" || exit 0
 			keepalive_counter=0
 		fi
 
@@ -1665,6 +1682,21 @@ thingino_agent_adapter_raptor_get_setting() {
 			stream_id=${stream_id%/bitrate}
 			thingino_agent_print_setting_leaf bitrate "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" bitrate)" null)"
 			;;
+		streams/[01]/gop)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/gop}
+			thingino_agent_print_setting_leaf gop "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" gop)" null)"
+			;;
+		streams/[01]/buffers)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/buffers}
+			thingino_agent_print_setting_leaf buffers "$(thingino_agent_json_value_or "$(thingino_agent_raptor_stream_field "$stream_id" nr_vbs)" null)"
+			;;
+		streams/[01]/rtsp-endpoint)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/rtsp-endpoint}
+			printf '{"rtsp_endpoint":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_raptor_rtsp_endpoint "$stream_id")")"
+			;;
 		streams/[01]/format)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/format}
@@ -1945,6 +1977,48 @@ thingino_agent_adapter_raptor_set_setting() {
 			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" bitrate "$value"
 			;;
+		streams/[01]/gop)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/gop}
+			value=$(thingino_agent_raptor_setting_value "$body_file" gop) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			thingino_agent_raptor_ctl rvd set-gop "$stream_id" "$value" >/dev/null 2>&1 || return 1
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" gop "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" gop "$value"
+			;;
+		streams/[01]/buffers)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/buffers}
+			value=$(thingino_agent_raptor_setting_value "$body_file" buffers) || return 1
+			thingino_agent_raptor_validate_int "$value" || return 1
+			# Raptor maps buffers onto encoder VBS count; takes effect after streamer restart.
+			thingino_agent_raptor_config_set "$(thingino_agent_raptor_stream_section "$stream_id")" nr_vbs "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" buffers "$value"
+			;;
+		streams/[01]/rtsp-endpoint)
+			stream_id=${path#streams/}
+			stream_id=${stream_id%/rtsp-endpoint}
+			value=$(thingino_agent_raptor_setting_value "$body_file" rtsp_endpoint) || return 1
+			value=$(thingino_agent_raptor_unquote_string "$value")
+			value=${value#/}
+			[ -n "$value" ] || {
+				echo "non-empty rtsp_endpoint required" >&2
+				return 1
+			}
+			case "$stream_id" in
+				0) key=endpoint_main ;;
+				1) key=endpoint_sub ;;
+				*)
+					echo "unsupported stream id" >&2
+					return 1
+					;;
+			esac
+			thingino_agent_raptor_config_set rtsp "$key" "$value" || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_print_setting_update "$path" rtsp_endpoint "$(thingino_agent_json_string "$value")"
+			;;
 		streams/[01]/format)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/format}
@@ -2071,19 +2145,73 @@ thingino_agent_adapter_raptor_snapshot() {
 	rm -f "$tmp"
 }
 
+thingino_agent_raptor_ensure_rmr() {
+	if pidof rmr >/dev/null 2>&1; then
+		return 0
+	fi
+	if command -v start-stop-daemon >/dev/null 2>&1; then
+		start-stop-daemon -S -b -x /usr/bin/rmr -- -c "$THINGINO_AGENT_RAPTOR_CONFIG" >/dev/null 2>&1 || true
+	elif [ -x /usr/bin/rmr ]; then
+		/usr/bin/rmr -c "$THINGINO_AGENT_RAPTOR_CONFIG" >/dev/null 2>&1 &
+	else
+		return 1
+	fi
+	i=0
+	while [ "$i" -lt 20 ]; do
+		pidof rmr >/dev/null 2>&1 && return 0
+		sleep 0.1 2>/dev/null || usleep 100000 2>/dev/null || sleep 1
+		i=$((i + 1))
+	done
+	pidof rmr >/dev/null 2>&1
+}
+
 thingino_agent_adapter_raptor_record() {
-	duration=${1:-10}
+	# Usage:
+	#   record stop [channel]
+	#   record continuous [channel]
+	#   record [duration] [channel] [path]   # timed clip (existing)
+	arg1=${1:-10}
 	channel=${2:-0}
 	file=${3:-/tmp/clip_$(date +%Y%m%d_%H%M%S).mp4}
 	command -v raptorctl >/dev/null 2>&1 || {
 		echo "record action is not supported on this camera" >&2
 		return 1
 	}
-	# Prefer motion-clip helper; falls back to RMR start.
+
+	case "$arg1" in
+		stop)
+			thingino_agent_raptor_ctl rmr disable >/dev/null 2>&1 || true
+			thingino_agent_raptor_config_set recording enabled false || true
+			thingino_agent_raptor_config_save
+			printf '{"status":"accepted","action":"stop","stream_id":%s}\n' \
+				"$(thingino_agent_json_value_or "$channel" 0)"
+			return 0
+			;;
+		continuous)
+			thingino_agent_raptor_config_set recording stream "$channel" || return 1
+			thingino_agent_raptor_config_set recording enabled true || return 1
+			thingino_agent_raptor_config_save
+			thingino_agent_raptor_ensure_rmr || {
+				echo "failed to start rmr recording daemon" >&2
+				return 1
+			}
+			thingino_agent_raptor_ctl rmr enable >/dev/null 2>&1 || {
+				echo "failed to enable continuous recording" >&2
+				return 1
+			}
+			printf '{"status":"accepted","action":"continuous","stream_id":%s}\n' \
+				"$(thingino_agent_json_value_or "$channel" 0)"
+			return 0
+			;;
+	esac
+
+	duration=$arg1
+	# Prefer motion-clip helper; falls back to RMR timed start.
 	if raptorctl test-motion "$duration" >/dev/null 2>&1; then
 		printf '{"status":"accepted","result":{"path":%s}}\n' "$(thingino_agent_json_string "$file")"
 		return 0
 	fi
+	thingino_agent_raptor_ensure_rmr || true
 	raptorctl rmr start >/dev/null 2>&1 || {
 		echo "record action is not supported on this camera" >&2
 		return 1
