@@ -4,10 +4,18 @@ THINGINO_SOUNDS_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-sounds
 THINGINO_SOUNDS_LICENSE = CC0
 THINGINO_SOUNDS_LICENSE_FILES = LICENSE
 
-THINGINO_SOUNDS_FORMAT=opus
+THINGINO_SOUNDS_FORMAT=$(if $(BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711),wav,opus)
 
 define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/sounds
+
+	# Buildroot shares one target dir across incremental rebuilds and never
+	# removes files a package installed in a previous configuration. Switching
+	# the format (e.g. OPUS -> G.711) would otherwise leave the old format's
+	# files behind, shipping both sets and bloating a flash-constrained rootfs.
+	# Clear this package's sound files (both formats) before installing so only
+	# the selected format is ever present.
+	rm -f $(TARGET_DIR)/usr/share/sounds/*.opus $(TARGET_DIR)/usr/share/sounds/*.wav
 
 	# welcome message
 	if [ "$(BR2_PACKAGE_THINGINO_SOUNDS_STARTUP)" = "y" ]; then \
