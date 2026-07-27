@@ -1771,6 +1771,7 @@ thingino_agent_adapter_raptor_set_setting() {
 			else
 				microphone off >/dev/null 2>&1 || return 1
 			fi
+			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" mic_enabled "$value"
 			;;
 		audio/spk-enabled)
@@ -1781,6 +1782,7 @@ thingino_agent_adapter_raptor_set_setting() {
 			else
 				speaker off >/dev/null 2>&1 || return 1
 			fi
+			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" spk_enabled "$value"
 			;;
 		motion/enabled)
