@@ -16,6 +16,19 @@
     "image_width",
     "image_height",
   ];
+  // Raptor ROD privacy element is global; expose the fields the privacy page shows.
+  const raptorOsdFields = ["enabled", "text", "fill_color", "stroke_color"];
+  const raptorUnsupportedFields = [
+    "layer",
+    "opacity",
+    "position",
+    "rotation",
+    "font_size",
+    "stroke_size",
+    "image_path",
+    "image_width",
+    "image_height",
+  ];
   const numericFields = new Set([
     "layer",
     "opacity",
@@ -38,6 +51,15 @@
   const saveButton = $("#privacy-save");
   const form = $("#privacy-form");
 
+  function agentApi() {
+    return window.thinginoStreamerAgent || null;
+  }
+
+  function isRaptorAgent() {
+    const agent = agentApi();
+    return !!(agent && agent.isRaptor && agent.isRaptor() && agent.preferAgent());
+  }
+
   function toggleInitialLoading(active) {
     if (!contentWrap) return;
     if (active) {
@@ -56,7 +78,7 @@
   }
 
   async function persistPrudyntConfig() {
-    const agent = window.thinginoStreamerAgent;
+    const agent = agentApi();
     const confirmed = await confirm(
       (agent && agent.saveConfirmMessage && agent.saveConfirmMessage()) ||
         "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
@@ -109,6 +131,35 @@
         const el = $(`#privacy${streamId}_${field}`);
         if (el) el.disabled = true;
       });
+    });
+  }
+
+  function hideField(streamId, field) {
+    const el = $(`#privacy${streamId}_${field}`);
+    if (!el) return;
+    const wrap =
+      el.closest(".mb-3, .col, .form-check, .row > div, p") || el.parentElement;
+    if (wrap) wrap.classList.add("d-none");
+    el.disabled = true;
+  }
+
+  function hideRaptorUnsupportedUi() {
+    // Global ROD privacy element — only stream0 controls apply.
+    raptorUnsupportedFields.forEach((field) => hideField(0, field));
+    ["fill_alpha", "stroke_alpha"].forEach((field) => hideField(0, field));
+    const stream1Root =
+      $("#privacy-stream-1") ||
+      ($("#privacy1_enabled") &&
+        $("#privacy1_enabled").closest(".col, .card, section"));
+    if (stream1Root) stream1Root.classList.add("d-none");
+    streamIds.slice(1).forEach((streamId) => {
+      [
+        ...standardFields,
+        "fill_color",
+        "stroke_color",
+        "fill_alpha",
+        "stroke_alpha",
+      ].forEach((field) => hideField(streamId, field));
     });
   }
 
@@ -169,14 +220,33 @@
     const alphaHex = Number.isInteger(safeAlpha)
       ? safeAlpha.toString(16).padStart(2, "0").toUpperCase()
       : "FF";
+    if (isRaptorAgent()) {
+      // Raptor / agent OSD colors are #AARRGGBB.
+      return "#" + alphaHex + safeColor.slice(1);
+    }
     return safeColor + alphaHex;
   }
 
   function splitHexColor(hex8) {
-    if (typeof hex8 !== "string" || !/^#[0-9a-fA-F]{8}$/.test(hex8.trim())) {
+    if (typeof hex8 !== "string") {
       return { color: "#000000", alpha: 255 };
     }
-    const normalized = hex8.trim().toUpperCase();
+    let normalized = hex8.trim();
+    if (/^0x[0-9a-fA-F]{8}$/i.test(normalized)) {
+      normalized = "#" + normalized.slice(2).toUpperCase();
+    }
+    if (!/^#[0-9a-fA-F]{8}$/.test(normalized)) {
+      return { color: "#000000", alpha: 255 };
+    }
+    normalized = normalized.toUpperCase();
+    if (isRaptorAgent()) {
+      // #AARRGGBB
+      return {
+        color: "#" + normalized.substring(3, 9),
+        alpha: parseInt(normalized.substring(1, 3), 16),
+      };
+    }
+    // #RRGGBBAA (prudynt)
     return {
       color: normalized.substring(0, 7),
       alpha: parseInt(normalized.substring(7, 9), 16),
@@ -204,9 +274,13 @@
     let resolved = value;
     if (field === "font_size") {
       const num = Number(value);
-      resolved = Number.isFinite(num)
-        ? Math.max(0, Math.round(num / FontSizeScale))
-        : "";
+      if (isRaptorAgent()) {
+        resolved = Number.isFinite(num) ? Math.max(0, Math.round(num)) : "";
+      } else {
+        resolved = Number.isFinite(num)
+          ? Math.max(0, Math.round(num / FontSizeScale))
+          : "";
+      }
     }
     if (el.type === "checkbox") {
       el.checked = Boolean(resolved);
@@ -231,6 +305,29 @@
     });
   }
 
+  async function loadRaptorPrivacyConfig() {
+    const agent = agentApi();
+    const privacy = {};
+    const results = await Promise.all(
+      raptorOsdFields.map(async (field) => {
+        const leaf = field.replace(/_/g, "-");
+        const data = await agent.agentRequest(
+          `/api/v1/settings/streams/0/osd/privacy/${leaf}`,
+          { cache: "no-store" },
+        );
+        return { field, data };
+      }),
+    );
+    results.forEach(({ field, data }) => {
+      if (!data || typeof data !== "object") return;
+      if (Object.prototype.hasOwnProperty.call(data, field)) {
+        privacy[field] = data[field];
+      }
+    });
+    hideRaptorUnsupportedUi();
+    applyPrivacyConfig(0, privacy);
+  }
+
   async function loadPrivacyConfig(options = {}) {
     const { silent = false } = options;
     let success = false;
@@ -240,38 +337,8 @@
       setReloadBusy(true);
     }
     try {
-      const agent = window.thinginoStreamerAgent;
-      if (agent && agent.isRaptor && agent.isRaptor() && agent.preferAgent()) {
-        const data = await agent.agentRequest(
-          "/api/v1/settings/privacy/enabled",
-          { cache: "no-store" },
-        );
-        applyPrivacyConfig(0, { enabled: !!(data && data.enabled) });
-        // Hide stream1 / OSD privacy extras on raptor
-        streamIds.forEach((streamId) => {
-          [
-            ...standardFields.filter((f) => f !== "enabled"),
-            "fill_color",
-            "stroke_color",
-            "fill_alpha",
-            "stroke_alpha",
-          ].forEach((field) => {
-            const el = $(`#privacy${streamId}_${field}`);
-            if (!el) return;
-            const wrap =
-              el.closest(".mb-3, .col, .form-check, .row > div") ||
-              el.parentElement;
-            if (wrap) wrap.classList.add("d-none");
-            el.disabled = true;
-          });
-          if (streamId === 1) {
-            const section = $("#privacy-stream-1") || $(`#privacy1_enabled`);
-            if (section && section.closest) {
-              const wrap = section.closest(".card, .mb-4, section") || section.parentElement;
-              if (wrap) wrap.classList.add("d-none");
-            }
-          }
-        });
+      if (isRaptorAgent()) {
+        await loadRaptorPrivacyConfig();
         success = true;
         return true;
       }
@@ -301,30 +368,41 @@
     }
   }
 
+  async function sendRaptorPrivacyUpdate(streamId, payload) {
+    const agent = agentApi();
+    // Raptor privacy OSD is global; ignore stream1 edits.
+    if (streamId !== 0) {
+      showAlert(
+        "info",
+        "Raptor privacy OSD is global; edits apply via the main stream controls.",
+        4000,
+      );
+      return;
+    }
+    const patches = Object.keys(payload).map((key) => {
+      const leaf = key.replace(/_/g, "-");
+      return agent.agentRequest(
+        `/api/v1/settings/streams/0/osd/privacy/${leaf}`,
+        {
+          method: "PATCH",
+          body: { [key]: payload[key] },
+          cache: "no-store",
+        },
+      );
+    });
+    const results = await Promise.all(patches);
+    const updated = { ...payload };
+    results.forEach((data) => {
+      if (!data || !data.resource || typeof data.resource !== "object") return;
+      Object.assign(updated, data.resource);
+    });
+    applyPrivacyConfig(0, updated);
+  }
+
   async function sendPrivacyUpdate(streamId, payload) {
     try {
-      const agent = window.thinginoStreamerAgent;
-      if (
-        agent &&
-        agent.preferAgent &&
-        agent.preferAgent() &&
-        Object.prototype.hasOwnProperty.call(payload, "enabled") &&
-        Object.keys(payload).length === 1
-      ) {
-        await agent.agentRequest("/api/v1/actions/privacy", {
-          method: "POST",
-          body: { enabled: !!payload.enabled },
-          cache: "no-store",
-        });
-        applyPrivacyConfig(streamId, { enabled: !!payload.enabled });
-        return;
-      }
-      if (agent && agent.isRaptor && agent.isRaptor()) {
-        showAlert(
-          "warning",
-          "Detailed privacy OSD controls are not available on raptor yet.",
-          4000,
-        );
+      if (isRaptorAgent()) {
+        await sendRaptorPrivacyUpdate(streamId, payload);
         return;
       }
 
@@ -380,7 +458,7 @@
       return;
     }
     let payloadValue = value;
-    if (field === "font_size") {
+    if (field === "font_size" && !isRaptorAgent()) {
       payloadValue = Math.max(0, Math.round(value * FontSizeScale));
     }
     sendPrivacyUpdate(streamId, { [field]: payloadValue });
