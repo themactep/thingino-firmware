@@ -35,13 +35,16 @@ ifeq ($(BR2_PACKAGE_TIMPS_SRT),y)
 	TIMPS_DEPENDENCIES += libsrt
 endif
 
-# Audio backchannel: timps only runtime-execs /bin/iac, it does NOT link the
-# audiodaemon - so we deliberately do NOT depend on/select ingenic-audiodaemon
-# here (that pulls libwebsockets, which fails on some uClibc toolchains). Enable
-# BR2_PACKAGE_INGENIC_AUDIODAEMON separately if you want /bin/iac on the image.
-# AAC decode, however, IS linked, so libhelix-aac stays a hard dependency.
+# Audio backchannel drives the speaker via native IMP_AO now (no /bin/iac /
+# ingenic-audiodaemon dependency). AAC backchannel decode IS linked, so
+# libhelix-aac stays a hard dependency when it is enabled.
 ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
 	TIMPS_DEPENDENCIES += libhelix-aac
+endif
+
+# Opus playback in the play queue links opusfile (which pulls opus + libogg).
+ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
+	TIMPS_DEPENDENCIES += opusfile
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -85,6 +88,10 @@ ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
 	TIMPS_LIBS += -lhelix-aac
 endif
 
+ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
+	TIMPS_LIBS += -lopusfile -lopus -logg
+endif
+
 # Ingenic SDK blobs (libimp/libalog/libsysutils) reference libc symbols their
 # original vendor toolchain exported that modern uClibc-ng/musl dropped (e.g.
 # the glibc-2.2-era __ctype_b/__ctype_tolower bare-pointer symbols T10/T20/T21/
@@ -123,6 +130,10 @@ define TIMPS_BUILD_CMDS
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
 		HELIXLIB="-lhelix-aac" \
 		HELIX_INC=$(STAGING_DIR)/usr/include \
+		USE_PLAY=$(if $(BR2_PACKAGE_TIMPS_PLAY),1,0) \
+		USE_PLAY_OPUS=$(if $(BR2_PACKAGE_TIMPS_PLAY_OPUS),1,0) \
+		OPUSLIB="-lopusfile -lopus -logg" \
+		OPUS_INC=$(STAGING_DIR)/usr/include \
 		-C $(@D) target
 endef
 
@@ -148,6 +159,15 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# Install the self-test helper
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
 		$(TARGET_DIR)/usr/bin/timps-selftest
+
+	# System-sound play wrapper: enqueues PLAY/STOP onto timps's /run/timps/
+	# audio_out FIFO (native IMP_AO). Same interface prudynt/raptor ship, so the
+	# WiFi-portal / sysupgrade-chime / ESPHome media_player integrations that
+	# shell out to `play` work on a timps image too.
+	if [ "$(BR2_PACKAGE_TIMPS_PLAY)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/play \
+			$(TARGET_DIR)/usr/sbin/play; \
+	fi
 
 	# Motion->send2 bridge. timps.conf's motion.on_motion points at this path, so
 	# install it unconditionally: otherwise imp_motion.c runs system() on a

@@ -8,7 +8,8 @@
  *        caps.audio (the SoC capability matrix); the persist+restart keys
  *        (codec/samplerate/bitrate) are deliberately NOT in caps.audio, so
  *        they enable when the audio object carries them. Speaker and stereo
- *        controls stay greyed out: timps has no audio-output (AO) pipeline.
+ *        controls stay greyed out: timps drives the speaker natively for the
+ *        backchannel/play queue but exposes no live AO-volume control endpoint.
  * Save:  LIVE keys (volume/gain/alc_gain/high_pass/agc/agc_target_dbfs/
  *        agc_compression_db/ns) go straight to timpsApi.set({audio:{...}}),
  *        debounced so slider drags coalesce into one POST; timps applies
@@ -44,11 +45,10 @@
     audio_mic_format: { key: "codec", live: false },
     audio_mic_sample_rate: { key: "samplerate", live: false },
     audio_mic_bitrate: { key: "bitrate", live: false },
-    // ONVIF backchannel (client -> camera speaker via /bin/iac): a separate
-    // pipeline from the AO controls below, gated on caps.backchannel.available
-    // (compiled in AND /bin/iac present) instead of "value present in audio{}"
-    // - the backend always echoes these three keys even when the feature is
-    // compiled out, so BC_FIELDS gets its own enable check in load().
+    // ONVIF backchannel (client -> camera speaker via native IMP_AO): gated on
+    // caps.backchannel.available (compiled in) instead of "value present in
+    // audio{}" - the backend always echoes these three keys even when the
+    // feature is compiled out, so BC_FIELDS gets its own enable check in load().
     audio_backchannel_enabled: { key: "backchannel", live: false },
     audio_backchannel_codec: { key: "backchannel_codec", live: false },
     audio_backchannel_rate: { key: "backchannel_rate", live: false },
@@ -60,9 +60,9 @@
     "audio_backchannel_rate",
   ];
 
-  // no audio output (AO) pipeline in timps: these controls never enable.
-  // (Distinct from the backchannel card above, which uses its own /bin/iac
-  // speaker path and is NOT covered by this limitation.)
+  // no live AO-volume control endpoint in timps: these controls never enable.
+  // (The speaker itself is driven natively by IMP_AO for the backchannel and
+  // play queue; there is just no runtime volume/stereo control surface here.)
   var UNSUPPORTED = [
     "audio_spk_vol",
     "audio_spk_gain",
@@ -217,7 +217,7 @@
       el.addEventListener("change", function () { send(id); });
     });
 
-    // speaker + stereo: no AO pipeline in timps, keep greyed out + a note
+    // speaker + stereo: no live AO-volume control surface, keep greyed out + a note
     UNSUPPORTED.forEach(function (id) { setEnabled(id, false); });
     var spkHead = Array.prototype.find.call(
       document.querySelectorAll("main h4"),
@@ -228,9 +228,9 @@
       note.id = "timps-no-ao-note";
       note.className = "d-block text-warning";
       note.textContent =
-        "Not available: timps has no direct audio-output pipeline for these " +
+        "Not available: timps exposes no live speaker-volume control for these " +
         "controls, and stereo capture is not supported either. (ONVIF two-way " +
-        "audio uses a separate /bin/iac backchannel - see below.)";
+        "audio plays through the camera speaker natively - see below.)";
       spkHead.parentNode.insertBefore(note, spkHead.nextSibling);
     }
 
@@ -300,7 +300,7 @@
 
         // backchannel keys are always echoed in audio{} even when the
         // feature is compiled out, so gate them on caps.backchannel.available
-        // (USE_BACKCHANNEL compiled in AND /bin/iac present) instead.
+        // (USE_BACKCHANNEL compiled in; speaker output is native IMP_AO) instead.
         var bcAvailable = !!(
           json.caps &&
           json.caps.backchannel &&
@@ -317,8 +317,8 @@
               bcNote.id = "timps-no-bc-note";
               bcNote.className = "d-block text-warning mb-2";
               bcNote.textContent =
-                "Not available: backchannel is either not compiled into this " +
-                "build or /bin/iac (ingenic-audiodaemon) is missing on the device.";
+                "Not available: the audio backchannel is not compiled into this " +
+                "build.";
               body.insertBefore(bcNote, body.firstChild);
             }
           }
