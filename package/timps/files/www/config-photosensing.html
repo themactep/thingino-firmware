@@ -87,21 +87,55 @@
                 </p>
               </div>
               <div class="col">
-                <h4>Time Schedule</h4>
-                <small>Enable/disable photosensing at specific times</small>
-                <p class="form-switch mt-3">
-                  <input type="hidden" id="daynight_schedule_enabled-false" name="daynight_schedule_enabled" value="false">
-                  <input type="checkbox" id="daynight_schedule_enabled" name="daynight_schedule_enabled" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_schedule_enabled" class="form-check-label">Use time-based schedule</label>
+                <h4>Override Mode</h4>
+                <small>Choose what drives the Day/Night decision</small>
+                <p class="mt-3">
+                  <label for="daynight_mode" class="form-label">Decision source</label>
+                  <select id="daynight_mode" name="daynight_mode" class="form-select">
+                    <option value="sensor">Sensor (light level)</option>
+                    <option value="time">Fixed time window</option>
+                    <option value="sun">Sunrise / sunset</option>
+                  </select>
                 </p>
-                <p>
-                  <label for="daynight_schedule_start_at">Start photosensing at</label>
-                  <input type="time" id="daynight_schedule_start_at" name="daynight_schedule_start_at" class="form-control" value="">
-                </p>
-                <p>
-                  <label for="daynight_schedule_stop_at">Stop photosensing at</label>
-                  <input type="time" id="daynight_schedule_stop_at" name="daynight_schedule_stop_at" class="form-control" value="">
-                </p>
+
+                <!-- Fixed time window (mode=time) -->
+                <div id="daynight_time_fields" hidden>
+                  <p>
+                    <label for="daynight_time_night_start">Switch to night at</label>
+                    <input type="time" id="daynight_time_night_start" name="daynight_time_night_start" class="form-control" value="">
+                  </p>
+                  <p>
+                    <label for="daynight_time_day_start">Switch to day at</label>
+                    <input type="time" id="daynight_time_day_start" name="daynight_time_day_start" class="form-control" value="">
+                  </p>
+                  <small class="text-secondary">Local camera clock. The night window may wrap past midnight (e.g. night 20:00, day 06:30).</small>
+                </div>
+
+                <!-- Sunrise / sunset (mode=sun) -->
+                <div id="daynight_sun_fields" hidden>
+                  <div class="row g-2">
+                    <p class="col">
+                      <label for="daynight_sun_latitude">Latitude</label>
+                      <input type="number" step="any" id="daynight_sun_latitude" name="daynight_sun_latitude" class="form-control text-end" value="" placeholder="52.52">
+                    </p>
+                    <p class="col">
+                      <label for="daynight_sun_longitude">Longitude</label>
+                      <input type="number" step="any" id="daynight_sun_longitude" name="daynight_sun_longitude" class="form-control text-end" value="" placeholder="13.40">
+                    </p>
+                  </div>
+                  <div class="row g-2">
+                    <p class="col">
+                      <label for="daynight_sun_sunrise_offset_min">Sunrise offset (min)</label>
+                      <input type="number" step="1" id="daynight_sun_sunrise_offset_min" name="daynight_sun_sunrise_offset_min" class="form-control text-end" value="" placeholder="0">
+                    </p>
+                    <p class="col">
+                      <label for="daynight_sun_sunset_offset_min">Sunset offset (min)</label>
+                      <input type="number" step="1" id="daynight_sun_sunset_offset_min" name="daynight_sun_sunset_offset_min" class="form-control text-end" value="" placeholder="0">
+                    </p>
+                  </div>
+                  <small class="text-secondary">Positive/negative minutes shift the switch relative to the real sun (e.g. -30 = switch to night 30 min before sunset). Today at this location:
+                    day <span id="daynight_sun_computed_sunrise">--:--</span> &rarr; night <span id="daynight_sun_computed_sunset">--:--</span>.</small>
+                </div>
               </div>
             </div>
           </div>

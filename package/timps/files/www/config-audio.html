@@ -135,7 +135,7 @@
               <p class="col number-range">
                 <label for="audio_spk_vol">Speaker volume</label>
                 <span class="input-group">
-                  <input type="text" id="audio_spk_vol" name="audio_spk_vol" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="-30" data-max="120" data-step="1">
+                  <input type="text" id="audio_spk_vol" name="audio_spk_vol" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
                   <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                 </span>
               </p>
@@ -153,13 +153,32 @@
                 </select>
               </p>
             </div><!-- .row -->
+
+            <!-- test-sound control: shown by config-audio.js only when the
+                 play queue is compiled in (caps.play.available) -->
+            <div class="row row-cols-1 row-cols-md-2 mb-1 d-none" id="spk-test-wrap">
+              <p class="col select">
+                <label for="audio_spk_test_sound">Test sound</label>
+                <select class="form-select" id="audio_spk_test_sound" name="audio_spk_test_sound">
+                  <option value="">- Select sound -</option>
+                </select>
+              </p>
+              <p class="col align-self-end">
+                <button type="button" id="audio_spk_test_play" class="btn btn-outline-primary">
+                  <i class="bi bi-play-fill me-1"></i> Play
+                </button>
+                <button type="button" id="audio_spk_test_stop" class="btn btn-outline-secondary">
+                  <i class="bi bi-stop-fill me-1"></i> Stop
+                </button>
+              </p>
+            </div><!-- #spk-test-wrap -->
           </div><!-- .card-body -->
         </div><!-- .card -->
 
         <div class="card mb-3" id="backchannel-card">
           <div class="card-header">
             <h2 class="card-title">ONVIF Audio Backchannel</h2>
-            <small>Two-way audio: an ONVIF client sends audio to the camera over RTSP, played out via <code>/bin/iac</code>. Requires the <code>ingenic-audiodaemon</code> package on the device. Changes apply after a streamer restart.</small>
+            <small>Two-way audio: an ONVIF client sends audio to the camera over RTSP, played out natively through the camera speaker (IMP_AO). Changes apply after a streamer restart.</small>
           </div><!-- .card-header -->
           <div class="card-body">
             <div class="row row-cols-1 row-cols-md-3 mb-3">
