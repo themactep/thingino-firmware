@@ -2,7 +2,7 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = a03923a4bc1c916d8faf536c207fdfb2c7a39a3c
+PRUDYNT_T_VERSION = bf446f5e41fd8008f144aee926b8d6b7f26d0ed2
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
