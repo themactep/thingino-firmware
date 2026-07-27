@@ -1,13 +1,15 @@
 #!/bin/sh
 
-# Set up the timezone
+# Do NOT export TZ here: every daemon started below inherits it, and with TZ
+# set in the environment uClibc-ng's localtime_r() stops re-reading /etc/TZ on
+# every call - a daemon started at boot then never notices a LATER timezone
+# change (e.g. via the WebUI) without being restarted, even though the file
+# on disk is correct. Leaving TZ unset in the boot environment lets every
+# long-running daemon (timps/raptor/prudynt-t alike, no code changes needed)
+# pick up /etc/TZ edits live. Interactive shells still get TZ exported fresh
+# on each login via /etc/profile, so this only affects daemons.
 TZCODE_FILE="/etc/TZ"
-if [ -s "$TZCODE_FILE" ]; then
-	TZ="$(cat $TZCODE_FILE)"
-	export TZ
-else
-	echo -c 240 -e "- Cannot find $TZCODE_FILE"
-fi
+[ -s "$TZCODE_FILE" ] || echo -c 240 -e "- Cannot find $TZCODE_FILE"
 
 # Run init scripts in numerical order
 for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
