@@ -64,12 +64,17 @@ endef
 # files - only ever references the one format this image actually ships.
 # Resolve it here, once, at build time: this package is what decides
 # THINGINO_SOUNDS_FORMAT in the first place.
+#
+# Must be a ROOTFS_PRE_CMD_HOOKS entry, not TARGET_FINALIZE_HOOKS: overlay
+# files (BR2_ROOTFS_OVERLAY, which is where S97sysupgrade actually comes
+# from) are copied into TARGET_DIR at the END of target-finalize's own
+# recipe, AFTER its TARGET_FINALIZE_HOOKS loop already ran - so a
+# finalize hook never actually sees the overlay-placed file.
+# ROOTFS_PRE_CMD_HOOKS runs per rootfs-image-format, on the copy rsync'd
+# from the now-fully-finalized (overlay included) target tree.
 define THINGINO_SOUNDS_FIX_SYSUPGRADE_SOUND
-	if [ -f $(TARGET_DIR)/etc/init.d/S97sysupgrade ]; then \
-		sed -i "s,@SOUND_EXT@,$(THINGINO_SOUNDS_FORMAT),g" \
-			$(TARGET_DIR)/etc/init.d/S97sysupgrade; \
-	fi
+	if [ -f $(TARGET_DIR)/etc/init.d/S97sysupgrade ]; then sed -i "s,@SOUND_EXT@,$(THINGINO_SOUNDS_FORMAT),g" $(TARGET_DIR)/etc/init.d/S97sysupgrade; fi
 endef
-THINGINO_SOUNDS_TARGET_FINALIZE_HOOKS += THINGINO_SOUNDS_FIX_SYSUPGRADE_SOUND
+ROOTFS_PRE_CMD_HOOKS += THINGINO_SOUNDS_FIX_SYSUPGRADE_SOUND
 
 $(eval $(generic-package))
