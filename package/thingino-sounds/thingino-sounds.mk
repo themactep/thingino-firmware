@@ -66,4 +66,18 @@ define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	fi
 endef
 
+# S97sysupgrade (overlay/etc/init.d/, not owned by this package) plays the
+# post-upgrade chime and references a @SOUND_EXT@ placeholder instead of a
+# hardcoded extension, so it - like every other consumer of these sound
+# files - only ever references the one format this image actually ships.
+# Resolve it here, once, at build time: this package is what decides
+# THINGINO_SOUNDS_FORMAT in the first place.
+define THINGINO_SOUNDS_FIX_SYSUPGRADE_SOUND
+	if [ -f $(TARGET_DIR)/etc/init.d/S97sysupgrade ]; then \
+		sed -i "s,@SOUND_EXT@,$(THINGINO_SOUNDS_FORMAT),g" \
+			$(TARGET_DIR)/etc/init.d/S97sysupgrade; \
+	fi
+endef
+THINGINO_SOUNDS_TARGET_FINALIZE_HOOKS += THINGINO_SOUNDS_FIX_SYSUPGRADE_SOUND
+
 $(eval $(generic-package))
