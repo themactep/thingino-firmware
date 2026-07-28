@@ -144,7 +144,10 @@
         type: "dropdown",
         id: "ddServices",
         label: "Services",
-        items: [{ label: "Home Assistant", href: "/config-ha.html" }],
+        items: [
+          { label: "Home Assistant", href: "/config-ha.html" },
+          { label: "Hub Pairing", href: "/tool-agent-pair.html" },
+        ],
       },
       {
         type: "dropdown",
