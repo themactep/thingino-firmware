@@ -617,12 +617,18 @@ else
 UBOOT_BOARD_FLASH := nor
 endif
 
-# Flash type used for U-Boot defconfig lookup
-ifeq ($(BR2_THINGINO_FLASH_NAND),y)
-UBOOT_BOARD_FLASH := nand
+# Kconfig choice suffix for the kernel SFC NAND mtd-id: the mtdparts= mtd-id in
+# the generated bootargs must match the kernel driver's mtd name, which differs
+# per SoC kernel tree ("sfc_nand" on the t40 4.4 tree, "sfc0_nand" on t41).
+# Substituted into flash-nand.fragment by SED_CONFIG_VARS.
+ifeq ($(SOC_FAMILY),t41)
+NAND_FLASH_CONTROLLER_SYM := SFC0_NAND
+NAND_FLASH_CONTROLLER := sfc0_nand
 else
-UBOOT_BOARD_FLASH := nor
+NAND_FLASH_CONTROLLER_SYM := SFC_NAND
+NAND_FLASH_CONTROLLER := sfc_nand
 endif
+export NAND_FLASH_CONTROLLER_SYM
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
 	UBOOT_FLASH_CONTROLLER := jz_sfc
@@ -638,6 +644,12 @@ else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC1_NAND),y)
 	UBOOT_FLASH_CONTROLLER := sfc1_nand
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM),y)
 	UBOOT_FLASH_CONTROLLER := $(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING))
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	# The top-level make only includes the camera defconfig (board.mk), not the
+	# fragments, so the FLASH_CONTROLLER choice set by flash-nand.fragment is
+	# invisible here unless the camera defconfig sets it. Fall back to the same
+	# per-SoC NAND mtd-id the fragment resolves to.
+	UBOOT_FLASH_CONTROLLER := $(NAND_FLASH_CONTROLLER)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
