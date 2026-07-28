@@ -40928,7 +40928,7 @@ index 453c7885..1b281884 100644
  machine-$(CONFIG_ARCH_MTMIPS) += mtmips
  machine-$(CONFIG_ARCH_MSCC) += mscc
 diff --git a/arch/mips/dts/Makefile b/arch/mips/dts/Makefile
-index 7c4ee8b6..5628f8c1 100644
+index 7c4ee8b6..52bf2459 100644
 --- a/arch/mips/dts/Makefile
 +++ b/arch/mips/dts/Makefile
 @@ -30,6 +30,29 @@ dtb-$(CONFIG_BOARD_SFR_NB4_SER) += sfr,nb4-ser.dtb
@@ -40937,7 +40937,7 @@ index 7c4ee8b6..5628f8c1 100644
  dtb-$(CONFIG_TARGET_JZ4780_CI20) += ci20.dtb
 +dtb-$(CONFIG_TARGET_ISVP_T10) += t10n-isvp.dtb t10l-isvp.dtb \
 +	t10n-isvp-dfu.dtb t10l-isvp-dfu.dtb
-+dtb-$(CONFIG_TARGET_ISVP_T20) += t20n-isvp.dtb t20x-isvp.dtb \
++dtb-$(CONFIG_TARGET_ISVP_T20) += t20n-isvp.dtb t20x-isvp.dtb t20l-isvp.dtb \
 +	t20l-isvp-dfu.dtb t20n-isvp-dfu.dtb t20x-isvp-dfu.dtb
 +dtb-$(CONFIG_TARGET_ISVP_T21) += t21n-isvp.dtb t21hp-isvp.dtb \
 +	t21n-isvp-dfu.dtb t21hp-isvp-dfu.dtb
@@ -40951,8 +40951,8 @@ index 7c4ee8b6..5628f8c1 100644
 +	t30l-isvp-dfu.dtb t30n-isvp-dfu.dtb t30x-isvp-dfu.dtb \
 +	t30a-isvp-dfu.dtb
 +dtb-$(CONFIG_TARGET_ISVP_T31) += t31x-isvp.dtb t31n-isvp.dtb t31l-isvp.dtb \
-+	t31a-isvp.dtb t31l-isvp-dfu.dtb t31a-isvp-dfu.dtb \
-+	t31n-isvp-dfu.dtb t31x-isvp-dfu.dtb
++	t31a-isvp.dtb t31lc-isvp.dtb t31l-isvp-dfu.dtb t31a-isvp-dfu.dtb \
++	t31n-isvp-dfu.dtb t31x-isvp-dfu.dtb t31lc-isvp-dfu.dtb
 +dtb-$(CONFIG_TARGET_ISVP_T32) += t32lq-isvp.dtb t32nq-isvp.dtb \
 +	t32vn-isvp.dtb t32xq-isvp.dtb t32vx-isvp.dtb t32vnp-isvp.dtb \
 +	t32lq-isvp-dfu.dtb t32vn-isvp-dfu.dtb t32nq-isvp-dfu.dtb \
@@ -41839,10 +41839,10 @@ index 00000000..07193c24
 +#endif
 diff --git a/arch/mips/dts/t10.dtsi b/arch/mips/dts/t10.dtsi
 new file mode 100644
-index 00000000..c210400c
+index 00000000..7dfa40ff
 --- /dev/null
 +++ b/arch/mips/dts/t10.dtsi
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,277 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t10-cgu.h>
@@ -41897,6 +41897,22 @@ index 00000000..c210400c
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * contract (vendor cgu_clk_sel: VPU, ISP, CIM and MACPHY
++		 * all from MPLL; single-bit muxes, no VPLL routing). The
++		 * 3.10 kernel computes leaf rates on whatever parent it
++		 * inherits, so the inherited selector is the contract.
++		 * Parents only, no rates.
++		 */
++		assigned-clocks = <&cgu T10_CLK_VPU>,
++				  <&cgu T10_CLK_ISP>,
++				  <&cgu T10_CLK_CIM>,
++				  <&cgu T10_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T10_CLK_MPLL>,
++					 <&cgu T10_CLK_MPLL>,
++					 <&cgu T10_CLK_MPLL>,
++					 <&cgu T10_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -42114,10 +42130,10 @@ index 00000000..26cb3f88
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10l-isvp-dfu.dts b/arch/mips/dts/t10l-isvp-dfu.dts
 new file mode 100644
-index 00000000..f8386d79
+index 00000000..4fe16cfa
 --- /dev/null
 +++ b/arch/mips/dts/t10l-isvp-dfu.dts
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,86 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T10, DFU/USB-boot loader variant.
@@ -42191,6 +42207,7 @@ index 00000000..f8386d79
 +		2					/* cdr (DDR = MPLL/3 = 400) */
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
++		0x00645a1c				/* APLL frac -> 712.704 MHz */
 +	>;
 +};
 +
@@ -42220,10 +42237,10 @@ index 00000000..94be6c19
 +#endif
 diff --git a/arch/mips/dts/t10l-isvp.dts b/arch/mips/dts/t10l-isvp.dts
 new file mode 100644
-index 00000000..5d73e18c
+index 00000000..352e1427
 --- /dev/null
 +++ b/arch/mips/dts/t10l-isvp.dts
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,81 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +/dts-v1/;
@@ -42302,6 +42319,7 @@ index 00000000..5d73e18c
 +		2					/* cdr (DDR = MPLL/3 = 400) */
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
++		0x00645a1c				/* APLL frac -> 712.704 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t10n-isvp-dfu-u-boot.dtsi b/arch/mips/dts/t10n-isvp-dfu-u-boot.dtsi
@@ -42314,10 +42332,10 @@ index 00000000..26cb3f88
 +#include "t10-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t10n-isvp-dfu.dts b/arch/mips/dts/t10n-isvp-dfu.dts
 new file mode 100644
-index 00000000..350954b6
+index 00000000..5b544bc5
 --- /dev/null
 +++ b/arch/mips/dts/t10n-isvp-dfu.dts
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,86 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T10, DFU/USB-boot loader variant.
@@ -42391,6 +42409,7 @@ index 00000000..350954b6
 +		2					/* cdr (DDR = MPLL/3 = 400) */
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 +
@@ -42420,10 +42439,10 @@ index 00000000..8f1810c4
 +#endif
 diff --git a/arch/mips/dts/t10n-isvp.dts b/arch/mips/dts/t10n-isvp.dts
 new file mode 100644
-index 00000000..eca930cf
+index 00000000..482bfaa5
 --- /dev/null
 +++ b/arch/mips/dts/t10n-isvp.dts
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,81 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +/dts-v1/;
@@ -42502,6 +42521,7 @@ index 00000000..eca930cf
 +		2					/* cdr (DDR = MPLL/3 = 400) */
 +		0x00c20001				/* REFCNT */
 +		0x00000a73 0x00220014 0x05013880	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t20-isvp-dfu-uboot-common.dtsi b/arch/mips/dts/t20-isvp-dfu-uboot-common.dtsi
@@ -42910,10 +42930,10 @@ index 00000000..b5ec2b2f
 +};
 diff --git a/arch/mips/dts/t20.dtsi b/arch/mips/dts/t20.dtsi
 new file mode 100644
-index 00000000..eb97da05
+index 00000000..5652d5b1
 --- /dev/null
 +++ b/arch/mips/dts/t20.dtsi
-@@ -0,0 +1,253 @@
+@@ -0,0 +1,270 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t20-cgu.h>
@@ -42968,6 +42988,23 @@ index 00000000..eb97da05
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * contract, measured on silicon (bench Wyze V2 T20X,
++		 * legacy loader): VPU and ISP from MPLL, CIM from VPLL
++		 * (the cgu probe brings VPLL up at 1200 MHz with the
++		 * measured vendor word). The 3.10 kernel computes leaf
++		 * rates on whatever parent it inherits, so the inherited
++		 * selector is the contract. Parents only, no rates.
++		 */
++		assigned-clocks = <&cgu T20_CLK_VPU>,
++				  <&cgu T20_CLK_ISP>,
++				  <&cgu T20_CLK_CIM>,
++				  <&cgu T20_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T20_CLK_MPLL>,
++					 <&cgu T20_CLK_MPLL>,
++					 <&cgu T20_CLK_VPLL>,
++					 <&cgu T20_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -43177,10 +43214,10 @@ index 00000000..88e33d94
 +#include "t20-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t20l-isvp-dfu.dts b/arch/mips/dts/t20l-isvp-dfu.dts
 new file mode 100644
-index 00000000..5529aaf2
+index 00000000..db51d463
 --- /dev/null
 +++ b/arch/mips/dts/t20l-isvp-dfu.dts
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20L, DFU/USB-boot loader variant (lowest T20 SKU; all T20
@@ -43198,7 +43235,7 @@ index 00000000..5529aaf2
 +&ddr {
 +	/* T20L: DDR2 64 MB M14D5121632A (4-bank), CPU 712 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x03b08900 0x07d0c900 0x9a073310	/* APLL712 MPLL1000 CPCCR */
++		0x03b08900 0x07d0c900 0x9a094410	/* APLL712 MPLL1000 CPCCR */
 +		0x04000000				/* 64 MB */
 +		0x0a688a40 0x000020fc 0x00002400	/* CFG MMAP0 MMAP1 */
 +		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
@@ -43209,6 +43246,58 @@ index 00000000..5529aaf2
 +		1					/* cdr (DDR = MPLL/2 = 500) */
 +		0x00f20001				/* REFCNT */
 +		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00645a1c				/* APLL frac -> 712.704 MHz */
++	>;
++};
+diff --git a/arch/mips/dts/t20l-isvp-u-boot.dtsi b/arch/mips/dts/t20l-isvp-u-boot.dtsi
+new file mode 100644
+index 00000000..450a1245
+--- /dev/null
++++ b/arch/mips/dts/t20l-isvp-u-boot.dtsi
+@@ -0,0 +1,9 @@
++// SPDX-License-Identifier: GPL-2.0+
++#include "t20-isvp-uboot-common.dtsi"
++
++#if defined(CONFIG_SPL_MMC)
++/ {
++	/* MSC/SD boot config (isvp_t20l_msc0) reuses the SFC-NOR board .dts. */
++	model = "Ingenic ISVP-T20L (MMC0)";
++};
++#endif
+diff --git a/arch/mips/dts/t20l-isvp.dts b/arch/mips/dts/t20l-isvp.dts
+new file mode 100644
+index 00000000..6bf6f702
+--- /dev/null
++++ b/arch/mips/dts/t20l-isvp.dts
+@@ -0,0 +1,30 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Ingenic ISVP-T20L (DDR2 64 MB, CPU 712.704 MHz), SFC-NOR.
++ */
++
++/dts-v1/;
++
++#include "t20-isvp.dtsi"
++
++/ {
++	model = "Ingenic ISVP-T20L (SFC NOR)";
++};
++
++&ddr {
++	/* T20L: DDR2 64 MB M14D5121632A (4-bank), CPU 860 / DDR 500 MHz. */
++	ingenic,sdram-params = <
++		0x03b08900 0x07d0c900 0x9a094410	/* APLL712 MPLL1000 CPCCR */
++		0x04000000				/* 64 MB */
++		0x0a688a40 0x000020fc 0x00002400	/* CFG MMAP0 MMAP1 */
++		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
++		0x1a240031 0xff060505 0x32170505	/* TIMING4..6 */
++		0x00000002 0x3cb7779a 0x003500b8	/* DCR DTPR0 DTPR1 */
++		0x03020d0c 0x07060504 0x0b0a0908	/* REMAP1..3 */
++		0x0f0e0100 0x13121110			/* REMAP4..5 */
++		1					/* cdr (DDR = MPLL/2 = 500) */
++		0x00f20001				/* REFCNT */
++		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00645a1c				/* APLL frac -> 712.704 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t20n-isvp-dfu-u-boot.dtsi b/arch/mips/dts/t20n-isvp-dfu-u-boot.dtsi
@@ -43221,10 +43310,10 @@ index 00000000..88e33d94
 +#include "t20-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t20n-isvp-dfu.dts b/arch/mips/dts/t20n-isvp-dfu.dts
 new file mode 100644
-index 00000000..8654f518
+index 00000000..16d8b0f2
 --- /dev/null
 +++ b/arch/mips/dts/t20n-isvp-dfu.dts
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20N, DFU/USB-boot loader variant (DDR2 64 MB, CPU 860 MHz).
@@ -43242,7 +43331,7 @@ index 00000000..8654f518
 +&ddr {
 +	/* T20N: DDR2 64 MB M14D5121632A (4-bank), CPU 860 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04708900 0x07d0c900 0x9a073310	/* APLL860 MPLL1000 CPCCR */
++		0x04708900 0x07d0c900 0x9a094410	/* APLL860 MPLL1000 CPCCR */
 +		0x04000000				/* 64 MB */
 +		0x0a688a40 0x000020fc 0x00002400	/* CFG MMAP0 MMAP1 */
 +		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
@@ -43253,6 +43342,7 @@ index 00000000..8654f518
 +		1					/* cdr (DDR = MPLL/2 = 500) */
 +		0x00f20001				/* REFCNT */
 +		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t20n-isvp-u-boot.dtsi b/arch/mips/dts/t20n-isvp-u-boot.dtsi
@@ -43272,10 +43362,10 @@ index 00000000..970a6807
 +#endif
 diff --git a/arch/mips/dts/t20n-isvp.dts b/arch/mips/dts/t20n-isvp.dts
 new file mode 100644
-index 00000000..be8b54d9
+index 00000000..b9c17d7b
 --- /dev/null
 +++ b/arch/mips/dts/t20n-isvp.dts
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,30 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20N (DDR2 64 MB M14D5121632A, CPU 860 MHz), SFC-NOR.
@@ -43292,7 +43382,7 @@ index 00000000..be8b54d9
 +&ddr {
 +	/* T20N: DDR2 64 MB M14D5121632A (4-bank), CPU 860 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04708900 0x07d0c900 0x9a073310	/* APLL860 MPLL1000 CPCCR */
++		0x04708900 0x07d0c900 0x9a094410	/* APLL860 MPLL1000 CPCCR */
 +		0x04000000				/* 64 MB */
 +		0x0a688a40 0x000020fc 0x00002400	/* CFG MMAP0 MMAP1 */
 +		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
@@ -43303,6 +43393,7 @@ index 00000000..be8b54d9
 +		1					/* cdr (DDR = MPLL/2 = 500) */
 +		0x00f20001				/* REFCNT */
 +		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t20x-isvp-dfu-u-boot.dtsi b/arch/mips/dts/t20x-isvp-dfu-u-boot.dtsi
@@ -43315,10 +43406,10 @@ index 00000000..88e33d94
 +#include "t20-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t20x-isvp-dfu.dts b/arch/mips/dts/t20x-isvp-dfu.dts
 new file mode 100644
-index 00000000..8c70d1e9
+index 00000000..513da562
 --- /dev/null
 +++ b/arch/mips/dts/t20x-isvp-dfu.dts
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20X, DFU/USB-boot loader variant (DDR2 128 MB, CPU 860 MHz).
@@ -43336,7 +43427,7 @@ index 00000000..8c70d1e9
 +&ddr {
 +	/* T20X: DDR2 128 MB M14D1G1664A (8-bank), CPU 860 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04708900 0x07d0c900 0x9a073310	/* APLL860 MPLL1000 CPCCR */
++		0x04708900 0x07d0c900 0x9a094410	/* APLL860 MPLL1000 CPCCR */
 +		0x08000000				/* 128 MB */
 +		0x0ae88a42 0x000020f8 0x00002800	/* CFG MMAP0 MMAP1 */
 +		0x040e0806 0x02170807 0x2008051d	/* TIMING1..3 */
@@ -43347,6 +43438,7 @@ index 00000000..8c70d1e9
 +		1					/* cdr (DDR = MPLL/2 = 500) */
 +		0x00f20001				/* REFCNT */
 +		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t20x-isvp-u-boot.dtsi b/arch/mips/dts/t20x-isvp-u-boot.dtsi
@@ -43366,10 +43458,10 @@ index 00000000..9541790d
 +#endif
 diff --git a/arch/mips/dts/t20x-isvp.dts b/arch/mips/dts/t20x-isvp.dts
 new file mode 100644
-index 00000000..a868bf4f
+index 00000000..1b8ad017
 --- /dev/null
 +++ b/arch/mips/dts/t20x-isvp.dts
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,36 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T20X (DDR2 128 MB M14D1G1664A, 8-bank, CPU 860 MHz),
@@ -43392,7 +43484,7 @@ index 00000000..a868bf4f
 +&ddr {
 +	/* T20X: DDR2 128 MB M14D1G1664A (8-bank), CPU 860 / DDR 500 MHz. */
 +	ingenic,sdram-params = <
-+		0x04708900 0x07d0c900 0x9a073310	/* APLL860 MPLL1000 CPCCR */
++		0x04708900 0x07d0c900 0x9a094410	/* APLL860 MPLL1000 CPCCR */
 +		0x08000000				/* 128 MB */
 +		0x0ae88a42 0x000020f8 0x00002800	/* CFG MMAP0 MMAP1 */
 +		0x040e0806 0x02170807 0x2008051d	/* TIMING1..3 */
@@ -43403,6 +43495,7 @@ index 00000000..a868bf4f
 +		1					/* cdr (DDR = MPLL/2 = 500) */
 +		0x00f20001				/* REFCNT */
 +		0x00000e73 0x00228019 0x064186a0	/* MR0 PTR0 PTR1 */
++		0x00ae147a				/* APLL frac -> 860.16 MHz */
 +	>;
 +};
 diff --git a/arch/mips/dts/t21-isvp-dfu-uboot-common.dtsi b/arch/mips/dts/t21-isvp-dfu-uboot-common.dtsi
@@ -43794,10 +43887,10 @@ index 00000000..2d1daac9
 +};
 diff --git a/arch/mips/dts/t21.dtsi b/arch/mips/dts/t21.dtsi
 new file mode 100644
-index 00000000..b06aa5ea
+index 00000000..730020f7
 --- /dev/null
 +++ b/arch/mips/dts/t21.dtsi
-@@ -0,0 +1,253 @@
+@@ -0,0 +1,271 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t21-cgu.h>
@@ -43852,6 +43945,24 @@ index 00000000..b06aa5ea
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * contract, measured on silicon (bench T21N, legacy
++		 * loader): HELIX (VPU) and ISP from MPLL, CIM from
++		 * VPLL (the cgu probe brings VPLL up at 1200 MHz like
++		 * the vendor loader; sensor drivers retune it for
++		 * 27 MHz MCLKs). The 3.10 kernel computes leaf rates
++		 * on whatever parent it inherits, so the inherited
++		 * selector is the contract. Parents only, no rates.
++		 */
++		assigned-clocks = <&cgu T21_CLK_VPU>,
++				  <&cgu T21_CLK_ISP>,
++				  <&cgu T21_CLK_CIM>,
++				  <&cgu T21_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T21_CLK_MPLL>,
++					 <&cgu T21_CLK_MPLL>,
++					 <&cgu T21_CLK_VPLL>,
++					 <&cgu T21_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -44621,10 +44732,10 @@ index 00000000..ec7aeba9
 +};
 diff --git a/arch/mips/dts/t23.dtsi b/arch/mips/dts/t23.dtsi
 new file mode 100644
-index 00000000..ca58aa34
+index 00000000..95010f99
 --- /dev/null
 +++ b/arch/mips/dts/t23.dtsi
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,277 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t23-cgu.h>
@@ -44679,6 +44790,28 @@ index 00000000..ca58aa34
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * RUNTIME contract, measured on silicon (bench T23DL,
++		 * legacy loader + stock kernel): the vendor loader
++		 * parks ISP/CIM at MPLL but with mismatching parked
++		 * dividers, so the kernel's own re-parenting to sclka
++		 * (tx-isp clk_name=sclka; sclka 1188 divides 27 MHz
++		 * sensor MCLKs exactly) always lands. The kernel's
++		 * cgu_set_parent silently drops parent-only changes,
++		 * so pin ISP/CIM to SCLKA (what the kernel requests)
++		 * and VPU/MAC to MPLL (where both loaders' kernels
++		 * really end up: VPU true MPLL/2 = 600). Parents
++		 * only, no rates.
++		 */
++		assigned-clocks = <&cgu T23_CLK_VPU>,
++				  <&cgu T23_CLK_ISP>,
++				  <&cgu T23_CLK_CIM>,
++				  <&cgu T23_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T23_CLK_MPLL>,
++					 <&cgu T23_CLK_SCLKA>,
++					 <&cgu T23_CLK_SCLKA>,
++					 <&cgu T23_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -46012,10 +46145,10 @@ index 00000000..488e7809
 +};
 diff --git a/arch/mips/dts/t30.dtsi b/arch/mips/dts/t30.dtsi
 new file mode 100644
-index 00000000..0d60d2e3
+index 00000000..a26b115b
 --- /dev/null
 +++ b/arch/mips/dts/t30.dtsi
-@@ -0,0 +1,254 @@
+@@ -0,0 +1,272 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t30-cgu.h>
@@ -46070,6 +46203,24 @@ index 00000000..0d60d2e3
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * contract (same table as T21): HELIX (VPU) and ISP
++		 * from MPLL, CIM from VPLL (the cgu probe brings VPLL
++		 * up like the vendor loader; sensor drivers retune it
++		 * for 27 MHz MCLKs). The 3.10 kernel computes leaf
++		 * rates on whatever parent it inherits, so the
++		 * inherited selector is the contract. Parents only,
++		 * no rates.
++		 */
++		assigned-clocks = <&cgu T30_CLK_VPU>,
++				  <&cgu T30_CLK_ISP>,
++				  <&cgu T30_CLK_CIM>,
++				  <&cgu T30_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T30_CLK_MPLL>,
++					 <&cgu T30_CLK_MPLL>,
++					 <&cgu T30_CLK_VPLL>,
++					 <&cgu T30_CLK_MPLL>;
 +	};
 +
 +	/*
@@ -47536,6 +47687,120 @@ index 00000000..f9468077
 +		0x00000f73				/* MR0 */
 +	>;
 +};
+diff --git a/arch/mips/dts/t31lc-isvp-dfu-u-boot.dtsi b/arch/mips/dts/t31lc-isvp-dfu-u-boot.dtsi
+new file mode 100644
+index 00000000..75f23b6a
+--- /dev/null
++++ b/arch/mips/dts/t31lc-isvp-dfu-u-boot.dtsi
+@@ -0,0 +1,2 @@
++// SPDX-License-Identifier: GPL-2.0+
++#include "t31-isvp-dfu-uboot-common.dtsi"
+diff --git a/arch/mips/dts/t31lc-isvp-dfu.dts b/arch/mips/dts/t31lc-isvp-dfu.dts
+new file mode 100644
+index 00000000..d65020d3
+--- /dev/null
++++ b/arch/mips/dts/t31lc-isvp-dfu.dts
+@@ -0,0 +1,46 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Ingenic ISVP-T31LC DFU/USB-boot loader (DDR2 64 MB, CPU 1104 MHz).
++ *
++ * Per-variant loader: brings up DDR with the T31LC clocks (MPLL 1000) so a
++ * future ethernet-in-loader path gets the correct RMII reference. Do not
++ * reuse across variants - the MPLL differs (T31X = 1200) and the 50 MHz RMII
++ * clock is derived from it.
++ */
++
++/dts-v1/;
++
++#include "t31-isvp-dfu.dtsi"
++
++/ {
++	model = "Ingenic ISVP-T31LC (DFU loader)";
++};
++
++&ddr {
++	/* T31LC: DDR2 64 MB M14D5121632A (4-bank), CPU 1104 / DDR 500 MHz. */
++	ingenic,sdram-params = <
++		0x05c05100 0x07d05900 0x9a073310	/* APLL1104 MPLL1000 CPCCR */
++		0 0					/* ddr_cdr (MPLL/2); DDR2 */
++		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x04000000				/* 64 MB */
++		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020fc 0x00002400 0x00f20001	/* MMAP0 MMAP1 REFCNT */
++		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
++		0x1a240031 0xff060405 0x32170505	/* TIMING4..6 */
++		0x00000f73				/* MR0 */
++	>;
++};
++
++/*
++ * flash@0 declared spi-nand so the NAND stack binds on NAND boards.
++ * board_late_init() (arch/mips/mach-xburst/dfu.c) auto-detects NOR vs
++ * NAND: on a NOR board the spi-nand probe fails, the node is unbound,
++ * and a SPI-NOR is probed on CS0 instead - one loader flashes either.
++ */
++&sfc {
++	flash@0 {
++		compatible = "spi-nand";
++		reg = <0>;
++		spi-max-frequency = <50000000>;
++	};
++};
+diff --git a/arch/mips/dts/t31lc-isvp-u-boot.dtsi b/arch/mips/dts/t31lc-isvp-u-boot.dtsi
+new file mode 100644
+index 00000000..31b7b44c
+--- /dev/null
++++ b/arch/mips/dts/t31lc-isvp-u-boot.dtsi
+@@ -0,0 +1,9 @@
++// SPDX-License-Identifier: GPL-2.0+
++#include "t31-isvp-uboot-common.dtsi"
++
++#if defined(CONFIG_SPL_MMC)
++/ {
++	/* MSC/SD boot config (isvp_t31lc_msc0) reuses the SFC-NOR board .dts. */
++	model = "Ingenic ISVP-T31LC (MMC0)";
++};
++#endif
+diff --git a/arch/mips/dts/t31lc-isvp.dts b/arch/mips/dts/t31lc-isvp.dts
+new file mode 100644
+index 00000000..78ff67d5
+--- /dev/null
++++ b/arch/mips/dts/t31lc-isvp.dts
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Ingenic ISVP-T31LC (DDR2 64 MB M14D5121632A, CPU 1104 MHz), SFC-NOR.
++ *
++ * Same memory system as T31N; the LC bin runs the vendor clock plan
++ * APLL 1104 / MPLL 1000 / DDR 500 (vendor isvp_t31lc: APLL_1104M +
++ * DDR_500M). Note the vendor LC loader itself uses a secure-boot SPL
++ * format tied to LC silicon; this profile only carries the clock/DDR
++ * plan for the mainline loader.
++ */
++
++/dts-v1/;
++
++#include "t31-isvp.dtsi"
++
++/ {
++	model = "Ingenic ISVP-T31LC (SFC NOR)";
++};
++
++&ddr {
++	/* T31LC: DDR2 64 MB M14D5121632A (4-bank), CPU 1104 / DDR 500 MHz. */
++	ingenic,sdram-params = <
++		0x05c05100 0x07d05900 0x9a073310	/* APLL1104 MPLL1000 CPCCR */
++		0 0					/* ddr_cdr (MPLL/2); DDR2 */
++		13 10 0 1 0 0				/* row col bank8 cs0 cs1 dw32 */
++		0x04000000				/* 64 MB */
++		0x0a288a40 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020fc 0x00002400 0x00f20001	/* MMAP0 MMAP1 REFCNT */
++		0x040e0806 0x02170707 0x2007051e	/* TIMING1..3 */
++		0x1a240031 0xff060405 0x32170505	/* TIMING4..6 */
++		0x00000f73				/* MR0 */
++	>;
++};
 diff --git a/arch/mips/dts/t31n-isvp-dfu-u-boot.dtsi b/arch/mips/dts/t31n-isvp-dfu-u-boot.dtsi
 new file mode 100644
 index 00000000..75f23b6a
@@ -48150,10 +48415,10 @@ index 00000000..bcbd594b
 +};
 diff --git a/arch/mips/dts/t32.dtsi b/arch/mips/dts/t32.dtsi
 new file mode 100644
-index 00000000..b9c3112f
+index 00000000..133ccd79
 --- /dev/null
 +++ b/arch/mips/dts/t32.dtsi
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,290 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t32-cgu.h>
@@ -48206,6 +48471,27 @@ index 00000000..b9c3112f
 +		clocks = <&exclk>, <&rtclk>;
 +		clock-names = "ext", "rtc";
 +		bootph-pre-ram;
++		/*
++		 * Pin the kernel-consumed leaf muxes to the vendor
++		 * contract, measured from the shipping stock loader on
++		 * T32LQ silicon: HELIX (VPU), ISPM and CIM all from MPLL
++		 * (T32 stock parks CIM on MPLL, unlike the VPLL parking
++		 * of the other XBurst1 parts). The vendor kernels compute
++		 * leaf rates on whatever parent they inherit, so the
++		 * inherited selector is the contract. GMAC pins to APLL:
++		 * the stock loader parks MACPHY on APLL and the stock
++		 * kernel runs the internal ePHY at APLL/36 = 25 MHz
++		 * (measured; T21-style ePHY, not 50 MHz RMII). Parents
++		 * only.
++		 */
++		assigned-clocks = <&cgu T32_CLK_VPU>,
++				  <&cgu T32_CLK_ISP>,
++				  <&cgu T32_CLK_CIM>,
++				  <&cgu T32_CLK_GMAC>;
++		assigned-clock-parents = <&cgu T32_CLK_MPLL>,
++					 <&cgu T32_CLK_MPLL>,
++					 <&cgu T32_CLK_MPLL>,
++					 <&cgu T32_CLK_APLL>;
 +	};
 +
 +	/*
@@ -53672,10 +53958,10 @@ index 00000000..da234c24
 +#endif /* __T10_SFC_H__ */
 diff --git a/arch/mips/mach-xburst/include/mach/t10.h b/arch/mips/mach-xburst/include/mach/t10.h
 new file mode 100644
-index 00000000..91d8faed
+index 00000000..a8781cb6
 --- /dev/null
 +++ b/arch/mips/mach-xburst/include/mach/t10.h
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,158 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
 + * Ingenic T10 SoC register definitions
@@ -53733,6 +54019,7 @@ index 00000000..91d8faed
 +#define CPM_CPCCR	0x00
 +#define CPM_CPAPCR	0x10	/* APLL */
 +#define CPM_CPMPCR	0x14	/* MPLL */
++#define CPM_CPAPACR	0x18	/* APLL fractional */
 +#define CPM_CLKGR0	0x20
 +#define CPM_OPCR	0x24
 +#define CPM_CLKGR1	0x28
@@ -53824,7 +54111,7 @@ index 00000000..91d8faed
 + * setpoints (the UCLASS_RAM probe feeds it the DT params; VPLL left at reset).
 + */
 +void clk_ungate_uart(unsigned int idx);
-+void pll_init_params(u32 apll, u32 mpll, u32 cpccr);
++void pll_init_params(u32 apll, u32 apll_frac, u32 mpll, u32 cpccr);
 +void t10_spl_serial_init(void);
 +void t10_spl_putc(char c);
 +void t10_spl_puts(const char *s);
@@ -53919,10 +54206,10 @@ index 00000000..53b7969d
 +#endif /* __T20_SFC_H__ */
 diff --git a/arch/mips/mach-xburst/include/mach/t20.h b/arch/mips/mach-xburst/include/mach/t20.h
 new file mode 100644
-index 00000000..344a3161
+index 00000000..178a817b
 --- /dev/null
 +++ b/arch/mips/mach-xburst/include/mach/t20.h
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,158 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
 + * Ingenic T20 SoC register definitions
@@ -53980,6 +54267,7 @@ index 00000000..344a3161
 +#define CPM_CPCCR	0x00
 +#define CPM_CPAPCR	0x10	/* APLL */
 +#define CPM_CPMPCR	0x14	/* MPLL */
++#define CPM_CPAPACR	0x18	/* APLL fractional */
 +#define CPM_CLKGR0	0x20
 +#define CPM_OPCR	0x24
 +#define CPM_CLKGR1	0x28
@@ -54070,7 +54358,8 @@ index 00000000..344a3161
 + * re-declared extern in each user.
 + */
 +void clk_ungate_uart(unsigned int idx);
-+void pll_init_params(u32 apll_mnod, u32 mpll_mnod, u32 cpccr);
++void pll_init_params(u32 apll_mnod, u32 apll_frac, u32 mpll_mnod,
++		     u32 cpccr);
 +void t20_spl_serial_init(void);
 +void t20_spl_putc(char c);
 +void t20_spl_puts(const char *s);
@@ -57258,10 +57547,10 @@ index 00000000..43915a43
 +endif
 diff --git a/arch/mips/mach-xburst/t10/pll.c b/arch/mips/mach-xburst/t10/pll.c
 new file mode 100644
-index 00000000..f43a7e50
+index 00000000..ff9666a1
 --- /dev/null
 +++ b/arch/mips/mach-xburst/t10/pll.c
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,81 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T10 PLL and clock setup (SPL)
@@ -57321,8 +57610,16 @@ index 00000000..f43a7e50
 + * Bring up APLL/MPLL + the CPCCR dividers from explicit setpoints, before DDR
 + * is brought up. VPLL is left at reset (not needed for the SPL console/DDR).
 + */
-+void pll_init_params(u32 apll, u32 mpll, u32 cpccr)
++void pll_init_params(u32 apll, u32 apll_frac, u32 mpll, u32 cpccr)
 +{
++	/*
++	 * Vendor order: program the APLL fractional register before the
++	 * M/N/OD + enable write. The stock APLL grades are fractional
++	 * (860.16 MHz = 0xae147a, 712.704 MHz = 0x645a1c); 0 leaves the
++	 * fraction at reset for integer setpoints.
++	 */
++	if (apll_frac)
++		cpm_writel(apll_frac, CPM_CPAPACR);
 +	pll_set(CPM_CPAPCR, apll);
 +	pll_set(CPM_CPMPCR, mpll);
 +	cpccr_init(cpccr);
@@ -57891,10 +58188,10 @@ index 00000000..f3b31be0
 +endif
 diff --git a/arch/mips/mach-xburst/t20/pll.c b/arch/mips/mach-xburst/t20/pll.c
 new file mode 100644
-index 00000000..082bb012
+index 00000000..c518f5b0
 --- /dev/null
 +++ b/arch/mips/mach-xburst/t20/pll.c
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,82 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T20 PLL and clock setup (SPL)
@@ -57954,8 +58251,16 @@ index 00000000..082bb012
 + * Bring up APLL/MPLL + the CPCCR dividers from explicit setpoints. The TPL
 + * calls this from its UCLASS_RAM probe (dtoc platdata, no libfdt).
 + */
-+void pll_init_params(u32 apll, u32 mpll, u32 cpccr)
++void pll_init_params(u32 apll, u32 apll_frac, u32 mpll, u32 cpccr)
 +{
++	/*
++	 * Vendor order: program the APLL fractional register before the
++	 * M/N/OD + enable write. The stock APLL grades are fractional
++	 * (860.16 MHz = 0xae147a, 712.704 MHz = 0x645a1c); 0 leaves the
++	 * fraction at reset for integer setpoints.
++	 */
++	if (apll_frac)
++		cpm_writel(apll_frac, CPM_CPAPACR);
 +	pll_set(CPM_CPAPCR, apll);
 +	pll_set(CPM_CPMPCR, mpll);
 +	/* VPLL left at reset; not needed for SPL console/DDR. */
@@ -95731,6 +96036,312 @@ index 00000000..aa6a5008
 +CONFIG_LZMA=y
 +CONFIG_SPL_LZMA=y
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
+diff --git a/configs/isvp_t20l_msc0_defconfig b/configs/isvp_t20l_msc0_defconfig
+new file mode 100644
+index 00000000..658558a7
+--- /dev/null
++++ b/configs/isvp_t20l_msc0_defconfig
+@@ -0,0 +1,147 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_GPIO=y
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_ENV_SIZE=0x10000
++CONFIG_ENV_OFFSET=0x50000
++CONFIG_ENV_SECT_SIZE=0x10000
++CONFIG_DM_GPIO=y
++CONFIG_DEFAULT_DEVICE_TREE="t20l-isvp"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x10000
++CONFIG_SPL_MMC=y
++CONFIG_SPL_SERIAL=y
++CONFIG_TPL_TEXT_BASE=0x80001000
++CONFIG_TPL_SYS_MALLOC_F_LEN=0x400
++CONFIG_TPL_LIBCOMMON_SUPPORT=y
++CONFIG_TPL_LIBGENERIC_SUPPORT=y
++CONFIG_SPL_STACK=0x80080000
++CONFIG_SPL_TEXT_BASE=0x80020000
++CONFIG_SPL_BSS_START_ADDR=0x80004000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_ARCH_XBURST=y
++CONFIG_SOC_T20=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TARGET_ISVP_T20=y
++CONFIG_TPL_MAX_SIZE=0x6800
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=712704000
++CONFIG_BUTTON_CMD=y
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=1
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_SPL_SYS_MMCSD_RAW_MODE=y
++CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR=0x180
++CONFIG_TPL=y
++CONFIG_TPL_SYS_MALLOC_SIMPLE=y
++# CONFIG_TPL_SEPARATE_BSS is not set
++CONFIG_HUSH_PARSER=y
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_DFU=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_SOUND=y
++CONFIG_CMD_FAT=y
++# CONFIG_CMD_CYCLIC is not set
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_TPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_TPL_OF_PLATDATA=y
++CONFIG_ENV_OVERWRITE=y
++CONFIG_ENV_IS_IN_SPI_FLASH=y
++CONFIG_TPL_DM=y
++CONFIG_BUTTON=y
++CONFIG_BUTTON_GPIO=y
++CONFIG_CLK=y
++CONFIG_SPL_CLK=y
++CONFIG_CLK_INGENIC_T20=y
++CONFIG_DFU_MMC=y
++CONFIG_DFU_RAM=y
++CONFIG_DFU_SF=y
++CONFIG_MMC=y
++CONFIG_JZ47XX_MMC=y
++CONFIG_MTD=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_ICPLUS=y
++CONFIG_PINCTRL=y
++CONFIG_SPL_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_RAM=y
++CONFIG_TPL_RAM=y
++CONFIG_RAM_INGENIC_DDR_T20=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SOUND=y
++CONFIG_I2S=y
++CONFIG_I2S_INGENIC=y
++CONFIG_SOUND_JZ_T10_CODEC=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_HOST_ETHER=y
++CONFIG_USB_ETHER_ASIX=y
++CONFIG_USB_ETHER_ASIX88179=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_MANUFACTURER="Ingenic"
++CONFIG_USB_GADGET_VENDOR_NUM=0xa108
++CONFIG_USB_GADGET_PRODUCT_NUM=0x4d44
++CONFIG_USB_GADGET_DWC2_OTG=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++# CONFIG_WATCHDOG is not set
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
++CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
+diff --git a/configs/isvp_t20l_sfcnor_defconfig b/configs/isvp_t20l_sfcnor_defconfig
+new file mode 100644
+index 00000000..5555abd7
+--- /dev/null
++++ b/configs/isvp_t20l_sfcnor_defconfig
+@@ -0,0 +1,147 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_ENV_SIZE=0x10000
++CONFIG_ENV_OFFSET=0x50000
++CONFIG_ENV_SECT_SIZE=0x10000
++CONFIG_DM_GPIO=y
++CONFIG_SPL_DM_SPI=y
++CONFIG_DEFAULT_DEVICE_TREE="t20l-isvp"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x10000
++CONFIG_SPL_SERIAL=y
++CONFIG_TPL_TEXT_BASE=0x80001000
++CONFIG_TPL_SYS_MALLOC_F_LEN=0x400
++CONFIG_TPL_LIBCOMMON_SUPPORT=y
++CONFIG_TPL_LIBGENERIC_SUPPORT=y
++CONFIG_SPL_STACK=0x80080000
++CONFIG_SPL_TEXT_BASE=0x80020000
++CONFIG_SPL_BSS_START_ADDR=0x80004000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_SPL_SPI_FLASH_SUPPORT=y
++CONFIG_SPL_SPI=y
++CONFIG_ARCH_XBURST=y
++CONFIG_SOC_T20=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TARGET_ISVP_T20=y
++CONFIG_TPL_MAX_SIZE=0x6800
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=712704000
++CONFIG_BUTTON_CMD=y
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=1
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_SPL_DM_SPI_FLASH=y
++CONFIG_SPL_SPI_LOAD=y
++CONFIG_SYS_SPI_U_BOOT_OFFS=0x18000
++CONFIG_TPL=y
++CONFIG_TPL_SYS_MALLOC_SIMPLE=y
++# CONFIG_TPL_SEPARATE_BSS is not set
++CONFIG_HUSH_PARSER=y
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_DFU=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_SOUND=y
++CONFIG_CMD_FAT=y
++# CONFIG_CMD_CYCLIC is not set
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_TPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_TPL_OF_PLATDATA=y
++CONFIG_ENV_OVERWRITE=y
++CONFIG_ENV_IS_IN_SPI_FLASH=y
++CONFIG_TPL_DM=y
++CONFIG_BUTTON=y
++CONFIG_BUTTON_GPIO=y
++CONFIG_CLK=y
++CONFIG_CLK_INGENIC_T20=y
++CONFIG_DFU_MMC=y
++CONFIG_DFU_RAM=y
++CONFIG_DFU_SF=y
++CONFIG_MMC=y
++CONFIG_JZ47XX_MMC=y
++CONFIG_MTD=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_ICPLUS=y
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_RAM=y
++CONFIG_TPL_RAM=y
++CONFIG_RAM_INGENIC_DDR_T20=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SOUND=y
++CONFIG_I2S=y
++CONFIG_I2S_INGENIC=y
++CONFIG_SOUND_JZ_T10_CODEC=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_HOST_ETHER=y
++CONFIG_USB_ETHER_ASIX=y
++CONFIG_USB_ETHER_ASIX88179=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_MANUFACTURER="Ingenic"
++CONFIG_USB_GADGET_VENDOR_NUM=0xa108
++CONFIG_USB_GADGET_PRODUCT_NUM=0x4d44
++CONFIG_USB_GADGET_DWC2_OTG=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++# CONFIG_WATCHDOG is not set
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
++CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20l_usbboot_defconfig b/configs/isvp_t20l_usbboot_defconfig
 new file mode 100644
 index 00000000..d575d3cd
@@ -103621,6 +104232,449 @@ index 00000000..117c6d3a
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1008000000
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=0
++CONFIG_USE_BOOTCOMMAND=y
++CONFIG_BOOTCOMMAND="run dfubootcmd"
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_BOARD_LATE_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_TPL=y
++CONFIG_TPL_SYS_MALLOC_SIMPLE=y
++# CONFIG_TPL_SEPARATE_BSS is not set
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_DFU=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_MTD=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_FAT=y
++# CONFIG_CMD_CYCLIC is not set
++CONFIG_CMD_UBI=y
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_TPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_TPL_OF_PLATDATA=y
++CONFIG_TPL_DM=y
++CONFIG_CLK=y
++CONFIG_CLK_INGENIC_T31=y
++CONFIG_DFU_MMC=y
++CONFIG_DFU_MTD=y
++CONFIG_DFU_RAM=y
++CONFIG_DFU_SF=y
++CONFIG_DFU_VIRT=y
++CONFIG_SET_DFU_ALT_INFO=y
++CONFIG_MMC=y
++CONFIG_JZ47XX_MMC=y
++CONFIG_MTD=y
++CONFIG_DM_MTD=y
++CONFIG_MTD_SPI_NAND=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_MTD_UBI_FASTMAP=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_ICPLUS=y
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_RAM=y
++CONFIG_TPL_RAM=y
++CONFIG_RAM_INGENIC_DDR_T31=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_MANUFACTURER="Ingenic"
++CONFIG_USB_GADGET_VENDOR_NUM=0xa108
++CONFIG_USB_GADGET_PRODUCT_NUM=0xc309
++CONFIG_USB_GADGET_DWC2_OTG=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++# CONFIG_WATCHDOG is not set
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
++CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
+diff --git a/configs/isvp_t31lc_msc0_defconfig b/configs/isvp_t31lc_msc0_defconfig
+new file mode 100644
+index 00000000..f804c150
+--- /dev/null
++++ b/configs/isvp_t31lc_msc0_defconfig
+@@ -0,0 +1,146 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_GPIO=y
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_ENV_SIZE=0x10000
++CONFIG_ENV_OFFSET=0x50000
++CONFIG_ENV_SECT_SIZE=0x10000
++CONFIG_DM_GPIO=y
++CONFIG_DEFAULT_DEVICE_TREE="t31lc-isvp"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x10000
++CONFIG_SPL_MMC=y
++CONFIG_SPL_SERIAL=y
++CONFIG_TPL_TEXT_BASE=0x80001000
++CONFIG_TPL_SYS_MALLOC_F_LEN=0x400
++CONFIG_TPL_LIBCOMMON_SUPPORT=y
++CONFIG_TPL_LIBGENERIC_SUPPORT=y
++CONFIG_SPL_STACK=0x80080000
++CONFIG_SPL_TEXT_BASE=0x80020000
++CONFIG_SPL_BSS_START_ADDR=0x80004000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_ARCH_XBURST=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TPL_MAX_SIZE=0x6800
++CONFIG_SPL_PAYLOAD="u-boot.bin"
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=1104000000
++CONFIG_BUTTON_CMD=y
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=1
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_SPL_SYS_MMCSD_RAW_MODE=y
++CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR=0x180
++CONFIG_TPL=y
++CONFIG_TPL_SYS_MALLOC_SIMPLE=y
++# CONFIG_TPL_SEPARATE_BSS is not set
++CONFIG_HUSH_PARSER=y
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_DFU=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_SOUND=y
++CONFIG_CMD_FAT=y
++# CONFIG_CMD_CYCLIC is not set
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_TPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_TPL_OF_PLATDATA=y
++CONFIG_ENV_OVERWRITE=y
++CONFIG_ENV_IS_IN_SPI_FLASH=y
++CONFIG_TPL_DM=y
++CONFIG_BUTTON=y
++CONFIG_BUTTON_GPIO=y
++CONFIG_CLK=y
++CONFIG_SPL_CLK=y
++CONFIG_CLK_INGENIC_T31=y
++CONFIG_DFU_MMC=y
++CONFIG_DFU_RAM=y
++CONFIG_DFU_SF=y
++CONFIG_MMC=y
++CONFIG_JZ47XX_MMC=y
++CONFIG_MTD=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_ICPLUS=y
++CONFIG_PINCTRL=y
++CONFIG_SPL_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_RAM=y
++CONFIG_TPL_RAM=y
++CONFIG_RAM_INGENIC_DDR_T31=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SOUND=y
++CONFIG_I2S=y
++CONFIG_I2S_INGENIC=y
++CONFIG_SOUND_JZ_T10_CODEC=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_HOST_ETHER=y
++CONFIG_USB_ETHER_ASIX=y
++CONFIG_USB_ETHER_ASIX88179=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_MANUFACTURER="Ingenic"
++CONFIG_USB_GADGET_VENDOR_NUM=0xa108
++CONFIG_USB_GADGET_PRODUCT_NUM=0x4d44
++CONFIG_USB_GADGET_DWC2_OTG=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++# CONFIG_WATCHDOG is not set
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
++CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
+diff --git a/configs/isvp_t31lc_sfcnor_defconfig b/configs/isvp_t31lc_sfcnor_defconfig
+new file mode 100644
+index 00000000..faa36b64
+--- /dev/null
++++ b/configs/isvp_t31lc_sfcnor_defconfig
+@@ -0,0 +1,146 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_ENV_SIZE=0x10000
++CONFIG_ENV_OFFSET=0x50000
++CONFIG_ENV_SECT_SIZE=0x10000
++CONFIG_DM_GPIO=y
++CONFIG_SPL_DM_SPI=y
++CONFIG_DEFAULT_DEVICE_TREE="t31lc-isvp"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x10000
++CONFIG_SPL_SERIAL=y
++CONFIG_TPL_TEXT_BASE=0x80001000
++CONFIG_TPL_SYS_MALLOC_F_LEN=0x400
++CONFIG_TPL_LIBCOMMON_SUPPORT=y
++CONFIG_TPL_LIBGENERIC_SUPPORT=y
++CONFIG_SPL_STACK=0x80080000
++CONFIG_SPL_TEXT_BASE=0x80020000
++CONFIG_SPL_BSS_START_ADDR=0x80004000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_SPL_SPI_FLASH_SUPPORT=y
++CONFIG_SPL_SPI=y
++CONFIG_ARCH_XBURST=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TPL_MAX_SIZE=0x6800
++CONFIG_SPL_PAYLOAD="u-boot.bin"
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=1104000000
++CONFIG_BUTTON_CMD=y
++# CONFIG_BOOTSTD is not set
++CONFIG_BOOTDELAY=1
++CONFIG_DISPLAY_CPUINFO=y
++CONFIG_BOARD_INIT=y
++CONFIG_SPL_MAX_SIZE=0x13000
++# CONFIG_SPL_SHARES_INIT_SP_ADDR is not set
++CONFIG_SPL_HAVE_INIT_STACK=y
++CONFIG_SPL_SYS_MALLOC=y
++CONFIG_SPL_HAS_CUSTOM_MALLOC_START=y
++CONFIG_SPL_CUSTOM_SYS_MALLOC_ADDR=0x80800000
++CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
++CONFIG_SPL_DM_SPI_FLASH=y
++CONFIG_SPL_SPI_LOAD=y
++CONFIG_SYS_SPI_U_BOOT_OFFS=0x18000
++CONFIG_TPL=y
++CONFIG_TPL_SYS_MALLOC_SIMPLE=y
++# CONFIG_TPL_SEPARATE_BSS is not set
++CONFIG_HUSH_PARSER=y
++# CONFIG_BOOTM_PLAN9 is not set
++# CONFIG_BOOTM_RTEMS is not set
++# CONFIG_BOOTM_VXWORKS is not set
++# CONFIG_CMD_ELF is not set
++# CONFIG_CMD_XIMG is not set
++# CONFIG_CMD_CRC32 is not set
++# CONFIG_CMD_RANDOM is not set
++CONFIG_CMD_DFU=y
++CONFIG_CMD_GPIO=y
++CONFIG_CMD_MMC=y
++CONFIG_CMD_PART=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_SOUND=y
++CONFIG_CMD_FAT=y
++# CONFIG_CMD_CYCLIC is not set
++# CONFIG_SPL_DOS_PARTITION is not set
++CONFIG_EFI_PARTITION=y
++# CONFIG_SPL_EFI_PARTITION is not set
++CONFIG_SPL_OF_CONTROL=y
++CONFIG_TPL_OF_CONTROL=y
++CONFIG_OF_SPL_REMOVE_PROPS="pinctrl-names interrupt-parent interrupts"
++CONFIG_TPL_OF_PLATDATA=y
++CONFIG_ENV_OVERWRITE=y
++CONFIG_ENV_IS_IN_SPI_FLASH=y
++CONFIG_TPL_DM=y
++CONFIG_BUTTON=y
++CONFIG_BUTTON_GPIO=y
++CONFIG_CLK=y
++CONFIG_CLK_INGENIC_T31=y
++CONFIG_DFU_MMC=y
++CONFIG_DFU_RAM=y
++CONFIG_DFU_SF=y
++CONFIG_MMC=y
++CONFIG_JZ47XX_MMC=y
++CONFIG_MTD=y
++CONFIG_DM_SPI_FLASH=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPI_FLASH_BOYA=y
++CONFIG_SPI_FLASH_DOSILICON=y
++CONFIG_SPI_FLASH_EON=y
++CONFIG_SPI_FLASH_FIDELIX=y
++CONFIG_SPI_FLASH_FUDAN=y
++CONFIG_SPI_FLASH_GALLOP=y
++CONFIG_SPI_FLASH_GIGADEVICE=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_PUYA=y
++CONFIG_SPI_FLASH_WINBOND=y
++CONFIG_SPI_FLASH_XMC=y
++CONFIG_SPI_FLASH_XTX=y
++CONFIG_SPI_FLASH_ZBIT=y
++CONFIG_ETH_DESIGNWARE=y
++CONFIG_ETH_DESIGNWARE_INGENIC=y
++CONFIG_PHY_ICPLUS=y
++CONFIG_PINCTRL=y
++CONFIG_PINCTRL_INGENIC=y
++CONFIG_DM_REGULATOR=y
++CONFIG_DM_REGULATOR_FIXED=y
++CONFIG_RAM=y
++CONFIG_TPL_RAM=y
++CONFIG_RAM_INGENIC_DDR_T31=y
++CONFIG_DM_SERIAL=y
++CONFIG_SYS_NS16550=y
++CONFIG_SOUND=y
++CONFIG_I2S=y
++CONFIG_I2S_INGENIC=y
++CONFIG_SOUND_JZ_T10_CODEC=y
++CONFIG_SPI=y
++CONFIG_DM_SPI=y
++CONFIG_SPI_INGENIC=y
++CONFIG_SYSRESET=y
++CONFIG_SYSRESET_WATCHDOG=y
++CONFIG_SYSRESET_WATCHDOG_AUTO=y
++CONFIG_USB=y
++# CONFIG_SPL_DM_USB is not set
++CONFIG_DM_USB_GADGET=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_HOST_ETHER=y
++CONFIG_USB_ETHER_ASIX=y
++CONFIG_USB_ETHER_ASIX88179=y
++CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET_MANUFACTURER="Ingenic"
++CONFIG_USB_GADGET_VENDOR_NUM=0xa108
++CONFIG_USB_GADGET_PRODUCT_NUM=0x4d44
++CONFIG_USB_GADGET_DWC2_OTG=y
++CONFIG_USB_GADGET_DOWNLOAD=y
++# CONFIG_WATCHDOG is not set
++# CONFIG_WATCHDOG_AUTOSTART is not set
++CONFIG_WDT_INGENIC=y
++CONFIG_FAT_WRITE=y
++CONFIG_LZMA=y
++CONFIG_SPL_LZMA=y
++CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
+diff --git a/configs/isvp_t31lc_usbboot_defconfig b/configs/isvp_t31lc_usbboot_defconfig
+new file mode 100644
+index 00000000..54dac09a
+--- /dev/null
++++ b/configs/isvp_t31lc_usbboot_defconfig
+@@ -0,0 +1,133 @@
++CONFIG_MIPS=y
++CONFIG_SKIP_LOWLEVEL_INIT=y
++CONFIG_SYS_MALLOC_LEN=0x1000000
++CONFIG_SPL_LIBCOMMON_SUPPORT=y
++CONFIG_SPL_LIBGENERIC_SUPPORT=y
++CONFIG_NR_DRAM_BANKS=1
++CONFIG_DM_GPIO=y
++CONFIG_DEFAULT_DEVICE_TREE="t31lc-isvp-dfu"
++CONFIG_SPL_SYS_MALLOC_F_LEN=0x10000
++CONFIG_SPL_SERIAL=y
++CONFIG_TPL_TEXT_BASE=0x80001000
++CONFIG_TPL_SYS_MALLOC_F_LEN=0x400
++CONFIG_TPL_LIBCOMMON_SUPPORT=y
++CONFIG_TPL_LIBGENERIC_SUPPORT=y
++CONFIG_SPL_STACK=0x80080000
++CONFIG_SPL_TEXT_BASE=0x80020000
++CONFIG_SPL_BSS_START_ADDR=0x80004000
++CONFIG_SPL_BSS_MAX_SIZE=0x2000
++CONFIG_SYS_BOOTM_LEN=0x2000000
++CONFIG_SYS_LOAD_ADDR=0x80600000
++CONFIG_SPL=y
++CONFIG_ARCH_XBURST=y
++CONFIG_SPL_T31_USB_BOOT=y
++CONFIG_XBURST_MAC_FROM_EFUSE=y
++CONFIG_TPL_MAX_SIZE=0x6800
++CONFIG_SPL_PAYLOAD="u-boot.bin"
++CONFIG_BUILD_TARGET="u-boot-lzma.img"
++CONFIG_SYS_MIPS_TIMER_FREQ=1104000000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -117271,10 +118325,10 @@ index 00000000..6cc21bd7
 +};
 diff --git a/drivers/clk/ingenic/clk-t10.c b/drivers/clk/ingenic/clk-t10.c
 new file mode 100644
-index 00000000..ecbfc039
+index 00000000..ed93c724
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t10.c
-@@ -0,0 +1,380 @@
+@@ -0,0 +1,395 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T10 CGU (Clock/Power Manager) clock driver.
@@ -117314,7 +118368,7 @@ index 00000000..ecbfc039
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t10-cgu.h>
 +
-+#define T10_CLK_COUNT		(T10_CLK_CE_I2SR + 1)
++#define T10_CLK_COUNT		(T10_CLK_VPU + 1)
 +
 +/*
 + * CPM is at physical 0x10000000; access it through the uncached MIPS
@@ -117328,9 +118382,12 @@ index 00000000..ecbfc039
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_VPUCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +
 +
 +/* CPxPCR PLL lock status (bit 3 = PLL stable). */
@@ -117371,6 +118428,18 @@ index 00000000..ecbfc039
 +	[T10_CLK_SFC]  = { CPM_SSICDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 20 },
 +	[T10_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 4 },
 +	/* GMAC feeds the RMII PHY 50 MHz ref: exact division required. */
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor contract (vendor cgu_clk_sel: VPU, ISP, CIM and
++	 * MACPHY all from MPLL; T10 routes no VPLL to leaves and every
++	 * mux is the single-bit geometry at bit 31). The 3.10 kernel
++	 * computes leaf rates against whatever parent it inherits, so
++	 * the inherited selector is the contract. Parents only.
++	 */
++	[T10_CLK_VPU]  = { CPM_VPUCDR, 29, 28, 27, 31, 0, NO_GATE, 0 },
++	[T10_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, 31, 0, NO_GATE, 0 },
++	[T10_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, 31, 0, NO_GATE, 0 },
 +	[T10_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 31, 0, CPM_CLKGR1, 4, 1 },
 +	[T10_CLK_UART1] = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T10_CLK_OTG]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 3 },
@@ -117657,10 +118726,10 @@ index 00000000..ecbfc039
 +};
 diff --git a/drivers/clk/ingenic/clk-t20.c b/drivers/clk/ingenic/clk-t20.c
 new file mode 100644
-index 00000000..59148cc8
+index 00000000..a1ff5dcd
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t20.c
-@@ -0,0 +1,384 @@
+@@ -0,0 +1,415 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T20 CGU (Clock/Power Manager) clock driver.
@@ -117699,7 +118768,7 @@ index 00000000..59148cc8
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t20-cgu.h>
 +
-+#define T20_CLK_COUNT		(T20_CLK_CE_I2SR + 1)
++#define T20_CLK_COUNT		(T20_CLK_VPU + 1)
 +
 +/*
 + * CPM is at physical 0x10000000; access it through the uncached MIPS
@@ -117713,9 +118782,12 @@ index 00000000..59148cc8
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_VPUCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +
 +#define CPM_CPVPCR		0xe0	/* VPLL */
 +
@@ -117757,6 +118829,19 @@ index 00000000..59148cc8
 +	[T20_CLK_SFC]  = { CPM_SSICDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 20 },
 +	[T20_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, 31, 0, CPM_CLKGR0, 4 },
 +	/* GMAC feeds the RMII PHY 50 MHz ref: exact division required. */
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor contract, measured on silicon (bench Wyze V2
++	 * T20X, legacy loader): VPU and ISP parked on MPLL, CIM on
++	 * VPLL. The 3.10 kernel computes leaf rates against whatever
++	 * parent it inherits (its cgu_set_parent drops parent-only
++	 * changes), so the inherited selector is the contract. Parents
++	 * only; rates stay the OS's business.
++	 */
++	[T20_CLK_VPU]  = { CPM_VPUCDR, 29, 28, 27, 30, 1, NO_GATE, 0 },
++	[T20_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, 30, 1, NO_GATE, 0 },
++	[T20_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, 30, 1, NO_GATE, 0 },
 +	[T20_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, 30, 1, CPM_CLKGR1, 4, 1 },
 +	[T20_CLK_UART1] = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T20_CLK_OTG]  = { 0, 0, 0, 0, 0, 0, CPM_CLKGR0, 3 },
@@ -118028,6 +119113,21 @@ index 00000000..59148cc8
 +	struct t20_cgu_priv *p = dev_get_priv(dev);
 +
 +	p->base = (void __iomem *)T20_CPM_BASE;
++
++	/*
++	 * Bring up VPLL if the SPL left it down. The vendor loader runs
++	 * VPLL at 1200 MHz and parks CIM on it (sensor MCLKs divide
++	 * from it: 1200/50 = 24.000 exact); without a live VPLL the CIM
++	 * assigned-clock-parents pin would fail (a dead PLL rates 0).
++	 * 0x0320490d is the register word the vendor loader programs,
++	 * measured on T20X silicon = 1200.000 MHz.
++	 */
++	if (!(cpm_r(p, CPM_CPVPCR) & PLL_ON)) {
++		cpm_w(p, CPM_CPVPCR, 0x0320490d);
++		while (!(cpm_r(p, CPM_CPVPCR) & PLL_ON))
++			;
++	}
++
 +	return 0;
 +}
 +
@@ -118047,10 +119147,10 @@ index 00000000..59148cc8
 +};
 diff --git a/drivers/clk/ingenic/clk-t21.c b/drivers/clk/ingenic/clk-t21.c
 new file mode 100644
-index 00000000..6ff01516
+index 00000000..19ac6155
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t21.c
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,391 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T21 CGU (Clock/Power Manager) clock driver.
@@ -118076,7 +119176,7 @@ index 00000000..6ff01516
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t21-cgu.h>
 +
-+#define T21_CLK_COUNT		(T21_CLK_CE_I2SR + 1)
++#define T21_CLK_COUNT		(T21_CLK_VPU + 1)
 +
 +/* CPM via the uncached MIPS KSEG1 window (as the other proven drivers). */
 +#define T21_CPM_BASE		0xb0000000
@@ -118086,9 +119186,12 @@ index 00000000..6ff01516
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_HELIXCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +#define CPM_MSC1CDR		0xa4
 +#define CPM_CPVPCR		0xe0	/* VPLL */
 +
@@ -118124,6 +119227,19 @@ index 00000000..6ff01516
 + * MAC-PHY divider + GMAC gate.
 + */
 +static const struct t21_clk_desc t21_clks[T21_CLK_COUNT] = {
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor contract measured on silicon (bench T21N legacy
++	 * loader): HELIX (the T21 VPU) and ISP parked on MPLL, CIM on
++	 * VPLL. The 3.10 kernel computes leaf rates against whatever
++	 * parent it inherits (its cgu_set_parent drops parent-only
++	 * changes), so the inherited selector is the contract. Parents
++	 * only; rates stay the OS's business.
++	 */
++	[T21_CLK_VPU]  = { CPM_HELIXCDR, 29, 28, 27, NO_GATE, 0 },
++	[T21_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, NO_GATE, 0 },
++	[T21_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, NO_GATE, 0 },
 +	[T21_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T21_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
 +	[T21_CLK_MSC1] = { CPM_MSC1CDR, 29, 28, 27, CPM_CLKGR0, 5 },
@@ -118393,6 +119509,22 @@ index 00000000..6ff01516
 +	struct t21_cgu_priv *p = dev_get_priv(dev);
 +
 +	p->base = (void __iomem *)T21_CPM_BASE;
++
++	/*
++	 * Bring up VPLL if the SPL left it down. The vendor loader runs
++	 * VPLL at 1200 MHz and parks CIM (and I2S) on it; the kernel's
++	 * sensor drivers retune it for 27 MHz MCLKs (1080). Without a
++	 * live VPLL the CIM assigned-clock-parents pin below would fail
++	 * (a dead PLL rates 0 and cannot be selected). 0x0310086d is
++	 * the register word the vendor loader programs, measured on
++	 * silicon = 1200.000 MHz from the 24 MHz crystal.
++	 */
++	if (!(cpm_r(p, CPM_CPVPCR) & PLL_ON)) {
++		cpm_w(p, CPM_CPVPCR, 0x0310086d);
++		while (!(cpm_r(p, CPM_CPVPCR) & PLL_ON))
++			;
++	}
++
 +	return 0;
 +}
 +
@@ -118412,10 +119544,10 @@ index 00000000..6ff01516
 +};
 diff --git a/drivers/clk/ingenic/clk-t23.c b/drivers/clk/ingenic/clk-t23.c
 new file mode 100644
-index 00000000..4c0e4a41
+index 00000000..1ae44a60
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t23.c
-@@ -0,0 +1,347 @@
+@@ -0,0 +1,364 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T23 CGU (Clock/Power Manager) clock driver.
@@ -118441,7 +119573,7 @@ index 00000000..4c0e4a41
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t23-cgu.h>
 +
-+#define T23_CLK_COUNT		(T23_CLK_CE_I2SR + 1)
++#define T23_CLK_COUNT		(T23_CLK_VPU + 1)
 +
 +/*
 + * CPM is at physical 0x10000000; access it through the uncached MIPS
@@ -118455,9 +119587,12 @@ index 00000000..4c0e4a41
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_AVPUCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +
 +#define EXT_RATE		24000000UL
 +#define RTC_RATE		32768UL
@@ -118501,6 +119636,19 @@ index 00000000..4c0e4a41
 +	 * safety net.
 +	 */
 +	[T23_CLK_GMAC] = { CPM_MACCDR, 29, 28, 27, CPM_CLKGR1, 4, 1 },
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor bootloader contract (AVPU/ISP/CIM = MPLL, per
++	 * the vendor cgu_clk_sel table; T23 has no VPLL). The 3.10
++	 * kernel's cgu_set_parent silently drops parent-only changes,
++	 * so a driver's parent request only lands when the inherited
++	 * selector already agrees. Parents only; rates stay the OS's
++	 * business.
++	 */
++	[T23_CLK_VPU]  = { CPM_AVPUCDR, 29, 28, 27, NO_GATE, 0 },
++	[T23_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, NO_GATE, 0 },
++	[T23_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, NO_GATE, 0 },
 +	[T23_CLK_UART1] = { 0, 0, 0, 0, CPM_CLKGR0, 15 },
 +	[T23_CLK_OTG]  = { 0, 0, 0, 0, CPM_CLKGR0, 3 },
 +	[T23_CLK_TCU]  = { 0, 0, 0, 0, CPM_CLKGR0, 30 },
@@ -118672,6 +119820,7 @@ index 00000000..4c0e4a41
 +
 +	switch (parent->id) {
 +	case T23_CLK_APLL:
++	case T23_CLK_SCLKA:
 +		src = CDR_SRC_SCLKA;
 +		break;
 +	case T23_CLK_MPLL:
@@ -118765,10 +119914,10 @@ index 00000000..4c0e4a41
 +};
 diff --git a/drivers/clk/ingenic/clk-t30.c b/drivers/clk/ingenic/clk-t30.c
 new file mode 100644
-index 00000000..74549df0
+index 00000000..e7d394ab
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t30.c
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,390 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T30 CGU (Clock/Power Manager) clock driver.
@@ -118794,7 +119943,7 @@ index 00000000..74549df0
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t30-cgu.h>
 +
-+#define T30_CLK_COUNT		(T30_CLK_CE_I2SR + 1)
++#define T30_CLK_COUNT		(T30_CLK_VPU + 1)
 +
 +/* CPM via the uncached MIPS KSEG1 window (as the other proven drivers). */
 +#define T30_CPM_BASE		0xb0000000
@@ -118804,9 +119953,12 @@ index 00000000..74549df0
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_HELIXCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_MSC0CDR		0x68
 +#define CPM_SSICDR		0x74
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPCDR		0x80
 +#define CPM_MSC1CDR		0xa4
 +#define CPM_CPVPCR		0xe0	/* VPLL */
 +
@@ -118842,6 +119994,18 @@ index 00000000..74549df0
 + * MAC-PHY divider + GMAC gate.
 + */
 +static const struct t30_clk_desc t30_clks[T30_CLK_COUNT] = {
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor contract (HELIX/ISP on MPLL, CIM on VPLL, same
++	 * table as T21). The 3.10 kernel computes leaf rates against
++	 * whatever parent it inherits (its cgu_set_parent drops
++	 * parent-only changes), so the inherited selector is the
++	 * contract. Parents only; rates stay the OS's business.
++	 */
++	[T30_CLK_VPU]  = { CPM_HELIXCDR, 29, 28, 27, NO_GATE, 0 },
++	[T30_CLK_ISP]  = { CPM_ISPCDR, 29, 28, 27, NO_GATE, 0 },
++	[T30_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, NO_GATE, 0 },
 +	[T30_CLK_SFC]  = { CPM_SSICDR, 28, 27, 26, CPM_CLKGR0, 20 },
 +	[T30_CLK_MSC0] = { CPM_MSC0CDR, 29, 28, 27, CPM_CLKGR0, 4 },
 +	[T30_CLK_MSC1] = { CPM_MSC1CDR, 29, 28, 27, CPM_CLKGR0, 5 },
@@ -119111,6 +120275,22 @@ index 00000000..74549df0
 +	struct t30_cgu_priv *p = dev_get_priv(dev);
 +
 +	p->base = (void __iomem *)T30_CPM_BASE;
++
++	/*
++	 * Bring up VPLL if the SPL left it down. The vendor loader runs
++	 * VPLL and parks CIM (and I2S) on it; the kernel's sensor
++	 * drivers retune it for 27 MHz MCLKs. Without a live VPLL the
++	 * CIM assigned-clock-parents pin would fail (a dead PLL rates
++	 * 0). T30 shares the T21 CPxPCR encoding; 0x0310086d is the
++	 * vendor register word for 1200.000 MHz from the 24 MHz
++	 * crystal (measured on T21 silicon, same PLL block).
++	 */
++	if (!(cpm_r(p, CPM_CPVPCR) & PLL_ON)) {
++		cpm_w(p, CPM_CPVPCR, 0x0310086d);
++		while (!(cpm_r(p, CPM_CPVPCR) & PLL_ON))
++			;
++	}
++
 +	return 0;
 +}
 +
@@ -119536,10 +120716,10 @@ index 00000000..8441e6c1
 +};
 diff --git a/drivers/clk/ingenic/clk-t32.c b/drivers/clk/ingenic/clk-t32.c
 new file mode 100644
-index 00000000..4e6dbbc7
+index 00000000..eebad3a8
 --- /dev/null
 +++ b/drivers/clk/ingenic/clk-t32.c
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,401 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T32 CGU (Clock/Power Manager) clock driver.
@@ -119568,7 +120748,7 @@ index 00000000..4e6dbbc7
 +#include <linux/delay.h>
 +#include <dt-bindings/clock/ingenic,t32-cgu.h>
 +
-+#define T32_CLK_COUNT		(T32_CLK_USBPHY + 1)
++#define T32_CLK_COUNT		(T32_CLK_VPU + 1)
 +
 +/* CPM at physical 0x10000000, accessed through the uncached KSEG1 window. */
 +#define T32_CPM_BASE		0xb0000000
@@ -119578,8 +120758,11 @@ index 00000000..4e6dbbc7
 +#define CPM_CPMPCR		0x14	/* MPLL */
 +#define CPM_CLKGR0		0x20
 +#define CPM_CLKGR1		0x28
++#define CPM_HELIXCDR		0x30
 +#define CPM_MACCDR		0x54
 +#define CPM_SFC0CDR		0x58
++#define CPM_CIMCDR		0x7c
++#define CPM_ISPMCDR		0x80
 +#define CPM_MSC0CDR		0x68
 +#define CPM_MSC1CDR		0xa4
 +#define CPM_CPVPCR		0xe0	/* VPLL */
@@ -119621,6 +120804,18 @@ index 00000000..4e6dbbc7
 + * 11, UART1 12, TCU 26; CLKGR1 - GMAC 0, OST 7.
 + */
 +static const struct t32_clk_desc t32_clks[T32_CLK_COUNT] = {
++	/*
++	 * Kernel-consumed leaves with no U-Boot driver: modeled so the
++	 * cgu node's assigned-clock-parents can pin their source muxes
++	 * to the vendor contract, measured from the shipping stock
++	 * loader on T32LQ silicon (2013.07-H20250211a register dump):
++	 * HELIX (VPU), ISPM and CIM all parked on MPLL. Unlike the
++	 * other XBurst1 parts, T32 stock parks CIM on MPLL, not VPLL.
++	 * Parents only; rates stay the OS's business.
++	 */
++	[T32_CLK_VPU]  = { CPM_HELIXCDR, 29, 28, 27, NO_HFREQ, NO_GATE, 0 },
++	[T32_CLK_ISP]  = { CPM_ISPMCDR, 29, 28, 27, NO_HFREQ, NO_GATE, 0 },
++	[T32_CLK_CIM]  = { CPM_CIMCDR, 29, 28, 27, NO_HFREQ, NO_GATE, 0 },
 +	[T32_CLK_SFC]   = { CPM_SFC0CDR, 29, 28, 27, NO_HFREQ, CPM_CLKGR0, 17 },
 +	[T32_CLK_MSC0]  = { CPM_MSC0CDR, 29, 28, 27, 20,       CPM_CLKGR0, 3 },
 +	[T32_CLK_MSC1]  = { CPM_MSC1CDR, 29, 28, 27, 20,       CPM_CLKGR0, 4 },
@@ -122529,10 +123724,34 @@ index b953bca4..7b3dbf53 100644
 +
  endmenu
 diff --git a/drivers/dfu/dfu.c b/drivers/dfu/dfu.c
-index 90d8b45c..9023672c 100644
+index 90d8b45c..d0b689e5 100644
 --- a/drivers/dfu/dfu.c
 +++ b/drivers/dfu/dfu.c
-@@ -491,6 +491,11 @@ int dfu_read(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
+@@ -303,6 +303,23 @@ void dfu_transaction_cleanup(struct dfu_entity *dfu)
+ 	dfu->inited = 0;
+ }
+ 
++/*
++ * Abort an open transaction on the entity, if any.
++ *
++ * For use by the transport (e.g. the DFU gadget) when the host abandons a
++ * transfer: DFU_ABORT, DFU_CLRSTATUS, an alt-setting switch or a bus reset.
++ * Without this the entity keeps its block sequence counter and buffer fill,
++ * and the host's next transfer is refused with a sequence-number mismatch
++ * even though the state machine reports dfuIDLE.
++ */
++void dfu_transaction_abort(struct dfu_entity *dfu)
++{
++	if (!dfu->inited)
++		return;
++
++	dfu_transaction_cleanup(dfu);
++}
++
+ int dfu_transaction_initiate(struct dfu_entity *dfu, bool read)
+ {
+ 	int ret = 0;
+@@ -491,6 +508,11 @@ int dfu_read(struct dfu_entity *dfu, void *buf, int size, int blk_seq_num)
  	if (dfu->i_blk_seq_num != blk_seq_num) {
  		printf("%s: Wrong sequence number! [%d] [%d]\n",
  		       __func__, dfu->i_blk_seq_num, blk_seq_num);
@@ -145038,10 +146257,10 @@ index 00000000..8f91a2a2
 +}
 diff --git a/drivers/ram/ingenic/ddr_t20.c b/drivers/ram/ingenic/ddr_t20.c
 new file mode 100644
-index 00000000..e42fe1c3
+index 00000000..b4aa3702
 --- /dev/null
 +++ b/drivers/ram/ingenic/ddr_t20.c
-@@ -0,0 +1,409 @@
+@@ -0,0 +1,410 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T20 (XBurst1) DDR2 controller + Synopsys DWC PHY init.
@@ -145407,7 +146626,8 @@ index 00000000..e42fe1c3
 +	 * params, then loads the DRAM-resident SPL. (rk3328 DMC pattern; in the
 +	 * SPL/U-Boot phases the probe only records the size, DDR is already up.)
 +	 */
-+	pll_init_params(params->apll_mnod, params->mpll_mnod, params->cpccr);
++	pll_init_params(params->apll_mnod, params->apll_frac,
++			params->mpll_mnod, params->cpccr);
 +	ingenic_t20_ddr_sdram_init_params(params);
 +#endif
 +
@@ -145453,10 +146673,10 @@ index 00000000..e42fe1c3
 +};
 diff --git a/drivers/ram/ingenic/ddr_t20.h b/drivers/ram/ingenic/ddr_t20.h
 new file mode 100644
-index 00000000..62725c74
+index 00000000..680533ae
 --- /dev/null
 +++ b/drivers/ram/ingenic/ddr_t20.h
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,184 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
 + * Ingenic T20 (XBurst1) DDR2 controller + Synopsys DWC PHY register map
@@ -145637,6 +146857,7 @@ index 00000000..62725c74
 +	u32 ddrp_mr0;			/* [23] DWC PHY MR0 */
 +	u32 ddrp_ptr0;			/* [24] DWC PHY PTR0 */
 +	u32 ddrp_ptr1;			/* [25] DWC PHY PTR1 */
++	u32 apll_frac;			/* [26] CPAPACR fraction (0 = integer APLL) */
 +};
 +
 +#endif /* _DRIVERS_RAM_INGENIC_DDR_T20_H */
@@ -154382,10 +155603,52 @@ index 5a7f50eb..edd8eca6 100644
  
  	return 0;
 diff --git a/drivers/usb/gadget/f_dfu.c b/drivers/usb/gadget/f_dfu.c
-index ca8b36e0..6b9ec217 100644
+index ca8b36e0..854e9847 100644
 --- a/drivers/usb/gadget/f_dfu.c
 +++ b/drivers/usb/gadget/f_dfu.c
-@@ -496,6 +496,20 @@ static int state_dfu_manifest(struct f_dfu *f_dfu,
+@@ -311,6 +311,25 @@ static int state_app_detach(struct f_dfu *f_dfu,
+ 	return value;
+ }
+ 
++/*
++ * Abort any open transaction on the currently selected entity.
++ *
++ * The DFU state machine and the dfu_entity hold separate state: DFU_ABORT,
++ * DFU_CLRSTATUS, an alt-setting switch or a bus reset put the state machine
++ * back in dfuIDLE, but the entity keeps its block sequence counter and
++ * buffer fill. A host that walks away from a transfer (interrupted upload,
++ * error recovery via USB reset) and then starts fresh would have its block 0
++ * refused with "Wrong sequence number! [N] [0]". Tell the DFU core the
++ * transaction is abandoned whenever that happens.
++ */
++static void f_dfu_abort_transaction(struct f_dfu *f_dfu)
++{
++	struct dfu_entity *dfu = dfu_get_entity(f_dfu->altsetting);
++
++	if (dfu)
++		dfu_transaction_abort(dfu);
++}
++
+ static int state_dfu_idle(struct f_dfu *f_dfu,
+ 			  const struct usb_ctrlrequest *ctrl,
+ 			  struct usb_gadget *gadget,
+@@ -345,6 +364,7 @@ static int state_dfu_idle(struct f_dfu *f_dfu,
+ 		}
+ 		break;
+ 	case USB_REQ_DFU_ABORT:
++		f_dfu_abort_transaction(f_dfu);
+ 		/* no zlp? */
+ 		value = RET_ZLP;
+ 		break;
+@@ -443,6 +463,7 @@ static int state_dfu_dnload_idle(struct f_dfu *f_dfu,
+ 		break;
+ 	case USB_REQ_DFU_ABORT:
+ 		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
++		f_dfu_abort_transaction(f_dfu);
+ 		value = RET_ZLP;
+ 		break;
+ 	case USB_REQ_DFU_GETSTATUS:
+@@ -496,6 +517,20 @@ static int state_dfu_manifest(struct f_dfu *f_dfu,
  
  	switch (ctrl->bRequest) {
  	case USB_REQ_DFU_GETSTATUS:
@@ -154406,6 +155669,36 @@ index ca8b36e0..6b9ec217 100644
  		/* We're MainfestationTolerant */
  		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
  		value = handle_getstatus(req);
+@@ -536,6 +571,7 @@ static int state_dfu_upload_idle(struct f_dfu *f_dfu,
+ 		break;
+ 	case USB_REQ_DFU_ABORT:
+ 		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
++		f_dfu_abort_transaction(f_dfu);
+ 		/* no zlp? */
+ 		value = RET_ZLP;
+ 		break;
+@@ -571,6 +607,7 @@ static int state_dfu_error(struct f_dfu *f_dfu,
+ 	case USB_REQ_DFU_CLRSTATUS:
+ 		f_dfu->dfu_state = DFU_STATE_dfuIDLE;
+ 		f_dfu->dfu_status = DFU_STATUS_OK;
++		f_dfu_abort_transaction(f_dfu);
+ 		/* no zlp? */
+ 		value = RET_ZLP;
+ 		break;
+@@ -789,6 +826,13 @@ static int dfu_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
+ 
+ 	debug("%s: intf:%d alt:%d\n", __func__, intf, alt);
+ 
++	/*
++	 * Selecting an alt (including re-selecting after a bus reset - the
++	 * composite layer calls set_alt on every SET_CONFIGURATION) abandons
++	 * whatever transfer was in flight on the previous one.
++	 */
++	f_dfu_abort_transaction(f_dfu);
++
+ 	f_dfu->altsetting = alt;
+ 	f_dfu->dfu_state = DFU_STATE_dfuIDLE;
+ 	f_dfu->dfu_status = DFU_STATUS_OK;
 diff --git a/drivers/usb/gadget/f_mass_storage.c b/drivers/usb/gadget/f_mass_storage.c
 index 71dc58da..87ed25e8 100644
 --- a/drivers/usb/gadget/f_mass_storage.c
@@ -159273,6 +160566,18 @@ index 94c988a7..6e5153ce 100644
  
  int cros_ec_register(struct udevice *dev);
  
+diff --git a/include/dfu.h b/include/dfu.h
+index 80593a90..43412bc6 100644
+--- a/include/dfu.h
++++ b/include/dfu.h
+@@ -408,6 +408,7 @@ void dfu_error_callback(struct dfu_entity *dfu, const char *msg);
+ 
+ int dfu_transaction_initiate(struct dfu_entity *dfu, bool read);
+ void dfu_transaction_cleanup(struct dfu_entity *dfu);
++void dfu_transaction_abort(struct dfu_entity *dfu);
+ 
+ /*
+  * dfu_defer_flush - pointer to store dfu_entity for deferred flashing.
 diff --git a/include/dm/device.h b/include/dm/device.h
 index 7bcf6df2..5d700888 100644
 --- a/include/dm/device.h
@@ -159371,10 +160676,10 @@ index 00000000..0484ac36
 +#endif /* __DT_BINDINGS_CLOCK_A1_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t10-cgu.h b/include/dt-bindings/clock/ingenic,t10-cgu.h
 new file mode 100644
-index 00000000..83767179
+index 00000000..3067893a
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t10-cgu.h
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,80 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t10-cgu DT binding.
@@ -159452,14 +160757,15 @@ index 00000000..83767179
 +#define T10_CLK_DIV_I2SR	55
 +#define T10_CLK_CE_I2ST		56
 +#define T10_CLK_CE_I2SR		57
++#define T10_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T10_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t20-cgu.h b/include/dt-bindings/clock/ingenic,t20-cgu.h
 new file mode 100644
-index 00000000..57f06d79
+index 00000000..04bf651a
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t20-cgu.h
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,80 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t20-cgu DT binding.
@@ -159537,14 +160843,15 @@ index 00000000..57f06d79
 +#define T20_CLK_DIV_I2SR	55
 +#define T20_CLK_CE_I2ST		56
 +#define T20_CLK_CE_I2SR		57
++#define T20_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T20_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t21-cgu.h b/include/dt-bindings/clock/ingenic,t21-cgu.h
 new file mode 100644
-index 00000000..5e0771f4
+index 00000000..728ce218
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t21-cgu.h
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,80 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t21-cgu DT binding.
@@ -159622,14 +160929,15 @@ index 00000000..5e0771f4
 +#define T21_CLK_DIV_I2SR	55
 +#define T21_CLK_CE_I2ST		56
 +#define T21_CLK_CE_I2SR		57
++#define T21_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T21_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t23-cgu.h b/include/dt-bindings/clock/ingenic,t23-cgu.h
 new file mode 100644
-index 00000000..147c7f2c
+index 00000000..ac013bd9
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t23-cgu.h
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,79 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t23-cgu DT binding.
@@ -159706,14 +161014,15 @@ index 00000000..147c7f2c
 +#define T23_CLK_DIV_I2SR	55
 +#define T23_CLK_CE_I2ST		56
 +#define T23_CLK_CE_I2SR		57
++#define T23_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T23_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t30-cgu.h b/include/dt-bindings/clock/ingenic,t30-cgu.h
 new file mode 100644
-index 00000000..9713cf2f
+index 00000000..c508e3d3
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t30-cgu.h
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,80 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t30-cgu DT binding.
@@ -159791,6 +161100,7 @@ index 00000000..9713cf2f
 +#define T30_CLK_DIV_I2SR	55
 +#define T30_CLK_CE_I2ST		56
 +#define T30_CLK_CE_I2SR		57
++#define T30_CLK_VPU		58
 +
 +#endif /* __DT_BINDINGS_CLOCK_T30_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t31-cgu.h b/include/dt-bindings/clock/ingenic,t31-cgu.h
@@ -159876,10 +161186,10 @@ index 00000000..c14ec098
 +#endif /* __DT_BINDINGS_CLOCK_T31_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t32-cgu.h b/include/dt-bindings/clock/ingenic,t32-cgu.h
 new file mode 100644
-index 00000000..da9b4599
+index 00000000..354640bb
 --- /dev/null
 +++ b/include/dt-bindings/clock/ingenic,t32-cgu.h
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,72 @@
 +/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 +/*
 + * This header provides clock numbers for the ingenic,t32-cgu DT binding.
@@ -159949,6 +161259,7 @@ index 00000000..da9b4599
 +#define T32_CLK_OST		48
 +#define T32_CLK_RTC		49
 +#define T32_CLK_USBPHY		50
++#define T32_CLK_VPU		51
 +
 +#endif /* __DT_BINDINGS_CLOCK_T32_CGU_H__ */
 diff --git a/include/dt-bindings/clock/ingenic,t33-cgu.h b/include/dt-bindings/clock/ingenic,t33-cgu.h
