@@ -151,7 +151,8 @@ function buildPreviewEndpointUrl(baseUrl) {
 
 function renderPreviewEndpoints() {
   const list = $("#preview-endpoint-list");
-  if (!list) return;
+  const dropdownMenu = $("#preview-endpoint-dropdown-menu");
+  if (!list && !dropdownMenu) return;
   const host =
     window.network_address || window.location.hostname || "localhost";
   const httpOrigin = buildPreviewOrigin();
@@ -191,29 +192,51 @@ function renderPreviewEndpoints() {
     },
   ];
 
-  list.innerHTML = "";
+  if (list) {
+    list.innerHTML = "";
+  }
+  if (dropdownMenu) {
+    dropdownMenu.innerHTML = "";
+  }
   entries.forEach((entry) => {
-    const link = document.createElement("a");
-    link.className = "preview-endpoint-link";
-    link.href = entry.url;
-    link.rel = "noopener";
-    link.dataset.copyUrl = entry.url;
-    link.title = `${entry.label}: ${entry.url}`;
-    link.setAttribute("aria-label", `${entry.label} endpoint`);
+    if (list) {
+      const link = document.createElement("a");
+      link.className = "preview-endpoint-link";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
 
-    const shortLabel = document.createElement("span");
-    shortLabel.className = "preview-endpoint-short";
-    shortLabel.textContent = entry.label;
+      const shortLabel = document.createElement("span");
+      shortLabel.className = "preview-endpoint-short";
+      shortLabel.textContent = entry.label;
 
-    const hint = document.createElement("span");
-    hint.className = "preview-endpoint-hint";
-    hint.innerHTML = '<i class="bi bi-clipboard"></i>';
+      const hint = document.createElement("span");
+      hint.className = "preview-endpoint-hint";
+      hint.innerHTML = '<i class="bi bi-clipboard"></i>';
 
-    link.appendChild(shortLabel);
-    link.appendChild(hint);
-    link.addEventListener("click", copyPreviewEndpoint);
+      link.appendChild(shortLabel);
+      link.appendChild(hint);
+      link.addEventListener("click", copyPreviewEndpoint);
 
-    list.appendChild(link);
+      list.appendChild(link);
+    }
+
+    if (dropdownMenu) {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = "dropdown-item preview-endpoint-dropdown-item";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
+      link.innerHTML = `<span class="preview-endpoint-short">${entry.label}</span> <i class="bi bi-clipboard"></i>`;
+      link.addEventListener("click", copyPreviewEndpoint);
+      li.appendChild(link);
+      dropdownMenu.appendChild(li);
+    }
   });
 }
 
