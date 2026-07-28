@@ -1,0 +1,14 @@
+diff --git a/drivers/mmc/host/jzmmc_v12.c b/drivers/mmc/host/jzmmc_v12.c
+index 8dd82232..66e97e92 100755
+--- a/drivers/mmc/host/jzmmc_v12.c
++++ b/drivers/mmc/host/jzmmc_v12.c
+@@ -1287,7 +1287,8 @@ static inline void jzmmc_power_off(struct jzmmc_host *host)
+ {
+ 	dev_vdbg(host->dev, "power_off\n");
+ 
+-	jzgpio_set_func(GPIO_PORT_B, GPIO_OUTPUT0, 0x3f);
++	if (host->pdata->gpio)
++		jzgpio_set_func(GPIO_PORT_B, GPIO_OUTPUT0, 0x3f);
+ 	if (!IS_ERR(host->power)) {
+ 		if(regulator_is_enabled(host->power))
+ 			regulator_disable(host->power);
