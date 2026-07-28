@@ -58,8 +58,14 @@ cli() {
 }
 
 reset() {
-	local tmp_file=$(mktemp)
-	rm /overlay/etc/wpa_supplicant.conf
+	rm -f /overlay/etc/wpa_supplicant.conf
+	@if WIFI_ATBM6441@
+	rm -f /etc/atbm6441.provisioned
+	if [ -S /tmp/atbm_server_socket ]; then
+		echo "ATBM6441: clearing network stored in MCU NVM"
+		atbm_iot_cli clear_network
+	fi
+	@endif@
 }
 
 rssi() {
@@ -146,6 +152,23 @@ configure() {
 		exit 1
 	fi
 
+	@if WIFI_ATBM6441@
+	# ATBM6441: credentials are pushed to the MCU via atbm_iot_cli at boot
+	# (S38), which needs the plain-text key — a derived PSK hash won't work.
+	password=$(printf '%s' "$password" | tr -d '\r\n\t')
+	{
+		echo "# created on $(date +%c)"
+		echo "ctrl_interface=/run/wpa_supplicant"
+		echo ""
+		echo "network={"
+		echo "        ssid=\"$ssid\""
+		echo "        psk=\"$password\""
+		echo "}"
+	} >/etc/wpa_supplicant.conf
+	# force re-provisioning of the MCU on next boot
+	rm -f /etc/atbm6441.provisioned
+	return
+	@endif@
 	@if WIFI_ATBM6461@
 	# ATBM6461 uses mcu_test for WiFi connection via MCU, not wpa_supplicant.
 	# Store plain text credentials for mcu_test to read at boot.

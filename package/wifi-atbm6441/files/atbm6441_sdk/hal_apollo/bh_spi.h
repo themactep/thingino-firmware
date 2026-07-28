@@ -1,0 +1,11 @@
+
+#ifndef ATBM_APOLLO_BH_USB_H
+#define ATBM_APOLLO_BH_USB_H
+
+
+#define USB_BLOCK_SIZE (512)
+#define RX_BUFFER_SIZE 4000
+#define TX_BUFFER_SIZE 1680
+
+
+#endif//ATBM_APOLLO_BH_USB_H

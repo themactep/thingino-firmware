@@ -1,0 +1,40 @@
+# NAME: Custom T23ZN with ATBM6441 WiFi
+# FRAG: soc-xburst1 core ssl
+#
+# SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
+# Sensor: SmartSens SC2336 wired at secondary I2C addr 0x32
+#         (hardware-verified via sensor-info: ID 0xCB3A @ i2c0/0x32; the vendor
+#          app calls it sc2336p but the silicon answers with the plain-SC2336 ID.
+#          Plain sc2336 driver + raptor.conf i2c_addr=0x32 override — the "sc2336s1"
+#          driver only compiles in CONFIG_MULTI_SENSOR builds.)
+# WiFi:   AltoBeam ATBM6441, SDIO
+# Flash:  16MB NOR SPI
+# UART:   ttyS1
+#
+# NOTES:
+#  - ATBM6441 driver built from source (atbm_hare_iot_sdio_svn2250_20230113)
+#  - Firmware already loaded in MCU non-volatile memory
+#  - Uses atbm_iot_supplicant_demo instead of wpa_supplicant
+#  - librtos.so for MCU integration (battery, PIR, WDT)
+#  - MMC1/MSC1_PORTB pinmux uncommented by wifi-atbm6441 package
+BR2_INGENIC_SOC_MODEL="t23zn"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/jooan_s7u_t23zn_sc2336_atbm6441/jooan_s7u_t23zn.kernel.config"
+BR2_PACKAGE_ATBM6441_TOOLS=y
+BR2_PACKAGE_THINGINO_MMC=y
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT2="49"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT="50"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED="60"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADDR="0x32"
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6441=y
+BR2_SENSOR_1_NAME="sc2336"
+BR2_SENSOR_1_PARAMS="shvflip=1"
+# GPIO map from vendor data-partition config.json (F78000/jffs2-root/conf/)
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_MOTORS=y
+BR2_THINGINO_RMEM_MB=18
+# SD card slot on MSC0 (exfat-nofuse module + U-Boot SD autoupdate; the MMC0
+# kernel options live in wifi-atbm6441.mk fixups next to the other jzmmc config)
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16

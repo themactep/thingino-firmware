@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thingino Custom Build <custom@thingino>
+Date: Thu, 2 Jul 2026 00:00:00 +0000
+Subject: [PATCH] Uncomment MSC1_PORTB pinmux for MMC1 SDIO
+
+The MSC1_PORTB entry in platform_devio_array was commented out,
+preventing PB8-PB14 from being muxed to MMC1 function when
+CONFIG_JZMMC_V12_MMC1_PB_4BIT is enabled. This breaks ATBM WiFi
+chips connected via SDIO on MMC1 port B.
+
+Uncomment it so the GPIO function is properly set up.
+---
+ arch/mips/xburst/soc-t23/common/platform.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/arch/mips/xburst/soc-t23/common/platform.c b/arch/mips/xburst/soc-t23/common/platform.c
+index aaaaaaaaa..bbbbbbbbb 100644
+--- a/arch/mips/xburst/soc-t23/common/platform.c
++++ b/arch/mips/xburst/soc-t23/common/platform.c
+@@ -38,9 +38,9 @@ struct jz_gpio_func_def platform_devio_array[] = {
+ #ifdef CONFIG_JZMMC_V12_MMC1_PA_4BIT
+ 	MSC1_PORTA,
+ #endif
+-//#ifdef CONFIG_JZMMC_V12_MMC1_PB_4BIT
+-//	MSC1_PORTB,
+-//#endif
++#ifdef CONFIG_JZMMC_V12_MMC1_PB_4BIT
++	MSC1_PORTB,
++#endif
+ #ifdef CONFIG_JZMMC_V12_MMC1_PC_4BIT
+ 	MSC1_PORTC,
+ #endif

@@ -1,0 +1,125 @@
+#############################################################################
+PWD:=$(shell pwd)
+WIFI_USER_DIR := $(USER)
+WIFI_INSTALL_DIR := /wifi_prj/tftpboot/$(WIFI_USER_DIR)/$(PLAT)_$(SYS)
+
+
+NOSTDINC_FLAGS := -I$(src)/include/ \
+	-include $(src)/include/linux/compat-2.6.h \
+	-DCOMPAT_STATIC
+#####################################################
+export
+MODULES_NAME = atbm_wifi
+CONFIG_FPGA=n
+CONFIG_1601=n
+CONFIG_1606=n
+CONFIG_APOLLOC=n
+CONFIG_APOLLOD=n
+CONFIG_APOLLOE=n
+CONFIG_ATHENAA=n
+CONFIG_ATHENAB=n
+CONFIG_ATHENAB_24M=n
+CONFIG_ATHENAC=n
+CONFIG_ATHENALITE=n
+CONFIG_ATHENALITE_ECO=n
+CONFIG_ARES=n
+CONFIG_ARESB=n
+CONFIG_HERA=y
+USB_BUS=n
+SPI_BUS=n
+SDIO_BUS=y
+TX_NO_CONFIRM=y
+MULT_NAME=n
+ATBM_MAKEFILE_SUB=y
+
+LOAD_FW_H=n
+SKB_DEBUG=n
+MEM_DEBUG=n
+BRIDGE=n
+MONITOR=n
+EARLYSUSPEND=n
+CH5G=n
+USBAGGTX=n
+NOTXCONFIRM=y
+USBDMABUFF=n
+USBCMDENHANCE=n
+USBDATAENHANCE=n
+PMRELODDFW=n
+CHECKSUM=n
+CONFIG_NOT_SUPPORT_40M_CHW=n
+##################################################
+#ATBM6041 only use sdio
+ifeq ($(CONFIG_HERA),y)
+SDIO_BUS=y
+endif
+#####################################################
+export 
+ifeq ($(CONFIG_ATBM_APOLLO),)
+CONFIG_ATBM_APOLLO=m
+endif
+################### WIRELESS #########################
+ifeq ($(CONFIG_ATBM_APOLLO_DEBUG),)
+ATBM_WIFI__EXT_CCFLAGS += -DCONFIG_ATBM_APOLLO_DEBUG=1
+CONFIG_ATBM_APOLLO_DEBUG=y
+endif
+#####################################################
+export
+#ifeq ($(CONFIG_ATBM_APOLLO_TESTMODE),)
+#ATBM_WIFI__EXT_CCFLAGS += -DCONFIG_ATBM_APOLLO_TESTMODE=1
+#CONFIG_ATBM_APOLLO_TESTMODE=y
+#endif
+
+HMAC_SVN_REV:=$(shell ((svnversion | grep -qv exported && echo -n 'Revision: ' && svnversion) || git svn info | sed -e 's/$$$$/M/' | grep '^Revision: ' ) | sed -e 's/^Revision: //'| sed -e 's/M//g')
+
+ifeq ($(USB_BUS),y)
+HIF:=usb
+endif
+ifeq ($(SDIO_BUS),y)
+HIF:=sdio
+endif
+ifeq ($(SPI_BUS),y)
+HIF:=spi
+endif
+
+ifeq ($(CONFIG_HERA),y)
+WIFI_INSTALL_DIR := $(WIFI_INSTALL_DIR)_hera_ko_$(HIF)_v$(HMAC_SVN_REV)
+else
+WIFI_INSTALL_DIR := $(WIFI_INSTALL_DIR)_fpga_$(HIF)_v$(HMAC_SVN_REV)
+endif
+
+ifeq ($(TX_NO_CONFIRM),y)
+WIFI_INSTALL_DIR := $(WIFI_INSTALL_DIR)_notxconfirm
+endif
+
+all:modules install
+get_ver:
+	@echo "#define DRIVER_VER " $(HMAC_SVN_REV) >hal_apollo/svn_version.h
+	@echo "svn version:" $(HMAC_SVN_REV)
+
+modules:clean
+	@echo "arch=$(ARCH)"						
+	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) -C $(KDIR) M=$(shell pwd)  modules -j8
+#	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	
+strip:
+	$(CROSS_COMPILE)strip $(WIFI_INSTALL_DIR)/$(MODULES_NAME).ko --strip-unneeded
+
+install:modules
+	mkdir -p $(WIFI_INSTALL_DIR)
+	chmod 777 $(WIFI_INSTALL_DIR)
+	cp hal_apollo/*.ko         $(WIFI_INSTALL_DIR)
+
+uninstall:
+#	rm -f/wifihome/tftpboot/wuping/hmac/*.ko
+
+clean:
+	rm -rf hal_apollo/*.o
+	rm -rf hal_apollo/*.ko  
+	rm -rf modules.* Module.* 
+	make -C $(KDIR) M=$(PWD) ARCH=$(ARCH) clean
+
+hal_clean:
+	rm -rf hal_apollo/*.ko
+	rm -rf hal_apollo/*.o
+	rm -rf hal_apollo/*.mod.c
+	rm -rf hal_apollo/*.cmd

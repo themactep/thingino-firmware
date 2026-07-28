@@ -1,7 +1,16 @@
 config BR2_PACKAGE_WIFI_ATBM6441
-	bool "AltoBeam ATBM6441"
+	bool "Atbm6441 WiFi driver (source)"
 	select BR2_LINUX_KERNEL
-	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
-	  Wireless driver atbm6441
-	  altobeam hare atbm6441 WiFi driver
+	  Source WiFi SDIO driver for ATBM6441 (HERA) for Ingenic SoC.
+	  Built from ATBM SDK svn2250 local source.
+
+if BR2_PACKAGE_WIFI_ATBM6441
+
+config BR2_PACKAGE_WIFI_ATBM6441_MODULE_NAME
+	string "atbm6441 module name"
+	default "atbm6441_wifi_sdio"
+	help
+	  Name of the atbm6441 kernel module
+
+endif

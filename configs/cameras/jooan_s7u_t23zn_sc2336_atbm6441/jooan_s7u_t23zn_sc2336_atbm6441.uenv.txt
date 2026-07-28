@@ -1,0 +1,21 @@
+# U-Env for Custom T23ZN with ATBM6441
+serialport=ttyS1
+
+# WiFi module load
+wifi_module=atbm6441_wifi_sdio
+
+# WiFi interface name (ATBM driver netdev; MCU handles DHCP internally)
+wifi_ifname=wlan0
+
+# ATBM IoT supplicant
+supplicant=atbm_iot_supplicant_demo
+
+# GPIO init — vendor map: PTZ pan 46/45/39/38 (PB13/14 double as unused SDIO
+# DAT2/3, board is 1-bit), tilt 53/52/57/58, ircut 50/49, IR LED 60,
+# white light 59, speaker enable 63 (active high)
+gpio_default=38o 39o 45o 46o 49o 50o 52o 53o 57o 58o 59o 60o 63o
+
+# SD card-detect GPIO for the built-in jzmmc driver. Piggybacked on the init
+# variable because the stock bootcmd offers no extra-bootargs hook; the kernel
+# parses jzmmc_v12.cd_gpio_pin as a module param anywhere on the cmdline.
+init=/init jzmmc_v12.cd_gpio_pin=61
