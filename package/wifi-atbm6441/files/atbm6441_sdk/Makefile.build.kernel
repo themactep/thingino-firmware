@@ -1,0 +1,64 @@
+#############################################################################
+#               Makefile For Kernel
+############################################################################
+
+NOSTDINC_FLAGS := -I$(src)/include/ \
+	-include $(src)/include/linux/compat-2.6.h \
+	-DCOMPAT_STATIC
+
+ifneq ($(ATBM_MAKEFILE_SUB),y)
+export
+ifeq ($(CONFIG_ATBM_MODULE_NAME),)
+CONFIG_ATBM_MODULE_NAME = atbm_wifi
+endif
+ifeq ($(CONFIG_ATBM_WIFIIF1_NAME),)
+CONFIG_ATBM_WIFIIF1_NAME = "wlan%d"
+endif
+ifeq ($(CONFIG_ATBM_WIFIIF2_NAME),)
+CONFIG_ATBM_WIFIIF2_NAME = "p2p%d"
+endif
+ifeq ($(CONFIG_ATBM_FW_NAME),)
+CONFIG_ATBM_FW_NAME="fw.bin"
+endif
+export
+IF1NAME        ?= $(shell echo $(CONFIG_ATBM_WIFIIF1_NAME))
+IF2NAME        ?= $(shell echo $(CONFIG_ATBM_WIFIIF2_NAME))
+FW             ?= $(shell echo $(CONFIG_ATBM_FW_NAME))
+MODULES_NAME   ?= $(shell echo $(CONFIG_ATBM_MODULE_NAME))
+LOAD_FW_H      ?= $(CONFIG_ATBM_USE_FIRMWARE_H)
+SKB_DEBUG      ?= $(CONFIG_ATBM_FUNC_SKB_DEBUG)
+MEM_DEBUG      ?= $(CONFIG_ATBM_FUNC_SKB_DEBUG)
+BRIDGE         ?= $(CONFIG_ATBM_SUPPORT_BRIDGE)
+MONITOR        ?= $(CONFIG_ATBM_FUNC_MONITOR)
+EARLYSUSPEND   ?= $(CONFIG_ATBM_FUNC_EARLYSUSPEND)
+NOTXCONFIRM    ?= $(CONFIG_ATBM_FUNC_NOTXCONFIRM)
+CH5G           ?= $(CONFIG_ATBM_FUNC_CHANNEL_5G_PRETEND_2G)
+USBAGGTX       ?= $(CONFIG_ATBM_FUNC_USB_AGGRTX)
+USBDMABUFF     ?= $(CONFIG_ATBM_FUNC_USB_DMABUFF)
+USBCMDENHANCE  ?= $(CONFIG_ATBM_FUNC_USB_CMD_ENHANCE)
+USBDATAENHANCE ?= $(CONFIG_ATBM_FUNC_USB_DATA_ENHANCE)
+PMRELODDFW     ?= $(CONFIG_ATBM_FUNC_PS_WAKEUP_RELOAD_FW)
+USB_BUS        ?= $(CONFIG_ATBM_USB_BUS)
+SDIO_BUS       ?= $(CONFIG_ATBM_SDIO_BUS)
+SPI_BUS        ?= $(CONFIG_ATBM_SPI_BUS)
+CHECKSUM       ?= $(CONFIG_ATBM_FUNC_HW_CHSUM)
+CONFIG_ATHENAB ?= $(CONFIG_ATBM601x)$(CONFIG_ATBM602x)
+CONFIG_ARESB   ?= $(CONFIG_ATBM603x)
+CONFIG_HERA    ?= $(CONFIG_ATBM6041)
+CONFIG_NOT_SUPPORT_40M_CHW ?= $(CONFIG_ATBM601x)
+#############################################################
+#ATBM6041 ONLY USE SDIO
+ifeq ($(CONFIG_HERA),y)
+SDIO_BUS=y
+endif
+ifeq ($(CONFIG_ATBM_SDIO_24M),y)
+ifeq ($(CONFIG_ATHENAB),y)
+CONFIG_ATHENAB_24M=y
+CONFIG_ATHENAB=n
+endif
+endif
+
+endif
+ 
+obj-$(CONFIG_ATBM_APOLLO) += hal_apollo/
+
