@@ -70582,10 +70582,10 @@ index 00000000..1a09712e
 +obj-y := isvp-t10.o
 diff --git a/board/ingenic/isvp-t10/isvp-t10.c b/board/ingenic/isvp-t10/isvp-t10.c
 new file mode 100644
-index 00000000..7bead0dc
+index 00000000..b80bd80f
 --- /dev/null
 +++ b/board/ingenic/isvp-t10/isvp-t10.c
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,135 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T10 board (DDR2 64 MB, SFC NOR)
@@ -70620,84 +70620,67 @@ index 00000000..7bead0dc
 +
 +#if defined(CONFIG_USB) || defined(CONFIG_USB_GADGET)
 +/*
-+ * USB PHY bring-up. Same XBurst1 USB PHY as T31/T23, so the host
-+ * path is the HW-proven T31 sequence (vendor isvp_t31 usb_init.c
-+ * board_usb_init): SRBC core reset, USBPCR1 word-IF / ref-clk,
-+ * clear USBVBFIL, USBRDT VBFIL-load, the vendor USBPCR host seed
-+ * then RMW, POR + UTMI_RST wrapped in an SRBC pulse with the exact
-+ * delays. board_init() runs the host path (for "usb start" /
-+ * USB-NIC); the dwc2_udc_otg gadget weak-hook otg_phy_init() runs
-+ * the device path (DFU/g_dnl): USB_MODE_ORG cleared, OTG disabled,
-+ * external VBUS-valid forced (no OTG VBUS sense on this board).
++ * USB PHY bring-up: the vendor T10 sequence, taken 1:1 from the 3.10
++ * kernel soc-t10/common/cpm_usb.c jz_otg_phy_init() (the 2013 vendor
++ * U-Boot board/ingenic/isvp_t10/usb_init.c is line-identical). The
++ * T10 PHY is NOT the T31/T23 one: dwc-otg select is USBPCR1 bits
++ * 29:28, the UTMI word interface is 16-bit/30M (bit 19 SET), and
++ * bits [25:23] carry a 3-bit tune field = 5. The T31-style
++ * REFCLKSEL/REFCLKDIV writes land on those bits and break the
++ * handshake (host-side descriptor-read EPROTO storms, full/high
++ * speed flapping; bench-verified on T10L). Mode tails per vendor:
++ * DEVICE clears USB_MODE_ORG/OTG_DISABLE/SIDDQ and keeps COMMONONN;
++ * HOST/OTG sets USB_MODE_ORG and clears the VBUS-ext/ID-pullup
++ * sensing bits.
 + */
 +static void t10_usb_phy_init(bool device)
 +{
 +	void __iomem *cpm = (void __iomem *)CPM_BASE;
 +	u32 v;
 +
-+	if (device) {
-+		v = readl(cpm + CPM_USBPCR1);
-+		v &= ~(USBPCR1_REFCLKSEL_MASK | USBPCR1_REFCLKDIV_MASK);
-+		v |= USBPCR1_REFCLKSEL_CORE | USBPCR1_WORD_IF0_16_30 |
-+		     USBPCR1_REFCLKDIV_24M;
-+		writel(v, cpm + CPM_USBPCR1);
-+
-+		v = readl(cpm + CPM_USBPCR);
-+		v &= ~USBPCR_USB_MODE_ORG;
-+		v |= USBPCR_VBUSVLDEXTSEL | USBPCR_VBUSVLDEXT |
-+		     USBPCR_OTG_DISABLE;
-+		writel(v, cpm + CPM_USBPCR);
-+
-+		setbits_le32(cpm + CPM_OPCR, OPCR_SPENDN0);
-+		setbits_le32(cpm + CPM_USBPCR, USBPCR_POR);
-+		udelay(30);
-+		clrbits_le32(cpm + CPM_USBPCR, USBPCR_POR);
-+		udelay(300);
-+		clrbits_le32(cpm + CPM_CLKGR0, CPM_CLKGR0_OTG);
-+		return;
-+	}
-+
-+	/* Host path: HW-proven T31 sequence (same USB PHY). */
 +	clrbits_le32(cpm + CPM_CLKGR0, CPM_CLKGR0_OTG);
-+	mdelay(100);
 +
-+	setbits_le32(cpm + CPM_SRBC, SRBC_USB_SR);
-+	udelay(40);
-+	clrbits_le32(cpm + CPM_SRBC, SRBC_USB_SR);
-+
++	/* select dwc otg, 16-bit/30M word interface, tune [25:23] = 5 */
 +	setbits_le32(cpm + CPM_USBPCR1,
-+		     BIT(8) | BIT(9) | BIT(28) | BIT(29) | BIT(30));
-+	clrbits_le32(cpm + CPM_USBPCR1, BIT(19));	/* WORD_IF0 */
++		     BIT(29) | BIT(28) | USBPCR1_WORD_IF0_16_30);
 +	v = readl(cpm + CPM_USBPCR1);
 +	v &= ~(0x7u << 23);
-+	v |= (5u << 23);
++	v |= 5u << 23;
 +	writel(v, cpm + CPM_USBPCR1);
 +
++	/* un-suspend the PHY, then drop SIDDQ */
++	setbits_le32(cpm + CPM_OPCR, OPCR_SPENDN0);
++	udelay(45);
++	clrbits_le32(cpm + CPM_USBPCR, USBPCR_SIDDQ);
++
 +	writel(0, cpm + CPM_USBVBFIL);
-+	writel(0x96, cpm + CPM_USBRDT);
++
++	v = readl(cpm + CPM_USBRDT);
++	v &= ~(USBRDT_VBFIL_LD_EN | GENMASK(22, 0));
++	v |= 0x96;
++	writel(v, cpm + CPM_USBRDT);
 +	setbits_le32(cpm + CPM_USBRDT, USBRDT_VBFIL_LD_EN);
 +
-+	writel(0x8380385a, cpm + CPM_USBPCR);
++	/* vendor USBPCR seed, then the mode tail */
++	writel(0x83803857, cpm + CPM_USBPCR);
 +	v = readl(cpm + CPM_USBPCR);
-+	v |= USBPCR_USB_MODE_ORG | USBPCR_COMMONONN;
-+	v &= ~(USBPCR_OTG_DISABLE | USBPCR_SIDDQ | USBPCR_IDPULLUP_MASK |
-+	       USBPCR_VBUSVLDEXT | USBPCR_VBUSVLDEXTSEL);
++	if (device) {
++		v &= ~(USBPCR_USB_MODE_ORG | USBPCR_OTG_DISABLE |
++		       USBPCR_SIDDQ);
++		v |= USBPCR_COMMONONN;
++	} else {
++		v |= USBPCR_USB_MODE_ORG | USBPCR_COMMONONN;
++		v &= ~(USBPCR_OTG_DISABLE | USBPCR_SIDDQ |
++		       USBPCR_IDPULLUP_MASK | USBPCR_VBUSVLDEXT |
++		       USBPCR_VBUSVLDEXTSEL);
++	}
 +	writel(v, cpm + CPM_USBPCR);
 +
++	/* POR pulse */
 +	setbits_le32(cpm + CPM_USBPCR, USBPCR_POR);
-+	clrbits_le32(cpm + CPM_USBRDT, USBRDT_UTMI_RST);
-+	setbits_le32(cpm + CPM_SRBC, SRBC_USB_SR);
-+	udelay(10);
++	mdelay(1);
 +	clrbits_le32(cpm + CPM_USBPCR, USBPCR_POR);
-+	udelay(20);
-+	setbits_le32(cpm + CPM_OPCR, OPCR_SPENDN0);
-+	mdelay(50);
-+
-+	udelay(950);
-+	setbits_le32(cpm + CPM_USBRDT, USBRDT_UTMI_RST);
-+	udelay(20);
-+	clrbits_le32(cpm + CPM_SRBC, SRBC_USB_SR);
-+	mdelay(10);
++	mdelay(1);
 +}
 +
 +struct dwc2_udc;
@@ -70715,8 +70698,7 @@ index 00000000..7bead0dc
 +	 * Only the host build (dr_mode="host", t10-isvp.dts) does the
 +	 * host PHY bring-up here. The DFU loader (t10-isvp-dfu.dts,
 +	 * dr_mode="peripheral") must NOT run the host sequence - its
-+	 * SRBC core reset / UTMI_RST staging leaves the PHY mid-host
-+	 * and the gadget then fails to enumerate; the dwc2_udc_otg
++	 * host mode tail is wrong for a gadget; the dwc2_udc_otg
 +	 * weak hook otg_phy_init() does the device PHY init instead.
 +	 */
 +	if (ofnode_valid(otg) && usb_get_dr_mode(otg) == USB_DR_MODE_HOST)
@@ -146257,10 +146239,10 @@ index 00000000..8f91a2a2
 +}
 diff --git a/drivers/ram/ingenic/ddr_t20.c b/drivers/ram/ingenic/ddr_t20.c
 new file mode 100644
-index 00000000..b4aa3702
+index 00000000..fa3e43f5
 --- /dev/null
 +++ b/drivers/ram/ingenic/ddr_t20.c
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,411 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic T20 (XBurst1) DDR2 controller + Synopsys DWC PHY init.
@@ -146341,16 +146323,17 @@ index 00000000..b4aa3702
 +/*
 + * DDR clock divider: the DDR branch of the vendor clk_set_rate(). cfg->ddr_cdr
 + * is the CPM_DDRCDR divider (DDR = MPLL/(cdr+1)): T20 cdr 1 (MPLL 1000 / 500),
-+ * T10 cdr 2 (MPLL 1200 / 400). Leave the PLL-select bits [31:30] as the mask ROM
-+ * set them (DDR already runs off a PLL to have reached here); only clear the
-+ * divider field and set CE (bit 29) + cdr, then poll BUSY (bit 28).
++ * T10 cdr 2 (MPLL 1200 / 400). Select MPLL explicitly ([31:30] = 2): the vendor
++ * SPL writes the full word (T10L stock 0xa0000002) and the reset default is
++ * APLL - inheriting it ran T10L DDR at APLL/3 = 237.6 MHz on a USB boot
++ * (bench-measured DDRCDR 0x60000002). Set CE (bit 29) + cdr, poll BUSY (28).
 + */
 +static void ddr_clk_set_rate(const struct ingenic_t20_ddr_params *cfg)
 +{
 +	u32 regval = cpm_readl(CPM_DDRCDR);
 +
-+	regval &= ~(0xf | (0x3f << 24));
-+	regval |= ((1 << 29) | (cfg->ddr_cdr & 0xff));	/* ce = bit 29 */
++	regval &= ~((0x3u << 30) | (0x3f << 24) | 0xf);
++	regval |= ((2u << 30) | (1 << 29) | (cfg->ddr_cdr & 0xff));	/* MPLL, ce */
 +	cpm_writel(regval, CPM_DDRCDR);
 +	while (cpm_readl(CPM_DDRCDR) & (1 << 28))	/* busy = bit 28 */
 +		;
