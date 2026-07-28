@@ -434,8 +434,10 @@ else
 	ISP_CH1_DEQUEUE_DELAY_TIME :=
 endif
 
-ifneq ($(BR2_ISP_MIPI_SWITCH_GPIO),)
+ifeq ($(BR2_ISP_MIPI_SWITCH_GPIO),y)
 	ISP_MIPI_SWITCH_GPIO := mipi_switch_gpio=$(BR2_ISP_MIPI_SWITCH_GPIO)
+else
+	ISP_MIPI_SWITCH_GPIO :=
 endif
 
 ifeq ($(BR2_ISP_DIRECT_MODE_0),y)
@@ -460,10 +462,10 @@ else
 	ISP_IVDC_THRESHOLD_LINE :=
 endif
 
-ifneq ($(BR2_ISP_CONFIG_HZ),)
-ifneq ($(BR2_ISP_CONFIG_HZ),0)
-	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ)
-endif
+ifeq ($(BR2_ISP_CONFIG_HZ),y)
+	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ_VALUE)
+else
+	ISP_CONFIG_HZ :=
 endif
 
 ifeq ($(BR2_ISP_PRINT_LEVEL_0),y)
