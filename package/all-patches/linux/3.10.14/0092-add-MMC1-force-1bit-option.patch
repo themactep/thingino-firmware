@@ -1,0 +1,49 @@
+Add CONFIG_JZMMC_V12_MMC1_FORCE_1BIT to drop MMC_CAP_4_BIT_DATA from MSC1
+pdata, for boards where the SDIO device only wires DAT0/DAT1 (e.g. Jooan
+S7-U ATBM6441: 4-bit CMD53 fails with write CRC errors, DAT2/3 float low).
+
+--- a/drivers/mmc/host/Kconfig	2026-07-03 19:07:47.332806187 +0800
++++ b/drivers/mmc/host/Kconfig	2026-07-03 19:08:57.841821034 +0800
+@@ -75,6 +75,16 @@
+ 	bool "GPIO C, Data width 4 bit"
+ endchoice
+ 
++config JZMMC_V12_MMC1_FORCE_1BIT
++	bool "Force 1-bit data width for MSC1"
++	depends on JZMMC_V12_MMC1
++	default n
++	help
++	  Do not advertise MMC_CAP_4_BIT_DATA for MSC1. Use this for boards
++	  where the SDIO device only has DAT0 (and optionally DAT1 for
++	  interrupts) wired, so 4-bit transfers would fail with CRC errors.
++	  If unsure, say N.
++
+ config MMC1_MAX_FREQ
+ 	int "MSC1 max frequency"
+ 	depends on JZMMC_V12_MMC1
+--- a/arch/mips/xburst/soc-t23/chip-t23/isvp/common/mmc.c	2026-07-03 19:07:47.334673080 +0800
++++ b/arch/mips/xburst/soc-t23/chip-t23/isvp/common/mmc.c	2026-07-03 19:08:57.843099128 +0800
+@@ -41,7 +41,11 @@
+ 	 .removal  			= MANUAL,
+ 	 .sdio_clk			= 1,
+ 	 .ocr_avail			= MMC_VDD_29_30 | MMC_VDD_30_31,
++#ifdef CONFIG_JZMMC_V12_MMC1_FORCE_1BIT
++	 .capacity  			= MMC_CAP_SDIO_IRQ,
++#else
+ 	 .capacity  			= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ,
++#endif
+ 	 .max_freq                       = CONFIG_MMC1_MAX_FREQ,
+ 	 .recovery_info			= NULL,
+ 	 .gpio				= NULL,
+@@ -82,7 +86,11 @@
+ 	 .removal  			= MANUAL,
+ 	 .sdio_clk			= 1,
+ 	 .ocr_avail			= MMC_VDD_29_30 | MMC_VDD_30_31,
++#ifdef CONFIG_JZMMC_V12_MMC1_FORCE_1BIT
++	 .capacity  			= MMC_CAP_SDIO_IRQ,
++#else
+ 	 .capacity  			= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ,
++#endif
+ 	 .max_freq                       = CONFIG_MMC1_MAX_FREQ,
+ 	 .recovery_info			= NULL,
+ 	 .gpio				= NULL,

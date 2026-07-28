@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thingino Custom Build <custom@thingino>
+Date: Sun, 6 Jul 2026 00:00:00 +0000
+Subject: [PATCH] Default UART0 to PORTB pinmux when UART0 is enabled
+
+The UART0 entry in platform_devio_array is gated on CONFIG_UART0_PB /
+CONFIG_UART0_PB_FC, but this kernel tree ships no Kconfig choice that
+defines either symbol. As a result, enabling CONFIG_SERIAL_JZ47XX_UART0
+registers /dev/ttyS0 but never muxes PB19/PB22 to the UART0 function,
+so nothing reaches the pins.
+
+On the Jooan S7-U board T23 UART0 (PB19 TXD / PB22 RXD, non-flow-control)
+is wired to the ATBM6441's UART, which is the vendor's MCU control/PIR
+channel (/dev/ttyS0). Default to the non-flow-control PORTB group when
+UART0 is enabled so the data pins get muxed. The flow-control variant is
+deliberately NOT the default: PB20/PB21 are used as PTZ tilt GPIOs on
+this board, so only UART0_PORTB_FC (opt-in) would collide.
+---
+ arch/mips/xburst/soc-t23/common/platform.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/mips/xburst/soc-t23/common/platform.c b/arch/mips/xburst/soc-t23/common/platform.c
+index aaaaaaaaa..bbbbbbbbb 100644
+--- a/arch/mips/xburst/soc-t23/common/platform.c
++++ b/arch/mips/xburst/soc-t23/common/platform.c
+@@ -70,10 +70,10 @@ struct jz_gpio_func_def platform_devio_array[] = {
+
+
+ #ifdef CONFIG_SERIAL_JZ47XX_UART0
+-#if defined(CONFIG_UART0_PB)
+-	UART0_PORTB,
+-#elif defined(CONFIG_UART0_PB_FC)
++#if defined(CONFIG_UART0_PB_FC)
+ 	UART0_PORTB_FC,
++#else
++	UART0_PORTB,
+ #endif
+ #endif
+
