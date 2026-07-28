@@ -30,6 +30,8 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/libexec/agent/tls-proxy
 	$(INSTALL) -D -m 0755 $(@D)/agentctl \
 		$(TARGET_DIR)/usr/sbin/agentctl
+	$(INSTALL) -D -m 0755 $(@D)/thingino-camera-id \
+		$(TARGET_DIR)/usr/sbin/thingino-camera-id
 	$(INSTALL) -D -m 0755 $(@D)/thingino-agent-bootstrap \
 		$(TARGET_DIR)/usr/sbin/thingino-agent-bootstrap
 	$(INSTALL) -D -m 0644 $(@D)/agent-lib \
@@ -37,6 +39,7 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 	# Install the null adapter as the build-time fallback. The chosen streamer
 	# package (prudynt-t or thingino-raptor) overwrites it at this fixed path.
 	$(INSTALL) -D -m 0644 $(@D)/agent-adapter-null \
-		$(TARGET_DIR)/usr/libexec/agent/adapter.shendef
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+endef
 
 $(eval $(generic-package))

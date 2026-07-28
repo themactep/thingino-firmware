@@ -37,7 +37,7 @@ anywhere in a topic string:
 |---------------|------------------------------------------------------|
 | `%hostname`   | Camera hostname (e.g. `ing-wyze-cam3-592e`)          |
 | `%ip`         | Camera IP address (e.g. `192.168.1.42`)              |
-| `%id`         | Camera hostname (e.g. `ing-wyze-cam3-2937`) |
+| `%id`         | Canonical camera ID (same as native `GET /api/v1/device`, typically MAC without separators, e.g. `0203823f5533`) |
 
 Example: `cameras/%id/cmd` subscribes to
 `cameras/ing-wyze-cam3-2937/cmd` at runtime.

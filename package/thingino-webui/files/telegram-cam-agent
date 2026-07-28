@@ -13,12 +13,9 @@ json_escape() {
 }
 
 camera_id() {
-	if command -v soc >/dev/null 2>&1; then
-		serial=$(soc -s 2>/dev/null)
-		if [ -n "$serial" ]; then
-			printf '%s' "$serial"
-			return 0
-		fi
+	if command -v thingino-camera-id >/dev/null 2>&1; then
+		thingino-camera-id
+		return $?
 	fi
 
 	for iface in eth0 wlan0 eth1; do
