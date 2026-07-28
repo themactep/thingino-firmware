@@ -73,6 +73,9 @@ Good candidates:
 - a last-resort local recovery surface when the hub cannot yet complete the
 	connect or pair flow
 
+Current local pairing fallback: **Services → Hub Pairing** installs a hub
+bearer token via `thingino-agent-bootstrap` and restarts the agent.
+
 Poor candidates:
 
 - large fleet dashboards

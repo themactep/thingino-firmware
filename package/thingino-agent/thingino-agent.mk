@@ -29,6 +29,8 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/libexec/thingino-agent/tls-proxy
 	$(INSTALL) -D -m 0755 $(@D)/thingino-agentctl \
 		$(TARGET_DIR)/usr/sbin/thingino-agentctl
+	$(INSTALL) -D -m 0755 $(@D)/thingino-agent-bootstrap \
+		$(TARGET_DIR)/usr/sbin/thingino-agent-bootstrap
 	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-lib \
 		$(TARGET_DIR)/usr/libexec/thingino-agent/lib.sh
 	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-null \

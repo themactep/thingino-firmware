@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Hub Pairing</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-agent-pair">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="agentPairForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Hub Pairing</h2>
+            <small>Last-resort local install of a hub-issued agent token when MQTT bootstrap is not available yet</small>
+            <button type="button" class="btn btn-outline-secondary" id="agent-pair-reload" title="Reload status">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="agent-pair-status" class="alert alert-secondary mb-4" role="status">Loading agent status…</div>
+
+            <div class="row g-4">
+              <div class="col-12 col-lg-6">
+                <h4>Agent token</h4>
+                <small>Paste the bearer token from the hub enrollment / pairing bundle</small>
+                <p>
+                  <label for="agent_pair_token">Bearer token</label>
+                  <input type="password" class="form-control" id="agent_pair_token" required autocomplete="off">
+                  <div class="invalid-feedback">Token is required.</div>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="agent_pair_tls" role="switch" checked>
+                  <label class="form-check-label" for="agent_pair_tls">Enable TLS for remote agent access</label>
+                </p>
+                <div class="row g-1 mb-3">
+                  <div class="col-9">
+                    <label for="agent_pair_listen">Listen address</label>
+                    <input type="text" class="form-control" id="agent_pair_listen" value="0.0.0.0">
+                  </div>
+                  <div class="col-3">
+                    <label for="agent_pair_port">Port</label>
+                    <input type="number" class="form-control" id="agent_pair_port" value="1998" min="1" max="65535">
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-6">
+                <h4>Optional MQTT broker</h4>
+                <small>Fill these when the hub also needs camera mqtt_sub broker settings updated</small>
+                <div class="row g-1 mb-3">
+                  <div class="col-9">
+                    <label for="agent_pair_mqtt_host">Broker address</label>
+                    <input type="text" class="form-control" id="agent_pair_mqtt_host" placeholder="192.168.1.100">
+                  </div>
+                  <div class="col-3">
+                    <label for="agent_pair_mqtt_port">Port</label>
+                    <input type="number" class="form-control" id="agent_pair_mqtt_port" value="1883" min="1" max="65535">
+                  </div>
+                </div>
+                <p>
+                  <label for="agent_pair_mqtt_username">Username</label>
+                  <input type="text" class="form-control" id="agent_pair_mqtt_username" autocomplete="username">
+                </p>
+                <p>
+                  <label for="agent_pair_mqtt_password">Password</label>
+                  <input type="password" class="form-control" id="agent_pair_mqtt_password" autocomplete="current-password">
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer text-end">
+            <button type="submit" class="btn btn-primary" id="agent-pair-save">
+              <i class="bi bi-link-45deg me-1"></i>Install bootstrap and restart agent
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+<script src="/a/main.js"></script>
+<script src="/a/tool-agent-pair.js"></script>
+</body>
+</html>
