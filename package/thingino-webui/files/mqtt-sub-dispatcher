@@ -8,7 +8,7 @@
 # Topic shorthands (resolved at startup):
 #   %hostname - camera hostname
 #   %ip       - camera IP address
-#   %id       - camera SoC serial number, with MAC-based fallback
+#   %id       - canonical camera ID (matches native GET /api/v1/device)
 
 CONFIG_FILE="/etc/thingino.json"
 HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-300}"
@@ -60,12 +60,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 camera_id() {
-	if command -v soc >/dev/null 2>&1; then
-		serial=$(soc -s 2>/dev/null)
-		if [ -n "$serial" ]; then
-			printf '%s' "$serial"
-			return 0
-		fi
+	if command -v thingino-camera-id >/dev/null 2>&1; then
+		thingino-camera-id
+		return $?
 	fi
 
 	for iface in eth0 wlan0 eth1; do
