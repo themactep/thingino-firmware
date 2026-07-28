@@ -12,7 +12,7 @@ start() {
 		if [ -f "$PORTAL_MODE_FLAG" ]; then
 			echo -c 240 -e "- Portal mode is active"
 		else
-			play /usr/share/sounds/thingino.opus
+			play /usr/share/sounds/thingino.@SOUND_EXT@
 		fi
 	fi
 }
