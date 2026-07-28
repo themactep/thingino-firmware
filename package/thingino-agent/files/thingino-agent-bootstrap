@@ -1,0 +1,123 @@
+#!/bin/sh
+#
+# Camera-side agent bootstrap helper for hub pairing.
+# Writes /etc/thingino-agent-bootstrap.json for S95thingino-agent to import,
+# and ensures the hub MQTT command subscription exists.
+#
+
+CONFIG_FILE="${THINGINO_CONFIG:-/etc/thingino.json}"
+BOOTSTRAP_CONFIG="${THINGINO_AGENT_BOOTSTRAP:-/etc/thingino-agent-bootstrap.json}"
+HUB_CMD_TOPIC='thingino/cam/%id/cmd'
+HUB_CMD_ACTION='telegram-cam-agent "$MQTT_PAYLOAD"'
+
+json_escape() {
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e 's/\r/\\r/g' \
+		-e 's/\n/\\n/g'
+}
+
+usage() {
+	cat <<EOF
+Usage:
+  thingino-agent-bootstrap install <token> [mqtt_host] [mqtt_port] [mqtt_user] [mqtt_pass]
+  thingino-agent-bootstrap ensure-hub-subscription
+EOF
+}
+
+ensure_hub_cmd_subscription() {
+	command -v jct >/dev/null 2>&1 || return 1
+	[ -f "$CONFIG_FILE" ] || printf '{}\n' >"$CONFIG_FILE"
+
+	i=0
+	found=
+	while :; do
+		topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.topic" 2>/dev/null | tr -d '"')
+		case "$topic" in
+			"" | null)
+				break
+				;;
+		esac
+		action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.action" 2>/dev/null | tr -d '"')
+		if [ "$topic" = "$HUB_CMD_TOPIC" ] || echo "$action" | grep -q 'telegram-cam-agent'; then
+			jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.enabled" true >/dev/null 2>&1 || true
+			jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.topic" "$HUB_CMD_TOPIC" >/dev/null 2>&1 || true
+			jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.action" "$HUB_CMD_ACTION" >/dev/null 2>&1 || true
+			jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.qos" 0 >/dev/null 2>&1 || true
+			found=1
+			break
+		fi
+		i=$((i + 1))
+	done
+
+	if [ -z "$found" ]; then
+		jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.enabled" true >/dev/null 2>&1 || return 1
+		jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.topic" "$HUB_CMD_TOPIC" >/dev/null 2>&1 || return 1
+		jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.action" "$HUB_CMD_ACTION" >/dev/null 2>&1 || return 1
+		jct "$CONFIG_FILE" set "mqtt_sub.subscriptions.$i.qos" 0 >/dev/null 2>&1 || return 1
+	fi
+
+	# Keep mqtt_sub enabled when we know a hub subscription is present.
+	jct "$CONFIG_FILE" set mqtt_sub.enabled true >/dev/null 2>&1 || true
+	return 0
+}
+
+install_bootstrap() {
+	token="$1"
+	mqtt_host="$2"
+	mqtt_port="${3:-1883}"
+	mqtt_user="$4"
+	mqtt_pass="$5"
+
+	[ -n "$token" ] || {
+		echo "install requires a bearer token" >&2
+		return 1
+	}
+
+	case "$mqtt_port" in
+		"" | *[!0-9]*) mqtt_port=1883 ;;
+	esac
+
+	umask 077
+	if [ -n "$mqtt_host" ]; then
+		bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"},"mqtt_sub":{"enabled":true,"host":"%s","port":%s,"username":"%s","password":"%s"}}' \
+			"$(json_escape "$token")" \
+			"$(json_escape "$mqtt_host")" \
+			"$mqtt_port" \
+			"$(json_escape "$mqtt_user")" \
+			"$(json_escape "$mqtt_pass")")
+	else
+		bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"}}' \
+			"$(json_escape "$token")")
+	fi
+
+	printf '%s\n' "$bootstrap_payload" >"$BOOTSTRAP_CONFIG" || return 1
+
+	# Ensure hub cmd subscription on the live config now so import cannot leave
+	# the camera without a command path (jct import merges and preserves
+	# existing subscriptions when the bootstrap omits them).
+	ensure_hub_cmd_subscription || true
+	return 0
+}
+
+cmd="${1:-}"
+[ "$#" -gt 0 ] && shift
+
+case "$cmd" in
+	install)
+		install_bootstrap "$@"
+		;;
+	ensure-hub-subscription)
+		ensure_hub_cmd_subscription
+		;;
+	"" | -h | --help | help)
+		usage
+		[ -n "$cmd" ]
+		;;
+	*)
+		echo "Unknown command: $cmd" >&2
+		usage >&2
+		exit 1
+		;;
+esac

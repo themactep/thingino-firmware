@@ -161,6 +161,26 @@ Important: keep the action exactly as shown above, including the inner quotes
 around `$MQTT_PAYLOAD`. The payload is JSON, and `telegram-cam-agent` expects
 to receive it as a single shell argument.
 
+The hub may push pairing over MQTT with command `install-agent-bootstrap`.
+Arguments are:
+
+| Arg | Meaning |
+|-----|---------|
+| `args.0` | Agent bearer token (required) |
+| `args.1` | Optional MQTT broker host |
+| `args.2` | Optional MQTT broker port (default `1883`) |
+| `args.3` | Optional MQTT username |
+| `args.4` | Optional MQTT password |
+
+That path writes `/etc/thingino-agent-bootstrap.json` via
+`thingino-agent-bootstrap`, ensures the hub cmd subscription above exists,
+replies on MQTT, then restarts `S95thingino-agent` (and `S91mqttsub` when
+broker settings changed). The agent init script imports the bootstrap once and
+renames it to `.applied` so it is not re-applied on every boot.
+
+If MQTT is not yet available, the camera Web UI **Services → Hub Pairing**
+page can install the same bootstrap locally.
+
 
 ---
 

@@ -60,7 +60,14 @@ stop_daemon() {
 
 apply_bootstrap_config() {
 	if [ -f "$BOOTSTRAP_CONFIG" ] && command -v jct >/dev/null 2>&1; then
-		jct "$THINGINO_CONFIG" import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1 || true
+		if jct "$THINGINO_CONFIG" import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1; then
+			# One-shot: do not keep re-applying the same bootstrap on every start.
+			mv -f "$BOOTSTRAP_CONFIG" "${BOOTSTRAP_CONFIG}.applied" 2>/dev/null ||
+				rm -f "$BOOTSTRAP_CONFIG"
+			if command -v thingino-agent-bootstrap >/dev/null 2>&1; then
+				thingino-agent-bootstrap ensure-hub-subscription >/dev/null 2>&1 || true
+			fi
+		fi
 	fi
 }
 
