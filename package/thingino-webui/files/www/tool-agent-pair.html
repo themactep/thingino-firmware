@@ -34,15 +34,22 @@
           </div>
           <div class="card-body">
             <div id="agent-pair-status" class="alert alert-secondary mb-4" role="status">Loading agent status…</div>
+            <p class="text-body-secondary small mb-4">
+              Leaving MQTT fields alone keeps the current broker settings.
+              Day-to-day MQTT edits belong under <a href="/tool-mqtt-sub.html">Services → MQTT Subscriptions</a>.
+            </p>
 
             <div class="row g-4">
               <div class="col-12 col-lg-6">
                 <h4>Agent token</h4>
-                <small>Paste the bearer token from the hub enrollment / pairing bundle</small>
+                <small>Paste a hub bearer token, or leave blank to keep the configured token</small>
+                <div id="agent-pair-token-configured" class="alert alert-success py-2 d-none" role="status">
+                  Token configured
+                </div>
                 <p>
                   <label for="agent_pair_token">Bearer token</label>
-                  <input type="password" class="form-control" id="agent_pair_token" required autocomplete="off">
-                  <div class="invalid-feedback">Token is required.</div>
+                  <input type="password" class="form-control" id="agent_pair_token" autocomplete="off">
+                  <div class="invalid-feedback">Token is required when none is configured yet.</div>
                 </p>
                 <p class="form-switch">
                   <input type="checkbox" class="form-check-input" id="agent_pair_tls" role="switch" checked>
@@ -61,24 +68,30 @@
               </div>
               <div class="col-12 col-lg-6">
                 <h4>Optional MQTT broker</h4>
-                <small>Fill these when the hub also needs camera mqtt_sub broker settings updated</small>
+                <small>Only rewrite broker settings when you explicitly choose to update them</small>
+                <div id="agent-pair-mqtt-configured" class="alert alert-success py-2 d-none" role="status"></div>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="agent_pair_update_mqtt" role="switch">
+                  <label class="form-check-label" for="agent_pair_update_mqtt">Update MQTT broker details</label>
+                </p>
                 <div class="row g-1 mb-3">
                   <div class="col-9">
                     <label for="agent_pair_mqtt_host">Broker address</label>
-                    <input type="text" class="form-control" id="agent_pair_mqtt_host" placeholder="192.168.1.100">
+                    <input type="text" class="form-control" id="agent_pair_mqtt_host" placeholder="192.168.1.100" disabled>
                   </div>
                   <div class="col-3">
                     <label for="agent_pair_mqtt_port">Port</label>
-                    <input type="number" class="form-control" id="agent_pair_mqtt_port" value="1883" min="1" max="65535">
+                    <input type="number" class="form-control" id="agent_pair_mqtt_port" value="1883" min="1" max="65535" disabled>
                   </div>
                 </div>
                 <p>
                   <label for="agent_pair_mqtt_username">Username</label>
-                  <input type="text" class="form-control" id="agent_pair_mqtt_username" autocomplete="username">
+                  <input type="text" class="form-control" id="agent_pair_mqtt_username" autocomplete="username" disabled>
                 </p>
                 <p>
                   <label for="agent_pair_mqtt_password">Password</label>
-                  <input type="password" class="form-control" id="agent_pair_mqtt_password" autocomplete="current-password">
+                  <input type="password" class="form-control" id="agent_pair_mqtt_password" autocomplete="current-password" disabled placeholder="••••••••">
+                  <small class="text-body-secondary">Leave blank while updating to keep the current password.</small>
                 </p>
               </div>
             </div>
