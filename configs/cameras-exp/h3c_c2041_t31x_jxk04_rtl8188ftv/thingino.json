@@ -1,8 +1,0 @@
-{
-  "gpio": {
-    "button_reset": 50,
-    "ircut": "57 58",
-    "mmc_cd": 49,
-    "wlan": 10
-  }
-}
