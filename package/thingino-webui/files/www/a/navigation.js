@@ -84,6 +84,13 @@
       },
     );
 
+    const streamerConfigHref =
+      (uiConfig.device && uiConfig.device.streamerConfigHref) ||
+      "/info.html?prudynt";
+    const streamerConfigLabel =
+      (uiConfig.device && uiConfig.device.streamerConfigLabel) ||
+      "File: prudynt.json";
+
     return [
       {
         type: "dropdown",
@@ -92,7 +99,7 @@
         items: [
           { label: "File: crontab", href: "/info.html?crontab" },
           { label: "File: onvif.json", href: "/info.html?onvif" },
-          { label: "File: prudynt.json", href: "/info.html?prudynt" },
+          { label: streamerConfigLabel, href: streamerConfigHref },
           { label: "File: thingino.json", href: "/info.html?thingino" },
           { label: "Log: dmesg", href: "/info.html?dmesg" },
           { label: "Log: logcat", href: "/info.html?logcat" },
@@ -142,12 +149,12 @@
           { label: "Substream OSD", href: "/streamer-osd1.html" },
           { label: "Sensor IQ File", href: "/streamer-sensor.html" },
           { type: "divider" },
-          { label: "Streamer config", href: "/info.html?prudynt" },
+          { label: "Streamer config", href: streamerConfigHref },
           { label: "Streamer log", href: "/info.html?logcat" },
           {
             label: "Restart streamer",
             href: "#",
-            id: "restart-prudynt-nav",
+            id: "restart-streamer-nav",
             className: "text-danger confirm",
             trackActive: false,
           },
@@ -587,10 +594,10 @@
     );
   }
 
-  function attachPrudyntHandlers(nav) {
-    const restartPrudyntLink = nav.querySelector("#restart-prudynt-nav");
-    const restartPrudyntOffcanvas = nav.querySelector(
-      "#restart-prudynt-nav-offcanvas",
+  function attachStreamerHandlers(nav) {
+    const restartStreamerLink = nav.querySelector("#restart-streamer-nav");
+    const restartStreamerOffcanvas = nav.querySelector(
+      "#restart-streamer-nav-offcanvas",
     );
 
     const restartHandler = function (e) {
@@ -606,19 +613,24 @@
       e.preventDefault();
       if (
         window.thinginoFooter &&
+        typeof window.thinginoFooter.restartStreamer === "function"
+      ) {
+        window.thinginoFooter.restartStreamer();
+      } else if (
+        window.thinginoFooter &&
         typeof window.thinginoFooter.restartPrudynt === "function"
       ) {
         window.thinginoFooter.restartPrudynt();
       } else {
-        console.warn("thinginoFooter.restartPrudynt not available yet");
+        console.warn("thinginoFooter.restartStreamer not available yet");
       }
     };
 
-    if (restartPrudyntLink) {
-      restartPrudyntLink.addEventListener("click", restartHandler);
+    if (restartStreamerLink) {
+      restartStreamerLink.addEventListener("click", restartHandler);
     }
-    if (restartPrudyntOffcanvas) {
-      restartPrudyntOffcanvas.addEventListener("click", restartHandler);
+    if (restartStreamerOffcanvas) {
+      restartStreamerOffcanvas.addEventListener("click", restartHandler);
     }
   }
 
@@ -634,7 +646,7 @@
       document.body.insertAdjacentElement("afterbegin", nav);
     }
     highlightActive(nav, globalConfig.activePath);
-    attachPrudyntHandlers(nav);
+    attachStreamerHandlers(nav);
     ensureControlBarScript();
   }
 

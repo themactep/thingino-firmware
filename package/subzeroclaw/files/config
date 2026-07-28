@@ -1,6 +1,8 @@
+# SubZeroClaw configuration for Thingino
 api_key = "sk-or-your-openrouter-key-here"
-model = "minimax/minimax-m2.5"
+# endpoint = "https://openrouter.ai/api/v1/chat/completions"
+request_extra = {"model": "minimax/minimax-m2.5"}
+# compact_extra = {"keep_recent": 8}
 skills_dir = "/etc/subzeroclaw/skills"
-log_dir	= "/tmp/subzeroclaw/logs"
+log_dir = "/tmp/subzeroclaw/logs"
 max_turns = 200
-max_messages = 40

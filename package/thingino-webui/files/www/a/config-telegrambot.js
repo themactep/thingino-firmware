@@ -106,7 +106,7 @@
         const statusResponse = await fetch("/x/ctl-telegrambot.cgi?status=1");
         const status = await statusResponse.json();
         enabledInput.checked =
-          status.enabled_boot === true || status.enabled_runtime === true;
+          status.enabled_boot === true;
       } catch (e) {
         enabledInput.checked =
           data.enabled_boot === true ||

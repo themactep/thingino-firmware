@@ -1,0 +1,39 @@
+Guard T20-unsupported IMP audio-processing calls.
+
+T20's older libimp does not export IMP_AI_SetAgcMode or
+IMP_AO_SetHpfCoFrequency (both link-time undefined on that SoC family),
+unlike the newer IMP APIs on T23/T31/etc this code was written against.
+Guard the two calls under #ifndef CONFIG_T20, matching the existing
+CONFIG_T20 guard around IMP_AI_SetAlcGain a few lines above
+IMP_AI_SetAgcMode in input.c. IMP_AI_EnableAgc/IMP_AO_EnableHpf are left
+unguarded - they do link on T20 - so AGC/HPF still enable, just without
+this one non-essential mode/frequency tuning call on that platform.
+
+diff -ru a/src/iad/audio/input.c b/src/iad/audio/input.c
+--- a/src/iad/audio/input.c	2026-07-26 10:02:12.783374235 +0200
++++ b/src/iad/audio/input.c	2026-07-26 10:02:12.785967249 +0200
+@@ -86,7 +86,9 @@
+         IMPAudioAgcConfig agcConfig;
+         agcConfig.TargetLevelDbfs = clamp_config_int(cJSON_GetObjectItemCaseSensitive(agcAttributes, "TargetLevelDbfs"), 0, 0, 31, "TargetLevelDbfs");
+         agcConfig.CompressionGaindB = clamp_config_int(cJSON_GetObjectItemCaseSensitive(agcAttributes, "CompressionGaindB"), 6, 0, 90, "CompressionGaindB");
++#ifndef CONFIG_T20
+         log_processing_error("IMP_AI_SetAgcMode", IMP_AI_SetAgcMode(kAgcModeFixedDigital));
++#endif
+         log_processing_error("IMP_AI_EnableAgc", IMP_AI_EnableAgc((IMPAudioIOAttr *) attr, agcConfig));
+     }
+ }
+diff -ru a/src/iad/audio/output.c b/src/iad/audio/output.c
+--- a/src/iad/audio/output.c	2026-07-26 10:02:12.784632646 +0200
++++ b/src/iad/audio/output.c	2026-07-26 10:02:12.787179114 +0200
+@@ -60,9 +60,11 @@
+     cJSON *hpfAttributes = get_audio_attribute(AUDIO_OUTPUT, "HPF_attributes");
+ 
+     if (get_config_bool(enableHpfItem, 0)) {
++#ifndef CONFIG_T20
+         if (hpfAttributes && cJSON_IsObject(hpfAttributes)) {
+             log_processing_error("IMP_AO_SetHpfCoFrequency", IMP_AO_SetHpfCoFrequency(clamp_config_int(cJSON_GetObjectItemCaseSensitive(hpfAttributes, "SetHpfCoFrequency"), 100, 0, 5000, "SetHpfCoFrequency")));
+         }
++#endif
+         log_processing_error("IMP_AO_EnableHpf", IMP_AO_EnableHpf((IMPAudioIOAttr *) attr));
+     }
+ 

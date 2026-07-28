@@ -47,6 +47,9 @@ start() {
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
 
+	# Notify Home Assistant immediately (if installed)
+	[ -x /usr/sbin/ha-event ] && ha-event motion ON &
+
 	# Check if any send2* service needs photo or video
 	need_photo=false
 	need_video=false
@@ -199,6 +202,9 @@ stop() {
 	if [ -f "$MOTION_ALARM" ]; then
 		echo_info "Remove $MOTION_ALARM"
 		rm -f "$MOTION_ALARM"
+
+		# Notify Home Assistant immediately (if installed)
+		[ -x /usr/sbin/ha-event ] && ha-event motion OFF &
 	fi
 }
 

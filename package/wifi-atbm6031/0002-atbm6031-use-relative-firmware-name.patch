@@ -1,0 +1,26 @@
+atbm6031: use a relative firmware loader name
+
+request_firmware() expects a firmware name relative to the kernel firmware
+search directories.  Passing /lib/firmware/atbm6031_fw.bin makes Linux 4.4
+prepend /lib/firmware and probe the non-existent path
+/lib/firmware//lib/firmware/atbm6031_fw.bin.
+
+The package already installs the blob in /lib/firmware (through the /lib to
+/usr/lib symlink), so request only its basename.
+
+Signed-off-by: Matt Davis <matteius@gmail.com>
+
+--- a/configs/atbm6031.config
++++ b/configs/atbm6031.config
+@@ -62,10 +62,10 @@ CONFIG_ATBM_MODULE_PM_STAYAWK="pm_stayawake"
+ CONFIG_ATBM_MODULE_DRIVER_NAME="atbm_wlan"
+ CONFIG_ATBM_PLATFORM_DEVICE_NAME="atbm_dev_wifi"
+ CONFIG_ATBM_SDIO_VID=0x007a
+ CONFIG_ATBM_SDIO_PID=0x6011
+ CONFIG_ATBM_MODULE_DRIVER_NAME="atbm6031"
+ CONFIG_ATBM_MODULE_NAME="atbm6031"
+-CONFIG_ATBM_FW_NAME="/lib/firmware/atbm6031_fw.bin"
++CONFIG_ATBM_FW_NAME="atbm6031_fw.bin"
+ CONFIG_ATBM_CONFIG_FILE="/usr/share/wifi/atbm_txpwer_dcxo_cfg.txt"
+ CONFIG_ATBM_RATE_POWER_CONFIG_FILE="/usr/share/wifi/set_rate_power.txt"
+ CONFIG_MAC80211_ATBM_RC_DEFAULT=""

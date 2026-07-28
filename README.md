@@ -26,14 +26,12 @@ For users who want a dependable version of Thingino without needing to build or 
 
 **Master Branch**
 
-The development hub for new features and experimental changes. Includes advanced features like Matroska, Opus, and improved file recording for Prudynt. These are still in development and may not be stable.
+The development hub for new features and experimental changes. Includes advanced features, and uses the new [raptor][13] streamer. These are still in development and may not be stable.
 
 Only for developers and contributors who can build the project themselves and actively participate in improving the code.
 
 > [!WARNING]
-> The master branch uses a highly experimental U-Boot with minimal compatibility.
-> - Upgrading via `autoupdate-full.bin` does **not** work.
-> - Access to the SD card from U-Boot does **not** work.
+> The master branch uses a highly experimental maineline U-Boot.
 > - Having access to the UART port on the camera and unbricking skills is **highly recommended** when building images from the master branch.
 
 This structure allows us to maintain a reliable version (stable) for most users while continuing to innovate and test new features (master). Critical fixes and matured features from master will be gradually integrated into stable for broader use.
@@ -86,3 +84,4 @@ Read [Building from sources][7] article for more info.
 [10]: https://github.com/user-attachments/assets/5e74827c-47f9-4ea0-b523-d12a199a9974
 [11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain-x86_64.yaml/badge.svg
 [12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-stable.yml/badge.svg
+[13]: http://github.com/gtxaspec/raptor

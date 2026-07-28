@@ -5,9 +5,18 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-endpoint="/sys/devices/platform/jzmmc_v1.2.$1/present"
-if [ ! -f "$endpoint" ]; then
-	echo "No endpoint $endpoint" >&2
+endpoint=""
+for candidate in \
+	"/sys/class/mmc_host/mmc$1/device/present" \
+	"/sys/devices/platform/jzmmc_v1.2.$1/present"; do
+	if [ -f "$candidate" ]; then
+		endpoint="$candidate"
+		break
+	fi
+done
+
+if [ -z "$endpoint" ]; then
+	echo "No present endpoint for MMC$1" >&2
 	exit 1
 fi
 

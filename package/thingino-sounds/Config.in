@@ -39,7 +39,7 @@ config BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_OPUS
 	bool "Opus"
 
 config BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711
-	bool "G.711 mu-law (WAV)"
+	bool "G.711 mu-law (.ulaw)"
 
 endchoice
 

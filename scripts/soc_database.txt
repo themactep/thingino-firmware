@@ -12,7 +12,7 @@ t10n,t10,1,64,isvp_t10n_sfcnor,-,u-boot-with-tpl-lzma.bin
 t10a,t10,1,64,isvp_t10n_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T20 Family
-t20l,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
+t20l,t20,1,64,isvp_t20l_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20n,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20x,t20,1,128,isvp_t20x_sfcnor,-,u-boot-with-tpl-lzma.bin
 t20z,t20,1,64,isvp_t20n_sfcnor,-,u-boot-with-tpl-lzma.bin
@@ -37,7 +37,7 @@ t30a,t30,1,128,isvp_t30a_sfcnor,-,u-boot-with-tpl-lzma.bin
 
 # T31 Family
 t31l,t31,1,64,isvp_t31l_sfcnor,isvp_t31_sfcnand_lite,u-boot-with-tpl-lzma.bin
-t31lc,t31,1,64,isvp_t31n_sfcnor,-,u-boot-with-tpl-lzma.bin
+t31lc,t31,1,64,isvp_t31lc_sfcnor,-,u-boot-with-tpl-lzma.bin
 t31n,t31,1,64,isvp_t31n_sfcnor,isvp_t31_sfcnand,u-boot-with-tpl-lzma.bin
 t31x,t31,1,128,isvp_t31x_sfcnor,isvp_t31_sfcnand_ddr128M,u-boot-with-tpl-lzma.bin
 t31a,t31,1,128,isvp_t31a_sfcnor,isvp_t31a_sfcnand_ddr128M,u-boot-with-tpl-lzma.bin

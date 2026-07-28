@@ -25,6 +25,8 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/ha-state
 	$(INSTALL) -D -m 0755 $(@D)/ha-commands \
 		$(TARGET_DIR)/usr/sbin/ha-commands
+	$(INSTALL) -D -m 0755 $(@D)/ha-event \
+		$(TARGET_DIR)/usr/sbin/ha-event
 
   # Web UI
   $(INSTALL) -D -m 0644 $(@D)/config-ha.html \

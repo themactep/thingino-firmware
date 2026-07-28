@@ -4,30 +4,155 @@ on:
   push:
     branches:
       - stable
+  workflow_dispatch:
+    inputs:
+      branch:
+        type: choice
+        description: 'Branch to run the teacup test on'
+        required: false
+        default: 'stable'
+        options:
+          - stable
+          - master
+
+env:
+  BR2_DL_DIR: ~/dl
+  FORCE_UNSAFE_CONFIGURE: 1
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TERM: linux
+  TZ: UTC
 
 jobs:
   build-teacup:
-    runs-on: ubuntu-24.04
+    # Build inside a debian container (like firmware-stable) so the toolchain uses GNU coreutils,
+    # not the ubuntu-26.04 runner's uutils 'install', which Buildroot rejects.
+    runs-on: ubuntu-26.04-arm
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
     steps:
+      - name: Update package manager sources
+        run: apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc ca-certificates cmake cpio curl file gawk gh git jq lzop m4 make p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
+
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Setup gh workspace to container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          ref: "stable"
-          fetch-depth: 0
+          submodules: 'true'
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "1"
 
       - name: Wait for cooldown (10 minutes)
+        # push only: a manual run builds immediately (no debounce needed)
+        if: github.event_name == 'push'
         run: sleep 600
 
       - name: Check for new commits after cooldown
         id: check-latest
+        # push-debounce only (keyed to the triggering commit); a manual run builds the branch you picked
+        if: github.event_name == 'push'
         run: |
           git fetch origin stable
-          LATEST_SHA=$(git rev-parse origin/stable)
+          LATEST_SHA=$(git rev-parse FETCH_HEAD)
           if [[ "$LATEST_SHA" != "$GITHUB_SHA" ]]; then
             echo "Newer commit detected ($LATEST_SHA), skipping this run."
             exit 78
           fi
 
+      - name: Setup cache directories
+        run: |
+          mkdir -p ~/.buildroot-ccache
+          mkdir -p ~/dl
+
+      - name: Restore ccache from release
+        run: |
+          REPO="${{ github.repository }}"
+          CACHE_ARCH=${{ runner.arch }}
+          CAM_SAFE=teacup_t31x
+          mkdir -p /tmp/cc
+          # Restore stable's cache for this board; fall back to master for a warm start.
+          restored=""
+          for CH in stable master; do
+            ASSET="ccache-${CH}-${CACHE_ARCH}-${CAM_SAFE}.zip"
+            if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
+              echo "Restoring $ASSET ($(du -h "/tmp/cc/$ASSET" 2>/dev/null | cut -f1))"
+              ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
+              restored="$ASSET"
+              break
+            fi
+          done
+          [ -n "$restored" ] && echo "ccache: $(du -sh ~/.buildroot-ccache 2>/dev/null | cut -f1)" || echo "No ccache asset yet — cold build"
+          exit 0   # ccache restore is best-effort — never fail the test on it
+
+      - name: Fetch buildroot-dl-cache release
+        id: find_release
+        run: |
+          REPO="${{ github.repository }}"
+          # Prefer the release named "buildroot-dl-cache"; fall back to any "update_cache*" tag.
+          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
+          if [ -z "$RELEASE_TAG" ]; then
+            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
+          fi
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "Found dl-cache release: $RELEASE_TAG"
+            echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+            echo "release_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No dl-cache release found; continuing without it"
+            echo "release_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download buildroot-dl-cache files
+        id: download_cache
+        if: steps.find_release.outputs.release_found == 'true'
+        run: |
+          REPO="${{ github.repository }}"
+          RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
+          mkdir -p /tmp/dl-cache
+          set +e
+          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
+          RC=$?
+          set -e
+          if [ $RC -ne 0 ] || [ ! "$(ls -A /tmp/dl-cache/ 2>/dev/null)" ]; then
+            echo "dl-cache download failed/empty; continuing without it"
+            echo "download_succeeded=false" >> $GITHUB_OUTPUT
+          else
+            echo "dl-cache downloaded: $(ls -1 /tmp/dl-cache | wc -l) part(s)"
+            echo "download_succeeded=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract buildroot-dl-cache
+        if: steps.download_cache.outputs.download_succeeded == 'true'
+        run: |
+          cd ~
+          # Split ZIP (-v384m) extracts from the first volume; single ZIP extracts directly.
+          if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
+            7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y >/dev/null || echo "  7z rc=$? (non-fatal, build will re-download)"
+          else
+            7z x /tmp/dl-cache/buildroot-dl-cache.zip -y >/dev/null || echo "  7z rc=$? (non-fatal, build will re-download)"
+          fi
+          # Archive stores a top-level dl/ dir; flatten it into ~/dl.
+          if [ -d ~/dl/dl ]; then
+            mv ~/dl/dl/* ~/dl/ 2>/dev/null && rm -rf ~/dl/dl
+          fi
+          echo "dl cache restored: $(find ~/dl -type f 2>/dev/null | wc -l) files"
+          exit 0   # dl-cache is best-effort — never fail the test on it
+
       - name: Build Tea Cup profile only
+        # No ccache save on this workflow — it is a quick smoke test, not a cache producer.
         run: |
           BOARD=teacup_t31x make fast WORKFLOW=1

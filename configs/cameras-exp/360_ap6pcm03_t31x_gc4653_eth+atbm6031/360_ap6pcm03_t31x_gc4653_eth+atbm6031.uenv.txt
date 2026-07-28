@@ -1,0 +1,4 @@
+gpio_button_call=47
+gpio_default=25ID 26IDU 6i 48i 49o 50o 51o 52O 53O 54o 57o 58o 62o
+gpio_ircut=59 60
+serialport=ttyS1

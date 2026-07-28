@@ -35,6 +35,8 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/null.sh
 	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-prudynt \
 		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/prudynt.sh
+	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-raptor \
+		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh
 endef
 
 $(eval $(generic-package))
