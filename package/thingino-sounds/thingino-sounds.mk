@@ -4,7 +4,7 @@ THINGINO_SOUNDS_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-sounds
 THINGINO_SOUNDS_LICENSE = CC0
 THINGINO_SOUNDS_LICENSE_FILES = LICENSE
 
-THINGINO_SOUNDS_FORMAT=$(if $(BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711),wav,opus)
+THINGINO_SOUNDS_FORMAT=$(if $(BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711),ulaw,opus)
 
 define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/sounds
@@ -15,7 +15,7 @@ define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	# files behind, shipping both sets and bloating a flash-constrained rootfs.
 	# Clear this package's sound files (both formats) before installing so only
 	# the selected format is ever present.
-	rm -f $(TARGET_DIR)/usr/share/sounds/*.opus $(TARGET_DIR)/usr/share/sounds/*.wav
+	rm -f $(TARGET_DIR)/usr/share/sounds/*.opus $(TARGET_DIR)/usr/share/sounds/*.ulaw
 
 	# welcome message
 	if [ "$(BR2_PACKAGE_THINGINO_SOUNDS_STARTUP)" = "y" ]; then \
