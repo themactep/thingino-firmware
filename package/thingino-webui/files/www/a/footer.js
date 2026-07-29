@@ -98,7 +98,7 @@
     const btn = event.currentTarget;
     const confirmMessage =
       globalConfig.restartConfirmMessage ||
-      "Restart prudynt service?\n\nThe video stream will be interrupted for a few seconds.";
+      "Restart streamer service?\n\nThe video stream will be interrupted for a few seconds.";
     const confirmed = await confirm(confirmMessage);
     if (!confirmed) return;
 
@@ -114,8 +114,10 @@
           (globalConfig.restartLoadingLabel || "Restarting…") +
           "</span>";
       }
-      const endpoint = globalConfig.restartEndpoint || "/x/restart-prudynt.cgi";
-      const method = globalConfig.restartMethod || "GET";
+      const endpoint =
+        globalConfig.restartEndpoint ||
+        "/x/agent.cgi?agent_path=/api/v1/actions/streamer/restart";
+      const method = globalConfig.restartMethod || "POST";
       const res = await fetch(endpoint, { method });
       if (!res.ok) throw new Error("HTTP " + res.status);
 
@@ -124,7 +126,7 @@
       if (waitMs > 0) await wait(waitMs);
 
       showGlobalMessage(
-        globalConfig.restartSuccessMessage || "Prudynt restarted successfully",
+        globalConfig.restartSuccessMessage || "Streamer restarted successfully",
         "success",
       );
 
@@ -147,9 +149,9 @@
         );
       }
     } catch (err) {
-      console.error("Failed to restart prudynt:", err);
+      console.error("Failed to restart streamer:", err);
       const baseMessage =
-        globalConfig.restartErrorMessage || "Failed to restart prudynt";
+        globalConfig.restartErrorMessage || "Failed to restart streamer";
       showGlobalMessage(baseMessage + ": " + err.message, "danger");
       if (btn) {
         btn.disabled = false;
@@ -260,15 +262,19 @@
 
   ready(mountFooter);
 
+  function restartStreamer() {
+    handleRestartClick({
+      preventDefault: function () {},
+      currentTarget: null,
+    });
+  }
+
   window.thinginoFooter = {
     rebuild: mountFooter,
     updateHost: updateHostLabel,
     showMessage: showGlobalMessage,
-    restartPrudynt: function () {
-      handleRestartClick({
-        preventDefault: function () {},
-        currentTarget: null,
-      });
-    },
+    restartStreamer: restartStreamer,
+    // Legacy alias kept for older callers
+    restartPrudynt: restartStreamer,
   };
 })();

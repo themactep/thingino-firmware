@@ -1,0 +1,25 @@
+{
+  "gpio": {
+    "button_reset": 64,
+    "ir850": 19,
+    "ircut": "26 25",
+    "mmc_cd": 59,
+    "scl": "13 58",
+    "sda": "12 57"
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "49 82 66 67",
+    "gpio_switch": -1,
+    "gpio_tilt": "71 70 69 68",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "pos_0": "1850,900",
+    "speed_pan": 600,
+    "speed_tilt": 600,
+    "steps_pan": 3600,
+    "steps_tilt": 1800
+  }
+}

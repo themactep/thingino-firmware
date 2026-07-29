@@ -13,7 +13,7 @@
     "gpio_tilt": "52 53 64 59",
     "homing": true,
     "invert_x": false,
-    "invert_y": false,
+    "invert_y": true,
     "is_spi": false,
     "pos_0": "1850,500",
     "speed_pan": 900,

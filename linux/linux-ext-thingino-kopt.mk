@@ -6,6 +6,7 @@ THINGINO_DTS_MAPPINGS = \
 	WYZEC3P|wyze_cam3pro_t40xp|shark \
 	EUFYT8416|eufy_t8416_t40xp|shark \
 	A1_SMART_NVR|smart_nvr_a1n_eth|tucana \
+	360K7TS|360_k7ts_t41nq_eth|marmot \
 	HUGOLOGE5P|hugolog_e5p_t41lq|marmot \
 	IGETC5PT|iget_c5pt_t41lq|marmot \
 	WYZEV4|wyze_cam4_t41nq|marmot \

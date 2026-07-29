@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.5.0
+TIMPS_VERSION = v1.6.1
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -35,13 +35,16 @@ ifeq ($(BR2_PACKAGE_TIMPS_SRT),y)
 	TIMPS_DEPENDENCIES += libsrt
 endif
 
-# Audio backchannel: timps only runtime-execs /bin/iac, it does NOT link the
-# audiodaemon - so we deliberately do NOT depend on/select ingenic-audiodaemon
-# here (that pulls libwebsockets, which fails on some uClibc toolchains). Enable
-# BR2_PACKAGE_INGENIC_AUDIODAEMON separately if you want /bin/iac on the image.
-# AAC decode, however, IS linked, so libhelix-aac stays a hard dependency.
+# Audio backchannel drives the speaker via native IMP_AO now (no /bin/iac /
+# ingenic-audiodaemon dependency). AAC backchannel decode IS linked, so
+# libhelix-aac stays a hard dependency when it is enabled.
 ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
 	TIMPS_DEPENDENCIES += libhelix-aac
+endif
+
+# Opus playback in the play queue links opusfile (which pulls opus + libogg).
+ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
+	TIMPS_DEPENDENCIES += opusfile
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -85,6 +88,26 @@ ifeq ($(BR2_PACKAGE_TIMPS_BC_AAC),y)
 	TIMPS_LIBS += -lhelix-aac
 endif
 
+ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
+	TIMPS_LIBS += -lopusfile -lopus -logg
+endif
+
+# Ingenic SDK blobs (libimp/libalog/libsysutils) reference libc symbols their
+# original vendor toolchain exported that modern uClibc-ng/musl dropped (e.g.
+# the glibc-2.2-era __ctype_b/__ctype_tolower bare-pointer symbols T10/T20/T21/
+# T30's libalog still calls). ingenic-uclibc/ingenic-musl (already a
+# TIMPS_DEPENDENCIES above) build libuclibcshim/libmuslshim to paper over
+# exactly this gap - link it, same as prudynt-t does (PRUDYNT_SHIM_LIB).
+# --no-as-needed/--as-needed: nothing in timps calls these symbols directly
+# (only the vendor blob does), so the linker's default --as-needed would
+# otherwise drop the shim from DT_NEEDED as "unused".
+ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+	TIMPS_LIBS += -Wl,--no-as-needed -lmuslshim -Wl,--as-needed
+endif
+ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+	TIMPS_LIBS += -Wl,--no-as-needed -luclibcshim -Wl,--as-needed
+endif
+
 define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -107,6 +130,10 @@ define TIMPS_BUILD_CMDS
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
 		HELIXLIB="-lhelix-aac" \
 		HELIX_INC=$(STAGING_DIR)/usr/include \
+		USE_PLAY=$(if $(BR2_PACKAGE_TIMPS_PLAY),1,0) \
+		USE_PLAY_OPUS=$(if $(BR2_PACKAGE_TIMPS_PLAY_OPUS),1,0) \
+		OPUSLIB="-lopusfile -lopus -logg" \
+		OPUS_INC=$(STAGING_DIR)/usr/include \
 		-C $(@D) target
 endef
 
@@ -132,6 +159,15 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# Install the self-test helper
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
 		$(TARGET_DIR)/usr/bin/timps-selftest
+
+	# System-sound play wrapper: enqueues PLAY/STOP onto timps's /run/timps/
+	# audio_out FIFO (native IMP_AO). Same interface prudynt/raptor ship, so the
+	# WiFi-portal / sysupgrade-chime / ESPHome media_player integrations that
+	# shell out to `play` work on a timps image too.
+	if [ "$(BR2_PACKAGE_TIMPS_PLAY)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/play \
+			$(TARGET_DIR)/usr/sbin/play; \
+	fi
 
 	# Motion->send2 bridge. timps.conf's motion.on_motion points at this path, so
 	# install it unconditionally: otherwise imp_motion.c runs system() on a
@@ -222,6 +258,23 @@ endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
 endif
 
+# NOTE: motors-detection fix. Stock S48webui-config reports
+# window.thinginoUIConfig.device.motors=true whenever /etc/thingino.json HAS a
+# "motors" key at all - but configs/common.thingino.json ships one on every
+# board (empty gpio_pan/gpio_tilt, a disabled-by-default placeholder), so any
+# board without its OWN motors override (i.e. every non-PTZ camera) still
+# shows the preview page's PTZ joystick overlay. Our copy checks the actual
+# GPIO pins are configured instead. Independent of TIMPS_CONTROL - it's about
+# the preview page in general, not the /control API - so only gated on the
+# WebUI being present at all (nothing to override otherwise).
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+define TIMPS_INSTALL_WEBUI_CONFIG_FIX
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S48webui-config \
+		$(TARGET_DIR)/etc/init.d/S48webui-config
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
+endif
+
 # NOTE: send-to-* notification toolkit (email/ftp/ntfy/storage/telegram/
 # webhook + the send2common helper they share). The unmodified send2* tools and
 # prudynt-helpers are re-installed as-is from package/prudynt-t/files/. The two
@@ -282,22 +335,25 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_PREVIEW
 endif
 
 # NOTE: native day/night. When timps detects day/night itself
-# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd daemon must never
-# autostart (double switching), and the WebUI "Photosensing" page (which
-# configures daynightd) is dropped from the navigation. Done as a finalize
-# hook so it wins regardless of package build order; both steps are
-# idempotent and no-ops when the files are absent.
+# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd system daemon must
+# never autostart (it would double-switch against timps's own detection
+# thread), so its init script is removed. Done as a finalize hook so it wins
+# regardless of package build order; idempotent, a no-op when absent.
+#
+# The WebUI "Photosensing" page is deliberately KEPT: files/www/a/
+# config-photosensing.js is a timps-native overlay that talks straight to
+# /control (daynight.enabled / daynight.total_gain_{night,day}_threshold - see
+# its header) and is the config UI for timps's own detection, NOT the stock
+# page that drove daynightd. Earlier revisions of this hook deleted the page and
+# tried to strip its nav entry; that left the control-bar.js "Photosensing
+# Config" link (shipped unchanged from thingino-webui) pointing at a removed
+# page, so it dead-ended on Preview. Keeping the page - installed by the
+# TIMPS_INSTALL_WEBUI_CGIS overlay above - makes that link resolve correctly.
+# (The page's Controls/Schedule columns still use the board daynight script's
+# legacy /x/json-config-daynight.cgi best-effort; absent-CGI is handled in-page.)
 ifeq ($(BR2_PACKAGE_TIMPS_DAYNIGHT),y)
 define TIMPS_DISABLE_DAYNIGHTD
 	rm -f $(TARGET_DIR)/etc/init.d/S97daynightd
-	if [ -f $(TARGET_DIR)/var/www/a/navigation.js ]; then \
-		sed -i '/config-photosensing\.html/d' \
-			$(TARGET_DIR)/var/www/a/navigation.js ; \
-	fi
-	# Also drop the page + script so the orphaned "Photosensing" config (it
-	# drives the now-disabled daynightd) isn't reachable by direct URL.
-	rm -f $(TARGET_DIR)/var/www/config-photosensing.html \
-	      $(TARGET_DIR)/var/www/a/config-photosensing.js
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_DISABLE_DAYNIGHTD
 endif
