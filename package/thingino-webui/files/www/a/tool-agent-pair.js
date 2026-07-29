@@ -54,9 +54,7 @@
     tokenConfiguredEl.classList.toggle("d-none", !hasToken);
 
     if (mqttState.configured) {
-      const userBit = mqttState.username
-        ? " as " + mqttState.username
-        : "";
+      const userBit = mqttState.username ? " as " + mqttState.username : "";
       mqttConfiguredEl.textContent =
         "Configured: " +
         mqttState.host +
