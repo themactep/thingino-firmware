@@ -27,13 +27,20 @@
         <div class="card mb-3">
           <div class="card-header">
             <h2 class="card-title">Hub Pairing</h2>
-            <small>Last-resort local install of a hub-issued agent token when MQTT bootstrap is not available yet</small>
+            <small>Last-resort local install when the hub cannot push pairing over MQTT yet</small>
             <button type="button" class="btn btn-outline-secondary" id="agent-pair-reload" title="Reload status">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
           </div>
           <div class="card-body">
             <div id="agent-pair-status" class="alert alert-secondary mb-4" role="status">Loading agent status…</div>
+            <p class="text-body-secondary small mb-4">
+              Prefer pairing from the Thingino Hub whenever possible (Connect → Install Pairing Bundle).
+              The hub generates the bearer token and installs it on this camera.
+              Use this page only if MQTT bootstrap is unavailable: paste the <strong>hub-issued</strong> token
+              from Hub → Enroll → <em>Show Pairing Details</em> (or from a pairing install summary), then save.
+              Do not invent a random token here unless you also store that exact same token in the hub.
+            </p>
             <p class="text-body-secondary small mb-4">
               Leaving MQTT fields alone keeps the current broker settings.
               Day-to-day MQTT edits belong under <a href="/tool-mqtt-sub.html">Services → MQTT Subscriptions</a>.
@@ -42,7 +49,7 @@
             <div class="row g-4">
               <div class="col-12 col-lg-6">
                 <h4>Agent token</h4>
-                <small>Paste a hub bearer token, or leave blank to keep the configured token</small>
+                <small>Paste the bearer token issued by the hub, or leave blank to keep the configured token</small>
                 <div id="agent-pair-token-configured" class="alert alert-success py-2 d-none" role="status">
                   Token configured
                 </div>
