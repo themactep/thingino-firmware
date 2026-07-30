@@ -1,13 +1,12 @@
 /**
  * SEI Rotation — applies CSS rotation to preview <img> elements
- * via polling prudynt:8080/api/v1/osd-sei every 2s.
+ * via SSE connection to /x/json-osd-sei.cgi.
  */
 (function () {
   "use strict";
-  var POLL_URL = "/x/json-osd-sei.cgi";
-  var POLL_MS = 2000;
+  var SSE_URL = "/x/json-osd-sei.cgi";
   var IMG_IDS = ["preview"];
-  var timer = null;
+  var source = null;
   var applied = false;
 
   function rotateImg(img, rot) {
@@ -27,36 +26,50 @@
     }
   }
 
-  function poll() {
-    fetch(POLL_URL, { cache: "no-store" })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (d) {
-        if (!d || !d.rotation) return;
-        var rot = d.rotation;
-        for (var i = 0; i < IMG_IDS.length; i++) {
-          var img = document.getElementById(IMG_IDS[i]);
-          if (img) rotateImg(img, rot);
-        }
-        applied = true;
-      })
-      .catch(function () {});
+  function applyRotation(d) {
+    if (!d || !d.rotation) return;
+    var rot = d.rotation;
+    for (var i = 0; i < IMG_IDS.length; i++) {
+      var img = document.getElementById(IMG_IDS[i]);
+      if (img) rotateImg(img, rot);
+    }
+    applied = true;
+    // Close SSE — we only need the first rotation event.
+    if (source) {
+      source.close();
+      source = null;
+    }
   }
 
   function start() {
-    // preview.html handles rotation itself; skip to avoid double-polling.
+    // preview.html handles rotation itself; skip to avoid double connections.
     if (window.location.pathname === "/preview.html") return;
-    if (timer) return;
-    poll();
-    timer = setInterval(poll, POLL_MS);
+    if (!document.getElementById("preview")) return;
+    if (source) return;
+
+    source = new EventSource(SSE_URL);
+    source.onmessage = function (e) {
+      try {
+        applyRotation(JSON.parse(e.data));
+      } catch (_) {}
+    };
+    source.onerror = function () {
+      if (source) {
+        source.close();
+        source = null;
+      }
+      // Retry after a delay.
+      setTimeout(function () {
+        if (!applied) start();
+      }, 2000);
+    };
   }
 
-  // Also re-apply on preview src change (preview.js replaces the img)
+  // Re-apply on preview src change (preview.js replaces the img).
   var observer = new MutationObserver(function () {
     if (applied) {
       setTimeout(function () {
-        if (timer) return;
+        applied = false;
         start();
       }, 200);
     }
