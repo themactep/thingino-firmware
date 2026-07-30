@@ -1,12 +1,14 @@
 /**
  * SEI Rotation — applies CSS rotation to preview <img> elements
- * via SSE connection to /x/json-osd-sei.cgi.
+ * via polling /x/json-osd-sei.cgi every 2s.  Stops after first
+ * rotation is received; re-starts on preview img src change.
  */
 (function () {
   "use strict";
-  var SSE_URL = "/x/json-osd-sei.cgi";
+  var POLL_URL = "/x/json-osd-sei.cgi";
+  var POLL_MS = 2000;
   var IMG_IDS = ["preview"];
-  var source = null;
+  var timer = null;
   var applied = false;
 
   function rotateImg(img, rot) {
@@ -26,43 +28,34 @@
     }
   }
 
-  function applyRotation(d) {
-    if (!d || !d.rotation) return;
-    var rot = d.rotation;
-    for (var i = 0; i < IMG_IDS.length; i++) {
-      var img = document.getElementById(IMG_IDS[i]);
-      if (img) rotateImg(img, rot);
-    }
-    applied = true;
-    // Close SSE — we only need the first rotation event.
-    if (source) {
-      source.close();
-      source = null;
-    }
+  function poll() {
+    fetch(POLL_URL, { cache: "no-store" })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d || !d.rotation) return;
+        var rot = d.rotation;
+        for (var i = 0; i < IMG_IDS.length; i++) {
+          var img = document.getElementById(IMG_IDS[i]);
+          if (img) rotateImg(img, rot);
+        }
+        applied = true;
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      })
+      .catch(function () {});
   }
 
   function start() {
-    // preview.html handles rotation itself; skip to avoid double connections.
+    // preview.html handles rotation itself; skip to avoid double-polling.
     if (window.location.pathname === "/preview.html") return;
     if (!document.getElementById("preview")) return;
-    if (source) return;
-
-    source = new EventSource(SSE_URL);
-    source.onmessage = function (e) {
-      try {
-        applyRotation(JSON.parse(e.data));
-      } catch (_) {}
-    };
-    source.onerror = function () {
-      if (source) {
-        source.close();
-        source = null;
-      }
-      // Retry after a delay.
-      setTimeout(function () {
-        if (!applied) start();
-      }, 2000);
-    };
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, POLL_MS);
   }
 
   // Re-apply on preview src change (preview.js replaces the img).
