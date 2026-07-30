@@ -7,82 +7,54 @@
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/opensensor/openimp
 OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = HEAD
-# Use HEAD to get the latest version, or specify a commit hash:
-# OPENIMP_VERSION = <commit-hash>
+OPENIMP_VERSION = 8c60328e4dd002924d53783a9bdbc0a8bc6bb2da
 
+# Upstream describes OpenIMP as MIT but does not currently ship a top-level
+# license file for legal-info to collect.
 OPENIMP_LICENSE = MIT
-OPENIMP_LICENSE_FILES = LICENSE
 
-# Install to staging for other packages to link against
 OPENIMP_INSTALL_STAGING = YES
 
-# Dependencies - must build after ingenic-sdk and ingenic-lib
 OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
 
-# Determine platform based on SOC family
-ifeq ($(SOC_FAMILY),t21)
-	OPENIMP_PLATFORM = T21
-else ifeq ($(SOC_FAMILY),t23)
-	OPENIMP_PLATFORM = T23
-else ifeq ($(SOC_FAMILY),t30)
-	OPENIMP_PLATFORM = T30
-else ifeq ($(SOC_FAMILY),t31)
-	OPENIMP_PLATFORM = T31
-else ifeq ($(SOC_FAMILY),t40)
-	OPENIMP_PLATFORM = T40
-else ifeq ($(SOC_FAMILY),t41)
-	OPENIMP_PLATFORM = T41
-else ifeq ($(SOC_FAMILY),c100)
-	OPENIMP_PLATFORM = C100
-else
-	# Default to T31 if platform cannot be determined
-	OPENIMP_PLATFORM = T31
+OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
+OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
+OPENIMP_TOOLCHAIN_PREFIX = $(patsubst %-,%,$(TARGET_CROSS))
+OPENIMP_OUTPUT_DIR = $(@D)/build/$(OPENIMP_PLATFORM_LOWER)
+OPENIMP_BUILT_LIB = $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/build/$(OPENIMP_PLATFORM_LOWER)/libimp.so
+
+ifeq ($(SOC_FAMILY),t40)
+OPENIMP_DEPENDENCIES += thingino-raptor-hal
+OPENIMP_T40_HEADERS = $(THINGINO_RAPTOR_HAL_DIR)/ingenic-headers/T40/1.3.1/en
 endif
 
-# Build commands
 define OPENIMP_BUILD_CMDS
-	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) \
-		PLATFORM=$(OPENIMP_PLATFORM) \
-		CFLAGS="$(TARGET_CFLAGS) -fPIC -I$(@D)/include" \
-		LDFLAGS="$(TARGET_LDFLAGS) -shared -lpthread -lrt" \
-		-C $(@D) all
-	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) \
-		PLATFORM=$(OPENIMP_PLATFORM) \
-		-C $(@D) strip
+	$(TARGET_MAKE_ENV) \
+		THINGINO_DIR=$(BR2_EXTERNAL_THINGINO_PATH) \
+		TOOLCHAIN_PREFIX=$(OPENIMP_TOOLCHAIN_PREFIX) \
+		T31_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T40_OUTPUT_DIR=$(OPENIMP_OUTPUT_DIR) \
+		T40_HEADERS=$(OPENIMP_T40_HEADERS) \
+		$(@D)/build-for-device.sh $(OPENIMP_PLATFORM)
 endef
 
-# Install to staging directory (for other packages to link against)
 define OPENIMP_INSTALL_STAGING_CMDS
+	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
+		$(STAGING_DIR)/usr/lib/libimp.so
 	$(INSTALL) -d $(STAGING_DIR)/usr/include/imp
-	$(INSTALL) -d $(STAGING_DIR)/usr/lib
-
 	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/include/imp/ \
 		$(@D)/include/imp/*.h
-
-	$(INSTALL) -m 0755 $(@D)/lib/libimp.so \
-		$(STAGING_DIR)/usr/lib/libimp.so
-	$(INSTALL) -m 0644 $(@D)/lib/libimp.a \
-		$(STAGING_DIR)/usr/lib/libimp.a
 endef
 
-# Install to target directory - this will OVERRIDE the ingenic-lib libimp.so
 define OPENIMP_INSTALL_TARGET_CMDS
-	$(INSTALL) -d $(TARGET_DIR)/usr/lib
-
-	# Install libimp.so - this OVERRIDES the proprietary version from ingenic-lib
-	$(INSTALL) -m 0755 $(@D)/lib/libimp.so \
+	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(TARGET_DIR)/usr/lib/libimp.so
 endef
 
-# Use a target finalize hook to ensure our library is installed LAST
-# This runs after all packages have been installed
 define OPENIMP_FINALIZE_TARGET
-	@echo "OpenIMP: Ensuring libimp.so override is in place..."
-	$(INSTALL) -m 0755 $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/lib/libimp.so \
+	$(INSTALL) -D -m 0755 $(OPENIMP_BUILT_LIB) \
 		$(TARGET_DIR)/usr/lib/libimp.so
 endef
 OPENIMP_TARGET_FINALIZE_HOOKS += OPENIMP_FINALIZE_TARGET
 
 $(eval $(generic-package))
-
