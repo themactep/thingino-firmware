@@ -45,8 +45,8 @@
   }
 
   function start() {
-    // Only poll on preview.html — other pages don't use SEI overlay.
-    if (window.location.pathname !== "/preview.html") return;
+    // preview.html handles rotation itself; skip to avoid double-polling.
+    if (window.location.pathname === "/preview.html") return;
     if (timer) return;
     poll();
     timer = setInterval(poll, POLL_MS);
