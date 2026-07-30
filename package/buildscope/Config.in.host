@@ -1,0 +1,18 @@
+config BR2_PACKAGE_HOST_BUILDSCOPE
+	bool "buildscope for host"
+	depends on BR2_PACKAGE_HOST_RUSTC_ARCH_SUPPORTS
+	select BR2_PACKAGE_HOST_RUSTC
+	help
+	  Size and composition analyzer for Buildroot output
+	  trees.
+
+	  Attributes the rootfs to the packages that installed
+	  it, reads real usage out of every image (squashfs,
+	  jffs2, uImage, U-Boot env), and checks each partition
+	  against its declared layout. 'make pack' then writes
+	  images/buildscope-report.json, which the viewer at
+	  buildscope.thingino.com renders.
+
+	  Builds a Rust host toolchain the first time.
+
+	  https://github.com/thingino/buildscope
