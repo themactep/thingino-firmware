@@ -5,7 +5,7 @@
  */
 (function () {
   "use strict";
-  var POLL_URL = "/x/json-osd-sei.cgi";
+  var POLL_URL = "http://" + window.location.hostname + ":8080/api/v1/osd-sei";
   var POLL_MS = 2000;
   var IMG_IDS = ["preview"];
   var timer = null;
