@@ -47,6 +47,22 @@
               <label class="form-label small mb-0">Format</label>
               <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
             </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Scale</label>
+              <select id="burnin_scale" class="form-select form-select-sm">
+                <option value="0">auto</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </div>
             <p class="form-switch mb-0">
               <input type="checkbox" id="burnin_background" role="switch" class="form-check-input">
               <label for="burnin_background" class="form-check-label small">Background</label>
@@ -136,6 +152,7 @@
   var burninEnabledChk = document.getElementById('burnin_enabled');
   var burninBackgroundChk = document.getElementById('burnin_background');
   var burninFormat = document.getElementById('burnin_format');
+  var burninScale = document.getElementById('burnin_scale');
 
   function createRow(name, type, format, position) {
     var row = tmpl.content.cloneNode(true).querySelector('.element-row');
@@ -189,7 +206,7 @@
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null, burnin: { enabled: null, format: null, background: null } } })
+      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null, burnin: { enabled: null, format: null, background: null, scale: null } } })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -204,6 +221,8 @@
           burninBackgroundChk.checked = data.burnin.background !== false;
         if (data.burnin.format !== undefined && data.burnin.format !== null)
           burninFormat.value = data.burnin.format;
+        if (data.burnin.scale !== undefined && data.burnin.scale !== null)
+          burninScale.value = data.burnin.scale;
       }
     })
     .catch(function() {});
@@ -233,7 +252,8 @@
           burnin: {
             enabled: burninEnabledChk.checked,
             background: burninBackgroundChk.checked,
-            format: burninFormat.value
+            format: burninFormat.value,
+            scale: parseInt(burninScale.value, 10)
           }
         },
         action: { save_config: null, restart_thread: 32 }
