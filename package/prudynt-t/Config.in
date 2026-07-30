@@ -128,6 +128,18 @@ config BR2_PACKAGE_PRUDYNT_T_FLAC
 	  Enable FLAC audio codec support. Disable to drop the libflac
 	  dependency and reduce binary size.
 
+config BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
+	bool "Burned-in timestamp overlay"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y
+	help
+	  Render a hardware timestamp overlay directly into the video frames
+	  using the IMP OSD engine.  The timestamp format is taken from the
+	  "clock" OSD element in prudynt.json.
+
+	  When disabled, timestamp information is still available via the
+	  SEI-based subtitle track (no burn-in overhead).
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
