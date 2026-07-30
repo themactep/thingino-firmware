@@ -1,18 +1,21 @@
 /**
  * SEI OSD Overlay Renderer
  *
- * Subscribes to /x/json-osd-sei.cgi SSE stream and renders OSD elements
- * as positioned HTML overlays on top of the MJPEG preview <img>.
+ * Checks osd.enabled via /x/json-prudynt.cgi before subscribing to the
+ * /x/json-osd-sei.cgi SSE stream.  When disabled, no SSE connection is
+ * made and no overlay is rendered.
  */
 (function () {
   "use strict";
 
+  const API_URL = "/x/json-prudynt.cgi";
   const SSE_URL = "/x/json-osd-sei.cgi";
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
   const FONT_SIZE = 14;
 
   let source = null;
+  let started = false;
 
   function resolvePos(rawPos, containerSize) {
     if (rawPos < 0) return Math.max(containerSize + rawPos, 0);
@@ -67,7 +70,7 @@
   function ensureOverlay() {
     let overlay = document.getElementById(OVERLAY_ID);
     const img = document.getElementById(PREVIEW_IMG_ID);
-    if (!img) return overlay;
+    if (!img) return null;
 
     if (!overlay) {
       const wrapper = document.createElement("div");
@@ -87,17 +90,26 @@
   function handleEvent(event) {
     try {
       const data = JSON.parse(event.data);
-      if (!data || !data.elements || !data.elements.length) return;
+      if (!data || !data.elements || !data.elements.length) {
+        hideOverlay();
+        return;
+      }
 
       const overlay = ensureOverlay();
       if (!overlay) return;
 
+      overlay.style.display = "";
       overlay.innerHTML = buildOverlayHTML(data.elements);
       reposition();
     } catch (_) {}
   }
 
-  function start() {
+  function hideOverlay() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) overlay.style.display = "none";
+  }
+
+  function sseStart() {
     if (source) return;
 
     source = new EventSource(SSE_URL);
@@ -105,13 +117,14 @@
     source.onerror = function () {
       source.close();
       source = null;
-      setTimeout(start, 5000);
+      setTimeout(sseStart, 5000);
     };
 
     window.addEventListener("resize", reposition);
+    started = true;
   }
 
-  function stop() {
+  function sseStop() {
     if (source) {
       source.close();
       source = null;
@@ -119,11 +132,42 @@
     window.removeEventListener("resize", reposition);
     const overlay = document.getElementById(OVERLAY_ID);
     if (overlay) overlay.remove();
+    started = false;
   }
 
+  function checkAndStart() {
+    fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ osd: { enabled: null } }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data && data.enabled === true) {
+          sseStart();
+        }
+      })
+      .catch(function () {
+        // If config fetch fails, start anyway (best-effort fallback)
+        sseStart();
+      });
+  }
+
+  // Expose global controls so pages can start/stop on demand
+  window.SeiOSD = {
+    start: sseStart,
+    stop: sseStop,
+    restart: function () {
+      sseStop();
+      checkAndStart();
+    },
+  };
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", checkAndStart);
   } else {
-    start();
+    checkAndStart();
   }
 })();

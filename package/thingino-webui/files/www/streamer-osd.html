@@ -13,6 +13,7 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>#sei-osd-overlay{display:none}</style>
 </head>
 
 <body id="page-streamer-osd">
@@ -224,11 +225,20 @@
         if (data.burnin.scale !== undefined && data.burnin.scale !== null)
           burninScale.value = data.burnin.scale;
       }
+      // Sync SEI overlay visibility with enabled state
+      var overlay = document.getElementById('sei-osd-overlay');
+      if (overlay) overlay.style.display = enabledChk.checked ? '' : 'none';
     })
     .catch(function() {});
   }
 
   loadOsdConfig();
+
+  // Toggle SEI overlay when enabled checkbox changes
+  enabledChk.addEventListener('change', function() {
+    var overlay = document.getElementById('sei-osd-overlay');
+    if (overlay) overlay.style.display = enabledChk.checked ? '' : 'none';
+  });
 
   // Add button
   document.getElementById('add-element').addEventListener('click', function() {

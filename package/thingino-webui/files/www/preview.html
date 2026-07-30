@@ -196,10 +196,20 @@
   }
 
   function poll() {
+    // Only render when OSD is enabled (last known config state)
+    if (!window._seiOsdEnabled) {
+      var svg = document.getElementById(OVERLAY_ID);
+      if (svg) svg.style.display = 'none';
+      return;
+    }
     fetch(POLL_URL, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d && d.elements && d.elements.length) update(d);
+        if (d && d.elements && d.elements.length) {
+          var svg = document.getElementById(OVERLAY_ID);
+          if (svg) svg.style.display = '';
+          update(d);
+        }
       })
       .catch(function () {});
   }
@@ -336,10 +346,16 @@
       body: JSON.stringify({osd:{enabled:null,elements:null}})})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d.enabled !== undefined) document.getElementById('osd-enabled').checked = d.enabled !== false;
+      if (d.enabled !== undefined) {
+        document.getElementById('osd-enabled').checked = d.enabled !== false;
+        window._seiOsdEnabled = d.enabled !== false;
+      }
       loadElements(d.elements);
     }).catch(function(){});
   }
+
+  // Load config on page start to set initial _seiOsdEnabled flag
+  loadOsdConfig();
 
   // Restore visual settings
   function restoreVisuals(){
@@ -395,6 +411,7 @@
       var msg = await r.json();
       if (msg.action && msg.action.save_config === 'ok') {
         if (typeof showAlert === 'function') showAlert('success', 'OSD configuration saved.', 4000);
+        window._seiOsdEnabled = document.getElementById('osd-enabled').checked;
         bootstrap.Modal.getInstance('#osdModal').hide();
       }
     } catch(e) {
