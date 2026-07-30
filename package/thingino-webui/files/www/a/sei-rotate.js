@@ -1,12 +1,13 @@
 /**
  * SEI Rotation — applies CSS rotation to preview <img> elements
- * via SSE stream from /x/json-osd-sei.cgi.
+ * via polling prudynt:8080/api/v1/osd-sei every 2s.
  */
 (function () {
   "use strict";
-  var SSE_URL = "/x/json-osd-sei.cgi";
+  var POLL_URL = 'http://' + window.location.hostname + ':8080/api/v1/osd-sei';
+  var POLL_MS = 2000;
   var IMG_IDS = ["preview"];
-  var source = null;
+  var timer = null;
   var applied = false;
 
   function rotateImg(img, rot) {
@@ -26,36 +27,32 @@
     }
   }
 
-  function handleEvent(event) {
-    try {
-      var d = JSON.parse(event.data);
-      if (!d || !d.rotation) return;
-      var rot = d.rotation;
-      for (var i = 0; i < IMG_IDS.length; i++) {
-        var img = document.getElementById(IMG_IDS[i]);
-        if (img) rotateImg(img, rot);
-      }
-      applied = true;
-    } catch (_) {}
+  function poll() {
+    fetch(POLL_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.rotation) return;
+        var rot = d.rotation;
+        for (var i = 0; i < IMG_IDS.length; i++) {
+          var img = document.getElementById(IMG_IDS[i]);
+          if (img) rotateImg(img, rot);
+        }
+        applied = true;
+      })
+      .catch(function () {});
   }
 
   function start() {
-    if (source) return;
-    source = new EventSource(SSE_URL);
-    source.onmessage = handleEvent;
-    source.onerror = function () {
-      source.close();
-      source = null;
-      if (!applied) setTimeout(start, 3000);
-    };
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, POLL_MS);
   }
 
   // Also re-apply on preview src change (preview.js replaces the img)
   var observer = new MutationObserver(function () {
     if (applied) {
-      // Re-apply to new img elements
       setTimeout(function () {
-        if (source && source.readyState === EventSource.OPEN) return;
+        if (timer) return;
         start();
       }, 200);
     }
