@@ -1,6 +1,9 @@
 #!/bin/sh
 
-die() { echo "$1" >&2; exit 1; }
+die() {
+	echo "$1" >&2
+	exit 1
+}
 
 PRUDYNT_CONFIG_FILE="/etc/prudynt.json"
 RAPTOR_CONFIG_FILE="/etc/raptor.conf"
@@ -49,7 +52,7 @@ inforun() {
 	rm -f "$tmp"
 }
 
-output_mode="temp"  # temp, stdout, file, upload, json
+output_mode="temp" # temp, stdout, file, upload, json
 output_file=""
 upload_to_server="no"
 force_mode="no"
@@ -127,7 +130,7 @@ case "$output_mode" in
 	"json")
 		output_file=$(mktemp)
 		;;
-	"temp"|*)
+	"temp" | *)
 		output_file="/tmp/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
 		;;
 esac
@@ -178,6 +181,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "free -h" "MEMORY"
 	inforun "mount" "MOUNT"
+	inforun "tree /overlay/" "OVERLAY"
 
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
@@ -195,6 +199,11 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "ps" "PS"
 	inforun "lsof" "LSOF"
+	inforun "ip addr show 2>/dev/null || ifconfig -a 2>/dev/null" "NETWORK"
+	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
+	inforun "iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null" "WIFI-INFO"
+	inforun "wpa_cli -i wlan0 status 2>/dev/null | sed -E 's/^(ssid|psk|passphrase)=.*/\1=REDACTED/'" "WPA-STATUS"
+	inforun "wpa_cli -i wlan0 scan_results 2>/dev/null" "WIFI-SCAN"
 	inforun "dmesg" "DMESG"
 	inforun "logcat -t" "LOGCAT"
 	inforun "logread" "SYSLOG"
@@ -205,8 +214,11 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	elif [ -f "$PRUDYNT_CONFIG_FILE" ]; then
 		sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 	fi
+	infocat "/etc/resolv.conf" "RESOLV"
+	header "WPA-CONF"
+	[ -f /etc/wpa_supplicant.conf ] && sed -E 's/(ssid=")[^"]*"/\1REDACTED"/; s/(psk=")[^"]*"/\1REDACTED"/; s/^(\s*psk=)[0-9a-fA-F]{64}/\1REDACTED/; s/(password=")[^"]*"/\1REDACTED"/' /etc/wpa_supplicant.conf
 	infocat "/etc/cron/crontabs/root" "crontab"
-} > "$output_file"
+} >"$output_file"
 
 # Calculate and display total information gathering time
 diag_end_time=$(date +%s.%N 2>/dev/null || date +%s)
@@ -227,7 +239,7 @@ case "$output_mode" in
 		# Output already sent to stdout, nothing more to do
 		;;
 	"upload")
-		url=$(send2termbin < "$output_file")
+		url=$(send2termbin <"$output_file")
 		rm -f "$output_file"
 		[ -z "$url" ] && die "There was an error uploading the file."
 		echo "Your diagnostics log link:"
@@ -235,13 +247,13 @@ case "$output_mode" in
 		echo "Information gathering completed in ${total_duration}s"
 		;;
 	"json")
-		url=$(send2termbin < "$output_file")
+		url=$(send2termbin <"$output_file")
 		rm -f "$output_file"
 		[ -z "$url" ] && die "There was an error uploading the file."
 		# Output JSON for web API consumption
 		printf '{"status":"ok","link":"%s","duration":"%s"}\n' "$url" "${total_duration}s"
 		;;
-	"file"|"temp")
+	"file" | "temp")
 		echo "Diagnostics log saved at $output_file"
 		echo "Information gathering completed in ${total_duration}s"
 		;;
