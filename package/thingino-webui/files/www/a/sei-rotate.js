@@ -4,7 +4,7 @@
  */
 (function () {
   "use strict";
-  var POLL_URL = 'http://' + window.location.hostname + ':8080/api/v1/osd-sei';
+  var POLL_URL = "/x/json-osd-sei.cgi";
   var POLL_MS = 2000;
   var IMG_IDS = ["preview"];
   var timer = null;
@@ -28,8 +28,10 @@
   }
 
   function poll() {
-    fetch(POLL_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+    fetch(POLL_URL, { cache: "no-store" })
+      .then(function (r) {
+        return r.json();
+      })
       .then(function (d) {
         if (!d || !d.rotation) return;
         var rot = d.rotation;
@@ -43,6 +45,8 @@
   }
 
   function start() {
+    // Only poll on preview.html — other pages don't use SEI overlay.
+    if (window.location.pathname !== "/preview.html") return;
     if (timer) return;
     poll();
     timer = setInterval(poll, POLL_MS);
