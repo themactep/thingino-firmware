@@ -181,6 +181,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "free -h" "MEMORY"
 	inforun "mount" "MOUNT"
+	inforun "tree /overlay/" "OVERLAY"
 
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
@@ -200,7 +201,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	inforun "lsof" "LSOF"
 	inforun "ip addr show 2>/dev/null || ifconfig -a 2>/dev/null" "NETWORK"
 	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
-	inforun "(iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null) | sed -E -e 's/ESSID:\"[^\"]*\"/ESSID:\"REDACTED\"/' -e 's/Encryption key:[^ ]*/Encryption key:REDACTED/' -e 's/^([[:space:]]*ssid ).*/\1REDACTED/'" "WIFI-INFO"
+	inforun "iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null" "WIFI-INFO"
 	inforun "wpa_cli -i wlan0 status 2>/dev/null | sed -E 's/^(ssid|psk|passphrase)=.*/\1=REDACTED/'" "WPA-STATUS"
 	inforun "wpa_cli -i wlan0 scan_results 2>/dev/null" "WIFI-SCAN"
 	inforun "dmesg" "DMESG"
@@ -213,6 +214,9 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	elif [ -f "$PRUDYNT_CONFIG_FILE" ]; then
 		sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 	fi
+	infocat "/etc/resolv.conf" "RESOLV"
+	header "WPA-CONF"
+	[ -f /etc/wpa_supplicant.conf ] && sed -E 's/(ssid=")[^"]*"/\1REDACTED"/; s/(psk=")[^"]*"/\1REDACTED"/; s/^(\s*psk=)[0-9a-fA-F]{64}/\1REDACTED/; s/(password=")[^"]*"/\1REDACTED"/' /etc/wpa_supplicant.conf
 	infocat "/etc/cron/crontabs/root" "crontab"
 } >"$output_file"
 
