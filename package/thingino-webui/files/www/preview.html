@@ -236,35 +236,64 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <!-- SEI OSD -->
+        <h6 class="mb-2">SEI OSD</h6>
         <p class="form-switch mb-2">
           <input type="checkbox" id="osd-enabled" role="switch" class="form-check-input">
-          <label for="osd-enabled" class="form-check-label">OSD enabled</label>
+          <label for="osd-enabled" class="form-check-label small">Enabled</label>
         </p>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="d-flex align-items-center gap-1 flex-fill">
+            <span class="small text-muted text-nowrap">Font</span>
+            <select class="form-select form-select-sm flex-fill" id="osd-fontsize">
+              <option value="8">8</option><option value="10">10</option><option value="12">12</option>
+              <option value="14">14</option><option value="16" selected>16</option><option value="18">18</option>
+              <option value="20">20</option><option value="24">24</option><option value="28">28</option>
+              <option value="32">32</option><option value="40">40</option><option value="48">48</option>
+              <option value="56">56</option><option value="64">64</option><option value="72">72</option>
+            </select>
+            <input type="color" class="form-control form-control-color form-control-sm" id="osd-color" value="#ffffff" title="Text color">
+          </div>
+          <div class="d-flex align-items-center gap-1 flex-fill">
+            <span class="small text-muted text-nowrap">Outline</span>
+            <select class="form-select form-select-sm flex-fill" id="osd-stroke">
+              <option value="0">0</option><option value="0.5">0.5</option><option value="1" selected>1</option>
+              <option value="1.5">1.5</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option>
+            </select>
+            <input type="color" class="form-control form-control-color form-control-sm" id="osd-stroke-color" value="#000000" title="Outline color">
+          </div>
+        </div>
         <div id="osd-elements-list" class="mb-2"></div>
         <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">
           <i class="bi bi-plus-lg me-1"></i> Add element
         </button>
-        <details class="mb-0">
-          <summary class="text-muted small">Visual settings (local only)</summary>
-          <div class="row mt-2">
-            <div class="col-6"><label class="form-label small">Font Size</label>
-              <input type="range" class="form-range" id="osd-fontsize" min="8" max="72" value="16">
-              <small class="text-muted" id="osd-fontsize-val">16</small>
-            </div>
-            <div class="col-6"><label class="form-label small">Outline</label>
-              <input type="range" class="form-range" id="osd-stroke" min="0" max="10" value="1">
-              <small class="text-muted" id="osd-stroke-val">1</small>
-            </div>
+
+        <!-- Burn-in OSD -->
+        <h6 class="mb-2">Burn-in OSD</h6>
+        <p class="form-switch mb-2">
+          <input type="checkbox" id="burnin-enabled" role="switch" class="form-check-input">
+          <label for="burnin-enabled" class="form-check-label small">Enabled</label>
+        </p>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="d-flex align-items-center gap-1 flex-fill">
+            <span class="small text-muted text-nowrap">Format</span>
+            <input type="text" id="burnin-format" class="form-control form-control-sm" placeholder="%F %T">
           </div>
-          <div class="row mt-2">
-            <div class="col-6"><label class="form-label small">Text Color</label>
-              <input type="color" class="form-control form-control-color" id="osd-color" value="#ffffff">
-            </div>
-            <div class="col-6"><label class="form-label small">Outline Color</label>
-              <input type="color" class="form-control form-control-color" id="osd-stroke-color" value="#000000">
-            </div>
+          <div class="d-flex align-items-center gap-1 flex-fill">
+            <span class="small text-muted text-nowrap">Scale</span>
+            <select class="form-select form-select-sm flex-fill" id="burnin-scale">
+              <option value="0">auto</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+              <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+            </select>
           </div>
-        </details>
+        </div>
+        <p class="form-switch mb-0">
+          <input type="checkbox" id="burnin-background" role="switch" class="form-check-input">
+          <label for="burnin-background" class="form-check-label small">Background</label>
+        </p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -343,7 +372,7 @@
 
   function loadOsdConfig() {
     fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({osd:{enabled:null,elements:null}})})
+      body: JSON.stringify({osd:{enabled:null,elements:null,burnin:{enabled:null,format:null,background:null,scale:null}}})})
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.enabled !== undefined) {
@@ -351,6 +380,13 @@
         window._seiOsdEnabled = d.enabled !== false;
       }
       loadElements(d.elements);
+      // Burn-in
+      if (d.burnin) {
+        if (d.burnin.enabled !== undefined) document.getElementById('burnin-enabled').checked = d.burnin.enabled !== false;
+        if (d.burnin.format !== undefined && d.burnin.format !== null) document.getElementById('burnin-format').value = d.burnin.format;
+        if (d.burnin.background !== undefined) document.getElementById('burnin-background').checked = d.burnin.background !== false;
+        if (d.burnin.scale !== undefined && d.burnin.scale !== null) document.getElementById('burnin-scale').value = d.burnin.scale;
+      }
     }).catch(function(){});
   }
 
@@ -381,9 +417,7 @@
     loadOsdConfig();
     var s = loadSettings();
     document.getElementById('osd-fontsize').value = s.fs || 16;
-    document.getElementById('osd-fontsize-val').textContent = s.fs || 16;
     document.getElementById('osd-stroke').value = s.stw || 1;
-    document.getElementById('osd-stroke-val').textContent = s.stw || 1;
     document.getElementById('osd-color').value = s.fc || '#ffffff';
     document.getElementById('osd-stroke-color').value = s.sc || '#000000';
     new bootstrap.Modal('#osdModal').show();
@@ -393,20 +427,22 @@
     document.getElementById('osd-elements-list').appendChild(createRow('', 'text', '', ''));
   });
 
-  document.getElementById('osd-fontsize').addEventListener('input', function(){
-    document.getElementById('osd-fontsize-val').textContent = this.value;
-  });
-  document.getElementById('osd-stroke').addEventListener('input', function(){
-    document.getElementById('osd-stroke-val').textContent = this.value;
-  });
-
   document.getElementById('osd-save').addEventListener('click', async function(){
     var btn = document.getElementById('osd-save');
     var confirmed = await confirm('Save OSD elements to /etc/prudynt.json?');
     if (!confirmed) return;
     btn.disabled = true;
     try {
-      var payload = { osd: { enabled: document.getElementById('osd-enabled').checked, elements: collectElements() }, action: { save_config: null } };
+      var payload = { osd: {
+        enabled: document.getElementById('osd-enabled').checked,
+        elements: collectElements(),
+        burnin: {
+          enabled: document.getElementById('burnin-enabled').checked,
+          format: document.getElementById('burnin-format').value,
+          background: document.getElementById('burnin-background').checked,
+          scale: parseInt(document.getElementById('burnin-scale').value, 10)
+        }
+      }, action: { save_config: null } };
       var r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       var msg = await r.json();
       if (msg.action && msg.action.save_config === 'ok') {
