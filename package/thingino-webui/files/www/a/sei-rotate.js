@@ -1,14 +1,12 @@
 /**
  * SEI Rotation — applies CSS rotation to preview <img> elements
- * via polling /x/json-osd-sei.cgi every 2s.  Stops after first
- * rotation is received; re-starts on preview img src change.
+ * via SSE to /x/json-osd-sei.cgi.  Closes after first rotation received.
  */
 (function () {
   "use strict";
-  var POLL_URL = "http://" + window.location.hostname + ":8080/api/v1/osd-sei";
-  var POLL_MS = 2000;
+  var SSE_URL = "/x/json-osd-sei.cgi";
   var IMG_IDS = ["preview"];
-  var timer = null;
+  var source = null;
   var applied = false;
 
   function rotateImg(img, rot) {
@@ -28,37 +26,38 @@
     }
   }
 
-  function poll() {
-    fetch(POLL_URL, { cache: "no-store" })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (d) {
-        if (!d || !d.rotation) return;
-        var rot = d.rotation;
+  function handle(e) {
+    try {
+      var d = JSON.parse(e.data);
+      if (d && d.rotation) {
         for (var i = 0; i < IMG_IDS.length; i++) {
           var img = document.getElementById(IMG_IDS[i]);
-          if (img) rotateImg(img, rot);
+          if (img) rotateImg(img, d.rotation);
         }
         applied = true;
-        if (timer) {
-          clearInterval(timer);
-          timer = null;
+        if (source) {
+          source.close();
+          source = null;
         }
-      })
-      .catch(function () {});
+      }
+    } catch (_) {}
   }
 
   function start() {
-    // preview.html handles rotation itself; skip to avoid double-polling.
     if (window.location.pathname === "/preview.html") return;
     if (!document.getElementById("preview")) return;
-    if (timer) return;
-    poll();
-    timer = setInterval(poll, POLL_MS);
+    if (source) return;
+    source = new EventSource(SSE_URL);
+    source.onmessage = handle;
+    source.onerror = function () {
+      if (source) {
+        source.close();
+        source = null;
+      }
+      if (!applied) setTimeout(start, 5000);
+    };
   }
 
-  // Re-apply on preview src change (preview.js replaces the img).
   var observer = new MutationObserver(function () {
     if (applied) {
       setTimeout(function () {
@@ -70,18 +69,17 @@
   function watch() {
     for (var i = 0; i < IMG_IDS.length; i++) {
       var img = document.getElementById(IMG_IDS[i]);
-      if (img && img.parentNode) {
+      if (img && img.parentNode)
         observer.observe(img.parentNode, { childList: true });
-      }
     }
   }
 
-  if (document.readyState === "loading") {
+  if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", function () {
       start();
       watch();
     });
-  } else {
+  else {
     start();
     watch();
   }
