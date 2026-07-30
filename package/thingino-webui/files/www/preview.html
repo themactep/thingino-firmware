@@ -247,49 +247,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <!-- SEI OSD -->
-        <h6 class="mb-2">SEI OSD</h6>
-        <p class="form-switch mb-2">
-          <input type="checkbox" id="osd-enabled" role="switch" class="form-check-input">
-          <label for="osd-enabled" class="form-check-label small">Enabled</label>
-        </p>
-        <div class="d-flex align-items-center gap-3 mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Font</span>
-            <select class="form-select form-select-sm" id="osd-fontsize" style="width:5rem">
-              <option value="8">8</option><option value="10">10</option><option value="12">12</option>
-              <option value="14">14</option><option value="16" selected>16</option><option value="18">18</option>
-              <option value="20">20</option><option value="24">24</option><option value="28">28</option>
-              <option value="32">32</option><option value="40">40</option><option value="48">48</option>
-              <option value="56">56</option><option value="64">64</option><option value="72">72</option>
-            </select>
-            <div class="input-group input-group-sm" style="width:10rem">
-              <span class="input-group-text color-swatch" id="sei-swatch-fill" title="Pick color">&nbsp;</span>
-              <input type="color" id="sei-picker-fill" class="d-none">
-              <input type="text" id="osd-color" class="form-control form-control-sm font-monospace"
-                value="#ffffff" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Outline</span>
-            <select class="form-select form-select-sm" id="osd-stroke" style="width:5rem">
-              <option value="0">0</option><option value="0.5">0.5</option><option value="1" selected>1</option>
-              <option value="1.5">1.5</option><option value="2">2</option><option value="3">3</option>
-              <option value="4">4</option><option value="5">5</option>
-            </select>
-            <div class="input-group input-group-sm" style="width:10rem">
-              <span class="input-group-text color-swatch" id="sei-swatch-stroke" title="Pick color">&nbsp;</span>
-              <input type="color" id="sei-picker-stroke" class="d-none">
-              <input type="text" id="osd-stroke-color" class="form-control form-control-sm font-monospace"
-                value="#000000" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
-            </div>
-          </div>
-        </div>
-        <div id="osd-elements-list" class="mb-2"></div>
-        <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">
-          <i class="bi bi-plus-lg me-1"></i> Add element
-        </button>
-
         <!-- Burn-in OSD -->
         <h6 class="mb-2">Burn-in OSD</h6>
         <p class="form-switch mb-2">
@@ -337,6 +294,49 @@
             <label for="burnin-background" class="form-check-label small">Background</label>
           </p>
         </div>
+        <!-- SEI OSD -->
+        <h6 class="mb-2">SEI OSD</h6>
+        <p class="form-switch mb-2">
+          <input type="checkbox" id="osd-enabled" role="switch" class="form-check-input">
+          <label for="osd-enabled" class="form-check-label small">Enabled</label>
+        </p>
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted text-nowrap">Font</span>
+            <select class="form-select form-select-sm" id="osd-fontsize" style="width:5rem">
+              <option value="8">8</option><option value="10">10</option><option value="12">12</option>
+              <option value="14">14</option><option value="16" selected>16</option><option value="18">18</option>
+              <option value="20">20</option><option value="24">24</option><option value="28">28</option>
+              <option value="32">32</option><option value="40">40</option><option value="48">48</option>
+              <option value="56">56</option><option value="64">64</option><option value="72">72</option>
+            </select>
+            <div class="input-group input-group-sm" style="width:10rem">
+              <span class="input-group-text color-swatch" id="sei-swatch-fill" title="Pick color">&nbsp;</span>
+              <input type="color" id="sei-picker-fill" class="d-none">
+              <input type="text" id="osd-color" class="form-control form-control-sm font-monospace"
+                value="#ffffff" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted text-nowrap">Outline</span>
+            <select class="form-select form-select-sm" id="osd-stroke" style="width:5rem">
+              <option value="0">0</option><option value="0.5">0.5</option><option value="1" selected>1</option>
+              <option value="1.5">1.5</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option>
+            </select>
+            <div class="input-group input-group-sm" style="width:10rem">
+              <span class="input-group-text color-swatch" id="sei-swatch-stroke" title="Pick color">&nbsp;</span>
+              <input type="color" id="sei-picker-stroke" class="d-none">
+              <input type="text" id="osd-stroke-color" class="form-control form-control-sm font-monospace"
+                value="#000000" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
+            </div>
+          </div>
+        </div>
+        <div id="osd-elements-list" class="mb-2"></div>
+        <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">
+          <i class="bi bi-plus-lg me-1"></i> Add element
+        </button>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
