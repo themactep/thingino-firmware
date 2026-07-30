@@ -41,6 +41,26 @@
             <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
             <label for="osd_enabled" class="form-check-label">SEI OSD</label>
           </p>
+          <div class="card bg-dark-subtle mb-3 p-2">
+            <div class="row g-2 align-items-end">
+              <div class="col-auto">
+                <p class="form-switch mb-0">
+                  <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
+                  <label for="burnin_enabled" class="form-check-label small">Burn-in overlay</label>
+                </p>
+              </div>
+              <div class="col-auto">
+                <p class="form-switch mb-0">
+                  <input type="checkbox" id="burnin_background" role="switch" class="form-check-input">
+                  <label for="burnin_background" class="form-check-label small">Background</label>
+                </p>
+              </div>
+              <div class="col">
+                <label class="form-label small mb-0">Format</label>
+                <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%R">
+              </div>
+            </div>
+          </div>
           <div id="elements-list" class="mb-3"></div>
           <button type="button" id="save-osd-config" class="btn btn-primary">
             <i class="bi bi-floppy me-1"></i> Save configuration
@@ -115,6 +135,9 @@
   var tmpl = document.getElementById('element-row');
   var saveBtn = document.getElementById('save-osd-config');
   var enabledChk = document.getElementById('osd_enabled');
+  var burninEnabledChk = document.getElementById('burnin_enabled');
+  var burninBackgroundChk = document.getElementById('burnin_background');
+  var burninFormat = document.getElementById('burnin_format');
 
   function createRow(name, type, format, position) {
     var row = tmpl.content.cloneNode(true).querySelector('.element-row');
@@ -168,13 +191,21 @@
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null } })
+      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null, burnin: { enabled: null, format: null, background: null } } })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.enabled !== undefined) {
         enabledChk.checked = data.enabled !== false;
         loadElements(data.elements);
+      }
+      if (data.burnin) {
+        if (data.burnin.enabled !== undefined)
+          burninEnabledChk.checked = data.burnin.enabled !== false;
+        if (data.burnin.background !== undefined)
+          burninBackgroundChk.checked = data.burnin.background !== false;
+        if (data.burnin.format !== undefined && data.burnin.format !== null)
+          burninFormat.value = data.burnin.format;
       }
     })
     .catch(function() {});
@@ -200,7 +231,12 @@
       var payload = {
         osd: {
           enabled: enabledChk.checked,
-          elements: collectElements()
+          elements: collectElements(),
+          burnin: {
+            enabled: burninEnabledChk.checked,
+            background: burninBackgroundChk.checked,
+            format: burninFormat.value
+          }
         },
         action: { save_config: null, restart_thread: 32 }
       };
