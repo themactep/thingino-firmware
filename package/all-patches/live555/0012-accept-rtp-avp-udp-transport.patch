@@ -1,0 +1,21 @@
+Accept the RTP/AVP/UDP transport specification
+
+ffmpeg, VLC and mpv send an explicit lower-transport (RTP/AVP/UDP) on
+UDP SETUP. Since 2026.x the parser matches transport-specs exactly and
+no longer defaults an unrecognized spec to UDP, so RTP/AVP/UDP leaves
+the streaming mode UNKNOWN and the request is answered 461. RFC 2326
+12.39 makes the lower-transport optional and UDP its default, so
+RTP/AVP/UDP is equivalent to RTP/AVP. Recognize it. (Upstream-worthy.)
+
+--- a/liveMedia/RTSPServer.cpp	2026-07-23 09:42:04.000000000 -0700
++++ b/liveMedia/RTSPServer.cpp	2026-07-29 16:22:24.518451505 -0700
+@@ -1360,7 +1360,8 @@
+       if (streamingMode != UNKNOWN) break; // more than one 'streaming mode' is not allowed
+ 
+       streamingMode = RTP_TCP;
+-    } else if (strcmp(field, "RTP/AVP") == 0 || strcmp(field, "RTP/AVP/SAVP") == 0) {
++    } else if (strcmp(field, "RTP/AVP") == 0 || strcmp(field, "RTP/AVP/UDP") == 0 ||
++	       strcmp(field, "RTP/AVP/SAVP") == 0) {
+       if (streamingMode != UNKNOWN) break; // more than one 'streaming mode' is not allowed
+ 
+       streamingMode = RTP_UDP;
