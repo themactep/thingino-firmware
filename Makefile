@@ -816,7 +816,7 @@ else
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
 # Per-build size and composition report, written to
-# $(OUTPUT_DIR)/buildscope-report.json and renderable at
+# $(OUTPUT_DIR)/images/buildscope-report.json and renderable at
 # buildscope.thingino.com. It attributes the rootfs to the packages that
 # installed it and reads real usage out of every image, which needs the build
 # tree that pack still has and distclean removes.
