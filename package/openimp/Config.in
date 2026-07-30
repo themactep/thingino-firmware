@@ -1,19 +1,34 @@
+config BR2_PACKAGE_OPENIMP_SUPPORTED
+	bool
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
+
 config BR2_PACKAGE_OPENIMP
 	bool "OpenIMP"
+	depends on BR2_PACKAGE_OPENIMP_SUPPORTED
 	depends on BR2_PACKAGE_INGENIC_SDK
 	depends on BR2_PACKAGE_INGENIC_LIB
+	depends on BR2_THINGINO_DEV_CAMERA
+	select BR2_PACKAGE_THINGINO_RAPTOR_HAL if BR2_SOC_FAMILY = "t40"
 	help
 	  OpenIMP is an open-source implementation of the Ingenic IMP
-	  (Image Media Process) library. It provides a reverse-engineered
-	  implementation of libimp.so that can replace the proprietary
-	  Ingenic library.
+	  (Image Media Process) library. It provides a
+	  reverse-engineered implementation of libimp.so that can
+	  replace the proprietary Ingenic library.
 
-	  This package builds after ingenic-sdk and ingenic-lib and
-	  overrides the usr/lib/libimp.so library with the open-source
-	  implementation.
+	  Current upstream device builds support T31 and T40. This
+	  package installs the matching build/<soc>/libimp.so in staging
+	  and on the target, then preserves that replacement during
+	  target finalization.
+
+	  The T31 implementation is currently video-focused: IMP audio
+	  and some optional OSD/IVS entry points are not yet complete.
 
 	  https://github.com/opensensor/openimp
 
-comment "openimp needs ingenic-sdk and ingenic-lib"
-	depends on !BR2_PACKAGE_INGENIC_SDK || !BR2_PACKAGE_INGENIC_LIB
+comment "openimp needs a T31 Linux 3.10 or T40 Linux 4.4 camera"
+	depends on !BR2_PACKAGE_OPENIMP_SUPPORTED
 
+comment "openimp needs ingenic-sdk and ingenic-lib"
+	depends on BR2_PACKAGE_OPENIMP_SUPPORTED
+	depends on !BR2_PACKAGE_INGENIC_SDK || !BR2_PACKAGE_INGENIC_LIB

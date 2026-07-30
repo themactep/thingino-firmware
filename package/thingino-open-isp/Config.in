@@ -1,0 +1,25 @@
+config BR2_PACKAGE_THINGINO_OPEN_ISP
+	bool "Thingino open ISP stack (experimental)"
+	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
+	depends on BR2_THINGINO_DEV_CAMERA
+	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_OPEN_TX_ISP
+	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
+	help
+	  Select the open TX-ISP driver and the open-source
+	  replacements for libalog.so, libsysutils.so, and
+	  libaudioProcess.so.
+
+	  OpenIMP is also selected on its currently supported T31 and
+	  T40 targets. T23 and T41 retain the proprietary libimp.so
+	  userspace ABI provider while using the open kernel ISP and neo
+	  support libraries.
+
+	  This is an opt-in development profile. Image tuning and sensor
+	  coverage vary by SoC and camera.

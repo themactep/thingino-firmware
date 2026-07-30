@@ -1,5 +1,10 @@
 # OpenIMP Package - Testing Guide
 
+> Historical reference: many paths and expected artifacts below predate
+> OpenIMP's T31/T40 device-build split and must not be used as current pass/fail
+> criteria. See [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md) for
+> current package/profile selection.
+
 This guide explains how to test the OpenIMP package to ensure it's working correctly.
 
 ## Pre-Build Testing
@@ -397,4 +402,3 @@ If you encounter problems, collect this information:
    ```
 
 Include this information when reporting issues on GitHub or the forum.
-

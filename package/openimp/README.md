@@ -1,5 +1,8 @@
 # OpenIMP Package for Thingino Firmware
 
+> For the complete open-stack profile and support matrix, see
+> [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md).
+
 This package provides an open-source implementation of the Ingenic IMP (Image Media Process) library.
 
 ## Overview
@@ -30,7 +33,9 @@ This package requires:
 - `BR2_PACKAGE_INGENIC_SDK` - Ingenic SDK (kernel modules and drivers)
 - `BR2_PACKAGE_INGENIC_LIB` - Ingenic libraries (will be overridden)
 
-These dependencies are automatically selected when you enable the System Packages menu.
+The complete open-stack profile selects these dependencies automatically.
+When selecting OpenIMP directly, the option is visible only after they are
+enabled by the camera configuration.
 
 ## Build Order
 
@@ -42,36 +47,30 @@ The package is configured to build in the correct order:
 
 ## Platform Support
 
-OpenIMP automatically detects the target platform based on your SoC selection:
+OpenIMP automatically detects either of its current upstream device targets:
 
-- T21 (Ingenic T21 family)
-- T23 (Ingenic T23 family)
-- T30 (Ingenic T30 family)
-- T31 (Ingenic T31 family) - Default
-- T40 (Ingenic T40 family)
-- T41 (Ingenic T41 family)
-- C100 (Ingenic C100)
+- T31 on Linux 3.10
+- T40 on Linux 4.4
 
 The platform is automatically determined from the `SOC_FAMILY` variable.
+The current T31 build is video-focused and does not yet implement IMP audio
+or every optional OSD/IVS entry point.
 
 ## What Gets Installed
 
 ### Staging Directory (for development)
 - Headers: `/usr/include/imp/*.h`
 - Libraries: `/usr/lib/libimp.so` (shared)
-- Libraries: `/usr/lib/libimp.a` (static)
 
 ### Target Directory (on device)
 - `/usr/lib/libimp.so` - **Replaces proprietary version**
-
-Note: `libsysutils.so` is built but not installed, as it's not part of the standard Ingenic IMP API.
 
 ## Source Repository
 
 The package fetches source code from:
 - Repository: https://github.com/opensensor/openimp
 - Branch: main
-- Version: HEAD (latest)
+- Version: `8c60328e4dd002924d53783a9bdbc0a8bc6bb2da`
 
 To use a specific commit, edit `package/openimp/openimp.mk` and set:
 ```makefile
@@ -80,7 +79,8 @@ OPENIMP_VERSION = <commit-hash>
 
 ## Build Process
 
-The package uses the OpenIMP Makefile with cross-compilation:
+The package uses OpenIMP's `build-for-device.sh` entry point with the
+Buildroot cross-toolchain:
 
 1. **Build**: Compiles all source files with the target cross-compiler
 2. **Strip**: Removes debug symbols to reduce library size
@@ -88,10 +88,10 @@ The package uses the OpenIMP Makefile with cross-compilation:
 4. **Finalize**: Uses a target finalize hook to ensure libimp.so is installed LAST
 
 Build flags:
-- `CROSS_COMPILE=$(TARGET_CROSS)` - Use Buildroot's cross-compiler
-- `PLATFORM=$(OPENIMP_PLATFORM)` - Set platform-specific defines
-- `CFLAGS` - Include target flags and PIC (Position Independent Code)
-- `LDFLAGS` - Link with pthread and rt libraries
+- `TOOLCHAIN_PREFIX` - Buildroot cross-compiler prefix without the final dash
+- `THINGINO_DIR` - Thingino source tree
+- `T31_OUTPUT_DIR` / `T40_OUTPUT_DIR` - per-SoC build output
+- `T40_HEADERS` - T40 1.3.1 IMP headers supplied by raptor-hal
 
 ### Override Mechanism
 
@@ -99,7 +99,8 @@ To ensure the OpenIMP library always replaces the proprietary version, the packa
 
 ## Compatibility
 
-OpenIMP is designed to be a drop-in replacement for the proprietary Ingenic IMP library. Applications that use the IMP API should work without modification.
+OpenIMP targets the proprietary IMP ABI, but it remains experimental. Validate
+the exact streamer, sensor, and IMP entry points used by each camera profile.
 
 Supported modules:
 - System module (IMP_System_*)
@@ -175,4 +176,3 @@ To contribute to OpenIMP:
 - [OpenIMP GitHub Repository](https://github.com/opensensor/openimp)
 - [Thingino Firmware](https://github.com/thingino/firmware)
 - [Buildroot Documentation](https://buildroot.org/downloads/manual/manual.html)
-

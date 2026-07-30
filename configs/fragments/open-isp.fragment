@@ -1,0 +1,2 @@
+# Experimental open ISP/kernel/userspace replacement stack.
+BR2_PACKAGE_THINGINO_OPEN_ISP=y
