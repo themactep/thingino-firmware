@@ -799,6 +799,18 @@ else
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
+# Per-build size and composition report, written to
+# $(OUTPUT_DIR)/images/buildscope-report.json and renderable at
+# buildscope.thingino.com. It attributes the rootfs to the packages that
+# installed it and reads real usage out of every image, which needs the build
+# tree that pack still has and distclean removes.
+#
+# BR2_PACKAGE_HOST_BUILDSCOPE installs the tool into $(HOST_DIR); a copy on
+# PATH is used otherwise, so the report is available without enabling the
+# package. A missing tool or a failed report never fails the build.
+	@BUILDSCOPE="$(HOST_DIR)/bin/buildscope"; \
+		if [ ! -x "$$BUILDSCOPE" ]; then BUILDSCOPE=$$(command -v buildscope 2>/dev/null || true); fi; \
+		if [ -n "$$BUILDSCOPE" ]; then "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; fi
 	@echo ""
 	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
 		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
