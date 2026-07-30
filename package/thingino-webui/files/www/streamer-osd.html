@@ -37,31 +37,29 @@
           </div>
         </div>
         <div class="col col-xl-8">
-          <p class="form-switch mb-3">
-            <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
-            <label for="osd_enabled" class="form-check-label">SEI OSD</label>
-          </p>
           <div class="card bg-dark-subtle mb-3 p-2">
-            <div class="row g-2 align-items-end">
-              <div class="col-auto">
-                <p class="form-switch mb-0">
-                  <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
-                  <label for="burnin_enabled" class="form-check-label small">Burn-in overlay</label>
-                </p>
-              </div>
-              <div class="col-auto">
-                <p class="form-switch mb-0">
-                  <input type="checkbox" id="burnin_background" role="switch" class="form-check-input">
-                  <label for="burnin_background" class="form-check-label small">Background</label>
-                </p>
-              </div>
-              <div class="col">
-                <label class="form-label small mb-0">Format</label>
-                <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%R">
-              </div>
+            <h6 class="mb-2">OSD</h6>
+            <p class="form-switch mb-2">
+              <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
+              <label for="burnin_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div class="mb-2">
+              <label class="form-label small mb-0">Format</label>
+              <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
             </div>
+            <p class="form-switch mb-0">
+              <input type="checkbox" id="burnin_background" role="switch" class="form-check-input">
+              <label for="burnin_background" class="form-check-label small">Background</label>
+            </p>
           </div>
-          <div id="elements-list" class="mb-3"></div>
+          <div class="card bg-dark-subtle mb-3 p-2">
+            <h6 class="mb-2">SEI OSD</h6>
+            <p class="form-switch mb-0">
+              <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
+              <label for="osd_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div id="elements-list" class="mt-2"></div>
+          </div>
           <button type="button" id="save-osd-config" class="btn btn-primary">
             <i class="bi bi-floppy me-1"></i> Save configuration
           </button>
@@ -74,7 +72,7 @@
 <footer data-app-footer></footer>
 
 <template id="element-row">
-  <div class="element-row card bg-dark-subtle mb-2 p-2">
+  <div class="element-row mb-2">
     <div class="row g-2 align-items-end">
       <div class="col-2">
         <label class="form-label small mb-0">Name</label>
@@ -91,7 +89,7 @@
           <option value="uptime">Uptime</option>
         </select>
       </div>
-      <div class="col-3">
+      <div class="col">
         <label class="form-label small mb-0">Format</label>
         <input type="text" class="form-control form-control-sm elem-format" placeholder="%F %T">
       </div>
@@ -99,7 +97,7 @@
         <label class="form-label small mb-0">Position (x,y)</label>
         <input type="text" class="form-control form-control-sm elem-position" placeholder="10,10">
       </div>
-      <div class="col-1 text-end">
+      <div class="col-auto text-end">
         <button type="button" class="btn btn-outline-danger btn-sm elem-remove" title="Remove">
           <i class="bi bi-trash"></i>
         </button>
