@@ -171,7 +171,7 @@ else
 fi
 
 # Sensor: WiFi RSSI
-if ha_entity_enabled rssi; then
+if ha_entity_enabled rssi && ha_has_wifi; then
 	ha_pub_disc sensor rssi \
 		"{\"name\":\"WiFi Signal\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_rssi\",\"state_topic\":\"${ST}/rssi/state\",\"unit_of_measurement\":\"dBm\",\"device_class\":\"signal_strength\",\"state_class\":\"measurement\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
@@ -189,7 +189,7 @@ fi
 # Camera: Live view (periodic base64-encoded JPEG over MQTT)
 if ha_entity_enabled live_view; then
 	ha_pub_disc camera live_view \
-		"{\"name\":\"Live View\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_live_view\",\"topic\":\"${ST}/live_view/image\",\"image_encoding\":\"b64\",\"icon\":\"mdi:camera\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+		"{\"name\":\"Preview\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_live_view\",\"topic\":\"${ST}/live_view/image\",\"image_encoding\":\"b64\",\"icon\":\"mdi:camera\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc camera live_view
 fi

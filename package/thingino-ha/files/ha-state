@@ -171,21 +171,20 @@ PEOF
 	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
 fi
 
-# WiFi RSSI sensor
-if ha_entity_enabled rssi; then
+# WiFi RSSI sensor — only for cameras with a wireless interface
+if ha_entity_enabled rssi && ha_has_wifi; then
 	rssi=""
 
-	# Find a wireless interface
-	_wifi_iface=""
-	for _if in $(ls /sys/class/net/ 2>/dev/null); do
-		[ -d "/sys/class/net/$_if/wireless" ] || continue
-		_wifi_iface="$_if"
+	# Find the first wireless interface
+	for _if in /sys/class/net/*/wireless; do
+		iface="${_if%/wireless}"
+		iface="${iface##*/}"
 		break
 	done
 
 	# wpa_cli signal_poll (most reliable on Thingino cameras)
-	if [ -z "$rssi" ] && [ -n "$_wifi_iface" ] && command -v wpa_cli >/dev/null 2>&1; then
-		rssi=$(wpa_cli -i "$_wifi_iface" signal_poll 2>/dev/null | awk -F= '/^RSSI=/{print $2}')
+	if [ -z "$rssi" ] && [ -n "$iface" ] && command -v wpa_cli >/dev/null 2>&1; then
+		rssi=$(wpa_cli -i "$iface" signal_poll 2>/dev/null | awk -F= '/^RSSI=/{print $2}')
 	fi
 
 	# /proc/net/wireless (legacy fallback)

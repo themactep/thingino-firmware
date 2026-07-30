@@ -3,6 +3,14 @@
 # Provides shared camera identity, MQTT broker config, and helpers.
 # Config: /etc/thingino.json under "ha" key. See /rom/thingino.json for reference.
 
+# Return 0 if the system has at least one wireless interface.
+ha_has_wifi() {
+	for _if in /sys/class/net/*/wireless; do
+		[ -d "$_if" ] && return 0
+	done
+	return 1
+}
+
 HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 
 # ---------------------------------------------------------------------------
