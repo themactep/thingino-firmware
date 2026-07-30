@@ -88,6 +88,16 @@
     var img = document.getElementById(IMG_ID);
     var svg = document.getElementById(OVERLAY_ID);
     if (!img || !svg) return;
+
+    // Apply user visual settings over SSE defaults
+    try {
+      var vis = JSON.parse(localStorage.getItem('sei-osd-settings') || '{}');
+      if (vis.fs) svg.dataset.fs = vis.fs;
+      if (vis.stw) svg.dataset.stw = vis.stw;
+      if (vis.fc) { var t = svg.querySelectorAll('text'); for (var i=0;i<t.length;i++) t[i].setAttribute('fill', vis.fc); }
+      if (vis.sc) { var t = svg.querySelectorAll('text'); for (var i=0;i<t.length;i++) t[i].setAttribute('stroke', vis.sc); }
+    } catch(_) {}
+
     var cw = img.clientWidth, ch = img.clientHeight;
     if (!cw || !ch || !svg.dataset.sw) return;
     var sw = parseFloat(svg.dataset.sw), sh = parseFloat(svg.dataset.sh);
@@ -425,6 +435,31 @@
 
   document.getElementById('osd-add-element').addEventListener('click', function(){
     document.getElementById('osd-elements-list').appendChild(createRow('', 'text', '', ''));
+  });
+
+  // Live preview: apply visual settings immediately when controls change
+  function applyVisualsLive() {
+    var svg = document.getElementById('sei-osd-overlay');
+    if (!svg) return;
+    var fs = document.getElementById('osd-fontsize').value;
+    var stw = document.getElementById('osd-stroke').value;
+    var fc = document.getElementById('osd-color').value;
+    var sc = document.getElementById('osd-stroke-color').value;
+    svg.dataset.fs = fs;
+    svg.dataset.stw = stw;
+    var texts = svg.querySelectorAll('text');
+    for (var i = 0; i < texts.length; i++) {
+      texts[i].setAttribute('font-size', fs);
+      texts[i].setAttribute('stroke-width', stw);
+      texts[i].setAttribute('fill', fc);
+      texts[i].setAttribute('stroke', sc);
+    }
+    if (window._seiRepaint) window._seiRepaint();
+  }
+
+  ['osd-fontsize','osd-stroke','osd-color','osd-stroke-color'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', applyVisualsLive);
+    document.getElementById(id).addEventListener('change', applyVisualsLive);
   });
 
   document.getElementById('osd-save').addEventListener('click', async function(){
