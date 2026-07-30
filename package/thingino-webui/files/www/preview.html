@@ -248,91 +248,121 @@
       </div>
       <div class="modal-body">
         <!-- Burn-in OSD -->
-        <h6 class="mb-2">Burn-in OSD</h6>
-        <p class="form-switch mb-2">
-          <input type="checkbox" id="burnin-enabled" role="switch" class="form-check-input">
-          <label for="burnin-enabled" class="form-check-label small">Enabled</label>
+        <h4>Burn-in OSD</h4>
+
+        <p class="form-switch">
+          <input class="form-check-input" type="checkbox" id="burnin-enabled" role="switch">
+          <label class="form-check-label" for="burnin-enabled">Enabled</label>
         </p>
-        <div class="d-flex align-items-center gap-3 mb-2">
-          <div class="d-flex align-items-center gap-2 flex-fill">
-            <span class="small text-muted text-nowrap">Format</span>
-            <input type="text" id="burnin-format" class="form-control form-control-sm" placeholder="%F %T">
-          </div>
-          <div class="d-flex align-items-center gap-2 flex-fill">
-            <span class="small text-muted text-nowrap">Scale</span>
-            <select class="form-select form-select-sm flex-fill" id="burnin-scale">
-              <option value="0">auto</option>
-              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-              <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-              <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
-            </select>
-          </div>
-        </div>
-        <div class="d-flex align-items-center gap-3 mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Fill</span>
-            <div class="input-group input-group-sm color-picker-group">
-              <span class="input-group-text color-swatch" id="modal-swatch-fill" title="Pick color">&nbsp;</span>
-              <input type="color" id="modal-picker-fill" class="d-none">
-              <input type="text" id="burnin-fill-color" class="form-control form-control-sm font-monospace"
-                placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
-            </div>
-            <input type="range" id="alpha-fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Outline</span>
-            <div class="input-group input-group-sm color-picker-group">
-              <span class="input-group-text color-swatch" id="modal-swatch-outline" title="Pick color">&nbsp;</span>
-              <input type="color" id="modal-picker-outline" class="d-none">
-              <input type="text" id="burnin-outline-color" class="form-control form-control-sm font-monospace"
-                placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
-            </div>
-            <input type="range" id="alpha-outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
-          </div>
-          <p class="form-switch mb-0 ms-2">
-            <input type="checkbox" id="burnin-background" role="switch" class="form-check-input">
-            <label for="burnin-background" class="form-check-label small">Background</label>
-          </p>
-        </div>
+
+        <p class="row">
+          <label class="form-label col-3" for="burnin-format">Format</label>
+          <input class="form-control col" type="text" id="burnin-format" placeholder="%F %T">
+        </p>
+
+        <p class="row">
+          <label class="form-label col-3" for="burnin-scale">Scale</label>
+          <select class="form-select col" id="burnin-scale">
+            <option value="0">auto</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+            <option>7</option>
+            <option>8</option>
+            <option>9</option>
+            <option>10</option>
+          </select>
+        </p>
+
+        <p class="row">
+          <label class="form-label col-3" for="burnin-fill-color">Fill</label>
+          <span class="input-group color-picker-group col">
+            <span class="input-group-text color-swatch" id="modal-swatch-fill" title="Pick color">&nbsp;</span>
+            <input class="d-none" type="color" id="modal-picker-fill">
+            <input class="form-control font-monospace" type="text" id="burnin-fill-color"
+              placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+          </span>
+          <span class="col">
+            <input class="alpha-slider" type="range" id="alpha-fill" min="0" max="255" value="255" title="Alpha">
+          </span>
+        </p>
+
+        <p class="row">
+          <label class="form-label col-3" for="burnin-outline-color">Outline</label>
+          <span class="input-group color-picker-group col">
+            <span class="input-group-text color-swatch" id="modal-swatch-outline" title="Pick color">&nbsp;</span>
+            <input class="d-none" type="color" id="modal-picker-outline">
+            <input class="form-control font-monospace" type="text" id="burnin-outline-color"
+              placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+          </span>
+          <span class="col">
+            <input class="alpha-slider" type="range" id="alpha-outline" min="0" max="255" value="255" title="Alpha">
+          </span>
+        </p>
+
+        <p class="form-switch">
+          <input class="form-check-input" type="checkbox" id="burnin-background" role="switch">
+          <label class="form-check-label" for="burnin-background">Background</label>
+        </p>
+
         <!-- SEI OSD -->
-        <h6 class="mb-2">SEI OSD</h6>
-        <p class="form-switch mb-2">
-          <input type="checkbox" id="osd-enabled" role="switch" class="form-check-input">
-          <label for="osd-enabled" class="form-check-label small">Enabled</label>
+        <h4>SEI OSD</h4>
+
+        <p class="form-switch">
+          <input class="form-check-input" type="checkbox" id="osd-enabled" role="switch">
+          <label class="form-check-label" for="osd-enabled">Enabled</label>
         </p>
-        <div class="d-flex align-items-center gap-3 mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Font</span>
-            <select class="form-select form-select-sm" id="osd-fontsize" style="width:5rem">
-              <option value="8">8</option><option value="10">10</option><option value="12">12</option>
-              <option value="14">14</option><option value="16" selected>16</option><option value="18">18</option>
-              <option value="20">20</option><option value="24">24</option><option value="28">28</option>
-              <option value="32">32</option><option value="40">40</option><option value="48">48</option>
-              <option value="56">56</option><option value="64">64</option><option value="72">72</option>
-            </select>
-            <div class="input-group input-group-sm" style="width:10rem">
-              <span class="input-group-text color-swatch" id="sei-swatch-fill" title="Pick color">&nbsp;</span>
-              <input type="color" id="sei-picker-fill" class="d-none">
-              <input type="text" id="osd-color" class="form-control form-control-sm font-monospace"
-                value="#ffffff" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="small text-muted text-nowrap">Outline</span>
-            <select class="form-select form-select-sm" id="osd-stroke" style="width:5rem">
-              <option value="0">0</option><option value="0.5">0.5</option><option value="1" selected>1</option>
-              <option value="1.5">1.5</option><option value="2">2</option><option value="3">3</option>
-              <option value="4">4</option><option value="5">5</option>
-            </select>
-            <div class="input-group input-group-sm" style="width:10rem">
-              <span class="input-group-text color-swatch" id="sei-swatch-stroke" title="Pick color">&nbsp;</span>
-              <input type="color" id="sei-picker-stroke" class="d-none">
-              <input type="text" id="osd-stroke-color" class="form-control form-control-sm font-monospace"
-                value="#000000" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
-            </div>
-          </div>
-        </div>
+
+        <p class="row">
+          <label class="form-check-label col-3" for="osd-fontsize">Font</label>
+          <select class="form-select col" id="osd-fontsize">
+            <option>8</option>
+            <option>10</option>
+            <option>12</option>
+            <option>14</option>
+            <option selected>16</option>
+            <option>18</option>
+            <option>20</option>
+            <option>24</option>
+            <option>28</option>
+            <option>32</option>
+            <option>40</option>
+            <option>48</option>
+            <option>56</option>
+            <option>64</option>
+            <option>72</option>
+          </select>
+          <span class="input-group col" style="width:10rem">
+            <span class="input-group-text color-swatch" id="sei-swatch-fill" title="Pick color">&nbsp;</span>
+            <input class="d-none" type="color" id="sei-picker-fill">
+            <input class="form-control font-monospace" type="text" id="osd-color"
+              value="#ffffff" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
+          </span>
+        </p>
+
+        <p class="row">
+          <label class="form-check-label col-3" for="osd-stroke">Outline</label>
+          <select class="form-select col" id="osd-stroke">
+            <option>0</option>
+            <option selected>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+          </select>
+          <span class="input-group col" style="width:10rem">
+            <span class="input-group-text color-swatch" id="sei-swatch-stroke" title="Pick color">&nbsp;</span>
+            <input class="d-none" type="color" id="sei-picker-stroke">
+            <input class="form-control font-monospace" type="text" id="osd-stroke-color"
+              value="#000000" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">
+          </span>
+        </p>
+
         <div id="osd-elements-list" class="mb-2"></div>
+
         <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">
           <i class="bi bi-plus-lg me-1"></i> Add element
         </button>
@@ -373,12 +403,12 @@
     var row = document.createElement('div');
     row.className = 'osd-el-row d-flex gap-1 align-items-end mb-1';
     row.innerHTML =
-      '<input class="form-control form-control-sm elem-name" placeholder="id" style="flex:0 0 100px" value="' + (name||'') + '">' +
-      '<select class="form-select form-select-sm elem-type" style="flex:0 0 150px">' +
+      '<input class="form-control elem-name" placeholder="id" style="flex:0 0 100px" value="' + (name||'') + '">' +
+      '<select class="form-select elem-type" style="flex:0 0 150px">' +
         TYPES.map(function(t){ return '<option value="'+t+'"' + (t===type?' selected':'') + '>'+t+'</option>'; }).join('') +
       '</select>' +
-      '<input class="form-control form-control-sm elem-format" placeholder="format" style="flex:1 1 auto" value="' + (format||'') + '">' +
-      '<input class="form-control form-control-sm elem-position" placeholder="x,y" style="flex:0 0 70px" value="' + (position||'') + '">' +
+      '<input class="form-control elem-format" placeholder="format" style="flex:1 1 auto" value="' + (format||'') + '">' +
+      '<input class="form-control elem-position" placeholder="x,y" style="flex:0 0 70px" value="' + (position||'') + '">' +
       '<button class="btn btn-outline-danger btn-sm elem-remove flex-shrink-0" title="Remove">&times;</button>';
     row.querySelector('.elem-type').addEventListener('change', function(){
       var d = DEFAULTS[this.value];
