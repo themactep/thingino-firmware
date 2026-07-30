@@ -75,8 +75,8 @@
 (function () {
   'use strict';
   var OVERLAY_ID = 'sei-osd-overlay', IMG_ID = 'preview';
-  var POLL_URL = 'http://' + window.location.hostname + ':8080/api/v1/osd-sei';
-  var POLL_MS = 2000, timer = null;
+  var SSE_URL = '/x/json-osd-sei.cgi';
+  var source = null;
 
   function pcol(h, dflt) {
     if (!h || h.length < 7) return dflt || '#ffffff';
@@ -206,35 +206,44 @@
       repaint();
   }
 
-  function poll() {
-    // Only render when OSD is enabled (last known config state)
+  function handleSSE(e) {
     if (!window._seiOsdEnabled) {
       var svg = document.getElementById(OVERLAY_ID);
       if (svg) svg.style.display = 'none';
       return;
     }
-    fetch(POLL_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d && d.elements && d.elements.length) {
-          var svg = document.getElementById(OVERLAY_ID);
-          if (svg) svg.style.display = '';
-          update(d);
-        }
-      })
-      .catch(function () {});
+    try {
+      var d = JSON.parse(e.data);
+      if (d && d.elements && d.elements.length) {
+        var svg = document.getElementById(OVERLAY_ID);
+        if (svg) svg.style.display = '';
+        update(d);
+      }
+    } catch (_) {}
   }
 
-  function start() {
-    if (timer) return;
-    poll();
-    timer = setInterval(poll, POLL_MS);
+  function sseStart() {
+    if (source) return;
+    source = new EventSource(SSE_URL);
+    source.onmessage = handleSSE;
+    source.onerror = function () {
+      if (source) { source.close(); source = null; }
+      setTimeout(sseStart, 5000);
+    };
     window.addEventListener('resize', repaint);
   }
+
+  function sseStop() {
+    if (source) { source.close(); source = null; }
+    window.removeEventListener('resize', repaint);
+  }
+
+  // Expose for external enable/disable control.
+  window._seiOsdSSE = { start: sseStart, stop: sseStop };
   if (document.readyState === 'loading')
-    document.addEventListener('DOMContentLoaded', start);
+    document.addEventListener('DOMContentLoaded', sseStart);
   else
-    start();
+    sseStart();
 })();
 </script>
 
