@@ -24,6 +24,15 @@ start() {
 	# Ensure /run/thingino exists
 	mkdir -p /run/thingino
 
+	# Generate API key early so imp-control can authenticate with prudynt
+	# (prudynt starts later at S31 but requires the key to exist for any API access)
+	API_KEY_FILE="/etc/thingino-api.key"
+	if [ ! -f "$API_KEY_FILE" ]; then
+		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
+		echo "$new_key" >"$API_KEY_FILE"
+		chmod 600 "$API_KEY_FILE"
+	fi
+
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
 }

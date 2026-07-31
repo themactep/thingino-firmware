@@ -51,6 +51,42 @@ start() {
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		restart_heartbeat
+
+		# Re-sync ISP daynight mode after prudynt is up.
+		# daynightd starts at S10 (before prudynt), so any color
+		# command it issued would have failed silently because
+		# prudynt's HTTP API wasn't listening yet.
+		(
+			MODE_FILE="/run/thingino/daynight_mode"
+			API_URL="http://127.0.0.1:8080/api/v1/config"
+			API_KEY_FILE="/etc/thingino-api.key"
+
+			# Wait for prudynt's HTTP API to be available (up to 15 s)
+			i=0
+			while [ $i -lt 30 ]; do
+				if curl -s "$API_URL" >/dev/null 2>&1; then
+					break
+				fi
+				usleep 500000
+				i=$((i + 1))
+			done
+
+			if [ -f "$MODE_FILE" ] && [ -f "$API_KEY_FILE" ]; then
+				MODE=$(cat "$MODE_FILE" 2>/dev/null)
+				API_KEY=$(cat "$API_KEY_FILE" 2>/dev/null | tr -d '\n\r ')
+				if [ "$MODE" = "night" ] && [ -n "$API_KEY" ]; then
+					curl -s -X POST "$API_URL" \
+						-H "X-API-Key: $API_KEY" \
+						-H "Content-Type: application/json" \
+						-d '{"image":{"running_mode":1}}' >/dev/null 2>&1 || true
+				elif [ "$MODE" = "day" ] && [ -n "$API_KEY" ]; then
+					curl -s -X POST "$API_URL" \
+						-H "X-API-Key: $API_KEY" \
+						-H "Content-Type: application/json" \
+						-d '{"image":{"running_mode":0}}' >/dev/null 2>&1 || true
+				fi
+			fi
+		) &
 	fi
 	return "$status"
 }
