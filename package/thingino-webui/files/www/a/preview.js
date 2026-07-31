@@ -466,106 +466,17 @@ async function loadMotorParams() {
 
 async function loadConfig() {
   showBusy("Loading camera configuration...");
-  const payload = JSON.stringify({
-    image: {
-      hflip: null,
-      vflip: null,
-      wb_bgain: null,
-      wb_rgain: null,
-      ae_compensation: null,
-      core_wb_mode: null,
-    },
-    motion: { enabled: null },
-    privacy: { enabled: null },
-    rtsp: { username: null, password: null, port: null },
-    stream0: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-      },
-    },
-    stream1: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-      },
-    },
-    action: { capture: null },
-  });
-  console.log("===>", payload);
+  const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
-    if (text) {
-      try {
-        const msg = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(msg));
-        handleMessage(msg);
-      } catch (parseErr) {
-        console.warn(ts(), "Invalid JSON response", text, parseErr);
-      }
-    } else {
-      console.log(ts(), "<===", "Empty response");
-    }
+    const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
+      fetch(BASE + "image").then((r) => r.json()),
+      fetch(BASE + "motion").then((r) => r.json()),
+      fetch(BASE + "privacy").then((r) => r.json()),
+      fetch(BASE + "rtsp").then((r) => r.json()),
+      fetch(BASE + "stream0").then((r) => r.json()),
+      fetch(BASE + "stream1").then((r) => r.json()),
+    ]);
+    handleMessage({ image, motion, privacy, rtsp, stream0, stream1 });
   } catch (err) {
     console.error("Load config error", err);
   } finally {
