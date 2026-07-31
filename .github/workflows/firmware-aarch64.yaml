@@ -133,10 +133,54 @@ jobs:
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
 
+      - name: Ensure ccache release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          # Single pre-matrix create so the fan-out jobs only ever upload/download (no create races).
+          if gh release view ccache --repo "$REPO" >/dev/null 2>&1; then
+            echo "'ccache' release already exists"
+          else
+            echo "Creating rolling 'ccache' release"
+            gh release create ccache --repo "$REPO" \
+              --title "ccache" \
+              --notes "Rolling per-branch build ccache (compiler cache). Not a firmware release; do not flash." \
+              --latest=false
+          fi
+
+  buildscope-cli:
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
+    steps:
+      - name: Checkout buildscope
+        uses: actions/checkout@v5
+        with:
+          repository: thingino/buildscope
+          ref: de2856b72baffdd46a2931f47c8f2aee995cbacf
+
+      - name: Build static buildscope
+        run: |
+          # Built once here rather than as a Buildroot host package: that costs
+          # ~77s and a 189MB toolchain download in every matrix job.
+          # musl-static so the one binary runs both on the runner and inside the
+          # debian:forky build container, whose glibc differs from the host's.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+          TARGET=$([ "$(uname -m)" = aarch64 ] && echo aarch64-unknown-linux-musl || echo x86_64-unknown-linux-musl)
+          rustup target add "$TARGET"
+          cargo build --release -p buildscope --target "$TARGET"
+          cp "target/$TARGET/release/buildscope" buildscope
+
+      - name: Upload buildscope binary
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: buildscope-cli
+          path: buildscope
+
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-24.04-arm
+    needs: [generate-matrix, notify-begin, buildscope-cli]
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -300,6 +344,15 @@ jobs:
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
 
+      - name: Fetch buildscope
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: buildscope-cli
+          path: /usr/local/bin
+
+      - name: Make buildscope executable
+        run: chmod +x /usr/local/bin/buildscope
+
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
@@ -353,6 +406,17 @@ jobs:
             echo "Matching .bin files not found."
             exit 1
           fi
+
+      - name: Upload buildscope report
+        if: always()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: buildscope-report-${{ matrix.thingino-version }}
+          # The report sits at the build root, beside uenv.txt, not under
+          # images/. The trailing * matches the kernel/libc suffix the output
+          # dir carries, same as the find globs above.
+          path: ${{ github.workspace }}/output/master/${{ matrix.thingino-version }}*/buildscope-report.json
+          if-no-files-found: ignore
 
       - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
@@ -410,6 +474,46 @@ jobs:
             export TG_TOPIC=""
           fi
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
+
+  fleet:
+    needs: [buildroot]
+    # Same arch expression as buildroot: the binary from buildscope-cli is
+    # native to whichever runner the matrix used.
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
+    # always(), so a run where some cameras failed still publishes a snapshot of
+    # the ones that succeeded rather than publishing nothing.
+    if: always() && github.event.inputs.skip_release != 'true'
+    steps:
+      - name: Fetch buildscope
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: buildscope-cli
+          path: bin
+
+      - name: Collect buildscope reports
+        continue-on-error: true
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: buildscope-report-*
+          path: reports
+
+      - name: Build and publish fleet snapshot
+        run: |
+          TAG_NAME="${{ needs.buildroot.outputs.tag_name }}"
+          if [ -z "$TAG_NAME" ]; then
+            echo "No tag name from buildroot (every camera failed?) — nothing to publish"
+            exit 0
+          fi
+          REPORTS=$(find reports -name '*.json' 2>/dev/null)
+          if [ -z "$REPORTS" ]; then
+            echo "No buildscope reports were collected — nothing to publish"
+            exit 0
+          fi
+          echo "Collected $(echo "$REPORTS" | wc -l) reports"
+          chmod +x bin/buildscope
+          bin/buildscope export --fleet -o . $REPORTS
+          ls -la fleet-index.json fleet-reports.tar.gz
+          gh release upload "$TAG_NAME" fleet-index.json fleet-reports.tar.gz --clobber
 
   notify-completion:
     needs: [buildroot, notify-begin]
