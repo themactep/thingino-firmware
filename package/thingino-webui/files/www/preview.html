@@ -453,9 +453,11 @@
     });
   }
 
+  var API = '/x/json-prudynt.cgi';
+  var CFG = 'http://' + location.hostname + ':8080/api/v1/config';
+
   function loadOsdConfig() {
-    fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({osd:{sei:{enabled:null,entries:null},burnin:{enabled:null,format:null,background_color:null,scale:null,fill_color:null,outline_color:null}}})})
+    fetch(CFG + '/osd')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.sei && d.sei.enabled !== undefined) {
