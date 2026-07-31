@@ -40,3 +40,32 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 endef
 
 $(eval $(generic-package))
+
+# /etc/thingino.json has three independent authors: thingino-core INSTALLs it
+# from configs/common.thingino.json, then thingino-agent and thingino-ha each
+# `jct import` their own top-level block into it.
+#
+# Under per-package directories every one of those writes lands in that
+# package's private target dir, and buildroot/Makefile:758 assembles the real
+# tree with a single rsync fed a --files-from list of every package's private
+# dir (pkg-utils.mk:270). It copies files; it does not merge JSON, so exactly
+# one author's copy of this path survives. The outcome is stable rather than
+# racy -- the list is sorted and then reversed, and thingino-ha's copy is what
+# comes out -- so the agent's block loses on every build, not by luck of the
+# dependency graph.
+#
+# The symptom is silent: the build is green, /etc/thingino.json is well-formed,
+# and S95thingino-agent reads agent.enabled as empty, logs "Disabled in
+# /etc/thingino.json", and never starts the listener.
+#
+# TARGET_FINALIZE_HOOKS run at buildroot/Makefile:759, immediately after that
+# rsync, which is the first point at which the assembled file exists. Re-import
+# the same fragment there. `jct import` merges rather than replaces and is
+# idempotent, so this becomes a no-op if the file is ever given a single owner.
+ifeq ($(BR2_PACKAGE_THINGINO_AGENT),y)
+define THINGINO_AGENT_REIMPORT_CONFIG
+	$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \
+		$(THINGINO_AGENT_PKGDIR)/files/thingino-agent.json
+endef
+TARGET_FINALIZE_HOOKS += THINGINO_AGENT_REIMPORT_CONFIG
+endif
