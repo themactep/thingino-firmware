@@ -23,7 +23,7 @@
     <div data-app-controls></div>
 
     <section>
-      <form id="haForm" class="needs-validation" novalidate autocomplete="off">
+      <form id="haForm" class="needs-validation" novalidate>
 
         <!-- MQTT Broker -->
         <div class="card mb-3">
@@ -55,7 +55,7 @@
                 </p>
                 <p>
                   <label for="ha_mqtt_password">Password</label>
-                  <input type="password" id="ha_mqtt_password" class="form-control" placeholder="optional">
+                  <input type="password" id="ha_mqtt_password" class="form-control" placeholder="optional" autocomplete="current-password">
                 </p>
                 <p>
                   <label for="ha_mqtt_client_id_prefix">Client ID prefix</label>
