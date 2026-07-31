@@ -612,7 +612,6 @@ async function toggleTimelapse() {
       );
     }
   } catch (err) {
-    console.error("Timelapse toggle failed:", err);
     updateTimelapseButtonState();
     if (typeof showAlert === "function") {
       showAlert("danger", err.message || "Failed to toggle timelapse.", 5000);
