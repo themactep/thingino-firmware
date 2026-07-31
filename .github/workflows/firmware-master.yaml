@@ -164,7 +164,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: thingino/buildscope
-          ref: de2856b72baffdd46a2931f47c8f2aee995cbacf
+          ref: e8c7eb48ebfe0aa7feacfbe6b39344f9be4e4f33
 
       - name: Build static buildscope
         run: |
