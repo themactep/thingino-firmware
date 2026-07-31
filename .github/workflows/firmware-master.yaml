@@ -540,7 +540,10 @@ jobs:
           echo "Collected $(echo "$REPORTS" | wc -l) reports"
           bin/buildscope export --fleet -o . $REPORTS
           ls -la fleet-index.json fleet-reports.tar.gz
-          gh release upload "$TAG_NAME" fleet-index.json fleet-reports.tar.gz --clobber
+          # --repo explicitly: this job has no checkout, so gh has no git
+          # remote to infer the repository from.
+          gh release upload "$TAG_NAME" fleet-index.json fleet-reports.tar.gz \
+            --repo "${{ github.repository }}" --clobber
 
   notify-completion:
     needs: [buildroot, notify-begin]
