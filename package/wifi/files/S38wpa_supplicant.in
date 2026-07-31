@@ -67,7 +67,7 @@ esac
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 case "$WLAN_MODULE_NAME" in
-	atbm6461*)
+	atbm6441* | atbm6461*)
 		DAEMON_ARGS="-D wext $DAEMON_ARGS"
 		;;
 esac
@@ -268,8 +268,55 @@ start() {
 
 	echo "Starting in $mode mode"
 
-	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
+	# ATBM6441: the MCU hosts the WiFi stack; atbm_iot_supplicant_demo was
+	# started by S09mmc. Push credentials from wpa_supplicant.conf to the MCU
+	# when they changed; otherwise the MCU auto-connects from its NVM.
 	case "$WLAN_MODULE_NAME" in
+		atbm6441*)
+			# Only provision with real client credentials; the shipped
+			# placeholder config (ssid THINGINO-, no psk) selects portal
+			# mode and must never reach the MCU.
+			if [ "$mode" != "client" ]; then
+				echo "ATBM6441: no usable WiFi credentials ($mode mode); MCU keeps its stored network"
+				exit 0
+			fi
+
+			wifi_ssid=$(sed -n 's/.*ssid="\([^"]*\)".*/\1/p' $CONFIG | head -1)
+			wifi_pass=$(sed -n 's/.*psk="\([^"]*\)".*/\1/p' $CONFIG | head -1)
+			MARKER=/etc/atbm6441.provisioned
+
+			if [ -z "$wifi_ssid" ] || [ -z "$wifi_pass" ]; then
+				echo "ATBM6441: incomplete WiFi credentials; MCU keeps its stored network"
+				exit 0
+			fi
+
+			conf_sum=$(md5sum $CONFIG | cut -d' ' -f1)
+			if [ -f "$MARKER" ] && [ "$(cat $MARKER)" = "$conf_sum" ]; then
+				echo "ATBM6441: credentials unchanged; MCU auto-connects"
+				exit 0
+			fi
+
+			# wait for the IoT supplicant control socket
+			n=20
+			while [ "$n" -gt 0 ] && [ ! -S /tmp/atbm_server_socket ]; do
+				n=$((n - 1))
+				sleep 0.5
+			done
+			if [ ! -S /tmp/atbm_server_socket ]; then
+				echo "ATBM6441: IoT supplicant socket missing; cannot provision" >&2
+				exit 1
+			fi
+
+			echo "ATBM6441: provisioning MCU with SSID '$wifi_ssid'"
+			atbm_iot_cli wifi_mode STA
+			atbm_iot_cli set_network ssid "$wifi_ssid"
+			atbm_iot_cli set_network key "$wifi_pass"
+			atbm_iot_cli set_network key_mgmt WPA2
+			atbm_iot_cli enable_network
+			echo "$conf_sum" >$MARKER
+			exit 0
+			;;
+			# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 		atbm6461*)
 			if [ "$mode" = "client" ]; then
 				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
@@ -279,36 +326,36 @@ start() {
 						echo "mcu_test not found; ATBM6461 client connection cannot start" >&2
 						exit 1
 					fi
-				echo "Bring $IFACE up"
-				ip link set $IFACE up
-				echo "Waiting for SDIO link to stabilize..."
-				sleep 3
-				echo "Connecting via mcu_test: $wifi_ssid"
-				if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
+					echo "Bring $IFACE up"
+					ip link set $IFACE up
+					echo "Waiting for SDIO link to stabilize..."
+					sleep 3
+					echo "Connecting via mcu_test: $wifi_ssid"
+					if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
 						echo "WARNING: mcu_test WiFi command failed"
 					fi
-				echo "Waiting for MCU WiFi connection..."
-				i=0
-				hex_ip=""
-				while [ "$i" -lt 30 ]; do
-					hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
-					[ -n "$hex_ip" ] && break
-					i=$((i + 1))
-					sleep 1
-				done
-				if [ -n "$hex_ip" ] && [ ${#hex_ip} -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
-					ip_addr=$(printf '%d.%d.%d.%d' 0x${hex_ip:6:2} 0x${hex_ip:4:2} 0x${hex_ip:2:2} 0x${hex_ip:0:2})
-					gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
-					echo "MCU DHCP IP: $ip_addr"
-					ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
-					ip route add default via $gateway dev $IFACE 2>/dev/null || true
-					echo "nameserver $gateway" > /tmp/resolv.conf
-					sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
-				else
-					echo "WARNING: Could not get IP from MCU DHCP"
-					ip link show $IFACE
-					iwconfig $IFACE 2>/dev/null || true
-				fi
+					echo "Waiting for MCU WiFi connection..."
+					i=0
+					hex_ip=""
+					while [ "$i" -lt 30 ]; do
+						hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
+						[ -n "$hex_ip" ] && break
+						i=$((i + 1))
+						sleep 1
+					done
+					if [ -n "$hex_ip" ] && [ ${#hex_ip} -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
+						ip_addr=$(printf '%d.%d.%d.%d' 0x${hex_ip:6:2} 0x${hex_ip:4:2} 0x${hex_ip:2:2} 0x${hex_ip:0:2})
+						gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
+						echo "MCU DHCP IP: $ip_addr"
+						ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
+						ip route add default via $gateway dev $IFACE 2>/dev/null || true
+						echo "nameserver $gateway" >/tmp/resolv.conf
+						sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
+					else
+						echo "WARNING: Could not get IP from MCU DHCP"
+						ip link show $IFACE
+						iwconfig $IFACE 2>/dev/null || true
+					fi
 				else
 					echo "Missing SSID or password for mcu_test"
 				fi

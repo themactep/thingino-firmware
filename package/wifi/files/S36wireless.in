@@ -276,6 +276,7 @@ start() {
 		echo "Skipping WLAN GPIO toggling for kernel $kernel_version"
 	fi
 
+	@if !WIFI_ATBM6441@
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
 
@@ -296,11 +297,17 @@ start() {
 		@else@
 		echo "Skip GPIO setup for @SOC_MODEL@"
 		@endif@
-		echo "Send INSERT to MMC1"
-		mmc 1
+		# Skip MMC insert if module was already loaded (ATBM chips pre-loaded by S09mmc)
+		if grep -q "$WLAN_MODULE_NAME" /proc/modules; then
+			echo "Module already loaded, skipping MMC insert"
+		else
+			echo "Send INSERT to MMC1"
+			mmc 1
+		fi
 		@endif@
 		@endif@
 	fi
+	@endif@
 	@endif@
 
 	@if WIFI_IS_HI3881@
@@ -314,12 +321,27 @@ start() {
 	fi
 	@endif@
 
-	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
+	@if WIFI_ATBM6441@
+	# ATBM6441: S09mmc owns the whole bring-up (GPIO pinmux, sysfs card
+	# detect, module load with MCU-boot-aware retries) since it needs to
+	# wait several seconds for the MCU to boot before SDIO responds.
+	# Never attempt our own modprobe here - S09mmc backgrounds that wait
+	# so it doesn't stall boot, which means the module is very often NOT
+	# loaded yet by the time this script runs; probing this early (before
+	# the MCU is ready) can wedge the driver instead of just failing.
+	if grep -q "^$WLAN_MODULE_NAME " /proc/modules; then
+		echo "Module $WLAN_MODULE_NAME is already loaded"
+	else
+		echo "ATBM6441: module not loaded yet (S09mmc still bringing up the MCU); waiting"
+	fi
+	@else@
+	if grep -q "^$WLAN_MODULE_NAME " /proc/modules; then
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
 		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
+	@endif@
 
 	# SDIO discovery and firmware loading run asynchronously after modprobe.
 	# Wait for the netdev itself so later services do not race its creation.
@@ -335,6 +357,9 @@ start() {
 
 	@if !WIFI_IS_HI3881@
 	@if !WIFI_ATBM6461@
+	@if !WIFI_ATBM6441@
+	# ATBM6441: the IoT supplicant owns wlan0 (IP comes from the MCU) and
+	# the driver rejects SIOCSIFHWADDR — never down the interface here.
 	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo "Bring interface $IFACE down"
@@ -344,6 +369,7 @@ start() {
 		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
 	fi
+	@endif@
 	@endif@
 	@endif@
 	# play /usr/share/sounds/wificonnected.opus

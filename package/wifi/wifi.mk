@@ -89,6 +89,11 @@ WIFI_AP_NETDEV = ap0
 else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
 WIFI_STA_NETDEV = wlan0
 WIFI_AP_NETDEV = wlan1
+else ifeq ($(BR2_PACKAGE_WIFI_ATBM6441),y)
+# wlan0 is the ATBM driver's netdev; the MCU does DHCP internally and the
+# IoT supplicant applies IP/route/DNS to wlan0 — no host DHCP client.
+WIFI_STA_NETDEV = wlan0
+WIFI_AP_NETDEV = wlan0
 else
 WIFI_STA_NETDEV = wlan0
 WIFI_AP_NETDEV = wlan0
@@ -113,7 +118,8 @@ WIFI_IS_FAMILY_HI_FLAG   := $(if $(filter hi%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_MTK_FLAG  := $(if $(filter mt7%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_RTL_FLAG  := $(if $(filter rtl% 818% 87% 88%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_SSV_FLAG  := $(if $(filter ssv%,$(WLAN_MODULE)),1,0)
-WIFI_IS_ATBM6461_FLAG    := $(if $(filter BR2_PACKAGE_WIFI_ATBM6461,$(WIFI_DRIVER_BR2_PACKAGE)),1,0)
+WIFI_IS_ATBM6441_FLAG     := $(if $(filter BR2_PACKAGE_WIFI_ATBM6441,$(WIFI_DRIVER_BR2_PACKAGE)),1,0)
+WIFI_IS_ATBM6461_FLAG     := $(if $(filter BR2_PACKAGE_WIFI_ATBM6461,$(WIFI_DRIVER_BR2_PACKAGE)),1,0)
 
 WIFI_SDIO_SET_GPIO_FLAG := 0
 WIFI_SDIO_RETURN_EARLY_FLAG := 0
@@ -142,6 +148,7 @@ WIFI_TEMPLATE_VARS = \
 	--var SOC_FAMILY=$(SOC_FAMILY) \
 	--var SOC_MODEL=$(SOC_MODEL) \
 	--var WIFI_MODULE_IS_SDIO=$(WIFI_MODULE_IS_SDIO_FLAG) \
+	--var WIFI_ATBM6441=$(WIFI_IS_ATBM6441_FLAG) \
 	--var WIFI_ATBM6461=$(WIFI_IS_ATBM6461_FLAG) \
 	--var WIFI_SDIO_SET_GPIO=$(WIFI_SDIO_SET_GPIO_FLAG) \
 	--var WIFI_SDIO_RETURN_EARLY=$(WIFI_SDIO_RETURN_EARLY_FLAG) \
@@ -183,8 +190,12 @@ define WIFI_INSTALL_TARGET_CMDS
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S40wired-gateway
 
 	# Network interface config
-	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wlan0 \
-		$(TARGET_DIR)/etc/network/interfaces.d/wlan0
+	mkdir -p $(TARGET_DIR)/etc/network/interfaces.d
+	if [ "$(BR2_PACKAGE_WIFI_ATBM6441)" = "y" ]; then \
+		printf 'auto wlan0\niface wlan0 inet manual\n' > $(TARGET_DIR)/etc/network/interfaces.d/wlan0 ; \
+	else \
+		sed 's/wlan0/$(WIFI_STA_NETDEV)/g' $(WIFI_PKGDIR)/files/wlan0 > $(TARGET_DIR)/etc/network/interfaces.d/$(WIFI_STA_NETDEV) ; \
+	fi
 
 	# MMC GPIO config
 	if [ "$(BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT)" = "y" ]; then \
