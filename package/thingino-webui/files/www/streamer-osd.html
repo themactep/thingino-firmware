@@ -87,10 +87,16 @@
                 </div>
                 <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
               </div>
-              <p class="form-switch mb-0 pb-1">
-                <input type="checkbox" id="burnin_background" role="switch" class="form-check-input">
-                <label for="burnin_background" class="form-check-label small">Background</label>
-              </p>
+              <div>
+                <label class="form-label small mb-0">Background</label>
+                <div class="input-group input-group-sm color-picker-group">
+                  <span class="input-group-text color-swatch" id="swatch_bg" title="Pick color">&nbsp;</span>
+                  <input type="color" id="picker_bg" class="d-none">
+                  <input type="text" id="burnin_background_color" class="form-control form-control-sm font-monospace"
+                    placeholder="#00000080" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                </div>
+                <input type="range" id="alpha_bg" class="alpha-slider" min="0" max="255" value="128" title="Alpha">
+              </div>
             </div>
           </div>
           <div class="card bg-dark-subtle mb-3 p-2">
@@ -175,7 +181,10 @@
   var saveBtn = document.getElementById('save-osd-config');
   var enabledChk = document.getElementById('osd_enabled');
   var burninEnabledChk = document.getElementById('burnin_enabled');
-  var burninBackgroundChk = document.getElementById('burnin_background');
+  var burninBgColor = document.getElementById('burnin_background_color');
+  var swatchBg = document.getElementById('swatch_bg');
+  var pickerBg = document.getElementById('picker_bg');
+  var alphaBg = document.getElementById('alpha_bg');
   var burninFormat = document.getElementById('burnin_format');
   var burninScale = document.getElementById('burnin_scale');
   var burninFillColor = document.getElementById('burnin_fill_color');
@@ -248,6 +257,7 @@
 
   wireColor(swatchFill, pickerFill, burninFillColor, alphaFill);
   wireColor(swatchOutline, pickerOutline, burninOutlineColor, alphaOutline);
+  wireColor(swatchBg, pickerBg, burninBgColor, alphaBg);
 
   function createRow(name, type, format, position) {
     var row = tmpl.content.cloneNode(true).querySelector('.element-row');
@@ -301,19 +311,22 @@
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null, burnin: { enabled: null, format: null, background: null, scale: null, fill_color: null, outline_color: null } } })
+      body: JSON.stringify({ osd: { sei: { enabled: null, elements: null }, privacy: null, burnin: { enabled: null, format: null, background_color: null, scale: null, fill_color: null, outline_color: null } } })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.enabled !== undefined) {
-        enabledChk.checked = data.enabled !== false;
-        loadElements(data.elements);
+      if (data.sei && data.sei.enabled !== undefined) {
+        enabledChk.checked = data.sei.enabled !== false;
+        loadElements(data.sei.elements);
       }
       if (data.burnin) {
         if (data.burnin.enabled !== undefined)
           burninEnabledChk.checked = data.burnin.enabled !== false;
-        if (data.burnin.background !== undefined)
-          burninBackgroundChk.checked = data.burnin.background !== false;
+        if (data.burnin.background_color !== undefined && data.burnin.background_color !== null)
+          burninBgColor.value = data.burnin.background_color;
+        else
+          burninBgColor.value = '#00000080';
+        updateSwatch(burninBgColor, swatchBg);
         if (data.burnin.format !== undefined && data.burnin.format !== null)
           burninFormat.value = data.burnin.format;
         if (data.burnin.scale !== undefined && data.burnin.scale !== null)
@@ -333,6 +346,8 @@
         if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaFill.value = parseInt(v.substring(7, 9), 16); }
         v = burninOutlineColor.value.trim();
         if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaOutline.value = parseInt(v.substring(7, 9), 16); }
+        v = burninBgColor.value.trim();
+        if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaBg.value = parseInt(v.substring(7, 9), 16); }
       }
       // Sync SEI overlay visibility with enabled state
       var overlay = document.getElementById('sei-osd-overlay');
@@ -366,11 +381,13 @@
     try {
       var payload = {
         osd: {
-          enabled: enabledChk.checked,
-          elements: collectElements(),
+          sei: {
+            enabled: enabledChk.checked,
+            elements: collectElements()
+          },
           burnin: {
             enabled: burninEnabledChk.checked,
-            background: burninBackgroundChk.checked,
+            background_color: burninBgColor.value.trim() || undefined,
             format: burninFormat.value,
             scale: parseInt(burninScale.value, 10),
             fill_color: burninFillColor.value.trim() || undefined,

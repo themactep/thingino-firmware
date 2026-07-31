@@ -305,9 +305,17 @@
           </span>
         </p>
 
-        <p class="form-switch">
-          <input class="form-check-input" type="checkbox" id="burnin-background" role="switch">
-          <label class="form-check-label" for="burnin-background">Background</label>
+        <p class="row">
+          <label class="form-label col-3" for="burnin-background-color">Background</label>
+          <span class="input-group color-picker-group col">
+            <span class="input-group-text color-swatch" id="modal-swatch-bg" title="Pick color">&nbsp;</span>
+            <input class="d-none" type="color" id="modal-picker-bg">
+            <input class="form-control font-monospace" type="text" id="burnin-background-color"
+              placeholder="#00000080" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+          </span>
+          <span class="col">
+            <input class="alpha-slider" type="range" id="alpha-bg" min="0" max="255" value="128" title="Alpha">
+          </span>
         </p>
 
         <!-- SEI OSD -->
@@ -447,30 +455,34 @@
 
   function loadOsdConfig() {
     fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({osd:{enabled:null,elements:null,burnin:{enabled:null,format:null,background:null,scale:null,fill_color:null,outline_color:null}}})})
+      body: JSON.stringify({osd:{sei:{enabled:null,elements:null},burnin:{enabled:null,format:null,background_color:null,scale:null,fill_color:null,outline_color:null}}})})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d.enabled !== undefined) {
-        document.getElementById('osd-enabled').checked = d.enabled !== false;
-        window._seiOsdEnabled = d.enabled !== false;
+      if (d.sei && d.sei.enabled !== undefined) {
+        document.getElementById('osd-enabled').checked = d.sei.enabled !== false;
+        window._seiOsdEnabled = d.sei.enabled !== false;
       }
-      loadElements(d.elements);
+      loadElements(d.sei ? d.sei.elements : null);
       // Burn-in
       if (d.burnin) {
         if (d.burnin.enabled !== undefined) document.getElementById('burnin-enabled').checked = d.burnin.enabled !== false;
         if (d.burnin.format !== undefined && d.burnin.format !== null) document.getElementById('burnin-format').value = d.burnin.format;
-        if (d.burnin.background !== undefined) document.getElementById('burnin-background').checked = d.burnin.background !== false;
+        if (d.burnin.background_color !== undefined && d.burnin.background_color !== null) document.getElementById('burnin-background-color').value = d.burnin.background_color; else document.getElementById('burnin-background-color').value = '#00000080';
         if (d.burnin.scale !== undefined && d.burnin.scale !== null) document.getElementById('burnin-scale').value = d.burnin.scale;
         var fc = document.getElementById('burnin-fill-color');
         var oc = document.getElementById('burnin-outline-color');
+        var bc = document.getElementById('burnin-background-color');
         var sf = document.getElementById('modal-swatch-fill');
         var so = document.getElementById('modal-swatch-outline');
+        var sb = document.getElementById('modal-swatch-bg');
         if (d.burnin.fill_color !== undefined && d.burnin.fill_color !== null) fc.value = d.burnin.fill_color; else fc.value = '#ffffffff';
         if (d.burnin.outline_color !== undefined && d.burnin.outline_color !== null) oc.value = d.burnin.outline_color; else oc.value = '#000000ff';
         updateSwatch(fc, sf);
         updateSwatch(oc, so);
+        updateSwatch(bc, sb);
         var v = fc.value.trim(); if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; document.getElementById('alpha-fill').value = parseInt(v.substring(7, 9), 16); }
         v = oc.value.trim(); if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; document.getElementById('alpha-outline').value = parseInt(v.substring(7, 9), 16); }
+        v = bc.value.trim(); if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; document.getElementById('alpha-bg').value = parseInt(v.substring(7, 9), 16); }
       }
     }).catch(function(){});
   }
@@ -498,12 +510,16 @@
   (function(){
     var fc = document.getElementById('burnin-fill-color');
     var oc = document.getElementById('burnin-outline-color');
+    var bc = document.getElementById('burnin-background-color');
     var sf = document.getElementById('modal-swatch-fill');
     var so = document.getElementById('modal-swatch-outline');
+    var sb = document.getElementById('modal-swatch-bg');
     var pf = document.getElementById('modal-picker-fill');
     var po = document.getElementById('modal-picker-outline');
+    var pb = document.getElementById('modal-picker-bg');
     var af = document.getElementById('alpha-fill');
     var ao = document.getElementById('alpha-outline');
+    var ab = document.getElementById('alpha-bg');
     function wire(swatch, picker, input, alphaSlider) {
       swatch.addEventListener('click', function(){ picker.click(); });
       picker.addEventListener('input', function(){
@@ -533,6 +549,7 @@
     }
     wire(sf, pf, fc, af);
     wire(so, po, oc, ao);
+    wire(sb, pb, bc, ab);
   })();
 
   // Restore visual settings
@@ -624,12 +641,14 @@
     btn.disabled = true;
     try {
       var payload = { osd: {
-        enabled: document.getElementById('osd-enabled').checked,
-        elements: collectElements(),
+        sei: {
+          enabled: document.getElementById('osd-enabled').checked,
+          elements: collectElements()
+        },
         burnin: {
           enabled: document.getElementById('burnin-enabled').checked,
           format: document.getElementById('burnin-format').value,
-          background: document.getElementById('burnin-background').checked,
+          background_color: document.getElementById('burnin-background-color').value.trim() || undefined,
           scale: parseInt(document.getElementById('burnin-scale').value, 10),
           fill_color: document.getElementById('burnin-fill-color').value.trim() || undefined,
           outline_color: document.getElementById('burnin-outline-color').value.trim() || undefined
