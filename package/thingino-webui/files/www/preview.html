@@ -455,14 +455,14 @@
 
   function loadOsdConfig() {
     fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({osd:{sei:{enabled:null,elements:null},burnin:{enabled:null,format:null,background_color:null,scale:null,fill_color:null,outline_color:null}}})})
+      body: JSON.stringify({osd:{sei:{enabled:null,entries:null},burnin:{enabled:null,format:null,background_color:null,scale:null,fill_color:null,outline_color:null}}})})
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.sei && d.sei.enabled !== undefined) {
         document.getElementById('osd-enabled').checked = d.sei.enabled !== false;
         window._seiOsdEnabled = d.sei.enabled !== false;
       }
-      loadElements(d.sei ? d.sei.elements : null);
+      loadElements(d.sei ? d.sei.entries : null);
       // Burn-in
       if (d.burnin) {
         if (d.burnin.enabled !== undefined) document.getElementById('burnin-enabled').checked = d.burnin.enabled !== false;
@@ -643,7 +643,7 @@
       var payload = { osd: {
         sei: {
           enabled: document.getElementById('osd-enabled').checked,
-          elements: collectElements()
+          entries: collectElements()
         },
         burnin: {
           enabled: document.getElementById('burnin-enabled').checked,

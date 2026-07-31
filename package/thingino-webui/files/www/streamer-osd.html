@@ -311,13 +311,13 @@
     fetch(API, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ osd: { sei: { enabled: null, elements: null }, privacy: null, burnin: { enabled: null, format: null, background_color: null, scale: null, fill_color: null, outline_color: null } } })
+      body: JSON.stringify({ osd: { sei: { enabled: null, entries: null }, privacy: null, burnin: { enabled: null, format: null, background_color: null, scale: null, fill_color: null, outline_color: null } } })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.sei && data.sei.enabled !== undefined) {
         enabledChk.checked = data.sei.enabled !== false;
-        loadElements(data.sei.elements);
+        loadElements(data.sei.entries);
       }
       if (data.burnin) {
         if (data.burnin.enabled !== undefined)
@@ -383,7 +383,7 @@
         osd: {
           sei: {
             enabled: enabledChk.checked,
-            elements: collectElements()
+            entries: collectElements()
           },
           burnin: {
             enabled: burninEnabledChk.checked,
