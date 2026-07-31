@@ -276,10 +276,10 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
 endif
 
 # NOTE: send-to-* notification toolkit now lives in package/thingino-send2.
-# Timps still ships its own send2common (timps snapshot/clip fallbacks) and
+# Timps ships its own send2common (timps-only snapshot/clip via /control) and
 # telegram-cam-register overlay via a finalize hook so they win over the shared
-# package regardless of build order. Gated on TIMPS_CONTROL: timps-motion and
-# send2common POST to timps's /control endpoint.
+# prudynt default regardless of build order. Gated on TIMPS_CONTROL: timps-motion
+# and send2common POST to timps's /control endpoint.
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_THINGINO_DEV_IPCAM)$(BR2_PACKAGE_TIMPS_CONTROL),yyy)
 THINGINO_SEND2_FILES_DIR = $(THINGINO_SEND2_PKGDIR)/files
 define TIMPS_INSTALL_SEND2

@@ -2,10 +2,10 @@ config BR2_PACKAGE_THINGINO_SEND2
 	bool "thingino-send2"
 	select BR2_PACKAGE_THINGINO_JCT
 	help
-	  Streamer-agnostic send-to-* notification toolkit (email, FTP,
-	  Telegram, MQTT, ntfy, webhook, storage, Google Photos, Gotify).
+	  Shared send-to-* notification toolkit (email, FTP, Telegram, MQTT,
+	  ntfy, webhook, storage, Google Photos, Gotify).
 
 	  Provides /usr/sbin/send2* plus /etc/send2.json and shared helpers.
-	  Snapshot and clip capture fall back through the active streamer
-	  (prudynt, raptor, or timps). Selected automatically by streamer
-	  packages that need motion alerts or the WebUI Send-to pages.
+	  Default send2common is prudynt capture; raptor and timps install
+	  their own send2common at image finalize so each camera has one
+	  capture path only (no runtime streamer branching).
