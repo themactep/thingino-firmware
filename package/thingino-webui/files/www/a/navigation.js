@@ -435,20 +435,31 @@
     const list = document.createElement("ul");
     list.className = "list-unstyled";
 
-    // Reorder items for offcanvas: Preview link first, then others
-    const reorderedItems = [];
-    const otherItems = [];
+    // Reorder items for offcanvas: Preview first, Information before Help at bottom
+    const previewItems = [];
+    const infoItems = [];
+    const helpItems = [];
+    const middleItems = [];
 
     menuItems.forEach((item) => {
       if (item.type === "link" && item.label === "Preview") {
-        reorderedItems.push(item);
+        previewItems.push(item);
+      } else if (item.id === "ddInfo") {
+        infoItems.push(item);
+      } else if (item.id === "ddHelp") {
+        helpItems.push(item);
       } else {
-        otherItems.push(item);
+        middleItems.push(item);
       }
     });
 
-    // Combine with Preview first
-    const finalItems = [...reorderedItems, ...otherItems];
+    // Combine: Preview first, middle, Information second-to-last, Help last
+    const finalItems = [
+      ...previewItems,
+      ...middleItems,
+      ...infoItems,
+      ...helpItems,
+    ];
 
     finalItems.forEach((item) => {
       if (item.type === "dropdown") {

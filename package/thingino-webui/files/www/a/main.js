@@ -837,6 +837,9 @@ function togglePrivacy(state) {
 }
 
 function toggleWireGuard(state) {
+  var uiConfig = window.thinginoUIConfig || {};
+  if (!uiConfig.device || !uiConfig.device.wireguard) return;
+
   const button = $("#wireguard");
   if (button) button.classList.add("pending");
 
