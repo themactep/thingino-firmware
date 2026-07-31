@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-BUILDSCOPE_VERSION = 8422478d4557679a141b5334472df631b78fda6f
+BUILDSCOPE_VERSION = c7e0ccedfcdf0e501b6e8c397de8825a7926f415
 BUILDSCOPE_SITE = $(call github,thingino,buildscope,$(BUILDSCOPE_VERSION))
 
 BUILDSCOPE_LICENSE = MIT

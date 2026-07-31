@@ -502,9 +502,10 @@ jobs:
   fleet:
     needs: [buildroot]
     runs-on: ubuntu-26.04
-    # always(), so a run where some cameras failed still publishes a snapshot of
-    # the ones that succeeded rather than publishing nothing.
-    if: always() && github.event.inputs.skip_release != 'true'
+    # !cancelled() rather than always(): a run where some cameras failed should
+    # still publish a snapshot of the ones that succeeded, but a run somebody
+    # cancelled should stop, not carry on and report an error for it.
+    if: ${{ !cancelled() && github.event.inputs.skip_release != 'true' }}
     steps:
       - name: Fetch buildscope
         run: |
@@ -532,7 +533,10 @@ jobs:
             echo "No tag name from buildroot (every camera failed?) — nothing to publish"
             exit 0
           fi
-          REPORTS=$(find reports -name '*.json' 2>/dev/null)
+          # find(1) exits non-zero when reports/ was never created, because no
+          # artifact matched. This shell runs with -e, so without the guard the
+          # job dies here and the graceful path below can never run.
+          REPORTS=$(find reports -name '*.json' 2>/dev/null || true)
           if [ -z "$REPORTS" ]; then
             echo "No buildscope reports were collected — nothing to publish"
             exit 0
