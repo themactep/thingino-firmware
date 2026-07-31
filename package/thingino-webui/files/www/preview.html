@@ -389,7 +389,6 @@
 <script>
 (function(){
   var STORAGE_KEY = 'sei-osd-settings';
-  var API = '/x/json-prudynt.cgi';
   var TYPES = ['text','gain','hostname','ipaddress','timestamp','uptime'];
   var DEFAULTS = {
     text: {format:'', position:'10,10'},
@@ -453,11 +452,22 @@
     });
   }
 
-  var API = '/x/json-prudynt.cgi';
   var CFG = 'http://' + location.hostname + ':8080/api/v1/config';
+  var API_KEY_PROMISE = fetch('/x/api-key.cgi', {cache: 'no-store'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) { return (d.exists && d.api_key) ? d.api_key : ''; })
+    .catch(function() { return ''; });
+
+  async function osdApiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers['X-API-Key'] = key;
+    return fetch(url, options);
+  }
 
   function loadOsdConfig() {
-    fetch(CFG + '/osd')
+    osdApiFetch(CFG + '/osd')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.sei && d.sei.enabled !== undefined) {
@@ -656,12 +666,14 @@
           outline_color: document.getElementById('burnin-outline-color').value.trim() || undefined
         }
       }, action: { save_config: null } };
-      var r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      var r = await osdApiFetch(CFG, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       var msg = await r.json();
       if (msg.action && msg.action.save_config === 'ok') {
         if (typeof showAlert === 'function') showAlert('success', 'OSD configuration saved.', 4000);
         window._seiOsdEnabled = document.getElementById('osd-enabled').checked;
         bootstrap.Modal.getInstance('#osdModal').hide();
+      } else {
+        throw new Error(msg.error || 'Save failed');
       }
     } catch(e) {
       if (typeof showAlert === 'function') showAlert('danger', 'Failed: ' + e.message, 6000);

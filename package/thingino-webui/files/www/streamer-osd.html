@@ -304,12 +304,23 @@
     });
   }
 
-  var API = '/x/json-prudynt.cgi';
   var CFG = 'http://' + location.hostname + ':8080/api/v1/config';
+  var API_KEY_PROMISE = fetch('/x/api-key.cgi', {cache: 'no-store'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) { return (d.exists && d.api_key) ? d.api_key : ''; })
+    .catch(function() { return ''; });
+
+  async function osdApiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers['X-API-Key'] = key;
+    return fetch(url, options);
+  }
 
   // Load current OSD config via REST GET
   function loadOsdConfig() {
-    fetch(CFG + '/osd')
+    osdApiFetch(CFG + '/osd')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.sei && data.sei.enabled !== undefined) {
@@ -394,7 +405,7 @@
         action: { save_config: null, restart_thread: 32 }
       };
 
-      var r = await fetch(API, {
+      var r = await osdApiFetch(CFG, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
@@ -405,6 +416,8 @@
         if (typeof showAlert === 'function')
           showAlert('success', 'OSD configuration saved and applied.', 4000);
         loadOsdConfig();
+      } else {
+        throw new Error(msg.error || 'Save failed');
       }
     } catch (err) {
       console.error('Save failed:', err);

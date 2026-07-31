@@ -1,7 +1,24 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-const endpoint = "/x/json-prudynt.cgi";
+var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+  .then(function (r) {
+    return r.json();
+  })
+  .then(function (d) {
+    return d.exists && d.api_key ? d.api_key : "";
+  })
+  .catch(function () {
+    return "";
+  });
+
+async function apiFetch(url, options) {
+  var key = await API_KEY_PROMISE;
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
 
 // Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
@@ -469,12 +486,12 @@ async function loadConfig() {
   const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
   try {
     const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
-      fetch(BASE + "image").then((r) => r.json()),
-      fetch(BASE + "motion").then((r) => r.json()),
-      fetch(BASE + "privacy").then((r) => r.json()),
-      fetch(BASE + "rtsp").then((r) => r.json()),
-      fetch(BASE + "stream0").then((r) => r.json()),
-      fetch(BASE + "stream1").then((r) => r.json()),
+      apiFetch(BASE + "image").then((r) => r.json()),
+      apiFetch(BASE + "motion").then((r) => r.json()),
+      apiFetch(BASE + "privacy").then((r) => r.json()),
+      apiFetch(BASE + "rtsp").then((r) => r.json()),
+      apiFetch(BASE + "stream0").then((r) => r.json()),
+      apiFetch(BASE + "stream1").then((r) => r.json()),
     ]);
     handleMessage({ image, motion, privacy, rtsp, stream0, stream1 });
   } catch (err) {
@@ -484,13 +501,15 @@ async function loadConfig() {
   }
 }
 
+var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);
   const payloadStr =
     typeof payload === "string" ? payload : JSON.stringify(payload);
   console.log(ts(), "===>", payloadStr);
   try {
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payloadStr,
@@ -1200,16 +1219,31 @@ imageParams.forEach((param) => {
 // Export configuration button
 const exportConfigBtn = $("#export-config");
 if (exportConfigBtn) {
-  exportConfigBtn.addEventListener("click", () => {
+  exportConfigBtn.addEventListener("click", async () => {
     exportConfigBtn.disabled = true;
-
-    // Open the CGI endpoint which will trigger download
-    window.location.href = "/x/json-prudynt-config.cgi";
-
-    // Re-enable button after a short delay
-    setTimeout(() => {
-      exportConfigBtn.disabled = false;
-    }, 1000);
+    try {
+      const res = await apiFetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: { dump_config: null } }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const json = await res.text();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "prudynt-config-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export failed:", e);
+    } finally {
+      setTimeout(() => {
+        exportConfigBtn.disabled = false;
+      }, 1000);
+    }
   });
 }
 
@@ -1226,7 +1260,7 @@ if (saveConfigBtn) {
       saveConfigBtn.disabled = true;
 
       const payload = { action: { save_config: null } };
-      const res = await fetch("/x/json-prudynt.cgi", {
+      const res = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

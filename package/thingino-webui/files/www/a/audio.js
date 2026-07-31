@@ -1,7 +1,26 @@
 (function () {
   "use strict";
 
-  const endpoint = "/x/json-prudynt.cgi";
+  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (d) {
+      return d.exists && d.api_key ? d.api_key : "";
+    })
+    .catch(function () {
+      return "";
+    });
+
+  async function apiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers["X-API-Key"] = key;
+    return fetch(url, options);
+  }
+
+  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
   const audioParams = [
     "mic_enabled",
     "mic_format",
@@ -161,7 +180,7 @@
   async function requestPrudynt(payload) {
     const body =
       typeof payload === "string" ? payload : JSON.stringify(payload);
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,

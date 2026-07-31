@@ -1,14 +1,32 @@
 /**
  * SEI OSD Overlay Renderer
  *
- * Checks osd.enabled via /x/json-prudynt.cgi before subscribing to the
+ * Checks osd.sei.enabled via the prudynt config API before subscribing to the
  * /x/json-osd-sei.cgi SSE stream.  When disabled, no SSE connection is
  * made and no overlay is rendered.
  */
 (function () {
   "use strict";
 
-  const API_URL = "/x/json-prudynt.cgi";
+  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (d) {
+      return d.exists && d.api_key ? d.api_key : "";
+    })
+    .catch(function () {
+      return "";
+    });
+  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
+  async function apiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers["X-API-Key"] = key;
+    return fetch(url, options);
+  }
   const SSE_URL = "/x/json-osd-sei.cgi";
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
@@ -135,24 +153,20 @@
     started = false;
   }
 
-  function checkAndStart() {
-    fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ osd: { enabled: null } }),
-    })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        if (data && data.enabled === true) {
-          sseStart();
-        }
-      })
-      .catch(function () {
-        // If config fetch fails, start anyway (best-effort fallback)
-        sseStart();
+  async function checkAndStart() {
+    try {
+      var r = await apiFetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ osd: { sei: { enabled: null } } }),
       });
+      var data = await r.json();
+      if (data && data.sei && data.sei.enabled === true) {
+        sseStart();
+      }
+    } catch (e) {
+      sseStart();
+    }
   }
 
   // Expose global controls so pages can start/stop on demand
