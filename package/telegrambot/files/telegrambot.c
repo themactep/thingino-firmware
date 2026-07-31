@@ -424,9 +424,31 @@ static int run_command(const Config *cfg, int idx, long long chat_id) {
     return -1;
   }
 
+  /* Substitute $chat_id variable in the command string */
+  char expanded[256];
+  {
+    const char *src = cmd;
+    char *dst = expanded;
+    size_t remain = sizeof(expanded) - 1;
+    while (*src && remain > 0) {
+      if (strncmp(src, "$chat_id", 8) == 0) {
+        int n = snprintf(dst, remain, "%lld", chat_id);
+        if (n < 0 || (size_t)n >= remain)
+          break;
+        dst += n;
+        remain -= n;
+        src += 8;
+      } else {
+        *dst++ = *src++;
+        remain--;
+      }
+    }
+    *dst = '\0';
+  }
+
   /* Capture both stdout and stderr like the legacy shell bot (2>&1) */
-  char cmdline[256];
-  snprintf(cmdline, sizeof cmdline, "%s 2>&1", cmd);
+  char cmdline[300];
+  snprintf(cmdline, sizeof cmdline, "%s 2>&1", expanded);
 
   FILE *p = popen(cmdline, "r");
   if (!p)
