@@ -39,6 +39,8 @@ env:
   TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TZ: UTC
+  # Prebuilt CLI from the buildscope repo's release.
+  BUILDSCOPE_VERSION: v0.1.0
 
 jobs:
   notify-begin:
@@ -149,37 +151,9 @@ jobs:
               --latest=false
           fi
 
-  buildscope-cli:
-    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
-    steps:
-      - name: Checkout buildscope
-        uses: actions/checkout@v5
-        with:
-          repository: thingino/buildscope
-          ref: e8c7eb48ebfe0aa7feacfbe6b39344f9be4e4f33
-
-      - name: Build static buildscope
-        run: |
-          # Built once here rather than as a Buildroot host package: that costs
-          # ~77s and a 189MB toolchain download in every matrix job.
-          # musl-static so the one binary runs both on the runner and inside the
-          # debian:forky build container, whose glibc differs from the host's.
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends musl-tools
-          TARGET=$([ "$(uname -m)" = aarch64 ] && echo aarch64-unknown-linux-musl || echo x86_64-unknown-linux-musl)
-          rustup target add "$TARGET"
-          cargo build --release -p buildscope --target "$TARGET"
-          cp "target/$TARGET/release/buildscope" buildscope
-
-      - name: Upload buildscope binary
-        uses: actions/upload-artifact@v7.0.0
-        with:
-          name: buildscope-cli
-          path: buildscope
-
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: [generate-matrix, notify-begin, buildscope-cli]
+    needs: [generate-matrix, notify-begin]
     runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
@@ -345,13 +319,28 @@ jobs:
           echo "DL cache restored successfully"
 
       - name: Fetch buildscope
-        uses: actions/download-artifact@v8.0.1
-        with:
-          name: buildscope-cli
-          path: /usr/local/bin
-
-      - name: Make buildscope executable
-        run: chmod +x /usr/local/bin/buildscope
+        # Not fatal: a report is an extra, and a release asset that will not
+        # download is no reason to fail every camera in the matrix. The pack
+        # hook skips the scan when buildscope is not on PATH, and the fleet job
+        # logs how many reports it actually collected.
+        continue-on-error: true
+        run: |
+          case "$(uname -m)" in
+            aarch64) T=aarch64-unknown-linux-musl ;;
+            x86_64)  T=x86_64-unknown-linux-musl ;;
+            *) echo "no buildscope binary for $(uname -m)"; exit 1 ;;
+          esac
+          BASE="https://github.com/thingino/buildscope/releases/download/${BUILDSCOPE_VERSION}"
+          curl -fsSL "$BASE/buildscope-$T" -o /tmp/buildscope
+          curl -fsSL "$BASE/buildscope-$T.sha256sum" -o /tmp/buildscope.sha256sum
+          # The published sum names the asset; check it under the staged name.
+          sed "s|buildscope-$T|buildscope|" /tmp/buildscope.sha256sum > /tmp/bs.sum
+          ( cd /tmp && sha256sum -c bs.sum )
+          # Only a verified binary goes on PATH. Installing first and checking
+          # after would leave a truncated or wrong one where the pack hook finds
+          # and runs it, since this step is deliberately not fatal.
+          install -m 0755 /tmp/buildscope /usr/local/bin/buildscope
+          buildscope --version
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
@@ -477,18 +466,22 @@ jobs:
 
   fleet:
     needs: [buildroot]
-    # Same arch expression as buildroot: the binary from buildscope-cli is
-    # native to whichever runner the matrix used.
-    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
+    runs-on: ubuntu-26.04
     # always(), so a run where some cameras failed still publishes a snapshot of
     # the ones that succeeded rather than publishing nothing.
     if: always() && github.event.inputs.skip_release != 'true'
     steps:
       - name: Fetch buildscope
-        uses: actions/download-artifact@v8.0.1
-        with:
-          name: buildscope-cli
-          path: bin
+        run: |
+          T=$([ "$(uname -m)" = aarch64 ] && echo aarch64 || echo x86_64)-unknown-linux-musl
+          BASE="https://github.com/thingino/buildscope/releases/download/${BUILDSCOPE_VERSION}"
+          mkdir -p bin
+          curl -fsSL "$BASE/buildscope-$T" -o /tmp/buildscope
+          curl -fsSL "$BASE/buildscope-$T.sha256sum" -o /tmp/buildscope.sha256sum
+          sed "s|buildscope-$T|buildscope|" /tmp/buildscope.sha256sum > /tmp/bs.sum
+          ( cd /tmp && sha256sum -c bs.sum )
+          install -m 0755 /tmp/buildscope bin/buildscope
+          bin/buildscope --version
 
       - name: Collect buildscope reports
         continue-on-error: true
@@ -510,7 +503,6 @@ jobs:
             exit 0
           fi
           echo "Collected $(echo "$REPORTS" | wc -l) reports"
-          chmod +x bin/buildscope
           bin/buildscope export --fleet -o . $REPORTS
           ls -la fleet-index.json fleet-reports.tar.gz
           gh release upload "$TAG_NAME" fleet-index.json fleet-reports.tar.gz --clobber
