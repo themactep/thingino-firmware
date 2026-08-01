@@ -776,6 +776,10 @@ if [ -z "$mtd_dev" ]; then
 				dd if="$fw_file" of="$workdir/part.bin" bs=65536 \
 					skip=$((needle / 65536)) count=$((sz_dec / 65536)) 2>/dev/null
 				sync
+				actual=$(stat -c%s "$workdir/part.bin" 2>/dev/null)
+				if [ "$actual" -ne "$sz_dec" ]; then
+					die "Extracted $name size mismatch: expected $sz_dec, got $actual (firmware file too short?)"
+				fi
 				flash_partition "/dev/$mtd" "$workdir/part.bin" || die "flash $name failed"
 				rm -f "$workdir/part.bin"
 				needle=$((needle + sz_dec))
