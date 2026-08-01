@@ -168,16 +168,9 @@ expand_bb() {
 	ln -s "$workdir/busybox" "$workdir/$1"
 }
 
-# A full firmware image begins with the bootloader, but "the bootloader" is not
-# one shape across vendors.
-#
-# Ingenic's starts with a fixed four-byte magic. A SigmaStar mask-ROM container
-# starts with an ARM branch instruction whose encoding varies with the branch
-# offset, so its first four bytes identify nothing; what is stable there is the
-# "IPL_" signature the mask ROM looks for at offset 4.
-#
-# Checking both leaves the first-four-bytes dispatch below unchanged for
-# Ingenic and lets a non-Ingenic image be recognised at all.
+# Ingenic bootloaders begin with a fixed 4-byte magic at offset 0.
+# SigmaStar IPL containers begin with a variable ARM branch at offset 0;
+# their stable signature is "IPL_" at offset 4.
 image_starts_with_bootloader() {
 	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p "$1")" ] && return 0
 	[ "$SSTAR_IPL_MAGIC" = "$(xxd -s 4 -l 4 -p "$1")" ] && return 0
@@ -189,7 +182,7 @@ extract_bootloader() {
 		die "$1 image does not start with a bootloader!"
 	fi
 
-	truncate -s 256K "$1"
+	truncate -s 320K "$1"
 }
 
 handle_payload() {
@@ -503,9 +496,6 @@ case "$(xxd -l 4 -p "$fw_file")" in
 		die "We cannot flash only rootfs"
 		;;
 	*)
-		# Not identifiable by its first four bytes. That is the normal case for
-		# a vendor whose container does not begin with a fixed magic -- see
-		# image_starts_with_bootloader.
 		image_starts_with_bootloader "$fw_file" || die "Unknown file"
 		echo "Bootloader detected"
 		mtd_dev=$(full_upgrade_partition_name)
