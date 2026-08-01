@@ -109,11 +109,19 @@
               <option value="0">Main stream</option>
               <option value="1">Sub stream</option>
             </select>
+            <select class="form-select form-select-sm" id="ms-latency" title="Target buffer margin behind live (lower = less delay, more risk of stalls on a weak link)" style="width:auto;">
+              <option value="0.5">Low latency (0.5s)</option>
+              <option value="1.5" selected>Balanced (1.5s)</option>
+              <option value="3">Stable (3s)</option>
+            </select>
             <!-- motion-grid overlay toggle: hidden until /a/preview-motion.js
                  confirms this timps build has IMP_IVS motion detection -->
             <button type="button" class="btn btn-outline-secondary" id="ms-motion"
               title="Motion grid overlay" style="display:none">
               <i class="bi bi-grid-3x3"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="ms-stats-toggle" title="Stream stats">
+              <i class="bi bi-graph-up"></i>
             </button>
             <button type="button" class="btn btn-outline-secondary" id="ms-connect" title="Connect/Disconnect stream">
               <i class="bi bi-play-circle"></i> Connect
@@ -147,6 +155,10 @@
             </div>
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
+          <!-- optional live stats (fps/subscribers/adaptive-drop counters),
+               toggled via ms-stats-toggle; fed by timps's /events?stream=stats
+               SSE (src/mp4/httpd.c stats_json) -->
+          <div class="ms-hint mt-1 font-monospace" id="ms-stats-panel" style="display:none"></div>
         </div>
       </div>
     </section>
@@ -168,8 +180,11 @@
     const video = document.getElementById("ms-video");
     const connectButton = document.getElementById("ms-connect");
     const streamSelect = document.getElementById("ms-stream");
+    const latencySelect = document.getElementById("ms-latency");
     const status = document.getElementById("ms-status");
     const overlay = document.getElementById("ms-connecting-overlay");
+    const statsToggle = document.getElementById("ms-stats-toggle");
+    const statsPanel = document.getElementById("ms-stats-panel");
     if (!video || !connectButton || !streamSelect || !status) return;
 
     let host = location.hostname || "127.0.0.1";
@@ -190,6 +205,71 @@
 
     const params = new URLSearchParams(window.location.search);
     const defaultStream = params.get("stream") || sessionStorage.getItem("ms.stream") || "0";
+
+    // Target buffer margin behind live (seconds), read live by the
+    // updateend handler below - changing it while connected takes effect on
+    // the very next segment, no reconnect needed.
+    let targetBehindS = parseFloat(sessionStorage.getItem("ms.latency")) || 1.5;
+    if (latencySelect) {
+      latencySelect.value = String(targetBehindS);
+      latencySelect.addEventListener("change", () => {
+        targetBehindS = parseFloat(latencySelect.value) || 1.5;
+        sessionStorage.setItem("ms.latency", String(targetBehindS));
+      });
+    }
+
+    // Optional stats panel (fps/subscribers/adaptive-drop counters) via
+    // timps's /events?stream=stats SSE - same token + EventSource pattern as
+    // /a/preview-motion.js. Independent of the video player's own
+    // connect/disconnect lifecycle: it keeps ticking even while disconnected,
+    // so it also shows other clients' activity on this channel.
+    let statsEs = null;
+    function formatBytes(n) {
+      if (n < 1024) return n + " B";
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+      return (n / (1024 * 1024)).toFixed(1) + " MB";
+    }
+    function renderStats(j) {
+      if (!statsPanel) return;
+      const v = (j.video || []).map((s) => {
+        const drop = s.drop_frames
+          ? ` · dropped ${s.drop_frames}f/${formatBytes(s.drop_bytes)}`
+          : "";
+        return `chn${s.chn}: ${s.width}x${s.height} ${s.codec}, ${s.fps.toFixed(1)}fps, ` +
+          `${s.kbps >= 1000 ? (s.kbps / 1000).toFixed(1) + "Mbit/s" : s.kbps.toFixed(0) + "kbit/s"}, ` +
+          `${s.subs} sub${s.subs === 1 ? "" : "s"}${drop}`;
+      }).join("  |  ");
+      statsPanel.textContent = `uptime ${j.uptime_s}s · ${j.clients} client${j.clients === 1 ? "" : "s"}  |  ${v}`;
+    }
+    async function startStats() {
+      if (statsEs || !window.EventSource) return;
+      const info = await window.timpsTokenInfo;
+      const b = info ? (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT) : base;
+      const tok = info && info.token ? "&token=" + encodeURIComponent(info.token) : "";
+      statsEs = new EventSource(b + "/events?stream=stats" + tok);
+      statsEs.addEventListener("stats", (ev) => {
+        try { renderStats(JSON.parse(ev.data)); } catch (e) { /* ignore malformed frame */ }
+      });
+      statsEs.onerror = () => { /* EventSource auto-reconnects (server retry: 3000) */ };
+    }
+    function stopStats() {
+      if (statsEs) { statsEs.close(); statsEs = null; }
+      if (statsPanel) statsPanel.textContent = "";
+    }
+    if (statsToggle && statsPanel) {
+      const statsWanted = sessionStorage.getItem("ms.stats") === "1";
+      const applyStatsUi = (on) => {
+        statsPanel.style.display = on ? "" : "none";
+        statsToggle.classList.toggle("active", on);
+        if (on) startStats(); else stopStats();
+      };
+      statsToggle.addEventListener("click", () => {
+        const on = statsPanel.style.display === "none";
+        sessionStorage.setItem("ms.stats", on ? "1" : "0");
+        applyStatsUi(on);
+      });
+      applyStatsUi(statsWanted);
+    }
 
     let mediaSource = null;
     let abortCtrl = null;
@@ -375,9 +455,18 @@
           busy = false;
           if (video.buffered.length) {
             if (video.currentTime < video.buffered.start(0)) video.currentTime = video.buffered.start(0);
-            // keep close to the live edge; if we drift >6s behind, jump forward
+            // Keep near the live edge with a jitter margin (user-adjustable via
+            // ms-latency, default 1.5s) instead of playing right at the edge:
+            // measured WiFi-loss stalls on some cameras run up to ~1.8s, and
+            // playing with zero cushion turned every stall into a visible
+            // freeze. Hard-seek only on a big drift (post-stall, target+3.5s);
+            // otherwise nudge playbackRate to gently drain the buffer down to
+            // the target, same approach as the embedded player in httpd.c.
             const end = video.buffered.end(video.buffered.length - 1);
-            if (end - video.currentTime > 6) video.currentTime = end - 1;
+            const behind = end - video.currentTime;
+            const target = targetBehindS;
+            if (behind > target + 3.5) video.currentTime = end - target;
+            else video.playbackRate = behind > target ? Math.min(1.3, 1 + (behind - target) * 0.5) : 1;
           }
           evict();
           pump();
