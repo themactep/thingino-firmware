@@ -67,6 +67,8 @@ env:
   TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TZ: UTC
+  # Prebuilt CLI from the buildscope repo's release.
+  BUILDSCOPE_VERSION: v0.1.4
 
 jobs:
   check-updates:
@@ -407,6 +409,30 @@ jobs:
           BOARD=${{ matrix.thingino-version }} make source WORKFLOW=1
           echo "Source download completed"
 
+      - name: Fetch buildscope
+        # Not fatal: a report is an extra, and a release asset that will not
+        # download is no reason to fail every camera in the matrix. The pack
+        # hook skips the scan when buildscope is not on PATH, and the fleet job
+        # logs how many reports it actually collected.
+        continue-on-error: true
+        run: |
+          case "$(uname -m)" in
+            aarch64) T=aarch64-unknown-linux-musl ;;
+            x86_64)  T=x86_64-unknown-linux-musl ;;
+            *) echo "no buildscope binary for $(uname -m)"; exit 1 ;;
+          esac
+          BASE="https://github.com/thingino/buildscope/releases/download/${BUILDSCOPE_VERSION}"
+          curl -fsSL "$BASE/buildscope-$T" -o /tmp/buildscope
+          curl -fsSL "$BASE/buildscope-$T.sha256sum" -o /tmp/buildscope.sha256sum
+          # The published sum names the asset; check it under the staged name.
+          sed "s|buildscope-$T|buildscope|" /tmp/buildscope.sha256sum > /tmp/bs.sum
+          ( cd /tmp && sha256sum -c bs.sum )
+          # Only a verified binary goes on PATH. Installing first and checking
+          # after would leave a truncated or wrong one where the pack hook finds
+          # and runs it, since this step is deliberately not fatal.
+          install -m 0755 /tmp/buildscope /usr/local/bin/buildscope
+          buildscope --version
+
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         env:
@@ -480,6 +506,17 @@ jobs:
             ls -la "${OUT_BASE}" || true
             exit 1
           fi
+
+      - name: Upload buildscope report
+        if: always()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: buildscope-report-${{ matrix.thingino-version }}
+          # The report sits at the build root, beside uenv.txt, not under
+          # images/. The trailing * matches the kernel/libc suffix the output
+          # dir carries, same as the find globs above.
+          path: ${{ github.workspace }}/output/${{ github.event.inputs.branch }}/${{ matrix.thingino-version }}*/buildscope-report.json
+          if-no-files-found: ignore
 
       - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
@@ -605,6 +642,56 @@ jobs:
           else
             echo "Release not found, skipping latest release update"
           fi
+
+  fleet:
+    needs: [buildroot, prepare-release, check-updates]
+    runs-on: ubuntu-26.04
+    # !cancelled() rather than always(): a run where some cameras failed should
+    # still publish a snapshot of the ones that succeeded, but a run somebody
+    # cancelled should stop, not carry on and report an error for it.
+    if: ${{ !cancelled() && needs.check-updates.outputs.should_build == 'true' && github.event.inputs.skip_release != 'true' }}
+    steps:
+      - name: Fetch buildscope
+        run: |
+          T=$([ "$(uname -m)" = aarch64 ] && echo aarch64 || echo x86_64)-unknown-linux-musl
+          BASE="https://github.com/thingino/buildscope/releases/download/${BUILDSCOPE_VERSION}"
+          mkdir -p bin
+          curl -fsSL "$BASE/buildscope-$T" -o /tmp/buildscope
+          curl -fsSL "$BASE/buildscope-$T.sha256sum" -o /tmp/buildscope.sha256sum
+          sed "s|buildscope-$T|buildscope|" /tmp/buildscope.sha256sum > /tmp/bs.sum
+          ( cd /tmp && sha256sum -c bs.sum )
+          install -m 0755 /tmp/buildscope bin/buildscope
+          bin/buildscope --version
+
+      - name: Collect buildscope reports
+        continue-on-error: true
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: buildscope-report-*
+          path: reports
+
+      - name: Build and publish fleet snapshot
+        run: |
+          TAG_NAME="${{ needs.prepare-release.outputs.tag_name }}"
+          if [ -z "$TAG_NAME" ]; then
+            echo "No tag name from prepare-release - nothing to publish"
+            exit 0
+          fi
+          # find(1) exits non-zero when reports/ was never created, because no
+          # artifact matched. This shell runs with -e, so without the guard the
+          # job dies here and the graceful path below can never run.
+          REPORTS=$(find reports -name '*.json' 2>/dev/null || true)
+          if [ -z "$REPORTS" ]; then
+            echo "No buildscope reports were collected - nothing to publish"
+            exit 0
+          fi
+          echo "Collected $(echo "$REPORTS" | wc -l) reports"
+          bin/buildscope export --fleet -o . $REPORTS
+          ls -la fleet-index.json fleet-reports.tar.gz
+          # --repo explicitly: this job has no checkout, so gh has no git
+          # remote to infer the repository from.
+          gh release upload "$TAG_NAME" fleet-index.json fleet-reports.tar.gz \
+            --repo "${{ github.repository }}" --clobber
 
   notify-completion:
     needs: [finalize-release, notify-begin]
