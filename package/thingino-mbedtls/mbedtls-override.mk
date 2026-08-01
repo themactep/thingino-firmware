@@ -137,6 +137,24 @@ override MBEDTLS_CONF_OPTS += -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDT
 # Add the HTTP/2 configuration hook to mbedtls
 MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_ENABLE_HTTP2_FEATURES
 
+# Shrink the per-connection TLS OUTPUT buffer from the 16 KB default to 4 KB
+# (timps optimization review 2026-07-31, S4). mbedTLS allocates one IN and one
+# OUT I/O buffer per TLS connection; the IN buffer must stay at 16 KB because
+# a peer may legally send full 16 KB records (shrinking it needs the
+# Max-Fragment-Length extension, which common clients do not negotiate), but
+# the OUT buffer only bounds the records WE send. mbedtls_ssl_write() returns
+# partial writes when handed more than one record's worth, and every consumer
+# in the image (timps, libcurl, libwebsockets, ustream-ssl, libmosquitto,
+# wpa_supplicant) loops on short writes. The only hard floor is that our own
+# outgoing handshake messages (certificate chain) must fit in one buffer -
+# the self-signed device certs used here are well under 4 KB. Saves ~12 KB of
+# heap per concurrent TLS connection in every mbedTLS user on the target.
+define MBEDTLS_REDUCE_OUT_CONTENT_LEN
+	$(SED) "s:^//#define MBEDTLS_SSL_OUT_CONTENT_LEN.*:#define MBEDTLS_SSL_OUT_CONTENT_LEN 4096:" \
+		$(@D)/include/mbedtls/mbedtls_config.h
+endef
+MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_REDUCE_OUT_CONTENT_LEN
+
 # mbedTLS 3.6.6 defaults MBEDTLS_PLATFORM_DEV_RANDOM to /dev/random.
 # On low-entropy systems this can block indefinitely in libcurl/uhttpd.
 define MBEDTLS_USE_URANDOM
