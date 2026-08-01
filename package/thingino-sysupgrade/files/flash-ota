@@ -1,0 +1,127 @@
+#!/bin/sh
+# flash-ota – minimal host-driven OTA flasher.
+# Pre-assembled partition files are uploaded by the host; this script
+# flashes them to the matching MTD partitions and reboots.
+
+# Usage: flash-ota <mode> <file> [file2]
+#   flash-ota boot   /tmp/boot.bin /tmp/env.bin
+#   flash-ota kernel /tmp/kernel.bin
+#   flash-ota rootfs /tmp/rootfs.bin /tmp/data.bin
+
+mode="$1"
+shift
+
+echo "flash-ota: mode=$mode files=$*"
+
+mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
+
+flush_memory() {
+	echo "Syncing and dropping caches..."
+	sync
+	echo 3 >/proc/sys/vm/drop_caches 2>/dev/null || true
+}
+
+stop_streamer() {
+	echo "Stopping streamer..."
+	if [ -x /etc/init.d/S31raptor ]; then
+		/etc/init.d/S31raptor stop
+	elif [ -x /etc/init.d/S31prudynt ]; then
+		/etc/init.d/S31prudynt stop
+	else
+		killall prudynt 2>/dev/null || true
+	fi
+	sleep 1
+}
+
+flash_one() {
+	local mtd="$1" file="$2" label="$3"
+	echo "Flashing $label from $file to /dev/$mtd"
+	if flashcp -A 2>&1 | grep -q 'unrecognized'; then
+		flash_eraseall "/dev/$mtd" 2>/dev/null || true
+		flashcp -v "$file" "/dev/$mtd" || {
+			echo "ERROR: flash $label failed"
+			return 1
+		}
+	else
+		flashcp -v -A "$file" "/dev/$mtd" || {
+			echo "ERROR: flash $label failed"
+			return 1
+		}
+	fi
+}
+
+stop_streamer
+flush_memory
+
+# Resolve MTD names now (while rootfs is still mounted rw).
+# For rootfs mode we clone busybox afterwards so we survive
+# erasing the rootfs partition.
+case "$mode" in
+	boot)
+		BOOT_MTD=$(mtd_dev boot)
+		ENV_MTD=$(mtd_dev env)
+		;;
+	kernel)
+		KERNEL_MTD=$(mtd_dev kernel)
+		;;
+	rootfs)
+		ROOTFS_MTD=$(mtd_dev rootfs)
+		DATA_MTD=$(mtd_dev data)
+		;;
+esac
+
+# Rootfs mode: clone busybox to tmpfs and remount rootfs read-only
+# before erasing it.  After the remount we must only use tmpfs binaries.
+if [ "$mode" = "rootfs" ]; then
+	echo "Preparing tmpfs environment..."
+	workdir="/tmp/flash-ota.d"
+	mkdir -p "$workdir"
+	cp /bin/busybox "$workdir/busybox"
+	for a in echo flash_eraseall flashcp reboot sync sleep; do
+		ln -sf "$workdir/busybox" "$workdir/$a"
+	done
+	export PATH="$workdir:$PATH"
+
+	echo "Remounting rootfs read-only..."
+	mount -o remount,ro / 2>/dev/null || {
+		echo "Warning: remount ro failed, trying to proceed..."
+	}
+fi
+
+case "$mode" in
+	boot)
+		[ "$#" -ge 1 ] || {
+			echo "Usage: flash-ota boot <boot.bin> [env.bin]"
+			exit 1
+		}
+		flash_one "$BOOT_MTD" "$1" "boot" || exit 1
+		if [ "$#" -ge 2 ] && [ -f "$2" ]; then
+			flash_one "$ENV_MTD" "$2" "env" || exit 1
+		fi
+		;;
+	kernel)
+		[ "$#" -ge 1 ] || {
+			echo "Usage: flash-ota kernel <kernel.bin>"
+			exit 1
+		}
+		flash_one "$KERNEL_MTD" "$1" "kernel" || exit 1
+		;;
+	rootfs)
+		[ "$#" -ge 1 ] || {
+			echo "Usage: flash-ota rootfs <rootfs.bin> [data.bin]"
+			exit 1
+		}
+		flash_one "$ROOTFS_MTD" "$1" "rootfs" || exit 1
+		if [ "$#" -ge 2 ] && [ -f "$2" ]; then
+			flash_one "$DATA_MTD" "$2" "data" || exit 1
+		fi
+		;;
+	*)
+		echo "Unknown mode: $mode (valid: boot, kernel, rootfs)"
+		exit 1
+		;;
+esac
+
+sync
+echo "Flash complete. Rebooting..."
+reboot -f

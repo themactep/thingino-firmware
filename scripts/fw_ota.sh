@@ -1,32 +1,62 @@
 #!/bin/bash
 
-die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
+die() {
+	echo -e "\e[38;5;160m$1\e[0m" >&2
+	exit 1
+}
 
 FORCE=0
 SKIP_SPACE_CHECK=0
-while getopts "fn" opt; do
+MODE=full
+DO_BACKUP=0
+CAMERA_IP_ADDRESS=""
+LOCAL_FW_FILE=""
+while getopts "fBnm:a:p:" opt; do
 	case "$opt" in
 		f) FORCE=1 ;;
+		B) DO_BACKUP=1 ;;
 		n) SKIP_SPACE_CHECK=1 ;;
-		*) die "Usage: $0 [-f] [-n] FIRMWARE_FILE IP_ADDRESS" ;;
+		m) MODE="$OPTARG" ;;
+		a) CAMERA_IP_ADDRESS="$OPTARG" ;;
+		p) LOCAL_FW_FILE="$OPTARG" ;;
+		*) die "Usage: $0 [-f] [-B] [-n] [-m full|kernel|boot|rootfs] [-a IP] [-p FIRMWARE_FILE]" ;;
 	esac
 done
 shift $((OPTIND - 1))
 
-[ "$#" -ne 2 ] && die "Usage: $0 [-f] [-n] FIRMWARE_FILE IP_ADDRESS"
+case "$MODE" in
+	full|kernel|boot|rootfs|all) ;;
+	*) die "Invalid mode: $MODE (valid: all, full, kernel, boot, rootfs)" ;;
+esac
+
+# Normalize mode aliases
+[ "$MODE" = "all" ] && MODE="full"
+
+# Allow positional args as fallback: FIRMWARE_FILE IP_ADDRESS
+[ -z "$LOCAL_FW_FILE" ] && [ "$#" -ge 1 ] && LOCAL_FW_FILE="$1" && shift
+[ -z "$CAMERA_IP_ADDRESS" ] && [ "$#" -ge 1 ] && CAMERA_IP_ADDRESS="$1" && shift
+
+[ -z "$LOCAL_FW_FILE" ] && die "No firmware file specified (-p or positional)"
+[ -z "$CAMERA_IP_ADDRESS" ] && die "No IP address specified (-a or positional)"
 
 cleanup() {
-	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
+	if [ -n "$DEBUG" ]; then
+		ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
+	fi
 	printf '\033[0m' 2>/dev/null || true
 }
 
 remote_copy() {
-	echo -e "\e[38;5;122mscp -O $SSH_OPTS $1 $2\e[0m" >&2
+	if [ -n "$DEBUG" ]; then
+		echo -e "\e[38;5;122mscp -O $SSH_OPTS $1 $2\e[0m" >&2
+	fi
 	scp -O $SSH_OPTS "$1" "$2"
 }
 
 remote_run() {
-	echo -e "\e[38;5;118mssh $SSH_OPTS $1\e[0m" >&2
+	if [ -n "$DEBUG" ]; then
+		echo -e "\e[38;5;118mssh $SSH_OPTS $1\e[0m" >&2
+	fi
 	ssh $SSH_OPTS $REMOTE_HOST "$1"
 }
 
@@ -87,7 +117,7 @@ wait_for_reboot_after_detach() {
 
 check_and_free_space() {
 	local fw_size_kb remote_avail_kb remote_memavail_kb dir_needed_kb mem_needed_kb
-	fw_size_kb=$(( ($(stat -c%s "$LOCAL_FW_FILE") + 1023) / 1024 ))
+	fw_size_kb=$(( ($(stat -c%s "$UPLOAD_FW_FILE") + 1023) / 1024 ))
 	# Uploading into tmpfs also needs extra RAM for dropbear/scp buffers and page cache.
 	mem_needed_kb=$(( fw_size_kb + 8192 ))
 
@@ -96,7 +126,7 @@ check_and_free_space() {
 
 	if [ "$REMOTE_FW_DIR" = "/tmp" ]; then
 		# Need room for the firmware plus sysupgrade working files in /tmp.
-		dir_needed_kb=$(( fw_size_kb + 4096 ))
+		dir_needed_kb=$(( fw_size_kb + (fw_size_kb / 2) ))
 	else
 		# SD card staging does not require tmpfs working-space headroom.
 		dir_needed_kb=$fw_size_kb
@@ -211,11 +241,9 @@ check_and_free_space() {
 
 trap cleanup EXIT
 
-CAMERA_IP_ADDRESS="$2"
-
-LOCAL_FW_FILE="$1"
 LOCAL_SCRIPT="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade"
 LOCAL_SCRIPT2="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade-stage2"
+LOCAL_FLASH_OTA="$(dirname "$0")/../package/thingino-sysupgrade/files/flash-ota"
 
 REMOTE_FW_FILE="/tmp/fw.bin"
 REMOTE_FW_DIR="/tmp"
@@ -228,10 +256,9 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
 
-echo "Initializing SSH connection to $REMOTE_HOST..."
+[ -n "$DEBUG" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
 ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
 	die "Failed to initialize ssh connection"
-
 echo "SSH connection initialized."
 
 echo "Checking firmware compatibility..."
@@ -272,62 +299,161 @@ upload_sysupgrade() {
 	echo "Sysupgrade utility installed successfully."
 }
 
+upload_flash_ota() {
+	remote_copy $LOCAL_FLASH_OTA $REMOTE_HOST:/tmp/flash-ota.sh || \
+		die "Failed to transfer flash-ota"
+	remote_run "chmod +x /tmp/flash-ota.sh" || \
+		die "Failed to set execute permissions on flash-ota"
+	echo "flash-ota utility installed."
+}
+
 free_overlay_space
 
-echo "Transferring sysupgrade utility to device..."
-upload_sysupgrade
+if [ "$MODE" = "full" ]; then
+	# Full firmware — use traditional sysupgrade
+	echo "Transferring sysupgrade utility to device..."
+	upload_sysupgrade
 
-if [ "$SKIP_SPACE_CHECK" -eq 1 ]; then
-	echo "Skipping space/memory checks (-n)."
-	select_remote_fw_path
-	prepare_upload_memory
-else
-	echo "Checking available space in /tmp on device..."
-	check_and_free_space
-fi
+	UPLOAD_FW_FILE="$LOCAL_FW_FILE"
 
-echo "Transferring firmware file to the device..."
-remote_copy $LOCAL_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
-	die "The firmware transfer process timed out or failed."
+	if [ "$SKIP_SPACE_CHECK" -eq 1 ]; then
+		echo "Skipping space/memory checks (-n)."
+		select_remote_fw_path
+		prepare_upload_memory
+	else
+		echo "Checking available space in /tmp on device..."
+		check_and_free_space
+	fi
 
-hash_l=$(sha256sum "$LOCAL_FW_FILE" | cut -d' ' -f1)
-hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
-[ "$hash_l" != "$hash_r" ] && \
-	die "SHA256 checksum does not match, exiting..."
+	echo "Transferring firmware file to the device..."
+	remote_copy $UPLOAD_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
+		die "The firmware transfer process timed out or failed."
 
-echo "Firmware file transferred and SHA256 checksum verified."
+	hash_l=$(sha256sum "$UPLOAD_FW_FILE" | cut -d' ' -f1)
+	hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
+	[ "$hash_l" != "$hash_r" ] && \
+		die "SHA256 checksum does not match, exiting..."
+	echo "Firmware file transferred and SHA256 checksum verified."
 
-# Plant a tmpfs marker so we can verify the camera actually reboots
-# after the detached flash completes.
-remote_run "touch /tmp/needs_reboot" || true
+	remote_run "touch /tmp/needs_reboot" || true
 
-ota_log=$(mktemp)
-remote_run "$REMOTE_SCRIPT -x $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | tee "$ota_log" >/dev/null
-ota_status=${PIPESTATUS[0]}
+	ota_log=$(mktemp)
+	[ "$DO_BACKUP" -eq 1 ] && SUP_FLAG="-B" || SUP_FLAG=""
 
-if grep -q "Rebooting" "$ota_log"; then
-	rm -f "$ota_log"
-	echo "Firmware flashed successfully. Device is rebooting."
-	exit 0
-fi
+	remote_run "$REMOTE_SCRIPT -x $SUP_FLAG $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | tee "$ota_log" >/dev/null
+	ota_status=${PIPESTATUS[0]}
 
-if grep -q "Flash process running with PID" "$ota_log"; then
-	if wait_for_reboot_after_detach; then
+	if grep -q "Rebooting" "$ota_log"; then
 		rm -f "$ota_log"
 		echo "Firmware flashed successfully. Device is rebooting."
 		exit 0
 	fi
 
-	if remote_log_tail=$(remote_run "tail -n 50 /tmp/sysupgrade-flash.log" 2>/dev/null); then
-		echo "$remote_log_tail" >&2
+	if grep -q "Flash process running with PID" "$ota_log"; then
+		if wait_for_reboot_after_detach; then
+			rm -f "$ota_log"
+			echo "Firmware flashed successfully. Device is rebooting."
+			exit 0
+		fi
+		remote_log_tail=$(remote_run "tail -n 50 /tmp/sysupgrade-flash.log" 2>/dev/null) && echo "$remote_log_tail" >&2
+		rm -f "$ota_log"
+		die "Detached flash did not complete successfully"
 	fi
+
 	rm -f "$ota_log"
-	die "Detached flash did not complete successfully"
+	[ "$ota_status" -ne 0 ] && die "Failed to flash firmware"
+	die "Failed to flash firmware"
 fi
 
-rm -f "$ota_log"
-[ "$ota_status" -ne 0 ] && die "Failed to flash firmware"
+# Boot / kernel / rootfs — use minimal flash-ota
 
-die "Failed to flash firmware"
+echo "Transferring flash-ota utility to device..."
+upload_flash_ota
 
-exit 0
+# Assemble partition files and build the flash command
+FLASH_CMD="/tmp/flash-ota.sh"
+TRIMMED_FILES=""
+
+if [ "$MODE" = "boot" ]; then
+	IMAGES_DIR="$(dirname "$LOCAL_FW_FILE")"
+	ENV_BIN="$IMAGES_DIR/u-boot-env.bin"
+
+	# Boot partition: pad to 256 KB
+	BOOT_TRIMMED="${LOCAL_FW_FILE}.boot"
+	cp "$LOCAL_FW_FILE" "$BOOT_TRIMMED" || die "Failed to copy bootloader"
+	truncate -s 262144 "$BOOT_TRIMMED" || die "Failed to pad bootloader"
+	TRIMMED_FILES="$BOOT_TRIMMED"
+	REMOTE_BOOT="/tmp/boot.bin"
+	FLASH_CMD="$FLASH_CMD boot $REMOTE_BOOT"
+
+	if [ -f "$ENV_BIN" ]; then
+		ENV_TRIMMED="${LOCAL_FW_FILE}.env"
+		cp "$ENV_BIN" "$ENV_TRIMMED" || die "Failed to copy env"
+		truncate -s 65536 "$ENV_TRIMMED" || die "Failed to pad env"
+		TRIMMED_FILES="$TRIMMED_FILES $ENV_TRIMMED"
+		REMOTE_ENV="/tmp/env.bin"
+		FLASH_CMD="$FLASH_CMD $REMOTE_ENV"
+	fi
+
+elif [ "$MODE" = "kernel" ]; then
+	UPLOAD_FW_FILE="$LOCAL_FW_FILE"
+	REMOTE_KERNEL="/tmp/kernel.bin"
+	FLASH_CMD="$FLASH_CMD kernel $REMOTE_KERNEL"
+
+elif [ "$MODE" = "rootfs" ]; then
+	IMAGES_DIR="$(dirname "$LOCAL_FW_FILE")"
+	DATA_BIN="$IMAGES_DIR/data.jffs2"
+	[ ! -f "$DATA_BIN" ] && die "data.jffs2 not found alongside rootfs.squashfs"
+
+	sqfs_size=$(stat -c%s "$LOCAL_FW_FILE")
+	sqfs_aligned=$(( (sqfs_size + 65535) / 65536 * 65536 ))
+
+	ROOTFS_TRIMMED="${LOCAL_FW_FILE}.rootfs"
+	cp "$LOCAL_FW_FILE" "$ROOTFS_TRIMMED" || die "Failed to copy rootfs"
+	truncate -s $sqfs_aligned "$ROOTFS_TRIMMED" || die "Failed to pad rootfs"
+	TRIMMED_FILES="$ROOTFS_TRIMMED"
+	REMOTE_ROOTFS="/tmp/rootfs.bin"
+	FLASH_CMD="$FLASH_CMD rootfs $REMOTE_ROOTFS"
+
+	DATA_TRIMMED="${LOCAL_FW_FILE}.data"
+	cp "$DATA_BIN" "$DATA_TRIMMED" || die "Failed to copy data"
+	TRIMMED_FILES="$TRIMMED_FILES $DATA_TRIMMED"
+	REMOTE_DATA="/tmp/data.bin"
+	FLASH_CMD="$FLASH_CMD $REMOTE_DATA"
+fi
+
+# Clean up trimmed files on exit
+trap 'rm -f $TRIMMED_FILES; cleanup' EXIT
+
+# Upload partition files
+case "$MODE" in
+	boot)
+		echo "Uploading boot partition..."
+		remote_copy "$BOOT_TRIMMED" "$REMOTE_HOST:$REMOTE_BOOT" || die "Failed to upload boot"
+		if [ -n "$REMOTE_ENV" ]; then
+			echo "Uploading env partition..."
+			remote_copy "$ENV_TRIMMED" "$REMOTE_HOST:$REMOTE_ENV" || die "Failed to upload env"
+		fi
+		;;
+	kernel)
+		echo "Uploading kernel..."
+		remote_copy "$LOCAL_FW_FILE" "$REMOTE_HOST:$REMOTE_KERNEL" || die "Failed to upload kernel"
+		;;
+	rootfs)
+		echo "Uploading rootfs partition..."
+		remote_copy "$ROOTFS_TRIMMED" "$REMOTE_HOST:$REMOTE_ROOTFS" || die "Failed to upload rootfs"
+		echo "Uploading data partition..."
+		remote_copy "$DATA_TRIMMED" "$REMOTE_HOST:$REMOTE_DATA" || die "Failed to upload data"
+		;;
+esac
+
+echo "Partition files uploaded."
+
+remote_run "touch /tmp/needs_reboot" || true
+
+echo "Flashing..."
+remote_run "$FLASH_CMD" || true
+
+# flash-ota reboots the camera; SSH connection drops.
+ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null || true
+echo "Done. Camera is rebooting."
