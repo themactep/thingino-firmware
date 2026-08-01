@@ -46,6 +46,27 @@ config BR2_PACKAGE_TIMPS_DAYNIGHT
 	  filter automatically. Disable if using an external photosensing
 	  solution.
 
+config BR2_PACKAGE_TIMPS_RECORD
+	bool "Local SD recording"
+	default y
+	help
+	  Enable local recording to SD as fragmented-MP4 segments
+	  (continuous or motion-triggered, pre/post-roll), including the
+	  on-demand clip capture used by the send2/Telegram motion videos.
+	  Disable on cameras without an SD slot to save ~11KB of binary
+	  size; /control then reports record.available=0 and the WebUI
+	  hides the record controls.
+
+config BR2_PACKAGE_TIMPS_TIMELAPSE
+	bool "Native timelapse"
+	default y
+	help
+	  Enable the native timelapse: periodic JPEG snapshots to SD,
+	  pruned after timelapse.keep_days. Disable on cameras without an
+	  SD slot to save ~4KB of binary size; /control then reports
+	  timelapse.available=0 and the WebUI hides the timelapse page
+	  controls.
+
 config BR2_PACKAGE_TIMPS_TLS
 	bool "TLS support (HTTPS + RTSPS via mbedTLS)"
 	default y
