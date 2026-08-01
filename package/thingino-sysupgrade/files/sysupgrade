@@ -9,6 +9,7 @@ RUBICON="1768337345" # 2026-01-13
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
+SSTAR_IPL_MAGIC="49504c5f" # "IPL_", at offset 4 rather than 0
 GITHUB_URL="https://github.com"
 PAD="\n\t\t\t    "
 
@@ -167,12 +168,21 @@ expand_bb() {
 	ln -s "$workdir/busybox" "$workdir/$1"
 }
 
+# Ingenic bootloaders begin with a fixed 4-byte magic at offset 0.
+# SigmaStar IPL containers begin with a variable ARM branch at offset 0;
+# their stable signature is "IPL_" at offset 4.
+image_starts_with_bootloader() {
+	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p "$1")" ] && return 0
+	[ "$SSTAR_IPL_MAGIC" = "$(xxd -s 4 -l 4 -p "$1")" ] && return 0
+	return 1
+}
+
 extract_bootloader() {
-	if [ "$U_BOOT_MAGIC" != "$(xxd -l 4 -p $1)" ]; then
+	if ! image_starts_with_bootloader "$1"; then
 		die "$1 image does not start with a bootloader!"
 	fi
 
-	truncate -s 256K "$1"
+	truncate -s 320K "$1"
 }
 
 handle_payload() {
@@ -486,7 +496,10 @@ case "$(xxd -l 4 -p "$fw_file")" in
 		die "We cannot flash only rootfs"
 		;;
 	*)
-		die "Unknown file"
+		image_starts_with_bootloader "$fw_file" || die "Unknown file"
+		echo "Bootloader detected"
+		mtd_dev=$(full_upgrade_partition_name)
+		part_size=$(full_upgrade_partition_size)
 		;;
 esac
 
