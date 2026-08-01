@@ -781,6 +781,11 @@ if [ -z "$mtd_dev" ]; then
 			done
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
+			sleep 5
+			if [ -w /proc/jz/reset/reset ]; then
+				echo wdt >/proc/jz/reset/reset
+				sleep 2
+			fi
 			reboot -f
 			exit 0
 			;;
