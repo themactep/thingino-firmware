@@ -765,7 +765,8 @@ if [ -z "$mtd_dev" ]; then
 			# Writing to "all" fails on kernels that protect overlapping MTD regions.
 			echo "Full firmware upgrade"
 			needle=0
-			tail -n +2 /proc/mtd | while read -r mtd sz _ name; do
+			tail -n +2 /proc/mtd >"$workdir/mtd.txt"
+			while read -r mtd sz _ name; do
 				mtd="${mtd%:}"
 				name="${name#\"}"
 				name="${name%\"}"
@@ -778,7 +779,7 @@ if [ -z "$mtd_dev" ]; then
 				flash_partition "/dev/$mtd" "$workdir/part.bin" || die "flash $name failed"
 				rm -f "$workdir/part.bin"
 				needle=$((needle + sz_dec))
-			done
+			done <"$workdir/mtd.txt"
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
 			sleep 5
