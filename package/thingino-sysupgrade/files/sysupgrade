@@ -777,7 +777,7 @@ if [ -z "$mtd_dev" ]; then
 				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
 				flash_eraseall "/dev/$mtd" 2>/dev/null || true
 				if ! dd if="$fw_file" of="/dev/$mtd" bs=65536 \
-					skip=$skip count=$count status=progress; then
+					skip=$skip count=$count; then
 					die "dd $name failed"
 				fi
 				sync
