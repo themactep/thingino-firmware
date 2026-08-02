@@ -37,6 +37,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
 	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/accessory
+
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
@@ -45,6 +46,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
+
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
@@ -53,6 +55,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo cp210x >> $(TARGET_DIR)/etc/modules.d/accessory
+
 endef
 
 define WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_FLOODLIGHT
