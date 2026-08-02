@@ -72,8 +72,10 @@ jct /etc/thingino.json set ha.enable_ptz true   # enable PTZ buttons
 
 ## MQTT topic layout
 
-All topics are scoped to `cameras/<mac_address>/` where `<mac_address>` is the
-camera's primary interface MAC without separators (e.g. `0244dd22592e`).
+All topics are scoped to `cameras/<id>/` where `<id>` is the camera's hostname
+(e.g. `ing-wyze-cam3-2937`). The default hostname includes the SoC serial suffix
+for uniqueness; override the hostname to retain HA configuration across hardware
+swaps.
 
 | Entity | State topic | Command topic |
 |--------|-------------|---------------|

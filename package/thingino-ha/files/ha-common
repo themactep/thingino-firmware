@@ -78,13 +78,12 @@ ha_entity_enabled() {
 # Camera identity
 # ---------------------------------------------------------------------------
 if [ -z "$HA_CAMERA_ID" ]; then
-	HA_CAMERA_ID=$(soc -s 2>/dev/null | tail -c 5)
-	[ -z "$HA_CAMERA_ID" ] && HA_CAMERA_ID="0000"
+	HA_CAMERA_ID=$(hostname 2>/dev/null || echo "thingino")
 	export HA_CAMERA_ID
 fi
 
 if [ -z "$HA_CAMERA_HOSTNAME" ]; then
-	HA_CAMERA_HOSTNAME=$(hostname 2>/dev/null || echo "thingino")
+	HA_CAMERA_HOSTNAME=$HA_CAMERA_ID
 	export HA_CAMERA_HOSTNAME
 fi
 

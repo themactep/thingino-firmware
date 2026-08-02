@@ -8,7 +8,7 @@
 # Topic shorthands (resolved at startup):
 #   %hostname - camera hostname
 #   %ip       - camera IP address
-#   %id       - camera SoC serial number, with MAC-based fallback
+#   %id       - camera hostname
 
 CONFIG_FILE="/etc/thingino.json"
 HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-300}"
@@ -60,23 +60,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 camera_id() {
-	if command -v soc >/dev/null 2>&1; then
-		serial=$(soc -s 2>/dev/null)
-		if [ -n "$serial" ]; then
-			printf '%s' "$serial"
-			return 0
-		fi
-	fi
-
-	for iface in eth0 wlan0 eth1; do
-		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
-		[ -n "$addr" ] && {
-			printf '%s' "$addr"
-			return 0
-		}
-	done
-
-	return 1
+	hostname 2>/dev/null || echo "thingino"
 }
 
 # Resolve camera identity once at startup
