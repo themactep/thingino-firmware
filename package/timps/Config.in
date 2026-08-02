@@ -86,14 +86,19 @@ config BR2_PACKAGE_TIMPS_SRT
 	  Playback: ffplay srt://<ip>:9000
 
 config BR2_PACKAGE_TIMPS_ROTATE
-	bool "Image rotation (90/180/270)"
+	bool "Image rotation (90/270)"
 	default n
 	help
-	  Enable per-stream image rotation. 180 is available on all SoCs
-	  (realised as a global ISP Hflip+Vflip); hardware 90/270 rotation
-	  is available on T40/T41 (I2D) and T31 (FrameSource rotate).
-	  Rotation is restart-required. Disabled by default: when off, no
-	  rotation code is compiled in (byte-identical build).
+	  Enable per-stream image rotation (real 90/270 transpose only):
+	  hardware 90/270 on T40/T41 (I2D) and T31 (FrameSource rotate), or
+	  the opt-in software path below for T23. On SoCs with no 90/270
+	  path (T10/T20/T21/T30/C100, and T23 without SW_ROTATE) this option
+	  has no usable effect - rotation accepts no non-zero value there.
+	  For a 180 flip use image.hflip=1 + image.vflip=1 (always available,
+	  independent of this option); rotation=180 was removed - it was only
+	  a redundant global ISP Hflip+Vflip. Rotation is restart-required.
+	  Disabled by default: when off, no rotation code is compiled in
+	  (byte-identical build).
 
 config BR2_PACKAGE_TIMPS_SW_ROTATE
 	bool "Software 90/270 on SoCs without hardware rotate (T23)"
