@@ -1,0 +1,90 @@
+From 45afeeb8291542350b20b3d7f32105147bbf07e4 Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lutz@fiebach.de>
+Date: Sun, 2 Aug 2026 19:49:59 +0200
+Subject: [PATCH] fix double inversion of absolute-move/homing-correction
+ deltas
+
+motor_status_get() reports the raw, uninverted kernel step counter.
+The 'h' absolute-move handler and the homing center correction both
+compute their delta as target - motor_status_get()'s raw current
+position, so that delta is already physical. But motor_steps_impl()
+unconditionally applies motor_inversion_state to every delta it's
+given, which is correct for 'g' (a logical jog direction) but flips
+an already-physical delta a second time for 'h' and the homing
+correction whenever invert_x/invert_y is set.
+
+Reproduced live on 192.168.10.151 (same f7019e2 build, invert_y=true):
+target y=900 from current raw y=1030 computed the correct rel_y=-130,
+but the motor moved +130 instead, landing on the wrong side.
+
+Add physical_delta_to_steps() to pre-invert these already-physical
+deltas so the later inversion in motor_steps_impl() cancels back out
+to the original value, and apply it at the three call sites that feed
+it a raw-position-derived delta: the 'h' handler, the homing center
+correction, and the otherwise-identical (currently unused)
+motor_set_position() helper.
+---
+ src/motor-daemon.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/src/motor-daemon.c b/src/motor-daemon.c
+index 8fe50ba..370686e 100644
+--- a/src/motor-daemon.c
++++ b/src/motor-daemon.c
+@@ -546,6 +546,7 @@ static bool motion_is_cancelled(unsigned int generation);
+ static void write_motion_active_flag(void);
+ static void remove_motion_active_flag(void);
+ static int get_motion_timeout_ms(void);
++static void physical_delta_to_steps(int *dx, int *dy);
+ 
+ static int sanitize_requested_speed(int requested, int fallback) {
+   int speed = (requested > 0) ? requested : fallback;
+@@ -822,6 +823,7 @@ void motor_set_position(int xpos, int ypos, int stepspeed) {
+          " -> set position current X: %d, Y: %d, steps required X: %d, Y: %d, "
+          "speed %d\n",
+          msg.x, msg.y, deltax, deltay, eff_speed);
++  physical_delta_to_steps(&deltax, &deltay);
+   motor_steps(deltax, deltay, eff_speed);
+   syslog(LOG_DEBUG, "Finished setting absolute move");
+ }
+@@ -1033,6 +1035,21 @@ static int start_profiled_move_async(int xsteps, int ysteps, int speed) {
+   return 0;
+ }
+ 
++// motor_steps_impl() unconditionally applies motor_inversion_state to every
++// delta it is handed (correct for 'g', whose x/y are a logical jog
++// direction). Callers that instead compute their delta as
++// raw_target - motor_status_get()'s raw, uninverted current position (the
++// 'h' absolute move, and the homing center correction) already have a
++// physical delta, so that later inversion would flip it a second time.
++// Pre-invert here so the two inversions cancel back out to the original
++// physical delta.
++static void physical_delta_to_steps(int *dx, int *dy) {
++  if (motor_inversion_state & MOTOR_INVERT_X)
++    *dx = -*dx;
++  if (motor_inversion_state & MOTOR_INVERT_Y)
++    *dy = -*dy;
++}
++
+ static void dispatch_profiled_move(int xsteps, int ysteps, int speed,
+                                    const char *log_tag) {
+   if (start_profiled_move_async(xsteps, ysteps, speed) == 0) {
+@@ -1176,6 +1193,7 @@ static int enhanced_homing_daemon(int stepspeed) {
+              "Enhanced homing center correction: current=%d,%d target=%d,%d "
+              "delta=%d,%d",
+              status.x, status.y, center_x, center_y, corr_dx, corr_dy);
++      physical_delta_to_steps(&corr_dx, &corr_dy);
+       motor_steps(corr_dx, corr_dy, stepspeed);
+       if (wait_until_idle(t3_ms, 100) != 0) {
+         syslog(LOG_DEBUG,
+@@ -1659,6 +1677,7 @@ int main(int argc, char *argv[]) {
+ 
+             request_message.x = target_x;
+             request_message.y = target_y;
++            physical_delta_to_steps(&rel_x, &rel_y);
+             dispatch_profiled_move(rel_x, rel_y, request_speed,
+                                   "Profiled driver absolute move started");
+           }
+-- 
+2.53.0
+
