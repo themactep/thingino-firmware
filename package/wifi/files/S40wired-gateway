@@ -25,7 +25,17 @@ has_wired_uplink() {
 	return 1
 }
 
+any_wired_iface_exists() {
+	for iface in eth0 usb0; do
+		ip link show "$iface" >/dev/null 2>&1 && return 0
+	done
+	return 1
+}
+
 watch_wired_uplink() {
+	# Skip polling if no wired interfaces exist at all
+	any_wired_iface_exists || return 0
+
 	attempt=0
 	while [ "$attempt" -lt 10 ]; do
 		for iface in eth0 usb0; do
