@@ -1,7 +1,24 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-const endpoint = "/x/json-prudynt.cgi";
+var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+  .then(function (r) {
+    return r.json();
+  })
+  .then(function (d) {
+    return d.exists && d.api_key ? d.api_key : "";
+  })
+  .catch(function () {
+    return "";
+  });
+
+async function apiFetch(url, options) {
+  var key = await API_KEY_PROMISE;
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
 
 // Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
@@ -151,7 +168,8 @@ function buildPreviewEndpointUrl(baseUrl) {
 
 function renderPreviewEndpoints() {
   const list = $("#preview-endpoint-list");
-  if (!list) return;
+  const dropdownMenu = $("#preview-endpoint-dropdown-menu");
+  if (!list && !dropdownMenu) return;
   const host =
     window.network_address || window.location.hostname || "localhost";
   const httpOrigin = buildPreviewOrigin();
@@ -191,29 +209,51 @@ function renderPreviewEndpoints() {
     },
   ];
 
-  list.innerHTML = "";
+  if (list) {
+    list.innerHTML = "";
+  }
+  if (dropdownMenu) {
+    dropdownMenu.innerHTML = "";
+  }
   entries.forEach((entry) => {
-    const link = document.createElement("a");
-    link.className = "preview-endpoint-link";
-    link.href = entry.url;
-    link.rel = "noopener";
-    link.dataset.copyUrl = entry.url;
-    link.title = `${entry.label}: ${entry.url}`;
-    link.setAttribute("aria-label", `${entry.label} endpoint`);
+    if (list) {
+      const link = document.createElement("a");
+      link.className = "preview-endpoint-link";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
 
-    const shortLabel = document.createElement("span");
-    shortLabel.className = "preview-endpoint-short";
-    shortLabel.textContent = entry.label;
+      const shortLabel = document.createElement("span");
+      shortLabel.className = "preview-endpoint-short";
+      shortLabel.textContent = entry.label;
 
-    const hint = document.createElement("span");
-    hint.className = "preview-endpoint-hint";
-    hint.innerHTML = '<i class="bi bi-clipboard"></i>';
+      const hint = document.createElement("span");
+      hint.className = "preview-endpoint-hint";
+      hint.innerHTML = '<i class="bi bi-clipboard"></i>';
 
-    link.appendChild(shortLabel);
-    link.appendChild(hint);
-    link.addEventListener("click", copyPreviewEndpoint);
+      link.appendChild(shortLabel);
+      link.appendChild(hint);
+      link.addEventListener("click", copyPreviewEndpoint);
 
-    list.appendChild(link);
+      list.appendChild(link);
+    }
+
+    if (dropdownMenu) {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = "dropdown-item preview-endpoint-dropdown-item";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
+      link.innerHTML = `<span class="preview-endpoint-short">${entry.label}</span> <i class="bi bi-clipboard"></i>`;
+      link.addEventListener("click", copyPreviewEndpoint);
+      li.appendChild(link);
+      dropdownMenu.appendChild(li);
+    }
   });
 }
 
@@ -348,10 +388,26 @@ function handleOsdData(osd, streamIndex) {
 
 function handleMessage(msg) {
   if (msg.motion && msg.motion.enabled !== undefined) {
-    $("#motion").checked = msg.motion.enabled;
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.classList.toggle(
+        "active",
+        msg.motion.enabled !== 0 &&
+          msg.motion.enabled !== false &&
+          msg.motion.enabled !== "false",
+      );
+    }
   }
   if (msg.privacy && msg.privacy.enabled !== undefined) {
-    $("#privacy").checked = msg.privacy.enabled;
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.classList.toggle(
+        "active",
+        msg.privacy.enabled !== 0 &&
+          msg.privacy.enabled !== false &&
+          msg.privacy.enabled !== "false",
+      );
+    }
   }
 
   // Handle image params
@@ -398,6 +454,17 @@ function handleMessage(msg) {
 }
 
 async function loadMotorParams() {
+  const uiConfig = window.thinginoUIConfig || {};
+  const hasMotors = uiConfig.device && uiConfig.device.motors === true;
+  if (!hasMotors) {
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+    return;
+  }
   try {
     const response = await fetch("/x/json-motor-params.cgi");
     const motorParams = await response.json();
@@ -416,106 +483,17 @@ async function loadMotorParams() {
 
 async function loadConfig() {
   showBusy("Loading camera configuration...");
-  const payload = JSON.stringify({
-    image: {
-      hflip: null,
-      vflip: null,
-      wb_bgain: null,
-      wb_rgain: null,
-      ae_compensation: null,
-      core_wb_mode: null,
-    },
-    motion: { enabled: null },
-    privacy: { enabled: null },
-    rtsp: { username: null, password: null, port: null },
-    stream0: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-      },
-    },
-    stream1: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-        },
-      },
-    },
-    action: { capture: null },
-  });
-  console.log("===>", payload);
+  const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
-    if (text) {
-      try {
-        const msg = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(msg));
-        handleMessage(msg);
-      } catch (parseErr) {
-        console.warn(ts(), "Invalid JSON response", text, parseErr);
-      }
-    } else {
-      console.log(ts(), "<===", "Empty response");
-    }
+    const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
+      apiFetch(BASE + "image").then((r) => r.json()),
+      apiFetch(BASE + "motion").then((r) => r.json()),
+      apiFetch(BASE + "privacy").then((r) => r.json()),
+      apiFetch(BASE + "rtsp").then((r) => r.json()),
+      apiFetch(BASE + "stream0").then((r) => r.json()),
+      apiFetch(BASE + "stream1").then((r) => r.json()),
+    ]);
+    handleMessage({ image, motion, privacy, rtsp, stream0, stream1 });
   } catch (err) {
     console.error("Load config error", err);
   } finally {
@@ -523,13 +501,15 @@ async function loadConfig() {
   }
 }
 
+var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);
   const payloadStr =
     typeof payload === "string" ? payload : JSON.stringify(payload);
   console.log(ts(), "===>", payloadStr);
   try {
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payloadStr,
@@ -1239,16 +1219,31 @@ imageParams.forEach((param) => {
 // Export configuration button
 const exportConfigBtn = $("#export-config");
 if (exportConfigBtn) {
-  exportConfigBtn.addEventListener("click", () => {
+  exportConfigBtn.addEventListener("click", async () => {
     exportConfigBtn.disabled = true;
-
-    // Open the CGI endpoint which will trigger download
-    window.location.href = "/x/json-prudynt-config.cgi";
-
-    // Re-enable button after a short delay
-    setTimeout(() => {
-      exportConfigBtn.disabled = false;
-    }, 1000);
+    try {
+      const res = await apiFetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: { dump_config: null } }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const json = await res.text();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "prudynt-config-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export failed:", e);
+    } finally {
+      setTimeout(() => {
+        exportConfigBtn.disabled = false;
+      }, 1000);
+    }
   });
 }
 
@@ -1265,7 +1260,7 @@ if (saveConfigBtn) {
       saveConfigBtn.disabled = true;
 
       const payload = { action: { save_config: null } };
-      const res = await fetch("/x/json-prudynt.cgi", {
+      const res = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

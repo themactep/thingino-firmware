@@ -22,43 +22,64 @@
     return base + "?ts=" + assetTag;
   }
 
+  function applyPluginNav(menu) {
+    const plugins = (uiConfig && uiConfig.plugins) || {};
+    for (const [, plugin] of Object.entries(plugins)) {
+      if (!plugin.nav) continue;
+      for (const contribution of plugin.nav) {
+        const sectionId = contribution.section;
+        if (!sectionId) continue;
+        const section = menu.find(
+          (item) => item.type === "dropdown" && item.id === sectionId,
+        );
+        if (!section || !section.items) continue;
+        const items = section.items;
+        const newItems = contribution.items || [];
+        if (!newItems.length) continue;
+        const position = contribution.position || "append";
+        let idx;
+        if (position === "append") {
+          idx = items.length;
+        } else if (position === "prepend") {
+          idx = 0;
+        } else if (position.startsWith("after:")) {
+          const label = position.slice(6).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found + 1;
+        } else if (position.startsWith("before:")) {
+          const label = position.slice(7).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found;
+        } else if (position.startsWith("index:")) {
+          idx = parseInt(position.slice(6), 10) || 0;
+          idx = Math.max(0, Math.min(idx, items.length));
+        } else {
+          idx = items.length;
+        }
+        items.splice.apply(items, [idx, 0].concat(newItems));
+      }
+    }
+    return menu;
+  }
+
   function buildDefaultMenu() {
-    const hasMotors = uiConfig.device && uiConfig.device.motors === true;
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
-    const hasDoorbell = uiConfig.device && uiConfig.device.doorbell === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
-      { label: "GPIO pins", href: "/config-gpio.html" },
     ];
-
-    if (hasDoorbell) {
-      settingsItems.push({
-        label: "Doorbell Chime",
-        href: "/config-doorbell.html",
-      });
-    }
-
-    if (hasMotors) {
-      settingsItems.push({
-        label: "Pan/Tilt motors",
-        href: "/config-motors.html",
-      });
-    }
 
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
       { label: "Audio", href: "/config-audio.html" },
-      { label: "Privacy screen", href: "/config-privacy.html" },
-      { label: "Photosensing", href: "/config-photosensing.html" },
-      { label: "Dusk2Dawn", href: "/config-dusk2dawn.html" },
       { label: "RTSP/ONVIF access", href: "/config-rtsp.html" },
       { label: "Remote logging", href: "/config-syslog.html" },
-      { label: "Telegram Bot", href: "/config-telegrambot.html" },
       { label: "Time", href: "/config-time.html" },
       { label: "Web Interface", href: "/config-webui.html" },
-      { label: "WireGuard VPN", href: "/config-wireguard.html" },
-      { label: "ZeroTier VPN", href: "/config-zerotier.html" },
       { type: "divider" },
       { label: "Reset...", href: "/reset.html" },
     );
@@ -129,7 +150,6 @@
           { label: "Timelapse Recorder", href: "/tool-timelapse.html" },
           { label: "Video Recorder", href: "/tool-record.html" },
           { label: "Home Assistant", href: "/config-ha.html" },
-          { label: "MQTT Subscriptions", href: "/tool-mqtt-sub.html" },
         ],
       },
       {
@@ -189,8 +209,8 @@
 
   const menuData =
     Array.isArray(globalConfig.items) && globalConfig.items.length
-      ? globalConfig.items
-      : buildDefaultMenu();
+      ? applyPluginNav(globalConfig.items)
+      : applyPluginNav(buildDefaultMenu());
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -415,20 +435,31 @@
     const list = document.createElement("ul");
     list.className = "list-unstyled";
 
-    // Reorder items for offcanvas: Preview link first, then others
-    const reorderedItems = [];
-    const otherItems = [];
+    // Reorder items for offcanvas: Preview first, Information before Help at bottom
+    const previewItems = [];
+    const infoItems = [];
+    const helpItems = [];
+    const middleItems = [];
 
     menuItems.forEach((item) => {
       if (item.type === "link" && item.label === "Preview") {
-        reorderedItems.push(item);
+        previewItems.push(item);
+      } else if (item.id === "ddInfo") {
+        infoItems.push(item);
+      } else if (item.id === "ddHelp") {
+        helpItems.push(item);
       } else {
-        otherItems.push(item);
+        middleItems.push(item);
       }
     });
 
-    // Combine with Preview first
-    const finalItems = [...reorderedItems, ...otherItems];
+    // Combine: Preview first, middle, Information second-to-last, Help last
+    const finalItems = [
+      ...previewItems,
+      ...middleItems,
+      ...infoItems,
+      ...helpItems,
+    ];
 
     finalItems.forEach((item) => {
       if (item.type === "dropdown") {
@@ -623,43 +654,6 @@
     }
   }
 
-  let doorbellCheckDone = false;
-
-  function checkDoorbellStatus() {
-    if (doorbellCheckDone) return;
-    doorbellCheckDone = true;
-
-    if (!(uiConfig.device && uiConfig.device.doorbell === true)) return;
-
-    fetch("/x/json-chime-status.cgi")
-      .then((r) => r.json())
-      .then((data) => {
-        /* Show warning banner if no chimes are configured */
-        if (data.configured === false) {
-          const banner = document.createElement("div");
-          banner.className =
-            "alert alert-warning text-center rounded-0 mb-3 py-2";
-          banner.innerHTML =
-            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
-            "No doorbell chime configured. " +
-            '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
-            "to enable the doorbell.";
-          const container = document.querySelector("main .container");
-          if (container) {
-            const section = container.querySelector("section");
-            if (section) {
-              container.insertBefore(banner, section);
-            } else {
-              container.appendChild(banner);
-            }
-          }
-        }
-      })
-      .catch(() => {
-        /* Silently ignore */
-      });
-  }
-
   function mountNavigation() {
     const nav = buildNav(menuData);
     const placeholder = $("[data-app-nav]");
@@ -674,7 +668,6 @@
     highlightActive(nav, globalConfig.activePath);
     attachPrudyntHandlers(nav);
     ensureControlBarScript();
-    checkDoorbellStatus();
   }
 
   ready(mountNavigation);

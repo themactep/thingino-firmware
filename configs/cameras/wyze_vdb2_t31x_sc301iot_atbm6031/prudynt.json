@@ -1,9 +1,6 @@
 {
-  "stream0": {
-    "rotation": 270
-  },
   "stream1": {
-    "height": 384,
-    "width": 576
+    "height": 480,
+    "width": 640
   }
 }

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Video Recorder</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-record-video">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="recForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Video Recorder</h2>
+            <small>timps records fragmented-MP4 clips to your storage target. Settings are saved live into <code>/etc/timps.conf</code>. Browse clips under <a href="/recordings.html" class="link-light text-decoration-none">Recordings</a>.</small>
+            <button type="button" class="btn btn-outline-secondary" id="rec-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+
+              <div class="col">
+                <h4>Storage</h4>
+                <small>where clips are written</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="rec_enabled">
+                  <label class="form-check-label" for="rec_enabled">Enable recorder (also starts on boot)</label>
+                </p>
+                <p>
+                  <label for="rec_dir">Storage directory</label>
+                  <a href="/tool-file-manager.html" class="small text-decoration-none">
+                    <i class="bi bi-folder2-open ms-2 me-1"></i> Open in File Manager
+                  </a>
+                  <input type="text" class="form-control" id="rec_dir" placeholder="/mnt/mmcblk0p1"
+                    data-help="SD card or share mount; clips go under &lt;dir&gt;/&lt;hostname&gt;/records/">
+                </p>
+                <p>
+                  <label for="rec_name">File name template</label>
+                  <input type="text" class="form-control strftime" id="rec_name" placeholder="%Y%m%d/%H/%Y%m%dT%H%M%S"
+                    data-help="strftime path under the records folder (.mp4 is appended)">
+                </p>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="rec_audio">
+                  <label class="form-check-label" for="rec_audio">Record audio (when available)</label>
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Recorder</h4>
+                <small>source, mode and clip length</small>
+                <p>
+                  <label for="rec_mode">Recording mode</label>
+                  <select class="form-select" id="rec_mode">
+                    <option value="0">Continuous</option>
+                    <option value="1">Motion-triggered</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="rec_channel">Stream to record</label>
+                  <select class="form-select" id="rec_channel">
+                    <option value="0">Main stream</option>
+                    <option value="1">Substream</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="rec_segment">Clip length, seconds</label>
+                  <input type="number" class="form-control" id="rec_segment" min="0" max="3600" step="5"
+                    data-help="Rotate to a new file every N seconds at a keyframe (0 = single file)">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Motion &amp; storage</h4>
+                <small>pre/post-roll and free-space guard</small>
+                <p>
+                  <label for="rec_preroll">Motion pre-roll, seconds</label>
+                  <input type="number" class="form-control" id="rec_preroll" min="0" max="60" step="1"
+                    data-help="Motion mode: keep this much video from before the trigger">
+                </p>
+                <p>
+                  <label for="rec_postroll">Motion post-roll, seconds</label>
+                  <input type="number" class="form-control" id="rec_postroll" min="0" max="600" step="1"
+                    data-help="Motion mode: keep recording this long after the last motion">
+                </p>
+                <p>
+                  <label for="rec_minfree">Minimum free space, megabytes</label>
+                  <input type="number" class="form-control" id="rec_minfree" min="0" max="102400" step="50"
+                    data-help="Oldest clips are pruned to keep at least this much free">
+                </p>
+              </div>
+
+            </div><!-- .row -->
+            <p class="small text-secondary mb-0" id="rec-status">&nbsp;</p>
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <button type="submit" class="btn btn-primary" id="rec-save">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/timps-api.js"></script>
+<script src="/a/tool-record.js"></script>
+</body>
+</html>

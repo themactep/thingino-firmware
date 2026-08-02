@@ -67,7 +67,8 @@ thingino_agent_prudynt_has_privacy() {
 }
 
 thingino_agent_prudynt_has_daynight() {
-	if command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$THINGINO_AGENT_PRUDYNT_CONFIG" ]; then
+	# daynightd is the single source of truth for photosensing
+	if [ -f /run/thingino/daynight_mode ] || ([ -f /etc/thingino.json ] && jct /etc/thingino.json get daynight.enabled >/dev/null 2>&1); then
 		printf 'true'
 	else
 		printf 'false'
@@ -449,37 +450,13 @@ thingino_agent_prudynt_daynight_force_mode() {
 }
 
 thingino_agent_prudynt_daynight_running_mode() {
+	# Single source of truth: daynightd's mode file
 	if [ -f /run/thingino/daynight_mode ]; then
 		mode=$(awk 'NR == 1 { print $1 }' /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
 		[ -n "$mode" ] && {
 			printf '%s' "$mode"
 			return 0
 		}
-	fi
-	if [ -f /run/prudynt/daynight_mode ]; then
-		mode=$(awk 'NR == 1 { print $1 }' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
-		[ -n "$mode" ] && {
-			printf '%s' "$mode"
-			return 0
-		}
-	fi
-	if command -v prudyntctl >/dev/null 2>&1; then
-		state=$(
-			prudyntctl json - 2>/dev/null <<'EOF'
-{"image":{"running_mode":null}}
-EOF
-		)
-		running=$(printf '%s' "$state" | grep -o '"running_mode":[^,}]*' | head -n 1 | cut -d: -f2 | tr -d ' "')
-		case "$running" in
-			0)
-				printf 'day'
-				return 0
-				;;
-			1)
-				printf 'night'
-				return 0
-				;;
-		esac
 	fi
 	printf 'unknown'
 }
@@ -1069,12 +1046,6 @@ thingino_agent_prudynt_query_live() {
 			day) _heartbeat_color_mode=0 ;;
 			night) _heartbeat_color_mode=1 ;;
 		esac
-	elif [ -f /run/prudynt/daynight_mode ]; then
-		_mode=$(awk 'NR==1{print \$1}' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
-		case "$_mode" in
-			day) _heartbeat_color_mode=0 ;;
-			night) _heartbeat_color_mode=1 ;;
-		esac
 	fi
 	_heartbeat_mic_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.enabled)" true)
 	_heartbeat_spk_enabled=$(thingino_agent_json_value_or "$(thingino_agent_prudynt_raw audio.ao_enabled)" false)
@@ -1090,7 +1061,8 @@ thingino_agent_prudynt_query_live() {
 }
 
 thingino_agent_prudynt_heartbeat_brightness() {
-	awk 'NR == 1 { print $1 }' /run/prudynt/daynight_brightness 2>/dev/null | tr -d '\n'
+	# daynightd is the single source of truth for photosensing data
+	awk 'NR == 1 { print $1 }' /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n'
 }
 
 thingino_agent_prudynt_heartbeat_hw_state() {

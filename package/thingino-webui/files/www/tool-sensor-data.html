@@ -28,52 +28,48 @@
 
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
       margin-bottom: 1rem;
     }
 
     .stat-card {
-      padding: 0.5rem;
+      padding: 0.35rem;
       border: 1px solid #e0e0e0;
       border-radius: 0.25rem;
       background-color: var(--bs-body-bg);
       text-align: center;
     }
 
-    .stat-card.ev .stat-value {
-      color: #FF6384;
+    .stat-card .stat-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #999;
+      margin-bottom: 0.1rem;
     }
 
-    .stat-card.total_gain .stat-value {
-      color: #36A2EB;
+    .stat-card .stat-value {
+      font-size: 1.35rem;
+      font-weight: bold;
+      color: var(--bs-body-color);
     }
 
-    .stat-card.ae_luma .stat-value {
-      color: #FFCE56;
+    .stat-card .stat-detail {
+      font-size: 0.65rem;
+      color: #999;
+      margin-top: 0.1rem;
     }
 
     .stat-card.daynight_brightness .stat-value {
       color: #B8FF4D;
     }
 
-    .stat-label {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: #999;
-      margin-bottom: 0.25rem;
+    .stat-card.night-threshold .stat-value {
+      color: #ff6464;
     }
 
-    .stat-value {
-      font-size: 1.75rem;
-      font-weight: bold;
-      color: var(--bs-body-color);
-    }
-
-    .stat-detail {
-      font-size: 0.75rem;
-      color: #999;
-      margin-top: 0.25rem;
+    .stat-card.day-threshold .stat-value {
+      color: #64b4ff;
     }
 
     .stream-status {
@@ -110,7 +106,7 @@
         <div class="row preview">
           <div class="col-12 col-lg-5" id="preview-col">
             <div id="frame" class="position-relative mb-2">
-              <img id="preview" src="/x/ch1.mjpg" data-stream="ch1" class="img-fluid" alt="Image: Preview">
+              <img id="preview" src="/x/ch0.mjpg" data-stream="ch0" class="img-fluid" alt="Image: Preview">
             </div>
             <h5 class="mt-3">Current Values</h5>
             <div class="stat-grid" id="data-stats"></div>

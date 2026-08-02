@@ -1,0 +1,29 @@
+# cfg-backup.list — files and directories to preserve across firmware upgrades.
+# Lines starting with # are ignored.  Paths are relative to /.
+# The list itself is always included in the backup.
+
+# User accounts
+/etc/passwd
+/etc/passwd-
+/etc/shadow
+/etc/shadow-
+
+# WiFi
+/etc/wpa_supplicant.conf
+
+# Timezone
+/etc/TZ
+/etc/timezone
+
+# SSH host keys and authorized keys
+/etc/dropbear
+/root/.ssh/authorized_keys
+
+# Thingino application configs
+/etc/thingino.json
+
+# You can add more paths below, one per line:
+# /etc/prudynt.json
+# /etc/telegrambot.json
+# /etc/send2.json
+# /etc/subzeroclaw

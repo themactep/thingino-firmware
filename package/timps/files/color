@@ -1,0 +1,67 @@
+#!/bin/sh
+# Controls color mode of the image (timps flavor).
+# Same CLI as raptor's color script, but the ISP day/night mode is set through
+# timps's /control JSON API (localhost bypasses timps's HTTP auth).
+# Called by /sbin/daynight when daynight.controls.color is enabled.
+
+MODE_FILE="/tmp/colormode.txt"
+[ -f "$MODE_FILE" ] || touch "$MODE_FILE"
+
+# derive timps's HTTP port + scheme from the config (http.port / http.https),
+# fall back to 8880/http, same as json-imp.cgi. When http.https is set timps
+# serves TLS-only on that port, so this localhost call must use https + -k or
+# every POST silently fails.
+TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
+[ -z "$TIMPS_PORT" ] && TIMPS_PORT=8880
+TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
+case "$TIMPS_HTTPS" in
+	1 | true | yes | on)
+		TIMPS_SCHEME=https
+		TIMPS_CURL_K="-k"
+		;;
+	*)
+		TIMPS_SCHEME=http
+		TIMPS_CURL_K=""
+		;;
+esac
+CONTROL_URL="${TIMPS_SCHEME}://127.0.0.1:${TIMPS_PORT}/control"
+
+# NB! ISP mode is set backwards: 0 - color, 1 - monochrome
+
+switch_to_color() {
+	curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" -d '{"image":{"running_mode":0}}' >/dev/null 2>&1
+	echo "1" >"$MODE_FILE"
+}
+
+switch_to_monochrome() {
+	curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" -d '{"image":{"running_mode":1}}' >/dev/null 2>&1
+	echo "0" >"$MODE_FILE"
+}
+
+case "$1" in
+	0 | off | night)
+		switch_to_monochrome
+		;;
+	1 | on | day)
+		switch_to_color
+		;;
+	~ | toggle)
+		if [ "$(cat "$MODE_FILE")" = "1" ]; then
+			switch_to_monochrome
+		else
+			switch_to_color
+		fi
+		;;
+	status)
+		cat "$MODE_FILE"
+		;;
+	\? | read)
+		cat "$MODE_FILE" | tr -d '\n'
+		;;
+	*)
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
+		;;
+esac
+
+exit 0

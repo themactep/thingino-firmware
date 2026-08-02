@@ -1,4 +1,4 @@
-LLHTTP_VERSION = 9.4.2
+LLHTTP_VERSION = 9.4.3
 LLHTTP_SITE = https://github.com/nodejs/llhttp/archive/refs/tags/release
 LLHTTP_SOURCE = v$(LLHTTP_VERSION).tar.gz
 

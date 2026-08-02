@@ -14,7 +14,6 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make dev    # serial build (noisy, for deb
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make menuconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make ota
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make rebuild-<pkg>   # dirclean + rebuild + reinstall + finalize
 make build-all                  # builds every camera in configs/cameras/
 make run CMD="bin/ffmpeg --help"  # QEMU run target binary
@@ -167,6 +166,73 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
   find - ask the user. **Full home search is prohibited under any circumstances!**
 - Running rebuilds always preserve the full compilation log to grep for data
   later instead of live-grepping the output.
+- Rebuilding a package, use both CAMERA and IP values. If you do not know the
+  correct camera's IP address - ask the user for help.
+- Use modern effective tools: ripgrep instead of just grep.
+- **Never flash or upload** anything to the camera unless you were explicitly
+  ordered to do so by the user.
+- Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
+  file to the shared directory on the PC. The file then can be acceessed on the
+  camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is
+  accessible as /mnt/nfs/prudynt on the camera. The can be used for rapid development.
+
+## WebUI Plugins
+
+Optional packages can contribute pages, scripts, and navigation items to the
+Thingino Web UI through a build-time manifest system.  See
+[docs/plugin-system.md](docs/plugin-system.md) for the full architecture.
+
+### Quickstart for plugin authors
+
+1. Create your package normally in `package/<name>/`.
+2. Create a manifest at `package/<name>/files/<name>.webui.json` following the
+   schema in `docs/plugin-system.md` §3.
+3. In your package's `.mk`, add the webui dependency:
+   ```make
+   ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+   MYPLUGIN_DEPENDENCIES += thingino-webui
+   endif
+   ```
+4. Install your web files *and the manifest* in the install step:
+   ```make
+   define MYPLUGIN_INSTALL_WWW_CMDS
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/www/page.html \
+           $(TARGET_DIR)/var/www/page.html
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/www/a/script.js \
+           $(TARGET_DIR)/var/www/a/script.js
+       $(INSTALL) -D -m 0755 $(MYPLUGIN_PKGDIR)/files/www/x/endpoint.cgi \
+           $(TARGET_DIR)/var/www/x/endpoint.cgi
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/<name>.webui.json \
+           $(TARGET_DIR)/var/www/a/plugins/<name>.webui.json
+   endef
+   ```
+5. Validate with `scripts/check-plugins.sh` before building.
+
+### Manifest basics
+
+| Field | Purpose |
+|-------|---------|
+| `nav` | Menu items to inject into standard sections (`ddSettings`, `ddTools`, etc.) |
+| `scripts` | JS files loaded on **every** page (keep these small) |
+| `styles` | CSS files loaded on every page (rarely needed) |
+| `preview.scripts` | JS files loaded only on the preview page |
+| `preview.html` | HTML snippet injected into the preview page body |
+| `featureFlags` | Key-value pairs merged into `thinginoUIConfig.device` |
+| `pages` | Declared HTML pages (for conflict detection) |
+| `cgi` | Declared CGI endpoints (for conflict detection) |
+
+### Position values for nav items
+
+- `"append"` — at end of section (default)
+- `"prepend"` — at beginning of section
+- `"after:<label>"` — after the item with matching label
+- `"before:<label>"` — before the item with matching label
+- `"index:<n>"` — at 0-based position
+
+### Existing plugins (for reference)
+
+- `package/thingino-motors/files/motors.webui.json` — Pan/Tilt motors
+- `package/wyze-accessory/files/doorbell.webui.json` — Doorbell Chime
 
 ## Important constraints
 

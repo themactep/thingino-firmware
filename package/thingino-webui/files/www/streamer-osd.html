@@ -13,6 +13,7 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>#sei-osd-overlay{display:none}.color-swatch{width:32px;padding:2px;cursor:pointer;border:1px solid var(--bs-border-color)}.color-picker-group{width:150px}.alpha-slider{width:48px;height:24px;cursor:pointer}</style>
 </head>
 
 <body id="page-streamer-osd">
@@ -37,11 +38,75 @@
           </div>
         </div>
         <div class="col col-xl-8">
-          <p class="form-switch mb-3">
-            <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
-            <label for="osd_enabled" class="form-check-label">OSD enabled</label>
-          </p>
-          <div id="elements-list" class="mb-3"></div>
+          <div class="card bg-dark-subtle mb-3 p-2">
+            <h6 class="mb-2">OSD</h6>
+            <p class="form-switch mb-2">
+              <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
+              <label for="burnin_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div class="row g-2 mb-2">
+              <div class="col">
+                <label class="form-label small mb-0">Format</label>
+                <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
+              </div>
+              <div class="col-auto" style="min-width:80px">
+                <label class="form-label small mb-0">Scale</label>
+                <select id="burnin_scale" class="form-select form-select-sm">
+                  <option value="0">auto</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
+            </div>
+            <div class="d-flex align-items-end gap-2">
+              <div>
+                <label class="form-label small mb-0">Fill</label>
+                <div class="input-group input-group-sm color-picker-group">
+                  <span class="input-group-text color-swatch" id="swatch_fill" title="Pick color">&nbsp;</span>
+                  <input type="color" id="picker_fill" class="d-none">
+                  <input type="text" id="burnin_fill_color" class="form-control form-control-sm font-monospace"
+                    placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                </div>
+                <input type="range" id="alpha_fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+              </div>
+              <div>
+                <label class="form-label small mb-0">Outline</label>
+                <div class="input-group input-group-sm color-picker-group">
+                  <span class="input-group-text color-swatch" id="swatch_outline" title="Pick color">&nbsp;</span>
+                  <input type="color" id="picker_outline" class="d-none">
+                  <input type="text" id="burnin_outline_color" class="form-control form-control-sm font-monospace"
+                    placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                </div>
+                <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+              </div>
+              <div>
+                <label class="form-label small mb-0">Background</label>
+                <div class="input-group input-group-sm color-picker-group">
+                  <span class="input-group-text color-swatch" id="swatch_bg" title="Pick color">&nbsp;</span>
+                  <input type="color" id="picker_bg" class="d-none">
+                  <input type="text" id="burnin_background_color" class="form-control form-control-sm font-monospace"
+                    placeholder="#00000080" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                </div>
+                <input type="range" id="alpha_bg" class="alpha-slider" min="0" max="255" value="128" title="Alpha">
+              </div>
+            </div>
+          </div>
+          <div class="card bg-dark-subtle mb-3 p-2">
+            <h6 class="mb-2">SEI OSD</h6>
+            <p class="form-switch mb-0">
+              <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
+              <label for="osd_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div id="elements-list" class="mt-2"></div>
+          </div>
           <button type="button" id="save-osd-config" class="btn btn-primary">
             <i class="bi bi-floppy me-1"></i> Save configuration
           </button>
@@ -54,7 +119,7 @@
 <footer data-app-footer></footer>
 
 <template id="element-row">
-  <div class="element-row card bg-dark-subtle mb-2 p-2">
+  <div class="element-row mb-2">
     <div class="row g-2 align-items-end">
       <div class="col-2">
         <label class="form-label small mb-0">Name</label>
@@ -71,7 +136,7 @@
           <option value="uptime">Uptime</option>
         </select>
       </div>
-      <div class="col-3">
+      <div class="col">
         <label class="form-label small mb-0">Format</label>
         <input type="text" class="form-control form-control-sm elem-format" placeholder="%F %T">
       </div>
@@ -79,7 +144,7 @@
         <label class="form-label small mb-0">Position (x,y)</label>
         <input type="text" class="form-control form-control-sm elem-position" placeholder="10,10">
       </div>
-      <div class="col-1 text-end">
+      <div class="col-auto text-end">
         <button type="button" class="btn btn-outline-danger btn-sm elem-remove" title="Remove">
           <i class="bi bi-trash"></i>
         </button>
@@ -97,12 +162,13 @@
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
 <script src="/a/streamer-config.js"></script>
+<script src="/a/sei-rotate.js"></script>
 </body>
 <script>
 (function() {
   var TYPES = ['text','gain','hostname','ipaddress','timestamp','uptime'];
   var DEFAULTS = {
-    timestamp: {format: '%F %T', position: '10,10'},
+    timestamp: {format: '%F %T', position: '-10,-10'},
     hostname:  {format: '%s', position: '0,10'},
     ipaddress: {format: '%s', position: '0,30'},
     uptime:    {format: '%02lu:%02lu:%02lu', position: '-10,10'},
@@ -114,6 +180,84 @@
   var tmpl = document.getElementById('element-row');
   var saveBtn = document.getElementById('save-osd-config');
   var enabledChk = document.getElementById('osd_enabled');
+  var burninEnabledChk = document.getElementById('burnin_enabled');
+  var burninBgColor = document.getElementById('burnin_background_color');
+  var swatchBg = document.getElementById('swatch_bg');
+  var pickerBg = document.getElementById('picker_bg');
+  var alphaBg = document.getElementById('alpha_bg');
+  var burninFormat = document.getElementById('burnin_format');
+  var burninScale = document.getElementById('burnin_scale');
+  var burninFillColor = document.getElementById('burnin_fill_color');
+  var burninOutlineColor = document.getElementById('burnin_outline_color');
+  var swatchFill = document.getElementById('swatch_fill');
+  var swatchOutline = document.getElementById('swatch_outline');
+  var pickerFill = document.getElementById('picker_fill');
+  var pickerOutline = document.getElementById('picker_outline');
+  var alphaFill = document.getElementById('alpha_fill');
+  var alphaOutline = document.getElementById('alpha_outline');
+
+  function updateSwatch(input, swatch) {
+    var v = input.value.trim();
+    if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) {
+      if (v[0] !== '#') v = '#' + v;
+      var r = parseInt(v.substring(1, 3), 16);
+      var g = parseInt(v.substring(3, 5), 16);
+      var b = parseInt(v.substring(5, 7), 16);
+      var a = parseInt(v.substring(7, 9), 16) / 255;
+      swatch.style.backgroundColor = 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+      swatch.style.opacity = '';
+    } else {
+      swatch.style.backgroundColor = '';
+      swatch.style.opacity = '';
+    }
+  }
+
+  // Wire each swatch + hidden color picker + text field + alpha slider.
+  function wireColor(swatch, picker, input, alphaSlider) {
+    // Click swatch → open native color picker.
+    swatch.addEventListener('click', function() { picker.click(); });
+
+    // Picker changed → update text field (RGB only, preserve alpha).
+    picker.addEventListener('input', function() {
+      var cur = input.value.trim();
+      var alpha = 'ff';
+      if (cur && /^#?[0-9a-fA-F]{8}$/.test(cur)) {
+        if (cur[0] !== '#') cur = '#' + cur;
+        alpha = cur.substring(7, 9);
+      }
+      input.value = picker.value + alpha;
+      updateSwatch(input, swatch);
+    });
+
+    // Text field changed → update swatch + alpha slider.
+    input.addEventListener('input', function() {
+      updateSwatch(input, swatch);
+      var v = input.value.trim();
+      if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) {
+        if (v[0] !== '#') v = '#' + v;
+        alphaSlider.value = parseInt(v.substring(7, 9), 16);
+      }
+    });
+
+    // Alpha slider → update text field's last 2 hex digits.
+    alphaSlider.addEventListener('input', function() {
+      var v = input.value.trim();
+      if (!v || !/^#?[0-9a-fA-F]{8}$/.test(v)) {
+        if (v && /^#?[0-9a-fA-F]{3,6}$/.test(v)) v = v + 'ff';
+        else v = '#ffffff';
+        if (v[0] !== '#') v = '#' + v;
+      } else {
+        if (v[0] !== '#') v = '#' + v;
+      }
+      var alpha = ('0' + parseInt(alphaSlider.value, 10).toString(16)).slice(-2);
+      input.value = v.substring(0, 7) + alpha;
+      updateSwatch(input, swatch);
+    });
+  }
+
+  wireColor(swatchFill, pickerFill, burninFillColor, alphaFill);
+  wireColor(swatchOutline, pickerOutline, burninOutlineColor, alphaOutline);
+  wireColor(swatchBg, pickerBg, burninBgColor, alphaBg);
 
   function createRow(name, type, format, position) {
     var row = tmpl.content.cloneNode(true).querySelector('.element-row');
@@ -160,26 +304,73 @@
     });
   }
 
-  var API = '/x/json-prudynt.cgi';
+  var CFG = 'http://' + location.hostname + ':8080/api/v1/config';
+  var API_KEY_PROMISE = fetch('/x/api-key.cgi', {cache: 'no-store'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) { return (d.exists && d.api_key) ? d.api_key : ''; })
+    .catch(function() { return ''; });
 
-  // Load current OSD config via prudynt API
+  async function osdApiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers['X-API-Key'] = key;
+    return fetch(url, options);
+  }
+
+  // Load current OSD config via REST GET
   function loadOsdConfig() {
-    fetch(API, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ osd: { enabled: null, elements: null, privacy: null } })
-    })
+    osdApiFetch(CFG + '/osd')
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.enabled !== undefined) {
-        enabledChk.checked = data.enabled !== false;
-        loadElements(data.elements);
+      if (data.sei && data.sei.enabled !== undefined) {
+        enabledChk.checked = data.sei.enabled !== false;
+        loadElements(data.sei.entries);
       }
+      if (data.burnin) {
+        if (data.burnin.enabled !== undefined)
+          burninEnabledChk.checked = data.burnin.enabled !== false;
+        if (data.burnin.background_color !== undefined && data.burnin.background_color !== null)
+          burninBgColor.value = data.burnin.background_color;
+        else
+          burninBgColor.value = '#00000080';
+        updateSwatch(burninBgColor, swatchBg);
+        if (data.burnin.format !== undefined && data.burnin.format !== null)
+          burninFormat.value = data.burnin.format;
+        if (data.burnin.scale !== undefined && data.burnin.scale !== null)
+          burninScale.value = data.burnin.scale;
+        if (data.burnin.fill_color !== undefined && data.burnin.fill_color !== null)
+          burninFillColor.value = data.burnin.fill_color;
+        else
+          burninFillColor.value = '#ffffffff';
+        if (data.burnin.outline_color !== undefined && data.burnin.outline_color !== null)
+          burninOutlineColor.value = data.burnin.outline_color;
+        else
+          burninOutlineColor.value = '#000000ff';
+        updateSwatch(burninFillColor, swatchFill);
+        updateSwatch(burninOutlineColor, swatchOutline);
+        // Sync alpha sliders from loaded values.
+        var v = burninFillColor.value.trim();
+        if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaFill.value = parseInt(v.substring(7, 9), 16); }
+        v = burninOutlineColor.value.trim();
+        if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaOutline.value = parseInt(v.substring(7, 9), 16); }
+        v = burninBgColor.value.trim();
+        if (v && /^#?[0-9a-fA-F]{8}$/.test(v)) { if (v[0] !== '#') v = '#' + v; alphaBg.value = parseInt(v.substring(7, 9), 16); }
+      }
+      // Sync SEI overlay visibility with enabled state
+      var overlay = document.getElementById('sei-osd-overlay');
+      if (overlay) overlay.style.display = enabledChk.checked ? '' : 'none';
     })
     .catch(function() {});
   }
 
   loadOsdConfig();
+
+  // Toggle SEI overlay when enabled checkbox changes
+  enabledChk.addEventListener('change', function() {
+    var overlay = document.getElementById('sei-osd-overlay');
+    if (overlay) overlay.style.display = enabledChk.checked ? '' : 'none';
+  });
 
   // Add button
   document.getElementById('add-element').addEventListener('click', function() {
@@ -198,13 +389,23 @@
     try {
       var payload = {
         osd: {
-          enabled: enabledChk.checked,
-          elements: collectElements()
+          sei: {
+            enabled: enabledChk.checked,
+            entries: collectElements()
+          },
+          burnin: {
+            enabled: burninEnabledChk.checked,
+            background_color: burninBgColor.value.trim() || undefined,
+            format: burninFormat.value,
+            scale: parseInt(burninScale.value, 10),
+            fill_color: burninFillColor.value.trim() || undefined,
+            outline_color: burninOutlineColor.value.trim() || undefined
+          }
         },
         action: { save_config: null, restart_thread: 32 }
       };
 
-      var r = await fetch(API, {
+      var r = await osdApiFetch(CFG, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
@@ -215,6 +416,8 @@
         if (typeof showAlert === 'function')
           showAlert('success', 'OSD configuration saved and applied.', 4000);
         loadOsdConfig();
+      } else {
+        throw new Error(msg.error || 'Save failed');
       }
     } catch (err) {
       console.error('Save failed:', err);
@@ -226,23 +429,6 @@
   });
 
   // Preview rotation from SEI
-  var u = '/x/json-osd-sei.cgi', done = false;
-  function a() {
-    var img = document.getElementById('preview');
-    if (!img || !img.clientWidth) return;
-    fetch(u).then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
-      if (!d || !d.rotation) return;
-      var r = d.rotation, f = document.getElementById('frame');
-      img.style.transform = 'rotate(' + r + 'deg)';
-      if (r == 90 || r == 270) {
-        var pad = img.clientWidth - img.clientHeight;
-        if (pad > 0) { f.style.paddingBottom = (pad/2) + 'px'; f.style.paddingTop = (pad/2) + 'px'; }
-      }
-      done = true;
-    }).catch(function(){});
-  }
-  function t() { if (!done) a(); setTimeout(t, 500); }
-  setTimeout(t, 500);
 })();
 </script>
 </html>

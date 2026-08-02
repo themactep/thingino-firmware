@@ -36,7 +36,10 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `ota_check_interval` | `21600` | Seconds between GitHub firmware release checks (Firmware update entity) |
 | `device_name` | `""` | Override device name (defaults to hostname) |
 | `device_model` | `""` | Override device model string |
+| `mqtt.use_ssl` | `false` | Connect to the MQTT broker with TLS using the system CA bundle |
+| `mqtt.tls_skip_verify` | `false` | Skip broker certificate verification when TLS is enabled. Insecure; use only for self-signed or otherwise untrusted broker certificates |
 | `enable_motion` | `true` | Binary sensor: motion detected |
+| `enable_doorbell` | `false` | Binary sensor: doorbell button pressed |
 | `enable_motion_guard` | `true` | Switch: enable/disable motion detection |
 | `enable_ircut` | `true` | Switch: IR cut filter |
 | `enable_daynight` | `true` | Select: day / night mode |
@@ -45,6 +48,8 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `enable_ir850` | `true` | Switch: 850 nm IR LED |
 | `enable_ir940` | `true` | Switch: 940 nm IR LED |
 | `enable_white_light` | `true` | Switch: white light |
+| `enable_firmware_version` | `true` | Sensor: firmware version (e.g. "ciao+9a88c72") |
+| `enable_firmware_timestamp` | `true` | Sensor: firmware build timestamp (e.g. "2026-07-24 03:04:32 UTC") |
 | `enable_gain` | `false` | Sensor: ISP gain (proxy for lux) |
 | `enable_rssi` | `true` | Sensor: WiFi signal strength (dBm) |
 | `enable_snapshot` | `true` | Button: take snapshot |
@@ -64,6 +69,7 @@ jct /etc/thingino.json set ha.enable_reboot false
 jct /etc/thingino.json set ha.enable_ptz true   # enable PTZ buttons
 ```
 
+
 ## MQTT topic layout
 
 All topics are scoped to `cameras/<mac_address>/` where `<mac_address>` is the
@@ -72,6 +78,7 @@ camera's primary interface MAC without separators (e.g. `0244dd22592e`).
 | Entity | State topic | Command topic |
 |--------|-------------|---------------|
 | Motion detected | `cameras/<id>/motion/state` | — |
+| Doorbell | `cameras/<id>/doorbell/state` | — |
 | Motion Guard | `cameras/<id>/motion_guard/state` | `cameras/<id>/motion_guard/set` |
 | IR Cut Filter | `cameras/<id>/ircut/state` | `cameras/<id>/ircut/set` |
 | Day/Night Mode | `cameras/<id>/daynight/state` | `cameras/<id>/daynight/set` |
@@ -80,6 +87,8 @@ camera's primary interface MAC without separators (e.g. `0244dd22592e`).
 | IR LED 850 nm | `cameras/<id>/ir850/state` | `cameras/<id>/ir850/set` |
 | IR LED 940 nm | `cameras/<id>/ir940/state` | `cameras/<id>/ir940/set` |
 | White Light | `cameras/<id>/white/state` | `cameras/<id>/white/set` |
+| Firmware version | `cameras/<id>/firmware_version/state` | — |
+| Firmware build | `cameras/<id>/firmware_timestamp/state` | — |
 | Gain | `cameras/<id>/gain/state` | — |
 | WiFi RSSI | `cameras/<id>/rssi/state` | — |
 | Snapshot | — | `cameras/<id>/snapshot/set` |

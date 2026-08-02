@@ -5,6 +5,12 @@ WIFI_DEPENDENCIES = wpa_supplicant
 WIFI_TEMPLATE_PYTHON = $(shell command -v python3)
 WIFI_TEMPLATE_RENDERER = $(BR2_EXTERNAL_THINGINO_PATH)/scripts/render_template.py
 
+# Extension of the system sound files thingino-sounds actually installs
+# (mirrors THINGINO_SOUNDS_FORMAT in package/thingino-sounds/thingino-sounds.mk) -
+# resolved once here at build time so S38wpa_supplicant's captive-portal
+# sounds reference the one format this image ships, no runtime fallback.
+WIFI_SOUND_EXT = $(if $(BR2_PACKAGE_THINGINO_SOUNDS_FORMAT_G711),ulaw,opus)
+
 ifeq ($(BR2_PACKAGE_WIFI),y)
 WIFI_DRIVER_SELECTED :=
 WIFI_DRIVER_BR2_PACKAGE :=
@@ -166,6 +172,7 @@ define WIFI_INSTALL_TARGET_CMDS
 	sed -e 's,@WLAN_STA_NETDEV@,$(WIFI_STA_NETDEV),g' \
 		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
 		-e 's,@WLAN_MODULE_NAME@,$(WLAN_MODULE_NAME),g' \
+		-e 's,@SOUND_EXT@,$(WIFI_SOUND_EXT),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 

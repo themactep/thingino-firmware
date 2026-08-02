@@ -60,6 +60,17 @@ ifeq ($(KERNEL_VERSION),)
 	endif
 endif
 
+# Kernel source configuration.
+# 3.10.14: uses BR2_LINUX_KERNEL_CUSTOM_VERSION (official kernel.org tarball
+#   + U-Boot-style cumulative patch from package/all-patches/linux/3.10.14/).
+# All other versions: use custom git repo (github.com/gtxaspec/thingino-linux).
+ifeq ($(KERNEL_VERSION),3.10.14)
+# Official kernel.org tarball -- no custom git needed
+KERNEL_SITE :=
+KERNEL_BRANCH :=
+KERNEL_HASH :=
+KERNEL_TARBALL_URL :=
+else
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
@@ -107,6 +118,8 @@ ifeq ($(KERNEL_HASH),)
 	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+
+endif # custom git vs official kernel
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
@@ -421,8 +434,10 @@ else
 	ISP_CH1_DEQUEUE_DELAY_TIME :=
 endif
 
-ifneq ($(BR2_ISP_MIPI_SWITCH_GPIO),)
+ifeq ($(BR2_ISP_MIPI_SWITCH_GPIO),y)
 	ISP_MIPI_SWITCH_GPIO := mipi_switch_gpio=$(BR2_ISP_MIPI_SWITCH_GPIO)
+else
+	ISP_MIPI_SWITCH_GPIO :=
 endif
 
 ifeq ($(BR2_ISP_DIRECT_MODE_0),y)
@@ -447,10 +462,10 @@ else
 	ISP_IVDC_THRESHOLD_LINE :=
 endif
 
-ifneq ($(BR2_ISP_CONFIG_HZ),)
-ifneq ($(BR2_ISP_CONFIG_HZ),0)
-	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ)
-endif
+ifeq ($(BR2_ISP_CONFIG_HZ),y)
+	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ_VALUE)
+else
+	ISP_CONFIG_HZ :=
 endif
 
 ifeq ($(BR2_ISP_PRINT_LEVEL_0),y)
@@ -602,12 +617,18 @@ else
 UBOOT_BOARD_FLASH := nor
 endif
 
-# Flash type used for U-Boot defconfig lookup
-ifeq ($(BR2_THINGINO_FLASH_NAND),y)
-UBOOT_BOARD_FLASH := nand
+# Kconfig choice suffix for the kernel SFC NAND mtd-id: the mtdparts= mtd-id in
+# the generated bootargs must match the kernel driver's mtd name, which differs
+# per SoC kernel tree ("sfc_nand" on the t40 4.4 tree, "sfc0_nand" on t41).
+# Substituted into flash-nand.fragment by SED_CONFIG_VARS.
+ifeq ($(SOC_FAMILY),t41)
+NAND_FLASH_CONTROLLER_SYM := SFC0_NAND
+NAND_FLASH_CONTROLLER := sfc0_nand
 else
-UBOOT_BOARD_FLASH := nor
+NAND_FLASH_CONTROLLER_SYM := SFC_NAND
+NAND_FLASH_CONTROLLER := sfc_nand
 endif
+export NAND_FLASH_CONTROLLER_SYM
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
 	UBOOT_FLASH_CONTROLLER := jz_sfc
@@ -623,6 +644,12 @@ else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC1_NAND),y)
 	UBOOT_FLASH_CONTROLLER := sfc1_nand
 else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM),y)
 	UBOOT_FLASH_CONTROLLER := $(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING))
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	# The top-level make only includes the camera defconfig (board.mk), not the
+	# fragments, so the FLASH_CONTROLLER choice set by flash-nand.fragment is
+	# invisible here unless the camera defconfig sets it. Fall back to the same
+	# per-SoC NAND mtd-id the fragment resolves to.
+	UBOOT_FLASH_CONTROLLER := $(NAND_FLASH_CONTROLLER)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif

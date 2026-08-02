@@ -53,6 +53,15 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_IGETC5PT
 
 		Compatible with Ingenic T41 based iGET C5PT hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_360K7TS
+	bool "360 K7TS"
+	help
+		Select this option to use the custom device tree for 360 K7TS.
+		This will install the 360_k7ts_t41nq_eth.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+
+		Compatible with Ingenic T41 based 360 K7TS hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_EUFYT8416
 	bool "Eufy T8416"
 	help

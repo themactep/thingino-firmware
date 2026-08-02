@@ -4,22 +4,19 @@
 
   class SensorDataCollector {
     constructor() {
-      this.sseUrl = "/x/json-timegraph-stream.cgi";
-      this.historyUrl = "/x/json-prudynt.cgi";
+      this.sseUrl = "/x/json-heartbeat.cgi";
+      this.historyUrl = "/x/json-daynight-history.cgi";
+      this.sensorsUrl = "/x/json-daynight-sensors.cgi";
       this.maxPoints = 300;
       this.data = {};
       this.chart = null;
       this.eventSource = null;
       this.isPaused = false;
-      this.nightThreshold = null;
-      this.dayThreshold = null;
       this.modeData = [];
       this.stats = {};
+      this.thresholds = null; /* {night_pct, day_pct} */
 
       this.metrics = [
-        { key: "ev", label: "Exposure Time (EV)", color: "#FF6384" },
-        { key: "total_gain", label: "Total Gain", color: "#36A2EB" },
-        { key: "ae_luma", label: "AE Luma", color: "#FFCE56" },
         { key: "daynight_brightness", label: "Brightness %", color: "#B8FF4D" },
       ];
 
@@ -33,7 +30,8 @@
     }
 
     async loadHistoryAndStartStream() {
-      await this.loadHistory();
+      await Promise.all([this.loadHistory(), this.loadThresholds()]);
+      this.updateChart();
       this.startStream();
     }
 
@@ -100,10 +98,10 @@
             y: {
               display: true,
               min: 0,
-              max: 3200,
+              max: 100,
               title: {
                 display: true,
-                text: "Raw Value",
+                text: "Brightness %",
               },
             },
             y1: {
@@ -144,19 +142,13 @@
     }
 
     async loadHistory() {
-      const requestBody = { daynight: { history: null } };
       try {
-        const response = await fetch(this.historyUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
+        const response = await fetch(this.historyUrl);
         if (!response.ok) return;
-        const json = await response.json();
-        const history = json?.daynight?.history;
+        const history = await response.json();
         if (!Array.isArray(history) || history.length === 0) return;
 
-        history.forEach((sample) => this.addDataPoint(sample, false));
+        history.forEach((sample) => this.addDataPoint(sample, true, false));
         this.trimData();
         this.updateChart();
       } catch (error) {
@@ -164,22 +156,60 @@
       }
     }
 
-    addDataPoint(jsonData, updateChart = true) {
-      const timestamp = new Date(parseInt(jsonData.time_now, 10) * 1000);
+    /* Convert raw signal to brightness % using same formulas as daynightd */
+    evToBrightness(ev) {
+      const lo = 200000,
+        hi = 2000000;
+      if (ev <= lo) return 100;
+      if (ev >= hi) return 0;
+      return Math.round(
+        100 *
+          (1 - (Math.log(ev) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))),
+      );
+    }
+
+    tgToBrightness(tg) {
+      const lo = 100,
+        hi = 8000;
+      if (tg <= lo) return 100;
+      if (tg >= hi) return 0;
+      return Math.round(100 - ((tg - lo) * 100) / (hi - lo));
+    }
+
+    async loadThresholds() {
+      try {
+        /* Read brightness % thresholds directly from config.
+           No conversion needed — config is the source of truth. */
+        const response = await fetch(this.sensorsUrl);
+        if (!response.ok) return;
+        const s = await response.json();
+        if (!s) return;
+
+        const np = parseInt(s.night_threshold_pct, 10);
+        const dp = parseInt(s.day_threshold_pct, 10);
+        if (!Number.isNaN(np) && !Number.isNaN(dp) && np > 0 && dp > 0) {
+          this.thresholds = { night_pct: np, day_pct: dp };
+          this.updateStatsDisplay();
+        }
+      } catch (error) {
+        console.error("Failed to load thresholds:", error);
+      }
+    }
+
+    addDataPoint(jsonData, isHistory = false, updateChart = true) {
+      /* History samples carry their own time_now; live SSE uses browser time */
+      const timestamp =
+        isHistory && jsonData.time_now
+          ? new Date(parseInt(jsonData.time_now, 10) * 1000)
+          : new Date();
       const timeStr = timestamp.toLocaleTimeString();
 
       this.chart.data.labels.push(timeStr);
 
-      if (jsonData.total_gain_night_threshold !== undefined) {
-        this.nightThreshold = parseInt(jsonData.total_gain_night_threshold, 10);
-        this.dayThreshold = parseInt(jsonData.total_gain_day_threshold, 10);
-        if (!Number.isNaN(this.nightThreshold)) {
-          this.chart.options.scales.y.max = this.nightThreshold + 200;
-        }
+      if (jsonData.daynight_mode !== undefined) {
+        const currentMode = jsonData.daynight_mode === "night" ? 1 : 0;
+        this.modeData.push(currentMode);
       }
-
-      const currentMode = jsonData.daynight_mode === "night" ? 1 : 0;
-      this.modeData.push(currentMode);
 
       this.metrics.forEach((metric) => {
         if (!(metric.key in jsonData)) return;
@@ -187,7 +217,7 @@
           this.data[metric.key] = [];
         }
         const value = parseFloat(jsonData[metric.key]);
-        if (!Number.isNaN(value)) {
+        if (!Number.isNaN(value) && value >= 0) {
           this.data[metric.key].push(value);
           this.updateStats(metric.key, value);
         }
@@ -227,6 +257,19 @@
       if (!container) return;
       container.innerHTML = "";
 
+      /* Night threshold card */
+      if (this.thresholds) {
+        const nightCard = document.createElement("div");
+        nightCard.className = "stat-card night-threshold";
+        nightCard.innerHTML = `
+          <div class="stat-label">Night Thr</div>
+          <div class="stat-value">${this.thresholds.night_pct}%</div>
+          <div class="stat-detail">switch to night below</div>
+        `;
+        container.appendChild(nightCard);
+      }
+
+      /* Brightness card (from live data) */
       this.metrics.forEach((metric) => {
         const stat = this.stats[metric.key];
         if (!stat) return;
@@ -239,6 +282,18 @@
         `;
         container.appendChild(div);
       });
+
+      /* Day threshold card */
+      if (this.thresholds) {
+        const dayCard = document.createElement("div");
+        dayCard.className = "stat-card day-threshold";
+        dayCard.innerHTML = `
+          <div class="stat-label">Day Thr</div>
+          <div class="stat-value">${this.thresholds.day_pct}%</div>
+          <div class="stat-detail">switch to day above</div>
+        `;
+        container.appendChild(dayCard);
+      }
     }
 
     updateChart() {
@@ -261,30 +316,31 @@
         });
       });
 
-      if (this.nightThreshold !== null && this.data.total_gain) {
-        const labelCount = this.chart.data.labels.length;
-        if (!Number.isNaN(this.nightThreshold)) {
+      /* Threshold reference lines */
+      if (this.thresholds) {
+        const len = this.chart.data.labels.length || 2;
+        const addLine = (value, label, color) => {
           this.chart.data.datasets.push({
-            label: `Night Threshold (${this.nightThreshold})`,
-            data: Array(labelCount).fill(this.nightThreshold),
-            borderColor: "rgba(255, 0, 0, 0.7)",
+            label: label,
+            data: Array(len).fill(value),
+            borderColor: color,
             borderWidth: 1,
-            borderDash: [5, 5],
+            borderDash: [6, 4],
+            tension: 0,
             fill: false,
             pointRadius: 0,
           });
-        }
-        if (this.dayThreshold !== null && !Number.isNaN(this.dayThreshold)) {
-          this.chart.data.datasets.push({
-            label: `Day Threshold (${this.dayThreshold})`,
-            data: Array(labelCount).fill(this.dayThreshold),
-            borderColor: "rgba(0, 255, 0, 0.7)",
-            borderWidth: 1,
-            borderDash: [5, 5],
-            fill: false,
-            pointRadius: 0,
-          });
-        }
+        };
+        addLine(
+          this.thresholds.night_pct,
+          `${this.thresholds.night_pct}% night thr`,
+          "rgba(255,100,100,0.6)",
+        );
+        addLine(
+          this.thresholds.day_pct,
+          `${this.thresholds.day_pct}% day thr`,
+          "rgba(100,180,255,0.6)",
+        );
       }
 
       if (this.modeData.length > 0) {

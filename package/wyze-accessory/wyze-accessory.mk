@@ -10,6 +10,21 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL
 		$(TARGET_DIR)/usr/sbin/doorbell_alarm
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/S14doorbell-alarm \
 		$(TARGET_DIR)/etc/init.d/S14doorbell-alarm
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -d $(TARGET_DIR)/var/www/x
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/config-doorbell.html \
+		$(TARGET_DIR)/var/www/config-doorbell.html
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/config-doorbell.js \
+		$(TARGET_DIR)/var/www/a/config-doorbell.js
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/doorbell-banner.js \
+		$(TARGET_DIR)/var/www/a/doorbell-banner.js
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/www/x/json-config-doorbell.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-doorbell.cgi
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/www/x/json-chime-status.cgi \
+		$(TARGET_DIR)/var/www/x/json-chime-status.cgi
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/doorbell.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/doorbell.webui.json
 endef
 
 define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
@@ -77,6 +92,9 @@ endif
 ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL),y)
 	WYZE_ACCESSORY_INSTALL_TARGET_CMDS += $(WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL)
 	WYZE_ACCESSORY_TARGET_FINALIZE_HOOKS += WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	WYZE_ACCESSORY_DEPENDENCIES += thingino-webui
+endif
 endif
 
 $(eval $(generic-package))

@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matt Davis <matteius@gmail.com>
+Date: Mon, 20 Jul 2026 10:05:00 -0400
+Subject: [PATCH] MIPS: ingenic: t31: apply parent-only CGU changes
+
+cgu_set_parent() builds a register value containing both the requested
+parent selector and a divider appropriate for that parent.  It only writes
+the value when the divider differs from the current hardware value,
+however.  A parent change that happens to keep the same divider is silently
+skipped even though clk->parent is updated, leaving the software clock tree
+out of sync with the hardware.
+
+This is visible on T31 when a bootloader leaves CIM sourced from SCLKA.
+The GC4023 driver requests VPLL and 27 MHz, and the clock framework reports
+27 MHz, but CPM_CIMCDR retains the SCLKA selector with the VPLL-derived
+divide-by-40 value.  With a 1392 MHz SCLKA, the sensor is actually driven at
+34.8 MHz.  The old vendor U-Boot masked the bug by selecting VPLL before
+Linux.
+
+Include the parent selector in the change test so the hardware register is
+updated whenever either the divider or parent differs.  Handle the one-bit
+SELECTOR_2 mux separately from the other two-bit selectors.
+
+Signed-off-by: Matt Davis <matteius@gmail.com>
+---
+ arch/mips/xburst/soc-t31/common/clk/clk_cgu.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/arch/mips/xburst/soc-t31/common/clk/clk_cgu.c b/arch/mips/xburst/soc-t31/common/clk/clk_cgu.c
+index 2698577c7..5f12b5cb9 100644
+--- a/arch/mips/xburst/soc-t31/common/clk/clk_cgu.c
++++ b/arch/mips/xburst/soc-t31/common/clk/clk_cgu.c
+@@ -316,7 +316,7 @@ static int cgu_set_parent(struct clk *clk, struct clk *parent)
+ {
+ 	int i,tmp;
+ 	int no = CLK_CGU_NO(clk->flags);
+-	unsigned int reg_val,cgu,mask;
++	unsigned int reg_val,cgu,mask,parent_mask;
+ 	int ce,stop,busy;
+ 	unsigned long flags;
+ 	stop = cgu_clks[no].ce_busy_stop;
+@@ -325,6 +325,7 @@ static int cgu_set_parent(struct clk *clk, struct clk *parent)
+ 	ce = stop + 2;
+ 	mask = (1 << cgu_clks[no].div) - 1;
+ 
++	parent_mask = cgu_clks[no].sel == SELECTOR_2 ? (1U << 31) : (3U << 30);
+ 	for(i = 0;i < 4;i++) {
+ 		if(selector[cgu_clks[no].sel].route[i] == get_clk_id(parent)){
+ 			break;
+@@ -359,7 +360,7 @@ static int cgu_set_parent(struct clk *clk, struct clk *parent)
+ 
+ 	if(reg_val & (1 << stop))
+ 		cgu_clks[no].cache = cgu;
+-	else if((mask & reg_val) != i){
++	else if((reg_val ^ cgu) & (mask | parent_mask)){
+ 		cpm_outl(cgu, cgu_clks[no].off);
+ 		while(cpm_test_bit(busy,cgu_clks[no].off))
+ 			printk("wait stable.[%d][%s]\n",__LINE__,clk->name);
+-- 
+2.51.0

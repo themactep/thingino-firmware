@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<!--
+  thingino · Motion Detection (timps)
+
+  Configures the timps IMP_IVS grid motion detection through the
+  /x/json-prudynt.cgi bridge ({"motion":{...}} tree). All settings apply
+  LIVE (timps stops + recreates its IVS grid) and persist to
+  /etc/timps.conf. The grid size selectors are limited by the SoC/SDK cell
+  budget (caps.motion.max_cells via the bridge echo: 52 on most SoCs, 4 on
+  the old T10/T20 3.9.0 SDK). On SoCs without the IMP_IVS move API the page
+  shows a notice and stays disabled.
+
+  Event ACTIONS on motion (email/Telegram/webhook/...) are NOT configured
+  here - use Tools -> "Send to services"; timps triggers them through the
+  motion.on_motion command in /etc/timps.conf (config-file only, e.g.
+  "/usr/sbin/send2 -j").
+-->
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Motion Detection</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    #motion-grid-preview {
+      display: grid;
+      gap: 2px;
+      width: 100%;
+      max-width: 320px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 0.375rem;
+      padding: 2px;
+    }
+    #motion-grid-preview .cell {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body id="page-config-motion">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container">
+    <div data-app-controls></div>
+
+    <h3>Motion Detection</h3>
+
+    <div id="motion-alerts"></div>
+
+    <div class="alert alert-warning d-none" id="motion-unavailable" role="alert">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      This SoC/SDK has no IMP motion detection (IMP_IVS move API unavailable)
+      &mdash; the feature is disabled.
+    </div>
+
+    <form id="motion-form">
+      <div class="row mb-3">
+        <div class="col-12 col-lg-8">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Detection grid</h5>
+            </div>
+            <div class="card-body">
+              <p class="boolean form-switch">
+                <input type="checkbox" id="motion_enabled" name="motion_enabled" class="form-check-input" role="switch">
+                <label for="motion_enabled" class="form-check-label ms-2">Enable motion detection</label>
+              </p>
+              <div class="row g-3">
+                <p class="col-6 col-md-3 select">
+                  <label for="motion_cols">Grid columns</label>
+                  <select class="form-select" id="motion_cols" name="motion_cols"></select>
+                </p>
+                <p class="col-6 col-md-3 select">
+                  <label for="motion_rows">Grid rows</label>
+                  <select class="form-select" id="motion_rows" name="motion_rows"></select>
+                </p>
+                <p class="col-12 col-md-6 select">
+                  <label for="motion_monitor_stream">Monitor stream</label>
+                  <select class="form-select" id="motion_monitor_stream" name="motion_monitor_stream">
+                    <option value="0">Main stream (stream 0)</option>
+                    <option value="1">Substream (stream 1)</option>
+                  </select>
+                </p>
+              </div>
+              <p class="range">
+                <label for="motion_sensitivity">Sensitivity
+                  <span class="badge text-bg-secondary" id="motion_sensitivity_value">-</span>
+                </label>
+                <input type="range" class="form-range" id="motion_sensitivity" name="motion_sensitivity"
+                  min="0" max="255" step="1">
+              </p>
+              <p class="text-secondary small mb-0" id="motion-caps-note"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">Grid raster</h5>
+            </div>
+            <div class="card-body">
+              <div id="motion-grid-preview" aria-hidden="true"></div>
+              <p class="text-secondary small mt-2 mb-0">
+                The frame of the monitor stream is split evenly into these
+                cells; each cell reports motion on its own. Watch it live on
+                the <a href="/preview.html">Preview</a> page (grid overlay
+                button).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="alert alert-secondary" role="alert">
+      <i class="bi bi-info-circle me-1"></i>
+      All settings apply immediately and persist. Actions on motion
+      (email, Telegram, webhook, &hellip;) are configured under
+      <a href="/tool-send2.html" class="alert-link">Tools &rarr; Send to services</a>;
+      timps triggers them via the <code>motion.on_motion</code> command in
+      <code>/etc/timps.conf</code> (e.g. <code>/usr/sbin/send2 -j</code>,
+      rate-limited by <code>motion.cooldown_ms</code>).
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/timps-api.js"></script>
+<script src="/a/config-motion.js"></script>
+</body>
+</html>

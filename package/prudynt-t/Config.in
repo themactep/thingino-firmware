@@ -6,6 +6,7 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_THINGINO_DAYNIGHTD
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_ONVIF
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
@@ -127,6 +128,18 @@ config BR2_PACKAGE_PRUDYNT_T_FLAC
 	  Enable FLAC audio codec support. Disable to drop the libflac
 	  dependency and reduce binary size.
 
+config BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
+	bool "Burned-in timestamp overlay"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y
+	help
+	  Render a hardware timestamp overlay directly into the video frames
+	  using the IMP OSD engine.  The timestamp format is taken from the
+	  "clock" OSD element in prudynt.json.
+
+	  When disabled, timestamp information is still available via the
+	  SEI-based subtitle track (no burn-in overhead).
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
@@ -139,9 +152,7 @@ config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 config BR2_PACKAGE_PRUDYNT_T_PREBUFFER
 	bool "Enable pre-trigger buffer for motion events"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	default y if BR2_SOC_FAMILY = "t31"
-	default y if BR2_SOC_FAMILY = "t40"
-	default y if BR2_SOC_FAMILY = "t41"
+	default y if BR2_SOC_RAM_MB >= 128
 	default n
 	help
 	  Enable pre-trigger video buffer to capture frames before motion
@@ -153,13 +164,11 @@ config BR2_PACKAGE_PRUDYNT_T_PREBUFFER
 	  - Keyframe-only (3s): ~0.5MB RAM
 	  - Binary size: +3-4KB
 
-	  Recommended for:
-	  - 64MB+ devices (T31, T40, T41): Enable (default)
-	  - 32MB devices (T20, T21, T10): Disable to save memory
-
-	  When disabled, this feature is completely removed at compile time
-	  with zero overhead. Motion detection still works without prebuffer,
-	  but recordings will only capture frames after the trigger.
+	  Enabled by default on 128MB+ devices, disabled on 64MB to
+	  conserve memory. When disabled, this feature is completely
+	  removed at compile time with zero overhead. Motion detection
+	  still works without prebuffer, but recordings will only capture
+	  frames after the trigger.
 
 config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 	bool "WebRTC support"

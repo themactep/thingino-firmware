@@ -440,11 +440,36 @@ make toolchain
 
 ### Over-The-Air (OTA) Updates
 
-#### `ota`
-Flash full firmware image (includes bootloader).
+#### `ota` / `ota-full`
+Flash full firmware image (includes bootloader). Uses `sysupgrade`.
 ```bash
 make ota IP=192.168.1.10
 ```
+
+#### `ota-kernel`
+Flash kernel only. Uploads `uImage` directly — no full firmware needed.
+```bash
+make ota-kernel IP=192.168.1.10
+```
+
+#### `ota-uboot`
+Flash bootloader and U-Boot environment.
+```bash
+make ota-uboot IP=192.168.1.10
+```
+
+#### `ota-rootfs`
+Flash rootfs + data partitions.
+```bash
+make ota-rootfs IP=192.168.1.10
+```
+
+#### `ota-upgrade`
+Flash rootfs + data with automatic config backup before flashing.
+```bash
+make ota-upgrade IP=192.168.1.10
+```
+
 If a session IP is already active, the same command can be run without repeating
 `IP=...`.
 
@@ -847,6 +872,10 @@ make <package>-menuconfig     # Configure package (kernel, busybox, etc.)
 
 # Deploy
 make ota IP=x.x.x.x               # Flash full firmware
+make ota-kernel IP=x.x.x.x        # Flash kernel only
+make ota-uboot IP=x.x.x.x         # Flash bootloader + env
+make ota-rootfs IP=x.x.x.x        # Flash rootfs + data
+make ota-upgrade IP=x.x.x.x       # Flash rootfs + data + config backup
 make backup-overlay IP=x.x.x.x    # Backup /overlay/ from camera
 
 # Clean

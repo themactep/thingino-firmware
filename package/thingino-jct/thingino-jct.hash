@@ -1,0 +1,7 @@
+# Locally calculated
+sha256  8657b753fc87dbdef1ce7ce8f25e0caae6bc78fe76ed168bc233d73b497dffc5  thingino-jct-v1.0.0.tar.gz
+sha256  c59b6704af3bbc98507dc1bac7ddf3efa9c084d92ec8b81fa7c0ca3f361b9707  thingino-jct-v1.1.0.tar.gz
+sha256  8c00888e60779bf7f36db12590e406301127a4cf3ccdc3fff2b0d568b6750598  thingino-jct-v1.2.0.tar.gz
+
+# License files
+sha256  ffd2e157904aa602db56a429199ce0692f9ac0f825d0ace41485470473d4d7d5  LICENSE

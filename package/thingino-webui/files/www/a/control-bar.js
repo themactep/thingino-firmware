@@ -761,9 +761,12 @@
     privacyBtn.classList.add("flex-fill");
     bar.appendChild(privacyBtn);
 
-    const wireguardBtn = createWireGuardButton();
-    wireguardBtn.classList.add("flex-fill");
-    bar.appendChild(wireguardBtn);
+    var uiConfig = window.thinginoUIConfig || {};
+    if (uiConfig.device && uiConfig.device.wireguard) {
+      var wireguardBtn = createWireGuardButton();
+      wireguardBtn.classList.add("flex-fill");
+      bar.appendChild(wireguardBtn);
+    }
 
     const sendBtn = createSendButton();
     sendBtn.classList.add("flex-fill");

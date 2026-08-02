@@ -5,6 +5,30 @@ const ThreadOSD = 8;
 
 const ImageNoStream = "/a/nostream.svg";
 
+var API_BASE =
+  "http://" +
+  (window.network_address || location.hostname) +
+  ":8080/api/v1/config";
+
+var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+  .then(function (r) {
+    return r.json();
+  })
+  .then(function (d) {
+    return d.exists && d.api_key ? d.api_key : "";
+  })
+  .catch(function () {
+    return "";
+  });
+
+async function apiFetch(url, options) {
+  var key = await API_KEY_PROMISE;
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
+
 let max = 0;
 
 if (typeof window !== "undefined") {
@@ -37,9 +61,7 @@ const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
-const SlowHeartbeatPollInterval = 15 * 1000;
 let heartbeatSource = null;
-let slowHeartbeatTimer = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
 let debugModalCtx = null;
@@ -614,7 +636,6 @@ async function toggleTimelapse() {
       );
     }
   } catch (err) {
-    console.error("Timelapse toggle failed:", err);
     updateTimelapseButtonState();
     if (typeof showAlert === "function") {
       showAlert("danger", err.message || "Failed to toggle timelapse.", 5000);
@@ -639,7 +660,7 @@ function toggleRecording(channel) {
 
   console.log(`Sending payload: ${payload}`);
 
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -758,7 +779,7 @@ function toggleMotion(state) {
   if (button) button.classList.add("pending");
 
   const payload = JSON.stringify({ motion: { enabled: state } });
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -789,7 +810,7 @@ function togglePrivacy(state) {
   if (button) button.classList.add("pending");
 
   const payload = JSON.stringify({ privacy: { enabled: state } });
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -816,6 +837,9 @@ function togglePrivacy(state) {
 }
 
 function toggleWireGuard(state) {
+  var uiConfig = window.thinginoUIConfig || {};
+  if (!uiConfig.device || !uiConfig.device.wireguard) return;
+
   const button = $("#wireguard");
   if (button) button.classList.add("pending");
 
@@ -889,7 +913,7 @@ function toggleAudio(device, state) {
     audio: { [param]: state },
   });
   console.log(ts(), "===>", payload);
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -1021,8 +1045,8 @@ function updateHeartbeatUi(json) {
     uptimeEl.textContent = "Uptime:️ " + json.uptime;
 
   updateRecordingState({
-    ch0: json.rec_ch0 === true,
-    ch1: json.rec_ch1 === true,
+    ch0: json.rec_ch0 === true || json.rec_ch0 === 1,
+    ch1: json.rec_ch1 === true || json.rec_ch1 === 1,
   });
 
   // Update motion detection icon
@@ -1030,7 +1054,10 @@ function updateHeartbeatUi(json) {
     const motionBtn = $("#motion");
     if (motionBtn) {
       motionBtn.classList.remove("pending");
-      motionBtn.classList.toggle("active", json.motion_enabled === true);
+      motionBtn.classList.toggle(
+        "active",
+        json.motion_enabled === true || json.motion_enabled === 1,
+      );
     }
   }
 
@@ -1039,7 +1066,10 @@ function updateHeartbeatUi(json) {
     const privacyBtn = $("#privacy");
     if (privacyBtn) {
       privacyBtn.classList.remove("pending");
-      privacyBtn.classList.toggle("active", json.privacy_enabled === true);
+      privacyBtn.classList.toggle(
+        "active",
+        json.privacy_enabled === true || json.privacy_enabled === 1,
+      );
     }
   }
 
@@ -1188,7 +1218,10 @@ function updateHeartbeatUi(json) {
     const autoBtn = $("#auto");
     if (autoBtn) {
       autoBtn.classList.remove("pending");
-      autoBtn.classList.toggle("active", json.daynight_enabled === 1);
+      autoBtn.classList.toggle(
+        "active",
+        json.daynight_enabled === true || json.daynight_enabled === 1,
+      );
     }
   }
 }
@@ -1256,31 +1289,11 @@ async function fetchSlowHeartbeatStatus() {
     console.error("Slow heartbeat fetch error", error);
   } finally {
     slowHeartbeatInFlight = false;
-    scheduleSlowHeartbeatStatus();
   }
-}
-
-function scheduleSlowHeartbeatStatus(delay = SlowHeartbeatPollInterval) {
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
-  }
-
-  if (!passwordCheckComplete || isDefaultPassword || document.hidden) {
-    return;
-  }
-
-  slowHeartbeatTimer = setTimeout(() => {
-    slowHeartbeatTimer = null;
-    fetchSlowHeartbeatStatus();
-  }, delay);
 }
 
 function startSlowHeartbeatStatus() {
-  if (slowHeartbeatTimer || slowHeartbeatInFlight) {
-    return;
-  }
-
+  if (slowHeartbeatInFlight) return;
   fetchSlowHeartbeatStatus();
 }
 
@@ -1288,10 +1301,6 @@ function cleanupHeartbeatResources() {
   if (heartbeatSource) {
     heartbeatSource.close();
     heartbeatSource = null;
-  }
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
   }
   slowHeartbeatInFlight = false;
   currentReconnectDelay = HeartBeatReconnectDelay;

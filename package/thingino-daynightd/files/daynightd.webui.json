@@ -1,0 +1,40 @@
+{
+  "name": "daynightd",
+  "label": "Day/Night Photosensing",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Audio",
+      "items": [
+        {
+          "label": "Photosensing",
+          "href": "/config-photosensing.html"
+        },
+        {
+          "label": "Dusk2Dawn",
+          "href": "/config-dusk2dawn.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "daynight": true
+  },
+  "cgi": [
+    "/x/json-config-daynight.cgi",
+    "/x/json-daynight-sun.cgi",
+    "/x/json-daynight-sensors.cgi",
+    "/x/json-daynight-history.cgi"
+  ],
+  "pages": [
+    "/config-photosensing.html",
+    "/config-dusk2dawn.html"
+  ]
+}

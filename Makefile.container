@@ -12,6 +12,35 @@ DL_CONTAINER := thingino-dl-cache
 # Directories
 WORKSPACE_DIR := $(shell pwd)
 
+# SELinux volume labels (Podman/Docker on Fedora, Bazzite, RHEL, CentOS Stream).
+# Without a label, Enforcing hosts often fail with "Permission denied" on bind mounts.
+# Non-SELinux hosts (Debian/Ubuntu/etc.) leave this empty — :z/:Z are unnecessary there.
+#
+# Preference order:
+#   1. CONTAINER_VOLUME_LABEL override (z | Z | none | off | empty)
+#   2. Auto :z when getenforce reports Enforcing
+#   3. Otherwise unlabeled
+#
+# Use shared :z (not private :Z) by default so the host IDE and container can both
+# use the workspace. Override with CONTAINER_VOLUME_LABEL=Z only if you need a
+# private container label.
+CONTAINER_VOLUME_LABEL ?=
+ifeq ($(CONTAINER_VOLUME_LABEL),)
+  ifeq ($(shell getenforce 2>/dev/null),Enforcing)
+    CONTAINER_VOLUME_LABEL := z
+  endif
+endif
+ifneq ($(filter $(CONTAINER_VOLUME_LABEL),none off),)
+  CONTAINER_VOLUME_SUFFIX :=
+  CONTAINER_VOLUME_LABEL_DESC := none (forced off)
+else ifneq ($(CONTAINER_VOLUME_LABEL),)
+  CONTAINER_VOLUME_SUFFIX := :$(CONTAINER_VOLUME_LABEL)
+  CONTAINER_VOLUME_LABEL_DESC := $(CONTAINER_VOLUME_LABEL)
+else
+  CONTAINER_VOLUME_SUFFIX :=
+  CONTAINER_VOLUME_LABEL_DESC := none (SELinux not enforcing or unavailable)
+endif
+
 # Container run command
 ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
 	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --userns=keep-id
@@ -21,8 +50,8 @@ endif
 
 CONTAINER_RUN_OPTS := \
 	--volumes-from $(DL_CONTAINER) \
-	-v $(WORKSPACE_DIR):/workspace \
-	-v $(shell readlink -f overrides):/overrides \
+	-v $(WORKSPACE_DIR):/workspace$(CONTAINER_VOLUME_SUFFIX) \
+	-v $(shell readlink -f overrides):/overrides$(CONTAINER_VOLUME_SUFFIX) \
 	-w /workspace \
 	-e TERM=xterm-256color \
 	-e BR2_DL_DIR=/dl
@@ -39,7 +68,7 @@ ifdef THINGINO_USER_DIR
     _USER_DIR_REAL := $(shell readlink -f "$(THINGINO_USER_DIR)" 2>/dev/null || echo "$(THINGINO_USER_DIR)")
     _USER_DIR_IN_WS := $(or $(filter $(WORKSPACE_DIR),$(_USER_DIR_REAL)),$(filter $(WORKSPACE_DIR)/%,$(_USER_DIR_REAL)))
     ifeq ($(_USER_DIR_IN_WS),)
-      USER_DIR_MOUNT := -v $(_USER_DIR_REAL):/user-dir -e THINGINO_USER_DIR=/user-dir
+      USER_DIR_MOUNT := -v $(_USER_DIR_REAL):/user-dir$(CONTAINER_VOLUME_SUFFIX) -e THINGINO_USER_DIR=/user-dir
       USER_DIR_LABEL := $(THINGINO_USER_DIR) → /user-dir (mounted)
     else
       USER_DIR_LABEL := $(THINGINO_USER_DIR) (in workspace)
@@ -97,7 +126,8 @@ container-shell: container-pull
 container-make: container-pull
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
 	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
-	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS) in container..."
+	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
+	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(IP_ARG) $(MAKECMDGOALS) in container..."
 	@echo '#!/bin/bash' > /tmp/container-make-run.sh
 	@echo 'cleanup() {' >> /tmp/container-make-run.sh
 	@echo '    echo' >> /tmp/container-make-run.sh
@@ -106,7 +136,7 @@ container-make: container-pull
 	@echo '    exit 130' >> /tmp/container-make-run.sh
 	@echo '}' >> /tmp/container-make-run.sh
 	@echo 'trap cleanup INT TERM' >> /tmp/container-make-run.sh
-	@echo '$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS)" &' >> /tmp/container-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make $(CAMERA_ARG) $(GROUP_ARG) $(IP_ARG) $(MAKECMDGOALS)" &' >> /tmp/container-make-run.sh
 	@echo 'wait $$!' >> /tmp/container-make-run.sh
 	@chmod +x /tmp/container-make-run.sh
 	@/tmp/container-make-run.sh
@@ -143,6 +173,7 @@ container-info:
 	@echo "  Workspace:  $(WORKSPACE_DIR)"
 	@echo "  Downloads:  $(DL_DIR)"
 	@echo "  User Dir:   $(USER_DIR_LABEL)"
+	@echo "  SELinux:    $(CONTAINER_VOLUME_LABEL_DESC)"
 
 # Convenience targets for building in container
 .PHONY: container-build-firmware

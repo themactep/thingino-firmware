@@ -1,0 +1,69 @@
+From: Chaser Huang <chaserhkj@gmail.com>
+Subject: [PATCH] spi-tmi8152: add motor module override option
+
+This camera uses the TMI8152 SPI motor controller. The driver
+includes a motor.ko that needs to be installed as an override
+for the SDK's motor module. This patch adds a Kconfig option
+and install step for the motor module.
+
+NOTE: This patch is NOT applied globally — it lives in the camera
+profile directory as documentation. To use it, apply manually to
+package/spi-tmi8152/ or use a local package override.
+
+Signed-off-by: Chaser Huang <chaserhkj@gmail.com>
+
+---
+ package/spi-tmi8152/Config.in     | 10 ++++++++++
+ package/spi-tmi8152/spi-tmi8152.mk | 12 ++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/package/spi-tmi8152/Config.in b/package/spi-tmi8152/Config.in
+index f0b19d2e5..82517050d 100644
+--- a/package/spi-tmi8152/Config.in
++++ b/package/spi-tmi8152/Config.in
+@@ -3,3 +3,13 @@ config BR2_PACKAGE_SPI_TMI8152
+ 	select BR2_LINUX_KERNEL
+ 	help
+ 	  TMI8152 experimental driver
++
++if BR2_PACKAGE_SPI_TMI8152
++
++config BR2_PACKAGE_SPI_TMI8152_MOTOR
++	bool "Install motor module"
++	default n
++	help
++	  Install motor module from spi-tmi8152 overriding the motor module from SDK
++
++endif
+diff --git a/package/spi-tmi8152/spi-tmi8152.mk b/package/spi-tmi8152/spi-tmi8152.mk
+index 77afd2e44..c2704dac5 100644
+--- a/package/spi-tmi8152/spi-tmi8152.mk
++++ b/package/spi-tmi8152/spi-tmi8152.mk
+@@ -15,6 +15,16 @@ define SPI_TMI8152_LINUX_CONFIG_FIXUPS
+ 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI0)
+ endef
+ 
++ifeq ($(BR2_PACKAGE_SPI_TMI8152_MOTOR),y)
++define SPI_TMI8152_INSTALL_MOTOR
++	$(INSTALL) -D -m 0644 $(@D)/motor.ko \
++		$(TARGET_MODULES_PATH)/extra/tmi8152_spi_motor.ko
++	
++	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modprobe.d
++	echo "alias motor tmi8152_spi_motor" > $(TARGET_DIR)/etc/modprobe.d/00-tmi8152_spi_motor.conf
++endef
++endif
++
+ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+ define SPI_TMI8152_INSTALL_TARGET_CMDS
+ 	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
+@@ -23,6 +33,8 @@ define SPI_TMI8152_INSTALL_TARGET_CMDS
+ 	$(INSTALL) -D -m 0644 $(@D)/tmi8152_spi_dev.ko \
+ 		$(TARGET_MODULES_PATH)/extra/tmi8152_spi_dev.ko
+ 
++	$(SPI_TMI8152_INSTALL_MOTOR)
++
+ 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+ 	echo tmi8152_spi_dev > $(TARGET_DIR)/etc/modules.d/tmi8152_spi_dev
+ endef
+-- 
+2.43.0
