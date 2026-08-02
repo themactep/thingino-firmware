@@ -148,7 +148,16 @@ full_upgrade_partition_name() {
 }
 
 full_upgrade_partition_size() {
-	echo $(($(awk '/"all"$/{print "0x" $2}' /proc/mtd)))
+	local total=0 sz name
+	while read -r _ sz _ name; do
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && continue
+		total=$((total + 0x$sz))
+	done <<EOF
+$(tail -n +2 /proc/mtd)
+EOF
+	echo $total
 }
 
 partial_upgrade_partition_name() {
