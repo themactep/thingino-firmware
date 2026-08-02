@@ -159,7 +159,16 @@ Adding `--untimed` will disable synchronization to play the video feed as fast
 as possible but could break audio, while `--no-correct-pts` will use fixed
 timesteps and seems to break audio.
 
-Resources
----------
+RTSP timestamp fixes
+--------------------
 
-- https://www.rfc-editor.org/rfc/rfc7826
+Prudynt sends an RTCP Sender Report before any RTP media packets so
+receivers can compute PTS from the very first frame.  For UDP transport
+the SR is burst 3 times with a 5 ms gap to compensate for the lack of
+ordering between the RTCP and RTP sockets.  An additional 1 ms guard
+band on the audio anchor prevents backward DTS jumps at session start.
+
+This eliminates ``Non-monotonic DTS`` and ``Timestamps are unset in a
+packet`` warnings when recording with FFmpeg.
+
+.. _rfc7826: https://www.rfc-editor.org/rfc/rfc7826
