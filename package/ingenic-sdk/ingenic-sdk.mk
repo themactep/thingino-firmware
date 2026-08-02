@@ -90,11 +90,11 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
 		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset); \
+		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null || true); \
 		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
 			gpio_userkeys_config="28,$${button_reset},1"; \
 		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime); \
+		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null || true); \
 		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
 			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 		fi; \
@@ -243,7 +243,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
-INGENIC_SDK_TARGET_FINALIZE_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
+INGENIC_SDK_ROOTFS_PRE_CMD_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
