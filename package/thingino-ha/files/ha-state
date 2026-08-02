@@ -15,7 +15,7 @@
 PRUDYNT_CONFIG="/etc/prudynt.json"
 
 [ -n "$HA_CAMERA_ID" ] || {
-	echo "ha-state: cannot determine camera MAC" >&2
+	echo "ha-state: cannot determine camera ID" >&2
 	exit 1
 }
 [ -n "$HA_MQTT_HOST" ] || {
