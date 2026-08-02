@@ -79,7 +79,7 @@ ha_entity_enabled() {
 # ---------------------------------------------------------------------------
 if [ -z "$HA_CAMERA_ID" ]; then
 	HA_CAMERA_ID=$(
-		for iface in eth0 wlan0 eth1; do
+		for iface in eth0 wlan0 eth1 usb0; do
 			addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
 			[ -n "$addr" ] && { printf '%s' "$addr"; break; }
 		done
