@@ -36,9 +36,10 @@ while true; do
 	echo "ha-watchdog: ha-daemon not running, restarting in ${RESTART_DELAY}s (backoff=${backoff}s)" >&2
 	logger -t ha-watchdog "ha-daemon died, restarting"
 
-	# Publish offline via LWT-style retained message
+	# Publish offline via LWT-style retained message.
+	# Use timeout — an unreachable broker must not block the watchdog.
 	mpub=$(ha_mpub_cmd watchdog)
-	eval "$mpub -r -t '$HA_AVAIL_TOPIC' -m 'offline'" 2>/dev/null
+	timeout 1 sh -c "$mpub -r -t '$HA_AVAIL_TOPIC' -m 'offline'" 2>/dev/null
 
 	sleep "$RESTART_DELAY"
 

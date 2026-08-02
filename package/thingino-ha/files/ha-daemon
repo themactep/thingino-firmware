@@ -131,13 +131,18 @@ fi
 # Cleanup on exit
 # ---------------------------------------------------------------------------
 cleanup() {
-	local mpub
-	mpub=$(ha_mpub_cmd daemon)
-	eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+	# Kill children first so shutdown is never delayed by network.
 	kill "$CMD_PID" 2>/dev/null
 	wait "$CMD_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && kill "$CAMERA_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && wait "$CAMERA_PID" 2>/dev/null
+
+	# Best-effort offline publish: timeout after 3s so an unreachable
+	# broker (e.g. network down during shutdown) cannot stall us.
+	local mpub
+	mpub=$(ha_mpub_cmd daemon)
+	timeout 1 sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+
 	rm -rf "$HA_LOCK_DIR"
 }
 on_signal() {
