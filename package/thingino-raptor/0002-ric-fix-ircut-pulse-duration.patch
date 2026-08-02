@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WLTB-Gino <wltb-gino@users.noreply.github.com>
+Date: Sat, 2 Aug 2025 20:00:00 +0000
+Subject: [PATCH] ric: reduce dual-GPIO IRCUT pulse from 100ms to 10ms
+
+The dual-GPIO (motor-driven) IRCUT filter uses a short electrical pulse
+to actuate. The hardcoded 100ms pulse in ric_daynight.c is inconsistent
+with the ircut shell script, which uses 10ms and works reliably across
+all camera models.
+
+The longer pulse can cause unreliable filter movement, resulting in the
+IRCUT filter getting stuck in the wrong position during day/night
+transitions.
+
+Reduce the pulse duration to 10ms in both day and night code paths,
+matching the proven timing of the ircut shell script.
+
+diff --git a/ric/ric_daynight.c b/ric/ric_daynight.c
+--- a/ric/ric_daynight.c
++++ b/ric/ric_daynight.c
+@@ -148,7 +148,7 @@
+ 				gpio_set(c->gpio_ircut, 0);
+ 				gpio_set(c->gpio_ircut2, 1);
+-				usleep(100000);
++				usleep(10000);
+ 				gpio_set(c->gpio_ircut, 0);
+ 				gpio_set(c->gpio_ircut2, 0);
+ 				RSS_INFO("ircut: gpio %d=0, gpio %d=0 (night)", c->gpio_ircut,
+@@ -171,7 +171,7 @@
+ 				gpio_set(c->gpio_ircut, 1);
+ 				gpio_set(c->gpio_ircut2, 0);
+-				usleep(100000);
++				usleep(10000);
+ 				gpio_set(c->gpio_ircut, 0);
+ 				gpio_set(c->gpio_ircut2, 0);
+ 				RSS_INFO("ircut: gpio %d=0, gpio %d=0 (day)", c->gpio_ircut,
