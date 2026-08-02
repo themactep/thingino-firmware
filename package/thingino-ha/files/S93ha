@@ -94,7 +94,8 @@ stop() {
 	fi
 
 	stop_daemon
-	killall -q ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q ha-watchdog ha-commands ha-discovery ha-state 2>/dev/null
+	rm -f "$WATCHDOG_PIDFILE"
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
