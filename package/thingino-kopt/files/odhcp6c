@@ -22,9 +22,7 @@ echo -c 240 -e "- DHCPv6 on $IFACE"
 start_post_up() {
 	echo -c 15 "Starting odhcp6c on $IFACE"
 
-	TMP_LOG="/tmp/odhcp6c.log"
-
-	/sbin/odhcp6c -d -v -p "$PIDFILE" -t120 "$IFACE"
+	/sbin/odhcp6c -d -p "$PIDFILE" -t120 "$IFACE"
 }
 
 stop_pre_down() {
