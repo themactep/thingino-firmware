@@ -85,15 +85,23 @@ stop() {
 	# Provides HA_CAMERA_ID, needed to match this camera's mosquitto clients
 	[ -f /usr/share/ha-common ] && . /usr/share/ha-common
 
+	# Kill the watchdog FIRST — if we stop ha-daemon before the watchdog,
+	# the watchdog sees a missing PID file and respawns everything.
+	# Use the PID file: killall can't match scripts (comm is "sh").
+	if [ -f "$WATCHDOG_PIDFILE" ]; then
+		kill "$(cat "$WATCHDOG_PIDFILE")" 2>/dev/null
+		rm -f "$WATCHDOG_PIDFILE"
+	fi
+
 	stop_daemon
-	killall -q ha-watchdog ha-commands ha-discovery ha-state 2>/dev/null
-	rm -f "$WATCHDOG_PIDFILE"
+	killall -q ha-commands ha-discovery ha-state 2>/dev/null
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
 	if ! wait_for_ha_shutdown; then
-		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
 		start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
+		pkill -9 -f ha-watchdog 2>/dev/null
+		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
 		if [ -n "$HA_CAMERA_ID" ]; then
 			pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 		fi
