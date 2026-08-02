@@ -21,6 +21,7 @@ on:
           - ciao
           - figata
           - master
+          - stable
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
