@@ -728,14 +728,19 @@ fi
 # rootfs-only: extract rootfs + data from full image, or flash pre-trimmed / standalone squashfs
 if [ "rootfs" = "$upgrade" ]; then
 	clone_app /bin/busybox
-	if pidof watchdog >/dev/null 2>&1; then
-		killall watchdog 2>/dev/null
-		i=0
-		while pidof watchdog >/dev/null 2>&1; do
-			i=$((i + 1))
-			[ $i -gt 10 ] && break
-			sleep 1
-		done
+	if [ -c /dev/watchdog ]; then
+		if pidof watchdog >/dev/null 2>&1; then
+			killall watchdog 2>/dev/null
+			i=0
+			while pidof watchdog >/dev/null 2>&1; do
+				i=$((i + 1))
+				[ $i -gt 10 ] && break
+				sleep 1
+			done
+		fi
+		ln -sf "$workdir/busybox" "$workdir/watchdog"
+		watchdog -T 30 -t 10 -F /dev/watchdog &
+		echo "Hardware watchdog taken over (30s timeout)"
 	fi
 	stop_services
 	echo_c 112 "\nUpgrading rootfs + data"
@@ -774,6 +779,7 @@ if [ "rootfs" = "$upgrade" ]; then
 
 	echo_c 46 "\nRootfs upgrade complete. Rebooting..."
 	sync
+	killall watchdog 2>/dev/null && sleep 1
 	$workdir/busybox reboot -f
 	exit 0
 fi
@@ -788,20 +794,22 @@ if [ -z "$mtd_dev" ]; then
 			# Clone busybox to tmpfs before the dd loop so that
 			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
 			clone_app /bin/busybox
-			# Disarm the hardware watchdog before erasing flash.
-			# The original daemon (60s timeout) could reset the CPU
-			# mid-erase if any partition takes too long, corrupting
-			# the SPI flash and bricking the camera.
-			# SIGTERM makes busybox watchdog write 'V' (disarm),
-			# then exit cleanly, freeing the device.
-			if pidof watchdog >/dev/null 2>&1; then
-				killall watchdog 2>/dev/null
-				i=0
-				while pidof watchdog >/dev/null 2>&1; do
-					i=$((i + 1))
-					[ $i -gt 10 ] && break
-					sleep 1
-				done
+			# Take over the hardware watchdog from tmpfs so a hung
+			# flash (e.g. SSH timeout, stuck erase) doesn't leave
+			# the camera bricked with no recovery.
+			if [ -c /dev/watchdog ]; then
+				if pidof watchdog >/dev/null 2>&1; then
+					killall watchdog 2>/dev/null
+					i=0
+					while pidof watchdog >/dev/null 2>&1; do
+						i=$((i + 1))
+						[ $i -gt 10 ] && break
+						sleep 1
+					done
+				fi
+				ln -sf "$workdir/busybox" "$workdir/watchdog"
+				watchdog -T 30 -t 10 -F /dev/watchdog &
+				echo "Hardware watchdog taken over (30s timeout)"
 			fi
 			stop_services
 			needle=0
@@ -825,6 +833,8 @@ if [ -z "$mtd_dev" ]; then
 			done <"$workdir/mtd.txt"
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
+			# Disarm the tmpfs watchdog before triggering the WDT reset.
+			killall watchdog 2>/dev/null && sleep 1
 			sleep 5
 			if [ -w /proc/jz/reset/reset ]; then
 				echo wdt >/proc/jz/reset/reset
