@@ -7,6 +7,9 @@ qstrip ?= $(strip $(subst ",,$(1)))
 
 SOC_VENDOR := ingenic
 
+# Per-vendor build rules, included by the top-level Makefile.
+SOC_VENDOR_MK := $(BR2_EXTERNAL)/board/$(SOC_VENDOR)/vendor.mk
+
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)

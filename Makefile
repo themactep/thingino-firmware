@@ -230,6 +230,12 @@ HOST_DIR = $(OUTPUT_DIR)/host
 # include thingino makefile only when board configuration is available
 ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
+# Vendor build rules. Missing means the vendor has no board support layer, which
+# is a packaging bug rather than a configuration the user can reach.
+ifeq ($(wildcard $(SOC_VENDOR_MK)),)
+$(error no vendor build rules for SOC_VENDOR '$(SOC_VENDOR)' (expected $(SOC_VENDOR_MK)))
+endif
+include $(SOC_VENDOR_MK)
 endif
 
 # Capped XBurst1 SoCs (T10/T20/T21/T30) boot a TPL chain with modern u-boot; allow legacy names
@@ -1154,7 +1160,7 @@ endif
 # Rebuild U-Boot with actual partition sizes after rootfs is ready
 $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
-	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools $(VENDOR_BOOTLOADER_TARGETS))
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	@$(TEAL) "$@"
