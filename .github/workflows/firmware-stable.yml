@@ -175,7 +175,7 @@ jobs:
           echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
       - name: Send build start notification via Telegram
-        if: env.TG_DISABLED == 'false'
+        if: ${{ env.TG_DISABLED == 'false' && env.TG_TOKEN != '' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -184,7 +184,7 @@ jobs:
           # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
           gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=${{ github.event.inputs.branch || github.ref_name }}" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
           chmod +x /tmp/tg-notify.sh
-          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+          /tmp/tg-notify.sh -s "$TG_TOKEN" "$TG_CHANNEL" "$TG_TOPIC" start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
     runs-on: ubuntu-26.04
@@ -548,24 +548,24 @@ jobs:
           7z a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with attachment
-        if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
+        if: ${{ env.TG_DISABLED == 'false' && env.TG_TOKEN != '' && (env.FULL_FW) }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }} /tmp/thingino-${{ matrix.thingino-version }}.7z
+          .github/scripts/tg-notify.sh -s "$TG_TOKEN" "$TG_CHANNEL" "$TG_TOPIC" completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }} /tmp/thingino-${{ matrix.thingino-version }}.7z
           fi
 
       - name: Send error notification
-        if: ${{ env.TG_DISABLED == 'false' && failure() }}
+        if: ${{ env.TG_DISABLED == 'false' && env.TG_TOKEN != '' && failure() }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s "$TG_TOKEN" "$TG_CHANNEL" "$TG_TOPIC" error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
 
   finalize-release:
     needs: [buildroot, prepare-release, check-updates]
@@ -708,7 +708,7 @@ jobs:
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
       - name: Send notify completion summary
-        if: ${{ env.TG_DISABLED == 'false' }}
+        if: ${{ env.TG_DISABLED == 'false' && env.TG_TOKEN != '' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -722,4 +722,4 @@ jobs:
           # fetch just the notifier script via gh (no curl/wget dependency; works in containers too)
           gh api "repos/${{ github.repository }}/contents/.github/scripts/tg-notify.sh?ref=${{ github.event.inputs.branch || github.ref_name }}" -H "Accept: application/vnd.github.raw" > /tmp/tg-notify.sh
           chmod +x /tmp/tg-notify.sh
-          /tmp/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          /tmp/tg-notify.sh -s "$TG_TOKEN" "$TG_CHANNEL" "$TG_TOPIC" finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
