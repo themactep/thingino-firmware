@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# Disable the companion MCU's hardware watchdog as early as possible.
+#
+# This runs before F00ledd (rcF processes /etc/init.d/F* in lexicographic
+# order; "F00a" sorts before "F00l"), i.e. before LED init, before the
+# failsafe console prompt, and long before any S*-numbered script. If the
+# MCU's watchdog is armed by default and not disabled quickly, it can
+# power-cycle the whole SoC -- see package/thingino-mcu-wdt's Config.in.
+#
+# /usr/bin/disable_mcu_wdt is the vendor's own extracted recovery-initramfs
+# binary (unmodified) -- it does its own GPIO wake-pulse + I2C command +
+# retry loop internally. This script only invokes it and logs the result;
+# it does not reimplement any of that protocol.
+
+MCU_WDT_BIN="/usr/bin/disable_mcu_wdt"
+
+start() {
+	[ -x "$MCU_WDT_BIN" ] || {
+		echo "mcuwdt: $MCU_WDT_BIN missing or not executable" >&2
+		exit 1
+	}
+
+	"$MCU_WDT_BIN"
+	ret=$?
+	if [ "$ret" -ne 0 ]; then
+		echo "mcuwdt: disable_mcu_wdt exited $ret (see above for its own error output)" >&2
+	fi
+	exit 0
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop | restart | *)
+		true
+		;;
+esac

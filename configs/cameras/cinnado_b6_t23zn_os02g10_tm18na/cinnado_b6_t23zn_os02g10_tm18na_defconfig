@@ -1,0 +1,48 @@
+# NAME: Cinnado B6 (T23ZN, OS02G10, TM18NA LTE)
+# FRAG: soc-xburst1 core ssl
+#
+# SoC:     Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
+# Sensor:  OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
+# Cellular: TUGE Technologies TM18NA (UNISOC V8850 baseband), USB (T23 dwc2 host mode)
+# MCU:     MindMotion MM32F0020B1T (Cortex-M0), I2C addr 0x11, PIR/battery/power/watchdog
+# Flash:   16MB NOR SPI
+#
+# NOTES:
+#  - This is the LTE sibling of cinnado_b6_t23zn_os02g10_atbm6461 (same
+#    "Cinnado B6" chassis/PTZ family, T23ZN + OS02G10), but with a TM18NA LTE
+#    module in place of the ATBM6461 WiFi/SDIO chip. Reverse-engineered from
+#    stock firmware firmware_T23ZN_20260803_2026.bin -- no live hardware access
+#    yet, so PTZ/GPIO map below is carried over from the WiFi sibling's own
+#    "best available guess... verify on hardware" starting point, not confirmed
+#    for this exact variant.
+#  - CRITICAL: the stock firmware disables the MCU's hardware watchdog very
+#    early in boot (before its normal init sequence) via a dedicated recovery
+#    tool. See package/thingino-mcu-wdt, which ships that same extracted vendor
+#    binary and runs it from an F00a-prefixed script -- before F00ledd, ahead
+#    of the rest of rcF/rcS. If first boot reboot-loops, this is the first
+#    thing to suspect (watchdog window tighter than an F-script can catch).
+#  - MCU I2C bus is unconfirmed: stock lp_mgr/mcu_test use i2c-1, but the
+#    recovery tool itself uses i2c-2 (different, reduced-driver boot context).
+#    Both I2C0 and I2C1 hardware controllers are enabled in the kernel fragment
+#    so this can be verified with i2cdetect once on hardware.
+BR2_INGENIC_SOC_MODEL="t23zn"
+BR2_ISP_CLKA_600MHZ=y
+BR2_ISP_CLKA_SCLKA=y
+BR2_ISP_CLK_200MHZ=y
+BR2_ISP_CLK_SCLKA=y
+BR2_ISP_PRINT_LEVEL_0=y
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/cinnado_b6_t23zn_os02g10_tm18na/cinnado_b6_t23zn_tm18na.kernel.config"
+BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
+BR2_PACKAGE_I2C_TOOLS=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
+BR2_PACKAGE_THINGINO_MCU_WDT=y
+BR2_PACKAGE_USBNET=y
+BR2_PACKAGE_USBNET_WWAN_SERIAL=y
+BR2_SENSOR_1_NAME="os02g10"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_MOTORS=y
+BR2_THINGINO_RMEM_MB=18
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16
