@@ -130,6 +130,15 @@ if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
 			ha_pub_state white OFF "$FORCE"; }
 fi
 
+# Camera config sensor (IMAGE_ID from os-release, always published)
+image_id=""
+for f in /etc/os-release /usr/lib/os-release; do
+	[ -f "$f" ] || continue
+	image_id=$(grep '^IMAGE_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+	[ -n "$image_id" ] && break
+done
+[ -n "$image_id" ] && ha_pub_state camera_config "$image_id" "$FORCE"
+
 # Firmware version & build sensors (both parse the same COMMIT_ID field)
 # Format: "release+commit, YYYY-MM-DD HH:MM:SS +0000"
 #   firmware_version → "release+commit"
