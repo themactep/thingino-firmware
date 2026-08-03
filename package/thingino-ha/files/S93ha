@@ -11,17 +11,20 @@ start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
 }
 
-# ha-daemon is a shell script: matching with -x compares /proc/PID/exe,
-# which points to the interpreter, not the script. Match by name instead.
+# ha-daemon is a shell script.  start-stop-daemon -K with -n can miss
+# shell-script processes on some BusyBox versions (matching against
+# /proc/PID/exe vs /proc/PID/comm asymmetry).  Use pidof + kill
+# instead — pidof reliably finds scripts by searching cmdline, and
+# kill works regardless of how the kernel names the process.
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -n "$DAEMON_NAME"
-		status=$?
+		kill "$(cat "$PIDFILE")" 2>/dev/null
 		rm -f "$PIDFILE"
-		return $status
 	fi
-
-	start-stop-daemon -K -n "$DAEMON_NAME"
+	# Kill any stragglers that pidof can still see
+	local pids
+	pids=$(pidof "$DAEMON_NAME" 2>/dev/null)
+	[ -n "$pids" ] && kill $pids 2>/dev/null
 }
 
 read_config() {
@@ -56,6 +59,9 @@ wait_for_ha_shutdown() {
 start() {
 	echo -c 15 "Starting HA daemon"
 
+	# Clear stop flag from previous shutdown
+	rm -f /run/ha-stop
+
 	if [ "true" != "$(read_config "ha.enabled")" ]; then
 		echo "Disabled" >&2
 		exit 1
@@ -85,17 +91,36 @@ stop() {
 	# Provides HA_CAMERA_ID, needed to match this camera's mosquitto clients
 	[ -f /usr/share/ha-common ] && . /usr/share/ha-common
 
-	# Kill the watchdog FIRST — if we stop ha-daemon before the watchdog,
-	# the watchdog sees a missing PID file and respawns everything.
-	# Use the PID file: killall can't match scripts (comm is "sh").
+	# Signal the watchdog to exit before we do anything else.
+	# If the watchdog survives our kill signals (race window between
+	# kill returning and the signal being delivered), it sees this flag
+	# and exits instead of restarting ha-daemon.
+	touch /run/ha-stop
+
+	# Kill the watchdog FIRST and VERIFY it is dead before touching
+	# ha-daemon.  Otherwise the watchdog can see ha-daemon's PID file
+	# disappear (removed by stop_daemon below) and call S93ha restart
+	# before we get a chance to kill it — producing an infinite restart
+	# loop that stalls shutdown.
 	if [ -f "$WATCHDOG_PIDFILE" ]; then
 		kill "$(cat "$WATCHDOG_PIDFILE")" 2>/dev/null
 		rm -f "$WATCHDOG_PIDFILE"
 	fi
+	killall -q ha-watchdog 2>/dev/null
 
+	# Wait for the watchdog to actually die.  kill(1) returns before
+	# the signal is delivered; without this wait the watchdog can still
+	# be alive when we kill ha-daemon below.
+	local wdog_timeout=30
+	while [ "$wdog_timeout" -gt 0 ]; do
+		pidof ha-watchdog >/dev/null 2>&1 || break
+		sleep 0.1
+		wdog_timeout=$((wdog_timeout - 1))
+	done
+
+	# Now safe to kill ha-daemon — the watchdog cannot respawn it.
 	stop_daemon
-	killall -q ha-watchdog ha-commands ha-discovery ha-state 2>/dev/null
-	rm -f "$WATCHDOG_PIDFILE"
+	killall -q ha-commands ha-discovery ha-state 2>/dev/null
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
@@ -108,6 +133,8 @@ stop() {
 		fi
 		wait_for_ha_shutdown || true
 	fi
+
+	rm -f /run/ha-stop
 }
 
 case "$1" in
