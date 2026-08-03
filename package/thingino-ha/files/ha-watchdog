@@ -32,7 +32,13 @@ while true; do
 		continue
 	fi
 
-	# ha-daemon not running — publish offline and restart
+	# ha-daemon not running — check for stop flag, then restart
+	if [ -f /run/ha-stop ]; then
+		echo "ha-watchdog: stop flag set, exiting" >&2
+		logger -t ha-watchdog "stop flag set, exiting"
+		exit 0
+	fi
+
 	echo "ha-watchdog: ha-daemon not running, restarting in ${RESTART_DELAY}s (backoff=${backoff}s)" >&2
 	logger -t ha-watchdog "ha-daemon died, restarting"
 
