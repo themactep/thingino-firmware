@@ -1,0 +1,15 @@
+diff --git a/pppd/sys-linux.c b/pppd/sys-linux.c
+--- a/pppd/sys-linux.c
++++ b/pppd/sys-linux.c
+@@ -142,6 +142,11 @@
+ #define IFLA_PPP_DEV_FD 1
+ #endif
+
++/* linux kernel headers prior to 4.3 do not define IFLA_VRF_TABLE */
++#ifndef IFLA_VRF_TABLE
++#define IFLA_VRF_TABLE 1
++#endif
++
+ #include "pppd-private.h"
+ #include "options.h"
+ #include "fsm.h"
