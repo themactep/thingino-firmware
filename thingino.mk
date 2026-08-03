@@ -5,7 +5,13 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # SOC
 #
 
+# Ingenic is the fallback, not just the default: this file is parsed before
+# .config exists on some paths, and every existing defconfig sets no vendor
+# symbol at all.
 SOC_VENDOR := ingenic
+ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
+SOC_VENDOR := sigmastar
+endif
 
 # Target architecture of the cross toolchain, one line per vendor. It has to be
 # resolved here rather than read from the BR2_mipsel/BR2_arm the SoC fragment
