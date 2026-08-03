@@ -1,8 +1,25 @@
 menu "Core Device Configuration"
 
 menu "SOC Configuration"
+
+choice
+	prompt "SoC vendor"
+	default BR2_SOC_VENDOR_INGENIC
+	help
+	  Silicon vendor of this camera's SoC. Selects which board support
+	  layer applies and which SoC model space is offered below.
+
+config BR2_SOC_VENDOR_INGENIC
+	bool "Ingenic"
+
+config BR2_SOC_VENDOR_SIGMASTAR
+	bool "SigmaStar"
+
+endchoice
+
 config BR2_INGENIC_SOC_MODEL
 	string "SoC Model"
+	depends on BR2_SOC_VENDOR_INGENIC
 	default ""
 	help
 	  Enter the Ingenic SoC model name for your device (e.g., t31x, t40n, t41nq).
