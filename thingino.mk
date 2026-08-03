@@ -5,7 +5,13 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # SOC
 #
 
+# Ingenic is the fallback, not just the default: this file is parsed before
+# .config exists on some paths, and every existing defconfig sets no vendor
+# symbol at all.
 SOC_VENDOR := ingenic
+ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
+SOC_VENDOR := sigmastar
+endif
 
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
