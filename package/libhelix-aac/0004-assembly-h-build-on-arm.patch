@@ -1,0 +1,20 @@
+assembly.h selects a MULSHIFT32/FASTABS/CLZ implementation per platform and
+ends the chain in "#error Unsupported platform in assembly.h". Both ARM
+branches are disabled by misspelt guards -- "defined (XXX__arm)" and
+"defined(XXXX__arm__)" -- so an ARM GCC build matches nothing and hits the
+#error. The portable C branch below covers ARDUINO, mips, powerpc and Solaris
+but not arm.
+
+Add __arm__/__aarch64__ to that branch, which is the path mips already takes.
+
+--- a/src/libhelix-aac/assembly.h
++++ b/src/libhelix-aac/assembly.h
+@@ -533,7 +533,7 @@ static __inline Word64 MADD64(Word64 sum64, int x, int y) {
+     return sum64;
+ }
+ 
+-#elif defined(ARDUINO) || defined(__GNUC__) && (defined(__mips__) || defined(__MIPS__)) || defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) || (defined (_SOLARIS) && !defined (__GNUC__) && !defined (_SOLARISX86))
++#elif defined(ARDUINO) || defined(__GNUC__) && (defined(__mips__) || defined(__MIPS__)) || defined(__GNUC__) && (defined(__arm__) || defined(__aarch64__)) || defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) || (defined (_SOLARIS) && !defined (__GNUC__) && !defined (_SOLARISX86))
+ 
+ typedef long long Word64;
+ 
