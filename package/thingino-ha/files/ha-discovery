@@ -18,23 +18,26 @@
 # ---------------------------------------------------------------------------
 # Device info
 # ---------------------------------------------------------------------------
-get_firmware_version() {
-	local ver
+get_os_release_field() {
+	local field="$1" val
 	for f in /etc/os-release /usr/lib/os-release; do
 		[ -f "$f" ] || continue
-		ver=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-		[ -n "$ver" ] && echo "$ver" && return
+		val=$(grep "^${field}=" "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+		[ -n "$val" ] && echo "$val" && return
 	done
-	echo "unknown"
 }
 
-FW_VERSION=$(get_firmware_version)
+FW_VERSION=$(get_os_release_field COMMIT_ID)
+FW_VERSION="${FW_VERSION:-unknown}"
+HW_VERSION=$(get_os_release_field IMAGE_ID)
 
 DEVICE_NAME=$(ha_cfg device_name)
 DEVICE_NAME="${DEVICE_NAME:-$HA_CAMERA_HOSTNAME}"
 
+IMAGE_NAME=$(get_os_release_field IMAGE_NAME)
+
 DEVICE_MODEL=$(ha_cfg device_model)
-DEVICE_MODEL="${DEVICE_MODEL:-Thingino Camera}"
+DEVICE_MODEL="${DEVICE_MODEL:-${IMAGE_NAME:-Thingino Camera}}"
 
 DISC_PREFIX=$(ha_cfg discovery_prefix)
 DISC_PREFIX="${DISC_PREFIX:-homeassistant}"
@@ -42,7 +45,7 @@ DISC_PREFIX="${DISC_PREFIX:-homeassistant}"
 # ---------------------------------------------------------------------------
 # Shared JSON fragments reused by every entity
 # ---------------------------------------------------------------------------
-DEVICE_JSON="{\"identifiers\":[\"thingino_${HA_CAMERA_ID}\"],\"name\":\"$(ha_json_escape "$DEVICE_NAME")\",\"model\":\"$(ha_json_escape "$DEVICE_MODEL")\",\"manufacturer\":\"Thingino\",\"sw_version\":\"$(ha_json_escape "$FW_VERSION")\",\"configuration_url\":\"http://${HA_CAMERA_IP}\"}"
+DEVICE_JSON="{\"identifiers\":[\"thingino_${HA_CAMERA_ID}\"],\"name\":\"$(ha_json_escape "$DEVICE_NAME")\",\"model\":\"$(ha_json_escape "$DEVICE_MODEL")\",\"manufacturer\":\"Thingino\",\"sw_version\":\"$(ha_json_escape "$FW_VERSION")\",\"hw_version\":\"$(ha_json_escape "$HW_VERSION")\",\"configuration_url\":\"http://${HA_CAMERA_IP}\"}"
 AVAIL_JSON="{\"topic\":\"${HA_AVAIL_TOPIC}\",\"payload_available\":\"online\",\"payload_not_available\":\"offline\"}"
 
 ST="cameras/${HA_CAMERA_ID}"
@@ -145,6 +148,10 @@ if ha_entity_enabled white_light && light_gpio_ok white; then
 else
 	ha_clear_disc switch white
 fi
+
+# Sensor: Camera config (IMAGE_ID from os-release, always published)
+ha_pub_disc sensor camera_config \
+	"{\"name\":\"Camera Config\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_camera_config\",\"state_topic\":\"${ST}/camera_config/state\",\"icon\":\"mdi:cog\",\"entity_category\":\"diagnostic\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 
 # Sensor: Firmware version
 if ha_entity_enabled firmware_version; then
