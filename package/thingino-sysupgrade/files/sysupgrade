@@ -410,6 +410,7 @@ stop_services() {
 
 	echo_c 112 "\nRunning processes:"
 	ps w
+	echo
 }
 
 update_self() {
@@ -726,6 +727,17 @@ fi
 
 # rootfs-only: extract rootfs + data from full image, or flash pre-trimmed / standalone squashfs
 if [ "rootfs" = "$upgrade" ]; then
+	clone_app /bin/busybox
+	if pidof watchdog >/dev/null 2>&1; then
+		killall watchdog 2>/dev/null
+		i=0
+		while pidof watchdog >/dev/null 2>&1; do
+			i=$((i + 1))
+			[ $i -gt 10 ] && break
+			sleep 1
+		done
+	fi
+	stop_services
 	echo_c 112 "\nUpgrading rootfs + data"
 	rdev=$(get_mtd_dev rootfs)
 	rsz=$(get_mtd_size rootfs)
@@ -762,7 +774,7 @@ if [ "rootfs" = "$upgrade" ]; then
 
 	echo_c 46 "\nRootfs upgrade complete. Rebooting..."
 	sync
-	reboot -f
+	$workdir/busybox reboot -f
 	exit 0
 fi
 
@@ -773,6 +785,25 @@ if [ -z "$mtd_dev" ]; then
 			# Full upgrade: flash each partition individually.
 			# Writing to "all" fails on kernels that protect overlapping MTD regions.
 			echo "Full firmware upgrade"
+			# Clone busybox to tmpfs before the dd loop so that
+			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
+			clone_app /bin/busybox
+			# Disarm the hardware watchdog before erasing flash.
+			# The original daemon (60s timeout) could reset the CPU
+			# mid-erase if any partition takes too long, corrupting
+			# the SPI flash and bricking the camera.
+			# SIGTERM makes busybox watchdog write 'V' (disarm),
+			# then exit cleanly, freeing the device.
+			if pidof watchdog >/dev/null 2>&1; then
+				killall watchdog 2>/dev/null
+				i=0
+				while pidof watchdog >/dev/null 2>&1; do
+					i=$((i + 1))
+					[ $i -gt 10 ] && break
+					sleep 1
+				done
+			fi
+			stop_services
 			needle=0
 			tail -n +2 /proc/mtd >"$workdir/mtd.txt"
 			while read -r mtd sz _ name; do
@@ -786,7 +817,7 @@ if [ -z "$mtd_dev" ]; then
 				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
 				flash_eraseall "/dev/$mtd" 2>/dev/null || true
 				if ! dd if="$fw_file" of="/dev/$mtd" bs=65536 \
-					skip=$skip count=$count; then
+					skip=$skip count=$count 2>/dev/null; then
 					die "dd $name failed"
 				fi
 				sync
@@ -799,7 +830,7 @@ if [ -z "$mtd_dev" ]; then
 				echo wdt >/proc/jz/reset/reset
 				sleep 2
 			fi
-			reboot -f
+			$workdir/busybox reboot -f
 			exit 0
 			;;
 		"$KERNEL_MAGIC")
