@@ -31,31 +31,6 @@ read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
 }
 
-ha_processes_gone() {
-	local proc
-	for proc in ha-daemon ha-commands ha-discovery ha-state ha-watchdog; do
-		if pidof "$proc" >/dev/null 2>&1; then
-			return 1
-		fi
-	done
-	if [ -n "$HA_CAMERA_ID" ]; then
-		if pgrep -f "mosquitto_.*${HA_CAMERA_ID}" >/dev/null 2>&1; then
-			return 1
-		fi
-	fi
-	return 0
-}
-
-wait_for_ha_shutdown() {
-	local timeout=20
-	while [ "$timeout" -gt 0 ]; do
-		ha_processes_gone && return 0
-		sleep 1
-		timeout=$((timeout - 1))
-	done
-	return 1
-}
-
 start() {
 	echo -c 15 "Starting HA daemon"
 
@@ -124,14 +99,16 @@ stop() {
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
-	if ! wait_for_ha_shutdown; then
-		start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
-		pkill -9 -f ha-watchdog 2>/dev/null
-		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
-		if [ -n "$HA_CAMERA_ID" ]; then
-			pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
-		fi
-		wait_for_ha_shutdown || true
+
+	# Give processes a brief moment to exit gracefully (offline MQTT),
+	# then force-kill any survivors.  No long polling — the MQTT broker
+	# detects TCP disconnect via keepalive if we miss the offline message.
+	sleep 1
+	start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
+	pkill -9 -f ha-watchdog 2>/dev/null
+	killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
+	if [ -n "$HA_CAMERA_ID" ]; then
+		pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
 
 	rm -f /run/ha-stop
