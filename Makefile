@@ -942,12 +942,6 @@ backup-overlay:
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	$(SCRIPTS_DIR)/backup_overlay.sh $(CAMERA_IP_ADDRESS) $(THINGINO_BACKUP_DIR)
 
-# backup /overlay from a camera to a local tarball
-backup-overlay:
-	@$(TEAL) "$@"
-	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
-	$(SCRIPTS_DIR)/backup_overlay.sh $(CAMERA_IP_ADDRESS) $(THINGINO_BACKUP_DIR)
-
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
 	@$(TEAL) "$@"
