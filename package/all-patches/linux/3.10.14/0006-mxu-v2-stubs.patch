@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thingino Project <dev@thingino.com>
+Date: Sun, 3 Aug 2026 00:00:00 +0000
+Subject: [PATCH] arch/mips/xburst: replace missing mxu-v2-ex.obj with C stubs
+
+The pre-compiled mxu-v2-ex.obj was excluded from the cumulative
+kernel patch by the diff '-x *.obj' filter. Replace with C stubs
+compiled from source.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+ arch/mips/xburst/core/Makefile    | 2 +-
+ arch/mips/xburst/core/mxu-v2-ex.c | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+ create mode 100644 arch/mips/xburst/core/mxu-v2-ex.c
+
+diff --git a/arch/mips/xburst/core/Makefile b/arch/mips/xburst/core/Makefile
+index aaaaaaaa..bbbbbbbb 100644
+--- a/arch/mips/xburst/core/Makefile
++++ b/arch/mips/xburst/core/Makefile
+@@ -1,4 +1,4 @@
+-obj-y += prom.o mxu-v2-ex.obj
++obj-y += prom.o mxu-v2-ex.o
+ 
+ obj-$(CONFIG_JZ_CPU_SCACHE)	+= sc-jz.o
+ obj-$(CONFIG_TRAPS_USE_TCSM) += tcsm.o
+diff --git a/arch/mips/xburst/core/mxu-v2-ex.c b/arch/mips/xburst/core/mxu-v2-ex.c
+new file mode 100644
+index 0000000000..a1b2c3d4e5
+--- /dev/null
++++ b/arch/mips/xburst/core/mxu-v2-ex.c
+@@ -0,0 +1,20 @@
++/*
++ * Stub replacements for the missing mxu-v2-ex.obj.
++ * T31 and similar SoCs do not have MXU v2 extensions.
++ */
++#include <linux/types.h>
++
++struct xburst_cop2_state;
++
++int soc_support_mxuv2(void)
++{
++	return 0;
++}
++
++void xburst_cop2_save(struct xburst_cop2_state *state)
++{
++}
++
++void xburst_cop2_restore(struct xburst_cop2_state *state)
++{
++}

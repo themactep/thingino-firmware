@@ -21,7 +21,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail"
+bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
@@ -397,6 +397,10 @@ fi
 check_upgrade_partitions
 
 # work in $workdir
+if [ -d "$workdir" ] && [ "$(dirname "$self")" != "$workdir" ]; then
+	echo_c 112 "\nRemove stale $workdir from a previous run"
+	rm -rf "$workdir"
+fi
 if [ ! -d "$workdir" ]; then
 	echo_c 112 "\nCreate $workdir directory"
 	if ! mkdir -p "$workdir"; then
@@ -412,18 +416,31 @@ if [ -z "$upgrade" ]; then
 		echo_c 112 "\nUpgrade from a remote file"
 		url="$1"
 	else
-		echo_c 112 "\nUpgrade from a local file $fw_file"
-		if [ -f "$fw_file" ]; then
-			echo "Found $fw_file"
-		else
-			ufile="$(realpath "$1")"
-			if [ ! -r "$ufile" ]; then
-				die "Cannot find file $ufile (from $(pwd))"
-			fi
-			echo "Found $ufile"
-			mv -fv "$ufile" "$fw_file"
-			ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
+		echo_c 112 "\nUpgrade from a local file"
+		ufile="$(realpath "$1" 2>/dev/null)"
+		if [ -z "$ufile" ] || [ ! -r "$ufile" ]; then
+			die "Cannot find file $1 (from $(pwd))"
 		fi
+		echo "Found $ufile"
+		case "$ufile" in
+			"$fw_file")
+				# Re-run after the file was already relocated into the workdir.
+				;;
+			"$SD_CARD_ROOT"/*)
+				# Flash directly from the SD card, do not pull the file into tmpfs.
+				echo "Using firmware in place on the SD card"
+				fw_file="$ufile"
+				;;
+			*)
+				# Remove stale leftovers so they do not eat tmpfs space.
+				rm -f "$fw_file"
+				if ! mv -fv "$ufile" "$fw_file"; then
+					rm -f "$fw_file"
+					die "Cannot move $ufile to $fw_file"
+				fi
+				ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
+				;;
+		esac
 	fi
 fi
 
@@ -475,7 +492,6 @@ handle_payload "$@"
 if [ "boot" = "$upgrade" ]; then
 	echo_c 112 "\nUpgrading bootloader"
 	extract_bootloader "$fw_file"
-	flash_eraseall /dev/mtd0
 	flashcp -v "$fw_file" /dev/mtd0
 	exit 0
 fi
@@ -529,7 +545,10 @@ echo_c 112 "\nPartitions"
 cat /proc/mtd
 
 echo_c 208 "Switch to Stage 2.\n"
-if ! PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
+watchdog_device=$(jct /dev/thingino.json get watchdog.device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
+if ! WATCHDOG_DEV="$watchdog_device" PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
 	echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi

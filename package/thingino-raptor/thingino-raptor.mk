@@ -122,6 +122,8 @@ endif
 # Override LIB_HAL etc. to point at staging .a files.
 # Use EXTRA_CFLAGS (not CFLAGS) so the raptor Makefile keeps its own flags.
 define THINGINO_RAPTOR_BUILD_CMDS
+	# GCC 16: raptor enables -Werror; relax to warnings-only for new GCC
+	sed -i 's/-Werror/-Wno-error/' $(@D)/Makefile
 	$(MAKE) \
 		RSS_BUILD_HASH="$(THINGINO_RAPTOR_VERSION)" \
 		PLATFORM=$(THINGINO_RAPTOR_PLATFORM) \

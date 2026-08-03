@@ -22,41 +22,64 @@
     return base + "?ts=" + assetTag;
   }
 
+  function applyPluginNav(menu) {
+    const plugins = (uiConfig && uiConfig.plugins) || {};
+    for (const [, plugin] of Object.entries(plugins)) {
+      if (!plugin.nav) continue;
+      for (const contribution of plugin.nav) {
+        const sectionId = contribution.section;
+        if (!sectionId) continue;
+        const section = menu.find(
+          (item) => item.type === "dropdown" && item.id === sectionId,
+        );
+        if (!section || !section.items) continue;
+        const items = section.items;
+        const newItems = contribution.items || [];
+        if (!newItems.length) continue;
+        const position = contribution.position || "append";
+        let idx;
+        if (position === "append") {
+          idx = items.length;
+        } else if (position === "prepend") {
+          idx = 0;
+        } else if (position.startsWith("after:")) {
+          const label = position.slice(6).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found + 1;
+        } else if (position.startsWith("before:")) {
+          const label = position.slice(7).trim();
+          const found = items.findIndex(function (it) {
+            return it.label === label;
+          });
+          idx = found === -1 ? items.length : found;
+        } else if (position.startsWith("index:")) {
+          idx = parseInt(position.slice(6), 10) || 0;
+          idx = Math.max(0, Math.min(idx, items.length));
+        } else {
+          idx = items.length;
+        }
+        items.splice.apply(items, [idx, 0].concat(newItems));
+      }
+    }
+    return menu;
+  }
+
   function buildDefaultMenu() {
-    const hasMotors = uiConfig.device && uiConfig.device.motors === true;
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
-      { label: "GPIO pins", href: "/config-gpio.html" },
-      {
-        label: "Doorbell Chime",
-        href: "/config-doorbell.html",
-        className: "doorbell-nav",
-        hidden: true,
-      },
     ];
-
-    if (hasMotors) {
-      settingsItems.push({
-        label: "Pan/Tilt motors",
-        href: "/config-motors.html",
-      });
-    }
 
     settingsItems.push(
       { label: "Network", href: "/config-network.html" },
       { label: "Audio", href: "/config-audio.html" },
-      { label: "Privacy screen", href: "/config-privacy.html" },
-      { label: "Photosensing", href: "/config-photosensing.html" },
-      { label: "Dusk2Dawn", href: "/config-dusk2dawn.html" },
       { label: "RTSP/ONVIF access", href: "/config-rtsp.html" },
       { label: "Remote logging", href: "/config-syslog.html" },
-      { label: "Telegram Bot", href: "/config-telegrambot.html" },
       { label: "Time", href: "/config-time.html" },
       { label: "Web Interface", href: "/config-webui.html" },
-      { label: "WireGuard VPN", href: "/config-wireguard.html" },
-      { label: "ZeroTier VPN", href: "/config-zerotier.html" },
       { type: "divider" },
       { label: "Reset...", href: "/reset.html" },
     );
@@ -134,7 +157,6 @@
           { label: "Timelapse Recorder", href: "/tool-timelapse.html" },
           { label: "Video Recorder", href: "/tool-record.html" },
           { label: "Home Assistant", href: "/config-ha.html" },
-          { label: "MQTT Subscriptions", href: "/tool-mqtt-sub.html" },
         ],
       },
       {
@@ -195,8 +217,8 @@
 
   const menuData =
     Array.isArray(globalConfig.items) && globalConfig.items.length
-      ? globalConfig.items
-      : buildDefaultMenu();
+      ? applyPluginNav(globalConfig.items)
+      : applyPluginNav(buildDefaultMenu());
 
   function ready(fn) {
     if (document.readyState === "loading") {

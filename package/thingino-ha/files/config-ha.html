@@ -65,6 +65,12 @@
                   <input type="checkbox" id="ha_mqtt_use_ssl" class="form-check-input" role="switch">
                   <label for="ha_mqtt_use_ssl" class="form-check-label">Use SSL/TLS</label>
                 </p>
+                <p class="form-switch d-none" id="ha_mqtt_tls_skip_verify_row">
+                  <input type="checkbox" id="ha_mqtt_tls_skip_verify" class="form-check-input" role="switch">
+                  <label for="ha_mqtt_tls_skip_verify" class="form-check-label">Skip TLS certificate verification</label>
+                  <br>
+                  <small class="form-text text-secondary">Insecure: MQTT broker identity will not be verified</small>
+                </p>
               </div>
 
               <!-- Device & Timing -->
@@ -118,6 +124,18 @@
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_motion" class="form-check-input" role="switch">
                     <label for="ha_enable_motion" class="form-check-label">Motion sensor</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_doorbell" class="form-check-input" role="switch">
+                    <label for="ha_enable_doorbell" class="form-check-label">Doorbell button</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_firmware_version" class="form-check-input" role="switch">
+                    <label for="ha_enable_firmware_version" class="form-check-label">Firmware version</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_firmware_timestamp" class="form-check-input" role="switch">
+                    <label for="ha_enable_firmware_timestamp" class="form-check-label">Firmware build</label>
                   </p>
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_gain" class="form-check-input" role="switch">

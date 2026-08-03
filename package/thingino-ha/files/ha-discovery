@@ -74,6 +74,14 @@ else
 	ha_clear_disc binary_sensor motion
 fi
 
+# Binary sensor: Doorbell button pressed
+if ha_entity_enabled doorbell; then
+	ha_pub_disc binary_sensor doorbell \
+		"{\"name\":\"Doorbell\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_doorbell\",\"state_topic\":\"${ST}/doorbell/state\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"device_class\":\"sound\",\"icon\":\"mdi:doorbell\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc binary_sensor doorbell
+fi
+
 # Switch: Motion Guard
 if ha_entity_enabled motion_guard; then
 	ha_pub_disc switch motion_guard \
@@ -138,6 +146,22 @@ else
 	ha_clear_disc switch white
 fi
 
+# Sensor: Firmware version
+if ha_entity_enabled firmware_version; then
+	ha_pub_disc sensor firmware_version \
+		"{\"name\":\"Firmware Version\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_version\",\"state_topic\":\"${ST}/firmware_version/state\",\"icon\":\"mdi:package-up\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc sensor firmware_version
+fi
+
+# Sensor: Firmware build timestamp
+if ha_entity_enabled firmware_timestamp; then
+	ha_pub_disc sensor firmware_timestamp \
+		"{\"name\":\"Firmware Build\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_timestamp\",\"state_topic\":\"${ST}/firmware_timestamp/state\",\"icon\":\"mdi:calendar-clock\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc sensor firmware_timestamp
+fi
+
 # Sensor: Gain
 if ha_entity_enabled gain; then
 	ha_pub_disc sensor gain \
@@ -178,12 +202,14 @@ else
 	ha_clear_disc button reboot
 fi
 
-# Update: OTA firmware
+# Sensor: Latest firmware version (read-only, updates must be done via SSH)
 if ha_entity_enabled ota; then
-	ha_pub_disc update firmware \
-		"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware\",\"state_topic\":\"${ST}/firmware/state\",\"latest_version_topic\":\"${ST}/firmware/latest\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"install\",\"device_class\":\"firmware\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	ha_clear_disc update firmware
+	ha_pub_disc sensor firmware_latest \
+		"{\"name\":\"Firmware Latest\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_latest\",\"state_topic\":\"${ST}/firmware_latest/state\",\"icon\":\"mdi:cloud-download\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc update firmware
+	ha_clear_disc sensor firmware_latest
 fi
 
 # PTZ: always cleared (handled by dedicated ONVIF/RTSP integrations)
@@ -196,6 +222,6 @@ ha_pub_flush
 
 # Mark device online (published directly, not queued — must happen after flush)
 mpub=$(ha_mpub_cmd disc)
-sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 
 echo "ha-discovery: registered ${DEVICE_NAME} (${HA_CAMERA_ID}) on ${HA_MQTT_HOST}:${HA_MQTT_PORT}"

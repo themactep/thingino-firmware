@@ -256,9 +256,9 @@
   if (generateBtn) {
     generateBtn.addEventListener("click", async () => {
       if (
-        !confirm(
+        !(await confirm(
           "Generate a new API key? This will invalidate the old key if it exists.",
-        )
+        ))
       ) {
         return;
       }
@@ -282,7 +282,9 @@
   const deleteBtn = $("#api_key_delete");
   if (deleteBtn) {
     deleteBtn.addEventListener("click", async () => {
-      if (!confirm("Delete the API key? API access will stop working.")) {
+      if (
+        !(await confirm("Delete the API key? API access will stop working."))
+      ) {
         return;
       }
 

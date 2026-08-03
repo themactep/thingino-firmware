@@ -5,6 +5,12 @@ if [ "wlan0" != "$IFACE" ]; then
 	exit 0
 fi
 
+# Portal mode intentionally runs an open AP without stored credentials.
+# Allow the interface to come up so DHCP can serve portal clients.
+if [ -f /run/portal_mode ]; then
+	exit 0
+fi
+
 wlan0_missing() {
 	! test -f /etc/network/interfaces.d/wlan0
 }

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Imports bootloader environment from SD card
+
+ENV_FILE="/mnt/mmcblk0p1/uenv.txt"
+if [ ! -f "$ENV_FILE" ]; then
+	echo "$ENV_FILE is missing" >&2
+	exit 1
+fi
+
+tmpfile=$(mktemp)
+sed 's/=/ /' $ENV_FILE >>$tmpfile
+fw_setenv -s $tmpfile
+rm $tmpfile
+fw_printenv
+
+exit 0

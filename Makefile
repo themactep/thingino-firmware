@@ -177,7 +177,7 @@ TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/r
 TOOLCHAIN_LIBC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/resolve_toolchain_value.sh LIBC $(EARLY_TOOLCHAIN_INPUT_FILES))))
 
 TOOLCHAIN_TYPE_RAW := $(if $(TOOLCHAIN_TYPE_RAW),$(TOOLCHAIN_TYPE_RAW),EXTERNAL)
-TOOLCHAIN_GCC_RAW := $(if $(TOOLCHAIN_GCC_RAW),$(TOOLCHAIN_GCC_RAW),15)
+TOOLCHAIN_GCC_RAW := $(if $(TOOLCHAIN_GCC_RAW),$(TOOLCHAIN_GCC_RAW),16)
 TOOLCHAIN_LIBC_RAW := $(if $(TOOLCHAIN_LIBC_RAW),$(TOOLCHAIN_LIBC_RAW),MUSL)
 
 TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(filter EXTERNAL,$(TOOLCHAIN_TYPE_RAW)),ext,$(if $(filter LOCAL,$(TOOLCHAIN_TYPE_RAW)),loc,ext)))
@@ -631,6 +631,16 @@ endif
 	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
+	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
+	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
+		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
+		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
+		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
+		echo "BR2_LINUX_KERNEL_CUSTOM_GIT=y" >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_URL="$(KERNEL_SITE)"' >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="$(KERNEL_HASH)"' >> $(OUTPUT_DIR)/.config; \
+	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file
@@ -803,6 +813,8 @@ build-info: pack
 # rebuild a package with smart configuration check
 rebuild-uboot: force-config
 	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
 rebuild-%: force-config
@@ -814,7 +826,20 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
+
+bundle-%:
+	@$(TEAL) "$@"
+	@$(BR2_MAKE) $(subst bundle-,,$@)-dirclean $(subst bundle-,,$@)
+	@if [ -f "$(BR2_EXTERNAL)/package/$(subst bundle-,,$@)/files/$(subst bundle-,,$@).webui.json" ]; then \
+		echo "  WebUI plugin detected, assembling..."; \
+		PKG="$(subst bundle-,,$@)"; \
+		rsync -a "$(OUTPUT_DIR)/per-package/$$PKG/target/var/www/" "$(OUTPUT_DIR)/target/var/www/"; \
+		python3 "$(BR2_EXTERNAL)/package/thingino-webui/scripts/assemble_plugins.py" "$(OUTPUT_DIR)/target" || true; \
+	fi
+	@$(BR2_EXTERNAL)/scripts/make-bundle.sh "$(subst bundle-,,$@)" "$(CAMERA)" "$(OUTPUT_DIR)"
 
 remove_bins:
 	@$(TEAL) "$@"
@@ -1095,21 +1120,26 @@ $(KERNEL_BIN):
 # rebuild rootfs (depends on kernel to ensure proper build order)
 $(ROOTFS_BIN): $(KERNEL_BIN)
 	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
 
-$(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
+CAMERA_UENV_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt)
+
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
 	@$(TEAL) "$@"
-	touch $@
+	rm -f $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
+	if [ -f "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt" ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt | awk NF | tee -a $@; \
+	fi
 	for file in $(THINGINO_USER_UENV_FILES); do \
 		grep -v '^#' "$$file" | awk NF | tee -a $@; \
 	done
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
 	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d; /^data_addr=/d; /^data_size=/d; /^overlay_wipe=/d' $@
-	echo 'overlay_wipe=echo "wiping overlay"; sf probe && sf erase $${data_addr} $${data_size} && echo "overlay wipe done"' >> $@
+	echo 'overlay_wipe=echo \"wiping overlay\"; sf probe && sf erase $${data_addr} $${data_size} && echo \"overlay wipe done\"' >> $@
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	# MMC boot: set bootargs and load kernel from FAT partition
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
@@ -1223,6 +1253,7 @@ help:
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
+	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\

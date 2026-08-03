@@ -1,0 +1,29 @@
+# MediaMTX config: proxy Thingino camera RTSP → WebRTC
+# Camera: 192.168.88.129
+
+logLevel: info
+
+# Enable API (optional, for monitoring at http://localhost:9997)
+api: yes
+apiAddress: :9997
+
+# RTSP server (keep for monitoring / fallback)
+rtsp: yes
+rtspAddress: :8554
+
+# RTMP server
+rtmp: no
+
+# HLS server
+hls: no
+
+# WebRTC
+webrtc: yes
+webrtcAddress: :8889
+webrtcEncryption: no
+
+# Paths
+paths:
+  thingino:
+    source: rtsp://192.168.88.129:554/ch0
+    rtspTransport: tcp

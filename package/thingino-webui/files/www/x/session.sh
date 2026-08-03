@@ -8,97 +8,97 @@ COOKIE_NAME="thingino_session"
 
 # Ensure session directory exists
 ensure_session_dir() {
-  mkdir -p "$SESSION_DIR"
-  chmod 700 "$SESSION_DIR"
+	mkdir -p "$SESSION_DIR"
+	chmod 700 "$SESSION_DIR"
 }
 
 # Generate a random session ID
 generate_session_id() {
-  # Use urandom for cryptographically secure random ID
-  head -c 16 /dev/urandom | hexdump -e '16/1 "%02x" "\n"'
+	# Use urandom for cryptographically secure random ID
+	head -c 16 /dev/urandom | hexdump -e '16/1 "%02x" "\n"'
 }
 
 # Create a new session
 # Usage: create_session <username> <is_default_password>
 create_session() {
-  local username="$1"
-  local is_default="${2:-false}"
+	local username="$1"
+	local is_default="${2:-false}"
 
-  ensure_session_dir
+	ensure_session_dir
 
-  local session_id=$(generate_session_id)
-  local session_file="$SESSION_DIR/$session_id"
-  local timestamp=$(date +%s)
+	local session_id=$(generate_session_id)
+	local session_file="$SESSION_DIR/$session_id"
+	local timestamp=$(date +%s)
 
-  # Write session data
-  cat > "$session_file" <<EOF
+	# Write session data
+	cat >"$session_file" <<EOF
 username=$username
 created=$timestamp
 last_access=$timestamp
 is_default_password=$is_default
 EOF
 
-  chmod 600 "$session_file"
-  echo "$session_id"
+	chmod 600 "$session_file"
+	echo "$session_id"
 }
 
 # Session IDs are 32 lowercase-hex chars; reject anything else before use
 # as a path component (see commit message for the LFI this closes).
 # Usage: is_valid_session_id <session_id>
 is_valid_session_id() {
-  case "$1" in
-    '' | *[!0-9a-f]*) return 1 ;;
-  esac
-  return 0
+	case "$1" in
+		'' | *[!0-9a-f]*) return 1 ;;
+	esac
+	return 0
 }
 
 # Validate and update session
 # Usage: validate_session <session_id>
 # Returns: 0 if valid, 1 if invalid
 validate_session() {
-  local session_id="$1"
-  local session_file="$SESSION_DIR/$session_id"
+	local session_id="$1"
+	local session_file="$SESSION_DIR/$session_id"
 
-  is_valid_session_id "$session_id" || return 1
+	is_valid_session_id "$session_id" || return 1
 
-  # Check if session file exists
-  [ -f "$session_file" ] || return 1
+	# Check if session file exists
+	[ -f "$session_file" ] || return 1
 
-  # Read session data
-  . "$session_file"
+	# Read session data
+	. "$session_file"
 
-  # Update last access time
-  sed -i "s/^last_access=.*/last_access=$(date +%s)/" "$session_file"
+	# Update last access time
+	sed -i "s/^last_access=.*/last_access=$(date +%s)/" "$session_file"
 
-  return 0
+	return 0
 }
 
 # Get session data
 # Usage: get_session_data <session_id> <key>
 get_session_data() {
-  local session_id="$1"
-  local key="$2"
-  local session_file="$SESSION_DIR/$session_id"
+	local session_id="$1"
+	local key="$2"
+	local session_file="$SESSION_DIR/$session_id"
 
-  is_valid_session_id "$session_id" || return 1
-  [ -f "$session_file" ] || return 1
+	is_valid_session_id "$session_id" || return 1
+	[ -f "$session_file" ] || return 1
 
-  . "$session_file"
-  eval echo "\$$key"
+	. "$session_file"
+	eval echo "\$$key"
 }
 
 # Delete a session
 # Usage: delete_session <session_id>
 delete_session() {
-  local session_id="$1"
-  is_valid_session_id "$session_id" || return 1
-  rm -f "$SESSION_DIR/$session_id"
+	local session_id="$1"
+	is_valid_session_id "$session_id" || return 1
+	rm -f "$SESSION_DIR/$session_id"
 }
 
 # Clean up expired sessions
 # Usage: cleanup_sessions
 cleanup_sessions() {
-  ensure_session_dir
+	ensure_session_dir
 }
 
 # Extract session ID from Cookie header
@@ -108,6 +108,6 @@ cleanup_sessions() {
 # for the auth redirect-loop bug this fixes), takes the last match if
 # duplicates exist, and restricts the result to the session-ID hex charset.
 get_session_from_cookie() {
-  printf '%s\n' "$HTTP_COOKIE" | tr ';' '\n' | sed 's/^[[:space:]]*//' \
-    | grep "^${COOKIE_NAME}=" | tail -n 1 | cut -d= -f2- | tr -cd '0-9a-f'
+	printf '%s\n' "$HTTP_COOKIE" | tr ';' '\n' | sed 's/^[[:space:]]*//' |
+		grep "^${COOKIE_NAME}=" | tail -n 1 | cut -d= -f2- | tr -cd '0-9a-f'
 }

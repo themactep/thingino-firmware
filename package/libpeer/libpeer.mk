@@ -21,13 +21,19 @@ LIBPEER_DEPENDENCIES += mbedtls
 endif
 
 # Simple CMake configuration for clean fork
+# CMAKE_POLICY_VERSION_MINIMUM lets CMake 4.x configure sources that still
+# declare cmake_minimum_required(VERSION < 3.5); also needed by the bundled
+# third_party subprojects (cJSON, usrsctp) pulled in via ExternalProject_Add.
 LIBPEER_CONF_OPTS = \
 	-DCMAKE_BUILD_TYPE=Release \
-	-DBUILD_SHARED_LIBS=ON
+	-DBUILD_SHARED_LIBS=ON \
+	-DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
 # SCTP support disabled - usrsctp not available in thingino
 
-# Patch applied automatically by buildroot: 0001-use-system-mbedtls.patch
+# Patches applied automatically by buildroot:
+# 0001-cmake-policy-version-minimum.patch
+# 0002-mbedtls3-rng-args.patch
 
 # Post-install hook to create pkg-config file
 define LIBPEER_INSTALL_PKGCONFIG
@@ -67,6 +73,6 @@ endef
 
 LIBPEER_POST_INSTALL_TARGET_HOOKS += LIBPEER_INSTALL_TARGET_LIBS
 
-# thingino-libpeer fork - clean implementation without patches
+# thingino-libpeer fork - clean implementation
 
 $(eval $(cmake-package))

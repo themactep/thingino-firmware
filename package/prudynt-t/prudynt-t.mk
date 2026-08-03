@@ -2,7 +2,7 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = ac02b8014ab64d8ff3c3f8b49a9af0586ee7ad9e
+PRUDYNT_T_VERSION = 76c80712f2de8b218d91f12611fce1f46f41a6e2
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -250,7 +250,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	fi
 
 	# Copy the JSON configuration file to staging
-	cp $(PRUDYNT_T_PKGDIR)/files/prudynt.json $(STAGING_DIR)/prudynt.json
+	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
 
 	# Apply optional camera override using host jct
 	if [ -f "$(PRUDYNT_T_OVERRIDE_FILE)" ]; then \
