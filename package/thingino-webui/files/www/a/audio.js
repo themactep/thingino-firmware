@@ -1,26 +1,7 @@
 (function () {
   "use strict";
 
-  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(function (d) {
-      return d.exists && d.api_key ? d.api_key : "";
-    })
-    .catch(function () {
-      return "";
-    });
-
-  async function apiFetch(url, options) {
-    var key = await API_KEY_PROMISE;
-    options = options || {};
-    options.headers = options.headers || {};
-    if (key) options.headers["X-API-Key"] = key;
-    return fetch(url, options);
-  }
-
-  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+  const endpoint = "/x/json-prudynt.cgi";
   const audioParams = [
     "mic_enabled",
     "mic_format",
@@ -180,7 +161,7 @@
   async function requestPrudynt(payload) {
     const body =
       typeof payload === "string" ? payload : JSON.stringify(payload);
-    const response = await apiFetch(API_BASE, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
@@ -298,45 +279,27 @@
       try {
         reloadButton.disabled = true;
         const success = await loadAudioConfig({ silent: true });
-        if (success) {
-          showAlert("info", "Audio settings reloaded from camera.", 3000);
+        if (!success) {
+          showAlert("warning", "Reload failed - check console for details.");
         }
       } catch (err) {
-        showAlert("danger", "Failed to reload audio settings.");
+        console.error(err);
+        showAlert("danger", `Reload error: ${err.message || err}`);
       } finally {
         reloadButton.disabled = false;
       }
     });
   }
 
-  initDynamicSelects();
-  disableAudioControls();
-  bindAudioControls();
-  loadAudioConfig();
-})();
+  // Re-enable controls if a live value fails to update
+  document.addEventListener("audio:reload", () => loadAudioConfig({ silent: true }));
 
-(function initAudioSliders() {
-  const sliderIds = [
-    "audio_mic_vol",
-    "audio_mic_gain",
-    "audio_mic_alc_gain",
-    "audio_mic_noise_suppression",
-    "audio_mic_agc_compression_gain_db",
-    "audio_mic_agc_target_level_dbfs",
-    "audio_spk_vol",
-    "audio_spk_gain",
-  ];
-  const run = () => {
-    if (
-      typeof window !== "undefined" &&
-      typeof window.initSliders === "function"
-    ) {
-      window.initSliders(sliderIds);
-    }
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run, { once: true });
-  } else {
-    run();
-  }
+  // Expose for other modules
+  window.loadAudioConfig = loadAudioConfig;
+
+  $(document).on("page:ready", () => {
+    initDynamicSelects();
+    bindAudioControls();
+    loadAudioConfig();
+  });
 })();
