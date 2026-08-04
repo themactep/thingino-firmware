@@ -344,6 +344,57 @@ config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
 	help
 	  Enables I2C1 on the SoC
 
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
+
+choice
+	prompt "I2C1 Mode"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_HW
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_HW
+	bool "Hardware controller"
+	help
+	  Use the SoC's I2C1 hardware controller, on its fixed pins.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO
+	bool "GPIO bitbang"
+	help
+	  Use a software GPIO-bitbanged I2C1 bus on custom pins, for boards
+	  where the device meant for I2C1 is wired to GPIOs other than the
+	  hardware controller's fixed pins.
+
+endchoice
+
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO
+
+menu "I2C1 GPIO Bitbang Configuration"
+
+config BR2_THINGINO_I2C1_GPIO_SDA
+	int "I2C1 SDA GPIO"
+	default -1
+	help
+	  GPIO number for the bitbanged I2C1 SDA line.
+
+config BR2_THINGINO_I2C1_GPIO_SCL
+	int "I2C1 SCL GPIO"
+	default -1
+	help
+	  GPIO number for the bitbanged I2C1 SCL line.
+
+config BR2_THINGINO_I2C1_GPIO_PULLUP
+	bool "Enable internal pull-ups on SDA/SCL"
+	default y
+	help
+	  Configure the SoC's internal GPIO pull-up resistors on the SDA/SCL
+	  pins. A bitbanged bus has no built-in pull-up handling (unlike the
+	  hardware controller); without this, floating lines can cause
+	  inconsistent/spurious i2cdetect results.
+
+endmenu
+
+endif
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
 	bool "I2C2"
 	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
