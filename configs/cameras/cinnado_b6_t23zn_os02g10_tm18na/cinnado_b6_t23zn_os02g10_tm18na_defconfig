@@ -21,10 +21,16 @@
 #    binary and runs it from an F00a-prefixed script -- before F00ledd, ahead
 #    of the rest of rcF/rcS. If first boot reboot-loops, this is the first
 #    thing to suspect (watchdog window tighter than an F-script can catch).
-#  - MCU I2C bus is unconfirmed: stock lp_mgr/mcu_test use i2c-1, but the
-#    recovery tool itself uses i2c-2 (different, reduced-driver boot context).
-#    Both I2C0 and I2C1 hardware controllers are enabled in the kernel fragment
-#    so this can be verified with i2cdetect once on hardware.
+#  - MCU I2C bus CONFIRMED via live hardware + vendor kernel binary analysis:
+#    it's GPIO-bitbanged (CONFIG_SOFT_I2C1_GPIO_V12_JZ), SDA=GPIO53/SCL=GPIO52
+#    (GPIO_PB(21)/GPIO_PB(20)), not the I2C1_V12_JZ hardware controller. See
+#    the kernel fragment and package/all-patches/linux/3.10.14/0092-*.patch.
+#  - PTZ motors DISABLED (BR2_THINGINO_MOTORS) for now: the WiFi sibling's
+#    copied gpio_tilt map claimed GPIO52/53 for motor ST2/ST3, which directly
+#    conflicts with the real MCU I2C pins above -- proof the whole PTZ GPIO
+#    map carried over from the sibling is unreliable for this variant, not
+#    just those two pins. Needs its own hardware-verification pass before
+#    re-enabling.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
@@ -42,7 +48,6 @@ BR2_PACKAGE_USBNET_WWAN_SERIAL=y
 BR2_SENSOR_1_NAME="os02g10"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
-BR2_THINGINO_MOTORS=y
 BR2_THINGINO_RMEM_MB=18
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=16
