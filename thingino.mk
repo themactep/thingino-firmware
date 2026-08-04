@@ -14,6 +14,16 @@ else
 SOC_VENDOR := ingenic
 endif
 
+# Target architecture of the cross toolchain, one line per vendor. It has to be
+# resolved here rather than read from the BR2_mipsel/BR2_arm the SoC fragment
+# already sets: fragments are appended to .config and never included as
+# makefiles, so that symbol is not readable when SED_CONFIG_VARS runs.
+ifeq ($(SOC_VENDOR),sigmastar)
+SOC_TARGET_ARCH := arm
+else
+SOC_TARGET_ARCH := mipsel
+endif
+
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)
@@ -45,6 +55,7 @@ export SOC_MODEL
 export SOC_MODEL_LESS_Z
 export SOC_RAM_MB
 export SOC_ARCH
+export SOC_TARGET_ARCH
 
 #
 # KERNEL
