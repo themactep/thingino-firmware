@@ -1,0 +1,17 @@
+{
+  "snmpd": {
+    "auth": true,
+    "community": "public",
+    "contact": "",
+    "description": "",
+    "disks": "/,/overlay",
+    "enabled": false,
+    "interfaces": "",
+    "listen": "",
+    "location": "",
+    "loglevel": "notice",
+    "port": 161,
+    "timeout": 1,
+    "traps": ""
+  }
+}
