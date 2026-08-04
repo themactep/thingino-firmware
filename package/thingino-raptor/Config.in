@@ -2,22 +2,10 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 	bool "Raptor Streaming System"
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
-	# The vendor libraries below are Ingenic silicon; raptor reaches them
-	# through its HAL rather than directly, so a non-Ingenic vendor needs the
-	# streamer without them. BR2_SOC_VENDOR_INGENIC is y on every existing
-	# board, so these selects are unchanged there.
-	select BR2_PACKAGE_INGENIC_LIB if BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL && BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC && BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_LIBIMP_DEBUG if BR2_SOC_VENDOR_INGENIC
 	select BR2_PACKAGE_LIBSCHRIFT
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
 	select BR2_PACKAGE_COMPY
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO if BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG if BR2_SOC_VENDOR_INGENIC
-	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO if BR2_SOC_VENDOR_INGENIC
 	select BR2_PACKAGE_THINGINO_RAPTOR_HAL
 	select BR2_PACKAGE_THINGINO_RAPTOR_IPC
 	select BR2_PACKAGE_THINGINO_RAPTOR_COMMON
@@ -215,7 +203,6 @@ endif
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
 	default y
-	select BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS if !BR2_PACKAGE_LIBAUDIOPROCESS_NEO && BR2_SOC_VENDOR_INGENIC
 	help
 	  Noise suppression, high-pass filter, and automatic
 	  gain control. Requires libaudioProcess.so (stock or neo).

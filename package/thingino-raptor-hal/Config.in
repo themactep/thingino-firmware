@@ -1,2 +1,20 @@
 config BR2_PACKAGE_THINGINO_RAPTOR_HAL
 	bool
+	select BR2_PACKAGE_THINGINO_RAPTOR_HAL_INGENIC if BR2_SOC_VENDOR_INGENIC
+
+# One backend symbol per vendor. A new vendor costs one select above and one
+# block here, not a guard on every library line.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_HAL_INGENIC
+	bool
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	# Both shims carry a matching `depends on`, so these conditions are
+	# required rather than stylistic.
+	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_LIBIMP_DEBUG
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
+	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
+	select BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS if !BR2_PACKAGE_LIBAUDIOPROCESS_NEO
