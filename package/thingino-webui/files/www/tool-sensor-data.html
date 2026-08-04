@@ -88,6 +88,18 @@
     .stream-status.disconnected {
       color: #dc3545;
     }
+    #paranoid-banner {
+      display: none;
+      text-align: center;
+      padding: 3rem 2rem;
+      border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+    }
+    #paranoid-banner.visible { display: block; }
+    #paranoid-banner i { font-size: 3rem; color: #ffc107; margin-bottom: 1rem; display: block; }
+    #paranoid-banner h4 { font-weight: 600; margin-bottom: 0.5rem; }
+    #paranoid-banner p { color: #6c757d; max-width: 400px; margin: 0 auto; }
   </style>
 </head>
 
@@ -116,6 +128,11 @@
             <div class="stat-grid" id="data-stats"></div>
           </div>
           <div class="col-12 col-lg-7" id="tabs-col">
+            <div id="paranoid-banner">
+              <i class="bi bi-shield-shaded"></i>
+              <h4>Chart unavailable in Paranoid Mode</h4>
+              <p>This chart uses an online library. Disable Paranoid Mode in <a href="/config-webui.html">Web UI Settings</a> to load it, or view the live preview and stats on the left.</p>
+            </div>
             <div id="chart-container">
               <canvas id="dataChart"></canvas>
             </div>
@@ -147,7 +164,19 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Skip CDN chart.js load in paranoid mode (uses sync XHR to check config)
+if(!window.__paranoidChecked){
+  window.__paranoidChecked=true;
+  var xhr=new XMLHttpRequest();
+  xhr.open("GET","/x/json-config-webui.cgi",false);xhr.setRequestHeader("Accept","application/json");
+  try{xhr.send();var cfg=JSON.parse(xhr.responseText);if(cfg.paranoid===true)window.__paranoid=true}
+  catch(_){}
+}
+if(!window.__paranoid){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>');
+}
+</script>
 <script src="/a/tool-sensor-data.js"></script>
 </body>
 </html>
