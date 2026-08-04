@@ -12,12 +12,16 @@ INGENIC_UCLIBC_CFLAGS = -Os -ffunction-sections -fdata-sections -flto \
 # GCC 16+: __ctype_*_loc() need explicit prototypes (guarded by
 # __UCLIBC_HAS_XLOCALE__ in uClibc-ng headers). Insert them before build.
 define INGENIC_UCLIBC_BUILD_CMDS
-	# GCC 16+: shim was written for uclibc-ng WITH locale support.
-	# Without __UCLIBC_HAS_XLOCALE__, __ctype_*_loc() don't exist.
-	# Replace the _loc()-based init with direct pointer aliasing.
-	sed -i 's|__ctype_b = \*__ctype_b_loc();|__ctype_b = __UCLIBC_CTYPE_B;|' $(@D)/uclibc_shim.c
-	sed -i 's|__ctype_tolower = \*__ctype_tolower_loc();|__ctype_tolower = __UCLIBC_CTYPE_TOLOWER;|' $(@D)/uclibc_shim.c
-	sed -i 's|__ctype_toupper = \*__ctype_toupper_loc();|__ctype_toupper = __UCLIBC_CTYPE_TOUPPER;|' $(@D)/uclibc_shim.c
+	# GCC 16+: uClibc-ng already exports __ctype_b / __ctype_tolower /
+	# __ctype_toupper as global data symbols.  The shim must not define
+	# its own BSS copies (they would shadow libc's and stay zero on
+	# MIPS where the main executable / first-loaded library wins).
+	# Drop the local BSS declarations and the init_ctype_compat()
+	# constructor — libc provides the real pointers.
+	sed -i '/^const __ctype_mask_t \*__ctype_b;$$/d' $(@D)/uclibc_shim.c
+	sed -i '/^const __ctype_touplow_t \*__ctype_tolower;$$/d' $(@D)/uclibc_shim.c
+	sed -i '/^const __ctype_touplow_t \*__ctype_toupper;$$/d' $(@D)/uclibc_shim.c
+	sed -i '/^static void.*init_ctype_compat/,/^}$$/d' $(@D)/uclibc_shim.c
 	$(TARGET_CC) $(INGENIC_UCLIBC_CFLAGS) -fPIC -shared -o $(@D)/libuclibcshim.so $(@D)/uclibc_shim.c
 	$(TARGET_CC) $(INGENIC_UCLIBC_CFLAGS) -c -o $(@D)/uclibc_shim.o $(@D)/uclibc_shim.c
 	$(TARGET_CROSS)gcc-ar rcs $(@D)/libuclibcshim.a $(@D)/uclibc_shim.o
