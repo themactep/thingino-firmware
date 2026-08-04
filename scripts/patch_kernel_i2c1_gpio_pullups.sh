@@ -18,11 +18,6 @@ get_value() {
 
 [ -f "$GPIO_C" ] || exit 0
 
-# Always enable the pull/drive-strength initcall. Harmless for boards that
-# don't populate either table (both stay empty arrays), and required for
-# any board using I2C1 GPIO pull-ups below.
-sed -i 's,^//arch_initcall(gpio_customized_init);,arch_initcall(gpio_customized_init);,' "$GPIO_C"
-
 [ "$(get_value BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO)" = "y" ] || exit 0
 [ "$(get_value BR2_THINGINO_I2C1_GPIO_PULLUP)" = "y" ] || exit 0
 
@@ -31,6 +26,14 @@ scl=$(get_value BR2_THINGINO_I2C1_GPIO_SCL)
 
 case "$sda" in '' | *[!0-9]*) exit 0 ;; esac
 case "$scl" in '' | *[!0-9]*) exit 0 ;; esac
+
+# Only enable the pull/drive-strength initcall once we're actually going to
+# populate the pull table below -- leave it untouched (commented out, as
+# upstream ships it) otherwise. This also runs the pre-existing MMC
+# drive-strength table, which the initcall being disabled by default upstream
+# suggests was never verified safe this early in boot; don't enable it for
+# boards that don't need it.
+sed -i 's,^//arch_initcall(gpio_customized_init);,arch_initcall(gpio_customized_init);,' "$GPIO_C"
 
 if grep -Fq "THINGINO_I2C1_GPIO_PULLUP" "$GPIO_C"; then
 	exit 0

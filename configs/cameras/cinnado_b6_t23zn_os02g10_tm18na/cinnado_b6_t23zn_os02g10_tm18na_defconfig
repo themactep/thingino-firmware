@@ -29,22 +29,47 @@
 #    gpio_customized.c pin/pull-up generation at build time -- see
 #    scripts/patch_kernel_i2c1_gpio_pins.sh and
 #    scripts/patch_kernel_i2c1_gpio_pullups.sh.
+#  - USB is NOT using thingino-kopt's DWC2_WIFI_ONLY option -- confirmed on
+#    live hardware that it hangs immediately after "Starting kernel..." with
+#    zero console output. Uses a small explicit kernel.config fragment
+#    instead -- see cinnado_b6_t23zn_tm18na.kernel.config for the full story.
+#  - BR2_THINGINO_I2C1_GPIO_PULLUP is intentionally OFF: enabling it (which
+#    uncomments Pike/gpio_customized.c's arch_initcall) reproduced the exact
+#    same zero-output boot hang, isolated on live hardware with the USB
+#    config otherwise matching the known-good baseline. Likely cause: the
+#    initcall runs before the GPIO chip driver has registered, so
+#    jz_gpio_set_func() on an unregistered gpiochip crashes silently. Not a
+#    real loss: the bus noise this was meant to fix (spurious i2cdetect hits
+#    that changed every scan) turned out to be caused by the stale PTZ motor
+#    driver claiming the same physical pins (see below), not missing
+#    pull-ups -- with that conflict gone, i2cdetect -y 1 is now clean and
+#    consistent (only 0x10) without any pull-up config at all.
 #  - PTZ motors DISABLED (BR2_THINGINO_MOTORS) for now: the WiFi sibling's
 #    copied gpio_tilt map claimed GPIO52/53 for motor ST2/ST3, which directly
 #    conflicts with the real MCU I2C pins above -- proof the whole PTZ GPIO
 #    map carried over from the sibling is unreliable for this variant, not
 #    just those two pins. Needs its own hardware-verification pass before
-#    re-enabling.
+#    re-enabling. Confirmed via live hardware that a STALE built rootfs (built
+#    once early in this board's bring-up before motors were disabled here)
+#    kept shipping the motor package's files even after this option was
+#    turned off -- buildroot doesn't prune a deselected package's already-
+#    installed target files. Always `make clean` before `make all` for this
+#    board, not a targeted/incremental rebuild.
+#  - MCU responds reliably at I2C address 0x10, NOT 0x11 as the vendor's own
+#    disable_mcu_wdt tool assumes (confirmed via repeated i2cdetect + a
+#    successful manual disable-watchdog write to 0x10). package/thingino-
+#    mcu-wdt ships that tool as-is for now; it currently fails at boot
+#    (ENXIO on 0x11) -- needs a binary patch for the correct address, tracked
+#    as follow-up work, not yet fixed as of this commit.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_CLK_SCLKA=y
 BR2_ISP_PRINT_LEVEL_0=y
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/cinnado_b6_t23zn_os02g10_tm18na/cinnado_b6_t23zn_tm18na.kernel.config"
 BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
 BR2_PACKAGE_I2C_TOOLS=y
-BR2_PACKAGE_THINGINO_KOPT_DWC2=y
-BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY=y
 BR2_PACKAGE_THINGINO_KOPT_I2C=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO=y
@@ -56,7 +81,7 @@ BR2_PACKAGE_USBNET_WWAN_SERIAL=y
 BR2_SENSOR_1_NAME="os02g10"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
-BR2_THINGINO_I2C1_GPIO_PULLUP=y
+# BR2_THINGINO_I2C1_GPIO_PULLUP is not set
 BR2_THINGINO_I2C1_GPIO_SCL=52
 BR2_THINGINO_I2C1_GPIO_SDA=53
 BR2_THINGINO_RMEM_MB=18
