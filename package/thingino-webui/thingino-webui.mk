@@ -405,17 +405,27 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
 
-	# Paranoid mode: rewrite CDN references → local vendor assets + install vendor files
+	# Paranoid mode: install local vendor assets (CDN rewriting happens in
+	# finalize hook so plugin pages installed later are also processed)
 	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
-		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
 		rm -rf "$(TARGET_DIR)/var/www/a/vendor"; \
 		cp -r "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" "$(TARGET_DIR)/var/www/a/"; \
-		printf 'thingino-webui: paranoid mode — vendor files installed, CDN rewritten\n'; \
+		printf 'thingino-webui: paranoid mode — vendor files staged\n'; \
 	fi
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
 endef
+
+# Paranoid mode CDN → local rewriting — runs in finalize hook so that
+# HTML pages installed by plugin packages (thingino-gpio, thingino-snmpd,
+# etc.) are also processed.
+define THINGINO_WEBUI_PARANOID_REWRITE
+	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
+		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
+	fi
+endef
+THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and
