@@ -34,9 +34,6 @@ menu "Toolchain"
 		help
 		  Select GCC major version used to build fragment name.
 
-	config BR2_THINGINO_TOOLCHAIN_GCC_13
-		bool "GCC 13"
-
 	config BR2_THINGINO_TOOLCHAIN_GCC_14
 		bool "GCC 14"
 
