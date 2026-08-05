@@ -330,6 +330,22 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 
 endchoice
 
+config BR2_THINGINO_DWC2_PROBE_DELAY_MS
+	int "DWC2 probe delay (ms)"
+	default 0
+	help
+	  Delay this many milliseconds at the very start of dwc2's probe,
+	  before touching any hardware. 0 (the default) is a no-op.
+
+	  Only useful when DWC2 is built into the kernel (as opposed to a
+	  loadable module) and the USB device wired to it is an
+	  internally-powered module (e.g. an LTE modem) whose own power-on
+	  sequencing can lag behind the SoC's boot -- a built-in driver
+	  probes during early kernel boot (well under 1 second in), which
+	  can be before such a device is even electrically ready to signal
+	  attach. Leave at 0 unless you have a specific board with this
+	  problem.
+
 endif
 
 config BR2_PACKAGE_THINGINO_KOPT_I2C

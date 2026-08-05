@@ -120,6 +120,27 @@
 #    capture (already used earlier in this project to compare stock vs.
 #    Thingino) comparing against a stock-firmware capture may be the more
 #    direct next step if source tracing doesn't resolve it.
+#  - BR2_THINGINO_DWC2_PROBE_DELAY_MS=3000: a real, confirmed timing
+#    difference vs stock was found: stock loads dwc2 as a loadable module
+#    (`insmod /lib/modules/dwc2.ko` from rcS, several seconds into boot,
+#    after rootfs mount/hostname/telnetd), while our kernel fixups build
+#    it INTO the kernel (CONFIG_USB_JZ_DWC2=y), probing at ~0.15s --
+#    during early kernel boot, before userspace exists. Theory: the
+#    modem's own baseband/PHY power-up takes longer than that, so
+#    Thingino's controller may finish its initial attach-detection before
+#    the modem is even electrically present. This new kernel option
+#    (package/all-patches/linux/3.10.14/0092-dwc2-jz-optional-probe-delay.patch,
+#    wired via thingino-kopt) adds an opt-in msleep() at the very start of
+#    dwc2_jz_probe(), defaulting to 0/no-op for every other board. 3000ms
+#    chosen to comfortably exceed stock's own rcS timing. Live-tested a
+#    related but NOT equivalent experiment this session (unbind/rebind
+#    the already-probed jz-dwc2 platform driver at 600+ seconds uptime,
+#    well after the modem should be ready) -- that specific test was
+#    inconclusive (the rebind itself failed with -ENOMEM, a real but
+#    separate driver limitation around repeated bind/unbind cycles not
+#    cleanly releasing DMA/IRQ resources, not a signal about the modem).
+#    A clean first-boot-with-delay test has NOT been done yet -- this is
+#    the next thing to verify on the next hardware flash.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
@@ -141,6 +162,7 @@ BR2_PACKAGE_USBNET_WWAN_SERIAL=y
 BR2_SENSOR_1_NAME="os02g10"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_DWC2_PROBE_DELAY_MS=3000
 BR2_THINGINO_I2C1_GPIO_PULLUP=y
 BR2_THINGINO_I2C1_GPIO_SCL=52
 BR2_THINGINO_I2C1_GPIO_SDA=53
