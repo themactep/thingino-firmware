@@ -35,8 +35,8 @@ endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
-	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
-	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/accessory
+	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
+	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/50-accessory
 
 endef
 
@@ -45,7 +45,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
 		$(TARGET_DIR)/usr/sbin/spotlight_ctl
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
-	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
+	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
 
 endef
 
@@ -54,7 +54,7 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
 		$(TARGET_DIR)/usr/sbin/car_control
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
-	echo cp210x >> $(TARGET_DIR)/etc/modules.d/accessory
+	echo cp210x >> $(TARGET_DIR)/etc/modules.d/50-accessory
 
 endef
 

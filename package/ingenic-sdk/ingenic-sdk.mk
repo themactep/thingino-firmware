@@ -172,8 +172,8 @@ define GENERATE_MODULE_LOADER
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
-		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/pwm; \
-		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
+		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
+		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
