@@ -29,11 +29,13 @@ case "$scl" in '' | *[!0-9]*) exit 0 ;; esac
 
 # Only enable the pull/drive-strength initcall once we're actually going to
 # populate the pull table below -- leave it untouched (commented out, as
-# upstream ships it) otherwise. This also runs the pre-existing MMC
-# drive-strength table, which the initcall being disabled by default upstream
-# suggests was never verified safe this early in boot; don't enable it for
-# boards that don't need it.
-sed -i 's,^//arch_initcall(gpio_customized_init);,arch_initcall(gpio_customized_init);,' "$GPIO_C"
+# upstream ships it) otherwise. Use late_initcall, not arch_initcall: an
+# earlier attempt at arch_initcall produced a zero-console-output boot hang
+# on live hardware (arch_initcall runs too early for jz_gpio_set_func() to
+# operate safely). late_initcall runs after all normal driver probing is
+# done, which is safe by construction even if the exact early-boot
+# dependency that crashed arch_initcall was never fully root-caused.
+sed -i 's,^//arch_initcall(gpio_customized_init);,late_initcall(gpio_customized_init);,' "$GPIO_C"
 
 if grep -Fq "THINGINO_I2C1_GPIO_PULLUP" "$GPIO_C"; then
 	exit 0

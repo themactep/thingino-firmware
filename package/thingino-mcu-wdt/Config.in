@@ -1,25 +1,31 @@
 config BR2_PACKAGE_THINGINO_MCU_WDT
 	bool "thingino-mcu-wdt"
+	select BR2_PACKAGE_JSON_C
 	help
 	  Disables the hardware watchdog on a discrete companion MCU (found on
 	  some Ingenic camera boards, e.g. the MindMotion MM32F0020B1T on the
 	  Cinnado B6 T23ZN/TM18NA LTE variant) as early as possible during boot.
 
 	  On boards where this MCU is present, its watchdog can power-cycle the
-	  whole SoC if not disabled quickly after boot. This package ships the
-	  vendor's own extracted disable-watchdog tool (a small prebuilt uClibc/
-	  MIPS binary that pulses a wake GPIO and sends the disable command over
-	  I2C) and runs it from the earliest available init hook (an F-prefixed
-	  script in /etc/init.d, run by rcF before rcS), rather than reimplementing
-	  the I2C wire protocol from scratch.
+	  whole SoC if not disabled quickly after boot. This package ships two
+	  of the vendor's own extracted binaries (mcu_test, a diagnostic tool,
+	  plus its libcommon.so dependency) and runs `mcu_test --wdt_disable`
+	  from the earliest available init hook (an F-prefixed script in
+	  /etc/init.d, run by rcF before rcS), rather than reimplementing the
+	  I2C wire protocol from scratch.
 
 	  Only enable this for boards that actually have this MCU wired up.
 
-	  NOTE: unlike package/atbm6461-tools (which rebuilds its vendor tool
-	  from source against an extracted librtos.so), this package ships the
-	  vendor binary wholesale, because disable_mcu_wdt has no shared-library
-	  dependency to link against -- its I2C packet framing (magic/CRC) is
-	  statically compiled into the binary itself and hasn't been fully
-	  decoded yet. Once it is, reworking this into a source-built tool
-	  (matching the atbm6461-tools pattern) would be the more idiomatic
-	  long-term fix.
+	  NOTE: an earlier version of this package shipped a different vendor
+	  binary, disable_mcu_wdt (extracted from a separate recovery-initramfs
+	  tool, statically linked against only libc/libpthread). It reliably
+	  failed with garbled I2C responses on live hardware -- the I2C bus,
+	  pins, and timing were all independently confirmed correct (a plain
+	  MCU version query and other mcu_test commands succeed cleanly on the
+	  same bus), so the bug was specific to that one binary's own protocol
+	  handling, not the transport. mcu_test --wdt_disable, using the
+	  identical I2C bus/MCU, succeeds cleanly every time. Use mcu_test.
+
+	  mcu_test needs libjson-c.so.5; Thingino's own json-c package builds
+	  libjson-c.so (unversioned), so the init script symlinks it at runtime
+	  rather than requiring a second copy of the library.

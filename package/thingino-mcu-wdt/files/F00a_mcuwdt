@@ -8,23 +8,34 @@
 # MCU's watchdog is armed by default and not disabled quickly, it can
 # power-cycle the whole SoC -- see package/thingino-mcu-wdt's Config.in.
 #
-# /usr/bin/disable_mcu_wdt is the vendor's own extracted recovery-initramfs
-# binary (unmodified) -- it does its own GPIO wake-pulse + I2C command +
-# retry loop internally. This script only invokes it and logs the result;
-# it does not reimplement any of that protocol.
+# /usr/bin/mcu_test is the vendor's own diagnostic tool (unmodified) --
+# it does its own GPIO wake-pulse + I2C command + retry loop internally.
+# This script only invokes it and logs the result; it does not reimplement
+# any of that protocol.
+#
+# NOTE: an earlier version of this package shipped a different vendor
+# binary, disable_mcu_wdt (extracted from a separate recovery-initramfs
+# tool), which reliably failed this exact command with garbled I2C
+# responses on live hardware. mcu_test --wdt_disable, using the identical
+# I2C bus/MCU, succeeds cleanly every time -- the earlier binary had its
+# own bug, unrelated to the I2C bus/pins/timing (all independently
+# confirmed correct). Use mcu_test, not disable_mcu_wdt.
 
-MCU_WDT_BIN="/usr/bin/disable_mcu_wdt"
+MCU_TEST_BIN="/usr/bin/mcu_test"
 
 start() {
-	[ -x "$MCU_WDT_BIN" ] || {
-		echo "mcuwdt: $MCU_WDT_BIN missing or not executable" >&2
+	[ -x "$MCU_TEST_BIN" ] || {
+		echo "mcuwdt: $MCU_TEST_BIN missing or not executable" >&2
 		exit 1
 	}
 
-	"$MCU_WDT_BIN"
+	# mcu_test needs libjson-c.so.5; Thingino ships libjson-c.so (unversioned)
+	ln -sf /usr/lib/libjson-c.so /usr/lib/libjson-c.so.5
+
+	"$MCU_TEST_BIN" --wdt_disable
 	ret=$?
 	if [ "$ret" -ne 0 ]; then
-		echo "mcuwdt: disable_mcu_wdt exited $ret (see above for its own error output)" >&2
+		echo "mcuwdt: mcu_test --wdt_disable exited $ret (see above for its own error output)" >&2
 	fi
 	exit 0
 }

@@ -40,17 +40,18 @@
 #    enough to crash even with the known-good minimal USB config, and
 #    DWC2_WIFI_ONLY was never actually tested cleanly on its own. Re-enabled
 #    here for a proper isolated test now that the confound is gone.
-#  - BR2_THINGINO_I2C1_GPIO_PULLUP is intentionally OFF: enabling it (which
-#    uncomments Pike/gpio_customized.c's arch_initcall) reproduced the exact
-#    same zero-output boot hang, isolated on live hardware with the USB
-#    config otherwise matching the known-good baseline. Likely cause: the
-#    initcall runs before the GPIO chip driver has registered, so
-#    jz_gpio_set_func() on an unregistered gpiochip crashes silently. Not a
-#    real loss: the bus noise this was meant to fix (spurious i2cdetect hits
-#    that changed every scan) turned out to be caused by the stale PTZ motor
-#    driver claiming the same physical pins (see below), not missing
-#    pull-ups -- with that conflict gone, i2cdetect -y 1 is now clean and
-#    consistent (only 0x10) without any pull-up config at all.
+#  - BR2_THINGINO_I2C1_GPIO_PULLUP: an earlier attempt at this (via
+#    arch_initcall) reproduced a zero-output boot hang, isolated on live
+#    hardware with the USB config otherwise matching the known-good
+#    baseline. Likely cause: arch_initcall runs too early for
+#    jz_gpio_set_func() to operate safely. Fixed using late_initcall instead
+#    (see scripts/patch_kernel_i2c1_gpio_pullups.sh) -- confirmed live: pulls
+#    apply cleanly at boot (dmesg shows "set gpio pull: 52-90"/"53-90"), no
+#    hang. Kept enabled since it's a real, verified improvement (matches
+#    stock firmware's own config) even though it turned out NOT to be what
+#    was causing the separate watchdog-disable failure below (ruled out:
+#    same failure with pull-ups on or off) -- that was a bug in one specific
+#    vendor binary, not a bus/timing issue. See the mcu_test note below.
 #  - PTZ motors DISABLED (BR2_THINGINO_MOTORS) for now: the WiFi sibling's
 #    copied gpio_tilt map claimed GPIO52/53 for motor ST2/ST3, which directly
 #    conflicts with the real MCU I2C pins above -- proof the whole PTZ GPIO
@@ -62,15 +63,18 @@
 #    turned off -- buildroot doesn't prune a deselected package's already-
 #    installed target files. Always `make clean` before `make all` for this
 #    board, not a targeted/incremental rebuild.
-#  - MCU responds reliably at I2C address 0x10, NOT 0x11 as the vendor's own
-#    disable_mcu_wdt tool assumes (confirmed via repeated i2cdetect + a
-#    successful manual disable-watchdog write to 0x10). package/thingino-
-#    mcu-wdt ships that same tool binary-patched: the two hardcoded 0x11
-#    address bytes are fixed to 0x10, and the hardcoded "/dev/i2c-2" device
-#    string is fixed to "/dev/i2c-1" (the real bus this board's MCU is on --
-#    the vendor tool's own /dev/i2c-2 reference was a rescue-initramfs
-#    driver-probe-order artifact, not a second real device; see this same
-#    memory project's notes for the full i2c-1 vs i2c-2 resolution).
+#  - MCU responds reliably at I2C address 0x10, NOT 0x11. package/thingino-
+#    mcu-wdt ships the vendor's mcu_test diagnostic tool (+ its libcommon.so
+#    dependency), which already uses the correct address/bus, and runs
+#    `mcu_test --wdt_disable` -- confirmed live: succeeds cleanly (exit 0,
+#    no errors) every time. An earlier version of this package instead
+#    shipped a different vendor binary, disable_mcu_wdt (from a separate
+#    recovery-initramfs tool, hardcoded to address 0x11 and /dev/i2c-2,
+#    binary-patched to 0x10/i2c-1) -- even after that patch, it reliably
+#    failed with garbled I2C responses. Ruled out as a bus/timing/pull-up
+#    issue (mcu_test succeeds on the identical bus, same session, same
+#    pull-up config); the bug is specific to that one binary's own protocol
+#    handling. Use mcu_test, not disable_mcu_wdt -- don't re-introduce it.
 #  - LTE modem (TM18NA/Unisoc, USB VID:PID 1782:4d13) enumerates via the
 #    kernel's built-in "option" USB-serial driver -- CONFIG_USB_SERIAL_OPTION
 #    comes from BR2_PACKAGE_USBNET_WWAN_SERIAL below, already selected.
@@ -94,6 +98,28 @@
 #    targets ttyUSB0 on this basis. Still needs: a real carrier APN in
 #    /etc/ppp/scripts/wwan-connect (placeholder "internet" won't work) before
 #    `pppd call wwan` will actually get online.
+#  - USB MODEM STILL DOESN'T ENUMERATE under this Thingino build (`lsusb`
+#    shows only the root hub) -- confirmed NOT an MCU/I2C issue: the
+#    watchdog-disable command now succeeds cleanly (see mcu_test above) and
+#    `master_power_on` fires identically to stock on every boot, so modem
+#    power isn't gated behind any single MCU command we've found. Ruled out
+#    this session via kernel source tracing (not just guessing): VBUS
+#    control in drivers/usb/dwc2/dwc2_jz.c's dwc2_vbus_work() is a
+#    confirmed no-op on this board (both the regulator and the drvvbus GPIO
+#    are absent -- zero "vbus" strings appear anywhere in dmesg, matching
+#    the code's own early-return path exactly), so it's not a VBUS-enable
+#    problem either. Live lead not yet followed up: every boot logs
+#    `dwc2 dwc2: ID PIN CHANGED!` (drivers/usb/dwc2/core.c,
+#    dwc2_handle_conn_id_status_change_intr) shortly after USB init, which
+#    schedules otg_id_work -- but none of that work's own follow-up log
+#    lines (e.g. "init DWC as A_HOST", or the "Connection id status change
+#    timed out" warning) ever appear in dmesg, meaning it's unclear whether
+#    that work actually completes. Worth checking directly next: does
+#    otg_id_work run to completion, and does dwc2_is_host_mode() ever
+#    return true on this board's ID-pin wiring. A live D+/D- logic-analyzer
+#    capture (already used earlier in this project to compare stock vs.
+#    Thingino) comparing against a stock-firmware capture may be the more
+#    direct next step if source tracing doesn't resolve it.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
@@ -115,7 +141,7 @@ BR2_PACKAGE_USBNET_WWAN_SERIAL=y
 BR2_SENSOR_1_NAME="os02g10"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
-# BR2_THINGINO_I2C1_GPIO_PULLUP is not set
+BR2_THINGINO_I2C1_GPIO_PULLUP=y
 BR2_THINGINO_I2C1_GPIO_SCL=52
 BR2_THINGINO_I2C1_GPIO_SDA=53
 BR2_THINGINO_RMEM_MB=18
