@@ -52,7 +52,7 @@ First line of defconfig: `# NAME: <human-readable>`; second line: `# FRAG: <frag
 ## Config model
 
 `.config` is assembled from: **toolchain fragment** (e.g.
-`configs/fragments/toolchain/ext-gcc15-musl.fragment`) + **config fragments**
+`configs/fragments/toolchain/ext-gcc16-uclibc.fragment`) + **config fragments**
 (per `# FRAG:` in defconfig) + **camera defconfig** + **U-Boot fragment** +
 **user local.fragment** files. Template variables like `$(SOC_FAMILY)` are
 substituted during assembly.
@@ -63,7 +63,7 @@ Each can contain `local.fragment`, `local.mk`, `local.uenv.txt`, `thingino.json`
 `prudynt.json`, `overlay/`, `opt/`.
 
 Config fragments and per-camera overlay are merged at build time into the
-config and rootfs partitions respectively.
+rootfs and data partitions.
 
 ## SOC / kernel
 
@@ -77,18 +77,28 @@ Kernel source: `github.com/gtxaspec/thingino-linux`.
 
 ## Streamers
 
-Default is `prudynt`. Set `BR2_PACKAGE_RAPTOR_IPC=y` to use `raptor` instead.
+Available streamers: `prudynt` (default), `raptor`, `strero`, `timps`.
+Set via `BR2_PACKAGE_<NAME>=y` (e.g. `BR2_PACKAGE_RAPTOR_IPC=y` for `raptor`).
+The active streamer is exported as `STREAMER` in `thingino.mk`.
 
 ## Firmware image
 
-- **SFC (SPI flash)**: `u-boot + env + config.jffs2 + uImage + rootfs.squashfs + extras.jffs2`
+Three flash types are supported:
+
+- **SFC (SPI NOR)**: `boot(256K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
+  The `backup` partition holds a copy of the U-Boot environment for fail-safe updates.
+- **SFC-NAND (SPI NAND)**: UBI image at 1 MiB offset with volumes:
+  `uboot-env + kernel + rootfs(squashfs via ubiblock) + overlay(ubifs, autoresize)`
 - **MMC (SD card)**: INGE header + SPL + U-Boot + FAT32 (uImage) + ext4 (rootfs)
-- Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
+
+Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2026.04` by default). Thingino
-applies a single large patch (`package/all-patches/uboot/2026.04/0001-from-2026.04-to-thingino.patch`)
+Buildroot provides the base U-Boot version (`2013.07` by default; `2026.04`,
+`2026.07`, and `custom-fork` are also available via config fragments).
+Thingino applies a single large per-version patch (e.g.
+`package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need
 U-Boot changes, add numbered follow-up patches in the same directory (e.g.
 `0002-my-change.patch`) — Buildroot applies them in sort order after the large
