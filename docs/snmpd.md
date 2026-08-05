@@ -75,10 +75,10 @@ scripts/test-snmpd.sh 192.168.88.127 yourcommunity
 ### Configuration flow
 
 ```
-┌──────────────────┐    ┌──────────────┐    ┌─────────────────┐
-│ /etc/thingino.json│───▶│ S60snmpd     │───▶│ mini-snmpd      │→ UDP :161
-│ snmpd.*           │    │ init script  │    │ command line    │→ TCP :161
-└──────────────────┘    └──────────────┘    └─────────────────┘
+┌────────────────────┐    ┌──────────────┐    ┌─────────────────┐
+│ /etc/thingino.json │───▶│ S60snmpd     │───▶│ mini-snmpd      │→ UDP :161
+│ snmpd.*            │    │ init script  │    │ command line    │→ TCP :161
+└────────────────────┘    └──────────────┘    └─────────────────┘
 ```
 
 The init script (`S60snmpd`) reads the `snmpd` section from
