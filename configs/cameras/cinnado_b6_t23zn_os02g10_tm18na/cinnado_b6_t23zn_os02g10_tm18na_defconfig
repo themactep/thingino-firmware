@@ -4,7 +4,7 @@
 # SoC:     Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
 # Sensor:  OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
 # Cellular: TUGE Technologies TM18NA (UNISOC V8850 baseband), USB (T23 dwc2 host mode)
-# MCU:     MindMotion MM32F0020B1T (Cortex-M0), I2C addr 0x11, PIR/battery/power/watchdog
+# MCU:     MindMotion MM32F0020B1T (Cortex-M0), I2C addr 0x10, PIR/battery/power/watchdog
 # Flash:   16MB NOR SPI
 #
 # NOTES:
@@ -29,10 +29,17 @@
 #    gpio_customized.c pin/pull-up generation at build time -- see
 #    scripts/patch_kernel_i2c1_gpio_pins.sh and
 #    scripts/patch_kernel_i2c1_gpio_pullups.sh.
-#  - USB is NOT using thingino-kopt's DWC2_WIFI_ONLY option -- confirmed on
-#    live hardware that it hangs immediately after "Starting kernel..." with
-#    zero console output. Uses a small explicit kernel.config fragment
-#    instead -- see cinnado_b6_t23zn_tm18na.kernel.config for the full story.
+#  - USB uses thingino-kopt's DWC2_WIFI_ONLY option (properly, via kopt, not
+#    a raw fragment). An earlier attempt at this pinned the "Starting
+#    kernel..." zero-output hang on this option specifically, but that test
+#    was confounded: the pull-up generation script had a bug (fixed below)
+#    that enabled Pike/gpio_customized.c's arch_initcall unconditionally,
+#    regardless of the pull-up Kconfig setting -- so every "DWC2_WIFI_ONLY"
+#    test up to that point still had the real crash cause (arch_initcall)
+#    silently active too. Once genuinely isolated, arch_initcall alone was
+#    enough to crash even with the known-good minimal USB config, and
+#    DWC2_WIFI_ONLY was never actually tested cleanly on its own. Re-enabled
+#    here for a proper isolated test now that the confound is gone.
 #  - BR2_THINGINO_I2C1_GPIO_PULLUP is intentionally OFF: enabling it (which
 #    uncomments Pike/gpio_customized.c's arch_initcall) reproduced the exact
 #    same zero-output boot hang, isolated on live hardware with the USB
@@ -58,18 +65,45 @@
 #  - MCU responds reliably at I2C address 0x10, NOT 0x11 as the vendor's own
 #    disable_mcu_wdt tool assumes (confirmed via repeated i2cdetect + a
 #    successful manual disable-watchdog write to 0x10). package/thingino-
-#    mcu-wdt ships that tool as-is for now; it currently fails at boot
-#    (ENXIO on 0x11) -- needs a binary patch for the correct address, tracked
-#    as follow-up work, not yet fixed as of this commit.
+#    mcu-wdt ships that same tool binary-patched: the two hardcoded 0x11
+#    address bytes are fixed to 0x10, and the hardcoded "/dev/i2c-2" device
+#    string is fixed to "/dev/i2c-1" (the real bus this board's MCU is on --
+#    the vendor tool's own /dev/i2c-2 reference was a rescue-initramfs
+#    driver-probe-order artifact, not a second real device; see this same
+#    memory project's notes for the full i2c-1 vs i2c-2 resolution).
+#  - LTE modem (TM18NA/Unisoc, USB VID:PID 1782:4d13) enumerates via the
+#    kernel's built-in "option" USB-serial driver -- CONFIG_USB_SERIAL_OPTION
+#    comes from BR2_PACKAGE_USBNET_WWAN_SERIAL below, already selected.
+#    Confirmed live on stock firmware: the modem enumerates twice (bare
+#    AT-only, then re-enumerates as composite: cdc_ether/eth0 + 5 AT/diag
+#    ttyUSB ports 0-4) with NO host-side trigger needed -- this is the
+#    module's own autonomous behavior, not something unisoc_mgr's proprietary
+#    stack does, so it should occur identically under this Thingino kernel.
+#    Stock firmware's own app never actually uses eth0/DHCP for data (0
+#    RX/TX packets observed over 80+ seconds of live uptime) -- it drives an
+#    embedded AT+CIPSTART/AT+CIPRXGET TCP-over-AT socket API instead, which
+#    Thingino has no equivalent of. For Thingino, the standard USB_SERIAL_
+#    WWAN/pppd dial-up path (already selected below) is the practical way to
+#    get real IP connectivity: dial ATD*99# after setting the APN via
+#    AT+CGDCONT on the modem's AT-command port. CONFIRMED live on stock
+#    firmware: /dev/ttyUSB0 is the real AT-command port (responds "OK" to a
+#    plain "AT" probe; it's also the same port unisoc_mgr itself continuously
+#    polls with AT^TGTVSIMSTATUS?). ttyUSB1-4 gave no response to "AT" --
+#    likely diagnostic/GPS-only interfaces, not usable for dialing. The ppp
+#    peer file added this session (package/usbnet/files/wwan-peer) already
+#    targets ttyUSB0 on this basis. Still needs: a real carrier APN in
+#    /etc/ppp/scripts/wwan-connect (placeholder "internet" won't work) before
+#    `pppd call wwan` will actually get online.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_CLK_SCLKA=y
 BR2_ISP_PRINT_LEVEL_0=y
-BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/cinnado_b6_t23zn_os02g10_tm18na/cinnado_b6_t23zn_tm18na.kernel.config"
 BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
 BR2_PACKAGE_I2C_TOOLS=y
+BR2_PACKAGE_THINGINO_KOPT_DWC2=y
+BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY=y
 BR2_PACKAGE_THINGINO_KOPT_I2C=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO=y

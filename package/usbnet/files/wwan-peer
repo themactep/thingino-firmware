@@ -1,0 +1,23 @@
+# pppd peer file for a USB-serial LTE/WWAN modem (CONFIG_USB_SERIAL_OPTION).
+#
+# Not started automatically at boot -- dial with: pppd call wwan
+#
+# EDIT BEFORE USE: the AT dial chat script (/etc/ppp/scripts/wwan-connect)
+# has a placeholder APN ("internet") that must be set to your carrier's
+# real APN, and the ttyUSB port below may need to change -- a modem with
+# multiple USB-serial interfaces (AT/diag/GPS) doesn't always put the
+# AT-command-capable port at ttyUSB0. Confirm with a manual `AT` probe
+# (expect an "OK" reply) on each ttyUSBn before relying on this.
+
+/dev/ttyUSB0
+115200
+connect "/usr/sbin/chat -v -f /etc/ppp/scripts/wwan-connect"
+disconnect "/usr/sbin/chat -v -f /etc/ppp/scripts/wwan-disconnect"
+noipdefault
+defaultroute
+replacedefaultroute
+usepeerdns
+persist
+noauth
+novj
+novjccomp

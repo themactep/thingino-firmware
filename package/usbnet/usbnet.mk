@@ -45,6 +45,12 @@ endef
 define USBNET_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S38usbnet \
 		$(TARGET_DIR)/etc/init.d/S38usbnet
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-peer \
+		$(TARGET_DIR)/etc/ppp/peers/wwan
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-connect \
+		$(TARGET_DIR)/etc/ppp/scripts/wwan-connect
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-disconnect \
+		$(TARGET_DIR)/etc/ppp/scripts/wwan-disconnect
 endef
 endif
 

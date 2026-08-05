@@ -1,0 +1,5 @@
+# chat script: hang up a USB-serial LTE modem dialed via wwan-connect.
+
+ABORT 'ERROR'
+'' "\K"
+'' "+++ATH"
