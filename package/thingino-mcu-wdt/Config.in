@@ -10,9 +10,9 @@ config BR2_PACKAGE_THINGINO_MCU_WDT
 	  whole SoC if not disabled quickly after boot. This package ships two
 	  of the vendor's own extracted binaries (mcu_test, a diagnostic tool,
 	  plus its libcommon.so dependency) and runs `mcu_test --wdt_disable`
-	  from the earliest available init hook (an F-prefixed script in
-	  /etc/init.d, run by rcF before rcS), rather than reimplementing the
-	  I2C wire protocol from scratch.
+	  from the earliest available init hook (/etc/init.d/S00mcuwdt, the
+	  lowest-numbered S-script rcS's `find ... -name "S*"` glob will run),
+	  rather than reimplementing the I2C wire protocol from scratch.
 
 	  Only enable this for boards that actually have this MCU wired up.
 

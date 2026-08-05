@@ -9,8 +9,8 @@ define THINGINO_MCU_WDT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/mcu_test
 	$(INSTALL) -D -m 0755 $(THINGINO_MCU_WDT_PKGDIR)/files/libcommon.so \
 		$(TARGET_DIR)/usr/lib/libcommon.so
-	$(INSTALL) -D -m 0755 $(THINGINO_MCU_WDT_PKGDIR)/files/F00a_mcuwdt \
-		$(TARGET_DIR)/etc/init.d/F00a_mcuwdt
+	$(INSTALL) -D -m 0755 $(THINGINO_MCU_WDT_PKGDIR)/files/S00mcuwdt \
+		$(TARGET_DIR)/etc/init.d/S00mcuwdt
 endef
 
 $(eval $(generic-package))

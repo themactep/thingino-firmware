@@ -18,9 +18,17 @@
 #  - CRITICAL: the stock firmware disables the MCU's hardware watchdog very
 #    early in boot (before its normal init sequence) via a dedicated recovery
 #    tool. See package/thingino-mcu-wdt, which ships that same extracted vendor
-#    binary and runs it from an F00a-prefixed script -- before F00ledd, ahead
-#    of the rest of rcF/rcS. If first boot reboot-loops, this is the first
-#    thing to suspect (watchdog window tighter than an F-script can catch).
+#    binary and runs it from /etc/init.d/S00mcuwdt -- the earliest possible
+#    S-numbered script, since Thingino's rcS only globs `S*` (not stock
+#    Archon's separate rcF/F*-prefixed stage, which doesn't exist here). An
+#    earlier version of this script was named F00a_mcuwdt on the mistaken
+#    assumption Thingino had an rcF stage like stock -- it was silently never
+#    executed by rcS's `find /etc/init.d/ -name "S*"` glob, confirmed via a
+#    passive Saleae capture on the live MCU I2C bus (SDA/SCL) showing zero
+#    electrical activity for a full 30s Thingino boot, vs. heavy bus activity
+#    within the first ~15s on the same physical wiring under stock firmware.
+#    If first boot reboot-loops, this is the first thing to suspect (watchdog
+#    window tighter than S00 can catch).
 #  - MCU I2C bus CONFIRMED via live hardware + vendor kernel binary analysis:
 #    it's GPIO-bitbanged (CONFIG_SOFT_I2C1_GPIO_V12_JZ), SDA=GPIO53/SCL=GPIO52
 #    (GPIO_PB(21)/GPIO_PB(20)), not the I2C1_V12_JZ hardware controller. Wired
