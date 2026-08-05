@@ -1,6 +1,14 @@
 (function () {
   const chartCanvas = $("#dataChart");
-  if (!chartCanvas || typeof Chart === "undefined") return;
+  const paranoidBanner = $("#paranoid-banner");
+  const chartContainer = $("#chart-container");
+
+  if (!chartCanvas || typeof Chart === "undefined") {
+    // Chart.js not loaded (paranoid mode or offline): show warning, keep preview + stats
+    if (paranoidBanner) paranoidBanner.classList.add("visible");
+    if (chartContainer) chartContainer.style.display = "none";
+    return;
+  }
 
   class SensorDataCollector {
     constructor() {

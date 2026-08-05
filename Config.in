@@ -43,6 +43,9 @@ menu "Toolchain"
 	config BR2_THINGINO_TOOLCHAIN_GCC_15
 		bool "GCC 15"
 
+	config BR2_THINGINO_TOOLCHAIN_GCC_16
+		bool "GCC 16"
+
 	endchoice
 
 	choice
