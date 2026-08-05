@@ -2,10 +2,14 @@
 #
 # Disable the companion MCU's hardware watchdog as early as possible.
 #
-# This runs before F00ledd (rcF processes /etc/init.d/F* in lexicographic
-# order; "F00a" sorts before "F00l"), i.e. before LED init, before the
-# failsafe console prompt, and long before any S*-numbered script. If the
-# MCU's watchdog is armed by default and not disabled quickly, it can
+# Thingino's rcS runs `find /etc/init.d/ -name "S*" -executable | sort -n`,
+# so S00 is the earliest possible slot -- before S01entropy and everything
+# else. (An earlier version of this script was misnamed F00a_mcuwdt, on the
+# mistaken assumption Thingino had a separate rcF/F*-prefixed stage like
+# stock Archon firmware does; it doesn't, so that script was silently never
+# executed by rcS's glob -- confirmed via a passive logic analyzer capture
+# on the live MCU I2C bus showing zero activity for a full Thingino boot.)
+# If the MCU's watchdog is armed by default and not disabled quickly, it can
 # power-cycle the whole SoC -- see package/thingino-mcu-wdt's Config.in.
 #
 # /usr/bin/mcu_test is the vendor's own diagnostic tool (unmodified) --
