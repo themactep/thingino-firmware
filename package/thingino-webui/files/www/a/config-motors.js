@@ -79,7 +79,7 @@
     const alert = document.createElement("div");
     alert.className = `alert alert-${variant || "secondary"} alert-dismissible fade show`;
     alert.setAttribute("role", "alert");
-    alert.textContent = message;
+    alert.innerHTML = message;
     const dismissBtn = document.createElement("button");
     dismissBtn.type = "button";
     dismissBtn.className = "btn-close";
@@ -231,17 +231,17 @@
     if (!form) return;
 
     // Client-side validation to prevent 412 errors
-    const requiredFields = [
+    const requiredPanFields = [
       "gpio_pan_1",
       "gpio_pan_2",
       "gpio_pan_3",
       "gpio_pan_4",
+    ];
+    const requiredTiltFields = [
       "gpio_tilt_1",
       "gpio_tilt_2",
       "gpio_tilt_3",
       "gpio_tilt_4",
-      "steps_pan",
-      "steps_tilt",
     ];
 
     const formData = new FormData(form);
@@ -249,13 +249,31 @@
 
     // Check GPIO fields (skip for SPI motor boards where pins are irrelevant)
     if (!motorIsSpi) {
-      for (let i = 0; i < 8; i++) {
-        const field = requiredFields[i];
+      for (const field of requiredPanFields) {
         const value = formData.get(field);
         if (!value || value.trim() === "") {
           errors.push(
             `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
           );
+        }
+      }
+
+      // Detect whether the tilt axis is present: all GPIOs set to -1
+      // means the hardware has no tilt motor and tilt validation should
+      // be skipped entirely.
+      const tiltGpioValues = requiredTiltFields.map((f) =>
+        (formData.get(f) || "").trim(),
+      );
+      const tiltDisabled = tiltGpioValues.every((v) => v === "-1");
+
+      if (!tiltDisabled) {
+        for (const field of requiredTiltFields) {
+          const value = formData.get(field);
+          if (!value || value.trim() === "") {
+            errors.push(
+              `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
+            );
+          }
         }
       }
     }
@@ -266,7 +284,14 @@
     if (!stepsPan || parseInt(stepsPan) <= 0) {
       errors.push("Pan max steps must be a positive number");
     }
-    if (!stepsTilt || parseInt(stepsTilt) <= 0) {
+
+    // Skip tilt steps validation when the tilt axis is disabled (all GPIOs -1).
+    // Pan-only cameras legitimately have steps_tilt = 0.
+    const tiltGpioVals = requiredTiltFields.map((f) =>
+      (formData.get(f) || "").trim(),
+    );
+    const tiltAxisMissing = tiltGpioVals.every((v) => v === "-1");
+    if (!tiltAxisMissing && (!stepsTilt || parseInt(stepsTilt) <= 0)) {
       errors.push("Tilt max steps must be a positive number");
     }
 
@@ -295,10 +320,8 @@
     }
 
     if (errors.length > 0) {
-      showAlert(
-        "danger",
-        "Please fix the following errors:<br>" + errors.join("<br>"),
-      );
+      showAlert("danger", "Please fix the following errors:", 0);
+      errors.forEach((err) => showAlert("warning", err, 0));
       return;
     }
 
