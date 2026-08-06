@@ -28,11 +28,37 @@ else
 	# instead, so it's a fallback, not the default.
 	sinfo_url="https://github.com/themactep/ingenic-sdk/releases/download/sinfo/sinfo-$soc.ko"
 	sinfo_out="/tmp/sinfo-$soc.ko"
-	if ! curl -fL --connect-timeout 10 --max-time 60 "$sinfo_url" -o "$sinfo_out"; then
+
+	curl -fL --connect-timeout 10 --max-time 60 "$sinfo_url" -o "$sinfo_out"
+	sinfo_rc=$?
+
+	if [ "$sinfo_rc" -ne 0 ]; then
 		echo "Default connection failed, retrying over IPv6..."
 		curl -fL -6 --connect-timeout 10 --max-time 60 "$sinfo_url" -o "$sinfo_out"
+		sinfo_rc=$?
 	fi
-	if [ $? -ne 0 ]; then
+
+	if [ "$sinfo_rc" -ne 0 ]; then
+		# Last resort: this device's C library resolver (used by curl/ping6/
+		# getaddrinfo) can fail to retrieve github.com's own DNS64-synthesized
+		# AAAA even when the network has a working NAT64 gateway and busybox's
+		# own independent nslookup implementation gets the right answer for the
+		# exact same query -- confirmed live, a narrow uClibc/DNS64 interop bug
+		# specific to certain hostnames (github.com among them), not a general
+		# DNS64 problem. The actual CDN host github.com's release links
+		# redirect to resolves fine on its own through the normal path, so work
+		# around this by resolving just the github.com hop ourselves (via
+		# nslookup, which isn't affected) and pinning it with --resolve; -L
+		# still follows the subsequent redirect normally from there.
+		echo "IPv6 retry failed, trying to resolve github.com manually..."
+		sinfo_v6=$(nslookup github.com 2>/dev/null | awk '/^Address: 64:ff9b::/{print $2; exit}')
+		if [ -n "$sinfo_v6" ]; then
+			curl -fL -6 --connect-timeout 10 --max-time 60 --resolve "github.com:443:$sinfo_v6" "$sinfo_url" -o "$sinfo_out"
+			sinfo_rc=$?
+		fi
+	fi
+
+	if [ "$sinfo_rc" -ne 0 ]; then
 		echo "Error: Failed to download sinfo module."
 		exit 1
 	fi
