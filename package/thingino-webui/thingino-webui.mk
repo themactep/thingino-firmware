@@ -417,15 +417,16 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
 endef
 
-# Paranoid mode CDN → local rewriting — runs in finalize hook so that
-# HTML pages installed by plugin packages (thingino-gpio, thingino-snmpd,
-# etc.) are also processed.
+# Paranoid mode CDN → local rewriting — runs as a rootfs pre-hook (not a
+# per-package finalize hook) so it runs AFTER the finalize hooks of streamer
+# packages (timps, raptor) that install their own HTML overlays.  Plugin
+# assembly (ASSEMBLE_PLUGINS) has also already run by this point.
 define THINGINO_WEBUI_PARANOID_REWRITE
 	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
 	fi
 endef
-THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and
