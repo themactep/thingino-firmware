@@ -1,0 +1,23 @@
+--- a/src/loginrec.h
++++ b/src/loginrec.h
+@@ -33,6 +33,20 @@
+ 
+ /* RCSID("Id: loginrec.h,v 1.2 2004/05/04 10:17:43 matt Exp "); */
+ 
++/*
++ * Thingino override: keep login accounting disabled even if libc exposes
++ * wtmp/wtmpx/lastlog defaults.
++ */
++#ifndef DISABLE_WTMP
++# define DISABLE_WTMP 1
++#endif
++#ifndef DISABLE_WTMPX
++# define DISABLE_WTMPX 1
++#endif
++#ifndef DISABLE_LASTLOG
++# define DISABLE_LASTLOG 1
++#endif
++
+ /* The following #defines are from OpenSSH's defines.h, required for loginrec */
+ 
+ /* FIXME: put default paths back in */
