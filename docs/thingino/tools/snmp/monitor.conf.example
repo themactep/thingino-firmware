@@ -1,0 +1,14 @@
+# Thingino SNMP Monitor — camera configuration
+#
+# Copy this file to ~/.config/thingino/monitor.conf and edit it.
+#
+# Format: NAME|IP|COMMUNITY
+#   NAME       — A label for the camera (no spaces, use hyphens)
+#   IP         — IPv4 address of the camera
+#   COMMUNITY  — SNMP community string (set in camera's Web UI → Services → SNMP)
+#
+# Lines starting with # are comments.
+
+# front-door|192.168.1.100|mysecret
+# backyard|192.168.1.101|mysecret
+# garage|192.168.1.102|anothersecret
