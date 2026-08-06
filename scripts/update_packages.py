@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import re
 import sys
 import shutil
@@ -330,6 +331,97 @@ def restore_stashed_changes() -> bool:
     return True
 
 
+def download_release_tarball_hash(repo_url: str, tag: str, package_name: str, version: str) -> Optional[Tuple[str, str]]:
+    """
+    Download the GitHub release tarball for *tag* and compute its SHA-256.
+    Returns ``(sha256_hex, tarball_filename)``, or ``None`` on failure.
+    """
+    m = re.match(r'https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$', repo_url)
+    if not m:
+        log_error(f"Cannot parse GitHub URL for tarball download: {repo_url}")
+        return None
+    user, repo = m.group(1), m.group(2)
+    archive_url = f"https://github.com/{user}/{repo}/archive/refs/tags/{tag}.tar.gz"
+    tarball_name = f"{package_name}-{version}.tar.gz"
+    log_debug(f"Downloading {archive_url} to compute hash...")
+    try:
+        result = subprocess.run(
+            ["curl", "-sL", "--max-time", "60", archive_url],
+            capture_output=True, timeout=90,
+        )
+        if result.returncode != 0:
+            log_error(f"Failed to download {archive_url}: {result.stderr.decode(errors='ignore')[:200]}")
+            return None
+    except Exception as e:
+        log_error(f"Failed to download {archive_url}: {e}")
+        return None
+    sha = hashlib.sha256(result.stdout).hexdigest()
+    log_debug(f"Computed SHA-256 for {tarball_name}: {sha}")
+    return sha, tarball_name
+
+
+def update_package_hash_file(mk_path: Path, tarball_name: str, sha256_hash: str) -> bool:
+    """
+    Add or replace a SHA-256 entry in the package's ``.hash`` file.
+    The hash file is expected to live next to the ``.mk`` file with
+    the same basename (i.e. ``<pkg>/<pkg>.hash``).
+    """
+    hash_path = mk_path.parent / f"{mk_path.parent.name}.hash"
+    new_entry = f"sha256  {sha256_hash}  {tarball_name}"
+
+    if hash_path.exists():
+        try:
+            lines = hash_path.read_text(encoding='utf-8', errors='ignore').splitlines()
+        except Exception as e:
+            log_error(f"Failed to read {hash_path}: {e}")
+            return False
+    else:
+        lines = ["# Locally calculated"]
+
+    # Replace existing entry for the same tarball, if present
+    entry_re = re.compile(rf"^sha256\s+[a-f0-9]{{64}}\s+{re.escape(tarball_name)}\s*$")
+    for i, line in enumerate(lines):
+        if entry_re.match(line):
+            lines[i] = new_entry
+            try:
+                hash_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+                log_success(f"Updated hash in {hash_path.name} for {tarball_name}")
+                return True
+            except Exception as e:
+                log_error(f"Failed to write {hash_path}: {e}")
+                return False
+
+    # New entry — insert after the last tarball-hash line (skip license hashes)
+    last_idx = -1
+    for i, line in enumerate(lines):
+        if line.startswith("sha256  ") and "LICENSE" not in line:
+            last_idx = i
+
+    if last_idx >= 0:
+        lines.insert(last_idx + 1, new_entry)
+    else:
+        # No existing tarball hashes — insert after the leading comment block
+        inserted = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith("#") and "license" not in line.lower():
+                j = i + 1
+                while j < len(lines) and not lines[j].strip():
+                    j += 1
+                lines.insert(j, new_entry)
+                inserted = True
+                break
+        if not inserted:
+            lines.append(new_entry)
+
+    try:
+        hash_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        log_success(f"Added hash to {hash_path.name} for {tarball_name}")
+        return True
+    except Exception as e:
+        log_error(f"Failed to write {hash_path}: {e}")
+        return False
+
+
 def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_hash: str, commit_log: List[str]) -> bool:
     """
     Create a Git commit for a package update.
@@ -344,6 +436,12 @@ def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_h
     if code != 0:
         log_error(f"Failed to stage {relative_mk_path}: {err}")
         return False
+
+    # Stage the .hash file if it exists (may have been updated with a new tarball hash)
+    hash_path = mk_path.parent / f"{mk_path.parent.name}.hash"
+    if hash_path.exists():
+        relative_hash_path = hash_path.relative_to(PROJECT_ROOT)
+        run_git(["add", str(relative_hash_path)], cwd=PROJECT_ROOT)
 
     # Create commit message
     old_short = get_short_hash(old_hash)
@@ -747,6 +845,12 @@ def process_package_release(mk_path: Path, package_name: str, repo_url: str,
 
             if prompt_yes_no(package_name, raw_version, remote_hash):
                 if update_package_mk(mk_path, package_name, raw_version, remote_hash):
+                    hash_result = download_release_tarball_hash(repo_url, remote_hash, package_name, remote_hash)
+                    if hash_result:
+                        sha, tarball = hash_result
+                        update_package_hash_file(mk_path, tarball, sha)
+                    else:
+                        log_warn(f"Could not compute tarball hash for {package_name} {remote_hash}; .hash file not updated")
                     log_lines = get_commit_log(repo_url, raw_version, remote_hash, branch)
                     if create_package_commit(package_name, mk_path, raw_version, remote_hash, log_lines):
                         PACKAGES_UPDATED += 1
@@ -791,6 +895,13 @@ def process_package_release(mk_path: Path, package_name: str, repo_url: str,
             return
 
         if update_package_mk_version(mk_path, package_name, raw_version, new_version):
+            # Compute and record the tarball hash for the new version
+            hash_result = download_release_tarball_hash(repo_url, latest_tag, package_name, new_version)
+            if hash_result:
+                sha, tarball = hash_result
+                update_package_hash_file(mk_path, tarball, sha)
+            else:
+                log_warn(f"Could not compute tarball hash for {package_name} {new_version}; .hash file not updated")
             log_lines: List[str] = []
             if create_package_commit(package_name, mk_path, current_tag, latest_tag, log_lines):
                 PACKAGES_UPDATED += 1
