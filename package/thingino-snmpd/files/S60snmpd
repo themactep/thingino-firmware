@@ -1,0 +1,171 @@
+#!/bin/sh
+
+DAEMON="mini-snmpd"
+DAEMON_FULL="/usr/sbin/mini-snmpd"
+PIDFILE="/run/snmpd.pid"
+CONFIG_FILE="/etc/thingino.json"
+MDNS_SERVICE="/etc/mdns.d/snmp.service"
+
+read_config() {
+	jct "$CONFIG_FILE" get "snmpd.$1" 2>/dev/null | tr -d '\n'
+}
+
+read_text() {
+	read_config "$1" | tr -d '"'
+}
+
+is_number() {
+	case "$1" in
+		'' | *[!0-9]*) return 1 ;;
+		*) return 0 ;;
+	esac
+}
+
+# Keep only mount points that actually exist, so dskTable does not
+# advertise partitions this camera does not have.
+existing_disks() {
+	kept=""
+	for disk in $(read_text disks | tr ',;' '  '); do
+		[ -d "$disk" ] || continue
+		kept="${kept:+$kept,}$disk"
+	done
+	printf '%s' "$kept"
+}
+
+# Assemble the command line in the positional parameters, so values
+# containing spaces (location, contact, description) survive, then hand
+# them to start-stop-daemon unmangled.
+start_daemon() {
+	set -- -n -s
+
+	port=$(read_text port)
+	is_number "$port" || port=161
+	set -- "$@" -p "$port" -P "$port"
+
+	community=$(read_text community)
+	[ -n "$community" ] && set -- "$@" -c "$community"
+
+	[ "true" = "$(read_config auth)" ] && set -- "$@" -a
+
+	loglevel=$(read_text loglevel)
+	[ -n "$loglevel" ] && set -- "$@" -l "$loglevel"
+
+	timeout=$(read_text timeout)
+	is_number "$timeout" && set -- "$@" -t "$timeout"
+
+	location=$(read_text location)
+	[ -n "$location" ] && set -- "$@" -L "$location"
+
+	contact=$(read_text contact)
+	[ -n "$contact" ] && set -- "$@" -C "$contact"
+
+	description=$(read_text description)
+	[ -n "$description" ] && set -- "$@" -D "$description"
+
+	listen=$(read_text listen)
+	[ -n "$listen" ] && set -- "$@" -I "$listen"
+
+	interfaces=$(read_text interfaces)
+	[ -n "$interfaces" ] && set -- "$@" -i "$interfaces"
+
+	disks=$(existing_disks)
+	[ -n "$disks" ] && set -- "$@" -d "$disks"
+
+	for sink in $(read_text traps | tr ',;' '  '); do
+		set -- "$@" -T "$sink"
+	done
+
+	echo "- Listening on port $port/udp and $port/tcp"
+
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON_FULL" -- "$@"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON_FULL"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON_FULL"
+}
+
+register_mdns() {
+	local community port
+	community=$(read_text community)
+	[ -z "$community" ] && community="public"
+	port=$(read_text port)
+	is_number "$port" || port=161
+
+	cat >"$MDNS_SERVICE" <<EOF
+# SNMP service definition for mdnsd (auto-generated)
+name $(hostname)
+type _snmp._udp
+port $port
+txt community=$community
+EOF
+
+	# Signal mdnsd to reload
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+}
+
+unregister_mdns() {
+	rm -f "$MDNS_SERVICE"
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+}
+
+start() {
+	echo -c 15 "Starting SNMP daemon"
+
+	if pidof "$DAEMON" >/dev/null 2>&1; then
+		echo "SNMP daemon already running" >&2
+		exit 1
+	fi
+
+	start_daemon
+	register_mdns
+}
+
+case "$1" in
+	force)
+		start
+		;;
+	start)
+		if [ "true" != "$(read_config enabled)" ]; then
+			echo "SNMP daemon is disabled in $CONFIG_FILE" >&2
+			exit 1
+		fi
+		start
+		;;
+	stop)
+		echo -c 15 "Stopping SNMP daemon"
+		stop_daemon
+		unregister_mdns
+		;;
+	restart | reload)
+		# Every setting is passed on the command line, so reload is a restart
+		stop_daemon || true
+		unregister_mdns
+		sleep 1
+		"$0" start
+		;;
+	status)
+		if pidof "$DAEMON" >/dev/null 2>&1; then
+			echo "$DAEMON is running"
+			exit 0
+		fi
+		echo "$DAEMON is stopped"
+		exit 1
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload|status|force}"
+		exit 1
+		;;
+esac
+
+exit 0
