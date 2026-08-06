@@ -5,7 +5,12 @@ THINGINO_RAPTOR_HAL_GIT_SUBMODULES = YES
 THINGINO_RAPTOR_HAL_INSTALL_STAGING = YES
 THINGINO_RAPTOR_HAL_INSTALL_TARGET = NO
 
+# One block per vendor, matching the backend symbols in Config.in. A vendor
+# whose backend links no library adds no block here, which also leaves
+# INGENIC_HEADERS below inert rather than needing a guard of its own.
+ifeq ($(BR2_SOC_VENDOR_INGENIC),y)
 THINGINO_RAPTOR_HAL_DEPENDENCIES = ingenic-lib
+endif
 
 THINGINO_RAPTOR_HAL_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 
