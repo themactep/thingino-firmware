@@ -4,7 +4,7 @@
 # built in for this board's enabled usbnet variant(s) will exist under
 # /lib/modules, so it's safe to just try them all rather than hardcoding
 # one module name per board.
-modulenames="rndis_host cdc_ether cdc_ncm asix ax88179_178a r8152 option"
+modulenames="rndis_host cdc_ether cdc_ncm asix ax88179_178a r8152 option ppp_generic ppp_async"
 
 start() {
 	echo -c 15 "Starting USB NET"
