@@ -201,6 +201,43 @@ set_timps_video_params() {
 	esac
 }
 
+# timps_stream_jpeg_enabled <n>: does /snapshot.jpg?chn=N actually work?
+# jpeg_src_from_path() (httpd.c) requires videoN.enabled AND videoN.jpeg,
+# both default-true in config.c, and the whole endpoint needs http.enabled.
+# The WebUI snapshot CGIs (x/chN.jpg) proxy the same endpoint over loopback,
+# so the same conditions gate both snapurl variants.
+timps_stream_jpeg_enabled() {
+	[ "$(timps_bool_default http.enabled true)" = "true" ] || { echo "false"; return; }
+	[ "$(timps_bool_default "video$1.enabled" true)" = "true" ] || { echo "false"; return; }
+	timps_bool_default "video$1.jpeg" true
+}
+
+# timps supports the ONVIF audio backchannel (client -> camera speaker;
+# src/rtsp/backchannel.c, RTSP "Require: www.onvif.org/ver20/backchannel" on
+# the main stream) when the build has USE_BACKCHANNEL and timps.conf sets
+# audio.backchannel = true (config.c default: off). The conf can claim true
+# on a build without the feature, so when it does, also check the running
+# daemon's capability flag (caps "backchannel":{"available":N} in /control);
+# if /control is unreachable, trust the conf rather than dropping the feature.
+timps_backchannel_enabled() {
+	[ "$(timps_bool_default audio.backchannel false)" = "true" ] || { echo "false"; return; }
+	fetch_timps_control
+	case "$TIMPS_CONTROL_JSON" in
+		*'"backchannel":{"available":0}'*) echo "false" ;;
+		*) echo "true" ;;
+	esac
+}
+
+# Map audio.backchannel_codec (pcmu/pcma/aac or 0/1/2, config.c T_BCCODEC) to
+# onvif_simple_server's audio_decoder enum string (conf.c: NONE/G711/G726/AAC).
+timps_backchannel_decoder() {
+	codec=$(timps_conf_get audio.backchannel_codec | tr 'A-Z' 'a-z')
+	case "$codec" in
+		2 | aac) echo "AAC" ;;
+		*) echo "G711" ;;   # pcmu/pcma/0/1/unset: G.711 either way
+	esac
+}
+
 configure_timps_onvif_profiles() {
 	rtsp_scheme=$(timps_rtsp_scheme)
 	rtsp_port=$(timps_rtsp_port)
@@ -221,22 +258,65 @@ configure_timps_onvif_profiles() {
 	# onvif_simple_server appends to the snapurl satisfies the WebUI auth
 	# layer (auth.sh verify_api_key). Fall back to the direct URL
 	# (authenticated via http.pass) only when the WebUI snapshot CGIs aren't
-	# installed. No RTSP audio backchannel: timps is one-way.
+	# installed.
+	#
+	# Only advertise a snapurl for channels whose JPEG source actually exists
+	# (videoN.jpeg=true etc., see timps_stream_jpeg_enabled): a snapurl on a
+	# jpeg-disabled channel 404s (jpeg_src_from_path returns -1 for explicit
+	# chn=) and clients show "snapshot unavailable" against a configured URI.
+	# snap0_on/snap1_on stay global: start() uses them after the import to
+	# DELETE stale snapurl keys (import can only add/overwrite, and the shipped
+	# onvif.json template carries default snapurls). A missing snapurl makes
+	# onvif_simple_server answer GetSnapshotUri with a proper SOAP fault
+	# instead of a dead URL.
+	snap0_on=$(timps_stream_jpeg_enabled 0)
+	snap1_on=$(timps_stream_jpeg_enabled 1)
 	if [ -x /var/www/x/ch1.jpg ] && [ -e /var/www/onvif/image1.cgi ]; then
-		jct "$tmpfile" set profiles.stream0.snapurl "http://%s/onvif/image.cgi"
-		jct "$tmpfile" set profiles.stream1.snapurl "http://%s/onvif/image1.cgi"
+		[ "$snap0_on" = "true" ] && jct "$tmpfile" set profiles.stream0.snapurl "http://%s/onvif/image.cgi"
+		[ "$snap1_on" = "true" ] && jct "$tmpfile" set profiles.stream1.snapurl "http://%s/onvif/image1.cgi"
 	else
-		jct "$tmpfile" set profiles.stream0.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=0"
-		jct "$tmpfile" set profiles.stream1.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=1"
+		[ "$snap0_on" = "true" ] && jct "$tmpfile" set profiles.stream0.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=0"
+		[ "$snap1_on" = "true" ] && jct "$tmpfile" set profiles.stream1.snapurl "${http_scheme}://%s:${http_port}/snapshot.jpg?chn=1"
 	fi
 
 	set_timps_video_params 0
 	set_timps_video_params 1
+
+	# ONVIF audio backchannel: when timps has it enabled (and built in),
+	# advertise the AudioOutput so Profile S/T clients (HA ONVIF integration,
+	# ODM, Surveillance Station talkback) discover two-way audio instead of
+	# needing a hand-configured Require: header. audio.output_enabled gates
+	# every AudioOutput/GetAudioOutputs answer in onvif_simple_server and
+	# profiles.streamN.audio_decoder must name the codec timps actually
+	# decodes - the shipped onvif.json template claims AAC unconditionally.
+	# audio.backchannel.uri points at the main stream (timps multiplexes the
+	# backchannel onto it); the pinned onvif_simple_server parses the key but
+	# doesn't emit it yet (clients attach via the profile's GetStreamUri) -
+	# correct forward-compatible metadata, mirroring the raptor branch.
+	# Write the disabled state explicitly too: the template defaults
+	# output_enabled=true + decoder AAC, which advertised talkback on cameras
+	# that don't have it.
+	if [ "$(timps_backchannel_enabled)" = "true" ]; then
+		bc_decoder=$(timps_backchannel_decoder)
+		jct "$tmpfile" set audio.output_enabled true
+		jct "$tmpfile" set audio.backchannel.uri "${rtsp_scheme}://%s:${rtsp_port}/${endpoint_main}"
+		jct "$tmpfile" set profiles.stream0.audio_decoder "$bc_decoder"
+		jct "$tmpfile" set profiles.stream1.audio_decoder "$bc_decoder"
+	else
+		jct "$tmpfile" set audio.output_enabled false
+		jct "$tmpfile" set profiles.stream0.audio_decoder "NONE"
+		jct "$tmpfile" set profiles.stream1.audio_decoder "NONE"
+	fi
 }
 
 # ----------------------------------------------------------------- daemons ---
+# No -m here: wsd_simple_server acquires the pidfile itself (atomic O_EXCL
+# with stale-pid takeover, wsd_simple_server.c). With -m, start-stop-daemon
+# pre-writes the daemon's own pid into that same file, so the daemon's
+# acquire_pid_file() finds a "live" owner (itself) and exits fatally with
+# "Program is already running" - every warm restart killed discovery.
 start_daemon() {
-	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
 }
 
 stop_daemon() {
@@ -325,6 +405,13 @@ start() {
 		jct $ONVIF_CONFIG del server.username 2>/dev/null
 		jct $ONVIF_CONFIG del server.password 2>/dev/null
 	fi
+
+	# same import limitation for the snapshot URIs: the shipped onvif.json
+	# template (and any earlier S96 run) carries snapurl defaults, so when a
+	# channel's JPEG source is off they must be deleted, not just skipped.
+	# Without a snapurl onvif_simple_server faults GetSnapshotUri cleanly.
+	[ "$snap0_on" = "true" ] || jct $ONVIF_CONFIG del profiles.stream0.snapurl 2>/dev/null
+	[ "$snap1_on" = "true" ] || jct $ONVIF_CONFIG del profiles.stream1.snapurl 2>/dev/null
 
 	rm -f $tmpfile
 }
