@@ -2,8 +2,10 @@ config BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	bool "libaudioprocess-neo (replaces stock libaudioProcess)"
 	help
 	  Pure C drop-in replacement for Ingenic's proprietary
-	  libaudioProcess.so. 74KB, libc-only dependency.
+	  libaudioProcess.so. It supports all Ingenic SoCs with one
+	  build.
 	  Supports AEC, AGC, NS, HPF, LPF, HS, DRC, EQ.
-	  Overrides the stock blob when both are selected.
+	  The target-finalize hook preserves the replacement if another
+	  selected package also provides libaudioProcess.so.
 
 	  https://github.com/gtxaspec/libaudioProcess-neo

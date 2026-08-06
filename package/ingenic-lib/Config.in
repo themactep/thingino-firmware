@@ -7,13 +7,15 @@ if BR2_PACKAGE_INGENIC_LIB
 
 config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	bool "libimp.so (core SDK)"
+	depends on !BR2_PACKAGE_OPENIMP
 	default y
 	help
-	  Ingenic IMP core library. Required by all streamers.
+	  Proprietary Ingenic IMP core library. Used when OpenIMP is not
+	  selected.
 
 config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 	bool "libalog.so (proprietary)"
-	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
+	depends on !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
 	default y
 	help
 	  Ingenic proprietary logging library.
@@ -22,15 +24,16 @@ config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 config BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
 	bool "libsysutils.so (proprietary)"
 	depends on !BR2_SOC_FAMILY = "a1"
-	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	depends on !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
 	default y
 	help
 	  Ingenic proprietary system utilities library.
-	  Overridden by ingenic-system-libs-neo libsysutils when selected.
+	  Overridden by ingenic-system-libs-neo libsysutils when
+	  selected.
 
 config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
 	bool "libaudioProcess.so (proprietary)"
-	default n if BR2_PACKAGE_LIBAUDIOPROCESS_NEO
+	depends on !BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	default y
 	help
 	  Ingenic proprietary audio processing library.

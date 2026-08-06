@@ -58,8 +58,32 @@ cli() {
 }
 
 reset() {
-	local tmp_file=$(mktemp)
-	rm /overlay/etc/wpa_supplicant.conf
+	local overlay_dir credential_file
+	local credentials_found=0
+
+	# Linux overlayfs stores its upper directory directly in /overlay, while
+	# the newer overlay driver requires separate root and work directories.
+	# Remove the persisted copy from either layout so the read-only portal
+	# configuration becomes visible again on the next boot.
+	for overlay_dir in /overlay/root /overlay; do
+		credential_file="$overlay_dir/etc/wpa_supplicant.conf"
+		if [ ! -e "$credential_file" ] && [ ! -L "$credential_file" ]; then
+			continue
+		fi
+
+		credentials_found=1
+		if ! rm -f "$credential_file"; then
+			echo "Error: failed to remove Wi-Fi credentials from $credential_file." >&2
+			return 1
+		fi
+	done
+
+	sync
+	if [ "$credentials_found" -eq 1 ]; then
+		echo "Wi-Fi credentials removed. Reboot to start the configuration portal."
+	else
+		echo "No stored Wi-Fi credentials found."
+	fi
 }
 
 rssi() {
@@ -295,7 +319,7 @@ case "$entry_command" in
 				configure "$@"
 				;;
 			info) show_info ;;
-			reset) reset ;;
+			reset) reset || exit $? ;;
 			rssi) rssi ;;
 			setup) setup ;;
 			temp) temp ;;

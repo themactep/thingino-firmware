@@ -26,6 +26,8 @@ pin1_active_low=0
 pin2_active_low=0
 pin_count=0
 control_mode=""
+dual_drive_mode="pulse"
+dual_delay_us="$IRCUT_PULSE_US"
 ircut_disabled=0
 disabled_reason=""
 
@@ -67,6 +69,17 @@ get_bool_or_default() {
 	}
 	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
 	bool_flag "$raw" "$default"
+}
+
+get_scalar_or_default() {
+	local key="$1" default="$2" raw
+	raw=$(jct_get "$key") || {
+		echo "$default"
+		return
+	}
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
+	[ -n "$raw" ] || raw="$default"
+	echo "$raw"
 }
 
 dt_u32() {
@@ -192,10 +205,30 @@ extract_node() {
 }
 
 load_ircut_config() {
-	local default_active=0
+	local default_active=0 configured_mode configured_delay
 	if [ -n "$JCT_BIN" ] && [ -r "$CONFIG_JSON" ] && jct_has "$CONFIG_ROOT"; then
 		default_active=$(get_bool_or_default "$CONFIG_ROOT.active_low" 0)
 		extract_node "$CONFIG_ROOT" "$default_active"
+		configured_mode=$(get_scalar_or_default "$CONFIG_ROOT.mode" "pulse")
+		case "$configured_mode" in
+			pulse | level-sequence)
+				dual_drive_mode="$configured_mode"
+				;;
+			*)
+				echo -c 142 -e "Unknown IRCUT mode '$configured_mode'; using pulse" >&2
+				dual_drive_mode="pulse"
+				;;
+		esac
+		configured_delay=$(get_scalar_or_default "$CONFIG_ROOT.delay_us" "$IRCUT_PULSE_US")
+		case "$configured_delay" in
+			"" | *[!0-9]*)
+				echo -c 142 -e "Invalid IRCUT delay_us '$configured_delay'; using $IRCUT_PULSE_US" >&2
+				dual_delay_us="$IRCUT_PULSE_US"
+				;;
+			*)
+				dual_delay_us="$configured_delay"
+				;;
+		esac
 	fi
 	if [ "$pin_count" -eq 0 ] && [ "$ircut_disabled" -eq 0 ]; then
 		load_ircut_dt_config
@@ -279,7 +312,7 @@ apply_dual_open() {
 	echo -c 240 -e "- IRCUT -> night (pin1 idle, pin2 assert)"
 	gpio_set_level "$pin1" "$pin1_idle"
 	gpio_set_level "$pin2" "$pin2_assert"
-	usleep "$IRCUT_PULSE_US"
+	usleep "$dual_delay_us"
 	gpio_set_level "$pin2" "$pin2_idle"
 }
 
@@ -287,8 +320,25 @@ apply_dual_close() {
 	echo -c 240 -e "- IRCUT -> day (pin1 assert, pin2 idle)"
 	gpio_set_level "$pin2" "$pin2_idle"
 	gpio_set_level "$pin1" "$pin1_assert"
-	usleep "$IRCUT_PULSE_US"
+	usleep "$dual_delay_us"
 	gpio_set_level "$pin1" "$pin1_idle"
+}
+
+apply_dual_level_sequence() {
+	local target="$1" pin1_level pin2_level label
+	if [ "$target" -eq 0 ]; then
+		pin1_level="$pin1_idle"
+		pin2_level="$pin2_idle"
+		label="night"
+	else
+		pin1_level="$pin1_assert"
+		pin2_level="$pin2_assert"
+		label="day"
+	fi
+	echo -c 240 -e "- IRCUT -> $label (pin1 $pin1_level, then pin2 $pin2_level after ${dual_delay_us}us)"
+	gpio_set_level "$pin1" "$pin1_level"
+	usleep "$dual_delay_us"
+	gpio_set_level "$pin2" "$pin2_level"
 }
 
 apply_tmi() {
@@ -310,11 +360,18 @@ apply_state() {
 			apply_single "$target" || return 1
 			;;
 		dual)
-			if [ "$target" -eq 0 ]; then
-				apply_dual_open || return 1
-			else
-				apply_dual_close || return 1
-			fi
+			case "$dual_drive_mode" in
+				level-sequence)
+					apply_dual_level_sequence "$target" || return 1
+					;;
+				*)
+					if [ "$target" -eq 0 ]; then
+						apply_dual_open || return 1
+					else
+						apply_dual_close || return 1
+					fi
+					;;
+			esac
 			;;
 		*)
 			echo -c 160 -e "IRCUT control mode not initialized" >&2

@@ -1,23 +1,28 @@
+################################################################################
+#
+# open-tx-isp
+#
+################################################################################
+
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
 OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = d783ec7ee553c821999acf49f4ca7b1e9a187ab4
+OPEN_TX_ISP_VERSION = c1c133d08f562ae784444ef51661cfc2a58c89cf
 
-OPEN_TX_ISP_LICENSE = GPL-2.0
-OPEN_TX_ISP_LICENSE_FILES = LICENSE
+# Upstream identifies the project as GPLv3 but does not currently ship a
+# top-level license file for legal-info to collect.
+OPEN_TX_ISP_LICENSE = GPL-3.0
 
 OPEN_TX_ISP_DEPENDENCIES = ingenic-sdk linux
 
 # Build as out-of-tree kernel module
-OPEN_TX_ISP_MODULE_SUBDIRS = driver
+OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY)
 
 OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
-	INSTALL_MOD_DIR=ingenic
-
-# Buildroot enters driver/ via MODULE_SUBDIRS, so DIR is relative to that
-OPEN_TX_ISP_MODULE_MAKE_OPTS += DIR=.
+	INSTALL_MOD_DIR=ingenic \
+	DIR=.
 
 # Add XBurst platform include paths for soc headers
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \

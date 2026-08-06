@@ -116,7 +116,14 @@ Removes all stored Wi-Fi credentials.
 wlan reset
 ```
 
-Deletes `/overlay/etc/wpa_supplicant.conf`.
+Deletes the persisted `wpa_supplicant.conf` from either supported overlay
+layout:
+
+- `/overlay/root/etc/wpa_supplicant.conf` for the Linux overlay driver.
+- `/overlay/etc/wpa_supplicant.conf` for the legacy overlayfs driver.
+
+After reboot, the read-only portal configuration becomes active again. The
+command reports an error if a stored credential file cannot be removed.
 
 Shortcut commands
 -----------------

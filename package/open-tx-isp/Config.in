@@ -1,17 +1,33 @@
+config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
+	bool
+	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
+	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
+
 config BR2_PACKAGE_OPEN_TX_ISP
 	bool "Open TX-ISP driver"
-	depends on BR2_SOC_FAMILY = "t31"
+	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	depends on BR2_PACKAGE_INGENIC_SDK
+	depends on BR2_THINGINO_DEV_CAMERA
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP
-	  firmware blob. Provides a fully open tx-isp-t31.ko driver
-	  with no binary dependencies.
+	  kernel driver. Builds the driver for the selected T23, T31,
+	  T40, or T41 SoC and installs it under the canonical
+	  tx-isp-<soc>.ko module name.
 
-	  The driver supports T31 family SoCs and is compatible with
-	  kernel 3.10 through 7.0.
+	  The active upstream targets are the vendor Linux 3.10.14 trees
+	  for T23/T31 and Linux 4.4.94 trees for T40/T41. The recovered
+	  drivers are experimental and image quality is not yet
+	  OEM-equivalent on every sensor.
 
-	  From https://github.com/opensensor/open-tx-isp
+	  This package builds after ingenic-sdk so its module replaces
+	  the proprietary module while retaining the SDK sensor, audio,
+	  and AVPU modules.
 
-	  When enabled, this replaces the blob ISP module from ingenic-sdk.
+	  https://github.com/opensensor/open-tx-isp
 
 	  If unsure, say N.
+
+comment "open-tx-isp needs a T23/T31 Linux 3.10 or T40/T41 Linux 4.4 camera"
+	depends on !BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED

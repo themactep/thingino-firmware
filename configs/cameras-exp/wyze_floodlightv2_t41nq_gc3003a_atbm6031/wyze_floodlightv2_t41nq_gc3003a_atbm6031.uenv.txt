@@ -1,1 +1,3 @@
+gpio_button=62
+gpio_default=62i
 serialport=ttyS1
