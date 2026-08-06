@@ -15,7 +15,11 @@ OPENIMP_LICENSE = MIT
 
 OPENIMP_INSTALL_STAGING = YES
 
-OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
+OPENIMP_DEPENDENCIES = ingenic-lib
+
+ifneq ($(KERNEL_VERSION_7),y)
+OPENIMP_DEPENDENCIES += ingenic-sdk
+endif
 
 OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
