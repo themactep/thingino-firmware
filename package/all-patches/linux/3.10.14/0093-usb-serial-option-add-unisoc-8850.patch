@@ -1,0 +1,30 @@
+From: thingino <thingino@opensensor>
+Subject: [PATCH] usb: serial: option: add UNISOC UNISOC-8850 (TUGE TM18NA)
+
+The TUGE Technologies TM18NA LTE module (UNISOC V8850 baseband,
+USB VID:PID 1782:4d13) exposes a 7-interface composite USB device:
+a CDC-ECM control/data pair (interfaces 0-1, class 0x02/0x0a) plus
+5 vendor-specific bulk interfaces (interfaces 2-6, class 0xff, sub 0x00,
+proto 0x00) carrying AT commands and diagnostic channels. This VID:PID
+isn't in option.c's table upstream, so none of those 5 AT/diag
+interfaces get claimed by any driver -- confirmed live (Cinnado B6
+T23ZN/TM18NA board) via `cat /sys/kernel/debug/usb/devices` showing
+`Driver=(none)` on every interface after option.ko loads.
+
+Match on class/subclass/protocol (0xff, 0x00, 0x00) rather than a bare
+USB_DEVICE() so this only claims the 5 vendor-specific interfaces, not
+the CDC-ECM pair (which a future cdc_ether-enabled board config can bind
+separately for the modem's IP-over-USB path).
+
+diff --git a/drivers/usb/serial/option.c b/drivers/usb/serial/option.c
+index cd7786107..14e3fab39 100644
+--- a/drivers/usb/serial/option.c
++++ b/drivers/usb/serial/option.c
+@@ -1351,6 +1351,7 @@ static const struct usb_device_id option_ids[] = {
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x7d03, 0xff, 0x00, 0x00) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(0x07d1, 0x3e01, 0xff, 0xff, 0xff) }, /* D-Link DWM-152/C1 */
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(0x07d1, 0x3e02, 0xff, 0xff, 0xff) }, /* D-Link DWM-156/C1 */
++	{ USB_DEVICE_AND_INTERFACE_INFO(0x1782, 0x4d13, 0xff, 0x00, 0x00) }, /* UNISOC UNISOC-8850 (TUGE TM18NA) AT/diag ports */
+ 	{ } /* Terminating entry */
+ };
+ MODULE_DEVICE_TABLE(usb, option_ids);

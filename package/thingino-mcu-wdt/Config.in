@@ -1,0 +1,48 @@
+config BR2_PACKAGE_THINGINO_MCU_WDT
+	bool "thingino-mcu-wdt"
+	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_I2C_TOOLS
+	help
+	  Disables the hardware watchdog on a discrete companion MCU (found on
+	  some Ingenic camera boards, e.g. the MindMotion MM32F0020B1T on the
+	  Cinnado B6 T23ZN/TM18NA LTE variant) as early as possible during boot,
+	  and (on boards with an MCU-power-sequenced LTE modem) sends the I2C
+	  command that powers the modem on.
+
+	  On boards where this MCU is present, its watchdog can power-cycle the
+	  whole SoC if not disabled quickly after boot. This package ships two
+	  of the vendor's own extracted binaries (mcu_test, a diagnostic tool,
+	  plus its libcommon.so dependency) and runs `mcu_test --wdt_disable`
+	  from the earliest available init hook (/etc/init.d/S00mcuwdt, the
+	  lowest-numbered S-script rcS's `find ... -name "S*"` glob will run),
+	  rather than reimplementing the I2C wire protocol from scratch.
+
+	  Only enable this for boards that actually have this MCU wired up.
+
+	  NOTE: an earlier version of this package shipped a different vendor
+	  binary, disable_mcu_wdt (extracted from a separate recovery-initramfs
+	  tool, statically linked against only libc/libpthread). It reliably
+	  failed with garbled I2C responses on live hardware -- the I2C bus,
+	  pins, and timing were all independently confirmed correct (a plain
+	  MCU version query and other mcu_test commands succeed cleanly on the
+	  same bus), so the bug was specific to that one binary's own protocol
+	  handling, not the transport. mcu_test --wdt_disable, using the
+	  identical I2C bus/MCU, succeeds cleanly every time. Use mcu_test.
+
+	  mcu_test needs libjson-c.so.5; Thingino's own json-c package builds
+	  libjson-c.so (unversioned), so the init script symlinks it at runtime
+	  rather than requiring a second copy of the library.
+
+	  Also installs /etc/init.d/S01ltepower, which sends a raw MCU I2C
+	  command (magic 0xACAC, cmd 0x4003, CRC16/XMODEM-framed, protocol
+	  reverse-engineered from mcu_test's own mcu_cmd_send_try; the command
+	  ID itself came from disassembling stock's lp_mgr daemon) to power on
+	  the TM18NA LTE modem via i2ctransfer. Without this, the modem never
+	  presents anything on USB D+/D+ at all -- confirmed via direct DWC2
+	  HPRT0 register readback (prtpwr=1, host mode with port power on, but
+	  prtconnsts=0/SE0, i.e. no device electrically attached) that this is
+	  unrelated to any USB/kernel-level configuration. mcu_test has no CLI
+	  option for this command (its option table has ~70 vestigial/dead
+	  entries from a shared vendor SDK build that never reach any real
+	  code -- confirmed via disassembly, not a guess), hence the separate
+	  raw i2ctransfer script rather than another mcu_test invocation.

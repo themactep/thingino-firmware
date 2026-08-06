@@ -1,0 +1,177 @@
+From: thingino <thingino@opensensor>
+Subject: [PATCH] mmc: jzmmc_v12: fix double-completion race on host->mrq
+
+Live-tested on real hardware (Cinnado B6 T23ZN/TM18NA): a reproducible
+kernel panic, ~57s after every boot, `Unable to handle kernel paging
+request at virtual address 00000020` inside `mmc_request_done()`,
+`Kernel panic - not syncing: Fatal exception in interrupt`. Confirmed
+via addr2line/objdump against our own built vmlinux: the crash
+instruction is `lw s3, 32(s0)` where `s0 = mrq->cmd` -- i.e.
+`mmc_request_done(host->mmc, host->mrq)` is being called with an `mrq`
+whose `->cmd` field is NULL (garbage from a stale/reused stack frame),
+not with `mrq` itself NULL.
+
+Root cause: `host->mrq` is never set back to NULL anywhere in this
+driver after a request completes. There are two paths that guard
+their own completion call with `if (host->mrq)`
+(`jzmmc_request_timeout()`, the 500ms-interval request-timeout timer,
+and `jzmmc_detect_change()`, the card-removal path) specifically to
+avoid double-completing a request the normal IRQ-driven completion
+path already finished -- but that guard is permanently a no-op, since
+nothing ever clears `host->mrq`. If the timeout timer's callback
+starts running its final-completion branch (past its own retry/backoff
+checks) right as the real IRQ completion path (`jzmmc_data_done()`,
+`jzmmc_state_machine()`, `jzmmc_tasklet()`, or
+`jzmmc_command_start()`) also completes the same request, both paths
+can end up calling `mmc_request_done()` on the same `mrq` -- the first
+call's `mmc_request_done()` wakes the waiting caller (typically
+`mmc_wait_for_req()`), whose stack frame holding the `mrq` gets reused
+once it returns, and the second, racing call then dereferences a
+stale/garbage `mrq->cmd`.
+
+This is a real, always-present race in this driver, not something
+introduced by other changes on this branch -- the identical pattern
+(same timeout structure, same missing `host->mrq = NULL`) exists in
+the sibling `jz4780_mmc.c` driver in this same tree, confirming it's a
+pre-existing, copy-pasted bug across multiple SoC variants of this
+vendor driver family, just narrow/timing-dependent enough that it
+hadn't been hit before on a smaller/faster-booting image.
+
+Fix: at every real completion call site (the 9 that operate on
+`host->mrq` -- the two early-reject paths in `jzmmc_request()` operate
+on the local `mrq` parameter before it's ever assigned to `host->mrq`,
+so they're unaffected), snapshot `host->mrq` into a local variable,
+clear `host->mrq` to NULL, and only then call `mmc_request_done()`.
+This makes the existing (previously inert) `if (host->mrq)` guards in
+the timeout and card-removal paths actually work, and adds the same
+guard to the previously-unguarded IRQ-driven completion sites so a
+losing racer sees NULL and cleanly does nothing instead of completing
+a second time.
+
+diff --git a/drivers/mmc/host/jzmmc_v12.c b/drivers/mmc/host/jzmmc_v12.c
+index 8dd822327..6381daf5f 100755
+--- a/drivers/mmc/host/jzmmc_v12.c
++++ b/drivers/mmc/host/jzmmc_v12.c
+@@ -400,7 +400,11 @@ static void jzmmc_data_done(struct jzmmc_host *host)
+ 	}
+
+ 	del_timer_sync(&host->request_timer);
+-	mmc_request_done(host->mmc, host->mrq);
++	if (host->mrq) {
++		struct mmc_request *mrq = host->mrq;
++		host->mrq = NULL;
++		mmc_request_done(host->mmc, mrq);
++	}
+ }
+
+ /*------------------------End functional functions-------------------------*/
+@@ -439,7 +443,11 @@ start:
+ 		if (!data) {
+ 			host->state = STATE_IDLE;
+ 			del_timer_sync(&host->request_timer);
+-			mmc_request_done(host->mmc, host->mrq);
++			if (host->mrq) {
++				struct mmc_request *done_mrq = host->mrq;
++				host->mrq = NULL;
++				mmc_request_done(host->mmc, done_mrq);
++			}
+ 			break;
+ 		}
+ 		host->state = STATE_WAITING_DATA;
+@@ -499,7 +507,11 @@ start:
+ 		}
+ 		del_timer_sync(&host->request_timer);
+ 		host->state = STATE_IDLE;
+-		mmc_request_done(host->mmc, host->mrq);
++		if (host->mrq) {
++			struct mmc_request *done_mrq = host->mrq;
++			host->mrq = NULL;
++			mmc_request_done(host->mmc, done_mrq);
++		}
+ 		break;
+ 	}
+
+@@ -556,7 +568,11 @@ start:
+ 			host->data->bytes_xfered = 0;
+ 			del_timer_sync(&host->request_timer);
+ 			host->state = STATE_IDLE;
+-			mmc_request_done(host->mmc, host->mrq);
++			if (host->mrq) {
++				struct mmc_request *done_mrq = host->mrq;
++				host->mrq = NULL;
++				mmc_request_done(host->mmc, done_mrq);
++			}
+ 			goto out;
+ 		}
+ 		host->state = STATE_ERROR;
+@@ -893,7 +909,11 @@ static void jzmmc_data_start(struct jzmmc_host *host, struct mmc_data *data)
+ 		del_timer_sync(&host->request_timer);
+ 		if (!(host->pdata->pio_mode))
+ 			disable_pio_mode(host);
+-		mmc_request_done(host->mmc, host->mrq);
++		if (host->mrq) {
++			struct mmc_request *done_mrq = host->mrq;
++			host->mrq = NULL;
++			mmc_request_done(host->mmc, done_mrq);
++		}
+ 	} else {
+
+ 		jzmmc_dma_start(host, data);
+@@ -935,13 +955,21 @@ static void jzmmc_command_start(struct jzmmc_host *host, struct mmc_command *cmd
+ 		if (wait_cmd_response(host) < 0) {
+ 			cmd->error = -ETIMEDOUT;
+ 			del_timer_sync(&host->request_timer);
+-			mmc_request_done(host->mmc, host->mrq);
++			if (host->mrq) {
++				struct mmc_request *done_mrq = host->mrq;
++				host->mrq = NULL;
++				mmc_request_done(host->mmc, done_mrq);
++			}
+ 			return;
+ 		}
+ 		jzmmc_command_done(host, host->cmd);
+ 		if (!host->data) {
+ 			del_timer_sync(&host->request_timer);
+-			mmc_request_done(host->mmc, host->mrq);
++			if (host->mrq) {
++				struct mmc_request *done_mrq = host->mrq;
++				host->mrq = NULL;
++				mmc_request_done(host->mmc, done_mrq);
++			}
+ 		}
+ 	}
+ }
+@@ -1066,12 +1094,14 @@ static void jzmmc_request_timeout(unsigned long data)
+ 	}
+
+ 	if (host->mrq) {
+-		if (request_need_stop(host->mrq)) {
++		struct mmc_request *done_mrq = host->mrq;
++		host->mrq = NULL;
++		if (request_need_stop(done_mrq)) {
+ 			send_stop_command(host);
+ 		}
+ 		host->cmd->error = -ENOMEDIUM;
+ 		host->state = STATE_IDLE;
+-		mmc_request_done(host->mmc, host->mrq);
++		mmc_request_done(host->mmc, done_mrq);
+ 	}
+ }
+
+@@ -1156,13 +1186,15 @@ static void jzmmc_detect_change(unsigned long data)
+ 			jzmmc_reset(host);
+
+ 			if (host->mrq && (host->state > STATE_IDLE)) {
++				struct mmc_request *done_mrq = host->mrq;
++				host->mrq = NULL;
+ 				host->cmd->error = -ENOMEDIUM;
+ 				if (host->data) {
+ 					host->data->bytes_xfered = 0;
+ 					jzmmc_stop_dma(host);
+ 				}
+ 				del_timer_sync(&host->request_timer);
+-				mmc_request_done(host->mmc, host->mrq);
++				mmc_request_done(host->mmc, done_mrq);
+ 				host->state = STATE_IDLE;
+ 			}
+ 			mmc_detect_change(host->mmc, 0);

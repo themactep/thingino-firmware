@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+# Disable the companion MCU's hardware watchdog as early as possible.
+#
+# Thingino's rcS runs `find /etc/init.d/ -name "S*" -executable | sort -n`,
+# so S00 is the earliest possible slot -- before S01entropy and everything
+# else. (An earlier version of this script was misnamed F00a_mcuwdt, on the
+# mistaken assumption Thingino had a separate rcF/F*-prefixed stage like
+# stock Archon firmware does; it doesn't, so that script was silently never
+# executed by rcS's glob -- confirmed via a passive logic analyzer capture
+# on the live MCU I2C bus showing zero activity for a full Thingino boot.)
+# If the MCU's watchdog is armed by default and not disabled quickly, it can
+# power-cycle the whole SoC -- see package/thingino-mcu-wdt's Config.in.
+#
+# /usr/bin/mcu_test is the vendor's own diagnostic tool (unmodified) --
+# it does its own GPIO wake-pulse + I2C command + retry loop internally.
+# This script only invokes it and logs the result; it does not reimplement
+# any of that protocol.
+#
+# NOTE: an earlier version of this package shipped a different vendor
+# binary, disable_mcu_wdt (extracted from a separate recovery-initramfs
+# tool), which reliably failed this exact command with garbled I2C
+# responses on live hardware. mcu_test --wdt_disable, using the identical
+# I2C bus/MCU, succeeds cleanly every time -- the earlier binary had its
+# own bug, unrelated to the I2C bus/pins/timing (all independently
+# confirmed correct). Use mcu_test, not disable_mcu_wdt.
+
+MCU_TEST_BIN="/usr/bin/mcu_test"
+
+start() {
+	[ -x "$MCU_TEST_BIN" ] || {
+		echo "mcuwdt: $MCU_TEST_BIN missing or not executable" >&2
+		exit 1
+	}
+
+	# mcu_test needs libjson-c.so.5; Thingino ships libjson-c.so (unversioned)
+	ln -sf /usr/lib/libjson-c.so /usr/lib/libjson-c.so.5
+
+	"$MCU_TEST_BIN" --wdt_disable
+	ret=$?
+	if [ "$ret" -ne 0 ]; then
+		echo "mcuwdt: mcu_test --wdt_disable exited $ret (see above for its own error output)" >&2
+	fi
+	exit 0
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop | restart | *)
+		true
+		;;
+esac

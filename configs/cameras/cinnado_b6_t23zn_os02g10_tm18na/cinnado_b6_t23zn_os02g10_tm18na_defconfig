@@ -1,0 +1,192 @@
+# NAME: Cinnado B6 (T23ZN, OS02G10, TM18NA LTE)
+# FRAG: soc-xburst1 core ssl
+#
+# SoC:     Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
+# Sensor:  OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
+# Cellular: TUGE Technologies TM18NA (UNISOC V8850 baseband), USB (T23 dwc2 host mode)
+# MCU:     MindMotion MM32F0020B1T (Cortex-M0), I2C addr 0x10, PIR/battery/power/watchdog
+# Flash:   16MB NOR SPI
+#
+# NOTES:
+#  - This is the LTE sibling of cinnado_b6_t23zn_os02g10_atbm6461 (same
+#    "Cinnado B6" chassis/PTZ family, T23ZN + OS02G10), but with a TM18NA LTE
+#    module in place of the ATBM6461 WiFi/SDIO chip. Reverse-engineered from
+#    stock firmware firmware_T23ZN_20260803_2026.bin -- no live hardware access
+#    yet, so PTZ/GPIO map below is carried over from the WiFi sibling's own
+#    "best available guess... verify on hardware" starting point, not confirmed
+#    for this exact variant.
+#  - CRITICAL: the stock firmware disables the MCU's hardware watchdog very
+#    early in boot (before its normal init sequence) via a dedicated recovery
+#    tool. See package/thingino-mcu-wdt, which ships that same extracted vendor
+#    binary and runs it from /etc/init.d/S00mcuwdt -- the earliest possible
+#    S-numbered script, since Thingino's rcS only globs `S*` (not stock
+#    Archon's separate rcF/F*-prefixed stage, which doesn't exist here). An
+#    earlier version of this script was named F00a_mcuwdt on the mistaken
+#    assumption Thingino had an rcF stage like stock -- it was silently never
+#    executed by rcS's `find /etc/init.d/ -name "S*"` glob, confirmed via a
+#    passive Saleae capture on the live MCU I2C bus (SDA/SCL) showing zero
+#    electrical activity for a full 30s Thingino boot, vs. heavy bus activity
+#    within the first ~15s on the same physical wiring under stock firmware.
+#    If first boot reboot-loops, this is the first thing to suspect (watchdog
+#    window tighter than S00 can catch).
+#  - MCU I2C bus CONFIRMED via live hardware + vendor kernel binary analysis:
+#    it's GPIO-bitbanged (CONFIG_SOFT_I2C1_GPIO_V12_JZ), SDA=GPIO53/SCL=GPIO52
+#    (GPIO_PB(21)/GPIO_PB(20)), not the I2C1_V12_JZ hardware controller. Wired
+#    up via thingino-kopt's I2C1 "GPIO bitbang" mode (package/thingino-kopt),
+#    which drives both the Kconfig fixups and the Pike/board.h +
+#    gpio_customized.c pin/pull-up generation at build time -- see
+#    scripts/patch_kernel_i2c1_gpio_pins.sh and
+#    scripts/patch_kernel_i2c1_gpio_pullups.sh.
+#  - USB uses thingino-kopt's DWC2_WIFI_ONLY option (properly, via kopt, not
+#    a raw fragment). An earlier attempt at this pinned the "Starting
+#    kernel..." zero-output hang on this option specifically, but that test
+#    was confounded: the pull-up generation script had a bug (fixed below)
+#    that enabled Pike/gpio_customized.c's arch_initcall unconditionally,
+#    regardless of the pull-up Kconfig setting -- so every "DWC2_WIFI_ONLY"
+#    test up to that point still had the real crash cause (arch_initcall)
+#    silently active too. Once genuinely isolated, arch_initcall alone was
+#    enough to crash even with the known-good minimal USB config, and
+#    DWC2_WIFI_ONLY was never actually tested cleanly on its own. Re-enabled
+#    here for a proper isolated test now that the confound is gone.
+#  - BR2_THINGINO_I2C1_GPIO_PULLUP: an earlier attempt at this (via
+#    arch_initcall) reproduced a zero-output boot hang, isolated on live
+#    hardware with the USB config otherwise matching the known-good
+#    baseline. Likely cause: arch_initcall runs too early for
+#    jz_gpio_set_func() to operate safely. Fixed using late_initcall instead
+#    (see scripts/patch_kernel_i2c1_gpio_pullups.sh) -- confirmed live: pulls
+#    apply cleanly at boot (dmesg shows "set gpio pull: 52-90"/"53-90"), no
+#    hang. Kept enabled since it's a real, verified improvement (matches
+#    stock firmware's own config) even though it turned out NOT to be what
+#    was causing the separate watchdog-disable failure below (ruled out:
+#    same failure with pull-ups on or off) -- that was a bug in one specific
+#    vendor binary, not a bus/timing issue. See the mcu_test note below.
+#  - PTZ motors DISABLED (BR2_THINGINO_MOTORS) for now: the WiFi sibling's
+#    copied gpio_tilt map claimed GPIO52/53 for motor ST2/ST3, which directly
+#    conflicts with the real MCU I2C pins above -- proof the whole PTZ GPIO
+#    map carried over from the sibling is unreliable for this variant, not
+#    just those two pins. Needs its own hardware-verification pass before
+#    re-enabling. Confirmed via live hardware that a STALE built rootfs (built
+#    once early in this board's bring-up before motors were disabled here)
+#    kept shipping the motor package's files even after this option was
+#    turned off -- buildroot doesn't prune a deselected package's already-
+#    installed target files. Always `make clean` before `make all` for this
+#    board, not a targeted/incremental rebuild.
+#  - MCU responds reliably at I2C address 0x10, NOT 0x11. package/thingino-
+#    mcu-wdt ships the vendor's mcu_test diagnostic tool (+ its libcommon.so
+#    dependency), which already uses the correct address/bus, and runs
+#    `mcu_test --wdt_disable` -- confirmed live: succeeds cleanly (exit 0,
+#    no errors) every time. An earlier version of this package instead
+#    shipped a different vendor binary, disable_mcu_wdt (from a separate
+#    recovery-initramfs tool, hardcoded to address 0x11 and /dev/i2c-2,
+#    binary-patched to 0x10/i2c-1) -- even after that patch, it reliably
+#    failed with garbled I2C responses. Ruled out as a bus/timing/pull-up
+#    issue (mcu_test succeeds on the identical bus, same session, same
+#    pull-up config); the bug is specific to that one binary's own protocol
+#    handling. Use mcu_test, not disable_mcu_wdt -- don't re-introduce it.
+#  - LTE modem (TM18NA/Unisoc, USB VID:PID 1782:4d13) enumerates via the
+#    kernel's built-in "option" USB-serial driver -- CONFIG_USB_SERIAL_OPTION
+#    comes from BR2_PACKAGE_USBNET_WWAN_SERIAL below, already selected.
+#    Confirmed live on stock firmware: the modem enumerates twice (bare
+#    AT-only, then re-enumerates as composite: cdc_ether/eth0 + 5 AT/diag
+#    ttyUSB ports 0-4) with NO host-side trigger needed -- this is the
+#    module's own autonomous behavior, not something unisoc_mgr's proprietary
+#    stack does, so it should occur identically under this Thingino kernel.
+#    Stock firmware's own app never actually uses eth0/DHCP for data (0
+#    RX/TX packets observed over 80+ seconds of live uptime) -- it drives an
+#    embedded AT+CIPSTART/AT+CIPRXGET TCP-over-AT socket API instead, which
+#    Thingino has no equivalent of. For Thingino, the standard USB_SERIAL_
+#    WWAN/pppd dial-up path (already selected below) is the practical way to
+#    get real IP connectivity: dial ATD*99# after setting the APN via
+#    AT+CGDCONT on the modem's AT-command port. CONFIRMED live on stock
+#    firmware: /dev/ttyUSB0 is the real AT-command port (responds "OK" to a
+#    plain "AT" probe; it's also the same port unisoc_mgr itself continuously
+#    polls with AT^TGTVSIMSTATUS?). ttyUSB1-4 gave no response to "AT" --
+#    likely diagnostic/GPS-only interfaces, not usable for dialing. The ppp
+#    peer file added this session (package/usbnet/files/wwan-peer) already
+#    targets ttyUSB0 on this basis. Still needs: a real carrier APN in
+#    /etc/ppp/scripts/wwan-connect (placeholder "internet" won't work) before
+#    `pppd call wwan` will actually get online.
+#  - USB MODEM STILL DOESN'T ENUMERATE under this Thingino build (`lsusb`
+#    shows only the root hub) -- confirmed NOT an MCU/I2C issue: the
+#    watchdog-disable command now succeeds cleanly (see mcu_test above) and
+#    `master_power_on` fires identically to stock on every boot, so modem
+#    power isn't gated behind any single MCU command we've found. Ruled out
+#    this session via kernel source tracing (not just guessing): VBUS
+#    control in drivers/usb/dwc2/dwc2_jz.c's dwc2_vbus_work() is a
+#    confirmed no-op on this board (both the regulator and the drvvbus GPIO
+#    are absent -- zero "vbus" strings appear anywhere in dmesg, matching
+#    the code's own early-return path exactly), so it's not a VBUS-enable
+#    problem either. Live lead not yet followed up: every boot logs
+#    `dwc2 dwc2: ID PIN CHANGED!` (drivers/usb/dwc2/core.c,
+#    dwc2_handle_conn_id_status_change_intr) shortly after USB init, which
+#    schedules otg_id_work -- but none of that work's own follow-up log
+#    lines (e.g. "init DWC as A_HOST", or the "Connection id status change
+#    timed out" warning) ever appear in dmesg, meaning it's unclear whether
+#    that work actually completes. Worth checking directly next: does
+#    otg_id_work run to completion, and does dwc2_is_host_mode() ever
+#    return true on this board's ID-pin wiring. A live D+/D- logic-analyzer
+#    capture (already used earlier in this project to compare stock vs.
+#    Thingino) comparing against a stock-firmware capture may be the more
+#    direct next step if source tracing doesn't resolve it.
+#  - BR2_THINGINO_DWC2_PROBE_DELAY_MS=3000: a real, confirmed timing
+#    difference vs stock was found: stock loads dwc2 as a loadable module
+#    (`insmod /lib/modules/dwc2.ko` from rcS, several seconds into boot,
+#    after rootfs mount/hostname/telnetd), while our kernel fixups build
+#    it INTO the kernel (CONFIG_USB_JZ_DWC2=y), probing at ~0.15s --
+#    during early kernel boot, before userspace exists. Theory: the
+#    modem's own baseband/PHY power-up takes longer than that, so
+#    Thingino's controller may finish its initial attach-detection before
+#    the modem is even electrically present. This new kernel option
+#    (package/all-patches/linux/3.10.14/0092-dwc2-jz-optional-probe-delay.patch,
+#    wired via thingino-kopt) adds an opt-in msleep() at the very start of
+#    dwc2_jz_probe(), defaulting to 0/no-op for every other board. 3000ms
+#    chosen to comfortably exceed stock's own rcS timing. Live-tested a
+#    related but NOT equivalent experiment this session (unbind/rebind
+#    the already-probed jz-dwc2 platform driver at 600+ seconds uptime,
+#    well after the modem should be ready) -- that specific test was
+#    inconclusive (the rebind itself failed with -ENOMEM, a real but
+#    separate driver limitation around repeated bind/unbind cycles not
+#    cleanly releasing DMA/IRQ resources, not a signal about the modem).
+#    A clean first-boot-with-delay test has NOT been done yet -- this is
+#    the next thing to verify on the next hardware flash.
+BR2_INGENIC_SOC_MODEL="t23zn"
+BR2_ISP_CLKA_600MHZ=y
+BR2_ISP_CLKA_SCLKA=y
+BR2_ISP_CLK_200MHZ=y
+BR2_ISP_CLK_SCLKA=y
+BR2_ISP_PRINT_LEVEL_0=y
+BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
+BR2_PACKAGE_I2C_TOOLS=y
+BR2_PACKAGE_THINGINO_KOPT_DWC2=y
+BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY=y
+BR2_PACKAGE_THINGINO_KOPT_I2C=y
+BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1=y
+BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
+BR2_PACKAGE_THINGINO_MCU_WDT=y
+# ZeroTier: chosen over the default WireGuard since this board is behind
+# carrier NAT with no inbound reachability on cellular data -- ZeroTier
+# handles NAT traversal via its own relay network, no public server of
+# our own needed. Network ID configured live post-boot via
+# /etc/zerotier.json (WebUI-editable), not baked into this build.
+BR2_PACKAGE_THINGINO_VPN_ZEROTIER=y
+BR2_PACKAGE_USBNET=y
+# CDC_ETHER: live-tested AT+CGACT=1,1 activates the PDP context and gets
+# a real IP (e.g. 100.97.51.167) even though ATD*99#/PPP fails on this
+# modem -- worth testing whether cdc_ether's eth0 picks up that same IP
+# as a raw-IP-passthrough path, since stock's own non-use of eth0 (see
+# comment above) only proves stock's app doesn't use it, not that the
+# interface itself can't carry data.
+BR2_PACKAGE_USBNET_CDC_ETHER=y
+BR2_PACKAGE_USBNET_WWAN_SERIAL=y
+BR2_SENSOR_1_NAME="os02g10"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_DWC2_PROBE_DELAY_MS=3000
+BR2_THINGINO_I2C1_GPIO_PULLUP=y
+BR2_THINGINO_I2C1_GPIO_SCL=52
+BR2_THINGINO_I2C1_GPIO_SDA=53
+BR2_THINGINO_RMEM_MB=18
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16

@@ -41,10 +41,18 @@ define USBNET_LINUX_CONFIG_FIXUPS_WWAN_SERIAL
 	$(call KCONFIG_SET_OPT,CONFIG_USB_SERIAL_WWAN,m)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SERIAL_GENERIC)
 	$(call KCONFIG_SET_OPT,CONFIG_USB_SERIAL_OPTION,m)
+	$(call KCONFIG_SET_OPT,CONFIG_PPP,m)
+	$(call KCONFIG_SET_OPT,CONFIG_PPP_ASYNC,m)
 endef
 define USBNET_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(USBNET_PKGDIR)/files/S38usbnet \
 		$(TARGET_DIR)/etc/init.d/S38usbnet
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-peer \
+		$(TARGET_DIR)/etc/ppp/peers/wwan
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-connect \
+		$(TARGET_DIR)/etc/ppp/scripts/wwan-connect
+	$(INSTALL) -D -m 0644 $(USBNET_PKGDIR)/files/wwan-disconnect \
+		$(TARGET_DIR)/etc/ppp/scripts/wwan-disconnect
 endef
 endif
 

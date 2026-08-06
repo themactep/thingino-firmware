@@ -1,6 +1,10 @@
 #!/bin/sh
 
-modulename="rndis_host"
+# Candidate USB network/serial adapter modules -- only the ones actually
+# built in for this board's enabled usbnet variant(s) will exist under
+# /lib/modules, so it's safe to just try them all rather than hardcoding
+# one module name per board.
+modulenames="rndis_host cdc_ether cdc_ncm asix ax88179_178a r8152 option ppp_generic ppp_async"
 
 start() {
 	echo -c 15 "Starting USB NET"
@@ -21,10 +25,12 @@ start() {
 	echo "Load usbserial module"
 	modprobe usbserial
 
-	if ! grep -q ^$modulename /proc/modules; then
-		echo "Load $modulename module"
-		modprobe $modulename
-	fi
+	for modulename in $modulenames; do
+		if modinfo "$modulename" >/dev/null 2>&1 && ! grep -q ^$modulename /proc/modules; then
+			echo "Load $modulename module"
+			modprobe $modulename
+		fi
+	done
 }
 
 case "$1" in

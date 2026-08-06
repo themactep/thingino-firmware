@@ -1,0 +1,18 @@
+# chat script: dial a USB-serial LTE modem via the standard AT dial-up
+# ("ATD*99#") data mode, common to most Cat-1/Cat-4 LTE modules as a
+# PPP fallback alongside any QMI/MBIM/NCM mode they may also support.
+#
+# EDIT BEFORE USE: "internet" is a placeholder APN -- replace with your
+# carrier's real APN before dialing. (For a Smart/TNT Philippines SIM,
+# "talkntext" is the confirmed-working APN, not "internet".)
+
+ABORT 'BUSY'
+ABORT 'NO CARRIER'
+ABORT 'NO DIALTONE'
+REPORT CONNECT
+'' AT
+OK ATE0
+ABORT 'ERROR'
+OK AT+CGDCONT=1,"IP","internet"
+OK ATD*99#
+CONNECT ''

@@ -1,0 +1,56 @@
+From: thingino <thingino@opensensor>
+Subject: [PATCH] usb: dwc2_jz: add an optional, opt-in probe delay
+
+Adds CONFIG_USB_JZ_DWC2_PROBE_DELAY_MS (int, default 0), and a
+msleep() of that many ms at the very start of dwc2_jz_probe().
+
+Default is 0, which makes msleep() a no-op -- zero behavior change for
+every board that doesn't explicitly set this. It exists for boards where
+CONFIG_USB_JZ_DWC2=y (built into the kernel, probing during early boot,
+well under 1 second in) but the USB device wired to this controller is
+an internally-powered module (e.g. an LTE modem) whose own power-on
+sequencing is independent of and can lag behind the SoC's boot.
+
+Motivating case: Cinnado B6 T23ZN/TM18NA. Stock firmware loads dwc2 as a
+loadable module via `insmod` from rcS, which only runs several seconds
+into boot (after rootfs mount, hostname setup, etc) -- and the modem
+enumerates reliably there. Under Thingino, CONFIG_USB_JZ_DWC2=y probes
+at ~0.15s into kernel boot; the modem never enumerates. This gives
+boards in that situation a way to approximate stock's timing without
+switching the whole driver to loadable-module (and needing a new insmod
+script + init ordering to match), while leaving every other board's
+boot timing completely unaffected.
+
+diff --git a/drivers/usb/dwc2/Kconfig b/drivers/usb/dwc2/Kconfig
+--- a/drivers/usb/dwc2/Kconfig
++++ b/drivers/usb/dwc2/Kconfig
+@@ -8,6 +8,16 @@ config USB_JZ_DWC2
+ 	  If you choose to build this driver is a dynamically linked
+ 	  module, the module will be called dwc2.ko.
+ 
++config USB_JZ_DWC2_PROBE_DELAY_MS
++	int "Delay (ms) before dwc2 probe runs"
++	depends on USB_JZ_DWC2
++	default 0
++	help
++	  Sleep this many milliseconds at the very start of dwc2_jz_probe(),
++	  before touching any hardware. 0 (the default) is a no-op. Only
++	  needed on boards with an internally-wired USB device whose own
++	  power-on sequencing can lag noticeably behind SoC boot.
++
+ if USB_JZ_DWC2
+ 
+ choice
+diff --git a/drivers/usb/dwc2/dwc2_jz.c b/drivers/usb/dwc2/dwc2_jz.c
+--- a/drivers/usb/dwc2/dwc2_jz.c
++++ b/drivers/usb/dwc2/dwc2_jz.c
+@@ -487,6 +487,9 @@ static int dwc2_jz_probe(struct platform_device *pdev) {
+ 	bool init_power_off = false;
+ 
+ 	printk(KERN_DEBUG"dwc2 otg probe start\n");
++	if (CONFIG_USB_JZ_DWC2_PROBE_DELAY_MS > 0)
++		msleep(CONFIG_USB_JZ_DWC2_PROBE_DELAY_MS);
++
+ 	jz = devm_kzalloc(&pdev->dev, sizeof(*jz), GFP_KERNEL);
+ 	if (!jz) {
+ 		dev_err(&pdev->dev, "not enough memory\n");
