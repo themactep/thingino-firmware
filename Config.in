@@ -30,18 +30,18 @@ menu "Toolchain"
 
 	choice
 		prompt "Thingino GCC version"
-		default BR2_THINGINO_TOOLCHAIN_GCC_15
+		default BR2_THINGINO_TOOLCHAIN_GCC_16
 		help
 		  Select GCC major version used to build fragment name.
-
-	config BR2_THINGINO_TOOLCHAIN_GCC_13
-		bool "GCC 13"
 
 	config BR2_THINGINO_TOOLCHAIN_GCC_14
 		bool "GCC 14"
 
 	config BR2_THINGINO_TOOLCHAIN_GCC_15
 		bool "GCC 15"
+
+	config BR2_THINGINO_TOOLCHAIN_GCC_16
+		bool "GCC 16"
 
 	endchoice
 
@@ -144,6 +144,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libubox/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mmc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-motors/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sensor-info/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mxml/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-nimble/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-odhcp6c/Config.in"

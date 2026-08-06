@@ -196,7 +196,7 @@ if [ -z "$BRIGHTNESS" ] || [ "$(echo "$BRIGHTNESS < 0" | bc)" -eq 1 ] || [ "$(ec
 fi
 
 # Set the GPIO function using gpio-diag
-gpio-diag "$PIN" func "$FUNC_NUM"
+gpio-diag mode "$PIN" "func$FUNC_NUM"
 
 # Calculate the duty cycle with non-linear scaling
 DUTY_NS=$(awk -v b="$BRIGHTNESS" -v period=1000000 'BEGIN {

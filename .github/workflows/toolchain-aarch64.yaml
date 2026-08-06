@@ -19,11 +19,11 @@ on:
         type: choice
         description: 'GCC toolchain version to build'
         required: false
-        default: gcc15
+        default: gcc16
         options:
+          - gcc16
           - gcc15
           - gcc14
-          - gcc13
           - all
       debug_enabled:
         type: boolean
@@ -100,11 +100,11 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event_name }}" == 'schedule' ]]; then
-            GCC_FILTER=gcc15
-          elif [[ "${{ github.event.inputs.gcc_version || 'gcc15' }}" == 'all' ]]; then
+            GCC_FILTER=gcc16
+          elif [[ "${{ github.event.inputs.gcc_version || 'gcc16' }}" == 'all' ]]; then
             GCC_FILTER=toolchain
           else
-            GCC_FILTER="${{ github.event.inputs.gcc_version || 'gcc15' }}"
+            GCC_FILTER="${{ github.event.inputs.gcc_version || 'gcc16' }}"
           fi
           CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep "$GCC_FILTER")
           JSON_MATRIX="{\"toolchain-version\": ["
