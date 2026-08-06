@@ -123,6 +123,11 @@ controls_color() {
 switch_to_day() {
 	echo_info "Switching to day mode..."
 
+	# Notify prudynt to restore full FPS (day mode)
+	if command_present prudyntctl; then
+		prudyntctl json '{"image":{"running_mode":0}}' >/dev/null 2>&1
+	fi
+
 	if controls_ircut && command_present ircut; then
 		echo_info "  set IR-CUT filter"
 		ircut on &
@@ -153,6 +158,11 @@ switch_to_day() {
 
 switch_to_night() {
 	echo_info "Switching to night mode..."
+
+	# Notify prudynt to halve FPS (night mode)
+	if command_present prudyntctl; then
+		prudyntctl json '{"image":{"running_mode":1}}' >/dev/null 2>&1
+	fi
 
 	if controls_color && command_present color; then
 		echo_info "  switch to monochrome mode"

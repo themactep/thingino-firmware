@@ -2,11 +2,12 @@
   "use strict";
 
   const endpoint = "/x/json-config-daynight.cgi";
-  const dayNightParams = [
-    "enabled",
-    "total_gain_night_threshold",
-    "total_gain_day_threshold",
-  ];
+
+  // Config uses universal brightness percent (0-100) for thresholds.
+  // Daynightd converts to platform-specific units internally.
+  let platformParams = ["night_threshold", "day_threshold"];
+
+  const dayNightParams = ["enabled", "initial_mode", "force_mode", ...platformParams];
   const dayNightScheduleParams = ["enabled", "start_at", "stop_at"];
   const dayNightControls = ["color", "ircut", "ir850", "ir940", "white"];
 
@@ -194,6 +195,8 @@
     let value;
     if (el.type === "checkbox") {
       value = el.checked;
+    } else if (el.tagName === "SELECT") {
+      value = el.value;
     } else {
       const numeric = Number(el.value);
       value = Number.isNaN(numeric) ? 0 : numeric;
@@ -299,6 +302,8 @@
             if (el) {
               if (el.type === "checkbox") {
                 daynight[param] = el.checked;
+              } else if (el.tagName === "SELECT") {
+                daynight[param] = el.value;
               } else {
                 const numeric = Number(el.value);
                 daynight[param] = Number.isNaN(numeric) ? 0 : numeric;
