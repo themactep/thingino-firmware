@@ -17,8 +17,21 @@ else
 	echo "Detected SoC: $soc"
 	echo "Downloading sinfo module..."
 
-	# Download the appropriate module, check for kernel version later.
-	curl -L "https://github.com/themactep/ingenic-sdk/releases/download/sinfo/sinfo-$soc.ko" -o "/tmp/sinfo-$soc.ko"
+	# Download the appropriate module, check for kernel version later. Bounded
+	# timeouts + an IPv6 fallback: on a network where native IPv4 is dead but
+	# blackholed rather than actively refused (e.g. behind a carrier NAT that
+	# drops instead of rejecting), a plain unbounded curl can hang forever if
+	# the resolver hands back a dead IPv4 address to try first. Try the
+	# default (whatever the resolver/network naturally prefers) with a
+	# reasonable timeout first, and only fall back to forcing IPv6 if that
+	# fails -- forcing -6 unconditionally would break normal IPv4-only boards
+	# instead, so it's a fallback, not the default.
+	sinfo_url="https://github.com/themactep/ingenic-sdk/releases/download/sinfo/sinfo-$soc.ko"
+	sinfo_out="/tmp/sinfo-$soc.ko"
+	if ! curl -fL --connect-timeout 10 --max-time 60 "$sinfo_url" -o "$sinfo_out"; then
+		echo "Default connection failed, retrying over IPv6..."
+		curl -fL -6 --connect-timeout 10 --max-time 60 "$sinfo_url" -o "$sinfo_out"
+	fi
 	if [ $? -ne 0 ]; then
 		echo "Error: Failed to download sinfo module."
 		exit 1
@@ -39,7 +52,7 @@ fi
 
 # Trigger info output
 echo "Detecting sensors, please wait..."
-echo 1 > /proc/jz/sinfo/info
+echo 1 >/proc/jz/sinfo/info
 
 # Check for module dir
 if [ -f "/proc/jz/sinfo/info" ]; then
