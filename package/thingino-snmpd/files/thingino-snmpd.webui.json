@@ -1,0 +1,32 @@
+{
+  "name": "thingino-snmpd",
+  "label": "SNMP",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddServices",
+      "position": "append",
+      "items": [
+        {
+          "label": "SNMP",
+          "href": "/config-snmpd.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "snmpd": true
+  },
+  "cgi": [
+    "/x/json-config-snmpd.cgi"
+  ],
+  "pages": [
+    "/config-snmpd.html"
+  ]
+}

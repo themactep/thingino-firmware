@@ -1,0 +1,15 @@
+# Files included in the thingino-snmpd bundle
+# Paths relative to target root (/)
+#
+# Daemon, init script and shipped defaults
+usr/sbin/mini-snmpd
+etc/init.d/S60snmpd
+usr/share/thingino-defaults/50-snmpd.json
+
+# WebUI plugin (requires thingino-webui rebuild during bundle creation)
+# Note: plugins.js is NOT included — thingino-pkg rebuilds it from
+# all installed manifests on install/remove to support multiple plugins.
+var/www/config-snmpd.html
+var/www/a/config-snmpd.js
+var/www/x/json-config-snmpd.cgi
+var/www/a/plugins/thingino-snmpd.webui.json
