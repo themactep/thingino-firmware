@@ -177,8 +177,15 @@ update_resolv() {
 		# normally in the RA). Add known-good public resolvers after the
 		# carrier's own RDNSS entries, so lookups still work when the
 		# carrier's DNS is dead, without overriding carrier DNS on
-		# connections where it's fine.
-		for c in 2001:4860:4860::8888 2606:4700:4700::1111; do
+		# connections where it's fine. Using Google's DNS64 resolvers
+		# specifically (not plain DNS) -- confirmed live that this network has
+		# a working NAT64 gateway on the well-known 64:ff9b::/96 prefix, so
+		# DNS64 also transparently makes IPv4-only destinations reachable over
+		# IPv6 even when the device's own native IPv4 path is NAT-blocked by
+		# the carrier. Strict upgrade over plain DNS: normal AAAA resolution
+		# for dual-stack hosts is unaffected, only IPv4-only hosts (no AAAA)
+		# get a synthesized NAT64 address instead of failing outright.
+		for c in 2001:4860:4860::64 2001:4860:4864::64; do
 			if ! grep -q "nameserver $c" /tmp/resolv.conf.rest /tmp/resolv.conf.tmp; then
 				printf '%s\n%s\n' "# added by odhcp6c" "nameserver $c" >>/tmp/resolv.conf.tmp
 			fi
