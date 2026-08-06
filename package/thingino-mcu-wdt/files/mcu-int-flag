@@ -1,0 +1,99 @@
+#!/bin/sh
+# mcu-int-flag: read (and optionally clear) the companion MCU's interrupt
+# status register directly over I2C, bypassing mcu_test's own
+# --mcu_int_flag/--clear_int_flag commands. Those are confirmed broken:
+# mcu_test's handler for this specific command never checks whether the
+# underlying I2C transaction actually succeeded before printing the
+# result, so a failed/timed-out read (whatever the cause) silently prints
+# a zero-initialized buffer as if it were a real "no events" response --
+# indistinguishable from a genuine 0x0. Confirmed live: mcu_test always
+# printed 0x0 through repeated, confirmed PIR/button triggers, while the
+# same underlying I2C command driven directly here reliably returns real,
+# changing, non-zero data during those same triggers. Other mcu_test
+# commands (--get_battery_status, --wdt_disable) are unaffected -- their
+# handlers do check the return status correctly.
+#
+# Wire protocol (reverse-engineered from mcu_test's own disassembly):
+# 14-byte request, 16-byte response, address 0x10 on i2c bus 1:
+#   [magic:0xacac LE u16][cmd:u16 LE][8-byte payload][crc16-xmodem LE u16]
+# Response mirrors magic+cmd, followed by an 8-byte payload (the actual
+# flag data), a 2-byte trailer, and its own crc16-xmodem.
+#
+# The int_flag/clear_int_flag requests always use a zeroed payload, so
+# their CRC never changes -- hardcoded below rather than computed live.
+
+I2C_BUS=1
+I2C_ADDR=0x10
+
+# cmd 0xc002, zero payload
+INT_FLAG_REQ="0xac 0xac 0x02 0xc0 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0xe1 0x3e"
+# cmd 0xc003, zero payload
+CLEAR_FLAG_REQ="0xac 0xac 0x03 0xc0 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0xa4 0x51"
+
+usage() {
+	echo "Usage: mcu-int-flag [-c|--clear] [-q|--quiet]" >&2
+	echo "  Reads the MCU's interrupt flag payload over I2C." >&2
+	echo "  -c, --clear   also send clear_int_flag after reading" >&2
+	echo "  -q, --quiet   suppress normal output; exit code only" >&2
+	echo "Exit codes: 0 = flags set, 2 = no flags set, 1 = I2C error" >&2
+}
+
+do_clear=0
+quiet=0
+for arg in "$@"; do
+	case "$arg" in
+		-c | --clear) do_clear=1 ;;
+		-q | --quiet) quiet=1 ;;
+		-h | --help)
+			usage
+			exit 0
+			;;
+	esac
+done
+
+resp=$(i2ctransfer -y "$I2C_BUS" w14@"$I2C_ADDR" $INT_FLAG_REQ r16@"$I2C_ADDR" 2>/dev/null)
+if [ -z "$resp" ]; then
+	[ "$quiet" = 1 ] || echo "mcu-int-flag: I2C transaction failed" >&2
+	exit 1
+fi
+
+# shellcheck disable=SC2086
+set -- $resp
+if [ "$#" -ne 16 ]; then
+	[ "$quiet" = 1 ] || echo "mcu-int-flag: short response ($# bytes): $resp" >&2
+	exit 1
+fi
+if [ "$1" != "0xac" ] || [ "$2" != "0xac" ]; then
+	[ "$quiet" = 1 ] || echo "mcu-int-flag: bad magic in response: $resp" >&2
+	exit 1
+fi
+
+# 8-byte payload is response bytes 5..12
+p1=$5
+p2=$6
+p3=$7
+p4=$8
+p5=$9
+p6=${10}
+p7=${11}
+p8=${12}
+
+flags_set=0
+for b in "$p1" "$p2" "$p3" "$p4" "$p5" "$p6" "$p7" "$p8"; do
+	if [ "$b" != "0x00" ]; then
+		flags_set=1
+		break
+	fi
+done
+
+if [ "$do_clear" = 1 ]; then
+	i2ctransfer -y "$I2C_BUS" w14@"$I2C_ADDR" $CLEAR_FLAG_REQ r16@"$I2C_ADDR" >/dev/null 2>&1
+fi
+
+if [ "$flags_set" = 1 ]; then
+	[ "$quiet" = 1 ] || echo "flags: $p1 $p2 $p3 $p4 $p5 $p6 $p7 $p8"
+	exit 0
+else
+	[ "$quiet" = 1 ] || echo "flags: none"
+	exit 2
+fi
