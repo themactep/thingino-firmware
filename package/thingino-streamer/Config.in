@@ -53,6 +53,11 @@ endchoice
 if BR2_PACKAGE_THINGINO_STREAMER
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in"
+# raptor's three libraries. Sourced so their symbols exist: raptor selects all
+# three, and until now those selects named symbols Kconfig had never seen.
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-common/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-hal/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/strero/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/timps/Config.in"
 
