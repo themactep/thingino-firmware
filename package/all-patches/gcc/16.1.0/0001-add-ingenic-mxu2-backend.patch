@@ -1,3 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ingenic Semiconductor <support@ingenic.com>
+Subject: [PATCH] mips: add Ingenic MXU2 128-bit SIMD backend
+
+Add -mmxu2, 382 __builtin_mxu2_* intrinsics, mips-mxu2.md patterns and
+the <mxu2.h> header for the Ingenic MXU2 128-bit COP2 SIMD extension
+(XBurst1 T20/T21/T23/T30/T31/T32).
+
+Ported from Ingenic's GCC 7.2 toolchain to GCC 16.1.0. On top of the
+15.2.0 port this adds four register-allocation fixes found by hardware
+validation (setjmp + address-taken vector locals made LRA loop or fail
+to spill):
+
+- mips_secondary_reload_class: an unallocated MXU2-mode pseudo
+  (regno < 0) reloads directly via lu1q/su1q; do not request a GPR
+  intermediate, which cannot hold a 128-bit mode.
+- mov<mode>_mxu2: disparage the GPR alternatives (!*d/!*q) so LRA
+  never shuttles vectors through GPRs; they exist only for
+  argument/return hard-register handling at expand time.
+- mips_register_move_cost: COP2<->COP2 vector moves cost like ORV;
+  GPR<->COP2 vector moves are expensive (stack round trip).
+- mips_ira_change_pseudo_allocno_class / mips_preferred_reload_class:
+  home MXU2-mode pseudos in COP2_REGS (or memory), mirroring the x86
+  treatment of vector pseudos.
+
+Known limitation: the MXU2 branch builtins emit 10-bit-range hardware
+branches without assembler relaxation; keep branch targets within
++/-2KB (the shim's predicate API uses plain C instead).
+---
 --- a/gcc/config/mips/constraints.md
 +++ b/gcc/config/mips/constraints.md
 @@ -32,6 +32,9 @@
@@ -528,7 +557,7 @@
 +MXU2_BUILTIN (li_d, MIPS_V2DI_FTYPE_HI),
 --- a/gcc/config/mips/mips.cc
 +++ b/gcc/config/mips/mips.cc
-@@ -2531,7 +2531,8 @@
+@@ -2545,7 +2545,8 @@
  {
    /* MSA LD.* and ST.* cannot support loading symbols via an immediate
       operand.  */
@@ -538,7 +567,7 @@
      return 0;
  
    return mips_symbol_insns_1 (type, mode) * (TARGET_MIPS16 ? 2 : 1);
-@@ -2658,9 +2659,10 @@
+@@ -2672,9 +2673,10 @@
      return false;
  
    /* MSA LD.* and ST.* supports 10-bit signed offsets.  */
@@ -551,7 +580,7 @@
      return false;
  
    return true;
-@@ -2690,7 +2692,7 @@
+@@ -2704,7 +2706,7 @@
      return false;
  
    /* MSA LD.* and ST.* cannot support loading symbols via %lo($base).  */
@@ -560,7 +589,7 @@
      return false;
  
    return true;
-@@ -2823,7 +2825,7 @@
+@@ -2837,7 +2839,7 @@
      return true;
    if (ISA_HAS_LDX && mode == DImode)
      return true;
@@ -569,7 +598,7 @@
      return true;
    return false;
  }
-@@ -2864,6 +2866,7 @@
+@@ -2878,6 +2880,7 @@
    struct mips_address_info addr;
    int factor;
    bool msa_p = (!might_split_p && MSA_SUPPORTED_MODE_P (mode));
@@ -577,7 +606,7 @@
  
    /* BLKmode is used for single unaligned loads and stores and should
       not count as a multiword mode.  (GET_MODE_SIZE (BLKmode) is pretty
-@@ -2878,9 +2881,9 @@
+@@ -2892,9 +2895,9 @@
      switch (addr.type)
        {
        case ADDRESS_REG:
@@ -589,7 +618,7 @@
  	    if (mips_signed_immediate_p (INTVAL (addr.offset), 10,
  					 mips_ldst_scaled_shift (mode)))
  	      return 1;
-@@ -3039,8 +3042,10 @@
+@@ -3053,8 +3056,10 @@
        return mips_build_integer (codes, INTVAL (x));
  
      case CONST_VECTOR:
@@ -602,7 +631,7 @@
  	return 1;
        /* Fall through.  */
      case CONST_DOUBLE:
-@@ -3134,7 +3139,13 @@
+@@ -3148,7 +3153,13 @@
    bool might_split_p;
    rtx set;
  
@@ -617,7 +646,7 @@
    mode = GET_MODE (mem);
  
    /* Try to prove that INSN does not need to be split.  */
-@@ -3899,7 +3910,7 @@
+@@ -3911,7 +3922,7 @@
    if (!register_operand (dest, mode)
        && !register_operand (src, mode)
        && (TARGET_MIPS16 || !const_0_operand (src, mode)
@@ -626,7 +655,7 @@
      {
        mips_emit_move (dest, force_reg (mode, src));
        return true;
-@@ -3913,6 +3924,49 @@
+@@ -3925,6 +3936,49 @@
        set_unique_reg_note (get_last_insn (), REG_EQUAL, copy_rtx (src));
        return true;
      }
@@ -676,7 +705,7 @@
    return false;
  }
  
-@@ -5002,7 +5056,8 @@
+@@ -5014,7 +5068,8 @@
      }
  
    /* Check if MSA moves need splitting.  */
@@ -686,7 +715,7 @@
      return mips_split_128bit_move_p (dest, src);
  
    /* Otherwise split all multiword moves.  */
-@@ -5019,7 +5074,8 @@
+@@ -5031,7 +5086,8 @@
    rtx low_dest;
  
    gcc_checking_assert (mips_split_move_p (dest, src, split_type));
@@ -696,7 +725,7 @@
      mips_split_128bit_move (dest, src);
    else if (FP_REG_RTX_P (dest) || FP_REG_RTX_P (src))
      {
-@@ -5145,6 +5201,25 @@
+@@ -5157,6 +5213,25 @@
    if (FP_REG_RTX_P (dest) && src == CONST0_RTX (GET_MODE (src)))
      return false;
  
@@ -722,7 +751,7 @@
    return true;
  }
  
-@@ -5210,6 +5285,41 @@
+@@ -5222,6 +5297,41 @@
  	    emit_insn (gen_msa_copy_s_d (d, new_src, GEN_INT (index)));
  	}
      }
@@ -764,7 +793,7 @@
    else
      {
        low_dest = mips_subword_at_byte (dest, 0);
-@@ -5313,6 +5423,76 @@
+@@ -5325,6 +5435,76 @@
    emit_insn (gen_msa_insert_w (new_dest, high, new_dest, GEN_INT (1 << 3)));
  }
  
@@ -841,7 +870,7 @@
  /* Return true if a move from SRC to DEST in INSN should be split.  */
  
  bool
-@@ -5341,6 +5521,7 @@
+@@ -5353,6 +5533,7 @@
    machine_mode mode = GET_MODE (dest);
    bool dbl_p = (GET_MODE_SIZE (mode) == 8);
    bool msa_p = MSA_SUPPORTED_MODE_P (mode);
@@ -849,7 +878,7 @@
    enum mips_symbol_type symbol_type;
  
    if (mips_split_move_p (dest, src, SPLIT_IF_NECESSARY))
-@@ -5354,6 +5535,14 @@
+@@ -5366,6 +5547,14 @@
        gcc_assert (mips_const_vector_same_int_p (src, mode, -512, 511));
        return "ldi.%v0\t%w0,%E1";
      }
@@ -864,7 +893,7 @@
  
    if ((src_code == REG && GP_REG_P (REGNO (src)))
        || (!TARGET_MIPS16 && src == CONST0_RTX (mode)))
-@@ -5395,6 +5584,18 @@
+@@ -5407,6 +5596,18 @@
  	      return dbl_p ? "dmtc1\t%z1,%0" : "mtc1\t%z1,%0";
  	    }
  
@@ -883,7 +912,7 @@
  	  if (ALL_COP_REG_P (REGNO (dest)))
  	    {
  	      static char retval[] = "dmtc_\t%z1,%0";
-@@ -5444,6 +5645,17 @@
+@@ -5456,6 +5657,17 @@
  	      return dbl_p ? "dmfc1\t%0,%1" : "mfc1\t%0,%1";
  	    }
  
@@ -901,7 +930,7 @@
  	  if (ALL_COP_REG_P (REGNO (src)))
  	    {
  	      static char retval[] = "dmfc_\t%0,%1";
-@@ -5506,6 +5718,13 @@
+@@ -5518,6 +5730,13 @@
  	  return dbl_p ? "dla\t%0,%1" : "la\t%0,%1";
  	}
      }
@@ -915,7 +944,7 @@
    if (src_code == REG && FP_REG_P (REGNO (src)))
      {
        if (dest_code == REG && FP_REG_P (REGNO (dest)))
-@@ -5526,6 +5745,11 @@
+@@ -5538,6 +5757,11 @@
  	  return dbl_p ? "sdc1\t%1,%0" : "swc1\t%1,%0";
  	}
      }
@@ -927,7 +956,7 @@
    if (dest_code == REG && FP_REG_P (REGNO (dest)))
      {
        if (src_code == MEM)
-@@ -5536,6 +5760,27 @@
+@@ -5548,6 +5772,27 @@
  	  return dbl_p ? "ldc1\t%0,%1" : "lwc1\t%0,%1";
  	}
      }
@@ -955,7 +984,7 @@
    if (dest_code == REG && ALL_COP_REG_P (REGNO (dest)) && src_code == MEM)
      {
        static char retval[] = "l_c_\t%0,%1";
-@@ -9609,6 +9854,8 @@
+@@ -9635,6 +9880,8 @@
      case 'w':
        if (code == REG && MSA_REG_P (REGNO (op)))
  	fprintf (file, "$w%s", &reg_names[REGNO (op)][2]);
@@ -964,7 +993,7 @@
        else
  	output_operand_lossage ("invalid use of '%%%c'", letter);
        break;
-@@ -13278,7 +13525,8 @@
+@@ -13304,7 +13551,8 @@
    size = GET_MODE_SIZE (mode);
    mclass = GET_MODE_CLASS (mode);
  
@@ -974,7 +1003,7 @@
      return ((regno - GP_REG_FIRST) & 1) == 0 || size <= UNITS_PER_WORD;
  
    /* For MSA, allow TImode and 128-bit vector modes in all FPR.  */
-@@ -13354,6 +13602,17 @@
+@@ -13380,6 +13628,17 @@
  	}
      }
  
@@ -992,7 +1021,7 @@
    if (ALL_COP_REG_P (regno))
      return mclass == MODE_INT && size <= UNITS_PER_WORD;
  
-@@ -13429,6 +13688,10 @@
+@@ -13455,6 +13714,10 @@
         CCmode values, and CCmode is always considered to be 4 bytes wide.  */
      return (GET_MODE_SIZE (mode) + 3) / 4;
  
@@ -1003,7 +1032,7 @@
    if (FP_REG_P (regno))
      {
        if (MSA_SUPPORTED_MODE_P (mode))
-@@ -13459,6 +13722,16 @@
+@@ -13485,6 +13748,16 @@
  
        left &= ~reg_class_contents[ST_REGS];
      }
@@ -1020,7 +1049,7 @@
    if (hard_reg_set_intersect_p (left, reg_class_contents[(int) FP_REGS]))
      {
        if (mips_hard_regno_mode_ok (FP_REG_FIRST, mode))
-@@ -13492,6 +13765,10 @@
+@@ -13518,6 +13791,10 @@
    if (MSA_SUPPORTED_MODE_P (from) && MSA_SUPPORTED_MODE_P (to))
      return true;
  
@@ -1031,7 +1060,7 @@
    /* Otherwise, there are several problems with changing the modes of
       values in floating-point registers:
  
-@@ -13515,7 +13792,17 @@
+@@ -13541,7 +13818,17 @@
  
       We therefore disallow all mode changes involving FPRs.  */
  
@@ -1050,7 +1079,7 @@
  }
  
  /* Implement target hook small_register_classes_for_mode_p.  */
-@@ -13546,7 +13833,7 @@
+@@ -13572,7 +13859,7 @@
        return TARGET_HARD_FLOAT && TARGET_PAIRED_SINGLE_FLOAT;
  
      default:
@@ -1059,13 +1088,56 @@
      }
  }
  
-@@ -13825,6 +14112,17 @@
+@@ -13600,6 +13887,19 @@
+       && mips_mode_ok_for_mov_fmt_p (GET_MODE (x)))
+     return FP_REGS;
+ 
++  /* MXU2 vectors belong in COP2 registers.  Keeping them out of GPRs
++     matters: a 128-bit mode needs four consecutive GPRs, which reload
++     often cannot provide, and the GPR alternatives of the move patterns
++     exist only for argument/return shuffling.  Prefer memory over a
++     GPR home for such pseudos.  */
++  if (MXU2_SUPPORTED_MODE_P (GET_MODE (x)))
++    {
++      if (reg_class_subset_p (COP2_REGS, rclass))
++	return COP2_REGS;
++      if (reg_class_subset_p (rclass, GR_REGS))
++	return NO_REGS;
++    }
++
+   if (reg_class_subset_p (GR_REGS, rclass))
+     rclass = GR_REGS;
+ 
+@@ -13717,6 +14017,18 @@
+ 	return 4;
+     }
+ 
++  if (MXU2_SUPPORTED_MODE_P (mode))
++    {
++      if (from == COP2_REGS && to == COP2_REGS)
++	/* ORV.  */
++	return 4;
++      if (from == COP2_REGS || to == COP2_REGS)
++	/* GPR<->COP2 vector moves split into four word moves through
++	   the stack; make them expensive so IRA gives vector pseudos
++	   a COP2 home rather than a GPR one.  */
++	return 16;
++    }
++
+   /* Handle cases in which only one class deviates from the ideal.  */
+   dregs = TARGET_MIPS16 ? M16_REGS : GENERAL_REGS;
+   if (from == dregs)
+@@ -13851,6 +14163,21 @@
        /* Otherwise, we need to reload through an integer register.  */
        return GR_REGS;
      }
 +  if (reg_class_subset_p (rclass, COP2_REGS))
 +    {
-+      if (MEM_P (x) && MXU2_SUPPORTED_MODE_P (mode))
++      /* An unallocated pseudo ends up in memory, which lu1q/su1q reach
++	 directly; requesting a GPR intermediate here is both wasteful and
++	 unsatisfiable for 128-bit modes (four consecutive GPRs).  */
++      if (regno < 0
++	  || (MEM_P (x) && MXU2_SUPPORTED_MODE_P (mode)))
 +	return NO_REGS;
 +      if (GP_REG_P (regno))
 +	return NO_REGS;
@@ -1077,7 +1149,7 @@
    if (FP_REG_P (regno))
      return reg_class_subset_p (rclass, GR_REGS) ? NO_REGS : GR_REGS;
  
-@@ -13877,7 +14175,7 @@
+@@ -13903,7 +14230,7 @@
        return TARGET_LOONGSON_MMI;
  
      default:
@@ -1086,7 +1158,7 @@
      }
  }
  
-@@ -15775,6 +16073,7 @@
+@@ -15797,6 +16124,7 @@
  AVAIL_NON_MIPS16 (loongson, TARGET_LOONGSON_MMI)
  AVAIL_MIPS16E2_OR_NON_MIPS16 (cache, TARGET_CACHE_BUILTIN)
  AVAIL_NON_MIPS16 (msa, TARGET_MSA)
@@ -1094,7 +1166,7 @@
  AVAIL_NON_MIPS16 (r6, mips_isa_rev >= 6)
  
  /* Construct a mips_builtin_description from the given arguments.
-@@ -17015,6 +17314,8 @@
+@@ -17037,6 +17365,8 @@
    MSA_BUILTIN_PURE (cfcmsa, MIPS_SI_FTYPE_UQI),
    MSA_BUILTIN_PURE (move_v, MIPS_V16QI_FTYPE_V16QI),
  
@@ -1103,7 +1175,7 @@
    /* Built-in functions for MIPSr6.  */
    MIPSR6_BUILTIN_PURE (min_a_s, MIPS_SF_FTYPE_SF_SF),
    MIPSR6_BUILTIN_PURE (min_a_d, MIPS_DF_FTYPE_DF_DF),
-@@ -17465,6 +17766,133 @@
+@@ -17487,6 +17817,133 @@
  	}
        break;
  
@@ -1237,7 +1309,7 @@
      case CODE_FOR_msa_insert_b:
      case CODE_FOR_msa_insert_h:
      case CODE_FOR_msa_insert_w:
-@@ -20232,6 +20660,9 @@
+@@ -20253,6 +20710,9 @@
        if (TARGET_MSA)
  	sorry ("MSA MIPS16 code");
  
@@ -1247,7 +1319,7 @@
        if (!TARGET_EXPLICIT_RELOCS)
  	sorry ("MIPS16 requires %<-mexplicit-relocs%>");
      }
-@@ -21114,6 +21545,22 @@
+@@ -21135,6 +21595,22 @@
        for (regno = DSP_ACC_REG_FIRST; regno <= DSP_ACC_REG_LAST; regno += 2)
  	mips_swap_registers (regno);
      }
@@ -1270,7 +1342,7 @@
  }
  
  /* Implement EH_USES.  */
-@@ -22122,6 +22569,52 @@
+@@ -22143,6 +22619,52 @@
    return true;
  }
  
@@ -1323,7 +1395,7 @@
  static bool
  mips_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
  {
-@@ -22158,6 +22651,8 @@
+@@ -22179,6 +22701,8 @@
      return true;
    if (mips_expand_msa_shuffle (d))
      return true;
@@ -1332,7 +1404,7 @@
    return false;
  }
  
-@@ -22670,6 +23165,43 @@
+@@ -22691,6 +23215,43 @@
  	all_same = false;
      }
  
@@ -1376,6 +1448,23 @@
    if (MSA_SUPPORTED_MODE_P (vmode))
      {
        if (all_same)
+@@ -23208,6 +23769,16 @@
+      instructions that say integer mode values must be placed in FPRs.  */
+   if (INTEGRAL_MODE_P (PSEUDO_REGNO_MODE (regno)) && allocno_class == ALL_REGS)
+     return GR_REGS;
++
++  /* MXU2 128-bit vector pseudos live in COP2 registers (or memory).
++     The GPR alternatives of the move patterns exist only so that
++     argument and return-value hard registers can be shuffled at expand
++     time; a GPR allocno home would need four consecutive GPRs and LRA
++     regularly fails to reload it (PR: setjmp + address-taken vectors).
++     Mirrors the x86 treatment of vector pseudos.  */
++  if (ISA_HAS_MXU2 && MXU2_SUPPORTED_MODE_P (PSEUDO_REGNO_MODE (regno)))
++    return COP2_REGS;
++
+   return allocno_class;
+ }
+ 
 --- a/gcc/config/mips/mips-ftypes.def
 +++ b/gcc/config/mips/mips-ftypes.def
 @@ -36,6 +36,7 @@
@@ -1412,7 +1501,7 @@
  DEF_MIPS_FTYPE (1, (V4SF, V8HI))
 --- a/gcc/config/mips/mips.h
 +++ b/gcc/config/mips/mips.h
-@@ -519,6 +519,12 @@
+@@ -521,6 +521,12 @@
  	  builtin_define ("__mips_msa_width=128");			\
  	}								\
  									\
@@ -1425,7 +1514,7 @@
        MIPS_CPP_SET_PROCESSOR ("_MIPS_ARCH", mips_arch_info);		\
        MIPS_CPP_SET_PROCESSOR ("_MIPS_TUNE", mips_tune_info);		\
  									\
-@@ -1315,6 +1321,8 @@
+@@ -1334,6 +1340,8 @@
  /* The MSA ASE is available.  */
  #define ISA_HAS_MSA		(TARGET_MSA && !TARGET_MIPS16)
  
@@ -1434,7 +1523,7 @@
  /* The MIPS16e V2 instructions are available.  */
  #define ISA_HAS_MIPS16E2       (TARGET_MIPS16 && TARGET_MIPS16E2 \
  				&& !TARGET_64BIT)
-@@ -1464,6 +1472,7 @@
+@@ -1485,6 +1493,7 @@
  %{mcrc} %{mno-crc} \
  %{mginv} %{mno-ginv} \
  %{mmsa} %{mno-msa} \
@@ -1442,7 +1531,7 @@
  %{mloongson-mmi} %{mno-loongson-mmi} \
  %{mloongson-ext} %{mno-loongson-ext} \
  %{mloongson-ext2} %{mno-loongson-ext2} \
-@@ -1636,6 +1645,9 @@
+@@ -1657,6 +1666,9 @@
  /* Width of a MSA vector register in bits.  */
  #define BITS_PER_MSA_REG (UNITS_PER_MSA_REG * BITS_PER_UNIT)
  
@@ -1452,7 +1541,7 @@
  /* For MIPS, width of a floating point register.  */
  #define UNITS_PER_FPREG (TARGET_FLOAT64 ? 8 : 4)
  
-@@ -1711,7 +1723,8 @@
+@@ -1732,7 +1744,8 @@
     MIPS_LONG_DOUBLE_TYPE_SIZE, unless under MSA the bigggest alignment is
     BITS_PER_MSA_REG.  */
  #define BIGGEST_ALIGNMENT \
@@ -1462,7 +1551,7 @@
  
  /* All accesses must be aligned.  */
  #define STRICT_ALIGNMENT (!ISA_HAS_UNALIGNED_ACCESS)
-@@ -1911,6 +1924,10 @@
+@@ -1932,6 +1945,10 @@
  #define MSA_REG_LAST  FP_REG_LAST
  #define MSA_REG_NUM   FP_REG_NUM
  
@@ -1473,7 +1562,7 @@
  /* The DWARF 2 CFA column which tracks the return address from a
     signal handler context.  This means that to maintain backwards
     compatibility, no hard register can be assigned this column if it
-@@ -2001,9 +2018,12 @@
+@@ -2022,9 +2039,12 @@
    (MD_REG_P (REGNO) || DSP_ACC_REG_P (REGNO))
  #define MSA_REG_P(REGNO) \
    ((unsigned int) ((int) (REGNO) - MSA_REG_FIRST) < MSA_REG_NUM)
@@ -1486,7 +1575,7 @@
  
  /* True if X is (const (unspec [(const_int 0)] UNSPEC_GP)).  This is used
     to initialize the mips16 gp pseudo register.  */
-@@ -2314,6 +2334,9 @@
+@@ -2335,6 +2355,9 @@
  #define IMM10_OPERAND(VALUE) \
    ((unsigned HOST_WIDE_INT) (VALUE) + 0x200 < 0x400)
  
@@ -1496,7 +1585,7 @@
  /* True if VALUE is a signed 16-bit number.  */
  
  #define SMALL_OPERAND(VALUE) \
-@@ -2464,6 +2487,12 @@
+@@ -2491,6 +2514,12 @@
     && (GET_MODE_CLASS (MODE) == MODE_VECTOR_INT		\
         || GET_MODE_CLASS (MODE) == MODE_VECTOR_FLOAT))
  
@@ -1509,7 +1598,7 @@
  /* Temporary register that is used when restoring $gp after a call.  $4 and $5
     are used for returning complex double values in soft-float code, so $6 is the
     first suitable candidate for TARGET_MIPS16.  For !TARGET_MIPS16 we can use
-@@ -2798,10 +2827,10 @@
+@@ -2825,10 +2854,10 @@
    "$c0r8", "$c0r9", "$c0r10","$c0r11","$c0r12","$c0r13","$c0r14","$c0r15", \
    "$c0r16","$c0r17","$c0r18","$c0r19","$c0r20","$c0r21","$c0r22","$c0r23", \
    "$c0r24","$c0r25","$c0r26","$c0r27","$c0r28","$c0r29","$c0r30","$c0r31", \
@@ -1526,7 +1615,7 @@
    "$c3r16","$c3r17","$c3r18","$c3r19","$c3r20","$c3r21","$c3r22","$c3r23", \
 --- a/gcc/config/mips/mips.md
 +++ b/gcc/config/mips/mips.md
-@@ -8104,6 +8104,8 @@
+@@ -8169,6 +8169,8 @@
  ; The MIPS MSA Instructions.
  (include "mips-msa.md")
  
@@ -2114,13 +2203,13 @@
 +;; an exception is allowing MXU2 modes for GP registers for arguments
 +;; and return values.
 +(define_insn "mov<mode>_mxu2"
-+  [(set (match_operand:MXU2 0 "nonimmediate_operand" "=q,q,R,*d,q,q")
-+	(match_operand:MXU2 1 "move_operand" "q,R,q,q,*d,qYGYN"))]
++  [(set (match_operand:MXU2 0 "nonimmediate_operand" "=q,q,R,!*d,!*q")
++	(match_operand:MXU2 1 "move_operand" "qYGYN,R,q,!*q,!*d"))]
 +  "ISA_HAS_MXU2
 +   && (register_operand (operands[0], <MODE>mode)
 +       || reg_or_0_operand (operands[1], <MODE>mode))"
 +{  return mips_output_move (operands[0], operands[1]); }
-+   [(set_attr "can_delay"    "yes,no,no,yes,yes,yes")
++   [(set_attr "can_delay"    "yes,no,no,yes,yes")
 +   (set_attr "mode"     "TI")])
 +
 +(define_split
@@ -4046,7 +4135,7 @@
         (match_test "mips_signed_immediate_p (INTVAL (op), 10, 0)")))
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
-@@ -485,7 +485,7 @@
+@@ -504,7 +504,7 @@
  mips*-*-*)
  	cpu_type=mips
  	d_target_objs="mips-d.o"
