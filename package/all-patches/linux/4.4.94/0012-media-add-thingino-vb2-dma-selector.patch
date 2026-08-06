@@ -1,0 +1,29 @@
+From 0b3d4e7c6e52f726aa74f163a2ad01c5e43b4b5e Mon Sep 17 00:00:00 2001
+From: Matt Davis <matteius@gmail.com>
+Date: Thu, 6 Aug 2026 15:09:00 -0400
+Subject: [PATCH] media: add Thingino vb2 DMA selector
+
+The videobuf2 allocator symbols are intentionally hidden because in-tree
+drivers normally select them.  Thingino also builds out-of-tree capture
+drivers, so provide an explicit selector that kernel config fragments can
+use without enabling an unrelated in-tree driver.
+
+Signed-off-by: Matt Davis <matteius@gmail.com>
+---
+ drivers/media/v4l2-core/Kconfig | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/media/v4l2-core/Kconfig b/drivers/media/v4l2-core/Kconfig
+index 6f9e7f244..0d38acafa 100644
+--- a/drivers/media/v4l2-core/Kconfig
++++ b/drivers/media/v4l2-core/Kconfig
+@@ -96,1 +96,9 @@
++config THINGINO_VIDEOBUF2_DMA_CONTIG
++	bool "videobuf2 DMA-contiguous support for external drivers"
++	depends on VIDEO_V4L2 && HAS_DMA
++	select VIDEOBUF2_DMA_CONTIG
++	help
++	  Enable the videobuf2 core and DMA-contiguous allocator for capture
++	  drivers built outside the kernel tree.
++
+ config VIDEOBUF2_VMALLOC
