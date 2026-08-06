@@ -165,6 +165,12 @@ BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 BR2_PACKAGE_THINGINO_MCU_WDT=y
+# ZeroTier: chosen over the default WireGuard since this board is behind
+# carrier NAT with no inbound reachability on cellular data -- ZeroTier
+# handles NAT traversal via its own relay network, no public server of
+# our own needed. Network ID configured live post-boot via
+# /etc/zerotier.json (WebUI-editable), not baked into this build.
+BR2_PACKAGE_THINGINO_VPN_ZEROTIER=y
 BR2_PACKAGE_USBNET=y
 # CDC_ETHER: live-tested AT+CGACT=1,1 activates the PDP context and gets
 # a real IP (e.g. 100.97.51.167) even though ATD*99#/PPP fails on this
