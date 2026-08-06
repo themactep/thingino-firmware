@@ -195,6 +195,8 @@
     let value;
     if (el.type === "checkbox") {
       value = el.checked;
+    } else if (el.tagName === "SELECT") {
+      value = el.value;
     } else {
       const numeric = Number(el.value);
       value = Number.isNaN(numeric) ? 0 : numeric;
@@ -300,6 +302,8 @@
             if (el) {
               if (el.type === "checkbox") {
                 daynight[param] = el.checked;
+              } else if (el.tagName === "SELECT") {
+                daynight[param] = el.value;
               } else {
                 const numeric = Number(el.value);
                 daynight[param] = Number.isNaN(numeric) ? 0 : numeric;
