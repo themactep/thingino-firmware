@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Power on the TM18NA LTE modem via the companion MCU's I2C command
+# interface. Without this, the modem never presents anything on D+/D-
+# (confirmed via direct DWC2 HPRT0 register readback: prtpwr=1 but
+# prtconnsts=0, prtlnsts=SE0 -- the USB host controller is correctly in
+# host mode with port power on, there's simply no device attached) and
+# `dwc2`/`option` never see anything to enumerate, no matter how the USB
+# driver side is configured. Stock firmware's lp_mgr daemon sends this
+# same command as part of its own state machine; Thingino has no
+# equivalent daemon, so it's sent once, unconditionally, here.
+#
+# Protocol reverse-engineered from mcu_test's own mcu_cmd_send_try
+# (magic 0xACAC, CRC16/XMODEM poly 0x1021 init 0 no-reflect no-xorout,
+# 14-byte request: magic:u16 LE, cmd:u16 LE, 8-byte payload, crc:u16 LE
+# over the cmd+payload bytes) -- see package/thingino-mcu-wdt's Config.in
+# for where cmd 0x4003 (lte_power_on) came from (lp_mgr disassembly).
+# Live-hardware-verified: this exact command produces a clean
+# `Bus 001 Device N: ID 1782:4d13 UNISOC UNISOC-8850` in lsusb within
+# seconds, and a response status byte (offset 13) of 0x00 (success).
+
+I2C_BUS=1
+MCU_ADDR=0x10
+GPIO_WAKE=82
+
+# lte_power_on: magic=ACAC cmd=4003 payload=00*8 crc=EE16 (LE byte order)
+REQUEST="0xac 0xac 0x03 0x40 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x16 0xee"
+
+start() {
+	[ -e "/dev/i2c-$I2C_BUS" ] || {
+		echo "ltepower: /dev/i2c-$I2C_BUS missing" >&2
+		exit 1
+	}
+
+	[ -e "/sys/class/gpio/gpio$GPIO_WAKE" ] || echo "$GPIO_WAKE" >/sys/class/gpio/export
+	echo out >"/sys/class/gpio/gpio$GPIO_WAKE/direction"
+	echo 1 >"/sys/class/gpio/gpio$GPIO_WAKE/value"
+	usleep 10000
+	echo 0 >"/sys/class/gpio/gpio$GPIO_WAKE/value"
+
+	resp=$(i2ctransfer -y "$I2C_BUS" w14@"$MCU_ADDR" $REQUEST r16 2>&1)
+	ret=$?
+	if [ "$ret" -ne 0 ]; then
+		echo "ltepower: i2ctransfer failed: $resp" >&2
+		exit 1
+	fi
+
+	# response: magic(2) cmd(2) reserved(9) status(1) reserved(2); status
+	# byte is the 14th space-separated field (0x00 = success)
+	status=$(echo "$resp" | awk '{print $14}')
+	if [ "$status" != "0x00" ]; then
+		echo "ltepower: MCU reported error, status=$status resp=[$resp]" >&2
+	fi
+	exit 0
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop | restart | *)
+		true
+		;;
+esac
