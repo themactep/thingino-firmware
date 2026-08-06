@@ -285,6 +285,50 @@ teardown_interface() {
 		echo -c 142 -e "No existing lease file found for $device" >&2
 	fi
 }
+# Remove any global address left on the interface that odhcp6c doesn't
+# currently report (from $ADDRESSES or $RA_ADDRESSES). Needed because
+# on an RA/SLAAC-only network (no real DHCPv6 server), the kernel's own
+# autoconf adds a new global address for every Router Advertisement
+# carrying a fresh prefix, and if the network keeps handing out new
+# prefixes (each marked infinite lifetime, so nothing ages out on its
+# own) they accumulate without bound -- observed live: 17 stacked
+# addresses on eth0 after under an hour, all "valid_lft forever", with
+# outbound traffic eventually picking a stale one the carrier no longer
+# routes back to (100% ping loss despite a healthy radio/signal).
+# $ADDRESSES/$RA_ADDRESSES entries are never cleared by teardown_interface
+# for this case since that function only knows about addresses recorded
+# in the *lease file*, which is only written for real DHCPv6 leases --
+# RA-derived addresses are logged there for visibility only, never
+# tracked for removal. This function is the actual fix: it diffs the
+# interface's real current global addresses against what odhcp6c is
+# reporting right now and removes anything not in that set, regardless
+# of whether it arrived via DHCPv6 or RA.
+prune_stale_addresses() {
+	local device valid_now entry cidr found v
+
+	device="$1"
+
+	valid_now=""
+	for entry in $ADDRESSES $RA_ADDRESSES; do
+		valid_now="$valid_now ${entry%%,*}"
+	done
+
+	ip -6 addr show dev "$device" scope global 2>/dev/null |
+		awk '{for (i = 1; i <= NF; i++) if ($i == "inet6") print $(i + 1)}' |
+		while read -r cidr; do
+			found=0
+			for v in $valid_now; do
+				if [ "$v" = "$cidr" ]; then
+					found=1
+					break
+				fi
+			done
+			if [ "$found" -eq 0 ]; then
+				echo -c 142 -e "- Pruning stale address: $cidr dev $device" >&2
+				ip -6 address del "$cidr" dev "$device" 2>/dev/null
+			fi
+		done
+}
 
 # Main execution block with locking to prevent concurrent runs
 (
@@ -293,9 +337,11 @@ teardown_interface() {
 		bound)
 			teardown_interface "$1"
 			setup_interface "$1"
+			prune_stale_addresses "$1"
 			;;
 		informed | updated | rebound | ra-updated)
 			setup_interface "$1"
+			prune_stale_addresses "$1"
 			;;
 		stopped | unbound)
 			teardown_interface "$1"
