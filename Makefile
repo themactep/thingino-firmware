@@ -827,6 +827,17 @@ rebuild-%: force-config
 	true
 	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
 
+bundle-%:
+	@$(TEAL) "$@"
+	@$(BR2_MAKE) $(subst bundle-,,$@)-dirclean $(subst bundle-,,$@)
+	@if [ -f "$(BR2_EXTERNAL)/package/$(subst bundle-,,$@)/files/$(subst bundle-,,$@).webui.json" ]; then \
+		echo "  WebUI plugin detected, assembling..."; \
+		PKG="$(subst bundle-,,$@)"; \
+		rsync -a "$(OUTPUT_DIR)/per-package/$$PKG/target/var/www/" "$(OUTPUT_DIR)/target/var/www/"; \
+		python3 "$(BR2_EXTERNAL)/package/thingino-webui/scripts/assemble_plugins.py" "$(OUTPUT_DIR)/target" || true; \
+	fi
+	@$(BR2_EXTERNAL)/scripts/make-bundle.sh "$(subst bundle-,,$@)" "$(CAMERA)" "$(OUTPUT_DIR)"
+
 remove_bins:
 	@$(TEAL) "$@"
 	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(DATA_BIN)
@@ -1234,6 +1245,7 @@ help:
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
+	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
 	  make show-vars      print key build variables\n\
 	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\
