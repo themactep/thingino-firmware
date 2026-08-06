@@ -166,6 +166,13 @@ BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 BR2_PACKAGE_THINGINO_MCU_WDT=y
 BR2_PACKAGE_USBNET=y
+# CDC_ETHER: live-tested AT+CGACT=1,1 activates the PDP context and gets
+# a real IP (e.g. 100.97.51.167) even though ATD*99#/PPP fails on this
+# modem -- worth testing whether cdc_ether's eth0 picks up that same IP
+# as a raw-IP-passthrough path, since stock's own non-use of eth0 (see
+# comment above) only proves stock's app doesn't use it, not that the
+# interface itself can't carry data.
+BR2_PACKAGE_USBNET_CDC_ETHER=y
 BR2_PACKAGE_USBNET_WWAN_SERIAL=y
 BR2_SENSOR_1_NAME="os02g10"
 BR2_THINGINO_AUDIO=y
