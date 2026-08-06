@@ -144,24 +144,50 @@ update_resolv() {
 
 	(
 		flock 9
-		# Use a unique identifier to remove only DHCPv6 entries
-		grep -v "# added by odhcp6c" /tmp/resolv.conf >/tmp/resolv.conf.tmp
+		# Strip previously-added entries. Each odhcp6c-added entry is written
+		# as its own "# added by odhcp6c" comment line immediately followed by
+		# the real directive line -- NOT a trailing inline comment on the same
+		# line. This device's resolver (nslookup at least) takes the whole
+		# rest of a "nameserver"/"search" line literally, comment included,
+		# so an inline "nameserver X # added by odhcp6c" produces a broken
+		# address/domain and silently breaks resolution. sed deletes the tag
+		# line plus the line right after it.
+		sed -e '/^# added by odhcp6c$/{N;d}' /tmp/resolv.conf >/tmp/resolv.conf.rest
+		: >/tmp/resolv.conf.tmp
 
 		# Add unique search domains to resolv.conf
 		for domain in $domains; do
-			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
-				echo "search $domain # added by odhcp6c" >>/tmp/resolv.conf.tmp
+			if ! grep -q "search $domain" /tmp/resolv.conf.rest /tmp/resolv.conf.tmp; then
+				printf '%s\n%s\n' "# added by odhcp6c" "search $domain" >>/tmp/resolv.conf.tmp
 			fi
 			echo -c 240 -e "- added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
-			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
-				echo "nameserver $c # added by odhcp6c" >>/tmp/resolv.conf.tmp
+			if ! grep -q "nameserver $c" /tmp/resolv.conf.rest /tmp/resolv.conf.tmp; then
+				printf '%s\n%s\n' "# added by odhcp6c" "nameserver $c" >>/tmp/resolv.conf.tmp
 			fi
 			echo -c 240 -e "- added nameserver $c"
 		done
+
+		# Fallback public resolvers: some carriers hand out an RDNSS server
+		# that is not actually reachable (observed live on this connection --
+		# 32.1.15.216 times out on every query despite being handed out
+		# normally in the RA). Add known-good public resolvers after the
+		# carrier's own RDNSS entries, so lookups still work when the
+		# carrier's DNS is dead, without overriding carrier DNS on
+		# connections where it's fine.
+		for c in 2001:4860:4860::8888 2606:4700:4700::1111; do
+			if ! grep -q "nameserver $c" /tmp/resolv.conf.rest /tmp/resolv.conf.tmp; then
+				printf '%s\n%s\n' "# added by odhcp6c" "nameserver $c" >>/tmp/resolv.conf.tmp
+			fi
+		done
+
+		# Our entries first, then whatever untagged content was already there
+		# (see comment above for why the order matters).
+		cat /tmp/resolv.conf.rest >>/tmp/resolv.conf.tmp
+		rm -f /tmp/resolv.conf.rest
 
 		# Move the temporary file to /tmp/resolv.conf
 		mv /tmp/resolv.conf.tmp /tmp/resolv.conf
@@ -233,10 +259,11 @@ setup_interface() {
 	dns="$EXTRACTED_DNS"
 	domains="$EXTRACTED_DOMAINS"
 
-	# Call update_resolv to update resolv.conf with DNS information and search domains
-	if [ -n "$dns" ]; then
-		update_resolv "$dns" "$domains"
-	fi
+	# Call update_resolv to update resolv.conf with DNS information and search
+	# domains -- unconditionally, not just when $dns is non-empty, so the
+	# fallback public resolvers inside update_resolv() still get added even
+	# on a carrier that hands out no RDNSS server at all.
+	update_resolv "$dns" "$domains"
 
 	# Write the lease information to a file
 	write_lease "$device"
