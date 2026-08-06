@@ -149,36 +149,25 @@
 #    cleanly releasing DMA/IRQ resources, not a signal about the modem).
 #    A clean first-boot-with-delay test has NOT been done yet -- this is
 #    the next thing to verify on the next hardware flash.
-#  - UART0 + UART2 (BR2_PACKAGE_THINGINO_KOPT_UART_UART0/UART2, the proper
-#    thingino-kopt mechanism, not a raw kernel fragment) enabled to find
-#    the MCU's own debug UART, confirmed live (via an external USB-serial
-#    tap wired directly to the MCU) to stream real-time "PIR_Interrupt"/
-#    "KEY_PRESSED"/"KEY_RELEASED" event lines whenever the MCU firmware
-#    detects them -- a second, independent channel from the I2C control
-#    link mcu_test/thingino-mcu-wdt already use. mcu_test's own I2C-based
-#    --mcu_int_flag query does NOT reliably reflect these events (confirmed
-#    live: stayed 0x0 through repeated confirmed PIR/button triggers across
-#    multiple reboots) -- this UART is the only currently-known reliable
-#    on-device path to real-time PIR/button events.
-#    UART0 (PB19 TXD/PB22 RXD) tried first, same pin assignment as
-#    jooan_s7u_t23zn_sc2336_atbm6441 (same T23-ISVP-Pike board family, same
-#    vendor MCU-UART convention) -- driver probed cleanly (dmesg: "ttyS0
-#    ... is a uart0") but received zero bytes from /dev/ttyS0 on real
-#    hardware despite confirmed PIR/button triggers during the capture
-#    window, meaning THIS board's MCU UART likely isn't wired to those
-#    exact pins even though jooan_s7u's is -- different vendor/PCB, same
-#    SoC family only guarantees the same Kconfig options exist, not the
-#    same physical wiring. UART2 added as the other untested option, both
-#    enabled together so whichever one is actually wired works without a
-#    third flash cycle. /dev/ttyS0 (UART0) and /dev/ttyS2 (UART2) once
-#    built+flashed -- not yet confirmed which (if either) carries real
-#    MCU data.
+#  - UART0 (CONFIG_SERIAL_JZ47XX_UART0, kernel fragment file below) enabled
+#    for the MCU's own debug UART, confirmed live to stream real-time
+#    "PIR_Interrupt"/"KEY_PRESSED"/"KEY_RELEASED" event lines whenever the
+#    MCU firmware detects them -- a second, independent channel from the
+#    I2C control link mcu_test/thingino-mcu-wdt already use. mcu_test's own
+#    I2C-based --mcu_int_flag query does NOT reliably reflect these events
+#    (confirmed live: stayed 0x0 through repeated confirmed PIR/button
+#    triggers across multiple reboots) -- this UART is the only currently-
+#    known reliable on-device path to real-time PIR/button events. Same
+#    pin assignment (PB19 TXD/PB22 RXD) as jooan_s7u_t23zn_sc2336_atbm6441
+#    (same T23-ISVP-Pike board family, same vendor MCU-UART convention) --
+#    used as the reference for this fix. /dev/ttyS0 once enabled.
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_CLK_SCLKA=y
 BR2_ISP_PRINT_LEVEL_0=y
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/cinnado_b6_t23zn_os02g10_tm18na/cinnado_b6_t23zn.kernel.config"
 BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
 BR2_PACKAGE_I2C_TOOLS=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
@@ -188,9 +177,6 @@ BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_GPIO=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
-BR2_PACKAGE_THINGINO_KOPT_UART=y
-BR2_PACKAGE_THINGINO_KOPT_UART_UART0=y
-BR2_PACKAGE_THINGINO_KOPT_UART_UART2=y
 BR2_PACKAGE_THINGINO_MCU_WDT=y
 # ZeroTier: chosen over the default WireGuard since this board is behind
 # carrier NAT with no inbound reachability on cellular data -- ZeroTier
