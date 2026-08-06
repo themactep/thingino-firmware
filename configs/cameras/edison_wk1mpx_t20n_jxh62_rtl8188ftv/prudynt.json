@@ -1,7 +1,13 @@
 {
-  "image":{
-    "sharpness":0,
-    "sinter_strength":0,
-    "temper_strength":0
+  "audio": {
+    "mic_hq": false
+  },
+  "image": {
+    "sharpness": 0,
+    "sinter_strength": 0,
+    "temper_strength": 0
+  },
+  "stream0": {
+    "fps": 20
   }
 }
