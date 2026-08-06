@@ -121,8 +121,13 @@ Current phase 2 status:
 	- enrollment now also supports token handoff by generating a pairing bundle with a bearer token, `/etc/thingino-agent-bootstrap.json` payload, and exact `jct` or restart commands for the camera
 - partially implemented
 	- enrollment is now guided, validated, and can hand off a token plus bootstrap payload, but it is still a lightweight operator-assisted form rather than a fuller trust-onboarding workflow
+	- camera-side MQTT `install-agent-bootstrap` now parses broker args, uses an
+		agent-owned `thingino-agent-bootstrap` helper, one-shot-consumes the
+		bootstrap file, ensures the hub cmd subscription, and exposes a local
+		Hub Pairing WebUI fallback
 - not implemented yet
-	- deeper pairing features such as trust bootstrap beyond token handoff, camera-side token install automation, or duplicate-resolution guidance
+	- deeper hub pairing features such as trust bootstrap beyond token handoff,
+		or duplicate-resolution guidance
 
 Review questions:
 
@@ -233,8 +238,10 @@ These should stay deferred until the local network architecture works well.
 ## Next recommended work
 
 - add richer per-camera result rendering and retry affordances for dashboard bulk actions
-- extend pairing beyond operator-assisted token handoff into fuller trust bootstrap or camera-side token install automation for first-time camera adoption
+- extend hub pairing beyond operator-assisted token handoff into fuller trust bootstrap
 - add lightweight graph views for the normalized history data that already exists
+- finish remaining on-camera WebUI agent remapping deferred from the consolidated
+	WebUI PR (live MJPEG/JPEG CGIs, deeper recordmgr / send2 editors)
 
 ## Reassessment checklist
 
