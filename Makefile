@@ -19,9 +19,12 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
-# Run dependency check before doing anything, but skip if WORKFLOW=1 or if .prereqs.done exists
+# Run dependency check before doing anything.
+# Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
-ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
+ifneq ($(filter update,$(MAKECMDGOALS)),)
+$(info Skipping dependency check for update target)
+else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 	_dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 	ifneq ($(lastword $(_dep_check)),0)
 	$(error Dependency check failed)
