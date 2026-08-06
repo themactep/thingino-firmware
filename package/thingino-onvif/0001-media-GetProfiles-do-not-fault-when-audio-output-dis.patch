@@ -1,0 +1,81 @@
+From: Lu-Fi <lfiebach@googlemail.com>
+Subject: [PATCH] media: GetProfiles must not fault when audio output is disabled
+
+media_audio_output_supported() sends an AudioOutputNotSupported SOAP
+fault as a side effect of returning 0. GetProfiles/GetProfile used it as
+a plain conditional around the optional AudioOutputConfiguration block,
+so any configuration with audio.output_enabled=false (or every
+profile at audio_decoder=NONE) emitted that fault into the middle of the
+GetProfiles answer and broke profile discovery for every client.
+
+Add a silent media_audio_output_available() predicate for the profile
+responses; the explicit AudioOutput actions (GetAudioOutputs,
+GetAudioOutputConfiguration[s|Options], GetCompatibleAudioOutput-
+Configurations) keep the faulting variant, which is correct there.
+
+---
+--- a/src/media_service.c
++++ b/src/media_service.c
+@@ -52,6 +52,17 @@
+     return 1;
+ }
+ 
++/* Same predicate, but silent: GetProfiles/GetProfile use it to decide whether
++ * to include the AudioOutputConfiguration block in an otherwise valid answer.
++ * The faulting variant used to be called there too, which wrote a SOAP fault
++ * into the middle of every GetProfiles/GetProfile response as soon as audio
++ * output was disabled (audio.output_enabled=false or all audio_decoder=NONE),
++ * breaking profile discovery for every client. */
++static int media_audio_output_available()
++{
++    return service_ctx.audio.output_enabled && audio_decoder_profile_count() > 0;
++}
++
+ int media_get_service_capabilities()
+ {
+     long size = cat(NULL, "media_service_files/GetServiceCapabilities.xml", 0);
+@@ -297,7 +308,7 @@
+                 size += cat(dest, "media_service_files/GetProfile_PTZ.xml", 2, "%USE_COUNT%", "1");
+             }
+ 
+-            if (media_audio_output_supported()) {
++            if (media_audio_output_available()) {
+                 size += cat(dest, "media_service_files/GetProfile_AOC.xml", 10,
+                     "%AUDIO_OUTPUT_CONFIG_TOKEN%", audio_output_config_token,
+                     "%AUDIO_OUTPUT_NAME%", audio_output_name,
+@@ -367,7 +378,7 @@
+                 size += cat(dest, "media_service_files/GetProfile_PTZ.xml", 2, "%USE_COUNT%", "2");
+             }
+ 
+-            if (media_audio_output_supported()) {
++            if (media_audio_output_available()) {
+                 size += cat(dest, "media_service_files/GetProfile_AOC.xml", 10,
+                     "%AUDIO_OUTPUT_CONFIG_TOKEN%", audio_output_config_token,
+                     "%AUDIO_OUTPUT_NAME%", audio_output_name,
+@@ -424,7 +435,7 @@
+                 size += cat(dest, "media_service_files/GetProfile_PTZ.xml", 2, "%USE_COUNT%", "2");
+             }
+ 
+-            if (media_audio_output_supported()) {
++            if (media_audio_output_available()) {
+                 size += cat(dest, "media_service_files/GetProfile_AOC.xml", 10,
+                     "%AUDIO_OUTPUT_CONFIG_TOKEN%", audio_output_config_token,
+                     "%AUDIO_OUTPUT_NAME%", audio_output_name,
+@@ -535,7 +546,7 @@
+                 size += cat(dest, "media_service_files/GetProfile_PTZ.xml", 0);
+             }
+ 
+-            if (media_audio_output_supported()) {
++            if (media_audio_output_available()) {
+                 size += cat(dest, "media_service_files/GetProfile_AOC.xml", 10,
+                     "%AUDIO_OUTPUT_CONFIG_TOKEN%", audio_output_config_token,
+                     "%AUDIO_OUTPUT_NAME%", audio_output_name,
+@@ -605,7 +616,7 @@
+                 size += cat(dest, "media_service_files/GetProfile_PTZ.xml", 0);
+             }
+ 
+-            if (media_audio_output_supported()) {
++            if (media_audio_output_available()) {
+                 size += cat(dest, "media_service_files/GetProfile_AOC.xml", 10,
+                     "%AUDIO_OUTPUT_CONFIG_TOKEN%", audio_output_config_token,
+                     "%AUDIO_OUTPUT_NAME%", audio_output_name,
