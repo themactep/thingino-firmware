@@ -121,6 +121,8 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
   (see `docs/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
+- **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
+  braille spinners, emoji, or other non-ASCII characters in `.sh` files.
 
 ## Container Builds
 
