@@ -2,7 +2,6 @@
   "token": "",
   "api_url": "https://api.telegram.org",
   "polling_timeout": 30,
-  "daemon": true,
   "log_level": "INFO",
   "publish_menu": true,
   "state_file": "/run/telegrambot.state",

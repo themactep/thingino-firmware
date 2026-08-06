@@ -8,6 +8,9 @@ TELEGRAMBOT_SITE_METHOD = local
 TELEGRAMBOT_LICENSE = MIT
 
 TELEGRAMBOT_DEPENDENCIES = thingino-libcurl thingino-jct
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+TELEGRAMBOT_DEPENDENCIES += thingino-webui
+endif
 # Package-specific flags (append-only for configurability)
 TELEGRAMBOT_CFLAGS += -D_POSIX_C_SOURCE=200809L -std=c99 \
 	-Wall -Wextra -Os -ffunction-sections -fdata-sections \
@@ -26,6 +29,24 @@ define TELEGRAMBOT_BUILD_CMDS
 		$(@D)/telegrambot.o $(TELEGRAMBOT_LIBS)
 endef
 
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+define TELEGRAMBOT_INSTALL_WWW_CMDS
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -d $(TARGET_DIR)/var/www/x
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
+	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/www/config-telegrambot.html \
+		$(TARGET_DIR)/var/www/config-telegrambot.html
+	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/www/a/config-telegrambot.js \
+		$(TARGET_DIR)/var/www/a/config-telegrambot.js
+	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/json-telegrambot.cgi \
+		$(TARGET_DIR)/var/www/x/json-telegrambot.cgi
+	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/ctl-telegrambot.cgi \
+		$(TARGET_DIR)/var/www/x/ctl-telegrambot.cgi
+	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/telegrambot.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/telegrambot.webui.json
+endef
+endif
+
 define TELEGRAMBOT_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/telegrambot \
 		$(TARGET_DIR)/usr/sbin/telegrambot
@@ -33,6 +54,7 @@ define TELEGRAMBOT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S93telegrambot
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
 		$(TARGET_DIR)/etc/telegrambot.json
+	$(TELEGRAMBOT_INSTALL_WWW_CMDS)
 endef
 
 $(eval $(generic-package))
