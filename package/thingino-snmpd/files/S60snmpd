@@ -4,6 +4,7 @@ DAEMON="mini-snmpd"
 DAEMON_FULL="/usr/sbin/mini-snmpd"
 PIDFILE="/run/snmpd.pid"
 CONFIG_FILE="/etc/thingino.json"
+MDNS_SERVICE="/etc/mdns.d/snmp.service"
 
 read_config() {
 	jct "$CONFIG_FILE" get "snmpd.$1" 2>/dev/null | tr -d '\n'
@@ -90,6 +91,34 @@ stop_daemon() {
 	start-stop-daemon -K -x "$DAEMON_FULL"
 }
 
+register_mdns() {
+	local community port
+	community=$(read_text community)
+	[ -z "$community" ] && community="public"
+	port=$(read_text port)
+	is_number "$port" || port=161
+
+	cat >"$MDNS_SERVICE" <<EOF
+# SNMP service definition for mdnsd (auto-generated)
+name $(hostname)
+type _snmp._udp
+port $port
+txt community=$community
+EOF
+
+	# Signal mdnsd to reload
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+}
+
+unregister_mdns() {
+	rm -f "$MDNS_SERVICE"
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+}
+
 start() {
 	echo -c 15 "Starting SNMP daemon"
 
@@ -99,6 +128,7 @@ start() {
 	fi
 
 	start_daemon
+	register_mdns
 }
 
 case "$1" in
@@ -115,10 +145,12 @@ case "$1" in
 	stop)
 		echo -c 15 "Stopping SNMP daemon"
 		stop_daemon
+		unregister_mdns
 		;;
 	restart | reload)
 		# Every setting is passed on the command line, so reload is a restart
 		stop_daemon || true
+		unregister_mdns
 		sleep 1
 		"$0" start
 		;;
