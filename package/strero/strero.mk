@@ -182,6 +182,7 @@ define STRERO_BUILD_CMDS
 		$(if $(BR2_PACKAGE_STRERO_TLS_OPENSSL),RTMPS_BACKEND_OPENSSL=1,) \
 		$(if $(BR2_PACKAGE_STRERO_TLS_MBEDTLS),RTMPS_BACKEND_MBEDTLS=1,) \
 		$(if $(BR2_PACKAGE_STRERO_WEBRTC),WEBRTC_ENABLED=1,) \
+		DEBUG_STRIP=0 \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 
@@ -189,6 +190,9 @@ define STRERO_INSTALL_TARGET_CMDS
 	# Install the streamer binary
 	$(INSTALL) -D -m 0755 $(@D)/bin/streamer \
 		$(TARGET_DIR)/usr/bin/streamer
+
+	# Copy to NFS share for dev iteration (camera mounts /mnt/nfs)
+	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/streamer /nfs/streamer || true
 
 	# Install the JSON configuration file
 	$(INSTALL) -D -m 0644 $(@D)/res/streamer.json \
