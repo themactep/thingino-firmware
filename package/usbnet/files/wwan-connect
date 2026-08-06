@@ -3,7 +3,8 @@
 # PPP fallback alongside any QMI/MBIM/NCM mode they may also support.
 #
 # EDIT BEFORE USE: "internet" is a placeholder APN -- replace with your
-# carrier's real APN before dialing.
+# carrier's real APN before dialing. (For a Smart/TNT Philippines SIM,
+# "talkntext" is the confirmed-working APN, not "internet".)
 
 ABORT 'BUSY'
 ABORT 'NO CARRIER'
