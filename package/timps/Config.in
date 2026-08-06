@@ -29,6 +29,28 @@ config BR2_PACKAGE_TIMPS_FAAC
 	  browser-compatible audio in the fMP4 preview and RTSP streams.
 	  Without this, only G.711 audio is available.
 
+config BR2_PACKAGE_TIMPS_STREAM_OPUS
+	bool "Opus streaming audio codec (libopus)"
+	default n
+	select BR2_PACKAGE_OPUS
+	help
+	  Offer Opus as a selectable audio.codec for the live RTSP/RTP audio
+	  track (RFC 7587), alongside the existing "aac" and "g711" (pcmu/pcma)
+	  options. When enabled, set audio.codec=opus in timps.conf (or via the
+	  /control API) to stream the microphone as Opus; leave it at aac/g711
+	  and nothing changes. The mic is encoded at its capture rate (16 kHz by
+	  default) in VOIP mode and RTP-signaled as opus/48000/2 per the RFC.
+
+	  This is the STREAMING encoder only and links the bare libopus
+	  (~337KB), NOT opusfile: RTP carries raw Opus frames with no Ogg
+	  container, so libogg and opusfile are not pulled in.
+
+	  Independent of BR2_PACKAGE_TIMPS_PLAY_OPUS below, which is the
+	  unrelated DECODE-side feature (playing local .opus sound files through
+	  the speaker via opusfile). The two do not need to agree; a board may
+	  enable either, both, or neither. Default off; when off, no Opus stream
+	  code is compiled in and "opus" is not an accepted audio.codec value.
+
 config BR2_PACKAGE_TIMPS_CONTROL
 	bool "Live control endpoint (/control)"
 	default y

@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.7.6
+TIMPS_VERSION = v1.7.7
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -45,6 +45,12 @@ endif
 # Opus playback in the play queue links opusfile (which pulls opus + libogg).
 ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
 	TIMPS_DEPENDENCIES += opusfile
+endif
+
+# Opus as an RTSP/RTP streaming codec links the bare libopus encoder only (no
+# opusfile / libogg - RTP carries raw Opus frames, no Ogg container).
+ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
+	TIMPS_DEPENDENCIES += opus
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -92,6 +98,10 @@ ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
 	TIMPS_LIBS += -lopusfile -lopus -logg
 endif
 
+ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
+	TIMPS_LIBS += -lopus
+endif
+
 # Ingenic SDK blobs (libimp/libalog/libsysutils) reference libc symbols their
 # original vendor toolchain exported that modern uClibc-ng/musl dropped (e.g.
 # the glibc-2.2-era __ctype_b/__ctype_tolower bare-pointer symbols T10/T20/T21/
@@ -136,6 +146,8 @@ define TIMPS_BUILD_CMDS
 		USE_PLAY_OPUS=$(if $(BR2_PACKAGE_TIMPS_PLAY_OPUS),1,0) \
 		OPUSLIB="-lopusfile -lopus -logg" \
 		OPUS_INC=$(STAGING_DIR)/usr/include \
+		USE_STREAM_OPUS=$(if $(BR2_PACKAGE_TIMPS_STREAM_OPUS),1,0) \
+		OPUS_ENC_LIB="-lopus" \
 		-C $(@D) target
 endef
 
