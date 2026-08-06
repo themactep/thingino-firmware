@@ -1,14 +1,16 @@
 INGENIC_DIAG_TOOLS_SITE_METHOD = git
-INGENIC_DIAG_TOOLS_SITE = https://github.com/gtxaspec/jz-diag-tools
+INGENIC_DIAG_TOOLS_SITE = https://github.com/thingino/ingenic-gpio
 INGENIC_DIAG_TOOLS_SITE_BRANCH = main
-INGENIC_DIAG_TOOLS_VERSION = f06342a9596e4cf670256c40a7a5babc14024ec5
+INGENIC_DIAG_TOOLS_VERSION = ea272f0f2feaae1c67b56d4f57a03079bc064ab6
+INGENIC_DIAG_TOOLS_LICENSE = GPL-2.0
+INGENIC_DIAG_TOOLS_LICENSE_FILES = LICENSE
 
 define INGENIC_DIAG_TOOLS_BUILD_CMDS
 	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) LDFLAGS="$(TARGET_LDFLAGS)" -C $(@D)
 endef
 
 define INGENIC_DIAG_TOOLS_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/ingenic-gpio $(TARGET_DIR)/usr/bin/gpio-diag
+	$(INSTALL) -D -m 0755 $(@D)/gpio-diag $(TARGET_DIR)/usr/bin/gpio-diag
 endef
 
 $(eval $(generic-package))

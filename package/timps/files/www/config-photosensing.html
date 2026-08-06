@@ -137,6 +137,60 @@
                     day <span id="daynight_sun_computed_sunrise">--:--</span> &rarr; night <span id="daynight_sun_computed_sunset">--:--</span>.</small>
                 </div>
               </div>
+              <div class="col">
+                <h4>Adaptive night recovery</h4>
+                <small>Night&rarr;day triggers relative to a gain baseline sampled in darkness</small>
+                <p class="number-range">
+                  <label for="daynight_day_gain_pct">Day trigger (% of night baseline)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_day_gain_pct" name="daynight_day_gain_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_baseline_delay_s">Baseline sample delay (s)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_baseline_delay_s" name="daynight_baseline_delay_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_night_reconfirm_s">Night reconfirm probe every (s, 0 = off)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_night_reconfirm_s" name="daynight_night_reconfirm_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="86400" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <small class="text-secondary">Live: baseline <span id="daynight_night_baseline">-</span>,
+                  day below <span id="daynight_day_trigger">-</span>.
+                  The baseline self-corrects upward while night lasts, and a sustained
+                  brightening that stays above the strict trigger fires an early day probe.</small>
+              </div>
+              <div class="col">
+                <h4>Boot settle</h4>
+                <small>How long the first decision waits for the AE to converge after start</small>
+                <p class="number-range">
+                  <label for="daynight_boot_settle_s">Minimum settle (s)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_boot_settle_s" name="daynight_boot_settle_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="600" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_boot_settle_max_s">Maximum settle wait (s)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_boot_settle_max_s" name="daynight_boot_settle_max_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_boot_stable_pct">Gain considered stable within (%)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_boot_stable_pct" name="daynight_boot_stable_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </section>

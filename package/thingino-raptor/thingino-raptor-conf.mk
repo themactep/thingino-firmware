@@ -273,6 +273,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset ircut gpio_ircut2 "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT2))"; \
 	rset ircut gpio_irled "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED))"; \
 	rset ircut gpio_irled2 "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED2))"; \
+	rset ircut pulse_ms "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PULSE_MS))"; \
 	rset ircut ir850 "$(call raptor_bval,IRCUT_IR850)"; \
 	rset ircut ir940 "$(call raptor_bval,IRCUT_IR940)"; \
 	\

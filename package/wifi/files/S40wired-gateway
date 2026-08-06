@@ -25,25 +25,31 @@ has_wired_uplink() {
 	return 1
 }
 
+watch_wired_uplink() {
+	attempt=0
+	while [ "$attempt" -lt 10 ]; do
+		for iface in eth0 usb0; do
+			if has_wired_uplink "$iface"; then
+				echo "Wired uplink on $iface found, stopping WiFi" >&2
+				/etc/init.d/S38wpa_supplicant stop
+				/etc/init.d/S36wireless stop
+				unload_wlan_module
+				exit 0
+			fi
+		done
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+	if [ -f /run/portal_mode ]; then
+		/etc/init.d/S38wpa_supplicant portal_confirmed
+	fi
+}
+
 case "$1" in
 	start)
-		attempt=0
-		while [ "$attempt" -lt 10 ]; do
-			for iface in eth0 usb0; do
-				if has_wired_uplink "$iface"; then
-					echo "Wired uplink on $iface found, stopping WiFi" >&2
-					/etc/init.d/S38wpa_supplicant stop
-					/etc/init.d/S36wireless stop
-					unload_wlan_module
-					exit 0
-				fi
-			done
-			attempt=$((attempt + 1))
-			sleep 1
-		done
-		if [ -f /run/portal_mode ]; then
-			/etc/init.d/S38wpa_supplicant portal_confirmed
-		fi
+		# The uplink probe needs up to 10 s; on wifi-only cameras it
+		# always runs the full 10 s, so it must not hold up rcS.
+		watch_wired_uplink &
 		;;
 esac
 

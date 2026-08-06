@@ -1,8 +1,25 @@
 menu "Core Device Configuration"
 
 menu "SOC Configuration"
+
+choice
+	prompt "SoC vendor"
+	default BR2_SOC_VENDOR_INGENIC
+	help
+	  Silicon vendor of this camera's SoC. Selects which board support
+	  layer applies and which SoC model space is offered below.
+
+config BR2_SOC_VENDOR_INGENIC
+	bool "Ingenic"
+
+config BR2_SOC_VENDOR_SIGMASTAR
+	bool "SigmaStar"
+
+endchoice
+
 config BR2_INGENIC_SOC_MODEL
 	string "SoC Model"
+	depends on BR2_SOC_VENDOR_INGENIC
 	default ""
 	help
 	  Enter the Ingenic SoC model name for your device (e.g., t31x, t40n, t41nq).
@@ -19,6 +36,18 @@ config BR2_INGENIC_SOC_MODEL
 
 	  Leave empty to use legacy BR2_SOC_INGENIC_* variables (for backward compatibility).
 
+config BR2_SIGMASTAR_SOC_MODEL
+	string "SoC Model"
+	depends on BR2_SOC_VENDOR_SIGMASTAR
+	default ""
+	help
+	  Enter the SigmaStar SoC model name for your device (e.g., ssc30kq).
+	  This value is used to automatically derive the SoC family.
+
+	  Supported models: ssc30kq
+
+	  Note: Model name is case-insensitive.
+
 config BR2_SOC_FAMILY
 	string
 	default "t10" if BR2_INGENIC_SOC_MODEL = "t10l" || BR2_INGENIC_SOC_MODEL = "t10n" || BR2_INGENIC_SOC_MODEL = "t10a"
@@ -32,6 +61,9 @@ config BR2_SOC_FAMILY
 	default "t40" if BR2_INGENIC_SOC_MODEL = "t40n" || BR2_INGENIC_SOC_MODEL = "t40nn" || BR2_INGENIC_SOC_MODEL = "t40xp" || BR2_INGENIC_SOC_MODEL = "t40a"
 	default "t41" if BR2_INGENIC_SOC_MODEL = "t41lq" || BR2_INGENIC_SOC_MODEL = "t41nq" || BR2_INGENIC_SOC_MODEL = "t41zl" || BR2_INGENIC_SOC_MODEL = "t41zn" || BR2_INGENIC_SOC_MODEL = "t41zx" || BR2_INGENIC_SOC_MODEL = "t41a"
 	default "a1" if BR2_INGENIC_SOC_MODEL = "a1n" || BR2_INGENIC_SOC_MODEL = "a1nt" || BR2_INGENIC_SOC_MODEL = "a1x" || BR2_INGENIC_SOC_MODEL = "a1l" || BR2_INGENIC_SOC_MODEL = "a1a"
+	# Only one vendor's model symbol is ever non-empty, so the two halves of
+	# this chain cannot both match and their order does not matter.
+	default "infinity6e" if BR2_SIGMASTAR_SOC_MODEL = "ssc30kq"
 
 config BR2_SOC_RAM_MB
 	int "RAM size in MB"
