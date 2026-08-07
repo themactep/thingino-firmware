@@ -1,10 +1,5 @@
 # NAME: Hugolog E5 (T31L, SC2336, ATBM6012BX)
 # FRAG: soc-xburst1 core ssl
-# isp_clk=220000000
-# isp_ch0_pre_dequeue_time=20
-# isp_ch0_pre_dequeue_interrupt_process=0
-# isp_ch0_pre_dequeue_valid_lines=540
-# isp_day_night_switch_drop_frame_num=6
 BR2_INGENIC_SOC_MODEL="t31l"
 BR2_ISP_CH0_PRE_DEQUEUE_TIME=y
 BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE=20
@@ -25,3 +20,9 @@ BR2_THINGINO_LED_W_GPIO=9
 BR2_THINGINO_RMEM_MB=24
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=8
+
+# isp_clk=220000000
+# isp_ch0_pre_dequeue_time=20
+# isp_ch0_pre_dequeue_interrupt_process=0
+# isp_ch0_pre_dequeue_valid_lines=540
+# isp_day_night_switch_drop_frame_num=6
