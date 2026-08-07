@@ -11,8 +11,8 @@ define THINGINO_SENSOR_INFO_BUILD_CMDS
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		CFLAGS="$(TARGET_CFLAGS) -std=gnu99 -ffunction-sections -fdata-sections \
 			-fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident \
-			-fno-pie" \
-		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -no-pie" \
+			-fno-pie -flto" \
+		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -no-pie -flto" \
 		-C $(@D) sinfo
 endef
 
