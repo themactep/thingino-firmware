@@ -57,7 +57,11 @@ ifeq ($(SOC_MODEL),c100)
 SOC_RAM_MB     := 128
 SOC_UBOOT_NOR  := isvp_t31a_sfcnor
 SOC_UBOOT_NAND := isvp_t31a_sfcnand
-# The one model whose family is not fixed by the part.
+# The one model whose family is not fixed by the part. Only fires when
+# KERNEL_VERSION is passed on the make command line, which is the supported way
+# to build this SoC: command-line variables are set before any makefile is read,
+# and thingino.mk resolves KERNEL_VERSION after this file.
+#   make CAMERA=<board> KERNEL_VERSION=4.4.94
 ifeq ($(KERNEL_VERSION),4.4.94)
 SOC_FAMILY := c100
 endif
