@@ -40,11 +40,15 @@ SIGMASTAR_UBOOT_INSTALL_STAGING = NO
 SIGMASTAR_UBOOT_SOC_MODEL = $(SOC_MODEL)
 SIGMASTAR_UBOOT_SOC_FAMILY = $(SOC_FAMILY)
 
+# Only when the package is actually selected. external.mk includes every
+# package .mk for every build, and a toolchain producer has no SoC.
+ifeq ($(BR2_PACKAGE_SIGMASTAR_UBOOT),y)
 ifeq ($(SIGMASTAR_UBOOT_SOC_MODEL),)
 $(error sigmastar-uboot: SOC_MODEL is empty -- expected it exported by thingino.mk)
 endif
 ifeq ($(SIGMASTAR_UBOOT_SOC_FAMILY),)
 $(error sigmastar-uboot: SOC_FAMILY is empty -- expected it exported by thingino.mk)
+endif
 endif
 
 # For mkenvimage, which the post-image script uses to build the environment
