@@ -92,12 +92,6 @@ BR2_PACKAGE_THINGINO_HA=y
 BR2_PACKAGE_THINGINO_SYSTEM=y
 BR2_PACKAGE_THINGINO_SYSUPGRADE=y
 
-# ingenic-sdk carries "default y if !KERNEL_VERSION_7" in its own Config.in,
-# and KERNEL_VERSION_7 is a make variable rather than a Kconfig symbol, so the
-# condition is always true and the package turns itself on regardless of the
-# guard in Config.in. It builds Ingenic kernel modules; it cannot work here.
-# BR2_PACKAGE_INGENIC_SDK is not set
-
 # Omitted on purpose, unlike core.fragment:
 #   BR2_PACKAGE_THINGINO_GPIO / _LEDD / _DAYNIGHT  - Ingenic GPIO register access
 #   BR2_TARGET_UBOOT and BR2_PACKAGE_THINGINO_UBOOT_*  - vendor U-Boot is kept
