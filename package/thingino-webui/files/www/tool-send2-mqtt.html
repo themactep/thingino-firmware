@@ -64,6 +64,12 @@
                   <input type="checkbox" class="form-check-input" id="mqtt_use_ssl" name="mqtt_use_ssl">
                   <label class="form-check-label" for="mqtt_use_ssl">Use SSL</label>
                 </p>
+                <p class="form-switch d-none" id="mqtt_tls_skip_verify_row">
+                  <input type="checkbox" class="form-check-input" id="mqtt_tls_skip_verify" name="mqtt_tls_skip_verify">
+                  <label class="form-check-label" for="mqtt_tls_skip_verify">Skip TLS certificate verification</label>
+                  <br>
+                  <small class="form-text text-secondary">Insecure: MQTT broker identity will not be verified</small>
+                </p>
               </div>
             </div>
           </div>

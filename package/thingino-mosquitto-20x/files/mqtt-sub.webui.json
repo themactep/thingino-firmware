@@ -1,0 +1,33 @@
+{
+  "name": "mqtt-sub",
+  "label": "MQTT Subscriptions",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddServices",
+      "position": "after:Home Assistant",
+      "items": [
+        {
+          "label": "MQTT Subscriptions",
+          "href": "/tool-mqtt-sub.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "mqtt-sub": true
+  },
+  "cgi": [
+    "/x/json-config-mqtt-sub.cgi",
+    "/x/mqtt-sub-restart.cgi"
+  ],
+  "pages": [
+    "/tool-mqtt-sub.html"
+  ]
+}
