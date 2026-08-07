@@ -362,7 +362,9 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM),y)
 ifneq ($(KERNEL_VERSION_7),y)
-ifneq ($(SOC_FAMILY),t20)
+# T10 and T20 (3.10 vendor trees) die in early boot when the V4L2 stack is
+# flipped to modules - keep it builtin there and only add the webcam gadget.
+ifeq ($(filter t10 t20,$(SOC_FAMILY)),)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_WEBCAM
 	$(call KCONFIG_SET_OPT,CONFIG_MEDIA_SUPPORT,m)
 	$(call KCONFIG_SET_OPT,CONFIG_VIDEO_DEV,m)
