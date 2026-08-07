@@ -189,6 +189,36 @@
       setReloadBusy(true);
     }
     try {
+      const agent = window.thinginoStreamerAgent;
+      if (agent && agent.preferAgent && agent.preferAgent()) {
+        const mic = await agent.agentRequest(
+          "/api/v1/settings/audio/mic-enabled",
+          { cache: "no-store" },
+        );
+        const spk = await agent.agentRequest(
+          "/api/v1/settings/audio/spk-enabled",
+          { cache: "no-store" },
+        );
+        applyAudioConfig({
+          mic_enabled: !!(mic && mic.mic_enabled),
+          spk_enabled: !!(spk && spk.spk_enabled),
+        });
+        if (agent.isRaptor && agent.isRaptor()) {
+          audioParams.forEach((param) => {
+            if (param === "mic_enabled" || param === "spk_enabled") return;
+            const input = $(`#audio_${param}`);
+            if (!input) return;
+            const wrap =
+              input.closest(".mb-3, .col, .form-check, .row > div") ||
+              input.parentElement;
+            if (wrap) wrap.classList.add("d-none");
+            input.disabled = true;
+          });
+        }
+        success = true;
+        return true;
+      }
+
       const data = await requestPrudynt(buildReadPayload());
       if (!data || !data.audio) {
         throw new Error("Missing audio payload");
@@ -241,6 +271,47 @@
         value = Number(value);
       }
     }
+
+    const agent = window.thinginoStreamerAgent;
+    if (
+      agent &&
+      agent.preferAgent &&
+      agent.preferAgent() &&
+      (param === "mic_enabled" || param === "spk_enabled")
+    ) {
+      try {
+        const path =
+          param === "mic_enabled"
+            ? "/api/v1/settings/audio/mic-enabled"
+            : "/api/v1/settings/audio/spk-enabled";
+        const data = await agent.agentRequest(path, {
+          method: "PATCH",
+          body: { [param]: value },
+          cache: "no-store",
+        });
+        const confirmed =
+          (data && data.resource && data.resource[param]) ??
+          (data && data[param]) ??
+          value;
+        applyAudioConfig({ [param]: confirmed });
+      } catch (err) {
+        showAlert(
+          "danger",
+          `Failed to update ${param.replace(/_/g, " ")}: ${err.message || err}`,
+        );
+      }
+      return;
+    }
+
+    if (agent && agent.isRaptor && agent.isRaptor()) {
+      showAlert(
+        "warning",
+        "This audio control is not available on the raptor streamer yet.",
+        4000,
+      );
+      return;
+    }
+
     const payload = { audio: { [param]: value } };
     if (typeof ThreadAudio !== "undefined") {
       payload.action = { restart_thread: ThreadAudio };

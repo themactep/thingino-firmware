@@ -118,19 +118,37 @@
       });
     }
 
+    /** True for prudyntctl-style sensor samples; false for typed agent SSE. */
+    isSensorSample(jsonData) {
+      if (!jsonData || typeof jsonData !== "object") return false;
+      if (jsonData.error) return false;
+      if (jsonData.type === "sensor.sample") return true;
+      // Agent typed events use {type, ts, ...} without ISP metric fields.
+      if (typeof jsonData.type === "string" && jsonData.time_now === undefined) {
+        return false;
+      }
+      return (
+        jsonData.time_now !== undefined ||
+        this.metrics.some((metric) => metric.key in jsonData)
+      );
+    }
+
     startStream() {
       if (this.eventSource) return;
 
       this.eventSource = new EventSource(this.sseUrl);
-      this.eventSource.onmessage = (event) => {
+      const onSample = (event) => {
         if (this.isPaused) return;
         try {
           const json = JSON.parse(event.data);
+          if (!this.isSensorSample(json)) return;
           this.addDataPoint(json);
         } catch (error) {
           console.error("Failed to parse SSE data:", error);
         }
       };
+      this.eventSource.onmessage = onSample;
+      this.eventSource.addEventListener("sensor.sample", onSample);
 
       this.eventSource.onerror = (error) => {
         console.error("SSE connection error:", error);
@@ -144,6 +162,7 @@
     }
 
     async loadHistory() {
+      // prudynt-only history; skip quietly when streamer/backend lacks it (e.g. raptor)
       const requestBody = { daynight: { history: null } };
       try {
         const response = await fetch(this.historyUrl, {
@@ -160,12 +179,19 @@
         this.trimData();
         this.updateChart();
       } catch (error) {
-        console.error("Failed to load daynight history:", error);
+        // Reduced fidelity on non-prudynt backends is expected.
+        console.debug("Daynight history unavailable:", error);
       }
     }
 
     addDataPoint(jsonData, updateChart = true) {
-      const timestamp = new Date(parseInt(jsonData.time_now, 10) * 1000);
+      if (!this.isSensorSample(jsonData)) return;
+
+      const rawTs = jsonData.time_now ?? jsonData.ts ?? Date.now() / 1000;
+      const timestamp = new Date(
+        (typeof rawTs === "number" ? rawTs : parseInt(rawTs, 10)) * 1000,
+      );
+      if (Number.isNaN(timestamp.getTime())) return;
       const timeStr = timestamp.toLocaleTimeString();
 
       this.chart.data.labels.push(timeStr);

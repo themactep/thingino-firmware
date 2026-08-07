@@ -62,8 +62,10 @@
   }
 
   async function savePrudyntConfig() {
+    const agent = window.thinginoStreamerAgent;
     const confirmed = await confirm(
-      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+      (agent && agent.saveConfirmMessage && agent.saveConfirmMessage()) ||
+        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
     );
     if (!confirmed) return;
 
@@ -71,29 +73,39 @@
     if (saveButton) saveButton.disabled = true;
 
     try {
-      const payload = { action: { save_config: null } };
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (agent && agent.saveStreamerConfig) {
+        await agent.saveStreamerConfig();
+        showAlert(
+          "success",
+          (agent.saveSuccessMessage && agent.saveSuccessMessage()) ||
+            "Configuration saved successfully",
+          3000,
+        );
+      } else {
+        const payload = { action: { save_config: null } };
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data?.action || data.action.save_config !== "ok") {
+          throw new Error("Save failed");
+        }
+
+        showAlert(
+          "success",
+          "Configuration saved successfully to /etc/prudynt.json",
+          3000,
+        );
       }
-
-      const data = await response.json();
-      if (!data?.action || data.action.save_config !== "ok") {
-        throw new Error("Save failed");
-      }
-
-      showAlert(
-        "success",
-        "Configuration saved successfully to /etc/prudynt.json",
-        3000,
-      );
     } catch (err) {
-      console.error("Failed to save prudynt config:", err);
+      console.error("Failed to save streamer config:", err);
       showAlert(
         "danger",
         `Failed to save configuration: ${err.message || err}`,

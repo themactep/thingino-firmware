@@ -1,6 +1,5 @@
 #!/bin/sh
-# Read/write daynight.sun config directly from /etc/prudynt.json via jct.
-# Bypasses prudynt API which does not know about these fields.
+# Read/write daynight.sun config from /etc/thingino.json via jct.
 
 . /var/www/x/auth.sh
 require_auth

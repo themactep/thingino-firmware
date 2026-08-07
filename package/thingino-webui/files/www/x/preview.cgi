@@ -103,24 +103,49 @@ extract_upload_payload() {
   [ -s "$output_file" ] || return 1
 }
 
+restart_streamer() {
+  if command -v thingino-agentctl >/dev/null 2>&1; then
+    thingino-agentctl restart-streamer >/dev/null 2>&1 &
+    return 0
+  fi
+  if [ -x /etc/init.d/S31raptor ]; then
+    /etc/init.d/S31raptor restart >/dev/null 2>&1 &
+    return 0
+  fi
+  service restart prudynt >/dev/null 2>&1 &
+}
+
 handle_font_upload() {
   local upload_file="$1"
 
   mv "$upload_file" "$DEFAULT_OSD_FONT_FILE" || return 1
   chmod 644 "$DEFAULT_OSD_FONT_FILE" >/dev/null 2>&1 || return 1
   rm -f "$LEGACY_UPLOADED_FONT_FILE"
-  service restart prudynt >/dev/null 2>&1 &
+  if command -v thingino-agentctl >/dev/null 2>&1; then
+    tmp=$(mktemp /tmp/preview-font.XXXXXX) || true
+    if [ -n "$tmp" ]; then
+      printf '{"font_path":"%s"}\n' "$DEFAULT_OSD_FONT_FILE" >"$tmp"
+      thingino-agentctl set-setting streams/0/osd/font-path "$tmp" >/dev/null 2>&1 || true
+      thingino-agentctl set-setting streams/1/osd/font-path "$tmp" >/dev/null 2>&1 || true
+      rm -f "$tmp"
+    fi
+  fi
+  restart_streamer
 }
 
 handle_font_reset() {
   rm -f "$OVERLAY_DEFAULT_OSD_FONT_FILE" || return 1
   rm -f "$LEGACY_UPLOADED_FONT_FILE"
   mount -o remount / >/dev/null 2>&1 || return 1
-  service restart prudynt >/dev/null 2>&1 &
+  restart_streamer
 }
 
 normalize_legacy_uploaded_font_references() {
   local live_update current_path payload_written=0 stream_id
+
+  # Only meaningful on prudynt JSON configs
+  [ -f /etc/prudynt.json ] || return 0
+  command -v prudyntctl >/dev/null 2>&1 || return 0
 
   live_update=$(mktemp /tmp/preview-font-live.XXXXXX) || return 1
   printf '{' > "$live_update"
@@ -158,7 +183,7 @@ handle_sensor_upload() {
   mkdir -p "$SENSOR_IQ_UPLOAD_PATH" "$SENSOR_IQ_PATH" || return 1
   mv "$upload_file" "$UPLOADED_SENSOR_IQ_FILE" || return 1
   ln -sf "$UPLOADED_SENSOR_IQ_FILE" "$SENSOR_IQ_PATH/$SENSOR_IQ_FILE" || return 1
-  service restart prudynt >/dev/null 2>&1 &
+  restart_streamer
 }
 
 case "${REQUEST_METHOD:-GET}" in

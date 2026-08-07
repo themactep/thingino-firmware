@@ -66,7 +66,20 @@ const previewEndpointState = {
 };
 
 function rgba2color(hex8) {
-  return hex8.substring(0, 7);
+  if (typeof hex8 !== "string") return "#000000";
+  let value = hex8.trim();
+  if (/^0x[0-9a-fA-F]{8}$/i.test(value)) {
+    // 0xAARRGGBB → treat as #RRGGBBAA for the picker
+    const hex = value.slice(2);
+    value = "#" + hex.slice(2) + hex.slice(0, 2);
+  }
+  if (/^#[0-9a-fA-F]{8}$/i.test(value)) {
+    return value.substring(0, 7);
+  }
+  if (/^#[0-9a-fA-F]{6}$/i.test(value)) {
+    return value;
+  }
+  return value.substring(0, 7);
 }
 
 function rgba2alpha(hex8) {
@@ -494,6 +507,31 @@ async function loadMotorParams() {
 
 async function loadConfig() {
   showBusy("Loading camera configuration...");
+  const agent = window.thinginoStreamerAgent;
+
+  // Prefer camera-agent config on raptor (and when agent is available).
+  if (agent && agent.preferAgent && agent.preferAgent()) {
+    try {
+      const cfg = await agent.agentRequest("/api/v1/config", {
+        cache: "no-store",
+      });
+      const msg = agent.configToPreviewMessage(cfg);
+      console.log(ts(), "<=== agent config", JSON.stringify(msg));
+      handleMessage(msg);
+      if (typeof agent.hideRaptorUnsupportedControls === "function") {
+        agent.hideRaptorUnsupportedControls();
+      }
+      hideBusy();
+      return;
+    } catch (err) {
+      console.warn("Agent config load failed, falling back:", err);
+      if (agent.isRaptor && agent.isRaptor()) {
+        hideBusy();
+        return;
+      }
+    }
+  }
+
   const payload = JSON.stringify({
     image: {
       hflip: null,
@@ -621,6 +659,28 @@ async function loadConfig() {
 
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);
+  const agent = window.thinginoStreamerAgent;
+  const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
+
+  if (agent && agent.preferAgent && agent.preferAgent()) {
+    try {
+      const handled = await agent.applyPrudyntShapedPayload(obj);
+      if (handled) {
+        // Re-apply local UI from the request payload itself.
+        handleMessage(obj);
+        return;
+      }
+      // Unmapped payload (e.g. gop) — fall through only on non-raptor.
+      if (agent.isRaptor && agent.isRaptor()) {
+        console.warn("Unsupported streamer payload on raptor:", obj);
+        return;
+      }
+    } catch (err) {
+      console.error("Agent send failed:", err);
+      if (agent.isRaptor && agent.isRaptor()) return;
+    }
+  }
+
   const payloadStr =
     typeof payload === "string" ? payload : JSON.stringify(payload);
   console.log(ts(), "===>", payloadStr);
@@ -1417,28 +1477,35 @@ if (exportConfigBtn) {
 const saveConfigBtn = $("#save-config");
 if (saveConfigBtn) {
   saveConfigBtn.addEventListener("click", async () => {
+    const agent = window.thinginoStreamerAgent;
     const confirmed = await confirm(
-      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+      (agent && agent.saveConfirmMessage && agent.saveConfirmMessage()) ||
+        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
     );
     if (!confirmed) return;
 
     try {
       saveConfigBtn.disabled = true;
-
-      const payload = { action: { save_config: null } };
-      const res = await fetch("/x/json-prudynt.cgi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (data.action && data.action.save_config === "ok") {
-        alert("Configuration saved successfully to /etc/prudynt.json");
+      if (agent && agent.saveStreamerConfig) {
+        await agent.saveStreamerConfig();
+        alert(
+          (agent.saveSuccessMessage && agent.saveSuccessMessage()) ||
+            "Configuration saved successfully",
+        );
       } else {
-        throw new Error("Save failed");
+        const payload = { action: { save_config: null } };
+        const res = await fetch("/x/json-prudynt.cgi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.action && data.action.save_config === "ok") {
+          alert("Configuration saved successfully to /etc/prudynt.json");
+        } else {
+          throw new Error("Save failed");
+        }
       }
     } catch (err) {
       console.error("Failed to save config:", err);

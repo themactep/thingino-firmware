@@ -2,10 +2,33 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 The camera-hosted web UI becomes an optional package rather than the primary
 management surface.
+
+## Current migration status
+
+On-camera UI surfaces are being remapped from prudynt-only helpers onto the
+camera agent so master/raptor builds share one control path.
+
+Landed or in flight for this slice:
+
+- control-bar motion, privacy, daynight, mic/spk, and recording via agent
+- streamer/image/OSD/audio/privacy page hydrate and save via agent, with
+	unmapped raptor controls hidden
+- dual-path send2/motion/preview/events CGIs (agent first, streamer fallback)
+- agent leaves for audio mic/spk, continuous record, stream gop/buffers/
+	rtsp-endpoint, sensor samples, ISP WB/AE, profile, and raptor OSD privacy
+
+Still deferred:
+
+- live MJPEG/JPEG CGI rewrite (`ch*.jpg|mjpg`, `video.mjpg`)
+- deep recordmgr and send2/RTSP file editors beyond the dual-path subset
+- full removal of remaining `json-prudynt*` dual-path fallbacks
+- dedicated local pairing/bootstrap page (separate camera-side PR)
 
 ## Why change the role
 

@@ -633,48 +633,23 @@ function toggleRecording(channel) {
 
   if (button) button.classList.add("pending");
 
-  const payload = isRecording
-    ? JSON.stringify({ mp4: { stop: { channel: channel } } })
-    : JSON.stringify({ mp4: { start: { channel: channel } } });
-
-  console.log(`Sending payload: ${payload}`);
-
-  fetch("/x/json-prudynt.cgi", {
+  agentJsonRequest("/api/v1/actions/record", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+    body: { action, stream_id: channel },
+    cache: "no-store",
   })
-    .then((response) => {
-      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-      return response.text();
-    })
-    .then((text) => {
-      if (!text) {
-        console.log(`Empty response (assumed success)`);
+    .then((data) => {
+      console.log(`Response received:`, data);
+      if (data && data.status === "accepted") {
+        const newState = action === "start";
+        updateRecordingState({
+          ch0: channel === 0 ? newState : recordingState.ch0,
+          ch1: channel === 1 ? newState : recordingState.ch1,
+        });
         return;
       }
-      const data = JSON.parse(text);
-      console.log(`Response received:`, data);
-      if (data.mp4 && data.mp4[action]) {
-        if (data.mp4[action] === "ok") {
-          console.log(`Recording ${action} successful on channel ${channel}`);
-          const newState = action === "start";
-          updateRecordingState({
-            ch0: channel === 0 ? newState : recordingState.ch0,
-            ch1: channel === 1 ? newState : recordingState.ch1,
-          });
-        } else {
-          console.error("Recording control error:", data.mp4[action]);
-          if (button) button.classList.remove("pending");
-          alert(
-            `Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`,
-          );
-        }
-      } else {
-        console.error("Unexpected response:", data);
-        if (button) button.classList.remove("pending");
-        alert(`Failed to ${action} recording on channel ${channel}`);
-      }
+      if (button) button.classList.remove("pending");
+      alert(`Failed to ${action} recording on channel ${channel}`);
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
@@ -781,24 +756,18 @@ function toggleDayNight(mode) {
   const button = $("#daynight");
   if (button) button.classList.add("pending");
 
-  const payload = JSON.stringify({ cmd: "daynight", val: mode });
-  console.log("Sending daynight payload:", payload);
-  fetch("/x/json-imp.cgi", {
+  agentJsonRequest("/api/v1/actions/daynight", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+    body: { mode },
+    cache: "no-store",
   })
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.text();
-    })
-    .then((text) => {
-      if (text) {
-        const data = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(data));
+    .then((data) => {
+      console.log(ts(), "<===", JSON.stringify(data));
+      if (mode === "auto") {
+        updateHeartbeatUi({ daynight_enabled: true });
+      } else {
+        updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
       }
-      // Update button state immediately from the known target mode
-      updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
     })
     .catch((err) => {
       console.error("DayNight toggle error", err);
@@ -811,30 +780,26 @@ function toggleAudio(device, state) {
   if (button) button.classList.add("pending");
 
   const param = device === "microphone" ? "mic_enabled" : "spk_enabled";
-  const payload = JSON.stringify({
-    audio: { [param]: state },
-  });
-  console.log(ts(), "===>", payload);
-  fetch("/x/json-prudynt.cgi", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
+  const settingPath =
+    device === "microphone"
+      ? "/api/v1/settings/audio/mic-enabled"
+      : "/api/v1/settings/audio/spk-enabled";
+
+  agentJsonRequest(settingPath, {
+    method: "PATCH",
+    body: { [param]: state },
+    cache: "no-store",
   })
-    .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.text();
-    })
-    .then((text) => {
-      if (text) {
-        const data = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(data));
-        // Use confirmed value from response if available
-        if (data.audio && data.audio[param] !== undefined) {
-          updateHeartbeatUi({ [param]: data.audio[param] });
-          return;
-        }
+    .then((data) => {
+      console.log(ts(), "<===", JSON.stringify(data));
+      if (data && data.resource && data.resource[param] !== undefined) {
+        updateHeartbeatUi({ [param]: data.resource[param] });
+        return;
       }
-      // Fall back to the known target state
+      if (data && data[param] !== undefined) {
+        updateHeartbeatUi({ [param]: data[param] });
+        return;
+      }
       updateHeartbeatUi({ [param]: state });
     })
     .catch((err) => {
@@ -874,6 +839,26 @@ async function toggleButton(el) {
 
   el.classList.add("pending");
 
+  // Auto day/night uses the agent action; other ISP/light cmds stay on json-imp.
+  if (el.id === "auto") {
+    try {
+      await agentJsonRequest("/api/v1/actions/daynight", {
+        method: "POST",
+        body: { mode: newState ? "auto" : "day" },
+        cache: "no-store",
+      });
+      const update = {
+        daynight_enabled: !!newState,
+      };
+      if (!newState) update.daynight_mode = "day";
+      updateHeartbeatUi(update);
+    } catch (err) {
+      console.error("toggleButton auto error", err);
+      el.classList.remove("pending");
+    }
+    return;
+  }
+
   const payload = JSON.stringify({ cmd: el.id, val: newState });
   console.log("Sending to json-imp.cgi:", payload);
   await fetch("/x/json-imp.cgi", {
@@ -891,17 +876,9 @@ async function toggleButton(el) {
         ir850: { ir850_state: newState },
         ir940: { ir940_state: newState },
         white: { white_state: newState },
-        auto: {
-          daynight_enabled: newState,
-          daynight_mode: newState ? undefined : "day",
-        },
       };
       const update = keyMap[el.id];
       if (update) {
-        // Remove undefined values (e.g. daynight_mode when enabling auto)
-        Object.keys(update).forEach(
-          (k) => update[k] === undefined && delete update[k],
-        );
         updateHeartbeatUi(update);
       } else {
         el.classList.remove("pending");

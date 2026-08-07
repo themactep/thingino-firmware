@@ -216,8 +216,29 @@ REMOTE_IMAGE_ID=$(remote_run "grep '^IMAGE_ID=' /etc/os-release | cut -d'=' -f2"
 REMOTE_IMAGE_ID="${REMOTE_IMAGE_ID%-3.10}"
 REMOTE_IMAGE_ID="${REMOTE_IMAGE_ID%-4.4}"
 
-# IMAGE_ID is derived from CAMERA variable which should be set by the Makefile
-LOCAL_IMAGE_ID="${CAMERA:-unknown}"
+# Prefer CAMERA from the Makefile; otherwise derive from the firmware filename
+# (thingino-<camera>.bin) or the companion .md heading so direct script use works.
+LOCAL_IMAGE_ID="${CAMERA:-}"
+if [ -z "$LOCAL_IMAGE_ID" ] || [ "$LOCAL_IMAGE_ID" = "unknown" ]; then
+	fw_base=$(basename "$LOCAL_FW_FILE" .bin)
+	case "$fw_base" in
+		thingino-*)
+			LOCAL_IMAGE_ID="${fw_base#thingino-}"
+			;;
+		*)
+			LOCAL_IMAGE_ID=
+			;;
+	esac
+fi
+if [ -z "$LOCAL_IMAGE_ID" ]; then
+	md_file=$(dirname "$LOCAL_FW_FILE")/$(basename "$LOCAL_FW_FILE" .bin).md
+	# Companion partition dump is often named <camera>.md next to thingino-<camera>.bin
+	[ -f "$md_file" ] || md_file=$(dirname "$LOCAL_FW_FILE")/${REMOTE_IMAGE_ID}.md
+	if [ -f "$md_file" ]; then
+		LOCAL_IMAGE_ID=$(sed -n 's/^#[[:space:]]*//p' "$md_file" | head -n 1 | tr -d '\r')
+	fi
+fi
+[ -n "$LOCAL_IMAGE_ID" ] || LOCAL_IMAGE_ID=unknown
 
 if [ -z "$REMOTE_IMAGE_ID" ]; then
 	die "Failed to read IMAGE_ID from device"

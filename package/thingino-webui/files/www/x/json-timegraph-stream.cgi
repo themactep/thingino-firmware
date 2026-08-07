@@ -60,8 +60,23 @@ EOF
 stream_data() {
   printf 'retry: %s\n\n' "$STREAM_RETRY_MS" || exit 0
 
+  # Prefer camera-agent events; fall back to prudyntctl sensor samples.
+  if command -v curl >/dev/null 2>&1; then
+    port=1998
+    if command -v jct >/dev/null 2>&1 && [ -f /etc/thingino.json ]; then
+      p=$(jct /etc/thingino.json get agent.port 2>/dev/null | tr -d '"')
+      case "$p" in
+        '' | *[!0-9]*) ;;
+        *) port=$p ;;
+      esac
+    fi
+    if curl -sS --max-time 1 "http://127.0.0.1:${port}/api/v1/device" >/dev/null 2>&1; then
+      exec curl -sS -N "http://127.0.0.1:${port}/api/v1/events"
+    fi
+  fi
+
   if ! command -v prudyntctl >/dev/null 2>&1; then
-    printf 'data: {"error":"prudyntctl not found"}\n\n' || exit 0
+    printf 'data: {"error":"no event backend available"}\n\n' || exit 0
     exit 0
   fi
 

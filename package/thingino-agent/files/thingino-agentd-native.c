@@ -668,9 +668,9 @@ static int handle_direct_route(struct http_request *request)
         if (write_request_body_file(request, temp_path, sizeof(temp_path)) != 0) {
             return send_json_error(request->client_fd, 500, "Internal Server Error", "write body failed");
         }
-        if (read_json_file_value(temp_path, "duration_seconds", duration, sizeof(duration), 0) != 0 || duration[0] == '\0') {
-            strncpy(duration, "10", sizeof(duration) - 1);
-            duration[sizeof(duration) - 1] = '\0';
+        /* Reuse mode[] for optional action: start|stop|continuous (or clip via duration). */
+        if (read_json_file_value(temp_path, "action", mode, sizeof(mode), 1) != 0) {
+            mode[0] = '\0';
         }
         stream_id = NULL;
         if (read_json_file_value(temp_path, "stream_id", enabled, sizeof(enabled), 0) == 0 && enabled[0] != '\0') {
@@ -682,14 +682,34 @@ static int handle_direct_route(struct http_request *request)
         if (read_json_file_value(temp_path, "path", path, sizeof(path), 1) != 0) {
             path[0] = '\0';
         }
-        unlink(temp_path);
-        if (strspn(duration, "0123456789") != strlen(duration)) {
-            return send_json_error(request->client_fd, 400, "Bad Request", "record.duration_seconds must be an integer");
+        duration[0] = '\0';
+        if (read_json_file_value(temp_path, "duration_seconds", duration, sizeof(duration), 0) != 0) {
+            duration[0] = '\0';
         }
+        unlink(temp_path);
         if (strspn(stream_id, "0123456789") != strlen(stream_id)) {
             return send_json_error(request->client_fd, 400, "Bad Request", "record.stream_id must be an integer");
         }
         argv[1] = "record";
+        if (strcmp(mode, "stop") == 0) {
+            argv[2] = "stop";
+            argv[3] = (char *)stream_id;
+            return execute_agentctl_json(request->client_fd, argv, NULL);
+        }
+        if (strcmp(mode, "continuous") == 0 ||
+            (strcmp(mode, "start") == 0 && duration[0] == '\0')) {
+            /* Control-bar toggle: continuous when action=start without clip duration. */
+            argv[2] = "continuous";
+            argv[3] = (char *)stream_id;
+            return execute_agentctl_json(request->client_fd, argv, NULL);
+        }
+        if (duration[0] == '\0') {
+            strncpy(duration, "10", sizeof(duration) - 1);
+            duration[sizeof(duration) - 1] = '\0';
+        }
+        if (strspn(duration, "0123456789") != strlen(duration)) {
+            return send_json_error(request->client_fd, 400, "Bad Request", "record.duration_seconds must be an integer");
+        }
         argv[2] = duration;
         argv[3] = (char *)stream_id;
         if (path[0] != '\0') {

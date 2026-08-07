@@ -99,9 +99,15 @@ update_password() {
   fi
 
   if command -v service >/dev/null 2>&1; then
-    for svc in onvif_discovery onvif_notify prudynt; do
+    for svc in onvif_discovery onvif_notify; do
       service restart "$svc" >/dev/null 2>&1 || true
     done
+  fi
+  if command -v thingino-agentctl >/dev/null 2>&1; then
+    thingino-agentctl restart-streamer >/dev/null 2>&1 || true
+  elif command -v service >/dev/null 2>&1; then
+    service restart prudynt >/dev/null 2>&1 || true
+    service restart raptor >/dev/null 2>&1 || true
   fi
 
   emit_json "" '{"status":"ok"}'
