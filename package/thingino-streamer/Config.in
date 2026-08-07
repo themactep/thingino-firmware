@@ -45,8 +45,8 @@ config BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	select BR2_PACKAGE_TIMPS
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
-	  Tiny IMP Streamer — minimal, dependency-light RTSP / fMP4 / MJPEG
-	  streamer. Built on vendor libimp (no live555/libconfig/libwebsockets).
+	  Tiny IMP Streamer — minimal, dependency-light RTSP / fMP4 /
+	  MJPEG streamer. Uses the selected libimp provider.
 
 endchoice
 
