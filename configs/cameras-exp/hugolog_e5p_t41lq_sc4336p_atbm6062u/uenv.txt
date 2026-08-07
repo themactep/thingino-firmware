@@ -1,0 +1,11 @@
+gpio_default=49o 50o 58i 60O 62i 63o 71o 77o 78o 83o 84o
+gpio_button=62
+gpio_ircut=49 50
+gpio_ir850=84
+gpio_white=83
+gpio_led_r=77
+gpio_led_b=78
+gpio_mmc_cd=58
+gpio_speaker=71
+gpio_wlan=60O
+serialport=ttyS1
