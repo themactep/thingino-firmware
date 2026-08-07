@@ -422,7 +422,7 @@ endef
 # packages (timps, raptor) that install their own HTML overlays.  Plugin
 # assembly (ASSEMBLE_PLUGINS) has also already run by this point.
 define THINGINO_WEBUI_PARANOID_REWRITE
-	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
+	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
 	fi
 endef
