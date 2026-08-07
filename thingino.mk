@@ -29,23 +29,23 @@ SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
 
-	# One file per SoC under soc/<vendor>/. Each sets SOC_FAMILY, SOC_ARCH,
-	# SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT, SOC_UBOOT_NOR /
-	# SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not have, it does not
-	# set -- consumers below use $(or ...) for the fallback.
+	# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY,
+	# SOC_ARCH, SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT,
+	# SOC_UBOOT_NOR / SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not
+	# have, it does not set -- consumers below use $(or ...) for the fallback.
 	#
-	# Checked before including so an unknown model says so in one line. A bare
-	# include would first try to *build* the missing file, and the error that
-	# eventually surfaces is about a missing make target. Either way it stops,
-	# which is the point: the old lookup fell back to "unknown"/64 and built
-	# something wrong instead.
-	SOC_MK := $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/$(SOC_MODEL).mk
-# Unindented on purpose: a tab-led $(error ...) is not a directive, so make
-# reads it as a recipe and fails with "recipe commences before first target".
-ifeq ($(wildcard $(SOC_MK)),)
-$(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no $(SOC_MK))
+	# All of them are included and each opens with a $(filter) on its own
+	# models, so only one file's body applies. The family cannot pick the
+	# filename, because the family is one of the things being looked up.
+	include $(wildcard $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/*.mk)
+
+# A model no family claims leaves SOC_FAMILY empty, which is worth stopping for:
+# the old lookup fell back to "unknown"/64 and built something wrong. Unindented
+# because a tab-led $(error ...) is not a directive -- make reads it as a recipe
+# and fails with "recipe commences before first target" instead.
+ifeq ($(SOC_FAMILY),)
+$(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no soc/$(SOC_VENDOR)/*.mk claims it)
 endif
-	include $(SOC_MK)
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
