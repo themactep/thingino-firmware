@@ -15,8 +15,8 @@ for candidate in \
 	fi
 done
 
-if [ -z "$endpoint" ]; then
-	echo "No present endpoint for MMC$1" >&2
+if [ ! -f "$endpoint" ]; then
+	echo "No endpoint $endpoint for MMC$1" >&2
 	exit 1
 fi
 
