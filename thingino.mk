@@ -32,25 +32,28 @@ ifeq ($(SOC_VENDOR),sigmastar)
 # includes as a makefile before this file. Config.soc.in declares the same
 # symbol, so the one defconfig line feeds both this dispatch and Kconfig.
 SOC_MODEL := $(shell echo $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)) | tr A-Z a-z)
-# Mirrors BR2_SOC_FAMILY's default chain in Config.soc.in. Kconfig cannot be
-# queried from here, so the map is stated in both places -- as it already is for
-# Ingenic, where Config.soc.in restates soc_database.txt's family column.
+# Everything the part number decides, in one place. Ingenic reads the same two
+# facts out of soc_database.txt keyed on the model, which is why neither belongs
+# in the camera defconfig: the DRAM is inside the SoC package, so a board cannot
+# choose it. t31l is 64MB and t31x is 128MB in one family, so this has to be per
+# model rather than per vendor or per family.
+#
+# The family map also mirrors BR2_SOC_FAMILY's default chain in Config.soc.in --
+# Kconfig cannot be queried from here, so it is stated in both places, as it
+# already is for Ingenic.
+#
+# SOC_RAM_MB reaches .config as BR2_SOC_RAM_MB (Makefile:596), whose only
+# consumers are the Ingenic ISP module's rmem/nmem defaults. This vendor carves
+# memory out in the U-Boot bootargs instead, but the value should still describe
+# the hardware: 256MB is the board's own LX_MEM=0xFFE0000, 268304384 bytes.
 ifeq ($(SOC_MODEL),ssc30kq)
 SOC_FAMILY := infinity6e
+SOC_RAM_MB := 256
 endif
 # SOC_ARCH selects a board/kernel subdirectory. For Ingenic that is an ISA
 # (xburst1/xburst2) shared by several families; here the family is the finest
 # split that exists, so the two coincide.
 SOC_ARCH := $(SOC_FAMILY)
-# From the board's U-Boot bootargs: LX_MEM=0xFFE0000 is 268304384 bytes, so this
-# is a 256MB part. (Of that, mma_heap sz=0x9E9C000 -- about 158MB -- is carved
-# out for the multimedia heap, leaving Linux roughly 97MB.)
-#
-# Reaches .config as BR2_SOC_RAM_MB (Makefile:595), where the only consumers are
-# the Ingenic ISP module's rmem/nmem defaults. This vendor carves memory out in
-# the vendor U-Boot bootargs instead, but the value should still say what the
-# hardware is.
-SOC_RAM_MB := 256
 # Names the output directory, and keeps the Ingenic default chain below -- which
 # is guarded on an empty KERNEL_VERSION -- from claiming this vendor. The kernel
 # source is named in core-sigmastar.fragment, not through KERNEL_SITE/BRANCH.
