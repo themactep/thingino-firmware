@@ -9,7 +9,7 @@ printf 'Cache-Control: no-cache\r\n'
 printf 'Connection: close\r\n'
 printf '\r\n'
 
-SENSOR_MODEL=$(cat /proc/jz/sensor/name 2>/dev/null)
+SENSOR_MODEL=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null || cat /proc/jz/sensor/name 2>/dev/null)
 SOC_MODEL=$(soc -f 2>/dev/null)
 SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
 
@@ -18,15 +18,15 @@ SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
 SENSOR_FILE_FULL_PATH="${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}"
 
 if [ -f "$SENSOR_FILE_FULL_PATH" ]; then
-  FILE_MD5=$(md5sum "$SENSOR_FILE_FULL_PATH" 2>/dev/null | cut -d' ' -f1)
-  if [ -z "$FILE_MD5" ]; then
-    FILE_MD5="Unknown"
-  fi
+	FILE_MD5=$(md5sum "$SENSOR_FILE_FULL_PATH" 2>/dev/null | cut -d' ' -f1)
+	if [ -z "$FILE_MD5" ]; then
+		FILE_MD5="Unknown"
+	fi
 else
-  FILE_MD5="File not found"
+	FILE_MD5="File not found"
 fi
 
-cat << EOF
+cat <<EOF
 {
   "sensor_model": "$SENSOR_MODEL",
   "soc_model": "$SOC_MODEL",
