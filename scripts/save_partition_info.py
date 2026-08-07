@@ -64,6 +64,7 @@ def format_partition_table(partitions, format_type='decimal'):
 def generate_mtdparts_string(
     u_boot_kb,
     ub_env_kb,
+    backup_kb,
     kernel_kb,
     rootfs_kb,
     data_kb,
@@ -73,8 +74,7 @@ def generate_mtdparts_string(
     """Generate MTD partitions string."""
     return (
         f"mtdparts={flash_controller}:{u_boot_kb}k(boot),{ub_env_kb}k(env),"
-        f"{kernel_kb}k(kernel),{rootfs_kb}k(rootfs),{data_kb}k(data),"
-        f"{flash_kb}k@0(all)"
+        f"{backup_kb}k(backup),{kernel_kb}k(kernel),{rootfs_kb}k(rootfs),{data_kb}k(data)"
     )
 
 
@@ -101,6 +101,10 @@ def main():
     parser.add_argument('ub_env_partition_size', type=int)
     parser.add_argument('ub_env_bin_size', type=int)
     parser.add_argument('ub_env_bin_size_aligned', type=int)
+    parser.add_argument('backup_offset', type=int)
+    parser.add_argument('backup_partition_size', type=int)
+    parser.add_argument('backup_bin_size', type=int)
+    parser.add_argument('backup_bin_size_aligned', type=int)
     parser.add_argument('kernel_offset', type=int)
     parser.add_argument('kernel_partition_size', type=int)
     parser.add_argument('kernel_bin_size', type=int)
@@ -113,6 +117,7 @@ def main():
     parser.add_argument('data_bin_size_aligned', type=int)
     parser.add_argument('u_boot_size_kb', type=int)
     parser.add_argument('ub_env_size_kb', type=int)
+    parser.add_argument('backup_size_kb', type=int)
     parser.add_argument('kernel_size_kb', type=int)
     parser.add_argument('rootfs_size_kb', type=int)
     parser.add_argument('data_size_kb', type=int)
@@ -137,6 +142,13 @@ def main():
             'pt_size': args.ub_env_partition_size,
             'content': args.ub_env_bin_size,
             'aligned': args.ub_env_bin_size_aligned,
+        },
+        {
+            'name': 'BACKUP',
+            'offset': args.backup_offset,
+            'pt_size': args.backup_partition_size,
+            'content': args.backup_bin_size,
+            'aligned': args.backup_bin_size_aligned,
         },
         {
             'name': 'KERNEL',
@@ -166,7 +178,7 @@ def main():
 
     # Generate mtdparts string
     generated_mtdparts = generate_mtdparts_string(
-        args.u_boot_size_kb, args.ub_env_size_kb,
+        args.u_boot_size_kb, args.ub_env_size_kb, args.backup_size_kb,
         args.kernel_size_kb, args.rootfs_size_kb, args.data_size_kb,
         args.flash_size_kb, args.flash_controller
     )
