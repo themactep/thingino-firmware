@@ -45,7 +45,10 @@ env:
   BR2_DL_DIR: ~/dl
   FORCE_UNSAFE_CONFIGURE: 1
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TAG_NAME: firmware
+  # Master builds get their own release series (master-YYYY-MM-DD) so they never
+  # land in the firmware-YYYY-MM-DD series that devices and the docs download
+  # links resolve through /releases/latest.
+  TAG_NAME: master
   TERM: linux
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
@@ -568,7 +571,12 @@ jobs:
         id: release_notes
         run: |
           REPO="${{ github.repository }}"
-          LAST_RELEASE_TAG=$(gh release list --repo "$REPO" --limit 2 --json tagName -q '.[1].tagName')
+          # Diff against the previous master-* release, not simply the second-newest
+          # release: the list also holds the firmware-* stable series plus the rolling
+          # 'ccache' and 'buildroot-dl-cache' tags, none of which are a master baseline.
+          LAST_RELEASE_TAG=$(gh release list --repo "$REPO" --limit 100 --json tagName \
+            | jq -r --arg cur "${TAG_NAME}" \
+              '[.[] | .tagName | select(startswith("master-")) | select(. != $cur)] | first // ""')
 
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
@@ -605,7 +613,7 @@ jobs:
           fi
           echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
-      - name: Get release ID and Mark as Latest
+      - name: Publish release notes (never latest)
         if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           echo "Environment variables:"
@@ -616,18 +624,22 @@ jobs:
           RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --json url -q ".url")
           echo "RELEASE_URL: $RELEASE_URL"
 
+          # Master builds must NEVER take the "Latest" pointer: /releases/latest is
+          # what on-device sysupgrade, thingino-ha and the docs links resolve to.
+          # --latest=false pins make_latest, and staying a pre-release means GitHub
+          # structurally cannot promote it either.
           if [[ -n "$RELEASE_URL" ]]; then
-            echo "Release URL found, attempting to mark as latest..."
+            echo "Release URL found, attaching notes as a pre-release..."
             if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
               echo "Release notes file exists, including --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest=false --prerelease --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             else
               echo "Release notes file does not exist, skipping --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest --prerelease=false --notes ""
+              gh release edit ${{ env.TAG_NAME }} --repo "${{ github.repository }}" --latest=false --prerelease --notes ""
             fi
-            echo "Release marked as latest"
+            echo "Release published as pre-release, not marked latest"
           else
-            echo "Release not found, skipping latest release update"
+            echo "Release not found, skipping release notes update"
           fi
 
       - name: Send notify completion summary

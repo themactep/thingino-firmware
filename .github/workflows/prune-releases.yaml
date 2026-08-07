@@ -19,9 +19,11 @@ jobs:
       - name: Fetch All Releases
         id: fetch_releases
         run: |
-          # Fetch releases starting with 'firmware-' and save them to a JSON file
+          # Fetch dated build releases and save them to a JSON file.
+          # 'firmware-' is the stable series, 'master-' the master-branch series;
+          # the rolling 'ccache' / 'buildroot-dl-cache' tags must never be pruned.
           gh release list --limit 100 --json name,createdAt \
-            --jq '.[] | select(.name | startswith("firmware-")) | {name: .name, createdAt: .createdAt}' > releases.json
+            --jq '.[] | select(.name | startswith("firmware-") or startswith("master-")) | {name: .name, createdAt: .createdAt}' > releases.json
 
       - name: Prune Old Releases
         run: |
