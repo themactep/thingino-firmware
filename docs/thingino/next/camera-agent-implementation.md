@@ -23,6 +23,8 @@ Implemented in tree:
 - raptor adapter exists as a first-pass second backend glue layer
 - raptor OSD leaves map stream `osd_enabled` plus font/time/uptime/usertext/logo settings onto global `[osd]` / `[osd.<element>]` (shared across streams)
 - raptor motion send2 output enables persist in `/etc/thingino.json` (`motion.send2*`)
+- raptor live motion→send2 bridge: `raptor-motion-watch` polls RMD and runs `raptor-motion`
+- shared `thingino-send2` package owns send2* tools for prudynt, raptor, and timps
 - null adapter exists as fallback when no backend is active
 - compatibility endpoints exist for `/device`, `/capabilities`, `/state`, `/config`, and current action routes
 - narrow resource endpoints are installed for selected `/capabilities/*`, `/runtime/*`, and `/settings/*` paths
@@ -89,8 +91,13 @@ Validated on flashed image:
 
 Not implemented yet:
 
-- remaining raptor gaps: brightness/privacy OSD leaves, live motion→send2 hook, fuller hot validation of OSD/motion-output leaves
+- remaining raptor gaps: brightness/privacy OSD leaves, fuller hot validation of OSD/motion-output leaves and live send2 edges
 - additional backend adapters beyond prudynt and raptor
+
+Implemented for raptor motion alerts:
+
+- `package/thingino-send2` owns the shared send-to-* toolkit (no longer prudynt-only)
+- `raptor-motion` + `raptor-motion-watch` + `S32raptor-motion` bridge RMD edges to send2*
 
 ## First implementation target
 

@@ -21,6 +21,35 @@ _cleanup() {
 	GARBAGE=""
 }
 
+thingino_send2_wait_stable_file() {
+	# Wait until path exists and size is stable for 2 consecutive checks.
+	_path=$1
+	_max=${2:-20}
+	_i=0
+	while [ ! -f "$_path" ] && [ "$_i" -lt "$_max" ]; do
+		sleep 1
+		_i=$((_i + 1))
+	done
+	[ -f "$_path" ] || return 1
+
+	_prev=0
+	_curr=$(stat -c%s "$_path" 2>/dev/null || echo 0)
+	_stable=0
+	_i=0
+	while [ "$_stable" -lt 2 ] && [ "$_i" -lt "$_max" ]; do
+		sleep 1
+		_prev=$_curr
+		_curr=$(stat -c%s "$_path" 2>/dev/null || echo 0)
+		if [ "$_curr" -eq "$_prev" ] && [ "$_curr" -gt 0 ]; then
+			_stable=$((_stable + 1))
+		else
+			_stable=0
+		fi
+		_i=$((_i + 1))
+	done
+	[ -s "$_path" ]
+}
+
 copy_photo() {
 	# Use existing photo from motion if available
 	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
@@ -35,11 +64,9 @@ copy_photo() {
 		return
 	fi
 
-	# Pull a still from timps's local HTTP server. Loopback connections skip
-	# auth (see httpd.c), so no token is needed here.
 	local tmpfile
 	tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
-	curl --silent "http://127.0.0.1:8880/snapshot.jpg?chn=0" >"$tmpfile"
+	prudyntctl snapshot -c 0 >"$tmpfile"
 	add_to_garbage "$tmpfile"
 	echo "$tmpfile"
 }
@@ -56,25 +83,32 @@ copy_video() {
 		return
 	fi
 
-	# On-demand fMP4 clip via /control (record.clip). Loopback skips auth; the
-	# request blocks server-side until the file is written.
-	# Clip target must NOT pre-exist (O_EXCL); name only, pinned to /tmp.
+	# Clip target: record_clip()/prudynt create the file themselves with O_EXCL,
+	# so it must NOT pre-exist -> name only (mktemp -u), but pinned to /tmp so it
+	# satisfies record_clip's required /tmp/ prefix regardless of TMPDIR.
 	local tmpfile
 	tmpfile="$(mktemp -u /tmp/send2_clip.XXXXXX)"
-	local duration=${SEND2_CLIP_SECS:-6}
+	local duration=${SEND2_CLIP_SECS:-10}
 
-	port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
-	[ -n "$port" ] || port=8880
-	curl --silent --max-time 20 -X POST "http://127.0.0.1:$port/control" \
-		-d "{\"record\":{\"clip\":\"$tmpfile\",\"seconds\":$duration}}" >/dev/null 2>&1
-	if [ -s "$tmpfile" ]; then
-		add_to_garbage "$tmpfile"
+	# Check if mp4ctl interface exists
+	if [ ! -e "/run/prudynt/mp4ctl" ]; then
 		echo "$tmpfile"
-		return 0
+		return 1
 	fi
-	echo "send2: timps clip capture failed" >&2
+
+	# Send recording command
+	if ! echo "START $tmpfile $duration 0" >/run/prudynt/mp4ctl 2>/dev/null; then
+		echo "$tmpfile"
+		return 1
+	fi
+
+	if ! thingino_send2_wait_stable_file "$tmpfile" 20; then
+		echo "$tmpfile"
+		return 1
+	fi
+
+	add_to_garbage "$tmpfile"
 	echo "$tmpfile"
-	return 1
 }
 
 get_value() {
