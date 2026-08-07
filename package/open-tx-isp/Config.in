@@ -6,8 +6,9 @@ config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
 
 config BR2_PACKAGE_OPEN_TX_ISP
-	bool "Open TX-ISP driver"
+	bool
 	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
+	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
 	depends on BR2_PACKAGE_INGENIC_SDK
 	depends on BR2_THINGINO_DEV_CAMERA
 	help
@@ -28,6 +29,3 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	  https://github.com/opensensor/open-tx-isp
 
 	  If unsure, say N.
-
-comment "open-tx-isp needs a T23/T31 Linux 3.10 or T40/T41 Linux 4.4 camera"
-	depends on !BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED

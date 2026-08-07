@@ -1,0 +1,43 @@
+#!/bin/sh
+
+DAEMON=/usr/bin/openimp-tuningd
+PIDFILE=/var/run/openimp-tuningd.pid
+CONF=/etc/openimp-tuning.conf
+PROFILE=security
+
+[ ! -r "$CONF" ] || . "$CONF"
+
+video_backend() {
+	if command -v raptorctl >/dev/null 2>&1; then
+		raptorctl config get system video_backend 2>/dev/null |
+			tr 'A-Z' 'a-z' | tr -d '\r\n'
+	fi
+}
+
+start() {
+	[ -x "$DAEMON" ] || return 0
+	[ "$(video_backend)" = v4l2 ] || return 0
+	case "$PROFILE" in
+		security | psychedelic) ;;
+		*) PROFILE=security ;;
+	esac
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- -p "$PROFILE"
+}
+
+stop() {
+	start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON" -R 2 2>/dev/null || true
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac

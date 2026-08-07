@@ -1,7 +1,7 @@
 # OpenIMP Package - Testing Guide
 
 > Historical reference: many paths and expected artifacts below predate
-> OpenIMP's T31/T40 device-build split and must not be used as current pass/fail
+> OpenIMP's T31/T40/T41 device-build split and must not be used as current pass/fail
 > criteria. See [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md) for
 > current package/profile selection.
 
@@ -16,8 +16,8 @@ Check that the package is properly configured:
 ```bash
 # Enable the package
 make menuconfig
-# Navigate to: Thingino Firmware → System Packages → OpenIMP
-# Enable it and save
+# Navigate to: Thingino Firmware → System Packages → ISP stack
+# Select "Open ISP stack (experimental)" and save
 
 # Verify it's enabled
 grep BR2_PACKAGE_OPENIMP .config

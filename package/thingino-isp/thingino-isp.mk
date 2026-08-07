@@ -1,9 +1,10 @@
 ################################################################################
 #
-# thingino-open-isp
+# thingino-isp
 #
 ################################################################################
 
-THINGINO_OPEN_ISP_LICENSE = N/A
+# Virtual package - no source
+THINGINO_ISP_LICENSE = N/A
 
 $(eval $(virtual-package))

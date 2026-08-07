@@ -18,13 +18,13 @@ OpenIMP is a reverse-engineered implementation of Ingenic's proprietary `libimp.
 To enable OpenIMP in your build:
 
 1. Run `make menuconfig` or `make xconfig`
-2. Navigate to: **Thingino Firmware → System Packages → OpenIMP**
-3. Enable the `BR2_PACKAGE_OPENIMP` option
+2. Navigate to: **Thingino Firmware → System Packages → ISP stack**
+3. Select **Open ISP stack (experimental)**
 4. Save and exit
 
 Alternatively, add this line to your defconfig:
 ```
-BR2_PACKAGE_OPENIMP=y
+BR2_PACKAGE_THINGINO_ISP_OPEN=y
 ```
 
 ## Dependencies
@@ -33,9 +33,7 @@ This package requires:
 - `BR2_PACKAGE_INGENIC_SDK` - Ingenic SDK (kernel modules and drivers)
 - `BR2_PACKAGE_INGENIC_LIB` - Ingenic libraries (will be overridden)
 
-The complete open-stack profile selects these dependencies automatically.
-When selecting OpenIMP directly, the option is visible only after they are
-enabled by the camera configuration.
+The ISP provider choice selects these dependencies automatically.
 
 ## Build Order
 
@@ -47,10 +45,11 @@ The package is configured to build in the correct order:
 
 ## Platform Support
 
-OpenIMP automatically detects either of its current upstream device targets:
+OpenIMP automatically detects its current upstream device targets:
 
 - T31 on Linux 3.10
 - T40 on Linux 4.4
+- T41 on Linux 4.4
 
 The platform is automatically determined from the `SOC_FAMILY` variable.
 The current T31 build is video-focused and does not yet implement IMP audio
@@ -60,17 +59,20 @@ or every optional OSD/IVS entry point.
 
 ### Staging Directory (for development)
 - Headers: `/usr/include/imp/*.h`
+- OpenIMP headers: `/usr/include/openimp/*.h`
 - Libraries: `/usr/lib/libimp.so` (shared)
 
 ### Target Directory (on device)
 - `/usr/lib/libimp.so` - **Replaces proprietary version**
+- `/usr/bin/openimp-tuningd` - runtime image-policy daemon
+- `/etc/openimp-tuning.conf` - tuning profile configuration
 
 ## Source Repository
 
 The package fetches source code from:
 - Repository: https://github.com/opensensor/openimp
 - Branch: main
-- Version: `8c60328e4dd002924d53783a9bdbc0a8bc6bb2da`
+- Version: `d64b80f8b35e5946d7856d6decffc9a1be579b91`
 
 To use a specific commit, edit `package/openimp/openimp.mk` and set:
 ```makefile
@@ -90,8 +92,9 @@ Buildroot cross-toolchain:
 Build flags:
 - `TOOLCHAIN_PREFIX` - Buildroot cross-compiler prefix without the final dash
 - `THINGINO_DIR` - Thingino source tree
-- `T31_OUTPUT_DIR` / `T40_OUTPUT_DIR` - per-SoC build output
+- `T31_OUTPUT_DIR` / `T40_OUTPUT_DIR` / `T41_OUTPUT_DIR` - per-SoC build output
 - `T40_HEADERS` - T40 1.3.1 IMP headers supplied by raptor-hal
+- `T41_HEADERS` - T41 1.2.0 IMP headers supplied by raptor-hal
 
 ### Override Mechanism
 
@@ -141,7 +144,7 @@ After building and flashing your firmware:
 
 ### Reverting to Proprietary Library
 To switch back to the proprietary Ingenic library:
-1. Disable `BR2_PACKAGE_OPENIMP` in menuconfig
+1. Select **Proprietary Ingenic ISP stack** in menuconfig
 2. Rebuild: `make clean && make`
 
 ## Development
@@ -162,7 +165,7 @@ To modify the OpenIMP source during development:
 
 ## License
 
-OpenIMP is licensed under the MIT License. See the LICENSE file in the source repository.
+OpenIMP is identified by upstream as MIT licensed.
 
 ## Contributing
 

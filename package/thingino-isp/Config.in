@@ -1,0 +1,51 @@
+config BR2_PACKAGE_THINGINO_ISP
+	bool
+
+choice
+	prompt "ISP stack"
+	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_THINGINO_TOOLCHAIN
+	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_SOC_FAMILY = "a1"
+	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_THINGINO_DEV_CAMERA
+	default BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
+	help
+	  Select the ISP kernel and userspace implementation used by the
+	  camera stack.
+
+config BR2_PACKAGE_THINGINO_ISP_NONE
+	bool "None"
+	help
+	  Do not select an ISP provider.
+
+config BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
+	bool "Proprietary Ingenic ISP stack"
+	depends on !BR2_SOC_FAMILY = "a1"
+	depends on BR2_THINGINO_DEV_CAMERA
+	select BR2_PACKAGE_THINGINO_ISP
+	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	help
+	  Use the Ingenic SDK TX-ISP driver and libimp userspace ABI.
+
+config BR2_PACKAGE_THINGINO_ISP_OPEN
+	bool "Open ISP stack (experimental)"
+	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
+	depends on BR2_THINGINO_DEV_CAMERA
+	select BR2_PACKAGE_THINGINO_ISP
+	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_OPEN_TX_ISP
+	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
+	help
+	  Use open-tx-isp together with OpenIMP on supported T31,
+	  T40, and T41 targets. T23 uses open-tx-isp with the Ingenic
+	  libimp ABI provider because OpenIMP does not yet support T23.
+
+	  Image tuning and sensor coverage remain experimental.
+
+endchoice
