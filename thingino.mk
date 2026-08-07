@@ -24,6 +24,42 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
+# One block per vendor. Each resolves the same four variables -- SOC_MODEL,
+# SOC_FAMILY, SOC_ARCH, SOC_RAM_MB -- and how it gets them is its own business.
+ifeq ($(SOC_VENDOR),sigmastar)
+
+# BR2_SIGMASTAR_SOC_MODEL comes from the camera defconfig, which board.mk
+# includes as a makefile before this file. Config.soc.in declares the same
+# symbol, so the one defconfig line feeds both this dispatch and Kconfig.
+SOC_MODEL := $(shell echo $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)) | tr A-Z a-z)
+# Everything the part number decides, in one place. Ingenic keys the same two
+# facts on the model, which is why neither belongs in the camera defconfig: the
+# DRAM is inside the SoC package, so a board cannot choose it, and t31l is 64MB
+# against t31x's 128MB within one family.
+#
+# The family map also mirrors BR2_SOC_FAMILY's default chain in Config.soc.in --
+# Kconfig cannot be queried from here, so it is stated in both places, as it
+# already is for Ingenic.
+#
+# SOC_RAM_MB reaches .config as BR2_SOC_RAM_MB (Makefile:596), whose only
+# consumers are the Ingenic ISP module's rmem/nmem defaults. This vendor carves
+# memory out in the U-Boot bootargs instead, but the value should still describe
+# the hardware: 256MB is the board's own LX_MEM=0xFFE0000, 268304384 bytes.
+ifeq ($(SOC_MODEL),ssc30kq)
+SOC_FAMILY := infinity6e
+SOC_RAM_MB := 256
+endif
+# SOC_ARCH selects a board/kernel subdirectory. For Ingenic that is an ISA
+# (xburst1/xburst2) shared by several families; here the family is the finest
+# split that exists, so the two coincide.
+SOC_ARCH := $(SOC_FAMILY)
+# Names the output directory, and keeps the Ingenic default chain below -- which
+# is guarded on an empty KERNEL_VERSION -- from claiming this vendor. The kernel
+# source is named in core-sigmastar.fragment, not through KERNEL_SITE/BRANCH.
+KERNEL_VERSION := 4.9
+
+else
+
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)
@@ -44,6 +80,8 @@ ifneq ($(SOC_MODEL_INPUT),)
 		endif
 	endif
 endif
+
+endif # SOC_VENDOR
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 SOC_MODEL_LESS_Z := $(subst z,,$(SOC_MODEL))
@@ -77,6 +115,12 @@ ifeq ($(KERNEL_VERSION),)
 		KERNEL_VERSION := 3.10.14
 	endif
 endif
+
+# Only the Ingenic path maps SOC_FAMILY onto a kernel branch. Other vendors name
+# their source in their core fragment, so there is nothing here to resolve --
+# and the git ls-remote below would otherwise run on every make for a value that
+# vendor never reads.
+ifeq ($(SOC_VENDOR),ingenic)
 
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
@@ -125,6 +169,8 @@ ifeq ($(KERNEL_HASH),)
 	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+
+endif # SOC_VENDOR = ingenic
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y

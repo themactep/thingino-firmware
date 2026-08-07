@@ -1,0 +1,118 @@
+# SigmaStar counterpart to core.fragment.
+#
+# One core fragment per vendor rather than overrides layered on core.fragment:
+# that file hardcodes board/ingenic/$(SOC_ARCH)/... for the kernel config,
+# selects BR2_TARGET_UBOOT with an Ingenic JZ SFC flash controller, and strips
+# Ingenic vendor libraries. Overriding those from a later fragment would leave
+# the Ingenic values in .config for olddefconfig to trip over.
+#
+# Everything not vendor-specific is kept identical to core.fragment, so the two
+# can be diffed to see exactly what the vendor changes.
+
+BR2_CCACHE=y
+BR2_CCACHE_USE_BASEDIR=y
+BR2_USE_CCACHE=1
+BR2_OPTIMIZE_S=y
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_THINGINO_PATH)/package/all-patches"
+BR2_PER_PACKAGE_DIRECTORIES=y
+
+# The toolchain fragment is picked by name from TYPE/GCC/LIBC alone
+# (Makefile:185), which has no architecture in it, so the resolved file is
+# always the mipsel one. The camera defconfig re-points URL and PREFIX at the
+# ARM toolchain afterwards -- see the comment there.
+# Must track the gcc version the camera defconfig declares: Buildroot
+# hard-checks the declared version against the real toolchain at configure
+# time, and a version with no ext-gccNN-glibc.fragment fails Makefile:558.
+BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
+BR2_THINGINO_TOOLCHAIN_GCC_16=y
+BR2_THINGINO_TOOLCHAIN_LIBC_GLIBC=y
+
+BR2_TARGET_GENERIC_HOSTNAME="thingino-$(SOC_MODEL)"
+BR2_TARGET_GENERIC_ISSUE="Welcome to Thingino firmware"
+
+BR2_ROOTFS_MERGED_USR=y
+# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set
+BR2_TARGET_GENERIC_PASSWD_SHA512=y
+BR2_TARGET_GENERIC_ROOT_PASSWD="root"
+BR2_SYSTEM_DEFAULT_PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+# BR2_TARGET_TZ_INFO is not set
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_THINGINO_PATH)/overlay"
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_THINGINO_PATH)/scripts/rootfs_script.sh"
+
+# Kernel: a fork of OpenIPC's sigmastar-infinity6e tree, pinned by hash.
+#
+# It was fetched as archive/sigmastar-$(SOC_FAMILY).tar.gz, which names a branch
+# rather than a commit: the tree could change under a build with nothing in the
+# image recording what was used. The fork exists so the vendor fixes this port
+# needs are commits with a history instead of a patch directory, and so the
+# revision is pinned.
+#
+# No BR2_LINUX_KERNEL_CUSTOM_REPO_BRANCH here -- Buildroot has no such symbol
+# (linux/Config.in defines only _REPO_VERSION), so the line in core.fragment is
+# inert. The hash below is the only thing that selects the revision.
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_GIT=y
+BR2_LINUX_KERNEL_CUSTOM_REPO_URL="https://github.com/johnchia/linux"
+BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="d85ef37e8ed2367db6b4b9a58d959d598d5cc130"
+BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL_THINGINO_PATH)/board/sigmastar/$(SOC_FAMILY)/infinity6e-ssc012b.config"
+
+# No BR2_LINUX_KERNEL_PATCH. The one fix this tree needed -- the Sun/Solaris
+# section flags binutils 2.42+ rejects -- is a commit in the fork. Leaving the
+# symbol unset also keeps core.fragment's Ingenic 4.9 patch directory from ever
+# applying here.
+BR2_LINUX_KERNEL_UIMAGE=y
+BR2_LINUX_KERNEL_XZ=y
+# BR2_LINUX_KERNEL_INSTALL_TARGET is not set
+
+BR2_PACKAGE_HOST_MTD=y
+# Host tools come from the distro where possible rather than being rebuilt, so
+# BR2_PACKAGE_HOST_UBOOT_TOOLS is not selected here. Note that does not avoid
+# the build: buildroot/linux/Config.in:252 hard-selects it from
+# BR2_LINUX_KERNEL_UIMAGE, so any uImage target builds mkimage from source
+# whatever this file says. Listing it here as well would only make it look
+# like our choice. Dropping it would mean giving up uImage, which vendor
+# U-Boot needs.
+BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_THINGINO_PATH)/package/busybox/busybox.config"
+# BR2_PACKAGE_COREUTILS is not set
+BR2_PACKAGE_OVERRIDE_FILE="$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-overrides.mk"
+BR2_PACKAGE_MDNSD=y
+BR2_PACKAGE_MDNSD_HTTP_SERVICE=y
+# BR2_PACKAGE_MDNSD_SSH_SERVICE is not set
+BR2_PACKAGE_THINGINO_ODHCP6C=y
+
+# The application layer. Deliberately the same set core.fragment selects, so a
+# SigmaStar board is a thingino camera and not a subset of one. Packages whose
+# helpers this board has no hardware for still build; the agent's capability
+# probes report them false at runtime and the web UI hides the controls.
+BR2_PACKAGE_TELEGRAMBOT=y
+BR2_PACKAGE_THINGINO_AGENT=y
+BR2_PACKAGE_THINGINO_DIAG=y
+BR2_PACKAGE_THINGINO_HA=y
+BR2_PACKAGE_THINGINO_SYSTEM=y
+BR2_PACKAGE_THINGINO_SYSUPGRADE=y
+
+# ingenic-sdk carries "default y if !KERNEL_VERSION_7" in its own Config.in,
+# and KERNEL_VERSION_7 is a make variable rather than a Kconfig symbol, so the
+# condition is always true and the package turns itself on regardless of the
+# guard in Config.in. It builds Ingenic kernel modules; it cannot work here.
+# BR2_PACKAGE_INGENIC_SDK is not set
+
+# Omitted on purpose, unlike core.fragment:
+#   BR2_PACKAGE_THINGINO_GPIO / _LEDD / _DAYNIGHT  - Ingenic GPIO register access
+#   BR2_TARGET_UBOOT and BR2_PACKAGE_THINGINO_UBOOT_*  - vendor U-Boot is kept
+#   BR2_STRIP_EXCLUDE_FILES="libimp.so ..."  - Ingenic vendor libraries
+#   BR2_TARGET_LDFLAGS="-z max-page-size=0x1000"  - MIPS page-size workaround
+
+BR2_PACKAGE_THINGINO_MOSQUITTO_20X=y
+# BR2_PACKAGE_THINGINO_MOSQUITTO_212 is not set
+# BR2_PACKAGE_MOSQUITTO_BROKER is not set
+# BR2_PACKAGE_MOSQUITTO_APPS is not set
+
+# Flashed per-partition against the vendor partition table, so no full-chip
+# image is packed and no CPIO initramfs is needed. See the camera defconfig.
+BR2_TARGET_ROOTFS_SQUASHFS=y
+BR2_TARGET_ROOTFS_SQUASHFS_BS_256K=y
+BR2_TARGET_ROOTFS_SQUASHFS4_XZ=y
+BR2_TARGET_ROOTFS_SQUASHFS_EXTREME_COMP=y
+# BR2_TARGET_ROOTFS_TAR is not set

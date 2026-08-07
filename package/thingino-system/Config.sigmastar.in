@@ -1,0 +1,15 @@
+# SigmaStar's half of BR2_THINGINO_SYSTEM_PACKAGES, mirroring Config.ingenic.in.
+#
+# The MI bundle is the counterpart of ingenic-sdk plus ingenic-lib, and splits
+# the same way: sigmastar-sdk is the kernel side and selects sigmastar-lib for
+# the userspace half. It belongs here rather than only under the Raptor HAL,
+# which is where it used to hang -- a board that picks a different streamer
+# still needs /dev/mi_* to exist.
+#
+# No BR2_SOC_FAMILY gate. The family is a directory inside each repo, resolved
+# by $(SOC_FAMILY)/$(SOC_FAMILY_CAPS) at install time, so a second Infinity
+# family needs no Kconfig change -- the same property BR2_PACKAGE_INGENIC_LIB
+# has.
+config BR2_THINGINO_SYSTEM_PACKAGES_SIGMASTAR
+	bool
+	select BR2_PACKAGE_SIGMASTAR_SDK

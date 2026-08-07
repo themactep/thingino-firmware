@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# Load the SigmaStar MI kernel modules.
+#
+# WHY S20, AND WHY RAPTOR IS NOT RENAMED
+#
+# The only real constraint is that the MI modules are in and /dev/mi_* exists
+# before rvd opens the HAL. thingino installs Raptor at S31raptor.
+#
+# OpenIPC solves the same ordering the other way round: its module load lives
+# in S70vendor, so it has to rename upstream's S31raptor to S95raptor to get
+# behind it. That rename is forced by *OpenIPC's* init layout, not by anything
+# about this hardware, and reproducing it here would cost two things for no
+# gain: an edit to thingino-raptor.mk's install path, and a patch to
+# thingino-agent-adapter-raptor, which hardcodes /etc/init.d/S31raptor in two
+# places (its detection probe and its streamer-restart action). Loading early
+# instead leaves both untouched.
+#
+# S20 is safe this early because:
+#   - CONFIG_DEVTMPFS_MOUNT=y, so /dev is populated by the kernel and does not
+#     wait on mdev. The one node devtmpfs does not create, /dev/mi_poll, is
+#     mknod'd by load_sigmastar itself.
+#   - S30mdev only runs `mdev -s` and sets the hotplug helper; it does not
+#     remount /dev, so the node created here survives it.
+#   - fw_printenv works from S03mac onward, which is earlier still.
+#
+# If Raptor ever does move to S95, this can stay where it is -- late loading
+# is what needs justifying, not early.
+
+case "$1" in
+	start)
+		echo -c 15 "Loading SigmaStar vendor modules"
+		load_sigmastar -i
+		;;
+
+	stop)
+		# Deliberately a no-op. Unloading the MI stack in reverse is not
+		# reliable while anything still holds a buffer, and the only caller
+		# is shutdown, where the reboot does it properly.
+		true
+		;;
+
+	restart)
+		load_sigmastar -i
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0
