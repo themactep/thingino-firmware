@@ -126,7 +126,8 @@ container-shell: container-pull
 container-make: container-pull
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
 	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
-	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS) in container..."
+	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
+	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(IP_ARG) $(MAKECMDGOALS) in container..."
 	@echo '#!/bin/bash' > /tmp/container-make-run.sh
 	@echo 'cleanup() {' >> /tmp/container-make-run.sh
 	@echo '    echo' >> /tmp/container-make-run.sh
@@ -135,7 +136,7 @@ container-make: container-pull
 	@echo '    exit 130' >> /tmp/container-make-run.sh
 	@echo '}' >> /tmp/container-make-run.sh
 	@echo 'trap cleanup INT TERM' >> /tmp/container-make-run.sh
-	@echo '$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make $(CAMERA_ARG) $(GROUP_ARG) $(MAKECMDGOALS)" &' >> /tmp/container-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(CONTAINER_IMAGE):$(CONTAINER_TAG) bash -c "$(CONTAINER_PREBUILD) make $(CAMERA_ARG) $(GROUP_ARG) $(IP_ARG) $(MAKECMDGOALS)" &' >> /tmp/container-make-run.sh
 	@echo 'wait $$!' >> /tmp/container-make-run.sh
 	@chmod +x /tmp/container-make-run.sh
 	@/tmp/container-make-run.sh
