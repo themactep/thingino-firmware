@@ -27,7 +27,12 @@ config BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS
 	default y
 	bool "sensor utilities"
 	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_THINGINO_DEV_CAMERA
-	select BR2_PACKAGE_THINGINO_SENSOR_INFO
+	select BR2_PACKAGE_THINGINO_SENSOR_INFO if BR2_SOC_VENDOR_INGENIC
 	help
-	  Enables sensor utilities. Sensor detection is provided by the
-	  sensor-info package (userspace sinfo).
+	  Enables sensor utilities: /usr/sbin/sensor, which every vendor
+	  supplies.
+
+	  On Ingenic it also pulls in the sensor-info package, whose sinfo
+	  probes the sensor I2C bus. That detector is Ingenic-only, so it
+	  is not selected for other vendors, which supply their own
+	  detection.
