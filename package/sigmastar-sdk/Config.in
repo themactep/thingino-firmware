@@ -1,0 +1,21 @@
+config BR2_PACKAGE_SIGMASTAR_SDK
+	bool "sigmastar-sdk"
+	depends on BR2_SOC_VENDOR_SIGMASTAR
+	depends on BR2_LINUX_KERNEL
+	select BR2_PACKAGE_SIGMASTAR_LIB
+	help
+	  The kernel side of the SigmaStar vendor stack: the prebuilt mi_*
+	  and mhal kernel modules, the sensor drivers built from source for
+	  the configured Infinity family, the ISP tuning blobs and the VENC
+	  firmware.
+
+	  The vendor modules are prebuilt against Linux 4.9.84, which is why
+	  this board pins that kernel: insmod checks vermagic and a mismatch
+	  is fatal. The sensor drivers are compiled here and have no such
+	  constraint; one is chosen at runtime by load_sigmastar from the
+	  U-Boot `sensor` variable.
+
+	  Selects sigmastar-lib, which carries the MI userspace libraries
+	  the Raptor HAL dlopens. Neither half is useful alone.
+
+	  https://github.com/johnchia/sigmastar-sdk

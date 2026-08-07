@@ -1,0 +1,114 @@
+#!/bin/sh
+#
+# Insert the SigmaStar MI kernel modules and bind the sensor driver.
+#
+# Ported from OpenIPC (general/package/sigmastar-sdk-infinity6e). Three
+# deliberate changes from their version:
+#
+#   1. The module directory is derived from `uname -r` rather than hardcoded
+#      to 4.9.84. The modules are installed under the kernel release Buildroot
+#      probed, and hardcoding it here means a kernel bump silently loads
+#      nothing -- the loop just finds no files and every later insmod fails
+#      with a message about the module, not about the path.
+#   2. The OpenIPC-specific bits are gone: the `fpv` check against
+#      /etc/os-release, and the OpenIPC logger tag.
+#   3. There is no sensor autodetection. The U-Boot `sensor` variable is the
+#      per-unit override; when it is unset the build-time name installed at
+#      /usr/share/sensor/model is used instead.
+#
+# The i2c probe used to come from OpenIPC's ipctool. That package is gone, and
+# thingino's own detector (sensor-info/sinfo) is Ingenic-only, so this platform
+# has no native probe to fall back on yet. Restore autodetection here once
+# sensor-info learns SigmaStar -- do not reintroduce ipctool.
+#
+# Argument: accepted and ignored, so the init script's `-i` keeps working. It
+# used to mean "trust the stored variable rather than re-probing", a
+# distinction with no meaning now that the variable is the only source.
+
+MODULE=/lib/modules/$(uname -r)/sigmastar
+SENSOR=$(fw_printenv -n sensor 2>/dev/null)
+
+# A full sysupgrade erases the environment, so the variable cannot be the only
+# source: without this the camera does not stream until it is re-entered by
+# hand, and there is no remote recovery. The environment is never written back
+# -- it stays the per-unit override and wins wherever it exists.
+# model is written by sigmastar-sdk-infinity6e from SENSOR_1_MODEL.
+if [ -z "$SENSOR" ] && [ -r /usr/share/sensor/model ]; then
+	SENSOR=$(cat /usr/share/sensor/model)
+	SENSOR_FROM_BUILD=1
+fi
+
+log() { echo "$@" | logger -s -t sigmastar; }
+
+set_sensor() {
+	case $SENSOR in
+		gc2053 | gc4653 | imx274 | imx307 | imx335 | imx347 | imx415 | sc501ai | sc8235 | os04a10 | os04c10)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1
+			;;
+		tp9950)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1 mode=3 channel=0
+			;;
+		tp9951)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1 mode=0 channel=2
+			;;
+		*)
+			log "unsupported sensor - $SENSOR"
+			return 1
+			;;
+	esac
+}
+
+# Load order is the vendor's and is not arbitrary -- mi_sys owns the buffer
+# pool every later module registers against, and mi_venc wants the ISP
+# firmware path at insmod time.
+insert_ko() {
+	insmod $MODULE/mhal.ko
+	insmod $MODULE/mi_common.ko
+	insmod $MODULE/mi_sys.ko cmdQBufSize=768 logBufSize=256
+	insmod $MODULE/mi_rgn.ko
+	insmod $MODULE/mi_ldc.ko
+	insmod $MODULE/mi_ai.ko
+	insmod $MODULE/mi_ao.ko
+	insmod $MODULE/mi_mipitx.ko
+	insmod $MODULE/mi_sensor.ko
+	insmod $MODULE/mi_shadow.ko
+	insmod $MODULE/mi_divp.ko
+	insmod $MODULE/mi_vif.ko
+	insmod $MODULE/mi_vpe.ko
+	insmod $MODULE/mi_venc.ko fw_path=/etc/firmware/chagall.bin
+
+	# mi_poll registers a chrdev with no class, so devtmpfs does not create
+	# the node for it. Everything else under /dev/mi_* appears on its own.
+	MAJOR=$(awk '$2=="mi_poll" {print $1}' /proc/devices)
+	[ -n "$MAJOR" ] && mknod /dev/mi_poll c "$MAJOR" 0
+	echo isproot /etc/firmware >/dev/ispmid
+}
+
+if [ ! -d "$MODULE" ]; then
+	log "no vendor modules at $MODULE"
+	exit 1
+fi
+
+if [ ! -e /sys/module/mi_common ]; then
+	insert_ko
+fi
+
+if [ -z "$SENSOR" ]; then
+	log "no sensor identified -- set the U-Boot 'sensor' variable"
+	exit 1
+fi
+
+# Named explicitly: a board whose sensor differs from the target's is corrected
+# by setting the variable, and the log is the only place that is visible.
+[ -n "$SENSOR_FROM_BUILD" ] && log "U-Boot 'sensor' unset, using build-time $SENSOR"
+
+# Re-binding: drop whatever driver is already bound before inserting one.
+DRIVER=$(ls /sys/module | grep "$SENSOR")
+if [ -n "$DRIVER" ]; then
+	rmmod $DRIVER
+fi
+
+log "sensor $SENSOR"
+set_sensor
+
+exit $?

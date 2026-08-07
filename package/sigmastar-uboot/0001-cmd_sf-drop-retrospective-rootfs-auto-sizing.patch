@@ -1,0 +1,64 @@
+From: thingino-firmware sigmastar fork
+Subject: [PATCH] cmd_sf: drop the retrospective rootfs partition auto-sizing
+
+`sf probe` ended by reading the squashfs superblock already in flash and
+setting rootmtd/rootsize from it. Two properties made that unusable here.
+
+It is retrospective. The superblock it reads describes the image that is
+already on the chip, not the one being written, so the partition is always
+sized for the previous image. The first image to cross the 5120k threshold
+cannot be flashed at all: mtd3 is still 5120k at that moment and flashcp
+refuses it.
+
+It is also unconditional and runs before `run setargs` expands ${rootmtd},
+so it overwrites the stored environment in RAM on every boot. `fw_setenv
+rootmtd` can never take effect, which makes the stored value misleading
+rather than merely unused.
+
+This tree sizes the kernel and rootfs partitions to the built images at
+build time and ships the result in the environment. Boot-time auto-sizing
+is redundant against that, and worse, the two disagree: the build says one
+size and `sf probe` says another, with the bootloader winning.
+
+Removing the block leaves `sf probe` doing only what its name says. The
+declarations go with it because magic/bytes/buf/file have no other use in
+the function.
+
+This is OpenIPC-specific code. Mainline U-Boot and SigmaStar's vendor tree
+have no equivalent, so nothing upstream of this fork depends on it.
+
+--- a/common/cmd_sf.c
++++ b/common/cmd_sf.c
+@@ -171,32 +171,6 @@
+ 	flash = new;
+ #endif
+ 
+-	char buf[64];
+-	unsigned int magic, bytes;
+-
+-	if (spi_flash_read(flash, CONFIG_ENV_ROOTADDR, sizeof(buf), buf)) {
+-		printf("Failed to read from SPI flash\n");
+-		return 1;
+-	}
+-
+-	memcpy(&magic, &buf[0], sizeof(magic));
+-	memcpy(&bytes, &buf[40], sizeof(bytes));
+-
+-	if (magic == 0x73717368) {
+-		if (bytes + 0x1000 < 0x500000) {
+-			setenv("rootmtd", "5120k");
+-		} else {
+-			setenv("rootmtd", "8192k");
+-		}
+-	}
+-
+-	ulong file = getenv_ulong("filesize", 16, 0);
+-	if (file < 0x500000) {
+-		setenv("rootsize", "0x500000");
+-	} else {
+-		setenv("rootsize", "0x800000");
+-	}
+-
+ 	return 0;
+ }
+ 

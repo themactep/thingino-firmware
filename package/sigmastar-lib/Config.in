@@ -1,0 +1,15 @@
+config BR2_PACKAGE_SIGMASTAR_LIB
+	bool "sigmastar-lib"
+	depends on BR2_SOC_VENDOR_SIGMASTAR
+	help
+	  Prebuilt SigmaStar MI userspace libraries for the configured
+	  Infinity family.
+
+	  The Raptor HAL dlopens these rather than linking them, so they are
+	  not link-time dependencies -- but an image without them has daemons
+	  that start and then fail at the first HAL call.
+
+	  Normally selected by sigmastar-sdk rather than chosen directly;
+	  neither half of the vendor stack is useful alone.
+
+	  https://github.com/johnchia/sigmastar-lib

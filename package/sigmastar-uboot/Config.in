@@ -1,0 +1,19 @@
+config BR2_PACKAGE_SIGMASTAR_UBOOT
+	bool "sigmastar-uboot"
+	depends on BR2_SOC_VENDOR_SIGMASTAR
+	help
+	  U-Boot for SigmaStar Infinity6-family SoCs, from OpenIPC's fork of
+	  the vendor tree.
+
+	  Builds a NOR boot image (BOOT.bin) into images/ and installs nothing
+	  to the target. Producing it does not flash it: the boot partition is
+	  the one place on this board where a bad write cannot be recovered in
+	  software, so writing it needs a serial console and an SPI flash clip
+	  on the bench.
+
+	  A sibling of thingino-uboot rather than a variant of it. That package
+	  is Ingenic silicon end to end -- jz_sfc flash controllers, board
+	  defconfigs from soc_database.txt, a MIPS SPL -- and has no SigmaStar
+	  path to extend.
+
+	  https://github.com/openipc/u-boot-sigmastar
