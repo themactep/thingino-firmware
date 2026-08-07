@@ -192,7 +192,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq lzop m4 p7zip-full perl python3 python3-setuptools procps rsync tzdata u-boot-tools unzip wget libncurses-dev swig python3-dev libssl-dev
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc cmake cpio curl ca-certificates dosfstools file git gh make gawk jq lzop m4 mtools p7zip-full parted perl python3 python3-setuptools procps rsync tzdata u-boot-tools unzip wget libncurses-dev swig python3-dev libssl-dev
 
       - name: Set timezone
         run: |
