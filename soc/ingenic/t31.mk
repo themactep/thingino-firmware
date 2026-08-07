@@ -1,6 +1,6 @@
 # Ingenic T31 family. Included for every board; the filter
 # below is what limits it to this family's models.
-ifneq ($(filter $(SOC_MODEL),t31l t31lc t31n t31x t31a t31al t31zl t31zx c100),)
+ifneq ($(filter $(SOC_MODEL),t31l t31lc t31n t31x t31a t31al t31zl t31zx),)
 
 SOC_FAMILY    := t31
 SOC_ARCH      := xburst1
@@ -51,16 +51,6 @@ ifeq ($(SOC_MODEL),t31zx)
 SOC_RAM_MB     := 128
 SOC_UBOOT_NOR  := isvp_t31x_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand_ddr128M
-endif
-
-ifeq ($(SOC_MODEL),c100)
-SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31a_sfcnor
-SOC_UBOOT_NAND := isvp_t31a_sfcnand
-# The one model whose family is not fixed by the part.
-ifeq ($(KERNEL_VERSION),4.4.94)
-SOC_FAMILY := c100
-endif
 endif
 
 endif
