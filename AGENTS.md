@@ -70,10 +70,12 @@ config and rootfs partitions respectively.
 
 SOC family is derived from `BR2_INGENIC_SOC_MODEL` two ways, and both are live.
 For `.config`, `Config.soc.in` maps model to `BR2_SOC_FAMILY`. For make,
-`thingino.mk` includes `soc/<vendor>/<model>.mk`, one file per SoC, which sets
-`SOC_FAMILY`, `SOC_ARCH`, `SOC_RAM_MB` and the U-Boot board names. Kconfig
-cannot run make and `thingino.mk` needs the family before `.config` exists, so
-the map is stated in both places; adding a SoC means adding it to both.
+`thingino.mk` includes `soc/<vendor>/<family>.mk`, one file per SoC family,
+which sets `SOC_FAMILY`, `SOC_ARCH`, `SOC_RAM_MB` and the U-Boot board names.
+All of them are included and each opens with a `$(filter)` on its own models,
+so exactly one file's body applies. Kconfig cannot run make and `thingino.mk`
+needs the family before `.config` exists, so the map is stated in both places;
+adding a SoC means adding it to both.
 `thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
