@@ -294,7 +294,7 @@ handle_payload() {
 		elif [ "boot" = "$upgrade" ]; then
 			# Download only the first 256 KB (boot partition)
 			offset=0
-			range_end=$((256 * 1024 - 1))
+			range_end=$((320 * 1024 - 1))
 			curl_range="-r 0-$range_end"
 			skip_sha256=1
 		elif [ "part" = "$upgrade" ]; then
