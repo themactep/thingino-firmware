@@ -1,0 +1,28 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 4 Mar 2026
+Subject: [PATCH] Add support for EN25QX64A flash chip (ID 1c7117)
+
+Add support for the EON EN25QX64A 8MB SPI flash chip seen in
+newer Tapo C110 revision 3.0/EU devices.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+ drivers/mtd/spi/spi-nor-ids.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+index 1111111..2222222 100644
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi-nor-ids.c
+@@ -107,6 +107,8 @@ const struct flash_info spi_nor_ids[] = {
+ 	{ INFO("en25q128b",  0x1c3018, 0, 64 * 1024,  256, 0) },
+ 	{ INFO("en25qh64",   0x1c7017, 0, 64 * 1024,  128,
+ 	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ INFO("en25qx64a",  0x1c7117, 0, 64 * 1024,  128,
++	       SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ INFO("en25qh128",  0x1c7018, 0, 64 * 1024,  256, 0) },
+ 	/*
+ 	 * The EN25QH256A shares JEDEC ID 0x1c7019 with the older EN25QH256,
+-- 
+2.43.0
