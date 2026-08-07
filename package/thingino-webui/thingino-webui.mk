@@ -7,19 +7,8 @@ THINGINO_WEBUI_ASSET_TAG := $(if $(THINGINO_WEBUI_ASSET_TAG_RAW),$(THINGINO_WEBU
 
 ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_RAPTOR),y)
 THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview-raptor.html
-THINGINO_WEBUI_STREAMER = raptor
-else ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_STRERO),y)
-THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html
-THINGINO_WEBUI_STREAMER = strero
-else ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_TIMPS),y)
-THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html
-THINGINO_WEBUI_STREAMER = timps
-else ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_NONE),y)
-THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html
-THINGINO_WEBUI_STREAMER = none
 else
 THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html
-THINGINO_WEBUI_STREAMER = prudynt
 endif
 
 define THINGINO_WEBUI_APPLY_ASSET_TAG
@@ -69,9 +58,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
-	$(INSTALL) -d $(TARGET_DIR)/etc
-	printf '%s\n' '$(THINGINO_WEBUI_STREAMER)' > $(TARGET_DIR)/etc/thingino-streamer
-	chmod 0644 $(TARGET_DIR)/etc/thingino-streamer
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S91mqttsub \
 		$(TARGET_DIR)/etc/init.d/S91mqttsub
 #	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
@@ -143,10 +129,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-main.html \
 		$(TARGET_DIR)/var/www/streamer-main.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd0.html \
-		$(TARGET_DIR)/var/www/streamer-osd0.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd1.html \
-		$(TARGET_DIR)/var/www/streamer-osd1.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd.html \
+		$(TARGET_DIR)/var/www/streamer-osd.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-sensor.html \
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-substream.html \
@@ -229,8 +213,14 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/navigation.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/preview.js \
 		$(TARGET_DIR)/var/www/a/preview.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/sei-osd.js \
+		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/sei-rotate.js \
+		$(TARGET_DIR)/var/www/a/sei-rotate.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/reset.js \
 		$(TARGET_DIR)/var/www/a/reset.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/runtime-config.js \
+		$(TARGET_DIR)/var/www/a/runtime-config.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/theme-init.js \
@@ -346,6 +336,9 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-heartbeat.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-heartbeat-slow.cgi \
 		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-osd-sei.cgi \
+		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
+
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imaging.cgi \
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imp.cgi \
@@ -368,8 +361,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-sync-time.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-system-usage.cgi \
 		$(TARGET_DIR)/var/www/x/json-system-usage.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-timegraph-stream.cgi \
-		$(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/legacy-url-recovery.cgi \
 		$(TARGET_DIR)/var/www/x/legacy-url-recovery.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/login.cgi \
@@ -424,27 +415,18 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
-	if [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" = "y" ]; then \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-doorbell.html \
-			$(TARGET_DIR)/var/www/config-doorbell.html; \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-doorbell.js \
-			$(TARGET_DIR)/var/www/a/config-doorbell.js; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-doorbell.cgi \
-			$(TARGET_DIR)/var/www/x/json-config-doorbell.cgi; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-chime-status.cgi \
-			$(TARGET_DIR)/var/www/x/json-chime-status.cgi; \
-	fi
 endef
 
-# Paranoid mode CDN → local rewriting — runs in finalize hook so that
-# HTML pages installed by plugin packages (thingino-gpio, thingino-snmpd,
-# etc.) are also processed.
+# Paranoid mode CDN → local rewriting — runs as a rootfs pre-hook (not a
+# per-package finalize hook) so it runs AFTER the finalize hooks of streamer
+# packages (timps, raptor) that install their own HTML overlays.  Plugin
+# assembly (ASSEMBLE_PLUGINS) has also already run by this point.
 define THINGINO_WEBUI_PARANOID_REWRITE
-	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
+	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
 	fi
 endef
-THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
 # Plugin assembly finalize hook — runs after every package is installed,
 # discovers *.webui.json manifests, merges nav/scripts/styles, and

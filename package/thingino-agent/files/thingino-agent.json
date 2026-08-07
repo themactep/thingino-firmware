@@ -9,6 +9,7 @@
     "notes": "Managed local-only listener. The external API belongs to the agent; backend adapters stay behind it."
   },
   "mqtt_sub": {
+    "tls_skip_verify": false,
     "subscriptions": [
       {
         "enabled": true,

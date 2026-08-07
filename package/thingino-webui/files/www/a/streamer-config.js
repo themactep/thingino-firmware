@@ -1,7 +1,26 @@
 (function () {
   "use strict";
 
-  const endpoint = "/x/json-prudynt.cgi";
+  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (d) {
+      return d.exists && d.api_key ? d.api_key : "";
+    })
+    .catch(function () {
+      return "";
+    });
+
+  async function apiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers["X-API-Key"] = key;
+    return fetch(url, options);
+  }
+
+  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
 
   async function confirm(message) {
     return new Promise((resolve) => {
@@ -71,8 +90,26 @@
     if (saveButton) saveButton.disabled = true;
 
     try {
+      // Sync FPS from form to prudynt before saving, so night-mode
+      // halving doesn't get persisted.
+      const fpsSync = {};
+      [0, 1].forEach((sid) => {
+        const el = $(`#stream${sid}_fps`);
+        if (el && el.value) {
+          fpsSync[`stream${sid}`] = { fps: parseInt(el.value, 10) };
+        }
+      });
+      if (Object.keys(fpsSync).length > 0) {
+        fpsSync.action = { restart_thread: 0 };
+        await apiFetch(API_BASE, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fpsSync),
+        });
+      }
+
       const payload = { action: { save_config: null } };
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

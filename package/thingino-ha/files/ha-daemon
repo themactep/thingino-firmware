@@ -6,7 +6,7 @@
 . /usr/share/ha-common
 
 [ -n "$HA_CAMERA_ID" ] || {
-	echo "ha-daemon: cannot determine camera MAC" >&2
+	echo "ha-daemon: cannot determine camera ID" >&2
 	exit 1
 }
 [ -n "$HA_MQTT_HOST" ] || {
@@ -53,15 +53,26 @@ ha-discovery || {
 	exit 1
 }
 
-# Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
+# Restart ha-commands automatically if it exits (e.g. transient broker disconnect).
+# The restart delay escalates while the subscriber keeps failing fast (broker
+# down, auth error) so we do not spin in a tight reconnect cycle; it resets
+# after a healthy run.
 run_commands() {
-	local mpub
+	local mpub delay=5 started ran
 	while true; do
+		started=$(date +%s)
 		ha-commands
-		echo "ha-daemon: ha-commands exited, restarting in 5s..."
-		sleep 5
+		ran=$(($(date +%s) - started))
+		if [ "$ran" -ge 60 ]; then
+			delay=5
+		else
+			delay=$((delay * 2))
+			[ "$delay" -gt 60 ] && delay=60
+		fi
+		echo "ha-daemon: ha-commands exited after ${ran}s, restarting in ${delay}s..."
+		sleep "$delay"
 		mpub=$(ha_mpub_cmd daemon)
-		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
+		eval "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
 	done
 }
 run_commands &
@@ -70,6 +81,13 @@ CMD_PID=$!
 # First ha-state call: force-publish all entities to fully sync HA.
 # Subsequent calls in the loop below only publish changed values.
 ha-state force
+
+# Re-publish discovery after a delay in case HA's MQTT integration connected
+# after the initial publish and missed the retained discovery messages.
+(
+	sleep 30
+	ha-discovery
+) &
 
 # ---------------------------------------------------------------------------
 # Camera snapshot publisher (background loop)
@@ -86,19 +104,20 @@ if ha_entity_enabled live_view; then
 
 	run_camera_snapshot() {
 		local mpub snap b64 first=1
+		# The publish command is invariant — build it once, not per iteration
+		mpub=$(ha_mpub_cmd camera)
 		while true; do
 			if [ "$first" = "1" ]; then
 				first=0
 			else
 				sleep "$CAMERA_INTERVAL"
 			fi
-			mpub=$(ha_mpub_cmd camera)
 			snap=$(mktemp /tmp/ha_snap.XXXXXX) || continue
 			prudyntctl snapshot -c 1 >"$snap" 2>/dev/null
 			if [ -s "$snap" ]; then
 				b64="${snap}.b64"
 				base64 "$snap" | tr -d '\n' >"$b64"
-				sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/live_view/image' -f $(_sq "$b64")" 2>/dev/null
+				eval "$mpub -t 'cameras/${HA_CAMERA_ID}/live_view/image' -f $(_sq "$b64")" 2>/dev/null
 				rm -f "$b64"
 			fi
 			rm -f "$snap"
@@ -112,13 +131,18 @@ fi
 # Cleanup on exit
 # ---------------------------------------------------------------------------
 cleanup() {
-	local mpub
-	mpub=$(ha_mpub_cmd daemon)
-	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+	# Kill children first so shutdown is never delayed by network.
 	kill "$CMD_PID" 2>/dev/null
 	wait "$CMD_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && kill "$CAMERA_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && wait "$CAMERA_PID" 2>/dev/null
+
+	# Best-effort offline publish: timeout after 3s so an unreachable
+	# broker (e.g. network down during shutdown) cannot stall us.
+	local mpub
+	mpub=$(ha_mpub_cmd daemon)
+	timeout 1 sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+
 	rm -rf "$HA_LOCK_DIR"
 }
 on_signal() {
@@ -132,11 +156,19 @@ trap on_signal INT TERM
 # ---------------------------------------------------------------------------
 # Periodic state + discovery refresh loop
 # ---------------------------------------------------------------------------
+# Sanitize intervals: a non-numeric or zero value would turn the poll loop
+# into a hot spin (sleep 0) hammering the whole system.
 STATE_INTERVAL=$(ha_cfg state_interval)
-STATE_INTERVAL="${STATE_INTERVAL:-15}"
+case "$STATE_INTERVAL" in
+	'' | *[!0-9]*) STATE_INTERVAL=15 ;;
+esac
+[ "$STATE_INTERVAL" -lt 5 ] && STATE_INTERVAL=5
 
 DISC_INTERVAL=$(ha_cfg discovery_interval)
-DISC_INTERVAL="${DISC_INTERVAL:-3600}"
+case "$DISC_INTERVAL" in
+	'' | *[!0-9]*) DISC_INTERVAL=3600 ;;
+esac
+[ "$DISC_INTERVAL" -lt 60 ] && DISC_INTERVAL=60
 
 elapsed=0
 while true; do

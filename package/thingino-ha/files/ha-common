@@ -3,47 +3,87 @@
 # Provides shared camera identity, MQTT broker config, and helpers.
 # Config: /etc/thingino.json under "ha" key. See /rom/thingino.json for reference.
 
+# Return 0 if the system has at least one wireless interface.
+ha_has_wifi() {
+	for _if in /sys/class/net/*/wireless; do
+		[ -d "$_if" ] && return 0
+	done
+	return 1
+}
+
 HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 
 # ---------------------------------------------------------------------------
 # Config helpers
+#
+# jct re-parses the whole JSON config file on every invocation. ha-state and
+# ha-commands query many keys per poll cycle, so at a 15s state interval the
+# uncached lookups used to fork dozens of jct processes per minute — pure
+# scheduler/VM pressure on a small SoC. Resolved values are cached in /tmp
+# and the cache is invalidated whenever the config file changes.
 # ---------------------------------------------------------------------------
+_HA_CFG_CACHE_DIR="/tmp/ha_cfg_cache"
+_HA_CFG_MTIME="$(stat -c %Y "$HA_CONFIG_FILE" 2>/dev/null || echo 0) $HA_CONFIG_FILE"
+if [ ! -d "$_HA_CFG_CACHE_DIR" ] ||
+	[ "$(cat "$_HA_CFG_CACHE_DIR/.mtime" 2>/dev/null)" != "$_HA_CFG_MTIME" ]; then
+	rm -rf "$_HA_CFG_CACHE_DIR"
+	mkdir -p "$_HA_CFG_CACHE_DIR"
+	printf '%s' "$_HA_CFG_MTIME" >"$_HA_CFG_CACHE_DIR/.mtime"
+fi
+
+# Look up a raw config key, forking jct only on a cache miss.
+# Cache hits are served with the shell builtin 'read' — zero exec.
+_ha_cfg_lookup() {
+	local key="$1" cache val=""
+	cache="$_HA_CFG_CACHE_DIR/$key"
+	if [ -f "$cache" ]; then
+		IFS= read -r val <"$cache" || true
+		printf '%s' "$val"
+		return 0
+	fi
+	val=$(jct "$HA_CONFIG_FILE" get "$key" 2>/dev/null | tr -d '"')
+	printf '%s' "$val" >"$cache" 2>/dev/null
+	printf '%s' "$val"
+}
 
 ha_cfg() {
-	jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null | tr -d '"'
+	_ha_cfg_lookup "ha.$1"
 }
 
 _ha_mqtt_cfg() {
-	local key="$1"
-	local val
-	val=$(jct "$HA_CONFIG_FILE" get "ha.mqtt.${key}" 2>/dev/null | tr -d '"')
-	if [ -z "$val" ]; then
-		val=$(jct "$HA_CONFIG_FILE" get "mqtt_sub.${key}" 2>/dev/null | tr -d '"')
+	local key="$1" val
+	val=$(_ha_cfg_lookup "ha.mqtt.$key")
+	if [ -z "$val" ] && [ "$key" != "tls_skip_verify" ]; then
+		val=$(_ha_cfg_lookup "mqtt_sub.$key")
 	fi
 	printf '%s' "$val"
 }
 
+# Entities the integration knows about. Their enable flags are memoized
+# into exported HA_EN_<entity> variables by the environment block below.
+HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light gain rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
+
 ha_entity_enabled() {
-	local val
-	val=$(ha_cfg "enable_$1")
-	[ "$val" != "false" ]
+	local flag
+	eval "flag=\${HA_EN_$1:-}"
+	if [ -z "$flag" ]; then
+		# Not memoized (entity outside HA_ENTITIES) — query config directly.
+		[ "$(ha_cfg "enable_$1")" != "false" ]
+		return
+	fi
+	[ "1" = "$flag" ]
 }
 
 # ---------------------------------------------------------------------------
 # Camera identity
 # ---------------------------------------------------------------------------
 if [ -z "$HA_CAMERA_ID" ]; then
-	HA_CAMERA_ID=$(
-		for iface in eth0 wlan0 eth1; do
-			addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
-			[ -n "$addr" ] && { printf '%s' "$addr"; break; }
-		done
-	)
+	HA_CAMERA_ID=$(hostname 2>/dev/null || echo "thingino")
 	export HA_CAMERA_ID
 fi
 
 if [ -z "$HA_CAMERA_HOSTNAME" ]; then
-	HA_CAMERA_HOSTNAME=$(hostname 2>/dev/null || echo "thingino")
+	HA_CAMERA_HOSTNAME=$HA_CAMERA_ID
 	export HA_CAMERA_HOSTNAME
 fi
 
@@ -53,46 +93,85 @@ if [ -z "$HA_CAMERA_IP" ]; then
 	export HA_CAMERA_IP
 fi
 
-# ---------------------------------------------------------------------------
-# MQTT broker settings
-# ---------------------------------------------------------------------------
-HA_MQTT_HOST=$(_ha_mqtt_cfg host)
-HA_MQTT_PORT=$(_ha_mqtt_cfg port)
-HA_MQTT_USER=$(_ha_mqtt_cfg username)
-HA_MQTT_PASS=$(_ha_mqtt_cfg password)
-HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
-HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
-
-HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
-HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
-
 # Delay between individual MQTT publishes within a batch session (microseconds).
 # Prevents burst-flooding the broker when many entities are published at once.
 HA_PUB_DELAY_US="${HA_PUB_DELAY_US:-80000}"
 
-_sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+# Single-quote a value for use in an eval'd command line.
+# Fast path: values without single quotes need no sed fork.
+_sq() {
+	case "$1" in
+		*\'*) printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;;
+		*) printf "'%s'" "$1" ;;
+	esac
+}
+
+# ---------------------------------------------------------------------------
+# MQTT broker settings + memoized environment
+#
+# Computed once per daemon lifetime and exported, so the scripts ha-daemon
+# spawns every poll cycle (ha-state, ha-discovery) inherit ready-made values
+# instead of re-running dozens of jct/tr/sed processes every state_interval
+# seconds. On a single-core SoC that fork churn dominates the load average.
+# Config changes require 'service restart ha' — the web UI
+# (json-config-ha.cgi) already does that on save.
+# ---------------------------------------------------------------------------
+if [ -z "$HA_ENV_READY" ]; then
+	HA_MQTT_HOST=$(_ha_mqtt_cfg host)
+	HA_MQTT_PORT=$(_ha_mqtt_cfg port)
+	HA_MQTT_USER=$(_ha_mqtt_cfg username)
+	HA_MQTT_PASS=$(_ha_mqtt_cfg password)
+	HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
+	HA_MQTT_TLS_SKIP_VERIFY=$(_ha_mqtt_cfg tls_skip_verify)
+	HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
+
+	HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
+	HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
+	export HA_MQTT_HOST HA_MQTT_PORT HA_MQTT_USER HA_MQTT_PASS
+	export HA_MQTT_SSL HA_MQTT_TLS_SKIP_VERIFY HA_MQTT_CLIENT_PREFIX
+
+	# Common broker arguments for mosquitto_pub/mosquitto_sub, quoted for eval
+	_ha_args="-h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	[ -n "$HA_MQTT_USER" ] && _ha_args="$_ha_args -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && _ha_args="$_ha_args -P $(_sq "$HA_MQTT_PASS")"
+	if [ "$HA_MQTT_SSL" = "true" ]; then
+		_ha_args="$_ha_args --capath /etc/ssl/certs"
+		[ "$HA_MQTT_TLS_SKIP_VERIFY" = "true" ] && _ha_args="$_ha_args --insecure"
+	fi
+	HA_MQTT_BASE_ARGS="$_ha_args"
+	export HA_MQTT_BASE_ARGS
+	unset _ha_args
+
+	HA_DISC_PREFIX=$(ha_cfg discovery_prefix)
+	HA_DISC_PREFIX="${HA_DISC_PREFIX:-homeassistant}"
+	export HA_DISC_PREFIX
+
+	# Memoize entity enable flags (1/0) — see ha_entity_enabled above
+	for _e in $HA_ENTITIES; do
+		if [ "$(ha_cfg "enable_${_e}")" = "false" ]; then
+			eval "HA_EN_${_e}=0"
+		else
+			eval "HA_EN_${_e}=1"
+		fi
+		eval "export HA_EN_${_e}"
+	done
+	unset _e
+
+	HA_ENV_READY=1
+	export HA_ENV_READY
+fi
 
 # ---------------------------------------------------------------------------
 # MQTT command builders
 # ---------------------------------------------------------------------------
 ha_mpub_cmd() {
-	local suffix="${1:-pub}"
-	local cmd="mosquitto_pub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
-	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
-	printf '%s' "$cmd"
+	printf 'mosquitto_pub %s -i %s' "$HA_MQTT_BASE_ARGS" \
+		"$(_sq "${HA_MQTT_CLIENT_PREFIX}-${1:-pub}-${HA_CAMERA_ID}")"
 }
 
 ha_msub_cmd() {
-	local suffix="${1:-sub}"
-	local cmd="mosquitto_sub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
-	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
-	printf '%s' "$cmd"
+	printf 'mosquitto_sub %s -i %s' "$HA_MQTT_BASE_ARGS" \
+		"$(_sq "${HA_MQTT_CLIENT_PREFIX}-${1:-sub}-${HA_CAMERA_ID}")"
 }
 
 # ---------------------------------------------------------------------------
@@ -125,13 +204,15 @@ ha_state_cache_clear() {
 # Return 1 if unchanged — caller should skip publishing.
 _ha_state_changed() {
 	local entity="$1" state="$2"
-	mkdir -p "$_HA_STATE_CACHE_DIR"
 	local cache_file="$_HA_STATE_CACHE_DIR/$entity"
 	local last=""
-	[ -f "$cache_file" ] && last=$(cat "$cache_file" 2>/dev/null)
+	# Cached values are single-line; the read builtin avoids a cat fork
+	# per entity on every poll cycle.
+	[ -f "$cache_file" ] && IFS= read -r last <"$cache_file"
 	if [ "$state" = "$last" ]; then
 		return 1  # unchanged
 	fi
+	mkdir -p "$_HA_STATE_CACHE_DIR"
 	printf '%s' "$state" > "$cache_file"
 	return 0  # changed
 }
@@ -145,9 +226,12 @@ _ha_state_changed() {
 # Outside of a session, all helpers publish immediately (backward compatible).
 # ---------------------------------------------------------------------------
 _HA_PUB_QUEUE_FILE=""
+_HA_PUB_QUEUE_OPEN=0
 
+# Opening a session is free: the queue file is only created when the first
+# publish is actually queued, so idle poll cycles fork no mktemp/rm.
 ha_pub_begin() {
-	_HA_PUB_QUEUE_FILE=$(mktemp /tmp/ha_pubq.XXXXXX) || _HA_PUB_QUEUE_FILE=""
+	_HA_PUB_QUEUE_OPEN=1
 }
 
 _ha_pub_exec() {
@@ -156,12 +240,16 @@ _ha_pub_exec() {
 	local mpub
 	mpub=$(ha_mpub_cmd "$suffix")
 	[ "$retain" = "1" ] && mpub="$mpub -r"
-	sh -c "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	# eval instead of sh -c: saves one shell fork per publish
+	eval "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
 	rm -f "$tmpfile"
 }
 
 _ha_queue_or_pub() {
 	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
+	if [ "$_HA_PUB_QUEUE_OPEN" = "1" ] && [ -z "$_HA_PUB_QUEUE_FILE" ]; then
+		_HA_PUB_QUEUE_FILE=$(mktemp /tmp/ha_pubq.XXXXXX) || _HA_PUB_QUEUE_FILE=""
+	fi
 	if [ -n "$_HA_PUB_QUEUE_FILE" ]; then
 		printf '%s|%s|%s|%s\n' "$retain" "$suffix" "$topic" "$tmpfile" \
 			>> "$_HA_PUB_QUEUE_FILE"
@@ -171,6 +259,7 @@ _ha_queue_or_pub() {
 }
 
 ha_pub_flush() {
+	_HA_PUB_QUEUE_OPEN=0
 	[ -n "$_HA_PUB_QUEUE_FILE" ] || return 0
 	local retain suffix topic tmpfile
 	while IFS='|' read -r retain suffix topic tmpfile; do
@@ -236,22 +325,18 @@ ha_pub_state_json() {
 # Clear a discovery topic (empty retained message removes entity from HA).
 ha_clear_disc() {
 	local component="$1" object_id="$2"
-	local disc_prefix
-	disc_prefix=$(ha_cfg discovery_prefix)
-	disc_prefix="${disc_prefix:-homeassistant}"
+	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
 	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
 	local mpub
 	mpub=$(ha_mpub_cmd disc)
-	sh -c "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
+	eval "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
 	usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
 }
 
 # Publish a retained discovery payload.
 ha_pub_disc() {
 	local component="$1" object_id="$2" payload="$3"
-	local disc_prefix
-	disc_prefix=$(ha_cfg discovery_prefix)
-	disc_prefix="${disc_prefix:-homeassistant}"
+	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
 	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
 	local tmpfile
 	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
