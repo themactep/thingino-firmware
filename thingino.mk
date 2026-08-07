@@ -48,6 +48,7 @@ $(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no soc/$(SOC_VENDOR)/*.m
 endif
 endif
 
+SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 SOC_MODEL_LESS_Z := $(subst z,,$(SOC_MODEL))
 
 export SOC_VENDOR
@@ -79,14 +80,6 @@ ifeq ($(KERNEL_VERSION),)
 		KERNEL_VERSION := 3.10.14
 	endif
 endif
-
-# A SoC whose family depends on the kernel says so with
-# SOC_FAMILY_IF_KERNEL_<version>, applied here because the SoC fragments are
-# read above, before KERNEL_VERSION exists.
-SOC_FAMILY := $(or $(SOC_FAMILY_IF_KERNEL_$(KERNEL_VERSION)),$(SOC_FAMILY))
-
-# Derived after the line above, the last thing that can change SOC_FAMILY.
-SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
