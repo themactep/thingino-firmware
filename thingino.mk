@@ -32,29 +32,27 @@ ifeq ($(SOC_VENDOR),sigmastar)
 # includes as a makefile before this file. Config.soc.in declares the same
 # symbol, so the one defconfig line feeds both this dispatch and Kconfig.
 SOC_MODEL := $(shell echo $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)) | tr A-Z a-z)
-# The same soc_database.txt lookup the Ingenic block uses. Nothing about the
-# family and ram columns is vendor-specific: the file is keyed on the model, and
-# the model is what decides both. That is also why neither belongs in the camera
-# defconfig -- the DRAM is inside the SoC package, so a board cannot choose it,
-# and t31l is 64MB against t31x's 128MB within one Ingenic family.
+# Everything the part number decides, in one place. Ingenic reads the same two
+# facts out of soc_database.txt keyed on the model, which is why neither belongs
+# in the camera defconfig: the DRAM is inside the SoC package, so a board cannot
+# choose it. t31l is 64MB and t31x is 128MB in one family, so this has to be per
+# model rather than per vendor or per family.
 #
-# The family lookup mirrors BR2_SOC_FAMILY's default chain in Config.soc.in.
-# Kconfig cannot run the script, so the map is stated in both places -- as it
-# already is for Ingenic, where Config.soc.in restates this same column.
+# The family map also mirrors BR2_SOC_FAMILY's default chain in Config.soc.in --
+# Kconfig cannot be queried from here, so it is stated in both places, as it
+# already is for Ingenic.
 #
 # SOC_RAM_MB reaches .config as BR2_SOC_RAM_MB (Makefile:596), whose only
 # consumers are the Ingenic ISP module's rmem/nmem defaults. This vendor carves
 # memory out in the U-Boot bootargs instead, but the value should still describe
-# the hardware: 256MB matches the board's own LX_MEM=0xFFE0000.
-#
-# No `|| echo` fallbacks. Ingenic's defaults of "unknown"/"64" keep a build
-# going with a wrong answer; a model missing from the database is a
-# configuration error and should surface as one.
-SOC_FAMILY := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) family)
-SOC_RAM_MB := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) ram)
-# SOC_ARCH selects a board/kernel subdirectory. The database's arch column holds
-# an ISA index that the Ingenic block prefixes with "xburst"; this vendor has no
-# equivalent split, so the column is "-" and the family stands in.
+# the hardware: 256MB is the board's own LX_MEM=0xFFE0000, 268304384 bytes.
+ifeq ($(SOC_MODEL),ssc30kq)
+SOC_FAMILY := infinity6e
+SOC_RAM_MB := 256
+endif
+# SOC_ARCH selects a board/kernel subdirectory. For Ingenic that is an ISA
+# (xburst1/xburst2) shared by several families; here the family is the finest
+# split that exists, so the two coincide.
 SOC_ARCH := $(SOC_FAMILY)
 # Names the output directory, and keeps the Ingenic default chain below -- which
 # is guarded on an empty KERNEL_VERSION -- from claiming this vendor. The kernel

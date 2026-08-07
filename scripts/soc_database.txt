@@ -1,8 +1,6 @@
 # SoC Database for Thingino Firmware
 # Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand,uboot_image
-# arch: 1=xburst1, 2=xburst2; "-" for vendors with no ISA split, which resolve
-#   SOC_ARCH from the family instead
-# uboot_board_nor/nand: "-" for vendors that do not use BR2_TARGET_UBOOT
+# arch: 1=xburst1, 2=xburst2
 # uboot_board_nand: use "-" if NAND not supported, or same as NOR if naming is same
 # uboot_image: U-Boot flash artifact buildroot extracts; "-" = default
 #   (u-boot-with-spl-lzma.bin). The TPL-chain SoCs (T10/T20/T21/T23/T30/T31/T32,
@@ -85,6 +83,3 @@ a1nt,a1,2,256,isvp_a1n_sfcnor,-,-
 a1x,a1,2,256,isvp_a1n_sfcnor,-,-
 a1l,a1,2,128,isvp_a1n_sfcnor,-,-
 a1a,a1,2,512,isvp_a1n_sfcnor,-,-
-
-# SigmaStar Infinity6E
-ssc30kq,infinity6e,-,256,-,-,u-boot-ssc30kq-nor.bin
