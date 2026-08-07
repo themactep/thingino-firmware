@@ -24,3 +24,4 @@ include $(THINGINO_EXTERNAL_PATH)/package/thingino-mosquitto-212/mosquitto-overr
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-mxml/mxml-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-v4l2loopback/v4l2loopback-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-wireguard-tools/wireguard-tools-override.mk
+include $(THINGINO_EXTERNAL_PATH)/package/thingino-wpa_supplicant/wpa_supplicant-override.mk
