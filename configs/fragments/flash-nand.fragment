@@ -10,7 +10,7 @@
 # list it, so their build is byte-for-byte unchanged.
 #
 # The U-Boot side (defconfig isvp_<soc>_sfcnand, env-in-UBI layout) is resolved
-# automatically from the soc_database / thingino.mk NAND wiring. The UBI volume
+# automatically from the soc/<vendor>/ + thingino.mk NAND wiring. The UBI volume
 # layout and the full-chip image are assembled in the Makefile NAND branch.
 
 # kernel: NAND driver + UBI + UBIFS, per SOC_ARCH / KERNEL_VERSION

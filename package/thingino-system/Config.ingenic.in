@@ -11,6 +11,6 @@ config BR2_THINGINO_SYSTEM_PACKAGES_INGENIC
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
-	# Every other vendor so far keeps its bootloader on the chip, and
-	# scripts/soc_database.txt has no U-Boot board name outside Ingenic.
+	# Every other vendor so far keeps its bootloader on the chip, and no
+	# soc/<vendor>/<model>.mk outside Ingenic sets a U-Boot board name.
 	select BR2_TARGET_UBOOT
