@@ -69,7 +69,7 @@ env:
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TZ: UTC
   # Prebuilt CLI from the buildscope repo's release.
-  BUILDSCOPE_VERSION: v0.1.7
+  BUILDSCOPE_VERSION: v0.1.8
 
 jobs:
   check-updates:
