@@ -11,7 +11,7 @@ U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
 SSTAR_IPL_MAGIC="49504c5f" # "IPL_", at offset 4 rather than 0
 GITHUB_URL="https://github.com"
-PAD="\n\t\t\t    "
+BRANCH="master"
 
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
@@ -21,12 +21,50 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail"
+bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
 echo_c() {
 	echo -e "\e[38;5;$1m$2\e[0m"
+}
+
+# Check once whether flashcp supports -A (auto-erase).
+# Cache the result so we only test once.
+__flashcp_has_A=""
+flashcp_has_A() {
+	[ -n "$__flashcp_has_A" ] && {
+		[ "$__flashcp_has_A" = "y" ]
+		return
+	}
+	if flashcp -A 2>&1 | grep -q 'unrecognized'; then
+		__flashcp_has_A="n"
+		return 1
+	else
+		__flashcp_has_A="y"
+		return 0
+	fi
+}
+
+# Flash a file to an MTD device.  Uses flashcp -A (auto-erase) when
+# available to avoid double-erasing, falls back to flash_eraseall + flashcp.
+flash_partition() {
+	local mtd="$1" file="$2"
+	if flashcp_has_A; then
+		flashcp -v -A "$file" "$mtd"
+	else
+		flash_eraseall "$mtd" 2>/dev/null || true
+		flashcp -v "$file" "$mtd"
+	fi
+}
+
+# Ingenic bootloaders begin with a fixed 4-byte magic at offset 0.
+# SigmaStar IPL containers begin with a variable ARM branch at offset 0;
+# their stable signature is "IPL_" at offset 4.
+image_starts_with_bootloader() {
+	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p "$1")" ] && return 0
+	[ "$SSTAR_IPL_MAGIC" = "$(xxd -s 4 -l 4 -p "$1")" ] && return 0
+	return 1
 }
 
 die() {
@@ -44,6 +82,7 @@ report_size() {
 }
 
 check_free_space() {
+	# $1 = URL, $2 = offset in remote file, $3 = optional explicit byte count
 	local dl_size dl_size_offsetted flash_size free_space offset
 
 	dl_size=$(curl -sIL "$1" |
@@ -53,7 +92,7 @@ check_free_space() {
 		tr -d '\r[:space:]')
 	if [ -z "$dl_size" ]; then
 		if [ ! -f "$gestalt_app" ]; then
-			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/gestalt"
+			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/${BRANCH}/package/thingino-sysupgrade/files/gestalt"
 			download "$gestalt_url" "$gestalt"
 			chmod +x "$gestalt"
 		fi
@@ -78,7 +117,11 @@ check_free_space() {
 	fi
 	report_size "Full flash size" "$flash_size"
 
-	dl_size_offsetted=$((dl_size - offset))
+	if [ -n "${3:-}" ]; then
+		dl_size_offsetted="$3"
+	else
+		dl_size_offsetted=$((dl_size - offset))
+	fi
 	report_size "Download size" "$dl_size_offsetted"
 
 	free_space=$(available_free_space)
@@ -112,11 +155,23 @@ prepare_download_dir() {
 }
 
 full_upgrade_partition_name() {
-	awk -F: '/"all"$/{print $1}' /proc/mtd
+	local dev
+	dev=$(awk -F: '/"all"$/{print $1}' /proc/mtd)
+	[ -n "$dev" ] && echo "$dev" || echo "mtd0"
 }
 
 full_upgrade_partition_size() {
-	echo $(($(awk '/"all"$/{print "0x" $2}' /proc/mtd)))
+	local total=0 sz name
+	while read -r _ sz _ name; do
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && continue
+		[ "$name" = "upgrade" ] && continue
+		total=$((total + 0x$sz))
+	done <<EOF
+$(tail -n +2 /proc/mtd)
+EOF
+	echo $total
 }
 
 partial_upgrade_partition_name() {
@@ -125,11 +180,6 @@ partial_upgrade_partition_name() {
 
 partial_upgrade_partition_size() {
 	echo $(($(awk '/"upgrade"$/{print "0x" $2}' /proc/mtd)))
-}
-
-check_upgrade_partitions() {
-	grep -q '"all"' /proc/mtd ||
-		die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 }
 
 cleanup() {
@@ -168,23 +218,6 @@ expand_bb() {
 	ln -s "$workdir/busybox" "$workdir/$1"
 }
 
-# Ingenic bootloaders begin with a fixed 4-byte magic at offset 0.
-# SigmaStar IPL containers begin with a variable ARM branch at offset 0;
-# their stable signature is "IPL_" at offset 4.
-image_starts_with_bootloader() {
-	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p "$1")" ] && return 0
-	[ "$SSTAR_IPL_MAGIC" = "$(xxd -s 4 -l 4 -p "$1")" ] && return 0
-	return 1
-}
-
-extract_bootloader() {
-	if ! image_starts_with_bootloader "$1"; then
-		die "$1 image does not start with a bootloader!"
-	fi
-
-	truncate -s 320K "$1"
-}
-
 handle_payload() {
 	echo_c 208 "\nChanging directory to $dl_dir"
 
@@ -202,19 +235,22 @@ handle_payload() {
 
 	if [ "local" = "$upgrade" ]; then
 		echo_c 112 "\nUpgrade from a provided file"
-		if echo "$1" | grep -qE '^https?://'; then
-			prepare_download_dir
-			echo -e "Download firmware from\n$1"
-			check_free_space "$1"
-			if ! download "$1"; then
-				die "Cannot download $1 to $fw_file"
-			fi
-		else
-			if [ ! -f "$fw_file" ]; then
-				die "Cannot find $fw_file"
-			fi
-		fi
-	else
+		case "$1" in
+			http://* | https://*)
+				prepare_download_dir
+				echo -e "Download firmware from\n$1"
+				check_free_space "$1"
+				if ! download "$1"; then
+					die "Cannot download $1 to $fw_file"
+				fi
+				;;
+			*)
+				if [ ! -f "$fw_file" ]; then
+					die "Cannot find $fw_file"
+				fi
+				;;
+		esac
+	elif [ -n "$url" ]; then
 		echo_c 112 "\nUpgrade from GitHub"
 		prepare_download_dir
 
@@ -238,7 +274,30 @@ handle_payload() {
 
 		bin_url="$gh_url/thingino-$profile.bin"
 
-		if [ "part" = "$upgrade" ]; then
+		# Compute byte range to download (0 = full file)
+		if [ "rootfs" = "$upgrade" ]; then
+			# Download only rootfs+data tail (uses HTTP Range)
+			offset=$(get_image_offset rootfs)
+			# Get total size for the Range end byte
+			dl_size=$(curl -sIL "$bin_url" | grep -i '^content-length:' | tail -1 | cut -d: -f2 | tr -d '\r[:space:]')
+			[ -z "$dl_size" ] && die "Cannot determine remote file size for range request"
+			range_end=$((dl_size - 1))
+			curl_range="-r $offset-$range_end"
+			skip_sha256=1
+		elif [ "kernel" = "$upgrade" ]; then
+			# Download only kernel partition
+			offset=$(get_image_offset kernel)
+			ksz=$(get_mtd_size kernel)
+			range_end=$((offset + ksz - 1))
+			curl_range="-r $offset-$range_end"
+			skip_sha256=1
+		elif [ "boot" = "$upgrade" ]; then
+			# Download only the first 256 KB (boot partition)
+			offset=0
+			range_end=$((256 * 1024 - 1))
+			curl_range="-r 0-$range_end"
+			skip_sha256=1
+		elif [ "part" = "$upgrade" ]; then
 			case "$(partial_upgrade_partition_name)" in
 				mtd5 | mtd6)
 					offset=$(($(full_upgrade_partition_size) - $(partial_upgrade_partition_size)))
@@ -247,40 +306,69 @@ handle_payload() {
 					die "Unknown partial upgrade partition name"
 					;;
 			esac
-
-			bin_file="thingino-$profile-update.bin"
+			curl_range="-C $offset"
+			skip_sha256=0
 		else
 			offset=0
+			curl_range=""
+			skip_sha256=0
+		fi
+
+		if [ $offset -gt 0 ]; then
+			bin_file="thingino-$profile-update.bin"
+		else
 			bin_file="thingino-$profile.bin"
 		fi
 		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file="$(basename $sha_url)"
 
-		check_free_space "$bin_url" "$offset"
-
-		echo_c 112 "\nDownload checksum"
-		if ! download "$sha_url" "tempsha256sum"; then
-			die "Cannot download checksum file."
+		# Pass explicit byte count for range-download modes so
+		# check_free_space does not overestimate the required space.
+		if [ -n "$curl_range" ] && [ $offset -eq 0 ]; then
+			# Boot: offset 0 but range is limited
+			check_free_space "$bin_url" "$offset" "$((range_end + 1))"
+		else
+			check_free_space "$bin_url" "$offset"
 		fi
 
-		grep -v '^#' "tempsha256sum" >"$sha_file"
+		if [ "$skip_sha256" -eq 0 ]; then
+			echo_c 112 "\nDownload checksum"
+			if ! download "$sha_url" "tempsha256sum"; then
+				die "Cannot download checksum file."
+			fi
+			grep -v '^#' "tempsha256sum" >"$sha_file"
+		fi
 
 		echo_c 112 "\nDownload firmware"
-		if ! download "$bin_url" "$bin_file" "-C $offset"; then
-			die "Cannot download firmware from specified URL."
+		if [ -n "$curl_range" ]; then
+			# curl range request – use -o to write directly
+			echo "Range: $curl_range"
+			if ! curl -fL# --url "$bin_url" -o "$fw_file" $curl_range; then
+				die "Cannot download firmware from specified URL."
+			fi
+		else
+			if ! download "$bin_url" "$bin_file" ""; then
+				die "Cannot download firmware from specified URL."
+			fi
 		fi
 
-		echo_c 112 "\nVerify downloaded file"
-		if ! sha256sum -c "$sha_file"; then
-			die "Checksum does not match!"
+		if [ "$skip_sha256" -eq 0 ]; then
+			echo_c 112 "\nVerify downloaded file"
+			if ! sha256sum -c "$sha_file"; then
+				die "Checksum does not match!"
+			fi
+			echo_c 112 "\nClean up"
+			rm -v "$sha_file"
+		else
+			echo_c 112 "\nSkipping SHA256 verification (partial range download)"
 		fi
 
-		echo_c 112 "\nClean up"
-		rm -v "$sha_file"
-
-		echo_c 112 "\nRelocate downloaded file"
-		if ! mv -fv "$bin_file" "$fw_file"; then
-			die "Cannot move $bin_file to $fw_file"
+		# Only relocate if we didn't download directly to fw_file
+		if [ "$bin_file" != "$fw_file" ] && [ -f "$bin_file" ]; then
+			echo_c 112 "\nRelocate downloaded file"
+			if ! mv -fv "$bin_file" "$fw_file"; then
+				die "Cannot move $bin_file to $fw_file"
+			fi
 		fi
 	fi
 
@@ -296,14 +384,17 @@ flush_memory() {
 }
 
 show_help() {
-	echo -e "Usage: $0 [-x] [-f|-p|<file>|<URL>]
+	echo -e "Usage: $0 [-x] [-f|-k|-r|-b|-p|<file>|<URL>] [--backup|-B]
 Where:
   -f      full upgrade with a binary from GitHub
-  -p      partial upgrade with a binary from GitHub
-  -b      upgrade only bootloader
+  -k      kernel-only upgrade
+  -r      rootfs-only upgrade
+  -b      bootloader-only upgrade
+  -p      partial upgrade (rootfs + data + backup)
   -d      release date (the latest available, if omitted)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
+  --backup|-B  create config backup before flashing
   -x      do not update the script
   -h      this help"
 	exit 0
@@ -328,12 +419,13 @@ stop_services() {
 
 	echo_c 112 "\nRunning processes:"
 	ps w
+	echo
 }
 
 update_self() {
 	local GH_DL_URL
 
-	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/"
+	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/${BRANCH}/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
 	chmod +x "$workdir/$stage1app"
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
@@ -343,15 +435,26 @@ update_self() {
 dl_dir="/tmp"
 fw_file="$workdir/fw.bin"
 download_dir_ready="false"
+do_backup="false"
 
 flush_memory
 
+# Parse long options before getopts
+for arg in "$@"; do
+	case "$arg" in
+		--backup) do_backup="true" ;;
+	esac
+done
+
 ORIGINAL_ARG="$@"
-while getopts "bd:fhpx" flag; do
+while getopts "b:Bd:fhkrpx" flag; do
 	case "$flag" in
 		b)
 			upgrade="boot"
 			url="$GITHUB_URL"
+			;;
+		B)
+			do_backup="true"
 			;;
 		d)
 			requested_date=$OPTARG
@@ -359,6 +462,12 @@ while getopts "bd:fhpx" flag; do
 		f)
 			upgrade="full"
 			url="$GITHUB_URL"
+			;;
+		k)
+			upgrade="kernel"
+			;;
+		r)
+			upgrade="rootfs"
 			;;
 		p)
 			echo "Partial upgrades are not supported anymore."
@@ -384,6 +493,15 @@ while getopts "bd:fhpx" flag; do
 done
 shift "$((OPTIND - 1))"
 
+# When a positional argument is present and is not a URL, it is a local
+# file.  Override any default GitHub URL that a mode flag may have set
+# (e.g. -b stores GITHUB_URL in getopts).
+case "$1" in
+	http://* | https://*) ;;
+	"") ;;
+	*) url="" ;;
+esac
+
 if [ -n "$requested_date" ]; then
 	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ] || [ "boot" = "$upgrade" ]; then
 		if ! release_date=$(date -d "$requested_date" +%F); then
@@ -394,9 +512,11 @@ if [ -n "$requested_date" ]; then
 	fi
 fi
 
-check_upgrade_partitions
-
 # work in $workdir
+if [ -d "$workdir" ] && [ "$(dirname "$self")" != "$workdir" ]; then
+	echo_c 112 "\nRemove stale $workdir from a previous run"
+	rm -rf "$workdir"
+fi
 if [ ! -d "$workdir" ]; then
 	echo_c 112 "\nCreate $workdir directory"
 	if ! mkdir -p "$workdir"; then
@@ -404,28 +524,70 @@ if [ ! -d "$workdir" ]; then
 	fi
 fi
 
+# Determine upgrade mode from positional argument when no flag is given
 if [ -z "$upgrade" ]; then
 	[ -z "$1" ] && show_help
-
 	upgrade="local"
-	if echo "$1" | grep -qE '^https?://'; then
-		echo_c 112 "\nUpgrade from a remote file"
-		url="$1"
-	else
-		echo_c 112 "\nUpgrade from a local file $fw_file"
-		if [ -f "$fw_file" ]; then
-			echo "Found $fw_file"
-		else
-			ufile="$(realpath "$1")"
-			if [ ! -r "$ufile" ]; then
-				die "Cannot find file $ufile (from $(pwd))"
-			fi
-			echo "Found $ufile"
-			mv -fv "$ufile" "$fw_file"
-			ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
-		fi
-	fi
+	case "$1" in
+		http://* | https://*)
+			echo_c 112 "\nUpgrade from a remote file"
+			url="$1"
+			;;
+	esac
 fi
+
+# For all modes that receive a local file, move it into the workdir.
+# Handle URL arguments and no-argument (GitHub default) cases too.
+case "$1" in
+	http://* | https://*)
+		case "$upgrade" in
+			rootfs | kernel)
+				echo_c 112 "\nUpgrade from a remote file"
+				url="$1"
+				;;
+		esac
+		;;
+	"")
+		# No file argument – default to GitHub for modes that support it
+		case "$upgrade" in
+			rootfs | kernel | boot) url="$GITHUB_URL" ;;
+		esac
+		;;
+	*)
+		case "$upgrade" in
+			local | rootfs | kernel | boot)
+				if [ -r "$fw_file" ]; then
+					# Already in workdir from a previous pass
+					echo_c 112 "\nUpgrade from a local file"
+					echo "Using $fw_file"
+				else
+					echo_c 112 "\nUpgrade from a local file"
+					ufile="$(realpath "$1" 2>/dev/null)"
+					if [ -z "$ufile" ] || [ ! -r "$ufile" ]; then
+						die "Cannot find file $1 (from $(pwd))"
+					fi
+					echo "Found $ufile"
+					case "$ufile" in
+						"$fw_file")
+							;;
+						"$SD_CARD_ROOT"/*)
+							echo "Using firmware in place on the SD card"
+							fw_file="$ufile"
+							;;
+						*)
+							rm -f "$fw_file"
+							if ! mv -fv "$ufile" "$fw_file"; then
+								rm -f "$fw_file"
+								die "Cannot move $ufile to $fw_file"
+							fi
+							ORIGINAL_ARG="$(echo "$ORIGINAL_ARG" | sed "s|$ufile|$fw_file|")"
+							;;
+					esac
+				fi
+				;;
+		esac
+		;;
+esac
 
 if ! cd "$workdir"; then
 	die "Cannot change directory to $workdir"
@@ -446,7 +608,11 @@ if [ "$(dirname "$self")" != "$workdir" ]; then
 fi
 
 if [ "full" = "$upgrade" ]; then
-	echo_c 160 "$PAD ____ _____ ___  ____$PAD/ ___|_   _/ _ \\\\|  _ \\\\$PAD\\\\___ \\\\ | || | | | |_) |$PAD ___) || || |_| |  __/$PAD|____/ |_| \\\\___/|_|\n\n"
+	echo_c 160 "\t\t\t     ____ _____ ___  ____"
+	echo_c 160 "\t\t\t    / ___|_   _/ _ \\\\|  _ \\\\"
+	echo_c 160 "\t\t\t    \\\\___ \\\\ | || | | | |_) |"
+	echo_c 160 "\t\t\t     ___) || || |_| |  __/"
+	echo_c 160 "\t\t\t    |____/ |_| \\\\___/|_|\n"
 	echo -e "\tYou have requested to perform a full firmware upgrade,"
 	echo -e "\twhich is a risky operation replacing the existing bootloader.\n"
 	echo -e "\tIn the event of an error, the camera will become inoperable,"
@@ -469,43 +635,272 @@ fi
 
 trap cleanup 2 6 15
 
-handle_payload "$@"
+case "$upgrade" in
+	full | part | local | boot | rootfs | kernel) handle_payload "$@" ;;
+esac
+
+# Shared helper: parse squashfs superblock and split rootfs + data from a
+# file that starts with ROOTFS_MAGIC.  Sets $workdir/rootfs.bin (and
+# optionally $workdir/data.bin) relative to the caller's $rsz.
+extract_rootfs_data() {
+	local src="$1"
+	local sqfs_size sqfs_aligned src_size
+	sqfs_size=$(dd if="$src" bs=1 skip=40 count=8 2>/dev/null | od -An -td8 -v | tr -d ' \n')
+	sqfs_aligned=$(((sqfs_size + 65535) / 65536 * 65536))
+	echo "Image rootfs: $sqfs_size bytes -> $sqfs_aligned aligned"
+	[ "$sqfs_aligned" -gt "$rsz" ] &&
+		die "Image rootfs ($sqfs_aligned) larger than partition ($rsz). Use -f."
+	dd if="$src" of="$workdir/rootfs.bin" bs=1 count=$sqfs_aligned 2>/dev/null
+	src_size=$(stat -c%s "$src")
+	if [ "$sqfs_aligned" -lt "$src_size" ]; then
+		echo "Appended data partition: $((src_size - sqfs_aligned)) bytes"
+		dd if="$src" of="$workdir/data.bin" bs=1 skip=$sqfs_aligned 2>/dev/null
+	else
+		echo "No appended data — data partition unchanged"
+	fi
+}
+
+# --- helper functions for partial upgrades ---
+# Compute byte offset of a named partition within the full firmware image
+# by walking /proc/mtd in order and accumulating partition sizes.
+# Skips virtual partitions (all, upgrade) that overlap real ones.
+get_image_offset() {
+	local target="$1" offset=0 name sz
+	while read -r _ sz _ name; do
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && continue
+		[ "$name" = "upgrade" ] && continue
+		[ "$name" = "$target" ] && {
+			echo $offset
+			return 0
+		}
+		offset=$((offset + 0x$sz))
+	done <<PARTLIST
+$(tail -n +2 /proc/mtd)
+PARTLIST
+	die "Unknown partition: $target"
+}
+
+get_mtd_size() { awk "/\"$1\"$/{print \"0x\"\$2}" /proc/mtd; }
+get_mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
+# --- end helpers ---
 
 # upgrade bootloader only
 if [ "boot" = "$upgrade" ]; then
 	echo_c 112 "\nUpgrading bootloader"
-	extract_bootloader "$fw_file"
-	flash_eraseall /dev/mtd0
-	flashcp -v "$fw_file" /dev/mtd0
+	image_starts_with_bootloader "$fw_file" ||
+		die "Not a bootloader image"
+
+	# Extract boot partition; size from mtd0 (skip "all" if present)
+	boot_sz=$(get_mtd_size boot)
+	[ -z "$boot_sz" ] && die "Boot partition not found in /proc/mtd"
+	boot_kb=$((boot_sz / 1024))
+	dd if="$fw_file" of="$workdir/boot.bin" bs=1024 count=$boot_kb 2>/dev/null
+	truncate -s ${boot_sz} "$workdir/boot.bin"
+
+	echo_c 112 "Flashing bootloader to /dev/mtd0"
+	sync
+	flash_partition /dev/mtd0 "$workdir/boot.bin" || die "boot flash failed"
+
+	# If the file has data beyond the boot partition, flash it as env (mtd1)
+	fw_sz=$(stat -c%s "$fw_file")
+	if [ "$fw_sz" -gt "$boot_sz" ]; then
+		env_sz=$(get_mtd_size env)
+		env_kb=$((env_sz / 1024))
+		dd if="$fw_file" of="$workdir/env.bin" bs=1024 skip=$boot_kb count=$env_kb 2>/dev/null
+		truncate -s ${env_sz} "$workdir/env.bin"
+		echo_c 112 "Flashing U-Boot environment to /dev/mtd1"
+		sync
+		flash_partition /dev/mtd1 "$workdir/env.bin" || die "env flash failed"
+	fi
+
+	echo_c 46 "Bootloader upgrade complete. Rebooting..."
+	sync
+	reboot -f
 	exit 0
 fi
 
-case "$(xxd -l 4 -p "$fw_file")" in
-	"$U_BOOT_MAGIC")
-		echo "Bootloader detected"
-		mtd_dev=$(full_upgrade_partition_name)
-		part_size=$(full_upgrade_partition_size)
-		;;
-	"$KERNEL_MAGIC")
-		echo "Kernel detected"
-		mtd_dev=$(partial_upgrade_partition_name)
-		part_size=$(partial_upgrade_partition_size)
-		;;
-	"$ROOTFS_MAGIC")
-		echo "RootFS detected"
-		die "We cannot flash only rootfs"
-		;;
-	*)
-		image_starts_with_bootloader "$fw_file" || die "Unknown file"
-		echo "Bootloader detected"
-		mtd_dev=$(full_upgrade_partition_name)
-		part_size=$(full_upgrade_partition_size)
-		;;
-esac
+# Pre-validate input magic for flagged modes that extract from full image
+img_magic=$(xxd -l 4 -p "$fw_file")
 
-file_size=$(stat -c%s $fw_file)
-[ "$file_size" -gt $part_size ] &&
-	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
+# kernel-only: extract kernel partition from full image
+if [ "kernel" = "$upgrade" ]; then
+	echo_c 112 "\nUpgrading kernel"
+	kdev=$(get_mtd_dev kernel)
+	[ -z "$kdev" ] && die "Kernel partition not found in /proc/mtd"
+	if [ "$U_BOOT_MAGIC" = "$img_magic" ]; then
+		koff=$(get_image_offset kernel)
+		ksz=$(get_mtd_size kernel)
+		dd if="$fw_file" of="$workdir/kernel.bin" bs=1 skip=$koff count=$ksz 2>/dev/null
+	elif [ "$KERNEL_MAGIC" = "$img_magic" ]; then
+		cp "$fw_file" "$workdir/kernel.bin"
+	else
+		die "Unknown image magic $img_magic (expected full image or kernel)"
+	fi
+	[ "$KERNEL_MAGIC" != "$(xxd -l 4 -p "$workdir/kernel.bin")" ] &&
+		die "Extracted kernel has bad magic"
+	fw_file="$workdir/kernel.bin"
+	mtd_dev="$kdev"
+fi
+
+# rootfs-only: extract rootfs + data from full image, or flash pre-trimmed / standalone squashfs
+if [ "rootfs" = "$upgrade" ]; then
+	clone_app /bin/busybox
+	if [ -c /dev/watchdog ]; then
+		if pidof watchdog >/dev/null 2>&1; then
+			killall watchdog 2>/dev/null
+			i=0
+			while pidof watchdog >/dev/null 2>&1; do
+				i=$((i + 1))
+				[ $i -gt 10 ] && break
+				sleep 1
+			done
+		fi
+		ln -sf "$workdir/busybox" "$workdir/watchdog"
+		watchdog -T 30 -t 10 -F /dev/watchdog &
+		echo "Hardware watchdog taken over (30s timeout)"
+	fi
+	stop_services
+	echo_c 112 "\nUpgrading rootfs + data"
+	rdev=$(get_mtd_dev rootfs)
+	[ -z "$rdev" ] && die "Rootfs partition not found in /proc/mtd"
+	rsz=$(get_mtd_size rootfs)
+	ddev=$(get_mtd_dev data)
+	[ -z "$ddev" ] && die "Data partition not found in /proc/mtd"
+
+	if [ "$U_BOOT_MAGIC" = "$img_magic" ]; then
+		# Full image: extract rootfs + data using /proc/mtd partition offsets
+		roff=$(get_image_offset rootfs)
+		image_size=$(stat -c%s "$fw_file")
+		dd if="$fw_file" of="$workdir/rest.bin" bs=1 skip=$roff \
+			count=$((image_size - roff)) 2>/dev/null
+		[ "$ROOTFS_MAGIC" != "$(xxd -l 4 -p "$workdir/rest.bin")" ] &&
+			die "No squashfs found at rootfs offset"
+		extract_rootfs_data "$workdir/rest.bin"
+		rm -f "$workdir/rest.bin"
+	elif [ "$ROOTFS_MAGIC" = "$img_magic" ]; then
+		# Pre-trimmed rootfs+data or standalone squashfs
+		extract_rootfs_data "$fw_file"
+	else
+		die "Unknown image magic $img_magic (expected full image or squashfs)"
+	fi
+
+	echo_c 112 "\nFlashing rootfs to /dev/$rdev"
+	sync
+	flash_partition "/dev/$rdev" "$workdir/rootfs.bin" || die "rootfs flash failed"
+
+	if [ -f "$workdir/data.bin" ]; then
+		echo_c 112 "\nFlashing data to /dev/$ddev"
+		sync
+		flash_partition "/dev/$ddev" "$workdir/data.bin" || die "data flash failed"
+	else
+		echo "No data partition in image — data unchanged"
+	fi
+
+	echo_c 46 "\nRootfs upgrade complete. Rebooting..."
+	sync
+	killall watchdog 2>/dev/null && sleep 1
+	$workdir/busybox reboot -f
+	exit 0
+fi
+
+# If a partial upgrade already set mtd_dev, skip magic detection
+if [ -z "$mtd_dev" ]; then
+	case "$(xxd -l 4 -p "$fw_file")" in
+		"$U_BOOT_MAGIC")
+			# Full upgrade: flash each partition individually.
+			# Writing to "all" fails on kernels that protect overlapping MTD regions.
+			echo "Full firmware upgrade"
+			# Clone busybox to tmpfs before the dd loop so that
+			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
+			clone_app /bin/busybox
+			# Take over the hardware watchdog from tmpfs so a hung
+			# flash (e.g. SSH timeout, stuck erase) doesn't leave
+			# the camera bricked with no recovery.
+			if [ -c /dev/watchdog ]; then
+				if pidof watchdog >/dev/null 2>&1; then
+					killall watchdog 2>/dev/null
+					i=0
+					while pidof watchdog >/dev/null 2>&1; do
+						i=$((i + 1))
+						[ $i -gt 10 ] && break
+						sleep 1
+					done
+				fi
+				ln -sf "$workdir/busybox" "$workdir/watchdog"
+				watchdog -T 30 -t 10 -F /dev/watchdog &
+				echo "Hardware watchdog taken over (30s timeout)"
+			fi
+			stop_services
+			needle=0
+			tail -n +2 /proc/mtd >"$workdir/mtd.txt"
+			while read -r mtd sz _ name; do
+				mtd="${mtd%:}"
+				name="${name#\"}"
+				name="${name%\"}"
+				[ "$name" = "all" ] && continue
+				sz_dec=$((0x$sz))
+				skip=$((needle / 65536))
+				count=$((sz_dec / 65536))
+				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
+				flash_eraseall "/dev/$mtd" 2>/dev/null || true
+				if ! dd if="$fw_file" of="/dev/$mtd" bs=65536 \
+					skip=$skip count=$count 2>/dev/null; then
+					die "dd $name failed"
+				fi
+				sync
+				needle=$((needle + sz_dec))
+			done <"$workdir/mtd.txt"
+			echo_c 46 "Full upgrade complete. Rebooting..."
+			sync
+			# Disarm the tmpfs watchdog before triggering the WDT reset.
+			killall watchdog 2>/dev/null && sleep 1
+			sleep 5
+			if [ -w /proc/jz/reset/reset ]; then
+				echo wdt >/proc/jz/reset/reset
+				sleep 2
+			fi
+			$workdir/busybox reboot -f
+			exit 0
+			;;
+		"$KERNEL_MAGIC")
+			echo "Kernel detected"
+			mtd_dev=$(get_mtd_dev kernel)
+			part_size=$(get_mtd_size kernel)
+			;;
+		"$ROOTFS_MAGIC")
+			echo "RootFS detected"
+			mtd_dev=$(get_mtd_dev rootfs)
+			part_size=$(get_mtd_size rootfs)
+			;;
+		*)
+			if image_starts_with_bootloader "$fw_file"; then
+				echo "Bootloader detected"
+				mtd_dev=$(full_upgrade_partition_name)
+				part_size=$(full_upgrade_partition_size)
+			else
+				die "Unknown file"
+			fi
+			;;
+	esac
+
+	file_size=$(stat -c%s $fw_file)
+	[ "$file_size" -gt $part_size ] &&
+		die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
+
+fi # end of [ -z "$mtd_dev" ] guard
+
+# --- config backup ---
+if [ "$do_backup" = "true" ]; then
+	echo_c 112 "\nCreating config backup before upgrade"
+	if cfg-backup write 2>/dev/null; then
+		echo "Config backup written to /dev/mtd2"
+	else
+		echo_c 160 "Warning: cfg-backup failed (non-fatal)"
+	fi
+fi
+# --- end backup ---
 
 #stop_services
 
@@ -529,7 +924,10 @@ echo_c 112 "\nPartitions"
 cat /proc/mtd
 
 echo_c 208 "Switch to Stage 2.\n"
-if ! PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
+watchdog_device=$(jct /dev/thingino.json get watchdog.device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
+[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
+if ! WATCHDOG_DEV="$watchdog_device" PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
 	echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi
