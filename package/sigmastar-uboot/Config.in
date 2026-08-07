@@ -12,8 +12,8 @@ config BR2_PACKAGE_SIGMASTAR_UBOOT
 	  on the bench.
 
 	  A sibling of thingino-uboot rather than a variant of it. That package
-	  is Ingenic silicon end to end -- jz_sfc flash controllers, board
-	  defconfigs from soc_database.txt, a MIPS SPL -- and has no SigmaStar
-	  path to extend.
+	  is Ingenic silicon end to end -- jz_sfc flash controllers, per-SoC
+	  isvp_* board defconfigs, a MIPS SPL -- and has no SigmaStar path to
+	  extend.
 
 	  https://github.com/openipc/u-boot-sigmastar
