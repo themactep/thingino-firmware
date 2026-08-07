@@ -24,35 +24,15 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
-# One block per vendor. Each resolves the same four variables -- SOC_MODEL,
-# SOC_FAMILY, SOC_ARCH, SOC_RAM_MB -- and how it gets them is its own business.
+# One block per vendor, and all each one does is name the Kconfig symbol its
+# model comes from. Everything the part number then decides is looked up the
+# same way for every vendor, below.
 ifeq ($(SOC_VENDOR),sigmastar)
 
 # BR2_SIGMASTAR_SOC_MODEL comes from the camera defconfig, which board.mk
 # includes as a makefile before this file. Config.soc.in declares the same
 # symbol, so the one defconfig line feeds both this dispatch and Kconfig.
 SOC_MODEL := $(shell echo $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL)) | tr A-Z a-z)
-# Everything the part number decides, in one place. Ingenic keys the same two
-# facts on the model, which is why neither belongs in the camera defconfig: the
-# DRAM is inside the SoC package, so a board cannot choose it, and t31l is 64MB
-# against t31x's 128MB within one family.
-#
-# The family map also mirrors BR2_SOC_FAMILY's default chain in Config.soc.in --
-# Kconfig cannot be queried from here, so it is stated in both places, as it
-# already is for Ingenic.
-#
-# SOC_RAM_MB reaches .config as BR2_SOC_RAM_MB (Makefile:596), whose only
-# consumers are the Ingenic ISP module's rmem/nmem defaults. This vendor carves
-# memory out in the U-Boot bootargs instead, but the value should still describe
-# the hardware: 256MB is the board's own LX_MEM=0xFFE0000, 268304384 bytes.
-ifeq ($(SOC_MODEL),ssc30kq)
-SOC_FAMILY := infinity6e
-SOC_RAM_MB := 256
-endif
-# SOC_ARCH selects a board/kernel subdirectory. For Ingenic that is an ISA
-# (xburst1/xburst2) shared by several families; here the family is the finest
-# split that exists, so the two coincide.
-SOC_ARCH := $(SOC_FAMILY)
 # Names the output directory, and keeps the Ingenic default chain below -- which
 # is guarded on an empty KERNEL_VERSION -- from claiming this vendor. The kernel
 # source is named in core-sigmastar.fragment, not through KERNEL_SITE/BRANCH.
@@ -63,17 +43,21 @@ else
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)
-	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
+SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
+endif
 
-	# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY,
-	# SOC_ARCH, SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT,
-	# SOC_UBOOT_NOR / SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not
-	# have, it does not set -- consumers below use $(or ...) for the fallback.
-	#
-	# All of them are included and each opens with a $(filter) on its own
-	# models, so only one file's body applies. The family cannot pick the
-	# filename, because the family is one of the things being looked up.
-	include $(wildcard $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/*.mk)
+endif # SOC_VENDOR
+
+# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY, SOC_ARCH,
+# SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT, SOC_UBOOT_NOR /
+# SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not have, it does not set
+# -- consumers below use $(or ...) for the fallback.
+#
+# All of them are included and each opens with a $(filter) on its own models, so
+# only one file's body applies. The family cannot pick the filename, because the
+# family is one of the things being looked up.
+ifneq ($(SOC_MODEL),)
+include $(wildcard $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/*.mk)
 
 # A model no family claims leaves SOC_FAMILY empty, which is worth stopping for:
 # the old lookup fell back to "unknown"/64 and built something wrong. Unindented
@@ -83,8 +67,6 @@ ifeq ($(SOC_FAMILY),)
 $(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no soc/$(SOC_VENDOR)/*.mk claims it)
 endif
 endif
-
-endif # SOC_VENDOR
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 SOC_MODEL_LESS_Z := $(subst z,,$(SOC_MODEL))
