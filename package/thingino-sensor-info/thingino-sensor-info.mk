@@ -10,8 +10,9 @@ define THINGINO_SENSOR_INFO_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		CFLAGS="$(TARGET_CFLAGS) -std=gnu99 -ffunction-sections -fdata-sections \
-			-fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident" \
-		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections" \
+			-fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident \
+			-fno-pie" \
+		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -no-pie" \
 		-C $(@D) sinfo
 endef
 

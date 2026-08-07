@@ -126,59 +126,83 @@ if [ -f /etc/os-release ]; then
 	# Common packages across all distros
 	default_packages="autoconf bc bison cpio cmake curl dialog file flex gawk git m4 make mtools nano parted patch perl rsync swig unzip wget ripgrep shfmt nodejs npm"
 
-	# Check ID_LIKE for Debian-based identification first
+	# Resolve the distro family once. ID_LIKE catches the Debian derivatives
+	# (Ubuntu, Mint, ...); Debian itself ships no ID_LIKE, so it can only be
+	# matched by ID. Both paths must end up on the same package list.
+	distro_family=""
 	case "$ID_LIKE" in
 		*debian*)
 			echo "Detected as Debian-based via ID_LIKE"
+			distro_family="debian"
+			;;
+	esac
+
+	if [ -z "$distro_family" ]; then
+		case "$ID" in
+			ubuntu | debian | linuxmint | zorin)
+				echo "Detected as Debian-based via ID"
+				distro_family="debian"
+				;;
+			rhel | centos | fedora)
+				echo "RedHat-based"
+				distro_family="redhat"
+				;;
+			arch)
+				echo "Arch-based"
+				distro_family="arch"
+				;;
+			alpine)
+				echo "Alpine Linux"
+				distro_family="alpine"
+				;;
+			opensuse*)
+				echo "OpenSUSE Tumbleweed"
+				distro_family="suse"
+				;;
+			*)
+				echo "Unsupported OS: $ID"
+				exit 1
+				;;
+		esac
+	fi
+
+	# The python packages are per-family, not in default_packages, because Arch
+	# names the interpreter "python" and ships its headers in that same package.
+	# They are needed because U-Boot selects BINMAN -> DTOC -> PYLIBFDT, and
+	# Buildroot is never asked for host-python3 (no BR2_TARGET_UBOOT_NEEDS_*),
+	# so scripts/dtc/pylibfdt is swig-built against the distro python3 and needs
+	# both Python.h and setuptools.
+	case "$distro_family" in
+		debian)
 			pkg_manager="dpkg"
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-jsonschema"
+			packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-dev python3-setuptools python3-jsonschema"
 			;;
-		*)
-			case "$ID" in
-				ubuntu | debian | linuxmint | zorin)
-					echo "Detected as Debian-based via ID"
-					pkg_manager="dpkg"
-					pkg_check_command="dpkg-query -W -f='\${Status}'"
-					pkg_install_cmd="apt-get install -y"
-					pkg_update_cmd="apt-get update"
-					packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail"
-					;;
-				rhel | centos | fedora)
-					echo "RedHat-based"
-					pkg_manager="rpm"
-					pkg_check_command="rpm -q --whatprovides"
-					pkg_install_cmd="dnf install -y"
-					packages="$default_packages gcc libxcrypt-devel ncurses-devel newt libusbx-devel uboot-tools"
-					;;
-				arch)
-					echo "Arch-based"
-					pkg_manager="pacman"
-					pkg_check_command="pacman -Q"
-					pkg_install_cmd="pacman -S --noconfirm"
-					packages="$default_packages base-devel libxcrypt libnewt ncurses uboot-tools"
-					;;
-				alpine)
-					echo "Alpine Linux"
-					pkg_manager="apk"
-					pkg_check_command="apk info -e"
-					pkg_install_cmd="apk add"
-					packages="$default_packages bash build-base findutils grep libusb-dev ncurses-dev newt uboot-tools"
-					;;
-				opensuse*)
-					echo "OpenSUSE Tumbleweed"
-					pkg_manager="zypper"
-					pkg_check_command="zypper search -i"
-					pkg_install_cmd="zypper install -y"
-					packages="$default_packages gcc findutils grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel u-boot-tools"
-					;;
-				*)
-					echo "Unsupported OS: $ID"
-					exit 1
-					;;
-			esac
+		redhat)
+			pkg_manager="rpm"
+			pkg_check_command="rpm -q --whatprovides"
+			pkg_install_cmd="dnf install -y"
+			packages="$default_packages gcc libxcrypt-devel ncurses-devel newt libusbx-devel uboot-tools python3 python3-devel python3-setuptools python3-jsonschema"
+			;;
+		arch)
+			pkg_manager="pacman"
+			pkg_check_command="pacman -Q"
+			pkg_install_cmd="pacman -S --noconfirm"
+			packages="$default_packages base-devel libxcrypt libnewt ncurses uboot-tools python python-setuptools python-jsonschema"
+			;;
+		alpine)
+			pkg_manager="apk"
+			pkg_check_command="apk info -e"
+			pkg_install_cmd="apk add"
+			packages="$default_packages bash build-base findutils grep libusb-dev ncurses-dev newt uboot-tools python3 python3-dev py3-setuptools py3-jsonschema"
+			;;
+		suse)
+			pkg_manager="zypper"
+			pkg_check_command="zypper search -i"
+			pkg_install_cmd="zypper install -y"
+			packages="$default_packages gcc findutils grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel u-boot-tools python3 python3-devel python3-setuptools python3-jsonschema"
 			;;
 	esac
 else
@@ -256,7 +280,7 @@ if [ -n "$packages_to_install" ]; then
 			echo "Please run it with sudo or as root."
 			exit 1
 		fi
-		if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
+		if [ "$distro_family" = "debian" ]; then
 			echo "Updating package list..."
 			$install_cmd $pkg_update_cmd
 		fi
