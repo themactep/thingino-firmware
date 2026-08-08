@@ -15,7 +15,7 @@ define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	# files behind, shipping both sets and bloating a flash-constrained rootfs.
 	# Clear this package's sound files (both formats) before installing so only
 	# the selected format is ever present.
-	rm -f $(TARGET_DIR)/usr/share/sounds/*.opus $(TARGET_DIR)/usr/share/sounds/*.ulaw
+	rm -f $(TARGET_DIR)/usr/share/sounds/*.opus $(TARGET_DIR)/usr/share/sounds/*.ulaw $(TARGET_DIR)/usr/share/sounds/*.wav
 
 	# welcome message
 	if [ "$(BR2_PACKAGE_THINGINO_SOUNDS_STARTUP)" = "y" ]; then \
