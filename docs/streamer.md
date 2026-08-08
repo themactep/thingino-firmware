@@ -24,46 +24,32 @@ Internally the privacy state uses a hardware OSD cover layer, so frame cadence
 and timestamps remain monotonic and decoders see legal access units (bitrates
 typically collapse to a few hundred bits/s while muted).
 
-### Privacy indicator overlay
+### Privacy persistence
 
-Each encoder can expose an optional banner while privacy mode is active so the
-black frame looks intentional. The feature is enabled per stream through the
-`streamX.osd.privacy.*` keys inside `prudynt.json`:
+Privacy state survives reboots via two keys under the top-level `privacy`
+section of `prudynt.json`:
 
-```
-"stream0": {
-	"osd": {
-		"privacy": {
-			"enabled": true,
-			"text": "PRIVACY ENABLED",
-			"position": "0,-120",
-			"font_size": 16384,
-			"stroke_size": 2,
-			"fill_color": "#FF4C4CFF",
-			"stroke_color": "#000000FF",
-			"rotation": 0,
-			"layer": 16,
-			"opacity": 255,
-			"image_path": "",
-			"image_width": 0,
-			"image_height": 0
-		}
-	}
+```json
+"privacy": {
+    "enabled": true,
+    "save_state": true
 }
 ```
 
-- Leave `image_path` empty (default) to render the configured `text` using the
-	stream's OSD font. Auto font size (`16384`) scales with the stream width.
-- Provide a BGRA asset (plus `image_width`/`image_height`) to swap the text for
-	a static graphic.
-- Positions use the same `x,y` syntax as the other OSD elements; `0` centers an
-	axis, negative values offset from the far edge.
-- `layer` and `opacity` control how the banner stacks over the black cover
-	(layer 16, alpha 255 by default).
+- `privacy.enabled` (bool, default `false`): engage the privacy OSD cover on
+  startup, before RTSP goes live. Set to `true` to lock the camera into
+  privacy mode across restarts.
+- `privacy.save_state` (bool, default `false`): when `true`, runtime privacy
+  toggles (via the FIFO or JSON API) are persisted to `privacy.enabled` so
+  the current state is restored on the next boot. When `false` (default),
+  toggles are live-only and do not change the stored config.
 
-The indicator rides on top of the cover and toggles in lock-step with the
-`PRIVACY` FIFO command, so viewers always see an explicit "privacy enabled"
-marker instead of a plain black feed.
+### Privacy indicator overlay
+
+While privacy is active, the OSD automatically appends "PRIVACY" to each
+stream's timestamp line so viewers see an explicit marker instead of a plain
+black feed. No configuration is required — it rides on top of the cover and
+toggles in lock-step with the PRIVACY FIFO command.
 
 Each standard overlay (time, uptime, user text, brightness, logo) is now
 grouped beneath `streamX.osd.<element>` with shared keys like `enabled`,

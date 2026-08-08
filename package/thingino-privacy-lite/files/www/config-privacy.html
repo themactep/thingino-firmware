@@ -24,36 +24,48 @@
 
     <section>
       <form id="privacy-form" class="needs-validation" novalidate autocomplete="off">
-        <input type="hidden" name="privacy0_enabled" value="false">
-        <input type="hidden" name="privacy1_enabled" value="false">
-
         <div class="card mb-3">
-          <div class="card-header">
-            <h2 class="card-title">Privacy screen overlays</h2>
-            <small>Configure the dedicated privacy OSD layers for each stream. Changes take effect immediately after the video/OSD threads restart.</small>
-            <button type="button" class="btn btn-outline-secondary" id="privacy-reload" title="Reload values from camera">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div>
+              <h2 class="card-title">Privacy screen</h2>
+              <small>Controls the full-frame OSD cover that obscures video when
+              privacy mode is engaged. Applies to all streams.</small>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" id="privacy-reload"
+              title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
-          </div><!-- .card-header -->
+          </div>
           <div class="card-body">
-            <div class="row row-cols-1 row-cols-xl-2 mb-3">
-              <div class="col">
-                <h4>Main stream (stream0)</h4>
-                <small>Typically used by RTSP and local recordings.</small>
-                <p class="form-switch"><input class="form-check-input me-1" type="checkbox" role="switch" id="privacy0_enabled" name="privacy0_enabled" value="true">
-                  <label class="form-check-label" for="privacy0_enabled">Enabled on start</label></p>
-              </div><!-- .col -->
-              <div class="col">
-                <h4>Substream (stream1)</h4>
-                <small>Used by thumbnails and bandwidth-constrained clients.</small>
-                <p class="form-switch"><input class="form-check-input me-1" type="checkbox" role="switch" id="privacy1_enabled" name="privacy1_enabled" value="true">
-                  <label class="form-check-label" for="privacy1_enabled">Enabled on load</label></p>
-              </div><!-- .col -->
-            </div><!-- .row -->
-          </div><!-- -card-body -->
-        </div><!-- -card -->
+            <div class="col-md-8 col-lg-6">
+              <p class="form-switch">
+                <input class="form-check-input me-1" type="checkbox" role="switch"
+                  id="privacy-enabled" name="privacy-enabled" value="true">
+                <label class="form-check-label" for="privacy-enabled">
+                  Engage privacy screen on startup
+                </label>
+                <br><small class="text-muted">When enabled, the privacy cover is
+                applied before any stream goes live on boot.</small>
+              </p>
 
-        <button type="submit" id="privacy-save" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
+              <p class="form-switch mt-3">
+                <input class="form-check-input me-1" type="checkbox" role="switch"
+                  id="privacy-save-state" name="privacy-save-state" value="true">
+                <label class="form-check-label" for="privacy-save-state">
+                  Remember runtime state
+                </label>
+                <br><small class="text-muted">When enabled, live privacy toggles
+                (from the preview page, MQTT, or the <code>privacy</code> command)
+                are written to <code>privacy.enabled</code> so they survive
+                reboots.</small>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="privacy-save" class="btn btn-primary">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
       </form>
     </section>
   </div>
