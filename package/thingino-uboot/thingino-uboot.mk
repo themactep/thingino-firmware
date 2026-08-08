@@ -179,10 +179,12 @@ endif
 # right after DM init: PTZ stepper phases parked de-energised (the coils cook
 # otherwise), Wi-Fi module power/enable lines at their runtime resting level
 # (S36wireless only replays them on 3.10 kernels, late in boot; SDIO modules
-# must be powered for the kernel MMC scan), and multi-pin gpio.mmc_power
-# lists at their power-on level (the single-pin form becomes a vmmc-supply
-# regulator in the MMC inject above instead). The helper self-skips per
-# domain from the json content, so no per-domain config gate is needed.
+# must be powered for the kernel MMC scan), multi-pin gpio.mmc_power lists at
+# their power-on level (the single-pin form becomes a vmmc-supply regulator
+# in the MMC inject above instead), and IR-cut filter coil pins at the
+# /usr/sbin/ircut idle level so the solenoid is not left floating or
+# energised. The helper self-skips per domain from the json content, so no
+# per-domain config gate is needed.
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 define THINGINO_UBOOT_INJECT_GPIO_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
