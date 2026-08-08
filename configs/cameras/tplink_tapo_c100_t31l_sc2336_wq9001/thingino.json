@@ -6,10 +6,7 @@
       "pin": 57,
       "active_low": true
     },
-    "mmc_power": {
-      "pin": 60,
-      "active_low": false
-    },
+    "mmc_power": 60,
     "white": {
       "pin": 50,
       "active_low": true
