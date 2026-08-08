@@ -77,10 +77,8 @@ define INGENIC_LIB_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(STAGING_DIR)/usr/lib/libalog.so
 	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS),\
-		$(if $(filter-out a1,$(SOC_FAMILY)),\
 		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libsysutils.so \
 			$(STAGING_DIR)/usr/lib/libsysutils.so \
-		) \
 	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS),\
 		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libaudioProcess.so \
