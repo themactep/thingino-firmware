@@ -1,8 +1,3 @@
-gpio_default=10o 11o 18O 49i 51o 52o 53o 54o 60O 61o 62o 63o 64o
-gpio_default_net=
-gpio_ir940=50
-gpio_ircut=10 11
-gpio_led_b=9o
-gpio_mmc_cd=49
-gpio_motor_h=61 62 63 51
-gpio_motor_v=54 52 53 64
+# U-Boot environment overrides for this camera (imported at image build).
+# GPIO configuration does NOT belong here - it lives in thingino.json
+# (and the BR2_THINGINO_LED_*/AUDIO_GPIO kopt vars for kernel LEDs/audio).

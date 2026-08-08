@@ -1,2 +1,1 @@
-gpio_default=10o 11o 55o 56o 59o 60o 61o 62o 63o 64o
 serialport=ttyS0
