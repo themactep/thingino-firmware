@@ -22,11 +22,11 @@ config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 config BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
 	bool "libsysutils.so (proprietary)"
 	depends on !BR2_SOC_FAMILY = "a1"
-	default n if BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
-	default y
 	help
-	  Ingenic proprietary system utilities library.
-	  Overridden by ingenic-system-libs-neo libsysutils when selected.
+	  Ingenic proprietary system utilities library (SU_* API).
+	  No libimp variant or thingino package links it; select only
+	  if third-party software needs the stock blob. Prefer the
+	  ingenic-system-libs-neo replacement.
 
 config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
 	bool "libaudioProcess.so (proprietary)"
