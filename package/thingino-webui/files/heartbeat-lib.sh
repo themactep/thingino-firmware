@@ -321,11 +321,11 @@ thingino_heartbeat_native_payload() {
 				_spk_queried=1
 				;;
 			esac
-			# Use image.running_mode from prudynt as color_mode if daynight_mode unknown
-			if [ "$daynight_mode" = "unknown" ]; then
-				_cm=$(jct "$_tmp" get image.running_mode 2>/dev/null | tr -d '\n"')
-				case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
-			fi
+			# Always prefer image.running_mode from prudynt for color_mode
+			# (it reflects actual ISP state, unlike daynight_mode which is the
+			# photosensing policy and may not match after a manual toggle)
+			_cm=$(jct "$_tmp" get image.running_mode 2>/dev/null | tr -d '\n"')
+			case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
 		fi
 		rm -f "$_tmp"
 	fi
@@ -362,10 +362,15 @@ thingino_heartbeat_native_payload() {
 		esac
 	fi
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":null,"ir850_state":null,"ir940_state":null,"white_state":null,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
 		"$now" "$uptime" "$daynight_brightness" "$total_gain" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
 		"$motion_enabled" "$privacy_enabled" "$_color_mode" "$mic_enabled" "$spk_enabled" \
-		"$daynight_enabled" "$wg_status"
+		"$daynight_enabled" \
+		"$(thingino_heartbeat_ircut_state)" \
+		"$(thingino_heartbeat_light_state ir850)" \
+		"$(thingino_heartbeat_light_state ir940)" \
+		"$(thingino_heartbeat_light_state white)" \
+		"$wg_status"
 }
 
 thingino_heartbeat_payload() {
