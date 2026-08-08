@@ -176,7 +176,7 @@
     }
   });
 
-  // Upload to server button handler
+  // Upload to server button handler (re-runs thingino-diag on the backend)
   uploadBtn.addEventListener("click", async () => {
     if (!diagnosticData) {
       showAlert("warning", "No diagnostic data to upload.");
@@ -189,7 +189,7 @@
 
     try {
       const params = new URLSearchParams();
-      params.set("upload_data", diagnosticData);
+      params.set("direct_upload", "true");
       const response = await fetch("/x/info-diagnostic.cgi", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
