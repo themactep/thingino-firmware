@@ -87,6 +87,20 @@
       font-size: 0.875rem;
       color: var(--bs-secondary-color);
     }
+    /* Statistics card: bitrate trend sparkline (per stream, drawn by the
+       inline script below from the timps /events?stream=stats feed) and the
+       small key/value blocks for the read-only camera state (day/night,
+       motion) that sit below the table. */
+    .stats-spark {
+      display: block;
+      width: 100%;
+      min-width: 100px;
+      max-width: 160px;
+      height: 32px;
+    }
+    .stats-kv-label {
+      color: var(--bs-secondary-color);
+    }
   </style>
 </head>
 
@@ -155,10 +169,54 @@
             </div>
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
-          <!-- optional live stats (fps/subscribers/adaptive-drop counters),
-               toggled via ms-stats-toggle; fed by timps's /events?stream=stats
-               SSE (src/mp4/httpd.c stats_json) -->
-          <div class="ms-hint mt-1 font-monospace" id="ms-stats-panel" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistics: table of live encoder/camera values + a per-stream
+         bitrate trend sparkline. Shown/hidden together with the Live View
+         card's "Stream stats" button (#ms-stats-toggle) and fed by the same
+         timps /events?stream=stats SSE (fast, ~2s, per-frame fps/kbps) plus a
+         slow GET /control poll (5s, matches the control-bar heartbeat
+         cadence) for the config-level fields SSE doesn't carry (gop/profile/
+         rc_mode, ave_bitrate, day/night, motion). See the inline script below. -->
+    <section>
+      <div class="card mb-3" id="stats-card" style="display:none">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <h2 class="card-title mb-0">Statistics</h2>
+            <small>Live encoder &amp; camera status, from timps <code>/control</code></small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-3">
+              <thead>
+                <tr>
+                  <th scope="col">Stream</th>
+                  <th scope="col">Resolution</th>
+                  <th scope="col">Codec</th>
+                  <th scope="col" class="text-end">FPS</th>
+                  <th scope="col" class="text-end">Bitrate</th>
+                  <th scope="col" class="text-end" title="Measured average bitrate on T31; encoder queue backlog (frames not yet claimed) on every other platform">Avg / queue</th>
+                  <th scope="col" class="text-end">GOP</th>
+                  <th scope="col">Profile</th>
+                  <th scope="col">RC mode</th>
+                  <th scope="col" class="text-end">Subs</th>
+                  <th scope="col">Bitrate trend</th>
+                </tr>
+              </thead>
+              <tbody id="stats-table-body">
+                <tr data-placeholder><td colspan="11" class="text-secondary">Waiting for stats…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="row row-cols-2 row-cols-md-4 g-2 small">
+            <div class="col"><span class="stats-kv-label">Day/Night</span><br><span id="stats-daynight">–</span></div>
+            <div class="col"><span class="stats-kv-label">Motion</span><br><span id="stats-motion">–</span></div>
+            <div class="col"><span class="stats-kv-label">Uptime</span><br><span id="stats-uptime">–</span></div>
+            <div class="col"><span class="stats-kv-label">Clients</span><br><span id="stats-clients">–</span></div>
+          </div>
         </div>
       </div>
     </section>
@@ -172,6 +230,8 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/timps-api.js"></script>
+<script src="/a/timps-version.js"></script>
 <script>
   (function () {
     // timps's HTTP server port (http.port in /etc/timps.conf)
@@ -184,7 +244,12 @@
     const status = document.getElementById("ms-status");
     const overlay = document.getElementById("ms-connecting-overlay");
     const statsToggle = document.getElementById("ms-stats-toggle");
-    const statsPanel = document.getElementById("ms-stats-panel");
+    const statsCard = document.getElementById("stats-card");
+    const statsBody = document.getElementById("stats-table-body");
+    const statsDaynight = document.getElementById("stats-daynight");
+    const statsMotion = document.getElementById("stats-motion");
+    const statsUptime = document.getElementById("stats-uptime");
+    const statsClients = document.getElementById("stats-clients");
     if (!video || !connectButton || !streamSelect || !status) return;
 
     let host = location.hostname || "127.0.0.1";
@@ -218,32 +283,188 @@
       });
     }
 
-    // Optional stats panel (fps/subscribers/adaptive-drop counters) via
-    // timps's /events?stream=stats SSE - same token + EventSource pattern as
+    // Statistics card (table + per-stream bitrate sparkline) via timps's
+    // /events?stream=stats SSE - same token + EventSource pattern as
     // /a/preview-motion.js. Independent of the video player's own
     // connect/disconnect lifecycle: it keeps ticking even while disconnected,
     // so it also shows other clients' activity on this channel.
+    //
+    // The SSE "stats" frame (src/mp4/httpd.c stats_json, ~every 2s by
+    // default) carries the fast-moving per-frame numbers: fps/kbps/subs/drop
+    // per enabled stream, plus uptime_s/clients. It does NOT carry the
+    // config-level encoder fields (gop/profile/rc_mode) or the ave_bitrate/
+    // day-night/motion status blocks - those only exist in GET /control, so a
+    // slow poll of /control (5s, the same cadence as the control-bar
+    // heartbeat elsewhere in this webui) fills in the rest via timps-api.js
+    // (loaded on demand by main.js's timpsApiReady(), already used by the
+    // control bar on every page). Both loops only run while the Statistics
+    // card is visible (toggled by #ms-stats-toggle).
     let statsEs = null;
+    let statsControlTimer = null;
+    const MAX_HISTORY = 40; // ~80s of samples at the default 2s stats interval
+    const streamRows = {};  // chn -> {cells:{...}, history:[kbps,...]}
+
     function formatBytes(n) {
       if (n < 1024) return n + " B";
       if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
       return (n / (1024 * 1024)).toFixed(1) + " MB";
     }
-    function renderStats(j) {
-      if (!statsPanel) return;
-      const v = (j.video || []).map((s) => {
-        const drop = s.drop_frames
-          ? ` · dropped ${s.drop_frames}f/${formatBytes(s.drop_bytes)}`
-          : "";
-        return `chn${s.chn}: ${s.width}x${s.height} ${s.codec}, ${s.fps.toFixed(1)}fps, ` +
-          `${s.kbps >= 1000 ? (s.kbps / 1000).toFixed(1) + "Mbit/s" : s.kbps.toFixed(0) + "kbit/s"}, ` +
-          `${s.subs} sub${s.subs === 1 ? "" : "s"}${drop}`;
-      }).join("  |  ");
-      statsPanel.textContent = `uptime ${j.uptime_s}s · ${j.clients} client${j.clients === 1 ? "" : "s"}  |  ${v}`;
+    function formatKbps(kbps) {
+      return kbps >= 1000 ? (kbps / 1000).toFixed(2) + " Mb/s" : kbps.toFixed(0) + " kb/s";
     }
+    function streamLabel(chn) {
+      return chn === 0 ? "Main (chn0)" : chn === 1 ? "Sub (chn1)" : "chn" + chn;
+    }
+    function profileLabel(p) {
+      // config.h: 0 baseline, 1 main, 2 high (encoder profile index, not a
+      // resolution/quality "profile" in the marketing sense)
+      return p === 0 ? "0 (baseline)" : p === 1 ? "1 (main)" : p === 2 ? "2 (high)" : String(p);
+    }
+
+    // tiny hand-rolled sparkline: no charting dependency exists anywhere in
+    // this webui tree (checked a/vendor/ and package/thingino-webui/files/www
+    // - only bootstrap is vendored), and pulling one in for 1-2 mini trend
+    // lines would be disproportionate on a flash-constrained device.
+    function drawSparkline(canvas, values) {
+      if (!canvas) return;
+      const w = canvas.clientWidth || 140, h = 32;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, w, h);
+      if (values.length < 2) return;
+      const max = Math.max.apply(null, values), min = Math.min.apply(null, values);
+      const range = (max - min) || 1;
+      const color = getComputedStyle(document.documentElement).getPropertyValue("--bs-primary").trim() || "#0d6efd";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = (i / (values.length - 1)) * (w - 2) + 1;
+        const y = h - 1 - ((v - min) / range) * (h - 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    // builds the <tr> for a stream the first time the stats SSE reports it
+    // (lazily, so the table only ever lists streams that are actually
+    // enabled/running - matches what stats_json itself reports)
+    function ensureStatsRow(chn) {
+      if (streamRows[chn]) return streamRows[chn];
+      if (!statsBody) return null;
+      const placeholder = statsBody.querySelector("tr[data-placeholder]");
+      if (placeholder) placeholder.remove();
+      const tr = document.createElement("tr");
+      const cells = {};
+      ["stream", "res", "codec", "fps", "bitrate", "avgBitrate", "gop", "profile", "rc", "subs", "trend"]
+        .forEach((c) => {
+          const td = document.createElement("td");
+          if (c === "fps" || c === "bitrate" || c === "avgBitrate" || c === "gop" || c === "subs") {
+            td.className = "text-end";
+          }
+          if (c === "trend") {
+            const canvas = document.createElement("canvas");
+            canvas.className = "stats-spark";
+            canvas.setAttribute("aria-label", "bitrate trend");
+            td.appendChild(canvas);
+            cells.canvas = canvas;
+          } else {
+            cells[c] = td;
+          }
+          tr.appendChild(td);
+        });
+      cells.stream.textContent = streamLabel(chn);
+      cells.gop.textContent = "—";
+      cells.profile.textContent = "—";
+      cells.rc.textContent = "—";
+      cells.avgBitrate.textContent = "";
+      statsBody.appendChild(tr);
+      const row = { cells, history: [] };
+      streamRows[chn] = row;
+      return row;
+    }
+
+    // fast path: fed by every "stats" SSE frame (~2s) - live fps/bitrate/subs
+    // and the bitrate trend sparkline
+    function renderStats(j) {
+      if (statsUptime) statsUptime.textContent = j.uptime_s + "s";
+      if (statsClients) statsClients.textContent = String(j.clients);
+      (j.video || []).forEach((s) => {
+        const row = ensureStatsRow(s.chn);
+        if (!row) return;
+        row.cells.res.textContent = s.width + "x" + s.height;
+        row.cells.codec.textContent = s.codec.toUpperCase();
+        row.cells.fps.textContent = s.fps.toFixed(1);
+        row.cells.bitrate.textContent = formatKbps(s.kbps);
+        row.cells.subs.textContent = s.subs + (s.subs === 1 ? " sub" : " subs");
+        row.cells.subs.title = s.drop_frames
+          ? "dropped " + s.drop_frames + " frames / " + formatBytes(s.drop_bytes)
+          : "";
+        row.history.push(s.kbps);
+        if (row.history.length > MAX_HISTORY) row.history.shift();
+        drawSparkline(row.cells.canvas, row.history);
+      });
+    }
+
+    // slow path: one GET /control every 5s while the card is visible - fills
+    // in the fields the stats SSE doesn't carry (config-level gop/profile/
+    // rc_mode, the encoder telemetry below, and day/night + motion status).
+    // Only updates rows the fast path already created; a stream absent from
+    // stats_json (disabled) never gets a control-only row.
+    function applyControlSnapshot(j) {
+      if (!j) return;
+      const video = j.video || {}, enc = j.encoder || {};
+      Object.keys(video).forEach((k) => {
+        const row = streamRows[parseInt(k, 10)];
+        if (!row) return;
+        const vcfg = video[k];
+        row.cells.gop.textContent = String(vcfg.gop);
+        row.cells.profile.textContent = profileLabel(vcfg.profile);
+        row.cells.rc.textContent = String(vcfg.rc_mode || "").toUpperCase();
+        // ave_bitrate (IMP_Encoder_GetChnAveBitrate) only exists on T31; every
+        // other platform - and a T31 stream before its first frame - reports
+        // -1 and control.c omits the field entirely. IMP_Encoder_Query's
+        // queue-backlog counters (left_pics/left_stream_bytes/left_stream_frames)
+        // ARE available on all 9 platforms, so use them as an always-present
+        // encoder-health stand-in instead of leaving the cell as a permanent
+        // "-" placeholder: a healthy encoder keeps this at/near 0, a rising
+        // value means it isn't keeping up with the source.
+        const es = enc[k];
+        if (es && typeof es.ave_bitrate === "number") {
+          row.cells.avgBitrate.textContent = formatKbps(es.ave_bitrate);
+          row.cells.avgBitrate.title = "";
+        } else if (es) {
+          row.cells.avgBitrate.textContent = es.left_pics + " q";
+          row.cells.avgBitrate.title = "encoder backlog: " + es.left_pics +
+            " frame(s) queued, " + formatBytes(es.left_stream_bytes) +
+            " / " + es.left_stream_frames + " stream frame(s) unclaimed";
+        } else {
+          row.cells.avgBitrate.textContent = "";
+          row.cells.avgBitrate.title = "";
+        }
+      });
+      const dn = j.daynight || {};
+      if (statsDaynight) {
+        const modeTxt = dn.mode === 1 ? "Night" : dn.mode === 0 ? "Day" : "Unknown";
+        const gain = (typeof dn.total_gain === "number" && dn.total_gain >= 0)
+          ? " · gain " + dn.total_gain.toFixed(0) : "";
+        statsDaynight.textContent = modeTxt + (dn.enabled ? " (auto)" : " (manual)") + gain;
+      }
+      const mo = j.motion || {};
+      if (statsMotion) {
+        statsMotion.textContent = !mo.available ? "Unavailable" : (mo.enabled ? "Enabled" : "Disabled");
+      }
+    }
+    function fetchControlSnapshot() {
+      timpsApiReady().then((api) => api.get()).then(applyControlSnapshot)
+        .catch(() => { /* offline poll tick - table just keeps its last values */ });
+    }
+
     async function startStats() {
       if (statsEs || !window.EventSource) return;
       const info = await window.timpsTokenInfo;
+      if (statsCard.style.display === "none") return; // toggled off while awaiting the token
       const b = info ? (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT) : base;
       const tok = info && info.token ? "&token=" + encodeURIComponent(info.token) : "";
       statsEs = new EventSource(b + "/events?stream=stats" + tok);
@@ -251,20 +472,28 @@
         try { renderStats(JSON.parse(ev.data)); } catch (e) { /* ignore malformed frame */ }
       });
       statsEs.onerror = () => { /* EventSource auto-reconnects (server retry: 3000) */ };
+      fetchControlSnapshot();
+      if (!statsControlTimer) statsControlTimer = setInterval(fetchControlSnapshot, 5000);
     }
     function stopStats() {
       if (statsEs) { statsEs.close(); statsEs = null; }
-      if (statsPanel) statsPanel.textContent = "";
+      if (statsControlTimer) { clearInterval(statsControlTimer); statsControlTimer = null; }
+      Object.keys(streamRows).forEach((k) => delete streamRows[k]);
+      if (statsBody) statsBody.innerHTML = '<tr data-placeholder><td colspan="11" class="text-secondary">Waiting for stats…</td></tr>';
+      if (statsDaynight) statsDaynight.textContent = "–";
+      if (statsMotion) statsMotion.textContent = "–";
+      if (statsUptime) statsUptime.textContent = "–";
+      if (statsClients) statsClients.textContent = "–";
     }
-    if (statsToggle && statsPanel) {
+    if (statsToggle && statsCard) {
       const statsWanted = sessionStorage.getItem("ms.stats") === "1";
       const applyStatsUi = (on) => {
-        statsPanel.style.display = on ? "" : "none";
+        statsCard.style.display = on ? "" : "none";
         statsToggle.classList.toggle("active", on);
         if (on) startStats(); else stopStats();
       };
       statsToggle.addEventListener("click", () => {
-        const on = statsPanel.style.display === "none";
+        const on = statsCard.style.display === "none";
         sessionStorage.setItem("ms.stats", on ? "1" : "0");
         applyStatsUi(on);
       });
