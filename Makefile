@@ -740,6 +740,7 @@ distclean: clean-nfs-debug
 pack: $(FIRMWARE_BIN_FULL)
 	@$(TEAL) "$@"
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(ORANGE) "Camera: $(CAMERA) (MMC boot)"
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 	@echo ""
