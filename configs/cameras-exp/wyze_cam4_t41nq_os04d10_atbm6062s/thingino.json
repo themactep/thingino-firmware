@@ -7,7 +7,10 @@
     "led_w": 48,
     "mmc_cd": 58,
     "mmc_en": 57,
-    "mmc_power": 61,
+    "mmc_power": {
+      "pin": 61,
+      "active_low": false
+    },
     "spk_en": 63,
     "white_light_en": 47,
     "wlan": 78

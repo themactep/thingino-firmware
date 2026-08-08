@@ -1,4 +1,3 @@
-gpio_button_audio_mute=35
-gpio_button_video_mute=34
-gpio_button_vol_down=33
-gpio_button_vol_up=32
+# U-Boot environment overrides for this camera (imported at image build).
+# GPIO configuration does NOT belong here - it lives in thingino.json
+# (and the BR2_THINGINO_LED_*/AUDIO_GPIO kopt vars for kernel LEDs/audio).
