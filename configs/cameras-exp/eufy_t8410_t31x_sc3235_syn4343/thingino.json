@@ -9,5 +9,9 @@
       "active_low": false
     },
     "wlan": 48
+  },
+  "motors": {
+    "gpio_pan": "7 6 8 10",
+    "gpio_tilt": "9 11 14 16"
   }
 }
