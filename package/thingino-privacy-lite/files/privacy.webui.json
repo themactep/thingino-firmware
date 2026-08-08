@@ -1,0 +1,30 @@
+{
+  "name": "privacy",
+  "label": "Privacy Screen",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Audio",
+      "items": [
+        {
+          "label": "Privacy screen",
+          "href": "/config-privacy.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "privacy": true
+  },
+  "cgi": [],
+  "pages": [
+    "/config-privacy.html"
+  ]
+}

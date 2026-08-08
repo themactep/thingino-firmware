@@ -5,3 +5,12 @@ config BR2_PACKAGE_THINGINO_WEBUI
 	  Thingino Web UI (HTML, JS, CSS, Auburn shell CGI).
 	  Requires a web server to be selected.
 	  https://github.com/themactep/thingino-firmware
+
+config BR2_PACKAGE_THINGINO_WEBUI_PARANOID
+	bool "Paranoid mode — bundle assets locally, no CDN"
+	depends on BR2_PACKAGE_THINGINO_WEBUI
+	help
+	  Bundle Bootstrap, icons, and font assets on the camera.
+	  All HTML pages reference local vendor files instead of CDNs.
+	  Useful when the camera is isolated from the internet.
+	  Adds ~248 KB to the firmware image.

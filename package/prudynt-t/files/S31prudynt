@@ -19,19 +19,30 @@ stop_heartbeat() {
 	fi
 }
 
+# Returns 0 if prudynt process is alive (by PID file or name match).
+is_alive() {
+	if [ -f "$PIDFILE" ]; then
+		kill -0 "$(cat "$PIDFILE")" 2>/dev/null && return 0
+	fi
+	pidof "$DAEMON" >/dev/null 2>&1 && return 0
+	return 1
+}
+
 start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
 }
 
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON" 2>/dev/null
 		status=$?
 		rm -f "$PIDFILE"
-		return $status
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	# Fallback: kill by name if PID file approach didn't work.
+	if is_alive; then
+		killall "$DAEMON" 2>/dev/null || killall -9 "$DAEMON" 2>/dev/null
+	fi
 }
 
 start() {
@@ -40,6 +51,42 @@ start() {
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		restart_heartbeat
+
+		# Re-sync ISP daynight mode after prudynt is up.
+		# daynightd starts at S10 (before prudynt), so any color
+		# command it issued would have failed silently because
+		# prudynt's HTTP API wasn't listening yet.
+		(
+			MODE_FILE="/run/thingino/daynight_mode"
+			API_URL="http://127.0.0.1:8080/api/v1/config"
+			API_KEY_FILE="/etc/thingino-api.key"
+
+			# Wait for prudynt's HTTP API to be available (up to 15 s)
+			i=0
+			while [ $i -lt 30 ]; do
+				if curl -s "$API_URL" >/dev/null 2>&1; then
+					break
+				fi
+				usleep 500000
+				i=$((i + 1))
+			done
+
+			if [ -f "$MODE_FILE" ] && [ -f "$API_KEY_FILE" ]; then
+				MODE=$(cat "$MODE_FILE" 2>/dev/null)
+				API_KEY=$(cat "$API_KEY_FILE" 2>/dev/null | tr -d '\n\r ')
+				if [ "$MODE" = "night" ] && [ -n "$API_KEY" ]; then
+					curl -s -X POST "$API_URL" \
+						-H "X-API-Key: $API_KEY" \
+						-H "Content-Type: application/json" \
+						-d '{"image":{"running_mode":1}}' >/dev/null 2>&1 || true
+				elif [ "$MODE" = "day" ] && [ -n "$API_KEY" ]; then
+					curl -s -X POST "$API_URL" \
+						-H "X-API-Key: $API_KEY" \
+						-H "Content-Type: application/json" \
+						-d '{"image":{"running_mode":0}}' >/dev/null 2>&1 || true
+				fi
+			fi
+		) &
 	fi
 	return "$status"
 }
@@ -48,6 +95,24 @@ stop() {
 	echo -c 15 "Stopping Prudynt"
 	stop_heartbeat
 	stop_daemon
+
+	# Wait up to 5 s for the process to actually exit.
+	i=0
+	while is_alive && [ $i -lt 50 ]; do
+		usleep 100000
+		i=$((i + 1))
+	done
+
+	# Force-kill if still alive after timeout.
+	if is_alive; then
+		echo -c 15 "Prudynt did not stop, force-killing"
+		if [ -f "$PIDFILE" ]; then
+			start-stop-daemon -K -s KILL -p "$PIDFILE"
+		else
+			start-stop-daemon -K -s KILL -x "$DAEMON"
+		fi
+		usleep 500000
+	fi
 }
 
 case "$1" in
@@ -59,8 +124,19 @@ case "$1" in
 		;;
 	restart)
 		stop || true
-		sleep 1
-		start
+		sleep 2
+		# Retry start up to 3 times if the first attempt fails.
+		r=0
+		while [ $r -lt 3 ]; do
+			if start; then
+				exit 0
+			fi
+			r=$((r + 1))
+			echo -c 15 "Prudynt start failed (attempt $r), retrying..."
+			sleep 2
+		done
+		echo -c 15 "Prudynt failed to start after 3 attempts"
+		exit 1
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart}"

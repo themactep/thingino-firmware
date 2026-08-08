@@ -22,6 +22,7 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
 config BR2_PACKAGE_THINGINO_KOPT_LEDS
 	bool "GPIO LEDs"
 	depends on BR2_PACKAGE_THINGINO_KOPT
+	default y
 	help
 	  Enable the kernel LED subsystem and gpio-leds platform driver.
 
@@ -263,6 +264,13 @@ config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
+
+config BR2_PACKAGE_THINGINO_KOPT_IPV6
+	bool "IPv6"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	select BR2_PACKAGE_THINGINO_ODHCP6C
+	help
+	  Enable IPv6 networking support.
 
 config BR2_PACKAGE_THINGINO_KOPT_PWM
 	bool "PWM"

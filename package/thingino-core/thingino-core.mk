@@ -15,7 +15,7 @@ define THINGINO_CORE_INSTALL_TARGET_CMDS
 	# Stage camera-specific overrides for later merge
 	CAMERA_CONFIG=$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json; \
 	[ -f "$$CAMERA_CONFIG" ] && \
-		$(INSTALL) -m 0644 "$$CAMERA_CONFIG" $(THINGINO_CORE_STAGING_DIR)/10-camera.json || true
+		$(INSTALL) -m 0644 "$$CAMERA_CONFIG" $(THINGINO_CORE_STAGING_DIR)/90-camera.json || true
 
 	printf "thingino-core: staged %s\n" $(THINGINO_CORE_OUTPUT_FILE) 1>&2
 endef

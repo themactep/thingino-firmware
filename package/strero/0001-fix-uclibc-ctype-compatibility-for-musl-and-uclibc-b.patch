@@ -7,51 +7,48 @@ Subject: [PATCH] fix uclibc ctype compatibility for musl and uclibc builds
   so Ingenic SDK libs compiled with uClibc (e.g. libalog.so) can find
   these symbols at runtime when running under musl. Tables are built
   using musl's own ctype functions with uClibc's bit layout.
-- glibc_uclibc_compat.c: fix __ctype_tolower_loc() return type from
-  'const short**' to 'const int32_t**' matching the actual glibc ABI.
+- glibc_uclibc_compat.c: remove broken __ctype_b_loc() and
+  __ctype_tolower_loc() stubs that returned NULL pointers. These
+  interposed on uClibc-ng's native implementations and caused SIGSEGV
+  in shared libraries (e.g. libjct.so) that call isdigit()/isalpha()
+  through __ctype_b_loc. uClibc-ng already provides these functions
+  with properly initialized C locale tables.
 ---
- src/glibc_uclibc_compat.c | 19 +++++-----
- src/uclibc_musl_shim.c    | 74 +++++++++++++++++++++++++++++++++++++--
- 2 files changed, 80 insertions(+), 13 deletions(-)
+ src/glibc_uclibc_compat.c | 28 ++--------------------------
+ src/uclibc_musl_shim.c    | 74 +++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 75 insertions(+), 27 deletions(-)
 
 diff --git a/src/glibc_uclibc_compat.c b/src/glibc_uclibc_compat.c
-index 64f93f8..c6ccaef 100644
+index 64f93f8..a228d3f 100644
 --- a/src/glibc_uclibc_compat.c
 +++ b/src/glibc_uclibc_compat.c
-@@ -7,25 +7,22 @@
+@@ -6,26 +6,4 @@
+  * Copyright (C) 2025 Paul Philippov, Thingino Project
   */
  
- #include <ctype.h>
--#include <stddef.h>
-+#include <stdint.h>
- 
- /**
-  * glibc provides __ctype_b_loc() and __ctype_tolower_loc() functions
-  * that return pointers to ctype tables. uclibc doesn't have these.
+-#include <ctype.h>
+ #include <stddef.h>
+-
+-/**
+- * glibc provides __ctype_b_loc() and __ctype_tolower_loc() functions
+- * that return pointers to ctype tables. uclibc doesn't have these.
 - * We need to provide compatible implementations.
-+ * Provide compatible stubs so glibc-compiled libraries can run on uclibc.
-  */
- 
+- */
+-
 -/* uclibc ctype compatibility */
 -const unsigned short** __ctype_b_loc(void)
-+const unsigned short **__ctype_b_loc(void)
- {
+-{
 -    static const unsigned short* ctype_b = NULL;
 -    static const unsigned short** ctype_b_ptr = &ctype_b;
 -    return ctype_b_ptr;
-+    static const unsigned short *ctype_b = NULL;
-+    return (const unsigned short **)&ctype_b;
- }
- 
--const int** __ctype_tolower_loc(void)
-+const int32_t **__ctype_tolower_loc(void)
- {
--    static const int* ctype_tolower = NULL;
--    static const int** ctype_tolower_ptr = &ctype_tolower;
+-}
+-
+-const short** __ctype_tolower_loc(void)
+-{
+-    static const short* ctype_tolower = NULL;
+-    static const short** ctype_tolower_ptr = &ctype_tolower;
 -    return ctype_tolower_ptr;
-+    static const int32_t *ctype_tolower = NULL;
-+    return (const int32_t **)&ctype_tolower;
- }
+-}
 diff --git a/src/uclibc_musl_shim.c b/src/uclibc_musl_shim.c
 index 38f53a8..a6b49ed 100644
 --- a/src/uclibc_musl_shim.c
@@ -148,4 +145,3 @@ index 38f53a8..a6b49ed 100644
 +}
 -- 
 2.47.3
-

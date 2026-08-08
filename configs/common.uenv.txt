@@ -1,9 +1,9 @@
-autoupdate=if test "${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 ${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if sf probe && sf erase 0 ${flash_len} && sf write ${loadaddr} 0 ${filesize}; then fatwrite mmc 0:1 ${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi
+autoupdate=if test \"${enable_updates}\" = \"true\"; then echo \"checking for update file\"; if fatsize mmc 0:1 autoupdate-full.done; then echo \"AU: already applied\"; else if fatload mmc 0:1 ${loadaddr} autoupdate-full.bin; then echo \"AU: flashing autoupdate-full.bin\"; if sf probe && sf erase 0 ${flash_len} && sf write ${loadaddr} 0 ${filesize}; then fatwrite mmc 0:1 ${loadaddr} autoupdate-full.done 1; echo \"AU: done, rebooting\"; reset; fi; fi; fi; fi
 baudrate=115200
-button_cmd_0=echo "RST: factory reset"; run overlay_wipe
+button_cmd_0=echo \"RST: factory reset\"; run overlay_wipe
 button_cmd_0_name=reset
 enable_updates=true
 loadaddr=0x80600000
-loaduenv=if test "${enable_updates}" = "true"; then if fatsize mmc 0:1 uenv.done; then echo "UENV: uenv.txt already applied"; else if fatload mmc 0:1 ${loadaddr} uenv.txt; then echo "UENV: importing uenv.txt"; if env import -t -r ${loadaddr} ${filesize}; then saveenv; fatwrite mmc 0:1 ${loadaddr} uenv.done 1; echo "UENV: env saved"; fi; fi; fi; fi
+loaduenv=if test \"${enable_updates}\" = \"true\"; then if fatsize mmc 0:1 uenv.done; then echo \"UENV: uenv.txt already applied\"; else if fatload mmc 0:1 ${loadaddr} uenv.txt; then echo \"UENV: importing uenv.txt\"; if env import -t -r ${loadaddr} ${filesize}; then saveenv; fatwrite mmc 0:1 ${loadaddr} uenv.done 1; echo \"UENV: env saved\"; fi; fi; fi; fi
 panic_timeout=2
 serialport=ttyS1

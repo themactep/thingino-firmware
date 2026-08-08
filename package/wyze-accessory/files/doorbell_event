@@ -3,30 +3,24 @@
 # doorbell_event – Event-driven chime dispatcher for Thingino
 #
 # Reads chime.events configuration from /etc/thingino.json, determines
-# day/night state from /tmp/nightmode.txt, applies mode-specific
-# overrides, and calls doorbell_ctrl with the correct group, sound,
-# volume, and repeat count.
+# day/night state from /tmp/nightmode.txt, dispatches the chime, and
+# controls the indicator LED (blue = day, yellow = night, brief blink
+# on event to confirm ringing).
 #
 # Usage: doorbell_event <event_name>
 #
-# thingino.json schema (chime.events section):
+# thingino.json schema (chime.events section, per-period format):
 #   "chime": {
 #     "events": {
-#       "<event_name>": {
-#         "sound": "DOORBELL_1",
-#         "volume": "5",
-#         "repeat": "2",
-#         "group": "all",
-#         "day":   { "group": "daytime" },
-#         "night": { "group": "nighttime", "volume": "2" }
+#       "<event>": {
+#         "day":   { "sound":"...", "volume":"5", "repeat":"2", "group":"..." },
+#         "night": { "sound":"...", "volume":"2", "repeat":"1", "group":"..." }
 #       }
 #     }
 #   }
 #
-# - "sound" is required (name or number, 1–19).
-# - If no "group" is set (and no day/night override), play-all is used.
-# - "day" and "night" objects override the top-level defaults for that mode.
-# - Day/night state: /tmp/nightmode.txt contains "day" or "night".
+# Each period (day/night) has its own complete set of parameters.
+# Nothing is shared between them.
 #
 
 CONFIG="/etc/thingino.json"
@@ -56,27 +50,52 @@ jctval() {
 	fi
 }
 
-sound=$(jctval "chime.events.$EVENT.sound")
-volume=$(jctval "chime.events.$EVENT.volume")
-repeat=$(jctval "chime.events.$EVENT.repeat")
-group=$(jctval "chime.events.$EVENT.group")
+# Per-period fields
+sound=$(jctval "chime.events.$EVENT.$MODE.sound")
+volume=$(jctval "chime.events.$EVENT.$MODE.volume")
+repeat=$(jctval "chime.events.$EVENT.$MODE.repeat")
+group=$(jctval "chime.events.$EVENT.$MODE.group")
 
-# Mode-specific overrides
-mode_group=$(jctval "chime.events.$EVENT.$MODE.group")
-mode_volume=$(jctval "chime.events.$EVENT.$MODE.volume")
-mode_repeat=$(jctval "chime.events.$EVENT.$MODE.repeat")
-
-[ -n "$mode_group" ] && group="$mode_group"
-[ -n "$mode_volume" ] && volume="$mode_volume"
-[ -n "$mode_repeat" ] && repeat="$mode_repeat"
-
-# Require a sound
-if [ -z "$sound" ]; then
-	echo "doorbell_event: no sound configured for event '$EVENT'" >&2
-	exit 2
+# Check bypass: skip chime playback entirely, but still fire HA + LED blink
+BYPASS=$(jct "$CONFIG" get chime.bypass 2>/dev/null | tr -d '"')
+if [ "$BYPASS" = "true" ]; then
+	echo "[doorbell_event] $EVENT ($MODE) → bypassed (no chime)"
+	# Brief LED blink to confirm event
+	led b 2>/dev/null
+	sleep 0.15
+	led off 2>/dev/null
+	sleep 0.15
+	# Fire HA notification and touch flag file
+	if [ -f /usr/share/ha-common ] &&
+		[ "$(jct /etc/thingino.json get ha.enable_doorbell 2>/dev/null | tr -d '"')" = "true" ]; then
+		. /usr/share/ha-common
+		ha_pub_state doorbell ON 1
+	fi
+	touch /tmp/doorbell_pressed 2>/dev/null || true
+	exit 0
 fi
 
-# Build argument list safely
+[ -z "$sound" ] && {
+	echo "doorbell_event: no sound for event '$EVENT' in $MODE mode" >&2
+	exit 2
+}
+
+# Set steady LED: blue for day, yellow for night
+if [ "$MODE" = "night" ]; then
+	led y 2>/dev/null
+	LED_COLOR=y
+else
+	led b 2>/dev/null
+	LED_COLOR=b
+fi
+
+# Brief blink to confirm the event
+sleep 0.15
+led off 2>/dev/null
+sleep 0.15
+led "$LED_COLOR" 2>/dev/null
+
+# Build and execute command
 set -- doorbell_ctrl
 if [ -n "$group" ]; then
 	set -- "$@" play-group "$group"
@@ -86,6 +105,17 @@ fi
 set -- "$@" "$sound"
 [ -n "$volume" ] && set -- "$@" "$volume"
 [ -n "$repeat" ] && set -- "$@" "$repeat"
+
+# Notify Home Assistant immediately if the HA integration is active.
+# Publish ON directly via MQTT so HA automations fire without delay.
+# The flag file is also touched so ha-state clears it to OFF on its next
+# poll cycle (the retained ON would otherwise stick until overwritten).
+if [ -f /usr/share/ha-common ] &&
+	[ "$(jct /etc/thingino.json get ha.enable_doorbell 2>/dev/null | tr -d '"')" = "true" ]; then
+	. /usr/share/ha-common
+	ha_pub_state doorbell ON 1
+fi
+touch /tmp/doorbell_pressed 2>/dev/null || true
 
 echo "[doorbell_event] $EVENT ($MODE) → $*"
 exec "$@"

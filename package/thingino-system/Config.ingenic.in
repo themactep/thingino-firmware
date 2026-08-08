@@ -1,0 +1,16 @@
+# Ingenic's half of BR2_THINGINO_SYSTEM_PACKAGES.
+#
+# A hidden symbol rather than bare `select` lines in the sourced file: `source`
+# is a top-level Kconfig statement and cannot appear inside a config entry's
+# property list, so the vendor block has to be a config of its own that the
+# menu selects.
+config BR2_THINGINO_SYSTEM_PACKAGES_INGENIC
+	bool
+	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
+	select BR2_PACKAGE_INGENIC_LIB if BR2_THINGINO_DEV_CAMERA || BR2_THINGINO_AUDIO
+	select BR2_PACKAGE_INGENIC_PWM
+	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
+	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	# Every other vendor so far keeps its bootloader on the chip, and
+	# scripts/soc_database.txt has no U-Boot board name outside Ingenic.
+	select BR2_TARGET_UBOOT

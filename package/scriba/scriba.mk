@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-SCRIBA_VERSION = c590b6a7c55043218c28d7f34d6c213d950d8b71
+SCRIBA_VERSION = 17ee5a9a6a02a62d05e0ab5497c95cb348bc24a6
 SCRIBA_SITE = $(call github,themactep,scriba,$(SCRIBA_VERSION))
 
 SCRIBA_LICENSE = GPL-2.0

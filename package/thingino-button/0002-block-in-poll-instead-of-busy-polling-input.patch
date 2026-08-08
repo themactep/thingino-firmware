@@ -1,0 +1,80 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Sat, 18 Jul 2026 19:30:00 -0400
+Subject: [PATCH] block in poll() instead of busy-polling the input device
+
+process_events() used a non-blocking read followed by usleep(10ms) in
+an endless loop: 100 wakeups and ~300 syscalls per second forever, even
+when no button is ever pressed. On a single-core camera SoC this is
+constant scheduler churn that keeps the CPU from staying idle.
+
+Block in poll() on the event fd instead - the input layer wakes us
+exactly when a key event arrives. The 10ms tick is only kept while a
+TIMED_FIRE countdown is armed (between press and release/fire), which
+is the only case that needs time-based polling. Steady-state wakeups
+drop from 100/s to zero with no functional change:
+
+- PRESS/RELEASE/TIMED actions are event-driven and fire on the poll
+  wakeup itself;
+- TIMED_FIRE keeps its 10ms firing granularity while armed;
+- poll() EINTR falls through to the existing EAGAIN-tolerant read.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+--- a/thingino-button.c
++++ b/thingino-button.c
+@@ -11,6 +11,7 @@
+ #include <signal.h>
+ #include <sys/stat.h>
+ #include <ctype.h>
++#include <poll.h>
+ 
+ #define CONFIG_FILE "/etc/thingino-button.conf"
+ #define DEFAULT_DEVICE "/dev/input/event0"
+@@ -315,8 +316,23 @@
+ void process_events(int fd) {
+ 	struct input_event ev;
+ 	struct timeval press_times[256] = {{0, 0}};
++	struct pollfd pfd;
++	int poll_timeout = -1;
+ 
+ 	while (1) {
++		// Block until an input event arrives instead of busy-polling.
++		// The previous read + usleep(10ms) cycle woke up 100 times per
++		// second forever, even with no button ever pressed. A 10ms tick
++		// is only needed while a TIMED_FIRE countdown is armed; otherwise
++		// sleep in poll() until the input layer delivers an event.
++		pfd.fd = fd;
++		pfd.events = POLLIN;
++		int pn = poll(&pfd, 1, poll_timeout);
++		if (pn < 0 && errno != EINTR) {
++			perror("Error polling event device");
++			break;
++		}
++
+ 		char buf[16];
+ 		int n = read(fd, buf, sizeof(buf));
+ 		if (n == 16) {
+@@ -398,6 +414,7 @@
+ 		// Check for timed fire events
+ 		struct timeval now;
+ 		gettimeofday(&now, NULL);
++		int pending_fires = 0;
+ 		for (int i = 0; i < 256; i++) {
+ 			for (int j = 0; j < timed_fires[i].count; j++) {
+ 				TimedFireEntry *entry = &timed_fires[i].entries[j];
+@@ -410,11 +427,14 @@
+ 					log_message("TIMED_FIRE command for key %d: %s (elapsed %f seconds)\n", i, entry->config->command, elapsed);
+ 					execute_command(entry->config->command);
+ 					entry->active = 0; // Deactivate the entry after execution
++				} else {
++					pending_fires = 1; // Countdown still armed
+ 				}
+ 			}
+ 		}
+ 
+-		usleep(10000); // Sleep for 10ms to reduce CPU usage
++		// Tick at 10ms only while TIMED_FIRE countdowns are pending
++		poll_timeout = pending_fires ? 10 : -1;
+ 	}
+ }
+ 
