@@ -210,6 +210,31 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
+      # Locally these are applied by `make update`, which this workflow does not
+      # run (its `git pull --rebase` would let parallel matrix jobs drift onto
+      # different commits). Without them buildroot has no BR2_mips_xburst2
+      # symbol, so configs/fragments/soc-xburst2.fragment is silently dropped
+      # and XBurst2 boards build as plain mips32 with -mnan=legacy, which fails
+      # to link against the nan2008 external toolchain. Same step as
+      # toolchain-aarch64.yaml and toolchain-x86_64.yaml.
+      - name: Apply buildroot override patches
+        run: |
+          PATCH_DIR="package/all-patches/buildroot"
+          if [ -d "$PATCH_DIR" ]; then
+            for patch in $(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do
+              abspatch="$(pwd)/$patch"
+              if git -C buildroot apply --check "$abspatch" 2>/dev/null; then
+                echo "Applying $patch"
+                git -C buildroot apply "$abspatch"
+              elif git -C buildroot apply -R --check "$abspatch" 2>/dev/null; then
+                echo "Already applied: $patch"
+              else
+                echo "ERROR: failed to apply $patch"
+                exit 1
+              fi
+            done
+          fi
+
       - name: Configure environment variables
         id: env
         run: |
