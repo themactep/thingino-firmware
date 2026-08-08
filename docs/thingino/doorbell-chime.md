@@ -18,6 +18,16 @@ Hardware
   protocol (CC1310 radio, serial interface on `/dev/ttyS0` inside the camera).
 - No additional wiring is required — pairing is performed over the air.
 
+### Hardware limitations
+
+**Volume granularity.** The protocol sends volume as a single byte
+(0–255), and the software exposes a 1–8 range in the UI
+(1–32 via the CLI for backward compatibility). However, the chime
+hardware uses a simple PWM-driven speaker with limited DAC resolution.
+Only about 4–8 perceptibly distinct volume levels exist; values beyond
+that are quantised by the hardware and produce no meaningful difference.
+The default volume of 5 is a good middle ground for most environments.
+
 The `doorbell_ctrl` command
 ---------------------------
 
@@ -137,7 +147,7 @@ chime under a friendly name in `/etc/thingino.json`.
 |------------------------------------|-------------------------------------------------------|
 | "no chime announcement" after 45 s | Chime not in pairing mode. Re-check: unplug 10+ s, plug in, hold button until slow blue flash. Try again. |
 | No sound after "Done!"             | Chime may already be paired. Try `doorbell_ctrl play <NAME> DOORBELL_1 5` to test. |
-| Pairing works but chime is silent  | Chime volume may be too low. Test with `DOORBELL_1` at volume 8. |
+| Pairing works but chime is silent  | Chime volume may be too low. Test with `DOORBELL_1` at volume 8 (maximum). |
 | LED flashes **fast** blue          | Chime is in factory-reset mode, not pairing mode. Wait for it to settle, then start over. |
 
 ### Re-adding a previously paired chime
