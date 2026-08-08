@@ -1001,6 +1001,7 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 				"$(thingino_agent_json_bool "$(thingino_agent_prudynt_has_daynight)")" \
 				"$(thingino_agent_json_bool "$(thingino_agent_prudynt_has_daynight)")"
 			printf '"privacy":{"enabled":%s},' "$(thingino_agent_json_bool "$(thingino_agent_prudynt_has_privacy)")"
+			printf '"audio":{"mic_enabled":true,"spk_enabled":true},'
 			printf '"storage":{"configured":true,"runtime":true},'
 			printf '"streams":{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true},' \
 				"$(thingino_agent_prudynt_stream_count)" \
@@ -1025,6 +1026,9 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 			;;
 		privacy)
 			printf '{"enabled":%s}\n' "$(thingino_agent_json_bool "$(thingino_agent_prudynt_has_privacy)")"
+			;;
+		audio)
+			printf '{"mic_enabled":true,"spk_enabled":true}\n'
 			;;
 		storage)
 			printf '{"configured":true,"runtime":true}\n'
@@ -1274,6 +1278,12 @@ thingino_agent_adapter_prudynt_get_setting() {
 		image/vflip)
 			thingino_agent_print_setting_leaf vflip "$(thingino_agent_prudynt_raw image.vflip)"
 			;;
+		audio/mic-enabled)
+			thingino_agent_print_setting_leaf mic_enabled "$(thingino_agent_prudynt_raw audio.mic_enabled)"
+			;;
+		audio/spk-enabled)
+			thingino_agent_print_setting_leaf spk_enabled "$(thingino_agent_prudynt_raw audio.spk_enabled)"
+			;;
 		motion/enabled)
 			thingino_agent_print_setting_leaf enabled "$(thingino_agent_prudynt_raw motion.enabled)"
 			;;
@@ -1522,6 +1532,20 @@ thingino_agent_adapter_prudynt_set_setting() {
 			thingino_agent_prudynt_apply_payload "{\"image\":{\"vflip\":$value}}" || return 1
 			thingino_agent_prudynt_persist_value image.vflip "$value"
 			thingino_agent_print_setting_update "$path" vflip "$value"
+			;;
+		audio/mic-enabled)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" mic_enabled) || return 1
+			thingino_agent_prudynt_validate_bool "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"audio\":{\"mic_enabled\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value audio.mic_enabled "$value"
+			thingino_agent_print_setting_update "$path" mic_enabled "$value"
+			;;
+		audio/spk-enabled)
+			value=$(thingino_agent_prudynt_setting_value "$body_file" spk_enabled) || return 1
+			thingino_agent_prudynt_validate_bool "$value" || return 1
+			thingino_agent_prudynt_apply_payload "{\"audio\":{\"spk_enabled\":$value}}" || return 1
+			thingino_agent_prudynt_persist_value audio.spk_enabled "$value"
+			thingino_agent_print_setting_update "$path" spk_enabled "$value"
 			;;
 		motion/enabled)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" enabled) || return 1
