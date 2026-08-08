@@ -1,4 +1,4 @@
-THINGINO_SENSOR_INFO_VERSION = 85a4c830d8a1ce17bf4e06baa8d7a0c68cc8308e
+THINGINO_SENSOR_INFO_VERSION = 625667a0d58838dd3b8cac31062727c61fa38366
 THINGINO_SENSOR_INFO_SITE = $(call github,thingino,sensor-info,$(THINGINO_SENSOR_INFO_VERSION))
 
 THINGINO_SENSOR_INFO_LICENSE = GPL-2.0
@@ -9,8 +9,10 @@ THINGINO_SENSOR_INFO_LICENSE_FILES = LICENSE
 define THINGINO_SENSOR_INFO_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
-		CFLAGS="$(TARGET_CFLAGS) -std=gnu99" \
-		LDFLAGS="$(TARGET_LDFLAGS)" \
+		CFLAGS="$(TARGET_CFLAGS) -std=gnu99 -ffunction-sections -fdata-sections \
+			-fno-asynchronous-unwind-tables -fmerge-all-constants -fno-ident \
+			-fno-pie -flto -mno-abicalls -mplt" \
+		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -no-pie -flto" \
 		-C $(@D) sinfo
 endef
 

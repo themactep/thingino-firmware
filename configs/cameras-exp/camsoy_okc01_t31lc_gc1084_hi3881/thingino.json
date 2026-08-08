@@ -2,7 +2,10 @@
   "gpio": {
     "ir940": 60,
     "mmc_cd": 61,
-    "mmc_power": 62,
+    "mmc_power": {
+      "pin": 62,
+      "active_low": false
+    },
     "scl": 58,
     "sda": 57
   }

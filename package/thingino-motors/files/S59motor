@@ -103,12 +103,17 @@ start() {
 
 		if [ "true" = "$is_spi" ]; then
 			# invert_x/invert_y are real module params only on the SPI driver.
-			if [ -n "$invert_x" ]; then
-				modprobe_args="$modprobe_args invert_x=$invert_x"
+			# Kernel module expects integers (0/1), not booleans (true/false).
+			if [ "true" = "$invert_x" ]; then
+				modprobe_args="$modprobe_args invert_x=1"
+			elif [ -n "$invert_x" ]; then
+				modprobe_args="$modprobe_args invert_x=0"
 			fi
 
-			if [ -n "$invert_y" ]; then
-				modprobe_args="$modprobe_args invert_y=$invert_y"
+			if [ "true" = "$invert_y" ]; then
+				modprobe_args="$modprobe_args invert_y=1"
+			elif [ -n "$invert_y" ]; then
+				modprobe_args="$modprobe_args invert_y=0"
 			fi
 		else
 			modprobe_args="$modprobe_args tcu_channels=2"
