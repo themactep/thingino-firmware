@@ -221,9 +221,13 @@
     powerText.append("Powered by ");
     powerText.appendChild(poweredLink);
 
+    const timpsVersion = createElement("div", "small");
+    timpsVersion.id = "footer-timps-version";
+
     const buildInfo = createElement("div", "small", globalConfig.buildInfo);
 
     rightCol.appendChild(powerText);
+    rightCol.appendChild(timpsVersion);
     rightCol.appendChild(buildInfo);
 
     row.appendChild(leftCol);
