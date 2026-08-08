@@ -196,4 +196,26 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MOTOR_DT
 endif
 endif
 
+# Some Wi-Fi modules need their power/enable line at a defined level before
+# Linux is up: SDIO parts must be powered so the kernel's MMC scan can
+# enumerate them, and S36wireless drives gpio.wlan only on 3.10 kernels, late
+# in boot. Inject a gpio-hog per wlan pin into this board's U-Boot leaf .dts
+# at the final resting level of the configured runtime sequence (active_low
+# and token-suffix aware; toggles can't be a static level and are skipped),
+# and enable CONFIG_GPIO_HOG so U-Boot acts on the hogs.
+ifeq ($(BR2_PACKAGE_WIFI),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_WLAN_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-wlan-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+	$(call KCONFIG_ENABLE_OPT,CONFIG_GPIO_HOG,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_WLAN_DT
+endif
+endif
+
 endif
