@@ -33,6 +33,14 @@
 #                 itself; a fixed regulator can only own one gpio, which is
 #                 why multi-pin boards get plain hogs instead.
 #
+# A pin that inject-uboot-mmc-dt.sh turns into a DT binding (gpio.mmc_cd ->
+# cd-gpios, single-object gpio.mmc_power -> vmmc regulator, gpio.button_reset
+# -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
+# binding's own request then fails, breaking the subsystem that needed it
+# (cinnado_b6 lists pin 61 as both mmc_cd and a motor phase - card-detect
+# must win). Such pins are reported as skipped in the build log. Repeated
+# pins within/across hog domains collapse to the first occurrence.
+#
 # Flags are emitted as GPIO_ACTIVE_HIGH (0) so the physical level is
 # unambiguous and no dt-bindings include is needed. Hogs land in U-Boot
 # proper only, not SPL.
@@ -156,10 +164,29 @@ if isinstance(mp, list):
         if isinstance(e, dict) and isinstance(e.get("pin"), int) and e["pin"] >= 0:
             out.append(("mmc_power", e["pin"], 0 if is_true(e.get("active_low")) else 1))
 
+# Pins inject-uboot-mmc-dt.sh turns into DT bindings - the binding's gpio
+# request must win, so these are never hogged (level 's' = skip note).
+g = root.get("gpio", {})
+reserved = set()
+cd = g.get("mmc_cd")
+if isinstance(cd, int) and cd >= 0:
+    reserved.add(cd)
+if isinstance(mp, dict) and isinstance(mp.get("pin"), int) and mp["pin"] >= 0:
+    reserved.add(mp["pin"])
+br = g.get("button_reset")
+bp = br.get("pin") if isinstance(br, dict) else br
+if isinstance(bp, int) and bp >= 0:
+    reserved.add(bp)
+
 seen = set()
-out = [t for t in out if not (t[:2] in seen or seen.add(t[:2]))]
-if out:
-    print(" ".join("%s:%d:%d" % t for t in out))
+final_out = []
+for name, pin, lvl in out:
+    if pin in seen:
+        continue
+    seen.add(pin)
+    final_out.append((name, pin, "s" if pin in reserved else lvl))
+if final_out:
+    print(" ".join("%s:%s:%s" % t for t in final_out))
 PY
 )
 [ -n "$vals" ] || exit 0
@@ -180,6 +207,10 @@ emitted=""
 		REST=${TOK#*:}
 		PIN=${REST%%:*}
 		LVL=${REST##*:}
+		if [ "$LVL" = s ]; then
+			echo "U-Boot: NOT hogging $NAME pin $PIN - owned by an MMC/button DT binding" >&2
+			continue
+		fi
 		PB=$(bank "$PIN")
 		[ -n "$PB" ] || continue
 		if [ "$LVL" = 1 ]; then STATE="output-high"; else STATE="output-low"; fi
