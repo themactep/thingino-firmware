@@ -786,9 +786,19 @@ endif
 # BR2_PACKAGE_HOST_BUILDSCOPE installs the tool into $(HOST_DIR); a copy on
 # PATH is used otherwise, so the report is available without enabling the
 # package. A missing tool or a failed report never fails the build.
+#
+# --capture records etc/thingino.json into the report. Nothing in .config
+# carries what is in it: the GPIO driving an IR cut filter, the pins and step
+# counts of a pan motor, are decided there and nowhere else, and the Kconfig
+# options that look like they hold them are empty. Attempted rather than
+# assumed, because the copy on PATH may predate the flag and an unknown
+# argument would cost the whole report rather than just the capture.
 	@BUILDSCOPE="$(HOST_DIR)/bin/buildscope"; \
 		if [ ! -x "$$BUILDSCOPE" ]; then BUILDSCOPE=$$(command -v buildscope 2>/dev/null || true); fi; \
-		if [ -n "$$BUILDSCOPE" ]; then "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; fi
+		if [ -n "$$BUILDSCOPE" ]; then \
+			"$$BUILDSCOPE" scan -q --capture etc/thingino.json "$(OUTPUT_DIR)" 2>/dev/null \
+				|| "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; \
+		fi
 	@echo ""
 	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
 		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
