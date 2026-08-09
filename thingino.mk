@@ -622,8 +622,7 @@ export FLASH_SIZE_MB
 
 ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	# Get U-Boot board name based on flash type. A SoC with no separate NAND
-	# board falls back to its NOR one, which is what the "-" in the old
-	# database meant.
+	# board falls back to its NOR one.
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unknown)
 	else
@@ -682,8 +681,12 @@ ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 endif
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
-UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot $(UBOOT_BOARD_FLASH) 2>/dev/null || echo "unsupported-$(SOC_MODEL)")
-BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
+	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+		UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unknown)
+	else
+		UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NOR),unknown)
+	endif
+	BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 UBOOT_DEFCONFIG := $(subst ",,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
 
