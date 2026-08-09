@@ -590,13 +590,8 @@ else
 	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
 	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-	# add SOC-derived values
-	#
-	# Only BR2_SOC_RAM_MB. BR2_SOC_FAMILY was written here too, and the value
-	# never survived: it has no prompt, and Kconfig recomputes an unprompted
-	# symbol from its defaults rather than honouring what is in .config. Its
-	# value comes from the default chain in Config.soc.in and always did.
-	# BR2_SOC_RAM_MB does survive because it is prompted.
+	# add SOC-derived values. Only prompted symbols survive this; an
+	# unprompted one like BR2_SOC_FAMILY is recomputed from its defaults.
 	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
