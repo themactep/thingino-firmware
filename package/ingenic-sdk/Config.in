@@ -1,6 +1,9 @@
 config BR2_PACKAGE_INGENIC_SDK
 	bool "Ingenic SDK"
 	default y if !KERNEL_VERSION_7
+	# Builds Ingenic kernel modules. Without this the default above turns the
+	# package on for every vendor, since it keys off the kernel version alone.
+	depends on BR2_SOC_VENDOR_INGENIC
 	depends on !KERNEL_VERSION_7
 	select BR2_LINUX_KERNEL
 	help

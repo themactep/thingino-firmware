@@ -174,26 +174,28 @@ endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
 endif
 
-# On PTZ cameras with a GPIO/TCU stepper (BR2_THINGINO_MOTORS_TCU), the
-# pan/tilt phase pins drive a coil array. From power-on until the Linux motor
-# driver parks them they can hold a coil energised (the coils cook). Inject a
-# gpio-hog per phase pin into this board's U-Boot leaf .dts (read from
-# thingino.json, invert-aware park level) to hold them de-energised through the
-# boot window, and enable CONFIG_GPIO_HOG so U-Boot acts on the hogs. SPI
-# (ms419xx) and DW9714 focus units are not TCU, so they are skipped.
-ifeq ($(BR2_THINGINO_MOTORS_TCU),y)
+# Inject boot-window GPIO presets (gpio-hogs) into this board's U-Boot leaf
+# .dts from thingino.json, and enable CONFIG_GPIO_HOG so U-Boot drives them
+# right after DM init: PTZ stepper phases parked de-energised (the coils cook
+# otherwise), Wi-Fi module power/enable lines at their runtime resting level
+# (S36wireless only replays them on 3.10 kernels, late in boot; SDIO modules
+# must be powered for the kernel MMC scan), multi-pin gpio.mmc_power lists at
+# their power-on level (the single-pin form becomes a vmmc-supply regulator
+# in the MMC inject above instead), and IR-cut filter coil pins at the
+# /usr/sbin/ircut idle level so the solenoid is not left floating or
+# energised. The helper self-skips per domain from the json content, so no
+# per-domain config gate is needed.
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
-define THINGINO_UBOOT_INJECT_MOTOR_DT
+define THINGINO_UBOOT_INJECT_GPIO_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
 	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
-	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-motor-dt.sh \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-gpio-dt.sh \
 		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
 		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
 	$(call KCONFIG_ENABLE_OPT,CONFIG_GPIO_HOG,$(@D)/.config)
 	$(UBOOT_KCONFIG_MAKE) olddefconfig
 endef
-UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MOTOR_DT
-endif
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_GPIO_DT
 endif
 
 endif

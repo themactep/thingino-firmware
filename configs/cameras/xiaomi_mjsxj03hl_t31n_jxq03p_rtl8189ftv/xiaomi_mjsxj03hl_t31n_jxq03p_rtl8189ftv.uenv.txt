@@ -1,1 +1,3 @@
-gpio_default=25ID 26IDU
+# U-Boot environment overrides for this camera (imported at image build).
+# GPIO configuration does NOT belong here - it lives in thingino.json
+# (and the BR2_THINGINO_LED_*/AUDIO_GPIO kopt vars for kernel LEDs/audio).
