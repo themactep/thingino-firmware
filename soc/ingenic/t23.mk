@@ -18,7 +18,7 @@ endif
 
 ifeq ($(SOC_MODEL),t23zn)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t23n_sfcnor
+SOC_UBOOT_NOR  := isvp_t23zn_sfcnor
 endif
 
 endif

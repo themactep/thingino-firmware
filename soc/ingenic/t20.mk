@@ -8,22 +8,22 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 
 ifeq ($(SOC_MODEL),t20l)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t20_sfcnor_lite
+SOC_UBOOT_NOR  := isvp_t20l_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t20n)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t20_sfcnor
+SOC_UBOOT_NOR  := isvp_t20n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t20x)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t20_sfcnor_ddr128M
+SOC_UBOOT_NOR  := isvp_t20x_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t20z)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t20_sfcnor
+SOC_UBOOT_NOR  := isvp_t20n_sfcnor
 endif
 
 endif

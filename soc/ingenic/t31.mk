@@ -8,7 +8,7 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 
 ifeq ($(SOC_MODEL),t31l)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t31_sfcnor_lite
+SOC_UBOOT_NOR  := isvp_t31l_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand_lite
 endif
 
@@ -19,37 +19,37 @@ endif
 
 ifeq ($(SOC_MODEL),t31n)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t31_sfcnor
+SOC_UBOOT_NOR  := isvp_t31n_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand
 endif
 
 ifeq ($(SOC_MODEL),t31x)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31_sfcnor_ddr128M
+SOC_UBOOT_NOR  := isvp_t31x_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand_ddr128M
 endif
 
 ifeq ($(SOC_MODEL),t31a)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31a_sfcnor_ddr128M
+SOC_UBOOT_NOR  := isvp_t31a_sfcnor
 SOC_UBOOT_NAND := isvp_t31a_sfcnand_ddr128M
 endif
 
 ifeq ($(SOC_MODEL),t31al)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31al_sfcnor_ddr128M
+SOC_UBOOT_NOR  := isvp_t31x_sfcnor
 SOC_UBOOT_NAND := isvp_t31al_sfcnand_ddr128M
 endif
 
 ifeq ($(SOC_MODEL),t31zl)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t31_sfcnor_lite
+SOC_UBOOT_NOR  := isvp_t31n_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand_lite
 endif
 
 ifeq ($(SOC_MODEL),t31zx)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31_sfcnor_ddr128M
+SOC_UBOOT_NOR  := isvp_t31x_sfcnor
 SOC_UBOOT_NAND := isvp_t31_sfcnand_ddr128M
 endif
 

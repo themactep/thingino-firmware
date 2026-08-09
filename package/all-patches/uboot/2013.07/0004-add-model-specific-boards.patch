@@ -1,0 +1,65 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] boards.cfg: add model-specific board name aliases
+
+Add model-specific U-Boot board targets that match the 2026.07 defconfig
+naming convention.  Each new entry reuses the same configuration header
+and options as the existing canonical/family-level entry.
+
+This allows soc/*.mk and soc_database.txt to use a single set of names
+that work with both U-Boot 2013.07 and 2026.07.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/boards.cfg	2026-08-09 05:50:56.240186042 -0400
++++ b/boards.cfg	2026-08-09 05:50:56.241978034 -0400
+@@ -42,35 +42,50 @@
+ 
+ isvp_t10_sfcnor             mips   xburst   isvp_t10    ingenic   t10   isvp_t10:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0
+ isvp_t10_sfcnor_lite        mips   xburst   isvp_t10    ingenic   t10   isvp_t10:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
++isvp_t10n_sfcnor            mips   xburst   isvp_t10    ingenic   t10   isvp_t10:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0
++isvp_t10l_sfcnor            mips   xburst   isvp_t10    ingenic   t10   isvp_t10:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
+ 
+ isvp_t20_sfcnor             mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0
+ isvp_t20_sfcnor_lite        mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
+ isvp_t20_sfcnor_ddr128M     mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,DDR2_128M
++isvp_t20x_sfcnor            mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,DDR2_128M
++isvp_t20n_sfcnor            mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0
++isvp_t20l_sfcnor            mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
+ 
+ isvp_t21_sfcnor             mips   xburst   isvp_t21    ingenic   t21   isvp_t21:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
++isvp_t21n_sfcnor            mips   xburst   isvp_t21    ingenic   t21   isvp_t21:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
+ 
+ isvp_t23n_sfcnor            mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23N
+ isvp_t23dl_sfcnor           mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23DL,DDR2_32M
+ isvp_t23n_sfcnor_hp         mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23N,HP
+ isvp_t23n_sfcnor_lp         mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23N,LP
+ isvp_t23n_sfcnor_mmc1bit    mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23N,JZ_MMC_1BIT
++isvp_t23zn_sfcnor           mips   xburst   isvp_t23    ingenic   t23   isvp_t23:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T23N
+ 
+ isvp_t30_sfcnor             mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
+ isvp_t30_sfcnor_ddr128M     mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M
+ isvp_t30_sfcnor_lite        mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
++isvp_t30a_sfcnor            mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M,T30A
+ isvp_t30a_sfcnor_ddr128M    mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M,T30A
++isvp_t30x_sfcnor            mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M
++isvp_t30n_sfcnor            mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
++isvp_t30l_sfcnor            mips   xburst   isvp_t30    ingenic   t30   isvp_t30:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
+ 
+ isvp_t31_sfcnor             mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
+ isvp_t31_sfcnor_uart0             mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,JZ_UART_INDEX_0,MOTORCOMM_YT8512,PHY_JL1101
+ isvp_t31_sfcnor_ddr128M     mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M
+ isvp_t31_sfcnor_msc1_ddr128M mips  xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,JZ_MMC_MSC1,DDR2_128M
+ isvp_t31_sfcnor_lite        mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
++isvp_t31a_sfcnor            mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR3_128M,T31A
+ isvp_t31a_sfcnor_ddr128M    mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR3_128M,T31A
+ isvp_t31al_sfcnor_ddr128M   mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M,T31AL
++isvp_t31l_sfcnor            mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION
+ isvp_t31lc_sfcnor           mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,T31LC,LITE_VERSION
+ isvp_t31_xiaomi_sfcnor      mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION,XIAOMI_SPL
+ isvp_t31_xiaomi_alt_sfcnor      mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,LITE_VERSION,XIAOMI_SPL,XIAOMI_SPL_ALT
+ isvp_t31_motorcomm_sfcnor   mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,MOTORCOMM_YT8512
++isvp_t31x_sfcnor            mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0,DDR2_128M
++isvp_t31n_sfcnor            mips   xburst   isvp_t31    ingenic   t31   isvp_t31:SPL_SFC_SUPPORT,ENV_IS_IN_SPI_FLASH,SPL_SFC_NOR,JZ_MMC_MSC0
+ 
+ isvp_t10_msc0               mips   xburst   isvp_t10    ingenic   t10   isvp_t10:SPL_MMC_SUPPORT,ENV_IS_IN_MMC,GPT_CREATOR,JZ_MMC_MSC0,SFC_COMMAND,LITE_VERSION
+ isvp_t20_msc0               mips   xburst   isvp_t20    ingenic   t20   isvp_t20:SPL_MMC_SUPPORT,ENV_IS_IN_MMC,GPT_CREATOR,JZ_MMC_MSC0,SFC_COMMAND,LITE_VERSION

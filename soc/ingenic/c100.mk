@@ -10,7 +10,7 @@ SOC_ARCH      := xburst1
 SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_c100_sfcnor
-SOC_UBOOT_NAND := isvp_c100_sfcnand
+SOC_UBOOT_NOR  := isvp_t31a_sfcnor
+SOC_UBOOT_NAND := isvp_t31a_sfcnand
 
 endif
