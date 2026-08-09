@@ -327,6 +327,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2telegram
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2webhook \
 		$(TARGET_DIR)/usr/sbin/send2webhook
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/playonspeaker \
+		$(TARGET_DIR)/usr/sbin/playonspeaker
 
 	# scripts (audio)
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/microphone \
