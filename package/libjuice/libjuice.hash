@@ -1,5 +1,6 @@
 # Locally calculated
 sha256  75159867c4a5a689a6559e11aa0d30c9eba12ce73a4ae3d898b521467e1f635d  libjuice-1.7.2.tar.gz
+sha256  86e075ca4732882746b6d5733ff1b6090f942e5750df58630b191b5f00f30010  libjuice-1.7.3.tar.gz
 
 # License files
 sha256  fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85  LICENSE
