@@ -22,6 +22,7 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
 config BR2_PACKAGE_THINGINO_KOPT_LEDS
 	bool "GPIO LEDs"
 	depends on BR2_PACKAGE_THINGINO_KOPT
+	default y
 	help
 	  Enable the kernel LED subsystem and gpio-leds platform driver.
 
