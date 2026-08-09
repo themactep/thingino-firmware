@@ -25,7 +25,7 @@ endif
 
 ifeq ($(SOC_MODEL),t40a)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t40a_sfcnor
+SOC_UBOOT_NOR  := isvp_t40n_sfcnor
 SOC_UBOOT_NAND := isvp_t40a_sfcnand
 endif
 

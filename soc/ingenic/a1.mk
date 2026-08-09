@@ -7,27 +7,27 @@ SOC_ARCH      := xburst2
 
 ifeq ($(SOC_MODEL),a1n)
 SOC_RAM_MB     := 256
-SOC_UBOOT_NOR  := isvp_a1_all_lzma_sfc0nor
+SOC_UBOOT_NOR  := isvp_a1n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),a1nt)
 SOC_RAM_MB     := 256
-SOC_UBOOT_NOR  := isvp_a1_all_lzma_sfc0nor
+SOC_UBOOT_NOR  := isvp_a1n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),a1x)
 SOC_RAM_MB     := 256
-SOC_UBOOT_NOR  := isvp_a1_all_lzma_sfc0nor
+SOC_UBOOT_NOR  := isvp_a1n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),a1l)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_a1_all_lzma_sfc0nor
+SOC_UBOOT_NOR  := isvp_a1n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),a1a)
 SOC_RAM_MB     := 512
-SOC_UBOOT_NOR  := isvp_a1_all_lzma_sfc0nor
+SOC_UBOOT_NOR  := isvp_a1n_sfcnor
 endif
 
 endif
