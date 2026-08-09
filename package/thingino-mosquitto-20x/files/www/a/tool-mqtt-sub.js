@@ -29,6 +29,18 @@
   const reloadBtn = $("#mqtt-sub-reload");
   const restartBtn = $("#mqtt-sub-restart");
   const saveBtn = $("#mqtt-sub-save");
+  const tlsSkipVerifyRow = $("#mqtt_sub_tls_skip_verify_row");
+
+  function isTrue(value) {
+    return value === true || value === "true";
+  }
+
+  function updateTlsSkipVerifyState() {
+    const enabled = $("#mqtt_sub_use_ssl").checked;
+    const tlsSkipVerify = $("#mqtt_sub_tls_skip_verify");
+    tlsSkipVerifyRow.classList.toggle("d-none", !enabled);
+    tlsSkipVerify.disabled = !enabled;
+  }
 
   function updateEmptyState() {
     const hasSubs = tbody.querySelectorAll("tr").length > 0;
@@ -192,12 +204,14 @@
         throw new Error("Failed to load MQTT subscription settings");
       const data = await resp.json();
 
-      $("#mqtt_sub_enabled").checked = data.enabled === true;
+      $("#mqtt_sub_enabled").checked = isTrue(data.enabled);
       $("#mqtt_sub_host").value = data.host || "";
       $("#mqtt_sub_port").value = data.port || 1883;
       $("#mqtt_sub_username").value = data.username || "";
       $("#mqtt_sub_password").value = data.password || "";
-      $("#mqtt_sub_use_ssl").checked = data.use_ssl === true;
+      $("#mqtt_sub_use_ssl").checked = isTrue(data.use_ssl);
+      $("#mqtt_sub_tls_skip_verify").checked = isTrue(data.tls_skip_verify);
+      updateTlsSkipVerifyState();
 
       tbody.innerHTML = "";
       (Array.isArray(data.subscriptions) ? data.subscriptions : []).forEach(
@@ -264,9 +278,12 @@
       username: $("#mqtt_sub_username").value.trim(),
       password: $("#mqtt_sub_password").value.trim(),
       use_ssl: $("#mqtt_sub_use_ssl").checked,
+      tls_skip_verify: $("#mqtt_sub_tls_skip_verify").checked,
       subscriptions: collectSubscriptions(),
     });
   });
+
+  $("#mqtt_sub_use_ssl").addEventListener("change", updateTlsSkipVerifyState);
 
   addBtn.addEventListener("click", function () {
     addSubscriptionRow();

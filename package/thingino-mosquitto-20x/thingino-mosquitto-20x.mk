@@ -98,4 +98,25 @@ define THINGINO_MOSQUITTO_20X_USERS
 endef
 endif
 
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_MOSQUITTO_20X_DEPENDENCIES += thingino-webui
+
+define THINGINO_MOSQUITTO_20X_INSTALL_WEBUI
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -d $(TARGET_DIR)/var/www/x
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
+	$(INSTALL) -D -m 0644 $(THINGINO_MOSQUITTO_20X_PKGDIR)/files/www/tool-mqtt-sub.html \
+		$(TARGET_DIR)/var/www/tool-mqtt-sub.html
+	$(INSTALL) -D -m 0644 $(THINGINO_MOSQUITTO_20X_PKGDIR)/files/www/a/tool-mqtt-sub.js \
+		$(TARGET_DIR)/var/www/a/tool-mqtt-sub.js
+	$(INSTALL) -D -m 0755 $(THINGINO_MOSQUITTO_20X_PKGDIR)/files/www/x/json-config-mqtt-sub.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-mqtt-sub.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_MOSQUITTO_20X_PKGDIR)/files/www/x/mqtt-sub-restart.cgi \
+		$(TARGET_DIR)/var/www/x/mqtt-sub-restart.cgi
+	$(INSTALL) -D -m 0644 $(THINGINO_MOSQUITTO_20X_PKGDIR)/files/mqtt-sub.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/mqtt-sub.webui.json
+endef
+THINGINO_MOSQUITTO_20X_POST_INSTALL_TARGET_HOOKS += THINGINO_MOSQUITTO_20X_INSTALL_WEBUI
+endif
+
 $(eval $(generic-package))
