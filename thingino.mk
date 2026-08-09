@@ -24,35 +24,28 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
-# Target architecture of the cross toolchain, one line per vendor. It has to be
-# resolved here rather than read from the BR2_mipsel/BR2_arm the SoC fragment
-# already sets: fragments are appended to .config and never included as
-# makefiles, so that symbol is not readable when SED_CONFIG_VARS runs.
-ifeq ($(SOC_VENDOR),sigmastar)
-SOC_TARGET_ARCH := arm
-else
-SOC_TARGET_ARCH := mipsel
-endif
-
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
 ifneq ($(SOC_MODEL_INPUT),)
-	# Database-driven approach
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
 
-	# Query database for SoC parameters
-	SOC_FAMILY := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) family 2>/dev/null || echo "unknown")
-	SOC_RAM_MB := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) ram 2>/dev/null || echo "64")
-	SOC_ARCH := xburst$(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) arch 2>/dev/null || echo "1")
+	# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY,
+	# SOC_ARCH, SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT,
+	# SOC_UBOOT_NOR / SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not
+	# have, it does not set -- consumers below use $(or ...) for the fallback.
+	#
+	# All of them are included and each opens with a $(filter) on its own
+	# models, so only one file's body applies. The family cannot pick the
+	# filename, because the family is one of the things being looked up.
+	include $(wildcard $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/*.mk)
 
-	# Special case: C100 family handling
-	ifeq ($(SOC_MODEL),c100)
-		ifeq ($(KERNEL_VERSION),4.4.94)
-			SOC_FAMILY := c100
-		else
-			SOC_FAMILY := t31
-		endif
-	endif
+# A model no family claims leaves SOC_FAMILY empty, which is worth stopping for:
+# the old lookup fell back to "unknown"/64 and built something wrong. Unindented
+# because a tab-led $(error ...) is not a directive -- make reads it as a recipe
+# and fails with "recipe commences before first target" instead.
+ifeq ($(SOC_FAMILY),)
+$(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no soc/$(SOC_VENDOR)/*.mk claims it)
+endif
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
@@ -628,15 +621,16 @@ export FLASH_SIZE_MB
 #
 
 ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
-	# Get U-Boot board name based on flash type
+	# Get U-Boot board name based on flash type. A SoC with no separate NAND
+	# board falls back to its NOR one, which is what the "-" in the old
+	# database meant.
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
-		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nand 2>/dev/null || echo "unknown")
+		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unknown)
 	else
-		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nor 2>/dev/null || echo "unknown")
+		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NOR),unknown)
 	endif
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
-UBOOT_BOARDNAME := $(subst ",,$(BR2_TARGET_UBOOT_BOARDNAME))
 
 # Flash type used for U-Boot defconfig lookup
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
@@ -683,9 +677,6 @@ else
 endif
 export UBOOT_FLASH_CONTROLLER
 
-#ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
-#	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-with-spl-lzma.bin"
-#endif
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
 endif
@@ -695,6 +686,59 @@ UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 UBOOT_DEFCONFIG := $(subst ",,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
+
+ifeq ($(SOC_MODEL),t10l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t10l.config
+else ifeq ($(SOC_MODEL),t20l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20l.config
+else ifeq ($(SOC_MODEL),t20x)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20x.config
+else ifeq ($(SOC_MODEL),t23dl)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t23dl.config
+else ifeq ($(SOC_MODEL),t30x)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t30x.config
+else ifeq ($(SOC_MODEL),t31a)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31a.config
+else ifeq ($(SOC_MODEL),t31al)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31al.config
+else ifeq ($(SOC_MODEL),t31l)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31l.config
+else ifeq ($(SOC_MODEL),t31lc)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31lc.config
+else ifneq ($(filter t31x t31zx,$(SOC_MODEL)),)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31x.config
+else ifeq ($(SOC_MODEL),c100)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/c100.config
+else ifeq ($(SOC_MODEL),t32nq)
+	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t32nq.config
+endif
+
+# NAND keeps the U-Boot env in a UBI volume, NOT a raw flash offset, so it needs
+# a different layout fragment than NOR. Applying the NOR fragment to a NAND build
+# would wrongly point the env at a raw offset.
+ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else
+UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
+endif
+
+UBOOT_CONFIG_FRAGMENT_FILES :=
+ifneq ($(wildcard $(UBOOT_LAYOUT_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_LAYOUT_FRAGMENT)
+endif
+
+ifneq ($(wildcard $(UBOOT_VARIANT_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_VARIANT_FRAGMENT)
+endif
+
+UBOOT_BOARD_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/boards/$(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARDNAME)).config
+ifneq ($(wildcard $(UBOOT_BOARD_FRAGMENT)),)
+	UBOOT_CONFIG_FRAGMENT_FILES += $(UBOOT_BOARD_FRAGMENT)
+endif
+
+ifeq ($(BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES),)
+	BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES := $(strip $(UBOOT_CONFIG_FRAGMENT_FILES))
+endif
 
 export UBOOT_BOARDNAME
 export UBOOT_DEFCONFIG

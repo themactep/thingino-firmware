@@ -11,6 +11,15 @@ output_dir=$1
 images_dir="${output_dir}/images"
 target_dir="${output_dir}/target"
 os_release_file="${target_dir}/usr/lib/os-release"
+rootfs_image="${images_dir}/rootfs.squashfs"
+tmp_dir=
+
+cleanup() {
+	if [ -n "$tmp_dir" ]; then
+		rm -rf "$tmp_dir"
+	fi
+}
+trap cleanup EXIT
 
 if [ ! -f "$os_release_file" ]; then
 	os_release_file="${target_dir}/etc/os-release"
@@ -26,6 +35,31 @@ fi
 	exit 1
 }
 
+select_os_release_from_rootfs() {
+	[ -f "$rootfs_image" ] || return 1
+
+	if [ -x "${output_dir}/host/bin/unsquashfs" ]; then
+		unsquashfs_bin="${output_dir}/host/bin/unsquashfs"
+	elif command -v unsquashfs >/dev/null 2>&1; then
+		unsquashfs_bin=$(command -v unsquashfs)
+	else
+		return 1
+	fi
+
+	tmp_dir=$(mktemp -d)
+	if ! "$unsquashfs_bin" -q -d "$tmp_dir" "$rootfs_image" usr/lib/os-release >/dev/null 2>&1; then
+		"$unsquashfs_bin" -q -d "$tmp_dir" "$rootfs_image" etc/os-release >/dev/null 2>&1 || return 1
+	fi
+
+	if [ -f "${tmp_dir}/usr/lib/os-release" ]; then
+		os_release_file="${tmp_dir}/usr/lib/os-release"
+	elif [ -f "${tmp_dir}/etc/os-release" ]; then
+		os_release_file="${tmp_dir}/etc/os-release"
+	else
+		return 1
+	fi
+}
+
 read_os_release_value() {
 	key=$1
 	sed -n "s/^${key}=//p" "$os_release_file" | head -n1 | sed 's/^"//; s/"$//'
@@ -33,6 +67,12 @@ read_os_release_value() {
 
 image_id=$(read_os_release_value IMAGE_ID)
 build_id=$(read_os_release_value BUILD_ID)
+
+if [ -z "$image_id" ] || [ -z "$build_id" ]; then
+	select_os_release_from_rootfs || true
+	image_id=$(read_os_release_value IMAGE_ID)
+	build_id=$(read_os_release_value BUILD_ID)
+fi
 
 [ -n "$image_id" ] || {
 	echo "Missing IMAGE_ID in $os_release_file" >&2
