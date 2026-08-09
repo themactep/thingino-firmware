@@ -233,6 +233,17 @@ case "$target" in
 			json_ok "Sent to $target"
 		fi
 		;;
+	speaker)
+		webui_log "send.cgi: target=speaker, verbose_flag='$verbose_flag'"
+		if [ -n "$verbose_flag" ]; then
+			webui_log "Running: playonspeaker $verbose_flag"
+			run_verbose playonspeaker $verbose_flag
+		else
+			webui_log "Running: playonspeaker"
+			playonspeaker >/dev/null &
+			json_ok "Speaker test sent"
+		fi
+		;;
 	termbin)
 		case ${POST_file:-$GET_file} in
 			weblog)
