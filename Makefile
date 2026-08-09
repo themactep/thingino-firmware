@@ -407,7 +407,7 @@ define thingino_run_build
 	fi
 endef
 
-.PHONY: all bootstrap build build-info clean clean-nfs-debug cleanbuild \
+.PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild \
 	defconfig dev distclean fast help pack repack remove_bins \
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
