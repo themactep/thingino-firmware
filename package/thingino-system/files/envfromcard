@@ -8,7 +8,7 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 tmpfile=$(mktemp)
-sed 's/=/ /' $ENV_FILE >> $tmpfile
+sed 's/=/ /' $ENV_FILE >>$tmpfile
 fw_setenv -s $tmpfile
 rm $tmpfile
 fw_printenv
