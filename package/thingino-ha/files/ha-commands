@@ -102,11 +102,11 @@ dispatch() {
 
 		privacy)
 			case "$payload" in
-				on | ON | 1)
+				on | ON | 1 | true)
 					privacy on
 					ha_pub_state privacy ON
 					;;
-				off | OFF | 0)
+				off | OFF | 0 | false)
 					privacy off
 					ha_pub_state privacy OFF
 					;;
