@@ -143,10 +143,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-image.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-main.html \
 		$(TARGET_DIR)/var/www/streamer-main.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd0.html \
-		$(TARGET_DIR)/var/www/streamer-osd0.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd1.html \
-		$(TARGET_DIR)/var/www/streamer-osd1.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-osd.html \
+		$(TARGET_DIR)/var/www/streamer-osd.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-sensor.html \
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-substream.html \
@@ -229,6 +227,10 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/navigation.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/preview.js \
 		$(TARGET_DIR)/var/www/a/preview.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/sei-osd.js \
+		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/sei-rotate.js \
+		$(TARGET_DIR)/var/www/a/sei-rotate.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/reset.js \
 		$(TARGET_DIR)/var/www/a/reset.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/streamer-config.js \
@@ -346,6 +348,9 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-heartbeat.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-heartbeat-slow.cgi \
 		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-osd-sei.cgi \
+		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
+
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imaging.cgi \
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imp.cgi \
@@ -368,8 +373,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-sync-time.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-system-usage.cgi \
 		$(TARGET_DIR)/var/www/x/json-system-usage.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-timegraph-stream.cgi \
-		$(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/legacy-url-recovery.cgi \
 		$(TARGET_DIR)/var/www/x/legacy-url-recovery.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/login.cgi \
@@ -433,18 +436,17 @@ endef
 define THINGINO_WEBUI_PARANOID_REWRITE
 	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
 		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
-	if [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" = "y" ]; then \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-doorbell.html \
-			$(TARGET_DIR)/var/www/config-doorbell.html; \
-		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-doorbell.js \
-			$(TARGET_DIR)/var/www/a/config-doorbell.js; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-doorbell.cgi \
-			$(TARGET_DIR)/var/www/x/json-config-doorbell.cgi; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-chime-status.cgi \
-			$(TARGET_DIR)/var/www/x/json-chime-status.cgi; \
 	fi
 endef
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
+# Plugin assembly finalize hook — runs after every package is installed,
+# discovers *.webui.json manifests, merges nav/scripts/styles, and
+# re-applies asset tags and CDN fallbacks.
+define THINGINO_WEBUI_ASSEMBLE_PLUGINS
+	@python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/assemble_plugins.py" "$(TARGET_DIR)" || \
+		printf 'thingino-webui: plugin assembly failed (non-fatal)\n'
+endef
+THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_ASSEMBLE_PLUGINS
 
 $(eval $(generic-package))
