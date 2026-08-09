@@ -1,7 +1,7 @@
 {
   "gpio": {
+    "button_call": 51,
     "button_reset": 38,
-    "call": 51,
     "ir850": 45,
     "ircut": "57 58",
     "mmc_cd": 50,
