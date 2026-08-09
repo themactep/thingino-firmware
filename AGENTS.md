@@ -67,9 +67,16 @@ rootfs and data partitions.
 
 ## SOC / kernel
 
-SOC family is derived from `BR2_INGENIC_SOC_MODEL` via `Config.soc.in` and the
-SoC database (`scripts/soc_database.txt`). `thingino.mk` exports key variables:
-`SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`, `ISP_RMEM_MB`, `STREAMER`, etc.
+SOC family is derived from `BR2_INGENIC_SOC_MODEL` two ways, and both are live.
+For `.config`, `Config.soc.in` maps model to `BR2_SOC_FAMILY`. For make,
+`thingino.mk` includes `soc/<vendor>/<family>.mk`, one file per SoC family,
+which sets `SOC_FAMILY`, `SOC_ARCH`, `SOC_RAM_MB` and the U-Boot board names.
+All of them are included and each opens with a `$(filter)` on its own models,
+so exactly one file's body applies. Kconfig cannot run make and `thingino.mk`
+needs the family before `.config` exists, so the map is stated in both places;
+adding a SoC means adding it to both.
+`thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
+`ISP_RMEM_MB`, `STREAMER`, etc.
 
 Kernel branches are mapped from SOC family + version in `thingino.mk`.
 Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
@@ -77,9 +84,10 @@ Kernel source: `github.com/gtxaspec/thingino-linux`.
 
 ## Streamers
 
-Available streamers: `prudynt` (default), `raptor`, `strero`, `timps`.
-Set via `BR2_PACKAGE_<NAME>=y` (e.g. `BR2_PACKAGE_RAPTOR_IPC=y` for `raptor`).
-The active streamer is exported as `STREAMER` in `thingino.mk`.
+Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
+`ciao` still defaults to `prudynt`. Select explicitly via the Streamer choice
+in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
+`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
 ## Firmware image
 
@@ -95,8 +103,8 @@ Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2013.07` by default; `2026.04`,
-`2026.07`, and `custom-fork` are also available via config fragments).
+Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
+and `custom-fork` are also available via config fragments).
 Thingino applies a single large per-version patch (e.g.
 `package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need
