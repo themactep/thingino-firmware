@@ -7,42 +7,42 @@ SOC_ARCH      := xburst1
 
 ifeq ($(SOC_MODEL),t33dl)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33dl_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33l)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33l_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33lq)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33lq_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33n)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33n_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33vl)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33vl_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33vn)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33vn_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33zl)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33zl_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t33zn)
 SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t33_sfcnor
+SOC_UBOOT_NOR  := isvp_t33zn_sfcnor
 endif
 
 endif

@@ -8,17 +8,17 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 
 ifeq ($(SOC_MODEL),t10l)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t10l_sfcnor
+SOC_UBOOT_NOR  := isvp_t10_sfcnor_lite
 endif
 
 ifeq ($(SOC_MODEL),t10n)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t10n_sfcnor
+SOC_UBOOT_NOR  := isvp_t10_sfcnor
 endif
 
 ifeq ($(SOC_MODEL),t10a)
 SOC_RAM_MB     := 64
-SOC_UBOOT_NOR  := isvp_t10n_sfcnor
+SOC_UBOOT_NOR  := isvp_t10_sfcnor
 endif
 
 endif
