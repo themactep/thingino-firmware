@@ -629,6 +629,9 @@ ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NOR),unknown)
 	endif
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
+else
+	# Defconfig provided a U-Boot board name; derive the unquoted version.
+	UBOOT_BOARDNAME := $(subst ",,$(BR2_TARGET_UBOOT_BOARDNAME))
 endif
 
 # Flash type used for U-Boot defconfig lookup
