@@ -1,0 +1,92 @@
+#!/bin/sh
+# pir-stream-gate: keep raptor's live-streaming daemons (rwd/rsd) off by
+# default, activating only on a real PIR or power-button event, to
+# minimize LTE data usage when nothing is happening. Opt-in feature --
+# most Thingino boards don't have this board's metered/expensive-LTE
+# constraint, so this must never run unless explicitly enabled.
+#
+# Uses mcu-int-flag (this same package) for real-time PIR/button
+# detection over I2C -- mcu_test's own --mcu_int_flag is confirmed
+# broken (silently returns 0x0 on I2C failure instead of reporting an
+# error), see mcu-int-flag's own header comment for the full story.
+#
+# Event signatures, isolated and confirmed live (each event pulses for
+# only ~1-2ms before auto-clearing, hence the tight poll interval):
+#   PIR:          payload byte 1, bit 0x04 -- fires repeatedly while
+#                 motion continues, no companion pulse.
+#   Power button: payload byte 1, bit 0x80 -- paired with a bit 0x04
+#                 pulse in payload byte 3 about 1s later.
+#   Reset button: payload byte 1, bit 0x01 -- paired with a bit 0x02
+#                 pulse in payload byte 3 about 1s later. Deliberately
+#                 NOT treated as a stream trigger here -- it's a
+#                 physical reset control (a long hold reboots the
+#                 device), not a "wake the stream" input.
+#
+# Checking byte 1 for (0x04 | 0x80) = 0x84 correctly matches PIR and
+# power-button events while ignoring the reset button (0x01 & 0x84 = 0)
+# and both buttons' byte-3 companion pulses (never checked at all).
+
+COOLDOWN_SEC=${PIR_STREAM_GATE_COOLDOWN:-90}
+POLL_INTERVAL=${PIR_STREAM_GATE_POLL_INTERVAL:-0.3}
+
+log() {
+	echo "$(date '+%Y-%m-%d %H:%M:%S') pir-stream-gate: $1"
+	logger -t pir-stream-gate "$1" 2>/dev/null
+}
+
+stream_active=0
+
+start_stream() {
+	if [ "$stream_active" -eq 0 ]; then
+		log "activating stream"
+		raptorctl rwd start >/dev/null 2>&1
+		raptorctl rsd start >/dev/null 2>&1
+		stream_active=1
+	fi
+}
+
+stop_stream() {
+	if [ "$stream_active" -eq 1 ]; then
+		log "deactivating stream (idle ${COOLDOWN_SEC}s)"
+		raptorctl rwd stop >/dev/null 2>&1
+		raptorctl rsd stop >/dev/null 2>&1
+		stream_active=0
+	fi
+}
+
+# PIR-enabled state has been observed to reset across reboots/power
+# cycles this session -- always re-assert it on start.
+mcu_test --pir_enable >/dev/null 2>&1
+
+raptorctl rwd stop >/dev/null 2>&1
+raptorctl rsd stop >/dev/null 2>&1
+log "started, stream gated off (cooldown=${COOLDOWN_SEC}s poll=${POLL_INTERVAL}s)"
+
+last_trigger=0
+
+while true; do
+	out=$(mcu-int-flag 2>/dev/null)
+	# shellcheck disable=SC2086
+	set -- $out
+	p1="$2"
+
+	case "$p1" in
+		0x*)
+			p1_dec=$((p1))
+			if [ $((p1_dec & 0x84)) -ne 0 ]; then
+				last_trigger=$(date +%s)
+				start_stream
+			fi
+			;;
+	esac
+
+	if [ "$stream_active" -eq 1 ] && [ "$last_trigger" -gt 0 ]; then
+		now=$(date +%s)
+		elapsed=$((now - last_trigger))
+		if [ "$elapsed" -ge "$COOLDOWN_SEC" ]; then
+			stop_stream
+		fi
+	fi
+
+	sleep "$POLL_INTERVAL"
+done
