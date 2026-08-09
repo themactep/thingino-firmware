@@ -245,7 +245,7 @@
           '<label class="form-label mb-1">Text / template</label>' +
           '<input type="text" class="form-control osd-text" ' +
             'placeholder="e.g. %F %T  or  {hostname}">' +
-          '<span class="form-text">strftime %codes plus {hostname}/{ip}/{uptime}/{fps} placeholders</span>' +
+          '<span class="form-text">strftime %codes plus {hostname}/{ip}/{uptime}/{fps}/{bitrate} placeholders</span>' +
         '</p>' +
         '<div class="row g-2">' +
           '<div class="col-6 col-md-3" data-leaf="font_size">' +

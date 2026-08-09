@@ -7,6 +7,13 @@
  *   #daynight_enabled                     -> daynight.enabled
  *   #daynight_total_gain_night_threshold  -> daynight.total_gain_night_threshold
  *   #daynight_total_gain_day_threshold    -> daynight.total_gain_day_threshold
+ *   #daynight_day_gain_pct                -> daynight.day_gain_pct
+ *   #daynight_baseline_delay_s            -> daynight.baseline_delay_s
+ *   #daynight_night_reconfirm_s           -> daynight.night_reconfirm_s
+ *   #daynight_boot_settle_s/_max_s        -> daynight.boot_settle_s/_max_s
+ *   #daynight_boot_stable_pct             -> daynight.boot_stable_pct
+ *   (read-only: #daynight_night_baseline/#daynight_day_trigger from the
+ *    status fields of the same names - the adaptive trigger in effect)
  *   #daynight_mode                        -> daynight.mode (sensor/time/sun)
  *   #daynight_time_night_start/day_start  -> daynight.time_night_start/day_start
  *   #daynight_sun_latitude/longitude      -> daynight.sun_latitude/longitude
@@ -72,13 +79,25 @@
     var mode = $("daynight_mode");
     if (mode && typeof dn.dn_mode === "string") mode.value = dn.dn_mode;
 
-    // gain thresholds are rounded ints; the rest keep their given value
-    ["total_gain_night_threshold", "total_gain_day_threshold"].forEach(function (k) {
+    // gain thresholds + adaptive/boot tunables are rounded ints; the rest
+    // keep their given value
+    ["total_gain_night_threshold", "total_gain_day_threshold",
+     "day_gain_pct", "baseline_delay_s", "night_reconfirm_s",
+     "boot_settle_s", "boot_settle_max_s", "boot_stable_pct"].forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el) return;
       var v = dn[k];
       el.value = (v === null || typeof v === "undefined") ? "" : Math.round(v);
     });
+
+    // read-only adaptive-baseline feedback (only meaningful in night mode;
+    // timps reports -1 when none is in effect)
+    var nb = $("daynight_night_baseline");
+    var dt = $("daynight_day_trigger");
+    if (nb) nb.textContent = (typeof dn.night_baseline === "number" && dn.night_baseline >= 0)
+      ? Math.round(dn.night_baseline) : "-";
+    if (dt) dt.textContent = (typeof dn.day_trigger === "number" && dn.day_trigger >= 0)
+      ? Math.round(dn.day_trigger) : "-";
     ["sun_latitude", "sun_longitude",
      "sun_sunrise_offset_min", "sun_sunset_offset_min"].forEach(function (k) {
       var el = $("daynight_" + k);
@@ -108,7 +127,9 @@
     var mode = $("daynight_mode");
     if (mode) out.mode = mode.value;
 
-    ["total_gain_night_threshold", "total_gain_day_threshold"].forEach(function (k) {
+    ["total_gain_night_threshold", "total_gain_day_threshold",
+     "day_gain_pct", "baseline_delay_s", "night_reconfirm_s",
+     "boot_settle_s", "boot_settle_max_s", "boot_stable_pct"].forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el) return;
       var v = parseInt(el.value, 10);

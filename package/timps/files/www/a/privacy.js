@@ -268,6 +268,9 @@
 
   /* ---- snapshot ---- */
 
+  var SNAPSHOT_REFRESH_MS = 4000;
+  var isWindowVisible = document.visibilityState !== "hidden";
+
   function setSnapshot() {
     window.timpsApi.token().then(function (tok) {
       var url = window.timpsApi.base() + "/snapshot.jpg?chn=" + streamIdx +
@@ -277,6 +280,21 @@
       img.src = url;
     });
   }
+
+  // Periodic re-fetch so the reference image tracks the scene while the page
+  // is open - snapshot.jpg is otherwise only fetched once (load/stream-switch/
+  // reload button), unlike the streamer pages' /stream.mjpeg which updates
+  // itself. Paused during a drag (would fight the in-progress resize/move) and
+  // while the tab is hidden (each fetch wakes the JPEG encoder - no point
+  // paying that cost for a page nobody is looking at).
+  setInterval(function () {
+    if (!isWindowVisible || dragging || !window.timpsApi) return;
+    setSnapshot();
+  }, SNAPSHOT_REFRESH_MS);
+  document.addEventListener("visibilitychange", function () {
+    isWindowVisible = document.visibilityState !== "hidden";
+    if (isWindowVisible) setSnapshot();
+  });
 
   /* ---- load ---- */
 
