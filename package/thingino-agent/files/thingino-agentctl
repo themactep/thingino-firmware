@@ -31,7 +31,8 @@ select_adapter() {
 	configured=$(thingino_agent_text_config_value agent.backend)
 	case "$configured" in
 		"" | auto)
-			for candidate in prudynt null; do
+			# Prefer raptor on master images; fall back to prudynt, then null.
+			for candidate in raptor prudynt null; do
 				func="thingino_agent_adapter_${candidate}_detect"
 				if command -v "$func" >/dev/null 2>&1 && "$func"; then
 					THINGINO_AGENT_ADAPTER=$candidate
@@ -39,7 +40,7 @@ select_adapter() {
 				fi
 			done
 			;;
-		prudynt | null)
+		raptor | prudynt | null)
 			func="thingino_agent_adapter_${configured}_detect"
 			if command -v "$func" >/dev/null 2>&1 && "$func"; then
 				THINGINO_AGENT_ADAPTER=$configured
