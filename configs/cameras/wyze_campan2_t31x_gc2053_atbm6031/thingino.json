@@ -4,7 +4,16 @@
     "ir850": 60,
     "ircut": "50 49",
     "mmc_cd": 48,
-    "mmc_power": "47o 54o",
+    "mmc_power": [
+      {
+        "pin": 47,
+        "active_low": true
+      },
+      {
+        "pin": 54,
+        "active_low": true
+      }
+    ],
     "wlan": 58
   },
   "motors": {

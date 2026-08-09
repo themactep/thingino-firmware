@@ -1,4 +1,0 @@
-gpio_default=42i 43o 49o 50o 51i 52o 53o 54i 57o 59i 60o 62i 63o
-gpio_led_b=52
-gpio_mmc_cd=59
-gpio_speaker=57

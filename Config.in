@@ -76,7 +76,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_LIBCURL
-	select BR2_PACKAGE_THINGINO_ONVIF if (BR2_PACKAGE_PRUDYNT_T || BR2_PACKAGE_THINGINO_RAPTOR || BR2_PACKAGE_TIMPS) && BR2_THINGINO_DEV_IPCAM
+	select BR2_PACKAGE_THINGINO_ONVIF if BR2_THINGINO_DEV_IPCAM
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_UBOOT_TOOLS
 	# buildroot package configuration
@@ -188,6 +188,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-aac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libimp-debug/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/plog/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
@@ -214,9 +215,27 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libwebsockets/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-20x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-212/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-snmpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
+
+menuconfig BR2_THINGINO_PACKAGES
+	bool "Package Bundle System"
+	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_THINGINO_PKG
+	help
+	  On-device package manager for installing precompiled
+	  software bundles on Thingino cameras.
+
+	  Includes thingino-pkg, which can download and install
+	  bundle packages (.tpb files) without reflashing firmware.
+
+	  https://github.com/themactep/thingino-firmware
+
+if BR2_THINGINO_PACKAGES
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-pkg/Config.in"
+endif
 
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"

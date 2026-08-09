@@ -19,9 +19,12 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
-# Run dependency check before doing anything, but skip if WORKFLOW=1 or if .prereqs.done exists
+# Run dependency check before doing anything.
+# Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
-ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
+ifneq ($(filter update,$(MAKECMDGOALS)),)
+$(info Skipping dependency check for update target)
+else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 	_dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 	ifneq ($(lastword $(_dep_check)),0)
 	$(error Dependency check failed)
@@ -178,7 +181,7 @@ TOOLCHAIN_LIBC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/
 
 TOOLCHAIN_TYPE_RAW := $(if $(TOOLCHAIN_TYPE_RAW),$(TOOLCHAIN_TYPE_RAW),EXTERNAL)
 TOOLCHAIN_GCC_RAW := $(if $(TOOLCHAIN_GCC_RAW),$(TOOLCHAIN_GCC_RAW),16)
-TOOLCHAIN_LIBC_RAW := $(if $(TOOLCHAIN_LIBC_RAW),$(TOOLCHAIN_LIBC_RAW),MUSL)
+TOOLCHAIN_LIBC_RAW := $(if $(TOOLCHAIN_LIBC_RAW),$(TOOLCHAIN_LIBC_RAW),UCLIBC)
 
 TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(filter EXTERNAL,$(TOOLCHAIN_TYPE_RAW)),ext,$(if $(filter LOCAL,$(TOOLCHAIN_TYPE_RAW)),loc,ext)))
 TOOLCHAIN_LIBC_TAG := $(shell echo "$(TOOLCHAIN_LIBC_RAW)" | tr 'A-Z' 'a-z')
@@ -186,7 +189,7 @@ TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc
 
 # Resolve U-Boot version fragment
 THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | head -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
-THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2026_04)
+THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2026_07)
 THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
@@ -206,6 +209,13 @@ $(info TOOLCHAIN_LIBC: $(TOOLCHAIN_LIBC))
 endif
 
 # working directory - set after CAMERA is defined
+# THINGINO_-prefixed variants allow safe overrides from the global environment
+ifdef THINGINO_OUTPUT_ROOT_DIR
+OUTPUT_ROOT_DIR := $(THINGINO_OUTPUT_ROOT_DIR)
+endif
+ifdef THINGINO_OUTPUT_DIR
+OUTPUT_DIR := $(THINGINO_OUTPUT_DIR)
+endif
 OUTPUT_ROOT_DIR ?= $(BR2_EXTERNAL)/output
 OUTPUT_BASE_DIR = $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)-$(TOOLCHAIN_LIBC)
 ifeq ($(SKIP_CAMERA_SELECTION),)
@@ -235,7 +245,7 @@ endif
 # Capped XBurst1 SoCs (T10/T20/T21/T30) boot a TPL chain with modern u-boot; allow legacy names
 ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 ifneq ($(SOC_MODEL),)
-UBOOT_BIN_NAME := $(shell $(SCRIPTS_DIR)/get_soc_params.sh $(SOC_MODEL) uboot_image 2>/dev/null || echo u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME := $(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)
 endif
 endif
 
@@ -297,6 +307,11 @@ FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 # fixed size partitions
 U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
+BACKUP_SIZE_KB := 64
+
+# rootfs MTD index — must match the number of partitions before rootfs
+# in the offset chain below (U_BOOT → UB_ENV → BACKUP → KERNEL → ROOTFS)
+ROOTFS_MTD_NUM := 4
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -326,11 +341,14 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
-KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
+BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
+KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE
+export BACKUP_PARTITION_SIZE
+export KERNEL_PARTITION_SIZE
 export ALIGN_BLOCK
 
 # Partition sizes in KB for mtdparts
@@ -346,23 +364,30 @@ FLASH_SIZE :=
 FLASH_SIZE_HEX :=
 U_BOOT_PARTITION_SIZE :=
 UB_ENV_PARTITION_SIZE :=
+BACKUP_PARTITION_SIZE :=
 endif
 
 # partition offsets
 ifeq ($(SKIP_CAMERA_SELECTION),)
 U_BOOT_OFFSET := 0
 UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
-KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
+BACKUP_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
+KERNEL_OFFSET = $(shell echo $$(($(BACKUP_OFFSET) + $(BACKUP_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
 DATA_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 else
 U_BOOT_OFFSET :=
 UB_ENV_OFFSET :=
+BACKUP_OFFSET :=
 KERNEL_OFFSET :=
 ROOTFS_OFFSET :=
 DATA_OFFSET :=
 endif
 export FLASH_SIZE_MB
+export U_BOOT_SIZE_KB
+export UB_ENV_SIZE_KB
+export BACKUP_SIZE_KB
+export KERNEL_SIZE_KB
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
@@ -382,12 +407,12 @@ define thingino_run_build
 	fi
 endef
 
-.PHONY: all bootstrap build clean clean-nfs-debug cleanbuild \
+.PHONY: all bootstrap build build-info clean clean-nfs-debug cleanbuild \
 	defconfig dev distclean fast help pack repack remove_bins \
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
-	dfu scriba upload_serial ota backup-overlay run show-vars user-dirs setup-hooks
+	dfu scriba ota backup-overlay run show-vars user-dirs setup-hooks
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -632,6 +657,16 @@ endif
 	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
+	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
+	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
+		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
+		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
+		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
+		echo "BR2_LINUX_KERNEL_CUSTOM_GIT=y" >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_URL="$(KERNEL_SITE)"' >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="$(KERNEL_HASH)"' >> $(OUTPUT_DIR)/.config; \
+	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file
@@ -740,6 +775,7 @@ distclean: clean-nfs-debug
 pack: $(FIRMWARE_BIN_FULL)
 	@$(TEAL) "$@"
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(ORANGE) "Camera: $(CAMERA) (MMC boot)"
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 	@echo ""
@@ -758,22 +794,26 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
-	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data))
 	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(SCRIPTS_DIR)/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
 		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
 		$(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) \
 		$(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) \
+		$(BACKUP_OFFSET) $(BACKUP_PARTITION_SIZE) 0 0 \
 		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) \
 		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
 		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
-		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
+		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(BACKUP_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
 		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" $(UBOOT_FLASH_CONTROLLER) && \
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
 	@echo ""
+	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
 	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
+	@if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
@@ -786,9 +826,19 @@ endif
 # BR2_PACKAGE_HOST_BUILDSCOPE installs the tool into $(HOST_DIR); a copy on
 # PATH is used otherwise, so the report is available without enabling the
 # package. A missing tool or a failed report never fails the build.
+#
+# --capture records etc/thingino.json into the report. Nothing in .config
+# carries what is in it: the GPIO driving an IR cut filter, the pins and step
+# counts of a pan motor, are decided there and nowhere else, and the Kconfig
+# options that look like they hold them are empty. Attempted rather than
+# assumed, because the copy on PATH may predate the flag and an unknown
+# argument would cost the whole report rather than just the capture.
 	@BUILDSCOPE="$(HOST_DIR)/bin/buildscope"; \
 		if [ ! -x "$$BUILDSCOPE" ]; then BUILDSCOPE=$$(command -v buildscope 2>/dev/null || true); fi; \
-		if [ -n "$$BUILDSCOPE" ]; then "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; fi
+		if [ -n "$$BUILDSCOPE" ]; then \
+			"$$BUILDSCOPE" scan -q --capture etc/thingino.json "$(OUTPUT_DIR)" 2>/dev/null \
+				|| "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; \
+		fi
 	@echo ""
 	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
 		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
@@ -804,6 +854,8 @@ build-info: pack
 # rebuild a package with smart configuration check
 rebuild-uboot: force-config
 	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
 rebuild-%: force-config
@@ -815,6 +867,8 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
 
 remove_bins:
@@ -839,13 +893,48 @@ toolchain: defconfig
 	$(BR2_MAKE) sdk
 
 # flash compiled full image to the camera
-ota:
+ota: ota-full
+
+# Full firmware OTA (default)
+ota-full:
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@fw_path="$(FIRMWARE_BIN_FULL)"; \
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh $(if $(filter 1 y yes true,$(FORCE)),-f) "$$fw_path" $(CAMERA_IP_ADDRESS)
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
+
+# Kernel-only OTA
+ota-kernel:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(KERNEL_BIN)" || { echo "ERROR: $(KERNEL_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(KERNEL_BIN)" -m kernel
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
+
+# Bootloader-only OTA
+ota-uboot:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(U_BOOT_BIN)" || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -m boot
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
+
+# Rootfs+data upgrade with config backup (safe upgrade)
+ota-upgrade:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(ROOTFS_BIN)" -B -m rootfs
+	# $(if $(filter 1 y yes true,$(FORCE)),-f)
+
+# Rootfs-only OTA (flashes rootfs + data)
+ota-rootfs:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -m rootfs "$(ROOTFS_BIN)" $(CAMERA_IP_ADDRESS)
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
 
 # backup /overlay from a camera to a local tarball
 backup-overlay:
@@ -1096,21 +1185,26 @@ $(KERNEL_BIN):
 # rebuild rootfs (depends on kernel to ensure proper build order)
 $(ROOTFS_BIN): $(KERNEL_BIN)
 	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
 
-$(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
+CAMERA_UENV_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt)
+
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
 	@$(TEAL) "$@"
-	touch $@
+	rm -f $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
+	if [ -f "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt" ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt | awk NF | tee -a $@; \
+	fi
 	for file in $(THINGINO_USER_UENV_FILES); do \
 		grep -v '^#' "$$file" | awk NF | tee -a $@; \
 	done
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
 	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d; /^data_addr=/d; /^data_size=/d; /^overlay_wipe=/d' $@
-	echo 'overlay_wipe=echo "wiping overlay"; sf probe && sf erase $${data_addr} $${data_size} && echo "overlay wipe done"' >> $@
+	echo 'overlay_wipe=echo \"wiping overlay\"; sf probe && sf erase $${data_addr} $${data_size} && echo \"overlay wipe done\"' >> $@
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	# MMC boot: set bootargs and load kernel from FAT partition
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
@@ -1136,12 +1230,13 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	echo 'autoupdate=if test "$${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 $${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if mtd erase spi-nand0 && mtd write spi-nand0 $${loadaddr} 0x0 $${filesize}; then fatwrite mmc 0:1 $${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi' >> $@
 else
 	# SFC boot: read kernel from SPI flash
+	echo "root=/dev/mtdblock$(ROOTFS_MTD_NUM)" >> $@
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
 	echo "data_addr=$$(printf '0x%x' $(DATA_OFFSET))" >> $@
 	echo "data_size=$$(printf '0x%x' $(DATA_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
-	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data)" >> $@
 	echo 'bootcmd=$(AUTOUPDATE_PREFIX)sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
 	@if ! grep -q '^BR2_THINGINO_SDCARD=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
@@ -1245,6 +1340,14 @@ help:
 	  make ota IP=192.168.1.10\n\
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
+	  make ota-kernel IP=192.168.1.10\n\
+	                      upload and flash kernel only\n\
+	  make ota-uboot IP=192.168.1.10\n\
+	                      upload and flash bootloader + env\n\
+	  make ota-rootfs IP=192.168.1.10\n\
+	                      upload and flash rootfs + data\n\
+	  make ota-upgrade IP=192.168.1.10\n\
+	                      upload and flash rootfs + data with config backup\n\
 	  make backup-overlay IP=192.168.1.10\n\
 	                      backup /overlay/ from camera to\n\
 	                        $(THINGINO_BACKUP_DIR)\n\n\
