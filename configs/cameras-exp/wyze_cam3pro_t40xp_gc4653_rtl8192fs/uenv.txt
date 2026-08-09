@@ -1,3 +1,0 @@
-#gpio_mmc_power=58
-#gpio_mmc_power=121
-serialport=ttyS1

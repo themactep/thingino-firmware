@@ -1,2 +1,0 @@
-#gpio_mmc_cd=58
-serialport=ttyS1
