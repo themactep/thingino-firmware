@@ -1,7 +1,7 @@
 {
   "gpio": {
+    "button_call": 54,
     "button_reset": 52,
-    "call": 54,
     "ircut": 81,
     "mmc_cd": 59,
     "wlan": 62
