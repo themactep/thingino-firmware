@@ -29,8 +29,14 @@ import json, sys
 g = json.load(open(sys.argv[1])).get("gpio", {})
 cd = g.get("mmc_cd")
 mp = g.get("mmc_power")
-pin = mp.get("pin") if isinstance(mp, dict) else None
-al = mp.get("active_low") if isinstance(mp, dict) else None
+# Object {pin, active_low} or short notation (bare int = active-high pin).
+# The multi-pin list form is handled as gpio-hogs by inject-uboot-gpio-dt.sh.
+if isinstance(mp, dict):
+    pin, al = mp.get("pin"), mp.get("active_low")
+elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
+    pin, al = mp, False
+else:
+    pin, al = None, None
 br = g.get("button_reset")
 bp = br.get("pin") if isinstance(br, dict) else (br if isinstance(br, int) else None)
 print(cd if isinstance(cd, int) else -1,

@@ -46,7 +46,7 @@
 #                 the runtime script treats them.
 #
 # A pin that inject-uboot-mmc-dt.sh turns into a DT binding (gpio.mmc_cd ->
-# cd-gpios, single-object gpio.mmc_power -> vmmc regulator, gpio.button_reset
+# cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
 # -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
 # binding's own request then fails, breaking the subsystem that needed it
 # (cinnado_b6 lists pin 61 as both mmc_cd and a motor phase - card-detect
@@ -227,6 +227,8 @@ if isinstance(cd, int) and cd >= 0:
     reserved.add(cd)
 if isinstance(mp, dict) and isinstance(mp.get("pin"), int) and mp["pin"] >= 0:
     reserved.add(mp["pin"])
+elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
+    reserved.add(mp)  # short notation: bare int = active-high pin
 br = g.get("button_reset")
 bp = br.get("pin") if isinstance(br, dict) else br
 if isinstance(bp, int) and bp >= 0:
