@@ -235,7 +235,7 @@ endif
 # Capped XBurst1 SoCs (T10/T20/T21/T30) boot a TPL chain with modern u-boot; allow legacy names
 ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 ifneq ($(SOC_MODEL),)
-UBOOT_BIN_NAME := $(shell $(SCRIPTS_DIR)/get_soc_params.sh $(SOC_MODEL) uboot_image 2>/dev/null || echo u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME := $(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)
 endif
 endif
 
