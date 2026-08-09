@@ -181,6 +181,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "free -h" "MEMORY"
 	inforun "mount" "MOUNT"
+	inforun "tree /overlay/" "OVERLAY"
 
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
@@ -213,6 +214,9 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	elif [ -f "$PRUDYNT_CONFIG_FILE" ]; then
 		sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 	fi
+	infocat "/etc/resolv.conf" "RESOLV"
+	header "WPA-CONF"
+	[ -f /etc/wpa_supplicant.conf ] && sed -E 's/(ssid=")[^"]*"/\1REDACTED"/; s/(psk=")[^"]*"/\1REDACTED"/; s/^(\s*psk=)[0-9a-fA-F]{64}/\1REDACTED/; s/(password=")[^"]*"/\1REDACTED"/' /etc/wpa_supplicant.conf
 	infocat "/etc/cron/crontabs/root" "crontab"
 } >"$output_file"
 

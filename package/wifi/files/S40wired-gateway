@@ -25,21 +25,32 @@ has_wired_uplink() {
 	return 1
 }
 
-watch_wired_uplink() {
-	attempt=0
-	while [ "$attempt" -lt 10 ]; do
-		for iface in eth0 usb0; do
-			if has_wired_uplink "$iface"; then
-				echo "Wired uplink on $iface found, stopping WiFi" >&2
-				/etc/init.d/S38wpa_supplicant stop
-				/etc/init.d/S36wireless stop
-				unload_wlan_module
-				exit 0
-			fi
-		done
-		attempt=$((attempt + 1))
-		sleep 1
+any_wired_iface_exists() {
+	for iface in eth0 usb0; do
+		ip link show "$iface" >/dev/null 2>&1 && return 0
 	done
+	return 1
+}
+
+watch_wired_uplink() {
+	# Only poll for wired uplink if wired interfaces exist
+	if any_wired_iface_exists; then
+		attempt=0
+		while [ "$attempt" -lt 10 ]; do
+			for iface in eth0 usb0; do
+				if has_wired_uplink "$iface"; then
+					echo "Wired uplink on $iface found, stopping WiFi" >&2
+					/etc/init.d/S38wpa_supplicant stop
+					/etc/init.d/S36wireless stop
+					unload_wlan_module
+					exit 0
+				fi
+			done
+			attempt=$((attempt + 1))
+			sleep 1
+		done
+	fi
+	# Always confirm portal mode so DHCP/DNS start on WiFi-only cameras
 	if [ -f /run/portal_mode ]; then
 		/etc/init.d/S38wpa_supplicant portal_confirmed
 	fi

@@ -1,0 +1,8 @@
+{
+  "audio": {
+    "mic_hq": false
+  },
+  "stream0": {
+    "fps": 20
+  }
+}

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -211,7 +212,29 @@ static int capture_command(char *const argv[], const char *stdin_path, char **ou
     close(pipe_fd[1]);
     for (;;) {
         char chunk[4096];
-        ssize_t bytes_read = read(pipe_fd[0], chunk, sizeof(chunk));
+        ssize_t bytes_read;
+        fd_set fds;
+        struct timeval tv;
+
+        FD_ZERO(&fds);
+        FD_SET(pipe_fd[0], &fds);
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+        if (select(pipe_fd[0] + 1, &fds, NULL, NULL, &tv) < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+        if (!FD_ISSET(pipe_fd[0], &fds)) {
+            /* timeout: kill child, return error */
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            free(buffer);
+            close(pipe_fd[0]);
+            return -1;
+        }
+        bytes_read = read(pipe_fd[0], chunk, sizeof(chunk));
 
         if (bytes_read == 0) {
             break;
@@ -445,17 +468,24 @@ static int forward_script(struct http_request *request, const char *script_path)
     return 0;
 }
 
+static char cached_token[256];
+static int token_loaded = 0;
+
 static int require_token(const struct http_request *request)
 {
-    char token[256];
-
-    if (read_config_value("agent.token", token, sizeof(token), 1) != 0 || token[0] == '\0') {
+    if (!token_loaded) {
+        if (read_config_value("agent.token", cached_token, sizeof(cached_token), 1) != 0) {
+            cached_token[0] = '\0';
+        }
+        token_loaded = 1;
+    }
+    if (cached_token[0] == '\0') {
         return 0;
     }
     if (strncmp(request->authorization, "Bearer ", 7) != 0) {
         return -1;
     }
-    return strcmp(request->authorization + 7, token) == 0 ? 0 : -1;
+    return strcmp(request->authorization + 7, cached_token) == 0 ? 0 : -1;
 }
 
 static int execute_agentctl_json(int client_fd, char *const argv[], const char *stdin_path)
@@ -467,7 +497,8 @@ static int execute_agentctl_json(int client_fd, char *const argv[], const char *
 
     if (command_status != 0) {
         free(output);
-        return send_json_error(client_fd, 500, "Internal Server Error", "thingino-agentctl failed");
+        /* backend unavailable: return empty payload so caller can fall back */
+        return send_response(client_fd, 200, "OK", "application/json", "", 0);
     }
     response_status = send_response(client_fd, 200, "OK", "application/json", output, output_len);
     free(output);

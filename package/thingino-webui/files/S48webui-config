@@ -27,53 +27,11 @@ start() {
 	image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
 	build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
-	motors_enabled="false"
-	if jct /etc/thingino.json get motors >/dev/null 2>&1; then
-		motors_enabled="true"
-	fi
 	flash_operations_enabled="false"
 	if [ -f /var/www/tool-upgrade.html ]; then
 		flash_operations_enabled="true"
 	fi
 	soc="$(soc -f)"
-
-	streamer="none"
-	if [ -r /etc/thingino-streamer ]; then
-		streamer=$(sed -n '1p' /etc/thingino-streamer 2>/dev/null | tr -d '\r\n ')
-	fi
-	case "$streamer" in
-		raptor | prudynt | strero | timps | none) ;;
-		*)
-			if [ -f /etc/raptor.conf ] && command -v raptorctl >/dev/null 2>&1; then
-				streamer="raptor"
-			elif [ -f /etc/prudynt.json ]; then
-				streamer="prudynt"
-			else
-				streamer="none"
-			fi
-			;;
-	esac
-
-	streamer_config_href="/info.html?prudynt"
-	streamer_config_label="File: prudynt.json"
-	case "$streamer" in
-		raptor)
-			streamer_config_href="/info.html?raptor"
-			streamer_config_label="File: raptor.conf"
-			;;
-		strero)
-			streamer_config_href="/info.html?thingino"
-			streamer_config_label="File: thingino.json"
-			;;
-		timps)
-			streamer_config_href="/info.html?thingino"
-			streamer_config_label="File: thingino.json"
-			;;
-		none)
-			streamer_config_href="/info.html?thingino"
-			streamer_config_label="File: thingino.json"
-			;;
-	esac
 
 	{
 		echo "// generated at $(date +%c)"
@@ -81,21 +39,11 @@ start() {
 		echo "window.thinginoUIConfig.footer = Object.assign({}, window.thinginoUIConfig.footer, {"
 		echo "  host: \"$(escape "$hostname")\","
 		echo "  buildInfo: \"$(escape "$image_id · $build_commit · $build_time")\","
-		echo "  restartEndpoint: \"/x/agent.cgi?agent_path=/api/v1/actions/streamer/restart\","
-		echo "  restartMethod: \"POST\","
-		echo "  restartConfirmMessage: \"Restart streamer service?\\n\\nThe video stream will be interrupted for a few seconds.\","
-		echo "  restartSuccessMessage: \"Streamer restarted successfully\","
-		echo "  restartErrorMessage: \"Failed to restart streamer\","
-		echo "  restartLoadingLabel: \"Restarting…\""
 		echo "});"
 		echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
 		echo "  timezone: \"$(escape "$timezone")\","
-		echo "  motors: $motors_enabled,"
 		echo "  flashOperations: $flash_operations_enabled,"
-		echo "  soc: \"$soc\","
-		echo "  streamer: \"$(escape "$streamer")\","
-		echo "  streamerConfigHref: \"$(escape "$streamer_config_href")\","
-		echo "  streamerConfigLabel: \"$(escape "$streamer_config_label")\""
+		echo "  soc: \"$soc\""
 		echo "});"
 		echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"
 	} >"$WEBUI_JS_CONFIG"

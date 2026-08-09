@@ -197,6 +197,7 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_OPUS=$(PRUDYNT_T_USE_OPUS) \
 		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
+		USE_OSD_BURNIN=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN),1,0) \
 		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
@@ -250,7 +251,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	fi
 
 	# Copy the JSON configuration file to staging
-	cp $(PRUDYNT_T_PKGDIR)/files/prudynt.json $(STAGING_DIR)/prudynt.json
+	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
 
 	# Apply optional camera override using host jct
 	if [ -f "$(PRUDYNT_T_OVERRIDE_FILE)" ]; then \
