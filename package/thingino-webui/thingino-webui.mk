@@ -36,9 +36,12 @@ define THINGINO_WEBUI_APPLY_ASSET_TAG
 	fi
 endef
 
-# When vendor/ files are present, rewrite CDN <link>/<script> tags in every
-# installed HTML page to include an onerror= fallback pointing to /a/vendor/.
-# CDN is still tried first; local copy fires only when the CDN request fails.
+# HTML pages reference CDN assets by default.
+# When BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y, apply_paranoid_mode.py
+# rewrites CDN <link>/<script> tags to local /a/vendor/ paths and
+# vendor files are installed. The CDN fallback step below is a no-op
+# when no CDN tags remain (paranoid mode) and adds onerror= fallbacks
+# when they do (normal mode).
 define THINGINO_WEBUI_APPLY_CDN_FALLBACK
 	@root="$(TARGET_DIR)/var/www"; \
 	script="$(THINGINO_WEBUI_PKGDIR)/scripts/apply_cdn_fallback.py"; \
@@ -452,15 +455,25 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
 
-	# Install local vendor files (CDN fallbacks) when present
-	@if [ -d "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" ] && \
-		[ -n "$$(find "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" -maxdepth 2 -type f ! -name '*.md' ! -name '.gitkeep' 2>/dev/null | head -1)" ]; then \
+	# Paranoid mode: install local vendor assets (CDN rewriting happens in
+	# finalize hook so plugin pages installed later are also processed)
+	@if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
+		rm -rf "$(TARGET_DIR)/var/www/a/vendor"; \
 		cp -r "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" "$(TARGET_DIR)/var/www/a/"; \
-		printf 'thingino-webui: vendor fallback files installed\n'; \
+		printf 'thingino-webui: paranoid mode — vendor files staged\n'; \
 	fi
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
 	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
+endef
+
+# Paranoid mode CDN → local rewriting — runs as a rootfs pre-hook (not a
+# per-package finalize hook) so it runs AFTER the finalize hooks of streamer
+# packages (timps, raptor) that install their own HTML overlays.  Plugin
+# assembly (ASSEMBLE_PLUGINS) has also already run by this point.
+define THINGINO_WEBUI_PARANOID_REWRITE
+	if grep -q "^BR2_PACKAGE_THINGINO_WEBUI_PARANOID=y" $(BR2_CONFIG); then \
+		python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/apply_paranoid_mode.py" "$(TARGET_DIR)/var/www" || true; \
 	if [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" = "y" ]; then \
 		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-doorbell.html \
 			$(TARGET_DIR)/var/www/config-doorbell.html; \
@@ -472,5 +485,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/var/www/x/json-chime-status.cgi; \
 	fi
 endef
+ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
+
 
 $(eval $(generic-package))
