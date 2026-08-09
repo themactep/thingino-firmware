@@ -92,14 +92,14 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
 	# Detect which domain is being updated by checking keys
 	if jct "$temp_json" get motion >/dev/null 2>&1; then
-		# Motion config - import into prudynt.json
+		# Motion config - import into prudynt.json, then restart prudynt
+		# so it picks up the full merged config from disk.
+		# Sending a partial config via prudyntctl corrupts the running
+		# process, breaking the live feed and motion detection.
 		jct "$prudynt_config" import "$temp_json"
 		sync
 
-		# Update running prudynt instance if it's running
-		if pidof prudynt >/dev/null 2>&1; then
-			prudyntctl json - <"$temp_json" >/dev/null 2>&1
-		fi
+		service restart prudynt >/dev/null 2>&1 &
 
 	elif jct "$temp_json" get email >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
