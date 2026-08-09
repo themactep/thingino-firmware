@@ -3,18 +3,9 @@
     "button_reset": 40,
     "ir850": {
       "pin": 49,
-      "active_low": true,
-      "pwm_channel": 0
+      "active_low": true
     },
     "ircut": 999,
-    "led_g": {
-      "pin": 42,
-      "active_low": false
-    },
-    "led_r": {
-      "pin": 43,
-      "active_low": false
-    },
     "mmc_cd": 57,
     "mmc_power": {
       "pin": 58,
@@ -22,9 +13,24 @@
     },
     "white": {
       "pin": 50,
-      "active_low": true,
-      "pwm_channel": 1
+      "active_low": true
     },
     "wlan": 51
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "",
+    "gpio_power": 38,
+    "gpio_switch": -1,
+    "gpio_tilt": "",
+    "homing": true,
+    "invert_x": 0,
+    "invert_y": 0,
+    "is_spi": true,
+    "pos_0": "3925,2218",
+    "speed_pan": 430,
+    "speed_tilt": 430,
+    "steps_pan": 7850,
+    "steps_tilt": 2730
   }
 }

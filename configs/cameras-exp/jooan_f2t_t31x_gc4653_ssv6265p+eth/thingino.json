@@ -4,6 +4,7 @@
     "ir850": {
       "pin": 89,
       "active_low": true
-    }
+    },
+    "mmc_cd": -1
   }
 }
