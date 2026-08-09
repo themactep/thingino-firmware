@@ -24,8 +24,15 @@ else
 SOC_TARGET_ARCH := mipsel
 endif
 
-# Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
+# The SoC model, from whichever vendor's symbol carries it. Kconfig keeps them
+# mutually exclusive -- each depends on its vendor and the vendor is a choice --
+# so at most one is ever set and the order below is not a precedence. Testing
+# after qstrip rather than before is what makes an empty BR2_..._SOC_MODEL=""
+# fall through, since "" is two characters to make and not an empty string.
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
+ifeq ($(SOC_MODEL_INPUT),)
+SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
+endif
 ifneq ($(SOC_MODEL_INPUT),)
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
 
