@@ -108,13 +108,24 @@ prepare_portal() {
 	ip link set $IFACE up
 
 	echo "Add route ${PORTAL_CNET}.0/24 to $IFACE"
-	ip route add ${PORTAL_CNET}.0/24 dev $IFACE
+	ip route replace ${PORTAL_CNET}.0/24 dev $IFACE
 
-	# FIXME: should be done in compile time or in tmpfs
+	# Generate portal AP config from scratch so we don't depend on
+	# whatever default wpa_supplicant.conf was installed at build time.
 	echo "Update SSID with last two octets of MAC address"
 	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" $CONFIG
+	cat >$CONFIG <<-WPAEOF
+		ctrl_interface=/run/wpa_supplicant
+		ap_scan=2
+
+		network={
+			ssid="THINGINO-${last_two}"
+			mode=2
+			frequency=2412
+			key_mgmt=NONE
+		}
+	WPAEOF
 
 	echo "Start wpa_supplicant"
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
@@ -185,7 +196,7 @@ start_access_point() {
 	ip address add ${WLANAP_IP}/24 dev $IFACE
 
 	echo "Add route ${WLANAP_CNET}.0/24 to $IFACE"
-	ip route add ${WLANAP_CNET}.0/24 dev $IFACE
+	ip route replace ${WLANAP_CNET}.0/24 dev $IFACE
 
 	echo "Set WLAN AP DNS configuration"
 	cp /etc/dnsd-ap.conf /tmp/dnsd.conf
@@ -279,36 +290,36 @@ start() {
 						echo "mcu_test not found; ATBM6461 client connection cannot start" >&2
 						exit 1
 					fi
-				echo "Bring $IFACE up"
-				ip link set $IFACE up
-				echo "Waiting for SDIO link to stabilize..."
-				sleep 3
-				echo "Connecting via mcu_test: $wifi_ssid"
-				if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
+					echo "Bring $IFACE up"
+					ip link set $IFACE up
+					echo "Waiting for SDIO link to stabilize..."
+					sleep 3
+					echo "Connecting via mcu_test: $wifi_ssid"
+					if ! mcu_test --wifi_connect="${wifi_ssid}:${wifi_pass}"; then
 						echo "WARNING: mcu_test WiFi command failed"
 					fi
-				echo "Waiting for MCU WiFi connection..."
-				i=0
-				hex_ip=""
-				while [ "$i" -lt 30 ]; do
-					hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
-					[ -n "$hex_ip" ] && break
-					i=$((i + 1))
-					sleep 1
-				done
-				if [ -n "$hex_ip" ] && [ ${#hex_ip} -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
-					ip_addr=$(printf '%d.%d.%d.%d' 0x${hex_ip:6:2} 0x${hex_ip:4:2} 0x${hex_ip:2:2} 0x${hex_ip:0:2})
-					gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
-					echo "MCU DHCP IP: $ip_addr"
-					ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
-					ip route add default via $gateway dev $IFACE 2>/dev/null || true
-					echo "nameserver $gateway" > /tmp/resolv.conf
-					sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
-				else
-					echo "WARNING: Could not get IP from MCU DHCP"
-					ip link show $IFACE
-					iwconfig $IFACE 2>/dev/null || true
-				fi
+					echo "Waiting for MCU WiFi connection..."
+					i=0
+					hex_ip=""
+					while [ "$i" -lt 30 ]; do
+						hex_ip=$(dmesg | grep 'hostevent.*ipaddr' | tail -1 | sed 's/.*ipaddr \([0-9a-f]*\).*/\1/')
+						[ -n "$hex_ip" ] && break
+						i=$((i + 1))
+						sleep 1
+					done
+					if [ -n "$hex_ip" ] && [ "$(echo -n "$hex_ip" | wc -c)" -eq 8 ] && [ "$hex_ip" != "00000000" ]; then
+						ip_addr=$(printf '%d.%d.%d.%d' 0x$(echo "$hex_ip" | cut -c7-8) 0x$(echo "$hex_ip" | cut -c5-6) 0x$(echo "$hex_ip" | cut -c3-4) 0x$(echo "$hex_ip" | cut -c1-2))
+						gateway=$(echo "$ip_addr" | sed 's/\.[0-9]*$/.1/')
+						echo "MCU DHCP IP: $ip_addr"
+						ip addr add ${ip_addr}/24 dev $IFACE 2>/dev/null || true
+						ip route add default via $gateway dev $IFACE 2>/dev/null || true
+						echo "nameserver $gateway" >/tmp/resolv.conf
+						sed -i 's/iface wlan0 inet dhcp/iface wlan0 inet manual/' /etc/network/interfaces.d/wlan0
+					else
+						echo "WARNING: Could not get IP from MCU DHCP"
+						ip link show $IFACE
+						iwconfig $IFACE 2>/dev/null || true
+					fi
 				else
 					echo "Missing SSID or password for mcu_test"
 				fi

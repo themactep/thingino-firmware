@@ -7,10 +7,7 @@
     "led_b": 39,
     "spk_en": 63,
     "mmc_cd": 58,
-    "mmc_power": {
-      "pin": 61,
-      "active_low": false
-    },
+    "mmc_power": 61,
     "wlan": 72
   }
 }

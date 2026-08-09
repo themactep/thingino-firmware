@@ -14,7 +14,6 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make dev    # serial build (noisy, for deb
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make menuconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make ota
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make rebuild-<pkg>   # dirclean + rebuild + reinstall + finalize
 make build-all                  # builds every camera in configs/cameras/
 make run CMD="bin/ffmpeg --help"  # QEMU run target binary
@@ -30,7 +29,7 @@ make run CMD="bin/ffmpeg --help"  # QEMU run target binary
 ## Repo layout
 
 ```
-configs/cameras/<camera_name>/   # per-camera defconfig + .config + .uenv.txt + overlay/
+configs/cameras/<camera_name>/   # per-camera defconfig + .config + uenv.txt + overlay/
 package/<name>/                  # Buildroot packages (mk + Config.in)
 overlay/                         # root filesystem overlay (applied to all builds)
 board/ingenic/                   # DTB patches, post-build scripts, board files
@@ -53,7 +52,7 @@ First line of defconfig: `# NAME: <human-readable>`; second line: `# FRAG: <frag
 ## Config model
 
 `.config` is assembled from: **toolchain fragment** (e.g.
-`configs/fragments/toolchain/ext-gcc15-musl.fragment`) + **config fragments**
+`configs/fragments/toolchain/ext-gcc16-uclibc.fragment`) + **config fragments**
 (per `# FRAG:` in defconfig) + **camera defconfig** + **U-Boot fragment** +
 **user local.fragment** files. Template variables like `$(SOC_FAMILY)` are
 substituted during assembly.
@@ -64,7 +63,7 @@ Each can contain `local.fragment`, `local.mk`, `local.uenv.txt`, `thingino.json`
 `prudynt.json`, `overlay/`, `opt/`.
 
 Config fragments and per-camera overlay are merged at build time into the
-config and rootfs partitions respectively.
+rootfs and data partitions.
 
 ## SOC / kernel
 
@@ -86,20 +85,26 @@ Kernel source: `github.com/gtxaspec/thingino-linux`.
 ## Streamers
 
 Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
-`stable` still defaults to `prudynt`. Select explicitly via the Streamer choice
+`ciao` still defaults to `prudynt`. Select explicitly via the Streamer choice
 in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 `BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
 ## Firmware image
 
-- **SFC (SPI flash)**: `u-boot + env + config.jffs2 + uImage + rootfs.squashfs + extras.jffs2`
+- **SFC (SPI NOR)**: `boot(320K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
+  The `backup` partition holds a copy of the U-Boot environment for fail-safe updates.
+- **SFC-NAND (SPI NAND)**: UBI image at 1 MiB offset with volumes:
+  `uboot-env + kernel + rootfs(squashfs via ubiblock) + overlay(ubifs, autoresize)`
 - **MMC (SD card)**: INGE header + SPL + U-Boot + FAT32 (uImage) + ext4 (rootfs)
-- Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
+
+Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2026.04` by default). Thingino
-applies a single large patch (`package/all-patches/uboot/2026.04/0001-from-2026.04-to-thingino.patch`)
+Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
+and `custom-fork` are also available via config fragments).
+Thingino applies a single large per-version patch (e.g.
+`package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need
 U-Boot changes, add numbered follow-up patches in the same directory (e.g.
 `0002-my-change.patch`) — Buildroot applies them in sort order after the large
@@ -122,6 +127,8 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
   (see `docs/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
+- **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
+  braille spinners, emoji, or other non-ASCII characters in `.sh` files.
 
 ## Container Builds
 
@@ -132,6 +139,21 @@ make -f Makefile.container container-pull  # pull container image only
 ```
 
 Container engine auto-detects podman → docker fallback.
+
+## Parallel development (git worktrees)
+
+One task, one branch, one worktree, one agent. See `docs/worktrees.md`.
+
+```bash
+scripts/worktree.sh create <branch> [base]   # worktree + buildroot submodule + patches + shared dl
+scripts/worktree.sh sync                     # rebase onto origin/master (NOT `make update`!)
+scripts/worktree.sh remove <branch>          # after PR merge; branch is preserved
+scripts/worktree.sh list
+```
+
+- Never run `make update` in a feature worktree — use `sync`.
+- Container builds don't work from linked worktrees (`.git` gitfile path); build on host.
+- `local.mk`, `user/`, `overrides/` are gitignored and not carried into new worktrees.
 
 ## Thingino skills
 
@@ -160,6 +182,75 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
      leaving it up to the user to decide when to permanently delete.
 - **Never search outside the working directory!** If you need something you cannot
   find - ask the user. **Full home search is prohibited under any circumstances!**
+- Running rebuilds always preserve the full compilation log to grep for data
+  later instead of live-grepping the output.
+- Rebuilding a package, use both CAMERA and IP values. If you do not know the
+  correct camera's IP address - ask the user for help.
+- Use modern effective tools: ripgrep instead of just grep.
+- **Never flash or upload** anything to the camera unless you were explicitly
+  ordered to do so by the user.
+- Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
+  file to the shared directory on the PC. The file then can be acceessed on the
+  camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is
+  accessible as /mnt/nfs/prudynt on the camera. The can be used for rapid development.
+
+## WebUI Plugins
+
+Optional packages can contribute pages, scripts, and navigation items to the
+Thingino Web UI through a build-time manifest system.  See
+[docs/plugin-system.md](docs/plugin-system.md) for the full architecture.
+
+### Quickstart for plugin authors
+
+1. Create your package normally in `package/<name>/`.
+2. Create a manifest at `package/<name>/files/<name>.webui.json` following the
+   schema in `docs/plugin-system.md` §3.
+3. In your package's `.mk`, add the webui dependency:
+   ```make
+   ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+   MYPLUGIN_DEPENDENCIES += thingino-webui
+   endif
+   ```
+4. Install your web files *and the manifest* in the install step:
+   ```make
+   define MYPLUGIN_INSTALL_WWW_CMDS
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/www/page.html \
+           $(TARGET_DIR)/var/www/page.html
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/www/a/script.js \
+           $(TARGET_DIR)/var/www/a/script.js
+       $(INSTALL) -D -m 0755 $(MYPLUGIN_PKGDIR)/files/www/x/endpoint.cgi \
+           $(TARGET_DIR)/var/www/x/endpoint.cgi
+       $(INSTALL) -D -m 0644 $(MYPLUGIN_PKGDIR)/files/<name>.webui.json \
+           $(TARGET_DIR)/var/www/a/plugins/<name>.webui.json
+   endef
+   ```
+5. Validate with `scripts/check-plugins.sh` before building.
+
+### Manifest basics
+
+| Field | Purpose |
+|-------|---------|
+| `nav` | Menu items to inject into standard sections (`ddSettings`, `ddTools`, etc.) |
+| `scripts` | JS files loaded on **every** page (keep these small) |
+| `styles` | CSS files loaded on every page (rarely needed) |
+| `preview.scripts` | JS files loaded only on the preview page |
+| `preview.html` | HTML snippet injected into the preview page body |
+| `featureFlags` | Key-value pairs merged into `thinginoUIConfig.device` |
+| `pages` | Declared HTML pages (for conflict detection) |
+| `cgi` | Declared CGI endpoints (for conflict detection) |
+
+### Position values for nav items
+
+- `"append"` — at end of section (default)
+- `"prepend"` — at beginning of section
+- `"after:<label>"` — after the item with matching label
+- `"before:<label>"` — before the item with matching label
+- `"index:<n>"` — at 0-based position
+
+### Existing plugins (for reference)
+
+- `package/thingino-motors/files/motors.webui.json` — Pan/Tilt motors
+- `package/wyze-accessory/files/doorbell.webui.json` — Doorbell Chime
 
 ## Important constraints
 
