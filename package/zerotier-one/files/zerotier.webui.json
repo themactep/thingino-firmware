@@ -1,0 +1,32 @@
+{
+  "name": "zerotier",
+  "label": "ZeroTier VPN",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:WireGuard VPN",
+      "items": [
+        {
+          "label": "ZeroTier VPN",
+          "href": "/config-zerotier.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "zerotier": true
+  },
+  "cgi": [
+    "/x/json-config-zerotier.cgi"
+  ],
+  "pages": [
+    "/config-zerotier.html"
+  ]
+}
