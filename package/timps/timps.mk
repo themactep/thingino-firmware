@@ -389,25 +389,43 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_PREVIEW
 endif
 
 # NOTE: native day/night. When timps detects day/night itself
-# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd system daemon must
-# never autostart (it would double-switch against timps's own detection
-# thread), so its init script is removed. Done as a finalize hook so it wins
-# regardless of package build order; idempotent, a no-op when absent.
+# (BR2_PACKAGE_TIMPS_DAYNIGHT), none of thingino-daynightd's autostart
+# entry points must run - not just the main daemon (double-switches against
+# timps's own detection thread) but also its ircut and dusk2dawn scheduler
+# scripts (fight timps for the same IR-cut/gain hardware). thingino-daynightd
+# can end up selected on a timps image even though only prudynt-t selects it
+# in Config.in, because BR2_PACKAGE_THINGINO_DAYNIGHTD carries no "depends on"
+# of its own and Kconfig happily keeps a previously-set =y across oldconfig.
+# thingino-daynightd's 2026 rewrite renamed/added init scripts (S97daynightd
+# -> S10daynightd, plus new S06ircut/S07dusk2dawn) and ships a webui plugin
+# manifest - remove all of it by glob so a future rename doesn't silently
+# reopen this gap the way the old S97-only rm just did. Also drop the
+# now-orphaned Dusk2Dawn page/CGIs and the plugin manifest so applyPluginNav
+# doesn't inject "Photosensing"/"Dusk2Dawn" links to a disabled daemon
+# alongside timps's own native "Photosensing" entry. Done as a finalize hook
+# so it wins regardless of package build order; idempotent, no-op when absent.
 #
-# The WebUI "Photosensing" page is deliberately KEPT: files/www/a/
+# The WebUI "Photosensing" page/JS are NOT touched here: files/www/a/
 # config-photosensing.js is a timps-native overlay that talks straight to
 # /control (daynight.enabled / daynight.total_gain_{night,day}_threshold - see
 # its header) and is the config UI for timps's own detection, NOT the stock
-# page that drove daynightd. Earlier revisions of this hook deleted the page and
-# tried to strip its nav entry; that left the control-bar.js "Photosensing
-# Config" link (shipped unchanged from thingino-webui) pointing at a removed
-# page, so it dead-ended on Preview. Keeping the page - installed by the
-# TIMPS_INSTALL_WEBUI_CGIS overlay above - makes that link resolve correctly.
-# (The page's Controls/Schedule columns still use the board daynight script's
-# legacy /x/json-config-daynight.cgi best-effort; absent-CGI is handled in-page.)
+# page that drove daynightd - timps's own install already installs it at the
+# same target path, so it wins regardless of package install order. Earlier
+# revisions of this hook deleted the page and tried to strip its nav entry;
+# that left the control-bar.js "Photosensing Config" link (shipped unchanged
+# from thingino-webui) pointing at a removed page, so it dead-ended on
+# Preview. Keeping the page is what makes that link resolve correctly.
 ifeq ($(BR2_PACKAGE_TIMPS_DAYNIGHT),y)
 define TIMPS_DISABLE_DAYNIGHTD
-	rm -f $(TARGET_DIR)/etc/init.d/S97daynightd
+	rm -f $(TARGET_DIR)/etc/init.d/*daynightd $(TARGET_DIR)/etc/init.d/*ircut \
+		$(TARGET_DIR)/etc/init.d/*dusk2dawn
+	rm -f $(TARGET_DIR)/var/www/a/plugins/daynightd.webui.json \
+		$(TARGET_DIR)/var/www/config-dusk2dawn.html \
+		$(TARGET_DIR)/var/www/a/config-dusk2dawn.js \
+		$(TARGET_DIR)/var/www/x/json-config-daynight.cgi \
+		$(TARGET_DIR)/var/www/x/json-daynight-sun.cgi \
+		$(TARGET_DIR)/var/www/x/json-daynight-sensors.cgi \
+		$(TARGET_DIR)/var/www/x/json-daynight-history.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_DISABLE_DAYNIGHTD
 endif
