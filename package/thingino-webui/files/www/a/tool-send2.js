@@ -15,11 +15,22 @@
   };
 
   const motionEnabledInput = $("#motion_enabled");
+  const motionPlayOnSpeakerInput = $("#motion_playonspeaker");
   const motionSensitivityInput = $("#motion_sensitivity");
   const motionSensitivityValue = $("#motion_sensitivity_value");
   const motionCooldownInput = $("#motion_cooldown");
   const motionCooldownValue = $("#motion_cooldown_value");
   const saveMotionButton = $("#save_motion");
+
+  // Speaker elements
+  const speakerFileInput = $("#speaker_file");
+  const speakerVolumeInput = $("#speaker_volume");
+  const speakerVolumeValue = $("#speaker_volume_value");
+  const speakerGainInput = $("#speaker_gain");
+  const speakerGainValue = $("#speaker_gain_value");
+  const speakerLoopInput = $("#speaker_loop");
+  const saveSpeakerButton = $("#save_speaker");
+  const testSpeakerButton = $("#test_speaker");
 
   // Update slider value displays
   if (motionSensitivityInput) {
@@ -34,6 +45,22 @@
     motionCooldownInput.addEventListener("input", () => {
       if (motionCooldownValue) {
         motionCooldownValue.textContent = motionCooldownInput.value;
+      }
+    });
+  }
+
+  if (speakerVolumeInput) {
+    speakerVolumeInput.addEventListener("input", () => {
+      if (speakerVolumeValue) {
+        speakerVolumeValue.textContent = speakerVolumeInput.value;
+      }
+    });
+  }
+
+  if (speakerGainInput) {
+    speakerGainInput.addEventListener("input", () => {
+      if (speakerGainValue) {
+        speakerGainValue.textContent = speakerGainInput.value;
       }
     });
   }
@@ -78,6 +105,10 @@
         if (motionEnabledInput)
           motionEnabledInput.checked =
             data.motion.enabled === true || data.motion.enabled === "true";
+        if (motionPlayOnSpeakerInput)
+          motionPlayOnSpeakerInput.checked =
+            data.motion.playonspeaker === true ||
+            data.motion.playonspeaker === "true";
         if (motionSensitivityInput) {
           motionSensitivityInput.value = data.motion.sensitivity || 4;
           if (motionSensitivityValue)
@@ -155,6 +186,24 @@
           setStatus(videoStatus, sendVideo);
         }
       });
+
+      // Apply speaker settings
+      if (data.speaker) {
+        if (speakerFileInput)
+          speakerFileInput.value = data.speaker.file || "";
+        if (speakerVolumeInput) {
+          speakerVolumeInput.value = data.speaker.volume ?? 80;
+          if (speakerVolumeValue)
+            speakerVolumeValue.textContent = speakerVolumeInput.value;
+        }
+        if (speakerGainInput) {
+          speakerGainInput.value = data.speaker.gain ?? 20;
+          if (speakerGainValue)
+            speakerGainValue.textContent = speakerGainInput.value;
+        }
+        if (speakerLoopInput)
+          speakerLoopInput.value = data.speaker.loop ?? 1;
+      }
     } catch (err) {
       console.error("Failed to load config:", err);
       showAlert(
@@ -176,6 +225,7 @@
       const payload = {
         motion: {
           enabled: motionEnabledInput ? motionEnabledInput.checked : false,
+          playonspeaker: motionPlayOnSpeakerInput ? motionPlayOnSpeakerInput.checked : false,
           sensitivity: motionSensitivityInput
             ? Number(motionSensitivityInput.value)
             : 4,
@@ -207,6 +257,68 @@
       hideBusy();
       saveMotionButton.disabled = false;
     }
+  }
+
+  async function saveSpeakerSettings() {
+    if (!saveSpeakerButton) return;
+
+    showBusy("Saving speaker settings...");
+    saveSpeakerButton.disabled = true;
+
+    try {
+      const payload = {
+        speaker: {
+          file: speakerFileInput ? speakerFileInput.value : "",
+          volume: speakerVolumeInput ? Number(speakerVolumeInput.value) : 80,
+          gain: speakerGainInput ? Number(speakerGainInput.value) : 20,
+          loop: speakerLoopInput ? Number(speakerLoopInput.value) : 1,
+        },
+      };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error("Failed to save settings");
+
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to save settings");
+      }
+
+      showAlert("success", "Speaker settings saved successfully.", 3000);
+    } catch (err) {
+      console.error("Failed to save speaker settings:", err);
+      showAlert("danger", `Failed to save settings: ${err.message || err}`);
+    } finally {
+      hideBusy();
+      saveSpeakerButton.disabled = false;
+    }
+  }
+
+  function testSpeaker() {
+    if (!testSpeakerButton) return;
+    testSpeakerButton.disabled = true;
+
+    const params = new URLSearchParams({ to: "speaker" });
+    fetch(`/x/send.cgi?${params.toString()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          showAlert("danger", `Speaker test failed: ${data.error.message || data.error}`);
+        } else {
+          showAlert("success", "Speaker test played.", 3000);
+        }
+      })
+      .catch((err) => {
+        showAlert("danger", `Speaker test failed: ${err}`);
+      })
+      .finally(() => {
+        testSpeakerButton.disabled = false;
+      });
   }
 
   // Handle motion service toggles
@@ -290,6 +402,14 @@
 
   if (saveMotionButton) {
     saveMotionButton.addEventListener("click", saveMotionSettings);
+  }
+
+  if (saveSpeakerButton) {
+    saveSpeakerButton.addEventListener("click", saveSpeakerSettings);
+  }
+
+  if (testSpeakerButton) {
+    testSpeakerButton.addEventListener("click", testSpeaker);
   }
 
   loadConfig();

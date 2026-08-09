@@ -66,7 +66,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "webhook": $(get_domain_config webhook),
   "storage": $(get_domain_config storage),
   "ntfy": $(get_domain_config ntfy),
-  "gphotos": $(get_domain_config gphotos)
+  "gphotos": $(get_domain_config gphotos),
+  "speaker": $(get_domain_config speaker)
 }
 EOF
 	exit 0
@@ -135,6 +136,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get gphotos >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
+	elif jct "$temp_json" get speaker >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	else
