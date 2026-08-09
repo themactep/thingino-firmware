@@ -27,28 +27,12 @@ define THINGINO_SYSTEM_BUSYBOX_CONFIG_FIXUPS
 	$(if $(filter y,$(BR2_THINGINO_FLASH_NAND)),$(call THINGINO_SYSTEM_BUSYBOX_CONFIG_FIXUPS_NAND))
 endef
 
-# soc, sensor, usb-role and S03mac all read vendor identification registers, so
-# each vendor supplies its own file rather than one script branching internally.
-# Named .$(SOC_VENDOR) with no fallback: a new vendor that forgets one gets a
-# missing-file build failure instead of silently installing the Ingenic reads,
-# which fault on a non-Ingenic SoC.
 define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	# Utilities always installed
-	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/soc.$(SOC_VENDOR) \
-		$(TARGET_DIR)/usr/sbin/soc
-
-	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S03mac.$(SOC_VENDOR) \
-		$(TARGET_DIR)/etc/init.d/S03mac
-
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/firstboot \
 		$(TARGET_DIR)/usr/sbin/firstboot
 
 	# Optional utilities
-	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE)" = "y" ]; then \
-		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/usb-role.$(SOC_VENDOR) \
-			$(TARGET_DIR)/usr/sbin/usb-role; \
-	fi
-
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S01entropy \
 			$(TARGET_DIR)/etc/init.d/S01entropy; \
@@ -59,9 +43,22 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S35swap; \
 	fi
 
-	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS)" = "y" ]; then \
-		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sensor.$(SOC_VENDOR) \
-			$(TARGET_DIR)/usr/sbin/sensor; \
+	# Platform utilities. One block per vendor, each installing out of its own
+	# files/<vendor>/ -- these read SoC registers, so there is nothing shared to
+	# factor out. The optional ones keep the gates they already had.
+	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_INGENIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/soc \
+			$(TARGET_DIR)/usr/sbin/soc; \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/S03mac \
+			$(TARGET_DIR)/etc/init.d/S03mac; \
+		if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE)" = "y" ]; then \
+			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/usb-role \
+				$(TARGET_DIR)/usr/sbin/usb-role; \
+		fi; \
+		if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS)" = "y" ]; then \
+			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/ingenic/sensor \
+				$(TARGET_DIR)/usr/sbin/sensor; \
+		fi; \
 	fi
 endef
 
