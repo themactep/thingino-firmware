@@ -11,6 +11,45 @@ TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
 
+# Build-time VERSION (2026-08 stale-build incident): fw_ota.sh reported
+# "flashed successfully" on cameras whose /usr/bin/timpsd binary had
+# demonstrably NOT changed post-reboot - a stale cached image kept getting
+# reused undetected for hours. GET /control's "version" key (src/control.c's
+# MS_VERSION, -DMS_VERSION on the compile command line) exists precisely to
+# catch that class of drift from the outside. src/Makefile's own default
+# already derives it correctly (`VERSION ?= $(shell git describe --tags
+# --always --dirty ... || echo 0.1.0)`), but TIMPS_BUILD_CMDS below passes
+# VERSION= explicitly, which overrides that `?=` default - so a real,
+# per-commit value has to be computed HERE, not left to src/Makefile.
+#
+# Local dev loop (local.mk: TIMPS_OVERRIDE_SRCDIR = /path/to/timps checkout):
+# Buildroot rsyncs the override dir into $(TIMPS_DIR) using the SAME
+# RSYNC_VCS_EXCLUSIONS every package fetch uses (--exclude .git, see
+# buildroot/Makefile) - so $(TIMPS_DIR)/.git never exists and a `git
+# describe` run from there always fails silently. Verified empirically
+# against a real override-srcdir build: $(TIMPS_DIR) (build/timps-custom/)
+# carries .gitmodules but no .git. The real .git only exists in
+# $(TIMPS_OVERRIDE_SRCDIR) itself, before that rsync - so derive the version
+# there instead, at Makefile-parse time (a plain filesystem git-describe on a
+# path, no fetch involved, so this is cheap and side-effect-free even when
+# unused).
+#
+# Tag-pinned release path (TIMPS_SITE_METHOD = git fetching TIMPS_VERSION,
+# TIMPS_OVERRIDE_SRCDIR unset): there is no local checkout to describe, and
+# there shouldn't be - the pinned tag IS already a real, stable, meaningful
+# version. Leave it untouched, and also fall back to it whenever the
+# override dir's git-describe genuinely isn't available (not a git checkout,
+# git missing, etc.) - matching src/Makefile's own "|| echo 0.1.0" fallback
+# philosophy: use the real git state when derivable, fall back to the static
+# version otherwise.
+ifneq ($(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)),)
+TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
+endif
+ifneq ($(TIMPS_GIT_DESCRIBE),)
+TIMPS_BUILD_VERSION = $(TIMPS_GIT_DESCRIBE)
+else
+TIMPS_BUILD_VERSION = $(TIMPS_VERSION)
+endif
 
 # Submodule provides the IMP headers (ingenic-headers).
 TIMPS_GIT_SUBMODULES = YES
@@ -45,6 +84,12 @@ endif
 # Opus playback in the play queue links opusfile (which pulls opus + libogg).
 ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
 	TIMPS_DEPENDENCIES += opusfile
+endif
+
+# Opus as an RTSP/RTP streaming codec links the bare libopus encoder only (no
+# opusfile / libogg - RTP carries raw Opus frames, no Ogg container).
+ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
+	TIMPS_DEPENDENCIES += opus
 endif
 
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
@@ -92,6 +137,10 @@ ifeq ($(BR2_PACKAGE_TIMPS_PLAY_OPUS),y)
 	TIMPS_LIBS += -lopusfile -lopus -logg
 endif
 
+ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
+	TIMPS_LIBS += -lopus
+endif
+
 # Ingenic SDK blobs (libimp/libalog/libsysutils) reference libc symbols their
 # original vendor toolchain exported that modern uClibc-ng/musl dropped (e.g.
 # the glibc-2.2-era __ctype_b/__ctype_tolower bare-pointer symbols T10/T20/T21/
@@ -112,7 +161,7 @@ define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		PLATFORM=$(shell echo $(SOC_FAMILY) | tr a-z A-Z) \
-		VERSION=$(TIMPS_VERSION) \
+		VERSION=$(TIMPS_BUILD_VERSION) \
 		IMP_LIB=$(STAGING_DIR)/usr/lib \
 		IMPLIBS="$(TIMPS_IMPLIBS)" \
 		FAACLIB="-lfaac" \
@@ -122,10 +171,13 @@ define TIMPS_BUILD_CMDS
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
+		USE_RECORD=$(if $(BR2_PACKAGE_TIMPS_RECORD),1,0) \
+		USE_TIMELAPSE=$(if $(BR2_PACKAGE_TIMPS_TIMELAPSE),1,0) \
 		USE_TLS=$(if $(BR2_PACKAGE_TIMPS_TLS),1,0) \
 		USE_SRT=$(if $(BR2_PACKAGE_TIMPS_SRT),1,0) \
 		USE_ROTATE=$(if $(BR2_PACKAGE_TIMPS_ROTATE),1,0) \
 		USE_SW_ROTATE=$(if $(BR2_PACKAGE_TIMPS_SW_ROTATE),1,0) \
+		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
 		HELIXLIB="-lhelix-aac" \
@@ -134,6 +186,8 @@ define TIMPS_BUILD_CMDS
 		USE_PLAY_OPUS=$(if $(BR2_PACKAGE_TIMPS_PLAY_OPUS),1,0) \
 		OPUSLIB="-lopusfile -lopus -logg" \
 		OPUS_INC=$(STAGING_DIR)/usr/include \
+		USE_STREAM_OPUS=$(if $(BR2_PACKAGE_TIMPS_STREAM_OPUS),1,0) \
+		OPUS_ENC_LIB="-lopus" \
 		-C $(@D) target
 endef
 
@@ -183,9 +237,6 @@ define TIMPS_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/color \
 			$(TARGET_DIR)/usr/sbin/color; \
 	fi
-
-	# Copy to NFS share for dev iteration
-	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/timpsd /nfs/timpsd || true
 endef
 
 # NOTE: WebUI bridge CGIs. The stock WebUI settings pages POST prudynt-shaped
