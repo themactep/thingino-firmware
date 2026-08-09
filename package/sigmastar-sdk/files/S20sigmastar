@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Load the SigmaStar MI kernel modules.
+# Insert the SigmaStar MI kernel modules and bind the sensor driver.
 #
 # WHY S20, AND WHY RAPTOR IS NOT RENAMED
 #
@@ -19,7 +19,7 @@
 # S20 is safe this early because:
 #   - CONFIG_DEVTMPFS_MOUNT=y, so /dev is populated by the kernel and does not
 #     wait on mdev. The one node devtmpfs does not create, /dev/mi_poll, is
-#     mknod'd by load_sigmastar itself.
+#     mknod'd below.
 #   - S30mdev only runs `mdev -s` and sets the hotplug helper; it does not
 #     remount /dev, so the node created here survives it.
 #   - fw_printenv works from S03mac onward, which is earlier still.
@@ -27,10 +27,101 @@
 # If Raptor ever does move to S95, this can stay where it is -- late loading
 # is what needs justifying, not early.
 
+# Derived from `uname -r` rather than hardcoded: the modules are installed under
+# the kernel release Buildroot probed, and a hardcoded version means a kernel
+# bump silently loads nothing.
+MODULE=/lib/modules/$(uname -r)/sigmastar
+
+log() { echo "$@" | logger -s -t sigmastar; }
+
+# Load order is the vendor's and is not arbitrary -- mi_sys owns the buffer
+# pool every later module registers against, and mi_venc wants the ISP
+# firmware path at insmod time.
+insert_ko() {
+	insmod $MODULE/mhal.ko
+	insmod $MODULE/mi_common.ko
+	insmod $MODULE/mi_sys.ko cmdQBufSize=768 logBufSize=256
+	insmod $MODULE/mi_rgn.ko
+	insmod $MODULE/mi_ldc.ko
+	insmod $MODULE/mi_ai.ko
+	insmod $MODULE/mi_ao.ko
+	insmod $MODULE/mi_mipitx.ko
+	insmod $MODULE/mi_sensor.ko
+	insmod $MODULE/mi_shadow.ko
+	insmod $MODULE/mi_divp.ko
+	insmod $MODULE/mi_vif.ko
+	insmod $MODULE/mi_vpe.ko
+	insmod $MODULE/mi_venc.ko fw_path=/etc/firmware/chagall.bin
+
+	# mi_poll registers a chrdev with no class, so devtmpfs does not create
+	# the node for it. Everything else under /dev/mi_* appears on its own.
+	MAJOR=$(awk '$2=="mi_poll" {print $1}' /proc/devices)
+	[ -n "$MAJOR" ] && mknod /dev/mi_poll c "$MAJOR" 0
+	echo isproot /etc/firmware >/dev/ispmid
+}
+
+set_sensor() {
+	case $SENSOR in
+		gc2053 | gc4653 | imx274 | imx307 | imx335 | imx347 | imx415 | sc501ai | sc8235 | os04a10 | os04c10)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1
+			;;
+		tp9950)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1 mode=3 channel=0
+			;;
+		tp9951)
+			insmod $MODULE/sensor_${SENSOR}_mipi.ko chmap=1 mode=0 channel=2
+			;;
+		*)
+			log "unsupported sensor - $SENSOR"
+			return 1
+			;;
+	esac
+}
+
+# There is no sensor autodetection: thingino's own detector (sensor-info/sinfo)
+# is Ingenic-only, so this platform has no native probe yet. Restore it here
+# once sensor-info learns SigmaStar -- do not reintroduce OpenIPC's ipctool.
+load() {
+	if [ ! -d "$MODULE" ]; then
+		log "no vendor modules at $MODULE"
+		return 1
+	fi
+
+	[ -e /sys/module/mi_common ] || insert_ko
+
+	SENSOR=$(fw_printenv -n sensor 2>/dev/null)
+
+	# A full sysupgrade erases the environment, so the variable cannot be the
+	# only source: without this the camera does not stream until it is
+	# re-entered by hand, and there is no remote recovery. The environment is
+	# never written back -- it stays the per-unit override and wins wherever it
+	# exists. model is written by sigmastar-sdk from SENSOR_1_MODEL.
+	#
+	# Logged because a board whose sensor differs from the target's is
+	# corrected by setting the variable, and this is the only place that is
+	# visible.
+	if [ -z "$SENSOR" ] && [ -r /usr/share/sensor/model ]; then
+		SENSOR=$(cat /usr/share/sensor/model)
+		log "U-Boot 'sensor' unset, using build-time $SENSOR"
+	fi
+
+	if [ -z "$SENSOR" ]; then
+		log "no sensor identified -- set the U-Boot 'sensor' variable"
+		return 1
+	fi
+
+	# Re-binding: drop whatever driver is already bound before inserting one.
+	DRIVER=$(ls /sys/module | grep "$SENSOR")
+	[ -n "$DRIVER" ] && rmmod $DRIVER
+
+	log "sensor $SENSOR"
+	set_sensor
+}
+
 case "$1" in
 	start)
 		echo -c 15 "Loading SigmaStar vendor modules"
-		load_sigmastar -i
+		load
 		;;
 
 	stop)
@@ -41,7 +132,7 @@ case "$1" in
 		;;
 
 	restart)
-		load_sigmastar -i
+		load
 		;;
 
 	*)

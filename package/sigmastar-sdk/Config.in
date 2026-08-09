@@ -12,7 +12,7 @@ config BR2_PACKAGE_SIGMASTAR_SDK
 	  The vendor modules are prebuilt against Linux 4.9.84, which is why
 	  this board pins that kernel: insmod checks vermagic and a mismatch
 	  is fatal. The sensor drivers are compiled here and have no such
-	  constraint; one is chosen at runtime by load_sigmastar from the
+	  constraint; one is chosen at runtime by S20sigmastar from the
 	  U-Boot `sensor` variable.
 
 	  Selects sigmastar-lib, which carries the MI userspace libraries

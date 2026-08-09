@@ -62,10 +62,10 @@ SIGMASTAR_SDK_KMOD = $(@D)/$(SIGMASTAR_SDK_VENDOR_KREL)/kmod-$(SIGMASTAR_SDK_FLA
 # from mhal.ko.
 #
 # Every driver the family has is built and installed. Selecting one is a runtime
-# decision made by load_sigmastar from the U-Boot `sensor` variable; narrowing
+# decision made by S20sigmastar from the U-Boot `sensor` variable; narrowing
 # the build to the sensor on the development board is exactly what this must not
 # do. INSTALL_MOD_DIR puts them in /lib/modules/<release>/sigmastar, alongside
-# the prebuilt vendor modules and where load_sigmastar looks.
+# the prebuilt vendor modules and where S20sigmastar looks.
 SIGMASTAR_SDK_MODULE_SUBDIRS = $(SIGMASTAR_SDK_VENDOR_KREL)/sensor-src/$(SOC_FAMILY)
 SIGMASTAR_SDK_MODULE_MAKE_OPTS = \
 	SENSOR_VERSION=$(SOC_FAMILY) \
@@ -115,10 +115,6 @@ define SIGMASTAR_SDK_INSTALL_TARGET_CMDS
 		fi; \
 		echo $(SENSOR_1_MODEL) > $(TARGET_DIR)/usr/share/sensor/model; \
 	fi
-
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin \
-		$(SIGMASTAR_SDK_PKGDIR)/files/script/*
 
 	$(INSTALL) -D -m 755 $(SIGMASTAR_SDK_PKGDIR)/files/S20sigmastar \
 		$(TARGET_DIR)/etc/init.d/S20sigmastar

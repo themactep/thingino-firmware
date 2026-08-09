@@ -172,7 +172,7 @@ UENV_TXT="$BINARIES_DIR/uenv.txt"
 # anywhere.
 #
 # sensor is the per-unit override. There is no autodetection on this platform,
-# but load_sigmastar falls back to the build-time name at
+# but S20sigmastar falls back to the build-time name at
 # /usr/share/sensor/model, so an erase no longer stops the camera streaming.
 # Still worth saving on a board whose sensor differs from the target's, because
 # that is the case the fallback gets wrong.
