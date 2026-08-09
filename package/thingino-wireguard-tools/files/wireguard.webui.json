@@ -1,0 +1,33 @@
+{
+  "name": "wireguard",
+  "label": "WireGuard VPN",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Web Interface",
+      "items": [
+        {
+          "label": "WireGuard VPN",
+          "href": "/config-wireguard.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "wireguard": true
+  },
+  "cgi": [
+    "/x/json-config-wireguard.cgi",
+    "/x/json-wireguard.cgi"
+  ],
+  "pages": [
+    "/config-wireguard.html"
+  ]
+}

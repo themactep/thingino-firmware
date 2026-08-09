@@ -59,12 +59,12 @@ for color in B G R V W Y; do
 	fi
 
 	case "$color" in
-	B) led_name="led_b" ;;
-	G) led_name="led_g" ;;
-	R) led_name="led_r" ;;
-	V) led_name="led_v" ;;
-	W) led_name="led_w" ;;
-	Y) led_name="led_y" ;;
+		B) led_name="led_b" ;;
+		G) led_name="led_g" ;;
+		R) led_name="led_r" ;;
+		V) led_name="led_v" ;;
+		W) led_name="led_w" ;;
+		Y) led_name="led_y" ;;
 	esac
 
 	append_led "${led_name}|${gpio_value}|${active_low}"

@@ -137,6 +137,24 @@ select_camera() {
         fi
     fi
 
+    # If IP is provided but CAMERA is not, try auto-detection from the device
+    if [ -z "$CAMERA" ] && [ -n "$IP" ]; then
+        print_info "Probing device at $IP for camera identity..." >&2
+        detected=$(scripts/detect_camera_from_ip.sh "$IP" 2>/dev/null) || true
+        if [ -n "$detected" ] && [ -d "$cameras_dir/$detected" ]; then
+            echo "" >&2
+            echo "Detected from device at $IP: $detected" >&2
+            read -p "Use this camera? [Y/n]: " use_detected >&2
+            if [ -z "$use_detected" ] || [ "$use_detected" = "y" ] || [ "$use_detected" = "Y" ]; then
+                echo "$detected" > "$memo_file"
+                echo "$detected"
+                return 0
+            fi
+        else
+            print_info "Could not identify device at $IP (not a Thingino device, or unreachable)" >&2
+        fi
+    fi
+
     # Get list of cameras
     local cameras=($(ls "$cameras_dir" | sort))
 
@@ -283,7 +301,7 @@ case "$CMD" in
         print_info "Running CLEAN build (distclean + fast parallel)..."
 
         # Build with selected camera using cleanbuild target
-        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} ${IP:+IP="$IP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
@@ -301,7 +319,7 @@ case "$CMD" in
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
 
         # Build with selected camera using dev target (serial build with V=1)
-        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} ${IP:+IP="$IP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     ota)
         # Select camera
@@ -319,7 +337,7 @@ case "$CMD" in
         print_info "Running ota in container..."
 
         # Build with selected camera
-        run_makefile_container container-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        run_makefile_container container-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} ${IP:+IP="$IP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -337,7 +355,7 @@ case "$CMD" in
         print_info "Building firmware in container (parallel incremental)..."
 
         # Build with selected camera (uses default 'all' target which is incremental parallel)
-        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} ${IP:+IP="$IP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     info)
         run_makefile_container container-info CONTAINER_ENGINE="$CONTAINER_ENGINE"
@@ -371,7 +389,7 @@ case "$CMD" in
         print_info "Running '$*' in container..."
 
         # Pass all arguments through as make targets
-        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="$*" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        run_makefile_container container-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} ${IP:+IP="$IP"} MAKECMDGOALS="$*" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
 esac
 

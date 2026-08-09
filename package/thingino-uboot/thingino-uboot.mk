@@ -48,6 +48,23 @@ else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
 
+# GNU patch cannot apply binary diffs, so the SPL blobs shipped inside
+# 0001-from-2013.07-to-thingino.patch (spl/binary/*.bin) come out empty
+# after patching, producing a bricking firmware image for boards that
+# use a prebuilt SPL (T31LC, Xiaomi MJSXJ03HL & friends).
+# Restore the vendored copies from this package's files directory.
+# https://github.com/themactep/thingino-firmware/issues/1299
+ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_RESTORE_SPL_BINARIES
+	mkdir -p $(@D)/spl/binary
+	cp -f $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31lc_sfcnor.bin \
+		$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31_xiaomi_sfcnor.bin \
+		$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31_xiaomi_sfcnor_2.bin \
+		$(@D)/spl/binary/
+endef
+UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_RESTORE_SPL_BINARIES
+endif
+
 define THINGINO_UBOOT_COPY_SHA1_HEADER
 	if [ -f $(@D)/include/sha1.h ]; then \
 		cp $(@D)/include/sha1.h $(@D)/tools/sha1.h; \
@@ -98,19 +115,16 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
 define THINGINO_PATCH_DEV_ENV
 	@if [ -f $(@D)/include/configs/isvp_common.h ] && [ -f $(THINGINO_BINARIES_DIR)/uImage ] && [ -f $(THINGINO_BINARIES_DIR)/rootfs.squashfs ]; then \
-		KERNEL_BIN_SIZE=$$(stat -c%s $(THINGINO_BINARIES_DIR)/uImage); \
-		KERNEL_SIZE_ALIGNED=$$(( ($$KERNEL_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
-		KERNEL_SIZE_KB=$$(( $$KERNEL_SIZE_ALIGNED / 1024 )); \
+		KERNEL_OFFSET=$$(( $(U_BOOT_PARTITION_SIZE) + $(UB_ENV_PARTITION_SIZE) + $(BACKUP_PARTITION_SIZE) )); \
 		ROOTFS_BIN_SIZE=$$(stat -c%s $(THINGINO_BINARIES_DIR)/rootfs.squashfs); \
 		ROOTFS_SIZE_ALIGNED=$$(( ($$ROOTFS_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
 		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
-		KERNEL_OFFSET=$$(( $(U_BOOT_PARTITION_SIZE) + $(UB_ENV_PARTITION_SIZE) )); \
-		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $$KERNEL_SIZE_ALIGNED )); \
+		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $(KERNEL_PARTITION_SIZE) )); \
 		ROOTFS_OFFSET_KB=$$(( $$ROOTFS_OFFSET / 1024 )); \
 		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
 		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
 		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
-		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
+		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \
@@ -174,26 +188,28 @@ endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
 endif
 
-# On PTZ cameras with a GPIO/TCU stepper (BR2_THINGINO_MOTORS_TCU), the
-# pan/tilt phase pins drive a coil array. From power-on until the Linux motor
-# driver parks them they can hold a coil energised (the coils cook). Inject a
-# gpio-hog per phase pin into this board's U-Boot leaf .dts (read from
-# thingino.json, invert-aware park level) to hold them de-energised through the
-# boot window, and enable CONFIG_GPIO_HOG so U-Boot acts on the hogs. SPI
-# (ms419xx) and DW9714 focus units are not TCU, so they are skipped.
-ifeq ($(BR2_THINGINO_MOTORS_TCU),y)
+# Inject boot-window GPIO presets (gpio-hogs) into this board's U-Boot leaf
+# .dts from thingino.json, and enable CONFIG_GPIO_HOG so U-Boot drives them
+# right after DM init: PTZ stepper phases parked de-energised (the coils cook
+# otherwise), Wi-Fi module power/enable lines at their runtime resting level
+# (S36wireless only replays them on 3.10 kernels, late in boot; SDIO modules
+# must be powered for the kernel MMC scan), multi-pin gpio.mmc_power lists at
+# their power-on level (the single-pin form becomes a vmmc-supply regulator
+# in the MMC inject above instead), and IR-cut filter coil pins at the
+# /usr/sbin/ircut idle level so the solenoid is not left floating or
+# energised. The helper self-skips per domain from the json content, so no
+# per-domain config gate is needed.
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
-define THINGINO_UBOOT_INJECT_MOTOR_DT
+define THINGINO_UBOOT_INJECT_GPIO_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
 	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
-	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-motor-dt.sh \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-gpio-dt.sh \
 		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
 		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
 	$(call KCONFIG_ENABLE_OPT,CONFIG_GPIO_HOG,$(@D)/.config)
 	$(UBOOT_KCONFIG_MAKE) olddefconfig
 endef
-UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MOTOR_DT
-endif
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_GPIO_DT
 endif
 
 endif

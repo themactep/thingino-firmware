@@ -6,6 +6,9 @@
     "discovery_prefix": "homeassistant",
     "enable_color": true,
     "enable_daynight": true,
+    "enable_doorbell": false,
+    "enable_firmware_timestamp": true,
+    "enable_firmware_version": true,
     "enable_gain": false,
     "enable_ir850": true,
     "enable_ir940": true,
@@ -27,6 +30,7 @@
       "password": "",
       "port": 1883,
       "use_ssl": false,
+      "tls_skip_verify": false,
       "username": ""
     },
     "ota_check_interval": 21600,

@@ -1,7 +1,24 @@
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-const endpoint = "/x/json-prudynt.cgi";
+var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+  .then(function (r) {
+    return r.json();
+  })
+  .then(function (d) {
+    return d.exists && d.api_key ? d.api_key : "";
+  })
+  .catch(function () {
+    return "";
+  });
+
+async function apiFetch(url, options) {
+  var key = await API_KEY_PROMISE;
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
 
 // Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
@@ -50,7 +67,7 @@ const stream_params = [
   "rtsp_endpoint",
   "audio_enabled",
 ];
-const osd_params = ["enabled", "fontsize", "strokesize"];
+const osd_params = ["enabled"];
 const previewEndpointState = {
   rtsp: {
     username: "thingino",
@@ -151,7 +168,8 @@ function buildPreviewEndpointUrl(baseUrl) {
 
 function renderPreviewEndpoints() {
   const list = $("#preview-endpoint-list");
-  if (!list) return;
+  const dropdownMenu = $("#preview-endpoint-dropdown-menu");
+  if (!list && !dropdownMenu) return;
   const host =
     window.network_address || window.location.hostname || "localhost";
   const httpOrigin = buildPreviewOrigin();
@@ -191,29 +209,51 @@ function renderPreviewEndpoints() {
     },
   ];
 
-  list.innerHTML = "";
+  if (list) {
+    list.innerHTML = "";
+  }
+  if (dropdownMenu) {
+    dropdownMenu.innerHTML = "";
+  }
   entries.forEach((entry) => {
-    const link = document.createElement("a");
-    link.className = "preview-endpoint-link";
-    link.href = entry.url;
-    link.rel = "noopener";
-    link.dataset.copyUrl = entry.url;
-    link.title = `${entry.label}: ${entry.url}`;
-    link.setAttribute("aria-label", `${entry.label} endpoint`);
+    if (list) {
+      const link = document.createElement("a");
+      link.className = "preview-endpoint-link";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
 
-    const shortLabel = document.createElement("span");
-    shortLabel.className = "preview-endpoint-short";
-    shortLabel.textContent = entry.label;
+      const shortLabel = document.createElement("span");
+      shortLabel.className = "preview-endpoint-short";
+      shortLabel.textContent = entry.label;
 
-    const hint = document.createElement("span");
-    hint.className = "preview-endpoint-hint";
-    hint.innerHTML = '<i class="bi bi-clipboard"></i>';
+      const hint = document.createElement("span");
+      hint.className = "preview-endpoint-hint";
+      hint.innerHTML = '<i class="bi bi-clipboard"></i>';
 
-    link.appendChild(shortLabel);
-    link.appendChild(hint);
-    link.addEventListener("click", copyPreviewEndpoint);
+      link.appendChild(shortLabel);
+      link.appendChild(hint);
+      link.addEventListener("click", copyPreviewEndpoint);
 
-    list.appendChild(link);
+      list.appendChild(link);
+    }
+
+    if (dropdownMenu) {
+      const li = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = "dropdown-item preview-endpoint-dropdown-item";
+      link.href = entry.url;
+      link.rel = "noopener";
+      link.dataset.copyUrl = entry.url;
+      link.title = `${entry.label}: ${entry.url}`;
+      link.setAttribute("aria-label", `${entry.label} endpoint`);
+      link.innerHTML = `<span class="preview-endpoint-short">${entry.label}</span> <i class="bi bi-clipboard"></i>`;
+      link.addEventListener("click", copyPreviewEndpoint);
+      li.appendChild(link);
+      dropdownMenu.appendChild(li);
+    }
   });
 }
 
@@ -277,39 +317,6 @@ function handleOsdData(osd, streamIndex) {
       el.disabled = false;
     }
   }
-  if (osd.font_size !== undefined) {
-    const el = $(`#osd${streamIndex}_fontsize`);
-    if (el) {
-      el.value = osd.font_size;
-      el.disabled = false;
-    }
-  }
-  if (osd.stroke_size !== undefined) {
-    const el = $(`#osd${streamIndex}_strokesize`);
-    if (el) {
-      el.value = osd.stroke_size;
-      el.disabled = false;
-    }
-  }
-
-  // Logo element
-  if (osd.logo) {
-    if (osd.logo.enabled !== undefined) {
-      const el = $(`#osd${streamIndex}_logo_enabled`);
-      if (el) {
-        el.checked = osd.logo.enabled;
-        el.disabled = false;
-      }
-    }
-    if (osd.logo.position !== undefined) {
-      const el = $(`#osd${streamIndex}_logo_position`);
-      if (el) {
-        el.value = osd.logo.position;
-        el.disabled = false;
-      }
-    }
-  }
-
   // Time element
   if (osd.time) {
     if (osd.time.enabled !== undefined) {
@@ -333,20 +340,6 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
-    if (osd.time.fill_color) {
-      const el = $(`#osd${streamIndex}_time_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.time.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.time.stroke_color) {
-      const el = $(`#osd${streamIndex}_time_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.time.stroke_color);
-        el.disabled = false;
-      }
-    }
   }
 
   // Uptime element
@@ -362,20 +355,6 @@ function handleOsdData(osd, streamIndex) {
       const el = $(`#osd${streamIndex}_uptime_position`);
       if (el) {
         el.value = osd.uptime.position;
-        el.disabled = false;
-      }
-    }
-    if (osd.uptime.fill_color) {
-      const el = $(`#osd${streamIndex}_uptime_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.uptime.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.uptime.stroke_color) {
-      const el = $(`#osd${streamIndex}_uptime_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.uptime.stroke_color);
         el.disabled = false;
       }
     }
@@ -404,36 +383,32 @@ function handleOsdData(osd, streamIndex) {
         el.disabled = false;
       }
     }
-    if (osd.usertext.fill_color) {
-      const el = $(`#osd${streamIndex}_usertext_fillcolor`);
-      if (el) {
-        el.value = rgba2color(osd.usertext.fill_color);
-        el.disabled = false;
-      }
-    }
-    if (osd.usertext.stroke_color) {
-      const el = $(`#osd${streamIndex}_usertext_strokecolor`);
-      if (el) {
-        el.value = rgba2color(osd.usertext.stroke_color);
-        el.disabled = false;
-      }
-    }
   }
 }
 
 function handleMessage(msg) {
   if (msg.motion && msg.motion.enabled !== undefined) {
-    $("#motion").checked = msg.motion.enabled;
+    const motionBtn = $("#motion");
+    if (motionBtn) {
+      motionBtn.classList.toggle(
+        "active",
+        msg.motion.enabled !== 0 &&
+          msg.motion.enabled !== false &&
+          msg.motion.enabled !== "false",
+      );
+    }
   }
   if (msg.privacy && msg.privacy.enabled !== undefined) {
-    $("#privacy").checked = msg.privacy.enabled;
+    const privacyBtn = $("#privacy");
+    if (privacyBtn) {
+      privacyBtn.classList.toggle(
+        "active",
+        msg.privacy.enabled !== 0 &&
+          msg.privacy.enabled !== false &&
+          msg.privacy.enabled !== "false",
+      );
+    }
   }
-
-  // if (msg.rtsp) {
-  //   const r = msg.rtsp;
-  //   if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-  //     $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-  // }
 
   // Handle image params
   if (msg.image) {
@@ -472,10 +447,24 @@ function handleMessage(msg) {
     handleOsdData(msg.stream1.osd, 1);
   }
 
+  // Override FPS from config file so night-mode halving doesn't persist
+  loadConfigFps();
+
   updatePreviewEndpointState(msg);
 }
 
 async function loadMotorParams() {
+  const uiConfig = window.thinginoUIConfig || {};
+  const hasMotors = uiConfig.device && uiConfig.device.motors === true;
+  if (!hasMotors) {
+    window.motorParams = {
+      steps_pan: 0,
+      steps_tilt: 0,
+      pos_0_x: 0,
+      pos_0_y: 0,
+    };
+    return;
+  }
   try {
     const response = await fetch("/x/json-motor-params.cgi");
     const motorParams = await response.json();
@@ -494,124 +483,17 @@ async function loadMotorParams() {
 
 async function loadConfig() {
   showBusy("Loading camera configuration...");
-  const payload = JSON.stringify({
-    image: {
-      hflip: null,
-      vflip: null,
-      wb_bgain: null,
-      wb_rgain: null,
-      ae_compensation: null,
-      core_wb_mode: null,
-    },
-    motion: { enabled: null },
-    privacy: { enabled: null },
-    rtsp: { username: null, password: null, port: null },
-    stream0: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        font_size: null,
-        stroke_size: null,
-        logo: { enabled: null, position: null },
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-      },
-    },
-    stream1: {
-      enabled: null,
-      width: null,
-      height: null,
-      fps: null,
-      bitrate: null,
-      gop: null,
-      max_gop: null,
-      format: null,
-      mode: null,
-      buffers: null,
-      profile: null,
-      rtsp_endpoint: null,
-      audio_enabled: null,
-      osd: {
-        enabled: null,
-        font_path: null,
-        font_size: null,
-        stroke_size: null,
-        logo: { enabled: null, position: null },
-        time: {
-          enabled: null,
-          format: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-        uptime: {
-          enabled: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-        usertext: {
-          enabled: null,
-          format: null,
-          position: null,
-          fill_color: null,
-          stroke_color: null,
-        },
-      },
-    },
-    action: { capture: null },
-  });
-  console.log("===>", payload);
+  const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
-    if (text) {
-      try {
-        const msg = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(msg));
-        handleMessage(msg);
-      } catch (parseErr) {
-        console.warn(ts(), "Invalid JSON response", text, parseErr);
-      }
-    } else {
-      console.log(ts(), "<===", "Empty response");
-    }
+    const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
+      apiFetch(BASE + "image").then((r) => r.json()),
+      apiFetch(BASE + "motion").then((r) => r.json()),
+      apiFetch(BASE + "privacy").then((r) => r.json()),
+      apiFetch(BASE + "rtsp").then((r) => r.json()),
+      apiFetch(BASE + "stream0").then((r) => r.json()),
+      apiFetch(BASE + "stream1").then((r) => r.json()),
+    ]);
+    handleMessage({ image, motion, privacy, rtsp, stream0, stream1 });
   } catch (err) {
     console.error("Load config error", err);
   } finally {
@@ -619,13 +501,15 @@ async function loadConfig() {
   }
 }
 
+var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);
   const payloadStr =
     typeof payload === "string" ? payload : JSON.stringify(payload);
   console.log(ts(), "===>", payloadStr);
   try {
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payloadStr,
@@ -720,6 +604,7 @@ loadInitialData().then(async () => {
   const restartBackoffMaxMs = 60000;
   let lastLoadTime = Date.now();
   let isWindowVisible = true;
+  let isModalOpen = false;
   let focusTimeoutId = null;
   let nextRestartAt = 0;
   let restartBackoffMs = restartBackoffInitialMs;
@@ -782,6 +667,7 @@ loadInitialData().then(async () => {
     const now = Date.now();
     if (
       isWindowVisible &&
+      !isModalOpen &&
       now - lastLoadTime > timeout &&
       now >= nextRestartAt
     ) {
@@ -835,15 +721,29 @@ loadInitialData().then(async () => {
     previewModal.addEventListener("show.bs.modal", () => {
       // Save current small preview source
       savedPreviewSrc = preview.src;
-      // Stop the small preview
+      // Stop the small preview and suppress watchdog restarts
+      isModalOpen = true;
       preview.src = ImageNoStream;
       // Load main stream (ch0) in full-screen modal
       previewFullsize.src = "/x/ch0.mjpg?" + new Date().getTime();
+      // Apply SEI rotation to full-screen image
+      fetch("/x/json-osd-sei.cgi")
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (d) {
+          if (d && d.rotation)
+            previewFullsize.style.transform = "rotate(" + d.rotation + "deg)";
+        })
+        .catch(function () {});
     });
 
     previewModal.addEventListener("hidden.bs.modal", () => {
       // Stop the full-screen stream
       previewFullsize.src = ImageNoStream;
+      previewFullsize.style.transform = "";
+      // Allow watchdog to restart the small preview again
+      isModalOpen = false;
       // Restart the small preview
       if (savedPreviewSrc && isWindowVisible) {
         preview.src =
@@ -1219,33 +1119,6 @@ function sendOsdUpdate(streamId, osdPayload) {
   sendToEndpoint(payload);
 }
 
-function setFont(streamId) {
-  const fontSizeInput = $(`#osd${streamId}_fontsize`);
-  const strokeSizeInput = $(`#osd${streamId}_strokesize`);
-  if (!fontSizeInput || !strokeSizeInput) return;
-
-  const payload = {};
-
-  const fontSize = Number(fontSizeInput.value);
-  if (!Number.isNaN(fontSize)) {
-    payload.font_size = fontSize;
-  }
-
-  const strokeSize = Number(strokeSizeInput.value);
-  if (!Number.isNaN(strokeSize)) {
-    payload.stroke_size = strokeSize;
-  }
-
-  if (Object.keys(payload).length === 0) return;
-  console.log(ts(), "setFont for stream", streamId, ":", payload);
-  // Font changes require Video + OSD thread restart for immediate effect
-  const fullPayload = {
-    [`stream${streamId}`]: { osd: payload },
-    action: { restart_thread: ThreadVideo | ThreadOSD },
-  };
-  sendToEndpoint(fullPayload);
-}
-
 // Setup OSD controls for both stream0 and stream1
 [0, 1].forEach((streamId) => {
   // Configuration for OSD controls
@@ -1253,18 +1126,6 @@ function setFont(streamId) {
     {
       id: "enabled",
       handler: (e) => sendOsdUpdate(streamId, { enabled: e.target.checked }),
-    },
-    { id: "fontsize", handler: () => setFont(streamId) },
-    { id: "strokesize", handler: () => setFont(streamId) },
-    {
-      id: "logo_enabled",
-      handler: (e) =>
-        sendOsdUpdate(streamId, { logo: { enabled: e.target.checked } }),
-    },
-    {
-      id: "logo_position",
-      handler: (e) =>
-        sendOsdUpdate(streamId, { logo: { position: e.target.value } }),
     },
     {
       id: "time_enabled",
@@ -1282,20 +1143,6 @@ function setFont(streamId) {
         sendOsdUpdate(streamId, { time: { position: e.target.value } }),
     },
     {
-      id: "time_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          time: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "time_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          time: { stroke_color: e.target.value + "ff" },
-        }),
-    },
-    {
       id: "uptime_enabled",
       handler: (e) =>
         sendOsdUpdate(streamId, { uptime: { enabled: e.target.checked } }),
@@ -1304,20 +1151,6 @@ function setFont(streamId) {
       id: "uptime_position",
       handler: (e) =>
         sendOsdUpdate(streamId, { uptime: { position: e.target.value } }),
-    },
-    {
-      id: "uptime_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          uptime: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "uptime_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          uptime: { stroke_color: e.target.value + "ff" },
-        }),
     },
     {
       id: "usertext_enabled",
@@ -1333,20 +1166,6 @@ function setFont(streamId) {
       id: "usertext_position",
       handler: (e) =>
         sendOsdUpdate(streamId, { usertext: { position: e.target.value } }),
-    },
-    {
-      id: "usertext_fillcolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          usertext: { fill_color: e.target.value + "ff" },
-        }),
-    },
-    {
-      id: "usertext_strokecolor",
-      handler: (e) =>
-        sendOsdUpdate(streamId, {
-          usertext: { stroke_color: e.target.value + "ff" },
-        }),
     },
   ];
 
@@ -1400,16 +1219,31 @@ imageParams.forEach((param) => {
 // Export configuration button
 const exportConfigBtn = $("#export-config");
 if (exportConfigBtn) {
-  exportConfigBtn.addEventListener("click", () => {
+  exportConfigBtn.addEventListener("click", async () => {
     exportConfigBtn.disabled = true;
-
-    // Open the CGI endpoint which will trigger download
-    window.location.href = "/x/json-prudynt-config.cgi";
-
-    // Re-enable button after a short delay
-    setTimeout(() => {
-      exportConfigBtn.disabled = false;
-    }, 1000);
+    try {
+      const res = await apiFetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: { dump_config: null } }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const json = await res.text();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "prudynt-config-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export failed:", e);
+    } finally {
+      setTimeout(() => {
+        exportConfigBtn.disabled = false;
+      }, 1000);
+    }
   });
 }
 
@@ -1426,7 +1260,7 @@ if (saveConfigBtn) {
       saveConfigBtn.disabled = true;
 
       const payload = { action: { save_config: null } };
-      const res = await fetch("/x/json-prudynt.cgi", {
+      const res = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1450,6 +1284,24 @@ if (saveConfigBtn) {
 }
 
 fetchImagingState();
+
+async function loadConfigFps() {
+  try {
+    const resp = await fetch("/etc/prudynt.json", { cache: "no-store" });
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    if (cfg.stream0 && cfg.stream0.fps !== undefined && cfg.stream0.fps !== 0) {
+      const el0 = $("#stream0_fps");
+      if (el0) el0.value = cfg.stream0.fps;
+    }
+    if (cfg.stream1 && cfg.stream1.fps !== undefined && cfg.stream1.fps !== 0) {
+      const el1 = $("#stream1_fps");
+      if (el1) el1.value = cfg.stream1.fps;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
 
 // Add reload button handler
 const reloadBtn = $("#preview-reload");

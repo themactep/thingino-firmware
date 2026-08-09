@@ -4,6 +4,7 @@ config BR2_PACKAGE_TIMPS
 	depends on BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	select BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
@@ -105,6 +106,25 @@ config BR2_PACKAGE_TIMPS_SRT
 	  Enable MPEG-TS over SRT output in listener mode. The camera
 	  acts as an SRT listener, serving live video+audio.
 	  Playback: ffplay srt://<ip>:9000
+
+config BR2_PACKAGE_TIMPS_OSD_HINTING
+	bool "OSD text autohinting (geometric stem snapping)"
+	default y
+	help
+	  Enable the opt-in geometric autohinting pass in the TTF rasterizer
+	  (msttf.c), which snaps long, near-vertical/near-horizontal glyph
+	  outline edges (typical letter stems/serifs) to the pixel grid
+	  before rasterizing. This is NOT a TrueType hint-bytecode
+	  interpreter; it is a coarse heuristic that measurably reduces
+	  uneven stroke widths between glyphs in the OSD text at small sizes
+	  (e.g. the substream OSD's default 12px).
+
+	  Controlled at runtime by the osd.hinting config key (timps.conf /
+	  /control), default 0 (off) either way. This option gates whether
+	  the autohinting code is compiled in at all; disabled by default to
+	  save binary size on boards that don't need it (measured ~2.1KB of
+	  .text on T31/GCC 16.1.0/-Os). With this off, setting osd.hinting=1
+	  in timps.conf is accepted but has no effect.
 
 config BR2_PACKAGE_TIMPS_ROTATE
 	bool "Image rotation (90/270, plus 180 on T40/T41)"
