@@ -104,6 +104,7 @@ handle_post() {
 	new_mqtt_password=$(jct "$REQ_FILE" get mqtt.password 2>/dev/null)
 	new_mqtt_client_id=$(jct "$REQ_FILE" get mqtt.client_id_prefix 2>/dev/null)
 	new_mqtt_ssl=$(jct "$REQ_FILE" get mqtt.use_ssl 2>/dev/null)
+	new_mqtt_tls_skip_verify=$(jct "$REQ_FILE" get mqtt.tls_skip_verify 2>/dev/null)
 
 	# Entity toggles
 	new_en_motion=$(jct "$REQ_FILE" get enable_motion 2>/dev/null)
@@ -124,6 +125,7 @@ handle_post() {
 	# Normalize
 	enabled=$(normalize_bool "$new_enabled")
 	mqtt_ssl=$(normalize_bool "$new_mqtt_ssl")
+	mqtt_tls_skip_verify=$(normalize_bool "$new_mqtt_tls_skip_verify")
 	en_motion=$(normalize_bool "$new_en_motion")
 	en_motion_guard=$(normalize_bool "$new_en_motion_guard")
 	en_ircut=$(normalize_bool "$new_en_ircut")
@@ -180,6 +182,7 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.mqtt.password" "$mqtt_password" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.mqtt.client_id_prefix" "$mqtt_client_id" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.mqtt.use_ssl" "$mqtt_ssl" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.mqtt.tls_skip_verify" "$mqtt_tls_skip_verify" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_motion" "$en_motion" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_motion_guard" "$en_motion_guard" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ircut" "$en_ircut" >/dev/null 2>&1
