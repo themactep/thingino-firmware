@@ -19,7 +19,7 @@ define WIFI_ATBM6062U_CFG80211_FIXUPS
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 else
-# Must disable kernel's CFG80211, driver provides it's own.
+# Must disable kernel's CFG80211, driver provides its own.
 define WIFI_ATBM6062U_CFG80211_FIXUPS
 	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
 endef
