@@ -1,5 +1,6 @@
 config BR2_PACKAGE_THINGINO_STREAMER
 	bool
+	depends on !BR2_SOC_FAMILY = "a1"
 
 choice
 	prompt "Streamer"
@@ -17,15 +18,14 @@ config BR2_PACKAGE_THINGINO_STREAMER_NONE
 
 config BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT
 	bool "Prudynt-T"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_STREAMER
+	select BR2_PACKAGE_THINGINO_DAYNIGHTD
 	help
 	  Traditional monolithic streamer.
 
 config BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
 	bool "Raptor Streaming System"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_THINGINO_RAPTOR
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
@@ -33,7 +33,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
 
 config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 	bool "Strero"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_STRERO
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
@@ -41,7 +40,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 
 config BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	bool "timps"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_TIMPS
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
