@@ -72,6 +72,21 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 				$(TARGET_DIR)/usr/sbin/sensor; \
 		fi; \
 	fi
+
+	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SIGMASTAR)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sigmastar/soc \
+			$(TARGET_DIR)/usr/sbin/soc; \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sigmastar/S03mac \
+			$(TARGET_DIR)/etc/init.d/S03mac; \
+		if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE)" = "y" ]; then \
+			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sigmastar/usb-role \
+				$(TARGET_DIR)/usr/sbin/usb-role; \
+		fi; \
+		if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS)" = "y" ]; then \
+			$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sigmastar/sensor \
+				$(TARGET_DIR)/usr/sbin/sensor; \
+		fi; \
+	fi
 endef
 
 $(eval $(generic-package))

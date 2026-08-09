@@ -19,6 +19,19 @@ config BR2_PACKAGE_THINGINO_SYSTEM_INGENIC
 	  Another vendor supplies its own block rather than teaching these
 	  to branch.
 
+config BR2_PACKAGE_THINGINO_SYSTEM_SIGMASTAR
+	default y
+	bool "SigmaStar platform utilities"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_VENDOR_SIGMASTAR
+	help
+	  soc, sensor, usb-role and S03mac, from files/sigmastar/.
+
+	  The SigmaStar counterparts of the Ingenic four. soc reads the
+	  chip ID and package registers, S03mac derives a MAC from the OTP
+	  block, and sensor reports what the MI driver bound. usb-role has
+	  no register to write on this SoC and only reports as much, since
+	  S05usb treats a non-zero status as a failure to configure.
+
 config BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE
 	default y
 	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG

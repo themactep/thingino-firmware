@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Infinity6E exposes no software USB role switch, so there is nothing to set.
+# Exits 0 for every argument: S05usb treats a non-zero status as a failure to
+# configure the controller and logs it, and a control that does not exist is
+# not a failure.
+
+show_help() {
+	echo "Usage: $0 [-m host|device]
+Options:
+	-m    Set the USB mode to either 'host' or 'device'.
+	-h    Display this help message.
+" >&2
+	exit 0
+}
+
+while getopts ":m:h" opt; do
+	case $opt in
+		m) MODE=$OPTARG ;;
+		h) show_help ;;
+		\?) show_help ;;
+		:) show_help ;;
+	esac
+done
+
+if [ -z "$MODE" ]; then
+	echo "No software role switch on this SoC" >&2
+else
+	echo "No software role switch on this SoC, ignoring -m $MODE" >&2
+fi
+
+exit 0

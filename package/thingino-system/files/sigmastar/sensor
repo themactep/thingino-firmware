@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+# SigmaStar replacement for thingino-system's `sensor`.
+#
+# The stock helper is a thin reader over /proc/jz/sensor/, which is created by
+# Ingenic's tx-isp driver and does not exist here -- it exits 1 with
+# "/proc/jz/sensor does not exist." on every call. Unlike `soc` this one is
+# harmless (no devmem, so no fault), but it reports nothing useful.
+#
+# The equivalent facts on SigmaStar come from two places:
+#   name    - the U-Boot `sensor` variable, falling back to the build-time name
+#             at /usr/share/sensor/model: there is no native i2c probe for
+#             SigmaStar yet, and a full sysupgrade erases the variable.
+#   width,  - the running streamer's config. raptorctl reads the live values
+#   height,   from rvd, so these follow a runtime change rather than the
+#   fps       build-time defconfig.
+#
+# See the header of overlay/usr/sbin/soc for why this is a camera overlay
+# rather than a package.
+
+sensor_name() {
+	n=$(fw_printenv -n sensor 2>/dev/null)
+	[ -n "$n" ] || n=$(cat /usr/share/sensor/model 2>/dev/null)
+	printf '%s' "$n"
+}
+
+raptor_get() {
+	v=$(raptorctl config get "$1" "$2" 2>/dev/null | tr -d '\r\n"')
+	# An unset key in [sensor] reads back as 0, not as empty. Report it as no
+	# value, or the stream0 fallback below never runs.
+	[ "$v" = "0" ] && return
+	printf '%s' "$v"
+}
+
+param="${1:-all}"
+idx="${2:-0}"
+
+# One MIPI sensor on this platform. The multi-sensor [sensor0]/[sensor1] path
+# exists in raptor.conf but is not brought up on this board, so anything past
+# index 0 is reported as absent rather than silently answered with sensor 0.
+if [ "$idx" != "0" ]; then
+	echo "sensor$idx is not registered." >&2
+	exit 1
+fi
+
+case "$param" in
+	count)
+		echo 1
+		;;
+	name)
+		n=$(sensor_name)
+		[ -n "$n" ] || { echo "sensor name unavailable" >&2; exit 1; }
+		echo "$n"
+		;;
+	width | height | fps)
+		v=$(raptor_get sensor "$param")
+		[ -n "$v" ] || v=$(raptor_get stream0 "$param")
+		[ -n "$v" ] || { echo "$param unavailable" >&2; exit 1; }
+		echo "$v"
+		;;
+	all | -a)
+		n=$(sensor_name)
+		[ -n "$n" ] || n="unknown"
+		printf '%-16s %s\n' "name:" "$n"
+		for p in width height fps; do
+			v=$(raptor_get sensor "$p")
+			[ -n "$v" ] || v=$(raptor_get stream0 "$p")
+			[ -n "$v" ] && printf '%-16s %s\n' "$p:" "$v"
+		done
+		;;
+	*)
+		echo "Usage: $0 [all|count|name|width|height|fps] [sensor_index]" >&2
+		exit 1
+		;;
+esac
+
+exit 0
