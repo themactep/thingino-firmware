@@ -4,10 +4,7 @@
     "ircut": "57 58",
     "ir850": 61,
     "mmc_cd": 59,
-    "mmc_power": {
-      "pin": 60,
-      "active_low": false
-    },
+    "mmc_power": 60,
     "white": 50
   }
 }
