@@ -124,7 +124,7 @@ define THINGINO_PATCH_DEV_ENV
 		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
 		DATA_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$ROOTFS_OFFSET_KB - $$ROOTFS_SIZE_KB )); \
 		DATA_OFFSET=$$(( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED )); \
-		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data)"; \
+		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \

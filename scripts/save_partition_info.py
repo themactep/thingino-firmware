@@ -74,7 +74,8 @@ def generate_mtdparts_string(
     """Generate MTD partitions string."""
     return (
         f"mtdparts={flash_controller}:{u_boot_kb}k(boot),{ub_env_kb}k(env),"
-        f"{backup_kb}k(backup),{kernel_kb}k(kernel),{rootfs_kb}k(rootfs),{data_kb}k(data)"
+        f"{backup_kb}k(backup),{kernel_kb}k(kernel),{rootfs_kb}k(rootfs),{data_kb}k(data),"
+        f"{flash_kb}k@0(all)"
     )
 
 
