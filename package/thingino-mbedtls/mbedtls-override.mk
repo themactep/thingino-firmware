@@ -182,12 +182,12 @@ define MBEDTLS_INSTALL_JZ_CRYPTO_ALT
 		$(@D)/include/mbedtls/mbedtls_config.h
 
 	# Install ALT headers + sources
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/aes_alt.h $(@D)/include/mbedtls/
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/ccm_alt.h $(@D)/include/mbedtls/
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/gcm_alt.h $(@D)/include/mbedtls/
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/aes_alt.c $(@D)/library/
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/ccm_alt.c $(@D)/library/
-	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/gcm_alt.c $(@D)/library/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/aes_alt.h $(@D)/include/mbedtls/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/ccm_alt.h $(@D)/include/mbedtls/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/gcm_alt.h $(@D)/include/mbedtls/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/aes_alt.c $(@D)/library/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/ccm_alt.c $(@D)/library/
+	cp $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mbedtls/alt/gcm_alt.c $(@D)/library/
 
 	# Add ALT .c files to the src_crypto build list (after aes.c)
 	$(SED) '/^    aes\.c$$/a\    aes_alt.c\n    ccm_alt.c\n    gcm_alt.c' \
