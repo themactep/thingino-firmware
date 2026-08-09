@@ -1,0 +1,2942 @@
+diff --git a/arch/mips/xburst/common/spi_bus.c b/arch/mips/xburst/common/spi_bus.c
+--- a/arch/mips/xburst/common/spi_bus.c	2026-08-08 07:58:41.277497962 -0400
++++ b/arch/mips/xburst/common/spi_bus.c	2026-08-08 08:00:10.551699812 -0400
+@@ -131,7 +131,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -152,7 +152,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -173,7 +173,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -194,7 +194,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -215,7 +215,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -236,7 +236,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -257,7 +257,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -278,7 +278,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -299,7 +299,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -320,7 +320,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -341,7 +341,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -362,7 +362,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -383,7 +383,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -404,7 +404,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -425,7 +425,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -467,7 +467,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -509,7 +509,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -530,7 +530,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -551,7 +551,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -572,7 +572,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -593,7 +593,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -614,7 +614,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+@@ -635,7 +635,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852019,
+ 
+ 		.block_info = flash_block_info,
+@@ -656,7 +656,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -677,7 +677,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -698,7 +698,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -740,7 +740,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -761,7 +761,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -782,7 +782,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -803,7 +803,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -824,7 +824,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -845,7 +845,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -866,7 +866,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -887,7 +887,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_64MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc2201a,
+ 
+ 		.block_info = flash_block_info,
+@@ -908,7 +908,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -929,7 +929,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -950,7 +950,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -971,7 +971,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -992,7 +992,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1013,7 +1013,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1034,7 +1034,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1055,7 +1055,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -1076,7 +1076,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1097,7 +1097,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1118,7 +1118,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1139,7 +1139,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xf83217,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t10/chip-t10/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t10/chip-t10/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t10/chip-t10/isvp/common/spi_bus.c	2026-08-08 07:58:41.312628515 -0400
++++ b/arch/mips/xburst/soc-t10/chip-t10/isvp/common/spi_bus.c	2026-08-08 08:00:10.554445410 -0400
+@@ -142,7 +142,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -163,7 +163,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -184,7 +184,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -205,7 +205,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -226,7 +226,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -247,7 +247,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -268,7 +268,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -289,7 +289,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -310,7 +310,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -331,7 +331,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -373,7 +373,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -394,7 +394,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -415,7 +415,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -436,7 +436,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -457,7 +457,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -478,7 +478,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -499,7 +499,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -520,7 +520,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -541,7 +541,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -562,7 +562,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xF83217,
+ 
+ 		.block_info = flash_block_info,
+@@ -583,7 +583,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -604,7 +604,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 65536 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc2201A,
+ 
+ 		.block_info = flash_block_info,
+@@ -625,7 +625,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = (32 * 1024 * 1024),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -646,7 +646,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -667,7 +667,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -688,7 +688,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -709,7 +709,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -730,7 +730,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -751,7 +751,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -772,7 +772,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -793,7 +793,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -814,7 +814,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -835,7 +835,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -856,7 +856,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -877,7 +877,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -898,7 +898,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -919,7 +919,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -961,7 +961,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -982,7 +982,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1045,7 +1045,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1066,7 +1066,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1087,7 +1087,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1108,7 +1108,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t10/chip-t10/musca/common/spi_bus.c b/arch/mips/xburst/soc-t10/chip-t10/musca/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t10/chip-t10/musca/common/spi_bus.c	2026-08-08 07:58:41.313430406 -0400
++++ b/arch/mips/xburst/soc-t10/chip-t10/musca/common/spi_bus.c	2026-08-08 08:00:10.556715560 -0400
+@@ -86,7 +86,7 @@
+ 		.pagesize       = 256,
+ 		.sectorsize     = 4 * 1024,
+ 		.chipsize       = 16384 * 1024,
+-		.erasesize      = 32 * 1024,//4 * 1024,
++		.erasesize = 64 * 1024,//4 * 1024,
+ 		.id             = 0xc86018,
+ 
+ 		.block_info     = flash_block_info,
+@@ -104,7 +104,7 @@
+ 		.pagesize       = 256,
+ 		.sectorsize     = 4 * 1024,
+ 		.chipsize       = 16384 * 1024,
+-		.erasesize      = 32 * 1024,//4 * 1024,
++		.erasesize = 64 * 1024,//4 * 1024,
+ 		.id             = 0x9d6018,
+ 
+ 		.block_info     = flash_block_info,
+@@ -122,7 +122,7 @@
+ 		.pagesize       = 256,
+ 		.sectorsize     = 4 * 1024,
+ 		.chipsize       = 16384 * 1024,
+-		.erasesize      = 32 * 1024,//4 * 1024,
++		.erasesize = 64 * 1024,//4 * 1024,
+ 		.id             = 0xc22018,
+ 
+ 		.block_info     = flash_block_info,
+@@ -158,7 +158,7 @@
+ 			.pagesize       = 256,
+ 			.sectorsize     = 4 * 1024,
+ 			.chipsize       = 16384 * 1024,
+-			.erasesize      = 32 * 1024,//4 * 1024,
++			.erasesize = 64 * 1024,//4 * 1024,
+ 			.id             = 0xef4018,
+ 
+ 			.block_info     = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t15/chip-t15/bootes/common/spi_bus.c b/arch/mips/xburst/soc-t15/chip-t15/bootes/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t15/chip-t15/bootes/common/spi_bus.c	2026-08-08 07:58:41.317022818 -0400
++++ b/arch/mips/xburst/soc-t15/chip-t15/bootes/common/spi_bus.c	2026-08-08 08:00:10.558500918 -0400
+@@ -86,7 +86,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -104,7 +104,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -122,7 +122,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -158,7 +158,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t20/chip-t20/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t20/chip-t20/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t20/chip-t20/isvp/common/spi_bus.c	2026-08-08 07:58:41.324422215 -0400
++++ b/arch/mips/xburst/soc-t20/chip-t20/isvp/common/spi_bus.c	2026-08-08 08:00:10.560459022 -0400
+@@ -142,7 +142,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -163,7 +163,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -184,7 +184,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -205,7 +205,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -226,7 +226,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -247,7 +247,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -268,7 +268,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -289,7 +289,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -310,7 +310,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -331,7 +331,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -352,7 +352,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -373,7 +373,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -394,7 +394,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -415,7 +415,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -436,7 +436,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -457,7 +457,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -478,7 +478,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -499,7 +499,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -520,7 +520,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -541,7 +541,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -562,7 +562,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xF83217,
+ 
+ 		.block_info = flash_block_info,
+@@ -583,7 +583,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -604,7 +604,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 65536 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc2201A,
+ 
+ 		.block_info = flash_block_info,
+@@ -625,7 +625,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = (32 * 1024 * 1024),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -646,7 +646,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -667,7 +667,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -688,7 +688,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -709,7 +709,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -730,7 +730,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -751,7 +751,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -772,7 +772,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -793,7 +793,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -814,7 +814,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -835,7 +835,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -856,7 +856,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -877,7 +877,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -898,7 +898,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -919,7 +919,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -961,7 +961,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -982,7 +982,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1045,7 +1045,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1066,7 +1066,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1087,7 +1087,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1108,7 +1108,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t21/chip-t21/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t21/chip-t21/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t21/chip-t21/isvp/common/spi_bus.c	2026-08-08 07:58:41.327845762 -0400
++++ b/arch/mips/xburst/soc-t21/chip-t21/isvp/common/spi_bus.c	2026-08-08 08:00:10.562072553 -0400
+@@ -131,7 +131,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -152,7 +152,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -173,7 +173,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -194,7 +194,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -215,7 +215,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -236,7 +236,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -257,7 +257,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -278,7 +278,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -299,7 +299,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -320,7 +320,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -341,7 +341,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -362,7 +362,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -383,7 +383,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -404,7 +404,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -425,7 +425,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -467,7 +467,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -509,7 +509,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -530,7 +530,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -551,7 +551,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -572,7 +572,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -593,7 +593,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -614,7 +614,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+@@ -635,7 +635,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852019,
+ 
+ 		.block_info = flash_block_info,
+@@ -656,7 +656,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -677,7 +677,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -698,7 +698,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -740,7 +740,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -761,7 +761,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -782,7 +782,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -803,7 +803,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -824,7 +824,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -845,7 +845,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -866,7 +866,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -887,7 +887,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_64MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc2201a,
+ 
+ 		.block_info = flash_block_info,
+@@ -908,7 +908,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -929,7 +929,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -950,7 +950,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -971,7 +971,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -992,7 +992,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1013,7 +1013,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1034,7 +1034,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1055,7 +1055,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -1076,7 +1076,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1097,7 +1097,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1118,7 +1118,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1139,7 +1139,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xf83217,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t23/chip-t23/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t23/chip-t23/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t23/chip-t23/isvp/common/spi_bus.c	2026-08-08 07:58:41.331680688 -0400
++++ b/arch/mips/xburst/soc-t23/chip-t23/isvp/common/spi_bus.c	2026-08-08 08:00:10.564193923 -0400
+@@ -131,7 +131,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -152,7 +152,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -173,7 +173,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -194,7 +194,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -215,7 +215,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -236,7 +236,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -257,7 +257,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -278,7 +278,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -299,7 +299,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -320,7 +320,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -341,7 +341,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -362,7 +362,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -383,7 +383,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -404,7 +404,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -425,7 +425,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -467,7 +467,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -509,7 +509,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -530,7 +530,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -551,7 +551,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -572,7 +572,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -593,7 +593,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -614,7 +614,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+@@ -635,7 +635,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852019,
+ 
+ 		.block_info = flash_block_info,
+@@ -656,7 +656,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -677,7 +677,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -698,7 +698,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -740,7 +740,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -761,7 +761,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -782,7 +782,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -803,7 +803,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -824,7 +824,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -845,7 +845,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -866,7 +866,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -887,7 +887,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_64MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc2201a,
+ 
+ 		.block_info = flash_block_info,
+@@ -908,7 +908,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -929,7 +929,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -950,7 +950,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -971,7 +971,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -992,7 +992,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1013,7 +1013,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1034,7 +1034,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1055,7 +1055,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -1076,7 +1076,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1097,7 +1097,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1118,7 +1118,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1139,7 +1139,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xf83217,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t30/chip-t30/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t30/chip-t30/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t30/chip-t30/isvp/common/spi_bus.c	2026-08-08 07:58:41.335663442 -0400
++++ b/arch/mips/xburst/soc-t30/chip-t30/isvp/common/spi_bus.c	2026-08-08 08:00:10.566262869 -0400
+@@ -117,7 +117,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -138,7 +138,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -159,7 +159,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -180,7 +180,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -201,7 +201,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -222,7 +222,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -243,7 +243,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -264,7 +264,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -285,7 +285,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -306,7 +306,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -327,7 +327,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -348,7 +348,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -369,7 +369,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -390,7 +390,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -411,7 +411,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -432,7 +432,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -453,7 +453,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -474,7 +474,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -495,7 +495,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -516,7 +516,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -537,7 +537,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8192 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xF83217,
+ 
+ 		.block_info = flash_block_info,
+@@ -558,7 +558,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 32768 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -579,7 +579,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 65536 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xc2201A,
+ 
+ 		.block_info = flash_block_info,
+@@ -600,7 +600,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = (32 * 1024 * 1024),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -621,7 +621,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -642,7 +642,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -663,7 +663,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 8 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -684,7 +684,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize =( 16 * 1024 * 1024 ),
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -705,7 +705,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -726,7 +726,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -747,7 +747,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -768,7 +768,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -789,7 +789,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -810,7 +810,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -831,7 +831,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -852,7 +852,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -873,7 +873,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -894,7 +894,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -936,7 +936,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -957,7 +957,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1020,7 +1020,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1041,7 +1041,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 8 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1062,7 +1062,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 * 1024  * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1083,7 +1083,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16 *1024 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+
+diff --git a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c	2026-08-08 07:58:41.339459609 -0400
++++ b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c	2026-08-08 08:00:10.568277554 -0400
+@@ -131,7 +131,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -152,7 +152,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x0b4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -173,7 +173,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -194,7 +194,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -215,7 +215,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7017,
+ 
+ 		.block_info = flash_block_info,
+@@ -236,7 +236,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7018,
+ 
+ 		.block_info = flash_block_info,
+@@ -257,7 +257,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7019,
+ 
+ 		.block_info = flash_block_info,
+@@ -278,7 +278,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x1c7118,
+ 
+ 		.block_info = flash_block_info,
+@@ -299,7 +299,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204017,
+ 
+ 		.block_info = flash_block_info,
+@@ -320,7 +320,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204018,
+ 
+ 		.block_info = flash_block_info,
+@@ -341,7 +341,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x204019,
+ 
+ 		.block_info = flash_block_info,
+@@ -362,7 +362,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206017,
+ 
+ 		.block_info = flash_block_info,
+@@ -383,7 +383,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x206018,
+ 
+ 		.block_info = flash_block_info,
+@@ -404,7 +404,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207017,
+ 
+ 		.block_info = flash_block_info,
+@@ -425,7 +425,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x207018,
+ 
+ 		.block_info = flash_block_info,
+@@ -467,7 +467,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x522217,
+ 
+ 		.block_info = flash_block_info,
+@@ -509,7 +509,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x546018,
+ 
+ 		.block_info = flash_block_info,
+@@ -530,7 +530,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -551,7 +551,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x5e4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -572,7 +572,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684017,
+ 
+ 		.block_info = flash_block_info,
+@@ -593,7 +593,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x684018,
+ 
+ 		.block_info = flash_block_info,
+@@ -614,7 +614,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852018,
+ 
+ 		.block_info = flash_block_info,
+@@ -635,7 +635,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x852019,
+ 
+ 		.block_info = flash_block_info,
+@@ -656,7 +656,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856017,
+ 
+ 		.block_info = flash_block_info,
+@@ -677,7 +677,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x856018,
+ 
+ 		.block_info = flash_block_info,
+@@ -698,7 +698,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0x9d6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -740,7 +740,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa12818,
+ 
+ 		.block_info = flash_block_info,
+@@ -761,7 +761,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14017,
+ 
+ 		.block_info = flash_block_info,
+@@ -782,7 +782,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xa14018,
+ 
+ 		.block_info = flash_block_info,
+@@ -803,7 +803,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xba3217,
+ 
+ 		.block_info = flash_block_info,
+@@ -824,7 +824,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22017,
+ 
+ 		.block_info = flash_block_info,
+@@ -845,7 +845,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22018,
+ 
+ 		.block_info = flash_block_info,
+@@ -866,7 +866,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc22019,
+ 
+ 		.block_info = flash_block_info,
+@@ -887,7 +887,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_64MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc2201a,
+ 
+ 		.block_info = flash_block_info,
+@@ -908,7 +908,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84017,
+ 
+ 		.block_info = flash_block_info,
+@@ -929,7 +929,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -950,7 +950,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc84019,
+ 
+ 		.block_info = flash_block_info,
+@@ -971,7 +971,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xc86018,
+ 
+ 		.block_info = flash_block_info,
+@@ -992,7 +992,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xd84018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1013,7 +1013,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1034,7 +1034,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1055,7 +1055,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_32MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef4019,
+ 
+ 		.block_info = flash_block_info,
+@@ -1076,7 +1076,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6017,
+ 
+ 		.block_info = flash_block_info,
+@@ -1097,7 +1097,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_16MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1118,7 +1118,7 @@
+ 		.pagesize = 256,
+ 		.sectorsize = 4 * 1024,
+ 		.chipsize = 16384 * 1024,
+-		.erasesize = 32 * 1024,
++		.erasesize = 64 * 1024,
+ 		.id = 0xef6018,
+ 
+ 		.block_info = flash_block_info,
+@@ -1139,7 +1139,7 @@
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
+ 		.chipsize = SIZE_8MB,
+-		.erasesize = SIZE_32KB,
++		.erasesize = SIZE_64KB,
+ 		.id = 0xf83217,
+ 
+ 		.block_info = flash_block_info,
