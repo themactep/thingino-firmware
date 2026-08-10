@@ -1,0 +1,58 @@
+#!/bin/sh
+# IRCUT control wrapper for Raptor
+# Translates ircut commands to raptorctl ric ircut calls
+# Installed by thingino-raptor; called by daynight script and Web UI
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+if ! command_present raptorctl; then
+	echo "raptorctl not found" >&2
+	exit 1
+fi
+
+case "$1" in
+	0 | off | night)
+		# Remove IR-cut filter (night vision)
+		raptorctl ric ircut night
+		;;
+	1 | on | day)
+		# Set IR-cut filter (day mode)
+		raptorctl ric ircut day
+		;;
+	~ | toggle)
+		# Query current state and toggle
+		state=$(raptorctl ric status 2>/dev/null | \
+			sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+		if [ "$state" = "night" ]; then
+			raptorctl ric ircut day
+		else
+			raptorctl ric ircut night
+		fi
+		;;
+	status)
+		state=$(raptorctl ric status 2>/dev/null | \
+			sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+		if [ "$state" = "night" ]; then
+			echo "- IRCUT filter is removed"
+		else
+			echo "- IRCUT filter is set"
+		fi
+		;;
+	\? | read)
+		state=$(raptorctl ric status 2>/dev/null | \
+			sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+		if [ "$state" = "night" ]; then
+			echo -n "0"
+		else
+			echo -n "1"
+		fi
+		;;
+	*)
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
+		;;
+esac
+
+exit 0

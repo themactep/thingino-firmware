@@ -44,9 +44,12 @@ bad_request() {
 }
 
 daynightd_reload() {
+	# Prudynt: signal daynightd daemon
 	if [ -f /run/daynightd.pid ]; then
 		kill -HUP "$(cat /run/daynightd.pid)" 2>/dev/null || true
 	fi
+	# Raptor: ric handles mode changes immediately via raptorctl,
+	# no daemon reload needed
 }
 
 CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
@@ -78,8 +81,12 @@ case "$cmd" in
 		esac
 		;;
 	color)
-		# Direct ISP color mode toggle — prudynt still handles this
-		echo "{\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
+		# Direct ISP color mode toggle
+		if command -v prudyntctl >/dev/null 2>&1; then
+			echo "{\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
+		elif command -v color >/dev/null 2>&1; then
+			color "$val" >/dev/null 2>&1
+		fi
 		;;
 	daynight)
 		# Direct day/night force — disable photosensing, set mode

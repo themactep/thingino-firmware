@@ -1,0 +1,74 @@
+#!/bin/sh
+# Day/night switching script for Raptor
+# Translates daynightd-style commands to raptorctl ric calls
+# Installed by thingino-raptor; called by Web UI (json-imp.cgi)
+
+MODE_FILE="/run/thingino/daynight_mode"
+
+mkdir -p /run/thingino
+[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# Read current state from ric if possible, else fall back to mode file
+get_current_state() {
+	if command_present raptorctl; then
+		raptorctl ric status 2>/dev/null | \
+			sed -n 's/.*"state":"\([^"]*\)".*/\1/p'
+	else
+		cat "$MODE_FILE"
+	fi
+}
+
+switch_to_day() {
+	if command_present raptorctl; then
+		raptorctl ric mode day
+	fi
+	echo "day" >"$MODE_FILE"
+}
+
+switch_to_night() {
+	if command_present raptorctl; then
+		raptorctl ric mode night
+	fi
+	echo "night" >"$MODE_FILE"
+}
+
+switch_to_auto() {
+	if command_present raptorctl; then
+		raptorctl ric mode auto
+	fi
+	echo "auto" >"$MODE_FILE"
+}
+
+state=$(cat "$MODE_FILE" 2>/dev/null || echo "day")
+
+case "$1" in
+	night)
+		switch_to_night
+		;;
+	day)
+		switch_to_day
+		;;
+	auto)
+		switch_to_auto
+		;;
+	~ | toggle)
+		if [ "day" = "$state" ]; then
+			switch_to_night
+		else
+			switch_to_day
+		fi
+		;;
+	\? | read | status)
+		echo "$state"
+		;;
+	*)
+		echo "Usage: $0 {day|night|auto|toggle|read}" >&2
+		echo "Current state: $state" >&2
+		;;
+esac
+
+exit 0

@@ -1,0 +1,81 @@
+#!/bin/sh
+# IR LED / white light control wrapper for Raptor
+# Translates light commands to raptorctl ric ir850/ir940 calls
+# Installed by thingino-raptor; called by daynight script and Web UI
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+if ! command_present raptorctl; then
+	echo "raptorctl not found" >&2
+	exit 1
+fi
+
+show_help() {
+	echo "Usage: $0 <type> <mode>
+Where:
+	type	ir | ir850 | ir940 | white
+	mode	on | off | toggle | read" >&2
+	exit 1
+}
+
+[ "$#" -lt 1 ] && show_help
+
+type="$1"
+mode="${2:-read}"
+
+case "$type" in
+	ir)
+		# Toggle whichever IR bank ric knows about
+		case "$mode" in
+			0 | off)
+				raptorctl ric ir850 off 2>/dev/null
+				raptorctl ric ir940 off 2>/dev/null
+				;;
+			1 | on)
+				raptorctl ric ir850 on 2>/dev/null
+				raptorctl ric ir940 on 2>/dev/null
+				;;
+			*)
+				show_help
+				;;
+		esac
+		;;
+	ir850)
+		case "$mode" in
+			0 | off) raptorctl ric ir850 off ;;
+			1 | on)  raptorctl ric ir850 on ;;
+			*) show_help ;;
+		esac
+		;;
+	ir940)
+		case "$mode" in
+			0 | off) raptorctl ric ir940 off ;;
+			1 | on)  raptorctl ric ir940 on ;;
+			*) show_help ;;
+		esac
+		;;
+	white | flood)
+		# Raptor has no white light GPIO command via ric.
+		# Fall back to direct GPIO manipulation if configured.
+		gpio_pin=$(jct /etc/thingino.json get "gpio.white" 2>/dev/null || \
+			jct /etc/thingino.json get "gpio.white.pin" 2>/dev/null)
+		if [ -n "$gpio_pin" ]; then
+			case "$mode" in
+				0 | off) gpio set "$gpio_pin" 0 ;;
+				1 | on)  gpio set "$gpio_pin" 1 ;;
+				*) show_help ;;
+			esac
+		else
+			echo "- White light GPIO not configured" >&2
+			exit 1
+		fi
+		;;
+	*)
+		echo "Unknown light type: $type" >&2
+		show_help
+		;;
+esac
+
+exit 0
