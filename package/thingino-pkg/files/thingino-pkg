@@ -77,7 +77,7 @@ cmd_install() {
 	case "$url" in
 		http://* | https://*)
 			echo "Downloading $url..."
-			wget -q --show-progress -O "$tmpbundle" "$url" || {
+			curl -sS -L -o "$tmpbundle" "$url" || {
 				echo "Download failed"
 				return 1
 			}
