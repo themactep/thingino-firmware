@@ -16,7 +16,7 @@ Usage: $0 [OPTIONS]
 Options:
 	-o -             Output to stdout
 	-o /path/file    Output to specific file
-	-u               Upload to server (tb.thingino.com)
+	-u               Upload to server
 	-j               Upload to server and return JSON with link
 	-f               Force: skip consent prompt
 	-h               Show this help
@@ -143,7 +143,7 @@ if [ -t 0 ] && [ "$output_mode" != "stdout" ] && [ "$force_mode" != "yes" ]; the
 This script generates a log file for sharing with developers for diagnostic issues.
 The log may contain sensitive information, please review it before sharing!
 "
-	[ "$upload_to_server" = "yes" ] && echo "Files uploaded to tb.thingino.com are stored for 1 week."
+	[ "$upload_to_server" = "yes" ] && echo "Uploaded files are stored for 3 days."
 	read -p "Do you wish to proceed? (yes/no): " response
 	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
