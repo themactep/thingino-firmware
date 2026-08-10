@@ -20,7 +20,7 @@
   const motionSensitivityValue = $("#motion_sensitivity_value");
   const motionCooldownInput = $("#motion_cooldown");
   const motionCooldownValue = $("#motion_cooldown_value");
-  const saveMotionButton = $("#save_motion");
+  const saveAllButton = $("#save_all");
 
   // Speaker elements
   const speakerFileInput = $("#speaker_file");
@@ -29,7 +29,6 @@
   const speakerGainInput = $("#speaker_gain");
   const speakerGainValue = $("#speaker_gain_value");
   const speakerLoopInput = $("#speaker_loop");
-  const saveSpeakerButton = $("#save_speaker");
   const testSpeakerButton = $("#test_speaker");
 
   // Update slider value displays
@@ -189,8 +188,7 @@
 
       // Apply speaker settings
       if (data.speaker) {
-        if (speakerFileInput)
-          speakerFileInput.value = data.speaker.file || "";
+        if (speakerFileInput) speakerFileInput.value = data.speaker.file || "";
         if (speakerVolumeInput) {
           speakerVolumeInput.value = data.speaker.volume ?? 80;
           if (speakerVolumeValue)
@@ -201,8 +199,7 @@
           if (speakerGainValue)
             speakerGainValue.textContent = speakerGainInput.value;
         }
-        if (speakerLoopInput)
-          speakerLoopInput.value = data.speaker.loop ?? 1;
+        if (speakerLoopInput) speakerLoopInput.value = data.speaker.loop ?? 1;
       }
     } catch (err) {
       console.error("Failed to load config:", err);
@@ -215,17 +212,19 @@
     }
   }
 
-  async function saveMotionSettings() {
-    if (!saveMotionButton) return;
+  async function saveAllSettings() {
+    if (!saveAllButton) return;
 
-    showBusy("Saving motion settings...");
-    saveMotionButton.disabled = true;
+    showBusy("Saving settings...");
+    saveAllButton.disabled = true;
 
     try {
       const payload = {
         motion: {
           enabled: motionEnabledInput ? motionEnabledInput.checked : false,
-          playonspeaker: motionPlayOnSpeakerInput ? motionPlayOnSpeakerInput.checked : false,
+          playonspeaker: motionPlayOnSpeakerInput
+            ? motionPlayOnSpeakerInput.checked
+            : false,
           sensitivity: motionSensitivityInput
             ? Number(motionSensitivityInput.value)
             : 4,
@@ -233,40 +232,6 @@
             ? Number(motionCooldownInput.value)
             : 15,
         },
-      };
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to save settings");
-
-      const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error.message || "Failed to save settings");
-      }
-
-      showAlert("success", "Motion settings saved successfully.", 3000);
-    } catch (err) {
-      console.error("Failed to save motion settings:", err);
-      showAlert("danger", `Failed to save settings: ${err.message || err}`);
-    } finally {
-      hideBusy();
-      saveMotionButton.disabled = false;
-    }
-  }
-
-  async function saveSpeakerSettings() {
-    if (!saveSpeakerButton) return;
-
-    showBusy("Saving speaker settings...");
-    saveSpeakerButton.disabled = true;
-
-    try {
-      const payload = {
         speaker: {
           file: speakerFileInput ? speakerFileInput.value : "",
           volume: speakerVolumeInput ? Number(speakerVolumeInput.value) : 80,
@@ -289,13 +254,13 @@
         throw new Error(result.error.message || "Failed to save settings");
       }
 
-      showAlert("success", "Speaker settings saved successfully.", 3000);
+      showAlert("success", "Settings saved successfully.", 3000);
     } catch (err) {
-      console.error("Failed to save speaker settings:", err);
+      console.error("Failed to save settings:", err);
       showAlert("danger", `Failed to save settings: ${err.message || err}`);
     } finally {
       hideBusy();
-      saveSpeakerButton.disabled = false;
+      saveAllButton.disabled = false;
     }
   }
 
@@ -308,7 +273,10 @@
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          showAlert("danger", `Speaker test failed: ${data.error.message || data.error}`);
+          showAlert(
+            "danger",
+            `Speaker test failed: ${data.error.message || data.error}`,
+          );
         } else {
           showAlert("success", "Speaker test played.", 3000);
         }
@@ -400,12 +368,8 @@
     });
   });
 
-  if (saveMotionButton) {
-    saveMotionButton.addEventListener("click", saveMotionSettings);
-  }
-
-  if (saveSpeakerButton) {
-    saveSpeakerButton.addEventListener("click", saveSpeakerSettings);
+  if (saveAllButton) {
+    saveAllButton.addEventListener("click", saveAllSettings);
   }
 
   if (testSpeakerButton) {
