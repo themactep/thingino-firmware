@@ -263,6 +263,21 @@ endef
 # simply ignored (uhttpd never reads that file). The old "/mjpeg" busybox
 # proxy alias is dropped for the same reason; nothing references it anymore
 # (the preview streams :8880/stream.mp4 and :8880/stream.mjpeg directly).
+#
+# RTSP/ONVIF access page: config-rtsp.html + a/config-rtsp.js + the
+# x/json-config-rtsp.cgi override are the 17th page taken over here. The stock
+# page is not merely sub-optimal on timps, it is inert: its script fetches
+# http://<host>:8080/api/v1/config/rtsp, a REST config server only the other
+# streamer ships, and nothing listens on 8080 on a timps image - so all four
+# "ready-to-use URL" fields sit on "Loading..." forever and the RTSP/ONVIF
+# password cannot be changed from the WebUI at all. The timps copies read the
+# live mount points from GET /control and the credentials/ports from
+# /etc/timps.conf + /etc/onvif.json via the CGI (rtsp.user/rtsp.pass are
+# deliberately not reachable over /control - see the CGI header).
+#
+# No file list to maintain: the three loops below glob files/www/{x,a}/* and
+# files/www/*.html, so a new page is picked up by dropping it in the right
+# directory.
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_PACKAGE_TIMPS_CONTROL),yy)
 define TIMPS_INSTALL_WEBUI_CGIS
 	# timps-flavored WebUI: overlay every timps-specific asset over the stock
@@ -469,7 +484,7 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_ONVIF_DISCOVERY
 #
 #  1. assemble_plugins.py rewrites the stock var/www/*.html to add
 #     <script src="/a/plugins.js"> after the runtime-config.js tag. Our
-#     TIMPS_INSTALL_WEBUI_CGIS then overwrites 16 of those pages with timps's
+#     TIMPS_INSTALL_WEBUI_CGIS then overwrites 17 of those pages with timps's
 #     own copies from files/www/*.html, which carry the runtime-config.js
 #     anchor but no plugins.js tag. On exactly those pages plugins.js never
 #     loads, window.thinginoUIConfig.plugins is undefined, and our
