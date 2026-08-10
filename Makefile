@@ -620,11 +620,15 @@ else
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
-	# append camera-specific overlay if it exists
-	@if [ -d "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay" ]; then \
-		sed -i 's|^\(BR2_ROOTFS_OVERLAY="\)\(.*\)"|\1\2 $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"|' $(OUTPUT_DIR)/.config; \
-		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
-	fi
+	# append camera-, and (when IP= is set) device-specific overlays.
+	# THINGINO_USER_OVERLAY_DIRS already covers common/camera/device dirs;
+	# the old version of this block only ever added $(CAMERA)/overlay, so
+	# any per-IP overlay (user/<camera>/<ip>/overlay - wifi creds, hostname,
+	# thingino.json, ...) silently never made it into BR2_ROOTFS_OVERLAY.
+	@for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
+		sed -i "s|^\(BR2_ROOTFS_OVERLAY=\"\)\(.*\)\"|\1\2 $$dir\"|" $(OUTPUT_DIR)/.config; \
+		echo "Camera overlay: $$dir"; \
+	done
 endif
 	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
 		if [ -f "$$file" ]; then \
