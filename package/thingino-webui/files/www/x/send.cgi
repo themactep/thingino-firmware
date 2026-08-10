@@ -254,7 +254,8 @@ case "$target" in
 				url=$($cmd | send2termbin)
 				;;
 		esac
-		redirect_to $url
+		[ -n "$url" ] || redirect_back "danger" "Upload failed"
+		redirect_to "$url"
 		;;
 	*)
 		redirect_back "danger" "Unknown target $target"
