@@ -234,8 +234,26 @@ def make_link_tag(href: str, asset_ts: str = "") -> str:
     return f'<link rel="stylesheet" href="{href}{ts}">'
 
 
+def has_script_src(html_content: str, src: str) -> bool:
+    """True when the page already carries a <script>/<link> for this path.
+
+    The asset timestamp is appended as a ?ts= query, so match on the path only.
+    Needed because this script is re-runnable: a streamer package that drops its
+    own HTML overlay into var/www after plugin assembly has to re-run assembly to
+    get the tags, and that second pass must not duplicate what is already there.
+    """
+    return re.search(
+        r'(?:src|href)="' + re.escape(src) + r'(?:\?[^"]*)?"',
+        html_content,
+        re.IGNORECASE,
+    ) is not None
+
+
 def inject_plugins_js(html_content: str, www_root: Path, asset_ts: str = "") -> str:
     """Insert <script src='/a/plugins.js'> after runtime-config.js."""
+    if has_script_src(html_content, "/a/plugins.js"):
+        return html_content
+
     plugin_tag = make_script_tag("/a/plugins.js", asset_ts)
 
     def replacement(match):
@@ -257,9 +275,11 @@ def inject_global_scripts(
 
     for m in manifests:
         for style in m.get("styles", []):
-            tags.append(make_link_tag(style, asset_ts))
+            if not has_script_src(html_content, style):
+                tags.append(make_link_tag(style, asset_ts))
         for script in m.get("scripts", []):
-            tags.append(make_script_tag(script, asset_ts))
+            if not has_script_src(html_content, script):
+                tags.append(make_script_tag(script, asset_ts))
 
     if not tags:
         return html_content
@@ -295,7 +315,8 @@ def inject_preview_scripts(
     for m in manifests:
         preview = m.get("preview", {})
         for script in preview.get("scripts", []):
-            tags.append(make_script_tag(script, asset_ts))
+            if not has_script_src(html_content, script):
+                tags.append(make_script_tag(script, asset_ts))
 
     if not tags:
         return html_content
