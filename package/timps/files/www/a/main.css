@@ -990,3 +990,30 @@ table.send2services th:not(:first-child) {
 table.send2services td:first-child a {
   text-decoration: none;
 }
+
+/* ---------------------------------------------------------------------------
+ * Defensive local copy of Bootstrap's .d-none display utility.
+ *
+ * Every WebUI page pulls Bootstrap from a jsDelivr CDN <link> and then loads
+ * this stylesheet AFTER it. Pages routinely pre-place elements that must start
+ * hidden by marking them class="... d-none" in the static HTML and having their
+ * script drop the class when the state actually applies (e.g. the
+ * #privacy-unavailable warning on config-privacy.html).
+ *
+ * .d-none is defined ONLY by that CDN stylesheet - nothing local ever declared
+ * it. A camera sits on a LAN and the browser may have no route to the CDN, a
+ * cold/failed cache, or simply lose the request: whenever the CDN CSS does not
+ * apply, every "hidden" element renders VISIBLE even though no JavaScript ever
+ * unhid it. On config-privacy.html that surfaced as the static "The streamer
+ * does not report privacy support (or is unreachable)" placeholder appearing at
+ * random on reload while GET /control reported caps.privacy.available = 1 the
+ * whole time - a pure CSS-availability failure, no script-ordering involved.
+ *
+ * Declaring it here (byte-identical to Bootstrap's own rule) makes the
+ * hidden-by-default state depend only on files served by the camera itself. It
+ * is a no-op whenever the CDN stylesheet did load, and classList add/remove of
+ * "d-none" keeps working exactly as before either way.
+ * ------------------------------------------------------------------------- */
+.d-none {
+  display: none !important;
+}
