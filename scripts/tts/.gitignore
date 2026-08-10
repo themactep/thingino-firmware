@@ -1,0 +1,6 @@
+# Ignore generated audio, venv, and downloaded models
+output/
+models/
+__pycache__/
+.venv/
+*.pyc
