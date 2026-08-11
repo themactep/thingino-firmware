@@ -27,8 +27,11 @@ if [ ! -d "$cameras_dir" ]; then
 	exit 1
 fi
 
-# Get list of cameras (list subdirectories in cameras_dir)
-cameras=($(ls "$cameras_dir" | sort))
+# Get list of cameras (list subdirectories in cameras_dir, sorted)
+cameras=()
+while IFS= read -r name; do
+	cameras+=("$name")
+done < <(find "$cameras_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 
 if [ ${#cameras[@]} -eq 0 ]; then
 	echo "ERROR: No camera configs found in $cameras_dir" >&2
