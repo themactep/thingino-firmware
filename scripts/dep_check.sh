@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/bin/bash
+
+set -eu
+# NOTE: no pipefail — the dd version check pipeline (line 36-54) uses
+# explicit $? inspection; pipefail would short-circuit that pattern.
 
 if [ -f .prereqs.done ]; then
 	exit 0
