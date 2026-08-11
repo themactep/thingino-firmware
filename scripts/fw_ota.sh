@@ -46,21 +46,21 @@ esac
 [ -z "$CAMERA_IP_ADDRESS" ] && die "No IP address specified (-a or positional)"
 
 cleanup() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
 	fi
 	printf '\033[0m' 2>/dev/null || true
 }
 
 remote_copy() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		echo -e "\e[38;5;122mscp -O $SSH_OPTS $1 $2\e[0m" >&2
 	fi
 	scp -O $SSH_OPTS "$1" "$2"
 }
 
 remote_run() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		echo -e "\e[38;5;118mssh $SSH_OPTS $1\e[0m" >&2
 	fi
 	ssh $SSH_OPTS $REMOTE_HOST "$1"
@@ -262,7 +262,7 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
 
-[ -n "$DEBUG" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
+[ -n "${DEBUG:-}" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
 ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
 	die "Failed to initialize ssh connection"
 echo "SSH connection initialized."
