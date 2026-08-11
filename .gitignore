@@ -8,6 +8,10 @@
 .DS_Store
 *.backup
 *.log
+*~
+\#*#
+core
+core.*
 
 # Docker
 .bash_history
@@ -15,6 +19,8 @@
 
 # Generated
 *.pyc
+*.pyo
+__pycache__/
 
 # Buildroot
 /.cache
@@ -30,7 +36,8 @@
 /sdk
 /tmp
 /toolchain
-/trash
+/trash/*
+!/trash/README.md
 /local.mk
 /.prereqs.done
 /.selected_camera*
