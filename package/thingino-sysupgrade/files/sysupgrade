@@ -874,11 +874,13 @@ if [ -z "$mtd_dev" ]; then
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
 			# Disarm the tmpfs watchdog before triggering the WDT reset.
-			killall watchdog 2>/dev/null && sleep 1
-			sleep 5
+			# Use the tmpfs busybox for every command — rootfs may already
+			# be overwritten, so rootfs binaries can segfault.
+			$workdir/busybox killall watchdog 2>/dev/null && $workdir/busybox sleep 1
+			$workdir/busybox sleep 5
 			if [ -w /proc/jz/reset/reset ]; then
 				echo wdt >/proc/jz/reset/reset
-				sleep 2
+				$workdir/busybox sleep 2
 			fi
 			$workdir/busybox reboot -f
 			exit 0
