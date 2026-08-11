@@ -24,7 +24,7 @@ endif
 # Only proceed with board selection if not exempted
 ifeq ($(SKIP_CAMERA_SELECTION),)
 
-# ── build session memo ───────────────────────────────────────────────
+# --- build session memo ---------------------------------------------
 #
 # BUILD_MEMO is scoped to the terminal session (parent PID of make).
 # This means:
@@ -36,7 +36,7 @@ ifeq ($(SKIP_CAMERA_SELECTION),)
 # The session ID is the grandparent PID: make's parent is the user's
 # shell.  /proc/.../stat field 4 is the parent PID on Linux; fall back
 # to ps(1) on other systems, and finally to $$ (make's own PID) if
-# neither works — the memo still functions, just without cross-run
+# neither works -- the memo still functions, just without cross-run
 # persistence.
 #
 _BUILD_SESSION := $(shell \

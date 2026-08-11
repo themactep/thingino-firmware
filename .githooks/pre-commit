@@ -70,7 +70,7 @@ $shell_staged_files
 EOF
 fi
 
-# ── shellcheck ──────────────────────────────────────────────────────
+# --- shellcheck -----------------------------------------------------
 
 shellcheck_staged_files=$(
 	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
