@@ -10,6 +10,9 @@
 #
 
 # Check arguments
+
+set -euo pipefail
+
 if [ $# -ne 4 ]; then
 	echo "Usage: $0 <output_file> <br2_external> <camera_subdir> <camera>"
 	echo "  output_file    Path to the output thingino.json file"
@@ -24,7 +27,7 @@ BR2_EXTERNAL="$2"
 CAMERA_SUBDIR="$3"
 CAMERA="$4"
 
-[ -f "$OUTPUT_FILE" ] || {:echo '{}' > "$OUTPUT_FILE"}
+[ -f "$OUTPUT_FILE" ] || { echo '{}' > "$OUTPUT_FILE"; }
 
 # Add system-wide config file
 SYSTEM_CONFIG="${BR2_EXTERNAL}/configs/thingino.json"
