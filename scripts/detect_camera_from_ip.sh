@@ -7,6 +7,8 @@
 # Returns: camera name on stdout (exit 0), or nothing (exit 1) on failure.
 #
 
+set -euo pipefail
+
 IP="$1"
 if [ -z "$IP" ]; then
 	echo "ERROR: IP address required" >&2
