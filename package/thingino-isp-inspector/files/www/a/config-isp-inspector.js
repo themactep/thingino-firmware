@@ -10,6 +10,9 @@
   const ispHdrPlatform = $("#isp-hdr-platform");
   const ispHdrSensor = $("#isp-hdr-sensor");
   const ispHdrRes = $("#isp-hdr-res");
+  const ispHdrImg = $("#isp-hdr-img");
+  const ispHdrAf = $("#isp-hdr-af");
+  const ispHdrOrient = $("#isp-hdr-orient");
   const issuesCard = $("#isp-issues-card");
   const issuesCount = $("#isp-issues-count");
   const issuesBody = $("#isp-issues-body");
@@ -93,7 +96,7 @@
     const colors = { ok: "success", warn: "warning", crit: "danger", info: "secondary" };
     const c = colors[status] || "secondary";
 
-    return '<div class="col-6 col-md-4 col-lg-3 col-xl-2">' +
+    return '<div class="col">' +
       '<div class="card isp-stat-card h-100 border-' + c + '">' +
       '<div class="card-body d-flex flex-column p-1 p-md-2">' +
       '<div class="isp-stat-label text-muted">' + (label || "&nbsp;") + '</div>' +
@@ -227,9 +230,33 @@
     // Header line
     var plat = data.platform || "?";
     var sn = data.sensor || {};
+    var img = data.image || {};
+    var af = data.antiflicker || {};
+
     if (ispHdrPlatform) ispHdrPlatform.textContent = plat.toUpperCase();
     if (ispHdrSensor) ispHdrSensor.textContent = sn.name || "?";
     if (ispHdrRes) ispHdrRes.textContent = (sn.width || "?") + "\u00d7" + (sn.height || "?");
+
+    // Tuning knobs
+    var imgParts = [];
+    if (img.saturation) imgParts.push("Saturation: " + img.saturation);
+    if (img.sharpness) imgParts.push("Sharpness: " + img.sharpness);
+    if (img.contrast) imgParts.push("Contrast: " + img.contrast);
+    if (img.brightness) imgParts.push("Brightness: " + img.brightness);
+    if (ispHdrImg) ispHdrImg.textContent = imgParts.length ? imgParts.join(" / ") : "";
+
+    // Antiflicker
+    var afVal = af.mode || "";
+    if (afVal === "0") afVal = "Antiflicker: Off";
+    else if (afVal === "1") afVal = "Antiflicker: 50Hz";
+    else if (afVal === "2") afVal = "Antiflicker: 60Hz";
+    else if (afVal && afVal !== "Disable") afVal = "AF:" + afVal;
+    if (ispHdrAf) ispHdrAf.textContent = afVal || "";
+
+    // Mirror/Flip
+    var orient = "";
+    if (af.mirror && af.flip) orient = "Mirror: " + af.mirror + " Flip: " + af.flip;
+    if (ispHdrOrient) ispHdrOrient.textContent = orient;
 
     // FPS
     var fpsNum = parseFloat(data.fps.num);
@@ -249,7 +276,7 @@
     var intT = data.exposure.int_time || "0";
     var intMax = data.exposure.int_time_max || "0";
     var intStatus = (parseInt(intMax, 10) > 0 && parseInt(intT, 10) >= parseInt(intMax, 10)) ? "warn" : "ok";
-    cards.push(statCard("Int. Time", intT + " / " + intMax, "lines", intStatus,
+    cards.push(statCard("Integration Time", intT + " / " + intMax, "lines", intStatus,
       "At max = sensor at FPS floor. Normal at night."));
 
     // Analog gain
@@ -278,30 +305,6 @@
     var wb = data.wb || {};
     cards.push(statCard("WB Color Temp", wb.color_temp ? wb.color_temp + "K" : "?", "", "info",
       "Rgain: " + (wb.rgain || "?") + " Bgain: " + (wb.bgain || "?")));
-
-    // Image tuning
-    var img = data.image || {};
-    var sat = parseInt(img.saturation, 10) || 0;
-    var satStatus = sat === 128 ? "info" : (sat < 64 || sat > 192 ? "warn" : "ok");
-    cards.push(statCard("Saturation", img.saturation || "?", "", satStatus));
-
-    var sharp = parseInt(img.sharpness, 10) || 0;
-    var sharpStatus = sharp === 128 ? "info" : (sharp > 200 ? "warn" : "ok");
-    cards.push(statCard("Sharpness", img.sharpness || "?", "", sharpStatus));
-
-    // Antiflicker
-    var af = data.antiflicker || {};
-    var afVal = af.mode || "?";
-    if (afVal === "0") afVal = "Off";
-    else if (afVal === "1") afVal = "50 Hz";
-    else if (afVal === "2") afVal = "60 Hz";
-    var afStatus = afVal === "Off" || afVal === "?" ? "warn" : "ok";
-    cards.push(statCard("Antiflicker", afVal, "", afStatus));
-
-    // Mirror/Flip
-    if (af.mirror && af.flip) {
-      cards.push(statCard("Mirror/Flip", (af.mirror || "Off") + " / " + (af.flip || "Off"), "", "info"));
-    }
 
     // Frame source: queue count
     if (fsData && fsData.ch0) {

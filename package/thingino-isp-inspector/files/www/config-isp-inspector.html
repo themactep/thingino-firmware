@@ -15,12 +15,13 @@
   <link rel="stylesheet" href="/a/main.css">
   <style>
     .isp-stat-card { }
-    .isp-stat-value { font-family: 'PT Mono', 'Courier New', monospace; font-size: 1.1rem; line-height: 1.2; }
-    .isp-stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-stat-value { font-size: 1.0rem; font-weight: 700; line-height: 1.2; }
     .isp-stat-badge { font-size: 0.65rem; }
-    .isp-issue { border-left: 3px solid var(--bs-warning); padding-left: 0.75rem; }
+    .isp-issue { font-size: 0.86rem; border-left: 3px solid var(--bs-warning); padding-left: 0.75rem; }
     .isp-issue.critical { border-left-color: var(--bs-danger); }
     .isp-issue.ok { border-left-color: var(--bs-success); }
+    #isp-hdr-platform, #isp-hdr-sensor { text-transform: uppercase; }
     .chart-container { position: relative; height: 250px; width: 100%; }
     .llm-response { max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'PT Mono', monospace; font-size: 0.85rem; }
   </style>
@@ -30,7 +31,7 @@
 <nav data-app-nav></nav>
 
 <main class="pb-4">
-  <div class="container-fluid px-3 px-md-4">
+  <div class="container" style="min-height:80vh">
     <div data-app-controls></div>
 
     <section class="mb-4">
@@ -56,11 +57,17 @@
 
       <!-- Live stats row -->
       <div class="d-flex align-items-center gap-2 mb-2" id="isp-header">
-        <span class="badge bg-secondary" id="isp-hdr-platform">?</span>
-        <span class="fw-bold" id="isp-hdr-sensor">?</span>
-        <span class="text-muted small" id="isp-hdr-res"></span>
+        <span class="fw-bold" id="isp-hdr-platform"></span>
+        <span class="fw-bold" id="isp-hdr-sensor"></span>
+        <span class="text-muted" id="isp-hdr-res"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-img"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-af"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-orient"></span>
       </div>
-      <div class="row g-3 mb-3" id="isp-stats-row">
+      <div class="row row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2 mb-3" id="isp-stats-row">
         <!-- Populated by JS -->
       </div>
 
