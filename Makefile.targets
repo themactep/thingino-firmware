@@ -258,6 +258,37 @@ shellcheck:
 	@find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
 	@echo "All shell scripts passed."
 
+# Full lint suite: shellcheck + defconfig sort + plugin validation
+lint: shellcheck
+	@echo "Checking defconfig sort order..."
+	@failed=0; \
+	for f in configs/cameras/*/"*_defconfig"; do \
+		[ -f "$$f" ] || continue; \
+		cp "$$f" "$$f.lint.bak" || exit 1; \
+		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f" 2>/dev/null; \
+		if ! cmp -s "$$f" "$$f.lint.bak"; then \
+			echo "  FAIL: $$f is not sorted. Run: scripts/sort_defconfig.py $$f"; \
+			failed=1; \
+		fi; \
+		mv "$$f.lint.bak" "$$f"; \
+	done; \
+	if [ "$$failed" -eq 1 ]; then \
+		echo "Some defconfigs are not sorted. Run 'make sort-defconfigs' to fix."; \
+		exit 1; \
+	fi
+	@echo "All defconfigs sorted."
+	@echo "Validating webui plugins..."
+	@$(BR2_EXTERNAL)/scripts/check-plugins.sh
+	@echo "All lint checks passed."
+
+# Sort all camera defconfigs
+sort-defconfigs:
+	@for f in configs/cameras/*/*_defconfig; do \
+		[ -f "$$f" ] || continue; \
+		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f"; \
+	done
+	@echo "All defconfigs sorted."
+
 # Configuration debugging and maintenance targets
 show-config-deps:
 	@$(TEAL) "$@"
