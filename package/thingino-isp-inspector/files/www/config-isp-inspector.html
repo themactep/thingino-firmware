@@ -18,9 +18,8 @@
     .isp-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
     .isp-stat-value { font-size: 1.0rem; font-weight: 700; line-height: 1.2; }
     .isp-stat-badge { font-size: 0.65rem; }
-    .isp-issue { font-size: 0.86rem; border-left: 3px solid var(--bs-warning); padding-left: 0.75rem; }
-    .isp-issue.critical { border-left-color: var(--bs-danger); }
-    .isp-issue.ok { border-left-color: var(--bs-success); }
+    .isp-issue-log { padding: 1px 8px; border-bottom: 1px solid var(--bs-border-color); }
+    .terminal { color: var(--bs-secondary-color) !important; background: var(--bs-tertiary-bg) !important; }
     #isp-hdr-platform, #isp-hdr-sensor { text-transform: uppercase; }
     .chart-container { position: relative; height: 250px; width: 100%; }
     .llm-response { max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'PT Mono', monospace; font-size: 0.85rem; }
@@ -69,15 +68,6 @@
       </div>
       <div class="row row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2 mb-3" id="isp-stats-row">
         <!-- Populated by JS -->
-      </div>
-
-      <!-- Issues panel -->
-      <div class="card mb-3 d-none" id="isp-issues-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="card-title mb-0">Issues Detected</h5>
-          <span class="badge" id="isp-issues-count">0</span>
-        </div>
-        <div class="card-body" id="isp-issues-body"></div>
       </div>
 
       <!-- Tabs: Charts / Raw / LLM Analysis -->
@@ -197,6 +187,17 @@
               <div class="llm-response d-none" id="llm-response"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Issues log -->
+      <div class="card mt-3 d-none" id="isp-issues-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Issue Log</h5>
+          <button class="btn btn-sm btn-outline-secondary" id="isp-issues-clear">Clear</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="terminal small" id="isp-issues-body" style="height:200px;overflow-y:scroll;font-size:0.8rem;"></div>
         </div>
       </div>
     </section>

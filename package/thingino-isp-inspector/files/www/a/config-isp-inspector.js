@@ -14,8 +14,8 @@
   const ispHdrAf = $("#isp-hdr-af");
   const ispHdrOrient = $("#isp-hdr-orient");
   const issuesCard = $("#isp-issues-card");
-  const issuesCount = $("#isp-issues-count");
   const issuesBody = $("#isp-issues-body");
+  const issuesClear = $("#isp-issues-clear");
   const rawM0 = $("#raw-isp-m0");
   const rawFs = $("#raw-isp-fs");
 
@@ -34,6 +34,7 @@
   let history = [];
   let lastData = null;
   let lastFs = null;
+  let lastMode = null;
   let charts = {};
 
   // ── LLM config ──────────────────────────────────────────────────
@@ -193,34 +194,51 @@
     return issues;
   }
 
+  // ── Issue log (cumulative, dedup'd, timestamped) ────────────
+  var seenIssues = {};     // key -> true (ever seen)
+  var activeIssues = {};   // key -> true (currently active)
+
   function renderIssues(issues) {
-    if (!issues || issues.length === 0) {
-      issuesCard.classList.add("d-none");
-      return;
-    }
     issuesCard.classList.remove("d-none");
-    var critCount = issues.filter(function(i) { return i.severity === "crit"; }).length;
-    var warnCount = issues.filter(function(i) { return i.severity === "warn"; }).length;
 
-    if (critCount > 0) {
-      issuesCount.className = "badge bg-danger";
-      issuesCount.textContent = critCount + " critical, " + warnCount + " warnings";
-    } else if (warnCount > 0) {
-      issuesCount.className = "badge bg-warning text-dark";
-      issuesCount.textContent = warnCount + " warnings";
-    } else {
-      issuesCount.className = "badge bg-info";
-      issuesCount.textContent = issues.length + " info";
+    var now = new Date();
+    var ts = now.toLocaleTimeString();
+    var added = false;
+    var currentKeys = {};
+
+    // Log new issues
+    (issues || []).forEach(function(i) {
+      var key = i.msg;
+      currentKeys[key] = true;
+      if (seenIssues[key]) return;
+      seenIssues[key] = true;
+      activeIssues[key] = true;
+      added = true;
+
+      var cls = i.severity === "crit" ? "text-danger" :
+                i.severity === "warn" ? "text-warning" : "text-info";
+      var line = document.createElement("div");
+      line.className = "isp-issue-log";
+      line.innerHTML = '<span class="text-muted">' + ts + '</span> ' +
+        '<span class="' + cls + '">[' + i.severity.toUpperCase() + ']</span> ' + i.msg;
+      issuesBody.appendChild(line);
+    });
+
+    // Log resolved issues (was active, now gone)
+    Object.keys(activeIssues).forEach(function(key) {
+      if (currentKeys[key]) return; // still active
+      delete activeIssues[key];
+      added = true;
+      var line = document.createElement("div");
+      line.className = "isp-issue-log";
+      line.innerHTML = '<span class="text-muted">' + ts + '</span> ' +
+        '<span class="text-success">[NORM]</span> ' + key;
+      issuesBody.appendChild(line);
+    });
+
+    if (added) {
+      issuesBody.scrollTop = issuesBody.scrollHeight;
     }
-
-    issuesBody.innerHTML = issues.map(function(i) {
-      var cls = i.severity === "crit" ? "isp-issue critical mb-1" :
-                i.severity === "warn" ? "isp-issue mb-1" :
-                "isp-issue ok mb-1";
-      return '<div class="' + cls + '">' +
-        '<strong class="text-' + (i.severity === "crit" ? "danger" : i.severity === "warn" ? "warning" : "info") + '">' +
-        i.severity.toUpperCase() + '</strong>: ' + i.msg + '</div>';
-    }).join("");
   }
 
   // ── Stats rendering ────────────────────────────────────────────
@@ -500,6 +518,21 @@
     truncateHistory();
     updateCharts();
 
+    // Log day/night mode changes
+    var mode = data.mode && data.mode.running;
+    if (mode && mode !== lastMode) {
+      var ts = new Date().toLocaleTimeString();
+      var cls = mode === "Night" ? "text-primary" : "text-warning";
+      var line = document.createElement("div");
+      line.className = "isp-issue-log";
+      line.innerHTML = '<span class="text-muted">' + ts + '</span> ' +
+        '<span class="' + cls + '">[MODE]</span> ' + mode + ' mode';
+      issuesBody.appendChild(line);
+      issuesBody.scrollTop = issuesBody.scrollHeight;
+      issuesCard.classList.remove("d-none");
+      lastMode = mode;
+    }
+
     pollStatus.textContent = "\u25cf live";
     pollStatus.className = "text-success small";
   }
@@ -701,6 +734,14 @@
   });
 
   analyzeBtn.addEventListener("click", runLlmAnalysis);
+
+  issuesClear.addEventListener("click", function() {
+    seenIssues = {};
+    activeIssues = {};
+    lastMode = null;
+    issuesBody.innerHTML = "";
+    issuesCard.classList.add("d-none");
+  });
 
   // ── Tab activation for charts resize ──────────────────────────
   document.querySelectorAll('#ispTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
