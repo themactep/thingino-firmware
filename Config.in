@@ -266,6 +266,7 @@ config BR2_THINGINO_DEV_EXPERIMENTAL
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp-inspector/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"
