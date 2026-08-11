@@ -1,7 +1,7 @@
 config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	bool
 	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && (KERNEL_VERSION_3 || KERNEL_VERSION_7)
 	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
 
@@ -9,7 +9,7 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	bool
 	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
-	depends on BR2_PACKAGE_INGENIC_SDK
+	depends on BR2_PACKAGE_INGENIC_SDK || KERNEL_VERSION_7
 	depends on BR2_THINGINO_DEV_CAMERA
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP
@@ -29,3 +29,6 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	  https://github.com/opensensor/open-tx-isp
 
 	  If unsure, say N.
+
+comment "open-tx-isp needs a T23 Linux 3.10, T31 Linux 3.10/7.1, or T40/T41 Linux 4.4 camera"
+	depends on !BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
