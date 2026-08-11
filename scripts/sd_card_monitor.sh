@@ -1,4 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC2155
+# local var=\$(cmd) used extensively; masking return values from
+# stat/grep/awk on well-known paths is harmless in this context.
 
 # SD Card Detection and Monitoring Script for Thingino Firmware Flashing
 # Provides real-time detection and safe identification of SD cards
@@ -8,6 +11,8 @@ set -euo pipefail
 # Configuration
 TIMEOUT_SECONDS=30
 VERBOSE=false
+# shellcheck disable=SC2034
+# DRY_RUN is read by sourcing callers (sd_card_flasher.sh)
 DRY_RUN=false
 
 # Colors for output
@@ -286,6 +291,9 @@ wait_for_sd_card() {
     fi
 
     # Monitor for new insertions with timeout
+    # shellcheck disable=SC2016
+    # Single quotes are intentional: they protect \$ expansion so it
+    # passes through to the inner bash -c shell.
     timeout "$TIMEOUT_SECONDS" bash -c '
         udevadm monitor --subsystem-match=block --property | while read -r line; do
             if [[ "$line" =~ DEVNAME=(/dev/[^[:space:]]+) ]]; then
@@ -347,6 +355,8 @@ main() {
                 shift
                 ;;
             -d|--dry-run)
+                # shellcheck disable=SC2034
+                # DRY_RUN is read by sourcing callers
                 DRY_RUN=true
                 shift
                 ;;
