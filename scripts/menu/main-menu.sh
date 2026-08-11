@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 source ./scripts/menu/menu-common.sh
 
 function main_menu() {

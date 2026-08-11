@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 camera_value=""
 step1_completed=false
 step2_completed=false
