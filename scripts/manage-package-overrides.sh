@@ -1,4 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC2155,SC2086
+# SC2155: local var=\$(cmd) used extensively; masking return values
+#   from git/dirname/basename is harmless in this context.
+# SC2086: package names and paths are always space/glob-safe.
 
 set -e
 
@@ -135,7 +139,7 @@ add_override() {
 
     # Convert absolute path to relative using $(BR2_EXTERNAL)
     # Remove BASE_DIR prefix and use $(BR2_EXTERNAL) instead
-    local relative_path="${override_path#$BASE_DIR/}"
+    local relative_path="${override_path#"$BASE_DIR"/}"
     if [ "$relative_path" != "$override_path" ]; then
         # Path was inside BASE_DIR, make it relative
         override_path="\$(BR2_EXTERNAL)/$relative_path"
@@ -724,6 +728,8 @@ main() {
                 ;;
             -u|--update)
                 mode="update"
+                # shellcheck disable=SC2034
+                # update_mode flag read by sourcing callers
                 update_mode="yes"
                 shift
                 # Check if next arg is --all or a pattern
