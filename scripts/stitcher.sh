@@ -17,6 +17,12 @@
 #
 # 2024, Paul Philippov <paul@themactep.com>
 
+set -euo pipefail
+
+u_boot=""
+kernel=""
+rootfs=""
+
 show_help_and_exit() {
 	echo "Usage: $(basename "$0") [-u <uboot.bin>] [-k <kernel.bin>] [-r <rootfs.bin>] [-h]"
 	exit 1
@@ -95,7 +101,7 @@ if [ -z "$kernel" ] || [ ! -f "$kernel" ]; then
 	abort=$((abort + 2))
 fi
 
-if [ -z "$rootfs" ] || [ ! -f "$kernel" ]; then
+if [ -z "$rootfs" ] || [ ! -f "$rootfs" ]; then
 	echo "Cannot find RootFS."
 	abort=$((abort + 3))
 fi
