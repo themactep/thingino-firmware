@@ -1,5 +1,7 @@
 #!/bin/bash
-
+# shellcheck disable=SC2086
+# All variables are BR2_* or TARGET_DIR from Buildroot make environment;
+# dep_check.sh guarantees paths are free of spaces and special characters.
 #
 # RootFS helper
 #
@@ -20,7 +22,7 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 fi
 
 cd $BR2_EXTERNAL
-GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
+GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S +0000' --format="%cd")
 BUILD_TIME="$(env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
