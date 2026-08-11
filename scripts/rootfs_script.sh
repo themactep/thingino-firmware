@@ -4,6 +4,8 @@
 # RootFS helper
 #
 
+set -euo pipefail
+
 BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAME} | tr -d '"')
 
 # Preset the hostname
@@ -72,7 +74,7 @@ fi
 #
 
 # Take care of dropbear
-rm ${TARGET_DIR}/etc/dropbear
+rm -f ${TARGET_DIR}/etc/dropbear
 mkdir -p ${TARGET_DIR}/etc/dropbear
 
 FILE=${TARGET_DIR}/usr/lib/os-release
