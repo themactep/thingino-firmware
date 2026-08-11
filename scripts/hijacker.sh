@@ -8,6 +8,8 @@
 #
 # 2023, Paul Philippov <paul@themactep.com>
 
+set -euo pipefail
+
 if [ -z "$1" ]; then
 	echo "Usage: $0 <stock firmware dump>"
 	exit 1
@@ -49,6 +51,7 @@ mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=\w+)/\2/" | cut -d ' ' -f 1 |
 [ -z "$mtdparts" ] && die "Cannot determine partitioning!"
 say "Partitioning: $mtdparts"
 
+n=0
 for p in ${mtdparts//,/ }; do
 	p_size=$(echo $p | cut -d '(' -f 1)
 
