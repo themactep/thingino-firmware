@@ -13,6 +13,8 @@
 # Usage:
 #   scripts/check-busybox-lopts.sh <target-dir> [fatal]
 
+set -euo pipefail
+
 TARGET_DIR="${1:-}"
 FATAL="${2:-0}"
 
