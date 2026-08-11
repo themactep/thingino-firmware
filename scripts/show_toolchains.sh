@@ -2,9 +2,11 @@
 
 shopt -s nullglob
 
+set -euo pipefail
+
 toolchain_by_config() {
 	CF=$1
-	FMT=$2
+	FMT="${2:-}"
 
 	BR2_VER=$(grep BR2_DEFAULT_KERNEL_VERSION $CF)
 	if [ -n "$BR2_VER" ]; then
@@ -45,7 +47,7 @@ toolchain_by_config() {
 				echo $ARCH $GCC_VER $LIBC $KVER
 				;;
 			*)
-				if [ -n "$2" ]; then
+				if [ -n "$FMT" ]; then
 					BR_DIR=buildroot-$2
 					GCC_VER=$(sed -rn \
 						"s/^\s+default\s+\"([0-9.]+)\"\s+if BR2_GCC_VERSION_${GCC_VER}_X/\1/p" \
