@@ -7,7 +7,7 @@
 #
 # Requires: snmpget, snmpwalk (apt install snmp)
 
-set -o pipefail
+set -euo pipefail
 
 HOST="${1:-192.168.88.127}"
 COMMUNITY="${2:-public}"
