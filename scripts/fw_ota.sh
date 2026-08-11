@@ -5,12 +5,18 @@ die() {
 	exit 1
 }
 
+set -eu
+# NOTE: no pipefail — the sysupgrade pipeline at line ~261 captures
+# ${PIPESTATUS[0]} to check remote_run's exit code independently of
+# tee; pipefail would kill the script before PIPESTATUS can be read.
+
 FORCE=0
 SKIP_SPACE_CHECK=0
 MODE=full
 DO_BACKUP=0
 CAMERA_IP_ADDRESS=""
 LOCAL_FW_FILE=""
+TRIMMED_FILES=""
 while getopts "fBnm:a:p:" opt; do
 	case "$opt" in
 		f) FORCE=1 ;;
@@ -445,7 +451,7 @@ elif [ "$MODE" = "rootfs" ]; then
 fi
 
 # Clean up trimmed files on exit
-trap 'rm -f $TRIMMED_FILES; cleanup' EXIT
+trap 'rm -f ${TRIMMED_FILES:-}; cleanup' EXIT
 
 # Upload partition files
 case "$MODE" in
