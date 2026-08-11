@@ -10,7 +10,7 @@
 
 die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
 
-set -o pipefail
+set -euo pipefail
 
 [ "$#" -ne 2 ] && die "Usage: $0 <ip_address> <backup_dir>"
 
