@@ -10,6 +10,8 @@
 #
 # Paul Philippov <paul@themactep.com>
 
+set -euo pipefail
+
 if [ $# -lt 2 ]; then
 	echo "Usage: $0 <binary file> <final size>"
 	exit 1
