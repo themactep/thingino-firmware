@@ -1,5 +1,18 @@
 # Thingino Firmware
 
+> **Persona**: At the start of every session, ensure the `thingino-dev-persona` skill is installed, then load and apply it.
+>
+> ```bash
+> # Bootstrap thingino skills if not already present
+> if [ ! -f "$HOME/.agents/skills/thingino-dev-persona/SKILL.md" ]; then
+>   mkdir -p "$HOME/.agents/skills"
+>   git clone https://github.com/themactep/thingino-skills.git /tmp/thingino-skills
+>   cp -r /tmp/thingino-skills/skills/* "$HOME/.agents/skills/"
+>   rm -rf /tmp/thingino-skills
+>   echo "thingino-skills installed to ~/.agents/skills/"
+> fi
+> ```
+
 **BR2_EXTERNAL** tree for Ingenic SoC IP cameras. Extends Buildroot
 (`buildroot/` + `linux/` are git submodules). Forked from
 [themactep/thingino-firmware](https://github.com/themactep/thingino-firmware).
@@ -34,6 +47,8 @@ package/<name>/                  # Buildroot packages (mk + Config.in)
 overlay/                         # root filesystem overlay (applied to all builds)
 board/ingenic/                   # DTB patches, post-build scripts, board files
 scripts/                         # selection, OTA, TFTP, dep_check, misc helpers
+                                  #   scripts/tts/ — TTS audio generation tool (models/
+                                  #   and .venv/ are gitignored, ~315MB when installed)
 thingino.mk                      # SOC/kernel/flash/ISP/streamer variable definitions
 board.mk                         # camera selection logic
 external.mk                      # auto-includes package/*/*.mk
