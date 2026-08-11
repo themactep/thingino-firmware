@@ -254,7 +254,7 @@ export ISP_NMEM_MB
 #
 # ISP / IPU / AVPU clock & configuration helpers
 #
-# resolve_clock_src — maps Kconfig BR2_<PREFIX>_<SRC>=y to output=value
+# resolve_clock_src -- maps Kconfig BR2_<PREFIX>_<SRC>=y to output=value
 #   $(1) = Kconfig prefix (e.g. ISP_CLK)
 #   $(2) = output key      (e.g. clk_name)
 #   $(3) = space-separated SRC:value pairs
@@ -263,7 +263,7 @@ resolve_clock_src = $(strip \
     $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p))))), \
       $(2)=$(lastword $(subst :, ,$(_p))))))
 
-# resolve_clock_freq — maps Kconfig BR2_<PREFIX>_<N>MHZ=y to output=N_hz
+# resolve_clock_freq -- maps Kconfig BR2_<PREFIX>_<N>MHZ=y to output=N_hz
 #   $(1) = Kconfig prefix (e.g. ISP_CLK)
 #   $(2) = output key      (e.g. isp_clk)
 #   $(3) = space-separated MHZ:hz_value pairs
@@ -272,16 +272,16 @@ resolve_clock_freq = $(strip \
     $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p)))MHZ)), \
       $(2)=$(lastword $(subst :, ,$(_p))))))
 
-# resolve_choice — maps Kconfig BR2_<PREFIX>_<N>=y to output=value
+# resolve_choice -- maps Kconfig BR2_<PREFIX>_<N>=y to output=value
 #   $(1) = Kconfig prefix (e.g. ISP_MEMOPT)
 #   $(2) = output key      (e.g. isp_memopt)
-#   $(3) = space-separated N:value pairs (empty value → output is empty)
+#   $(3) = space-separated N:value pairs (empty value -> output is empty)
 resolve_choice = $(strip \
   $(foreach _p,$(3), \
     $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p))))), \
       $(if $(lastword $(subst :, ,$(_p))),$(2)=$(lastword $(subst :, ,$(_p)))))))
 
-# isp_param — maps Kconfig BR2_<NAME>=y to output=VALUE
+# isp_param -- maps Kconfig BR2_<NAME>=y to output=VALUE
 #   $(1) = Kconfig boolean name (e.g. ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)
 #   $(2) = output key (e.g. isp_day_night_switch_drop_frame_num)
 isp_param = $(strip \
