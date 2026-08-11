@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2329
 #
 # test-snmpd.sh — exercise mini-snmpd on a Thingino camera
 #

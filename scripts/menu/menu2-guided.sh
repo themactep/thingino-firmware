@@ -1,5 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC2155
 
+# shellcheck disable=SC2181
 set -euo pipefail
 
 camera_value=""
