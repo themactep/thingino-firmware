@@ -3,6 +3,8 @@
 # Requires ffmpeg.
 # 2024 Paul Philippov, paul@themactep.com
 
+set -eu
+
 if [ -z "$1" ]; then
 	echo "Usage: $0 <audio file>"
 	exit 1
@@ -26,6 +28,7 @@ case "${1##*.}" in
 	*)
 		echo "Unknown file format"
 		exit 1
+		;;
 esac
 
 exit 0
