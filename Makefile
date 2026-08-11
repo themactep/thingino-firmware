@@ -19,6 +19,20 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
+# ── CI / automation fast-paths ──────────────────────────────────────
+#
+# WORKFLOW=1
+#   Skips the dependency check and interactive camera selection.
+#   Intended for CI/CD pipelines where the environment is known-good
+#   and CAMERA= is always supplied on the command line.  Without this
+#   flag, a headless 'make' without CAMERA= would hang waiting for
+#   fzf/whiptail input that will never come.
+#
+# PRISTINE=1
+#   Disables user configuration layer ($(THINGINO_USER_DIR) set to
+#   /dev/null).  Use for reproducible/OEM builds where local user
+#   fragments, overlays, and local.mk must not leak into the image.
+#
 # Run dependency check before doing anything.
 # Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
