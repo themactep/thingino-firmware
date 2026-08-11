@@ -6,6 +6,8 @@
 # 2023, Paul Philippov <paul@themactep.com>
 # 2024-07-15: Rewrite for easier use.
 
+set -euo pipefail
+
 if ! command -v gst-launch-1.0 > /dev/null; then
 	echo "This script requires GStreamer."
 	echo "Please run \"sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-bad gstreamer1.0-libav\" first, then re-run this script."
@@ -20,7 +22,7 @@ show_help_and_exit() {
 url="$1"
 [ -z "$url" ] && show_help_and_exit
 
-codec="$2"
+codec="${2:-}"
 case "$codec" in
 	"h265")
 		gst-launch-1.0 -vvv rtspsrc location=$url ! queue ! \
