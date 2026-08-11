@@ -1,0 +1,18 @@
+config BR2_PACKAGE_THINGINO_ISP_INSPECTOR
+	bool "thingino-isp-inspector"
+	depends on BR2_THINGINO_DEV_PACKAGES
+	help
+	  Developer tool providing a WebUI dashboard for real-time
+	  inspection and analysis of Ingenic ISP status registers
+	  (/proc/jz/isp/isp-m0 and /proc/jz/isp/isp-fs).
+
+	  Features:
+	  - Live ISP parameter dashboard with color-coded health indicators
+	  - Historical trend charts (FPS, gain, exposure, EV)
+	  - Automatic issue detection (FPS drops, buffer starvation,
+	    gain saturation, integration time anomalies)
+	  - Optional LLM-assisted analysis via DeepSeek, OpenAI, or
+	    compatible API (API key configured in browser)
+
+	  Requires thingino-webui. Only useful on Ingenic cameras
+	  with /proc/jz/isp/ support (T10/T20/T31/T40/T41).

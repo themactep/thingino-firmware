@@ -1,0 +1,34 @@
+{
+  "name": "isp-inspector",
+  "label": "ISP Inspector",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddTools",
+      "position": "after:Network test",
+      "items": [
+        {
+          "label": "ISP Inspector",
+          "href": "/config-isp-inspector.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "ispInspector": true
+  },
+  "cgi": [
+    "/x/json-isp-m0.cgi",
+    "/x/json-isp-fs.cgi",
+    "/x/isp-sse.cgi"
+  ],
+  "pages": [
+    "/config-isp-inspector.html"
+  ]
+}
