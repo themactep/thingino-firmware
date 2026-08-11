@@ -5,6 +5,8 @@ REPO="thingino-firmware"
 
 echo "Downloading buildroot-dl cache..."
 
+set -euo pipefail
+
 # Check if the required environment variables are set
 if [ -z "$BR2_EXTERNAL" ]; then
 	echo "Error: BR2_EXTERNAL environment variable is not set"
@@ -34,10 +36,7 @@ if [ -n "$LATEST_UPDATE_CACHE_TAG" ]; then
 	DOWNLOAD_PATH="$BR2_EXTERNAL/buildroot-dl-cache.zip.001"
 
 	echo "Downloading to: $DOWNLOAD_PATH"
-	curl -L -o "$DOWNLOAD_PATH" "$DOWNLOAD_URL"
-
-	# Check if download was successful
-	if [ $? -ne 0 ]; then
+	if ! curl -L -o "$DOWNLOAD_PATH" "$DOWNLOAD_URL"; then
 		echo "Download failed"
 		exit 1
 	fi
@@ -47,10 +46,7 @@ if [ -n "$LATEST_UPDATE_CACHE_TAG" ]; then
 	# Check if BR2_DL_DIR exists
 	if [ ! -d "$BR2_DL_DIR" ]; then
 		echo "Creating directory: $BR2_DL_DIR"
-		mkdir -p "$BR2_DL_DIR"
-
-		# Check if directory creation was successful
-		if [ $? -ne 0 ]; then
+		if ! mkdir -p "$BR2_DL_DIR"; then
 			echo "Failed to create directory: $BR2_DL_DIR"
 			exit 1
 		fi
@@ -58,10 +54,7 @@ if [ -n "$LATEST_UPDATE_CACHE_TAG" ]; then
 
 	# Extract the zip file to BR2_DL_DIR
 	echo "Extracting to: $BR2_DL_DIR"
-	unzip -oj "$DOWNLOAD_PATH" -d "$BR2_DL_DIR"
-
-	# Check if extraction was successful
-	if [ $? -ne 0 ]; then
+	if ! unzip -oj "$DOWNLOAD_PATH" -d "$BR2_DL_DIR"; then
 		echo "Extraction failed"
 		exit 1
 	fi
