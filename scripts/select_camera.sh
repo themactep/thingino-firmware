@@ -9,6 +9,8 @@
 # Returns: Camera directory name (not full path)
 #
 
+set -euo pipefail
+
 cameras_dir="$1"
 memo_file="$2"
 ip_memo_file="${memo_file}.ip"
