@@ -1,0 +1,43 @@
+name: lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: Lint shell scripts
+        run: find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
+
+      - name: Check defconfig sort order
+        run: |
+          failed=0
+          for f in configs/cameras/*/*_defconfig; do
+            [ -f "$f" ] || continue
+            cp "$f" "$f.lint.bak"
+            scripts/sort_defconfig.py "$f" 2>/dev/null
+            if ! cmp -s "$f" "$f.lint.bak"; then
+              echo "FAIL: $f is not sorted"
+              failed=1
+            fi
+            mv "$f.lint.bak" "$f"
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo "Run 'scripts/sort_defconfig.py <file>' to fix."
+            exit 1
+          fi
+
+      - name: Validate webui plugins
+        run: scripts/check-plugins.sh

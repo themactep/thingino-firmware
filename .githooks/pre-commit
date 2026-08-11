@@ -101,3 +101,16 @@ if [ -n "$shellcheck_staged_files" ]; then
 		exit 1
 	}
 fi
+
+# Validate staged webui plugin manifests
+plugin_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/*/files/*.webui.json')
+if [ -n "$plugin_staged_files" ]; then
+	echo "pre-commit: validating staged webui plugin manifests"
+	./scripts/check-plugins.sh || {
+		echo
+		echo "pre-commit: plugin validation failed. Fix the manifest and commit again."
+		exit 1
+	}
+fi
+
+# Full lint suite available as 'make lint'
