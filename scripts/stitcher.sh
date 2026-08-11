@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+# Filenames from stat/dd/mv never contain spaces or glob chars.
 #
 # Stitcher
 #   a firmware file assembler for thingino project
@@ -132,7 +134,7 @@ kernel_size_aligned=$(((kernel_size / alignment + 1) * alignment))
 
 rootfs_offset=$((kernel_offset + kernel_size_aligned))
 rootfs_size=$(stat -c%s $rootfs)
-rootfs_size_aligned=$((($rootfs_size / $alignment + 1) * $alignment))
+rootfs_size_aligned=$(((rootfs_size / alignment + 1) * alignment))
 
 tmpfile=$(mktemp)
 
