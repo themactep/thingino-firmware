@@ -15,13 +15,15 @@
   <link rel="stylesheet" href="/a/main.css">
   <style>
     .isp-stat-card { }
-    .isp-stat-value { font-family: 'PT Mono', 'Courier New', monospace; font-size: 1.1rem; line-height: 1.2; }
-    .isp-stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-help-icon { display: inline-block; width: 12px; height: 12px; font-size: 0.55rem; font-weight: 700; line-height: 12px; text-align: center; border: 1px solid var(--bs-secondary-color); border-radius: 50%; opacity: 0.5; cursor: help; vertical-align: top; margin-left: 1px; }
+    .isp-stat-value { font-size: 1.0rem; font-weight: 700; line-height: 1.2; }
     .isp-stat-badge { font-size: 0.65rem; }
-    .isp-issue { border-left: 3px solid var(--bs-warning); padding-left: 0.75rem; }
-    .isp-issue.critical { border-left-color: var(--bs-danger); }
-    .isp-issue.ok { border-left-color: var(--bs-success); }
+    .isp-issue-log { padding: 1px 8px; border-bottom: 1px solid var(--bs-border-color); }
+    .terminal { color: var(--bs-secondary-color) !important; background: var(--bs-tertiary-bg) !important; }
+    #isp-hdr-platform, #isp-hdr-sensor { text-transform: uppercase; }
     .chart-container { position: relative; height: 250px; width: 100%; }
+    .card-title[title] { cursor: help; }
     .llm-response { max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'PT Mono', monospace; font-size: 0.85rem; }
   </style>
 </head>
@@ -30,7 +32,7 @@
 <nav data-app-nav></nav>
 
 <main class="pb-4">
-  <div class="container-fluid px-3 px-md-4">
+  <div class="container" style="min-height:80vh">
     <div data-app-controls></div>
 
     <section class="mb-4">
@@ -56,21 +58,26 @@
 
       <!-- Live stats row -->
       <div class="d-flex align-items-center gap-2 mb-2" id="isp-header">
-        <span class="badge bg-secondary" id="isp-hdr-platform">?</span>
-        <span class="fw-bold" id="isp-hdr-sensor">?</span>
-        <span class="text-muted small" id="isp-hdr-res"></span>
+        <span class="fw-bold" id="isp-hdr-platform"></span>
+        <span class="fw-bold" id="isp-hdr-sensor"></span>
+        <span class="text-muted" id="isp-hdr-res"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-mode"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-sat"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-sharp"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-contrast"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-bright"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-af"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-orient"></span>
       </div>
-      <div class="row g-3 mb-3" id="isp-stats-row">
+      <div class="row row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2 mb-3" id="isp-stats-row">
         <!-- Populated by JS -->
-      </div>
-
-      <!-- Issues panel -->
-      <div class="card mb-3 d-none" id="isp-issues-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="card-title mb-0">Issues Detected</h5>
-          <span class="badge" id="isp-issues-count">0</span>
-        </div>
-        <div class="card-body" id="isp-issues-body"></div>
       </div>
 
       <!-- Tabs: Charts / Raw / LLM Analysis -->
@@ -92,14 +99,14 @@
           <div class="row g-3 mb-3">
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">FPS Trend</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Frames per second over time. Drops are normal at night when integration time increases.">FPS Trend</h6>
                   <div class="chart-container"><canvas id="chart-fps"></canvas></div>
                 </div>
               </div>
             </div>
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">Gain (Analog + Digital)</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Sensor analog gain (amplifier boost before A/D) and digital gain (after A/D). Analog gain is cleaner; digital gain while analog has headroom suggests misconfiguration.">Gain (Analog + Digital)</h6>
                   <div class="chart-container"><canvas id="chart-gain"></canvas></div>
                 </div>
               </div>
@@ -108,14 +115,14 @@
           <div class="row g-3">
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">Integration Time vs Max</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="How long each sensor row collects light (in line units). The dashed red line shows the sensor maximum. Hitting max means the sensor is light-starved.">Integration Time vs Max</h6>
                   <div class="chart-container"><canvas id="chart-inttime"></canvas></div>
                 </div>
               </div>
             </div>
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">EV Value</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Photographic Exposure Value in log2 stops (green, left axis). Combines integration time + gain into a single brightness metric. Orange dashed line shows actual sensor exposure time in microseconds (right axis).">EV (Exposure Value) + µs</h6>
                   <div class="chart-container"><canvas id="chart-ev"></canvas></div>
                 </div>
               </div>
@@ -190,6 +197,17 @@
               <div class="llm-response d-none" id="llm-response"></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Issues log -->
+      <div class="card mt-3 d-none" id="isp-issues-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Issue Log</h5>
+          <button class="btn btn-sm btn-outline-secondary" id="isp-issues-clear">Clear</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="terminal small" id="isp-issues-body" style="height:200px;overflow-y:scroll;font-size:0.8rem;"></div>
         </div>
       </div>
     </section>
