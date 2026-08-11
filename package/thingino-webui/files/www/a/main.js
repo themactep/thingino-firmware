@@ -880,21 +880,17 @@ function toggleDayNight(mode) {
   if (button) button.classList.add("pending");
 
   const payload = JSON.stringify({ cmd: "daynight", val: mode });
-  console.log("Sending daynight payload:", payload);
   fetch("/x/json-imp.cgi", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
   })
     .then((res) => {
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      return res.text();
+      if (!res.ok) throw new Error("HTTP error " + res.status);
+      return res.json();
     })
-    .then((text) => {
-      if (text) {
-        const data = JSON.parse(text);
-        console.log(ts(), "<===", JSON.stringify(data));
-      }
+    .then((data) => {
+      console.log(ts(), "<===", JSON.stringify(data));
       // Update button state immediately from the known target mode
       updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
     })
