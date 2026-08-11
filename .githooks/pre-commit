@@ -69,3 +69,35 @@ if [ -n "$shell_staged_files" ]; then
 $shell_staged_files
 EOF
 fi
+
+# ── shellcheck ──────────────────────────────────────────────────────
+
+shellcheck_staged_files=$(
+	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+		[ -f "$file" ] || continue
+
+		if git show ":$file" 2>/dev/null | head -1 | grep -qE '^#!.*/(ba)?sh'; then
+			printf '%s\n' "$file"
+		fi
+	done
+)
+
+if [ -n "$shellcheck_staged_files" ]; then
+	if ! command -v shellcheck >/dev/null 2>&1; then
+		echo "pre-commit: shellcheck is required to lint shell scripts"
+		echo "Install shellcheck (apt install shellcheck), then commit again"
+		exit 1
+	fi
+
+	echo "pre-commit: linting staged shell scripts with shellcheck"
+
+	# shellcheck disable=SC2086
+	# $shellcheck_staged_files is newline-separated; word-splitting
+	# is required to pass each filename as a separate argument.
+	shellcheck -x $shellcheck_staged_files || {
+		echo
+		echo "pre-commit: shellcheck found warnings. Fix them and commit again."
+		echo "Use '# shellcheck disable=SCxxxx' with a comment for intentional suppressions."
+		exit 1
+	}
+fi
