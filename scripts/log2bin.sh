@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # In the terminal program you use to connect to the UART port,
 # enable saving the session log files.

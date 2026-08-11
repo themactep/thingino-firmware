@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Detect camera defconfig name by SSH-ing into a Thingino device
 # and reading IMAGE_ID from /etc/os-release.

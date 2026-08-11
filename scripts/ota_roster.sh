@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2005
 # Build (if needed) and OTA-upgrade all cameras listed in user/camera_roster.csv
 
 set -euo pipefail

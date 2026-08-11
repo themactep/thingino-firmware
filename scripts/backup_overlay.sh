@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Backup /overlay from a Thingino camera to a local tarball.
 #
