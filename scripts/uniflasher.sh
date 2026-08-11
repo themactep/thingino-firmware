@@ -1,4 +1,6 @@
 #!/bin/sh
+# shellcheck disable=SC2086
+# shellcheck disable=SC2013
 #
 # Universal firmware installer.
 # Run on an embedded device in Linux shell to install

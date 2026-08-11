@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2001,SC2162
 #
 # Camera selection script for Thingino firmware
 # Supports fzf, whiptail, dialog, and numbered list fallback

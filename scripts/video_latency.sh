@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # GStreamer based script for glass-to-glass latency testing.
 # Use it together with https://thingino.com/timer

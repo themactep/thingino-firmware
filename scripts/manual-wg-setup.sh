@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2162,SC3001,SC3045
 # manual-wg-setup.sh — Fully interactive WireGuard setup for Thingino hardware
 
 set -e

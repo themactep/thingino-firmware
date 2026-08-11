@@ -1,4 +1,6 @@
 #!/bin/sh
+# shellcheck shell=bash
+# shellcheck disable=SC2155
 #
 # generate_uboot_patch.sh — regenerate u-boot thingino patches
 #
