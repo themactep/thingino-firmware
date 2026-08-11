@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -eu
+
 if [ "$#" -lt 1 ]; then
 	echo "Usage: $0 <TYPE|GCC|LIBC> [config files...]" >&2
 	exit 1
