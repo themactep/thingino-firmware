@@ -685,6 +685,16 @@ defconfig: check-config
 	# Ensure buildroot is properly configured
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
+# Lint all shell scripts with shellcheck
+shellcheck:
+	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		echo "shellcheck is not installed. Run: apt install shellcheck"; \
+		exit 1; \
+	fi
+	@echo "Linting shell scripts..."
+	@find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
+	@echo "All shell scripts passed."
+
 # Configuration debugging and maintenance targets
 show-config-deps:
 	@$(TEAL) "$@"
