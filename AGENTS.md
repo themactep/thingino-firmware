@@ -1,5 +1,18 @@
 # Thingino Firmware
 
+> **Persona**: At the start of every session, ensure the `thingino-dev-persona` skill is installed, then load and apply it.
+>
+> ```bash
+> # Bootstrap thingino skills if not already present
+> if [ ! -f "$HOME/.agents/skills/thingino-dev-persona/SKILL.md" ]; then
+>   mkdir -p "$HOME/.agents/skills"
+>   git clone https://github.com/themactep/thingino-skills.git /tmp/thingino-skills
+>   cp -r /tmp/thingino-skills/skills/* "$HOME/.agents/skills/"
+>   rm -rf /tmp/thingino-skills
+>   echo "thingino-skills installed to ~/.agents/skills/"
+> fi
+> ```
+
 **BR2_EXTERNAL** tree for Ingenic SoC IP cameras. Extends Buildroot
 (`buildroot/` + `linux/` are git submodules). Forked from
 [themactep/thingino-firmware](https://github.com/themactep/thingino-firmware).
@@ -34,6 +47,8 @@ package/<name>/                  # Buildroot packages (mk + Config.in)
 overlay/                         # root filesystem overlay (applied to all builds)
 board/ingenic/                   # DTB patches, post-build scripts, board files
 scripts/                         # selection, OTA, TFTP, dep_check, misc helpers
+                                  #   scripts/tts/ — TTS audio generation tool (models/
+                                  #   and .venv/ are gitignored, ~315MB when installed)
 thingino.mk                      # SOC/kernel/flash/ISP/streamer variable definitions
 board.mk                         # camera selection logic
 external.mk                      # auto-includes package/*/*.mk
@@ -129,6 +144,12 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 - **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
   braille spinners, emoji, or other non-ASCII characters in `.sh` files.
+- **Cameras use BusyBox sh (ash), not bash.** Shebangs must be
+  `#!/bin/sh`. Do not use bash-specific features (arrays, `[[`,
+  `${var:offset:length}` slicing, `source`, `shopt`). BusyBox ash
+  supports a subset of POSIX plus some extensions; when in doubt, stick
+  to POSIX. `shfmt` parses scripts as POSIX by default — if it flags
+  something, fix the script, not the shebang.
 
 ## Container Builds
 
@@ -189,6 +210,19 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
 - Use modern effective tools: ripgrep instead of just grep.
 - **Never flash or upload** anything to the camera unless you were explicitly
   ordered to do so by the user.
+- **Never invent or type git hashes manually.** Always obtain the exact
+  full commit hash from the source of truth (the actual git repository the
+  hash belongs to — run `git rev-parse` or `git log` in that repo). After
+  writing a hash into a `.mk`, `.patch`, or any other file, verify it against
+  the repo with `git cat-file -t <hash>`. A single mistyped hex digit
+  produces a hash that looks valid but is unreachable by any tool.
+  - Use `scripts/update_packages.py <pattern>` to update `*_VERSION` hashes
+    in package `.mk` files.  It fetches the remote, computes the correct
+    hash, and prompts before updating.  Run it interactively; if that is
+    not possible, ask the user to run it.
+  - When the script breaks because an existing hash is bogus (the remote
+    doesn't have it), fix the hash in the `.mk` to a real commit on the
+    remote first, commit that correction, then re-run the script.
 - Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
   file to the shared directory on the PC. The file then can be acceessed on the
   camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is
