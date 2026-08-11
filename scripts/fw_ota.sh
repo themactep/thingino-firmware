@@ -1,4 +1,9 @@
 #!/bin/bash
+# shellcheck disable=SC2086,SC2029,SC2001
+# SC2086: $SSH_OPTS is a space-separated list that must word-split.
+#   $REMOTE_HOST is always set and contains no spaces or glob chars.
+# SC2029: remote_run's $1 intentionally expands on the client side.
+# SC2001: sed 's/M@.*//' clearer than ${var%%M@*} for rmem parsing.
 
 die() {
 	echo -e "\e[38;5;160m$1\e[0m" >&2
@@ -318,9 +323,9 @@ free_overlay_space() {
 }
 
 upload_sysupgrade() {
-	remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
+	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" || \
 		die "Failed to transfer sysupgrade utility"
-	remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
+	remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" || \
 		die "Failed to transfer sysupgrade-stage2 utility"
 	remote_run "chmod +x $REMOTE_SCRIPT" || \
 		die "Failed to set execute permissions on sysupgrade utility"
@@ -328,7 +333,7 @@ upload_sysupgrade() {
 }
 
 upload_flash_ota() {
-	remote_copy $LOCAL_FLASH_OTA $REMOTE_HOST:/tmp/flash-ota.sh || \
+	remote_copy "$LOCAL_FLASH_OTA" "$REMOTE_HOST:/tmp/flash-ota.sh" || \
 		die "Failed to transfer flash-ota"
 	remote_run "chmod +x /tmp/flash-ota.sh" || \
 		die "Failed to set execute permissions on flash-ota"
@@ -354,7 +359,7 @@ if [ "$MODE" = "full" ]; then
 	fi
 
 	echo "Transferring firmware file to the device..."
-	remote_copy $UPLOAD_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
+	remote_copy "$UPLOAD_FW_FILE" "$REMOTE_HOST:$REMOTE_FW_FILE" || \
 		die "The firmware transfer process timed out or failed."
 
 	hash_l=$(sha256sum "$UPLOAD_FW_FILE" | cut -d' ' -f1)
