@@ -19,7 +19,7 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
-# ── CI / automation fast-paths ──────────────────────────────────────
+# --- CI / automation fast-paths -------------------------------------
 #
 # WORKFLOW=1
 #   Skips the dependency check and interactive camera selection.
@@ -323,8 +323,8 @@ U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
 
-# rootfs MTD index — must match the number of partitions before rootfs
-# in the offset chain below (U_BOOT → UB_ENV → BACKUP → KERNEL → ROOTFS)
+# rootfs MTD index -- must match the number of partitions before rootfs
+# in the offset chain below (U_BOOT -> UB_ENV -> BACKUP -> KERNEL -> ROOTFS)
 ROOTFS_MTD_NUM := 4
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
@@ -1313,10 +1313,10 @@ build-all:
 			echo "Log: $$log_file"; \
 			echo "========================================"; \
 			if env -u OUTPUT_DIR $(MAKE) CAMERA=$$camera distclean defconfig build_fast pack 2>&1 | tee "$$log_file"; then \
-				echo "✓ SUCCESS: $$camera" | tee -a "$$log_file"; \
+				echo "[OK] SUCCESS: $$camera" | tee -a "$$log_file"; \
 				success=$$((success + 1)); \
 			else \
-				echo "✗ FAILED: $$camera" | tee -a "$$log_file"; \
+				echo "[FAIL] FAILED: $$camera" | tee -a "$$log_file"; \
 				failed=$$((failed + 1)); \
 				failed_cameras="$$failed_cameras$$camera\n"; \
 			fi; \
