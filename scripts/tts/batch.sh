@@ -6,6 +6,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+set -euo pipefail
+
 if [ -n "$1" ] && [ -f "$1" ]; then
     "$SCRIPT_DIR/run.sh" --stdin < "$1"
 else
