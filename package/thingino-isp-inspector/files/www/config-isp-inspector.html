@@ -16,12 +16,14 @@
   <style>
     .isp-stat-card { }
     .isp-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-help-icon { display: inline-block; width: 12px; height: 12px; font-size: 0.55rem; font-weight: 700; line-height: 12px; text-align: center; border: 1px solid var(--bs-secondary-color); border-radius: 50%; opacity: 0.5; cursor: help; vertical-align: top; margin-left: 1px; }
     .isp-stat-value { font-size: 1.0rem; font-weight: 700; line-height: 1.2; }
     .isp-stat-badge { font-size: 0.65rem; }
     .isp-issue-log { padding: 1px 8px; border-bottom: 1px solid var(--bs-border-color); }
     .terminal { color: var(--bs-secondary-color) !important; background: var(--bs-tertiary-bg) !important; }
     #isp-hdr-platform, #isp-hdr-sensor { text-transform: uppercase; }
     .chart-container { position: relative; height: 250px; width: 100%; }
+    .card-title[title] { cursor: help; }
     .llm-response { max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'PT Mono', monospace; font-size: 0.85rem; }
   </style>
 </head>
@@ -97,14 +99,14 @@
           <div class="row g-3 mb-3">
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">FPS Trend</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Frames per second over time. Drops are normal at night when integration time increases.">FPS Trend</h6>
                   <div class="chart-container"><canvas id="chart-fps"></canvas></div>
                 </div>
               </div>
             </div>
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">Gain (Analog + Digital)</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Sensor analog gain (amplifier boost before A/D) and digital gain (after A/D). Analog gain is cleaner; digital gain while analog has headroom suggests misconfiguration.">Gain (Analog + Digital)</h6>
                   <div class="chart-container"><canvas id="chart-gain"></canvas></div>
                 </div>
               </div>
@@ -113,14 +115,14 @@
           <div class="row g-3">
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">Integration Time vs Max</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="How long each sensor row collects light (in line units). The dashed red line shows the sensor maximum. Hitting max means the sensor is light-starved.">Integration Time vs Max</h6>
                   <div class="chart-container"><canvas id="chart-inttime"></canvas></div>
                 </div>
               </div>
             </div>
             <div class="col-12 col-xl-6">
               <div class="card">
-                <div class="card-body"><h6 class="card-title small text-uppercase text-muted">EV Value</h6>
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Photographic Exposure Value in log2 stops (green, left axis). Combines integration time + gain into a single brightness metric. Orange dashed line shows actual sensor exposure time in microseconds (right axis).">EV (Exposure Value) + µs</h6>
                   <div class="chart-container"><canvas id="chart-ev"></canvas></div>
                 </div>
               </div>
