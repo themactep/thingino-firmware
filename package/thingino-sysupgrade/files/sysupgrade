@@ -568,8 +568,7 @@ case "$1" in
 					fi
 					echo "Found $ufile"
 					case "$ufile" in
-						"$fw_file")
-							;;
+						"$fw_file") ;;
 						"$SD_CARD_ROOT"/*)
 							echo "Using firmware in place on the SD card"
 							fw_file="$ufile"
