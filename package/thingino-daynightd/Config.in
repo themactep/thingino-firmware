@@ -1,6 +1,5 @@
 config BR2_PACKAGE_THINGINO_DAYNIGHTD
 	bool "thingino-daynightd"
-	depends on !BR2_PACKAGE_THINGINO_RAPTOR
 	help
 	  Day/Night photosensing daemon — single source of truth
 	  for automatic day/night mode switching on Thingino.

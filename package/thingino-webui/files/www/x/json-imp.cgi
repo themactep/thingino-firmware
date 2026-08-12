@@ -51,10 +51,13 @@ daynightd_reload() {
 	fi
 }
 
-# Raptor images have raptorctl; ric applies mode changes immediately,
-# so those branches skip the daynightd config keys and the reload.
+# Raptor images have raptorctl and ric applies mode changes
+# immediately, so those branches skip the daynightd config keys and
+# the reload. daynightd can be selected on raptor images too (it
+# replaces ric as the day/night engine), so its presence wins.
 is_raptor() {
-	command -v raptorctl >/dev/null 2>&1
+	command -v raptorctl >/dev/null 2>&1 &&
+		! command -v daynightd >/dev/null 2>&1
 }
 
 CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
