@@ -41,8 +41,8 @@ Versions are extracted from package `.mk` files.
 | `magik-models` | Added | `-` | `n/a` | `292baa3` |
 | `mbedtls-certgen` | Added | `-` | `n/a` | `1.0` |
 | `nino` | Added | `-` | `n/a` | `adf76f94d30857e85e423635d502d6e5c43aed87` |
-| `open-tx-isp` | Added | `-` | `n/a` | `eb773e90e96f4afce9b6264a3b80522a4534e3c2` |
-| `openimp` | Added | `-` | `n/a` | `HEAD` |
+| `open-tx-isp` | Added | `-` | `n/a` | `3f8166c7b89363f996923e2edd2a6bb52a504d9c` |
+| `openimp` | Added | `-` | `n/a` | `759d573c93cfb77926c8f584e12b8156544dc8d4` |
 | `prudynt-t` | Added | `-` | `n/a` | `f4b32289359d176fb0795d9f3735af0bd9d6d2fd` |
 | `scriba` | Added | `-` | `n/a` | `c590b6a7c55043218c28d7f34d6c213d950d8b71` |
 | `spi-tmi8152` | Added | `-` | `n/a` | `4d5a666b77bc2af57cd00af20a088107c60d017e` |
@@ -80,6 +80,7 @@ Versions are extracted from package `.mk` files.
 | `thingino-nimble` | Added | `-` | `n/a` | `88454ec7f78fdf8ce69b1cfb7f2288251eb0bf82` |
 | `thingino-odhcp6c` | Added | `-` | `n/a` | `24485bb4b35ab84c17c2e87bd561d026d4c15c00` |
 | `thingino-onvif` | Added | `-` | `n/a` | `37fa1ac2f75b20859a8bcdd3b1b79725e0ad4ede` |
+| `thingino-isp` | Added | `-` | `n/a` | `n/a` |
 | `thingino-privacy-lite` | Added | `-` | `n/a` | `n/a` |
 | `thingino-provision` | Added | `-` | `n/a` | `n/a` |
 | `thingino-prusa-connect` | Added | `-` | `n/a` | `n/a` |
@@ -162,4 +163,4 @@ Versions are extracted from package `.mk` files.
 | `thingino-wireguard-tools` | Override | `wireguard-tools` | `1.0.20250521` | `1.0.20260223` |
 | `wireless_tools` | Override | `wireless_tools` | `$(WIRELESS_TOOLS_VERSION_MAJOR).pre9` | `n/a` |
 
-Last checked 2026-06-07 00:36:46 UTC
+Last checked 2026-08-07 03:20:23 UTC

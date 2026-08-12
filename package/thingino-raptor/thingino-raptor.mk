@@ -7,6 +7,16 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+THINGINO_RAPTOR_DEPENDENCIES += openimp
+THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
+endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
