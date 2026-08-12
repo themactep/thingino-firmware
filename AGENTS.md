@@ -212,6 +212,19 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
 - Use modern effective tools: ripgrep instead of just grep.
 - **Never flash or upload** anything to the camera unless you were explicitly
   ordered to do so by the user.
+- **Never invent or type git hashes manually.** Always obtain the exact
+  full commit hash from the source of truth (the actual git repository the
+  hash belongs to — run `git rev-parse` or `git log` in that repo). After
+  writing a hash into a `.mk`, `.patch`, or any other file, verify it against
+  the repo with `git cat-file -t <hash>`. A single mistyped hex digit
+  produces a hash that looks valid but is unreachable by any tool.
+  - Use `scripts/update_packages.py <pattern>` to update `*_VERSION` hashes
+    in package `.mk` files.  It fetches the remote, computes the correct
+    hash, and prompts before updating.  Run it interactively; if that is
+    not possible, ask the user to run it.
+  - When the script breaks because an existing hash is bogus (the remote
+    doesn't have it), fix the hash in the `.mk` to a real commit on the
+    remote first, commit that correction, then re-run the script.
 - Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
   file to the shared directory on the PC. The file then can be acceessed on the
   camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is
