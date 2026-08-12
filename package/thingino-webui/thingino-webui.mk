@@ -5,12 +5,6 @@ THINGINO_WEBUI_LICENSE = MIT
 THINGINO_WEBUI_ASSET_TAG_RAW := $(shell LC_ALL=C find $(THINGINO_WEBUI_PKGDIR)/files/www/a -type f \( -name '*.js' -o -name '*.css' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -n1 | cut -d. -f1)
 THINGINO_WEBUI_ASSET_TAG := $(if $(THINGINO_WEBUI_ASSET_TAG_RAW),$(THINGINO_WEBUI_ASSET_TAG_RAW),$(shell date +%s))
 
-ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_RAPTOR),y)
-THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview-raptor.html
-else
-THINGINO_WEBUI_PREVIEW_HTML = $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html
-endif
-
 define THINGINO_WEBUI_APPLY_ASSET_TAG
 	@asset_tag="$(THINGINO_WEBUI_ASSET_TAG)"; \
 	root="$(TARGET_DIR)/var/www"; \
@@ -119,7 +113,13 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/info-usage.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/login.html \
 		$(TARGET_DIR)/var/www/login.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PREVIEW_HTML) \
+	# Core preview page. A streamer package that needs a different
+	# implementation (raptor, timps) ships its own preview.html under the
+	# same filename and installs it straight over this one from its own
+	# INSTALL_TARGET_CMDS/POST_INSTALL_TARGET_HOOKS (with a dependency on
+	# thingino-webui for ordering) - plain overwrite, before plugin
+	# assembly below ever runs. prudynt-t installs none, so this stays.
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/preview.html \
 		$(TARGET_DIR)/var/www/preview.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/reset.html \
 		$(TARGET_DIR)/var/www/reset.html
@@ -382,11 +382,15 @@ endef
 ROOTFS_PRE_CMD_HOOKS += THINGINO_WEBUI_PARANOID_REWRITE
 
 # Plugin assembly finalize hook — runs after every package is installed,
-# discovers *.webui.json manifests, merges nav/scripts/styles, and
-# re-applies asset tags and CDN fallbacks.
+# discovers *.webui.json manifests, merges nav/scripts/styles, and re-applies
+# asset tags and CDN fallbacks.
+#
+# Failures are fatal on purpose: every error assemble_plugins.py raises is a
+# manifest conflict (duplicate plugin name, two plugins claiming the same page,
+# two providers for the same extension point) that silently produces a broken
+# WebUI. Swallowing them just moves the discovery to the camera.
 define THINGINO_WEBUI_ASSEMBLE_PLUGINS
-	@python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/assemble_plugins.py" "$(TARGET_DIR)" || \
-		printf 'thingino-webui: plugin assembly failed (non-fatal)\n'
+	@python3 "$(THINGINO_WEBUI_PKGDIR)/scripts/assemble_plugins.py" "$(TARGET_DIR)"
 endef
 THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_ASSEMBLE_PLUGINS
 
