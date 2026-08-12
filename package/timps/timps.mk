@@ -55,6 +55,15 @@ endif
 TIMPS_GIT_SUBMODULES = YES
 
 TIMPS_DEPENDENCIES = ingenic-lib
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+TIMPS_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+TIMPS_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+TIMPS_DEPENDENCIES += libaudioprocess-neo
+endif
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	TIMPS_DEPENDENCIES += ingenic-musl
 endif

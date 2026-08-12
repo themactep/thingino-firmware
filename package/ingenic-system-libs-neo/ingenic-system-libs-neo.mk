@@ -1,11 +1,22 @@
+################################################################################
+#
+# ingenic-system-libs-neo
+#
+################################################################################
+
 INGENIC_SYSTEM_LIBS_NEO_SITE_METHOD = git
 INGENIC_SYSTEM_LIBS_NEO_SITE = https://github.com/gtxaspec/ingenic-system-libs-neo
 INGENIC_SYSTEM_LIBS_NEO_SITE_BRANCH = main
 INGENIC_SYSTEM_LIBS_NEO_VERSION = 3e1189021e4f273b701b5d8bb8a07b19699333d6
 INGENIC_SYSTEM_LIBS_NEO_INSTALL_STAGING = YES
 
+# Upstream documents the project as MIT but does not currently ship a
+# top-level license file for legal-info to collect.
 INGENIC_SYSTEM_LIBS_NEO_LICENSE = MIT
-INGENIC_SYSTEM_LIBS_NEO_DEPENDENCIES = ingenic-lib
+
+ifeq ($(BR2_PACKAGE_INGENIC_LIB),y)
+INGENIC_SYSTEM_LIBS_NEO_DEPENDENCIES += ingenic-lib
+endif
 
 define INGENIC_SYSTEM_LIBS_NEO_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D) CROSS_COMPILE=$(TARGET_CROSS)

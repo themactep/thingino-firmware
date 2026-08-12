@@ -1,5 +1,10 @@
 # OpenIMP Package - Testing Guide
 
+> Historical reference: many paths and expected artifacts below predate
+> OpenIMP's T31/T40/T41 device-build split and must not be used as current pass/fail
+> criteria. See [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md) for
+> current package/profile selection.
+
 This guide explains how to test the OpenIMP package to ensure it's working correctly.
 
 ## Pre-Build Testing
@@ -11,8 +16,8 @@ Check that the package is properly configured:
 ```bash
 # Enable the package
 make menuconfig
-# Navigate to: Thingino Firmware → System Packages → OpenIMP
-# Enable it and save
+# Navigate to: Thingino Firmware → System Packages → ISP stack
+# Select "Open ISP stack (experimental)" and save
 
 # Verify it's enabled
 grep BR2_PACKAGE_OPENIMP .config
@@ -397,4 +402,3 @@ If you encounter problems, collect this information:
    ```
 
 Include this information when reporting issues on GitHub or the forum.
-
