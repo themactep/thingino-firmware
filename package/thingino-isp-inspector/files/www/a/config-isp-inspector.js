@@ -31,6 +31,7 @@
 
   // ── State ───────────────────────────────────────────────────────
   const MAX_HISTORY = 120; // 10 min at 5s poll
+  const HISTORY_KEY = "isp_inspector_history";
   let history = [];
   let lastData = null;
   let lastFs = null;
@@ -383,7 +384,7 @@
     if (ctxFps) {
       charts.fps = new Chart(ctxFps.getContext("2d"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "FPS", data: [], borderColor: "#0d6efd", backgroundColor: "rgba(13,110,253,0.1)", tension: 0.2, fill: true }] },
+        data: { labels: [], datasets: [] },
         options: Object.assign({}, opts, { scales: Object.assign({}, opts.scales, { y: { beginAtZero: true, ticks: { font: { size: 9 } } } }) })
       });
     }
@@ -392,13 +393,7 @@
     if (ctxGain) {
       charts.gain = new Chart(ctxGain.getContext("2d"), {
         type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            { label: "Analog Gain", data: [], borderColor: "#fd7e14", tension: 0.2, yAxisID: "y" },
-            { label: "Digital Gain", data: [], borderColor: "#6f42c1", tension: 0.2, yAxisID: "y" }
-          ]
-        },
+        data: { labels: [], datasets: [] },
         options: Object.assign({}, opts)
       });
     }
@@ -407,13 +402,7 @@
     if (ctxInt) {
       charts.inttime = new Chart(ctxInt.getContext("2d"), {
         type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            { label: "Integration Time", data: [], borderColor: "#198754", tension: 0.2, yAxisID: "y" },
-            { label: "Max Int. Time", data: [], borderColor: "#dc3545", borderDash: [4, 4], tension: 0.2, yAxisID: "y" }
-          ]
-        },
+        data: { labels: [], datasets: [] },
         options: Object.assign({}, opts)
       });
     }
@@ -422,7 +411,7 @@
     if (ctxEv) {
       charts.ev = new Chart(ctxEv.getContext("2d"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "EV Value", data: [], borderColor: "#20c997", tension: 0.2, fill: true, backgroundColor: "rgba(32,201,151,0.1)" }] },
+        data: { labels: [], datasets: [] },
         options: opts
       });
     }
@@ -448,29 +437,41 @@
       return div > 0 ? parseFloat((num / div).toFixed(1)) : null;
     });
     charts.fps.data.labels = labels;
-    charts.fps.data.datasets[0].data = fpsValues;
+    charts.fps.data.datasets = [{
+      label: "FPS", data: fpsValues,
+      borderColor: "#0d6efd", backgroundColor: "rgba(13,110,253,0.1)",
+      tension: 0.2, fill: true, pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#0d6efd", pointBorderWidth: 1
+    }];
     charts.fps.update("none");
 
     // Gains
     var againVals = history.map(function(h) { return parseInt(h.data.exposure.again, 10) || 0; });
     var dgainVals = history.map(function(h) { return parseInt(h.data.exposure.dgain, 10) || 0; });
     charts.gain.data.labels = labels;
-    charts.gain.data.datasets[0].data = againVals;
-    charts.gain.data.datasets[1].data = dgainVals;
+    charts.gain.data.datasets = [
+      { label: "Analog Gain", data: againVals, borderColor: "#fd7e14", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#fd7e14", pointBorderWidth: 1 },
+      { label: "Digital Gain", data: dgainVals, borderColor: "#6f42c1", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#6f42c1", pointBorderWidth: 1 }
+    ];
     charts.gain.update("none");
 
     // Integration time
     var intVals = history.map(function(h) { return parseInt(h.data.exposure.int_time, 10) || 0; });
     var intMaxVals = history.map(function(h) { return parseInt(h.data.exposure.int_time_max, 10) || 0; });
     charts.inttime.data.labels = labels;
-    charts.inttime.data.datasets[0].data = intVals;
-    charts.inttime.data.datasets[1].data = intMaxVals;
+    charts.inttime.data.datasets = [
+      { label: "Integration Time", data: intVals, borderColor: "#198754", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#198754", pointBorderWidth: 1 },
+      { label: "Max Int. Time", data: intMaxVals, borderColor: "#dc3545", borderDash: [4, 4], tension: 0.2, yAxisID: "y", pointRadius: 0, pointHoverRadius: 0 }
+    ];
     charts.inttime.update("none");
 
     // EV
     var evVals = history.map(function(h) { return parseInt(h.data.ev.value, 10) || 0; });
     charts.ev.data.labels = labels;
-    charts.ev.data.datasets[0].data = evVals;
+    charts.ev.data.datasets = [{
+      label: "EV Value", data: evVals,
+      borderColor: "#20c997", tension: 0.2, fill: true,
+      backgroundColor: "rgba(32,201,151,0.1)", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#20c997", pointBorderWidth: 1
+    }];
     charts.ev.update("none");
   }
 
@@ -517,6 +518,7 @@
     history.push({ ts: payload.timestamp || Math.floor(Date.now() / 1000), data: data, fs: fsData });
     truncateHistory();
     updateCharts();
+    saveHistory();
 
     // Log day/night mode changes
     var mode = data.mode && data.mode.running;
@@ -752,11 +754,42 @@
     });
   });
 
+  // ── History persistence ───────────────────────────────────────
+  function saveHistory() {
+    try {
+      sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch (_) { /* quota exceeded, ignore */ }
+  }
+
+  function loadHistory() {
+    try {
+      var raw = sessionStorage.getItem(HISTORY_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      history = parsed;
+      truncateHistory();
+      updateCharts();
+      // Render last snapshot into live cards too
+      var last = history[history.length - 1];
+      if (last && last.data) {
+        lastData = last.data;
+        lastFs = last.fs || null;
+        renderStats(last.data, last.fs);
+        var issues = detectIssues(last.data, last.fs);
+        renderIssues(issues);
+        if (rawM0) rawM0.textContent = JSON.stringify(last.data, null, 2);
+        if (rawFs) rawFs.textContent = last.fs ? JSON.stringify(last.fs, null, 2) : "No isp-fs data";
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   // ── Init ───────────────────────────────────────────────────────
   function init() {
     loadLlmConfig();
     updateLlmUi();
     initCharts();
+    loadHistory();
     if (autoRefreshCb.checked) {
       startSse();
     }
