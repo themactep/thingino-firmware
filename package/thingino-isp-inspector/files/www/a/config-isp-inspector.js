@@ -98,14 +98,16 @@
   }
 
   // ── Stats card builder ─────────────────────────────────────────
-  function statCard(label, value, unit, status) {
+  function statCard(label, value, unit, status, tooltip) {
     const colors = { ok: "success", warn: "warning", crit: "danger", info: "secondary" };
     const c = colors[status] || "secondary";
+    var tt = tooltip ? ' title="' + tooltip.replace(/"/g, '&quot;') + '"' : '';
 
     return '<div class="col">' +
-      '<div class="card isp-stat-card h-100 border-' + c + '">' +
+      '<div class="card isp-stat-card h-100 border-' + c + '"' + tt + '>' +
       '<div class="card-body d-flex flex-column p-1 p-md-2">' +
-      '<div class="isp-stat-label text-muted">' + (label || "&nbsp;") + '</div>' +
+      '<div class="isp-stat-label text-muted">' + (label || "&nbsp;") +
+      (tooltip ? ' <span class="isp-help-icon" aria-hidden="true">?</span>' : "") + '</div>' +
       '<div class="isp-stat-value text-' + c + '">' + (value || "-") +
       (unit ? ' <small class="text-muted">' + unit + '</small>' : "") + '</div>' +
       '</div></div></div>';
@@ -294,7 +296,7 @@
     var fpsDiv = parseFloat(data.fps.div);
     var fps = fpsDiv > 0 ? fpsNum / fpsDiv : 0;
     var fpsStatus = fps >= 20 ? "ok" : fps >= 10 ? "warn" : "crit";
-    cards.push(statCard("FPS", fps.toFixed(1), "", fpsStatus, "Target frame rate. Below 15 may indicate sensor bottleneck."));
+    cards.push(statCard("FPS", fps.toFixed(1), "", fpsStatus, "Frames per second. Determined by integration time + sensor readout overhead. Drops at night when integration time lengthens to gather more light."));
 
     // Integration time
     var intT = data.exposure.int_time || "0";
@@ -303,7 +305,7 @@
     var intStatus = (intMaxNum > 0 && parseInt(intT, 10) >= intMaxNum) ? "warn" : "ok";
     var intDisplay = intMaxNum > 0 ? intT + " / " + intMax : intT;
     cards.push(statCard("Integration Time", intDisplay, "lines", intStatus,
-      "At max = sensor at FPS floor. Normal at night."));
+      "How long each row of the sensor collects light, in sensor line units. Longer = brighter image but lower max FPS. At max = sensor is light-starved and running at its slowest."));
 
     // Analog gain
     var ag = data.exposure.again || "0";
@@ -314,38 +316,45 @@
     if (agMaxNum > 0 && agNum >= agMaxNum) agStatus = "crit";
     else if (agMaxNum > 0 && agNum > agMaxNum * 0.8) agStatus = "warn";
     cards.push(statCard("Analog Gain", ag + " / " + agMax, "\u00d7", agStatus,
-      "Sensor amplification. High = noisy image."));
+      "Sensor amplifier gain. Boosts signal before digitization — cleaner than digital gain. High values = noisy image, esp. at night."));
 
     // Digital gain
     var dg = data.exposure.dgain || "0";
     var dgMax = data.exposure.dgain_max || "0";
     var dgStatus = parseInt(dg, 10) > 0 ? "warn" : "ok";
     cards.push(statCard("Digital Gain", dg + " / " + dgMax, "", dgStatus,
-      "Digital amplification. Prefer analog gain."));
+      "Digital gain applied after A/D conversion. Amplifies signal AND noise equally. Analog gain is always preferable. Nonzero while analog has headroom = possible driver bug."));
 
-    // EV
-    cards.push(statCard("EV", data.ev.value || "?", "", "info",
-      data.ev.us ? data.ev.us + " \u00b5s exposure" : ""));
+    // EV — show log2 (photographic EV) for interpretability, not raw register value
+    var evLog2 = data.ev.log2 || "?";
+    var evUs = data.ev.us || "";
+    var evDisplay = evLog2 !== "?" ? parseFloat(evLog2).toFixed(1) : "?";
+    var evTooltip = "Photographic Exposure Value in log2 stops. Combines integration time + gain into one number. Higher = darker scene.\n";
+    if (evUs) evTooltip += "Exposure time: " + evUs + " \u00b5s";
+    if (data.ev.min_int && data.ev.min_again) {
+      evTooltip += " | Min int: " + data.ev.min_int + " lines | Min again: " + data.ev.min_again + "\u00d7";
+    }
+    cards.push(statCard("EV", evDisplay, "EV", "info", evTooltip));
 
     // White balance
     var wb = data.wb || {};
     cards.push(statCard("WB Color Temp", wb.color_temp ? wb.color_temp + "K" : "?", "", "info",
-      "Rgain: " + (wb.rgain || "?") + " Bgain: " + (wb.bgain || "?")));
+      "White balance color temperature in Kelvin. Lower = warmer/redder. Rgain boosts red channel, Bgain boosts blue. Auto WB adjusts these to make white objects look white under different lighting."));
 
     // Frame source: queue count
     if (fsData && fsData.ch0) {
       var qc = fsData.ch0.queue_count || "?";
       var qcNum = parseInt(qc, 10);
       var qcStatus = qcNum < 2 ? "crit" : qcNum < 3 ? "warn" : "ok";
-      cards.push(statCard("DMA Queue", qc, "", qcStatus, "DMA buffer pool size. <2 = no slack."));
+      cards.push(statCard("DMA Queue", qc, "", qcStatus, "Number of DMA buffers in the sensor→ISP pipeline. <2 = no buffering slack, any hiccup drops a frame. Typical healthy values: 2–4."));
 
       var drop = fsData.ch0.drop || "0";
       var dropStatus = parseInt(drop, 10) > 0 ? "crit" : "ok";
-      cards.push(statCard("Dropped Frames", drop, "", dropStatus, "Frames lost between sensor and encoder."));
+      cards.push(statCard("Dropped Frames", drop, "", dropStatus, "Frames that the ISP discarded because no DMA buffer was available when the sensor produced them. Reduce resolution or FPS to fix."));
 
       var intcAhead = fsData.ch0.intc_ahead || "0";
       var intcStatus = parseInt(intcAhead, 10) > 0 ? "warn" : "ok";
-      cards.push(statCard("Interrupt Ahead", intcAhead, "", intcStatus, "Near-misses: close to dropping frames."));
+      cards.push(statCard("Interrupt Ahead", intcAhead, "", intcStatus, "Times the sensor finished a frame before a DMA buffer was ready. Not a drop yet, but close. If this climbs, expect drops next."));
     }
 
     // Debug counters
@@ -419,7 +428,13 @@
       charts.ev = new Chart(ctxEv.getContext("2d"), {
         type: "line",
         data: { labels: [], datasets: [] },
-        options: opts
+        options: Object.assign({}, opts, {
+          scales: {
+            x: opts.scales.x,
+            y: { title: { display: true, text: "EV (log2 stops)" }, beginAtZero: false, ticks: { font: { size: 9 } } },
+            y1: { position: "right", title: { display: true, text: "µs" }, beginAtZero: false, grid: { drawOnChartArea: false }, ticks: { font: { size: 9 } } }
+          }
+        })
       });
     }
   }
@@ -471,14 +486,18 @@
     ];
     charts.inttime.update("none");
 
-    // EV
-    var evVals = history.map(function(h) { return parseInt(h.data.ev.value, 10) || 0; });
+    // EV — plot log2 (photographic EV in stops) and exposure time in µs
+    var evLog2Vals = history.map(function(h) { var v = parseFloat(h.data.ev.log2); return isNaN(v) ? null : parseFloat(v.toFixed(1)); });
+    var evUsVals = history.map(function(h) { var v = parseInt(h.data.ev.us, 10); return v > 0 ? v : null; });
     charts.ev.data.labels = labels;
-    charts.ev.data.datasets = [{
-      label: "EV Value", data: evVals,
-      borderColor: "#20c997", tension: 0.2, fill: true,
-      backgroundColor: "rgba(32,201,151,0.1)", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#20c997", pointBorderWidth: 1
-    }];
+    charts.ev.data.datasets = [
+      { label: "EV (log2)", data: evLog2Vals,
+        borderColor: "#20c997", tension: 0.2, fill: true, yAxisID: "y",
+        backgroundColor: "rgba(32,201,151,0.1)", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#20c997", pointBorderWidth: 1 },
+      { label: "Exposure (µs)", data: evUsVals,
+        borderColor: "#fd7e14", borderDash: [4, 4], tension: 0.2, yAxisID: "y1",
+        pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#fd7e14", pointBorderWidth: 1 }
+    ];
     charts.ev.update("none");
   }
 
@@ -607,7 +626,7 @@
     parts.push("Tgain DB: " + (exp.tgain_db || "?"));
 
     var ev = data.ev || {};
-    parts.push("EV: " + (ev.value || "?") + " (" + (ev.us || "?") + " us)");
+    parts.push("EV: " + (ev.log2 || "?") + " EV (raw: " + (ev.value || "?") + ", " + (ev.us || "?") + " us)");
 
     var wb = data.wb || {};
     parts.push("White Balance: Rgain=" + (wb.rgain || "?") + " Bgain=" + (wb.bgain || "?") +
