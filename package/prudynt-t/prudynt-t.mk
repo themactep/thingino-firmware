@@ -12,7 +12,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 	PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-PRUDYNT_T_DEPENDENCIES += thingino-libcurl
+PRUDYNT_T_DEPENDENCIES += thingino-libcurl thingino-webui
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -389,6 +389,64 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "  gdb /usr/bin/prudynt -s /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-crash-watch, prudynt-test-memory"; \
 	fi
+
+	# WebUI plugin files (streamer pages, CGIs, JavaScript)
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/prudynt.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/prudynt.webui.json
+
+	# HTML pages
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-audio.html \
+		$(TARGET_DIR)/var/www/config-audio.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-image.html \
+		$(TARGET_DIR)/var/www/streamer-image.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-main.html \
+		$(TARGET_DIR)/var/www/streamer-main.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-osd.html \
+		$(TARGET_DIR)/var/www/streamer-osd.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-sensor.html \
+		$(TARGET_DIR)/var/www/streamer-sensor.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-substream.html \
+		$(TARGET_DIR)/var/www/streamer-substream.html
+
+	# JavaScript
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/audio.js \
+		$(TARGET_DIR)/var/www/a/audio.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \
+		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
+		$(TARGET_DIR)/var/www/a/streamer-config.js
+
+	# CGI scripts
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/ch0.jpg \
+		$(TARGET_DIR)/var/www/x/ch0.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/ch0.mjpg \
+		$(TARGET_DIR)/var/www/x/ch0.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/ch1.jpg \
+		$(TARGET_DIR)/var/www/x/ch1.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/ch1.mjpg \
+		$(TARGET_DIR)/var/www/x/ch1.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/dl0.jpg \
+		$(TARGET_DIR)/var/www/x/dl0.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/dl1.jpg \
+		$(TARGET_DIR)/var/www/x/dl1.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/events.cgi \
+		$(TARGET_DIR)/var/www/x/events.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-imaging.cgi \
+		$(TARGET_DIR)/var/www/x/json-imaging.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-osd-sei.cgi \
+		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt.cgi \
+		$(TARGET_DIR)/var/www/x/json-prudynt.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-config.cgi \
+		$(TARGET_DIR)/var/www/x/json-prudynt-config.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-save.cgi \
+		$(TARGET_DIR)/var/www/x/json-prudynt-save.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/preview.cgi \
+		$(TARGET_DIR)/var/www/x/preview.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/restart-prudynt.cgi \
+		$(TARGET_DIR)/var/www/x/restart-prudynt.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/video.mjpg \
+		$(TARGET_DIR)/var/www/x/video.mjpg
 endef
 
 $(eval $(generic-package))
