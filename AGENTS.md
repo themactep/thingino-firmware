@@ -146,6 +146,12 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 - **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
   braille spinners, emoji, or other non-ASCII characters in `.sh` files.
+- **Cameras use BusyBox sh (ash), not bash.** Shebangs must be
+  `#!/bin/sh`. Do not use bash-specific features (arrays, `[[`,
+  `${var:offset:length}` slicing, `source`, `shopt`). BusyBox ash
+  supports a subset of POSIX plus some extensions; when in doubt, stick
+  to POSIX. `shfmt` parses scripts as POSIX by default — if it flags
+  something, fix the script, not the shebang.
 
 ## Container Builds
 
