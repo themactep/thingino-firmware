@@ -22,7 +22,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
+bbapplets="date dd echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
@@ -815,6 +815,12 @@ if [ -z "$mtd_dev" ]; then
 			# Clone busybox to tmpfs before the dd loop so that
 			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
 			clone_app /bin/busybox
+			# Create tmpfs symlinks for commands that must survive
+			# rootfs being overwritten during the flash loop.
+			for a in dd flash_eraseall; do
+				ln -sf "$workdir/busybox" "$workdir/$a"
+			done
+			export PATH="$workdir:$PATH"
 			# Take over the hardware watchdog from tmpfs so a hung
 			# flash (e.g. SSH timeout, stuck erase) doesn't leave
 			# the camera bricked with no recovery.
