@@ -6,9 +6,19 @@
       http://<location.hostname>:8880/stream.mp4?chn=N
   from timpsd and feeds it into a MediaSource SourceBuffer. The
   buffering/eviction/live-edge logic is a port of timps's own embedded
-  player (src/mp4/httpd.c, PLAYER_TAIL). The motor joystick overlay and
-  /a/preview-motors.js are taken over UNCHANGED from preview-raptor.html, so
-  PTZ keeps working through thingino's /x/json-motor.cgi.
+  player (src/mp4/httpd.c, PLAYER_TAIL).
+
+  This page is installed straight over thingino-webui's own /preview.html
+  (same filename, timps's own package - see TIMPS_INSTALL_WEBUI_CGIS in
+  timps.mk), before thingino-webui's plugin-assembly finalize hook runs. So it
+  still goes through the normal plugin pipeline: the plugin preview-body
+  marker below is replaced with the contributed overlays (thingino-motors' PTZ
+  joystick, ...) and their preview scripts are appended before the closing
+  body tag. Do not hand-copy plugin markup in here.
+
+  (The marker is not spelled out in this comment on purpose - the assembler
+  substitutes every occurrence in the file, and injected markup inside an HTML
+  comment would terminate it early.)
 
   IMPORTANT - KNOWN LIMITATION (mixed content):
   The video is loaded from plain HTTP on port 8880. If this web UI itself is
@@ -152,21 +162,7 @@
               </div>
               <div class="text-light small">Connecting...</div>
             </div>
-            <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
-              <div id="motor">
-                <div class="jst">
-                  <a class="s" data-dir="uc"></a>
-                  <a class="s" data-dir="ur"></a>
-                  <a class="s" data-dir="cr"></a>
-                  <a class="s" data-dir="dr"></a>
-                  <a class="s" data-dir="dc"></a>
-                  <a class="s" data-dir="dl"></a>
-                  <a class="s" data-dir="cl"></a>
-                  <a class="s" data-dir="ul"></a>
-                  <a class="b" data-dir="h"></a>
-                </div>
-              </div>
-            </div>
+            <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
         </div>
@@ -767,7 +763,6 @@
     });
   })();
 </script>
-<script src="/a/preview-motors.js"></script>
 <script src="/a/preview-motion.js"></script>
 </body>
 </html>

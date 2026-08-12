@@ -101,6 +101,19 @@ ifeq ($(BR2_PACKAGE_TIMPS_STREAM_OPUS),y)
 	TIMPS_DEPENDENCIES += opus
 endif
 
+# Not a link-time dependency: this is purely an ORDERING dependency for the two
+# post-install hooks below that write into thingino-webui's www tree
+# (TIMPS_INSTALL_WEBUI_CGIS overlays the timps-flavored pages/scripts/CGIs,
+# TIMPS_INSTALL_PREVIEW overwrites preview.html with timps's own). Both must
+# land AFTER thingino-webui's own INSTALL_TARGET_CMDS has created the stock
+# www tree they overlay, and BEFORE thingino-webui's plugin-assembly finalize
+# hook reads that tree. Declaring the dependency makes the first half explicit
+# instead of relying on package parse order; the
+# per-package-install-before-global-finalize rule gives us the second half.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	TIMPS_DEPENDENCIES += thingino-webui
+endif
+
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
 # which need -mno-fused-madd / -ffp-contract=off). The timps Makefile adds its
 # own -DUSE_* defines based on the USE_* variables we pass below, so we only
@@ -166,6 +179,12 @@ ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 	TIMPS_LIBS += -Wl,--no-as-needed -luclibcshim -Wl,--as-needed
 endif
 
+# USE_TRACE (src/trace.c, opt-in send-pipeline latency instrumentation) is
+# deliberately NOT a BR2_PACKAGE_TIMPS_* Kconfig option - it must not be
+# reachable from menuconfig. For a one-off debug build, pass TIMPS_TRACE=1 as
+# a plain make-variable override on the invocation, e.g.:
+#   make CAMERA=... IP=... TIMPS_TRACE=1 rebuild-timps
+# Default (TIMPS_TRACE unset) is USE_TRACE=0, identical to every other build.
 define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -178,6 +197,7 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
+		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
 		USE_RECORD=$(if $(BR2_PACKAGE_TIMPS_RECORD),1,0) \
@@ -315,10 +335,23 @@ endef
 # JSON to /x/json-prudynt*.cgi, /x/json-imp.cgi and /x/restart-prudynt.cgi.
 # files/www/x/ ships timps-flavored replacements (same names) that translate
 # the supported subset to timps's /control JSON API on 127.0.0.1:8880, plus the
-# native page scripts (files/www/a/) and pages (files/www/*.html). They are
-# installed via a TARGET_FINALIZE_HOOK so they override the thingino-webui
-# copies regardless of package build order, and only when both the WebUI and the
-# timps /control endpoint are enabled. The whole directory is installed (CGIs and
+# native page scripts (files/www/a/) and pages (files/www/*.html - including
+# timps's own preview.html, which lands here too: same directory, same glob,
+# no separate install step needed to make it win). They are installed from
+# TIMPS_POST_INSTALL_TARGET_HOOKS - i.e. as part of timps's own install step,
+# right after TIMPS_INSTALL_TARGET_CMDS - with an explicit thingino-webui
+# dependency (see TIMPS_DEPENDENCIES above) so the stock copies they overlay
+# already exist. That placement is load-bearing: thingino-webui assembles the
+# plugin layer (<script src="/a/plugins.js">, nav merging, plugin page bodies)
+# from a GLOBAL target-finalize hook, and the global finalize phase runs only
+# after EVERY package has finished installing. Overlaying here means our pages
+# are on disk in time to be processed by that pass; overlaying from a finalize
+# hook of our own would land after it (package/*/*.mk is globbed
+# alphabetically, so "thingino-webui" sorts before "timps") and every page we
+# ship would end up with no plugin layer at all.
+#
+# Only installed when both the WebUI and the timps /control endpoint are
+# enabled. The whole directory is installed (CGIs and
 # the .sh lib alike; the webserver executes anything under the /x/ CGI prefix
 # regardless of extension - uhttpd via "-x /x", busybox httpd via its /x/
 # convention). The WebUI's own prudynt-flavored bridge CGIs (they shell out to
@@ -340,9 +373,10 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	# timps-flavored WebUI: overlay every timps-specific asset over the stock
 	# thingino-webui install so the settings pages talk to timps /control +
 	# /events directly (a/timps-api.js). Kept ENTIRELY in this package so
-	# thingino-webui stays pristine/upstream; the finalize hook wins regardless
-	# of package build order. x/ = the surviving structural CGIs (token, restart,
-	# GPIO json-imp, heartbeat); a/ = the native page scripts; *.html = the pages.
+	# thingino-webui stays pristine/upstream; the post-install hook ordering
+	# described above is what makes the overlay win. x/ = the surviving
+	# structural CGIs (token, restart, GPIO json-imp, heartbeat); a/ = the
+	# native page scripts; *.html = the pages.
 	for f in $(TIMPS_PKGDIR)/files/www/x/* ; do \
 		$(INSTALL) -D -m 0755 $$f $(TARGET_DIR)/var/www/x/$$(basename $$f) ; \
 	done
@@ -381,7 +415,7 @@ define TIMPS_INSTALL_WEBUI_CGIS
 		ln -sf /var/www/x/ch1.jpg $(TARGET_DIR)/var/www/onvif/image1.cgi ; \
 	fi
 endef
-TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+TIMPS_POST_INSTALL_TARGET_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports
@@ -439,26 +473,18 @@ endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_SEND2
 endif
 
-# NOTE: preview page. thingino-webui picks the preview page (preview.html) at
-# ITS install time from the selected streamer, so switching raptor->timps
-# without rebuilding thingino-webui leaves raptor's WebRTC preview behind (it
-# POSTs to /x/webrtc-whip.cgi -> 502, no image). Install our self-contained
-# MSE/fMP4 preview (fetches :8880/stream.mp4) over /var/www/preview.html from a
-# finalize hook so it wins regardless of package build order. Only when the
-# WebUI is present. preview-timps.html lives in THIS package (files/www/)
-# together with the rest of the timps WebUI overlay, so thingino-webui stays
-# pristine.
-# Gated on TIMPS_CONTROL too: preview-timps.html pulls /x/timps-token.cgi, which
-# is only installed by the WebUI-overlay hook (same gate), so shipping preview
-# without CONTROL would leave a broken token fetch.
-ifeq ($(BR2_PACKAGE_THINGINO_WEBUI)$(BR2_PACKAGE_TIMPS_CONTROL),yy)
-TIMPS_PREVIEW_SRC = $(TIMPS_PKGDIR)/files/www/preview-timps.html
-define TIMPS_INSTALL_PREVIEW
-	$(INSTALL) -D -m 0644 $(TIMPS_PREVIEW_SRC) \
-		$(TARGET_DIR)/var/www/preview.html
-endef
-TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_PREVIEW
-endif
+# NOTE: preview page. timps ships its own self-contained MSE/fMP4 preview
+# (it fetches :8880/stream.mp4) as files/www/preview.html - same filename as
+# core webui's, in this package instead of thingino-webui's, so it goes out
+# through the SAME TIMPS_INSTALL_WEBUI_CGIS *.html loop above as the other 15
+# timps pages. No separate install step: it plain-overwrites thingino-webui's
+# stock preview.html at the same path, before thingino-webui's plugin-assembly
+# finalize hook ever runs (see the ordering note above), so the winning page
+# still gets <script src="/a/plugins.js">, nav data, and the
+# THINGINO_PLUGIN_PREVIEW_BODY overlay from every plugin (e.g. thingino-motors'
+# joystick) like any other page. Implicitly gated on TIMPS_CONTROL through the
+# *.html loop's own gate: preview.html pulls /x/timps-token.cgi, which only
+# exists when that gate is satisfied.
 
 # NOTE: native day/night. When timps detects day/night itself
 # (BR2_PACKAGE_TIMPS_DAYNIGHT), none of thingino-daynightd's autostart entry

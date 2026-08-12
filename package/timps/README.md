@@ -88,20 +88,37 @@ The preview page talks to timps directly (see below).
   `?stream=motion` instead of polling; config keys `events.enabled` /
   `events.stats_ms` / `events.max_clients` (see the conf example).
 
-## Web UI preview (raptor pattern)
+## Web UI preview (same-name install-order override)
 
-When the timps streamer is chosen, `package/thingino-webui` installs
-`files/www/preview-timps.html` as `/var/www/preview.html`
-(`THINGINO_WEBUI_PREVIEW_HTML` switch in `thingino-webui.mk`, exactly like
-`preview-raptor.html` for raptor — no finalize-hook override anymore).
+`files/www/preview.html` lives in this package under the exact filename
+`thingino-webui` uses for its own core preview page, and is installed
+straight over `/var/www/preview.html` — the same overlay `timps.mk` already
+does for its other ~15 native pages (`TIMPS_INSTALL_WEBUI_CGIS`'s `*.html`
+loop). raptor does the same with its own `preview.html`; prudynt-t installs
+none, so the core page stays.
+
+The whole timps WebUI overlay is installed in timps's **install** step
+(`TIMPS_POST_INSTALL_TARGET_HOOKS`, with `TIMPS_DEPENDENCIES +=
+thingino-webui` for ordering), not from a finalize hook. That placement is
+what makes the overwrite win *and* still get the plugin layer applied:
+`thingino-webui`'s `assemble_plugins.py` reads and injects into whatever is
+on disk at `/var/www/*.html` from its own finalize hook, which runs once, and
+only after every package has finished installing — so our page has already
+replaced the stock one by the time assembly sees it, and comes out the other
+side with `<script src="/a/plugins.js">`, the `THINGINO_PLUGIN_PREVIEW_BODY`
+marker filled in, and every plugin's preview scripts, exactly like the core
+page would have. A finalize hook of our own would run too late (after
+assembly) and strip the page of its plugin layer instead — see the ordering
+comment above `TIMPS_INSTALL_WEBUI_CGIS` in `timps.mk`.
 
 That page is a **native MSE/fMP4 player** (no iframe): it fetches
 `http://<location.hostname>:8880/stream.mp4?chn=N` and drives a MediaSource
 SourceBuffer with the same queue/eviction/live-edge logic as timps's
 embedded player (`src/mp4/httpd.c`, `PLAYER_TAIL`); codec strings probed:
-`avc1.640028` (+ `mp4a.40.2`), `hvc1.1.6.L123.B0`. The motor joystick and
-`/a/preview-motors.js` are carried over unchanged from `preview-raptor.html`,
-so PTZ via `/x/json-motor.cgi` keeps working.
+`avc1.640028` (+ `mp4a.40.2`), `hvc1.1.6.L123.B0`. The motor joystick overlay
+and `/a/preview-motors.js` are contributed by `thingino-motors`' own manifest
+via the marker above (no hand-copied markup in this package), so PTZ via
+`/x/json-motor.cgi` keeps working.
 
 The motion-grid overlay (`/a/preview-motion.js`) gets the per-boot token
 from `/x/timps-token.cgi`, probes `GET /control` once (feature detection +
