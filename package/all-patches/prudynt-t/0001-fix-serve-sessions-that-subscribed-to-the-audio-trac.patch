@@ -1,0 +1,39 @@
+From 0c91c4494ba30820c715e69ca6d534a23b7d4d07 Mon Sep 17 00:00:00 2001
+From: Viliam Pucik <672009+viliampucik@users.noreply.github.com>
+Date: Wed, 12 Aug 2026 22:17:08 +0200
+Subject: [PATCH 1/2] fix: serve sessions that subscribed to the audio track
+ only
+
+The drain loop skips playing sessions with no video channel unless they are
+the /mic endpoint or a backchannel.  A client that SETUPs only track2 of /ch0
+has videoChn < 0 and audioOnly == false, so the loop skips it and never drains
+its audioTap: PLAY returns 200 OK and RTCP flows, but no audio RTP is ever
+sent.  audioOnly is no substitute -- handleSetup() sets it per endpoint, not
+per requested track.
+
+handlePlay() already accepts these sessions and registers their audio tap, so
+mirror its guard here.  Measured on a Cinnado D1: 0 audio frames in 25 s,
+against 637 in 12 s when both tracks are set up.
+
+Signed-off-by: Viliam Pucik <672009+viliampucik@users.noreply.github.com>
+---
+ src/network/rtsp/RtspServer.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/network/rtsp/RtspServer.cpp b/src/network/rtsp/RtspServer.cpp
+index f5d62c4..4dad3f3 100644
+--- a/src/network/rtsp/RtspServer.cpp
++++ b/src/network/rtsp/RtspServer.cpp
+@@ -226,7 +226,8 @@ void RtspServer::eventLoop() {
+         // -- Drain taps for playing sessions -----------------------------
+         for (auto &s : sessions_) {
+             if (!s || !s->playing) continue;
+-            if (s->videoChn < 0 && !s->audioOnly && !s->backchannel) continue;
++            if (s->videoChn < 0 && !s->hasAudio && !s->audioOnly &&
++                !s->backchannel && !s->hasSubtitles) continue;
+ 
+             bool backpressure = false;
+ 
+-- 
+2.50.1 (Apple Git-155)
+

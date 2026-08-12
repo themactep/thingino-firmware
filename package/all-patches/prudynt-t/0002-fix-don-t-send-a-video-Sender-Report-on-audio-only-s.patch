@@ -1,0 +1,54 @@
+From c3849353b75d8844f5bbe4f08ed9f944220c67c9 Mon Sep 17 00:00:00 2001
+From: Viliam Pucik <672009+viliampucik@users.noreply.github.com>
+Date: Wed, 12 Aug 2026 22:17:08 +0200
+Subject: [PATCH 2/2] fix: don't send a video Sender Report on audio-only
+ sessions
+
+sendRtcpSr() always emits an SR for the video stream.  A session with only the
+audio track set up has no video stream, yet videoInterleavedRtcp still holds
+its default of 1 -- the channel such a client maps to audio RTCP.  The client
+then sees SRs from two SSRCs on one channel, one carrying an unset video RTP
+timestamp.
+
+Guard on videoSetupUrl, written only in handleSetup()'s isVideo branch;
+videoChn is unreliable here because handleSubtitleSetup() also derives it from
+the URI.  Receivers ignore unknown SSRCs, so this is correctness rather than a
+fix for a measured symptom.
+
+Signed-off-by: Viliam Pucik <672009+viliampucik@users.noreply.github.com>
+---
+ src/network/rtsp/RtspServer.cpp | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/network/rtsp/RtspServer.cpp b/src/network/rtsp/RtspServer.cpp
+index 4dad3f3..6bf80ab 100644
+--- a/src/network/rtsp/RtspServer.cpp
++++ b/src/network/rtsp/RtspServer.cpp
+@@ -2427,9 +2427,11 @@ void RtspServer::sendRtcpSr(Session &s) {
+     if (!s.tcpInterleaved) {
+         // UDP: send via UDP sockets
+         sockaddr_in target = s.clientAddr;
+-        target.sin_port = htons(s.videoClientRtcpPort);
+-        sendto(s.videoRtcpSock, rtcp, sizeof(rtcp), MSG_DONTWAIT,
+-               (sockaddr *)&target, sizeof(target));
++        if (s.videoSetupUrl[0] != '\0') {
++            target.sin_port = htons(s.videoClientRtcpPort);
++            sendto(s.videoRtcpSock, rtcp, sizeof(rtcp), MSG_DONTWAIT,
++                   (sockaddr *)&target, sizeof(target));
++        }
+         if (s.hasAudio) {
+             uint32_t asrc = htonl(s.audioRtp.ssrc);
+             memcpy(rtcp + 4, &asrc, 4);
+@@ -2465,7 +2467,8 @@ void RtspServer::sendRtcpSr(Session &s) {
+             s.sendQueue.push_back(std::move(pkt));
+             s.sendQueueBytes += remain;
+         };
+-        queueTc(s.videoInterleavedRtcp, rtcp, 28);
++        if (s.videoSetupUrl[0] != '\0')
++            queueTc(s.videoInterleavedRtcp, rtcp, 28);
+         if (s.hasAudio) {
+             uint32_t asrc = htonl(s.audioRtp.ssrc);
+             memcpy(rtcp + 4, &asrc, 4);
+-- 
+2.50.1 (Apple Git-155)
+
