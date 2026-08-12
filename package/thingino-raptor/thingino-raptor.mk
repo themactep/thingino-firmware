@@ -181,6 +181,12 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/speaker
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/daynight \
+		$(TARGET_DIR)/usr/sbin/daynight
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/ircut \
+		$(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/light \
+		$(TARGET_DIR)/usr/sbin/light
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \
