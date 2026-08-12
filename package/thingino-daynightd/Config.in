@@ -1,32 +1,21 @@
 config BR2_PACKAGE_THINGINO_DAYNIGHTD
-	bool "thignino-daynight-daemon"
+	bool "thingino-daynightd"
 	help
-	  Automatic Day/Night Mode Switching Daemon for IP cameras.
+	  Day/Night photosensing daemon — single source of truth
+	  for automatic day/night mode switching on Thingino.
 	  
-	  daynightd continuously monitors scene brightness through 
-	  ISP values and automatically switches between day and night
-	  modes based on configurable thresholds.
-	  
-	  Designed specifically for MIPS Ingenic XBurst processors
-	  used in Thingino firmware IP cameras.
-	  
-	  https://github.com/themactep/thingino-firmware
+	  Reads ISP sensor data from /proc/jz/isp/, runs a
+	  hysteresis-based algorithm, applies mode changes via
+	  /sbin/daynight, and exports live telemetry to
+	  /run/thingino/ for all consumers.
 
-if BR2_PACKAGE_DAYNIGHTD
+if BR2_PACKAGE_THINGINO_DAYNIGHTD
 
-config BR2_PACKAGE_DAYNIGHTD_DEBUG
-	bool "Enable debug build"
-	help
-	  Build daynightd with debug symbols and verbose logging.
-	  This increases binary size but provides better debugging
-	  capabilities for development and troubleshooting.
-
-config BR2_PACKAGE_DAYNIGHTD_AUTOSTART
+config BR2_PACKAGE_THINGINO_DAYNIGHTD_AUTOSTART
 	bool "Auto-start at boot"
 	default y
 	help
-	  Automatically start daynightd daemon at system boot.
-	  The daemon will be started with priority S95 (late in
-	  the boot process after camera drivers are loaded).
+	  Automatically start daynightd at boot (priority S10,
+	  before streamer and web UI).
 
 endif

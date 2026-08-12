@@ -4,7 +4,11 @@
     "ir850": 45,
     "ircut": "57 58",
     "mmc_cd": 50,
-    "wlan": "47O 47o"
+    "wlan": {
+      "pin": 47,
+      "active_low": true,
+      "toggle": true
+    }
   },
   "motors": {
     "gpio_invert": false,

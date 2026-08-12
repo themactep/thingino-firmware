@@ -1,0 +1,63 @@
+#!/bin/sh
+
+DAEMON="/usr/bin/daynightd"
+DAEMON_ARGS=""
+PIDFILE="/run/daynightd.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+	start-stop-daemon -K -x "$DAEMON"
+}
+
+start() {
+	echo -c 15 "Starting Day/Night daemon (daynightd v2)"
+
+	# Ensure /run/thingino exists
+	mkdir -p /run/thingino
+
+	# Generate API key early so imp-control can authenticate with prudynt
+	# (prudynt starts later at S31 but requires the key to exist for any API access)
+	API_KEY_FILE="/etc/thingino-api.key"
+	if [ ! -f "$API_KEY_FILE" ]; then
+		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
+		echo "$new_key" >"$API_KEY_FILE"
+		chmod 600 "$API_KEY_FILE"
+	fi
+
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
+}
+
+stop() {
+	echo -c 15 "Stopping Day/Night daemon"
+	stop_daemon
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart | reload)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
+
+exit 0

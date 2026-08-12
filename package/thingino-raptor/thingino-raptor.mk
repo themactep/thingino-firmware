@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 2d389cabfefd8140d38a668fda08ac62a2298d73
+THINGINO_RAPTOR_VERSION = 7abaeb7af419833fcf69693a22b7f1c120c9ffa6
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -191,6 +191,16 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/speaker
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
+	# Day/night wrappers belong to RIC; with daynightd selected its
+	# own scripts of the same names are the day/night interface.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/daynight \
+			$(TARGET_DIR)/usr/sbin/daynight; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/ircut \
+			$(TARGET_DIR)/usr/sbin/ircut; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/light \
+			$(TARGET_DIR)/usr/sbin/light; \
+	fi
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \

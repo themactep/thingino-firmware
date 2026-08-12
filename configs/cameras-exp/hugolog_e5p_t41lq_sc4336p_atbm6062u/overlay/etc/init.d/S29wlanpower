@@ -8,7 +8,7 @@
 WLAN_PWR_GPIO=60
 
 case "$1" in
-	start|"")
+	start | "")
 		gpio set "$WLAN_PWR_GPIO" 1
 		;;
 	stop)

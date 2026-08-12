@@ -18,19 +18,28 @@
 # Usage: inject-uboot-mmc-dt.sh <thingino.json> <leaf.dts> <dt-name>
 set -e
 
-JSON="$1"; DTS="$2"; DT="$3"
+JSON="$1"
+DTS="$2"
+DT="$3"
 [ -f "$JSON" ] && [ -f "$DTS" ] || exit 0
 
 # Read gpio.mmc_cd, gpio.mmc_power.{pin,active_low} and gpio.button_reset in one
 # shot. python3 is already a U-Boot build dependency (binman), so this needs no
 # host package.
-vals=$(python3 - "$JSON" 2>/dev/null <<'PY'
+vals=$(
+	python3 - "$JSON" 2>/dev/null <<'PY'
 import json, sys
 g = json.load(open(sys.argv[1])).get("gpio", {})
 cd = g.get("mmc_cd")
 mp = g.get("mmc_power")
-pin = mp.get("pin") if isinstance(mp, dict) else None
-al = mp.get("active_low") if isinstance(mp, dict) else None
+# Object {pin, active_low} or short notation (bare int = active-high pin).
+# The multi-pin list form is handled as gpio-hogs by inject-uboot-gpio-dt.sh.
+if isinstance(mp, dict):
+    pin, al = mp.get("pin"), mp.get("active_low")
+elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
+    pin, al = mp, False
+else:
+    pin, al = None, None
 br = g.get("button_reset")
 bp = br.get("pin") if isinstance(br, dict) else (br if isinstance(br, int) else None)
 print(cd if isinstance(cd, int) else -1,
@@ -42,12 +51,15 @@ PY
 [ -n "$vals" ] || exit 0
 # shellcheck disable=SC2086
 set -- $vals
-CD=$1; PWR=$2; AL=$3; BTN=$4
+CD=$1
+PWR=$2
+AL=$3
+BTN=$4
 
 # gpio number -> bank label letter (PA=a..PE=e), empty if out of range
 bank() {
-	case $(( $1 / 32 )) in
-	0) echo a ;; 1) echo b ;; 2) echo c ;; 3) echo d ;; 4) echo e ;; *) echo "" ;;
+	case $(($1 / 32)) in
+		0) echo a ;; 1) echo b ;; 2) echo c ;; 3) echo d ;; 4) echo e ;; *) echo "" ;;
 	esac
 }
 
@@ -55,18 +67,24 @@ bank() {
 if [ "$PWR" -ge 0 ] && ! grep -q 'vmmc-supply' "$DTS"; then
 	PB=$(bank "$PWR")
 	if [ -n "$PB" ]; then
-		if [ "$AL" = 1 ]; then POL=1; EAH=0; else POL=0; EAH=1; fi
+		if [ "$AL" = 1 ]; then
+			POL=1
+			EAH=0
+		else
+			POL=0
+			EAH=1
+		fi
 		{
 			printf '\n/ {\t/* MMC slot power, board gpio.mmc_power.pin=%s */\n' "$PWR"
 			printf '\tvcc_mmc: regulator-mmc {\n'
 			printf '\t\tcompatible = "regulator-fixed";\n'
 			printf '\t\tregulator-name = "mmc-vcc";\n'
-			printf '\t\tgpio = <&gp%s %s %s>;\n' "$PB" "$(( PWR % 32 ))" "$POL"
+			printf '\t\tgpio = <&gp%s %s %s>;\n' "$PB" "$((PWR % 32))" "$POL"
 			[ "$EAH" = 1 ] && printf '\t\tenable-active-high;\n'
 			printf '\t\tstartup-delay-us = <100000>;\n'
 			printf '\t};\n};\n&msc0 {\n\tvmmc-supply = <&vcc_mmc>;\n};\n'
-		} >> "$DTS"
-		echo "U-Boot: injected vmmc-supply = <&gp$PB $(( PWR % 32 ))> (gpio $PWR)"
+		} >>"$DTS"
+		echo "U-Boot: injected vmmc-supply = <&gp$PB $((PWR % 32))> (gpio $PWR)"
 	fi
 fi
 
@@ -80,10 +98,10 @@ if [ "$CD" -ge 0 ] && ! grep -q 'cd-gpios' "$DTS"; then
 		{
 			printf '\n&msc0 {\t/* MMC card-detect, board gpio.mmc_cd=%s */\n' "$CD"
 			printf '\t/delete-property/ broken-cd;\n'
-			printf '\tcd-gpios = <&gp%s %s 0x11>;\t/* GPIO_ACTIVE_LOW | GPIO_PULL_UP */\n' "$CB" "$(( CD % 32 ))"
+			printf '\tcd-gpios = <&gp%s %s 0x11>;\t/* GPIO_ACTIVE_LOW | GPIO_PULL_UP */\n' "$CB" "$((CD % 32))"
 			printf '};\n'
-		} >> "$DTS"
-		echo "U-Boot: injected cd-gpios = <&gp$CB $(( CD % 32 ))> (gpio $CD)"
+		} >>"$DTS"
+		echo "U-Boot: injected cd-gpios = <&gp$CB $((CD % 32))> (gpio $CD)"
 	fi
 fi
 
@@ -101,13 +119,13 @@ if [ "$BTN" -ge 0 ] && ! grep -q 'gpio-keys' "$DTS"; then
 			printf '\t\tcompatible = "gpio-keys";\n'
 			printf '\t\treset {\n'
 			printf '\t\t\tlabel = "reset";\n'
-			printf '\t\t\tgpios = <&gp%s %s 0x11>;\t/* GPIO_ACTIVE_LOW | GPIO_PULL_UP */\n' "$BB" "$(( BTN % 32 ))"
+			printf '\t\t\tgpios = <&gp%s %s 0x11>;\t/* GPIO_ACTIVE_LOW | GPIO_PULL_UP */\n' "$BB" "$((BTN % 32))"
 			printf '\t\t\tlinux,code = <0x198>;\t/* KEY_RESTART */\n'
 			printf '\t\t};\n'
 			printf '\t};\n'
 			printf '};\n'
-		} >> "$DTS"
-		echo "U-Boot: injected gpio-keys reset = <&gp$BB $(( BTN % 32 ))> (gpio $BTN)"
+		} >>"$DTS"
+		echo "U-Boot: injected gpio-keys reset = <&gp$BB $((BTN % 32))> (gpio $BTN)"
 	fi
 fi
 exit 0

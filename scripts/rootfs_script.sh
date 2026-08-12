@@ -8,6 +8,7 @@ BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAM
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}
+IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/configs/cameras/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
@@ -102,6 +103,7 @@ TOOLCHAIN_GCC=${TOOLCHAIN_GCC}
 SOC=${SOC_FAMILY}
 SOC_ARCH=${SOC_ARCH}
 IMAGE_ID=${IMAGE_ID}
+IMAGE_NAME=\"${IMAGE_NAME}\"
 BUILD_ID=\"${BUILD_ID}\"
 BUILD_TIME=\"${BUILD_TIME}\"
 COMMIT_ID=\"${COMMIT_ID}\"
@@ -165,9 +167,7 @@ if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
 	rm -vf ${TARGET_DIR}/lib/libconfig.so*
 fi
 
-if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py" ]; then
-	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py
-fi
+rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.*-gdb.py 2>/dev/null
 
 if ! grep -q ^BR2_THINGINO_LIBSTDCPP=y $BR2_CONFIG 2>/dev/null; then
 	rm -vf ${TARGET_DIR}/lib/libstdc++.so*
@@ -180,3 +180,9 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
+
+# ---------------------------------------------------------------------------
+# Check for busybox long-option usage in init scripts (fatal on violations).
+# Thingino disables CONFIG_LONG_OPTS; --long-options silently fail at runtime.
+# ---------------------------------------------------------------------------
+$BR2_EXTERNAL/scripts/check-busybox-lopts.sh "${TARGET_DIR}" 1

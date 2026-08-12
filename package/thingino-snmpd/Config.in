@@ -1,0 +1,17 @@
+config BR2_PACKAGE_THINGINO_SNMPD
+	bool "thingino-snmpd"
+	depends on BR2_PACKAGE_THINGINO_JCT
+	help
+	  mini-snmpd, a minimal SNMP daemon for embedded systems, wired
+	  into thingino. Lets an NMS (LibreNMS, Zabbix, Observium, Cacti,
+	  check_mk, ...) poll the camera for uptime, CPU load, memory,
+	  disk usage, network interface counters and hwmon temperature
+	  sensors.
+
+	  Read-only SNMP v1/v2c, optional SNMPv2c traps. No SNMPv3.
+
+	  Configuration lives in the "snmpd" section of
+	  /etc/thingino.json; a WebUI page is installed when
+	  thingino-webui is enabled. The service ships disabled.
+
+	  https://github.com/troglobit/mini-snmpd

@@ -1,1 +1,0 @@
-gpio_default=25o 26o 77o 60i

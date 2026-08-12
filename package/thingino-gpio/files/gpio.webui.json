@@ -1,0 +1,33 @@
+{
+  "name": "gpio",
+  "label": "GPIO Pins",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "GPIO pins",
+          "href": "/config-gpio.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "gpio": true
+  },
+  "cgi": [
+    "/x/json-config-gpio.cgi",
+    "/x/json-gpio.cgi"
+  ],
+  "pages": [
+    "/config-gpio.html"
+  ]
+}

@@ -66,7 +66,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "webhook": $(get_domain_config webhook),
   "storage": $(get_domain_config storage),
   "ntfy": $(get_domain_config ntfy),
-  "gphotos": $(get_domain_config gphotos)
+  "gphotos": $(get_domain_config gphotos),
+  "speaker": $(get_domain_config speaker)
 }
 EOF
 	exit 0
@@ -90,18 +91,52 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 	temp_json=$(mktemp)
 	echo "$post_data" >"$temp_json"
 
-	# Detect which domain is being updated by checking keys
+	# Helper: extract a single top-level key to its own temp file and
+	# import that file into the target config.  Keeps domains isolated
+	# so a combined payload (e.g. motion+speaker) works correctly.
+	import_domain() {
+		local domain="$1"
+		local target="$2"
+		local val
+		val=$(jct "$temp_json" get "$domain" 2>/dev/null) || return 1
+		local domain_temp
+		domain_temp=$(mktemp)
+		printf '{"%s": %s}\n' "$domain" "$val" >"$domain_temp"
+		jct "$target" import "$domain_temp"
+		rm -f "$domain_temp"
+	}
+
+	saved=0
+
+	# Motion config - import into prudynt.json
 	if jct "$temp_json" get motion >/dev/null 2>&1; then
-		# Motion config - import into prudynt.json
-		jct "$prudynt_config" import "$temp_json"
+		motion_temp=$(mktemp)
+		motion_val=$(jct "$temp_json" get motion)
+		printf '{"motion": %s}\n' "$motion_val" >"$motion_temp"
+		jct "$prudynt_config" import "$motion_temp"
 		sync
-
-		# Update running prudynt instance if it's running
 		if pidof prudynt >/dev/null 2>&1; then
-			prudyntctl json - <"$temp_json" >/dev/null 2>&1
+			prudyntctl json - <"$motion_temp" >/dev/null 2>&1
 		fi
+		rm -f "$motion_temp"
+		saved=1
+	fi
 
-	elif jct "$temp_json" get email >/dev/null 2>&1; then
+	# Speaker config - import into send2.json (separate if so it can be
+	# combined with motion in a single request)
+	if jct "$temp_json" get speaker >/dev/null 2>&1; then
+		import_domain speaker "$config_file"
+		saved=1
+	fi
+
+	if [ "$saved" -eq 1 ]; then
+		rm -f "$temp_json"
+		send_json_response '{"result":"success","message":"Settings saved"}'
+		exit 0
+	fi
+
+	# Other domains (still mutually exclusive via elif)
+	if jct "$temp_json" get email >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get ftp >/dev/null 2>&1; then

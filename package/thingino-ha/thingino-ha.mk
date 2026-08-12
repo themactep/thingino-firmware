@@ -22,6 +22,8 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/ha-commands
 	$(INSTALL) -D -m 0755 $(@D)/ha-event \
 		$(TARGET_DIR)/usr/sbin/ha-event
+	$(INSTALL) -D -m 0755 $(@D)/ha-watchdog \
+		$(TARGET_DIR)/usr/sbin/ha-watchdog
 
   # Web UI
   $(INSTALL) -D -m 0644 $(@D)/config-ha.html \
@@ -30,6 +32,10 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/config-ha.js
   $(INSTALL) -D -m 0755 $(@D)/json-config-ha.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-ha.cgi
+
+	# Auto-enable doorbell entity on doorbell-equipped cameras
+	$(if $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL),
+		printf '{"ha":{"enable_doorbell":true}}\n' > $(TARGET_DIR)/usr/share/thingino-defaults/55-ha-doorbell.json)
 endef
 
 $(eval $(generic-package))

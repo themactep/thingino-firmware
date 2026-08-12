@@ -1,0 +1,33 @@
+{
+  "name": "telegrambot",
+  "label": "Telegram Bot",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Remote logging",
+      "items": [
+        {
+          "label": "Telegram Bot",
+          "href": "/config-telegrambot.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "telegrambot": true
+  },
+  "cgi": [
+    "/x/json-telegrambot.cgi",
+    "/x/ctl-telegrambot.cgi"
+  ],
+  "pages": [
+    "/config-telegrambot.html"
+  ]
+}

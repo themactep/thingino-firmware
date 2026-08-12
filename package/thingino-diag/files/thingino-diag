@@ -16,7 +16,7 @@ Usage: $0 [OPTIONS]
 Options:
 	-o -             Output to stdout
 	-o /path/file    Output to specific file
-	-u               Upload to server (tb.thingino.com)
+	-u               Upload to server
 	-j               Upload to server and return JSON with link
 	-f               Force: skip consent prompt
 	-h               Show this help
@@ -143,7 +143,7 @@ if [ -t 0 ] && [ "$output_mode" != "stdout" ] && [ "$force_mode" != "yes" ]; the
 This script generates a log file for sharing with developers for diagnostic issues.
 The log may contain sensitive information, please review it before sharing!
 "
-	[ "$upload_to_server" = "yes" ] && echo "Files uploaded to tb.thingino.com are stored for 1 week."
+	[ "$upload_to_server" = "yes" ] && echo "Uploaded files are stored for 3 days."
 	read -p "Do you wish to proceed? (yes/no): " response
 	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
@@ -181,6 +181,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 	inforun "free -h" "MEMORY"
 	inforun "mount" "MOUNT"
+	inforun "tree /overlay/" "OVERLAY"
 
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
@@ -213,6 +214,9 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	elif [ -f "$PRUDYNT_CONFIG_FILE" ]; then
 		sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 	fi
+	infocat "/etc/resolv.conf" "RESOLV"
+	header "WPA-CONF"
+	[ -f /etc/wpa_supplicant.conf ] && sed -E 's/(ssid=")[^"]*"/\1REDACTED"/; s/(psk=")[^"]*"/\1REDACTED"/; s/^(\s*psk=)[0-9a-fA-F]{64}/\1REDACTED/; s/(password=")[^"]*"/\1REDACTED"/' /etc/wpa_supplicant.conf
 	infocat "/etc/cron/crontabs/root" "crontab"
 } >"$output_file"
 

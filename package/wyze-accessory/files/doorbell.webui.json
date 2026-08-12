@@ -1,0 +1,35 @@
+{
+  "name": "doorbell",
+  "label": "Doorbell Chime",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:GPIO pins",
+      "items": [
+        {
+          "label": "Doorbell Chime",
+          "href": "/config-doorbell.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    "/a/doorbell-banner.js"
+  ],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "doorbell": true
+  },
+  "cgi": [
+    "/x/json-config-doorbell.cgi",
+    "/x/json-chime-status.cgi"
+  ],
+  "pages": [
+    "/config-doorbell.html"
+  ]
+}

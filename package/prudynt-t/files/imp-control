@@ -4,6 +4,13 @@
 
 : "${API_URL:=http://127.0.0.1:8080/api/v1/config}"
 
+# Read API key for authentication with prudynt
+API_KEY_FILE="/etc/thingino-api.key"
+API_KEY=""
+if [ -f "$API_KEY_FILE" ]; then
+	API_KEY=$(cat "$API_KEY_FILE" 2>/dev/null | tr -d '\n\r ')
+fi
+
 usage() {
 	cat <<EOF
 Usage: imp-control <command> [value] [extra_args...]
@@ -60,7 +67,16 @@ EOF
 
 send_config() {
 	local json="$1"
-	curl -s -X POST "$API_URL" -H "Content-Type: application/json" -d "$json" >/dev/null 2>&1
+	if [ -n "$API_KEY" ]; then
+		curl -s -X POST "$API_URL" \
+			-H "X-API-Key: $API_KEY" \
+			-H "Content-Type: application/json" \
+			-d "$json" >/dev/null 2>&1
+	else
+		curl -s -X POST "$API_URL" \
+			-H "Content-Type: application/json" \
+			-d "$json" >/dev/null 2>&1
+	fi
 	return $?
 }
 

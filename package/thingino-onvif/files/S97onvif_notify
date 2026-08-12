@@ -10,15 +10,43 @@ start_daemon() {
 	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
 }
 
+daemon_running() {
+	start-stop-daemon -K -t -q -x "$DAEMON" 2>/dev/null
+}
+
+wait_for_exit() {
+	# Wait up to ~10s for every daemon instance to terminate
+	local i=0
+	while daemon_running; do
+		i=$((i + 1))
+		[ "$i" -gt 10 ] && return 1
+		sleep 1
+	done
+	return 0
+}
+
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
 		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		status=$?
-		rm -f "$PIDFILE"
-		return $status
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	# Also signal instances not covered by the pidfile: a stale or clobbered
+	# pidfile otherwise leaves orphans behind, and each later restart then
+	# piles up one more instance.
+	if daemon_running; then
+		start-stop-daemon -K -x "$DAEMON"
+	fi
+
+	# Wait for the daemon to actually exit before removing the pidfile.
+	# Removing it while an old instance is still shutting down (send_notify
+	# can block on an unreachable subscriber) lets a subsequent start spawn
+	# a duplicate: the pidfile is the only duplicate-run guard the daemon
+	# has, and its check/create is not atomic.
+	if ! wait_for_exit; then
+		start-stop-daemon -K -s 9 -x "$DAEMON"
+		wait_for_exit
+	fi
+	rm -f "$PIDFILE"
 }
 
 start() {
@@ -27,6 +55,11 @@ start() {
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
 		echo "Disabled" >&2
 		exit 1
+	fi
+
+	if daemon_running; then
+		echo "Already running" >&2
+		exit 0
 	fi
 
 	[ -d "$MOTION" ] || mkdir -p $MOTION

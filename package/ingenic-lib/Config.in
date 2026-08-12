@@ -9,9 +9,13 @@ config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	bool "libimp.so (core SDK)"
 	depends on !BR2_PACKAGE_OPENIMP
 	default y
+	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30"
 	help
-	  Proprietary Ingenic IMP core library. Used when OpenIMP is not
-	  selected.
+	  Proprietary Ingenic IMP core library. Required by streamers when
+	  OpenIMP is not selected.
+	  The T30 build of the blob (SDK 1.0.5) is the only libimp that
+	  links libstdc++.so.6, so the C++ runtime is kept on target
+	  there; no per-device config is needed.
 
 config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 	bool "libalog.so (proprietary)"
@@ -25,19 +29,22 @@ config BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS
 	bool "libsysutils.so (proprietary)"
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
-	default y
 	help
-	  Ingenic proprietary system utilities library.
-	  Overridden by ingenic-system-libs-neo libsysutils when
-	  selected.
+	  Ingenic proprietary system utilities library (SU_* API).
+	  Select it for software that links the stock blob, such as TIMPS.
+	  Prefer the ingenic-system-libs-neo replacement when available.
 
 config BR2_PACKAGE_INGENIC_LIB_AUDIOPROCESS
 	bool "libaudioProcess.so (proprietary)"
 	depends on !BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	default y
+	select BR2_THINGINO_LIBSTDCPP
 	help
 	  Ingenic proprietary audio processing library.
 	  Overridden by libaudioprocess-neo when selected.
+	  Every family's stock blob links libstdc++.so.6, so selecting
+	  it keeps the C++ runtime on target; the libaudioprocess-neo
+	  replacement needs only libc.
 
 config BR2_PACKAGE_INGENIC_LIB_JZDL
 	bool "JZDL standalone inference (libjzdl.m.so — 609KB)"

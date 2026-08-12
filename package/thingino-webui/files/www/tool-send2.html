@@ -36,17 +36,45 @@
                 <input class="form-check-input me-2" type="checkbox" id="motion_enabled">
                 <label class="form-check-label" for="motion_enabled">Start motion detection on boot</label>
               </p>
-              <p>
-                <label for="motion_sensitivity">Sensitivity: <span id="motion_sensitivity_value"></span></label>
-                <input type="range" class="form-range" id="motion_sensitivity" min="1" max="8" step="1">
+              <p class="row">
+                <label class="col-4" for="motion_sensitivity">Sensitivity: <span id="motion_sensitivity_value"></span></label>
+                <input class="col form-range" type="range" id="motion_sensitivity" min="1" max="8" step="1">
               </p>
-              <p>
-                <label for="motion_cooldown">Cooldown: <span id="motion_cooldown_value"></span> seconds</label>
-                <input type="range" class="form-range" id="motion_cooldown" min="1" max="60" step="1">
+              <p class="row">
+                <label class="col-4" for="motion_cooldown">Cooldown: <span id="motion_cooldown_value"></span> seconds</label>
+                <input class="col form-range" type="range" id="motion_cooldown" min="1" max="60" step="1">
               </p>
-	      <button type="button" class="btn btn-primary" id="save_motion">
-                <i class="bi bi-check-circle"></i> Save Motion Settings
-              </button>
+
+              <h4 class="mb-3">Speaker</h4>
+              <p class="form-switch">
+                <input class="form-check-input me-2" type="checkbox" id="motion_playonspeaker">
+                <label class="form-check-label" for="motion_playonspeaker">Play audio on speaker when motion detected</label>
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="speaker_file">Audio file path</label>
+                <input class="col form-control" type="text" id="speaker_file" placeholder="/usr/share/sounds/chime_1.opus">
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="speaker_volume">Volume: <span id="speaker_volume_value"></span></label>
+                <input class="col form-range" type="range" id="speaker_volume" min="0" max="120" step="1">
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="speaker_gain">Gain: <span id="speaker_gain_value"></span></label>
+                <input class="col form-range" type="range" id="speaker_gain" min="0" max="31" step="1">
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="speaker_loop">Repeat (0 = forever)</label>
+                <input class="col form-control" type="number" id="speaker_loop" min="0" step="1" value="1">
+              </p>
+
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" id="save_all">
+                  <i class="bi bi-check-circle"></i> Save Settings
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="test_speaker" title="Play the configured audio file now">
+                  <i class="bi bi-volume-up"></i> Test
+                </button>
+              </div>
             </div>
           </div>
         </div>
