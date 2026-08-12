@@ -1,0 +1,24 @@
+#!/bin/sh
+# BusyBox httpd CGI for snapshot channel 0
+# Optional query: q=85 for JPEG quality override
+
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
+printf "Content-Type: image/jpeg\r\n"
+printf "Content-Disposition: attachment; filename=ch0-$(date +%s).jpg\r\n"
+printf "Connection: close\r\n"
+printf "\r\n"
+
+Q=""
+case "$QUERY_STRING" in
+	q=*) Q=${QUERY_STRING#q=} ;;
+	*) Q="" ;;
+esac
+
+if [ -n "$Q" ]; then
+	prudyntctl snapshot -c 0 -q "$Q"
+else
+	prudyntctl snapshot -c 0
+fi
