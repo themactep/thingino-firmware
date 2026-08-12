@@ -246,6 +246,69 @@ define TIMPS_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/color \
 			$(TARGET_DIR)/usr/sbin/color; \
 	fi
+
+	$(TIMPS_INSTALL_DAYNIGHT_SCRIPTS)
+endef
+
+# NOTE: board day/night hardware scripts (/usr/sbin/{daynight,ircut,light}).
+# These are thingino's shared userspace hardware drivers - daynight's own
+# header says "called by streamers (prudynt, raptor, daynightd)" - but they
+# physically live in package/thingino-daynightd/files/, and
+# BR2_PACKAGE_THINGINO_DAYNIGHTD is selected by exactly ONE Kconfig symbol:
+# BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT. So on a clean timps image none of
+# them are built or installed, and the whole day/night hook chain dead-ends:
+#
+#   timps daynight thread -> execlp("daynight", "night") -> rc=127
+#
+# Live incident (Garage, T31/SC4336P, 2026-08-12): timps's own detection was
+# working perfectly ("[DAYNIGHT] switching to night (total_gain 3557)") but
+# every switch_cmd invocation failed with rc=127, so the IR-cut filter was
+# never removed and the IR illuminator never lit. The sensor kept ramping
+# total_gain (3500 -> 22000+ over minutes) trying to expose a scene it could
+# not see through the IR-cut filter, and the image went purple/IR-tinted -
+# the same ISP-vs-board desync failure mode as forcing running_mode by hand,
+# reached from the other direction: here NOTHING drove the board hardware.
+#
+# Installing only `daynight` would NOT have fixed it: the script guards every
+# hardware step with command_present, so with ircut/light also absent it would
+# have exited 0 having done nothing but call `color` - an ISP-only flip, i.e.
+# exactly the purple image again, just silently. All three go together.
+#
+# ircut and light are installed UNCONDITIONALLY (not gated on TIMPS_DAYNIGHT):
+# timps's own WebUI bridge files/www/x/json-imp.cgi shells out to both for the
+# control-bar IR-cut / IR-LED buttons, so they are needed on any timps image
+# with the WebUI regardless of who does the day/night detection.
+#
+# S06ircut latches the IR-cut relay to its day position at boot. It matters on
+# a timps image because timps starts in DN_UNKNOWN and ADOPTS the persisted
+# ISP running_mode without re-issuing switch_cmd (see daynight.c's dead-zone
+# adoption note): a camera that shut down at night and boots in daylight would
+# otherwise keep the relay latched open all day with the ISP in colour mode -
+# purple image, and no gain excursion to trigger a corrective switch. It is a
+# one-shot boot-time latch at S06, long before S95timps, so it does not fight
+# timps's detection thread. Gated with the detection thread, since an image
+# using an external photosensing solution should let that solution own it.
+#
+# Installed straight from thingino-daynightd's PKGDIR rather than copied into
+# package/timps/files/: these are plain shell scripts with no build step, so
+# there is a single source of truth and nothing to drift. This is the same
+# pattern TIMPS_INSTALL_SEND2 below already uses to ship prudynt-t's send2*
+# tools without enabling the prudynt-t package, and $(2)_PKGDIR is assigned
+# unconditionally by inner-generic-package (pkg-generic.mk), independent of
+# whether the package is selected. When thingino-daynightd IS selected (a
+# stale =y carried across oldconfig), it installs byte-identical copies of
+# these same files, so the two paths cannot disagree.
+define TIMPS_INSTALL_DAYNIGHT_SCRIPTS
+	$(INSTALL) -D -m 0755 $(THINGINO_DAYNIGHTD_PKGDIR)/files/ircut \
+		$(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(THINGINO_DAYNIGHTD_PKGDIR)/files/light \
+		$(TARGET_DIR)/usr/sbin/light
+	if [ "$(BR2_PACKAGE_TIMPS_DAYNIGHT)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_DAYNIGHTD_PKGDIR)/files/daynight \
+			$(TARGET_DIR)/usr/sbin/daynight; \
+		$(INSTALL) -D -m 0755 $(THINGINO_DAYNIGHTD_PKGDIR)/files/S06ircut \
+			$(TARGET_DIR)/etc/init.d/S06ircut; \
+	fi
 endef
 
 # NOTE: WebUI bridge CGIs. The stock WebUI settings pages POST prudynt-shaped
@@ -398,10 +461,28 @@ TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_PREVIEW
 endif
 
 # NOTE: native day/night. When timps detects day/night itself
-# (BR2_PACKAGE_TIMPS_DAYNIGHT), the standalone daynightd system daemon must
-# never autostart (it would double-switch against timps's own detection
-# thread), so its init script is removed. Done as a finalize hook so it wins
-# regardless of package build order; idempotent, a no-op when absent.
+# (BR2_PACKAGE_TIMPS_DAYNIGHT), none of thingino-daynightd's autostart entry
+# points must run - not just the main daemon (it would double-switch against
+# timps's own detection thread) but also its dusk2dawn scheduler, which drives
+# the same IR-cut/illuminator hardware off a sunrise/sunset clock. Done as a
+# finalize hook so it wins regardless of package build order; idempotent, a
+# no-op when absent.
+#
+# thingino-daynightd can end up selected on a timps image even though only
+# BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT selects it in Config.in, because
+# BR2_PACKAGE_THINGINO_DAYNIGHTD carries no "depends on" of its own and Kconfig
+# happily keeps a previously-set =y across oldconfig - so this cleanup has to
+# keep working.
+#
+# The init script names are matched by GLOB. thingino-daynightd's 2.0.0 rewrite
+# renamed S97daynightd -> S10daynightd and this hook was not updated with it,
+# so for that whole period it removed a file that no longer existed and the
+# daemon would have autostarted anyway on any image that had it. A glob does
+# not silently rot the next time upstream renumbers a runlevel.
+#
+# S06ircut is deliberately NOT removed: it is a one-shot boot-time IR-cut
+# relay latch, not an autostart daemon, and TIMPS_INSTALL_DAYNIGHT_SCRIPTS
+# above installs it on purpose (see the rationale there).
 #
 # The WebUI "Photosensing" page is deliberately KEPT: files/www/a/
 # config-photosensing.js is a timps-native overlay that talks straight to
@@ -416,7 +497,8 @@ endif
 # legacy /x/json-config-daynight.cgi best-effort; absent-CGI is handled in-page.)
 ifeq ($(BR2_PACKAGE_TIMPS_DAYNIGHT),y)
 define TIMPS_DISABLE_DAYNIGHTD
-	rm -f $(TARGET_DIR)/etc/init.d/S97daynightd
+	rm -f $(TARGET_DIR)/etc/init.d/*daynightd \
+		$(TARGET_DIR)/etc/init.d/*dusk2dawn
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_DISABLE_DAYNIGHTD
 endif
