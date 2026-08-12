@@ -10,7 +10,11 @@
   const ispHdrPlatform = $("#isp-hdr-platform");
   const ispHdrSensor = $("#isp-hdr-sensor");
   const ispHdrRes = $("#isp-hdr-res");
-  const ispHdrImg = $("#isp-hdr-img");
+  const ispHdrMode = $("#isp-hdr-mode");
+  const ispHdrSat = $("#isp-hdr-sat");
+  const ispHdrSharp = $("#isp-hdr-sharp");
+  const ispHdrContrast = $("#isp-hdr-contrast");
+  const ispHdrBright = $("#isp-hdr-bright");
   const ispHdrAf = $("#isp-hdr-af");
   const ispHdrOrient = $("#isp-hdr-orient");
   const issuesCard = $("#isp-issues-card");
@@ -256,20 +260,28 @@
     if (ispHdrSensor) ispHdrSensor.textContent = sn.name || "?";
     if (ispHdrRes) ispHdrRes.textContent = (sn.width || "?") + "\u00d7" + (sn.height || "?");
 
+    // Mode badge
+    var mode = data.mode || {};
+    var modeStr = mode.running || "?";
+    if (mode.custom === "Enable") modeStr += " +Custom";
+    if (mode.wdr === "Enable") modeStr += " +WDR";
+    if (ispHdrMode) ispHdrMode.textContent = "Mode: " + modeStr;
+
     // Tuning knobs
-    var imgParts = [];
-    if (img.saturation) imgParts.push("Saturation: " + img.saturation);
-    if (img.sharpness) imgParts.push("Sharpness: " + img.sharpness);
-    if (img.contrast) imgParts.push("Contrast: " + img.contrast);
-    if (img.brightness) imgParts.push("Brightness: " + img.brightness);
-    if (ispHdrImg) ispHdrImg.textContent = imgParts.length ? imgParts.join(" / ") : "";
+    if (ispHdrSat) ispHdrSat.textContent = img.saturation ? "Saturation: " + img.saturation : "";
+    if (ispHdrSharp) ispHdrSharp.textContent = img.sharpness ? "Sharpness: " + img.sharpness : "";
+    if (ispHdrContrast) ispHdrContrast.textContent = img.contrast ? "Contrast: " + img.contrast : "";
+    if (ispHdrBright) ispHdrBright.textContent = img.brightness ? "Brightness: " + img.brightness : "";
 
     // Antiflicker
     var afVal = af.mode || "";
-    if (afVal === "0") afVal = "Antiflicker: Off";
-    else if (afVal === "1") afVal = "Antiflicker: 50Hz";
-    else if (afVal === "2") afVal = "Antiflicker: 60Hz";
-    else if (afVal && afVal !== "Disable") afVal = "AF:" + afVal;
+    if (afVal === "0") afVal = "Off";
+    else if (afVal === "1") afVal = "50 Hz";
+    else if (afVal === "2") afVal = "60 Hz";
+    else if (afVal === "50") afVal = "50 Hz";
+    else if (afVal === "60") afVal = "60 Hz";
+    else if (afVal && afVal !== "Disable") afVal = afVal + " Hz";
+    if (afVal) afVal = "Antiflicker: " + afVal;
     if (ispHdrAf) ispHdrAf.textContent = afVal || "";
 
     // Mirror/Flip
@@ -284,18 +296,13 @@
     var fpsStatus = fps >= 20 ? "ok" : fps >= 10 ? "warn" : "crit";
     cards.push(statCard("FPS", fps.toFixed(1), "", fpsStatus, "Target frame rate. Below 15 may indicate sensor bottleneck."));
 
-    // Mode
-    var mode = data.mode || {};
-    var modeStr = mode.running || "?";
-    if (mode.custom === "Enable") modeStr += " +Custom";
-    if (mode.wdr === "Enable") modeStr += " +WDR";
-    cards.push(statCard("Mode", modeStr, "", "info"));
-
     // Integration time
     var intT = data.exposure.int_time || "0";
-    var intMax = data.exposure.int_time_max || "0";
-    var intStatus = (parseInt(intMax, 10) > 0 && parseInt(intT, 10) >= parseInt(intMax, 10)) ? "warn" : "ok";
-    cards.push(statCard("Integration Time", intT + " / " + intMax, "lines", intStatus,
+    var intMax = data.exposure.int_time_max || "";
+    var intMaxNum = parseInt(intMax, 10);
+    var intStatus = (intMaxNum > 0 && parseInt(intT, 10) >= intMaxNum) ? "warn" : "ok";
+    var intDisplay = intMaxNum > 0 ? intT + " / " + intMax : intT;
+    cards.push(statCard("Integration Time", intDisplay, "lines", intStatus,
       "At max = sensor at FPS floor. Normal at night."));
 
     // Analog gain

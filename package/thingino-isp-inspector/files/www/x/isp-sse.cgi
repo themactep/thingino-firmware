@@ -39,12 +39,8 @@ getval() {
 	sed -n "s/^$1[[:space:]]*:[[:space:]]*//p" "$2" | head -1
 }
 
-# Determine platform
-platform="unknown"
-case "$ISP_FILE" in
-	*isp-m0) platform="t31" ;;
-	*isp_info) platform="t10" ;;
-esac
+# Determine platform from soc command for accurate model
+platform=$(soc -f 2>/dev/null || echo "unknown")
 
 # Main SSE loop
 while true; do
@@ -73,6 +69,8 @@ while true; do
 
 		int_time=$(getval "SENSOR Integration Time" "$f" | sed 's/ lines$//')
 		int_time_max=$(getval "SENSOR Max Integration Time" "$f" | sed 's/ lines$//')
+		# T10/T20: no max integration time field
+		: "${int_time_max:=}"
 		again=$(getval "SENSOR analog gain" "$f")
 		again_max=$(getval "MAX SENSOR analog gain" "$f")
 		dgain=$(getval "ISP digital gain" "$f")
@@ -84,10 +82,27 @@ while true; do
 		ev_us=$(getval "ISP EV value us" "$f")
 		ev_min_int=$(getval "ISP EV min int" "$f")
 		ev_min_again=$(getval "ISP EV min again" "$f")
+		# T10/T20 fallbacks for EV fields
+		if [ -z "$ev_val" ]; then
+			ev_val=$(getval "ISP total gain" "$f")
+		fi
+		if [ -z "$ev_log2" ]; then
+			ev_log2=$(getval "ISP exposure log2 id" "$f")
+		fi
 
 		wb_rgain=$(getval "ISP WB weighted rgain" "$f")
 		wb_bgain=$(getval "ISP WB weighted bgain" "$f")
 		wb_ct=$(getval "ISP WB color temperature" "$f")
+		# T10/T20 fallbacks for WB fields
+		if [ -z "$wb_rgain" ]; then
+			wb_rgain=$(getval "ISP WB rg" "$f")
+		fi
+		if [ -z "$wb_bgain" ]; then
+			wb_bgain=$(getval "ISP WB bg" "$f")
+		fi
+		if [ -z "$wb_ct" ]; then
+			wb_ct=$(getval "ISP WB Temperature" "$f")
+		fi
 		awb_start=$(getval "ISP AWB Start" "$f")
 
 		sat=$(getval "Saturation" "$f")

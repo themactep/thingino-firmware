@@ -51,6 +51,8 @@ wdr_mode=$(getval "ISP WDR Mode")
 
 int_time=$(getval "SENSOR Integration Time" | sed 's/ lines$//')
 int_time_max=$(getval "SENSOR Max Integration Time" | sed 's/ lines$//')
+# T10/T20: no max integration time field
+: "${int_time_max:=}"
 again=$(getval "SENSOR analog gain")
 again_max=$(getval "MAX SENSOR analog gain")
 dgain=$(getval "ISP digital gain")
@@ -62,10 +64,27 @@ ev_log2=$(getval "ISP EV value log2")
 ev_us=$(getval "ISP EV value us")
 ev_min_int=$(getval "ISP EV min int")
 ev_min_again=$(getval "ISP EV min again")
+# T10/T20 fallbacks for EV fields
+if [ -z "$ev_val" ]; then
+	ev_val=$(getval "ISP total gain")
+fi
+if [ -z "$ev_log2" ]; then
+	ev_log2=$(getval "ISP exposure log2 id")
+fi
 
 wb_rgain=$(getval "ISP WB weighted rgain")
 wb_bgain=$(getval "ISP WB weighted bgain")
 wb_ct=$(getval "ISP WB color temperature")
+# T10/T20 fallbacks for WB fields
+if [ -z "$wb_rgain" ]; then
+	wb_rgain=$(getval "ISP WB rg")
+fi
+if [ -z "$wb_bgain" ]; then
+	wb_bgain=$(getval "ISP WB bg")
+fi
+if [ -z "$wb_ct" ]; then
+	wb_ct=$(getval "ISP WB Temperature")
+fi
 awb_start=$(getval "ISP AWB Start")
 
 saturation=$(getval "Saturation")
@@ -111,11 +130,11 @@ defect_pixel=$(getval "ISP Defect pixel")
 sharp_dir=$(getval "ISP sharpening directional")
 sharp_undir=$(getval "ISP sharpening undirectional")
 
-# Derive platform from which file we read
-platform="unknown"
+# Derive platform from soc command for accurate model
+platform=$(soc -f 2>/dev/null || echo "unknown")
 case "$ISP_FILE" in
-	*isp-m0) platform="t31" ;;
-	*isp_info) platform="t10" ;;
+	*isp-m0) : ;;   # T31+
+	*isp_info) : ;; # T10/T20
 esac
 
 printf '{'
