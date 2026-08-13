@@ -1,0 +1,371 @@
+diff --git a/arch/mips/lib/board.c b/arch/mips/lib/board.c
+index 6038bf0..91bd740 100644
+--- a/arch/mips/lib/board.c
++++ b/arch/mips/lib/board.c
+@@ -17,8 +17,8 @@
+ #include <spi_flash.h>
+ #include <mmc.h>
+ 
+-#define BOOT_SCRIPT "fatload mmc 0 ${baseaddr} boot.scr"
+-#define ENV_FILE "fatload mmc 0 ${baseaddr} uEnv.txt"
++#define BOOT_SCRIPT "fatload mmc 0 ${loadaddr} boot.scr"
++#define ENV_FILE "fatload mmc 0 ${loadaddr} uEnv.txt"
+ 
+ extern int debug_socinfo;
+ extern int do_socinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
+@@ -408,16 +408,16 @@ extern void board_usb_init(void);
+ 		#endif
+ 
+ 		printf("MMC:   Checking for boot/env files...\n");
+-		if (!run_command("fatload mmc 0 ${baseaddr} boot.scr", 0)) {
++		if (!run_command("fatload mmc 0 ${loadaddr} boot.scr", 0)) {
+ 			printf("MMC:   Loading boot.scr\n");
+ 			run_command(BOOT_SCRIPT, 0);
+-			run_command("source ${baseaddr}", 0);
++			run_command("source ${loadaddr}", 0);
+ 		}
+ 
+-		if (!run_command("fatload mmc 0 ${baseaddr} uEnv.txt", 0)) {
++		if (!run_command("fatload mmc 0 ${loadaddr} uEnv.txt", 0)) {
+ 			printf("MMC:   Loading uEnv.txt\n");
+ 			run_command(ENV_FILE, 0);
+-			run_command("env import -t -r ${baseaddr} ${filesize};setenv filesize;saveenv;", 0);
++			run_command("env import -t -r ${loadaddr} ${filesize};setenv filesize;saveenv;", 0);
+ 		}
+ 
+ 		if (autoupdate_status == 3) {
+diff --git a/common/cmd_sdstart.c b/common/cmd_sdstart.c
+index a116e4e..2190b22 100644
+--- a/common/cmd_sdstart.c
++++ b/common/cmd_sdstart.c
+@@ -231,15 +231,15 @@ static void configure_boot_environment(void) {
+ 
+ // Main function when the "sdstart" command is run in U-Boot
+ int sdstart(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[]) {
+-	// Fetch 'baseaddr' from the U-Boot environment
+-	const char *baseaddr_str = getenv("baseaddr");
+-	if (!baseaddr_str) {
+-		printf("MMC:   Error: 'baseaddr' not found in the environment.\n");
++	// Fetch 'loadaddr' from the U-Boot environment
++	const char *loadaddr_str = getenv("loadaddr");
++	if (!loadaddr_str) {
++		printf("MMC:   Error: 'loadaddr' not found in the environment.\n");
+ 		return -1;
+ 	}
+ 
+ 	// Convert string to pointer (address)
+-	LOAD_ADDR = (unsigned char *)simple_strtoul(baseaddr_str, NULL, 16);
++	LOAD_ADDR = (unsigned char *)simple_strtoul(loadaddr_str, NULL, 16);
+ 
+ 	/* Lets disable this for now, if we are running, assume it's valid already
+ 	// Validate the SD card
+diff --git a/common/cmd_sdupdate.c b/common/cmd_sdupdate.c
+index 0b755a6..49f42e9 100644
+--- a/common/cmd_sdupdate.c
++++ b/common/cmd_sdupdate.c
+@@ -18,8 +18,8 @@ static int check_env_vars(void)
+ 		printf("SDU:   Error: Environment variable 'flash_len' not set\n");
+ 		return -1;
+ 	}
+-	if (!getenv("baseaddr")) {
+-		printf("SDU:   Error: Environment variable 'baseaddr' not set\n");
++	if (!getenv("loadaddr")) {
++		printf("SDU:   Error: Environment variable 'loadaddr' not set\n");
+ 		return -1;
+ 	}
+ 	return 0;
+@@ -29,10 +29,10 @@ static int do_flash_uboot(void)
+ {
+ 	char cmd[128];
+ 	int ret;
+-	const char *baseaddr = getenv("baseaddr");
++	const char *loadaddr = getenv("loadaddr");
+ 
+ 	printf("SDU:   Checking for u-boot update flag file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s autoupdate-uboot.done 1", baseaddr);
++	sprintf(cmd, "fatload mmc 0:1 %s autoupdate-uboot.done 1", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	if (run_command(cmd, 0) == 0) {
+ 		printf("SDU:   Flag file autoupdate-uboot.done exists, skipping uboot update\n");
+@@ -40,7 +40,7 @@ static int do_flash_uboot(void)
+ 	}
+ 
+ 	printf("SDU:   Checking for u-boot update file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s %s 1", baseaddr, AU_UBOOT);
++	sprintf(cmd, "fatload mmc 0:1 %s %s 1", loadaddr, AU_UBOOT);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -49,7 +49,7 @@ static int do_flash_uboot(void)
+ 	}
+ 
+ 	printf("SDU:   Loading u-boot update file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s %s", baseaddr, AU_UBOOT);
++	sprintf(cmd, "fatload mmc 0:1 %s %s", loadaddr, AU_UBOOT);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -67,7 +67,7 @@ static int do_flash_uboot(void)
+ 	}
+ 
+ 	printf("SDU:   Writing new u-boot to flash...\n");
+-	sprintf(cmd, "sf write %s 0x0 ${filesize}", baseaddr);
++	sprintf(cmd, "sf write %s 0x0 ${filesize}", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -76,7 +76,7 @@ static int do_flash_uboot(void)
+ 	}
+ 
+ 	printf("SDU:   Creating u-boot update flag file...\n");
+-	sprintf(cmd, "fatwrite mmc 0:1 %s autoupdate-uboot.done 1", baseaddr);
++	sprintf(cmd, "fatwrite mmc 0:1 %s autoupdate-uboot.done 1", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	if (run_command(cmd, 0) != 0) {
+ 		printf("SDU:   Warning: Failed to create u-boot .done flag file\n");
+@@ -90,7 +90,7 @@ static int do_flash_full(void)
+ {
+ 	char cmd[128];
+ 	int ret;
+-	const char *baseaddr = getenv("baseaddr");
++	const char *loadaddr = getenv("loadaddr");
+ 	const char *flash_len = getenv("flash_len");
+ 	unsigned long flash_size;
+ 
+@@ -98,7 +98,7 @@ static int do_flash_full(void)
+ 	flash_size = simple_strtoul(flash_len, NULL, 16);
+ 
+ 	printf("SDU:   Checking for full update flag file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s autoupdate-full.done 1", baseaddr);
++	sprintf(cmd, "fatload mmc 0:1 %s autoupdate-full.done 1", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	if (run_command(cmd, 0) == 0) {
+ 		printf("SDU:   Flag file autoupdate-full.done exists, skipping full update\n");
+@@ -106,7 +106,7 @@ static int do_flash_full(void)
+ 	}
+ 
+ 	printf("SDU:   Checking for full update file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s %s 1", baseaddr, AU_FW);
++	sprintf(cmd, "fatload mmc 0:1 %s %s 1", loadaddr, AU_FW);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -115,7 +115,7 @@ static int do_flash_full(void)
+ 	}
+ 
+ 	printf("SDU:   Loading full update file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s %s", baseaddr, AU_FW);
++	sprintf(cmd, "fatload mmc 0:1 %s %s", loadaddr, AU_FW);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -133,7 +133,7 @@ static int do_flash_full(void)
+ 	}
+ 
+ 	printf("SDU:   Writing full image to flash...\n");
+-	sprintf(cmd, "sf write %s 0x0 ${filesize}", baseaddr);
++	sprintf(cmd, "sf write %s 0x0 ${filesize}", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -142,7 +142,7 @@ static int do_flash_full(void)
+ 	}
+ 
+ 	printf("SDU:   Creating full update flag file...\n");
+-	sprintf(cmd, "fatwrite mmc 0:1 %s autoupdate-full.done 1", baseaddr);
++	sprintf(cmd, "fatwrite mmc 0:1 %s autoupdate-full.done 1", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	if (run_command(cmd, 0) != 0) {
+ 		printf("SDU:   Warning: Failed to create full update flag file\n");
+@@ -157,7 +157,7 @@ static int do_flash_custom(const char *filename)
+ {
+ 	char cmd[128];
+ 	int ret;
+-	const char *baseaddr = getenv("baseaddr");
++	const char *loadaddr = getenv("loadaddr");
+ 	const char *flash_len = getenv("flash_len");
+ 	unsigned long flash_size;
+ 
+@@ -165,7 +165,7 @@ static int do_flash_custom(const char *filename)
+ 	flash_size = simple_strtoul(flash_len, NULL, 16);
+ 
+ 	printf("SDU:   Checking for custom update file %s...\n", filename);
+-	sprintf(cmd, "fatload mmc 0:1 %s %s 1", baseaddr, filename);
++	sprintf(cmd, "fatload mmc 0:1 %s %s 1", loadaddr, filename);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -174,7 +174,7 @@ static int do_flash_custom(const char *filename)
+ 	}
+ 
+ 	printf("SDU:   Loading custom update file...\n");
+-	sprintf(cmd, "fatload mmc 0:1 %s %s", baseaddr, filename);
++	sprintf(cmd, "fatload mmc 0:1 %s %s", loadaddr, filename);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+@@ -192,7 +192,7 @@ static int do_flash_custom(const char *filename)
+ 	}
+ 
+ 	printf("SDU:   Writing image to flash...\n");
+-	sprintf(cmd, "sf write %s 0x0 ${filesize}", baseaddr);
++	sprintf(cmd, "sf write %s 0x0 ${filesize}", loadaddr);
+ 	debug("SDU:   Running command: %s\n", cmd);
+ 	ret = run_command(cmd, 0);
+ 	if (ret != 0) {
+diff --git a/common/cmd_sq.c b/common/cmd_sq.c
+index a2982d7..c460ac7 100644
+--- a/common/cmd_sq.c
++++ b/common/cmd_sq.c
+@@ -30,9 +30,9 @@ uint32_t update_kernel_address_nor_noapi(void)
+ 	int ret;
+ 	char read_cmd[128];
+ 
+-	sprintf(read_cmd, "sf read ${baseaddr} 0x%X 0x%X", KERNEL_FLASH_OFFSET, KERNEL_READ_SIZE);
++	sprintf(read_cmd, "sf read ${loadaddr} 0x%X 0x%X", KERNEL_FLASH_OFFSET, KERNEL_READ_SIZE);
+ 
+-	const char *baseaddr_str;
++	const char *loadaddr_str;
+ 	unsigned long base_addr;
+ 	char *buf;
+ 	int offset_found;
+@@ -45,13 +45,13 @@ uint32_t update_kernel_address_nor_noapi(void)
+ 		return 0;
+ 	}
+ 
+-	/* Retrieve the RAM base address from the environment variable "baseaddr" */
+-	baseaddr_str = getenv("baseaddr");
+-	if (!baseaddr_str) {
+-		printf("SQ:    Error: Environment variable 'baseaddr' not set.\n");
++	/* Retrieve the RAM base address from the environment variable "loadaddr" */
++	loadaddr_str = getenv("loadaddr");
++	if (!loadaddr_str) {
++		printf("SQ:    Error: Environment variable 'loadaddr' not set.\n");
+ 		return 0;
+ 	}
+-	base_addr = simple_strtoul(baseaddr_str, NULL, 16);
++	base_addr = simple_strtoul(loadaddr_str, NULL, 16);
+ 	buf = (char *)base_addr;
+ 
+ 	/* Search through the loaded block for the kernel magic value */
+@@ -77,7 +77,7 @@ uint32_t update_rootfs_address_nor_noapi(void)
+ {
+ 	int ret;
+ 	char read_cmd[128];
+-	const char *baseaddr_str;
++	const char *loadaddr_str;
+ 	unsigned long base_addr;
+ 	char *buf;
+ 	int offset_found;
+@@ -93,7 +93,7 @@ uint32_t update_rootfs_address_nor_noapi(void)
+ 	kernel_flash_addr = simple_strtoul(kern_addr_str, NULL, 16);
+ 
+ 	/* Kernel will not be smaller than 1.2mb, so start search there... */
+-	sprintf(read_cmd, "sf read ${baseaddr} 0x%X 0x%X", (unsigned int)(kernel_flash_addr + ROOTFS_READ_OFFSET), ROOTFS_READ_SIZE);
++	sprintf(read_cmd, "sf read ${loadaddr} 0x%X 0x%X", (unsigned int)(kernel_flash_addr + ROOTFS_READ_OFFSET), ROOTFS_READ_SIZE);
+ 
+ 	/* Execute the flash read command to load the block into RAM */
+ 	ret = run_command(read_cmd, 0);
+@@ -102,13 +102,13 @@ uint32_t update_rootfs_address_nor_noapi(void)
+ 		return 0;
+ 	}
+ 
+-	/* Retrieve the RAM base address from the environment variable "baseaddr" */
+-	baseaddr_str = getenv("baseaddr");
+-	if (!baseaddr_str) {
+-		printf("SQ:    Error: Environment variable 'baseaddr' not set.\n");
++	/* Retrieve the RAM base address from the environment variable "loadaddr" */
++	loadaddr_str = getenv("loadaddr");
++	if (!loadaddr_str) {
++		printf("SQ:    Error: Environment variable 'loadaddr' not set.\n");
+ 		return 0;
+ 	}
+-	base_addr = simple_strtoul(baseaddr_str, NULL, 16);
++	base_addr = simple_strtoul(loadaddr_str, NULL, 16);
+ 	buf = (char *)base_addr;
+ 
+ 	/* Search through the loaded block for the rootfs magic value */
+@@ -133,9 +133,9 @@ uint32_t update_rootfs_address_nor_noapi(void)
+ uint64_t compute_rootfs_partition_size_nor_noapi(void)
+ {
+ 	int ret;
+-	const char *read_cmd = "sf read ${baseaddr} ${rootfs_addr} 64";
++	const char *read_cmd = "sf read ${loadaddr} ${rootfs_addr} 64";
+ 	uint64_t bytes_used, aligned_bytes_used;
+-	const char *baseaddr_str;
++	const char *loadaddr_str;
+ 	unsigned long base_addr;
+ 	char *header;
+ 	uint32_t bytes_used_low, bytes_used_high;
+@@ -148,13 +148,13 @@ uint64_t compute_rootfs_partition_size_nor_noapi(void)
+ 		return 0;
+ 	}
+ 
+-	/* Retrieve the RAM base address from the environment variable "baseaddr" */
+-	baseaddr_str = getenv("baseaddr");
+-	if (!baseaddr_str) {
+-		printf("SQ:    Error: Environment variable 'baseaddr' not set.\n");
++	/* Retrieve the RAM base address from the environment variable "loadaddr" */
++	loadaddr_str = getenv("loadaddr");
++	if (!loadaddr_str) {
++		printf("SQ:    Error: Environment variable 'loadaddr' not set.\n");
+ 		return 0;
+ 	}
+-	base_addr = simple_strtoul(baseaddr_str, NULL, 16);
++	base_addr = simple_strtoul(loadaddr_str, NULL, 16);
+ 	header = (char *)base_addr;
+ 
+ 	/* Extract the 32-bit low part from the header at offset SQUASHFS_BYTES_USED_OFFSET */
+diff --git a/include/configs/isvp_common.h b/include/configs/isvp_common.h
+index f2a93f2..546b6c1 100644
+--- a/include/configs/isvp_common.h
++++ b/include/configs/isvp_common.h
+@@ -878,23 +878,23 @@
+ #if defined(CONFIG_SPL_MMC_SUPPORT)
+ #define CONFIG_BOOTCOMMAND \
+ "setenv setargs setenv bootargs ${bootargs};run setargs;" \
+-"mmc rescan;fatload mmc 0:1 ${baseaddr} uImage;" \
+-"bootm ${baseaddr};"
++"mmc rescan;fatload mmc 0:1 ${loadaddr} uImage;" \
++"bootm ${loadaddr};"
+ #elif defined(CONFIG_SFC_NOR)
+ #define CONFIG_BOOTCOMMAND \
+ "sf probe;sq probe;setenv setargs setenv bootargs ${bootargs};run setargs;" \
+-"sf read ${baseaddr} \\${kern_addr} \\${kern_len};" \
+-"bootm ${baseaddr};"
++"sf read ${loadaddr} \\${kern_addr} \\${kern_len};" \
++"bootm ${loadaddr};"
+ #elif defined(CONFIG_SFC_NAND)
+ #define CONFIG_BOOTCOMMAND \
+ "sf probe;sq probe;setenv setargs setenv bootargs ${bootargs};run setargs;" \
+-"sfcnand read \\${kern_addr} \\${kern_len} ${baseaddr};" \
+-"bootm ${baseaddr};"
++"sfcnand read \\${kern_addr} \\${kern_len} ${loadaddr};" \
++"bootm ${loadaddr};"
+ #else
+ #define CONFIG_BOOTCOMMAND \
+ "sf probe;sq probe;setenv setargs setenv bootargs ${bootargs};run setargs;" \
+-"sf read ${baseaddr} 0x50000 0x250000;" \
+-"bootm ${baseaddr};"
++"sf read ${loadaddr} 0x50000 0x250000;" \
++"bootm ${loadaddr};"
+ #endif
+ 
+ #if defined(CONFIG_SPL_MMC_SUPPORT)
+@@ -910,7 +910,7 @@ ROOTFS_CONFIG \
+ " mtdparts=jz_sfc:256k(boot),32k(env),\\${kern_size}(kernel),\\${rootfs_size}(rootfs),-(rootfs_data)\\${update}"
+ 
+ #define CONFIG_EXTRA_ENV_SETTINGS \
+-"baseaddr=0x80600000\0" \
++"loadaddr=0x80600000\0" \
+ "panic_timeout=10\0" \
+ "serialport=ttyS1\0" \
+ "disable_eth=false\0" \
+@@ -935,7 +935,6 @@ CONFIG_GPIO_IRCUT_SETTINGS
+ #endif
+ 
+ #define CONFIG_EXTRA_ENV_SETTINGS \
+-"baseaddr=0x80600000\0" \
+ "panic_timeout=10\0" \
+ "serialport=ttyS1\0" \
+ "boot_complete=false\0" \
