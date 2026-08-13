@@ -1,7 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2039
-# Day/night control — writes to /etc/thingino.json (daynightd's config)
-# and notifies daynightd via SIGHUP on changes.
+# Day/night control. With daynightd (prudynt images) this writes to
+# /etc/thingino.json and notifies daynightd via SIGHUP; with Raptor
+# the ric daemon owns day/night, so commands go through the raptor
+# wrapper scripts and no config write or reload is needed.
 
 . /var/www/x/auth.sh
 require_auth
@@ -49,6 +51,15 @@ daynightd_reload() {
 	fi
 }
 
+# Raptor images have raptorctl and ric applies mode changes
+# immediately, so those branches skip the daynightd config keys and
+# the reload. daynightd can be selected on raptor images too (it
+# replaces ric as the day/night engine), so its presence wins.
+is_raptor() {
+	command -v raptorctl >/dev/null 2>&1 &&
+		! command -v daynightd >/dev/null 2>&1
+}
+
 CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
 
 # Read POST data
@@ -64,40 +75,67 @@ case "$cmd" in
 	auto)
 		case "$val" in
 			1 | true | on)
-				# Enable photosensing, clear force mode
-				jct "$CONFIG" set daynight.enabled true >/dev/null 2>&1
-				jct "$CONFIG" set daynight.force_mode "" >/dev/null 2>&1
-				daynightd_reload
+				if is_raptor; then
+					/usr/sbin/daynight auto >/dev/null 2>&1
+				else
+					# Enable photosensing, clear force mode
+					jct "$CONFIG" set daynight.enabled true >/dev/null 2>&1
+					jct "$CONFIG" set daynight.force_mode "" >/dev/null 2>&1
+					daynightd_reload
+				fi
 				;;
 			0 | false | off)
-				# Disable photosensing, force day mode
-				jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
-				jct "$CONFIG" set daynight.force_mode day >/dev/null 2>&1
-				daynightd_reload
+				if is_raptor; then
+					/usr/sbin/daynight day >/dev/null 2>&1
+				else
+					# Disable photosensing, force day mode
+					jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
+					jct "$CONFIG" set daynight.force_mode day >/dev/null 2>&1
+					daynightd_reload
+				fi
 				;;
 		esac
 		;;
 	color)
-		# Direct ISP color mode toggle — prudynt still handles this
-		echo "{\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
+		# Direct ISP color mode toggle
+		if command -v prudyntctl >/dev/null 2>&1; then
+			echo "{\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
+		elif command -v color >/dev/null 2>&1; then
+			color "$val" >/dev/null 2>&1
+		fi
 		;;
 	daynight)
-		# Direct day/night force — disable photosensing, set mode
-		jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
-		jct "$CONFIG" set daynight.force_mode "$val" >/dev/null 2>&1
-		/sbin/daynight "$val" >/dev/null 2>&1
-		daynightd_reload
+		# Direct day/night force — disables photosensing
+		if is_raptor; then
+			# ric mode day/night is itself the force
+			/usr/sbin/daynight "$val" >/dev/null 2>&1
+		else
+			jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
+			jct "$CONFIG" set daynight.force_mode "$val" >/dev/null 2>&1
+			/sbin/daynight "$val" >/dev/null 2>&1
+			daynightd_reload
+		fi
 		;;
 	ir850 | ir940 | white)
-		jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
-		jct "$CONFIG" set daynight.force_mode night >/dev/null 2>&1
-		daynightd_reload
-		light $cmd $val
+		if is_raptor; then
+			# Manual light control; transient under ric auto (the
+			# next transition reasserts the mode)
+			light $cmd $val
+		else
+			jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
+			jct "$CONFIG" set daynight.force_mode night >/dev/null 2>&1
+			daynightd_reload
+			light $cmd $val
+		fi
 		;;
 	ircut)
-		jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
-		ircut $val >/dev/null
-		daynightd_reload
+		if is_raptor; then
+			ircut $val >/dev/null
+		else
+			jct "$CONFIG" set daynight.enabled false >/dev/null 2>&1
+			ircut $val >/dev/null
+			daynightd_reload
+		fi
 		;;
 esac
 

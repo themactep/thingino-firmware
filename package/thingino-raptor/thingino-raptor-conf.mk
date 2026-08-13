@@ -290,6 +290,11 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset recording sei_timecode "$(call raptor_bval,RECORDING_SEI_TIMECODE)"; \
 	rset recording sign "$(call raptor_bval,RECORDING_SIGN)"; \
 	rset recording sign_key "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RECORDING_SIGN_KEY))"; \
+	rset timelapse enabled "$(call raptor_bval,TIMELAPSE_ENABLED)"; \
+	rset timelapse interval "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_TIMELAPSE_INTERVAL))"; \
+	rset timelapse playback_fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_TIMELAPSE_PLAYBACK_FPS))"; \
+	rset timelapse file_frames "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_TIMELAPSE_FILE_FRAMES))"; \
+	rset timelapse max_mb "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_TIMELAPSE_MAX_MB))"; \
 	\
 	rset webrtc enabled "$(call raptor_bval,WEBRTC_ENABLED)"; \
 	rset webrtc udp_port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_UDP_PORT))"; \

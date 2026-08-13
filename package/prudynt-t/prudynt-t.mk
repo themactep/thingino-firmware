@@ -2,15 +2,21 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = d5336b3d77f5c20e2c7add9b5aa2c0c435cd91e0
+PRUDYNT_T_VERSION = 6afc4400c54a4739feeb72ac884587409577a2af
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+PRUDYNT_T_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+PRUDYNT_T_DEPENDENCIES += ingenic-system-libs-neo
+endif
 ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
-	PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
+PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
@@ -328,6 +334,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2telegram
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2webhook \
 		$(TARGET_DIR)/usr/sbin/send2webhook
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/playonspeaker \
+		$(TARGET_DIR)/usr/sbin/playonspeaker
 
 	# scripts (audio)
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/microphone \

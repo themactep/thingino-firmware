@@ -63,6 +63,12 @@ config BR2_PACKAGE_THINGINO_RAPTOR_ROD
 config BR2_PACKAGE_THINGINO_RAPTOR_RIC
 	bool "RIC (IR-cut controller)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+	depends on !BR2_PACKAGE_THINGINO_DAYNIGHTD
+	help
+	  Raptor's own day/night controller. Mutually exclusive with
+	  thingino-daynightd: both would drive the same IR-CUT and LED
+	  pins and ship the same wrapper scripts. Select daynightd to
+	  use it as the day/night engine instead; RIC is then disabled.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RMR
 	bool "RMR (fMP4 recording)"

@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.8.1
+TIMPS_VERSION = v1.8.4
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -55,6 +55,15 @@ endif
 TIMPS_GIT_SUBMODULES = YES
 
 TIMPS_DEPENDENCIES = ingenic-lib
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+TIMPS_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+TIMPS_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+TIMPS_DEPENDENCIES += libaudioprocess-neo
+endif
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	TIMPS_DEPENDENCIES += ingenic-musl
 endif
