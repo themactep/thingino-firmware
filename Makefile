@@ -304,7 +304,7 @@ FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
 FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
-# fixed size partitions
+# partition sizing
 U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
@@ -326,7 +326,7 @@ GENERIC_FIRMWARE_BIN_FULL := $(GENERIC_OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 UB_ENV_BIN_SIZE = $(shell stat -c%s $(UB_ENV_BIN))
-KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
+KERNEL_BIN_SIZE = $(shell if [ -f "$(KERNEL_BIN)" ]; then stat -c%s "$(KERNEL_BIN)"; else echo 0; fi)
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 DATA_BIN_SIZE = $(shell stat -c%s $(DATA_BIN))
 
@@ -338,17 +338,21 @@ KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) + $(ALIGN_BLOCK) 
 ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
-# fixed size partitions
+# Convert configured and image-derived sizes to byte-aligned partitions.
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
-KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
+# Keep the established 1600 KiB floor for small kernels, but grow the
+# partition to fit the actual image. Kernel and rootfs sizes vary by SoC and
+# kernel branch, so a single fixed kernel size cannot be universal.
+KERNEL_PARTITION_MIN_SIZE := 1638400
+KERNEL_PARTITION_SIZE = $(shell if [ $(KERNEL_BIN_SIZE_ALIGNED) -gt $(KERNEL_PARTITION_MIN_SIZE) ]; then echo $(KERNEL_BIN_SIZE_ALIGNED); else echo $(KERNEL_PARTITION_MIN_SIZE); fi)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
+DATA_PARTITION_MIN_SIZE := 327680  # five 64 KiB JFFS2 erase blocks
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE
 export BACKUP_PARTITION_SIZE
-export KERNEL_PARTITION_SIZE
 export ALIGN_BLOCK
 
 # Partition sizes in KB for mtdparts
@@ -387,13 +391,14 @@ export FLASH_SIZE_MB
 export U_BOOT_SIZE_KB
 export UB_ENV_SIZE_KB
 export BACKUP_SIZE_KB
-export KERNEL_SIZE_KB
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
 	O=$(OUTPUT_DIR) \
-	BR2_DL_DIR=$(BR2_DL_DIR)
+	BR2_DL_DIR=$(BR2_DL_DIR) \
+	KERNEL_PARTITION_SIZE=$(KERNEL_PARTITION_SIZE) \
+	KERNEL_SIZE_KB=$(KERNEL_SIZE_KB)
 
 define thingino_run_build
 	@if [ -n "$(THINGINO_LOG_FILE)" ]; then \
@@ -801,7 +806,7 @@ else
 		$(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) \
 		$(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) \
 		$(BACKUP_OFFSET) $(BACKUP_PARTITION_SIZE) 0 0 \
-		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) \
+		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_BIN_SIZE_ALIGNED) \
 		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
 		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
 		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(BACKUP_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
@@ -810,11 +815,11 @@ else
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
 	@echo ""
-	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
-	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
-	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
-	@if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "ERROR: KERNEL PARTITION OVERFLOW"; exit 1; fi
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ERROR: ROOTFS PARTITION OVERFLOW"; exit 1; fi
+	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "ERROR: DATA PARTITION OVERFLOW"; exit 1; fi
+	@if [ $(DATA_PARTITION_SIZE) -lt $(DATA_PARTITION_MIN_SIZE) ]; then $(RED) "ERROR: DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; exit 1; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "ERROR: FIRMWARE IMAGE EXCEEDS FLASH"; exit 1; fi
 	@echo "Image: $(FIRMWARE_BIN_FULL)"
 endif
 # Per-build size and composition report, written to
@@ -1145,6 +1150,22 @@ else
 # SFC (SPI flash) firmware image
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(DATA_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 	@$(TEAL) "$@"
+	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
+		$(RED) "ERROR: kernel image ($(KERNEL_BIN_SIZE) bytes) exceeds its partition ($(KERNEL_PARTITION_SIZE) bytes)"; \
+		exit 1; \
+	fi
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then \
+		$(RED) "ERROR: rootfs image ($(ROOTFS_BIN_SIZE) bytes) exceeds its partition ($(ROOTFS_PARTITION_SIZE) bytes)"; \
+		exit 1; \
+	fi
+	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \
+		$(RED) "ERROR: data image ($(DATA_BIN_SIZE) bytes) exceeds its partition ($(DATA_PARTITION_SIZE) bytes)"; \
+		exit 1; \
+	fi
+	@if [ $$(( $(DATA_OFFSET) + $(DATA_BIN_SIZE) )) -gt $(FLASH_SIZE) ]; then \
+		$(RED) "ERROR: partition contents exceed flash size ($(FLASH_SIZE) bytes)"; \
+		exit 1; \
+	fi
 	# create a blank slab
 	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
 	# add bootloader partition
@@ -1168,6 +1189,18 @@ endif
 # create data partition image (merged config + extras, single overlay)
 $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
+	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
+		$(RED) "ERROR: kernel image ($(KERNEL_BIN_SIZE) bytes) exceeds its partition ($(KERNEL_PARTITION_SIZE) bytes)"; \
+		exit 1; \
+	fi
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then \
+		$(RED) "ERROR: rootfs image ($(ROOTFS_BIN_SIZE) bytes) exceeds its partition ($(ROOTFS_PARTITION_SIZE) bytes)"; \
+		exit 1; \
+	fi
+	@if [ $(DATA_PARTITION_SIZE) -lt $(DATA_PARTITION_MIN_SIZE) ]; then \
+		$(RED) "ERROR: data partition ($(DATA_PARTITION_SIZE) bytes) is smaller than five JFFS2 erase blocks ($(DATA_PARTITION_MIN_SIZE) bytes)"; \
+		exit 1; \
+	fi
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
@@ -1202,7 +1235,7 @@ $(ROOTFS_BIN): $(KERNEL_BIN)
 
 CAMERA_UENV_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt)
 
-$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/Makefile $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
 	@$(TEAL) "$@"
 	rm -f $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@

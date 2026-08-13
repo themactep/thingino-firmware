@@ -109,6 +109,7 @@ def main():
     parser.add_argument('kernel_offset', type=int)
     parser.add_argument('kernel_partition_size', type=int)
     parser.add_argument('kernel_bin_size', type=int)
+    parser.add_argument('kernel_bin_size_aligned', type=int)
     parser.add_argument('rootfs_offset', type=int)
     parser.add_argument('rootfs_partition_size', type=int)
     parser.add_argument('rootfs_bin_size', type=int)
@@ -156,7 +157,7 @@ def main():
             'offset': args.kernel_offset,
             'pt_size': args.kernel_partition_size,
             'content': args.kernel_bin_size,
-            'aligned': args.kernel_partition_size,
+            'aligned': args.kernel_bin_size_aligned,
         },
         {
             'name': 'ROOTFS',
