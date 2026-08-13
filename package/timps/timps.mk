@@ -166,6 +166,12 @@ ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 	TIMPS_LIBS += -Wl,--no-as-needed -luclibcshim -Wl,--as-needed
 endif
 
+# USE_TRACE (src/trace.c, opt-in send-pipeline latency instrumentation) is
+# deliberately NOT a BR2_PACKAGE_TIMPS_* Kconfig option - it must not be
+# reachable from menuconfig. For a one-off debug build, pass TIMPS_TRACE=1 as
+# a plain make-variable override on the invocation, e.g.:
+#   make CAMERA=... IP=... TIMPS_TRACE=1 rebuild-timps
+# Default (TIMPS_TRACE unset) is USE_TRACE=0, identical to every other build.
 define TIMPS_BUILD_CMDS
 	$(MAKE) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
@@ -178,6 +184,7 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
+		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
 		USE_RECORD=$(if $(BR2_PACKAGE_TIMPS_RECORD),1,0) \
