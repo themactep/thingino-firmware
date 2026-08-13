@@ -18,6 +18,17 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
 endif
 
+# The WebUI overlay below (WHIP proxy CGI, WebRTC preview page) installs
+# preview.html over thingino-webui's own copy of the same path, and has to
+# land before thingino-webui's plugin-assembly finalize hook processes it (the
+# assembler reads whatever is on disk at that path - it has no notion of who
+# put it there). Depending on thingino-webui makes that ordering explicit
+# instead of relying on package parse order, and guarantees the stock www
+# tree we overlay already exists.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
+endif
+
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
 endif
@@ -174,6 +185,21 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Install same-origin WHIP proxy used by native preview (no iframe).
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
+
+	# Raptor's WebRTC preview page. It lives in THIS package (it is raptor's
+	# implementation, not core webui's) and installs straight over
+	# thingino-webui's own preview.html - same path, same filename, plain
+	# overwrite. THINGINO_RAPTOR_DEPENDENCIES += thingino-webui above
+	# guarantees the stock copy we overwrite is already on disk, and this
+	# runs as part of raptor's normal INSTALL_TARGET_CMDS, unconditionally
+	# before Buildroot's global target-finalize phase - so by the time
+	# thingino-webui's plugin-assembly finalize hook processes preview.html,
+	# raptor's version is what's there. No plugin manifest involved: nothing
+	# else in raptor contributes to the plugin system.
+	if [ "$(BR2_PACKAGE_THINGINO_WEBUI)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+			$(TARGET_DIR)/var/www/preview.html; \
+	fi
 
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \
