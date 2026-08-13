@@ -312,6 +312,16 @@ else
 		sed -i 's|^\(BR2_ROOTFS_OVERLAY="\)\(.*\)"|\1\2 $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"|' $(OUTPUT_DIR)/.config; \
 		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
 	fi
+	# append user common-, camera-, and (when IP= is set) device-specific
+	# overlays. THINGINO_USER_OVERLAY_DIRS covers user/common/overlay,
+	# user/<camera>/overlay and user/<camera>/<ip>/overlay; without this only
+	# the stock camera overlay above ever reached BR2_ROOTFS_OVERLAY, so wifi
+	# creds, /etc/shadow, ssh keys and per-IP timps.conf silently never made
+	# it into the image (ported from the 2026-08-10 piuma-side fix).
+	@for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
+		sed -i "s|^\(BR2_ROOTFS_OVERLAY=\"\)\(.*\)\"|\1\2 $$dir\"|" $(OUTPUT_DIR)/.config; \
+		echo "User overlay: $$dir"; \
+	done
 endif
 	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
 		if [ -f "$$file" ]; then \
