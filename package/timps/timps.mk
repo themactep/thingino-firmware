@@ -356,6 +356,40 @@ endef
 # alphabetically, so "thingino-webui" sorts before "timps") and every page we
 # ship would end up with no plugin layer at all.
 #
+# ...and the per-package-directory merge is why the post-install hook ALONE is
+# not enough. With BR2_PER_PACKAGE_DIRECTORIES=y (configs/fragments/core.fragment)
+# every package installs into its own per-package/<pkg>/target/ copy, seeded by
+# rsyncing in the per-package trees of its dependencies. So every package that
+# (transitively) depends on thingino-webui carries a PRISTINE copy of the whole
+# stock www tree in its own per-package dir - not just thingino-webui itself.
+# Buildroot's target-finalize then merges them all into the real $(TARGET_DIR)
+# with (buildroot/package/pkg-utils.mk, per-package-rsync, "copy" variant):
+#
+#     printf "%s/target/\n" $(sort $(PACKAGES)) | tac \
+#         | rsync -a --hard-links --files-from=- --no-R -r $(PER_PACKAGE_DIR) ...
+#
+# rsync de-duplicates its file list keeping the FIRST occurrence, and `tac`
+# reverses the alphabetically sorted package list - so for a colliding path the
+# alphabetically LAST package wins. "timps" only beats packages sorting before
+# it. wireguard-tools (and anything else sorting after "timps" that pulls in
+# thingino-webui) hands the merge its inherited PRISTINE var/www/a/navigation.js,
+# which therefore lands in $(TARGET_DIR) and silently reverts our overlay - the
+# nav dropdown for the streamer pages comes out empty, /a/main.js, /a/preview.js,
+# /a/main.css, preview.html and the x/ heartbeat+imp CGIs revert too. Nothing in
+# the build fails; the per-package tree is correct, only the merged one is not.
+#
+# So the overlay is applied a SECOND time from the global target-finalize phase,
+# after that merge and before thingino-webui's plugin assembly. The hook is
+# PREPENDED to the global TARGET_FINALIZE_HOOKS: thingino-webui.mk is parsed
+# first (alphabetical glob), so its ASSEMBLE_PLUGINS hook is already in the list
+# by the time this file is parsed, and prepending is what puts us in front of it
+# - the pages we re-overlay still get the plugin layer. The define is reused
+# verbatim: $(TARGET_DIR) resolves to the per-package tree when it runs as
+# timps's post-install hook (PKG is set) and to the real target tree at global
+# finalize (PKG is unset), and the body is idempotent. The post-install
+# registration is kept so timps's own per-package tree stays correct and the
+# files stay attributed to timps in .files-list.txt.
+#
 # Only installed when both the WebUI and the timps /control endpoint are
 # enabled. The whole directory is installed (CGIs and
 # the .sh lib alike; the webserver executes anything under the /x/ CGI prefix
@@ -422,6 +456,9 @@ define TIMPS_INSTALL_WEBUI_CGIS
 	fi
 endef
 TIMPS_POST_INSTALL_TARGET_HOOKS += TIMPS_INSTALL_WEBUI_CGIS
+# Re-apply after the per-package merge, ahead of thingino-webui's plugin
+# assembly (see the NOTE above for why both registrations are needed).
+TARGET_FINALIZE_HOOKS := TIMPS_INSTALL_WEBUI_CGIS $(TARGET_FINALIZE_HOOKS)
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports
