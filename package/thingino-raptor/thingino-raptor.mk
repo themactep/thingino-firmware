@@ -19,6 +19,17 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
 endif
 
+# The WebUI overlay below (WHIP proxy CGI, WebRTC preview page) installs
+# preview.html over thingino-webui's own copy of the same path, and has to
+# land before thingino-webui's plugin-assembly finalize hook processes it (the
+# assembler reads whatever is on disk at that path - it has no notion of who
+# put it there). Depending on thingino-webui makes that ordering explicit
+# instead of relying on package parse order, and guarantees the stock www
+# tree we overlay already exists.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
+endif
+
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
 endif
@@ -176,52 +187,20 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
 
-	# WebUI plugin (streamer pages, audio, save/restart CGIs)
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/raptor.webui.json \
-		$(TARGET_DIR)/var/www/a/plugins/raptor.webui.json
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-audio.html \
-		$(TARGET_DIR)/var/www/config-audio.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-image.html \
-		$(TARGET_DIR)/var/www/streamer-image.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-main.html \
-		$(TARGET_DIR)/var/www/streamer-main.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-osd.html \
-		$(TARGET_DIR)/var/www/streamer-osd.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-sensor.html \
-		$(TARGET_DIR)/var/www/streamer-sensor.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-substream.html \
-		$(TARGET_DIR)/var/www/streamer-substream.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/tool-timelapse.html \
-		$(TARGET_DIR)/var/www/tool-timelapse.html
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer.js \
-		$(TARGET_DIR)/var/www/a/streamer.js
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-config.js \
-		$(TARGET_DIR)/var/www/a/streamer-config.js
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-osd.js \
-		$(TARGET_DIR)/var/www/a/streamer-osd.js
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/audio.js \
-		$(TARGET_DIR)/var/www/a/audio.js
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/tool-timelapse.js \
-		$(TARGET_DIR)/var/www/a/tool-timelapse.js
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-config-save.cgi \
-		$(TARGET_DIR)/var/www/x/json-config-save.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/restart-streamer.cgi \
-		$(TARGET_DIR)/var/www/x/restart-streamer.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-sensor-upload.cgi \
-		$(TARGET_DIR)/var/www/x/json-sensor-upload.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-timelapse.cgi \
-		$(TARGET_DIR)/var/www/x/json-timelapse.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl0.jpg \
-		$(TARGET_DIR)/var/www/x/dl0.jpg
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl1.jpg \
-		$(TARGET_DIR)/var/www/x/dl1.jpg
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/ch0.mjpg \
-		$(TARGET_DIR)/var/www/x/ch0.mjpg
-	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/ch1.mjpg \
-		$(TARGET_DIR)/var/www/x/ch1.mjpg
-	# Alias snapshot endpoints used by some send/download helpers
-	ln -sf dl0.jpg $(TARGET_DIR)/var/www/x/ch0.jpg
-	ln -sf dl1.jpg $(TARGET_DIR)/var/www/x/ch1.jpg
+	# Raptor's WebRTC preview page. It lives in THIS package (it is raptor's
+	# implementation, not core webui's) and installs straight over
+	# thingino-webui's own preview.html - same path, same filename, plain
+	# overwrite. THINGINO_RAPTOR_DEPENDENCIES += thingino-webui above
+	# guarantees the stock copy we overwrite is already on disk, and this
+	# runs as part of raptor's normal INSTALL_TARGET_CMDS, unconditionally
+	# before Buildroot's global target-finalize phase - so by the time
+	# thingino-webui's plugin-assembly finalize hook processes preview.html,
+	# raptor's version is what's there. No plugin manifest involved: nothing
+	# else in raptor contributes to the plugin system.
+	if [ "$(BR2_PACKAGE_THINGINO_WEBUI)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+			$(TARGET_DIR)/var/www/preview.html; \
+	fi
 
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \
