@@ -445,7 +445,30 @@ download_package() {
 
         print_success "Cloned $pkg_name to $dest_dir"
     else
-        print_error "Unsupported site method: $method (only 'git' is supported)"
+        if [ "$method" = "local" ]; then
+            # Resolve the local source path (expand $(XXX_PKGDIR) references)
+            local src_dir=""
+            local pkgdir_var="${pkg_upper}_PKGDIR"
+            local expanded_site="${site/\$($pkgdir_var)/$PACKAGE_DIR/$pkg_name}"
+            # Handle BR2_EXTERNAL or other variable prefixes in the path
+            if [ -d "$expanded_site" ]; then
+                src_dir="$expanded_site"
+            elif [ -d "$BASE_DIR/$expanded_site" ]; then
+                src_dir="$BASE_DIR/$expanded_site"
+            fi
+
+            if [ -z "$src_dir" ] || [ ! -d "$src_dir" ]; then
+                print_error "Could not resolve local source path: $site"
+                return 1
+            fi
+
+            print_info "Copying $src_dir to $dest_dir"
+            cp -a "$src_dir" "$dest_dir"
+            print_success "Copied $pkg_name to $dest_dir"
+        else
+            print_error "Unsupported site method: $method (only 'git' and 'local' are supported)"
+            return 1
+        fi
         return 1
     fi
 }
