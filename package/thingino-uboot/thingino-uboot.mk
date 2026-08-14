@@ -48,21 +48,20 @@ else
 THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
 
-# GNU patch cannot apply binary diffs, so the SPL blobs shipped inside
-# 0001-from-2013.07-to-thingino.patch (spl/binary/*.bin) come out empty
-# after patching, producing a bricking firmware image for boards that
-# use a prebuilt SPL (T31LC, Xiaomi MJSXJ03HL & friends).
-# Restore the vendored copies from this package's files directory.
+# GNU patch cannot apply binary diffs, so every binary blob shipped inside
+# 0001-from-2013.07-to-thingino.patch comes out empty after patching: the
+# prebuilt SPL images (spl/binary/*.bin) needed by T31LC / Xiaomi boards,
+# the prebuilt host tools, the boot/charge logos, the GPT/MBR blobs, and
+# the NAND manager library. A missing SPL bricks boards that boot from a
+# prebuilt SPL; the rest silently corrupt their respective features.
+# Restore the vendored copies from this package's files directory, which
+# mirrors the U-Boot source tree layout.
 # https://github.com/themactep/thingino-firmware/issues/1299
 ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
-define THINGINO_UBOOT_RESTORE_SPL_BINARIES
-	mkdir -p $(@D)/spl/binary
-	cp -f $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31lc_sfcnor.bin \
-		$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31_xiaomi_sfcnor.bin \
-		$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/t31_xiaomi_sfcnor_2.bin \
-		$(@D)/spl/binary/
+define THINGINO_UBOOT_RESTORE_BINARIES
+	cp -a $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/. $(@D)/
 endef
-UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_RESTORE_SPL_BINARIES
+UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_RESTORE_BINARIES
 endif
 
 define THINGINO_UBOOT_COPY_SHA1_HEADER
