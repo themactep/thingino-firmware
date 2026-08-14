@@ -1,0 +1,10 @@
+# Generated/vendored files that must never be hand-edited.
+#
+# Format: <shell glob>|<what to do instead>
+#
+# The check script scripts/check-do-not-edit.sh reads this file and fails
+# when a staged/changed path matches one of these globs.  Globs are matched
+# with shell case patterns, so * crosses directory separators.
+
+package/all-patches/uboot/*/0001-*.patch|Generated U-Boot baseline patch. Do not edit it. Add a numbered follow-up patch in the same directory (e.g. 0002-my-change.patch).
+package/all-patches/linux/*/0001-from-*.patch|Generated Linux baseline patch. Do not edit it. Add a numbered follow-up patch in the same directory.

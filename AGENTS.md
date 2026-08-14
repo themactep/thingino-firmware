@@ -125,7 +125,8 @@ Thingino applies a single large per-version patch (e.g.
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need
 U-Boot changes, add numbered follow-up patches in the same directory (e.g.
 `0002-my-change.patch`) — Buildroot applies them in sort order after the large
-patch.
+patch. This is enforced by `scripts/check-do-not-edit.sh` (manifest:
+`scripts/do-not-edit.txt`), wired into the pre-commit hook and CI.
 
 ## Package overrides
 
