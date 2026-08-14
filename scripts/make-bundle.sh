@@ -55,6 +55,11 @@ else
 fi
 
 # Determine SOC family (passed from Makefile, or fall back to .config)
+# TODO: generalize for non-Ingenic vendors. This fallback is the one remaining
+# Ingenic-only read: it greps BR2_INGENIC_SOC_MODEL and soc/ingenic/*.mk, while
+# thingino.mk already reads whichever vendor symbol is set. When the SigmaStar
+# platform lands, derive SOC_MODEL from BR2_SIGMASTAR_SOC_MODEL when
+# BR2_SOC_VENDOR_SIGMASTAR=y, and grep soc/<vendor>/ instead of soc/ingenic/.
 SOC_MODEL=$(grep '^BR2_INGENIC_SOC_MODEL=' "$OUTPUT_DIR/.config" 2>/dev/null | cut -d'"' -f2)
 if [ "$SOC_FAMILY" = "unknown" ]; then
 	if [ -n "$SOC_MODEL" ]; then
