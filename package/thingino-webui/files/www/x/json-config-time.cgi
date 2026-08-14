@@ -8,7 +8,6 @@ require_auth
 : "${NTP_DEFAULT_FILE:=/etc/default/ntp.conf}"
 : "${NTP_WORKING_FILE:=/tmp/ntp.conf}"
 
-CONFIG_FILE="/etc/thingino.json"
 SYNC_STATUS_FILE="/run/sync_status"
 TMP_FILE=""
 REQ_FILE=""
@@ -65,8 +64,10 @@ read_config() {
 	[ -f /etc/timezone ] && tz_name="$(cat /etc/timezone)"
 	[ -f /etc/TZ ] && tz_data="$(cat /etc/TZ)"
 
-	if [ -f "$CONFIG_FILE" ]; then
-		dhcp_ignore_timezone=$(jct "$CONFIG_FILE" get dhcp.ignore_timezone 2>/dev/null)
+	if [ "user" = "$(cat /etc/timezone.source 2>/dev/null)" ]; then
+		dhcp_ignore_timezone="true"
+	else
+		dhcp_ignore_timezone="false"
 	fi
 
 	if [ -f "$NTP_WORKING_FILE" ]; then
@@ -86,8 +87,10 @@ write_config() {
 		timectl set-timezone --source user "$tz_name"
 	fi
 
-	if [ -n "$dhcp_ignore_timezone" ]; then
-		jct "$CONFIG_FILE" set dhcp.ignore_timezone "$dhcp_ignore_timezone"
+	if [ "$dhcp_ignore_timezone" = "true" ]; then
+		timectl pin-timezone
+	elif [ "$dhcp_ignore_timezone" = "false" ]; then
+		timectl unpin-timezone
 	fi
 
 	if [ -n "$ntp_server_0" ] || [ -n "$ntp_server_1" ] ||
