@@ -42,15 +42,47 @@ endif
 
 ################ MMC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
-define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC
+
+ifeq ($(BR2_mips_xburst2),y)
+# XBurst2 drives its MSC through sdhci-ingenic, which binds the "ingenic,sdhci"
+# nodes the device tree declares. The jzmmc driver below does not exist here.
+#
+# Built as modules: root lives on SFC NOR/NAND, so nothing needs MMC before
+# userspace. S09mmc loads the host driver, which runs before S36wireless, so an
+# SDIO wifi part still finds its bus. Keeping this out of the kernel image is
+# what lets the 4.4 XBurst2 kernel fit the 1600 KiB partition.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_SET_OPT,CONFIG_MMC,m)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_BLOCK,m)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI,m)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI_INGENIC,m)
+endef
+# A card slot is expected to mount FAT32; exfat comes from exfat-nofuse.
+# Modular like the rest of the MMC stack - S09mmc loads vfat next to
+# mmc_block, before any card can be automounted. Keeps ~19 KiB out of the
+# kernel image, which the 4.4 XBurst2 kernel cannot spare on a NOR part.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
+else
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
-	$(call KCONFIG_SET_OPT,CONFIG_MMC_BLOCK_MINORS,8)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK_BOUNCE)
 	$(if $(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT), \
 		$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12), \
 		$(call KCONFIG_SET_OPT,CONFIG_JZMMC_V12,m))
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_SDMA)
+endef
+endif
+
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_BLOCK_MINORS,8)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK_BOUNCE)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0),y)
@@ -393,6 +425,9 @@ endif
 
 ################### IPV6 ##############################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_IPV6),y)
+# ip6tables is not here - it needs the netfilter core, which no base config
+# carries, so enabling it from this option only produced modules that nothing
+# could load. It lives with the NETFILTER option below.
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_PRIVACY)
@@ -404,10 +439,6 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MULTIPLE_TABLES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_SUBTREES)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_IPV6_MROUTE)
-	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_IPTABLES,m)
-	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_FILTER,m)
-	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_TARGET_REJECT,m)
-	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_MANGLE,m)
 endef
 define THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/dhcpv6.script $(TARGET_DIR)/usr/lib/netifd/dhcpv6.script
@@ -444,6 +475,16 @@ endef
 define THINGINO_KOPT_INSTALL_TARGET_CMDS_NETFILTER
 	cat $(THINGINO_KOPT_PKGDIR)/files/sysctl.netfilter >> $(TARGET_DIR)/etc/sysctl.conf
 endef
+
+# ip6tables needs both the netfilter core (above) and IPv6.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_IPV6),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER6
+	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_IPTABLES,m)
+	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_FILTER,m)
+	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_TARGET_REJECT,m)
+	$(call KCONFIG_SET_OPT,CONFIG_IP6_NF_MANGLE,m)
+endef
+endif
 endif
 
 ####################################################
@@ -479,6 +520,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_WEBCAM)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_IPV6)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER6)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C1)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_I2C2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_USB_MASS_STORAGE)
