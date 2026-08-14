@@ -1,7 +1,6 @@
 export PATH="/bin:/sbin:/tmp"
 export HOME=$(awk -F: "/^${USER:-root}:/{print \$6}" /etc/passwd)
 export HOME=${HOME:-/root}
-export TZ=$(cat /etc/TZ)
 export EDITOR="vi"
 
 if4=$(ip -4 r | awk '/default/{print $5; exit}')
