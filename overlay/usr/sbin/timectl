@@ -77,10 +77,12 @@ cmd_status() {
 
 cmd_refresh() {
 	# One-time migration: the retired dhcp.ignore_timezone flag maps to a
-	# pinned (user-sourced) timezone.
-	if [ ! -f "$TZ_SOURCE_FILE" ] &&
-		[ "true" = "$(jct /etc/thingino.json get dhcp.ignore_timezone 2>/dev/null)" ]; then
-		echo "user" >"$TZ_SOURCE_FILE"
+	# pinned (user-sourced) timezone, and the dead key is then removed.
+	if [ ! -f "$TZ_SOURCE_FILE" ]; then
+		if [ "true" = "$(jct /etc/thingino.json get dhcp.ignore_timezone 2>/dev/null)" ]; then
+			echo "user" >"$TZ_SOURCE_FILE"
+		fi
+		jct /etc/thingino.json del dhcp.ignore_timezone 2>/dev/null
 	fi
 
 	name=$(cat "$TZNAME_FILE" 2>/dev/null)
