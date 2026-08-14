@@ -2,6 +2,12 @@
 
 set -e
 
+do_not_edit_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -n "$do_not_edit_files" ]; then
+	printf '%s\n' "$do_not_edit_files" | ./scripts/check-do-not-edit.sh
+fi
+
 js_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
 
 if [ -n "$js_staged_files" ]; then

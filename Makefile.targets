@@ -258,8 +258,10 @@ shellcheck:
 	@find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
 	@echo "All shell scripts passed."
 
-# Full lint suite: shellcheck + defconfig sort + plugin validation
+# Full lint suite: shellcheck + do-not-edit + defconfig sort + plugin validation
 lint: shellcheck
+	@echo "Checking do-not-edit paths..."
+	@git diff --name-only --diff-filter=ACMR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
 	@echo "Checking defconfig sort order..."
 	@failed=0; \
 	for f in configs/cameras/*/"*_defconfig"; do \

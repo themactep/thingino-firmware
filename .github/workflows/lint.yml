@@ -15,6 +15,23 @@ jobs:
         with:
           submodules: false
 
+      - name: Check do-not-edit paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          if [ -n "$BASE_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+          fi
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "No base SHA available; skipping do-not-edit check"
+            exit 0
+          fi
+          files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files" | scripts/check-do-not-edit.sh
+          fi
+
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
 
