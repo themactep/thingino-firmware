@@ -113,6 +113,29 @@
       '</div></div></div>';
   }
 
+  // ── Absolute health classification ─────────────────────────────
+  // Badge colors are derived ONLY from the current absolute value.
+  // They must never compare against the previous sample ("went up/down").
+  // ok = healthy (green), warn = troubled (yellow), crit = critical (red).
+  //
+  // healthAbove: larger is healthier (FPS, DMA queue depth).
+  //   value >= okAt -> ok, value >= warnAt -> warn, otherwise crit.
+  function healthAbove(value, okAt, warnAt) {
+    if (value === null || isNaN(value)) return "info";
+    if (value >= okAt) return "ok";
+    if (value >= warnAt) return "warn";
+    return "crit";
+  }
+
+  // healthBelow: larger is worse (drops, near-misses).
+  //   value <= okAt -> ok, value <= warnAt -> warn, otherwise crit.
+  function healthBelow(value, okAt, warnAt) {
+    if (value === null || isNaN(value)) return "info";
+    if (value <= okAt) return "ok";
+    if (value <= warnAt) return "warn";
+    return "crit";
+  }
+
   // ── Issue detection ────────────────────────────────────────────
   function detectIssues(data, fsData) {
     var issues = [];
@@ -156,15 +179,21 @@
         ") — analog gain is always preferable. Possible driver misconfiguration." });
     }
 
-    // Frame source buffer issues
+    // Frame source buffer issues (absolute counts, not deltas)
     if (fsData && fsData.ch0) {
       var drop = parseInt(fsData.ch0.drop, 10);
       var intc = parseInt(fsData.ch0.intc_ahead, 10);
-      if (drop > 0) {
+      if (drop >= 10) {
         issues.push({ severity: "crit", msg: "Frame drops on channel 0: " + drop +
           " frames dropped. Buffer starvation — reduce resolution, drop sub stream, or lower FPS." });
+      } else if (drop > 0) {
+        issues.push({ severity: "warn", msg: "Frame drops on channel 0: " + drop +
+          " frames dropped. A few drops may be transient, but watch for a rising count." });
       }
-      if (intc > 0) {
+      if (intc >= 10) {
+        issues.push({ severity: "crit", msg: "Near-misses on channel 0: " + intc +
+          " interrupt-ahead events. Pipeline is close to dropping frames." });
+      } else if (intc > 0) {
         issues.push({ severity: "warn", msg: "Near-misses on channel 0: " + intc +
           " interrupt-ahead events. Pipeline close to dropping frames." });
       }
@@ -172,12 +201,18 @@
       if (qc < 2) {
         issues.push({ severity: "crit", msg: "Queue count is " + qc +
           " — pipeline has no slack. Any hiccup will drop a frame." });
+      } else if (qc < 3) {
+        issues.push({ severity: "warn", msg: "Queue count is " + qc +
+          " — minimal buffering slack. Any hiccup may drop a frame." });
       }
 
       if (fsData.ch1) {
         var drop1 = parseInt(fsData.ch1.drop, 10);
-        if (drop1 > 0) {
+        if (drop1 >= 10) {
           issues.push({ severity: "crit", msg: "Frame drops on channel 1 (sub stream): " + drop1 +
+            " frames. If ch0 is clean, problem is specific to the sub stream." });
+        } else if (drop1 > 0) {
+          issues.push({ severity: "warn", msg: "Frame drops on channel 1 (sub stream): " + drop1 +
             " frames. If ch0 is clean, problem is specific to the sub stream." });
         }
       }
@@ -295,8 +330,8 @@
     var fpsNum = parseFloat(data.fps.num);
     var fpsDiv = parseFloat(data.fps.div);
     var fps = fpsDiv > 0 ? fpsNum / fpsDiv : 0;
-    var fpsStatus = fps >= 20 ? "ok" : fps >= 10 ? "warn" : "crit";
-    cards.push(statCard("FPS", fps.toFixed(1), "", fpsStatus, "Frames per second. Determined by integration time + sensor readout overhead. Drops at night when integration time lengthens to gather more light."));
+    var fpsStatus = healthAbove(fps, 15, 10);
+    cards.push(statCard("FPS", fps.toFixed(1), "", fpsStatus, "Frames per second. Determined by integration time + sensor readout overhead. Drops at night when integration time lengthens to gather more light. Healthy ≥15 fps, troubled 10–14, critical <10."));
 
     // Integration time
     var intT = data.exposure.int_time || "0";
@@ -318,10 +353,20 @@
     cards.push(statCard("Analog Gain", ag + " / " + agMax, "\u00d7", agStatus,
       "Sensor amplifier gain. Boosts signal before digitization — cleaner than digital gain. High values = noisy image, esp. at night."));
 
-    // Digital gain
+    // Digital gain — only troubled when analog gain still has headroom
+    // (misconfiguration); digital gain is expected once analog is maxed.
     var dg = data.exposure.dgain || "0";
     var dgMax = data.exposure.dgain_max || "0";
-    var dgStatus = parseInt(dg, 10) > 0 ? "warn" : "ok";
+    var dgNum = parseInt(dg, 10);
+    var dgMaxNum = parseInt(dgMax, 10);
+    var dgStatus = "ok";
+    if (dgNum > 0) {
+      if (agMaxNum > 0 && agNum < agMaxNum * 0.8) {
+        dgStatus = "warn";
+      } else if (dgMaxNum > 0 && dgNum >= dgMaxNum) {
+        dgStatus = "crit";
+      }
+    }
     cards.push(statCard("Digital Gain", dg + " / " + dgMax, "", dgStatus,
       "Digital gain applied after A/D conversion. Amplifies signal AND noise equally. Analog gain is always preferable. Nonzero while analog has headroom = possible driver bug."));
 
@@ -345,15 +390,15 @@
     if (fsData && fsData.ch0) {
       var qc = fsData.ch0.queue_count || "?";
       var qcNum = parseInt(qc, 10);
-      var qcStatus = qcNum < 2 ? "crit" : qcNum < 3 ? "warn" : "ok";
-      cards.push(statCard("DMA Queue", qc, "", qcStatus, "Number of DMA buffers in the sensor→ISP pipeline. <2 = no buffering slack, any hiccup drops a frame. Typical healthy values: 2–4."));
+      var qcStatus = healthAbove(qcNum, 3, 2);
+      cards.push(statCard("DMA Queue", qc, "", qcStatus, "Number of DMA buffers in the sensor→ISP pipeline. <2 = no buffering slack, any hiccup drops a frame. Typical healthy values: 3–4 (2 = minimal slack)."));
 
       var drop = fsData.ch0.drop || "0";
-      var dropStatus = parseInt(drop, 10) > 0 ? "crit" : "ok";
+      var dropStatus = healthBelow(parseInt(drop, 10), 0, 9);
       cards.push(statCard("Dropped Frames", drop, "", dropStatus, "Frames that the ISP discarded because no DMA buffer was available when the sensor produced them. Reduce resolution or FPS to fix."));
 
       var intcAhead = fsData.ch0.intc_ahead || "0";
-      var intcStatus = parseInt(intcAhead, 10) > 0 ? "warn" : "ok";
+      var intcStatus = healthBelow(parseInt(intcAhead, 10), 0, 9);
       cards.push(statCard("Interrupt Ahead", intcAhead, "", intcStatus, "Times the sensor finished a frame before a DMA buffer was ready. Not a drop yet, but close. If this climbs, expect drops next."));
     }
 
@@ -387,12 +432,13 @@
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 300 },
+      interaction: { mode: "index", intersect: false },
       scales: {
         x: { display: true, ticks: { maxTicksLimit: 10, font: { size: 9 } } },
         y: { beginAtZero: false, ticks: { font: { size: 9 } } }
       },
       plugins: {
-        legend: { labels: { boxWidth: 12, font: { size: 10 } } }
+        legend: { display: false }
       }
     };
 
@@ -461,8 +507,9 @@
     charts.fps.data.labels = labels;
     charts.fps.data.datasets = [{
       label: "FPS", data: fpsValues,
-      borderColor: "#0d6efd", backgroundColor: "rgba(13,110,253,0.1)",
-      tension: 0.2, fill: true, pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#0d6efd", pointBorderWidth: 1
+      borderColor: "#0d6efd",
+      borderWidth: 2, tension: 0.4, fill: false,
+      pointRadius: 1, pointBackgroundColor: "#0d6efd", pointBorderColor: "#0d6efd", pointBorderWidth: 1
     }];
     charts.fps.update("none");
 
@@ -471,8 +518,8 @@
     var dgainVals = history.map(function(h) { return parseInt(h.data.exposure.dgain, 10) || 0; });
     charts.gain.data.labels = labels;
     charts.gain.data.datasets = [
-      { label: "Analog Gain", data: againVals, borderColor: "#fd7e14", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#fd7e14", pointBorderWidth: 1 },
-      { label: "Digital Gain", data: dgainVals, borderColor: "#6f42c1", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#6f42c1", pointBorderWidth: 1 }
+      { label: "Analog Gain", data: againVals, borderColor: "#fd7e14", borderWidth: 2, tension: 0.4, yAxisID: "y", pointRadius: 1, pointBackgroundColor: "#fd7e14", pointBorderColor: "#fd7e14", pointBorderWidth: 1 },
+      { label: "Digital Gain", data: dgainVals, borderColor: "#6f42c1", borderWidth: 2, tension: 0.4, yAxisID: "y", pointRadius: 1, pointBackgroundColor: "#6f42c1", pointBorderColor: "#6f42c1", pointBorderWidth: 1 }
     ];
     charts.gain.update("none");
 
@@ -481,8 +528,8 @@
     var intMaxVals = history.map(function(h) { return parseInt(h.data.exposure.int_time_max, 10) || 0; });
     charts.inttime.data.labels = labels;
     charts.inttime.data.datasets = [
-      { label: "Integration Time", data: intVals, borderColor: "#198754", tension: 0.2, yAxisID: "y", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#198754", pointBorderWidth: 1 },
-      { label: "Max Int. Time", data: intMaxVals, borderColor: "#dc3545", borderDash: [4, 4], tension: 0.2, yAxisID: "y", pointRadius: 0, pointHoverRadius: 0 }
+      { label: "Integration Time", data: intVals, borderColor: "#198754", borderWidth: 2, tension: 0.4, yAxisID: "y", pointRadius: 1, pointBackgroundColor: "#198754", pointBorderColor: "#198754", pointBorderWidth: 1 },
+      { label: "Max Int. Time", data: intMaxVals, borderColor: "#dc3545", borderWidth: 1, tension: 0, yAxisID: "y", pointRadius: 0, pointHoverRadius: 0 }
     ];
     charts.inttime.update("none");
 
@@ -492,11 +539,11 @@
     charts.ev.data.labels = labels;
     charts.ev.data.datasets = [
       { label: "EV (log2)", data: evLog2Vals,
-        borderColor: "#20c997", tension: 0.2, fill: true, yAxisID: "y",
-        backgroundColor: "rgba(32,201,151,0.1)", pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#20c997", pointBorderWidth: 1 },
+        borderColor: "#20c997", borderWidth: 2, tension: 0.4, yAxisID: "y",
+        pointRadius: 1, pointBackgroundColor: "#20c997", pointBorderColor: "#20c997", pointBorderWidth: 1 },
       { label: "Exposure (µs)", data: evUsVals,
-        borderColor: "#fd7e14", borderDash: [4, 4], tension: 0.2, yAxisID: "y1",
-        pointRadius: 1, pointHoverRadius: 4, pointHitRadius: 10, pointBackgroundColor: "#fd7e14", pointBorderWidth: 1 }
+        borderColor: "#fd7e14", borderWidth: 2, tension: 0.4, yAxisID: "y1",
+        pointRadius: 1, pointBackgroundColor: "#fd7e14", pointBorderColor: "#fd7e14", pointBorderWidth: 1 }
     ];
     charts.ev.update("none");
   }
