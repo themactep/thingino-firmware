@@ -105,7 +105,7 @@ scan_networks() {
 	echo "{\"networks\": ["
 
 	first=1
-	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS=$'\t' read -r bssid freq signal flags ssid; do
+	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS="$(printf '\t')" read -r bssid _ signal flags ssid; do
 		# Skip empty SSIDs and header
 		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
 
@@ -188,6 +188,7 @@ save_config() {
 		return
 	fi
 
+	# shellcheck disable=SC2016 # regex, not a shell expansion
 	if [ -n "$rootpass_hash" ] && ! echo "$rootpass_hash" | grep -q '^\$6\$'; then
 		cat <<-EOF
 			{
@@ -226,7 +227,9 @@ save_config() {
 	fi
 
 	# Update timezone
-	echo "$timezone" >/etc/timezone
+	if [ -n "$timezone" ]; then
+		timectl set-timezone --source user "$timezone"
+	fi
 
 	# Update root password. -e takes an already-encrypted field, so a client
 	# that hashed it locally never sends the plaintext.
