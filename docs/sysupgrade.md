@@ -147,6 +147,8 @@ Default manifest (`/etc/cfg-backup.list`):
 /etc/passwd /etc/shadow               # user accounts
 /etc/wpa_supplicant.conf              # WiFi
 /etc/TZ /etc/timezone                 # timezone
+/etc/timezone.source /etc/ntp.source  # timezone/NTP source of truth
+/etc/default/ntp.conf                 # user NTP servers
 /etc/dropbear                         # SSH host keys
 /root/.ssh/authorized_keys            # SSH access
 /etc/thingino.json                    # Thingino config
