@@ -16,6 +16,7 @@ if BR2_PACKAGE_WIFI_AIC8800
 			  Enable USB support for AIC8800 wireless driver
 		config BR2_PACKAGE_WIFI_AIC8800_SDIO
 			bool "SDIO"
+			select BR2_PACKAGE_THINGINO_KOPT_MMC
 			help
 			  Enable SDIO support for AIC8800 wireless driver
 		config BR2_PACKAGE_WIFI_AIC8800_PCIE
