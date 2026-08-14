@@ -8,9 +8,7 @@ ifneq ($(filter $(SOC_MODEL),c100),)
 SOC_FAMILY    := c100
 SOC_ARCH      := xburst1
 SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
-
-SOC_RAM_MB     := 128
-SOC_UBOOT_NOR  := isvp_t31a_sfcnor
-SOC_UBOOT_NAND := isvp_t31a_sfcnand
+SOC_RAM_MB    := 128
+SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31a_sfcnand,isvp_t31a_sfcnor)
 
 endif

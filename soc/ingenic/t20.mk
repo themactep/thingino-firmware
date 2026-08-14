@@ -10,13 +10,13 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 # what's different
 ifeq ($(SOC_MODEL),t20l)
 SOC_RAM_MB    := 64
-SOC_UBOOT_NOR := isvp_t20l_sfcnor
+SOC_UBOOT     := isvp_t20l_sfcnor
 else ifeq ($(SOC_MODEL),t20x)
 SOC_RAM_MB    := 128
-SOC_UBOOT_NOR := isvp_t20x_sfcnor
+SOC_UBOOT     := isvp_t20x_sfcnor
 else
 SOC_RAM_MB    := 64
-SOC_UBOOT_NOR := isvp_t20n_sfcnor
+SOC_UBOOT     := isvp_t20n_sfcnor
 endif
 
 endif
