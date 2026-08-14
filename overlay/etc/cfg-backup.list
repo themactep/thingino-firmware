@@ -11,9 +11,12 @@
 # WiFi
 /etc/wpa_supplicant.conf
 
-# Timezone
+# Timezone and NTP
 /etc/TZ
 /etc/timezone
+/etc/timezone.source
+/etc/ntp.source
+/etc/default/ntp.conf
 
 # SSH host keys and authorized keys
 /etc/dropbear
