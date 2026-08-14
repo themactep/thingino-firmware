@@ -38,12 +38,6 @@ start() {
 		echo -c 240 -e "- Set timezone to $tz"
 		echo "$tz" >"$TZCODE_FILE"
 	fi
-
-	echo -c 240 -e "- Set TZ to $tz"
-	TZ="$tz"
-
-	echo -c 240 -e "- Export TZ globally"
-	export TZ
 }
 
 case "$1" in
