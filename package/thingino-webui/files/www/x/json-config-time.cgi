@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Check authentication
+# shellcheck disable=SC1091 # runtime file, not present in the source tree
 . /var/www/x/auth.sh
 require_auth
 
@@ -12,6 +13,7 @@ SYNC_STATUS_FILE="/run/sync_status"
 TMP_FILE=""
 REQ_FILE=""
 
+# shellcheck disable=SC2329 # invoked via trap
 cleanup() {
 	[ -n "$TMP_FILE" ] && rm -f "$TMP_FILE"
 	[ -n "$REQ_FILE" ] && rm -f "$REQ_FILE"
@@ -68,10 +70,10 @@ read_config() {
 	fi
 
 	if [ -f "$NTP_WORKING_FILE" ]; then
-		ntp_server_0="$(sed -n 1p $NTP_WORKING_FILE | cut -d' ' -f2)"
-		ntp_server_1="$(sed -n 2p $NTP_WORKING_FILE | cut -d' ' -f2)"
-		ntp_server_2="$(sed -n 3p $NTP_WORKING_FILE | cut -d' ' -f2)"
-		ntp_server_3="$(sed -n 4p $NTP_WORKING_FILE | cut -d' ' -f2)"
+		ntp_server_0="$(sed -n 1p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
+		ntp_server_1="$(sed -n 2p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
+		ntp_server_2="$(sed -n 3p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
+		ntp_server_3="$(sed -n 4p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
 	fi
 
 	if [ -f "$SYNC_STATUS_FILE" ]; then
@@ -80,34 +82,19 @@ read_config() {
 }
 
 write_config() {
-	if [ -n "$tz_data" ]; then
-		echo "$tz_data" >/etc/TZ
-	fi
-
 	if [ -n "$tz_name" ]; then
-		echo "$tz_name" >/etc/timezone
+		timectl set-timezone --source user "$tz_name"
 	fi
 
 	if [ -n "$dhcp_ignore_timezone" ]; then
 		jct "$CONFIG_FILE" set dhcp.ignore_timezone "$dhcp_ignore_timezone"
 	fi
 
-	tmp_file=$(mktemp)
-	[ -n "$ntp_server_0" ] && echo "server $ntp_server_0 iburst" >>"$tmp_file"
-	[ -n "$ntp_server_1" ] && echo "server $ntp_server_1 iburst" >>"$tmp_file"
-	[ -n "$ntp_server_2" ] && echo "server $ntp_server_2 iburst" >>"$tmp_file"
-	[ -n "$ntp_server_3" ] && echo "server $ntp_server_3 iburst" >>"$tmp_file"
-
-	if [ -s "$tmp_file" ]; then
-		mv "$tmp_file" "$NTP_DEFAULT_FILE"
-		cp "$NTP_DEFAULT_FILE" "$NTP_WORKING_FILE"
-		chmod 444 "$NTP_DEFAULT_FILE"
-		chmod 444 "$NTP_WORKING_FILE"
-	else
-		rm -f "$tmp_file"
+	if [ -n "$ntp_server_0" ] || [ -n "$ntp_server_1" ] ||
+		[ -n "$ntp_server_2" ] || [ -n "$ntp_server_3" ]; then
+		servers="$ntp_server_0 $ntp_server_1 $ntp_server_2 $ntp_server_3"
+		timectl set-ntp --source user "$servers"
 	fi
-
-	service restart timezone >/dev/null 2>&1
 }
 
 read_body() {
@@ -156,8 +143,7 @@ handle_post() {
 			if [ -z "$manual_time" ]; then
 				json_error 422 "Missing time parameter" "422 Unprocessable Entity"
 			fi
-			date -s "$manual_time" >/dev/null 2>&1
-			if [ $? -eq 0 ]; then
+			if timectl set-time "$manual_time"; then
 				send_json "{\"status\":\"ok\",\"message\":\"Time set to $(date)\"}"
 			else
 				json_error 500 "Failed to set time" "500 Internal Server Error"
@@ -166,7 +152,6 @@ handle_post() {
 
 		update)
 			tz_name=$(jct "$REQ_FILE" get tz_name 2>/dev/null)
-			tz_data=$(jct "$REQ_FILE" get tz_data 2>/dev/null)
 			ntp_server_0=$(jct "$REQ_FILE" get ntp_server_0 2>/dev/null)
 			ntp_server_1=$(jct "$REQ_FILE" get ntp_server_1 2>/dev/null)
 			ntp_server_2=$(jct "$REQ_FILE" get ntp_server_2 2>/dev/null)
@@ -175,10 +160,6 @@ handle_post() {
 
 			if [ -z "$tz_name" ]; then
 				json_error 422 "Timezone name cannot be empty" "422 Unprocessable Entity"
-			fi
-
-			if [ -z "$tz_data" ]; then
-				json_error 422 "Timezone value cannot be empty" "422 Unprocessable Entity"
 			fi
 
 			write_config
