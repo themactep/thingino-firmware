@@ -166,14 +166,31 @@ load_module() {
 		exit 1
 	fi
 
+	# The card/block driver is a separate module wherever MMC is modular
+	# (XBurst2). Without it the host registers and the card enumerates, but
+	# no /dev/mmcblk* node is ever created and nothing can be mounted.
+	# vfat likewise: /lib/mdev/automount uses "mount -t auto", which only
+	# tries filesystems already listed in /proc/filesystems, so it has to be
+	# resident before a card shows up. Both are no-ops when built in.
+	modprobe mmc_block 2>/dev/null || true
+	modprobe vfat 2>/dev/null || true
+
 	set_power
 }
 
 start() {
 	echo -c 15 "Initializing MMC"
 
-	gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd")
-	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
+	# cd_gpio_pin is a jzmmc (XBurst1) module parameter. The XBurst2 driver
+	# (ingenic_sdhci_sdio) declares no parameters at all and takes its
+	# card-detect pin from the device tree (ingenic,cd-gpios), so passing it
+	# there is at best rejected and at worst faults during load.
+	if [ "$MMC_MODULE" = "jzmmc_v12" ]; then
+		gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd")
+		MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
+	else
+		MMC_PARAM=""
+	fi
 	load_module
 
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"
