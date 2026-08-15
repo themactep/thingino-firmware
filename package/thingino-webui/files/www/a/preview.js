@@ -966,9 +966,47 @@ function applyFieldMetadata(field, data) {
   updateImagingLabel(field, data.value);
 }
 
+function preferStreamerAgent() {
+  const helper = window.thinginoStreamer;
+  return !!(helper && helper.preferAgent && helper.preferAgent());
+}
+
+async function fetchImagingStateFromAgent() {
+  const helper = window.thinginoStreamer;
+  const cfg = await helper.agentRequest("/api/v1/config", { cache: "no-store" });
+  const image = (cfg && cfg.image) || {};
+  const mapped = {
+    brightness: image.brightness,
+    contrast: image.contrast,
+    sharpness: image.sharpness,
+    saturation: image.saturation,
+  };
+  imagingFields.forEach((field) => {
+    const value = mapped[field];
+    if (value === undefined || value === null) {
+      applyFieldMetadata(field, { supported: false });
+      return;
+    }
+    const input = $(`#${field}`);
+    const min = input ? Number(input.dataset.min) : 0;
+    const max = input ? Number(input.dataset.max) : 255;
+    applyFieldMetadata(field, {
+      supported: true,
+      min: Number.isFinite(min) ? min : 0,
+      max: Number.isFinite(max) ? max : 255,
+      value: Number(value),
+      default: Number(value),
+    });
+  });
+}
+
 async function fetchImagingState() {
   showBusy("Loading imaging settings...");
   try {
+    if (preferStreamerAgent()) {
+      await fetchImagingStateFromAgent();
+      return;
+    }
     const res = await fetch("/x/json-imaging.cgi", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
@@ -997,11 +1035,17 @@ async function persistImagingSetting(field, value) {
 }
 
 async function sendImagingUpdate(field, value, element) {
-  const params = new URLSearchParams({ cmd: "set" });
-  params.append(field, value);
   element?.setAttribute("data-busy", "1");
   element?.classList.add("opacity-75");
   try {
+    if (preferStreamerAgent()) {
+      // Agent-backed streamers (raptor) have no json-imaging.cgi — PATCH leaves directly.
+      await persistImagingSetting(field, value);
+      updateImagingLabel(field, value);
+      return;
+    }
+    const params = new URLSearchParams({ cmd: "set" });
+    params.append(field, value);
     const res = await fetch("/x/json-imaging.cgi", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1330,6 +1374,7 @@ fetchImagingState();
 
 async function loadConfigFps() {
   try {
+    if (preferStreamerAgent()) return;
     const resp = await fetch("/etc/prudynt.json", { cache: "no-store" });
     if (!resp.ok) return;
     const cfg = await resp.json();

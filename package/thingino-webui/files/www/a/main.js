@@ -866,15 +866,21 @@ async function toggleButton(el) {
   // Auto day/night uses the agent action; other ISP/light cmds stay on json-imp.
   if (el.id === "auto") {
     try {
+      const daynightBtn = $("#daynight");
+      const currentMode =
+        daynightBtn && daynightBtn.classList.contains("is-night")
+          ? "night"
+          : "day";
+      const mode = newState ? "auto" : currentMode;
       await agentJsonRequest("/api/v1/actions/daynight", {
         method: "POST",
-        body: { mode: newState ? "auto" : "day" },
+        body: { mode },
         cache: "no-store",
       });
       const update = {
         daynight_enabled: !!newState,
       };
-      if (!newState) update.daynight_mode = "day";
+      if (!newState) update.daynight_mode = currentMode;
       updateHeartbeatUi(update);
     } catch (err) {
       console.error("toggleButton auto error", err);
@@ -901,8 +907,17 @@ async function toggleButton(el) {
         ir940: { ir940_state: newState },
         white: { white_state: newState },
       };
-      const update = keyMap[el.id];
-      if (update) {
+      const update = keyMap[el.id] ? { ...keyMap[el.id] } : {};
+      // json-imp clears daynight.enabled for ircut/IR on daynightd images.
+      if (
+        el.id === "ircut" ||
+        el.id === "ir850" ||
+        el.id === "ir940" ||
+        el.id === "white"
+      ) {
+        update.daynight_enabled = false;
+      }
+      if (Object.keys(update).length) {
         updateHeartbeatUi(update);
       } else {
         el.classList.remove("pending");
