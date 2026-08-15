@@ -195,12 +195,27 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/streamer.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-osd.js \
+		$(TARGET_DIR)/var/www/a/streamer-osd.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/audio.js \
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-config-save.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-save.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/restart-streamer.cgi \
 		$(TARGET_DIR)/var/www/x/restart-streamer.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-sensor-upload.cgi \
+		$(TARGET_DIR)/var/www/x/json-sensor-upload.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl0.jpg \
+		$(TARGET_DIR)/var/www/x/dl0.jpg
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/dl1.jpg \
+		$(TARGET_DIR)/var/www/x/dl1.jpg
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/ch0.mjpg \
+		$(TARGET_DIR)/var/www/x/ch0.mjpg
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/ch1.mjpg \
+		$(TARGET_DIR)/var/www/x/ch1.mjpg
+	# Alias snapshot endpoints used by some send/download helpers
+	ln -sf dl0.jpg $(TARGET_DIR)/var/www/x/ch0.jpg
+	ln -sf dl1.jpg $(TARGET_DIR)/var/www/x/ch1.jpg
 
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \

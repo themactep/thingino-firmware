@@ -172,22 +172,33 @@
 
   function hideUnsupportedControls(root) {
     const doc = root || document;
-    const unsupported = ["max_gop"];
+    const unsupportedStream = ["max_gop"];
+    const unsupportedImage = [
+      "max_gop",
+      "backlight",
+      "wide_dynamic_range",
+      "tone",
+      "defog",
+      "noise_reduction",
+    ];
     [0, 1].forEach((id) => {
-      unsupported.forEach((param) => {
+      unsupportedStream.forEach((param) => {
         const el = doc.querySelector("#stream" + id + "_" + param);
         if (!el) return;
         const wrap =
-          el.closest(".mb-3, .col, .form-check, .row > div") || el.parentElement;
+          el.closest(".mb-3, .col, .form-check, .row > div, p") ||
+          el.parentElement;
         if (wrap) wrap.classList.add("d-none");
         el.disabled = true;
       });
     });
-    unsupported.forEach((param) => {
-      const el = doc.querySelector("#image_" + param);
+    unsupportedImage.forEach((param) => {
+      const el =
+        doc.querySelector("#" + param) ||
+        doc.querySelector("#image_" + param);
       if (!el) return;
       const wrap =
-        el.closest(".mb-3, .col, .form-check, .row > div") || el.parentElement;
+        el.closest(".mb-3, .col, .form-check, .row > div, p") || el.parentElement;
       if (wrap) wrap.classList.add("d-none");
       el.disabled = true;
     });

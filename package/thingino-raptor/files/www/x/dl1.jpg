@@ -1,0 +1,25 @@
+#!/bin/sh
+# Snapshot download for channel 1 via raptorctl.
+
+. /var/www/x/auth.sh
+require_auth
+
+tmp=$(mktemp /tmp/raptor-snap.XXXXXX.jpg) || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+
+if ! command -v raptorctl >/dev/null 2>&1; then
+	printf 'Status: 503 Service Unavailable\r\n\r\n'
+	exit 0
+fi
+
+if ! raptorctl rvd save jpeg "$tmp" 1 >/dev/null 2>&1 || [ ! -s "$tmp" ]; then
+	printf 'Status: 503 Service Unavailable\r\n\r\n'
+	exit 0
+fi
+
+printf 'Content-Type: image/jpeg\r\n'
+printf 'Content-Disposition: attachment; filename=ch1-%s.jpg\r\n' "$(date +%s)"
+printf 'Cache-Control: no-store\r\n'
+printf 'Connection: close\r\n'
+printf '\r\n'
+cat "$tmp"
