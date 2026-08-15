@@ -206,6 +206,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset rtsp session_timeout "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_TIMEOUT))"; \
 	rset rtsp tcp_sndbuf "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TCP_SNDBUF))"; \
 	rset rtsp backchannel "$(call raptor_bval,RTSP_BACKCHANNEL)"; \
+	rset rtsp backchannel_codecs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_BACKCHANNEL_CODECS))"; \
 	rset rtsp sei_timecode "$(call raptor_bval,RTSP_SEI_TIMECODE)"; \
 	\
 	rset http enabled "$(call raptor_bval,HTTP_ENABLED)"; \
