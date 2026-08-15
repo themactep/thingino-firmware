@@ -67,7 +67,7 @@ thingino_agent_prudynt_has_privacy() {
 }
 
 thingino_agent_prudynt_has_daynight() {
-	if command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$THINGINO_AGENT_PRUDYNT_CONFIG" ]; then
+	if thingino_agent_has_daynightd || command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$THINGINO_AGENT_PRUDYNT_CONFIG" ]; then
 		printf 'true'
 	else
 		printf 'false'
@@ -441,14 +441,26 @@ thingino_agent_prudynt_motion_active() {
 }
 
 thingino_agent_prudynt_daynight_enabled() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_enabled
+		return 0
+	fi
 	thingino_agent_json_value_or "$(thingino_agent_prudynt_raw daynight.enabled)" false
 }
 
 thingino_agent_prudynt_daynight_force_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_force_mode
+		return 0
+	fi
 	thingino_agent_json_value_or "$(thingino_agent_prudynt_raw daynight.force_mode)" null
 }
 
 thingino_agent_prudynt_daynight_running_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_running_mode
+		return 0
+	fi
 	if [ -f /run/prudynt/daynight_mode ]; then
 		mode=$(awk 'NR == 1 { print $1 }' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
 		[ -n "$mode" ] && {
@@ -478,6 +490,10 @@ EOF
 }
 
 thingino_agent_prudynt_daynight_target_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_target_mode
+		return 0
+	fi
 	enabled=$(thingino_agent_prudynt_daynight_enabled)
 	if [ "$enabled" = "true" ]; then
 		printf 'auto'
@@ -1370,10 +1386,10 @@ thingino_agent_adapter_prudynt_get_setting() {
 			thingino_agent_print_setting_leaf enabled "$(thingino_agent_prudynt_send2_motion_enabled "$service")"
 			;;
 		daynight/enabled)
-			thingino_agent_print_setting_leaf enabled "$(thingino_agent_prudynt_raw daynight.enabled)"
+			thingino_agent_print_setting_leaf enabled "$(thingino_agent_prudynt_daynight_enabled)"
 			;;
 		daynight/force-mode)
-			printf '{"force_mode":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_text daynight.force_mode)")"
+			printf '{"force_mode":%s}\n' "$(thingino_agent_prudynt_daynight_force_mode)"
 			;;
 		privacy/enabled)
 			thingino_agent_print_setting_leaf enabled "$(thingino_agent_prudynt_privacy_enabled)"
@@ -1704,8 +1720,21 @@ thingino_agent_adapter_prudynt_set_setting() {
 		daynight/enabled)
 			value=$(thingino_agent_prudynt_setting_value "$body_file" enabled) || return 1
 			thingino_agent_prudynt_validate_bool "$value" || return 1
-			thingino_agent_prudynt_apply_payload "{\"daynight\":{\"enabled\":$value}}" || return 1
-			thingino_agent_prudynt_persist_value daynight.enabled "$value"
+			if thingino_agent_has_daynightd; then
+				if [ "$value" = true ]; then
+					thingino_agent_daynightd_set_mode auto || return 1
+				else
+					mode=$(thingino_agent_prudynt_daynight_running_mode)
+					case "$mode" in
+						day | night) ;;
+						*) mode=day ;;
+					esac
+					thingino_agent_daynightd_set_mode "$mode" || return 1
+				fi
+			else
+				thingino_agent_prudynt_apply_payload "{\"daynight\":{\"enabled\":$value}}" || return 1
+				thingino_agent_prudynt_persist_value daynight.enabled "$value"
+			fi
 			thingino_agent_print_setting_update "$path" enabled "$value"
 			;;
 		daynight/force-mode)
@@ -1717,8 +1746,13 @@ thingino_agent_adapter_prudynt_set_setting() {
 					return 1
 					;;
 			esac
-			thingino_agent_prudynt_apply_payload "{\"daynight\":{\"force_mode\":$value}}" || return 1
-			thingino_agent_prudynt_persist_value daynight.force_mode "$value"
+			if thingino_agent_has_daynightd; then
+				mode=$(printf '%s' "$value" | tr -d '"')
+				thingino_agent_daynightd_set_mode "$mode" || return 1
+			else
+				thingino_agent_prudynt_apply_payload "{\"daynight\":{\"force_mode\":$value}}" || return 1
+				thingino_agent_prudynt_persist_value daynight.force_mode "$value"
+			fi
 			thingino_agent_print_setting_update "$path" force_mode "$value"
 			;;
 		privacy/enabled)
@@ -2276,14 +2310,22 @@ thingino_agent_adapter_prudynt_daynight() {
 	}
 	case "$mode" in
 		auto)
-			thingino_agent_prudynt_apply_payload '{"daynight":{"enabled":true}}' || return 1
-			thingino_agent_prudynt_persist_value daynight.enabled true
+			if thingino_agent_has_daynightd; then
+				thingino_agent_daynightd_set_mode auto || return 1
+			else
+				thingino_agent_prudynt_apply_payload '{"daynight":{"enabled":true}}' || return 1
+				thingino_agent_prudynt_persist_value daynight.enabled true
+			fi
 			printf '{"status":"accepted","mode":"auto"}\n'
 			;;
 		day | night)
-			thingino_agent_prudynt_apply_payload "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$mode\"}}" || return 1
-			thingino_agent_prudynt_persist_value daynight.enabled false
-			thingino_agent_prudynt_persist_value daynight.force_mode "\"$mode\""
+			if thingino_agent_has_daynightd; then
+				thingino_agent_daynightd_set_mode "$mode" || return 1
+			else
+				thingino_agent_prudynt_apply_payload "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$mode\"}}" || return 1
+				thingino_agent_prudynt_persist_value daynight.enabled false
+				thingino_agent_prudynt_persist_value daynight.force_mode "\"$mode\""
+			fi
 			printf '{"status":"accepted","mode":%s}\n' "$(thingino_agent_json_string "$mode")"
 			;;
 		*)

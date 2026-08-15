@@ -218,3 +218,109 @@ thingino_agent_print_setting_resource_update() {
 	printf '{"status":"accepted","applied":["settings.%s"],"staged":[],"restart_required":[],"resource":%s}\n' \
 		"$(thingino_agent_setting_path_label "$path")" "$(thingino_agent_json_value_or "$resource_json" null)"
 }
+
+# daynightd owns day/night when present (writes /etc/thingino.json + SIGHUP).
+# Matches package/thingino-webui/files/www/x/json-imp.cgi preference order.
+thingino_agent_has_daynightd() {
+	command -v daynightd >/dev/null 2>&1
+}
+
+thingino_agent_daynightd_reload() {
+	if [ -f /run/daynightd.pid ]; then
+		kill -HUP "$(cat /run/daynightd.pid)" 2>/dev/null || true
+	fi
+}
+
+thingino_agent_daynightd_script() {
+	if [ -x /sbin/daynight ]; then
+		printf '/sbin/daynight'
+	elif [ -x /usr/sbin/daynight ]; then
+		printf '/usr/sbin/daynight'
+	fi
+}
+
+thingino_agent_daynightd_config_get() {
+	thingino_agent_json_config_value "$THINGINO_CONFIG_FILE" "$1"
+}
+
+thingino_agent_daynightd_config_set() {
+	path=$1
+	value=$2
+	command -v jct >/dev/null 2>&1 || {
+		echo "jct is not available" >&2
+		return 1
+	}
+	[ -f "$THINGINO_CONFIG_FILE" ] || {
+		echo "missing $THINGINO_CONFIG_FILE" >&2
+		return 1
+	}
+	jct "$THINGINO_CONFIG_FILE" set "$path" "$value" >/dev/null 2>&1 || {
+		echo "failed to set $path" >&2
+		return 1
+	}
+}
+
+thingino_agent_daynightd_enabled() {
+	case "$(thingino_agent_daynightd_config_get daynight.enabled | tr 'A-Z' 'a-z')" in
+		1 | true | yes | on) printf 'true' ;;
+		*) printf 'false' ;;
+	esac
+}
+
+thingino_agent_daynightd_force_mode() {
+	mode=$(thingino_agent_daynightd_config_get daynight.force_mode | tr -d '"' | tr 'A-Z' 'a-z')
+	case "$mode" in
+		day | night) thingino_agent_json_string "$mode" ;;
+		*) printf 'null' ;;
+	esac
+}
+
+thingino_agent_daynightd_running_mode() {
+	if [ -r /run/thingino/daynight_mode ]; then
+		mode=$(sed -n '1p' /run/thingino/daynight_mode 2>/dev/null | tr -d '\r\n ' | tr 'A-Z' 'a-z')
+		case "$mode" in
+			day | night)
+				printf '%s' "$mode"
+				return 0
+				;;
+		esac
+	fi
+	printf 'unknown'
+}
+
+thingino_agent_daynightd_target_mode() {
+	if [ "$(thingino_agent_daynightd_enabled)" = true ]; then
+		printf 'auto'
+		return 0
+	fi
+	mode=$(thingino_agent_daynightd_config_get daynight.force_mode | tr -d '"' | tr 'A-Z' 'a-z')
+	case "$mode" in
+		day | night) printf '%s' "$mode" ;;
+		*) printf 'auto' ;;
+	esac
+}
+
+# Apply auto|day|night the same way json-imp.cgi does for daynightd images.
+thingino_agent_daynightd_set_mode() {
+	mode=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	case "$mode" in
+		auto)
+			thingino_agent_daynightd_config_set daynight.enabled true || return 1
+			thingino_agent_daynightd_config_set daynight.force_mode "" || return 1
+			thingino_agent_daynightd_reload
+			;;
+		day | night)
+			thingino_agent_daynightd_config_set daynight.enabled false || return 1
+			thingino_agent_daynightd_config_set daynight.force_mode "$mode" || return 1
+			script=$(thingino_agent_daynightd_script)
+			if [ -n "$script" ]; then
+				"$script" "$mode" >/dev/null 2>&1 || true
+			fi
+			thingino_agent_daynightd_reload
+			;;
+		*)
+			echo "daynight mode must be auto, day, or night" >&2
+			return 1
+			;;
+	esac
+}
