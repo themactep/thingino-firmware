@@ -88,6 +88,7 @@ Versions are extracted from package `.mk` files.
 | `thingino-raptor-common` | Added | `-` | `n/a` | `2f296318891c61e131ef36c4296822d951b94698` |
 | `thingino-raptor-hal` | Added | `-` | `n/a` | `9780eb14a6da4e794504c9514fc7e8ec63abdc56` |
 | `thingino-raptor-ipc` | Added | `-` | `n/a` | `537bfcf9159d8a270a0ad8cc96b5b3cf8d31d9bb` |
+| `thingino-send2` | Added | `-` | `n/a` | `n/a` |
 | `thingino-rt-tests` | Added | `-` | `n/a` | `v0.86` |
 | `thingino-rtsp-server` | Added | `-` | `n/a` | `1.0.0` |
 | `thingino-sounds` | Added | `-` | `n/a` | `n/a` |
