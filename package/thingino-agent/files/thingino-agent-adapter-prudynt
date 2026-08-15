@@ -2068,8 +2068,21 @@ thingino_agent_adapter_prudynt_apply_config() {
 	thingino_agent_prudynt_persist_if_present "$source_file" motion.send2storage
 	thingino_agent_prudynt_persist_if_present "$source_file" motion.send2telegram
 	thingino_agent_prudynt_persist_if_present "$source_file" motion.send2webhook
-	thingino_agent_prudynt_persist_if_present "$source_file" daynight.enabled
-	thingino_agent_prudynt_persist_if_present "$source_file" daynight.force_mode
+	if thingino_agent_has_daynightd; then
+		value=$(thingino_agent_json_config_value "$source_file" daynight.enabled)
+		case "$value" in
+			true) thingino_agent_daynightd_set_mode auto || true ;;
+			false)
+				force=$(thingino_agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
+				case "$force" in
+					day | night) thingino_agent_daynightd_set_mode "$force" || true ;;
+				esac
+				;;
+		esac
+	else
+		thingino_agent_prudynt_persist_if_present "$source_file" daynight.enabled
+		thingino_agent_prudynt_persist_if_present "$source_file" daynight.force_mode
+	fi
 	thingino_agent_prudynt_persist_if_present "$source_file" recorder.autostart
 	thingino_agent_prudynt_persist_if_present "$source_file" recorder.channel
 	thingino_agent_prudynt_persist_if_present "$source_file" recorder.device_path
