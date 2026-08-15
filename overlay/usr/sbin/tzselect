@@ -4,8 +4,6 @@
 TZJSON_FILE="/usr/share/tz.json"
 
 get_terminal_height() {
-	local height
-
 	height=""
 	if command -v stty >/dev/null 2>&1; then
 		height=$(stty size 2>/dev/null | cut -d' ' -f1)
@@ -89,7 +87,7 @@ display_timezones_page() {
 
 	echo "Available timezones (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
-	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num name value; do
+	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read -r num name value; do
 		echo "  $num) $name"
 	done
 }
@@ -99,14 +97,9 @@ set_timezone() {
 		echo "Empty data!"
 		exit 1
 	fi
-	local selected_tz="$1"
+	selected_tz="$1"
 	tz_name=$(echo "$selected_tz" | cut -d':' -f1)
-	tz_data=$(echo "$selected_tz" | cut -d':' -f2-)
-	echo "$tz_name" >/etc/timezone
-	echo "$tz_data" >/etc/TZ
-	# Restart timezone service to apply changes
-	service restart timezone >/dev/null 2>&1
-	echo -c 240 -e "- Timezone updated to $tz_name ($tz_data)"
+	timectl set-timezone --source user "$tz_name"
 }
 
 get_by_name() {
@@ -115,12 +108,20 @@ get_by_name() {
 		exit 1
 	fi
 
-	# if we ever get jq
-	# matched_tz=$(cat $TZJSON_FILE | jq 'map(select(any(contains("$1"))))')
-	matched_tz=$(cat $TZJSON_FILE | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sed -n "/$1/p")
-	if [ "0$(echo "$matched_tz" | wc -l)" -gt 1 ]; then
+	# Fixed-string match on the tzdb names, so no sed pattern escaping is
+	# needed for names containing '/'.
+	matched_tz=$(sed 's/},{/\n/g' "$TZJSON_FILE" |
+		sed 's/^\[{//;s/}\]$//' |
+		sed -n 's/"n":"\([^"]*\)".*/\1/p' |
+		grep -F "$1")
+
+	count=$(printf '%s\n' "$matched_tz" | grep -c .)
+	if [ "$count" -gt 1 ]; then
 		echo "Multiple matches:"
-		echo "$matched_tz"
+		printf '%s\n' "$matched_tz"
+		exit 1
+	elif [ "$count" -eq 0 ]; then
+		echo "No match for '$1'"
 		exit 1
 	else
 		set_timezone "$matched_tz"
@@ -128,13 +129,14 @@ get_by_name() {
 	fi
 }
 
+# shellcheck disable=SC2329 # invoked via trap in interactive_shell
 cleanup() {
 	# Restore terminal settings if they were saved
 	if [ -n "$old_tty_settings" ]; then
 		stty "$old_tty_settings" 2>/dev/null
 	fi
 	# Clean up temp files
-	rm -f $LIST_PATH /tmp/tz_raw.txt
+	rm -f "$LIST_PATH" /tmp/tz_raw.txt
 	echo ""
 }
 

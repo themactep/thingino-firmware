@@ -17,6 +17,7 @@ THINGINO_EXTERNAL_PATH := $(patsubst "%",%,$(strip $(BR2_EXTERNAL_THINGINO_PATH)
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-webserver/busybox-httpd-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-freetype/freetype-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-libcurl/libcurl-override.mk
+include $(THINGINO_EXTERNAL_PATH)/package/thingino-libopenssl/libopenssl-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-libwebsockets/libwebsockets-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-live555/live555-override.mk
 include $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/mbedtls-override.mk

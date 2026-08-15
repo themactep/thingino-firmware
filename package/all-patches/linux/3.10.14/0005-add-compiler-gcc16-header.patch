@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thingino Project <dev@thingino.com>
+Date: Sun, 3 Aug 2026 00:00:00 +0000
+Subject: [PATCH] include/linux: add compiler-gcc16.h
+
+GCC 16 requires a compiler-gcc16.h header. Since GCC 16 introduces
+no new attributes or builtins beyond what GCC 15 supports, simply
+include the GCC 15 header.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+ include/linux/compiler-gcc16.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+ create mode 100644 include/linux/compiler-gcc16.h
+
+diff --git a/include/linux/compiler-gcc16.h b/include/linux/compiler-gcc16.h
+new file mode 100644
+index 0000000000..1234567890
+--- /dev/null
++++ b/include/linux/compiler-gcc16.h
+@@ -0,0 +1,6 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * GCC 16 uses the same attributes and builtins as GCC 15.
++ * No new features need special handling.
++ */
++#include <linux/compiler-gcc15.h>

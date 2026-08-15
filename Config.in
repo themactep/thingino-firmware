@@ -30,18 +30,18 @@ menu "Toolchain"
 
 	choice
 		prompt "Thingino GCC version"
-		default BR2_THINGINO_TOOLCHAIN_GCC_15
+		default BR2_THINGINO_TOOLCHAIN_GCC_16
 		help
 		  Select GCC major version used to build fragment name.
-
-	config BR2_THINGINO_TOOLCHAIN_GCC_13
-		bool "GCC 13"
 
 	config BR2_THINGINO_TOOLCHAIN_GCC_14
 		bool "GCC 14"
 
 	config BR2_THINGINO_TOOLCHAIN_GCC_15
 		bool "GCC 15"
+
+	config BR2_THINGINO_TOOLCHAIN_GCC_16
+		bool "GCC 16"
 
 	endchoice
 
@@ -68,10 +68,9 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	bool "System Packages"
 	default y if !BR2_THINGINO_TOOLCHAIN
 	select BR2_PACKAGE_DROPBEAR
-	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
-	select BR2_PACKAGE_INGENIC_LIB if BR2_THINGINO_DEV_CAMERA || BR2_THINGINO_AUDIO
-	select BR2_PACKAGE_INGENIC_PWM
-	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
+	# Vendor-specific system packages live in one block per vendor; see
+	# package/thingino-system/Config.<vendor>.in.
+	select BR2_THINGINO_SYSTEM_PACKAGES_INGENIC if BR2_SOC_VENDOR_INGENIC
 	select BR2_PACKAGE_THINGINO_CORE
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_KOPT
@@ -86,7 +85,6 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS if BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	# abstractions
-	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_MOTORS if BR2_THINGINO_MOTORS
 	select BR2_PACKAGE_THINGINO_SOUNDS if BR2_THINGINO_AUDIO
@@ -125,6 +123,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/magik-models/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/open-tx-isp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/openimp/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/subzeroclaw/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/telegrambot/Config.in"
@@ -144,6 +143,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libubox/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mmc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-motors/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sensor-info/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mxml/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-nimble/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-odhcp6c/Config.in"
@@ -153,6 +153,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-prusa-connect/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.ingenic.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ubus/Config.in"
@@ -212,6 +213,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libwebsockets/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-20x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-212/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-snmpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
@@ -265,6 +267,7 @@ config BR2_THINGINO_DEV_EXPERIMENTAL
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp-inspector/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"

@@ -1,0 +1,1 @@
+gpio_default=58i 59o 60O 81O

@@ -1,0 +1,71 @@
+#!/bin/sh
+# Day/night switching for Raptor images
+# ric owns day/night on Raptor: it drives the IR-CUT filter, the IR
+# LEDs and the ISP mode together, so this wrapper only translates the
+# daynightd-era CLI onto raptorctl. day/night force a mode (this
+# disables photosensing), auto hands control back to ric.
+# Installed by thingino-raptor; called by the Web UI (json-imp.cgi).
+
+MODE_FILE="/run/thingino/daynight_mode"
+mkdir -p /run/thingino
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# One string field out of ric's status JSON. Flat one-line object,
+# each key appears once, so a keyed sed is enough.
+ric_field() {
+	raptorctl ric status 2>/dev/null |
+		sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p" | head -n 1
+}
+
+# Live hardware state (day/night) from ric; last commanded value from
+# the mode file only when ric is unreachable.
+current_state() {
+	local s
+	if command_present raptorctl; then
+		s=$(ric_field state)
+	fi
+	[ -n "$s" ] || s=$(awk 'NR==1 {print $1}' "$MODE_FILE" 2>/dev/null)
+	echo "${s:-day}"
+}
+
+set_mode() {
+	if ! command_present raptorctl; then
+		echo "raptorctl not found" >&2
+		return 1
+	fi
+	raptorctl ric mode "$1" >/dev/null || return 1
+	echo "$1" >"$MODE_FILE"
+}
+
+case "$1" in
+	day | night | auto)
+		set_mode "$1" || exit 1
+		;;
+	~ | toggle)
+		if [ "day" = "$(current_state)" ]; then
+			set_mode night || exit 1
+		else
+			set_mode day || exit 1
+		fi
+		;;
+	\? | read | status)
+		current_state
+		;;
+	mode)
+		# auto/day/night: what ric is told to do, not what it shows
+		if command_present raptorctl; then
+			ric_field mode
+		else
+			awk 'NR==1 {print $1}' "$MODE_FILE" 2>/dev/null
+		fi
+		;;
+	*)
+		echo "Usage: $0 {day|night|auto|toggle|read|mode}" >&2
+		echo "Current state: $(current_state)" >&2
+		;;
+esac
+
+exit 0

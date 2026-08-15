@@ -1,0 +1,11 @@
+# Thingino TTS — Python dependencies (pip install into .venv)
+numpy
+pyyaml
+soundfile
+torch
+transformers
+scipy
+phonemizer
+loguru
+huggingface_hub
+onnxruntime

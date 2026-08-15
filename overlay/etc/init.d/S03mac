@@ -60,3 +60,6 @@ echo -c 240 -e "- Generated WLAN MAC: $wlan_mac"
 # Persist to thingino.json
 jct "$CONFIG_JSON" set eth.mac "$eth_mac"
 jct "$CONFIG_JSON" set wlan.mac "$wlan_mac"
+
+# Persist eth MAC to U-Boot environment for network operations (tftp, etc.)
+fw_setenv ethaddr "$eth_mac" 2>/dev/null

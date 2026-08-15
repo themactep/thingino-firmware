@@ -12,7 +12,7 @@
  * token goes as ?token= - it may show up in access logs, which is accepted
  * on the LAN (the token unlocks /control + /events + viewing the HTTP media
  * endpoints, never RTSP). CORS + the OPTIONS preflight are handled by timps.
- * preview-timps.html primes window.timpsTokenInfo with a single shared
+ * preview.html primes window.timpsTokenInfo with a single shared
  * token fetch (its /stream.mp4 fetch reuses the token); this script uses
  * that when present and keeps its own fetch as a standalone fallback.
  *
@@ -256,7 +256,7 @@
   async function init() {
     let info;
     if (window.timpsTokenInfo) {
-      // shared single fetch (primed by preview-timps.html for the player)
+      // shared single fetch (primed by preview.html for the player)
       info = await window.timpsTokenInfo;
     } else {
       try {

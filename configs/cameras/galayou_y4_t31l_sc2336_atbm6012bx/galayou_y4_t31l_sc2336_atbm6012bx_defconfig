@@ -1,5 +1,5 @@
 # NAME: Galayou Y4 (T31L, SC2336, ATBM6012BX)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_VPLL=y
 BR2_INGENIC_SOC_MODEL="t31l"
 BR2_ISP_CH0_PRE_DEQUEUE_TIME=y

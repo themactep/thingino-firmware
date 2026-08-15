@@ -3,8 +3,8 @@
 Assemble Thingino WebUI plugin manifests into static runtime configuration.
 
 Scans TARGET_DIR/var/www/a/plugins/*.webui.json, validates for conflicts,
-merges nav contributions, injects scripts/styles/HTML into pages, and
-re-applies asset tags and CDN fallbacks.
+merges nav contributions, injects scripts/styles/HTML into pages (preserving
+existing asset cache-busting timestamps from data-asset-ts).
 
 Usage:
   assemble_plugins.py <staging-dir>            # full assembly
@@ -53,6 +53,9 @@ CLOSING_HEAD_RE = re.compile(r"</head>", re.IGNORECASE)
 
 # Regex to find </body> for preview script injection.
 CLOSING_BODY_RE = re.compile(r"</body>", re.IGNORECASE)
+
+# Regex to extract data-asset-ts from <html> tag
+ASSET_TS_RE = re.compile(r'<html\b[^>]*\bdata-asset-ts="([^"]+)"', re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -219,19 +222,21 @@ def merge_nav(
 # HTML injection
 # ---------------------------------------------------------------------------
 
-def make_script_tag(src: str) -> str:
+def make_script_tag(src: str, asset_ts: str = "") -> str:
     """Generate a <script> tag for the given source path."""
-    return f'<script src="{src}"></script>'
+    ts = f"?ts={asset_ts}" if asset_ts else ""
+    return f'<script src="{src}{ts}"></script>'
 
 
-def make_link_tag(href: str) -> str:
+def make_link_tag(href: str, asset_ts: str = "") -> str:
     """Generate a <link> tag for the given stylesheet path."""
-    return f'<link rel="stylesheet" href="{href}">'
+    ts = f"?ts={asset_ts}" if asset_ts else ""
+    return f'<link rel="stylesheet" href="{href}{ts}">'
 
 
-def inject_plugins_js(html_content: str, www_root: Path) -> str:
+def inject_plugins_js(html_content: str, www_root: Path, asset_ts: str = "") -> str:
     """Insert <script src='/a/plugins.js'> after runtime-config.js."""
-    plugin_tag = make_script_tag("/a/plugins.js")
+    plugin_tag = make_script_tag("/a/plugins.js", asset_ts)
 
     def replacement(match):
         return match.group(0) + "\n" + plugin_tag
@@ -245,16 +250,16 @@ def inject_plugins_js(html_content: str, www_root: Path) -> str:
 
 
 def inject_global_scripts(
-    html_content: str, manifests: List[Dict[str, Any]]
+    html_content: str, manifests: List[Dict[str, Any]], asset_ts: str = ""
 ) -> str:
     """Inject plugin global scripts and styles before </head>."""
     tags: List[str] = []
 
     for m in manifests:
         for style in m.get("styles", []):
-            tags.append(make_link_tag(style))
+            tags.append(make_link_tag(style, asset_ts))
         for script in m.get("scripts", []):
-            tags.append(make_script_tag(script))
+            tags.append(make_script_tag(script, asset_ts))
 
     if not tags:
         return html_content
@@ -283,14 +288,14 @@ def inject_preview_body(
 
 
 def inject_preview_scripts(
-    html_content: str, manifests: List[Dict[str, Any]]
+    html_content: str, manifests: List[Dict[str, Any]], asset_ts: str = ""
 ) -> str:
     """Inject preview-specific scripts before </body>."""
     tags: List[str] = []
     for m in manifests:
         preview = m.get("preview", {})
         for script in preview.get("scripts", []):
-            tags.append(make_script_tag(script))
+            tags.append(make_script_tag(script, asset_ts))
 
     if not tags:
         return html_content
@@ -324,16 +329,22 @@ def process_html_files(
 
         original = content
 
+        # Extract asset timestamp from <html data-asset-ts="...">
+        asset_ts = ""
+        ts_match = ASSET_TS_RE.search(content)
+        if ts_match:
+            asset_ts = ts_match.group(1)
+
         # Inject plugins.js after runtime-config.js (all pages)
-        content = inject_plugins_js(content, www_root)
+        content = inject_plugins_js(content, www_root, asset_ts)
 
         # Inject global scripts/styles (all pages)
-        content = inject_global_scripts(content, manifests)
+        content = inject_global_scripts(content, manifests, asset_ts)
 
         # Preview-specific injections
         if is_preview_page(path):
             content = inject_preview_body(content, manifests)
-            content = inject_preview_scripts(content, manifests)
+            content = inject_preview_scripts(content, manifests, asset_ts)
 
         if content != original:
             try:

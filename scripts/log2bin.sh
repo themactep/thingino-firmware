@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2086
 #
 # In the terminal program you use to connect to the UART port,
 # enable saving the session log files.
@@ -34,6 +35,8 @@
 # Convert the hex dump into a binary firmware file running this script.
 #
 # 2023 Paul Philippov, paul@themactep.com
+
+set -euo pipefail
 
 rawlog=$1
 hexlog=${rawlog}.hex

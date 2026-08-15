@@ -2,7 +2,7 @@
   "daynight": {
     "enabled": true,
 
-    "night_threshold": 20,
+    "night_threshold": 25,
     "day_threshold": 50,
     "night_count_threshold": 6,
     "day_count_threshold": 4,

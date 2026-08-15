@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2001,SC2162
 #
 # Camera selection script for Thingino firmware
 # Supports fzf, whiptail, dialog, and numbered list fallback
@@ -8,6 +9,8 @@
 # suggested_camera: optional camera name to offer first (e.g., auto-detected from device)
 # Returns: Camera directory name (not full path)
 #
+
+set -euo pipefail
 
 cameras_dir="$1"
 memo_file="$2"
@@ -25,8 +28,11 @@ if [ ! -d "$cameras_dir" ]; then
 	exit 1
 fi
 
-# Get list of cameras (list subdirectories in cameras_dir)
-cameras=($(ls "$cameras_dir" | sort))
+# Get list of cameras (list subdirectories in cameras_dir, sorted)
+cameras=()
+while IFS= read -r name; do
+	cameras+=("$name")
+done < <(find "$cameras_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 
 if [ ${#cameras[@]} -eq 0 ]; then
 	echo "ERROR: No camera configs found in $cameras_dir" >&2

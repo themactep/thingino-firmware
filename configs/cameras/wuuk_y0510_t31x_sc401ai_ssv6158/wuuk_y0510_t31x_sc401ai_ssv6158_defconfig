@@ -1,5 +1,5 @@
 # NAME: WUUK Y0510 (T31X, SC401AI, SSV6158)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_CLK_400MHZ=y
 BR2_AVPU_VPLL=y
 BR2_INGENIC_SOC_MODEL="t31x"

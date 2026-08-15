@@ -23,15 +23,26 @@ if command -v openssl >/dev/null 2>&1; then
 		-days 3650 -nodes \
 		-subj "/C=US/ST=State/L=City/O=Thingino/CN=camera.local" \
 		2>/dev/null
-	chmod 600 "$KEY"
-	chmod 644 "$CERT"
+	ret=$?
+	chmod 600 "$KEY" 2>/dev/null
+	chmod 644 "$CERT" 2>/dev/null
 elif command -v mbedtls-certgen >/dev/null 2>&1; then
 	echo "Generating self-signed certificate with mbedtls-certgen..."
-	mbedtls-certgen server "$CERT" "$KEY" \
-		--cn camera.local --days 3650
+	# mbedtls-certgen's flags, not openssl's: -h hostname -c cert -k key
+	# (no positional "server" arg, no --cn/--days long options).
+	mbedtls-certgen -h camera.local -c "$CERT" -k "$KEY" -d 3650
+	ret=$?
 	chmod 600 "$KEY" 2>/dev/null
 else
 	echo "WARNING: No TLS tool found, skipping certificate generation."
+	exit 1
+fi
+
+# Neither branch above may have written both files (wrong flags, disk full,
+# etc.) - checking $ret alone isn't enough since a tool can exit 0 without
+# producing a usable pair, so also verify the outputs are actually there.
+if [ "$ret" -ne 0 ] || [ ! -s "$CERT" ] || [ ! -s "$KEY" ]; then
+	echo "ERROR: certificate generation failed (exit $ret)"
 	exit 1
 fi
 

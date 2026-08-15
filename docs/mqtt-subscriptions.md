@@ -37,10 +37,10 @@ anywhere in a topic string:
 |---------------|------------------------------------------------------|
 | `%hostname`   | Camera hostname (e.g. `ing-wyze-cam3-592e`)          |
 | `%ip`         | Camera IP address (e.g. `192.168.1.42`)              |
-| `%id`         | MAC address without separators (e.g. `0244dd22592e`) |
+| `%id`         | Camera hostname (e.g. `ing-wyze-cam3-2937`) |
 
 Example: `cameras/%id/cmd` subscribes to
-`cameras/0244dd22592e/cmd` at runtime.
+`cameras/ing-wyze-cam3-2937/cmd` at runtime.
 
 
 ## QoS levels
@@ -530,30 +530,29 @@ mqtt:
   button:
     - unique_id: cam_snapshot
       name: "Camera Snapshot"
-      command_topic: "cameras/0244dd22592e/snapshot"
+      command_topic: "cameras/ing-wyze-cam3-2937/snapshot"
       payload_press: "1"
 
   switch:
     - unique_id: cam_motion
       name: "Camera Motion Guard"
-      command_topic: "cameras/0244dd22592e/motion"
+      command_topic: "cameras/ing-wyze-cam3-2937/motion"
       payload_on: "on"
       payload_off: "off"
-      state_topic: "cameras/0244dd22592e/motion/state"
+      state_topic: "cameras/ing-wyze-cam3-2937/motion/state"
 
     - unique_id: cam_privacy
       name: "Camera Privacy Screen"
-      command_topic: "cameras/0244dd22592e/privacy"
+      command_topic: "cameras/ing-wyze-cam3-2937/privacy"
       payload_on: "on"
       payload_off: "off"
 
   select:
     - unique_id: cam_daynight
       name: "Camera Day/Night Mode"
-      command_topic: "cameras/0244dd22592e/daynight"
+      command_topic: "cameras/ing-wyze-cam3-2937/daynight"
       options: ["day", "night", "toggle"]
 ```
 
-Replace `0244dd22592e` with your camera's `%id` value (visible in the Web UI
-under **Services → MQTT Subscriptions** broker settings or via `hostname -I`
-on the camera).
+Replace `ing-wyze-cam3-2937` with your camera's `%id` value (visible in the
+Web UI under **Services → MQTT Subscriptions** broker settings).

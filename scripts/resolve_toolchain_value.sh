@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -eu
+
 if [ "$#" -lt 1 ]; then
 	echo "Usage: $0 <TYPE|GCC|LIBC> [config files...]" >&2
 	exit 1
@@ -15,7 +17,7 @@ case "$field" in
 		;;
 	GCC)
 		extract_expr='s/^BR2_THINGINO_TOOLCHAIN_GCC_\([0-9][0-9]*\)=y$/\1/p'
-		default_value='15'
+		default_value='16'
 		;;
 	LIBC)
 		extract_expr='s/^BR2_THINGINO_TOOLCHAIN_LIBC_\([A-Z0-9_]*\)=y$/\1/p'

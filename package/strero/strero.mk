@@ -7,6 +7,15 @@ STRERO_GIT_SUBMODULES = YES
 
 STRERO_DEPENDENCIES = thingino-jct ingenic-lib libschrift
 STRERO_DEPENDENCIES += opus
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+STRERO_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+STRERO_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+STRERO_DEPENDENCIES += libaudioprocess-neo
+endif
 
 STRERO_CFLAGS += \
 	-Os -DHAVE_LIBSCHRIFT=1 \

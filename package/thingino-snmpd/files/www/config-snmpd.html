@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · SNMP</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-snmpd">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="snmpdForm" class="needs-validation" novalidate autocomplete="off">
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">SNMP Monitoring <span id="snmpd_status" class="badge bg-secondary align-middle">unknown</span></h2>
+            <small>Expose uptime, CPU load, memory, disk and network counters to a monitoring system. Read-only SNMP v1/v2c, no SNMPv3.</small>
+            <button type="button" class="btn btn-outline-secondary" id="snmpd-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row g-4">
+
+              <!-- Access -->
+              <div class="col-12 col-lg-4">
+                <h4>Access</h4>
+                <small>Who may poll this camera, and where it listens</small>
+                <p class="mt-3">
+                  <label for="snmpd_community">Community</label>
+                  <input type="text" id="snmpd_community" class="form-control" pattern="[A-Za-z0-9_.-]*" title="letters, digits, dot, dash and underscore" placeholder="public">
+                  <small>Sent in clear text by SNMP v1/v2c. Do not reuse a password here.</small>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" id="snmpd_auth" class="form-check-input" role="switch">
+                  <label for="snmpd_auth" class="form-check-label">Require the community string</label>
+                  <small class="d-block">Off accepts any community, including SNMPv1 requests with none.</small>
+                </p>
+                <p>
+                  <label for="snmpd_port">Port (UDP and TCP)</label>
+                  <input type="text" id="snmpd_port" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="161">
+                </p>
+                <p>
+                  <label for="snmpd_listen">Bind to interface</label>
+                  <input type="text" id="snmpd_listen" class="form-control" placeholder="all interfaces">
+                  <small>Single interface name, e.g. <code>eth0</code>. Empty listens on every interface.</small>
+                </p>
+                <p class="form-switch mt-3">
+                  <input type="checkbox" id="snmpd_enabled" class="form-check-input" role="switch">
+                  <label for="snmpd_enabled" class="form-check-label">Enable SNMP daemon</label>
+                </p>
+              </div>
+
+              <!-- System information -->
+              <div class="col-12 col-lg-4">
+                <h4>System information</h4>
+                <small>Reported in the SNMPv2-MIB system group</small>
+                <p class="mt-3">
+                  <label for="snmpd_location">Location (sysLocation)</label>
+                  <input type="text" id="snmpd_location" class="form-control" placeholder="Front door">
+                </p>
+                <p>
+                  <label for="snmpd_contact">Contact (sysContact)</label>
+                  <input type="text" id="snmpd_contact" class="form-control" placeholder="ops@example.com">
+                </p>
+                <p>
+                  <label for="snmpd_description">Description (sysDescr)</label>
+                  <input type="text" id="snmpd_description" class="form-control" placeholder="uses os-release if empty">
+                </p>
+                <p>
+                  <label for="snmpd_traps">Trap sinks</label>
+                  <input type="text" id="snmpd_traps" class="form-control" placeholder="192.168.1.10, 192.168.1.11:1620">
+                  <small>Comma separated <code>addr[:port]</code>, default port 162. Receives coldStart, linkUp/linkDown and authentication failures.</small>
+                </p>
+              </div>
+
+              <!-- Monitoring -->
+              <div class="col-12 col-lg-4">
+                <h4>Monitoring</h4>
+                <small>What ends up in the MIB tables</small>
+                <p class="mt-3">
+                  <label for="snmpd_disks">Disks (dskTable)</label>
+                  <input type="text" id="snmpd_disks" class="form-control" placeholder="/,/overlay">
+                  <small>Comma separated mount points. Missing ones are skipped at start-up.</small>
+                </p>
+                <p>
+                  <label for="snmpd_interfaces">Interfaces (ifTable)</label>
+                  <input type="text" id="snmpd_interfaces" class="form-control" placeholder="all interfaces">
+                  <small>Comma separated names, e.g. <code>eth0,wlan0</code>. Up to 8.</small>
+                </p>
+                <p>
+                  <label for="snmpd_timeout">MIB refresh timeout (seconds)</label>
+                  <input type="text" id="snmpd_timeout" class="form-control" pattern="[0-9]+" title="numeric value" placeholder="1">
+                  <small>How long cached counters stay valid between polls.</small>
+                </p>
+                <p>
+                  <label for="snmpd_loglevel">Log level</label>
+                  <select id="snmpd_loglevel" class="form-select">
+                    <option value="none">none</option>
+                    <option value="err">err</option>
+                    <option value="notice">notice</option>
+                    <option value="info">info</option>
+                    <option value="debug">debug</option>
+                  </select>
+                  <small>Messages go to syslog, see <a href="/info.html?logread">Log: logread</a>.</small>
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="snmpd_submit" class="btn btn-primary">Save changes</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-snmpd.js"></script>
+</body>
+</html>

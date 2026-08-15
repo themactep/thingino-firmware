@@ -88,20 +88,37 @@ The preview page talks to timps directly (see below).
   `?stream=motion` instead of polling; config keys `events.enabled` /
   `events.stats_ms` / `events.max_clients` (see the conf example).
 
-## Web UI preview (raptor pattern)
+## Web UI preview (same-name install-order override)
 
-When the timps streamer is chosen, `package/thingino-webui` installs
-`files/www/preview-timps.html` as `/var/www/preview.html`
-(`THINGINO_WEBUI_PREVIEW_HTML` switch in `thingino-webui.mk`, exactly like
-`preview-raptor.html` for raptor — no finalize-hook override anymore).
+`files/www/preview.html` lives in this package under the exact filename
+`thingino-webui` uses for its own core preview page, and is installed
+straight over `/var/www/preview.html` — the same overlay `timps.mk` already
+does for its other ~15 native pages (`TIMPS_INSTALL_WEBUI_CGIS`'s `*.html`
+loop). raptor does the same with its own `preview.html`; prudynt-t installs
+none, so the core page stays.
+
+The whole timps WebUI overlay is installed in timps's **install** step
+(`TIMPS_POST_INSTALL_TARGET_HOOKS`, with `TIMPS_DEPENDENCIES +=
+thingino-webui` for ordering), not from a finalize hook. That placement is
+what makes the overwrite win *and* still get the plugin layer applied:
+`thingino-webui`'s `assemble_plugins.py` reads and injects into whatever is
+on disk at `/var/www/*.html` from its own finalize hook, which runs once, and
+only after every package has finished installing — so our page has already
+replaced the stock one by the time assembly sees it, and comes out the other
+side with `<script src="/a/plugins.js">`, the `THINGINO_PLUGIN_PREVIEW_BODY`
+marker filled in, and every plugin's preview scripts, exactly like the core
+page would have. A finalize hook of our own would run too late (after
+assembly) and strip the page of its plugin layer instead — see the ordering
+comment above `TIMPS_INSTALL_WEBUI_CGIS` in `timps.mk`.
 
 That page is a **native MSE/fMP4 player** (no iframe): it fetches
 `http://<location.hostname>:8880/stream.mp4?chn=N` and drives a MediaSource
 SourceBuffer with the same queue/eviction/live-edge logic as timps's
 embedded player (`src/mp4/httpd.c`, `PLAYER_TAIL`); codec strings probed:
-`avc1.640028` (+ `mp4a.40.2`), `hvc1.1.6.L123.B0`. The motor joystick and
-`/a/preview-motors.js` are carried over unchanged from `preview-raptor.html`,
-so PTZ via `/x/json-motor.cgi` keeps working.
+`avc1.640028` (+ `mp4a.40.2`), `hvc1.1.6.L123.B0`. The motor joystick overlay
+and `/a/preview-motors.js` are contributed by `thingino-motors`' own manifest
+via the marker above (no hand-copied markup in this package), so PTZ via
+`/x/json-motor.cgi` keeps working.
 
 The motion-grid overlay (`/a/preview-motion.js`) gets the per-boot token
 from `/x/timps-token.cgi`, probes `GET /control` once (feature detection +
@@ -159,7 +176,7 @@ the WebUI session auth
 
 | CGI | What it does now |
 |---|---|
-| `json-prudynt.cgi` | Workhorse. Translates prudynt-shaped JSON to `/control`: all numeric `image.*` keys pass through, filtered by the per-SoC `caps.image` list of `GET /control` (unsupported keys are dropped from forward and echo, so the page keeps them greyed out); `image.{hflip,vflip}` `true/false` -> `1/0`; audio live keys `mic_vol`/`mic_gain`/`mic_alc_gain`/`mic_high_pass_filter`/`mic_agc_enabled`/`mic_agc_target_level_dbfs`/`mic_agc_compression_gain_db`/`mic_noise_suppression` -> `audio.{volume,gain,alc_gain,high_pass,agc,agc_target_dbfs,agc_compression_db,ns}` (applied to the running input, filtered by `caps.audio`); audio persist-only keys `mic_enabled`/`mic_format` (AAC/G711A/G711U)/`mic_sample_rate` (8/16 kHz)/`mic_bitrate`/`force_stereo`/`spk_enabled`/`spk_vol`/`spk_gain` -> `audio.{enabled,codec,samplerate,bitrate,force_stereo,spk_enabled,spk_volume,spk_gain}` (saved to `timps.conf`, applied on restart; the echo adds `"restart_required":true` so the Audio page shows a restart hint); `streamN.*` and `sensor.*` (ALL persist-only — encoder/stream/sensor settings are never reconfigured live; saved to `timps.conf`, applied on the next restart, echo adds `"restart_required":true`): `streamN.format` (H264/H265) -> `videoN.codec`, `streamN.fps/width/height/bitrate/gop/max_gop/profile/buffers/enabled` -> same-named `videoN.*` keys, a `"WIDTHxHEIGHT"` `resolution` string is split into width/height, `streamN.mode` (CBR/VBR/FIXQP/SMART/CAPPED_VBR/CAPPED_QUALITY) -> `videoN.rc_mode`, `streamN.rtsp_endpoint` (`ch0`) -> `videoN.rtsp_path` (`/ch0`), `sensor.{model,i2c_addr,fps,width,height}` -> `sensor.*`; `streamN.osd.*` (the prudynt per-stream OSD tree) -> timps's PER-STREAM overlay set `osdN.M.*`, applied LIVE (stream0's page edits timps `osd0.*`, stream1's page `osd1.*`; item 0 = time, 1 = user text, 2 = uptime, 3 = logo): `enabled`, `position "x,y"` -> `x/y`, `fill_color "#rrggbb[aa]"` -> `color 0xAARRGGBB`, `stroke_color` -> `outline_color` (text outline drawn under the fill), osd-level `stroke_size` -> `outline` (px) and `font_size` -> `font_size` of all text items, `time.format`/`usertext.format` -> item texts (`%hostname` <-> `{hostname}`), osd-level `enabled` -> the GLOBAL `osd.sei.enabled` master switch (restart); the echo returns each stream's own set so each OSD page populates its stream; `action.save_config` -> no-op "ok" (timps persists live); `action.dump_config` -> `GET /control` passthrough; `mp4.start/stop` -> explicit error (no record API); `motion/privacy.enabled` -> echoed only (not wired); `streamN.audio_enabled` dropped (timps audio is global, the toggle stays greyed out). |
+| `json-prudynt.cgi` | Workhorse. Translates prudynt-shaped JSON to `/control`: all numeric `image.*` keys pass through, filtered by the per-SoC `caps.image` list of `GET /control` (unsupported keys are dropped from forward and echo, so the page keeps them greyed out); `image.{hflip,vflip}` `true/false` -> `1/0`; audio live keys `mic_vol`/`mic_gain`/`mic_alc_gain`/`mic_high_pass_filter`/`mic_agc_enabled`/`mic_agc_target_level_dbfs`/`mic_agc_compression_gain_db`/`mic_noise_suppression` -> `audio.{volume,gain,alc_gain,high_pass,agc,agc_target_dbfs,agc_compression_db,ns}` (applied to the running input, filtered by `caps.audio`); audio persist-only keys `mic_enabled`/`mic_format` (AAC/G711A/G711U)/`mic_sample_rate` (8/16 kHz)/`mic_bitrate`/`force_stereo`/`spk_enabled`/`spk_vol`/`spk_gain` -> `audio.{enabled,codec,samplerate,bitrate,force_stereo,spk_enabled,spk_volume,spk_gain}` (saved to `timps.conf`, applied on restart; the echo adds `"restart_required":true` so the Audio page shows a restart hint); `streamN.*` and `sensor.*` (ALL persist-only — encoder/stream/sensor settings are never reconfigured live; saved to `timps.conf`, applied on the next restart, echo adds `"restart_required":true`): `streamN.format` (H264/H265) -> `videoN.codec`, `streamN.fps/width/height/bitrate/gop/max_gop/profile/buffers/enabled` -> same-named `videoN.*` keys, a `"WIDTHxHEIGHT"` `resolution` string is split into width/height, `streamN.mode` (CBR/VBR/FIXQP/SMART/CAPPED_VBR/CAPPED_QUALITY) -> `videoN.rc_mode`, `streamN.rtsp_endpoint` (`ch0`) -> `videoN.rtsp_path` (`/ch0`), `sensor.{model,i2c_addr,fps,width,height}` -> `sensor.*`; `streamN.osd.*` (the prudynt per-stream OSD tree) -> timps's PER-STREAM overlay set `osdN.M.*`, applied LIVE (stream0's page edits timps `osd0.*`, stream1's page `osd1.*`; item 0 = time, 1 = user text, 2 = uptime, 3 = logo): `enabled`, `position "x,y"` -> `x/y`, `fill_color "#rrggbb[aa]"` -> `color 0xAARRGGBB`, `stroke_color` -> `outline_color` (text outline drawn under the fill), osd-level `stroke_size` -> `outline` (px) and `font_size` -> `font_size` of all text items, `time.format`/`usertext.format` -> item texts (`%hostname` <-> `{hostname}`), osd-level `enabled` -> the GLOBAL `osd.enabled` master switch (restart); the echo returns each stream's own set so each OSD page populates its stream; `action.save_config` -> no-op "ok" (timps persists live); `action.dump_config` -> `GET /control` passthrough; `mp4.start/stop` -> explicit error (no record API); `motion/privacy.enabled` -> echoed only (not wired); `streamN.audio_enabled` dropped (timps audio is global, the toggle stays greyed out). |
 | `json-imp.cgi` | Live day/night bar: `auto` -> `{"daynight":{"enabled":true}}` (native auto detection on); `color` -> disables auto + `image.running_mode`; `daynight` -> disables auto + `force_mode`; `ir850/ir940/white/ircut` keep calling the GPIO helpers `light`/`ircut`. |
 | `json-prudynt-save.cgi` | No-op success — timps already persisted every applied change to `/etc/timps.conf`. |
 | `json-prudynt-config.cgi` | Config export: streams `GET /control` (timps shape) as a JSON download. |

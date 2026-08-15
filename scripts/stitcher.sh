@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+# Filenames from stat/dd/mv never contain spaces or glob chars.
 #
 # Stitcher
 #   a firmware file assembler for thingino project
@@ -16,6 +18,12 @@
 #   ssh root@192.168.1.10 "rm /mnt/mmcblk0p1/autoupdate-full.done; reboot"
 #
 # 2024, Paul Philippov <paul@themactep.com>
+
+set -euo pipefail
+
+u_boot=""
+kernel=""
+rootfs=""
 
 show_help_and_exit() {
 	echo "Usage: $(basename "$0") [-u <uboot.bin>] [-k <kernel.bin>] [-r <rootfs.bin>] [-h]"
@@ -95,7 +103,7 @@ if [ -z "$kernel" ] || [ ! -f "$kernel" ]; then
 	abort=$((abort + 2))
 fi
 
-if [ -z "$rootfs" ] || [ ! -f "$kernel" ]; then
+if [ -z "$rootfs" ] || [ ! -f "$rootfs" ]; then
 	echo "Cannot find RootFS."
 	abort=$((abort + 3))
 fi
@@ -126,7 +134,7 @@ kernel_size_aligned=$(((kernel_size / alignment + 1) * alignment))
 
 rootfs_offset=$((kernel_offset + kernel_size_aligned))
 rootfs_size=$(stat -c%s $rootfs)
-rootfs_size_aligned=$((($rootfs_size / $alignment + 1) * $alignment))
+rootfs_size_aligned=$(((rootfs_size / alignment + 1) * alignment))
 
 tmpfile=$(mktemp)
 

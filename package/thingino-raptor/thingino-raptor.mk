@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 17b36386f980a24c7c90adb7c9b46f31b41c3b24
+THINGINO_RAPTOR_VERSION = ee74471a2a65ba18a9555f64b51915f68f9f0125
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -7,6 +7,27 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+THINGINO_RAPTOR_DEPENDENCIES += openimp
+THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
+endif
+
+# The WebUI overlay below (WHIP proxy CGI, WebRTC preview page) installs
+# preview.html over thingino-webui's own copy of the same path, and has to
+# land before thingino-webui's plugin-assembly finalize hook processes it (the
+# assembler reads whatever is on disk at that path - it has no notion of who
+# put it there). Depending on thingino-webui makes that ordering explicit
+# instead of relying on package parse order, and guarantees the stock www
+# tree we overlay already exists.
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
+endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
@@ -165,6 +186,21 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
 
+	# Raptor's WebRTC preview page. It lives in THIS package (it is raptor's
+	# implementation, not core webui's) and installs straight over
+	# thingino-webui's own preview.html - same path, same filename, plain
+	# overwrite. THINGINO_RAPTOR_DEPENDENCIES += thingino-webui above
+	# guarantees the stock copy we overwrite is already on disk, and this
+	# runs as part of raptor's normal INSTALL_TARGET_CMDS, unconditionally
+	# before Buildroot's global target-finalize phase - so by the time
+	# thingino-webui's plugin-assembly finalize hook processes preview.html,
+	# raptor's version is what's there. No plugin manifest involved: nothing
+	# else in raptor contributes to the plugin system.
+	if [ "$(BR2_PACKAGE_THINGINO_WEBUI)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+			$(TARGET_DIR)/var/www/preview.html; \
+	fi
+
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor-webcam \
@@ -181,6 +217,16 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/speaker
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
+	# Day/night wrappers belong to RIC; with daynightd selected its
+	# own scripts of the same names are the day/night interface.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/daynight \
+			$(TARGET_DIR)/usr/sbin/daynight; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/ircut \
+			$(TARGET_DIR)/usr/sbin/ircut; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/light \
+			$(TARGET_DIR)/usr/sbin/light; \
+	fi
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \

@@ -1,0 +1,274 @@
+#!/bin/sh
+# timectl - single gate for clock, timezone, and NTP configuration.
+#
+# Every writer (WebUI, DHCP, ONVIF, HA) funnels through here. Observers read
+# the resolved state with "timectl status".
+
+TZJSON_FILE="/usr/share/tz.json"
+TZNAME_FILE="/etc/timezone"
+TZCODE_FILE="/etc/TZ"
+TZ_SOURCE_FILE="/etc/timezone.source"
+NTP_DEFAULT_FILE="/etc/default/ntp.conf"
+NTP_WORKING_FILE="/tmp/ntp.conf"
+NTP_SOURCE_FILE="/etc/ntp.source"
+
+usage() {
+	echo "Usage: $0 <command> [args]" >&2
+	echo "Commands:" >&2
+	echo "  status                      print resolved state as key=value" >&2
+	echo "  refresh                     boot: re-resolve /etc/timezone to /etc/TZ" >&2
+	echo "  set-timezone <name> [--source user|dhcp]" >&2
+	echo "  set-ntp <srv>... [--source user|dhcp]" >&2
+	echo "  set-time <date>             manual clock hint, then NTP reconcile" >&2
+	echo "  pin-timezone                keep the current timezone, ignore DHCP" >&2
+	echo "  unpin-timezone              allow DHCP to change the timezone again" >&2
+	echo "  sync                        one-shot NTP sync" >&2
+	exit 1
+}
+
+precedence() {
+	case "$1" in
+		user) echo 3 ;;
+		dhcp) echo 2 ;;
+		default) echo 1 ;;
+		*) echo 0 ;;
+	esac
+}
+
+# resolve <tzdb-name> -> POSIX TZ string (exact name match)
+# Separate sed invocations so each stage re-reads the stream line-by-line;
+# combining them with ';' would apply the later substitutions to the whole
+# (still single-line) pattern space and only convert the first entry.
+resolve() {
+	sed 's/},{/\n/g' "$TZJSON_FILE" |
+		sed 's/^\[{//;s/}\]$//' |
+		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' |
+		grep -F "$1:" | head -1 | cut -d: -f2-
+}
+
+current_source() {
+	if [ -f "$1" ]; then
+		cat "$1"
+	else
+		echo default
+	fi
+}
+
+allowed() {
+	# allowed <source> <state-file>: 0 if source may write, 1 otherwise
+	[ "$(precedence "$1")" -ge "$(precedence "$(current_source "$2")")" ]
+}
+
+cmd_status() {
+	name=$(cat "$TZNAME_FILE" 2>/dev/null)
+	[ -n "$name" ] || name="Etc/GMT"
+	posix=$(cat "$TZCODE_FILE" 2>/dev/null)
+	[ -n "$posix" ] || posix="GMT0"
+	ntp_servers=$(sed -n 's/^server \([^ ]*\).*/\1/p' "$NTP_WORKING_FILE" 2>/dev/null | tr '\n' ' ')
+
+	printf 'timezone_name=%s\n' "$name"
+	printf 'timezone_posix=%s\n' "$posix"
+	printf 'timezone_source=%s\n' "$(current_source "$TZ_SOURCE_FILE")"
+	printf 'ntp_servers=%s\n' "$ntp_servers"
+	printf 'ntp_source=%s\n' "$(current_source "$NTP_SOURCE_FILE")"
+	printf 'clock_utc=%s\n' "$(date -u +%s)"
+	printf 'clock_local=%s\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+}
+
+cmd_refresh() {
+	# One-time migration: the retired dhcp.ignore_timezone flag maps to a
+	# pinned (user-sourced) timezone, and the dead key is then removed.
+	if [ ! -f "$TZ_SOURCE_FILE" ]; then
+		if [ "true" = "$(jct /etc/thingino.json get dhcp.ignore_timezone 2>/dev/null)" ]; then
+			echo "user" >"$TZ_SOURCE_FILE"
+		fi
+		jct /etc/thingino.json del dhcp.ignore_timezone 2>/dev/null
+	fi
+
+	name=$(cat "$TZNAME_FILE" 2>/dev/null)
+	if [ -z "$name" ]; then
+		name="Etc/GMT"
+		echo "$name" >"$TZNAME_FILE"
+	fi
+
+	tz=$(resolve "$name")
+	if [ -z "$tz" ]; then
+		echo "timectl: timezone '$name' not found in $TZJSON_FILE" >&2
+		return 1
+	fi
+
+	if [ "$tz" != "$(cat "$TZCODE_FILE" 2>/dev/null)" ]; then
+		echo "$tz" >"$TZCODE_FILE"
+	fi
+}
+
+cmd_set_timezone() {
+	name=""
+	source="user"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--source)
+				source="$2"
+				shift 2
+				;;
+			--source=*)
+				source="${1#--source=}"
+				shift
+				;;
+			*)
+				name="$1"
+				shift
+				;;
+		esac
+	done
+
+	if [ -z "$name" ]; then
+		echo "timectl: set-timezone requires a timezone name" >&2
+		return 1
+	fi
+
+	if ! allowed "$source" "$TZ_SOURCE_FILE"; then
+		echo "timectl: timezone managed by '$(current_source "$TZ_SOURCE_FILE")', ignoring '$source'" >&2
+		return 0
+	fi
+
+	if [ "$name" = "$(cat "$TZNAME_FILE" 2>/dev/null)" ] &&
+		[ "$source" = "$(current_source "$TZ_SOURCE_FILE")" ]; then
+		echo "timectl: timezone already set to '$name' [$source]" >&2
+		return 0
+	fi
+
+	tz=$(resolve "$name")
+	if [ -z "$tz" ]; then
+		echo "timectl: timezone '$name' not found in $TZJSON_FILE" >&2
+		return 1
+	fi
+
+	echo "$name" >"$TZNAME_FILE"
+	echo "$tz" >"$TZCODE_FILE"
+	echo "$source" >"$TZ_SOURCE_FILE"
+	echo "timectl: timezone set to $name ($tz) [$source]" >&2
+}
+
+cmd_set_ntp() {
+	source="user"
+	servers=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--source)
+				source="$2"
+				shift 2
+				;;
+			--source=*)
+				source="${1#--source=}"
+				shift
+				;;
+			*)
+				servers="$servers $1"
+				shift
+				;;
+		esac
+	done
+
+	[ -z "$servers" ] && return 0
+
+	# Backward compat: the old WebUI marks user-pinned NTP by chmod 444 on
+	# the default file without recording a source. Treat that as user-sourced.
+	if [ "$source" = "dhcp" ] &&
+		[ -f "$NTP_DEFAULT_FILE" ] &&
+		[ '444' = "$(stat -c%a "$NTP_DEFAULT_FILE" 2>/dev/null)" ]; then
+		echo "timectl: ntp is user-pinned, ignoring dhcp" >&2
+		return 0
+	fi
+
+	if ! allowed "$source" "$NTP_SOURCE_FILE"; then
+		echo "timectl: ntp managed by '$(current_source "$NTP_SOURCE_FILE")', ignoring '$source'" >&2
+		return 0
+	fi
+
+	tmp=$(mktemp)
+	for s in $servers; do
+		echo "server $s iburst" >>"$tmp"
+	done
+
+	if [ "$source" = "user" ]; then
+		cat "$tmp" >"$NTP_DEFAULT_FILE"
+		chmod 444 "$NTP_DEFAULT_FILE"
+	fi
+	cat "$tmp" >"$NTP_WORKING_FILE"
+	rm -f "$tmp"
+	echo "$source" >"$NTP_SOURCE_FILE"
+	echo "timectl: ntp set to:$servers [$source]" >&2
+}
+
+cmd_set_time() {
+	if [ -z "$1" ]; then
+		echo "timectl: set-time requires a date" >&2
+		return 1
+	fi
+
+	if ! date -s "$1" >/dev/null 2>&1; then
+		echo "timectl: invalid date '$1'" >&2
+		return 1
+	fi
+
+	hwclock -w >/dev/null 2>&1
+	# A manual set is a hint: reconcile with NTP so a wrong client value is
+	# corrected instead of persisting in the system clock.
+	ntpd -q -N >/dev/null 2>&1 &
+}
+
+cmd_pin_timezone() {
+	name=$(cat "$TZNAME_FILE" 2>/dev/null)
+	if [ -z "$name" ]; then
+		name="Etc/GMT"
+		echo "$name" >"$TZNAME_FILE"
+	fi
+	echo "user" >"$TZ_SOURCE_FILE"
+	echo "timectl: timezone pinned to $name [user]" >&2
+}
+
+cmd_unpin_timezone() {
+	echo "default" >"$TZ_SOURCE_FILE"
+	echo "timectl: timezone unpinned [default]" >&2
+}
+
+cmd_sync() {
+	ntpd -q -N >/dev/null 2>&1 &
+}
+
+case "${1:-}" in
+	status)
+		shift
+		cmd_status
+		;;
+	refresh)
+		shift
+		cmd_refresh
+		;;
+	set-timezone)
+		shift
+		cmd_set_timezone "$@"
+		;;
+	set-ntp)
+		shift
+		cmd_set_ntp "$@"
+		;;
+	set-time)
+		shift
+		cmd_set_time "$@"
+		;;
+	pin-timezone)
+		shift
+		cmd_pin_timezone
+		;;
+	unpin-timezone)
+		shift
+		cmd_unpin_timezone
+		;;
+	sync)
+		shift
+		cmd_sync
+		;;
+	*) usage ;;
+esac

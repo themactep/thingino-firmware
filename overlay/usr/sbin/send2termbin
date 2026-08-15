@@ -1,5 +1,8 @@
 #!/bin/env sh
 
+BIN_URL="${BIN_URL:-https://tb.thingino.workers.dev}"
+CLIENT_ID="${CLIENT_ID:-$(. /etc/os-release 2>/dev/null; printf '%s' "$CPE_NAME")}"
+
 if [ -t 0 ]; then
 	if [ -z "$1" ]; then
 		echo "Usage: $0 <command>" >&2
@@ -14,11 +17,23 @@ else
 fi
 
 if [ ! -s "$file" ]; then
-	echo -c 160 -e "File $file is empty" >&2
+	echo "File $file is empty" >&2
+	rm -f "$file"
 	exit 1
 fi
 
-nc -w5 tb.thingino.com 9999 < "$file"
+response=$(curl -sS --fail-with-body -H "X-Thingino-Client: $CLIENT_ID" \
+	--data-binary "@$file" "$BIN_URL/" 2>&1)
+status=$?
 rm -f "$file"
+
+if [ $status -ne 0 ]; then
+	echo "$response" >&2
+	exit 1
+fi
+
+# stdout stays one line, the URL; callers capture it with url=$(send2termbin)
+echo "$response" | head -1
+echo "$response" | tail -n +2 >&2
 
 exit 0

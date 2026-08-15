@@ -1,5 +1,6 @@
 config BR2_PACKAGE_THINGINO_STREAMER
 	bool
+	depends on !BR2_SOC_FAMILY = "a1"
 
 choice
 	prompt "Streamer"
@@ -17,15 +18,14 @@ config BR2_PACKAGE_THINGINO_STREAMER_NONE
 
 config BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT
 	bool "Prudynt-T"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_STREAMER
+	select BR2_PACKAGE_THINGINO_DAYNIGHTD
 	help
 	  Traditional monolithic streamer.
 
 config BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
 	bool "Raptor Streaming System"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_THINGINO_RAPTOR
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
@@ -33,7 +33,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
 
 config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 	bool "Strero"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_STRERO
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
@@ -41,18 +40,22 @@ config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 
 config BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	bool "timps"
-	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_TIMPS
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
-	  Tiny IMP Streamer — minimal, dependency-light RTSP / fMP4 / MJPEG
-	  streamer. Built on vendor libimp (no live555/libconfig/libwebsockets).
+	  Tiny IMP Streamer — minimal, dependency-light RTSP / fMP4 /
+	  MJPEG streamer. Uses the selected libimp provider.
 
 endchoice
 
 if BR2_PACKAGE_THINGINO_STREAMER
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in"
+# raptor's three libraries. Sourced so their symbols exist: raptor selects all
+# three, and until now those selects named symbols Kconfig had never seen.
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-common/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-hal/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/strero/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/timps/Config.in"
 

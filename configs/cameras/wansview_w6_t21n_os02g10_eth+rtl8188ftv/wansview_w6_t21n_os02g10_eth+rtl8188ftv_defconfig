@@ -1,5 +1,5 @@
 # NAME: Wansview W6 (T21N, OS02G10, ETH, RTL8188FTV)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t21n"
 BR2_ISP_CLK_125MHZ=y

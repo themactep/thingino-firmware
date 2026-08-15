@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+# Binary filenames and size values are always space/glob-safe.
 #
 # Binary file padder.
 # Pads binary file with 0xFF to a given size.
@@ -10,6 +12,8 @@
 #
 # Paul Philippov <paul@themactep.com>
 
+set -euo pipefail
+
 if [ $# -lt 2 ]; then
 	echo "Usage: $0 <binary file> <final size>"
 	exit 1
@@ -20,7 +24,7 @@ echo "SIZE: $2"
 echo "UNIT: $unit"
 
 case "$unit" in
-	b | B | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0)
+	b | B | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9)
 		final_size=$2
 		;;
 	k | K)

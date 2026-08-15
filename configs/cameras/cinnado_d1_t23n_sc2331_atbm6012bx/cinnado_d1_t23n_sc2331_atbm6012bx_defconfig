@@ -1,5 +1,5 @@
 # NAME: Cinnado D1 (T23N, SC2331, ATBM6012BX)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23n"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y

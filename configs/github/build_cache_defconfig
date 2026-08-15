@@ -1,5 +1,5 @@
 # NAME: dl-cache superset — XBurst1 / T31X, ALL Wi-Fi drivers + all features
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 # NOTE: build_cache is the ONE config allowed to select many Wi-Fi drivers at once
 #       (package/wifi/wifi.mk downgrades the multi-driver check to a warning for it),
 #       so `make source` here pulls every driver's source into the dl cache.

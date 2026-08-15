@@ -1,7 +1,6 @@
 export PATH="/bin:/sbin:/tmp"
 export HOME=$(awk -F: "/^${USER:-root}:/{print \$6}" /etc/passwd)
 export HOME=${HOME:-/root}
-export TZ=$(cat /etc/TZ)
 export EDITOR="vi"
 
 if4=$(ip -4 r | awk '/default/{print $5; exit}')
@@ -51,6 +50,7 @@ if [ "$PS1" ]; then
 	[ -z "$ip4$ip6" ] && printf $R65GL "No IP address"
 	echo
 	printf $R65OR "$(uptime)"
+	printf $R65GL "$(df -h /overlay | awk 'NR==2{printf "overlay: %s used, %s free (%s)", $3, $4, $5}')"
 	echo
 
 	if [ "$(id -u)" -eq 0 ]; then

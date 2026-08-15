@@ -1,49 +1,13 @@
 #!/bin/sh
 
-TZCODE_FILE="/etc/TZ"
-TZJSON_FILE="/usr/share/tz.json"
-TZNAME_FILE="/etc/timezone"
-
 start() {
 	echo -c 15 "Setting timezone"
 
-	if [ ! -f "$TZNAME_FILE" ]; then
-		echo -c 240 -e "- Timezone name not found, default to GMT"
-		echo "Etc/GMT" >"$TZNAME_FILE"
-	fi
+	name=$(cat /etc/timezone 2>/dev/null)
+	[ -n "$name" ] || name="Etc/GMT"
+	echo -c 240 -e "- Timezone name: $name"
 
-	echo -c 240 -e "- Timezone name: $(cat $TZNAME_FILE)"
-	tzname=$(cat "$TZNAME_FILE")
-
-	if [ ! -f "$TZJSON_FILE" ]; then
-		echo -c 160 -e "$TZJSON_FILE not found" >&2
-		exit 1
-	fi
-
-	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' |
-		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' |
-		grep -F "${tzname}:" | head -1 | cut -d: -f2-)
-
-	if [ -z "$tz" ]; then
-		echo -c 160 -e "Timezone $tzname not found in $TZJSON_FILE" >&2
-		exit 1
-	fi
-
-	if [ ! -f "$TZCODE_FILE" ]; then
-		echo -c 240 -e "- Timezone code not found, default to GMT0"
-		echo "GMT0" >"$TZCODE_FILE"
-	fi
-
-	if [ "$tz" != "$(cat $TZCODE_FILE)" ]; then
-		echo -c 240 -e "- Set timezone to $tz"
-		echo "$tz" >"$TZCODE_FILE"
-	fi
-
-	echo -c 240 -e "- Set TZ to $tz"
-	TZ="$tz"
-
-	echo -c 240 -e "- Export TZ globally"
-	export TZ
+	timectl refresh
 }
 
 case "$1" in

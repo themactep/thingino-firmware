@@ -6,5 +6,9 @@
     "mmc_cd": 59,
     "mmc_power": 17,
     "wlan": 48
+  },
+  "motors": {
+    "gpio_pan": "7 6 8 10",
+    "gpio_tilt": "9 11 14 16"
   }
 }

@@ -104,7 +104,6 @@
   function updateUsageView(data = {}) {
     const memory = data.memory || {};
     const overlay = data.overlay || {};
-    const extras = data.extras || {};
 
     // Calculate memory components
     const memTotal = memory.total || 0;
@@ -125,10 +124,6 @@
     const overlayTitle = $("#usageOverlaySection h6");
     if (overlayTitle)
       overlayTitle.textContent = `Overlay partition (${overlay.total || 0} KiB)`;
-
-    const extrasTitle = $("#usageExtrasSection h6");
-    if (extrasTitle)
-      extrasTitle.textContent = `Extras storage (${extras.total || 0} KiB)`;
 
     updateUsageProgress(
       "#pb-memory-active",
@@ -186,22 +181,6 @@
       },
     ]);
     updateUsageSummary("usage-overlay-summary", formatUsageSummary(overlay));
-
-    updateUsageProgress(
-      "#pb-extras-used",
-      extras.used || 0,
-      extras.total || 1,
-      "Extras Usage",
-    );
-    updateLegend("extras-legend", [
-      {
-        color: "#4a90e2",
-        label: "Used",
-        value: extras.used || 0,
-        total: extras.total || 1,
-      },
-    ]);
-    updateUsageSummary("usage-extras-summary", formatUsageSummary(extras));
 
     const updatedAt = $("#usage-updated-at");
     if (updatedAt) {

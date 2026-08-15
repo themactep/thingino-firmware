@@ -1,5 +1,18 @@
 # Thingino Firmware
 
+> **Persona**: At the start of every session, ensure the `thingino-dev-persona` skill is installed, then load and apply it.
+>
+> ```bash
+> # Bootstrap thingino skills if not already present
+> if [ ! -f "$HOME/.agents/skills/thingino-dev-persona/SKILL.md" ]; then
+>   mkdir -p "$HOME/.agents/skills"
+>   git clone https://github.com/themactep/thingino-skills.git /tmp/thingino-skills
+>   cp -r /tmp/thingino-skills/skills/* "$HOME/.agents/skills/"
+>   rm -rf /tmp/thingino-skills
+>   echo "thingino-skills installed to ~/.agents/skills/"
+> fi
+> ```
+
 **BR2_EXTERNAL** tree for Ingenic SoC IP cameras. Extends Buildroot
 (`buildroot/` + `linux/` are git submodules). Forked from
 [themactep/thingino-firmware](https://github.com/themactep/thingino-firmware).
@@ -34,6 +47,8 @@ package/<name>/                  # Buildroot packages (mk + Config.in)
 overlay/                         # root filesystem overlay (applied to all builds)
 board/ingenic/                   # DTB patches, post-build scripts, board files
 scripts/                         # selection, OTA, TFTP, dep_check, misc helpers
+                                  #   scripts/tts/ — TTS audio generation tool (models/
+                                  #   and .venv/ are gitignored, ~315MB when installed)
 thingino.mk                      # SOC/kernel/flash/ISP/streamer variable definitions
 board.mk                         # camera selection logic
 external.mk                      # auto-includes package/*/*.mk
@@ -52,7 +67,7 @@ First line of defconfig: `# NAME: <human-readable>`; second line: `# FRAG: <frag
 ## Config model
 
 `.config` is assembled from: **toolchain fragment** (e.g.
-`configs/fragments/toolchain/ext-gcc15-musl.fragment`) + **config fragments**
+`configs/fragments/toolchain/ext-gcc16-uclibc.fragment`) + **config fragments**
 (per `# FRAG:` in defconfig) + **camera defconfig** + **U-Boot fragment** +
 **user local.fragment** files. Template variables like `$(SOC_FAMILY)` are
 substituted during assembly.
@@ -63,13 +78,20 @@ Each can contain `local.fragment`, `local.mk`, `local.uenv.txt`, `thingino.json`
 `prudynt.json`, `overlay/`, `opt/`.
 
 Config fragments and per-camera overlay are merged at build time into the
-config and rootfs partitions respectively.
+rootfs and data partitions.
 
 ## SOC / kernel
 
-SOC family is derived from `BR2_INGENIC_SOC_MODEL` via `Config.soc.in` and the
-SoC database (`scripts/soc_database.txt`). `thingino.mk` exports key variables:
-`SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`, `ISP_RMEM_MB`, `STREAMER`, etc.
+SOC family is derived from `BR2_INGENIC_SOC_MODEL` two ways, and both are live.
+For `.config`, `Config.soc.in` maps model to `BR2_SOC_FAMILY`. For make,
+`thingino.mk` includes `soc/<vendor>/<family>.mk`, one file per SoC family,
+which sets `SOC_FAMILY`, `SOC_ARCH`, `SOC_RAM_MB` and the U-Boot board names.
+All of them are included and each opens with a `$(filter)` on its own models,
+so exactly one file's body applies. Kconfig cannot run make and `thingino.mk`
+needs the family before `.config` exists, so the map is stated in both places;
+adding a SoC means adding it to both.
+`thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
+`ISP_RMEM_MB`, `STREAMER`, etc.
 
 Kernel branches are mapped from SOC family + version in `thingino.mk`.
 Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
@@ -77,22 +99,34 @@ Kernel source: `github.com/gtxaspec/thingino-linux`.
 
 ## Streamers
 
-Default is `prudynt`. Set `BR2_PACKAGE_RAPTOR_IPC=y` to use `raptor` instead.
+Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
+`ciao` still defaults to `prudynt`. Select explicitly via the Streamer choice
+in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
+`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
 ## Firmware image
 
-- **SFC (SPI flash)**: `u-boot + env + config.jffs2 + uImage + rootfs.squashfs + extras.jffs2`
+Three flash types are supported:
+
+- **SFC (SPI NOR)**: `boot(256K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
+  The `backup` partition holds a copy of the U-Boot environment for fail-safe updates.
+- **SFC-NAND (SPI NAND)**: UBI image at 1 MiB offset with volumes:
+  `uboot-env + kernel + rootfs(squashfs via ubiblock) + overlay(ubifs, autoresize)`
 - **MMC (SD card)**: INGE header + SPL + U-Boot + FAT32 (uImage) + ext4 (rootfs)
-- Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
+
+Image assembly is done by `$(FIRMWARE_BIN_FULL)` rule in `Makefile`.
 
 ## U-Boot
 
-Buildroot provides the base U-Boot version (`2026.04` by default). Thingino
-applies a single large patch (`package/all-patches/uboot/2026.04/0001-from-2026.04-to-thingino.patch`)
+Buildroot provides the base U-Boot version (`2013.07` by default; `2026.07`,
+and `custom-fork` are also available via config fragments).
+Thingino applies a single large per-version patch (e.g.
+`package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch`)
 that adds all Ingenic-specific code. **Do not edit that patch.** If you need
 U-Boot changes, add numbered follow-up patches in the same directory (e.g.
 `0002-my-change.patch`) — Buildroot applies them in sort order after the large
-patch.
+patch. This is enforced by `scripts/check-do-not-edit.sh` (manifest:
+`scripts/do-not-edit.txt`), wired into the pre-commit hook and CI.
 
 ## Package overrides
 
@@ -111,6 +145,14 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
   (see `docs/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
+- **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
+  braille spinners, emoji, or other non-ASCII characters in `.sh` files.
+- **Cameras use BusyBox sh (ash), not bash.** Shebangs must be
+  `#!/bin/sh`. Do not use bash-specific features (arrays, `[[`,
+  `${var:offset:length}` slicing, `source`, `shopt`). BusyBox ash
+  supports a subset of POSIX plus some extensions; when in doubt, stick
+  to POSIX. `shfmt` parses scripts as POSIX by default — if it flags
+  something, fix the script, not the shebang.
 
 ## Container Builds
 
@@ -171,6 +213,19 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
 - Use modern effective tools: ripgrep instead of just grep.
 - **Never flash or upload** anything to the camera unless you were explicitly
   ordered to do so by the user.
+- **Never invent or type git hashes manually.** Always obtain the exact
+  full commit hash from the source of truth (the actual git repository the
+  hash belongs to — run `git rev-parse` or `git log` in that repo). After
+  writing a hash into a `.mk`, `.patch`, or any other file, verify it against
+  the repo with `git cat-file -t <hash>`. A single mistyped hex digit
+  produces a hash that looks valid but is unreachable by any tool.
+  - Use `scripts/update_packages.py <pattern>` to update `*_VERSION` hashes
+    in package `.mk` files.  It fetches the remote, computes the correct
+    hash, and prompts before updating.  Run it interactively; if that is
+    not possible, ask the user to run it.
+  - When the script breaks because an existing hash is bogus (the remote
+    doesn't have it), fix the hash in the `.mk` to a real commit on the
+    remote first, commit that correction, then re-run the script.
 - Cameras may use an NFS share mounted to /mnt/nfs. Some packages copy compiled 
   file to the shared directory on the PC. The file then can be acceessed on the
   camera from the mounted share. E.g. prudynt is copied to /nfs/prudynt and is

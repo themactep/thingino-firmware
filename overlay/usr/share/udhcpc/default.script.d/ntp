@@ -1,28 +1,11 @@
 #!/bin/sh
 
-NTP_DEFAULT_FILE="/etc/default/ntp.conf"
-NTP_WORKING_FILE="/tmp/ntp.conf"
-
-setup_ntp_from_dhcp() {
-	echo "Use DHCP provided NTP servers: $ntpsrv"
-
-	if [ -f "$NTP_DEFAULT_FILE" ] && [ '444' = "$(stat -c%a $NTP_DEFAULT_FILE)" ]; then
-		echo "$NTP_DEFAULT_FILE is read-only, skipping update"
-	else
-		echo "Add DHCP provided NTP servers to $NTP_WORKING_FILE"
-		echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_WORKING_FILE
-	fi
-}
-
 case "$1" in
-	bound)
-		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
-		;;
-	renew)
-		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
+	bound | renew)
+		[ -n "$ntpsrv" ] && timectl set-ntp --source dhcp "$ntpsrv"
 		;;
 	rebound)
-		ntpd -N -q
+		timectl sync
 		;;
 esac
 

@@ -66,8 +66,6 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sensor \
 			$(TARGET_DIR)/usr/sbin/sensor; \
-		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/sensor-info \
-			$(TARGET_DIR)/usr/sbin/sensor-info; \
 	fi
 endef
 

@@ -80,6 +80,11 @@
   var CODEC_TO_TIMPS = { AAC: "aac", G711U: "pcmu", G711A: "pcma" };
   var CODEC_FROM_TIMPS = { aac: "AAC", pcmu: "G711U", pcma: "G711A" };
 
+  // backchannel_codec is a small int (0=PCMU 1=PCMA 2=AAC), not a string like
+  // the mic codec above - see config.h.
+  var BC_CODEC_TO_TIMPS = { PCMU: 0, PCMA: 1, AAC: 2 };
+  var BC_CODEC_FROM_TIMPS = { 0: "PCMU", 1: "PCMA", 2: "AAC" };
+
   // reverse of FIELD_MAP (timps "audio.<key>" -> page field id), so another
   // open tab/client changing a setting shows up here live instead of only on
   // next reload.
@@ -151,6 +156,8 @@
     if (el.type === "checkbox") el.checked = !!Number(value);
     else if (id === "audio_mic_format")
       el.value = CODEC_FROM_TIMPS[String(value).toLowerCase()] || "";
+    else if (id === "audio_backchannel_codec")
+      el.value = BC_CODEC_FROM_TIMPS[Number(value)] || "";
     else el.value = value;
   }
 
@@ -166,6 +173,9 @@
     else if (id === "audio_mic_format") {
       value = CODEC_TO_TIMPS[el.value];
       if (!value) return;
+    } else if (id === "audio_backchannel_codec") {
+      value = BC_CODEC_TO_TIMPS[el.value];
+      if (value === undefined) return;
     } else {
       value = parseInt(el.value, 10);
       if (isNaN(value)) return;
@@ -239,6 +249,7 @@
     populateDynamicSelect($id("audio_mic_sample_rate"));
     populateDynamicSelect($id("audio_mic_bitrate"));
     populateDynamicSelect($id("audio_spk_sample_rate"));
+    populateDynamicSelect($id("audio_backchannel_rate"));
 
     // codecs timps cannot encode stay listed but not selectable
     var fmt = $id("audio_mic_format");

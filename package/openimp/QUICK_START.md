@@ -1,5 +1,9 @@
 # OpenIMP Package - Quick Start Guide
 
+> Current integration supports OpenIMP on T31/Linux 3.10 and T40/T41 Linux 4.4.
+> Select `BR2_PACKAGE_THINGINO_ISP_OPEN=y` for the open-stack provider;
+> see [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md).
+
 ## What is OpenIMP?
 
 OpenIMP is an **optional** open-source replacement for Ingenic's proprietary IMP (Image Media Process) library. When enabled, it will replace `/usr/lib/libimp.so` with an open-source implementation.
@@ -14,7 +18,8 @@ Navigate to:
 ```
 Thingino Firmware
   └─ System Packages
-      └─ [*] OpenIMP
+      └─ ISP stack
+          └─ (X) Open ISP stack (experimental)
 ```
 Save and exit, then:
 ```bash
@@ -24,7 +29,7 @@ make
 ### Option 2: Add to defconfig
 ```bash
 # Add this line to your defconfig
-BR2_PACKAGE_OPENIMP=y
+BR2_PACKAGE_THINGINO_ISP_OPEN=y
 
 # Then build
 make your_defconfig
@@ -34,7 +39,7 @@ make
 ### Option 3: Quick command
 ```bash
 # Enable in current config
-echo 'BR2_PACKAGE_OPENIMP=y' >> .config
+echo 'BR2_PACKAGE_THINGINO_ISP_OPEN=y' >> .config
 make olddefconfig
 make openimp
 ```
@@ -52,7 +57,8 @@ make openimp
 
 3. **Compatibility**:
    - Drop-in replacement for proprietary library
-   - Works with prudynt-t, strero, etc.
+   - Streamer packages build after the selected replacement
+   - Runtime coverage remains platform- and API-dependent
 
 4. **Override Protection**:
    - Uses a finalize hook to ensure the OpenIMP library is installed LAST
@@ -62,7 +68,7 @@ make openimp
 
 After flashing firmware:
 ```bash
-# Check library size (should be ~136KB for OpenIMP)
+# Check the installed provider
 ls -lh /usr/lib/libimp.so
 
 # Check library type
@@ -77,7 +83,7 @@ prudynt-t
 To revert to proprietary library:
 ```bash
 make menuconfig
-# Uncheck OpenIMP
+# Select "Proprietary Ingenic ISP stack"
 make clean
 make
 ```
@@ -85,7 +91,9 @@ make
 ## Supported Platforms
 
 Auto-detected based on your SoC selection:
-- T21, T23, T30, T31, T40, T41, C100
+- T31 with Linux 3.10
+- T40 with Linux 4.4
+- T41 with Linux 4.4
 
 ## Troubleshooting
 
@@ -106,4 +114,3 @@ See `package/openimp/README.md` for detailed documentation.
 ## Source Code
 
 Repository: https://github.com/opensensor/openimp
-

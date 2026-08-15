@@ -1,13 +1,18 @@
+# shellcheck shell=bash
+# Sourced by menu scripts — no shebang needed.
 UI=dialog
-GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
+GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(git show -s --format=%ci)
 BACKTITLE="Thingino Firmware - ${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
-DIALOG_COMMON=($UI --keep-tite --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "Thingino Buildroot")
+DIALOG_COMMON=("$UI" --keep-tite --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "Thingino Buildroot")
 
+# temp_ip is used by sourcing scripts (main-menu.sh, menu2-guided.sh)
+# shellcheck disable=SC2034
 temp_rc=$(mktemp)
+# shellcheck disable=SC2034
 temp_ip=$(mktemp)
-cat <<-'EOF' > $temp_rc
+cat <<-'EOF' > "$temp_rc"
 dialog_color = (RED,WHITE,OFF)
 screen_color = (WHITE,RED,ON)
 EOF
@@ -17,13 +22,13 @@ function show_help_msgbox() {
 	local height=${2:-10}  # Default height is 10 if not provided
 	local width=${3:-70}   # Default width is 70 if not provided
 
-	"${DIALOG_COMMON[@]}" --title "Thingino help" --msgbox "$message" $height $width
+	"${DIALOG_COMMON[@]}" --title "Thingino help" --msgbox "$message" "$height" "$width"
 }
 
 check_and_install_dialog() {
 	if ! command -v dialog &> /dev/null; then
 		echo "'dialog' is not installed. It is required for this script to run."
-		read -p "Do you want to install 'dialog' now? [Y/n] " yn
+		read -r -p "Do you want to install 'dialog' now? [Y/n] " yn
 		case $yn in
 			[Yy]* )
 				echo "Attempting to install 'dialog'..."

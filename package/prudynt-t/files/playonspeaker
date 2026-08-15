@@ -1,0 +1,24 @@
+#!/bin/sh
+# Play an audio file on the camera speaker (triggered by motion script)
+
+. /usr/share/prudynt-helpers
+
+config_file="/etc/send2.json"
+
+file=$(jct "$config_file" get speaker.file 2>/dev/null)
+volume=$(jct "$config_file" get speaker.volume 2>/dev/null)
+gain=$(jct "$config_file" get speaker.gain 2>/dev/null)
+loop=$(jct "$config_file" get speaker.loop 2>/dev/null)
+
+[ -z "$file" ] && echo_error "No speaker file configured" && exit 1
+[ ! -f "$file" ] && echo_error "Speaker file not found: $file" && exit 1
+
+vol_arg=""
+[ -n "$volume" ] && vol_arg="-v $volume"
+gain_arg=""
+[ -n "$gain" ] && gain_arg="-g $gain"
+loop_arg=""
+[ -n "$loop" ] && loop_arg="-l $loop"
+
+echo_info "Playing $file on speaker"
+play $vol_arg $gain_arg $loop_arg "$file"

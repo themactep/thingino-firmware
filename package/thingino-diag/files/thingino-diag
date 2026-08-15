@@ -16,7 +16,7 @@ Usage: $0 [OPTIONS]
 Options:
 	-o -             Output to stdout
 	-o /path/file    Output to specific file
-	-u               Upload to server (tb.thingino.com)
+	-u               Upload to server
 	-j               Upload to server and return JSON with link
 	-f               Force: skip consent prompt
 	-h               Show this help
@@ -143,7 +143,7 @@ if [ -t 0 ] && [ "$output_mode" != "stdout" ] && [ "$force_mode" != "yes" ]; the
 This script generates a log file for sharing with developers for diagnostic issues.
 The log may contain sensitive information, please review it before sharing!
 "
-	[ "$upload_to_server" = "yes" ] && echo "Files uploaded to tb.thingino.com are stored for 1 week."
+	[ "$upload_to_server" = "yes" ] && echo "Uploaded files are stored for 3 days."
 	read -p "Do you wish to proceed? (yes/no): " response
 	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
@@ -201,7 +201,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	inforun "lsof" "LSOF"
 	inforun "ip addr show 2>/dev/null || ifconfig -a 2>/dev/null" "NETWORK"
 	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
-	inforun "iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null" "WIFI-INFO"
+	inforun "(iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null) | sed -E -e 's/ESSID:\"[^\"]*\"/ESSID:\"REDACTED\"/' -e 's/Encryption key:[^ ]*/Encryption key:REDACTED/' -e 's/^([[:space:]]*ssid ).*/\1REDACTED/'" "WIFI-INFO"
 	inforun "wpa_cli -i wlan0 status 2>/dev/null | sed -E 's/^(ssid|psk|passphrase)=.*/\1=REDACTED/'" "WPA-STATUS"
 	inforun "wpa_cli -i wlan0 scan_results 2>/dev/null" "WIFI-SCAN"
 	inforun "dmesg" "DMESG"

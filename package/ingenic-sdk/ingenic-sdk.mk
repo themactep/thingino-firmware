@@ -90,11 +90,11 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
 		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset); \
+		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null || true); \
 		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
 			gpio_userkeys_config="28,$${button_reset},1"; \
 		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime); \
+		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null || true); \
 		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
 			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 		fi; \
@@ -155,9 +155,15 @@ define GENERATE_MODULE_LOADER
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ] && [ "$(SOC_FAMILY)" != "a1" ]; then \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+			if [ "$(BR2_PACKAGE_OPEN_TX_ISP)" = "y" ]; then \
+				echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+			else \
+				echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+			fi; \
 		elif [ "$(SOC_FAMILY)" = "t30" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_PRINT_LEVEL) $(ISP_ISPW) $(ISP_ISPH) $(ISP_ISPTOP) $(ISP_ISPLEFT) $(ISP_ISPCROP) $(ISP_ISPCROPWH) $(ISP_ISPCROPTL) $(ISP_ISPSCALER) $(ISP_ISPSCALERWH) $(ISP_ISP_M1_BUFS) $(ISP_ISP_M2_BUFS) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+		elif [ "$(SOC_FAMILY)" = "t40" ] && [ "$(BR2_PACKAGE_OPEN_TX_ISP)" = "y" ]; then \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		else \
@@ -172,8 +178,8 @@ define GENERATE_MODULE_LOADER
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
-		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/pwm; \
-		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
+		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
+		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
@@ -243,7 +249,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
-INGENIC_SDK_TARGET_FINALIZE_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
+INGENIC_SDK_ROOTFS_PRE_CMD_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
