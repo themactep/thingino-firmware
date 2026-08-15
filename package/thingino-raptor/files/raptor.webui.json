@@ -79,7 +79,14 @@
   "cgi": [
     "/x/json-config-save.cgi",
     "/x/restart-streamer.cgi",
-    "/x/webrtc-whip.cgi"
+    "/x/webrtc-whip.cgi",
+    "/x/json-sensor-upload.cgi",
+    "/x/dl0.jpg",
+    "/x/dl1.jpg",
+    "/x/ch0.mjpg",
+    "/x/ch1.mjpg",
+    "/x/ch0.jpg",
+    "/x/ch1.jpg"
   ],
   "pages": [
     "/streamer-main.html",

@@ -1,0 +1,48 @@
+#!/bin/sh
+# MJPEG preview for channel 1 — multipart JPEG loop via raptorctl.
+
+. /var/www/x/auth.sh
+require_auth
+
+CHANNEL=1
+BOUNDARY="raptormjpegboundary"
+FPS=5
+
+OLD_IFS=$IFS
+IFS='&'
+for KV in $QUERY_STRING; do
+	case "$KV" in
+		f=*) FPS=${KV#f=} ;;
+	esac
+done
+IFS=$OLD_IFS
+
+case "$FPS" in
+	'' | *[!0-9]*) FPS=5 ;;
+esac
+[ "$FPS" -lt 1 ] && FPS=1
+[ "$FPS" -gt 15 ] && FPS=15
+
+if ! command -v raptorctl >/dev/null 2>&1; then
+	printf 'Status: 503 Service Unavailable\r\n\r\n'
+	exit 0
+fi
+
+tmp=$(mktemp /tmp/raptor-mjpg.XXXXXX.jpg) || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM HUP PIPE
+
+printf 'Content-Type: multipart/x-mixed-replace; boundary=%s\r\n\r\n' "$BOUNDARY"
+
+interval=1
+
+while true; do
+	if raptorctl rvd save jpeg "$tmp" "$CHANNEL" >/dev/null 2>&1 && [ -s "$tmp" ]; then
+		size=$(wc -c <"$tmp" | tr -d ' ')
+		printf -- '--%s\r\n' "$BOUNDARY"
+		printf 'Content-Type: image/jpeg\r\n'
+		printf 'Content-Length: %s\r\n\r\n' "$size"
+		cat "$tmp"
+		printf '\r\n'
+	fi
+	sleep "$interval" || exit 0
+done
