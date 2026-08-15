@@ -1,5 +1,5 @@
 # NAME: dl-cache variant — XBurst2 / T41NQ (TOOLCHAIN_SOC_TAG=xburst2)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 # Minimal: exists only to pull the xburst2 toolchain + kernel + u-boot.
 # Packages/wifi are already covered by the main build_cache entry.
 BR2_INGENIC_SOC_MODEL="t41nq"

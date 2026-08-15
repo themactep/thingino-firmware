@@ -1,5 +1,5 @@
 # NAME: O-KAM QC2 (T23N, GC2083, AIC8800DC USB)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23n"
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_PARAMS="isp_memopt=1 isp_clka=600000000 ivdc_mem_line=540"

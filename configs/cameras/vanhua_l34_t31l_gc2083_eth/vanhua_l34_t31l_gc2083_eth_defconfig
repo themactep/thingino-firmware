@@ -1,5 +1,5 @@
 # NAME: Vanhua L34 (T31L, GC2083, ETH)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t31l"
 BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y

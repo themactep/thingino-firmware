@@ -1,5 +1,5 @@
 # NAME: Wyze Floodlight v2 (T41NQ, GC3003A, ATBM6031)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_AVPU_CLK_550MHZ=y
 BR2_AVPU_SCLKA=y
 BR2_INGENIC_SOC_MODEL="t41nq"

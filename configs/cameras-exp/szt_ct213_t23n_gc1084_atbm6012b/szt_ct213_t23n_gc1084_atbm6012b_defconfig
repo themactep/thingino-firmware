@@ -1,5 +1,5 @@
 # NAME: SZT CT213 (T23N, GC1084, ATBM6012)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23n"
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_PARAMS="direct_mode=2 ivdc_mem_line=648 isp_memopt=1"

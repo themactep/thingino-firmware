@@ -1,5 +1,5 @@
 # NAME: Hugolog E5P (T41LQ, SC4336P, ATBM6062U)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_AVPU_APLL=y
 BR2_AVPU_CLK_550MHZ=y
 BR2_INGENIC_SOC_MODEL="t41lq"

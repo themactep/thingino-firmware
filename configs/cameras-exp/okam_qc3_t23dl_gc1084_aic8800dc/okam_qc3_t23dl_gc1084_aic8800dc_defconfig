@@ -1,5 +1,5 @@
 # NAME: O-KAM QC3 (T23DL, GC1084, AIC8800DC USB)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23dl"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
