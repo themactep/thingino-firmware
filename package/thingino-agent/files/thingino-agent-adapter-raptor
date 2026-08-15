@@ -152,7 +152,7 @@ thingino_agent_raptor_has_privacy() {
 }
 
 thingino_agent_raptor_has_daynight() {
-	if command -v raptorctl >/dev/null 2>&1 || [ -x /usr/bin/ric ]; then
+	if thingino_agent_has_daynightd || command -v raptorctl >/dev/null 2>&1 || [ -x /usr/bin/ric ]; then
 		printf 'true'
 	else
 		printf 'false'
@@ -467,12 +467,20 @@ thingino_agent_raptor_motion_active() {
 }
 
 thingino_agent_raptor_daynight_mode_config() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_target_mode
+		return 0
+	fi
 	mode=$(thingino_agent_raptor_config_get ircut mode | tr 'A-Z' 'a-z')
 	[ -n "$mode" ] || mode=auto
 	printf '%s' "$mode"
 }
 
 thingino_agent_raptor_daynight_enabled() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_enabled
+		return 0
+	fi
 	case "$(thingino_agent_raptor_daynight_mode_config)" in
 		auto) printf 'true' ;;
 		*) printf 'false' ;;
@@ -480,6 +488,10 @@ thingino_agent_raptor_daynight_enabled() {
 }
 
 thingino_agent_raptor_daynight_force_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_force_mode
+		return 0
+	fi
 	case "$(thingino_agent_raptor_daynight_mode_config)" in
 		day | night)
 			thingino_agent_json_string "$(thingino_agent_raptor_daynight_mode_config)"
@@ -491,6 +503,10 @@ thingino_agent_raptor_daynight_force_mode() {
 }
 
 thingino_agent_raptor_daynight_running_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_running_mode
+		return 0
+	fi
 	status=$(thingino_agent_raptor_daemon_status ric)
 	mode=$(thingino_agent_raptor_json_string_field state "$status")
 	case "$mode" in
@@ -523,6 +539,10 @@ thingino_agent_raptor_daynight_running_mode() {
 }
 
 thingino_agent_raptor_daynight_target_mode() {
+	if thingino_agent_has_daynightd; then
+		thingino_agent_daynightd_target_mode
+		return 0
+	fi
 	case "$(thingino_agent_raptor_daynight_mode_config)" in
 		auto) printf 'auto' ;;
 		day) printf 'day' ;;
@@ -2152,9 +2172,21 @@ thingino_agent_adapter_raptor_set_setting() {
 		daynight/enabled)
 			value=$(thingino_agent_raptor_setting_value "$body_file" enabled) || return 1
 			thingino_agent_raptor_validate_bool "$value" || return 1
-			if [ "$value" = true ]; then
+			if thingino_agent_has_daynightd; then
+				if [ "$value" = true ]; then
+					thingino_agent_daynightd_set_mode auto || return 1
+				else
+					mode=$(thingino_agent_raptor_daynight_running_mode)
+					case "$mode" in
+						day | night) ;;
+						*) mode=day ;;
+					esac
+					thingino_agent_daynightd_set_mode "$mode" || return 1
+				fi
+			elif [ "$value" = true ]; then
 				thingino_agent_raptor_ctl ric mode auto >/dev/null 2>&1 || return 1
 				thingino_agent_raptor_config_set ircut mode auto || return 1
+				thingino_agent_raptor_config_save
 			else
 				mode=$(thingino_agent_raptor_daynight_running_mode)
 				case "$mode" in
@@ -2163,8 +2195,8 @@ thingino_agent_adapter_raptor_set_setting() {
 				esac
 				thingino_agent_raptor_ctl ric mode "$mode" >/dev/null 2>&1 || return 1
 				thingino_agent_raptor_config_set ircut mode "$mode" || return 1
+				thingino_agent_raptor_config_save
 			fi
-			thingino_agent_raptor_config_save
 			thingino_agent_print_setting_update "$path" enabled "$value"
 			;;
 		daynight/force-mode)
@@ -2177,9 +2209,13 @@ thingino_agent_adapter_raptor_set_setting() {
 					return 1
 					;;
 			esac
-			thingino_agent_raptor_ctl ric mode "$value" >/dev/null 2>&1 || return 1
-			thingino_agent_raptor_config_set ircut mode "$value" || return 1
-			thingino_agent_raptor_config_save
+			if thingino_agent_has_daynightd; then
+				thingino_agent_daynightd_set_mode "$value" || return 1
+			else
+				thingino_agent_raptor_ctl ric mode "$value" >/dev/null 2>&1 || return 1
+				thingino_agent_raptor_config_set ircut mode "$value" || return 1
+				thingino_agent_raptor_config_save
+			fi
 			thingino_agent_print_setting_update "$path" force_mode "$(thingino_agent_json_string "$value")"
 			;;
 		privacy/enabled)
@@ -2431,11 +2467,23 @@ thingino_agent_adapter_raptor_apply_config() {
 
 	value=$(thingino_agent_json_config_value "$source_file" daynight.enabled)
 	case "$value" in
-		true) thingino_agent_raptor_ctl ric mode auto >/dev/null 2>&1 || true ;;
+		true)
+			if thingino_agent_has_daynightd; then
+				thingino_agent_daynightd_set_mode auto || true
+			else
+				thingino_agent_raptor_ctl ric mode auto >/dev/null 2>&1 || true
+			fi
+			;;
 		false)
 			force=$(thingino_agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
 			case "$force" in
-				day | night) thingino_agent_raptor_ctl ric mode "$force" >/dev/null 2>&1 || true ;;
+				day | night)
+					if thingino_agent_has_daynightd; then
+						thingino_agent_daynightd_set_mode "$force" || true
+					else
+						thingino_agent_raptor_ctl ric mode "$force" >/dev/null 2>&1 || true
+					fi
+					;;
 			esac
 			;;
 	esac
@@ -2582,9 +2630,13 @@ thingino_agent_adapter_raptor_daynight() {
 	}
 	case "$mode" in
 		auto | day | night)
-			thingino_agent_raptor_ctl ric mode "$mode" >/dev/null 2>&1 || return 1
-			thingino_agent_raptor_config_set ircut mode "$mode" || return 1
-			thingino_agent_raptor_config_save
+			if thingino_agent_has_daynightd; then
+				thingino_agent_daynightd_set_mode "$mode" || return 1
+			else
+				thingino_agent_raptor_ctl ric mode "$mode" >/dev/null 2>&1 || return 1
+				thingino_agent_raptor_config_set ircut mode "$mode" || return 1
+				thingino_agent_raptor_config_save
+			fi
 			printf '{"status":"accepted","mode":%s}\n' "$(thingino_agent_json_string "$mode")"
 			;;
 		*)
