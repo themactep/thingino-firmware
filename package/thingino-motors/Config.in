@@ -1,6 +1,6 @@
 config BR2_PACKAGE_THINGINO_MOTORS
 	bool "thingino-motors"
-	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_MS419XX
+	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_SPI
 	help
 	  Userspace programs to manage motor hardware
 
