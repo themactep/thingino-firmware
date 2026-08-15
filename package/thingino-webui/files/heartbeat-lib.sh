@@ -2,6 +2,7 @@
 
 THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
 THINGINO_RAPTOR_CONFIG="${THINGINO_RAPTOR_CONFIG:-/etc/raptor.conf}"
+THINGINO_RAPTOR_PRIVACY_STATE="${THINGINO_RAPTOR_PRIVACY_STATE:-/run/thingino-agent/raptor-privacy}"
 THINGINO_IRCUT_MODE_FILE="${THINGINO_IRCUT_MODE_FILE:-/tmp/ircutmode.txt}"
 
 thingino_heartbeat_agent_port() {
@@ -202,30 +203,140 @@ thingino_heartbeat_raptor_available() {
 	[ -f "$THINGINO_RAPTOR_CONFIG" ] && command -v raptorctl >/dev/null 2>&1
 }
 
+thingino_heartbeat_has_daynightd() {
+	command -v daynightd >/dev/null 2>&1
+}
+
+# daynightd replaces ric as the day/night engine when selected (Kconfig
+# makes RIC and daynightd mutually exclusive), so the raptor payload
+# sources the daynight fields from daynightd the same way json-imp.cgi
+# and the agent adapters do (agent PR #1475).
+thingino_heartbeat_raptor_daynight_mode() {
+	ric_status=$1
+	if thingino_heartbeat_has_daynightd && [ -r /run/thingino/daynight_mode ]; then
+		value=$(sed -n '1p' /run/thingino/daynight_mode 2>/dev/null | tr -d '\r\n ')
+		case "$value" in
+			day | night)
+				printf '%s' "$value"
+				return 0
+				;;
+		esac
+	fi
+	thingino_heartbeat_daynight_mode "$ric_status"
+}
+
+# Raptor/RIC owns day/night via raptor.conf, so the Auto button state
+# (daynight_enabled) comes from the config, not from ric status (whose
+# mode field is the live state, e.g. "night" while still in auto). With
+# daynightd selected, /etc/thingino.json is the source instead.
+thingino_heartbeat_raptor_daynight_enabled() {
+	if thingino_heartbeat_has_daynightd; then
+		value=$(jct "$THINGINO_CONFIG" get daynight.enabled 2>/dev/null | tr -d '\r\n"')
+		case "$value" in
+			true | 1) printf 'true' ;;
+			*) printf 'false' ;;
+		esac
+		return 0
+	fi
+	mode=$(thingino_heartbeat_config_get ircut mode auto | tr 'A-Z' 'a-z')
+	[ "$mode" = auto ] && printf 'true' || printf 'false'
+}
+
+# Raptor's ircut command reports ric's day/night state; the prudynt-era
+# /tmp/ircutmode.txt file is never written on pure raptor images, but is
+# the daynightd convention when daynightd is selected.
+thingino_heartbeat_raptor_ircut_state() {
+	if thingino_heartbeat_has_daynightd; then
+		thingino_heartbeat_ircut_state
+		return 0
+	fi
+	if command -v ircut >/dev/null 2>&1; then
+		value=$(ircut read 2>/dev/null | tr -d '\r\n ')
+		case "$value" in
+			0 | 1)
+				printf '%s' "$value"
+				return 0
+				;;
+		esac
+	fi
+	printf 'null'
+}
+
+# Privacy toggles go through the agent, which keeps its own state file;
+# /run/prudynt/privacy.active (the native payload's source) never exists
+# on raptor.
+thingino_heartbeat_raptor_privacy_enabled() {
+	if [ -r "$THINGINO_RAPTOR_PRIVACY_STATE" ]; then
+		value=$(sed -n '1p' "$THINGINO_RAPTOR_PRIVACY_STATE" 2>/dev/null | tr -d '\r\n')
+		case "$value" in
+			true | false)
+				printf '%s' "$value"
+				return 0
+				;;
+		esac
+	fi
+	printf 'false'
+}
+
+# The raptor color wrapper keeps /tmp/colormode.txt (1 = color, 0 = b&w,
+# opposite of the UI convention); before the first manual toggle the file
+# is absent, so fall back to the ric day/night state.
+thingino_heartbeat_raptor_color_mode() {
+	daynight_mode=$1
+	if command -v color >/dev/null 2>&1; then
+		value=$(color read 2>/dev/null | tr -d '\r\n ')
+		case "$value" in
+			1)
+				printf '0'
+				return 0
+				;;
+			0)
+				printf '1'
+				return 0
+				;;
+		esac
+	fi
+	case "$daynight_mode" in
+		day)
+			printf '0'
+			;;
+		night)
+			printf '1'
+			;;
+		*)
+			printf 'null'
+			;;
+	esac
+}
+
 thingino_heartbeat_raptor_payload() {
 	now=$(date +%s)
 	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
 	ric_status=$(raptorctl ric status 2>/dev/null || true)
 	rmr_status=$(raptorctl rmr status 2>/dev/null || true)
 
-	daynight_mode=$(thingino_heartbeat_daynight_mode "$ric_status")
-	daynight_enabled=$(thingino_heartbeat_daynight_auto_enabled "$ric_status")
-	daynight_brightness=$(thingino_heartbeat_json_number_field ae_luma "$ric_status")
-	total_gain=$(thingino_heartbeat_json_number_field total_gain "$ric_status")
-	[ -n "$daynight_brightness" ] || daynight_brightness=null
-	[ -n "$total_gain" ] || total_gain=null
+	daynight_mode=$(thingino_heartbeat_raptor_daynight_mode "$ric_status")
+	daynight_enabled=$(thingino_heartbeat_raptor_daynight_enabled)
+	if thingino_heartbeat_has_daynightd; then
+		# daynightd telemetry is the photosensing source of truth
+		daynight_brightness="null"
+		if [ -r /run/thingino/daynight_brightness ]; then
+			_v=$(cat /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n')
+			[ -n "$_v" ] && daynight_brightness=$_v
+		fi
+		total_gain="null"
+		if [ -r /run/thingino/daynight_sensors ] && command -v jct >/dev/null 2>&1; then
+			_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null | tr -d '\n"')
+			[ -n "$_bp" ] && [ "$_bp" != "null" ] && total_gain=$_bp
+		fi
+	else
+		daynight_brightness=$(thingino_heartbeat_json_number_field ae_luma "$ric_status")
+		total_gain=$(thingino_heartbeat_json_number_field total_gain "$ric_status")
+		[ -n "$daynight_brightness" ] || daynight_brightness=null
+		[ -n "$total_gain" ] || total_gain=null
+	fi
 
-	case "$daynight_mode" in
-		day)
-			color_mode=0
-			;;
-		night)
-			color_mode=1
-			;;
-		*)
-			color_mode=null
-			;;
-	esac
+	color_mode=$(thingino_heartbeat_raptor_color_mode "$daynight_mode")
 
 	rec_ch0=false
 	rec_ch1=false
@@ -239,7 +350,7 @@ thingino_heartbeat_raptor_payload() {
 			;;
 	esac
 
-	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":false,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
+	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
 		"$now" \
 		"$uptime" \
 		"$daynight_brightness" \
@@ -248,11 +359,12 @@ thingino_heartbeat_raptor_payload() {
 		"$rec_ch0" \
 		"$rec_ch1" \
 		"$(thingino_heartbeat_config_bool_json motion enabled false)" \
+		"$(thingino_heartbeat_raptor_privacy_enabled)" \
 		"$color_mode" \
 		"$(thingino_heartbeat_command_bool microphone "$(thingino_heartbeat_config_bool_json audio enabled true)")" \
 		"$(thingino_heartbeat_command_bool speaker "$(thingino_heartbeat_config_bool_json audio ao_enabled false)")" \
 		"$daynight_enabled" \
-		"$(thingino_heartbeat_ircut_state)" \
+		"$(thingino_heartbeat_raptor_ircut_state)" \
 		"$(thingino_heartbeat_light_state ir850)" \
 		"$(thingino_heartbeat_light_state ir940)" \
 		"$(thingino_heartbeat_light_state white)" \
@@ -374,5 +486,9 @@ thingino_heartbeat_native_payload() {
 }
 
 thingino_heartbeat_payload() {
-	thingino_heartbeat_native_payload
+	if thingino_heartbeat_raptor_available; then
+		thingino_heartbeat_raptor_payload
+	else
+		thingino_heartbeat_native_payload
+	fi
 }
