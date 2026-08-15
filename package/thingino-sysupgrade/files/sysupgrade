@@ -832,6 +832,21 @@ if [ -z "$mtd_dev" ]; then
 				echo "Hardware watchdog taken over (30s timeout)"
 			fi
 			stop_services
+
+			# --- Full upgrade flash mapping ---
+			# Universal installer logic (see scripts/uniflasher.sh): walk the
+			# running camera's MTD layout and write into each device the image
+			# bytes at the same absolute offsets.  Because the devices tile
+			# the flash, the result is the image copied byte-for-byte no
+			# matter how the image itself is partitioned.  This keeps full
+			# upgrades working across partition layout changes (env/config
+			# sizes, kernel size, ...) instead of bricking the camera.
+			# The block size must divide every partition offset and size:
+			# all thingino partitions are 32 KiB aligned (env is 32/64 KiB,
+			# everything else 64 KiB aligned).  If some exotic layout is
+			# not aligned, fall back to byte addressing.
+			fw_size=$(wc -c <"$fw_file")
+			align_block=32768
 			needle=0
 			tail -n +2 /proc/mtd >"$workdir/mtd.txt"
 			while read -r mtd sz _ name; do
@@ -840,13 +855,17 @@ if [ -z "$mtd_dev" ]; then
 				name="${name%\"}"
 				[ "$name" = "all" ] && continue
 				[ "$name" = "upgrade" ] && continue
+				[ "$needle" -ge "$fw_size" ] && break
 				sz_dec=$((0x$sz))
-				skip=$((needle / 65536))
-				count=$((sz_dec / 65536))
 				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
 				flash_eraseall "/dev/$mtd" 2>/dev/null || true
-				if ! dd if="$fw_file" of="/dev/$mtd" bs=65536 \
-					skip=$skip count=$count 2>/dev/null; then
+				bs=$align_block
+				if [ $((needle % align_block)) -ne 0 ] ||
+					[ $((sz_dec % align_block)) -ne 0 ]; then
+					bs=1
+				fi
+				if ! dd if="$fw_file" of="/dev/$mtd" bs=$bs \
+					skip=$((needle / bs)) count=$((sz_dec / bs)) 2>/dev/null; then
 					die "dd $name failed"
 				fi
 				sync
