@@ -14,6 +14,11 @@ define THINGINO_RAPTOR_PATCH_CONF
 		sed -i "/^\[$$1\]/,/^\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF" || true; \
 	}; \
 	\
+	if [ "$(BR2_PACKAGE_THINGINO_ISP_OPEN):$(BR2_PACKAGE_OPENIMP):$(SOC_FAMILY)" = "y:y:t41" ]; then \
+		rset system video_backend v4l2; \
+		rset system video_device /dev/video0; \
+	fi; \
+	\
 	if [ "$(BR2_THINGINO_IMAGE_SENSOR_QTY)" -gt 1 ] 2>/dev/null; then \
 		sed -i 's/^\[sensor\]/[sensor0]/' "$$CONF"; \
 		sed -i 's/^# \[sensor0\]/[sensor0]/' "$$CONF"; \
