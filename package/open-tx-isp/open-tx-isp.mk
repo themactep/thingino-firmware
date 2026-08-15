@@ -7,7 +7,7 @@
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
 OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = 939e79ddc1fdcc6526cb6b578dbd893d3969520a
+OPEN_TX_ISP_VERSION = efb91adf08d097371cae3b07258149a03a53d3d3
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
@@ -71,5 +71,29 @@ endef
 
 OPEN_TX_ISP_POST_INSTALL_TARGET_HOOKS += OPEN_TX_ISP_INSTALL_MAINLINE_LOADERS
 endif
+
+# A number of consumers also depend on ingenic-sdk for the sensor and audio
+# modules.  With per-package directories, their dependency trees can carry the
+# SDK's proprietary TX-ISP module into the assembled target after this package
+# has installed the open replacement.  Reinstall the selected provider during
+# finalization so package ordering cannot change which module reaches the image.
+define OPEN_TX_ISP_FINALIZE_TARGET
+	krel="$$( $(MAKE) -s -C $(LINUX_DIR) kernelrelease 2>/dev/null )"; \
+	if [ -z "$$krel" ]; then krel="$(LINUX_VERSION_PROBED)"; fi; \
+	libdir="$(TARGET_DIR)/lib"; \
+	if [ "$(BR2_ROOTFS_MERGED_USR)" = "y" ]; then libdir="$(TARGET_DIR)/usr/lib"; fi; \
+	$(INSTALL) -D -m 0644 \
+		$(OPEN_TX_ISP_DIR)/driver/$(SOC_FAMILY)/tx-isp-$(SOC_FAMILY).ko \
+		"$$libdir/modules/$$krel/ingenic/tx-isp-$(SOC_FAMILY).ko"; \
+	$(TARGET_STRIP) --strip-debug \
+		"$$libdir/modules/$$krel/ingenic/tx-isp-$(SOC_FAMILY).ko"
+	if [ "$(SOC_FAMILY)" = "t41" ]; then \
+		grep -q 'tx_isp_bringup_level=' $(TARGET_DIR)/etc/modules.d/20-isp || \
+			sed -i '/^tx_isp_t41 / s/$$/ tx_isp_bringup_level=3/' \
+				$(TARGET_DIR)/etc/modules.d/20-isp; \
+	fi
+endef
+
+OPEN_TX_ISP_TARGET_FINALIZE_HOOKS += OPEN_TX_ISP_FINALIZE_TARGET
 
 $(eval $(generic-package))

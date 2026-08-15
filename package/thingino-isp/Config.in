@@ -35,8 +35,6 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_INGENIC_SDK
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_OPEN_TX_ISP
-	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
@@ -49,3 +47,34 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	  Image tuning and sensor coverage remain experimental.
 
 endchoice
+
+if BR2_PACKAGE_THINGINO_ISP_OPEN
+
+choice
+	prompt "Open ISP userspace backend"
+	default BR2_PACKAGE_THINGINO_ISP_OPEN_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED
+	default BR2_PACKAGE_THINGINO_ISP_OPEN_LIBIMP
+	help
+	  Select the userspace IMP implementation paired with open-tx-isp.
+	  OpenIMP remains the default on supported SoCs.  The proprietary
+	  libimp backend is useful for isolating kernel-driver behavior and
+	  for cameras whose OpenIMP support is not yet complete.
+
+config BR2_PACKAGE_THINGINO_ISP_OPEN_OPENIMP
+	bool "OpenIMP"
+	depends on BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_OPENIMP
+	help
+	  Use the open-source IMP userspace implementation.
+
+config BR2_PACKAGE_THINGINO_ISP_OPEN_LIBIMP
+	bool "Proprietary Ingenic libimp"
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	help
+	  Use the proprietary Ingenic libimp.so with the open TX-ISP kernel
+	  driver.  This keeps the userspace ABI stock-compatible while the
+	  open kernel driver is evaluated.
+
+endchoice
+
+endif

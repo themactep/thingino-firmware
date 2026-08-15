@@ -314,8 +314,13 @@ free_overlay_space() {
 upload_sysupgrade() {
 	remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 		die "Failed to transfer sysupgrade utility"
-	remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
-		die "Failed to transfer sysupgrade-stage2 utility"
+	# Current usr-merged images already ship stage2 in the read-only rootfs.
+	# Avoid forcing an overlay copy-up: low-space cameras can reject that scp
+	# even though the executable is already present through /sbin -> usr/sbin.
+	if ! remote_run "test -x /sbin/$(basename $LOCAL_SCRIPT2)"; then
+		remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
+			die "Failed to transfer sysupgrade-stage2 utility"
+	fi
 	remote_run "chmod +x $REMOTE_SCRIPT" || \
 		die "Failed to set execute permissions on sysupgrade utility"
 	echo "Sysupgrade utility installed successfully."
