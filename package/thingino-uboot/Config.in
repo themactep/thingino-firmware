@@ -9,9 +9,6 @@ choice
 config BR2_THINGINO_UBOOT_VERSION_2026_07
 	bool "2026.07 (buildroot)"
 
-config BR2_THINGINO_UBOOT_VERSION_2026_04
-	bool "2026.04"
-
 config BR2_THINGINO_UBOOT_VERSION_2013_07
 	bool "2013.07 (ingenic)"
 
