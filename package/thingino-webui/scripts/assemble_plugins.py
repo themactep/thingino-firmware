@@ -36,6 +36,12 @@ KNOWN_SECTIONS = {
     "ddHelp": "Help",
 }
 
+# Streamer plugins are mutually exclusive at build time (only one streamer
+# package is selected). Source-tree validation may see all of them at once;
+# allow page/CGI overlap across distinct streamer feature flags.
+STREAMER_FEATURE_FLAGS = frozenset({"prudynt", "raptor", "timps", "strero"})
+
+
 # HTML pages to process for script/style/preview injection.
 HTML_GLOB = "var/www/**/*.html"
 
@@ -70,13 +76,23 @@ class PluginWarning(Exception):
     """Soft warning — printed but build continues."""
 
 
+def _streamer_flag(manifest: Dict[str, Any]) -> Optional[str]:
+    flags = manifest.get("featureFlags") or {}
+    for flag in STREAMER_FEATURE_FLAGS:
+        if flags.get(flag):
+            return flag
+    return None
+
+
 def validate_manifests(
     manifests: List[Dict[str, Any]], manifest_paths: Dict[str, Path]
 ) -> None:
     """Check for conflicts across all loaded manifests."""
     names: Dict[str, Path] = {}
     pages: Dict[str, str] = {}
+    page_streamers: Dict[str, Optional[str]] = {}
     cgi_endpoints: Dict[str, str] = {}
+    cgi_streamers: Dict[str, Optional[str]] = {}
 
     for m in manifests:
         name = m.get("name", "")
@@ -93,24 +109,44 @@ def validate_manifests(
                 f"{names[name]} and {manifest_paths.get(name, 'unknown')}"
             )
         names[name] = manifest_paths.get(name, Path("unknown"))
+        streamer = _streamer_flag(m)
 
         for page in m.get("pages", []):
             if page in pages:
+                other = pages[page]
+                other_streamer = page_streamers.get(page)
+                if (
+                    streamer
+                    and other_streamer
+                    and streamer != other_streamer
+                ):
+                    # Mutually exclusive streamer plugins may share paths.
+                    continue
                 raise PluginError(
                     f"Plugin '{name}' declares page '{page}' which is "
-                    f"already claimed by plugin '{pages[page]}'"
+                    f"already claimed by plugin '{other}'"
                 )
             pages[page] = name
+            page_streamers[page] = streamer
 
         for cgi in m.get("cgi", []):
             if cgi in cgi_endpoints:
+                other = cgi_endpoints[cgi]
+                other_streamer = cgi_streamers.get(cgi)
+                if (
+                    streamer
+                    and other_streamer
+                    and streamer != other_streamer
+                ):
+                    continue
                 print(
                     f"WARNING: Plugin '{name}' declares CGI '{cgi}' which "
-                    f"is already claimed by plugin '{cgi_endpoints[cgi]}'",
+                    f"is already claimed by plugin '{other}'",
                     file=sys.stderr,
                 )
             else:
                 cgi_endpoints[cgi] = name
+                cgi_streamers[cgi] = streamer
 
 
 # ---------------------------------------------------------------------------

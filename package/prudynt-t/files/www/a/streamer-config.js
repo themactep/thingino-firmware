@@ -80,13 +80,13 @@
     });
   }
 
-  async function savePrudyntConfig() {
+  async function saveConfig() {
     const confirmed = await confirm(
       "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
     );
     if (!confirmed) return;
 
-    const saveButton = $("#save-prudynt-config");
+    const saveButton = $("#save-config");
     if (saveButton) saveButton.disabled = true;
 
     try {
@@ -258,9 +258,9 @@
   }
 
   function initStreamerConfig() {
-    const saveButton = $("#save-prudynt-config");
+    const saveButton = $("#save-config");
     if (saveButton) {
-      saveButton.addEventListener("click", savePrudyntConfig);
+      saveButton.addEventListener("click", saveConfig);
     }
 
     detectSocAndPopulateModes();

@@ -1,14 +1,23 @@
 (function () {
   "use strict";
 
-  const endpoint = "/x/json-prudynt.cgi";
+  const fallbackEndpoint = "/x/json-prudynt.cgi";
 
-  const alertArea = $("#privacy-alerts");
   const reloadButton = $("#privacy-reload");
   const saveButton = $("#privacy-save");
   const form = $("#privacy-form");
 
-  /* ── Busy-state helpers ─────────────────────────────────────── */
+  function preferAgent() {
+    return typeof window.agentJsonRequest === "function";
+  }
+
+  async function agentRequest(path, options) {
+    return window.agentJsonRequest(path, options);
+  }
+
+  function helper() {
+    return window.thinginoStreamer || null;
+  }
 
   function setReloadBusy(state) {
     if (!reloadButton) return;
@@ -16,10 +25,8 @@
     reloadButton.classList.toggle("disabled", !!state);
   }
 
-  /* ── JSON API helpers ────────────────────────────────────────── */
-
-  async function requestPrudynt(payload) {
-    const response = await fetch(endpoint, {
+  async function requestFallback(payload) {
+    const response = await fetch(fallbackEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -30,21 +37,41 @@
     try {
       return JSON.parse(text);
     } catch (err) {
-      throw new Error("Invalid JSON from prudynt");
+      throw new Error("Invalid JSON from streamer");
     }
   }
-
-  /* ── Persist config to flash ────────────────────────────────── */
 
   async function saveConfigToFlash() {
     if (!saveButton) return;
     saveButton.disabled = true;
     try {
-      const resp = await requestPrudynt({ action: { save_config: null } });
+      const h = helper();
+      if (h && h.saveConfig) {
+        const confirmed = await confirm(
+          (h.saveConfirmMessage && h.saveConfirmMessage()) ||
+            "Save the current configuration?\n\nThis will overwrite the saved configuration file on the camera.",
+        );
+        if (!confirmed) return;
+        await h.saveConfig();
+        showAlert(
+          "success",
+          (h.saveSuccessMessage && h.saveSuccessMessage()) ||
+            "Configuration saved.",
+        );
+        return;
+      }
+      if (preferAgent()) {
+        const res = await fetch("/x/json-config-save.cgi", { method: "POST" });
+        if (res.ok) {
+          showAlert("success", "Configuration saved.");
+          return;
+        }
+      }
+      const resp = await requestFallback({ action: { save_config: null } });
       if (!resp?.action || resp.action.save_config !== "ok") {
         throw new Error("save_config returned unexpected response");
       }
-      showAlert("success", "Configuration saved to /etc/prudynt.json.");
+      showAlert("success", "Configuration saved.");
     } catch (err) {
       showAlert(
         "danger",
@@ -55,20 +82,38 @@
     }
   }
 
-  /* ── Load & populate form ───────────────────────────────────── */
-
   async function loadConfig() {
     setReloadBusy(true);
     try {
-      const data = await requestPrudynt({
+      const enabledEl = $("#privacy-enabled");
+      const saveStateEl = $("#privacy-save-state");
+
+      if (preferAgent()) {
+        const cfg = await agentRequest("/api/v1/config", { cache: "no-store" });
+        if (enabledEl) {
+          if (cfg?.privacy?.enabled !== undefined) {
+            enabledEl.checked = !!cfg.privacy.enabled;
+          }
+          enabledEl.disabled = false;
+        }
+        // save_state is not an agent leaf; hide when agent-backed.
+        if (saveStateEl) {
+          const wrap =
+            saveStateEl.closest("p, .mb-3, .form-switch") ||
+            saveStateEl.parentElement;
+          if (wrap) wrap.classList.add("d-none");
+          saveStateEl.disabled = true;
+        }
+        return;
+      }
+
+      const data = await requestFallback({
         privacy: {
           enabled: null,
           save_state: null,
         },
       });
 
-      // privacy.enabled
-      const enabledEl = $("#privacy-enabled");
       if (enabledEl) {
         if (data?.privacy?.enabled !== undefined) {
           enabledEl.checked = !!data.privacy.enabled;
@@ -76,8 +121,6 @@
         enabledEl.disabled = false;
       }
 
-      // privacy.save_state
-      const saveStateEl = $("#privacy-save-state");
       if (saveStateEl) {
         if (data?.privacy?.save_state !== undefined) {
           saveStateEl.checked = !!data.privacy.save_state;
@@ -94,25 +137,30 @@
     }
   }
 
-  /* ── Live-update toggles ────────────────────────────────────── */
-
-  function sendUpdate(field, checked) {
-    requestPrudynt({
-      privacy: {
-        [field]: checked,
-      },
-    }).catch((err) => {
+  async function sendUpdate(field, checked) {
+    try {
+      if (preferAgent() && field === "enabled") {
+        await agentRequest("/api/v1/actions/privacy", {
+          method: "POST",
+          body: { enabled: checked },
+          cache: "no-store",
+        });
+        return;
+      }
+      await requestFallback({
+        privacy: {
+          [field]: checked,
+        },
+      });
+    } catch (err) {
       showAlert(
         "danger",
         `Failed to update privacy.${field}: ${err.message || err}`,
       );
-      // Revert the toggle on failure
       const el = $(`#privacy-${field.replace(/_/g, "-")}`);
       if (el) el.checked = !checked;
-    });
+    }
   }
-
-  /* ── Event wiring ───────────────────────────────────────────── */
 
   function bindControls() {
     const enabledEl = $("#privacy-enabled");
@@ -141,10 +189,7 @@
     }
   }
 
-  /* ── Init ───────────────────────────────────────────────────── */
-
   function init() {
-    // Disable toggles until config is loaded
     const enabledEl = $("#privacy-enabled");
     if (enabledEl) enabledEl.disabled = true;
 

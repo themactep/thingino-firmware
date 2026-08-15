@@ -31,11 +31,18 @@ EOF
 
 # GET - Load configuration
 if [ "$REQUEST_METHOD" = "GET" ]; then
-	# Read motion config from prudynt
-	if [ -f "$prudynt_config" ]; then
-		motion_data=$(jct "$prudynt_config" get motion 2>/dev/null || echo '{}')
-	else
-		motion_data='{}'
+	# Prefer agent motion enable; fall back to prudynt.json
+	motion_data=
+	if command -v thingino-agentctl >/dev/null 2>&1; then
+		enabled=$(thingino-agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
+		[ -n "$enabled" ] && motion_data="{\"enabled\":$enabled}"
+	fi
+	if [ -z "$motion_data" ]; then
+		if [ -f "$prudynt_config" ]; then
+			motion_data=$(jct "$prudynt_config" get motion 2>/dev/null || echo '{}')
+		else
+			motion_data='{}'
+		fi
 	fi
 
 	# Helper to safely get config values
@@ -108,15 +115,30 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
 	saved=0
 
-	# Motion config - import into prudynt.json
+	# Motion config — prefer agent when available, else prudynt.json
 	if jct "$temp_json" get motion >/dev/null 2>&1; then
+		if command -v thingino-agentctl >/dev/null 2>&1; then
+			enabled=$(jct "$temp_json" get motion.enabled 2>/dev/null | tr -d '"')
+			case "$enabled" in
+				true | false)
+					tmp=$(mktemp /tmp/send2-motion.XXXXXX) || true
+					if [ -n "$tmp" ]; then
+						printf '{"enabled":%s}\n' "$enabled" >"$tmp"
+						thingino-agentctl set-setting motion/enabled "$tmp" >/dev/null 2>&1 || true
+						rm -f "$tmp"
+					fi
+					;;
+			esac
+		fi
 		motion_temp=$(mktemp)
 		motion_val=$(jct "$temp_json" get motion)
 		printf '{"motion": %s}\n' "$motion_val" >"$motion_temp"
-		jct "$prudynt_config" import "$motion_temp"
-		sync
-		if pidof prudynt >/dev/null 2>&1; then
-			prudyntctl json - <"$motion_temp" >/dev/null 2>&1
+		if [ -f "$prudynt_config" ]; then
+			jct "$prudynt_config" import "$motion_temp"
+			sync
+			if pidof prudynt >/dev/null 2>&1; then
+				prudyntctl json - <"$motion_temp" >/dev/null 2>&1
+			fi
 		fi
 		rm -f "$motion_temp"
 		saved=1
