@@ -40,23 +40,6 @@ let recordingState = {
   ch0: false,
   ch1: false,
 };
-let timelapseState = {
-  enabled: false,
-  mount: "",
-  filepath: "",
-  filename: "",
-  interval: 1,
-  keep_days: 7,
-  preset_enabled: false,
-  presets: {
-    ircut: false,
-    ir850: false,
-    ir940: false,
-    white: false,
-    color: false,
-  },
-};
-let timelapseStateLoaded = false;
 const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
@@ -525,122 +508,6 @@ function updateRecordingState(state) {
   recordingState.ch0 = state.ch0;
   recordingState.ch1 = state.ch1;
   updateRecordingIcons();
-}
-
-function applyTimelapseState(timelapse = {}) {
-  const presets = timelapse.presets || {};
-  timelapseState = {
-    enabled: timelapse.enabled === true,
-    mount: typeof timelapse.mount === "string" ? timelapse.mount : "",
-    filepath: typeof timelapse.filepath === "string" ? timelapse.filepath : "",
-    filename: typeof timelapse.filename === "string" ? timelapse.filename : "",
-    interval:
-      Number.isInteger(timelapse.interval) && timelapse.interval > 0
-        ? timelapse.interval
-        : 1,
-    keep_days:
-      Number.isInteger(timelapse.keep_days) && timelapse.keep_days >= 0
-        ? timelapse.keep_days
-        : 7,
-    preset_enabled: timelapse.preset_enabled === true,
-    presets: {
-      ircut: presets.ircut === true,
-      ir850: presets.ir850 === true,
-      ir940: presets.ir940 === true,
-      white: presets.white === true,
-      color: presets.color === true,
-    },
-  };
-  timelapseStateLoaded = true;
-  updateTimelapseButtonState();
-}
-
-function updateTimelapseButtonState() {
-  const timelapseBtn = $("#timelapse");
-  if (!timelapseBtn) return;
-
-  timelapseBtn.classList.remove("pending");
-  timelapseBtn.classList.toggle("active", timelapseState.enabled === true);
-}
-
-async function loadTimelapseState() {
-  const response = await fetch("/x/tool-record.cgi", {
-    headers: { Accept: "application/json" },
-  });
-
-  const payload = await response.json();
-  if (!response.ok || (payload && payload.error)) {
-    const message =
-      payload && payload.error
-        ? payload.error.message
-        : `Request failed with status ${response.status}`;
-    throw new Error(message || "Unable to load timelapse state");
-  }
-
-  applyTimelapseState((payload.data && payload.data.timelapse) || {});
-  return timelapseState;
-}
-
-function buildTimelapseToggleParams(enabled) {
-  const params = new URLSearchParams();
-  params.set("form", "timelapse");
-  params.set("tl_enabled", enabled ? "true" : "false");
-  params.set("tl_mount", timelapseState.mount || "");
-  params.set("tl_filepath", timelapseState.filepath || "");
-  params.set("tl_filename", timelapseState.filename || "");
-  params.set("tl_interval", String(timelapseState.interval || 1));
-  params.set("tl_keep_days", String(timelapseState.keep_days ?? 7));
-  params.set(
-    "tl_preset_enabled",
-    timelapseState.preset_enabled ? "true" : "false",
-  );
-  params.set("tl_ircut", timelapseState.presets.ircut ? "true" : "false");
-  params.set("tl_ir850", timelapseState.presets.ir850 ? "true" : "false");
-  params.set("tl_ir940", timelapseState.presets.ir940 ? "true" : "false");
-  params.set("tl_white", timelapseState.presets.white ? "true" : "false");
-  params.set("tl_color", timelapseState.presets.color ? "true" : "false");
-  return params;
-}
-
-async function toggleTimelapse() {
-  const timelapseBtn = $("#timelapse");
-  if (timelapseBtn) timelapseBtn.classList.add("pending");
-
-  try {
-    if (!timelapseStateLoaded) {
-      await loadTimelapseState();
-    }
-
-    const nextEnabled = !timelapseState.enabled;
-    const response = await fetch("/x/tool-record.cgi", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: buildTimelapseToggleParams(nextEnabled).toString(),
-    });
-
-    const payload = await response.json();
-    if (!response.ok || (payload && payload.error)) {
-      const message =
-        payload && payload.error
-          ? payload.error.message
-          : `Request failed with status ${response.status}`;
-      throw new Error(message || "Unable to update timelapse recorder");
-    }
-
-    applyTimelapseState((payload.data && payload.data.timelapse) || {});
-    if (typeof showAlert === "function") {
-      showAlert(
-        "success",
-        nextEnabled ? "Timelapse enabled." : "Timelapse disabled.",
-        2500,
-      );
-    }
-  } catch (err) {
-    updateTimelapseButtonState();
-    if (typeof showAlert === "function") {
-      showAlert("danger", err.message || "Failed to toggle timelapse.", 5000);
-    }
-  }
 }
 
 function toggleRecording(channel) {
@@ -2495,14 +2362,6 @@ function initPasswordRevealToggles(root = document) {
       });
     });
 
-    const timelapseBtn = $("#timelapse");
-    if (timelapseBtn) {
-      timelapseBtn.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        toggleTimelapse();
-      });
-    }
-
     // setup motion button handler
     const motionBtn = $("#motion");
     if (motionBtn) {
@@ -2599,10 +2458,6 @@ function initPasswordRevealToggles(root = document) {
     }
 
     updateRecordingIcons();
-    loadTimelapseState().catch((err) => {
-      console.error("Unable to load timelapse state:", err);
-      updateTimelapseButtonState();
-    });
   }
 
   // Create universal alert area (uses existing global-message-overlay)

@@ -12,10 +12,6 @@ vr_domain="recorder"
 vr_config_file="/etc/prudynt.json"
 vr_temp_config_file="/tmp/${vr_domain}.json"
 
-tl_domain="timelapse"
-tl_config_file="/etc/timelapse.json"
-tl_temp_config_file="/tmp/${tl_domain}.json"
-
 request_body=""
 MOUNTS_LIST=""
 
@@ -55,45 +51,6 @@ vr_read_config() {
 	vr_min_free_mb=$(vr_get_value min_free_mb)
 	vr_check_interval=$(vr_get_value check_interval)
 	vr_cleanup_enabled=$(vr_get_value cleanup_enabled)
-}
-
-tl_defaults() {
-	[ -z "$tl_enabled" ] && tl_enabled="false"
-	[ -z "$tl_filepath" ] && tl_filepath="$(hostname)/timelapses"
-	[ -z "$tl_filename" ] && tl_filename="%Y%m%d/%Y%m%dT%H%M%S.jpg"
-	[ -z "$tl_interval" ] && tl_interval=1
-	[ -z "$tl_keep_days" ] && tl_keep_days=7
-	[ -z "$tl_preset_enabled" ] && tl_preset_enabled="false"
-	[ -z "$tl_ircut" ] && tl_ircut="false"
-	[ -z "$tl_ir850" ] && tl_ir850="false"
-	[ -z "$tl_ir940" ] && tl_ir940="false"
-	[ -z "$tl_white" ] && tl_white="false"
-	[ -z "$tl_color" ] && tl_color="false"
-}
-
-tl_set_value() {
-	[ -f "$tl_temp_config_file" ] || echo '{}' >"$tl_temp_config_file"
-	jct "$tl_temp_config_file" set "$tl_domain.$1" "$2" >/dev/null 2>&1
-}
-
-tl_get_value() {
-	jct "$tl_config_file" get "$tl_domain.$1" 2>/dev/null
-}
-
-tl_read_config() {
-	[ -f "$tl_config_file" ] || return
-	tl_enabled=$(tl_get_value enabled)
-	tl_mount=$(tl_get_value mount)
-	tl_filepath=$(tl_get_value filepath)
-	tl_filename=$(tl_get_value filename)
-	tl_interval=$(tl_get_value interval)
-	tl_keep_days=$(tl_get_value keep_days)
-	tl_preset_enabled=$(tl_get_value preset_enabled)
-	tl_ircut=$(tl_get_value ircut)
-	tl_ir850=$(tl_get_value ir850)
-	tl_ir940=$(tl_get_value ir940)
-	tl_white=$(tl_get_value white)
-	tl_color=$(tl_get_value color)
 }
 
 list_mounts() {
@@ -205,18 +162,6 @@ parse_form_data() {
 			vr_check_interval) POST_vr_check_interval="$value" ;;
 			vr_cleanup_enabled) POST_vr_cleanup_enabled="$value" ;;
 			vr_mount) POST_vr_mount="$value" ;;
-			tl_enabled) POST_tl_enabled="$value" ;;
-			tl_mount) POST_tl_mount="$value" ;;
-			tl_filepath) POST_tl_filepath="$value" ;;
-			tl_filename) POST_tl_filename="$value" ;;
-			tl_interval) POST_tl_interval="$value" ;;
-			tl_keep_days) POST_tl_keep_days="$value" ;;
-			tl_preset_enabled) POST_tl_preset_enabled="$value" ;;
-			tl_ircut) POST_tl_ircut="$value" ;;
-			tl_ir850) POST_tl_ir850="$value" ;;
-			tl_ir940) POST_tl_ir940="$value" ;;
-			tl_white) POST_tl_white="$value" ;;
-			tl_color) POST_tl_color="$value" ;;
 			*) : ;;
 		esac
 		IFS='&'
@@ -226,9 +171,7 @@ parse_form_data() {
 
 refresh_settings() {
 	vr_read_config
-	tl_read_config
 	vr_defaults
-	tl_defaults
 }
 
 mounts_json() {
@@ -259,13 +202,12 @@ collect_command_output() {
 
 build_state_payload() {
 	MOUNTS_LIST="$(list_mounts)"
-	local mounts_json_str debug_video debug_timelapse debug_crontab
+	local mounts_json_str debug_video debug_crontab
 	mounts_json_str=$(mounts_json)
 	#debug_video="$(jct $vr_config_file get $vr_domain)"
-	#debug_timelapse="$(collect_command_output "jct $tl_config_file get $tl_domain" jct "$tl_config_file" get "$tl_domain")"
 	#debug_crontab="$(collect_command_output "crontab -l" crontab -l)"
 
-	local video_channel video_duration video_limit video_min_free_mb video_check_interval tl_interval_num tl_keep_days_num
+	local video_channel video_duration video_limit video_min_free_mb video_check_interval
 	video_channel="$vr_channel"
 	case "$video_channel" in '' | *[!0-9]*) video_channel=0 ;; esac
 	video_duration="$vr_duration"
@@ -276,10 +218,6 @@ build_state_payload() {
 	case "$video_min_free_mb" in '' | *[!0-9]*) video_min_free_mb=500 ;; esac
 	video_check_interval="$vr_check_interval"
 	case "$video_check_interval" in '' | *[!0-9]*) video_check_interval=60 ;; esac
-	tl_interval_num="$tl_interval"
-	case "$tl_interval_num" in '' | *[!0-9]*) tl_interval_num=0 ;; esac
-	tl_keep_days_num="$tl_keep_days"
-	case "$tl_keep_days_num" in '' | *[!0-9]*) tl_keep_days_num=0 ;; esac
 
 	cat <<EOF
 {
@@ -294,30 +232,13 @@ build_state_payload() {
     "limit": $video_limit,
     "min_free_mb": $video_min_free_mb,
     "mount": "$(json_escape "$vr_mount")"
-  },
-  "timelapse": {
-    "enabled": $(bool_to_json "$tl_enabled"),
-    "mount": "$(json_escape "$tl_mount")",
-    "filepath": "$(json_escape "$tl_filepath")",
-    "filename": "$(json_escape "$tl_filename")",
-    "interval": $tl_interval_num,
-    "keep_days": $tl_keep_days_num,
-    "preset_enabled": $(bool_to_json "$tl_preset_enabled"),
-    "presets": {
-      "ircut": $(bool_to_json "$tl_ircut"),
-      "ir850": $(bool_to_json "$tl_ir850"),
-      "ir940": $(bool_to_json "$tl_ir940"),
-      "white": $(bool_to_json "$tl_white"),
-      "color": $(bool_to_json "$tl_color")
-    }
-  },
+
   "mounts": $mounts_json_str,
   "messages": {
     "strftime_hint": "$(json_escape "$STR_SUPPORTS_STRFTIME")"
   },
   "debug": {
     "video": "$debug_video",
-    "timelapse": "$debug_timelapse",
     "crontab": "$debug_crontab"
   }
 }
@@ -333,27 +254,6 @@ send_state_response() {
 		send_json "{\"ok\":true,\"message\":\"$(json_escape "$message")\",\"data\":$data}"
 	else
 		send_json "{\"ok\":true,\"data\":$data}"
-	fi
-}
-
-update_timelapse_cron() {
-	local tmpfile
-	tmpfile=$(mktemp) || json_error 500 "Unable to update timelapse schedule"
-	if [ -f "$CRONTABS" ]; then
-		cat "$CRONTABS" >"$tmpfile"
-	else
-		: >"$tmpfile"
-	fi
-	sed -i '/timelapse/d' "$tmpfile"
-	printf '# run timelapse every %s minutes\n' "$tl_interval" >>"$tmpfile"
-	if [ "$tl_enabled" = "true" ]; then
-		printf '*/%s * * * * timelapse\n' "$tl_interval" >>"$tmpfile"
-	else
-		printf '#*/%s * * * * timelapse\n' "$tl_interval" >>"$tmpfile"
-	fi
-	if ! mv "$tmpfile" "$CRONTABS"; then
-		rm -f "$tmpfile"
-		json_error 500 "Unable to write timelapse schedule"
 	fi
 }
 
@@ -413,66 +313,6 @@ process_video_form() {
 	send_state_response "Video recorder settings updated."
 }
 
-process_timelapse_form() {
-	refresh_settings
-	tl_enabled="$POST_tl_enabled"
-	tl_mount="$POST_tl_mount"
-	tl_filepath="$POST_tl_filepath"
-	tl_filename="$POST_tl_filename"
-	tl_interval="$POST_tl_interval"
-	tl_keep_days="$POST_tl_keep_days"
-	tl_preset_enabled="$POST_tl_preset_enabled"
-	tl_ircut="$POST_tl_ircut"
-	tl_ir850="$POST_tl_ir850"
-	tl_ir940="$POST_tl_ir940"
-	tl_white="$POST_tl_white"
-	tl_color="$POST_tl_color"
-	tl_defaults
-
-	tl_enabled=$(normalize_bool "$tl_enabled")
-	tl_preset_enabled=$(normalize_bool "$tl_preset_enabled")
-	tl_ircut=$(normalize_bool "$tl_ircut")
-	tl_ir850=$(normalize_bool "$tl_ir850")
-	tl_ir940=$(normalize_bool "$tl_ir940")
-	tl_white=$(normalize_bool "$tl_white")
-	tl_color=$(normalize_bool "$tl_color")
-	case "$tl_filename" in
-		/*) tl_filename="${tl_filename#/}" ;;
-	esac
-
-	if ! is_positive_int "$tl_interval"; then
-		json_error 422 "Snapshot interval must be a positive integer"
-	fi
-	if ! is_non_negative_int "$tl_keep_days"; then
-		json_error 422 "Retention days must be zero or greater"
-	fi
-	if [ "$tl_enabled" = "true" ]; then
-		[ -z "$tl_mount" ] && json_error 422 "Timelapse mount cannot be empty."
-		[ -z "$tl_filename" ] && json_error 422 "Timelapse filename cannot be empty."
-	fi
-
-	tl_set_value enabled "$tl_enabled"
-	tl_set_value mount "$tl_mount"
-	tl_set_value filepath "$tl_filepath"
-	tl_set_value filename "$tl_filename"
-	tl_set_value interval "$tl_interval"
-	tl_set_value keep_days "$tl_keep_days"
-	tl_set_value preset_enabled "$tl_preset_enabled"
-	tl_set_value ircut "$tl_ircut"
-	tl_set_value ir850 "$tl_ir850"
-	tl_set_value ir940 "$tl_ir940"
-	tl_set_value white "$tl_white"
-	tl_set_value color "$tl_color"
-
-	if ! jct "$tl_config_file" import "$tl_temp_config_file"; then
-		rm -f "$tl_temp_config_file"
-		json_error 500 "Failed to update timelapse configuration"
-	fi
-	rm -f "$tl_temp_config_file"
-	update_timelapse_cron
-	send_state_response "Timelapse recorder settings updated."
-}
-
 REQUEST_METHOD=${REQUEST_METHOD:-GET}
 
 case "$REQUEST_METHOD" in
@@ -484,7 +324,6 @@ case "$REQUEST_METHOD" in
 		parse_form_data "$request_body"
 		case "$POST_form" in
 			video) process_video_form ;;
-			timelapse) process_timelapse_form ;;
 			*) json_error 400 "Unsupported form submission" ;;
 		esac
 		;;
