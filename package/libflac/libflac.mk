@@ -1,7 +1,7 @@
 LIBFLAC_SITE_METHOD = git
 LIBFLAC_SITE = https://github.com/earlephilhower/ESP8266Audio.git
 LIBFLAC_SITE_BRANCH = master
-LIBFLAC_VERSION = 74fc1f09bbba5e5c5450b445452ba64ef2d8bbad
+LIBFLAC_VERSION = 10d929ac01436dfe8856e0a06fd9ec35a848c6e2
 
 LIBFLAC_INSTALL_STAGING = YES
 LIBFLAC_INSTALL_TARGET = YES
@@ -10,7 +10,7 @@ LIBFLAC_SRC_DIR = src/libflac
 LIBFLAC_SO_NAME = libflac-lite.so
 
 define LIBFLAC_BUILD_CMDS
-	$(foreach src,$(wildcard $(@D)/$(LIBFLAC_SRC_DIR)/*.c), \
+	set -e; $(foreach src,$(wildcard $(@D)/$(LIBFLAC_SRC_DIR)/*.c), \
 		$(TARGET_CC) $(TARGET_CFLAGS) -I$(@D)/$(LIBFLAC_SRC_DIR) -I$(LIBFLAC_PKGDIR)/arduino_compat -fPIC -DUSE_DEFAULT_STDLIB -c $(src) -o $(patsubst %.c, %.o, $(src));)
 	find $(@D)/$(LIBFLAC_SRC_DIR) -type f -name '*.o' | xargs $(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/$(LIBFLAC_SO_NAME)
 endef

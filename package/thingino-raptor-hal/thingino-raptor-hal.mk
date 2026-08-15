@@ -1,19 +1,29 @@
-THINGINO_RAPTOR_HAL_VERSION = 7e62abede02b41ecfb097303b3103b1a5d8740a4
+THINGINO_RAPTOR_HAL_VERSION = 131d1d70d8049f6a33f558e3a9b3f84bd068f5b2
 THINGINO_RAPTOR_HAL_SITE = https://github.com/gtxaspec/raptor-hal
 THINGINO_RAPTOR_HAL_SITE_METHOD = git
 THINGINO_RAPTOR_HAL_GIT_SUBMODULES = YES
 THINGINO_RAPTOR_HAL_INSTALL_STAGING = YES
 THINGINO_RAPTOR_HAL_INSTALL_TARGET = NO
 
+# One block per vendor, matching the backend symbols in Config.in. A vendor
+# whose backend links no library adds no block here, which also leaves
+# INGENIC_HEADERS below inert rather than needing a guard of its own.
+ifeq ($(BR2_SOC_VENDOR_INGENIC),y)
 THINGINO_RAPTOR_HAL_DEPENDENCIES = ingenic-lib
+endif
 
 THINGINO_RAPTOR_HAL_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
+
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+THINGINO_RAPTOR_HAL_MAKE_OPTS += V4L2_OPENIMP=1
+endif
 
 define THINGINO_RAPTOR_HAL_BUILD_CMDS
 	$(MAKE) -C $(@D) \
 		PLATFORM=$(THINGINO_RAPTOR_HAL_PLATFORM) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		INGENIC_HEADERS=$(@D)/ingenic-headers \
+		$(THINGINO_RAPTOR_HAL_MAKE_OPTS) \
 		$(if $(BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT),\
 			CXX=$(TARGET_CROSS)g++ \
 			JZDL_INCLUDE=$(@D)/ingenic-headers/Txx/jzdl,) \

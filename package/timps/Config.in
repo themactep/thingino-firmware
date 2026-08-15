@@ -3,19 +3,21 @@ config BR2_PACKAGE_TIMPS
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	select BR2_PACKAGE_INGENIC_LIB
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP
+	select BR2_PACKAGE_INGENIC_LIB_LIBSYSUTILS if !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_LOGO
 	select BR2_PACKAGE_THINGINO_SEND2
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
 	help
-	  Tiny IMP Streamer — a minimal, dependency-light RTSP / fragmented-MP4 /
-	  MJPEG streamer for Ingenic SoC IP cameras.
+	  Tiny IMP Streamer — a minimal, dependency-light RTSP /
+	  fragmented-MP4 / MJPEG streamer for Ingenic SoC IP cameras.
 
-	  Built straight on the vendor libimp — no live555, libconfig,
-	  libwebsockets or libschrift. A lightweight alternative to prudynt-t
-	  and raptor for the Thingino ecosystem.
+	  Built against the selected libimp provider (vendor or
+	  OpenIMP), with no live555, libconfig, libwebsockets, or
+	  libschrift. A lightweight alternative to prudynt-t and raptor
+	  for the Thingino ecosystem.
 
 	  https://github.com/Lu-Fi/timps
 
@@ -29,6 +31,28 @@ config BR2_PACKAGE_TIMPS_FAAC
 	  Enable software AAC audio encoding via libfaac. This enables
 	  browser-compatible audio in the fMP4 preview and RTSP streams.
 	  Without this, only G.711 audio is available.
+
+config BR2_PACKAGE_TIMPS_STREAM_OPUS
+	bool "Opus streaming audio codec (libopus)"
+	default n
+	select BR2_PACKAGE_OPUS
+	help
+	  Offer Opus as a selectable audio.codec for the live RTSP/RTP audio
+	  track (RFC 7587), alongside the existing "aac" and "g711" (pcmu/pcma)
+	  options. When enabled, set audio.codec=opus in timps.conf (or via the
+	  /control API) to stream the microphone as Opus; leave it at aac/g711
+	  and nothing changes. The mic is encoded at its capture rate (16 kHz by
+	  default) in VOIP mode and RTP-signaled as opus/48000/2 per the RFC.
+
+	  This is the STREAMING encoder only and links the bare libopus
+	  (~337KB), NOT opusfile: RTP carries raw Opus frames with no Ogg
+	  container, so libogg and opusfile are not pulled in.
+
+	  Independent of BR2_PACKAGE_TIMPS_PLAY_OPUS below, which is the
+	  unrelated DECODE-side feature (playing local .opus sound files through
+	  the speaker via opusfile). The two do not need to agree; a board may
+	  enable either, both, or neither. Default off; when off, no Opus stream
+	  code is compiled in and "opus" is not an accepted audio.codec value.
 
 config BR2_PACKAGE_TIMPS_CONTROL
 	bool "Live control endpoint (/control)"
@@ -47,6 +71,27 @@ config BR2_PACKAGE_TIMPS_DAYNIGHT
 	  filter automatically. Disable if using an external photosensing
 	  solution.
 
+config BR2_PACKAGE_TIMPS_RECORD
+	bool "Local SD recording"
+	default y
+	help
+	  Enable local recording to SD as fragmented-MP4 segments
+	  (continuous or motion-triggered, pre/post-roll), including the
+	  on-demand clip capture used by the send2/Telegram motion videos.
+	  Disable on cameras without an SD slot to save ~11KB of binary
+	  size; /control then reports record.available=0 and the WebUI
+	  hides the record controls.
+
+config BR2_PACKAGE_TIMPS_TIMELAPSE
+	bool "Native timelapse"
+	default y
+	help
+	  Enable the native timelapse: periodic JPEG snapshots to SD,
+	  pruned after timelapse.keep_days. Disable on cameras without an
+	  SD slot to save ~4KB of binary size; /control then reports
+	  timelapse.available=0 and the WebUI hides the timelapse page
+	  controls.
+
 config BR2_PACKAGE_TIMPS_TLS
 	bool "TLS support (HTTPS + RTSPS via mbedTLS)"
 	default y
@@ -64,15 +109,44 @@ config BR2_PACKAGE_TIMPS_SRT
 	  acts as an SRT listener, serving live video+audio.
 	  Playback: ffplay srt://<ip>:9000
 
+config BR2_PACKAGE_TIMPS_OSD_HINTING
+	bool "OSD text autohinting (geometric stem snapping)"
+	default y
+	help
+	  Enable the opt-in geometric autohinting pass in the TTF rasterizer
+	  (msttf.c), which snaps long, near-vertical/near-horizontal glyph
+	  outline edges (typical letter stems/serifs) to the pixel grid
+	  before rasterizing. This is NOT a TrueType hint-bytecode
+	  interpreter; it is a coarse heuristic that measurably reduces
+	  uneven stroke widths between glyphs in the OSD text at small sizes
+	  (e.g. the substream OSD's default 12px).
+
+	  Controlled at runtime by the osd.hinting config key (timps.conf /
+	  /control), default 0 (off) either way. This option gates whether
+	  the autohinting code is compiled in at all; disabled by default to
+	  save binary size on boards that don't need it (measured ~2.1KB of
+	  .text on T31/GCC 16.1.0/-Os). With this off, setting osd.hinting=1
+	  in timps.conf is accepted but has no effect.
+
 config BR2_PACKAGE_TIMPS_ROTATE
-	bool "Image rotation (90/180/270)"
+	bool "Image rotation (90/270, plus 180 on T40/T41)"
 	default n
 	help
-	  Enable per-stream image rotation. 180 is available on all SoCs
-	  (realised as a global ISP Hflip+Vflip); hardware 90/270 rotation
-	  is available on T40/T41 (I2D) and T31 (FrameSource rotate).
-	  Rotation is restart-required. Disabled by default: when off, no
-	  rotation code is compiled in (byte-identical build).
+	  Enable per-stream image rotation. Real 90/270 transpose: hardware
+	  90/270 on T40/T41 (I2D) and T31 (FrameSource rotate), or the opt-in
+	  software path below for T23. On SoCs with no 90/270 path
+	  (T10/T20/T21/T30/C100, and T23 without SW_ROTATE) 90/270 has no
+	  usable effect - rotation accepts no non-zero value there.
+	  rotation=180 IS still offered, but only takes effect as a real,
+	  distinct rotation on T40/T41: there it is a per-channel hardware
+	  I2D flip scoped to just that video stream. On every other SoC
+	  requesting rotation=180 has no effect (it coerces to 0) - it was a
+	  redundant GLOBAL ISP Hflip+Vflip that also flipped every sibling
+	  stream, so use image.hflip=1 + image.vflip=1 there instead for the
+	  equivalent (global) flip (always available, independent of this
+	  option). Rotation is restart-required.
+	  Disabled by default: when off, no rotation code is compiled in
+	  (byte-identical build).
 
 config BR2_PACKAGE_TIMPS_SW_ROTATE
 	bool "Software 90/270 on SoCs without hardware rotate (T23)"

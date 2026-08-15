@@ -1,4 +1,23 @@
 (function () {
+  var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (d) {
+      return d.exists && d.api_key ? d.api_key : "";
+    })
+    .catch(function () {
+      return "";
+    });
+  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+
+  async function apiFetch(url, options) {
+    var key = await API_KEY_PROMISE;
+    options = options || {};
+    options.headers = options.headers || {};
+    if (key) options.headers["X-API-Key"] = key;
+    return fetch(url, options);
+  }
   const form = $("#rtspForm");
   const usernameInput = $("#rtsp_username");
   const passwordInput = $("#rtsp_password");
@@ -81,7 +100,7 @@
       toggleBusy(true, "Loading RTSP settings...");
     }
     try {
-      const response = await fetch("/x/json-config-rtsp.cgi", {
+      const response = await apiFetch(API_BASE + "/rtsp", {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error("Failed to load RTSP configuration");
@@ -110,10 +129,10 @@
   async function saveConfig(password) {
     toggleBusy(true, "Saving RTSP settings...");
     try {
-      const response = await fetch("/x/json-config-rtsp.cgi", {
+      const response = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ rtsp: { password } }),
       });
       const result = await response.json();
       if (!response.ok || result.error) {

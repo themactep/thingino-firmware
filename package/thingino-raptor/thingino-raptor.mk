@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 15a401cf1d58ba4d476df5acb6252203a6213832
+THINGINO_RAPTOR_VERSION = 402675f5cc599e22b7b508b3c9f56753ed6c90cd
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -7,6 +7,16 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
+THINGINO_RAPTOR_DEPENDENCIES += openimp
+THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
+endif
+ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += ingenic-system-libs-neo
+endif
+ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
+THINGINO_RAPTOR_DEPENDENCIES += libaudioprocess-neo
+endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
@@ -181,6 +191,16 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/speaker
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
+	# Day/night wrappers belong to RIC; with daynightd selected its
+	# own scripts of the same names are the day/night interface.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RIC)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/daynight \
+			$(TARGET_DIR)/usr/sbin/daynight; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/ircut \
+			$(TARGET_DIR)/usr/sbin/ircut; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/light \
+			$(TARGET_DIR)/usr/sbin/light; \
+	fi
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \

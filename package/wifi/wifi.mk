@@ -1,5 +1,6 @@
 WIFI_SITE_METHOD = local
 WIFI_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/wifi
+WIFI_DEPENDENCIES = wpa_supplicant
 
 WIFI_TEMPLATE_PYTHON = $(shell command -v python3)
 WIFI_TEMPLATE_RENDERER = $(BR2_EXTERNAL_THINGINO_PATH)/scripts/render_template.py

@@ -2,28 +2,58 @@
 
 sensor_root="/proc/jz/sensor"
 
-[ -d "$sensor_root" ] || { echo "$sensor_root does not exist."; exit 1; }
+[ -d "$sensor_root" ] || {
+	echo "$sensor_root does not exist."
+	exit 1
+}
 
 param="${1:-all}"
 idx="${2:-0}"
 sensor_dir="$sensor_root/sensor$idx"
 
+# Detect layout: suffixed (sensor0/, sensor1/, count) vs unsuffixed (files directly in sensor_root)
+if [ -d "$sensor_dir" ]; then
+	LAYOUT="suffixed"
+else
+	LAYOUT="unsuffixed"
+fi
+
 case "$param" in
 	count)
-		cat "$sensor_root/count"
+		if [ "$LAYOUT" = "suffixed" ]; then
+			cat "$sensor_root/count"
+		else
+			echo "1"
+		fi
 		;;
 	all | -a)
-		[ -d "$sensor_dir" ] || { echo "sensor$idx is not registered."; exit 1; }
-		for f in "$sensor_dir"/*; do
-			printf '%-16s %s\n' "$(basename "$f"):" "$(cat "$f")"
-		done
+		if [ "$LAYOUT" = "suffixed" ]; then
+			for f in "$sensor_dir"/*; do
+				printf '%-16s %s\n' "$(basename "$f"):" "$(cat "$f")"
+			done
+		else
+			for f in "$sensor_root"/*; do
+				[ -f "$f" ] || continue
+				printf '%-16s %s\n' "$(basename "$f"):" "$(cat "$f")"
+			done
+		fi
 		;;
 	*)
-		if [ -e "$sensor_dir/$param" ]; then
-			cat "$sensor_dir/$param"
+		target=""
+		if [ "$LAYOUT" = "suffixed" ] && [ -e "$sensor_dir/$param" ]; then
+			target="$sensor_dir/$param"
+		elif [ "$LAYOUT" = "unsuffixed" ] && [ -e "$sensor_root/$param" ]; then
+			target="$sensor_root/$param"
+		fi
+		if [ -n "$target" ]; then
+			cat "$target"
 		else
 			echo "Usage: $0 [all|count|<param>] [sensor_index]"
-			[ -d "$sensor_dir" ] && echo "Params: $(ls "$sensor_dir" | tr '\n' ' ')"
+			if [ "$LAYOUT" = "suffixed" ]; then
+				echo "Params: $(ls "$sensor_dir" | tr '\n' ' ')"
+			else
+				echo "Params: $(ls -p "$sensor_root" | grep -v '/' | tr '\n' ' ')"
+			fi
 			exit 1
 		fi
 		;;

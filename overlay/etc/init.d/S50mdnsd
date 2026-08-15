@@ -245,6 +245,7 @@ generate_thingino_service() {
 
 generate_rtsp_services() {
 	local svc_file
+
 	rm -f "$MDNS_SERVICE_DIR/rtsp.service" "$MDNS_SERVICE_DIR/rtsps.service"
 
 	detect_rtsp_mdns || return 0

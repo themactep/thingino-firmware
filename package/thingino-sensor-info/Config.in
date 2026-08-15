@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_SENSOR_INFO
+	bool "thingino-sensor-info"
+	help
+	  Userspace Ingenic image sensor detector. Probes the sensor
+	  I2C bus against a database of known sensors, driving MCLK
+	  and reset/pwdn GPIOs itself. Replaces the sinfo kernel
+	  module and the per-kernel .ko download flow.
+
+	  https://github.com/thingino/sensor-info

@@ -8,6 +8,7 @@ BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAM
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}
+IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/configs/cameras/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
@@ -43,6 +44,19 @@ elif grep -q "^BR2_TOOLCHAIN_BUILDROOT=y" "$BR2_CONFIG"; then
 	TOOLCHAIN_TYPE="buildroot"
 else
 	TOOLCHAIN_TYPE="unknown"
+fi
+
+# Derived from the Buildroot config rather than assumed. /etc/os-release is read
+# at runtime -- `soc -a` reports from it and the web UI displays it -- so this
+# value is user-visible and should describe what was actually built.
+if grep -q "^BR2_arm=y\|^BR2_armeb=y" "$BR2_CONFIG"; then
+	ARCHITECTURE="arm"
+elif grep -q "^BR2_aarch64=y\|^BR2_aarch64_be=y" "$BR2_CONFIG"; then
+	ARCHITECTURE="aarch64"
+elif grep -q "^BR2_mips=y\|^BR2_mipsel=y\|^BR2_mips64=y\|^BR2_mips64el=y" "$BR2_CONFIG"; then
+	ARCHITECTURE="mips"
+else
+	ARCHITECTURE="unknown"
 fi
 
 TOOLCHAIN_GCC=$(sed -rn 's/^BR2_GCC_VERSION="([^"]+)"/\1/p' "$BR2_CONFIG" | tail -n1)
@@ -81,7 +95,7 @@ CPE_NAME=\"cpe:/o:thinginoproject:thingino:1\"
 LOGO=thingino-logo-icon
 ANSI_COLOR=\"1;34\"
 HOME_URL=\"https://thingino.com/\"
-ARCHITECTURE=mips
+ARCHITECTURE=${ARCHITECTURE}
 LIBC=${LIBC}
 TOOLCHAIN=${LIBC}
 TOOLCHAIN_TYPE=${TOOLCHAIN_TYPE}
@@ -89,6 +103,7 @@ TOOLCHAIN_GCC=${TOOLCHAIN_GCC}
 SOC=${SOC_FAMILY}
 SOC_ARCH=${SOC_ARCH}
 IMAGE_ID=${IMAGE_ID}
+IMAGE_NAME=\"${IMAGE_NAME}\"
 BUILD_ID=\"${BUILD_ID}\"
 BUILD_TIME=\"${BUILD_TIME}\"
 COMMIT_ID=\"${COMMIT_ID}\"
@@ -152,9 +167,7 @@ if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
 	rm -vf ${TARGET_DIR}/lib/libconfig.so*
 fi
 
-if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py" ]; then
-	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py
-fi
+rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.*-gdb.py 2>/dev/null
 
 if ! grep -q ^BR2_THINGINO_LIBSTDCPP=y $BR2_CONFIG 2>/dev/null; then
 	rm -vf ${TARGET_DIR}/lib/libstdc++.so*
@@ -167,3 +180,9 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
+
+# ---------------------------------------------------------------------------
+# Check for busybox long-option usage in init scripts (fatal on violations).
+# Thingino disables CONFIG_LONG_OPTS; --long-options silently fail at runtime.
+# ---------------------------------------------------------------------------
+$BR2_EXTERNAL/scripts/check-busybox-lopts.sh "${TARGET_DIR}" 1

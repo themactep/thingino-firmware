@@ -5,6 +5,30 @@ const ThreadOSD = 8;
 
 const ImageNoStream = "/a/nostream.svg";
 
+var API_BASE =
+  "http://" +
+  (window.network_address || location.hostname) +
+  ":8080/api/v1/config";
+
+var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+  .then(function (r) {
+    return r.json();
+  })
+  .then(function (d) {
+    return d.exists && d.api_key ? d.api_key : "";
+  })
+  .catch(function () {
+    return "";
+  });
+
+async function apiFetch(url, options) {
+  var key = await API_KEY_PROMISE;
+  options = options || {};
+  options.headers = options.headers || {};
+  if (key) options.headers["X-API-Key"] = key;
+  return fetch(url, options);
+}
+
 let max = 0;
 
 if (typeof window !== "undefined") {
@@ -37,9 +61,7 @@ const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
-const SlowHeartbeatPollInterval = 15 * 1000;
 let heartbeatSource = null;
-let slowHeartbeatTimer = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
 let debugModalCtx = null;
@@ -614,7 +636,6 @@ async function toggleTimelapse() {
       );
     }
   } catch (err) {
-    console.error("Timelapse toggle failed:", err);
     updateTimelapseButtonState();
     if (typeof showAlert === "function") {
       showAlert("danger", err.message || "Failed to toggle timelapse.", 5000);
@@ -639,7 +660,7 @@ function toggleRecording(channel) {
 
   console.log(`Sending payload: ${payload}`);
 
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -650,10 +671,44 @@ function toggleRecording(channel) {
     })
     .then((text) => {
       if (!text) {
-        console.log(`Empty response (assumed success)`);
+        console.error(
+          `Empty response from recording control (prudynt may not be running)`,
+        );
+        if (button) button.classList.remove("pending");
+        const reason = "No response from streamer (prudynt may not be running)";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
         return;
       }
-      const data = JSON.parse(text);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("Failed to parse recording response:", parseErr);
+        if (button) button.classList.remove("pending");
+        const reason = "Invalid response from streamer";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
+        return;
+      }
       console.log(`Response received:`, data);
       if (data.mp4 && data.mp4[action]) {
         if (data.mp4[action] === "ok") {
@@ -663,23 +718,59 @@ function toggleRecording(channel) {
             ch0: channel === 0 ? newState : recordingState.ch0,
             ch1: channel === 1 ? newState : recordingState.ch1,
           });
+          if (typeof showAlert === "function") {
+            showAlert(
+              "success",
+              `Recording ${action}ed on channel ${channel}`,
+              3000,
+            );
+          }
         } else {
           console.error("Recording control error:", data.mp4[action]);
           if (button) button.classList.remove("pending");
-          alert(
-            `Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`,
-          );
+          const reason = data.mp4[action];
+          if (typeof showAlert === "function") {
+            showAlert(
+              "danger",
+              `Failed to ${action} recording on channel ${channel}: ${reason}`,
+              8000,
+            );
+          } else {
+            alert(
+              `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            );
+          }
         }
       } else {
-        console.error("Unexpected response:", data);
+        console.error("Unexpected response structure:", data);
         if (button) button.classList.remove("pending");
-        alert(`Failed to ${action} recording on channel ${channel}`);
+        const reason = "Unexpected response from streamer";
+        if (typeof showAlert === "function") {
+          showAlert(
+            "danger",
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+            8000,
+          );
+        } else {
+          alert(
+            `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          );
+        }
       }
     })
     .catch((err) => {
       console.error("Recording control failed:", err);
       if (button) button.classList.remove("pending");
-      alert(`Failed to ${action} recording on channel ${channel}`);
+      const reason = err.message || "Network error or streamer unreachable";
+      if (typeof showAlert === "function") {
+        showAlert(
+          "danger",
+          `Failed to ${action} recording on channel ${channel}: ${reason}`,
+          8000,
+        );
+      } else {
+        alert(`Failed to ${action} recording on channel ${channel}: ${reason}`);
+      }
     });
 }
 
@@ -687,24 +778,24 @@ function toggleMotion(state) {
   const button = $("#motion");
   if (button) button.classList.add("pending");
 
-  agentJsonRequest("/api/v1/settings/motion/enabled", {
-    method: "PATCH",
-    body: { enabled: state },
-    cache: "no-store",
+  const payload = JSON.stringify({ motion: { enabled: state } });
+  apiFetch(API_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
   })
-    .then((data) => {
-      console.log(ts(), "<===", JSON.stringify(data));
-      if (data && data.resource && data.resource.enabled !== undefined) {
-        updateHeartbeatUi({ motion_enabled: data.resource.enabled });
-        return;
-      }
-      if (data && data.enabled !== undefined) {
-        updateHeartbeatUi({ motion_enabled: data.enabled });
-        return;
-      }
-      if (data && data.motion && data.motion.enabled !== undefined) {
-        updateHeartbeatUi({ motion_enabled: data.motion.enabled });
-        return;
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return res.text();
+    })
+    .then((text) => {
+      if (text) {
+        const data = JSON.parse(text);
+        console.log(ts(), "<===", JSON.stringify(data));
+        if (data.motion && data.motion.enabled !== undefined) {
+          updateHeartbeatUi({ motion_enabled: data.motion.enabled });
+          return;
+        }
       }
       updateHeartbeatUi({ motion_enabled: state });
     })
@@ -718,20 +809,24 @@ function togglePrivacy(state) {
   const button = $("#privacy");
   if (button) button.classList.add("pending");
 
-  agentJsonRequest("/api/v1/actions/privacy", {
+  const payload = JSON.stringify({ privacy: { enabled: state } });
+  apiFetch(API_BASE, {
     method: "POST",
-    body: { enabled: state },
-    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
   })
-    .then((data) => {
-      console.log(ts(), "<===", JSON.stringify(data));
-      if (data && data.privacy && data.privacy.enabled !== undefined) {
-        updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
-        return;
-      }
-      if (data && data.enabled !== undefined) {
-        updateHeartbeatUi({ privacy_enabled: data.enabled });
-        return;
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return res.text();
+    })
+    .then((text) => {
+      if (text) {
+        const data = JSON.parse(text);
+        console.log(ts(), "<===", JSON.stringify(data));
+        if (data.privacy && data.privacy.enabled !== undefined) {
+          updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
+          return;
+        }
       }
       updateHeartbeatUi({ privacy_enabled: state });
     })
@@ -742,6 +837,9 @@ function togglePrivacy(state) {
 }
 
 function toggleWireGuard(state) {
+  var uiConfig = window.thinginoUIConfig || {};
+  if (!uiConfig.device || !uiConfig.device.wireguard) return;
+
   const button = $("#wireguard");
   if (button) button.classList.add("pending");
 
@@ -815,7 +913,7 @@ function toggleAudio(device, state) {
     audio: { [param]: state },
   });
   console.log(ts(), "===>", payload);
-  fetch("/x/json-prudynt.cgi", {
+  apiFetch(API_BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: payload,
@@ -913,50 +1011,17 @@ async function toggleButton(el) {
     });
 }
 
-function resolveDeviceTimezone() {
-  const uiConfig = window.thinginoUIConfig || {};
-  const deviceTimezone =
-    uiConfig.device && typeof uiConfig.device.timezone === "string"
-      ? uiConfig.device.timezone.trim()
-      : "";
-  if (deviceTimezone) return deviceTimezone;
-  if (typeof uiConfig.timezone === "string" && uiConfig.timezone.trim())
-    return uiConfig.timezone.trim();
-  return "";
-}
-
 function updateHeartbeatUi(json) {
   if (!json) return;
-  const timeNowEl = $("#time-now");
-  if (timeNowEl && json.time_now != null && json.time_now !== "") {
-    const d = new Date(json.time_now * 1000);
-    const configuredTimezone = resolveDeviceTimezone();
-    const heartbeatTimezone =
-      typeof json.timezone === "string" ? json.timezone.trim() : "";
-    const timezoneLabel = configuredTimezone || heartbeatTimezone;
-    const timeZoneId = timezoneLabel
-      ? timezoneLabel.replaceAll(" ", "_")
-      : "UTC";
-    let options = {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: timeZoneId,
-    };
-    const formatted = d.toLocaleString(navigator.language, options);
-    timeNowEl.textContent = timezoneLabel
-      ? formatted + " " + timezoneLabel
-      : formatted;
-  }
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&
+    json.daynight_brightness !== null &&
     json.daynight_brightness !== "unknown" &&
     json.daynight_brightness !== "";
   const hasTotalGain =
     typeof json.total_gain !== "undefined" &&
+    json.total_gain !== null &&
     json.total_gain !== "unknown" &&
     json.total_gain !== "" &&
     json.total_gain >= 0;
@@ -980,8 +1045,8 @@ function updateHeartbeatUi(json) {
     uptimeEl.textContent = "Uptime:️ " + json.uptime;
 
   updateRecordingState({
-    ch0: json.rec_ch0 === true,
-    ch1: json.rec_ch1 === true,
+    ch0: json.rec_ch0 === true || json.rec_ch0 === 1,
+    ch1: json.rec_ch1 === true || json.rec_ch1 === 1,
   });
 
   // Update motion detection icon
@@ -989,7 +1054,10 @@ function updateHeartbeatUi(json) {
     const motionBtn = $("#motion");
     if (motionBtn) {
       motionBtn.classList.remove("pending");
-      motionBtn.classList.toggle("active", json.motion_enabled === true);
+      motionBtn.classList.toggle(
+        "active",
+        json.motion_enabled === true || json.motion_enabled === 1,
+      );
     }
   }
 
@@ -998,7 +1066,10 @@ function updateHeartbeatUi(json) {
     const privacyBtn = $("#privacy");
     if (privacyBtn) {
       privacyBtn.classList.remove("pending");
-      privacyBtn.classList.toggle("active", json.privacy_enabled === true);
+      privacyBtn.classList.toggle(
+        "active",
+        json.privacy_enabled === true || json.privacy_enabled === 1,
+      );
     }
   }
 
@@ -1110,7 +1181,10 @@ function updateHeartbeatUi(json) {
     const micBtn = $("#microphone");
     if (micBtn) {
       micBtn.classList.remove("pending");
-      const isActive = json.mic_enabled === true;
+      const isActive =
+        json.mic_enabled &&
+        json.mic_enabled !== 0 &&
+        json.mic_enabled !== "false";
       micBtn.classList.toggle("active", isActive);
       const img = micBtn.querySelector("img");
       if (img) {
@@ -1124,7 +1198,10 @@ function updateHeartbeatUi(json) {
     const spkBtn = $("#speaker");
     if (spkBtn) {
       spkBtn.classList.remove("pending");
-      const isActive = json.spk_enabled === true;
+      const isActive =
+        json.spk_enabled &&
+        json.spk_enabled !== 0 &&
+        json.spk_enabled !== "false";
       spkBtn.classList.toggle("active", isActive);
       const img = spkBtn.querySelector("img");
       if (img) {
@@ -1141,7 +1218,10 @@ function updateHeartbeatUi(json) {
     const autoBtn = $("#auto");
     if (autoBtn) {
       autoBtn.classList.remove("pending");
-      autoBtn.classList.toggle("active", json.daynight_enabled === 1);
+      autoBtn.classList.toggle(
+        "active",
+        json.daynight_enabled === true || json.daynight_enabled === 1,
+      );
     }
   }
 }
@@ -1209,31 +1289,11 @@ async function fetchSlowHeartbeatStatus() {
     console.error("Slow heartbeat fetch error", error);
   } finally {
     slowHeartbeatInFlight = false;
-    scheduleSlowHeartbeatStatus();
   }
-}
-
-function scheduleSlowHeartbeatStatus(delay = SlowHeartbeatPollInterval) {
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
-  }
-
-  if (!passwordCheckComplete || isDefaultPassword || document.hidden) {
-    return;
-  }
-
-  slowHeartbeatTimer = setTimeout(() => {
-    slowHeartbeatTimer = null;
-    fetchSlowHeartbeatStatus();
-  }, delay);
 }
 
 function startSlowHeartbeatStatus() {
-  if (slowHeartbeatTimer || slowHeartbeatInFlight) {
-    return;
-  }
-
+  if (slowHeartbeatInFlight) return;
   fetchSlowHeartbeatStatus();
 }
 
@@ -1241,10 +1301,6 @@ function cleanupHeartbeatResources() {
   if (heartbeatSource) {
     heartbeatSource.close();
     heartbeatSource = null;
-  }
-  if (slowHeartbeatTimer) {
-    clearTimeout(slowHeartbeatTimer);
-    slowHeartbeatTimer = null;
   }
   slowHeartbeatInFlight = false;
   currentReconnectDelay = HeartBeatReconnectDelay;
@@ -1525,37 +1581,6 @@ function attachSliderButtons(root = document) {
 
 document.addEventListener("DOMContentLoaded", () => {
   attachSliderButtons();
-
-  /* Check if doorbell chime is configured and show warning if not */
-  if (document.querySelector(".doorbell-nav")) {
-    fetch("/x/json-chime-status.cgi")
-      .then((r) => r.json())
-      .then((data) => {
-        /* Reveal nav item if doorbell feature is present */
-        if (data.configured !== undefined) {
-          document.querySelectorAll(".doorbell-nav").forEach((el) => {
-            const li = el.closest("li");
-            if (li) li.classList.remove("d-none");
-          });
-        }
-        /* Show warning banner if no chimes are configured */
-        if (data.configured === false) {
-          const banner = document.createElement("div");
-          banner.className =
-            "alert alert-warning text-center rounded-0 mb-0 py-2";
-          banner.innerHTML =
-            '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
-            "No doorbell chime configured. " +
-            '<a href="/config-doorbell.html" class="alert-link">Pair a chime</a> ' +
-            "to enable the doorbell.";
-          const main = document.querySelector("main");
-          if (main) main.insertBefore(banner, main.firstChild);
-        }
-      })
-      .catch(() => {
-        /* Silently ignore — doorbell feature not installed */
-      });
-  }
 });
 
 window.attachSliderButtons = attachSliderButtons;
@@ -2834,61 +2859,41 @@ function initPasswordRevealToggles(root = document) {
     }
   });
 
-  // Check session status and default password.
-  // Only a definitive 401/403 or authenticated:false triggers a redirect;
-  // transient failures retry with backoff instead of bouncing to /login.html.
-  async function checkSessionAndPassword(attempt) {
-    attempt = attempt || 0;
-    let data = null;
-
+  // Check session status and default password
+  async function checkSessionAndPassword() {
     try {
       const response = await fetch("/x/session-status.cgi", {
         cache: "no-store",
       });
 
-      if (response.status === 401 || response.status === 403) {
-        // definitive auth refusal from the server
+      if (!response.ok) {
+        // Session check failed - redirect to login
         window.location.href = "/login.html";
         return;
       }
 
-      if (response.ok) {
-        data = await response.json(); // non-JSON throws -> retry path
+      const data = await response.json();
+
+      if (!data.authenticated) {
+        // Not authenticated - redirect to login
+        window.location.href = "/login.html";
+        return;
       }
-      // any other status (5xx, 0-length proxy error, ...) -> retry path
+
+      // Check if using default password
+      if (data.is_default_password) {
+        isDefaultPassword = true;
+        passwordCheckComplete = true;
+        showPasswordWarningModal();
+      } else {
+        isDefaultPassword = false;
+        passwordCheckComplete = true;
+        heartbeat();
+      }
     } catch (err) {
       console.error("Session check failed:", err);
-    }
-
-    if (!data || typeof data.authenticated === "undefined") {
-      if (attempt < 2) {
-        setTimeout(
-          () => checkSessionAndPassword(attempt + 1),
-          1000 * (attempt + 1),
-        );
-      } else {
-        console.error(
-          "Session status endpoint unreachable - staying on page instead of redirecting to login",
-        );
-      }
-      return;
-    }
-
-    if (!data.authenticated) {
-      // Not authenticated - redirect to login
+      // On error, redirect to login
       window.location.href = "/login.html";
-      return;
-    }
-
-    // Check if using default password
-    if (data.is_default_password) {
-      isDefaultPassword = true;
-      passwordCheckComplete = true;
-      showPasswordWarningModal();
-    } else {
-      isDefaultPassword = false;
-      passwordCheckComplete = true;
-      heartbeat();
     }
   }
 

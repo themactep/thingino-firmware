@@ -7,11 +7,14 @@
 ifeq ($(BR2_PACKAGE_THINGINO_LIVE555),y)
 
 # Pin to a specific version tested with Thingino
-override LIVE555_VERSION = 2026.04.22
+override LIVE555_VERSION = 2026.07.23
 override LIVE555_SITE = https://github.com/gtxaspec/live555-release-mirror/releases/download/v$(LIVE555_VERSION)
 
-# Override CFLAGS to remove -std=c++20 from being passed to C files
-override LIVE555_CFLAGS = $(TARGET_CFLAGS)
+# Override CFLAGS to remove -std=c++20 from being passed to C files.
+# -fno-strict-aliasing: live555 type-puns through reference casts
+# (DelayQueue's timeval accessors and friends); the flag makes that
+# defined behavior instead of carrying source patches for it.
+override LIVE555_CFLAGS = $(TARGET_CFLAGS) -fno-strict-aliasing
 # Build both static and shared libraries for flexibility
 override LIVE555_CONFIG_TARGET = linux-with-shared-libraries
 override LIVE555_LIBRARY_LINK = $(TARGET_CC) -o

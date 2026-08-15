@@ -5,27 +5,54 @@ qstrip ?= $(strip $(subst ",,$(1)))
 # SOC
 #
 
+# The else branch is a fallback, not just the Kconfig default: this file is
+# parsed before .config exists on some paths, and every existing defconfig sets
+# no vendor symbol at all.
+ifeq ($(BR2_SOC_VENDOR_SIGMASTAR),y)
+SOC_VENDOR := sigmastar
+else
 SOC_VENDOR := ingenic
+endif
 
-# Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
+# Target architecture of the cross toolchain, one line per vendor. It has to be
+# resolved here rather than read from the BR2_mipsel/BR2_arm the SoC fragment
+# already sets: fragments are appended to .config and never included as
+# makefiles, so that symbol is not readable when SED_CONFIG_VARS runs.
+ifeq ($(SOC_VENDOR),sigmastar)
+SOC_TARGET_ARCH := arm
+else
+SOC_TARGET_ARCH := mipsel
+endif
+
+# The SoC model, from whichever vendor's symbol carries it. Kconfig keeps them
+# mutually exclusive -- each depends on its vendor and the vendor is a choice --
+# so at most one is ever set and the order below is not a precedence. Testing
+# after qstrip rather than before is what makes an empty BR2_..._SOC_MODEL=""
+# fall through, since "" is two characters to make and not an empty string.
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
+ifeq ($(SOC_MODEL_INPUT),)
+SOC_MODEL_INPUT := $(call qstrip,$(BR2_SIGMASTAR_SOC_MODEL))
+endif
 ifneq ($(SOC_MODEL_INPUT),)
-	# Database-driven approach
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
 
-	# Query database for SoC parameters
-	SOC_FAMILY := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) family 2>/dev/null || echo "unknown")
-	SOC_RAM_MB := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) ram 2>/dev/null || echo "64")
-	SOC_ARCH := xburst$(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) arch 2>/dev/null || echo "1")
+	# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY,
+	# SOC_ARCH, SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT,
+	# SOC_UBOOT_NOR / SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not
+	# have, it does not set -- consumers below use $(or ...) for the fallback.
+	#
+	# All of them are included and each opens with a $(filter) on its own
+	# models, so only one file's body applies. The family cannot pick the
+	# filename, because the family is one of the things being looked up.
+	include $(wildcard $(BR2_EXTERNAL)/soc/$(SOC_VENDOR)/*.mk)
 
-	# Special case: C100 family handling
-	ifeq ($(SOC_MODEL),c100)
-		ifeq ($(KERNEL_VERSION),4.4.94)
-			SOC_FAMILY := c100
-		else
-			SOC_FAMILY := t31
-		endif
-	endif
+# A model no family claims leaves SOC_FAMILY empty, which is worth stopping for:
+# the old lookup fell back to "unknown"/64 and built something wrong. Unindented
+# because a tab-led $(error ...) is not a directive -- make reads it as a recipe
+# and fails with "recipe commences before first target" instead.
+ifeq ($(SOC_FAMILY),)
+$(error Unknown $(SOC_VENDOR) SoC model '$(SOC_MODEL)': no soc/$(SOC_VENDOR)/*.mk claims it)
+endif
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
@@ -38,6 +65,7 @@ export SOC_MODEL
 export SOC_MODEL_LESS_Z
 export SOC_RAM_MB
 export SOC_ARCH
+export SOC_TARGET_ARCH
 
 #
 # KERNEL
@@ -587,11 +615,13 @@ export FLASH_SIZE_MB
 #
 
 ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
-	# Get U-Boot board name based on flash type
+	# Get U-Boot board name based on flash type. A SoC with no separate NAND
+	# board falls back to its NOR one, which is what the "-" in the old
+	# database meant.
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
-		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nand 2>/dev/null || echo "unknown")
+		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unknown)
 	else
-		UBOOT_BOARDNAME := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot nor 2>/dev/null || echo "unknown")
+		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NOR),unknown)
 	endif
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
@@ -646,7 +676,11 @@ ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 endif
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
-UBOOT_DEFCONFIG := $(shell $(BR2_EXTERNAL)/scripts/get_soc_params.sh $(SOC_MODEL) uboot $(UBOOT_BOARD_FLASH) 2>/dev/null || echo "unsupported-$(SOC_MODEL)")
+ifeq ($(UBOOT_BOARD_FLASH),nand)
+UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unsupported-$(SOC_MODEL))
+else
+UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NOR),unsupported-$(SOC_MODEL))
+endif
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 

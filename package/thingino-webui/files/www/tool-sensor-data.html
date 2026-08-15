@@ -28,52 +28,48 @@
 
     .stat-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
       margin-bottom: 1rem;
     }
 
     .stat-card {
-      padding: 0.5rem;
+      padding: 0.35rem;
       border: 1px solid #e0e0e0;
       border-radius: 0.25rem;
       background-color: var(--bs-body-bg);
       text-align: center;
     }
 
-    .stat-card.ev .stat-value {
-      color: #FF6384;
+    .stat-card .stat-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #999;
+      margin-bottom: 0.1rem;
     }
 
-    .stat-card.total_gain .stat-value {
-      color: #36A2EB;
+    .stat-card .stat-value {
+      font-size: 1.35rem;
+      font-weight: bold;
+      color: var(--bs-body-color);
     }
 
-    .stat-card.ae_luma .stat-value {
-      color: #FFCE56;
+    .stat-card .stat-detail {
+      font-size: 0.65rem;
+      color: #999;
+      margin-top: 0.1rem;
     }
 
     .stat-card.daynight_brightness .stat-value {
       color: #B8FF4D;
     }
 
-    .stat-label {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: #999;
-      margin-bottom: 0.25rem;
+    .stat-card.night-threshold .stat-value {
+      color: #ff6464;
     }
 
-    .stat-value {
-      font-size: 1.75rem;
-      font-weight: bold;
-      color: var(--bs-body-color);
-    }
-
-    .stat-detail {
-      font-size: 0.75rem;
-      color: #999;
-      margin-top: 0.25rem;
+    .stat-card.day-threshold .stat-value {
+      color: #64b4ff;
     }
 
     .stream-status {
@@ -88,6 +84,18 @@
     .stream-status.disconnected {
       color: #dc3545;
     }
+    #paranoid-banner {
+      display: none;
+      text-align: center;
+      padding: 3rem 2rem;
+      border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+    }
+    #paranoid-banner.visible { display: block; }
+    #paranoid-banner i { font-size: 3rem; color: #ffc107; margin-bottom: 1rem; display: block; }
+    #paranoid-banner h4 { font-weight: 600; margin-bottom: 0.5rem; }
+    #paranoid-banner p { color: #6c757d; max-width: 400px; margin: 0 auto; }
   </style>
 </head>
 
@@ -110,12 +118,17 @@
         <div class="row preview">
           <div class="col-12 col-lg-5" id="preview-col">
             <div id="frame" class="position-relative mb-2">
-              <img id="preview" src="/x/ch1.mjpg" data-stream="ch1" class="img-fluid" alt="Image: Preview">
+              <img id="preview" src="/x/ch0.mjpg" data-stream="ch0" class="img-fluid" alt="Image: Preview">
             </div>
             <h5 class="mt-3">Current Values</h5>
             <div class="stat-grid" id="data-stats"></div>
           </div>
           <div class="col-12 col-lg-7" id="tabs-col">
+            <div id="paranoid-banner">
+              <i class="bi bi-shield-shaded"></i>
+              <h4>Chart unavailable in Paranoid Mode</h4>
+              <p>This chart uses an online library. Disable Paranoid Mode in <a href="/config-webui.html">Web UI Settings</a> to load it, or view the live preview and stats on the left.</p>
+            </div>
             <div id="chart-container">
               <canvas id="dataChart"></canvas>
             </div>
@@ -147,7 +160,19 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Skip CDN chart.js load in paranoid mode (uses sync XHR to check config)
+if(!window.__paranoidChecked){
+  window.__paranoidChecked=true;
+  var xhr=new XMLHttpRequest();
+  xhr.open("GET","/x/json-config-webui.cgi",false);xhr.setRequestHeader("Accept","application/json");
+  try{xhr.send();var cfg=JSON.parse(xhr.responseText);if(cfg.paranoid===true)window.__paranoid=true}
+  catch(_){}
+}
+if(!window.__paranoid){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>');
+}
+</script>
 <script src="/a/tool-sensor-data.js"></script>
 </body>
 </html>

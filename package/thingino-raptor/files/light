@@ -1,0 +1,193 @@
+#!/bin/sh
+# IR LED / white light control for Raptor images
+# ric owns the IR LED banks on Raptor, so ir850/ir940 switching goes
+# through raptorctl and stays coherent with automatic day/night (a
+# manual switch is transient: the next transition reasserts the
+# mode). White light is not a ric concern, so it keeps the stock
+# gpio path with active_low handling from thingino.json or the
+# device tree. read always reports the real gpio level.
+# Installed by thingino-raptor; called by daynight-era UI paths.
+
+show_help() {
+	echo "Usage: $0 <type> <mode> [pin#]
+Where:
+	type	ir | ir850 | ir940 | white | flood
+	mode	on | off | toggle | read | gpio
+" >&2
+	exit 1
+}
+
+[ "$#" -lt 1 ] && show_help
+
+[ -z "$type" ] && type="$1"
+[ -z "$mode" ] && mode="${2:-read}"
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+get_config_pin() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null ||
+		jct /etc/thingino.json get "gpio.$type" 2>/dev/null ||
+		get_dt_pin "$type"
+}
+
+get_config_active_low() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.active_low" 2>/dev/null ||
+		get_dt_active_low "$type" ||
+		echo "false"
+}
+
+set_config_pin() {
+	local type="$1"
+	local pin="$2"
+	jct /etc/thingino.json set "gpio.$type.pin" "$pin" 2>/dev/null
+}
+
+dt_read_u32() {
+	local prop="$1" path="/proc/device-tree/thingino_ir/$prop" bytes
+	[ -r "$path" ] || return 1
+	bytes=$(od -An -N4 -tx1 "$path" 2>/dev/null | tr -d ' \n')
+	[ "${#bytes}" -eq 8 ] || return 1
+	printf '%d\n' "$((16#$bytes))"
+}
+
+get_dt_pin() {
+	local type="$1" prop
+	case "$type" in
+		ir850) prop="ir850-pin" ;;
+		ir940) prop="ir940-pin" ;;
+		white | flood) prop="white-pin" ;;
+		*) return 1 ;;
+	esac
+	dt_read_u32 "$prop"
+}
+
+get_dt_active_low() {
+	local type="$1" prop value
+	case "$type" in
+		ir850) prop="ir850-active-low" ;;
+		ir940) prop="ir940-active-low" ;;
+		white | flood) prop="white-active-low" ;;
+		*) return 1 ;;
+	esac
+	value=$(dt_read_u32 "$prop") || return 1
+	if [ "$value" -eq 1 ]; then
+		echo "true"
+	else
+		echo "false"
+	fi
+}
+
+# Route an IR bank through ric; falls back to raw gpio when raptorctl
+# is missing or ric rejects (bank not configured in raptor.conf).
+ric_ir() {
+	local bank="$1" want="$2"
+	command_present raptorctl || return 1
+	raptorctl ric "$bank" "$want" >/dev/null 2>&1
+}
+
+case "$type" in
+	ir)
+		pin=$(get_config_pin ir850)
+		ric_bank="ir850"
+		if [ -z "$pin" ]; then
+			pin=$(get_config_pin ir940)
+			ric_bank="ir940"
+		fi
+		if [ -z "$pin" ]; then
+			echo "GPIO pins for either IR lights are not defined" >&2
+			exit 1
+		fi
+		;;
+	ir850 | ir940)
+		ric_bank="$type"
+		pin=$(get_config_pin "$type")
+		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
+			echo "GPIO pin for $type light is not defined" >&2
+			exit 1
+		fi
+		;;
+	white | flood)
+		ric_bank=""
+		pin=$(get_config_pin "$type")
+		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
+			echo "GPIO pin for $type light is not defined" >&2
+			exit 1
+		fi
+		;;
+	*)
+		echo "Unknown light type $type" >&2
+		show_help
+		;;
+esac
+
+if [ "true" = "$(get_config_active_low "$type")" ]; then
+	pin_on=0
+	pin_off=1
+else
+	pin_on=1
+	pin_off=0
+fi
+
+read_level() {
+	if [ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ]; then
+		printf '1'
+	else
+		printf '0'
+	fi
+}
+
+case "$mode" in
+	0 | off)
+		if [ -n "$ric_bank" ] && ric_ir "$ric_bank" off; then
+			:
+		else
+			gpio set "$pin" "$pin_off"
+		fi
+		;;
+	1 | on)
+		if [ -n "$ric_bank" ] && ric_ir "$ric_bank" on; then
+			:
+		else
+			gpio set "$pin" "$pin_on"
+		fi
+		;;
+	~ | toggle)
+		if [ "$(read_level)" = "1" ]; then
+			want=off
+		else
+			want=on
+		fi
+		if [ -n "$ric_bank" ] && ric_ir "$ric_bank" "$want"; then
+			:
+		else
+			gpio toggle "$pin"
+		fi
+		;;
+	\? | read | status)
+		read_level
+		;;
+	gpio | pin)
+		new_pin="$3"
+		if [ -n "$new_pin" ]; then
+			set_config_pin "$type" "$new_pin"
+		else
+			pin=$(get_config_pin "$type")
+			if [ -z "$pin" ]; then
+				echo "GPIO pin is missing" >&2
+				show_help
+			else
+				echo "$pin"
+			fi
+		fi
+		;;
+	*)
+		echo "Error: Unknown mode" >&2
+		show_help
+		;;
+esac
+
+exit 0

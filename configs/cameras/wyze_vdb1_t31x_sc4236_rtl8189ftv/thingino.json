@@ -1,7 +1,7 @@
 {
   "gpio": {
-    "button_reset": 6,
     "chime": 7,
+    "button_reset": 6,
     "ir940": 59,
     "ircut": "53 52",
     "mmc_cd": -1,

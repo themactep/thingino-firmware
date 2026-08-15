@@ -2,9 +2,9 @@ THINGINO_AGENT_SITE_METHOD = local
 THINGINO_AGENT_SITE = $(THINGINO_AGENT_PKGDIR)/files
 THINGINO_AGENT_LICENSE = MIT
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
-THINGINO_AGENT_DEPENDENCIES = thingino-core thingino-jct host-thingino-jct mbedtls mbedtls-certgen
+THINGINO_AGENT_DEPENDENCIES = thingino-core thingino-jct mbedtls mbedtls-certgen
 else ifeq ($(BR2_PACKAGE_THINGINO_MBEDTLS),y)
-THINGINO_AGENT_DEPENDENCIES = thingino-core thingino-jct host-thingino-jct thingino-mbedtls mbedtls-certgen
+THINGINO_AGENT_DEPENDENCIES = thingino-core thingino-jct thingino-mbedtls mbedtls-certgen
 endif
 
 define THINGINO_AGENT_BUILD_CMDS
@@ -16,8 +16,9 @@ define THINGINO_AGENT_BUILD_CMDS
 endef
 
 define THINGINO_AGENT_INSTALL_TARGET_CMDS
-	$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \
-		$(THINGINO_AGENT_PKGDIR)/files/thingino-agent.json
+	# Stage defaults for later merge by thingino-core
+	$(INSTALL) -D -m 0644 $(THINGINO_AGENT_PKGDIR)/files/thingino-agent.json \
+		$(TARGET_DIR)/usr/share/thingino-defaults/20-agent.json
 
 	$(INSTALL) -D -m 0755 $(@D)/S95thingino-agent \
 		$(TARGET_DIR)/etc/init.d/S95thingino-agent

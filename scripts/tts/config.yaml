@@ -1,0 +1,8 @@
+# Thingino TTS — default configuration
+# All generated audio will use these settings for repeatable output.
+
+voice: af_heart         # female American English
+speed: 1.0              # playback speed (0.5 = slower, 1.5 = faster)
+sample_rate: 24000      # Kokoro native sample rate
+format: wav             # output format: wav or mp3
+british: false          # true for British English phonemes
