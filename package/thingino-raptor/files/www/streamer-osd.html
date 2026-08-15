@@ -161,6 +161,7 @@
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/preview.js"></script>
+<script src="/a/streamer.js"></script>
 <script src="/a/streamer-config.js"></script>
 <script src="/a/sei-rotate.js"></script>
 </body>
@@ -377,10 +378,10 @@
     list.appendChild(createRow('', 'text', '', ''));
   });
 
-  // Save via prudynt API
+  // Persist configuration
   saveBtn.addEventListener('click', async function() {
     var confirmed = await confirm(
-      'Save the current OSD configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera and restart the OSD thread.'
+      'Save the current OSD configuration to /etc/raptor.conf?\n\nThis will overwrite the saved configuration file on the camera and restart the OSD thread.'
     );
     if (!confirmed) return;
 

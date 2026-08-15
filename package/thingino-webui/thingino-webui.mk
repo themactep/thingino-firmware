@@ -302,11 +302,10 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-heartbeat.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-heartbeat-slow.cgi \
 		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
-
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-motion.cgi \
-		$(TARGET_DIR)/var/www/x/json-motion.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imp.cgi \
 		$(TARGET_DIR)/var/www/x/json-imp.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-motion.cgi \
+		$(TARGET_DIR)/var/www/x/json-motion.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-reset-ntp.cgi \
 		$(TARGET_DIR)/var/www/x/json-reset-ntp.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-send2.cgi \
