@@ -21,6 +21,7 @@ menu "Daemon selection"
 
 config BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	bool "Full (all daemons)"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y
 	help
 	  Build and install all raptor daemons. Disable to select
@@ -50,6 +51,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RSD555
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RAD
 	bool "RAD (audio capture/speaker)"
+	default y if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 
 config BR2_PACKAGE_THINGINO_RAPTOR_RHD
@@ -80,6 +82,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RMD
 
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	bool "RWD (WebRTC/WHIP server)"
+	default y if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
@@ -98,6 +101,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_RWC
 
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 	bool "WebTorrent sharing (external WebRTC)"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	help
@@ -140,6 +144,7 @@ menu "Codec and feature options"
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AAC
 	bool "AAC audio support"
+	default n if BR2_THINGINO_DEV_WEBCAM
 	default y
 	select BR2_PACKAGE_FAAC
 	select BR2_PACKAGE_LIBHELIX_AAC
