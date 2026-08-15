@@ -240,10 +240,32 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S96onvif_discovery; \
 	fi
 
+	# Motion -> send2 bridge. RMD has no on_motion script hook, so a
+	# small watcher polls rmd status and invokes raptor-motion on edges.
+	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RMD)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/raptor-motion \
+			$(TARGET_DIR)/usr/sbin/raptor-motion; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/raptor-motion-watch \
+			$(TARGET_DIR)/usr/sbin/raptor-motion-watch; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S32raptor-motion \
+			$(TARGET_DIR)/etc/init.d/S32raptor-motion; \
+		ln -sf raptor-motion $(TARGET_DIR)/usr/sbin/motion; \
+	fi
+
 	# Patch raptor.conf with buildroot config overrides
 	$(call THINGINO_RAPTOR_PATCH_CONF)
 
 endef
+
+# Raptor-only send2 capture (copy_photo/copy_video via raptorctl/RMR). Installed
+# from a finalize hook so it wins over package/thingino-send2's prudynt default
+# regardless of package install order. On a raptor image this is the only
+# capture path — no runtime streamer branching.
+define THINGINO_RAPTOR_INSTALL_SEND2COMMON
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/send2common \
+		$(TARGET_DIR)/usr/share/send2common
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_SEND2COMMON
 
 include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 

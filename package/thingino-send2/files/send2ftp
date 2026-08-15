@@ -40,10 +40,22 @@ add_to_queue() {
 	queue="$queue $1"
 }
 
-# rename file by the template
+# Rename by template. Extension comes from media kind, not the temp
+# path — motion/send2common use extensionless mktemp names (e.g.
+# /tmp/motion_XXXXXX), so ${file##*.} would invent junk suffixes.
 process_file() {
 	local file="$1"
-	local ext="${file##*.}"
+	local kind="$2" # photo | video
+	local ext="bin"
+
+	# empty / missing capture — don't invent junk names
+	[ -n "$file" ] && [ -f "$file" ] || return 0
+
+	case "$kind" in
+		photo) ext="jpg" ;;
+		video) ext="mp4" ;;
+	esac
+
 	local name="/tmp/$(date +"$template").$ext"
 	mv "$file" "$name"
 	add_to_queue "$name"
@@ -89,11 +101,11 @@ if [ -n "$file" ]; then
 fi
 
 if [ "true" = "$send_video" ]; then
-	process_file $(copy_video)
+	process_file "$(copy_video)" video
 fi
 
 if [ "true" = "$send_photo" ]; then
-	process_file $(copy_photo)
+	process_file "$(copy_photo)" photo
 fi
 
 url="ftp://"

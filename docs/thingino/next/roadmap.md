@@ -73,8 +73,12 @@ Current phase 1 status:
 	- corrected full-image OTA validation now confirms the running device hashes match the rebuilt target for `thingino-agentctl`, `lib.sh`, and the prudynt adapter, and revalidates representative stream, OSD, storage, send2, runtime, health, schema, and SSE hello behavior on the flashed image before restoring the default disabled listener state
 - partially implemented
 	- bulk `PATCH /config` remains for migration
+	- raptor adapter covers core settings plus OSD leaves and motion send2 output enables; remaining gaps are brightness/privacy OSD leaves
+	- live motion→send2 hook now ships via `thingino-send2` + `raptor-motion` / `raptor-motion-watch` (RMD has no native on_motion script)
 - not implemented yet
-	- additional backend adapters
+	- strero backend adapter
+	- full raptor adapter OSD brightness/privacy leaf parity with prudynt
+	- fuller hot validation of raptor OSD/motion-output leaves and live send2 edges
 
 Review questions:
 
@@ -201,6 +205,21 @@ Deliverables:
 - raptor adapter
 - strero adapter
 - capability and config mapping verified for each backend
+
+Current phase 5 status:
+
+- partially implemented
+	- `thingino-agent-adapter-raptor` exists and is installed beside the prudynt and null adapters
+	- auto-selection prefers `raptor`, then `prudynt`, then `null`
+	- coverage includes health, capabilities, runtime (including heartbeat), config, events, image/motion/daynight/privacy/storage/stream settings, snapshot, clip, privacy, daynight, streaming service control, reboot, and send2 test
+	- OSD leaf settings are mapped for stream `osd_enabled` plus global font/time/uptime/usertext/logo leaves onto raptor `[osd]` / `[osd.<element>]` (raptor OSD is mostly global; both streams share element config)
+	- motion send2 output enables persist under `/etc/thingino.json` (`motion.send2*`)
+	- `thingino-send2` ships the send-to-* toolkit independently of prudynt; raptor installs `raptor-motion` + `raptor-motion-watch` so RMD edges fire send2 alerts
+	- live camera validation has confirmed device/backend, capabilities, daynight, brightness, privacy, OSD (time format + usertext enabled), and motion send2 telegram enable on a raptor image
+- not implemented yet
+	- strero adapter
+	- brightness/privacy OSD leaves parity with prudynt
+	- fuller hot validation of live motion→send2 edges on raptor
 
 Review questions:
 

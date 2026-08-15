@@ -1,0 +1,175 @@
+GARBAGE=""
+GARBAGE_FILE="$(mktemp "${TMPDIR:-/tmp}/send2_garbage.XXXXXX")" || {
+	echo "send2: unable to create garbage tracker" >&2
+	exit 1
+}
+export GARBAGE_FILE
+
+add_to_garbage() {
+	[ -n "$1" ] || return
+	GARBAGE="${GARBAGE:+$GARBAGE }$1"
+	[ -n "$GARBAGE_FILE" ] && printf '%s\n' "$1" >> "$GARBAGE_FILE"
+}
+
+_cleanup() {
+	if [ -n "$GARBAGE_FILE" ] && [ -f "$GARBAGE_FILE" ]; then
+		while IFS= read -r garbage_path; do
+			[ -n "$garbage_path" ] && rm -f -- "$garbage_path"
+		done < "$GARBAGE_FILE"
+		rm -f -- "$GARBAGE_FILE"
+	fi
+	GARBAGE=""
+}
+
+thingino_send2_wait_stable_file() {
+	# Wait until path exists and size is stable for 2 consecutive checks.
+	_path=$1
+	_max=${2:-20}
+	_i=0
+	while [ ! -f "$_path" ] && [ "$_i" -lt "$_max" ]; do
+		sleep 1
+		_i=$((_i + 1))
+	done
+	[ -f "$_path" ] || return 1
+
+	_prev=0
+	_curr=$(stat -c%s "$_path" 2>/dev/null || echo 0)
+	_stable=0
+	_i=0
+	while [ "$_stable" -lt 2 ] && [ "$_i" -lt "$_max" ]; do
+		sleep 1
+		_prev=$_curr
+		_curr=$(stat -c%s "$_path" 2>/dev/null || echo 0)
+		if [ "$_curr" -eq "$_prev" ] && [ "$_curr" -gt 0 ]; then
+			_stable=$((_stable + 1))
+		else
+			_stable=0
+		fi
+		_i=$((_i + 1))
+	done
+	[ -s "$_path" ]
+}
+
+thingino_send2_raptor_storage_path() {
+	path=$(raptorctl config get recording storage_path 2>/dev/null | tr -d '\r\n"')
+	[ -n "$path" ] || path=/mnt/mmcblk0p1/raptor
+	printf '%s' "$path"
+}
+
+thingino_send2_raptor_newest_clip() {
+	# Motion clips land under {storage_path}/clips/YYYY-MM-DD/HH-MM-SS.mp4
+	base=$(thingino_send2_raptor_storage_path)
+	clips="$base/clips"
+	[ -d "$clips" ] || return 1
+	newest=""
+	newest_mtime=0
+	# BusyBox find often lacks -printf; walk dated subdirs instead.
+	for f in "$clips"/*/*.mp4 "$clips"/*.mp4; do
+		[ -f "$f" ] || continue
+		mtime=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+		if [ "$mtime" -ge "$newest_mtime" ]; then
+			newest=$f
+			newest_mtime=$mtime
+		fi
+	done
+	[ -n "$newest" ] || return 1
+	printf '%s' "$newest"
+}
+
+thingino_send2_raptor_ensure_rmr() {
+	pidof rmr >/dev/null 2>&1 && return 0
+	# RMR only stays up when recording.enabled=true; enable and start if needed.
+	raptorctl config set recording enabled true >/dev/null 2>&1 || true
+	if command -v start-stop-daemon >/dev/null 2>&1 && [ -x /usr/bin/rmr ]; then
+		start-stop-daemon -S -b -x /usr/bin/rmr -- -c /etc/raptor.conf >/dev/null 2>&1 || true
+	elif [ -x /usr/bin/rmr ]; then
+		/usr/bin/rmr -c /etc/raptor.conf >/dev/null 2>&1 &
+	else
+		return 1
+	fi
+	_i=0
+	while [ "$_i" -lt 20 ]; do
+		pidof rmr >/dev/null 2>&1 && return 0
+		sleep 0.1 2>/dev/null || usleep 100000 2>/dev/null || sleep 1
+		_i=$((_i + 1))
+	done
+	pidof rmr >/dev/null 2>&1
+}
+
+copy_photo() {
+	# Use existing photo from motion if available
+	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
+		# Create atomically (mktemp, not "mktemp -u") so cp can't follow a symlink
+		# pre-planted at a predictable name in the sticky /tmp; pin to /tmp so a
+		# hostile TMPDIR can't redirect it.
+		local tmpfile
+		tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
+		cp "$MOTION_PHOTO_FILE" "$tmpfile"
+		add_to_garbage "$tmpfile"
+		echo "$tmpfile"
+		return
+	fi
+
+	local tmpfile
+	tmpfile="$(mktemp /tmp/send2_photo.XXXXXX)" || return
+	raptorctl rvd save jpeg "$tmpfile" 0 >/dev/null 2>&1 || true
+	add_to_garbage "$tmpfile"
+	echo "$tmpfile"
+}
+
+copy_video() {
+	# Use existing video from motion if available
+	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
+		# Create atomically (see copy_photo): cp target must not be a planted symlink.
+		local tmpfile
+		tmpfile="$(mktemp /tmp/send2_video.XXXXXX)" || return
+		cp "$MOTION_VIDEO_FILE" "$tmpfile"
+		add_to_garbage "$tmpfile"
+		echo "$tmpfile"
+		return
+	fi
+
+	# Clip lands under storage_path/clips/; copy into a /tmp name for send2*.
+	local tmpfile
+	tmpfile="$(mktemp -u /tmp/send2_clip.XXXXXX)"
+	local duration=${SEND2_CLIP_SECS:-10}
+
+	if ! thingino_send2_raptor_ensure_rmr; then
+		echo "send2: raptor recorder (rmr) is not available" >&2
+		echo "$tmpfile"
+		return 1
+	fi
+	before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+	raptorctl rmr start >/dev/null 2>&1 || {
+		echo "send2: failed to start raptor clip" >&2
+		echo "$tmpfile"
+		return 1
+	}
+	sleep "$duration"
+	raptorctl rmr stop >/dev/null 2>&1 || true
+	# Allow the muxer to close the segment.
+	sleep 1
+	clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+	if [ -z "$clip" ] || [ "$clip" = "$before" ]; then
+		echo "send2: raptor clip capture failed (is recording storage writable?)" >&2
+		echo "$tmpfile"
+		return 1
+	fi
+	if ! thingino_send2_wait_stable_file "$clip" 15; then
+		echo "send2: raptor clip did not finish writing" >&2
+		echo "$tmpfile"
+		return 1
+	fi
+	cp "$clip" "$tmpfile" || {
+		echo "$tmpfile"
+		return 1
+	}
+	add_to_garbage "$tmpfile"
+	echo "$tmpfile"
+}
+
+get_value() {
+	jct "$config_file" get "$domain.$1" 2>/dev/null
+}
+
+trap _cleanup EXIT
