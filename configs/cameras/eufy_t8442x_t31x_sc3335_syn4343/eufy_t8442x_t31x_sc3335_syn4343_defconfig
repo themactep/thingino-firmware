@@ -1,5 +1,5 @@
 # NAME: Eufy E210 T8442X (T31X, SC3335, SYN4343)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_CLK_600MHZ=y
 BR2_INGENIC_SOC_MODEL="t31x"
 BR2_ISP_CLK_200MHZ=y

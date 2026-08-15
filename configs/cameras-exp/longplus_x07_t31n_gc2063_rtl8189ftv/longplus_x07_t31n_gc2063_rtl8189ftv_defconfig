@@ -1,5 +1,5 @@
 # NAME: LongPlus X07 (T31N, GC2063, RTL8189FTV)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_VPLL=y
 BR2_INGENIC_SOC_MODEL="t31n"
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y

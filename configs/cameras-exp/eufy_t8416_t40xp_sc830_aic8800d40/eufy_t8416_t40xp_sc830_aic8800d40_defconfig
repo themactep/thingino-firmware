@@ -1,5 +1,5 @@
 # NAME: Eufy T8416 (T40XP, SC830, AIC8800D40)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_AVPU_CLK_600MHZ=y
 BR2_AVPU_MPLL=y
 BR2_INGENIC_SOC_MODEL="t40xp"

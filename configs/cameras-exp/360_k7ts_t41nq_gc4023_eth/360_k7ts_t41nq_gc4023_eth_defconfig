@@ -1,5 +1,5 @@
 # NAME: 360 K7TS (T41NQ, GC4023, ETH, SPI-NAND)
-# FRAG: soc-xburst2 core ssl flash-nand
+# FRAG: soc-xburst2 core flash-nand
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t41nq"
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y

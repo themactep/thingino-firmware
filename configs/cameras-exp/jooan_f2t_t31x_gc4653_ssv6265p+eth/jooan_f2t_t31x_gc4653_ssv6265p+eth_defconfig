@@ -1,5 +1,5 @@
 # NAME: Jooan F2T (T31X, GC4653, SSV6265P, ETH)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t31x"
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y

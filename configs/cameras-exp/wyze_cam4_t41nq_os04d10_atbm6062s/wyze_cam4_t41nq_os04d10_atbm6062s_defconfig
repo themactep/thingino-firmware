@@ -1,5 +1,5 @@
 # NAME: Wyze Cam 4 (T41NQ, OS04D10, ATBM6062S)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_AVPU_CLK_550MHZ=y
 BR2_AVPU_SCLKA=y
 BR2_INGENIC_SOC_MODEL="t41nq"

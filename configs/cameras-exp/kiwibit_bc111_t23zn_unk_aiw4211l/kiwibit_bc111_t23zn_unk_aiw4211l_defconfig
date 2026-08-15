@@ -1,5 +1,5 @@
 # NAME: Kiwibit BC111 (T23ZN, unknown, AiW4211L)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 #
 # SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
 # Sensor: unknown

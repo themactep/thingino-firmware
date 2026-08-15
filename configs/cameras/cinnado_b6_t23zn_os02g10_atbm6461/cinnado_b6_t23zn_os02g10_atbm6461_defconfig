@@ -1,5 +1,5 @@
 # NAME: Cinnado B6 (T23ZN, OS02G10, ATBM6461)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 #
 # SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
 # Sensor: OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
@@ -17,7 +17,6 @@
 #  - GPIO hints from stock firmware: phwi0=/sys/class/gpio/gpio57/value,
 #    phwi1=/sys/class/gpio/gpio38/value, phwi2=/sys/class/gpio/gpio16/value;
 #    upgrade scripts drive LEDs on GPIO49/GPIO50.
-
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y

@@ -1,5 +1,5 @@
 # NAME: Cinnado D1 T31L (T31L, SC2336, ATBM6031) with Kernel 4.4
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t31l"
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y

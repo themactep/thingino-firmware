@@ -1,5 +1,5 @@
 # NAME: Noname Green (T10, OV9712, AP6181)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t10l"
 #BR2_PACKAGE_GADGET_SERIAL=y
 BR2_PACKAGE_THINGINO_KOPT=y
