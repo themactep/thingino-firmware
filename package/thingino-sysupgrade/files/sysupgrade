@@ -845,6 +845,7 @@ if [ -z "$mtd_dev" ]; then
 				name="${name#\"}"
 				name="${name%\"}"
 				[ "$name" = "all" ] && continue
+				[ "$name" = "upgrade" ] && continue
 				sz_dec=$((0x$sz))
 				skip=$((needle / 65536))
 				count=$((sz_dec / 65536))
