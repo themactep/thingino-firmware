@@ -134,7 +134,7 @@ cmd_set_timezone() {
 
 	if [ "$name" = "$(cat "$TZNAME_FILE" 2>/dev/null)" ] &&
 		[ "$source" = "$(current_source "$TZ_SOURCE_FILE")" ]; then
-		echo "timectl: timezone already set to '$name' [$source]"
+		echo "timectl: timezone already set to '$name' [$source]" >&2
 		return 0
 	fi
 
@@ -147,7 +147,7 @@ cmd_set_timezone() {
 	echo "$name" >"$TZNAME_FILE"
 	echo "$tz" >"$TZCODE_FILE"
 	echo "$source" >"$TZ_SOURCE_FILE"
-	echo "timectl: timezone set to $name ($tz) [$source]"
+	echo "timectl: timezone set to $name ($tz) [$source]" >&2
 }
 
 cmd_set_ntp() {
@@ -198,7 +198,7 @@ cmd_set_ntp() {
 	cat "$tmp" >"$NTP_WORKING_FILE"
 	rm -f "$tmp"
 	echo "$source" >"$NTP_SOURCE_FILE"
-	echo "timectl: ntp set to:$servers [$source]"
+	echo "timectl: ntp set to:$servers [$source]" >&2
 }
 
 cmd_set_time() {
@@ -225,12 +225,12 @@ cmd_pin_timezone() {
 		echo "$name" >"$TZNAME_FILE"
 	fi
 	echo "user" >"$TZ_SOURCE_FILE"
-	echo "timectl: timezone pinned to $name [user]"
+	echo "timectl: timezone pinned to $name [user]" >&2
 }
 
 cmd_unpin_timezone() {
 	echo "default" >"$TZ_SOURCE_FILE"
-	echo "timectl: timezone unpinned [default]"
+	echo "timectl: timezone unpinned [default]" >&2
 }
 
 cmd_sync() {
