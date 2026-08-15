@@ -259,6 +259,13 @@ shift
 load_adapter_modules
 select_adapter || exit 1
 
+# Adapters share streamer-agnostic helper names (agent_*) and defaults,
+# so with every module sourced for detection the last one sourced would
+# shadow the others. Clear the shared default vars and re-source the
+# winner so its helpers and defaults take precedence.
+unset AGENT_CONFIG AGENT_PRIVACY_STATE
+. "/usr/libexec/thingino-agent/adapters/$THINGINO_AGENT_ADAPTER.sh"
+
 case "$command" in
 	device)
 		print_device

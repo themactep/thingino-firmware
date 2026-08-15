@@ -90,7 +90,7 @@ The `all` resource handler constructs a JSON document by calling ~50 subshell `$
 # Each $(...) is a fork+exec — 14 in this function alone
 printf '"uptime_seconds":%s,' "$(thingino_agent_uptime_seconds)"
 printf '"hostname":%s,'       "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
-printf '"streamer_running":%s,' "$(thingino_agent_prudynt_streamer_running)"
+printf '"streamer_running":%s,' "$(agent_streamer_running)"
 ...
 ```
 
