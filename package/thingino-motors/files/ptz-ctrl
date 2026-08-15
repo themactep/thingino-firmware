@@ -11,10 +11,10 @@ while true; do
 
 	case $key in
 		w|W)
-			motors -d g -y -$step   # Up is negative
+			motors -d g -y $step    # Up is positive (matches Web UI)
 			;;
 		s|S)
-			motors -d g -y $step    # Down is positive
+			motors -d g -y -$step   # Down is negative
 			;;
 		a|A)
 			motors -d g -x -$step   # Left is negative
