@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# Print the canonical Thingino camera ID (same source as GET /api/v1/device).
+
+if [ -r /usr/libexec/thingino-agent/lib.sh ]; then
+	# shellcheck disable=SC1091
+	. /usr/libexec/thingino-agent/lib.sh
+	thingino_agent_camera_id
+	exit 0
+fi
+
+clean_mac() {
+	printf '%s' "$1" | tr -d ':\n\r' | tr 'A-F' 'a-f'
+}
+
+if [ -f /etc/thingino.json ] && command -v jct >/dev/null 2>&1; then
+	for key in eth.mac wlan.mac; do
+		value=$(jct /etc/thingino.json get "$key" 2>/dev/null | tr -d '"\n\r')
+		value=$(clean_mac "$value")
+		[ -n "$value" ] && {
+			printf '%s' "$value"
+			exit 0
+		}
+	done
+fi
+
+for env_key in ethaddr wlan_mac; do
+	value=$(fw_printenv -n "$env_key" 2>/dev/null)
+	value=$(clean_mac "$value")
+	[ -n "$value" ] && {
+		printf '%s' "$value"
+		exit 0
+	}
+done
+
+if [ -r /etc/os-release ]; then
+	value=$(grep '^IMAGE_ID=' /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"')
+	value=$(clean_mac "$value")
+	[ -n "$value" ] && {
+		printf '%s' "$value"
+		exit 0
+	}
+fi
+
+for iface in eth0 wlan0 eth1; do
+	value=$(cat "/sys/class/net/$iface/address" 2>/dev/null)
+	value=$(clean_mac "$value")
+	[ -n "$value" ] && {
+		printf '%s' "$value"
+		exit 0
+	}
+done
+
+exit 1
