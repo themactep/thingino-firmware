@@ -81,7 +81,7 @@ print_config_schema() {
 	printf '"version":"0-local",'
 	printf '"format":"thingino-agent-schema",'
 	printf '"resources":{'
-	printf '"events":{"transport":"sse","content_type":"text/event-stream","event_types":["hello","state.changed","motion.started","motion.stopped","streamer.restarted","record.completed","firmware.progress","health.warning","keepalive","error"]},'
+	printf '"events":{"transport":"sse","content_type":"text/event-stream","event_types":["hello","state.changed","motion.started","motion.stopped","streamer.restarted","record.completed","firmware.progress","health.warning","sensor.sample","keepalive","error"]},'
 	printf '"config":{"read":true,"patch":true},'
 	printf '"config_schema":{"read":true}'
 	printf '},'
@@ -132,6 +132,9 @@ print_config_schema() {
 	printf '"height":{"type":"integer"},'
 	printf '"fps":{"type":"integer"},'
 	printf '"bitrate":{"type":"integer"},'
+	printf '"gop":{"type":"integer","write_supported":true},'
+	printf '"buffers":{"type":"integer","write_supported":true},'
+	printf '"rtsp_endpoint":{"type":"string","write_supported":true},'
 	printf '"format":{"type":"string","enum":["H264","H265"],"read_only":false,"write_supported":true},'
 	printf '"mode":{"type":"string","enum":["CBR","VBR","SMART","FIXQP","CAPPED_VBR","CAPPED_QUALITY"],"read_only":false,"write_supported":true},'
 	printf '"osd":{"type":"object","properties":{'
@@ -235,6 +238,7 @@ Write and action commands:
   set-setting <path> <json>     Apply a narrow setting resource update
   apply-config <json-file>      Compatibility bulk config patch
   snapshot [stream]             Write JPEG bytes to stdout
+  record continuous|stop [stream]
   record [seconds] [stream] [path]
   privacy <on|off> [channel]
   daynight <auto|day|night>

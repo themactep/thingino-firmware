@@ -7,6 +7,7 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 THINGINO_RAPTOR_DEPENDENCIES += openimp
 THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
@@ -174,6 +175,32 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Install same-origin WHIP proxy used by native preview (no iframe).
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
+
+	# WebUI plugin (streamer pages, audio, save/restart CGIs)
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/raptor.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/raptor.webui.json
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/config-audio.html \
+		$(TARGET_DIR)/var/www/config-audio.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-image.html \
+		$(TARGET_DIR)/var/www/streamer-image.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-main.html \
+		$(TARGET_DIR)/var/www/streamer-main.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-osd.html \
+		$(TARGET_DIR)/var/www/streamer-osd.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-sensor.html \
+		$(TARGET_DIR)/var/www/streamer-sensor.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/streamer-substream.html \
+		$(TARGET_DIR)/var/www/streamer-substream.html
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer.js \
+		$(TARGET_DIR)/var/www/a/streamer.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-config.js \
+		$(TARGET_DIR)/var/www/a/streamer-config.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/audio.js \
+		$(TARGET_DIR)/var/www/a/audio.js
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/json-config-save.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-save.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/restart-streamer.cgi \
+		$(TARGET_DIR)/var/www/x/restart-streamer.cgi
 
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \

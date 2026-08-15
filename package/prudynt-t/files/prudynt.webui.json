@@ -1,0 +1,106 @@
+{
+  "name": "prudynt",
+  "label": "Prudynt-T Streamer",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "Audio",
+          "href": "/config-audio.html"
+        }
+      ]
+    },
+    {
+      "section": "ddInfo",
+      "position": "after:File: onvif.json",
+      "items": [
+        {
+          "label": "File: prudynt.json",
+          "href": "/info.html?prudynt"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
+      "position": "append",
+      "items": [
+        {
+          "label": "Image Quality",
+          "href": "/streamer-image.html"
+        },
+        {
+          "label": "RTSP Main stream",
+          "href": "/streamer-main.html"
+        },
+        {
+          "label": "OSD Elements",
+          "href": "/streamer-osd.html"
+        },
+        {
+          "label": "RTSP Substream",
+          "href": "/streamer-substream.html"
+        },
+        {
+          "label": "Sensor IQ File",
+          "href": "/streamer-sensor.html"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "label": "Streamer config",
+          "href": "/info.html?prudynt"
+        },
+        {
+          "label": "Streamer log",
+          "href": "/info.html?logcat"
+        },
+        {
+          "label": "Restart streamer",
+          "href": "/x/restart-prudynt.cgi",
+          "className": "text-danger confirm",
+          "trackActive": false
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [
+      "/a/sei-osd.js"
+    ],
+    "html": null
+  },
+  "featureFlags": {
+    "prudynt": true
+  },
+  "cgi": [
+    "/x/json-prudynt.cgi",
+    "/x/json-prudynt-config.cgi",
+    "/x/json-prudynt-save.cgi",
+    "/x/restart-prudynt.cgi",
+    "/x/json-imaging.cgi",
+    "/x/json-osd-sei.cgi",
+    "/x/ch0.jpg",
+    "/x/ch1.jpg",
+    "/x/dl0.jpg",
+    "/x/dl1.jpg",
+    "/x/ch0.mjpg",
+    "/x/ch1.mjpg",
+    "/x/video.mjpg",
+    "/x/events.cgi",
+    "/x/preview.cgi"
+  ],
+  "pages": [
+    "/streamer-main.html",
+    "/streamer-substream.html",
+    "/streamer-image.html",
+    "/streamer-osd.html",
+    "/streamer-sensor.html",
+    "/config-audio.html"
+  ]
+}

@@ -483,6 +483,24 @@ async function loadMotorParams() {
 
 async function loadConfig() {
   showBusy("Loading camera configuration...");
+  const helper = window.thinginoStreamer;
+  if (helper && helper.preferAgent && helper.preferAgent()) {
+    try {
+      const cfg = await helper.agentRequest("/api/v1/config", {
+        cache: "no-store",
+      });
+      const msg = helper.configToMessage(cfg);
+      handleMessage(msg);
+      if (typeof helper.hideUnsupportedControls === "function") {
+        helper.hideUnsupportedControls();
+      }
+      return;
+    } catch (err) {
+      console.warn("Agent config load failed, falling back:", err);
+    } finally {
+      hideBusy();
+    }
+  }
   const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
   try {
     const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
@@ -505,6 +523,21 @@ var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
 
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);
+  const helper = window.thinginoStreamer;
+  if (helper && helper.preferAgent && helper.preferAgent()) {
+    try {
+      const obj =
+        typeof payload === "string" ? JSON.parse(payload) : payload || {};
+      const applied = await helper.applyPayload(obj);
+      if (!applied) {
+        console.warn(ts(), "No agent-mapped fields in payload", obj);
+      }
+      return;
+    } catch (err) {
+      console.error("Agent send error", err);
+      return;
+    }
+  }
   const payloadStr =
     typeof payload === "string" ? payload : JSON.stringify(payload);
   console.log(ts(), "===>", payloadStr);
@@ -1251,13 +1284,23 @@ if (exportConfigBtn) {
 const saveConfigBtn = $("#save-config");
 if (saveConfigBtn) {
   saveConfigBtn.addEventListener("click", async () => {
+    const helper = window.thinginoStreamer;
     const confirmed = await confirm(
-      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+      (helper && helper.saveConfirmMessage && helper.saveConfirmMessage()) ||
+        "Save the current streamer configuration?\n\nThis will overwrite the saved configuration file on the camera.",
     );
     if (!confirmed) return;
 
     try {
       saveConfigBtn.disabled = true;
+      if (helper && helper.saveConfig) {
+        await helper.saveConfig();
+        alert(
+          (helper.saveSuccessMessage && helper.saveSuccessMessage()) ||
+            "Configuration saved successfully",
+        );
+        return;
+      }
 
       const payload = { action: { save_config: null } };
       const res = await apiFetch(API_BASE, {
@@ -1270,7 +1313,7 @@ if (saveConfigBtn) {
       const data = await res.json();
 
       if (data.action && data.action.save_config === "ok") {
-        alert("Configuration saved successfully to /etc/prudynt.json");
+        alert("Configuration saved successfully");
       } else {
         throw new Error("Save failed");
       }
