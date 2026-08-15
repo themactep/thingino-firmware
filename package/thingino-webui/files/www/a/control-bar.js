@@ -139,14 +139,6 @@
       dataset: { channel: "1" },
     });
 
-    // Timelapse button
-    const timelapseButton = createButton({
-      id: "timelapse",
-      title: "Timelapse",
-      icon: "bi bi-camera",
-      label: "Timelapse",
-    });
-
     // Dropdown toggle
     const toggle = createButton({
       className: "btn btn-secondary dropdown-toggle dropdown-toggle-split",
@@ -185,28 +177,8 @@
     recordItem.appendChild(recordLink);
     menu.appendChild(recordItem);
 
-    // Timelapse configuration link
-    const timelapseItem = document.createElement("li");
-    const timelapseLink = document.createElement("a");
-    timelapseLink.className = "dropdown-item";
-    timelapseLink.href = "/tool-timelapse.html";
-    timelapseLink.title = "Timelapse configuration";
-    if (isCurrentPath("/tool-timelapse.html")) {
-      timelapseLink.classList.add("active");
-      timelapseLink.setAttribute("aria-current", "page");
-    }
-    appendLabelWithIcon(
-      timelapseLink,
-      "bi bi-stopwatch",
-      "Timelapse configuration",
-      "Timelapse settings",
-    );
-    timelapseItem.appendChild(timelapseLink);
-    menu.appendChild(timelapseItem);
-
     group.appendChild(ch0Button);
     group.appendChild(ch1Button);
-    group.appendChild(timelapseButton);
     group.appendChild(toggle);
     group.appendChild(menu);
     return group;

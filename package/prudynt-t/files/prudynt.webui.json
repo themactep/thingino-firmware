@@ -65,6 +65,16 @@
           "trackActive": false
         }
       ]
+    },
+    {
+      "section": "ddServices",
+      "position": "append",
+      "items": [
+        {
+          "label": "Timelapse Recorder",
+          "href": "/tool-timelapse.html"
+        }
+      ]
     }
   ],
   "scripts": [],
@@ -93,7 +103,8 @@
     "/x/ch1.mjpg",
     "/x/video.mjpg",
     "/x/events.cgi",
-    "/x/preview.cgi"
+    "/x/preview.cgi",
+    "/x/tool-timelapse.cgi"
   ],
   "pages": [
     "/streamer-main.html",

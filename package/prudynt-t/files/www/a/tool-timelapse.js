@@ -1,5 +1,5 @@
 (function () {
-  const API_URL = "/x/tool-record.cgi";
+  const API_URL = "/x/tool-timelapse.cgi";
   const statusEl = $("#statusMessage");
   const timelapseForm = $("#timelapseForm");
   const timelapseMount = $("#timelapseMount");

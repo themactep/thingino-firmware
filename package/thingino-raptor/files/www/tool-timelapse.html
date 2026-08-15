@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Timelapse Recorder</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-timelapse">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="timelapseForm" class="needs-validation" novalidate>
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Timelapse Recorder</h2>
+            <small>Periodic all-keyframe MP4 snapshots captured by the recording daemon. Playback compresses real time by interval × playback_fps.</small>
+            <button type="button" class="btn btn-outline-secondary" id="timelapse-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+              <div class="col">
+                <h4>Storage</h4>
+                <small>timelapse files land in the recording storage path</small>
+                <p>
+                  <label for="timelapseStoragePath">Storage path</label>
+                  <input type="text" class="form-control" id="timelapseStoragePath" readonly
+                    data-help="Set the base path under recording in the streamer configuration">
+                </p>
+              </div>
+              <div class="col">
+                <h4>Timelapse configuration</h4>
+                <small>capture and rotation</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="timelapseEnabled">
+                  <label class="form-check-label" for="timelapseEnabled">Timelapse recording</label>
+                </p>
+                <p>
+                  <label for="timelapseInterval">Interval, seconds</label>
+                  <input type="number" class="form-control" id="timelapseInterval" min="2" max="86400" step="1" value="10"
+                    data-help="Seconds between captured frames (minimum 2)">
+                </p>
+                <p>
+                  <label for="timelapsePlaybackFps">Playback FPS</label>
+                  <input type="number" class="form-control" id="timelapsePlaybackFps" min="1" max="120" step="1" value="30"
+                    data-help="Timestamp rate written to the file (1-120)">
+                </p>
+              </div>
+              <div class="col">
+                <h4>Rotation &amp; quota</h4>
+                <small>file granularity and storage limit</small>
+                <p>
+                  <label for="timelapseFileFrames">File rotation, frames</label>
+                  <input type="number" class="form-control" id="timelapseFileFrames" min="0" step="1" value="0"
+                    data-help="0 = one file per day; N ≥ 60 = rotate every N frames">
+                </p>
+                <p>
+                  <label for="timelapseMaxMb">Quota, MB</label>
+                  <input type="number" class="form-control" id="timelapseMaxMb" min="0" step="1" value="2048"
+                    data-help="0 = unlimited">
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="timelapseSubmit">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/tool-timelapse.js"></script>
+</body>
+</html>

@@ -393,6 +393,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-substream.html \
 		$(TARGET_DIR)/var/www/streamer-substream.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/tool-timelapse.html \
+		$(TARGET_DIR)/var/www/tool-timelapse.html
 
 	# JavaScript
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/audio.js \
@@ -401,6 +403,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/sei-osd.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-timelapse.js \
+		$(TARGET_DIR)/var/www/a/tool-timelapse.js
 
 	# CGI scripts
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/ch0.jpg \
@@ -431,6 +435,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/preview.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/restart-prudynt.cgi \
 		$(TARGET_DIR)/var/www/x/restart-prudynt.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/tool-timelapse.cgi \
+		$(TARGET_DIR)/var/www/x/tool-timelapse.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/video.mjpg \
 		$(TARGET_DIR)/var/www/x/video.mjpg
 endef

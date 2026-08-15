@@ -152,7 +152,6 @@
         id: "ddServices",
         label: "Services",
         items: [
-          { label: "Timelapse Recorder", href: "/tool-timelapse.html" },
           // tool-record.cgi is prudynt.json-backed — hide on raptor builds.
           ...(isRaptor
             ? []
