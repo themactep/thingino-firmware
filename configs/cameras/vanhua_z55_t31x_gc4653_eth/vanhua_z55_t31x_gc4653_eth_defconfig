@@ -1,5 +1,5 @@
 # NAME: Vanhua Z55 (T31X, GC4653, ETH)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_CLK_486MHZ=y
 BR2_AVPU_VPLL=y
 BR2_ETHERNET=y

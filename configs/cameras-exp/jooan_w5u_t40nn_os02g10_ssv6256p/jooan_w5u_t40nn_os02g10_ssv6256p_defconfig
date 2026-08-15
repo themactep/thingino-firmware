@@ -1,5 +1,5 @@
 # NAME: Jooan W5U (T40NN, OS02G10, SSV6256P)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t40nn"
 BR2_PACKAGE_WIFI=y

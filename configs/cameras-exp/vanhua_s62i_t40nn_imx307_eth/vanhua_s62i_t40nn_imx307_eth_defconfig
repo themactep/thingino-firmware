@@ -1,5 +1,5 @@
 # NAME: Vanhua S62I (T40NN, IMX307, ETH)
-# FRAG: soc-xburst2 core ssl
+# FRAG: soc-xburst2 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t40n"
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y

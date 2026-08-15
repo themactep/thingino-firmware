@@ -1,5 +1,5 @@
 # NAME: Jienuo JN-107AR-E-WIFI (T31X, SC5235, ETH, RTL8731BU)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t31x"
 BR2_ISP_CLK_200MHZ=y

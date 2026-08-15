@@ -1,5 +1,5 @@
 # NAME: Teacup DevBoard (T31ZX, IMX327, ETH)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_AVPU_VPLL=y
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t31zx"

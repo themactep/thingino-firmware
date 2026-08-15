@@ -1,5 +1,5 @@
 # NAME: Aobocam A12 (T23DL, JXH63P, TXW901U)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23dl"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y

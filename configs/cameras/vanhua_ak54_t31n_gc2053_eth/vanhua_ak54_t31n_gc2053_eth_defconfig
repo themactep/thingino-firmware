@@ -1,5 +1,5 @@
 # NAME: Vanhua AK54 (T31N, GC2053, ETH)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="t31n"
 BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
