@@ -12,7 +12,7 @@ BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAM
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}
-IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/configs/cameras/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
+IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
