@@ -1,7 +1,4 @@
 #!/bin/sh
-# Targeted shellcheck baseline: intentional busybox-ash idioms,
-# template artifacts, and runtime-only sources in this file.
-# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
 # shellcheck disable=SC1091
 # Hand the per-boot timps /control token to the authenticated WebUI session.
 # timps writes a fresh random token to /run/timps.token (0640) on every start;

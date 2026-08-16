@@ -1,7 +1,4 @@
 #!/bin/sh
-# Targeted shellcheck baseline: intentional busybox-ash idioms,
-# template artifacts, and runtime-only sources in this file.
-# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
 # shellcheck disable=SC2086,SC2162,SC3057
 
 HOSTS="/tmp/dnsd.conf"

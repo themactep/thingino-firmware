@@ -128,18 +128,15 @@ diff <(git show HEAD:$f | grep -v '^\s*$' | sort) \
 ## Shellcheck suppression policy
 
 `package/`, `overlay/`, and most scripts were never shellcheck-clean, so
-the tree carries a legacy baseline. Files with findings carry a header
-after the shebang:
+the tree carries a legacy baseline. Files with findings carry a single
+suppression line after the shebang:
 
-```
-# Targeted shellcheck baseline: intentional busybox-ash idioms,
-# template artifacts, and runtime-only sources in this file.
-# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
-# shellcheck disable=SC3043,SC2086,...
+```sh
+# shellcheck disable=SC3043,SC2086,SC1091,SC2317
 ```
 
-The `disable` list is **exactly the codes the file triggered** at baseline
-time — nothing more. The suppressed categories are:
+The rationale lives here rather than in every file — the suppressed
+categories are:
 
 - `SC3043`, `SC3026`, `SC3037`, `SC3045`, `SC3046`, `SC3051`, `SC3052`,
   `SC3054`, `SC3057`, `SC3060` — busybox ash extensions (`local`,

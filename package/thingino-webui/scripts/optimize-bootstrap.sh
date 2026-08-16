@@ -1,7 +1,4 @@
 #!/bin/bash
-# Targeted shellcheck baseline: intentional busybox-ash idioms,
-# template artifacts, and runtime-only sources in this file.
-# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
 # shellcheck disable=SC2064
 # Regenerate optimized Bootstrap CSS and JS for Thingino WebUI.
 # Requires: node, npm (with npx), sass (Dart Sass)
