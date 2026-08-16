@@ -1,0 +1,229 @@
+From: Lu-Fi <lutz@fiebach.de>
+Date: Sun, 16 Aug 2026 21:55:00 +0200
+Subject: [PATCH] motors: add 'R' IPC command - reload config without touching
+ the kernel module
+
+On the GPIO/TCU driver path invert_x/invert_y are not kernel module
+parameters at all; motors-daemon reads them from /etc/thingino.json once
+in load_config_file() at startup. The only way to make a change take
+effect used to be restarting the whole motor stack, and "S59motor
+restart" does a modprobe -r / modprobe cycle that has produced a real
+kernel oops ("Unable to handle kernel paging request", recursive fault,
+reboot required) on a live Cinnado D1. A config flip as small as
+invert_y therefore currently costs a full reboot.
+
+Add a reload path that never goes near the kernel module:
+
+- daemon: new 'R' IPC command re-runs load_config_file() and re-derives
+  the default speed, then acks with the fresh logical status so the
+  caller can verify the new inversion state. It issues no ioctl beyond
+  the ordinary status read for the ack; the position counter lives in
+  the kernel driver and is untouched. Any in-flight profiled move is
+  cancelled first (the async workers read g_cfg without locking) and
+  allowed to wind down before the config is rewritten under it.
+
+- load_config_file() now zeroes motor_inversion_state before parsing.
+  parse_modern_layout() XORs invert_x/invert_y into that state, so
+  without the reset a reload with an unchanged file would toggle
+  inversion straight back off. Startup behavior is unchanged (the state
+  was already zero there); runtime "motors -I" toggles are discarded by
+  a reload, exactly as a daemon restart always discarded them.
+
+- CLI: "motors -R" sends the command and prints the acked status JSON.
+  Against an older daemon (no 'R' handler) the connection is closed
+  without a reply; detect the short read and fail loudly instead of
+  pretending the reload happened.
+
+Keys that really are kernel module parameters (gpio pins, steps_pan/
+steps_tilt as hmaxstep/vmaxstep) are re-read into g_cfg but cannot
+reprogram the loaded module; those still need a full stop/start.
+
+A SIGHUP-based reload was considered and rejected: daemonsetup()
+deliberately ignores SIGHUP, load_config_file() is nothing like
+async-signal-safe, and the main loop treats accept() == -1 (which an
+unhandled EINTR would produce) as a fatal error, so a signal path would
+have to touch all of that for no benefit over an IPC verb that runs in
+the same thread as every other config-mutating command ('I', 's') and
+can acknowledge synchronously.
+---
+--- a/src/motor-daemon.c	2026-08-16 21:51:48.268557515 +0200
++++ b/src/motor-daemon.c	2026-08-16 21:52:42.960063133 +0200
+@@ -308,7 +308,9 @@
+     parsed = true;
+   }
+   // Apply config-time axis inversion (invert_x / invert_y from thingino.json).
+-  // These XOR into motor_inversion_state so runtime IPC toggles still work.
++  // load_config_file() zeroes motor_inversion_state before calling here, so
++  // these XORs act as an idempotent set; runtime "motors -I" IPC toggles then
++  // XOR on top until the next reload/restart.
+   bool invert_x = false, invert_y = false;
+   if (json_get_bool_jct(motors, "invert_x", &invert_x)) {
+     if (invert_x)
+@@ -423,6 +425,13 @@
+ static void load_config_file(void) {
+   JsonValue *root = parse_json_file("/etc/thingino.json");
+   reset_config_defaults();
++  // The config file is authoritative for axis inversion on every (re)load.
++  // parse_modern_layout() XORs invert_x/invert_y into this state, so it must
++  // start from a known zero: without this reset, a reload ('R' command) with
++  // an unchanged file would toggle inversion straight back OFF. This also
++  // discards any runtime "motors -I" toggles, exactly as a daemon restart
++  // always has.
++  motor_inversion_state = MOTOR_NO_INVERSION;
+   if (!root) {
+     syslog(LOG_DEBUG, "No config file found; using defaults");
+     return;
+@@ -495,8 +504,8 @@
+ };
+ 
+ struct request {
+-  char command; // d,r,s,p,b,S,i,j (move, reset,set speed,get position, is
+-                // busy,Status,initial,JSON)
++  char command; // d,r,s,p,b,S,i,j,R (move, reset,set speed,get position, is
++                // busy,Status,initial,JSON,Reload config)
+   char type;    // g,h,c,s (absolute,relative,cruise,stop)
+   int x;
+   int got_x;
+@@ -570,6 +579,21 @@
+ static int get_motion_timeout_ms(void);
+ static void physical_delta_to_steps(int *dx, int *dy);
+ 
++// Derive the default speed from the loaded config. Shared between startup
++// and the 'R' (reload) IPC command so both apply identical semantics.
++static void apply_config_speed_default(void) {
++  if (!g_cfg.loaded)
++    return;
++
++  int cfg_speed = 0;
++  if (g_cfg.pan.speed > 0)
++    cfg_speed = g_cfg.pan.speed;
++  if (g_cfg.tilt.speed > 0 && g_cfg.tilt.speed > cfg_speed)
++    cfg_speed = g_cfg.tilt.speed;
++  if (cfg_speed > 0)
++    last_known_speed = cfg_speed;
++}
++
+ static int sanitize_requested_speed(int requested, int fallback) {
+   int speed = (requested > 0) ? requested : fallback;
+ 
+@@ -1439,15 +1463,7 @@
+ 
+   // Load configuration early
+   load_config_file();
+-  if (g_cfg.loaded) {
+-    int cfg_speed = 0;
+-    if (g_cfg.pan.speed > 0)
+-      cfg_speed = g_cfg.pan.speed;
+-    if (g_cfg.tilt.speed > 0 && g_cfg.tilt.speed > cfg_speed)
+-      cfg_speed = g_cfg.tilt.speed;
+-    if (cfg_speed > 0)
+-      last_known_speed = cfg_speed;
+-  }
++  apply_config_speed_default();
+ 
+   while ((c = getopt(argc, argv, "dhpD")) != -1) {
+     switch (c) {
+@@ -1857,6 +1873,38 @@
+           break;
+         }
+         break;
++      case 'R': // reload userspace config from /etc/thingino.json
++        // Lets invert_x/invert_y (and speeds, accel, timeouts, pos_0) take
++        // effect without restarting this process and, critically, without
++        // the modprobe -r/modprobe cycle in "S59motor restart" that has
++        // oopsed live kernels. The kernel module is never touched here:
++        // no ioctl is issued beyond the ordinary status read for the ack,
++        // and the position counter lives in the driver, so tracking is
++        // preserved across the reload.
++        //
++        // The async move workers read g_cfg without locking (established
++        // behavior throughout this file), so cancel any in-flight profiled
++        // move and let it wind down before rewriting the config under it.
++        motion_cancel_all(true);
++        remove_motion_active_flag();
++        (void)wait_until_idle(2000, 20);
++        usleep(50 * 1000); // let cancelled workers pass their final checks
++
++        load_config_file();
++        apply_config_speed_default();
++        syslog(LOG_INFO,
++               "Config reloaded from /etc/thingino.json (inversion=0x%x, "
++               "default speed=%d)",
++               (unsigned int)motor_inversion_state, last_known_speed);
++
++        // Ack with fresh logical status so "motors -R" callers can verify
++        // the new inversion state took effect. Note: keys that are kernel
++        // module parameters (gpio pins, hmaxstep/vmaxstep) are re-read into
++        // g_cfg but cannot reprogram the loaded module; they still need a
++        // full stop/start of S59motor.
++        motor_status_get_logical(&motor_message);
++        write(clientfd, &motor_message, sizeof(struct motor_message));
++        break;
+       case 'S': // show status
+         motor_status_get_logical(&motor_message);
+         motor_message.inversion_state = motor_inversion_state;
+--- a/src/motor.c	2026-08-16 21:51:48.269557524 +0200
++++ b/src/motor.c	2026-08-16 21:52:59.682219020 +0200
+@@ -41,8 +41,8 @@
+ };
+ 
+ struct request {
+-  char command; // d,r,s,p,b,S,i,j (move, reset,set speed,get position, is
+-                // busy,Status,initial,JSON)
++  char command; // d,r,s,p,b,S,i,j,R (move, reset,set speed,get position, is
++                // busy,Status,initial,JSON,Reload config)
+   char type;    // g,h,c,s (absolute,relative,cruise,stop)
+   int x;
+   int got_x;
+@@ -334,7 +334,7 @@
+     exit(EXIT_FAILURE);
+   debug_log("Connected to %s (fd=%d)", SV_SOCK_PATH, serverfd);
+ 
+-  while ((c = getopt(argc, argv, "d:s:x:y:jipSrvbI:D")) != -1) {
++  while ((c = getopt(argc, argv, "d:s:x:y:jipSrvbI:DR")) != -1) {
+     switch (c) {
+     case 'd':
+       request_message.command = 'd';
+@@ -454,6 +454,31 @@
+       log_request("TX", &request_message);
+       write(serverfd, &request_message, sizeof(struct request));
+       return 0;
++    case 'R': // ask the daemon to reload its config from /etc/thingino.json
++      request_message.command = 'R';
++      has_command = true;
++      if (verbose)
++        print_request_message(&request_message);
++      log_request("TX", &request_message);
++      write(serverfd, &request_message, sizeof(struct request));
++
++      struct motor_message reloaded;
++      ssize_t reload_n =
++          read(serverfd, &reloaded, sizeof(struct motor_message));
++      if (reload_n != (ssize_t)sizeof(struct motor_message)) {
++        // An older daemon has no 'R' handler: it silently drops the request
++        // and closes the connection, so read() returns 0. Fail loudly rather
++        // than pretending the reload happened.
++        fprintf(stderr,
++                "Reload not acknowledged; is the running motors-daemon too "
++                "old to support -R?\n");
++        return EXIT_FAILURE;
++      }
++      debug_log("RX reload ack: x=%d y=%d speed=%d invert=%u", reloaded.x,
++                reloaded.y, reloaded.speed, reloaded.inversion_state);
++
++      JSON_status(&reloaded);
++      return 0;
+     case 'b': // is moving?
+       request_message.command = 'b';
+       has_command = true;
+@@ -487,7 +512,9 @@
+           "\t -p return xpos,ypos as a string\n"
+           "\t -b prints 1 if motor is (b)usy moving or 0 if is not\n"
+           "\t -S show status\n"
+-          "\t -I Invert motor direction with 'x', 'y', or 'b' for both axes\n",
++          "\t -I Invert motor direction with 'x', 'y', or 'b' for both axes\n"
++          "\t -R reload daemon config from /etc/thingino.json (invert_x/"
++          "invert_y, speeds, accel, timeouts, pos_0) without restarting\n",
+           argv[0]);
+       exit(EXIT_FAILURE);
+     }

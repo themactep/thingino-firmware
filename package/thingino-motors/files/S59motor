@@ -178,6 +178,21 @@ stop() {
 	fi
 }
 
+reload() {
+	echo -c 15 "Reloading motors config"
+
+	# Re-read userspace motor settings (invert_x/invert_y, speeds, accel,
+	# timeouts, pos_0) in the running daemon without touching the kernel
+	# module. "restart" cycles the motor module through modprobe -r/modprobe,
+	# which has oopsed live kernels; prefer reload for config-only changes.
+	# Keys that are kernel module parameters (gpio pins, steps_pan/steps_tilt
+	# as hmaxstep/vmaxstep) still require a full stop/start.
+	if ! motors -R; then
+		echo "Reload failed; is motors-daemon running?" >&2
+		exit 1
+	fi
+}
+
 case "$1" in
 	start)
 		start
@@ -190,8 +205,11 @@ case "$1" in
 		sleep 1
 		start
 		;;
+	reload)
+		reload
+		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac
