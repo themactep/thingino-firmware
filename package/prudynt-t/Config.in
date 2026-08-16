@@ -141,6 +141,35 @@ config BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
 	  When disabled, timestamp information is still available via the
 	  SEI-based subtitle track (no burn-in overhead).
 
+config BR2_PACKAGE_PRUDYNT_T_OSD_FONT_8X8
+	bool "8x8 burn-in font (full ASCII, wider glyphs)"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
+	help
+	  Use the 8x8 public-domain bitmap font (dhepper/font8x8) for the
+	  burned-in timestamp overlay instead of the default 5x7 font.
+
+	  The 8x8 font covers full ASCII - lowercase letters and all
+	  punctuation - while the 5x7 font is uppercase-only.  Glyphs are
+	  wider (8px vs 5px), so the overlay region is roughly 60% larger
+	  at the same scale; on high-resolution streams the auto-scaled
+	  overlay may hit the IPU OSD region buffer limit sooner.
+
+config BR2_PACKAGE_PRUDYNT_T_OSD_FONT_UNIFONT
+	bool "Unifont 8x16 burn-in font (ASCII + Cyrillic)"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
+	help
+	  Use the GNU Unifont 8x16 bitmap font (SIL OFL-1.1 / GPLv2+ with
+	  font embedding exception) for the burned-in timestamp overlay.
+	  Covers full ASCII plus the Cyrillic block (U+0400-U+045F), so
+	  Cyrillic text in the burn-in format string renders natively.
+
+	  Glyphs are 16px tall, roughly 2.3x the overlay region bytes of
+	  the 8x8 font at the same scale; the auto-scaled overlay may hit
+	  the IPU OSD region buffer limit sooner.  Takes precedence over
+	  the 8x8 font option if both are enabled.
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
