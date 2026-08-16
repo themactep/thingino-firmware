@@ -27,44 +27,63 @@ cleanbuild: user-dirs distclean defconfig build_fast pack
 	@date +%T
 
 # --- RAM build ----------------------------------------------------------
-# Build the output tree on a tmpfs so the heavy compile/install writes never
-# touch the SSD, then copy the finished images (and logs) back to disk.
-# The download cache (dl/) always stays on disk: it is written once per
-# tarball and re-read every build, so moving it to RAM buys nothing.
+# Redirect only the write-heavy build/ dir (compilation objects) onto a
+# tmpfs via a symlink, leaving host/, target/, per-package/ and images/ on
+# disk.  The toolchain is a prebuilt tarball from dl/ and ccache keeps cold
+# rebuilds cheap, so build/ is disposable and never needs to be copied back.
 #
 # Usage:
 #   CAMERA=<camera> make ram-build
 #   CAMERA=<camera> make ram-build RAM_BUILD_DIR=/mnt/ramdisk   # custom tmpfs
 #
-# /tmp is already a tmpfs on most systemd hosts.  A reboot wipes the RAM
-# output, so the first build after boot is a full (cold) build; later
-# 'make ram-build' runs in the same uptime are incremental.
+# The build/ symlink is left in place, so a plain 'make fast' keeps compiling
+# into RAM.  To go back to on-disk builds:
+#   rm <output>/build && mv <output>/build.disk <output>/build   # if build.disk exists
+#   rm <output>/build                                            # otherwise
 
-RAM_BUILD_DIR ?= /tmp/thingino-build
-RAM_OUTPUT_DIR = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
+RAM_BUILD_DIR ?= /tmp/thingino-ram
+RAM_BUILD_PATH = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
 RAM_DISK_OUTPUT_DIR = $(OUTPUT_DIR)
 
 ram-build:
 	@$(TEAL) "$@"
-	@mkdir -p "$(RAM_BUILD_DIR)"
+	@mkdir -p "$(RAM_BUILD_DIR)" "$(RAM_DISK_OUTPUT_DIR)"
 	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
+	ifree=$$(stat -f -c %d "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0); \
+	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
 	if [ "$$fstype" != "tmpfs" ]; then \
 		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
-		echo "       RAM builds need a tmpfs. Either:"; \
-		echo "         sudo mount -t tmpfs -o size=20G tmpfs $(RAM_BUILD_DIR)"; \
-		echo "       or pass an existing tmpfs: make ram-build RAM_BUILD_DIR=/dev/shm"; \
+		echo "       Mount a dedicated tmpfs for RAM builds:"; \
+		echo "         sudo mkdir -p /mnt/ram"; \
+		echo "         sudo mount -t tmpfs -o size=8G,mode=1777 tmpfs /mnt/ram"; \
+		echo "         make ram-build RAM_BUILD_DIR=/mnt/ram"; \
+		exit 1; \
+	fi; \
+	if [ "$$ifree" -lt 500000 ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) has only $$ifree free inodes; build/ needs ~250k."; \
+		echo "       Free space in the tmpfs (e.g. rm -rf stale build trees) and retry."; \
+		exit 1; \
+	fi; \
+	if [ "$$free_kb" -lt 6291456 ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) has only $$(( $$free_kb / 1024 / 1024 )) GiB free; build/ needs ~4.5 GiB."; \
+		echo "       Free space in the tmpfs and retry."; \
 		exit 1; \
 	fi
-	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
-	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
-	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" all
-	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
-	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
-	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
-		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
-		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	@mkdir -p "$(RAM_BUILD_PATH)"
+	@if [ ! -L "$(RAM_DISK_OUTPUT_DIR)/build" ] && [ -e "$(RAM_DISK_OUTPUT_DIR)/build" ]; then \
+		if [ -e "$(RAM_DISK_OUTPUT_DIR)/build.disk" ]; then \
+			echo "ERROR: both build/ and build.disk/ exist in $(RAM_DISK_OUTPUT_DIR); resolve manually."; \
+			exit 1; \
+		fi; \
+		echo "Moving existing on-disk build cache to build.disk/ (safe to delete later)."; \
+		mv "$(RAM_DISK_OUTPUT_DIR)/build" "$(RAM_DISK_OUTPUT_DIR)/build.disk"; \
 	fi
-	@$(GREEN) "Copied images to $(RAM_DISK_OUTPUT_DIR)/images"
+	@ln -sfn "$(RAM_BUILD_PATH)" "$(RAM_DISK_OUTPUT_DIR)/build"
+	@echo "RAM build dir: $(RAM_BUILD_PATH)"
+	@echo "Disk output:   $(RAM_DISK_OUTPUT_DIR)"
+	@$(MAKE) all
+	@$(GREEN) "Done. Images: $(RAM_DISK_OUTPUT_DIR)/images (on disk)"
+	@$(GREEN) "build/ stays in RAM; 'make fast' keeps using it."
 
 # update repo and submodules with buildroot patch management
 update:
