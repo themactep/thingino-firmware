@@ -332,6 +332,15 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# services
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S31prudynt \
 		$(TARGET_DIR)/etc/init.d/S31prudynt
+	# Recording storage manager (reads the recorder section of prudynt.json)
+	ifeq ($(BR2_THINGINO_DEV_IPCAM),y)
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95recordmgr \
+		$(TARGET_DIR)/etc/init.d/S95recordmgr
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/recordmgr \
+		$(TARGET_DIR)/usr/sbin/recordmgr
+	else
+	rm -f $(TARGET_DIR)/etc/init.d/S95recordmgr $(TARGET_DIR)/usr/sbin/recordmgr
+	endif
 #	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
 #		$(TARGET_DIR)/etc/init.d/S32prudyntwd
 	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
@@ -390,6 +399,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-main.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-osd.html \
 		$(TARGET_DIR)/var/www/streamer-osd.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-rtsp.html \
+		$(TARGET_DIR)/var/www/config-rtsp.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/tool-record.html \
+		$(TARGET_DIR)/var/www/tool-record.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-sensor.html \
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-substream.html \
@@ -402,6 +415,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \
 		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/config-rtsp.js \
+		$(TARGET_DIR)/var/www/a/config-rtsp.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-record.js \
+		$(TARGET_DIR)/var/www/a/tool-record.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/preview-osd.js \
 		$(TARGET_DIR)/var/www/a/preview-osd.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
@@ -428,6 +445,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-osd-sei.cgi \
 		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-config-rtsp.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-rtsp.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/tool-record.cgi \
+		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt.cgi \
 		$(TARGET_DIR)/var/www/x/json-prudynt.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-config.cgi \
