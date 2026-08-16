@@ -198,8 +198,16 @@
     '        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
     "      </div>" +
     '      <div class="modal-body">' +
-    "        <!-- Burn-in OSD -->" +
-    "        <h4>Burn-in OSD</h4>" +
+    '        <ul class="nav nav-tabs" role="tablist">' +
+    '          <li class="nav-item" role="presentation">' +
+    '            <button class="nav-link active" id="burnin-tab" data-bs-toggle="tab" data-bs-target="#burnin-pane" type="button" role="tab" aria-controls="burnin-pane" aria-selected="true">Burn-in OSD</button>' +
+    "          </li>" +
+    '          <li class="nav-item" role="presentation">' +
+    '            <button class="nav-link" id="sei-tab" data-bs-toggle="tab" data-bs-target="#sei-pane" type="button" role="tab" aria-controls="sei-pane" aria-selected="false">SEI OSD</button>' +
+    "          </li>" +
+    "        </ul>" +
+    '        <div class="tab-content pt-3">' +
+    '          <div class="tab-pane fade show active" id="burnin-pane" role="tabpanel" aria-labelledby="burnin-tab">' +
     '        <p class="form-switch">' +
     '          <input class="form-check-input" type="checkbox" id="burnin-enabled" role="switch">' +
     '          <label class="form-check-label" for="burnin-enabled">Enabled</label>' +
@@ -243,8 +251,8 @@
     "          </span>" +
     '          <span class="col"><input class="alpha-slider" type="range" id="alpha-bg" min="0" max="255" value="128" title="Alpha"></span>' +
     "        </p>" +
-    "        <!-- SEI OSD -->" +
-    "        <h4>SEI OSD</h4>" +
+    "          </div>" +
+    '          <div class="tab-pane fade" id="sei-pane" role="tabpanel" aria-labelledby="sei-tab">' +
     '        <p class="form-switch">' +
     '          <input class="form-check-input" type="checkbox" id="osd-enabled" role="switch">' +
     '          <label class="form-check-label" for="osd-enabled">Enabled</label>' +
@@ -275,10 +283,12 @@
     '            <input class="form-control font-monospace" type="text" id="osd-stroke-color" value="#000000" pattern="#?[0-9a-fA-F]{6,8}" maxlength="9">' +
     "          </span>" +
     "        </p>" +
-    '        <div id="osd-elements-list" class="mb-2"></div>' +
-    '        <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">' +
-    '          <i class="bi bi-plus-lg me-1"></i> Add element' +
-    "        </button>" +
+    '          <div id="osd-elements-list" class="mb-2"></div>' +
+    '          <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-3" id="osd-add-element">' +
+    '            <i class="bi bi-plus-lg me-1"></i> Add element' +
+    "          </button>" +
+    "          </div>" +
+    "        </div>" +
     "      </div>" +
     '      <div class="modal-footer">' +
     '        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>' +
