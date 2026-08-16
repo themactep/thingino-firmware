@@ -74,14 +74,17 @@ get_info() {
 wpa_iface() {
 	# Explicit override first, then probe the ctrl socket directory
 	iface="${WPA_IFACE:-}"
-	[ -n "$iface" ] && { echo "$iface"; return; }
+	[ -n "$iface" ] && {
+		echo "$iface"
+		return
+	}
 
 	# One socket = one supplicant instance = the right interface
-	first_socket=$(ls /run/wpa_supplicant 2>/dev/null | head -n 1)
-	if [ -n "$first_socket" ]; then
-		echo "$first_socket"
+	for socket in /run/wpa_supplicant/*; do
+		[ -S "$socket" ] || continue
+		echo "${socket##*/}"
 		return
-	fi
+	done
 
 	echo "wlan0"
 }
@@ -102,9 +105,9 @@ scan_networks() {
 
 	# Wait up to 8 seconds for ongoing scan to complete
 	while [ -f "$SCAN_LOCK" ] && [ $SCAN_WAIT -lt 8 ]; do
-		# Check if lock is stale (older than 15 seconds)
+		# Check if lock is stale (older than 25 seconds)
 		LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
-		if [ $LOCK_AGE -gt 15 ]; then
+		if [ $LOCK_AGE -gt 25 ]; then
 			rm -f "$SCAN_LOCK"
 			break
 		fi
@@ -171,16 +174,21 @@ scan_start() {
 
 	IFACE=$(wpa_iface)
 
-	# Ignore stale locks (older than 15 seconds)
+	# Ignore stale locks (older than 25 seconds)
 	SCAN_LOCK="/tmp/wpa_scan.lock"
 	LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
-	[ $LOCK_AGE -gt 15 ] && rm -f "$SCAN_LOCK"
+	[ $LOCK_AGE -gt 25 ] && rm -f "$SCAN_LOCK"
 
 	if [ -f "$SCAN_LOCK" ]; then
 		# A scan is already running; poller will pick it up
 		echo '{"scanning": true}'
 		return
 	fi
+
+	# Snapshot the pre-scan BSS list: scan_status() detects completion
+	# by comparing live results against this baseline instead of firing
+	# more scans, which would queue a phantom second sweep.
+	wpa_cli -i "$IFACE" scan_results 2>/dev/null >/tmp/wpa_scan.baseline
 
 	touch "$SCAN_LOCK"
 	wpa_cli -i "$IFACE" scan >/dev/null 2>&1
@@ -195,28 +203,50 @@ scan_status() {
 	fi
 
 	IFACE=$(wpa_iface)
+	SCAN_LOCK="/tmp/wpa_scan.lock"
+	BASELINE="/tmp/wpa_scan.baseline"
 
-	# Poll wpa_supplicant for scan progress: FAIL-BUSY while the radio
-	# sweeps, OK once results are ready to read.
-	if wpa_cli -i "$IFACE" scan 2>/dev/null | grep -q FAIL; then
-		echo '{"scanning": true}'
+	# No lock (or a lock without our baseline) means nothing is in
+	# flight: serve whatever results exist without touching the radio.
+	if [ ! -f "$SCAN_LOCK" ] || [ ! -f "$BASELINE" ]; then
+		scan_networks_cached
 		return
 	fi
 
-	# Scan finished; release the lock and hand over the results
-	rm -f "/tmp/wpa_scan.lock"
+	# Probe without triggering: `scan_results` is read-only, so polling
+	# it never queues a new sweep. During a sweep it keeps returning
+	# the pre-scan BSS list (the baseline); once the sweep completes,
+	# the content changes (at minimum the signal levels move).
+	RESULTS="$(wpa_cli -i "$IFACE" scan_results 2>/dev/null)"
+	if [ "$RESULTS" != "$(cat "$BASELINE" 2>/dev/null)" ]; then
+		# Sweep finished; release the lock and hand over the results
+		rm -f "$SCAN_LOCK" "$BASELINE"
 
-	# Refresh the prescan cache so page reloads after a manual scan
-	# show the freshest list without another radio sweep. Only write
-	# when the live results actually have entries: AP-mode supplicants
-	# return a header-only list when the driver cannot survey while
-	# hosting, and that must not poison the S38 cache.
-	FRESH="$(wpa_cli -i "$IFACE" scan_results 2>/dev/null)"
-	if [ "$(count_networks "$FRESH")" -gt 0 ]; then
-		echo "$FRESH" >/tmp/wifi_prescan
+		# Refresh the prescan cache so page reloads after a manual scan
+		# show the freshest list without another radio sweep. Only write
+		# when the live results actually have entries: AP-mode supplicants
+		# return a header-only list when the driver cannot survey while
+		# hosting, and that must not poison the S38 cache.
+		if [ "$(count_networks "$RESULTS")" -gt 0 ]; then
+			echo "$RESULTS" >/tmp/wifi_prescan
+		fi
+
+		scan_networks_cached
+		return
 	fi
 
-	scan_networks_cached
+	# Backstop: identical content after 20 s means the sweep returned
+	# byte-identical results (possible when signals do not jitter) or
+	# the driver never completed it. Either way, stop polling and serve
+	# whatever we have instead of waiting forever.
+	LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
+	if [ $LOCK_AGE -ge 20 ]; then
+		rm -f "$SCAN_LOCK" "$BASELINE"
+		scan_networks_cached
+		return
+	fi
+
+	echo '{"scanning": true}'
 }
 
 # Count real BSS entries in raw wpa_cli output: strip the banner and
@@ -228,6 +258,11 @@ count_networks() {
 
 # Read-only results reader without triggering a new scan
 scan_networks_cached() {
+	if ! command -v wpa_cli >/dev/null 2>&1; then
+		echo '{"error": "wpa_cli not available"}'
+		return
+	fi
+
 	IFACE=$(wpa_iface)
 
 	# Live results when a reachable supplicant has BSS entries. The
