@@ -162,7 +162,8 @@ handle_sensor_upload() {
 }
 
 case "${REQUEST_METHOD:-GET}" in
-	POST) ;;
+	POST)
+		;;
 	*)
 		send_error '405 Method Not Allowed' 'Method not allowed.'
 		;;

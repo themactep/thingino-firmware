@@ -12,7 +12,8 @@ Q=""
 W=""
 H=""
 # Parse QUERY_STRING (supports &-separated pairs)
-OLD_IFS=$IFS; IFS='&'
+OLD_IFS=$IFS
+IFS='&'
 for KV in $QUERY_STRING; do
 	case "$KV" in
 		f=*) FPS=${KV#f=} ;;

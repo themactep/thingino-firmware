@@ -14,4 +14,3 @@ prudyntctl events | sed -u 's/^/data: /' | while IFS= read -r line; do
 	echo "$line"
 	echo
 done
-
