@@ -419,7 +419,7 @@ define thingino_run_build
 endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild \
-	defconfig dev distclean fast help pack ram-build repack remove_bins \
+	defconfig dev distclean fast help pack ram-build ram-setup repack remove_bins \
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \

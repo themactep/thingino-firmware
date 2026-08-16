@@ -32,10 +32,8 @@ cleanbuild: user-dirs distclean defconfig build_fast pack
 # dl/ and ccache stay on disk and make cold rebuilds cheap, so the volatile
 # build tree is disposable.
 #
-# NOTE: the output tree spans the whole tmpfs; a full build creates ~1.1M
-# files and dirs (per-package dirs alone are ~800k entries).  The stock
-# /tmp (nr_inodes=1m) is too small; bump the inode limit once:
-#   sudo mount -o remount,nr_inodes=4m /tmp
+# One-time setup (raises the tmpfs inode limit, which a full build needs):
+#   make ram-setup
 #
 # Usage:
 #   CAMERA=<camera> make ram-build
@@ -45,6 +43,19 @@ RAM_BUILD_DIR ?= /tmp/thingino-build
 RAM_OUTPUT_DIR = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
 RAM_DISK_OUTPUT_DIR = $(OUTPUT_DIR)
 
+# Raise the tmpfs inode limit so a full build (~1.1M files/dirs, mostly
+# per-package dirs) fits.  Run once; the remount is lost on reboot.
+ram-setup:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@mnt=$$(findmnt -n -o TARGET -T "$(RAM_BUILD_DIR)" 2>/dev/null || echo "$(RAM_BUILD_DIR)"); \
+	if [ "$$(stat -f -c %T "$$mnt" 2>/dev/null)" != "tmpfs" ]; then \
+		echo "ERROR: $$mnt is not tmpfs. Mount a dedicated tmpfs and set RAM_BUILD_DIR."; \
+		exit 1; \
+	fi; \
+	sudo mount -o remount,nr_inodes=4m "$$mnt" && \
+	echo "Done: $$(stat -f -c %d "$(RAM_BUILD_DIR)") free inodes on $$mnt."
+
 ram-build:
 	@$(TEAL) "$@"
 	@mkdir -p "$(RAM_BUILD_DIR)"
@@ -53,25 +64,14 @@ ram-build:
 	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
 	if [ "$$fstype" != "tmpfs" ]; then \
 		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
-		echo "       Mount a dedicated tmpfs for RAM builds:"; \
-		echo "         sudo mkdir -p /mnt/ram"; \
-		echo "         sudo mount -t tmpfs -o size=16G,nr_inodes=4m,mode=1777 tmpfs /mnt/ram"; \
-		echo "         make ram-build RAM_BUILD_DIR=/mnt/ram"; \
 		exit 1; \
 	fi; \
 	if [ "$$ifree" -lt 2000000 ]; then \
-		echo "ERROR: $(RAM_BUILD_DIR) has only $$ifree free inodes; a full build creates ~1.1M"; \
-		echo "       files/dirs (per-package dirs alone are ~800k entries).  Fix once with:"; \
-		echo "         sudo mount -o remount,nr_inodes=4m $(RAM_BUILD_DIR)"; \
-		echo "       or use a dedicated tmpfs:"; \
-		echo "         sudo mkdir -p /mnt/ram"; \
-		echo "         sudo mount -t tmpfs -o size=16G,nr_inodes=4m,mode=1777 tmpfs /mnt/ram"; \
-		echo "         make ram-build RAM_BUILD_DIR=/mnt/ram"; \
+		echo "ERROR: only $$ifree free inodes; a full build needs ~2M. Run 'make ram-setup' once."; \
 		exit 1; \
 	fi; \
 	if [ "$$free_kb" -lt 8388608 ]; then \
-		echo "ERROR: $(RAM_BUILD_DIR) has only $$(( $$free_kb / 1024 / 1024 )) GiB free; a full build needs ~7 GiB."; \
-		echo "       Free space in the tmpfs and retry."; \
+		echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a full build needs ~7 GiB."; \
 		exit 1; \
 	fi
 	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
