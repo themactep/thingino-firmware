@@ -81,7 +81,8 @@
   "styles": [],
   "preview": {
     "scripts": [
-      "/a/sei-osd.js"
+      "/a/sei-osd.js",
+      "/a/preview-osd.js"
     ],
     "html": null
   },

@@ -400,6 +400,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \
 		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/preview-osd.js \
+		$(TARGET_DIR)/var/www/a/preview-osd.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-timelapse.js \
