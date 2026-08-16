@@ -63,11 +63,17 @@ jobs:
             fi
             git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
           fi
+          # Formatting checks must never touch patch files (generated/vendored
+          # artifacts, e.g. U-Boot and per-camera patches). They stay in the
+          # full list - do-not-edit still guards them - but are dropped from
+          # the list every formatting step reads.
+          grep -v '\.patch$' /tmp/changed-files.txt > /tmp/changed-files-format.txt || true
           echo "Changed files in this PR:"
           sed 's/^/  /' /tmp/changed-files.txt
 
       - name: Check do-not-edit paths
         run: |
+          # Full list (including .patch files): the manifest protects them.
           if [ -s /tmp/changed-files.txt ]; then
             scripts/check-do-not-edit.sh < /tmp/changed-files.txt
           fi
@@ -98,7 +104,7 @@ jobs:
                 failed=1
               fi
             fi
-          done < /tmp/changed-files.txt
+          done < /tmp/changed-files-format.txt
           if [ "$failed" -eq 1 ]; then
             echo
             echo "Run 'shfmt -w -i 0 -ci <file>' to fix."
@@ -119,7 +125,7 @@ jobs:
                 failed=1
               fi
             fi
-          done < /tmp/changed-files.txt
+          done < /tmp/changed-files-format.txt
           if [ "$failed" -eq 1 ]; then
             echo
             echo "shellcheck found warnings in changed shell scripts. Fix them and commit again."
@@ -138,7 +144,7 @@ jobs:
                 npx --yes prettier --check "$file" || failed=1
                 ;;
             esac
-          done < /tmp/changed-files.txt
+          done < /tmp/changed-files-format.txt
           if [ "$failed" -eq 1 ]; then
             echo "Run 'npx --yes prettier --write <file>' to fix."
             exit 1
@@ -157,7 +163,7 @@ jobs:
                 fi
                 ;;
             esac
-          done < /tmp/changed-files.txt
+          done < /tmp/changed-files-format.txt
           if [ "$failed" -eq 1 ]; then
             echo "Run 'scripts/sort_defconfig.py <file>' to fix."
             exit 1
@@ -166,7 +172,7 @@ jobs:
 
       - name: Validate webui plugin manifests
         run: |
-          if grep -q '^package/.*/files/.*\.webui\.json$' /tmp/changed-files.txt; then
+          if grep -q '^package/.*/files/.*\.webui\.json$' /tmp/changed-files-format.txt; then
             scripts/check-plugins.sh
           else
             echo "No webui plugin manifests changed; skipping."

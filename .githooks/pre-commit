@@ -40,6 +40,11 @@ shell_staged_files=$(
 	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
 		[ -f "$file" ] || continue
 
+		# Never format generated/vendored patch files
+		case "$file" in
+			*.patch) continue ;;
+		esac
+
 		if git show ":$file" 2>/dev/null | rg -q '^#!/bin/sh'; then
 			printf '%s\n' "$file"
 		fi

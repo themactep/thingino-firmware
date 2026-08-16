@@ -43,6 +43,10 @@ Anything that fails in CI would have been caught locally by the hook, so run
 `make dep-check` + `make setup-hooks` in your clone and fix before pushing;
 `make lint` covers the shellcheck/defconfig/plugin halves.
 
+`*.patch` files are excluded from all formatting checks (both in the gate and
+in the hook) — they are generated/vendored artifacts. They remain subject to
+the do-not-edit manifest, which still protects them from being edited.
+
 The shfmt version used in CI is pinned in the workflow (`SHFMT_VERSION` at
 the top of `.github/workflows/pr-format.yml`) — keep it in sync with the
 version you run locally.
