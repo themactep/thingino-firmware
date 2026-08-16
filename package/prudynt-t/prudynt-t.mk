@@ -203,6 +203,8 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
 		USE_OSD_BURNIN=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN),1,0) \
+		USE_OSD_FONT8X8=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_8X8),1,0) \
+		USE_OSD_FONT_UNIFONT=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_UNIFONT),1,0) \
 		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
@@ -400,6 +402,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \
 		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/preview-osd.js \
+		$(TARGET_DIR)/var/www/a/preview-osd.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-timelapse.js \
