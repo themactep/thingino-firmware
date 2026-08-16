@@ -34,19 +34,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
+          # depth 2 so the PR merge ref's parents (base tip + head) are
+          # present; the changed-file diff below relies on them.
+          fetch-depth: 2
 
       - name: Collect changed files
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -eu
           touch /tmp/changed-files.txt
-          git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
-          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            echo "::warning::Could not resolve base commit $BASE_SHA; skipping format checks"
-            exit 0
+          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
+            # HEAD is the PR merge ref (mergeable PR). Its first parent is
+            # the base-branch tip, so diffing against it yields exactly the
+            # files this PR changes - independent of how stale the recorded
+            # base.sha is or what else landed on the base branch meanwhile.
+            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD > /tmp/changed-files.txt
+          else
+            # Conflicted PR: no merge ref, HEAD is the head commit. Fall back
+            # to diffing the recorded base against the head commit (may
+            # include unrelated files if the PR base is stale).
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+            git fetch --no-tags --depth=1 origin "$HEAD_SHA" >/dev/null 2>&1 || true
+            if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null || ! git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+              echo "::warning::Could not resolve base ($BASE_SHA) or head ($HEAD_SHA) commit; skipping format checks"
+              exit 0
+            fi
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
           fi
-          git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD > /tmp/changed-files.txt
           echo "Changed files in this PR:"
           sed 's/^/  /' /tmp/changed-files.txt
 
