@@ -26,6 +26,46 @@ cleanbuild: user-dirs distclean defconfig build_fast pack
 	@$(TEAL) "$@"
 	@date +%T
 
+# --- RAM build ----------------------------------------------------------
+# Build the output tree on a tmpfs so the heavy compile/install writes never
+# touch the SSD, then copy the finished images (and logs) back to disk.
+# The download cache (dl/) always stays on disk: it is written once per
+# tarball and re-read every build, so moving it to RAM buys nothing.
+#
+# Usage:
+#   CAMERA=<camera> make ram-build
+#   CAMERA=<camera> make ram-build RAM_BUILD_DIR=/mnt/ramdisk   # custom tmpfs
+#
+# /tmp is already a tmpfs on most systemd hosts.  A reboot wipes the RAM
+# output, so the first build after boot is a full (cold) build; later
+# 'make ram-build' runs in the same uptime are incremental.
+
+RAM_BUILD_DIR ?= /tmp/thingino-build
+RAM_OUTPUT_DIR = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
+RAM_DISK_OUTPUT_DIR = $(OUTPUT_DIR)
+
+ram-build:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
+	if [ "$$fstype" != "tmpfs" ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
+		echo "       RAM builds need a tmpfs. Either:"; \
+		echo "         sudo mount -t tmpfs -o size=20G tmpfs $(RAM_BUILD_DIR)"; \
+		echo "       or pass an existing tmpfs: make ram-build RAM_BUILD_DIR=/dev/shm"; \
+		exit 1; \
+	fi
+	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
+	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
+	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" all
+	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
+	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
+	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
+		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
+		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	fi
+	@$(GREEN) "Copied images to $(RAM_DISK_OUTPUT_DIR)/images"
+
 # update repo and submodules with buildroot patch management
 update:
 	@$(TEAL) "$@"
