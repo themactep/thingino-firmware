@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # Manages thingino config file
 
 CONFIG_FILE="${CONFIG_FILE:-/etc/web.conf}"

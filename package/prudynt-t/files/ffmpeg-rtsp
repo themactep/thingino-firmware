@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034
 
 # FFmpeg-based replacement for openRTSP
 # Provides compatible command-line interface for existing scripts
@@ -6,29 +7,29 @@
 FFMPEG_BIN="/usr/bin/ffmpeg"
 
 usage() {
-    echo "Usage: $0 [options] rtsp://url"
-    echo ""
-    echo "FFmpeg-based RTSP client (openRTSP replacement)"
-    echo ""
-    echo "Options:"
-    echo "  -V              Verbose output"
-    echo "  -v              Very verbose output"
-    echo "  -u USER PASS    RTSP authentication"
-    echo "  -w WIDTH        Video width"
-    echo "  -h HEIGHT       Video height"
-    echo "  -f FPS          Frame rate"
-    echo "  -d DURATION     Recording duration (seconds)"
-    echo "  -t              Test mode (no output file)"
-    echo "  -4              MP4 output format"
-    echo "  -i              AVI output format"
-    echo "  -q              MOV output format"
-    echo "  -y              Overwrite output files"
-    echo "  -H              Add headers"
-    echo ""
-    echo "Examples:"
-    echo "  $0 -V -u user pass -w 640 -h 360 -f 25 -d 30 -4 rtsp://host/stream > output.mp4"
-    echo "  $0 -v -V -d 5 -t rtsp://host/stream  # Test connectivity"
-    exit 1
+	echo "Usage: $0 [options] rtsp://url"
+	echo ""
+	echo "FFmpeg-based RTSP client (openRTSP replacement)"
+	echo ""
+	echo "Options:"
+	echo "  -V              Verbose output"
+	echo "  -v              Very verbose output"
+	echo "  -u USER PASS    RTSP authentication"
+	echo "  -w WIDTH        Video width"
+	echo "  -h HEIGHT       Video height"
+	echo "  -f FPS          Frame rate"
+	echo "  -d DURATION     Recording duration (seconds)"
+	echo "  -t              Test mode (no output file)"
+	echo "  -4              MP4 output format"
+	echo "  -i              AVI output format"
+	echo "  -q              MOV output format"
+	echo "  -y              Overwrite output files"
+	echo "  -H              Add headers"
+	echo ""
+	echo "Examples:"
+	echo "  $0 -V -u user pass -w 640 -h 360 -f 25 -d 30 -4 rtsp://host/stream > output.mp4"
+	echo "  $0 -v -V -d 5 -t rtsp://host/stream  # Test connectivity"
+	exit 1
 }
 
 # Default values

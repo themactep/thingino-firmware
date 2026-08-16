@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 
 CERT_PATH="/etc/ssl/certs/uhttpd.crt"
 KEY_PATH="/etc/ssl/private/uhttpd.key"

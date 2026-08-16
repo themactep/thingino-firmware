@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2046,SC2154
 
 # Check authentication
 . /var/www/x/auth.sh

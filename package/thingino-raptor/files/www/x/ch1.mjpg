@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # MJPEG preview for channel 1 — multipart JPEG loop via raptorctl.
 
 . /var/www/x/auth.sh

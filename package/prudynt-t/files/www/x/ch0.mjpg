@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2086
 # BusyBox httpd CGI for MJPEG stream (channel 0)
 # Query params: f=<fps> q=<quality> w=<width> h=<height>
 

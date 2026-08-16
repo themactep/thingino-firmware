@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2046,SC2059
 #
 # cyclictest service for continuous real-time monitoring
 #
@@ -8,38 +9,39 @@ PIDFILE="/var/run/$DAEMON.pid"
 LOGFILE="/var/log/$DAEMON.log"
 
 start() {
-    printf "Starting $DAEMON: "
-    runandreportcyclictest > $LOGFILE 2>&1 &
-    echo $! > $PIDFILE
-    echo "OK"
+	printf "Starting $DAEMON: "
+	runandreportcyclictest >$LOGFILE 2>&1 &
+	echo $! >$PIDFILE
+	echo "OK"
 }
 
 stop() {
-    printf "Stopping $DAEMON: "
-    kill $(cat $PIDFILE)
-    rm -f $PIDFILE
-    echo "OK"
+	printf "Stopping $DAEMON: "
+	kill $(cat $PIDFILE)
+	rm -f $PIDFILE
+	echo "OK"
 }
 
 restart() {
-    stop
-    sleep 1
-    start
+	stop
+	sleep 1
+	start
 }
 
 case "$1" in
-    start)
-        start
-        ;;
-    stop)
-        stop
-        ;;
-    restart|reload)
-        restart
-        ;;
-    *)
-        echo "Usage: $0 {start|stop|restart}"
-        exit 1
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart | reload)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
 esac
 
 exit $?

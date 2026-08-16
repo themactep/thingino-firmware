@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1090,SC2046,SC2154,SC2155,SC3043
 
 # Session management library for thingino webui
 # Provides session creation, validation, and cleanup

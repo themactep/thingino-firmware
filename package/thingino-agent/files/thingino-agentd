@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 
 THINGINO_AGENT_CONFIG="${THINGINO_AGENT_CONFIG:-/etc/thingino.json}"
 THINGINO_AGENT_TLS_CERT="${THINGINO_AGENT_TLS_CERT:-/etc/ssl/certs/uhttpd.crt}"

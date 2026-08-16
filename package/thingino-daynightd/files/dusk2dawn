@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC3043
 
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"

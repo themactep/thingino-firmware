@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019
 set -eu
 
 RAPTOR_INIT="/etc/init.d/S31raptor"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC2154
 # udhcpc script edited by Tim Riker <Tim@Rikers.org>
 
 if [ -z "$1" ]; then

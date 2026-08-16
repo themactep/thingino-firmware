@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # flash-ota – minimal host-driven OTA flasher.
 # Pre-assembled partition files are uploaded by the host; this script
 # flashes them to the matching MTD partitions and reboots.

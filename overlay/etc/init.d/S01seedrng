@@ -1,4 +1,5 @@
 #! /bin/sh
+# shellcheck disable=SC2086
 
 DAEMON="$(command -v seedrng 2>/dev/null || echo /sbin/seedrng)"
 DAEMON_ARGS="-d /etc/seedrng"

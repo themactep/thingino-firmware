@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 get_wd_device() {
 	jct /dev/thingino.json get watchdog.device 2>/dev/null ||

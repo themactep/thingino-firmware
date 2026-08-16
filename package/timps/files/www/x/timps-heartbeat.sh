@@ -23,8 +23,14 @@ _timps_port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\
 [ -n "$_timps_port" ] || _timps_port=8880
 _timps_https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$TIMPS_CONF" 2>/dev/null | head -n1)
 case "$_timps_https" in
-	1 | true | yes | on) _timps_scheme=https; TIMPS_CURL_K="-k" ;;
-	*) _timps_scheme=http; TIMPS_CURL_K="" ;;
+	1 | true | yes | on)
+		_timps_scheme=https
+		TIMPS_CURL_K="-k"
+		;;
+	*)
+		_timps_scheme=http
+		TIMPS_CURL_K=""
+		;;
 esac
 TIMPS_CONTROL_URL="$_timps_scheme://127.0.0.1:$_timps_port/control"
 TIMPS_DAYNIGHT_MODE_FILE="${TIMPS_DAYNIGHT_MODE_FILE:-/run/thingino/daynight_mode}"
@@ -87,7 +93,8 @@ timps_heartbeat_payload() {
 	REC=$(printf '%s' "$CUR" | sed -n 's/.*"record":{\([^}]*\)}.*/\1/p')
 	RECING=$(printf '%s' "$REC" | sed -n 's/.*"recording":\([01]\).*/\1/p')
 	RECCH=$(printf '%s' "$REC" | sed -n 's/.*"channel":\([0-9]\).*/\1/p')
-	REC0=false; REC1=false
+	REC0=false
+	REC1=false
 	if [ "$RECING" = "1" ]; then
 		if [ "$RECCH" = "1" ]; then REC1=true; else REC0=true; fi
 	fi

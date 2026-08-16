@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 . /var/www/x/auth.sh
 require_auth

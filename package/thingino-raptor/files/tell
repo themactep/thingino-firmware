@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 set -eu
 
 PORTAL_MODE_FLAG="/run/portal_mode"

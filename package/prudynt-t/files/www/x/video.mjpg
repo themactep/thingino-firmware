@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2086
 # Generic MJPEG CGI: /x/video.mjpg?ch=0|1&f=FPS&q=QUALITY&w=WIDTH&h=HEIGHT
 
 # Check authentication
@@ -12,15 +13,16 @@ Q=""
 W=""
 H=""
 # Parse QUERY_STRING (supports &-separated pairs)
-OLD_IFS=$IFS; IFS='&'
+OLD_IFS=$IFS
+IFS='&'
 for KV in $QUERY_STRING; do
-  case "$KV" in
-    ch=*) CH=${KV#ch=} ;;
-    f=*) FPS=${KV#f=} ;;
-    q=*) Q=${KV#q=} ;;
-    w=*) W=${KV#w=} ;;
-    h=*) H=${KV#h=} ;;
-  esac
+	case "$KV" in
+		ch=*) CH=${KV#ch=} ;;
+		f=*) FPS=${KV#f=} ;;
+		q=*) Q=${KV#q=} ;;
+		w=*) W=${KV#w=} ;;
+		h=*) H=${KV#h=} ;;
+	esac
 done
 IFS=$OLD_IFS
 

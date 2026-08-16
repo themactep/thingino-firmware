@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 DAEMON="/usr/sbin/ntpd"
 PIDFILE="/run/ntpd.pid"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # Immediate MQTT event publisher for camera-side state changes.
 # Called by event scripts (motion, privacy, etc.) to push state to
 # Home Assistant the moment the change happens, without waiting for

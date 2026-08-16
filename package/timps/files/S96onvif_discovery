@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019,SC2046,SC2068,SC2086,SC2231,SC3043
 
 DAEMON="/usr/sbin/wsd_simple_server"
 DAEMON_SHORT="wsd_simple_server"
@@ -40,8 +41,8 @@ timps_conf_get() {
 	# old "[^#]*" capture truncated at the first '#' and left quotes in place,
 	# yielding different ONVIF creds than timps enforces -> clients locked out.
 	sed -n "s/^[[:space:]]*${esc}[[:space:]]*=[[:space:]]*\(.*\)$/\1/p" \
-		"$TIMPS_CONFIG" 2>/dev/null | head -n1 \
-		| sed 's/[[:space:]]\{1,\}#.*$//; s/[[:space:]]*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/'
+		"$TIMPS_CONFIG" 2>/dev/null | head -n1 |
+		sed 's/[[:space:]]\{1,\}#.*$//; s/[[:space:]]*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/'
 }
 
 timps_bool_default() {
@@ -63,18 +64,29 @@ timps_rtsp_scheme() {
 
 timps_rtsp_port() {
 	if [ "$(timps_rtsp_scheme)" = "rtsps" ]; then
-		port=$(timps_conf_get rtsp.tls_port); [ -n "$port" ] || port="322"
+		port=$(timps_conf_get rtsp.tls_port)
+		[ -n "$port" ] || port="322"
 	else
-		port=$(timps_conf_get rtsp.port);     [ -n "$port" ] || port="554"
+		port=$(timps_conf_get rtsp.port)
+		[ -n "$port" ] || port="554"
 	fi
 	echo "$port"
 }
 
 timps_rtsp_endpoint() {
 	case "$1" in
-		0) ep=$(timps_conf_get video0.rtsp_path); def="ch0" ;;
-		1) ep=$(timps_conf_get video1.rtsp_path); def="ch1" ;;
-		*) echo ""; return ;;
+		0)
+			ep=$(timps_conf_get video0.rtsp_path)
+			def="ch0"
+			;;
+		1)
+			ep=$(timps_conf_get video1.rtsp_path)
+			def="ch1"
+			;;
+		*)
+			echo ""
+			return
+			;;
 	esac
 	[ -n "$ep" ] || ep="$def"
 	echo "${ep#/}"
@@ -89,7 +101,8 @@ timps_http_scheme() {
 }
 
 timps_http_port() {
-	port=$(timps_conf_get http.port); [ -n "$port" ] || port="8880"
+	port=$(timps_conf_get http.port)
+	[ -n "$port" ] || port="8880"
 	echo "$port"
 }
 
@@ -131,7 +144,7 @@ fetch_timps_control() {
 			TIMPS_CONTROL_JSON=$(wget -q -T 3 -O - "$url" 2>/dev/null)
 		fi
 		case "$TIMPS_CONTROL_JSON" in
-			*'"video"'*) return ;;          # daemon answered
+			*'"video"'*) return ;; # daemon answered
 		esac
 		i=$((i + 1))
 		sleep 1
@@ -147,9 +160,9 @@ timps_live_get() {
 	json=${TIMPS_CONTROL_JSON#*\"video\":\{}
 	[ "$json" = "$TIMPS_CONTROL_JSON" ] && return
 	json=${json%%\"osd\"*}
-	echo "$json" \
-		| sed -n "s/.*\"$1\":{\([^}]*\)}.*/\1/p" \
-		| sed -n "s/.*\"$2\":\"\{0,1\}\([^\",}]*\).*/\1/p"
+	echo "$json" |
+		sed -n "s/.*\"$1\":{\([^}]*\)}.*/\1/p" |
+		sed -n "s/.*\"$2\":\"\{0,1\}\([^\",}]*\).*/\1/p"
 }
 
 # Write profiles.streamN.<field> only for values we actually determined: a
@@ -179,14 +192,14 @@ set_timps_video_params() {
 	bitrate=$(timps_conf_get "video$n.bitrate")
 	codec=$(timps_conf_get "video$n.codec" | tr 'A-Z' 'a-z')
 
-	if [ -z "$width" ] || [ -z "$height" ] || [ -z "$fps" ] || \
-	   [ -z "$bitrate" ] || [ -z "$codec" ]; then
+	if [ -z "$width" ] || [ -z "$height" ] || [ -z "$fps" ] ||
+		[ -z "$bitrate" ] || [ -z "$codec" ]; then
 		fetch_timps_control
-		[ -n "$width" ]   || width=$(timps_live_get "$n" width)
-		[ -n "$height" ]  || height=$(timps_live_get "$n" height)
-		[ -n "$fps" ]     || fps=$(timps_live_get "$n" fps)
+		[ -n "$width" ] || width=$(timps_live_get "$n" width)
+		[ -n "$height" ] || height=$(timps_live_get "$n" height)
+		[ -n "$fps" ] || fps=$(timps_live_get "$n" fps)
 		[ -n "$bitrate" ] || bitrate=$(timps_live_get "$n" bitrate)
-		[ -n "$codec" ]   || codec=$(timps_live_get "$n" codec)
+		[ -n "$codec" ] || codec=$(timps_live_get "$n" codec)
 	fi
 
 	jct_set_stream_num "$n" width "$width"
@@ -207,8 +220,14 @@ set_timps_video_params() {
 # The WebUI snapshot CGIs (x/chN.jpg) proxy the same endpoint over loopback,
 # so the same conditions gate both snapurl variants.
 timps_stream_jpeg_enabled() {
-	[ "$(timps_bool_default http.enabled true)" = "true" ] || { echo "false"; return; }
-	[ "$(timps_bool_default "video$1.enabled" true)" = "true" ] || { echo "false"; return; }
+	[ "$(timps_bool_default http.enabled true)" = "true" ] || {
+		echo "false"
+		return
+	}
+	[ "$(timps_bool_default "video$1.enabled" true)" = "true" ] || {
+		echo "false"
+		return
+	}
 	timps_bool_default "video$1.jpeg" true
 }
 
@@ -220,7 +239,10 @@ timps_stream_jpeg_enabled() {
 # daemon's capability flag (caps "backchannel":{"available":N} in /control);
 # if /control is unreachable, trust the conf rather than dropping the feature.
 timps_backchannel_enabled() {
-	[ "$(timps_bool_default audio.backchannel false)" = "true" ] || { echo "false"; return; }
+	[ "$(timps_bool_default audio.backchannel false)" = "true" ] || {
+		echo "false"
+		return
+	}
 	fetch_timps_control
 	case "$TIMPS_CONTROL_JSON" in
 		*'"backchannel":{"available":0}'*) echo "false" ;;
@@ -234,7 +256,7 @@ timps_backchannel_decoder() {
 	codec=$(timps_conf_get audio.backchannel_codec | tr 'A-Z' 'a-z')
 	case "$codec" in
 		2 | aac) echo "AAC" ;;
-		*) echo "G711" ;;   # pcmu/pcma/0/1/unset: G.711 either way
+		*) echo "G711" ;; # pcmu/pcma/0/1/unset: G.711 either way
 	esac
 }
 

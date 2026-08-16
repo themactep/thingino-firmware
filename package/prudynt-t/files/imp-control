@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # imp-control replacement - communicates with prudynt via HTTP JSON API
 # Defaults to local listener exposed by prudynt (/api/v1/config)
 

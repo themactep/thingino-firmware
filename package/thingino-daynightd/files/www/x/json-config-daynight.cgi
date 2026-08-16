@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2329,SC3043
 
 # thingino day/night configuration access
 # Backed by /etc/thingino.json under the "daynight" key.

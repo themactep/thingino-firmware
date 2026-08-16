@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 #
 # json-config-doorbell.cgi – manage Wyze Doorbell Chime configuration
 #

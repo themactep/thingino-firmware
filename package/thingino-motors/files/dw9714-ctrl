@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019,SC2086,SC3043
 
 # Script to control the DW9714 VCM focus using BusyBox i2c commands
 # Takes an argument from 0 to 100 to set the focus position percentage

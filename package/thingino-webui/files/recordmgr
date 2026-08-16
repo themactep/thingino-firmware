@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043,SC3060
 # recordmgr - Storage manager daemon for video recordings and timelapse
 #
 # Maintains the recording storage target writable by:
@@ -40,7 +41,7 @@ DEBUG_FROM_ARG=0
 
 is_true() {
 	case "$1" in
-		true|1|yes|on) return 0 ;;
+		true | 1 | yes | on) return 0 ;;
 	esac
 	return 1
 }
@@ -61,10 +62,10 @@ debug_log() {
 parse_args() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
-			-d|--debug)
+			-d | --debug)
 				DEBUG_FROM_ARG=1
 				;;
-			-h|--help)
+			-h | --help)
 				echo "Usage: $0 [-d|--debug]"
 				exit 0
 				;;
@@ -80,16 +81,16 @@ read_config() {
 	vr_mount=$(jct "$CONFIG_FILE" get "$DOMAIN.mount" 2>/dev/null)
 	vr_device_path=$(jct "$CONFIG_FILE" get "$DOMAIN.device_path" 2>/dev/null)
 	_hostname=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "thingino")
-	vr_device_path=${vr_device_path//%hostname/$_hostname}
+	vr_device_path=$(printf '%s' "$vr_device_path" | sed "s|%hostname|$_hostname|g")
 	vr_limit=$(jct "$CONFIG_FILE" get "$DOMAIN.limit" 2>/dev/null)
 	vr_min_free_mb=$(jct "$CONFIG_FILE" get "$DOMAIN.min_free_mb" 2>/dev/null)
 	vr_check_interval=$(jct "$CONFIG_FILE" get "$DOMAIN.check_interval" 2>/dev/null)
 	vr_cleanup_enabled=$(jct "$CONFIG_FILE" get "$DOMAIN.cleanup_enabled" 2>/dev/null)
 	vr_debug=$(jct "$CONFIG_FILE" get "$DOMAIN.debug" 2>/dev/null)
 
-	case "$vr_min_free_mb" in ''|*[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
-	case "$vr_check_interval" in ''|*[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
-	case "$vr_limit" in ''|*[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
+	case "$vr_min_free_mb" in '' | *[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
+	case "$vr_check_interval" in '' | *[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
+	case "$vr_limit" in '' | *[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
 
 	update_debug_mode
 }
@@ -123,13 +124,13 @@ cleanup() {
 	used_mb=$(get_used_mb "$rec_dir")
 
 	case "$free_mb" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			debug_log "Skipping cleanup: failed to read free space on $mount"
 			return
 			;;
 	esac
 	case "$used_mb" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			debug_log "Unable to read used size for $rec_dir, assuming 0MB"
 			used_mb=0
 			;;
@@ -148,13 +149,13 @@ cleanup() {
 	local tmplist
 	tmplist=$(mktemp /tmp/recordmgr.XXXXXX)
 	if [ -n "$file_pattern" ]; then
-		find "$rec_dir" -type f -name "$file_pattern" 2>/dev/null | sort > "$tmplist"
+		find "$rec_dir" -type f -name "$file_pattern" 2>/dev/null | sort >"$tmplist"
 	else
 		find "$rec_dir" -type f \( \
 			-name "*.mp4" -o -name "*.ts" -o -name "*.mkv" \
 			-o -name "*.avi" -o -name "*.mov" -o -name "*.h264" \
 			-o -name "*.h265" -o -name "*.hevc" \
-		\) 2>/dev/null | sort > "$tmplist"
+			\) 2>/dev/null | sort >"$tmplist"
 	fi
 
 	[ ! -s "$tmplist" ] && debug_log "No candidate recording files found in $rec_dir"
@@ -167,7 +168,7 @@ cleanup() {
 		[ -f "$oldest" ] || continue
 
 		fsize=$(du -m "$oldest" 2>/dev/null | awk '{print $1}')
-		case "$fsize" in ''|*[!0-9]*) fsize=0 ;; esac
+		case "$fsize" in '' | *[!0-9]*) fsize=0 ;; esac
 
 		logger -t recordmgr "Removing: $oldest (size: ${fsize}MB, free: ${free_mb}MB, used: ${used_mb}MB)"
 		rm -f "$oldest"
@@ -177,7 +178,7 @@ cleanup() {
 		free_mb=$((free_mb + fsize))
 		used_mb=$((used_mb - fsize))
 		[ "$used_mb" -lt 0 ] && used_mb=0
-	done < "$tmplist"
+	done <"$tmplist"
 
 	rm -f "$tmplist"
 
@@ -211,7 +212,7 @@ run_check() {
 
 	# Skip if cleanup is explicitly disabled
 	case "$vr_cleanup_enabled" in
-		false|0|"")
+		false | 0 | "")
 			debug_log "Skipping check: cleanup is disabled"
 			return
 			;;
@@ -251,7 +252,7 @@ read_timelapse_config() {
 	tl_limit=$(jct "$TL_CONFIG_FILE" get "timelapse.limit" 2>/dev/null)
 	tl_min_free_mb=$(jct "$TL_CONFIG_FILE" get "timelapse.min_free_mb" 2>/dev/null)
 
-	case "$tl_keep_days" in ''|*[!0-9]*) tl_keep_days=7 ;; esac
+	case "$tl_keep_days" in '' | *[!0-9]*) tl_keep_days=7 ;; esac
 	# tl_limit and tl_min_free_mb are optional; unset means inherit from recorder config
 }
 
@@ -292,11 +293,11 @@ run_timelapse_check() {
 	# otherwise inherit min_free_mb from recorder config (same mount = shared floor)
 	local min_free_mb limit_mb
 	case "$tl_min_free_mb" in
-		''|*[!0-9]*) min_free_mb="${vr_min_free_mb:-$DEFAULT_MIN_FREE_MB}" ;;
+		'' | *[!0-9]*) min_free_mb="${vr_min_free_mb:-$DEFAULT_MIN_FREE_MB}" ;;
 		*) min_free_mb="$tl_min_free_mb" ;;
 	esac
 	case "$tl_limit" in
-		''|*[!0-9]*) limit_mb=0 ;;
+		'' | *[!0-9]*) limit_mb=0 ;;
 		*) limit_mb=$((tl_limit * 1024)) ;;
 	esac
 
@@ -305,9 +306,10 @@ run_timelapse_check() {
 		local free_mb
 		free_mb=$(get_free_mb "$tl_mount")
 		case "$free_mb" in
-			''|*[!0-9]*)
+			'' | *[!0-9]*)
 				debug_log "Skipping timelapse space cleanup: cannot read free space on $tl_mount"
-				return ;;
+				return
+				;;
 		esac
 		[ "$free_mb" -ge "$min_free_mb" ] && return
 		limit_mb=2147483647
@@ -317,7 +319,7 @@ run_timelapse_check() {
 }
 
 main_loop() {
-	echo $$ > "$PIDFILE"
+	echo $$ >"$PIDFILE"
 	logger -t recordmgr "Storage manager started (pid $$)"
 	[ "$DEBUG_FROM_ARG" -eq 1 ] && logger -t recordmgr "Debug mode forced by command-line argument"
 

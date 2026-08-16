@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC3043
 # Home Assistant MQTT integration daemon.
 # Publishes discovery, starts command subscriber, polls state periodically.
 # Config: /etc/thingino.json under "ha" key — see /usr/share/ha-common.

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2064,SC2086
 # Regenerate Bootstrap Icons subset font and CSS for Thingino WebUI.
 # Requires: fonttools (python3-fonttools), curl
 # Usage: ./scripts/optimize-icons.sh

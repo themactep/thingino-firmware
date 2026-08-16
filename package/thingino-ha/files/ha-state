@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2015,SC2034
 # Reads current camera state and publishes changed entity values to MQTT.
 # Called at startup (with "force" argument) and periodically by ha-daemon.
 #

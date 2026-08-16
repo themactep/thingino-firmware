@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 PRUSA_CONFIG_FILE="/etc/prusa-connect.json"
 SERVICE_HELPER="/sbin/service"

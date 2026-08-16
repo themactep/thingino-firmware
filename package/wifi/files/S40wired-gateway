@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 

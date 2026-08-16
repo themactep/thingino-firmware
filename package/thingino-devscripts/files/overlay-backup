@@ -1,10 +1,14 @@
 #!/bin/sh
+# shellcheck disable=SC2000
 
 BACKUP_VAR=overlay_backup
 RESTORE_DIR=/overlay
 
 overlay_check() {
-	grep -q upperdir=/overlay /proc/mounts || { echo "Overlay not mounted, exit"; exit; }
+	grep -q upperdir=/overlay /proc/mounts || {
+		echo "Overlay not mounted, exit"
+		exit
+	}
 }
 
 backup() {
@@ -52,13 +56,13 @@ clear_env() {
 
 # Main
 case "$1" in
-	-b|--backup)
+	-b | --backup)
 		backup
 		;;
-	-r|--restore)
+	-r | --restore)
 		restore
 		;;
-	-c|--clear)
+	-c | --clear)
 		clear_env
 		;;
 	*)

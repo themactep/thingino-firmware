@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2154,SC2329,SC3043
 
 RTSP_URL="rtsp://thingino:thingino@127.0.0.1/ch0"
 PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID

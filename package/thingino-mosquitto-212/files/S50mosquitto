@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2181
 
 start() {
 	printf "Starting mosquitto: "
@@ -26,12 +27,13 @@ case "$1" in
 	stop)
 		stop
 		;;
-	restart|reload)
+	restart | reload)
 		restart
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
+		;;
 esac
 
 exit $?

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2162,SC3045
 
 step=50
 
@@ -10,19 +11,19 @@ while true; do
 	read -s -n 1 key
 
 	case $key in
-		w|W)
-			motors -d g -y -$step   # Up is negative
+		w | W)
+			motors -d g -y -$step # Up is negative
 			;;
-		s|S)
-			motors -d g -y $step    # Down is positive
+		s | S)
+			motors -d g -y $step # Down is positive
 			;;
-		a|A)
-			motors -d g -x -$step   # Left is negative
+		a | A)
+			motors -d g -x -$step # Left is negative
 			;;
-		d|D)
-			motors -d g -x $step    # Right is positive
+		d | D)
+			motors -d g -x $step # Right is positive
 			;;
-		q|Q)
+		q | Q)
 			echo "Quitting..."
 			exit 0
 			;;

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 # Return daynightd sensor data + brightness % thresholds from config.
 # The % thresholds are merged in for backward compat with older daynightd

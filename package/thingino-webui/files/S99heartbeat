@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2046,SC2086,SC3043
 
 # Heartbeat daemon - runs in background and updates cache continuously
 # Start with: /etc/init.d/S99heartbeat start
