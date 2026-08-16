@@ -64,18 +64,12 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	# camera-only services
 	if [ "$(BR2_THINGINO_DEV_IPCAM)" = "y" ]; then \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S95recordmgr \
-			$(TARGET_DIR)/etc/init.d/S95recordmgr; \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/recordmgr \
-			$(TARGET_DIR)/usr/sbin/recordmgr; \
 		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/telegram-cam-register \
 			$(TARGET_DIR)/usr/sbin/telegram-cam-register; \
 		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/telegram-cam-agent \
 			$(TARGET_DIR)/usr/sbin/telegram-cam-agent; \
 	else \
-		rm -f $(TARGET_DIR)/etc/init.d/S95recordmgr \
-			$(TARGET_DIR)/usr/sbin/recordmgr \
-			$(TARGET_DIR)/usr/sbin/telegram-cam-register \
+		rm -f $(TARGET_DIR)/usr/sbin/telegram-cam-register \
 			$(TARGET_DIR)/usr/sbin/telegram-cam-agent; \
 	fi
 
@@ -87,8 +81,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-network.html \
 		$(TARGET_DIR)/var/www/config-network.html
 
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-rtsp.html \
-		$(TARGET_DIR)/var/www/config-rtsp.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-syslog.html \
 		$(TARGET_DIR)/var/www/config-syslog.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-time.html \
@@ -127,8 +119,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-file-manager.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-ping-trace.html \
 		$(TARGET_DIR)/var/www/tool-ping-trace.html
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-record.html \
-		$(TARGET_DIR)/var/www/tool-record.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-sdcard.html \
 		$(TARGET_DIR)/var/www/tool-sdcard.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2.html \
@@ -167,8 +157,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/config-admin.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-network.js \
 		$(TARGET_DIR)/var/www/a/config-network.js
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-rtsp.js \
-		$(TARGET_DIR)/var/www/a/config-rtsp.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-syslog.js \
 		$(TARGET_DIR)/var/www/a/config-syslog.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/config-time.js \
@@ -207,8 +195,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-file-manager.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-ping-trace.js \
 		$(TARGET_DIR)/var/www/a/tool-ping-trace.js
-	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-record.js \
-		$(TARGET_DIR)/var/www/a/tool-record.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-sdcard.js \
 		$(TARGET_DIR)/var/www/a/tool-sdcard.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2.js \
@@ -280,8 +266,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-config-admin.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-network.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-network.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-rtsp.cgi \
-		$(TARGET_DIR)/var/www/x/json-config-rtsp.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-send2.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-send2.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-config-syslog.cgi \
@@ -300,8 +284,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-imp.cgi \
 		$(TARGET_DIR)/var/www/x/json-imp.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-motion.cgi \
-		$(TARGET_DIR)/var/www/x/json-motion.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-reset-ntp.cgi \
 		$(TARGET_DIR)/var/www/x/json-reset-ntp.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-send2.cgi \
@@ -340,8 +322,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/tool-file-manager.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-ping-trace.cgi \
 		$(TARGET_DIR)/var/www/x/tool-ping-trace.cgi
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-record.cgi \
-		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-sdcard.cgi \
 		$(TARGET_DIR)/var/www/x/tool-sdcard.cgi
 	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \

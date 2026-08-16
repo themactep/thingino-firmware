@@ -69,19 +69,11 @@
   function buildDefaultMenu() {
     const flashOperationsEnabled =
       uiConfig.device && uiConfig.device.flashOperations === true;
-    const isRaptor = uiConfig.device && uiConfig.device.raptor === true;
     const settingsItems = [
       { label: "Admin profile", href: "/config-admin.html" },
     ];
 
     settingsItems.push({ label: "Network", href: "/config-network.html" });
-    // config-rtsp.html talks to prudynt :8080 — hide on raptor builds.
-    if (!isRaptor) {
-      settingsItems.push({
-        label: "RTSP/ONVIF access",
-        href: "/config-rtsp.html",
-      });
-    }
     settingsItems.push(
       { label: "Remote logging", href: "/config-syslog.html" },
       { label: "Time", href: "/config-time.html" },
@@ -151,13 +143,7 @@
         type: "dropdown",
         id: "ddServices",
         label: "Services",
-        items: [
-          // tool-record.cgi is prudynt.json-backed — hide on raptor builds.
-          ...(isRaptor
-            ? []
-            : [{ label: "Video Recorder", href: "/tool-record.html" }]),
-          { label: "Home Assistant", href: "/config-ha.html" },
-        ],
+        items: [{ label: "Home Assistant", href: "/config-ha.html" }],
       },
       {
         type: "dropdown",
