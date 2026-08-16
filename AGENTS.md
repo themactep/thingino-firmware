@@ -30,7 +30,14 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make rebuild-<pkg>   # dirclean + rebuild + reinstall + finalize
 make build-all                  # builds every camera in configs/cameras/
 make run CMD="bin/ffmpeg --help"  # QEMU run target binary
+make ram-setup                  # once per boot: raise tmpfs inode limit for ram-build
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 make ram-build   # cold build in tmpfs (RAM)
 ```
+
+`ram-build` runs the whole output tree on a tmpfs to spare the SSD, then copies
+artifacts back to disk and frees the RAM. It is for **cold builds** only (the
+most disk-write-intensive case); incremental development builds (`make fast`)
+should be done on a real disk. See `docs/makefile.md`.
 
 - `CAMERA=` can be supplied interactively (uses `scripts/select_camera.sh`).
 - `BOARD=` is an alias for `CAMERA=` (backward compat with CI).

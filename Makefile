@@ -161,6 +161,10 @@ ifeq ($(origin THINGINO_BUILD_START_EPOCH), undefined)
 THINGINO_BUILD_START_EPOCH := $(shell date +%s)
 endif
 export THINGINO_BUILD_START_EPOCH
+ifeq ($(origin THINGINO_BUILD_START_DISK_SECTORS), undefined)
+THINGINO_BUILD_START_DISK_SECTORS := $(shell $(SCRIPTS_DIR)/disk_sectors_written.sh)
+endif
+export THINGINO_BUILD_START_DISK_SECTORS
 THINGINO_LOG_TARGETS := all fast dev cleanbuild build build_fast pack repack
 
 define print_build_user_files_section

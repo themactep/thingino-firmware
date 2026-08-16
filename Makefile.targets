@@ -70,8 +70,9 @@ ram-build:
 		echo "ERROR: only $$ifree free inodes; a full build needs ~2M. Run 'make ram-setup' once."; \
 		exit 1; \
 	fi; \
-	if [ "$$free_kb" -lt 8388608 ]; then \
-		echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a full build needs ~7 GiB."; \
+	if [ ! -d "$(RAM_OUTPUT_DIR)" ] && [ "$$free_kb" -lt 8388608 ]; then \
+		echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a clean build needs ~7 GiB."; \
+		echo "       Wipe the previous tree (rm -rf $(RAM_OUTPUT_DIR)) and retry."; \
 		exit 1; \
 	fi
 	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
@@ -83,7 +84,17 @@ ram-build:
 		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
 		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
 	fi
-	@$(GREEN) "Copied images to $(RAM_DISK_OUTPUT_DIR)/images"
+	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
+		[ -e "$$f" ] || continue; \
+		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+	done
+	@for f in buildscope-report.json uenv.txt; do \
+		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
+			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+		fi; \
+	done
+	@rm -rf "$(RAM_OUTPUT_DIR)"
+	@$(GREEN) "Saved artifacts to $(RAM_DISK_OUTPUT_DIR); tmpfs freed."
 
 # update repo and submodules with buildroot patch management
 update:
