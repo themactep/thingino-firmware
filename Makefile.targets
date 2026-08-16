@@ -27,52 +27,32 @@ cleanbuild: user-dirs distclean defconfig build_fast pack
 	@date +%T
 
 # --- RAM build ----------------------------------------------------------
-# Build the entire output tree on a tmpfs so compile/install writes never
+# Build the output tree on a tmpfs so the heavy compile/install writes never
 # touch the SSD, then copy the finished images (and logs) back to disk.
-# dl/ and ccache stay on disk and make cold rebuilds cheap, so the volatile
-# build tree is disposable.
-#
-# One-time setup (raises the tmpfs inode limit, which a full build needs):
-#   make ram-setup
+# The download cache (dl/) always stays on disk: it is written once per
+# tarball and re-read every build, so moving it to RAM buys nothing.
 #
 # Usage:
 #   CAMERA=<camera> make ram-build
 #   CAMERA=<camera> make ram-build RAM_BUILD_DIR=/mnt/ramdisk   # custom tmpfs
+#
+# /tmp is already a tmpfs on most systemd hosts.  A reboot wipes the RAM
+# output, so the first build after boot is a full (cold) build; later
+# 'make ram-build' runs in the same uptime are incremental.
 
 RAM_BUILD_DIR ?= /tmp/thingino-build
 RAM_OUTPUT_DIR = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
 RAM_DISK_OUTPUT_DIR = $(OUTPUT_DIR)
 
-# Raise the tmpfs inode limit so a full build (~1.1M files/dirs, mostly
-# per-package dirs) fits.  Run once; the remount is lost on reboot.
-ram-setup:
-	@$(TEAL) "$@"
-	@mkdir -p "$(RAM_BUILD_DIR)"
-	@mnt=$$(findmnt -n -o TARGET -T "$(RAM_BUILD_DIR)" 2>/dev/null || echo "$(RAM_BUILD_DIR)"); \
-	if [ "$$(stat -f -c %T "$$mnt" 2>/dev/null)" != "tmpfs" ]; then \
-		echo "ERROR: $$mnt is not tmpfs. Mount a dedicated tmpfs and set RAM_BUILD_DIR."; \
-		exit 1; \
-	fi; \
-	sudo mount -o remount,nr_inodes=4m "$$mnt" && \
-	echo "Done: $$(stat -f -c %d "$(RAM_BUILD_DIR)") free inodes on $$mnt."
-
 ram-build:
 	@$(TEAL) "$@"
 	@mkdir -p "$(RAM_BUILD_DIR)"
 	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
-	ifree=$$(stat -f -c %d "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0); \
-	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
 	if [ "$$fstype" != "tmpfs" ]; then \
 		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
-		exit 1; \
-	fi; \
-	if [ "$$ifree" -lt 2000000 ]; then \
-		echo "ERROR: only $$ifree free inodes; a full build needs ~2M. Run 'make ram-setup' once."; \
-		exit 1; \
-	fi; \
-	if [ ! -d "$(RAM_OUTPUT_DIR)" ] && [ "$$free_kb" -lt 8388608 ]; then \
-		echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a clean build needs ~7 GiB."; \
-		echo "       Wipe the previous tree (rm -rf $(RAM_OUTPUT_DIR)) and retry."; \
+		echo "       RAM builds need a tmpfs. Either:"; \
+		echo "         sudo mount -t tmpfs -o size=20G tmpfs $(RAM_BUILD_DIR)"; \
+		echo "       or pass an existing tmpfs: make ram-build RAM_BUILD_DIR=/dev/shm"; \
 		exit 1; \
 	fi
 	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
@@ -84,17 +64,7 @@ ram-build:
 		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
 		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
 	fi
-	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
-		[ -e "$$f" ] || continue; \
-		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-	done
-	@for f in buildscope-report.json uenv.txt; do \
-		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
-			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-		fi; \
-	done
-	@rm -rf "$(RAM_OUTPUT_DIR)"
-	@$(GREEN) "Saved artifacts to $(RAM_DISK_OUTPUT_DIR); tmpfs freed."
+	@$(GREEN) "Copied images to $(RAM_DISK_OUTPUT_DIR)/images"
 
 # update repo and submodules with buildroot patch management
 update:
