@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 402675f5cc599e22b7b508b3c9f56753ed6c90cd
+THINGINO_RAPTOR_VERSION = 3b7bd3a612541ff32d2fd8a9d9cc6b10d8a8b728
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -225,10 +225,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 
 	# Init script — webcam variant includes USB gadget setup
 	if [ "$(BR2_THINGINO_DEV_WEBCAM)" = "y" ]; then \
-		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor-webcam \
+		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor-webcam \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	else \
-		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
+		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
