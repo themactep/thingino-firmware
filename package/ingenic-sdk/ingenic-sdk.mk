@@ -122,7 +122,7 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
 		fi; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
-			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/05-gpio-userkeys; \
 		fi; \
 	fi
 endef
@@ -157,21 +157,21 @@ define GENERATE_MODULE_LOADER
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 
 	if [ "$(BR2_THINGINO_AIP)" = "y" ]; then \
-		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/aip; \
+		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/08-aip; \
 	fi
 
 	if [ "$(BR2_THINGINO_VIDEO_OUT)" = "y" ]; then \
-		echo "vde" > $(TARGET_DIR)/etc/modules.d/vde; \
-		echo "fb" > $(TARGET_DIR)/etc/modules.d/fb; \
-		echo "ipu $(IPU_CLK_SRC) $(IPU_CLK)" > $(TARGET_DIR)/etc/modules.d/ipu; \
+		echo "vde" > $(TARGET_DIR)/etc/modules.d/21-vde; \
+		echo "fb" > $(TARGET_DIR)/etc/modules.d/22-fb; \
+		echo "ipu $(IPU_CLK_SRC) $(IPU_CLK)" > $(TARGET_DIR)/etc/modules.d/23-ipu; \
 	fi
 
 	if [ "$(BR2_THINGINO_VDEC)" = "y" ]; then \
-		echo "vdec" > $(TARGET_DIR)/etc/modules.d/vdec; \
+		echo "vdec" > $(TARGET_DIR)/etc/modules.d/24-vdec; \
 	fi
 
 	if [ "$(BR2_THINGINO_HDMI_AUDIO)" = "y" ]; then \
-		echo "hdmi_audio" > $(TARGET_DIR)/etc/modules.d/hdmi_audio; \
+		echo "hdmi_audio" > $(TARGET_DIR)/etc/modules.d/25-hdmi_audio; \
 	fi
 
 	if [ "$(BR2_THINGINO_DEV_CAMERA)" = "y" ] && [ "$(SOC_FAMILY)" != "a1" ]; then \
@@ -197,20 +197,20 @@ define GENERATE_MODULE_LOADER
 	fi
 
 	if [ "$(BR2_INGENIC_SDK_PWM)" = "y" ]; then \
-		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/pwm; \
-		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
+		echo "pwm_core tcu_channels=0,1,3" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
+		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/15-pwm; \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/mpsys; \
+		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/06-mpsys; \
 	fi
 
 	if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
+		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/07-nna; \
 	fi
 
 	if [ "$(BR2_INGENIC_SDK_JZ_AES)" = "y" ]; then \
-		echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/jz-aes; \
+		echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/05-jz-aes; \
 	fi
 
 	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \
