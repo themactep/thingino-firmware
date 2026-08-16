@@ -66,12 +66,36 @@ get_info() {
 	EOF
 }
 
+# The portal starts exactly one wpa_supplicant instance (S38), so the
+# control socket directory tells us which netdev to talk to. The legacy
+# hardcoded `wlan0` breaks on cameras whose AP interface is ap0/wlan1
+# (hi3881, wq9001) and on ATBM6461 which has no ctrl socket at all.
+wpa_iface() {
+	# Explicit override first, then probe the ctrl socket directory
+	iface="${WPA_IFACE:-}"
+	[ -n "$iface" ] && {
+		echo "$iface"
+		return
+	}
+
+	# One socket = one supplicant instance = the right interface
+	for socket in /run/wpa_supplicant/*; do
+		[ -S "$socket" ] || continue
+		echo "${socket##*/}"
+		return
+	done
+
+	echo "wlan0"
+}
+
 scan_networks() {
 	# Check if wpa_cli is available
 	if ! command -v wpa_cli >/dev/null 2>&1; then
 		echo '{"error": "wpa_cli not available"}'
 		return
 	fi
+
+	IFACE=$(wpa_iface)
 
 	# Check if scan is already in progress
 	SCAN_LOCK="/tmp/wpa_scan.lock"
@@ -80,9 +104,9 @@ scan_networks() {
 
 	# Wait up to 8 seconds for ongoing scan to complete
 	while [ -f "$SCAN_LOCK" ] && [ $SCAN_WAIT -lt 8 ]; do
-		# Check if lock is stale (older than 15 seconds)
+		# Check if lock is stale (older than 25 seconds)
 		LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
-		if [ $LOCK_AGE -gt 15 ]; then
+		if [ $LOCK_AGE -gt 25 ]; then
 			rm -f "$SCAN_LOCK"
 			break
 		fi
@@ -96,7 +120,7 @@ scan_networks() {
 	else
 		# Create lock file and trigger new scan
 		touch "$SCAN_LOCK"
-		wpa_cli -i wlan0 scan >/dev/null 2>&1
+		wpa_cli -i "$IFACE" scan >/dev/null 2>&1
 		sleep 2
 	fi
 
@@ -104,7 +128,7 @@ scan_networks() {
 	echo "{\"networks\": ["
 
 	first=1
-	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS="$(printf '\t')" read -r bssid _ signal flags ssid; do
+	wpa_cli -i "$IFACE" scan_results 2>/dev/null | tail -n +2 | while IFS="$(printf '\t')" read -r bssid _ signal flags ssid; do
 		# Skip empty SSIDs and header
 		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
 
@@ -139,6 +163,159 @@ scan_networks() {
 
 	# Clean up lock if we created it
 	[ $SHOULD_SCAN -eq 1 ] && rm -f "$SCAN_LOCK"
+}
+
+scan_start() {
+	if ! command -v wpa_cli >/dev/null 2>&1; then
+		echo '{"error": "wpa_cli not available", "scanning": false}'
+		return
+	fi
+
+	IFACE=$(wpa_iface)
+
+	# Ignore stale locks (older than 25 seconds)
+	SCAN_LOCK="/tmp/wpa_scan.lock"
+	LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
+	[ $LOCK_AGE -gt 25 ] && rm -f "$SCAN_LOCK"
+
+	if [ -f "$SCAN_LOCK" ]; then
+		# A scan is already running; poller will pick it up
+		echo '{"scanning": true}'
+		return
+	fi
+
+	# Snapshot the pre-scan BSS list: scan_status() detects completion
+	# by comparing live results against this baseline instead of firing
+	# more scans, which would queue a phantom second sweep.
+	wpa_cli -i "$IFACE" scan_results 2>/dev/null >/tmp/wpa_scan.baseline
+
+	touch "$SCAN_LOCK"
+	wpa_cli -i "$IFACE" scan >/dev/null 2>&1
+	# Reply immediately; scan_status() reports completion
+	echo '{"scanning": true}'
+}
+
+scan_status() {
+	if ! command -v wpa_cli >/dev/null 2>&1; then
+		echo '{"error": "wpa_cli not available", "scanning": false}'
+		return
+	fi
+
+	IFACE=$(wpa_iface)
+	SCAN_LOCK="/tmp/wpa_scan.lock"
+	BASELINE="/tmp/wpa_scan.baseline"
+
+	# No lock (or a lock without our baseline) means nothing is in
+	# flight: serve whatever results exist without touching the radio.
+	if [ ! -f "$SCAN_LOCK" ] || [ ! -f "$BASELINE" ]; then
+		scan_networks_cached
+		return
+	fi
+
+	# Probe without triggering: `scan_results` is read-only, so polling
+	# it never queues a new sweep. During a sweep it keeps returning
+	# the pre-scan BSS list (the baseline); once the sweep completes,
+	# the content changes (at minimum the signal levels move).
+	RESULTS="$(wpa_cli -i "$IFACE" scan_results 2>/dev/null)"
+	if [ "$RESULTS" != "$(cat "$BASELINE" 2>/dev/null)" ]; then
+		# Sweep finished; release the lock and hand over the results
+		rm -f "$SCAN_LOCK" "$BASELINE"
+
+		# Refresh the prescan cache so page reloads after a manual scan
+		# show the freshest list without another radio sweep. Only write
+		# when the live results actually have entries: AP-mode supplicants
+		# return a header-only list when the driver cannot survey while
+		# hosting, and that must not poison the S38 cache.
+		if [ "$(count_networks "$RESULTS")" -gt 0 ]; then
+			echo "$RESULTS" >/tmp/wifi_prescan
+		fi
+
+		scan_networks_cached
+		return
+	fi
+
+	# Backstop: identical content after 20 s means the sweep returned
+	# byte-identical results (possible when signals do not jitter) or
+	# the driver never completed it. Either way, stop polling and serve
+	# whatever we have instead of waiting forever.
+	LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
+	if [ $LOCK_AGE -ge 20 ]; then
+		rm -f "$SCAN_LOCK" "$BASELINE"
+		scan_networks_cached
+		return
+	fi
+
+	echo '{"scanning": true}'
+}
+
+# Count real BSS entries in raw wpa_cli output: strip the banner and
+# the column header, then count what is left. Header-only output from
+# an AP-mode supplicant counts as zero.
+count_networks() {
+	echo "$1" | grep -v '^Selected interface' | tail -n +2 | grep -c .
+}
+
+# Read-only results reader without triggering a new scan
+scan_networks_cached() {
+	if ! command -v wpa_cli >/dev/null 2>&1; then
+		echo '{"error": "wpa_cli not available"}'
+		return
+	fi
+
+	IFACE=$(wpa_iface)
+
+	# Live results when a reachable supplicant has BSS entries. The
+	# portal supplicant is always reachable in portal mode, but its BSS
+	# list stays empty unless a manual scan just ran: scan_results then
+	# succeeds with header-only output. That must not shadow the
+	# prescan cache written by S38 before the AP went up.
+	RESULTS="$(wpa_cli -i "$IFACE" scan_results 2>/dev/null)"
+	if [ "$(count_networks "$RESULTS")" -eq 0 ] && [ -f /tmp/wifi_prescan ]; then
+		RESULTS="$(cat /tmp/wifi_prescan)"
+	fi
+
+	format_networks "$RESULTS"
+}
+
+# Format raw `wpa_cli scan_results` output (tab-separated) as JSON
+format_networks() {
+	echo "{\"networks\": ["
+
+	first=1
+	# Strip the "Selected interface" banner wpa_cli prints when run
+	# without -i, then drop the column header line before parsing
+	echo "$1" | grep -v '^Selected interface' | tail -n +2 | while IFS="$(printf '\t')" read -r bssid _ signal flags ssid; do
+		# Skip empty SSIDs and header
+		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
+
+		# Determine security type
+		if echo "$flags" | grep -q "WPA2-PSK"; then
+			security="WPA2"
+		elif echo "$flags" | grep -q "WPA-PSK"; then
+			security="WPA"
+		elif echo "$flags" | grep -q "WEP"; then
+			security="WEP"
+		else
+			security="Open"
+		fi
+
+		# Output JSON without trailing commas
+		if [ $first -eq 0 ]; then
+			echo ","
+		else
+			first=0
+		fi
+		cat <<-NETWORK
+			{
+				"ssid": "$(json_encode "$ssid")",
+				"bssid": "$(json_encode "$bssid")",
+				"signal": $signal,
+				"security": "$(json_encode "$security")"
+			}
+		NETWORK
+	done
+
+	echo "]}"
 }
 
 parse_post() {
@@ -265,6 +442,15 @@ case "$PARAM_action" in
 		;;
 	scan_networks)
 		json_response "$(scan_networks)"
+		;;
+	scan_cached)
+		json_response "$(scan_networks_cached)"
+		;;
+	scan_start)
+		json_response "$(scan_start)"
+		;;
+	scan_status)
+		json_response "$(scan_status)"
 		;;
 	save)
 		parse_post
