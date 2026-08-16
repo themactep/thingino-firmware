@@ -292,6 +292,7 @@ Current lifecycle shape:
 - `thingino-agentd` enforces loopback-only non-TLS binds and requires `agent.token` before allowing non-loopback TLS exposure
 - the managed listeners expose `/api/v1/*`, with the native listener handling request routing directly instead of via web-root CGI assets
 - default config keeps the listener disabled until explicitly enabled in `thingino.json`
+- omnibus `GET /config` and `GET /state` (`runtime all`) may take several seconds on Raptor; the native listener allows up to 30s of overall agentctl capture time and no longer kills on short stdout idle gaps. Failure returns HTTP 503 with an error JSON body instead of HTTP 200 with an empty body. The Raptor adapter batches section reads for those omnibus paths; narrow `/settings/*` and `/runtime/<resource>` routes stay single-key and unchanged.
 
 ## Risks
 
@@ -300,6 +301,7 @@ Current lifecycle shape:
 - serving the API from a streamer would lock the northbound contract to one backend boundary
 - keeping stale CGI compatibility assets around after the transport migrated would obscure which layer owns the live API path
 - remote exposure before auth is solid creates avoidable risk
+- hubs that treated empty HTTP 200 on `/config` or `/state` as "empty config" must treat 503 as a soft failure and retry instead
 
 ## Acceptance checklist for the first package
 

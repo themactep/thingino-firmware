@@ -46,9 +46,74 @@ agent_json_bool_field() {
 	esac
 }
 
+# Omnibus GET /config and GET /state prefetch sections via
+# `raptorctl config get <section>` (one IPC call per section) into a PID-scoped
+# cache. Narrow /settings and /runtime paths leave the cache unset and keep
+# single-key raptorctl gets.
+agent_config_cache_begin() {
+	AGENT_CFG_CACHE="/tmp/thingino-agent-raptor-cfg.$$"
+	_raptor_osd_shared_ready=
+	: >"$AGENT_CFG_CACHE"
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	for section in sensor image motion recording audio stream0 stream1 rtsp osd \
+		osd.timestamp osd.uptime osd.camera osd.logo osd.privacy; do
+		raptorctl config get "$section" 2>/dev/null | awk -v s="$section" '
+			/^\[/ { next }
+			/^[[:space:]]*$/ { next }
+			{
+				eq = index($0, "=")
+				if (eq < 1) next
+				key = substr($0, 1, eq - 1)
+				val = substr($0, eq + 1)
+				gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+				gsub(/^[[:space:]]+/, "", val)
+				gsub(/[[:space:]]+$/, "", val)
+				if (key == "") next
+				printf "%s\t%s\t%s\n", s, key, val
+			}
+		' >>"$AGENT_CFG_CACHE"
+	done
+}
+
+agent_config_cache_end() {
+	rm -f "$AGENT_CFG_CACHE" \
+		"/tmp/thingino-agent-raptor-isp.$$" \
+		"/tmp/thingino-agent-raptor-wb.$$"
+	AGENT_CFG_CACHE=
+	_raptor_osd_shared_ready=
+	_raptor_osd_font=
+	_raptor_osd_font_size=
+	_raptor_osd_stroke_size=
+	_raptor_osd_time_format=
+	_raptor_osd_fill_ui=
+	_raptor_osd_stroke_ui=
+	_raptor_osd_logo_enabled=
+	_raptor_osd_logo_position=
+	_raptor_osd_logo_path=
+	_raptor_osd_logo_width=
+	_raptor_osd_logo_height=
+	_raptor_osd_time_enabled=
+	_raptor_osd_time_position=
+	_raptor_osd_uptime_enabled=
+	_raptor_osd_uptime_format=
+	_raptor_osd_uptime_position=
+	_raptor_osd_usertext_enabled=
+	_raptor_osd_usertext_format=
+	_raptor_osd_usertext_position=
+}
+
 agent_config_get() {
 	section=$1
 	key=$2
+	if [ -n "$AGENT_CFG_CACHE" ] && [ -f "$AGENT_CFG_CACHE" ]; then
+		awk -F '\t' -v s="$section" -v k="$key" '
+			$1 == s && $2 == k {
+				print $3
+				exit
+			}
+		' "$AGENT_CFG_CACHE" | tr -d '\r\n"'
+		return 0
+	fi
 	command -v raptorctl >/dev/null 2>&1 || return 0
 	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
 }
@@ -878,44 +943,72 @@ agent_print_stream_config() {
 	printf '}'
 }
 
+agent_osd_shared_prepare() {
+	# Global OSD keys are identical for both streams; load once per omnibus call.
+	[ "$_raptor_osd_shared_ready" = 1 ] && return 0
+	_raptor_osd_font=$(agent_config_get osd font)
+	_raptor_osd_font_size=$(agent_config_get osd font_size)
+	_raptor_osd_stroke_size=$(agent_config_get osd font_stroke)
+	_raptor_osd_time_format=$(agent_config_get osd time_format)
+	_fill=$(agent_config_get osd font_color)
+	_stroke=$(agent_config_get osd stroke_color)
+	_raptor_osd_fill_ui=
+	_raptor_osd_stroke_ui=
+	[ -n "$_fill" ] && _raptor_osd_fill_ui=$(agent_osd_color_to_ui "$_fill")
+	[ -n "$_stroke" ] && _raptor_osd_stroke_ui=$(agent_osd_color_to_ui "$_stroke")
+	_raptor_osd_logo_enabled=$(agent_config_bool osd.logo visible false)
+	_raptor_osd_logo_position=$(agent_config_get osd.logo position)
+	_raptor_osd_logo_path=$(agent_config_get osd.logo path)
+	_raptor_osd_logo_width=$(agent_config_get osd.logo width)
+	_raptor_osd_logo_height=$(agent_config_get osd.logo height)
+	_raptor_osd_time_enabled=$(agent_config_bool osd.timestamp visible false)
+	_raptor_osd_time_position=$(agent_config_get osd.timestamp position)
+	_raptor_osd_uptime_enabled=$(agent_config_bool osd.uptime visible false)
+	_raptor_osd_uptime_format=$(agent_config_get osd.uptime template)
+	_raptor_osd_uptime_position=$(agent_config_get osd.uptime position)
+	_raptor_osd_usertext_enabled=$(agent_config_bool osd.camera visible false)
+	_raptor_osd_usertext_format=$(agent_config_get osd.camera template)
+	_raptor_osd_usertext_position=$(agent_config_get osd.camera position)
+	_raptor_osd_shared_ready=1
+}
+
 agent_print_stream_osd() {
 	# Raptor ROD is mostly global; streamN only owns osd_enabled. Both streams
 	# still expose the same element tree so OSD pages can hydrate via GET /config.
 	stream_id=$1
+	agent_osd_shared_prepare
 	printf '{'
 	printf '"enabled":%s,' "$(agent_config_bool "$(agent_stream_section "$stream_id")" osd_enabled true)"
-	printf '"font_path":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd font)")"
-	printf '"font_size":%s,' "$(thingino_agent_json_value_or "$(agent_config_get osd font_size)" null)"
-	printf '"stroke_size":%s,' "$(thingino_agent_json_value_or "$(agent_config_get osd font_stroke)" null)"
+	printf '"font_path":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_font")"
+	printf '"font_size":%s,' "$(thingino_agent_json_value_or "$_raptor_osd_font_size" null)"
+	printf '"stroke_size":%s,' "$(thingino_agent_json_value_or "$_raptor_osd_stroke_size" null)"
 	printf '"logo":{'
-	printf '"enabled":%s,' "$(agent_config_bool osd.logo visible false)"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.logo position)")"
-	printf '"path":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.logo path)")"
-	printf '"width":%s,' "$(thingino_agent_json_value_or "$(agent_config_get osd.logo width)" null)"
-	printf '"height":%s' "$(thingino_agent_json_value_or "$(agent_config_get osd.logo height)" null)"
+	printf '"enabled":%s,' "$_raptor_osd_logo_enabled"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_logo_position")"
+	printf '"path":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_logo_path")"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$_raptor_osd_logo_width" null)"
+	printf '"height":%s' "$(thingino_agent_json_value_or "$_raptor_osd_logo_height" null)"
 	printf '},'
 	printf '"time":{'
-	printf '"enabled":%s,' "$(agent_config_bool osd.timestamp visible false)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd time_format)")"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.timestamp position)")"
-	_fill=$(agent_config_get osd font_color)
-	_stroke=$(agent_config_get osd stroke_color)
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"enabled":%s,' "$_raptor_osd_time_enabled"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_time_format")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_time_position")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_fill_ui")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$_raptor_osd_stroke_ui")"
 	printf '},'
 	printf '"uptime":{'
-	printf '"enabled":%s,' "$(agent_config_bool osd.uptime visible false)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.uptime template)")"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.uptime position)")"
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"enabled":%s,' "$_raptor_osd_uptime_enabled"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_uptime_format")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_uptime_position")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_fill_ui")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$_raptor_osd_stroke_ui")"
 	printf '},'
 	printf '"usertext":{'
-	printf '"enabled":%s,' "$(agent_config_bool osd.camera visible false)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.camera template)")"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_config_get osd.camera position)")"
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$([ -n "$_fill" ] && agent_osd_color_to_ui "$_fill")")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$([ -n "$_stroke" ] && agent_osd_color_to_ui "$_stroke")")"
+	printf '"enabled":%s,' "$_raptor_osd_usertext_enabled"
+	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_usertext_format")"
+	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_usertext_position")"
+	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$_raptor_osd_fill_ui")"
+	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$_raptor_osd_stroke_ui")"
 	printf '}'
 	printf '}'
 }
@@ -1232,6 +1325,7 @@ thingino_agent_adapter_raptor_get_runtime() {
 	resource=${1:-all}
 	case "$resource" in
 		all)
+			agent_config_cache_begin
 			printf '{'
 			printf '"system":%s,' "$(agent_print_runtime_system)"
 			printf '"network":%s,' "$(agent_print_runtime_network)"
@@ -1252,6 +1346,7 @@ thingino_agent_adapter_raptor_get_runtime() {
 			agent_print_stream_runtime 1
 			printf ']'
 			printf '}\n'
+			agent_config_cache_end
 			;;
 		system)
 			agent_print_runtime_system
@@ -1348,6 +1443,7 @@ thingino_agent_adapter_raptor_get_runtime() {
 }
 
 thingino_agent_adapter_raptor_get_config() {
+	agent_config_cache_begin
 	printf '{'
 	printf '"image":{'
 	printf '"brightness":%s,' "$(thingino_agent_json_value_or "$(agent_image_raw brightness)" null)"
@@ -1383,6 +1479,7 @@ thingino_agent_adapter_raptor_get_config() {
 	printf '"config_path":%s' "$(thingino_agent_json_string "$AGENT_CONFIG")"
 	printf '}}'
 	printf '}\n'
+	agent_config_cache_end
 }
 
 agent_setting_value() {
