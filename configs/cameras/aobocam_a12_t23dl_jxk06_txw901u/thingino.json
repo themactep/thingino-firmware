@@ -1,0 +1,9 @@
+{
+  "gpio": {
+    "button_reset": 62,
+    "button_2": 63,
+    "ir940": 53,
+    "ircut": -1,
+    "mmc_cd": 52
+  }
+}
