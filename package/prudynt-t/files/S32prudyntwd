@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC2154,SC2329,SC3043
 
 RTSP_URL="rtsp://thingino:thingino@127.0.0.1/ch0"
 PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID

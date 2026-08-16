@@ -26,7 +26,7 @@ stop() {
 	pidof prudynt || return 0
 
 	if [ -p "$FIFO_PATH" ]; then
-		if exec 3<> "$FIFO_PATH"; then
+		if exec 3<>"$FIFO_PATH"; then
 			printf 'STOP\n' >&3
 			exec 3>&-
 		else

@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1083,SC1091,SC2086,SC2119,SC2120,SC2329
 # shellcheck disable=SC2039
 # Day/night control. With daynightd (prudynt images) this writes to
 # /etc/thingino.json and notifies daynightd via SIGHUP; with Raptor

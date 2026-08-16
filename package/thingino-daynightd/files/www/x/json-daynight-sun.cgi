@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1091,SC2329
 # Read/write daynight.sun config directly from /etc/prudynt.json via jct.
 # Bypasses prudynt API which does not know about these fields.
 

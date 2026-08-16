@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1091,SC2329,SC3043
 
 # thingino day/night configuration access
 # Backed by /etc/thingino.json under the "daynight" key.

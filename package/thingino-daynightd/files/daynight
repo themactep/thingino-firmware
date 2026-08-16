@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC3043
 # Unified day/night switching script for Thingino
 # Reads control flags from thingino.json, toggles hardware via ircut/light/color
 # Installed by thingino-daynight; called by streamers (prudynt, raptor, daynightd)

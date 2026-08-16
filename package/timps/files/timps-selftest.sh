@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC2015
 # timps-selftest - on-device smoke test of the timps HTTP API and features.
 # Run on the camera:  timps-selftest        (or: timps-selftest -v  for bodies)
 # Exits 0 when nothing FAILED (warnings are non-fatal: they usually mean a

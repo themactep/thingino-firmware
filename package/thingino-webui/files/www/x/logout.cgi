@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1091
 
 . /var/www/x/session.sh
 
@@ -7,7 +11,7 @@ session_id=$(get_session_from_cookie)
 
 # Delete the session
 if [ -n "$session_id" ]; then
-  delete_session "$session_id"
+	delete_session "$session_id"
 fi
 
 # Clear the cookie and redirect to login

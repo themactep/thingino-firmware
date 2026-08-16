@@ -21,7 +21,7 @@ case "$1" in
 	-g)
 		while IFS='=,' read -r PNUM PNAME PX PY; do
 			[ "${PNUM#\#}" != "$PNUM" ] || echo "$PNUM=$PNAME,$PX,$PY"
-		done < "$PTZ_CONF_FILE"
+		done <"$PTZ_CONF_FILE"
 		exit 0
 		;;
 	-a)
@@ -49,27 +49,27 @@ case "$1" in
 			USED=0
 			while IFS= read -r line; do
 				case "$line" in
-					\#*) echo "$line" >> "$TEMP_FILE" ;;
+					\#*) echo "$line" >>"$TEMP_FILE" ;;
 					*)
 						PNUM=$(echo "$line" | cut -d'=' -f1)
 						VALS=$(echo "$line" | cut -d'=' -f2)
 						PX=$(echo "$VALS" | cut -d',' -f2)
 						PY=$(echo "$VALS" | cut -d',' -f3)
 						if [ "$USED" -eq 0 ] && { [ -z "$PX" ] || [ -z "$PY" ]; }; then
-							echo "$PNUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$TEMP_FILE"
+							echo "$PNUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >>"$TEMP_FILE"
 							USED=1
 							PRESET_NUM=$PNUM
 						else
-							echo "$line" >> "$TEMP_FILE"
+							echo "$line" >>"$TEMP_FILE"
 						fi
 						;;
 				esac
-			done < "$PTZ_CONF_FILE"
+			done <"$PTZ_CONF_FILE"
 
 			if [ "$USED" -eq 0 ]; then
 				PRESET_NUM=$(awk -F= '/^[0-9]+=/ {print $1}' "$PTZ_CONF_FILE" | sort -n | tail -n1)
 				PRESET_NUM=$((PRESET_NUM + 1))
-				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$TEMP_FILE"
+				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >>"$TEMP_FILE"
 			fi
 
 			mv "$TEMP_FILE" "$PTZ_CONF_FILE"
@@ -80,7 +80,7 @@ case "$1" in
 				sed -i "s/^$PRESET_NUM=.*/$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y/" "$PTZ_CONF_FILE"
 				echo "Preset $PRESET_NUM updated."
 			else
-				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$PTZ_CONF_FILE"
+				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >>"$PTZ_CONF_FILE"
 				echo "Preset $PRESET_NUM added."
 			fi
 		fi
@@ -111,7 +111,7 @@ case "$1" in
 					exit 1
 				fi
 			fi
-		done < "$PTZ_CONF_FILE"
+		done <"$PTZ_CONF_FILE"
 		echo "Preset $PRESET_NUM not found."
 		exit 1
 		;;

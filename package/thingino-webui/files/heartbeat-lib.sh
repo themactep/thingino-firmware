@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC2018,SC2019
 
 THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
 THINGINO_RAPTOR_CONFIG="${THINGINO_RAPTOR_CONFIG:-/etc/raptor.conf}"

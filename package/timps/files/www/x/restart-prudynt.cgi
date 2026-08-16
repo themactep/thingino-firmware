@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1091
 # timps replacement for the streamer restart CGI (same name, same URL,
 # because the WebUI calls /x/restart-prudynt.cgi; also installed as
 # restart-timps.cgi). Restarts the timps streamer service.

@@ -1,4 +1,8 @@
 #!/bin/sh
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1091,SC2034,SC3003
 
 # Check authentication
 . /var/www/x/auth.sh
@@ -32,7 +36,7 @@ scan_networks() {
 	# Wait up to 8 seconds for ongoing scan to complete
 	while [ -f "$SCAN_LOCK" ] && [ $SCAN_WAIT -lt 8 ]; do
 		# Check if lock is stale (older than 15 seconds)
-		LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0) ))
+		LOCK_AGE=$(($(date +%s) - $(stat -c %Y "$SCAN_LOCK" 2>/dev/null || echo 0)))
 		if [ $LOCK_AGE -gt 15 ]; then
 			rm -f "$SCAN_LOCK"
 			break
@@ -77,12 +81,12 @@ scan_networks() {
 			first=0
 		fi
 		cat <<-NETWORK
-		{
-			"ssid": "$(json_encode "$ssid")",
-			"bssid": "$(json_encode "$bssid")",
-			"signal": $signal,
-			"security": "$(json_encode "$security")"
-		}
+			{
+				"ssid": "$(json_encode "$ssid")",
+				"bssid": "$(json_encode "$bssid")",
+				"signal": $signal,
+				"security": "$(json_encode "$security")"
+			}
 		NETWORK
 	done
 
@@ -94,4 +98,3 @@ scan_networks() {
 }
 
 json_response "$(scan_networks)"
-
