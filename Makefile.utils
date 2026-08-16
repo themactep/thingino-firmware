@@ -1,0 +1,442 @@
+### Buildroot
+
+# delete all build/{package} and per-package/{package} files
+br-%-dirclean:
+	@$(TEAL) "$@"
+	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
+		$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
+		$(OUTPUT_DIR)/target
+	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
+
+br-%: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) $(subst br-,,$@)
+
+# checkout buidroot submodule
+buildroot/Makefile:
+	@$(TEAL) "$@"
+	git submodule init
+	git submodule update --remote --recursive
+
+# create output directory
+$(OUTPUT_DIR)/.keep:
+	@$(TEAL) "$@"
+	test -d $(OUTPUT_DIR) || mkdir -p $(OUTPUT_DIR)
+	touch $@
+
+# generate a base Buildroot config when missing
+$(OUTPUT_DIR)/.config:
+	@$(TEAL) "$@"
+	$(MAKE) force-config
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+# MMC SD card image layout:
+#   Block 0:      INGE header (total size + descriptor terminator)
+#   Block 1-33:   Reserved
+#   Block 34:     SPL (first SPL_PAD_TO bytes of u-boot-with-spl-lzma.bin)
+#   Block 86:     U-Boot image (remainder of u-boot-with-spl-lzma.bin)
+#   1MiB+:        FAT32 partition with uImage
+#   After FAT32:  ext4 partition for rootfs
+#
+# The SPL and U-Boot image are raw binary components extracted from
+# u-boot-with-spl-lzma.bin.
+
+SPL_PAD_TO := 26624
+SPL_BLOCK  := 34
+UBOOT_BLOCK := 86
+INGE_SIZE  := 512
+FAT_START_MB := 1
+FAT_SIZE_MB  := 16
+ROOTFS_MMC := $(OUTPUT_DIR)/images/rootfs.ext2
+
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
+	@$(TEAL) "$@"
+	@echo "Building MMC SD card image..."
+	# calculate image size
+	$(eval SD_SIZE_MB := $(shell echo $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) + ($$(stat -c%s $(ROOTFS_MMC)) / 1048576) + 4 ))))
+	# create blank image
+	dd if=/dev/zero of=$@ bs=1M count=$(SD_SIZE_MB) status=none
+	# generate INGE header at block 0: magic(4) + total_size_le32(4) + zeros(24) + terminator(4)
+	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
+	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size > $@.inge
+	dd if=$@.inge of=$@ bs=1 count=36 conv=notrunc status=none && rm -f $@.inge
+	# write SPL at block 34 (first SPL_PAD_TO bytes of U-Boot binary)
+	dd if=$(U_BOOT_BIN) of=$@ bs=512 seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none
+	# write U-Boot image at block 86 (after SPL_PAD_TO)
+	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$(SPL_PAD_TO) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
+	# create partition table (overwrites block 0 but leaves boot data alone)
+	parted $@ --script mklabel msdos \
+		mkpart primary fat32 $(FAT_START_MB)MiB $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB \
+		mkpart primary ext4 $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB 100%
+	# restore INGE header over MBR (bytes 0-35, partition table at 446+ untouched)
+	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
+	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size | dd of=$@ bs=1 count=36 conv=notrunc status=none
+	# populate FAT partition with kernel
+	dd if=/dev/zero of=$@.fat bs=1M count=$(FAT_SIZE_MB) status=none
+	mkfs.vfat -F 32 $@.fat > /dev/null
+	mcopy -i $@.fat $(KERNEL_BIN) ::uImage
+	dd if=$@.fat of=$@ bs=512 seek=$$(( $(FAT_START_MB) * 2048 )) conv=notrunc status=none && rm -f $@.fat
+	# populate ext4 rootfs partition
+	dd if=$(ROOTFS_MMC) of=$@ bs=512 seek=$$(( ($(FAT_START_MB) + $(FAT_SIZE_MB)) * 2048 )) conv=notrunc status=none
+	@echo "SD image: $@ ($(SD_SIZE_MB) MB)"
+	@echo "  Block 0:    INGE header"
+	@echo "  Block $(SPL_BLOCK):   SPL ($(SPL_PAD_TO) bytes)"
+	@echo "  Block $(UBOOT_BLOCK):   U-Boot image"
+	@echo "  $(FAT_START_MB)MiB:     FAT32 (uImage)"
+	@echo "  $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB:     ext4 rootfs"
+
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+# SFC-NAND firmware image (UBI). Layout per the fork's t40-isvp-nand.dtsi:
+#   0x000000..0x100000  boot : SPL @ 0 + U-Boot @ 0x8000 (raw, from the u-boot bin)
+#   0x100000..end       ubi  : multi-volume UBI, assembled here with ubinize
+#       vol0 uboot-env (dynamic, holds the CONFIG_ENV_IS_IN_UBI env image)
+#       vol1 kernel    (static, the uImage; U-Boot does "ubi read ... kernel;bootm")
+#       vol2 rootfs    (static squashfs, read-only via ubiblock -> /dev/ubiblock0_2)
+#       vol3 overlay   (dynamic UBIFS, autoresize to fill the chip)
+# Geometry from the dtsi: 128 KiB erase block, 1 MiB boot region; 2 KiB page is
+# standard for these SPI-NAND parts. CONFIRM per chip (U-Boot "mtd list").
+# The full-chip image is written with the Ingenic USB NAND programmer (adds
+# ECC/OOB, skips bad blocks) - it is NOT a raw dd target like NOR.
+NAND_PEB       := 0x20000
+NAND_PAGE      := 0x800
+UBI_IMG        := $(OUTPUT_DIR)/images/rootfs.ubi
+UBINIZE_CFG    := $(OUTPUT_DIR)/ubinize-nand.cfg
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(UB_ENV_BIN)
+	@$(TEAL) "$@"
+	# 1) multi-volume ubinize config (rootfs pinned to vol_id 2 == /dev/ubiblock0_2)
+	@{ \
+	  printf '[uboot-env]\nmode=ubi\nvol_id=0\nvol_type=dynamic\nvol_name=uboot-env\nvol_size=256KiB\nimage=%s\n\n' "$(UB_ENV_BIN)"; \
+	  printf '[kernel]\nmode=ubi\nvol_id=1\nvol_type=static\nvol_name=kernel\nimage=%s\n\n' "$(KERNEL_BIN)"; \
+	  printf '[rootfs]\nmode=ubi\nvol_id=2\nvol_type=static\nvol_name=rootfs\nimage=%s\n\n' "$(ROOTFS_BIN)"; \
+	  printf '[overlay]\nmode=ubi\nvol_id=3\nvol_type=dynamic\nvol_name=overlay\nvol_size=512KiB\nvol_flags=autoresize\n'; \
+	} > $(UBINIZE_CFG)
+	# 2) assemble the UBI image (the "ubi" MTD partition payload)
+	$(HOST_DIR)/sbin/ubinize -o $(UBI_IMG) -p $(NAND_PEB) -m $(NAND_PAGE) $(UBINIZE_CFG)
+	# 3) full-chip: 1 MiB 0xff-filled boot region + u-boot @ 0, then UBI @ 0x100000
+	dd if=/dev/zero bs=1M count=1 status=none | tr '\000' '\377' > $@
+	dd if=$(U_BOOT_BIN) of=$@ conv=notrunc status=none
+	cat $(UBI_IMG) >> $@
+	@echo "NAND image: $@ (boot @ 0x0, ubi @ 0x100000)"
+
+else
+# SFC (SPI flash) firmware image
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(DATA_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+	@$(TEAL) "$@"
+	# create a blank slab
+	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
+	# add bootloader partition
+	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	# add U-Boot environment partition only if it does not overlap the bootloader payload
+	@if [ $(U_BOOT_BIN_SIZE) -le $(UB_ENV_OFFSET) ]; then \
+		dd if=$(UB_ENV_BIN) bs=$(UB_ENV_BIN_SIZE) seek=$(UB_ENV_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	else \
+		echo "Skipping U-Boot environment partition: bootloader overlaps env slot"; \
+	fi
+	# add kernel partition
+	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	# add rootfs partition
+	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	# add data partition
+	@if [ $(DATA_BIN_SIZE) -gt 0 ]; then \
+	  dd if=$(DATA_BIN) bs=$(DATA_BIN_SIZE) seek=$(DATA_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	fi
+endif
+
+# create data partition image (merged config + extras, single overlay)
+$(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
+	@$(TEAL) "$@"
+	# remove older image if present
+	if [ -f $@ ]; then rm $@; fi
+	rm -rf $(OUTPUT_DIR)/data
+	mkdir -p $(OUTPUT_DIR)/data/overlay
+	# add layered user overlays (files that go into overlayfs upperdir)
+	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
+		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/; \
+	done
+	# delete stub files
+	find $(OUTPUT_DIR)/data/overlay -name ".*keep" -o -name ".empty" -delete
+	# add user opt files into the overlay (they'll be at /opt at runtime,
+	# shadowing any /opt files from the rootfs lowerdir)
+	for dir in $(THINGINO_USER_OPT_DIRS); do \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
+	done
+	# pack the data partition image
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \
+		--eraseblock=$(ALIGN_BLOCK) --pad=$(DATA_PARTITION_SIZE)
+
+# rebuild kernel
+$(KERNEL_BIN):
+	@$(TEAL) "$@"
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) linux-rebuild)
+#	mv -vf $(OUTPUT_DIR)/images/uImage $@
+
+# rebuild rootfs (depends on kernel to ensure proper build order)
+$(ROOTFS_BIN): $(KERNEL_BIN)
+	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs)
+
+CAMERA_UENV_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt)
+
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMERA_UENV_FILE) $(THINGINO_USER_UENV_FILES)
+	@$(TEAL) "$@"
+	rm -f $@
+	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
+	if [ -f "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt" ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/uenv.txt | awk NF | tee -a $@; \
+	fi
+	for file in $(THINGINO_USER_UENV_FILES); do \
+		grep -v '^#' "$$file" | awk NF | tee -a $@; \
+	done
+	sort -u -o $@ $@
+	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
+	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d; /^data_addr=/d; /^data_size=/d; /^overlay_wipe=/d' $@
+	echo 'overlay_wipe=echo \"wiping overlay\"; sf probe && sf erase $${data_addr} $${data_size} && echo \"overlay wipe done\"' >> $@
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	# MMC boot: set bootargs and load kernel from FAT partition
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	# SFC-NAND boot: kernel + squashfs rootfs live in UBI volumes inside the
+	# "ubi" MTD partition (layout from the fork's t40-isvp-nand.dtsi).
+	#   U-Boot: "ubi part ubi" attaches it, then reads + boots the "kernel" volume.
+	#   Kernel: the ingenic SFC-NAND driver registers its MTD under the SFC
+	#     controller name (sfc_nand single-SFC, sfc0_nand on T41's dual SFC) and
+	#     parses partitions from the cmdline (cmdlinepart) - it does NOT read
+	#     U-Boot's DT - so mtdparts= is REQUIRED. "ubi.mtd=ubi" attaches the rest
+	#     as ubi0; "ubi.block=0,rootfs" exposes the squashfs "rootfs" volume as
+	#     /dev/ubiblock0_2. root= / rootfstype= come from the flash-nand fragment.
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)ubi part ubi;ubi read $${loadaddr} kernel;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} mtdparts=$(UBOOT_FLASH_CONTROLLER):1024k(boot),-(ubi) ubi.mtd=ubi ubi.block=0,rootfs root=$${root} rootfstype=$${rootfstype} init=$${init};bootm $${loadaddr}' >> $@
+	# NAND autoupdate: the sf (SPI-NOR) autoupdate from common.uenv.txt cannot flash
+	# NAND, so replace it with a full-chip mtd erase + write of the NAND
+	# thingino-<camera>.bin (placed on the SD card as autoupdate-full.bin). "mtd write"
+	# adds ECC/OOB and skips bad blocks; the whole-chip erase clears stale UBI PEBs.
+	# HW-validated on T40XP: the bootrom loads an mtd-written SPL. Prepended
+	# $(AUTOUPDATE_PREFIX) above wires it into the NAND bootcmd (the sf path already
+	# had it); both are stripped for non-SDCARD builds by the guard below.
+	sed -i '/^autoupdate=/d' $@
+	echo 'autoupdate=if test "$${enable_updates}" = "true"; then echo "checking for update file"; if fatsize mmc 0:1 autoupdate-full.done; then echo "AU: already applied"; else if fatload mmc 0:1 $${loadaddr} autoupdate-full.bin; then echo "AU: flashing autoupdate-full.bin"; if mtd erase spi-nand0 && mtd write spi-nand0 $${loadaddr} 0x0 $${filesize}; then fatwrite mmc 0:1 $${loadaddr} autoupdate-full.done 1; echo "AU: done, rebooting"; reset; fi; fi; fi; fi' >> $@
+else
+	# SFC boot: read kernel from SPI flash
+	echo "root=/dev/mtdblock$(ROOTFS_MTD_NUM)" >> $@
+	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
+	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
+	echo "data_addr=$$(printf '0x%x' $(DATA_OFFSET))" >> $@
+	echo "data_size=$$(printf '0x%x' $(DATA_PARTITION_SIZE))" >> $@
+	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
+endif
+	@if ! grep -q '^BR2_THINGINO_SDCARD=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		sed -i '/^autoupdate=/d; /^loaduenv=/d; /^mmc_power=/d; /^preboot=/d; /^gpio_mmc_power=/d; /^gpio_mmc_power_active_low=/d; s|run autoupdate;||; s|run loaduenv;||' $@; \
+	fi
+	@if ! grep -q '^BR2_THINGINO_BUTTON=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		sed -i '/^button_cmd_0_name=/d; /^button_cmd_0=/d; /^overlay_wipe=/d; /^gpio_button=/d' $@; \
+	fi
+	exit
+
+# Rebuild U-Boot with actual partition sizes after rootfs is ready
+$(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
+	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
+
+$(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
+	@$(TEAL) "$@"
+	# size must match U-Boot CONFIG_ENV_SIZE (configs/uboot/layout/sfcnor.config)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
+
+build-all:
+	@$(TEAL) "$@"
+	@echo "Building all cameras from $(CAMERA_SUBDIR)"
+	@log_dir="$(HOME)/output-$(GIT_BRANCH)/build-all-logs-$$(date +%Y%m%d-%H%M%S)"; \
+	mkdir -p "$$log_dir"; \
+	echo "Logs will be saved to: $$log_dir"; \
+	failed_cameras=""; \
+	total=0; \
+	success=0; \
+	failed=0; \
+	for camera_dir in $(CAMERA_SUBDIR)/*; do \
+		if [ -d "$$camera_dir" ]; then \
+			camera=$$(basename $$camera_dir); \
+			total=$$((total + 1)); \
+			log_file="$$log_dir/$$camera.log"; \
+			echo ""; \
+			echo "========================================"; \
+			echo "Building camera $$total: $$camera"; \
+			echo "Log: $$log_file"; \
+			echo "========================================"; \
+			if env -u OUTPUT_DIR $(MAKE) CAMERA=$$camera distclean defconfig build_fast pack 2>&1 | tee "$$log_file"; then \
+				echo "[OK] SUCCESS: $$camera" | tee -a "$$log_file"; \
+				success=$$((success + 1)); \
+			else \
+				echo "[FAIL] FAILED: $$camera" | tee -a "$$log_file"; \
+				failed=$$((failed + 1)); \
+				failed_cameras="$$failed_cameras$$camera\n"; \
+			fi; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "========================================" | tee "$$log_dir/summary.log"; \
+	echo "BUILD SUMMARY" | tee -a "$$log_dir/summary.log"; \
+	echo "========================================" | tee -a "$$log_dir/summary.log"; \
+	echo "Total cameras: $$total" | tee -a "$$log_dir/summary.log"; \
+	echo "Successful: $$success" | tee -a "$$log_dir/summary.log"; \
+	echo "Failed: $$failed" | tee -a "$$log_dir/summary.log"; \
+	echo "Logs saved to: $$log_dir" | tee -a "$$log_dir/summary.log"; \
+	if [ $$failed -gt 0 ]; then \
+		echo "" | tee -a "$$log_dir/summary.log"; \
+		echo "Failed cameras:" | tee -a "$$log_dir/summary.log"; \
+		echo -e "$$failed_cameras" | tee -a "$$log_dir/summary.log"; \
+		exit 1; \
+	fi
+
+help:
+	@$(TEAL) "$@"
+	@echo -e "\n\
+	Usage:\n\
+	  make bootstrap      install system deps\n\
+	  make setup-hooks    configure local git hooks path (.githooks)\n\
+	  make update         update local repo and submodules (excludes buildroot)\n\
+	  make                build from scratch (clean + parallel) [DEFAULT]\n\
+	  make dev            serial build for debugging compilation errors\n\
+	  make fast           fast incremental build (no clean)\n\
+	  make cleanbuild     same as 'make' (clean + parallel build)\n\
+	  make build          serial build (no clean)\n\
+	  make pack           create firmware images\n\
+	  make build-info     generate post-build graphs and package analysis\n\
+	  make clean          clean before reassembly\n\
+	  make distclean      start building from scratch\n\
+	  make rebuild-<pkg>  clean/rebuild/reinstall <pkg> and run target-finalize\n\
+	  make bundle-<pkg>   create a .tgz bundle for <pkg> (requires CAMERA=)\n\
+	  make show-vars      print key build variables\n\
+	  make build-all      build all camera configs one by one\n\
+	  make help           print this help\n\
+	  make run <bin>      run a target binary via QEMU (e.g. make run bin/ffmpeg)\n\
+	  make tftp-copy      copy image to TFTP server\n\
+	  make tftp-upload    upload image to TFTP server\n\
+	  \n\
+	Configuration Management:\n\
+	  make defconfig      configure buildroot (auto-detects changes)\n\
+	  make check-config   check if configuration needs regeneration\n\
+	  make force-config   force configuration regeneration\n\
+	  make show-config-deps  show configuration dependencies\n\
+	  make clean-config   remove configuration files\n\
+	  make PRISTINE=1     ignore user files\n\
+	  \n\
+	Buildroot Submodule Management:\n\
+	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
+	  \n\
+	  make ota IP=192.168.1.10\n\
+	                      upload full firmware image to the camera\n\
+	                        over network, and flash it\n\n\
+	  make ota-kernel IP=192.168.1.10\n\
+	                      upload and flash kernel only\n\
+	  make ota-uboot IP=192.168.1.10\n\
+	                      upload and flash bootloader + env\n\
+	  make ota-rootfs IP=192.168.1.10\n\
+	                      upload and flash rootfs + data\n\
+	  make ota-upgrade IP=192.168.1.10\n\
+	                      upload and flash rootfs + data with config backup\n\
+	  make backup-overlay IP=192.168.1.10\n\
+	                      backup /overlay/ from camera to\n\
+	                        $(THINGINO_BACKUP_DIR)\n\n\
+	"
+
+# Print key variables commonly needed for tooling
+show-vars:
+	@$(TEAL) "$@"
+	@echo "AVPU_CLK = $(AVPU_CLK)";
+	@echo "AVPU_CLK_SRC = $(AVPU_CLK_SRC)";
+	@echo "BR2_DL_DIR = $(BR2_DL_DIR)";
+	@echo "BR2_EXTERNAL = $(BR2_EXTERNAL)";
+	@echo "BR2_LIBC_NAME = $(BR2_LIBC_NAME)";
+	@echo "BR2_MAKE = $(BR2_MAKE)";
+	@echo "BR2_TARGET_UBOOT_BOARDNAME = $(BR2_TARGET_UBOOT_BOARDNAME)";
+	@echo "BR2_TARGET_UBOOT_BOARD_DEFCONFIG = $(BR2_TARGET_UBOOT_BOARD_DEFCONFIG)";
+	@echo "BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES = $(BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES)";
+	@echo "BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME = $(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME)";
+	@echo "BR2_TOOLCHAIN_EXTERNAL_URL = $(BR2_TOOLCHAIN_EXTERNAL_URL)";
+	@echo "CAMERA = $(CAMERA)";
+	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
+	@echo "FLASH_SIZE = $(FLASH_SIZE)";
+	@echo "FLASH_SIZE_KB = $(FLASH_SIZE_KB)";
+	@echo "FLASH_SIZE_MB = $(FLASH_SIZE_MB)";
+	@echo "HOST_DIR = $(HOST_DIR)";
+	@echo "IP = $(IP)";
+	@echo "ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS = $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS)";
+	@echo "ISP_CH0_PRE_DEQUEUE_TIME = $(ISP_CH0_PRE_DEQUEUE_TIME)";
+	@echo "ISP_CH0_PRE_DEQUEUE_VALID_LINES = $(ISP_CH0_PRE_DEQUEUE_VALID_LINES)";
+	@echo "ISP_CLK = $(ISP_CLK)";
+	@echo "ISP_CLKA_CLK = $(ISP_CLKA_CLK)";
+	@echo "ISP_CLKA_CLK_SRC = $(ISP_CLKA_CLK_SRC)";
+	@echo "ISP_CLK_SRC = $(ISP_CLK_SRC)";
+	@echo "ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM = $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)";
+	@echo "ISP_MEMOPT = $(ISP_MEMOPT)";
+	@echo "KERNEL_BRANCH = $(KERNEL_BRANCH)";
+	@echo "KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)";
+	@echo "KERNEL_SITE = $(KERNEL_SITE)";
+	@echo "KERNEL_TARBALL_URL = $(KERNEL_TARBALL_URL)";
+	@echo "KERNEL_VERSION = $(KERNEL_VERSION)";
+	@echo "OUTPUT_DIR = $(OUTPUT_DIR)";
+	@echo "SENSOR_1_MODEL = $(SENSOR_1_MODEL)";
+	@echo "SENSOR_2_MODEL = $(SENSOR_2_MODEL)";
+	@echo "SENSOR_3_MODEL = $(SENSOR_3_MODEL)";
+	@echo "SENSOR_4_MODEL = $(SENSOR_4_MODEL)";
+	@echo "SOC_FAMILY = $(SOC_FAMILY)";
+	@echo "SOC_FAMILY_CAPS = $(SOC_FAMILY_CAPS)";
+	@echo "SOC_MODEL = $(SOC_MODEL)";
+	@echo "SOC_MODEL_LESS_Z = $(SOC_MODEL_LESS_Z)";
+	@echo "SOC_RAM_MB = $(SOC_RAM_MB)";
+	@echo "SOC_VENDOR = $(SOC_VENDOR)";
+	@echo "STREAMER = $(STREAMER)";
+	@echo "THINGINO_USER_CAMERA_DIR = $(THINGINO_USER_CAMERA_DIR)";
+	@echo "THINGINO_USER_COMMON_DIR = $(THINGINO_USER_COMMON_DIR)";
+	@echo "THINGINO_USER_DEVICE_DIR = $(THINGINO_USER_DEVICE_DIR)";
+	@echo "THINGINO_USER_DIR = $(THINGINO_USER_DIR)";
+	@echo "THINGINO_USER_FRAGMENT_FILES = $(THINGINO_USER_FRAGMENT_FILES)";
+	@echo "THINGINO_USER_JSON_FILES = $(THINGINO_USER_JSON_FILES)";
+	@echo "THINGINO_USER_PRUDYNT_JSON_FILES = $(THINGINO_USER_PRUDYNT_JSON_FILES)";
+	@echo "THINGINO_USER_MK_FILES = $(THINGINO_USER_MK_FILES)";
+	@echo "THINGINO_USER_OPT_DIRS = $(THINGINO_USER_OPT_DIRS)";
+	@echo "THINGINO_USER_OVERLAY_DIRS = $(THINGINO_USER_OVERLAY_DIRS)";
+	@echo "THINGINO_USER_UENV_FILES = $(THINGINO_USER_UENV_FILES)";
+	@echo "THINGINO_BACKUP_DIR = $(THINGINO_BACKUP_DIR)";
+	@echo "UBOOT_BOARDNAME = $(UBOOT_BOARDNAME)";
+	@echo "UBOOT_DEFCONFIG = $(UBOOT_DEFCONFIG)";
+	@echo "UBOOT_BIN_NAME = $(UBOOT_BIN_NAME)";
+	@echo "UBOOT_CONFIG_FRAGMENT_FILES = $(UBOOT_CONFIG_FRAGMENT_FILES)";
+
+run:
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
+
+dfu:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
+	$(HOST_DIR)/bin/thingino-dfu \
+		-w $(FIRMWARE_BIN_FULL) \
+		--firmware-dir $(HOST_DIR)/share/thingino-dfu/firmware --reboot
+
+scriba:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run \`make\` first to build firmware."; exit 1; }
+	@if [ ! -x $(HOST_DIR)/bin/scriba ]; then \
+		echo "Building host-scriba..."; \
+		$(BR2_MAKE) host-scriba; \
+		if [ -x $(OUTPUT_DIR)/per-package/host-scriba/host/bin/scriba ] && [ ! -x $(HOST_DIR)/bin/scriba ]; then \
+			cp $(OUTPUT_DIR)/per-package/host-scriba/host/bin/scriba $(HOST_DIR)/bin/scriba; \
+		fi; \
+	fi
+	$(HOST_DIR)/bin/scriba -W $(FIRMWARE_BIN_FULL)
+
+# Catch-all rule: forward undefined targets to buildroot
+# This allows running buildroot targets directly without the br- prefix
+# e.g., "make linux-menuconfig" instead of "make br-linux-menuconfig"
+# Note: This must come after all explicit target definitions
+# Note: check-config is NOT a prerequisite here because:
+#   1. It would break non-buildroot targets (like when this rule incorrectly matched 'update')
+#   2. Buildroot targets will fail gracefully if config is missing
+#   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
+.DEFAULT: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) $@
