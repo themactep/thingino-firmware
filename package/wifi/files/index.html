@@ -443,7 +443,10 @@ scanBtn.addEventListener('click', async () => {
     scanBtn.disabled = false;
     ssidInput.disabled = false;
     ssidInput.style.opacity = '1';
-    if (!networksScanned) {
+    // Restore only when rendering never happened (e.g. fetch error);
+    // otherwise renderNetworks already set the right placeholder
+    // ('Pick a network...' or 'No networks found').
+    if (ssidInput.placeholder === 'Scanning for networks...') {
       ssidInput.placeholder = originalPlaceholder;
     }
     scanSpinner.classList.add('hidden');
