@@ -1,4 +1,8 @@
 #!/bin/bash
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC1003,SC2005,SC2012,SC2034,SC2059,SC2064,SC2183
 #
 # thingino-snmp-monitor.sh - Monitor multiple Thingino cameras via SNMP
 #

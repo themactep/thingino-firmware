@@ -124,3 +124,53 @@ f=configs/cameras/<camera>/<camera>_defconfig
 diff <(git show HEAD:$f | grep -v '^\s*$' | sort) \
      <(grep -v '^\s*$' $f | sort)
 ```
+
+## Shellcheck suppression policy
+
+`package/`, `overlay/`, and most scripts were never shellcheck-clean, so
+the tree carries a legacy baseline. Files with findings carry a header
+after the shebang:
+
+```
+# Targeted shellcheck baseline: intentional busybox-ash idioms,
+# template artifacts, and runtime-only sources in this file.
+# New findings of other codes still fail. Policy: docs/pre-commit-hooks.md
+# shellcheck disable=SC3043,SC2086,...
+```
+
+The `disable` list is **exactly the codes the file triggered** at baseline
+time — nothing more. The suppressed categories are:
+
+- `SC3043`, `SC3026`, `SC3037`, `SC3045`, `SC3046`, `SC3051`, `SC3052`,
+  `SC3054`, `SC3057`, `SC3060` — busybox ash extensions (`local`,
+  `echo -n/-e`, `${var//old/new}`, `source`, `$(( ))` with `$`, shifts)
+  that the cameras' BusyBox ash supports but POSIX does not define.
+- `SC2018`, `SC2019`, `SC2028`, `SC2034`, `SC2153`, `SC2154` — `tr`
+  byte-escape usage and variables consumed by sourced code or the runtime
+  environment.
+- `SC1090`, `SC1091` — sourced files that exist only on the target at
+  runtime (e.g. `/var/www/x/auth.sh`), not in the repo.
+- `SC2086`, `SC2046`, `SC2068` — intentional word splitting of internal
+  variables (e.g. `$DAEMON_ARGS` must word-split).
+- `SC2317`, `SC2329` — functions invoked via variable names, and
+  single-use functions kept for readability.
+- `SC2015` — intentional `test && cmd || other` one-liners.
+- `SC2162`, `SC2059`, `SC2004`, `SC2155`, `SC2181`, `SC2126`, `SC2220`,
+  `SC2231`, `SC2295` — idiomatic busybox-ash patterns.
+
+Rules for contributors:
+
+- Do **not** add codes to a baseline header to silence new findings —
+  that defeats the point. Fix the code or add a targeted per-line
+  `# shellcheck disable=SCxxxx` with a comment.
+- If a file's findings are genuinely fixed, remove the header.
+- `*.patch` files are excluded from all formatting checks entirely.
+
+A full-tree sweep (same selector as the hook) must stay clean:
+
+```bash
+git ls-files | while read -r f; do
+    [ -f "$f" ] || continue
+    head -1 "$f" | grep -qE '^#!.*/(ba)?sh' && shellcheck -x "$f"
+done
+```
