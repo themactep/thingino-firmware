@@ -333,14 +333,14 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S31prudynt \
 		$(TARGET_DIR)/etc/init.d/S31prudynt
 	# Recording storage manager (reads the recorder section of prudynt.json)
-	ifeq ($(BR2_THINGINO_DEV_IPCAM),y)
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95recordmgr \
-		$(TARGET_DIR)/etc/init.d/S95recordmgr
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/recordmgr \
-		$(TARGET_DIR)/usr/sbin/recordmgr
-	else
-	rm -f $(TARGET_DIR)/etc/init.d/S95recordmgr $(TARGET_DIR)/usr/sbin/recordmgr
-	endif
+	if [ "$(BR2_THINGINO_DEV_IPCAM)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95recordmgr \
+			$(TARGET_DIR)/etc/init.d/S95recordmgr; \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/recordmgr \
+			$(TARGET_DIR)/usr/sbin/recordmgr; \
+	else \
+		rm -f $(TARGET_DIR)/etc/init.d/S95recordmgr $(TARGET_DIR)/usr/sbin/recordmgr; \
+	fi
 #	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
 #		$(TARGET_DIR)/etc/init.d/S32prudyntwd
 	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
