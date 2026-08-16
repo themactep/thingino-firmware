@@ -207,6 +207,43 @@ Remove only configuration files.
 make clean-config
 ```
 
+### RAM Builds
+
+Build the entire output tree on a tmpfs (RAM) so the build's writes never
+reach the SSD, then copy the finished artifacts back to disk. This is intended
+for **cold builds**: a from-scratch build is the most disk-write-intensive
+operation, pushing roughly 9 GB of compilation output at the storage device.
+Incremental development rebuilds (`make fast`) are cheap on the SSD and should
+be done on a real disk instead.
+
+```bash
+make ram-setup        # once per boot: raise the tmpfs inode limit
+CAMERA=<camera> make ram-build
+```
+
+#### `ram-setup`
+Remounts the tmpfs backing `RAM_BUILD_DIR` (default `/tmp/thingino-build`)
+with `nr_inodes=4m`. A full build creates ~1.1M files and dirs (per-package
+dirs alone are ~800k entries), which exceeds the stock `/tmp` limit of
+`nr_inodes=1m`. The remount is lost on reboot, so re-run it after each boot or
+make it permanent with a `tmp.mount` drop-in.
+
+#### `ram-build`
+Redirects `OUTPUT_DIR` to the tmpfs, runs a normal build (`all`), then:
+
+1. copies `images/` and `logs/` back to the disk output dir,
+2. copies `.config*`, `buildscope-report.json`, and `uenv.txt` back,
+3. removes the tmpfs tree, freeing RAM for the next camera.
+
+The generated `images/<camera>.md` records a `Disk Writes:` line - bytes
+written to the physical disk during the build, measured from
+`/proc/diskstats` - so the wear savings of a RAM build versus a disk build can
+be compared directly.
+
+Every `ram-build` is a cold build because the tmpfs tree is wiped afterward.
+ccache (`~/.buildroot-ccache`) and the download cache (`dl/`) stay on disk and
+make the recompile cheap.
+
 ---
 
 ## Configuration Management

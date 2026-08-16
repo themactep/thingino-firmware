@@ -86,6 +86,17 @@ def format_duration(duration_seconds):
     return f"{hours}:{minutes:02d}:{seconds:02d}"
 
 
+def format_bytes(size_bytes):
+    """Format a byte count as a compact human-readable string."""
+    for unit in ('B', 'K', 'M', 'G', 'T'):
+        if size_bytes < 1024 or unit == 'T':
+            if unit == 'B':
+                return f"{int(size_bytes)}B"
+            return f"{size_bytes:.1f}{unit}".replace('.0', '')
+        size_bytes /= 1024
+    return f"{size_bytes}B"
+
+
 def main():
     parser = argparse.ArgumentParser(description='Save partition information to markdown file')
     parser.add_argument('output_file', help='Output markdown file path')
@@ -124,6 +135,7 @@ def main():
     parser.add_argument('data_size_kb', type=int)
     parser.add_argument('flash_size_kb', type=int)
     parser.add_argument('build_duration_seconds', type=int)
+    parser.add_argument('disk_bytes_written', type=int)
     parser.add_argument('flash_controller', nargs='?', default='jz_sfc')
 
     args = parser.parse_args()
@@ -203,7 +215,7 @@ MTD Partition Details
 
 Build: {args.git_branch}+{args.git_hash}, {args.build_date}
 Build Duration: {format_duration(args.build_duration_seconds)} ({args.build_duration_seconds}s)
-
+Disk Writes: {format_bytes(args.disk_bytes_written)} ({args.disk_bytes_written} bytes)
 """
 
     # Write to file
