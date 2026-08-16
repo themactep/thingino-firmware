@@ -21,7 +21,10 @@ decrement_mac() {
 
 start() {
 	ethaddr=$(fw_printenv -n ethaddr 2>/dev/null || jct /etc/thingino.json get eth.mac 2>/dev/null)
-	[ -z "$ethaddr" ] && { echo "Error: MAC address not found" >&2; exit 1; }
+	[ -z "$ethaddr" ] && {
+		echo "Error: MAC address not found" >&2
+		exit 1
+	}
 	host_addr=$ethaddr
 	usbmac=$(fw_printenv -n usbmac 2>/dev/null)
 	if [ -z "$usbmac" ]; then

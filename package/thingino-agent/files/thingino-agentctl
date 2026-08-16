@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# shellcheck disable=SC1091  # lib.sh is installed on the camera, not in the build tree
 . /usr/libexec/thingino-agent/lib.sh
 
 THINGINO_AGENT_ADAPTER=
@@ -7,6 +8,7 @@ THINGINO_AGENT_ADAPTER=
 load_adapter_modules() {
 	for module in /usr/libexec/thingino-agent/adapters/*.sh; do
 		[ -r "$module" ] || continue
+		# shellcheck disable=SC1090  # dynamic adapter module; cannot be followed statically
 		. "$module"
 	done
 }
@@ -264,6 +266,7 @@ select_adapter || exit 1
 # shadow the others. Clear the shared default vars and re-source the
 # winner so its helpers and defaults take precedence.
 unset AGENT_CONFIG AGENT_PRIVACY_STATE
+# shellcheck disable=SC1090  # dynamic adapter module; cannot be followed statically
 . "/usr/libexec/thingino-agent/adapters/$THINGINO_AGENT_ADAPTER.sh"
 
 case "$command" in

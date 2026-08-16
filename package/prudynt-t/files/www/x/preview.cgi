@@ -1,5 +1,7 @@
 #!/bin/sh
+# shellcheck disable=SC3043  # busybox ash supports local; POSIX does not define it
 
+# shellcheck disable=SC1091  # auth.sh is installed on the camera, not in the build tree
 . /var/www/x/auth.sh
 require_auth
 
@@ -196,6 +198,7 @@ UPLOAD_FILE=$(mktemp /tmp/preview-file.XXXXXX) || {
 	send_error '500 Internal Server Error' 'Unable to allocate upload buffer.'
 }
 
+# shellcheck disable=SC2329  # cleanup is invoked via `trap cleanup EXIT INT TERM` below
 cleanup() {
 	rm -f "$REQUEST_FILE" "$UPLOAD_FILE"
 }

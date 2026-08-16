@@ -26,7 +26,10 @@ start() {
 	# Skip gadget load if g_webcam composite already provides NCM
 	if ! lsmod 2>/dev/null | grep -q g_webcam; then
 		ethaddr=$(fw_printenv -n ethaddr 2>/dev/null || jct /etc/thingino.json get eth.mac 2>/dev/null)
-		[ -z "$ethaddr" ] && { echo "Error: MAC address not found" >&2; exit 1; }
+		[ -z "$ethaddr" ] && {
+			echo "Error: MAC address not found" >&2
+			exit 1
+		}
 		host_addr=$ethaddr
 		decrement_mac
 		usb-role -m device
