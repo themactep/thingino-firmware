@@ -14,19 +14,42 @@ On every `git commit`, the hook processes **staged** files only:
 
 | Staged files | Action | Tool |
 |---|---|---|
+| any changed file matching `scripts/do-not-edit.txt` | reject | `scripts/check-do-not-edit.sh` |
 | `package/thingino-webui/files/www/a/*.js` | reformat | Prettier (via `npx`) |
 | `configs/cameras*/…defconfig…` | sort entries | `scripts/sort_defconfig.py` |
 | any file starting with `#!/bin/sh` | reformat | `shfmt -w -i 0 -ci` |
+| any file starting with `#!…/(ba)?sh` | lint | `shellcheck -x` |
+| `package/*/files/*.webui.json` | validate | `scripts/check-plugins.sh` |
 
-All three actions modify the file in the working tree and re-stage it with
-`git add`, so the commit already contains the normalized version.
+The reformat actions modify the file in the working tree and re-stage it with
+`git add`, so the commit already contains the normalized version. The reject
+and lint actions fail the commit instead.
 
 > **Note:** because the hook re-stages the whole file, partial staging
 > (`git add -p`) of an affected file will end up fully staged. Commit
 > formatting-sensitive files separately if that matters to you.
 
 `shfmt` must be installed for the shell-script step; the hook aborts the
-commit with a message if it is missing.
+commit with a message if it is missing. `scripts/dep_check.sh` (run by
+`make dep-check`) verifies shfmt, npx, and ripgrep are available.
+
+## PR format gate (CI)
+
+`.github/workflows/pr-format.yml` runs on every pull request and applies the
+same criteria as the pre-commit hook — do-not-edit, shfmt, shellcheck,
+Prettier, defconfig sorting, plugin validation — but in **check mode**
+(`-d`/`--check`, fail instead of rewrite) over the files the PR touches.
+Anything that fails in CI would have been caught locally by the hook, so run
+`make dep-check` + `make setup-hooks` in your clone and fix before pushing;
+`make lint` covers the shellcheck/defconfig/plugin halves.
+
+`*.patch` files are excluded from all formatting checks (both in the gate and
+in the hook) — they are generated/vendored artifacts. They remain subject to
+the do-not-edit manifest, which still protects them from being edited.
+
+The shfmt version used in CI is pinned in the workflow (`SHFMT_VERSION` at
+the top of `.github/workflows/pr-format.yml`) — keep it in sync with the
+version you run locally.
 
 ## Camera defconfig sorting
 
