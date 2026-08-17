@@ -96,6 +96,60 @@ ram-build:
 	@rm -rf "$(RAM_OUTPUT_DIR)"
 	@$(GREEN) "Saved artifacts to $(RAM_DISK_OUTPUT_DIR); tmpfs freed."
 
+# Build on tmpfs, in parallel, KEEPING the tree so you can resume after a crash.
+# This is the dev-loop counterpart to ram-build: same SSD-write savings, but the
+# tmpfs output tree is NEVER wiped, so an interrupted build can be resumed
+# package by package - Buildroot rebuilds only the packages whose stamp files
+# were left incomplete by the failed run.  Re-run it as many times as needed:
+#   CAMERA=<camera> make ram-dev
+#   CAMERA=<camera> make ram-dev   # resumes where the last run stopped
+# On success the images/logs are copied back to disk, but the tmpfs tree stays
+# in place for the next iteration.  To abandon the tree and start clean, wipe it
+# by hand: rm -rf "$(RAM_OUTPUT_DIR)"
+ram-dev:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
+	ifree=$$(stat -f -c %d "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0); \
+	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
+	if [ "$$fstype" != "tmpfs" ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
+		echo "       Mount a tmpfs and/or set RAM_BUILD_DIR, then run 'make ram-setup' once."; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$(RAM_OUTPUT_DIR)" ]; then \
+		if [ "$$ifree" -lt 2000000 ]; then \
+			echo "ERROR: only $$ifree free inodes; a fresh build needs ~2M."; \
+			echo "       Run 'make ram-setup' once (raises the tmpfs inode limit)."; \
+			exit 1; \
+		fi; \
+		if [ "$$free_kb" -lt 8388608 ]; then \
+			echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a clean build needs ~7 GiB."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "Resuming existing tree at $(RAM_OUTPUT_DIR) (free: $$(( $$free_kb / 1024 / 1024 )) GiB, $$ifree free inodes)."; \
+	fi
+	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
+	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
+	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" fast
+	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
+	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
+	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
+		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
+		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	fi
+	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
+		[ -e "$$f" ] || continue; \
+		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+	done
+	@for f in buildscope-report.json uenv.txt; do \
+		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
+			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+		fi; \
+	done
+	@$(GREEN) "Build complete. Tree kept at $(RAM_OUTPUT_DIR) - re-run 'make ram-dev' to resume as needed."
+
 # update repo and submodules with buildroot patch management
 update:
 	@$(TEAL) "$@"

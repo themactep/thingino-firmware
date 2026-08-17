@@ -259,6 +259,28 @@ Every `ram-build` is a cold build because the tmpfs tree is wiped afterward.
 ccache (`~/.buildroot-ccache`) and the download cache (`dl/`) stay on disk and
 make the recompile cheap.
 
+#### `ram-dev`
+Resumable parallel dev build on the same tmpfs.  It runs the same parallel
+incremental build (`fast`) but NEVER wipes the tmpfs output tree, so if the
+build crashes partway through you can simply re-run it and pick up exactly where
+it stopped - Buildroot rebuilds only the packages whose stamp files were left
+incomplete by the failed run.
+
+```bash
+CAMERA=<camera> make ram-dev       # first (or fresh) run
+CAMERA=<camera> make ram-dev       # re-run anytime to resume after a crash
+```
+
+The tmpfs inode check is relaxed on resume (a nearly-complete build may have
+consumed most of the inode budget, which would otherwise block you from
+continuing).  On success the images/logs are copied back to disk but the tmpfs
+tree is kept for the next iteration.  To abandon the tree and force a clean
+build, wipe it by hand and run again:
+
+```bash
+rm -rf /tmp/thingino-build
+```
+
 ---
 
 ## Configuration Management
