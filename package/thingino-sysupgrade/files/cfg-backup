@@ -57,6 +57,22 @@ do_write() {
 		set -- "$LIST_FILE" "$@"
 	fi
 
+	# Drop paths that do not exist so tar does not abort midway
+	# (the default list may name files a given camera does not have).
+	_count=$#
+	_i=0
+	while [ "$_i" -lt "$_count" ]; do
+		_p=$1
+		shift
+		if [ -e "$_p" ]; then
+			set -- "$@" "$_p"
+		else
+			echo "cfg-backup: skipping missing path: $_p" >&2
+		fi
+		_i=$((_i + 1))
+	done
+	[ $# -gt 0 ] || die "nothing to back up"
+
 	tmpd=$(mktemp -d)
 	trap 'rm -rf "$tmpd"' EXIT
 
