@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #define AGENT_CONFIG "/etc/thingino.json"
@@ -20,6 +21,10 @@
 #define AGENTCTL_PATH "/usr/sbin/thingino-agentctl"
 #define REQUEST_BUFFER_SIZE 32768
 #define BODY_LIMIT 65536
+/* select() poll slice; idle gaps alone must not kill long agentctl work */
+#define CAPTURE_SELECT_SLICE_SEC 1
+/* hard ceiling for one agentctl capture (omnibus /config and /state) */
+#define CAPTURE_OVERALL_TIMEOUT_SEC 30
 
 struct http_request {
     int client_fd;
@@ -182,6 +187,7 @@ static int capture_command(char *const argv[], const char *stdin_path, char **ou
     size_t used = 0;
     size_t capacity = 0;
     int status = 0;
+    time_t started;
 
     if (pipe(pipe_fd) != 0) {
         return -1;
@@ -210,15 +216,37 @@ static int capture_command(char *const argv[], const char *stdin_path, char **ou
         _exit(127);
     }
     close(pipe_fd[1]);
+    started = time(NULL);
     for (;;) {
         char chunk[4096];
         ssize_t bytes_read;
         fd_set fds;
         struct timeval tv;
+        time_t now;
+        time_t remaining;
+
+        now = time(NULL);
+        if (now < started) {
+            started = now;
+        }
+        if ((now - started) >= CAPTURE_OVERALL_TIMEOUT_SEC) {
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            free(buffer);
+            close(pipe_fd[0]);
+            return -1;
+        }
+        remaining = CAPTURE_OVERALL_TIMEOUT_SEC - (now - started);
+        if (remaining > CAPTURE_SELECT_SLICE_SEC) {
+            remaining = CAPTURE_SELECT_SLICE_SEC;
+        }
+        if (remaining < 1) {
+            remaining = 1;
+        }
 
         FD_ZERO(&fds);
         FD_SET(pipe_fd[0], &fds);
-        tv.tv_sec = 1;
+        tv.tv_sec = (long)remaining;
         tv.tv_usec = 0;
         if (select(pipe_fd[0] + 1, &fds, NULL, NULL, &tv) < 0) {
             if (errno == EINTR) {
@@ -227,12 +255,8 @@ static int capture_command(char *const argv[], const char *stdin_path, char **ou
             break;
         }
         if (!FD_ISSET(pipe_fd[0], &fds)) {
-            /* timeout: kill child, return error */
-            kill(pid, SIGKILL);
-            waitpid(pid, &status, 0);
-            free(buffer);
-            close(pipe_fd[0]);
-            return -1;
+            /* idle slice with overall budget still remaining: keep waiting */
+            continue;
         }
         bytes_read = read(pipe_fd[0], chunk, sizeof(chunk));
 
@@ -497,8 +521,9 @@ static int execute_agentctl_json(int client_fd, char *const argv[], const char *
 
     if (command_status != 0) {
         free(output);
-        /* backend unavailable: return empty payload so caller can fall back */
-        return send_response(client_fd, 200, "OK", "application/json", "", 0);
+        /* Prefer an explicit error over HTTP 200 with an empty body. */
+        return send_json_error(client_fd, 503, "Service Unavailable",
+            "agentctl failed or timed out");
     }
     response_status = send_response(client_fd, 200, "OK", "application/json", output, output_len);
     free(output);
