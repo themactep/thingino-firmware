@@ -53,31 +53,31 @@ shift "$((OPTIND - 1))"
 }
 
 case "$1" in
-off | OFF)
-	echo "OFF" >/var/run/floodlight.status
-	printf '%b' "$(get_floodlight_command_string 0)" >"$DEVICE"
-	log "Setting brightness to 0"
-	;;
-on | ON)
-	[ $# -ne 2 ] && {
+	off | OFF)
+		echo "OFF" >/var/run/floodlight.status
+		printf '%b' "$(get_floodlight_command_string 0)" >"$DEVICE"
+		log "Setting brightness to 0"
+		;;
+	on | ON)
+		[ $# -ne 2 ] && {
+			usage
+			exit 1
+		}
+		if [ "$2" -lt 1 ] || [ "$2" -gt 100 ]; then
+			echo "Invalid brightness value" >&2
+			usage
+			exit 1
+		fi
+		brightness_pct=$2
+		echo "ON" >/var/run/floodlight.status
+		echo "${brightness_pct}" >/var/run/floodlight.brightness
+		printf '%b' "$(get_floodlight_command_string "$brightness_pct")" >"$DEVICE"
+		log "Setting brightness to ${brightness_pct}"
+		;;
+	*)
 		usage
 		exit 1
-	}
-	if [ "$2" -lt 1 ] || [ "$2" -gt 100 ]; then
-		echo "Invalid brightness value" >&2
-		usage
-		exit 1
-	fi
-	brightness_pct=$2
-	echo "ON" >/var/run/floodlight.status
-	echo "${brightness_pct}" >/var/run/floodlight.brightness
-	printf '%b' "$(get_floodlight_command_string "$brightness_pct")" >"$DEVICE"
-	log "Setting brightness to ${brightness_pct}"
-	;;
-*)
-	usage
-	exit 1
-	;;
+		;;
 esac
 
 exit 0
