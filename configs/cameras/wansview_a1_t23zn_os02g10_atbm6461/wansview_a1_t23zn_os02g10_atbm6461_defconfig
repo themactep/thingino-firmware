@@ -21,7 +21,6 @@
 #  - GPIO: ircut=57 (single-pin, phwi0 double/single states), ir940=38 (phwi1),
 #    phwi2=GPIO16 (role TBD: audio amp?), led_b=49, led_r=50
 #    All assignments from AJCloud binary analysis; verify on hardware
-
 BR2_INGENIC_SOC_MODEL="t23zn"
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
