@@ -13,7 +13,10 @@ OPEN_TX_ISP_VERSION = c9d461b89d4abe5115e8c14b222093bd426b926d
 # top-level license file for legal-info to collect.
 OPEN_TX_ISP_LICENSE = GPL-3.0
 
-OPEN_TX_ISP_DEPENDENCIES = ingenic-sdk linux
+OPEN_TX_ISP_DEPENDENCIES = linux
+ifneq ($(KERNEL_VERSION_7),y)
+OPEN_TX_ISP_DEPENDENCIES += ingenic-sdk
+endif
 
 # Build as out-of-tree kernel module
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY)

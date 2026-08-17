@@ -346,8 +346,8 @@ endif
 	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
 	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
-		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
-		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
+		sed -i -e 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
+		sed -i -e '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
 		echo "BR2_LINUX_KERNEL_CUSTOM_GIT=y" >> $(OUTPUT_DIR)/.config; \
 		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_URL="$(KERNEL_SITE)"' >> $(OUTPUT_DIR)/.config; \
 		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="$(KERNEL_HASH)"' >> $(OUTPUT_DIR)/.config; \
@@ -432,4 +432,3 @@ show-config-deps:
 		echo ""; \
 		echo "No dependency tracking file found at $(CONFIG_DEPS_FILE)"; \
 	fi
-
