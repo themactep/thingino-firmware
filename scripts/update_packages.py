@@ -845,12 +845,13 @@ def process_package_release(mk_path: Path, package_name: str, repo_url: str,
 
             if prompt_yes_no(package_name, raw_version, remote_hash):
                 if update_package_mk(mk_path, package_name, raw_version, remote_hash):
-                    hash_result = download_release_tarball_hash(repo_url, remote_hash, package_name, remote_hash)
-                    if hash_result:
-                        sha, tarball = hash_result
-                        update_package_hash_file(mk_path, tarball, sha)
-                    else:
-                        log_warn(f"Could not compute tarball hash for {package_name} {remote_hash}; .hash file not updated")
+                    # Rolling-commit (git repo) packages must NOT get a .hash file.
+                    # buildroot validates git archives by the -git<N> archive name
+                    # (BR_FMT_VERSION_git), which never matches a hash recorded here
+                    # as <pkg>-<version>.tar.gz - a hash entry with a git commit as
+                    # the version is meaningless and breaks the download step.
+                    # Only release-tarball (tag) packages get a hash (see the
+                    # download_release_tarball_hash call in the tag branch above).
                     log_lines = get_commit_log(repo_url, raw_version, remote_hash, branch)
                     if create_package_commit(package_name, mk_path, raw_version, remote_hash, log_lines):
                         PACKAGES_UPDATED += 1
