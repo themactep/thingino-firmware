@@ -33,7 +33,23 @@ jobs:
           fi
 
       - name: Install shellcheck
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+        # Pin a specific shellcheck release so CI matches local dev (0.11.0)
+        # instead of silently drifting with whatever the distro/runner ships.
+        env:
+          SHELLCHECK_VERSION: "0.11.0"
+        run: |
+          set -eu
+          case "$(uname -m)" in
+            x86_64)  arch=x86_64  ;;
+            aarch64) arch=aarch64 ;;
+            *) echo "unsupported arch: $(uname -m)"; exit 1 ;;
+          esac
+          url="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.${arch}.tar.xz"
+          curl -fsSL -o /tmp/shellcheck.tar.xz "$url"
+          mkdir -p /tmp/shellcheck
+          tar xf /tmp/shellcheck.tar.xz -C /tmp/shellcheck --strip-components=1
+          sudo install -m 0755 /tmp/shellcheck/shellcheck /usr/local/bin/shellcheck
+          shellcheck --version | head -n 2
 
       - name: Lint shell scripts
         env:

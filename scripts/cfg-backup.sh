@@ -99,7 +99,9 @@ do_restore() {
 	sz=$(echo "$header" | grep '^size=' | sed 's/^size=//')
 	stored_md5=$(echo "$header" | grep '^md5=' | sed 's/^md5=//')
 
-	[ -n "$sz" ] && [ -n "$stored_md5" ] || die "corrupt backup header"
+	if [ -z "$sz" ] || [ -z "$stored_md5" ]; then
+		die "corrupt backup header"
+	fi
 	[ "$sz" -le "$MAX_PAYLOAD" ] || die "stored size $sz exceeds max $MAX_PAYLOAD"
 
 	dd if="$tmpd/full" of="$tmpd/payload" bs=1 skip="$HEADER_SIZE" count="$sz" 2>/dev/null
