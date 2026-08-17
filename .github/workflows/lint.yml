@@ -36,7 +36,40 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
 
       - name: Lint shell scripts
-        run: find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          if [ -n "$BASE_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+          fi
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "No base SHA available; skipping shellcheck"
+            exit 0
+          fi
+          files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
+          if [ -z "$files" ]; then
+            echo "No files changed; skipping shellcheck"
+            exit 0
+          fi
+          failed=0
+          for file in $files; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.sh)
+                if ! shellcheck -x "$file"; then
+                  failed=1
+                fi
+                ;;
+            esac
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo
+            echo "shellcheck found warnings in changed shell scripts. Fix them and commit again."
+            echo "Use '# shellcheck disable=SCxxxx' with a comment for intentional suppressions."
+            exit 1
+          fi
+          echo "Changed shell scripts pass shellcheck."
 
       - name: Check defconfig sort order
         run: |
