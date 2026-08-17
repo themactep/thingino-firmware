@@ -35,8 +35,8 @@ EOF
 if [ "$REQUEST_METHOD" = "GET" ]; then
 	# Prefer agent motion enable; fall back to prudynt.json
 	motion_data=
-	if command -v thingino-agentctl >/dev/null 2>&1; then
-		enabled=$(thingino-agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
+	if command -v agentctl >/dev/null 2>&1; then
+		enabled=$(agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
 		[ -n "$enabled" ] && motion_data="{\"enabled\":$enabled}"
 	fi
 	if [ -z "$motion_data" ]; then
@@ -119,14 +119,14 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
 	# Motion config — prefer agent when available, else prudynt.json
 	if jct "$temp_json" get motion >/dev/null 2>&1; then
-		if command -v thingino-agentctl >/dev/null 2>&1; then
+		if command -v agentctl >/dev/null 2>&1; then
 			enabled=$(jct "$temp_json" get motion.enabled 2>/dev/null | tr -d '"')
 			case "$enabled" in
 				true | false)
 					tmp=$(mktemp /tmp/send2-motion.XXXXXX) || true
 					if [ -n "$tmp" ]; then
 						printf '{"enabled":%s}\n' "$enabled" >"$tmp"
-						thingino-agentctl set-setting motion/enabled "$tmp" >/dev/null 2>&1 || true
+						agentctl set-setting motion/enabled "$tmp" >/dev/null 2>&1 || true
 						rm -f "$tmp"
 					fi
 					;;

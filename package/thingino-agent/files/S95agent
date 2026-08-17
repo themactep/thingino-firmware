@@ -1,11 +1,11 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC2086
 
-DAEMON="thingino-agentd"
-PIDFILE="/run/thingino-agentd.pid"
-BOOTSTRAP_CONFIG="/etc/thingino-agent-bootstrap.json"
+DAEMON="agentd"
+PIDFILE="/run/agentd.pid"
+BOOTSTRAP_CONFIG="/etc/agent-bootstrap.json"
 
-DAEMON_FULL="/usr/sbin/thingino-agentd"
+DAEMON_FULL="/usr/sbin/agentd"
 DAEMON_ARGS=""
 DAEMON_SYSLOG="false"
 
@@ -151,9 +151,9 @@ ensure_pidfile() {
 }
 
 stop_listener_fallback() {
-	terminate_agent_pids /usr/libexec/thingino-agent/tls-proxy "$(listener_port)" "agent TLS proxy"
-	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(listener_port)" "native agent listener"
-	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(backend_port)" "native TLS backend listener"
+	terminate_agent_pids /usr/libexec/agent/tls-proxy "$(listener_port)" "agent TLS proxy"
+	terminate_agent_pids /usr/libexec/agent/listener "$(listener_port)" "native agent listener"
+	terminate_agent_pids /usr/libexec/agent/listener "$(backend_port)" "native TLS backend listener"
 }
 
 start() {

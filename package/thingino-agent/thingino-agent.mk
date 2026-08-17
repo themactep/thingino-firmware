@@ -8,36 +8,34 @@ THINGINO_AGENT_DEPENDENCIES = thingino-core thingino-jct thingino-mbedtls mbedtl
 endif
 
 define THINGINO_AGENT_BUILD_CMDS
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -o $(@D)/thingino-agentd-native \
-		$(@D)/thingino-agentd-native.c
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -o $(@D)/thingino-agent-tls-proxy \
-		$(@D)/thingino-agent-tls-proxy.c $(@D)/thingino-agent-tls-event.c \
+	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -o $(@D)/agentd-native \
+		$(@D)/agentd-native.c
+	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -o $(@D)/agent-tls-proxy \
+		$(@D)/agent-tls-proxy.c $(@D)/agent-tls-event.c \
 		-lmbedtls -lmbedx509 -lmbedcrypto
 endef
 
 define THINGINO_AGENT_INSTALL_TARGET_CMDS
 	# Stage defaults for later merge by thingino-core
-	$(INSTALL) -D -m 0644 $(THINGINO_AGENT_PKGDIR)/files/thingino-agent.json \
+	$(INSTALL) -D -m 0644 $(THINGINO_AGENT_PKGDIR)/files/agent.json \
 		$(TARGET_DIR)/usr/share/thingino-defaults/20-agent.json
 
-	$(INSTALL) -D -m 0755 $(@D)/S95thingino-agent \
-		$(TARGET_DIR)/etc/init.d/S95thingino-agent
-	$(INSTALL) -D -m 0755 $(@D)/thingino-agentd \
-		$(TARGET_DIR)/usr/sbin/thingino-agentd
-	$(INSTALL) -D -m 0755 $(@D)/thingino-agentd-native \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/listener
-	$(INSTALL) -D -m 0755 $(@D)/thingino-agent-tls-proxy \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/tls-proxy
-	$(INSTALL) -D -m 0755 $(@D)/thingino-agentctl \
-		$(TARGET_DIR)/usr/sbin/thingino-agentctl
-	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-lib \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/lib.sh
-	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-null \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/null.sh
-	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-prudynt \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/prudynt.sh
-	$(INSTALL) -D -m 0644 $(@D)/thingino-agent-adapter-raptor \
-		$(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh
+	$(INSTALL) -D -m 0755 $(@D)/S95agent \
+		$(TARGET_DIR)/etc/init.d/S95agent
+	$(INSTALL) -D -m 0755 $(@D)/agentd \
+		$(TARGET_DIR)/usr/sbin/agentd
+	$(INSTALL) -D -m 0755 $(@D)/agentd-native \
+		$(TARGET_DIR)/usr/libexec/agent/listener
+	$(INSTALL) -D -m 0755 $(@D)/agent-tls-proxy \
+		$(TARGET_DIR)/usr/libexec/agent/tls-proxy
+	$(INSTALL) -D -m 0755 $(@D)/agentctl \
+		$(TARGET_DIR)/usr/sbin/agentctl
+	$(INSTALL) -D -m 0644 $(@D)/agent-lib \
+		$(TARGET_DIR)/usr/libexec/agent/lib.sh
+	# Install the null adapter as the build-time fallback. The chosen streamer
+	# package (prudynt-t or thingino-raptor) overwrites it at this fixed path.
+	$(INSTALL) -D -m 0644 $(@D)/agent-adapter-null \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
 endef
 
 $(eval $(generic-package))

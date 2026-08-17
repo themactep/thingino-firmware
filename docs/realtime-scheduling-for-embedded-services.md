@@ -61,7 +61,7 @@ The TLS proxy had the data but was not being scheduled to read and respond to it
 
 - `prudynt` (video encoder): `SCHED_OTHER`, ~28% wall-clock CPU
 - `isp_fw_process` (kernel ISP thread): `SCHED_OTHER`, ~70% sys time (unkillable kernel loop)
-- `thingino-agent-tls-proxy`: `SCHED_OTHER` — lowest-priority process on a fully-loaded CPU
+- `agent-tls-proxy`: `SCHED_OTHER` — lowest-priority process on a fully-loaded CPU
 
 With every runnable thread at `SCHED_OTHER`, the Linux CFS scheduler distributes time based on
 nice values. The ISP kernel thread and encoder had effectively run all their time slices; the TLS
@@ -83,14 +83,14 @@ signals, sockets, or long-poll instead.
 
 ### Fork depth in the API handler
 
-The `/state` endpoint is handled by a shell adapter script (`thingino-agent-adapter-prudynt`).
+The `/state` endpoint is handled by a shell adapter script (`agent-adapter-prudynt`).
 The `all` resource handler constructs a JSON document by calling ~50 subshell `$(...)` forks:
 
 ```sh
 # Each $(...) is a fork+exec — 14 in this function alone
 printf '"uptime_seconds":%s,' "$(thingino_agent_uptime_seconds)"
 printf '"hostname":%s,'       "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
-printf '"streamer_running":%s,' "$(thingino_agent_prudynt_streamer_running)"
+printf '"streamer_running":%s,' "$(agent_streamer_running)"
 ...
 ```
 
@@ -107,7 +107,7 @@ one must wait its turn on a loaded CPU. With `SCHED_RR`, each one runs as soon a
 chrt -r -p 10 $$ 2>/dev/null || true
 ```
 
-Added at the top of the TLS-mode execution path in `thingino-agentd`, before launching any
+Added at the top of the TLS-mode execution path in `agentd`, before launching any
 child processes.
 
 ### Why this works
@@ -118,13 +118,13 @@ child processes.
 Linux propagates scheduling class and priority through `fork()` and `execve()`. This means:
 
 ```
-thingino-agentd  (SCHED_RR/10)
-  └─ thingino-agentd-native  (SCHED_RR/10, inherited)
+agentd  (SCHED_RR/10)
+  └─ agentd-native  (SCHED_RR/10, inherited)
        └─ [fork per request]  (SCHED_RR/10, inherited)
-            └─ thingino-agentctl  (SCHED_RR/10, inherited via exec)
+            └─ agentctl  (SCHED_RR/10, inherited via exec)
                  └─ $(subshell)   (SCHED_RR/10, inherited)
                       └─ $(subshell)  (SCHED_RR/10, inherited)
-  └─ thingino-agent-tls-proxy  (SCHED_RR/10, inherited)
+  └─ agent-tls-proxy  (SCHED_RR/10, inherited)
        └─ [worker fork ×5]  (SCHED_RR/10, inherited)
 ```
 
@@ -183,7 +183,7 @@ firmware with BusyBox 1.37 and the in-package TLS proxy enabled.
 
 ```text
 PID   PPID USER  STAT  VSZ  %VSZ CPU %CPU COMMAND
-3746  3715 root  R     2020 2.1   0 94.9 /usr/libexec/thingino-agent/tls-proxy --listen 0.0.0.0 --port 1998 ...
+3746  3715 root  R     2020 2.1   0 94.9 /usr/libexec/agent/tls-proxy --listen 0.0.0.0 --port 1998 ...
 ```
 
 - The spike happened during remote HTTPS pairing on `:1998`, not during loopback access to the
@@ -201,7 +201,7 @@ There turned out to be two contributing factors:
       more follow-up API refreshes.
 
 2. **The TLS proxy handshake loop could busy-spin.**
-      In `thingino-agent-tls-event.c`, new TLS connections in handshake state were always registered
+      In `agent-tls-event.c`, new TLS connections in handshake state were always registered
       in both the read and write `select()` sets. On a TCP socket, writability is usually ready
       immediately, so the loop could wake continuously and call `mbedtls_ssl_handshake()` again even
       when mbedTLS was returning `MBEDTLS_ERR_SSL_WANT_READ`. On a loaded single-core device this
@@ -301,10 +301,10 @@ add fork+exec load that compounds the scheduler starvation problem. Replace them
 
 | File | Change |
 |------|--------|
-| `package/thingino-agent/files/thingino-agentd` | Added `chrt -r -p 10 $$` before launching agent processes |
-| `package/thingino-agent/files/S95thingino-agent` | Disable and stop heartbeat service on agent start |
+| `package/thingino-agent/files/agentd` | Added `chrt -r -p 10 $$` before launching agent processes |
+| `package/thingino-agent/files/S95agent` | Disable and stop heartbeat service on agent start |
 | `hub/app/main.py` | Pairing confirmation reduced from a full probe sequence to a single `GET /device` request |
-| `package/thingino-agent/files/thingino-agentd` | Reduced default `THINGINO_AGENT_TLS_WORKERS` from `5` to `1` |
-| `package/thingino-agent/files/thingino-agent-tls-event.c` | Handshake loop now waits only on the socket direction requested by mbedTLS |
+| `package/thingino-agent/files/agentd` | Reduced default `THINGINO_AGENT_TLS_WORKERS` from `5` to `1` |
+| `package/thingino-agent/files/agent-tls-event.c` | Handshake loop now waits only on the socket direction requested by mbedTLS |
 
 Commits: `9496c8d72`, `a5442b958`

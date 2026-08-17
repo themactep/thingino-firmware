@@ -7,7 +7,7 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
-THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui thingino-agent
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 THINGINO_RAPTOR_DEPENDENCIES += openimp
 THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
@@ -156,6 +156,11 @@ define THINGINO_RAPTOR_BUILD_CMDS
 endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
+	# Install the thingino-agent backend adapter at the fixed path, overwriting
+	# the null fallback installed by thingino-agent.
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/agent-adapter \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+
 	# Install selected daemons and tools
 	$(foreach t,$(THINGINO_RAPTOR_TARGETS),\
 		if [ -f $(@D)/$(t)/$(t) ]; then \

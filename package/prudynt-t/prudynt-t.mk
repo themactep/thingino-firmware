@@ -18,7 +18,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-PRUDYNT_T_DEPENDENCIES += thingino-libcurl thingino-webui
+PRUDYNT_T_DEPENDENCIES += thingino-libcurl thingino-webui thingino-agent
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -209,6 +209,11 @@ define PRUDYNT_T_BUILD_CMDS
 endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
+	# Install the thingino-agent backend adapter at the fixed path, overwriting
+	# the null fallback installed by thingino-agent.
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/agent-adapter \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+
 	# Always install stripped binary for firmware (keeps image size small)
 	$(TARGET_CROSS)strip $(@D)/bin/prudynt -o $(TARGET_DIR)/usr/bin/prudynt
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt

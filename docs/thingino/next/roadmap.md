@@ -33,7 +33,7 @@ Current phase 1 status:
 	- `package/thingino-agent` package exists
 	- agent core and adapter split exists
 	- prudynt adapter exists
-	- managed local-only listener lifecycle exists through `thingino-agentd` and `S95thingino-agent`
+	- managed local-only listener lifecycle exists through `agentd` and `S95agent`
 	- compatibility routes exist
 	- narrow `/capabilities/*`, `/runtime/*`, and `/settings/*` routes now cover image, motion tuning, daynight, privacy, services, firmware, most first-pass stream controls, richer system runtime, network, and streaming service runtime
 	- `/health` exists
@@ -70,7 +70,7 @@ Current phase 1 status:
 	- hot validation confirmed richer `runtime/system` and `health` payloads with load-average and memory fields from `/proc`, then restored the default disabled listener state afterward
 	- hot validation confirmed representative send2 capability reads plus send2 setting reads and writes through the managed listener and restored the original values afterward
 	- hot validation confirmed representative services and firmware capability reads through the managed listener
-	- corrected full-image OTA validation now confirms the running device hashes match the rebuilt target for `thingino-agentctl`, `lib.sh`, and the prudynt adapter, and revalidates representative stream, OSD, storage, send2, runtime, health, schema, and SSE hello behavior on the flashed image before restoring the default disabled listener state
+	- corrected full-image OTA validation now confirms the running device hashes match the rebuilt target for `agentctl`, `lib.sh`, and the prudynt adapter, and revalidates representative stream, OSD, storage, send2, runtime, health, schema, and SSE hello behavior on the flashed image before restoring the default disabled listener state
 - partially implemented
 	- bulk `PATCH /config` remains for migration
 	- raptor adapter covers core settings plus OSD leaves and motion send2 output enables; remaining gaps are brightness/privacy OSD leaves
@@ -120,7 +120,7 @@ Current phase 2 status:
 	- dashboard now supports first-pass bulk camera operations for queued refreshes, rescans, and streaming service actions
 	- dashboard now supports first-pass enrollment that writes static camera entries and immediately queues refresh or hydration work
 	- enrollment now includes a guided probe path with duplicate-IP detection plus immediate native API and ONVIF validation before save
-	- enrollment now also supports token handoff by generating a pairing bundle with a bearer token, `/etc/thingino-agent-bootstrap.json` payload, and exact `jct` or restart commands for the camera
+	- enrollment now also supports token handoff by generating a pairing bundle with a bearer token, `/etc/agent-bootstrap.json` payload, and exact `jct` or restart commands for the camera
 - partially implemented
 	- enrollment is now guided, validated, and can hand off a token plus bootstrap payload, but it is still a lightweight operator-assisted form rather than a fuller trust-onboarding workflow
 - not implemented yet
@@ -209,7 +209,7 @@ Deliverables:
 Current phase 5 status:
 
 - partially implemented
-	- `thingino-agent-adapter-raptor` exists and is installed beside the prudynt and null adapters
+	- the raptor agent adapter exists (installed by the raptor package at the fixed agent adapter path)
 	- auto-selection prefers `raptor`, then `prudynt`, then `null`
 	- coverage includes health, capabilities, runtime (including heartbeat), config, events, image/motion/daynight/privacy/storage/stream settings, snapshot, clip, privacy, daynight, streaming service control, reboot, and send2 test
 	- OSD leaf settings are mapped for stream `osd_enabled` plus global font/time/uptime/usertext/logo leaves onto raptor `[osd]` / `[osd.<element>]` (raptor OSD is mostly global; both streams share element config)
