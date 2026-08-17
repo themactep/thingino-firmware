@@ -13,8 +13,8 @@ printf '\r\n'
 
 if [ -x /etc/init.d/S31raptor ]; then
 	/etc/init.d/S31raptor restart >/dev/null 2>&1
-elif command -v thingino-agentctl >/dev/null 2>&1; then
-	thingino-agentctl restart-streamer >/dev/null 2>&1
+elif command -v agentctl >/dev/null 2>&1; then
+	agentctl restart-streamer >/dev/null 2>&1
 else
 	printf '{"error":{"message":"raptor restart unavailable"}}\n'
 	exit 0

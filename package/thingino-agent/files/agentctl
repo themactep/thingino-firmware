@@ -1,87 +1,32 @@
 #!/bin/sh
 
-# shellcheck disable=SC1091  # lib.sh is installed on the camera, not in the build tree
-. /usr/libexec/thingino-agent/lib.sh
-
-THINGINO_AGENT_ADAPTER=
-
-load_adapter_modules() {
-	for module in /usr/libexec/thingino-agent/adapters/*.sh; do
-		[ -r "$module" ] || continue
-		# shellcheck disable=SC1090  # dynamic adapter module; cannot be followed statically
-		. "$module"
-	done
-}
-
-adapter_function() {
-	action=$1
-	printf 'thingino_agent_adapter_%s_%s' "$THINGINO_AGENT_ADAPTER" "$action"
-}
-
-adapter_call() {
-	action=$1
-	shift
-	func=$(adapter_function "$action")
-	if ! command -v "$func" >/dev/null 2>&1; then
-		echo "adapter '$THINGINO_AGENT_ADAPTER' does not implement $action" >&2
-		return 1
-	fi
-	"$func" "$@"
-}
-
-select_adapter() {
-	configured=$(thingino_agent_text_config_value agent.backend)
-	case "$configured" in
-		"" | auto)
-			# Prefer raptor on master images; fall back to prudynt, then timps, then null.
-			for candidate in raptor prudynt timps null; do
-				func="thingino_agent_adapter_${candidate}_detect"
-				if command -v "$func" >/dev/null 2>&1 && "$func"; then
-					THINGINO_AGENT_ADAPTER=$candidate
-					return 0
-				fi
-			done
-			;;
-		raptor | prudynt | timps | null)
-			func="thingino_agent_adapter_${configured}_detect"
-			if command -v "$func" >/dev/null 2>&1 && "$func"; then
-				THINGINO_AGENT_ADAPTER=$configured
-				return 0
-			fi
-			echo "configured backend '$configured' is not available" >&2
-			return 1
-			;;
-		*)
-			echo "unsupported configured backend '$configured'" >&2
-			return 1
-			;;
-	esac
-
-	echo "no camera-agent backend adapter is available" >&2
-	return 1
-}
+# shellcheck disable=SC1091  # lib.sh and adapter.sh are installed on the camera, not in the build tree
+. /usr/libexec/agent/lib.sh
+# The single backend adapter is selected at build time and installed at this
+# fixed path by the chosen streamer package (or the null fallback).
+. /usr/libexec/agent/adapter.sh
 
 print_device() {
-	backend=$(adapter_call name)
+	backend=$(agent_name)
 	printf '{'
-	printf '"id":%s,' "$(thingino_agent_json_string "$(thingino_agent_camera_id)")"
-	printf '"name":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
-	printf '"hostname":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
+	printf '"id":%s,' "$(agent_json_string "$(agent_camera_id)")"
+	printf '"name":%s,' "$(agent_json_string "$(agent_hostname)")"
+	printf '"hostname":%s,' "$(agent_json_string "$(agent_hostname)")"
 	printf '"manufacturer":"Thingino",'
-	printf '"model":%s,' "$(thingino_agent_json_string "$(thingino_agent_camera_model)")"
+	printf '"model":%s,' "$(agent_json_string "$(agent_camera_model)")"
 	printf '"software":{'
-	printf '"firmware_version":%s,' "$(thingino_agent_json_string "$(thingino_agent_firmware_version)")"
+	printf '"firmware_version":%s,' "$(agent_json_string "$(agent_firmware_version)")"
 	printf '"api_version":"0-local",'
-	printf '"streamer":%s' "$(thingino_agent_json_string "$backend")"
+	printf '"streamer":%s' "$(agent_json_string "$backend")"
 	printf '},'
-	printf '"backend":{"name":%s,"available":true}' "$(thingino_agent_json_string "$backend")"
+	printf '"backend":{"name":%s,"available":true}' "$(agent_json_string "$backend")"
 	printf '}\n'
 }
 
 print_config_schema() {
 	printf '{'
 	printf '"version":"0-local",'
-	printf '"format":"thingino-agent-schema",'
+	printf '"format":"agent-schema",'
 	printf '"resources":{'
 	printf '"events":{"transport":"sse","content_type":"text/event-stream","event_types":["hello","state.changed","motion.started","motion.stopped","streamer.restarted","record.completed","firmware.progress","health.warning","sensor.sample","keepalive","error"]},'
 	printf '"config":{"read":true,"patch":true},'
@@ -223,7 +168,7 @@ print_config_schema() {
 
 usage() {
 	cat <<'EOF'
-Usage: thingino-agentctl <command> [args...]
+Usage: agentctl <command> [args...]
 
 Read commands:
   device                        Print canonical device identity JSON
@@ -248,8 +193,8 @@ Write and action commands:
   restart-streamer
   reboot
 
-The agent owns the external API. Backend-specific glue is loaded through the
-installed adapter modules.
+The agent owns the external API. The single backend adapter selected at build
+time (by the streamer package) is loaded from /usr/libexec/agent/adapter.sh.
 EOF
 	exit 1
 }
@@ -258,96 +203,85 @@ command=$1
 [ -n "$command" ] || usage
 shift
 
-load_adapter_modules
-select_adapter || exit 1
-
-# Adapters share streamer-agnostic helper names (agent_*) and defaults,
-# so with every module sourced for detection the last one sourced would
-# shadow the others. Clear the shared default vars and re-source the
-# winner so its helpers and defaults take precedence.
-unset AGENT_CONFIG AGENT_PRIVACY_STATE
-# shellcheck disable=SC1090  # dynamic adapter module; cannot be followed statically
-. "/usr/libexec/thingino-agent/adapters/$THINGINO_AGENT_ADAPTER.sh"
-
 case "$command" in
 	device)
 		print_device
 		;;
 	health)
-		adapter_call get_health
+		agent_get_health
 		;;
 	capabilities)
 		group=${1:-all}
-		adapter_call get_capabilities "$group"
+		agent_get_capabilities "$group"
 		;;
 	runtime)
 		resource=${1:-all}
-		adapter_call get_runtime "$resource"
+		agent_get_runtime "$resource"
 		;;
 	state)
-		adapter_call get_runtime all
+		agent_get_runtime all
 		;;
 	config)
-		adapter_call get_config
+		agent_get_config
 		;;
 	schema)
 		print_config_schema
 		;;
 	events)
-		adapter_call get_events
+		agent_get_events
 		;;
 	get-setting)
 		path=$1
 		[ -n "$path" ] || {
-			echo "usage: thingino-agentctl get-setting <path>" >&2
+			echo "usage: agentctl get-setting <path>" >&2
 			exit 1
 		}
-		adapter_call get_setting "$path"
+		agent_get_setting "$path"
 		;;
 	set-setting)
 		path=$1
 		body_file=$2
 		[ -n "$path" ] || {
-			echo "usage: thingino-agentctl set-setting <path> <json-file>" >&2
+			echo "usage: agentctl set-setting <path> <json-file>" >&2
 			exit 1
 		}
 		[ -n "$body_file" ] || {
-			echo "usage: thingino-agentctl set-setting <path> <json-file>" >&2
+			echo "usage: agentctl set-setting <path> <json-file>" >&2
 			exit 1
 		}
-		adapter_call set_setting "$path" "$body_file"
+		agent_set_setting "$path" "$body_file"
 		;;
 	apply-config)
 		body_file=$1
 		[ -n "$body_file" ] || {
-			echo "usage: thingino-agentctl apply-config <json-file>" >&2
+			echo "usage: agentctl apply-config <json-file>" >&2
 			exit 1
 		}
-		adapter_call apply_config "$body_file"
+		agent_apply_config "$body_file"
 		;;
 	snapshot)
-		adapter_call snapshot "$@"
+		agent_snapshot "$@"
 		;;
 	record)
-		adapter_call record "$@"
+		agent_record "$@"
 		;;
 	privacy)
-		adapter_call privacy "$@"
+		agent_privacy "$@"
 		;;
 	daynight)
-		adapter_call daynight "$@"
+		agent_daynight "$@"
 		;;
 	service)
-		adapter_call service "$@"
+		agent_service "$@"
 		;;
 	restart-streamer)
-		adapter_call service streaming restart
+		agent_service streaming restart
 		;;
 	send2-test)
-		adapter_call send2_test "$@"
+		agent_send2_test "$@"
 		;;
 	reboot)
-		adapter_call reboot
+		agent_reboot
 		;;
 	*)
 		usage

@@ -4,18 +4,12 @@
 AGENT_CONFIG="${AGENT_CONFIG:-/etc/prudynt.json}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 
-thingino_agent_adapter_prudynt_detect() {
-	[ -f "$AGENT_CONFIG" ] ||
-		command -v prudyntctl >/dev/null 2>&1 ||
-		[ -f /etc/init.d/S31prudynt ]
-}
-
-thingino_agent_adapter_prudynt_name() {
+agent_name() {
 	printf 'prudynt'
 }
 
 agent_raw() {
-	thingino_agent_json_config_value "$AGENT_CONFIG" "$1"
+	agent_json_config_value "$AGENT_CONFIG" "$1"
 }
 
 agent_text() {
@@ -27,7 +21,7 @@ agent_streamer_running() {
 }
 
 agent_network_ip() {
-	thingino_agent_default_ip
+	agent_default_ip
 }
 
 agent_network_online() {
@@ -68,7 +62,7 @@ agent_has_privacy() {
 }
 
 agent_has_daynight() {
-	if thingino_agent_has_daynightd || command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$AGENT_CONFIG" ]; then
+	if agent_has_daynightd || command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$AGENT_CONFIG" ]; then
 		printf 'true'
 	else
 		printf 'false'
@@ -106,13 +100,13 @@ agent_send2_motion_key() {
 
 agent_send2_motion_enabled() {
 	service=$1
-	thingino_agent_json_value_or "$(agent_raw "$(agent_send2_motion_key "$service")")" false
+	agent_json_value_or "$(agent_raw "$(agent_send2_motion_key "$service")")" false
 }
 
 agent_send2_raw() {
 	service=$1
 	field=$2
-	thingino_agent_json_config_value "$THINGINO_AGENT_SEND2_CONFIG" "$service.$field"
+	agent_json_config_value "$THINGINO_AGENT_SEND2_CONFIG" "$service.$field"
 }
 
 agent_recorder_raw() {
@@ -155,7 +149,7 @@ agent_storage_json_value() {
 			printf '%s' "$raw_value"
 			;;
 		text)
-			printf '%s' "$(thingino_agent_json_string "$(agent_unquote_string "$raw_value")")"
+			printf '%s' "$(agent_json_string "$(agent_unquote_string "$raw_value")")"
 			;;
 		*)
 			echo "unsupported storage value type: $value_type" >&2
@@ -177,9 +171,9 @@ agent_print_storage_setting() {
 	response_key=$3
 	value_type=$4
 	if [ "$value_type" = text ]; then
-		printf '{"%s":%s}\n' "$response_key" "$(thingino_agent_json_string_or_null "$(agent_recorder_text "$config_key")")"
+		printf '{"%s":%s}\n' "$response_key" "$(agent_json_string_or_null "$(agent_recorder_text "$config_key")")"
 	else
-		thingino_agent_print_setting_leaf "$response_key" "$(agent_recorder_raw "$config_key")"
+		agent_print_setting_leaf "$response_key" "$(agent_recorder_raw "$config_key")"
 	fi
 }
 
@@ -198,7 +192,7 @@ agent_set_storage_setting() {
 	response_key=$3
 	value_type=$4
 	if [ "$value_type" = text ]; then
-		raw_value=$(thingino_agent_json_config_value "$body_file" "$response_key")
+		raw_value=$(agent_json_config_value "$body_file" "$response_key")
 		if [ -z "$raw_value" ]; then
 			if grep -q '"'"$response_key"'"[[:space:]]*:[[:space:]]*""' "$body_file"; then
 				raw_value='""'
@@ -213,7 +207,7 @@ agent_set_storage_setting() {
 	json_value=$(agent_storage_json_value "$value_type" "$raw_value") || return 1
 	agent_apply_payload "{\"recorder\":{\"$config_key\":$json_value}}" || return 1
 	agent_persist_value "recorder.$config_key" "$json_value"
-	thingino_agent_print_setting_update "$storage_path" "$response_key" "$json_value"
+	agent_print_setting_update "$storage_path" "$response_key" "$json_value"
 }
 
 agent_storage_mount_type() {
@@ -230,7 +224,7 @@ agent_storage_resolved_root() {
 	mount_path=$(agent_recorder_text mount)
 	[ -n "$mount_path" ] || return 0
 	device_path=$(agent_recorder_text device_path)
-	hostname=$(thingino_agent_hostname)
+	hostname=$(agent_hostname)
 	device_path=$(printf '%s' "$device_path" | sed "s/%hostname/$hostname/g")
 	case "$device_path" in
 		'') printf '%s' "$mount_path" ;;
@@ -241,7 +235,7 @@ agent_storage_resolved_root() {
 agent_print_runtime_storage() {
 	mount_path=$(agent_recorder_text mount)
 	mount_type=$(agent_storage_mount_type)
-	mounted=$(thingino_agent_json_bool "$(agent_storage_is_mounted)")
+	mounted=$(agent_json_bool "$(agent_storage_is_mounted)")
 	resolved_root=$(agent_storage_resolved_root)
 	writable=false
 	total_kib=null
@@ -261,11 +255,11 @@ agent_print_runtime_storage() {
 		fi
 	fi
 	printf '{'
-	printf '"configured_mount":%s,' "$(thingino_agent_json_string_or_null "$mount_path")"
+	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$mount_path")"
 	printf '"mounted":%s,' "$mounted"
-	printf '"filesystem":%s,' "$(thingino_agent_json_string_or_null "$mount_type")"
-	printf '"record_root":%s,' "$(thingino_agent_json_string_or_null "$resolved_root")"
-	printf '"writable":%s,' "$(thingino_agent_json_bool "$writable")"
+	printf '"filesystem":%s,' "$(agent_json_string_or_null "$mount_type")"
+	printf '"record_root":%s,' "$(agent_json_string_or_null "$resolved_root")"
+	printf '"writable":%s,' "$(agent_json_bool "$writable")"
 	printf '"total_kib":%s,' "$total_kib"
 	printf '"used_kib":%s,' "$used_kib"
 	printf '"available_kib":%s' "$available_kib"
@@ -301,13 +295,13 @@ agent_recording_active_channel() {
 }
 
 agent_print_runtime_recording() {
-	supported=$(thingino_agent_json_bool "$(agent_has_clip)")
-	configured_autostart=$(thingino_agent_json_value_or "$(agent_recorder_raw autostart)" false)
-	configured_channel=$(thingino_agent_json_value_or "$(agent_recorder_raw channel)" null)
-	configured_duration=$(thingino_agent_json_value_or "$(agent_recorder_raw duration)" null)
+	supported=$(agent_json_bool "$(agent_has_clip)")
+	configured_autostart=$(agent_json_value_or "$(agent_recorder_raw autostart)" false)
+	configured_channel=$(agent_json_value_or "$(agent_recorder_raw channel)" null)
+	configured_duration=$(agent_json_value_or "$(agent_recorder_raw duration)" null)
 	configured_mount=$(agent_recorder_text mount)
 	record_root=$(agent_storage_resolved_root)
-	storage_writable=$(thingino_agent_json_bool "$([ "$(agent_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false)")
+	storage_writable=$(agent_json_bool "$([ "$(agent_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false)")
 	active=false
 	current_channel=null
 	current_duration=null
@@ -340,19 +334,19 @@ agent_print_runtime_recording() {
 	fi
 	printf '{'
 	printf '"supported":%s,' "$supported"
-	printf '"active":%s,' "$(thingino_agent_json_bool "$active")"
+	printf '"active":%s,' "$(agent_json_bool "$active")"
 	printf '"configured_autostart":%s,' "$configured_autostart"
 	printf '"configured_channel":%s,' "$configured_channel"
 	printf '"configured_duration_seconds":%s,' "$configured_duration"
-	printf '"configured_mount":%s,' "$(thingino_agent_json_string_or_null "$configured_mount")"
-	printf '"record_root":%s,' "$(thingino_agent_json_string_or_null "$record_root")"
+	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$configured_mount")"
+	printf '"record_root":%s,' "$(agent_json_string_or_null "$record_root")"
 	printf '"writable":%s,' "$storage_writable"
 	printf '"current_channel":%s,' "$current_channel"
 	printf '"current_duration_seconds":%s,' "$current_duration"
-	printf '"current_path":%s,' "$(thingino_agent_json_string_or_null "$current_path")"
-	printf '"current_mount":%s,' "$(thingino_agent_json_string_or_null "$current_mount")"
-	printf '"current_directory":%s,' "$(thingino_agent_json_string_or_null "$current_directory")"
-	printf '"current_name_template":%s,' "$(thingino_agent_json_string_or_null "$current_name_template")"
+	printf '"current_path":%s,' "$(agent_json_string_or_null "$current_path")"
+	printf '"current_mount":%s,' "$(agent_json_string_or_null "$current_mount")"
+	printf '"current_directory":%s,' "$(agent_json_string_or_null "$current_directory")"
+	printf '"current_name_template":%s,' "$(agent_json_string_or_null "$current_name_template")"
 	printf '"loop":%s' "$loop"
 	printf '}'
 }
@@ -363,7 +357,7 @@ agent_print_send2_capabilities() {
 	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
 		printf '%s"%s":{"enabled":true,"send_photo":true,"send_video":%s}' \
 			"$sep" "$service" \
-			"$(thingino_agent_json_bool "$(agent_send2_service_has_send_video "$service" && printf true || printf false)")"
+			"$(agent_json_bool "$(agent_send2_service_has_send_video "$service" && printf true || printf false)")"
 		sep=,
 	done
 	printf '}'
@@ -373,13 +367,13 @@ agent_print_service_capabilities() {
 	streaming_service=false
 	[ -n "$(agent_service_script)" ] && streaming_service=true
 	printf '{"streaming":{"start":%s,"stop":%s,"restart":%s}}' \
-		"$(thingino_agent_json_bool "$streaming_service")" \
-		"$(thingino_agent_json_bool "$streaming_service")" \
-		"$(thingino_agent_json_bool "$streaming_service")"
+		"$(agent_json_bool "$streaming_service")" \
+		"$(agent_json_bool "$streaming_service")" \
+		"$(agent_json_bool "$streaming_service")"
 }
 
 agent_print_firmware_capabilities() {
-	printf '{"upgrade":%s}' "$(thingino_agent_json_bool "$(command -v sysupgrade >/dev/null 2>&1 && printf true || printf false)")"
+	printf '{"upgrade":%s}' "$(agent_json_bool "$(command -v sysupgrade >/dev/null 2>&1 && printf true || printf false)")"
 }
 
 agent_firmware_upgrade_supported() {
@@ -420,17 +414,17 @@ agent_firmware_pending_action() {
 
 agent_print_runtime_firmware() {
 	printf '{'
-	printf '"upgrade_supported":%s,' "$(thingino_agent_json_bool "$(agent_firmware_upgrade_supported)")"
-	printf '"pending_full":%s,' "$(thingino_agent_json_bool "$(agent_firmware_pending_full)")"
-	printf '"pending_partial":%s,' "$(thingino_agent_json_bool "$(agent_firmware_pending_partial)")"
-	printf '"pending_action":%s,' "$(thingino_agent_json_string "$(agent_firmware_pending_action)")"
+	printf '"upgrade_supported":%s,' "$(agent_json_bool "$(agent_firmware_upgrade_supported)")"
+	printf '"pending_full":%s,' "$(agent_json_bool "$(agent_firmware_pending_full)")"
+	printf '"pending_partial":%s,' "$(agent_json_bool "$(agent_firmware_pending_partial)")"
+	printf '"pending_action":%s,' "$(agent_json_string "$(agent_firmware_pending_action)")"
 	printf '"boot_marked_complete":%s,' "$(agent_firmware_boot_marked_complete)"
-	printf '"current_version":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_firmware_version)")"
+	printf '"current_version":%s' "$(agent_json_string_or_null "$(agent_firmware_version)")"
 	printf '}'
 }
 
 agent_motion_enabled() {
-	thingino_agent_json_value_or "$(agent_raw motion.enabled)" false
+	agent_json_value_or "$(agent_raw motion.enabled)" false
 }
 
 agent_motion_active() {
@@ -442,24 +436,24 @@ agent_motion_active() {
 }
 
 agent_daynight_enabled() {
-	if thingino_agent_has_daynightd; then
-		thingino_agent_daynightd_enabled
+	if agent_has_daynightd; then
+		agent_daynightd_enabled
 		return 0
 	fi
-	thingino_agent_json_value_or "$(agent_raw daynight.enabled)" false
+	agent_json_value_or "$(agent_raw daynight.enabled)" false
 }
 
 agent_daynight_force_mode() {
-	if thingino_agent_has_daynightd; then
-		thingino_agent_daynightd_force_mode
+	if agent_has_daynightd; then
+		agent_daynightd_force_mode
 		return 0
 	fi
-	thingino_agent_json_value_or "$(agent_raw daynight.force_mode)" null
+	agent_json_value_or "$(agent_raw daynight.force_mode)" null
 }
 
 agent_daynight_running_mode() {
-	if thingino_agent_has_daynightd; then
-		thingino_agent_daynightd_running_mode
+	if agent_has_daynightd; then
+		agent_daynightd_running_mode
 		return 0
 	fi
 	if [ -f /run/prudynt/daynight_mode ]; then
@@ -491,8 +485,8 @@ EOF
 }
 
 agent_daynight_target_mode() {
-	if thingino_agent_has_daynightd; then
-		thingino_agent_daynightd_target_mode
+	if agent_has_daynightd; then
+		agent_daynightd_target_mode
 		return 0
 	fi
 	enabled=$(agent_daynight_enabled)
@@ -530,7 +524,7 @@ agent_runtime_stream_field() {
 	if command -v prudyntctl >/dev/null 2>&1; then
 		_rt_tmp=$(mktemp)
 		prudyntctl json "{\"stream${stream_id}\":{\"${field}\":null}}" >"$_rt_tmp" 2>/dev/null
-		_rt_val=$(thingino_agent_json_config_value "$_rt_tmp" "stream${stream_id}.${field}")
+		_rt_val=$(agent_json_config_value "$_rt_tmp" "stream${stream_id}.${field}")
 		rm -f "$_rt_tmp"
 		if [ -n "$_rt_val" ] && [ "$_rt_val" != "0" ] && [ "$_rt_val" != "null" ]; then
 			printf '%s' "$_rt_val"
@@ -562,8 +556,8 @@ agent_stream_recording_active() {
 
 agent_stream_healthy() {
 	stream_id=$1
-	enabled=$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
-	video_enabled=$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
+	enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
+	video_enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
 	rtsp_listener_up=$(agent_rtsp_listening)
 	if [ "$(agent_streamer_running)" = true ] &&
 		[ "$enabled" = true ] &&
@@ -578,7 +572,7 @@ agent_stream_healthy() {
 agent_event_append_path() {
 	paths_json=$1
 	path=$2
-	path_json=$(thingino_agent_json_string "$path")
+	path_json=$(agent_json_string "$path")
 	if [ -n "$paths_json" ]; then
 		printf '%s,%s' "$paths_json" "$path_json"
 	else
@@ -686,9 +680,9 @@ agent_print_osd_setting() {
 	response_key=$4
 	value_type=$5
 	if [ "$value_type" = text ]; then
-		printf '{"%s":%s}\n' "$response_key" "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" "$config_key")")"
+		printf '{"%s":%s}\n' "$response_key" "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" "$config_key")")"
 	else
-		thingino_agent_print_setting_leaf "$response_key" "$(agent_stream_osd_field "$stream_id" "$config_key")"
+		agent_print_setting_leaf "$response_key" "$(agent_stream_osd_field "$stream_id" "$config_key")"
 	fi
 }
 
@@ -705,7 +699,7 @@ agent_osd_json_value() {
 			printf '%s' "$raw_value"
 			;;
 		text)
-			printf '%s' "$(thingino_agent_json_string "$(agent_unquote_string "$raw_value")")"
+			printf '%s' "$(agent_json_string "$(agent_unquote_string "$raw_value")")"
 			;;
 		*)
 			echo "unsupported OSD value type: $value_type" >&2
@@ -750,25 +744,25 @@ agent_set_osd_setting() {
 	payload=$(agent_osd_payload "$stream_id" "$config_key" "$json_value")
 	agent_apply_payload "$payload" || return 1
 	agent_persist_value "stream${stream_id}.osd.${config_key}" "$json_value"
-	thingino_agent_print_setting_update "$path" "$response_key" "$json_value"
+	agent_print_setting_update "$path" "$response_key" "$json_value"
 }
 
 agent_print_stream_config() {
 	stream_id=$1
 	printf '{'
 	printf '"id":%s,' "$stream_id"
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)"
-	printf '"audio_enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
-	printf '"width":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"gop":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
-	printf '"buffers":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" buffers)" null)"
-	printf '"profile":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" profile)" null)"
-	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
-	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)"
+	printf '"audio_enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
+	printf '"width":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
+	printf '"gop":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
+	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" buffers)" null)"
+	printf '"profile":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" profile)" null)"
+	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
+	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
 	printf '"osd":'
 	agent_print_stream_osd "$stream_id"
 	printf '}'
@@ -777,89 +771,89 @@ agent_print_stream_config() {
 agent_print_stream_osd() {
 	stream_id=$1
 	printf '{'
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" enabled)" false)"
-	printf '"font_path":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" font_path)")"
-	printf '"font_size":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" font_size)" null)"
-	printf '"stroke_size":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" stroke_size)" null)"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" enabled)" false)"
+	printf '"font_path":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" font_path)")"
+	printf '"font_size":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" font_size)" null)"
+	printf '"stroke_size":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" stroke_size)" null)"
 	printf '"logo":{'
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" logo.enabled)" false)"
-	printf '"position":%s' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" logo.position)")"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" logo.enabled)" false)"
+	printf '"position":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" logo.position)")"
 	printf '},'
 	printf '"time":{'
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" time.enabled)" false)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.format)")"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.position)")"
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.fill_color)")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.stroke_color)")"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" time.enabled)" false)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.format)")"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.stroke_color)")"
 	printf '},'
 	printf '"uptime":{'
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" uptime.enabled)" false)"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.position)")"
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.fill_color)")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.stroke_color)")"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" uptime.enabled)" false)"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.stroke_color)")"
 	printf '},'
 	printf '"usertext":{'
-	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_osd_field "$stream_id" usertext.enabled)" false)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.format)")"
-	printf '"position":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.position)")"
-	printf '"fill_color":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.fill_color)")"
-	printf '"stroke_color":%s' "$(thingino_agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.stroke_color)")"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" usertext.enabled)" false)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.format)")"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.stroke_color)")"
 	printf '}'
 	printf '}'
 }
 
 agent_print_stream_runtime() {
 	stream_id=$1
-	enabled=$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
-	video_enabled=$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
+	enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
+	video_enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
 	rtsp_listener_up=$(agent_rtsp_listening)
 	healthy=$(agent_stream_healthy "$stream_id")
 	printf '{'
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$enabled"
 	printf '"video_enabled":%s,' "$video_enabled"
-	printf '"audio_enabled":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
-	printf '"width":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
-	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
-	printf '"rtsp_endpoint":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
-	printf '"rtsp_name":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_info)")"
-	printf '"rtsp_url":%s,' "$(thingino_agent_json_string_or_null "$(agent_stream_rtsp_url "$stream_id")")"
-	printf '"rtsp_listener_up":%s,' "$(thingino_agent_json_bool "$rtsp_listener_up")"
-	printf '"recording_active":%s,' "$(thingino_agent_json_bool "$(agent_stream_recording_active "$stream_id")")"
-	printf '"healthy":%s' "$(thingino_agent_json_bool "$healthy")"
+	printf '"audio_enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
+	printf '"width":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
+	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
+	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
+	printf '"rtsp_name":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_info)")"
+	printf '"rtsp_url":%s,' "$(agent_json_string_or_null "$(agent_stream_rtsp_url "$stream_id")")"
+	printf '"rtsp_listener_up":%s,' "$(agent_json_bool "$rtsp_listener_up")"
+	printf '"recording_active":%s,' "$(agent_json_bool "$(agent_stream_recording_active "$stream_id")")"
+	printf '"healthy":%s' "$(agent_json_bool "$healthy")"
 	printf '}'
 }
 
 agent_print_runtime_system() {
-	load_1=$(thingino_agent_loadavg_field 1)
-	load_5=$(thingino_agent_loadavg_field 2)
-	load_15=$(thingino_agent_loadavg_field 3)
-	memory_total_kib=$(thingino_agent_meminfo_kib MemTotal)
-	memory_free_kib=$(thingino_agent_meminfo_kib MemFree)
-	memory_available_kib=$(thingino_agent_mem_available_kib)
-	memory_used_kib=$(thingino_agent_mem_used_kib)
+	load_1=$(agent_loadavg_field 1)
+	load_5=$(agent_loadavg_field 2)
+	load_15=$(agent_loadavg_field 3)
+	memory_total_kib=$(agent_meminfo_kib MemTotal)
+	memory_free_kib=$(agent_meminfo_kib MemFree)
+	memory_available_kib=$(agent_mem_available_kib)
+	memory_used_kib=$(agent_mem_used_kib)
 	printf '{'
-	printf '"uptime_seconds":%s,' "$(thingino_agent_uptime_seconds)"
-	printf '"hostname":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
+	printf '"uptime_seconds":%s,' "$(agent_uptime_seconds)"
+	printf '"hostname":%s,' "$(agent_json_string "$(agent_hostname)")"
 	printf '"streamer_running":%s,' "$(agent_streamer_running)"
-	printf '"load_average_1m":%s,' "$(thingino_agent_json_value_or "$load_1" null)"
-	printf '"load_average_5m":%s,' "$(thingino_agent_json_value_or "$load_5" null)"
-	printf '"load_average_15m":%s,' "$(thingino_agent_json_value_or "$load_15" null)"
-	printf '"memory_total_kib":%s,' "$(thingino_agent_json_value_or "$memory_total_kib" null)"
-	printf '"memory_free_kib":%s,' "$(thingino_agent_json_value_or "$memory_free_kib" null)"
-	printf '"memory_available_kib":%s,' "$(thingino_agent_json_value_or "$memory_available_kib" null)"
-	printf '"memory_used_kib":%s' "$(thingino_agent_json_value_or "$memory_used_kib" null)"
+	printf '"load_average_1m":%s,' "$(agent_json_value_or "$load_1" null)"
+	printf '"load_average_5m":%s,' "$(agent_json_value_or "$load_5" null)"
+	printf '"load_average_15m":%s,' "$(agent_json_value_or "$load_15" null)"
+	printf '"memory_total_kib":%s,' "$(agent_json_value_or "$memory_total_kib" null)"
+	printf '"memory_free_kib":%s,' "$(agent_json_value_or "$memory_free_kib" null)"
+	printf '"memory_available_kib":%s,' "$(agent_json_value_or "$memory_available_kib" null)"
+	printf '"memory_used_kib":%s' "$(agent_json_value_or "$memory_used_kib" null)"
 	printf '}'
 }
 
 agent_print_runtime_network() {
 	ip_addr=$(agent_network_ip)
 	printf '{'
-	printf '"ip":%s,' "$(thingino_agent_json_string_or_null "$ip_addr")"
+	printf '"ip":%s,' "$(agent_json_string_or_null "$ip_addr")"
 	printf '"online":%s' "$(agent_network_online)"
 	printf '}'
 }
@@ -875,14 +869,14 @@ agent_print_runtime_streaming_service() {
 	printf '}'
 }
 
-thingino_agent_adapter_prudynt_get_health() {
+agent_get_health() {
 	running=$(agent_streamer_running)
 	# shellcheck disable=SC2034  # kept unused; matches the raptor adapter health shape
 	online=$(agent_network_online)
 	status=$(agent_health_status)
 	printf '{'
-	printf '"status":%s,' "$(thingino_agent_json_string "$status")"
-	printf '"healthy":%s,' "$(thingino_agent_json_bool "$([ "$status" = ok ] && printf true || printf false)")"
+	printf '"status":%s,' "$(agent_json_string "$status")"
+	printf '"healthy":%s,' "$(agent_json_bool "$([ "$status" = ok ] && printf true || printf false)")"
 	printf '"backend":{"name":"prudynt","available":true},'
 	printf '"checks":{'
 	printf '"system":%s,' "$(agent_print_runtime_system)"
@@ -892,10 +886,10 @@ thingino_agent_adapter_prudynt_get_health() {
 	printf '}\n'
 }
 
-thingino_agent_adapter_prudynt_get_events() {
+agent_get_events() {
 	retry_ms=3000
 	printf 'retry: %s\n\n' "$retry_ms" || exit 0
-	thingino_agent_sse_emit hello "$(thingino_agent_sse_payload hello '"backend":"prudynt","stream":"agent"')" || exit 0
+	agent_sse_emit hello "$(agent_sse_payload hello '"backend":"prudynt","stream":"agent"')" || exit 0
 
 	last_motion_active=$(agent_motion_active)
 	last_streamer_running=$(agent_streamer_running)
@@ -928,9 +922,9 @@ thingino_agent_adapter_prudynt_get_events() {
 		if [ "$current_motion_active" != "$last_motion_active" ]; then
 			changed_paths=$(agent_event_append_path "$changed_paths" motion.active)
 			if [ "$current_motion_active" = true ]; then
-				thingino_agent_sse_emit motion.started "$(thingino_agent_sse_payload motion.started '"active":true')" || exit 0
+				agent_sse_emit motion.started "$(agent_sse_payload motion.started '"active":true')" || exit 0
 			else
-				thingino_agent_sse_emit motion.stopped "$(thingino_agent_sse_payload motion.stopped '"active":false')" || exit 0
+				agent_sse_emit motion.stopped "$(agent_sse_payload motion.stopped '"active":false')" || exit 0
 			fi
 		fi
 
@@ -940,7 +934,7 @@ thingino_agent_adapter_prudynt_get_events() {
 			changed_paths=$(agent_event_append_path "$changed_paths" services.streaming.running)
 			changed_paths=$(agent_event_append_path "$changed_paths" services.streaming.healthy)
 			if [ "$last_streamer_running" != true ] && [ "$current_streamer_running" = true ]; then
-				thingino_agent_sse_emit streamer.restarted "$(thingino_agent_sse_payload streamer.restarted '"service":"streaming"')" || exit 0
+				agent_sse_emit streamer.restarted "$(agent_sse_payload streamer.restarted '"service":"streaming"')" || exit 0
 			fi
 		fi
 
@@ -982,10 +976,10 @@ thingino_agent_adapter_prudynt_get_events() {
 			changed_paths=$(agent_event_append_path "$changed_paths" recording.current_path)
 			if [ "$last_recording_active" = true ] && [ "$current_recording_active" != true ]; then
 				record_fields=$(printf '"stream_id":%s,"path":%s,"duration_seconds":%s' \
-					"$(thingino_agent_json_value_or "$last_recording_channel" null)" \
-					"$(thingino_agent_json_string_or_null "$last_recording_path")" \
-					"$(thingino_agent_json_value_or "$last_recording_duration" null)")
-				thingino_agent_sse_emit record.completed "$(thingino_agent_sse_payload record.completed "$record_fields")" || exit 0
+					"$(agent_json_value_or "$last_recording_channel" null)" \
+					"$(agent_json_string_or_null "$last_recording_path")" \
+					"$(agent_json_value_or "$last_recording_duration" null)")
+				agent_sse_emit record.completed "$(agent_sse_payload record.completed "$record_fields")" || exit 0
 			fi
 		else
 			if [ "$current_recording_channel" != "$last_recording_channel" ]; then
@@ -1009,25 +1003,25 @@ thingino_agent_adapter_prudynt_get_events() {
 				*) firmware_phase=pending ;;
 			esac
 			firmware_fields=$(printf '"action":%s,"phase":%s' \
-				"$(thingino_agent_json_string "$current_firmware_action")" \
-				"$(thingino_agent_json_string "$firmware_phase")")
-			thingino_agent_sse_emit firmware.progress "$(thingino_agent_sse_payload firmware.progress "$firmware_fields")" || exit 0
+				"$(agent_json_string "$current_firmware_action")" \
+				"$(agent_json_string "$firmware_phase")")
+			agent_sse_emit firmware.progress "$(agent_sse_payload firmware.progress "$firmware_fields")" || exit 0
 		fi
 
 		current_health_status=$(agent_health_status)
 		if [ "$current_health_status" != "$last_health_status" ] && [ "$current_health_status" != ok ]; then
 			health_fields=$(printf '"status":%s,"network_online":%s,"streamer_running":%s' \
-				"$(thingino_agent_json_string "$current_health_status")" \
-				"$(thingino_agent_json_bool "$(agent_network_online)")" \
-				"$(thingino_agent_json_bool "$current_streamer_running")")
-			thingino_agent_sse_emit health.warning "$(thingino_agent_sse_payload health.warning "$health_fields")" || exit 0
+				"$(agent_json_string "$current_health_status")" \
+				"$(agent_json_bool "$(agent_network_online)")" \
+				"$(agent_json_bool "$current_streamer_running")")
+			agent_sse_emit health.warning "$(agent_sse_payload health.warning "$health_fields")" || exit 0
 		fi
 
 		if [ -n "$changed_paths" ]; then
-			thingino_agent_sse_emit state.changed "$(thingino_agent_sse_payload state.changed "\"paths\":[${changed_paths}]")" || exit 0
+			agent_sse_emit state.changed "$(agent_sse_payload state.changed "\"paths\":[${changed_paths}]")" || exit 0
 			keepalive_counter=0
 		elif [ "$keepalive_counter" -ge 3 ]; then
-			thingino_agent_sse_emit keepalive "$(thingino_agent_sse_payload keepalive '')" || exit 0
+			agent_sse_emit keepalive "$(agent_sse_payload keepalive '')" || exit 0
 			# Best-effort sensor sample from daynight runtime files when present.
 			daynight_mode=$(agent_daynight_running_mode 2>/dev/null || true)
 			total_gain=
@@ -1038,11 +1032,11 @@ thingino_agent_adapter_prudynt_get_events() {
 			[ -f /run/prudynt/daynight_brightness ] && brightness=$(awk 'NR==1{print $1}' /run/prudynt/daynight_brightness 2>/dev/null)
 			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":null,"daynight_mode":%s' \
 				"$(date +%s)" \
-				"$(thingino_agent_json_value_or "$ae_luma" null)" \
-				"$(thingino_agent_json_value_or "$brightness" null)" \
-				"$(thingino_agent_json_value_or "$total_gain" null)" \
-				"$(thingino_agent_json_string_or_null "$daynight_mode")")
-			thingino_agent_sse_emit sensor.sample "$(thingino_agent_sse_payload sensor.sample "$sensor_fields")" || exit 0
+				"$(agent_json_value_or "$ae_luma" null)" \
+				"$(agent_json_value_or "$brightness" null)" \
+				"$(agent_json_value_or "$total_gain" null)" \
+				"$(agent_json_string_or_null "$daynight_mode")")
+			agent_sse_emit sensor.sample "$(agent_sse_payload sensor.sample "$sensor_fields")" || exit 0
 			keepalive_counter=0
 		fi
 
@@ -1061,7 +1055,7 @@ thingino_agent_adapter_prudynt_get_events() {
 	done
 }
 
-thingino_agent_adapter_prudynt_get_capabilities() {
+agent_get_capabilities() {
 	group=${1:-all}
 	streaming_service=false
 	[ -n "$(agent_service_script)" ] && streaming_service=true
@@ -1072,18 +1066,18 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 			printf '"image":{"brightness":true,"contrast":true,"saturation":true,"sharpness":true,"anti_flicker":true,"hflip":true,"vflip":true},'
 			printf '"motion":{"enabled":true,"sensitivity":true,"cooldown_time":true},'
 			printf '"daynight":{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]},' \
-				"$(thingino_agent_json_bool "$(agent_has_daynight)")" \
-				"$(thingino_agent_json_bool "$(agent_has_daynight)")"
-			printf '"privacy":{"enabled":%s},' "$(thingino_agent_json_bool "$(agent_has_privacy)")"
+				"$(agent_json_bool "$(agent_has_daynight)")" \
+				"$(agent_json_bool "$(agent_has_daynight)")"
+			printf '"privacy":{"enabled":%s},' "$(agent_json_bool "$(agent_has_privacy)")"
 			printf '"audio":{"mic_enabled":true,"spk_enabled":true},'
 			printf '"storage":{"configured":true,"runtime":true},'
 			printf '"streams":{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true},' \
 				"$(agent_stream_count)" \
-				"$(thingino_agent_json_bool "$(agent_has_snapshot)")" \
-				"$(thingino_agent_json_bool "$(agent_has_clip)")"
+				"$(agent_json_bool "$(agent_has_snapshot)")" \
+				"$(agent_json_bool "$(agent_has_clip)")"
 			printf '"services":%s,' "$(agent_print_service_capabilities)"
 			printf '"send2":%s,' "$(agent_print_send2_capabilities)"
-			printf '"ptz":{"enabled":%s},' "$(thingino_agent_json_bool "$(agent_has_ptz)")"
+			printf '"ptz":{"enabled":%s},' "$(agent_json_bool "$(agent_has_ptz)")"
 			printf '"firmware":%s' "$(agent_print_firmware_capabilities)"
 			printf '}\n'
 			;;
@@ -1095,11 +1089,11 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 			;;
 		daynight)
 			printf '{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]}\n' \
-				"$(thingino_agent_json_bool "$(agent_has_daynight)")" \
-				"$(thingino_agent_json_bool "$(agent_has_daynight)")"
+				"$(agent_json_bool "$(agent_has_daynight)")" \
+				"$(agent_json_bool "$(agent_has_daynight)")"
 			;;
 		privacy)
-			printf '{"enabled":%s}\n' "$(thingino_agent_json_bool "$(agent_has_privacy)")"
+			printf '{"enabled":%s}\n' "$(agent_json_bool "$(agent_has_privacy)")"
 			;;
 		audio)
 			printf '{"mic_enabled":true,"spk_enabled":true}\n'
@@ -1110,8 +1104,8 @@ thingino_agent_adapter_prudynt_get_capabilities() {
 		streams)
 			printf '{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true}\n' \
 				"$(agent_stream_count)" \
-				"$(thingino_agent_json_bool "$(agent_has_snapshot)")" \
-				"$(thingino_agent_json_bool "$(agent_has_clip)")"
+				"$(agent_json_bool "$(agent_has_snapshot)")" \
+				"$(agent_json_bool "$(agent_has_clip)")"
 			;;
 		services)
 			agent_print_service_capabilities
@@ -1137,10 +1131,10 @@ agent_query_live() {
 	if command -v prudyntctl >/dev/null 2>&1; then
 		_heartbeat_tmp=$(mktemp)
 		prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_heartbeat_tmp" 2>/dev/null
-		_heartbeat_color_mode=$(thingino_agent_json_config_value "$_heartbeat_tmp" image.running_mode)
-		_heartbeat_mic_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)
-		_heartbeat_spk_enabled=$(thingino_agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)
-		_heartbeat_total_gain=$(thingino_agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
+		_heartbeat_color_mode=$(agent_json_config_value "$_heartbeat_tmp" image.running_mode)
+		_heartbeat_mic_enabled=$(agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)
+		_heartbeat_spk_enabled=$(agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)
+		_heartbeat_total_gain=$(agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
 		rm -f "$_heartbeat_tmp"
 	fi
 }
@@ -1173,7 +1167,7 @@ agent_heartbeat_wg_status() {
 	fi
 }
 
-thingino_agent_adapter_prudynt_get_runtime() {
+agent_get_runtime() {
 	resource=${1:-all}
 	case "$resource" in
 		all)
@@ -1184,8 +1178,8 @@ thingino_agent_adapter_prudynt_get_runtime() {
 				"$(agent_motion_enabled)" "$(agent_motion_active)"
 			printf '"daynight":{"enabled":%s,"target_mode":%s,"running_mode":%s},' \
 				"$(agent_daynight_enabled)" \
-				"$(thingino_agent_json_string "$(agent_daynight_target_mode)")" \
-				"$(thingino_agent_json_string "$(agent_daynight_running_mode)")"
+				"$(agent_json_string "$(agent_daynight_target_mode)")" \
+				"$(agent_json_string "$(agent_daynight_running_mode)")"
 			printf '"privacy":{"enabled":%s},' "$(agent_privacy_enabled)"
 			printf '"storage":%s,' "$(agent_print_runtime_storage)"
 			printf '"recording":%s,' "$(agent_print_runtime_recording)"
@@ -1212,8 +1206,8 @@ thingino_agent_adapter_prudynt_get_runtime() {
 		daynight)
 			printf '{"enabled":%s,"target_mode":%s,"running_mode":%s}\n' \
 				"$(agent_daynight_enabled)" \
-				"$(thingino_agent_json_string "$(agent_daynight_target_mode)")" \
-				"$(thingino_agent_json_string "$(agent_daynight_running_mode)")"
+				"$(agent_json_string "$(agent_daynight_target_mode)")" \
+				"$(agent_json_string "$(agent_daynight_running_mode)")"
 			;;
 		privacy)
 			printf '{"enabled":%s}\n' "$(agent_privacy_enabled)"
@@ -1244,15 +1238,15 @@ thingino_agent_adapter_prudynt_get_runtime() {
 			;;
 		media)
 			has_snapshot=$(agent_has_snapshot)
-			stream0_enabled=$(thingino_agent_json_value_or "$(agent_stream_field 0 enabled)" false)
-			stream1_enabled=$(thingino_agent_json_value_or "$(agent_stream_field 1 enabled)" false)
+			stream0_enabled=$(agent_json_value_or "$(agent_stream_field 0 enabled)" false)
+			stream1_enabled=$(agent_json_value_or "$(agent_stream_field 1 enabled)" false)
 			printf '{"streams":{"ch0":{"available":%s,"enabled":%s,"snapshot_url":%s},"ch1":{"available":%s,"enabled":%s,"snapshot_url":%s}}}\n' \
-				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$(agent_json_bool "$has_snapshot")" \
 				"$stream0_enabled" \
-				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream0_enabled" = true ] && printf '/x/dl0.jpg')")" \
-				"$(thingino_agent_json_bool "$has_snapshot")" \
+				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream0_enabled" = true ] && printf '/x/dl0.jpg')")" \
+				"$(agent_json_bool "$has_snapshot")" \
 				"$stream1_enabled" \
-				"$(thingino_agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
+				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
 		heartbeat)
 			agent_query_live
@@ -1265,17 +1259,17 @@ thingino_agent_adapter_prudynt_get_runtime() {
 			_wg_status=$(agent_heartbeat_wg_status)
 			printf '{'
 			printf '"time_now":%s,' "$(date +%s)"
-			printf '"uptime":%s,' "$(thingino_agent_uptime_seconds)"
-			printf '"daynight_brightness":%s,' "$(thingino_agent_json_string_or_null "$_brightness")"
-			printf '"total_gain":%s,' "$(thingino_agent_json_value_or "${_heartbeat_total_gain:-}" null)"
-			printf '"daynight_mode":%s,' "$(thingino_agent_json_string_or_null "$_daynight_mode")"
+			printf '"uptime":%s,' "$(agent_uptime_seconds)"
+			printf '"daynight_brightness":%s,' "$(agent_json_string_or_null "$_brightness")"
+			printf '"total_gain":%s,' "$(agent_json_value_or "${_heartbeat_total_gain:-}" null)"
+			printf '"daynight_mode":%s,' "$(agent_json_string_or_null "$_daynight_mode")"
 			printf '"rec_ch0":%s,' "$(agent_stream_recording_active 0)"
 			printf '"rec_ch1":%s,' "$(agent_stream_recording_active 1)"
 			printf '"motion_enabled":%s,' "$(agent_motion_active)"
 			printf '"privacy_enabled":%s,' "$(agent_privacy_enabled)"
-			printf '"color_mode":%s,' "$(thingino_agent_json_value_or "${_heartbeat_color_mode:-}" null)"
-			printf '"mic_enabled":%s,' "$(thingino_agent_json_value_or "${_heartbeat_mic_enabled:-}" false)"
-			printf '"spk_enabled":%s,' "$(thingino_agent_json_value_or "${_heartbeat_spk_enabled:-}" false)"
+			printf '"color_mode":%s,' "$(agent_json_value_or "${_heartbeat_color_mode:-}" null)"
+			printf '"mic_enabled":%s,' "$(agent_json_value_or "${_heartbeat_mic_enabled:-}" false)"
+			printf '"spk_enabled":%s,' "$(agent_json_value_or "${_heartbeat_spk_enabled:-}" false)"
 			printf '"daynight_enabled":%s,' "$(agent_daynight_enabled)"
 			printf '"ircut_state":%s,' "$_ircut_state"
 			printf '"ir850_state":%s,' "$_ir850_state"
@@ -1291,32 +1285,32 @@ thingino_agent_adapter_prudynt_get_runtime() {
 	esac
 }
 
-thingino_agent_adapter_prudynt_get_config() {
+agent_get_config() {
 	printf '{'
 	printf '"image":{'
-	printf '"brightness":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.brightness)" null)"
-	printf '"contrast":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.contrast)" null)"
-	printf '"saturation":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.saturation)" null)"
-	printf '"sharpness":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.sharpness)" null)"
-	printf '"anti_flicker":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.anti_flicker)" null)"
-	printf '"ae_compensation":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.ae_compensation)" null)"
-	printf '"core_wb_mode":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.core_wb_mode)" null)"
-	printf '"wb_rgain":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.wb_rgain)" null)"
-	printf '"wb_bgain":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.wb_bgain)" null)"
-	printf '"hflip":%s,' "$(thingino_agent_json_value_or "$(agent_raw image.hflip)" false)"
-	printf '"vflip":%s' "$(thingino_agent_json_value_or "$(agent_raw image.vflip)" false)"
+	printf '"brightness":%s,' "$(agent_json_value_or "$(agent_raw image.brightness)" null)"
+	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_raw image.contrast)" null)"
+	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_raw image.saturation)" null)"
+	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_raw image.sharpness)" null)"
+	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_raw image.anti_flicker)" null)"
+	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_raw image.ae_compensation)" null)"
+	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_raw image.core_wb_mode)" null)"
+	printf '"wb_rgain":%s,' "$(agent_json_value_or "$(agent_raw image.wb_rgain)" null)"
+	printf '"wb_bgain":%s,' "$(agent_json_value_or "$(agent_raw image.wb_bgain)" null)"
+	printf '"hflip":%s,' "$(agent_json_value_or "$(agent_raw image.hflip)" false)"
+	printf '"vflip":%s' "$(agent_json_value_or "$(agent_raw image.vflip)" false)"
 	printf '},'
 	printf '"motion":{"enabled":%s},' "$(agent_motion_enabled)"
 	printf '"daynight":{"enabled":%s,"force_mode":%s},' \
 		"$(agent_daynight_enabled)" "$(agent_daynight_force_mode)"
 	printf '"privacy":{"enabled":%s,"channel":"all"},' "$(agent_privacy_enabled)"
 	printf '"storage":{'
-	printf '"autostart":%s,' "$(thingino_agent_json_value_or "$(agent_recorder_raw autostart)" false)"
-	printf '"channel":%s,' "$(thingino_agent_json_value_or "$(agent_recorder_raw channel)" null)"
-	printf '"device_path":%s,' "$(thingino_agent_json_string_or_null "$(agent_recorder_text device_path)")"
-	printf '"duration":%s,' "$(thingino_agent_json_value_or "$(agent_recorder_raw duration)" null)"
-	printf '"filename":%s,' "$(thingino_agent_json_string_or_null "$(agent_recorder_text filename)")"
-	printf '"mount":%s' "$(thingino_agent_json_string_or_null "$(agent_recorder_text mount)")"
+	printf '"autostart":%s,' "$(agent_json_value_or "$(agent_recorder_raw autostart)" false)"
+	printf '"channel":%s,' "$(agent_json_value_or "$(agent_recorder_raw channel)" null)"
+	printf '"device_path":%s,' "$(agent_json_string_or_null "$(agent_recorder_text device_path)")"
+	printf '"duration":%s,' "$(agent_json_value_or "$(agent_recorder_raw duration)" null)"
+	printf '"filename":%s,' "$(agent_json_string_or_null "$(agent_recorder_text filename)")"
+	printf '"mount":%s' "$(agent_json_string_or_null "$(agent_recorder_text mount)")"
 	printf '},'
 	printf '"streams":['
 	agent_print_stream_config 0
@@ -1332,157 +1326,157 @@ thingino_agent_adapter_prudynt_get_config() {
 	printf '}}\n'
 }
 
-thingino_agent_adapter_prudynt_get_setting() {
+agent_get_setting() {
 	path=$1
 	case "$path" in
 		image/brightness)
-			thingino_agent_print_setting_leaf brightness "$(agent_raw image.brightness)"
+			agent_print_setting_leaf brightness "$(agent_raw image.brightness)"
 			;;
 		image/contrast)
-			thingino_agent_print_setting_leaf contrast "$(agent_raw image.contrast)"
+			agent_print_setting_leaf contrast "$(agent_raw image.contrast)"
 			;;
 		image/saturation)
-			thingino_agent_print_setting_leaf saturation "$(agent_raw image.saturation)"
+			agent_print_setting_leaf saturation "$(agent_raw image.saturation)"
 			;;
 		image/sharpness)
-			thingino_agent_print_setting_leaf sharpness "$(agent_raw image.sharpness)"
+			agent_print_setting_leaf sharpness "$(agent_raw image.sharpness)"
 			;;
 		image/anti-flicker)
-			thingino_agent_print_setting_leaf anti_flicker "$(agent_raw image.anti_flicker)"
+			agent_print_setting_leaf anti_flicker "$(agent_raw image.anti_flicker)"
 			;;
 		image/hflip)
-			thingino_agent_print_setting_leaf hflip "$(agent_raw image.hflip)"
+			agent_print_setting_leaf hflip "$(agent_raw image.hflip)"
 			;;
 		image/vflip)
-			thingino_agent_print_setting_leaf vflip "$(agent_raw image.vflip)"
+			agent_print_setting_leaf vflip "$(agent_raw image.vflip)"
 			;;
 		image/ae-compensation)
-			thingino_agent_print_setting_leaf ae_compensation "$(agent_raw image.ae_compensation)"
+			agent_print_setting_leaf ae_compensation "$(agent_raw image.ae_compensation)"
 			;;
 		image/core-wb-mode)
-			thingino_agent_print_setting_leaf core_wb_mode "$(agent_raw image.core_wb_mode)"
+			agent_print_setting_leaf core_wb_mode "$(agent_raw image.core_wb_mode)"
 			;;
 		image/wb-rgain)
-			thingino_agent_print_setting_leaf wb_rgain "$(agent_raw image.wb_rgain)"
+			agent_print_setting_leaf wb_rgain "$(agent_raw image.wb_rgain)"
 			;;
 		image/wb-bgain)
-			thingino_agent_print_setting_leaf wb_bgain "$(agent_raw image.wb_bgain)"
+			agent_print_setting_leaf wb_bgain "$(agent_raw image.wb_bgain)"
 			;;
 		audio/mic-enabled)
-			thingino_agent_print_setting_leaf mic_enabled "$(agent_raw audio.mic_enabled)"
+			agent_print_setting_leaf mic_enabled "$(agent_raw audio.mic_enabled)"
 			;;
 		audio/spk-enabled)
-			thingino_agent_print_setting_leaf spk_enabled "$(agent_raw audio.spk_enabled)"
+			agent_print_setting_leaf spk_enabled "$(agent_raw audio.spk_enabled)"
 			;;
 		motion/enabled)
-			thingino_agent_print_setting_leaf enabled "$(agent_raw motion.enabled)"
+			agent_print_setting_leaf enabled "$(agent_raw motion.enabled)"
 			;;
 		motion/sensitivity)
-			thingino_agent_print_setting_leaf sensitivity "$(agent_raw motion.sensitivity)"
+			agent_print_setting_leaf sensitivity "$(agent_raw motion.sensitivity)"
 			;;
 		motion/cooldown-time)
-			thingino_agent_print_setting_leaf cooldown_time "$(agent_raw motion.cooldown_time)"
+			agent_print_setting_leaf cooldown_time "$(agent_raw motion.cooldown_time)"
 			;;
 		motion/outputs/send2/*)
 			service=${path#motion/outputs/send2/}
 			agent_send2_service_supported "$service" || return 1
-			thingino_agent_print_setting_leaf enabled "$(agent_send2_motion_enabled "$service")"
+			agent_print_setting_leaf enabled "$(agent_send2_motion_enabled "$service")"
 			;;
 		daynight/enabled)
-			thingino_agent_print_setting_leaf enabled "$(agent_daynight_enabled)"
+			agent_print_setting_leaf enabled "$(agent_daynight_enabled)"
 			;;
 		daynight/force-mode)
 			printf '{"force_mode":%s}\n' "$(agent_daynight_force_mode)"
 			;;
 		privacy/enabled)
-			thingino_agent_print_setting_leaf enabled "$(agent_privacy_enabled)"
+			agent_print_setting_leaf enabled "$(agent_privacy_enabled)"
 			;;
 		privacy/channel)
-			thingino_agent_print_setting_leaf channel '"all"'
+			agent_print_setting_leaf channel '"all"'
 			;;
 		storage/*)
 			agent_print_storage_setting "$path"
 			;;
 		streams/0/enabled)
-			thingino_agent_print_setting_leaf enabled "$(agent_stream_field 0 enabled)"
+			agent_print_setting_leaf enabled "$(agent_stream_field 0 enabled)"
 			;;
 		streams/0/audio-enabled)
-			thingino_agent_print_setting_leaf audio_enabled "$(agent_stream_field 0 audio_enabled)"
+			agent_print_setting_leaf audio_enabled "$(agent_stream_field 0 audio_enabled)"
 			;;
 		streams/0/width)
-			thingino_agent_print_setting_leaf width "$(agent_stream_field 0 width)"
+			agent_print_setting_leaf width "$(agent_stream_field 0 width)"
 			;;
 		streams/0/height)
-			thingino_agent_print_setting_leaf height "$(agent_stream_field 0 height)"
+			agent_print_setting_leaf height "$(agent_stream_field 0 height)"
 			;;
 		streams/0/fps)
-			thingino_agent_print_setting_leaf fps "$(agent_stream_field 0 fps)"
+			agent_print_setting_leaf fps "$(agent_stream_field 0 fps)"
 			;;
 		streams/0/bitrate)
-			thingino_agent_print_setting_leaf bitrate "$(agent_stream_field 0 bitrate)"
+			agent_print_setting_leaf bitrate "$(agent_stream_field 0 bitrate)"
 			;;
 		streams/0/gop)
-			thingino_agent_print_setting_leaf gop "$(agent_stream_field 0 gop)"
+			agent_print_setting_leaf gop "$(agent_stream_field 0 gop)"
 			;;
 		streams/0/buffers)
-			thingino_agent_print_setting_leaf buffers "$(agent_stream_field 0 buffers)"
+			agent_print_setting_leaf buffers "$(agent_stream_field 0 buffers)"
 			;;
 		streams/0/profile)
-			thingino_agent_print_setting_leaf profile "$(agent_stream_field 0 profile)"
+			agent_print_setting_leaf profile "$(agent_stream_field 0 profile)"
 			;;
 		streams/0/rtsp-endpoint)
-			printf '{"rtsp_endpoint":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 0 rtsp_endpoint)")"
+			printf '{"rtsp_endpoint":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 rtsp_endpoint)")"
 			;;
 		streams/0/format)
-			printf '{"format":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 0 format)")"
+			printf '{"format":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 format)")"
 			;;
 		streams/0/mode)
-			printf '{"mode":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 0 mode)")"
+			printf '{"mode":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 mode)")"
 			;;
 		streams/[01]/osd/*)
 			agent_print_osd_setting "$path"
 			;;
 		streams/1/enabled)
-			thingino_agent_print_setting_leaf enabled "$(agent_stream_field 1 enabled)"
+			agent_print_setting_leaf enabled "$(agent_stream_field 1 enabled)"
 			;;
 		streams/1/audio-enabled)
-			thingino_agent_print_setting_leaf audio_enabled "$(agent_stream_field 1 audio_enabled)"
+			agent_print_setting_leaf audio_enabled "$(agent_stream_field 1 audio_enabled)"
 			;;
 		streams/1/width)
-			thingino_agent_print_setting_leaf width "$(agent_stream_field 1 width)"
+			agent_print_setting_leaf width "$(agent_stream_field 1 width)"
 			;;
 		streams/1/height)
-			thingino_agent_print_setting_leaf height "$(agent_stream_field 1 height)"
+			agent_print_setting_leaf height "$(agent_stream_field 1 height)"
 			;;
 		streams/1/fps)
-			thingino_agent_print_setting_leaf fps "$(agent_stream_field 1 fps)"
+			agent_print_setting_leaf fps "$(agent_stream_field 1 fps)"
 			;;
 		streams/1/bitrate)
-			thingino_agent_print_setting_leaf bitrate "$(agent_stream_field 1 bitrate)"
+			agent_print_setting_leaf bitrate "$(agent_stream_field 1 bitrate)"
 			;;
 		streams/1/gop)
-			thingino_agent_print_setting_leaf gop "$(agent_stream_field 1 gop)"
+			agent_print_setting_leaf gop "$(agent_stream_field 1 gop)"
 			;;
 		streams/1/buffers)
-			thingino_agent_print_setting_leaf buffers "$(agent_stream_field 1 buffers)"
+			agent_print_setting_leaf buffers "$(agent_stream_field 1 buffers)"
 			;;
 		streams/1/profile)
-			thingino_agent_print_setting_leaf profile "$(agent_stream_field 1 profile)"
+			agent_print_setting_leaf profile "$(agent_stream_field 1 profile)"
 			;;
 		streams/1/rtsp-endpoint)
-			printf '{"rtsp_endpoint":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 1 rtsp_endpoint)")"
+			printf '{"rtsp_endpoint":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 rtsp_endpoint)")"
 			;;
 		streams/1/format)
-			printf '{"format":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 1 format)")"
+			printf '{"format":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 format)")"
 			;;
 		streams/1/mode)
-			printf '{"mode":%s}\n' "$(thingino_agent_json_string_or_null "$(agent_stream_text_field 1 mode)")"
+			printf '{"mode":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 mode)")"
 			;;
 		send2/services/*/send-photo)
 			rest=${path#send2/services/}
 			service=${rest%/send-photo}
 			agent_send2_service_supported "$service" || return 1
-			thingino_agent_print_setting_leaf send_photo "$(thingino_agent_json_value_or "$(agent_send2_raw "$service" send_photo)" true)"
+			agent_print_setting_leaf send_photo "$(agent_json_value_or "$(agent_send2_raw "$service" send_photo)" true)"
 			;;
 		send2/services/*/send-video)
 			rest=${path#send2/services/}
@@ -1492,7 +1486,7 @@ thingino_agent_adapter_prudynt_get_setting() {
 				echo "send_video is not supported for send2 service '$service'" >&2
 				return 1
 			}
-			thingino_agent_print_setting_leaf send_video "$(thingino_agent_json_value_or "$(agent_send2_raw "$service" send_video)" false)"
+			agent_print_setting_leaf send_video "$(agent_json_value_or "$(agent_send2_raw "$service" send_video)" false)"
 			;;
 		*)
 			echo "unsupported setting path: $path" >&2
@@ -1524,7 +1518,7 @@ agent_persist_value() {
 agent_setting_value() {
 	body_file=$1
 	field=$2
-	value=$(thingino_agent_json_config_value "$body_file" "$field")
+	value=$(agent_json_config_value "$body_file" "$field")
 	[ -n "$value" ] || {
 		echo "missing field '$field'" >&2
 		return 1
@@ -1594,7 +1588,7 @@ agent_validate_stream_mode() {
 	esac
 }
 
-thingino_agent_adapter_prudynt_set_setting() {
+agent_set_setting() {
 	path=$1
 	body_file=$2
 	case "$path" in
@@ -1603,112 +1597,112 @@ thingino_agent_adapter_prudynt_set_setting() {
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"brightness\":$value}}" || return 1
 			agent_persist_value image.brightness "$value"
-			thingino_agent_print_setting_update "$path" brightness "$value"
+			agent_print_setting_update "$path" brightness "$value"
 			;;
 		image/contrast)
 			value=$(agent_setting_value "$body_file" contrast) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"contrast\":$value}}" || return 1
 			agent_persist_value image.contrast "$value"
-			thingino_agent_print_setting_update "$path" contrast "$value"
+			agent_print_setting_update "$path" contrast "$value"
 			;;
 		image/saturation)
 			value=$(agent_setting_value "$body_file" saturation) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"saturation\":$value}}" || return 1
 			agent_persist_value image.saturation "$value"
-			thingino_agent_print_setting_update "$path" saturation "$value"
+			agent_print_setting_update "$path" saturation "$value"
 			;;
 		image/sharpness)
 			value=$(agent_setting_value "$body_file" sharpness) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"sharpness\":$value}}" || return 1
 			agent_persist_value image.sharpness "$value"
-			thingino_agent_print_setting_update "$path" sharpness "$value"
+			agent_print_setting_update "$path" sharpness "$value"
 			;;
 		image/anti-flicker)
 			value=$(agent_setting_value "$body_file" anti_flicker) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"anti_flicker\":$value}}" || return 1
 			agent_persist_value image.anti_flicker "$value"
-			thingino_agent_print_setting_update "$path" anti_flicker "$value"
+			agent_print_setting_update "$path" anti_flicker "$value"
 			;;
 		image/hflip)
 			value=$(agent_setting_value "$body_file" hflip) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"image\":{\"hflip\":$value}}" || return 1
 			agent_persist_value image.hflip "$value"
-			thingino_agent_print_setting_update "$path" hflip "$value"
+			agent_print_setting_update "$path" hflip "$value"
 			;;
 		image/vflip)
 			value=$(agent_setting_value "$body_file" vflip) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"image\":{\"vflip\":$value}}" || return 1
 			agent_persist_value image.vflip "$value"
-			thingino_agent_print_setting_update "$path" vflip "$value"
+			agent_print_setting_update "$path" vflip "$value"
 			;;
 		image/ae-compensation)
 			value=$(agent_setting_value "$body_file" ae_compensation) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"ae_compensation\":$value}}" || return 1
 			agent_persist_value image.ae_compensation "$value"
-			thingino_agent_print_setting_update "$path" ae_compensation "$value"
+			agent_print_setting_update "$path" ae_compensation "$value"
 			;;
 		image/core-wb-mode)
 			value=$(agent_setting_value "$body_file" core_wb_mode) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"core_wb_mode\":$value}}" || return 1
 			agent_persist_value image.core_wb_mode "$value"
-			thingino_agent_print_setting_update "$path" core_wb_mode "$value"
+			agent_print_setting_update "$path" core_wb_mode "$value"
 			;;
 		image/wb-rgain)
 			value=$(agent_setting_value "$body_file" wb_rgain) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"wb_rgain\":$value}}" || return 1
 			agent_persist_value image.wb_rgain "$value"
-			thingino_agent_print_setting_update "$path" wb_rgain "$value"
+			agent_print_setting_update "$path" wb_rgain "$value"
 			;;
 		image/wb-bgain)
 			value=$(agent_setting_value "$body_file" wb_bgain) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"image\":{\"wb_bgain\":$value}}" || return 1
 			agent_persist_value image.wb_bgain "$value"
-			thingino_agent_print_setting_update "$path" wb_bgain "$value"
+			agent_print_setting_update "$path" wb_bgain "$value"
 			;;
 		audio/mic-enabled)
 			value=$(agent_setting_value "$body_file" mic_enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"audio\":{\"mic_enabled\":$value}}" || return 1
 			agent_persist_value audio.mic_enabled "$value"
-			thingino_agent_print_setting_update "$path" mic_enabled "$value"
+			agent_print_setting_update "$path" mic_enabled "$value"
 			;;
 		audio/spk-enabled)
 			value=$(agent_setting_value "$body_file" spk_enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"audio\":{\"spk_enabled\":$value}}" || return 1
 			agent_persist_value audio.spk_enabled "$value"
-			thingino_agent_print_setting_update "$path" spk_enabled "$value"
+			agent_print_setting_update "$path" spk_enabled "$value"
 			;;
 		motion/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"motion\":{\"enabled\":$value}}" || return 1
 			agent_persist_value motion.enabled "$value"
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		motion/sensitivity)
 			value=$(agent_setting_value "$body_file" sensitivity) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"motion\":{\"sensitivity\":$value}}" || return 1
 			agent_persist_value motion.sensitivity "$value"
-			thingino_agent_print_setting_update "$path" sensitivity "$value"
+			agent_print_setting_update "$path" sensitivity "$value"
 			;;
 		motion/cooldown-time)
 			value=$(agent_setting_value "$body_file" cooldown_time) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"motion\":{\"cooldown_time\":$value}}" || return 1
 			agent_persist_value motion.cooldown_time "$value"
-			thingino_agent_print_setting_update "$path" cooldown_time "$value"
+			agent_print_setting_update "$path" cooldown_time "$value"
 			;;
 		motion/outputs/send2/*)
 			service=${path#motion/outputs/send2/}
@@ -1718,27 +1712,27 @@ thingino_agent_adapter_prudynt_set_setting() {
 			key=$(agent_send2_motion_key "$service")
 			agent_apply_payload "{\"motion\":{\"send2$service\":$value}}" || return 1
 			agent_persist_value "$key" "$value"
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		daynight/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			if thingino_agent_has_daynightd; then
+			if agent_has_daynightd; then
 				if [ "$value" = true ]; then
-					thingino_agent_daynightd_set_mode auto || return 1
+					agent_daynightd_set_mode auto || return 1
 				else
 					mode=$(agent_daynight_running_mode)
 					case "$mode" in
 						day | night) ;;
 						*) mode=day ;;
 					esac
-					thingino_agent_daynightd_set_mode "$mode" || return 1
+					agent_daynightd_set_mode "$mode" || return 1
 				fi
 			else
 				agent_apply_payload "{\"daynight\":{\"enabled\":$value}}" || return 1
 				agent_persist_value daynight.enabled "$value"
 			fi
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		daynight/force-mode)
 			value=$(agent_setting_value "$body_file" force_mode) || return 1
@@ -1749,20 +1743,20 @@ thingino_agent_adapter_prudynt_set_setting() {
 					return 1
 					;;
 			esac
-			if thingino_agent_has_daynightd; then
+			if agent_has_daynightd; then
 				mode=$(printf '%s' "$value" | tr -d '"')
-				thingino_agent_daynightd_set_mode "$mode" || return 1
+				agent_daynightd_set_mode "$mode" || return 1
 			else
 				agent_apply_payload "{\"daynight\":{\"force_mode\":$value}}" || return 1
 				agent_persist_value daynight.force_mode "$value"
 			fi
-			thingino_agent_print_setting_update "$path" force_mode "$value"
+			agent_print_setting_update "$path" force_mode "$value"
 			;;
 		privacy/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"privacy\":{\"enabled\":$value}}" || return 1
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		privacy/channel)
 			value=$(agent_setting_value "$body_file" channel) || return 1
@@ -1774,7 +1768,7 @@ thingino_agent_adapter_prudynt_set_setting() {
 					return 1
 					;;
 			esac
-			thingino_agent_print_setting_update "$path" channel "$value"
+			agent_print_setting_update "$path" channel "$value"
 			;;
 		storage/*)
 			agent_set_storage_setting "$path" "$body_file"
@@ -1784,56 +1778,56 @@ thingino_agent_adapter_prudynt_set_setting() {
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"enabled\":$value}}" || return 1
 			agent_persist_value stream0.enabled "$value"
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		streams/0/audio-enabled)
 			value=$(agent_setting_value "$body_file" audio_enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"audio_enabled\":$value}}" || return 1
 			agent_persist_value stream0.audio_enabled "$value"
-			thingino_agent_print_setting_update "$path" audio_enabled "$value"
+			agent_print_setting_update "$path" audio_enabled "$value"
 			;;
 		streams/0/width)
 			value=$(agent_setting_value "$body_file" width) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"width\":$value}}" || return 1
 			agent_persist_value stream0.width "$value"
-			thingino_agent_print_setting_update "$path" width "$value"
+			agent_print_setting_update "$path" width "$value"
 			;;
 		streams/0/height)
 			value=$(agent_setting_value "$body_file" height) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"height\":$value}}" || return 1
 			agent_persist_value stream0.height "$value"
-			thingino_agent_print_setting_update "$path" height "$value"
+			agent_print_setting_update "$path" height "$value"
 			;;
 		streams/0/fps)
 			value=$(agent_setting_value "$body_file" fps) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"fps\":$value}}" || return 1
 			agent_persist_value stream0.fps "$value"
-			thingino_agent_print_setting_update "$path" fps "$value"
+			agent_print_setting_update "$path" fps "$value"
 			;;
 		streams/0/bitrate)
 			value=$(agent_setting_value "$body_file" bitrate) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"bitrate\":$value}}" || return 1
 			agent_persist_value stream0.bitrate "$value"
-			thingino_agent_print_setting_update "$path" bitrate "$value"
+			agent_print_setting_update "$path" bitrate "$value"
 			;;
 		streams/0/gop)
 			value=$(agent_setting_value "$body_file" gop) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"gop\":$value}}" || return 1
 			agent_persist_value stream0.gop "$value"
-			thingino_agent_print_setting_update "$path" gop "$value"
+			agent_print_setting_update "$path" gop "$value"
 			;;
 		streams/0/buffers)
 			value=$(agent_setting_value "$body_file" buffers) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream0\":{\"buffers\":$value}}" || return 1
 			agent_persist_value stream0.buffers "$value"
-			thingino_agent_print_setting_update "$path" buffers "$value"
+			agent_print_setting_update "$path" buffers "$value"
 			;;
 		streams/0/profile)
 			value=$(agent_setting_value "$body_file" profile) || return 1
@@ -1841,15 +1835,15 @@ thingino_agent_adapter_prudynt_set_setting() {
 			if agent_validate_int "$value" 2>/dev/null; then
 				agent_apply_payload "{\"stream0\":{\"profile\":$value}}" || return 1
 				agent_persist_value stream0.profile "$value"
-				thingino_agent_print_setting_update "$path" profile "$value"
+				agent_print_setting_update "$path" profile "$value"
 			else
 				[ -n "$value" ] || {
 					echo "non-empty profile required" >&2
 					return 1
 				}
-				agent_apply_payload "{\"stream0\":{\"profile\":$(thingino_agent_json_string "$value")}}" || return 1
-				agent_persist_value stream0.profile "$(thingino_agent_json_string "$value")"
-				thingino_agent_print_setting_update "$path" profile "$(thingino_agent_json_string "$value")"
+				agent_apply_payload "{\"stream0\":{\"profile\":$(agent_json_string "$value")}}" || return 1
+				agent_persist_value stream0.profile "$(agent_json_string "$value")"
+				agent_print_setting_update "$path" profile "$(agent_json_string "$value")"
 			fi
 			;;
 		streams/0/rtsp-endpoint)
@@ -1859,23 +1853,23 @@ thingino_agent_adapter_prudynt_set_setting() {
 				echo "non-empty rtsp_endpoint required" >&2
 				return 1
 			}
-			agent_apply_payload "{\"stream0\":{\"rtsp_endpoint\":$(thingino_agent_json_string "$value")}}" || return 1
-			agent_persist_value stream0.rtsp_endpoint "$(thingino_agent_json_string "$value")"
-			thingino_agent_print_setting_update "$path" rtsp_endpoint "$(thingino_agent_json_string "$value")"
+			agent_apply_payload "{\"stream0\":{\"rtsp_endpoint\":$(agent_json_string "$value")}}" || return 1
+			agent_persist_value stream0.rtsp_endpoint "$(agent_json_string "$value")"
+			agent_print_setting_update "$path" rtsp_endpoint "$(agent_json_string "$value")"
 			;;
 		streams/0/format)
 			value=$(agent_setting_value "$body_file" format) || return 1
 			value=$(agent_validate_stream_format "$value") || return 1
 			agent_apply_payload "{\"stream0\":{\"format\":\"$value\"}}" || return 1
 			agent_persist_value stream0.format "$value"
-			thingino_agent_print_setting_update "$path" format "$(thingino_agent_json_string "$value")"
+			agent_print_setting_update "$path" format "$(agent_json_string "$value")"
 			;;
 		streams/0/mode)
 			value=$(agent_setting_value "$body_file" mode) || return 1
 			value=$(agent_validate_stream_mode "$value") || return 1
 			agent_apply_payload "{\"stream0\":{\"mode\":\"$value\"}}" || return 1
 			agent_persist_value stream0.mode "$value"
-			thingino_agent_print_setting_update "$path" mode "$(thingino_agent_json_string "$value")"
+			agent_print_setting_update "$path" mode "$(agent_json_string "$value")"
 			;;
 		streams/[01]/osd/*)
 			agent_set_osd_setting "$path" "$body_file"
@@ -1885,56 +1879,56 @@ thingino_agent_adapter_prudynt_set_setting() {
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"enabled\":$value}}" || return 1
 			agent_persist_value stream1.enabled "$value"
-			thingino_agent_print_setting_update "$path" enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
 			;;
 		streams/1/audio-enabled)
 			value=$(agent_setting_value "$body_file" audio_enabled) || return 1
 			agent_validate_bool "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"audio_enabled\":$value}}" || return 1
 			agent_persist_value stream1.audio_enabled "$value"
-			thingino_agent_print_setting_update "$path" audio_enabled "$value"
+			agent_print_setting_update "$path" audio_enabled "$value"
 			;;
 		streams/1/width)
 			value=$(agent_setting_value "$body_file" width) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"width\":$value}}" || return 1
 			agent_persist_value stream1.width "$value"
-			thingino_agent_print_setting_update "$path" width "$value"
+			agent_print_setting_update "$path" width "$value"
 			;;
 		streams/1/height)
 			value=$(agent_setting_value "$body_file" height) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"height\":$value}}" || return 1
 			agent_persist_value stream1.height "$value"
-			thingino_agent_print_setting_update "$path" height "$value"
+			agent_print_setting_update "$path" height "$value"
 			;;
 		streams/1/fps)
 			value=$(agent_setting_value "$body_file" fps) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"fps\":$value}}" || return 1
 			agent_persist_value stream1.fps "$value"
-			thingino_agent_print_setting_update "$path" fps "$value"
+			agent_print_setting_update "$path" fps "$value"
 			;;
 		streams/1/bitrate)
 			value=$(agent_setting_value "$body_file" bitrate) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"bitrate\":$value}}" || return 1
 			agent_persist_value stream1.bitrate "$value"
-			thingino_agent_print_setting_update "$path" bitrate "$value"
+			agent_print_setting_update "$path" bitrate "$value"
 			;;
 		streams/1/gop)
 			value=$(agent_setting_value "$body_file" gop) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"gop\":$value}}" || return 1
 			agent_persist_value stream1.gop "$value"
-			thingino_agent_print_setting_update "$path" gop "$value"
+			agent_print_setting_update "$path" gop "$value"
 			;;
 		streams/1/buffers)
 			value=$(agent_setting_value "$body_file" buffers) || return 1
 			agent_validate_int "$value" || return 1
 			agent_apply_payload "{\"stream1\":{\"buffers\":$value}}" || return 1
 			agent_persist_value stream1.buffers "$value"
-			thingino_agent_print_setting_update "$path" buffers "$value"
+			agent_print_setting_update "$path" buffers "$value"
 			;;
 		streams/1/profile)
 			value=$(agent_setting_value "$body_file" profile) || return 1
@@ -1942,15 +1936,15 @@ thingino_agent_adapter_prudynt_set_setting() {
 			if agent_validate_int "$value" 2>/dev/null; then
 				agent_apply_payload "{\"stream1\":{\"profile\":$value}}" || return 1
 				agent_persist_value stream1.profile "$value"
-				thingino_agent_print_setting_update "$path" profile "$value"
+				agent_print_setting_update "$path" profile "$value"
 			else
 				[ -n "$value" ] || {
 					echo "non-empty profile required" >&2
 					return 1
 				}
-				agent_apply_payload "{\"stream1\":{\"profile\":$(thingino_agent_json_string "$value")}}" || return 1
-				agent_persist_value stream1.profile "$(thingino_agent_json_string "$value")"
-				thingino_agent_print_setting_update "$path" profile "$(thingino_agent_json_string "$value")"
+				agent_apply_payload "{\"stream1\":{\"profile\":$(agent_json_string "$value")}}" || return 1
+				agent_persist_value stream1.profile "$(agent_json_string "$value")"
+				agent_print_setting_update "$path" profile "$(agent_json_string "$value")"
 			fi
 			;;
 		streams/1/rtsp-endpoint)
@@ -1960,23 +1954,23 @@ thingino_agent_adapter_prudynt_set_setting() {
 				echo "non-empty rtsp_endpoint required" >&2
 				return 1
 			}
-			agent_apply_payload "{\"stream1\":{\"rtsp_endpoint\":$(thingino_agent_json_string "$value")}}" || return 1
-			agent_persist_value stream1.rtsp_endpoint "$(thingino_agent_json_string "$value")"
-			thingino_agent_print_setting_update "$path" rtsp_endpoint "$(thingino_agent_json_string "$value")"
+			agent_apply_payload "{\"stream1\":{\"rtsp_endpoint\":$(agent_json_string "$value")}}" || return 1
+			agent_persist_value stream1.rtsp_endpoint "$(agent_json_string "$value")"
+			agent_print_setting_update "$path" rtsp_endpoint "$(agent_json_string "$value")"
 			;;
 		streams/1/format)
 			value=$(agent_setting_value "$body_file" format) || return 1
 			value=$(agent_validate_stream_format "$value") || return 1
 			agent_apply_payload "{\"stream1\":{\"format\":\"$value\"}}" || return 1
 			agent_persist_value stream1.format "$value"
-			thingino_agent_print_setting_update "$path" format "$(thingino_agent_json_string "$value")"
+			agent_print_setting_update "$path" format "$(agent_json_string "$value")"
 			;;
 		streams/1/mode)
 			value=$(agent_setting_value "$body_file" mode) || return 1
 			value=$(agent_validate_stream_mode "$value") || return 1
 			agent_apply_payload "{\"stream1\":{\"mode\":\"$value\"}}" || return 1
 			agent_persist_value stream1.mode "$value"
-			thingino_agent_print_setting_update "$path" mode "$(thingino_agent_json_string "$value")"
+			agent_print_setting_update "$path" mode "$(agent_json_string "$value")"
 			;;
 		send2/services/*/send-photo)
 			rest=${path#send2/services/}
@@ -1990,7 +1984,7 @@ thingino_agent_adapter_prudynt_set_setting() {
 					return 1
 				}
 			fi
-			thingino_agent_print_setting_update "$path" send_photo "$value"
+			agent_print_setting_update "$path" send_photo "$value"
 			;;
 		send2/services/*/send-video)
 			rest=${path#send2/services/}
@@ -2008,7 +2002,7 @@ thingino_agent_adapter_prudynt_set_setting() {
 					return 1
 				}
 			fi
-			thingino_agent_print_setting_update "$path" send_video "$value"
+			agent_print_setting_update "$path" send_video "$value"
 			;;
 		*)
 			echo "unsupported setting path: $path" >&2
@@ -2020,7 +2014,7 @@ thingino_agent_adapter_prudynt_set_setting() {
 agent_persist_if_present() {
 	source_file=$1
 	path=$2
-	value=$(thingino_agent_json_config_value "$source_file" "$path")
+	value=$(agent_json_config_value "$source_file" "$path")
 	[ -n "$value" ] || return 0
 	agent_persist_value "$path" "$value"
 }
@@ -2028,17 +2022,17 @@ agent_persist_if_present() {
 agent_persist_send2_if_present() {
 	source_file=$1
 	path=$2
-	value=$(thingino_agent_json_config_value "$source_file" "$path")
+	value=$(agent_json_config_value "$source_file" "$path")
 	[ -n "$value" ] || return 0
 	if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
 		jct "$THINGINO_AGENT_SEND2_CONFIG" set "$path" "$value" >/dev/null 2>&1 || true
 	fi
 }
 
-thingino_agent_adapter_prudynt_apply_config() {
+agent_apply_config() {
 	source_file=$1
 	[ -n "$source_file" ] || {
-		echo "usage: thingino-agentctl apply-config <json-file>" >&2
+		echo "usage: agentctl apply-config <json-file>" >&2
 		return 1
 	}
 	[ -s "$source_file" ] || {
@@ -2071,14 +2065,14 @@ thingino_agent_adapter_prudynt_apply_config() {
 	agent_persist_if_present "$source_file" motion.send2storage
 	agent_persist_if_present "$source_file" motion.send2telegram
 	agent_persist_if_present "$source_file" motion.send2webhook
-	if thingino_agent_has_daynightd; then
-		value=$(thingino_agent_json_config_value "$source_file" daynight.enabled)
+	if agent_has_daynightd; then
+		value=$(agent_json_config_value "$source_file" daynight.enabled)
 		case "$value" in
-			true) thingino_agent_daynightd_set_mode auto || true ;;
+			true) agent_daynightd_set_mode auto || true ;;
 			false)
-				force=$(thingino_agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
+				force=$(agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
 				case "$force" in
-					day | night) thingino_agent_daynightd_set_mode "$force" || true ;;
+					day | night) agent_daynightd_set_mode "$force" || true ;;
 				esac
 				;;
 		esac
@@ -2231,7 +2225,7 @@ thingino_agent_adapter_prudynt_apply_config() {
 	printf '{"status":"accepted","applied":["config"],"staged":[],"restart_required":[]}\n'
 }
 
-thingino_agent_adapter_prudynt_snapshot() {
+agent_snapshot() {
 	channel=${1:-0}
 	command -v prudyntctl >/dev/null 2>&1 || {
 		echo "snapshot is not supported on this camera" >&2
@@ -2240,7 +2234,7 @@ thingino_agent_adapter_prudynt_snapshot() {
 	prudyntctl snapshot -c "$channel"
 }
 
-thingino_agent_adapter_prudynt_record() {
+agent_record() {
 	# Usage:
 	#   record stop [channel]
 	#   record continuous [channel]
@@ -2260,7 +2254,7 @@ thingino_agent_adapter_prudynt_record() {
 				return 1
 			}
 			printf '{"status":"accepted","action":"stop","stream_id":%s}\n' \
-				"$(thingino_agent_json_value_or "$channel" 0)"
+				"$(agent_json_value_or "$channel" 0)"
 			return 0
 			;;
 		continuous)
@@ -2285,7 +2279,7 @@ thingino_agent_adapter_prudynt_record() {
 				}
 			fi
 			printf '{"status":"accepted","action":"continuous","stream_id":%s}\n' \
-				"$(thingino_agent_json_value_or "$channel" 0)"
+				"$(agent_json_value_or "$channel" 0)"
 			return 0
 			;;
 	esac
@@ -2296,14 +2290,14 @@ thingino_agent_adapter_prudynt_record() {
 		return 1
 	}
 	echo "START $file $duration $channel" >/run/prudynt/mp4ctl
-	printf '{"status":"accepted","result":{"path":%s}}\n' "$(thingino_agent_json_string "$file")"
+	printf '{"status":"accepted","result":{"path":%s}}\n' "$(agent_json_string "$file")"
 }
 
-thingino_agent_adapter_prudynt_privacy() {
+agent_privacy() {
 	state=$1
 	channel=${2:-all}
 	[ -n "$state" ] || {
-		echo "usage: thingino-agentctl privacy <on|off> [channel]" >&2
+		echo "usage: agentctl privacy <on|off> [channel]" >&2
 		return 1
 	}
 	if ! command -v privacy >/dev/null 2>&1 && [ ! -e /run/prudynt/video_ctrl ]; then
@@ -2318,16 +2312,16 @@ thingino_agent_adapter_prudynt_privacy() {
 	printf '{"status":"accepted"}\n'
 }
 
-thingino_agent_adapter_prudynt_daynight() {
+agent_daynight() {
 	mode=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
 	[ -n "$mode" ] || {
-		echo "usage: thingino-agentctl daynight <auto|day|night>" >&2
+		echo "usage: agentctl daynight <auto|day|night>" >&2
 		return 1
 	}
 	case "$mode" in
 		auto)
-			if thingino_agent_has_daynightd; then
-				thingino_agent_daynightd_set_mode auto || return 1
+			if agent_has_daynightd; then
+				agent_daynightd_set_mode auto || return 1
 			else
 				agent_apply_payload '{"daynight":{"enabled":true}}' || return 1
 				agent_persist_value daynight.enabled true
@@ -2335,14 +2329,14 @@ thingino_agent_adapter_prudynt_daynight() {
 			printf '{"status":"accepted","mode":"auto"}\n'
 			;;
 		day | night)
-			if thingino_agent_has_daynightd; then
-				thingino_agent_daynightd_set_mode "$mode" || return 1
+			if agent_has_daynightd; then
+				agent_daynightd_set_mode "$mode" || return 1
 			else
 				agent_apply_payload "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$mode\"}}" || return 1
 				agent_persist_value daynight.enabled false
 				agent_persist_value daynight.force_mode "\"$mode\""
 			fi
-			printf '{"status":"accepted","mode":%s}\n' "$(thingino_agent_json_string "$mode")"
+			printf '{"status":"accepted","mode":%s}\n' "$(agent_json_string "$mode")"
 			;;
 		*)
 			echo "daynight mode must be auto, day, or night" >&2
@@ -2351,7 +2345,7 @@ thingino_agent_adapter_prudynt_daynight() {
 	esac
 }
 
-thingino_agent_adapter_prudynt_service() {
+agent_service() {
 	service_name=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
 	action_name=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
 	case "$service_name" in
@@ -2379,10 +2373,10 @@ thingino_agent_adapter_prudynt_service() {
 		return 1
 	}
 	printf '{"status":"accepted","service":%s,"operation":%s}\n' \
-		"$(thingino_agent_json_string "$service_name")" "$(thingino_agent_json_string "$action_name")"
+		"$(agent_json_string "$service_name")" "$(agent_json_string "$action_name")"
 }
 
-thingino_agent_adapter_prudynt_reboot() {
+agent_reboot() {
 	(
 		sleep 1
 		reboot -f
@@ -2390,7 +2384,7 @@ thingino_agent_adapter_prudynt_reboot() {
 	printf '{"status":"accepted","operation":"reboot"}\n'
 }
 
-thingino_agent_adapter_prudynt_send2_test() {
+agent_send2_test() {
 	service=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
 	action=$(printf '%s' "${2:-test}" | tr 'A-Z' 'a-z')
 	[ -n "$service" ] || {
@@ -2417,11 +2411,11 @@ thingino_agent_adapter_prudynt_send2_test() {
 	esac
 	if [ "$_send2_ok" = "false" ]; then
 		printf '{"status":"error","service":%s,"action":%s,"message":"send2 test failed"}\n' \
-			"$(thingino_agent_json_string "$service")" \
-			"$(thingino_agent_json_string "$action")"
+			"$(agent_json_string "$service")" \
+			"$(agent_json_string "$action")"
 		return 1
 	fi
 	printf '{"status":"ok","service":%s,"action":%s}\n' \
-		"$(thingino_agent_json_string "$service")" \
-		"$(thingino_agent_json_string "$action")"
+		"$(agent_json_string "$service")" \
+		"$(agent_json_string "$action")"
 }

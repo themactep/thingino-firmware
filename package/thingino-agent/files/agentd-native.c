@@ -17,7 +17,7 @@
 #define AGENT_CONFIG "/etc/thingino.json"
 #define AGENT_DOCROOT "/var/www"
 #define AGENT_API_PREFIX "/api/v1"
-#define AGENTCTL_PATH "/usr/sbin/thingino-agentctl"
+#define AGENTCTL_PATH "/usr/sbin/agentctl"
 #define REQUEST_BUFFER_SIZE 32768
 #define BODY_LIMIT 65536
 
@@ -509,7 +509,7 @@ static int write_request_body_file(const struct http_request *request, char *tem
 {
     int temp_fd;
 
-    snprintf(temp_path, temp_path_size, "/tmp/thingino-agent-body.XXXXXX");
+    snprintf(temp_path, temp_path_size, "/tmp/agent-body.XXXXXX");
     temp_fd = mkstemp(temp_path);
     if (temp_fd < 0) {
         return -1;
@@ -560,7 +560,7 @@ static int execute_agentctl_binary(int client_fd, char *const argv[], const char
 
     if (command_status != 0) {
         free(output);
-        return send_json_error(client_fd, 500, "Internal Server Error", "thingino-agentctl failed");
+        return send_json_error(client_fd, 500, "Internal Server Error", "agentctl failed");
     }
     response_status = send_response(client_fd, 200, "OK", content_type, output, output_len);
     free(output);

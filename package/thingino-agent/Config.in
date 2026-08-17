@@ -7,7 +7,7 @@ config BR2_PACKAGE_THINGINO_AGENT
 	help
 	  Standalone Thingino camera-agent groundwork.
 
-	  Installs a local camera-agent core (`thingino-agentctl`) plus thin
+	  Installs a local camera-agent core (`agentctl`) plus thin
 	  backend adapters. The external API remains agent-owned; streamer-
 	  specific glue stays behind adapter scripts.
 

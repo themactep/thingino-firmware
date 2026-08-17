@@ -11,6 +11,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 	select BR2_PACKAGE_THINGINO_RAPTOR_COMMON
 	select BR2_PACKAGE_THINGINO_SEND2
 	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_THINGINO_AGENT
 	help
 	  Raptor Streaming System (RSS) -- modular microservice streamer
 	  for Ingenic SoCs. Replaces prudynt-t with independent daemons:

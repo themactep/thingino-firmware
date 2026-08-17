@@ -3,7 +3,7 @@
 
 THINGINO_CONFIG="${THINGINO_CONFIG:-/etc/thingino.json}"
 THINGINO_RAPTOR_CONFIG="${THINGINO_RAPTOR_CONFIG:-/etc/raptor.conf}"
-THINGINO_RAPTOR_PRIVACY_STATE="${THINGINO_RAPTOR_PRIVACY_STATE:-/run/thingino-agent/raptor-privacy}"
+THINGINO_RAPTOR_PRIVACY_STATE="${THINGINO_RAPTOR_PRIVACY_STATE:-/run/agent/raptor-privacy}"
 THINGINO_IRCUT_MODE_FILE="${THINGINO_IRCUT_MODE_FILE:-/tmp/ircutmode.txt}"
 
 thingino_heartbeat_agent_port() {
