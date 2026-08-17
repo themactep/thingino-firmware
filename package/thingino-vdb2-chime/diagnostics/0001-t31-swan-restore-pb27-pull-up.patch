@@ -1,0 +1,24 @@
+From: Thingino VDB2 mechanical-chime investigation
+Subject: [DIAGNOSTIC ONLY] MIPS: T31 Swan: restore PB27 boot pull-up
+
+The recovered Wyze VDB2 stock kernel's gpio_pull_init() calls
+jz_gpio_set_func(59, GPIO_PULL_UP). The corresponding generic Swan source
+entry is commented in Thingino. Restore it for a controlled stock-waveform
+comparison.
+
+This patch is intentionally not selected by the VDB2 defconfig. GPIO59 is
+connected to the doorbell power/chime control circuit, so the weak-high boot
+interval must be electrically validated before becoming a profile default.
+
+--- a/arch/mips/xburst/soc-t31/chip-t31/isvp/Swan/gpio_customized.c
++++ b/arch/mips/xburst/soc-t31/chip-t31/isvp/Swan/gpio_customized.c
+@@ -14,8 +14,7 @@ typedef struct gpio_drive_strength_table {
+ } gpio_drive_strength_table_t;
+
+ static gpio_pull_table_t soc_gpio_pull_table[] = {
+-// Don't force the pull state of the GPIO since we may not be using it for the TF cd pin
+-//	{ GPIO_PB(27), GPIO_PULL_UP }, //TF cd
++	{ GPIO_PB(27), GPIO_PULL_UP }, // VDB2 stock kernel boot waveform
+ };
+
+ static gpio_drive_strength_table_t soc_gpio_drive_strength_table[] = {

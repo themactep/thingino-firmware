@@ -1,0 +1,423 @@
+#!/bin/sh
+
+PROGRAM=${0##*/}
+CONFIG_FILE=${VDB2_CHIME_CONFIG:-/etc/thingino.json}
+DEVMEM_CMD=${VDB2_CHIME_DEVMEM:-devmem}
+GPIO_CMD=${VDB2_CHIME_GPIO:-gpio}
+GPIO_SYSFS=${VDB2_CHIME_SYSFS:-/sys/class/gpio}
+JCT_CMD=${VDB2_CHIME_JCT:-jct}
+USLEEP_CMD=${VDB2_CHIME_USLEEP:-usleep}
+RUN_DIR=${VDB2_CHIME_RUN_DIR:-/run/thingino}
+
+# Stock app_init.sh writes this complete T31 port-B pull-up state after loading
+# the Wi-Fi driver and immediately before starting iCamera. In particular, bit
+# 27 enables the internal pull-up on GPIO59/PB27. Reproduce the complete value:
+# the other port-B bits are part of the same stock pad configuration.
+PB_PULL_REGISTER=${VDB2_CHIME_PB_PULL_REGISTER:-0x10011110}
+PB_PULL_STOCK_VALUE=${VDB2_CHIME_PB_PULL_VALUE:-0x6e094800}
+PB_PULL_CLEAR_REGISTER=${VDB2_CHIME_PB_PULL_CLEAR_REGISTER:-0x10011118}
+PB_PULL_RUNTIME_VALUE=${VDB2_CHIME_PB_PULL_RUNTIME_VALUE:-0x66014800}
+PB_PULL_DOWN_REGISTER=${VDB2_CHIME_PB_PULL_DOWN_REGISTER:-0x10011120}
+PB_PULL_DOWN_CLEAR_REGISTER=${VDB2_CHIME_PB_PULL_DOWN_CLEAR_REGISTER:-0x10011128}
+# GPIO59/PB27, GPIO52/PB20, GPIO53/PB21, and GPIO51/PB19. Stock
+# gpio_request() disables both pulls on each pin after app_init.sh writes the
+# complete port-B pull-up value above.
+PB_CHIME_PULL_MASK=${VDB2_CHIME_PB_PULL_MASK:-0x08380000}
+
+DRY_RUN=0
+IGNORE_SENSE=0
+ARMED=0
+
+usage() {
+	cat <<EOF
+Usage: $PROGRAM [options] ring [milliseconds]
+       $PROGRAM [options] init
+       $PROGRAM [options] off
+       $PROGRAM [options] status
+
+Options:
+  --config PATH   Read settings from PATH (default: $CONFIG_FILE)
+  --dry-run       Print the sequence without touching GPIOs
+  --ignore-sense  Ring even if the energy-ready input is low
+  -h, --help      Show this help
+EOF
+}
+
+fail() {
+	echo "$PROGRAM: $*" >&2
+	exit 1
+}
+
+is_uint() {
+	case "$1" in
+		'' | *[!0-9]*) return 1 ;;
+		0 | [1-9] | [1-9][0-9]*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+config_get() {
+	config_key=$1
+	default_value=$2
+	configured_value=$("$JCT_CMD" "$CONFIG_FILE" get "mechanical_chime.$config_key" 2>/dev/null | tr -d '\r\n"')
+	case "$configured_value" in
+		'' | null) printf '%s\n' "$default_value" ;;
+		*) printf '%s\n' "$configured_value" ;;
+	esac
+}
+
+validate_range() {
+	value_name=$1
+	value=$2
+	minimum=$3
+	maximum=$4
+
+	is_uint "$value" || fail "$value_name must be an unsigned integer"
+	[ "$value" -ge "$minimum" ] && [ "$value" -le "$maximum" ] ||
+		fail "$value_name must be between $minimum and $maximum"
+}
+
+load_config() {
+	[ -r "$CONFIG_FILE" ] || fail "cannot read configuration: $CONFIG_FILE"
+	command -v "$JCT_CMD" >/dev/null 2>&1 || fail "cannot find jct command: $JCT_CMD"
+
+	STAGE1_GPIO=$(config_get stage1_gpio 59)
+	STAGE2_GPIO=$(config_get stage2_gpio 52)
+	TRIGGER_GPIO=$(config_get trigger_gpio 53)
+	SENSE_GPIO=$(config_get sense_gpio 51)
+	DEFAULT_PULSE_MS=$(config_get pulse_ms 200)
+	MAX_PULSE_MS=$(config_get max_pulse_ms 1000)
+	ARM_MS=$(config_get arm_ms 1500)
+	SETTLE_MS=$(config_get settle_ms 30)
+	RELEASE_MS=$(config_get release_ms 1000)
+
+	validate_range stage1_gpio "$STAGE1_GPIO" 0 127
+	validate_range stage2_gpio "$STAGE2_GPIO" 0 127
+	validate_range trigger_gpio "$TRIGGER_GPIO" 0 127
+	validate_range sense_gpio "$SENSE_GPIO" 0 127
+	validate_range pulse_ms "$DEFAULT_PULSE_MS" 1 5000
+	validate_range max_pulse_ms "$MAX_PULSE_MS" 1 5000
+	validate_range arm_ms "$ARM_MS" 0 5000
+	validate_range settle_ms "$SETTLE_MS" 0 1000
+	validate_range release_ms "$RELEASE_MS" 0 5000
+	[ "$DEFAULT_PULSE_MS" -le "$MAX_PULSE_MS" ] ||
+		fail "pulse_ms exceeds max_pulse_ms"
+	[ "$STAGE1_GPIO" -ne "$STAGE2_GPIO" ] &&
+		[ "$STAGE1_GPIO" -ne "$TRIGGER_GPIO" ] &&
+		[ "$STAGE1_GPIO" -ne "$SENSE_GPIO" ] &&
+		[ "$STAGE2_GPIO" -ne "$TRIGGER_GPIO" ] &&
+		[ "$STAGE2_GPIO" -ne "$SENSE_GPIO" ] &&
+		[ "$TRIGGER_GPIO" -ne "$SENSE_GPIO" ] ||
+		fail "chime GPIOs must be distinct"
+}
+
+sleep_ms() {
+	milliseconds=$1
+	[ "$milliseconds" -eq 0 ] && return 0
+	usec=$((milliseconds * 1000))
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s %s\n' "$USLEEP_CMD" "$usec"
+		return 0
+	fi
+	"$USLEEP_CMD" "$usec"
+}
+
+apply_stock_pad_state() {
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s %s 32 %s\n' "$DEVMEM_CMD" "$PB_PULL_REGISTER" "$PB_PULL_STOCK_VALUE"
+		return 0
+	fi
+
+	"$DEVMEM_CMD" "$PB_PULL_REGISTER" 32 "$PB_PULL_STOCK_VALUE" || return 1
+	pad_value=$("$DEVMEM_CMD" "$PB_PULL_REGISTER" 32) || return 1
+	pad_value=$(printf '%s' "$pad_value" | tr 'A-F' 'a-f' | tr -d '\r\n')
+	[ "$pad_value" = "$PB_PULL_STOCK_VALUE" ] || {
+		echo "$PROGRAM: port-B pull-up register read back ${pad_value:-<empty>} after writing $PB_PULL_STOCK_VALUE" >&2
+		return 1
+	}
+}
+
+apply_stock_runtime_pad_state() {
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s %s 32 %s\n' "$DEVMEM_CMD" "$PB_PULL_CLEAR_REGISTER" "$PB_CHIME_PULL_MASK"
+		printf '+ %s %s 32 %s\n' "$DEVMEM_CMD" "$PB_PULL_DOWN_CLEAR_REGISTER" "$PB_CHIME_PULL_MASK"
+		return 0
+	fi
+
+	# This is the second half of stock's setup chronology. Exporting each GPIO
+	# invokes jz_gpio_request(), which disables its pull-up and pull-down.
+	"$DEVMEM_CMD" "$PB_PULL_CLEAR_REGISTER" 32 "$PB_CHIME_PULL_MASK" || return 1
+	"$DEVMEM_CMD" "$PB_PULL_DOWN_CLEAR_REGISTER" 32 "$PB_CHIME_PULL_MASK" || return 1
+
+	pad_value=$("$DEVMEM_CMD" "$PB_PULL_REGISTER" 32) || return 1
+	pad_value=$(printf '%s' "$pad_value" | tr 'A-F' 'a-f' | tr -d '\r\n')
+	[ "$pad_value" = "$PB_PULL_RUNTIME_VALUE" ] || {
+		echo "$PROGRAM: port-B pull-up register read back ${pad_value:-<empty>}; expected stock runtime value $PB_PULL_RUNTIME_VALUE" >&2
+		return 1
+	}
+
+	pull_down_value=$("$DEVMEM_CMD" "$PB_PULL_DOWN_REGISTER" 32) || return 1
+	pull_down_value=$(printf '%s' "$pull_down_value" | tr 'A-F' 'a-f' | tr -d '\r\n')
+	pull_down_hex=${pull_down_value#0x}
+	case "$pull_down_value:$pull_down_hex" in
+		0x*:????????) ;;
+		*)
+			echo "$PROGRAM: port-B pull-down register returned an invalid value: ${pull_down_value:-<empty>}" >&2
+			return 1
+			;;
+	esac
+	case "$pull_down_hex" in
+		*[!0-9a-f]*)
+			echo "$PROGRAM: port-B pull-down register returned an invalid value: $pull_down_value" >&2
+			return 1
+			;;
+	esac
+	[ $((pull_down_value & PB_CHIME_PULL_MASK)) -eq 0 ] || {
+		echo "$PROGRAM: port-B pull-down register still enables a chime GPIO: $pull_down_value" >&2
+		return 1
+	}
+}
+
+write_pin() {
+	pin=$1
+	level=$2
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s set %s %s\n' "$GPIO_CMD" "$pin" "$level"
+		return 0
+	fi
+	value_path=$GPIO_SYSFS/gpio$pin/value
+	if [ -w "$value_path" ]; then
+		# Stock iCamera writes an already-initialized value file directly.
+		# Avoid the generic gpio wrapper here: it redundantly writes "out"
+		# before every edge and adds enough process latency to stretch the
+		# recovered 30 ms stage-to-stage timing.
+		printf '%s' "$level" >"$value_path" || return 1
+	else
+		"$GPIO_CMD" set "$pin" "$level" || return 1
+	fi
+	actual_level=$(read_pin "$pin") || return 1
+	[ "$actual_level" = "$level" ] || {
+		echo "$PROGRAM: GPIO $pin read back $actual_level after writing $level" >&2
+		return 1
+	}
+}
+
+read_pin() {
+	pin=$1
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s read %s\n' "$GPIO_CMD" "$pin" >&2
+		printf '1\n'
+		return 0
+	fi
+	value_path=$GPIO_SYSFS/gpio$pin/value
+	if [ -r "$value_path" ]; then
+		IFS= read -r pin_value <"$value_path" || [ -n "$pin_value" ] || return 1
+	else
+		pin_value=$("$GPIO_CMD" read "$pin") || return 1
+	fi
+	case "$pin_value" in
+		0 | 1) printf '%s\n' "$pin_value" ;;
+		*)
+			echo "$PROGRAM: GPIO $pin returned an invalid level: ${pin_value:-<empty>}" >&2
+			return 1
+			;;
+	esac
+}
+
+initialize_sense_input() {
+	direction_path=$GPIO_SYSFS/gpio$SENSE_GPIO/direction
+	if [ "$DRY_RUN" -eq 1 ]; then
+		printf '+ %s input %s\n' "$GPIO_CMD" "$SENSE_GPIO"
+		return 0
+	fi
+	if [ -w "$direction_path" ]; then
+		printf 'in' >"$direction_path" || return 1
+	else
+		"$GPIO_CMD" input "$SENSE_GPIO" || return 1
+	fi
+	if [ -r "$direction_path" ]; then
+		IFS= read -r sense_direction <"$direction_path" || [ -n "$sense_direction" ] || return 1
+		[ "$sense_direction" = in ] || {
+			echo "$PROGRAM: GPIO $SENSE_GPIO direction read back $sense_direction after selecting input" >&2
+			return 1
+		}
+	fi
+}
+
+power_off() {
+	shutdown_result=0
+	write_pin "$TRIGGER_GPIO" 0 || shutdown_result=1
+	sleep_ms "$RELEASE_MS" || shutdown_result=1
+	write_pin "$STAGE2_GPIO" 0 || shutdown_result=1
+	sleep_ms "$SETTLE_MS" || shutdown_result=1
+	write_pin "$STAGE1_GPIO" 0 || shutdown_result=1
+	return "$shutdown_result"
+}
+
+initialize_idle() {
+	initialize_result=0
+	# Stock iCamera walks its GPIO descriptor table as 59, 52, 53 and
+	# initializes each output low before registering the doorbell callback.
+	# This is intentionally immediate: the one-second release delay belongs
+	# to an energized shutdown only.
+	write_pin "$STAGE1_GPIO" 0 || initialize_result=1
+	write_pin "$STAGE2_GPIO" 0 || initialize_result=1
+	write_pin "$TRIGGER_GPIO" 0 || initialize_result=1
+	return "$initialize_result"
+}
+
+emergency_off() {
+	[ "$ARMED" -eq 1 ] || return 0
+	echo "$PROGRAM: interrupted; forcing the chime outputs off" >&2
+	power_off
+	ARMED=0
+}
+
+handle_signal() {
+	emergency_off
+	trap - EXIT HUP INT TERM
+	exit 128
+}
+
+check_sense() {
+	[ "$IGNORE_SENSE" -eq 0 ] || return 0
+
+	sense_value=$(read_pin "$SENSE_GPIO") || fail "could not read sense GPIO $SENSE_GPIO"
+	[ "$sense_value" = 0 ] || return 0
+
+	# Stock iCamera retries a low sense input once after 100 ms.
+	sleep_ms 100
+	sense_value=$(read_pin "$SENSE_GPIO") || fail "could not re-read sense GPIO $SENSE_GPIO"
+	[ "$sense_value" != 0 ] ||
+		fail "energy-ready GPIO $SENSE_GPIO is low; refusing to energize the chime"
+}
+
+prepare_idle() {
+	apply_stock_pad_state || fail "failed to apply the stock port-B pull-up state"
+	trigger_value=$(read_pin "$TRIGGER_GPIO") ||
+		fail "could not read trigger GPIO $TRIGGER_GPIO"
+	if [ "$trigger_value" != 0 ]; then
+		power_off || fail "failed to return the chime outputs to idle"
+	else
+		initialize_idle || fail "failed to initialize the chime outputs"
+	fi
+	initialize_sense_input || fail "failed to configure energy-ready GPIO $SENSE_GPIO as input"
+	apply_stock_runtime_pad_state || fail "failed to apply the stock post-export pad state"
+}
+
+initialize_hardware() {
+	apply_stock_pad_state || fail "failed to apply the stock port-B pull-up state"
+	initialize_idle || fail "failed to initialize the chime outputs"
+	initialize_sense_input || fail "failed to configure energy-ready GPIO $SENSE_GPIO as input"
+	apply_stock_runtime_pad_state || fail "failed to apply the stock post-export pad state"
+}
+
+ring() {
+	pulse_ms=${1:-$DEFAULT_PULSE_MS}
+	validate_range ring_milliseconds "$pulse_ms" 1 "$MAX_PULSE_MS"
+	prepare_idle
+	check_sense
+	# The stock handler waits 500 ms after its sense check and another
+	# 1000 ms after confirming dingdong_status before powering the stages.
+	sleep_ms "$ARM_MS" || fail "chime arming delay failed"
+
+	ARMED=1
+	write_pin "$STAGE1_GPIO" 1 || fail "failed to enable stage1 GPIO"
+	sleep_ms "$SETTLE_MS" || fail "stage1 settling delay failed"
+	write_pin "$STAGE2_GPIO" 1 || fail "failed to enable stage2 GPIO"
+	sleep_ms "$SETTLE_MS" || fail "stage2 settling delay failed"
+	write_pin "$TRIGGER_GPIO" 1 || fail "failed to enable trigger GPIO"
+	sleep_ms "$pulse_ms" || fail "chime pulse delay failed"
+	power_off || fail "failed to turn the chime outputs off"
+	ARMED=0
+}
+
+status() {
+	for pin_name in stage1 stage2 trigger energy_ready; do
+		case "$pin_name" in
+			stage1) pin=$STAGE1_GPIO ;;
+			stage2) pin=$STAGE2_GPIO ;;
+			trigger) pin=$TRIGGER_GPIO ;;
+			energy_ready) pin=$SENSE_GPIO ;;
+		esac
+		pin_value=$(read_pin "$pin") || fail "could not read $pin_name GPIO $pin"
+		printf '%s gpio %s: %s\n' "$pin_name" "$pin" "$pin_value"
+	done
+}
+
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--config)
+			[ "$#" -ge 2 ] || fail "--config requires a path"
+			CONFIG_FILE=$2
+			shift 2
+			;;
+		--dry-run)
+			DRY_RUN=1
+			shift
+			;;
+		--ignore-sense)
+			IGNORE_SENSE=1
+			shift
+			;;
+		-h | --help)
+			usage
+			exit 0
+			;;
+		--)
+			shift
+			break
+			;;
+		-*) fail "unknown option: $1" ;;
+		*) break ;;
+	esac
+done
+
+command_name=${1:-}
+[ -n "$command_name" ] || {
+	usage >&2
+	exit 1
+}
+shift
+
+load_config
+[ "$DRY_RUN" -eq 1 ] || command -v "$GPIO_CMD" >/dev/null 2>&1 ||
+	fail "cannot find gpio command: $GPIO_CMD"
+[ "$DRY_RUN" -eq 1 ] || command -v "$DEVMEM_CMD" >/dev/null 2>&1 ||
+	fail "cannot find devmem command: $DEVMEM_CMD"
+[ "$DRY_RUN" -eq 1 ] || command -v "$USLEEP_CMD" >/dev/null 2>&1 ||
+	fail "cannot find usleep command: $USLEEP_CMD"
+
+mkdir -p "$RUN_DIR" || fail "cannot create runtime directory: $RUN_DIR"
+LOCK_FILE=$RUN_DIR/vdb2-chime.lock
+exec 9>"$LOCK_FILE" || fail "cannot open lock file: $LOCK_FILE"
+flock -n 9 || fail "another chime operation is already running"
+
+trap 'emergency_off' EXIT
+trap 'handle_signal' HUP INT TERM
+
+case "$command_name" in
+	ring)
+		[ "$#" -le 1 ] || fail "ring accepts at most one duration"
+		ring "${1:-}"
+		;;
+	init)
+		[ "$#" -eq 0 ] || fail "init accepts no arguments"
+		initialize_hardware
+		;;
+	off)
+		[ "$#" -eq 0 ] || fail "off accepts no arguments"
+		apply_stock_pad_state || fail "failed to apply the stock port-B pull-up state"
+		power_off || fail "failed to turn the chime outputs off"
+		initialize_sense_input || fail "failed to configure energy-ready GPIO $SENSE_GPIO as input"
+		apply_stock_runtime_pad_state || fail "failed to apply the stock post-export pad state"
+		;;
+	status)
+		[ "$#" -eq 0 ] || fail "status accepts no arguments"
+		status
+		;;
+	*) fail "unknown command: $command_name" ;;
+esac
+
+trap - EXIT HUP INT TERM
+exit 0

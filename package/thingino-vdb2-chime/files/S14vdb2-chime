@@ -1,0 +1,21 @@
+#!/bin/sh
+
+CHIME=${VDB2_CHIME_BIN:-/usr/sbin/vdb2-chime}
+
+initialize() {
+	echo -c 15 "Initializing VDB2 mechanical-chime GPIOs"
+	[ -x "$CHIME" ] || return 0
+	"$CHIME" init
+}
+
+case "$1" in
+	start | stop | restart)
+		initialize
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,4 +1,15 @@
 {
+  "mechanical_chime": {
+    "stage1_gpio": 59,
+    "stage2_gpio": 52,
+    "trigger_gpio": 53,
+    "sense_gpio": 51,
+    "pulse_ms": 200,
+    "max_pulse_ms": 1000,
+    "arm_ms": 1500,
+    "settle_ms": 30,
+    "release_ms": 1000
+  },
   "gpio": {
     "chime": 7,
     "button_reset": 6,

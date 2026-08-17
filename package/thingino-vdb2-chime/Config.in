@@ -1,0 +1,11 @@
+config BR2_PACKAGE_THINGINO_VDB2_CHIME
+	bool "thingino-vdb2-chime"
+	select BR2_PACKAGE_THINGINO_JCT
+	help
+	  Safe mechanical-chime controller for the Wyze Video Doorbell v2.
+
+	  Reproduces the three-stage GPIO sequence used by the stock iCamera
+	  application and checks its energy-ready input before energizing it.
+
+	  This package is board-specific. Do not enable it for another camera
+	  without first verifying its schematic or stock GPIO behavior.

@@ -1,0 +1,14 @@
+THINGINO_VDB2_CHIME_VERSION = 1.5.0
+THINGINO_VDB2_CHIME_SITE_METHOD = local
+THINGINO_VDB2_CHIME_SITE = $(THINGINO_VDB2_CHIME_PKGDIR)
+THINGINO_VDB2_CHIME_LICENSE = GPL-2.0
+THINGINO_VDB2_CHIME_DEPENDENCIES = thingino-jct
+
+define THINGINO_VDB2_CHIME_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/files/vdb2-chime \
+		$(TARGET_DIR)/usr/sbin/vdb2-chime
+	$(INSTALL) -D -m 0755 $(@D)/files/S14vdb2-chime \
+		$(TARGET_DIR)/etc/init.d/S14vdb2-chime
+endef
+
+$(eval $(generic-package))

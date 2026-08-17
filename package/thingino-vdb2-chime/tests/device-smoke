@@ -1,0 +1,123 @@
+#!/bin/sh
+
+CHIME=${VDB2_CHIME_BIN:-/opt/vdb2-chime}
+CONFIG=${VDB2_CHIME_CONFIG:-/opt/vdb2-chime.json}
+LOG_DIR=${VDB2_CHIME_LOG_DIR:-/opt/vdb2-chime-logs}
+
+usage() {
+	cat <<EOF
+Usage: ${0##*/} preflight
+       ${0##*/} dry-run [milliseconds]
+       ${0##*/} capture
+       ${0##*/} init
+       ${0##*/} live [milliseconds]
+       ${0##*/} off
+
+preflight and dry-run never access GPIOs. init, live, and off are locked until
+VDB2_CHIME_LIVE=I_UNDERSTAND is set explicitly.
+EOF
+}
+
+fail() {
+	echo "${0##*/}: $*" >&2
+	exit 1
+}
+
+require_staged_files() {
+	[ -x "$CHIME" ] || fail "missing executable: $CHIME"
+	[ -r "$CONFIG" ] || fail "missing configuration: $CONFIG"
+	command -v jct >/dev/null 2>&1 || fail "jct is not installed"
+	command -v flock >/dev/null 2>&1 || fail "flock is not installed"
+	command -v usleep >/dev/null 2>&1 || fail "usleep is not installed"
+}
+
+config_value() {
+	jct "$CONFIG" get "mechanical_chime.$1" 2>/dev/null | tr -d '\r\n"'
+}
+
+preflight() {
+	require_staged_files
+	for key in stage1_gpio stage2_gpio trigger_gpio sense_gpio pulse_ms max_pulse_ms arm_ms settle_ms release_ms; do
+		value=$(config_value "$key")
+		[ -n "$value" ] && [ "$value" != null ] || fail "missing mechanical_chime.$key"
+		printf '%s=%s\n' "$key" "$value"
+	done
+	echo "preflight=PASS"
+}
+
+dry_run() {
+	preflight
+	if [ "$#" -eq 0 ]; then
+		"$CHIME" --config "$CONFIG" --dry-run ring
+	else
+		[ "$#" -eq 1 ] || fail "dry-run accepts at most one duration"
+		"$CHIME" --config "$CONFIG" --dry-run ring "$1"
+	fi
+	echo "dry_run=PASS"
+}
+
+capture() {
+	timestamp=$(date '+%Y%m%d-%H%M%S')
+	bundle=$LOG_DIR/$timestamp
+	mkdir -p "$bundle" || fail "cannot create log directory: $bundle"
+
+	uname -a >"$bundle/uname.log" 2>&1
+	dmesg >"$bundle/dmesg.log" 2>&1
+	logread >"$bundle/logread.log" 2>&1
+	cat /proc/interrupts >"$bundle/interrupts.log" 2>&1
+	if command -v logcat >/dev/null 2>&1; then
+		logcat >"$bundle/logcat.log" 2>&1
+	fi
+	printf '%s\n' "$bundle"
+}
+
+require_live_confirmation() {
+	[ "${VDB2_CHIME_LIVE:-}" = I_UNDERSTAND ] ||
+		fail "live GPIO access is locked; set VDB2_CHIME_LIVE=I_UNDERSTAND"
+}
+
+live() {
+	require_live_confirmation
+	require_staged_files
+	if [ "$#" -eq 0 ]; then
+		exec "$CHIME" --config "$CONFIG" ring
+	fi
+	[ "$#" -eq 1 ] || fail "live accepts at most one duration"
+	exec "$CHIME" --config "$CONFIG" ring "$1"
+}
+
+command_name=${1:-}
+[ -n "$command_name" ] || {
+	usage >&2
+	exit 1
+}
+shift
+
+case "$command_name" in
+	preflight)
+		[ "$#" -eq 0 ] || fail "preflight accepts no arguments"
+		preflight
+		;;
+	dry-run) dry_run "$@" ;;
+	capture)
+		[ "$#" -eq 0 ] || fail "capture accepts no arguments"
+		capture
+		;;
+	init)
+		[ "$#" -eq 0 ] || fail "init accepts no arguments"
+		require_live_confirmation
+		require_staged_files
+		exec "$CHIME" --config "$CONFIG" init
+		;;
+	live) live "$@" ;;
+	off)
+		[ "$#" -eq 0 ] || fail "off accepts no arguments"
+		require_live_confirmation
+		require_staged_files
+		exec "$CHIME" --config "$CONFIG" off
+		;;
+	-h | --help | help)
+		usage
+		;;
+	*) fail "unknown command: $command_name" ;;
+esac
