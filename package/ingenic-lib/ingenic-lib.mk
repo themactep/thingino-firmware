@@ -108,6 +108,10 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0644 $(SDK_LIB_DIR)/libimp.so \
 			$(TARGET_DIR)/usr/lib/libimp.so \
 	)
+	$(if $(and $(BR2_PACKAGE_OPENIMP),$(BR2_PACKAGE_THINGINO_RAPTOR_RAD)),\
+		$(INSTALL) -D -m 0755 $(SDK_LIB_DIR)/libimp.so \
+			$(TARGET_DIR)/opt/ingenic-audio/libimp.so \
+	)
 	$(if $(BR2_PACKAGE_INGENIC_LIB_LIBALOG),\
 		$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 			$(TARGET_DIR)/usr/lib/libalog.so \
