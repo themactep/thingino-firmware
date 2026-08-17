@@ -14,6 +14,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: false
+          fetch-depth: 0
 
       - name: Check do-not-edit paths
         env:
@@ -32,60 +33,27 @@ jobs:
             printf '%s\n' "$files" | scripts/check-do-not-edit.sh
           fi
 
-      - name: Install shellcheck
-        # Pin a specific shellcheck release so CI matches local dev (0.11.0)
-        # instead of silently drifting with whatever the distro/runner ships.
-        env:
-          SHELLCHECK_VERSION: "0.11.0"
-        run: |
-          set -eu
-          case "$(uname -m)" in
-            x86_64)  arch=x86_64  ;;
-            aarch64) arch=aarch64 ;;
-            *) echo "unsupported arch: $(uname -m)"; exit 1 ;;
-          esac
-          url="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.${arch}.tar.xz"
-          curl -fsSL -o /tmp/shellcheck.tar.xz "$url"
-          mkdir -p /tmp/shellcheck
-          tar xf /tmp/shellcheck.tar.xz -C /tmp/shellcheck --strip-components=1
-          sudo install -m 0755 /tmp/shellcheck/shellcheck /usr/local/bin/shellcheck
-          shellcheck --version | head -n 2
-
       - name: Lint shell scripts
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          set -eu
-          if [ -n "$BASE_SHA" ]; then
-            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
-          fi
-          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            echo "No base SHA available; skipping shellcheck"
-            exit 0
-          fi
-          files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
-          if [ -z "$files" ]; then
-            echo "No files changed; skipping shellcheck"
-            exit 0
-          fi
-          failed=0
-          for file in $files; do
-            [ -f "$file" ] || continue
-            case "$file" in
-              *.sh)
-                if ! shellcheck -x "$file"; then
-                  failed=1
-                fi
-                ;;
-            esac
-          done
-          if [ "$failed" -eq 1 ]; then
-            echo
-            echo "shellcheck found warnings in changed shell scripts. Fix them and commit again."
-            echo "Use '# shellcheck disable=SCxxxx' with a comment for intentional suppressions."
-            exit 1
-          fi
-          echo "Changed shell scripts pass shellcheck."
+        # reviewdog surfaces shellcheck findings as inline check annotations on
+        # the PR/commit instead of burying them in the raw log. The action pins
+        # shellcheck 0.11.0 (matching local dev); both reviewers and the commit
+        # checks API get file/line-level feedback. filter_mode=added restricts
+        # reports to new findings on changed lines, so pre-existing issues in
+        # unrelated scripts never fail the build. fail_level=any still fails the
+        # job when a new finding appears.
+        # Pinned to v1 tag commit so the action version can't drift quietly.
+        uses: reviewdog/action-shellcheck@0722bbdb0d47f04c1b53b8734d2422ac63a45ec6
+        with:
+          # report on the branch commit so it works on both push and PR runs
+          reporter: github-check
+          filter_mode: added
+          fail_level: any
+          level: warning
+          path: scripts/
+          pattern: '*.sh'
+          exclude: '*.venv/*'
+          # pull in sources referenced from scripts (e.g. scripts/menu/*.sh)
+          shellcheck_flags: --external-sources
 
       - name: Check defconfig sort order
         run: |
