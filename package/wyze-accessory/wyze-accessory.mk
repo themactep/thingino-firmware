@@ -34,6 +34,9 @@ define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight_ctl \
+		$(TARGET_DIR)/usr/sbin/floodlight_ctl
+
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
 	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/50-accessory
