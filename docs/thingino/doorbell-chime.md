@@ -327,7 +327,9 @@ the dusk2dawn service), applies mode-specific overrides, and calls
 
 ### chime.events schema
 
-The `events` object lives inside the `chime` key:
+The `events` object lives inside the `chime` key. Each event has `day`
+and `night` objects, each containing the complete set of parameters —
+sound, volume, repeat, and group. There are no top-level common fields:
 
 ```json
 {
@@ -336,24 +338,31 @@ The `events` object lives inside the `chime` key:
     "groups": {},
     "events": {
       "button_press": {
-        "sound": "DOORBELL_1",
-        "volume": "5",
-        "repeat": "2",
         "day": {
+          "sound": "DOORBELL_1",
+          "volume": "5",
+          "repeat": "2",
           "group": "daytime"
         },
         "night": {
-          "group": "nighttime",
+          "sound": "DOORBELL_1",
           "volume": "2",
-          "repeat": "1"
+          "repeat": "1",
+          "group": "nighttime"
         }
       },
       "motion_alert": {
-        "sound": "DOORBELL_2",
-        "volume": "3",
+        "day": {
+          "sound": "DOORBELL_2",
+          "volume": "3",
+          "repeat": "1",
+          "group": "all"
+        },
         "night": {
-          "group": "nighttime",
-          "volume": "1"
+          "sound": "DOORBELL_2",
+          "volume": "1",
+          "repeat": "1",
+          "group": "nighttime"
         }
       }
     }
@@ -363,15 +372,13 @@ The `events` object lives inside the `chime` key:
 
 ### How it works
 
-1. **Baseline:** The top-level `sound`, `volume`, `repeat`, and `group`
-   keys define defaults for the event.
-2. **Day/night overrides:** The `day` and `night` objects override any
-   of the top-level defaults. Only the keys present in the override are
-   applied — others fall through to the baseline.
-3. **Group selection:** If a `group` is set (either at top level or in
-   the mode override), `doorbell_ctrl play-group <group>` is called.
-   If no group is set, `play-all` is used (every chime rings).
-4. **Day/night state:** Read from `/tmp/nightmode.txt` (set by the
+1. **Per-period configuration:** Each event has separate `day` and
+   `night` sections. Both contain the same fields (sound, volume,
+   repeat, group) — nothing is shared.
+2. **Group selection:** If a `group` is set for the current period,
+   `doorbell_ctrl play-group <group>` is called. If no group is set,
+   `play-all` is used (every chime rings).
+3. **Day/night state:** Read from `/tmp/nightmode.txt` (set by the
    dusk2dawn cron service based on sunrise/sunset). If the file doesn't
    exist or is empty, "day" is assumed.
 
@@ -380,7 +387,7 @@ The `events` object lives inside the `chime` key:
 With the config above, when the doorbell button is pressed:
 
 - **Daytime** → `doorbell_ctrl play-group daytime DOORBELL_1 5 2`
-  (rings living_room and kitchen)
+  (rings living_room and kitchen, twice)
 - **Nighttime** → `doorbell_ctrl play-group nighttime DOORBELL_1 2 1`
   (rings only living_room, quieter and once)
 
@@ -438,6 +445,36 @@ The alarm can be disabled permanently by removing the init script:
 rm /etc/init.d/S14doorbell-alarm
 ```
 
+Chime-free mode (bypass)
+------------------------
+
+If you use the doorbell only for Home Assistant button events and don't
+want a physical chime, enable **chime bypass** from the Web UI
+(**Settings → Doorbell Chime**) or from the command line:
+
+```
+jct /etc/thingino.json set chime.bypass true
+/etc/init.d/S14doorbell-alarm restart
+```
+
+When bypass is active:
+
+- The alternating blue/yellow no-chime alarm is suppressed.
+- The warning banner on the web UI is hidden.
+- Button presses still fire Home Assistant MQTT notifications
+  (`doorbell` entity) and trigger the brief LED blink.
+- No attempt is made to contact a physical chime — the
+  `doorbell_ctrl` call is skipped entirely.
+
+To disable bypass and restore normal chime operation:
+
+```
+jct /etc/thingino.json set chime.bypass false
+/etc/init.d/S14doorbell-alarm restart
+```
+
+Or toggle the switch on the **Doorbell Chime** settings page.
+
 Build-time configuration
 ------------------------
 
@@ -456,6 +493,33 @@ in `/etc/thingino.json` and persist across reboots.
 
 The `doorbell_ctrl` binary and `doorbell_event` script are installed
 automatically when the option is enabled.
+
+Web UI and CGI API
+-----------------
+
+The Doorbell Chime page (`/config-doorbell.html`) provides a full
+management interface for chimes, groups, and events. It communicates
+with the camera via the following CGI endpoints:
+
+### `/x/json-config-doorbell.cgi`
+
+| Action        | Method | Description                                   |
+|---------------|--------|-----------------------------------------------|
+| (none / GET)  | GET    | Return full chime config and sound list        |
+| `pair`        | POST   | Pair a new chime (`name`)                     |
+| `rename`      | POST   | Rename a chime (`id`, `name`)                 |
+| `unpair`      | POST   | Remove a chime (`id`)                         |
+| `play`        | POST   | Play sound on one chime (`id`, `sound`, `volume`, `repeat`) |
+| `play-all`    | POST   | Play sound on all chimes (`sound`, `volume`, `repeat`)      |
+| `play-group`  | POST   | Play sound on a group (`group`, `sound`, `volume`, `repeat`)|
+| `save-group`  | POST   | Create/update a group (`group`, `members`)    |
+| `save-event`  | POST   | Save per-period event config (each field prefixed with `day_` or `night_`) |
+
+### `/x/json-chime-status.cgi`
+
+Returns `{"configured": true}` or `{"configured": false}` to indicate
+whether any chimes have been paired. Used by the navigation to show a
+warning banner on doorbell-equipped cameras.
 
 Debugging
 ---------

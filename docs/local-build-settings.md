@@ -161,12 +161,30 @@ Purpose:
 
 Build behavior:
 
-1. `configs/common.thingino.json` is installed first
-2. The camera's `thingino.json` is imported next, if present
-3. User JSON files are imported in scope order: global, then camera, then device
+1. `configs/common.thingino.json` is installed as the base
+2. The camera's `thingino.json` is staged as `10-camera.json`
+3. Each package that contributes defaults drops a JSON fragment into
+   `/usr/share/thingino-defaults/<NN>-<name>.json` during its install step
+4. At `target-finalize`, `thingino-core` merges all staged fragments in
+   sorted priority order, then applies user configs last
 
-That means device-scoped user values win over camera-scoped user values, which
-win over global user values, which win over common and camera defaults.
+Merge order (later wins for conflicting keys):
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| base | `configs/common.thingino.json` | Common defaults |
+| `10-camera.json` | camera `thingino.json` | Per-camera overrides |
+| `20-agent.json` | `thingino-agent` | Agent defaults |
+| `30-motors.json` | `thingino-motors` | Motor defaults |
+| `40-daynightd.json` | `thingino-daynightd` | Day/night defaults |
+| `50-ha.json` | `thingino-ha` | Home Assistant defaults |
+| `55-ha-doorbell.json` | `thingino-ha` (conditional) | Doorbell entity |
+| user common | `user/common/thingino.json` | User global overrides |
+| user camera | `user/<camera>/thingino.json` | User camera overrides |
+| user device | `user/<camera>/<ip>/thingino.json` | User device overrides |
+
+Device-scoped user values win over camera-scoped user values, which
+win over global user values, which win over package and camera defaults.
 
 Example:
 
@@ -179,6 +197,12 @@ Example:
     "enabled": true,
     "host": "192.168.1.10",
     "port": 1883
+  },
+  "motors": {
+    "steps_pan": 2000,
+    "steps_tilt": 1100,
+    "speed_pan": 8,
+    "speed_tilt": 8
   }
 }
 ```
@@ -273,7 +297,7 @@ Build behavior:
 1. `configs/common.uenv.txt` is read (provides universal defaults:
    `baudrate=115200`, `panic_timeout=2`, `enable_updates=true`,
    `loadaddr=0x80600000`)
-2. The camera's `<camera>.uenv.txt` is read (provides board-specific defaults:
+2. The camera's `uenv.txt` is read (provides board-specific defaults:
    `serialport=ttyS1`, `kernel_params`, `sdupdate`)
 3. User U-Boot fragments are read in scope order: global, then camera, then device
 4. Comment lines and blank lines are removed
@@ -292,13 +316,11 @@ The user-scoped JSON import hooks wired into the build are:
 user/common/thingino.json
 user/<camera>/thingino.json
 user/<camera>/<ip>/thingino.json
-
 ```
 
 Other JSON files are handled differently:
 
 - `/etc/thingino.json` supports user-layered import through `thingino.json`
-  (this includes PTZ/motor tuning under its `motors` section)
 - `/etc/prudynt.json` camera defaults are controlled through camera-scoped
   `prudynt.json`, not through `THINGINO_USER_DIR`
 - Other JSON configs such as `/etc/prudynt.json` or `/etc/timelapse.json` do not
