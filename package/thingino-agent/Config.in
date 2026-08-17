@@ -11,8 +11,8 @@ config BR2_PACKAGE_THINGINO_AGENT
 	  backend adapters. The external API remains agent-owned; streamer-
 	  specific glue stays behind adapter scripts.
 
-	  Shipped backend adapters currently cover prudynt and raptor. The
-	  package layout is backend-neutral and keeps the northbound API
+	  Shipped backend adapters currently cover prudynt, raptor, and timps.
+	  The package layout is backend-neutral and keeps the northbound API
 	  independent from any particular streamer process.
 
 	  The current lifecycle path runs a native local listener for non-TLS
