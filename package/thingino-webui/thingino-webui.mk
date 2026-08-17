@@ -52,9 +52,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
-	$(INSTALL) -d $(TARGET_DIR)/etc
-	printf '%s\n' '$(THINGINO_WEBUI_STREAMER)' > $(TARGET_DIR)/etc/thingino-streamer
-	chmod 0644 $(TARGET_DIR)/etc/thingino-streamer
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S91mqttsub \
 		$(TARGET_DIR)/etc/init.d/S91mqttsub
 #	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
