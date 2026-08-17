@@ -31,7 +31,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: false
           # depth 2 so the PR merge ref's parents (base tip + head) are
