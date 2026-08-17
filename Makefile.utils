@@ -224,7 +224,7 @@ else
 	echo "data_addr=$$(printf '0x%x' $(DATA_OFFSET))" >> $@
 	echo "data_size=$$(printf '0x%x' $(DATA_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
-	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
 	exit

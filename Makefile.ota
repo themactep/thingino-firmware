@@ -87,7 +87,7 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
-	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all))
 	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
 	@$(SCRIPTS_DIR)/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
 		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
@@ -98,7 +98,9 @@ else
 		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
 		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
 		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(BACKUP_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
-		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" "$$(( ($$($(SCRIPTS_DIR)/disk_sectors_written.sh) - $(THINGINO_BUILD_START_DISK_SECTORS)) * 512 ))" $(UBOOT_FLASH_CONTROLLER) && \
+		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" \
+		"$$(( ($$($(SCRIPTS_DIR)/disk_sectors_written.sh) - $(THINGINO_BUILD_START_DISK_SECTORS)) * 512 ))" \
+		$(UBOOT_FLASH_CONTROLLER) && \
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(ORANGE) "Camera: $(CAMERA)"
 	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
