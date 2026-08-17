@@ -10,19 +10,25 @@
 # Allow developers to keep personal overrides in either the root local.mk
 # (ignored by git) or the default $(CONFIG_DIR)/local.mk without losing this
 # aggregated file.
-THINGINO_EXTERNAL_PATH := $(patsubst "%",%,$(strip $(BR2_EXTERNAL_THINGINO_PATH)))
--include $(THINGINO_EXTERNAL_PATH)/local.mk
+#
+# This file is parsed via BR2_PACKAGE_OVERRIDE_FILE before Buildroot re-includes
+# .br2-external.mk with unquoted values (buildroot/Makefile), so the path may
+# still be quoted here. Use the quote-stripped alias for parse-time includes;
+# elsewhere (recipes, hooks, other .mk files) use BR2_EXTERNAL_THINGINO_PATH
+# directly - it is always defined and unquoted by the time those expand.
+THINGINO_OVERRIDE_DIR := $(patsubst "%",%,$(strip $(BR2_EXTERNAL_THINGINO_PATH)))
+-include $(THINGINO_OVERRIDE_DIR)/local.mk
 -include $(CONFIG_DIR)/local.mk
 
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-webserver/busybox-httpd-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-freetype/freetype-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-libcurl/libcurl-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-libopenssl/libopenssl-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-libwebsockets/libwebsockets-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-live555/live555-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/mbedtls-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-mosquitto-212/mosquitto-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-mxml/mxml-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-v4l2loopback/v4l2loopback-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-wireguard-tools/wireguard-tools-override.mk
-include $(THINGINO_EXTERNAL_PATH)/package/thingino-wpa_supplicant/wpa_supplicant-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-webserver/busybox-httpd-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-freetype/freetype-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-libcurl/libcurl-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-libopenssl/libopenssl-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-libwebsockets/libwebsockets-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-live555/live555-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-mbedtls/mbedtls-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-mosquitto-212/mosquitto-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-mxml/mxml-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-v4l2loopback/v4l2loopback-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-wireguard-tools/wireguard-tools-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-wpa_supplicant/wpa_supplicant-override.mk
