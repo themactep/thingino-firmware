@@ -79,7 +79,7 @@ generate() {
 	[ -n "$unique_id" ] || unique_id=$(fw_printenv -n ethaddr 2>/dev/null)
 	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/eth0/address 2>/dev/null | tr -d ':')
 	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/wlan0/address 2>/dev/null | tr -d ':')
-	local generated_hostname="$(default_hostname)-$(echo $unique_id | sed -E 's/://g;s/.*(.{4})$/\1/')"
+	local generated_hostname="$(default_hostname)-$(printf '%s' "$unique_id" | sha256sum | cut -c1-4)"
 
 	echo -c 240 -e "- Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"
