@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2154
 
 RESOLV_WORKING_FILE="/tmp/resolv.conf"
 
@@ -11,16 +12,16 @@ case "$1" in
 			[ -e $RESOLV_WORKING_FILE ] || touch $RESOLV_WORKING_FILE
 		fi
 
-		:> "$RESOLV_WORKING_FILE"
+		: >"$RESOLV_WORKING_FILE"
 
 		if [ -n "$domain" ]; then
 			echo "Populate $RESOLV_WORKING_FILE with domain $domain"
-			echo "search $domain" >> "$RESOLV_WORKING_FILE"
+			echo "search $domain" >>"$RESOLV_WORKING_FILE"
 		fi
 
 		for i in $dns; do
 			echo "Populate $RESOLV_WORKING_FILE with nameserver $i"
-			echo "nameserver $i" >> "$RESOLV_WORKING_FILE"
+			echo "nameserver $i" >>"$RESOLV_WORKING_FILE"
 		done
 		;;
 esac

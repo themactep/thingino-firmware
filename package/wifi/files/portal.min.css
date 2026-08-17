@@ -89,3 +89,10 @@ dd{margin-bottom:.5rem;margin-left:0}
 #scan-spinner{display:inline-block;animation:spin 1s linear infinite}
 #wlan_ssid{padding-right:2.5rem}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.networks-panel{max-height:16rem;overflow-y:auto;background:#dee2e6;border-radius:.375rem;margin-top:.5rem;-webkit-overflow-scrolling:touch}
+.network-item{display:block;width:100%;text-align:left;padding:.6rem .75rem;border:none;background:none;color:#212529;font-size:1rem;line-height:1.4;cursor:pointer}
+.network-item+.network-item{border-top:1px solid #adb5bd}
+.network-item:active,.network-item:hover{background:#ced4da}
+.network-name{font-weight:500;word-break:break-all}
+.network-signal{font-family:monospace;color:#495057}
+.network-security{float:right;color:#6c757d;font-size:.875rem}

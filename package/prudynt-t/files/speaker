@@ -1,35 +1,35 @@
 #!/bin/sh
 
 set_speaker_enabled() {
-  value="$1"
-  printf '{"audio":{"spk_enabled":%s},"action":{"restart_thread":4}}\n' "$value" | prudyntctl json - >/dev/null 2>&1
+	value="$1"
+	printf '{"audio":{"spk_enabled":%s},"action":{"restart_thread":4}}\n' "$value" | prudyntctl json - >/dev/null 2>&1
 }
 
 get_speaker_enabled() {
-  jct /etc/prudynt.json get "audio.spk_enabled"
+	jct /etc/prudynt.json get "audio.spk_enabled"
 }
 
 case "$1" in
-  on)
-    set_speaker_enabled "true" || exit 1
-    ;;
-  off)
-    set_speaker_enabled "false" || exit 1
-    ;;
-  toggle)
-    if [ "$(get_speaker_enabled)" = "true" ]; then
-      set_speaker_enabled "false" || exit 1
-    else
-      set_speaker_enabled "true" || exit 1
-    fi
-    ;;
-  status)
-    get_speaker_enabled
-    ;;
-  *)
-    echo "Usage: $0 {on|off|toggle|status}" >&2
-    exit 1
-    ;;
+	on)
+		set_speaker_enabled "true" || exit 1
+		;;
+	off)
+		set_speaker_enabled "false" || exit 1
+		;;
+	toggle)
+		if [ "$(get_speaker_enabled)" = "true" ]; then
+			set_speaker_enabled "false" || exit 1
+		else
+			set_speaker_enabled "true" || exit 1
+		fi
+		;;
+	status)
+		get_speaker_enabled
+		;;
+	*)
+		echo "Usage: $0 {on|off|toggle|status}" >&2
+		exit 1
+		;;
 esac
 
 exit 0

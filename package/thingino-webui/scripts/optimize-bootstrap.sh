@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2064
 # Regenerate optimized Bootstrap CSS and JS for Thingino WebUI.
 # Requires: node, npm (with npx), sass (Dart Sass)
 # Usage: ./scripts/optimize-bootstrap.sh

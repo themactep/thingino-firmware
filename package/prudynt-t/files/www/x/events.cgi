@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # BusyBox httpd CGI for server-sent events (SSE)
 
 # Check authentication
@@ -14,4 +15,3 @@ prudyntctl events | sed -u 's/^/data: /' | while IFS= read -r line; do
 	echo "$line"
 	echo
 done
-

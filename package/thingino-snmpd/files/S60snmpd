@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 DAEMON="mini-snmpd"
 DAEMON_FULL="/usr/sbin/mini-snmpd"

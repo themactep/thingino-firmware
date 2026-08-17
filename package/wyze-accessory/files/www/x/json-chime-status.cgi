@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 #
 # json-chime-status.cgi – check whether any chimes are configured
 #

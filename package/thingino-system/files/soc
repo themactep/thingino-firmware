@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2004,SC2086
 
 read_cpuid() {
 	cpuid_raw=$(devmem 0x1300002C)

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2154
 
 . /var/www/x/session.sh
 . /var/www/x/auth.sh

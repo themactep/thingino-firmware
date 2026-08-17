@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034,SC2086,SC2124,SC2154,SC2162,SC2164,SC2181,SC2317,SC2329,SC3037,SC3043,SC3045
 
 echo "Run as $0 $*"
 
@@ -21,7 +22,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
+bbapplets="date dd echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
@@ -814,6 +815,12 @@ if [ -z "$mtd_dev" ]; then
 			# Clone busybox to tmpfs before the dd loop so that
 			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
 			clone_app /bin/busybox
+			# Create tmpfs symlinks for commands that must survive
+			# rootfs being overwritten during the flash loop.
+			for a in dd flash_eraseall; do
+				ln -sf "$workdir/busybox" "$workdir/$a"
+			done
+			export PATH="$workdir:$PATH"
 			# Take over the hardware watchdog from tmpfs so a hung
 			# flash (e.g. SSH timeout, stuck erase) doesn't leave
 			# the camera bricked with no recovery.
@@ -874,11 +881,13 @@ if [ -z "$mtd_dev" ]; then
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
 			# Disarm the tmpfs watchdog before triggering the WDT reset.
-			killall watchdog 2>/dev/null && sleep 1
-			sleep 5
+			# Use the tmpfs busybox for every command — rootfs may already
+			# be overwritten, so rootfs binaries can segfault.
+			$workdir/busybox killall watchdog 2>/dev/null && $workdir/busybox sleep 1
+			$workdir/busybox sleep 5
 			if [ -w /proc/jz/reset/reset ]; then
 				echo wdt >/proc/jz/reset/reset
-				sleep 2
+				$workdir/busybox sleep 2
 			fi
 			$workdir/busybox reboot -f
 			exit 0

@@ -1,4 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC2094
+
+set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
 	echo "Usage: $0 <uenv.txt> <path_to_isvp_common.h>"

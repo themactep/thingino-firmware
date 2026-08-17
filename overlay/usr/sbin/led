@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # LED controller that drives kernel LED channels by color first-letter
 # (r, g, b, y, c, m, w, ...).
 

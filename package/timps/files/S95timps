@@ -9,16 +9,17 @@ CONF=/etc/timps.conf
 
 # Read a "key = value" from timps.conf (strips inline comments + quotes).
 conf_get() {
-	sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$CONF" 2>/dev/null \
-		| sed 's/[[:space:]]*#.*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/' \
-		| head -n1
+	sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$CONF" 2>/dev/null |
+		sed 's/[[:space:]]*#.*$//; s/^"\(.*\)"$/\1/; s/^'\''\(.*\)'\''$/\1/' |
+		head -n1
 }
 
 # If TLS is requested but the cert/key are missing, generate a self-signed pair
 # so timpsd doesn't fail to bind the HTTPS/RTSPS listener on first boot.
 ensure_tls_certs() {
 	[ "$(conf_get http.https)" = "1" ] || [ "$(conf_get rtsp.tls)" = "1" ] || return 0
-	crt=$(conf_get http.tls_cert); key=$(conf_get http.tls_key)
+	crt=$(conf_get http.tls_cert)
+	key=$(conf_get http.tls_key)
 	[ -n "$crt" ] && [ -n "$key" ] || return 0
 	[ -s "$crt" ] && [ -s "$key" ] && return 0
 	[ -x /usr/bin/generate-timps-tls-certs.sh ] || return 0

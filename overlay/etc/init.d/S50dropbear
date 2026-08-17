@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 DAEMON="/usr/sbin/dropbear"
 DAEMON_ARGS="-k -K 300 -R"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # timps replacement for the slow (polled) heartbeat CGI (same name, same URL).
 # Same payload as json-heartbeat.cgi, single shot (see timps-heartbeat.sh).
 

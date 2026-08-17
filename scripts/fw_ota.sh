@@ -1,9 +1,19 @@
 #!/bin/bash
+# shellcheck disable=SC2086,SC2029,SC2001
+# SC2086: $SSH_OPTS is a space-separated list that must word-split.
+#   $REMOTE_HOST is always set and contains no spaces or glob chars.
+# SC2029: remote_run's $1 intentionally expands on the client side.
+# SC2001: sed 's/M@.*//' clearer than ${var%%M@*} for rmem parsing.
 
 die() {
 	echo -e "\e[38;5;160m$1\e[0m" >&2
 	exit 1
 }
+
+set -eu
+# NOTE: no pipefail — the sysupgrade pipeline at line ~261 captures
+# ${PIPESTATUS[0]} to check remote_run's exit code independently of
+# tee; pipefail would kill the script before PIPESTATUS can be read.
 
 FORCE=0
 SKIP_SPACE_CHECK=0
@@ -11,6 +21,7 @@ MODE=full
 DO_BACKUP=0
 CAMERA_IP_ADDRESS=""
 LOCAL_FW_FILE=""
+TRIMMED_FILES=""
 while getopts "fBnm:a:p:" opt; do
 	case "$opt" in
 		f) FORCE=1 ;;
@@ -40,21 +51,21 @@ esac
 [ -z "$CAMERA_IP_ADDRESS" ] && die "No IP address specified (-a or positional)"
 
 cleanup() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
 	fi
 	printf '\033[0m' 2>/dev/null || true
 }
 
 remote_copy() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		echo -e "\e[38;5;122mscp -O $SSH_OPTS $1 $2\e[0m" >&2
 	fi
 	scp -O $SSH_OPTS "$1" "$2"
 }
 
 remote_run() {
-	if [ -n "$DEBUG" ]; then
+	if [ -n "${DEBUG:-}" ]; then
 		echo -e "\e[38;5;118mssh $SSH_OPTS $1\e[0m" >&2
 	fi
 	ssh $SSH_OPTS $REMOTE_HOST "$1"
@@ -256,7 +267,7 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
 
-[ -n "$DEBUG" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
+[ -n "${DEBUG:-}" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
 ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
 	die "Failed to initialize ssh connection"
 echo "SSH connection initialized."
@@ -312,13 +323,13 @@ free_overlay_space() {
 }
 
 upload_sysupgrade() {
-	remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
+	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" || \
 		die "Failed to transfer sysupgrade utility"
 	# Current usr-merged images already ship stage2 in the read-only rootfs.
 	# Avoid forcing an overlay copy-up: low-space cameras can reject that scp
 	# even though the executable is already present through /sbin -> usr/sbin.
-	if ! remote_run "test -x /sbin/$(basename $LOCAL_SCRIPT2)"; then
-		remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
+	if ! remote_run "test -x /sbin/$(basename "$LOCAL_SCRIPT2")"; then
+		remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" || \
 			die "Failed to transfer sysupgrade-stage2 utility"
 	fi
 	remote_run "chmod +x $REMOTE_SCRIPT" || \
@@ -327,7 +338,7 @@ upload_sysupgrade() {
 }
 
 upload_flash_ota() {
-	remote_copy $LOCAL_FLASH_OTA $REMOTE_HOST:/tmp/flash-ota.sh || \
+	remote_copy "$LOCAL_FLASH_OTA" "$REMOTE_HOST:/tmp/flash-ota.sh" || \
 		die "Failed to transfer flash-ota"
 	remote_run "chmod +x /tmp/flash-ota.sh" || \
 		die "Failed to set execute permissions on flash-ota"
@@ -353,7 +364,7 @@ if [ "$MODE" = "full" ]; then
 	fi
 
 	echo "Transferring firmware file to the device..."
-	remote_copy $UPLOAD_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
+	remote_copy "$UPLOAD_FW_FILE" "$REMOTE_HOST:$REMOTE_FW_FILE" || \
 		die "The firmware transfer process timed out or failed."
 
 	hash_l=$(sha256sum "$UPLOAD_FW_FILE" | cut -d' ' -f1)
@@ -450,7 +461,7 @@ elif [ "$MODE" = "rootfs" ]; then
 fi
 
 # Clean up trimmed files on exit
-trap 'rm -f $TRIMMED_FILES; cleanup' EXIT
+trap 'rm -f ${TRIMMED_FILES:-}; cleanup' EXIT
 
 # Upload partition files
 case "$MODE" in

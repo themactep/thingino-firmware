@@ -1,6 +1,6 @@
 {
-    "image": {
-        "hflip": true,
-        "vflip": true
-    }
+  "image": {
+    "hflip": true,
+    "vflip": true
+  }
 }

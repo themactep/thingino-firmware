@@ -30,10 +30,21 @@
   const SSE_URL = "/x/json-osd-sei.cgi";
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
-  const FONT_SIZE = 14;
+  const FONT_SIZE = 14; // fallback; overridden by sei-osd-settings (preview-osd.js modal)
 
   let source = null;
   let started = false;
+  let lastData = null;
+
+  // Visual overrides stored by the preview-page OSD modal (preview-osd.js):
+  //   { fs: font size, fc: fill color, sc: stroke color, stw: stroke width }
+  function visualSettings() {
+    try {
+      return JSON.parse(localStorage.getItem("sei-osd-settings") || "{}");
+    } catch (_) {
+      return {};
+    }
+  }
 
   function resolvePos(rawPos, containerSize) {
     if (rawPos < 0) return Math.max(containerSize + rawPos, 0);
@@ -48,14 +59,26 @@
   }
 
   function buildOverlayHTML(elements) {
+    const vis = visualSettings();
+    const fs = parseInt(vis.fs, 10) || FONT_SIZE;
+    const fc = vis.fc || "#ffffff";
+    const sc = vis.sc || "#000000";
+    const stw = parseInt(vis.stw, 10) || 1;
+    const shadow = ["-1", "1"]
+      .map((sx) =>
+        ["-1", "1"]
+          .map((sy) => `${sx * stw}px ${sy * stw}px 0 ${sc}`)
+          .join(","),
+      )
+      .join(",");
     let html = "";
     for (const el of elements) {
       const cls =
         el.t === "gain" ? "sei-gain" : el.t === "timestamp" ? "sei-time" : "";
       html += `<div class="sei-el ${cls}" data-sei-x="${el.x}" data-sei-y="${el.y}"
         style="position:absolute;white-space:nowrap;pointer-events:none;
-        color:#fff;font-family:monospace;
-        text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+        color:${fc};font-family:monospace;font-size:${fs}px;
+        text-shadow:${shadow};
         ">${escapeHTML(el.text)}</div>`;
     }
     return html;
@@ -69,7 +92,10 @@
     const rect = img.getBoundingClientRect();
     const scaleX = rect.width / (img.naturalWidth || rect.width || 1);
     const scaleY = rect.height / (img.naturalHeight || rect.height || 1);
-    const fontSize = Math.round(FONT_SIZE * Math.min(scaleX, scaleY));
+    const vis = visualSettings();
+    const baseFs =
+      parseInt(overlay.dataset.fs, 10) || parseInt(vis.fs, 10) || FONT_SIZE;
+    const fontSize = Math.round(baseFs * Math.min(scaleX, scaleY));
 
     overlay.style.left = rect.left + "px";
     overlay.style.top = rect.top + "px";
@@ -108,6 +134,7 @@
   function handleEvent(event) {
     try {
       const data = JSON.parse(event.data);
+      lastData = data;
       if (!data || !data.elements || !data.elements.length) {
         hideOverlay();
         return;
@@ -169,13 +196,27 @@
     }
   }
 
-  // Expose global controls so pages can start/stop on demand
+  // Expose global controls so pages can start/stop/restyle on demand
   window.SeiOSD = {
     start: sseStart,
     stop: sseStop,
     restart: function () {
       sseStop();
       checkAndStart();
+    },
+    // Re-render the current overlay with the latest visual settings
+    // (called by the OSD settings modal on the preview page).
+    repaint: function () {
+      const overlay = document.getElementById(OVERLAY_ID);
+      if (
+        !overlay ||
+        !lastData ||
+        !lastData.elements ||
+        !lastData.elements.length
+      )
+        return;
+      overlay.innerHTML = buildOverlayHTML(lastData.elements);
+      reposition();
     },
   };
 

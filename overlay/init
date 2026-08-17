@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2046,SC2086,SC3037,SC3043
 
 die() {
 	printf "\e[38;5;160mInit: [ERROR] %s\e[0m\n" "$1" >&2

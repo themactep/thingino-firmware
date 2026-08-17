@@ -279,6 +279,20 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 
 endef
 
+# Raptor's own WebRTC preview page. It must land over thingino-webui's stock
+# MJPEG preview.html, and it must be in place BEFORE thingino-webui's
+# plugin-assembly finalize hook processes it (the assembler injects plugins.js
+# into whatever is on disk at that path). A plain INSTALL_TARGET_CMDS copy goes
+# into the per-package tree and loses the final per-package merge to
+# thingino-webui (alphabetically later package wins conflicts), so install it
+# from a finalize hook: parse order puts this hook before the webui's assembly
+# hook, and target-finalize runs after the per-package merge.
+define THINGINO_RAPTOR_INSTALL_PREVIEW
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+		$(TARGET_DIR)/var/www/preview.html
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW
+
 # Raptor-only send2 capture (copy_photo/copy_video via raptorctl/RMR). Installed
 # from a finalize hook so it wins over package/thingino-send2's prudynt default
 # regardless of package install order. On a raptor image this is the only

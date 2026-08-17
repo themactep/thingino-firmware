@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2155,SC1091
 
 # SD Card Utilities for Thingino Development
 # Quick utilities for SD card operations during development

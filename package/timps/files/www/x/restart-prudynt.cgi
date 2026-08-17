@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # timps replacement for the streamer restart CGI (same name, same URL,
 # because the WebUI calls /x/restart-prudynt.cgi; also installed as
 # restart-timps.cgi). Restarts the timps streamer service.

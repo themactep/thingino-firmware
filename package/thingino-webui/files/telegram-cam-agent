@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019,SC2153
 
 CONFIG_FILE="/etc/thingino.json"
 REPLY_TOPIC_PREFIX="thingino/cam"

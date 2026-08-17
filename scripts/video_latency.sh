@@ -1,10 +1,13 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # GStreamer based script for glass-to-glass latency testing.
 # Use it together with https://thingino.com/timer
 #
 # 2023, Paul Philippov <paul@themactep.com>
 # 2024-07-15: Rewrite for easier use.
+
+set -euo pipefail
 
 if ! command -v gst-launch-1.0 > /dev/null; then
 	echo "This script requires GStreamer."
@@ -20,7 +23,7 @@ show_help_and_exit() {
 url="$1"
 [ -z "$url" ] && show_help_and_exit
 
-codec="$2"
+codec="${2:-}"
 case "$codec" in
 	"h265")
 		gst-launch-1.0 -vvv rtspsrc location=$url ! queue ! \

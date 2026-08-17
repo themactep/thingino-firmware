@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2162
 
 erase_mtd1=true
 

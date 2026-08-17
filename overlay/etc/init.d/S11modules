@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC3043
 
 load_modules() {
 	local file=$1

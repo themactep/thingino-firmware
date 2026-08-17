@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1090,SC2018,SC2019
 
 DAEMON=/usr/bin/openimp-tuningd
 PIDFILE=/var/run/openimp-tuningd.pid

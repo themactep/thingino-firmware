@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC3043
 #
 # doorbell_event – Event-driven chime dispatcher for Thingino
 #

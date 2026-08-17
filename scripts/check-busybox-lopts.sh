@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034
 #
 # Post-build check: ensure no init script passes long options to busybox
 # applets whose long-option support is compiled out.
@@ -12,6 +13,8 @@
 #
 # Usage:
 #   scripts/check-busybox-lopts.sh <target-dir> [fatal]
+
+set -euo pipefail
 
 TARGET_DIR="${1:-}"
 FATAL="${2:-0}"

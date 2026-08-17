@@ -10,6 +10,10 @@
         {
           "label": "Audio",
           "href": "/config-audio.html"
+        },
+        {
+          "label": "RTSP/ONVIF access",
+          "href": "/config-rtsp.html"
         }
       ]
     },
@@ -68,6 +72,16 @@
     },
     {
       "section": "ddServices",
+      "position": "prepend",
+      "items": [
+        {
+          "label": "Video Recorder",
+          "href": "/tool-record.html"
+        }
+      ]
+    },
+    {
+      "section": "ddServices",
       "position": "append",
       "items": [
         {
@@ -81,7 +95,8 @@
   "styles": [],
   "preview": {
     "scripts": [
-      "/a/sei-osd.js"
+      "/a/sei-osd.js",
+      "/a/preview-osd.js"
     ],
     "html": null
   },
@@ -95,6 +110,8 @@
     "/x/restart-prudynt.cgi",
     "/x/json-imaging.cgi",
     "/x/json-osd-sei.cgi",
+    "/x/json-config-rtsp.cgi",
+    "/x/tool-record.cgi",
     "/x/ch0.jpg",
     "/x/ch1.jpg",
     "/x/dl0.jpg",
@@ -112,6 +129,8 @@
     "/streamer-image.html",
     "/streamer-osd.html",
     "/streamer-sensor.html",
-    "/config-audio.html"
+    "/config-audio.html",
+    "/config-rtsp.html",
+    "/tool-record.html"
   ]
 }

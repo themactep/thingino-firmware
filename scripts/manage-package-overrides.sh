@@ -1,4 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC2155,SC2086
+# SC2155: local var=\$(cmd) used extensively; masking return values
+#   from git/dirname/basename is harmless in this context.
+# SC2086: package names and paths are always space/glob-safe.
 
 set -e
 
@@ -135,7 +139,7 @@ add_override() {
 
     # Convert absolute path to relative using $(BR2_EXTERNAL)
     # Remove BASE_DIR prefix and use $(BR2_EXTERNAL) instead
-    local relative_path="${override_path#$BASE_DIR/}"
+    local relative_path="${override_path#"$BASE_DIR"/}"
     if [ "$relative_path" != "$override_path" ]; then
         # Path was inside BASE_DIR, make it relative
         override_path="\$(BR2_EXTERNAL)/$relative_path"
@@ -441,7 +445,30 @@ download_package() {
 
         print_success "Cloned $pkg_name to $dest_dir"
     else
-        print_error "Unsupported site method: $method (only 'git' is supported)"
+        if [ "$method" = "local" ]; then
+            # Resolve the local source path (expand $(XXX_PKGDIR) references)
+            local src_dir=""
+            local pkgdir_var="${pkg_upper}_PKGDIR"
+            local expanded_site="${site/\$($pkgdir_var)/$PACKAGE_DIR/$pkg_name}"
+            # Handle BR2_EXTERNAL or other variable prefixes in the path
+            if [ -d "$expanded_site" ]; then
+                src_dir="$expanded_site"
+            elif [ -d "$BASE_DIR/$expanded_site" ]; then
+                src_dir="$BASE_DIR/$expanded_site"
+            fi
+
+            if [ -z "$src_dir" ] || [ ! -d "$src_dir" ]; then
+                print_error "Could not resolve local source path: $site"
+                return 1
+            fi
+
+            print_info "Copying $src_dir to $dest_dir"
+            cp -a "$src_dir" "$dest_dir"
+            print_success "Copied $pkg_name to $dest_dir"
+        else
+            print_error "Unsupported site method: $method (only 'git' and 'local' are supported)"
+            return 1
+        fi
         return 1
     fi
 }
@@ -724,6 +751,8 @@ main() {
                 ;;
             -u|--update)
                 mode="update"
+                # shellcheck disable=SC2034
+                # update_mode flag read by sourcing callers
                 update_mode="yes"
                 shift
                 # Check if next arg is --all or a pattern

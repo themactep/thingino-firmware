@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2153,SC3043
 # Publishes Home Assistant MQTT auto-discovery payloads for all enabled entities.
 # Disabled or unsupported entities have their retained discovery topics cleared
 # so HA removes them automatically.

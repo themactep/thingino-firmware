@@ -1,14 +1,18 @@
 #!/bin/bash
-
+# shellcheck disable=SC2086
+# All variables are BR2_* or TARGET_DIR from Buildroot make environment;
+# dep_check.sh guarantees paths are free of spaces and special characters.
 #
 # RootFS helper
 #
+
+set -euo pipefail
 
 BOOTLOADER=$(echo ${BR2_TARGET_UBOOT_BOARD_DEFCONFIG:-$BR2_TARGET_UBOOT_BOARDNAME} | tr -d '"')
 
 # Preset the hostname
 IMAGE_ID=${CAMERA}
-IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/configs/cameras/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
+IMAGE_NAME=$(sed -n 's/^# NAME: //p' "$BR2_EXTERNAL/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}_defconfig" 2>/dev/null | head -1)
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
@@ -20,7 +24,7 @@ if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 fi
 
 cd $BR2_EXTERNAL
-GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
+GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S +0000' --format="%cd")
 BUILD_TIME="$(env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
@@ -72,7 +76,7 @@ fi
 #
 
 # Take care of dropbear
-rm ${TARGET_DIR}/etc/dropbear
+rm -f ${TARGET_DIR}/etc/dropbear
 mkdir -p ${TARGET_DIR}/etc/dropbear
 
 FILE=${TARGET_DIR}/usr/lib/os-release

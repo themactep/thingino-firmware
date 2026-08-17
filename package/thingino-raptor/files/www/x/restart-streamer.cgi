@@ -1,6 +1,7 @@
 #!/bin/sh
 # Restart the raptor streamer stack.
 
+# shellcheck disable=SC1091  # auth.sh is installed on the camera, not in the build tree
 . /var/www/x/auth.sh
 require_auth
 

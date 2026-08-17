@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2016
 set -eu
 
 FIFO="/run/prudynt/audio_out"
@@ -57,8 +58,14 @@ while getopts "v:g:r:f:l:d:Ash" opt; do
 		d) DELAY=$OPTARG ;;
 		A) APPEND=1 ;;
 		s) READ_STDIN=1 ;;
-		h) usage; exit 0 ;;
-		*) usage >&2; exit 1 ;;
+		h)
+			usage
+			exit 0
+			;;
+		*)
+			usage >&2
+			exit 1
+			;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -88,7 +95,7 @@ is_remote_path() {
 
 if [ "$READ_STDIN" -eq 1 ] || [ "$PATH_ARG" = "-" ]; then
 	TMP_FILE=$(mktemp /tmp/play-stdin.XXXXXX)
-	if ! cat > "$TMP_FILE"; then
+	if ! cat >"$TMP_FILE"; then
 		echo "play: failed to capture stdin" >&2
 		exit 1
 	fi

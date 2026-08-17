@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2086,SC2329,SC3043
 
 # Timelapse recorder configuration for prudynt images.
 # Reads/writes /etc/timelapse.json and maintains the cron schedule that

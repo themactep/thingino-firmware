@@ -1,12 +1,13 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2162,SC3001,SC3045
 # manual-wg-setup.sh — Fully interactive WireGuard setup for Thingino hardware
 
 set -e
 
 if [ "$1" = "--down" ]; then
-  echo "[+] Tearing down wg0..."
-  ip link delete wg0
-  exit 0
+	echo "[+] Tearing down wg0..."
+	ip link delete wg0
+	exit 0
 fi
 
 # Prompt for keys + endpoint
@@ -31,10 +32,10 @@ ip link add dev wg0 type wireguard
 
 wg set wg0 private-key <(echo "$PRIV")
 wg set wg0 peer "$PEER_PUB" \
-  preshared-key <(echo "$PSK") \
-  endpoint "$ENDPOINT" \
-  allowed-ips "$ALLOWED_IPS" \
-  persistent-keepalive "$KEEPALIVE"
+	preshared-key <(echo "$PSK") \
+	endpoint "$ENDPOINT" \
+	allowed-ips "$ALLOWED_IPS" \
+	persistent-keepalive "$KEEPALIVE"
 
 ip link set mtu "$MTU" dev wg0
 ip address add "$WG_ADDR" dev wg0

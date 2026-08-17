@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1090
 
 DAEMON="/usr/bin/floodlightd"
 PIDFILE="/run/floodlightd.pid"

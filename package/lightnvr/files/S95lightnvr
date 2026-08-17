@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 DAEMON="/usr/bin/lightnvr"
 DAEMON_ARGS=""

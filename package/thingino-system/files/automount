@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 
 if [ -z "$MDEV" ]; then
 	echo -c 160 -e "No device name to mount!" >&2

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019,SC2086  # tr a-z/A-Z on ASCII values; deliberate IFS word-splits into positional params
 
 AGENT_CONFIG="${AGENT_CONFIG:-/etc/raptor.conf}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
@@ -1539,6 +1540,7 @@ agent_parse_osd_path() {
 	path=$1
 	stream_id=${path#streams/}
 	stream_id=${stream_id%%/*}
+	# shellcheck disable=SC2295  # stream_id is numeric, never a glob pattern
 	relative=${path#streams/$stream_id/osd/}
 	[ -n "$stream_id" ] && [ "$relative" != "$path" ] || return 1
 	case "$stream_id" in

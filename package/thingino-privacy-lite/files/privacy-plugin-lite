@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 STATE_FILE="/run/prudynt/privacy-lite.state"
 ACTIVE_FILE="/run/prudynt/privacy-lite.active"

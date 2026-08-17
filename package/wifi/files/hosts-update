@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC2162,SC3057
 
 HOSTS="/tmp/dnsd.conf"
 
@@ -6,14 +7,14 @@ cp /etc/dnsd-ap.conf "$HOSTS"
 
 hostname=$(hostname)
 if ! grep -q $hostname "$HOSTS" >/dev/null; then
-	echo "$hostname.local $(hostname -i)" >> "$HOSTS"
+	echo "$hostname.local $(hostname -i)" >>"$HOSTS"
 fi
 
 dumpleases -f /run/udhcpd_ap.leases -d | grep -v "^Mac Address" | while read line; do
 	ip=$(echo $line | cut -s -F 2)
 	hostname=$(echo $line | cut -s -F 3)
-	if [ " " != "${line:34:1}" ]; then
-		echo "$hostname.local $ip" >> "$HOSTS"
+	if [ " " != "$(printf '%s' "$line" | cut -c35)" ]; then
+		echo "$hostname.local $ip" >>"$HOSTS"
 	fi
 done
 

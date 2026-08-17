@@ -8,6 +8,10 @@
 .DS_Store
 *.backup
 *.log
+*~
+\#*#
+core
+core.*
 
 # Docker
 .bash_history
@@ -15,7 +19,8 @@
 
 # Generated
 *.pyc
-/scripts/.t31_nonce_search_fast
+*.pyo
+__pycache__/
 
 # Buildroot
 /.cache
@@ -31,7 +36,8 @@
 /sdk
 /tmp
 /toolchain
-/trash
+/trash/*
+!/trash/README.md
 /local.mk
 /.prereqs.done
 /.selected_camera*

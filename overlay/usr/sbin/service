@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2012,SC2086
 # Controls system services
 
 if [ "$1" != "list" ] && [ "$#" -ne 2 ]; then

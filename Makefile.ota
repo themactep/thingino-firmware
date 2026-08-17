@@ -1,0 +1,315 @@
+clean-config:
+	@$(TEAL) "$@"
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
+
+# call configurator
+menuconfig: check-config $(OUTPUT_DIR)/.config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
+
+nconfig: check-config $(OUTPUT_DIR)/.config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
+
+# permanently save changes to the defconfig
+saveconfig:
+	@$(TEAL) "$@"
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+
+### Files
+
+# Clean camera-specific NFS debug artifacts
+clean-nfs-debug:
+	@$(TEAL) "$@"
+	@if [ -z "$(CAMERA)" ] || [ "$(CAMERA)" = "" ]; then \
+		echo "CAMERA variable not defined, skipping NFS debug cleanup"; \
+	elif [ ! -f "$(OUTPUT_DIR)/.config" ]; then \
+		echo "Configuration file not found, skipping NFS debug cleanup"; \
+	else \
+		NFS_PATH=$$(grep '^BR2_THINGINO_NFS=' "$(OUTPUT_DIR)/.config" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo ""); \
+		DEBUG_ENABLED=$$(grep '^BR2_PACKAGE_PRUDYNT_T_DEBUG=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
+		DEV_PACKAGES_ENABLED=$$(grep '^BR2_THINGINO_DEV_PACKAGES=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
+		\
+		if [ -n "$$DEBUG_ENABLED" ] && [ -n "$$DEV_PACKAGES_ENABLED" ] && [ -n "$$NFS_PATH" ] && [ "$$NFS_PATH" != "" ]; then \
+			CAMERA_NFS_DIR="$$NFS_PATH/$(CAMERA)"; \
+			if [ -d "$$CAMERA_NFS_DIR" ]; then \
+				echo "Removing camera-specific NFS debug artifacts: $$CAMERA_NFS_DIR"; \
+				rm -rf "$$CAMERA_NFS_DIR"; \
+				echo "NFS debug artifacts cleaned for camera: $(CAMERA)"; \
+			else \
+				echo "NFS debug directory does not exist: $$CAMERA_NFS_DIR (skipping)"; \
+			fi; \
+		else \
+			if [ -z "$$DEBUG_ENABLED" ]; then \
+				echo "Debug builds not enabled, skipping NFS debug cleanup"; \
+			elif [ -z "$$DEV_PACKAGES_ENABLED" ]; then \
+				echo "Development packages not enabled, skipping NFS debug cleanup"; \
+			elif [ -z "$$NFS_PATH" ] || [ "$$NFS_PATH" = "" ]; then \
+				echo "NFS path not configured, skipping NFS debug cleanup"; \
+			fi; \
+		fi; \
+	fi
+
+# remove target/ directory
+clean: clean-nfs-debug
+	@$(TEAL) "$@"
+	rm -rf $(OUTPUT_DIR)/target
+	rm -rf $(OUTPUT_DIR)/data
+	rm -f $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_FULL).sha256sum
+	rm -f $(ROOTFS_BIN) $(DATA_BIN)
+#	$(UB_ENV_BIN) $(KERNEL_BIN)
+
+# remove all build files
+distclean: clean-nfs-debug
+	@$(TEAL) "$@"
+	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
+
+# assemble final images
+pack: $(FIRMWARE_BIN_FULL)
+	@$(TEAL) "$@"
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
+	@$(ORANGE) "Camera: $(CAMERA) (MMC boot)"
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
+	@echo ""
+	@echo "Flash to SD card:"
+	@echo "  sudo dd if=$(FIRMWARE_BIN_FULL) of=/dev/sdX bs=1M conv=fsync"
+else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	@$(ORANGE) "Camera: $(CAMERA) (SPI-NAND / UBI)"
+	@echo "Flash layout (from the fork's t40-isvp-nand.dtsi):"
+	@echo "  0x000000  boot : $(notdir $(U_BOOT_BIN)) (raw SPL @ 0 + U-Boot @ 0x8000)"
+	@echo "  0x100000  ubi  : UBI volumes uboot-env / kernel / rootfs(squashfs) / overlay(ubifs)"
+	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
+	@$(ORANGE) "Camera: $(CAMERA)"
+	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
+else
+	$(info Aligned at: $(ALIGN_BLOCK))
+	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all))
+	@$(SCRIPTS_DIR)/generate_release_artifacts.sh "$(OUTPUT_DIR)"
+	@$(SCRIPTS_DIR)/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
+		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
+		$(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) \
+		$(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) \
+		$(BACKUP_OFFSET) $(BACKUP_PARTITION_SIZE) 0 0 \
+		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) \
+		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
+		$(DATA_OFFSET) $(DATA_PARTITION_SIZE) $(DATA_BIN_SIZE) $(DATA_BIN_SIZE_ALIGNED) \
+		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(BACKUP_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(DATA_SIZE_KB) \
+		$(FLASH_SIZE_KB) "$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) ))" "$$(( ($$($(SCRIPTS_DIR)/disk_sectors_written.sh) - $(THINGINO_BUILD_START_DISK_SECTORS)) * 512 ))" $(UBOOT_FLASH_CONTROLLER) && \
+		cat $(OUTPUT_DIR)/images/$(CAMERA).md
+	@$(ORANGE) "Camera: $(CAMERA)"
+	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
+	@echo ""
+	@if [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then $(RED) "KERNEL PARTITION OVERFLOW"; fi
+	@if [ $(ROOTFS_BIN_SIZE) -gt $(ROOTFS_PARTITION_SIZE) ]; then $(RED) "ROOTFS PARTITION OVERFLOW"; fi
+	@if [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then $(RED) "DATA PARTITION OVERFLOW"; fi
+	@if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then $(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks)"; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
+endif
+# Per-build size and composition report, written to
+# $(OUTPUT_DIR)/buildscope-report.json and renderable at
+# buildscope.thingino.com. It attributes the rootfs to the packages that
+# installed it and reads real usage out of every image, which needs the build
+# tree that pack still has and distclean removes.
+#
+# BR2_PACKAGE_HOST_BUILDSCOPE installs the tool into $(HOST_DIR); a copy on
+# PATH is used otherwise, so the report is available without enabling the
+# package. A missing tool or a failed report never fails the build.
+#
+# --capture records etc/thingino.json into the report. Nothing in .config
+# carries what is in it: the GPIO driving an IR cut filter, the pins and step
+# counts of a pan motor, are decided there and nowhere else, and the Kconfig
+# options that look like they hold them are empty. Attempted rather than
+# assumed, because the copy on PATH may predate the flag and an unknown
+# argument would cost the whole report rather than just the capture.
+	@BUILDSCOPE="$(HOST_DIR)/bin/buildscope"; \
+		if [ ! -x "$$BUILDSCOPE" ]; then BUILDSCOPE=$$(command -v buildscope 2>/dev/null || true); fi; \
+		if [ -n "$$BUILDSCOPE" ]; then \
+			"$$BUILDSCOPE" scan -q --capture etc/thingino.json "$(OUTPUT_DIR)" 2>/dev/null \
+				|| "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; \
+		fi
+	@echo ""
+	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
+		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
+		if [ $$H -gt 0 ]; then HMS=$$(printf '%dh %02dm %02ds' $$H $$M $$S); \
+		elif [ $$M -gt 0 ]; then HMS=$$(printf '%dm %02ds' $$M $$S); \
+		else HMS=$$(printf '%ds' $$S); fi; \
+		$(GREEN) "Total build time: $$HMS"
+
+build-info: pack
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/generate_build_info.sh "$(OUTPUT_DIR)"
+
+# rebuild a package with smart configuration check
+rebuild-uboot: force-config
+	@$(TEAL) "$@"
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
+	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
+
+rebuild-%: force-config
+	@$(TEAL) "$@"
+	@PKG_NAME="$(subst rebuild-,,$@)"; \
+	OVERRIDE_DIR="overrides/$$PKG_NAME"; \
+	if [ -d "$$OVERRIDE_DIR" ]; then \
+		echo "Cleaning build artifacts in override: $$OVERRIDE_DIR"; \
+		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
+	fi; \
+	true
+	rm -f $(U_BOOT_ENV_TXT)
+	$(MAKE) $(U_BOOT_ENV_TXT)
+	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
+
+bundle-%:
+	@$(TEAL) "$@"
+	@$(BR2_MAKE) $(subst bundle-,,$@)-dirclean $(subst bundle-,,$@)
+	@if [ -f "$(BR2_EXTERNAL)/package/$(subst bundle-,,$@)/files/$(subst bundle-,,$@).webui.json" ]; then \
+		echo "  WebUI plugin detected, assembling..."; \
+		PKG="$(subst bundle-,,$@)"; \
+		rsync -a "$(OUTPUT_DIR)/per-package/$$PKG/target/var/www/" "$(OUTPUT_DIR)/target/var/www/"; \
+		python3 "$(BR2_EXTERNAL)/package/thingino-webui/scripts/assemble_plugins.py" "$(OUTPUT_DIR)/target" || true; \
+	fi
+	@$(BR2_EXTERNAL)/scripts/make-bundle.sh "$(subst bundle-,,$@)" "$(CAMERA)" "$(OUTPUT_DIR)" "$(SOC_FAMILY)"
+
+remove_bins:
+	@$(TEAL) "$@"
+	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(DATA_BIN)
+
+repack: remove_bins pack
+	@$(TEAL) "$@"
+
+# build toolchain fast
+sdk: defconfig
+	@$(TEAL) "$@"
+	$(BR2_MAKE) -j$(NPROC) sdk
+
+source: defconfig
+	@$(TEAL) "$@"
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
+
+# build toolchain
+toolchain: defconfig
+	@$(TEAL) "$@"
+	$(BR2_MAKE) sdk
+
+# flash compiled full image to the camera
+ota: ota-full
+
+# Full firmware OTA (default)
+ota-full:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@fw_path="$(FIRMWARE_BIN_FULL)"; \
+	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
+	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
+
+# Kernel-only OTA
+ota-kernel:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(KERNEL_BIN)" || { echo "ERROR: $(KERNEL_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(KERNEL_BIN)" -m kernel
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
+
+# Bootloader-only OTA
+ota-uboot:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(U_BOOT_BIN)" || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(U_BOOT_BIN)" -m boot
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
+
+# Rootfs+data upgrade with config backup (safe upgrade)
+ota-upgrade:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$(ROOTFS_BIN)" -B -m rootfs
+	# $(if $(filter 1 y yes true,$(FORCE)),-f)
+
+# Rootfs-only OTA (flashes rootfs + data)
+ota-rootfs:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh -m rootfs "$(ROOTFS_BIN)" $(CAMERA_IP_ADDRESS)
+	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
+
+# backup /overlay from a camera to a local tarball
+backup-overlay:
+	@$(TEAL) "$@"
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	$(SCRIPTS_DIR)/backup_overlay.sh $(CAMERA_IP_ADDRESS) $(THINGINO_BACKUP_DIR)
+
+# Start standalone TFTP server for serving firmware images
+tftpd-start:
+	@$(TEAL) "$@"
+	@mkdir -p $(TFTP_ROOT)
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		echo "Port 69 requires sudo - starting with sudo..."; \
+		sudo -E TFTP_ROOT=$(TFTP_ROOT) TFTP_PORT=$(TFTP_PORT) $(SCRIPTS_DIR)/tftpd-server.sh start; \
+	else \
+		TFTP_ROOT=$(TFTP_ROOT) TFTP_PORT=$(TFTP_PORT) $(SCRIPTS_DIR)/tftpd-server.sh start; \
+	fi
+
+# Stop standalone TFTP server
+tftpd-stop:
+	@$(TEAL) "$@"
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		sudo $(SCRIPTS_DIR)/tftpd-server.sh stop; \
+	else \
+		$(SCRIPTS_DIR)/tftpd-server.sh stop; \
+	fi
+
+# Restart standalone TFTP server
+tftpd-restart:
+	@$(TEAL) "$@"
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		sudo $(SCRIPTS_DIR)/tftpd-server.sh restart; \
+	else \
+		$(SCRIPTS_DIR)/tftpd-server.sh restart; \
+	fi
+
+# Show standalone TFTP server status
+tftpd-status:
+	@$(TEAL) "$@"
+	@$(SCRIPTS_DIR)/tftpd-server.sh status
+
+# Show standalone TFTP server logs
+tftpd-logs:
+	@$(TEAL) "$@"
+	@$(SCRIPTS_DIR)/tftpd-server.sh logs
+
+# Copy firmware to TFTP server
+tftp-copy:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
+ifneq ($(TFTP_ROOT),)
+	@echo "Copying images to TFTP root..."
+	@mkdir -p $(TFTP_ROOT)
+	@cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
+	@cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	ifneq ($(IP),)
+		@ln -rsf $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL) $(TFTP_ROOT)/$(printf '%02X%02X%02X%02X\n' $${IP//./ }) || true; \
+	endif
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
+endif
+
+# Upload firmware to TFTP server
+tftp-upload:
+	@$(TEAL) "$@"
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
+ifneq ($(TFTP_IP_ADDRESS)$(IP),)
+	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $$(printf '%02X%02X%02X%02X\n' $${IP//./ }).img -p $(TFTP_IP_ADDRESS)
+endif
+
+# download buildroot cache bundle from latest github release
+download-cache:
+	@$(TEAL) "$@"
+	BR2_EXTERNAL=$(CURDIR) BR2_DL_DIR=$(BR2_DL_DIR) \
+		$(SCRIPTS_DIR)/dl_buildroot_cache.sh

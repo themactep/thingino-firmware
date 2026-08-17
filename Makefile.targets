@@ -1,0 +1,435 @@
+user-dirs:
+ifneq ($(THINGINO_USER_DIR),/dev/null)
+	$(call create_user_dir,$(THINGINO_USER_COMMON_DIR))
+ifdef THINGINO_USER_CAMERA_DIR
+	$(call create_user_dir,$(THINGINO_USER_CAMERA_DIR))
+endif
+ifdef THINGINO_USER_DEVICE_DIR
+	$(call create_user_dir,$(THINGINO_USER_DEVICE_DIR))
+endif
+endif
+
+# Default: fast parallel incremental build
+all: user-dirs defconfig build_fast pack
+	@$(TEAL) "$@"
+
+# legacy target used by GitHub CI
+fast: user-dirs defconfig build_fast pack
+	@$(TEAL) "$@"
+
+# Development build: slow serial for debugging compilation issues
+dev: user-dirs defconfig build pack
+	@$(TEAL) "$@"
+
+# Clean build from scratch with parallel compilation
+cleanbuild: user-dirs distclean defconfig build_fast pack
+	@$(TEAL) "$@"
+	@date +%T
+
+# --- RAM build ----------------------------------------------------------
+# Build the entire output tree on a tmpfs so compile/install writes never
+# touch the SSD, then copy the finished images (and logs) back to disk.
+# dl/ and ccache stay on disk and make cold rebuilds cheap, so the volatile
+# build tree is disposable.
+#
+# One-time setup (raises the tmpfs inode limit, which a full build needs):
+#   make ram-setup
+#
+# Usage:
+#   CAMERA=<camera> make ram-build
+#   CAMERA=<camera> make ram-build RAM_BUILD_DIR=/mnt/ramdisk   # custom tmpfs
+
+RAM_BUILD_DIR ?= /tmp/thingino-build
+RAM_OUTPUT_DIR = $(RAM_BUILD_DIR)/$(notdir $(OUTPUT_DIR))
+RAM_DISK_OUTPUT_DIR = $(OUTPUT_DIR)
+
+# Raise the tmpfs inode limit so a full build (~1.1M files/dirs, mostly
+# per-package dirs) fits.  Run once; the remount is lost on reboot.
+ram-setup:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@mnt=$$(findmnt -n -o TARGET -T "$(RAM_BUILD_DIR)" 2>/dev/null || echo "$(RAM_BUILD_DIR)"); \
+	if [ "$$(stat -f -c %T "$$mnt" 2>/dev/null)" != "tmpfs" ]; then \
+		echo "ERROR: $$mnt is not tmpfs. Mount a dedicated tmpfs and set RAM_BUILD_DIR."; \
+		exit 1; \
+	fi; \
+	sudo mount -o remount,nr_inodes=4m "$$mnt" && \
+	echo "Done: $$(stat -f -c %d "$(RAM_BUILD_DIR)") free inodes on $$mnt."
+
+ram-build:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
+	ifree=$$(stat -f -c %d "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0); \
+	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
+	if [ "$$fstype" != "tmpfs" ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
+		exit 1; \
+	fi; \
+	if [ "$$ifree" -lt 2000000 ]; then \
+		echo "ERROR: only $$ifree free inodes; a full build needs ~2M. Run 'make ram-setup' once."; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$(RAM_OUTPUT_DIR)" ] && [ "$$free_kb" -lt 8388608 ]; then \
+		echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a clean build needs ~7 GiB."; \
+		echo "       Wipe the previous tree (rm -rf $(RAM_OUTPUT_DIR)) and retry."; \
+		exit 1; \
+	fi
+	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
+	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
+	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" all
+	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
+	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
+	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
+		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
+		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	fi
+	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
+		[ -e "$$f" ] || continue; \
+		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+	done
+	@for f in buildscope-report.json uenv.txt; do \
+		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
+			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+		fi; \
+	done
+	@rm -rf "$(RAM_OUTPUT_DIR)"
+	@$(GREEN) "Saved artifacts to $(RAM_DISK_OUTPUT_DIR); tmpfs freed."
+
+# Build on tmpfs, in parallel, KEEPING the tree so you can resume after a crash.
+# This is the dev-loop counterpart to ram-build: same SSD-write savings, but the
+# tmpfs output tree is NEVER wiped, so an interrupted build can be resumed
+# package by package - Buildroot rebuilds only the packages whose stamp files
+# were left incomplete by the failed run.  Re-run it as many times as needed:
+#   CAMERA=<camera> make ram-dev
+#   CAMERA=<camera> make ram-dev   # resumes where the last run stopped
+# On success the images/logs are copied back to disk, but the tmpfs tree stays
+# in place for the next iteration.  To abandon the tree and start clean, wipe it
+# by hand: rm -rf "$(RAM_OUTPUT_DIR)"
+ram-dev:
+	@$(TEAL) "$@"
+	@mkdir -p "$(RAM_BUILD_DIR)"
+	@fstype=$$(stat -f -c %T "$(RAM_BUILD_DIR)" 2>/dev/null || true); \
+	ifree=$$(stat -f -c %d "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0); \
+	free_kb=$$(( $$(stat -f -c %a "$(RAM_BUILD_DIR)" 2>/dev/null || echo 0) * $$(stat -f -c %S "$(RAM_BUILD_DIR)" 2>/dev/null || echo 1) / 1024 )); \
+	if [ "$$fstype" != "tmpfs" ]; then \
+		echo "ERROR: $(RAM_BUILD_DIR) is not tmpfs (filesystem: '$$fstype')."; \
+		echo "       Mount a tmpfs and/or set RAM_BUILD_DIR, then run 'make ram-setup' once."; \
+		exit 1; \
+	fi; \
+	if [ ! -d "$(RAM_OUTPUT_DIR)" ]; then \
+		if [ "$$ifree" -lt 2000000 ]; then \
+			echo "ERROR: only $$ifree free inodes; a fresh build needs ~2M."; \
+			echo "       Run 'make ram-setup' once (raises the tmpfs inode limit)."; \
+			exit 1; \
+		fi; \
+		if [ "$$free_kb" -lt 8388608 ]; then \
+			echo "ERROR: only $$(( $$free_kb / 1024 / 1024 )) GiB free; a clean build needs ~7 GiB."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "Resuming existing tree at $(RAM_OUTPUT_DIR) (free: $$(( $$free_kb / 1024 / 1024 )) GiB, $$ifree free inodes)."; \
+	fi
+	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
+	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
+	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" fast
+	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
+	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
+	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
+		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
+		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	fi
+	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
+		[ -e "$$f" ] || continue; \
+		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+	done
+	@for f in buildscope-report.json uenv.txt; do \
+		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
+			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+		fi; \
+	done
+	@$(GREEN) "Build complete. Tree kept at $(RAM_OUTPUT_DIR) - re-run 'make ram-dev' to resume as needed."
+
+# update repo and submodules with buildroot patch management
+update:
+	@$(TEAL) "$@"
+	@echo "=== UNPATCHING BUILDROOT OVERRIDES ==="
+	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
+		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort -r); do \
+			if git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
+				echo "Unapplying $$patch"; \
+				git -C "$(BUILDROOT_DIR)" apply -R "$$patch"; \
+			else \
+				echo "Skipping (not applied): $$patch"; \
+			fi; \
+		done; \
+	else \
+		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
+	fi
+	@echo "=== UPDATING MAIN REPOSITORY ==="
+	git pull --rebase --autostash
+	@echo "=== UPDATING SUBMODULES ==="
+	git submodule init
+	git submodule update
+	@echo "=== APPLYING BUILDROOT OVERRIDES ==="
+	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
+		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do \
+			if git -C "$(BUILDROOT_DIR)" apply --check "$$patch"; then \
+				echo "Applying $$patch"; \
+				git -C "$(BUILDROOT_DIR)" apply "$$patch"; \
+			elif git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
+				echo "Already applied: $$patch"; \
+			else \
+				echo "ERROR: failed to apply $$patch"; \
+				exit 1; \
+			fi; \
+		done; \
+	else \
+		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
+	fi
+	@echo "=== CHECKING EXTERNAL TOOLCHAIN BUNDLES ==="
+	BR2_DL_DIR=$(BR2_DL_DIR) \
+		$(SCRIPTS_DIR)/update_toolchain_bundles.sh
+	@$(ORANGE) "$(GIT_BRANCH)"
+
+update_manual:
+	@echo "=== UPDATING BUILDROOT MANUALS ==="
+	@curl -s -z docs/buildroot/manual.pdf -o docs/buildroot/manual.pdf https://buildroot.org/manual.pdf
+	@curl -s -z docs/buildroot/manual.txt -o docs/buildroot/manual.txt https://buildroot.org/manual.text
+
+# install what's needed
+bootstrap:
+	@$(TEAL) "$@"
+	$(SCRIPTS_DIR)/dep_check.sh
+
+# Configure repository-local git hooks path for team pre-commit automation.
+setup-hooks:
+	@$(TEAL) "$@"
+	@git config core.hooksPath .githooks
+	@echo "Configured local git hooks path: $$(git config --get core.hooksPath)"
+
+build: BR2_MAKE_JOBS =
+build: $(U_BOOT_ENV_TXT)
+	@$(TEAL) "$@"
+
+build_fast: BR2_MAKE_JOBS = -j$(NPROC)
+build_fast: $(U_BOOT_ENV_TXT)
+	@$(TEAL) "$@"
+
+### Configuration
+
+# Configuration dependency files
+CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
+CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
+CONFIG_INPUT_FILES += $(THINGINO_USER_FRAGMENT_FILES)
+ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
+CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
+endif
+CONFIG_INPUT_FILES += $(THINGINO_USER_MK_FILES)
+
+# Function to check if configuration needs regeneration
+define config_needs_regen
+$(shell \
+	if [ ! -f $(OUTPUT_DIR)/.config ] || [ ! -f $(CONFIG_DEPS_FILE) ]; then \
+		echo "yes"; \
+	else \
+		for file in $(CONFIG_INPUT_FILES); do \
+			if [ "$$file" -nt $(OUTPUT_DIR)/.config ]; then \
+				echo "yes"; \
+				break; \
+			fi; \
+		done; \
+	fi \
+)
+endef
+
+# Smart configuration check - only regenerate if needed
+check-config: buildroot/Makefile
+	@$(TEAL) "$@"
+	@if [ "$(call config_needs_regen)" = "yes" ]; then \
+		echo "Configuration files have changed, regenerating .config"; \
+		$(MAKE) force-config; \
+	else \
+		echo "Configuration is up to date"; \
+	fi
+
+# Force configuration regeneration
+force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep
+	@$(TEAL) "$@"
+	# delete older config
+	$(info * remove existing .config file)
+	rm -rvf $(OUTPUT_DIR)/.config
+ifeq ($(RAW_DEFCONFIG_MODE),y)
+	# preprocess a plain Buildroot defconfig used by GitHub workflows
+	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+else
+	# add toolchain fragment (from preset selection)
+	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
+	@if [ ! -f "$(TOOLCHAIN_FRAGMENT_FILE)" ]; then \
+		echo "ERROR: Missing toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE)"; \
+		exit 1; \
+	fi
+	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
+	@$(SED_CONFIG_VARS) "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@echo >> $(OUTPUT_DIR)/.config
+	# add other fragments
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
+	for i in $(FRAGMENTS); do \
+		fragment_path="configs/fragments/$$i.fragment"; \
+		if [ ! -f "$$fragment_path" ]; then \
+			echo "ERROR: Missing fragment $$fragment_path"; \
+			exit 1; \
+		fi; \
+		echo "** add $$fragment_path"; \
+		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
+		$(SED_CONFIG_VARS) "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
+	done
+	# add kernel-specific headers based on SOC requirements
+	# @if [ "$(SOC_FAMILY)" = "t23" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ] || [ "$(SOC_FAMILY)" = "a1" ]; then
+	@if [ "$(KERNEL_VERSION_4)" = "y" ]; then \
+		echo "** add kernel headers: 4.4 (SOC: $(SOC_FAMILY))"; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y" >>$(OUTPUT_DIR)/.config; \
+	else \
+		echo "** add kernel headers: 3.10 (SOC: $(SOC_FAMILY))"; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_3_10=y" >>$(OUTPUT_DIR)/.config; \
+	fi; \
+	echo >>$(OUTPUT_DIR)/.config
+	# add camera configuration
+	$(SED_CONFIG_VARS) $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	# add SOC-derived values
+	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
+	@echo >>$(OUTPUT_DIR)/.config
+	# append camera-specific overlay if it exists
+	@if [ -d "$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay" ]; then \
+		sed -i 's|^\(BR2_ROOTFS_OVERLAY="\)\(.*\)"|\1\2 $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"|' $(OUTPUT_DIR)/.config; \
+		echo "Camera overlay: $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay"; \
+	fi
+endif
+	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
+		if [ -f "$$file" ]; then \
+			cat "$$file" >>$(OUTPUT_DIR)/.config; \
+			printf '\n' >>$(OUTPUT_DIR)/.config; \
+		fi; \
+	done; \
+	rm -f $(OUTPUT_DIR)/local.mk; \
+	for file in $(THINGINO_USER_MK_FILES); do \
+		if [ -f "$$file" ]; then \
+			cat "$$file" >>$(OUTPUT_DIR)/local.mk; \
+			printf '\n' >>$(OUTPUT_DIR)/local.mk; \
+		fi; \
+	done; \
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
+		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
+	fi
+	# add U-Boot version fragment LAST so it overrides build system choice from core fragment
+	$(info * add U-Boot fragment $(THINGINO_UBOOT_FRAGMENT_FILE))
+	@if [ ! -f "$(THINGINO_UBOOT_FRAGMENT_FILE)" ]; then \
+		echo "ERROR: Missing U-Boot fragment $(THINGINO_UBOOT_FRAGMENT_FILE)"; \
+		exit 1; \
+	fi
+	@echo "# $$(basename "$(THINGINO_UBOOT_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
+	@cat "$(THINGINO_UBOOT_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@echo >> $(OUTPUT_DIR)/.config
+	# add U-Boot board settings after version fragment (must come after build-system choice)
+	@echo "# U-Boot board configuration" >> $(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
+	@echo >>$(OUTPUT_DIR)/.config
+	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
+	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
+		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
+		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
+		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
+		echo "BR2_LINUX_KERNEL_CUSTOM_GIT=y" >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_URL="$(KERNEL_SITE)"' >> $(OUTPUT_DIR)/.config; \
+		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="$(KERNEL_HASH)"' >> $(OUTPUT_DIR)/.config; \
+	fi
+	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	# Create dependency tracking file
+	@echo "# Configuration dependency tracking file" > $(CONFIG_DEPS_FILE)
+	@echo "# Generated on $$(date)" >> $(CONFIG_DEPS_FILE)
+	@echo "CONFIG_INPUT_FILES = $(CONFIG_INPUT_FILES)" >> $(CONFIG_DEPS_FILE)
+	@for file in $(CONFIG_INPUT_FILES); do \
+		if [ -f "$$file" ]; then \
+			echo "$$file: $$(stat -c %Y "$$file")" >> $(CONFIG_DEPS_FILE); \
+		fi; \
+	done
+
+# Configure buildroot for a particular board
+defconfig: check-config
+	@$(TEAL) "$@"
+	# Ensure buildroot is properly configured
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+
+# Lint all shell scripts with shellcheck
+shellcheck:
+	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		echo "shellcheck is not installed. Run: apt install shellcheck"; \
+		exit 1; \
+	fi
+	@echo "Linting shell scripts..."
+	@find scripts/ -name '*.sh' ! -path '*.venv/*' -exec shellcheck -x {} +
+	@echo "All shell scripts passed."
+
+# Full lint suite: shellcheck + do-not-edit + defconfig sort + plugin validation
+lint: shellcheck
+	@echo "Checking do-not-edit paths..."
+	@git diff --name-only --diff-filter=ACMR HEAD | $(BR2_EXTERNAL)/scripts/check-do-not-edit.sh
+	@echo "Checking defconfig sort order..."
+	@failed=0; \
+	for f in configs/cameras/*/"*_defconfig"; do \
+		[ -f "$$f" ] || continue; \
+		cp "$$f" "$$f.lint.bak" || exit 1; \
+		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f" 2>/dev/null; \
+		if ! cmp -s "$$f" "$$f.lint.bak"; then \
+			echo "  FAIL: $$f is not sorted. Run: scripts/sort_defconfig.py $$f"; \
+			failed=1; \
+		fi; \
+		mv "$$f.lint.bak" "$$f"; \
+	done; \
+	if [ "$$failed" -eq 1 ]; then \
+		echo "Some defconfigs are not sorted. Run 'make sort-defconfigs' to fix."; \
+		exit 1; \
+	fi
+	@echo "All defconfigs sorted."
+	@echo "Validating webui plugins..."
+	@$(BR2_EXTERNAL)/scripts/check-plugins.sh
+	@echo "All lint checks passed."
+
+# Sort all camera defconfigs
+sort-defconfigs:
+	@for f in configs/cameras/*/*_defconfig; do \
+		[ -f "$$f" ] || continue; \
+		$(BR2_EXTERNAL)/scripts/sort_defconfig.py "$$f"; \
+	done
+	@echo "All defconfigs sorted."
+
+# Configuration debugging and maintenance targets
+show-config-deps:
+	@$(TEAL) "$@"
+	@echo "Configuration input files:"
+	@for file in $(CONFIG_INPUT_FILES); do \
+		if [ -f "$$file" ]; then \
+			echo "  $$file (exists, modified: $$(stat -c %Y "$$file"))"; \
+		else \
+			echo "  $$file (missing)"; \
+		fi; \
+	done
+	@if [ -f $(CONFIG_DEPS_FILE) ]; then \
+		echo ""; \
+		echo "Current dependency tracking:"; \
+		cat $(CONFIG_DEPS_FILE); \
+	else \
+		echo ""; \
+		echo "No dependency tracking file found at $(CONFIG_DEPS_FILE)"; \
+	fi
+

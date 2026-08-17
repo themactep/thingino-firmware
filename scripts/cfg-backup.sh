@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck shell=bash
 # cfg-backup — read/write config tarball to the raw 64KB backup MTD partition
 #
 # Usage:

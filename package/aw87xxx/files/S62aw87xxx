@@ -11,7 +11,7 @@ aw_nodes() {
 
 set_profile() {
 	for n in $(aw_nodes); do
-		echo "$1" > "$n" 2>/dev/null
+		echo "$1" >"$n" 2>/dev/null
 	done
 }
 
@@ -48,7 +48,7 @@ case "$1" in
 	stop)
 		stop
 		;;
-	restart|reload)
+	restart | reload)
 		stop
 		start
 		;;

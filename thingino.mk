@@ -38,7 +38,8 @@ ifneq ($(SOC_MODEL_INPUT),)
 
 	# One file per SoC family under soc/<vendor>/. Each sets SOC_FAMILY,
 	# SOC_ARCH, SOC_RAM_MB and, where the vendor uses BR2_TARGET_UBOOT,
-	# SOC_UBOOT_NOR / SOC_UBOOT_NAND / SOC_UBOOT_BIN. Anything a SoC does not
+	# SOC_UBOOT / SOC_UBOOT_BIN. SOC_UBOOT is the U-Boot board/defconfig
+	# name, already resolved for the flash type. Anything a SoC does not
 	# have, it does not set -- consumers below use $(or ...) for the fallback.
 	#
 	# All of them are included and each opens with a $(filter) on its own
@@ -243,255 +244,122 @@ else
 endif
 export ISP_NMEM_MB
 
-# Default IPU clock speed
-ifeq ($(BR2_IPU_CLK_SCLKA),y)
-	IPU_CLK_SRC := clk_name=sclka
-else ifeq ($(BR2_IPU_CLK_VPLL),y)
-	IPU_CLK_SRC := clk_name=vpll
-else ifeq ($(BR2_IPU_CLK_MPLL),y)
-	IPU_CLK_SRC := clk_name=mpll
-else ifeq ($(BR2_IPU_CLK_INTERNAL),y)
-	IPU_CLK_SRC :=
-else
-	IPU_CLK_SRC :=
-endif
+export ISP_NMEM_MB
 
-ifeq ($(BR2_IPU_CLK_400MHZ),y)
-	IPU_CLK := ipu_clk=400000000
-else ifeq ($(BR2_IPU_CLK_450MHZ),y)
-	IPU_CLK := ipu_clk=450000000
-else ifeq ($(BR2_IPU_CLK_500MHZ),y)
-	IPU_CLK := ipu_clk=500000000
-else ifeq ($(BR2_IPU_CLK_550MHZ),y)
-	IPU_CLK := ipu_clk=550000000
-else ifeq ($(BR2_IPU_CLK_600MHZ),y)
-	IPU_CLK := ipu_clk=600000000
-else ifeq ($(BR2_IPU_CLK_650MHZ),y)
-	IPU_CLK := ipu_clk=650000000
-else
-	IPU_CLK :=
-endif
+#
+# ISP / IPU / AVPU clock & configuration helpers
+#
+# resolve_clock_src -- maps Kconfig BR2_<PREFIX>_<SRC>=y to output=value
+#   $(1) = Kconfig prefix (e.g. ISP_CLK)
+#   $(2) = output key      (e.g. clk_name)
+#   $(3) = space-separated SRC:value pairs
+resolve_clock_src = $(strip \
+  $(foreach _p,$(3), \
+    $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p))))), \
+      $(2)=$(lastword $(subst :, ,$(_p))))))
 
-ifeq ($(BR2_AVPU_APLL),y)
-	AVPU_CLK_SRC := clk_name=apll
-else ifeq ($(BR2_AVPU_MPLL),y)
-	AVPU_CLK_SRC := clk_name=mpll
-else ifeq ($(BR2_AVPU_SCLKA),y)
-	AVPU_CLK_SRC := clk_name=sclka
-else ifeq ($(BR2_AVPU_VPLL),y)
-	AVPU_CLK_SRC := clk_name=vpll
-else ifeq ($(BR2_AVPU_INTERNAL),y)
-	AVPU_CLK_SRC :=
-else
-	AVPU_CLK_SRC :=
-endif
+# resolve_clock_freq -- maps Kconfig BR2_<PREFIX>_<N>MHZ=y to output=N_hz
+#   $(1) = Kconfig prefix (e.g. ISP_CLK)
+#   $(2) = output key      (e.g. isp_clk)
+#   $(3) = space-separated MHZ:hz_value pairs
+resolve_clock_freq = $(strip \
+  $(foreach _p,$(3), \
+    $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p)))MHZ)), \
+      $(2)=$(lastword $(subst :, ,$(_p))))))
 
-ifeq ($(BR2_AVPU_CLK_400MHZ),y)
-	AVPU_CLK := avpu_clk=400000000
-else ifeq ($(BR2_AVPU_CLK_450MHZ),y)
-	AVPU_CLK := avpu_clk=450000000
-else ifeq ($(BR2_AVPU_CLK_500MHZ),y)
-	AVPU_CLK := avpu_clk=500000000
-else ifeq ($(BR2_AVPU_CLK_550MHZ),y)
-	AVPU_CLK := avpu_clk=550000000
-else ifeq ($(BR2_AVPU_CLK_600MHZ),y)
-	AVPU_CLK := avpu_clk=600000000
-else ifeq ($(BR2_AVPU_CLK_650MHZ),y)
-	AVPU_CLK := avpu_clk=650000000
-else ifeq ($(BR2_AVPU_CLK_700MHZ),y)
-	AVPU_CLK := avpu_clk=700000000
-else
-	AVPU_CLK :=
-endif
+# resolve_choice -- maps Kconfig BR2_<PREFIX>_<N>=y to output=value
+#   $(1) = Kconfig prefix (e.g. ISP_MEMOPT)
+#   $(2) = output key      (e.g. isp_memopt)
+#   $(3) = space-separated N:value pairs (empty value -> output is empty)
+resolve_choice = $(strip \
+  $(foreach _p,$(3), \
+    $(if $(filter y,$(BR2_$(1)_$(firstword $(subst :, ,$(_p))))), \
+      $(if $(lastword $(subst :, ,$(_p))),$(2)=$(lastword $(subst :, ,$(_p)))))))
 
-# Default ISP clock speed
-ifeq ($(BR2_ISP_CLK_SCLKA),y)
-	ISP_CLK_SRC := clk_name=sclka
-else ifeq ($(BR2_ISP_CLK_VPLL),y)
-	ISP_CLK_SRC := clk_name=vpll
-else ifeq ($(BR2_ISP_CLK_MPLL),y)
-	ISP_CLK_SRC := clk_name=mpll
-else ifeq ($(BR2_ISP_CLK_INTERNAL),y)
-	ISP_CLK_SRC :=
-else
-	ISP_CLK_SRC :=
-endif
+# isp_param -- maps Kconfig BR2_<NAME>=y to output=VALUE
+#   $(1) = Kconfig boolean name (e.g. ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)
+#   $(2) = output key (e.g. isp_day_night_switch_drop_frame_num)
+isp_param = $(strip \
+  $(if $(filter y,$(BR2_$(1))),$(2)=$(BR2_$(1)_VALUE)))
 
-ifeq ($(BR2_ISP_CLK_90MHZ),y)
-	ISP_CLK := isp_clk=90000000
-else ifeq ($(BR2_ISP_CLK_100MHZ),y)
-	ISP_CLK := isp_clk=100000000
-else ifeq ($(BR2_ISP_CLK_120MHZ),y)
-	ISP_CLK := isp_clk=120000000
-else ifeq ($(BR2_ISP_CLK_125MHZ),y)
-	ISP_CLK := isp_clk=125000000
-else ifeq ($(BR2_ISP_CLK_150MHZ),y)
-	ISP_CLK := isp_clk=150000000
-else ifeq ($(BR2_ISP_CLK_175MHZ),y)
-	ISP_CLK := isp_clk=175000000
-else ifeq ($(BR2_ISP_CLK_200MHZ),y)
-	ISP_CLK := isp_clk=200000000
-else ifeq ($(BR2_ISP_CLK_220MHZ),y)
-	ISP_CLK := isp_clk=220000000
-else ifeq ($(BR2_ISP_CLK_225MHZ),y)
-	ISP_CLK := isp_clk=225000000
-else ifeq ($(BR2_ISP_CLK_250MHZ),y)
-	ISP_CLK := isp_clk=250000000
-else ifeq ($(BR2_ISP_CLK_300MHZ),y)
-	ISP_CLK := isp_clk=300000000
-else ifeq ($(BR2_ISP_CLK_350MHZ),y)
-	ISP_CLK := isp_clk=350000000
-else
-	ISP_CLK :=
-endif
+#
+# Clock assignments (source + frequency)
+#
 
-ifeq ($(BR2_ISP_CLKA_SCLKA),y)
-	ISP_CLKA_CLK_SRC := clka_name=sclka
-else ifeq ($(BR2_ISP_CLKA_INTERNAL),y)
-        ISP_CLKA_CLK_SRC :=
-else
-	ISP_CLKA_CLK_SRC :=
-endif
+# IPU
+IPU_CLK_SRC := $(call resolve_clock_src,IPU_CLK,clk_name,\
+  SCLKA:sclka VPLL:vpll MPLL:mpll INTERNAL:)
+IPU_CLK := $(call resolve_clock_freq,IPU_CLK,ipu_clk,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000 650:650000000)
 
-ifeq ($(BR2_ISP_CLKA_400MHZ),y)
-	ISP_CLKA_CLK := isp_clka=400000000
-else ifeq ($(BR2_ISP_CLKA_450MHZ),y)
-	ISP_CLKA_CLK := isp_clka=450000000
-else ifeq ($(BR2_ISP_CLKA_500MHZ),y)
-	ISP_CLKA_CLK := isp_clka=500000000
-else ifeq ($(BR2_ISP_CLKA_550MHZ),y)
-	ISP_CLKA_CLK := isp_clka=550000000
-else ifeq ($(BR2_ISP_CLKA_600MHZ),y)
-	ISP_CLKA_CLK := isp_clka=600000000
-else ifeq ($(BR2_ISP_CLKA_650MHZ),y)
-	ISP_CLKA_CLK := isp_clka=650000000
-else ifeq ($(BR2_ISP_CLKA_700MHZ),y)
-	ISP_CLKA_CLK := isp_clka=700000000
-else
-	ISP_CLKA_CLK :=
-endif
+# AVPU
+AVPU_CLK_SRC := $(call resolve_clock_src,AVPU,clk_name,\
+  APLL:apll MPLL:mpll SCLKA:sclka VPLL:vpll INTERNAL:)
+AVPU_CLK := $(call resolve_clock_freq,AVPU_CLK,avpu_clk,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000 650:650000000 700:700000000)
 
-ifeq ($(BR2_ISP_CLKS_SCLKA),y)
-	ISP_CLKS_CLK_SRC := clks_name=sclka
-else ifeq ($(BR2_ISP_CLKS_VPLL),y)
-	ISP_CLKS_CLK_SRC := clks_name=vpll
-else ifeq ($(BR2_ISP_CLKS_MPLL),y)
-	ISP_CLKS_CLK_SRC := clks_name=mpll
-else ifeq ($(BR2_ISP_CLKS_INTERNAL),y)
-        ISP_CLKS_CLK_SRC :=
-else
-	ISP_CLKS_CLK_SRC :=
-endif
+# ISP
+ISP_CLK_SRC := $(call resolve_clock_src,ISP_CLK,clk_name,\
+  SCLKA:sclka VPLL:vpll MPLL:mpll INTERNAL:)
+ISP_CLK := $(call resolve_clock_freq,ISP_CLK,isp_clk,\
+  90:90000000   100:100000000 120:120000000 125:125000000 \
+  150:150000000 175:175000000 200:200000000 220:220000000 \
+  225:225000000 250:250000000 300:300000000 350:350000000)
 
-ifeq ($(BR2_ISP_CLKS_400MHZ),y)
-	ISP_CLKS_CLK := isp_clks=400000000
-else ifeq ($(BR2_ISP_CLKS_450MHZ),y)
-	ISP_CLKS_CLK := isp_clks=450000000
-else ifeq ($(BR2_ISP_CLKS_500MHZ),y)
-	ISP_CLKS_CLK := isp_clks=500000000
-else ifeq ($(BR2_ISP_CLKS_550MHZ),y)
-	ISP_CLKS_CLK := isp_clks=550000000
-else ifeq ($(BR2_ISP_CLKS_600MHZ),y)
-	ISP_CLKS_CLK := isp_clks=600000000
-else ifeq ($(BR2_ISP_CLKS_650MHZ),y)
-	ISP_CLKS_CLK := isp_clks=650000000
-else ifeq ($(BR2_ISP_CLKS_700MHZ),y)
-	ISP_CLKS_CLK := isp_clks=700000000
-else
-	ISP_CLKS_CLK :=
-endif
+# ISP_CLKA
+ISP_CLKA_CLK_SRC := $(call resolve_clock_src,ISP_CLKA,clka_name,\
+  SCLKA:sclka INTERNAL:)
+ISP_CLKA_CLK := $(call resolve_clock_freq,ISP_CLKA,isp_clka,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000 650:650000000 700:700000000)
 
-ifeq ($(BR2_ISP_MEMOPT_0),y)
-	ISP_MEMOPT :=
-else ifeq ($(BR2_ISP_MEMOPT_1),y)
-	ISP_MEMOPT := isp_memopt=1
-else ifeq ($(BR2_ISP_MEMOPT_2),y)
-	ISP_MEMOPT := isp_memopt=2
-else ifeq ($(BR2_ISP_MEMOPT_3),y)
-	ISP_MEMOPT := isp_memopt=3
-else
+# ISP_CLKS
+ISP_CLKS_CLK_SRC := $(call resolve_clock_src,ISP_CLKS,clks_name,\
+  SCLKA:sclka VPLL:vpll MPLL:mpll INTERNAL:)
+ISP_CLKS_CLK := $(call resolve_clock_freq,ISP_CLKS,isp_clks,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000 650:650000000 700:700000000)
+
+#
+# ISP configuration parameters
+#
+
+# ISP_MEMOPT: choice with SOC_RAM_MB fallback
+ISP_MEMOPT := $(call resolve_choice,ISP_MEMOPT,isp_memopt,\
+  0: 1:1 2:2 3:3)
+ifneq ($(ISP_MEMOPT),)
+  # add trailing space so the later $(strip) doesn't collapse empty choice
+endif
+ifeq ($(ISP_MEMOPT),)
 ifneq ($(SOC_RAM_MB),)
 ifeq ($(shell test $(SOC_RAM_MB) -le 64 && ! echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21|t30" && echo true),true)
 	ISP_MEMOPT := isp_memopt=1
-else
-	ISP_MEMOPT :=
 endif
 endif
 endif
 
-ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
-	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
-else
-	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
-endif
+ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := $(call isp_param,ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM,isp_day_night_switch_drop_frame_num)
+ISP_CH0_PRE_DEQUEUE_TIME             := $(call isp_param,ISP_CH0_PRE_DEQUEUE_TIME,isp_ch0_pre_dequeue_time)
+ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := $(call isp_param,ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS,isp_ch0_pre_dequeue_interrupt_process)
+ISP_CH0_PRE_DEQUEUE_VALID_LINES      := $(call isp_param,ISP_CH0_PRE_DEQUEUE_VALID_LINES,isp_ch0_pre_dequeue_valid_lines)
+ISP_CH1_DEQUEUE_DELAY_TIME           := $(call isp_param,ISP_CH1_DEQUEUE_DELAY_TIME,isp_ch1_dequeue_delay_time)
+ISP_MIPI_SWITCH_GPIO                 := $(call isp_param,ISP_MIPI_SWITCH_GPIO,mipi_switch_gpio)
 
-ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),y)
-	ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
-else
-	ISP_CH0_PRE_DEQUEUE_TIME :=
-endif
-
-ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),y)
-	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
-else
-	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS :=
-endif
-
-ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),y)
-	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
-else
-	ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
-endif
-
-ifeq ($(BR2_ISP_CH1_DEQUEUE_DELAY_TIME),y)
-	ISP_CH1_DEQUEUE_DELAY_TIME := isp_ch1_dequeue_delay_time=$(BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE)
-else
-	ISP_CH1_DEQUEUE_DELAY_TIME :=
-endif
-
-ifeq ($(BR2_ISP_MIPI_SWITCH_GPIO),y)
-	ISP_MIPI_SWITCH_GPIO := mipi_switch_gpio=$(BR2_ISP_MIPI_SWITCH_GPIO)
-else
-	ISP_MIPI_SWITCH_GPIO :=
-endif
-
-ifeq ($(BR2_ISP_DIRECT_MODE_0),y)
-	ISP_DIRECT_MODE := direct_mode=0
-else ifeq ($(BR2_ISP_DIRECT_MODE_1),y)
-	ISP_DIRECT_MODE := direct_mode=1
-else ifeq ($(BR2_ISP_DIRECT_MODE_2),y)
-	ISP_DIRECT_MODE := direct_mode=2
-else
+ISP_DIRECT_MODE := $(call resolve_choice,ISP_DIRECT_MODE,direct_mode,\
+  0:0 1:1 2:2)
+ifeq ($(ISP_DIRECT_MODE),)
 	ISP_DIRECT_MODE := direct_mode=0
 endif
 
-ifeq ($(BR2_ISP_IVDC_MEM_LINE),y)
-	ISP_IVDC_MEM_LINE := ivdc_mem_line=$(BR2_ISP_IVDC_MEM_LINE_VALUE)
-else
-	ISP_IVDC_MEM_LINE :=
-endif
+ISP_IVDC_MEM_LINE       := $(call isp_param,ISP_IVDC_MEM_LINE,ivdc_mem_line)
+ISP_IVDC_THRESHOLD_LINE := $(call isp_param,ISP_IVDC_THRESHOLD_LINE,ivdc_threshold_line)
+ISP_CONFIG_HZ           := $(call isp_param,ISP_CONFIG_HZ,isp_config_hz)
 
-ifeq ($(BR2_ISP_IVDC_THRESHOLD_LINE),y)
-	ISP_IVDC_THRESHOLD_LINE := ivdc_threshold_line=$(BR2_ISP_IVDC_THRESHOLD_LINE_VALUE)
-else
-	ISP_IVDC_THRESHOLD_LINE :=
-endif
-
-ifeq ($(BR2_ISP_CONFIG_HZ),y)
-	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ_VALUE)
-else
-	ISP_CONFIG_HZ :=
-endif
-
-ifeq ($(BR2_ISP_PRINT_LEVEL_0),y)
-	ISP_PRINT_LEVEL := print_level=0
-else ifeq ($(BR2_ISP_PRINT_LEVEL_1),y)
-	ISP_PRINT_LEVEL := print_level=1
-else ifeq ($(BR2_ISP_PRINT_LEVEL_2),y)
-	ISP_PRINT_LEVEL := print_level=2
-else ifeq ($(BR2_ISP_PRINT_LEVEL_3),y)
-	ISP_PRINT_LEVEL := print_level=3
-else
+ISP_PRINT_LEVEL := $(call resolve_choice,ISP_PRINT_LEVEL,print_level,\
+  0:0 1:1 2:2 3:3)
+ifeq ($(ISP_PRINT_LEVEL),)
 	ifeq ($(shell echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21" && echo true),true)
 		ISP_PRINT_LEVEL :=
 	else
@@ -499,71 +367,17 @@ else
 	endif
 endif
 
-ifeq ($(BR2_ISP_ISPW),y)
-	ISP_ISPW := ispw=$(BR2_ISP_ISPW_VALUE)
-else
-	ISP_ISPW :=
-endif
-
-ifeq ($(BR2_ISP_ISPH),y)
-	ISP_ISPH := isph=$(BR2_ISP_ISPH_VALUE)
-else
-	ISP_ISPH :=
-endif
-
-ifeq ($(BR2_ISP_ISPTOP),y)
-	ISP_ISPTOP := isptop=$(BR2_ISP_ISPTOP_VALUE)
-else
-	ISP_ISPTOP :=
-endif
-
-ifeq ($(BR2_ISP_ISPLEFT),y)
-	ISP_ISPLEFT := ispleft=$(BR2_ISP_ISPLEFT_VALUE)
-else
-	ISP_ISPLEFT :=
-endif
-
-ifeq ($(BR2_ISP_ISPCROP),y)
-	ISP_ISPCROP := ispcrop=$(BR2_ISP_ISPCROP_VALUE)
-else
-	ISP_ISPCROP :=
-endif
-
-ifeq ($(BR2_ISP_ISPCROPWH),y)
-	ISP_ISPCROPWH := ispcropwh=$(BR2_ISP_ISPCROPWH_VALUE)
-else
-	ISP_ISPCROPWH :=
-endif
-
-ifeq ($(BR2_ISP_ISPCROPTL),y)
-	ISP_ISPCROPTL := ispcroptl=$(BR2_ISP_ISPCROPTL_VALUE)
-else
-	ISP_ISPCROPTL :=
-endif
-
-ifeq ($(BR2_ISP_ISPSCALER),y)
-	ISP_ISPSCALER := isp_scaler=$(BR2_ISP_ISPSCALER_VALUE)
-else
-	ISP_ISPSCALER :=
-endif
-
-ifeq ($(BR2_ISP_ISPSCALERWH),y)
-	ISP_ISPSCALERWH := isp_scalerwh=$(BR2_ISP_ISPSCALERWH_VALUE)
-else
-	ISP_ISPSCALERWH :=
-endif
-
-ifeq ($(BR2_ISP_ISP_M1_BUFS),y)
-	ISP_ISP_M1_BUFS := isp_m1_bufs=$(BR2_ISP_ISP_M1_BUFS_VALUE)
-else
-	ISP_ISP_M1_BUFS :=
-endif
-
-ifeq ($(BR2_ISP_ISP_M2_BUFS),y)
-	ISP_ISP_M2_BUFS := isp_m2_bufs=$(BR2_ISP_ISP_M2_BUFS_VALUE)
-else
-	ISP_ISP_M2_BUFS :=
-endif
+ISP_ISPW        := $(call isp_param,ISP_ISPW,ispw)
+ISP_ISPH        := $(call isp_param,ISP_ISPH,isph)
+ISP_ISPTOP      := $(call isp_param,ISP_ISPTOP,isptop)
+ISP_ISPLEFT     := $(call isp_param,ISP_ISPLEFT,ispleft)
+ISP_ISPCROP     := $(call isp_param,ISP_ISPCROP,ispcrop)
+ISP_ISPCROPWH   := $(call isp_param,ISP_ISPCROPWH,ispcropwh)
+ISP_ISPCROPTL   := $(call isp_param,ISP_ISPCROPTL,ispcroptl)
+ISP_ISPSCALER   := $(call isp_param,ISP_ISPSCALER,isp_scaler)
+ISP_ISPSCALERWH := $(call isp_param,ISP_ISPSCALERWH,isp_scalerwh)
+ISP_ISP_M1_BUFS := $(call isp_param,ISP_ISP_M1_BUFS,isp_m1_bufs)
+ISP_ISP_M2_BUFS := $(call isp_param,ISP_ISP_M2_BUFS,isp_m2_bufs)
 
 
 export AVPU_CLK_SRC
@@ -615,14 +429,8 @@ export FLASH_SIZE_MB
 #
 
 ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
-	# Get U-Boot board name based on flash type. A SoC with no separate NAND
-	# board falls back to its NOR one, which is what the "-" in the old
-	# database meant.
-	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
-		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unknown)
-	else
-		UBOOT_BOARDNAME := $(or $(SOC_UBOOT_NOR),unknown)
-	endif
+	# SOC_UBOOT is resolved for the flash type by the soc/<vendor>/ file.
+	UBOOT_BOARDNAME := $(or $(SOC_UBOOT),unknown)
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
 endif
 
@@ -676,12 +484,8 @@ ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 endif
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
-ifeq ($(UBOOT_BOARD_FLASH),nand)
-UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NAND),$(SOC_UBOOT_NOR),unsupported-$(SOC_MODEL))
-else
-UBOOT_DEFCONFIG := $(or $(SOC_UBOOT_NOR),unsupported-$(SOC_MODEL))
-endif
-BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
+	UBOOT_DEFCONFIG := $(or $(SOC_UBOOT),unknown)
+	BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
 endif
 
 ifeq ($(SOC_MODEL),t10l)

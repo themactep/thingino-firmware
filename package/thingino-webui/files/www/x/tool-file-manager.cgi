@@ -1,13 +1,15 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2012,SC2086,SC3043
 
 # Check authentication
 . /var/www/x/auth.sh
 require_auth
 
 json_escape() {
-	printf '%s' "$1" | sed \
+	printf '%s' "$1" | tr -d '\001-\010\013\014\016-\037\177' | sed \
 		-e 's/\\/\\\\/g' \
 		-e 's/"/\\"/g' \
+		-e 's/	/\\t/g' \
 		-e "s/\r/\\r/g" \
 		-e "s/\n/\\n/g"
 }
@@ -174,8 +176,10 @@ BEGIN {
 function escape(str) {
   gsub(/\\/, "\\\\", str)
   gsub(/"/, "\\\"", str)
+  gsub(/\t/, "\\t", str)
   gsub(/\r/, "\\r", str)
   gsub(/\n/, "\\n", str)
+  gsub(/[\001-\010\013\014\016-\037\177]/, "?", str)
   return str
 }
 $1 == "total" { next }

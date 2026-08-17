@@ -1,6 +1,8 @@
 #!/bin/sh
+# shellcheck disable=SC3043  # busybox ash supports local; POSIX does not define it
 
 # Check authentication
+# shellcheck disable=SC1091  # auth.sh is installed on the camera, not in the build tree
 . /var/www/x/auth.sh
 require_auth
 

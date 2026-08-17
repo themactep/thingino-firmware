@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC2295,SC2318,SC3037,SC3043,SC3052
 
 # IRCUT controller that understands every gpio.ircut variant used in Thingino
 # camera profiles (scalar pins, strings with o/O suffix, structured objects,

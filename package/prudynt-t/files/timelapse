@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC3043
 # Grabs a snapshot for timelapse by cron
 
 . /usr/share/prudynt-helpers

@@ -1,7 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC2005
 # Build (if needed) and OTA-upgrade all cameras listed in user/camera_roster.csv
 
-set -u
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ROSTER_FILE="${ROSTER_FILE:-$ROOT_DIR/user/camera_roster.csv}"
@@ -31,12 +32,13 @@ get_output_dir() {
 needs_build() {
 	local camera="$1"
 	local group="$2"
+	local rc=0
 	if [ -n "$group" ]; then
-		$MAKE_BIN -q --no-print-directory CAMERA="$camera" GROUP="$group" pack >/dev/null 2>&1
+		$MAKE_BIN -q --no-print-directory CAMERA="$camera" GROUP="$group" pack >/dev/null 2>&1 || rc=$?
 	else
-		$MAKE_BIN -q --no-print-directory CAMERA="$camera" pack >/dev/null 2>&1
+		$MAKE_BIN -q --no-print-directory CAMERA="$camera" pack >/dev/null 2>&1 || rc=$?
 	fi
-	return $?
+	return $rc
 }
 
 build_and_pack() {
@@ -102,25 +104,26 @@ while IFS=, read -r col1 col2 col3 col4; do
 	log ""
 	log "===== $label ($camera @ $ip) ====="
 
-	needs_build "$camera" "$group"
-	case $? in
-		0)
-			log "✓ Firmware is fresh; reusing existing image."
-			;;
-		1)
-			log "Building firmware..."
-			if ! build_and_pack "$camera" "$group"; then
-				err "Build failed for $label"
+	if needs_build "$camera" "$group"; then
+		log "✓ Firmware is fresh; reusing existing image."
+	else
+		build_status=$?
+		case $build_status in
+			1)
+				log "Building firmware..."
+				if ! build_and_pack "$camera" "$group"; then
+					err "Build failed for $label"
+					failures+=("$label")
+					continue
+				fi
+				;;
+			2)
+				err "Build check failed for $label"
 				failures+=("$label")
 				continue
-			fi
-			;;
-		2)
-			err "Build check failed for $label"
-			failures+=("$label")
-			continue
-			;;
-	esac
+				;;
+		esac
+	fi
 
 	output_dir="$(get_output_dir "$camera" "$group")"
 	if [ -z "$output_dir" ]; then

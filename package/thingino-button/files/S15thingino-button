@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 DAEMON="/usr/bin/thingino-button"
 # start-stop-daemon already backgrounds the process below. Keep the button
