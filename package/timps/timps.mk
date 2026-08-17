@@ -58,6 +58,7 @@ TIMPS_DEPENDENCIES = ingenic-lib
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 TIMPS_DEPENDENCIES += openimp
 endif
+TIMPS_DEPENDENCIES += thingino-agent
 ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
 TIMPS_DEPENDENCIES += ingenic-system-libs-neo
 endif
@@ -221,6 +222,11 @@ define TIMPS_BUILD_CMDS
 endef
 
 define TIMPS_INSTALL_TARGET_CMDS
+	# Install the thingino-agent backend adapter at the fixed path, overwriting
+	# the null fallback installed by thingino-agent.
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/agent-adapter \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+
 	# Install the streamer binary
 	$(INSTALL) -D -m 0755 $(@D)/timpsd \
 		$(TARGET_DIR)/usr/bin/timpsd
