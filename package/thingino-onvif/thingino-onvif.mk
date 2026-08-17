@@ -1,7 +1,7 @@
 THINGINO_ONVIF_SITE_METHOD = git
 THINGINO_ONVIF_SITE = https://github.com/themactep/thingino-onvif
 THINGINO_ONVIF_SITE_BRANCH = master
-THINGINO_ONVIF_VERSION = 70d35cf2d41e499ed8ba539636bcd717ac0f36cd
+THINGINO_ONVIF_VERSION = d17a5cc6b51f1d3a2e852dce8904d0dbc9fe4bfd
 
 THINGINO_ONVIF_LICENSE = MIT
 THINGINO_ONVIF_LICENSE_FILES = LICENSE
@@ -57,12 +57,12 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
 		$(@D)/res/media_service_files/*
-
-ifeq ($(BR2_PACKAGE_THINGINO_ONVIF_SYNOLOGY_COMPAT),y)
-	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
-		$(@D)/res/synology/CreateProfile.xml \
-		$(@D)/res/synology/DeleteProfile.xml
-endif
+	# Synology compatibility shims are optional and non-compliant; only install
+	# their templates when the build opted in (BR2_PACKAGE_THINGINO_ONVIF_SYNOLOGY_COMPAT).
+	if [ "$(BR2_PACKAGE_THINGINO_ONVIF_SYNOLOGY_COMPAT)" = "y" ]; then \
+		$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
+			$(@D)/res/synology/CreateProfile.xml; \
+	fi
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media2_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media2_service_files \
