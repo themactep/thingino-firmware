@@ -7,6 +7,10 @@
       "rx": 72,
       "tx": 73
     },
-    "mmc_cd": 52
+    "mmc_cd": 52,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    }
   }
 }

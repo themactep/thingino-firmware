@@ -5,6 +5,10 @@
       "pin": 89,
       "active_low": true
     },
-    "mmc_cd": -1
+    "mmc_cd": -1,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    }
   }
 }

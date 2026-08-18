@@ -7,7 +7,11 @@
       "active_low": true
     },
     "ircut": "53 52",
-    "mmc_cd": 59
+    "mmc_cd": 59,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    }
   },
   "motors": {
     "gpio_invert": false,

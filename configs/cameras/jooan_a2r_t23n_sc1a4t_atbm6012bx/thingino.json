@@ -7,6 +7,10 @@
     },
     "ircut": "50 49",
     "mmc_cd": 61,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    },
     "white": {
       "active_on_boot": false,
       "pin": 60

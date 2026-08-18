@@ -6,6 +6,10 @@
     "mmc_cd": 49,
     "scl": "58i",
     "sda": "57i",
+    "speaker": {
+      "pin": 7,
+      "active_low": true
+    },
     "white": 59,
     "wlan": 6
   },

@@ -1,5 +1,6 @@
 {
   "gpio": {
-    "mmc_cd": 59
+    "mmc_cd": 59,
+    "speaker": 57
   }
 }

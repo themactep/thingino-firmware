@@ -3,7 +3,11 @@
     "button_reset": 38,
     "ir940": 45,
     "ircut": "57 58",
-    "mmc_cd": 50
+    "mmc_cd": 50,
+    "speaker": {
+      "pin": 39,
+      "active_low": true
+    }
   },
   "motors": {
     "gpio_invert": false,

@@ -3,7 +3,8 @@
     "button_reset": 14,
     "ir940": 50,
     "ircut": "10 11",
-    "mmc_cd": 49
+    "mmc_cd": 49,
+    "speaker": 7
   },
   "motors": {
     "gpio_pan": "54 52 53 64",

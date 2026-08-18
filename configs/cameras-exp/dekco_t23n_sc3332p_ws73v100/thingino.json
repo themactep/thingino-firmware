@@ -8,6 +8,10 @@
       "pin": 50,
       "active_low": true
     },
+    "speaker": {
+      "pin": 42,
+      "active_low": true
+    },
     "white": 60,
     "wlan": 6
   },
