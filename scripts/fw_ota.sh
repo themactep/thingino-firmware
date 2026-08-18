@@ -11,7 +11,7 @@ die() {
 }
 
 set -eu
-# NOTE: no pipefail — the sysupgrade pipeline at line ~261 captures
+# NOTE: no pipefail - the sysupgrade pipeline at line ~261 captures
 # ${PIPESTATUS[0]} to check remote_run's exit code independently of
 # tee; pipefail would kill the script before PIPESTATUS can be read.
 
@@ -343,7 +343,7 @@ upload_flash_ota() {
 free_overlay_space
 
 if [ "$MODE" = "full" ]; then
-	# Full firmware — use traditional sysupgrade
+	# Full firmware - use traditional sysupgrade
 	echo "Transferring sysupgrade utility to device..."
 	upload_sysupgrade
 
@@ -398,7 +398,7 @@ if [ "$MODE" = "full" ]; then
 	die "Failed to flash firmware"
 fi
 
-# Boot / kernel / rootfs — use minimal flash-ota
+# Boot / kernel / rootfs - use minimal flash-ota
 
 echo "Transferring flash-ota utility to device..."
 upload_flash_ota
@@ -483,6 +483,11 @@ esac
 echo "Partition files uploaded."
 
 remote_run "touch /tmp/needs_reboot" || true
+
+if [ "$DO_BACKUP" -eq 1 ] && [ "$MODE" = "rootfs" ]; then
+	echo "Creating config backup on device..."
+	remote_run "cfg-backup write" || echo "Warning: cfg-backup failed (non-fatal)"
+fi
 
 echo "Flashing..."
 remote_run "$FLASH_CMD" || true
