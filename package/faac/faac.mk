@@ -1,4 +1,4 @@
-FAAC_VERSION = 2.0
+FAAC_VERSION = 2.1
 FAAC_SITE = $(call github,knik0,faac,faac-$(FAAC_VERSION))
 
 FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
