@@ -12,7 +12,7 @@ This document provides comprehensive documentation for working with the Thingino
 - [Package Management](#package-management)
 - [Buildroot Integration](#buildroot-integration)
 - [Firmware Deployment](#firmware-deployment)
-  - [Overlay Backup](#overlay-backup)
+- [Overlay Backup](#overlay-backup)
 - [Shared Host Directory](#shared-host-directory)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
