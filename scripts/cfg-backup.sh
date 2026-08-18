@@ -1,6 +1,6 @@
 #!/bin/sh
 # shellcheck shell=bash
-# cfg-backup — read/write config tarball to the raw 64KB backup MTD partition
+# cfg-backup - read/write config tarball to the raw 64KB backup MTD partition
 #
 # Usage:
 #   cfg-backup write [paths...]    (defaults to /etc/cfg-backup.list)
@@ -12,11 +12,11 @@
 #   md5=<32 hex>\n
 #   (padded with \n)
 #
-# Payload: tar (uncompressed — busybox tar lacks gzip)
+# Payload: tar (uncompressed - busybox tar lacks gzip)
 
 set -e
 
-MTD=${CFG_BACKUP_MTD:-/dev/mtd2}
+MTD=${CFG_BACKUP_MTD:-}
 HEADER_SIZE=64
 MAX_PAYLOAD=$((65536 - HEADER_SIZE))
 LIST_FILE=/etc/cfg-backup.list
@@ -25,6 +25,13 @@ die() {
 	echo "cfg-backup: $*" >&2
 	exit 1
 }
+
+# Resolve the backup MTD partition by name - partition numbers are not
+# stable across flash layouts (NOR vs NAND). $CFG_BACKUP_MTD overrides.
+if [ -z "$MTD" ]; then
+	MTD="/dev/$(awk -F: '/"backup"$/{print $1}' /proc/mtd)"
+fi
+[ -e "$MTD" ] || die "backup MTD partition not found ($MTD)"
 
 # Try to erase the MTD partition. Uses flash_eraseall (whole partition)
 # or flash_erase (count blocks to cover the partition size).
@@ -52,10 +59,26 @@ do_write() {
 			[ -n "$line" ] && set -- "$@" "$line"
 		done <"$LIST_FILE"
 	else
-		# CLI paths given — still prepend the list file so backups are
+		# CLI paths given - still prepend the list file so backups are
 		# self-describing.
 		set -- "$LIST_FILE" "$@"
 	fi
+
+	# Drop paths that do not exist so tar does not abort midway
+	# (the default list may name files a given camera does not have).
+	_count=$#
+	_i=0
+	while [ "$_i" -lt "$_count" ]; do
+		_p=$1
+		shift
+		if [ -e "$_p" ]; then
+			set -- "$@" "$_p"
+		else
+			echo "cfg-backup: skipping missing path: $_p" >&2
+		fi
+		_i=$((_i + 1))
+	done
+	[ $# -gt 0 ] || die "nothing to back up"
 
 	tmpd=$(mktemp -d)
 	trap 'rm -rf "$tmpd"' EXIT
@@ -107,7 +130,7 @@ do_restore() {
 	dd if="$tmpd/full" of="$tmpd/payload" bs=1 skip="$HEADER_SIZE" count="$sz" 2>/dev/null
 	computed_md5=$(md5sum "$tmpd/payload" | awk '{print $1}')
 
-	[ "$stored_md5" = "$computed_md5" ] || die "MD5 mismatch — backup is corrupt"
+	[ "$stored_md5" = "$computed_md5" ] || die "MD5 mismatch - backup is corrupt"
 
 	tar xf "$tmpd/payload" -C / || die "tar extract failed"
 	echo "cfg-backup: $sz bytes restored from $MTD"
