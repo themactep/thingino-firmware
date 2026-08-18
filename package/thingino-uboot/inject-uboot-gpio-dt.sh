@@ -45,6 +45,17 @@
 #                 gpio) and a -1 token disables the whole domain, exactly as
 #                 the runtime script treats them.
 #
+#   gpio.speaker - the speaker amplifier enable line, held at its muted
+#                 (inactive) level so the amp is not left floating through
+#                 the boot window: the kernel codec module mutes it at probe
+#                 for exactly that reason. Muted is the inverse of the active
+#                 level, so active_low=true rests HIGH and a plain pin rests
+#                 LOW. U-Boot's own codec driver drives this pin raw around
+#                 playback rather than through the gpio uclass (see
+#                 inject-uboot-audio-dt.sh, which feeds the same key to the
+#                 codec node as ingenic,spk-gpio), so the hog does not fight
+#                 it for ownership - it only defines the level until then.
+#
 # A pin that inject-uboot-mmc-dt.sh turns into a DT binding (gpio.mmc_cd ->
 # cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
 # -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
@@ -221,6 +232,17 @@ for key in ("ircut", "ircut_sub"):
     if ircut_walk(root.get("gpio", {}).get(key), 0, acc):
         out += [("ircut", p, 1 if al else 0) for p, al in acc]
 
+# ---- gpio.speaker: hold the speaker amp muted through the boot window ----
+sp = root.get("gpio", {}).get("speaker")
+if isinstance(sp, dict):
+    sp_pin, sp_al = sp.get("pin"), is_true(sp.get("active_low"))
+elif isinstance(sp, int) and not isinstance(sp, bool):
+    sp_pin, sp_al = sp, False	# short notation: bare int = active-high pin
+else:
+    sp_pin, sp_al = None, False
+if isinstance(sp_pin, int) and not isinstance(sp_pin, bool) and sp_pin >= 0:
+    out.append(("spk_mute", sp_pin, 1 if sp_al else 0))
+
 # Pins inject-uboot-mmc-dt.sh turns into DT bindings - the binding's gpio
 # request must win, so these are never hogged (level 's' = skip note).
 g = root.get("gpio", {})
@@ -260,7 +282,8 @@ bank() {
 emitted=""
 {
 	printf '\n/* thingino GPIO presets: hold board pins at their runtime level through\n'
-	printf ' * the boot window (motors / gpio.wlan / gpio.mmc_power / gpio.ircut). */\n'
+	printf ' * the boot window (motors / gpio.wlan / gpio.mmc_power / gpio.ircut /\n'
+	printf ' * gpio.speaker). */\n'
 	for TOK in $vals; do
 		NAME=${TOK%%:*}
 		REST=${TOK#*:}

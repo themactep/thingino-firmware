@@ -205,10 +205,11 @@ endif
 # (S36wireless only replays them on 3.10 kernels, late in boot; SDIO modules
 # must be powered for the kernel MMC scan), multi-pin gpio.mmc_power lists at
 # their power-on level (the single-pin form becomes a vmmc-supply regulator
-# in the MMC inject above instead), and IR-cut filter coil pins at the
+# in the MMC inject above instead), IR-cut filter coil pins at the
 # /usr/sbin/ircut idle level so the solenoid is not left floating or
-# energised. The helper self-skips per domain from the json content, so no
-# per-domain config gate is needed.
+# energised, and the speaker amp enable line held muted. The helper
+# self-skips per domain from the json content, so no per-domain config gate
+# is needed.
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 define THINGINO_UBOOT_INJECT_GPIO_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
@@ -220,6 +221,24 @@ define THINGINO_UBOOT_INJECT_GPIO_DT
 	$(UBOOT_KCONFIG_MAKE) olddefconfig
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_GPIO_DT
+endif
+
+# Inject this board's speaker-amp enable line into the U-Boot leaf .dts from
+# gpio.speaker in thingino.json. The codec driver drives ingenic,spk-gpio
+# around PIO playback, and the per-SoC .dtsi can only carry the ISVP reference
+# default (PB31), so every board either overrides it or - having no amp gpio
+# at all - has the inherited default deleted.
+ifeq ($(BR2_THINGINO_AUDIO),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_AUDIO_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-audio-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_AUDIO_DT
+endif
 endif
 
 endif
