@@ -721,23 +721,14 @@ config BR2_THINGINO_GPIO_LIST
 config BR2_THINGINO_AUDIO
 	bool "Audio Support"
 	help
-	  Enable audio suport.
-	  The GPIO pin for enabling audio can be specified in the U-Boot environment
-	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
+	  Enable audio support.
 
-config BR2_THINGINO_AUDIO_GPIO
-	int "Speaker GPIO"
-	depends on BR2_THINGINO_AUDIO
-	default -1
-	help
-	  Speaker GPIO
-
-config BR2_THINGINO_AUDIO_GPIO_LOW
-	bool "Speaker GPIO active LOW"
-	depends on BR2_THINGINO_AUDIO
-	default n
-	help
-	  Speaker GPIO active LOW
+	  The speaker amplifier enable line is board wiring, so it lives in
+	  the camera's thingino.json under gpio.speaker: a bare pin number
+	  for an active-high line, {"pin": N, "active_low": true} for an
+	  active-low one, and no key at all when the board has no such pin.
+	  That one key feeds both the codec kernel module and the U-Boot
+	  device tree.
 
 config BR2_THINGINO_AUDIO_DMIC
 	bool "DMIC Support"

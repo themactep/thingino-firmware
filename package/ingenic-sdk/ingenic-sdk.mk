@@ -226,18 +226,47 @@ define GENERATE_MODULE_LOADER
 	fi
 endef
 
+# The speaker-amp enable line comes from gpio.speaker in the board's
+# thingino.json, in the same short notation as the rest of the gpio section:
+# a bare int is an active-high pin, {"pin": N, "active_low": true} an
+# active-low one. No key means the board has no amp gpio, which the codec
+# module reads as spk_gpio=-1 (it gates every drive on spk_gpio > 0, so the
+# level is moot).
+#
+# Read the camera's config file, NOT $(TARGET_DIR)/etc/thingino.json: with
+# per-package directories that target file still holds nothing but
+# configs/common.thingino.json while this package installs. thingino-core
+# only stages the camera json (usr/share/thingino-defaults/90-camera.json)
+# and merges it in a target-finalize hook, long after every package has
+# installed - so anything read from the target copy here loses the whole
+# gpio section. This is the same file, and the same value, that
+# package/thingino-uboot/inject-uboot-audio-dt.sh feeds to the U-Boot device
+# tree as ingenic,spk-gpio, which keeps the bootloader and the kernel
+# driving the same pin. Like those injectors it does not see user/ layer
+# overrides.
+INGENIC_SDK_CAMERA_JSON = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json
+
 define INSTALL_AUDIO_SUPPORT
-	gpio_speaker=$(BR2_THINGINO_AUDIO_GPIO); \
-	if [ -z "$$gpio_speaker" ]; then \
-		spk_gpio=-1; \
-		spk_level=-1; \
-	else \
-		spk_gpio=$$gpio_speaker; \
-		if [ "$(BR2_THINGINO_AUDIO_GPIO_LOW)" = "y" ]; then \
-			spk_level=0; \
-		else \
-			spk_level=1; \
+	spk_gpio=-1; \
+	spk_level=1; \
+	if [ -r $(INGENIC_SDK_CAMERA_JSON) ]; then \
+		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
+			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
+		spk=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker.pin 2>/dev/null); \
+		if [ -z "$$spk" ]; then \
+			spk=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker 2>/dev/null); \
+		fi; \
+		case "$$spk" in \
+			"" | *[!0-9]*) ;; \
+			*) \
+				spk_gpio=$$spk; \
+				spk_al=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker.active_low 2>/dev/null); \
+				if [ "$$spk_al" = "true" ]; then \
+					spk_level=0; \
+				fi; \
+				;; \
+		esac; \
 	fi; \
 	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
 
