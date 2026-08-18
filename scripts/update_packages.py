@@ -161,10 +161,15 @@ def extract_github_info(site: str, pkg_upper: str, source: Optional[str] = None)
     return None
 
 
-def get_latest_tag(repo_url: str, current_tag: str) -> Optional[str]:
+def get_latest_tag(repo_url: str, current_tag: str, template: Optional[str] = None) -> Optional[str]:
     """
     Fetch all tags from a git repo and return the most recent version tag
-    that shares a version-number pattern with *current_tag*.
+    that shares a version-number pattern with *current_tag* and matches the
+    tag *template* (with ``{v}`` placeholder) when one is provided.
+
+    The template matters because version tags are not always plain
+    numbers or ``v``-prefixed: e.g. ``faac-$(FAAC_VERSION)`` produces
+    tags like ``faac-2.1``, where the version portion is ``2.1``.
     """
     code, out, err = run_git(["ls-remote", "--tags", repo_url], timeout=120)
     if code != 0:
@@ -188,20 +193,26 @@ def get_latest_tag(repo_url: str, current_tag: str) -> Optional[str]:
 
     has_v = current_tag.startswith('v')
 
-    def is_versionish(tag: str) -> bool:
-        v = tag[1:] if tag.startswith('v') else tag
-        return bool(re.match(r'^\d+(\.\d+)*', v))
-
-    def version_tuple(tag: str) -> tuple:
-        v = tag[1:] if tag.startswith('v') else tag
+    candidates = []
+    for tag in tags:
+        # Keep the same v-prefix consistency as the current tag
+        if tag.startswith('v') != has_v:
+            continue
+        # The version portion is whatever the template pins between its
+        # static prefix/suffix; without a template the whole tag is used.
+        version = extract_version_from_tag(template, tag) if template else tag
+        if version is None:
+            continue
+        v = version[1:] if version.startswith('v') else version
+        if not re.match(r'^\d+(\.\d+)*', v):
+            continue
         nums = re.findall(r'\d+', v)
-        return tuple(int(n) for n in nums)
+        candidates.append((tuple(int(n) for n in nums), tag))
 
-    candidates = [t for t in tags if t.startswith('v') == has_v and is_versionish(t)]
     if not candidates:
         return None
-    candidates.sort(key=version_tuple)
-    return candidates[-1]
+    candidates.sort(key=lambda c: c[0])
+    return candidates[-1][1]
 
 
 def compare_tags(current: str, latest: str) -> bool:
@@ -444,8 +455,8 @@ def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_h
         run_git(["add", str(relative_hash_path)], cwd=PROJECT_ROOT)
 
     # Create commit message
-    old_short = get_short_hash(old_hash)
-    new_short = get_short_hash(new_hash)
+    old_short = get_short_hash(old_hash) if is_valid_hash(old_hash) else old_hash
+    new_short = get_short_hash(new_hash) if is_valid_hash(new_hash) else new_hash
 
     commit_title = f"package/{package_name}: update to {new_short}"
 
@@ -778,8 +789,8 @@ def parse_mk_file_release(mk_path: Path) -> Optional[Tuple[str, str, str, str, s
 
 
 def prompt_yes_no(package_name: str, old_hash: str, new_hash: str) -> bool:
-    old_short = get_short_hash(old_hash)
-    new_short = get_short_hash(new_hash)
+    old_short = get_short_hash(old_hash) if is_valid_hash(old_hash) else old_hash
+    new_short = get_short_hash(new_hash) if is_valid_hash(new_hash) else new_hash
     prompt = (
         f"{YELLOW}Update package {BLUE}{package_name}{YELLOW} from {RED}{old_short}{YELLOW} "
         f"to {GREEN}{new_short}{YELLOW}? [y/N]: {NC}"
@@ -809,7 +820,7 @@ def process_package_release(mk_path: Path, package_name: str, repo_url: str,
     log_debug(f"  Repository: {repo_url}")
     log_debug(f"  Current tag: {current_tag}")
 
-    latest_tag = get_latest_tag(repo_url, current_tag)
+    latest_tag = get_latest_tag(repo_url, current_tag, tag_template)
     if not latest_tag:
         # No tags found — fall back to hash-based comparison if version is a commit hash
         if is_valid_hash(raw_version) and raw_version != 'HEAD':
