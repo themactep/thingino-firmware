@@ -179,7 +179,7 @@ KERNEL_VERSION_4=y
 ```
 
 **Important Notes:**
-- DO NOT add `BR2_THINGINO_AUDIO_GPIO` or similar GPIO configs - these go in the device tree!
+- DO NOT add GPIO configs here - board GPIOs live in the camera's `thingino.json` (see [gpio.md](gpio.md)), and the device tree for the pins the kernel claims itself
 - The `BR2_LINUX_KERNEL_EXT_INGENIC_KOPT` line enables your camera-specific device tree
 - Keep camera-specific settings here, generic SOC settings go in the generic config
 

@@ -94,3 +94,39 @@ Processing rules:
 Update `/etc/thingino.json`, then restart the corresponding init script
 (`S09mmc` for storage power or `S36wireless` for Wi-Fi) to apply the new
 sequence.
+
+### Speaker amplifier enable
+
+Cameras with an external audio amplifier gate it with a GPIO. That pin is
+`gpio.speaker`, written in the same short notation as the rest of the
+section - a bare number for an active-high line:
+
+```json
+"gpio": {
+  "speaker": 63
+}
+```
+
+and the object form when the line is active low:
+
+```json
+"gpio": {
+  "speaker": { "pin": 64, "active_low": true }
+}
+```
+
+Leave the key out entirely on boards that have no such pin.
+
+Unlike `gpio.mmc_power` and `gpio.wlan` above, which init scripts read at
+runtime, this one is consumed at **build time** by three places, so changing
+it means rebuilding the camera rather than editing `/etc/thingino.json` on a
+running device:
+
+- the codec kernel module's `spk_gpio` and `spk_level` parameters, written
+  into `/etc/modules.d/40-audio`;
+- `ingenic,spk-gpio` on the U-Boot codec node, which U-Boot's `sound`
+  command drives around playback. Boards with no `gpio.speaker` get the
+  per-SoC reference default (PB31) deleted from their device tree instead,
+  so U-Boot never drives a pin the board uses for something else;
+- a boot-window `gpio-hog` holding the amp at its muted level, so it is not
+  left floating between power-on and the first playback.

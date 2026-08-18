@@ -73,7 +73,7 @@ Camera defconfigs under `configs/cameras/<camera>/` and
   BR2_PACKAGE_THINGINO_KOPT_DWC2=y
   BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG=y
   BR2_THINGINO_AUDIO=y
-  BR2_THINGINO_AUDIO_GPIO=63
+  BR2_THINGINO_AUDIO_DMIC=y
   ```
 
 - Non-`BR2_` keys (`FLASH_SIZE_MB=16`, `FLASH_NOR=y`) land after all
