@@ -342,7 +342,7 @@ handle_payload() {
 
 		echo_c 112 "\nDownload firmware"
 		if [ -n "$curl_range" ]; then
-			# curl range request – use -o to write directly
+			# curl range request - use -o to write directly
 			echo "Range: $curl_range"
 			if ! curl -fL# --url "$bin_url" -o "$fw_file" $curl_range; then
 				die "Cannot download firmware from specified URL."
@@ -549,7 +549,7 @@ case "$1" in
 		esac
 		;;
 	"")
-		# No file argument – default to GitHub for modes that support it
+		# No file argument - default to GitHub for modes that support it
 		case "$upgrade" in
 			rootfs | kernel | boot) url="$GITHUB_URL" ;;
 		esac
@@ -656,7 +656,7 @@ extract_rootfs_data() {
 		echo "Appended data partition: $((src_size - sqfs_aligned)) bytes"
 		dd if="$src" of="$workdir/data.bin" bs=1 skip=$sqfs_aligned 2>/dev/null
 	else
-		echo "No appended data — data partition unchanged"
+		echo "No appended data - data partition unchanged"
 	fi
 }
 
@@ -684,6 +684,18 @@ PARTLIST
 
 get_mtd_size() { awk "/\"$1\"$/{print \"0x\"\$2}" /proc/mtd; }
 get_mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
+
+# Snapshot config files to the backup MTD partition before flashing.
+# cfg-backup is installed by this package (scripts/cfg-backup.sh).
+create_config_backup() {
+	[ "$do_backup" = "true" ] || return 0
+	echo_c 112 "\nCreating config backup before upgrade"
+	if cfg-backup write 2>/dev/null; then
+		echo "Config backup written to /dev/$(get_mtd_dev backup)"
+	else
+		echo_c 160 "Warning: cfg-backup failed (non-fatal)"
+	fi
+}
 # --- end helpers ---
 
 # upgrade bootloader only
@@ -795,7 +807,7 @@ if [ "rootfs" = "$upgrade" ]; then
 		sync
 		flash_partition "/dev/$ddev" "$workdir/data.bin" || die "data flash failed"
 	else
-		echo "No data partition in image — data unchanged"
+		echo "No data partition in image - data unchanged"
 	fi
 
 	echo_c 46 "\nRootfs upgrade complete. Rebooting..."
@@ -812,6 +824,7 @@ if [ -z "$mtd_dev" ]; then
 			# Full upgrade: flash each partition individually.
 			# Writing to "all" fails on kernels that protect overlapping MTD regions.
 			echo "Full firmware upgrade"
+			create_config_backup
 			# Clone busybox to tmpfs before the dd loop so that
 			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
 			clone_app /bin/busybox
@@ -864,6 +877,14 @@ if [ -z "$mtd_dev" ]; then
 				[ "$name" = "upgrade" ] && continue
 				[ "$needle" -ge "$fw_size" ] && break
 				sz_dec=$((0x$sz))
+				# The config backup written above lives on the backup partition;
+				# the image carries that region erased (0xFF). Skip it so the
+				# snapshot survives the full upgrade.
+				if [ "$do_backup" = "true" ] && [ "$name" = "backup" ]; then
+					echo_c 112 "Keeping config backup on $name"
+					needle=$((needle + sz_dec))
+					continue
+				fi
 				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
 				flash_eraseall "/dev/$mtd" 2>/dev/null || true
 				bs=$align_block
@@ -881,7 +902,7 @@ if [ -z "$mtd_dev" ]; then
 			echo_c 46 "Full upgrade complete. Rebooting..."
 			sync
 			# Disarm the tmpfs watchdog before triggering the WDT reset.
-			# Use the tmpfs busybox for every command — rootfs may already
+			# Use the tmpfs busybox for every command - rootfs may already
 			# be overwritten, so rootfs binaries can segfault.
 			$workdir/busybox killall watchdog 2>/dev/null && $workdir/busybox sleep 1
 			$workdir/busybox sleep 5
@@ -920,14 +941,7 @@ if [ -z "$mtd_dev" ]; then
 fi # end of [ -z "$mtd_dev" ] guard
 
 # --- config backup ---
-if [ "$do_backup" = "true" ]; then
-	echo_c 112 "\nCreating config backup before upgrade"
-	if cfg-backup write 2>/dev/null; then
-		echo "Config backup written to /dev/mtd2"
-	else
-		echo_c 160 "Warning: cfg-backup failed (non-fatal)"
-	fi
-fi
+create_config_backup
 # --- end backup ---
 
 #stop_services
