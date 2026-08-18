@@ -1,0 +1,8 @@
+# Locally calculated: FetchContent dependencies of compy, downloaded via
+# COMPY_EXTRA_DOWNLOADS so they land in the download cache and are
+# hash-checked. The main compy git tarball is exempted via
+# BR_NO_CHECK_HASH_FOR in compy.mk.
+sha256  07b06b29d06eb74798d85e34b2b50af330f5480e96457bcbfd20f5c6f61d1a30  slice99-v0.7.8.tar.gz
+sha256  f38c077afdb91b7d754321be5d3c4a43ed5420c1ad51514d1de20023960f9a8e  datatype99-v1.6.5.tar.gz
+sha256  8bd007c48cf05436ced60884e8e3a05ede46105f3efae9bf29e0f4d30f938f9e  interface99-v1.0.2.tar.gz
+sha256  f3d1607d76b4b081d3295661c4c2b8d5fde4d5018b1aa409c84fb3a6660ffb90  metalang99-v1.13.5.tar.gz
