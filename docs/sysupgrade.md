@@ -135,6 +135,13 @@ Anything else → aborts with an error.
 
 Stores selected config files to the raw 64KB backup partition (mtd2) before flashing.
 
+`sysupgrade` calls `cfg-backup write` before flashing (and `fw_ota.sh` does the same for
+`ota-upgrade`). On rootfs/kernel-only upgrades the backup partition is untouched, so the
+snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is flashed
+partition-by-partition; `sysupgrade` snapshots the config first and then skips the backup
+region, so the snapshot written moments earlier is preserved. Run `cfg-backup restore`
+manually after the reboot to put the files back into the fresh system.
+
 ```sh
 # Manually (on the camera):
 cfg-backup write                     # backs up everything in /etc/cfg-backup.list
