@@ -1,0 +1,36 @@
+#!/bin/sh
+# shellcheck disable=SC2004,SC2034,SC2086
+#
+# Serial number -> MAC derivation (U-Boot cmd_ethaddr.c), shared by
+# S03mac and S04hostname. Sourced, not an init entry point.
+
+# Sets m1..m5 from the serial registers; returns 1 when none is present.
+derive_serial_mac() {
+	b1=$(devmem 0x13540200 2>/dev/null) || return 1
+	b2=$(devmem 0x13540204 2>/dev/null) || return 1
+	b3=$(devmem 0x13540208 2>/dev/null) || return 1
+	b4=$(devmem 0x1354023C 2>/dev/null) || return 1
+
+	b1=$((b1))
+	b2=$((b2))
+	b3=$((b3))
+	b4=$((b4))
+
+	# All zero means no serial number
+	[ "$b1" -eq 0 ] && [ "$b2" -eq 0 ] && [ "$b3" -eq 0 ] && [ "$b4" -eq 0 ] && return 1
+
+	if [ "$b4" -ne 0 ]; then
+		m1=$(((b4 >> 24) & 255))
+		m2=$(((b4 >> 16) & 255))
+		m3=$(((b4 >> 8) & 255))
+		m4=$((b4 & 255))
+	else
+		m1=$(((b1 >> 24) & 255))
+		m2=$(((b1 >> 16) & 255))
+		m3=$(((b2 >> 24) & 255))
+		m4=$(((b2 >> 16) & 255))
+	fi
+
+	m5=$((((b1 ^ b2 ^ b3 ^ b4) & 255) | 1))
+	return 0
+}
