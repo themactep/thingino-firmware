@@ -96,11 +96,7 @@ generate() {
 start() {
 	echo -c 15 "Configuring hostname"
 
-	# Check if hostname is configured via 'conf s hostname'
-	if [ -n "$hostname" ]; then
-		echo -c 240 -e "- Using configured hostname: $hostname"
-		set_hostname "$hostname" "configured"
-	elif is_user_modified_hostname; then
+	if is_user_modified_hostname; then
 		echo -c 240 -e "- Hostname is already customized, keeping current"
 	else
 		generate
