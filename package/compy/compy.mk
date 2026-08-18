@@ -37,7 +37,7 @@ COMPY_EXTRA_DOWNLOADS = \
 
 # The compy sources themselves come from git, so they have no stable
 # hash; the hashes in compy.hash only cover the extra downloads above.
-BR_NO_CHECK_HASH_FOR += compy-$(COMPY_VERSION).tar.gz
+BR_NO_CHECK_HASH_FOR += $(COMPY_SOURCE)
 
 COMPY_CONF_OPTS += \
 	-DFETCHCONTENT_SOURCE_DIR_SLICE99=$(@D)/_deps/slice99-src \
