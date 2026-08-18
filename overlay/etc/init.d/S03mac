@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2004,SC2086,SC1091,SC2154
 
 CONFIG_JSON="/etc/thingino.json"
 
@@ -7,34 +8,10 @@ command -v jct >/dev/null 2>&1 || exit 0
 # If eth.mac already set, nothing to do
 jct "$CONFIG_JSON" get eth.mac >/dev/null 2>&1 && exit 0
 
-# Read SoC serial number registers
-b1=$(devmem 0x13540200 2>/dev/null) || exit 0
-b2=$(devmem 0x13540204 2>/dev/null) || exit 0
-b3=$(devmem 0x13540208 2>/dev/null) || exit 0
-b4=$(devmem 0x1354023C 2>/dev/null) || exit 0
+# Shared serial -> MAC derivation (also used for the hostname suffix)
+. /etc/init.d/lib-serial-mac
 
-# Convert to integer
-b1=$((b1))
-b2=$((b2))
-b3=$((b3))
-b4=$((b4))
-
-# All zero means no serial number available
-[ "$b1" -eq 0 ] && [ "$b2" -eq 0 ] && [ "$b3" -eq 0 ] && [ "$b4" -eq 0 ] && exit 0
-
-# Generate ETH MAC address (algorithm from U-Boot cmd_ethaddr.c)
-if [ "$b4" -ne 0 ]; then
-	m1=$(((b4 >> 24) & 255))
-	m2=$(((b4 >> 16) & 255))
-	m3=$(((b4 >> 8) & 255))
-	m4=$((b4 & 255))
-else
-	m1=$(((b1 >> 24) & 255))
-	m2=$(((b1 >> 16) & 255))
-	m3=$(((b2 >> 24) & 255))
-	m4=$(((b2 >> 16) & 255))
-fi
-m5=$((((b1 ^ b2 ^ b3 ^ b4) & 255) | 1))
+derive_serial_mac || exit 0
 
 eth_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $m1 $m2 $m3 $m4 $m5)
 echo -c 240 -e "- Generated ETH MAC: $eth_mac"
