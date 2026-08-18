@@ -22,6 +22,11 @@ Options:
 	-f               Force: skip consent prompt
 	-h               Show this help
 
+Environment:
+	DIAG_CMD_TIMEOUT  Per-command watchdog in seconds (default: 15).
+	                  Commands blocked by a wedged daemon are killed
+	                  and noted in the report instead of hanging.
+
 Legacy options:
 	-l [path]        Save to local file (default: /tmp)
 
@@ -43,9 +48,30 @@ infocat() {
 	cat "$1"
 }
 
+# Per-command watchdog. Commands that talk to the IMP/ISP layer
+# (libimp-debug, sensor, lsusb) or wireless tools can block
+# indefinitely when the underlying daemon or hardware is wedged;
+# without a timeout the whole diagnostics run hangs.
+DIAG_CMD_TIMEOUT="${DIAG_CMD_TIMEOUT:-15}"
+
 inforun() {
 	tmp=$(mktemp) || exit 1
-	eval "$1" >"$tmp"
+	eval "$1" >"$tmp" &
+	cmd_pid=$!
+	(
+		sleep "$DIAG_CMD_TIMEOUT"
+		kill "$cmd_pid" 2>/dev/null
+		sleep 1
+		kill -9 "$cmd_pid" 2>/dev/null
+	) &
+	watchdog_pid=$!
+	wait "$cmd_pid" 2>/dev/null
+	cmd_status=$?
+	kill "$watchdog_pid" 2>/dev/null
+	wait "$watchdog_pid" 2>/dev/null
+	if [ "$cmd_status" -ge 128 ]; then
+		echo "! command killed after ${DIAG_CMD_TIMEOUT}s (subsystem may be wedged): $1" >>"$tmp"
+	fi
 	if [ -s "$tmp" ]; then
 		[ -n "$2" ] && header "$2"
 		cat "$tmp"
