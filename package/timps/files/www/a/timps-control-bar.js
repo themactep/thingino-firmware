@@ -1,32 +1,9 @@
 /* timps-control-bar.js - the timps-specific half of thingino-webui's control
- * bar, as a PLUGIN SCRIPT instead of a fork of /a/main.js.
- *
- * History: timps used to ship a whole copy of a/main.js (545 lines different
- * from core) just to re-point six control-bar actions at timps. That copy had
- * to be force-installed over thingino-webui's own file twice per build (see
- * the ordering note that used to live in timps.mk), and it had silently
- * drifted: it had lost core's apiFetch()/API_KEY_PROMISE helpers entirely and
- * carried other packages' code (the wyze-accessory doorbell banner, now
- * shipped by that package as /a/doorbell-banner.js). Everything in here is
- * ADDITIVE, so core main.js stays pristine and keeps evolving.
- *
- * HOW THE OVERRIDE WORKS - and why it is safe:
- *   - assemble_plugins.py injects the manifest's "scripts" as <script> tags
- *     before </head>, so this file runs BEFORE /a/main.js (which every page
- *     loads from <body>, see thingino-webui's *.html).
- *   - main.js is a classic script: its top-level `function name() {}`
- *     declarations become writable properties of the global object, and every
- *     call site inside main.js resolves them through the global scope at call
- *     time. Reassigning window.<name> after main.js has evaluated therefore
- *     redirects main.js's own call sites too.
- *   - "after main.js has evaluated" is what the DOMContentLoaded hook below
- *     buys us: DOMContentLoaded fires once parsing is done, i.e. after the
- *     <body> script tag ran. Listener order is registration order, and this
- *     file registered first (it is in <head>), so the overrides are in place
- *     before any of main.js's own DOMContentLoaded work.
- *   - main.js wires the control-bar buttons from `window.addEventListener
- *     ("load", initAll)`, which is later still, so initAll's click handlers
- *     already call the timps implementations.
+ * bar, as a PLUGIN SCRIPT instead of a fork of /a/main.js. Everything here is
+ * ADDITIVE: it overrides window.<fn> globals AFTER main.js has evaluated but
+ * BEFORE initAll() wires up click handlers, so core main.js stays pristine
+ * and the timps versions still get called. See NOTES.md for why this
+ * ordering is safe and why it replaced an old full main.js fork.
  */
 (function () {
   "use strict";

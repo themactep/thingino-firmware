@@ -1,36 +1,14 @@
 /* preview-motion.js - live motion-grid overlay for the timps preview page.
  *
- * Draws the timps IMP_IVS detection grid over the video and highlights the
- * cells that currently report motion. The page fetches the per-boot timps
- * token once from /x/timps-token.cgi (authenticated WebUI session required)
- * and then SUBSCRIBES to the timps push stream:
- *   EventSource http://<host>:<port>/events?stream=motion&token=<tok>
- * timps pushes an "event: motion" frame whenever the grid state changes
- * (same JSON object as GET /control's "motion":
- * {available,enabled,cols,rows,active:[0/1,...],...}; active is row-major,
- * index = row*cols+col). EventSource cannot send custom headers, so the
- * token goes as ?token= - it may show up in access logs, which is accepted
- * on the LAN (the token unlocks /control + /events + viewing the HTTP media
- * endpoints, never RTSP). CORS + the OPTIONS preflight are handled by timps.
- * preview.html primes window.timpsTokenInfo with a single shared
- * token fetch (its /stream.mp4 fetch reuses the token); this script uses
- * that when present and keeps its own fetch as a standalone fallback.
- *
- * FALLBACK: if EventSource is unavailable or keeps failing while /control
- * still answers (e.g. an old timpsd without /events, or events.enabled=0),
- * the overlay falls back to the previous behavior - polling GET /control at
- * ~4 Hz with the X-Timps-Token header - so nothing regresses. EventSource
- * reconnects by itself (the server sends "retry: 3000"); the stream is
- * closed while the tab is hidden and reopened when it becomes visible.
- *
- * The canvas is aligned to the video's DISPLAYED content rectangle
- * (object-fit: contain letterboxing is computed from videoWidth/videoHeight
- * vs the element box), so the grid matches the picture, not the element.
- * Fails soft: if the token/endpoint is unreachable or the build has no
- * IMP_IVS move API, the toggle button stays hidden and nothing is drawn.
- * The overlay auto-hides while motion detection is disabled and can be
- * toggled with the grid button (state kept in sessionStorage). The motor
- * joystick overlay is untouched (the canvas is pointer-events: none). */
+ * Draws the timps IMP_IVS detection grid over the video and highlights
+ * cells reporting motion, via an EventSource push stream
+ * (/events?stream=motion&token=) with a 4 Hz GET /control poll as fallback
+ * when SSE is unavailable or fails repeatedly. Canvas is aligned to the
+ * video's DISPLAYED content rect (object-fit:contain letterboxing), not the
+ * element box. Fails soft throughout: no token/endpoint or no IMP_IVS
+ * support just leaves the toggle button hidden. See NOTES.md for the full
+ * protocol/token details.
+ */
 (function () {
   "use strict";
 

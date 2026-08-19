@@ -3,32 +3,16 @@
  * Overlay replacing the stock thingino page script, which POSTed the gain
  * thresholds to /x/json-config-daynight.cgi (thingino.json) - a file the
  * timps streamer never reads, so the thresholds did nothing. This version
- * talks DIRECTLY to timps via GET/POST /control (a/timps-api.js):
- *   #daynight_enabled                     -> daynight.enabled
- *   #daynight_total_gain_night_threshold  -> daynight.total_gain_night_threshold
- *   #daynight_total_gain_day_threshold    -> daynight.total_gain_day_threshold
- *   #daynight_day_gain_pct                -> daynight.day_gain_pct
- *   #daynight_baseline_delay_s            -> daynight.baseline_delay_s
- *   #daynight_night_reconfirm_s           -> daynight.night_reconfirm_s
- *   #daynight_boot_settle_s/_max_s        -> daynight.boot_settle_s/_max_s
- *   #daynight_boot_stable_pct             -> daynight.boot_stable_pct
- *   (read-only: #daynight_night_baseline/#daynight_day_trigger from the
- *    status fields of the same names - the adaptive trigger in effect)
- *   #daynight_mode                        -> daynight.mode (sensor/time/sun)
- *   #daynight_time_night_start/day_start  -> daynight.time_night_start/day_start
- *   #daynight_sun_latitude/longitude      -> daynight.sun_latitude/longitude
- *   #daynight_sun_sunrise/sunset_offset_min -> daynight.sun_sunrise/sunset_offset_min
- * timps persists them into /etc/timps.conf itself and the detection thread
- * picks them up live. The Override Mode selector chooses the decision source:
- * sensor (gain-based, default), a fixed local-clock window, or today's real
- * sunrise/sunset for a lat/long. All three are timps-native.
+ * talks DIRECTLY to timps via GET/POST /control (a/timps-api.js); fields
+ * follow the "daynight_<key>" -> "daynight.<key>" convention (see
+ * fillTimps()/collectTimps() below). The Override Mode selector chooses the
+ * decision source: sensor (gain-based, default), a fixed local-clock
+ * window, or today's real sunrise/sunset for a lat/long - all three native.
  *
  * The Controls (color/ircut/IR850/IR940/white) column is a SEPARATE feature:
  * it configures the BOARD daynight script (/sbin/daynight hardware toggles),
  * not timps, and legitimately stays on the stock /x/json-config-daynight.cgi
- * backend, loaded and saved best-effort. (The old "Time Schedule" column that
- * also lived on that cgi was dead orphaned config nothing read - it has been
- * replaced by the timps-native Override Mode above.) */
+ * backend, loaded and saved best-effort. */
 (function () {
   "use strict";
 

@@ -1,60 +1,28 @@
 /* timps-preview.js - the live-preview <img>, fullscreen modal, endpoint list
  * and shared settings-page wiring for timps's own streamer pages
  * (streamer-*.html, tool-sensor-data.html - they <script>-include this file
- * directly).
- *
- * Named timps-preview.js, not preview.js: it used to be installed over
- * thingino-webui's own a/preview.js, which is a DIFFERENT script (core's
- * preview.js belongs to core's preview.html and drives an MJPEG <img> through
- * the prudynt bridge CGIs). Two unrelated scripts sharing one path is what
- * forced timps to re-install its www overlay from a global finalize hook to
- * beat Buildroot's per-package-directory merge. Only timps's own pages load
- * this file, so it simply gets its own name and the collision is gone.
- *
- * It talks to timps directly (window.timpsApi); the old /x/json-prudynt.cgi
- * bridge has been removed.
+ * directly). Named timps-preview.js, not preview.js, to avoid colliding with
+ * core's own a/preview.js (see NOTES.md). Talks to timps directly via
+ * window.timpsApi; no /x/json-prudynt.cgi bridge.
  */
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
 
-// The Image Quality page is NATIVE: a/streamer-image.js drives every image
-// control straight against timps's own /control API (timps-api.js), so on
-// that page this script must not touch the legacy bridge CGIs
-// (json-imaging.cgi / json-prudynt.cgi) at all - it only keeps running the
-// live preview <img>. The other streamer pages still use the bridges until
-// they are converted too.
+// NATIVE pages drive their own controls straight against timps /control
+// (timps-api.js) and must not also be wired by this file's legacy-bridge
+// code below, or a change would double-submit.
 const nativeImagePage =
   document.body && document.body.id === "page-streamer-image";
-
-// The per-stream OSD pages are NATIVE too: a/streamer-osd.js drives every
-// OSD control straight against timps's own /control API (timps-api.js), so
-// on those pages this script must not touch the legacy bridge CGIs either -
-// it only keeps running the live preview <img>.
 const nativeOsdPage =
   document.body && /^page-streamer-osd[01]$/.test(document.body.id);
-
-// The encoder pages (RTSP main/substream) are NATIVE too: a/streamer-encoder.js
-// wires the stream0/stream1 controls straight to timps /control. This script
-// must NOT also wire them (that would double-submit and re-introduce the
-// bridge), so it skips the stream editor + loadConfig on those pages.
 const nativeEncoderPage =
   document.body && /^page-streamer-(main|substream)$/.test(document.body.id);
 
-// ---- direct-to-timps media URLs (no proxy CGIs) ----
-// The settings pages' small live preview <img>, the fullscreen modal and the
-// endpoint list load timps's own HTTP media endpoints directly:
+// Direct-to-timps media URLs (no proxy CGIs):
 //   live:  http://<host>:<port>/stream.mjpeg?chn=<N>&token=<tok>
 //   still: http://<host>:<port>/snapshot.jpg?chn=<N>&token=<tok>
-// /x/timps-token.cgi hands the authenticated WebUI session the per-boot
-// timps token as {"token":"...","port":8880}. The token unlocks media
-// viewing + /control + /events on that port (never RTSP) and travels as
-// ?token= because an <img> cannot send headers - it can show up in access
-// logs, which is accepted on the LAN. The token is per-boot, so it is
-// fetched once and cached; when the stream errors (e.g. 401 after a camera
-// reboot minted a new token) it is re-fetched once and the <img> retried,
-// and if the token endpoint itself is unavailable the preview falls back to
-// the nostream placeholder. Without a token the URLs still work on open
-// timps configs (empty http.user) and from localhost.
+// Token comes from /x/timps-token.cgi; see NOTES.md for why it travels as
+// ?token= and the retry/fallback behavior on failure.
 let timpsMediaInfo = null; // {token, port} after the first fetch
 let timpsMediaPending = null; // in-flight fetch (dedup)
 
@@ -92,12 +60,10 @@ function timpsMediaUrl(kind, chn, host) {
   return url;
 }
 
-// Create fullscreen preview modal dynamically if preview element exists
 (function createPreviewModal() {
   const preview = $("#preview");
   if (!preview) return;
 
-  // Create modal HTML
   const modalHTML = `
     <div class="modal fade" id="mdPreview" tabindex="-1" aria-labelledby="mdlPreview" aria-hidden="true">
       <div class="modal-dialog modal-fullscreen">
@@ -114,10 +80,8 @@ function timpsMediaUrl(kind, chn, host) {
     </div>
   `;
 
-  // Append modal to body
   document.body.insertAdjacentHTML("beforeend", modalHTML);
 
-  // Add click event to preview image to open modal
   preview.addEventListener("click", () => {
     const previewModal = new bootstrap.Modal($("#mdPreview"));
     previewModal.show();
@@ -508,13 +472,6 @@ function handleMessage(msg) {
     $("#privacy").checked = msg.privacy.enabled;
   }
 
-  // if (msg.rtsp) {
-  //   const r = msg.rtsp;
-  //   if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-  //     $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-  // }
-
-  // Handle image params
   if (msg.image) {
     const imageParams = [
       "hflip",
@@ -531,7 +488,6 @@ function handleMessage(msg) {
     });
   }
 
-  // Handle stream0 params
   if (msg.stream0) {
     stream_params.forEach((param) => {
       if (msg.stream0[param] !== undefined) {
@@ -541,7 +497,6 @@ function handleMessage(msg) {
     handleOsdData(msg.stream0.osd, 0);
   }
 
-  // Handle stream1 params
   if (msg.stream1) {
     stream_params.forEach((param) => {
       if (msg.stream1[param] !== undefined) {
@@ -551,10 +506,9 @@ function handleMessage(msg) {
     handleOsdData(msg.stream1.osd, 1);
   }
 
-  // timps: encoder/stream/sensor settings are persisted but only take effect
-  // after a streamer restart; the json-prudynt.cgi bridge flags this (same
-  // hint audio.js shows; prudynt restarts its threads itself and never sets
-  // the flag). "Restart streamer" in the menu calls /x/restart-prudynt.cgi.
+  // Encoder/stream/sensor settings need a streamer restart to take effect;
+  // "Restart streamer" in the menu calls /x/restart-prudynt.cgi. See
+  // NOTES.md for why only the json-prudynt.cgi bridge sets this flag.
   if (msg.restart_required && typeof window.showAlert === "function") {
     window.showAlert(
       "warning",
@@ -584,10 +538,8 @@ async function loadMotorParams() {
 }
 
 // Map a timps GET /control snapshot to the prudynt-shaped message handleMessage
-// expects (only the fields the preview page consumes: image quick controls,
-// the motion/privacy control-bar flags, and the RTSP endpoint paths for the
-// endpoint list). timps has no RTSP creds/port in /control, so those are left
-// to the existing defaults.
+// expects. timps has no RTSP creds/port in /control, so those keep their
+// existing defaults.
 function buildPreviewMsg(c) {
   const msg = { image: {}, stream0: {}, stream1: {} };
   if (c.image) {
@@ -629,12 +581,10 @@ async function loadConfig() {
   }
 }
 
-// NATIVE: apply a preview-page control change through timps /control. The old
-// callers produced prudynt-shaped payloads ({image:{}}, {motion:{}},
-// {streamN:{...}}); translate the ones the preview page still uses (image is
-// the main one - WB/AE/flip quick controls). Encoder + OSD editors live on the
-// native streamer-encoder.js / streamer-osd.js pages, so their shapes only
-// arrive here as a best-effort fallback. No json-prudynt.cgi bridge.
+// NATIVE: apply a preview-page control change through timps /control,
+// translating legacy prudynt-shaped payloads (image is the main one still
+// used here; encoder/OSD editors live on their own native pages and only
+// arrive as a best-effort fallback).
 async function sendToEndpoint(payload) {
   if (!window.timpsApi || !payload || typeof payload !== "object") return;
   const out = {};
@@ -733,19 +683,10 @@ loadInitialData().then(async () => {
   const liveStreamUrl = (chn = streamChn) =>
     `${timpsMediaUrl("live", chn)}&_=${Date.now()}`;
 
-  // Preview
-  // NOTE on `timeout`: this is a coarse last-resort safety net, not a
-  // per-frame liveness check. A multipart/x-mixed-replace <img> only ever
-  // fires ONE "load" event, for the very first part - the browser does not
-  // re-fire it for subsequent MJPEG frames, so `lastLoadTime` never advances
-  // once the stream is up. A short timeout here would therefore force a
-  // reconnect of an otherwise perfectly healthy, continuously streaming
-  // preview every `timeout` ms forever (confirmed: server-side stream_mjpeg()
-  // has no time/byte cap, connections were closing client-side every ~15s
-  // while still transferring MBs of live JPEG data). This only exists to
-  // recover a stream that goes truly silent without the browser ever firing
-  // "error" (e.g. the camera's JPEG source hangs, or a network stall drops
-  // packets without a socket-level error) - genuinely rare, so it can be long.
+  // `timeout` is a coarse last-resort safety net, not a per-frame liveness
+  // check: a multipart/x-mixed-replace <img> only fires "load" once, so
+  // lastLoadTime never advances on a healthy stream. Keep it long - see
+  // NOTES.md for why a short value here is actively harmful.
   const timeout = 120000;
   const restartBackoffInitialMs = 15000;
   const restartBackoffMaxMs = 60000;
@@ -759,7 +700,6 @@ loadInitialData().then(async () => {
   // the direct media URLs need the timps token/port first
   await fetchTimpsMediaInfo();
 
-  // Function to start the preview stream
   function startPreview() {
     if (focusTimeoutId) {
       clearTimeout(focusTimeoutId);
@@ -774,7 +714,6 @@ loadInitialData().then(async () => {
   // let main.js's visibility handling restart the stream on any page
   window.restartStreamPreview = startPreview;
 
-  // Function to stop the preview stream
   function stopPreview() {
     if (focusTimeoutId) {
       clearTimeout(focusTimeoutId);
@@ -784,7 +723,6 @@ loadInitialData().then(async () => {
     nextRestartAt = 0;
   }
 
-  // Function to stop preview with delay
   function stopPreviewWithDelay() {
     if (!webuiConfig.track_focus) {
       return; // Don't stop if tracking is disabled
@@ -805,7 +743,6 @@ loadInitialData().then(async () => {
     }
   }
 
-  // Start the preview stream
   startPreview();
 
   // preview.src comes back absolutized by the browser, so compare by suffix
@@ -842,7 +779,6 @@ loadInitialData().then(async () => {
       now - lastLoadTime > timeout &&
       now >= nextRestartAt
     ) {
-      // Restart stream (fresh cache-bust + current token)
       preview.src = liveStreamUrl();
       lastLoadTime = now;
       nextRestartAt = now + restartBackoffMs;
@@ -850,7 +786,6 @@ loadInitialData().then(async () => {
     }
   }, 1000);
 
-  // Handle window visibility changes
   function handleVisibilityChange() {
     if (document.hidden) {
       isWindowVisible = false;
@@ -861,7 +796,6 @@ loadInitialData().then(async () => {
     }
   }
 
-  // Handle window focus/blur events
   function handleWindowFocus() {
     isWindowVisible = true;
     startPreview();
@@ -875,7 +809,6 @@ loadInitialData().then(async () => {
   window.addEventListener("beforeunload", stopPreview);
   window.addEventListener("pagehide", stopPreview);
 
-  // Add event listeners for visibility changes only if tracking is enabled
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   if (webuiConfig.track_focus) {
@@ -890,18 +823,14 @@ loadInitialData().then(async () => {
 
   if (previewModal && previewFullsize) {
     previewModal.addEventListener("show.bs.modal", () => {
-      // Save current small preview source
       savedPreviewSrc = preview.src;
-      // Stop the small preview
       preview.src = ImageNoStream;
-      // Load main stream (ch0) in full-screen modal, straight from timps
+      // ch0 is always the full-screen stream, straight from timps
       previewFullsize.src = liveStreamUrl(0);
     });
 
     previewModal.addEventListener("hidden.bs.modal", () => {
-      // Stop the full-screen stream
       previewFullsize.src = ImageNoStream;
-      // Restart the small preview (fresh cache-bust + current token)
       if (savedPreviewSrc && isWindowVisible) {
         startPreview();
       }
@@ -1495,11 +1424,9 @@ if (!nativeOsdPage)
     },
   ];
 
-  // Fields start disabled and are only re-enabled when the streamer's echo
-  // contains them. The timps json-prudynt.cgi bridge echoes each stream's
-  // OWN overlay set (timps keeps them per-stream) including
-  // stroke_size/stroke_color (mapped to the timps text outline), so all
-  // controls un-grey. With prudynt every field is echoed as before.
+  // Fields start disabled and only re-enable once the streamer's echo
+  // confirms them (timps echoes its per-stream overlay set, prudynt echoes
+  // every field).
   osdControls.forEach(({ id, handler }) => {
     const el = $(`#osd${streamId}_${id}`);
     if (el) {

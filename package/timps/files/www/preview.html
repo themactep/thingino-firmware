@@ -4,27 +4,16 @@
 
   Native MSE/fMP4 player (no iframe): fetches
       http://<location.hostname>:8880/stream.mp4?chn=N
-  from timpsd and feeds it into a MediaSource SourceBuffer. The
-  buffering/eviction/live-edge logic is a port of timps's own embedded
-  player (src/mp4/httpd.c, PLAYER_TAIL).
+  from timpsd, a port of timps's own embedded player (src/mp4/httpd.c,
+  PLAYER_TAIL). Installed straight over thingino-webui's own /preview.html
+  (see timps.mk) but still goes through the normal plugin pipeline - the
+  preview-body marker below is replaced with contributed overlays (PTZ
+  joystick, ...); do not hand-copy plugin markup in here, and do not spell
+  the marker's literal name out in this comment (see NOTES.md).
 
-  This page is installed straight over thingino-webui's own /preview.html
-  (same filename, timps's own package - see TIMPS_INSTALL_WEBUI_CGIS in
-  timps.mk), before thingino-webui's plugin-assembly finalize hook runs. So it
-  still goes through the normal plugin pipeline: the plugin preview-body
-  marker below is replaced with the contributed overlays (thingino-motors' PTZ
-  joystick, ...) and their preview scripts are appended before the closing
-  body tag. Do not hand-copy plugin markup in here.
-
-  (The marker is not spelled out in this comment on purpose - the assembler
-  substitutes every occurrence in the file, and injected markup inside an HTML
-  comment would terminate it early.)
-
-  IMPORTANT - KNOWN LIMITATION (mixed content):
-  The video is loaded from plain HTTP on port 8880. If this web UI itself is
-  served over HTTPS, browsers block the http://<camera>:8880 request as mixed
-  content and the preview stays black. Workarounds: serve the web UI over
-  HTTP, or reverse-proxy timps's HTTP port under the same HTTPS origin.
+  KNOWN LIMITATION: video loads over plain HTTP on port 8880, so an HTTPS
+  web UI gets mixed-content blocked and the preview stays black (serve the
+  UI over HTTP, or reverse-proxy the port, to work around it).
 
   If you change http.port in /etc/timps.conf, adjust MS_PORT below.
 -->
@@ -66,18 +55,11 @@
       height: 100%;
       pointer-events: none;
     }
-    /* PTZ overlay: only the 9 joystick buttons (which together fill its
-       300px hover-reveal circle, see a/main.css #motor/.jst) should take
-       the pointer - everything else must fall through to the native
-       <video controls> bar and click-to-play surface underneath. main.css
-       reveals the joystick via visibility:hidden -> visible on #motor:hover,
-       but visibility:hidden elements are never hit-tested (even with
-       pointer-events:auto), so making #motor itself click-through would
-       stop it from ever detecting the hover that reveals it. Swapping the
-       hide/reveal to opacity keeps the buttons hit-testable while still
-       starting invisible, so hovering the circle still reveals them exactly
-       as before - only the container layers around/behind them become
-       click-through. */
+    /* PTZ overlay: only the 9 joystick buttons should take the pointer, so
+       the video controls/click-to-play underneath still work. Swaps
+       main.css's visibility:hidden reveal for opacity - visibility:hidden
+       elements are never hit-tested, which would break the :hover that
+       reveals #motor in the first place. See NOTES.md. */
     #motor-overlay,
     #motor,
     .jst {
@@ -97,10 +79,8 @@
       font-size: 0.875rem;
       color: var(--bs-secondary-color);
     }
-    /* Statistics card: bitrate trend sparkline (per stream, drawn by the
-       inline script below from the timps /events?stream=stats feed) and the
-       small key/value blocks for the read-only camera state (day/night,
-       motion) that sit below the table. */
+    /* Statistics card: bitrate trend sparkline per stream + read-only
+       day/night/motion key/value blocks; see the inline script below. */
     .stats-spark {
       display: block;
       width: 100%;
@@ -169,13 +149,8 @@
       </div>
     </section>
 
-    <!-- Statistics: table of live encoder/camera values + a per-stream
-         bitrate trend sparkline. Shown/hidden together with the Live View
-         card's "Stream stats" button (#ms-stats-toggle) and fed by the same
-         timps /events?stream=stats SSE (fast, ~2s, per-frame fps/kbps) plus a
-         slow GET /control poll (5s, matches the control-bar heartbeat
-         cadence) for the config-level fields SSE doesn't carry (gop/profile/
-         rc_mode, ave_bitrate, day/night, motion). See the inline script below. -->
+    <!-- Statistics: fed by /events?stream=stats SSE (fast) plus a slow
+         GET /control poll for fields the SSE doesn't carry. See NOTES.md. -->
     <section>
       <div class="card mb-3" id="stats-card" style="display:none">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -279,22 +254,10 @@
       });
     }
 
-    // Statistics card (table + per-stream bitrate sparkline) via timps's
-    // /events?stream=stats SSE - same token + EventSource pattern as
-    // /a/preview-motion.js. Independent of the video player's own
-    // connect/disconnect lifecycle: it keeps ticking even while disconnected,
-    // so it also shows other clients' activity on this channel.
-    //
-    // The SSE "stats" frame (src/mp4/httpd.c stats_json, ~every 2s by
-    // default) carries the fast-moving per-frame numbers: fps/kbps/subs/drop
-    // per enabled stream, plus uptime_s/clients. It does NOT carry the
-    // config-level encoder fields (gop/profile/rc_mode) or the ave_bitrate/
-    // day-night/motion status blocks - those only exist in GET /control, so a
-    // slow poll of /control (5s, the same cadence as the control-bar
-    // heartbeat elsewhere in this webui) fills in the rest via timps-api.js
-    // (loaded on demand by main.js's timpsApiReady(), already used by the
-    // control bar on every page). Both loops only run while the Statistics
-    // card is visible (toggled by #ms-stats-toggle).
+    // Statistics: /events?stream=stats SSE (fast path) plus a slow GET
+    // /control poll for the fields SSE doesn't carry. Independent of the
+    // player's connect/disconnect lifecycle - keeps ticking, and both loops
+    // only run while the card is visible. See NOTES.md for the field split.
     let statsEs = null;
     let statsControlTimer = null;
     const MAX_HISTORY = 40; // ~80s of samples at the default 2s stats interval
@@ -317,10 +280,9 @@
       return p === 0 ? "0 (baseline)" : p === 1 ? "1 (main)" : p === 2 ? "2 (high)" : String(p);
     }
 
-    // tiny hand-rolled sparkline: no charting dependency exists anywhere in
-    // this webui tree (checked a/vendor/ and package/thingino-webui/files/www
-    // - only bootstrap is vendored), and pulling one in for 1-2 mini trend
-    // lines would be disproportionate on a flash-constrained device.
+    // hand-rolled: no charting dependency is vendored anywhere in this webui
+    // tree, and pulling one in for 1-2 mini trend lines would be
+    // disproportionate on a flash-constrained device.
     function drawSparkline(canvas, values) {
       if (!canvas) return;
       const w = canvas.clientWidth || 140, h = 32;
@@ -418,14 +380,11 @@
         row.cells.gop.textContent = String(vcfg.gop);
         row.cells.profile.textContent = profileLabel(vcfg.profile);
         row.cells.rc.textContent = String(vcfg.rc_mode || "").toUpperCase();
-        // ave_bitrate (IMP_Encoder_GetChnAveBitrate) only exists on T31; every
-        // other platform - and a T31 stream before its first frame - reports
-        // -1 and control.c omits the field entirely. IMP_Encoder_Query's
-        // queue-backlog counters (left_pics/left_stream_bytes/left_stream_frames)
-        // ARE available on all 9 platforms, so use them as an always-present
-        // encoder-health stand-in instead of leaving the cell as a permanent
-        // "-" placeholder: a healthy encoder keeps this at/near 0, a rising
-        // value means it isn't keeping up with the source.
+        // ave_bitrate (IMP_Encoder_GetChnAveBitrate) is T31-only; every other
+        // platform omits it, so fall back to IMP_Encoder_Query's queue-backlog
+        // counters (available on all platforms) as an encoder-health stand-in:
+        // a healthy encoder keeps this near 0, a rising value means it isn't
+        // keeping up with the source. See NOTES.md.
         const es = enc[k];
         if (es && typeof es.ave_bitrate === "number") {
           row.cells.avgBitrate.textContent = formatKbps(es.ave_bitrate);
@@ -527,17 +486,13 @@
       if (connected) setConnectingUi(false);
     }
 
-    // The embedded timps player derives the exact codec string from the
-    // live SPS server-side; a static page cannot, so probe common strings.
-    // The init segment carries the real avcC/hvcC, so a generic profile in
-    // the MIME string is fine for MSE.
-    //
-    // CRITICAL: only advertise an mp4a (AAC) audio track when timps actually
-    // muxes AAC into the fMP4. With PCM (G.711) audio the stream is video-only
-    // (httpd.c can_audio = acodec==AAC), so a SourceBuffer typed with mp4a would
-    // reject the 1-track init segment (MSE requires the init tracks to match the
-    // codecs string) and tear down the whole MediaSource -> black player, no
-    // video at all. When wantAac is false we therefore probe video-only strings.
+    // A static page can't derive the exact codec string the way timps's own
+    // embedded player does (from the live SPS server-side), so probe common
+    // strings; the init segment's real avcC/hvcC makes a generic profile fine
+    // for MSE. CRITICAL: only advertise an mp4a (AAC) track when timps is
+    // actually muxing AAC - a PCM stream is video-only, and an mp4a-typed
+    // SourceBuffer on a video-only init segment tears down the whole
+    // MediaSource -> black player. See NOTES.md.
     function pickMime(MS, wantAac) {
       const vOnly = [
         'video/mp4; codecs="avc1.640028"',            // H.264 High
@@ -680,13 +635,11 @@
           busy = false;
           if (video.buffered.length) {
             if (video.currentTime < video.buffered.start(0)) video.currentTime = video.buffered.start(0);
-            // Keep near the live edge with a jitter margin (user-adjustable via
-            // ms-latency, default 1.5s) instead of playing right at the edge:
-            // measured WiFi-loss stalls on some cameras run up to ~1.8s, and
-            // playing with zero cushion turned every stall into a visible
-            // freeze. Hard-seek only on a big drift (post-stall, target+3.5s);
-            // otherwise nudge playbackRate to gently drain the buffer down to
-            // the target, same approach as the embedded player in httpd.c.
+            // Jitter margin (ms-latency, default 1.5s) instead of playing at
+            // zero cushion: measured WiFi-loss stalls run up to ~1.8s and
+            // zero cushion turned every stall into a freeze. Hard-seek only
+            // on a big drift (target+3.5s); otherwise nudge playbackRate to
+            // drain the buffer, same approach as httpd.c's embedded player.
             const end = video.buffered.end(video.buffered.length - 1);
             const behind = end - video.currentTime;
             const target = targetBehindS;

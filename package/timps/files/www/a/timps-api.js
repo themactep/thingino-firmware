@@ -63,39 +63,18 @@
             return request(method, body, true);
           });
         }
-        // POST /control grades its answer (timps src/control.h, src/mp4/httpd.c).
-        // Error bodies carry a machine-readable "reason"; 200 bodies are
-        // unchanged byte-for-byte (that is the path a dragged slider posts on).
-        //
-        //   400 not_json        the body was not a JSON object - a bug in the
-        //                       calling page, keep it loud
-        //   422 unknown_fields  it parsed, but no field in it is known to THIS
-        //                       build - the key NAMES are wrong for this binary
-        //   409 values_rejected the names were right, every value was refused
-        //   503 oom             the daemon could not allocate - not our fault
-        //
-        // Key off "reason", not off counter arithmetic. 422 and 409 are the
-        // opposite advice and a client that confuses them loops forever:
-        // retrying a 422 unchanged can never succeed (this binary will never
-        // know that key), while a 409 is worth re-sending with valid values.
-        // That is exactly why the daemon split them - see timps commit
-        // "control: say what this build can do, and stop overloading 422".
-        //
-        // Every one of these carries the same {ok,accepted,changed,rejected}
-        // body as a 200, so parse BEFORE deciding and hang the counters off the
-        // error - a bare "HTTP 422" would send the user hunting for a network
-        // problem that does not exist. A 200 with changed:0 stays a plain
-        // success on purpose: the field already held the posted value (accepted
-        // counts that write), and clamped writes are 200 too - clamping is the
-        // documented contract, not an error.
+        // POST /control status codes (see NOTES.md for the full contract):
+        // 400 not_json = client bug; 422 unknown_fields = key names wrong for
+        // this build; 409 values_rejected = names right, values refused; 503
+        // oom = daemon allocation failure. Key off "reason", not status code
+        // or counter arithmetic - 422 vs 409 want opposite client behavior.
+        // Bodies always parse first: even error responses carry the normal
+        // {ok,accepted,changed,rejected} counters.
         return res.json().catch(function () { return {}; }).then(function (json) {
           if (!res.ok) {
             var reason = json && typeof json.reason === "string" ? json.reason : "";
-            // Fallback for daemons older than the split, which answer 422 to
-            // BOTH failures and carry no "reason" at all. There the counters
-            // are the only signal there has ever been, and rejected>0 does
-            // discriminate correctly - so use it, but ONLY when the daemon did
-            // not tell us. On a current build this branch never runs.
+            // Pre-split daemons answer 422 to both failures with no "reason";
+            // fall back to the counters only then (never on a current build).
             if (!reason && res.status === 422)
               reason = json.rejected > 0 ? "values_rejected" : "unknown_fields";
             var msg = "timps /control HTTP " + res.status;
@@ -121,11 +100,8 @@
 
   // flatten one POST body into the daemon's config-key space - the same names
   // the response's "applied" echo uses: {image:{brightness}} ->
-  // "image.brightness", {video:{0:{fps}}} -> "video0.fps" (config-file
-  // spelling: the stream index fuses into the section), {osd0:{1:{text}}} ->
-  // "osd0.1.text", {privacy:{0:{3:{x}}}} -> "privacy0.3.x". Only used to
-  // look up what THIS client sent for a key the
-  // daemon echoed, so a shape this flattening does not know simply misses the
+  // "image.brightness", {video:{0:{fps}}} -> "video0.fps" (stream index
+  // fuses into the section name). A shape this doesn't know just misses the
   // lookup and produces no correction - never a false one.
   function flattenInto(out, prefix, v) {
     if (v !== null && typeof v === "object") {
@@ -153,10 +129,8 @@
   }
 
   // entries of result.applied whose EFFECTIVE (post-clamp) value differs from
-  // what this POST sent - i.e. the daemon corrected the caller's value.
-  // Numeric comparison when both sides parse as numbers (so true == "1" and
-  // 60 == "60" are NOT corrections), string comparison otherwise. Returns
-  // null when nothing differs.
+  // what this POST sent. Numeric comparison when both sides parse as numbers
+  // (so true == "1" is NOT a correction), string comparison otherwise.
   function computeCorrections(body, result) {
     if (!result || !result.applied) return null;
     var sent = flattenBody(body);
@@ -174,10 +148,9 @@
   }
 
   // one-shot toast gate: a debounced flush settles MANY waiters with the SAME
-  // result object and each waiter runs the same page handler - without the
-  // take-once semantics one clamped slider drag would toast once per queued
-  // waiter. Element updates should read r.corrections directly instead
-  // (setting the same value twice is harmless, missing it is not).
+  // result object, so without take-once semantics one clamped slider drag
+  // would toast once per queued waiter. Element updates should read
+  // r.corrections directly instead.
   function takeCorrections(r) {
     if (!r || !r.corrections || r._corrShown) return null;
     r._corrShown = true;
@@ -203,13 +176,12 @@
 
   function set(obj) {
     return request("POST", obj).then(function (r) {
-      // hang the correction diff off the result: the daemon echoes the
-      // effective values of everything it CHANGED ("applied"), so a page can
-      // put a clamped value straight back into its control - no follow-up
-      // GET. Computed here rather than per caller so debounced writes compare
-      // against the MERGED payload that actually went out. When the echo
-      // overflowed (result.truncated) the diff may be incomplete - pages that
-      // skip a reload based on it must check r.truncated themselves.
+      // The daemon echoes the effective values of everything it CHANGED
+      // ("applied"), so a page can put a clamped value straight back into
+      // its control - no follow-up GET. Computed here (not per caller) so
+      // debounced writes compare against the MERGED payload actually sent.
+      // If the echo overflowed (result.truncated) the diff may be
+      // incomplete - callers relying on it must check r.truncated.
       if (r && typeof r === "object") r.corrections = computeCorrections(obj, r);
       return r;
     });

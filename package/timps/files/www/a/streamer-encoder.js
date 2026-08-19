@@ -1,20 +1,13 @@
-/* streamer-encoder.js - NATIVE RTSP main/substream encoder page. Talks directly
- * to the timps streamer over window.timpsApi (GET/POST /control on timps's own
- * port, per-boot token) - no /x/json-prudynt.cgi bridge (a/streamer-config.js
- * is no longer loaded here). One file drives both pages; the stream index is
- * derived from the body id (page-streamer-main -> 0, page-streamer-substream
- * -> 1).
+/* streamer-encoder.js - NATIVE RTSP main/substream encoder page. Talks
+ * directly to the timps streamer over window.timpsApi; no
+ * /x/json-prudynt.cgi bridge. One file drives both pages; the stream index
+ * is derived from the body id (page-streamer-main -> 0,
+ * page-streamer-substream -> 1).
  *
- * Load:  timpsApi.get() -> populate from json.video[idx] (+ the global
- *        json.audio.enabled for the "Audio in stream" switch).
- * Save:  every change goes to timpsApi.set({video:{idx:{key:val}}}) (audio
- *        switch -> {audio:{enabled}}). timps persists immediately, but ALL
- *        video/sensor keys are restart-required (caps.restart lists "video"),
- *        so each change shows the "restart the streamer" hint.
- * Offline: if timps is unreachable the controls stay disabled + a notice.
- *
- * Kept lean on purpose (embedded target): no libraries, no polling, changes
- * fire on 'change' only, text fields are debounced through timpsApi.
+ * Every change goes to timpsApi.set({video:{idx:{key:val}}}) (audio switch
+ * -> {audio:{enabled}}); ALL video/sensor keys are restart-required, so each
+ * change shows the restart hint. Kept lean on purpose (embedded target): no
+ * libraries, no polling, changes fire on 'change' only.
  */
 (function () {
   "use strict";
