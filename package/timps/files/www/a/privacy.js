@@ -332,11 +332,41 @@
 
   /* ---- load ---- */
 
+  // Captured before any markUnavailable(msg) can overwrite it with textContent,
+  // so markAvailable() can put the original markup (icon included) back.
+  var unavailEl = document.getElementById("privacy-unavailable");
+  var unavailHtml = unavailEl ? unavailEl.innerHTML : "";
+
   function markUnavailable(msg) {
-    var el = document.getElementById("privacy-unavailable");
-    if (el) { el.classList.remove("d-none"); if (msg) el.textContent = msg; }
+    if (unavailEl) {
+      unavailEl.classList.remove("d-none");
+      if (msg) unavailEl.textContent = msg;
+    }
     if (addBtn) addBtn.disabled = true;
     if (streamSel) streamSel.disabled = true;
+  }
+
+  // Exact inverse of markUnavailable(), run on every successful load().
+  //
+  // The old success path only did classList.add("d-none") on the warning: it
+  // never re-enabled #pm-add / #pm-stream and never restored the original
+  // message markup. So ONE transient failure disabled the editor PERMANENTLY.
+  // That failure is real, not theoretical: a streamer restart tears the OSD
+  // groups down while /control keeps serving, and caps.privacy.available is
+  // derived from imp_osd_group_active() - it genuinely reports 0 for that
+  // window (see the B3 comment in timps src/hal/imp_osd.c). A page loaded then
+  // latched "unavailable"; the automatic re-load() driven by the /events config
+  // resync afterwards silently re-hid the warning but left the controls dead,
+  // leaving a page that looks fine yet cannot add or switch masks until the
+  // user reloads by hand. #pm-reload has the same problem - it is not disabled,
+  // so it re-runs load(), appears to work, and still leaves a dead editor.
+  function markAvailable() {
+    if (unavailEl) {
+      unavailEl.classList.add("d-none");
+      unavailEl.innerHTML = unavailHtml;
+    }
+    if (addBtn) addBtn.disabled = false;
+    if (streamSel) streamSel.disabled = false;
   }
 
   function load() {
@@ -370,8 +400,7 @@
         });
       }
       selected = regions.findIndex(function (r) { return r.enabled; });
-      var off = document.getElementById("privacy-unavailable");
-      if (off) off.classList.add("d-none");
+      markAvailable();
       setSnapshot();
       render();
     }).catch(function (err) {
