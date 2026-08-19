@@ -161,6 +161,27 @@
     else el.value = value;
   }
 
+  // reverse of FIELD_MAP ("audio.<key>" -> page field id): puts a server-
+  // corrected (clamped) value straight back into the control that sent it,
+  // from the "applied" echo - no follow-up GET
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (id) {
+    REVERSE["audio." + FIELD_MAP[id].key] = id;
+  });
+
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    Object.keys(corr).forEach(function (k) {
+      var id = REVERSE[k];
+      if (id) populate(id, corr[k]);   // handles the codec spellings too
+    });
+    // take-once: a debounced flush settles every queued waiter with the same
+    // result; the element writes above are idempotent, the toast is not
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
+
   // one changed control -> POST {"audio":{key:val}} to timps. Live keys are
   // debounced (slider drags coalesce); persist+restart keys go out directly
   // and show the restart hint.
@@ -189,11 +210,14 @@
       toast("danger", "Failed to apply setting: " + (err.message || err));
     };
     if (map.live) {
-      window.timpsApi.setDebounced({ audio: audio }, 150).catch(fail).then(done);
+      window.timpsApi
+        .setDebounced({ audio: audio }, 150)
+        .then(applyCorrections, fail)
+        .then(done);
     } else {
       window.timpsApi
         .set({ audio: audio })
-        .then(function () { restartHint(); }, fail)
+        .then(function (r) { applyCorrections(r); restartHint(); }, fail)
         .then(done);
     }
   }

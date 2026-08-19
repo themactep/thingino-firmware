@@ -63,6 +63,32 @@
     else el.value = value;
   }
 
+  // reverse of FIELD_MAP ("image.<key>" -> page field id): the daemon echoes
+  // the EFFECTIVE value of everything it changed ("applied"), so an out-of-
+  // range slider can be put back to what really got stored - no follow-up GET
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (id) {
+    REVERSE["image." + FIELD_MAP[id]] = id;
+  });
+
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    // the single NR slider mirrors sinter -> temper; naming both in the toast
+    // would report the same knob twice
+    if (corr["image.temper_strength"] !== undefined &&
+        corr["image.sinter_strength"] !== undefined)
+      delete corr["image.temper_strength"];
+    Object.keys(corr).forEach(function (k) {
+      var id = REVERSE[k];
+      if (id) populate(id, corr[k]);
+    });
+    // take-once: a debounced flush settles every queued waiter with the same
+    // result; the element writes above are idempotent, the toast is not
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
+
   // one changed control -> debounced POST {"image":{key:val}} to timps.
   // The page's single NR slider drives both spatial+temporal NR strengths.
   function send(id) {
@@ -81,7 +107,7 @@
     el.classList.add("opacity-75");
     window.timpsApi
       .setDebounced({ image: image }, 150)
-      .catch(function (err) {
+      .then(applyCorrections, function (err) {
         console.error("timps set failed:", err);
         toast("danger", "Failed to apply setting: " + (err.message || err));
       })

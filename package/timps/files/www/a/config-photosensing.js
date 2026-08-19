@@ -211,14 +211,32 @@
   function save(ev) {
     if (ev) { ev.preventDefault(); ev.stopImmediatePropagation(); }
     if (saveBtn) saveBtn.disabled = true;
-    window.timpsApi.set({ daynight: collectTimps() }).then(function () {
+    window.timpsApi.set({ daynight: collectTimps() }).then(function (r) {
       // controls stay on the board-script backend; best-effort
       return saveLegacy().catch(function (e) {
         toast("warning", "Photosensing saved to timps.conf, but controls not saved (" +
           (e.message || e) + ").", 6000);
+      }).then(function () { return r; });
+    }).then(function (r) {
+      // corrected (clamped) values go straight back into their fields from
+      // the "applied" echo; load() still runs for the computed/adaptive
+      // read-only feedback and the legacy half, but the user need not wait
+      // for it to see what really got stored
+      var corr = r && r.corrections;
+      if (corr) Object.keys(corr).forEach(function (k) {
+        applyTimpsKV(k, corr[k]);
       });
-    }).then(function () {
-      toast("success", "Photosensing settings saved (live in timps.conf).", 4000);
+      corr = window.timpsApi.takeCorrections(r);
+      // a 200 can still carry rejected>0: the daemon refused SOME value
+      // (empty/invalid) while applying the rest - a plain "saved" would lie
+      // about those; the reload below shows what it actually kept
+      if (r && r.rejected > 0)
+        toast("warning", "Saved, but the streamer refused " + r.rejected +
+          " value(s) (empty or invalid).", 6000);
+      else if (corr)
+        toast("info", "Saved. " + window.timpsApi.correctionsText(corr) + ".", 6000);
+      else
+        toast("success", "Photosensing settings saved (live in timps.conf).", 4000);
       load();
     }).catch(function (e) {
       toast("danger", "Failed to save photosensing settings: " + (e.message || e));
@@ -242,24 +260,37 @@
     "daynight.sun_sunset_offset_min": "daynight_sun_sunset_offset_min",
   };
 
+  // write one "daynight.<key>" value into its field - shared by the config-
+  // sync push and the save-time "applied" corrections, so a clamped value
+  // renders exactly like a remote edit. Field ids follow the "daynight_<key>"
+  // convention, so the adaptive/boot tunables resolve without their own
+  // TIMPS_REVERSE entries. The section guard matters: without it a key like
+  // "record.enabled" would fall back onto "daynight_enabled".
+  function applyTimpsKV(key, value) {
+    if (key.indexOf("daynight.") !== 0) return;
+    var id = TIMPS_REVERSE[key] || "daynight_" + key.split(".").pop();
+    var el = $(id);
+    if (!el) return;
+    if (id === "daynight_enabled") {
+      el.checked = (value === "1" || value === "true");
+    } else if (id === "daynight_mode") {
+      el.value = value;
+      syncModeUI();
+    } else if (key.indexOf("threshold") !== -1) {
+      el.value = Math.round(Number(value));
+    } else {
+      el.value = value;   // times ("HH:MM"), lat/long, offsets
+    }
+  }
+
   function onConfigEvent(type, data) {
     if (!data) return;
     if (data.resync) { load(); return; }
     var id = TIMPS_REVERSE[data.key];
-    if (!id) return;
-    var el = $(id);
+    var el = id ? $(id) : null;
     // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
-    if (id === "daynight_enabled") {
-      el.checked = (data.value === "1" || data.value === "true");
-    } else if (id === "daynight_mode") {
-      el.value = data.value;
-      syncModeUI();
-    } else if (data.key.indexOf("threshold") !== -1) {
-      el.value = Math.round(Number(data.value));
-    } else {
-      el.value = data.value;   // times ("HH:MM"), lat/long, offsets
-    }
+    applyTimpsKV(data.key, data.value);
   }
 
   if (saveBtn) saveBtn.addEventListener("click", save, { capture: true });

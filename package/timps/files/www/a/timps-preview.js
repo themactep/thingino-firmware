@@ -1,8 +1,21 @@
+/* timps-preview.js - the live-preview <img>, fullscreen modal, endpoint list
+ * and shared settings-page wiring for timps's own streamer pages
+ * (streamer-*.html, tool-sensor-data.html - they <script>-include this file
+ * directly).
+ *
+ * Named timps-preview.js, not preview.js: it used to be installed over
+ * thingino-webui's own a/preview.js, which is a DIFFERENT script (core's
+ * preview.js belongs to core's preview.html and drives an MJPEG <img> through
+ * the prudynt bridge CGIs). Two unrelated scripts sharing one path is what
+ * forced timps to re-install its www overlay from a global finalize hook to
+ * beat Buildroot's per-package-directory merge. Only timps's own pages load
+ * this file, so it simply gets its own name and the collision is gone.
+ *
+ * It talks to timps directly (window.timpsApi); the old /x/json-prudynt.cgi
+ * bridge has been removed.
+ */
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
-
-// preview.js talks to timps directly now (window.timpsApi); the old
-// /x/json-prudynt.cgi bridge has been removed.
 
 // The Image Quality page is NATIVE: a/streamer-image.js drives every image
 // control straight against timps's own /control API (timps-api.js), so on
@@ -637,7 +650,13 @@ async function sendToEndpoint(payload) {
   });
   if (!Object.keys(out).length) return;
   try {
-    await window.timpsApi.set(out);
+    const r = await window.timpsApi.set(out);
+    // these fallback shapes have no per-field mapping here (their editors
+    // live on the native pages) - at least SAY when the daemon corrected a
+    // value instead of silently keeping the stale control
+    const t = window.timpsApi.takeCorrections(r);
+    if (t && typeof window.showAlert === "function")
+      window.showAlert("info", window.timpsApi.correctionsText(t));
   } catch (err) {
     console.error("Send error", err);
   }
@@ -1131,7 +1150,15 @@ async function sendImagingUpdate(field, value, element) {
   element?.setAttribute("data-busy", "1");
   element?.classList.add("opacity-75");
   try {
-    await window.timpsApi.setDebounced({ image }, 150);
+    const r = await window.timpsApi.setDebounced({ image }, 150);
+    // the daemon may clamp tighter than the page's static bounds: prefer the
+    // EFFECTIVE value from the "applied" echo over what we sent, and say so
+    // up top (info, not an error - the write itself succeeded)
+    const echo = r && r.corrections && r.corrections["image." + key];
+    if (echo !== undefined) v = parseInt(echo, 10);
+    const t = window.timpsApi.takeCorrections(r);
+    if (t && typeof window.showAlert === "function")
+      window.showAlert("info", window.timpsApi.correctionsText(t));
     applyFieldMetadata(field, {
       supported: true,
       min: b.min,

@@ -152,7 +152,12 @@
   async function saveMotion(key, value) {
     if (loading) return;
     try {
-      await window.timpsApi.set({ motion: { [key]: value } });
+      const r = await window.timpsApi.set({ motion: { [key]: value } });
+      // clamped cols/rows change the grid GEOMETRY, so re-rendering from a
+      // full re-read stays the right move for the elements - the "applied"
+      // echo is used for the top-bar notice, which the re-read cannot give
+      const corr = window.timpsApi.takeCorrections(r);
+      if (corr) showAlert("info", window.timpsApi.correctionsText(corr));
       // cols/rows may come back CLAMPED by timps: re-read the live state once
       const json = await window.timpsApi.get();
       if (json && json.motion) applyMotion(json.motion);
