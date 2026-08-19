@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC1091,SC2086,SC2155,SC2181,SC3043
+# shellcheck disable=SC1091,SC2086,SC2155,SC2181,SC3043,SC3052
 #
 # send2xmpp - Send messages/images to XMPP (Jabber) using pure shell + curl
 #
@@ -7,6 +7,16 @@
 
 # Load configuration
 [ -f /etc/send2xmpp.conf ] && . /etc/send2xmpp.conf
+
+# Fall back to the "xmpp" section of /etc/send2.json when the environment
+# variables are not set (set via the WebUI send2 tools page).
+if [ -z "$XMPP_JID" ] && [ -x /usr/bin/jct ] && [ -f /etc/send2.json ]; then
+	XMPP_JID=$(jct /etc/send2.json get xmpp.jid 2>/dev/null | tr -d '"')
+	XMPP_PASSWORD=$(jct /etc/send2.json get xmpp.password 2>/dev/null | tr -d '"')
+	XMPP_RECIPIENT=$(jct /etc/send2.json get xmpp.recipient 2>/dev/null | tr -d '"')
+	XMPP_BOSH_URL=$(jct /etc/send2.json get xmpp.bosh_url 2>/dev/null | tr -d '"')
+	XMPP_RESOURCE=$(jct /etc/send2.json get xmpp.resource 2>/dev/null | tr -d '"')
+fi
 
 # Required configuration
 : "${XMPP_JID:?XMPP_JID not set (e.g., camera@example.com)}"
@@ -29,8 +39,10 @@ gen_sid() {
 }
 
 # Generate random RID (request ID)
+# Keep it well below 2^31-1: BusyBox ash on 32-bit MIPS overflows
+# the $((RID + 1)) arithmetic above ~2.1e9.
 gen_rid() {
-	tr -dc '0-9' </dev/urandom | head -c 10
+	tr -dc '0-9' </dev/urandom | head -c 8
 }
 
 # Base64 encode (for SASL PLAIN auth)
@@ -41,13 +53,14 @@ b64encode() {
 # XMPP BOSH session
 SID=""
 RID=$(gen_rid)
+# Force base-10: a leading-zero RID (e.g. "02845805") would be read as
+# octal by $((...)) and overflow/error on BusyBox ash.
+RID=$((10#$RID))
 
 # Send BOSH request
 bosh_send() {
 	local body="$1"
 	local response
-
-	RID=$((RID + 1))
 
 	response=$(curl -sS $XMPP_TLS_VERSION --max-time "$CURL_TIMEOUT" \
 		-H "Content-Type: text/xml; charset=utf-8" \
@@ -59,13 +72,14 @@ bosh_send() {
 
 # Start BOSH session
 bosh_connect() {
+	RID=$((RID + 1))
 	local response
 
 	response=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID'
       to='$XMPP_DOMAIN'
       xml:lang='en'
-      wait='60'
+      wait='1'
       hold='1'
       xmlns='http://jabber.org/protocol/httpbind'
       ver='1.6'
@@ -73,7 +87,7 @@ bosh_connect() {
       xmlns:xmpp='urn:xmpp:xmpp-bosh'/>")
 
 	# Extract SID from response
-	SID=$(echo "$response" | grep -oP "sid='[^']+'" | cut -d"'" -f2)
+	SID=$(echo "$response" | grep -oE "sid='[^']+'" | cut -d"'" -f2)
 
 	if [ -z "$SID" ]; then
 		echo "Error: Failed to establish BOSH session" >&2
@@ -85,6 +99,7 @@ bosh_connect() {
 
 # Authenticate using SASL PLAIN
 bosh_auth() {
+	RID=$((RID + 1))
 	local auth_string response
 
 	# SASL PLAIN: \0username\0password
@@ -101,6 +116,7 @@ bosh_auth() {
 	fi
 
 	# Restart stream after auth
+	RID=$((RID + 1))
 	response=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' 
       to='$XMPP_DOMAIN'
@@ -114,6 +130,7 @@ bosh_auth() {
 
 # Bind resource and establish session
 bosh_bind() {
+	RID=$((RID + 1))
 	local response
 
 	# Bind resource
@@ -127,6 +144,7 @@ bosh_bind() {
 </body>")
 
 	# Establish session
+	RID=$((RID + 1))
 	response=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
   <iq type='set' id='session_1' xmlns='jabber:client'>
@@ -139,6 +157,7 @@ bosh_bind() {
 
 # Send message
 send_message() {
+	RID=$((RID + 1))
 	local message="$1"
 	local msg_id="msg_$(gen_sid)"
 
@@ -157,6 +176,7 @@ send_message() {
 
 # Discover HTTP Upload component (XEP-0363)
 discover_upload_component() {
+	RID=$((RID + 1))
 	local response upload_component
 
 	# Use configured component if available
@@ -173,11 +193,12 @@ discover_upload_component() {
 </body>")
 
 	# Extract upload component (usually upload.domain or http-upload.domain)
-	upload_component=$(echo "$response" | grep -oP "jid='[^']*upload[^']*'" | head -n1 | cut -d"'" -f2)
+	upload_component=$(echo "$response" | grep -oE "jid='[^']*upload[^']*'" | head -n1 | cut -d"'" -f2)
 
 	if [ -z "$upload_component" ]; then
 		# Try common upload component names
 		for component in "upload.$XMPP_DOMAIN" "http-upload.$XMPP_DOMAIN" "upload-proxy.$XMPP_DOMAIN"; do
+			RID=$((RID + 1))
 			response=$(bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
   <iq type='get' to='$component' id='disco_2' xmlns='jabber:client'>
@@ -197,6 +218,7 @@ discover_upload_component() {
 
 # Request upload slot from HTTP Upload component
 request_upload_slot() {
+	RID=$((RID + 1))
 	local component="$1"
 	local filename="$2"
 	local filesize="$3"
@@ -210,20 +232,21 @@ request_upload_slot() {
   </iq>
 </body>")
 
-	# Extract PUT and GET URLs
-	put_url=$(echo "$response" | grep -oP "<put[^>]*url='[^']+'" | head -n1 | cut -d"'" -f2)
-	get_url=$(echo "$response" | grep -oP "<get[^>]*url='[^']+'" | head -n1 | cut -d"'" -f2)
+	# Extract PUT and GET URLs.  Servers quote attributes with either
+	# single or double quotes; accept both.
+	put_url=$(echo "$response" | grep -oE "<put[^>]*url=['\"][^'\"]+['\"]" | head -n1 | sed -E "s/.*url=['\"]([^'\"]+)['\"].*/\1/")
+	get_url=$(echo "$response" | grep -oE "<get[^>]*url=['\"][^'\"]+['\"]" | head -n1 | sed -E "s/.*url=['\"]([^'\"]+)['\"].*/\1/")
 
 	# Alternative: Try parsing as attributes on separate lines
 	if [ -z "$put_url" ]; then
-		put_url=$(echo "$response" | grep -oP 'put[^>]*>' | grep -oP "url='[^']+'" | cut -d"'" -f2)
-		get_url=$(echo "$response" | grep -oP 'get[^>]*>' | grep -oP "url='[^']+'" | cut -d"'" -f2)
+		put_url=$(echo "$response" | grep -oE 'put[^>]*>' | grep -oE "url=['\"][^'\"]+['\"]" | head -n1 | sed -E "s/.*url=['\"]([^'\"]+)['\"].*/\1/")
+		get_url=$(echo "$response" | grep -oE 'get[^>]*>' | grep -oE "url=['\"][^'\"]+['\"]" | head -n1 | sed -E "s/.*url=['\"]([^'\"]+)['\"].*/\1/")
 	fi
 
 	# Alternative: Try v0.4.0 namespace with slot element
 	if [ -z "$put_url" ]; then
-		put_url=$(echo "$response" | grep -oP '<put[^>]*>[^<]*</put>' | sed 's/<[^>]*>//g' | head -n1)
-		get_url=$(echo "$response" | grep -oP '<get[^>]*>[^<]*</get>' | sed 's/<[^>]*>//g' | head -n1)
+		put_url=$(echo "$response" | grep -oE '<put[^>]*>[^<]*</put>' | sed 's/<[^>]*>//g' | head -n1)
+		get_url=$(echo "$response" | grep -oE '<get[^>]*>[^<]*</get>' | sed 's/<[^>]*>//g' | head -n1)
 	fi
 
 	if [ -z "$put_url" ] || [ -z "$get_url" ]; then
@@ -325,6 +348,7 @@ $get_url"
 
 # Close BOSH session
 bosh_close() {
+	RID=$((RID + 1))
 	bosh_send "<?xml version='1.0'?>
 <body rid='$RID' sid='$SID' type='terminate' xmlns='http://jabber.org/protocol/httpbind'/>" >/dev/null
 }
@@ -420,6 +444,8 @@ EOF
 	bosh_close
 
 	[ "$verbose" -eq 1 ] && echo "Done!" >&2
+
+	return 0
 }
 
 main "$@"

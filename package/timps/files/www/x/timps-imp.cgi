@@ -1,9 +1,18 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2086,SC2119,SC2120,SC2329,SC3057
 # shellcheck disable=SC2039
-# timps replacement for the day/night control CGI (same name, same URL).
-# Translates the WebUI's {"cmd":..,"val":..} into timps /control calls;
-# the IR/white-light and IR-cut GPIO helpers are kept as-is.
+# timps's day/night + IR/white-light control bridge. Translates the WebUI's
+# {"cmd":..,"val":..} into timps /control calls; the IR/white-light and IR-cut
+# GPIO helpers are kept as-is.
+#
+# Was /x/json-imp.cgi, installed over thingino-webui's file of that name.
+# Core's json-imp.cgi is a DIFFERENT bridge (it drives daynightd, or raptor's
+# ric) that happens to take the same {cmd,val} payload, and shipping a
+# same-named replacement is what forced timps's whole www overlay to be
+# re-applied from a global finalize hook to beat Buildroot's per-package
+# directory merge. Its only two callers are core main.js's toggleButton() and
+# toggleDayNight(), both of which a/timps-control-bar.js overrides to point
+# here - so the file simply gets its own name and the collision is gone.
 
 # Check authentication
 . /var/www/x/auth.sh

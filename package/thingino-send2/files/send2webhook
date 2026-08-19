@@ -65,15 +65,19 @@ fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -F 'image=@$photo'"
+	[ -n "$photo" ] && [ -f "$photo" ] && command="$command -F 'image=@$photo'"
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -F 'video=@$video'"
+	[ -n "$video" ] && [ -f "$video" ] && command="$command -F 'video=@$video'"
 fi
 
-command="$command -F \"message=$message\""
+# Message as the raw POST body (-d): ntfy publishes the body as the
+# message, generic webhook receivers get the standard body payload.
+# Multipart (-F) is used only when files are attached (curl switches
+# automatically when -F is present).
+command="$command -d \"$message\""
 command="$command --url \"$url\""
 
 [ "true" = "$verbose" ] && echo_command "$command"

@@ -1,26 +1,14 @@
 /* config-audio.js - NATIVE Audio Settings page. Talks directly to the timps
- * streamer over window.timpsApi (GET/POST /control on timps's own port, per-
- * boot token) - no json-prudynt.cgi bridge for this page (a/audio.js and
- * a/streamer-config.js are no longer loaded here).
+ * streamer over window.timpsApi (GET/POST /control on timps's own port,
+ * per-boot token) - no json-prudynt.cgi bridge for this page.
  *
- * Load:  timpsApi.get() -> populate every control from the "audio" object.
- *        LIVE controls are enabled only when their timps key is listed in
- *        caps.audio (the SoC capability matrix); the persist+restart keys
- *        (codec/samplerate/bitrate) are deliberately NOT in caps.audio, so
- *        they enable when the audio object carries them. Speaker volume/gain
- *        are live too (caps.audio carries spk_volume/spk_gain when an AO
- *        pipeline is compiled in); speaker sampling and stereo capture stay
- *        greyed out. A test-sound control (dropdown + Play/Stop) is shown when
- *        caps.play.available is set, driving the play queue via /control.
- * Save:  LIVE keys (volume/gain/alc_gain/high_pass/agc/agc_target_dbfs/
- *        agc_compression_db/ns) go straight to timpsApi.set({audio:{...}}),
- *        debounced so slider drags coalesce into one POST; timps applies
- *        them live AND persists immediately. PERSIST+RESTART keys (codec/
- *        samplerate/bitrate) are saved the same way but only take effect
- *        after a streamer restart, so those changes show the existing
- *        "Restart streamer" hint (the menu entry calls /x/restart-prudynt.cgi).
- * Offline: if timps is unreachable the controls stay disabled and a small
- *        notice appears; nothing throws.
+ * LIVE controls (volume/gain/alc_gain/...) enable only when caps.audio
+ * lists their key, and POST debounced+live via timpsApi.setDebounced().
+ * PERSIST+RESTART controls (codec/samplerate/bitrate, plus high_pass/agc/ns
+ * - see the FIELD_MAP comment below for why) are deliberately NOT in
+ * caps.audio; they enable whenever "audio" carries them, and show the
+ * "Restart streamer" hint after saving. See WEBUI-NOTES.md for the full
+ * load/save/offline behavior spec.
  */
 (function () {
   "use strict";
@@ -161,6 +149,27 @@
     else el.value = value;
   }
 
+  // reverse of FIELD_MAP ("audio.<key>" -> page field id): puts a server-
+  // corrected (clamped) value straight back into the control that sent it,
+  // from the "applied" echo - no follow-up GET
+  var REVERSE = {};
+  Object.keys(FIELD_MAP).forEach(function (id) {
+    REVERSE["audio." + FIELD_MAP[id].key] = id;
+  });
+
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    Object.keys(corr).forEach(function (k) {
+      var id = REVERSE[k];
+      if (id) populate(id, corr[k]);   // handles the codec spellings too
+    });
+    // take-once: a debounced flush settles every queued waiter with the same
+    // result; the element writes above are idempotent, the toast is not
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
+
   // one changed control -> POST {"audio":{key:val}} to timps. Live keys are
   // debounced (slider drags coalesce); persist+restart keys go out directly
   // and show the restart hint.
@@ -189,11 +198,14 @@
       toast("danger", "Failed to apply setting: " + (err.message || err));
     };
     if (map.live) {
-      window.timpsApi.setDebounced({ audio: audio }, 150).catch(fail).then(done);
+      window.timpsApi
+        .setDebounced({ audio: audio }, 150)
+        .then(applyCorrections, fail)
+        .then(done);
     } else {
       window.timpsApi
         .set({ audio: audio })
-        .then(function () { restartHint(); }, fail)
+        .then(function (r) { applyCorrections(r); restartHint(); }, fail)
         .then(done);
     }
   }

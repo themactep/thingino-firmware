@@ -1,0 +1,11 @@
+config BR2_PACKAGE_SEND2XMPP
+	bool "send2xmpp"
+	help
+	  Send messages and images to XMPP (Jabber) servers.
+
+	  Pure shell + curl implementation of XMPP over BOSH (XEP-0124/0206)
+	  with SASL PLAIN authentication, plus image upload via HTTP Upload
+	  (XEP-0363). Suitable for resource-constrained devices.
+
+	  Configuration via /etc/send2xmpp.conf or the "xmpp" section of
+	  /etc/send2.json. See the package QUICKSTART.md for setup.

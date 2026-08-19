@@ -1,7 +1,7 @@
 /* streamer-sensor.js - Sensor IQ File page helper.
  *
  * The page has no timps-settable fields: the sensor model / resolution / fps
- * are read-only (shown by preview.js via /x/json-sensor-info.cgi, a filesystem
+ * are read-only (shown by a/timps-preview.js via /x/json-sensor-info.cgi, a filesystem
  * helper that reads /proc/jz/sensor and the /etc/sensor/*.bin md5 - NOT a timps
  * bridge), and the IQ binary is changed through the upload form. This replaces
  * the old a/streamer-config.js (/x/json-prudynt.cgi bridge) whose only job here

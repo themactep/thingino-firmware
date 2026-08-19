@@ -256,6 +256,9 @@ if [ "$ota_due" = "1" ]; then
 		}
 	done
 	[ -z "$installed" ] && installed="unknown"
+	# Short form ("release+commit") matches the firmware_version sensor so
+	# the HA update entity sees equal strings when the camera is up to date.
+	installed="${installed%%, *}"
 
 	mkdir -p "$cache_dir" 2>/dev/null
 
@@ -296,6 +299,10 @@ if [ "$ota_due" = "1" ]; then
 		latest_date=$(echo "$latest" | sed 's/.*\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
 		[ ${#latest_date} -eq 8 ] && [ "$build_date" -ge "$latest_date" ] && latest="$installed"
 	fi
+
+	# Keep the version strings short ("release+commit") — already normalized
+	# in installed; apply the same to the GitHub tag.
+	latest="${latest%%, *}"
 
 	if [ "$check_ok" = "1" ]; then
 		printf '%s\n' "$latest" >"$latest_cache"
