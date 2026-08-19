@@ -12,6 +12,7 @@
     storage: { photo: true, video: true },
     ntfy: { photo: true, video: false },
     gphotos: { photo: true, video: true },
+    xmpp: { photo: true, video: false },
   };
 
   const motionEnabledInput = $("#motion_enabled");
@@ -130,6 +131,7 @@
           "storage",
           "ntfy",
           "gphotos",
+          "xmpp",
         ];
         services.forEach((service) => {
           const checkbox = $(`#motion_send2${service}`);
@@ -152,6 +154,7 @@
         "storage",
         "ntfy",
         "gphotos",
+        "xmpp",
       ];
       services.forEach((service) => {
         const serviceData = data[service];

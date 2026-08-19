@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · XMPP Configuration</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-send2-xmpp">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="tool-send2.html" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to Services
+        </a>
+        <h2 class="mb-0">XMPP Configuration</h2>
+        <button type="button" class="btn btn-outline-secondary" id="xmpp-reload" title="Reload values from camera">
+          <i class="bi bi-arrow-clockwise"></i> Reload
+        </button>
+      </div>
+
+      <form id="xmppForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
+
+          <!-- Account -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Account</div>
+              <div class="card-body">
+                <p>
+                  <label for="xmpp_jid" class="form-label">JID (user@domain)</label>
+                  <input type="text" class="form-control" id="xmpp_jid" name="xmpp_jid" placeholder="camera@example.com" autocomplete="username">
+                </p>
+                <p>
+                  <label for="xmpp_password" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="xmpp_password" name="xmpp_password" autocomplete="current-password">
+                </p>
+                <p>
+                  <label for="xmpp_resource" class="form-label">Resource</label>
+                  <input type="text" class="form-control" id="xmpp_resource" name="xmpp_resource" value="thingino">
+                  <small class="form-text text-secondary">Optional identifier for this camera's session</small>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Server -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Server</div>
+              <div class="card-body">
+                <p>
+                  <label for="xmpp_bosh_url" class="form-label">BOSH endpoint URL</label>
+                  <input type="text" class="form-control" id="xmpp_bosh_url" name="xmpp_bosh_url" placeholder="https://xmpp.example.com:5281/http-bind">
+                  <small class="form-text text-secondary">HTTP binding endpoint (XEP-0124). Prosody: port 5281, ejabberd: 5443</small>
+                </p>
+                <p class="form-switch mt-3">
+                  <input type="checkbox" class="form-check-input" id="xmpp_send_photo" name="xmpp_send_photo">
+                  <label class="form-check-label" for="xmpp_send_photo">Send photo (requires HTTP Upload, XEP-0363)</label>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recipient -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Recipient</div>
+              <div class="card-body">
+                <p>
+                  <label for="xmpp_recipient" class="form-label">Recipient JID</label>
+                  <input type="text" class="form-control" id="xmpp_recipient" name="xmpp_recipient" placeholder="you@example.com">
+                </p>
+                <small class="form-text text-secondary">
+                  Messages are sent to this JID when motion is detected. Requires the
+                  camera account to exist on the server and a BOSH endpoint.
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <a href="tool-send2.html" class="btn btn-outline-secondary">Back</a>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<script src="/a/tool-send2-xmpp.js"></script>
+</body>
+</html>
