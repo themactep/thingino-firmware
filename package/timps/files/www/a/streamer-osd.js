@@ -2,7 +2,7 @@
  * streamer-osd1.html share this script). Talks directly to the timps
  * streamer over window.timpsApi (GET/POST /control on timps's own port,
  * per-boot token) - no json-prudynt.cgi bridge for these pages (the OSD
- * wiring in a/preview.js is gated off here; preview.js keeps only the live
+ * wiring in a/timps-preview.js is gated off here; that script keeps only the live
  * preview <img>, which already loads straight from timps).
  *
  * Phase 1 (this file): the UI is DATA-DRIVEN. Each video stream carries its

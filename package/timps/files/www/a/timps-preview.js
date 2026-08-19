@@ -1,8 +1,21 @@
+/* timps-preview.js - the live-preview <img>, fullscreen modal, endpoint list
+ * and shared settings-page wiring for timps's own streamer pages
+ * (streamer-*.html, tool-sensor-data.html - they <script>-include this file
+ * directly).
+ *
+ * Named timps-preview.js, not preview.js: it used to be installed over
+ * thingino-webui's own a/preview.js, which is a DIFFERENT script (core's
+ * preview.js belongs to core's preview.html and drives an MJPEG <img> through
+ * the prudynt bridge CGIs). Two unrelated scripts sharing one path is what
+ * forced timps to re-install its www overlay from a global finalize hook to
+ * beat Buildroot's per-package-directory merge. Only timps's own pages load
+ * this file, so it simply gets its own name and the collision is gone.
+ *
+ * It talks to timps directly (window.timpsApi); the old /x/json-prudynt.cgi
+ * bridge has been removed.
+ */
 const ImageBlackMode = 1;
 const ImageColorMode = 0;
-
-// preview.js talks to timps directly now (window.timpsApi); the old
-// /x/json-prudynt.cgi bridge has been removed.
 
 // The Image Quality page is NATIVE: a/streamer-image.js drives every image
 // control straight against timps's own /control API (timps-api.js), so on
