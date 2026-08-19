@@ -90,7 +90,41 @@
         color: r.color,
       };
     }
-    window.timpsApi.set({ privacy: payload }).catch(function (err) {
+    window.timpsApi.set({ privacy: payload }).then(function (r) {
+      // the daemon may clamp a mask further than clampRegion() did (its
+      // bounds, not the page's): fold "privacy<s>.<n>.<field>" echoes that
+      // differ back into the region model and redraw, so the box on screen
+      // is the box that actually masks.
+      //
+      // Mirrored OTHER-stream echoes are DELIBERATELY not folded back (a
+      // decision, not a gap): the "apply to both" branch above scales the
+      // mask to the other stream's resolution and clamps it against those
+      // bounds ON PURPOSE, so a corrected value there is the expected
+      // outcome of mirroring, not a mistake to undo - and this page has no
+      // widget showing the other stream's mask anyway. Folding such an echo
+      // into regions[] would corrupt THIS stream's coordinates with the
+      // other stream's scale. The stream guard below is what enforces this;
+      // the toast still reports every correction.
+      var corr = r && r.corrections;
+      if (corr) {
+        var redraw = false;
+        Object.keys(corr).forEach(function (k) {
+          var parts = k.split(".");           // ["privacy0", "3", "x"]
+          if (parts.length !== 3 || parts[0] !== "privacy" + streamIdx) return;
+          var reg = regions[parseInt(parts[1], 10)];
+          var f = parts[2];
+          if (!reg) return;
+          if (f === "enabled") reg.enabled = !!Number(corr[k]);
+          else if (f === "color") reg.color = corr[k];
+          else if (f === "x" || f === "y" || f === "w" || f === "h")
+            reg[f] = Number(corr[k]);
+          redraw = true;
+        });
+        if (redraw) renderBoxes();
+        var t = window.timpsApi.takeCorrections(r);
+        if (t) toast("info", window.timpsApi.correctionsText(t));
+      }
+    }, function (err) {
       console.error("privacy set failed:", err);
       toast("danger", "Failed to update mask: " + (err.message || err));
     });

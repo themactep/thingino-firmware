@@ -134,6 +134,23 @@
     return isNaN(n) ? undefined : n;
   }
 
+  // put server-corrected (clamped) values from the "applied" echo back into
+  // their fields - REVERSE and populate() are the same plumbing the config-
+  // sync push already uses, so a correction renders exactly like a remote edit
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    Object.keys(corr).forEach(function (k) {
+      var suffix = REVERSE[k];
+      if (!suffix) return;
+      var one = {};
+      one[FIELD_MAP[suffix].key] = corr[k];
+      populate(suffix, FIELD_MAP[suffix], one);
+    });
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
+
   function send(suffix, map) {
     var value = readValue(suffix, map);
     if (value === undefined) return;
@@ -145,7 +162,7 @@
     if (el) el.classList.add("opacity-75");
     window.timpsApi
       .set({ video: video })
-      .then(restartHint, function (err) {
+      .then(function (r) { applyCorrections(r); restartHint(); }, function (err) {
         console.error("timps set failed:", err);
         toast("danger", "Failed to save setting: " + (err.message || err));
       })

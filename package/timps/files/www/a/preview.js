@@ -637,7 +637,13 @@ async function sendToEndpoint(payload) {
   });
   if (!Object.keys(out).length) return;
   try {
-    await window.timpsApi.set(out);
+    const r = await window.timpsApi.set(out);
+    // these fallback shapes have no per-field mapping here (their editors
+    // live on the native pages) - at least SAY when the daemon corrected a
+    // value instead of silently keeping the stale control
+    const t = window.timpsApi.takeCorrections(r);
+    if (t && typeof window.showAlert === "function")
+      window.showAlert("info", window.timpsApi.correctionsText(t));
   } catch (err) {
     console.error("Send error", err);
   }
@@ -1131,7 +1137,15 @@ async function sendImagingUpdate(field, value, element) {
   element?.setAttribute("data-busy", "1");
   element?.classList.add("opacity-75");
   try {
-    await window.timpsApi.setDebounced({ image }, 150);
+    const r = await window.timpsApi.setDebounced({ image }, 150);
+    // the daemon may clamp tighter than the page's static bounds: prefer the
+    // EFFECTIVE value from the "applied" echo over what we sent, and say so
+    // up top (info, not an error - the write itself succeeded)
+    const echo = r && r.corrections && r.corrections["image." + key];
+    if (echo !== undefined) v = parseInt(echo, 10);
+    const t = window.timpsApi.takeCorrections(r);
+    if (t && typeof window.showAlert === "function")
+      window.showAlert("info", window.timpsApi.correctionsText(t));
     applyFieldMetadata(field, {
       supported: true,
       min: b.min,

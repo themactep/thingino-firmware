@@ -122,11 +122,80 @@
 
   // ---- POST helpers ----------------------------------------------------
 
+  // "osd<S>.<N>.<leaf>" from the "applied" echo -> the widgets inside card N.
+  // Single-input leaves come from this table; x/y decompose through
+  // posToAnchor() and the colors through fromTimpsColor() - the exact
+  // inverses of the anchorToPos()/toTimpsColor() calls that built the POST,
+  // and the same routines buildCard() loads with, so a corrected value
+  // renders identically to a freshly loaded one.
+  //
+  // DELIBERATELY not reset (a decision, not a gap): echoes for the OTHER
+  // stream, which the "both" scope's POST also carries ("osd<OTHER>.*").
+  // This page renders cards for ONE stream only, so no visible widget shows
+  // the other stream's value - there is nothing that could go stale, and
+  // writing such an echo into THIS stream's cards would be wrong: the two
+  // streams legitimately hold different values (that is what the scopes are
+  // for). The toast still reports those corrections.
+  var LEAF_INPUT = {
+    text: ".osd-text",
+    font_size: ".osd-fontsize",
+    outline: ".osd-outline",
+  };
+
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    Object.keys(corr).forEach(function (k) {
+      var parts = k.split(".");                    // ["osd0", "1", "text"]
+      if (parts.length !== 3 || parts[0] !== SEC) return;
+      var card = document.querySelector(
+        '#osd-items .osd-card[data-item="' + parts[1] + '"]');
+      if (!card) return;
+      var leaf = parts[2], v = corr[k];
+      var sel = LEAF_INPUT[leaf];
+      if (sel) {
+        var el = card.querySelector(sel);
+        if (el) el.value = v;
+      } else if (leaf === "x" || leaf === "y") {
+        var pos = posToAnchor(v);
+        card.querySelector(".osd-" + leaf + "-anchor").value = pos.anchor;
+        card.querySelector(".osd-" + leaf + "-mag").value = pos.mag;
+      } else if (leaf === "color" || leaf === "outline_color") {
+        var c = fromTimpsColor(v);
+        var cls = leaf === "color" ? "fill" : "stroke";
+        if (c) {
+          card.querySelector(".osd-" + cls).value = c.color;
+          card.querySelector(".osd-" + cls + "-alpha").value = c.alpha;
+        }
+      } else if (leaf === "transparency") {
+        var tr = Number(v);
+        card.querySelector(".osd-trans").value = tr;
+        card.querySelector(".osd-trans-val").textContent = "(" + tr + ")";
+      }
+    });
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
+
   function sendBody(body, busyEl) {
     if (busyEl) busyEl.classList.add("opacity-75");
     return window.timpsApi
       .set(body)
-      .catch(function (err) {
+      .then(function (r) {
+        applyCorrections(r);
+        // A 200 can still carry rejected>0: the daemon applied some leaves and
+        // refused others, and a silent success would lie about the refused
+        // ones. NOT about cleared text any more - timps 7893a1a ("control: let
+        // an empty string clear a text field") makes "" a valid value for
+        // STRING fields, meaning "clear this", so a cleared .osd-text is now
+        // accepted and stored empty. What still gets refused here is null/
+        // "undefined" anywhere, and "" on the NON-string leaves of a card
+        // (font_size, transparency, x/y) - where pint("") would silently zero
+        // the setting rather than clear it (timps src/control.c, apply_one).
+        if (r && r.rejected > 0)
+          toast("warning", "Applied, but the streamer refused " + r.rejected +
+            " value(s) (empty or invalid).");
+      }, function (err) {
         console.error("timps set failed:", err);
         toast("danger", "Failed to apply setting: " + (err.message || err));
       })
