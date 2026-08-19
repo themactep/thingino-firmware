@@ -101,5 +101,13 @@
     "message": "{\"message\":\"test\"}",
     "send_photo": false,
     "send_video": false
+  },
+  "xmpp": {
+    "jid": "",
+    "password": "",
+    "recipient": "",
+    "bosh_url": "",
+    "resource": "thingino",
+    "send_photo": false
   }
 }
