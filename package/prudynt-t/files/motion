@@ -157,6 +157,16 @@ start() {
 		send2_pids="$send2_pids $!"
 	fi
 
+	if [ "true" = "$(get_value send2xmpp)" ]; then
+		echo_info "Send alert to XMPP"
+		if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
+			send2xmpp -i "$MOTION_PHOTO_FILE" -m "Motion detected on $(hostname) at $(date)" &
+		else
+			send2xmpp -m "Motion detected on $(hostname) at $(date)" &
+		fi
+		send2_pids="$send2_pids $!"
+	fi
+
 	if [ "true" = "$(get_value send2telegram)" ]; then
 		echo_info "Send alert to Telegram"
 		if [ "$need_photo" = "true" ] || [ "$need_video" = "true" ]; then

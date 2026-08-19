@@ -1,0 +1,36 @@
+/* timps.css - the only rules timps's old a/main.css fork actually needed.
+ *
+ * timps used to ship a whole copy of thingino-webui's a/main.css (1000 lines)
+ * to add three rules; two of them (.usage-bar-extras, p.disabled) matched no
+ * markup anywhere in either package's www tree, and a third
+ * (.navbar { margin-top: 30px }) carried no rationale and no counterpart in
+ * core, prudynt or raptor - so all three were dropped when the fork was
+ * replaced by this stylesheet (declared in timps.webui.json "styles", which
+ * assemble_plugins.py injects into every page).
+ *
+ * What IS kept is the brand-bar fix that timps's navigation.js fork used to
+ * apply by adding Bootstrap's .mw-100 / .text-truncate classes in JS. That
+ * fork is gone (the menu comes from the manifest now), so the fix is
+ * expressed as CSS instead - same effect, no forked file:
+ *
+ *   the logo is a fixed 150px and the brand label is the page title, so a
+ *   long title (e.g. "Raw Sensor Data Collection") pushed the brand past a
+ *   375px viewport and gave the whole page a horizontal scrollbar - measured
+ *   18px over on tool-sensor-data, 3px on tool-timelapse, 0 on the other
+ *   fifteen pages. Truncating rather than wrapping keeps logo and label on
+ *   one line, which is what a brand bar should look like; overflow:hidden is
+ *   also what lets the span shrink below its content width inside the flex
+ *   row.
+ *
+ * This is not timps-specific and belongs upstream in thingino-webui's
+ * main.css / navigation.js; it lives here until it is taken there.
+ */
+.navbar-brand {
+  max-width: 100%;
+}
+
+.navbar-brand > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

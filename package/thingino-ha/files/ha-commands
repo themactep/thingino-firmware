@@ -180,6 +180,24 @@ dispatch() {
 			[ "$payload" = "1" ] && reboot
 			;;
 
+		firmware)
+			# Partial upgrade (preserves config): sysupgrade -p fetches the
+			# latest release from GitHub, flashes rootfs+data+backup and
+			# reboots. Run in background — it takes minutes and the camera
+			# will drop off MQTT.
+			case "$payload" in
+				UPDATE | update | 1 | true)
+					echo "ha-commands: starting partial firmware upgrade" >&2
+					logger -t ha-commands "starting partial firmware upgrade"
+					if command -v sysupgrade >/dev/null 2>&1; then
+						sysupgrade -p >/dev/null 2>&1 &
+					else
+						echo "ha-commands: sysupgrade not installed" >&2
+					fi
+					;;
+			esac
+			;;
+
 		*)
 			echo "ha-commands: unknown entity '$entity' (topic: $topic)" >&2
 			return

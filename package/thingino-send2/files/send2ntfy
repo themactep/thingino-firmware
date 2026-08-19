@@ -47,12 +47,13 @@ read_config() {
 	message=$(get_value message)
 	password=$(get_value password)
 	port=$(get_value port)
-	prority=$(get_value priority)
+	priority=$(get_value priority)
 	tags=$(get_value tags)
 	title=$(get_value title)
 	token=$(get_value token)
 	topic=$(get_value topic)
 	twilio_token=$(get_value twilio_token)
+	use_ssl=$(get_value use_ssl)
 	username=$(get_value username)
 }
 
@@ -62,7 +63,7 @@ while getopts a:c:d:h:i:m:n:t:p:u:vz:P:T:f:SV flag; do
 	case "$flag" in
 		a) attach=$OPTARG ;;
 		c) click=$OPTARG ;;
-		d) delay==$OPTARG ;;
+		d) delay=$OPTARG ;;
 		h) host=$OPTARG ;;
 		i) icon=$OPTARG ;;
 		m) message=$OPTARG ;;
@@ -96,8 +97,13 @@ fi
 
 [ -z "$host" ] && host="ntfy.sh"
 [ -z "$port" ] && port=80
+[ "true" = "$use_ssl" ] && scheme="https" || scheme="http"
 
-command="curl -X POST -H p:${priority:-3}"
+command="$CURL -X POST"
+
+if [ -n "$priority" ]; then
+	command="$command -H 'p: $priority'"
+fi
 
 if [ "true" = "$verbose" ]; then
 	command="$command --verbose"
@@ -116,29 +122,24 @@ if [ -n "$message" ]; then
 	command="$command -H 'Message: $message'"
 fi
 
+if [ -n "$title" ]; then
+	title="$(date +"$title")"
+	command="$command -H 'Title: $title'"
+fi
+
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
 if [ -n "$filename" ] && [ -f "$filename" ]; then
-	command="$command -T $filename -H 'Filename: $filename'"
+	command="$command -T $filename -H 'Filename: $(basename "$filename")'"
 elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -T $photo -H 'Filename: $photo'"
+	[ -f "$photo" ] && command="$command -T $photo -H 'Filename: $(basename "$photo")'"
 elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	command="$command -T $video -H 'Filename: $video'"
+	[ -f "$video" ] && command="$command -T $video -H 'Filename: $(basename "$video")'"
 fi
 
-#[ -n "$title" ] && command="$command -H 'Title: $title'"
-#[ -n "$delay" ] && command="$command -H 'Delay: $delay'"
-#[ -n "$tags" ] && command="$command -H 'Tags: $tags'"
-#[ -n "$attach" ] && command="$command -H 'Attach: $attach'"
-#[ -n "$click" ] && command="$command -H 'Click: $click'"
-#[ -n "$icon" ] && command="$command -H 'Icon: $icon'"
-#[ -n "$email" ] && command="$command -H 'Email: $email'"
-#[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
-#[ -n "$call" ] && [ -n "$twilio_token" ] && command="$command -H 'Call: $call' -u :$twilio_token"
-
-command="$command $host:$port/$topic"
+command="$command $scheme://$host:$port/$topic"
 
 [ "true" = "$verbose" ] && echo_command "$command"
 

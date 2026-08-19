@@ -115,9 +115,27 @@
   function save(ev) {
     if (ev) ev.preventDefault();
     if (saveBtn) saveBtn.disabled = true;
-    window.timpsApi.set({ record: collect() }).then(function () {
-      toast("success", "Recorder settings saved to timps.conf (applies to the next clip).", 4000);
-      load();
+    window.timpsApi.set({ record: collect() }).then(function (r) {
+      // corrected (clamped) values go straight back into their fields from
+      // the "applied" echo - no follow-up GET on the happy path
+      var corr = r && r.corrections;
+      if (corr) Object.keys(corr).forEach(function (k) {
+        var id = REVERSE[k];
+        if (id) applyKV(id, corr[k]);
+      });
+      corr = window.timpsApi.takeCorrections(r);
+      // refused values keep their OLD stored value, which is NOT echoed
+      // (nothing changed), and a truncated echo is incomplete - only a
+      // reload shows the truth in those two cases
+      var needReload = r && (r.rejected > 0 || r.truncated);
+      if (r && r.rejected > 0)
+        toast("warning", "Saved, but the streamer refused " + r.rejected +
+          " value(s) (empty or invalid).", 6000);
+      else if (corr)
+        toast("info", "Saved. " + window.timpsApi.correctionsText(corr) + ".", 6000);
+      else
+        toast("success", "Recorder settings saved to timps.conf (applies to the next clip).", 4000);
+      if (needReload) load();
     }).catch(function (e) {
       toast("danger", "Failed to save recorder settings: " + (e.message || e));
     }).finally(function () {
@@ -125,17 +143,25 @@
     });
   }
 
+  // write one field's timps value into its element - shared by the config-
+  // sync push and the save-time "applied" corrections, so a clamped value
+  // renders exactly like a remote edit
+  function applyKV(id, value) {
+    var f = FIELDS.find(function (x) { return x.id === id; });
+    var el = $(id);
+    if (!f || !el) return;
+    if (f.type === "bool") el.checked = (value === "1" || value === "true");
+    else el.value = value;
+  }
+
   function onConfigEvent(type, data) {
     if (!data) return;
     if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
-    if (!id) return;
-    var f = FIELDS.find(function (x) { return x.id === id; });
-    var el = $(id);
+    var el = id ? $(id) : null;
     // don't fight the user mid-edit on this same field
-    if (!f || !el || document.activeElement === el) return;
-    if (f.type === "bool") el.checked = (data.value === "1" || data.value === "true");
-    else el.value = data.value;
+    if (!el || document.activeElement === el) return;
+    applyKV(id, data.value);
   }
 
   if (form) form.addEventListener("submit", save);

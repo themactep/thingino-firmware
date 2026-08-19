@@ -141,6 +141,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-send2-telegram.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-webhook.html \
 		$(TARGET_DIR)/var/www/tool-send2-webhook.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-xmpp.html \
+		$(TARGET_DIR)/var/www/tool-send2-xmpp.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-sensor-data.html \
 		$(TARGET_DIR)/var/www/tool-sensor-data.html
 	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \
@@ -217,6 +219,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-send2-telegram.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-webhook.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-webhook.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-xmpp.js \
+		$(TARGET_DIR)/var/www/a/tool-send2-xmpp.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-sensor-data.js \
 		$(TARGET_DIR)/var/www/a/tool-sensor-data.js
 	if [ "$(BR2_THINGINO_DEV_PACKAGES)" = "y" ]; then \

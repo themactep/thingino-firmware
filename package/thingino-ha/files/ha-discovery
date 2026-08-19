@@ -210,11 +210,17 @@ else
 	ha_clear_disc button reboot
 fi
 
-# Sensor: Latest firmware version (read-only, updates must be done via SSH)
+# Sensor: Latest firmware version (read-only, feeds the update entity below)
 if ha_entity_enabled ota; then
-	ha_clear_disc update firmware
 	ha_pub_disc sensor firmware_latest \
 		"{\"name\":\"Firmware Latest\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_latest\",\"state_topic\":\"${ST}/firmware_latest/state\",\"icon\":\"mdi:cloud-download\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+
+	# Native HA update entity: shows in Settings -> Updates with an Install
+	# button. installed = firmware_version state, latest = firmware_latest
+	# state (both published retained by ha-state); install runs a partial
+	# upgrade via sysupgrade -p, preserving the camera config.
+	ha_pub_disc update firmware \
+		"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_update\",\"state_topic\":\"${ST}/firmware_version/state\",\"latest_version_topic\":\"${ST}/firmware_latest/state\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"UPDATE\",\"title\":\"Thingino Firmware\",\"device_class\":\"firmware\",\"release_url\":\"https://github.com/themactep/thingino-firmware/releases\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc update firmware
 	ha_clear_disc sensor firmware_latest

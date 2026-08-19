@@ -8,7 +8,7 @@ MODE_FILE="/tmp/colormode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
 # derive timps's HTTP port + scheme from the config (http.port / http.https),
-# fall back to 8880/http, same as json-imp.cgi. When http.https is set timps
+# fall back to 8880/http, same as www/x/timps-imp.cgi. When http.https is set timps
 # serves TLS-only on that port, so this localhost call must use https + -k or
 # every POST silently fails.
 TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)

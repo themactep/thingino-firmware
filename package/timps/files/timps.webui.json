@@ -1,0 +1,145 @@
+{
+  "name": "timps",
+  "label": "timps Streamer",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:Admin profile",
+      "items": [
+        {
+          "label": "Audio",
+          "href": "/config-audio.html"
+        },
+        {
+          "label": "Photosensing",
+          "href": "/config-photosensing.html"
+        }
+      ]
+    },
+    {
+      "section": "ddInfo",
+      "position": "after:File: onvif.json",
+      "items": [
+        {
+          "label": "File: timps.conf",
+          "href": "/streamer-config.html"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
+      "position": "append",
+      "items": [
+        {
+          "label": "Image Quality",
+          "href": "/streamer-image.html"
+        },
+        {
+          "label": "RTSP Main stream",
+          "href": "/streamer-main.html"
+        },
+        {
+          "label": "Main stream OSD",
+          "href": "/streamer-osd0.html"
+        },
+        {
+          "label": "RTSP Substream",
+          "href": "/streamer-substream.html"
+        },
+        {
+          "label": "Substream OSD",
+          "href": "/streamer-osd1.html"
+        },
+        {
+          "label": "Sensor IQ File",
+          "href": "/streamer-sensor.html"
+        },
+        {
+          "label": "Motion Detection",
+          "href": "/config-motion.html"
+        },
+        {
+          "label": "Privacy masks",
+          "href": "/config-privacy.html"
+        },
+        {
+          "label": "Recordings",
+          "href": "/recordings.html"
+        },
+        {
+          "type": "divider"
+        },
+        {
+          "label": "Streamer config",
+          "href": "/streamer-config.html"
+        },
+        {
+          "label": "Streamer log",
+          "href": "/info.html?logcat"
+        },
+        {
+          "label": "Restart streamer",
+          "href": "/x/restart-prudynt.cgi",
+          "className": "text-danger confirm",
+          "trackActive": false
+        }
+      ]
+    },
+    {
+      "section": "ddServices",
+      "position": "prepend",
+      "items": [
+        {
+          "label": "Timelapse Recorder",
+          "href": "/tool-timelapse.html"
+        },
+        {
+          "label": "Video Recorder",
+          "href": "/tool-record.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    "/a/timps-control-bar.js"
+  ],
+  "styles": [
+    "/a/timps.css"
+  ],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "timps": true
+  },
+  "cgi": [
+    "/x/timps-token.cgi",
+    "/x/timps-imp.cgi",
+    "/x/json-recordings.cgi",
+    "/x/restart-prudynt.cgi",
+    "/x/json-heartbeat.cgi",
+    "/x/json-heartbeat-slow.cgi",
+    "/x/ch0.jpg",
+    "/x/ch1.jpg",
+    "/x/dl0.jpg",
+    "/x/dl1.jpg"
+  ],
+  "pages": [
+    "/preview.html",
+    "/streamer-main.html",
+    "/streamer-substream.html",
+    "/streamer-image.html",
+    "/streamer-osd0.html",
+    "/streamer-osd1.html",
+    "/streamer-sensor.html",
+    "/streamer-config.html",
+    "/config-audio.html",
+    "/config-motion.html",
+    "/recordings.html",
+    "/tool-record.html",
+    "/tool-timelapse.html",
+    "/tool-sensor-data.html"
+  ]
+}
