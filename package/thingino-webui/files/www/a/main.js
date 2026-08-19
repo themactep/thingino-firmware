@@ -2631,8 +2631,9 @@ function initPasswordRevealToggles(root = document) {
       focusedElement.blur();
     }
   });
-// only a definitive auth refusal may redirect; everything else retries
-async function checkSessionAndPassword(attempt) {
+
+  // only a definitive auth refusal may redirect; everything else retries
+  async function checkSessionAndPassword(attempt) {
     attempt = attempt || 0;
     let data = null;
 
