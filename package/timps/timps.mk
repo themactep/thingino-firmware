@@ -247,6 +247,15 @@ define TIMPS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/timps.conf \
 		$(TARGET_DIR)/etc/timps.conf
 
+	# One template for every board means every other sensor warns once per
+	# start. Buildroot knows the right name - the kernel driver is built from
+	# it. i2c_addr stays as shipped: buildroot does not carry it, and
+	# /proc/jz/sensor supplies it wherever that exists.
+	if [ -n "$(call qstrip,$(BR2_SENSOR_1_NAME))" ]; then \
+		$(SED) 's|^sensor.model .*|sensor.model    = $(call qstrip,$(BR2_SENSOR_1_NAME))|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
 		$(TARGET_DIR)/etc/init.d/S95timps
@@ -258,8 +267,21 @@ define TIMPS_INSTALL_TARGET_CMDS
 	fi
 
 	# Install the self-test helper
-	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
-		$(TARGET_DIR)/usr/bin/timps-selftest
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-irprobe \
+		$(TARGET_DIR)/usr/bin/timps-irprobe
+
+	# Diagnostic helpers: nothing on the camera calls them, and the two
+	# collectors only pay off where something gathers what they emit.
+	# /usr/bin rather than an /etc overlay - squashfs compresses and
+	# deduplicates, the writable jffs2 does neither.
+	if [ "$(BR2_PACKAGE_TIMPS_DIAG_TOOLS)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-dn-isp-log \
+			$(TARGET_DIR)/usr/bin/timps-dn-isp-log; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-logcat-ship \
+			$(TARGET_DIR)/usr/bin/timps-logcat-ship; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
+			$(TARGET_DIR)/usr/bin/timps-selftest; \
+	fi
 
 	# System-sound play wrapper: enqueues PLAY/STOP onto timps's /run/timps/
 	# audio_out FIFO (native IMP_AO). Same interface prudynt/raptor ship, so the
@@ -446,6 +468,18 @@ define TIMPS_INSTALL_WEBUI
 	      $(TARGET_DIR)/var/www/x/json-prudynt-save.cgi \
 	      $(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
 	rm -f $(TARGET_DIR)/var/www/x/ch0.mjpg $(TARGET_DIR)/var/www/x/ch1.mjpg
+	# CAVEAT on the two rm -f above (measured 2026-08-19, flash-headroom audit):
+	# deleting from THIS tree only works for a path thingino-webui no longer
+	# ships at all - which is true of all nine paths listed here, so they are
+	# effectively no-ops kept as documentation. It does NOT work for a stock
+	# file that still exists: this hook runs in timps's PER-PACKAGE tree, and
+	# the global merge then rsyncs a pristine copy back in from every other
+	# package that inherited thingino-webui's www tree (verified: preview.js
+	# survives here via thingino-gpio, thingino-mosquitto-20x, thingino-motors,
+	# thingino-webui and wireguard-tools). That is the delete-side of exactly
+	# the same per-package-merge problem the big comment above documents for
+	# the install side. A live stock file has to be removed from the global
+	# TARGET_FINALIZE phase instead - see TIMPS_PURGE_STOCK_WEBUI below.
 	# Snapshot CGIs: the x/ loop above already replaced the stock prudynt
 	# x/ch0.jpg with timps's loopback-fetch script; clone it to the other
 	# three names the WebUI expects (channel/disposition are derived from the
@@ -547,7 +581,38 @@ define TIMPS_REAPPLY_WEBUI_OVERLAY
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/x/json-heartbeat-slow.cgi \
 		$(TARGET_DIR)/var/www/x/json-heartbeat-slow.cgi
 endef
+
+# The delete-side counterpart, and the only place a LIVE thingino-webui file
+# can actually be removed (see the CAVEAT in TIMPS_INSTALL_WEBUI above): the
+# global TARGET_FINALIZE phase, after the per-package merge has put every
+# inherited pristine copy into the real $(TARGET_DIR).
+#
+# Both entries are stock scripts the preview swap orphaned. Neither has a
+# caller anywhere in the MERGED /var/www - checked against the built tree, not
+# against this package's own files:
+#   a/preview.js    thingino-webui's stock streamer preview, driving the
+#                   prudynt bridge CGIs. TIMPS_REAPPLY_WEBUI_OVERLAY above
+#                   replaces preview.html wholesale with the native MSE/fMP4
+#                   page, which loads a/timps-preview.js instead. No
+#                   <script src="/a/preview.js"> survives on a timps image;
+#                   the only remaining mention is prose in a comment.
+#   a/sei-rotate.js referenced only from prudynt-t's and thingino-raptor's
+#                   streamer-*.html. "Streamer" is a Kconfig choice
+#                   (package/thingino-streamer/Config.in), so neither package
+#                   can be installed next to timps and neither page can exist
+#                   here. The script also early-returns on /preview.html.
+#
+# Worth 39.4 KB uncompressed but only 4096 bytes off the packed image
+# (measured: rootfs.squashfs 5246976 -> 5242880, -b 256K -comp xz). JS
+# compresses about tenfold and squashfs pads to 4K, so uncompressed script
+# sizes overstate the win by roughly an order of magnitude - do not size
+# future www cleanups off `du`.
+define TIMPS_PURGE_STOCK_WEBUI
+	rm -f $(TARGET_DIR)/var/www/a/preview.js \
+	      $(TARGET_DIR)/var/www/a/sei-rotate.js
+endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_WEBUI_OVERLAY $(TARGET_FINALIZE_HOOKS)
+TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports

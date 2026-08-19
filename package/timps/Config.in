@@ -257,3 +257,21 @@ config BR2_PACKAGE_TIMPS_AUDIO_PRESET_MINIMAL
 endchoice
 
 endif # BR2_PACKAGE_TIMPS
+
+config BR2_PACKAGE_TIMPS_DIAG_TOOLS
+	bool "Diagnostic scripts (self-test, log shipping, exposure log)"
+	default n
+	help
+	  Install the shell helpers used to investigate a camera rather than
+	  to run it: timps-selftest, timps-logcat-ship (forwards the vendor
+	  alog into syslog) and timps-dn-isp-log (samples the ISP exposure
+	  state once a minute for day/night analysis).
+
+	  Nothing on the camera calls any of them - they are driven by cron
+	  or by hand, and the last two only make sense when something is
+	  collecting what they emit. Off by default: together they are about
+	  9 KB of shell on a device whose writable partition is under a
+	  megabyte, and a normal installation has no use for them.
+
+	  This is separate from TIMPS_TRACE, which instruments the daemon
+	  itself and is deliberately not reachable from menuconfig.
