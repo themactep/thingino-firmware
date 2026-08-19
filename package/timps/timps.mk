@@ -115,6 +115,18 @@ ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 	TIMPS_DEPENDENCIES += thingino-webui
 endif
 
+# Same reasoning as thingino-webui above, for the same TIMPS_INSTALL_WEBUI
+# hook's ONVIF-symlink block further down: it checks
+# [ -d $(TARGET_DIR)/var/www/onvif ] before recreating image.cgi/image1.cgi,
+# and under PER_PACKAGE_DIRECTORIES that directory is only visible from
+# timps's own per-package view if thingino-onvif is a declared dependency -
+# undeclared, the check silently fails and image1.cgi never gets created
+# (image.cgi survives anyway since thingino-onvif's own INSTALL_TARGET_CMDS
+# creates that one directly, independent of this hook).
+ifeq ($(BR2_PACKAGE_THINGINO_ONVIF),y)
+	TIMPS_DEPENDENCIES += thingino-onvif
+endif
+
 # CFLAGS inherit TARGET_CFLAGS for arch-specific flags (critical for XBurst CPUs
 # which need -mno-fused-madd / -ffp-contract=off). The timps Makefile adds its
 # own -DUSE_* defines based on the USE_* variables we pass below, so we only
