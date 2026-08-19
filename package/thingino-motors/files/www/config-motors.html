@@ -160,6 +160,23 @@
           </div><!-- .card-body -->
         </div><!-- .card -->
 
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">PTZ Presets</h2>
+            <small>Save the current camera position and recall it with one click.</small>
+          </div>
+          <div class="card-body">
+            <div class="d-flex gap-2 mb-3">
+              <input type="text" class="form-control" id="ptz-preset-name" placeholder="Preset name, e.g. Front door" maxlength="32">
+              <button type="button" class="btn btn-outline-primary text-nowrap" id="ptz-preset-save" title="Save current position as a preset">
+                <i class="bi bi-plus-circle me-1"></i>Save position
+              </button>
+            </div>
+            <ul id="ptz-presets-list" class="list-group"></ul>
+            <small id="ptz-presets-empty" class="text-secondary d-block mt-2">No presets yet. Move the camera (preview overlay) and save a position above.</small>
+          </div>
+        </div>
+
         <button type="submit" id="motors_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
       </form>
     </section>
