@@ -2632,41 +2632,58 @@ function initPasswordRevealToggles(root = document) {
     }
   });
 
-  // Check session status and default password
-  async function checkSessionAndPassword() {
+  // only a definitive auth refusal may redirect; everything else retries
+  async function checkSessionAndPassword(attempt) {
+    attempt = attempt || 0;
+    let data = null;
+
     try {
       const response = await fetch("/x/session-status.cgi", {
         cache: "no-store",
       });
 
-      if (!response.ok) {
-        // Session check failed - redirect to login
+      if (response.status === 401 || response.status === 403) {
+        // definitive auth refusal from the server
         window.location.href = "/login.html";
         return;
       }
 
-      const data = await response.json();
-
-      if (!data.authenticated) {
-        // Not authenticated - redirect to login
-        window.location.href = "/login.html";
-        return;
-      }
-
-      // Check if using default password
-      if (data.is_default_password) {
-        isDefaultPassword = true;
-        passwordCheckComplete = true;
-        showPasswordWarningModal();
-      } else {
-        isDefaultPassword = false;
-        passwordCheckComplete = true;
-        heartbeat();
+      if (response.ok) {
+        data = await response.json(); // non-JSON throws -> retry path
       }
     } catch (err) {
       console.error("Session check failed:", err);
-      // On error, redirect to login
+    }
+
+    if (!data || typeof data.authenticated === "undefined") {
+      if (attempt < 2) {
+        setTimeout(
+          () => checkSessionAndPassword(attempt + 1),
+          1000 * (attempt + 1),
+        );
+      } else {
+        console.error(
+          "Session status endpoint unreachable - staying on page instead of redirecting to login",
+        );
+      }
+      return;
+    }
+
+    if (!data.authenticated) {
+      // Not authenticated - redirect to login
       window.location.href = "/login.html";
+      return;
+    }
+
+    // Check if using default password
+    if (data.is_default_password) {
+      isDefaultPassword = true;
+      passwordCheckComplete = true;
+      showPasswordWarningModal();
+    } else {
+      isDefaultPassword = false;
+      passwordCheckComplete = true;
+      heartbeat();
     }
   }
 
