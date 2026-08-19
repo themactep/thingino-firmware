@@ -247,6 +247,15 @@ define TIMPS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/timps.conf \
 		$(TARGET_DIR)/etc/timps.conf
 
+	# One template for every board means every other sensor warns once per
+	# start. Buildroot knows the right name - the kernel driver is built from
+	# it. i2c_addr stays as shipped: buildroot does not carry it, and
+	# /proc/jz/sensor supplies it wherever that exists.
+	if [ -n "$(call qstrip,$(BR2_SENSOR_1_NAME))" ]; then \
+		$(SED) 's|^sensor.model .*|sensor.model    = $(call qstrip,$(BR2_SENSOR_1_NAME))|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
 		$(TARGET_DIR)/etc/init.d/S95timps
@@ -258,6 +267,8 @@ define TIMPS_INSTALL_TARGET_CMDS
 	fi
 
 	# Install the self-test helper
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-irprobe \
+		$(TARGET_DIR)/usr/bin/timps-irprobe
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
 		$(TARGET_DIR)/usr/bin/timps-selftest
 

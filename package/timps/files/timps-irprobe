@@ -1,0 +1,14 @@
+#!/bin/sh
+# daynight.irprobe_cmd target: timps execs "<cmd> on|off" with no shell.
+#
+# The "off" path arms a detached watchdog before it does anything, because the
+# daemon has no failsafe: if it dies during the 8 s dark window the illuminator
+# stays off until something else turns it on. 60 s is far past probe_settle_s,
+# and a later "on" is idempotent.
+for t in ir940 ir850 ir; do
+	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
+		[ "$1" = off ] && ( sleep 60; light $t on ) >/dev/null 2>&1 &
+		exec light $t "$1"
+	fi
+done
+exit 1   # no switchable illuminator: timps logs the failure and skips the probe
