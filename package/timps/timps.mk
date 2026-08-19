@@ -269,8 +269,19 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# Install the self-test helper
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-irprobe \
 		$(TARGET_DIR)/usr/bin/timps-irprobe
-	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
-		$(TARGET_DIR)/usr/bin/timps-selftest
+
+	# Diagnostic helpers: nothing on the camera calls them, and the two
+	# collectors only pay off where something gathers what they emit.
+	# /usr/bin rather than an /etc overlay - squashfs compresses and
+	# deduplicates, the writable jffs2 does neither.
+	if [ "$(BR2_PACKAGE_TIMPS_DIAG_TOOLS)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-dn-isp-log \
+			$(TARGET_DIR)/usr/bin/timps-dn-isp-log; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-logcat-ship \
+			$(TARGET_DIR)/usr/bin/timps-logcat-ship; \
+		$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/timps-selftest.sh \
+			$(TARGET_DIR)/usr/bin/timps-selftest; \
+	fi
 
 	# System-sound play wrapper: enqueues PLAY/STOP onto timps's /run/timps/
 	# audio_out FIFO (native IMP_AO). Same interface prudynt/raptor ship, so the
