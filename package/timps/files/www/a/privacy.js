@@ -94,7 +94,7 @@
       // Fold "privacy<s>.<n>.<field>" echoes back into the region model so
       // the box on screen is the box that actually masks (the daemon may
       // clamp further than clampRegion() did). Mirrored OTHER-stream echoes
-      // are DELIBERATELY not folded back - see NOTES.md.
+      // are DELIBERATELY not folded back - see WEBUI-NOTES.md.
       var corr = r && r.corrections;
       if (corr) {
         var redraw = false;
@@ -335,7 +335,7 @@
 
   // Exact inverse of markUnavailable(), run on every successful load() -
   // fixes a real transient-unavailability bug during a streamer restart.
-  // See NOTES.md.
+  // See WEBUI-NOTES.md.
   function markAvailable() {
     if (unavailEl) {
       unavailEl.classList.add("d-none");

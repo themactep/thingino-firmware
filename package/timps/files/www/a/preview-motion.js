@@ -6,7 +6,7 @@
  * when SSE is unavailable or fails repeatedly. Canvas is aligned to the
  * video's DISPLAYED content rect (object-fit:contain letterboxing), not the
  * element box. Fails soft throughout: no token/endpoint or no IMP_IVS
- * support just leaves the toggle button hidden. See NOTES.md for the full
+ * support just leaves the toggle button hidden. See WEBUI-NOTES.md for the full
  * protocol/token details.
  */
 (function () {

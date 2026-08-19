@@ -63,7 +63,7 @@
             return request(method, body, true);
           });
         }
-        // POST /control status codes (see NOTES.md for the full contract):
+        // POST /control status codes (see WEBUI-NOTES.md for the full contract):
         // 400 not_json = client bug; 422 unknown_fields = key names wrong for
         // this build; 409 values_rejected = names right, values refused; 503
         // oom = daemon allocation failure. Key off "reason", not status code

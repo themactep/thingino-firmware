@@ -8,7 +8,7 @@
  * "card" per in-use item index instead of four hard-coded named boxes.
  * Switching an item text<->logo is Phase 2 (needs a streamer-side leaf that
  * does not exist over /control yet), so the type selector stays disabled.
- * See NOTES.md for the full stream/load/save/restart/caps/color data-flow
+ * See WEBUI-NOTES.md for the full stream/load/save/restart/caps/color data-flow
  * spec this file implements.
  */
 (function () {
@@ -97,7 +97,7 @@
   // identically to a freshly loaded one.
   //
   // Deliberately does not render "osd<OTHER>.*" echoes from a "both" scope
-  // POST: this page only has widgets for ONE stream. See NOTES.md.
+  // POST: this page only has widgets for ONE stream. See WEBUI-NOTES.md.
   var LEAF_INPUT = {
     text: ".osd-text",
     font_size: ".osd-fontsize",
@@ -147,7 +147,7 @@
         applyCorrections(r);
         // A 200 can still carry rejected>0 (some leaves refused, e.g. "" on a
         // non-string leaf); a silent success would lie about those. See
-        // NOTES.md for why cleared text is NOT one of these cases.
+        // WEBUI-NOTES.md for why cleared text is NOT one of these cases.
         if (r && r.rejected > 0)
           toast("warning", "Applied, but the streamer refused " + r.rejected +
             " value(s) (empty or invalid).");

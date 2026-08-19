@@ -7,7 +7,7 @@
  * PERSIST+RESTART controls (codec/samplerate/bitrate, plus high_pass/agc/ns
  * - see the FIELD_MAP comment below for why) are deliberately NOT in
  * caps.audio; they enable whenever "audio" carries them, and show the
- * "Restart streamer" hint after saving. See NOTES.md for the full
+ * "Restart streamer" hint after saving. See WEBUI-NOTES.md for the full
  * load/save/offline behavior spec.
  */
 (function () {

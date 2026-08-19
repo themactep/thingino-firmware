@@ -9,7 +9,7 @@
   (see timps.mk) but still goes through the normal plugin pipeline - the
   preview-body marker below is replaced with contributed overlays (PTZ
   joystick, ...); do not hand-copy plugin markup in here, and do not spell
-  the marker's literal name out in this comment (see NOTES.md).
+  the marker's literal name out in this comment (see WEBUI-NOTES.md).
 
   KNOWN LIMITATION: video loads over plain HTTP on port 8880, so an HTTPS
   web UI gets mixed-content blocked and the preview stays black (serve the
@@ -59,7 +59,7 @@
        the video controls/click-to-play underneath still work. Swaps
        main.css's visibility:hidden reveal for opacity - visibility:hidden
        elements are never hit-tested, which would break the :hover that
-       reveals #motor in the first place. See NOTES.md. */
+       reveals #motor in the first place. See WEBUI-NOTES.md. */
     #motor-overlay,
     #motor,
     .jst {
@@ -150,7 +150,7 @@
     </section>
 
     <!-- Statistics: fed by /events?stream=stats SSE (fast) plus a slow
-         GET /control poll for fields the SSE doesn't carry. See NOTES.md. -->
+         GET /control poll for fields the SSE doesn't carry. See WEBUI-NOTES.md. -->
     <section>
       <div class="card mb-3" id="stats-card" style="display:none">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -257,7 +257,7 @@
     // Statistics: /events?stream=stats SSE (fast path) plus a slow GET
     // /control poll for the fields SSE doesn't carry. Independent of the
     // player's connect/disconnect lifecycle - keeps ticking, and both loops
-    // only run while the card is visible. See NOTES.md for the field split.
+    // only run while the card is visible. See WEBUI-NOTES.md for the field split.
     let statsEs = null;
     let statsControlTimer = null;
     const MAX_HISTORY = 40; // ~80s of samples at the default 2s stats interval
@@ -384,7 +384,7 @@
         // platform omits it, so fall back to IMP_Encoder_Query's queue-backlog
         // counters (available on all platforms) as an encoder-health stand-in:
         // a healthy encoder keeps this near 0, a rising value means it isn't
-        // keeping up with the source. See NOTES.md.
+        // keeping up with the source. See WEBUI-NOTES.md.
         const es = enc[k];
         if (es && typeof es.ave_bitrate === "number") {
           row.cells.avgBitrate.textContent = formatKbps(es.ave_bitrate);
@@ -492,7 +492,7 @@
     // for MSE. CRITICAL: only advertise an mp4a (AAC) track when timps is
     // actually muxing AAC - a PCM stream is video-only, and an mp4a-typed
     // SourceBuffer on a video-only init segment tears down the whole
-    // MediaSource -> black player. See NOTES.md.
+    // MediaSource -> black player. See WEBUI-NOTES.md.
     function pickMime(MS, wantAac) {
       const vOnly = [
         'video/mp4; codecs="avc1.640028"',            // H.264 High

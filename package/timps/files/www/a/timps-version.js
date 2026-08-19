@@ -1,7 +1,7 @@
 /* timps-version.js - tiny build-version badge, bottom-right corner, on every
  * page that includes this script. Reads GET /control's "version" key (the
  * daemon's compiled-in MS_VERSION, a git-describe string) so "which commit
- * is this camera actually running" is visible at a glance (see NOTES.md).
+ * is this camera actually running" is visible at a glance (see WEBUI-NOTES.md).
  * No-ops silently if timps-api.js isn't loaded or the daemon build predates
  * the "version" field. */
 (function () {

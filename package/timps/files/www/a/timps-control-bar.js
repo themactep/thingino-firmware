@@ -2,7 +2,7 @@
  * bar, as a PLUGIN SCRIPT instead of a fork of /a/main.js. Everything here is
  * ADDITIVE: it overrides window.<fn> globals AFTER main.js has evaluated but
  * BEFORE initAll() wires up click handlers, so core main.js stays pristine
- * and the timps versions still get called. See NOTES.md for why this
+ * and the timps versions still get called. See WEBUI-NOTES.md for why this
  * ordering is safe and why it replaced an old full main.js fork.
  */
 (function () {

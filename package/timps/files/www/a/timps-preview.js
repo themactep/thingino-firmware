@@ -2,7 +2,7 @@
  * and shared settings-page wiring for timps's own streamer pages
  * (streamer-*.html, tool-sensor-data.html - they <script>-include this file
  * directly). Named timps-preview.js, not preview.js, to avoid colliding with
- * core's own a/preview.js (see NOTES.md). Talks to timps directly via
+ * core's own a/preview.js (see WEBUI-NOTES.md). Talks to timps directly via
  * window.timpsApi; no /x/json-prudynt.cgi bridge.
  */
 const ImageBlackMode = 1;
@@ -21,7 +21,7 @@ const nativeEncoderPage =
 // Direct-to-timps media URLs (no proxy CGIs):
 //   live:  http://<host>:<port>/stream.mjpeg?chn=<N>&token=<tok>
 //   still: http://<host>:<port>/snapshot.jpg?chn=<N>&token=<tok>
-// Token comes from /x/timps-token.cgi; see NOTES.md for why it travels as
+// Token comes from /x/timps-token.cgi; see WEBUI-NOTES.md for why it travels as
 // ?token= and the retry/fallback behavior on failure.
 let timpsMediaInfo = null; // {token, port} after the first fetch
 let timpsMediaPending = null; // in-flight fetch (dedup)
@@ -508,7 +508,7 @@ function handleMessage(msg) {
 
   // Encoder/stream/sensor settings need a streamer restart to take effect;
   // "Restart streamer" in the menu calls /x/restart-prudynt.cgi. See
-  // NOTES.md for why only the json-prudynt.cgi bridge sets this flag.
+  // WEBUI-NOTES.md for why only the json-prudynt.cgi bridge sets this flag.
   if (msg.restart_required && typeof window.showAlert === "function") {
     window.showAlert(
       "warning",
@@ -686,7 +686,7 @@ loadInitialData().then(async () => {
   // `timeout` is a coarse last-resort safety net, not a per-frame liveness
   // check: a multipart/x-mixed-replace <img> only fires "load" once, so
   // lastLoadTime never advances on a healthy stream. Keep it long - see
-  // NOTES.md for why a short value here is actively harmful.
+  // WEBUI-NOTES.md for why a short value here is actively harmful.
   const timeout = 120000;
   const restartBackoffInitialMs = 15000;
   const restartBackoffMaxMs = 60000;
