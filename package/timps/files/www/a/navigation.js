@@ -337,7 +337,15 @@
     container.className = "container";
 
     const brand = document.createElement("a");
-    brand.className = "navbar-brand d-flex align-items-center gap-3";
+    // mw-100 + a truncating label: the logo is a fixed 150px and the label is
+    // the page title, so a long one (e.g. "Raw Sensor Data Collection") pushed
+    // the brand past a 375px viewport and gave the whole page a horizontal
+    // scrollbar - measured 18px over on tool-sensor-data, 3px on
+    // tool-timelapse, 0 on the other fifteen pages. Truncating rather than
+    // wrapping keeps logo and label on one line, which is what a brand bar
+    // should look like; text-truncate's overflow:hidden is also what lets the
+    // span shrink below its content width inside the flex row.
+    brand.className = "navbar-brand d-flex align-items-center gap-3 mw-100";
     brand.href =
       typeof globalConfig.brandHref === "string" ? globalConfig.brandHref : "/";
 
@@ -348,6 +356,7 @@
     brand.appendChild(brandLogo);
 
     const brandText = document.createElement("span");
+    brandText.className = "text-truncate";
     brandText.textContent = deriveBrandLabel(document.title || "");
     brand.appendChild(brandText);
 
