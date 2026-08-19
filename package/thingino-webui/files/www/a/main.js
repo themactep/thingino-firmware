@@ -2631,30 +2631,8 @@ function initPasswordRevealToggles(root = document) {
       focusedElement.blur();
     }
   });
-
-  // Check session status and default password.
-  //
-  // Only a definitive auth refusal may redirect. On this endpoint that means
-  // exactly two things, and nothing else:
-  //   - HTTP 401/403 - nginx.conf puts `auth_basic` on `location /x/`, so the
-  //     nginx-served builds answer 401 when the credentials are missing.
-  //   - `authenticated:false` with HTTP 200 - x/session-status.cgi never calls
-  //     require_auth; it always answers 200 and reports the verdict in the body
-  //     (see the `else` branch: `{"authenticated":false,...}`).
-  //
-  // Everything else - a 5xx, a truncated/non-JSON body, a network error, a
-  // fetch rejection - is the CGI failing to run or the link dropping, not the
-  // server saying "you are logged out". Treating those as a logout is what the
-  // previous version did (`!response.ok` -> redirect, and `catch` -> redirect),
-  // and on a camera it is a real, frequent bug: busybox httpd on a 64 MB device
-  // fails to fork under load, and a single dropped request threw the user back
-  // to /login.html mid-edit. So those cases retry twice with backoff and then
-  // stay put, rather than destroying the page the user is working on.
-  //
-  // This retry logic existed once before, in a downstream fork of this file,
-  // and was silently lost when the fork was deleted. Recording it here so the
-  // reasoning lives with the code and not in a fork that can disappear again.
-  async function checkSessionAndPassword(attempt) {
+// only a definitive auth refusal may redirect; everything else retries
+async function checkSessionAndPassword(attempt) {
     attempt = attempt || 0;
     let data = null;
 
@@ -2672,7 +2650,6 @@ function initPasswordRevealToggles(root = document) {
       if (response.ok) {
         data = await response.json(); // non-JSON throws -> retry path
       }
-      // any other status (5xx, 0-length proxy error, ...) -> retry path
     } catch (err) {
       console.error("Session check failed:", err);
     }
