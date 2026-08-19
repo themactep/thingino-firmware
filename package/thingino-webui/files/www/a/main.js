@@ -2632,41 +2632,80 @@ function initPasswordRevealToggles(root = document) {
     }
   });
 
-  // Check session status and default password
-  async function checkSessionAndPassword() {
+  // Check session status and default password.
+  //
+  // Only a definitive auth refusal may redirect. On this endpoint that means
+  // exactly two things, and nothing else:
+  //   - HTTP 401/403 - nginx.conf puts `auth_basic` on `location /x/`, so the
+  //     nginx-served builds answer 401 when the credentials are missing.
+  //   - `authenticated:false` with HTTP 200 - x/session-status.cgi never calls
+  //     require_auth; it always answers 200 and reports the verdict in the body
+  //     (see the `else` branch: `{"authenticated":false,...}`).
+  //
+  // Everything else - a 5xx, a truncated/non-JSON body, a network error, a
+  // fetch rejection - is the CGI failing to run or the link dropping, not the
+  // server saying "you are logged out". Treating those as a logout is what the
+  // previous version did (`!response.ok` -> redirect, and `catch` -> redirect),
+  // and on a camera it is a real, frequent bug: busybox httpd on a 64 MB device
+  // fails to fork under load, and a single dropped request threw the user back
+  // to /login.html mid-edit. So those cases retry twice with backoff and then
+  // stay put, rather than destroying the page the user is working on.
+  //
+  // This retry logic existed once before, in a downstream fork of this file,
+  // and was silently lost when the fork was deleted. Recording it here so the
+  // reasoning lives with the code and not in a fork that can disappear again.
+  async function checkSessionAndPassword(attempt) {
+    attempt = attempt || 0;
+    let data = null;
+
     try {
       const response = await fetch("/x/session-status.cgi", {
         cache: "no-store",
       });
 
-      if (!response.ok) {
-        // Session check failed - redirect to login
+      if (response.status === 401 || response.status === 403) {
+        // definitive auth refusal from the server
         window.location.href = "/login.html";
         return;
       }
 
-      const data = await response.json();
-
-      if (!data.authenticated) {
-        // Not authenticated - redirect to login
-        window.location.href = "/login.html";
-        return;
+      if (response.ok) {
+        data = await response.json(); // non-JSON throws -> retry path
       }
-
-      // Check if using default password
-      if (data.is_default_password) {
-        isDefaultPassword = true;
-        passwordCheckComplete = true;
-        showPasswordWarningModal();
-      } else {
-        isDefaultPassword = false;
-        passwordCheckComplete = true;
-        heartbeat();
-      }
+      // any other status (5xx, 0-length proxy error, ...) -> retry path
     } catch (err) {
       console.error("Session check failed:", err);
-      // On error, redirect to login
+    }
+
+    if (!data || typeof data.authenticated === "undefined") {
+      if (attempt < 2) {
+        setTimeout(
+          () => checkSessionAndPassword(attempt + 1),
+          1000 * (attempt + 1),
+        );
+      } else {
+        console.error(
+          "Session status endpoint unreachable - staying on page instead of redirecting to login",
+        );
+      }
+      return;
+    }
+
+    if (!data.authenticated) {
+      // Not authenticated - redirect to login
       window.location.href = "/login.html";
+      return;
+    }
+
+    // Check if using default password
+    if (data.is_default_password) {
+      isDefaultPassword = true;
+      passwordCheckComplete = true;
+      showPasswordWarningModal();
+    } else {
+      isDefaultPassword = false;
+      passwordCheckComplete = true;
+      heartbeat();
     }
   }
 
