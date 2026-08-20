@@ -1,10 +1,3 @@
-/**
- * SEI OSD Overlay Renderer
- *
- * Checks osd.sei.enabled via the prudynt config API before subscribing to the
- * /x/json-osd-sei.cgi SSE stream.  When disabled, no SSE connection is
- * made and no overlay is rendered.
- */
 (function () {
   "use strict";
 
@@ -30,14 +23,12 @@
   const SSE_URL = "/x/json-osd-sei.cgi";
   const OVERLAY_ID = "sei-osd-overlay";
   const PREVIEW_IMG_ID = "preview";
-  const FONT_SIZE = 14; // fallback; overridden by sei-osd-settings (preview-osd.js modal)
+  const FONT_SIZE = 14;
 
   let source = null;
   let started = false;
   let lastData = null;
 
-  // Visual overrides stored by the preview-page OSD modal (preview-osd.js):
-  //   { fs: font size, fc: fill color, sc: stroke color, stw: stroke width }
   function visualSettings() {
     try {
       return JSON.parse(localStorage.getItem("sei-osd-settings") || "{}");
@@ -46,10 +37,11 @@
     }
   }
 
-  function resolvePos(rawPos, containerSize) {
-    if (rawPos < 0) return Math.max(containerSize + rawPos, 0);
+  function resolvePos(rawPos, containerSize, scale) {
+    var px = rawPos * scale;
+    if (rawPos < 0) return Math.max(containerSize + px, 0);
     if (rawPos === 0) return Math.max(containerSize / 2, 0);
-    return rawPos;
+    return px;
   }
 
   function escapeHTML(str) {
@@ -90,23 +82,24 @@
     if (!img || !overlay) return;
 
     const rect = img.getBoundingClientRect();
-    const scaleX = rect.width / (img.naturalWidth || rect.width || 1);
-    const scaleY = rect.height / (img.naturalHeight || rect.height || 1);
+    const sw = (lastData && lastData.sw) || img.naturalWidth || rect.width || 1;
+    const sh = (lastData && lastData.sh) || img.naturalHeight || rect.height || 1;
+    const scale = Math.min(rect.width / sw, rect.height / sh);
     const vis = visualSettings();
     const baseFs =
       parseInt(overlay.dataset.fs, 10) || parseInt(vis.fs, 10) || FONT_SIZE;
-    const fontSize = Math.round(baseFs * Math.min(scaleX, scaleY));
+    const fontSize = Math.round(baseFs * scale);
 
-    overlay.style.left = rect.left + "px";
-    overlay.style.top = rect.top + "px";
+    overlay.style.left = "0";
+    overlay.style.top = "0";
     overlay.style.width = rect.width + "px";
     overlay.style.height = rect.height + "px";
 
     for (const el of overlay.querySelectorAll(".sei-el")) {
       const rawX = parseFloat(el.dataset.seiX) || 0;
       const rawY = parseFloat(el.dataset.seiY) || 0;
-      el.style.left = resolvePos(rawX, rect.width) + "px";
-      el.style.top = resolvePos(rawY, rect.height) + "px";
+      el.style.left = resolvePos(rawX, rect.width, scale) + "px";
+      el.style.top = resolvePos(rawY, rect.height, scale) + "px";
       el.style.fontSize = fontSize + "px";
     }
   }
@@ -190,13 +183,14 @@
       var data = await r.json();
       if (data && data.sei && data.sei.enabled === true) {
         sseStart();
+      } else {
+        sseStop();
       }
     } catch (e) {
-      sseStart();
+      sseStop();
     }
   }
 
-  // Expose global controls so pages can start/stop/restyle on demand
   window.SeiOSD = {
     start: sseStart,
     stop: sseStop,
@@ -204,8 +198,6 @@
       sseStop();
       checkAndStart();
     },
-    // Re-render the current overlay with the latest visual settings
-    // (called by the OSD settings modal on the preview page).
     repaint: function () {
       const overlay = document.getElementById(OVERLAY_ID);
       if (
