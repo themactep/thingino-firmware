@@ -523,7 +523,7 @@ endif
 export UBOOT_FLASH_CONTROLLER
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
-	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
+	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "$(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)"
 endif
 
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)

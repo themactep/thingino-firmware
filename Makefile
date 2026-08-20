@@ -261,6 +261,24 @@ ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
 endif
 
+# Capped XBurst1 SoCs (T10/T20/T21/T30) boot a TPL chain with modern u-boot; allow legacy names
+ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
+ifneq ($(SOC_MODEL),)
+UBOOT_BIN_NAME := $(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)
+# Camera defconfig can override the binary name (e.g. MMC boards produce
+# u-boot-with-spl-mmc-lzma.bin).  The defconfig is included before this
+# point, so BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME is already set when the
+# camera overrides it; the thingino.mk default matches SOC_UBOOT_BIN and
+# is not an override.
+_defconfig_bin := $(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
+ifneq ($(_defconfig_bin),$(UBOOT_BIN_NAME))
+ifneq ($(_defconfig_bin),)
+UBOOT_BIN_NAME := $(_defconfig_bin)
+endif
+endif
+endif
+endif
+
 TOOLCHAIN_SOC_TAG := $(SOC_ARCH)
 ifeq ($(SOC_ARCH),xburst1)
 ifeq ($(KERNEL_VERSION_4),y)
