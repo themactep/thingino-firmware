@@ -4,16 +4,12 @@
 WIREGUARD_LIB_ONLY=1
 . /etc/init.d/S42wireguard
 
-LOCK_DIR="/run/wireguard-watchdog.lock"
+LOCK_FILE="/run/wireguard-watchdog.lock"
 STATE_FILE="/run/wireguard-watchdog.state"
 
 acquire_lock() {
-	if mkdir "$LOCK_DIR" 2>/dev/null; then
-		trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT INT TERM
-		return 0
-	fi
-
-	exit 0
+	exec 9>"$LOCK_FILE"
+	flock -n 9 || exit 0
 }
 
 load_state() {
