@@ -131,14 +131,16 @@ start() {
 	wireguard_load_config || exit 1
 	wireguard_validate_config || exit 1
 
-	if ! network_is_active; then
-		echo -c 240 -e "- No active network connection"
-		return 0
-	fi
-
 	if [ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ]; then
 		echo -c 160 -e "WireGuard disabled" >&2
 		exit 1
+	fi
+
+	wireguard_watchdog_install_cron || exit 1
+
+	if ! network_is_active; then
+		echo -c 240 -e "- No active network connection; watchdog will retry"
+		return 0
 	fi
 
 	if ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP'; then
@@ -201,8 +203,6 @@ start() {
 		echo -c 240 -e "- Add routing to $r"
 		ip route add $r dev $WIREGUARD_INTERFACE
 	done
-
-	wireguard_watchdog_install_cron || exit 1
 }
 
 stop() {
