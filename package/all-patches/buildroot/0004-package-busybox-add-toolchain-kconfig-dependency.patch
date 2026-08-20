@@ -1,0 +1,12 @@
+diff --git a/package/busybox/busybox.mk b/package/busybox/busybox.mk
+index 855d553360..26aa6666dc 100644
+--- a/package/busybox/busybox.mk
++++ b/package/busybox/busybox.mk
+@@ -133,6 +133,7 @@ BUSYBOX_KCONFIG_FILE = $(BUSYBOX_CONFIG_FILE)
+ BUSYBOX_KCONFIG_FRAGMENT_FILES = $(call qstrip,$(BR2_PACKAGE_BUSYBOX_CONFIG_FRAGMENT_FILES))
+ BUSYBOX_KCONFIG_EDITORS = menuconfig xconfig gconfig
+ BUSYBOX_KCONFIG_OPTS = $(BUSYBOX_MAKE_OPTS)
++BUSYBOX_KCONFIG_DEPENDENCIES += toolchain
+
+ ifeq ($(BR2_PACKAGE_BUSYBOX_INDIVIDUAL_BINARIES),y)
+ define BUSYBOX_PERMISSIONS
