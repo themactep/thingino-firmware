@@ -160,6 +160,16 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
   supports a subset of POSIX plus some extensions; when in doubt, stick
   to POSIX. `shfmt` parses scripts as POSIX by default — if it flags
   something, fix the script, not the shebang.
+- **Files that ship on cameras carry no story.** Anything installed into
+  the rootfs — webui JS (`package/*/files/www/`), CGI scripts, init
+  scripts, `overlay/`, `board/` shell scripts — ships on a device where
+  nobody reads the source. Keep comments short and only where they
+  explain genuinely non-obvious control flow; a comment that restates
+  the code ("redirect to login") or narrates history ("this was lost
+  from a fork") is noise. The story — why a decision was made, what the
+  old behavior did wrong, benchmark numbers — belongs in the commit
+  message, PR description, or `docs/`, not in the code. Good code
+  should speak for itself.
 
 ## Container Builds
 
