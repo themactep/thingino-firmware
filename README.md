@@ -17,10 +17,10 @@ the list.
 
 We've split the Thingino repository into two branches: stable and master, to better manage development and provide reliable releases for users.
 
-**Stable Branch**
+**Ciao Branch**
 
 Provides a reliable, tested version of Thingino for general use. It includes carefully selected, stable changes. It uses the original ONVIF server and Prudynt with libconfig.
-The stable branch will receive critical fixes. New features will only be added once they are thoroughly tested and mature in the master branch.
+The ciao branch will receive critical fixes. New features will only be added once they are thoroughly tested and mature in the master branch.
 
 For users who want a dependable version of Thingino without needing to build or contribute to development.
 
