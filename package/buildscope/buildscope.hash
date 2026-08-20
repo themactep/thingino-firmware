@@ -1,2 +1,4 @@
-# Locally calculated
-sha256  36187c166d1b9c25f74e823d7fa7fcb126f42d0e0134c2eea1d32ecabd234ed6  buildscope-4d65bdffe40fa6e1b8c1deeefa5ba8832749469a-cargo6.tar.gz
+# Locally calculated, and matching the .sha256sum published beside each
+# asset at https://github.com/thingino/buildscope/releases/tag/v0.1.9
+sha256  0aebc222cc5d1946b5ca6b40913f26c3600cbdf49a5109a5c60d11c12adf8499  buildscope-x86_64-unknown-linux-musl
+sha256  ac26a74759123e0814a3765f19e7816174fd1d99a0d03b688a4ba6ff2efb8b58  buildscope-aarch64-unknown-linux-musl
