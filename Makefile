@@ -39,10 +39,10 @@ ifeq ($(WORKFLOW),)
 ifneq ($(filter update,$(MAKECMDGOALS)),)
 $(info Skipping dependency check for update target)
 else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
-	_dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
-	ifneq ($(lastword $(_dep_check)),0)
-	$(error Dependency check failed)
-	endif
+_dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
+ifneq ($(lastword $(_dep_check)),0)
+$(error Dependency check failed)
+endif
 endif
 else
 $(info Skipping dependency check for workflow)
