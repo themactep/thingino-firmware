@@ -487,7 +487,7 @@ endif
 export UBOOT_FLASH_CONTROLLER
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
-	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-with-spl-lzma.bin"
+	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "$(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)"
 endif
 
 # Whether a camera-named board is worth checking against the U-Boot being

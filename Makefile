@@ -264,6 +264,17 @@ endif
 ifneq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 ifneq ($(SOC_MODEL),)
 UBOOT_BIN_NAME := $(or $(SOC_UBOOT_BIN),u-boot-with-spl-lzma.bin)
+# Camera defconfig can override the binary name (e.g. MMC boards produce
+# u-boot-with-spl-mmc-lzma.bin).  The defconfig is included before this
+# point, so BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME is already set when the
+# camera overrides it; the thingino.mk default matches SOC_UBOOT_BIN and
+# is not an override.
+_defconfig_bin := $(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
+ifneq ($(_defconfig_bin),$(UBOOT_BIN_NAME))
+ifneq ($(_defconfig_bin),)
+UBOOT_BIN_NAME := $(_defconfig_bin)
+endif
+endif
 endif
 endif
 

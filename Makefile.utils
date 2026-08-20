@@ -49,7 +49,7 @@ FAT_START_MB := 1
 FAT_SIZE_MB  := 16
 ROOTFS_MMC := $(OUTPUT_DIR)/images/rootfs.ext2
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 	@$(TEAL) "$@"
 	@echo "Building MMC SD card image..."
 	# calculate image size
@@ -60,10 +60,23 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 	total_size=$$(( ($(SPL_PAD_TO) + 511) & ~511 )); \
 	perl -e 'print "INGE", pack("V", $$ARGV[0]), "\0"x24, "\xff"x4' $$total_size > $@.inge
 	dd if=$@.inge of=$@ bs=1 count=36 conv=notrunc status=none && rm -f $@.inge
-	# write SPL at block 34 (first SPL_PAD_TO bytes of U-Boot binary)
-	dd if=$(U_BOOT_BIN) of=$@ bs=512 seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none
-	# write U-Boot image at block 86 (after SPL_PAD_TO)
-	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$(SPL_PAD_TO) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
+	# write SPL + U-Boot from the binary to the SD image.
+	# Some U-Boot boards (e.g. isvp_t31x_msc0) produce a binary with
+	# the SD layout already embedded (SPL at block-34 offset inside the
+	# file); others produce a flat binary (SPL at offset 0).  Detect by
+	# checking whether the first 4 bytes are zero (pre-laid-out) or not.
+	_spl_skip=0; \
+	if [ "$$(xxd -l 4 -p $(U_BOOT_BIN))" = "00000000" ]; then \
+		_spl_skip=$(SPL_BLOCK); \
+	fi; \
+	dd if=$(U_BOOT_BIN) of=$@ bs=512 skip=$$_spl_skip seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none; \
+	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$$(( $$_spl_skip * 512 + $(SPL_PAD_TO) )) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
+	# write U-Boot environment (offset from U-Boot .config, converted to decimal for dd)
+	_env_off=$$(sed -n 's/^CONFIG_ENV_OFFSET=//p' $(OUTPUT_DIR)/build/uboot-*/\.config); \
+	if [ -n "$$_env_off" ]; then \
+		_env_dec=$$(printf '%d' "$$_env_off"); \
+		dd if=$(UB_ENV_BIN) of=$@ bs=1 seek=$$_env_dec conv=notrunc status=none; \
+	fi
 	# create partition table (overwrites block 0 but leaves boot data alone)
 	parted $@ --script mklabel msdos \
 		mkpart primary fat32 $(FAT_START_MB)MiB $$(( $(FAT_START_MB) + $(FAT_SIZE_MB) ))MiB \
