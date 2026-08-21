@@ -7,7 +7,7 @@ Thingino (_/θinˈdʒiːno/_, _thin-jee-no_) is an open-source firmware for Inge
 
 ### Supported Hardware
 
-Please find [the full list of supported cameras](docs/supported_hardware.md)
+Please find [the full list of supported cameras](docs/hardware/supported-hardware.md)
 in a separate document. Visit [our website][0] for an illustrated version of
 the list.
 
@@ -52,12 +52,26 @@ make
 
 Read [Building from sources][7] article for more info.
 
+### Building in a Container
+
+```
+git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
+cd thingino-firmware
+./build-container.sh
+```
+
+The build uses a prebuilt image from
+[ghcr.io/themactep/thingino-builder-image](https://github.com/themactep/thingino-builder-image),
+pulled automatically on first run. Requires Podman or Docker.
+
+Read [Building in a container](docs/build/container.md) for more info.
+
 ### Documentation
 
-- [Firmware Image Structure](docs/firmware-image-structure.md) - Partition layout and image assembly
-- [Firmware Dumping](docs/firmware.md) - How to backup existing firmware
-- [Camera Recovery](docs/camera-recovery.md) - Recovering from failed updates
-- [Local Build Settings](docs/local-build-settings.md) - Layered user-specific settings from `THINGINO_USER_DIR/common`, per camera, and per device IP
+- [Firmware Image Structure](docs/firmware/firmware-image-structure.md) - Partition layout and image assembly
+- [Firmware Dumping](docs/firmware/firmware.md) - How to backup existing firmware
+- [Camera Recovery](docs/firmware/camera-recovery.md) - Recovering from failed updates
+- [Local Build Settings](docs/build/local-build-settings.md) - Layered user-specific settings from `THINGINO_USER_DIR/common`, per camera, and per device IP
 
 ### Resources
 

@@ -437,6 +437,6 @@ Troubleshooting
 See also
 --------
 
-- `docs/diagnostics.md`
-- `docs/streamer.md`
+- `docs/device/diagnostics.md`
+- `docs/media/streamer.md`
 - `scripts/rtsp-stress-test.sh --help`

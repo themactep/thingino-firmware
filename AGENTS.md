@@ -37,7 +37,7 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make ram-build   # cold build in tmpfs (RA
 `ram-build` runs the whole output tree on a tmpfs to spare the SSD, then copies
 artifacts back to disk and frees the RAM. It is for **cold builds** only (the
 most disk-write-intensive case); incremental development builds (`make fast`)
-should be done on a real disk. See `docs/makefile.md`.
+should be done on a real disk. See `docs/build/makefile.md`.
 
 - `CAMERA=` can be supplied interactively (uses `scripts/select_camera.sh`).
 - `BOARD=` is an alias for `CAMERA=` (backward compat with CI).
@@ -164,7 +164,7 @@ before editing. Use `make rebuild-<pkg>` after changing overrides.
 - `package/thingino-webui/files/www/a/*.js` → formatted with **Prettier**.
 - Staged `/bin/sh` scripts → formatted with **shfmt** (`shfmt -w -i 0 -ci`).
 - Staged camera defconfigs → sorted with **`scripts/sort_defconfig.py`**
-  (see `docs/pre-commit-hooks.md` for the sort rules).
+  (see `docs/dev/pre-commit-hooks.md` for the sort rules).
 - `.githooks/pre-commit` must be active (`make setup-hooks`).
 - **Shell scripts must be ASCII only.** No Unicode box-drawing, em dashes,
   braille spinners, emoji, or other non-ASCII characters in `.sh` files.
@@ -197,7 +197,7 @@ Container engine auto-detects podman → docker fallback.
 
 ## Parallel development (git worktrees)
 
-One task, one branch, one worktree, one agent. See `docs/worktrees.md`.
+One task, one branch, one worktree, one agent. See `docs/dev/worktrees.md`.
 
 ```bash
 scripts/worktree.sh create <branch> [base]   # worktree + buildroot submodule + patches + shared dl
@@ -266,13 +266,13 @@ Always supply `Signed-off-by:` matching the git config when creating patches.
 
 Optional packages can contribute pages, scripts, and navigation items to the
 Thingino Web UI through a build-time manifest system.  See
-[docs/plugin-system.md](docs/plugin-system.md) for the full architecture.
+[docs/dev/plugin-system.md](docs/dev/plugin-system.md) for the full architecture.
 
 ### Quickstart for plugin authors
 
 1. Create your package normally in `package/<name>/`.
 2. Create a manifest at `package/<name>/files/<name>.webui.json` following the
-   schema in `docs/plugin-system.md` §3.
+   schema in `docs/dev/plugin-system.md` §3.
 3. In your package's `.mk`, add the webui dependency:
    ```make
    ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
