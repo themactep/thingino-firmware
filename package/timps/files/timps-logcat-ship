@@ -9,12 +9,20 @@ STATE=/tmp/.logcat-ship
 DUMP=/tmp/.logcat-dump.$$
 
 trap 'rm -f "$DUMP"' EXIT
-logcat -t >"$DUMP" 2>/dev/null || exit 0
+if ! logcat -t >"$DUMP" 2>/dev/null; then
+	# once per boot (marker in tmpfs): the shipper itself must not die silently
+	if [ ! -f /tmp/.logcat-ship-broken ]; then
+		logger -t "$TAG" "logcat -t failed - alog lines are no longer shipped to syslog"
+		touch /tmp/.logcat-ship-broken
+	fi
+	exit 0
+fi
+rm -f /tmp/.logcat-ship-broken
 [ -s "$DUMP" ] || exit 0
 
 last=0
 [ -r "$STATE" ] && read -r last <"$STATE" 2>/dev/null
-case "$last" in ''|*[!0-9.]*) last=0 ;; esac
+case "$last" in '' | *[!0-9.]*) last=0 ;; esac
 
 # awk keeps the numeric compare in one pass; the timestamps are epoch seconds
 # with a fractional part, so a string compare would be wrong.

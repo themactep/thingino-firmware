@@ -23,7 +23,9 @@ ensure_tls_certs() {
 	[ -n "$crt" ] && [ -n "$key" ] || return 0
 	[ -s "$crt" ] && [ -s "$key" ] && return 0
 	[ -x /usr/bin/generate-timps-tls-certs.sh ] || return 0
-	/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" >/dev/null 2>&1
+	# a failure must reach syslog: without the cert every TLS bind fails
+	out=$(/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" 2>&1) ||
+		logger -t timps "TLS cert generation failed: $out"
 }
 
 # Wait for the daemon to actually exit (IMP/rmem teardown can take a while);
