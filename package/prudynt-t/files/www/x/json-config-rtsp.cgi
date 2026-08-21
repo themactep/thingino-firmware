@@ -39,17 +39,14 @@ json_escape() {
 }
 
 read_config() {
-	username=$(jct "$ONVIF_CONFIG" get "server.username" 2>/dev/null)
-	password=$(jct "$ONVIF_CONFIG" get "server.password" 2>/dev/null)
 	onvif_port=$(jct "$ONVIF_CONFIG" get "server.port" 2>/dev/null)
 
+	username=$(jct "$PRUDYNT_CONFIG" get "rtsp.username" 2>/dev/null)
+	password=$(jct "$PRUDYNT_CONFIG" get "rtsp.password" 2>/dev/null)
 	rtsp_port=$(jct "$PRUDYNT_CONFIG" get "rtsp.port" 2>/dev/null)
 	rtsp_ch0=$(jct "$PRUDYNT_CONFIG" get "stream0.rtsp_endpoint" 2>/dev/null)
 	rtsp_ch1=$(jct "$PRUDYNT_CONFIG" get "stream1.rtsp_endpoint" 2>/dev/null)
 	rtsp_mic=$(jct "$PRUDYNT_CONFIG" get "rtsp.audio_only_endpoint" 2>/dev/null)
-
-	[ -z "$username" ] && username=$(jct "$PRUDYNT_CONFIG" get "rtsp.username" 2>/dev/null)
-	[ -z "$password" ] && password=$(jct "$PRUDYNT_CONFIG" get "rtsp.password" 2>/dev/null)
 }
 
 send_config() {
@@ -86,10 +83,8 @@ update_password() {
 
 	read_config
 
-	ensure_file "$ONVIF_CONFIG"
 	ensure_file "$PRUDYNT_CONFIG"
 
-	jct "$ONVIF_CONFIG" set "server.password" "$new_password" >/dev/null 2>&1
 	jct "$PRUDYNT_CONFIG" set "rtsp.password" "$new_password" >/dev/null 2>&1
 
 	username=${username:-$(jct "$PRUDYNT_CONFIG" get "rtsp.username" 2>/dev/null)}
