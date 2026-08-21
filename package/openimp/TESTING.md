@@ -2,7 +2,7 @@
 
 > Historical reference: many paths and expected artifacts below predate
 > OpenIMP's T31/T40/T41 device-build split and must not be used as current pass/fail
-> criteria. See [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md) for
+> criteria. See [`docs/media/open-isp-stack.md`](../../docs/media/open-isp-stack.md) for
 > current package/profile selection.
 
 This guide explains how to test the OpenIMP package to ensure it's working correctly.

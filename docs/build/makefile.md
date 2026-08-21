@@ -558,7 +558,7 @@ with a timestamped filename: `<camera>-<ip>-<YYYYMMDD-HHMMSS>.tar.gz`.
 make backup-overlay IP=192.168.1.10 THINGINO_BACKUP_DIR=/mnt/nas/camera-backups
 ```
 
-See [overlay-backup.md](overlay-backup.md) for full details including restore
+ See [overlay-backup.md](../firmware/overlay-backup.md) for full details including restore
 instructions and troubleshooting.
 
 ---
@@ -962,5 +962,5 @@ export THINGINO_OUTPUT_DIR=/custom/path       # Exact output dir (namespaced)
 
 For more information, see:
 - [Buildroot Documentation](buildroot.md)
-- [Firmware Structure](firmware-image-structure.md)
-- [Best Practices](best-practices.md)
+- [Firmware Structure](../firmware/firmware-image-structure.md)
+- [Best Practices](../dev/best-practices.md)

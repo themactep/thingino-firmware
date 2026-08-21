@@ -10,7 +10,7 @@
 #   scripts/worktree.sh remove <branch|path>     Remove a worktree (branch is preserved)
 #   scripts/worktree.sh list                     List all worktrees
 #
-# See docs/worktrees.md for the full workflow.
+# See docs/dev/worktrees.md for the full workflow.
 
 set -euo pipefail
 

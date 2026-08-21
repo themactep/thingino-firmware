@@ -1,7 +1,7 @@
 # OpenIMP Package for Thingino Firmware
 
 > For the complete open-stack profile and support matrix, see
-> [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md).
+> [`docs/media/open-isp-stack.md`](../../docs/media/open-isp-stack.md).
 
 This package provides an open-source implementation of the Ingenic IMP (Image Media Process) library.
 
