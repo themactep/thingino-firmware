@@ -237,7 +237,22 @@ prepare_portal() {
 	echo "Portal prepared at $(ts)"
 }
 
+ap_is_up() {
+	[ "$(wpa_cli -p /run/wpa_supplicant -i "$IFACE" status 2>/dev/null | sed -n 's/^wpa_state=//p')" = "COMPLETED" ]
+}
+
 finish_portal() {
+	i=0
+	while [ $i -lt 10 ] && ! ap_is_up; do
+		sleep 1
+		i=$((i + 1))
+	done
+	if ! ap_is_up; then
+		echo "ERROR: portal AP is not up; not starting DHCP/DNS" >&2
+		play /usr/share/sounds/configurationportalisdown.@SOUND_EXT@ 2>/dev/null
+		return 1
+	fi
+
 	echo "Start DHCP server"
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $PORTAL_IP /etc/udhcpd-portal.conf
 

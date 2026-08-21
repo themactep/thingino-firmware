@@ -8,6 +8,7 @@
     "mmc_cd": 58,
     "mmc_en": 57,
     "mmc_power": 61,
+    "speaker": 63,
     "spk_en": 63,
     "white_light_en": 47,
     "wlan": 78

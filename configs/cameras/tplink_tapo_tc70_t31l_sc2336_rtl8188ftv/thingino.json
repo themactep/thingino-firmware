@@ -4,6 +4,7 @@
     "ir850": 49,
     "ircut": "57o 58o",
     "mmc_power": 60,
+    "speaker": 63,
     "white": {
       "pin": 50,
       "active_low": true

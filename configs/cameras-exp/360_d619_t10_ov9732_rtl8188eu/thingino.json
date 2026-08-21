@@ -6,6 +6,7 @@
     "mmc_cd": 59,
     "ir850": 61,
     "wlan": 62,
-    "button_reset": 64
+    "button_reset": 64,
+    "speaker": 63
   }
 }

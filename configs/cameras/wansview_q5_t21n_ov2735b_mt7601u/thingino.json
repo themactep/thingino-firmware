@@ -11,7 +11,11 @@
       "pin": 72,
       "active_low": true
     },
-    "mmc_cd": 52
+    "mmc_cd": 52,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    }
   },
   "motors": {
     "gpio_invert": false,

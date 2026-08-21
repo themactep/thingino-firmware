@@ -5,6 +5,10 @@
     "ir850": 59,
     "ircut": "57 58",
     "mmc_cd": 49,
+    "speaker": {
+      "pin": 9,
+      "active_low": true
+    },
     "wlan": 10
   },
   "motors": {

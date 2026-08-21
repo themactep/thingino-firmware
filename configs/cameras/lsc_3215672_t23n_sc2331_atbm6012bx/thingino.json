@@ -4,6 +4,7 @@
     "ir850": 61,
     "ircut": "57O 58O",
     "mmc_cd": 59,
+    "speaker": 63,
     "wlan": {
       "pin": 62,
       "active_low": true

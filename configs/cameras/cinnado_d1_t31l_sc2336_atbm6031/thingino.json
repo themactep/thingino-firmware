@@ -4,6 +4,10 @@
     "ir940": 11,
     "ircut": "57 58",
     "mmc_cd": 50,
+    "speaker": {
+      "pin": 7,
+      "active_low": true
+    },
     "wlan": 47
   },
   "motors": {

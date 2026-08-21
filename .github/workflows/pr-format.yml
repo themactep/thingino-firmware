@@ -26,6 +26,7 @@ concurrency:
 
 env:
   SHFMT_VERSION: 3.13.1
+  SHELLCHECK_VERSION: 0.11.0
 
 jobs:
   format:
@@ -113,7 +114,22 @@ jobs:
           echo "Changed /bin/sh scripts are shfmt-formatted."
 
       - name: Install shellcheck
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+        # Pin the exact release instead of apt (ubuntu-latest ships an older
+        # shellcheck). Keeps pr-format in lockstep with lint.yml and local
+        # dev, both of which run 0.11.0.
+        run: |
+          set -eu
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64) sc_arch=x86_64 ;;
+            aarch64 | arm64) sc_arch=aarch64 ;;
+            *) echo "::error::unsupported architecture: $arch"; exit 1 ;;
+          esac
+          curl -fsSL -o /tmp/shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.${sc_arch}.tar.xz"
+          tar -xJf /tmp/shellcheck.tar.xz -C /tmp
+          install -m 0755 "/tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version
 
       - name: Lint changed shell scripts with shellcheck
         run: |

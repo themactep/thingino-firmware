@@ -6,6 +6,7 @@
     "mmc_cd": 49,
     "scl": "58i",
     "sda": "57i",
+    "speaker": 7,
     "wlan": 6
   },
   "motors": {

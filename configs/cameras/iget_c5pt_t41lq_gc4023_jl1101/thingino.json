@@ -5,6 +5,7 @@
     "ircut": "49 50",
     "led_b": 79,
     "led_r": 80,
+    "speaker": 63,
     "white": 81
   }
 }

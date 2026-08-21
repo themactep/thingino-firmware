@@ -8,6 +8,7 @@
     "led_b": 78,
     "mmc_cd": 58,
     "spk_en": 71,
-    "wlan": 60
+    "wlan": 60,
+    "speaker": 71
   }
 }

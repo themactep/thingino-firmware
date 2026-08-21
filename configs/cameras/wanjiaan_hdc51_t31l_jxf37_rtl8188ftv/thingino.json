@@ -3,6 +3,7 @@
     "button_reset": 54,
     "ircut": 49,
     "lds": 7,
-    "mmc_cd": 51
+    "mmc_cd": 51,
+    "speaker": 63
   }
 }

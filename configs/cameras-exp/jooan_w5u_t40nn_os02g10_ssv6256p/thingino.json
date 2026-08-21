@@ -9,7 +9,8 @@
     "led_r": 103,
     "mmc_cd": 70,
     "white": 100,
-    "wlan": 122
+    "wlan": 122,
+    "speaker": 63
   },
   "motors": {
     "gpio_pan": "112 111 110 109",

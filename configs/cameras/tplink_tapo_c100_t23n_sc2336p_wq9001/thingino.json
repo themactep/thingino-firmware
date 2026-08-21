@@ -16,6 +16,7 @@
         "active_low": false
       }
     ],
+    "speaker": 63,
     "white": {
       "pin": 50,
       "active_low": true

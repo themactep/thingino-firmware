@@ -2,6 +2,7 @@
   "gpio": {
     "ir850": 17,
     "ircut": "57 58",
+    "speaker": 10,
     "ttl_1": 51,
     "ttl_2": 54,
     "white": 8

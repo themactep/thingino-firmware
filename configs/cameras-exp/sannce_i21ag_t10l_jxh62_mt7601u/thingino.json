@@ -5,7 +5,8 @@
     "ircut": "26 25",
     "mmc_cd": 59,
     "scl": "13 58",
-    "sda": "12 57"
+    "sda": "12 57",
+    "speaker": 63
   },
   "motors": {
     "gpio_invert": false,

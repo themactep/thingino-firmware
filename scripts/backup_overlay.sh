@@ -44,7 +44,7 @@ echo "Camera image name: $CAMERA_NAME"
 # Step 2: Build output filename
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 IP_SAFE=$(printf '%s' "$IP_ADDRESS" | tr '.' '-')
-TARBALL_NAME="${CAMERA_NAME}-${IP_SAFE}-${TIMESTAMP}.tar.gz"
+TARBALL_NAME="${IP_SAFE}-${CAMERA_NAME}-${TIMESTAMP}.tar.gz"
 TARBALL_PATH="$BACKUP_DIR/$TARBALL_NAME"
 
 mkdir -p "$BACKUP_DIR"

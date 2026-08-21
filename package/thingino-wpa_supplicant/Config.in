@@ -5,7 +5,7 @@ config BR2_PACKAGE_THINGINO_WPA_SUPPLICANT
 	help
 	  Apply Thingino-specific overrides to wpa_supplicant. This
 	  disables unused features (smartcard, PKCS12, IEEE80211R,
-	  IEEE80211AC/AX, P2P, TDLS, MATCH_IFACE, debug file) and
+	  IEEE80211AC/AX/BE, P2P, TDLS, MATCH_IFACE, debug file) and
 	  enables Thingino-specific defaults.
 
 if BR2_PACKAGE_THINGINO_WPA_SUPPLICANT

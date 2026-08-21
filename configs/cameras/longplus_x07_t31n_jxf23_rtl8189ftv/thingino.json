@@ -3,7 +3,8 @@
     "button_reset": 52,
     "ir850": 9,
     "ircut": "48 47",
-    "mmc_cd": 59
+    "mmc_cd": 59,
+    "speaker": 63
   },
   "motors": {
     "gpio_invert": false,

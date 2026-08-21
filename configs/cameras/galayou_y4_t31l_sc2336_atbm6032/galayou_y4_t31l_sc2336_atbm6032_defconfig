@@ -18,7 +18,8 @@ BR2_PACKAGE_WIFI_ATBM6032=y
 BR2_SENSOR_1_NAME="sc2336"
 BR2_SENSOR_1_PARAMS="shvflip=1"
 BR2_THINGINO_AUDIO=y
-#BR2_THINGINO_AUDIO_GPIO=39
+# Speaker amp on GPIO 39 is unverified on this variant; to enable it, add
+# "speaker": 39 to the gpio section of thingino.json.
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_MOTORS=y
 BR2_THINGINO_RMEM_MB=22

@@ -7,7 +7,8 @@
     "mmc_cd": -1,
     "sub1g": 61,
     "white": 60,
-    "wlan": 57
+    "wlan": 57,
+    "speaker": 58
   },
   "chime": {
     "units": {},

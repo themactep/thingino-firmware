@@ -107,20 +107,51 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstr
 # dependency (below) so the tool exists when this runs.
 INGENIC_SDK_JCT = $(HOST_DIR)/bin/jct
 
+# Board wiring is read from the camera's own config file, NOT from
+# $(TARGET_DIR)/etc/thingino.json: thingino-core installs only
+# configs/common.thingino.json to the target and stages the camera json as
+# 90-camera.json, merging the two in a target-finalize hook that runs after
+# every package has installed. With per-package directories a package
+# therefore sees a thingino.json with no gpio section at all. This is also
+# the file the U-Boot device-tree injectors in package/thingino-uboot read,
+# so the kernel and the bootloader cannot end up driving different pins.
+# Like those injectors, it does not see user/ layer overrides.
+INGENIC_SDK_CAMERA_JSON = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json
+
+# Physical buttons come from gpio.button_reset and gpio.chime, accepted in
+# the section's usual shapes: a bare pin number, or a {"pin": N, ...} object.
+# The module wants KEYCODE,GPIO,ACTIVE_LOW triples joined by ";" (28 =
+# KEY_ENTER for reset, 2 = KEY_1 for the chime), and appends them to the
+# board's built-in button table.
+#
+# ACTIVE_LOW is fixed at 1 rather than read from the json. These are buttons
+# that pull the pin to ground against a pull-up, which is why
+# inject-uboot-mmc-dt.sh hardcodes GPIO_ACTIVE_LOW for this very same
+# gpio.button_reset; the bare-int short notation would claim active-high and
+# be wrong for every button in the fleet.
+#
+# Reads the camera config for the same reason INSTALL_AUDIO_SUPPORT does -
+# $(TARGET_DIR)/etc/thingino.json holds nothing but common.thingino.json
+# while this package installs, which is why this config had silently never
+# been generated at all.
 define GENERATE_GPIO_USERKEYS_CONFIG
-	if [ "$(BR2_INGENIC_SDK_GPIO_USERKEYS)" = "y" ] && [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
+	if [ "$(BR2_INGENIC_SDK_GPIO_USERKEYS)" = "y" ] && [ -r $(INGENIC_SDK_CAMERA_JSON) ]; then \
 		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
 			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
 		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null); \
-		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-			gpio_userkeys_config="28,$${button_reset},1"; \
-		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null); \
-		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
-			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
-		fi; \
+		for key_code in button_reset:28 chime:2; do \
+			key=$${key_code%%:*}; \
+			code=$${key_code##*:}; \
+			pin=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.$$key.pin 2>/dev/null); \
+			if [ -z "$$pin" ]; then \
+				pin=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.$$key 2>/dev/null); \
+			fi; \
+			case "$$pin" in \
+				"" | *[!0-9]*) continue ;; \
+			esac; \
+			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}$$code,$$pin,1"; \
+		done; \
 		if [ -n "$$gpio_userkeys_config" ]; then \
 			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/05-gpio-userkeys; \
 		fi; \
@@ -226,18 +257,35 @@ define GENERATE_MODULE_LOADER
 	fi
 endef
 
+# The speaker-amp enable line comes from gpio.speaker in the board's
+# thingino.json, in the same short notation as the rest of the gpio section:
+# a bare int is an active-high pin, {"pin": N, "active_low": true} an
+# active-low one. No key means the board has no amp gpio, which the codec
+# module reads as spk_gpio=-1 (it gates every drive on spk_gpio > 0, so the
+# level is moot). The same key is what package/thingino-uboot/
+# inject-uboot-audio-dt.sh puts in the U-Boot device tree as
+# ingenic,spk-gpio.
 define INSTALL_AUDIO_SUPPORT
-	gpio_speaker=$(BR2_THINGINO_AUDIO_GPIO); \
-	if [ -z "$$gpio_speaker" ]; then \
-		spk_gpio=-1; \
-		spk_level=-1; \
-	else \
-		spk_gpio=$$gpio_speaker; \
-		if [ "$(BR2_THINGINO_AUDIO_GPIO_LOW)" = "y" ]; then \
-			spk_level=0; \
-		else \
-			spk_level=1; \
+	spk_gpio=-1; \
+	spk_level=1; \
+	if [ -r $(INGENIC_SDK_CAMERA_JSON) ]; then \
+		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
+			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
 		fi; \
+		spk=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker.pin 2>/dev/null); \
+		if [ -z "$$spk" ]; then \
+			spk=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker 2>/dev/null); \
+		fi; \
+		case "$$spk" in \
+			"" | *[!0-9]*) ;; \
+			*) \
+				spk_gpio=$$spk; \
+				spk_al=$$($(INGENIC_SDK_JCT) $(INGENIC_SDK_CAMERA_JSON) get gpio.speaker.active_low 2>/dev/null); \
+				if [ "$$spk_al" = "true" ]; then \
+					spk_level=0; \
+				fi; \
+				;; \
+		esac; \
 	fi; \
 	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
 
