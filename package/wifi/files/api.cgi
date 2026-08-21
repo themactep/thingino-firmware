@@ -421,9 +421,6 @@ save_config() {
 		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' >/root/.ssh/authorized_keys
 	fi
 
-	# Update interface for onvif
-	jct /etc/onvif.json set ifs wlan0
-
 	# Success response
 	cat <<-EOF
 		{
