@@ -43,10 +43,17 @@ run() {
 		MOTION_PHOTO_FILE="$(mktemp /tmp/motion_XXXXXX 2>/dev/null)"
 		if [ -n "$MOTION_PHOTO_FILE" ]; then
 			curl --silent "$BASE/snapshot.jpg?chn=$CHAN" >"$MOTION_PHOTO_FILE"
-			[ -s "$MOTION_PHOTO_FILE" ] || {
+			if [ -s "$MOTION_PHOTO_FILE" ]; then
+				rm -f /tmp/.timps-motion-nophoto
+			else
 				rm -f "$MOTION_PHOTO_FILE"
 				MOTION_PHOTO_FILE=""
-			}
+				# once until it recovers: notifications go out without media
+				[ -f /tmp/.timps-motion-nophoto ] || {
+					logger -t timps-motion "snapshot fetch failed - motion notifications go out without photo"
+					touch /tmp/.timps-motion-nophoto
+				}
+			fi
 		fi
 	fi
 	if [ "$need_video" = "true" ]; then
@@ -60,7 +67,15 @@ run() {
 			curl --silent --max-time 20 -X POST "$BASE/control" \
 				-d "{\"record\":{\"clip\":\"$MOTION_VIDEO_FILE\",\"seconds\":$CLIP_SECS}}" \
 				>/dev/null 2>&1
-			[ -s "$MOTION_VIDEO_FILE" ] || MOTION_VIDEO_FILE=""
+			if [ -s "$MOTION_VIDEO_FILE" ]; then
+				rm -f /tmp/.timps-motion-noclip
+			else
+				MOTION_VIDEO_FILE=""
+				[ -f /tmp/.timps-motion-noclip ] || {
+					logger -t timps-motion "clip capture failed - motion notifications go out without video"
+					touch /tmp/.timps-motion-noclip
+				}
+			fi
 		fi
 	fi
 

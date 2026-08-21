@@ -2,7 +2,7 @@
 
 > Current integration supports OpenIMP on T31/Linux 3.10 and T40/T41 Linux 4.4.
 > Select `BR2_PACKAGE_THINGINO_ISP_OPEN=y` for the open-stack provider;
-> see [`docs/open-isp-stack.md`](../../docs/open-isp-stack.md).
+> see [`docs/media/open-isp-stack.md`](../../docs/media/open-isp-stack.md).
 
 ## What is OpenIMP?
 

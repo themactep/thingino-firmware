@@ -301,6 +301,6 @@ Then each branch gets its own shared directory:
 
 ## See Also
 
-- [Buildroot Manual - Using Buildroot Toolchain](buildroot/manual.text)
+- [Buildroot Manual - Using Buildroot Toolchain](../buildroot/manual.text)
 - Search for "SDK" and "BR2_HOST_DIR" in manual
 - `make sdk` - Alternative method using relocatable SDK

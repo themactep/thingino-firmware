@@ -397,7 +397,7 @@ user/
 
 ## Related documents
 
-- `docs/overlayfs.md` explains why `user/common/overlay/` ends up in the
+- `docs/firmware/overlayfs.md` explains why `user/common/overlay/` ends up in the
    writable overlay partition
-- `docs/local-overrides.md` covers package source overrides through `local.mk`
-- `docs/makefile.md` covers the general build workflow and config generation
+- `docs/build/local-overrides.md` covers package source overrides through `local.mk`
+- `docs/build/makefile.md` covers the general build workflow and config generation
