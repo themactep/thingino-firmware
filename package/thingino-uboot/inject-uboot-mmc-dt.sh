@@ -11,17 +11,42 @@
 #                   the plain probe behaviour.
 #   - gpio-keys   : a "reset" button from gpio.button_reset, so CONFIG_BUTTON_CMD
 #                   runs "button_cmd_0" (factory reset) when it is held at boot.
+#   - bus-width   : how many SD data lines the board actually routes. Not from
+#                   the json - it is passed in, because the kernel already gets
+#                   the same fact from BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT and
+#                   the two must not be declared apart.
 #
 # Numeric gpio flags are emitted (ACTIVE_LOW=1/PULL_UP=0x10) so the fragment
 # needs no dt-bindings include - not every SoC .dts pulls in gpio.h.
 #
-# Usage: inject-uboot-mmc-dt.sh <thingino.json> <leaf.dts> <dt-name>
+# Usage: inject-uboot-mmc-dt.sh <thingino.json> <leaf.dts> <dt-name> [bus-width]
 set -e
 
 JSON="$1"
 DTS="$2"
 DT="$3"
-[ -f "$JSON" ] && [ -f "$DTS" ] || exit 0
+BUSW="$4"
+[ -f "$DTS" ] || exit 0
+
+# ---- bus-width: how many SD data lines the board routes --------------------
+# Done before the json is read, because this one does not come from the json
+# and has to land even on a board that ships no thingino.json. A board that
+# routes only CLK/CMD/DAT0 still negotiates 4-bit happily - ACMD6 is CMD-line
+# only - and then reads every data block back with the upper bits of each
+# nibble missing, and the MSC raises no CRC error, so the corruption is silent.
+# Skipped when the leaf .dts states a width itself, i.e. when the build picked
+# one of U-Boot's *_mmc1bit defconfigs, which carry it in their own device tree.
+if [ -n "$BUSW" ] && ! grep -q 'bus-width' "$DTS"; then
+	case "$BUSW" in
+		1 | 4 | 8)
+			printf '\n&msc0 {\t/* SD data lines the board routes */\n\tbus-width = <%s>;\n};\n' "$BUSW" >>"$DTS"
+			echo "U-Boot: injected bus-width = <$BUSW>"
+			;;
+		*)
+			echo "U-Boot: ignoring invalid bus-width '$BUSW'" >&2
+			;;
+	esac
+fi
 
 # Read gpio.mmc_cd, gpio.mmc_power.{pin,active_low} and gpio.button_reset in one
 # shot. python3 is already a U-Boot build dependency (binman), so this needs no

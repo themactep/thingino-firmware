@@ -180,20 +180,30 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
 endif
 endif
 
-# Inject this board's MMC card-detect + slot-power into the per-SoC U-Boot
-# device tree from thingino.json (the GPIOs are board-specific, so they can't
-# live in the shared .dts). The helper appends a vmmc-supply regulator and, on
-# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
-# so the mmc core powers and detects the slot natively, with no env gpio gate
-# or power-up. The helper reads thingino.json with python3 (already a U-Boot
-# build dependency via binman).
+# The SD bus width this board wires, taken from the same symbol the kernel
+# reads (thingino-kopt turns it into CONFIG_JZMMC_V12_MMC0_1BIT) so the two
+# cannot be declared apart. Boards that route only CLK/CMD/DAT0 have to tell
+# U-Boot as well: 4-bit negotiation succeeds on them anyway and every data
+# block then reads back corrupt, with no CRC error to notice it by. Left empty
+# on a normal board, where the per-SoC .dts already says bus-width = <4>.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT),y)
+THINGINO_UBOOT_MMC_BUS_WIDTH = 1
+endif
+
+# Inject this board's MMC card-detect, slot-power and bus width into the
+# per-SoC U-Boot device tree (the GPIOs come from thingino.json; all of it is
+# board-specific, so none of it can live in the shared .dts). The helper
+# appends a vmmc-supply regulator and, on pull-up-capable SoCs, cd-gpios, to
+# this board's build copy of the leaf .dts - so the mmc core powers and detects
+# the slot natively, with no env gpio gate or power-up. The helper reads
+# thingino.json with python3 (already a U-Boot build dependency via binman).
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 define THINGINO_UBOOT_INJECT_MMC_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
 	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
 	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-mmc-dt.sh \
 		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
-		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT" "$(THINGINO_UBOOT_MMC_BUS_WIDTH)"
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
 endif
