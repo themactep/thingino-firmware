@@ -171,6 +171,24 @@ config BR2_PACKAGE_PRUDYNT_T_OSD_FONT_UNIFONT
 	  the IPU OSD region buffer limit sooner.  Takes precedence over
 	  the 8x8 font option if both are enabled.
 
+config BR2_PACKAGE_PRUDYNT_T_OSD_FONT_LIBSCHRIFT
+	bool "libschrift burn-in font (antialiased TrueType, ASCII only)"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN
+	select BR2_PACKAGE_LIBSCHRIFT
+	select BR2_PACKAGE_THINGINO_FONTS
+	help
+	  Render the burned-in timestamp overlay with antialiased TrueType
+	  glyphs via libschrift, reading /usr/share/fonts/default.ttf on
+	  the camera at runtime (installed by thingino-fonts).
+
+	  The glyph cache is single-byte (ASCII) only; Cyrillic and other
+	  UTF-8 text in the burn-in format string needs the Unifont bitmap
+	  font instead.
+
+	  Adds ~17KB to the prudynt binary (libschrift is linked
+	  statically, matching the pre-2026 wiring).
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T

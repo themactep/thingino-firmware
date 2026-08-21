@@ -1,7 +1,7 @@
 PRUDYNT_T_SITE_METHOD = git
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = c0c13fffd845e3522ea2b7afd8e6baa06677ce48
+PRUDYNT_T_VERSION = aa13045a6aa7fcae781b60449d9cd2cf00b39738
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -74,6 +74,10 @@ ifeq ($(BR2_PACKAGE_PRUDYNT_T_AAC),y)
 	PRUDYNT_T_USE_AAC = 1
 else
 	PRUDYNT_T_USE_AAC = 0
+endif
+
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_LIBSCHRIFT),y)
+	PRUDYNT_T_DEPENDENCIES += libschrift
 endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
@@ -205,6 +209,7 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_OSD_BURNIN=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN),1,0) \
 		USE_OSD_FONT8X8=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_8X8),1,0) \
 		USE_OSD_FONT_UNIFONT=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_UNIFONT),1,0) \
+		USE_OSD_FONT_LIBSCHRIFT=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_LIBSCHRIFT),1,0) \
 		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
