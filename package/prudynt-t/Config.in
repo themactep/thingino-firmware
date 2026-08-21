@@ -189,6 +189,23 @@ config BR2_PACKAGE_PRUDYNT_T_OSD_FONT_LIBSCHRIFT
 	  Adds ~17KB to the prudynt binary (libschrift is linked
 	  statically, matching the pre-2026 wiring).
 
+config BR2_PACKAGE_PRUDYNT_T_RTSP_IPV6
+	bool "IPv6-only RTSP server"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_PACKAGE_THINGINO_KOPT_IPV6
+	help
+	  Build the RTSP server and SDP generator to bind and advertise
+	  IPv6 only (AF_INET6, "IN IP6" in SDP origin lines) instead of
+	  the default IPv4-only server. Single-stack either way -- there
+	  is no dual-stack mode.
+
+	  Requires the global IPv6 option (thingino-kopt): kernel
+	  CONFIG_IPV6 plus DHCPv6 addressing via odhcp6c.
+
+comment "RTSP IPv6-only server needs thingino-kopt IPv6 (kernel CONFIG_IPV6)"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on !BR2_PACKAGE_THINGINO_KOPT_IPV6
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
