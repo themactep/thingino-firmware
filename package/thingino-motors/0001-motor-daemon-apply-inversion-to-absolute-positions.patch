@@ -1,0 +1,163 @@
+From: Lu-Fi <lutz@fiebach.de>
+Date: Sun, 16 Aug 2026 18:20:00 +0200
+Subject: [PATCH] motor-daemon: apply axis inversion to absolute positions too
+
+motor_steps_impl() converts relative moves out of the caller's logical
+frame into raw motor steps, so invert_x/invert_y work for the web UI
+arrows, ptz-ctrl and ONVIF RelativeMove. Absolute positions never got
+the same treatment: the 'h' handler subtracted the raw current position
+from the requested target and then pre-inverted the delta so the two
+inversions cancelled, and the status replies handed the raw counter
+straight back out. An absolute target therefore addressed the raw frame
+and ignored inversion entirely.
+
+That is not a corner case. ONVIF ContinuousMove implements "pan right"
+as an absolute move to max_step_x (see the move_x/move_y/move_both
+commands in onvif.json), so on an inverted unit ONVIF and the web UI
+drove the same axis in opposite physical directions, and no amount of
+invert_x/invert_y changed the ONVIF one.
+
+Convert at the IPC boundary instead: mirror an incoming absolute target
+into the raw frame, and mirror the reported position back out. For a
+bounded axis the relation is L = max - R rather than a sign flip, and it
+is its own inverse. Internal logic (homing, clamping, the profiled move
+worker) keeps working in raw steps and is untouched, and because the
+conversion sits on the socket, no caller can reach the motors in the raw
+frame by accident.
+
+Note for anyone with a stored pos_0 or ptz_presets entry on an inverted
+axis: those were recorded in the raw frame and are now read as logical,
+so they need re-saving (or mirroring once) on inverted units.
+---
+--- a/src/motor-daemon.c	2026-08-16 18:18:32.827784675 +0200
++++ b/src/motor-daemon.c	2026-08-16 18:21:27.594754094 +0200
+@@ -445,6 +445,15 @@
+   if (parsed) {
+     sanitize_axis_cfg(&g_cfg.pan);
+     sanitize_axis_cfg(&g_cfg.tilt);
++    // pos_0 / home_pan / home_tilt are written by humans and by the web UI,
++    // so they are logical like every other coordinate that crosses the socket.
++    // Everything that consumes g_cfg.*.home below (limit seeding, the homing
++    // center target) works in raw steps, so mirror once here and let the rest
++    // of the daemon stay raw.
++    if (g_cfg.pan.max_steps > 0 && (motor_inversion_state & MOTOR_INVERT_X))
++      g_cfg.pan.home = g_cfg.pan.max_steps - g_cfg.pan.home;
++    if (g_cfg.tilt.max_steps > 0 && (motor_inversion_state & MOTOR_INVERT_Y))
++      g_cfg.tilt.home = g_cfg.tilt.max_steps - g_cfg.tilt.home;
+     g_cfg.loaded = true;
+   } else {
+     syslog(LOG_DEBUG, "Config file missing required keys; using defaults");
+@@ -1075,6 +1084,53 @@
+     *dy = -*dy;
+ }
+ 
++// Coordinate frames.
++//
++// Everything inside this daemon - homing, clamping, the kernel counter itself
++// - works in RAW steps, which run in whatever direction the hardware happens
++// to be wired. Everything outside it (the web UI, ONVIF, ptz_presets, the init
++// script) speaks a LOGICAL frame in which +x/+y always mean the same apparent
++// direction on screen, whichever way this particular unit is mounted.
++//
++// Relative moves were already converted, by motor_steps_impl(). Absolute
++// positions were not: an absolute target and a reported position both went
++// through untranslated, so a caller that says "go to x=3700" reached the same
++// physical end stop no matter what invert_x said, while "jog by +100" went the
++// other way. ONVIF ContinuousMove is exactly such a caller - it implements
++// "pan right" as an absolute move to max_step_x - which is why inversion had
++// no effect on it.
++//
++// For a bounded axis the logical/raw relation is a mirror, L = max - R, not a
++// sign flip; the mapping is its own inverse, so one helper serves both ways.
++// Applied at the IPC boundary only (request in, reply out) so that no caller
++// can reach the motors in the raw frame, and no internal logic has to care.
++static int axis_mirror(int value, unsigned int max_steps, bool inverted) {
++  if (!inverted || max_steps == 0)
++    return value;
++  return (int)max_steps - value;
++}
++
++static int motor_x_to_raw(int logical, const struct motor_message *msg) {
++  return axis_mirror(logical, msg->x_max_steps,
++                     (motor_inversion_state & MOTOR_INVERT_X) != 0);
++}
++
++static int motor_y_to_raw(int logical, const struct motor_message *msg) {
++  return axis_mirror(logical, msg->y_max_steps,
++                     (motor_inversion_state & MOTOR_INVERT_Y) != 0);
++}
++
++// Status as the outside world should see it: raw counter mirrored back into
++// the logical frame, so that a position read here can be handed straight back
++// as an absolute target.
++static void motor_status_get_logical(struct motor_message *msg) {
++  motor_status_get(msg);
++  msg->x = axis_mirror(msg->x, msg->x_max_steps,
++                       (motor_inversion_state & MOTOR_INVERT_X) != 0);
++  msg->y = axis_mirror(msg->y, msg->y_max_steps,
++                       (motor_inversion_state & MOTOR_INVERT_Y) != 0);
++}
++
+ static void dispatch_profiled_move(int xsteps, int ysteps, int speed,
+                                    const char *log_tag) {
+   if (start_profiled_move_async(xsteps, ysteps, speed) == 0) {
+@@ -1629,13 +1685,22 @@
+           break;
+         case 'h': // absolute movement
+           motor_status_get(&motor_message);
++          // The target arrives in the logical frame; everything below this
++          // point is raw. An axis the caller did not specify keeps the raw
++          // current position, so it must not be mirrored.
+           if (request_message.got_x == 0)
+             request_message.x =
+                 motor_message.x; // as we are rewriting initial between requests
+                                  // this should not be necessary but leaving as
+                                  // is as to not break anything
++          else
++            request_message.x =
++                motor_x_to_raw(request_message.x, &motor_message);
+           if (request_message.got_y == 0)
+             request_message.y = motor_message.y;
++          else
++            request_message.y =
++                motor_y_to_raw(request_message.y, &motor_message);
+           {
+             int target_x = request_message.x;
+             int target_y = request_message.y;
+@@ -1741,23 +1806,23 @@
+         // This doesnt seem right, we are returning current information instead
+         // of initial parameters not correcting for now, as we want to have
+         // functional parity
+-        motor_status_get(&motor_message);
++        motor_status_get_logical(&motor_message);
+         syslog(LOG_DEBUG, "Got current status to load into command");
+         write(clientfd, &motor_message, sizeof(struct motor_message));
+         break;
+       case 'j': // get json
+-        motor_status_get(&motor_message);
++        motor_status_get_logical(&motor_message);
+         syslog(LOG_DEBUG, "Got current status to load into command");
+         write(clientfd, &motor_message, sizeof(struct motor_message));
+         break;
+       case 'p': // get simple x y position
+-        motor_status_get(&motor_message);
++        motor_status_get_logical(&motor_message);
+         syslog(LOG_DEBUG, "Got current status to load into command");
+         write(clientfd, &motor_message, sizeof(struct motor_message));
+ 
+         break;
+       case 'b': // is busy
+-        motor_status_get(&motor_message);
++        motor_status_get_logical(&motor_message);
+         syslog(LOG_DEBUG, "Got current status to load into command");
+         write(clientfd, &motor_message, sizeof(struct motor_message));
+ 
+@@ -1793,7 +1858,7 @@
+         }
+         break;
+       case 'S': // show status
+-        motor_status_get(&motor_message);
++        motor_status_get_logical(&motor_message);
+         motor_message.inversion_state = motor_inversion_state;
+         write(clientfd, &motor_message, sizeof(struct motor_message));
+         syslog(LOG_DEBUG, "Sent motor status");
