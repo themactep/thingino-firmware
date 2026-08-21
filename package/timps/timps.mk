@@ -610,9 +610,41 @@ endef
 define TIMPS_PURGE_STOCK_WEBUI
 	rm -f $(TARGET_DIR)/var/www/a/preview.js \
 	      $(TARGET_DIR)/var/www/a/sei-rotate.js
+	# Same argument, two orders of magnitude larger: "streamer" is a Kconfig
+	# choice, so prudynt and raptor cannot be installed beside timps - yet
+	# thingino-agent ships an adapter for each, 85 KB and 79 KB of shell that
+	# nothing on this image can ever call, plus prudynt's restart CGI and its
+	# helper directory. Removed here for the same reason as the two scripts
+	# above, and it has to be here: deleting them from $(TARGET_DIR) earlier
+	# is undone by the per-package merge that target-finalize runs first.
+	rm -f $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/prudynt.sh \
+	      $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh \
+	      $(TARGET_DIR)/var/www/x/restart-prudynt.cgi
+	rm -rf $(TARGET_DIR)/usr/share/prudynt-helpers
 endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_WEBUI_OVERLAY $(TARGET_FINALIZE_HOOKS)
 TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
+
+# libstdc++.so is 2130 KB and, once timps links the C++ runtime statically and
+# libaudioprocess-neo replaces the proprietary (C++) libaudioProcess.so, has no
+# consumer left. Verify that before removing: NEEDED scan only, so this cannot
+# see dlopen - hence the opt-in Kconfig entry.
+ifeq ($(BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP),y)
+define TIMPS_DROP_LIBSTDCPP
+	@users=$$(find $(TARGET_DIR) -type f \( -name '*.so*' -o -perm -u+x \) 2>/dev/null \
+	  | grep -v '/libstdc++\.so' \
+	  | xargs -r -n1 $(TARGET_READELF) -d 2>/dev/null \
+	  | grep -c 'NEEDED.*libstdc++' || true); \
+	if [ "$$users" = "0" ]; then \
+	  rm -f $(TARGET_DIR)/usr/lib/libstdc++.so*; \
+	  echo "timps: removed libstdc++.so (no NEEDED reference in the image)"; \
+	else \
+	  echo "timps: KEEPING libstdc++.so - $$users file(s) still link it"; \
+	fi
+endef
+TARGET_FINALIZE_HOOKS += TIMPS_DROP_LIBSTDCPP
+endif
+
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports
