@@ -432,6 +432,13 @@ ifeq ($(BR2_TARGET_UBOOT_BOARDNAME),)
 	# SOC_UBOOT is resolved for the flash type by the soc/<vendor>/ file.
 	UBOOT_BOARDNAME := $(or $(SOC_UBOOT),unknown)
 	BR2_TARGET_UBOOT_BOARDNAME := $(UBOOT_BOARDNAME)
+else
+	# The camera defconfig named a board. Carry it into UBOOT_BOARDNAME too:
+	# Makefile.targets writes UBOOT_BOARDNAME back out to the generated
+	# .config, so leaving it unset here clobbers the camera's own value with
+	# an empty string.
+	UBOOT_BOARDNAME := $(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARDNAME))
+	UBOOT_BOARDNAME_FROM_CAMERA := y
 endif
 
 # Flash type used for U-Boot defconfig lookup
@@ -483,9 +490,40 @@ ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 	BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-with-spl-lzma.bin"
 endif
 
+# Whether a camera-named board is worth checking against the U-Boot being
+# built, and whether that U-Boot has it.
+#
+# The list comes from package/all-patches/uboot/<version>/, which CI
+# regenerates from the pinned ingenic-t-series tree, so it holds the same
+# configs/ that tree does. Only meaningful for the Kconfig-era trees: 2013.07
+# picks boards out of boards.cfg and ignores BR2_TARGET_UBOOT_BOARD_DEFCONFIG
+# entirely, and a custom fork cannot be enumerated from here at all -- in both
+# cases there is nothing to check and the camera's name is taken as given.
+UBOOT_PATCH_FILES := $(wildcard $(BR2_EXTERNAL)/package/all-patches/uboot/$(subst -,.,$(THINGINO_UBOOT_VERSION_TAG))/*.patch)
+UBOOT_BOARDNAME_CHECKABLE := $(if $(filter y,$(UBOOT_BOARDNAME_FROM_CAMERA)),$(if $(filter-out 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),$(if $(UBOOT_PATCH_FILES),y)))
+UBOOT_BOARDNAME_MISSING := $(if $(filter y,$(UBOOT_BOARDNAME_CHECKABLE)),$(if $(shell grep -lsF 'diff --git a/configs/$(UBOOT_BOARDNAME)_defconfig ' $(UBOOT_PATCH_FILES)),,y))
+
 ifeq ($(BR2_TARGET_UBOOT_BOARD_DEFCONFIG),)
+	# BR2_TARGET_UBOOT_BOARDNAME only selects <name>_config on U-Boot's legacy
+	# build system. The Kconfig build system 2026.07 uses takes
+	# <name>_defconfig from BR2_TARGET_UBOOT_BOARD_DEFCONFIG instead, so a
+	# camera that names a board has to reach that symbol -- otherwise its board
+	# choice is dropped for the plain SoC defconfig with nothing to show for it
+	# (which is how the mmc1bit boards ended up running a 4-bit SD devicetree).
+	# UBOOT_BOARDNAME is already resolved above (camera name, else SOC_UBOOT).
+	UBOOT_DEFCONFIG := $(UBOOT_BOARDNAME)
+ifeq ($(UBOOT_BOARDNAME_MISSING),y)
+	# Some camera defconfigs still name 2013.07-era boards that the 2026.07
+	# tree never picked up (msc1, xiaomi, uart0, motorcomm). Those fall back to
+	# the SoC default the same as before -- but say so, rather than either
+	# failing the U-Boot configure or going quiet about it again.
+	# Unindented $(warning) for the same reason as the SOC_FAMILY $(error).
+$(warning U-Boot $(THINGINO_UBOOT_VERSION_TAG) has no $(UBOOT_BOARDNAME)_defconfig, falling back to $(or $(SOC_UBOOT),unknown))
 	UBOOT_DEFCONFIG := $(or $(SOC_UBOOT),unknown)
+endif
 	BR2_TARGET_UBOOT_BOARD_DEFCONFIG := $(UBOOT_DEFCONFIG)
+else
+	UBOOT_DEFCONFIG := $(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
 endif
 
 ifeq ($(SOC_MODEL),t10l)
