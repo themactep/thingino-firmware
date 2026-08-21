@@ -430,7 +430,8 @@ endef
 	sdk toolchain update br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
-	dfu scriba ota backup-overlay run show-vars user-dirs setup-hooks
+	backup-overlay user-dirs user-push \
+	dfu scriba ota run setup-hooks show-vars
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)

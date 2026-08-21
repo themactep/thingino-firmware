@@ -339,7 +339,11 @@ help:
 	                      upload and flash rootfs + data with config backup\n\
 	  make backup-overlay IP=192.168.1.10\n\
 	                      backup /overlay/ from camera to\n\
-	                        $(THINGINO_BACKUP_DIR)\n\n\
+	                        $(THINGINO_BACKUP_DIR)\n\
+	  make user-push IP=192.168.1.10\n\
+	                      apply user/ preference files (overlay,\n\
+	                        opt, thingino.json, prudynt.json) to an\n\
+	                        already-flashed camera, no rebuild\n\
 	"
 
 # Print key variables commonly needed for tooling
