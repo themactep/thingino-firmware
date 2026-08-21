@@ -108,14 +108,15 @@
       at the next keyframe; everything else needs a streamer restart &mdash; each save says which.
       Which fields do anything depends on the mode and SoC: quality level and change position
       count only for VBR/SMART on the older SoCs (T10&hellip;T30), fixed QP only in FIXQP mode.
-      Measured on T23: quality level reliably lowers the bitrate; change position showed no
-      measurable effect there.
+      Measured on T23: the controller is quality-seeking, so <em>Min QP</em> is the strongest
+      lever (raising it lowers the bitrate); quality level moves it more gently; change position
+      showed no measurable effect there.
     </p>
     <div class="row g-2">
       <div class="col">
         <p>
           <label for="stream0_min_qp">Min QP</label>
-          <input type="text" id="stream0_min_qp" name="stream0_min_qp" class="form-control" value="" title="1..51, lower bound for the rate controller">
+          <input type="text" id="stream0_min_qp" name="stream0_min_qp" class="form-control" value="" title="1..51. On T23-class SoCs the strongest bitrate lever: the controller encodes the best quality this allows (measured 20/30/38 -> 1743/1181/235 kbit/s)">
         </p>
         <p>
           <label for="stream0_max_qp">Max QP</label>
