@@ -5,8 +5,17 @@
  * page-streamer-substream -> 1).
  *
  * Every change goes to timpsApi.set({video:{idx:{key:val}}}) (audio switch
- * -> {audio:{enabled}}); ALL video/sensor keys are restart-required, so each
- * change shows the restart hint. Kept lean on purpose (embedded target): no
+ * -> {audio:{enabled}}). Since the live rate-control work, video keys are no
+ * longer uniformly restart-required: the daemon advertises the keys THIS
+ * camera can apply to the running encoder as caps.video_live, and every POST
+ * reply lists what did NOT apply live in deferred_keys. The per-save toast
+ * keys off the reply (runtime truth), the field styling keys off the caps
+ * (platform truth). Rate-control fields that cannot do anything on this
+ * SoC/mode/codec are disabled with the reason in their tooltip instead of
+ * being silently accepted. The read-only "Encoder readback" line shows what
+ * the encoder ACTUALLY holds (encoder.<n>.rc, GET /control) so a write can
+ * be checked against reality - the T23 investigation found knobs that
+ * persist fine and do nothing. Kept lean on purpose (embedded target): no
  * libraries, no polling, changes fire on 'change' only.
  */
 (function () {
@@ -36,7 +45,32 @@
     buffers: { key: "buffers", type: "int" },
     rtsp_endpoint: { key: "rtsp_path", type: "str" },
     enabled: { key: "enabled", type: "bool" },
+    qp: { key: "qp", type: "int" },
+    min_qp: { key: "min_qp", type: "int" },
+    max_qp: { key: "max_qp", type: "int" },
+    quality_lvl: { key: "quality_lvl", type: "int" },
+    change_pos: { key: "change_pos", type: "int" },
+    i_bias_lvl: { key: "i_bias_lvl", type: "int" },
+    fluc_lvl: { key: "fluc_lvl", type: "int" },
   };
+
+  // rate-control field applicability: which rc_mode / codec the SDK consults
+  // the field in, and whether only the classic SoCs (T10..T30) have it at
+  // all. Mirrors the field docs in timps.conf.example; the daemon accepts
+  // and persists everything regardless - this is about not offering a knob
+  // that provably does nothing on this camera.
+  var RC_FIELDS = {
+    qp: { modes: ["FIXQP"] },
+    min_qp: {},
+    max_qp: {},
+    quality_lvl: { modes: ["VBR", "SMART"], classicOnly: true },
+    change_pos: { modes: ["VBR", "SMART"], classicOnly: true },
+    i_bias_lvl: {},   // per-SoC: classic yes, T31/C100 via QpIPDelta, T40/T41 no
+    fluc_lvl: { codecs: ["H265"], classicOnly: true },
+  };
+  var CLASSIC_FAMS = ["t10", "t20", "t21", "t23", "t30"];
+  var NO_IBIAS_FAMS = ["t40", "t41"];
+  var videoLive = null; // caps.video_live once known (keys that apply live)
 
   // page codec/mode spelling <-> timps canonical (lowercase) spelling
   function codecToTimps(v) { return String(v).toLowerCase(); }        // H264 -> h264
@@ -83,6 +117,18 @@
       "Setting saved. Encoder changes take effect after a streamer restart (Restart streamer in the menu).",
       8000,
     );
+  }
+
+  // Per-save verdict from the POST reply (runtime truth, see control.h):
+  // deferred_keys lists the changed video/sensor keys that did NOT reach the
+  // running encoder. Absent field (older daemon) -> conservative restart
+  // hint, the pre-live behaviour.
+  function saveVerdict(r, fullKey) {
+    if (!r || !Array.isArray(r.deferred_keys)) { restartHint(); return; }
+    if (r.deferred_keys.indexOf(fullKey) >= 0) { restartHint(); return; }
+    if (r.changed > 0)
+      toast("success", "Applied to the running encoder; takes effect at the next keyframe.", 4000);
+    // unchanged re-post: nothing to announce
   }
 
   function setEnabled(id, on) {
@@ -155,7 +201,13 @@
     if (el) el.classList.add("opacity-75");
     window.timpsApi
       .set({ video: video })
-      .then(function (r) { applyCorrections(r); restartHint(); }, function (err) {
+      .then(function (r) {
+        applyCorrections(r);
+        saveVerdict(r, "video" + idx + "." + map.key);
+        if (RC_FIELDS[suffix] || suffix === "mode" || suffix === "format" || suffix === "bitrate")
+          rcGate();          // mode/codec switch changes which rc fields count
+        refreshRcHolds();    // show what the encoder holds after the write
+      }, function (err) {
         console.error("timps set failed:", err);
         toast("danger", "Failed to save setting: " + (err.message || err));
       })
@@ -210,6 +262,76 @@
     var video = {};
     video[FIELD_MAP[suffix].key] = data.value;
     populate(suffix, FIELD_MAP[suffix], video);
+    if (suffix === "mode" || suffix === "format") rcGate();
+  }
+
+  // Disable rc fields that provably cannot do anything with the current
+  // SoC/mode/codec, and say why in the tooltip; annotate the rest with
+  // whether they apply live (caps.video_live) or need a restart. Never
+  // guesses: an unknown SoC family stays fully enabled.
+  function rcGate() {
+    var fam = socFamily(
+      (window.thinginoUIConfig && window.thinginoUIConfig.device &&
+       window.thinginoUIConfig.device.soc) || null);
+    var classic = fam ? CLASSIC_FAMS.indexOf(fam) >= 0 : null;
+    var modeEl = $id(P + "mode"), fmtEl = $id(P + "format");
+    var mode = modeEl ? modeEl.value : "";
+    var codec = fmtEl ? fmtEl.value : "";
+    Object.keys(RC_FIELDS).forEach(function (suffix) {
+      var info = RC_FIELDS[suffix];
+      var el = $id(P + suffix);
+      if (!el) return;
+      var off = null;
+      if (classic === false && info.classicOnly)
+        off = "No effect on this SoC (new encoder API has no such field)";
+      else if (classic === false && suffix === "i_bias_lvl" &&
+               NO_IBIAS_FAMS.indexOf(fam) >= 0)
+        off = "This SoC's SDK cannot set the I-frame bias";
+      else if (info.modes && mode && info.modes.indexOf(mode) < 0)
+        off = "Only used in mode: " + info.modes.join("/");
+      else if (info.codecs && codec && info.codecs.indexOf(codec) < 0)
+        off = "Only used with codec: " + info.codecs.join("/");
+      setEnabled(P + suffix, !off);
+      var base = el.getAttribute("data-base-title");
+      if (base === null) {
+        base = el.title || "";
+        el.setAttribute("data-base-title", base);
+      }
+      var liveNote = "";
+      if (videoLive)
+        liveNote = videoLive.indexOf(FIELD_MAP[suffix].key) >= 0
+          ? " Applies live (next keyframe)."
+          : " Takes effect after a streamer restart.";
+      el.title = off ? off : (base + liveNote);
+    });
+  }
+
+  // Read-only line under the rc fields: what the encoder ACTUALLY holds
+  // (encoder.<idx>.rc from GET /control). Deliberately shown next to the
+  // editable (configured) values so written vs held can be compared - the
+  // whole point of the readback.
+  var RC_HOLD_ORDER = ["rc_mode", "bitrate", "max_bitrate", "qp", "min_qp",
+    "max_qp", "quality_lvl", "change_pos", "i_bias_lvl", "fluc_lvl",
+    "static_time", "frm_qp_step", "gop_qp_step", "ip_delta", "pb_delta",
+    "max_psnr"];
+  function refreshRcHolds() {
+    var el = $id(P + "rc_holds");
+    if (!el || !window.timpsApi) return;
+    window.timpsApi.get().then(function (json) {
+      var rc = json.encoder && json.encoder[idx] && json.encoder[idx].rc;
+      if (!rc) {
+        el.textContent =
+          "Encoder readback: not available (channel not running, or the daemon predates it).";
+        return;
+      }
+      var parts = [];
+      RC_HOLD_ORDER.forEach(function (k) {
+        if (rc[k] !== undefined) parts.push(k.replace(/_/g, " ") + " " + rc[k]);
+      });
+      el.textContent = "Encoder holds: " + parts.join(", ");
+    }, function () {
+      el.textContent = "Encoder readback: unavailable (streamer not reachable).";
+    });
   }
 
   function wireControls() {
@@ -278,6 +400,9 @@
           if (audio.enabled !== undefined) au.checked = !!Number(audio.enabled);
           setEnabled(P + "audio_enabled", true);
         }
+        videoLive = (json.caps && json.caps.video_live) || [];
+        rcGate();
+        refreshRcHolds();
         var offline = $id("timps-offline-notice");
         if (offline) offline.remove();
       })
