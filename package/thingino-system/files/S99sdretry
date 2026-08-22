@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# SD cards can enumerate after mdev's one-shot scan at S30. When that
+# happens the mmcblk partition node exists but no hotplug event fires
+# automount, so the card is never mounted and the mount point is never
+# created. Running at the very end of boot guarantees the card had the
+# whole boot to appear; re-fire the uevent to trigger the regular
+# automount path if it is still missing.
+
+start() {
+	for part in /sys/block/mmcblk*/mmcblk*p*; do
+		[ -e "$part" ] || continue
+		grep -qs "^/dev/${part##*/} " /proc/mounts && continue
+		echo add > "$part/uevent" 2>/dev/null
+	done
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit $?

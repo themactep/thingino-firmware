@@ -52,6 +52,8 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/usr/lib/mdev/automount; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S30mdev \
 			$(TARGET_DIR)/etc/init.d/S30mdev; \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S99sdretry \
+			$(TARGET_DIR)/etc/init.d/S99sdretry; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/formatsd \
 			$(TARGET_DIR)/usr/sbin/formatsd; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/envfromcard \
