@@ -1,18 +1,6 @@
 #!/bin/sh
-
-# Restore configuration files from the backup MTD partition after
-# firmware upgrades replaced the overlay partition.
-#
-# The marker file lives in /etc on the persistent overlay. Upgrades
-# that wipe the overlay (rootfs+data and full-chip flashes) also wipe
-# the marker, so the restore runs exactly once on the first boot after
-# such an upgrade. Upgrades that keep the overlay (kernel, bootloader)
-# keep the marker as well and skip the restore - the live configuration
-# survives those upgrades untouched and must not be overwritten with
-# an older snapshot.
-#
-# cfg-backup is installed by the thingino-sysupgrade package; builds
-# without it simply skip this script.
+# Restore config from the backup partition after an overlay-wiping
+# upgrade. See docs/sysupgrade.md.
 
 MARKER="/etc/.cfg-autorestore-done"
 
@@ -21,36 +9,19 @@ MARKER="/etc/.cfg-autorestore-done"
 case "$1" in
 	start)
 		if [ -f "$MARKER" ]; then
-			echo "Configuration already restored, skipping"
 			exit 0
 		fi
-
-		echo "Restoring configuration from backup"
 		if output=$(cfg-backup restore 2>&1); then
-			echo "$output"
 			touch "$MARKER"
 			sync
-			# Reboot for a clean boot with the restored files in
-			# place. The marker written above stops the loop.
 			reboot
 			exit 0
 		fi
-
-		# Fresh installs ship with an erased backup partition: skip
-		# quietly. Anything else is unexpected and worth surfacing.
-		# Do not touch the marker in either case, so a later upgrade
-		# still gets its restore.
+		# Erased partition on a fresh install: skip quietly.
+		# Leave the marker absent so a later upgrade restores.
 		case "$output" in
 			*"no valid backup"*) ;;
 			*) echo "cfg-autorestore: $output" >&2 ;;
 		esac
-		exit 0
-		;;
-	stop | restart)
-		# Nothing to do at shutdown; restore logic is boot-time only.
-		;;
-	*)
-		echo "Usage: $0 {start|stop|restart}" >&2
-		exit 1
 		;;
 esac
