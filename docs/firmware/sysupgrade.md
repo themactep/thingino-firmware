@@ -139,8 +139,12 @@ Stores selected config files to the raw 64KB backup partition (mtd2) before flas
 `ota-upgrade`). On rootfs/kernel-only upgrades the backup partition is untouched, so the
 snapshot survives the flash. On full upgrades (`-f` / `-B`) the image is flashed
 partition-by-partition; `sysupgrade` snapshots the config first and then skips the backup
-region, so the snapshot written moments earlier is preserved. Run `cfg-backup restore`
-manually after the reboot to put the files back into the fresh system.
+region, so the snapshot written moments earlier is preserved. The `S37cfg-autorestore`
+boot script puts the files back into the fresh system automatically: on the first boot
+after any upgrade that wiped the overlay (rootfs+data and full-chip flashes), it runs
+`cfg-backup restore` and reboots once more for a clean boot with the restored files.
+Upgrades that keep the overlay (kernel, bootloader) skip the restore, and fresh installs
+with no valid backup boot straight into the setup portal.
 
 ```sh
 # Manually (on the camera):
