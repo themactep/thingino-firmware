@@ -16,15 +16,58 @@ start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
 }
 
+# Returns 0 only if the daemon is genuinely gone afterwards, 1 otherwise.
+# stop() depends on that contract -- see the rmmod guard there.
+#
+# The daemon self-daemonizes (double-fork + setsid under -d, see
+# motor-daemon.c), so the PID start-stop-daemon records via -m is the
+# intermediate child, which exits immediately: the pidfile is stale from
+# the moment it is written and -K can never match the real process.
+# Confirmed live -- this used to print "no /usr/bin/motors-daemon found;
+# none killed" while ps plainly showed the daemon running, after which
+# stop() went on to rmmod the module out from under it. Because motor_fops
+# in ingenic-sdk's motor.c has no .owner = THIS_MODULE (see
+# themactep/ingenic-sdk#45), opening /dev/motor never takes a module
+# reference (/proc/modules shows use count 0 with a live opener), so that
+# rmmod SUCCEEDS and frees the module's code, IRQ handler and completions
+# under the running daemon -- leaving it in permanently uninterruptible D
+# state, immune to SIGKILL, recoverable only by a power cycle.
+#
+# Match anchored on the binary path: an unanchored -f pattern also
+# matches any shell/ssh command line that merely mentions the path
+# (verified -- an unanchored pgrep matched this script's own caller).
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		status=$?
+		start-stop-daemon -K -q -p "$PIDFILE" -x "$DAEMON" 2>/dev/null
 		rm -f "$PIDFILE"
-		return $status
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	if ! pgrep -f "^$DAEMON" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	pkill -TERM -f "^$DAEMON" 2>/dev/null
+
+	# 5s for a graceful exit, then escalate. Fractional sleep is
+	# supported by this firmware's busybox (verified).
+	i=0
+	while [ "$i" -lt 25 ]; do
+		pgrep -f "^$DAEMON" >/dev/null 2>&1 || return 0
+		i=$((i + 1))
+		sleep 0.2
+	done
+
+	echo "motors-daemon ignored SIGTERM, escalating to SIGKILL" >&2
+	pkill -KILL -f "^$DAEMON" 2>/dev/null
+
+	i=0
+	while [ "$i" -lt 25 ]; do
+		pgrep -f "^$DAEMON" >/dev/null 2>&1 || return 0
+		i=$((i + 1))
+		sleep 0.2
+	done
+
+	return 1
 }
 
 MOTORS_CONFIG="/etc/thingino.json"
@@ -173,7 +216,16 @@ start() {
 stop() {
 	echo -c 15 "Stopping motors"
 
-	stop_daemon
+	# Refuse to unload the module while anything still holds /dev/motor.
+	# The kernel will NOT stop us -- motor_fops lacks .owner = THIS_MODULE
+	# (themactep/ingenic-sdk#45), so the module's use count stays 0 even
+	# with a live opener and rmmod succeeds, orphaning that opener in
+	# unkillable D state (power cycle only). Failing loudly here is
+	# strictly better than that.
+	if ! stop_daemon; then
+		echo "motors-daemon still running; refusing to rmmod (would wedge it)" >&2
+		exit 1
+	fi
 
 	if ! rmmod motor; then
 		echo "Failed to unload motor module." >&2
