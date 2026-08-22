@@ -441,17 +441,20 @@
 
     document.body.insertAdjacentHTML("beforeend", MODAL_HTML);
 
-    // Floating OSD button over the preview image.
+    // OSD button in the Live View card header, next to Reload.
     var frame = document.getElementById("frame");
     var img = document.getElementById("preview");
-    var host = frame || (img && img.parentNode) || document.body;
+    var host =
+      document.querySelector(".preview-header-actions") ||
+      frame ||
+      (img && img.parentNode) ||
+      document.body;
     var btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "btn btn-outline-secondary btn-sm position-absolute";
+    btn.className = "btn btn-outline-secondary";
     btn.id = "preview-osd";
     btn.title = "OSD overlay settings";
     btn.innerHTML = '<i class="bi bi-fonts"></i> OSD';
-    btn.style.cssText = "top:8px;right:8px;z-index:20;";
     host.appendChild(btn);
 
     // Burn-in color swatches

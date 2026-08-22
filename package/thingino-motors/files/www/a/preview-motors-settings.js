@@ -349,17 +349,20 @@
 
     document.body.insertAdjacentHTML("beforeend", MODAL_HTML);
 
-    // Floating PTZ button over the preview image.
+    // PTZ button in the Live View card header, next to Reload.
     const frame = $("#frame");
     const img = $("#preview");
-    const host = frame || (img && img.parentNode) || document.body;
+    const host =
+      document.querySelector(".preview-header-actions") ||
+      frame ||
+      (img && img.parentNode) ||
+      document.body;
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "btn btn-outline-secondary btn-sm position-absolute";
+    btn.className = "btn btn-outline-secondary";
     btn.id = "preview-ptz";
     btn.title = "PTZ settings";
     btn.innerHTML = '<i class="bi bi-arrows-move"></i> PTZ';
-    btn.style.cssText = "top:8px;left:8px;z-index:20;";
     host.appendChild(btn);
 
     btn.addEventListener("click", async () => {
