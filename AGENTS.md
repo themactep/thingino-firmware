@@ -97,10 +97,18 @@ All of them are included and each opens with a `$(filter)` on its own models,
 so exactly one file's body applies. Kconfig cannot run make and `thingino.mk`
 needs the family before `.config` exists, so the map is stated in both places;
 adding a SoC means adding it to both.
+Family files describe hardware only. Which kernels a vendor's SoCs run lives in
+`kernels/<vendor>.mk`, because a family runs two or three of them and the branch
+is mostly decided by the architecture. That file sets `KERNEL_VERSION` when the
+defconfig set neither `KERNEL_VERSION_4` nor `_7`, then sets `KERNEL_BRANCH`,
+and `KERNEL_HASH` for a branch that is pinned. It is one chain per version,
+naming the families that differ and ending in the branch the rest of the
+architecture shares. Leaving `KERNEL_BRANCH` unset is how a combination is
+rejected: `thingino.mk` makes that an error, not a fallback. A vendor with no
+such file names its kernel through Buildroot symbols instead.
 `thingino.mk` exports key variables: `SOC_FAMILY`, `SOC_MODEL`, `SOC_RAM_MB`,
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
-Kernel branches are mapped from SOC family + version in `thingino.mk`.
 Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
 Kernel source: `github.com/gtxaspec/thingino-linux`.
 
