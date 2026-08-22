@@ -146,7 +146,7 @@ All settings live in `/etc/thingino.json` under the `snmpd` key.
 | `listen` | string | `""` | Bind to a single interface, e.g. `eth0`. Empty means all interfaces. |
 | `location` | string | `""` | sysLocation value (SNMPv2-MIB). May contain spaces. |
 | `contact` | string | `""` | sysContact value. May contain spaces. |
-| `description` | string | `""` | sysDescr value. When empty, falls back to `PRETTY_NAME` from `/etc/os-release`. |
+| `description` | string | `""` | sysDescr value. May contain spaces. When empty, the init script defaults it to `BUILD_ID` from `/etc/os-release` — the exact build stamp (`branch+hash, build time`) — so sysDescr always identifies the running firmware. |
 | `disks` | string | `"/,/overlay"` | Comma-separated mount points for the dskTable and hrStorageTable. Missing directories are silently skipped at start-up. |
 | `interfaces` | string | `""` | Comma-separated interface names (max 8). Empty means all interfaces. Supports wildcards: `eth+` matches eth0, eth1, etc.; `+` matches everything. |
 | `timeout` | integer | `1` | Seconds between MIB counter cache refreshes. |
@@ -182,7 +182,7 @@ All examples assume the camera is at `192.168.88.127` with community
 
 ```bash
 $ snmpget -v2c -c public 192.168.88.127 SNMPv2-MIB::sysDescr.0
-SNMPv2-MIB::sysDescr.0 = STRING: "Thingino 1 (Ciao)"
+SNMPv2-MIB::sysDescr.0 = STRING: "ciao+3f9a2c1, 2026-08-22 00:37:07 UTC"
 
 $ snmpget -v2c -c public 192.168.88.127 SNMPv2-MIB::sysUpTime.0
 SNMPv2-MIB::sysUpTime.0 = Timeticks: (123456) 0:20:34.56
@@ -190,6 +190,11 @@ SNMPv2-MIB::sysUpTime.0 = Timeticks: (123456) 0:20:34.56
 $ snmpget -v2c -c public 192.168.88.127 SNMPv2-MIB::sysName.0
 SNMPv2-MIB::sysName.0 = STRING: "ing-wyze-cam3-2937"
 ```
+
+> **Note:** `sysDescr` reports the exact build (`BUILD_ID` from
+> `/etc/os-release`, i.e. branch + 7-char commit hash + build time). The
+> human-readable name (`PRETTY_NAME`, e.g. "Thingino 1 (Ciao)") is no
+> longer served over SNMP by default.
 
 ### Interface statistics
 

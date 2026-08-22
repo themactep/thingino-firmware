@@ -18,8 +18,8 @@ Optional for discovery mode: `arp-scan` or `nmap`.
 # 1. Install dependencies
 sudo apt install snmp
 
-# 2. Add a camera
-./thingino-snmp-monitor.sh add front-door 192.168.1.100 mycommunity
+# 2. Add a camera (IP is the identity; name comes from the camera itself)
+./thingino-snmp-monitor.sh add 192.168.1.100 mycommunity
 
 # 3. See status
 ./thingino-snmp-monitor.sh status
@@ -32,13 +32,13 @@ sudo apt install snmp
 
 | Command | Description |
 |---|---|
-| `add <name> <ip> <community>` | Add a camera to the monitor config |
-| `remove <name>` | Remove a camera |
-| `list` | List all configured cameras |
+| `add <ip> <community>` | Add a camera to the monitor config |
+| `remove <ip>` | Remove a camera by IP |
+| `list` | List all configured cameras (hostname + firmware queried live) |
 | `discover [subnet]` | Scan the network for SNMP agents |
 | `status` | One-shot status table for all cameras |
 | `watch [interval]` | Live-refreshing terminal dashboard (default: 10s) |
-| `detail <name>` | Full breakdown for a single camera |
+| `detail <ip>` | Full breakdown for a single camera |
 | `html [file]` | Generate a self-contained HTML dashboard |
 | `alerts` | Check all cameras; report problems (exit ≠ 0 if issues) |
 
@@ -48,12 +48,31 @@ Cameras are stored in `~/.config/thingino/monitor.conf`:
 
 ```
 # Thingino camera monitor config
-front-door|192.168.88.127|mysecret
-backyard|192.168.88.128|mysecret
-garage|192.168.88.129|anothersecret
+192.168.88.127|mysecret
+192.168.88.128|mysecret
+192.168.88.129|anothersecret
 ```
 
-Format: `NAME|IP|COMMUNITY` (pipe-delimited, one per line, `#` for comments).
+Format: `IP|COMMUNITY` (pipe-delimited, one per line, `#` for comments).
+
+The **IP address is the camera's identity**. Every other piece of
+information shown by the tool (hostname, description, uptime, ...) is
+queried live from the camera over SNMP on each poll — nothing is cached
+in the config. So when a camera is replaced by another unit on the same
+IP (e.g. `192.168.88.34` now answers as `ing-vanhua-new-0001` instead of
+the old hostname), the status table, HTML dashboard and alerts all show
+the actual current unit.
+
+`list` and `status` report the exact firmware build from `sysDescr`
+(thingino-snmpd defaults it to `BUILD_ID` from `/etc/os-release`, i.e.
+`branch+7-char hash, build time`; the monitor displays it time-first,
+`build time, branch+hash` — see
+[docs/thingino/services/snmpd.md](../../services/snmpd.md)).
+
+Legacy `NAME|IP|COMMUNITY` entries are still read and are migrated to
+`IP|COMMUNITY` automatically the first time you remove an entry (or you
+can edit the file by hand). The stored name is dropped because it goes
+stale the moment the unit is swapped.
 
 You can also copy `monitor.conf.example` to `~/.config/thingino/monitor.conf`
 and edit in place.
