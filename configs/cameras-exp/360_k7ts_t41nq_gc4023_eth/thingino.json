@@ -11,11 +11,11 @@
       "pin": 81,
       "active_low": true
     },
-    "mmc_cd":{
+    "mmc_cd": {
       "pin": 58,
       "active_low": true
     },
-    "mmc_power":{
+    "mmc_power": {
       "pin": 59,
       "active_low": true
     },
@@ -30,7 +30,12 @@
     "invert_y": false,
     "is_spi": false,
     "presets": [
-      { "id": 0, "name": "Home", "x": 1967, "y": 548 }
+      {
+        "id": 0,
+        "x": 1967,
+        "y": 548,
+        "description": "Home"
+      }
     ],
     "speed_pan": 700,
     "speed_tilt": 700,

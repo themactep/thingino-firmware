@@ -2,9 +2,10 @@
 # shellcheck disable=SC1087 # $PRESETS is a JSONPath expression, not an array
 #
 # PTZ preset manager backed by the motors.presets array in /etc/thingino.json.
-# Each entry is {"id":N,"name":"..","x":N,"y":N}. The id is assigned at
-# creation and never renumbered by reorder or rename, so cruise paths can
-# reference presets by id even when the name changes.
+# Each entry is {"id":N,"description":"..","x":N,"y":N}. The id is the
+# automation handle (cruise paths, ONVIF tokens) and is never renumbered;
+# the description is the user-facing label. The machine name "Preset_<id>"
+# is derived for ONVIF and never stored.
 
 MOTORS_CONFIG="/etc/thingino.json"
 PRESETS='$.motors.presets'
@@ -13,8 +14,8 @@ LEGACY_CONF="/etc/ptz_presets.conf"
 usage() {
 	echo "Usage: $0 [-g] [-a <preset_id> <preset_name> [<x_coord> <y_coord>]] [-r <preset_id>] [-o <id,...>]
 	-g: Display all presets
-	-a: Add or overwrite a preset with id, name, and optionally coordinates.
-	    Use -1 as preset_id to auto-assign a new unique id.
+	-a: Add or overwrite a preset with id, description, and optionally coordinates.
+	    Use -1 as preset_id to fill the first free slot.
 	-r: Remove a preset by id
 	-o: Reorder presets (comma-separated list of ids)
 	<preset_id>: Run the specified preset
@@ -53,6 +54,12 @@ preset_by_id() {
 	preset_value "$PRESETS[?(@.id==$1)]" --mode values --unwrap-single
 }
 
+# Array index of the preset with the given id (empty when absent).
+preset_index_by_id() {
+	jct "$MOTORS_CONFIG" path "$PRESETS[?(@.id==$1)]" --mode paths 2>/dev/null |
+		sed -n 's/.*\[\([0-9][0-9]*\)\].*/\1/p'
+}
+
 preset_count() {
 	ids=$(preset_query "$PRESETS[*].id" --mode values)
 	case "$ids" in
@@ -61,12 +68,19 @@ preset_count() {
 	esac
 }
 
-max_preset_id() {
+# Lowest unused id (first free slot); max+1 when the range is contiguous.
+next_preset_id() {
 	ids=$(preset_query "$PRESETS[*].id" --mode values)
 	case "$ids" in
 		'[]') echo 0 ;;
 		*)
-			echo "$ids" | tr -d '[]' | awk -F, '{m=0; for (i=1; i<=NF; i++) if ($i+0 > m) m=$i+0; print m}'
+			echo "$ids" | tr -d '[]' | tr ',' '\n' | sort -n | awk '
+				BEGIN { next_id = 0; found = 0 }
+				{
+					if ($1 == next_id) { next_id++; next }
+					if ($1 > next_id) { print next_id; found = 1; exit }
+				}
+				END { if (!found) print next_id }'
 			;;
 	esac
 }
@@ -108,7 +122,7 @@ migrate_legacy_conf() {
 		[ "$first" = 1 ] || printf ',' >>"$tmp"
 		first=0
 		found=1
-		printf '{"id":%s,"name":"%s","x":%s,"y":%s}' \
+		printf '{"id":%s,"description":"%s","x":%s,"y":%s}' \
 			"$pnum" "$(json_escape "$pname")" "$px" "$py" >>"$tmp"
 	done <"$LEGACY_CONF"
 	printf ']\n' >>"$tmp"
@@ -129,10 +143,11 @@ case "$1" in
 		i=0
 		while [ "$i" -lt "$count" ]; do
 			id=$(jct "$MOTORS_CONFIG" get motors.presets.$i.id 2>/dev/null)
-			name=$(jct "$MOTORS_CONFIG" get motors.presets.$i.name 2>/dev/null)
 			x=$(jct "$MOTORS_CONFIG" get motors.presets.$i.x 2>/dev/null)
 			y=$(jct "$MOTORS_CONFIG" get motors.presets.$i.y 2>/dev/null)
-			echo "$id=$name,$x,$y"
+			# ONVIF name is derived from the id; the description never leaves
+			# the web UI.
+			echo "$id=Preset_$id,$x,$y"
 			i=$((i + 1))
 		done
 		exit 0
@@ -144,7 +159,7 @@ case "$1" in
 		}
 
 		INPUT_NUM=$2
-		PRESET_NAME=$3
+		PRESET_DESC=$3
 
 		if [ $# -ge 5 ]; then
 			PRESET_X=$4
@@ -170,8 +185,7 @@ case "$1" in
 		esac
 
 		if [ "$INPUT_NUM" = "-1" ]; then
-			PRESET_NUM=$(max_preset_id)
-			PRESET_NUM=$((PRESET_NUM + 1))
+			PRESET_NUM=$(next_preset_id)
 		else
 			case "$INPUT_NUM" in
 				'' | *[!0-9]*)
@@ -182,8 +196,17 @@ case "$1" in
 			PRESET_NUM=$INPUT_NUM
 		fi
 
-		NEW_OBJ=$(printf '{"id":%s,"name":"%s","x":%s,"y":%s}' \
-			"$PRESET_NUM" "$(json_escape "$PRESET_NAME")" "$PRESET_X" "$PRESET_Y")
+		# An empty description keeps the stored one on update; a new preset
+		# (or one still unnamed) gets a "Preset N" template so saves from
+		# NVR/TinyCam clients without a name stay identifiable in the web UI.
+		if [ -z "$PRESET_DESC" ]; then
+			idx=$(preset_index_by_id "$PRESET_NUM")
+			[ -n "$idx" ] && PRESET_DESC=$(jct "$MOTORS_CONFIG" get motors.presets."$idx".description 2>/dev/null)
+		fi
+		[ -z "$PRESET_DESC" ] && PRESET_DESC="Preset $PRESET_NUM"
+
+		NEW_OBJ=$(printf '{"id":%s,"description":"%s","x":%s,"y":%s}' \
+			"$PRESET_NUM" "$(json_escape "$PRESET_DESC")" "$PRESET_X" "$PRESET_Y")
 
 		tmp=$(mktemp)
 		printf '[' >"$tmp"
