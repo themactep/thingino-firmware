@@ -1,0 +1,20 @@
+#!/bin/sh
+# Restore config from the backup partition after an overlay-wiping
+# upgrade, then remove itself from the overlay to free space; the next
+# flashed image ships a fresh copy. See docs/sysupgrade.md.
+
+[ -x /usr/sbin/cfg-backup ] || exit 0
+
+if output=$(cfg-backup restore 2>&1); then
+	rm -- "$0"
+	sync
+	reboot
+	exit 0
+fi
+
+# Erased backup partition on a fresh install: remove quietly.
+# Any other failure is reported and retried on the next boot.
+case "$output" in
+	*"no valid backup"*) rm -- "$0" ;;
+	*) echo "cfg-autorestore: $output" >&2 ;;
+esac
