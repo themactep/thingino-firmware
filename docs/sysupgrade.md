@@ -142,9 +142,10 @@ partition-by-partition; `sysupgrade` snapshots the config first and then skips t
 region, so the snapshot written moments earlier is preserved. The `S37cfg-autorestore`
 boot script puts the files back into the fresh system automatically: on the first boot
 after any upgrade that wiped the overlay (rootfs+data and full-chip flashes), it runs
-`cfg-backup restore` and reboots once more for a clean boot with the restored files.
-Upgrades that keep the overlay (kernel, bootloader) skip the restore, and fresh installs
-with no valid backup boot straight into the setup portal.
+`cfg-backup restore`, removes itself from the overlay, and reboots once more for a clean
+boot with the restored files. A fresh copy ships with every flashed image. Upgrades that
+keep the overlay (kernel, bootloader) never run it, and fresh installs with no valid
+backup have it remove itself quietly on the first boot.
 
 ```sh
 # Manually (on the camera):
