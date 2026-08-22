@@ -227,10 +227,13 @@ textarea.nowrap {
   color: lightgray;
 }
 
-.card-header h2 + small + button {
+.card-header .preview-header-actions {
   position: absolute;
   right: 1rem;
   top: 1rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
 }
 
 .card-header .btn {
