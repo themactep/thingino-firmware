@@ -21,7 +21,12 @@
     "invert_y": false,
     "is_spi": false,
     "presets": [
-      { "id": 0, "name": "Home", "x": 1100, "y": 1000 }
+      {
+        "id": 0,
+        "x": 1100,
+        "y": 1000,
+        "description": "Home"
+      }
     ],
     "speed_pan": 700,
     "speed_tilt": 700,

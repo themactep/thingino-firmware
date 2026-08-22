@@ -17,7 +17,12 @@
     "invert_x": false,
     "invert_y": false,
     "presets": [
-      { "id": 0, "name": "Home", "x": 2000, "y": 350 }
+      {
+        "id": 0,
+        "x": 2000,
+        "y": 350,
+        "description": "Home"
+      }
     ],
     "speed_pan": 500,
     "speed_tilt": 500,

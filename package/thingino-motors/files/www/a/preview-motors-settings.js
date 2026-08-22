@@ -104,7 +104,7 @@
     "          </div>" +
     '          <div class="tab-pane fade" id="ptz-presets-pane" role="tabpanel" aria-labelledby="ptz-presets-tab">' +
     '            <div class="d-flex gap-2 mb-3">' +
-    '              <input type="text" class="form-control" id="ptz-preset-name" placeholder="Preset name, e.g. Front door" maxlength="32">' +
+    '              <input type="text" class="form-control" id="ptz-preset-name" placeholder="Preset description, e.g. Front door" maxlength="64">' +
     '              <button type="button" class="btn btn-outline-primary text-nowrap" id="ptz-preset-save" title="Save current position as a preset">' +
     '                <i class="bi bi-plus-circle me-1"></i>Save' +
     "              </button>" +
@@ -154,9 +154,9 @@
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.className = "form-control form-control-sm flex-grow-1 preset-name";
-    nameInput.value = p.name || "";
-    nameInput.maxLength = 32;
-    nameInput.placeholder = "Preset";
+    nameInput.value = p.description || "";
+    nameInput.maxLength = 64;
+    nameInput.placeholder = `Preset ${p.id}`;
 
     const xInput = document.createElement("input");
     xInput.type = "number";
@@ -175,7 +175,7 @@
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "btn btn-sm btn-outline-success";
-    saveBtn.title = "Save name and coordinates";
+    saveBtn.title = "Save description and coordinates";
     saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
 
     const moveBtn = document.createElement("button");
@@ -191,10 +191,10 @@
     delBtn.innerHTML = '<i class="bi bi-trash"></i>';
 
     saveBtn.addEventListener("click", () => {
-      const name = nameInput.value.trim();
-      if (!name) {
+      const description = nameInput.value.trim();
+      if (!description) {
         if (typeof showAlert === "function")
-          showAlert("warning", "Enter a name for the preset.", 3000);
+          showAlert("warning", "Enter a description for the preset.", 3000);
         return;
       }
       const x = xInput.value.trim();
@@ -204,7 +204,7 @@
           showAlert("warning", "Coordinates must be whole numbers.", 3000);
         return;
       }
-      runPresetAction("pu", { n: p.id, name, x, y });
+      runPresetAction("pu", { n: p.id, description, x, y });
     });
 
     moveBtn.addEventListener("click", () =>
@@ -377,13 +377,13 @@
     const presetSave = $("#ptz-preset-save");
     if (presetSave) {
       presetSave.addEventListener("click", async () => {
-        const name = $("#ptz-preset-name").value.trim();
-        if (!name) {
+        const description = $("#ptz-preset-name").value.trim();
+        if (!description) {
           if (typeof showAlert === "function")
-            showAlert("warning", "Enter a name for the preset first.", 3000);
+            showAlert("warning", "Enter a description for the preset first.", 3000);
           return;
         }
-        await runPresetAction("ps", { name });
+        await runPresetAction("ps", { description });
         $("#ptz-preset-name").value = "";
       });
     }

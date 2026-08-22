@@ -49,11 +49,11 @@ json_ok() {
 
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
-# URL-decode string params (name, n) — the rest are numeric/single char.
+# URL-decode string params (description, n) — the rest are numeric/single char.
 urldecode() {
 	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
-[ -n "$name" ] && name=$(urldecode "$name")
+[ -n "$description" ] && description=$(urldecode "$description")
 [ -n "$n" ] && n=$(urldecode "$n")
 [ -n "$order" ] && order=$(urldecode "$order")
 
@@ -89,15 +89,15 @@ case "$d" in
 		;;
 	pg)
 		# List PTZ presets from the motors.presets array in thingino.json:
-		# [{"id":N,"name":"..","x":N,"y":N}]
+		# [{"id":N,"description":"..","x":N,"y":N}]
 		presets_json=$(jct /etc/thingino.json path '$.motors.presets[*]' --mode values 2>/dev/null)
 		[ -n "$presets_json" ] || presets_json='[]'
 		json_ok "{\"presets\":$presets_json}"
 		;;
 	ps)
 		# Save current motor position as a preset (auto slot)
-		[ -n "$name" ] || json_error "preset-name-required"
-		output=$(ptz_presets -a -1 "$name" 2>&1) || json_error "preset-save-failed"
+		[ -n "$description" ] || json_error "preset-description-required"
+		output=$(ptz_presets -a -1 "$description" 2>&1) || json_error "preset-save-failed"
 		json_ok "{\"status\":\"$output\"}"
 		;;
 	pr)
@@ -113,16 +113,16 @@ case "$d" in
 		json_ok "{\"status\":\"preset $n deleted\"}"
 		;;
 	pu)
-		# Update an existing preset's name and coordinates
+		# Update an existing preset's description and coordinates
 		[ -n "$n" ] || json_error "preset-number-required"
-		[ -n "$name" ] || json_error "preset-name-required"
+		[ -n "$description" ] || json_error "preset-description-required"
 		case "$x" in
 			'' | *[!0-9]*) json_error "preset-x-invalid" ;;
 		esac
 		case "$y" in
 			'' | *[!0-9]*) json_error "preset-y-invalid" ;;
 		esac
-		ptz_presets -a "$n" "$name" "$x" "$y" >/dev/null 2>&1 || json_error "preset-update-failed"
+		ptz_presets -a "$n" "$description" "$x" "$y" >/dev/null 2>&1 || json_error "preset-update-failed"
 		json_ok "{\"status\":\"preset $n updated\"}"
 		;;
 	po)

@@ -462,21 +462,63 @@
     presets.forEach((p) => {
       const li = document.createElement("li");
       li.className = "list-group-item d-flex align-items-center gap-2";
-      li.innerHTML =
-        `<span class="flex-grow-1 text-truncate">${escapeHtml(
-          p.name || "Preset",
-        )}</span>` +
-        `<small class="text-secondary text-nowrap">${p.x}, ${p.y}</small>` +
-        `<button type="button" class="btn btn-sm btn-outline-primary" title="Move to this preset"><i class="bi bi-play-fill"></i></button>` +
-        `<button type="button" class="btn btn-sm btn-outline-danger" title="Delete preset"><i class="bi bi-trash"></i></button>`;
-      li.querySelector("button.btn-outline-primary").addEventListener(
-        "click",
-        () => presetAction("pr", { n: p.id }),
-      );
-      li.querySelector("button.btn-outline-danger").addEventListener(
-        "click",
-        () => presetAction("pd", { n: p.id }),
-      );
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "form-control form-control-sm flex-grow-1 preset-name";
+      nameInput.value = p.description || "";
+      nameInput.maxLength = 64;
+      nameInput.placeholder = `Preset ${p.id}`;
+
+      const xInput = document.createElement("input");
+      xInput.type = "number";
+      xInput.className = "form-control form-control-sm preset-x";
+      xInput.style.width = "4.5rem";
+      xInput.value = p.x;
+      xInput.min = "0";
+
+      const yInput = document.createElement("input");
+      yInput.type = "number";
+      yInput.className = "form-control form-control-sm preset-y";
+      yInput.style.width = "4.5rem";
+      yInput.value = p.y;
+      yInput.min = "0";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "btn btn-sm btn-outline-success";
+      saveBtn.title = "Save description and coordinates";
+      saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+      saveBtn.addEventListener("click", () => {
+        const description = nameInput.value.trim();
+        if (!description) {
+          showAlert("warning", "Enter a description for the preset.", 3000);
+          return;
+        }
+        const x = xInput.value.trim();
+        const y = yInput.value.trim();
+        if (!/^\d+$/.test(x) || !/^\d+$/.test(y)) {
+          showAlert("warning", "Coordinates must be whole numbers.", 3000);
+          return;
+        }
+        presetAction("pu", { n: p.id, description, x, y });
+      });
+
+      const moveBtn = document.createElement("button");
+      moveBtn.type = "button";
+      moveBtn.className = "btn btn-sm btn-outline-primary";
+      moveBtn.title = "Move to this preset";
+      moveBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+      moveBtn.addEventListener("click", () => presetAction("pr", { n: p.id }));
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "btn btn-sm btn-outline-danger";
+      delBtn.title = "Delete preset";
+      delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      delBtn.addEventListener("click", () => presetAction("pd", { n: p.id }));
+
+      li.append(nameInput, xInput, yInput, saveBtn, moveBtn, delBtn);
       presetsList.appendChild(li);
     });
   }
@@ -529,12 +571,12 @@
 
   if (presetSaveButton) {
     presetSaveButton.addEventListener("click", async () => {
-      const name = (presetNameInput ? presetNameInput.value : "").trim();
-      if (!name) {
-        showAlert("warning", "Enter a name for the preset first.", 3000);
+      const description = (presetNameInput ? presetNameInput.value : "").trim();
+      if (!description) {
+        showAlert("warning", "Enter a description for the preset first.", 3000);
         return;
       }
-      await presetAction("ps", { name });
+      await presetAction("ps", { description });
       if (presetNameInput) presetNameInput.value = "";
     });
   }
