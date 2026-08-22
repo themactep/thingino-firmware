@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC2086,SC2154,SC2317,SC3043
+# shellcheck disable=SC2016,SC2086,SC2154,SC2317,SC3043
 
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
@@ -119,8 +119,8 @@ start() {
 		exit 1
 	fi
 
-	# make sure the system clock is syncronized
-	ntpd -qnN
+	# sync clock; bounded so an unreachable NTP server can't deadlock boot
+	timeout 15 ntpd -qnN
 
 	echo -c 240 -e "- Create WireGuard network interface"
 	ip link add dev $WIREGUARD_INTERFACE type wireguard
