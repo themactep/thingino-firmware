@@ -17,7 +17,8 @@
   "styles": [],
   "preview": {
     "scripts": [
-      "/a/preview-motors.js"
+      "/a/preview-motors.js",
+      "/a/preview-motors-settings.js"
     ],
     "html": "<div class=\"position-absolute top-50 start-50 translate-middle\" id=\"motor-overlay\" style=\"display:none\">\n  <div id=\"motor\">\n    <div class=\"jst\">\n      <a class=\"s\" data-dir=\"uc\"></a>\n      <a class=\"s\" data-dir=\"ur\"></a>\n      <a class=\"s\" data-dir=\"cr\"></a>\n      <a class=\"s\" data-dir=\"dr\"></a>\n      <a class=\"s\" data-dir=\"dc\"></a>\n      <a class=\"s\" data-dir=\"dl\"></a>\n      <a class=\"s\" data-dir=\"cl\"></a>\n      <a class=\"s\" data-dir=\"ul\"></a>\n      <a class=\"b\" data-dir=\"h\"></a>\n    </div>\n  </div>\n</div>"
   },
