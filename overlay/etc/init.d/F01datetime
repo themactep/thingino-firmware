@@ -10,7 +10,7 @@ start() {
 		exit 1
 	fi
 
-	if date -u -s "@$(awk -F'=' '/^TIME_STAMP/{print $2}' "$OS_RELEASE_FILE")" >/dev/null; then
+	if date -u -s "@$(awk -F'=' '/^BUILD_TIMESTAMP/{print $2}' "$OS_RELEASE_FILE")" >/dev/null; then
 		echo -c 240 -e "- $(date) (fail-safe)"
 	else
 		echo -c 160 -e "Failed to set time" >&2
