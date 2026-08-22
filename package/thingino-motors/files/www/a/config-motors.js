@@ -183,10 +183,12 @@
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
     }
-    const posParts =
-      typeof config.pos_0 === "string" ? config.pos_0.split(/\s*,\s*/) : [];
-    setMotorFieldValue("pos_0_x", posParts[0] || "");
-    setMotorFieldValue("pos_0_y", posParts[1] || "");
+    const firstPreset =
+      Array.isArray(config.presets) && config.presets.length
+        ? config.presets[0]
+        : null;
+    setMotorFieldValue("pos_0_x", firstPreset ? firstPreset.x : "");
+    setMotorFieldValue("pos_0_y", firstPreset ? firstPreset.y : "");
     updateHomingInputs();
     motorIsSpi = config.is_spi === true || config.is_spi === "true";
     setMotorPinInputsEnabled(!motorIsSpi);
@@ -471,20 +473,19 @@
       const li = document.createElement("li");
       li.className = "list-group-item d-flex align-items-center gap-2";
       li.innerHTML =
-        `<span class="badge bg-secondary">${p.number}</span>` +
         `<span class="flex-grow-1 text-truncate">${escapeHtml(
-          p.name || `Preset ${p.number}`,
+          p.name || "Preset",
         )}</span>` +
         `<small class="text-secondary text-nowrap">${p.x}, ${p.y}</small>` +
         `<button type="button" class="btn btn-sm btn-outline-primary" title="Move to this preset"><i class="bi bi-play-fill"></i></button>` +
         `<button type="button" class="btn btn-sm btn-outline-danger" title="Delete preset"><i class="bi bi-trash"></i></button>`;
       li.querySelector("button.btn-outline-primary").addEventListener(
         "click",
-        () => presetAction("pr", { n: p.number }),
+        () => presetAction("pr", { n: p.id }),
       );
       li.querySelector("button.btn-outline-danger").addEventListener(
         "click",
-        () => presetAction("pd", { n: p.number }),
+        () => presetAction("pd", { n: p.id }),
       );
       presetsList.appendChild(li);
     });

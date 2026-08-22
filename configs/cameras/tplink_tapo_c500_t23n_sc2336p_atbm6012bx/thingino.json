@@ -21,7 +21,9 @@
     "invert_x": false,
     "invert_y": false,
     "is_spi": true,
-    "pos_0": "4100,2000",
+    "presets": [
+      { "id": 0, "name": "Home", "x": 4100, "y": 2000 }
+    ],
     "speed_pan": 500,
     "speed_tilt": 500,
     "steps_pan": 8200,

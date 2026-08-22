@@ -180,9 +180,14 @@ handle_post() {
 	motors_set_value homing "$homing_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
-		motors_set_value pos_0 "$pos_0_x,$pos_0_y"
-	else
-		motors_set_value pos_0 ""
+		# The initial point is the first preset; create it (id 0, "Home")
+		# when no preset exists yet.
+		if [ -z "$(motors_get_field presets.0.id)" ]; then
+			motors_set_value presets.0.id 0
+			motors_set_value presets.0.name "Home"
+		fi
+		motors_set_value presets.0.x "$pos_0_x"
+		motors_set_value presets.0.y "$pos_0_y"
 	fi
 
 	respond_with_config

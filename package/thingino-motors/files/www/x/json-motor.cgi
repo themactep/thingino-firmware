@@ -88,24 +88,10 @@ case "$d" in
 		json_ok "$payload"
 		;;
 	pg)
-		# List PTZ presets from /etc/ptz_presets.conf: [{"number":N,"name":"..","x":N,"y":N}]
-		presets_json="["
-		first=1
-		while IFS='=' read -r pnum rest; do
-			case "$pnum" in
-				\#* | "") continue ;;
-				*[!0-9]*) continue ;;
-			esac
-			pname="${rest%%,*}"
-			pcoords="${rest#*,}"
-			px="${pcoords%%,*}"
-			py="${pcoords#*,}"
-			[ -n "$px" ] && [ -n "$py" ] || continue
-			[ "$first" = "1" ] || presets_json="$presets_json,"
-			first=0
-			presets_json="$presets_json{\"number\":$pnum,\"name\":\"$(json_escape "$pname")\",\"x\":$px,\"y\":$py}"
-		done </etc/ptz_presets.conf 2>/dev/null
-		presets_json="$presets_json]"
+		# List PTZ presets from the motors.presets array in thingino.json:
+		# [{"id":N,"name":"..","x":N,"y":N}]
+		presets_json=$(jct /etc/thingino.json path '$.motors.presets[*]' --mode values 2>/dev/null)
+		[ -n "$presets_json" ] || presets_json='[]'
 		json_ok "{\"presets\":$presets_json}"
 		;;
 	ps)
@@ -140,73 +126,11 @@ case "$d" in
 		json_ok "{\"status\":\"preset $n updated\"}"
 		;;
 	po)
-		# Reorder presets: order is a comma-separated list of preset numbers.
-		# Presets are renumbered 0..N-1 in the new order; empty slots are
-		# kept at the end so the file's slot count is preserved.
+		# Reorder presets: order is a comma-separated list of preset ids.
+		# Ids are stable; only the array order changes.
 		[ -n "$order" ] || json_error "preset-order-required"
-
-		tmp=$(mktemp)
-
-		# Count slots (non-comment lines) to preserve the file's slot count.
-		slots=0
-		while IFS= read -r line; do
-			case "$line" in
-				\#* | '') continue ;;
-			esac
-			slots=$((slots + 1))
-		done </etc/ptz_presets.conf 2>/dev/null
-
-		# Preserve comment/header lines verbatim at the top.
-		while IFS= read -r line; do
-			case "$line" in
-				\#*) printf '%s\n' "$line" >>"$tmp" ;;
-			esac
-		done </etc/ptz_presets.conf 2>/dev/null
-
-		newnum=0
-
-		# Emit presets in the requested order, renumbered sequentially.
-		oldifs=$IFS
-		IFS=','
-		for pn in $order; do
-			IFS=$oldifs
-			case "$pn" in
-				'' | *[!0-9]*) continue ;;
-			esac
-			line=$(grep "^$pn=" /etc/ptz_presets.conf 2>/dev/null | head -n1)
-			if [ -n "$line" ]; then
-				printf '%s=%s\n' "$newnum" "${line#*=}" >>"$tmp"
-				newnum=$((newnum + 1))
-			fi
-			IFS=','
-		done
-		IFS=$oldifs
-
-		# Append populated presets not in the order list, renumbered.
-		while IFS= read -r line; do
-			case "$line" in
-				\#* | '') continue ;;
-			esac
-			pn=${line%%=*}
-			vals=${line#*=}
-			case "$vals" in
-				,,*) continue ;;
-			esac
-			case ",$order," in
-				*",$pn,"*) continue ;;
-			esac
-			printf '%s=%s\n' "$newnum" "$vals" >>"$tmp"
-			newnum=$((newnum + 1))
-		done </etc/ptz_presets.conf 2>/dev/null
-
-		# Pad with empty slots to preserve the original slot count.
-		while [ "$newnum" -lt "$slots" ]; do
-			printf '%s=,,\n' "$newnum" >>"$tmp"
-			newnum=$((newnum + 1))
-		done
-
-		mv "$tmp" /etc/ptz_presets.conf
-		json_ok "{\"status\":\"presets reordered\"}"
+		output=$(ptz_presets -o "$order" 2>&1) || json_error "preset-reorder-failed"
+		json_ok "{\"status\":\"$output\"}"
 		;;
 	*)
 		json_error "motors-command-unsupported"

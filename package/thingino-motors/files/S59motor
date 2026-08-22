@@ -57,14 +57,20 @@ set_motors_speed() {
 position_motors() {
 	local x y
 
-	pos_0=$(jct $MOTORS_CONFIG get motors.pos_0)
+	# Initial point is the first preset (motors.presets[0]); fall back to
+	# the legacy pos_0 key on configs that predate the presets array.
+	x=$(jct $MOTORS_CONFIG get motors.presets.0.x 2>/dev/null)
+	y=$(jct $MOTORS_CONFIG get motors.presets.0.y 2>/dev/null)
 
-	if [ -n "$pos_0" ]; then
-		x=$(echo $pos_0 | cut -d, -f1)
-		y=$(echo $pos_0 | cut -d, -f2)
-	else
-		x=$((steps_pan / 2))
-		y=$((steps_tilt / 2))
+	if [ -z "$x" ] || [ -z "$y" ]; then
+		pos_0=$(jct $MOTORS_CONFIG get motors.pos_0 2>/dev/null)
+		if [ -n "$pos_0" ]; then
+			x=$(echo $pos_0 | cut -d, -f1)
+			y=$(echo $pos_0 | cut -d, -f2)
+		else
+			x=$((steps_pan / 2))
+			y=$((steps_tilt / 2))
+		fi
 	fi
 
 	echo "Move to $x,$y"
