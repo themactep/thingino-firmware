@@ -11,21 +11,25 @@
 #   thingino-snmp-monitor.sh watch [interval]     # Watch mode (default 10s)
 #   thingino-snmp-monitor.sh discover [subnet]    # Auto-discover cameras
 #   thingino-snmp-monitor.sh html [file]          # Generate static HTML dashboard
-#   thingino-snmp-monitor.sh add <name> <ip> <community>  # Add camera to config
-#   thingino-snmp-monitor.sh remove <name>        # Remove camera from config
+#   thingino-snmp-monitor.sh add <ip> <community> # Add camera to config
+#   thingino-snmp-monitor.sh remove <ip>          # Remove camera from config
 #   thingino-snmp-monitor.sh list                 # List configured cameras
 #
 # Requires: snmpget, snmpwalk (apt install snmp)
 # Optional: arp-scan or nmap (for discovery mode)
 #
 # Config: ~/.config/thingino/monitor.conf
-#   Format: NAME|IP|COMMUNITY  (one per line, # for comments)
+#   Format: IP|COMMUNITY  (one per line, # for comments)
+#
+#   The IP address is the camera's identity. Everything else (hostname,
+#   description, ...) is pulled live from the camera over SNMP, so a unit
+#   replaced on the same IP is reported correctly.
 #
 #   Example:
 #     # Thingino camera monitor config
-#     front-door|192.168.88.127|mysecret
-#     backyard|192.168.88.128|mysecret
-#     garage|192.168.88.129|anothersecret
+#     192.168.88.127|mysecret
+#     192.168.88.128|mysecret
+#     192.168.88.129|anothersecret
 
 set -o pipefail
 
@@ -74,12 +78,6 @@ OID_HR_PROCESSES=".1.3.6.1.2.1.25.1.6.0"     # hrSystemProcesses
 OID_HR_MEMORY_SIZE=".1.3.6.1.2.1.25.2.2.0"   # hrMemorySize (KB)
 
 # -- terminal helpers ----------------------------------------------------
-bold()   { printf '\033[1m%s\033[0m' "$*"; }
-red()    { printf '\033[1;31m%s\033[0m' "$*"; }
-green()  { printf '\033[1;32m%s\033[0m' "$*"; }
-yellow() { printf '\033[1;33m%s\033[0m' "$*"; }
-cyan()   { printf '\033[1;36m%s\033[0m' "$*"; }
-dim()    { printf '\033[2m%s\033[0m' "$*"; }
 clear_screen() { printf '\033[2J\033[H'; }
 
 die() {
@@ -115,21 +113,34 @@ snmp_walk_column() {
 
 # -- config management ---------------------------------------------------
 load_config() {
+    # Emits canonical "IP|COMMUNITY" lines. Legacy "NAME|IP|COMMUNITY"
+    # entries are migrated on the fly - the stored name is dropped because
+    # the camera's current identity is queried live instead.
     if [ ! -f "$CONFIG_FILE" ]; then
         return 1
     fi
-    # Strip comments and blank lines
-    grep -v '^\s*#' "$CONFIG_FILE" | grep -v '^\s*$' || true
+    grep -v '^\s*#' "$CONFIG_FILE" | grep -v '^\s*$' | awk -F'|' '
+        NF >= 3 { ip = $2; comm = $3 }
+        NF == 2 { ip = $1; comm = $2 }
+        !seen[ip]++ { print ip "|" comm }
+    ' | sort -t'.' -k1,1n -k2,2n -k3,3n -k4,4n
 }
 
 get_camera_config() {
-    # Usage: get_camera_config <name>
-    # Returns: NAME|IP|COMMUNITY line
-    load_config | grep "^$1|" || true
+    # Usage: get_camera_config <ip>
+    # Returns: IP|COMMUNITY line
+    load_config | awk -F'|' -v key="$1" '$1 == key'
 }
 
-list_camera_names() {
-    load_config | cut -d'|' -f1
+live_identity() {
+    # Usage: live_identity <ip> <community>
+    # Returns: sysName|sysDescr (dashes when unreachable)
+    local name descr
+    name=$(snmp_get_stripped "$1" "$2" "$OID_SYS_NAME" 2>/dev/null || true)
+    descr=$(snmp_get_stripped "$1" "$2" "$OID_SYS_DESCR" 2>/dev/null || true)
+    [ -n "$name" ] || name="-"
+    [ -n "$descr" ] || descr="-"
+    echo "$name|$descr"
 }
 
 ensure_config_dir() {
@@ -149,59 +160,94 @@ cmd_list() {
     count=$(load_config | wc -l)
     echo "Configured cameras ($count):"
     echo
-    while IFS='|' read -r name ip community; do
-        printf '  %-20s %-18s %s\n' "$name" "$ip" "$community"
+
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap "rm -rf $tmpdir" EXIT
+
+    # Query each camera's current identity in parallel; never show a
+    # stale name from the config
+    local pids=()
+    while IFS='|' read -r ip community; do
+        (
+            live_identity "$ip" "$community" > "$tmpdir/$ip"
+        ) &
+        pids+=($!)
+    done < <(load_config)
+
+    for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    printf '  %-18s %-20s %-22s %s\n' 'IP' 'COMMUNITY' 'HOSTNAME' 'FIRMWARE'
+    printf '  %s\n' '------------------------------------------------------------'
+    while IFS='|' read -r ip community; do
+        local hostname="-" firmware="-"
+        if [ -f "$tmpdir/$ip" ]; then
+            local ident
+            ident=$(cat "$tmpdir/$ip")
+            hostname=$(echo "$ident" | cut -d'|' -f1)
+            firmware=$(echo "$ident" | cut -d'|' -f2)
+        fi
+        firmware=$(format_build "$firmware")
+        printf '  %-18s %-20s %-22s %s\n' "$ip" "$community" "$hostname" "$firmware"
     done < <(load_config)
 }
 
 cmd_add() {
-    local name="$1" ip="$2" community="$3"
-    if [ -z "$name" ] || [ -z "$ip" ] || [ -z "$community" ]; then
-        die "Usage: $0 add <name> <ip> <community>"
+    local ip="$1" community="$2"
+    if [ -z "$ip" ] || [ -z "$community" ]; then
+        die "Usage: $0 add <ip> <community>"
     fi
     ensure_config_dir
-
-    # Check for duplicate name
-    if get_camera_config "$name" | grep -q .; then
-        die "Camera '$name' already exists. Use 'remove' first to change it."
-    fi
 
     # Validate IP format loosely
     if ! echo "$ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
         die "Invalid IP address: $ip"
     fi
 
+    # IP is the identity; a duplicate IP means the same slot
+    if get_camera_config "$ip" | grep -q .; then
+        die "Camera at $ip already exists. Use 'remove' first to change it."
+    fi
+
     # Test SNMP connectivity before adding
     local sysname
     sysname=$(snmp_get_stripped "$ip" "$community" "$OID_SYS_NAME" 2>/dev/null || true)
     if [ -z "$sysname" ]; then
-        echo "$(yellow 'WARNING:') Could not reach SNMP agent at $ip with community '$community'"
+        echo "WARNING: Could not reach SNMP agent at $ip with community '$community'"
         echo "Adding anyway, but you may need to check the configuration."
         echo
     else
         echo "Camera responds: $sysname"
     fi
 
-    echo "$name|$ip|$community" >> "$CONFIG_FILE"
-    echo "Added camera '$name' at $ip"
+    echo "$ip|$community" >> "$CONFIG_FILE"
+    echo "Added camera at $ip"
 }
 
 cmd_remove() {
-    local name="$1"
-    if [ -z "$name" ]; then
-        die "Usage: $0 remove <name>"
+    local ip="$1"
+    if [ -z "$ip" ]; then
+        die "Usage: $0 remove <ip>"
     fi
     if [ ! -f "$CONFIG_FILE" ]; then
         die "No config file found."
     fi
-    if ! get_camera_config "$name" | grep -q .; then
-        die "Camera '$name' not found in config."
+    if ! get_camera_config "$ip" | grep -q .; then
+        die "Camera at $ip not found in config."
     fi
 
-    # Remove the line
-    grep -v "^$name|" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
+    # Drop the entry by IP; also rewrites legacy NAME|IP|COMMUNITY lines
+    # to the canonical IP|COMMUNITY format (comments pass through)
+    awk -F'|' -v key="$ip" '
+        /^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next }
+        NF >= 3 { entry_ip = $2; comm = $3 }
+        NF == 2 { entry_ip = $1; comm = $2 }
+        entry_ip != key { print entry_ip "|" comm }
+    ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
     mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-    echo "Removed camera '$name'"
+    echo "Removed camera at $ip"
 }
 
 snmp_probe_quick() {
@@ -309,7 +355,7 @@ cmd_discover() {
     case "$tool" in
         arp-scan)
             if [ "$(id -u)" -ne 0 ]; then
-                echo "$(yellow 'WARNING:') arp-scan may need root. Trying anyway..."
+                echo "WARNING: arp-scan may need root. Trying anyway..."
             fi
             live_hosts=$(arp-scan --quiet "$subnet" 2>/dev/null | awk '{print $1}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
             ;;
@@ -379,11 +425,12 @@ print_and_add_results() {
             comm=$(echo "$result" | cut -d'|' -f2)
             sysname=$(echo "$result" | cut -d'|' -f3)
             descr=$(echo "$result" | cut -d'|' -f4)
+            descr=$(format_build "$descr")
             if ip_in_config "$ip"; then
                 rm -f "$f"
                 already=$((already + 1))
             else
-                printf '  %-18s %-30s %-20s %s\n' "$ip" "$sysname" "$(dim "community: $comm")" "$descr"
+                printf '  %-18s %-30s %-20s %s\n' "$ip" "$sysname" "community: $comm" "$descr"
                 found=$((found + 1))
             fi
         fi
@@ -409,7 +456,7 @@ print_and_add_results() {
     echo
     read -r -p "Add these to the monitor config? [y/N] " reply
     if [ "$reply" != "y" ] && [ "$reply" != "Y" ]; then
-        echo "Skipped. Use 'add <name> <ip> <community>' to add manually."
+        echo "Skipped. Use 'add <ip> <community>' to add manually."
         return
     fi
 
@@ -426,37 +473,19 @@ print_and_add_results() {
         comm=$(echo "$result" | cut -d'|' -f2)
         sysname=$(echo "$result" | cut -d'|' -f3)
 
-        # Derive a short name from sysName: strip 'ing-' prefix, truncate
-        local suggested_name
-        suggested_name=$(echo "$sysname" | sed 's/^ing-//' | tr -cd 'a-zA-Z0-9-_' | cut -c1-30)
-        [ -z "$suggested_name" ] && suggested_name="camera-$ip"
-
-        if get_camera_config "$suggested_name" | grep -q .; then
-            suggested_name="${suggested_name}-2"
-        fi
-
         echo
         printf '  %-18s %s\n' "IP:" "$ip"
         printf '  %-18s %s\n' "Hostname:" "$sysname"
         printf '  %-18s %s\n' "Community:" "$comm"
-        read -r -p "  Name [$suggested_name]: " name
-        name="${name:-$suggested_name}"
 
-        name=$(echo "$name" | tr -d '|' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [ -z "$name" ]; then
-            echo "  $(yellow 'SKIPPED:') empty name"
+        if get_camera_config "$ip" | grep -q .; then
+            echo "  SKIPPED: $ip already in config"
             skipped=$((skipped + 1))
             continue
         fi
 
-        if get_camera_config "$name" | grep -q .; then
-            echo "  $(yellow 'SKIPPED:') '$name' already exists"
-            skipped=$((skipped + 1))
-            continue
-        fi
-
-        echo "$name|$ip|$comm" >> "$CONFIG_FILE"
-        echo "  $(green 'ADDED') as '$name'"
+        echo "$ip|$comm" >> "$CONFIG_FILE"
+        echo "  ADDED ($ip)"
         added=$((added + 1))
     done
 
@@ -470,7 +499,7 @@ cmd_status() {
         echo "No cameras configured."
         echo
         echo "Quick start:"
-        echo "  $0 add front-door 192.168.1.100 mycommunity"
+        echo "  $0 add 192.168.1.100 mycommunity"
         echo "  $0 discover                    # auto-detect cameras"
         exit 0
     fi
@@ -481,9 +510,9 @@ cmd_status() {
     trap "rm -rf $tmpdir" EXIT
 
     local pids=()
-    while IFS='|' read -r name ip community; do
+    while IFS='|' read -r ip community; do
         (
-            poll_camera "$name" "$ip" "$community" > "$tmpdir/$name"
+            poll_camera "$ip" "$community" > "$tmpdir/$ip"
         ) &
         pids+=($!)
     done < <(load_config)
@@ -495,67 +524,38 @@ cmd_status() {
 
     # Print header
     echo
-    bold "Thingino SNMP Monitor - $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Thingino SNMP Monitor - $(date '+%Y-%m-%d %H:%M:%S')"
     echo
 
-    # Table header (fixed-width columns) - pad before bolding to avoid
-    # ANSI escape codes fooling printf width calculation
-    local fmt_cols="%-20s %-16s %-14s %-5s %-6s %-7s %s\n"
-    local h_cam h_ip h_upt h_mem h_ld1 h_dsk h_dsc
-    h_cam=$(printf '%-20s' 'CAMERA')
-    h_ip=$(printf '%-16s' 'IP')
-    h_upt=$(printf '%-14s' 'UPTIME')
-    h_mem=$(printf '%-5s' 'MEM')
-    h_ld1=$(printf '%-6s' 'LOAD1')
-    h_dsk=$(printf '%-7s' 'DISK')
-    h_dsc='DESCRIPTION'
-    printf "$fmt_cols" \
-        "$(bold "$h_cam")" \
-        "$(bold "$h_ip")" \
-        "$(bold "$h_upt")" \
-        "$(bold "$h_mem")" \
-        "$(bold "$h_ld1")" \
-        "$(bold "$h_dsk")" \
-        "$(bold "$h_dsc")"
-    printf '%s\n' "$(printf '%80s' | tr ' ' '-')"
+    # Table header - fixed-width columns
+    local fmt_cols="%-18s %-22s %14s %5s %6s %5s %s\n"
+    printf "$fmt_cols" 'IP' 'CAMERA' 'UPTIME' 'MEM' 'LOAD1' 'DISK' 'DESCRIPTION'
+    printf '%s\n' "$(printf '%78s' | tr ' ' '-')"
 
-    # Print each camera row (in config order)
-    while IFS='|' read -r name ip community; do
-        if [ -f "$tmpdir/$name" ]; then
+    # Print each camera row (sorted by IP)
+    while IFS='|' read -r ip community; do
+        if [ -f "$tmpdir/$ip" ]; then
             local row
-            row=$(cat "$tmpdir/$name")
+            row=$(cat "$tmpdir/$ip")
             local status="${row%%|*}"
             local rest="${row#*|}"
 
-            # Pad name first, then colorize - escape codes fool printf's width calc
-            local pad_name
-            pad_name=$(printf '%-20s' "$name")
-
             if [ "$status" = "ONLINE" ]; then
+                local sysname uptime_str mem_pct load1 dsk_str descr
+                sysname=$(echo "$rest" | cut -d'|' -f1)
+                uptime_str=$(echo "$rest" | cut -d'|' -f2)
+                mem_pct=$(echo "$rest" | cut -d'|' -f3)
+                load1=$(echo "$rest" | cut -d'|' -f4)
+                dsk_str=$(echo "$rest" | cut -d'|' -f5)
+                descr=$(echo "$rest" | cut -d'|' -f6)
                 printf "$fmt_cols" \
-                    "$(green "$pad_name")" \
-                    "$ip" \
-                    "$(echo "$rest" | cut -d'|' -f1)" \
-                    "$(echo "$rest" | cut -d'|' -f2)" \
-                    "$(echo "$rest" | cut -d'|' -f3)" \
-                    "$(echo "$rest" | cut -d'|' -f4)" \
-                    "$(echo "$rest" | cut -d'|' -f5)"
+                    "$ip" "$sysname" "$uptime_str" "$mem_pct" "$load1" "$dsk_str" "$descr"
             else
                 printf "$fmt_cols" \
-                    "$(red "$pad_name")" \
-                    "$ip" \
-                    "$(red 'OFFLINE')" \
-                    "-" "-" "-" \
-                    "$(dim "$rest")"
+                    "$ip" "-" "OFFLINE" "-" "-" "-" "$rest"
             fi
         else
-            local pad_name
-            pad_name=$(printf '%-20s' "$name")
-            printf "$fmt_cols" \
-                "$(red "$pad_name")" \
-                "$ip" \
-                "$(red 'TIMEOUT')" \
-                "-" "-" "-" "-"
+            printf "$fmt_cols" "$ip" "-" "TIMEOUT" "-" "-" "-" "-"
         fi
     done < <(load_config)
 
@@ -563,9 +563,9 @@ cmd_status() {
 }
 
 # Poll a single camera, return a pipe-delimited row
-# Format: STATUS|uptime|mem_used%|cpu_used%|load1|disk_used%|description
+# Format: STATUS|sysname|uptime|mem_used%|load1|disk_used%|description|processes|rx|tx|iface
 poll_camera() {
-    local name="$1" ip="$2" community="$3"
+    local ip="$1" community="$2"
 
     # Quick ping-style check: get sysDescr
     local descr uptime_ticks mem_total mem_avail cpu_idle load1 dsk_path
@@ -575,6 +575,13 @@ poll_camera() {
         echo "OFFLINE|no response"
         return
     fi
+
+    # Identity comes from the camera itself
+    local sysname
+    sysname=$(snmp_get_stripped "$ip" "$community" "$OID_SYS_NAME" 2>/dev/null || echo "$ip")
+
+    # Build stamp is served as "branch+hash, timestamp"; display time first
+    descr=$(format_build "$descr")
 
     # Uptime
     uptime_ticks=$(snmp_get "$ip" "$community" "$OID_SYS_UPTIME" 2>/dev/null || echo "0")
@@ -632,10 +639,20 @@ poll_camera() {
     [ -z "$net_rx" ] && net_rx="?"
     [ -z "$net_tx" ] && net_tx="?"
 
-    # Truncate description
-    descr="${descr:0:40}"
+    # Truncate description (sysDescr holds the full build stamp)
+    descr="${descr:0:48}"
 
-    echo "ONLINE|${uptime_str}|${mem_pct}%|${load1}|${dsk_str}|${descr}|${processes}|${net_rx}|${net_tx}|${net_if}"
+    echo "ONLINE|${sysname}|${uptime_str}|${mem_pct}%|${load1}|${dsk_str}|${descr}|${processes}|${net_rx}|${net_tx}|${net_if}"
+}
+
+format_build() {
+    # Swap a BUILD_ID-shaped sysDescr ("branch+hash, timestamp") to
+    # "timestamp, branch+hash". Anything else passes through unchanged.
+    if echo "$1" | grep -qE '^[^,]+, [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} UTC$'; then
+        echo "$1" | sed -E 's/^([^,]+), (.*)$/\2, \1/'
+    else
+        echo "$1"
+    fi
 }
 
 format_bytes() {
@@ -689,7 +706,7 @@ cmd_watch() {
     while true; do
         clear_screen
         cmd_status
-        echo "$(dim "Refreshing every ${interval}s - Ctrl+C to exit")"
+        echo "Refreshing every ${interval}s - Ctrl+C to exit"
         sleep "$interval"
     done
 }
@@ -711,9 +728,9 @@ cmd_html() {
     trap "rm -rf $tmpdir" EXIT
 
     local pids=()
-    while IFS='|' read -r name ip community; do
+    while IFS='|' read -r ip community; do
         (
-            poll_camera "$name" "$ip" "$community" > "$tmpdir/$name"
+            poll_camera "$ip" "$community" > "$tmpdir/$ip"
         ) &
         pids+=($!)
     done < <(load_config)
@@ -766,25 +783,26 @@ cmd_html() {
 <div class="grid">
 HTML
 
-    while IFS='|' read -r name ip community; do
-        if [ -f "$tmpdir/$name" ]; then
+    while IFS='|' read -r ip community; do
+        if [ -f "$tmpdir/$ip" ]; then
             local row
-            row=$(cat "$tmpdir/$name")
+            row=$(cat "$tmpdir/$ip")
             local status="${row%%|*}"
             local rest="${row#*|}"
 
             if [ "$status" = "ONLINE" ]; then
-                local uptime_str mem_str load1 dsk_str descr processes net_rx net_tx net_if
-                uptime_str=$(echo "$rest" | cut -d'|' -f1)
-                mem_str=$(echo "$rest" | cut -d'|' -f2)
+                local sysname uptime_str mem_str load1 dsk_str descr processes net_rx net_tx net_if
+                sysname=$(echo "$rest" | cut -d'|' -f1)
+                uptime_str=$(echo "$rest" | cut -d'|' -f2)
+                mem_str=$(echo "$rest" | cut -d'|' -f3)
                 mem_str="${mem_str%\%}"
-                load1=$(echo "$rest" | cut -d'|' -f3)
-                dsk_str=$(echo "$rest" | cut -d'|' -f4)
-                descr=$(echo "$rest" | cut -d'|' -f5)
-                processes=$(echo "$rest" | cut -d'|' -f6)
-                net_rx=$(echo "$rest" | cut -d'|' -f7)
-                net_tx=$(echo "$rest" | cut -d'|' -f8)
-                net_if=$(echo "$rest" | cut -d'|' -f9)
+                load1=$(echo "$rest" | cut -d'|' -f4)
+                dsk_str=$(echo "$rest" | cut -d'|' -f5)
+                descr=$(echo "$rest" | cut -d'|' -f6)
+                processes=$(echo "$rest" | cut -d'|' -f7)
+                net_rx=$(echo "$rest" | cut -d'|' -f8)
+                net_tx=$(echo "$rest" | cut -d'|' -f9)
+                net_if=$(echo "$rest" | cut -d'|' -f10)
 
                 local net_rx_fmt net_tx_fmt
                 net_rx_fmt=$(format_bytes "$net_rx")
@@ -798,7 +816,7 @@ HTML
                 cat <<CARD
 <div class="card">
   <div class="card-header">
-    <span class="card-name online">$name</span>
+    <span class="card-name online">$sysname</span>
     <span class="card-ip">$ip</span>
   </div>
   <div class="card-desc">$descr -- uptime: $uptime_str -- $processes processes</div>
@@ -831,8 +849,7 @@ CARD
                 cat <<CARD
 <div class="card offline">
   <div class="card-header">
-    <span class="card-name offline">$name</span>
-    <span class="card-ip">$ip</span>
+    <span class="card-name offline">$ip</span>
   </div>
   <div class="card-desc">[OFFLINE] no SNMP response</div>
 </div>
@@ -842,8 +859,7 @@ CARD
             cat <<CARD
 <div class="card offline">
   <div class="card-header">
-    <span class="card-name offline">$name</span>
-    <span class="card-ip">$ip</span>
+    <span class="card-name offline">$ip</span>
   </div>
   <div class="card-desc">[OFFLINE] Timeout</div>
 </div>
@@ -873,9 +889,9 @@ cmd_alerts() {
     trap "rm -rf $tmpdir" EXIT
 
     local pids=()
-    while IFS='|' read -r name ip community; do
+    while IFS='|' read -r ip community; do
         (
-            poll_camera "$name" "$ip" "$community" > "$tmpdir/$name"
+            poll_camera "$ip" "$community" > "$tmpdir/$ip"
         ) &
         pids+=($!)
     done < <(load_config)
@@ -884,53 +900,53 @@ cmd_alerts() {
         wait "$pid" 2>/dev/null || true
     done
 
-    while IFS='|' read -r name ip community; do
-        if [ -f "$tmpdir/$name" ]; then
+    while IFS='|' read -r ip community; do
+        if [ -f "$tmpdir/$ip" ]; then
             local row
-            row=$(cat "$tmpdir/$name")
+            row=$(cat "$tmpdir/$ip")
             local status="${row%%|*}"
             local rest="${row#*|}"
 
             if [ "$status" != "ONLINE" ]; then
-                echo "$(red "OFFLINE:") $name ($ip) - no SNMP response"
+                echo "OFFLINE: $ip - no SNMP response"
                 had_alert=1
                 continue
             fi
 
-            local mem_pct
-            mem_pct=$(echo "$rest" | cut -d'|' -f2 | tr -d '%')
+            local sysname mem_pct
+            sysname=$(echo "$rest" | cut -d'|' -f1)
+            mem_pct=$(echo "$rest" | cut -d'|' -f3 | tr -d '%')
 
             if [ "$mem_pct" -gt 90 ] 2>/dev/null; then
-                echo "$(red "HIGH MEMORY:") $name ($ip) - ${mem_pct}% used"
+                echo "HIGH MEMORY: $sysname ($ip) - ${mem_pct}% used"
                 had_alert=1
             fi
         fi
     done < <(load_config)
 
     if [ "$had_alert" -eq 0 ]; then
-        echo "$(green "ALL OK:") All cameras are online and healthy."
+        echo "ALL OK: All cameras are online and healthy."
     fi
 }
 
 # -- detailed view -------------------------------------------------------
 cmd_detail() {
-    local name="$1"
-    if [ -z "$name" ]; then
-        die "Usage: $0 detail <name>"
+    local ip="$1"
+    if [ -z "$ip" ]; then
+        die "Usage: $0 detail <ip>"
     fi
 
     local config
-    config=$(get_camera_config "$name")
+    config=$(get_camera_config "$ip")
     if [ -z "$config" ]; then
-        die "Camera '$name' not found in config."
+        die "Camera at $ip not found in config."
     fi
 
-    local ip community
-    ip=$(echo "$config" | cut -d'|' -f2)
-    community=$(echo "$config" | cut -d'|' -f3)
+    local community
+    community=$(echo "$config" | cut -d'|' -f2)
 
     echo
-    bold "=== $name ($ip) ==="
+    echo "=== $ip ==="
     echo
 
     # System
@@ -1050,10 +1066,10 @@ Usage: $0 <command> [args...]
 Commands:
   status                  Print one-shot status table for all cameras
   watch [interval]        Continuously refresh status (default: ${DEFAULT_INTERVAL}s)
-  detail <name>           Detailed view of a single camera
+  detail <ip>             Detailed view of a single camera
   discover [subnet]       Scan network for SNMP agents
-  add <name> <ip> <comm>  Add a camera to the monitor config
-  remove <name>           Remove a camera from the monitor config
+  add <ip> <comm>         Add a camera (IP is the identity; name comes from the camera)
+  remove <ip>             Remove a camera from the monitor config
   list                    List configured cameras
   html [file]             Generate static HTML dashboard
   alerts                  Check all cameras and report problems

@@ -61,6 +61,12 @@ start_daemon() {
 	[ -n "$contact" ] && set -- "$@" -C "$contact"
 
 	description=$(read_text description)
+	if [ -z "$description" ]; then
+		# Default to the exact build stamp (branch+hash, build time) so
+		# sysDescr carries the full firmware identity, not just the
+		# PRETTY_NAME that mini-snmpd falls back to.
+		description=$(sed -n 's/^BUILD_ID="\(.*\)"/\1/p' /etc/os-release)
+	fi
 	[ -n "$description" ] && set -- "$@" -D "$description"
 
 	listen=$(read_text listen)
