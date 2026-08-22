@@ -1672,14 +1672,14 @@ agent_set_setting() {
 		audio/mic-enabled)
 			value=$(agent_setting_value "$body_file" mic_enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_apply_payload "{\"audio\":{\"mic_enabled\":$value}}" || return 1
+			agent_apply_payload "{\"audio\":{\"mic_enabled\":$value},\"action\":{\"restart_thread\":4}}" || return 1
 			agent_persist_value audio.mic_enabled "$value"
 			agent_print_setting_update "$path" mic_enabled "$value"
 			;;
 		audio/spk-enabled)
 			value=$(agent_setting_value "$body_file" spk_enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_apply_payload "{\"audio\":{\"spk_enabled\":$value}}" || return 1
+			agent_apply_payload "{\"audio\":{\"spk_enabled\":$value},\"action\":{\"restart_thread\":4}}" || return 1
 			agent_persist_value audio.spk_enabled "$value"
 			agent_print_setting_update "$path" spk_enabled "$value"
 			;;
