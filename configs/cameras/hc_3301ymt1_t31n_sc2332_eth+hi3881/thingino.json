@@ -6,6 +6,7 @@
       "active_low": true
     },
     "ircut": "63 64",
+    "speaker": 14,
     "white": {
       "pin": 49,
       "active_low": true

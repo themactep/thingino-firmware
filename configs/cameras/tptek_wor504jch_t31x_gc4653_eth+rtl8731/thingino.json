@@ -3,6 +3,7 @@
     "button_reset": 11,
     "ircut": "57 58",
     "mmc_cd": 59,
+    "speaker": 63,
     "white": 49,
     "wlan": 61
   },

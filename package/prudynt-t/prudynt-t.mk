@@ -1,8 +1,7 @@
 PRUDYNT_T_SITE_METHOD = git
-# PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = 6afc4400c54a4739feeb72ac884587409577a2af
+PRUDYNT_T_VERSION = e77e45ba554ffb077fa9a76455b5d0a4b223394c
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -19,7 +18,7 @@ ifeq ($(BR2_PACKAGE_LIBAUDIOPROCESS_NEO),y)
 PRUDYNT_T_DEPENDENCIES += libaudioprocess-neo
 endif
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
-PRUDYNT_T_DEPENDENCIES += thingino-libcurl thingino-webui
+PRUDYNT_T_DEPENDENCIES += thingino-libcurl thingino-webui thingino-agent
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -204,10 +203,17 @@ define PRUDYNT_T_BUILD_CMDS
 		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
 		USE_OSD_BURNIN=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_BURNIN),1,0) \
+		USE_OSD_FONT8X8=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_8X8),1,0) \
+		USE_OSD_FONT_UNIFONT=$(if $(BR2_PACKAGE_PRUDYNT_T_OSD_FONT_UNIFONT),1,0) \
 		-C $(@D) all commit_tag=$(shell cd $(PRUDYNT_T_OVERRIDE_SRCDIR) 2>/dev/null && git show -s --format=%h 2>/dev/null || git show -s --format=%h 2>/dev/null || echo unknown)
 endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
+	# Install the thingino-agent backend adapter at the fixed path, overwriting
+	# the null fallback installed by thingino-agent.
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/agent-adapter \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+
 	# Always install stripped binary for firmware (keeps image size small)
 	$(TARGET_CROSS)strip $(@D)/bin/prudynt -o $(TARGET_DIR)/usr/bin/prudynt
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
@@ -331,6 +337,15 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# services
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S31prudynt \
 		$(TARGET_DIR)/etc/init.d/S31prudynt
+	# Recording storage manager (reads the recorder section of prudynt.json)
+	if [ "$(BR2_THINGINO_DEV_IPCAM)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95recordmgr \
+			$(TARGET_DIR)/etc/init.d/S95recordmgr; \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/recordmgr \
+			$(TARGET_DIR)/usr/sbin/recordmgr; \
+	else \
+		rm -f $(TARGET_DIR)/etc/init.d/S95recordmgr $(TARGET_DIR)/usr/sbin/recordmgr; \
+	fi
 #	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
 #		$(TARGET_DIR)/etc/init.d/S32prudyntwd
 	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
@@ -389,6 +404,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/streamer-main.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-osd.html \
 		$(TARGET_DIR)/var/www/streamer-osd.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-rtsp.html \
+		$(TARGET_DIR)/var/www/config-rtsp.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/tool-record.html \
+		$(TARGET_DIR)/var/www/tool-record.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-sensor.html \
 		$(TARGET_DIR)/var/www/streamer-sensor.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-substream.html \
@@ -401,6 +420,12 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \
 		$(TARGET_DIR)/var/www/a/sei-osd.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/config-rtsp.js \
+		$(TARGET_DIR)/var/www/a/config-rtsp.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-record.js \
+		$(TARGET_DIR)/var/www/a/tool-record.js
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/preview-osd.js \
+		$(TARGET_DIR)/var/www/a/preview-osd.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/streamer-config.js \
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/tool-timelapse.js \
@@ -425,6 +450,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-osd-sei.cgi \
 		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-config-rtsp.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-rtsp.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/tool-record.cgi \
+		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt.cgi \
 		$(TARGET_DIR)/var/www/x/json-prudynt.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-config.cgi \

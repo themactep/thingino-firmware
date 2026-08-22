@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 
 # Configuration of the bridge should be done in /etc/network/interfaces.d/bridgeX
 # Read more at https://wiki.debian.org/BridgeNetworkConnections

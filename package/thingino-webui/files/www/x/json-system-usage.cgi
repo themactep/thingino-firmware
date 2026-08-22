@@ -1,38 +1,40 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 # Check authentication
 . /var/www/x/auth.sh
 require_auth
 
 http_200() {
-  printf 'Status: 200 OK\r\n'
+	printf 'Status: 200 OK\r\n'
 }
 
 json_header() {
-  printf 'Content-Type: application/json\r\n'
-  printf 'Pragma: no-cache\r\n'
-  printf 'Expires: %s\r\n' "$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')"
-  printf 'Etag: "%s"\r\n' "$(cat /proc/sys/kernel/random/uuid)"
-  printf 'Connection: close\r\n'
-  printf '\r\n'
+	printf 'Content-Type: application/json\r\n'
+	printf 'Pragma: no-cache\r\n'
+	printf 'Expires: %s\r\n' "$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')"
+	printf 'Etag: "%s"\r\n' "$(cat /proc/sys/kernel/random/uuid)"
+	printf 'Connection: close\r\n'
+	printf '\r\n'
 }
 
+# shellcheck disable=SC2329
 json_error() {
-  http_200
-  json_header
-  printf '{"code":400,"result":"error","message":"%s"}\n' "$1"
-  exit 0
+	http_200
+	json_header
+	printf '{"code":400,"result":"error","message":"%s"}\n' "$1"
+	exit 0
 }
 
 json_success() {
-  http_200
-  json_header
-  printf '{"code":200,"result":"success","data":%s}\n' "$1"
-  exit 0
+	http_200
+	json_header
+	printf '{"code":200,"result":"success","data":%s}\n' "$1"
+	exit 0
 }
 
 read_meminfo_value() {
-  awk -v key="$1" '$1 == key ":" {print $2; exit}' /proc/meminfo
+	awk -v key="$1" '$1 == key ":" {print $2; exit}' /proc/meminfo
 }
 
 # "timezone":"%s" "$(cat /etc/timezone)"
@@ -45,25 +47,19 @@ mem_cached=$(read_meminfo_value "Cached")
 mem_free=$(read_meminfo_value "MemFree")
 
 read_fs_stats() {
-  df | awk -v mount="$1" '$NF == mount {print $2" "$3" "$4; exit}'
+	df | awk -v mount="$1" '$NF == mount {print $2" "$3" "$4; exit}'
 }
 
 overlay_stats=$(read_fs_stats "/overlay")
-extras_stats=$(read_fs_stats "/opt")
 
+# shellcheck disable=SC2086
 set -- $overlay_stats
 overlay_total=${1:-0}
 overlay_used=${2:-0}
 overlay_free=${3:-0}
 
-set -- $extras_stats
-extras_total=${1:-0}
-extras_used=${2:-0}
-extras_free=${3:-0}
-
-payload=$(printf '{"memory":{"total":%d,"active":%d,"buffers":%d,"cached":%d,"free":%d},"overlay":{"total":%d,"used":%d,"free":%d},"extras":{"total":%d,"used":%d,"free":%d},"timestamp":%d}' \
-  "${mem_total:-0}" "${mem_active:-0}" "${mem_buffers:-0}" "${mem_cached:-0}" "${mem_free:-0}" \
-  "${overlay_total:-0}" "${overlay_used:-0}" "${overlay_free:-0}" \
-  "${extras_total:-0}" "${extras_used:-0}" "${extras_free:-0}" "$(date +%s)")
+payload=$(printf '{"memory":{"total":%d,"active":%d,"buffers":%d,"cached":%d,"free":%d},"overlay":{"total":%d,"used":%d,"free":%d},"timestamp":%d}' \
+	"${mem_total:-0}" "${mem_active:-0}" "${mem_buffers:-0}" "${mem_cached:-0}" "${mem_free:-0}" \
+	"${overlay_total:-0}" "${overlay_used:-0}" "${overlay_free:-0}" "$(date +%s)")
 
 json_success "$payload"

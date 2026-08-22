@@ -8,6 +8,7 @@
     "spk_en": 63,
     "mmc_cd": 58,
     "mmc_power": 61,
-    "wlan": 72
+    "wlan": 72,
+    "speaker": 63
   }
 }

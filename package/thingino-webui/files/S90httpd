@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2068
 
 DAEMON="/usr/sbin/httpd"
 PIDFILE="/var/run/httpd.pid"

@@ -1,0 +1,125 @@
+#!/bin/sh
+# shellcheck disable=SC3043
+# Manages thingino config file
+
+CONFIG_FILE="${CONFIG_FILE:-/etc/web.conf}"
+
+show_help() {
+	local app
+
+	app=$(basename "$0")
+	echo "Thingino System Config Tool
+Usage:
+ $app [-f <file>] g <param>           - Get parameter value
+ $app [-f <file>] s <param> <value>   - Set parameter value
+ $app [-f <file>] d <param>           - Delete parameter
+ $app [-f <file>] l [<filter>]        - List parameters matching filter
+ $app [-f <file>] --script <file>     - Import parameters from file (var=val format)
+" >&2
+	exit 1
+}
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-f | --file)
+			[ -n "$2" ] || show_help
+			CONFIG_FILE="$2"
+			shift 2
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+require_config_file() {
+	if [ ! -f "$CONFIG_FILE" ]; then
+		echo "Config file $CONFIG_FILE not found" >&2
+		exit 1
+	fi
+}
+
+ensure_config_file() {
+	[ -f "$CONFIG_FILE" ] && return 0
+	: >"$CONFIG_FILE" || {
+		echo "Cannot create config file $CONFIG_FILE" >&2
+		exit 1
+	}
+}
+
+backup() {
+	[ -f "$CONFIG_FILE" ] || return 0
+	cp "$CONFIG_FILE" "/tmp/$(basename "$CONFIG_FILE").$(date +%s).bak"
+}
+
+case "$1" in
+	g*)
+		require_config_file
+		[ -z "$2" ] && show_help
+		awk -F= "/^$2=/{gsub(/\"/,\"\",\$2);print \$2}" "$CONFIG_FILE"
+		;;
+	s*)
+		ensure_config_file
+		[ -z "$2" ] && show_help
+		# If no value provided or empty value, delete the parameter
+		if [ -z "$3" ] || [ "$3" = "" ]; then
+			backup
+			sed -i "/^$2=/d" "$CONFIG_FILE"
+		else
+			backup
+			value="$(echo "$3" | sed 's/"/\"/g')"
+			if grep -q "^$2=" "$CONFIG_FILE"; then
+				sed -i "/^$2=/c$2=\"$value\"" "$CONFIG_FILE"
+			else
+				tmpfile=$(mktemp)
+				cat "$CONFIG_FILE" >"$tmpfile"
+				echo "$2=\"$value\"" >>"$tmpfile"
+				sed -i "/^\s*$/d" "$tmpfile"
+				sort -u <"$tmpfile" >"$CONFIG_FILE"
+			fi
+		fi
+		;;
+	d*)
+		require_config_file
+		[ -z "$2" ] && show_help
+		backup
+		sed -i "/^$2=/d" "$CONFIG_FILE"
+		;;
+	l*)
+		require_config_file
+		grep "$2" "$CONFIG_FILE"
+		;;
+	--script)
+		ensure_config_file
+		[ -z "$2" ] && show_help
+		[ -f "$2" ] || {
+			echo "Script file $2 not found" >&2
+			exit 1
+		}
+		backup
+		# Process all parameters at once
+		awk -F= 'NR==FNR && /^[a-zA-Z_][a-zA-Z0-9_]*=/ {
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+			gsub(/^"|"$/, "", $2)
+			gsub(/"/, "\\\"", $2)
+			params[$1] = $2
+			next
+		}
+		{
+			if ($1 in params) {
+				print $1 "=\"" params[$1] "\""
+				delete params[$1]
+			} else {
+				print
+			}
+		}
+		END {
+			for (p in params) print p "=\"" params[p] "\""
+		}' "$2" "$CONFIG_FILE" | sort -u >"$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+		;;
+	*)
+		show_help
+		;;
+esac
+
+exit 0

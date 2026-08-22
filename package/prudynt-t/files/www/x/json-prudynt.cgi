@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # BusyBox httpd CGI for JSON API
 # Expects request body (application/json)
 

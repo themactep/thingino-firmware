@@ -7,7 +7,7 @@
 #
 # Requires: snmpget, snmpwalk (apt install snmp)
 
-set -o pipefail
+set -euo pipefail
 
 HOST="${1:-192.168.88.127}"
 COMMUNITY="${2:-public}"
@@ -20,21 +20,6 @@ TOTAL=0
 red()   { printf '\033[1;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[1;32m%s\033[0m\n' "$*"; }
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
-
-check() {
-    local label="$1" oid="$2" pattern="$3"
-    TOTAL=$((TOTAL + 1))
-    local val
-    val=$("${SNMP[@]}" "$oid" 2>/dev/null) || true
-    printf '  %-48s  ' "$label"
-    if echo "$val" | grep -qi "$pattern"; then
-        green "PASS"
-        PASS=$((PASS + 1))
-    else
-        red "FAIL  (got: $val, expected: $pattern)"
-        FAIL=$((FAIL + 1))
-    fi
-}
 
 check_val() {
     local label="$1" oid="$2"

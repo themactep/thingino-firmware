@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # Hand the per-boot timps /control token to the authenticated WebUI session.
 # timps writes a fresh random token to /run/timps.token (0640) on every start;
 # with it a browser page can drive timps DIRECTLY (no local bridge CGI):
@@ -23,7 +24,7 @@ port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\)
 # whether timps serves the HTTP port over TLS (http.https): the browser must
 # then use https:// for the media/control URLs.
 https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
-case "$https" in 1|true|yes|on) tls=true ;; *) tls=false ;; esac
+case "$https" in 1 | true | yes | on) tls=true ;; *) tls=false ;; esac
 
 echo "Content-Type: application/json"
 echo "Cache-Control: no-store"
@@ -34,7 +35,7 @@ token=""
 [ -r "$TOKEN_FILE" ] && token=$(head -n1 "$TOKEN_FILE" 2>/dev/null | tr -cd '0-9A-Za-z')
 
 if [ -n "$token" ]; then
-  printf '{"token":"%s","port":%s,"tls":%s}\n' "$token" "$port" "$tls"
+	printf '{"token":"%s","port":%s,"tls":%s}\n' "$token" "$port" "$tls"
 else
-  printf '{"error":"no token available","port":%s,"tls":%s}\n' "$port" "$tls"
+	printf '{"error":"no token available","port":%s,"tls":%s}\n' "$port" "$tls"
 fi

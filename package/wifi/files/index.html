@@ -61,7 +61,7 @@
 <label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
 <div style="position:relative;">
 <input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
-<datalist id="networks-list"></datalist>
+<div id="networks-panel" class="networks-panel hidden"></div>
 <button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
 <span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
 <span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
@@ -311,21 +311,84 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const scanBtn      = document.getElementById('scan-btn');
 const scanSpinner  = document.getElementById('scan-spinner');
 const scanText     = document.getElementById('scan-text');
-const networksList = document.getElementById('networks-list');
+const networksPanel = document.getElementById('networks-panel');
 const ssidInput    = document.getElementById('wlan_ssid');
 
 let scanInProgress = false;
 let networksScanned = false;
 
-// Only show datalist when user types at least 1 character
-ssidInput.addEventListener('input', () => {
-  if (networksScanned && ssidInput.value.length >= 1) {
-    ssidInput.setAttribute('list', 'networks-list');
+// Render the networks list (shared by prescan cache load and live scan)
+const renderNetworks = (networks) => {
+  networksPanel.innerHTML = '';
+  const seen = new Set();
+  let rendered = 0;
+  networks.filter(n => n && n.ssid).forEach(network => {
+    if (!seen.has(network.ssid)) {
+      seen.add(network.ssid);
+      const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆_' : network.signal > -70 ? '▂▄__' : '▂___';
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'network-item';
+      item.innerHTML = `<span class="network-name"></span> <span class="network-signal">${signalBars}</span> <span class="network-security">${network.security}</span>`;
+      item.querySelector('.network-name').textContent = network.ssid;
+      item.addEventListener('click', () => {
+        ssidInput.value = network.ssid;
+        hideNetworksPanel();
+      });
+      networksPanel.appendChild(item);
+      rendered++;
+    }
+  });
+  networksScanned = rendered > 0;
+  if (rendered) {
+    networksPanel.classList.remove('hidden');
+    ssidInput.placeholder = 'Pick a network from the list or type your own';
   } else {
-    ssidInput.removeAttribute('list');
+    hideNetworksPanel();
+    ssidInput.placeholder = 'No networks found';
+  }
+};
+
+// Mobile browsers (iOS Safari, many Android keyboards) do not open
+// <datalist> dropdowns reliably. Render scan results into a plain
+// collapsible <div> list instead, which works everywhere.
+function hideNetworksPanel() {
+  // Keep the rendered items; only hide the panel, so focusing the
+  // SSID field can bring the same list back without a rescan.
+  networksPanel.classList.add('hidden');
+}
+
+// Show only items matching what the user typed (autocomplete-ish)
+const filterNetworks = () => {
+  const query = ssidInput.value.trim().toLowerCase();
+  let visible = 0;
+  networksPanel.querySelectorAll('.network-item').forEach(item => {
+    const name = item.querySelector('.network-name').textContent.toLowerCase();
+    const match = !query || name.includes(query);
+    item.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  return visible;
+};
+
+ssidInput.addEventListener('focus', () => {
+  if (networksScanned && networksPanel.children.length) {
+    const visible = filterNetworks();
+    if (visible) networksPanel.classList.remove('hidden');
   }
 });
 
+// Bring the list back (filtered) as the user types
+ssidInput.addEventListener('input', () => {
+  if (networksScanned && networksPanel.children.length) {
+    const visible = filterNetworks();
+    networksPanel.classList.toggle('hidden', visible === 0);
+  }
+});
+
+// Trigger a scan, then poll until wpa_supplicant reports completion.
+// Two-phase, because a full 2.4 GHz sweep takes 3-5s+ on these radios
+// and the old single-shot call returned before results existed.
 scanBtn.addEventListener('click', async () => {
   if (scanInProgress) return;
 
@@ -339,37 +402,36 @@ scanBtn.addEventListener('click', async () => {
   scanText.classList.add('hidden');
 
   try {
-    const response = await fetch(`${API_URL}?action=scan_networks`);
+    const startResponse = await fetch(`${API_URL}?action=scan_start`);
+    const startData = await startResponse.json();
+
+    if (startData.error) {
+      console.warn('Scan error:', startData.error);
+      alert('Failed to scan networks. Please try again.');
+      return;
+    }
+
+    // Poll until the backend says the sweep finished (max ~20s)
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const response = await fetch(`${API_URL}?action=scan_status`);
+      const data = await response.json();
+
+      if (data.error) {
+        console.warn('Scan error:', data.error);
+        return; // Silently skip if scan already in progress
+      }
+
+      if (!data.scanning && data.networks) {
+        renderNetworks(data.networks);
+        return;
+      }
+    }
+
+    // Timed out; show whatever the last poll returned, if anything
+    const response = await fetch(`${API_URL}?action=scan_status`);
     const data = await response.json();
-
-    if (data.error) {
-      console.warn('Scan error:', data.error);
-      return; // Silently skip if scan already in progress
-    }
-
-    // Clear existing options
-    networksList.innerHTML = '';
-
-    if (data.networks) {
-      // Filter out the trailing null and duplicates
-      const networks = data.networks.filter(n => n && n.ssid);
-      const seen = new Set();
-
-      networks.forEach(network => {
-        if (!seen.has(network.ssid)) {
-          seen.add(network.ssid);
-          const option = document.createElement('option');
-          const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆_' : network.signal > -70 ? '▂▄__' : '▂___';
-          option.value = network.ssid;
-          option.textContent = `${network.ssid} ${signalBars} (${network.security})`;
-          networksList.appendChild(option);
-        }
-      });
-
-      // Mark that networks have been scanned and update placeholder
-      networksScanned = true;
-      ssidInput.placeholder = 'Start typing to select a network';
-    }
+    if (!data.scanning && data.networks) renderNetworks(data.networks);
   } catch (error) {
     // Don't show alert for aborted fetches (page refresh/navigation)
     if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
@@ -381,7 +443,10 @@ scanBtn.addEventListener('click', async () => {
     scanBtn.disabled = false;
     ssidInput.disabled = false;
     ssidInput.style.opacity = '1';
-    if (!networksScanned) {
+    // Restore only when rendering never happened (e.g. fetch error);
+    // otherwise renderNetworks already set the right placeholder
+    // ('Pick a network...' or 'No networks found').
+    if (ssidInput.placeholder === 'Scanning for networks...') {
       ssidInput.placeholder = originalPlaceholder;
     }
     scanSpinner.classList.add('hidden');
@@ -389,8 +454,34 @@ scanBtn.addEventListener('click', async () => {
   }
 });
 
-scheduleTimeoutWarning();
+// Dismiss the networks list when tapping outside of it (mobile UX)
+document.addEventListener('click', (e) => {
+  if (!networksPanel.classList.contains('hidden') &&
+      !networksPanel.contains(e.target) &&
+      e.target !== ssidInput) {
+    hideNetworksPanel();
+  }
+});
 
+// Load the prescan list (S38 scans once in station mode before the
+// portal AP starts, so the sweep never drops the phone's connection).
+// The magnifying glass triggers a live rescan which may briefly
+// interrupt the connection - opt-in for users who need fresher results.
+async function loadCachedNetworks() {
+  try {
+    const response = await fetch(`${API_URL}?action=scan_cached`);
+    const data = await response.json();
+    if (data && data.networks && data.networks.length) {
+      renderNetworks(data.networks);
+    }
+  } catch (e) {
+    // Prescan unavailable (e.g. first boot race); user can still scan
+    console.warn('No prescan cache:', e);
+  }
+}
+loadCachedNetworks();
+
+scheduleTimeoutWarning();
 loadSystemInfo();
 </script>
 

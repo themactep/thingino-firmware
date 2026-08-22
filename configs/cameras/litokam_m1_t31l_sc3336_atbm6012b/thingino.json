@@ -8,6 +8,7 @@
       "pin": 39,
       "active_low": true
     },
+    "speaker": 60,
     "white": 9
   },
   "motors": {

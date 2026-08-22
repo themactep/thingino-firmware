@@ -1,4 +1,9 @@
 #!/bin/bash
+# shellcheck disable=SC2155
+# local var=\$(cmd) used extensively; masking return values from
+# stat/grep on well-known paths is harmless in this context.
+# shellcheck disable=SC1091
+# sd_card_monitor.sh is in the same directory at runtime.
 
 # SD Card Firmware Copier for Thingino
 # Copy firmware file to SD card for auto-update
@@ -6,6 +11,7 @@
 set -euo pipefail
 
 # Source the SD card monitor functions
+# shellcheck source=sd_card_monitor.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/sd_card_monitor.sh"
 
@@ -456,6 +462,8 @@ parse_args() {
                 shift
                 ;;
             -v|--verbose)
+                # shellcheck disable=SC2034
+                # VERBOSE is read by sourced sd_card_monitor.sh functions
                 VERBOSE=true
                 shift
                 ;;

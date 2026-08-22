@@ -1,0 +1,2421 @@
+#!/bin/sh
+# shellcheck disable=SC2018,SC2019,SC2086  # tr a-z/A-Z on ASCII values; deliberate IFS word-splits into positional params
+
+AGENT_CONFIG="${AGENT_CONFIG:-/etc/prudynt.json}"
+THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
+
+agent_name() {
+	printf 'prudynt'
+}
+
+agent_raw() {
+	agent_json_config_value "$AGENT_CONFIG" "$1"
+}
+
+agent_text() {
+	agent_raw "$1" | tr -d '"'
+}
+
+agent_streamer_running() {
+	pidof prudynt >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+agent_network_ip() {
+	agent_default_ip
+}
+
+agent_network_online() {
+	ip_addr=$(agent_network_ip)
+	[ -n "$ip_addr" ] && printf 'true' || printf 'false'
+}
+
+agent_health_status() {
+	if [ "$(agent_streamer_running)" = true ] && [ "$(agent_network_online)" = true ]; then
+		printf 'ok'
+	else
+		printf 'degraded'
+	fi
+}
+
+agent_service_script() {
+	[ -f /etc/init.d/S31prudynt ] && printf '/etc/init.d/S31prudynt'
+}
+
+agent_streaming_controllable() {
+	[ -n "$(agent_service_script)" ] && printf 'true' || printf 'false'
+}
+
+agent_has_snapshot() {
+	command -v prudyntctl >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+agent_has_clip() {
+	[ -e /run/prudynt/mp4ctl ] && printf 'true' || printf 'false'
+}
+
+agent_has_privacy() {
+	if command -v privacy >/dev/null 2>&1 || [ -e /run/prudynt/video_ctrl ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+agent_has_daynight() {
+	if agent_has_daynightd || command -v prudyntctl >/dev/null 2>&1 || [ -f /run/prudynt/daynight_mode ] || [ -f "$AGENT_CONFIG" ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+agent_has_ptz() {
+	command -v motors >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+agent_stream_count() {
+	printf '2'
+}
+
+agent_send2_service_supported() {
+	case "$1" in
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		*)
+			echo "unsupported send2 service: $1" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_send2_service_has_send_video() {
+	case "$1" in
+		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+agent_send2_motion_key() {
+	printf 'motion.send2%s' "$1"
+}
+
+agent_send2_motion_enabled() {
+	service=$1
+	agent_json_value_or "$(agent_raw "$(agent_send2_motion_key "$service")")" false
+}
+
+agent_send2_raw() {
+	service=$1
+	field=$2
+	agent_json_config_value "$THINGINO_AGENT_SEND2_CONFIG" "$service.$field"
+}
+
+agent_recorder_raw() {
+	agent_raw "recorder.$1"
+}
+
+agent_recorder_text() {
+	agent_text "recorder.$1"
+}
+
+agent_storage_spec() {
+	case "$1" in
+		autostart) printf 'autostart|autostart|bool\n' ;;
+		channel) printf 'channel|channel|int\n' ;;
+		device-path) printf 'device_path|device_path|text\n' ;;
+		duration) printf 'duration|duration|int\n' ;;
+		filename) printf 'filename|filename|text\n' ;;
+		mount) printf 'mount|mount|text\n' ;;
+		*) return 1 ;;
+	esac
+}
+
+agent_parse_storage_path() {
+	relative=${1#storage/}
+	[ "$relative" != "$1" ] || return 1
+	spec=$(agent_storage_spec "$relative") || return 1
+	printf '%s|%s\n' "$relative" "$spec"
+}
+
+agent_storage_json_value() {
+	value_type=$1
+	raw_value=$2
+	case "$value_type" in
+		bool)
+			agent_validate_bool "$raw_value" || return 1
+			printf '%s' "$raw_value"
+			;;
+		int)
+			agent_validate_int "$raw_value" || return 1
+			printf '%s' "$raw_value"
+			;;
+		text)
+			printf '%s' "$(agent_json_string "$(agent_unquote_string "$raw_value")")"
+			;;
+		*)
+			echo "unsupported storage value type: $value_type" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_print_storage_setting() {
+	parsed=$(agent_parse_storage_path "$1") || {
+		echo "unsupported setting path: $1" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	config_key=$2
+	response_key=$3
+	value_type=$4
+	if [ "$value_type" = text ]; then
+		printf '{"%s":%s}\n' "$response_key" "$(agent_json_string_or_null "$(agent_recorder_text "$config_key")")"
+	else
+		agent_print_setting_leaf "$response_key" "$(agent_recorder_raw "$config_key")"
+	fi
+}
+
+agent_set_storage_setting() {
+	storage_path=$1
+	body_file=$2
+	parsed=$(agent_parse_storage_path "$storage_path") || {
+		echo "unsupported setting path: $storage_path" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	config_key=$2
+	response_key=$3
+	value_type=$4
+	if [ "$value_type" = text ]; then
+		raw_value=$(agent_json_config_value "$body_file" "$response_key")
+		if [ -z "$raw_value" ]; then
+			if grep -q '"'"$response_key"'"[[:space:]]*:[[:space:]]*""' "$body_file"; then
+				raw_value='""'
+			else
+				echo "missing field '$response_key'" >&2
+				return 1
+			fi
+		fi
+	else
+		raw_value=$(agent_setting_value "$body_file" "$response_key") || return 1
+	fi
+	json_value=$(agent_storage_json_value "$value_type" "$raw_value") || return 1
+	agent_apply_payload "{\"recorder\":{\"$config_key\":$json_value}}" || return 1
+	agent_persist_value "recorder.$config_key" "$json_value"
+	agent_print_setting_update "$storage_path" "$response_key" "$json_value"
+}
+
+agent_storage_mount_type() {
+	mount_path=$(agent_recorder_text mount)
+	[ -n "$mount_path" ] || return 0
+	mount | awk -v mount_path="$mount_path" '$3 == mount_path { print $5; exit }' | tr -d '\n'
+}
+
+agent_storage_is_mounted() {
+	[ -n "$(agent_storage_mount_type)" ] && printf 'true' || printf 'false'
+}
+
+agent_storage_resolved_root() {
+	mount_path=$(agent_recorder_text mount)
+	[ -n "$mount_path" ] || return 0
+	device_path=$(agent_recorder_text device_path)
+	hostname=$(agent_hostname)
+	device_path=$(printf '%s' "$device_path" | sed "s/%hostname/$hostname/g")
+	case "$device_path" in
+		'') printf '%s' "$mount_path" ;;
+		*) printf '%s/%s' "$mount_path" "$device_path" ;;
+	esac
+}
+
+agent_print_runtime_storage() {
+	mount_path=$(agent_recorder_text mount)
+	mount_type=$(agent_storage_mount_type)
+	mounted=$(agent_json_bool "$(agent_storage_is_mounted)")
+	resolved_root=$(agent_storage_resolved_root)
+	writable=false
+	total_kib=null
+	used_kib=null
+	available_kib=null
+	if [ -n "$mount_type" ]; then
+		[ -w "$mount_path" ] && writable=true
+		df_line=$(df -k "$mount_path" 2>/dev/null | awk 'NR == 2 { print $2 "|" $3 "|" $4; exit }')
+		if [ -n "$df_line" ]; then
+			OLDIFS=$IFS
+			IFS='|'
+			set -- $df_line
+			IFS=$OLDIFS
+			total_kib=$1
+			used_kib=$2
+			available_kib=$3
+		fi
+	fi
+	printf '{'
+	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$mount_path")"
+	printf '"mounted":%s,' "$mounted"
+	printf '"filesystem":%s,' "$(agent_json_string_or_null "$mount_type")"
+	printf '"record_root":%s,' "$(agent_json_string_or_null "$resolved_root")"
+	printf '"writable":%s,' "$(agent_json_bool "$writable")"
+	printf '"total_kib":%s,' "$total_kib"
+	printf '"used_kib":%s,' "$used_kib"
+	printf '"available_kib":%s' "$available_kib"
+	printf '}'
+}
+
+agent_recording_active_file() {
+	for active_file in /run/prudynt/mp4ctl-ch*.active; do
+		[ -f "$active_file" ] || continue
+		printf '%s' "$active_file"
+		return 0
+	done
+	return 1
+}
+
+agent_recording_active_value() {
+	active_file=$1
+	key=$2
+	[ -f "$active_file" ] || return 0
+	active_line=$(sed -n '1p' "$active_file" 2>/dev/null | tr '\r\n' ' ')
+	[ -n "$active_line" ] || return 0
+	printf '%s\n' "$active_line" | tr ' ' '\n' | awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' | tr -d '\n'
+}
+
+agent_recording_active_channel() {
+	active_file=$1
+	active_channel=$(agent_recording_active_value "$active_file" ch)
+	if [ -n "$active_channel" ]; then
+		printf '%s' "$active_channel"
+		return 0
+	fi
+	printf '%s' "$active_file" | sed -n 's|.*/mp4ctl-ch\([0-9][0-9]*\)\.active|\1|p' | tr -d '\n'
+}
+
+agent_print_runtime_recording() {
+	supported=$(agent_json_bool "$(agent_has_clip)")
+	configured_autostart=$(agent_json_value_or "$(agent_recorder_raw autostart)" false)
+	configured_channel=$(agent_json_value_or "$(agent_recorder_raw channel)" null)
+	configured_duration=$(agent_json_value_or "$(agent_recorder_raw duration)" null)
+	configured_mount=$(agent_recorder_text mount)
+	record_root=$(agent_storage_resolved_root)
+	storage_writable=$(agent_json_bool "$([ "$(agent_storage_is_mounted)" = true ] && [ -n "$configured_mount" ] && [ -w "$configured_mount" ] && printf true || printf false)")
+	active=false
+	current_channel=null
+	current_duration=null
+	current_path=
+	current_mount=
+	current_directory=
+	current_name_template=
+	loop=null
+	active_file=$(agent_recording_active_file)
+	if [ -n "$active_file" ]; then
+		active=true
+		active_channel=$(agent_recording_active_channel "$active_file")
+		active_duration=$(agent_recording_active_value "$active_file" dur)
+		active_path=$(agent_recording_active_value "$active_file" path)
+		active_mount=$(agent_recording_active_value "$active_file" mount)
+		active_directory=$(agent_recording_active_value "$active_file" dir)
+		active_name=$(agent_recording_active_value "$active_file" name)
+		active_loop=$(agent_recording_active_value "$active_file" loop)
+		[ -n "$active_channel" ] && current_channel=$active_channel
+		[ -n "$active_duration" ] && current_duration=$active_duration
+		current_path=$active_path
+		current_mount=$active_mount
+		current_directory=$active_directory
+		current_name_template=$active_name
+		case "$active_loop" in
+			1 | true) loop=true ;;
+			0 | false) loop=false ;;
+			*) loop=null ;;
+		esac
+	fi
+	printf '{'
+	printf '"supported":%s,' "$supported"
+	printf '"active":%s,' "$(agent_json_bool "$active")"
+	printf '"configured_autostart":%s,' "$configured_autostart"
+	printf '"configured_channel":%s,' "$configured_channel"
+	printf '"configured_duration_seconds":%s,' "$configured_duration"
+	printf '"configured_mount":%s,' "$(agent_json_string_or_null "$configured_mount")"
+	printf '"record_root":%s,' "$(agent_json_string_or_null "$record_root")"
+	printf '"writable":%s,' "$storage_writable"
+	printf '"current_channel":%s,' "$current_channel"
+	printf '"current_duration_seconds":%s,' "$current_duration"
+	printf '"current_path":%s,' "$(agent_json_string_or_null "$current_path")"
+	printf '"current_mount":%s,' "$(agent_json_string_or_null "$current_mount")"
+	printf '"current_directory":%s,' "$(agent_json_string_or_null "$current_directory")"
+	printf '"current_name_template":%s,' "$(agent_json_string_or_null "$current_name_template")"
+	printf '"loop":%s' "$loop"
+	printf '}'
+}
+
+agent_print_send2_capabilities() {
+	printf '{'
+	sep=''
+	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
+		printf '%s"%s":{"enabled":true,"send_photo":true,"send_video":%s}' \
+			"$sep" "$service" \
+			"$(agent_json_bool "$(agent_send2_service_has_send_video "$service" && printf true || printf false)")"
+		sep=,
+	done
+	printf '}'
+}
+
+agent_print_service_capabilities() {
+	streaming_service=false
+	[ -n "$(agent_service_script)" ] && streaming_service=true
+	printf '{"streaming":{"start":%s,"stop":%s,"restart":%s}}' \
+		"$(agent_json_bool "$streaming_service")" \
+		"$(agent_json_bool "$streaming_service")" \
+		"$(agent_json_bool "$streaming_service")"
+}
+
+agent_print_firmware_capabilities() {
+	printf '{"upgrade":%s}' "$(agent_json_bool "$(command -v sysupgrade >/dev/null 2>&1 && printf true || printf false)")"
+}
+
+agent_firmware_upgrade_supported() {
+	command -v sysupgrade >/dev/null 2>&1 && printf 'true' || printf 'false'
+}
+
+agent_firmware_pending_full() {
+	[ -f /tmp/upgrade.me ] && printf 'true' || printf 'false'
+}
+
+agent_firmware_pending_partial() {
+	[ -f /tmp/update.me ] && printf 'true' || printf 'false'
+}
+
+agent_firmware_boot_marked_complete() {
+	if command -v fw_printenv >/dev/null 2>&1; then
+		value=$(fw_printenv -n sysupgrade_complete 2>/dev/null | tr -d '\n')
+		case "$value" in
+			1 | true | TRUE | yes | on) printf 'true' ;;
+			0 | false | FALSE | no | off) printf 'false' ;;
+			'') printf 'null' ;;
+			*) printf 'null' ;;
+		esac
+	else
+		printf 'null'
+	fi
+}
+
+agent_firmware_pending_action() {
+	if [ "$(agent_firmware_pending_full)" = true ]; then
+		printf 'full'
+	elif [ "$(agent_firmware_pending_partial)" = true ]; then
+		printf 'partial'
+	else
+		printf 'none'
+	fi
+}
+
+agent_print_runtime_firmware() {
+	printf '{'
+	printf '"upgrade_supported":%s,' "$(agent_json_bool "$(agent_firmware_upgrade_supported)")"
+	printf '"pending_full":%s,' "$(agent_json_bool "$(agent_firmware_pending_full)")"
+	printf '"pending_partial":%s,' "$(agent_json_bool "$(agent_firmware_pending_partial)")"
+	printf '"pending_action":%s,' "$(agent_json_string "$(agent_firmware_pending_action)")"
+	printf '"boot_marked_complete":%s,' "$(agent_firmware_boot_marked_complete)"
+	printf '"current_version":%s' "$(agent_json_string_or_null "$(agent_firmware_version)")"
+	printf '}'
+}
+
+agent_motion_enabled() {
+	agent_json_value_or "$(agent_raw motion.enabled)" false
+}
+
+agent_motion_active() {
+	if [ -f /run/prudynt/motion.active ] || [ -f /run/prudynt/motion_detected.active ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+agent_daynight_enabled() {
+	if agent_has_daynightd; then
+		agent_daynightd_enabled
+		return 0
+	fi
+	agent_json_value_or "$(agent_raw daynight.enabled)" false
+}
+
+agent_daynight_force_mode() {
+	if agent_has_daynightd; then
+		agent_daynightd_force_mode
+		return 0
+	fi
+	agent_json_value_or "$(agent_raw daynight.force_mode)" null
+}
+
+agent_daynight_running_mode() {
+	if agent_has_daynightd; then
+		agent_daynightd_running_mode
+		return 0
+	fi
+	if [ -f /run/prudynt/daynight_mode ]; then
+		mode=$(awk 'NR == 1 { print $1 }' /run/prudynt/daynight_mode 2>/dev/null | tr -d '\n')
+		[ -n "$mode" ] && {
+			printf '%s' "$mode"
+			return 0
+		}
+	fi
+	if command -v prudyntctl >/dev/null 2>&1; then
+		state=$(
+			prudyntctl json - 2>/dev/null <<'EOF'
+{"image":{"running_mode":null}}
+EOF
+		)
+		running=$(printf '%s' "$state" | grep -o '"running_mode":[^,}]*' | head -n 1 | cut -d: -f2 | tr -d ' "')
+		case "$running" in
+			0)
+				printf 'day'
+				return 0
+				;;
+			1)
+				printf 'night'
+				return 0
+				;;
+		esac
+	fi
+	printf 'unknown'
+}
+
+agent_daynight_target_mode() {
+	if agent_has_daynightd; then
+		agent_daynightd_target_mode
+		return 0
+	fi
+	enabled=$(agent_daynight_enabled)
+	if [ "$enabled" = "true" ]; then
+		printf 'auto'
+	else
+		mode=$(agent_text daynight.force_mode)
+		[ -n "$mode" ] || mode=$(agent_daynight_running_mode)
+		printf '%s' "$mode"
+	fi
+}
+
+agent_privacy_enabled() {
+	[ -f /run/prudynt/privacy.active ] && printf 'true' || printf 'false'
+}
+
+agent_stream_field() {
+	stream_id=$1
+	field=$2
+	agent_raw "stream${stream_id}.${field}"
+}
+
+agent_stream_text_field() {
+	stream_id=$1
+	field=$2
+	agent_text "stream${stream_id}.${field}"
+}
+
+# Return the runtime value of a stream field (width/height/fps) by querying the
+# running prudynt process via prudyntctl. Falls back to the static config value
+# when prudyntctl is unavailable or returns 0.
+agent_runtime_stream_field() {
+	stream_id=$1
+	field=$2
+	if command -v prudyntctl >/dev/null 2>&1; then
+		_rt_tmp=$(mktemp)
+		prudyntctl json "{\"stream${stream_id}\":{\"${field}\":null}}" >"$_rt_tmp" 2>/dev/null
+		_rt_val=$(agent_json_config_value "$_rt_tmp" "stream${stream_id}.${field}")
+		rm -f "$_rt_tmp"
+		if [ -n "$_rt_val" ] && [ "$_rt_val" != "0" ] && [ "$_rt_val" != "null" ]; then
+			printf '%s' "$_rt_val"
+			return
+		fi
+	fi
+	agent_raw "stream${stream_id}.${field}"
+}
+
+agent_rtsp_port() {
+	rtsp_port=$(agent_text rtsp.port)
+	[ -n "$rtsp_port" ] || rtsp_port=554
+	printf '%s' "$rtsp_port"
+}
+
+agent_rtsp_listening() {
+	rtsp_port=$(agent_rtsp_port)
+	if netstat -lnt 2>/dev/null | awk -v port=":$rtsp_port" 'index($4, port) { found=1; exit } END { exit(found ? 0 : 1) }'; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+agent_stream_recording_active() {
+	stream_id=$1
+	[ -f "/run/prudynt/mp4ctl-ch${stream_id}.active" ] && printf 'true' || printf 'false'
+}
+
+agent_stream_healthy() {
+	stream_id=$1
+	enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
+	video_enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
+	rtsp_listener_up=$(agent_rtsp_listening)
+	if [ "$(agent_streamer_running)" = true ] &&
+		[ "$enabled" = true ] &&
+		[ "$video_enabled" = true ] &&
+		[ "$rtsp_listener_up" = true ]; then
+		printf 'true'
+	else
+		printf 'false'
+	fi
+}
+
+agent_event_append_path() {
+	paths_json=$1
+	path=$2
+	path_json=$(agent_json_string "$path")
+	if [ -n "$paths_json" ]; then
+		printf '%s,%s' "$paths_json" "$path_json"
+	else
+		printf '%s' "$path_json"
+	fi
+}
+
+agent_stream_rtsp_url() {
+	stream_id=$1
+	endpoint=$(agent_stream_text_field "$stream_id" rtsp_endpoint)
+	[ -n "$endpoint" ] || return 0
+	printf 'rtsp://127.0.0.1:%s/%s' "$(agent_rtsp_port)" "$endpoint"
+}
+
+agent_stream_osd_field() {
+	stream_id=$1
+	field=$2
+	agent_raw "stream${stream_id}.osd.${field}"
+}
+
+agent_stream_osd_text_field() {
+	stream_id=$1
+	field=$2
+	agent_text "stream${stream_id}.osd.${field}"
+}
+
+agent_osd_spec() {
+	case "$1" in
+		enabled) printf 'enabled|enabled|bool\n' ;;
+		font-path) printf 'font_path|font_path|text\n' ;;
+		font-size) printf 'font_size|font_size|int\n' ;;
+		start-delay) printf 'start_delay|start_delay|int\n' ;;
+		stroke-size) printf 'stroke_size|stroke_size|int\n' ;;
+		brightness/enabled) printf 'brightness.enabled|enabled|bool\n' ;;
+		brightness/fill-color) printf 'brightness.fill_color|fill_color|text\n' ;;
+		brightness/format) printf 'brightness.format|format|text\n' ;;
+		brightness/position) printf 'brightness.position|position|text\n' ;;
+		brightness/rotation) printf 'brightness.rotation|rotation|int\n' ;;
+		brightness/stroke-color) printf 'brightness.stroke_color|stroke_color|text\n' ;;
+		time/enabled) printf 'time.enabled|enabled|bool\n' ;;
+		time/fill-color) printf 'time.fill_color|fill_color|text\n' ;;
+		time/format) printf 'time.format|format|text\n' ;;
+		time/position) printf 'time.position|position|text\n' ;;
+		time/rotation) printf 'time.rotation|rotation|int\n' ;;
+		time/stroke-color) printf 'time.stroke_color|stroke_color|text\n' ;;
+		uptime/enabled) printf 'uptime.enabled|enabled|bool\n' ;;
+		uptime/fill-color) printf 'uptime.fill_color|fill_color|text\n' ;;
+		uptime/format) printf 'uptime.format|format|text\n' ;;
+		uptime/position) printf 'uptime.position|position|text\n' ;;
+		uptime/rotation) printf 'uptime.rotation|rotation|int\n' ;;
+		uptime/stroke-color) printf 'uptime.stroke_color|stroke_color|text\n' ;;
+		usertext/enabled) printf 'usertext.enabled|enabled|bool\n' ;;
+		usertext/fill-color) printf 'usertext.fill_color|fill_color|text\n' ;;
+		usertext/format) printf 'usertext.format|format|text\n' ;;
+		usertext/position) printf 'usertext.position|position|text\n' ;;
+		usertext/rotation) printf 'usertext.rotation|rotation|int\n' ;;
+		usertext/stroke-color) printf 'usertext.stroke_color|stroke_color|text\n' ;;
+		logo/enabled) printf 'logo.enabled|enabled|bool\n' ;;
+		logo/height) printf 'logo.height|height|int\n' ;;
+		logo/path) printf 'logo.path|path|text\n' ;;
+		logo/position) printf 'logo.position|position|text\n' ;;
+		logo/rotation) printf 'logo.rotation|rotation|int\n' ;;
+		logo/transparency) printf 'logo.transparency|transparency|int\n' ;;
+		logo/width) printf 'logo.width|width|int\n' ;;
+		privacy/enabled) printf 'privacy.enabled|enabled|bool\n' ;;
+		privacy/fill-color) printf 'privacy.fill_color|fill_color|text\n' ;;
+		privacy/font-size) printf 'privacy.font_size|font_size|int\n' ;;
+		privacy/image-height) printf 'privacy.image_height|image_height|int\n' ;;
+		privacy/image-path) printf 'privacy.image_path|image_path|text\n' ;;
+		privacy/image-width) printf 'privacy.image_width|image_width|int\n' ;;
+		privacy/layer) printf 'privacy.layer|layer|int\n' ;;
+		privacy/opacity) printf 'privacy.opacity|opacity|int\n' ;;
+		privacy/position) printf 'privacy.position|position|text\n' ;;
+		privacy/rotation) printf 'privacy.rotation|rotation|int\n' ;;
+		privacy/stroke-color) printf 'privacy.stroke_color|stroke_color|text\n' ;;
+		privacy/stroke-size) printf 'privacy.stroke_size|stroke_size|int\n' ;;
+		privacy/text) printf 'privacy.text|text|text\n' ;;
+		*) return 1 ;;
+	esac
+}
+
+agent_parse_osd_path() {
+	path=$1
+	stream_id=${path#streams/}
+	stream_id=${stream_id%%/*}
+	# shellcheck disable=SC2295  # stream_id is numeric, never a glob pattern
+	relative=${path#streams/$stream_id/osd/}
+	[ -n "$stream_id" ] && [ "$relative" != "$path" ] || return 1
+	spec=$(agent_osd_spec "$relative") || return 1
+	printf '%s|%s|%s\n' "$stream_id" "$relative" "$spec"
+}
+
+agent_print_osd_setting() {
+	path=$1
+	parsed=$(agent_parse_osd_path "$path") || {
+		echo "unsupported setting path: $path" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	stream_id=$1
+	config_key=$3
+	response_key=$4
+	value_type=$5
+	if [ "$value_type" = text ]; then
+		printf '{"%s":%s}\n' "$response_key" "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" "$config_key")")"
+	else
+		agent_print_setting_leaf "$response_key" "$(agent_stream_osd_field "$stream_id" "$config_key")"
+	fi
+}
+
+agent_osd_json_value() {
+	value_type=$1
+	raw_value=$2
+	case "$value_type" in
+		bool)
+			agent_validate_bool "$raw_value" || return 1
+			printf '%s' "$raw_value"
+			;;
+		int)
+			agent_validate_int "$raw_value" || return 1
+			printf '%s' "$raw_value"
+			;;
+		text)
+			printf '%s' "$(agent_json_string "$(agent_unquote_string "$raw_value")")"
+			;;
+		*)
+			echo "unsupported OSD value type: $value_type" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_osd_payload() {
+	stream_id=$1
+	config_key=$2
+	json_value=$3
+	case "$config_key" in
+		*.*)
+			group=${config_key%%.*}
+			leaf=${config_key#*.}
+			printf '{"stream%s":{"osd":{"%s":{"%s":%s}}}}' "$stream_id" "$group" "$leaf" "$json_value"
+			;;
+		*)
+			printf '{"stream%s":{"osd":{"%s":%s}}}' "$stream_id" "$config_key" "$json_value"
+			;;
+	esac
+}
+
+agent_set_osd_setting() {
+	path=$1
+	body_file=$2
+	parsed=$(agent_parse_osd_path "$path") || {
+		echo "unsupported setting path: $path" >&2
+		return 1
+	}
+	OLDIFS=$IFS
+	IFS='|'
+	set -- $parsed
+	IFS=$OLDIFS
+	stream_id=$1
+	config_key=$3
+	response_key=$4
+	value_type=$5
+	raw_value=$(agent_setting_value "$body_file" "$response_key") || return 1
+	json_value=$(agent_osd_json_value "$value_type" "$raw_value") || return 1
+	payload=$(agent_osd_payload "$stream_id" "$config_key" "$json_value")
+	agent_apply_payload "$payload" || return 1
+	agent_persist_value "stream${stream_id}.osd.${config_key}" "$json_value"
+	agent_print_setting_update "$path" "$response_key" "$json_value"
+}
+
+agent_print_stream_config() {
+	stream_id=$1
+	printf '{'
+	printf '"id":%s,' "$stream_id"
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)"
+	printf '"audio_enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
+	printf '"width":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
+	printf '"gop":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
+	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" buffers)" null)"
+	printf '"profile":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" profile)" null)"
+	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
+	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
+	printf '"osd":'
+	agent_print_stream_osd "$stream_id"
+	printf '}'
+}
+
+agent_print_stream_osd() {
+	stream_id=$1
+	printf '{'
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" enabled)" false)"
+	printf '"font_path":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" font_path)")"
+	printf '"font_size":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" font_size)" null)"
+	printf '"stroke_size":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" stroke_size)" null)"
+	printf '"logo":{'
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" logo.enabled)" false)"
+	printf '"position":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" logo.position)")"
+	printf '},'
+	printf '"time":{'
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" time.enabled)" false)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.format)")"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" time.stroke_color)")"
+	printf '},'
+	printf '"uptime":{'
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" uptime.enabled)" false)"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" uptime.stroke_color)")"
+	printf '},'
+	printf '"usertext":{'
+	printf '"enabled":%s,' "$(agent_json_value_or "$(agent_stream_osd_field "$stream_id" usertext.enabled)" false)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.format)")"
+	printf '"position":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.position)")"
+	printf '"fill_color":%s,' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.fill_color)")"
+	printf '"stroke_color":%s' "$(agent_json_string_or_null "$(agent_stream_osd_text_field "$stream_id" usertext.stroke_color)")"
+	printf '}'
+	printf '}'
+}
+
+agent_print_stream_runtime() {
+	stream_id=$1
+	enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" enabled)" false)
+	video_enabled=$(agent_json_value_or "$(agent_stream_field "$stream_id" video_enabled)" false)
+	rtsp_listener_up=$(agent_rtsp_listening)
+	healthy=$(agent_stream_healthy "$stream_id")
+	printf '{'
+	printf '"id":%s,' "$stream_id"
+	printf '"enabled":%s,' "$enabled"
+	printf '"video_enabled":%s,' "$video_enabled"
+	printf '"audio_enabled":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" audio_enabled)" false)"
+	printf '"width":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(agent_json_value_or "$(agent_runtime_stream_field "$stream_id" fps)" null)"
+	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
+	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" format)")"
+	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" mode)")"
+	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_endpoint)")"
+	printf '"rtsp_name":%s,' "$(agent_json_string_or_null "$(agent_stream_text_field "$stream_id" rtsp_info)")"
+	printf '"rtsp_url":%s,' "$(agent_json_string_or_null "$(agent_stream_rtsp_url "$stream_id")")"
+	printf '"rtsp_listener_up":%s,' "$(agent_json_bool "$rtsp_listener_up")"
+	printf '"recording_active":%s,' "$(agent_json_bool "$(agent_stream_recording_active "$stream_id")")"
+	printf '"healthy":%s' "$(agent_json_bool "$healthy")"
+	printf '}'
+}
+
+agent_print_runtime_system() {
+	load_1=$(agent_loadavg_field 1)
+	load_5=$(agent_loadavg_field 2)
+	load_15=$(agent_loadavg_field 3)
+	memory_total_kib=$(agent_meminfo_kib MemTotal)
+	memory_free_kib=$(agent_meminfo_kib MemFree)
+	memory_available_kib=$(agent_mem_available_kib)
+	memory_used_kib=$(agent_mem_used_kib)
+	printf '{'
+	printf '"uptime_seconds":%s,' "$(agent_uptime_seconds)"
+	printf '"hostname":%s,' "$(agent_json_string "$(agent_hostname)")"
+	printf '"streamer_running":%s,' "$(agent_streamer_running)"
+	printf '"load_average_1m":%s,' "$(agent_json_value_or "$load_1" null)"
+	printf '"load_average_5m":%s,' "$(agent_json_value_or "$load_5" null)"
+	printf '"load_average_15m":%s,' "$(agent_json_value_or "$load_15" null)"
+	printf '"memory_total_kib":%s,' "$(agent_json_value_or "$memory_total_kib" null)"
+	printf '"memory_free_kib":%s,' "$(agent_json_value_or "$memory_free_kib" null)"
+	printf '"memory_available_kib":%s,' "$(agent_json_value_or "$memory_available_kib" null)"
+	printf '"memory_used_kib":%s' "$(agent_json_value_or "$memory_used_kib" null)"
+	printf '}'
+}
+
+agent_print_runtime_network() {
+	ip_addr=$(agent_network_ip)
+	printf '{'
+	printf '"ip":%s,' "$(agent_json_string_or_null "$ip_addr")"
+	printf '"online":%s' "$(agent_network_online)"
+	printf '}'
+}
+
+agent_print_runtime_streaming_service() {
+	running=$(agent_streamer_running)
+	controllable=$(agent_streaming_controllable)
+	printf '{'
+	printf '"name":"streaming",'
+	printf '"running":%s,' "$running"
+	printf '"healthy":%s,' "$running"
+	printf '"controllable":%s' "$controllable"
+	printf '}'
+}
+
+agent_get_health() {
+	running=$(agent_streamer_running)
+	# shellcheck disable=SC2034  # kept unused; matches the raptor adapter health shape
+	online=$(agent_network_online)
+	status=$(agent_health_status)
+	printf '{'
+	printf '"status":%s,' "$(agent_json_string "$status")"
+	printf '"healthy":%s,' "$(agent_json_bool "$([ "$status" = ok ] && printf true || printf false)")"
+	printf '"backend":{"name":"prudynt","available":true},'
+	printf '"checks":{'
+	printf '"system":%s,' "$(agent_print_runtime_system)"
+	printf '"network":%s,' "$(agent_print_runtime_network)"
+	printf '"streaming":%s' "$(agent_print_runtime_streaming_service)"
+	printf '}'
+	printf '}\n'
+}
+
+agent_get_events() {
+	retry_ms=3000
+	printf 'retry: %s\n\n' "$retry_ms" || exit 0
+	agent_sse_emit hello "$(agent_sse_payload hello '"backend":"prudynt","stream":"agent"')" || exit 0
+
+	last_motion_active=$(agent_motion_active)
+	last_streamer_running=$(agent_streamer_running)
+	last_health_status=$(agent_health_status)
+	last_firmware_action=$(agent_firmware_pending_action)
+	last_stream0_recording=$(agent_stream_recording_active 0)
+	last_stream1_recording=$(agent_stream_recording_active 1)
+	last_stream0_healthy=$(agent_stream_healthy 0)
+	last_stream1_healthy=$(agent_stream_healthy 1)
+	last_active_file=$(agent_recording_active_file)
+	if [ -n "$last_active_file" ]; then
+		last_recording_active=true
+		last_recording_channel=$(agent_recording_active_channel "$last_active_file")
+		last_recording_duration=$(agent_recording_active_value "$last_active_file" dur)
+		last_recording_path=$(agent_recording_active_value "$last_active_file" path)
+	else
+		last_recording_active=false
+		last_recording_channel=
+		last_recording_duration=
+		last_recording_path=
+	fi
+	keepalive_counter=0
+
+	while true; do
+		sleep 2 || exit 0
+		keepalive_counter=$((keepalive_counter + 1))
+		changed_paths=
+
+		current_motion_active=$(agent_motion_active)
+		if [ "$current_motion_active" != "$last_motion_active" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" motion.active)
+			if [ "$current_motion_active" = true ]; then
+				agent_sse_emit motion.started "$(agent_sse_payload motion.started '"active":true')" || exit 0
+			else
+				agent_sse_emit motion.stopped "$(agent_sse_payload motion.stopped '"active":false')" || exit 0
+			fi
+		fi
+
+		current_streamer_running=$(agent_streamer_running)
+		if [ "$current_streamer_running" != "$last_streamer_running" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" system.streamer_running)
+			changed_paths=$(agent_event_append_path "$changed_paths" services.streaming.running)
+			changed_paths=$(agent_event_append_path "$changed_paths" services.streaming.healthy)
+			if [ "$last_streamer_running" != true ] && [ "$current_streamer_running" = true ]; then
+				agent_sse_emit streamer.restarted "$(agent_sse_payload streamer.restarted '"service":"streaming"')" || exit 0
+			fi
+		fi
+
+		current_stream0_recording=$(agent_stream_recording_active 0)
+		if [ "$current_stream0_recording" != "$last_stream0_recording" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" streams.0.recording_active)
+		fi
+		current_stream1_recording=$(agent_stream_recording_active 1)
+		if [ "$current_stream1_recording" != "$last_stream1_recording" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" streams.1.recording_active)
+		fi
+
+		current_stream0_healthy=$(agent_stream_healthy 0)
+		if [ "$current_stream0_healthy" != "$last_stream0_healthy" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" streams.0.healthy)
+		fi
+		current_stream1_healthy=$(agent_stream_healthy 1)
+		if [ "$current_stream1_healthy" != "$last_stream1_healthy" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" streams.1.healthy)
+		fi
+
+		current_active_file=$(agent_recording_active_file)
+		if [ -n "$current_active_file" ]; then
+			current_recording_active=true
+			current_recording_channel=$(agent_recording_active_channel "$current_active_file")
+			current_recording_duration=$(agent_recording_active_value "$current_active_file" dur)
+			current_recording_path=$(agent_recording_active_value "$current_active_file" path)
+		else
+			current_recording_active=false
+			current_recording_channel=
+			current_recording_duration=
+			current_recording_path=
+		fi
+
+		if [ "$current_recording_active" != "$last_recording_active" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" recording.active)
+			changed_paths=$(agent_event_append_path "$changed_paths" recording.current_channel)
+			changed_paths=$(agent_event_append_path "$changed_paths" recording.current_duration_seconds)
+			changed_paths=$(agent_event_append_path "$changed_paths" recording.current_path)
+			if [ "$last_recording_active" = true ] && [ "$current_recording_active" != true ]; then
+				record_fields=$(printf '"stream_id":%s,"path":%s,"duration_seconds":%s' \
+					"$(agent_json_value_or "$last_recording_channel" null)" \
+					"$(agent_json_string_or_null "$last_recording_path")" \
+					"$(agent_json_value_or "$last_recording_duration" null)")
+				agent_sse_emit record.completed "$(agent_sse_payload record.completed "$record_fields")" || exit 0
+			fi
+		else
+			if [ "$current_recording_channel" != "$last_recording_channel" ]; then
+				changed_paths=$(agent_event_append_path "$changed_paths" recording.current_channel)
+			fi
+			if [ "$current_recording_duration" != "$last_recording_duration" ]; then
+				changed_paths=$(agent_event_append_path "$changed_paths" recording.current_duration_seconds)
+			fi
+			if [ "$current_recording_path" != "$last_recording_path" ]; then
+				changed_paths=$(agent_event_append_path "$changed_paths" recording.current_path)
+			fi
+		fi
+
+		current_firmware_action=$(agent_firmware_pending_action)
+		if [ "$current_firmware_action" != "$last_firmware_action" ]; then
+			changed_paths=$(agent_event_append_path "$changed_paths" firmware.pending_action)
+			changed_paths=$(agent_event_append_path "$changed_paths" firmware.pending_full)
+			changed_paths=$(agent_event_append_path "$changed_paths" firmware.pending_partial)
+			case "$current_firmware_action" in
+				none) firmware_phase=idle ;;
+				*) firmware_phase=pending ;;
+			esac
+			firmware_fields=$(printf '"action":%s,"phase":%s' \
+				"$(agent_json_string "$current_firmware_action")" \
+				"$(agent_json_string "$firmware_phase")")
+			agent_sse_emit firmware.progress "$(agent_sse_payload firmware.progress "$firmware_fields")" || exit 0
+		fi
+
+		current_health_status=$(agent_health_status)
+		if [ "$current_health_status" != "$last_health_status" ] && [ "$current_health_status" != ok ]; then
+			health_fields=$(printf '"status":%s,"network_online":%s,"streamer_running":%s' \
+				"$(agent_json_string "$current_health_status")" \
+				"$(agent_json_bool "$(agent_network_online)")" \
+				"$(agent_json_bool "$current_streamer_running")")
+			agent_sse_emit health.warning "$(agent_sse_payload health.warning "$health_fields")" || exit 0
+		fi
+
+		if [ -n "$changed_paths" ]; then
+			agent_sse_emit state.changed "$(agent_sse_payload state.changed "\"paths\":[${changed_paths}]")" || exit 0
+			keepalive_counter=0
+		elif [ "$keepalive_counter" -ge 3 ]; then
+			agent_sse_emit keepalive "$(agent_sse_payload keepalive '')" || exit 0
+			# Best-effort sensor sample from daynight runtime files when present.
+			daynight_mode=$(agent_daynight_running_mode 2>/dev/null || true)
+			total_gain=
+			[ -f /run/prudynt/total_gain ] && total_gain=$(awk 'NR==1{print $1}' /run/prudynt/total_gain 2>/dev/null)
+			ae_luma=
+			[ -f /run/prudynt/ae_luma ] && ae_luma=$(awk 'NR==1{print $1}' /run/prudynt/ae_luma 2>/dev/null)
+			brightness=
+			[ -f /run/prudynt/daynight_brightness ] && brightness=$(awk 'NR==1{print $1}' /run/prudynt/daynight_brightness 2>/dev/null)
+			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":null,"daynight_mode":%s' \
+				"$(date +%s)" \
+				"$(agent_json_value_or "$ae_luma" null)" \
+				"$(agent_json_value_or "$brightness" null)" \
+				"$(agent_json_value_or "$total_gain" null)" \
+				"$(agent_json_string_or_null "$daynight_mode")")
+			agent_sse_emit sensor.sample "$(agent_sse_payload sensor.sample "$sensor_fields")" || exit 0
+			keepalive_counter=0
+		fi
+
+		last_motion_active=$current_motion_active
+		last_streamer_running=$current_streamer_running
+		last_health_status=$current_health_status
+		last_firmware_action=$current_firmware_action
+		last_stream0_recording=$current_stream0_recording
+		last_stream1_recording=$current_stream1_recording
+		last_stream0_healthy=$current_stream0_healthy
+		last_stream1_healthy=$current_stream1_healthy
+		last_recording_active=$current_recording_active
+		last_recording_channel=$current_recording_channel
+		last_recording_duration=$current_recording_duration
+		last_recording_path=$current_recording_path
+	done
+}
+
+agent_get_capabilities() {
+	group=${1:-all}
+	streaming_service=false
+	[ -n "$(agent_service_script)" ] && streaming_service=true
+	case "$group" in
+		all)
+			printf '{'
+			printf '"backend":{"name":"prudynt"},'
+			printf '"image":{"brightness":true,"contrast":true,"saturation":true,"sharpness":true,"anti_flicker":true,"hflip":true,"vflip":true},'
+			printf '"motion":{"enabled":true,"sensitivity":true,"cooldown_time":true},'
+			printf '"daynight":{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]},' \
+				"$(agent_json_bool "$(agent_has_daynight)")" \
+				"$(agent_json_bool "$(agent_has_daynight)")"
+			printf '"privacy":{"enabled":%s},' "$(agent_json_bool "$(agent_has_privacy)")"
+			printf '"audio":{"mic_enabled":true,"spk_enabled":true},'
+			printf '"storage":{"configured":true,"runtime":true},'
+			printf '"streams":{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true},' \
+				"$(agent_stream_count)" \
+				"$(agent_json_bool "$(agent_has_snapshot)")" \
+				"$(agent_json_bool "$(agent_has_clip)")"
+			printf '"services":%s,' "$(agent_print_service_capabilities)"
+			printf '"send2":%s,' "$(agent_print_send2_capabilities)"
+			printf '"ptz":{"enabled":%s},' "$(agent_json_bool "$(agent_has_ptz)")"
+			printf '"firmware":%s' "$(agent_print_firmware_capabilities)"
+			printf '}\n'
+			;;
+		image)
+			printf '{"brightness":true,"contrast":true,"saturation":true,"sharpness":true,"anti_flicker":true,"hflip":true,"vflip":true}\n'
+			;;
+		motion)
+			printf '{"enabled":true,"sensitivity":true,"cooldown_time":true}\n'
+			;;
+		daynight)
+			printf '{"enabled":%s,"force_mode":%s,"modes":["auto","day","night"]}\n' \
+				"$(agent_json_bool "$(agent_has_daynight)")" \
+				"$(agent_json_bool "$(agent_has_daynight)")"
+			;;
+		privacy)
+			printf '{"enabled":%s}\n' "$(agent_json_bool "$(agent_has_privacy)")"
+			;;
+		audio)
+			printf '{"mic_enabled":true,"spk_enabled":true}\n'
+			;;
+		storage)
+			printf '{"configured":true,"runtime":true}\n'
+			;;
+		streams)
+			printf '{"count":%s,"snapshot":%s,"clip_recording":%s,"enabled":true,"audio_enabled":true,"width":true,"height":true,"fps":true,"bitrate":true,"format":true,"mode":true}\n' \
+				"$(agent_stream_count)" \
+				"$(agent_json_bool "$(agent_has_snapshot)")" \
+				"$(agent_json_bool "$(agent_has_clip)")"
+			;;
+		services)
+			agent_print_service_capabilities
+			printf '\n'
+			;;
+		send2)
+			agent_print_send2_capabilities
+			printf '\n'
+			;;
+		firmware)
+			agent_print_firmware_capabilities
+			printf '\n'
+			;;
+		*)
+			echo "unsupported capability resource: $group" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_query_live() {
+	unset _heartbeat_color_mode _heartbeat_mic_enabled _heartbeat_spk_enabled _heartbeat_total_gain
+	if command -v prudyntctl >/dev/null 2>&1; then
+		_heartbeat_tmp=$(mktemp)
+		prudyntctl json '{"image":{"running_mode":null},"audio":{"mic_enabled":null,"spk_enabled":null},"daynight":{"status":null}}' >"$_heartbeat_tmp" 2>/dev/null
+		_heartbeat_color_mode=$(agent_json_config_value "$_heartbeat_tmp" image.running_mode)
+		_heartbeat_mic_enabled=$(agent_json_config_value "$_heartbeat_tmp" audio.mic_enabled)
+		_heartbeat_spk_enabled=$(agent_json_config_value "$_heartbeat_tmp" audio.spk_enabled)
+		_heartbeat_total_gain=$(agent_json_config_value "$_heartbeat_tmp" daynight.status.total_gain)
+		rm -f "$_heartbeat_tmp"
+	fi
+}
+
+agent_heartbeat_brightness() {
+	awk 'NR == 1 { print $1 }' /run/prudynt/daynight_brightness 2>/dev/null | tr -d '\n'
+}
+
+agent_heartbeat_hw_state() {
+	cmd=${1%% *}
+	command -v "$cmd" >/dev/null 2>&1 || {
+		printf 'null'
+		return 0
+	}
+	value=$(eval "$1 read" 2>/dev/null)
+	case "$value" in
+		'' | *[!0-9]*) printf 'null' ;;
+		*) printf '%s' "$value" ;;
+	esac
+}
+
+agent_heartbeat_wg_status() {
+	if command -v wg >/dev/null 2>&1; then
+		case "$(wg show wg0 2>/dev/null)" in
+			*"latest handshake"*) printf '1' ;;
+			*) printf '0' ;;
+		esac
+	else
+		printf '0'
+	fi
+}
+
+agent_get_runtime() {
+	resource=${1:-all}
+	case "$resource" in
+		all)
+			printf '{'
+			printf '"system":%s,' "$(agent_print_runtime_system)"
+			printf '"network":%s,' "$(agent_print_runtime_network)"
+			printf '"motion":{"enabled":%s,"active":%s},' \
+				"$(agent_motion_enabled)" "$(agent_motion_active)"
+			printf '"daynight":{"enabled":%s,"target_mode":%s,"running_mode":%s},' \
+				"$(agent_daynight_enabled)" \
+				"$(agent_json_string "$(agent_daynight_target_mode)")" \
+				"$(agent_json_string "$(agent_daynight_running_mode)")"
+			printf '"privacy":{"enabled":%s},' "$(agent_privacy_enabled)"
+			printf '"storage":%s,' "$(agent_print_runtime_storage)"
+			printf '"recording":%s,' "$(agent_print_runtime_recording)"
+			printf '"firmware":%s,' "$(agent_print_runtime_firmware)"
+			printf '"services":{"streaming":%s},' "$(agent_print_runtime_streaming_service)"
+			printf '"streams":['
+			agent_print_stream_runtime 0
+			printf ','
+			agent_print_stream_runtime 1
+			printf ']'
+			printf '}\n'
+			;;
+		system)
+			agent_print_runtime_system
+			printf '\n'
+			;;
+		network)
+			agent_print_runtime_network
+			printf '\n'
+			;;
+		motion)
+			printf '{"enabled":%s,"active":%s}\n' "$(agent_motion_enabled)" "$(agent_motion_active)"
+			;;
+		daynight)
+			printf '{"enabled":%s,"target_mode":%s,"running_mode":%s}\n' \
+				"$(agent_daynight_enabled)" \
+				"$(agent_json_string "$(agent_daynight_target_mode)")" \
+				"$(agent_json_string "$(agent_daynight_running_mode)")"
+			;;
+		privacy)
+			printf '{"enabled":%s}\n' "$(agent_privacy_enabled)"
+			;;
+		storage)
+			agent_print_runtime_storage
+			printf '\n'
+			;;
+		recording)
+			agent_print_runtime_recording
+			printf '\n'
+			;;
+		firmware)
+			agent_print_runtime_firmware
+			printf '\n'
+			;;
+		services/streaming)
+			agent_print_runtime_streaming_service
+			printf '\n'
+			;;
+		streams/0)
+			agent_print_stream_runtime 0
+			printf '\n'
+			;;
+		streams/1)
+			agent_print_stream_runtime 1
+			printf '\n'
+			;;
+		media)
+			has_snapshot=$(agent_has_snapshot)
+			stream0_enabled=$(agent_json_value_or "$(agent_stream_field 0 enabled)" false)
+			stream1_enabled=$(agent_json_value_or "$(agent_stream_field 1 enabled)" false)
+			printf '{"streams":{"ch0":{"available":%s,"enabled":%s,"snapshot_url":%s},"ch1":{"available":%s,"enabled":%s,"snapshot_url":%s}}}\n' \
+				"$(agent_json_bool "$has_snapshot")" \
+				"$stream0_enabled" \
+				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream0_enabled" = true ] && printf '/x/dl0.jpg')")" \
+				"$(agent_json_bool "$has_snapshot")" \
+				"$stream1_enabled" \
+				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
+			;;
+		heartbeat)
+			agent_query_live
+			_brightness=$(agent_heartbeat_brightness)
+			_daynight_mode=$(agent_daynight_running_mode)
+			_ircut_state=$(agent_heartbeat_hw_state ircut)
+			_ir850_state=$(agent_heartbeat_hw_state "light ir850")
+			_ir940_state=$(agent_heartbeat_hw_state "light ir940")
+			_white_state=$(agent_heartbeat_hw_state "light white")
+			_wg_status=$(agent_heartbeat_wg_status)
+			printf '{'
+			printf '"time_now":%s,' "$(date +%s)"
+			printf '"uptime":%s,' "$(agent_uptime_seconds)"
+			printf '"daynight_brightness":%s,' "$(agent_json_string_or_null "$_brightness")"
+			printf '"total_gain":%s,' "$(agent_json_value_or "${_heartbeat_total_gain:-}" null)"
+			printf '"daynight_mode":%s,' "$(agent_json_string_or_null "$_daynight_mode")"
+			printf '"rec_ch0":%s,' "$(agent_stream_recording_active 0)"
+			printf '"rec_ch1":%s,' "$(agent_stream_recording_active 1)"
+			printf '"motion_enabled":%s,' "$(agent_motion_active)"
+			printf '"privacy_enabled":%s,' "$(agent_privacy_enabled)"
+			printf '"color_mode":%s,' "$(agent_json_value_or "${_heartbeat_color_mode:-}" null)"
+			printf '"mic_enabled":%s,' "$(agent_json_value_or "${_heartbeat_mic_enabled:-}" false)"
+			printf '"spk_enabled":%s,' "$(agent_json_value_or "${_heartbeat_spk_enabled:-}" false)"
+			printf '"daynight_enabled":%s,' "$(agent_daynight_enabled)"
+			printf '"ircut_state":%s,' "$_ircut_state"
+			printf '"ir850_state":%s,' "$_ir850_state"
+			printf '"ir940_state":%s,' "$_ir940_state"
+			printf '"white_state":%s,' "$_white_state"
+			printf '"wg_status":%s' "$_wg_status"
+			printf '}\n'
+			;;
+		*)
+			echo "unsupported runtime resource: $resource" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_get_config() {
+	printf '{'
+	printf '"image":{'
+	printf '"brightness":%s,' "$(agent_json_value_or "$(agent_raw image.brightness)" null)"
+	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_raw image.contrast)" null)"
+	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_raw image.saturation)" null)"
+	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_raw image.sharpness)" null)"
+	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_raw image.anti_flicker)" null)"
+	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_raw image.ae_compensation)" null)"
+	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_raw image.core_wb_mode)" null)"
+	printf '"wb_rgain":%s,' "$(agent_json_value_or "$(agent_raw image.wb_rgain)" null)"
+	printf '"wb_bgain":%s,' "$(agent_json_value_or "$(agent_raw image.wb_bgain)" null)"
+	printf '"hflip":%s,' "$(agent_json_value_or "$(agent_raw image.hflip)" false)"
+	printf '"vflip":%s' "$(agent_json_value_or "$(agent_raw image.vflip)" false)"
+	printf '},'
+	printf '"motion":{"enabled":%s},' "$(agent_motion_enabled)"
+	printf '"daynight":{"enabled":%s,"force_mode":%s},' \
+		"$(agent_daynight_enabled)" "$(agent_daynight_force_mode)"
+	printf '"privacy":{"enabled":%s,"channel":"all"},' "$(agent_privacy_enabled)"
+	printf '"storage":{'
+	printf '"autostart":%s,' "$(agent_json_value_or "$(agent_recorder_raw autostart)" false)"
+	printf '"channel":%s,' "$(agent_json_value_or "$(agent_recorder_raw channel)" null)"
+	printf '"device_path":%s,' "$(agent_json_string_or_null "$(agent_recorder_text device_path)")"
+	printf '"duration":%s,' "$(agent_json_value_or "$(agent_recorder_raw duration)" null)"
+	printf '"filename":%s,' "$(agent_json_string_or_null "$(agent_recorder_text filename)")"
+	printf '"mount":%s' "$(agent_json_string_or_null "$(agent_recorder_text mount)")"
+	printf '},'
+	printf '"streams":['
+	agent_print_stream_config 0
+	printf ','
+	agent_print_stream_config 1
+	printf '],'
+	printf '"backend":{"name":"prudynt","raw":'
+	if [ -f "$AGENT_CONFIG" ]; then
+		cat "$AGENT_CONFIG"
+	else
+		printf '{}'
+	fi
+	printf '}}\n'
+}
+
+agent_get_setting() {
+	path=$1
+	case "$path" in
+		image/brightness)
+			agent_print_setting_leaf brightness "$(agent_raw image.brightness)"
+			;;
+		image/contrast)
+			agent_print_setting_leaf contrast "$(agent_raw image.contrast)"
+			;;
+		image/saturation)
+			agent_print_setting_leaf saturation "$(agent_raw image.saturation)"
+			;;
+		image/sharpness)
+			agent_print_setting_leaf sharpness "$(agent_raw image.sharpness)"
+			;;
+		image/anti-flicker)
+			agent_print_setting_leaf anti_flicker "$(agent_raw image.anti_flicker)"
+			;;
+		image/hflip)
+			agent_print_setting_leaf hflip "$(agent_raw image.hflip)"
+			;;
+		image/vflip)
+			agent_print_setting_leaf vflip "$(agent_raw image.vflip)"
+			;;
+		image/ae-compensation)
+			agent_print_setting_leaf ae_compensation "$(agent_raw image.ae_compensation)"
+			;;
+		image/core-wb-mode)
+			agent_print_setting_leaf core_wb_mode "$(agent_raw image.core_wb_mode)"
+			;;
+		image/wb-rgain)
+			agent_print_setting_leaf wb_rgain "$(agent_raw image.wb_rgain)"
+			;;
+		image/wb-bgain)
+			agent_print_setting_leaf wb_bgain "$(agent_raw image.wb_bgain)"
+			;;
+		audio/mic-enabled)
+			agent_print_setting_leaf mic_enabled "$(agent_raw audio.mic_enabled)"
+			;;
+		audio/spk-enabled)
+			agent_print_setting_leaf spk_enabled "$(agent_raw audio.spk_enabled)"
+			;;
+		motion/enabled)
+			agent_print_setting_leaf enabled "$(agent_raw motion.enabled)"
+			;;
+		motion/sensitivity)
+			agent_print_setting_leaf sensitivity "$(agent_raw motion.sensitivity)"
+			;;
+		motion/cooldown-time)
+			agent_print_setting_leaf cooldown_time "$(agent_raw motion.cooldown_time)"
+			;;
+		motion/outputs/send2/*)
+			service=${path#motion/outputs/send2/}
+			agent_send2_service_supported "$service" || return 1
+			agent_print_setting_leaf enabled "$(agent_send2_motion_enabled "$service")"
+			;;
+		daynight/enabled)
+			agent_print_setting_leaf enabled "$(agent_daynight_enabled)"
+			;;
+		daynight/force-mode)
+			printf '{"force_mode":%s}\n' "$(agent_daynight_force_mode)"
+			;;
+		privacy/enabled)
+			agent_print_setting_leaf enabled "$(agent_privacy_enabled)"
+			;;
+		privacy/channel)
+			agent_print_setting_leaf channel '"all"'
+			;;
+		storage/*)
+			agent_print_storage_setting "$path"
+			;;
+		streams/0/enabled)
+			agent_print_setting_leaf enabled "$(agent_stream_field 0 enabled)"
+			;;
+		streams/0/audio-enabled)
+			agent_print_setting_leaf audio_enabled "$(agent_stream_field 0 audio_enabled)"
+			;;
+		streams/0/width)
+			agent_print_setting_leaf width "$(agent_stream_field 0 width)"
+			;;
+		streams/0/height)
+			agent_print_setting_leaf height "$(agent_stream_field 0 height)"
+			;;
+		streams/0/fps)
+			agent_print_setting_leaf fps "$(agent_stream_field 0 fps)"
+			;;
+		streams/0/bitrate)
+			agent_print_setting_leaf bitrate "$(agent_stream_field 0 bitrate)"
+			;;
+		streams/0/gop)
+			agent_print_setting_leaf gop "$(agent_stream_field 0 gop)"
+			;;
+		streams/0/buffers)
+			agent_print_setting_leaf buffers "$(agent_stream_field 0 buffers)"
+			;;
+		streams/0/profile)
+			agent_print_setting_leaf profile "$(agent_stream_field 0 profile)"
+			;;
+		streams/0/rtsp-endpoint)
+			printf '{"rtsp_endpoint":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 rtsp_endpoint)")"
+			;;
+		streams/0/format)
+			printf '{"format":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 format)")"
+			;;
+		streams/0/mode)
+			printf '{"mode":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 0 mode)")"
+			;;
+		streams/[01]/osd/*)
+			agent_print_osd_setting "$path"
+			;;
+		streams/1/enabled)
+			agent_print_setting_leaf enabled "$(agent_stream_field 1 enabled)"
+			;;
+		streams/1/audio-enabled)
+			agent_print_setting_leaf audio_enabled "$(agent_stream_field 1 audio_enabled)"
+			;;
+		streams/1/width)
+			agent_print_setting_leaf width "$(agent_stream_field 1 width)"
+			;;
+		streams/1/height)
+			agent_print_setting_leaf height "$(agent_stream_field 1 height)"
+			;;
+		streams/1/fps)
+			agent_print_setting_leaf fps "$(agent_stream_field 1 fps)"
+			;;
+		streams/1/bitrate)
+			agent_print_setting_leaf bitrate "$(agent_stream_field 1 bitrate)"
+			;;
+		streams/1/gop)
+			agent_print_setting_leaf gop "$(agent_stream_field 1 gop)"
+			;;
+		streams/1/buffers)
+			agent_print_setting_leaf buffers "$(agent_stream_field 1 buffers)"
+			;;
+		streams/1/profile)
+			agent_print_setting_leaf profile "$(agent_stream_field 1 profile)"
+			;;
+		streams/1/rtsp-endpoint)
+			printf '{"rtsp_endpoint":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 rtsp_endpoint)")"
+			;;
+		streams/1/format)
+			printf '{"format":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 format)")"
+			;;
+		streams/1/mode)
+			printf '{"mode":%s}\n' "$(agent_json_string_or_null "$(agent_stream_text_field 1 mode)")"
+			;;
+		send2/services/*/send-photo)
+			rest=${path#send2/services/}
+			service=${rest%/send-photo}
+			agent_send2_service_supported "$service" || return 1
+			agent_print_setting_leaf send_photo "$(agent_json_value_or "$(agent_send2_raw "$service" send_photo)" true)"
+			;;
+		send2/services/*/send-video)
+			rest=${path#send2/services/}
+			service=${rest%/send-video}
+			agent_send2_service_supported "$service" || return 1
+			agent_send2_service_has_send_video "$service" || {
+				echo "send_video is not supported for send2 service '$service'" >&2
+				return 1
+			}
+			agent_print_setting_leaf send_video "$(agent_json_value_or "$(agent_send2_raw "$service" send_video)" false)"
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_apply_payload() {
+	payload=$1
+	if ! command -v prudyntctl >/dev/null 2>&1; then
+		echo "prudyntctl is not available" >&2
+		return 1
+	fi
+	printf '%s\n' "$payload" | prudyntctl json - >/dev/null 2>&1 || {
+		echo "failed to apply prudynt runtime configuration" >&2
+		return 1
+	}
+}
+
+agent_persist_value() {
+	path=$1
+	value=$2
+	if command -v jct >/dev/null 2>&1 && [ -f "$AGENT_CONFIG" ] && [ -n "$value" ]; then
+		jct "$AGENT_CONFIG" set "$path" "$value" >/dev/null 2>&1 || true
+	fi
+}
+
+agent_setting_value() {
+	body_file=$1
+	field=$2
+	value=$(agent_json_config_value "$body_file" "$field")
+	[ -n "$value" ] || {
+		echo "missing field '$field'" >&2
+		return 1
+	}
+	printf '%s' "$value"
+}
+
+agent_validate_bool() {
+	case "$1" in
+		true | false) return 0 ;;
+		*)
+			echo "boolean value required" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_validate_int() {
+	value=$1
+	case "$value" in
+		'' | *[!0-9-]*)
+			echo "integer value required" >&2
+			return 1
+			;;
+		*) return 0 ;;
+	esac
+}
+
+agent_unquote_string() {
+	printf '%s' "$1" | tr -d '"'
+}
+
+agent_validate_non_empty_string() {
+	value=$(agent_unquote_string "$1")
+	[ -n "$value" ] || {
+		echo "non-empty string required" >&2
+		return 1
+	}
+	printf '%s' "$value"
+}
+
+agent_validate_stream_format() {
+	value=$(agent_unquote_string "$1" | tr 'a-z' 'A-Z')
+	case "$value" in
+		H264 | H265)
+			printf '%s' "$value"
+			return 0
+			;;
+		*)
+			echo "stream format must be H264 or H265" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_validate_stream_mode() {
+	value=$(agent_unquote_string "$1" | tr 'a-z' 'A-Z')
+	case "$value" in
+		CBR | VBR | SMART | FIXQP | CAPPED_VBR | CAPPED_QUALITY)
+			printf '%s' "$value"
+			return 0
+			;;
+		*)
+			echo "stream mode must be CBR, VBR, SMART, FIXQP, CAPPED_VBR, or CAPPED_QUALITY" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_set_setting() {
+	path=$1
+	body_file=$2
+	case "$path" in
+		image/brightness)
+			value=$(agent_setting_value "$body_file" brightness) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"brightness\":$value}}" || return 1
+			agent_persist_value image.brightness "$value"
+			agent_print_setting_update "$path" brightness "$value"
+			;;
+		image/contrast)
+			value=$(agent_setting_value "$body_file" contrast) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"contrast\":$value}}" || return 1
+			agent_persist_value image.contrast "$value"
+			agent_print_setting_update "$path" contrast "$value"
+			;;
+		image/saturation)
+			value=$(agent_setting_value "$body_file" saturation) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"saturation\":$value}}" || return 1
+			agent_persist_value image.saturation "$value"
+			agent_print_setting_update "$path" saturation "$value"
+			;;
+		image/sharpness)
+			value=$(agent_setting_value "$body_file" sharpness) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"sharpness\":$value}}" || return 1
+			agent_persist_value image.sharpness "$value"
+			agent_print_setting_update "$path" sharpness "$value"
+			;;
+		image/anti-flicker)
+			value=$(agent_setting_value "$body_file" anti_flicker) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"anti_flicker\":$value}}" || return 1
+			agent_persist_value image.anti_flicker "$value"
+			agent_print_setting_update "$path" anti_flicker "$value"
+			;;
+		image/hflip)
+			value=$(agent_setting_value "$body_file" hflip) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"image\":{\"hflip\":$value}}" || return 1
+			agent_persist_value image.hflip "$value"
+			agent_print_setting_update "$path" hflip "$value"
+			;;
+		image/vflip)
+			value=$(agent_setting_value "$body_file" vflip) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"image\":{\"vflip\":$value}}" || return 1
+			agent_persist_value image.vflip "$value"
+			agent_print_setting_update "$path" vflip "$value"
+			;;
+		image/ae-compensation)
+			value=$(agent_setting_value "$body_file" ae_compensation) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"ae_compensation\":$value}}" || return 1
+			agent_persist_value image.ae_compensation "$value"
+			agent_print_setting_update "$path" ae_compensation "$value"
+			;;
+		image/core-wb-mode)
+			value=$(agent_setting_value "$body_file" core_wb_mode) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"core_wb_mode\":$value}}" || return 1
+			agent_persist_value image.core_wb_mode "$value"
+			agent_print_setting_update "$path" core_wb_mode "$value"
+			;;
+		image/wb-rgain)
+			value=$(agent_setting_value "$body_file" wb_rgain) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"wb_rgain\":$value}}" || return 1
+			agent_persist_value image.wb_rgain "$value"
+			agent_print_setting_update "$path" wb_rgain "$value"
+			;;
+		image/wb-bgain)
+			value=$(agent_setting_value "$body_file" wb_bgain) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"image\":{\"wb_bgain\":$value}}" || return 1
+			agent_persist_value image.wb_bgain "$value"
+			agent_print_setting_update "$path" wb_bgain "$value"
+			;;
+		audio/mic-enabled)
+			value=$(agent_setting_value "$body_file" mic_enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"audio\":{\"mic_enabled\":$value}}" || return 1
+			agent_persist_value audio.mic_enabled "$value"
+			agent_print_setting_update "$path" mic_enabled "$value"
+			;;
+		audio/spk-enabled)
+			value=$(agent_setting_value "$body_file" spk_enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"audio\":{\"spk_enabled\":$value}}" || return 1
+			agent_persist_value audio.spk_enabled "$value"
+			agent_print_setting_update "$path" spk_enabled "$value"
+			;;
+		motion/enabled)
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"motion\":{\"enabled\":$value}}" || return 1
+			agent_persist_value motion.enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		motion/sensitivity)
+			value=$(agent_setting_value "$body_file" sensitivity) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"motion\":{\"sensitivity\":$value}}" || return 1
+			agent_persist_value motion.sensitivity "$value"
+			agent_print_setting_update "$path" sensitivity "$value"
+			;;
+		motion/cooldown-time)
+			value=$(agent_setting_value "$body_file" cooldown_time) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"motion\":{\"cooldown_time\":$value}}" || return 1
+			agent_persist_value motion.cooldown_time "$value"
+			agent_print_setting_update "$path" cooldown_time "$value"
+			;;
+		motion/outputs/send2/*)
+			service=${path#motion/outputs/send2/}
+			agent_send2_service_supported "$service" || return 1
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			key=$(agent_send2_motion_key "$service")
+			agent_apply_payload "{\"motion\":{\"send2$service\":$value}}" || return 1
+			agent_persist_value "$key" "$value"
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		daynight/enabled)
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			if agent_has_daynightd; then
+				if [ "$value" = true ]; then
+					agent_daynightd_set_mode auto || return 1
+				else
+					mode=$(agent_daynight_running_mode)
+					case "$mode" in
+						day | night) ;;
+						*) mode=day ;;
+					esac
+					agent_daynightd_set_mode "$mode" || return 1
+				fi
+			else
+				agent_apply_payload "{\"daynight\":{\"enabled\":$value}}" || return 1
+				agent_persist_value daynight.enabled "$value"
+			fi
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		daynight/force-mode)
+			value=$(agent_setting_value "$body_file" force_mode) || return 1
+			case "$value" in
+				"day" | "night") ;;
+				*)
+					echo "force_mode must be day or night" >&2
+					return 1
+					;;
+			esac
+			if agent_has_daynightd; then
+				mode=$(printf '%s' "$value" | tr -d '"')
+				agent_daynightd_set_mode "$mode" || return 1
+			else
+				agent_apply_payload "{\"daynight\":{\"force_mode\":$value}}" || return 1
+				agent_persist_value daynight.force_mode "$value"
+			fi
+			agent_print_setting_update "$path" force_mode "$value"
+			;;
+		privacy/enabled)
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"privacy\":{\"enabled\":$value}}" || return 1
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		privacy/channel)
+			value=$(agent_setting_value "$body_file" channel) || return 1
+			case "$value" in
+				all) value='"all"' ;;
+				'"all"') ;;
+				*)
+					echo "privacy.channel must be all" >&2
+					return 1
+					;;
+			esac
+			agent_print_setting_update "$path" channel "$value"
+			;;
+		storage/*)
+			agent_set_storage_setting "$path" "$body_file"
+			;;
+		streams/0/enabled)
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"enabled\":$value}}" || return 1
+			agent_persist_value stream0.enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		streams/0/audio-enabled)
+			value=$(agent_setting_value "$body_file" audio_enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"audio_enabled\":$value}}" || return 1
+			agent_persist_value stream0.audio_enabled "$value"
+			agent_print_setting_update "$path" audio_enabled "$value"
+			;;
+		streams/0/width)
+			value=$(agent_setting_value "$body_file" width) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"width\":$value}}" || return 1
+			agent_persist_value stream0.width "$value"
+			agent_print_setting_update "$path" width "$value"
+			;;
+		streams/0/height)
+			value=$(agent_setting_value "$body_file" height) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"height\":$value}}" || return 1
+			agent_persist_value stream0.height "$value"
+			agent_print_setting_update "$path" height "$value"
+			;;
+		streams/0/fps)
+			value=$(agent_setting_value "$body_file" fps) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"fps\":$value}}" || return 1
+			agent_persist_value stream0.fps "$value"
+			agent_print_setting_update "$path" fps "$value"
+			;;
+		streams/0/bitrate)
+			value=$(agent_setting_value "$body_file" bitrate) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"bitrate\":$value}}" || return 1
+			agent_persist_value stream0.bitrate "$value"
+			agent_print_setting_update "$path" bitrate "$value"
+			;;
+		streams/0/gop)
+			value=$(agent_setting_value "$body_file" gop) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"gop\":$value}}" || return 1
+			agent_persist_value stream0.gop "$value"
+			agent_print_setting_update "$path" gop "$value"
+			;;
+		streams/0/buffers)
+			value=$(agent_setting_value "$body_file" buffers) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream0\":{\"buffers\":$value}}" || return 1
+			agent_persist_value stream0.buffers "$value"
+			agent_print_setting_update "$path" buffers "$value"
+			;;
+		streams/0/profile)
+			value=$(agent_setting_value "$body_file" profile) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			if agent_validate_int "$value" 2>/dev/null; then
+				agent_apply_payload "{\"stream0\":{\"profile\":$value}}" || return 1
+				agent_persist_value stream0.profile "$value"
+				agent_print_setting_update "$path" profile "$value"
+			else
+				[ -n "$value" ] || {
+					echo "non-empty profile required" >&2
+					return 1
+				}
+				agent_apply_payload "{\"stream0\":{\"profile\":$(agent_json_string "$value")}}" || return 1
+				agent_persist_value stream0.profile "$(agent_json_string "$value")"
+				agent_print_setting_update "$path" profile "$(agent_json_string "$value")"
+			fi
+			;;
+		streams/0/rtsp-endpoint)
+			value=$(agent_setting_value "$body_file" rtsp_endpoint) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			[ -n "$value" ] || {
+				echo "non-empty rtsp_endpoint required" >&2
+				return 1
+			}
+			agent_apply_payload "{\"stream0\":{\"rtsp_endpoint\":$(agent_json_string "$value")}}" || return 1
+			agent_persist_value stream0.rtsp_endpoint "$(agent_json_string "$value")"
+			agent_print_setting_update "$path" rtsp_endpoint "$(agent_json_string "$value")"
+			;;
+		streams/0/format)
+			value=$(agent_setting_value "$body_file" format) || return 1
+			value=$(agent_validate_stream_format "$value") || return 1
+			agent_apply_payload "{\"stream0\":{\"format\":\"$value\"}}" || return 1
+			agent_persist_value stream0.format "$value"
+			agent_print_setting_update "$path" format "$(agent_json_string "$value")"
+			;;
+		streams/0/mode)
+			value=$(agent_setting_value "$body_file" mode) || return 1
+			value=$(agent_validate_stream_mode "$value") || return 1
+			agent_apply_payload "{\"stream0\":{\"mode\":\"$value\"}}" || return 1
+			agent_persist_value stream0.mode "$value"
+			agent_print_setting_update "$path" mode "$(agent_json_string "$value")"
+			;;
+		streams/[01]/osd/*)
+			agent_set_osd_setting "$path" "$body_file"
+			;;
+		streams/1/enabled)
+			value=$(agent_setting_value "$body_file" enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"enabled\":$value}}" || return 1
+			agent_persist_value stream1.enabled "$value"
+			agent_print_setting_update "$path" enabled "$value"
+			;;
+		streams/1/audio-enabled)
+			value=$(agent_setting_value "$body_file" audio_enabled) || return 1
+			agent_validate_bool "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"audio_enabled\":$value}}" || return 1
+			agent_persist_value stream1.audio_enabled "$value"
+			agent_print_setting_update "$path" audio_enabled "$value"
+			;;
+		streams/1/width)
+			value=$(agent_setting_value "$body_file" width) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"width\":$value}}" || return 1
+			agent_persist_value stream1.width "$value"
+			agent_print_setting_update "$path" width "$value"
+			;;
+		streams/1/height)
+			value=$(agent_setting_value "$body_file" height) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"height\":$value}}" || return 1
+			agent_persist_value stream1.height "$value"
+			agent_print_setting_update "$path" height "$value"
+			;;
+		streams/1/fps)
+			value=$(agent_setting_value "$body_file" fps) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"fps\":$value}}" || return 1
+			agent_persist_value stream1.fps "$value"
+			agent_print_setting_update "$path" fps "$value"
+			;;
+		streams/1/bitrate)
+			value=$(agent_setting_value "$body_file" bitrate) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"bitrate\":$value}}" || return 1
+			agent_persist_value stream1.bitrate "$value"
+			agent_print_setting_update "$path" bitrate "$value"
+			;;
+		streams/1/gop)
+			value=$(agent_setting_value "$body_file" gop) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"gop\":$value}}" || return 1
+			agent_persist_value stream1.gop "$value"
+			agent_print_setting_update "$path" gop "$value"
+			;;
+		streams/1/buffers)
+			value=$(agent_setting_value "$body_file" buffers) || return 1
+			agent_validate_int "$value" || return 1
+			agent_apply_payload "{\"stream1\":{\"buffers\":$value}}" || return 1
+			agent_persist_value stream1.buffers "$value"
+			agent_print_setting_update "$path" buffers "$value"
+			;;
+		streams/1/profile)
+			value=$(agent_setting_value "$body_file" profile) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			if agent_validate_int "$value" 2>/dev/null; then
+				agent_apply_payload "{\"stream1\":{\"profile\":$value}}" || return 1
+				agent_persist_value stream1.profile "$value"
+				agent_print_setting_update "$path" profile "$value"
+			else
+				[ -n "$value" ] || {
+					echo "non-empty profile required" >&2
+					return 1
+				}
+				agent_apply_payload "{\"stream1\":{\"profile\":$(agent_json_string "$value")}}" || return 1
+				agent_persist_value stream1.profile "$(agent_json_string "$value")"
+				agent_print_setting_update "$path" profile "$(agent_json_string "$value")"
+			fi
+			;;
+		streams/1/rtsp-endpoint)
+			value=$(agent_setting_value "$body_file" rtsp_endpoint) || return 1
+			value=$(printf '%s' "$value" | sed 's/^"//;s/"$//')
+			[ -n "$value" ] || {
+				echo "non-empty rtsp_endpoint required" >&2
+				return 1
+			}
+			agent_apply_payload "{\"stream1\":{\"rtsp_endpoint\":$(agent_json_string "$value")}}" || return 1
+			agent_persist_value stream1.rtsp_endpoint "$(agent_json_string "$value")"
+			agent_print_setting_update "$path" rtsp_endpoint "$(agent_json_string "$value")"
+			;;
+		streams/1/format)
+			value=$(agent_setting_value "$body_file" format) || return 1
+			value=$(agent_validate_stream_format "$value") || return 1
+			agent_apply_payload "{\"stream1\":{\"format\":\"$value\"}}" || return 1
+			agent_persist_value stream1.format "$value"
+			agent_print_setting_update "$path" format "$(agent_json_string "$value")"
+			;;
+		streams/1/mode)
+			value=$(agent_setting_value "$body_file" mode) || return 1
+			value=$(agent_validate_stream_mode "$value") || return 1
+			agent_apply_payload "{\"stream1\":{\"mode\":\"$value\"}}" || return 1
+			agent_persist_value stream1.mode "$value"
+			agent_print_setting_update "$path" mode "$(agent_json_string "$value")"
+			;;
+		send2/services/*/send-photo)
+			rest=${path#send2/services/}
+			service=${rest%/send-photo}
+			agent_send2_service_supported "$service" || return 1
+			value=$(agent_setting_value "$body_file" send_photo) || return 1
+			agent_validate_bool "$value" || return 1
+			if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
+				jct "$THINGINO_AGENT_SEND2_CONFIG" set "$service.send_photo" "$value" >/dev/null 2>&1 || {
+					echo "failed to persist send2 configuration" >&2
+					return 1
+				}
+			fi
+			agent_print_setting_update "$path" send_photo "$value"
+			;;
+		send2/services/*/send-video)
+			rest=${path#send2/services/}
+			service=${rest%/send-video}
+			agent_send2_service_supported "$service" || return 1
+			agent_send2_service_has_send_video "$service" || {
+				echo "send_video is not supported for send2 service '$service'" >&2
+				return 1
+			}
+			value=$(agent_setting_value "$body_file" send_video) || return 1
+			agent_validate_bool "$value" || return 1
+			if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
+				jct "$THINGINO_AGENT_SEND2_CONFIG" set "$service.send_video" "$value" >/dev/null 2>&1 || {
+					echo "failed to persist send2 configuration" >&2
+					return 1
+				}
+			fi
+			agent_print_setting_update "$path" send_video "$value"
+			;;
+		*)
+			echo "unsupported setting path: $path" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_persist_if_present() {
+	source_file=$1
+	path=$2
+	value=$(agent_json_config_value "$source_file" "$path")
+	[ -n "$value" ] || return 0
+	agent_persist_value "$path" "$value"
+}
+
+agent_persist_send2_if_present() {
+	source_file=$1
+	path=$2
+	value=$(agent_json_config_value "$source_file" "$path")
+	[ -n "$value" ] || return 0
+	if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_SEND2_CONFIG" ]; then
+		jct "$THINGINO_AGENT_SEND2_CONFIG" set "$path" "$value" >/dev/null 2>&1 || true
+	fi
+}
+
+agent_apply_config() {
+	source_file=$1
+	[ -n "$source_file" ] || {
+		echo "usage: agentctl apply-config <json-file>" >&2
+		return 1
+	}
+	[ -s "$source_file" ] || {
+		echo "configuration payload is empty" >&2
+		return 1
+	}
+	if ! command -v prudyntctl >/dev/null 2>&1; then
+		echo "prudyntctl is not available" >&2
+		return 1
+	fi
+	if ! cat "$source_file" | prudyntctl json - >/dev/null 2>&1; then
+		echo "failed to apply runtime configuration" >&2
+		return 1
+	fi
+	agent_persist_if_present "$source_file" image.brightness
+	agent_persist_if_present "$source_file" image.contrast
+	agent_persist_if_present "$source_file" image.saturation
+	agent_persist_if_present "$source_file" image.sharpness
+	agent_persist_if_present "$source_file" image.anti_flicker
+	agent_persist_if_present "$source_file" image.hflip
+	agent_persist_if_present "$source_file" image.vflip
+	agent_persist_if_present "$source_file" motion.enabled
+	agent_persist_if_present "$source_file" motion.sensitivity
+	agent_persist_if_present "$source_file" motion.cooldown_time
+	agent_persist_if_present "$source_file" motion.send2email
+	agent_persist_if_present "$source_file" motion.send2ftp
+	agent_persist_if_present "$source_file" motion.send2gphotos
+	agent_persist_if_present "$source_file" motion.send2mqtt
+	agent_persist_if_present "$source_file" motion.send2ntfy
+	agent_persist_if_present "$source_file" motion.send2storage
+	agent_persist_if_present "$source_file" motion.send2telegram
+	agent_persist_if_present "$source_file" motion.send2webhook
+	if agent_has_daynightd; then
+		value=$(agent_json_config_value "$source_file" daynight.enabled)
+		case "$value" in
+			true) agent_daynightd_set_mode auto || true ;;
+			false)
+				force=$(agent_json_config_value "$source_file" daynight.force_mode | tr -d '"')
+				case "$force" in
+					day | night) agent_daynightd_set_mode "$force" || true ;;
+				esac
+				;;
+		esac
+	else
+		agent_persist_if_present "$source_file" daynight.enabled
+		agent_persist_if_present "$source_file" daynight.force_mode
+	fi
+	agent_persist_if_present "$source_file" recorder.autostart
+	agent_persist_if_present "$source_file" recorder.channel
+	agent_persist_if_present "$source_file" recorder.device_path
+	agent_persist_if_present "$source_file" recorder.duration
+	agent_persist_if_present "$source_file" recorder.filename
+	agent_persist_if_present "$source_file" recorder.mount
+	agent_persist_if_present "$source_file" stream0.enabled
+	agent_persist_if_present "$source_file" stream0.audio_enabled
+	agent_persist_if_present "$source_file" stream0.bitrate
+	agent_persist_if_present "$source_file" stream0.width
+	agent_persist_if_present "$source_file" stream0.height
+	agent_persist_if_present "$source_file" stream0.fps
+	agent_persist_if_present "$source_file" stream0.format
+	agent_persist_if_present "$source_file" stream0.mode
+	for field in \
+		stream0.osd.enabled \
+		stream0.osd.font_path \
+		stream0.osd.font_size \
+		stream0.osd.start_delay \
+		stream0.osd.stroke_size \
+		stream0.osd.brightness.enabled \
+		stream0.osd.brightness.fill_color \
+		stream0.osd.brightness.format \
+		stream0.osd.brightness.position \
+		stream0.osd.brightness.rotation \
+		stream0.osd.brightness.stroke_color \
+		stream0.osd.time.enabled \
+		stream0.osd.time.fill_color \
+		stream0.osd.time.format \
+		stream0.osd.time.position \
+		stream0.osd.time.rotation \
+		stream0.osd.time.stroke_color \
+		stream0.osd.uptime.enabled \
+		stream0.osd.uptime.fill_color \
+		stream0.osd.uptime.format \
+		stream0.osd.uptime.position \
+		stream0.osd.uptime.rotation \
+		stream0.osd.uptime.stroke_color \
+		stream0.osd.usertext.enabled \
+		stream0.osd.usertext.fill_color \
+		stream0.osd.usertext.format \
+		stream0.osd.usertext.position \
+		stream0.osd.usertext.rotation \
+		stream0.osd.usertext.stroke_color \
+		stream0.osd.logo.enabled \
+		stream0.osd.logo.height \
+		stream0.osd.logo.path \
+		stream0.osd.logo.position \
+		stream0.osd.logo.rotation \
+		stream0.osd.logo.transparency \
+		stream0.osd.logo.width \
+		stream0.osd.privacy.enabled \
+		stream0.osd.privacy.fill_color \
+		stream0.osd.privacy.font_size \
+		stream0.osd.privacy.image_height \
+		stream0.osd.privacy.image_path \
+		stream0.osd.privacy.image_width \
+		stream0.osd.privacy.layer \
+		stream0.osd.privacy.opacity \
+		stream0.osd.privacy.position \
+		stream0.osd.privacy.rotation \
+		stream0.osd.privacy.stroke_color \
+		stream0.osd.privacy.stroke_size \
+		stream0.osd.privacy.text; do
+		agent_persist_if_present "$source_file" "$field"
+	done
+	agent_persist_if_present "$source_file" stream1.enabled
+	agent_persist_if_present "$source_file" stream1.audio_enabled
+	agent_persist_if_present "$source_file" stream1.bitrate
+	agent_persist_if_present "$source_file" stream1.width
+	agent_persist_if_present "$source_file" stream1.height
+	agent_persist_if_present "$source_file" stream1.fps
+	agent_persist_if_present "$source_file" stream1.format
+	agent_persist_if_present "$source_file" stream1.mode
+	for field in \
+		stream1.osd.enabled \
+		stream1.osd.font_path \
+		stream1.osd.font_size \
+		stream1.osd.start_delay \
+		stream1.osd.stroke_size \
+		stream1.osd.brightness.enabled \
+		stream1.osd.brightness.fill_color \
+		stream1.osd.brightness.format \
+		stream1.osd.brightness.position \
+		stream1.osd.brightness.rotation \
+		stream1.osd.brightness.stroke_color \
+		stream1.osd.time.enabled \
+		stream1.osd.time.fill_color \
+		stream1.osd.time.format \
+		stream1.osd.time.position \
+		stream1.osd.time.rotation \
+		stream1.osd.time.stroke_color \
+		stream1.osd.uptime.enabled \
+		stream1.osd.uptime.fill_color \
+		stream1.osd.uptime.format \
+		stream1.osd.uptime.position \
+		stream1.osd.uptime.rotation \
+		stream1.osd.uptime.stroke_color \
+		stream1.osd.usertext.enabled \
+		stream1.osd.usertext.fill_color \
+		stream1.osd.usertext.format \
+		stream1.osd.usertext.position \
+		stream1.osd.usertext.rotation \
+		stream1.osd.usertext.stroke_color \
+		stream1.osd.logo.enabled \
+		stream1.osd.logo.height \
+		stream1.osd.logo.path \
+		stream1.osd.logo.position \
+		stream1.osd.logo.rotation \
+		stream1.osd.logo.transparency \
+		stream1.osd.logo.width \
+		stream1.osd.privacy.enabled \
+		stream1.osd.privacy.fill_color \
+		stream1.osd.privacy.font_size \
+		stream1.osd.privacy.image_height \
+		stream1.osd.privacy.image_path \
+		stream1.osd.privacy.image_width \
+		stream1.osd.privacy.layer \
+		stream1.osd.privacy.opacity \
+		stream1.osd.privacy.position \
+		stream1.osd.privacy.rotation \
+		stream1.osd.privacy.stroke_color \
+		stream1.osd.privacy.stroke_size \
+		stream1.osd.privacy.text; do
+		agent_persist_if_present "$source_file" "$field"
+	done
+	agent_persist_send2_if_present "$source_file" email.send_photo
+	agent_persist_send2_if_present "$source_file" email.send_video
+	agent_persist_send2_if_present "$source_file" ftp.send_photo
+	agent_persist_send2_if_present "$source_file" ftp.send_video
+	agent_persist_send2_if_present "$source_file" gphotos.send_photo
+	agent_persist_send2_if_present "$source_file" gphotos.send_video
+	agent_persist_send2_if_present "$source_file" mqtt.send_photo
+	agent_persist_send2_if_present "$source_file" mqtt.send_video
+	agent_persist_send2_if_present "$source_file" ntfy.send_photo
+	agent_persist_send2_if_present "$source_file" ntfy.send_video
+	agent_persist_send2_if_present "$source_file" storage.send_photo
+	agent_persist_send2_if_present "$source_file" storage.send_video
+	agent_persist_send2_if_present "$source_file" telegram.send_photo
+	agent_persist_send2_if_present "$source_file" telegram.send_video
+	agent_persist_send2_if_present "$source_file" webhook.send_photo
+	agent_persist_send2_if_present "$source_file" webhook.send_video
+	printf '{"status":"accepted","applied":["config"],"staged":[],"restart_required":[]}\n'
+}
+
+agent_snapshot() {
+	channel=${1:-0}
+	command -v prudyntctl >/dev/null 2>&1 || {
+		echo "snapshot is not supported on this camera" >&2
+		return 1
+	}
+	prudyntctl snapshot -c "$channel"
+}
+
+agent_record() {
+	# Usage:
+	#   record stop [channel]
+	#   record continuous [channel]
+	#   record [duration] [channel] [path]   # timed clip (existing)
+	arg1=${1:-10}
+	channel=${2:-0}
+	file=${3:-/tmp/clip_$(date +%Y%m%d_%H%M%S).mp4}
+
+	case "$arg1" in
+		stop)
+			[ -e /run/prudynt/mp4ctl ] || {
+				echo "record action is not supported on this camera" >&2
+				return 1
+			}
+			printf 'STOP\n' >/run/prudynt/mp4ctl || {
+				echo "failed to stop recording" >&2
+				return 1
+			}
+			printf '{"status":"accepted","action":"stop","stream_id":%s}\n' \
+				"$(agent_json_value_or "$channel" 0)"
+			return 0
+			;;
+		continuous)
+			[ -e /run/prudynt/mp4ctl ] || {
+				echo "record action is not supported on this camera" >&2
+				return 1
+			}
+			# Prefer the record helper when present (looping storage path).
+			if command -v record >/dev/null 2>&1; then
+				record start -c "$channel" >/dev/null 2>&1 || {
+					echo "failed to start continuous recording" >&2
+					return 1
+				}
+			else
+				mount_path=$(agent_recorder_text mount)
+				[ -n "$mount_path" ] || mount_path=/tmp
+				file="${mount_path%/}/rec_ch${channel}_$(date +%Y%m%d_%H%M%S).mp4"
+				# Long duration approximates continuous until STOP.
+				echo "START $file 86400 $channel" >/run/prudynt/mp4ctl || {
+					echo "failed to start continuous recording" >&2
+					return 1
+				}
+			fi
+			printf '{"status":"accepted","action":"continuous","stream_id":%s}\n' \
+				"$(agent_json_value_or "$channel" 0)"
+			return 0
+			;;
+	esac
+
+	duration=$arg1
+	[ -e /run/prudynt/mp4ctl ] || {
+		echo "record action is not supported on this camera" >&2
+		return 1
+	}
+	echo "START $file $duration $channel" >/run/prudynt/mp4ctl
+	printf '{"status":"accepted","result":{"path":%s}}\n' "$(agent_json_string "$file")"
+}
+
+agent_privacy() {
+	state=$1
+	channel=${2:-all}
+	[ -n "$state" ] || {
+		echo "usage: agentctl privacy <on|off> [channel]" >&2
+		return 1
+	}
+	if ! command -v privacy >/dev/null 2>&1 && [ ! -e /run/prudynt/video_ctrl ]; then
+		echo "privacy action is not supported on this camera" >&2
+		return 1
+	fi
+	if command -v privacy >/dev/null 2>&1 && [ "$channel" = "all" ]; then
+		privacy "$state"
+	else
+		printf 'PRIVACY ch=%s value=%s\n' "$channel" "$state" >/run/prudynt/video_ctrl
+	fi
+	printf '{"status":"accepted"}\n'
+}
+
+agent_daynight() {
+	mode=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	[ -n "$mode" ] || {
+		echo "usage: agentctl daynight <auto|day|night>" >&2
+		return 1
+	}
+	case "$mode" in
+		auto)
+			if agent_has_daynightd; then
+				agent_daynightd_set_mode auto || return 1
+			else
+				agent_apply_payload '{"daynight":{"enabled":true}}' || return 1
+				agent_persist_value daynight.enabled true
+			fi
+			printf '{"status":"accepted","mode":"auto"}\n'
+			;;
+		day | night)
+			if agent_has_daynightd; then
+				agent_daynightd_set_mode "$mode" || return 1
+			else
+				agent_apply_payload "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$mode\"}}" || return 1
+				agent_persist_value daynight.enabled false
+				agent_persist_value daynight.force_mode "\"$mode\""
+			fi
+			printf '{"status":"accepted","mode":%s}\n' "$(agent_json_string "$mode")"
+			;;
+		*)
+			echo "daynight mode must be auto, day, or night" >&2
+			return 1
+			;;
+	esac
+}
+
+agent_service() {
+	service_name=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	action_name=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
+	case "$service_name" in
+		streaming)
+			script=$(agent_service_script)
+			;;
+		*)
+			echo "unsupported service: $service_name" >&2
+			return 1
+			;;
+	esac
+	[ -n "$script" ] || {
+		echo "$service_name service control is not supported on this camera" >&2
+		return 1
+	}
+	case "$action_name" in
+		start | stop | restart) ;;
+		*)
+			echo "service action must be start, stop, or restart" >&2
+			return 1
+			;;
+	esac
+	"$script" "$action_name" >/dev/null 2>&1 || {
+		echo "failed to $action_name $service_name service" >&2
+		return 1
+	}
+	printf '{"status":"accepted","service":%s,"operation":%s}\n' \
+		"$(agent_json_string "$service_name")" "$(agent_json_string "$action_name")"
+}
+
+agent_reboot() {
+	(
+		sleep 1
+		reboot -f
+	) >/dev/null 2>&1 &
+	printf '{"status":"accepted","operation":"reboot"}\n'
+}
+
+agent_send2_test() {
+	service=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
+	action=$(printf '%s' "${2:-test}" | tr 'A-Z' 'a-z')
+	[ -n "$service" ] || {
+		echo "send2-test: service name required" >&2
+		return 1
+	}
+	tool="/usr/sbin/send2${service}"
+	[ -x "$tool" ] || {
+		echo "send2-test: unsupported service '$service'" >&2
+		return 1
+	}
+	# Suppress all tool output: the agent listener merges stderr into the
+	# response body, which would break JSON parsing. Report success/failure
+	# via exit code instead.
+	_send2_ok=true
+	case "$action" in
+		test) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-photo) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-video) "$tool" -V >/dev/null 2>&1 || _send2_ok=false ;;
+		*)
+			echo "send2-test: unsupported action '$action'" >&2
+			return 1
+			;;
+	esac
+	if [ "$_send2_ok" = "false" ]; then
+		printf '{"status":"error","service":%s,"action":%s,"message":"send2 test failed"}\n' \
+			"$(agent_json_string "$service")" \
+			"$(agent_json_string "$action")"
+		return 1
+	fi
+	printf '{"status":"ok","service":%s,"action":%s}\n' \
+		"$(agent_json_string "$service")" \
+		"$(agent_json_string "$action")"
+}

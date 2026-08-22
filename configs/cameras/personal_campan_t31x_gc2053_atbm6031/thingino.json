@@ -7,7 +7,8 @@
     "mmc_power": {
       "pin": 39,
       "active_low": true
-    }
+    },
+    "speaker": 8
   },
   "motors": {
     "gpio_invert": false,

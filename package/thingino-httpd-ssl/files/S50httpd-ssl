@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2059,SC2086
 
 DAEMON="httpd-ssl"
 PIDFILE="/var/run/$DAEMON.pid"
@@ -59,13 +60,13 @@ case "$1" in
 	stop)
 		stop
 		;;
-	restart|reload)
+	restart | reload)
 		restart
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
+		;;
 esac
 
 exit $?
-

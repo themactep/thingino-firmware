@@ -12,3 +12,16 @@ config BR2_PACKAGE_THINGINO_ONVIF
 	  Uses thingino-mxml (v4.0.4) for secure XML parsing with latest security fixes.
 
 	  https://github.com/themactep/thingino-onvif
+
+config BR2_PACKAGE_THINGINO_ONVIF_SYNOLOGY_COMPAT
+	bool "Synology Surveillance Station compatibility (non-compliant)"
+	depends on BR2_PACKAGE_THINGINO_ONVIF
+	help
+	  Build the ONVIF server with compatibility shims for Synology
+	  Surveillance Station: a synthetic CreateProfile response and a
+	  deletable SynoProfileToken. This is deliberately non-compliant
+	  with the ONVIF spec (CreateProfile shall return MaxNVTProfiles
+	  when the profile limit is reached) and exists only to coax
+	  Synology's non-standard camera setup flow. Enable only if you
+	  must feed a Synology NVR. Also requires "adv_synology_nvr":
+	  true in /etc/onvif.json at runtime.

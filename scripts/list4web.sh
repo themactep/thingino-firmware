@@ -1,9 +1,13 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+# Camera names use [a-z0-9_] only; echo output is safe unquoted.
 
 GH_URL_BASE="https://github.com/themactep/thingino-firmware/releases/latest/download"
 
-CAMERA_DIRS=$(realpath $(dirname $0)/../configs/cameras/)
-CAMERA_CONFIGS=$(ls -1 $CAMERA_DIRS | sort)
+set -euo pipefail
+
+CAMERA_DIRS=$(realpath "$(dirname "$0")"/../configs/cameras/)
+CAMERA_CONFIGS=$(find "$CAMERA_DIRS" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 
 echo -e "Supported Hardware\n==================\n
 Full list of supported cameras by brand, model, and hardware
@@ -19,8 +23,10 @@ for config_name in $CAMERA_CONFIGS; do
 	camera_model=$(echo $camera_name | awk -F'(' '{print $1}' | xargs)
 	camera_variant=$(echo $camera_name | awk -F'[()]' '{print $2}')
 
-	if [ "$old_brand" != "$config_brand" ]; then
+	if [ "${old_brand:-}" != "$config_brand" ]; then
 		echo -e "\n\n$camera_brand"
+		# shellcheck disable=SC2034
+		# i is the loop counter; we only need n iterations of echo -n
 		for i in $(seq 1 ${#camera_brand}); do
 			echo -n "-"
 		done
@@ -28,7 +34,7 @@ for config_name in $CAMERA_CONFIGS; do
 		old_brand=$config_brand
 	fi
 
-	if [ "$old_model" != "$config_model" ]; then
+	if [ "${old_model:-}" != "$config_model" ]; then
 		echo -e "\n### ${camera_model}\n"
 		old_model=$config_model
 	fi

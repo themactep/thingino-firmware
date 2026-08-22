@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086
 
 MOUNT_SHARE=
 MOUNT_POINT="/var/www"

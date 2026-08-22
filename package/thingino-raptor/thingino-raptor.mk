@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 7635313ebf2bfc8a477c4def479e8163ed338ad3
+THINGINO_RAPTOR_VERSION = 17804903e1414d426802df0967b3bdbd72219f58
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -7,7 +7,7 @@ THINGINO_RAPTOR_LICENSE_FILES = COPYING
 
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-lib compy libschrift
 THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino-raptor-common
-THINGINO_RAPTOR_DEPENDENCIES += thingino-webui
+THINGINO_RAPTOR_DEPENDENCIES += thingino-webui thingino-agent
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 THINGINO_RAPTOR_DEPENDENCIES += openimp
 THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
@@ -156,6 +156,11 @@ define THINGINO_RAPTOR_BUILD_CMDS
 endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
+	# Install the thingino-agent backend adapter at the fixed path, overwriting
+	# the null fallback installed by thingino-agent.
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/agent-adapter \
+		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
+
 	# Install selected daemons and tools
 	$(foreach t,$(THINGINO_RAPTOR_TARGETS),\
 		if [ -f $(@D)/$(t)/$(t) ]; then \
@@ -278,6 +283,20 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(call THINGINO_RAPTOR_PATCH_CONF)
 
 endef
+
+# Raptor's own WebRTC preview page. It must land over thingino-webui's stock
+# MJPEG preview.html, and it must be in place BEFORE thingino-webui's
+# plugin-assembly finalize hook processes it (the assembler injects plugins.js
+# into whatever is on disk at that path). A plain INSTALL_TARGET_CMDS copy goes
+# into the per-package tree and loses the final per-package merge to
+# thingino-webui (alphabetically later package wins conflicts), so install it
+# from a finalize hook: parse order puts this hook before the webui's assembly
+# hook, and target-finalize runs after the per-package merge.
+define THINGINO_RAPTOR_INSTALL_PREVIEW
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
+		$(TARGET_DIR)/var/www/preview.html
+endef
+THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_PREVIEW
 
 # Raptor-only send2 capture (copy_photo/copy_video via raptorctl/RMR). Installed
 # from a finalize hook so it wins over package/thingino-send2's prudynt default

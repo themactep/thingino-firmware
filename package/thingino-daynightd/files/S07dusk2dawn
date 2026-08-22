@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034
 
 DAEMON="dusk2dawn"
 CRONTABS_FLASH="/etc/cron/crontabs/root"

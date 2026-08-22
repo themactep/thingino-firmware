@@ -67,7 +67,6 @@ const stream_params = [
   "rtsp_endpoint",
   "audio_enabled",
 ];
-const osd_params = ["enabled"];
 const previewEndpointState = {
   rtsp: {
     username: "thingino",
@@ -307,85 +306,6 @@ async function initPreviewEndpoints() {
 
 initPreviewEndpoints();
 
-function handleOsdData(osd, streamIndex) {
-  if (!osd) return;
-
-  if (osd.enabled !== undefined) {
-    const el = $(`#osd${streamIndex}_enabled`);
-    if (el) {
-      el.checked = osd.enabled;
-      el.disabled = false;
-    }
-  }
-  // Time element
-  if (osd.time) {
-    if (osd.time.enabled !== undefined) {
-      const el = $(`#osd${streamIndex}_time_enabled`);
-      if (el) {
-        el.checked = osd.time.enabled;
-        el.disabled = false;
-      }
-    }
-    if (osd.time.format !== undefined) {
-      const el = $(`#osd${streamIndex}_time_format`);
-      if (el) {
-        el.value = osd.time.format;
-        el.disabled = false;
-      }
-    }
-    if (osd.time.position !== undefined) {
-      const el = $(`#osd${streamIndex}_time_position`);
-      if (el) {
-        el.value = osd.time.position;
-        el.disabled = false;
-      }
-    }
-  }
-
-  // Uptime element
-  if (osd.uptime) {
-    if (osd.uptime.enabled !== undefined) {
-      const el = $(`#osd${streamIndex}_uptime_enabled`);
-      if (el) {
-        el.checked = osd.uptime.enabled;
-        el.disabled = false;
-      }
-    }
-    if (osd.uptime.position !== undefined) {
-      const el = $(`#osd${streamIndex}_uptime_position`);
-      if (el) {
-        el.value = osd.uptime.position;
-        el.disabled = false;
-      }
-    }
-  }
-
-  // Usertext element
-  if (osd.usertext) {
-    if (osd.usertext.enabled !== undefined) {
-      const el = $(`#osd${streamIndex}_usertext_enabled`);
-      if (el) {
-        el.checked = osd.usertext.enabled;
-        el.disabled = false;
-      }
-    }
-    if (osd.usertext.format !== undefined) {
-      const el = $(`#osd${streamIndex}_usertext_format`);
-      if (el) {
-        el.value = osd.usertext.format;
-        el.disabled = false;
-      }
-    }
-    if (osd.usertext.position !== undefined) {
-      const el = $(`#osd${streamIndex}_usertext_position`);
-      if (el) {
-        el.value = osd.usertext.position;
-        el.disabled = false;
-      }
-    }
-  }
-}
-
 function handleMessage(msg) {
   if (msg.motion && msg.motion.enabled !== undefined) {
     const motionBtn = $("#motion");
@@ -434,7 +354,6 @@ function handleMessage(msg) {
         setValue(msg.stream0, "stream0", param);
       }
     });
-    handleOsdData(msg.stream0.osd, 0);
   }
 
   // Handle stream1 params
@@ -444,7 +363,6 @@ function handleMessage(msg) {
         setValue(msg.stream1, "stream1", param);
       }
     });
-    handleOsdData(msg.stream1.osd, 1);
   }
 
   // Override FPS from config file so night-mode halving doesn't persist
@@ -973,7 +891,9 @@ function preferStreamerAgent() {
 
 async function fetchImagingStateFromAgent() {
   const helper = window.thinginoStreamer;
-  const cfg = await helper.agentRequest("/api/v1/config", { cache: "no-store" });
+  const cfg = await helper.agentRequest("/api/v1/config", {
+    cache: "no-store",
+  });
   const image = (cfg && cfg.image) || {};
   const mapped = {
     brightness: image.brightness,

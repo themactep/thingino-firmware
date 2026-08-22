@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034,SC3043
 
 json_get() {
 	local key="$1" value="$2"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2181
 
 DAEMON="/usr/sbin/zerotier-one"
 DAEMON_NAME="zerotier-one"

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # Sensor IQ binary upload for raptor images (replaces prudynt-only preview.cgi).
 
 . /var/www/x/auth.sh

@@ -9,7 +9,11 @@
     "ir850": 59,
     "ircut": "57 58",
     "mmc_cd": 49,
-    "wlan": 10
+    "wlan": 10,
+    "speaker": {
+      "pin": 9,
+      "active_low": true
+    }
   },
   "motors": {
     "gpio_invert": false,

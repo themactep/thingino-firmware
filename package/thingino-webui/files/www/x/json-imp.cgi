@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1083,SC1091,SC2086,SC2119,SC2120,SC2329
 # shellcheck disable=SC2039
 # Day/night control. With daynightd (prudynt images) this writes to
 # /etc/thingino.json and notifies daynightd via SIGHUP; with Raptor

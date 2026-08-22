@@ -1,4 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+# shellcheck disable=SC2155
+# shellcheck disable=SC2181
+# shellcheck disable=SC2155
 # Standalone TFTP Server for Thingino Firmware Build Environment
 # Serves compiled firmware images from output directories using Podman
 

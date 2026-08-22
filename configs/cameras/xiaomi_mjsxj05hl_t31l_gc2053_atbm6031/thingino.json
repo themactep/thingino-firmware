@@ -14,6 +14,7 @@
         "active_low": true
       }
     ],
+    "speaker": 63,
     "wlan": 58
   }
 }

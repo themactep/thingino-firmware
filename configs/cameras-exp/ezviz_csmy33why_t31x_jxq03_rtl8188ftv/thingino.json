@@ -3,6 +3,7 @@
     "button_reset": 6,
     "ir850": 14,
     "mmc_cd": 63,
+    "speaker": 9,
     "wlan": {
       "pin": 7,
       "active_low": true

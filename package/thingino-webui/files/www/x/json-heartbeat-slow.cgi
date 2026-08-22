@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 # Slow heartbeat proxied from Thingino agent
 

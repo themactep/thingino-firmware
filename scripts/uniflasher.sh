@@ -1,4 +1,6 @@
 #!/bin/sh
+# shellcheck disable=SC2086
+# shellcheck disable=SC2013
 #
 # Universal firmware installer.
 # Run on an embedded device in Linux shell to install
@@ -8,8 +10,10 @@
 #
 # 2024, Paul Philippov, paul@themactep.com
 
+set -eu
+
 check_prereq() {
-	command -v $1 > /dev/null && return
+	command -v $1 >/dev/null && return
 	echo "Cannot find $1."
 	exit 1
 }
@@ -29,7 +33,7 @@ killall majestic httpd ntpd crond || true
 mtd_num=0
 needle=0
 align_block=$((32 * 1024))
-fw_size=$(cat $firmware | wc -c)
+fw_size=$(wc -c <"$firmware")
 
 for size_hex in $(awk 'NR>1{print $2}' /proc/mtd); do
 	[ "$needle" -ge "$fw_size" ] && break
@@ -40,7 +44,7 @@ for size_hex in $(awk 'NR>1{print $2}' /proc/mtd); do
 
 	echo " Extracting block of $size_dec bytes starting at $needle"
 	size_dec=$((0x$size_hex))
-	dd if=$firmware of=$partfile bs=$align_block skip=$((needle/align_block)) count=$((size_dec/align_block))
+	dd if=$firmware of=$partfile bs=$align_block skip=$((needle / align_block)) count=$((size_dec / align_block))
 
 	echo " Flashing partition mtd${mtd_num}"
 	flash_eraseall /dev/mtd${mtd_num}

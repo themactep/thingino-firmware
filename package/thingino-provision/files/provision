@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 # Convert hex string to ASCII
 hex_to_ascii() {

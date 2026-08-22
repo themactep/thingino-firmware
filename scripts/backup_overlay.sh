@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Backup /overlay from a Thingino camera to a local tarball.
 #
@@ -10,7 +11,7 @@
 
 die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
 
-set -o pipefail
+set -euo pipefail
 
 [ "$#" -ne 2 ] && die "Usage: $0 <ip_address> <backup_dir>"
 
@@ -43,7 +44,7 @@ echo "Camera image name: $CAMERA_NAME"
 # Step 2: Build output filename
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 IP_SAFE=$(printf '%s' "$IP_ADDRESS" | tr '.' '-')
-TARBALL_NAME="${CAMERA_NAME}-${IP_SAFE}-${TIMESTAMP}.tar.gz"
+TARBALL_NAME="${IP_SAFE}-${CAMERA_NAME}-${TIMESTAMP}.tar.gz"
 TARBALL_PATH="$BACKUP_DIR/$TARBALL_NAME"
 
 mkdir -p "$BACKUP_DIR"

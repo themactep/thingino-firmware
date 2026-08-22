@@ -752,9 +752,15 @@
     audioBtn.classList.add("flex-fill");
     bar.appendChild(audioBtn);
 
-    const recorderBtn = createRecorderGroup();
-    recorderBtn.classList.add("flex-fill");
-    bar.appendChild(recorderBtn);
+    // The recording configuration page (tool-record.html) is owned by the
+    // prudynt plugin and is prudynt.json-backed.  Raptor records natively
+    // via rmr and has no such page — hide the button there.
+    const isRaptor = uiConfig.device && uiConfig.device.raptor === true;
+    if (!isRaptor) {
+      const recorderBtn = createRecorderGroup();
+      recorderBtn.classList.add("flex-fill");
+      bar.appendChild(recorderBtn);
+    }
 
     return bar;
   }

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC3043
 # Timelapse configuration for raptor images.
 # rmr owns timelapse natively (config section [timelapse] in raptor.conf);
 # this CGI only reads/writes those keys through raptorctl. There is no cron

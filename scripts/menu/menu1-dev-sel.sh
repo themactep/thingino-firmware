@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Initialize empty arrays for the menu items from each directory
 CAMERAS_ITEMS=()
 MODULES_ITEMS=()

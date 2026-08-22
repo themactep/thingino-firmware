@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1090,SC2086,SC2154
 
 OS_RELEASE_FILE="/etc/os-release"
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # Day/night switching for Raptor images
 # ric owns day/night on Raptor: it drives the IR-CUT filter, the IR
 # LEDs and the ISP mode together, so this wrapper only translates the

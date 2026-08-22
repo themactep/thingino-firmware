@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 # BusyBox httpd CGI for snapshot channel 1
 # Optional query: q=85 for JPEG quality override
 
@@ -20,4 +21,3 @@ if [ -n "$Q" ]; then
 else
 	prudyntctl snapshot -c 1
 fi
-

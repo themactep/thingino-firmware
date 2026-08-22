@@ -7,6 +7,10 @@
     "sensor_1": 18,
     "sensor_2": 16,
     "sensor_switch": 7,
+    "speaker": {
+      "pin": 63,
+      "active_low": true
+    },
     "white": 60,
     "wlan": {
       "pin": 6,

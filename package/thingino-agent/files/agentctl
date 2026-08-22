@@ -1,0 +1,289 @@
+#!/bin/sh
+
+# shellcheck disable=SC1091  # lib.sh and adapter.sh are installed on the camera, not in the build tree
+. /usr/libexec/agent/lib.sh
+# The single backend adapter is selected at build time and installed at this
+# fixed path by the chosen streamer package (or the null fallback).
+. /usr/libexec/agent/adapter.sh
+
+print_device() {
+	backend=$(agent_name)
+	printf '{'
+	printf '"id":%s,' "$(agent_json_string "$(agent_camera_id)")"
+	printf '"name":%s,' "$(agent_json_string "$(agent_hostname)")"
+	printf '"hostname":%s,' "$(agent_json_string "$(agent_hostname)")"
+	printf '"manufacturer":"Thingino",'
+	printf '"model":%s,' "$(agent_json_string "$(agent_camera_model)")"
+	printf '"software":{'
+	printf '"firmware_version":%s,' "$(agent_json_string "$(agent_firmware_version)")"
+	printf '"api_version":"0-local",'
+	printf '"streamer":%s' "$(agent_json_string "$backend")"
+	printf '},'
+	printf '"backend":{"name":%s,"available":true}' "$(agent_json_string "$backend")"
+	printf '}\n'
+}
+
+print_config_schema() {
+	printf '{'
+	printf '"version":"0-local",'
+	printf '"format":"agent-schema",'
+	printf '"resources":{'
+	printf '"events":{"transport":"sse","content_type":"text/event-stream","event_types":["hello","state.changed","motion.started","motion.stopped","streamer.restarted","record.completed","firmware.progress","health.warning","sensor.sample","keepalive","error"]},'
+	printf '"config":{"read":true,"patch":true},'
+	printf '"config_schema":{"read":true}'
+	printf '},'
+	printf '"settings":{'
+	printf '"image":{'
+	printf '"brightness":{"type":"integer"},'
+	printf '"contrast":{"type":"integer"},'
+	printf '"saturation":{"type":"integer"},'
+	printf '"sharpness":{"type":"integer"},'
+	printf '"anti_flicker":{"type":"integer"},'
+	printf '"hflip":{"type":"boolean"},'
+	printf '"vflip":{"type":"boolean"}'
+	printf '},'
+	printf '"motion":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"sensitivity":{"type":"integer"},'
+	printf '"cooldown_time":{"type":"integer"},'
+	printf '"outputs":{"type":"object","properties":{'
+	printf '"send2":{"type":"object","additionalProperties":{"type":"object","properties":{"enabled":{"type":"boolean","write_supported":true}}}}'
+	printf '}}'
+	printf '},'
+	printf '"daynight":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"force_mode":{"type":"string","enum":["day","night",null]}'
+	printf '},'
+	printf '"privacy":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"channel":{"type":"string","enum":["all"]}'
+	printf '},'
+	printf '"audio":{'
+	printf '"mic_enabled":{"type":"boolean","write_supported":true},'
+	printf '"spk_enabled":{"type":"boolean","write_supported":true}'
+	printf '},'
+	printf '"storage":{'
+	printf '"autostart":{"type":"boolean","write_supported":true},'
+	printf '"channel":{"type":"integer","write_supported":true},'
+	printf '"device_path":{"type":"string","write_supported":true},'
+	printf '"duration":{"type":"integer","write_supported":true},'
+	printf '"filename":{"type":"string","write_supported":true},'
+	printf '"mount":{"type":"string","write_supported":true}'
+	printf '},'
+	printf '"streams":{'
+	printf '"item_id_type":"integer",'
+	printf '"properties":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"audio_enabled":{"type":"boolean"},'
+	printf '"width":{"type":"integer"},'
+	printf '"height":{"type":"integer"},'
+	printf '"fps":{"type":"integer"},'
+	printf '"bitrate":{"type":"integer"},'
+	printf '"gop":{"type":"integer","write_supported":true},'
+	printf '"buffers":{"type":"integer","write_supported":true},'
+	printf '"rtsp_endpoint":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","enum":["H264","H265"],"read_only":false,"write_supported":true},'
+	printf '"mode":{"type":"string","enum":["CBR","VBR","SMART","FIXQP","CAPPED_VBR","CAPPED_QUALITY"],"read_only":false,"write_supported":true},'
+	printf '"osd":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"font_path":{"type":"string","write_supported":true},'
+	printf '"font_size":{"type":"integer","write_supported":true},'
+	printf '"start_delay":{"type":"integer","write_supported":true},'
+	printf '"stroke_size":{"type":"integer","write_supported":true},'
+	printf '"brightness":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"time":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"uptime":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"usertext":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"logo":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"height":{"type":"integer","write_supported":true},'
+	printf '"path":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"transparency":{"type":"integer","write_supported":true},'
+	printf '"width":{"type":"integer","write_supported":true}'
+	printf '}},'
+	printf '"privacy":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"font_size":{"type":"integer","write_supported":true},'
+	printf '"image_height":{"type":"integer","write_supported":true},'
+	printf '"image_path":{"type":"string","write_supported":true},'
+	printf '"image_width":{"type":"integer","write_supported":true},'
+	printf '"layer":{"type":"integer","write_supported":true},'
+	printf '"opacity":{"type":"integer","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true},'
+	printf '"stroke_size":{"type":"integer","write_supported":true},'
+	printf '"text":{"type":"string","write_supported":true}'
+	printf '}}'
+	printf '}}'
+	printf '}'
+	printf '}'
+	printf ','
+	printf '"send2":{'
+	printf '"services":{"type":"object","additionalProperties":{"type":"object","properties":{'
+	printf '"send_photo":{"type":"boolean","write_supported":true},'
+	printf '"send_video":{"type":"boolean","write_supported":true}'
+	printf '}}}'
+	printf '}'
+	printf '},'
+	printf '"actions":{'
+	printf '"snapshot":{"method":"POST"},'
+	printf '"record":{"method":"POST"},'
+	printf '"reboot":{"method":"POST"},'
+	printf '"services.streaming":{"method":"POST","operations":["start","stop","restart"]}'
+	printf '}'
+	printf '}\n'
+}
+
+usage() {
+	cat <<'EOF'
+Usage: agentctl <command> [args...]
+
+Read commands:
+  device                        Print canonical device identity JSON
+  health                        Print coarse health JSON
+  capabilities [group]          Print capability JSON
+  runtime <resource|all>        Print runtime resource JSON
+  state                         Compatibility alias for runtime all
+  config                        Print full persisted config JSON
+  schema                        Print machine-readable config schema JSON
+  events                        Stream agent events in SSE format
+  get-setting <path>            Print a narrow setting resource JSON
+
+Write and action commands:
+  set-setting <path> <json>     Apply a narrow setting resource update
+  apply-config <json-file>      Compatibility bulk config patch
+  snapshot [stream]             Write JPEG bytes to stdout
+  record continuous|stop [stream]
+  record [seconds] [stream] [path]
+  privacy <on|off> [channel]
+  daynight <auto|day|night>
+  service <name> <start|stop|restart>
+  restart-streamer
+  reboot
+
+The agent owns the external API. The single backend adapter selected at build
+time (by the streamer package) is loaded from /usr/libexec/agent/adapter.sh.
+EOF
+	exit 1
+}
+
+command=$1
+[ -n "$command" ] || usage
+shift
+
+case "$command" in
+	device)
+		print_device
+		;;
+	health)
+		agent_get_health
+		;;
+	capabilities)
+		group=${1:-all}
+		agent_get_capabilities "$group"
+		;;
+	runtime)
+		resource=${1:-all}
+		agent_get_runtime "$resource"
+		;;
+	state)
+		agent_get_runtime all
+		;;
+	config)
+		agent_get_config
+		;;
+	schema)
+		print_config_schema
+		;;
+	events)
+		agent_get_events
+		;;
+	get-setting)
+		path=$1
+		[ -n "$path" ] || {
+			echo "usage: agentctl get-setting <path>" >&2
+			exit 1
+		}
+		agent_get_setting "$path"
+		;;
+	set-setting)
+		path=$1
+		body_file=$2
+		[ -n "$path" ] || {
+			echo "usage: agentctl set-setting <path> <json-file>" >&2
+			exit 1
+		}
+		[ -n "$body_file" ] || {
+			echo "usage: agentctl set-setting <path> <json-file>" >&2
+			exit 1
+		}
+		agent_set_setting "$path" "$body_file"
+		;;
+	apply-config)
+		body_file=$1
+		[ -n "$body_file" ] || {
+			echo "usage: agentctl apply-config <json-file>" >&2
+			exit 1
+		}
+		agent_apply_config "$body_file"
+		;;
+	snapshot)
+		agent_snapshot "$@"
+		;;
+	record)
+		agent_record "$@"
+		;;
+	privacy)
+		agent_privacy "$@"
+		;;
+	daynight)
+		agent_daynight "$@"
+		;;
+	service)
+		agent_service "$@"
+		;;
+	restart-streamer)
+		agent_service streaming restart
+		;;
+	send2-test)
+		agent_send2_test "$@"
+		;;
+	reboot)
+		agent_reboot
+		;;
+	*)
+		usage
+		;;
+esac

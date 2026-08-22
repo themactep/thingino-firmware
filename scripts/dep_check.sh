@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2086
+# shellcheck disable=SC2034,SC2162,SC2181
+
+set -eu
+# NOTE: no pipefail — the dd version check pipeline (line 36-54) uses
+# explicit $? inspection; pipefail would short-circuit that pattern.
 
 if [ -f .prereqs.done ]; then
 	exit 0
@@ -121,13 +127,15 @@ check_glibc_version
 
 if [ -f /etc/os-release ]; then
 	. /etc/os-release
-	OS="$NAME"
+	OS="${NAME:-}"
 
 	# Common packages across all distros
 	default_packages="autoconf bc bison cpio cmake curl dialog file flex gawk git m4 make mtools nano parted patch perl rsync swig unzip wget ripgrep shfmt nodejs npm"
 
-	# Check ID_LIKE for Debian-based identification first
-	case "$ID_LIKE" in
+	# Check ID_LIKE for Debian-based identification first. Debian proper sets
+	# no ID_LIKE, and os-release guarantees none of these keys, so every one
+	# of them is defaulted: under set -u a bare expansion aborts the check.
+	case "${ID_LIKE:-}" in
 		*debian*)
 			echo "Detected as Debian-based via ID_LIKE"
 			pkg_manager="dpkg"
@@ -137,7 +145,7 @@ if [ -f /etc/os-release ]; then
 			packages="$default_packages build-essential ccache libcrypt-dev libncurses-dev libusb-1.0-0-dev u-boot-tools vim-tiny whiptail python3 python3-jsonschema"
 			;;
 		*)
-			case "$ID" in
+			case "${ID:-}" in
 				ubuntu | debian | linuxmint | zorin)
 					echo "Detected as Debian-based via ID"
 					pkg_manager="dpkg"
@@ -175,7 +183,7 @@ if [ -f /etc/os-release ]; then
 					packages="$default_packages gcc findutils grep libxcrypt-devel ncurses-devel newt libusb-1_0-devel u-boot-tools"
 					;;
 				*)
-					echo "Unsupported OS: $ID"
+					echo "Unsupported OS: ${ID:-unknown}"
 					exit 1
 					;;
 			esac
@@ -256,7 +264,7 @@ if [ -n "$packages_to_install" ]; then
 			echo "Please run it with sudo or as root."
 			exit 1
 		fi
-		if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
+		if [ "${ID:-}" = "ubuntu" ] || [ "${ID:-}" = "debian" ]; then
 			echo "Updating package list..."
 			$install_cmd $pkg_update_cmd
 		fi

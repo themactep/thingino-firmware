@@ -1,7 +1,15 @@
+# The released binaries are static musl, built natively on each
+# architecture rather than cross-linked, so the only thing that has to
+# match is the machine the build runs on.
+config BR2_PACKAGE_HOST_BUILDSCOPE_PREBUILT_ARCH_SUPPORTS
+	bool
+	default y if BR2_HOSTARCH = "x86_64"
+	default y if BR2_HOSTARCH = "aarch64"
+
 config BR2_PACKAGE_HOST_BUILDSCOPE
 	bool "buildscope for host"
-	depends on BR2_PACKAGE_HOST_RUSTC_ARCH_SUPPORTS
-	select BR2_PACKAGE_HOST_RUSTC
+	depends on BR2_PACKAGE_HOST_BUILDSCOPE_PREBUILT_ARCH_SUPPORTS || \
+		BR2_PACKAGE_HOST_RUSTC_ARCH_SUPPORTS
 	help
 	  Size and composition analyzer for Buildroot output
 	  trees.
@@ -13,6 +21,40 @@ config BR2_PACKAGE_HOST_BUILDSCOPE
 	  images/buildscope-report.json, which the viewer at
 	  buildscope.thingino.com renders.
 
-	  Builds a Rust host toolchain the first time.
-
 	  https://github.com/thingino/buildscope
+
+if BR2_PACKAGE_HOST_BUILDSCOPE
+
+choice
+	prompt "buildscope variant"
+	default BR2_PACKAGE_HOST_BUILDSCOPE_PREBUILT
+	help
+	  Take the binary published with a buildscope release, or
+	  compile the CLI here.
+
+config BR2_PACKAGE_HOST_BUILDSCOPE_PREBUILT
+	bool "buildscope (pre-built)"
+	depends on BR2_PACKAGE_HOST_BUILDSCOPE_PREBUILT_ARCH_SUPPORTS
+	help
+	  Download the static binary attached to the release.
+	  One 1.6MB fetch, kept in the Buildroot download cache
+	  and shared by every camera in the tree, and no Rust
+	  toolchain is downloaded or built.
+
+config BR2_PACKAGE_HOST_BUILDSCOPE_FROM_SOURCE
+	bool "buildscope (build from source)"
+	depends on BR2_PACKAGE_HOST_RUSTC_ARCH_SUPPORTS
+	select BR2_PACKAGE_HOST_RUSTC
+	help
+	  Compile the CLI from the pinned commit. buildscope is
+	  the only Rust in a thingino build, so this pulls the
+	  whole host toolchain in behind it: on the order of
+	  2.5GB per output directory, plus the compile, for a
+	  1.5MB tool.
+
+	  Pick this to test a buildscope change that is not in a
+	  release yet, or on a host the releases do not cover.
+
+endchoice
+
+endif

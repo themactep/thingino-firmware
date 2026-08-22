@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 # Unified day/night switching script for Thingino
 # Reads control flags from thingino.json, toggles hardware via ircut/light/color
 # Installed by thingino-daynight; called by streamers (prudynt, raptor, daynightd)

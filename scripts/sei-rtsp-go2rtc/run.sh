@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #=============================================================================
+# shellcheck disable=SC2155
 # sei-rtsp-go2rtc.sh — go2rtc-based SEI OSD overlay for Thingino cameras
 #=============================================================================
 #

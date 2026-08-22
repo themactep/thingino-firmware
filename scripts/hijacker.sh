@@ -1,4 +1,9 @@
 #!/bin/bash
+# shellcheck disable=SC2086,SC2015
+# SC2086: binary filenames and hex values, no spaces or glob chars.
+# SC2015: A && B || C pattern in 'run' function is intentional —
+#   the eval'd commands use '|| die' which calls exit, so C never
+#   runs when A succeeds.
 #
 # Embedded Linux root hijacker
 #
@@ -7,6 +12,8 @@
 # Use at your own risk.
 #
 # 2023, Paul Philippov <paul@themactep.com>
+
+set -euo pipefail
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <stock firmware dump>"
@@ -49,6 +56,7 @@ mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=\w+)/\2/" | cut -d ' ' -f 1 |
 [ -z "$mtdparts" ] && die "Cannot determine partitioning!"
 say "Partitioning: $mtdparts"
 
+n=0
 for p in ${mtdparts//,/ }; do
 	p_size=$(echo $p | cut -d '(' -f 1)
 
@@ -56,7 +64,7 @@ for p in ${mtdparts//,/ }; do
 		p_size_bytes=""
 	elif [ "0x" = "${p_size:0:2}" ]; then
 		## convert hex values
-		p_size_bytes=$(($p_size))
+		p_size_bytes=$((p_size))
 	else
 		p_size_value=$(echo $p_size | sed -E 's/[^0-9]//g')
 		p_size_unit=$(echo $p_size | sed -E 's/[0-9]+//')
@@ -85,6 +93,8 @@ say "extract rootfs partition from full dump: $rootfs_size bytes at offset $root
 run "dd if=$full_binary_file bs=1 skip=$rootfs_offset count=$rootfs_size of=$rootfs_file status=progress"
 
 say "determine compression of the original file"
+# shellcheck disable=SC2154
+# compression is set via eval in 'run' (shellcheck can't see it)
 run "compression=\"$(unsquashfs -s $rootfs_file | awk '/Compression/{print "-comp",$2}')\""
 
 say "unpack rootfs partition"
@@ -101,6 +111,8 @@ run "echo 'telnetd &' >> $(find squashfs-root -name rcS)"
 
 say "repack rootfs partition"
 new_rootfs_file="${rootfs_file}-patched"
+# shellcheck disable=SC2154
+# compression is set via eval in 'run' above
 run "mksquashfs squashfs-root $new_rootfs_file $compression -quiet"
 
 say "make sure new rootfs fits the partition"

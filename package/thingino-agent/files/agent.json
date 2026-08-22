@@ -1,0 +1,21 @@
+{
+  "agent": {
+    "enabled": true,
+    "listen": "127.0.0.1",
+    "port": 1998,
+    "tls": false,
+    "token": "",
+    "notes": "Managed local-only listener. The external API belongs to the agent; the backend adapter is selected at build time by the streamer package."
+  },
+  "mqtt_sub": {
+    "tls_skip_verify": false,
+    "subscriptions": [
+      {
+        "enabled": true,
+        "topic": "thingino/cam/%id/cmd",
+        "qos": 0,
+        "action": "telegram-cam-agent \"$MQTT_PAYLOAD\""
+      }
+    ]
+  }
+}

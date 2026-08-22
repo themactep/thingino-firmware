@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2046,SC2154,SC2155,SC3043
 
 # Session authentication middleware
 # Include this at the top of protected CGI scripts

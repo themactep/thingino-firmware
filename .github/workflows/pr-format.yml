@@ -1,0 +1,195 @@
+name: pr-format
+
+# Formatting gate for pull requests. Applies the same criteria as the
+# repo's pre-commit hook (.githooks/pre-commit), but to the files a PR
+# actually touches, and in check mode (fail instead of rewrite):
+#
+#   * do-not-edit manifest      scripts/check-do-not-edit.sh
+#   * /bin/sh formatting        shfmt -d -i 0 -ci  (files with #!/bin/sh)
+#   * shell lint                shellcheck -x      (files with #!/bin/sh|bash)
+#   * webui JS formatting       prettier --check   (package/thingino-webui/files/www/a/*.js)
+#   * defconfig sort            scripts/sort_defconfig.py --check
+#   * webui plugin manifests    scripts/check-plugins.sh
+#
+# Run `make setup-hooks` + `make lint` locally to get the same results
+# before pushing.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-format-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SHFMT_VERSION: 3.13.1
+  SHELLCHECK_VERSION: 0.11.0
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: false
+          # depth 2 so the PR merge ref's parents (base tip + head) are
+          # present; the changed-file diff below relies on them.
+          fetch-depth: 2
+
+      - name: Collect changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          touch /tmp/changed-files.txt
+          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
+            # HEAD is the PR merge ref (mergeable PR). Its first parent is
+            # the base-branch tip, so diffing against it yields exactly the
+            # files this PR changes - independent of how stale the recorded
+            # base.sha is or what else landed on the base branch meanwhile.
+            git diff --name-only --diff-filter=ACMR HEAD^1 HEAD > /tmp/changed-files.txt
+          else
+            # Conflicted PR: no merge ref, HEAD is the head commit. Fall back
+            # to diffing the recorded base against the head commit (may
+            # include unrelated files if the PR base is stale).
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+            git fetch --no-tags --depth=1 origin "$HEAD_SHA" >/dev/null 2>&1 || true
+            if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null || ! git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+              echo "::warning::Could not resolve base ($BASE_SHA) or head ($HEAD_SHA) commit; skipping format checks"
+              exit 0
+            fi
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-files.txt
+          fi
+          # Formatting checks must never touch patch files (generated/vendored
+          # artifacts, e.g. U-Boot and per-camera patches). They stay in the
+          # full list - do-not-edit still guards them - but are dropped from
+          # the list every formatting step reads.
+          grep -v '\.patch$' /tmp/changed-files.txt > /tmp/changed-files-format.txt || true
+          echo "Changed files in this PR:"
+          sed 's/^/  /' /tmp/changed-files.txt
+
+      - name: Check do-not-edit paths
+        run: |
+          # Full list (including .patch files): the manifest protects them.
+          if [ -s /tmp/changed-files.txt ]; then
+            scripts/check-do-not-edit.sh < /tmp/changed-files.txt
+          fi
+
+      - name: Install shfmt
+        run: |
+          set -eu
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64) shfmt_arch=amd64 ;;
+            aarch64 | arm64) shfmt_arch=arm64 ;;
+            *) echo "::error::unsupported architecture: $arch"; exit 1 ;;
+          esac
+          curl -fsSL -o /usr/local/bin/shfmt \
+            "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_${shfmt_arch}"
+          chmod +x /usr/local/bin/shfmt
+          shfmt --version
+
+      - name: Check shfmt formatting
+        run: |
+          failed=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            if head -1 "$file" | grep -q '^#!/bin/sh'; then
+              if ! shfmt -d -i 0 -ci "$file" >/dev/null 2>&1; then
+                echo "FAIL: $file is not shfmt-formatted"
+                shfmt -d -i 0 -ci "$file"
+                failed=1
+              fi
+            fi
+          done < /tmp/changed-files-format.txt
+          if [ "$failed" -eq 1 ]; then
+            echo
+            echo "Run 'shfmt -w -i 0 -ci <file>' to fix."
+            exit 1
+          fi
+          echo "Changed /bin/sh scripts are shfmt-formatted."
+
+      - name: Install shellcheck
+        # Pin the exact release instead of apt (ubuntu-latest ships an older
+        # shellcheck). Keeps pr-format in lockstep with lint.yml and local
+        # dev, both of which run 0.11.0.
+        run: |
+          set -eu
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64) sc_arch=x86_64 ;;
+            aarch64 | arm64) sc_arch=aarch64 ;;
+            *) echo "::error::unsupported architecture: $arch"; exit 1 ;;
+          esac
+          curl -fsSL -o /tmp/shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.${sc_arch}.tar.xz"
+          tar -xJf /tmp/shellcheck.tar.xz -C /tmp
+          install -m 0755 "/tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version
+
+      - name: Lint changed shell scripts with shellcheck
+        run: |
+          failed=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            if head -1 "$file" | grep -qE '^#!.*/(ba)?sh'; then
+              if ! shellcheck -x "$file"; then
+                failed=1
+              fi
+            fi
+          done < /tmp/changed-files-format.txt
+          if [ "$failed" -eq 1 ]; then
+            echo
+            echo "shellcheck found warnings in changed shell scripts. Fix them and commit again."
+            echo "Use '# shellcheck disable=SCxxxx' with a comment for intentional suppressions."
+            exit 1
+          fi
+          echo "Changed shell scripts pass shellcheck."
+
+      - name: Check webui JavaScript formatting
+        run: |
+          failed=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              package/thingino-webui/files/www/a/*.js)
+                npx --yes prettier --check "$file" || failed=1
+                ;;
+            esac
+          done < /tmp/changed-files-format.txt
+          if [ "$failed" -eq 1 ]; then
+            echo "Run 'npx --yes prettier --write <file>' to fix."
+            exit 1
+          fi
+          echo "Changed webui JavaScript files are Prettier-formatted."
+
+      - name: Check defconfig sort order
+        run: |
+          failed=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              configs/cameras/*defconfig* | configs/cameras-exp/*defconfig*)
+                if ! scripts/sort_defconfig.py --check "$file"; then
+                  failed=1
+                fi
+                ;;
+            esac
+          done < /tmp/changed-files-format.txt
+          if [ "$failed" -eq 1 ]; then
+            echo "Run 'scripts/sort_defconfig.py <file>' to fix."
+            exit 1
+          fi
+          echo "Changed defconfigs are sorted."
+
+      - name: Validate webui plugin manifests
+        run: |
+          if grep -q '^package/.*/files/.*\.webui\.json$' /tmp/changed-files-format.txt; then
+            scripts/check-plugins.sh
+          else
+            echo "No webui plugin manifests changed; skipping."
+          fi

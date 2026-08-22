@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2126,SC2220,SC3043
 # thingino-pkg — Thingino Package Manager
 # Installs, removes, and lists precompiled bundle packages (.tgz).
 

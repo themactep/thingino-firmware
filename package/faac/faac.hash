@@ -1,0 +1,6 @@
+# Locally calculated
+sha256  70bf59db35b2d129c6fe204200427950405d0a63bea3ff8fa8804648dde2cbce  faac-2.0.tar.gz
+sha256  1d4b890c7d767361987d80afdacdd654d23a748b4a273d743c174c2d57e9bce5  faac-2.1.tar.gz
+
+# License files
+sha256  20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95  COPYING

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2086
 
 SILENT=false
 if [ "$1" == "-s" ]; then

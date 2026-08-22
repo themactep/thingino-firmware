@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # Targets that don't require board selection
-NOCAMERA_TARGETS := help bootstrap setup-hooks update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs backup-overlay
+NOCAMERA_TARGETS := help bootstrap setup-hooks update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs backup-overlay shellcheck lint sort-defconfigs ram-setup
 
 # Check if current target is exempted from board selection
 # MAKECMDGOALS contains the targets specified on command line
@@ -23,7 +23,29 @@ endif
 
 # Only proceed with board selection if not exempted
 ifeq ($(SKIP_CAMERA_SELECTION),)
-BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid= -p $$PPID | xargs)
+
+# --- build session memo ---------------------------------------------
+#
+# BUILD_MEMO is scoped to the terminal session (parent PID of make).
+# This means:
+#   - Consecutive 'make' runs in the same terminal share the camera memo
+#     (no need to re-select the camera each time).
+#   - Concurrent 'make' runs in different terminals use separate memos
+#     (no collision from parallel builds).
+#
+# The session ID is the grandparent PID: make's parent is the user's
+# shell.  /proc/.../stat field 4 is the parent PID on Linux; fall back
+# to ps(1) on other systems, and finally to $$ (make's own PID) if
+# neither works -- the memo still functions, just without cross-run
+# persistence.
+#
+_BUILD_SESSION := $(shell \
+  if [ -r /proc/$$PPID/stat ]; then \
+    awk '{print $$4}' /proc/$$PPID/stat; \
+  else \
+    ps -o ppid= -p $$PPID 2>/dev/null || echo "$$$$"; \
+  fi | tr -d ' ')
+BUILD_MEMO := /tmp/thingino-board.$(_BUILD_SESSION)
 BUILD_IP_MEMO := $(BUILD_MEMO).ip
 INITIAL_CAMERA := $(strip $(CAMERA))
 INITIAL_IP := $(strip $(IP))

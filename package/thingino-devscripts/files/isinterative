@@ -1,15 +1,14 @@
 #!/bin/sh
 
 echo -c 208 \$-
-if echo $- | grep -q i > /dev/null; then
+if echo $- | grep -q i >/dev/null; then
 	echo "Interactive"
 else
 	echo "Non-interactive"
 fi
 
-
 echo -c 208 tty
-if tty > /dev/null; then
+if tty >/dev/null; then
 	echo "Interactive"
 else
 	echo "Non-interactive"

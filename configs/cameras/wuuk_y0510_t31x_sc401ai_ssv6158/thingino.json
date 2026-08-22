@@ -4,6 +4,7 @@
     "ir940": 9,
     "ircut": "57 58",
     "mmc_cd": 49,
+    "speaker": 7,
     "wlan": 8
   },
   "motors": {

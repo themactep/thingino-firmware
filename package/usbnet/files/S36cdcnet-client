@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC3043
 
 decrement_mac() {
 	local mac last_byte_dec
@@ -19,7 +20,13 @@ decrement_mac() {
 }
 
 start() {
-	usbmac=$(fw_printenv -n usbmac)
+	ethaddr=$(fw_printenv -n ethaddr 2>/dev/null || jct /etc/thingino.json get eth.mac 2>/dev/null)
+	[ -z "$ethaddr" ] && {
+		echo "Error: MAC address not found" >&2
+		exit 1
+	}
+	host_addr=$ethaddr
+	usbmac=$(fw_printenv -n usbmac 2>/dev/null)
 	if [ -z "$usbmac" ]; then
 		decrement_mac
 		daddr=$ethaddr
@@ -28,7 +35,7 @@ start() {
 	fi
 
 	echo -c 15 "Starting CDC Ethernet client gadget"
-	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
+	modprobe g_ncm iManufacturer=thingino host_addr=$host_addr dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 }
 

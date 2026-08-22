@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 . /var/www/x/session.sh
 
@@ -7,7 +8,7 @@ session_id=$(get_session_from_cookie)
 
 # Delete the session
 if [ -n "$session_id" ]; then
-  delete_session "$session_id"
+	delete_session "$session_id"
 fi
 
 # Clear the cookie and redirect to login

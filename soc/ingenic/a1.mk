@@ -3,17 +3,17 @@
 ifneq ($(filter $(SOC_MODEL),a1n a1nt a1x a1l a1a),)
 
 # what's common
-SOC_ARCH      := xburst2
-SOC_FAMILY    := a1
-SOC_UBOOT_NOR := isvp_a1n_sfcnor
+SOC_ARCH   := xburst2
+SOC_FAMILY := a1
+SOC_UBOOT  := isvp_a1n_sfcnor
 
 # what's different
 ifeq ($(SOC_MODEL),a1l)
-SOC_RAM_MB    := 128
+SOC_RAM_MB := 128
 else ifeq ($(SOC_MODEL),a1a)
-SOC_RAM_MB    := 512
+SOC_RAM_MB := 512
 else
-SOC_RAM_MB    := 256
+SOC_RAM_MB := 256
 endif
 
 endif

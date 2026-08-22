@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2059
 # Export full prudynt configuration from memory
 
 # Check authentication

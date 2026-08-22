@@ -1,0 +1,83 @@
+#!/bin/sh
+# Control the light on the Wyze Cam Floodlight v1 accessory board.
+#
+# The light board is attached over an internal USB serial link (ch341)
+# and speaks a simple framed protocol:
+#
+#   <0xAA 0x55> <0x43> <len> <0x46> <payload> <checksum>
+#
+# Protocol and original script by gponick:
+# https://github.com/gtxaspec/wz_mini_hacks/discussions/771#discussioncomment-11737172
+
+VERBOSE=0
+
+usage() {
+	echo "usage: $0 [-v] on <1-100> | off" >&2
+}
+
+log() {
+	[ "$VERBOSE" -eq 1 ] && echo "$1"
+}
+
+get_floodlight_command_string() {
+	brightness_pct=$1
+	brightness_dec=$((255 * brightness_pct / 100))
+	check_bytes_raw=$(printf "%.4x" $((brightness_dec + 405)))
+	printf '%s%s%s' "\xaa\x55\x43\x06\x46" "\x$(printf "%02x" "$brightness_dec")\x00\x07" "\x${check_bytes_raw%??}\x${check_bytes_raw#??}"
+}
+
+for DEVICE in /dev/ttyUSB*; do
+	[ -c "$DEVICE" ] && CH341_DEVICE="$DEVICE"
+done
+DEVICE="$CH341_DEVICE"
+
+if [ -z "$DEVICE" ]; then
+	echo "Could not find a valid device" >&2
+	exit 1
+fi
+
+while getopts "vh" flag; do
+	case "$flag" in
+		v) VERBOSE=1 ;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+done
+shift "$((OPTIND - 1))"
+
+[ $# -eq 0 ] && {
+	usage
+	exit 1
+}
+
+case "$1" in
+	off | OFF)
+		echo "OFF" >/var/run/floodlight.status
+		printf '%b' "$(get_floodlight_command_string 0)" >"$DEVICE"
+		log "Setting brightness to 0"
+		;;
+	on | ON)
+		[ $# -ne 2 ] && {
+			usage
+			exit 1
+		}
+		if [ "$2" -lt 1 ] || [ "$2" -gt 100 ]; then
+			echo "Invalid brightness value" >&2
+			usage
+			exit 1
+		fi
+		brightness_pct=$2
+		echo "ON" >/var/run/floodlight.status
+		echo "${brightness_pct}" >/var/run/floodlight.brightness
+		printf '%b' "$(get_floodlight_command_string "$brightness_pct")" >"$DEVICE"
+		log "Setting brightness to ${brightness_pct}"
+		;;
+	*)
+		usage
+		exit 1
+		;;
+esac
+
+exit 0

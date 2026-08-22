@@ -4,6 +4,10 @@
     "ir940": 14,
     "ircut": "59 60",
     "mmc_cd": 49,
+    "speaker": {
+      "pin": 42,
+      "active_low": true
+    },
     "white": 47,
     "wlan": {
       "pin": 43,

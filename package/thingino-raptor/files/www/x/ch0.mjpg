@@ -1,5 +1,6 @@
 #!/bin/sh
-# MJPEG preview for channel 0 — multipart JPEG loop via raptorctl.
+# shellcheck disable=SC1091
+# MJPEG preview for channel 0 -- multipart JPEG loop via raptorctl.
 
 . /var/www/x/auth.sh
 require_auth
@@ -28,7 +29,7 @@ if ! command -v raptorctl >/dev/null 2>&1; then
 	exit 0
 fi
 
-tmp=$(mktemp /tmp/raptor-mjpg.XXXXXX.jpg) || exit 1
+tmp=$(mktemp /tmp/raptor-mjpg.XXXXXX) || exit 1
 trap 'rm -f "$tmp"' EXIT INT TERM HUP PIPE
 
 printf 'Content-Type: multipart/x-mixed-replace; boundary=%s\r\n\r\n' "$BOUNDARY"

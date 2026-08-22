@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2015
 # timps-selftest - on-device smoke test of the timps HTTP API and features.
 # Run on the camera:  timps-selftest        (or: timps-selftest -v  for bodies)
 # Exits 0 when nothing FAILED (warnings are non-fatal: they usually mean a
@@ -11,34 +12,56 @@ VERBOSE=0
 port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
 [ -n "$port" ] || port=8880
 https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
-case "$https" in 1|true|yes|on) scheme=https; K="-k" ;; *) scheme=http; K="" ;; esac
+case "$https" in 1 | true | yes | on)
+	scheme=https
+	K="-k"
+	;;
+*)
+	scheme=http
+	K=""
+	;;
+esac
 tok=$(head -n1 /run/timps.token 2>/dev/null | tr -cd '0-9A-Za-z')
 BASE="$scheme://127.0.0.1:$port"
 AUTH="X-Timps-Token: $tok"
 
-pass=0; fail=0
-ok()   { echo "  [PASS] $1"; pass=$((pass + 1)); }
-bad()  { echo "  [FAIL] $1"; fail=$((fail + 1)); }
+pass=0
+fail=0
+ok() {
+	echo "  [PASS] $1"
+	pass=$((pass + 1))
+}
+bad() {
+	echo "  [FAIL] $1"
+	fail=$((fail + 1))
+}
 warn() { echo "  [WARN] $1"; }
-get()  { curl -s $K -m 5 -H "$AUTH" "$BASE$1"; }
+get() { curl -s $K -m 5 -H "$AUTH" "$BASE$1"; }
 post() { curl -s $K -m 5 -H "$AUTH" -X POST "$BASE/control" -d "$1" >/dev/null 2>&1; }
 
 if [ -n "$tok" ]; then tokstate=present; else tokstate=MISSING; fi
 echo "timps selftest -> $BASE  (token: $tokstate)"
-command -v curl >/dev/null 2>&1 || { echo "curl not found"; exit 1; }
+command -v curl >/dev/null 2>&1 || {
+	echo "curl not found"
+	exit 1
+}
 
 # ---- /control + sections ----
 CTL=$(get /control)
 [ "$VERBOSE" = 1 ] && echo "$CTL" | head -c 400 && echo
-echo "$CTL" | grep -q '"caps"' && ok "/control responds" || { bad "/control not responding"; echo "timps running? try: /etc/init.d/S95timps status"; }
+echo "$CTL" | grep -q '"caps"' && ok "/control responds" || {
+	bad "/control not responding"
+	echo "timps running? try: /etc/init.d/S95timps status"
+}
 for k in image audio video osd motion privacy record daynight; do
-  echo "$CTL" | grep -q "\"$k\":" && ok "section: $k" || bad "section: $k missing"
+	echo "$CTL" | grep -q "\"$k\":" && ok "section: $k" || bad "section: $k missing"
 done
 
 # ---- caps ----
 echo "$CTL" | grep -q '"privacy":{"available":1' && ok "caps.privacy" || bad "caps.privacy"
-echo "$CTL" | grep -q '"record":{"available":1'  && ok "caps.record"  || bad "caps.record"
-if echo "$CTL" | grep -o '"motion":{"available":[01]' | grep -q ':1'; then ok "motion available"
+echo "$CTL" | grep -q '"record":{"available":1' && ok "caps.record" || bad "caps.record"
+if echo "$CTL" | grep -o '"motion":{"available":[01]' | grep -q ':1'; then
+	ok "motion available"
 else warn "motion not available (SoC/SDK has no IMP_IVS move API)"; fi
 
 # ---- media endpoints ----
@@ -59,7 +82,8 @@ get /control | grep -q '"3":{"enabled":1,"x":8,"y":8,"w":48,"h":48' && ok "priva
 post '{"privacy":{"0":{"3":{"enabled":0,"w":0,"h":0}}}}'
 
 # ---- recording start/stop ----
-post '{"record":{"active":1}}'; sleep 2
+post '{"record":{"active":1}}'
+sleep 2
 rec=$(get /control | grep -o '"record":{[^}]*}')
 [ "$VERBOSE" = 1 ] && echo "  record=$rec"
 echo "$rec" | grep -q '"recording":1' && ok "recording started" || warn "recording not active (is record.dir mounted/writable?)"
@@ -70,10 +94,12 @@ srten=$(sed -n 's/^[[:space:]]*srt\.enabled[[:space:]]*=[[:space:]]*\([0-9A-Za-z
 srtport=$(sed -n 's/^[[:space:]]*srt\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
 [ -n "$srtport" ] || srtport=9000
 case "$srten" in
-  1|true|yes|on)
-    if netstat -lun 2>/dev/null | grep -q ":$srtport\b"; then ok "SRT listening on udp/$srtport"
-    else warn "SRT udp/$srtport not listening (libsrt build? check logread)"; fi ;;
-  *) warn "SRT disabled (srt.enabled not set)" ;;
+	1 | true | yes | on)
+		if netstat -lun 2>/dev/null | grep -q ":$srtport\b"; then
+			ok "SRT listening on udp/$srtport"
+		else warn "SRT udp/$srtport not listening (libsrt build? check logread)"; fi
+		;;
+	*) warn "SRT disabled (srt.enabled not set)" ;;
 esac
 
 # ---- HTTPS note ----

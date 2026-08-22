@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · ISP Inspector</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .isp-stat-card { }
+    .isp-stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .isp-help-icon { display: inline-block; width: 12px; height: 12px; font-size: 0.55rem; font-weight: 700; line-height: 12px; text-align: center; border: 1px solid var(--bs-secondary-color); border-radius: 50%; opacity: 0.5; cursor: help; vertical-align: top; margin-left: 1px; }
+    .isp-stat-value { font-size: 1.0rem; font-weight: 700; line-height: 1.2; }
+    .isp-stat-badge { font-size: 0.65rem; }
+    .isp-issue-log { padding: 1px 8px; border-bottom: 1px solid var(--bs-border-color); }
+    .terminal { color: var(--bs-secondary-color) !important; background: var(--bs-tertiary-bg) !important; }
+    #isp-hdr-platform, #isp-hdr-sensor { text-transform: uppercase; }
+    .chart-container { position: relative; height: 250px; width: 100%; }
+    .card-title[title] { cursor: help; }
+    .llm-response { max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: 'PT Mono', monospace; font-size: 0.85rem; }
+  </style>
+</head>
+
+<body id="page-isp-inspector">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">ISP Inspector</h3>
+        <div class="d-flex align-items-center gap-3">
+          <span class="text-muted small" id="isp-poll-status">● idle</span>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="auto-refresh" checked>
+            <label class="form-check-label small" for="auto-refresh">Auto-refresh</label>
+          </div>
+          <select class="form-select form-select-sm w-auto" id="poll-interval">
+            <option value="2000">2s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+            <option value="30000">30s</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Error / offline alert -->
+      <div id="isp-error-alert" class="alert alert-warning d-none"></div>
+
+      <!-- Live stats row -->
+      <div class="d-flex align-items-center gap-2 mb-2" id="isp-header">
+        <span class="fw-bold" id="isp-hdr-platform"></span>
+        <span class="fw-bold" id="isp-hdr-sensor"></span>
+        <span class="text-muted" id="isp-hdr-res"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-mode"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-sat"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-sharp"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-contrast"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-bright"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-af"></span>
+        <span class="text-muted small">·</span>
+        <span class="text-muted small" id="isp-hdr-orient"></span>
+      </div>
+      <div class="row row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2 mb-3" id="isp-stats-row">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Tabs: Charts / Raw / LLM Analysis -->
+      <ul class="nav nav-tabs mb-3" id="ispTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="charts-tab" data-bs-toggle="tab" data-bs-target="#tab-charts" type="button" role="tab">Charts</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#tab-raw" type="button" role="tab">Raw Data</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="llm-tab" data-bs-toggle="tab" data-bs-target="#tab-llm" type="button" role="tab">LLM Analysis</button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Charts -->
+        <div class="tab-pane fade show active" id="tab-charts" role="tabpanel">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-xl-6">
+              <div class="card">
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Frames per second over time. Drops are normal at night when integration time increases.">FPS Trend</h6>
+                  <div class="chart-container"><canvas id="chart-fps"></canvas></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-xl-6">
+              <div class="card">
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Sensor analog gain (amplifier boost before A/D) and digital gain (after A/D). Analog gain is cleaner; digital gain while analog has headroom suggests misconfiguration.">Gain (Analog + Digital)</h6>
+                  <div class="chart-container"><canvas id="chart-gain"></canvas></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-xl-6">
+              <div class="card">
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="How long each sensor row collects light (in line units). The dashed red line shows the sensor maximum. Hitting max means the sensor is light-starved.">Integration Time vs Max</h6>
+                  <div class="chart-container"><canvas id="chart-inttime"></canvas></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-xl-6">
+              <div class="card">
+                <div class="card-body"><h6 class="card-title small text-uppercase text-muted" title="Photographic Exposure Value in log2 stops (green, left axis). Combines integration time + gain into a single brightness metric. Orange dashed line shows actual sensor exposure time in microseconds (right axis).">EV (Exposure Value) + µs</h6>
+                  <div class="chart-container"><canvas id="chart-ev"></canvas></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw Data -->
+        <div class="tab-pane fade" id="tab-raw" role="tabpanel">
+          <div class="card">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>isp-m0 / isp_info</h6>
+                  <pre id="raw-isp-m0" class="terminal small" style="max-height:500px;overflow-y:auto;"></pre>
+                </div>
+                <div class="col-md-6">
+                  <h6>isp-fs</h6>
+                  <pre id="raw-isp-fs" class="terminal small" style="max-height:500px;overflow-y:auto;"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LLM Analysis -->
+        <div class="tab-pane fade" id="tab-llm" role="tabpanel">
+          <div class="card mb-3">
+            <div class="card-header"><h5 class="card-title mb-0">LLM Configuration</h5></div>
+            <div class="card-body">
+              <form autocomplete="off">
+              <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label small" for="llm-api-key">API Key</label>
+                  <div class="input-group">
+                    <input type="password" class="form-control form-control-sm" id="llm-api-key" placeholder="sk-...">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" id="llm-api-key-toggle" title="Show/hide">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small" for="llm-provider">Provider</label>
+                  <select class="form-select form-select-sm" id="llm-provider">
+                    <option value="deepseek" selected>DeepSeek</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="custom">Custom (OpenAI-compatible)</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small" for="llm-model">Model</label>
+                  <input type="text" class="form-control form-control-sm" id="llm-model" value="deepseek-chat">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small" for="llm-endpoint">API Endpoint (custom)</label>
+                  <input type="text" class="form-control form-control-sm" id="llm-endpoint" placeholder="https://api.deepseek.com" disabled>
+                </div>
+              </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0">Analysis</h5>
+              <button class="btn btn-sm btn-primary" id="llm-analyze-btn" disabled>
+                <i class="bi bi-robot me-1"></i>Analyze Current Snapshot
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="llm-status"></div>
+              <div class="llm-response d-none" id="llm-response"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issues log -->
+      <div class="card mt-3 d-none" id="isp-issues-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Issue Log</h5>
+          <button class="btn btn-sm btn-outline-secondary" id="isp-issues-clear">Clear</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="terminal small" id="isp-issues-body" style="height:200px;overflow-y:scroll;font-size:0.8rem;"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-isp-inspector.js"></script>
+</body>
+</html>

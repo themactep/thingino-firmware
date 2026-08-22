@@ -12,6 +12,7 @@ This document provides comprehensive documentation for working with the Thingino
 - [Package Management](#package-management)
 - [Buildroot Integration](#buildroot-integration)
 - [Firmware Deployment](#firmware-deployment)
+- [Overlay Backup](#overlay-backup)
 - [Shared Host Directory](#shared-host-directory)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
@@ -96,6 +97,20 @@ make
 - Default pattern: `output/<branch>/<camera>-<kernel>-<libc>`
 - If a non-empty session `IP` is active, the directory becomes `output/<branch>/<camera>-<kernel>-<libc>-<ip>`
 - Can be overridden manually
+
+**`THINGINO_OUTPUT_ROOT_DIR`** / **`THINGINO_OUTPUT_DIR`** - Namespaced output overrides
+- Safe to export in the global shell environment (e.g. `.bashrc`) without
+  clashing with other projects that use generic `OUTPUT_DIR` names
+- Take precedence over `OUTPUT_ROOT_DIR` / `OUTPUT_DIR`
+- `THINGINO_OUTPUT_ROOT_DIR` moves the whole output tree while keeping the
+  per-branch/per-camera layout: `<root>/<branch>/<camera>-<kernel>-<libc>`
+- `THINGINO_OUTPUT_DIR` forces the exact output directory, bypassing the
+  branch/camera subpaths (not recommended globally — all cameras would share
+  one directory)
+```bash
+export THINGINO_OUTPUT_ROOT_DIR=/mnt/fastdisk/thingino-output
+make
+```
 
 ### Advanced Variables
 
@@ -205,6 +220,65 @@ make distclean
 Remove only configuration files.
 ```bash
 make clean-config
+```
+
+### RAM Builds
+
+Build the entire output tree on a tmpfs (RAM) so the build's writes never
+reach the SSD, then copy the finished artifacts back to disk. This is intended
+for **cold builds**: a from-scratch build is the most disk-write-intensive
+operation, pushing roughly 9 GB of compilation output at the storage device.
+Incremental development rebuilds (`make fast`) are cheap on the SSD and should
+be done on a real disk instead.
+
+```bash
+make ram-setup        # once per boot: raise the tmpfs inode limit
+CAMERA=<camera> make ram-build
+```
+
+#### `ram-setup`
+Remounts the tmpfs backing `RAM_BUILD_DIR` (default `/tmp/thingino-build`)
+with `nr_inodes=4m`. A full build creates ~1.1M files and dirs (per-package
+dirs alone are ~800k entries), which exceeds the stock `/tmp` limit of
+`nr_inodes=1m`. The remount is lost on reboot, so re-run it after each boot or
+make it permanent with a `tmp.mount` drop-in.
+
+#### `ram-build`
+Redirects `OUTPUT_DIR` to the tmpfs, runs a normal build (`all`), then:
+
+1. copies `images/` and `logs/` back to the disk output dir,
+2. copies `.config*`, `buildscope-report.json`, and `uenv.txt` back,
+3. removes the tmpfs tree, freeing RAM for the next camera.
+
+The generated `images/<camera>.md` records a `Disk Writes:` line - bytes
+written to the physical disk during the build, measured from
+`/proc/diskstats` - so the wear savings of a RAM build versus a disk build can
+be compared directly.
+
+Every `ram-build` is a cold build because the tmpfs tree is wiped afterward.
+ccache (`~/.buildroot-ccache`) and the download cache (`dl/`) stay on disk and
+make the recompile cheap.
+
+#### `ram-dev`
+Resumable parallel dev build on the same tmpfs.  It runs the same parallel
+incremental build (`fast`) but NEVER wipes the tmpfs output tree, so if the
+build crashes partway through you can simply re-run it and pick up exactly where
+it stopped - Buildroot rebuilds only the packages whose stamp files were left
+incomplete by the failed run.
+
+```bash
+CAMERA=<camera> make ram-dev       # first (or fresh) run
+CAMERA=<camera> make ram-dev       # re-run anytime to resume after a crash
+```
+
+The tmpfs inode check is relaxed on resume (a nearly-complete build may have
+consumed most of the inode budget, which would otherwise block you from
+continuing).  On success the images/logs are copied back to disk but the tmpfs
+tree is kept for the next iteration.  To abandon the tree and force a clean
+build, wipe it by hand and run again:
+
+```bash
+rm -rf /tmp/thingino-build
 ```
 
 ---
@@ -425,11 +499,36 @@ make toolchain
 
 ### Over-The-Air (OTA) Updates
 
-#### `ota`
-Flash full firmware image (includes bootloader).
+#### `ota` / `ota-full`
+Flash full firmware image (includes bootloader). Uses `sysupgrade`.
 ```bash
 make ota IP=192.168.1.10
 ```
+
+#### `ota-kernel`
+Flash kernel only. Uploads `uImage` directly — no full firmware needed.
+```bash
+make ota-kernel IP=192.168.1.10
+```
+
+#### `ota-uboot`
+Flash bootloader and U-Boot environment.
+```bash
+make ota-uboot IP=192.168.1.10
+```
+
+#### `ota-rootfs`
+Flash rootfs + data partitions.
+```bash
+make ota-rootfs IP=192.168.1.10
+```
+
+#### `ota-upgrade`
+Flash rootfs + data with automatic config backup before flashing.
+```bash
+make ota-upgrade IP=192.168.1.10
+```
+
 If a session IP is already active, the same command can be run without repeating
 `IP=...`.
 
@@ -440,6 +539,27 @@ make upload_tftp TFTP_IP_ADDRESS=192.168.1.254
 ```
 
 Uploads the full firmware image to TFTP server for network installation.
+
+### Overlay Backup
+
+#### `backup-overlay`
+Back up the `/overlay/` filesystem from a running camera to a local tarball.
+No camera profile required — the image name is auto-detected from the device.
+
+```bash
+make backup-overlay IP=192.168.1.10
+```
+
+Tarballs are stored in `THINGINO_BACKUP_DIR` (default: `~/.thingino/backups/`)
+with a timestamped filename: `<camera>-<ip>-<YYYYMMDD-HHMMSS>.tar.gz`.
+
+```bash
+# Custom backup directory
+make backup-overlay IP=192.168.1.10 THINGINO_BACKUP_DIR=/mnt/nas/camera-backups
+```
+
+See [overlay-backup.md](overlay-backup.md) for full details including restore
+instructions and troubleshooting.
 
 ---
 
@@ -610,6 +730,11 @@ make linux
 ```bash
 # Set OUTPUT_DIR before building
 export OUTPUT_DIR=/path/to/custom/output
+make
+
+# Or use the THINGINO_-prefixed variants, safe for the global environment:
+export THINGINO_OUTPUT_ROOT_DIR=/path/to/output/root   # keeps <branch>/<camera> layout
+export THINGINO_OUTPUT_DIR=/path/to/exact/output/dir   # exact directory
 make
 ```
 
@@ -805,7 +930,12 @@ make rebuild-<package>        # Rebuild package
 make <package>-menuconfig     # Configure package (kernel, busybox, etc.)
 
 # Deploy
-make ota IP=x.x.x.x           # Flash full firmware
+make ota IP=x.x.x.x               # Flash full firmware
+make ota-kernel IP=x.x.x.x        # Flash kernel only
+make ota-uboot IP=x.x.x.x         # Flash bootloader + env
+make ota-rootfs IP=x.x.x.x        # Flash rootfs + data
+make ota-upgrade IP=x.x.x.x       # Flash rootfs + data + config backup
+make backup-overlay IP=x.x.x.x    # Backup /overlay/ from camera
 
 # Clean
 make clean                    # Clean build artifacts
@@ -824,6 +954,8 @@ export GROUP=github                  # Camera group
 export IP=192.168.1.10               # Camera IP / device-specific build scope
 export BR2_DL_DIR=/path/to/downloads # Download cache
 export OUTPUT_DIR=/custom/path       # Build output
+export THINGINO_OUTPUT_ROOT_DIR=/custom/root  # Output root (safe globally, keeps layout)
+export THINGINO_OUTPUT_DIR=/custom/path       # Exact output dir (namespaced)
 ```
 
 ---

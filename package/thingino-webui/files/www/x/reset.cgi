@@ -1,21 +1,22 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 # Check authentication
 . /var/www/x/auth.sh
 require_auth
 
 json_escape() {
-  printf '%s' "$1" | sed \
-    -e 's/\\/\\\\/g' \
-    -e 's/"/\\"/g' \
-    -e "s/\r/\\r/g" \
-    -e "s/\n/\\n/g"
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e "s/\r/\\r/g" \
+		-e "s/\n/\\n/g"
 }
 
 send_json() {
-  status="${2:-200 OK}"
-  printf 'Status: %s\n' "$status"
-  cat <<EOF
+	status="${2:-200 OK}"
+	printf 'Status: %s\n' "$status"
+	cat <<EOF
 Content-Type: application/json
 Cache-Control: no-store
 Pragma: no-cache
@@ -23,17 +24,17 @@ Connection: close
 
 $1
 EOF
-  exit 0
+	exit 0
 }
 
 json_error() {
-  code="${1:-400}"
-  message="$2"
-  send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
+	code="${1:-400}"
+	message="$2"
+	send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
 }
 
 build_payload() {
-  cat <<'EOF'
+	cat <<'EOF'
 {
   "actions": [
     {
@@ -79,14 +80,14 @@ EOF
 }
 
 handle_get() {
-  send_json "$(build_payload)"
+	send_json "$(build_payload)"
 }
 
 case "$REQUEST_METHOD" in
-  GET|"")
-    handle_get
-    ;;
-  *)
-    json_error 405 "Method not allowed" "405 Method Not Allowed"
-    ;;
+	GET | "")
+		handle_get
+		;;
+	*)
+		json_error 405 "Method not allowed" "405 Method Not Allowed"
+		;;
 esac

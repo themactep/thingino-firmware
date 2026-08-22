@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2012
 # make-bundle.sh — Produce a .tgz (Thingino Package Bundle) from a built package.
 #
 # Usage:
@@ -22,10 +23,11 @@ BR2_EXTERNAL="$(cd "$(dirname "$0")/.." && pwd)"
 PKG_NAME="$1"
 CAMERA="$2"
 OUTPUT_DIR="$3"
+SOC_FAMILY="${4:-unknown}"
 
 [ -z "$PKG_NAME" ] && { echo "Usage: $0 <package> <camera> <output-dir>"; exit 1; }
-[ -z "$CAMERA" ] && { echo "Usage: $0 <package> <camera> <output-dir>"; exit 1; }
-[ -z "$OUTPUT_DIR" ] && { echo "Usage: $0 <package> <camera> <output-dir>"; exit 1; }
+[ -z "$CAMERA" ] && { echo "Usage: $0 <package> <camera> <output-dir> [soc_family]"; exit 1; }
+[ -z "$OUTPUT_DIR" ] && { echo "Usage: $0 <package> <camera> <output-dir> [soc_family]"; exit 1; }
 [ -d "$OUTPUT_DIR" ] || { echo "ERROR: output directory not found: $OUTPUT_DIR"; exit 1; }
 [ -f "$OUTPUT_DIR/.config" ] || { echo "ERROR: no .config in $OUTPUT_DIR (has the build completed?)"; exit 1; }
 
@@ -52,13 +54,19 @@ else
 	echo "WARNING: package '$PKG_NAME' may not have been built (no build/$PKG_NAME-* found)"
 fi
 
-# Determine SOC family from the build config
+# Determine SOC family (passed from Makefile, or fall back to .config)
+# TODO: generalize for non-Ingenic vendors. This fallback is the one remaining
+# Ingenic-only read: it greps BR2_INGENIC_SOC_MODEL and soc/ingenic/*.mk, while
+# thingino.mk already reads whichever vendor symbol is set. When the SigmaStar
+# platform lands, derive SOC_MODEL from BR2_SIGMASTAR_SOC_MODEL when
+# BR2_SOC_VENDOR_SIGMASTAR=y, and grep soc/<vendor>/ instead of soc/ingenic/.
 SOC_MODEL=$(grep '^BR2_INGENIC_SOC_MODEL=' "$OUTPUT_DIR/.config" 2>/dev/null | cut -d'"' -f2)
-if [ -z "$SOC_MODEL" ]; then
-	SOC_FAMILY="unknown"
-	echo "WARNING: cannot determine SOC model from .config"
-else
-	SOC_FAMILY=$("$BR2_EXTERNAL/scripts/get_soc_params.sh" "$SOC_MODEL" family 2>/dev/null || echo "unknown")
+if [ "$SOC_FAMILY" = "unknown" ]; then
+	if [ -n "$SOC_MODEL" ]; then
+		SOC_FAMILY=$(grep -l "filter.*$SOC_MODEL" "$BR2_EXTERNAL"/soc/ingenic/*.mk 2>/dev/null | head -1 | xargs grep 'SOC_FAMILY' 2>/dev/null | sed 's/.*:= *//' || echo "unknown")
+	else
+		echo "WARNING: cannot determine SOC family"
+	fi
 fi
 
 # Read the .bundle file (strip comments and blank lines)

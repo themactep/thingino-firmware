@@ -17,7 +17,7 @@ to a streamer. Streamers stay behind local adapters.
 Implemented in tree:
 
 - `package/thingino-agent/` exists
-- `thingino-agentctl` now acts as agent-owned core dispatch
+- `agentctl` now acts as agent-owned core dispatch
 - backend adapter loading exists
 - prudynt adapter exists as the first real backend glue layer
 - raptor adapter exists as a first-pass second backend glue layer
@@ -42,8 +42,8 @@ Implemented in tree:
 - first storage settings now include `/settings/storage/{autostart,channel,device-path,duration,filename,mount}`, runtime storage now includes `/runtime/storage`, and recorder runtime now includes `/runtime/recording`
 - narrow stream writes now cover enabled, audio-enabled, width, height, fps, bitrate, format, and mode for streams `0` and `1`
 - reboot action now exists at `/actions/reboot`
-- adapter auto-selection exists through `agent.backend`
-- a managed local-only listener now exists through `thingino-agentd` and `S95thingino-agent`
+- the backend adapter is selected at build time by the streamer package and installed at a fixed path; no runtime detection
+- a managed local-only listener now exists through `agentd` and `S95agent`
 - the managed listener now defaults to a native local HTTP daemon for non-TLS mode, and the known local API tree is now served directly by the daemon in both listener modes
 - remote HTTPS exposure now exists through an in-package mbedTLS proxy when explicitly enabled with `agent.tls=true`, while non-TLS mode is enforced as loopback-only and remote TLS binds require `agent.token`
 - `/events` now exists as an agent-owned SSE endpoint
@@ -58,13 +58,13 @@ Partially implemented:
 Validated on flashed image:
 
 - rebuilt image flashed to `192.168.88.160`
-- corrected full-image OTA validation used a regenerated rootfs image, and the running `thingino-agentctl`, `lib.sh`, and prudynt adapter hashes now match the rebuilt target tree
+- corrected full-image OTA validation used a regenerated rootfs image, and the running `agentctl`, `lib.sh`, and prudynt adapter hashes now match the rebuilt target tree
 - installed route files confirmed for health, runtime system or network or streaming, privacy settings, motion tuning, broadened stream settings, and reboot action
 - `GET` validation passed for health, runtime system or network or streaming, privacy settings, motion tuning, and stream setting reads for streams `0` and `1`
 - representative `PATCH` validation passed for motion sensitivity, motion cooldown time, and privacy channel with restore where applicable
 - reboot action path validated through the flashed CGI wrapper using a mocked `reboot` binary so the device was not restarted
-- managed local-only listener lifecycle validated by starting `S95thingino-agent` on loopback, confirming `127.0.0.1:1998`, and reading `/api/v1/health` plus `/api/v1/runtime/system`
-- rebuilt-and-flashed image revalidated with in-image `thingino-agentd` and `S95thingino-agent`, including `/api/v1/device`, then restored to the default disabled listener state
+- managed local-only listener lifecycle validated by starting `S95agent` on loopback, confirming `127.0.0.1:1998`, and reading `/api/v1/health` plus `/api/v1/runtime/system`
+- rebuilt-and-flashed image revalidated with in-image `agentd` and `S95agent`, including `/api/v1/device`, then restored to the default disabled listener state
 - hot validation confirmed `/api/v1/config/schema` returns the current machine-readable schema and `/api/v1/events` streams agent-owned SSE with typed motion, recording completion, firmware lifecycle, health warning, streamer restart, and state-change events sourced from prudynt runtime signals
 - rebuilt-and-flashed image revalidated `/api/v1/config/schema` and `/api/v1/events` through the in-image managed listener, then restored the default disabled listener state
 - hot validation confirmed representative narrow `PATCH` support for `/api/v1/settings/streams/0/format` and `/api/v1/settings/streams/1/mode`, then restored the original stream values and default disabled listener state
@@ -157,7 +157,7 @@ Example split:
 - camera agent
 	- serves `/api/v1/*`
 	- maps requests to canonical resources
-	- chooses the active adapter
+	- sources the single build-time-selected adapter from a fixed path
 - prudynt adapter
 	- converts canonical image, motion, daynight, snapshot, and record operations
 		into `prudyntctl`, FIFOs, init scripts, and runtime-file reads
@@ -213,7 +213,7 @@ Minimum adapter responsibilities:
 
 Minimum agent responsibilities:
 
-- select the active adapter
+- source the single build-time-selected adapter from a fixed path
 - expose the canonical HTTP API
 - validate request payloads and path parameters
 - keep response envelopes backend-neutral
@@ -287,9 +287,9 @@ Candidate integration tasks:
 
 Current lifecycle shape:
 
-- `S95thingino-agent` manages the listener lifecycle in both native and TLS-proxy modes
-- `thingino-agentd` starts the native listener on `agent.listen:agent.port` by default and, when `agent.tls=true`, starts a loopback native backend listener plus the in-package mbedTLS proxy on the configured external port
-- `thingino-agentd` enforces loopback-only non-TLS binds and requires `agent.token` before allowing non-loopback TLS exposure
+- `S95agent` manages the listener lifecycle in both native and TLS-proxy modes
+- `agentd` starts the native listener on `agent.listen:agent.port` by default and, when `agent.tls=true`, starts a loopback native backend listener plus the in-package mbedTLS proxy on the configured external port
+- `agentd` enforces loopback-only non-TLS binds and requires `agent.token` before allowing non-loopback TLS exposure
 - the managed listeners expose `/api/v1/*`, with the native listener handling request routing directly instead of via web-root CGI assets
 - default config keeps the listener disabled until explicitly enabled in `thingino.json`
 

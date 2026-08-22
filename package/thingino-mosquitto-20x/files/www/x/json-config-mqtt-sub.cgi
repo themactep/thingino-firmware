@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2018,SC2019,SC2329,SC3043
 
 . /var/www/x/auth.sh
 require_auth

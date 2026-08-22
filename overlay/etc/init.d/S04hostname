@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2005,SC2034,SC2086,SC2155,SC3043,SC1091,SC2154
 
 HOSTNAME_FILE="/etc/hostname"
 HOSTS_FILE="/etc/hosts"
@@ -73,12 +74,20 @@ set_hostname() {
 
 generate() {
 	local unique_id
-	unique_id=$(command -v soc >/dev/null 2>&1 && soc -s 2>/dev/null)
-	[ -n "$unique_id" ] || unique_id=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac 2>/dev/null)
-	[ -n "$unique_id" ] || unique_id=$(fw_printenv -n ethaddr 2>/dev/null)
-	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/eth0/address 2>/dev/null | tr -d ':')
-	[ -n "$unique_id" ] || unique_id=$(cat /sys/class/net/wlan0/address 2>/dev/null | tr -d ':')
-	local generated_hostname="$(default_hostname)-$(echo $unique_id | sed -E 's/://g;s/.*(.{4})$/\1/')"
+	local suffix
+
+	# Hostname suffix comes straight from the SoC serial number, using the
+	# same derivation as the MAC (lib-serial-mac). Never fall back to the
+	# assigned MAC: the two start from the same source but may drift (e.g.
+	# a user-assigned MAC), and a changed MAC must not rename the camera.
+	if [ -r /etc/init.d/lib-serial-mac ] && . /etc/init.d/lib-serial-mac && derive_serial_mac; then
+		unique_id=$(printf "%02x%02x%02x%02x%02x" $m1 $m2 $m3 $m4 $m5)
+	else
+		echo -c 240 -e "- No serial number available, keeping current hostname"
+	fi
+
+	suffix=$(echo "$unique_id" | sed -E 's/.*(.{4})$/\1/')
+	local generated_hostname="$(default_hostname)-$suffix"
 
 	echo -c 240 -e "- Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"
@@ -87,11 +96,7 @@ generate() {
 start() {
 	echo -c 15 "Configuring hostname"
 
-	# Check if hostname is configured via 'conf s hostname'
-	if [ -n "$hostname" ]; then
-		echo -c 240 -e "- Using configured hostname: $hostname"
-		set_hostname "$hostname" "configured"
-	elif is_user_modified_hostname; then
+	if is_user_modified_hostname; then
 		echo -c 240 -e "- Hostname is already customized, keeping current"
 	else
 		generate

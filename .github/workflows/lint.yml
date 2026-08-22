@@ -1,0 +1,77 @@
+name: lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Check do-not-edit paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          if [ -n "$BASE_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" >/dev/null 2>&1 || true
+          fi
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "No base SHA available; skipping do-not-edit check"
+            exit 0
+          fi
+          files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD)"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files" | scripts/check-do-not-edit.sh
+          fi
+
+      - name: Lint shell scripts
+        # reviewdog surfaces shellcheck findings as inline check annotations on
+        # the PR/commit instead of burying them in the raw log. The action pins
+        # shellcheck 0.11.0 (matching local dev); both reviewers and the commit
+        # checks API get file/line-level feedback. filter_mode=added restricts
+        # reports to new findings on changed lines, so pre-existing issues in
+        # unrelated scripts never fail the build. fail_level=any still fails the
+        # job when a new finding appears.
+        # Pinned to v1 tag commit so the action version can't drift quietly.
+        uses: reviewdog/action-shellcheck@0722bbdb0d47f04c1b53b8734d2422ac63a45ec6
+        with:
+          # report on the branch commit so it works on both push and PR runs
+          reporter: github-check
+          filter_mode: added
+          fail_level: any
+          level: warning
+          path: scripts/
+          pattern: '*.sh'
+          exclude: '*.venv/*'
+          # pull in sources referenced from scripts (e.g. scripts/menu/*.sh)
+          shellcheck_flags: --external-sources
+
+      - name: Check defconfig sort order
+        run: |
+          failed=0
+          for f in configs/cameras/*/*_defconfig; do
+            [ -f "$f" ] || continue
+            cp "$f" "$f.lint.bak"
+            scripts/sort_defconfig.py "$f" 2>/dev/null
+            if ! cmp -s "$f" "$f.lint.bak"; then
+              echo "FAIL: $f is not sorted"
+              failed=1
+            fi
+            mv "$f.lint.bak" "$f"
+          done
+          if [ "$failed" -eq 1 ]; then
+            echo "Run 'scripts/sort_defconfig.py <file>' to fix."
+            exit 1
+          fi
+
+      - name: Validate webui plugins
+        run: scripts/check-plugins.sh

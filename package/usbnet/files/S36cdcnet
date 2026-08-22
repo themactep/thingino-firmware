@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC3043
 
 CNET=172.16.0.1
 
@@ -24,10 +25,15 @@ start() {
 	echo -c 15 "Starting CDC Ethernet gadget"
 	# Skip gadget load if g_webcam composite already provides NCM
 	if ! lsmod 2>/dev/null | grep -q g_webcam; then
-		ethaddr=$(fw_printenv -n ethaddr)
+		ethaddr=$(fw_printenv -n ethaddr 2>/dev/null || jct /etc/thingino.json get eth.mac 2>/dev/null)
+		[ -z "$ethaddr" ] && {
+			echo "Error: MAC address not found" >&2
+			exit 1
+		}
+		host_addr=$ethaddr
 		decrement_mac
 		usb-role -m device
-		modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+		modprobe g_ncm iManufacturer=thingino host_addr=$host_addr dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
 	fi
 	# Wait for usb0 to appear
 	i=0

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091
 
 # Return daynightd history JSON as a JSON array.
 # Data source: /run/thingino/daynight_history (written by daynightd)

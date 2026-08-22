@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 #
 # Detect camera defconfig name by SSH-ing into a Thingino device
 # and reading IMAGE_ID from /etc/os-release.
@@ -6,6 +7,8 @@
 # Usage: detect_camera_from_ip.sh <ip_address>
 # Returns: camera name on stdout (exit 0), or nothing (exit 1) on failure.
 #
+
+set -euo pipefail
 
 IP="$1"
 if [ -z "$IP" ]; then

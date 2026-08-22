@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2046,SC2086,SC3037
 
 # Check authentication
 . /var/www/x/auth.sh
@@ -19,7 +20,7 @@ c=$(echo $cmd | base64 -d)
 [ -z "$c" ] && echo "No command!" && exit
 
 prompt() {
-  echo -e "<b># $1</b>"
+	echo -e "<b># $1</b>"
 }
 
 export PATH=/bin:/sbin
@@ -28,19 +29,20 @@ prompt "$c\n"
 eval $c 2>&1
 
 case "$?" in
-  126)
-    echo "-sh: $c: Permission denied"
-    prompt
-    ;;
-  127)
-    echo "-sh: $c: not found"
-    prompt
-    ;;
-  0)
-    prompt
-    ;;
-  *)
-    echo -e "\nEXIT CODE: $?"
+	126)
+		echo "-sh: $c: Permission denied"
+		prompt
+		;;
+	127)
+		echo "-sh: $c: not found"
+		prompt
+		;;
+	0)
+		prompt
+		;;
+	*)
+		echo -e "\nEXIT CODE: $?"
+		;;
 esac
 
 exit 0

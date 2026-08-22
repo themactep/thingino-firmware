@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2059
 # BusyBox httpd CGI for snapshot channel 1
 # Optional query: q=85 for JPEG quality override
 

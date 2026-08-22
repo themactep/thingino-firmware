@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2153,SC3043
 # Subscribes to Home Assistant command topics and dispatches to camera scripts.
 # Runs as a background process inside ha-daemon.
 # Publishes state immediately after each command (optimistic update) so HA

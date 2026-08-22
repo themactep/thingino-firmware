@@ -1,0 +1,84 @@
+#!/bin/sh
+# shellcheck disable=SC2034,SC2119,SC2120,SC3043
+
+DAEMON="/usr/sbin/recordmgr"
+DAEMON_ARGS=""
+PIDFILE="/run/recordmgr.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- "$@"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return "$status"
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
+
+CONFIG_FILE="/etc/prudynt.json"
+
+cleanup_enabled() {
+	local val
+	val=$(jct "$CONFIG_FILE" get "recorder.cleanup_enabled" 2>/dev/null)
+	[ "$val" = "true" ] || [ "$val" = "1" ]
+}
+
+timelapse_enabled() {
+	local val
+	val=$(jct /etc/timelapse.json get "timelapse.enabled" 2>/dev/null)
+	[ "$val" = "true" ] || [ "$val" = "1" ]
+}
+
+debug_enabled() {
+	local val
+	val=$(jct "$CONFIG_FILE" get "recorder.debug" 2>/dev/null)
+	[ "$val" = "true" ] || [ "$val" = "1" ]
+}
+
+start() {
+	echo -c 15 "Starting Recording Storage Manager"
+
+	if ! cleanup_enabled && ! timelapse_enabled; then
+		echo "Recording storage manager is disabled"
+		return 0
+	fi
+
+	DAEMON_ARGS=""
+	if debug_enabled; then
+		DAEMON_ARGS="--debug"
+		echo "Recording storage manager debug mode enabled"
+	fi
+
+	start_daemon
+}
+
+stop() {
+	echo -c 15 "Stopping Recording Storage Manager"
+
+	stop_daemon
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart | reload)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
+
+exit 0
