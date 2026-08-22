@@ -24,10 +24,9 @@ motion_driver_val=$(jct "$MOTORS_CONFIG" get motors.motion_driver 2>/dev/null)
 [ -z "$motion_driver_val" ] && motion_driver_val=legacy
 preview_control_mode_val=$(jct "$MOTORS_CONFIG" get motors.preview_control_mode 2>/dev/null)
 [ -z "$preview_control_mode_val" ] && preview_control_mode_val=step
-pos_0_val=$(jct "$MOTORS_CONFIG" get motors.pos_0 2>/dev/null)
-pos_0_x_val=$(echo $pos_0_val | awk -F',' '{print $1}')
+pos_0_x_val=$(jct "$MOTORS_CONFIG" get motors.presets.0.x 2>/dev/null)
 [ -z "$pos_0_x_val" ] && pos_0_x_val=0
-pos_0_y_val=$(echo $pos_0_val | awk -F',' '{print $2}')
+pos_0_y_val=$(jct "$MOTORS_CONFIG" get motors.presets.0.y 2>/dev/null)
 [ -z "$pos_0_y_val" ] && pos_0_y_val=0
 
 read_post_data() {

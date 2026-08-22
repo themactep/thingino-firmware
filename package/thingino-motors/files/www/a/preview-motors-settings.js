@@ -138,7 +138,7 @@
   function createPresetRow(p) {
     const li = document.createElement("li");
     li.className = "list-group-item d-flex align-items-center gap-2";
-    li.dataset.number = String(p.number);
+    li.dataset.id = String(p.id);
 
     const handle = document.createElement("span");
     handle.className = "bi bi-grip-vertical drag-handle text-secondary";
@@ -146,21 +146,17 @@
     handle.draggable = true;
     handle.addEventListener("dragstart", (e) => {
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", String(p.number));
+      e.dataTransfer.setData("text/plain", String(p.id));
       li.classList.add("dragging");
     });
     handle.addEventListener("dragend", () => li.classList.remove("dragging"));
-
-    const badge = document.createElement("span");
-    badge.className = "badge bg-secondary text-nowrap";
-    badge.textContent = p.number;
 
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.className = "form-control form-control-sm flex-grow-1 preset-name";
     nameInput.value = p.name || "";
     nameInput.maxLength = 32;
-    nameInput.placeholder = `Preset ${p.number}`;
+    nameInput.placeholder = "Preset";
 
     const xInput = document.createElement("input");
     xInput.type = "number";
@@ -208,14 +204,14 @@
           showAlert("warning", "Coordinates must be whole numbers.", 3000);
         return;
       }
-      runPresetAction("pu", { n: p.number, name, x, y });
+      runPresetAction("pu", { n: p.id, name, x, y });
     });
 
     moveBtn.addEventListener("click", () =>
-      runPresetAction("pr", { n: p.number }),
+      runPresetAction("pr", { n: p.id }),
     );
     delBtn.addEventListener("click", () =>
-      runPresetAction("pd", { n: p.number }),
+      runPresetAction("pd", { n: p.id }),
     );
 
     li.addEventListener("dragover", (e) => {
@@ -230,31 +226,28 @@
       e.preventDefault();
       li.classList.remove("drop-target");
       const dragged = e.dataTransfer.getData("text/plain");
-      if (dragged && dragged !== String(p.number)) {
-        reorderPreset(dragged, String(p.number));
+      if (dragged && dragged !== String(p.id)) {
+        reorderPreset(dragged, String(p.id));
       }
     });
 
-    li.append(handle, badge, nameInput, xInput, yInput, saveBtn, moveBtn, delBtn);
+    li.append(handle, nameInput, xInput, yInput, saveBtn, moveBtn, delBtn);
     return li;
   }
 
   async function reorderPreset(draggedNumber, targetNumber) {
     const from = currentPresets.findIndex(
-      (p) => String(p.number) === draggedNumber,
+      (p) => String(p.id) === draggedNumber,
     );
     const to = currentPresets.findIndex(
-      (p) => String(p.number) === targetNumber,
+      (p) => String(p.id) === targetNumber,
     );
     if (from === -1 || to === -1 || from === to) return;
 
     const moved = currentPresets.splice(from, 1)[0];
     currentPresets.splice(to, 0, moved);
 
-    const order = currentPresets.map((p) => p.number).join(",");
-    currentPresets.forEach((p, i) => {
-      p.number = i;
-    });
+    const order = currentPresets.map((p) => p.id).join(",");
     renderPresets(currentPresets);
 
     try {

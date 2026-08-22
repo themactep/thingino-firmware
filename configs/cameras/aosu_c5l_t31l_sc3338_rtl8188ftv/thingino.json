@@ -20,7 +20,9 @@
     "invert_x": false,
     "invert_y": false,
     "is_spi": false,
-    "pos_0": "1850,500",
+    "presets": [
+      { "id": 0, "name": "Home", "x": 1850, "y": 500 }
+    ],
     "speed_pan": 900,
     "speed_tilt": 900,
     "steps_pan": 3700,

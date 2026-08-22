@@ -75,9 +75,6 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/ptz-ctrl \
 		$(TARGET_DIR)/usr/sbin/ptz-ctrl
 
-	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/ptz_presets.conf \
-		$(TARGET_DIR)/etc/ptz_presets.conf
-
 	$(THINGINO_MOTORS_INSTALL_JSON_CMDS)
 
 	$(THINGINO_MOTORS_INSTALL_WWW_CMDS)

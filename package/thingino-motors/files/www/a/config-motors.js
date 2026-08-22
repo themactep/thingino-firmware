@@ -173,10 +173,12 @@
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
     }
-    const posParts =
-      typeof config.pos_0 === "string" ? config.pos_0.split(/\s*,\s*/) : [];
-    setMotorFieldValue("pos_0_x", posParts[0] || "");
-    setMotorFieldValue("pos_0_y", posParts[1] || "");
+    const firstPreset =
+      Array.isArray(config.presets) && config.presets.length
+        ? config.presets[0]
+        : null;
+    setMotorFieldValue("pos_0_x", firstPreset ? firstPreset.x : "");
+    setMotorFieldValue("pos_0_y", firstPreset ? firstPreset.y : "");
     updateHomingInputs();
     motorIsSpi = config.is_spi === true || config.is_spi === "true";
     setMotorPinInputsEnabled(!motorIsSpi);
@@ -442,6 +444,102 @@
   if (motionDriverSelect) {
     motionDriverSelect.addEventListener("change", updateMotionDriverInputs);
   }
+
+  // ------------------------------------------------------------------
+  // PTZ presets
+  // ------------------------------------------------------------------
+  const presetNameInput = $("#ptz-preset-name");
+  const presetSaveButton = $("#ptz-preset-save");
+  const presetsList = $("#ptz-presets-list");
+  const presetsEmpty = $("#ptz-presets-empty");
+
+  function renderPresets(presets) {
+    if (!presetsList) return;
+    presetsList.innerHTML = "";
+    if (presetsEmpty) {
+      presetsEmpty.classList.toggle("d-none", presets.length > 0);
+    }
+    presets.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "list-group-item d-flex align-items-center gap-2";
+      li.innerHTML =
+        `<span class="flex-grow-1 text-truncate">${escapeHtml(
+          p.name || "Preset",
+        )}</span>` +
+        `<small class="text-secondary text-nowrap">${p.x}, ${p.y}</small>` +
+        `<button type="button" class="btn btn-sm btn-outline-primary" title="Move to this preset"><i class="bi bi-play-fill"></i></button>` +
+        `<button type="button" class="btn btn-sm btn-outline-danger" title="Delete preset"><i class="bi bi-trash"></i></button>`;
+      li.querySelector("button.btn-outline-primary").addEventListener(
+        "click",
+        () => presetAction("pr", { n: p.id }),
+      );
+      li.querySelector("button.btn-outline-danger").addEventListener(
+        "click",
+        () => presetAction("pd", { n: p.id }),
+      );
+      presetsList.appendChild(li);
+    });
+  }
+
+  async function loadPresets() {
+    try {
+      const res = await fetch(
+        "/x/json-motor.cgi?" + new URLSearchParams({ d: "pg" }).toString(),
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json().catch(() => null);
+      if (!payload || payload.result !== "success") {
+        throw new Error(
+          (payload && payload.error && payload.error.message) ||
+            "Failed to load presets",
+        );
+      }
+      renderPresets(
+        payload.message && Array.isArray(payload.message.presets)
+          ? payload.message.presets
+          : [],
+      );
+    } catch (err) {
+      console.error("Failed to load PTZ presets", err);
+    }
+  }
+
+  async function presetAction(action, extra) {
+    try {
+      const params = new URLSearchParams({ d: action });
+      Object.entries(extra || {}).forEach(([k, v]) => params.set(k, v));
+      const res = await fetch("/x/json-motor.cgi?" + params.toString());
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || !payload || payload.result !== "success") {
+        const message = payload && payload.error && payload.error.message;
+        throw new Error(message || `HTTP ${res.status}`);
+      }
+      const status =
+        (payload.message && payload.message.status) || "OK";
+      showAlert("success", status, 3000);
+      await loadPresets();
+    } catch (err) {
+      console.error(`Preset action ${action} failed`, err);
+      showAlert(
+        "danger",
+        `Preset action failed: ${err.message || err}`,
+      );
+    }
+  }
+
+  if (presetSaveButton) {
+    presetSaveButton.addEventListener("click", async () => {
+      const name = (presetNameInput ? presetNameInput.value : "").trim();
+      if (!name) {
+        showAlert("warning", "Enter a name for the preset first.", 3000);
+        return;
+      }
+      await presetAction("ps", { name });
+      if (presetNameInput) presetNameInput.value = "";
+    });
+  }
+
+  loadPresets();
 
   loadMotorsConfig();
 })();
