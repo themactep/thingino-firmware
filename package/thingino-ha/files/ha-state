@@ -141,7 +141,7 @@ done
 [ -n "$image_id" ] && ha_pub_state camera_config "$image_id" "$FORCE"
 
 # Firmware version & build sensors (both parse the same COMMIT_ID field)
-# Format: "release+commit, YYYY-MM-DD HH:MM:SS +0000"
+# Format: "release+commit, YYYY-MM-DD HH:MM:SS UTC"
 #   firmware_version → "release+commit"
 #   firmware_timestamp   → "YYYY-MM-DD HH:MM:SS UTC"
 if ha_entity_enabled firmware_version || ha_entity_enabled firmware_timestamp; then
@@ -158,8 +158,6 @@ if ha_entity_enabled firmware_version || ha_entity_enabled firmware_timestamp; t
 		fi
 		if ha_entity_enabled firmware_timestamp; then
 			build="${raw#*, }"
-			build="${build% +0000}"
-			build="${build} UTC"
 			ha_pub_state firmware_timestamp "$build" "$FORCE"
 		fi
 	fi
@@ -250,8 +248,8 @@ if [ "$ota_due" = "1" ]; then
 		[ -f "$f" ] || continue
 		installed=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
 		[ -n "$installed" ] && {
-			build_time=$(grep '^BUILD_TIME=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-			build_date=$(echo "$build_time" | sed 's/^\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
+			build_ts=$(grep '^BUILD_TIMESTAMP=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+			build_date=$(date -u -d "@$build_ts" +%Y%m%d 2>/dev/null)
 			break
 		}
 	done

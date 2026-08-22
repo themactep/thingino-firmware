@@ -26,8 +26,8 @@ fi
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep '^\*' | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
-GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S +0000' --format="%cd")
-BUILD_TIME="$(env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
+GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")
+BUILD_TIME="$(env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S UTC')"
 BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
 COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
@@ -113,7 +113,7 @@ BUILD_TIME=\"${BUILD_TIME}\"
 COMMIT_ID=\"${COMMIT_ID}\"
 BOOTLOADER=${BOOTLOADER}
 HOSTNAME=${HOSTNAME}
-TIME_STAMP=$(date +%s)" | tee $FILE
+BUILD_TIMESTAMP=$(date +%s)" | tee $FILE
 
 # Append the rest of the file
 cat $tmpfile | tee -a $FILE
