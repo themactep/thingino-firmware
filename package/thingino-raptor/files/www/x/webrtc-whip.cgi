@@ -108,16 +108,22 @@ if [ "${REQUEST_METHOD:-}" = "DELETE" ]; then
 	session_raw="$(qs_get session)"
 	session="$(url_decode "${session_raw:-}")"
 
+	# Raptor returns a relative /whip/<id> Location. Allow its absolute form
+	# too, but keep DELETE on the fixed backend because curl may attach credentials.
 	case "$session" in
 		'')
 			send_json "400 Bad Request" '{"error":"missing_session"}'
 			exit 0
 			;;
-		http://* | https://*)
+		/whip/?*)
+			target="$BACKEND_BASE$session"
+			;;
+		"$BACKEND_BASE"/whip/?*)
 			target="$session"
 			;;
 		*)
-			target="$BACKEND_BASE$session"
+			send_json "400 Bad Request" '{"error":"invalid_session"}'
+			exit 0
 			;;
 	esac
 
