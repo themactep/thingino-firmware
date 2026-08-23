@@ -17,7 +17,7 @@ port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1
 [ -n "$port" ] || port=8880
 BASE="http://127.0.0.1:$port"
 
-SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
+SERVICES="email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook"
 MOTOR_ACTIVE_FLAG="/run/motors-active"
 
 get_motion() { jct "$PRUDYNT_JSON" get "motion.$1" 2>/dev/null; }

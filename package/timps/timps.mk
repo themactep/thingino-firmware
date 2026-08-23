@@ -764,7 +764,7 @@ define TIMPS_INSTALL_SEND2
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/telegram-cam-register \
 		$(TARGET_DIR)/usr/sbin/telegram-cam-register
-	for f in send2email send2ftp send2ntfy send2storage send2telegram send2webhook; do \
+	for f in send2email send2ftp send2ntfy send2pushover send2storage send2telegram send2webhook; do \
 		$(INSTALL) -D -m 0755 $(THINGINO_SEND2_FILES_DIR)/$$f $(TARGET_DIR)/usr/sbin/$$f ; \
 	done
 	[ -f $(TARGET_DIR)/etc/send2.json ] || \
