@@ -7,6 +7,14 @@
 # Helper: map bool choice to "true", "false", or "" (default = don't touch)
 raptor_bval = $(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_$(1)_TRUE)),true,$(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_$(1)_FALSE)),false,))
 
+# T31 with 64MB RAM has no room for the default 2 main-stream video buffers.
+raptor_stream0_nr_vbs = $(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_NR_VBS))
+ifeq ($(SOC_FAMILY),t31)
+ifeq ($(SOC_RAM_MB),64)
+raptor_stream0_nr_vbs = 1
+endif
+endif
+
 define THINGINO_RAPTOR_PATCH_CONF
 	CONF=$(TARGET_DIR)/etc/raptor.conf; \
 	rset() { \
@@ -67,7 +75,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset stream0 min_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_MIN_QP))"; \
 	rset stream0 max_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_MAX_QP))"; \
 	rset stream0 init_qp "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_INIT_QP))"; \
-	rset stream0 nr_vbs "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_STREAM0_NR_VBS))"; \
+	rset stream0 nr_vbs "$(raptor_stream0_nr_vbs)"; \
 	rset stream0 ivdc "$(call raptor_bval,STREAM0_IVDC)"; \
 	rset stream0 osd_enabled "$(call raptor_bval,STREAM0_OSD_ENABLED)"; \
 	rset stream0 jpeg "$(call raptor_bval,STREAM0_JPEG)"; \
