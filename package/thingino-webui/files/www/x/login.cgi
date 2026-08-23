@@ -36,6 +36,10 @@ verify_password() {
 	local username="$1"
 	local password="$2"
 
+	# The web UI only manages the root account; system accounts such as
+	# the ONVIF/RTSP "thingino" user must never open a web session.
+	[ "$username" = "root" ] || return 1
+
 	# Get shadow entry for user
 	local shadow_entry=$(grep "^${username}:" /etc/shadow 2>/dev/null)
 	[ -z "$shadow_entry" ] && return 1
