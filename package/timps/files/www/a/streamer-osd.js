@@ -87,6 +87,19 @@
   // last loaded item snapshot per stream (for the other stream in "both"
   // scope auto-detect and to remember a card's current type)
   var itemData = { 0: {}, 1: {} };
+  // per-item "Apply to" scope the USER explicitly picked on this page, keyed
+  // by item index. load() rebuilds every card from scratch (a fresh GET, or
+  // a re-render triggered by this page's own /events "config" echo - see
+  // onConfigEvent), and until this was tracked separately, buildCard() re-
+  // derived the scope every time from itemsIdentical() alone: any edit that
+  // did not (yet) make EVERY tracked leaf byte-identical on both streams -
+  // in practice nearly always, since x/y rarely match across two streams
+  // with different resolutions - silently reverted the dropdown to "This
+  // stream" on the very next reload, so only the field that happened to be
+  // in flight when "Both streams" was selected actually landed on both
+  // sides. An explicit choice now sticks until the user changes it again or
+  // removes the card.
+  var scopeChoice = {};
 
   // ---- POST helpers ----------------------------------------------------
 
@@ -376,10 +389,13 @@
     card.querySelector(".osd-trans").value = tr;
     card.querySelector(".osd-trans-val").textContent = "(" + tr + ")";
 
-    // ---- scope: default "this"; auto-detect "both" only when this item is
-    // enabled and byte-identical on both streams (a nice-to-have, never for
-    // empty/default slots) ----
-    if (Number(data.enabled) && itemsIdentical(item)) {
+    // ---- scope: an explicit user choice for this item always wins (see
+    // scopeChoice above). Otherwise default "this"; auto-detect "both" only
+    // when this item is enabled and byte-identical on both streams (a nice-
+    // to-have, never for empty/default slots) ----
+    if (Object.prototype.hasOwnProperty.call(scopeChoice, item)) {
+      card.querySelector(".osd-scope").value = scopeChoice[item];
+    } else if (Number(data.enabled) && itemsIdentical(item)) {
       card.querySelector(".osd-scope").value = "both";
     }
     syncBothNote(card);
@@ -423,10 +439,12 @@
       if (restart) p.then(restartHint);
     });
 
-    // scope change: no POST by itself; just re-flags the "both" note. Existing
-    // values are re-pushed to the other stream on the next edit (nudge any
-    // field to copy immediately).
+    // scope change: no POST by itself; just records the choice (so it
+    // survives the next load()/rebuild, see scopeChoice above) and re-flags
+    // the "both" note. Existing values are re-pushed to the other stream on
+    // the next edit (nudge any field to copy immediately).
     card.querySelector(".osd-scope").addEventListener("change", function () {
+      scopeChoice[item] = cardScope(card);
       syncBothNote(card);
     });
 
@@ -493,9 +511,13 @@
     });
 
     // remove: disable (live-hide + persist) and drop the card. A fixed slot
-    // is never destroyed server-side; disabling it frees it for reuse.
+    // is never destroyed server-side; disabling it frees it for reuse, so
+    // also forget any explicit scope choice for it - a future re-add should
+    // start from the auto-detect default, not a stale pick for a slot that
+    // may now hold unrelated content.
     card.querySelector(".osd-remove").addEventListener("click", function () {
       push({ enabled: 0 }, card);
+      delete scopeChoice[item];
       card.parentNode.removeChild(card);
       refreshSlotUI();
     });
