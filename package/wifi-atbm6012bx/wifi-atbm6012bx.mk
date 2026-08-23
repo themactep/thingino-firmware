@@ -29,6 +29,8 @@ LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $
 define WIFI_ATBM6012BX_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6012bx.config \
 		$(@D)/.config
+	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE is not set/CONFIG_ATBM_FUNC_P2P_ENABLE=y/' \
+		$(@D)/.config
 endef
 
 define WIFI_ATBM6012BX_COPY_CONFIG_BLE
