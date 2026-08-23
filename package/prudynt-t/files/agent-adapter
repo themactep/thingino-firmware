@@ -2062,6 +2062,7 @@ agent_apply_config() {
 	agent_persist_if_present "$source_file" motion.send2gphotos
 	agent_persist_if_present "$source_file" motion.send2mqtt
 	agent_persist_if_present "$source_file" motion.send2ntfy
+	agent_persist_if_present "$source_file" motion.send2pushover
 	agent_persist_if_present "$source_file" motion.send2storage
 	agent_persist_if_present "$source_file" motion.send2telegram
 	agent_persist_if_present "$source_file" motion.send2webhook
