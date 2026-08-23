@@ -1,0 +1,158 @@
+#!/bin/sh
+# shellcheck disable=SC2013
+# SC2013: the kernel cmdline is a single line of space-separated words;
+# word-splitting it into a for loop is exactly what we want.
+# OTA fitting test - VM init.
+#
+# This is a focused test of flash-ota's partition-fitting algorithm: given a
+# source rootfs/data (or kernel/boot) image and a target MTD layout, do the
+# bytes land where the layout math says they should, and does the U-Boot env
+# mtdparts end up describing the new layout?
+#
+# The kernel cmdline carries the test parameters (see below) plus the OLD
+# layout via mtdparts=.  The host harness inspects the file-backed flash
+# after the VM exits - nothing here asserts anything.
+#
+# Params:
+#   t_mode=<rootfs|kernel|boot>
+#   t_rootfs=<kib>   new rootfs image size (0 = absent)
+#   t_data=<kib>     new data image size (0 = absent)
+#   t_kernel=<kib>   new kernel image size
+#   t_boot=<kib>     new boot image size
+#   t_env=<kib>      new env image size
+#   t_fill=<hex>     rootfs/boot fill byte
+#   t_filld=<hex>    data fill byte
+#   t_fille=<hex>    env fill byte
+#
+# Real images dropped into /images (rootfs.bin, data.bin, uImage) override
+# the synthetic patterns.
+
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sysfs /sys 2>/dev/null
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mount -t tmpfs tmpfs /tmp 2>/dev/null
+
+# block2mtd turns the virtio disk into a 8 MiB MTD device with 64 KiB
+# erase blocks; the module is loaded here (not at boot) so the disk exists.
+i=0
+while [ ! -e /dev/vda ]; do
+	i=$((i + 1))
+	[ "$i" -gt 100 ] && {
+		echo "ERROR: /dev/vda never appeared"
+		reboot -f
+	}
+	usleep 100000
+done
+insmod /block2mtd.ko block2mtd=/dev/vda,65536,block2mtd 2>&1 || {
+	echo "ERROR: insmod block2mtd failed"
+	reboot -f
+}
+sleep 1
+cat /proc/mtd
+
+t_mode=rootfs
+t_rootfs=0
+t_data=0
+t_kernel=0
+t_boot=0
+t_env=0
+t_fill=aa
+t_filld=55
+t_fille=33
+for kv in $(cat /proc/cmdline); do
+	case "$kv" in
+		t_mode=*) t_mode=${kv#t_mode=} ;;
+		t_rootfs=*) t_rootfs=${kv#t_rootfs=} ;;
+		t_data=*) t_data=${kv#t_data=} ;;
+		t_kernel=*) t_kernel=${kv#t_kernel=} ;;
+		t_boot=*) t_boot=${kv#t_boot=} ;;
+		t_env=*) t_env=${kv#t_env=} ;;
+		t_fill=*) t_fill=${kv#t_fill=} ;;
+		t_filld=*) t_filld=${kv#t_filld=} ;;
+		t_fille=*) t_fille=${kv#t_fille=} ;;
+	esac
+done
+
+echo "=== OTA-TEST start: mode=$t_mode rootfs=${t_rootfs}K data=${t_data}K kernel=${t_kernel}K boot=${t_boot}K env=${t_env}K ==="
+echo "--- /proc/mtd ---"
+cat /proc/mtd
+ls -la /dev/mtd* 2>&1
+cp /flash-ota.sh /tmp/flash-ota.sh
+chmod +x /tmp/flash-ota.sh
+echo "--- cmdline ---"
+cat /proc/cmdline
+echo "--- current env mtdparts ---"
+fw_printenv -c /etc/fw_env.config mtdparts 2>&1
+
+# hex byte -> busybox tr octal escape
+octal() {
+	case "$1" in
+		aa) printf '\252' ;;
+		55) printf '\125' ;;
+		ff) printf '\377' ;;
+		33) printf '\063' ;;
+		11) printf '\021' ;;
+		22) printf '\042' ;;
+		cc) printf '\314' ;;
+		bb) printf '\273' ;;
+		00) printf '\000' ;;
+		*) printf '\252' ;;
+	esac
+}
+
+gen_img() { # size_kib fill_hex outfile
+	if [ "$1" -gt 0 ] 2>/dev/null; then
+		dd if=/dev/zero bs=1024 count="$1" 2>/dev/null | tr '\000' "$(octal "$2")" >"$3"
+	else
+		: >"$3"
+	fi
+}
+
+gen_img "$t_rootfs" "$t_fill" /tmp/rootfs.bin
+gen_img "$t_data" "$t_filld" /tmp/data.bin
+gen_img "$t_kernel" "$t_fill" /tmp/kernel.bin
+gen_img "$t_boot" "$t_fill" /tmp/boot.bin
+gen_img "$t_env" "$t_fille" /tmp/env.bin
+
+# Real images override synthetic ones
+[ -f /images/rootfs.bin ] && cp /images/rootfs.bin /tmp/rootfs.bin && echo "using real rootfs image"
+[ -f /images/data.bin ] && cp /images/data.bin /tmp/data.bin && echo "using real data image"
+[ -f /images/uImage ] && cp /images/uImage /tmp/kernel.bin && echo "using real kernel image"
+[ -f /images/u-boot.bin ] && cp /images/u-boot.bin /tmp/boot.bin && echo "using real boot image"
+[ -f /images/u-boot-env.bin ] && cp /images/u-boot-env.bin /tmp/env.bin && echo "using real env image"
+
+echo "rootfs.bin: $(stat -c%s /tmp/rootfs.bin) bytes $(md5sum /tmp/rootfs.bin | cut -d' ' -f1)"
+echo "data.bin: $(stat -c%s /tmp/data.bin) bytes $(md5sum /tmp/data.bin | cut -d' ' -f1)"
+
+case "$t_mode" in
+	rootfs)
+		if [ -s /tmp/data.bin ]; then
+			echo "=== running: flash-ota rootfs /tmp/rootfs.bin /tmp/data.bin ==="
+			/tmp/flash-ota.sh rootfs /tmp/rootfs.bin /tmp/data.bin
+		else
+			echo "=== running: flash-ota rootfs /tmp/rootfs.bin ==="
+			/tmp/flash-ota.sh rootfs /tmp/rootfs.bin
+		fi
+		echo "flash-ota exit code: $?"
+		;;
+	kernel)
+		echo "=== running: flash-ota kernel /tmp/kernel.bin ==="
+		/tmp/flash-ota.sh kernel /tmp/kernel.bin
+		echo "flash-ota exit code: $?"
+		;;
+	boot)
+		echo "=== running: flash-ota boot /tmp/boot.bin /tmp/env.bin ==="
+		/tmp/flash-ota.sh boot /tmp/boot.bin /tmp/env.bin
+		echo "flash-ota exit code: $?"
+		;;
+esac
+
+# Reached only when flash-ota did not reboot (i.e. it failed)
+echo "--- post-flash /proc/mtd ---"
+cat /proc/mtd
+echo "--- post-flash env mtdparts ---"
+fw_printenv -c /etc/fw_env.config mtdparts 2>&1
+echo "=== OTA-TEST done ==="
+reboot -f
