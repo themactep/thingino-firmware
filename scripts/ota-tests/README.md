@@ -25,10 +25,12 @@ ERROR: flash rootfs failed
 ```
 
 Because `rootfs + data` is constant for any given flash size, the two
-partitions can be treated as one region: erase both, write rootfs at the
-rootfs offset and data right after it, then repoint `mtdparts` so the kernel
-carves the new boundaries. This suite exercises every branch of that
-decision (fit / span / error) and asserts the exact bytes written.
+partitions are always treated as one region: `flash_eraseall` both, write
+rootfs at the rootfs offset and data right after it with `dd` (never
+`flashcp`, which refuses files bigger than a partition), then repoint
+`mtdparts` so the kernel carves the new boundaries. This suite exercises
+that path (success and every guard failure) and asserts the exact bytes
+written.
 
 ## Architecture
 
@@ -116,21 +118,23 @@ backup 64k, kernel 1600k` at offset 0..1984k, then rootfs/data, then
 
 | # | scenario | old layout | new images | expect |
 |---|---|---|---|---|
-| 1 | `fit-normal` | rootfs 5120k, data 1088k | rootfs 4608k, data 640k | per-partition flash; env untouched |
-| 2 | `exact-fit` | rootfs 5760k, data 448k | rootfs 5760k, data 448k | per-partition flash; env untouched |
-| 3 | `rootfs-grew` | rootfs 5568k, data 640k | rootfs 5760k, data 448k | span flash; env updated |
-| 4 | `rootfs-shrunk` | rootfs 5760k, data 448k | rootfs 5120k, data 1088k | span flash; env updated |
-| 5 | `rootfs-only` | rootfs 5568k, data 640k | rootfs 5760k, no data | span flash; data area erased |
+| 1 | `fit-normal` | rootfs 5120k, data 1088k | rootfs 4608k, data 640k | unified flash; data partition recomputed to 1600k; env updated |
+| 2 | `exact-fit` | rootfs 5760k, data 448k | rootfs 5760k, data 448k | unified flash; layout unchanged; env untouched |
+| 3 | `rootfs-grew` | rootfs 5568k, data 640k | rootfs 5760k, data 448k | unified flash; env updated |
+| 4 | `rootfs-shrunk` | rootfs 5760k, data 448k | rootfs 5120k, data 1088k | unified flash; env updated |
+| 5 | `rootfs-only` | rootfs 5568k, data 640k | rootfs 5760k, no data | unified flash; data area erased |
 | 6 | `too-big` | rootfs 5568k, data 640k | rootfs 5760k, data 1024k | error; nothing written |
 | 7 | `no-all` | no `(all)` partition | rootfs 5760k, data 448k | error; nothing written |
 | 8 | `non-adjacent` | 64k `reserved` between rootfs and data | rootfs 5504k, data 512k | error; nothing written |
 | 9 | `kernel` | standard | 1600k fill image | kernel partition flashed |
 | 10 | `kernel-real` | standard | real `uImage` (IMG_DIR) | kernel partition flashed |
 | 11 | `boot` | standard | real U-Boot + env blob (IMG_DIR) | boot+env flashed; env = new layout |
-| 12 | `real-images` | rootfs 5568k, data 640k | real `rootfs.squashfs` + `data.jffs2` (IMG_DIR) | span flash; env updated |
+| 12 | `real-images` | rootfs 5568k, data 640k | real `rootfs.squashfs` + `data.jffs2` (IMG_DIR) | unified flash; env updated |
 
 Scenarios 3 and 12 reproduce the original failure mode
-(`flashcp: /tmp/rootfs.bin bigger than /dev/mtd4`) end to end.
+(`flashcp: /tmp/rootfs.bin bigger than /dev/mtd4`) end to end. In every
+rootfs scenario the two images are flashed with `flash_eraseall` + `dd`
+through the `all` partition at chip offsets - `flashcp` is never used.
 
 `IMG_DIR` defaults to the cinnado_d1_t31l_sc2336_atbm6031
 (`192.168.88.34`) build output
@@ -141,24 +145,23 @@ Scenarios using real images are skipped with a warning when it is missing.
 
 After the VM exits, the host asserts, per scenario:
 
-1. **Log path**: the `flash-ota` output shows the expected branch —
-   `Flashing rootfs from /tmp/rootfs.bin to /dev/mtd<N>` for per-partition,
-   `flashing rootfs+data as one region` for span, the error message for
-   error scenarios.
+1. **Log path**: the `flash-ota` output shows the expected behavior —
+   `Writing rootfs (...KiB) to /dev/mtd6 at ...KiB` (the `dd` write) for a
+   successful flash, the error message for error scenarios.
 2. **Byte placement** (via `dd` + `md5sum` of `flash.img`):
-   - per-partition: rootfs at the old rootfs offset, data at the old data
-     offset;
-   - span: rootfs at the old rootfs offset, data at `rootfs_offset +
-     new_rootfs_size` (i.e. inside what used to be the data partition);
+   - success: rootfs at the rootfs offset, data at `rootfs_offset +
+     new_rootfs_size` (the new data partition), with the data-partition
+     tail beyond the image still erased (0xFF);
    - error: `flash.img` is byte-identical to the pre-run image.
 3. **Untouched regions**: boot (0x11 fill), backup (0x22), kernel (0x33)
    remain unchanged — catches over-eager erases that would clobber the
    bootloader or kernel.
 4. **Env `mtdparts`** (read back with the real `fw_printenv -c` against
    `flash.img`):
-   - per-partition / error: unchanged;
-   - span: the old string with rootfs/data sizes replaced by the aligned new
-     sizes (computed the same way `flash-ota` computes them).
+   - error, or success with an unchanged rootfs size: unchanged;
+   - success with a changed rootfs size: the old string with rootfs/data
+     sizes replaced by the aligned new sizes (computed the same way
+     `flash-ota` computes them).
 
 `region_md5_bytes` trims reads to exact byte counts, so non-64k-aligned real
 images (uImage, U-Boot) are compared precisely.
@@ -173,20 +176,20 @@ images (uImage, U-Boot) are compared precisely.
        OLD_MTDPARTS="$BASE,5568k(rootfs),640k(data)$ALL_TAIL"
        MODE=rootfs
        ROOTFS_K=5760; DATA_K=448; FILL=aa; FILLD=55
-       EXPECT=span; ERR_MSG=
+       EXPECT=flash; ERR_MSG=
    }
    ```
 
    Fields: `NAME`, `OLD_MTDPARTS` (layout on the "device"),
    `MODE` (rootfs|kernel|boot), image sizes in KiB (`ROOTFS_K`, `DATA_K`,
    `KERNEL_K`, `BOOT_K`, `ENV_K`), fill bytes (`FILL`, `FILLD`),
-   `EXPECT` (normal|span|error), `ERR_MSG` (error scenarios),
+   `EXPECT` (flash|error), `ERR_MSG` (error scenarios),
    `RESERVED_K` (non-adjacent layouts), `REAL_IMAGES` (use real images).
 
 2. Add the function name to `ALL_SCENARIOS` in `run-tests.sh`.
 3. `verify()` dispatches on `MODE`/`EXPECT`; extend it if your scenario
    asserts something new (most need nothing — the standard branches cover
-   normal/span/error for all three modes).
+   flash/error for rootfs mode and the fixed assertions for kernel/boot).
 
 ## Debugging
 

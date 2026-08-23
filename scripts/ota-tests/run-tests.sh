@@ -161,6 +161,12 @@ setup_flash() {
 	printf 'mtdparts=%s\n' "$OLD_MTDPARTS" >"$SCRATCH/env.txt"
 	mkenvimage -s 0x8000 -o "$SCRATCH/env.bin" "$SCRATCH/env.txt" >/dev/null
 	dd if="$SCRATCH/env.bin" of="$FLASH" bs=1024 seek=256 conv=notrunc 2>/dev/null
+
+	# the old firmware rootfs: a tiny squashfs holding the env tools, so
+	# that like on a real camera they vanish when the partition is erased
+	if [ "$MODE" = rootfs ] && [ -f "$SCRATCH/fakeroot.squashfs" ]; then
+		dd if="$SCRATCH/fakeroot.squashfs" of="$FLASH" bs=1024 seek="$OLD_ROOTFS_OFF" conv=notrunc 2>/dev/null
+	fi
 }
 
 # --- VM run ----------------------------------------------------------------
@@ -216,13 +222,12 @@ verify() {
 		expected_new_data=$((OLD_ROOTFS_K + OLD_DATA_K - expected_new_rootfs))
 	fi
 
-	echo "== verifying $NAME (mode=$MODE expect=${EXPECT:-normal})"
+	echo "== verifying $NAME (mode=$MODE expect=${EXPECT:-flash})"
 	assert_cmd "log: /proc/mtd shows partitions" log_has '"rootfs"'
 
 	case "$MODE" in
 		rootfs)
-			local data_write_off=$OLD_DATA_OFF
-			[ "$EXPECT" = span ] && data_write_off=$((OLD_ROOTFS_OFF + expected_new_rootfs))
+			local data_write_off=$((OLD_ROOTFS_OFF + expected_new_rootfs))
 
 			local exp_rootfs_md5 exp_data_md5 exp_rootfs_bytes exp_data_bytes
 			if [ -n "${REAL_IMAGES:-}" ]; then
@@ -238,30 +243,31 @@ verify() {
 			fi
 
 			case "$EXPECT" in
-				normal)
-					assert_cmd "log: per-partition rootfs flash" log_has "Flashing rootfs from /tmp/rootfs.bin to /dev/mtd$OLD_ROOTFS_N"
-					assert_cmd "log: per-partition data flash" log_has "Flashing data from /tmp/data.bin to /dev/mtd$OLD_DATA_N"
-					if [ "$exp_rootfs_bytes" -gt 0 ]; then
-						assert_region "rootfs image at old rootfs offset ($OLD_ROOTFS_OFF)" "$OLD_ROOTFS_OFF" "$((exp_rootfs_bytes / 1024))" "$exp_rootfs_md5"
-					fi
+				flash)
+					assert_cmd "log: rootfs written via dd" log_has "Writing rootfs"
 					if [ "$exp_data_bytes" -gt 0 ]; then
-						assert_region "data image at old data offset ($OLD_DATA_OFF)" "$OLD_DATA_OFF" "$((exp_data_bytes / 1024))" "$exp_data_md5"
+						assert_cmd "log: data written via dd" log_has "Writing data"
 					fi
-					assert_cmd "env mtdparts unchanged" [ "$(env_mtdparts)" = "$OLD_MTDPARTS" ]
-					;;
-				span)
-					assert_cmd "log: span flash announced" log_has "flashing rootfs+data as one region"
-					assert_cmd "log: mtdparts update announced" log_has "Updating U-Boot mtdparts to"
 					if [ "$exp_rootfs_bytes" -gt 0 ]; then
 						assert_region "rootfs image at $OLD_ROOTFS_OFF" "$OLD_ROOTFS_OFF" "$((exp_rootfs_bytes / 1024))" "$exp_rootfs_md5"
 					fi
 					if [ "$exp_data_bytes" -gt 0 ]; then
-						assert_region "data image at $data_write_off (absorbs data partition)" "$data_write_off" "$((exp_data_bytes / 1024))" "$exp_data_md5"
+						assert_region "data image at $data_write_off (new data partition)" "$data_write_off" "$((exp_data_bytes / 1024))" "$exp_data_md5"
+						# tail of the data partition beyond the image stays erased
+						local tail_k=$((expected_new_data - exp_data_bytes / 1024))
+						if [ "$tail_k" -gt 0 ]; then
+							assert_region "data partition tail erased" "$((data_write_off + exp_data_bytes / 1024))" "$tail_k" "$(pattern_md5 "$tail_k" ff)"
+						fi
 					fi
-					local exp_env
-					exp_env=$(printf '%s\n' "$OLD_MTDPARTS" |
-						sed "s/,[0-9]*k(rootfs),[0-9]*k(data)/,${expected_new_rootfs}k(rootfs),${expected_new_data}k(data)/")
-					assert_cmd "env mtdparts updated to $exp_env" [ "$(env_mtdparts)" = "$exp_env" ]
+					if [ "$expected_new_rootfs" -eq "$OLD_ROOTFS_K" ]; then
+						assert_cmd "env mtdparts unchanged" [ "$(env_mtdparts)" = "$OLD_MTDPARTS" ]
+					else
+						assert_cmd "log: mtdparts update announced" log_has "Updating U-Boot mtdparts to"
+						local exp_env
+						exp_env=$(printf '%s\n' "$OLD_MTDPARTS" |
+							sed "s/,[0-9]*k(rootfs),[0-9]*k(data)/,${expected_new_rootfs}k(rootfs),${expected_new_data}k(data)/")
+						assert_cmd "env mtdparts updated to $exp_env" [ "$(env_mtdparts)" = "$exp_env" ]
+					fi
 					;;
 				error)
 					assert_cmd "log: error message" log_has "$ERR_MSG"

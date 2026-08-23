@@ -65,7 +65,7 @@ write_at() {
 # Point U-Boot's mtdparts at the new rootfs/data sizes so the kernel carves
 # the partitions we just flashed.
 set_mtdparts() {
-	local new_rootfs_k="$1" new_data_k="$2" cur new
+	local new_rootfs_k="$1" new_data_k="$2" cur new got
 	cur=$(fw_printenv mtdparts 2>/dev/null | cut -d= -f2-)
 	[ -n "$cur" ] || {
 		echo "ERROR: cannot read current mtdparts"
@@ -79,6 +79,11 @@ set_mtdparts() {
 	echo "Updating U-Boot mtdparts to $new"
 	fw_setenv mtdparts "$new" || {
 		echo "ERROR: fw_setenv mtdparts failed"
+		return 1
+	}
+	got=$(fw_printenv mtdparts 2>/dev/null | cut -d= -f2-)
+	[ "$got" = "$new" ] || {
+		echo "ERROR: mtdparts verification failed (got '$got')"
 		return 1
 	}
 }
@@ -146,7 +151,7 @@ if [ "$mode" = "rootfs" ]; then
 	workdir="/tmp/flash-ota.d"
 	mkdir -p "$workdir"
 	cp /bin/busybox "$workdir/busybox"
-	for a in echo flash_eraseall flashcp reboot sync sleep; do
+	for a in dd echo flash_eraseall head md5sum reboot stat sync sleep cut; do
 		ln -sf "$workdir/busybox" "$workdir/$a"
 	done
 	export PATH="$workdir:$PATH"
@@ -192,35 +197,39 @@ case "$mode" in
 
 		read_mtd_layout
 
-		if [ "$rootfs_size" -le $((ROOTFS_K * 1024)) ] && [ "$data_size" -le $((DATA_K * 1024)) ]; then
-			flash_one "$ROOTFS_MTD" "$rootfs_file" "rootfs" || exit 1
-			if [ "$data_size" -gt 0 ]; then
-				flash_one "$DATA_MTD" "$data_file" "data" || exit 1
-			fi
-		else
-			new_rootfs_k=$(((rootfs_size + 65535) / 65536 * 64))
-			new_data_k=$(((data_size + 65535) / 65536 * 64))
-			[ $((new_rootfs_k + new_data_k)) -le $((ROOTFS_K + DATA_K)) ] || {
-				echo "ERROR: rootfs+data (${new_rootfs_k}+${new_data_k}KiB) exceed combined partitions ($((ROOTFS_K + DATA_K))KiB)"
-				exit 1
-			}
-			[ "$DATA_OFF_K" -eq $((ROOTFS_OFF_K + ROOTFS_K)) ] || {
-				echo "ERROR: rootfs and data partitions are not adjacent, cannot flash as one region"
-				exit 1
-			}
-			[ -n "$ALL_MTD" ] || {
-				echo "ERROR: no 'all' partition available for combined flash"
-				exit 1
-			}
+		# rootfs and data together occupy a fixed region (everything after the
+		# kernel); the new data partition is always that region minus the new
+		# rootfs, so the pair fits whenever the two images together do.
+		new_rootfs_k=$(((rootfs_size + 65535) / 65536 * 64))
+		new_data_k=$(((data_size + 65535) / 65536 * 64))
+		combined_k=$((ROOTFS_K + DATA_K))
+		[ $((new_rootfs_k + new_data_k)) -le "$combined_k" ] || {
+			echo "ERROR: rootfs+data (${new_rootfs_k}+${new_data_k}KiB) exceed combined partitions (${combined_k}KiB)"
+			exit 1
+		}
+		[ "$DATA_OFF_K" -eq $((ROOTFS_OFF_K + ROOTFS_K)) ] || {
+			echo "ERROR: rootfs and data partitions are not adjacent, cannot flash as one region"
+			exit 1
+		}
+		[ -n "$ALL_MTD" ] || {
+			echo "ERROR: no 'all' partition available for combined flash"
+			exit 1
+		}
 
-			echo "Rootfs image (${new_rootfs_k}KiB) exceeds its partition (${ROOTFS_K}KiB); flashing rootfs+data as one region"
-			flash_eraseall "/dev/$ROOTFS_MTD" || exit 1
-			flash_eraseall "/dev/$DATA_MTD" || exit 1
-			write_at "$ALL_MTD" "$rootfs_file" "$ROOTFS_OFF_K" "rootfs" || exit 1
-			if [ "$data_size" -gt 0 ]; then
-				write_at "$ALL_MTD" "$data_file" $((ROOTFS_OFF_K + new_rootfs_k)) "data" || exit 1
-			fi
-			set_mtdparts "$new_rootfs_k" $((ROOTFS_K + DATA_K - new_rootfs_k)) || exit 1
+		# Repoint mtdparts before erasing anything: fw_printenv/fw_setenv
+		# live on the rootfs partition about to be erased, and nothing
+		# survives on the device once it is gone. If this fails, the
+		# camera is still intact and bootable.
+		if [ "$new_rootfs_k" -ne "$ROOTFS_K" ]; then
+			set_mtdparts "$new_rootfs_k" $((combined_k - new_rootfs_k)) || exit 1
+		fi
+
+		echo "Flashing rootfs (${new_rootfs_k}KiB) + data ($((combined_k - new_rootfs_k))KiB) as one region"
+		flash_eraseall "/dev/$ROOTFS_MTD" || exit 1
+		flash_eraseall "/dev/$DATA_MTD" || exit 1
+		write_at "$ALL_MTD" "$rootfs_file" "$ROOTFS_OFF_K" "rootfs" || exit 1
+		if [ "$data_size" -gt 0 ]; then
+			write_at "$ALL_MTD" "$data_file" $((ROOTFS_OFF_K + new_rootfs_k)) "data" || exit 1
 		fi
 		;;
 	*)

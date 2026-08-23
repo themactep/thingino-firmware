@@ -76,6 +76,28 @@ for kv in $(cat /proc/cmdline); do
 done
 
 echo "=== OTA-TEST start: mode=$t_mode rootfs=${t_rootfs}K data=${t_data}K kernel=${t_kernel}K boot=${t_boot}K env=${t_env}K ==="
+
+# Like on a real camera, the env tools live on the rootfs partition that
+# flash-ota is about to erase. Mount the old firmware rootfs (baked into the
+# flash at the rootfs offset) and point the tools at it, so they stop
+# working the moment the partition is erased.
+if [ "$t_mode" = rootfs ]; then
+	mkdir -p /fakeroot
+	# prime the backing virtio-blk queue before the mount's nested block
+	# I/O; the first read through block2mtd->virtio otherwise races the
+	# completion and hangs the mount
+	dd if=/dev/mtdblock4 bs=512 count=1 >/dev/null 2>&1
+	if mount -t squashfs /dev/mtdblock4 /fakeroot 2>/dev/null; then
+		rm -f /sbin/fw_printenv /sbin/fw_setenv /etc/fw_env.config
+		ln -s /fakeroot/sbin/fw_printenv /sbin/fw_printenv
+		ln -s /fakeroot/sbin/fw_setenv /sbin/fw_setenv
+		ln -s /fakeroot/etc/fw_env.config /etc/fw_env.config
+		echo "fakeroot: env tools mounted from flash rootfs partition"
+	else
+		echo "fakeroot: flash rootfs not mountable, keeping ramfs env tools"
+	fi
+fi
+
 echo "--- /proc/mtd ---"
 cat /proc/mtd
 ls -la /dev/mtd* 2>&1
