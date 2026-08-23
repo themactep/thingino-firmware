@@ -316,6 +316,9 @@ fi
 
 echo "Firmware compatibility verified."
 
+echo "Current MTD layout on device:"
+remote_run "cat /proc/mtd"
+
 free_overlay_space() {
 	echo "Freeing overlay space on device..."
 	remote_run "rm -rf /overlay/var /overlay/usr 2>/dev/null; mount -o remount / 2>/dev/null; echo done" >/dev/null || \
