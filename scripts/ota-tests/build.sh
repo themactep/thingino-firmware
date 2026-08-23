@@ -35,6 +35,7 @@ if [ ! -f "$KBUILD/arch/x86/boot/bzImage" ]; then
 		--enable 64BIT --enable X86_64 --disable X86_32 \
 		--enable MULTIUSER --enable PRINTK --enable BUG --enable BINFMT_ELF --enable BINFMT_SCRIPT \
 		--enable BLK_DEV_INITRD --enable RD_GZIP --enable TMPFS \
+		--enable MISC_FILESYSTEMS --enable SQUASHFS \
 		--enable DEVTMPFS --enable DEVTMPFS_MOUNT --enable PROC_FS --enable SYSFS \
 		--enable PROC_SYSCTL --enable TTY \
 		--enable SERIAL_8250 --enable SERIAL_8250_CONSOLE \
@@ -120,6 +121,21 @@ chmod +x "$INITRD_DIR/flash-ota.sh"
 
 echo "== packing initramfs"
 (cd "$INITRD_DIR" && find . -print0 | cpio --null -o -H newc 2>/dev/null | gzip -9) >"$SCRATCH/initramfs.cpio.gz"
+
+# A tiny squashfs that pretends to be the old firmware rootfs: it carries the
+# env tools so that, like on a real camera, fw_printenv/fw_setenv live on the
+# rootfs partition that flash-ota erases. Baked into flash.img by the test
+# runner and mounted by /init; the tools die with the partition.
+FAKEROOT="$SCRATCH/fakeroot"
+if [ ! -f "$SCRATCH/fakeroot.squashfs" ]; then
+	echo "== building fakeroot squashfs"
+	rm -rf "$FAKEROOT"
+	mkdir -p "$FAKEROOT/sbin" "$FAKEROOT/etc"
+	cp "$INITRD_DIR/sbin/fw_printenv" "$FAKEROOT/sbin/"
+	ln -sf fw_printenv "$FAKEROOT/sbin/fw_setenv"
+	cp "$HERE/initramfs/fw_env.config" "$FAKEROOT/etc/"
+	mksquashfs "$FAKEROOT" "$SCRATCH/fakeroot.squashfs" -noappend -comp gzip >/dev/null
+fi
 
 echo "== done"
 echo "kernel:   $KBUILD/arch/x86/boot/bzImage"

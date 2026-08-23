@@ -14,7 +14,7 @@
 #   BOOT_K        new boot image size in KiB (boot mode)
 #   ENV_K         new env image size in KiB (boot mode; 0 = use real env blob)
 #   FILL / FILLD  rootfs / data fill byte (hex)
-#   EXPECT        normal | span | error
+#   EXPECT        flash | error
 #   ERR_MSG       substring expected in the flash-ota output for EXPECT=error
 #   RESERVED_K    extra "reserved" partition size in KiB between rootfs and
 #                 data (non-adjacent layout)
@@ -31,7 +31,7 @@ scenario_fit_normal() {
 	DATA_K=640
 	FILL=aa
 	FILLD=55
-	EXPECT=normal
+	EXPECT=flash
 	ERR_MSG=
 }
 
@@ -43,7 +43,7 @@ scenario_exact_fit() {
 	DATA_K=448
 	FILL=aa
 	FILLD=55
-	EXPECT=normal
+	EXPECT=flash
 	ERR_MSG=
 }
 
@@ -55,7 +55,7 @@ scenario_rootfs_grew() {
 	DATA_K=448
 	FILL=aa
 	FILLD=55
-	EXPECT=span
+	EXPECT=flash
 	ERR_MSG=
 }
 
@@ -67,7 +67,7 @@ scenario_rootfs_shrunk() {
 	DATA_K=1088
 	FILL=aa
 	FILLD=55
-	EXPECT=span
+	EXPECT=flash
 	ERR_MSG=
 }
 
@@ -79,7 +79,7 @@ scenario_rootfs_only() {
 	DATA_K=0
 	FILL=aa
 	FILLD=55
-	EXPECT=span
+	EXPECT=flash
 	ERR_MSG=
 }
 
@@ -159,6 +159,6 @@ scenario_real_images() {
 	FILL=aa
 	FILLD=55
 	REAL_IMAGES=1
-	EXPECT=span
+	EXPECT=flash
 	ERR_MSG=
 }
