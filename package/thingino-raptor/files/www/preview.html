@@ -79,6 +79,16 @@
           <div class="raptor-hint mt-2" id="webrtc-status"></div>
         </div>
       </div>
+      <div class="preview-endpoints text-center" id="preview-endpoints">
+        <small>Direct endpoints. Click a link to copy its URL to clipboard.</small>
+        <div class="dropdown d-lg-none mt-2" id="preview-endpoint-dropdown">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-link-45deg"></i> Endpoints
+          </button>
+          <ul class="dropdown-menu" id="preview-endpoint-dropdown-menu"></ul>
+        </div>
+        <div class="preview-endpoint-list mx-4 d-none d-lg-inline-flex" id="preview-endpoint-list"></div>
+      </div>
     </section>
   </div>
 </main>
@@ -90,6 +100,7 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/preview-endpoints.js"></script>
 <script>
   (function () {
     const video = document.getElementById("raptor-webrtc-video");
