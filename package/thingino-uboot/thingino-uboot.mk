@@ -83,6 +83,7 @@ endef
 UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_COPY_SHA1_HEADER
 
 define THINGINO_UBOOT_RMEM_SET_VALUE
+	@touch $(THINGINO_UENV_TXT)
 	if [ -n "$(ISP_RMEM_MB)" ]; then \
 		if [ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ]; then \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_ISPMEM_MB) )) && \
