@@ -10,10 +10,9 @@ kernel step seed come from the same source of truth. motors.pos_0 stays
 as a fallback for configs that predate the presets array.
 
 ---
-diff -ruN a/src/motor-daemon.c b/src/motor-daemon.c
---- a/src/motor-daemon.c	2026-08-22 05:27:37.101702981 -0400
-+++ b/src/motor-daemon.c	2026-08-22 05:27:37.103048400 -0400
-@@ -354,12 +354,31 @@
+--- a/src/motor-daemon.c
++++ b/src/motor-daemon.c
+@@ -352,12 +352,31 @@ static bool parse_modern_layout(JsonValue *root, JsonValue *motors) {
      parsed = true;
    }
  
@@ -23,8 +22,8 @@ diff -ruN a/src/motor-daemon.c b/src/motor-daemon.c
 -    g_cfg.hw.pos0[sizeof(g_cfg.hw.pos0) - 1] = '\0';
 -    if (parse_pos0_string(pos0, &g_cfg.pan.home, &g_cfg.tilt.home))
 -      parsed = true;
-+  // The initial point is the first preset; pos_0 remains a fallback for
-+  // configs that predate the presets array.
++  // The initial point is the first preset; pos_0 remains a fallback
++  // for configs that predate the presets array.
 +  bool have_initial = false;
 +  JsonValue *presets = get_object_item(motors, "presets");
 +  if (presets && presets->type == JSON_ARRAY && get_array_size(presets) > 0) {
