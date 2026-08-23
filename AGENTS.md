@@ -48,7 +48,19 @@ should be done on a real disk. See `docs/build/makefile.md`.
   from the environment; default root is `output/`). Always check the env first
   when looking for build artifacts (`echo $THINGINO_OUTPUT_ROOT_DIR`) — the
   output tree is usually NOT inside the repo checkout.
-- No test suite. Validation is CI-only.
+- Download cache: `$(BR2_DL_DIR)` (default `dl/` next to the repo; on this
+  machine `/home/paul/Files/thingino/dl`). Shared across worktrees — never
+  clean it. `make download-cache` bundles it for offline CI builds.
+- User config layer: `$(THINGINO_USER_DIR)` (default `user/` next to the repo;
+  on this machine `/home/paul/.thingino/user`). Per-user/local overrides
+  (`local.fragment`, `local.mk`, `overlay/`, ...); `PRISTINE=1` disables it by
+  pointing it at `/dev/null`. See the config model section below.
+  As with the output dir, read these from the environment
+  (`echo $BR2_DL_DIR $THINGINO_USER_DIR`) before assuming they live in the
+  checkout.
+- No CI-integrated test suite for builds; validation is CI-only. A dev-side
+  QEMU test suite exists for the sysupgrade partition-fitting logic:
+  `scripts/ota-tests/` (see its README).
 
 ## Repo layout
 
