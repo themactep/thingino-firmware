@@ -12,8 +12,6 @@ MOTION_ALARM="/run/motion/motion_alarm"
 MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 [ -d "$MOTION_ALARM_DIR" ] || mkdir -p "$MOTION_ALARM_DIR"
 
-MOTION_STOP_FILE="/run/motors.pid"
-
 MOTION_VIDEO_CHANNEL=0
 # Duration for motion clips (seconds). Read from config or default to 10.
 MOTION_VIDEO_LENGTH=$(jct /etc/prudynt.json get motion.video_length 2>/dev/null)
@@ -35,9 +33,14 @@ set_enabled() {
 
 start() {
 	echo_info "Start motion"
-	if [ -f "$MOTION_STOP_FILE" ]; then
-		echo_error "Motor motion file present. Exiting."
-		exit 1
+
+	# Suppress alerts while PTZ motors are moving. motors-daemon writes
+	# /run/motors-active on move start and removes it once the motors
+	# report idle (typically ~100ms). Check both the current flag and the
+	# legacy pidfile name used by older motors-daemon versions.
+	if [ -f /run/motors-active ] || [ -f /run/motors.pid ]; then
+		echo_error "Motors are moving. Suppressing motion event."
+		exit 0
 	fi
 
 	# Generate timestamp for this motion event
