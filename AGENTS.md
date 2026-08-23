@@ -43,7 +43,11 @@ should be done on a real disk. See `docs/build/makefile.md`.
 - `BOARD=` is an alias for `CAMERA=` (backward compat with CI).
 - `WORKFLOW=1` skips dep check + interactive camera selection (CI use).
 - `PRISTINE=1` disables user directory (`THINGINO_USER_DIR=/dev/null`).
-- Output: `output/<branch>/<camera>-<kernel>-<libc>[-<ip>]/`
+- Output: `$(THINGINO_OUTPUT_ROOT_DIR)/<branch>/<camera>-<kernel>-<libc>[-<ip>]/`
+  (`THINGINO_OUTPUT_ROOT_DIR` / `THINGINO_OUTPUT_DIR` override the output root/dir
+  from the environment; default root is `output/`). Always check the env first
+  when looking for build artifacts (`echo $THINGINO_OUTPUT_ROOT_DIR`) — the
+  output tree is usually NOT inside the repo checkout.
 - No test suite. Validation is CI-only.
 
 ## Repo layout
