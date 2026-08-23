@@ -4,8 +4,8 @@
     "ir940": 50,
     "ircut": "16 17",
     "mmc_cd": 49,
-    "scl": "58i",
-    "sda": "57i",
+    "scl": 58,
+    "sda": 57,
     "speaker": {
       "pin": 7,
       "active_low": true

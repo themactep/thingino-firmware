@@ -124,7 +124,9 @@ controls_color() {
 switch_to_day() {
 	echo_info "Switching to day mode..."
 
-	# Notify prudynt to restore full FPS (day mode)
+	# Notify prudynt of the running mode (day) so it applies the matching
+	# ISP tuning (monochrome/color, AE strategy, IRCUT). Framerate is
+	# left unchanged.
 	if command_present prudyntctl; then
 		prudyntctl json '{"image":{"running_mode":0}}' >/dev/null 2>&1
 	fi
@@ -160,7 +162,9 @@ switch_to_day() {
 switch_to_night() {
 	echo_info "Switching to night mode..."
 
-	# Notify prudynt to halve FPS (night mode)
+	# Notify prudynt of the running mode (night) so it applies the matching
+	# ISP tuning (monochrome/color, AE strategy, IRCUT). Framerate is
+	# left unchanged.
 	if command_present prudyntctl; then
 		prudyntctl json '{"image":{"running_mode":1}}' >/dev/null 2>&1
 	fi

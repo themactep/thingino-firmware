@@ -129,6 +129,8 @@ in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 
 ## Firmware image
 
+Three flash types are supported:
+
 - **SFC (SPI NOR)**: `boot(320K) + env(64K) + backup(64K) + kernel(1600K) + rootfs.squashfs + data.jffs2`
   The `backup` partition holds a copy of the U-Boot environment for fail-safe updates.
 - **SFC-NAND (SPI NAND)**: UBI image at 1 MiB offset with volumes:
