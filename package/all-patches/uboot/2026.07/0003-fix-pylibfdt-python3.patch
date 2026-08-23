@@ -1,0 +1,56 @@
+From f098f242ae3028aa950057f4f9f50e2147f16c31 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 23 Aug 2026 13:51:51 -0400
+Subject: [PATCH] pylibfdt: fix build against Python 3 with SWIG 4.5
+
+SWIG 4.5.0 removed the Python 2 compatibility macros (PyInt_*,
+PyString_*) from its runtime header, so the custom typemaps in
+libfdt.i that still call PyString_FromString() and PyInt_AsLong()
+generate libfdt_wrap.c code that no longer compiles against the
+Python 3 host headers.
+
+Replace them with the Python 3 C API equivalents, matching upstream
+dtc commit 5008d1d6a356 ("pylibfdt: Replace removed SWIG Python 2
+compatibility macros"):
+
+- PyString_FromString -> PyUnicode_FromString
+- PyString_AsString -> PyBytes_AsString
+- PyInt_AsLong -> PyLong_AsLong
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ scripts/dtc/pylibfdt/libfdt.i_shipped | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/scripts/dtc/pylibfdt/libfdt.i_shipped b/scripts/dtc/pylibfdt/libfdt.i_shipped
+index e4659489..326a15c7 100644
+--- a/scripts/dtc/pylibfdt/libfdt.i_shipped
++++ b/scripts/dtc/pylibfdt/libfdt.i_shipped
+@@ -1033,7 +1033,7 @@ typedef uint32_t fdt32_t;
+ 	PyObject *buff;
+ 
+ 	if ($1) {
+-		resultobj = PyString_FromString(
++		resultobj = PyUnicode_FromString(
+ 			fdt_string(fdt1, fdt32_to_cpu($1->nameoff)));
+ 		buff = PyByteArray_FromStringAndSize(
+ 			(const char *)($1 + 1), fdt32_to_cpu($1->len));
+@@ -1064,13 +1064,13 @@ typedef uint32_t fdt32_t;
+         }
+         $1 = PyBytes_AsString($input);
+     %#else
+-        $1 = PyString_AsString($input);   /* char *str */
++        $1 = PyBytes_AsString($input);   /* char *str */
+     %#endif
+ }
+ 
+ /* typemaps used for fdt_next_node() */
+ %typemap(in, numinputs=1) int *depth (int depth) {
+-   depth = (int) PyInt_AsLong($input);
++   depth = (int) PyLong_AsLong($input);
+    $1 = &depth;
+ }
+ 
+-- 
+2.55.0
+
