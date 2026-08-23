@@ -1,6 +1,6 @@
 #!/bin/sh
-# shellcheck disable=SC3043
-# flash-ota – minimal host-driven OTA flasher.
+# shellcheck disable=SC3043,SC2017 # SC2017: a/b*c is intentional integer ceil-division for 64 KiB alignment
+# flash-ota - minimal host-driven OTA flasher.
 # Pre-assembled partition files are uploaded by the host; this script
 # flashes them to the matching MTD partitions and reboots.
 
@@ -14,7 +14,74 @@ shift
 
 echo "flash-ota: mode=$mode files=$*"
 
-mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
+mtd_dev() { awk -F: "/\"$1\"\$/{print \$1}" /proc/mtd; }
+
+# Partition geometry from /proc/mtd (KiB).  ROOTFS_OFF_K / DATA_OFF_K are
+# the chip offsets of the rootfs and data partitions.
+read_mtd_layout() {
+	ROOTFS_K=0
+	DATA_K=0
+	ROOTFS_OFF_K=0
+	DATA_OFF_K=0
+	local dev size name off=0
+	while read -r dev size _ name; do
+		case "$dev" in
+			mtd[0-9]:) ;;
+			*) continue ;;
+		esac
+		size=$((0x$size / 1024))
+		case "$name" in
+			'"rootfs"')
+				ROOTFS_K=$size
+				ROOTFS_OFF_K=$off
+				;;
+			'"data"')
+				DATA_K=$size
+				DATA_OFF_K=$off
+				;;
+		esac
+		off=$((off + size))
+	done </proc/mtd
+}
+
+# Write a file to an MTD device at a KiB offset and verify by checksum.
+write_at() {
+	local mtd="$1" file="$2" offset_k="$3" label="$4"
+	local size want have
+	size=$(stat -c%s "$file")
+	echo "Writing $label ($(((size + 1023) / 1024))KiB) to /dev/$mtd at ${offset_k}KiB"
+	dd if="$file" of="/dev/$mtd" bs=1024 seek="$offset_k" 2>/dev/null || {
+		echo "ERROR: write $label failed"
+		return 1
+	}
+	want=$(md5sum "$file" | cut -d' ' -f1)
+	have=$(dd if="/dev/$mtd" bs=1024 skip="$offset_k" count=$(((size + 1023) / 1024)) 2>/dev/null | head -c "$size" | md5sum | cut -d' ' -f1)
+	[ "$want" = "$have" ] || {
+		echo "ERROR: verify $label failed"
+		return 1
+	}
+}
+
+# Point U-Boot's mtdparts at the new rootfs/data sizes so the kernel carves
+# the partitions we just flashed.
+set_mtdparts() {
+	local new_rootfs_k="$1" new_data_k="$2" cur new
+	cur=$(fw_printenv mtdparts 2>/dev/null | cut -d= -f2-)
+	[ -n "$cur" ] || {
+		echo "ERROR: cannot read current mtdparts"
+		return 1
+	}
+	new=$(printf '%s\n' "$cur" | sed "s/,[0-9]*k(rootfs),[0-9]*k(data)/,${new_rootfs_k}k(rootfs),${new_data_k}k(data)/")
+	[ "$new" != "$cur" ] || {
+		echo "ERROR: cannot compose new mtdparts from '$cur'"
+		return 1
+	}
+	echo "Updating U-Boot mtdparts to $new"
+	fw_setenv mtdparts "$new" || {
+		echo "ERROR: fw_setenv mtdparts failed"
+		return 1
+	}
+}
 
 flush_memory() {
 	echo "Syncing and dropping caches..."
@@ -37,7 +104,7 @@ stop_streamer() {
 flash_one() {
 	local mtd="$1" file="$2" label="$3"
 	echo "Flashing $label from $file to /dev/$mtd"
-	if flashcp -A 2>&1 | grep -q 'unrecognized'; then
+	if flashcp -A 2>&1 | grep -qE 'unrecognized|invalid option'; then
 		flash_eraseall "/dev/$mtd" 2>/dev/null || true
 		flashcp -v "$file" "/dev/$mtd" || {
 			echo "ERROR: flash $label failed"
@@ -68,6 +135,7 @@ case "$mode" in
 	rootfs)
 		ROOTFS_MTD=$(mtd_dev rootfs)
 		DATA_MTD=$(mtd_dev data)
+		ALL_MTD=$(mtd_dev all)
 		;;
 esac
 
@@ -112,9 +180,47 @@ case "$mode" in
 			echo "Usage: flash-ota rootfs <rootfs.bin> [data.bin]"
 			exit 1
 		}
-		flash_one "$ROOTFS_MTD" "$1" "rootfs" || exit 1
-		if [ "$#" -ge 2 ] && [ -f "$2" ]; then
-			flash_one "$DATA_MTD" "$2" "data" || exit 1
+		rootfs_file="$1"
+		data_file="$2"
+		[ -f "$rootfs_file" ] || {
+			echo "ERROR: $rootfs_file not found"
+			exit 1
+		}
+		rootfs_size=$(stat -c%s "$rootfs_file")
+		data_size=0
+		[ -n "$data_file" ] && [ -f "$data_file" ] && data_size=$(stat -c%s "$data_file")
+
+		read_mtd_layout
+
+		if [ "$rootfs_size" -le $((ROOTFS_K * 1024)) ] && [ "$data_size" -le $((DATA_K * 1024)) ]; then
+			flash_one "$ROOTFS_MTD" "$rootfs_file" "rootfs" || exit 1
+			if [ "$data_size" -gt 0 ]; then
+				flash_one "$DATA_MTD" "$data_file" "data" || exit 1
+			fi
+		else
+			new_rootfs_k=$(((rootfs_size + 65535) / 65536 * 64))
+			new_data_k=$(((data_size + 65535) / 65536 * 64))
+			[ $((new_rootfs_k + new_data_k)) -le $((ROOTFS_K + DATA_K)) ] || {
+				echo "ERROR: rootfs+data (${new_rootfs_k}+${new_data_k}KiB) exceed combined partitions ($((ROOTFS_K + DATA_K))KiB)"
+				exit 1
+			}
+			[ "$DATA_OFF_K" -eq $((ROOTFS_OFF_K + ROOTFS_K)) ] || {
+				echo "ERROR: rootfs and data partitions are not adjacent, cannot flash as one region"
+				exit 1
+			}
+			[ -n "$ALL_MTD" ] || {
+				echo "ERROR: no 'all' partition available for combined flash"
+				exit 1
+			}
+
+			echo "Rootfs image (${new_rootfs_k}KiB) exceeds its partition (${ROOTFS_K}KiB); flashing rootfs+data as one region"
+			flash_eraseall "/dev/$ROOTFS_MTD" || exit 1
+			flash_eraseall "/dev/$DATA_MTD" || exit 1
+			write_at "$ALL_MTD" "$rootfs_file" "$ROOTFS_OFF_K" "rootfs" || exit 1
+			if [ "$data_size" -gt 0 ]; then
+				write_at "$ALL_MTD" "$data_file" $((ROOTFS_OFF_K + new_rootfs_k)) "data" || exit 1
+			fi
+			set_mtdparts "$new_rootfs_k" $((ROOTFS_K + DATA_K - new_rootfs_k)) || exit 1
 		fi
 		;;
 	*)
