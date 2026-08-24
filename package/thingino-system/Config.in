@@ -3,6 +3,22 @@ config BR2_PACKAGE_THINGINO_SYSTEM
 	help
 	  Various utilities related to thingino system operations
 
+config BR2_PACKAGE_THINGINO_SYSTEM_INGENIC
+	default y
+	bool "Ingenic platform utilities"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_VENDOR_INGENIC
+	help
+	  soc, sensor, usb-role and S03mac, from files/ingenic/.
+
+	  All four are tied to the silicon: soc and usb-role read Ingenic
+	  registers through devmem, S03mac reads the serial-number registers
+	  to derive a MAC, and sensor reads the /proc/jz tree the Ingenic
+	  kernel modules create. On other silicon they report nothing useful,
+	  and usb-role, which writes, would be actively wrong.
+
+	  Another vendor supplies its own block rather than teaching these
+	  to branch.
+
 config BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE
 	default y
 	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
@@ -27,7 +43,12 @@ config BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS
 	default y
 	bool "sensor utilities"
 	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_THINGINO_DEV_CAMERA
-	select BR2_PACKAGE_THINGINO_SENSOR_INFO
+	select BR2_PACKAGE_THINGINO_SENSOR_INFO if BR2_SOC_VENDOR_INGENIC
 	help
-	  Enables sensor utilities. Sensor detection is provided by the
-	  sensor-info package (userspace sinfo).
+	  Enables sensor utilities: /usr/sbin/sensor, which every vendor
+	  supplies.
+
+	  On Ingenic it also pulls in the sensor-info package, whose sinfo
+	  probes the sensor I2C bus. That detector is Ingenic-only, so it
+	  is not selected for other vendors, which supply their own
+	  detection.
