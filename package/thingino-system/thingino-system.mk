@@ -38,12 +38,15 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S01entropy; \
 	fi
 
-	if [ "$(BR2_THINGINO_SDCARD)" = "y" ]; then \
+	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_AUTOMOUNT)" = "y" ]; then \
 		mkdir -p $(TARGET_DIR)/usr/lib/mdev; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/automount \
 			$(TARGET_DIR)/usr/lib/mdev/automount; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S30mdev \
 			$(TARGET_DIR)/etc/init.d/S30mdev; \
+	fi
+
+	if [ "$(BR2_THINGINO_SDCARD)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/formatsd \
 			$(TARGET_DIR)/usr/sbin/formatsd; \
 		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/envfromcard \

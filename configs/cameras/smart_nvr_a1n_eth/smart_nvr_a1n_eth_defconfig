@@ -24,6 +24,7 @@ BR2_PACKAGE_THINGINO_GPIO=n
 BR2_PACKAGE_THINGINO_KOPT_IPV6=n
 BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE=y
 BR2_PACKAGE_THINGINO_STREAMER_NONE=y
+BR2_PACKAGE_THINGINO_SYSTEM_AUTOMOUNT=y
 BR2_PACKAGE_THINGINO_SYSTEM_SWAP=y
 # Avoid pulling the external WireGuard module and its FOU/XFRM kernel support
 # into a fixed LAN appliance. VPN access can terminate at the site gateway.
