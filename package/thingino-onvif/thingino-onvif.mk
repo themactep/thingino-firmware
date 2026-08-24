@@ -58,7 +58,6 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
 		$(@D)/res/media_service_files/*
 
-
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media2_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media2_service_files \
 		$(@D)/res/media2_service_files/*

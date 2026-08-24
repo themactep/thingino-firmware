@@ -69,14 +69,14 @@ define THINGINO_UHTTPD_INSTALL_CONFIG
 	mkdir -p $(TARGET_DIR)/etc/ssl/certs $(TARGET_DIR)/etc/ssl/private
 	# Note: Complete web interface provided by thingino-webui package
 
-        # Install SSL certificate generation script (runs early at boot)
-        $(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S02ssl \
-                $(TARGET_DIR)/etc/init.d/S02ssl
-        # Install startup script for uhttpd
-        $(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S60uhttpd \
-                $(TARGET_DIR)/etc/init.d/S60uhttpd
-        $(INSTALL) -D -m 0644 $(THINGINO_UHTTPD_PKGDIR)/files/uhttpd \
-                $(TARGET_DIR)/etc/default/uhttpd
+	# Install SSL certificate generation script (runs early at boot)
+	$(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S02ssl \
+		$(TARGET_DIR)/etc/init.d/S02ssl
+	# Install startup script for uhttpd
+	$(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S60uhttpd \
+		$(TARGET_DIR)/etc/init.d/S60uhttpd
+	$(INSTALL) -D -m 0644 $(THINGINO_UHTTPD_PKGDIR)/files/uhttpd \
+		$(TARGET_DIR)/etc/default/uhttpd
 endef
 
 THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CONFIG
