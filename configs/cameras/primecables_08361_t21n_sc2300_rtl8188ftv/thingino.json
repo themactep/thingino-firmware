@@ -7,8 +7,8 @@
     },
     "ircut": "79 80",
     "mmc_cd": 52,
-    "scl": "39i",
-    "sda": "48i"
+    "scl": 39,
+    "sda": 48
   },
   "motors": {
     "gpio_invert": false,

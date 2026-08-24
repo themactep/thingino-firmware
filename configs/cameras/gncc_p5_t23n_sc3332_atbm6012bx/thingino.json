@@ -4,8 +4,8 @@
     "ir850": 50,
     "ircut": "16 17",
     "mmc_cd": 49,
-    "scl": "58i",
-    "sda": "57i",
+    "scl": 58,
+    "sda": 57,
     "wlan": 6
   },
   "motors": {
