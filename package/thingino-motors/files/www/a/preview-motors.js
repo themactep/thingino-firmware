@@ -45,18 +45,22 @@ async function ensureMotorParams() {
 }
 
 // OctoPrint's distances array, scaled to this hardware. `steps` here is the
-// fraction of the full pan travel used for a single directional jog; a larger
-// value is a further jump. The joystick's diagonal sectors combine axes, so
-// we divide by total travel and apply the same fraction to each axis.
+// Fixed per-tap jog distances in raw motor steps, independent per axis.
+// Pan travels ~3700 steps, tilt ~1000, so tilt needs far fewer steps for the
+// same apparent motion. Set small/medium/large to taste per axis; a single
+// tap sends exactly the chosen axis' count (diagonals jog both axes at once).
 const STEP_SIZES = {
-  small: 0.02, // fine nudge
-  medium: 0.1, // default single tap
-  large: 0.3, // coarse jump
+  small: { pan: 25, tilt: 10 }, // fine nudge (default single tap)
+  medium: { pan: 75, tilt: 25 }, // medium jog
+  large: { pan: 200, tilt: 60 }, // coarse jump
 };
-let currentStepName = "medium";
+let currentStepName = "small";
+
+// Hold-to-repeat cadence (milliseconds between jogs while a button is held).
+const HOLD_INTERVAL_MS = 60;
 
 // Direction sectors from the .jst joystick: u/d/l/r + c center + diagonal
-// remainder. Returns {x, y} logical deltas as a fraction of full travel.
+// remainder. Returns {x, y} logical direction signs (+1/0/-1 per axis).
 function dirToDelta(dir) {
   let y = dir.includes("d") ? -1 : dir.includes("u") ? 1 : 0;
   let x = dir.includes("l") ? -1 : dir.includes("r") ? 1 : 0;
@@ -64,20 +68,13 @@ function dirToDelta(dir) {
   return { x, y };
 }
 
-// Send one relative jog. `scale` is a step-size multiplier (OctoPrint
-// distance), applied to the configured steps per axis computed server-side
-// relative move (d=g takes raw step deltas).
+// Send one relative jog. `scale` is a step-size key (OctoPrint distance),
+// resolving to per-axis step counts. A move on only one axis ignores the
+// other axis' count (straight tap); a diagonal jog sends both axes' counts.
 async function moveMotor(dir, scaleName = currentStepName) {
-  const motorParams = window.motorParams || {};
-  const xMax = Number(motorParams.steps_pan) || 0;
-  const yMax = Number(motorParams.steps_tilt) || 0;
-  const frac = STEP_SIZES[scaleName] ?? STEP_SIZES.medium;
+  const step = STEP_SIZES[scaleName] ?? STEP_SIZES.medium;
   const { x: dx, y: dy } = dirToDelta(dir);
-  // OctoPrint jogs by distance on the selected axis; we do the same against
-  // the configured step counts so a tap is a predictable physical nudge.
-  const xSteps = Math.round(xMax * frac * dx);
-  const ySteps = Math.round(yMax * frac * dy);
-  runMotorCmd(`d=g&x=${xSteps}&y=${ySteps}`);
+  runMotorCmd(`d=g&x=${step.pan * dx}&y=${step.tilt * dy}`);
 }
 
 function moveCenter() {
@@ -193,7 +190,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       } else {
         moveMotor(dir);
         stopHold();
-        holdInterval = setInterval(() => moveMotor(dir), 90);
+        holdInterval = setInterval(() => moveMotor(dir), HOLD_INTERVAL_MS);
       }
     };
 
