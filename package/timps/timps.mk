@@ -620,10 +620,11 @@ define TIMPS_PURGE_STOCK_WEBUI
 	#
 	# NOT included here: var/www/x/restart-prudynt.cgi. That filename is
 	# stock prudynt's, but the file at this path is timps's OWN replacement
-	# (see files/www/x/restart-prudynt.cgi's own header comment - same name,
-	# same URL, on purpose, because the stock WebUI pages call
-	# /x/restart-prudynt.cgi by that literal path). TIMPS_INSTALL_WEBUI
-	# installs it earlier in the same target-finalize pass; deleting it here
+	# (see files/www/x/restart-prudynt.cgi's own header comment - same
+	# name, same URL, on purpose: it's timps's own files/www/a/timps-
+	# preview.js that calls /x/restart-prudynt.cgi by that literal path,
+	# not anything in the stock/base WebUI). TIMPS_INSTALL_WEBUI installs
+	# it earlier in the same target-finalize pass; deleting it here
 	# unconditionally removed timps's own file, not a stock leftover, and
 	# left the WebUI's "Restart" button 404ing on every image since the file
 	# was added (2026-08-16) - found 2026-08-24 when a user's restart-required
