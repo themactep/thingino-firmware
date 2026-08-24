@@ -630,6 +630,10 @@ static int handle_direct_route(struct http_request *request)
             return resource_path != NULL ? 0 : -1;
         }
     }
+    if (strcmp(relative, "/runtime") == 0 && strcmp(request->method, "GET") == 0) {
+        argv[1] = "runtime";
+        return execute_agentctl_json(request->client_fd, argv, NULL);
+    }
     if (strncmp(relative, "/runtime/", 9) == 0 && strcmp(request->method, "GET") == 0) {
         argv[1] = "runtime";
         argv[2] = (char *)(relative + 9);
