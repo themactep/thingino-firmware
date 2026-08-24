@@ -7,17 +7,13 @@
 //
 // Two axes of control feel:
 //   - "distance" (OctoPrint's step-size) selects how far one tap moves.
-//   - "step" vs "continuous" chooses tap-to-move vs press-and-hold.
+//   - Shift = single short step; plain press = continuous move while held.
 
 function runMotorCmd(args) {
   // Fire-and-forget: don't block on a JSON body; the SSE stream owns position.
   return fetch(`/x/json-motor.cgi?${args}`, { cache: "no-store" }).catch(
     () => null,
   );
-}
-
-function normalizePreviewControlMode(value) {
-  return value === "continuous" ? "continuous" : "step";
 }
 
 async function ensureMotorParams() {
@@ -44,15 +40,13 @@ async function ensureMotorParams() {
   }
 }
 
-// OctoPrint's distances array, scaled to this hardware. `steps` here is the
-// Fixed per-tap jog distances in raw motor steps, independent per axis.
-// Pan travels ~3700 steps, tilt ~1000, so tilt needs far fewer steps for the
-// same apparent motion. Set small/medium/large to taste per axis; a single
-// tap sends exactly the chosen axis' count (diagonals jog both axes at once).
+// Single per-tap jog distance in raw motor steps, uniform across both axes.
+// Taps/diagonals send this same count to whichever axis is jogged, so the
+// feel is identical panning or tilting regardless of each axis' travel range.
 const STEP_SIZES = {
-  small: { pan: 25, tilt: 10 }, // fine nudge (default single tap)
-  medium: { pan: 75, tilt: 25 }, // medium jog
-  large: { pan: 200, tilt: 60 }, // coarse jump
+  small: 25, // fine nudge (default single tap)
+  medium: 75, // medium jog
+  large: 200, // coarse jump
 };
 let currentStepName = "small";
 
@@ -69,12 +63,12 @@ function dirToDelta(dir) {
 }
 
 // Send one relative jog. `scale` is a step-size key (OctoPrint distance),
-// resolving to per-axis step counts. A move on only one axis ignores the
-// other axis' count (straight tap); a diagonal jog sends both axes' counts.
+// resolving to a uniform step count applied to whichever axis is jogged
+// (a diagonal jog sends the same count to both axes).
 async function moveMotor(dir, scaleName = currentStepName) {
-  const step = STEP_SIZES[scaleName] ?? STEP_SIZES.medium;
+  const steps = STEP_SIZES[scaleName] ?? STEP_SIZES.medium;
   const { x: dx, y: dy } = dirToDelta(dir);
-  runMotorCmd(`d=g&x=${step.pan * dx}&y=${step.tilt * dy}`);
+  runMotorCmd(`d=g&x=${steps * dx}&y=${steps * dy}`);
 }
 
 function moveCenter() {
@@ -86,6 +80,12 @@ function moveCenter() {
 
 function moveHome() {
   runMotorCmd("d=r");
+}
+
+// Stop any in-flight continuous move. `d=s` triggers the daemon's
+// motion_cancel_all(true) + MOTOR_STOP, halting the motor immediately.
+function stopMotor() {
+  runMotorCmd("d=s");
 }
 
 // --- live position via SSE -------------------------------------------
@@ -119,7 +119,8 @@ function updatePositionDisplay(xpos, ypos) {
   window.motorPosition = { xpos, ypos };
 }
 
-// --- keyboard jog (arrows + distance keys, like OctoPrint's onKeyDown) ---
+// --- keyboard jog (arrows + distance keys) ---
+// Plain arrow = continuous while held; Shift+arrow = single short step.
 function bindKeyboardControls() {
   const keyToDir = {
     ArrowUp: "u",
@@ -132,6 +133,8 @@ function bindKeyboardControls() {
     "2": "medium",
     "3": "large",
   };
+  const activeHolds = {};
+
   document.addEventListener("keydown", (ev) => {
     // Don't hijack buttons/inputs.
     const tag = (ev.target && ev.target.tagName) || "";
@@ -143,7 +146,30 @@ function bindKeyboardControls() {
     const dir = keyToDir[ev.key];
     if (!dir) return;
     ev.preventDefault();
-    moveMotor(dir);
+    if (ev.shiftKey || ev.repeat) {
+      // Shift modifiers and auto-repeat: a single short step each.
+      if (!ev.repeat) moveMotor(dir, "small");
+      return;
+    }
+    if (activeHolds[dir]) return; // already held down.
+    activeHolds[dir] = true;
+    moveMotor(dir, currentStepName);
+    const interval = setInterval(() => moveMotor(dir, currentStepName), HOLD_INTERVAL_MS);
+    activeHolds[dir + "_interval"] = interval;
+  });
+
+  document.addEventListener("keyup", (ev) => {
+    const dir = keyToDir[ev.key];
+    if (!dir) return;
+    const interval = activeHolds[dir + "_interval"];
+    if (interval) {
+      clearInterval(interval);
+      delete activeHolds[dir + "_interval"];
+    }
+    if (activeHolds[dir]) {
+      delete activeHolds[dir];
+      stopMotor();
+    }
   });
 }
 
@@ -162,13 +188,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     motorOverlay.style.display = "";
   }
 
-  const stepMode = normalizePreviewControlMode(
-    window.motorParams.preview_control_mode,
-  ) === "step";
-
-  // One binding path for both modes: pointerdown fires immediately, matching
-  // OctoPrint's click -> sendJog with no disambiguation watermark. Continuous
-  // mode additionally starts a hold-repeat loop.
+  // Modifier model: Shift = single short step (fine nudge); plain press =
+  // continuous move while held, stop on release. This mirrors OctoPrint's
+  // modifier-based jog while using the daemon's fire-and-forget relative
+  // moves plus an explicit stop on release.
   $$(".jst a.s").forEach((el) => {
     const dir = el.dataset.dir;
     let holdInterval = null;
@@ -180,30 +203,36 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     };
 
+    const release = () => {
+      stopHold();
+      stopMotor();
+    };
+
     const onDown = (ev) => {
       ev.preventDefault();
       if (el.setPointerCapture && ev.pointerId !== undefined) {
         el.setPointerCapture(ev.pointerId);
       }
-      if (stepMode) {
-        moveMotor(dir);
+      if (ev.shiftKey) {
+        // Shift: one short step, no hold-repeat.
+        moveMotor(dir, "small");
       } else {
-        moveMotor(dir);
+        // Plain: continuous while held.
+        moveMotor(dir, currentStepName);
         stopHold();
-        holdInterval = setInterval(() => moveMotor(dir), HOLD_INTERVAL_MS);
+        holdInterval = setInterval(() => moveMotor(dir, currentStepName), HOLD_INTERVAL_MS);
       }
     };
 
     el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointerup", stopHold);
-    el.addEventListener("pointerleave", stopHold);
-    el.addEventListener("pointercancel", stopHold);
-    el.addEventListener("lostpointercapture", stopHold);
+    el.addEventListener("pointerup", release);
+    el.addEventListener("pointerleave", release);
+    el.addEventListener("pointercancel", release);
+    el.addEventListener("lostpointercapture", release);
     el.addEventListener("contextmenu", (ev) => ev.preventDefault());
   });
 
-  // Center button: single tap centers, long/short is no longer needed since
-  // we removed the dblclick watermark. Keep center + homing explicit.
+  // Center button: single tap centers; context menu homes.
   const centerBtn = $(".jst a.b");
   if (centerBtn) {
     centerBtn.addEventListener("pointerdown", (ev) => {
