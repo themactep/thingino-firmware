@@ -76,6 +76,15 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 		$(call KCONFIG_SET_OPT,CONFIG_JZMMC_V12,m))
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_SDMA)
 endef
+# Built-in VFAT flags a card as corrupt the moment it is sensed, so the
+# 3.10.14 base configs dropped it. Load it as a module via S09mmc, before
+# any card can be automounted.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
 endif
 
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC
