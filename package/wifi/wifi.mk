@@ -117,6 +117,16 @@ WIFI_IS_FAMILY_RTL_FLAG  := $(if $(filter rtl% 818% 87% 88%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_SSV_FLAG  := $(if $(filter ssv%,$(WLAN_MODULE)),1,0)
 WIFI_IS_ATBM6461_FLAG    := $(if $(filter BR2_PACKAGE_WIFI_ATBM6461,$(WIFI_DRIVER_BR2_PACKAGE)),1,0)
 
+# The mt7601sta vendor driver cannot bring up an AP with key_mgmt=NONE
+# (open); it requires a PSK. Give the portal AP a well-known PSK on those
+# cameras so the captive portal stays reachable.
+WIFI_PORTAL_KEY_MGMT := NONE
+WIFI_PORTAL_PSK_LINE :=
+ifeq ($(WLAN_MODULE_NAME),mt7601sta)
+WIFI_PORTAL_KEY_MGMT := WPA-PSK
+WIFI_PORTAL_PSK_LINE := psk="thingino"
+endif
+
 WIFI_SDIO_SET_GPIO_FLAG := 0
 WIFI_SDIO_RETURN_EARLY_FLAG := 0
 WIFI_SDIO_UNSUPPORTED_FLAG := 0
@@ -174,6 +184,8 @@ define WIFI_INSTALL_TARGET_CMDS
 		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
 		-e 's,@WLAN_MODULE_NAME@,$(WLAN_MODULE_NAME),g' \
 		-e 's,@SOUND_EXT@,$(WIFI_SOUND_EXT),g' \
+		-e 's,@WLAN_PORTAL_KEY_MGMT@,$(WIFI_PORTAL_KEY_MGMT),g' \
+		-e 's,@WLAN_PORTAL_PSK_LINE@,$(WIFI_PORTAL_PSK_LINE),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
@@ -251,16 +263,6 @@ define WIFI_INSTALL_TARGET_CMDS
 	#$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap-icons.woff2 $(TARGET_DIR)/var/www/a/fonts/bootstrap-icons.woff2
 
 endef
-
-# MT7601u wifi driver needs a PSK for the portal AP to function
-ifeq ($(BR2_PACKAGE_WIFI_MT7601U),y)
-define MODIFY_INSTALL_CONFIGS
-	sed -i '/key_mgmt/s/NONE/WPA-PSK/' $(TARGET_DIR)/etc/wpa_supplicant.conf
-	sed -i '/network={/a\      psk="thingino"' $(TARGET_DIR)/etc/wpa_supplicant.conf
-endef
-endif
-
-WIFI_POST_INSTALL_TARGET_HOOKS += MODIFY_INSTALL_CONFIGS
 
 $(eval $(generic-package))
 
