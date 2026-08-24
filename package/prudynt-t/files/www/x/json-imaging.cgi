@@ -10,10 +10,6 @@ http_200() {
 	printf 'Status: 200 OK\r\n'
 }
 
-http_400() {
-	printf 'Status: 400 Bad Request\r\n'
-}
-
 http_412() {
 	printf 'Status: 412 Precondition Failed\r\n'
 }
