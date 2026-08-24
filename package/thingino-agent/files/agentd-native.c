@@ -20,6 +20,11 @@
 #define AGENTCTL_PATH "/usr/sbin/agentctl"
 #define REQUEST_BUFFER_SIZE 32768
 #define BODY_LIMIT 65536
+/* agentctl is a shell adapter that spawns dozens of subprocesses; on a
+ * single-core SoC several concurrent agent requests (preview page load) make
+ * it take seconds between output chunks. A 1s idle timeout SIGKILLs it and
+ * returns an empty 200, so the webui loses e.g. RTSP endpoint URLs. */
+#define AGENTCTL_IDLE_TIMEOUT_SECONDS 15
 
 struct http_request {
     int client_fd;
@@ -218,7 +223,7 @@ static int capture_command(char *const argv[], const char *stdin_path, char **ou
 
         FD_ZERO(&fds);
         FD_SET(pipe_fd[0], &fds);
-        tv.tv_sec = 1;
+        tv.tv_sec = AGENTCTL_IDLE_TIMEOUT_SECONDS;
         tv.tv_usec = 0;
         if (select(pipe_fd[0] + 1, &fds, NULL, NULL, &tv) < 0) {
             if (errno == EINTR) {
