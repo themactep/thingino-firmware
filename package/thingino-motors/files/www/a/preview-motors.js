@@ -1,26 +1,23 @@
-function runMotorCmd(args) {
-  return fetch(`/x/json-motor.cgi?${args}`)
-    .then((res) => res.json())
-    .then(({ message }) => {
-      const { xpos, ypos } = message || {};
-      if (xpos !== undefined && ypos !== undefined) {
-        console.log("Position:" + xpos + "," + ypos);
-      }
-      return message;
-    });
-}
+// OctoPrint-style jog controls for Thingino motors.
+//
+// Moves are fire-and-forget (json-motor.cgi returns immediately; the daemon
+// dispatches each move on a detached thread). Live position arrives over an
+// SSE stream instead of being echoed back per-request, so the control path is
+// never blocked on a status round-trip.
+//
+// Two axes of control feel:
+//   - "distance" (OctoPrint's step-size) selects how far one tap moves.
+//   - "step" vs "continuous" chooses tap-to-move vs press-and-hold.
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function runMotorCmd(args) {
+  // Fire-and-forget: don't block on a JSON body; the SSE stream owns position.
+  return fetch(`/x/json-motor.cgi?${args}`, { cache: "no-store" }).catch(
+    () => null,
+  );
 }
 
 function normalizePreviewControlMode(value) {
   return value === "continuous" ? "continuous" : "step";
-}
-
-function getPreviewControlMode() {
-  const motorParams = window.motorParams || {};
-  return normalizePreviewControlMode(motorParams.preview_control_mode);
 }
 
 async function ensureMotorParams() {
@@ -28,7 +25,9 @@ async function ensureMotorParams() {
     return window.motorParams;
   }
   try {
-    const response = await fetch("/x/json-motor-params.cgi");
+    const response = await fetch("/x/json-motor-params.cgi", {
+      cache: "no-store",
+    });
     const motorParams = await response.json();
     window.motorParams = motorParams;
     return motorParams;
@@ -45,35 +44,113 @@ async function ensureMotorParams() {
   }
 }
 
-async function moveMotor(dir, steps = 100, d = "g") {
-  // Use motor parameters loaded from backend
-  const motorParams = window.motorParams || {
-    steps_pan: 0,
-    steps_tilt: 0,
-    pos_0_x: 0,
-    pos_0_y: 0,
-  };
-  const x_max = motorParams.steps_pan;
-  const y_max = motorParams.steps_tilt;
-  const x0 = Number(motorParams.pos_0_x);
-  const y0 = Number(motorParams.pos_0_y);
-  const step = x_max / steps;
-  if (dir === "homing") {
-    await runMotorCmd("d=r");
-    if (Number.isFinite(x0) && Number.isFinite(y0)) {
-      await sleep(800);
-      await runMotorCmd("d=x&x=" + x0 + "&y=" + y0);
-    }
-  } else if (dir === "cc") {
-    runMotorCmd("d=x&x=" + x_max / 2 + "&y=" + y_max / 2);
-  } else {
-    let y = dir.includes("d") ? -step : dir.includes("u") ? step : 0;
-    let x = dir.includes("l") ? -step : dir.includes("r") ? step : 0;
-    runMotorCmd("d=g&x=" + x + "&y=" + y);
+// OctoPrint's distances array, scaled to this hardware. `steps` here is the
+// fraction of the full pan travel used for a single directional jog; a larger
+// value is a further jump. The joystick's diagonal sectors combine axes, so
+// we divide by total travel and apply the same fraction to each axis.
+const STEP_SIZES = {
+  small: 0.02, // fine nudge
+  medium: 0.1, // default single tap
+  large: 0.3, // coarse jump
+};
+let currentStepName = "medium";
+
+// Direction sectors from the .jst joystick: u/d/l/r + c center + diagonal
+// remainder. Returns {x, y} logical deltas as a fraction of full travel.
+function dirToDelta(dir) {
+  let y = dir.includes("d") ? -1 : dir.includes("u") ? 1 : 0;
+  let x = dir.includes("l") ? -1 : dir.includes("r") ? 1 : 0;
+  // Diagonals keep full magnitude on each axis; straight moves already do.
+  return { x, y };
+}
+
+// Send one relative jog. `scale` is a step-size multiplier (OctoPrint
+// distance), applied to the configured steps per axis computed server-side
+// relative move (d=g takes raw step deltas).
+async function moveMotor(dir, scaleName = currentStepName) {
+  const motorParams = window.motorParams || {};
+  const xMax = Number(motorParams.steps_pan) || 0;
+  const yMax = Number(motorParams.steps_tilt) || 0;
+  const frac = STEP_SIZES[scaleName] ?? STEP_SIZES.medium;
+  const { x: dx, y: dy } = dirToDelta(dir);
+  // OctoPrint jogs by distance on the selected axis; we do the same against
+  // the configured step counts so a tap is a predictable physical nudge.
+  const xSteps = Math.round(xMax * frac * dx);
+  const ySteps = Math.round(yMax * frac * dy);
+  runMotorCmd(`d=g&x=${xSteps}&y=${ySteps}`);
+}
+
+function moveCenter() {
+  const motorParams = window.motorParams || {};
+  const x = Math.round((Number(motorParams.steps_pan) || 0) / 2);
+  const y = Math.round((Number(motorParams.steps_tilt) || 0) / 2);
+  runMotorCmd(`d=x&x=${x}&y=${y}`);
+}
+
+function moveHome() {
+  runMotorCmd("d=r");
+}
+
+// --- live position via SSE -------------------------------------------
+function startPositionStream() {
+  if (!("EventSource" in window)) return;
+  try {
+    const es = new EventSource("/x/json-motor-stream.cgi");
+    es.addEventListener("message", (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (data && data.xpos !== undefined) {
+          updatePositionDisplay(data.xpos, data.ypos);
+        }
+      } catch (_) {
+        /* ignore malformed frame */
+      }
+    });
+    es.onerror = () => {
+      // EventSource auto-reconnects; nothing to do here.
+    };
+  } catch (_) {
+    /* EventSource unsupported or blocked */
   }
 }
 
-// Initialize motor controls when DOM is ready
+function updatePositionDisplay(xpos, ypos) {
+  if (xpos === undefined) return;
+  // Expose for other plugins/view models; no DOM position readout in the
+  // minimal joystick overlay, but keep a cached value consistent with the
+  // daemon so nothing else has to poll json-motor.cgi d=j.
+  window.motorPosition = { xpos, ypos };
+}
+
+// --- keyboard jog (arrows + distance keys, like OctoPrint's onKeyDown) ---
+function bindKeyboardControls() {
+  const keyToDir = {
+    ArrowUp: "u",
+    ArrowDown: "d",
+    ArrowLeft: "l",
+    ArrowRight: "r",
+  };
+  const keyToStep = {
+    "1": "small",
+    "2": "medium",
+    "3": "large",
+  };
+  document.addEventListener("keydown", (ev) => {
+    // Don't hijack buttons/inputs.
+    const tag = (ev.target && ev.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (keyToStep[ev.key]) {
+      currentStepName = keyToStep[ev.key];
+      return;
+    }
+    const dir = keyToDir[ev.key];
+    if (!dir) return;
+    ev.preventDefault();
+    moveMotor(dir);
+  });
+}
+
+// --- initialization ----------------------------------------------------
 document.addEventListener("DOMContentLoaded", async function () {
   const uiConfig = window.thinginoUIConfig || {};
   const hasMotors = uiConfig.device && uiConfig.device.motors === true;
@@ -88,82 +165,60 @@ document.addEventListener("DOMContentLoaded", async function () {
     motorOverlay.style.display = "";
   }
 
-  let timer;
-  const stepMode = getPreviewControlMode() === "step";
+  const stepMode = normalizePreviewControlMode(
+    window.motorParams.preview_control_mode,
+  ) === "step";
 
-  function bindStepControls() {
-    $$(".jst a.s").forEach((el) => {
-      el.onclick = (ev) => {
-        if (ev.detail === 1) {
-          timer = setTimeout(() => {
-            moveMotor(ev.target.dataset.dir, 100);
-          }, 200);
-        }
-      };
-      el.ondblclick = (ev) => {
-        if (ev.detail === 2) {
-          clearTimeout(timer);
-          moveMotor(ev.target.dataset.dir, 10);
-        }
-      };
-    });
-  }
-
-  function bindContinuousControls() {
+  // One binding path for both modes: pointerdown fires immediately, matching
+  // OctoPrint's click -> sendJog with no disambiguation watermark. Continuous
+  // mode additionally starts a hold-repeat loop.
+  $$(".jst a.s").forEach((el) => {
+    const dir = el.dataset.dir;
     let holdInterval = null;
-    const intervalMs = 90;
 
-    const stopContinuousMove = () => {
+    const stopHold = () => {
       if (holdInterval) {
         clearInterval(holdInterval);
         holdInterval = null;
       }
     };
 
-    const startContinuousMove = (dir) => {
-      if (!dir) return;
-      stopContinuousMove();
-      moveMotor(dir, 100);
-      holdInterval = setInterval(() => {
-        moveMotor(dir, 100);
-      }, intervalMs);
+    const onDown = (ev) => {
+      ev.preventDefault();
+      if (el.setPointerCapture && ev.pointerId !== undefined) {
+        el.setPointerCapture(ev.pointerId);
+      }
+      if (stepMode) {
+        moveMotor(dir);
+      } else {
+        moveMotor(dir);
+        stopHold();
+        holdInterval = setInterval(() => moveMotor(dir), 90);
+      }
     };
 
-    $$(".jst a.s").forEach((el) => {
-      const stopHandler = () => stopContinuousMove();
-      el.addEventListener("pointerdown", (ev) => {
-        ev.preventDefault();
-        if (el.setPointerCapture && ev.pointerId !== undefined) {
-          el.setPointerCapture(ev.pointerId);
-        }
-        startContinuousMove(el.dataset.dir);
-      });
-      el.addEventListener("pointerup", stopHandler);
-      el.addEventListener("pointerleave", stopHandler);
-      el.addEventListener("pointercancel", stopHandler);
-      el.addEventListener("lostpointercapture", stopHandler);
-      el.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerup", stopHold);
+    el.addEventListener("pointerleave", stopHold);
+    el.addEventListener("pointercancel", stopHold);
+    el.addEventListener("lostpointercapture", stopHold);
+    el.addEventListener("contextmenu", (ev) => ev.preventDefault());
+  });
+
+  // Center button: single tap centers, long/short is no longer needed since
+  // we removed the dblclick watermark. Keep center + homing explicit.
+  const centerBtn = $(".jst a.b");
+  if (centerBtn) {
+    centerBtn.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      moveCenter();
+    });
+    centerBtn.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      moveHome();
     });
   }
 
-  if (stepMode) {
-    bindStepControls();
-  } else {
-    bindContinuousControls();
-  }
-
-  $(".jst a.b").onclick = (ev) => {
-    if (ev.detail === 1) {
-      timer = setTimeout(() => {
-        moveMotor("cc");
-      }, 200);
-    }
-  };
-
-  $(".jst a.b").ondblclick = (ev) => {
-    clearTimeout(timer);
-    moveMotor("homing");
-  };
-
-  runMotorCmd("d=j");
+  bindKeyboardControls();
+  startPositionStream();
 });

@@ -49,7 +49,7 @@ json_ok() {
 
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
-# URL-decode string params (description, n) — the rest are numeric/single char.
+# URL-decode string params (description, n); the rest are numeric/single char.
 urldecode() {
 	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
@@ -65,20 +65,17 @@ json_escape() {
 [ -z "$y" ] && y=0
 [ -z "$d" ] && d="g"
 
-emit_status() {
-	local payload
-	if ! payload=$(motors -j 2>/dev/null); then
-		json_error "motors-status-failed"
-	fi
-	json_ok "$payload"
-}
-
+# Move and reset commands are fire-and-forget: motors-daemon dispatches
+# moves on a detached thread (start_profiled_move_async), so the kernel is
+# already told to move the moment the ioctl lands. Echoing position back here
+# would spawn a second motors process per control input, doubling HTTP latency
+# in the jog hot loop. The UI gets live position from /x/json-motor-stream.cgi.
 case "$d" in
-	g) motors -d g -x "$x" -y "$y" >/dev/null ;;
-	r) motors -r >/dev/null ;;
-	h | x) motors -d h -x "$x" -y "$y" >/dev/null ;;
-	s) motors -d s >/dev/null ;;
-	b) motors -d b >/dev/null ;;
+	g) motors -d g -x "$x" -y "$y" >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
+	r) motors -r >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
+	h | x) motors -d h -x "$x" -y "$y" >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
+	s) motors -d s >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
+	b) motors -d b >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
 	i)
 		payload=$(motors -i 2>/dev/null) || json_error "motors-initial-failed"
 		json_ok "$payload"
@@ -136,5 +133,3 @@ case "$d" in
 		json_error "motors-command-unsupported"
 		;;
 esac
-
-emit_status
