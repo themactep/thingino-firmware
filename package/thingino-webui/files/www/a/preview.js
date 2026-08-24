@@ -715,6 +715,7 @@ const imagingFields = [
   "tone",
   "defog",
   "noise_reduction",
+  "temper_strength",
 ];
 
 const imageConfigKeyMap = {
@@ -727,6 +728,7 @@ const imageConfigKeyMap = {
   tone: "highlight_depress",
   defog: "defog_strength",
   noise_reduction: "sinter_strength",
+  temper_strength: "temper_strength",
 };
 
 const previewSliderIds = [
@@ -739,6 +741,7 @@ const previewSliderIds = [
   "tone",
   "defog",
   "noise_reduction",
+  "temper_strength",
   "image_wb_bgain",
   "image_wb_rgain",
   "image_ae_compensation",
