@@ -98,6 +98,74 @@ Validate with `scripts/check-plugins.sh` before building.
 | `"before:Network"` | Before item with matching label |
 | `"index:3"` | At 0-based position |
 
+### Nav item fields
+
+Consumed by `createAnchor()` in `navigation.js`. Unknown fields are ignored,
+so a manifest using a newer field still works against an older webui.
+
+| Field | Purpose |
+|-------|---------|
+| `label` | Link text (required) |
+| `href` | Target URL (required) |
+| `type` | `"divider"` renders a separator instead of a link |
+| `className` | Extra CSS classes; the `confirm` token asks for a confirmation dialog |
+| `trackActive` | `false` disables active-page highlighting for this item |
+| `target` / `rel` / `title` | Passed through to the `<a>` |
+| `hidden` | Render but hide the item (`d-none`) |
+| `action` | See below |
+
+## Action items
+
+A nav item is normally a link: clicking it navigates. That is wrong for a
+state-changing endpoint — the user ends up staring at the endpoint's raw
+response instead of the page they were on. Set `"action": true` and the item
+requests its `href` in the background and reports the outcome in the global
+message overlay, staying on the current page.
+
+```json
+{
+  "label": "Restart streamer",
+  "href": "/x/restart-mystreamer.cgi",
+  "className": "text-danger confirm",
+  "trackActive": false,
+  "action": true,
+  "confirm": {
+    "title": "Restart streamer",
+    "message": "Restart the streamer? The video stream will be interrupted.",
+    "confirmLabel": "Restart"
+  },
+  "actionPendingMessage": "Restarting streamer…",
+  "actionMessage": "Streamer restart initiated"
+}
+```
+
+| Field | Purpose |
+|-------|---------|
+| `action` | `true` enables the fetch-and-report behaviour |
+| `actionMethod` | HTTP method, default `GET` |
+| `actionPendingMessage` | Shown while the request is in flight; default `"<label>…"` |
+| `actionMessage` | Success text when the response carries none; default `"<label> done"` |
+| `confirm` | Message string, or an options object (`title`, `message`, `confirmLabel`, `cancelLabel`, `intent`) |
+
+The confirmation dialog appears when `className` contains `confirm` or when
+`confirm` is present. Action items drive it themselves, so `main.js`'s generic
+`.confirm` scanner is opted out via `data-confirm-skip` — its re-dispatch
+would otherwise fall back to plain anchor navigation.
+
+The endpoint should answer with JSON. Recognised shapes:
+
+| Response | Result |
+|----------|--------|
+| `{"status":"ok","message":"…"}` | success overlay showing `message` |
+| `{"status":"ok"}` | success overlay showing `actionMessage` |
+| `{"error":"…"}` or `{"error":{"message":"…"}}` | danger overlay showing the error |
+| 2xx with a non-JSON body | success overlay showing `actionMessage` |
+| non-2xx | danger overlay with the HTTP status |
+
+**Opt-in only.** Do not add `action` to an endpoint that answers with a
+redirect — `/x/reboot.cgi` (302 to `/wait.html`) and `/x/logout.cgi` are nav
+items that must keep navigating normally.
+
 ## Feature flags
 
 Declared flags are merged into `window.thinginoUIConfig.device`:
