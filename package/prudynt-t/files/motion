@@ -12,7 +12,7 @@ MOTION_ALARM="/run/motion/motion_alarm"
 MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 [ -d "$MOTION_ALARM_DIR" ] || mkdir -p "$MOTION_ALARM_DIR"
 
-MOTION_STOP_FILE="/run/motors.pid"
+MOTOR_ACTIVE_FLAG="/run/motors-active"
 
 MOTION_VIDEO_CHANNEL=0
 # Duration for motion clips (seconds). Read from config or default to 10.
@@ -35,9 +35,9 @@ set_enabled() {
 
 start() {
 	echo_info "Start motion"
-	if [ -f "$MOTION_STOP_FILE" ]; then
-		echo_error "Motor motion file present. Exiting."
-		exit 1
+	if [ -f "$MOTOR_ACTIVE_FLAG" ]; then
+		echo_info "Motors active; suppressing motion event."
+		exit 0
 	fi
 
 	# Generate timestamp for this motion event

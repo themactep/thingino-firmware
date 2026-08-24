@@ -17,6 +17,11 @@ CHAN="${MOTION_CHANNEL:-0}"
 CLIP_SECS="${MOTION_CLIP_SECS:-10}"
 
 SERVICES="email ftp gphotos gotify mqtt ntfy storage telegram webhook"
+MOTOR_ACTIVE_FLAG="${MOTOR_ACTIVE_FLAG:-/run/motors-active}"
+
+motor_active() {
+	[ -f "$MOTOR_ACTIVE_FLAG" ]
+}
 
 # shellcheck disable=SC1091  # prudynt-helpers is installed on the camera, not in the build tree
 . /usr/share/prudynt-helpers 2>/dev/null || true
@@ -103,6 +108,10 @@ wait_stable() {
 }
 
 start() {
+	if motor_active; then
+		return 0
+	fi
+
 	need_photo=false
 	need_video=false
 	any=false
