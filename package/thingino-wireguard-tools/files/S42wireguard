@@ -13,7 +13,7 @@ WIREGUARD_WATCHDOG_PIDFILE="/run/wireguard-watchdog-loop.pid"
 
 network_is_active() {
 	command -v ip >/dev/null 2>&1 || return 1
-	ip -o -4 addr show up scope global 2>/dev/null | grep -q .
+	ip -o addr show up scope global 2>/dev/null | grep -q .
 }
 
 wireguard_json_get() {
