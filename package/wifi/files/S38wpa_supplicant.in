@@ -29,6 +29,7 @@ AP_IFACE=@WLAN_AP_NETDEV@
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 
 CONFIG="/etc/$DAEMON_SHORT.conf"
+PORTAL_CONF="/run/$DAEMON_SHORT.portal.conf"
 
 PORTAL_MODE_FLAG="/run/portal_mode"
 PORTAL_CNET=172.16.0
@@ -65,7 +66,7 @@ case "$mode" in
 esac
 
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
+DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
 case "$WLAN_MODULE_NAME" in
 	atbm6461*)
 		DAEMON_ARGS="-D wext $DAEMON_ARGS"
@@ -210,12 +211,13 @@ prepare_portal() {
 	echo "Add route ${PORTAL_CNET}.0/24 to $IFACE"
 	ip route replace ${PORTAL_CNET}.0/24 dev $IFACE
 
-	# Generate portal AP config from scratch so we don't depend on
-	# whatever default wpa_supplicant.conf was installed at build time.
+	# Generate portal AP config in tmpfs so the transient portal settings
+	# (SSID suffix, optional PSK) never overwrite the persistent config.
+	# That keeps an unconfigured camera re-entering portal mode on boot.
 	echo "Update SSID with last two octets of MAC address"
 	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
 	last_two=$(echo "$mac_address" | awk -F: '{print $(NF-1) $NF}')
-	cat >$CONFIG <<-WPAEOF
+	cat >$PORTAL_CONF <<-WPAEOF
 		ctrl_interface=/run/wpa_supplicant
 		ap_scan=2
 
@@ -223,13 +225,14 @@ prepare_portal() {
 			ssid="THINGINO-${last_two}"
 			mode=2
 			frequency=2412
-			key_mgmt=NONE
+			key_mgmt=@WLAN_PORTAL_KEY_MGMT@
+			@WLAN_PORTAL_PSK_LINE@
 		}
 	WPAEOF
 
 	echo "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$PORTAL_CONF" 2>&1
 
 	echo "Set $PORTAL_MODE_FLAG"
 	touch "$PORTAL_MODE_FLAG"
@@ -323,7 +326,7 @@ start_access_point() {
 
 	echo "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
 
 	echo "Start udhcpd"
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $WLANAP_IP /etc/udhcpd-ap.conf
@@ -360,7 +363,7 @@ stop_access_point() {
 start_client() {
 	echo "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
 }
 
 stop_client() {
