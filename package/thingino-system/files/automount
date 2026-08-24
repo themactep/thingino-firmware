@@ -12,6 +12,14 @@ echo -c 240 -e "- Device node: $device_node"
 mount_point="/mnt/$MDEV"
 echo -c 240 -e "- Mount point: $mount_point"
 
+# Camera SD cards favor immediate persistence. SATA and USB block storage are
+# also used by NVRs, where a synchronous mount would serialize every database
+# and recording write and needlessly wear the drive.
+mount_options="noatime,sync"
+case "$MDEV" in
+	sd[a-z][0-9]*) mount_options="noatime" ;;
+esac
+
 diag="$mount_point/.diag"
 run="$mount_point/run.sh"
 run_once="$mount_point/runonce.sh"
@@ -69,7 +77,7 @@ do_mount() {
 		return 1
 	fi
 
-	if mount -t auto -o noatime,sync "$device_node" "$mount_point"; then
+	if mount -t auto -o "$mount_options" "$device_node" "$mount_point"; then
 		echo -c 240 -e "- Mounted $device_node to $mount_point"
 	else
 		echo -c 142 -e "Failed to mount $device_node to $mount_point" >&2

@@ -33,6 +33,15 @@ config BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR
 	help
 	  Enables the entropy service for the T40 SoC.
 
+config BR2_PACKAGE_THINGINO_SYSTEM_AUTOMOUNT
+	bool "block device automount"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM
+	default y if BR2_THINGINO_SDCARD
+	help
+	  Install the mdev handler and boot-time scan that mount partitions below
+	  /mnt. SD-card boards select this by default; SATA and USB-storage
+	  appliances can enable it without pulling in the MMC kernel stack.
+
 config BR2_PACKAGE_THINGINO_SYSTEM_SWAP
 	bool "swap"
 	depends on BR2_PACKAGE_THINGINO_SYSTEM

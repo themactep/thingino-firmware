@@ -1,6 +1,6 @@
 LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
-LIGHTNVR_VERSION = ca9c19d467573e9d04ba3b1efef20316dd897741
+LIGHTNVR_VERSION = 1755670975b54c20a0d645253c95b7e2e5deffa8
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING
@@ -21,6 +21,7 @@ endif
 
 # Enable SOD with dynamic linking and go2rtc, use bundled cJSON
 LIGHTNVR_CONF_OPTS = \
+	-DLIGHTNVR_PROFILE=embedded \
 	-DENABLE_SOD=OFF \
 	-DSOD_DYNAMIC_LINK=ON \
 	-DENABLE_GO2RTC=ON \
@@ -39,6 +40,8 @@ define LIGHTNVR_BUILD_WEB_ASSETS
 	cd $(@D)/web && \
 		export PATH=$(HOST_DIR)/bin/:$$PATH && \
 		$(HOST_DIR)/bin/npm ci --production=false && \
+		LIGHTNVR_WEB_LEGACY=false \
+		LIGHTNVR_WEB_LOCALES=en \
 		$(HOST_DIR)/bin/npm run build
 	@echo "Web assets built successfully"
 endef
@@ -52,6 +55,7 @@ define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/assets
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/css
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/img
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/locales
 	# Copy only gzip-compressed JS and CSS files (saves ~70% space)
 	cp $(@D)/web/dist/assets/*.gz $(TARGET_DIR)/var/lib/lightnvr/web/assets/
 	cp $(@D)/web/dist/css/*.gz $(TARGET_DIR)/var/lib/lightnvr/web/css/
@@ -60,6 +64,10 @@ define LIGHTNVR_INSTALL_APP_FILES
 	cp $(@D)/web/dist/*.html.gz $(TARGET_DIR)/var/lib/lightnvr/web/
 	# Copy images and other static assets
 	-cp -r $(@D)/web/dist/img/* $(TARGET_DIR)/var/lib/lightnvr/web/img/ 2>/dev/null || true
+	# The embedded web profile retains English and its runtime manifest.
+	cp $(@D)/web/dist/locales/en.json.gz $(TARGET_DIR)/var/lib/lightnvr/web/locales/
+	cp $(@D)/web/dist/locales/en.png $(TARGET_DIR)/var/lib/lightnvr/web/locales/
+	cp $(@D)/web/dist/locales/manifest.json $(TARGET_DIR)/var/lib/lightnvr/web/locales/
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr/go2rtc
 	$(INSTALL) -m 644 $(LIGHTNVR_PKGDIR)/files/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
