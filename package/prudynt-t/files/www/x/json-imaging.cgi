@@ -50,7 +50,7 @@ json_ok() {
 
 STATE_FILE="/run/prudynt/imaging.json"
 IMAGING_FIFO="/run/prudynt/imagingctl"
-FIELDS="brightness contrast saturation sharpness backlight wide_dynamic_range tone defog noise_reduction"
+FIELDS="brightness contrast saturation sharpness backlight wide_dynamic_range tone defog noise_reduction temper_strength"
 
 urldecode() {
 	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
