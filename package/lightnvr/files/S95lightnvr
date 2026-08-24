@@ -6,7 +6,9 @@ DAEMON_ARGS=""
 PIDFILE="/var/run/lightnvr.pid"
 
 start_daemon() {
-	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+	# LightNVR creates and locks its own PID file. Pre-creating it with -m makes
+	# the child mistake its own PID for an existing instance and signal itself.
+	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
 }
 
 stop_daemon() {
