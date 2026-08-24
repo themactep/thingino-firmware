@@ -17,10 +17,10 @@
     "gpio_invert": false,
     "gpio_pan": "49 63 62 61",
     "gpio_switch": -1,
-    "gpio_tilt": "52 53 64 59",
+    "gpio_tilt": "59 64 53 52",
     "homing": true,
     "invert_x": false,
-    "invert_y": true,
+    "invert_y": false,
     "is_spi": false,
     "presets": [
       {

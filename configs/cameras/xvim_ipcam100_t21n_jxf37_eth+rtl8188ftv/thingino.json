@@ -19,7 +19,7 @@
     "gpio_pan": "49 40 48 47",
     "gpio_power": 11,
     "gpio_switch": -1,
-    "gpio_tilt": "60 39 38 41",
+    "gpio_tilt": "41 38 39 60",
     "homing": true,
     "invert_x": false,
     "invert_y": false,
