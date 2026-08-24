@@ -613,13 +613,23 @@ define TIMPS_PURGE_STOCK_WEBUI
 	# Same argument, two orders of magnitude larger: "streamer" is a Kconfig
 	# choice, so prudynt and raptor cannot be installed beside timps - yet
 	# thingino-agent ships an adapter for each, 85 KB and 79 KB of shell that
-	# nothing on this image can ever call, plus prudynt's restart CGI and its
-	# helper directory. Removed here for the same reason as the two scripts
-	# above, and it has to be here: deleting them from $(TARGET_DIR) earlier
-	# is undone by the per-package merge that target-finalize runs first.
+	# nothing on this image can ever call, plus prudynt's helper directory.
+	# Removed here for the same reason as the two scripts above, and it has
+	# to be here: deleting them from $(TARGET_DIR) earlier is undone by the
+	# per-package merge that target-finalize runs first.
+	#
+	# NOT included here: var/www/x/restart-prudynt.cgi. That filename is
+	# stock prudynt's, but the file at this path is timps's OWN replacement
+	# (see files/www/x/restart-prudynt.cgi's own header comment - same name,
+	# same URL, on purpose, because the stock WebUI pages call
+	# /x/restart-prudynt.cgi by that literal path). TIMPS_INSTALL_WEBUI
+	# installs it earlier in the same target-finalize pass; deleting it here
+	# unconditionally removed timps's own file, not a stock leftover, and
+	# left the WebUI's "Restart" button 404ing on every image since the file
+	# was added (2026-08-16) - found 2026-08-24 when a user's restart-required
+	# setting change appeared to silently do nothing.
 	rm -f $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/prudynt.sh \
-	      $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh \
-	      $(TARGET_DIR)/var/www/x/restart-prudynt.cgi
+	      $(TARGET_DIR)/usr/libexec/thingino-agent/adapters/raptor.sh
 	rm -rf $(TARGET_DIR)/usr/share/prudynt-helpers
 endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_WEBUI_OVERLAY $(TARGET_FINALIZE_HOOKS)
