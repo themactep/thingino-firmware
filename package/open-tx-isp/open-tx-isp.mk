@@ -7,7 +7,7 @@
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
 OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = 99b11416dcfac34a0a2f073836202ffa514d7c91
+OPEN_TX_ISP_VERSION = 03ddaf34520e72186e2fa24697e3aff8d14ff2eb
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
