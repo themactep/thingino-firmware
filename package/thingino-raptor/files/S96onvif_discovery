@@ -48,7 +48,7 @@ raptor_bool_default() {
 }
 
 raptor_rtsp_scheme() {
-	if [ "$(raptor_bool_default rtsp tls true)" = "true" ]; then
+	if [ "$(raptor_bool_default rtsp tls false)" = "true" ]; then
 		echo "rtsps"
 	else
 		echo "rtsp"
