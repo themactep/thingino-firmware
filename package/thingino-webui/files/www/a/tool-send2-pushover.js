@@ -28,6 +28,9 @@
           message: $("#pushover_message").value,
           priority: Number($("#pushover_priority").value) || 0,
           send_photo: $("#pushover_send_photo").checked,
+          // Photos and videos are mutually exclusive attachments in the
+          // Pushover API; the UI only exposes photo, so persist false rather
+          // than whatever the checkbox held.
           send_video: false,
           enabled: true,
         },
