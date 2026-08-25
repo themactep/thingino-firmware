@@ -1,0 +1,15 @@
+config BR2_PACKAGE_HOST_QEMU_INGENIC_ARCH_SUPPORTS
+	bool
+	default y if BR2_HOSTARCH = "x86_64"
+	default y if BR2_HOSTARCH = "aarch64"
+
+config BR2_PACKAGE_HOST_QEMU_INGENIC
+	bool "qemu-ingenic for host"
+	depends on BR2_PACKAGE_HOST_QEMU_INGENIC_ARCH_SUPPORTS
+	help
+	  QEMU system emulator for Ingenic XBurst/XBurst2 MIPS SoCs.
+
+	  Pre-built qemu-system-mipsel with Ingenic T-series machine
+	  types (T10/T20/T21/T23/T30/T31/T32/T40/T41/A1).
+
+	  https://github.com/gtxaspec/qemu
