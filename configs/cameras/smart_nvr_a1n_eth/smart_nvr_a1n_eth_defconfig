@@ -2,7 +2,6 @@
 # FRAG: soc-xburst2 core
 BR2_ETHERNET=y
 BR2_INGENIC_SOC_MODEL="a1n"
-BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/smart_nvr_a1n_eth/kernel.config"
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT=y
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS=y
 BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_A1_SMART_NVR=y
@@ -16,19 +15,10 @@ BR2_PACKAGE_HOST_NODEJS=y
 BR2_PACKAGE_LIBZLIB=y
 BR2_PACKAGE_LIGHTNVR=y
 BR2_PACKAGE_SMARTMONTOOLS=y
-# This fixed NVR profile has no GPIO list or camera GPIO configuration. Leaving
-# the generic helper enabled would also force the unused kernel debugfs on.
-BR2_PACKAGE_THINGINO_GPIO=n
-# The A1 appliance uses IPv4 on its camera/storage LAN. Override core.fragment
-# here so thingino-kopt does not re-enable IPv6 after the kernel fragment.
-BR2_PACKAGE_THINGINO_KOPT_IPV6=n
 BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE=y
 BR2_PACKAGE_THINGINO_STREAMER_NONE=y
 BR2_PACKAGE_THINGINO_SYSTEM_AUTOMOUNT=y
 BR2_PACKAGE_THINGINO_SYSTEM_SWAP=y
-# Avoid pulling the external WireGuard module and its FOU/XFRM kernel support
-# into a fixed LAN appliance. VPN access can terminate at the site gateway.
-BR2_PACKAGE_THINGINO_VPN_NONE=y
 BR2_PACKAGE_THINGINO_WEBUI=n
 BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="u-boot-with-spl-lzma.bin"
 BR2_THINGINO_DEV_NVR=y
