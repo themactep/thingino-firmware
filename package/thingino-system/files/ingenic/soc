@@ -78,6 +78,7 @@ print_soc_model() {
 			$((0x5555))) soc="t41zl" ;;
 			$((0x6666))) soc="t41zx" ;;
 			$((0x7777))) soc="t40xp" ;;
+			#$((0x4444))) soc="t40a" ;; # overlap with t41a, T40 libimp 1.3.1 maps this
 			#$((0x7777))) soc="t41zn" ;; # overlap with t40xp
 			$((0x8888))) soc="t40nn" ;; # 0x8888 also names t41lc (same silicon, diff SKU)
 			$((0x9999))) soc="t41lq" ;;
@@ -85,6 +86,8 @@ print_soc_model() {
 			$((0x2222))) soc="t41xq" ;;
 			$((0xBBBB))) soc="t41zm" ;;
 			$((0xCCCC))) soc="t41zg" ;;
+			$((0xEE00))) soc="qemu-t40" ;;
+			$((0xEE01))) soc="qemu-t41" ;;
 			*) soc="unknown_t4x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x1)) ]; then
@@ -95,6 +98,7 @@ print_soc_model() {
 			$((0x3333))) soc="a1l" ;;
 			$((0x4444))) soc="a1a" ;; # real vendor SKU (uboot a1a_ddr_para); 0x4444 by convention, confirm on a real A1A chip
 			$((0x5555))) soc="a1nt" ;;
+			$((0xEE00))) soc="qemu-a1" ;;
 			*) soc="unknown_a1x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x33)) ]; then # T33: variant byte at 0x1354021f, not type1/type2
@@ -105,8 +109,10 @@ print_soc_model() {
 			$((0x44))) soc="t33a" ;;
 			$((0x55))) soc="t33zl" ;;
 			$((0x77))) soc="t33zn" ;;
+			$((0x11))) soc="t33lq" ;;
 			$((0xCC))) soc="t33vl" ;;
 			$((0xDD))) soc="t33vn" ;;
+			$((0xEE))) soc="qemu-t33" ;;
 			*) soc="unknown_t33" ;;
 		esac
 	else
@@ -137,6 +143,7 @@ print_soc_model() {
 			0x00303333) soc="t30l" ;;
 			0x00304444) soc="t30a" ;;
 			0x00305555) soc="t30z" ;;
+			0x00306666) soc="t30zx" ;;
 			0x00311111) soc="t31n" ;;
 			0x00312222) soc="t31x" ;;
 			0x00313333) soc="t31l" ;;
@@ -146,8 +153,19 @@ print_soc_model() {
 			0x0031CCCC) soc="t31al" ;;
 			0x0031DDDD) soc="t31zc" ;;
 			0x0031EEEE) soc="t31lc" ;;
+			0x00321111) soc="t32n" ;;
+			0x00322222) soc="t32xq" ;;
+			0x00323333) soc="t32l" ;;
+			0x00324444) soc="t32a" ;;
+			0x00325555) soc="t32zl" ;;
+			0x00326666) soc="t32zx" ;;
+			0x00327777) soc="t32zn" ;;
+			0x00328888) soc="t32nn" ;;
 			0x00329999) soc="t32lq" ;;
 			0x0032AAAA) soc="t32nq" ;;
+			0x0032BBBB) soc="t32zm" ;;
+			0x0032CCCC) soc="t32al" ;;
+			0x0032DDDD) soc="t32zc" ;;
 			0x0005EE00) soc="qemu-t10" ;;
 			0x0020EE00) soc="qemu-t20" ;;
 			0x0021EE00) soc="qemu-t21" ;;
@@ -155,7 +173,6 @@ print_soc_model() {
 			0x0030EE00) soc="qemu-t30" ;;
 			0x0031EE00) soc="qemu-t31" ;;
 			0x0032EE00) soc="qemu-t32" ;;
-			0x0033EE00) soc="qemu-t33" ;;
 			*)
 				echo "Unknown SoC signature: $cpu_sig" >&2
 				soc="unknown"
