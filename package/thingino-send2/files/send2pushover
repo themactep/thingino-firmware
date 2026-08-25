@@ -1,6 +1,12 @@
 #!/bin/env sh
 # Sends notifications to Pushover
 # https://pushover.net/api
+#
+# NOTE (verbose mode): curl --verbose dumps the multipart request body to
+# stderr, which includes token and user key in cleartext. echo_command's
+# preview is redacted, but the real request is not. Pre-existing behaviour
+# across the send2 toolkit (gotify token in URL, ntfy in Authorization
+# header); do not enable -v in contexts where stderr is captured/displayed.
 
 . /usr/share/prudynt-helpers
 . /usr/share/send2common
@@ -15,7 +21,7 @@ Where:
 	-u user      Pushover user (or group) key
 	-n title     Message title
 	-m message   Message body (strftime format)
-	-z N         Priority (-2 lowest, 2 highest)
+	-z N         Priority (-1 lowest, 1 high; 2 emergency not supported)
 	-S           Send photo attachment
 	-V           Send video attachment
 	-v           Verbose output
@@ -68,6 +74,21 @@ fi
 [ -z "$title" ] && title="Thingino Camera"
 [ -z "$message" ] && message="Motion detected at %Y-%m-%d %H:%M:%S"
 [ -z "$priority" ] && priority=0
+
+# Pushover rejects priority 2 (emergency): retry/expire params are mandatory
+# for that level and we do not send them. Clamp out-of-range or emergency
+# priorities to the highest supported level.
+case "$priority" in
+	-2 | -1 | 0 | 1) ;;
+	2) priority=1 ;;
+	*)
+		case "$priority" in
+			'' | *[!0-9]*) priority=0 ;;
+			*) priority=1 ;;
+		esac
+		;;
+esac
+
 message=$(date +"$message")
 
 if [ "true" = "$verbose" ]; then
@@ -92,18 +113,28 @@ fi
 attachment_args=""
 [ -n "$attachment" ] && attachment_args="-F attachment=@$attachment"
 
+# Pushover's API rejects attachments larger than 2.5 MB.
+if [ -n "$attachment" ]; then
+	attachment_size=$(stat -c %s "$attachment" 2>/dev/null || echo 0)
+	if [ "$attachment_size" -gt 2621440 ]; then
+		echo_error "Pushover attachment exceeds 2.5 MB limit (${attachment_size} bytes); skipping send"
+		[ -n "$attachment" ] && rm -f "$attachment"
+		exit 1
+	fi
+fi
+
 if [ "true" = "$verbose" ]; then
 	echo_command "curl $curl_common $curl_verbosity --form-string token=*** --form-string user=*** --form-string title=\"$title\" --form-string message=\"$message\" --form-string priority=$priority $attachment_args https://api.pushover.net/1/messages.json"
 fi
 
 if ! curl $curl_common $curl_verbosity \
-		--form-string "token=$token" \
-		--form-string "user=$user" \
-		--form-string "title=$title" \
-		--form-string "message=$message" \
-		--form-string "priority=$priority" \
-		$attachment_args \
-		"https://api.pushover.net/1/messages.json" >/dev/null; then
+	--form-string "token=$token" \
+	--form-string "user=$user" \
+	--form-string "title=$title" \
+	--form-string "message=$message" \
+	--form-string "priority=$priority" \
+	$attachment_args \
+	"https://api.pushover.net/1/messages.json" >/dev/null; then
 	echo_error "Failed to send Pushover message"
 	exit 1
 fi
