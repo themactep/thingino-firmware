@@ -24,6 +24,22 @@ config BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
 config BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
 	bool
 
+config BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE
+	bool "Enable NetConsole (U-Boot console over UDP)"
+	depends on BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
+	depends on BR2_THINGINO_UBOOT_VERSION_2013_07
+	help
+	  Build the bootloader with NetConsole and redirect the console to
+	  it (stdout/stderr/stdin = serial,nc) so U-Boot can be driven over
+	  UDP on a board with no serial port. Also raises bootdelay to 5s so
+	  the autoboot window can be interrupted over the network.
+
+	  SECURITY: with ncip unset the board accepts console input from any
+	  host on the L2 segment, so anyone on the subnet can interrupt boot
+	  and reach an unauthenticated U-Boot prompt during the boot window.
+	  Enable only on trusted networks, or pin a single client with
+	  `fw_setenv ncip <host>`. Off by default; opt in per camera.
+
 config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
 	bool "Enable SPI Flash BAR"
 	help
