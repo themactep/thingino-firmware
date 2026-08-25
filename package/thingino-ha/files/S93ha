@@ -96,7 +96,7 @@ stop() {
 
 	# Now safe to kill ha-daemon — the watchdog cannot respawn it.
 	stop_daemon
-	killall -q ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q ha-commands ha-discovery ha-state ha-mqtt-pubd 2>/dev/null
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi
@@ -107,7 +107,7 @@ stop() {
 	sleep 1
 	start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
 	pkill -9 -f ha-watchdog 2>/dev/null
-	killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
+	killall -q -9 ha-commands ha-discovery ha-state ha-mqtt-pubd 2>/dev/null
 	if [ -n "$HA_CAMERA_ID" ]; then
 		pkill -9 -f "mosquitto_.*${HA_CAMERA_ID}" 2>/dev/null
 	fi

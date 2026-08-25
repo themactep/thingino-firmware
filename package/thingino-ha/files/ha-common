@@ -228,6 +228,12 @@ _ha_state_changed() {
 _HA_PUB_QUEUE_FILE=""
 _HA_PUB_QUEUE_OPEN=0
 
+# FIFO consumed by ha-mqtt-pubd, the persistent MQTT publisher.
+# ha-daemon creates the FIFO and starts the daemon before the first
+# publish; the daemon holds the read end open so writers never block.
+HA_MQTT_PUB_FIFO="/run/ha/mqtt-pub.fifo"
+export HA_MQTT_PUB_FIFO
+
 # Opening a session is free: the queue file is only created when the first
 # publish is actually queued, so idle poll cycles fork no mktemp/rm.
 ha_pub_begin() {
@@ -237,12 +243,15 @@ ha_pub_begin() {
 _ha_pub_exec() {
 	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
 	[ -f "$tmpfile" ] || return 1
-	local mpub
-	mpub=$(ha_mpub_cmd "$suffix")
-	[ "$retain" = "1" ] && mpub="$mpub -r"
-	# eval instead of sh -c: saves one shell fork per publish
-	eval "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	# Feed the persistent publisher daemon instead of forking a fresh
+	# mosquitto_pub (and a new TCP connection) per message. The daemon
+	# unlinks tmpfile once the message is sent or the attempt fails.
+	if printf '%s\t%s\t%s\n' "$retain" "$topic" "$tmpfile" \
+		>> "$HA_MQTT_PUB_FIFO" 2>/dev/null; then
+		return 0
+	fi
 	rm -f "$tmpfile"
+	return 1
 }
 
 _ha_queue_or_pub() {

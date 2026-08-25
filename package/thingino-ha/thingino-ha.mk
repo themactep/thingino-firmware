@@ -1,7 +1,14 @@
 THINGINO_HA_SITE_METHOD = local
 THINGINO_HA_SITE = $(THINGINO_HA_PKGDIR)/files
 THINGINO_HA_LICENSE = MIT
-THINGINO_HA_DEPENDENCIES = thingino-core
+THINGINO_HA_DEPENDENCIES = thingino-core thingino-mosquitto-20x
+
+# ha-mqtt-pubd links against libmosquitto, which thingino-mosquitto-20x
+# installs to both staging and target.
+define THINGINO_HA_BUILD_CMDS
+	$(TARGET_CC) $(TARGET_CFLAGS) -o $(@D)/ha-mqtt-pubd \
+		$(@D)/ha-mqtt-pubd.c $(TARGET_LDFLAGS) -lmosquitto
+endef
 
 define THINGINO_HA_INSTALL_TARGET_CMDS
 	# Stage defaults for later merge by thingino-core
@@ -24,6 +31,8 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/ha-event
 	$(INSTALL) -D -m 0755 $(@D)/ha-watchdog \
 		$(TARGET_DIR)/usr/sbin/ha-watchdog
+	$(INSTALL) -D -m 0755 $(@D)/ha-mqtt-pubd \
+		$(TARGET_DIR)/usr/sbin/ha-mqtt-pubd
 
   # Web UI
   $(INSTALL) -D -m 0644 $(@D)/config-ha.html \
