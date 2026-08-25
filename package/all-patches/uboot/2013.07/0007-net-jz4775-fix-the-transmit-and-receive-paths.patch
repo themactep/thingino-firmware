@@ -1,0 +1,552 @@
+From 782c24c78e5c6a924d5c6e46425a4be9ecea2c3f Mon Sep 17 00:00:00 2001
+From: spamcop <5637111+spamcop@users.noreply.github.com>
+Date: Tue, 25 Aug 2026 15:10:10 +0200
+Subject: [PATCH] net: jz4775: fix the transmit and receive paths
+
+Ten defects, all of which had to be cleared before netconsole was usable
+at 10Mb/s. They are described together because they were found by chasing
+one symptom -- Ctrl-C over the network being ignored -- and each was
+hidden behind the previous one.
+
+Transmit:
+
+ - GmacFESpeed10 is 0, so synopGMACSetBits(..., GmacFESpeed10) sets no
+   bits at all and leaves FES exactly as it was. A previous configuration
+   at 100Mb/s was never undone and the MAC kept clocking at 100 on a
+   10Mb/s link. Clear the bit explicitly.
+
+ - The descriptors and transmit buffers were unaligned, so DMA and CPU
+   views of them could disagree. Align them to the cache line.
+
+ - CSR5 status bits are write-1-to-clear, and a suspended engine ignores a
+   poll demand while its status bit is still asserted. jzmac_restart_tx_dma()
+   issued the demand without clearing, so the engine sat at TS=6 with TU
+   set, ignoring a descriptor already handed to it.
+
+ - A four deep ring gave the driver a position it could not track. A
+   transmit that times out returns without advancing next_tx while the
+   engine may have moved on, and DmaTxCurrDesc cannot recover it either
+   because the engine updates it asynchronously. Use one descriptor with
+   TER: the engine always wraps back onto it and there is no position left
+   to get wrong.
+
+ - With one descriptor, OSF made the engine prefetch the next descriptor
+   before the current frame finished -- wrapping onto the frame in flight,
+   which still read OWN=1, so every frame was transmitted twice. jz_send()
+   blocks for completion, so there is never a second frame to work on.
+
+ - Only the receive DMA was started during init, leaving the first send to
+   start the transmit DMA against a FIFO nobody had flushed. With store
+   and forward the MAC waited on it forever and the first send after every
+   init timed out.
+
+ - A timeout left a frame jammed in the MAC, not merely an unowned
+   descriptor: data in the transmit FIFO, the transmit protocol engine
+   idle and not paused, waiting on a status that never arrives. Nothing
+   flushed that FIFO, so once one send jammed every later send inherited
+   it. Reset the path, and reissue the frame rather than discarding it.
+
+ - jz_halt() switched the MAC transmitter back on while halting, leaving
+   it running with no DMA behind it.
+
+Receive:
+
+ - A frame too short to pass up was dropped without returning its
+   descriptor or advancing next_rx, so every later call re-examined the
+   same descriptor and bailed again. Reception stayed wedged on it until
+   something reinitialised the ring.
+
+ - The same write-1-to-clear rule applies to the receive engine, and
+   jz_recv() only ever issued the poll demand. Once it latched "receive
+   buffer unavailable" it stayed suspended, and with every descriptor back
+   in its hands jz_recv() saw nothing ready and never kicked it again.
+
+Lifecycle:
+
+ - stdout is "serial,nc" once netconsole joins the console mux, so each
+   line jz_init() printed was itself a netconsole transmit issued against
+   the MAC being initialised. Say it once at boot and stay quiet after.
+
+ - eth_init() runs on demand for console writes, and NetLoop does
+   eth_halt() plus eth_init() at the top of every command that touches the
+   network. Running the full sequence each time rebuilt both rings with
+   next_rx forced to zero, discarding frames the engine had already
+   delivered. If the link is up and settled, re-enable the engines and
+   leave the rings alone.
+
+Signed-off-by: spamcop <5637111+spamcop@users.noreply.github.com>
+---
+ drivers/net/jz4775-9161.c | 345 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 287 insertions(+), 58 deletions(-)
+
+diff --git a/drivers/net/jz4775-9161.c b/drivers/net/jz4775-9161.c
+index 7aad9d0..7b70aa7 100644
+--- a/drivers/net/jz4775-9161.c
++++ b/drivers/net/jz4775-9161.c
+@@ -15,16 +15,59 @@ static synopGMACdevice	*gmacdev;
+ static synopGMACdevice	_gmacdev;
+ 
+ #define NUM_RX_DESCS	PKTBUFSRX
+-#define NUM_TX_DESCS	4
+-
+-static DmaDesc	_tx_desc[NUM_TX_DESCS];
+-static DmaDesc	_rx_desc[NUM_RX_DESCS];
++/*
++ * One transmit descriptor, not a ring.
++ *
++ * jz_send() hands over a single packet and blocks until the engine gives it
++ * back, so nothing is ever in flight across calls and extra descriptors buy
++ * no throughput. What they do buy is a position the driver has to track, and
++ * the driver cannot track it reliably: a transmit that times out returns
++ * without advancing next_tx while the engine may have moved on regardless,
++ * and DmaTxCurrDesc cannot be used to recover the position either because the
++ * engine updates it asynchronously -- read it at the top of a send and it can
++ * still name the descriptor the engine is about to leave. Either way the two
++ * drift apart, the driver re-arms a descriptor the engine will not look at
++ * again, the engine parks on one the driver never fills, and every subsequent
++ * send fails with "descriptor unavailable" for the rest of the boot.
++ *
++ * With a single descriptor carrying TER the engine always wraps back onto it,
++ * next_tx is always 0, and there is no position left to get wrong.
++ */
++#define NUM_TX_DESCS	1
++
++/*
++ * The descriptor rings and the transmit buffers are handed to the DMA, and the
++ * CPU reaches the descriptors through the uncached KSEG1 alias. Without cache
++ * line alignment they share lines with neighbouring data that *is* written
++ * through the cached alias -- and at 40 bytes per enhanced descriptor the two
++ * rings even share a line with each other. A writeback of such a line restores
++ * stale descriptor bytes over the uncached store, so the CPU still reads
++ * OWN set while memory, and therefore the DMA, sees it clear: the transmit
++ * engine suspends with "descriptor unavailable" and jz_send() times out.
++ * Each ring is a whole number of cache lines, so aligning the start is enough
++ * to give them lines of their own.
++ */
++static DmaDesc	_tx_desc[NUM_TX_DESCS] __attribute__((aligned(CONFIG_SYS_CACHELINE_SIZE)));
++static DmaDesc	_rx_desc[NUM_RX_DESCS] __attribute__((aligned(CONFIG_SYS_CACHELINE_SIZE)));
+ static DmaDesc	*tx_desc;
+ static DmaDesc	*rx_desc;
+ static int	next_tx;
++
++/*
++ * Quiet the bring-up chatter after the first successful init.
++ *
++ * stdout is "serial,nc" once netconsole is in the console mux, so every one
++ * of these printf()s is itself a netconsole transmit -- issued, during
++ * jz_init(), against the very MAC being initialised. eth_init() is called on
++ * demand for each console write whenever the last NetLoop ran some other
++ * protocol, so at the prompt a single command could re-enter the driver
++ * repeatedly, rebuilding the descriptor rings and resetting next_rx under
++ * traffic that was already queued. Say it once at boot and stay silent after.
++ */
++int jz_eth_quiet;
+ static int	next_rx;
+ 
+-unsigned char tx_buff[NUM_TX_DESCS * 2048];
++unsigned char tx_buff[NUM_TX_DESCS * 2048] __attribute__((aligned(CONFIG_SYS_CACHELINE_SIZE)));
+ 
+ __attribute__((__unused__)) static void jzmac_dump_dma_desc2(DmaDesc *desc)
+ {
+@@ -223,7 +266,16 @@ static void jzmac_init(void) {
+ 
+ 	if (gmacdev->Speed == SPEED10) {
+ 		synopGMAC_select_mii(gmacdev);
+-		synopGMACSetBits((u32 *)gmacdev->MacBase, GmacConfig, GmacFESpeed10);
++		/*
++		 * GmacFESpeed10 is 0: it denotes the FES bit being clear, not a
++		 * mask to set. Setting zero bits leaves FES exactly as it was,
++		 * so a previous configuration at 100Mb/s is never undone and the
++		 * MAC keeps clocking at 100 on a 10Mb/s link. jz_init() runs more
++		 * than once per boot -- netconsole calls eth_init() on demand --
++		 * and the first pass can easily run before auto-negotiation has
++		 * resolved, leaving FES set. Clear it explicitly.
++		 */
++		synopGMACClearBits((u32 *)gmacdev->MacBase, GmacConfig, GmacFESpeed100);
+ 	} else if (gmacdev->Speed == SPEED100) {
+ 		synopGMAC_select_mii(gmacdev);
+ 		synopGMACSetBits((u32 *)gmacdev->MacBase, GmacConfig, GmacFESpeed100);
+@@ -259,9 +311,19 @@ static void jz47xx_mac_configure(void)
+ 				    DmaBurstLength32 | DmaDescriptorSkip2 |
+ 				    DmaDescriptor8Words | DmaFixedBurstEnable |
+ 					0x02000000);
++	/*
++	 * No OSF ("operate on second frame").
++	 *
++	 * jz_send() submits one frame and blocks until the engine returns it,
++	 * so there is never a second frame to work on. What OSF does instead is
++	 * make the engine prefetch the next descriptor before the current frame
++	 * has finished transmitting -- and with a single descriptor carrying
++	 * TER, "next" wraps straight back onto the one in flight, which still
++	 * reads OWN=1 because the write-back has not landed yet. The engine
++	 * transmits it a second time and every frame leaves the board twice.
++	 */
+ 	synopGMAC_dma_control_init(gmacdev,
+-				   DmaStoreAndForward | DmaTxSecondFrame |
+-				   DmaRxThreshCtrl128);
++				   DmaStoreAndForward | DmaRxThreshCtrl128);
+ 
+ 	/* Initialize the mac interface */
+ 	jzmac_init();
+@@ -284,11 +346,32 @@ static void jz47xx_mac_configure(void)
+  * ETH interface routines
+  **************************************************************************/
+ 
++static void jzmac_flush_tx_fifo(void)
++{
++	int wait = 1000;
++
++	synopGMACSetBits((u32 *)gmacdev->DmaBase, DmaControl, DmaFlushTxFifo);
++	while (--wait &&
++	       (synopGMACReadReg((u32 *)gmacdev->DmaBase, DmaControl) &
++		DmaFlushTxFifo))
++		udelay(10);
++	if (!wait)
++		printf("ETH:   tx fifo flush did not complete\n");
++}
++
+ static void jzmac_restart_tx_dma(void)
+ {
+ 	u32 data;
+ 
+-	/* TODO: clear error status bits if any */
++	/*
++	 * Clear any latched DMA status first. CSR5 status bits are
++	 * write-1-to-clear, and a suspended transmit engine does not resume on
++	 * a poll demand while its status bit is still asserted: the DMA sits at
++	 * TS=6 ("suspended, descriptor unavailable") with TU set, ignoring a
++	 * descriptor the CPU has already handed it, and every jz_send() then
++	 * times out with "error may happen, need reload".
++	 */
++	synopGMAC_clear_interrupt(gmacdev);
+ 
+ 	data = synopGMACReadReg((u32 *)gmacdev->DmaBase, DmaControl);
+ 	if (data & DmaTxStart) {
+@@ -298,58 +381,112 @@ static void jzmac_restart_tx_dma(void)
+ 	}
+ }
+ 
++static void jzmac_restart_rx_dma(void)
++{
++	u32 data;
++
++	/*
++	 * The receive engine follows the same rule as the transmit one: CSR5
++	 * status bits are write-1-to-clear, and a suspended engine does not
++	 * resume on a poll demand while its status bit is still asserted.
++	 *
++	 * jz_recv() only ever issued the poll demand. Once the engine ran out
++	 * of descriptors and latched "receive buffer unavailable" it therefore
++	 * stayed suspended, and because every descriptor was back in its hands
++	 * jz_recv() saw nothing ready and returned without kicking it again.
++	 * Reception stopped dead until something else happened to clear the
++	 * register -- which is precisely what jzmac_restart_tx_dma() does on
++	 * every send. That is why netconsole went deaf at an idle prompt and
++	 * came straight back the moment a line was typed on the serial console:
++	 * the resulting console output cleared the status and freed reception.
++	 */
++	synopGMAC_clear_interrupt(gmacdev);
++
++	data = synopGMACReadReg((u32 *)gmacdev->DmaBase, DmaControl);
++	if (data & DmaRxStart)
++		synopGMAC_resume_dma_rx(gmacdev);
++	else
++		synopGMAC_enable_dma_rx(gmacdev);
++}
++
+ static int jz_send(struct eth_device* dev, void *packet, int length)
+ {
+-	DmaDesc *desc = tx_desc + next_tx;
++	DmaDesc *desc;
+ 	int ret = 1;
+-	int wait_delay = 1000;
++	int attempt;
+ 
+ 	if (!packet) {
+ 		printf("jz_send: packet is NULL !\n");
+ 		return -1;
+ 	}
+ 
+-	memset(&tx_buff[next_tx * 2048], 0, 2048);
+-	memcpy((void *)&tx_buff[next_tx * 2048], packet, length);
+-	flush_dcache_all();
++	/*
++	 * Try twice.
++	 *
++	 * A jammed transmitter is recovered below by flushing the FIFO and
++	 * handing the descriptor back, and that recovery works -- every send
++	 * after one has succeeded. Returning failure without using it simply
++	 * threw the frame away, so a console line or a ping reply was lost
++	 * every time the MAC needed a kick. Reissue the frame once the path
++	 * has been reset instead.
++	 *
++	 * The wait is 20ms. A maximum sized frame takes 1.2ms on the wire at
++	 * 10Mb/s, so this is still ample, and the old 100ms meant every jam
++	 * cost a tenth of a second in which nothing was polled for receive.
++	 */
++	for (attempt = 0; attempt < 2; attempt++) {
++		int wait_delay = 200;
+ 
+-	/* prepare DMA data */
+-	desc->length = (((length << DescSize1Shift) & DescSize1Mask)
+-			 | ((0 << DescSize2Shift) & DescSize2Mask));
++		desc = tx_desc + next_tx;
+ 
+-	desc->buffer1 = virt_to_phys(&tx_buff[next_tx * 2048]);
+-//	desc->buffer1 = virt_to_phys(packet);
+-	/* ENH_DESC */
+-	desc->status |=  (DescTxFirst | DescTxLast | DescTxIntEnable);
+-	desc->status |= DescOwnByDma;
++		memset(&tx_buff[next_tx * 2048], 0, 2048);
++		memcpy((void *)&tx_buff[next_tx * 2048], packet, length);
++		flush_dcache_all();
+ 
+-//	flush_dcache_all();
++		desc->length = (((length << DescSize1Shift) & DescSize1Mask)
++				 | ((0 << DescSize2Shift) & DescSize2Mask));
+ 
+-	/* start tx operation*/
+-	jzmac_restart_tx_dma();
++		desc->buffer1 = virt_to_phys(&tx_buff[next_tx * 2048]);
++		desc->status |=  (DescTxFirst | DescTxLast | DescTxIntEnable);
++		desc->status |= DescOwnByDma;
+ 
+-	/* wait until current desc transfer done */
+-#if 1
+-	while (--wait_delay && synopGMAC_is_desc_owned_by_dma(desc)) {
+-		udelay(100);
+-	}
+-	/* check if there is error during transmit */
+-	if (wait_delay == 0) {
+-		printf("error may happen, need reload\n");
+-		return -1;
+-	}
+-#endif
++		jzmac_restart_tx_dma();
+ 
+-//	printf("send data length: %d\n", length);
++		while (--wait_delay && synopGMAC_is_desc_owned_by_dma(desc))
++			udelay(100);
+ 
+-//	jzmac_dump_dma_regs(__func__, __LINE__);
+-	/* if error occurs, then handle the error */
++		if (wait_delay) {
++			next_tx++;
++			if (next_tx >= NUM_TX_DESCS)
++				next_tx = 0;
++			return ret;
++		}
+ 
+-	next_tx++;
+-	if (next_tx >= NUM_TX_DESCS)
+-		next_tx = 0;
++		/*
++		 * Reset the whole transmit path: the engine still owns the
++		 * descriptor and the MAC has a frame stuck in the FIFO with the
++		 * transmit protocol engine idle, waiting on a status that will
++		 * never arrive. Nothing else flushes that FIFO, so with store
++		 * and forward selected the MAC would wait on it forever.
++		 */
++		synopGMAC_tx_disable(gmacdev);
++		synopGMAC_disable_dma_tx(gmacdev);
++
++		jzmac_flush_tx_fifo();
++
++		desc->status = 0;
++		synopGMAC_tx_desc_init_ring(desc, 1);
++		desc->length = 0;
++		desc->buffer1 = 0;
++		synopGMACWriteReg((u32 *)gmacdev->DmaBase, DmaTxBaseAddr,
++				  virt_to_phys(_tx_desc));
++		synopGMAC_clear_interrupt(gmacdev);
++		synopGMAC_tx_enable(gmacdev);
++		synopGMAC_enable_dma_tx(gmacdev);
++	}
+ 
+-	return ret;
++	printf("error may happen, need reload\n");
++	return -1;
+ }
+ 
+ static int jz_recv(struct eth_device* dev)
+@@ -372,23 +509,41 @@ static int jz_recv(struct eth_device* dev)
+ 
+ 		// printf("recv length:%d\n", length);
+ 		// jzmac_dump_dma_regs(__func__, __LINE__);
+-#if 1
+-		if (length  < 28) {
+-			udelay(100);
+-			return -1;
+-		}
+-#endif
+-		NetReceive(NetRxPackets[next_rx], length - 4);
++
++		/*
++		 * Something too short to be a frame cannot be passed up, but
++		 * the descriptor still has to go back to the engine.
++		 *
++		 * Returning early here left it owned by the CPU with next_rx
++		 * unmoved, so every later call examined that same descriptor,
++		 * found it short again and bailed again. Receive stayed wedged
++		 * on it -- netconsole went deaf a few seconds after the prompt
++		 * appeared and only came back when a NetLoop timeout happened
++		 * to reinitialise the ring, a minute or so later.
++		 */
++		if (length >= 28)
++			NetReceive(NetRxPackets[next_rx], length - 4);
++		else
++			length = -1;
++
+ 		/* after got data, make sure the dma owns desc to recv data from MII */
+ 		desc->status = DescOwnByDma;
+ 
+-		synopGMAC_resume_dma_rx(gmacdev);
++		jzmac_restart_rx_dma();
+ 
+ 		flush_dcache_all();
+ 
+ 		next_rx++;
+ 		if (next_rx >= NUM_RX_DESCS)
+ 			next_rx = 0;
++	} else if (synopGMACReadReg((u32 *)gmacdev->DmaBase, DmaStatus) &
++		   DmaIntRxNoBuffer) {
++		/*
++		 * Nothing ready and the engine has suspended for want of a
++		 * descriptor. Every descriptor is already back in its hands, so
++		 * the only thing missing is the clear and the poll demand.
++		 */
++		jzmac_restart_rx_dma();
+ 	}
+ 
+ 	return length;
+@@ -398,12 +553,47 @@ static int jz_init(struct eth_device* dev, bd_t * bd)
+ {
+ 	int i;
+ 	int phy_id;
++
++	/*
++	 * Do not tear a working interface down just to bring it back up.
++	 *
++	 * eth_init() is called on demand: netconsole re-initialises the
++	 * interface for a console write whenever the last NetLoop ran another
++	 * protocol, and NetLoop itself does eth_halt() plus eth_init() at the
++	 * top of every command that touches the network. Running the full
++	 * sequence each time means a DMA reset, a PHY search and a rebuild of
++	 * both descriptor rings with next_rx and next_tx forced back to zero --
++	 * which throws away every frame the engine had already placed in the
++	 * receive ring.
++	 *
++	 * If the interface is already up and the link is still up and settled,
++	 * re-enable the engines and keep the rings where they are. A link that
++	 * has gone down, or a first call, still gets the full sequence.
++	 */
++	if (jz_eth_quiet) {
++		u16 bmsr = 0;
++
++		synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, gmacdev->PhyBase,
++				       PHY_STATUS_REG, &bmsr);
++		synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, gmacdev->PhyBase,
++				       PHY_STATUS_REG, &bmsr);
++		if ((bmsr & Mii_Link) && (bmsr & Mii_AutoNegCmplt)) {
++			synopGMAC_tx_enable(gmacdev);
++			synopGMAC_rx_enable(gmacdev);
++			synopGMAC_enable_dma_rx(gmacdev);
++			synopGMAC_enable_dma_tx(gmacdev);
++			jzmac_restart_rx_dma();
++			return 0;
++		}
++	}
++
+ 	next_tx = 0;
+ 	next_rx = 0;
+ 
+ 	memset(tx_buff, 0, 2048 * NUM_TX_DESCS);
+ 
+-	printf("ETH:   jz4775-9161 driver init\n");
++	if (!jz_eth_quiet)
++		printf("ETH:   jz4775-9161 driver init\n");
+ 
+ 
+ 	/* init global pointers */
+@@ -428,7 +618,8 @@ static int jz_init(struct eth_device* dev, bd_t * bd)
+ #if 1
+ 	phy_id = synopGMAC_search_phy(gmacdev);
+ 	if (phy_id >= 0) {
+-		printf("ETH:   PHY found %d\n", phy_id);
++		if (!jz_eth_quiet)
++			printf("ETH:   PHY found %d\n", phy_id);
+ 		gmacdev->PhyBase = phy_id;
+ 	} else {
+ 		printf("ETH:   PHY not found!\n");
+@@ -480,25 +671,63 @@ static int jz_init(struct eth_device* dev, bd_t * bd)
+ 	synopGMAC_rx_enable(gmacdev);
+ 
+ #endif
+-	printf("ETH:   GMAC init finish\n");
++	/*
++	 * Bring the transmit side up here rather than leaving it to the first
++	 * send.
++	 *
++	 * Only the receive DMA was started above, so the first jz_send() had to
++	 * start the transmit DMA itself -- against a FIFO nobody had flushed.
++	 * With store and forward selected the MAC then sat on whatever it found
++	 * there, waiting for a frame status that never came, and that first
++	 * send always timed out:
++	 *
++	 *   ETH:   GMAC init finish
++	 *   error may happen, need reload
++	 *
++	 * The timeout handler recovered by flushing, which is what made every
++	 * later send work -- so do it up front instead. eth_init() runs on
++	 * demand for console writes, so "the first send after an init" came
++	 * round again and again at the prompt, not just once at boot.
++	 */
++	jzmac_flush_tx_fifo();
++	synopGMAC_enable_dma_tx(gmacdev);
++	if (!jz_eth_quiet)
++		printf("ETH:   GMAC init finish\n");
++	jz_eth_quiet = 1;
+ 	return 1;
+ }
+ 
+ static void jz_halt(struct eth_device *dev)
+ {
+-	next_tx = 0;
+-	next_rx = 0;
++	/*
++	 * Do not reset next_tx/next_rx here. jz_init() sets them when it
++	 * rebuilds the rings, and it now skips that rebuild while the link is
++	 * still up -- so zeroing them here would leave the driver pointing at a
++	 * descriptor the engine has already passed.
++	 */
+ 	synopGMAC_rx_disable(gmacdev);
+ 	udelay(100);
+ 	synopGMAC_disable_dma_rx(gmacdev);
+ 	udelay(100);
+ 	synopGMAC_disable_dma_tx(gmacdev);
+ 	udelay(100);
+-	synopGMAC_tx_enable(gmacdev);
++	/*
++	 * Disable, not enable. Halting the interface and then switching the MAC
++	 * transmitter back on left it running with no transmit DMA behind it,
++	 * and eth_halt() is followed by eth_init() every time a console write
++	 * lands after some other protocol has used the network -- so the first
++	 * send after each of those failed and cost a 100ms timeout:
++	 *
++	 *   isvp_t31# ping 192.168.1.222
++	 *   Using Jz4775-9161 device
++	 *   error may happen, need reload
++	 */
++	synopGMAC_tx_disable(gmacdev);
+ }
+ 
+ int check_phy_config(synopGMACdevice *gmacdev) {
+-	printf("ETH:   Searching for valid PHY\n");
++	if (!jz_eth_quiet)
++		printf("ETH:   Searching for valid PHY\n");
+ 	int phy_id = synopGMAC_search_phy(gmacdev);
+ 	if (phy_id < 0) {
+ 		return -1; // PHY not found
+-- 
+2.55.0
+
