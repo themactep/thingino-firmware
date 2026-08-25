@@ -1,0 +1,8 @@
+config BR2_PACKAGE_WIFI_HWSIM
+	select BR2_LINUX_KERNEL
+	bool "mac80211_hwsim (QEMU virtual WiFi)"
+	help
+	  Virtual WiFi radio for testing in QEMU. Creates wlan0/wlan1
+	  interfaces backed by mac80211_hwsim so the full WiFi
+	  provisioning stack (wpa_supplicant, hostapd, thingino WiFi
+	  setup) can be tested without hardware.

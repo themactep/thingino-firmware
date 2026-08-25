@@ -74,4 +74,8 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-wq9001/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ws73v100/Config.in"
 endmenu
 
+menu "Virtual"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-hwsim/Config.in"
+endmenu
+
 endif
