@@ -507,6 +507,28 @@ endef
 endif
 endif
 
+################ WIREGUARD UDP TUNNEL #########################
+
+# wireguard needs udp_tunnel_xmit_skb() and friends, which live in
+# CONFIG_NET_UDP_TUNNEL. That symbol has no prompt, so buildroot's
+# wireguard-linux-compat reaches it by enabling NET_FOU, the one visible
+# selector - and NET_FOU also selects XFRM, which is a bool and so lands
+# built in. wireguard's source references neither fou nor xfrm; it just
+# needs the four udp_tunnel symbols. Take the dependency through VXLAN
+# instead, the cheapest selector that does not drag XFRM in, and the whole
+# IPsec framework leaves every image. br2-external fixups are applied after
+# buildroot's, so this wins over the package.
+#
+# 4.4 only. On 3.10 there is no include/net/udp_tunnel.h, so wireguard builds
+# its own bundled udp_tunnel shim and needs none of this; enabling VXLAN there
+# would only add a module nothing loads.
+ifeq ($(BR2_PACKAGE_WIREGUARD_LINUX_COMPAT)$(KERNEL_VERSION_4),yy)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL
+	$(call KCONFIG_DISABLE_OPT,CONFIG_NET_FOU)
+	$(call KCONFIG_SET_OPT,CONFIG_VXLAN,m)
+endef
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -548,6 +570,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_CLK)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL)
 endef
 
 define THINGINO_KOPT_INSTALL_TARGET_CMDS
