@@ -58,6 +58,27 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S35swap; \
 	fi
 
+	# The A1 keeps USB and its disk filesystems out of the kernel image -
+	# nothing mounts a disk or talks USB before userspace, and that is what
+	# lets the kernel fit the 1600 KiB partition. None of it autoloads.
+	# dwc2 is a platform driver behind a modular usbcore, and mdev has no
+	# $$MODALIAS rule, so no USB device is ever probed on its own; it goes
+	# first so the bus exists. /usr/lib/mdev/automount then mounts with
+	# "mount -t auto", which only tries filesystems already listed in
+	# /proc/filesystems, so ext4 and vfat have to be resident before the
+	# first disk appears. modprobe pulls usbcore/usb-common in behind
+	# usb-storage, jbd2/mbcache behind ext4, and fat behind vfat.
+	if [ "$(SOC_FAMILY)" = "a1" ]; then \
+		mkdir -p $(TARGET_DIR)/etc/modules.d; \
+		{ echo "dwc2"; \
+		  echo "ext4"; \
+		  echo "vfat"; \
+		  if [ "$(BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE)" = "y" ]; then \
+			  echo "usb-storage"; \
+		  fi; \
+		} > $(TARGET_DIR)/etc/modules.d/30-storage; \
+	fi
+
 	# Platform utilities. One block per vendor, each installing out of its own
 	# files/<vendor>/ -- these read SoC registers, so there is nothing shared to
 	# factor out. The optional ones keep the gates they already had.
