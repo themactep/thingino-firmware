@@ -120,7 +120,10 @@ function updatePositionDisplay(xpos, ypos) {
 }
 
 // --- keyboard jog (arrows + distance keys) ---
-// Plain arrow = continuous while held; Shift+arrow = single short step.
+// Arrows only jog while Shift is held; plain arrows are left to the
+// browser (scrolling) and other modifiers (Ctrl/Alt/Meta) to the OS.
+// Each Shift+arrow press sends a single step; the browser's own key
+// auto-repeat is ignored so one press stays one step.
 function bindKeyboardControls() {
   const keyToDir = {
     ArrowUp: "u",
@@ -133,7 +136,6 @@ function bindKeyboardControls() {
     "2": "medium",
     "3": "large",
   };
-  const activeHolds = {};
 
   document.addEventListener("keydown", (ev) => {
     // Don't hijack buttons/inputs.
@@ -145,31 +147,12 @@ function bindKeyboardControls() {
     }
     const dir = keyToDir[ev.key];
     if (!dir) return;
+    // Only intercept arrows when Shift is held.
+    if (!ev.shiftKey) return;
     ev.preventDefault();
-    if (ev.shiftKey || ev.repeat) {
-      // Shift modifiers and auto-repeat: a single short step each.
-      if (!ev.repeat) moveMotor(dir, "small");
-      return;
-    }
-    if (activeHolds[dir]) return; // already held down.
-    activeHolds[dir] = true;
+    // One step per press; ignore browser auto-repeat keydowns.
+    if (ev.repeat) return;
     moveMotor(dir, currentStepName);
-    const interval = setInterval(() => moveMotor(dir, currentStepName), HOLD_INTERVAL_MS);
-    activeHolds[dir + "_interval"] = interval;
-  });
-
-  document.addEventListener("keyup", (ev) => {
-    const dir = keyToDir[ev.key];
-    if (!dir) return;
-    const interval = activeHolds[dir + "_interval"];
-    if (interval) {
-      clearInterval(interval);
-      delete activeHolds[dir + "_interval"];
-    }
-    if (activeHolds[dir]) {
-      delete activeHolds[dir];
-      stopMotor();
-    }
   });
 }
 
