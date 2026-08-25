@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 25 Aug 2025 00:00:00 +0000
+Subject: [PATCH] ingenic-sdk: t31 motor - stop TCU counter when motors idle
+
+The Pan/Tilt stepper driver free-runs its TCU channel after the boot-time
+homing/positioning moves complete. motor_ops_move() enables the counter
+(TESR) to drive the stepper; once the move reaches its target the
+interrupt handler sets both motors to MOTOR_OPS_STOP but never disables
+the channel, so the counter keeps counting at MOTOR_DEF_SPEED (900) and
+raising the full-match interrupt every period forever - even while the
+camera is sitting still.
+
+On a 24 MHz ext clock with /64 prescale that is 24e6/64/900 = 900
+interrupts/sec of pure dead work on IRQ 202 (jz_timer_interrupt). The
+idle handler still calls motor_move_step() and writes the phase GPIOs on
+every tick, and it keeps the single-core T31 constantly preempted, which
+surfaces as a general "sluggish" feel on motorized cameras.
+
+Disable the counter in the idle branch once both motors have reached
+MOTOR_OPS_STOP and the final step phase is driven out. A subsequent move
+re-enables it via motor_ops_move() -> jz_tcu_enable_counter() (TESR), so
+motion is unaffected. Confirmed on a Cinnado D1 T31L: idle drops from
+~900/sec to 0/sec, and a live move still steps normally.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/3.10.14/misc/motor/motor.c
++++ b/3.10.14/misc/motor/motor.c
+@@ -419,6 +419,12 @@ static irqreturn_t jz_timer_interrupt(int irq, void *dev_id)
+ 			complete(&mdev->stop_completion);
+ 		}
+ 
++#ifdef CONFIG_SOC_T40
++		ingenic_tcu_counter_stop(mdev->tcu);
++#else
++		jz_tcu_disable_counter(mdev->tcu);
++#endif
++
+ 		return IRQ_HANDLED;
+ 	}
+ 
