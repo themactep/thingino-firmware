@@ -336,10 +336,12 @@ ha_clear_disc() {
 	local component="$1" object_id="$2"
 	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
 	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
-	local mpub
-	mpub=$(ha_mpub_cmd disc)
-	eval "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
-	usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
+	local tmpfile
+	# Empty payload file: the daemon publishes a zero-length retained
+	# message, which removes the entity from Home Assistant.
+	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
+	: >"$tmpfile"
+	_ha_queue_or_pub 1 disc "$topic" "$tmpfile"
 }
 
 # Publish a retained discovery payload.
