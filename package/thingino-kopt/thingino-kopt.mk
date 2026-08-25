@@ -296,12 +296,23 @@ endif
 ################ USB MASS STORAGE ##################
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE),y)
+ifeq ($(SOC_FAMILY),a1)
+# SCSI and sd stay built in on the A1: its SATA needs them, and the vendor tree
+# cannot build ATA modular at all - libata-core.c calls sata_phy_reset(), which
+# ahci_ingenic.c defines, so libata.ko would need a symbol from a module that
+# depends on it. Only the USB half is modular, out of /etc/modules.d/30-storage.
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_USB_MASS_STORAGE
-	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_STORAGE)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SCSI)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_BLK_DEV_SD)
+	$(call KCONFIG_SET_OPT,CONFIG_USB_STORAGE,m)
+endef
+else
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_USB_MASS_STORAGE
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SCSI)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_BLK_DEV_SD)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_STORAGE)
 endef
+endif
 endif
 
 ################ EXT2/EXT4 FS #########################
