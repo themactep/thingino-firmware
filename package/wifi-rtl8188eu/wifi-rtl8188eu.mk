@@ -23,5 +23,10 @@ WIFI_RTL8188EU_MODULE_MAKE_OPTS = \
 	CONFIG_MAC80211_RC_DEFAULT="minstrel_ht" \
 	CONFIG_RTL8188EU=m
 
+# wpa_supplicant handles roaming; disable the driver's own L2 roaming
+ifeq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING),y)
+WIFI_RTL8188EU_MODULE_MAKE_OPTS += USER_EXTRA_CFLAGS=-DBR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING
+endif
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
