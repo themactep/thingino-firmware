@@ -1,4 +1,4 @@
-# SPI-NAND + UBI/UBIFS support for XBurst2 (T40/T41) kernel 4.4.94.
+# SPI-NAND + UBI/UBIFS support for XBurst2 (T40/T41/A1) kernel 4.4.94.
 #
 # Merged on top of <soc>.generic.config ONLY for NAND builds, via
 # configs/fragments/flash-nand.fragment (a profile opts in by listing
