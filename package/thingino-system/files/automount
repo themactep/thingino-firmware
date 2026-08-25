@@ -69,7 +69,7 @@ do_mount() {
 		return 1
 	fi
 
-	if mount -t auto -o noatime,sync "$device_node" "$mount_point"; then
+	if mount -t auto -o noatime "$device_node" "$mount_point"; then
 		echo -c 240 -e "- Mounted $device_node to $mount_point"
 	else
 		echo -c 142 -e "Failed to mount $device_node to $mount_point" >&2
