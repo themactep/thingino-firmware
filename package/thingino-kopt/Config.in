@@ -382,6 +382,28 @@ config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
 	help
 	  Enables I2C2 on the SoC
 
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2 && BR2_SOC_FAMILY = "t23"
+
+choice
+	prompt "I2C2 Pin Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB20_PB21
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB20_PB21
+	bool "I2C2 on PB20/PB21"
+	help
+	  Routes I2C2 to GPIO PB20 and PB21.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB27_PB28
+	bool "I2C2 on PB27/PB28"
+	help
+	  Routes I2C2 to GPIO PB27 and PB28.
+
+	  PB27 is shared with the OTG DRVVBUS pin.
+
+endchoice
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE
 	bool "USB Storage"
 	depends on BR2_PACKAGE_THINGINO_KOPT
