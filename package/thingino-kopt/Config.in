@@ -352,6 +352,30 @@ config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
 	help
 	  Enables I2C1 on the SoC
 
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
+
+choice
+	prompt "I2C1 Pin Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PB25_PB26
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PB25_PB26
+	bool "I2C1 on PB25/PB26"
+	help
+	  Routes I2C1 to GPIO PB25 and PB26.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PA16_PA17
+	bool "I2C1 on PA16/PA17"
+	depends on BR2_SOC_FAMILY = "t23"
+	help
+	  Routes I2C1 to GPIO PA16 and PA17. T23 only.
+
+	  PA16/PA17 are shared with MMC1 on port A and with the DVP
+	  sensor bus, so this cannot be combined with either.
+
+endchoice
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
 	bool "I2C2"
 	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
