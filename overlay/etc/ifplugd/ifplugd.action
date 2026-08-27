@@ -1,0 +1,15 @@
+#!/bin/sh
+# Called by ifplugd on link state changes: ifplugd.action <iface> <up|down>
+# Without this script every ifplugd exec fails and the daemon exits on
+# its first link probe, so cable plug/unplug goes unhandled.
+
+case "$2" in
+	up)
+		ifup "$1"
+		;;
+	down)
+		ifdown "$1"
+		;;
+esac
+
+exit 0
