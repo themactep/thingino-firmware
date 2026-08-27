@@ -12,17 +12,28 @@ case "$1" in
 			[ -e $RESOLV_WORKING_FILE ] || touch $RESOLV_WORKING_FILE
 		fi
 
-		: >"$RESOLV_WORKING_FILE"
+		(
+			flock 9
+			grep "# added by odhcp6c" "$RESOLV_WORKING_FILE" \
+				>"$RESOLV_WORKING_FILE.new" 2>/dev/null
+			grep -v "# added by odhcp6c\|# added by udhcpc" "$RESOLV_WORKING_FILE" \
+				>"$RESOLV_WORKING_FILE.rest" 2>/dev/null
 
-		if [ -n "$domain" ]; then
-			echo "Populate $RESOLV_WORKING_FILE with domain $domain"
-			echo "search $domain" >>"$RESOLV_WORKING_FILE"
-		fi
+			if [ -n "$domain" ]; then
+				echo "Populate $RESOLV_WORKING_FILE with domain $domain"
+				echo "search $domain # added by udhcpc" >>"$RESOLV_WORKING_FILE.new"
+			fi
 
-		for i in $dns; do
-			echo "Populate $RESOLV_WORKING_FILE with nameserver $i"
-			echo "nameserver $i" >>"$RESOLV_WORKING_FILE"
-		done
+			for i in $dns; do
+				echo "Populate $RESOLV_WORKING_FILE with nameserver $i"
+				echo "nameserver $i # added by udhcpc" >>"$RESOLV_WORKING_FILE.new"
+			done
+
+			cat "$RESOLV_WORKING_FILE.rest" >>"$RESOLV_WORKING_FILE.new"
+			rm -f "$RESOLV_WORKING_FILE.rest"
+			mv "$RESOLV_WORKING_FILE.new" "$RESOLV_WORKING_FILE"
+			chmod 0644 "$RESOLV_WORKING_FILE"
+		) 9>/tmp/resolv.conf.lock
 		;;
 esac
 
