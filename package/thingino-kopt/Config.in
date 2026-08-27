@@ -106,6 +106,14 @@ config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	help
 	  Enables Kernel Options for Development/Debugging (Valgrind, GDB, ltrace, etc)
 
+config BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG
+	bool "SLUB allocator debugging"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable SLUB allocator debugging (redzones, poisoning, use-after-free
+	  detection). Boots with slub_debug on by default to catch heap
+	  corruption at the point of the bad write/free.
+
 config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	bool "USB Gadget Serial"
 	depends on BR2_PACKAGE_THINGINO_KOPT
