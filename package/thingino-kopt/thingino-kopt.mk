@@ -480,7 +480,6 @@ define THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/odhcp6c $(TARGET_DIR)/etc/network/if-up.d/odhcp6c
 	mkdir -p $(TARGET_DIR)/etc/network/if-down.d $(TARGET_DIR)/etc/network/interfaces.d
 	ln -sf ../if-up.d/odhcp6c $(TARGET_DIR)/etc/network/if-down.d/odhcp6c
-	echo "	dhcp-v6-enabled true" >> $(TARGET_DIR)/etc/network/interfaces.d/eth0
 	cat $(THINGINO_KOPT_PKGDIR)/files/hosts.ipv6 >> $(TARGET_DIR)/etc/hosts
 endef
 endif
