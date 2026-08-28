@@ -134,13 +134,6 @@ endif
 			"$$BUILDSCOPE" scan -q --capture etc/thingino.json "$(OUTPUT_DIR)" 2>/dev/null \
 				|| "$$BUILDSCOPE" scan -q "$(OUTPUT_DIR)" || true; \
 		fi
-	@echo ""
-	@ELAPSED=$$(( $$(date +%s) - $(THINGINO_BUILD_START_EPOCH) )); \
-		H=$$((ELAPSED / 3600)); M=$$(((ELAPSED % 3600) / 60)); S=$$((ELAPSED % 60)); \
-		if [ $$H -gt 0 ]; then HMS=$$(printf '%dh %02dm %02ds' $$H $$M $$S); \
-		elif [ $$M -gt 0 ]; then HMS=$$(printf '%dm %02ds' $$M $$S); \
-		else HMS=$$(printf '%ds' $$S); fi; \
-		$(GREEN) "Total build time: $$HMS"
 
 build-info: pack
 	@$(TEAL) "$@"
