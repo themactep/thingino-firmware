@@ -1,0 +1,111 @@
+From 4d6b86869147c5391c0e179d05778f51bb7ffd10 Mon Sep 17 00:00:00 2001
+From: spamcop <5637111+spamcop@users.noreply.github.com>
+Date: Wed, 26 Aug 2026 12:21:10 +0200
+Subject: [PATCH] isvp: enable NetConsole behind a build-system guard
+
+The driver and all its hooks are already in the 2013.07 tree; what is
+missing is configuration. isvp_common.h gains, guarded by
+CONFIG_NETCONSOLE:
+
+  CONFIG_CONSOLE_MUX  device lists, so serial stays alongside nc rather
+                      than being replaced, and stdin=serial,nc cannot hang
+                      on a dead network (the mux only enters a getc after
+                      that device's tstc reported data)
+  CONFIG_PREBOOT      empty by default; preboot runs before the autoboot
+                      abort window, the only point early enough to
+                      redirect the console and still interrupt boot
+
+CONFIG_NETCONSOLE itself is never defined in the header: it comes from
+the build system (make ... CONFIG_NETCONSOLE=y), bridged to the
+preprocessor in config.mk exactly like CONFIG_SPI_FLASH_BAR and
+CONFIG_BOOTARGS_EXTERNAL. Boards built without the flag get a
+byte-identical stock console; netconsole.o is not even compiled, since
+drivers/net/Makefile selects it with COBJS-$(CONFIG_NETCONSOLE). The
+value must be y, not 1, because a command-line variable overrides
+autoconf.mk in every sub-make.
+---
+ config.mk                     |  8 ++++++
+ include/configs/isvp_common.h | 48 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)
+
+diff --git a/config.mk b/config.mk
+index 5d7f04b..ae0b0b5 100644
+--- a/config.mk
++++ b/config.mk
+@@ -210,6 +210,14 @@ ifdef CONFIG_BOOTARGS_EXTERNAL
+ CPPFLAGS += -DCONFIG_BOOTARGS_EXTERNAL
+ endif
+ 
++# Enable NetConsole (console over UDP), typically from buildroot on boards
++# with Ethernet. Pass CONFIG_NETCONSOLE=y, not =1: drivers/net/Makefile
++# selects the object with COBJS-$(CONFIG_NETCONSOLE), and a command-line
++# value overrides autoconf.mk.
++ifdef CONFIG_NETCONSOLE
++CPPFLAGS += -DCONFIG_NETCONSOLE
++endif
++
+ ifneq ($(CONFIG_SYS_TEXT_BASE),)
+ CPPFLAGS += -DCONFIG_SYS_TEXT_BASE=$(CONFIG_SYS_TEXT_BASE)
+ endif
+diff --git a/include/configs/isvp_common.h b/include/configs/isvp_common.h
+index 546b6c1..597c3d0 100644
+--- a/include/configs/isvp_common.h
++++ b/include/configs/isvp_common.h
+@@ -605,6 +605,54 @@
+ 
+ #define CONFIG_NET_GMAC
+ 
++/*
++ * NetConsole: the U-Boot console over UDP.
++ *
++ * Guarded: CONFIG_NETCONSOLE is not defined here. It arrives from the build
++ * system (make ... CONFIG_NETCONSOLE=y, bridged to the preprocessor in
++ * config.mk) only when the build opts in; everything else builds a stock
++ * console. It must be =y on the make command line, because
++ * drivers/net/Makefile selects the object with COBJS-$(CONFIG_NETCONSOLE)
++ * and a command-line value overrides autoconf.mk.
++ *
++ * The eth device is registered at boot without help: board_r.c calls
++ * eth_initialize() -> board_eth_init() (board/ingenic/isvp_t31/board.c) ->
++ * jz_net_initialize(). NetLoop refuses NETCONS unless `ipaddr' is non-zero
++ * (net/net.c); CONFIG_IPADDR below supplies the default, so netconsole needs
++ * no ipaddr injected into the environment.
++ *
++ * CONFIG_CONSOLE_MUX accepts a device list, so serial is kept as a fallback
++ * alongside the network console rather than being replaced by it:
++ *   setenv stdout serial,nc
++ *   setenv stderr serial,nc
++ *   setenv stdin  serial,nc
++ *
++ * The mux also makes stdin=serial,nc safe: its getc() only calls a device's
++ * getc() after that device's tstc() reported data (common/console.c), so
++ * netconsole's unbounded nc_getc() is never entered speculatively. A bare
++ * stdin=nc without the mux can hang forever on a dead network.
++ *
++ * CONFIG_PREBOOT is a feature gate only. env_default.h expands it as
++ * "preboot=" CONFIG_PREBOOT, so the bare form leaves the variable empty and
++ * boot behaviour unchanged until someone sets it. It matters because preboot
++ * runs BEFORE the bootdelay abort window (common/main.c), the only point early
++ * enough to redirect the console and still interrupt autoboot over the network
++ * -- abortboot polls tstc(), which under the mux includes the nc device.
++ * Redirecting from bootcmd is too late: console_init_r has already reset
++ * stdin/stdout/stderr and the keypress window has closed. For an interactive
++ * U-Boot prompt with no serial port attached, from the running system:
++ *   fw_setenv preboot 'setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc'
++ *   fw_setenv bootdelay 5
++ *
++ * CONFIG_NETCONSOLE_BUFFER_SIZE is left at its 512-byte default to match the
++ * 512-byte recvfrom() buffer in tools/ncb.c. Raising it would make U-Boot emit
++ * datagrams that the host-side receiver silently truncates.
++ */
++#ifdef CONFIG_NETCONSOLE
++#define CONFIG_CONSOLE_MUX
++#define CONFIG_PREBOOT
++#endif
++
+ /**
+  * Environment
+  */
+-- 
+2.55.0
+
