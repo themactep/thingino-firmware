@@ -206,6 +206,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/streamer-config.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-osd.js \
 		$(TARGET_DIR)/var/www/a/streamer-osd.js
+	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/streamer-image.js \
+		$(TARGET_DIR)/var/www/a/streamer-image.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/audio.js \
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/a/tool-timelapse.js \
