@@ -112,8 +112,8 @@ it is a no-op until artifacts are deleted.
 
 ## Scenario catalog
 
-Layouts use the standard thingino partition scheme (`boot 256k, env 64k,
-backup 64k, kernel 1600k` at offset 0..1984k, then rootfs/data, then
+Layouts use the standard thingino partition scheme (`boot 320k, env 64k,
+backup 64k, kernel 1600k` at offset 0..2048k, then rootfs/data, then
 `8192k@0(all)`).
 
 | # | scenario | old layout | new images | expect |

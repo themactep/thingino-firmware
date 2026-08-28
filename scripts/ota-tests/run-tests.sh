@@ -142,7 +142,7 @@ read_layout() {
 }
 
 env_mtdparts() { # -> current mtdparts value in flash.img env (no name= prefix)
-	printf '%s\n' "$FLASH 0x40000 0x8000 0x10000" >"$SCRATCH/fw_env.config"
+	printf '%s\n' "$FLASH 0x50000 0x8000 0x10000" >"$SCRATCH/fw_env.config"
 	fw_printenv -c "$SCRATCH/fw_env.config" mtdparts 2>/dev/null | cut -d= -f2-
 }
 
@@ -153,14 +153,14 @@ setup_flash() {
 	rm -f "$FLASH"
 	# whole flash erased (0xFF)
 	dd if=/dev/zero bs=1024 count=8192 2>/dev/null | tr '\000' "$(octal ff)" >"$FLASH"
-	fill_region "$FLASH" 0 256 11    # boot
-	fill_region "$FLASH" 320 64 22   # backup
-	fill_region "$FLASH" 384 1600 33 # kernel
+	fill_region "$FLASH" 0 320 11    # boot
+	fill_region "$FLASH" 384 64 22   # backup
+	fill_region "$FLASH" 448 1600 33 # kernel
 	[ "${RESERVED_K:-0}" -gt 0 ] && fill_region "$FLASH" $((OLD_ROOTFS_OFF + OLD_ROOTFS_K)) "$RESERVED_K" 44
-	# env blob with the OLD mtdparts at the env partition (chip offset 256k)
+	# env blob with the OLD mtdparts at the env partition (chip offset 320k)
 	printf 'mtdparts=%s\n' "$OLD_MTDPARTS" >"$SCRATCH/env.txt"
 	mkenvimage -s 0x8000 -o "$SCRATCH/env.bin" "$SCRATCH/env.txt" >/dev/null
-	dd if="$SCRATCH/env.bin" of="$FLASH" bs=1024 seek=256 conv=notrunc 2>/dev/null
+	dd if="$SCRATCH/env.bin" of="$FLASH" bs=1024 seek=320 conv=notrunc 2>/dev/null
 
 	# the old firmware rootfs: a tiny squashfs holding the env tools, so
 	# that like on a real camera they vanish when the partition is erased
@@ -277,32 +277,32 @@ verify() {
 					;;
 			esac
 
-			assert_region "boot region untouched" 0 256 "$(pattern_md5 256 11)"
-			assert_region "backup region untouched" 320 64 "$(pattern_md5 64 22)"
-			assert_region "kernel region untouched" 384 1600 "$(pattern_md5 1600 33)"
+			assert_region "boot region untouched" 0 320 "$(pattern_md5 320 11)"
+			assert_region "backup region untouched" 384 64 "$(pattern_md5 64 22)"
+			assert_region "kernel region untouched" 448 1600 "$(pattern_md5 1600 33)"
 			;;
 		kernel)
 			assert_cmd "log: kernel flash" log_has "Flashing kernel from /tmp/kernel.bin to /dev/mtd$OLD_KERNEL_N"
 			if [ -n "${REAL_IMAGES:-}" ] && [ -f "$IMG_DIR/uImage" ]; then
-				assert_region_bytes "kernel image at 393216 (384K)" 393216 "$(stat -c%s "$IMG_DIR/uImage")" "$(md5sum "$IMG_DIR/uImage" | cut -d' ' -f1)"
+				assert_region_bytes "kernel image at 458752 (448K)" 458752 "$(stat -c%s "$IMG_DIR/uImage")" "$(md5sum "$IMG_DIR/uImage" | cut -d' ' -f1)"
 			else
-				assert_region "kernel image at 384" 384 "${KERNEL_K:-0}" "$(pattern_md5 "${KERNEL_K:-0}" "${FILL:-aa}")"
+				assert_region "kernel image at 448" 448 "${KERNEL_K:-0}" "$(pattern_md5 "${KERNEL_K:-0}" "${FILL:-aa}")"
 			fi
-			assert_region "boot region untouched" 0 256 "$(pattern_md5 256 11)"
-			assert_region "backup region untouched" 320 64 "$(pattern_md5 64 22)"
+			assert_region "boot region untouched" 0 320 "$(pattern_md5 320 11)"
+			assert_region "backup region untouched" 384 64 "$(pattern_md5 64 22)"
 			assert_cmd "env mtdparts unchanged" [ "$(env_mtdparts)" = "$OLD_MTDPARTS" ]
 			;;
 		boot)
 			assert_cmd "log: boot flash" log_has "Flashing boot from /tmp/boot.bin to /dev/mtd$OLD_BOOT_N"
 			assert_cmd "log: env flash" log_has "Flashing env from /tmp/env.bin to /dev/mtd$OLD_ENV_N"
 			assert_region_bytes "boot image at 0" 0 "$(stat -c%s "$IMG_DIR/u-boot-lzo-with-spl.bin")" "$(md5sum "$IMG_DIR/u-boot-lzo-with-spl.bin" | cut -d' ' -f1)"
-			assert_region_bytes "env blob at env partition (262144)" 262144 "$(stat -c%s "$IMG_DIR/u-boot-env.bin")" "$(md5sum "$IMG_DIR/u-boot-env.bin" | cut -d' ' -f1)"
+			assert_region_bytes "env blob at env partition (327680)" 327680 "$(stat -c%s "$IMG_DIR/u-boot-env.bin")" "$(md5sum "$IMG_DIR/u-boot-env.bin" | cut -d' ' -f1)"
 			local baked_env
 			printf '%s\n' "$IMG_DIR/u-boot-env.bin 0x0 0x8000 0x10000 1" >"$SCRATCH/fw_env.envbin"
 			baked_env=$(fw_printenv -c "$SCRATCH/fw_env.envbin" mtdparts 2>/dev/null | cut -d= -f2-)
 			assert_cmd "env mtdparts now the new layout ($baked_env)" [ "$(env_mtdparts)" = "$baked_env" ]
-			assert_region "kernel region untouched" 384 1600 "$(pattern_md5 1600 33)"
-			assert_region "backup region untouched" 320 64 "$(pattern_md5 64 22)"
+			assert_region "kernel region untouched" 448 1600 "$(pattern_md5 1600 33)"
+			assert_region "backup region untouched" 384 64 "$(pattern_md5 64 22)"
 			;;
 	esac
 }

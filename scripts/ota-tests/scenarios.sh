@@ -20,7 +20,7 @@
 #                 data (non-adjacent layout)
 #   REAL_IMAGES   non-empty to bake real images from IMG_DIR into the VM
 
-BASE='block2mtd:256k(boot),64k(env),64k(backup),1600k(kernel)'
+BASE='block2mtd:320k(boot),64k(env),64k(backup),1600k(kernel)'
 ALL_TAIL=',8192k@0(all)'
 
 scenario_fit_normal() {

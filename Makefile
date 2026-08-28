@@ -317,7 +317,7 @@ FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
-U_BOOT_SIZE_KB := 256
+U_BOOT_SIZE_KB := 320
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
 

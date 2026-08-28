@@ -414,10 +414,10 @@ if [ "$MODE" = "boot" ]; then
 	IMAGES_DIR="$(dirname "$LOCAL_FW_FILE")"
 	ENV_BIN="$IMAGES_DIR/u-boot-env.bin"
 
-	# Boot partition: pad to 256 KB
+	# Boot partition: pad to 320 KB
 	BOOT_TRIMMED="${LOCAL_FW_FILE}.boot"
 	cp "$LOCAL_FW_FILE" "$BOOT_TRIMMED" || die "Failed to copy bootloader"
-	truncate -s 262144 "$BOOT_TRIMMED" || die "Failed to pad bootloader"
+	truncate -s 327680 "$BOOT_TRIMMED" || die "Failed to pad bootloader"
 	TRIMMED_FILES="$BOOT_TRIMMED"
 	REMOTE_BOOT="/tmp/boot.bin"
 	FLASH_CMD="$FLASH_CMD boot $REMOTE_BOOT"
