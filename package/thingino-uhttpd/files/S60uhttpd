@@ -107,7 +107,7 @@ start() {
 
 		sleep 3
 
-		if pgrep uhttpd >/dev/null 2>&1; then
+		if pgrep -x uhttpd >/dev/null 2>&1; then
 			if netstat -ln | grep -q "172.16.0.1:80.*LISTEN"; then
 				echo "uhttpd started successfully (Portal mode)"
 				echo "Portal: http://172.16.0.1/"
@@ -140,7 +140,7 @@ start() {
 		# Wait and verify both ports are running
 		sleep 3
 
-		if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":443.*LISTEN" && netstat -ln | grep -q ":80.*LISTEN"; then
+		if pgrep -x uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":443.*LISTEN" && netstat -ln | grep -q ":80.*LISTEN"; then
 			echo "uhttpd started successfully with SSL support"
 			echo "HTTPS: https://$display_hostname:443/"
 			echo "HTTP:  http://$display_hostname:80/ (redirects to HTTPS)"
@@ -163,7 +163,7 @@ start() {
 	# Wait and verify it's running
 	sleep 2
 
-	if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":80.*LISTEN"; then
+	if pgrep -x uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":80.*LISTEN"; then
 		echo "uhttpd started successfully (HTTP only)"
 		echo "HTTP:  http://$display_hostname:80/"
 		return 0
@@ -187,14 +187,14 @@ stop() {
 	fi
 
 	# Fallback: kill any remaining uhttpd processes
-	if pgrep uhttpd >/dev/null 2>&1; then
+	if pgrep -x uhttpd >/dev/null 2>&1; then
 		echo "Killing remaining uhttpd processes"
-		pkill uhttpd 2>/dev/null
+		pkill -x uhttpd 2>/dev/null
 		sleep 1
 	fi
 
 	# Verify it's stopped
-	if pgrep uhttpd >/dev/null 2>&1; then
+	if pgrep -x uhttpd >/dev/null 2>&1; then
 		echo "Some uhttpd processes may still be running"
 	else
 		echo "All uhttpd processes stopped"
