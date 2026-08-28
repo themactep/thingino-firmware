@@ -51,8 +51,8 @@ watch_wired_uplink() {
 			sleep 1
 		done
 	fi
-	# Always confirm portal mode so DHCP/DNS start on WiFi-only cameras
-	if [ -f /run/portal_mode ]; then
+	# No wired uplink: this is a wireless camera, bring the portal up
+	if [ -f /run/portal_pending ]; then
 		/etc/init.d/S38wpa_supplicant portal_confirmed
 	fi
 }
