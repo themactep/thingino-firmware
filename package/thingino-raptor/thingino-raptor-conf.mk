@@ -11,7 +11,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	CONF=$(TARGET_DIR)/etc/raptor.conf; \
 	rset() { \
 		[ -n "$$3" ] && \
-		sed -i "/^\[$$1\]/,/^\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF" || true; \
+		sed -i "/^\[$$1\]/,/^[# ]*\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF" || true; \
 	}; \
 	\
 	if [ "$(BR2_THINGINO_IMAGE_SENSOR_QTY)" -gt 1 ] 2>/dev/null; then \
