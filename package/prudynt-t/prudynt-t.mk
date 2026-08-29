@@ -1,7 +1,7 @@
 PRUDYNT_T_SITE_METHOD = git
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = b609f309426bf6447b4f965825d5125d178a70a6
+PRUDYNT_T_VERSION = 6ade2540e3e8e0871837fa89a2ddec09d50cbdbb
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -105,6 +105,14 @@ endif
 PRUDYNT_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 ifeq ($(KERNEL_VERSION),4.4.94)
 	PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
+endif
+
+# tx-isp enforces a single-buffer schedule on the non-scaled channel when
+# isp_ch0_pre_dequeue_time is configured; prudynt clamps nrVBs to match.
+ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),y)
+PRUDYNT_CFLAGS += -DISP_CH0_PRE_DEQUEUE_TIME=$(or $(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE),0)
+else
+PRUDYNT_CFLAGS += -DISP_CH0_PRE_DEQUEUE_TIME=0
 endif
 
 # Add include paths
