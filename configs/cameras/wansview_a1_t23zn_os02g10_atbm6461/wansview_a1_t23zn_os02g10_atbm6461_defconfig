@@ -1,5 +1,5 @@
 # NAME: Wansview A1 (T23ZN, OS02G10, ATBM6461)
-# FRAG: soc-xburst1 core ssl
+# FRAG: soc-xburst1 core
 #
 # SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
 # Sensor: OmniVision OS02G10, 1/2.9" 2MP, I2C 0x3c, reg_addr_size=0 (ZRT bank-switch)
