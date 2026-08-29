@@ -1,0 +1,230 @@
+From 44672bdcd7d2ea9494458788ce08701540518f5e Mon Sep 17 00:00:00 2001
+From: spamcop <5637111+spamcop@users.noreply.github.com>
+Date: Tue, 25 Aug 2026 15:12:18 +0200
+Subject: [PATCH] net: jz4775: resolve the link from autonegotiation, not the
+ vendor register
+
+Speed and duplex were taken from PHY register 0x1f, a vendor specific
+status register whose layout differs between parts. On the PHY fitted here
+-- ID 0x0000:0x0128 -- it reads a constant 0x0030 whatever the link is
+doing; identical dumps with the cable in and out prove it carries no link
+information at all. Everything downstream inherited that: the MAC was
+configured for a speed the link was not running at.
+
+Fall back to the negotiated result when the vendor decode yields nothing
+usable, by intersecting our advertisement with the link partner's
+(registers 4 and 5), which is what autonegotiation resolved and is
+specified for every PHY. Print the speed and duplex actually selected, so
+a mismatch is visible rather than inferred.
+
+Two related corrections in the same path:
+
+ - The link test read bit 0 of the status register, which is Extended
+   Capability and is set on essentially every PHY ever made, so the link
+   was reported up unconditionally. Test bit 2, Link Status, and give it
+   time to come up rather than sampling once.
+
+ - "Autonegotiation Complete!" was printed whether or not it had
+   completed.
+
+Also declare jz_eth_quiet, which suppresses bring-up chatter after the
+first successful init.
+
+Signed-off-by: spamcop <5637111+spamcop@users.noreply.github.com>
+---
+ drivers/net/SynopGMAC_Dev.c | 120 +++++++++++++++++++++++++++++++++---
+ drivers/net/SynopGMAC_Dev.h |   3 +
+ 2 files changed, 113 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/net/SynopGMAC_Dev.c b/drivers/net/SynopGMAC_Dev.c
+index 61e5c01..065b870 100644
+--- a/drivers/net/SynopGMAC_Dev.c
++++ b/drivers/net/SynopGMAC_Dev.c
+@@ -208,7 +208,8 @@ s32 synopGMAC_reset (synopGMACdevice * gmacdev )
+ 			udelay(1);
+ 			cnt ++;
+ 		} else{
+-			printf("ETH:   Bus Mode Reg after write: 0x%08x\n", data);
++			if (!jz_eth_quiet)
++				printf("ETH:   Bus Mode Reg after write: 0x%08x\n", data);
+ 			break;
+ 		}
+ 	}
+@@ -1113,7 +1114,8 @@ s32 synopGMAC_search_phy (synopGMACdevice * gmacdev) {
+ 				printf("ETH:   Invalid PHY found with ID 0:0x0-0x0\n");
+ 				return -1;
+ 			}
+-			printf("ETH:   Found PHY %d:0x%x-0x%x\n", phy_id, id1, id2);
++			if (!jz_eth_quiet)
++				printf("ETH:   Found PHY %d:0x%x-0x%x\n", phy_id, id1, id2);
+ 			if ((0x0 == id1) && ((0x128 == id2) || (0x118 == id2))) {
+ #if !defined(CONFIG_MOTORCOMM_YT8512)				
+ 				status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x1e, 0x50);
+@@ -1165,13 +1167,31 @@ s32 synopGMAC_search_phy (synopGMACdevice * gmacdev) {
+ 					gmacdev->DuplexMode = HALFDUPLEX;
+ 				}
+ 			}
+-			/* restart Auto Negotiation */
+-			status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x4, 0x1e1);
+-			status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x0, 0x3100);
+-			status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x0, 0x3300);
++			/*
++			 * Restart auto-negotiation only when it has not already
++			 * settled. jz_init() runs on every eth_init(), and
++			 * netconsole calls eth_init() from nc_tstc() whenever
++			 * eth_is_on_demand_init() is true -- which a single
++			 * failed NetLoop makes true again, since NETLOOP_FAIL
++			 * resets the last protocol. Restarting unconditionally
++			 * then drops a working link on every keystroke poll and
++			 * the console stalls for seconds at a time, indefinitely
++			 * on a 10Mb/s link where negotiation is slower.
++			 * BMSR link status is latch-low, so read it twice.
++			 */
++			synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, phy_id,
++					PHY_STATUS_REG, &data);
++			status = synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, phy_id,
++					PHY_STATUS_REG, &data);
++			if (status || !(data & Mii_Link) || !(data & Mii_AutoNegCmplt)) {
++				status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x4, 0x1e1);
++				status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x0, 0x3100);
++				status = synopGMAC_write_phy_reg((u32 *)gmacdev->MacBase, 0, 0x0, 0x3300);
++			}
+ 			udelay(10000);
+ 
+-			printf("ETH:   SPEED:%d, DUPLEX:%d\n", gmacdev->Speed, gmacdev->DuplexMode);
++			if (!jz_eth_quiet)
++				printf("ETH:   SPEED:%d, DUPLEX:%d\n", gmacdev->Speed, gmacdev->DuplexMode);
+ 			break;
+ 		}
+ 	}
+@@ -1318,7 +1338,12 @@ s32 synopGMAC_check_phy_init(synopGMACdevice * gmacdev) {
+ 			}
+ 		}
+ 
+-		printf("ETH:   PHY Autonegotiation Complete!\n");
++		if ((data & Mii_AutoNegCmplt) != 0) {
++			if (!jz_eth_quiet)
++				printf("ETH:   PHY Autonegotiation Complete!\n");
++		} else {
++			printf("ETH:   PHY Autonegotiation did not complete\n");
++		}
+ 		status = synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase,gmacdev->PhyBase,PHY_STATUS_REG, &data);
+ 
+ 		status += synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase,gmacdev->PhyBase, 2, &id1);
+@@ -1388,6 +1413,53 @@ s32 synopGMAC_check_phy_init(synopGMACdevice * gmacdev) {
+ 				gmacdev->DuplexMode = HALFDUPLEX;
+ 				gmacdev->Speed = SPEED10;
+ 			}
++			else {
++				/*
++				 * Register 0x1f is not a link status register on
++				 * every PHY. On the part fitted to some isvp
++				 * boards (ID 0x0000:0x0128) it reads a constant
++				 * 0x0030 whether the link is up or down, so none
++				 * of the patterns above ever match and Speed and
++				 * DuplexMode keep whatever synopGMAC_search_phy()
++				 * left behind -- always 100/full, because that
++				 * function reads them back out of BMCR, the
++				 * control register it wrote a moment earlier.
++				 *
++				 * Clocking the MAC for 100Mb/s on a link that
++				 * negotiated 10Mb/s puts nothing on the wire and
++				 * every jz_send() times out with "error may
++				 * happen, need reload".
++				 *
++				 * Fall back to the IEEE 802.3 resolution: the
++				 * highest mode common to our advertisement and
++				 * the link partner's.
++				 */
++				u16 anar = 0;
++				u16 anlpar = 0;
++				u16 common;
++
++				status  = synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase,
++						gmacdev->PhyBase, PHY_AN_ADV_REG, &anar);
++				status += synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase,
++						gmacdev->PhyBase, PHY_LNK_PART_ABl_REG, &anlpar);
++				common = anar & anlpar;
++
++				if (!status && common) {
++					if (common & 0x0100) {		/* 100BASE-TX full */
++						gmacdev->DuplexMode = FULLDUPLEX;
++						gmacdev->Speed      = SPEED100;
++					} else if (common & 0x0080) {	/* 100BASE-TX half */
++						gmacdev->DuplexMode = HALFDUPLEX;
++						gmacdev->Speed      = SPEED100;
++					} else if (common & 0x0040) {	/* 10BASE-T full */
++						gmacdev->DuplexMode = FULLDUPLEX;
++						gmacdev->Speed      = SPEED10;
++					} else if (common & 0x0020) {	/* 10BASE-T half */
++						gmacdev->DuplexMode = HALFDUPLEX;
++						gmacdev->Speed      = SPEED10;
++					}
++				}
++			}
+ 
+ 		}
+ 
+@@ -1482,8 +1554,27 @@ s32 synopGMAC_check_phy_init(synopGMACdevice * gmacdev) {
+ 		}
+ 		else
+ 		{
+-			if((data & 1) == 0){
+-				TR("No Link\n");
++			/*
++			 * BMSR bit 0 is Extended Capability, not link status: it
++			 * reads 1 on essentially every PHY, so the test that was
++			 * here never detected a down link and the MAC was
++			 * configured from a link still negotiating. Link status
++			 * is bit 2 and is latch-low, so poll it with a fresh
++			 * read each time.
++			 */
++			{
++				int link_wait;
++
++				for (link_wait = 0; link_wait < 300; link_wait++) {
++					status = synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase,
++							gmacdev->PhyBase, PHY_STATUS_REG, &data);
++					if (!status && (data & Mii_Link))
++						break;
++					udelay(10000);
++				}
++			}
++			if ((data & Mii_Link) == 0) {
++				printf("ETH:   no link\n");
+ 				gmacdev->LinkState = LINKDOWN;
+ 				return -ESYNOPGMACPHYERR;
+ 			}
+@@ -1553,6 +1644,15 @@ s32 synopGMAC_check_phy_init(synopGMACdevice * gmacdev) {
+ 			gmacdev->DuplexMode = HALFDUPLEX;
+ 	}
+ 
++	/* Report what was actually resolved. The "SPEED:%d" line printed by
++	 * synopGMAC_search_phy() is read back out of BMCR and is always
++	 * 100/full, so it says nothing about the real link. */
++	if (!jz_eth_quiet)
++		printf("ETH:   link %s/%s\n",
++		       (gmacdev->Speed == SPEED1000) ? "1000M" :
++		       (gmacdev->Speed == SPEED100)  ? "100M" : "10M",
++		       (gmacdev->DuplexMode == FULLDUPLEX) ? "full" : "half");
++
+ 	TR("Link is up in %s mode\n",(gmacdev->DuplexMode == FULLDUPLEX) ? "FULL DUPLEX": "HALF DUPLEX");
+ 	if (gmacdev->Speed == SPEED1000)
+ 		TR("Link is with 1000M Speed \n");
+diff --git a/drivers/net/SynopGMAC_Dev.h b/drivers/net/SynopGMAC_Dev.h
+index 8564970..804a821 100644
+--- a/drivers/net/SynopGMAC_Dev.h
++++ b/drivers/net/SynopGMAC_Dev.h
+@@ -35,6 +35,9 @@
+ #ifndef SYNOP_GMAC_DEV_H
+ #define SYNOP_GMAC_DEV_H 1
+ 
++/* Set once the interface has come up; silences bring-up chatter. */
++extern int jz_eth_quiet;
++
+ #define ENH_DESC
+ #define ENH_DESC_8W
+ 
+-- 
+2.55.0
+

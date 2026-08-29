@@ -1,0 +1,83 @@
+From 3957d11f2b6dde09644025cf147584792844af28 Mon Sep 17 00:00:00 2001
+From: spamcop <5637111+spamcop@users.noreply.github.com>
+Date: Tue, 25 Aug 2026 16:41:48 +0200
+Subject: [PATCH] net: jz4775: report the link that actually resolved
+
+Nothing in this driver reported a trustworthy speed. The vendor status
+register is meaningless on this PHY, and the "SPEED:%d, DUPLEX:%d" line in
+synopGMAC_search_phy() only echoes back what that function had just written
+to the control register -- so it always says 100/full and contradicts the
+real link. Stop printing it.
+
+Report the resolved speed and duplex instead, with the advertisements
+behind them, so the negotiation can be checked rather than guessed:
+
+  ETH:   link 10M/full  (adv 0x01e1, partner 0x0021, common 0x0021)
+
+adv is what we advertised, partner is what the far end advertised, and
+common is the intersection the speed was resolved from. A link that comes
+up slower than expected then says why -- a switch port restricted to
+10BASE-T shows up as a partner word with only the 10M bits set.
+
+Signed-off-by: spamcop <5637111+spamcop@users.noreply.github.com>
+---
+ drivers/net/SynopGMAC_Dev.c | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/SynopGMAC_Dev.c b/drivers/net/SynopGMAC_Dev.c
+index 065b870..523c1b6 100644
+--- a/drivers/net/SynopGMAC_Dev.c
++++ b/drivers/net/SynopGMAC_Dev.c
+@@ -1190,8 +1190,14 @@ s32 synopGMAC_search_phy (synopGMACdevice * gmacdev) {
+ 			}
+ 			udelay(10000);
+ 
+-			if (!jz_eth_quiet)
+-				printf("ETH:   SPEED:%d, DUPLEX:%d\n", gmacdev->Speed, gmacdev->DuplexMode);
++			/*
++			 * Deliberately not printed. Speed and DuplexMode here
++			 * are read back out of the control register this
++			 * function just wrote, so they always say 100/full and
++			 * contradict the link line reported once the link has
++			 * actually resolved.
++			 */
++			TR("BMCR readback: SPEED:%d, DUPLEX:%d\n", gmacdev->Speed, gmacdev->DuplexMode);
+ 			break;
+ 		}
+ 	}
+@@ -1644,14 +1650,26 @@ s32 synopGMAC_check_phy_init(synopGMACdevice * gmacdev) {
+ 			gmacdev->DuplexMode = HALFDUPLEX;
+ 	}
+ 
+-	/* Report what was actually resolved. The "SPEED:%d" line printed by
+-	 * synopGMAC_search_phy() is read back out of BMCR and is always
+-	 * 100/full, so it says nothing about the real link. */
+-	if (!jz_eth_quiet)
+-		printf("ETH:   link %s/%s\n",
++	/*
++	 * Report the link that actually resolved, with the advertisements it
++	 * came from. Nothing else in this driver reports a trustworthy speed:
++	 * the vendor status register is meaningless on this PHY and the
++	 * "SPEED:%d" readback in synopGMAC_search_phy() only echoes what that
++	 * function wrote to the control register.
++	 */
++	if (!jz_eth_quiet) {
++		u16 adv = 0, lpa = 0;
++
++		synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, gmacdev->PhyBase,
++				       PHY_AN_ADV_REG, &adv);
++		synopGMAC_read_phy_reg((u32 *)gmacdev->MacBase, gmacdev->PhyBase,
++				       PHY_LNK_PART_ABl_REG, &lpa);
++		printf("ETH:   link %s/%s  (adv 0x%04x, partner 0x%04x, common 0x%04x)\n",
+ 		       (gmacdev->Speed == SPEED1000) ? "1000M" :
+ 		       (gmacdev->Speed == SPEED100)  ? "100M" : "10M",
+-		       (gmacdev->DuplexMode == FULLDUPLEX) ? "full" : "half");
++		       (gmacdev->DuplexMode == FULLDUPLEX) ? "full" : "half",
++		       adv, lpa, (u16)(adv & lpa));
++	}
+ 
+ 	TR("Link is up in %s mode\n",(gmacdev->DuplexMode == FULLDUPLEX) ? "FULL DUPLEX": "HALF DUPLEX");
+ 	if (gmacdev->Speed == SPEED1000)
+-- 
+2.55.0
+
