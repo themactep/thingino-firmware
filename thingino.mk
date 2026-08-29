@@ -64,6 +64,33 @@ export SOC_FAMILY
 export SOC_FAMILY_CAPS
 export SOC_MODEL
 export SOC_MODEL_LESS_Z
+
+# Per-device custom device tree: a single .dts in the camera profile dir
+# replaces the SoC family's stock kernel tree. The thingino-kopt linux
+# extension copies it over the family's kernel dts name before every
+# kernel build (BR2_LINUX_KERNEL_CUSTOM_DTS_DIR is unusable here: it
+# hides behind BR2_LINUX_KERNEL_DTS_SUPPORT, which uImage kernels that
+# build their own dtb never enable).
+CAMERA_DTS_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/*.dts)
+ifeq ($(SOC_FAMILY),t40)
+CAMERA_DTS_DEST = shark
+else ifeq ($(SOC_FAMILY),t41)
+CAMERA_DTS_DEST = marmot
+else ifeq ($(SOC_FAMILY),t32)
+CAMERA_DTS_DEST = goat
+else ifeq ($(SOC_FAMILY),a1)
+CAMERA_DTS_DEST = tucana
+endif
+ifneq ($(CAMERA_DTS_FILE),)
+ifneq ($(words $(CAMERA_DTS_FILE)),1)
+$(error Camera profile $(CAMERA) has more than one .dts file: $(CAMERA_DTS_FILE))
+endif
+ifeq ($(CAMERA_DTS_DEST),)
+$(error Camera profile $(CAMERA) ships a .dts but SoC family '$(SOC_FAMILY)' has no known kernel dts name)
+endif
+endif
+export CAMERA_DTS_FILE
+export CAMERA_DTS_DEST
 export SOC_RAM_MB
 export SOC_ARCH
 export SOC_TARGET_ARCH
