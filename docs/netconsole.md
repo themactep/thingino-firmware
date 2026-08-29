@@ -68,14 +68,14 @@ set that variable already:
 
     preboot=setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc
     bootdelay=5
+    ipaddr=192.168.1.10
 
 Without these in the flashed environment netconsole is compiled in but
 unreachable. The compiled-in `CONFIG_*` values are no substitute: U-Boot uses
 `default_environment` only when the saved environment is blank or CRC-invalid.
-
-`ipaddr` is not injected: `isvp_common.h` already defines
-`CONFIG_IPADDR 192.168.1.10`, which `env_default.h` emits into the default
-environment.
+A flashed camera has a valid saved environment, which fully replaces the
+default one -- so `CONFIG_IPADDR` does not fill in a missing `ipaddr`, and
+the value has to be in `uenv.txt` to reach the board.
 
 - `preboot` runs before the autoboot abort window, the only point early enough to
   redirect the console and still interrupt boot. From `bootcmd` it is too late.
@@ -84,9 +84,8 @@ environment.
   autoboot over the network from a cold power-up does not work inside the
   stock 1 second, and 5 is verified sufficient. It rides with netconsole, so
   boards without it (wifi-only) keep the stock 1s and boot as fast as before.
-- `ipaddr` must be non-zero or `NetLoop` refuses the protocol; `CONFIG_IPADDR`
-  supplies it. Output is broadcast so the value does not affect it; only
-  unicast input depends on it.
+- `ipaddr` must be non-zero or `NetLoop` refuses the protocol. Output is
+  broadcast so the value does not affect it; only unicast input depends on it.
 
 Security
 --------

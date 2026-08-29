@@ -68,8 +68,8 @@ index 546b6c1..597c3d0 100644
 + * The eth device is registered at boot without help: board_r.c calls
 + * eth_initialize() -> board_eth_init() (board/ingenic/isvp_t31/board.c) ->
 + * jz_net_initialize(). NetLoop refuses NETCONS unless `ipaddr' is non-zero
-+ * (net/net.c); CONFIG_IPADDR below supplies the default, so netconsole needs
-+ * no ipaddr injected into the environment.
++ * (net/net.c). The build injects ipaddr into the saved environment: a valid
++ * saved env fully replaces the default, so CONFIG_IPADDR does not fill it in.
 + *
 + * CONFIG_CONSOLE_MUX accepts a device list, so serial is kept as a fallback
 + * alongside the network console rather than being replaced by it:
