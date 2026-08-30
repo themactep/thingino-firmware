@@ -79,6 +79,13 @@ echo "Image:   $IMAGE"
 echo "QEMU:    ${QEMU_BIN:-<search>}"
 
 if [ "$NET" = tap ] && [ "$(id -u)" != 0 ]; then
-	exec sudo -E python3 "$SCRIPT_DIR/harness.py" "${ARGS[@]}" "$@"
+	# Runner sudo policies ignore -E, so carry the harness inputs as
+	# explicit assignments too.
+	exec sudo -E \
+		QEMU_BIN="${QEMU_BIN:-}" \
+		NPX_BIN="${NPX_BIN:-}" \
+		PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-}" \
+		SERIAL_PACE_MS="${SERIAL_PACE_MS:-}" \
+		python3 "$SCRIPT_DIR/harness.py" "${ARGS[@]}" "$@"
 fi
 exec python3 "$SCRIPT_DIR/harness.py" "${ARGS[@]}" "$@"
