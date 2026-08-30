@@ -1,0 +1,32 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Fri Aug 29 16:25:00 2026 -0400
+Subject: [PATCH] spi-flash: suppress 16MiB warning for 4-byte-addressed chips
+
+The Ingenic SFC NOR driver accesses chips larger than 16MiB natively by
+entering 4-byte address mode (EN4B/EX4B) and setting addr_size to 4 in
+the flash descriptor. The generic probe warning assumes the only way
+past 16MiB is the bank/extension address register behind
+CONFIG_SPI_FLASH_BAR, so it wrongly tells the user the upper half of a
+32MiB chip is unreachable.
+
+Only warn when the descriptor does not already advertise 4-byte
+addressing; chips probed through the Ingenic driver with addr_size == 4
+skip the warning.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mtd/spi/spi_flash.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/spi/spi_flash.c b/drivers/mtd/spi/spi_flash.c
+--- a/drivers/mtd/spi/spi_flash.c
++++ b/drivers/mtd/spi/spi_flash.c
+@@ -646,7 +646,7 @@
+ 		printf(", mapped at %p", flash->memory_map);
+ 	puts("\n");
+ #ifndef CONFIG_SPI_FLASH_BAR
+-	if (flash->size > SPI_FLASH_16MB_BOUN) {
++	if (flash->size > SPI_FLASH_16MB_BOUN && flash->addr_size < 4) {
+ 		puts("SF:    Warning! Only lower 16MiB are accessible.");
+ 		puts(" Add #define CONFIG_SPI_FLASH_BAR for full access.\n");
+ 	}
