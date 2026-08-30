@@ -1081,8 +1081,18 @@ def test_link_flap(guest, res, qmp, lab, guest_v4):
     time.sleep(3)
     res.check("link_down_datapath", not lab.ping(guest_v4),
               "host ping must fail while link is down")
-    rc, out = guest.run("cat /sys/class/net/eth0/carrier 2>&1", via="serial")
-    res.check("link_down_carrier", out.strip().endswith("0"),
+    # phylib polls the PHY every second of guest time, which can lag
+    # wall time badly on loaded runners: poll instead of one shot.
+    carrier_down = False
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        rc, out = guest.run("cat /sys/class/net/eth0/carrier 2>&1",
+                            via="serial")
+        if out.strip().endswith("0"):
+            carrier_down = True
+            break
+        time.sleep(2)
+    res.check("link_down_carrier", carrier_down,
               "carrier must drop with the link")
 
     qmp.set_link("n0", True)

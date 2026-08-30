@@ -244,6 +244,11 @@ jobs:
           cd scripts/qemu-test
           ./run.sh ${{ matrix.profile }}
 
+      - name: Fix report ownership after sudo tap run
+        if: always()
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" output/*/qemu-test-reports 2>/dev/null || true
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v7.0.0
