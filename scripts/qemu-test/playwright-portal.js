@@ -106,3 +106,25 @@ test.describe('Main Web UI', () => {
     expect(html).toContain('<!DOCTYPE');
   });
 });
+
+test.describe('WebUI Login', () => {
+  const WEBUI_URL = process.env.WEBUI_URL || 'http://localhost:19081';
+
+  test('provisioned password opens the web UI', async ({ page }) => {
+    test.skip(process.env.WEBUI_LOGIN !== '1', 'Login test not requested');
+    test.setTimeout(60000);
+
+    // Unauthenticated / redirects to the login form
+    await page.goto(WEBUI_URL + '/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForSelector('#password', { timeout: 10000 });
+    await page.screenshot({ path: path.join(REPORT_DIR, '20-webui-login.png'), fullPage: true });
+
+    await page.fill('#password', process.env.WEBUI_PASS || 'root');
+    await page.click('#loginBtn');
+
+    // A non-default password lands on the preview page
+    await page.waitForURL('**/preview.html', { timeout: 20000 });
+    await page.waitForLoadState('domcontentloaded');
+    await page.screenshot({ path: path.join(REPORT_DIR, '21-webui-logged-in.png'), fullPage: true });
+  });
+});

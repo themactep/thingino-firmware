@@ -651,6 +651,44 @@ def test_provision_reboot_sta(ser, guest, res, report_dir, qmp=None,
     if qmp:
         qmp.set_link("n0", True)
 
+    # The provisioned password must open the web UI. Re-bridge eth0 for
+    # the slirp forward and drive the login form, capturing the login
+    # screen and the logged-in page for the report.
+    import urllib.request
+    time.sleep(2)
+    # Static bridge config: a fresh DHCP exchange after the reboot gets
+    # the next slirp address, but the host forwards point at the slirp
+    # default (10.0.2.15).
+    guest.run("ip link set eth0 up", timeout=8)
+    guest.run("ip addr flush dev eth0; ip addr add 10.0.2.15/24 dev eth0; "
+              "ip route add default via 10.0.2.2 2>/dev/null; true",
+              timeout=10)
+    # The MAC is regenerated every boot; one ping refreshes slirp's ARP
+    # entry for 10.0.2.15, which otherwise points the host forwards at
+    # the previous boot's MAC until it expires.
+    guest.run("ping -c 1 -W 2 10.0.2.2", timeout=10)
+    webui_up = False
+    deadline = time.time() + 45
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(
+                f"http://localhost:{WEBUI_PORT + 1}/", timeout=3)
+            webui_up = True
+            break
+        except Exception:
+            time.sleep(2)
+    res.check("webui_up_after_reboot", webui_up)
+    if webui_up:
+        run_playwright(res, report_dir, "webui-login", {
+            "WEBUI_URL": f"http://localhost:{WEBUI_PORT + 1}",
+            "WEBUI_PORT": str(WEBUI_PORT + 1),
+            "WEBUI_LOGIN": "1",
+            "WEBUI_PASS": "TestPass1",
+            "SKIP_PORTAL": "1",
+            "SKIP_WEBUI": "1",
+            "SKIP_PROVISION": "1",
+        }, check_name="webui_login_screens")
+
 
 def test_host_portal_access(res):
     import urllib.request
@@ -1177,7 +1215,8 @@ def collect_artifacts(guest, report_dir):
             pass
 
 
-def run_playwright(res, report_dir, mode, urls, timeout=120):
+def run_playwright(res, report_dir, mode, urls, timeout=120,
+                  check_name="playwright_tests"):
     print("\n── Playwright ──")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     env = os.environ.copy()
@@ -1201,7 +1240,7 @@ def run_playwright(res, report_dir, mode, urls, timeout=120):
     print(pw.stdout)
     if pw.stderr:
         print(pw.stderr[:500])
-    res.check("playwright_tests", pw.returncode == 0, f"exit {pw.returncode}")
+    res.check(check_name, pw.returncode == 0, f"exit {pw.returncode}")
     return pw.returncode == 0
 
 
