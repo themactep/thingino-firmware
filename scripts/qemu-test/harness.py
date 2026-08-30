@@ -288,7 +288,6 @@ class Guest:
 def find_qemu():
     candidates = [
         os.environ.get("QEMU_BIN", ""),
-        os.path.expanduser("~/projects/thingino/qemu-project/qemu/build/qemu-system-mipsel"),
         shutil.which("qemu-system-mipsel") or "",
     ]
     for c in candidates:
