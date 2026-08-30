@@ -1,0 +1,37 @@
+From ff247080589c1c94d1112698b9cfd73bcc1218f7 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sat, 30 Aug 2026 03:23:21 -0400
+Subject: [PATCH] isvp: move SPI NOR env offset to 0x50000
+
+The 320K boot-partition change (U_BOOT_SIZE_KB 256 -> 320) moved the env
+partition to 0x50000 everywhere except here. The 2013.07 tree is built via
+the LEGACY build system, which ignores configs/uboot/layout/sfcnor.config
+entirely -- BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES is forced unset by
+configs/fragments/uboot/v2013-07.fragment, and Buildroot only consumes that
+fragment list under the Kconfig build system. So the fragment bump never
+reached this bootloader: it still read and wrote its env at the old 0x40000,
+which now lies inside the 320K boot region.
+
+saveenv therefore wrote into the boot partition rather than the env
+partition, and env persistence was silently broken (a blank NOR fell back to
+the baked-in default env, which is why netconsole settings still appeared to
+work). Point the SPI NOR backend at 0x50000 to match the firmware layout.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ include/configs/isvp_common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/configs/isvp_common.h b/include/configs/isvp_common.h
+index b3b5407f..ff247080 100644
+--- a/include/configs/isvp_common.h
++++ b/include/configs/isvp_common.h
+@@ -613,7 +613,7 @@
+ #define CONFIG_ENV_SIZE			(32 << 10)
+ #define CONFIG_ENV_OFFSET		(CONFIG_SYS_MONITOR_LEN + CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR * 512)
+ #elif defined(CONFIG_ENV_IS_IN_SPI_FLASH)
+-#define CONFIG_ENV_OFFSET		0x40000
++#define CONFIG_ENV_OFFSET		0x50000
+ #define CONFIG_ENV_SIZE			0x8000
+ #define CONFIG_ENV_SECT_SIZE		0x8000
+ #else
