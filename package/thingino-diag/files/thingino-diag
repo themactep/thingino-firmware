@@ -48,6 +48,17 @@ infocat() {
 	cat "$1"
 }
 
+# Redact sensitive string values from a pretty-printed JSON dump. Keys are
+# matched by exact quoted name so nested objects and array members are covered.
+# Invoked indirectly via eval in inforun, so shellcheck cannot see the call.
+# shellcheck disable=SC2329
+redact_json() {
+	sed -E \
+		-e 's/^([[:space:]]*"(password|passphrase|psk|peerpsk|privkey|token|secret|key|private_key|preshared_key|community|username)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/' \
+		-e 's/^([[:space:]]*"(email|discord|telegram|name|contact)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/' \
+		-e 's/^([[:space:]]*"(mac|host|listen|endpoint|peerpub|auth_bypass_ips|nfs_share|address|allowed|dns)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/'
+}
+
 # Per-command watchdog. Commands that talk to the IMP/ISP layer
 # (libimp-debug, sensor, lsusb) or wireless tools can block
 # indefinitely when the underlying daemon or hardware is wedged;
@@ -189,7 +200,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	header "ENV"
 	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlan_ssid|wlan_mac|wlan_pass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
-	inforun "jct /etc/thingino.json print" "thingino.json"
+	inforun "jct /etc/thingino.json print | redact_json" "thingino.json"
 
 	infocat "/proc/cmdline" "CMDLINE"
 	inforun "gpio list" "GPIO"
