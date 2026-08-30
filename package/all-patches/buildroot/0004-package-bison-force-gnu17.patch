@@ -1,0 +1,16 @@
+diff --git a/package/bison/bison.mk b/package/bison/bison.mk
+index 27038de674..0110a3d29a 100644
+--- a/package/bison/bison.mk
++++ b/package/bison/bison.mk
+@@ -14,6 +14,10 @@ BISON_CPE_ID_VENDOR = gnu
+ BISON_MAKE = $(MAKE1)
+ HOST_BISON_DEPENDENCIES = host-m4
+ HOST_BISON_CONF_OPTS = --enable-relocatable
+-HOST_BISON_CONF_ENV = ac_cv_libtextstyle=no
++# gcc-15 defaults to -std=gnu23 which breaks the bundled gnulib configure
++# checks (bool/false/true became keywords in C23). Force the previous default.
++HOST_BISON_CONF_ENV = \
++	ac_cv_libtextstyle=no \
++	CFLAGS="$(HOST_CFLAGS) -std=gnu17"
+ 
+ $(eval $(host-autotools-package))
