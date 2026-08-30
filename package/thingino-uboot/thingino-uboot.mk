@@ -130,6 +130,14 @@ define THINGINO_GENERATE_UBOOT_ENV
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
+# The 2013.07 header hardcodes CONFIG_ENV_OFFSET 0x40000 for SFC-NOR, which
+# only matches a 256k boot partition. U_BOOT_SIZE_KB drives the actual boot
+# size (and thus the env partition offset) in the generated mtdparts, so a
+# larger boot region leaves the bootloader reading/writing its env at the
+# wrong offset -- inside the boot partition, not the env partition. Rewrite
+# CONFIG_ENV_OFFSET to U_BOOT_PARTITION_SIZE so it always tracks the boot
+# size. (Kconfig fragments cannot reach this legacy header; the 2026.07 tree
+# gets its env offset from configs/uboot/layout/sfcnor.config instead.)
 define THINGINO_PATCH_DEV_ENV
 	@if [ -f $(@D)/include/configs/isvp_common.h ] && [ -f $(THINGINO_BINARIES_DIR)/uImage ] && [ -f $(THINGINO_BINARIES_DIR)/rootfs.squashfs ]; then \
 		KERNEL_OFFSET=$$(( $(U_BOOT_PARTITION_SIZE) + $(UB_ENV_PARTITION_SIZE) + $(BACKUP_PARTITION_SIZE) )); \
@@ -144,6 +152,7 @@ define THINGINO_PATCH_DEV_ENV
 		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
+		sed -i "s|^\(#define CONFIG_ENV_OFFSET[ \t]*\)0x40000|\1$(U_BOOT_PARTITION_SIZE)|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \
 			$(@D)/include/configs/isvp_common.h; \
 	fi
