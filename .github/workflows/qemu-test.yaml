@@ -23,15 +23,30 @@ env:
   TZ: UTC
 
 jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate profile matrix
+        id: set-matrix
+        run: |
+          JSON="{\"profile\": ["
+          for P in ${{ github.event.inputs.profiles }}; do
+            JSON+="\"$P\","
+          done
+          JSON="${JSON%,}]}"
+          echo "Matrix: $JSON"
+          echo "matrix=$JSON" >> $GITHUB_OUTPUT
+
   build:
     name: build ${{ matrix.profile }}
-    if: contains(github.event.inputs.profiles, matrix.profile)
+    needs: plan
     runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     timeout-minutes: 300
     strategy:
       fail-fast: false
-      matrix:
-        profile: [qemu_t31x, qemu_t31x_eth, qemu_t31x_ethwifi]
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     defaults:
       run:
         shell: bash
@@ -168,14 +183,13 @@ jobs:
 
   test:
     name: test ${{ matrix.profile }}
-    needs: build
-    if: ${{ !cancelled() && contains(github.event.inputs.profiles, matrix.profile) }}
+    needs: [plan, build]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        profile: [qemu_t31x, qemu_t31x_eth, qemu_t31x_ethwifi]
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
     steps:
