@@ -7,6 +7,14 @@ on:
         description: 'Space-separated test profiles to build and run'
         required: false
         default: 'qemu_t31x qemu_t31x_eth qemu_t31x_ethwifi'
+      runner_arch:
+        type: choice
+        description: 'Build worker architecture'
+        required: false
+        default: 'arm64'
+        options:
+          - arm64
+          - x86_64
 
 env:
   BR2_DL_DIR: ~/dl
@@ -16,7 +24,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-26.04
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
     timeout-minutes: 300
     defaults:
       run:
