@@ -43,10 +43,10 @@ Enabling it
 
 Off by default; opt in per camera. Set
 `BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE=y` in the camera defconfig (it depends
-on wired Ethernet and the 2013.07 U-Boot). That passes `CONFIG_NETCONSOLE=y`
-into the U-Boot build and injects the environment below; every camera that
-does not opt in builds a byte-identical stock bootloader with the stock 1s
-bootdelay.
+on the 2013.07 U-Boot and on the board having either wired Ethernet or a USB
+OTG data port). That passes `CONFIG_NETCONSOLE=y` into the U-Boot build and
+injects the environment below; every camera that does not opt in builds a
+byte-identical stock bootloader with the stock 1s bootdelay.
 `package/all-patches/uboot/2013.07/0006-isvp-enable-NetConsole-behind-a-build-system-guard.patch`
 carries the U-Boot side, guarded by that flag; the driver and its hooks were
 already in the tree.
@@ -86,6 +86,38 @@ the value has to be in `uenv.txt` to reach the board.
   boards without it (wifi-only) keep the stock 1s and boot as fast as before.
 - `ipaddr` must be non-zero or `NetLoop` refuses the protocol. Output is
   broadcast so the value does not affect it; only unicast input depends on it.
+
+USB-Ethernet boards
+-------------------
+
+On a board with no on-chip Ethernet but a USB OTG data port
+(`BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG`), netconsole runs over a USB-Ethernet
+dongle. Nothing extra is compiled: `isvp_common.h` already builds the DWC2
+host controller and the ASIX host-Ethernet drivers on every board but T31LC,
+and `board_usb_init()` puts the OTG in host mode. The injected preboot just
+brings the bus up and selects the dongle before redirecting the console:
+
+    preboot=usb start;setenv ethact ${nc_ethact};setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc
+    nc_ethact=asx0
+
+`usb start` enumerates the dongle and registers it as an Ethernet device;
+`ethact` makes it the active device, because the on-chip MAC is still
+registered as device 0 and would otherwise take the traffic. The default
+`nc_ethact=asx0` matches an ASIX AX88772 dongle; for an AX88179 set
+`fw_setenv nc_ethact axg0` (the name comes from the driver: `asx` in
+`drivers/usb/eth/asix.c`, `axg` in `asix88179.c`).
+
+Because `usb start` runs inside preboot, enumeration and link-up finish
+before the autoboot countdown begins, so `bootdelay` only has to overlap a
+keypress from the client and needs no extra margin for USB. Measured on a
+Wyze Cam v3 (T31X) with an AX88772C: the prompt was caught on every boot at
+`bootdelay` 2 and above, and 5 of 6 at 1. The shipped 5 leaves room for a
+cold power-up, which those measurements did not cover.
+
+Cable the dongle to the same segment as the host running `tools/netconsole`;
+from there it behaves exactly like a wired board. To check the selection
+took effect, `printenv ethact` at the prompt should report the dongle
+(`asx0`), not the on-chip MAC.
 
 Security
 --------

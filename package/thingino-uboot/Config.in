@@ -26,13 +26,19 @@ config BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
 
 config BR2_PACKAGE_THINGINO_UBOOT_NETCONSOLE
 	bool "Enable NetConsole (U-Boot console over UDP)"
-	depends on BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
+	depends on BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE || BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	depends on BR2_THINGINO_UBOOT_VERSION_2013_07
 	help
 	  Build the bootloader with NetConsole and redirect the console to
 	  it (stdout/stderr/stdin = serial,nc) so U-Boot can be driven over
 	  UDP on a board with no serial port. Also raises bootdelay to 5s so
 	  the autoboot window can be interrupted over the network.
+
+	  Works over the on-chip Ethernet (BR2_ETHERNET boards) or, on boards
+	  with only a USB OTG data port, over a USB-Ethernet dongle: the
+	  injected preboot runs `usb start` and points `ethact` at the dongle
+	  before redirecting the console. The default dongle name is asx0
+	  (ASIX AX88772); for an AX88179 set `fw_setenv nc_ethact axg0`.
 
 	  SECURITY: with ncip unset the board accepts console input from any
 	  host on the L2 segment, so anyone on the subnet can interrupt boot
