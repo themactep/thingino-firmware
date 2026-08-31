@@ -2,7 +2,7 @@
 # shellcheck disable=SC2068,SC2086,SC2154,SC3043
 
 DAEMON="/usr/bin/motors-daemon"
-DAEMON_ARGS="-d -p"
+DAEMON_ARGS="-p"
 PIDFILE="/run/motors-daemon.pid"
 
 ensure_command() {
