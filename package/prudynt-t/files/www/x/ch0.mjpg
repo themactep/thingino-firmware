@@ -30,5 +30,6 @@ printf "Content-Type: multipart/x-mixed-replace; boundary=%s\r\n\r\n" "$BOUNDARY
 
 ARGS="-c 0 -f $FPS -b $BOUNDARY"
 [ -n "$Q" ] && ARGS="$ARGS -q $Q"
-[ -n "$W" ] && [ -n "$H" ] && ARGS="$ARGS -w $W -h $H"
+[ -n "$W" ] && ARGS="$ARGS -w $W"
+[ -n "$H" ] && ARGS="$ARGS -h $H"
 exec prudyntctl mjpeg $ARGS

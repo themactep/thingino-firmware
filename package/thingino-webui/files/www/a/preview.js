@@ -547,7 +547,30 @@ loadInitialData().then(async () => {
   // Get stream from data-stream attribute, default to ch0 if not specified
   const preview = $("#preview");
   const streamChannel = preview?.dataset?.stream || "ch0";
-  const streamUrl = `/x/${streamChannel}.mjpg`;
+  const previewQuality = 60;
+
+  // Request a frame no wider than the on-screen preview element. The daemon
+  // derives the height from the source aspect ratio, so only width is sent.
+  function computePreviewStreamWidth(img) {
+    const width = img && img.clientWidth ? img.clientWidth : 0;
+    if (!width || width < 16) return 0;
+    let w = Math.floor(width / 16) * 16;
+    if (w < 16) w = 16;
+    return w;
+  }
+
+  function buildPreviewStreamUrl(channel, img, cacheBust) {
+    const parts = [];
+    const w = computePreviewStreamWidth(img);
+    if (w) {
+      parts.push(`w=${w}`);
+    }
+    parts.push(`q=${previewQuality}`);
+    if (cacheBust) {
+      parts.push(`_=${new Date().getTime()}`);
+    }
+    return `/x/${channel}.mjpg?${parts.join("&")}`;
+  }
 
   // Preview
   const timeout = 15000;
@@ -567,7 +590,7 @@ loadInitialData().then(async () => {
       focusTimeoutId = null;
     }
     if (isWindowVisible) {
-      preview.src = streamUrl;
+      preview.src = buildPreviewStreamUrl(streamChannel, preview, false);
       lastLoadTime = Date.now();
       nextRestartAt = 0;
     }
@@ -623,7 +646,7 @@ loadInitialData().then(async () => {
       now >= nextRestartAt
     ) {
       // Restart stream
-      preview.src = preview.src.split("?")[0] + "?" + new Date().getTime();
+      preview.src = buildPreviewStreamUrl(streamChannel, preview, true);
       lastLoadTime = now;
       nextRestartAt = now + restartBackoffMs;
       restartBackoffMs = Math.min(restartBackoffMs * 2, restartBackoffMaxMs);
@@ -675,8 +698,13 @@ loadInitialData().then(async () => {
       // Stop the small preview and suppress watchdog restarts
       isModalOpen = true;
       preview.src = ImageNoStream;
-      // Load main stream (ch0) in full-screen modal
-      previewFullsize.src = "/x/ch0.mjpg?" + new Date().getTime();
+      // Load main stream (ch0) in full-screen modal. The modal is not laid
+      // out yet at "show" time, so fall back to the viewport width.
+      const modalWidth = previewFullsize.clientWidth || window.innerWidth || 0;
+      const modalW = modalWidth >= 16 ? Math.floor(modalWidth / 16) * 16 : 0;
+      const modalParts = [`q=${previewQuality}`, `_=${new Date().getTime()}`];
+      if (modalW) modalParts.unshift(`w=${modalW}`);
+      previewFullsize.src = `/x/ch0.mjpg?${modalParts.join("&")}`;
       // Apply SEI rotation to full-screen image
       fetch("/x/json-osd-sei.cgi")
         .then(function (r) {
@@ -697,8 +725,7 @@ loadInitialData().then(async () => {
       isModalOpen = false;
       // Restart the small preview
       if (savedPreviewSrc && isWindowVisible) {
-        preview.src =
-          savedPreviewSrc.split("?")[0] + "?" + new Date().getTime();
+        preview.src = buildPreviewStreamUrl(streamChannel, preview, true);
         lastLoadTime = Date.now();
       }
     });
