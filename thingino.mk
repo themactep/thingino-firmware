@@ -99,70 +99,38 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# default to older kernel if none set
-ifeq ($(KERNEL_VERSION),)
-	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.1-rc1
-	else ifeq ($(KERNEL_VERSION_4),y)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t41)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t40)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),a1)
-		KERNEL_VERSION := 4.4.94
-	else
-		KERNEL_VERSION := 3.10.14
-	endif
+# What the defconfig asked for, if anything. No guard on KERNEL_VERSION being
+# empty: a value given on the command line already wins over any assignment in a
+# makefile, so guarding only ever protected an environment variable, which
+# nothing sets.
+ifeq ($(KERNEL_VERSION_7),y)
+KERNEL_VERSION := 7.1-rc1
+else ifeq ($(KERNEL_VERSION_4),y)
+KERNEL_VERSION := 4.4.94
 endif
 
-KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+# Which kernels a vendor's SoCs run: fills in the version when the defconfig
+# named none, and names the branch. Absent for a vendor that names its kernel
+# through Buildroot symbols instead, which is why this include may find nothing.
+-include $(BR2_EXTERNAL)/kernels/$(SOC_VENDOR).mk
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
-	KERNEL_BRANCH := ingenic-7.1-rc1
-else ifeq ($(SOC_FAMILY),a1)
-	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(SOC_FAMILY),c100)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t41)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t41-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t41-3.10.14
-	endif
-else ifeq ($(SOC_FAMILY),t40)
-	KERNEL_BRANCH := ingenic-t40
-else ifeq ($(SOC_FAMILY),t31)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t32)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t32-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t32
-	endif
-else ifeq ($(SOC_FAMILY),t23)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else
-	KERNEL_BRANCH := ingenic-t31
+# A vendor that names its kernel through Buildroot symbols instead sets no
+# KERNEL_SITE, and there is nothing here to resolve -- without this the
+# ls-remote below would run on every make for a value it never reads.
+ifneq ($(KERNEL_SITE),)
+
+# A combination the vendor's file names no branch for is an error rather than a
+# fallback, because carrying another version's branch builds a kernel that
+# disagrees with the version everything else was told.
+ifeq ($(KERNEL_BRANCH),)
+$(error SoC family '$(SOC_FAMILY)' does not run kernel '$(KERNEL_VERSION)')
 endif
 
 ifeq ($(KERNEL_HASH),)
-	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
+KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+endif
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
@@ -553,30 +521,11 @@ else
 	UBOOT_DEFCONFIG := $(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
 endif
 
-ifeq ($(SOC_MODEL),t10l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t10l.config
-else ifeq ($(SOC_MODEL),t20l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20l.config
-else ifeq ($(SOC_MODEL),t20x)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20x.config
-else ifeq ($(SOC_MODEL),t23dl)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t23dl.config
-else ifeq ($(SOC_MODEL),t30x)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t30x.config
-else ifeq ($(SOC_MODEL),t31a)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31a.config
-else ifeq ($(SOC_MODEL),t31al)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31al.config
-else ifeq ($(SOC_MODEL),t31l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31l.config
-else ifeq ($(SOC_MODEL),t31lc)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31lc.config
-else ifneq ($(filter t31x t31zx,$(SOC_MODEL)),)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31x.config
-else ifeq ($(SOC_MODEL),c100)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/c100.config
-else ifeq ($(SOC_MODEL),t32nq)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t32nq.config
+# Only some models need one, and the file is almost always named after the
+# model -- t31zx sharing t31x's is the exception, which is why the family file
+# names the fragment rather than this deriving it from SOC_MODEL.
+ifneq ($(SOC_UBOOT_VARIANT),)
+UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/$(SOC_UBOOT_VARIANT).config
 endif
 
 # NAND keeps the U-Boot env in a UBI volume, NOT a raw flash offset, so it needs
