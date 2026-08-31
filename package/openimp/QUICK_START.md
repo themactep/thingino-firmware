@@ -36,6 +36,13 @@ make your_defconfig
 make
 ```
 
+For the experimental T31 public V4L2 capture path, also enable:
+
+```text
+BR2_PACKAGE_OPENIMP_USE_V4L2=y
+BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y
+```
+
 ### Option 3: Quick command
 ```bash
 # Enable in current config

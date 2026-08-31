@@ -24,3 +24,16 @@ config BR2_PACKAGE_OPENIMP
 	  and some optional OSD/IVS entry points are not yet complete.
 
 	  https://github.com/opensensor/openimp
+
+config BR2_PACKAGE_OPENIMP_USE_V4L2
+	bool "Use the T31 V4L2 capture backend"
+	depends on BR2_PACKAGE_OPENIMP
+	depends on BR2_SOC_FAMILY = "t31"
+	depends on KERNEL_VERSION_3
+	help
+	  Build the public open-tx-isp capture adapter and Raptor's
+	  V4L2-to-OpenIMP AVC bridge. The adapter exposes the ISP frame
+	  channel as /dev/video0 and OpenIMP encodes its NV12 frames.
+
+	  This path is experimental and currently limited to T31 on the
+	  vendor Linux 3.10.14 kernel.
