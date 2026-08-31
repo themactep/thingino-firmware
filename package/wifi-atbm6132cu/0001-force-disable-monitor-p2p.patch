@@ -1,0 +1,22 @@
+--- a/Makefile.build
++++ b/Makefile.build
+@@ -29,3 +29,3 @@
+ BRIDGE=n
+-MONITOR=y
++MONITOR=n
+ EARLYSUSPEND=n
+@@ -42,6 +42,6 @@
+ SWRATECTRL=n
+-P2PENABLE=y
++P2PENABLE=n
+ SWENC=n
+ CUSTORMSPECIAL=y
+-NEED_SCOND_INTERFACE=y
++NEED_SCOND_INTERFACE=n
+ BASETUP=n
+--- a/hal_apollo/Makefile
++++ b/hal_apollo/Makefile
+@@ -158,1 +158,1 @@
+-P2PENABLE = y
++P2PENABLE = n
+EOF
