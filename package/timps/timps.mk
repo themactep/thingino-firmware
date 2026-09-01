@@ -257,6 +257,16 @@ define TIMPS_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
+	# When timps is built with TLS AND the WebUI's own uhttpd also has TLS
+	# active, ship http.https already enabled - S95timps's ensure_tls_certs()
+	# only links the shared cert pair when it sees this already set, so
+	# leaving it commented meant every TLS+WebUI image needed a manual
+	# post-flash edit before HTTPS actually worked.
+	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
+		$(SED) 's|^# http.https .*|http.https    = 1                       # serve the HTTP port over TLS|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
 		$(TARGET_DIR)/etc/init.d/S95timps
