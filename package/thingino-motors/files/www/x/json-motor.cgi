@@ -76,58 +76,49 @@ json_escape() {
 # report a position that was already stale by the time it was read (the move
 # is asynchronous; the daemon has not finished it when the status is sampled).
 #
-# Live control now runs over motors-daemon's WebSocket where position arrives
-# as a server push, and the CGI path that remains is a fallback whose caller
-# (preview-motors.js) only ever console.log()s the echo. Callers that actually
-# want a position ask for one explicitly with d=j.
+# preview-motors.js tracks position client-side from the moves it issues and
+# only ever console.log()s this echo, so dropping it costs nothing there.
+# Callers that actually want a fresh position ask for one explicitly with d=j.
 motion_ok() {
 	json_ok "$1"
 }
 
 case "$d" in
 	g)
-		# Relative jog. Kept: this is the CGI fallback for the joystick when
-		# the WebSocket listener is off or unreachable, so it has to work.
+		# Relative jog - the joystick's per-step move.
 		motors -d g -x "$x" -y "$y" >/dev/null
 		motion_ok "moved"
 		;;
 	r)
-		# Homing / recalibration. Kept, and deliberately not moved to the
-		# WebSocket: it is a one-shot maintenance action, not a gesture, and
-		# it runs for tens of seconds - nothing about it benefits from a
-		# persistent socket.
+		# Homing / recalibration - a one-shot maintenance action, not a hold
+		# gesture, and it runs for tens of seconds.
 		motors -r >/dev/null
 		motion_ok "homing"
 		;;
 	h | x)
-		# Absolute move. Kept: used for centring and for the reposition that
-		# follows homing, and it is how ptz_presets-style jumps are issued
-		# from the page. Not a hold gesture, so the WebSocket buys it nothing.
+		# Absolute move - used for centring, the reposition after homing, and
+		# preset jumps issued from the page.
 		motors -d h -x "$x" -y "$y" >/dev/null
 		motion_ok "moved"
 		;;
 	s)
-		# Stop. Kept, and now more load-bearing than before: it is what the
-		# page falls back to when a socket dies mid-hold with the camera still
-		# panning toward its limit.
+		# Stop - halts an in-progress move; the page's release handler for a
+		# held direction.
 		motors -d s >/dev/null
 		motion_ok "stopped"
 		;;
 	b)
-		# Goback. Kept: MOTOR_GOBACK is a distinct driver operation that the
-		# WebSocket protocol deliberately does not expose, so nothing about
-		# the new path makes it redundant. It has no caller in this tree
-		# today, but removing it would be an unrelated dead-code change, not
-		# part of this migration.
+		# Goback - a distinct driver operation (MOTOR_GOBACK). No caller in
+		# this tree today; kept since removing it would be an unrelated
+		# dead-code change.
 		motors -d b >/dev/null
 		motion_ok "goback"
 		;;
 	j)
-		# Explicit one-shot status. Kept, and NOT redundant: config-motors.js
-		# calls it from the settings page's "capture current position" button,
-		# which has no WebSocket open and no reason to open one for a single
-		# read. (The 'i' case that sat next to it - `motors -i`, an initial-
-		# position echo - had no caller anywhere in this tree and is gone.)
+		# Explicit one-shot status - config-motors.js calls it from the
+		# settings page's "capture current position" button. (The 'i' case
+		# that sat next to it - `motors -i`, an initial-position echo - had
+		# no caller anywhere in this tree and is gone.)
 		payload=$(motors -j 2>/dev/null) || json_error "motors-status-failed"
 		json_ok "$payload"
 		;;
