@@ -50,7 +50,7 @@
     "send_video": false
   },
   "mqtt": {
-  "host": "",
+    "host": "",
     "port": 1883,
     "use_ssl": false,
     "tls_skip_verify": false,
