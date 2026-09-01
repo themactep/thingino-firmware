@@ -16,19 +16,12 @@ THINGINO_MOTORS_LICENSE_FILES = LICENSE
 
 THINGINO_MOTORS_DEPENDENCIES += thingino-jct
 
-# Same purpose as timps's -DMS_VERSION: `motors --version` and the "version"
-# key in `motors -j` answer "which build is this camera actually running",
-# which is the only way to catch a stale flash from the outside. The pinned
-# commit hash is the version in both the fork and the upstream case - snapshot
-# it with := here, because $(eval $(generic-package)) below rewrites
-# THINGINO_MOTORS_VERSION to the literal "custom" whenever an OVERRIDE_SRCDIR
-# is set (local.mk sets one for this package), which would otherwise be the
-# only version any local dev build ever reports.
+# `motors --version` and the "version" key in `motors -j` answer "which build
+# is this camera actually running" - snapshot with := here, because
+# $(eval $(generic-package)) below rewrites THINGINO_MOTORS_VERSION to the
+# literal "custom" whenever an OVERRIDE_SRCDIR is set.
 THINGINO_MOTORS_PINNED_VERSION := $(THINGINO_MOTORS_VERSION)
 ifneq ($(call qstrip,$(THINGINO_MOTORS_OVERRIDE_SRCDIR)),)
-# Buildroot rsyncs the override dir in with --exclude .git, so the describe has
-# to happen against the source checkout here, at parse time. Same reasoning as
-# timps.mk's TIMPS_GIT_DESCRIBE.
 THINGINO_MOTORS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(THINGINO_MOTORS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
 endif
 ifneq ($(THINGINO_MOTORS_GIT_DESCRIBE),)
@@ -64,17 +57,6 @@ THINGINO_MOTORS_DAEMON_SRCS += $(@D)/src/ws_tls.c
 THINGINO_MOTORS_DAEMON_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
 THINGINO_MOTORS_DAEMON_DEFS += -DMOTORS_WS_TLS
 endif
-
-# Token CGI for the browser, and flip the manifest's featureFlags so the
-# WebUI knows WS is actually compiled in.
-define THINGINO_MOTORS_INSTALL_WS_CMDS
-	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor-token.cgi \
-		$(TARGET_DIR)/var/www/x/json-motor-token.cgi
-
-	$(SED) 's/"motorsWs": false/"motorsWs": true/' \
-		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-	grep -q '"motorsWs": true' $(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-endef
 endif
 
 define THINGINO_MOTORS_INSTALL_JSON_CMDS
@@ -109,29 +91,19 @@ define THINGINO_MOTORS_INSTALL_WWW_CMDS
 		$(TARGET_DIR)/var/www/a/preview-motors.js
 	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/a/preview-motors-settings.js \
 		$(TARGET_DIR)/var/www/a/preview-motors-settings.js
-	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/www/a/preview-motors.css \
-		$(TARGET_DIR)/var/www/a/preview-motors.css
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor.cgi \
 		$(TARGET_DIR)/var/www/x/json-motor.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor-params.cgi \
 		$(TARGET_DIR)/var/www/x/json-motor-params.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motor-stream.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-stream.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/www/x/json-motors-config.cgi \
 		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
 
 	# Install plugin manifest for build-time assembly by thingino-webui
 	$(INSTALL) -D -m 0644 $(THINGINO_MOTORS_PKGDIR)/files/motors.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-
-	$(THINGINO_MOTORS_INSTALL_WS_CMDS)
 endef
-
-# Drop the retired json-motor-stream.cgi. Must be a TARGET_FINALIZE hook,
-# not an rm above: under PER_PACKAGE_DIRECTORIES an rm there only touches
-# this package's own target copy, not the merged tree.
-define THINGINO_MOTORS_PURGE_DEAD_WWW
-	rm -f $(TARGET_DIR)/var/www/x/json-motor-stream.cgi
-endef
-TARGET_FINALIZE_HOOKS += THINGINO_MOTORS_PURGE_DEAD_WWW
 endif
 
 # -ffunction-sections/-fdata-sections + --gc-sections: per-function dead-code

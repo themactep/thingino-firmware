@@ -19,7 +19,6 @@
     ? submitLabel.textContent
     : "Save motors";
   const typeBadge = $("#motors-type-badge");
-  const versionBadge = $("#motors-version-badge");
   let initialLoadComplete = false;
   let motorIsSpi = false;
 
@@ -38,7 +37,7 @@
   }
 
   function normalizePreviewControlMode(value) {
-    return value === "continuous" || value === "joystick" ? value : "step";
+    return value === "continuous" ? "continuous" : "step";
   }
 
   function updateMotionDriverInputs() {
@@ -74,19 +73,6 @@
           "Legacy mode active: acceleration values are ignored and saved as 0.";
       }
     }
-  }
-
-  function updateJoystickSensitivityInputs() {
-    const modeEl = $("#preview_control_mode");
-    const wrap = $("#joystick-sensitivity-field");
-    const slider = $("#joystick_sensitivity");
-    const valueLabel = $("#joystick_sensitivity-value");
-    if (!modeEl || !wrap) return;
-
-    const isJoystick = normalizePreviewControlMode(modeEl.value) === "joystick";
-    wrap.classList.toggle("opacity-50", !isJoystick);
-    if (slider) slider.disabled = !isJoystick;
-    if (valueLabel && slider) valueLabel.textContent = slider.value;
   }
 
   function showAlert(variant, message, timeout = 6000) {
@@ -193,15 +179,6 @@
         config.preview_control_mode,
       );
     }
-    const joystickSensitivityEl = $("#joystick_sensitivity");
-    if (joystickSensitivityEl) {
-      const parsed = parseFloat(config.joystick_sensitivity);
-      joystickSensitivityEl.value =
-        Number.isFinite(parsed) && parsed >= 0.05 && parsed <= 4
-          ? parsed
-          : 2;
-    }
-    updateJoystickSensitivityInputs();
     const homingEl = $("#homing");
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
@@ -345,25 +322,13 @@
     }
 
     const previewControlMode = formData.get("preview_control_mode");
-    if (normalizePreviewControlMode(previewControlMode) !== previewControlMode) {
-      errors.push("Preview PTZ controls must be step, continuous or joystick");
+    if (previewControlMode !== "step" && previewControlMode !== "continuous") {
+      errors.push("Preview PTZ controls must be step or continuous");
     }
 
     if (motionDriver !== "profiled") {
       formData.set("accel_pan", "0");
       formData.set("accel_tilt", "0");
-    }
-
-    // #joystick_sensitivity is disabled outside joystick mode (see
-    // updateJoystickSensitivityInputs()), and FormData silently drops
-    // disabled controls - without this, saving the form in any other mode
-    // would submit no value at all and the CGI's own fallback would reset
-    // whatever sensitivity was previously configured back to its default.
-    // The input's own .value still holds the loaded config value even
-    // while disabled, so re-adding it here just carries it through.
-    const joystickSensitivityEl = $("#joystick_sensitivity");
-    if (joystickSensitivityEl) {
-      formData.set("joystick_sensitivity", joystickSensitivityEl.value);
     }
 
     if (errors.length > 0) {
@@ -490,22 +455,6 @@
     motionDriverSelect.addEventListener("change", updateMotionDriverInputs);
   }
 
-  const previewControlModeSelect = $("#preview_control_mode");
-  if (previewControlModeSelect) {
-    previewControlModeSelect.addEventListener(
-      "change",
-      updateJoystickSensitivityInputs,
-    );
-  }
-  const joystickSensitivitySlider = $("#joystick_sensitivity");
-  if (joystickSensitivitySlider) {
-    // "input", not "change": track the thumb while dragging.
-    joystickSensitivitySlider.addEventListener(
-      "input",
-      updateJoystickSensitivityInputs,
-    );
-  }
-
   // ------------------------------------------------------------------
   // PTZ presets
   // ------------------------------------------------------------------
@@ -607,26 +556,6 @@
     }
   }
 
-  // The build version rides along in the same `motors -j` status the CGI
-  // already proxies, so no extra endpoint. Stays blank on an older daemon
-  // build that has no "version" field, or when the daemon is down.
-  async function loadMotorsVersion() {
-    if (!versionBadge) return;
-    try {
-      const res = await fetch(
-        "/x/json-motor.cgi?" + new URLSearchParams({ d: "j" }).toString(),
-      );
-      const payload = await res.json();
-      const version = payload && payload.message && payload.message.version;
-      if (!version) return;
-      versionBadge.textContent = "motors " + version;
-      versionBadge.className = "badge text-bg-secondary";
-      versionBadge.title = "motors build version";
-    } catch (err) {
-      console.error("Failed to read motors version", err);
-    }
-  }
-
   async function presetAction(action, extra) {
     try {
       const params = new URLSearchParams({ d: action });
@@ -663,8 +592,6 @@
   }
 
   loadPresets();
-
-  loadMotorsVersion();
 
   loadMotorsConfig();
 })();

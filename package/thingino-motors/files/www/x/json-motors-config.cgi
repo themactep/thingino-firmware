@@ -130,7 +130,6 @@ handle_post() {
 	preview_control_mode_value=${POST_preview_control_mode:-step}
 	steps_pan_value=$POST_steps_pan
 	steps_tilt_value=$POST_steps_tilt
-	joystick_sensitivity_value=${POST_joystick_sensitivity:-2.00}
 
 	[ "$homing_value" = "true" ] || homing_value="false"
 
@@ -159,19 +158,11 @@ handle_post() {
 	esac
 
 	case "$preview_control_mode_value" in
-		step | continuous | joystick) ;;
+		step | continuous) ;;
 		*)
 			preview_control_mode_value="step"
 			;;
 	esac
-
-	# busybox ash's test has no floating point; reject non-numeric, then
-	# clamp via awk into motor-daemon.c's own accepted range.
-	case "$joystick_sensitivity_value" in
-		'' | *[!0-9.]* | *.*.*) joystick_sensitivity_value="2.00" ;;
-	esac
-	joystick_sensitivity_value=$(awk -v v="$joystick_sensitivity_value" \
-		'BEGIN { if (v < 0.05) v = 0.05; if (v > 4) v = 4; printf "%.2f", v }')
 
 	if [ "true" != "$is_spi_value" ]; then
 		motors_set_value gpio_pan "$gpio_pan_1 $gpio_pan_2 $gpio_pan_3 $gpio_pan_4"
@@ -186,7 +177,6 @@ handle_post() {
 	motors_set_value accel_tilt "$accel_tilt_value"
 	motors_set_value motion_driver "$motion_driver_value"
 	motors_set_value preview_control_mode "$preview_control_mode_value"
-	motors_set_value joystick_sensitivity "$joystick_sensitivity_value"
 	motors_set_value homing "$homing_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
@@ -199,10 +189,6 @@ handle_post() {
 		motors_set_value presets.0.x "$pos_0_x"
 		motors_set_value presets.0.y "$pos_0_y"
 	fi
-
-	# Live-reloads the daemon config (see motor_ctl_reload() in
-	# motor-daemon.c for exactly which fields); GPIO still needs a reboot.
-	motors -R >/dev/null 2>&1
 
 	respond_with_config
 }
