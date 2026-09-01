@@ -1,8 +1,9 @@
 /**
  * Preview-page PTZ settings modal (thingino-motors).
  *
- * A floating PTZ button over the live view opens a modal with quick
- * settings (preview control mode, pan/tilt speed) and PTZ presets.
+ * An icon button in the Live View card header - alongside the motion-grid
+ * and stats toggles - opens a modal with quick settings (preview control
+ * mode, pan/tilt speed) and PTZ presets.
  *
  * Settings read/write through /x/json-motor-params.cgi (control mode and
  * speeds; the CGI reloads the motors-daemon config on save so speed
@@ -19,7 +20,7 @@
   const MOTOR_ENDPOINT = "/x/json-motor.cgi";
 
   function normalizeControlMode(value) {
-    return value === "continuous" ? "continuous" : "step";
+    return value === "continuous" || value === "joystick" ? value : "step";
   }
 
   async function loadParams() {
@@ -91,6 +92,7 @@
     '              <select class="form-select col" id="ptz-preview-control-mode">' +
     '                <option value="step">Step move (click / double-click)</option>' +
     '                <option value="continuous">Continuous move (press and hold)</option>' +
+    '                <option value="joystick">Virtual joystick (drag)</option>' +
     "              </select>" +
     "            </p>" +
     '            <p class="row">' +
@@ -324,6 +326,18 @@
         if (data.speed_tilt !== undefined)
           window.motorParams.speed_tilt = data.speed_tilt;
       }
+      // tell preview-motors.js to rebind so the saved mode applies live
+      const savedMode = normalizeControlMode(
+        data.preview_control_mode !== undefined
+          ? data.preview_control_mode
+          : mode,
+      );
+      document.dispatchEvent(
+        new CustomEvent("preview-motors:control-mode", {
+          detail: { mode: savedMode },
+        }),
+      );
+
       if (typeof showAlert === "function")
         showAlert("success", "PTZ settings saved.", 4000);
       const modal = bootstrap.Modal.getInstance($("#ptzModal"));
@@ -349,21 +363,25 @@
 
     document.body.insertAdjacentHTML("beforeend", MODAL_HTML);
 
-    // PTZ button in the Live View card header, next to Reload.
+    // anchor off #ms-stats-toggle's parent (that row has no class of its
+    // own); the old ".preview-header-actions" selector matched nothing
     const frame = $("#frame");
     const img = $("#preview");
-    const host =
-      document.querySelector(".preview-header-actions") ||
-      frame ||
-      (img && img.parentNode) ||
-      document.body;
+    const statsBtn = $("#ms-stats-toggle");
+    const connectBtn = $("#ms-connect");
+    const row =
+      (statsBtn && statsBtn.parentNode) || (connectBtn && connectBtn.parentNode);
+    const host = row || frame || (img && img.parentNode) || document.body;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "btn btn-outline-secondary";
     btn.id = "preview-ptz";
-    btn.title = "PTZ settings";
-    btn.innerHTML = '<i class="bi bi-arrows-move"></i> PTZ';
-    host.appendChild(btn);
+    btn.title = "PTZ settings"; // icon-only button, so this carries the name
+    btn.setAttribute("aria-label", "PTZ settings");
+    btn.innerHTML = '<i class="bi bi-arrows-move"></i>';
+    if (row && connectBtn && connectBtn.parentNode === row)
+      row.insertBefore(btn, connectBtn);
+    else host.appendChild(btn);
 
     btn.addEventListener("click", async () => {
       try {

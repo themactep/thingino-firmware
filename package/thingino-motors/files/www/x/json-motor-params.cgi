@@ -51,7 +51,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 	changed=0
 
 	case "$POST_preview_control_mode" in
-		step | continuous)
+		step | continuous | joystick)
 			if [ "$POST_preview_control_mode" != "$preview_control_mode_val" ]; then
 				jct "$MOTORS_CONFIG" set motors.preview_control_mode "$POST_preview_control_mode" >/dev/null 2>&1
 				preview_control_mode_val=$POST_preview_control_mode
