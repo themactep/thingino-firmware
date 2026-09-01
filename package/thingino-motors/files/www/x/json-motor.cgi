@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC1091,SC2046,SC2329,SC3043
+# shellcheck disable=SC1091,SC2046,SC2317,SC2329,SC3043
 
 # Check authentication
 . /var/www/x/auth.sh
@@ -65,22 +65,69 @@ json_escape() {
 [ -z "$y" ] && y=0
 [ -z "$d" ] && d="g"
 
-# Move and reset commands are fire-and-forget: motors-daemon dispatches
-# moves on a detached thread (start_profiled_move_async), so the kernel is
-# already told to move the moment the ioctl lands. Echoing position back here
-# would spawn a second motors process per control input, doubling HTTP latency
-# in the jog hot loop. The UI gets live position from /x/json-motor-stream.cgi.
+# Motion commands answer with a bare acknowledgement.
+#
+# They used to fall through to a trailing emit_status that ran `motors -j` and
+# returned the position with every single move. That echo made sense when this
+# CGI was the only way to drive the motors and the page had no other source of
+# position - but it doubled the process cost of the hottest path in the whole
+# UI: a held arrow fired one of these every 90ms, and each one paid for
+# busybox-httpd, this shell, `motors`, and then a SECOND `motors` purely to
+# report a position that was already stale by the time it was read (the move
+# is asynchronous; the daemon has not finished it when the status is sampled).
+#
+# Live control now runs over motors-daemon's WebSocket where position arrives
+# as a server push, and the CGI path that remains is a fallback whose caller
+# (preview-motors.js) only ever console.log()s the echo. Callers that actually
+# want a position ask for one explicitly with d=j.
+motion_ok() {
+	json_ok "$1"
+}
+
 case "$d" in
-	g) motors -d g -x "$x" -y "$y" >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
-	r) motors -r >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
-	h | x) motors -d h -x "$x" -y "$y" >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
-	s) motors -d s >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
-	b) motors -d b >/dev/null && http_200 && json_header && printf '{"code":200,"result":"success"}\n' && exit 0 ;;
-	i)
-		payload=$(motors -i 2>/dev/null) || json_error "motors-initial-failed"
-		json_ok "$payload"
+	g)
+		# Relative jog. Kept: this is the CGI fallback for the joystick when
+		# the WebSocket listener is off or unreachable, so it has to work.
+		motors -d g -x "$x" -y "$y" >/dev/null
+		motion_ok "moved"
+		;;
+	r)
+		# Homing / recalibration. Kept, and deliberately not moved to the
+		# WebSocket: it is a one-shot maintenance action, not a gesture, and
+		# it runs for tens of seconds - nothing about it benefits from a
+		# persistent socket.
+		motors -r >/dev/null
+		motion_ok "homing"
+		;;
+	h | x)
+		# Absolute move. Kept: used for centring and for the reposition that
+		# follows homing, and it is how ptz_presets-style jumps are issued
+		# from the page. Not a hold gesture, so the WebSocket buys it nothing.
+		motors -d h -x "$x" -y "$y" >/dev/null
+		motion_ok "moved"
+		;;
+	s)
+		# Stop. Kept, and now more load-bearing than before: it is what the
+		# page falls back to when a socket dies mid-hold with the camera still
+		# panning toward its limit.
+		motors -d s >/dev/null
+		motion_ok "stopped"
+		;;
+	b)
+		# Goback. Kept: MOTOR_GOBACK is a distinct driver operation that the
+		# WebSocket protocol deliberately does not expose, so nothing about
+		# the new path makes it redundant. It has no caller in this tree
+		# today, but removing it would be an unrelated dead-code change, not
+		# part of this migration.
+		motors -d b >/dev/null
+		motion_ok "goback"
 		;;
 	j)
+		# Explicit one-shot status. Kept, and NOT redundant: config-motors.js
+		# calls it from the settings page's "capture current position" button,
+		# which has no WebSocket open and no reason to open one for a single
+		# read. (The 'i' case that sat next to it - `motors -i`, an initial-
+		# position echo - had no caller anywhere in this tree and is gone.)
 		payload=$(motors -j 2>/dev/null) || json_error "motors-status-failed"
 		json_ok "$payload"
 		;;
@@ -133,3 +180,7 @@ case "$d" in
 		json_error "motors-command-unsupported"
 		;;
 esac
+
+# Every case above exits through json_ok or json_error, so nothing reaches
+# here. Reaching it at all would mean a case fell through silently.
+json_error "motors-command-unhandled"
