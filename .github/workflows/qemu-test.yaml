@@ -1,0 +1,258 @@
+name: qemu-test
+on:
+  workflow_dispatch:
+    inputs:
+      profiles:
+        type: string
+        description: 'Space-separated test profiles to build and run'
+        required: false
+        default: 'qemu_t31x qemu_t31x_eth qemu_t31x_ethwifi'
+      runner_arch:
+        type: choice
+        description: 'Build worker architecture'
+        required: false
+        default: 'arm64'
+        options:
+          - arm64
+          - x86_64
+
+env:
+  BR2_DL_DIR: ~/dl
+  FORCE_UNSAFE_CONFIGURE: 1
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TZ: UTC
+
+jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate profile matrix
+        id: set-matrix
+        run: |
+          JSON="{\"profile\": ["
+          for P in ${{ github.event.inputs.profiles }}; do
+            JSON+="\"$P\","
+          done
+          JSON="${JSON%,}]}"
+          echo "Matrix: $JSON"
+          echo "matrix=$JSON" >> $GITHUB_OUTPUT
+
+  build:
+    name: build ${{ matrix.profile }}
+    needs: plan
+    runs-on: ${{ (github.event.inputs.runner_arch == 'x86_64') && 'ubuntu-26.04' || 'ubuntu-26.04-arm' }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:forky
+    steps:
+      - name: Install GitHub CLI to container
+        run: |
+          apt-get update
+          apt-get install -y curl
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc cmake cpio curl ca-certificates dosfstools file git gh make gawk jq lzop m4 mtools p7zip-full parted perl python3 python3-gmpy2 python3-setuptools procps rsync tzdata u-boot-tools unzip wget libgmp-dev libncurses-dev swig python3-dev libssl-dev
+
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Setup gh workspace to container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout repository source
+        uses: actions/checkout@v5
+        with:
+          submodules: 'true'
+          fetch-depth: "1"
+
+      # Same step as firmware-master.yaml: without these buildroot has no
+      # BR2_mips_xburst2 symbol and the soc fragments are silently dropped.
+      - name: Apply buildroot override patches
+        run: |
+          PATCH_DIR="package/all-patches/buildroot"
+          if [ -d "$PATCH_DIR" ]; then
+            for patch in $(find "$PATCH_DIR" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do
+              abspatch="$(pwd)/$patch"
+              if git -C buildroot apply --check "$abspatch" 2>/dev/null; then
+                echo "Applying $patch"
+                git -C buildroot apply "$abspatch"
+              elif git -C buildroot apply -R --check "$abspatch" 2>/dev/null; then
+                echo "Already applied: $patch"
+              else
+                echo "ERROR: failed to apply $patch"
+                exit 1
+              fi
+            done
+          fi
+
+      - name: Setup cache directories
+        run: |
+          mkdir -p ~/.buildroot-ccache
+          mkdir -p ~/dl
+
+      - name: Restore ccache from release
+        run: |
+          REPO="${{ github.repository }}"
+          ASSET="ccache-qemu-tests-${{ runner.arch }}-${{ matrix.profile }}.zip"
+          mkdir -p /tmp/cc
+          if gh release download ccache --repo "$REPO" --pattern "$ASSET" --dir /tmp/cc 2>/dev/null; then
+            echo "Restoring $ASSET ($(du -h "/tmp/cc/$ASSET" 2>/dev/null | cut -f1))"
+            ( cd ~ && 7z x -y "/tmp/cc/$ASSET" >/dev/null ) || echo "  7z rc=$? during restore (non-fatal)"
+          else
+            echo "No qemu-tests ccache asset yet - cold build"
+          fi
+          exit 0
+
+      - name: Fetch buildroot-dl-cache release
+        id: find_release
+        run: |
+          REPO="${{ github.repository }}"
+          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
+          if [ -z "$RELEASE_TAG" ]; then
+            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
+          fi
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "Found release with tag: $RELEASE_TAG"
+            echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+            echo "release_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: no dl cache release, continuing without cache"
+            echo "release_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download and extract buildroot-dl-cache
+        if: steps.find_release.outputs.release_found == 'true'
+        continue-on-error: true
+        run: |
+          REPO="${{ github.repository }}"
+          RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
+          mkdir -p /tmp/dl-cache
+          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache" || exit 0
+          if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
+            ( cd ~ && 7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y >/dev/null )
+          elif [ -f /tmp/dl-cache/buildroot-dl-cache.zip ]; then
+            ( cd ~ && 7z x /tmp/dl-cache/buildroot-dl-cache.zip -y >/dev/null )
+          fi
+          if [ -d ~/dl/dl ]; then
+            mv ~/dl/dl/* ~/dl/
+            rm -rf ~/dl/dl
+          fi
+          echo "dl cache: $(find ~/dl -type f | wc -l) files"
+
+      - name: Build test profile
+        env:
+          CCACHE_MAXSIZE: "1G"
+        run: |
+          BOARD=${{ matrix.profile }} GROUP=testing make fast WORKFLOW=1
+
+      - name: Save ccache to release
+        if: always()
+        run: |
+          REPO="${{ github.repository }}"
+          ASSET="ccache-qemu-tests-${{ runner.arch }}-${{ matrix.profile }}.zip"
+          SZ_MB=$(du -sm ~/.buildroot-ccache 2>/dev/null | cut -f1)
+          if [ "${SZ_MB:-0}" -lt 5 ]; then
+            echo "ccache is only ${SZ_MB:-0} MB - skipping upload (cold/failed build)"
+            exit 0
+          fi
+          mkdir -p /tmp/cc
+          ( cd ~ && 7z a -tzip -mx=0 "/tmp/cc/${ASSET}" .buildroot-ccache >/dev/null ) || echo "  7z rc=$? during pack (non-fatal)"
+          gh release upload ccache --repo "$REPO" --clobber "/tmp/cc/${ASSET}" || echo "  ccache upload failed (non-fatal)"
+          exit 0
+
+      - name: Upload test image
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: qemu-test-image-${{ matrix.profile }}
+          path: ${{ github.workspace }}/output/master/${{ matrix.profile }}-*/images/thingino-${{ matrix.profile }}.bin
+
+  test:
+    name: test ${{ matrix.profile }}
+    needs: [plan, build]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pw-browsers
+    steps:
+      - name: Checkout repository source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: "1"
+
+      - name: Download test images
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: qemu-test-image-${{ matrix.profile }}
+          path: staging
+
+      - name: Stage image for run.sh
+        run: |
+          P="${{ matrix.profile }}"
+          BIN=$(find staging -name "thingino-$P.bin" | head -1)
+          [ -n "$BIN" ] || { echo "no image for $P in the build artifact"; exit 1; }
+          mkdir -p "output/master/$P-ci/images"
+          cp "$BIN" "output/master/$P-ci/images/"
+          ls -la "output/master/$P-ci/images/"
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends dnsmasq tcpdump libpixman-1-0 libslirp0 || \
+            sudo apt-get install -y --no-install-recommends dnsmasq tcpdump libpixman-1 libslirp0
+
+      - name: Fetch released QEMU pinned by the firmware hash
+        run: |
+          VERSION=$(sed -n 's/^QEMU_INGENIC_VERSION = //p' package/qemu-ingenic/qemu-ingenic.mk)
+          ASSET="qemu-system-mipsel-linux-x86_64.tar.gz"
+          echo "qemu-ingenic $VERSION"
+          curl -fsSL -o "$ASSET" "https://github.com/gtxaspec/qemu/releases/download/$VERSION/$ASSET"
+          grep "$ASSET" package/qemu-ingenic/qemu-ingenic.hash | awk '{print $2"  "$3}' | sha256sum -c
+          mkdir -p qemu-bin
+          tar -xzf "$ASSET" -C qemu-bin
+          chmod +x qemu-bin/qemu-system-mipsel
+          echo "QEMU_BIN=$GITHUB_WORKSPACE/qemu-bin/qemu-system-mipsel" >> $GITHUB_ENV
+          qemu-bin/qemu-system-mipsel --version | head -1
+
+      - name: Install Playwright
+        run: |
+          cd scripts/qemu-test
+          npm ci
+          sudo npx playwright install-deps chromium
+          npx playwright install chromium
+
+      - name: Run test suite
+        run: |
+          cd scripts/qemu-test
+          ./run.sh ${{ matrix.profile }}
+
+      - name: Fix report ownership after sudo tap run
+        if: always()
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" output/*/qemu-test-reports 2>/dev/null || true
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: qemu-test-report-${{ matrix.profile }}
+          path: ${{ github.workspace }}/output/*/qemu-test-reports/${{ matrix.profile }}/
+          if-no-files-found: warn

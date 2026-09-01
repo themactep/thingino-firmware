@@ -153,6 +153,13 @@ esac
 [ -n "$TARGET_PATH" ] || TARGET_PATH=$(extract_query_param agent_path "${QUERY_STRING:-}")
 [ -n "$TARGET_PATH" ] || TARGET_PATH=$(extract_request_uri_path "${REQUEST_URI:-}")
 [ -n "$TARGET_PATH" ] || json_error '400 Bad Request' 'Missing agent path.'
+# The proxy only ever targets the local listener, so the path must stay within
+# the agent API namespace. This blocks a crafted agent_path such as "@host"
+# from redirecting curl to a non-local address via URL userinfo.
+case "$TARGET_PATH" in
+	/api/v1 | /api/v1/*) ;;
+	*) json_error '400 Bad Request' 'Invalid agent path.' ;;
+esac
 
 TARGET_URL_BASE="$(agent_base_url)"
 FORWARD_QUERY=$(strip_query_param agent_path "${QUERY_STRING:-}")

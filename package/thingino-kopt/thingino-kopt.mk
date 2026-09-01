@@ -478,7 +478,7 @@ endef
 define THINGINO_KOPT_INSTALL_TARGET_CMDS_IPV6
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/dhcpv6.script $(TARGET_DIR)/usr/lib/netifd/dhcpv6.script
 	$(INSTALL) -D -m 0755 $(THINGINO_KOPT_PKGDIR)/files/odhcp6c $(TARGET_DIR)/etc/network/if-up.d/odhcp6c
-	mkdir -p $(TARGET_DIR)/etc/network/if-down.d $(TARGET_DIR)/etc/network/interfaces.d
+	mkdir -p $(TARGET_DIR)/etc/network/if-down.d
 	ln -sf ../if-up.d/odhcp6c $(TARGET_DIR)/etc/network/if-down.d/odhcp6c
 	cat $(THINGINO_KOPT_PKGDIR)/files/hosts.ipv6 >> $(TARGET_DIR)/etc/hosts
 endef

@@ -29,7 +29,7 @@ endef
 
 define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
-	echo -e "KEY_1 RELEASE 0 doorbell_event button_press\nKEY_1 TIMED 0.1 play /usr/share/sounds/th-doorbell_3.opus" \
+	echo -e "KEY_1 RELEASE 0 doorbell_event button_press\nKEY_1 TIMED 0.1 play /usr/share/sounds/doorbell_3.opus" \
 		>> $(TARGET_DIR)/etc/thingino-button.conf
 endef
 

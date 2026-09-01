@@ -130,7 +130,7 @@ check_and_free_space() {
 	local fw_size_kb remote_avail_kb remote_memavail_kb dir_needed_kb mem_needed_kb
 	fw_size_kb=$(( ($(stat -c%s "$UPLOAD_FW_FILE") + 1023) / 1024 ))
 	# Uploading into tmpfs also needs extra RAM for dropbear/scp buffers and page cache.
-	mem_needed_kb=$(( fw_size_kb + 8192 ))
+	mem_needed_kb=$(( fw_size_kb + 4096 ))
 
 	select_remote_fw_path
 	prepare_upload_memory

@@ -21,6 +21,7 @@ THINGINO_OVERRIDE_DIR := $(patsubst "%",%,$(strip $(BR2_EXTERNAL_THINGINO_PATH))
 -include $(CONFIG_DIR)/local.mk
 
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-webserver/busybox-httpd-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-ethernet/busybox-ifplugd-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-freetype/freetype-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-libcurl/libcurl-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-libopenssl/libopenssl-override.mk

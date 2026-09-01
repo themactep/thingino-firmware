@@ -1,18 +1,5 @@
 LINUX_EXTENSIONS += thingino-kopt
 
-# Mappings for DTS configurations
-# Format: CONFIG_SUFFIX|CAMERA_MODEL|DESTINATION_FILE
-THINGINO_DTS_MAPPINGS = \
-	WYZEC3P|wyze_cam3pro_t40xp|shark \
-	EUFYT8416|eufy_t8416_t40xp|shark \
-	A1_SMART_NVR|smart_nvr_a1n_eth|tucana \
-	360K7TS|360_k7ts_t41nq_eth|marmot \
-	HUGOLOGE5P|hugolog_e5p_t41lq|marmot \
-	IGETC5PT|iget_c5pt_t41lq|marmot \
-	WYZEV4|wyze_cam4_t41nq|marmot \
-	WYZEFLOODV2|wyze_floodlightv2_t41nq|marmot \
-	WYZEPANV4|wyze_panv4_t32nq|goat
-
 THINGINO_LED_CONFIG = $(BR2_CONFIG)
 THINGINO_LED_HEADER = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/thingino_leds.h
 THINGINO_LED_BOARD_BASE = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/board_base.c
@@ -23,11 +10,15 @@ define THINGINO_KOPT_PREPARE_KERNEL
 		$(THINGINO_LED_HEADER)
 	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/patch_kernel_leds_board_base.sh \
 		$(THINGINO_LED_BOARD_BASE)
-	$(foreach mapping,$(THINGINO_DTS_MAPPINGS),\
-		$(if $(BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_$(word 1,$(subst |, ,$(mapping)))),\
-			$(INSTALL) -D -m 0644 \
-				$(BR2_EXTERNAL_THINGINO_PATH)/board/ingenic/dts/$(word 2,$(subst |, ,$(mapping))).dts \
-				$(LINUX_DIR)/arch/mips/boot/dts/ingenic/$(word 3,$(subst |, ,$(mapping))).dts ; \
-		)\
-	)
 endef
+
+# Per-device dts from the camera profile dir (CAMERA_DTS_FILE/DEST come
+# from thingino.mk). Copied before every kernel build, so a profile
+# change or dts edit can never leak a stale tree into the build.
+ifneq ($(CAMERA_DTS_FILE),)
+define THINGINO_KOPT_SYNC_CAMERA_DTS
+	cp -f $(CAMERA_DTS_FILE) \
+		$(LINUX_DIR)/arch/mips/boot/dts/ingenic/$(CAMERA_DTS_DEST).dts
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_CAMERA_DTS
+endif

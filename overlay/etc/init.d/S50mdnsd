@@ -114,7 +114,7 @@ probe_rtsp_raptor() {
 	enabled=$(raptor_bool_default rtsp enabled true)
 	[ "$enabled" = "true" ] || return 1
 
-	tls=$(raptor_bool_default rtsp tls true)
+	tls=$(raptor_bool_default rtsp tls false)
 	port=$(normalize_port "$(raptor_conf_text rtsp port)")
 	if [ -z "$port" ]; then
 		if [ "$tls" = "true" ]; then

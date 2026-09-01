@@ -32,6 +32,7 @@ CONFIG="/etc/$DAEMON_SHORT.conf"
 PORTAL_CONF="/run/$DAEMON_SHORT.portal.conf"
 
 PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_PENDING_FLAG="/run/portal_pending"
 PORTAL_CNET=172.16.0
 PORTAL_IP=${PORTAL_CNET}.1
 
@@ -272,6 +273,13 @@ finish_portal() {
 stop_portal() {
 	echo -c 15 "Captive Portal"
 
+	rm -f "$PORTAL_PENDING_FLAG"
+	if [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Portal was pending, nothing to stop"
+		ip link set $IFACE down 2>/dev/null
+		return
+	fi
+
 	echo "Stop udhcp"
 	start-stop-daemon -K -q -x /sbin/udhcpd
 
@@ -451,8 +459,8 @@ start() {
 
 	case "$mode" in
 		portal)
-			prescan_for_portal
-			prepare_portal
+			echo "Portal deferred pending wired uplink check"
+			touch "$PORTAL_PENDING_FLAG"
 			;;
 		ap) start_access_point ;;
 		*) start_client ;;
@@ -481,6 +489,14 @@ case "$1" in
 		start
 		;;
 	portal_confirmed)
+		rm -f "$PORTAL_PENDING_FLAG"
+		prescan_for_portal
+		prepare_portal
+		if pgrep -x uhttpd >/dev/null 2>&1 && \
+			! pgrep -f "uhttpd -h /var/www-portal" >/dev/null 2>&1; then
+			echo "Moving uhttpd to the portal interface"
+			/etc/init.d/S60uhttpd restart
+		fi
 		finish_portal
 		;;
 	*)

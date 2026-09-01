@@ -22,7 +22,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="date dd echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog"
+bbapplets="date dd echo flash_eraseall flashcp killall pidof reboot rm sh sleep sync tail watchdog wc"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
@@ -293,7 +293,7 @@ handle_payload() {
 			curl_range="-r $offset-$range_end"
 			skip_sha256=1
 		elif [ "boot" = "$upgrade" ]; then
-			# Download only the first 256 KB (boot partition)
+			# Download only the first 320 KB (boot partition)
 			offset=0
 			range_end=$((320 * 1024 - 1))
 			curl_range="-r 0-$range_end"
@@ -811,97 +811,24 @@ fi
 if [ -z "$mtd_dev" ]; then
 	case "$(xxd -l 4 -p "$fw_file")" in
 		"$U_BOOT_MAGIC")
-			# Full upgrade: flash each partition individually.
-			# Writing to "all" fails on kernels that protect overlapping MTD regions.
+			# Full upgrade: flash each partition individually from a
+			# detached tmpfs process so overwriting rootfs cannot kill
+			# the flash loop or the SSH session.
 			echo "Full firmware upgrade"
 			create_config_backup
-			# Clone busybox to tmpfs before the dd loop so that
-			# reboot -f runs from tmpfs, not the soon-to-be-overwritten rootfs.
-			clone_app /bin/busybox
-			# Create tmpfs symlinks for commands that must survive
-			# rootfs being overwritten during the flash loop.
-			for a in dd flash_eraseall; do
-				ln -sf "$workdir/busybox" "$workdir/$a"
-			done
-			export PATH="$workdir:$PATH"
-			# Take over the hardware watchdog from tmpfs so a hung
-			# flash (e.g. SSH timeout, stuck erase) doesn't leave
-			# the camera bricked with no recovery.
-			if [ -c /dev/watchdog ]; then
-				if pidof watchdog >/dev/null 2>&1; then
-					killall watchdog 2>/dev/null
-					i=0
-					while pidof watchdog >/dev/null 2>&1; do
-						i=$((i + 1))
-						[ $i -gt 10 ] && break
-						sleep 1
-					done
-				fi
-				ln -sf "$workdir/busybox" "$workdir/watchdog"
-				watchdog -T 30 -t 10 -F /dev/watchdog &
-				echo "Hardware watchdog taken over (30s timeout)"
-			fi
 			stop_services
-
-			# --- Full upgrade flash mapping ---
-			# Universal installer logic (see scripts/uniflasher.sh): walk the
-			# running camera's MTD layout and write into each device the image
-			# bytes at the same absolute offsets.  Because the devices tile
-			# the flash, the result is the image copied byte-for-byte no
-			# matter how the image itself is partitioned.  This keeps full
-			# upgrades working across partition layout changes (env/config
-			# sizes, kernel size, ...) instead of bricking the camera.
-			# The block size must divide every partition offset and size:
-			# all thingino partitions are 32 KiB aligned (env is 32/64 KiB,
-			# everything else 64 KiB aligned).  If some exotic layout is
-			# not aligned, fall back to byte addressing.
-			fw_size=$(wc -c <"$fw_file")
-			align_block=32768
-			needle=0
-			tail -n +2 /proc/mtd >"$workdir/mtd.txt"
-			while read -r mtd sz _ name; do
-				mtd="${mtd%:}"
-				name="${name#\"}"
-				name="${name%\"}"
-				[ "$name" = "all" ] && continue
-				[ "$name" = "upgrade" ] && continue
-				[ "$needle" -ge "$fw_size" ] && break
-				sz_dec=$((0x$sz))
-				# The config backup written above lives on the backup partition;
-				# the image carries that region erased (0xFF). Skip it so the
-				# snapshot survives the full upgrade.
-				if [ "$do_backup" = "true" ] && [ "$name" = "backup" ]; then
-					echo_c 112 "Keeping config backup on $name"
-					needle=$((needle + sz_dec))
-					continue
-				fi
-				echo_c 112 "Flashing $name to /dev/$mtd ($sz_dec bytes at offset $needle)"
-				flash_eraseall "/dev/$mtd" 2>/dev/null || true
-				bs=$align_block
-				if [ $((needle % align_block)) -ne 0 ] ||
-					[ $((sz_dec % align_block)) -ne 0 ]; then
-					bs=1
-				fi
-				if ! dd if="$fw_file" of="/dev/$mtd" bs=$bs \
-					skip=$((needle / bs)) count=$((sz_dec / bs)) 2>/dev/null; then
-					die "dd $name failed"
-				fi
-				sync
-				needle=$((needle + sz_dec))
-			done <"$workdir/mtd.txt"
-			echo_c 46 "Full upgrade complete. Rebooting..."
-			sync
-			# Disarm the tmpfs watchdog before triggering the WDT reset.
-			# Use the tmpfs busybox for every command - rootfs may already
-			# be overwritten, so rootfs binaries can segfault.
-			$workdir/busybox killall watchdog 2>/dev/null && $workdir/busybox sleep 1
-			$workdir/busybox sleep 5
-			if [ -w /proc/jz/reset/reset ]; then
-				echo wdt >/proc/jz/reset/reset
-				$workdir/busybox sleep 2
+			clone_app /bin/busybox
+			clone_app /sbin/$stage2app
+			for a in $bbapplets; do expand_bb $a; done
+			export PATH="$workdir:$PATH"
+			watchdog_device=$(jct /dev/thingino.json get watchdog.device 2>/dev/null)
+			[ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
+			[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
+			if ! DO_BACKUP="$do_backup" WATCHDOG_DEV="$watchdog_device" \
+				exec "$workdir/busybox" sh "$workdir/$stage2app" full "$fw_file"; then
+				echo_c 160 "Error: Failed to execute $workdir/$stage2app"
+				cleanup
 			fi
-			$workdir/busybox reboot -f
-			exit 0
 			;;
 		"$KERNEL_MAGIC")
 			echo "Kernel detected"

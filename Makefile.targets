@@ -354,7 +354,9 @@ endif
 	@echo "# U-Boot board configuration" >> $(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_TARGET_UBOOT_BOARD_DEFCONFIG="$(UBOOT_DEFCONFIG)"' >>$(OUTPUT_DIR)/.config
-	@echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config
+	@if ! grep -q '^BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME=' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
+	fi
 	@echo >>$(OUTPUT_DIR)/.config
 	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
 	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
