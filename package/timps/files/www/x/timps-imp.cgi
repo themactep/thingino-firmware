@@ -132,15 +132,39 @@ case "$cmd" in
 		;;
 	ir850 | ir940 | white)
 		# manual light override: switch auto detection off first (like the stock
-		# prudynt CGI), then drive the GPIO through thingino's light tool
+		# prudynt CGI), then drive the GPIO through thingino's light tool.
+		# val validated against light's own documented mode set (package/
+		# thingino-daynightd/files/light) for consistency with the color/
+		# daynight branches above - unquoted $val reaching a command line
+		# isn't shell-injectable (word-splitting/globbing only, no eval),
+		# but an unvalidated value was still inconsistent with those.
+		# 0/1 are in the list because they are what actually arrives:
+		# a/timps-control-bar.js toggleButton() posts a NUMERIC val (0/1),
+		# never a word - light maps them to off/on itself. "gpio"/"pin" are
+		# deliberately NOT accepted: that mode writes thingino.json.
+		case "$val" in
+			0 | 1 | on | off | toggle | read) ;;
+			*) bad_request "invalid value for $cmd" ;;
+		esac
 		curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" \
 			-d '{"daynight":{"enabled":false}}' >/dev/null 2>&1
 		light $cmd $val
 		;;
 	ircut)
+		# val validated against ircut's own documented mode set
+		# (package/thingino-daynightd/files/ircut) plus the numeric 0/1
+		# form its own dispatch accepts - and the only form the WebUI ever
+		# sends (a/timps-control-bar.js toggleButton()).
+		case "$val" in
+			0 | 1 | on | off | toggle | status | read) ;;
+			*) bad_request "invalid value for ircut" ;;
+		esac
 		curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" \
 			-d '{"daynight":{"enabled":false}}' >/dev/null 2>&1
 		ircut $val >/dev/null
+		;;
+	*)
+		bad_request "unknown cmd"
 		;;
 esac
 

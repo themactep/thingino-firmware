@@ -2,10 +2,27 @@
 <!--
   thingino · timps preview
 
-  Native MSE/fMP4 player (no iframe): fetches
+  Native fMP4 player (no iframe): fetches
       http://<location.hostname>:8880/stream.mp4?chn=N
-  from timpsd, a port of timps's own embedded player (src/mp4/httpd.c,
-  PLAYER_TAIL). Installed straight over thingino-webui's own /preview.html
+  from timpsd and plays it with one of two client-side pipelines, chosen by
+  the #ms-latency select:
+
+    * MSE/<video> (default) - a port of timps's own embedded player
+      (src/mp4/httpd.c, PLAYER_TAIL): SourceBuffer + a deliberate 0/0.5/1.5/3 s
+      jitter margin behind the live edge, so a WiFi hiccup drains instead of
+      freezing (0 s = no cushion at all, still this same pipeline). Plays audio
+      when timps muxes AAC. Picking any of these entries is also the manual way
+      back out of real-time mode, at any time.
+    * "Real-time" - WebCodecs: the same byte stream is parsed in JS and each
+      access unit goes straight to a VideoDecoder, painted on a canvas as it
+      arrives. No buffer, no playback clock: ~0.2-0.3 s glass-to-glass instead
+      of ~1.7 s, at the cost of visible freezes on a bad link and NO AUDIO
+      (video-only path). Offered only where window.VideoDecoder exists and the
+      selected stream is H.264; otherwise removed/disabled, never silently
+      broken. See dev_notes/PREVIEW_REALTIME_IDEAS_2026-08-29.md in the timps
+      repo for the measurements behind this.
+
+  Installed straight over thingino-webui's own /preview.html
   (see timps.mk) but still goes through the normal plugin pipeline - the
   preview-body marker below is replaced with contributed overlays (PTZ
   joystick, ...); do not hand-copy plugin markup in here, and do not spell
@@ -45,6 +62,20 @@
       height: 100%;
       background: #000;
       object-fit: contain;
+    }
+    /* Real-time (WebCodecs) player surface. Sits exactly over the <video>,
+       which stays laid out but visibility:hidden in that mode so
+       preview-motion.js can keep measuring the display box from it. Never
+       takes the pointer: the joystick overlay and the video controls
+       underneath must stay clickable. */
+    #ms-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      object-fit: contain;
+      pointer-events: none;
     }
     /* live motion-grid overlay (drawn by /a/preview-motion.js); it never
        captures the pointer, so the motor joystick keeps working */
@@ -106,7 +137,7 @@
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
             <h2 class="card-title mb-0">timps Live View</h2>
-            <small>Native fMP4/MSE player (no iframe), stream from port 8880</small>
+            <small>Native fMP4 player (no iframe), stream from port 8880</small>
           </div>
           <div class="d-flex flex-wrap gap-2">
             <select class="form-select form-select-sm" id="ms-stream" title="Select stream" style="width:auto; min-width: 140px;">
@@ -114,15 +145,31 @@
               <option value="1">Sub stream</option>
             </select>
             <select class="form-select form-select-sm" id="ms-latency" title="Target buffer margin behind live (lower = less delay, more risk of stalls on a weak link)" style="width:auto;">
+              <!-- "rt" switches the player from MSE/<video> to the WebCodecs
+                   canvas path (no jitter buffer, video only). Removed at
+                   runtime when the browser has no VideoDecoder, disabled when
+                   the selected stream is not H.264. -->
+              <option value="rt">Real-time (no audio)</option>
+              <option value="0">No buffer (0s)</option>
               <option value="0.5">Low latency (0.5s)</option>
               <option value="1.5" selected>Balanced (1.5s)</option>
               <option value="3">Stable (3s)</option>
             </select>
             <!-- motion-grid overlay toggle: hidden until /a/preview-motion.js
-                 confirms this timps build has IMP_IVS motion detection -->
+                 confirms this timps build has IMP_IVS motion detection AND
+                 that motion detection is currently enabled; it hides again
+                 live if motion is switched off elsewhere in the WebUI -->
             <button type="button" class="btn btn-outline-secondary" id="ms-motion"
               title="Motion grid overlay" style="display:none">
               <i class="bi bi-grid-3x3"></i>
+            </button>
+            <!-- push-to-talk (browser mic -> camera speaker): hidden until
+                 /a/preview-talk.js confirms caps.backchannel.talk_ws AND that
+                 timps is reachable over TLS (getUserMedia needs a secure
+                 context, and only wss:// is openable from an https:// page) -->
+            <button type="button" class="btn btn-outline-secondary" id="ms-talk"
+              title="Talk to the camera (microphone -&gt; camera speaker)" style="display:none">
+              <i class="bi bi-mic"></i>
             </button>
             <button type="button" class="btn btn-outline-secondary" id="ms-stats-toggle" title="Stream stats">
               <i class="bi bi-graph-up"></i>
@@ -135,6 +182,7 @@
         <div class="card-body">
           <div class="ms-video-wrap">
             <video id="ms-video" autoplay muted controls playsinline disableremoteplayback></video>
+            <canvas id="ms-canvas" style="display:none" aria-hidden="true"></canvas>
             <canvas id="motion-overlay" style="display:none" aria-hidden="true"></canvas>
             <div class="position-absolute top-50 start-50 translate-middle text-center" id="ms-connecting-overlay" style="display:none;">
               <div class="spinner-border text-light mb-2" role="status" style="width:3rem;height:3rem;">
@@ -145,6 +193,10 @@
             <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
+          <!-- talk-channel state, written only by /a/preview-talk.js. Its own
+               element rather than sharing #ms-status: the player writes that
+               one continuously and the two would clobber each other. -->
+          <div class="ms-hint mt-1" id="ms-talk-status" style="display:none"></div>
         </div>
       </div>
     </section>
@@ -209,6 +261,7 @@
     const MS_PORT = 8880;
 
     const video = document.getElementById("ms-video");
+    const rtCanvas = document.getElementById("ms-canvas");
     const connectButton = document.getElementById("ms-connect");
     const streamSelect = document.getElementById("ms-stream");
     const latencySelect = document.getElementById("ms-latency");
@@ -234,23 +287,123 @@
     // never RTSP. Resolves to null when the endpoint is unavailable (e.g.
     // prudynt build); the stream is then fetched without a token and the
     // existing 401 fallback message still applies.
-    window.timpsTokenInfo = window.timpsTokenInfo ||
-      fetch("/x/timps-token.cgi", { cache: "no-store" })
+    function fetchTimpsTokenInfo() {
+      return fetch("/x/timps-token.cgi", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
+    }
+    window.timpsTokenInfo = window.timpsTokenInfo || fetchTimpsTokenInfo();
+    // The token is per timps BOOT: if timpsd restarts under a running player,
+    // every request with the old token comes back 401 and the preview is stuck
+    // until a page reload. Re-fetching it (and re-publishing the promise the
+    // other preview scripts read) is what makes a daemon restart recoverable.
+    function refreshTimpsToken() {
+      window.timpsTokenInfo = fetchTimpsTokenInfo();
+      return window.timpsTokenInfo;
+    }
 
     const params = new URLSearchParams(window.location.search);
     const defaultStream = params.get("stream") || sessionStorage.getItem("ms.stream") || "0";
 
+    // Player mode + jitter margin, both driven by the one #ms-latency select
+    // and persisted under the same sessionStorage key as before:
+    //   "0.5" / "1.5" / "3"  -> MSE/<video>, that many seconds behind live
+    //   "rt"                 -> WebCodecs/canvas real-time player (no buffer)
+    // The numeric values keep their old meaning, so an "ms.latency" written by
+    // an older build still restores the same margin here (and parseFloat("rt")
+    // is NaN, so an older build reading a "rt" value falls back to 1.5s).
+    const RT_VALUE = "rt";
+    const DEFAULT_MARGIN_S = 1.5;    // unchanged default: the <option selected> above
     // Target buffer margin behind live (seconds), read live by the
     // updateend handler below - changing it while connected takes effect on
-    // the very next segment, no reconnect needed.
-    let targetBehindS = parseFloat(sessionStorage.getItem("ms.latency")) || 1.5;
+    // the very next segment, no reconnect needed. Only used in MSE mode.
+    // 0 is a legal value (zero-cushion MSE: still SourceBuffer + <video>, just
+    // no deliberate margin), so every parse here has to distinguish "0" from
+    // "not a number" - a plain `parseFloat(v) || 1.5` would silently eat it.
+    function parseMargin(v) {
+      const n = parseFloat(v);
+      return (isFinite(n) && n >= 0) ? n : null;
+    }
+    let targetBehindS = DEFAULT_MARGIN_S;
+    let mode = "mse";                                    // "mse" | "rt"
+    let lastBufferedValue = String(DEFAULT_MARGIN_S);    // margin to return to from rt
+    (function readLatencyPref() {
+      const saved = sessionStorage.getItem("ms.latency");
+      if (saved === RT_VALUE) { mode = "rt"; return; }
+      const n = parseMargin(saved);
+      if (n !== null) { targetBehindS = n; lastBufferedValue = String(n); }
+    })();
+
+    // Real-time availability, gate 1 of 2: the browser. WebCodecs' VideoDecoder
+    // is Chrome/Edge 94+, Safari 16.4+, Firefox 130+ - everywhere else the
+    // option is removed outright rather than offered and then failing.
+    const rtOption = latencySelect
+      ? latencySelect.querySelector('option[value="' + RT_VALUE + '"]') : null;
+    const HAVE_WEBCODECS = typeof window.VideoDecoder === "function" &&
+                           typeof window.EncodedVideoChunk === "function";
+    if (!HAVE_WEBCODECS) {
+      if (rtOption) rtOption.remove();
+      if (mode === "rt") { mode = "mse"; sessionStorage.setItem("ms.latency", lastBufferedValue); }
+    }
+
+    function syncLatencySelect() {
+      if (!latencySelect) return;
+      latencySelect.value = mode === "rt" ? RT_VALUE : String(targetBehindS);
+    }
+
+    // Show the canvas / hide the <video> (and vice versa). The <video> keeps
+    // its box - visibility:hidden, not display:none - because preview-motion.js
+    // measures the display rect from it; window.msPreviewSize tells that script
+    // the intrinsic frame size while the <video> has no metadata of its own.
+    function applyModeUi() {
+      const rtOn = mode === "rt";
+      if (rtCanvas) rtCanvas.style.display = rtOn ? "" : "none";
+      video.style.visibility = rtOn ? "hidden" : "";
+      if (!rtOn) window.msPreviewSize = null;
+      syncLatencySelect();
+    }
+
+    // Audio contract for the real-time path: it decodes VIDEO ONLY (there is
+    // no AudioDecoder/AudioWorklet chain here). Rather than silently muting
+    // forever we (a) label the option "no audio", (b) remember an unmute the
+    // user made in MSE mode and restore it the moment they pick a buffered
+    // option again, and (c) say so in the status line - but only when the
+    // stream actually carries audio the buffered player could have played.
+    let userUnmuted = false;
+    video.addEventListener("volumechange", () => {
+      if (mode !== "rt") userUnmuted = !video.muted;
+    });
+    function applyModeAudio() {
+      if (mode === "rt") { if (!video.muted) video.muted = true; }
+      else if (userUnmuted && video.muted) video.muted = false;
+    }
+
+    // The one control that owns the player choice: picking ANY of the buffered
+    // margins here always switches (back) to the MSE/<video> path, at any
+    // time, connected or not - that is the manual escape hatch out of
+    // real-time mode, independent of the automatic fallbacks below.
     if (latencySelect) {
-      latencySelect.value = String(targetBehindS);
+      syncLatencySelect();
       latencySelect.addEventListener("change", () => {
-        targetBehindS = parseFloat(latencySelect.value) || 1.5;
-        sessionStorage.setItem("ms.latency", String(targetBehindS));
+        const v = latencySelect.value;
+        sessionStorage.setItem("ms.latency", v);
+        const newMode = v === RT_VALUE ? "rt" : "mse";
+        if (newMode === "mse") {
+          const n = parseMargin(v);
+          targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
+          lastBufferedValue = String(targetBehindS);
+        }
+        if (newMode === mode) return;   // margin-only change: live, no reconnect
+        mode = newMode;
+        rtRetries = 0;
+        applyModeUi();
+        applyModeAudio();
+        // Swapping the pipeline needs a fresh connection (different consumer of
+        // the same fMP4 stream); while disconnected, just say what will happen
+        // rather than auto-connecting behind a deliberate Disconnect.
+        if (running) stopStream("Switching player…").then(() => startStream());
+        else setStatus((newMode === "rt" ? "Real-time player" : "Buffered player") +
+                       " selected - click Connect.");
       });
     }
 
@@ -513,17 +666,73 @@
       return null;
     }
 
+    // Resolve the timps endpoint from the per-boot token info (scheme/port),
+    // and the "&token=..." suffix both the stream fetch and /control use.
+    async function endpoint() {
+      const info = await window.timpsTokenInfo;
+      if (info) base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT);
+      return { base: base, tok: info && info.token ? "&token=" + encodeURIComponent(info.token) : "" };
+    }
+
+    // GET /control, cached briefly: both the MSE start path (does this stream
+    // carry AAC?) and the real-time gate (is this stream H.264?) need it, and
+    // a live main/sub switch would otherwise fetch it twice in a second.
+    let controlCache = null, controlCacheAt = 0, controlInflight = null;
+    async function controlSnapshot(apiBase, tok, maxAgeMs) {
+      const now = Date.now();
+      if (controlCache && now - controlCacheAt < (maxAgeMs === undefined ? 10000 : maxAgeMs))
+        return controlCache;
+      if (controlInflight) return controlInflight;   // coalesce parallel callers
+      controlInflight = (async () => {
+        try {
+          const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
+                                { cache: "no-store" });
+          if (!r.ok) return null;
+          const j = await r.json();
+          controlCache = j; controlCacheAt = Date.now();
+          return j;
+        } catch (e) { return null; }  // unreachable -> caller picks a safe default
+        finally { controlInflight = null; }
+      })();
+      return controlInflight;
+    }
+
     // Ask timps (GET /control) whether audio is enabled AND AAC; anything else
     // (pcma/pcmu/disabled/unreachable) means the fMP4 is video-only, so we must
     // NOT claim an AAC track to MSE. Uses the same token that unlocks /control.
     async function streamHasAac(apiBase, tok) {
-      try {
-        const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
-                              { cache: "no-store" });
-        if (!r.ok) return false;
-        const j = await r.json();
-        return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
-      } catch (e) { return false; }   // unreachable -> safe video-only
+      const j = await controlSnapshot(apiBase, tok);
+      return !!(j && j.audio && j.audio.enabled && j.audio.codec === "aac");
+    }
+
+    // Real-time availability, gate 2 of 2: the SELECTED stream must be H.264.
+    // WebCodecs HEVC support is platform-dependent patchwork, so an H.265
+    // stream never gets offered this path - the option is disabled with a
+    // reason instead of silently producing a black canvas. Re-run whenever the
+    // main/sub selection changes, since the two channels can differ.
+    async function refreshRtOption() {
+      if (!HAVE_WEBCODECS || !rtOption || !latencySelect) return;
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const { base: b, tok } = await endpoint();
+      const j = await controlSnapshot(b, tok);
+      const vcfg = j && j.video ? j.video[chn] : null;
+      // unreachable /control: leave the option as-is rather than yanking it
+      // out from under the user; the moov parser rejects non-H.264 anyway.
+      if (!vcfg) return;
+      const ok = String(vcfg.codec || "").toLowerCase() === "h264";
+      rtOption.disabled = !ok;
+      rtOption.title = ok ? "" :
+        "Real-time decoding needs H.264; this stream is " + String(vcfg.codec).toUpperCase();
+      if (!ok && mode === "rt") {
+        mode = "mse";
+        targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
+        sessionStorage.setItem("ms.latency", lastBufferedValue);
+        applyModeUi();
+        applyModeAudio();
+        setStatus("Real-time mode is H.264-only - this stream is " +
+                  String(vcfg.codec).toUpperCase() + "; using buffered playback.");
+        if (running) stopStream("Switching player…").then(() => startStream());
+      }
     }
 
     async function stopStream(reason = "Disconnected") {
@@ -537,11 +746,396 @@
         try { if (mediaSource.readyState === "open") mediaSource.endOfStream(); } catch (e) { /* ignore */ }
         mediaSource = null;
       }
+      rtTeardown();
       video.removeAttribute("src");
       try { video.load(); } catch (e) { /* ignore */ }
       setConnectingUi(false);
       setConnectedUi(false);
       setStatus(reason);
+    }
+
+    // ===================================================================
+    // Real-time player (WebCodecs + canvas), the "rt" entry of #ms-latency.
+    //
+    // Same endpoint, same token, same ?chn= as the MSE path - only the client
+    // side differs: fetch() -> incremental fMP4 box parse -> VideoDecoder ->
+    // drawImage() on every output frame. No SourceBuffer, no playback clock,
+    // no jitter cushion: the newest frame is simply shown when it arrives
+    // (measured arrival->render ~1ms on cam-garage). The flip side is that a
+    // network stall is a visible freeze-then-jump instead of a smooth drain,
+    // which is why this is an explicit option and not the default.
+    //
+    // The parser only has to handle what src/mp4/fmp4.c actually emits:
+    // ftyp, one moov, then one moof+mdat per access unit (frame-granular),
+    // AVCC length-prefixed NALs in the mdat.
+    // ===================================================================
+
+    const RT_MAX_RETRIES = 5;
+    let rt = null;             // active real-time player state, or null
+    let rtRetries = 0;         // consecutive reconnect attempts (reset on 1st frame)
+    let rtTokenRefreshed = false;  // one token renewal per healthy run, no 401 loop
+
+    /* One ISO-BMFF box at `off`, or null when the buffer does not hold it all */
+    function boxAt(bytes, off) {
+      if (off + 8 > bytes.length) return null;
+      const dv = new DataView(bytes.buffer, bytes.byteOffset + off, bytes.length - off);
+      let size = dv.getUint32(0), hdr = 8;
+      const type = String.fromCharCode(bytes[off + 4], bytes[off + 5], bytes[off + 6], bytes[off + 7]);
+      if (size === 1) {                       // 64-bit extended size
+        if (off + 16 > bytes.length) return null;
+        size = dv.getUint32(8) * 4294967296 + dv.getUint32(12);
+        hdr = 16;
+      }
+      if (size < hdr || off + size > bytes.length) return null;
+      return { type: type, size: size, payload: bytes.subarray(off + hdr, off + size) };
+    }
+
+    /* Walk a container path, e.g. findBox(trak, ["mdia","minf","stbl","stsd"]) */
+    function findBox(bytes, path) {
+      let cur = bytes;
+      for (let i = 0; i < path.length; i++) {
+        let found = null, off = 0, b;
+        while ((b = boxAt(cur, off))) {
+          if (b.type === path[i]) { found = b.payload; break; }
+          off += b.size;
+        }
+        if (!found) return null;
+        cur = found;
+      }
+      return cur;
+    }
+
+    /* Video track id + media timescale + avcC out of the init segment.
+       Two byte-offset traps live here, both silent when wrong:
+       - tkhd's track_ID sits at +20 for version 1 (64-bit times) and +12 for
+         version 0; getting it backwards configures the decoder fine and then
+         never matches a single moof, so no frame is ever fed to it.
+       - avcC is a CHILD of the avc1 sample entry, which starts with 78 fixed
+         VisualSampleEntry bytes after its own 8-byte box header. */
+    function rtParseMoov(moov) {
+      const out = { trackId: null, timescale: 90000, avcC: null, videoFourCC: null };
+      let off = 0, b;
+      while ((b = boxAt(moov, off))) {
+        if (b.type === "trak") {
+          const trak = b.payload;
+          const tkhd = findBox(trak, ["tkhd"]);
+          let trackId = null;
+          if (tkhd && tkhd.length >= 24) {
+            const dv = new DataView(tkhd.buffer, tkhd.byteOffset, tkhd.length);
+            trackId = tkhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+          }
+          const stsd = findBox(trak, ["mdia", "minf", "stbl", "stsd"]);
+          // stsd payload: version(1)+flags(3)+entry_count(4), then entries
+          const entry = stsd ? boxAt(stsd, 8) : null;
+          if (entry && (entry.type === "avc1" || entry.type === "avc3" ||
+                        entry.type === "hvc1" || entry.type === "hev1")) {
+            out.videoFourCC = entry.type;
+            out.trackId = trackId;
+            if (entry.type === "avc1" || entry.type === "avc3")
+              out.avcC = findBox(entry.payload.subarray(78), ["avcC"]);
+            const mdhd = findBox(trak, ["mdia", "mdhd"]);
+            if (mdhd && mdhd.length >= 24) {
+              const dv = new DataView(mdhd.buffer, mdhd.byteOffset, mdhd.length);
+              const ts = mdhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+              if (ts > 0) out.timescale = ts;
+            }
+          }
+        }
+        off += b.size;
+      }
+      return out;
+    }
+
+    /* traf -> tfhd.track_ID (always right after the 4 fullbox bytes) */
+    function rtTrafTrackId(traf) {
+      const tfhd = findBox(traf, ["tfhd"]);
+      if (!tfhd || tfhd.length < 8) return null;
+      return new DataView(tfhd.buffer, tfhd.byteOffset, tfhd.length).getUint32(4);
+    }
+
+    /* traf -> tfdt baseMediaDecodeTime (fmp4.c writes version 1, 64-bit) */
+    function rtTrafDts(traf) {
+      const tfdt = findBox(traf, ["tfdt"]);
+      if (!tfdt || tfdt.length < 8) return null;
+      const dv = new DataView(tfdt.buffer, tfdt.byteOffset, tfdt.length);
+      return tfdt[0] === 1
+        ? (tfdt.length >= 12 ? dv.getUint32(4) * 4294967296 + dv.getUint32(8) : null)
+        : dv.getUint32(4);
+    }
+
+    /* Does this AVCC access unit contain an IDR NAL? An AU can lead with AUD
+       or SPS/PPS, so scan the whole length-prefixed chain rather than just
+       looking at the first NAL header. */
+    function rtIsKeyframe(au, lenSize) {
+      let off = 0;
+      while (off + lenSize < au.length) {
+        let n = 0;
+        for (let i = 0; i < lenSize; i++) n = n * 256 + au[off + i];
+        if (n <= 0 || off + lenSize + n > au.length) break;
+        const nalType = au[off + lenSize] & 0x1f;
+        if (nalType === 5) return true;               // IDR slice
+        off += lenSize + n;
+      }
+      return false;
+    }
+
+    function rtTeardown() {
+      if (!rt) return;
+      const st = rt;
+      rt = null;
+      st.dead = true;
+      if (st.statsTimer) { clearInterval(st.statsTimer); st.statsTimer = null; }
+      if (st.decoder) {
+        try { if (st.decoder.state !== "closed") st.decoder.close(); } catch (e) { /* ignore */ }
+        st.decoder = null;
+      }
+      if (rtCanvas) {
+        const ctx = rtCanvas.getContext("2d");
+        if (ctx) ctx.clearRect(0, 0, rtCanvas.width, rtCanvas.height);
+      }
+    }
+
+    // Leave the real-time path for the buffered one, keeping the select, the
+    // persisted preference and the audio state consistent. Used when the
+    // browser refuses the actual codec config, on a fatal decoder error, or
+    // when the init segment turns out not to be H.264 after all.
+    function rtFallbackToMse(why) {
+      mode = "mse";
+      targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
+      sessionStorage.setItem("ms.latency", lastBufferedValue);
+      if (rtOption) { rtOption.disabled = true; rtOption.title = why; }
+      applyModeUi();
+      applyModeAudio();
+      stopStream(why + " - switched to buffered playback.").then(() => startStream());
+    }
+
+    async function startRtStream(mySession) {
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      const { base: b, tok } = await endpoint();
+      if (session !== mySession) return;
+      const src = b + "/stream.mp4?chn=" + chn + tok;
+      const hasAac = await streamHasAac(b, tok);
+      if (session !== mySession) return;
+
+      const ctx = rtCanvas ? rtCanvas.getContext("2d") : null;
+      if (!ctx) { rtFallbackToMse("No 2D canvas available"); return; }
+
+      const st = {
+        dead: false, decoder: null, trackId: null, timescale: 90000,
+        lenSize: 4, pendingVideo: false, pendingDts: null, sawKey: false,
+        frames: 0, lastFrames: 0, queueMax: 0, lastArrival: 0, lat: 0,
+        buf: new Uint8Array(0), statsTimer: null, w: 0, h: 0
+      };
+      rt = st;
+
+      const audioNote = hasAac ? " · audio unavailable in this mode" : "";
+      const label = chn === "1" ? "sub" : "main";
+
+      function fatal(msg) {
+        if (st.dead || session !== mySession) return;
+        scheduleReconnect(msg);
+      }
+
+      function scheduleReconnect(msg) {
+        if (session !== mySession) return;
+        rtTeardown();
+        try { if (abortCtrl) abortCtrl.abort(); } catch (e) { /* ignore */ }
+        abortCtrl = null;
+        running = false;
+        if (rtRetries >= RT_MAX_RETRIES) {
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + RT_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, rtRetries));
+        rtRetries++;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + rtRetries + "/" + RT_MAX_RETRIES + ")…");
+        setTimeout(() => {
+          // a stop / stream switch / mode switch in the meantime bumps the
+          // session token, and that silently cancels this retry
+          if (session !== mySession || mode !== "rt") return;
+          startStream();
+        }, delay);
+      }
+
+      function onFrame(frame) {
+        if (st.dead) { try { frame.close(); } catch (e) { /* ignore */ } return; }
+        const w = frame.displayWidth || frame.codedWidth;
+        const h = frame.displayHeight || frame.codedHeight;
+        if (w && h && (st.w !== w || st.h !== h)) {
+          st.w = w; st.h = h;
+          rtCanvas.width = w; rtCanvas.height = h;
+          // tells preview-motion.js the intrinsic size; the hidden <video>
+          // has no metadata of its own while this player owns the frame
+          window.msPreviewSize = { w: w, h: h };
+        }
+        // A backgrounded tab still gets frames; decode them (so the stream
+        // keeps flowing and we stay at the live edge) but skip the paint.
+        if (!document.hidden) {
+          try { ctx.drawImage(frame, 0, 0, rtCanvas.width, rtCanvas.height); }
+          catch (e) { /* transient canvas loss; next frame retries */ }
+        }
+        try { frame.close(); } catch (e) { /* ignore */ }
+        st.frames++;
+        if (st.lastArrival) st.lat = performance.now() - st.lastArrival;
+        if (st.frames === 1) {                 // a decoded frame = healthy link
+          rtRetries = 0;
+          rtTokenRefreshed = false;
+        }
+      }
+
+      function configure(moov) {
+        const info = rtParseMoov(moov);
+        if (!info.avcC) {
+          rtFallbackToMse(info.videoFourCC && info.videoFourCC.indexOf("hv") === 0
+            ? "Real-time mode is H.264-only (this stream is H.265)"
+            : "No H.264 configuration in the stream");
+          return false;
+        }
+        st.trackId = info.trackId;
+        st.timescale = info.timescale;
+        st.lenSize = (info.avcC[4] & 3) + 1;   // AVCDecoderConfigurationRecord
+        const codec = "avc1." +
+          [1, 2, 3].map((i) => info.avcC[i].toString(16).padStart(2, "0")).join("");
+        const config = { codec: codec, description: info.avcC, optimizeForLatency: true };
+        const dec = new VideoDecoder({
+          output: onFrame,
+          error: (e) => fatal("Decoder error: " + (e && e.message ? e.message : e))
+        });
+        // isConfigSupported is the honest check for the ACTUAL profile/level,
+        // not just "is there a VideoDecoder" - but it is async, so configure()
+        // optimistically (chunks are already arriving) and fall back if the
+        // answer comes back negative.
+        VideoDecoder.isConfigSupported(config).then((r) => {
+          if (!st.dead && r && r.supported === false)
+            rtFallbackToMse("Browser cannot decode " + codec);
+        }).catch(() => { /* not implemented -> rely on configure()/error() */ });
+        try {
+          dec.configure(config);
+        } catch (e) {
+          rtFallbackToMse("Cannot configure decoder (" + codec + ")");
+          return false;
+        }
+        st.decoder = dec;
+        setStatus("Real-time (" + label + " stream, " + codec + ")" + audioNote);
+        return true;
+      }
+
+      function onBox(type, payload) {
+        if (type === "moov") {
+          configure(payload);
+        } else if (type === "moof") {
+          st.lastArrival = performance.now();
+          const traf = findBox(payload, ["traf"]);
+          st.pendingVideo = !!traf && rtTrafTrackId(traf) === st.trackId;
+          st.pendingDts = traf ? rtTrafDts(traf) : null;
+        } else if (type === "mdat") {
+          if (!st.pendingVideo || !st.decoder || st.decoder.state !== "configured") return;
+          if (payload.length <= st.lenSize) return;
+          const key = rtIsKeyframe(payload, st.lenSize);
+          // VideoDecoder rejects a delta chunk before the first key frame;
+          // timps starts fragments at an IDR, but drop anything that arrives
+          // before one rather than throwing on it.
+          if (!key && !st.sawKey) return;
+          if (key) st.sawKey = true;
+          const ts = st.pendingDts !== null
+            ? Math.round(st.pendingDts * 1000000 / st.timescale)
+            : 0;
+          try {
+            st.decoder.decode(new EncodedVideoChunk({
+              type: key ? "key" : "delta", timestamp: ts,
+              // copy: the parser's view aliases a buffer we keep slicing
+              data: payload.slice()
+            }));
+            if (st.decoder.decodeQueueSize > st.queueMax)
+              st.queueMax = st.decoder.decodeQueueSize;
+          } catch (e) {
+            fatal("Decode failed: " + (e && e.message ? e.message : e));
+          }
+        }
+      }
+
+      /* incremental box splitter over the chunked HTTP body */
+      function push(chunk) {
+        const merged = new Uint8Array(st.buf.length + chunk.length);
+        merged.set(st.buf, 0);
+        merged.set(chunk, st.buf.length);
+        st.buf = merged;
+        let off = 0, b;
+        while (!st.dead && (b = boxAt(st.buf, off))) {
+          onBox(b.type, b.payload);
+          off += b.size;
+        }
+        st.buf = off ? st.buf.subarray(off) : st.buf;
+        // A never-completing box would otherwise grow without bound (a
+        // truncated/corrupt stream, or a proxy mangling the body).
+        if (st.buf.length > 16 * 1024 * 1024) {
+          fatal("Stream framing lost (oversized box)");
+        }
+      }
+
+      // Mode-specific stats in the same hint line the MSE path uses for its
+      // status: measured decode rate, decoder backlog and the arrival->render
+      // delay that is the whole point of this player.
+      st.statsTimer = setInterval(() => {
+        if (st.dead || !st.decoder) return;
+        const fps = st.frames - st.lastFrames;
+        st.lastFrames = st.frames;
+        setStatus("Real-time (" + label + " stream) · " +
+          (st.w ? st.w + "x" + st.h + " · " : "") +
+          fps.toFixed(0) + " fps · " + st.frames + " frames · queue " +
+          st.decoder.decodeQueueSize + " · render +" + st.lat.toFixed(1) + " ms" +
+          audioNote);
+      }, 1000);
+
+      const ctrl = new AbortController();
+      abortCtrl = ctrl;
+      try {
+        const res = await fetch(src, { signal: ctrl.signal, cache: "no-store" });
+        if (session !== mySession) { try { ctrl.abort(); } catch (e) { /* ignore */ } return; }
+        if (!res.ok || !res.body) {
+          // 5xx is transient - timps answers 503 once http_max_clients is
+          // reached, which a retry usually clears. 4xx is a decision (auth,
+          // bad channel): stop and say so instead of hammering the camera.
+          if (res.status >= 500) { scheduleReconnect("Connect failed: HTTP " + res.status); return; }
+          // ...except a 401 right after the stream dropped, which is what a
+          // timpsd restart looks like from here: the per-boot token we hold is
+          // simply the previous boot's. Pull a fresh one and retry once.
+          if (res.status === 401 && !rtTokenRefreshed) {
+            rtTokenRefreshed = true;
+            controlCache = null;
+            refreshTimpsToken();
+            rtRetries = 0;                   // new failure class, fresh budget
+            scheduleReconnect("Stream token expired (timps restarted?) - renewing");
+            return;
+          }
+          rtTeardown();
+          running = false;
+          await stopStream("Connect failed: HTTP " + res.status +
+            (res.status === 401 ? " (timps HTTP auth - open " + b + " once and log in)" : ""));
+          return;
+        }
+        setConnectedUi(true);
+        setStatus("Real-time (" + label + " stream) · waiting for a key frame…");
+        const rd = res.body.getReader();
+        while (true) {
+          const { done, value } = await rd.read();
+          if (done || st.dead || session !== mySession) break;
+          push(value);
+        }
+        if (!st.dead && session === mySession) scheduleReconnect("Stream ended");
+      } catch (e) {
+        if (st.dead || session !== mySession) return;   // aborted by us
+        // The mixed-content hint is only meaningful if we never got a single
+        // frame; after that it is just noise on an ordinary mid-stream drop.
+        scheduleReconnect("Stream error: " + (e && e.message ? e.message : e) +
+          (st.frames === 0 && rtRetries === 0
+            ? " - if the web UI runs on HTTPS this is likely blocked mixed content (see page source)"
+            : ""));
+      }
     }
 
     // Port of timps's embedded MSE player (src/mp4/httpd.c PLAYER_TAIL):
@@ -553,12 +1147,16 @@
       const mySession = ++session;   // this attempt owns the player now
       setStatus("Connecting...");
       setConnectingUi(true);
+      applyModeUi();
+      applyModeAudio();
+      if (mode === "rt") return startRtStream(mySession);
+      return startMseStream(forceVideoOnly, mySession);
+    }
 
+    async function startMseStream(forceVideoOnly, mySession) {
       const chn = streamSelect.value === "1" ? "1" : "0";
-      const info = await window.timpsTokenInfo;
-      if (info) base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT);
-      const tok = info && info.token
-        ? "&token=" + encodeURIComponent(info.token) : "";
+      const ep = await endpoint();
+      const tok = ep.tok;
       const src = base + "/stream.mp4?chn=" + chn + tok;
       // iOS Safari never exposes window.MediaSource; since iOS 17.1 it
       // exposes window.ManagedMediaSource instead (requires
@@ -674,6 +1272,11 @@
             q.push(value);
             pump();
           }
+          // Clean end of the response body (daemon restart, client-limit
+          // eviction, ...): the UI used to keep saying "Connected" while the
+          // picture was frozen. Say what happened instead.
+          if (session === mySession && running && !dead)
+            setStatus("Stream ended - click Connect to reconnect.");
         } catch (e) {
           if (session === mySession && running) {
             setStatus("Stream error: " + (e && e.message ? e.message : e) +
@@ -695,13 +1298,16 @@
     // resolution/SPS needs a fresh MediaSource) - no manual Disconnect needed
     streamSelect.addEventListener("change", () => {
       sessionStorage.setItem("ms.stream", streamSelect.value || "0");
+      // main and sub can run different codecs, so the real-time gate is
+      // per-channel; this may also bounce an active rt session back to MSE
+      refreshRtOption();
       if (running) {
-        stopStream("Switching stream...").then(startStream);
+        stopStream("Switching stream...").then(() => startStream());
       }
     });
 
     connectButton.addEventListener("click", () => {
-      if (running) stopStream(); else startStream();
+      if (running) { rtRetries = 0; stopStream(); } else startStream();
     });
 
     window.addEventListener("pagehide", () => {
@@ -710,6 +1316,8 @@
 
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
+    applyModeUi();
+    refreshRtOption();     // async; may disable "rt" once /control answers
     startStream().catch((err) => {
       console.warn("Auto-connect failed:", err);
       setStatus("Auto-connect failed. Click Connect to try again.");
@@ -717,5 +1325,6 @@
   })();
 </script>
 <script src="/a/preview-motion.js"></script>
+<script src="/a/preview-talk.js"></script>
 </body>
 </html>

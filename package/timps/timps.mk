@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.5
+TIMPS_VERSION = v1.9.6
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -222,6 +222,7 @@ define TIMPS_BUILD_CMDS
 		USE_OSD_HINTING=$(if $(BR2_PACKAGE_TIMPS_OSD_HINTING),1,0) \
 		USE_BACKCHANNEL=$(if $(BR2_PACKAGE_TIMPS_BACKCHANNEL),1,0) \
 		USE_BC_AAC=$(if $(BR2_PACKAGE_TIMPS_BC_AAC),1,0) \
+		USE_BC_WS=$(if $(BR2_PACKAGE_TIMPS_BC_WS),1,0) \
 		HELIXLIB="-lhelix-aac" \
 		HELIX_INC=$(STAGING_DIR)/usr/include \
 		USE_PLAY=$(if $(BR2_PACKAGE_TIMPS_PLAY),1,0) \
@@ -635,6 +636,35 @@ define TIMPS_PURGE_STOCK_WEBUI
 endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_WEBUI_OVERLAY $(TARGET_FINALIZE_HOOKS)
 TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
+
+# Same prepend trick as TIMPS_REAPPLY_WEBUI_OVERLAY, for thingino-motors'
+# own www files instead of thingino-webui's: reapplied before assemble_plugins
+# runs, so a plain (non-fork) thingino-motors build still gets the full
+# joystick/CSS/CGIs over CGI transport. motorsWs stays false in the shipped
+# manifest - WS itself still needs the fork; this only carries the UI.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS),y)
+define TIMPS_REAPPLY_MOTORS_UI
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.html \
+		$(TARGET_DIR)/var/www/config-motors.html
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.js \
+		$(TARGET_DIR)/var/www/a/preview-motors.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors-settings.js \
+		$(TARGET_DIR)/var/www/a/preview-motors-settings.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.css \
+		$(TARGET_DIR)/var/www/a/preview-motors.css
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.js \
+		$(TARGET_DIR)/var/www/a/config-motors.js
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor.cgi
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-params.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-params.cgi
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motors-config.cgi \
+		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+endef
+TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
+endif
 
 # libstdc++.so is 2130 KB and, once timps links the C++ runtime statically and
 # libaudioprocess-neo replaces the proprietary (C++) libaudioProcess.so, has no

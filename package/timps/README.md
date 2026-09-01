@@ -120,6 +120,14 @@ and `/a/preview-motors.js` are contributed by `thingino-motors`' own manifest
 via the marker above (no hand-copied markup in this package), so PTZ via
 `/x/json-motor.cgi` keeps working.
 
+**WebSocket PTZ:** a timps build with PTZ hardware also has the option of
+a WebSocket-based control path for `thingino-motors` (`ws://`/`wss://`,
+replacing per-move CGI round trips with a persistent socket) instead of
+the CGI-only path above. That daemon and its Kconfig option
+(`BR2_PACKAGE_THINGINO_MOTORS_WS`) live only on
+<https://github.com/Lu-Fi/thingino-firmware> (branch `ciao`) for now, not
+in this tree — build from there if you want it.
+
 The motion-grid overlay (`/a/preview-motion.js`) gets the per-boot token
 from `/x/timps-token.cgi`, probes `GET /control` once (feature detection +
 initial state) and then **subscribes** to

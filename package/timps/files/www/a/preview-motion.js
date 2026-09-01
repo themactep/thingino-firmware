@@ -13,6 +13,8 @@
   "use strict";
 
   const POLL_MS = 250; // fallback poll rate, ~4 Hz
+  const POLL_MAX_BACKOFF_MS = 8000;  // ceiling once polls start failing
+  const PROBE_MAX_BACKOFF_MS = 30000; // ceiling for the initial capability probe
   const ES_MAX_ERRORS = 4; // consecutive EventSource errors before fallback
   const video = document.getElementById("ms-video");
   const canvas = document.getElementById("motion-overlay");
@@ -28,19 +30,37 @@
   let busy = false;
   let last = null;   // last motion status object (or null)
   let on = sessionStorage.getItem("ms.motionOverlay") !== "0";
+  let pollFails = 0;    // consecutive failed polls, drives the poll backoff
+  let nextPollAt = 0;   // performance.now() before which tick() stays quiet
+  let btnShown = null;  // null = never applied, so the first call always runs
+  let stopped = false;  // set on pagehide; stops the probe retry loop
 
   function setBtn() {
     btn.classList.toggle("active", on);
     btn.title = on ? "Hide motion grid overlay" : "Show motion grid overlay";
   }
 
-  /* displayed content rect of the object-fit:contain video inside its box */
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // gate on available && enabled; timps pushes a motion event on both the
+  // enable and disable transition, so this stays live off the open stream.
+  function applyAvailability(st) {
+    const usable = !!(st && st.available && st.enabled);
+    if (usable === btnShown) return;
+    btnShown = usable;
+    btn.style.display = usable ? "" : "none";
+    if (usable) setBtn();
+    else clear();
+  }
+
+  // displayed content rect of the object-fit:contain video inside its box;
+  // real-time mode's <video> has no metadata, so fall back to window.msPreviewSize
   function contentRect() {
-    // measure the display box from the (always-visible) video, falling back to
-    // the canvas; never rely on the canvas alone (it may still be display:none)
     const bw = video.clientWidth || canvas.clientWidth;
     const bh = video.clientHeight || canvas.clientHeight;
-    const vw = video.videoWidth, vh = video.videoHeight;
+    const rt = window.msPreviewSize;
+    const vw = video.videoWidth || (rt ? rt.w : 0);
+    const vh = video.videoHeight || (rt ? rt.h : 0);
     if (!bw || !bh) return null;
     if (!vw || !vh) return { x: 0, y: 0, w: bw, h: bh }; // no metadata yet
     const scale = Math.min(bw / vw, bh / vh);
@@ -53,10 +73,7 @@
     if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
   }
 
-  /* motion "afterglow": timps reports a cell active only on the frame it moved,
-   * then clears it, so raw highlights just flicker. Remember when each cell was
-   * last active and keep drawing it - fading out over HOLD_MS - so movement is
-   * actually visible. A rAF loop animates the fade between motion events. */
+  // afterglow: a cell is only reported active for one frame, so hold and fade it
   const HOLD_MS = 1200;
   let holds = null;   // Float64Array: last-active timestamp per cell
   let holdN = 0;
@@ -166,13 +183,22 @@
     if (document.hidden) return;
     if (!on) { clear(); return; }
     if (busy) return;
+    // honour the backoff set by a previous failure
+    if (performance.now() < nextPollAt) return;
     busy = true;
     try {
       last = await poll();
+      pollFails = 0;
+      nextPollAt = 0;
     } catch (e) {
-      last = null; // endpoint gone (streamer restart?): hide, keep trying
+      // back off instead of hammering a failing endpoint at a flat 4Hz
+      pollFails++;
+      nextPollAt = performance.now() +
+        Math.min(POLL_MAX_BACKOFF_MS, POLL_MS * Math.pow(2, pollFails));
+      last = null;
     }
     busy = false;
+    applyAvailability(last);
     noteActive(last);
     ensureAnim();
   }
@@ -203,14 +229,14 @@
       } catch (err) {
         last = null;
       }
+      // carries available/enabled: a live motion on/off lands here
+      applyAvailability(last);
       noteActive(last);
       ensureAnim();
     });
     es.onopen = () => { esErrors = 0; };
     es.onerror = () => {
-      // EventSource reconnects on its own (server retry: 3000); only give
-      // up for good - old timpsd without /events, events.enabled=0 - after
-      // several consecutive failures without a single event in between
+      // give up for good only after several consecutive failures
       esErrors++;
       if (esErrors >= ES_MAX_ERRORS || (es && es.readyState === EventSource.CLOSED)) {
         fellBack = true;
@@ -251,18 +277,29 @@
     if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
     base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || 8880);
 
-    // probe once: only offer the overlay when this build HAS motion support
-    let st;
-    try {
-      st = await poll();
-    } catch (e) {
-      return; // :8880 unreachable (HTTPS mixed content?) -> stay hidden
+    // Bind teardown before the probe below can start waiting on the network.
+    window.addEventListener("pagehide", () => {
+      stopped = true;
+      stopPush();
+      stopPoll();
+    });
+
+    // probe for motion support, retrying with backoff instead of giving up
+    // forever on one transient failure (pool full, cert not yet trusted)
+    let st = null;
+    for (let delay = 1000; !stopped; delay = Math.min(PROBE_MAX_BACKOFF_MS, delay * 2)) {
+      try {
+        st = await poll();
+        break;
+      } catch (e) {
+        await sleep(delay);
+      }
     }
-    if (!st || !st.available) return;
+    if (stopped || !st) return;
+    if (!st.available) return; // build-time property, permanent if absent
     last = st;
 
-    btn.style.display = "";
-    setBtn();
+    applyAvailability(last);
     draw(last);
     btn.addEventListener("click", () => {
       on = !on;
@@ -281,10 +318,7 @@
       if (document.hidden) pause();
       else resume();
     });
-    window.addEventListener("pagehide", () => {
-      stopPush();
-      stopPoll();
-    });
+    // teardown is already bound above, before the probe
   }
 
   init();

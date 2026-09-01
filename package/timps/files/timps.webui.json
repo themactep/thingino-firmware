@@ -82,7 +82,15 @@
           "label": "Restart streamer",
           "href": "/x/restart-prudynt.cgi",
           "className": "text-danger confirm",
-          "trackActive": false
+          "trackActive": false,
+          "action": true,
+          "confirm": {
+            "title": "Restart streamer",
+            "message": "Restart the timps streamer? The video stream will be interrupted for a few seconds.",
+            "confirmLabel": "Restart"
+          },
+          "actionPendingMessage": "Restarting streamer…",
+          "actionMessage": "Streamer restart initiated"
         }
       ]
     },

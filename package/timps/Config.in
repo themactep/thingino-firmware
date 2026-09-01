@@ -99,8 +99,14 @@ config BR2_PACKAGE_TIMPS_TLS
 	select BR2_PACKAGE_MBEDTLS
 	help
 	  Enable mbedTLS for HTTPS (HTTP preview port) and RTSPS (RTSP
-	  over TLS on port 322). Requires TLS certificates at
-	  /etc/ssl/certs/httpd.crt and /etc/ssl/private/httpd.key.
+	  over TLS on port 322). Certificates come from the paths in
+	  timps.conf (http.tls_cert / http.tls_key, default
+	  /etc/ssl/certs/timps.crt and /etc/ssl/private/timps.key).
+	  S95timps sets them up before timpsd starts: on an image with
+	  the web UI it symlinks them to uhttpd's own certificate, so
+	  :443 and the preview port present the same cert to the browser
+	  (self-signed trust is per host+PORT); otherwise it generates a
+	  self-signed pair.
 
 config BR2_PACKAGE_TIMPS_SRT
 	bool "SRT output (libsrt)"
@@ -112,7 +118,7 @@ config BR2_PACKAGE_TIMPS_SRT
 
 config BR2_PACKAGE_TIMPS_OSD_HINTING
 	bool "OSD text autohinting (geometric stem snapping)"
-	default y
+	default n
 	help
 	  Enable the opt-in geometric autohinting pass in the TTF rasterizer
 	  (msttf.c), which snaps long, near-vertical/near-horizontal glyph
@@ -182,6 +188,58 @@ config BR2_PACKAGE_TIMPS_BC_AAC
 	  libhelix-aac (the same decoder prudynt uses). Better audio quality
 	  than G.711 but higher latency and an extra dependency. Leave off
 	  for a G.711-only, dependency-light backchannel.
+
+config BR2_PACKAGE_TIMPS_BC_WS
+	bool "Browser-microphone backchannel (WebSocket talk endpoint)"
+	depends on BR2_PACKAGE_TIMPS_BACKCHANNEL
+	depends on BR2_PACKAGE_TIMPS_TLS
+	depends on BR2_PACKAGE_TIMPS_CONTROL
+	default n
+	help
+	  Serve the audio backchannel to a browser over a WebSocket at
+	  wss://<camera>:<http_port>/talk, in addition to the ONVIF/RTSP
+	  path the backchannel already offers. The page captures the
+	  visitor's microphone with getUserMedia(), encodes G.711 mu-law
+	  in an AudioWorklet and sends 20 ms binary frames; timps decodes
+	  them with the G.711 decoder it already has and hands the PCM to
+	  the same IMP_AO speaker path the RTSP backchannel uses.
+
+	  A browser cannot speak RTSP/RTP, so without this the backchannel
+	  is reachable only from an ONVIF client or an NVR.
+
+	  Enabling this compiles three extra source files into timpsd (the
+	  RFC 6455 framing, SHA-1, and the talk endpoint itself) and costs
+	  roughly 8KB of text. No new library: the framing rides on the
+	  connection httpd.c has already TLS-terminated, and mu-law decode
+	  is the pure-C g711.c that the backchannel already builds.
+
+	  TLS is a hard requirement, not a preference: getUserMedia() is
+	  refused outside a secure context, so a plain-http:// preview page
+	  can never obtain a microphone to send. Hence "depends on
+	  BR2_PACKAGE_TIMPS_TLS" rather than a runtime warning.
+
+	  The control endpoint is an equally hard requirement, for the
+	  auth story: a browser's WebSocket constructor cannot set request
+	  headers, so the ONLY credential it can present is the per-boot
+	  ?token= that /events already relies on - and the whole token
+	  machinery (http_header, http_check_token, http_cors, and the
+	  tok_ok that unlocks the global auth gate) is compiled only under
+	  the control endpoint. Without it this endpoint still builds, but
+	  every browser reaching it on a camera that HAS credentials
+	  configured gets a 401 demanding Digest or Basic, which a
+	  WebSocket cannot answer. Hence "depends on
+	  BR2_PACKAGE_TIMPS_CONTROL" rather than a silently unreachable
+	  endpoint.
+
+	  mbedTLS is NOT selected here. BR2_PACKAGE_TIMPS_TLS already
+	  carries "select BR2_PACKAGE_MBEDTLS", so depending on that symbol
+	  transitively guarantees the library; adding a second select for
+	  the same package is what produced the "recursive dependency
+	  detected" breakage documented in thingino-motors' WS_TLS option,
+	  where kconfig responded by silently ignoring defaults.
+
+	  Gated at runtime by audio.talk_ws in timps.conf (default 0,
+	  restart-required), so turning this on is not a one-way door.
 
 config BR2_PACKAGE_TIMPS_PLAY
 	bool "System-sound play queue (/usr/sbin/play)"
