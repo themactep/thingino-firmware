@@ -1,6 +1,7 @@
 # OpenIMP Package - Quick Start Guide
 
-> Current integration supports OpenIMP on T31/Linux 3.10 and T40/T41 Linux 4.4.
+> Current integration supports OpenIMP on T20/T21/T23/T30/T31 Linux 3.10 and
+> T40/T41 Linux 4.4.
 > Select `BR2_PACKAGE_THINGINO_ISP_OPEN=y` for the open-stack provider;
 > see [`docs/media/open-isp-stack.md`](../../docs/media/open-isp-stack.md).
 
@@ -36,7 +37,8 @@ make your_defconfig
 make
 ```
 
-For the experimental T31 public V4L2 capture path, also enable:
+For the experimental public V4L2 capture path on T20, T21, T30, T31, T40, or
+T41, also enable:
 
 ```text
 BR2_PACKAGE_OPENIMP_USE_V4L2=y
@@ -98,6 +100,10 @@ make
 ## Supported Platforms
 
 Auto-detected based on your SoC selection:
+- T20 with Linux 3.10
+- T21 with Linux 3.10
+- T23 with Linux 3.10
+- T30 with Linux 3.10
 - T31 with Linux 3.10
 - T40 with Linux 4.4
 - T41 with Linux 4.4
