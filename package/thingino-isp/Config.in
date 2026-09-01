@@ -42,9 +42,10 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
 	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
-	  Use open-tx-isp together with OpenIMP on supported T31,
-	  T40, and T41 targets. T23 uses open-tx-isp with the Ingenic
-	  libimp ABI provider because OpenIMP does not yet support T23.
+	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
+	  T40, and T41 targets. OpenIMP supplies the userspace ABI on
+	  T20, T21, T23, T30, T31, T40, and T41; T10 retains the
+	  Ingenic libimp provider.
 
 	  Image tuning and sensor coverage remain experimental.
 

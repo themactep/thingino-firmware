@@ -1,5 +1,18 @@
 config BR2_PACKAGE_OPENIMP_SUPPORTED
 	bool
+	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
+	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
+
+config BR2_PACKAGE_OPENIMP_V4L2_SUPPORTED
+	bool
+	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
@@ -9,18 +22,32 @@ config BR2_PACKAGE_OPENIMP
 	depends on BR2_PACKAGE_OPENIMP_SUPPORTED
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
 	depends on BR2_THINGINO_DEV_CAMERA
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if BR2_SOC_FAMILY = "t23"
 	help
 	  OpenIMP is an open-source implementation of the Ingenic IMP
 	  (Image Media Process) library. It provides a
 	  reverse-engineered implementation of libimp.so that can
 	  replace the proprietary Ingenic library.
 
-	  Current upstream device builds support T31, T40, and T41. This
+	  Current upstream device builds support T20, T21, T23, T30, T31,
+	  T40, and T41. This
 	  package installs the matching build/<soc>/libimp.so in staging
 	  and on the target, then preserves that replacement during
 	  target finalization.
 
-	  The T31 implementation is currently video-focused: IMP audio
+	  Several implementations are currently video-focused: IMP audio
 	  and some optional OSD/IVS entry points are not yet complete.
 
 	  https://github.com/opensensor/openimp
+
+config BR2_PACKAGE_OPENIMP_USE_V4L2
+	bool "Use the V4L2 capture backend"
+	depends on BR2_PACKAGE_OPENIMP
+	depends on BR2_PACKAGE_OPENIMP_V4L2_SUPPORTED
+	help
+	  Build the public open-tx-isp capture adapter and Raptor's
+	  V4L2-to-OpenIMP AVC bridge. The adapter exposes the ISP frame
+	  channel as /dev/video0 and OpenIMP encodes its NV12 frames.
+
+	  This path is experimental on T20, T21, T30, and T31 with the
+	  vendor Linux 3.10.14 kernel, and T40/T41 with Linux 4.4.94.

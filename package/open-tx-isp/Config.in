@@ -1,6 +1,10 @@
 config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	bool
+	default y if BR2_SOC_FAMILY = "t10" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
+	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
@@ -13,14 +17,14 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	depends on BR2_THINGINO_DEV_CAMERA
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP
-	  kernel driver. Builds the driver for the selected T23, T31,
-	  T40, or T41 SoC and installs it under the canonical
-	  tx-isp-<soc>.ko module name.
+	  kernel driver. Builds the driver for the selected T10, T20,
+	  T21, T23, T30, T31, T40, or T41 SoC and installs it under the
+	  canonical tx-isp-<soc>.ko module name.
 
 	  The active upstream targets are the vendor Linux 3.10.14 trees
-	  for T23/T31 and Linux 4.4.94 trees for T40/T41. The recovered
-	  drivers are experimental and image quality is not yet
-	  OEM-equivalent on every sensor.
+	  for T10, T20, T21, T23, T30, and T31, and Linux 4.4.94 trees
+	  for T40/T41. The recovered drivers are experimental and image
+	  quality is not yet OEM-equivalent on every sensor.
 
 	  This package builds after ingenic-sdk so its module replaces
 	  the proprietary module while retaining the SDK sensor, audio,

@@ -10,6 +10,8 @@ THINGINO_RAPTOR_DEPENDENCIES += thingino-raptor-hal thingino-raptor-ipc thingino
 THINGINO_RAPTOR_DEPENDENCIES += thingino-webui thingino-agent
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 THINGINO_RAPTOR_DEPENDENCIES += openimp
+endif
+ifeq ($(BR2_PACKAGE_OPENIMP_USE_V4L2),y)
 THINGINO_RAPTOR_MAKE_OPTS += V4L2_OPENIMP=1
 endif
 ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
