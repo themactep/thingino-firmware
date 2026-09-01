@@ -639,9 +639,10 @@ TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
 
 # Same prepend trick as TIMPS_REAPPLY_WEBUI_OVERLAY, for thingino-motors'
 # own www files instead of thingino-webui's: reapplied before assemble_plugins
-# runs, so a plain (non-fork) thingino-motors build still gets the full
-# joystick/CSS/CGIs over CGI transport. motorsWs stays false in the shipped
-# manifest - WS itself still needs the fork; this only carries the UI.
+# runs, so a timps build always gets the joystick/CSS/CGIs, whether motors
+# ships from upstream (CGI transport, motorsWs stays false) or from the WS
+# fork (motorsWs flipped true below, wss:// if WS_TLS is also on - the JS
+# itself picks ws:// vs wss:// at runtime from the page's own protocol).
 ifeq ($(BR2_PACKAGE_THINGINO_MOTORS),y)
 define TIMPS_REAPPLY_MOTORS_UI
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.html \
@@ -662,6 +663,13 @@ define TIMPS_REAPPLY_MOTORS_UI
 		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-token.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-token.cgi
+	$(SED) 's/"motorsWs": false/"motorsWs": true/' \
+		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+	grep -q '"motorsWs": true' $(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+endif
 endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
 endif
