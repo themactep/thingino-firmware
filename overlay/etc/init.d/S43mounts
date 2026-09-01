@@ -27,7 +27,7 @@ start() {
 		exit 1
 	fi
 
-	if mount -o nolock "$nfs_share" "$NFS_MOUNT"; then
+	if mount -o nolock,soft,timeo=30,retrans=2 "$nfs_share" "$NFS_MOUNT"; then
 		echo -c 240 -e "- Mounted $nfs_share on $NFS_MOUNT"
 	else
 		echo -c 160 -e "Failed to mount $nfs_share on $NFS_MOUNT" >&2
