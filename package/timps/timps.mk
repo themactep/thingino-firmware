@@ -643,6 +643,20 @@ TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
 # ships from upstream (CGI transport, motorsWs stays false) or from the WS
 # fork (motorsWs flipped true below, wss:// if WS_TLS is also on - the JS
 # itself picks ws:// vs wss:// at runtime from the page's own protocol).
+# ifeq/endif can't nest inside a define...endef recipe body (it's just text
+# handed to the shell, not re-parsed as Make) - so the WS-only lines are a
+# separate variable, conditionally defined here and referenced unconditionally
+# below; empty when undefined.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
+define TIMPS_REAPPLY_MOTORS_WS_CMDS
+	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-token.cgi \
+		$(TARGET_DIR)/var/www/x/json-motor-token.cgi
+	$(SED) 's/"motorsWs": false/"motorsWs": true/' \
+		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+	grep -q '"motorsWs": true' $(TARGET_DIR)/var/www/a/plugins/motors.webui.json
+endef
+endif
+
 ifeq ($(BR2_PACKAGE_THINGINO_MOTORS),y)
 define TIMPS_REAPPLY_MOTORS_UI
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.html \
@@ -663,13 +677,7 @@ define TIMPS_REAPPLY_MOTORS_UI
 		$(TARGET_DIR)/var/www/x/json-motors-config.cgi
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
-	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/www/motors-ui/json-motor-token.cgi \
-		$(TARGET_DIR)/var/www/x/json-motor-token.cgi
-	$(SED) 's/"motorsWs": false/"motorsWs": true/' \
-		$(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-	grep -q '"motorsWs": true' $(TARGET_DIR)/var/www/a/plugins/motors.webui.json
-endif
+	$(TIMPS_REAPPLY_MOTORS_WS_CMDS)
 endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
 endif
