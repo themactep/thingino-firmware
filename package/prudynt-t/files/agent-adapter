@@ -79,7 +79,7 @@ agent_stream_count() {
 
 agent_send2_service_supported() {
 	case "$1" in
-		email | ftp | gphotos | mqtt | ntfy | storage | telegram | webhook) return 0 ;;
+		email | ftp | gphotos | mqtt | ntfy | pushover | storage | telegram | webhook) return 0 ;;
 		*)
 			echo "unsupported send2 service: $1" >&2
 			return 1
@@ -354,7 +354,7 @@ agent_print_runtime_recording() {
 agent_print_send2_capabilities() {
 	printf '{'
 	sep=''
-	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
+	for service in email ftp gphotos mqtt ntfy pushover storage telegram webhook; do
 		printf '%s"%s":{"enabled":true,"send_photo":true,"send_video":%s}' \
 			"$sep" "$service" \
 			"$(agent_json_bool "$(agent_send2_service_has_send_video "$service" && printf true || printf false)")"
@@ -2062,6 +2062,7 @@ agent_apply_config() {
 	agent_persist_if_present "$source_file" motion.send2gphotos
 	agent_persist_if_present "$source_file" motion.send2mqtt
 	agent_persist_if_present "$source_file" motion.send2ntfy
+	agent_persist_if_present "$source_file" motion.send2pushover
 	agent_persist_if_present "$source_file" motion.send2storage
 	agent_persist_if_present "$source_file" motion.send2telegram
 	agent_persist_if_present "$source_file" motion.send2webhook

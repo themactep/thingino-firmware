@@ -1,0 +1,140 @@
+#!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2086
+# Sends notifications to Pushover
+# https://pushover.net/api
+#
+# NOTE: curl --verbose dumps token/user in cleartext to stderr. Do not use -v
+# where stderr is captured or displayed.
+
+. /usr/share/prudynt-helpers
+. /usr/share/send2common
+
+domain="pushover"
+config_file="/etc/send2.json"
+
+show_help() {
+	echo "Usage: $0 [options]
+Where:
+	-t token     Pushover application API token
+	-u user      Pushover user (or group) key
+	-n title     Message title
+	-m message   Message body (strftime format)
+	-z N         Priority (-2 lowest, 1 high; 2 emergency not supported)
+	-S           Send photo attachment
+	-V           Send video attachment
+	-v           Verbose output
+" >&2
+	exit 0
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	message=$(get_value message)
+	priority=$(get_value priority)
+	title=$(get_value title)
+	token=$(get_value token)
+	user=$(get_value user)
+}
+
+read_config
+
+while getopts m:n:t:u:vz:SV flag; do
+	case "$flag" in
+		m) message=$OPTARG ;;
+		n) title=$OPTARG ;;
+		t) token=$OPTARG ;;
+		u) user=$OPTARG ;;
+		v) verbose="true" ;;
+		z) priority=$OPTARG ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
+		*) show_help ;;
+	esac
+done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
+fi
+
+if [ -z "$token" ]; then
+	echo_error "Pushover token is not set"
+	exit 1
+fi
+
+if [ -z "$user" ]; then
+	echo_error "Pushover user key is not set"
+	exit 1
+fi
+
+[ -z "$title" ] && title="Thingino Camera"
+[ -z "$message" ] && message="Motion detected at %Y-%m-%d %H:%M:%S"
+[ -z "$priority" ] && priority=0
+
+# Pushover rejects priority 2 (emergency): retry/expire params are mandatory
+# for that level and we do not send them. Clamp out-of-range or emergency
+# priorities to the highest supported level.
+case "$priority" in
+	-2 | -1 | 0 | 1) ;;
+	2) priority=1 ;;
+	*)
+		case "$priority" in
+			'' | *[!0-9]*) priority=0 ;;
+			*) priority=1 ;;
+		esac
+		;;
+esac
+
+message=$(date +"$message")
+
+if [ "true" = "$verbose" ]; then
+	curl_verbosity="--verbose"
+else
+	curl_verbosity="--silent"
+fi
+
+curl_common="--show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+
+# Only one attachment per request: photo or video, not both.
+attachment=""
+if [ "true" = "$send_photo" ] && [ "true" = "$send_video" ]; then
+	echo_error "Pushover supports one attachment per message; enable only photo or video"
+	exit 1
+elif [ "true" = "$send_photo" ]; then
+	attachment=$(copy_photo)
+elif [ "true" = "$send_video" ]; then
+	attachment=$(copy_video)
+fi
+
+attachment_args=""
+[ -n "$attachment" ] && attachment_args="-F attachment=@$attachment"
+
+# Pushover's API rejects attachments larger than 2.5 MB.
+if [ -n "$attachment" ]; then
+	attachment_size=$(stat -c %s "$attachment" 2>/dev/null || echo 0)
+	if [ "$attachment_size" -gt 2621440 ]; then
+		echo_error "Pushover attachment exceeds 2.5 MB limit (${attachment_size} bytes); skipping send"
+		[ -n "$attachment" ] && rm -f "$attachment"
+		exit 1
+	fi
+fi
+
+if [ "true" = "$verbose" ]; then
+	echo_command "curl $curl_common $curl_verbosity --form-string token=*** --form-string user=*** --form-string title=\"$title\" --form-string message=\"$message\" --form-string priority=$priority $attachment_args https://api.pushover.net/1/messages.json"
+fi
+
+if ! curl $curl_common $curl_verbosity \
+	--form-string "token=$token" \
+	--form-string "user=$user" \
+	--form-string "title=$title" \
+	--form-string "message=$message" \
+	--form-string "priority=$priority" \
+	$attachment_args \
+	"https://api.pushover.net/1/messages.json" >/dev/null; then
+	echo_error "Failed to send Pushover message"
+	exit 1
+fi
+
+exit 0

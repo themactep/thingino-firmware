@@ -25,6 +25,11 @@ default_domain_config() {
 {"url":"","token":"","title":"Thingino Camera","message":"Motion detected at %Y-%m-%d %H:%M:%S","extras":"","priority":5,"send_photo":false,"send_video":false}
 EOF
 			;;
+		pushover)
+			cat <<'EOF'
+{"token":"","user":"","title":"Thingino Camera","message":"Motion detected at %Y-%m-%d %H:%M:%S","priority":0,"send_photo":false,"send_video":false}
+EOF
+			;;
 		*)
 			echo '{}'
 			;;
@@ -71,6 +76,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   "ftp": $(get_domain_config ftp),
   "telegram": $(get_domain_config telegram),
   "gotify": $(get_domain_config gotify),
+  "pushover": $(get_domain_config pushover),
   "mqtt": $(get_domain_config mqtt),
   "webhook": $(get_domain_config webhook),
   "storage": $(get_domain_config storage),
@@ -170,6 +176,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get gotify >/dev/null 2>&1; then
+		jct "$config_file" import "$temp_json"
+
+	elif jct "$temp_json" get pushover >/dev/null 2>&1; then
 		jct "$config_file" import "$temp_json"
 
 	elif jct "$temp_json" get mqtt >/dev/null 2>&1; then

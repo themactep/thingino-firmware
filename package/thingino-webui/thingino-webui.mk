@@ -135,6 +135,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-send2-mqtt.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-ntfy.html \
 		$(TARGET_DIR)/var/www/tool-send2-ntfy.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-pushover.html \
+		$(TARGET_DIR)/var/www/tool-send2-pushover.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-storage.html \
 		$(TARGET_DIR)/var/www/tool-send2-storage.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-send2-telegram.html \
@@ -213,6 +215,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/tool-send2-mqtt.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-ntfy.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-ntfy.js
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-pushover.js \
+		$(TARGET_DIR)/var/www/a/tool-send2-pushover.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-storage.js \
 		$(TARGET_DIR)/var/www/a/tool-send2-storage.js
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/a/tool-send2-telegram.js \

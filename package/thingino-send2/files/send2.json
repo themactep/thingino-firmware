@@ -73,6 +73,15 @@
     "message": "{\"timestamp\": \"%s\"}",
     "send_photo": false
   },
+  "pushover": {
+    "token": "",
+    "user": "",
+    "title": "Thingino Camera",
+    "message": "Motion detected at %Y-%m-%d %H:%M:%S",
+    "priority": 0,
+    "send_photo": false,
+    "send_video": false
+  },
   "speaker": {
     "file": "",
     "volume": 80,
