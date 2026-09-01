@@ -2,7 +2,7 @@
 # shellcheck disable=SC2068,SC2086,SC2154,SC3043
 
 DAEMON="/usr/bin/motors-daemon"
-DAEMON_ARGS="-d -p"
+DAEMON_ARGS="-p"
 PIDFILE="/run/motors-daemon.pid"
 
 ensure_command() {
@@ -156,11 +156,6 @@ start() {
 	start_daemon $DAEMON_ARGS
 	# FIXME: daemon should be reporting running state from the very first moment
 	sleep 1
-
-	# NOTE: do not apply invert_x/invert_y here. motors-daemon reads them from
-	# thingino.json itself at startup, and "motors -I" is an XOR toggle, not an
-	# idempotent set - sending it here would flip the daemon's already-correct
-	# state back off. SPI keeps using the modprobe params above.
 
 	# FIXME: motors may have different speeds for pan and tilt
 	set_motors_speed $speed_pan
