@@ -1,8 +1,10 @@
 # Fork (WebSocket PTZ, not yet upstream) when WS is wanted or timps is the
 # streamer; upstream otherwise. Keyed on timps too so a timps build never
-# falls back to plain upstream just because the WS toggle is stale/off.
+# falls back to plain upstream just because the WS toggle is stale/off - but
+# not on a DW9714-only build, where WS is unavailable anyway (Config.in's
+# !DW9714_ONLY depends on), so there's nothing to gain from the fork there.
 THINGINO_MOTORS_SITE_METHOD = git
-ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(BR2_PACKAGE_THINGINO_STREAMER_TIMPS)),)
+ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(if $(BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY),,$(BR2_PACKAGE_THINGINO_STREAMER_TIMPS))),)
 THINGINO_MOTORS_SITE = https://github.com/Lu-Fi/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = thingino-motors-websocket
 THINGINO_MOTORS_VERSION = a45410720895faca765c3a8a0ab6ab7bea97b609
