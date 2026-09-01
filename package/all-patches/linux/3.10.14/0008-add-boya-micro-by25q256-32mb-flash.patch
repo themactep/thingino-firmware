@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: CapnRon <jburnham@mail.ccsf.edu>
+Date: Tue, 01 Sep 2026 00:00:00 +0000
+Subject: [PATCH] t31: add BY25Q256 (Boya Micro 32MB) SPI NOR flash support
+
+The Ingenic jz_sfc driver falls back to an 8MB default for any flash ID
+missing from its table (board_info[0] = XT25F64B). Teacup T31ZX boards
+ship with a Boya Micro BY25Q256 32MB SPI NOR (JEDEC 0x684919; some die
+revisions report 0x684019), so mtd is truncated to 8MB and the data
+partition vanishes.
+
+Add both ID variants as 32MB entries (addrsize=4 for 4-byte addressing
+above 16MB), mirroring the MX25L25645G entry.
+
+Verified on hardware: full 32MB detected, 25MB data partition appears.
+---
+ arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c
+--- a/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c
++++ b/arch/mips/xburst/soc-t31/chip-t31/isvp/common/spi_bus.c
+@@ -610,6 +610,48 @@
+ #endif
+ 	},
+ 	{
++		.name = "BY25Q256",
++		.pagesize = SIZE_256B,
++		.sectorsize = SIZE_4KB,
++		.chipsize = SIZE_32MB,
++		.erasesize = SIZE_64KB,
++		.id = 0x684919,
++
++		.block_info = flash_block_info,
++		.num_block_info = ARRAY_SIZE(flash_block_info),
++
++		.addrsize = 4,
++		.pp_maxbusy = 4,            /* 4ms */
++		.se_maxbusy = TIME_400MS,
++		.ce_maxbusy = TIME_80S,
++
++		.st_regnum = 3,
++#ifdef CONFIG_SPI_QUAD
++		.quad_mode = &flash_quad_mode[0],
++#endif
++	},
++	{
++		.name = "BY25Q256",
++		.pagesize = SIZE_256B,
++		.sectorsize = SIZE_4KB,
++		.chipsize = SIZE_32MB,
++		.erasesize = SIZE_64KB,
++		.id = 0x684019,
++
++		.block_info = flash_block_info,
++		.num_block_info = ARRAY_SIZE(flash_block_info),
++
++		.addrsize = 4,
++		.pp_maxbusy = 4,            /* 4ms */
++		.se_maxbusy = TIME_400MS,
++		.ce_maxbusy = TIME_80S,
++
++		.st_regnum = 3,
++#ifdef CONFIG_SPI_QUAD
++		.quad_mode = &flash_quad_mode[0],
++#endif
++	},
++	{
+ 		.name = "PY25Q128HA",
+ 		.pagesize = SIZE_256B,
+ 		.sectorsize = SIZE_4KB,
