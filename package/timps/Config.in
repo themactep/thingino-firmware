@@ -194,8 +194,15 @@ config BR2_PACKAGE_TIMPS_BC_WS
 	depends on BR2_PACKAGE_TIMPS_BACKCHANNEL
 	depends on BR2_PACKAGE_TIMPS_TLS
 	depends on BR2_PACKAGE_TIMPS_CONTROL
-	default n
+	default y
 	help
+	  On by default once its three dependencies are met - a browser is
+	  the only client most people actually have for talk-back (few run
+	  an ONVIF client or NVR that speaks the RTSP backchannel), and this
+	  only compiles the endpoint in. It stays dormant at runtime until
+	  audio.talk_ws is set in timps.conf, so enabling this is not a
+	  one-way door.
+
 	  Serve the audio backchannel to a browser over a WebSocket at
 	  wss://<camera>:<http_port>/talk, in addition to the ONVIF/RTSP
 	  path the backchannel already offers. The page captures the
