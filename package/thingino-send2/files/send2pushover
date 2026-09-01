@@ -1,12 +1,10 @@
-#!/bin/env sh
+#!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2086
 # Sends notifications to Pushover
 # https://pushover.net/api
 #
-# NOTE (verbose mode): curl --verbose dumps the multipart request body to
-# stderr, which includes token and user key in cleartext. echo_command's
-# preview is redacted, but the real request is not. Pre-existing behaviour
-# across the send2 toolkit (gotify token in URL, ntfy in Authorization
-# header); do not enable -v in contexts where stderr is captured/displayed.
+# NOTE: curl --verbose dumps token/user in cleartext to stderr. Do not use -v
+# where stderr is captured or displayed.
 
 . /usr/share/prudynt-helpers
 . /usr/share/send2common
@@ -21,7 +19,7 @@ Where:
 	-u user      Pushover user (or group) key
 	-n title     Message title
 	-m message   Message body (strftime format)
-	-z N         Priority (-1 lowest, 1 high; 2 emergency not supported)
+	-z N         Priority (-2 lowest, 1 high; 2 emergency not supported)
 	-S           Send photo attachment
 	-V           Send video attachment
 	-v           Verbose output
