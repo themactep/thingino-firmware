@@ -276,8 +276,13 @@ define TIMPS_INSTALL_TARGET_CMDS
 		$(SED) 's|^# audio.backchannel .*|audio.backchannel = 1                   # ONVIF/RTSP client -> speaker|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
+	# Preset the STRICT mode (1 = TLS required) and only that: it is the
+	# safe default and the only one that works unattended. The permissive
+	# mode (2 = plain ws:// also accepted) trades the microphone stream and
+	# its token for reachability on a plaintext camera, so it stays a
+	# deliberate hand edit - never something an image ships pre-enabled.
 	if [ "$(BR2_PACKAGE_TIMPS_BC_WS)" = "y" ]; then \
-		$(SED) 's|^# audio.talk_ws .*|audio.talk_ws     = 1                   # + browser mic over /talk (needs TLS)|' \
+		$(SED) 's|^# audio.talk_ws .*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 

@@ -164,9 +164,10 @@
               <i class="bi bi-grid-3x3"></i>
             </button>
             <!-- push-to-talk (browser mic -> camera speaker): hidden until
-                 /a/preview-talk.js confirms caps.backchannel.talk_ws AND that
-                 timps is reachable over TLS (getUserMedia needs a secure
-                 context, and only wss:// is openable from an https:// page) -->
+                 /a/preview-talk.js confirms caps.backchannel.talk_ws is non-zero
+                 (timps' own resolved verdict: 1 = TLS-only, 2 = ws:// allowed
+                 too) and that this browser exposes getUserMedia at all, which
+                 outside a secure context it will not -->
             <button type="button" class="btn btn-outline-secondary" id="ms-talk"
               title="Talk to the camera (microphone -&gt; camera speaker)" style="display:none">
               <i class="bi bi-mic"></i>
