@@ -7,17 +7,25 @@
  * uses. A browser cannot speak RTSP/RTP, which is the whole reason this
  * transport exists.
  *
- * Fails soft throughout, exactly like preview-motion.js: no token, no HTTPS, or
- * a build without the endpoint just leaves the button hidden. The button is
- * HIDDEN rather than disabled - a greyed control invites "why doesn't this
- * work", a missing one asks nothing.
+ * Fails soft throughout, exactly like preview-motion.js: no token, no secure
+ * context, or a build without the endpoint just leaves the button hidden. The
+ * button is HIDDEN rather than disabled - a greyed control invites "why
+ * doesn't this work", a missing one asks nothing.
  *
- * Requires all four of:
- *   - caps.backchannel.talk_ws == 1 from GET /control (feature compiled AND
- *     audio.talk_ws set AND the backchannel pipeline up at boot)
- *   - a TLS timps listener: getUserMedia() is refused outside a secure
- *     context, and a wss:// URL is the only thing an https:// page may open
- *   - navigator.mediaDevices.getUserMedia
+ * Requires all three of:
+ *   - caps.backchannel.talk_ws != 0 from GET /control. That field is timps'
+ *     already-decided answer, not a raw config value: 0 = it would not serve
+ *     /talk at all right now, 1 = serving, TLS required, 2 = serving, plain
+ *     ws:// accepted too. audio.talk_ws=1 on a plaintext port reports 0
+ *     (/talk would 426), so there is nothing left here to second-guess -
+ *     the only thing this file still derives is the SCHEME, from the same
+ *     timps-token.cgi "tls" field that already picks http:// vs https://.
+ *   - navigator.mediaDevices.getUserMedia. This is the one the camera cannot
+ *     fix from its side: browsers refuse it outside a secure context, so on a
+ *     plain-http:// page it is simply absent unless the operator granted the
+ *     origin one (chrome://flags/#unsafely-treat-insecure-origin-as-secure, a
+ *     trusted tunnel, localhost). Hence the check stays, and hence talk_ws=2
+ *     is only ever useful to someone who has already done that.
  *   - AudioContext with createScriptProcessor
  *
  * ScriptProcessorNode is deprecated in favour of AudioWorklet and runs on the
@@ -48,9 +56,10 @@
   const MAX_BUFFERED = 10 * WS_MAX_PAYLOAD;
   const PROBE_MAX_BACKOFF_MS = 30000;
 
-  let base = null;    // https://<host>:<port>
-  let wsBase = null;  // wss://<host>:<port>
+  let base = null;    // http(s)://<host>:<port>
+  let wsBase = null;  // ws(s)://<host>:<port>, same scheme family as `base`
   let token = null;
+  let tls = false;    // timps' http.https, per /x/timps-token.cgi
   let stopped = false; // set on pagehide; stops the probe retry loop
 
   // live session state, all null/idle between presses
@@ -289,8 +298,13 @@
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    return !!(data && data.caps && data.caps.backchannel &&
-              data.caps.backchannel.talk_ws);
+    const mode = (data && data.caps && data.caps.backchannel &&
+                  data.caps.backchannel.talk_ws) | 0;
+    if (!mode) return false;
+    // mode 1 is TLS-only. timps already reports 0 for "=1 but plaintext port",
+    // so this only catches a mismatch (a stale daemon, a hand-edited proxy) -
+    // cheap enough to keep rather than trust the other end completely.
+    return mode >= 2 || tls;
   }
 
   async function init() {
@@ -311,15 +325,20 @@
     let host = location.hostname || "127.0.0.1";
     if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
     const port = info.port || 8880;
-    base = (info.tls ? "https" : "http") + "://" + host + ":" + port;
-    wsBase = "wss://" + host + ":" + port;
+    tls = !!info.tls;
+    base = (tls ? "https" : "http") + "://" + host + ":" + port;
+    // Same scheme family as `base`, never hardcoded: an https:// page may only
+    // open wss:// (mixed content), and a plaintext timps listener only speaks
+    // ws://. probe() refuses to show the button for any combination timps
+    // would not actually serve.
+    wsBase = (tls ? "wss" : "ws") + "://" + host + ":" + port;
 
     window.addEventListener("pagehide", () => { stopped = true; stop(""); });
 
     // Hard gates, all permanent for this page load - no point probing without
-    // them. /talk answers 426 on a plaintext listener, and getUserMedia is
-    // undefined outside a secure context, so either one means "never".
-    if (!info.tls) return;
+    // them. getUserMedia is undefined outside a secure context, which is why
+    // audio.talk_ws=2 alone is not enough on a plain-http:// page: the
+    // operator must also have granted this origin one.
     if (!window.WebSocket) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (!(window.AudioContext || window.webkitAudioContext)) return;
