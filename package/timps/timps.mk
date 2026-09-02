@@ -273,7 +273,7 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# when ITS OWN Kconfig option is on, so a BACKCHANNEL-only build (no
 	# BC_WS) still gets just the ONVIF/RTSP side enabled.
 	if [ "$(BR2_PACKAGE_TIMPS_BACKCHANNEL)" = "y" ]; then \
-		$(SED) 's|^# audio.backchannel .*|audio.backchannel = 1                   # ONVIF/RTSP client -> speaker|' \
+		$(SED) 's|^# audio.backchannel *=.*|audio.backchannel = 1                   # ONVIF/RTSP client -> speaker|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 	# Preset the STRICT mode (1 = TLS required) and only that: it is the
@@ -282,7 +282,7 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# its token for reachability on a plaintext camera, so it stays a
 	# deliberate hand edit - never something an image ships pre-enabled.
 	if [ "$(BR2_PACKAGE_TIMPS_BC_WS)" = "y" ]; then \
-		$(SED) 's|^# audio.talk_ws .*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
+		$(SED) 's|^# audio.talk_ws *=.*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
