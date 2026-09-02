@@ -267,6 +267,20 @@ define TIMPS_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
+	# Same idea as http.https above: a compiled-in feature that needs a
+	# runtime opt-in too meant BACKCHANNEL/BC_WS builds shipped silent
+	# unless someone knew to hand-edit timps.conf. Each line only flips
+	# when ITS OWN Kconfig option is on, so a BACKCHANNEL-only build (no
+	# BC_WS) still gets just the ONVIF/RTSP side enabled.
+	if [ "$(BR2_PACKAGE_TIMPS_BACKCHANNEL)" = "y" ]; then \
+		$(SED) 's|^# audio.backchannel .*|audio.backchannel = 1                   # ONVIF/RTSP client -> speaker|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+	if [ "$(BR2_PACKAGE_TIMPS_BC_WS)" = "y" ]; then \
+		$(SED) 's|^# audio.talk_ws .*|audio.talk_ws     = 1                   # + browser mic over /talk (needs TLS)|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
 		$(TARGET_DIR)/etc/init.d/S95timps
