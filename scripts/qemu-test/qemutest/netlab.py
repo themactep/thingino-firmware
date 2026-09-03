@@ -6,14 +6,16 @@ DHCPv4 + RA/SLAAC + stateful DHCPv6 + DNS server, and hosts small test
 listeners (SNTP, syslog, family-echo HTTP). Also provides host-side
 probes: ping6, WS-Discovery, mDNS.
 
-Requires root (tap creation, dnsmasq, ports 123/514).
+Requires root. Runs inside a private network namespace (see
+enter_netns), so the host's :53/:123/:514 and any system resolver are
+never touched, and several runs can share one host.
 """
 
 import os
-import re
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 
@@ -31,6 +33,46 @@ NTP_EPOCH_OFFSET = 2208988800
 def run(cmd, check=True):
     return subprocess.run(cmd, shell=True, check=check,
                           capture_output=True, text=True)
+
+
+NETNS_ENV = "QEMUTEST_NETNS"
+
+
+def reap_stale_netns():
+    """Remove qt-* namespaces whose owning harness is gone. A killed run
+    leaves its qemu and dnsmasq alive in there, burning CPU; they cannot
+    block a new run (different namespace) but there is no reason to keep
+    them."""
+    for line in run("ip netns list", check=False).stdout.split("\n"):
+        name = line.split()[0] if line.strip() else ""
+        if not name.startswith("qt-"):
+            continue
+        pid = name[3:]
+        if pid.isdigit() and os.path.exists(f"/proc/{pid}"):
+            continue                                # a live run owns it
+        pids = run(f"ip netns pids {name}", check=False).stdout.split()
+        for p in pids:
+            run(f"kill -9 {p}", check=False)
+        run(f"ip netns del {name}", check=False)
+        print(f"  (netlab: reaped stale namespace {name}, {len(pids)} procs)")
+
+
+def enter_netns():
+    """Re-exec this process inside a private network namespace named
+    after its pid (exec keeps the pid, so the name stays meaningful).
+
+    Everything the run spawns afterwards, qemu's tap, dnsmasq, the
+    listeners, ssh, the browser, inherits the namespace. Returns at once
+    when already inside, which the env marker records."""
+    if os.environ.get(NETNS_ENV):
+        return
+    reap_stale_netns()
+    name = f"qt-{os.getpid()}"
+    run(f"ip netns add {name}")
+    run(f"ip netns exec {name} ip link set lo up")
+    env = dict(os.environ, **{NETNS_ENV: name})
+    os.execvpe("ip", ["ip", "netns", "exec", name, sys.executable, *sys.argv],
+               env)
 
 
 class SntpServer(threading.Thread):
@@ -171,42 +213,12 @@ class NetLab:
         self.http_echo = None
         self.leases_path = os.path.join(report_dir, "dnsmasq.leases")
 
-    def _resolve_port53_conflict(self):
-        """A wildcard :53 listener would both block our bind and swallow
-        the guest's DNS queries. If the stock dnsmasq service holds it,
-        park it for the duration of the run."""
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.bind(("0.0.0.0", 53))
-            s.close()
-            return                      # port free
-        except OSError:
-            s.close()
-        state = run("systemctl is-active dnsmasq", check=False).stdout.strip()
-        if state == "active":
-            print("  (netlab: parking system dnsmasq.service for this run)")
-            run("systemctl stop dnsmasq")
-            self.stopped_system_dnsmasq = True
-            return
-        # GitHub runners: systemd-resolved's stub on 127.0.0.53 also
-        # collides with the wildcard bind. Park it for the run.
-        state = run("systemctl is-active systemd-resolved",
-                    check=False).stdout.strip()
-        if state == "active":
-            print("  (netlab: parking systemd-resolved for this run)")
-            run("systemctl stop systemd-resolved")
-            self.stopped_systemd_resolved = True
-        else:
-            raise RuntimeError(
-                "something other than dnsmasq.service holds *:53; "
-                "free it before running tap mode")
-
     def up(self):
         if os.geteuid() != 0:
             raise RuntimeError("tap mode requires root")
-        self.stopped_system_dnsmasq = False
-        self.stopped_systemd_resolved = False
-        self._resolve_port53_conflict()
+        if not os.environ.get(NETNS_ENV):
+            raise RuntimeError("the tap lab must run inside its namespace "
+                               "(driver calls enter_netns first)")
         run(f"ip link del {self.tap}", check=False)
         run(f"ip tuntap add dev {self.tap} mode tap")
         run(f"ip addr add {V4_HOST}/{V4_PLEN} dev {self.tap}")
@@ -286,12 +298,13 @@ log-facility={log_path}
             except subprocess.TimeoutExpired:
                 self.dnsmasq.kill()
         run(f"ip link del {self.tap}", check=False)
-        if getattr(self, "stopped_system_dnsmasq", False):
-            print("  (netlab: restoring system dnsmasq.service)")
-            run("systemctl start dnsmasq", check=False)
-        if getattr(self, "stopped_systemd_resolved", False):
-            print("  (netlab: restoring systemd-resolved)")
-            run("systemctl start systemd-resolved", check=False)
+        # We are inside the namespace, and `ip netns exec` gave this process
+        # a private mount namespace: unmounting the name from in here only
+        # changes our own view and the host entry survives. Delete it from
+        # the host's mount namespace; the kernel frees the namespace itself
+        # once the last process (this one) leaves.
+        run(f"nsenter --mount=/proc/1/ns/mnt ip netns del {os.environ[NETNS_ENV]}",
+            check=False)
 
     # ── host-side probes ─────────────────────────────────────
 

@@ -35,6 +35,8 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make ota
 ```
 
 There are no automated test targets. Build validation happens via GitHub Actions (`.github/workflows/`).
+Two QEMU suites run real images on demand: `scripts/qemu-test/` (network surface, portal,
+web UI, ONVIF) and `scripts/ota-tests/` (sysupgrade partition fitting). See their READMEs.
 
 ## Repository Architecture
 

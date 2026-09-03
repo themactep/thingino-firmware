@@ -1,0 +1,7 @@
+{
+  "soc": "t30x",
+  "caps": [
+    "wifi"
+  ],
+  "net": "slirp"
+}

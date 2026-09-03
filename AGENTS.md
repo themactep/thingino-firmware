@@ -58,9 +58,17 @@ should be done on a real disk. See `docs/build/makefile.md`.
   As with the output dir, read these from the environment
   (`echo $BR2_DL_DIR $THINGINO_USER_DIR`) before assuming they live in the
   checkout.
-- No CI-integrated test suite for builds; validation is CI-only. A dev-side
-  QEMU test suite exists for the sysupgrade partition-fitting logic:
-  `scripts/ota-tests/` (see its README).
+- No CI-integrated test suite for builds; validation is CI-only. Two QEMU
+  test suites exist, each with its own README:
+  - `scripts/qemu-test/` boots a real image and asserts the network surface
+    (services, portal/provisioning, DHCPv4/v6, DNS, web UI, ONVIF, mDNS,
+    NTP, syslog, link flap, persistence) with Playwright browser flows.
+    Build with `make GROUP=testing CAMERA=qemu_t31x_eth fast`, run with
+    `scripts/qemu-test/run.sh qemu_t31x_eth`. A profile is a directory
+    under `configs/cameras-testing/` with a `qemu-test.json` and its
+    `expected-checks.txt` contract; add a check by adding one row to the
+    `SUITES` table in `scripts/qemu-test/qemutest/plan.py`.
+  - `scripts/ota-tests/` covers the sysupgrade partition-fitting logic.
 
 ## Repo layout
 
