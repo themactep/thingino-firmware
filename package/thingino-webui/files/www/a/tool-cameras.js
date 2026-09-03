@@ -126,12 +126,7 @@
       }
 
       const streamerCell = document.createElement("td");
-      if (camera.streamer) {
-        const streamerBadge = document.createElement("span");
-        streamerBadge.className = "badge text-bg-info";
-        streamerBadge.textContent = camera.streamer;
-        streamerCell.appendChild(streamerBadge);
-      }
+      streamerCell.textContent = camera.streamer || "";
 
       const actionCell = document.createElement("td");
       actionCell.className = "text-end";
