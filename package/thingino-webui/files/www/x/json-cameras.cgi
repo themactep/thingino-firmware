@@ -7,6 +7,7 @@
 require_auth
 
 SCAN_SECONDS=4
+CACHE_FILE="/tmp/json-cameras.cache"
 
 json_escape() {
 	printf '%s' "$1" | sed \
@@ -113,10 +114,33 @@ build_entries() {
 	done
 }
 
-scan_response() {
+build_response() {
 	local entries
 	entries="$(scan_cameras | build_entries)"
-	send_json "{\"ok\": true, \"data\": {\"cameras\": [$entries]}}"
+	printf '{"ok": true, "data": {"cameras": [%s]}}' "$entries"
+}
+
+scan_response() {
+	local payload tmpfile
+	payload="$(build_response)"
+	tmpfile="${CACHE_FILE}.$$"
+	printf '%s' "$payload" >"$tmpfile"
+	mv "$tmpfile" "$CACHE_FILE"
+	send_json "$payload"
+}
+
+cached_response() {
+	if [ -r "$CACHE_FILE" ]; then
+		send_json "$(cat "$CACHE_FILE")"
+	fi
+	scan_response
+}
+
+want_refresh() {
+	case "$QUERY_STRING" in
+		*refresh*) return 0 ;;
+	esac
+	return 1
 }
 
 case "$REQUEST_METHOD" in
@@ -124,7 +148,11 @@ case "$REQUEST_METHOD" in
 		if ! command -v mquery >/dev/null 2>&1; then
 			json_error "The mDNS query tool (mquery) is not installed on this camera" "500 Internal Server Error"
 		fi
-		scan_response
+		if want_refresh; then
+			scan_response
+		else
+			cached_response
+		fi
 		;;
 	POST)
 		json_error "Method POST is not allowed." "405 Method Not Allowed"

@@ -9,6 +9,12 @@
   const emptyState = $("#cameras-empty");
   const tbody = $("#cameras-tbody");
   const table = $("#cameras-table");
+  const thead = $("#cameras-table thead");
+  const state = {
+    rawCameras: [],
+    sortColumn: "name",
+    sortDirection: "asc",
+  };
 
   function showSpinner(active) {
     if (!spinner) return;
@@ -31,11 +37,73 @@
     errorAlert.classList.remove("d-none");
   }
 
+  function compareIp(a, b) {
+    const x = a || "";
+    const y = b || "";
+    if (!x.includes(":") && !y.includes(":")) {
+      const ax = x.split(".").map((n) => parseInt(n, 10) || 0);
+      const ay = y.split(".").map((n) => parseInt(n, 10) || 0);
+      for (let i = 0; i < 4; i++) {
+        const va = ax[i] || 0;
+        const vb = ay[i] || 0;
+        if (va !== vb) return va - vb;
+      }
+      return 0;
+    }
+    return x.localeCompare(y);
+  }
+
+  function sortCameras(cameras) {
+    const { sortColumn, sortDirection } = state;
+    const dir = sortDirection === "asc" ? 1 : -1;
+
+    return [...cameras].sort((a, b) => {
+      let cmp = 0;
+      if (sortColumn === "ip") {
+        cmp = compareIp(a.ip, b.ip);
+      } else if (sortColumn === "model") {
+        cmp = (a.model || "").localeCompare(b.model || "");
+      } else if (sortColumn === "build") {
+        cmp = (a.version || "").localeCompare(b.version || "");
+      } else if (sortColumn === "streamer") {
+        cmp = (a.streamer || "").localeCompare(b.streamer || "");
+      } else {
+        cmp = (a.name || "").localeCompare(b.name || "");
+      }
+      return cmp * dir;
+    });
+  }
+
+  function updateSortIndicators() {
+    document.querySelectorAll(".sort-indicator").forEach((el) => {
+      const col = el.dataset.for;
+      el.classList.remove("asc", "desc");
+      if (col === state.sortColumn) {
+        el.classList.add(state.sortDirection);
+      }
+    });
+  }
+
+  function handleSortClick(event) {
+    const th = event.target.closest("th[data-sort]");
+    if (!th) return;
+    const col = th.dataset.sort;
+    if (state.sortColumn === col) {
+      state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      state.sortColumn = col;
+      state.sortDirection = "asc";
+    }
+    updateSortIndicators();
+    renderCameras(state.rawCameras);
+  }
+
   function renderCameras(cameras) {
     if (!tbody) return;
+    state.rawCameras = cameras || [];
     tbody.innerHTML = "";
 
-    (cameras || []).forEach((camera) => {
+    sortCameras(state.rawCameras).forEach((camera) => {
       const row = document.createElement("tr");
 
       const nameCell = document.createElement("td");
@@ -47,16 +115,11 @@
         nameCell.appendChild(badge);
       }
 
+      const ipCell = document.createElement("td");
+      ipCell.textContent = camera.ip;
+
       const modelCell = document.createElement("td");
       modelCell.textContent = camera.model || "";
-
-      const streamerCell = document.createElement("td");
-      if (camera.streamer) {
-        const streamerBadge = document.createElement("span");
-        streamerBadge.className = "badge text-bg-info";
-        streamerBadge.textContent = camera.streamer;
-        streamerCell.appendChild(streamerBadge);
-      }
 
       const buildCell = document.createElement("td");
       if (camera.version) {
@@ -65,13 +128,13 @@
         buildCell.appendChild(buildCode);
       }
 
-      const ipCell = document.createElement("td");
-      const ipLink = document.createElement("a");
-      ipLink.href = "http://" + camera.ip + "/";
-      ipLink.target = "_blank";
-      ipLink.rel = "noreferrer noopener";
-      ipLink.textContent = camera.ip;
-      ipCell.appendChild(ipLink);
+      const streamerCell = document.createElement("td");
+      if (camera.streamer) {
+        const streamerBadge = document.createElement("span");
+        streamerBadge.className = "badge text-bg-info";
+        streamerBadge.textContent = camera.streamer;
+        streamerCell.appendChild(streamerBadge);
+      }
 
       const actionCell = document.createElement("td");
       actionCell.className = "text-end";
@@ -87,15 +150,15 @@
       actionCell.appendChild(openBtn);
 
       row.appendChild(nameCell);
-      row.appendChild(modelCell);
-      row.appendChild(streamerCell);
-      row.appendChild(buildCell);
       row.appendChild(ipCell);
+      row.appendChild(modelCell);
+      row.appendChild(buildCell);
+      row.appendChild(streamerCell);
       row.appendChild(actionCell);
       tbody.appendChild(row);
     });
 
-    const hasCameras = !!(cameras && cameras.length);
+    const hasCameras = state.rawCameras.length > 0;
     if (table) {
       table.classList.toggle("d-none", !hasCameras);
     }
@@ -104,8 +167,9 @@
     }
   }
 
-  async function fetchCameras() {
-    const response = await fetch(endpoint, {
+  async function fetchCameras(refresh) {
+    const url = refresh ? endpoint + "?refresh=1" : endpoint;
+    const response = await fetch(url, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -122,7 +186,7 @@
     return data.cameras;
   }
 
-  async function loadCameras() {
+  async function loadCameras(refresh) {
     if (refreshButton) {
       refreshButton.disabled = true;
     }
@@ -131,8 +195,9 @@
     showSpinner(true);
 
     try {
-      const cameras = await fetchCameras();
+      const cameras = await fetchCameras(refresh);
       renderCameras(cameras);
+      updateSortIndicators();
       showSpinner(false);
       showContent(true);
     } catch (err) {
@@ -150,9 +215,12 @@
 
   function initCamerasPage() {
     if (refreshButton) {
-      refreshButton.addEventListener("click", loadCameras);
+      refreshButton.addEventListener("click", () => loadCameras(true));
     }
-    loadCameras();
+    if (thead) {
+      thead.addEventListener("click", handleSortClick);
+    }
+    loadCameras(false);
   }
 
   if (document.readyState === "loading") {

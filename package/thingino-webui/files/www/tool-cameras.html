@@ -13,6 +13,12 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .sort-indicator::after { content: "⇅"; opacity: 0.3; font-size: 0.8em; }
+    .sort-indicator.asc::after { content: "↑"; opacity: 1; }
+    .sort-indicator.desc::after { content: "↓"; opacity: 1; }
+    th:hover .sort-indicator::after { opacity: 0.7; }
+  </style>
 </head>
 
 <body id="page-tool-cameras">
@@ -38,18 +44,18 @@
         <div id="cameras-error" class="alert alert-danger d-none"></div>
         <div id="cameras-spinner" class="text-center text-secondary py-4">
           <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-          <span>Scanning the local network, this takes a few seconds...</span>
+          <span>Scanning the local network, this may take a while...</span>
         </div>
         <div id="cameras-content" class="d-none">
           <div class="table-responsive d-none" id="cameras-table">
             <table class="table table-striped table-hover align-middle mb-3">
               <thead>
                 <tr>
-                  <th scope="col">Camera</th>
-                  <th scope="col">Model</th>
-                  <th scope="col">Streamer</th>
-                  <th scope="col">Build</th>
-                  <th scope="col">Address</th>
+                  <th scope="col" data-sort="name" style="cursor:pointer;user-select:none">Hostname <span class="sort-indicator" data-for="name"></span></th>
+                  <th scope="col" data-sort="ip" style="cursor:pointer;user-select:none">IP address <span class="sort-indicator" data-for="ip"></span></th>
+                  <th scope="col" data-sort="model" style="cursor:pointer;user-select:none">Model <span class="sort-indicator" data-for="model"></span></th>
+                  <th scope="col" data-sort="build" style="cursor:pointer;user-select:none">Build <span class="sort-indicator" data-for="build"></span></th>
+                  <th scope="col" data-sort="streamer" style="cursor:pointer;user-select:none">Streamer <span class="sort-indicator" data-for="streamer"></span></th>
                   <th scope="col" class="text-end">Open</th>
                 </tr>
               </thead>
