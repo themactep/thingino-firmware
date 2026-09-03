@@ -73,45 +73,65 @@ scan_cameras() {
 		}' | sort -f
 }
 
+resolve_camera() {
+	local name="$1" ip="$2" fqdn="$3" self="$4" txt field key val model version streamer
+
+	model=""
+	version=""
+	streamer=""
+	txt="$(mquery -t 16 -w 1 "$fqdn" </dev/null 2>/dev/null |
+		sed -n 's/^TXT .* seconds: //p' | head -n 1)"
+	if [ -n "$txt" ]; then
+		# shellcheck disable=SC2086
+		for field in $txt; do
+			key="${field%%=*}"
+			val="${field#*=}"
+			case "$key" in
+				product) model="$val" ;;
+				version) version="$val" ;;
+				streamer) streamer="$val" ;;
+			esac
+		done
+	fi
+
+	printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$ip" "$self" "$model" "$version" "$streamer"
+}
+
 build_entries() {
-	local tab first name ip fqdn self txt field key val model version streamer
+	local tab tmpdir i n first name ip fqdn self model version streamer
 	tab="$(printf '\t')"
-	first=1
+	tmpdir="$(mktemp -d)"
+	i=0
 	while IFS="$tab" read -r name ip fqdn self; do
 		[ -n "$name" ] || continue
-		if [ "$self" = "1" ]; then
-			self="true"
-		else
-			self="false"
-		fi
-
-		model=""
-		version=""
-		streamer=""
-		txt="$(mquery -t 16 -w 1 "$fqdn" </dev/null 2>/dev/null |
-			sed -n 's/^TXT .* seconds: //p' | head -n 1)"
-		if [ -n "$txt" ]; then
-			# shellcheck disable=SC2086
-			for field in $txt; do
-				key="${field%%=*}"
-				val="${field#*=}"
-				case "$key" in
-					product) model="$val" ;;
-					version) version="$val" ;;
-					streamer) streamer="$val" ;;
-				esac
-			done
-		fi
-
-		if [ "$first" -eq 1 ]; then
-			first=0
-		else
-			printf ','
-		fi
-		printf '{"name": "%s", "ip": "%s", "self": %s, "model": "%s", "version": "%s", "streamer": "%s"}' \
-			"$(json_escape "$name")" "$ip" "$self" \
-			"$(json_escape "$model")" "$(json_escape "$version")" "$(json_escape "$streamer")"
+		i=$((i + 1))
+		resolve_camera "$name" "$ip" "$fqdn" "$self" >"$tmpdir/$i" </dev/null &
 	done
+	wait
+
+	first=1
+	n=1
+	while [ "$n" -le "$i" ]; do
+		if [ -s "$tmpdir/$n" ]; then
+			IFS="$tab" read -r name ip self model version streamer <"$tmpdir/$n"
+			if [ "$self" = "1" ]; then
+				self="true"
+			else
+				self="false"
+			fi
+			if [ "$first" -eq 1 ]; then
+				first=0
+			else
+				printf ','
+			fi
+			printf '{"name": "%s", "ip": "%s", "self": %s, "model": "%s", "version": "%s", "streamer": "%s"}' \
+				"$(json_escape "$name")" "$ip" "$self" \
+				"$(json_escape "$model")" "$(json_escape "$version")" "$(json_escape "$streamer")"
+		fi
+		n=$((n + 1))
+	done
+
+	rm -rf "$tmpdir"
 }
 
 build_response() {
