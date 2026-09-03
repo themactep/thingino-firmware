@@ -2,6 +2,8 @@
   "use strict";
 
   const endpoint = "/x/json-cameras.cgi";
+  const commitBaseUrl =
+    "https://github.com/themactep/thingino-firmware/commit/";
   const refreshButton = $("#cameras-refresh");
   const spinner = $("#cameras-spinner");
   const content = $("#cameras-content");
@@ -35,6 +37,28 @@
     }
     errorAlert.textContent = message;
     errorAlert.classList.remove("d-none");
+  }
+
+  function commitHash(version) {
+    const parts = String(version || "").split("+");
+    const last = parts[parts.length - 1];
+    return /^[0-9a-f]{7,40}$/i.test(last) ? last : "";
+  }
+
+  function buildCommitLink(version) {
+    const code = document.createElement("code");
+    const hash = commitHash(version);
+    if (hash) {
+      const link = document.createElement("a");
+      link.href = commitBaseUrl + hash;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = version;
+      code.appendChild(link);
+    } else {
+      code.textContent = version;
+    }
+    return code;
   }
 
   function compareIp(a, b) {
@@ -120,9 +144,7 @@
 
       const buildCell = document.createElement("td");
       if (camera.version) {
-        const buildCode = document.createElement("code");
-        buildCode.textContent = camera.version;
-        buildCell.appendChild(buildCode);
+        buildCell.appendChild(buildCommitLink(camera.version));
       }
 
       const streamerCell = document.createElement("td");
