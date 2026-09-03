@@ -692,6 +692,8 @@ define TIMPS_REAPPLY_MOTORS_UI
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.js \
 		$(TARGET_DIR)/var/www/a/preview-motors.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors-version.js \
+		$(TARGET_DIR)/var/www/a/motors-version.js
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors-settings.js \
 		$(TARGET_DIR)/var/www/a/preview-motors-settings.js
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.css \
