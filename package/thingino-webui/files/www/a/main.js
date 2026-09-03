@@ -44,14 +44,24 @@ const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
+const SessionStatusEndpoint = "/x/session-status.cgi";
+// The SSE error event exposes no HTTP status, so a stream that keeps failing
+// cannot tell an expired session from a network blip on its own. After this
+// many failures in a row, ask an endpoint that does report a status.
+const HeartBeatAuthCheckFailures = 3;
 let heartbeatSource = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
+let heartbeatSseFailures = 0;
 let debugModalCtx = null;
 
 // Password check state - must be initialized before heartbeat can start
 let isDefaultPassword = false;
 let passwordCheckComplete = false;
+// Set once a definitive auth refusal has been seen, so the session check, the
+// slow heartbeat and the SSE retry loop cannot race each other into the login
+// page more than once.
+let authRedirectInProgress = false;
 
 function $(n) {
   return document.querySelector(n);
@@ -1011,6 +1021,49 @@ function updateHeartbeatUi(json) {
   }
 }
 
+// Single exit to the login page. Only a definitive auth refusal may call this;
+// everything else retries.
+function redirectToLogin() {
+  if (authRedirectInProgress) return;
+  if (
+    window.location.pathname === "/login.html" ||
+    window.location.pathname === "/401.html"
+  ) {
+    return;
+  }
+  authRedirectInProgress = true;
+  cleanupHeartbeatResources();
+  window.location.href = "/login.html";
+}
+
+// Status-code-visible session probe for callers that only see opaque errors
+// (the SSE stream). Redirects only on a definitive refusal - an unreachable
+// endpoint or a 5xx leaves the page alone so the normal retries can continue.
+async function verifySessionStillValid() {
+  if (authRedirectInProgress) return;
+
+  try {
+    const response = await fetch(SessionStatusEndpoint, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      redirectToLogin();
+      return;
+    }
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    if (data && data.authenticated === false) {
+      redirectToLogin();
+    }
+  } catch (error) {
+    console.error("Session re-check failed:", error);
+  }
+}
+
 function startHeartbeatSse() {
   // Check password state before starting SSE
   if (!passwordCheckComplete || isDefaultPassword) {
@@ -1028,6 +1081,7 @@ function startHeartbeatSse() {
   heartbeatSource.onmessage = (event) => {
     try {
       currentReconnectDelay = HeartBeatReconnectDelay;
+      heartbeatSseFailures = 0;
       updateHeartbeatUi(JSON.parse(event.data));
     } catch (error) {
       console.error("Heartbeat SSE payload error", error);
@@ -1035,8 +1089,15 @@ function startHeartbeatSse() {
   };
   heartbeatSource.onerror = (error) => {
     console.error("Heartbeat SSE error", error);
+    if (authRedirectInProgress) return;
     heartbeatSource.close();
     heartbeatSource = null;
+    heartbeatSseFailures++;
+    // The error event itself says nothing about why the stream died, so only
+    // escalate to a real session check once it has failed repeatedly.
+    if (heartbeatSseFailures >= HeartBeatAuthCheckFailures) {
+      verifySessionStillValid();
+    }
     console.log(`Reconnecting in ${currentReconnectDelay / 1000}s`);
     setTimeout(heartbeat, currentReconnectDelay); // Use heartbeat() instead of startHeartbeatSse()
     // Double the delay for next failure, capped at max
@@ -1052,6 +1113,7 @@ async function fetchSlowHeartbeatStatus() {
     slowHeartbeatInFlight ||
     !passwordCheckComplete ||
     isDefaultPassword ||
+    authRedirectInProgress ||
     document.hidden
   ) {
     return;
@@ -1064,6 +1126,12 @@ async function fetchSlowHeartbeatStatus() {
       cache: "no-store",
       credentials: "same-origin",
     });
+
+    if (response.status === 401 || response.status === 403) {
+      // definitive auth refusal from the server - the session is gone
+      redirectToLogin();
+      return;
+    }
 
     if (!response.ok) {
       throw new Error(`Slow heartbeat request failed: ${response.status}`);
@@ -1089,6 +1157,7 @@ function cleanupHeartbeatResources() {
   }
   slowHeartbeatInFlight = false;
   currentReconnectDelay = HeartBeatReconnectDelay;
+  heartbeatSseFailures = 0;
 }
 
 window.addEventListener("beforeunload", cleanupHeartbeatResources);
@@ -1107,6 +1176,8 @@ document.addEventListener("visibilitychange", () => {
 
 function heartbeat() {
   console.trace("heartbeat() called");
+  // Don't reopen anything while we are on our way to the login page
+  if (authRedirectInProgress) return;
   // Don't start heartbeat until password check is complete
   if (!passwordCheckComplete) {
     console.log("Heartbeat disabled: password check not complete");
@@ -2638,13 +2709,13 @@ function initPasswordRevealToggles(root = document) {
     let data = null;
 
     try {
-      const response = await fetch("/x/session-status.cgi", {
+      const response = await fetch(SessionStatusEndpoint, {
         cache: "no-store",
       });
 
       if (response.status === 401 || response.status === 403) {
         // definitive auth refusal from the server
-        window.location.href = "/login.html";
+        redirectToLogin();
         return;
       }
 
@@ -2671,7 +2742,7 @@ function initPasswordRevealToggles(root = document) {
 
     if (!data.authenticated) {
       // Not authenticated - redirect to login
-      window.location.href = "/login.html";
+      redirectToLogin();
       return;
     }
 
