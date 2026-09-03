@@ -18,6 +18,22 @@
     .sort-indicator.asc::after { content: "↑"; opacity: 1; }
     .sort-indicator.desc::after { content: "↓"; opacity: 1; }
     th:hover .sort-indicator::after { opacity: 0.7; }
+
+    #page-tool-cameras {
+      --self-row-hue: rgba(255, 136, 0, 0.15);
+    }
+    tr.camera-self-row {
+      --bs-table-bg-state: var(--self-row-hue);
+    }
+    .camera-self-swatch {
+      display: inline-block;
+      width: 0.9rem;
+      height: 0.9rem;
+      flex: 0 0 auto;
+      border-radius: 0.2rem;
+      background-color: var(--self-row-hue);
+      border: 1px solid #ff8800;
+    }
   </style>
 </head>
 
@@ -61,6 +77,10 @@
               </thead>
               <tbody id="cameras-tbody"></tbody>
             </table>
+            <div class="d-flex align-items-center gap-2 text-secondary small mb-2">
+              <span class="camera-self-swatch" aria-hidden="true"></span>
+              <span>Highlighted row is this camera.</span>
+            </div>
           </div>
           <div id="cameras-empty" class="text-secondary text-center py-4 d-none">
             <i class="bi bi-camera-video-off fs-2 d-block mb-2"></i>
