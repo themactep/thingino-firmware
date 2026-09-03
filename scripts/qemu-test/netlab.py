@@ -248,8 +248,11 @@ enable-ra
 # Without ra-param
 # dnsmasq derives the RA router lifetime from it too, and the guest's
 # default route then expires between unsolicited RAs. Advertise every
-# 30s with a 600s router lifetime so the route is stable.
-ra-param={self.tap},30,600
+# 10s with a 600s router lifetime: short enough that the guest installs
+# the RA default route well inside the harness poll window (a 30s
+# interval could exceed it), long lifetime so the route never expires
+# between RAs.
+ra-param={self.tap},10,600
 dhcp-range={V6_RANGE[0]},{V6_RANGE[1]},slaac,64,30m
 dhcp-option=option6:dns-server,[{V6_HOST}]
 log-dhcp

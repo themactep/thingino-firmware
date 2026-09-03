@@ -133,15 +133,27 @@ class QemuSerial:
                 return m, buf
         return None, buf
 
-    def login(self, timeout=120, passwords=("root",)):
+    def login(self, timeout=120, passwords=("root",), expect_reboot=False):
         # Test images set U-Boot env debug=1: the console getty spawns a
         # root shell directly, so a prompt may arrive instead of login:.
         buf = ""
         got_login = False
         deadline = time.time() + timeout
+        # After a reboot the shell echoes one more prompt before it starts
+        # tearing down; matching that stale prompt returns "logged in" while
+        # the machine is actually on its way down (and any command we then
+        # type lands in the next boot's U-Boot autoboot). Gate on a genuine
+        # reset banner first so only a post-reboot prompt counts.
+        booted = not expect_reboot
         while time.time() < deadline:
             buf += self.read(1.0)
             plain = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", buf)
+            if not booted:
+                if re.search(r"Restarting system|U-Boot SPL|Starting kernel",
+                             plain):
+                    booted = True
+                    buf = ""
+                continue
             if re.search(r"root@[\w.-]+ \S*# ", plain):
                 time.sleep(1)
                 self.read()
@@ -851,9 +863,10 @@ def test_ipv6(guest, res, lab):
     res.check("ipv6_slaac_addr", slaac is not None,
               slaac or "no fd00:5c1: /64 addr (RA not processed?)")
 
-    # RA-derived routes can lag by one advertisement interval
+    # RA-derived routes can lag by one advertisement interval; netlab
+    # advertises every 10s, so wait comfortably past that.
     got_route = False
-    deadline = time.time() + 20
+    deadline = time.time() + 35
     while time.time() < deadline:
         rc, out = guest.run("ip -6 route")
         if re.search(r"default via fe80::[0-9a-f:]+ dev eth0", out):
@@ -940,6 +953,88 @@ def test_host_http(res, guest_v4, guest_v6):
             res.fail(name, str(e)[:80])
 
 
+def streamer_auth(guest):
+    """SOAP creds the way the ONVIF server resolves them (conf.c
+    load_streamer_auth): the installed streamer's own RTSP auth, first
+    existing config wins; the pre-03e8595 onvif.json copy is only a
+    legacy fallback. Returns (user, password, source)."""
+
+    def nested(conf, dotted):
+        node = conf
+        for part in dotted.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        return node if isinstance(node, str) and node else None
+
+    def from_json(out, user_keys, pass_keys):
+        try:
+            conf = json.loads(out[out.index("{"):out.rindex("}") + 1])
+        except ValueError:
+            return None, None
+        user = pw = None
+        for k in user_keys:
+            user = user or nested(conf, k)
+        for k in pass_keys:
+            pw = pw or nested(conf, k)
+        return user, pw
+
+    def flat_value(text, key):
+        # Mirror the server's flat-file parser: first matching key wins,
+        # an inline '#' comment counts only after whitespace, and one
+        # level of quotes is removed.
+        for line in text.splitlines():
+            m = re.match(r"\s*" + re.escape(key) + r"\s*=\s*(.*)$", line)
+            if not m:
+                continue
+            val = re.sub(r"\s+#.*$", "", m.group(1)).rstrip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+                val = val[1:-1]
+            return val or None
+        return None
+
+    def cmd_value(cmd):
+        rc, out = guest.run(cmd)
+        for line in out.splitlines():
+            line = line.strip()
+            if line and "raptorctl" not in line:
+                return line
+        return None
+
+    sources = [
+        ("/etc/prudynt.json", "prudynt"),
+        ("/etc/streamer.d/rtsp.json", "strero"),
+        ("/etc/timps.conf", "timps"),
+        ("/etc/raptor.conf", "raptor"),
+        ("/etc/onvif.json", "onvif.json"),
+    ]
+    for path, kind in sources:
+        rc, out = guest.run(f"[ -r {path} ] && echo CREDSRC || true")
+        if "CREDSRC" not in out:
+            continue
+        if kind == "prudynt":
+            rc, out = guest.run(f"cat {path}")
+            user, pw = from_json(out, ["rtsp.username"], ["rtsp.password"])
+        elif kind == "strero":
+            rc, out = guest.run(f"cat {path}")
+            user, pw = from_json(
+                out, ["username", "auth.username", "rtsp.username"],
+                ["password", "auth.password", "rtsp.password"])
+        elif kind == "timps":
+            rc, out = guest.run(f"cat {path}")
+            user = flat_value(out, "rtsp.user")
+            pw = flat_value(out, "rtsp.pass")
+        elif kind == "raptor":
+            user = cmd_value("raptorctl config get rtsp username")
+            pw = cmd_value("raptorctl config get rtsp password")
+        else:
+            rc, out = guest.run(f"cat {path}")
+            user, pw = from_json(out, ["server.username"],
+                                 ["server.password"])
+        # Like the server: the first existing config decides, even if it
+        # holds no creds (the server then requires no auth either).
+        return user, pw, kind
+    return None, None, "none"
+
+
 def test_onvif(guest, res, lab, guest_v4, report_dir):
     from onvif import OnvifDevice, xml_tag
 
@@ -964,17 +1059,9 @@ def test_onvif(guest, res, lab, guest_v4, report_dir):
     res.check("onvif_ws_discovery", bool(match),
               xaddrs or f"{len(replies)} multicast replies")
 
-    rc, out = guest.run("cat /etc/onvif.json")
-    user = password = None
-    try:
-        conf = json.loads(out[out.index("{"):out.rindex("}") + 1])
-        server = conf.get("server", {})
-        user = server.get("username") or None
-        password = server.get("password") or ""
-    except (ValueError, json.JSONDecodeError):
-        pass
+    user, password, cred_src = streamer_auth(guest)
 
-    dev = OnvifDevice(guest_v4, user=user, password=password)
+    dev = OnvifDevice(guest_v4, user=user, password=password or "")
 
     status, text = dev.get_system_date_and_time()
     dump("datetime", status, text)
@@ -987,7 +1074,8 @@ def test_onvif(guest, res, lab, guest_v4, report_dir):
     mfr = xml_tag(text, "Manufacturer")
     fw = xml_tag(text, "FirmwareVersion")
     res.check("onvif_device_info", status == 200 and mfr is not None,
-              f"{mfr} fw={fw}" if mfr else f"HTTP {status}: {text[:120]}")
+              f"{mfr} fw={fw} creds={cred_src}" if mfr
+              else f"HTTP {status} (creds={cred_src}): {text[:110]}")
 
     status, text = dev.get_capabilities()
     dump("capabilities", status, text)
@@ -1173,9 +1261,13 @@ def test_persist_reboot(ser, guest, res, report_dir, timeout=240):
     guest.run(f"touch /etc/qemu-test-marker && "
               f"jct /etc/thingino.json set qemutest {marker}",
               via="serial", timeout=15)
+    ser.read()                 # drop the pre-reboot prompt still buffered
     ser.write("reboot\n")
     time.sleep(5)
-    if not ser.login(timeout):
+    # expect_reboot: do not accept a prompt until the machine has actually
+    # reset, so we assert persistence against the rebooted system and not
+    # the dying pre-reboot shell.
+    if not ser.login(timeout, expect_reboot=True):
         if warm_reset_timer_wedge(report_dir):
             res.xfail("persist_reboot_complete", False,
                       "QEMU warm-reset timer wedge (fork bug, "
@@ -1189,8 +1281,11 @@ def test_persist_reboot(ser, guest, res, report_dir, timeout=240):
     res.ok("persist_reboot_complete")
     guest.ssh_ok = False
 
-    rc, out = guest.run("ls /etc/qemu-test-marker 2>&1", via="serial")
-    res.check("persist_file", "No such file" not in out)
+    # Positive sentinel: a bare "not absent" check reads as success against
+    # a U-Boot "syntax error" too, so confirm the file is really there.
+    rc, out = guest.run("[ -f /etc/qemu-test-marker ] && echo MARKER_OK",
+                        via="serial")
+    res.check("persist_file", "MARKER_OK" in out)
     rc, out = guest.run("jct /etc/thingino.json get qemutest 2>&1",
                         via="serial")
     res.check("persist_config", marker in out)
