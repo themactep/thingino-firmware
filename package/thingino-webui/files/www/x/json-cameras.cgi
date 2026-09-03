@@ -56,38 +56,60 @@ scan_cameras() {
 			if (!match(line, / \([0-9A-Fa-f.:]+\)$/))
 				next
 			ip = substr(line, RSTART + 2, RLENGTH - 3)
-			name = substr(line, 1, RSTART - 1)
+			fqdn = substr(line, 1, RSTART - 1)
 			# Unsolicited announcements of other service types can arrive
 			# inside the query window; keep only _thingino._tcp instances.
-			if (name !~ /\._thingino\._tcp\.local\.?$/)
+			if (fqdn !~ /\._thingino\._tcp\.local\.?$/)
 				next
+			name = fqdn
 			sub(/\._thingino\._tcp\.local\.?$/, "", name)
 			if (name == "")
 				next
 			if (seen[ip]++)
 				next
 			isself = (ip in self || name == selfname) ? 1 : 0
-			print name "\t" ip "\t" isself
+			print name "\t" ip "\t" fqdn "\t" isself
 		}' | sort -f
 }
 
 build_entries() {
-	local tab first name ip self
+	local tab first name ip fqdn self txt field key val model version streamer
 	tab="$(printf '\t')"
 	first=1
-	while IFS="$tab" read -r name ip self; do
+	while IFS="$tab" read -r name ip fqdn self; do
 		[ -n "$name" ] || continue
 		if [ "$self" = "1" ]; then
 			self="true"
 		else
 			self="false"
 		fi
+
+		model=""
+		version=""
+		streamer=""
+		txt="$(mquery -t 16 -w 1 "$fqdn" </dev/null 2>/dev/null |
+			sed -n 's/^TXT .* seconds: //p' | head -n 1)"
+		if [ -n "$txt" ]; then
+			# shellcheck disable=SC2086
+			for field in $txt; do
+				key="${field%%=*}"
+				val="${field#*=}"
+				case "$key" in
+					product) model="$val" ;;
+					version) version="$val" ;;
+					streamer) streamer="$val" ;;
+				esac
+			done
+		fi
+
 		if [ "$first" -eq 1 ]; then
 			first=0
 		else
 			printf ','
 		fi
-		printf '{"name": "%s", "ip": "%s", "self": %s}' "$(json_escape "$name")" "$ip" "$self"
+		printf '{"name": "%s", "ip": "%s", "self": %s, "model": "%s", "version": "%s", "streamer": "%s"}' \
+			"$(json_escape "$name")" "$ip" "$self" \
+			"$(json_escape "$model")" "$(json_escape "$version")" "$(json_escape "$streamer")"
 	done
 }
 
