@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.7
+TIMPS_VERSION = v1.9.8
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -692,6 +692,8 @@ define TIMPS_REAPPLY_MOTORS_UI
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.js \
 		$(TARGET_DIR)/var/www/a/preview-motors.js
+	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/motors-version.js \
+		$(TARGET_DIR)/var/www/a/motors-version.js
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors-settings.js \
 		$(TARGET_DIR)/var/www/a/preview-motors-settings.js
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/preview-motors.css \
