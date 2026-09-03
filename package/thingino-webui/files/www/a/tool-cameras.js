@@ -105,15 +105,12 @@
 
     sortCameras(state.rawCameras).forEach((camera) => {
       const row = document.createElement("tr");
+      if (camera.self) {
+        row.classList.add("camera-self-row");
+      }
 
       const nameCell = document.createElement("td");
       nameCell.textContent = camera.name || camera.ip || "unknown";
-      if (camera.self) {
-        const badge = document.createElement("span");
-        badge.className = "badge text-bg-secondary ms-2";
-        badge.textContent = "this camera";
-        nameCell.appendChild(badge);
-      }
 
       const ipCell = document.createElement("td");
       ipCell.textContent = camera.ip;
