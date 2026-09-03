@@ -47,6 +47,24 @@
         nameCell.appendChild(badge);
       }
 
+      const modelCell = document.createElement("td");
+      modelCell.textContent = camera.model || "";
+
+      const streamerCell = document.createElement("td");
+      if (camera.streamer) {
+        const streamerBadge = document.createElement("span");
+        streamerBadge.className = "badge text-bg-info";
+        streamerBadge.textContent = camera.streamer;
+        streamerCell.appendChild(streamerBadge);
+      }
+
+      const buildCell = document.createElement("td");
+      if (camera.version) {
+        const buildCode = document.createElement("code");
+        buildCode.textContent = camera.version;
+        buildCell.appendChild(buildCode);
+      }
+
       const ipCell = document.createElement("td");
       const ipLink = document.createElement("a");
       ipLink.href = "http://" + camera.ip + "/";
@@ -69,6 +87,9 @@
       actionCell.appendChild(openBtn);
 
       row.appendChild(nameCell);
+      row.appendChild(modelCell);
+      row.appendChild(streamerCell);
+      row.appendChild(buildCell);
       row.appendChild(ipCell);
       row.appendChild(actionCell);
       tbody.appendChild(row);
