@@ -1,0 +1,17 @@
+#!/bin/sh
+# daynight.irprobe_cmd target: timps execs "<cmd> on|off" with no shell.
+#
+# The three names are light's infrared types, tried in that order because 940nm
+# is invisible and 850nm faintly red; `light` resolves the pin per camera from
+# thingino.json. Enumerating gpio.* instead would reach `white` and `flood`.
+#
+# "off" arms a detached watchdog first: the daemon has no failsafe, so if it
+# dies during the dark window the illuminator would stay off. A later "on" is
+# idempotent.
+for t in ir940 ir850 ir; do
+	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
+		[ "$1" = off ] && ( sleep 60; light $t on ) >/dev/null 2>&1 &
+		exec light $t "$1"
+	fi
+done
+exit 1   # no switchable illuminator: timps logs the failure and skips the probe

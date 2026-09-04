@@ -14,16 +14,56 @@ conf_get() {
 		head -n1
 }
 
-# If TLS is requested but the cert/key are missing, generate a self-signed pair
-# so timpsd doesn't fail to bind the HTTPS/RTSPS listener on first boot.
+# The WebUI's own cert, written by thingino-uhttpd's S02ssl (which runs long
+# before this script). Absent on images built without the WebUI.
+UHTTPD_CRT=/etc/ssl/certs/uhttpd.crt
+UHTTPD_KEY=/etc/ssl/private/uhttpd.key
+
+# Make sure a usable cert/key pair exists before timpsd starts, so it can bind
+# the HTTPS/RTSPS listener on first boot. Priority:
+#
+#   1. whatever http.tls_cert/http.tls_key already point at, if both are
+#      non-empty - an operator-supplied cert is never second-guessed;
+#   2. else the WebUI's certificate, by symlink;
+#   3. else a freshly generated self-signed pair at the configured path.
+#
+# Step 2 is the important one and it is not cosmetic. A browser tracks trust
+# for a self-signed cert per ORIGIN - scheme+host+PORT - so the WebUI on :443
+# and timps on :8880 are two separate trust decisions even on the same camera.
+# The WebUI's cert gets trusted implicitly the first time someone clicks
+# through the warning on a top-level navigation; timps' never does, because the
+# preview reaches :8880 from JavaScript, and Safari (iOS especially) offers no
+# click-through for a fetch()/XHR failure at all - the preview just reports
+# "Load failed" with nothing the user can do about it. Presenting the IDENTICAL
+# certificate on both ports makes the one trust decision cover both.
+#
+# Symlink rather than copy: S02ssl regenerates uhttpd's cert whenever it is
+# missing (e.g. after a flash), and a copy taken once would silently go stale
+# and desynchronise the two ports again - which is the exact bug this avoids.
 ensure_tls_certs() {
 	[ "$(conf_get http.https)" = "1" ] || [ "$(conf_get rtsp.tls)" = "1" ] || return 0
 	crt=$(conf_get http.tls_cert)
 	key=$(conf_get http.tls_key)
 	[ -n "$crt" ] && [ -n "$key" ] || return 0
 	[ -s "$crt" ] && [ -s "$key" ] && return 0
+
+	# `-s` follows symlinks, so this also re-links a dangling one.
+	if [ "$crt" != "$UHTTPD_CRT" ] && [ "$key" != "$UHTTPD_KEY" ] &&
+		[ -s "$UHTTPD_CRT" ] && [ -s "$UHTTPD_KEY" ]; then
+		mkdir -p "$(dirname "$crt")" "$(dirname "$key")"
+		if ln -sf "$UHTTPD_CRT" "$crt" && ln -sf "$UHTTPD_KEY" "$key"; then
+			logger -t timps "TLS: sharing the web UI certificate ($UHTTPD_CRT)"
+			return 0
+		fi
+		# a half-made link would leave timpsd with a cert and no key
+		rm -f "$crt" "$key"
+		logger -t timps "TLS: could not link $UHTTPD_CRT, generating our own"
+	fi
+
 	[ -x /usr/bin/generate-timps-tls-certs.sh ] || return 0
-	/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" >/dev/null 2>&1
+	# a failure must reach syslog: without the cert every TLS bind fails
+	out=$(/usr/bin/generate-timps-tls-certs.sh "$crt" "$key" 2>&1) ||
+		logger -t timps "TLS cert generation failed: $out"
 }
 
 # Wait for the daemon to actually exit (IMP/rmem teardown can take a while);

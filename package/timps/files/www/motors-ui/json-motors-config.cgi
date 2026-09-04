@@ -1,0 +1,220 @@
+#!/bin/sh
+# shellcheck disable=SC1091,SC2154,SC3043
+
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
+motors_domain="motors"
+motors_config_file="/etc/thingino.json"
+
+json_escape() {
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e "s/\r/\\r/g" \
+		-e "s/\n/\\n/g"
+}
+
+read_post_data() {
+	if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ]; then
+		body=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
+		eval "$(printf '%s' "$body" | awk -F'&' '{
+      for (i=1; i<=NF; i++) {
+        split($i, kv, "=")
+        key = kv[1]
+        value = kv[2]
+        gsub(/\+/, " ", value)
+        gsub(/%([0-9A-Fa-f]{2})/, "\\x\\1", value)
+        printf "POST_%s=\"%s\"\n", key, value
+      }
+    }')"
+	fi
+}
+
+http_200() {
+	printf 'Status: 200 OK\r\n'
+}
+
+http_412() {
+	printf 'Status: 412 Precondition Failed\r\n'
+}
+
+json_header() {
+	printf 'Content-Type: application/json\r\n'
+	printf 'Cache-Control: no-store\r\n'
+	printf 'Pragma: no-cache\r\n'
+	printf 'Expires: %s\r\n' "$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')"
+	printf 'Etag: "%s"\r\n' "$(cat /proc/sys/kernel/random/uuid)"
+	printf 'Connection: close\r\n'
+	printf '\r\n'
+}
+
+json_error() {
+	http_412
+	json_header
+	printf '{"error":{"code":412,"message":"%s"}}\n' "$(json_escape "$1")"
+	exit 0
+}
+
+json_ok() {
+	http_200
+	json_header
+	case "$1" in
+		\{*)
+			printf '{"code":200,"result":"success","message":%s}\n' "$1"
+			;;
+		*)
+			printf '{"code":200,"result":"success","message":"%s"}\n' "$(json_escape "$1")"
+			;;
+	esac
+	exit 0
+}
+
+motors_set_value() {
+	jct "$motors_config_file" set "$motors_domain.$1" "$2" >/dev/null 2>&1
+}
+
+motors_get_field() {
+	jct "$motors_config_file" get "$motors_domain.$1" 2>/dev/null
+}
+
+ensure_config_file() {
+	[ -f "$motors_config_file" ] && return
+	umask_old=$(umask)
+	umask 077
+	echo '{}' >"$motors_config_file"
+	umask "$umask_old"
+}
+
+current_config_payload() {
+	local payload
+	payload=$(jct "$motors_config_file" get "$motors_domain" 2>/dev/null)
+	if [ -z "$payload" ] || [ "$payload" = "null" ]; then
+		payload='{}'
+	fi
+	printf '%s' "$payload"
+}
+
+respond_with_config() {
+	ensure_config_file
+	json_ok "$(current_config_payload)"
+}
+
+handle_get() {
+	ensure_config_file
+	respond_with_config
+}
+
+handle_post() {
+	ensure_config_file
+	read_post_data
+	[ "$POST_form" = "motors" ] || json_error "motors-form-missing"
+
+	gpio_pan_1=$POST_gpio_pan_1
+	gpio_pan_2=$POST_gpio_pan_2
+	gpio_pan_3=$POST_gpio_pan_3
+	gpio_pan_4=$POST_gpio_pan_4
+	gpio_tilt_1=$POST_gpio_tilt_1
+	gpio_tilt_2=$POST_gpio_tilt_2
+	gpio_tilt_3=$POST_gpio_tilt_3
+	gpio_tilt_4=$POST_gpio_tilt_4
+	homing_value=${POST_homing:-false}
+	pos_0_x=$POST_pos_0_x
+	pos_0_y=$POST_pos_0_y
+	speed_pan_value=$POST_speed_pan
+	speed_tilt_value=$POST_speed_tilt
+	accel_pan_value=${POST_accel_pan:-0}
+	accel_tilt_value=${POST_accel_tilt:-0}
+	motion_driver_value=${POST_motion_driver:-legacy}
+	preview_control_mode_value=${POST_preview_control_mode:-step}
+	steps_pan_value=$POST_steps_pan
+	steps_tilt_value=$POST_steps_tilt
+	joystick_sensitivity_value=${POST_joystick_sensitivity:-2.00}
+
+	[ "$homing_value" = "true" ] || homing_value="false"
+
+	is_spi_value=$(motors_get_field is_spi)
+
+	if [ "true" != "$is_spi_value" ]; then
+		if [ -z "$gpio_pan_1" ] || [ -z "$gpio_pan_2" ] || [ -z "$gpio_pan_3" ] || [ -z "$gpio_pan_4" ] ||
+			[ -z "$gpio_tilt_1" ] || [ -z "$gpio_tilt_2" ] || [ -z "$gpio_tilt_3" ] || [ -z "$gpio_tilt_4" ]; then
+			json_error "All motor GPIO pins are required"
+		fi
+	fi
+
+	if [ "0$steps_pan_value" -le 0 ] || [ "0$steps_tilt_value" -le 0 ]; then
+		json_error "Motor max steps must be positive"
+	fi
+
+	if [ "0$accel_pan_value" -lt 0 ] || [ "0$accel_tilt_value" -lt 0 ]; then
+		json_error "Motor acceleration must be zero or positive"
+	fi
+
+	case "$motion_driver_value" in
+		legacy | profiled) ;;
+		*)
+			motion_driver_value="legacy"
+			;;
+	esac
+
+	case "$preview_control_mode_value" in
+		step | continuous | joystick) ;;
+		*)
+			preview_control_mode_value="step"
+			;;
+	esac
+
+	# busybox ash's test has no floating point; reject non-numeric, then
+	# clamp via awk into motor-daemon.c's own accepted range.
+	case "$joystick_sensitivity_value" in
+		'' | *[!0-9.]* | *.*.*) joystick_sensitivity_value="2.00" ;;
+	esac
+	joystick_sensitivity_value=$(awk -v v="$joystick_sensitivity_value" \
+		'BEGIN { if (v < 0.05) v = 0.05; if (v > 4) v = 4; printf "%.2f", v }')
+
+	if [ "true" != "$is_spi_value" ]; then
+		motors_set_value gpio_pan "$gpio_pan_1 $gpio_pan_2 $gpio_pan_3 $gpio_pan_4"
+		motors_set_value gpio_tilt "$gpio_tilt_1 $gpio_tilt_2 $gpio_tilt_3 $gpio_tilt_4"
+	fi
+
+	motors_set_value steps_pan "$steps_pan_value"
+	motors_set_value steps_tilt "$steps_tilt_value"
+	motors_set_value speed_pan "$speed_pan_value"
+	motors_set_value speed_tilt "$speed_tilt_value"
+	motors_set_value accel_pan "$accel_pan_value"
+	motors_set_value accel_tilt "$accel_tilt_value"
+	motors_set_value motion_driver "$motion_driver_value"
+	motors_set_value preview_control_mode "$preview_control_mode_value"
+	motors_set_value joystick_sensitivity "$joystick_sensitivity_value"
+	motors_set_value homing "$homing_value"
+
+	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
+		# The initial point is the first preset; create it (id 0, "Home")
+		# when no preset exists yet.
+		if [ -z "$(motors_get_field presets.0.id)" ]; then
+			motors_set_value presets.0.id 0
+			motors_set_value presets.0.name "Home"
+		fi
+		motors_set_value presets.0.x "$pos_0_x"
+		motors_set_value presets.0.y "$pos_0_y"
+	fi
+
+	# Live-reloads the daemon config (see motor_ctl_reload() in
+	# motor-daemon.c for exactly which fields); GPIO still needs a reboot.
+	motors -R >/dev/null 2>&1
+
+	respond_with_config
+}
+
+case "$REQUEST_METHOD" in
+	GET)
+		handle_get
+		;;
+	POST)
+		handle_post
+		;;
+	*)
+		json_error "motors-method-unsupported"
+		;;
+esac

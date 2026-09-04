@@ -63,10 +63,108 @@
             return request(method, body, true);
           });
         }
-        if (!res.ok) throw new Error("timps /control HTTP " + res.status);
-        return res.json().catch(function () { return {}; });
+        // POST /control status codes (see WEBUI-NOTES.md for the full contract):
+        // 400 not_json = client bug; 422 unknown_fields = key names wrong for
+        // this build; 409 values_rejected = names right, values refused; 503
+        // oom = daemon allocation failure. Key off "reason", not status code
+        // or counter arithmetic - 422 vs 409 want opposite client behavior.
+        // Bodies always parse first: even error responses carry the normal
+        // {ok,accepted,changed,rejected} counters.
+        return res.json().catch(function () { return {}; }).then(function (json) {
+          if (!res.ok) {
+            var reason = json && typeof json.reason === "string" ? json.reason : "";
+            // Pre-split daemons answer 422 to both failures with no "reason";
+            // fall back to the counters only then (never on a current build).
+            if (!reason && res.status === 422)
+              reason = json.rejected > 0 ? "values_rejected" : "unknown_fields";
+            var msg = "timps /control HTTP " + res.status;
+            if (reason === "values_rejected" || res.status === 409)
+              msg = "the streamer refused the value (empty/invalid); nothing was applied";
+            else if (reason === "unknown_fields" || res.status === 422)
+              msg = "no setting in this request is known to this timps build; nothing was applied";
+            else if (reason === "not_json" || res.status === 400)
+              msg = "malformed /control request (client bug); nothing was applied";
+            else if (reason === "oom" || res.status === 503)
+              msg = "the streamer is out of memory; nothing was applied - try again shortly";
+            var err = new Error(msg);
+            err.status = res.status;
+            err.reason = reason;   // pages that need to branch should use THIS
+            err.result = json;
+            throw err;
+          }
+          return json;
+        });
       });
     });
+  }
+
+  // flatten one POST body into the daemon's config-key space - the same names
+  // the response's "applied" echo uses: {image:{brightness}} ->
+  // "image.brightness", {video:{0:{fps}}} -> "video0.fps" (stream index
+  // fuses into the section name). A shape this doesn't know just misses the
+  // lookup and produces no correction - never a false one.
+  function flattenInto(out, prefix, v) {
+    if (v !== null && typeof v === "object") {
+      Object.keys(v).forEach(function (k) {
+        flattenInto(out, prefix + "." + k, v[k]);
+      });
+    } else {
+      out[prefix] = v;
+    }
+  }
+  function flattenBody(obj) {
+    var out = {};
+    Object.keys(obj || {}).forEach(function (sec) {
+      var v = obj[sec];
+      if (v === null || typeof v !== "object") { out[sec] = v; return; }
+      Object.keys(v).forEach(function (k) {
+        // video and privacy fuse the stream index INTO the section name in
+        // the daemon's key space (video0.fps, privacy0.3.x) - a plain dotted
+        // join would never match their echoes
+        var pfx = (sec === "video" || sec === "privacy") ? sec + k : sec + "." + k;
+        flattenInto(out, pfx, v[k]);
+      });
+    });
+    return out;
+  }
+
+  // entries of result.applied whose EFFECTIVE (post-clamp) value differs from
+  // what this POST sent. Numeric comparison when both sides parse as numbers
+  // (so true == "1" is NOT a correction), string comparison otherwise.
+  function computeCorrections(body, result) {
+    if (!result || !result.applied) return null;
+    var sent = flattenBody(body);
+    var out = null;
+    Object.keys(result.applied).forEach(function (key) {
+      if (!(key in sent)) return;
+      var a = result.applied[key], s = sent[key];
+      var an = Number(a), sn = Number(s);
+      var same = (isFinite(an) && isFinite(sn) && String(a) !== "" && String(s) !== "")
+        ? an === sn
+        : String(s) === String(a);
+      if (!same) { out = out || {}; out[key] = a; }
+    });
+    return out;
+  }
+
+  // one-shot toast gate: a debounced flush settles MANY waiters with the SAME
+  // result object, so without take-once semantics one clamped slider drag
+  // would toast once per queued waiter. Element updates should read
+  // r.corrections directly instead.
+  function takeCorrections(r) {
+    if (!r || !r.corrections || r._corrShown) return null;
+    r._corrShown = true;
+    return r.corrections;
+  }
+
+  // shared wording for a corrections map. Deliberately informational: a
+  // clamped write SUCCEEDED (clamping is the documented contract), so pages
+  // show this as "info", never as an error.
+  function correctionsText(corr) {
+    return Object.keys(corr).map(function (k) {
+      return k.split(".").pop().replace(/_/g, " ") +
+        " was outside the allowed range - the streamer applied " + corr[k];
+    }).join(". ");
   }
 
   function get() {
@@ -77,7 +175,16 @@
   }
 
   function set(obj) {
-    return request("POST", obj);
+    return request("POST", obj).then(function (r) {
+      // The daemon echoes the effective values of everything it CHANGED
+      // ("applied"), so a page can put a clamped value straight back into
+      // its control - no follow-up GET. Computed here (not per caller) so
+      // debounced writes compare against the MERGED payload actually sent.
+      // If the echo overflowed (result.truncated) the diff may be
+      // incomplete - callers relying on it must check r.truncated.
+      if (r && typeof r === "object") r.corrections = computeCorrections(obj, r);
+      return r;
+    });
   }
 
   // merge rapid set() calls (slider drags) into one POST per quiet period.
@@ -187,6 +294,8 @@
     get: get,
     set: set,
     setDebounced: setDebounced,
+    takeCorrections: takeCorrections,
+    correctionsText: correctionsText,
     caps: caps,
     events: events,
   };

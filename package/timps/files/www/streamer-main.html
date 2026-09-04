@@ -102,6 +102,56 @@
       </div>
     </div>
 
+    <h5 class="mt-2">Rate control</h5>
+    <p class="text-secondary small mb-2">
+      Saved instantly. Fields the camera can apply to the <em>running</em> encoder take effect
+      at the next keyframe; everything else needs a streamer restart &mdash; each save says which.
+      Which fields do anything depends on the mode and SoC: quality level and change position
+      count only for VBR/SMART on the older SoCs (T10&hellip;T30), fixed QP only in FIXQP mode.
+      Measured on T23: the controller is quality-seeking, so <em>Min QP</em> is the strongest
+      lever (raising it lowers the bitrate); quality level moves it more gently; change position
+      showed no measurable effect there.
+    </p>
+    <div class="row g-2">
+      <div class="col">
+        <p>
+          <label for="stream0_min_qp">Min QP</label>
+          <input type="text" id="stream0_min_qp" name="stream0_min_qp" class="form-control" value="" title="1..51. On T23-class SoCs the strongest bitrate lever: the controller encodes the best quality this allows (measured 20/30/38 -> 1743/1181/235 kbit/s)">
+        </p>
+        <p>
+          <label for="stream0_max_qp">Max QP</label>
+          <input type="text" id="stream0_max_qp" name="stream0_max_qp" class="form-control" value="" title="1..51, upper bound for the rate controller">
+        </p>
+      </div><!-- .col -->
+      <div class="col">
+        <p>
+          <label for="stream0_qp">Fixed QP</label>
+          <input type="text" id="stream0_qp" name="stream0_qp" class="form-control" value="" title="1..51, only used in FIXQP mode">
+        </p>
+        <p>
+          <label for="stream0_i_bias_lvl">I-frame bias</label>
+          <input type="text" id="stream0_i_bias_lvl" name="stream0_i_bias_lvl" class="form-control" value="" title="-3..3; negative spends more bits on keyframes">
+        </p>
+      </div><!-- .col -->
+      <div class="col">
+        <p>
+          <label for="stream0_quality_lvl">Quality level</label>
+          <input type="text" id="stream0_quality_lvl" name="stream0_quality_lvl" class="form-control" value="" title="0..7, VBR/SMART on T10..T30 only; lower = better picture, higher bitrate">
+        </p>
+        <p>
+          <label for="stream0_change_pos">Change position</label>
+          <input type="text" id="stream0_change_pos" name="stream0_change_pos" class="form-control" value="" title="50..100 %, VBR/SMART on T10..T30 only; no measurable effect in T23 tests">
+        </p>
+      </div><!-- .col -->
+      <div class="col">
+        <p>
+          <label for="stream0_fluc_lvl">Fluctuation level</label>
+          <input type="text" id="stream0_fluc_lvl" name="stream0_fluc_lvl" class="form-control" value="" title="0..4, H265 on T10..T30 only">
+        </p>
+      </div><!-- .col -->
+    </div>
+    <p id="stream0_rc_holds" class="form-text mt-2">Encoder readback: &hellip;</p>
+
     <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
       <i class="bi bi-floppy me-1"></i> Save configuration to file
     </button>
@@ -117,7 +167,7 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-<script src="/a/preview.js"></script>
+<script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
 <script src="/a/timps-version.js"></script>
 <script src="/a/streamer-encoder.js"></script>

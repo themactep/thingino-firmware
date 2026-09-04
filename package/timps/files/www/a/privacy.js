@@ -90,7 +90,31 @@
         color: r.color,
       };
     }
-    window.timpsApi.set({ privacy: payload }).catch(function (err) {
+    window.timpsApi.set({ privacy: payload }).then(function (r) {
+      // Fold "privacy<s>.<n>.<field>" echoes back into the region model so
+      // the box on screen is the box that actually masks (the daemon may
+      // clamp further than clampRegion() did). Mirrored OTHER-stream echoes
+      // are DELIBERATELY not folded back - see WEBUI-NOTES.md.
+      var corr = r && r.corrections;
+      if (corr) {
+        var redraw = false;
+        Object.keys(corr).forEach(function (k) {
+          var parts = k.split(".");           // ["privacy0", "3", "x"]
+          if (parts.length !== 3 || parts[0] !== "privacy" + streamIdx) return;
+          var reg = regions[parseInt(parts[1], 10)];
+          var f = parts[2];
+          if (!reg) return;
+          if (f === "enabled") reg.enabled = !!Number(corr[k]);
+          else if (f === "color") reg.color = corr[k];
+          else if (f === "x" || f === "y" || f === "w" || f === "h")
+            reg[f] = Number(corr[k]);
+          redraw = true;
+        });
+        if (redraw) renderBoxes();
+        var t = window.timpsApi.takeCorrections(r);
+        if (t) toast("info", window.timpsApi.correctionsText(t));
+      }
+    }, function (err) {
       console.error("privacy set failed:", err);
       toast("danger", "Failed to update mask: " + (err.message || err));
     });
@@ -281,12 +305,9 @@
     });
   }
 
-  // Periodic re-fetch so the reference image tracks the scene while the page
-  // is open - snapshot.jpg is otherwise only fetched once (load/stream-switch/
-  // reload button), unlike the streamer pages' /stream.mjpeg which updates
-  // itself. Paused during a drag (would fight the in-progress resize/move) and
-  // while the tab is hidden (each fetch wakes the JPEG encoder - no point
-  // paying that cost for a page nobody is looking at).
+  // Periodic re-fetch so the reference image tracks the scene (snapshot.jpg
+  // is otherwise only fetched once, unlike /stream.mjpeg). Paused during a
+  // drag and while the tab is hidden (each fetch wakes the JPEG encoder).
   setInterval(function () {
     if (!isWindowVisible || dragging || !window.timpsApi) return;
     setSnapshot();
@@ -298,11 +319,30 @@
 
   /* ---- load ---- */
 
+  // Captured before any markUnavailable(msg) can overwrite it with textContent,
+  // so markAvailable() can put the original markup (icon included) back.
+  var unavailEl = document.getElementById("privacy-unavailable");
+  var unavailHtml = unavailEl ? unavailEl.innerHTML : "";
+
   function markUnavailable(msg) {
-    var el = document.getElementById("privacy-unavailable");
-    if (el) { el.classList.remove("d-none"); if (msg) el.textContent = msg; }
+    if (unavailEl) {
+      unavailEl.classList.remove("d-none");
+      if (msg) unavailEl.textContent = msg;
+    }
     if (addBtn) addBtn.disabled = true;
     if (streamSel) streamSel.disabled = true;
+  }
+
+  // Exact inverse of markUnavailable(), run on every successful load() -
+  // fixes a real transient-unavailability bug during a streamer restart.
+  // See WEBUI-NOTES.md.
+  function markAvailable() {
+    if (unavailEl) {
+      unavailEl.classList.add("d-none");
+      unavailEl.innerHTML = unavailHtml;
+    }
+    if (addBtn) addBtn.disabled = false;
+    if (streamSel) streamSel.disabled = false;
   }
 
   function load() {
@@ -336,8 +376,7 @@
         });
       }
       selected = regions.findIndex(function (r) { return r.enabled; });
-      var off = document.getElementById("privacy-unavailable");
-      if (off) off.classList.add("d-none");
+      markAvailable();
       setSnapshot();
       render();
     }).catch(function (err) {
