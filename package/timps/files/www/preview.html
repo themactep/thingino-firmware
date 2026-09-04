@@ -776,6 +776,14 @@
     let rtRetries = 0;         // consecutive reconnect attempts (reset on 1st frame)
     let rtTokenRefreshed = false;  // one token renewal per healthy run, no 401 loop
 
+    // Buffered-player counterpart of RT_MAX_RETRIES/rtRetries, kept next to
+    // them so the two budgets stay visibly in sync. They must be separate
+    // variables: either mode can be the active one and each has to reset on
+    // its own evidence of a healthy link.
+    const MSE_MAX_RETRIES = 5;
+    let mseRetries = 0;        // consecutive reconnect attempts (reset on 1st append)
+    let mseTokenRefreshed = false; // one token renewal per healthy run, no 401 loop
+
     /* One ISO-BMFF box at `off`, or null when the buffer does not hold it all */
     function boxAt(bytes, off) {
       if (off + 8 > bytes.length) return null;
@@ -1183,6 +1191,43 @@
       mediaSource = ms;
       video.src = URL.createObjectURL(ms);
 
+      // Buffered-mode twin of startRtStream()'s scheduleReconnect(). Same
+      // budget, same backoff, same wording - and, crucially, the same refusal
+      // to call stopStream(): stopStream() bumps `session` as its first act,
+      // which would make this attempt's own `session !== mySession` guards
+      // (including the one in the setTimeout below) fire and kill the retry
+      // chain. So tear down only what this attempt owns and leave the session
+      // token alone; a real supersession (Connect/Disconnect, stream switch,
+      // mode switch) goes through stopStream() and cancels the pending retry
+      // through exactly that guard.
+      function scheduleMseReconnect(msg) {
+        if (session !== mySession) return;
+        if (abortCtrl) {
+          try { abortCtrl.abort(); } catch (e) { /* ignore */ }
+          abortCtrl = null;
+        }
+        try { if (ms.readyState === "open") ms.endOfStream(); } catch (e) { /* ignore */ }
+        if (mediaSource === ms) mediaSource = null;
+        running = false;
+        if (mseRetries >= MSE_MAX_RETRIES) {
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + MSE_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, mseRetries));
+        mseRetries++;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + mseRetries + "/" + MSE_MAX_RETRIES + ")…");
+        setTimeout(() => {
+          // a stop / stream switch / mode switch in the meantime bumps the
+          // session token, and that silently cancels this retry
+          if (session !== mySession || mode !== "mse") return;
+          startStream();
+        }, delay);
+      }
+
       ms.addEventListener("sourceopen", async () => {
         if (session !== mySession) return;   // superseded while opening
         try { ms.duration = Infinity; } catch (e) { /* Safari live-MSE hint */ }
@@ -1232,6 +1277,12 @@
         };
         sb.addEventListener("updateend", () => {
           busy = false;
+          // MSE accepted real media = healthy link, the buffered-mode analog
+          // of rt's "first decoded frame resets rtRetries". Deliberately NOT
+          // done on the bare HTTP 200: a server that accepts the connection
+          // and drops it immediately (client-limit eviction) would reset the
+          // budget on every attempt and reconnect forever.
+          if (session === mySession) { mseRetries = 0; mseTokenRefreshed = false; }
           if (video.buffered.length) {
             if (video.currentTime < video.buffered.start(0)) video.currentTime = video.buffered.start(0);
             // Jitter margin (ms-latency, default 1.5s) instead of playing at
@@ -1260,6 +1311,26 @@
             return;
           }
           if (!res.ok || !res.body) {
+            stop();
+            // Same triage rt mode applies (see startRtStream): a 401 straight
+            // after the stream dropped is what a timpsd restart looks like from
+            // here - the per-boot token we hold is the previous boot's, so pull
+            // a fresh one and retry on a fresh budget. 5xx is transient (timps
+            // answers 503 once http_max_clients is reached). Any other 4xx is a
+            // decision (auth, bad channel), so say so instead of hammering the
+            // camera five times for nothing.
+            if (res.status === 401 && !mseTokenRefreshed) {
+              mseTokenRefreshed = true;
+              controlCache = null;
+              refreshTimpsToken();
+              mseRetries = 0;              // new failure class, fresh budget
+              scheduleMseReconnect("Stream token expired (timps restarted?) - renewing");
+              return;
+            }
+            if (res.status >= 500) {
+              scheduleMseReconnect("Connect failed: HTTP " + res.status);
+              return;
+            }
             await stopStream("Connect failed: HTTP " + res.status +
               (res.status === 401 ? " (timps HTTP auth - open " + base + " once and log in)" : ""));
             return;
@@ -1275,12 +1346,16 @@
           }
           // Clean end of the response body (daemon restart, client-limit
           // eviction, ...): the UI used to keep saying "Connected" while the
-          // picture was frozen. Say what happened instead.
+          // picture was frozen, then it said so but left the user to click
+          // Connect. Every cause listed above is transient and recoverable, so
+          // retry it like rt mode does; a genuinely deliberate stop comes from
+          // this page (Disconnect / stream switch / mode switch), and that
+          // path bumps `session` and cancels the retry on its own.
           if (session === mySession && running && !dead)
-            setStatus("Stream ended - click Connect to reconnect.");
+            scheduleMseReconnect("Stream ended");
         } catch (e) {
           if (session === mySession && running) {
-            setStatus("Stream error: " + (e && e.message ? e.message : e) +
+            scheduleMseReconnect("Stream error: " + (e && e.message ? e.message : e) +
               " - if the web UI runs on HTTPS this is likely blocked mixed content (see page source)");
           }
         }
@@ -1308,7 +1383,12 @@
     });
 
     connectButton.addEventListener("click", () => {
-      if (running) { rtRetries = 0; stopStream(); } else startStream();
+      if (running) { rtRetries = 0; mseRetries = 0; stopStream(); }
+      // An explicit Connect deserves a fresh budget: without this, a click on
+      // the "gave up after 5 attempts" dead end reuses the exhausted counter
+      // and gives up again after a single try, reporting "5 attempts" for one.
+      // Same reasoning as the pageshow handler below.
+      else { mseRetries = 0; mseTokenRefreshed = false; startStream(); }
     });
 
     window.addEventListener("pagehide", () => {
@@ -1331,6 +1411,8 @@
         // would instantly re-hit that same exhausted budget and give up
         // again with no further retries, instead of getting a fresh run.
         rtRetries = 0;
+        mseRetries = 0;
+        mseTokenRefreshed = false;
         startStream().catch((err) => {
           console.warn("Auto-reconnect failed:", err);
           setStatus("Reconnect failed. Click Connect to try again.");
