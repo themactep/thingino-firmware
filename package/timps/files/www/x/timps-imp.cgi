@@ -1,9 +1,18 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2086,SC2119,SC2120,SC2329,SC3057
 # shellcheck disable=SC2039
-# timps replacement for the day/night control CGI (same name, same URL).
-# Translates the WebUI's {"cmd":..,"val":..} into timps /control calls;
-# the IR/white-light and IR-cut GPIO helpers are kept as-is.
+# timps's day/night + IR/white-light control bridge. Translates the WebUI's
+# {"cmd":..,"val":..} into timps /control calls; the IR/white-light and IR-cut
+# GPIO helpers are kept as-is.
+#
+# Was /x/json-imp.cgi, installed over thingino-webui's file of that name.
+# Core's json-imp.cgi is a DIFFERENT bridge (it drives daynightd, or raptor's
+# ric) that happens to take the same {cmd,val} payload, and shipping a
+# same-named replacement is what forced timps's whole www overlay to be
+# re-applied from a global finalize hook to beat Buildroot's per-package
+# directory merge. Its only two callers are core main.js's toggleButton() and
+# toggleDayNight(), both of which a/timps-control-bar.js overrides to point
+# here - so the file simply gets its own name and the collision is gone.
 
 # Check authentication
 . /var/www/x/auth.sh
@@ -123,15 +132,39 @@ case "$cmd" in
 		;;
 	ir850 | ir940 | white)
 		# manual light override: switch auto detection off first (like the stock
-		# prudynt CGI), then drive the GPIO through thingino's light tool
+		# prudynt CGI), then drive the GPIO through thingino's light tool.
+		# val validated against light's own documented mode set (package/
+		# thingino-daynightd/files/light) for consistency with the color/
+		# daynight branches above - unquoted $val reaching a command line
+		# isn't shell-injectable (word-splitting/globbing only, no eval),
+		# but an unvalidated value was still inconsistent with those.
+		# 0/1 are in the list because they are what actually arrives:
+		# a/timps-control-bar.js toggleButton() posts a NUMERIC val (0/1),
+		# never a word - light maps them to off/on itself. "gpio"/"pin" are
+		# deliberately NOT accepted: that mode writes thingino.json.
+		case "$val" in
+			0 | 1 | on | off | toggle | read) ;;
+			*) bad_request "invalid value for $cmd" ;;
+		esac
 		curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" \
 			-d '{"daynight":{"enabled":false}}' >/dev/null 2>&1
 		light $cmd $val
 		;;
 	ircut)
+		# val validated against ircut's own documented mode set
+		# (package/thingino-daynightd/files/ircut) plus the numeric 0/1
+		# form its own dispatch accepts - and the only form the WebUI ever
+		# sends (a/timps-control-bar.js toggleButton()).
+		case "$val" in
+			0 | 1 | on | off | toggle | status | read) ;;
+			*) bad_request "invalid value for ircut" ;;
+		esac
 		curl -s $TIMPS_CURL_K -m 5 -X POST "$CONTROL_URL" \
 			-d '{"daynight":{"enabled":false}}' >/dev/null 2>&1
 		ircut $val >/dev/null
+		;;
+	*)
+		bad_request "unknown cmd"
 		;;
 esac
 

@@ -4,9 +4,16 @@
 #
 # Usage: generate-timps-tls-certs.sh [cert_path] [key_path]
 # Defaults match timps.conf (http.tls_cert / http.tls_key).
+#
+# This is a plain generator; it does NOT decide WHICH certificate timps should
+# use. S95timps' ensure_tls_certs() owns that policy and prefers the thingino
+# web UI's own /etc/ssl/certs/uhttpd.crt where it exists (so :443 and :8880
+# present the identical cert to the browser), calling this script only for
+# images that have no web UI - hence the timps-own default paths below rather
+# than a uhttpd-named one, which would be a lie on exactly those images.
 
-CERT="${1:-/etc/ssl/certs/httpd.crt}"
-KEY="${2:-/etc/ssl/private/httpd.key}"
+CERT="${1:-/etc/ssl/certs/timps.crt}"
+KEY="${2:-/etc/ssl/private/timps.key}"
 
 mkdir -p "$(dirname "$CERT")" "$(dirname "$KEY")"
 

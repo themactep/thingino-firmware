@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Pan/Tilt Motors</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-motors">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="motors-form" class="needs-validation" novalidate autocomplete="off">
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Pan/Tilt Motors</h2>
+            <small>Match the driver sequence A → B → C → D for both axes. Requires reboot after changes.</small>
+            <span id="motors-type-badge"></span>
+            <span id="motors-version-badge"></span>
+            <button type="button" class="btn btn-outline-secondary" id="motors-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-3">
+              <div class="col">
+                <h4>Pan motor GPIO</h4>
+                <small>Driver pins for horizontal motion</small>
+
+                <div class="row row-cols-2 row-cols-sm-4 g-1">
+                  <p class="col"><label for="gpio_pan_1">GPIO 1</label>
+                    <input type="number" class="form-control" id="gpio_pan_1" name="gpio_pan_1" min="0" placeholder="e.g. 55"></p>
+                  <p class="col"><label for="gpio_pan_2">GPIO 2</label>
+                    <input type="number" class="form-control" id="gpio_pan_2" name="gpio_pan_2" min="0" placeholder="e.g. 56"></p>
+                  <p class="col"><label for="gpio_pan_3">GPIO 3</label>
+                    <input type="number" class="form-control" id="gpio_pan_3" name="gpio_pan_3" min="0" placeholder="e.g. 57"></p>
+                  <p class="col"><label for="gpio_pan_4">GPIO 4</label>
+                    <input type="number" class="form-control" id="gpio_pan_4" name="gpio_pan_4" min="0" placeholder="e.g. 58"></p>
+                </div><!-- .row -->
+                <button type="button" class="btn btn-outline-secondary flip_motor mt-2" data-direction="pan" title="Reverse pin order">
+                  <i class="bi bi-arrow-left-right"></i> Flip
+                </button>
+
+                <p>
+                  <label for="steps_pan">Max steps</label>
+                  <input type="number" class="form-control" id="steps_pan" name="steps_pan" min="1" placeholder="1024">
+                </p>
+                <p>
+                  <label for="speed_pan">Speed</label>
+                  <input type="number" class="form-control" id="speed_pan" name="speed_pan" min="1" placeholder="1200">
+                </p>
+
+              </div><!-- .col -->
+              <div class="col">
+
+                <h4>Tilt motor GPIO</h4>
+                <small>Driver pins for vertical motion</small>
+
+                <div class="row row-cols-2 row-cols-sm-4 g-1">
+                  <p class="col">
+                    <label for="gpio_tilt_1">GPIO 1</label>
+                    <input type="number" class="form-control" id="gpio_tilt_1" name="gpio_tilt_1" min="0" placeholder="e.g. 59">
+                  </p>
+                  <p class="col">
+                    <label for="gpio_tilt_2">GPIO 2</label>
+                    <input type="number" class="form-control" id="gpio_tilt_2" name="gpio_tilt_2" min="0" placeholder="e.g. 60">
+                  </p>
+                  <p class="col">
+                    <label for="gpio_tilt_3">GPIO 3</label>
+                    <input type="number" class="form-control" id="gpio_tilt_3" name="gpio_tilt_3" min="0" placeholder="e.g. 61">
+                  </p>
+                  <p class="col">
+                    <label for="gpio_tilt_4">GPIO 4</label>
+                    <input type="number" class="form-control" id="gpio_tilt_4" name="gpio_tilt_4" min="0" placeholder="e.g. 62">
+                  </p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary flip_motor mt-2" data-direction="tilt" title="Reverse pin order">
+                  <i class="bi bi-arrow-left-right"></i> Flip
+                </button>
+                <p>
+                  <label for="steps_tilt">Max steps</label>
+                  <input type="number" class="form-control" id="steps_tilt" name="steps_tilt" min="1" placeholder="512">
+                </p>
+                <p>
+                  <label for="speed_tilt">Speed</label>
+                  <input type="number" class="form-control" id="speed_tilt" name="speed_tilt" min="1" placeholder="800">
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <h4>Behavior</h4>
+                <small>Startup pose and homing logic.</small>
+
+                <p>
+                  <label for="motion_driver">Motion driver</label>
+                  <select class="form-select" id="motion_driver" name="motion_driver">
+                    <option value="legacy">Legacy (kernel-native)</option>
+                    <option value="profiled">Profiled (accel/decel ramping)</option>
+                  </select>
+                </p>
+
+                <p id="motion-driver-help" class="alert alert-secondary small mb-2">
+                  Legacy mode uses the stock kernel movement path. Profiled mode enables acceleration/deceleration ramping in motors-daemon.
+                </p>
+
+                <p>
+                  <label for="preview_control_mode">Preview PTZ controls</label>
+                  <select class="form-select" id="preview_control_mode" name="preview_control_mode">
+                    <option value="step">Step move (click / double-click)</option>
+                    <option value="continuous">Continuous move (press and hold)</option>
+                    <option value="joystick">Analog joystick (drag to steer, further = faster)</option>
+                  </select>
+                  <small class="text-secondary">Applies to motor controls in the preview overlay.</small>
+                </p>
+
+                <div id="joystick-sensitivity-field">
+                  <label for="joystick_sensitivity">Joystick centre sensitivity
+                    <span id="joystick_sensitivity-value" class="text-secondary"></span></label>
+                  <input type="range" class="form-range" id="joystick_sensitivity" name="joystick_sensitivity"
+                    min="0.05" max="4" step="0.05" value="2">
+                  <small class="text-secondary">Below 1.00 reacts faster to small movements near the stick's centre and reaches full speed sooner. Above 1.00 does the opposite - the centre is less sensitive, for finer close-up framing. 1.00 is a straight linear response. Takes effect immediately, no reboot.</small>
+                </div>
+
+                <div id="motion-accel-fields" class="d-flex gap-2">
+                  <p>
+                    <label for="accel_pan">Pan acceleration</label>
+                    <input type="number" class="form-control" id="accel_pan" name="accel_pan" min="0" placeholder="0">
+                  </p>
+                  <p>
+                    <label for="accel_tilt">Tilt acceleration</label>
+                    <input type="number" class="form-control" id="accel_tilt" name="accel_tilt" min="0" placeholder="0">
+                  </p>
+                </div>
+
+                <p class="alert alert-info small">During boot, the camera rotates to its minimum limits and zeroes both axes.</p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="homing" name="homing" value="true" data-help="Disable only when a fixed pose is required">
+                  <label for="homing">Perform homing on boot</label>
+                </p>
+                <div class="d-flex gap-2">
+                  <p>
+                    <label for="pos_0_x">Initial position X</label>
+                    <input type="number" class="form-control" id="pos_0_x" name="pos_0_x" placeholder="0">
+                  </p>
+                  <p>
+                    <label for="pos_0_y">Initial position Y</label>
+                    <input type="number" class="form-control" id="pos_0_y" name="pos_0_y" placeholder="0">
+                  </p>
+                </div>
+                <p class="alert alert-info small">The initial position is the first PTZ preset. Reorder presets below to change it.</p>
+                <a href="#" class="read-motors mb-3 d-block" title="Use current pose">Pick up the recent position</a>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">PTZ Presets</h2>
+            <small>Save the current camera position and recall it with one click.</small>
+          </div>
+          <div class="card-body">
+            <div class="d-flex gap-2 mb-3">
+              <input type="text" class="form-control" id="ptz-preset-name" placeholder="Preset description, e.g. Front door" maxlength="64">
+              <button type="button" class="btn btn-outline-primary text-nowrap" id="ptz-preset-save" title="Save current position as a preset">
+                <i class="bi bi-plus-circle me-1"></i>Save position
+              </button>
+            </div>
+            <ul id="ptz-presets-list" class="list-group"></ul>
+            <small id="ptz-presets-empty" class="text-secondary d-block mt-2">No presets yet. Move the camera (preview overlay) and save a position above.</small>
+          </div>
+        </div>
+
+        <button type="submit" id="motors_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-motors.js"></script>
+</body>
+</html>

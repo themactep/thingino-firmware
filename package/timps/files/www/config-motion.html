@@ -2,18 +2,13 @@
 <!--
   thingino · Motion Detection (timps)
 
-  Configures the timps IMP_IVS grid motion detection through the
-  /x/json-prudynt.cgi bridge ({"motion":{...}} tree). All settings apply
-  LIVE (timps stops + recreates its IVS grid) and persist to
-  /etc/timps.conf. The grid size selectors are limited by the SoC/SDK cell
-  budget (caps.motion.max_cells via the bridge echo: 52 on most SoCs, 4 on
-  the old T10/T20 3.9.0 SDK). On SoCs without the IMP_IVS move API the page
-  shows a notice and stays disabled.
+  Configures the timps IMP_IVS grid motion detection live via /control
+  (a/config-motion.js). Grid size is limited by the SoC/SDK cell budget
+  (caps.motion.max_cells: 52 on most SoCs, 4 on the old T10/T20 3.9.0 SDK).
 
   Event ACTIONS on motion (email/Telegram/webhook/...) are NOT configured
   here - use Tools -> "Send to services"; timps triggers them through the
-  motion.on_motion command in /etc/timps.conf (config-file only, e.g.
-  "/usr/sbin/send2 -j").
+  motion.on_motion command in /etc/timps.conf (config-file only).
 -->
 <html lang="en" data-bs-theme="dark">
 <head>

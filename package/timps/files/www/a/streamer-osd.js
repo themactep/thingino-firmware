@@ -1,47 +1,15 @@
 /* streamer-osd.js - NATIVE per-stream OSD pages (streamer-osd0.html and
  * streamer-osd1.html share this script). Talks directly to the timps
- * streamer over window.timpsApi (GET/POST /control on timps's own port,
- * per-boot token) - no json-prudynt.cgi bridge for these pages (the OSD
- * wiring in a/preview.js is gated off here; preview.js keeps only the live
- * preview <img>, which already loads straight from timps).
+ * streamer over window.timpsApi; no json-prudynt.cgi bridge for these pages.
  *
- * Phase 1 (this file): the UI is DATA-DRIVEN. Each video stream carries its
- * own independent set of up to MS_MAX_OSD (=8) generic overlay items; every
- * item is a text-or-logo slot with the same field set (enabled/text/x/y/
- * font_size/color/transparency/outline/outline_color). Instead of four
- * hard-coded named boxes (time/usertext/uptime/logo) this page renders one
- * "card" per in-use item index and lets the user add/remove items (0..8),
- * edit every field, and drive both streams' item N at once.
- *
- * Stream:  detected from the page's body id (page-streamer-osd0 -> section
- *          "osd0", page-streamer-osd1 -> "osd1"). Index IS the identity - old
- *          configs (0=time,1=user text,2=uptime,3=logo) load unchanged by
- *          index, distinguished text-vs-logo by each item's "type".
- * Load:    timpsApi.get() returns BOTH streams' item sets in one shot; we
- *          populate this stream's cards and remember the other stream's items
- *          (for the "apply to both" scope + its restart bookkeeping).
- * Save:    per-item changed leaves apply LIVE via
- *          timpsApi.set({osdS:{N:{leaf:val}}}) and persist immediately. A card
- *          scoped to "both streams" POSTs the same leaves to osd0.N AND osd1.N.
- * Restart: the global osd.enabled master switch is persist+restart, and
- *          enabling an item that was OFF when the streamer started cannot be
- *          applied live (its IMP region only exists when enabled at startup).
- *          Both surface the "Restart streamer" hint; each card shows a
- *          per-item Live / Needs-restart / Off status pill.
- * Caps:    caps.osd lists the item leaf keys this build/SoC applies live
- *          (text,x,y,font_size,color,transparency,outline,outline_color).
- *          Each per-leaf control greys out when its key is absent. enabled,
- *          x/y position and the structural controls are NOT caps-gated
- *          (enabled is structural, never advertised in caps.osd).
- * Type:    switching an item text<->logo (and logo upload) is Phase 2 - it
- *          needs a persist-only "type"/"logo_path" leaf the streamer does not
- *          accept over /control yet, so the type selector is disabled with a
- *          tooltip and simply reflects the item's current type.
- * Colors:  <input type=color> (#rrggbb) + its "-alpha" range make up the timps
- *          "0xAARRGGBB" color and back. This is separate from "transparency"
- *          (a 0..255 group alpha over the whole item).
- * Offline: if timps is unreachable the page shows a notice and no cards; it
- *          never throws.
+ * Phase 1 (this file): the UI is DATA-DRIVEN. Each stream carries its own
+ * independent set of up to MAX_OSD generic overlay items (enabled/text/x/y/
+ * font_size/color/transparency/outline/outline_color); this page renders one
+ * "card" per in-use item index instead of four hard-coded named boxes.
+ * Switching an item text<->logo is Phase 2 (needs a streamer-side leaf that
+ * does not exist over /control yet), so the type selector stays disabled.
+ * See WEBUI-NOTES.md for the full stream/load/save/restart/caps/color data-flow
+ * spec this file implements.
  */
 (function () {
   "use strict";
@@ -119,14 +87,84 @@
   // last loaded item snapshot per stream (for the other stream in "both"
   // scope auto-detect and to remember a card's current type)
   var itemData = { 0: {}, 1: {} };
+  // per-item "Apply to" scope the USER explicitly picked on this page, keyed
+  // by item index. load() rebuilds every card from scratch (a fresh GET, or
+  // a re-render triggered by this page's own /events "config" echo - see
+  // onConfigEvent), and until this was tracked separately, buildCard() re-
+  // derived the scope every time from itemsIdentical() alone: any edit that
+  // did not (yet) make EVERY tracked leaf byte-identical on both streams -
+  // in practice nearly always, since x/y rarely match across two streams
+  // with different resolutions - silently reverted the dropdown to "This
+  // stream" on the very next reload, so only the field that happened to be
+  // in flight when "Both streams" was selected actually landed on both
+  // sides. An explicit choice now sticks until the user changes it again or
+  // removes the card.
+  var scopeChoice = {};
 
   // ---- POST helpers ----------------------------------------------------
+
+  // "osd<S>.<N>.<leaf>" from the "applied" echo -> the widgets inside card N.
+  // Single-input leaves come from this table; x/y decompose through
+  // posToAnchor() and colors through fromTimpsColor() - the exact inverses
+  // of the calls that built the POST, so a corrected value renders
+  // identically to a freshly loaded one.
+  //
+  // Deliberately does not render "osd<OTHER>.*" echoes from a "both" scope
+  // POST: this page only has widgets for ONE stream. See WEBUI-NOTES.md.
+  var LEAF_INPUT = {
+    text: ".osd-text",
+    font_size: ".osd-fontsize",
+    outline: ".osd-outline",
+  };
+
+  function applyCorrections(r) {
+    var corr = r && r.corrections;
+    if (!corr) return;
+    Object.keys(corr).forEach(function (k) {
+      var parts = k.split(".");                    // ["osd0", "1", "text"]
+      if (parts.length !== 3 || parts[0] !== SEC) return;
+      var card = document.querySelector(
+        '#osd-items .osd-card[data-item="' + parts[1] + '"]');
+      if (!card) return;
+      var leaf = parts[2], v = corr[k];
+      var sel = LEAF_INPUT[leaf];
+      if (sel) {
+        var el = card.querySelector(sel);
+        if (el) el.value = v;
+      } else if (leaf === "x" || leaf === "y") {
+        var pos = posToAnchor(v);
+        card.querySelector(".osd-" + leaf + "-anchor").value = pos.anchor;
+        card.querySelector(".osd-" + leaf + "-mag").value = pos.mag;
+      } else if (leaf === "color" || leaf === "outline_color") {
+        var c = fromTimpsColor(v);
+        var cls = leaf === "color" ? "fill" : "stroke";
+        if (c) {
+          card.querySelector(".osd-" + cls).value = c.color;
+          card.querySelector(".osd-" + cls + "-alpha").value = c.alpha;
+        }
+      } else if (leaf === "transparency") {
+        var tr = Number(v);
+        card.querySelector(".osd-trans").value = tr;
+        card.querySelector(".osd-trans-val").textContent = "(" + tr + ")";
+      }
+    });
+    var t = window.timpsApi.takeCorrections(r);
+    if (t) toast("info", window.timpsApi.correctionsText(t));
+  }
 
   function sendBody(body, busyEl) {
     if (busyEl) busyEl.classList.add("opacity-75");
     return window.timpsApi
       .set(body)
-      .catch(function (err) {
+      .then(function (r) {
+        applyCorrections(r);
+        // A 200 can still carry rejected>0 (some leaves refused, e.g. "" on a
+        // non-string leaf); a silent success would lie about those. See
+        // WEBUI-NOTES.md for why cleared text is NOT one of these cases.
+        if (r && r.rejected > 0)
+          toast("warning", "Applied, but the streamer refused " + r.rejected +
+            " value(s) (empty or invalid).");
+      }, function (err) {
         console.error("timps set failed:", err);
         toast("danger", "Failed to apply setting: " + (err.message || err));
       })
@@ -351,10 +389,13 @@
     card.querySelector(".osd-trans").value = tr;
     card.querySelector(".osd-trans-val").textContent = "(" + tr + ")";
 
-    // ---- scope: default "this"; auto-detect "both" only when this item is
-    // enabled and byte-identical on both streams (a nice-to-have, never for
-    // empty/default slots) ----
-    if (Number(data.enabled) && itemsIdentical(item)) {
+    // ---- scope: an explicit user choice for this item always wins (see
+    // scopeChoice above). Otherwise default "this"; auto-detect "both" only
+    // when this item is enabled and byte-identical on both streams (a nice-
+    // to-have, never for empty/default slots) ----
+    if (Object.prototype.hasOwnProperty.call(scopeChoice, item)) {
+      card.querySelector(".osd-scope").value = scopeChoice[item];
+    } else if (Number(data.enabled) && itemsIdentical(item)) {
       card.querySelector(".osd-scope").value = "both";
     }
     syncBothNote(card);
@@ -398,10 +439,12 @@
       if (restart) p.then(restartHint);
     });
 
-    // scope change: no POST by itself; just re-flags the "both" note. Existing
-    // values are re-pushed to the other stream on the next edit (nudge any
-    // field to copy immediately).
+    // scope change: no POST by itself; just records the choice (so it
+    // survives the next load()/rebuild, see scopeChoice above) and re-flags
+    // the "both" note. Existing values are re-pushed to the other stream on
+    // the next edit (nudge any field to copy immediately).
     card.querySelector(".osd-scope").addEventListener("change", function () {
+      scopeChoice[item] = cardScope(card);
       syncBothNote(card);
     });
 
@@ -468,9 +511,13 @@
     });
 
     // remove: disable (live-hide + persist) and drop the card. A fixed slot
-    // is never destroyed server-side; disabling it frees it for reuse.
+    // is never destroyed server-side; disabling it frees it for reuse, so
+    // also forget any explicit scope choice for it - a future re-add should
+    // start from the auto-detect default, not a stale pick for a slot that
+    // may now hold unrelated content.
     card.querySelector(".osd-remove").addEventListener("click", function () {
       push({ enabled: 0 }, card);
+      delete scopeChoice[item];
       card.parentNode.removeChild(card);
       refreshSlotUI();
     });
