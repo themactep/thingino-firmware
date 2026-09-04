@@ -1581,6 +1581,15 @@
           // (MediaSource never opened, autoplay blocked, connect wedged
           // before video.src was even assigned) is precisely the stall we
           // are hunting, so that case must not be excused as progress.
+          //
+          // This branch trusts video.paused as "the user chose this" - true
+          // for every real browser/autoplay-policy combination checked so
+          // far, but unverified for every possible one. If a revealed muted
+          // <video> is ever observed reporting paused=true with a full
+          // buffer (readyState >= 2) outside of an actual user pause, this
+          // branch would wrongly treat that as progress and the stall path
+          // below would never run for it - watch for that if mse recovery
+          // is ever reported as silently not firing despite a frozen frame.
           if (video.readyState >= 2) { noteProgress(); wdVideoTime = -1; wdVideoTimeAt = 0; }
         } else if (video.currentTime !== wdVideoTime) {
           wdVideoTime = video.currentTime; wdVideoTimeAt = now; noteProgress();
