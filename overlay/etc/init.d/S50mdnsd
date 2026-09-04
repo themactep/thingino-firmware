@@ -2,7 +2,8 @@
 # shellcheck disable=SC1090,SC2018,SC2019,SC2068,SC3043
 
 DAEMON="/usr/sbin/mdnsd"
-DAEMON_ARGS="-i $(ip -o link show up | awk -F': ' '!/lo/{print $2; exit}') -s"
+PORTAL_MODE_FLAG="/run/portal_mode"
+AP_MODE_FLAG="/run/wlan_ap_mode"
 PIDFILE="/var/run/mdnsd.pid"
 MDNS_SERVICE_DIR="/etc/mdns.d"
 UHTTPD_DEFAULTS="/etc/default/uhttpd"
@@ -288,6 +289,16 @@ start() {
 	generate_web_services
 	generate_thingino_service
 	generate_rtsp_services
+
+	# In AP/portal mode announce only on a non-local interface so phones
+	# on the AP don't get a captive-portal login prompt.  In client mode
+	# let mdnsd watch all interfaces: a camera with a no-carrier eth0 and
+	# an active wlan0 would otherwise bind eth0 and disappear from mDNS.
+	if [ -f "$PORTAL_MODE_FLAG" ] || [ -f "$AP_MODE_FLAG" ]; then
+		DAEMON_ARGS="-i $(ip -o link show up | awk -F': ' '!/lo/{print $2; exit}') -s"
+	else
+		DAEMON_ARGS="-s"
+	fi
 
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
