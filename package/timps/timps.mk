@@ -672,6 +672,30 @@ TARGET_FINALIZE_HOOKS += TIMPS_PURGE_STOCK_WEBUI
 # ships from upstream (CGI transport, motorsWs stays false) or from the WS
 # fork (motorsWs flipped true below, wss:// if WS_TLS is also on - the JS
 # itself picks ws:// vs wss:// at runtime from the page's own protocol).
+#
+# WHY A FINALIZE HOOK AND NOT A PLAIN INSTALL (tried, reverted 2026-09-04):
+# moving this bundle into package/thingino-motors/ and letting that package
+# install it at normal install time does produce a correct image today, but it
+# only wins the BR2_PER_PACKAGE_DIRECTORIES merge by accident: it depends on no
+# other package that pulls in thingino-webui sorting after thingino-motors and
+# carrying a competing copy of these paths. That is the same fragile property
+# that produced the original overlay-clobber bug (see TIMPS_REAPPLY_WEBUI_
+# OVERLAY's comment above), so it is not something to rely on a second time.
+# Running from the GLOBAL target-finalize phase - after the per-package merge -
+# makes our copy win by construction rather than by sort order.
+#
+# The bundle deliberately lives HERE and not in package/thingino-motors/:
+# thingino-motors is shared infrastructure we keep in sync with upstream, and
+# this UI (WebSocket PTZ, analog stick, live position readout) is a timps-only
+# elaboration we are not pushing into Paul's deliberately simpler package.
+# thingino-motors therefore stays exactly as upstream ships it.
+#
+# One file is NOT reapplied here on purpose: x/json-motor-stream.cgi, the SSE
+# position source preview-motors.js falls back to when the WebSocket path is
+# off or unreachable. That script is upstream's, unmodified, and thingino-motors
+# already installs it - forking it would be pure divergence. The hook is gated
+# on BR2_PACKAGE_THINGINO_MOTORS below, so that package is always present.
+#
 # ifeq/endif can't nest inside a define...endef recipe body (it's just text
 # handed to the shell, not re-parsed as Make) - so the WS-only lines are a
 # separate variable, conditionally defined here and referenced unconditionally
@@ -686,7 +710,10 @@ define TIMPS_REAPPLY_MOTORS_WS_CMDS
 endef
 endif
 
-ifeq ($(BR2_PACKAGE_THINGINO_MOTORS),y)
+# Gated on the streamer choice as well as on motors: these files are timps's
+# fork of the motors UI, so a build where timps is not the selected streamer
+# must keep upstream thingino-motors' own version untouched.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS)$(BR2_PACKAGE_THINGINO_STREAMER_TIMPS),yy)
 define TIMPS_REAPPLY_MOTORS_UI
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/motors-ui/config-motors.html \
 		$(TARGET_DIR)/var/www/config-motors.html
