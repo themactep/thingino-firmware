@@ -1387,8 +1387,16 @@
       // An explicit Connect deserves a fresh budget: without this, a click on
       // the "gave up after 5 attempts" dead end reuses the exhausted counter
       // and gives up again after a single try, reporting "5 attempts" for one.
-      // Same reasoning as the pageshow handler below.
-      else { mseRetries = 0; mseTokenRefreshed = false; startStream(); }
+      // Same reasoning as the pageshow handler below. Reset both modes' state
+      // here regardless of which mode is about to start - mode can change
+      // between a give-up and the next Connect click (e.g. via the latency
+      // dropdown), and a stale budget from the OTHER mode would otherwise
+      // carry over silently.
+      else {
+        rtRetries = 0; rtTokenRefreshed = false;
+        mseRetries = 0; mseTokenRefreshed = false;
+        startStream();
+      }
     });
 
     window.addEventListener("pagehide", () => {
