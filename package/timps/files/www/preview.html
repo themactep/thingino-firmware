@@ -619,6 +619,24 @@
     // session kill or "disconnect" the new one.
     let session = 0;
 
+    // --- self-healing state ------------------------------------------------
+    // Why this exists on top of the pagehide/pageshow/visibilitychange
+    // handlers further down: those are NOT sufficient in practice. When a
+    // browser suspends a backgrounded tab's network stack (Edge's "sleeping
+    // tabs" / efficiency mode is the observed case) the pending
+    // `await rd.read()` in either reader loop is simply parked - it never
+    // resolves and never rejects, so no error path runs, nothing calls
+    // schedule*Reconnect(), `running` stays true and the picture is a frozen
+    // still frame. Both lifecycle handlers guard on `!running`, so when the
+    // tab came back they correctly concluded "a stream is already running"
+    // and did nothing at all. The watchdog near the bottom of this script
+    // therefore watches actual DATA PROGRESS instead of lifecycle events -
+    // the one signal that cannot lie about a wedged reader.
+    let wantStream = true;        // user intent; false only after a real Disconnect
+    let reconnectPending = false; // a schedule*Reconnect() backoff timer is armed
+    let lastProgressAt = 0;       // performance.now() of the last byte off the wire
+    function noteProgress() { lastProgressAt = performance.now(); }
+
     function setStatus(message) { status.textContent = message; }
 
     function setConnectingUi(active) {
@@ -678,6 +696,17 @@
     // GET /control, cached briefly: both the MSE start path (does this stream
     // carry AAC?) and the real-time gate (is this stream H.264?) need it, and
     // a live main/sub switch would otherwise fetch it twice in a second.
+    // The 8s cap is not paranoia about a slow camera - it is the fix for a
+    // measured hang. Browsers allow only ~6 concurrent HTTP/1.1 connections
+    // per origin, and a suspended/zombie /stream.mp4 fetch keeps its socket;
+    // with two preview tabs open (stream + /events each) the pool fills, and
+    // the next fetch to this origin then waits in the browser's own queue
+    // FOREVER - no error, no timeout, nothing to catch. Since startStream()
+    // awaits this probe before it ever assigns video.src, that alone left the
+    // page frozen on "Connecting..." indefinitely. Every caller already
+    // handles a null answer safely (video-only mime / leave the rt option
+    // alone), so timing out is strictly better than hanging.
+    const CONTROL_TIMEOUT_MS = 8000;
     let controlCache = null, controlCacheAt = 0, controlInflight = null;
     async function controlSnapshot(apiBase, tok, maxAgeMs) {
       const now = Date.now();
@@ -685,15 +714,21 @@
         return controlCache;
       if (controlInflight) return controlInflight;   // coalesce parallel callers
       controlInflight = (async () => {
+        const ac = new AbortController();
+        const t = setTimeout(() => { try { ac.abort(); } catch (e) { /* ignore */ } },
+                             CONTROL_TIMEOUT_MS);
         try {
           const r = await fetch(apiBase + "/control" + (tok ? "?" + tok.slice(1) : ""),
-                                { cache: "no-store" });
+                                { cache: "no-store", signal: ac.signal });
           if (!r.ok) return null;
           const j = await r.json();
           controlCache = j; controlCacheAt = Date.now();
           return j;
-        } catch (e) { return null; }  // unreachable -> caller picks a safe default
-        finally { controlInflight = null; }
+        } catch (e) {                 // unreachable/timed out -> safe default
+          console.warn("[preview] /control probe failed:", e && e.message ? e.message : e);
+          return null;
+        }
+        finally { clearTimeout(t); controlInflight = null; }
       })();
       return controlInflight;
     }
@@ -739,6 +774,7 @@
     async function stopStream(reason = "Disconnected") {
       session++;              // invalidate all async work of the old session
       running = false;
+      reconnectPending = false;   // the session bump just cancelled any armed retry
       if (abortCtrl) {
         try { abortCtrl.abort(); } catch (e) { /* ignore */ }
         abortCtrl = null;
@@ -952,20 +988,27 @@
         abortCtrl = null;
         running = false;
         if (rtRetries >= RT_MAX_RETRIES) {
+          reconnectPending = false;
           setConnectedUi(false);
           setConnectingUi(false);
           setStatus(msg + " - gave up after " + RT_MAX_RETRIES +
                     " attempts. Click Connect to retry.");
+          console.warn("[preview] rt: gave up after " + RT_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
           return;
         }
         const delay = Math.min(8000, 500 * Math.pow(2, rtRetries));
         rtRetries++;
+        reconnectPending = true;
         setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
                   "s (attempt " + rtRetries + "/" + RT_MAX_RETRIES + ")…");
+        console.warn("[preview] rt: " + msg + " - retry " + rtRetries + "/" +
+                     RT_MAX_RETRIES + " in " + delay + "ms");
         setTimeout(() => {
           // a stop / stream switch / mode switch in the meantime bumps the
           // session token, and that silently cancels this retry
           if (session !== mySession || mode !== "rt") return;
+          reconnectPending = false;
           startStream();
         }, delay);
       }
@@ -1128,11 +1171,14 @@
           return;
         }
         setConnectedUi(true);
+        noteProgress();
+        console.info("[preview] rt: connected (" + label + " stream)");
         setStatus("Real-time (" + label + " stream) · waiting for a key frame…");
         const rd = res.body.getReader();
         while (true) {
           const { done, value } = await rd.read();
           if (done || st.dead || session !== mySession) break;
+          noteProgress();   // the watchdog's liveness signal: bytes off the wire
           push(value);
         }
         if (!st.dead && session === mySession) scheduleReconnect("Stream ended");
@@ -1153,6 +1199,8 @@
     async function startStream(forceVideoOnly = false) {
       if (running) return;
       running = true;
+      reconnectPending = false;
+      noteProgress();          // fresh stall grace window for this attempt
       const mySession = ++session;   // this attempt owns the player now
       setStatus("Connecting...");
       setConnectingUi(true);
@@ -1210,20 +1258,27 @@
         if (mediaSource === ms) mediaSource = null;
         running = false;
         if (mseRetries >= MSE_MAX_RETRIES) {
+          reconnectPending = false;
           setConnectedUi(false);
           setConnectingUi(false);
           setStatus(msg + " - gave up after " + MSE_MAX_RETRIES +
                     " attempts. Click Connect to retry.");
+          console.warn("[preview] mse: gave up after " + MSE_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
           return;
         }
         const delay = Math.min(8000, 500 * Math.pow(2, mseRetries));
         mseRetries++;
+        reconnectPending = true;
         setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
                   "s (attempt " + mseRetries + "/" + MSE_MAX_RETRIES + ")…");
+        console.warn("[preview] mse: " + msg + " - retry " + mseRetries + "/" +
+                     MSE_MAX_RETRIES + " in " + delay + "ms");
         setTimeout(() => {
           // a stop / stream switch / mode switch in the meantime bumps the
           // session token, and that silently cancels this retry
           if (session !== mySession || mode !== "mse") return;
+          reconnectPending = false;
           startStream();
         }, delay);
       }
@@ -1336,11 +1391,14 @@
             return;
           }
           setConnectedUi(true);
+          noteProgress();
+          console.info("[preview] mse: connected (" + (chn === "1" ? "sub" : "main") + " stream)");
           setStatus("Connected (" + (chn === "1" ? "sub" : "main") + " stream)");
           const rd = res.body.getReader();
           while (true) {
             const { done, value } = await rd.read();
             if (done || dead || session !== mySession) break;
+            noteProgress();   // the watchdog's liveness signal: bytes off the wire
             q.push(value);
             pump();
           }
@@ -1383,7 +1441,9 @@
     });
 
     connectButton.addEventListener("click", () => {
-      if (running) { rtRetries = 0; mseRetries = 0; stopStream(); }
+      // wantStream is the watchdog's "should anything be playing at all?"
+      // question: a deliberate Disconnect must not be undone 30s later.
+      if (running) { wantStream = false; rtRetries = 0; mseRetries = 0; stopStream(); }
       // An explicit Connect deserves a fresh budget: without this, a click on
       // the "gave up after 5 attempts" dead end reuses the exhausted counter
       // and gives up again after a single try, reporting "5 attempts" for one.
@@ -1393,69 +1453,158 @@
       // dropdown), and a stale budget from the OTHER mode would otherwise
       // carry over silently.
       else {
+        wantStream = true;
         rtRetries = 0; rtTokenRefreshed = false;
         mseRetries = 0; mseTokenRefreshed = false;
         startStream();
       }
     });
 
+    // ===================================================================
+    // Recovery: two layers, deliberately.
+    //
+    // Layer 1 - lifecycle events (below). Cheap and immediate, but they only
+    // catch the cases where the browser actually tells us something happened:
+    // a bfcache restore (pageshow) or a hidden/visible flip (visibilitychange).
+    //
+    // Layer 2 - the progress watchdog (further down). Layer 1 was verified
+    // once with a SYNTHETICALLY dispatched visibilitychange and looked fine,
+    // yet a real multi-minute Edge backgrounding still came back to a frozen
+    // frame that never recovered. The reason is that every layer-1 handler
+    // asks "is a stream running?" - and after a suspended tab's network stack
+    // parks the pending `await rd.read()` forever, the answer is a truthful
+    // but useless "yes": no read ever completes, no read ever throws, so no
+    // error path runs and `running` is never cleared. The watchdog asks the
+    // only question that can't be answered wrongly here - "has a single byte
+    // arrived recently?" - and needs no lifecycle event to do it.
+    // ===================================================================
+
+    function logState(tag) {
+      const idle = lastProgressAt ? ((performance.now() - lastProgressAt) / 1000).toFixed(1) + "s" : "n/a";
+      console.info("[preview] " + tag + ": hidden=" + document.hidden +
+                   " running=" + running + " want=" + wantStream +
+                   " mode=" + mode + " pendingRetry=" + reconnectPending +
+                   " sinceLastData=" + idle);
+    }
+
+    // Shared body of the pageshow/visibilitychange handlers. `evenIfHidden`
+    // is set only for pageshow, which can legitimately restore a still-hidden
+    // tab and where reconnecting early costs nothing.
+    function resumeCheck(tag, evenIfHidden) {
+      logState(tag);
+      if (document.hidden && !evenIfHidden) return;
+      if (!document.hidden) { wdWasHidden = false; wdVisibleSince = performance.now(); }
+      if (!wantStream) { console.info("[preview] " + tag + ": user disconnected, staying off"); return; }
+      if (running || reconnectPending) {
+        // Not necessarily healthy - just not obviously dead. The watchdog
+        // re-judges this on real data progress a few seconds from now.
+        console.info("[preview] " + tag + ": stream claims to be active, deferring to the watchdog");
+        return;
+      }
+      // A prior session may have exhausted its retry budget and given up
+      // (schedule*Reconnect's MAX_RETRIES dead end); without this reset a
+      // first attempt that also fails would instantly re-hit the exhausted
+      // budget and give up again after a single try.
+      rtRetries = 0; rtTokenRefreshed = false;
+      mseRetries = 0; mseTokenRefreshed = false;
+      console.info("[preview] " + tag + ": reconnecting");
+      startStream().catch((err) => {
+        console.warn("[preview] " + tag + ": reconnect failed:", err);
+        setStatus("Reconnect failed. Click Connect to try again.");
+      });
+    }
+
     window.addEventListener("pagehide", () => {
+      stopWatchdog();
       if (running) stopStream();
     });
-
-    // Mirrors pagehide above: a bfcache restore (or a browser's background-
-    // tab freeze/discard, which reuses the same lifecycle path - observed on
-    // Edge after a long-hidden tab) revives this exact page without
-    // re-running the init below, so the stream that pagehide tore down never
-    // comes back on its own. startStream() already no-ops if something else
-    // reconnected it first (its `running` guard is set synchronously), so
-    // this is safe to fire on every pageshow, not just persisted ones.
     window.addEventListener("pageshow", () => {
-      if (!running) {
-        // A prior rt session may have exhausted its own retry budget and
-        // given up entirely (scheduleReconnect's RT_MAX_RETRIES dead end) -
-        // without this, a first reconnect attempt that also fails (e.g. the
-        // network hasn't actually come back yet, Wi-Fi still re-associating)
-        // would instantly re-hit that same exhausted budget and give up
-        // again with no further retries, instead of getting a fresh run.
-        rtRetries = 0;
-        mseRetries = 0;
-        mseTokenRefreshed = false;
-        startStream().catch((err) => {
-          console.warn("Auto-reconnect failed:", err);
-          setStatus("Reconnect failed. Click Connect to try again.");
-        });
-      }
+      startWatchdog();
+      resumeCheck("pageshow", true);
     });
+    document.addEventListener("visibilitychange", () => resumeCheck("visibilitychange", false));
 
-    // pagehide/pageshow only fire on actual navigation or a bfcache
-    // freeze/restore - plain tab-switching (no navigation involved) never
-    // triggers them, only visibilitychange. rt mode keeps decoding while
-    // hidden (see onFrame's skip-paint-not-decode comment) specifically to
-    // stay live, but a long-backgrounded tab's throttled network can still
-    // stall every read until startRtStream's own scheduleReconnect exhausts
-    // RT_MAX_RETRIES and gives up outright ("Click Connect to retry") - with
-    // nothing watching for the tab coming back, it stays dead until a manual
-    // click. This is the actual catch-all for that case; a still-running
-    // stream is untouched by the `!running` guard either way.
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && !running) {
-        // Same reset as the pageshow handler above - a fresh retry budget
-        // for whatever exhausted the last one.
-        rtRetries = 0;
-        startStream().catch((err) => {
-          console.warn("Auto-reconnect failed:", err);
-          setStatus("Reconnect failed. Click Connect to try again.");
-        });
+    // --- progress watchdog -------------------------------------------------
+    const WD_PERIOD_MS  = 5000;    // how often we look; cheap enough to ignore
+    const WD_STALL_MS   = 20000;   // no data for this long while visible = stuck
+    const WD_GRACE_MS   = 3000;    // let a just-revealed tab prove itself first
+    const WD_MIN_GAP_MS = 30000;   // floor between two forced reconnects
+    let wdTimer = null;
+    let wdWasHidden = false;
+    let wdVisibleSince = 0;
+    let wdLastForcedAt = 0;        // 0 also gives the initial page load a 30s grace
+    let wdVideoTime = -1, wdVideoTimeAt = 0;
+
+    function forceReconnect(why) {
+      wdLastForcedAt = performance.now();
+      console.warn("[preview] watchdog: " + why + " - forcing a reconnect (mode=" + mode + ")");
+      // Whatever budget the wedged attempt burned says nothing about this one.
+      rtRetries = 0; rtTokenRefreshed = false;
+      mseRetries = 0; mseTokenRefreshed = false;
+      // stopStream() bumps `session` (cancelling any armed retry), aborts the
+      // fetch - which is also what finally frees the socket timps still counts
+      // against http_max_clients - and clears `running` so startStream() runs.
+      stopStream("Stream stalled - reconnecting…").then(() => {
+        if (!wantStream) return;
+        noteProgress();                 // fresh grace window for the new attempt
+        return startStream();
+      }).then(() => {
+        console.info("[preview] watchdog: reconnect attempt issued");
+      }).catch((err) => {
+        console.warn("[preview] watchdog: reconnect failed:", err);
+        setStatus("Reconnect failed. Click Connect to try again.");
+      });
+    }
+
+    function watchdogTick() {
+      const now = performance.now();
+      if (document.hidden) { wdWasHidden = true; return; }
+      if (wdWasHidden) {                 // first tick after the tab came back
+        wdWasHidden = false;
+        wdVisibleSince = now;
+        logState("watchdog/visible-again");
+        return;                          // one grace tick before judging it
       }
-    });
+      if (now - wdVisibleSince < WD_GRACE_MS) return;
+      if (now - wdLastForcedAt < WD_MIN_GAP_MS) return;
+      if (!wantStream) return;           // deliberate Disconnect: stay off
+      if (reconnectPending) return;      // a backoff retry is already armed
+      if (!running) { forceReconnect("nothing connected while the tab is visible"); return; }
+
+      // Playback position is a second, independent liveness signal in MSE mode
+      // - and the only one the progressive-<video> fallback (no MSE, no reader
+      // loop) has at all. A paused player is the user's decision, never a stall.
+      if (mode === "mse") {
+        if (video.paused) {
+          // A pause on a player that actually holds media is the user's
+          // decision, not a stall. A "paused" <video> with NO data
+          // (MediaSource never opened, autoplay blocked, connect wedged
+          // before video.src was even assigned) is precisely the stall we
+          // are hunting, so that case must not be excused as progress.
+          if (video.readyState >= 2) { noteProgress(); wdVideoTime = -1; wdVideoTimeAt = 0; }
+        } else if (video.currentTime !== wdVideoTime) {
+          wdVideoTime = video.currentTime; wdVideoTimeAt = now; noteProgress();
+        } else if (wdVideoTimeAt && now - wdVideoTimeAt > WD_STALL_MS) {
+          forceReconnect("playback frozen at " + wdVideoTime.toFixed(1) + "s");
+          return;
+        }
+      }
+
+      const idle = now - lastProgressAt;
+      if (idle > WD_STALL_MS)
+        forceReconnect("no stream data for " + (idle / 1000).toFixed(0) + "s");
+    }
+
+    function startWatchdog() { if (!wdTimer) wdTimer = setInterval(watchdogTick, WD_PERIOD_MS); }
+    function stopWatchdog() { if (wdTimer) { clearInterval(wdTimer); wdTimer = null; } }
 
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
     applyModeUi();
     refreshRtOption();     // async; may disable "rt" once /control answers
+    startWatchdog();
     startStream().catch((err) => {
-      console.warn("Auto-connect failed:", err);
+      console.warn("[preview] auto-connect failed:", err);
       setStatus("Auto-connect failed. Click Connect to try again.");
     });
   })();

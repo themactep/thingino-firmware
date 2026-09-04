@@ -341,6 +341,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!document.hidden) motorWs.connect();
   });
 
+  // ...and a periodic backstop, for the same reason preview.html grew one: a
+  // long-backgrounded tab may come back without either of the two handlers
+  // above firing at all (the socket's onclose can land while hidden, after
+  // the last visibilitychange), leaving PTZ silently on the CGI fallback -
+  // or on nothing - until the user switches tabs again. Only while visible;
+  // connect() is a no-op when a socket is already open, so this costs one
+  // readyState read every 15s. Not armed at all on a build without the WS
+  // control path, where connect() is a permanent no-op; and it only logs on
+  // an actual recovery, so a camera whose listener is simply absent (the
+  // attempts cap in connect() ends that quickly) stays quiet.
+  if (motorWs.enabledAtBuild()) {
+    setInterval(() => {
+      if (document.hidden || motorWs.isOpen()) return;
+      motorWs.connect().then((ws) => {
+        if (ws) console.info("motors: PTZ socket was down while visible - reconnected");
+      });
+    }, 15000);
+  }
+
   let timer;
 
   let renderPosition = null; // joystick mode's live pan/tilt readout, or null
