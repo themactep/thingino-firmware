@@ -6,7 +6,10 @@
 . /var/www/x/auth.sh
 require_auth
 
-SCAN_SECONDS=4
+SCAN_SECONDS=3
+SCAN_ROUNDS=2
+TXT_SECONDS=2
+TXT_BATCH=4
 CACHE_FILE="/tmp/json-cameras.cache"
 
 json_escape() {
@@ -44,10 +47,26 @@ local_addresses() {
 
 # mquery browse mode prints one line per responder:
 #   + hostname._thingino._tcp.local. (192.168.1.42)
-# The query window is bounded by -w, so the CGI always terminates.
+#
+# mquery's -w only stops the event loop after select() returns.  Once the
+# query retries are exhausted libmdnsd schedules its next wakeup a day out
+# (its GC timer), so a -w longer than the three-second retry schedule makes
+# mquery block until the next mDNS packet instead of exiting.  Keep each
+# pass at three seconds and run a couple of passes instead: mDNS replies
+# are UDP and get dropped on busy Wi-Fi segments, so one pass is not
+# enough to see the whole fleet.
 scan_cameras() {
-	mquery -w "$SCAN_SECONDS" _thingino._tcp 2>/dev/null |
-		awk -v selfips="$(local_addresses | tr '\n' ' ')" -v selfname="$(hostname)" '
+	local rounds i
+	rounds="${SCAN_ROUNDS:-2}"
+	i=0
+	while [ "$i" -lt "$rounds" ]; do
+		mquery -w "$SCAN_SECONDS" _thingino._tcp 2>/dev/null
+		i=$((i + 1))
+	done
+}
+
+normalize_cameras() {
+	awk -v selfips="$(local_addresses | tr '\n' ' ')" -v selfname="$(hostname)" '
 		BEGIN {
 			n = split(selfips, a, " ")
 			for (i = 1; i <= n; i++) self[a[i]] = 1
@@ -70,7 +89,7 @@ scan_cameras() {
 				next
 			isself = (ip in self || name == selfname) ? 1 : 0
 			print name "\t" ip "\t" fqdn "\t" isself
-		}' | sort -f
+		}'
 }
 
 resolve_camera() {
@@ -79,7 +98,7 @@ resolve_camera() {
 	model=""
 	version=""
 	streamer=""
-	txt="$(mquery -t 16 -w 1 "$fqdn" </dev/null 2>/dev/null |
+	txt="$(mquery -t 16 -w "$TXT_SECONDS" "$fqdn" </dev/null 2>/dev/null |
 		sed -n 's/^TXT .* seconds: //p' | head -n 1)"
 	if [ -n "$txt" ]; then
 		# shellcheck disable=SC2086
@@ -106,6 +125,9 @@ build_entries() {
 		[ -n "$name" ] || continue
 		i=$((i + 1))
 		resolve_camera "$name" "$ip" "$fqdn" "$self" >"$tmpdir/$i" </dev/null &
+		if [ $((i % TXT_BATCH)) -eq 0 ]; then
+			wait
+		fi
 	done
 	wait
 
@@ -135,8 +157,11 @@ build_entries() {
 }
 
 build_response() {
-	local entries
-	entries="$(scan_cameras | build_entries)"
+	local browse_file entries
+	browse_file="$(mktemp)"
+	scan_cameras >"$browse_file"
+	entries="$(normalize_cameras <"$browse_file" | sort -f | build_entries)"
+	rm -f "$browse_file"
 	printf '{"ok": true, "data": {"cameras": [%s]}}' "$entries"
 }
 
