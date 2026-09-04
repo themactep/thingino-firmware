@@ -320,6 +320,27 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Not awaited: a slow/absent listener must not delay binding the controls.
   motorWs.connect();
 
+  // A bfcache restore (browser back/forward) revives this exact DOM/JS state
+  // without re-running DOMContentLoaded, so the socket connect() above never
+  // fires again - the WebSocket that was open before navigating away is
+  // already closed by the browser, and nothing would otherwise reconnect it.
+  // connect() itself is a no-op if a socket is already open, so this is safe
+  // to call on every non-bfcache pageshow too.
+  window.addEventListener("pageshow", (ev) => {
+    if (ev.persisted) motorWs.connect();
+  });
+
+  // Belt and braces: some browsers evict a long-backgrounded tab into the
+  // same bfcache path (observed: Edge's tab-freeze after ~20 min hidden)
+  // without reliably firing pageshow's persisted flag on the way back.
+  // visibilitychange fires whenever the tab regains focus regardless of
+  // *why* the socket died - idle discard, a network blip, the daemon
+  // restarting - so this is the actual catch-all; the pageshow listener
+  // above just covers the common case a little earlier.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) motorWs.connect();
+  });
+
   let timer;
 
   let renderPosition = null; // joystick mode's live pan/tilt readout, or null

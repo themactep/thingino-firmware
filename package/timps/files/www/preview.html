@@ -1315,6 +1315,51 @@
       if (running) stopStream();
     });
 
+    // Mirrors pagehide above: a bfcache restore (or a browser's background-
+    // tab freeze/discard, which reuses the same lifecycle path - observed on
+    // Edge after a long-hidden tab) revives this exact page without
+    // re-running the init below, so the stream that pagehide tore down never
+    // comes back on its own. startStream() already no-ops if something else
+    // reconnected it first (its `running` guard is set synchronously), so
+    // this is safe to fire on every pageshow, not just persisted ones.
+    window.addEventListener("pageshow", () => {
+      if (!running) {
+        // A prior rt session may have exhausted its own retry budget and
+        // given up entirely (scheduleReconnect's RT_MAX_RETRIES dead end) -
+        // without this, a first reconnect attempt that also fails (e.g. the
+        // network hasn't actually come back yet, Wi-Fi still re-associating)
+        // would instantly re-hit that same exhausted budget and give up
+        // again with no further retries, instead of getting a fresh run.
+        rtRetries = 0;
+        startStream().catch((err) => {
+          console.warn("Auto-reconnect failed:", err);
+          setStatus("Reconnect failed. Click Connect to try again.");
+        });
+      }
+    });
+
+    // pagehide/pageshow only fire on actual navigation or a bfcache
+    // freeze/restore - plain tab-switching (no navigation involved) never
+    // triggers them, only visibilitychange. rt mode keeps decoding while
+    // hidden (see onFrame's skip-paint-not-decode comment) specifically to
+    // stay live, but a long-backgrounded tab's throttled network can still
+    // stall every read until startRtStream's own scheduleReconnect exhausts
+    // RT_MAX_RETRIES and gives up outright ("Click Connect to retry") - with
+    // nothing watching for the tab coming back, it stays dead until a manual
+    // click. This is the actual catch-all for that case; a still-running
+    // stream is untouched by the `!running` guard either way.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && !running) {
+        // Same reset as the pageshow handler above - a fresh retry budget
+        // for whatever exhausted the last one.
+        rtRetries = 0;
+        startStream().catch((err) => {
+          console.warn("Auto-reconnect failed:", err);
+          setStatus("Reconnect failed. Click Connect to try again.");
+        });
+      }
+    });
+
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
     applyModeUi();
