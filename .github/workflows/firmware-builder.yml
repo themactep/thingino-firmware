@@ -13,7 +13,6 @@ on:
           - ciao
           - figata
           - master
-          - floodlight
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
