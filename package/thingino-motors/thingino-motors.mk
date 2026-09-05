@@ -8,12 +8,6 @@ ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(if $(BR2_PACKAGE_THINGINO_
 THINGINO_MOTORS_SITE = https://github.com/Lu-Fi/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = thingino-motors-websocket
 THINGINO_MOTORS_VERSION = caa4bf3d9f5a9fb8b72f8e0d42bd044177dfeb56
-# Everything below keyed on this, not on BR2_PACKAGE_THINGINO_MOTORS_WS
-# directly: the build-command/version-stamp additions are fork-specific and
-# must never touch upstream's own daemon build, even in the DW9714-only edge
-# case where WS itself is off but the filter above could still (it can't
-# today, but wouldn't be obvious from re-reading just this block) end up here.
-THINGINO_MOTORS_USE_FORK = y
 else
 THINGINO_MOTORS_SITE = https://github.com/thingino/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = main
@@ -24,9 +18,11 @@ THINGINO_MOTORS_LICENSE_FILES = LICENSE
 
 THINGINO_MOTORS_DEPENDENCIES += thingino-jct
 
-# Everything in this block is fork-only: it must never change a plain
-# upstream-daemon build's command line, so it all lives inside USE_FORK.
-ifeq ($(THINGINO_MOTORS_USE_FORK),y)
+# Everything in this block only matters for the WS build (version stamp,
+# extra sources/libs/defs, the size-optimization flags below) - gated on the
+# same BR2_PACKAGE_THINGINO_MOTORS_WS the SITE choice above already keys off,
+# so it never touches a plain upstream-daemon build's command line.
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
 
 # `motors --version` and the "version" key in `motors -j` answer "which build
 # is this camera actually running" - snapshot with := here, because
@@ -44,24 +40,21 @@ endif
 # Single quotes make it survive as a C string literal through the recipe.
 THINGINO_MOTORS_VERSION_DEF = -DMOTORS_BUILD_VERSION='"$(THINGINO_MOTORS_BUILD_VERSION)"'
 
-# Compiled directly via $(TARGET_CC); SRCS/LIBS/DEFS collect what WS/TLS add.
-# $(@D) is only valid in a recipe, so these stay recursively expanded (+=).
-THINGINO_MOTORS_DAEMON_SRCS = $(@D)/src/motor-daemon.c
-THINGINO_MOTORS_DAEMON_LIBS = -ljct -lm
-THINGINO_MOTORS_DAEMON_DEFS =
-
-ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
-THINGINO_MOTORS_DAEMON_SRCS += \
+# Compiled directly via $(TARGET_CC). $(@D) is only valid in a recipe, so
+# these stay recursively expanded (+=). WS is already guaranteed y by the
+# ifeq above, so no need to re-check it here.
+THINGINO_MOTORS_DAEMON_SRCS = \
+	$(@D)/src/motor-daemon.c \
 	$(@D)/src/sha1.c \
 	$(@D)/src/sha256.c \
 	$(@D)/src/ws.c \
 	$(@D)/src/ws_token.c \
 	$(@D)/src/motor-ws.c
-THINGINO_MOTORS_DAEMON_LIBS += -lpthread
+THINGINO_MOTORS_DAEMON_LIBS = -ljct -lm -lpthread
 # motor-daemon.c starts the listener only under #ifdef MOTORS_WS.
-THINGINO_MOTORS_DAEMON_DEFS += -DMOTORS_WS
+THINGINO_MOTORS_DAEMON_DEFS = -DMOTORS_WS
 
-# Nested in WS: TLS wraps the listener, nothing to wrap without it.
+# TLS wraps the WS listener, nothing to wrap without it.
 ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS_TLS),y)
 THINGINO_MOTORS_DEPENDENCIES += mbedtls
 THINGINO_MOTORS_DAEMON_SRCS += $(@D)/src/ws_tls.c
@@ -69,8 +62,7 @@ THINGINO_MOTORS_DAEMON_SRCS += $(@D)/src/ws_tls.c
 THINGINO_MOTORS_DAEMON_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
 THINGINO_MOTORS_DAEMON_DEFS += -DMOTORS_WS_TLS
 endif
-endif
-endif # THINGINO_MOTORS_USE_FORK
+endif # BR2_PACKAGE_THINGINO_MOTORS_WS
 
 define THINGINO_MOTORS_INSTALL_JSON_CMDS
 	# Stage defaults for later merge by thingino-core
@@ -119,9 +111,9 @@ define THINGINO_MOTORS_INSTALL_WWW_CMDS
 endef
 endif
 
-ifeq ($(THINGINO_MOTORS_USE_FORK),y)
+ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
 # -ffunction-sections/-fdata-sections + --gc-sections: per-function dead-code
-# stripping. Measured -7680 B (-12.2%) on the WS build. Fork-only, same as
+# stripping. Measured -7680 B (-12.2%) on the WS build. WS-only, same as
 # the variables it references - the plain upstream daemon build below is
 # untouched, byte for byte, from what thingino/thingino-motors ships.
 define THINGINO_MOTORS_BUILD_CMDS
