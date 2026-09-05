@@ -151,6 +151,61 @@ are set in timps.conf. Without a token (endpoint unavailable) the old
 behavior remains: open `http://<ip>:8880/` once to cache Basic credentials,
 or leave timps's HTTP auth empty — the 401 hint in the status line stays.
 
+## Preview-page talk button (browser mic → camera speaker)
+
+`files/www/a/preview-talk.js` adds a microphone button to the preview page's
+control row (`#ms-talk` in `preview.html`, with its own `#ms-talk-status`
+line so it never clobbers the player's status text). Pressed, it captures the
+visitor's microphone, G.711 mu-law-encodes it in the page and streams 20 ms
+binary frames over a WebSocket to `wss://<host>:8880/talk`, where timps
+decodes them into the same `IMP_AO` speaker path the ONVIF/RTSP backchannel
+uses — a browser cannot speak RTSP/RTP, which is the entire reason that
+endpoint exists. Pressed again (or on `pagehide`) it sends a real close frame
+(1000) so `talk_ws.c` runs `bc_release()` immediately instead of waiting out
+its stale-owner timeout.
+
+The script is installed unconditionally with the rest of `files/www/a/*`
+(WebUI + `_CONTROL` builds) and the button is **runtime**-gated, hidden not
+disabled, exactly like `/a/preview-motion.js`: it takes the per-boot token
+from `/x/timps-token.cgi` (or the shared `window.timpsTokenInfo` promise),
+probes `GET /control` and reveals itself only when
+`caps.backchannel.talk_ws == 1` — which the daemon reports only when the
+feature is compiled **and** `audio.talk_ws = 1` **and** the backchannel
+pipeline came up at boot. The probe retries with exponential backoff (1 s to
+30 s) rather than giving up on one transient failure. Three further gates are
+permanent for the page load and skip the probe entirely: `timps-token.cgi`
+reporting `tls: false` (`/talk` answers 426 on a plaintext listener), no
+`navigator.mediaDevices.getUserMedia` (refused outside a secure context), and
+no `AudioContext`. Unlike the motion overlay this reveal is one-way:
+`audio.talk_ws` is restart-only, so once `/control` says the endpoint is
+served it stays served for the life of the page.
+
+Rate handling is worth knowing about when reading the code: the page asks for
+an 8 kHz `AudioContext` (mu-law's native rate) but never assumes it got one —
+iOS Safari commonly forces 48 kHz — so it reads `ctx.sampleRate` back, checks
+it against timps' accepted list (8000/16000/24000/32000/44100/48000; `TALK_RATES`
+in `talk_ws.c`, kept in sync by hand) and passes it as `?rate=`. Capture runs
+through a `ScriptProcessorNode` terminated in a muted gain node (a
+`ScriptProcessorNode` only runs while connected to a destination, and routing
+the mic to the page's own speakers would be an instant feedback loop);
+`getUserMedia` is asked for browser-side `echoCancellation` so the camera's
+own audio playing out of those speakers is not sent back — the camera-side
+half of that is timps' `audio.aec`. Client-side backpressure drops the queue
+past ~200 ms of `bufferedAmount`, on top of the server's own drop-if-behind
+guard. Close codes are reported in the status line: 1008 = another talker
+holds the speaker, 1001 = idle timeout.
+
+Kconfig: `BR2_PACKAGE_TIMPS_BC_WS` (off by default) sets `USE_BC_WS=1` in
+`timps.mk`. It `depends on` `BR2_PACKAGE_TIMPS_BACKCHANNEL`,
+`BR2_PACKAGE_TIMPS_TLS` and `BR2_PACKAGE_TIMPS_CONTROL` — TLS because
+`getUserMedia()` needs a secure context, `_CONTROL` because the per-boot
+token machinery a `WebSocket` constructor depends on (it cannot set request
+headers, so `?token=` is its only credential) compiles only there. mbedTLS is
+deliberately **not** `select`ed here: `_TLS` already selects it, and a second
+select for the same package is what produced the "recursive dependency
+detected" breakage documented in thingino-motors' WS_TLS option. Costs ~8 KB
+of text (RFC 6455 framing, SHA-1, the endpoint itself) and no new library.
+
 ## No snapshot proxy CGIs
 
 All previews are fully self-contained: the main preview page plays timps's

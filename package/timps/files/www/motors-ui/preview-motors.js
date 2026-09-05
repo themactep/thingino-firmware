@@ -1,11 +1,19 @@
 /* PTZ joystick for the preview page.
  *
- * Two transports: CGI (/x/json-motor.cgi, always available) and WS
+ * Two CONTROL transports: CGI (/x/json-motor.cgi, always available) and WS
  * (motors-daemon, only when built with BR2_PACKAGE_THINGINO_MOTORS_WS -
  * window.thinginoUIConfig.device.motorsWs). The build flag alone doesn't
  * guarantee a usable socket (daemon config, https mixed-content), so
  * everything here checks "is the socket open right now" and falls back
  * to CGI per call.
+ *
+ * Two POSITION transports, for the same reason and chosen the same way: the
+ * socket's own "status" pushes while it is open, and otherwise the
+ * /x/json-motor-stream.cgi SSE stream that every build ships. The CGI
+ * control path deliberately does NOT echo position back per move (see
+ * json-motor.cgi's own comment - it used to, and it cost a second `motors`
+ * process on every 90ms jog), so without one of these two the readout has no
+ * source at all. motorPositionStream below keeps exactly one of them live.
  */
 
 function runMotorCmd(args) {
@@ -29,6 +37,11 @@ const MOTOR_WS_TOKEN_URL = "/x/json-motor-token.cgi";
 const MOTOR_WS_CONNECT_TIMEOUT_MS = 4000;
 // After this many failed attempts, stay on CGI for the rest of the page's life.
 const MOTOR_WS_MAX_ATTEMPTS = 3;
+
+// Assigned by motorPositionStream below, once it exists. Called from every
+// place the socket's state can change so exactly one position transport is
+// ever running; a no-op until then, which covers the module-load window.
+let syncPositionTransport = function () {};
 
 const motorWs = (function () {
   let socket = null;
@@ -130,6 +143,9 @@ const motorWs = (function () {
             /* the send below will report it */
           }
         }
+        // Socket owns position from here; drop the SSE stream if it was
+        // covering for it.
+        syncPositionTransport();
         resolve(ws);
       };
       ws.onerror = () => {
@@ -138,6 +154,10 @@ const motorWs = (function () {
       };
       ws.onclose = () => {
         if (socket === ws) socket = null;
+        // Nothing is pushing position any more - hand it back to the SSE
+        // stream immediately rather than waiting for the 15s reconnect
+        // backstop to give up.
+        syncPositionTransport();
       };
       ws.onmessage = onMessage;
     });
@@ -284,15 +304,92 @@ async function moveMotor(dir, steps = 100, d = "g") {
   }
 }
 
+// --- live position -----------------------------------------------------
+
+// Joystick mode's DOM readout (bindPositionReadout's closure), or null in the
+// modes that draw no position. Module-level so every transport can reach it
+// through the single funnel below instead of each wiring up its own.
+let motorPositionRenderer = null;
+
+// THE funnel. Every source of a position - the WS status/hello pushes, the
+// SSE stream, and json-motor.cgi's d=j one-shot - lands here, so the DOM
+// readout and window.motorPosition can never disagree about which transport
+// is live.
 function updatePositionDisplay(xpos, ypos) {
-  if (xpos === undefined) return;
+  if (xpos === undefined || ypos === undefined) return;
+  // `motors -j` (and therefore the CGI and the SSE stream) reports these as
+  // JSON strings; the WS frames report numbers. Normalize, or the readout
+  // arithmetic below silently concatenates instead of adding.
+  const x = Number(xpos);
+  const y = Number(ypos);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   // Expose for other plugins/view models (e.g. the settings modal's
-  // "capture current position" button) - kept in sync from BOTH transports
-  // below (the CGI one-shot response and every WS position push), so a
-  // reader always gets the latest value without polling json-motor.cgi d=j
-  // itself. bindPositionReadout()'s own DOM bars are separate and unaffected.
-  window.motorPosition = { xpos, ypos };
+  // "capture current position" button), so a reader always gets the latest
+  // value without polling json-motor.cgi d=j itself.
+  window.motorPosition = { xpos: x, ypos: y };
+  if (motorPositionRenderer) motorPositionRenderer(x, y);
 }
+
+// SSE position stream - the transport every build has, and the only one a
+// non-timps streamer gets (BR2_PACKAGE_THINGINO_MOTORS_WS defaults on only
+// when timps is the streamer). Runs whenever the socket isn't up, which
+// covers all four cases uniformly: no WS in this build at all, WS built but
+// the connect attempts are spent, WS never reachable on this page (https://
+// with no daemon cert), and a socket that opened and later died.
+const motorPositionStream = (function () {
+  let es = null;
+  let warned = false;
+
+  function stop() {
+    if (!es) return;
+    try {
+      es.close();
+    } catch (err) {
+      /* already gone */
+    }
+    es = null;
+  }
+
+  function start() {
+    if (es || !("EventSource" in window)) return;
+    try {
+      es = new EventSource("/x/json-motor-stream.cgi");
+    } catch (err) {
+      es = null; // blocked (CSP) or unsupported; nothing else to try
+      return;
+    }
+    es.addEventListener("message", (ev) => {
+      let data;
+      try {
+        data = JSON.parse(ev.data);
+      } catch (err) {
+        return; // malformed frame
+      }
+      // The CGI emits {"error":"..."} frames when `motors` is missing or
+      // unreadable; those carry no position and must not clear the readout.
+      if (!data || data.xpos === undefined) return;
+      updatePositionDisplay(data.xpos, data.ypos);
+    });
+    es.onerror = () => {
+      // EventSource reconnects on its own (the CGI even sends a retry:
+      // hint), so there is nothing to do but say so once.
+      if (!warned) {
+        warned = true;
+        console.warn("motors: position stream interrupted, retrying");
+      }
+    };
+  }
+
+  // Exactly one live-position source at a time.
+  function sync() {
+    if (motorWs.isOpen()) stop();
+    else start();
+  }
+
+  return { sync, stop };
+})();
+
+syncPositionTransport = motorPositionStream.sync;
 
 // upstream's keyboard-jog (Shift+arrow) feature is deliberately not ported
 // here, same decision as this morning's merge: it depends on a
@@ -318,7 +415,55 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Not awaited: a slow/absent listener must not delay binding the controls.
-  motorWs.connect();
+  // The position transport IS decided on the result though - starting the SSE
+  // stream first and cancelling it a moment later would spawn a CGI process
+  // per page load on every WS build for nothing. connect() resolves
+  // immediately (with null) when the build has no WS path at all, so the
+  // CGI-only case pays no delay for this.
+  motorWs.connect().then(syncPositionTransport);
+
+  // A bfcache restore (browser back/forward) revives this exact DOM/JS state
+  // without re-running DOMContentLoaded, so the socket connect() above never
+  // fires again - the WebSocket that was open before navigating away is
+  // already closed by the browser, and nothing would otherwise reconnect it.
+  // connect() itself is a no-op if a socket is already open, so this is safe
+  // to call on every non-bfcache pageshow too.
+  // A bfcache restore also closed the EventSource, so sync afterwards either
+  // way: it reopens the stream if the socket didn't come back.
+  window.addEventListener("pageshow", (ev) => {
+    if (ev.persisted) motorWs.connect().then(syncPositionTransport);
+  });
+
+  // Belt and braces: some browsers evict a long-backgrounded tab into the
+  // same bfcache path (observed: Edge's tab-freeze after ~20 min hidden)
+  // without reliably firing pageshow's persisted flag on the way back.
+  // visibilitychange fires whenever the tab regains focus regardless of
+  // *why* the socket died - idle discard, a network blip, the daemon
+  // restarting - so this is the actual catch-all; the pageshow listener
+  // above just covers the common case a little earlier.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) motorWs.connect().then(syncPositionTransport);
+  });
+
+  // ...and a periodic backstop, for the same reason preview.html grew one: a
+  // long-backgrounded tab may come back without either of the two handlers
+  // above firing at all (the socket's onclose can land while hidden, after
+  // the last visibilitychange), leaving PTZ silently on the CGI fallback -
+  // or on nothing - until the user switches tabs again. Only while visible;
+  // connect() is a no-op when a socket is already open, so this costs one
+  // readyState read every 15s. Not armed at all on a build without the WS
+  // control path, where connect() is a permanent no-op; and it only logs on
+  // an actual recovery, so a camera whose listener is simply absent (the
+  // attempts cap in connect() ends that quickly) stays quiet.
+  if (motorWs.enabledAtBuild()) {
+    setInterval(() => {
+      if (document.hidden || motorWs.isOpen()) return;
+      motorWs.connect().then((ws) => {
+        syncPositionTransport();
+        if (ws) console.info("motors: PTZ socket was down while visible - reconnected");
+      });
+    }, 15000);
+  }
 
   // A bfcache restore (browser back/forward) revives this exact DOM/JS state
   // without re-running DOMContentLoaded, so the socket connect() above never
@@ -362,7 +507,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   let timer;
 
-  let renderPosition = null; // joystick mode's live pan/tilt readout, or null
   let activeControlMode = null;
   let modeAbort = null; // owns every listener the active mode registered
 
@@ -476,8 +620,15 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Live pan/tilt readout, joystick mode only - a held stick runs toward a
-  // limit the video gives no warning of. 200ms cadence (matches the
-  // socket's own); the CSS transition smooths it further for free.
+  // limit the video gives no warning of. 200ms cadence over the socket
+  // (matches its own); ~1s over the SSE stream, which is what the CGI-only
+  // build has always offered. The CSS transition smooths either for free.
+  //
+  // Takes plain x/y rather than a WS frame: the SSE stream has no frame
+  // shape to speak of, and the travel limits are better sourced here anyway
+  // - the daemon's reported limits when there is a daemon, and the
+  // configured steps_pan/steps_tilt otherwise (a frame's own x_max is 0 when
+  // unknown, which used to collapse the bar to zero width).
   function bindPositionReadout() {
     const wrap = $("#motor-pos");
     const barX = $("#motor-pos-x");
@@ -487,14 +638,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     motorWs.subscribe(200);
 
-    return function render(frame) {
-      if (typeof frame.x !== "number" || typeof frame.y !== "number") return;
-      const xMax = frame.x_max || motorWs.limits.x;
-      const yMax = frame.y_max || motorWs.limits.y;
-      if (barX) barX.style.width = xMax ? (frame.x / xMax) * 100 + "%" : "0";
+    return function render(x, y) {
+      const params = window.motorParams || {};
+      const xMax = motorWs.limits.x || Number(params.steps_pan) || 0;
+      const yMax = motorWs.limits.y || Number(params.steps_tilt) || 0;
+      if (barX) barX.style.width = xMax ? (x / xMax) * 100 + "%" : "0";
       // tilt's bar is vertical (preview-motors.css), filled by height
-      if (barY) barY.style.height = yMax ? (frame.y / yMax) * 100 + "%" : "0";
-      if (text) text.textContent = frame.x + " / " + frame.y;
+      if (barY) barY.style.height = yMax ? (y / yMax) * 100 + "%" : "0";
+      if (text) text.textContent = x + " / " + y;
     };
   }
 
@@ -583,9 +734,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     let flushTimer = null;
     let cgiInterval = null;
 
+    // Position is NOT handled here any more: onMessage() already funnels
+    // every frame's x/y through updatePositionDisplay(), which is what draws
+    // the readout now. This listener is only for the error frames below.
     motorWs.setFrameListener((frame) => {
-      if (renderPosition && (frame.type === "status" || frame.type === "hello"))
-        renderPosition(frame);
       // Daemon predates the vector command: give up on the socket
       // permanently (not per-press) and finish the gesture on the CGI.
       if (
@@ -770,7 +922,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (motorEl) motorEl.classList.remove("stick-mode");
 
     activeControlMode = mode;
-    renderPosition = mode === "joystick" ? bindPositionReadout() : null;
+    motorPositionRenderer =
+      mode === "joystick" ? bindPositionReadout() : null;
 
     if (mode === "joystick") {
       bindJoystickControls(signal);
