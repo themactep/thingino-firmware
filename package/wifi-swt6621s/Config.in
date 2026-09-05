@@ -1,0 +1,11 @@
+config BR2_PACKAGE_WIFI_SWT6621S
+	bool "Seekwave SWT6621S (SV6621S/SV6160LITE) USB"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
+	help
+	  Seekwave SWT6621S Wi-Fi over USB (enumerates as SV6160LITE,
+	  USB ID 3607:6621). Builds the vendor BSP (skw_usb_lite) and
+	  cfg80211 core (swt6621s_wifi) as a single external-module
+	  build; the BSP module must be probed first - it registers the
+	  wifi platform device and requests the core via request_module.
