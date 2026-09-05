@@ -205,7 +205,11 @@ named `<plugin-name>.webui.json` and installed to
           // Optional.  Additional CSS class.
           "className": null,
           // Optional.  Hide the item (still in DOM).  Default false.
-          "hidden": false
+          "hidden": false,
+          // Optional.  Treat href as an action endpoint: request it and
+          // report the result in the message overlay instead of
+          // navigating there.  Default false.  See webui-plugin.md.
+          "action": false
         }
       ]
     }

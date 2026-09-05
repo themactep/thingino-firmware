@@ -250,6 +250,151 @@
     return "thingino";
   }
 
+  // Run fn once the offcanvas menu is closed, or immediately when it is not
+  // open (desktop nav, or offcanvas already hidden). Bootstrap's hide() is a
+  // no-op when the panel is not shown, so waiting for hidden.bs.offcanvas
+  // unconditionally would hang.
+  function closeOffcanvasThen(fn) {
+    const offcanvasEl = $("#navOffcanvas");
+    if (
+      offcanvasEl &&
+      offcanvasEl.classList.contains("show") &&
+      window.bootstrap
+    ) {
+      const instance =
+        bootstrap.Offcanvas.getInstance(offcanvasEl) ||
+        new bootstrap.Offcanvas(offcanvasEl);
+      offcanvasEl.addEventListener("hidden.bs.offcanvas", fn, { once: true });
+      instance.hide();
+      return;
+    }
+    fn();
+  }
+
+  // ---- Action items -------------------------------------------------
+  // A nav item with "action": true fires an HTTP request to its href and
+  // reports the result in the global message overlay instead of navigating
+  // to it. Opt-in only: /x/reboot.cgi and /x/logout.cgi are nav items that
+  // deliberately answer with a redirect and must keep navigating.
+
+  function reportNavAction(variant, message) {
+    if (!message) return;
+    if (typeof window.showOverlayMessage === "function") {
+      window.showOverlayMessage(message, variant);
+    } else if (typeof window.showAlert === "function") {
+      window.showAlert(variant, message);
+    } else {
+      console.log("[nav]", variant, message);
+    }
+  }
+
+  function navActionConfirmOptions(item) {
+    // Confirmation is expressed the way it is everywhere else in the UI: a
+    // "confirm" token in className. "confirm" may additionally carry a
+    // message string or a full options object to override the wording.
+    const wanted =
+      typeof item.className === "string" &&
+      item.className.split(/\s+/).indexOf("confirm") !== -1;
+    if (!wanted && !item.confirm) return null;
+    const options = {};
+    if (item.label) options.message = item.label + "?";
+    if (typeof item.confirm === "string") {
+      options.message = item.confirm;
+    } else if (item.confirm && typeof item.confirm === "object") {
+      Object.assign(options, item.confirm);
+    }
+    return options;
+  }
+
+  function runNavAction(anchor, item) {
+    const href = anchor.getAttribute("href");
+    if (!href || href === "#") return;
+    if (anchor.dataset.navActionBusy === "1") return;
+    anchor.dataset.navActionBusy = "1";
+    anchor.classList.add("pe-none");
+    const label = item.label || "Action";
+    reportNavAction("info", item.actionPendingMessage || label + "…");
+
+    const finish = function () {
+      delete anchor.dataset.navActionBusy;
+      anchor.classList.remove("pe-none");
+    };
+
+    fetch(href, {
+      method: item.actionMethod || "GET",
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+    })
+      .then(function (response) {
+        return response.text().then(function (body) {
+          return { ok: response.ok, status: response.status, body: body };
+        });
+      })
+      .then(function (res) {
+        let payload = null;
+        try {
+          payload = JSON.parse(res.body);
+        } catch (err) {
+          // Not JSON; fall back to the manifest/label wording below.
+        }
+        // Accepted shapes: {"status":"ok","message":...},
+        // {"error":"..."} and {"error":{"message":"..."}}.
+        const err = payload && payload.error;
+        const errText = err && (typeof err === "string" ? err : err.message);
+        const failed =
+          !res.ok ||
+          Boolean(errText) ||
+          Boolean(payload && payload.status && payload.status !== "ok");
+        const message =
+          errText ||
+          (payload && payload.message) ||
+          (failed
+            ? label + " failed (HTTP " + res.status + ")"
+            : item.actionMessage || label + " done");
+        reportNavAction(failed ? "danger" : "success", message);
+        finish();
+      })
+      .catch(function (err) {
+        reportNavAction(
+          "danger",
+          label + " failed: " + ((err && err.message) || err),
+        );
+        finish();
+      });
+  }
+
+  function bindNavAction(anchor, item) {
+    const confirmOptions = navActionConfirmOptions(item);
+    anchor.dataset.navAction = "1";
+    // main.js scans for ".confirm" and re-dispatches the click after the user
+    // confirms, which would land back on plain anchor navigation. Take
+    // ownership of the confirmation instead. The anchor is not in the
+    // document yet, so the scanner cannot have claimed it before this runs.
+    anchor.dataset.confirmSkip = "1";
+    anchor.addEventListener("click", function (e) {
+      e.preventDefault();
+      const el = this;
+      closeOffcanvasThen(function () {
+        if (!confirmOptions) {
+          runNavAction(el, item);
+          return;
+        }
+        const ask =
+          typeof window.thinginoConfirm === "function"
+            ? window.thinginoConfirm(confirmOptions)
+            : Promise.resolve(
+                typeof window.nativeConfirm === "function"
+                  ? window.nativeConfirm(confirmOptions.message)
+                  : true,
+              );
+        Promise.resolve(ask).then(function (confirmed) {
+          if (confirmed) runNavAction(el, item);
+        });
+      });
+    });
+  }
+
   function createAnchor(item, defaultClass) {
     const anchor = document.createElement("a");
     const classes = [defaultClass];
@@ -268,6 +413,9 @@
       item.href.startsWith("/");
     if (shouldTrack) {
       anchor.dataset.navPath = normalizePath(item.href);
+    }
+    if (item.action && typeof item.href === "string" && item.href !== "#") {
+      bindNavAction(anchor, item);
     }
     return anchor;
   }
@@ -409,6 +557,21 @@
     return nav;
   }
 
+  // Offcanvas entries navigate only after the panel has closed, so the page
+  // swap does not happen behind a still-open menu. Action items already own
+  // their click (bindNavAction closes the panel itself).
+  function bindOffcanvasNavigation(anchor) {
+    anchor.addEventListener("click", function (e) {
+      if (this.dataset.navAction === "1") return;
+      const href = this.getAttribute("href");
+      if (!href || href === "#") return;
+      e.preventDefault();
+      closeOffcanvasThen(function () {
+        window.location.href = href;
+      });
+    });
+  }
+
   function createOffcanvasList(menuItems) {
     const list = document.createElement("ul");
     list.className = "list-unstyled";
@@ -465,31 +628,7 @@
               "d-block py-1 text-decoration-none",
             );
             if (subItem.id) anchor.id = subItem.id + "-offcanvas";
-
-            // Handle navigation after offcanvas closes
-            anchor.addEventListener("click", function (e) {
-              const href = this.getAttribute("href");
-              if (href && href !== "#") {
-                e.preventDefault();
-                const offcanvasEl = $("#navOffcanvas");
-                if (offcanvasEl && window.bootstrap) {
-                  const offcanvasInstance =
-                    bootstrap.Offcanvas.getInstance(offcanvasEl) ||
-                    new bootstrap.Offcanvas(offcanvasEl);
-                  offcanvasEl.addEventListener(
-                    "hidden.bs.offcanvas",
-                    function () {
-                      window.location.href = href;
-                    },
-                    { once: true },
-                  );
-                  offcanvasInstance.hide();
-                } else {
-                  window.location.href = href;
-                }
-              }
-            });
-
+            bindOffcanvasNavigation(anchor);
             li.appendChild(anchor);
             subList.appendChild(li);
           }
@@ -504,31 +643,7 @@
           item,
           "d-block fw-bold text-decoration-none p-3",
         );
-
-        // Handle navigation after offcanvas closes
-        anchor.addEventListener("click", function (e) {
-          const href = this.getAttribute("href");
-          if (href && href !== "#") {
-            e.preventDefault();
-            const offcanvasEl = $("#navOffcanvas");
-            if (offcanvasEl && window.bootstrap) {
-              const offcanvasInstance =
-                bootstrap.Offcanvas.getInstance(offcanvasEl) ||
-                new bootstrap.Offcanvas(offcanvasEl);
-              offcanvasEl.addEventListener(
-                "hidden.bs.offcanvas",
-                function () {
-                  window.location.href = href;
-                },
-                { once: true },
-              );
-              offcanvasInstance.hide();
-            } else {
-              window.location.href = href;
-            }
-          }
-        });
-
+        bindOffcanvasNavigation(anchor);
         li.appendChild(anchor);
         list.appendChild(li);
       }
