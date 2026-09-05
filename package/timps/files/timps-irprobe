@@ -10,8 +10,11 @@
 # idempotent.
 for t in ir940 ir850 ir; do
 	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
-		[ "$1" = off ] && ( sleep 60; light $t on ) >/dev/null 2>&1 &
+		[ "$1" = off ] && (
+			sleep 60
+			light $t on
+		) >/dev/null 2>&1 &
 		exec light $t "$1"
 	fi
 done
-exit 1   # no switchable illuminator: timps logs the failure and skips the probe
+exit 1 # no switchable illuminator: timps logs the failure and skips the probe
