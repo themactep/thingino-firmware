@@ -83,6 +83,7 @@
     );
 
     const toolsItems = [
+      { label: "Cameras on LAN", href: "/tool-cameras.html" },
       { label: "File manager", href: "/tool-file-manager.html" },
       { label: "Network test", href: "/tool-ping-trace.html" },
       { label: "SD card", href: "/tool-sdcard.html" },

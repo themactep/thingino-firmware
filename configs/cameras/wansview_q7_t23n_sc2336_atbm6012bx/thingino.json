@@ -7,6 +7,10 @@
     "speaker": {
       "pin": 39,
       "active_low": true
+    },
+    "wlan": {
+      "pin": 47,
+      "active_low": true
     }
   },
   "motors": {
