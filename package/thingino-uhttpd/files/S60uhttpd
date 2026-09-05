@@ -6,6 +6,7 @@
 DAEMON="uhttpd"
 PIDFILE="/var/run/uhttpd.pid"
 PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_PENDING_FLAG="/run/portal_pending"
 
 UHTTPD_DOCROOT="${UHTTPD_DOCROOT:-/var/www}"
 UHTTPD_PORTAL_DOCROOT="${UHTTPD_PORTAL_DOCROOT:-/var/www-portal}"
@@ -45,6 +46,11 @@ build_uhttpd_args() {
 
 start() {
 	local display_hostname
+
+	if [ -f "$PORTAL_PENDING_FLAG" ] && [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Portal decision pending, deferring uhttpd"
+		return 0
+	fi
 
 	display_hostname="$(hostname 2>/dev/null)"
 	[ -z "$display_hostname" ] && display_hostname="localhost"
