@@ -8,3 +8,41 @@ config BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY
 	bool "DW9714 Focus Control"
 	help
 	  Enable support for DW9714 VCM, includes control script
+
+config BR2_PACKAGE_THINGINO_MOTORS_WS
+	bool "WebSocket PTZ control path"
+	depends on BR2_PACKAGE_THINGINO_MOTORS
+	depends on !BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	default y if BR2_PACKAGE_THINGINO_STREAMER_TIMPS
+	help
+	  Serve PTZ control over a WebSocket listener in motors-daemon
+	  (ws://<camera>:8089/ws), replacing one CGI round trip per move
+	  with a persistent connection. Costs ~25KB of text, -lpthread.
+	  Falls back to the CGI path if the socket can't be opened.
+
+	  Defaults on when timps is the streamer. Not selected outright:
+	  select would bypass this symbol's own depends chain, same
+	  failure class as WS_TLS below.
+
+	  Switches thingino-motors.mk's source to Lu-Fi's fork, where this
+	  unmerged feature lives - endorsed by the upstream maintainer as
+	  the way to gate it without forcing every build onto a fork.
+
+config BR2_PACKAGE_THINGINO_MOTORS_WS_TLS
+	bool "wss:// (TLS) on the WebSocket PTZ listener"
+	depends on BR2_PACKAGE_THINGINO_MOTORS_WS
+	# depends on, not select: select closed a real Kconfig dependency
+	# cycle against the uhttpd TLS default (regression 2026-08-29).
+	depends on BR2_PACKAGE_MBEDTLS
+	default y if BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
+	help
+	  Also accept TLS-wrapped connections on the same port (ws:// and
+	  wss:// share it; the daemon peeks at the first byte). Needed if
+	  the web UI is served over https:// - otherwise the browser
+	  blocks plain ws:// as mixed content and PTZ silently falls back
+	  to one CGI round trip per command.
+
+	  Reuses S95timps' certificate, no new one is minted. Costs ~9KB
+	  of text plus ~21KB heap per connected TLS client (default max 4
+	  clients).
