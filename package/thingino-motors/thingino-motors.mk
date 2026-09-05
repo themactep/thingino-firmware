@@ -8,6 +8,12 @@ ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(if $(BR2_PACKAGE_THINGINO_
 THINGINO_MOTORS_SITE = https://github.com/Lu-Fi/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = thingino-motors-websocket
 THINGINO_MOTORS_VERSION = caa4bf3d9f5a9fb8b72f8e0d42bd044177dfeb56
+# Everything below keyed on this, not on BR2_PACKAGE_THINGINO_MOTORS_WS
+# directly: the build-command/version-stamp additions are fork-specific and
+# must never touch upstream's own daemon build, even in the DW9714-only edge
+# case where WS itself is off but the filter above could still (it can't
+# today, but wouldn't be obvious from re-reading just this block) end up here.
+THINGINO_MOTORS_USE_FORK = y
 else
 THINGINO_MOTORS_SITE = https://github.com/thingino/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = main
@@ -17,6 +23,10 @@ THINGINO_MOTORS_LICENSE = MIT
 THINGINO_MOTORS_LICENSE_FILES = LICENSE
 
 THINGINO_MOTORS_DEPENDENCIES += thingino-jct
+
+# Everything in this block is fork-only: it must never change a plain
+# upstream-daemon build's command line, so it all lives inside USE_FORK.
+ifeq ($(THINGINO_MOTORS_USE_FORK),y)
 
 # `motors --version` and the "version" key in `motors -j` answer "which build
 # is this camera actually running" - snapshot with := here, because
@@ -60,6 +70,7 @@ THINGINO_MOTORS_DAEMON_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
 THINGINO_MOTORS_DAEMON_DEFS += -DMOTORS_WS_TLS
 endif
 endif
+endif # THINGINO_MOTORS_USE_FORK
 
 define THINGINO_MOTORS_INSTALL_JSON_CMDS
 	# Stage defaults for later merge by thingino-core
@@ -108,12 +119,21 @@ define THINGINO_MOTORS_INSTALL_WWW_CMDS
 endef
 endif
 
+ifeq ($(THINGINO_MOTORS_USE_FORK),y)
 # -ffunction-sections/-fdata-sections + --gc-sections: per-function dead-code
-# stripping. Measured -7680 B (-12.2%) on the WS build.
+# stripping. Measured -7680 B (-12.2%) on the WS build. Fork-only, same as
+# the variables it references - the plain upstream daemon build below is
+# untouched, byte for byte, from what thingino/thingino-motors ships.
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_VERSION_DEF) $(@D)/src/motor.c -o $(@D)/motors -ljct -Wl,--gc-sections
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_DAEMON_DEFS) $(THINGINO_MOTORS_DAEMON_SRCS) -o $(@D)/motors-daemon $(THINGINO_MOTORS_DAEMON_LIBS) -Wl,--gc-sections
 endef
+else
+define THINGINO_MOTORS_BUILD_CMDS
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor.c -o $(@D)/motors -ljct
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/src/motor-daemon.c -o $(@D)/motors-daemon -ljct -lm
+endef
+endif
 
 define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/motors \
