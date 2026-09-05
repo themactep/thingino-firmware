@@ -156,8 +156,9 @@ If your package already has web files in core webui:
 
 ## Existing plugins (examples)
 
-| Plugin | Package | Manifest |
-|--------|---------|----------|
-| motors | `thingino-motors` | `package/thingino-motors/files/motors.webui.json` |
-| doorbell | `wyze-accessory` | `package/wyze-accessory/files/doorbell.webui.json` |
-| daynightd | `thingino-daynightd` | `package/thingino-daynightd/files/daynightd.webui.json` |
+| Plugin     | Package | Manifest                                                |
+|------------|---------|---------------------------------------------------------|
+| motors     | `thingino-motors` | `package/thingino-motors/files/motors.webui.json`       |
+| doorbell   | `wyze-accessory` | `package/wyze-accessory/files/doorbell.webui.json`      |
+| floodlight | `wyze-accessory` | `package/wyze-accessory/files/floodlight.webui.json`    |
+| daynightd  | `thingino-daynightd` | `package/thingino-daynightd/files/daynightd.webui.json` |

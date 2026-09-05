@@ -23,6 +23,7 @@
     "enable_rssi": true,
     "enable_snapshot": true,
     "enable_white_light": true,
+    "enable_floodlight": false,
     "enabled": false,
     "mqtt": {
       "client_id_prefix": "thingino-ha",

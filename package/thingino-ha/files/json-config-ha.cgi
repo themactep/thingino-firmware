@@ -117,6 +117,15 @@ handle_post() {
 	new_en_ir850=$(jct "$REQ_FILE" get enable_ir850 2>/dev/null)
 	new_en_ir940=$(jct "$REQ_FILE" get enable_ir940 2>/dev/null)
 	new_en_white=$(jct "$REQ_FILE" get enable_white_light 2>/dev/null)
+	new_en_floodlight=$(jct "$REQ_FILE" get enable_floodlight 2>/dev/null)
+	case "$new_en_floodlight" in
+		"" | null)
+			new_en_floodlight=$(sed -n 's/.*"enable_floodlight"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$REQ_FILE" | head -n 1)
+			;;
+	esac
+	case "$new_en_floodlight" in
+		"" | null) new_en_floodlight=$(jct "$CONFIG_FILE" get "${DOMAIN}.enable_floodlight" 2>/dev/null) ;;
+	esac
 	new_en_gain=$(jct "$REQ_FILE" get enable_gain 2>/dev/null)
 	new_en_rssi=$(jct "$REQ_FILE" get enable_rssi 2>/dev/null)
 	new_en_snapshot=$(jct "$REQ_FILE" get enable_snapshot 2>/dev/null)
@@ -136,6 +145,7 @@ handle_post() {
 	en_ir850=$(normalize_bool "$new_en_ir850")
 	en_ir940=$(normalize_bool "$new_en_ir940")
 	en_white=$(normalize_bool "$new_en_white")
+	en_floodlight=$(normalize_bool "$new_en_floodlight")
 	en_gain=$(normalize_bool "$new_en_gain")
 	en_rssi=$(normalize_bool "$new_en_rssi")
 	en_snapshot=$(normalize_bool "$new_en_snapshot")
@@ -193,6 +203,7 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ir850" "$en_ir850" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ir940" "$en_ir940" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_white_light" "$en_white" >/dev/null 2>&1
+	jct "$TMP_FILE" set "${DOMAIN}.enable_floodlight" "$en_floodlight" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_gain" "$en_gain" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_rssi" "$en_rssi" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_snapshot" "$en_snapshot" >/dev/null 2>&1
@@ -200,6 +211,8 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ota" "$en_ota" >/dev/null 2>&1
 
 	jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
+	jct "$CONFIG_FILE" set "${DOMAIN}.enable_floodlight" "$en_floodlight" >/dev/null 2>&1 ||
+		json_error 500 "Failed to save Floodlight setting" "500 Internal Server Error"
 
 	# Restart ha-daemon to pick up new settings
 	/etc/init.d/S93ha restart >/dev/null 2>&1 &
