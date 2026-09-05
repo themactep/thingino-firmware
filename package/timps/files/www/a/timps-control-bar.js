@@ -56,12 +56,38 @@
       : { record: { active: 0 } };
     timpsApiReady()
       .then(function (api) {
-        return api.set(payload);
-      })
-      .then(function () {
-        window.updateRecordingState({
-          ch0: !!want && channel === 0,
-          ch1: !!want && channel === 1,
+        return api.set(payload).then(function () {
+          window.updateRecordingState({
+            ch0: !!want && channel === 0,
+            ch1: !!want && channel === 1,
+          });
+          // A start request that /control ACCEPTS can still never actually
+          // record - e.g. record.min_free_mb unreachable on this card - and
+          // that only surfaces later, out of band, on the next segment-open
+          // attempt in the record thread. Poll once, short delay: if the
+          // daemon still isn't recording and just logged why, the click
+          // didn't do what the now-"active" button claims - correct both.
+          if (want) {
+            setTimeout(function () {
+              api.get().then(function (info) {
+                var rec = info && info.record;
+                if (!rec || rec.recording) return;
+                var fresh =
+                  rec.last_error &&
+                  rec.last_error_age_s != null &&
+                  rec.last_error_age_s >= 0 &&
+                  rec.last_error_age_s < 5;
+                if (!fresh) return;
+                window.updateRecordingState({ ch0: false, ch1: false });
+                if (button) button.classList.remove("active");
+                if (typeof window.showAlert === "function")
+                  window.showAlert(
+                    "danger",
+                    "Recording did not start: " + rec.last_error,
+                  );
+              });
+            }, 2000);
+          }
         });
       })
       .catch(function (err) {

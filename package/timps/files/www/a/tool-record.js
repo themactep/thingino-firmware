@@ -57,6 +57,19 @@
     bits.push(rec.recording ? "recording now" : "idle");
     if (rec.free_mb != null && rec.free_mb >= 0) bits.push(rec.free_mb + " MB free");
     if (rec.recording && rec.file) bits.push(rec.file);
+    // A write/prune failure (e.g. min_free_mb unreachable on this card) never
+    // flips "recording" true - without this, active=1 was accepted, nothing
+    // explains why nothing is actually being written. Only shown while
+    // recent (60s) so an old, since-resolved error doesn't stick around.
+    if (
+      !rec.recording &&
+      rec.last_error &&
+      rec.last_error_age_s != null &&
+      rec.last_error_age_s >= 0 &&
+      rec.last_error_age_s < 60
+    ) {
+      bits.push("last error: " + rec.last_error);
+    }
     statusEl.textContent = bits.join(" · ");
   }
 
