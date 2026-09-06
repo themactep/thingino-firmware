@@ -844,6 +844,28 @@ make pack
 4. **User-scoped `local.mk` layers** (optional) - `user/common/local.mk`, `user/<camera>/local.mk`, and `user/<camera>/<ip>/local.mk`, aggregated into `OUTPUT_DIR/local.mk`
 5. **`external.mk`** - Buildroot external package definitions
 
+### Kernel Version Pinning
+
+Kernels come from one of two sources:
+
+- **3.10.14** — the official kernel.org tarball plus the cumulative patch under
+  `package/all-patches/linux/3.10.14/`. No commit pin; this is the default for
+  most SoCs.
+- **Everything else** (4.4.94, 7.1-rc1, and the t40/t41/a1 branches) — the
+  custom `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each
+  branch to a pinned commit in the `KERNEL_HASH` table, so builds are
+  reproducible and `make` does not hit the network at parse time.
+
+When a kernel branch advances, bump its pin:
+
+```bash
+scripts/update_kernel_hashes.sh            # report drift (exit 1 if stale)
+scripts/update_kernel_hashes.sh --apply    # bump stale pins in place
+```
+
+Branches not present in the table still resolve to their live branch tip as a
+fallback (the old behavior).
+
 ### Partition Layout
 
 Firmware is assembled from multiple partitions:
