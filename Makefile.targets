@@ -56,6 +56,26 @@ ram-setup:
 	sudo mount -o remount,nr_inodes=4m "$$mnt" && \
 	echo "Done: $$(stat -f -c %d "$(RAM_BUILD_DIR)") free inodes on $$mnt."
 
+# Copy images/logs/config from the tmpfs output tree back to disk. Shared by
+# ram-build (wipes the tree) and ram-dev (keeps it for resuming).
+define ram_copy_artifacts
+	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
+	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
+	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
+		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
+		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
+	fi
+	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
+		[ -e "$$f" ] || continue; \
+		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+	done
+	@for f in buildscope-report.json uenv.txt; do \
+		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
+			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
+		fi; \
+	done
+endef
+
 ram-build:
 	@$(TEAL) "$@"
 	@mkdir -p "$(RAM_BUILD_DIR)"
@@ -78,21 +98,7 @@ ram-build:
 	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
 	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
 	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" all
-	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
-	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
-	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
-		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
-		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
-	fi
-	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
-		[ -e "$$f" ] || continue; \
-		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-	done
-	@for f in buildscope-report.json uenv.txt; do \
-		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
-			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-		fi; \
-	done
+	$(ram_copy_artifacts)
 	@rm -rf "$(RAM_OUTPUT_DIR)"
 	@$(GREEN) "Saved artifacts to $(RAM_DISK_OUTPUT_DIR); tmpfs freed."
 
@@ -133,21 +139,7 @@ ram-dev:
 	@echo "RAM output:  $(RAM_OUTPUT_DIR)"
 	@echo "Disk output: $(RAM_DISK_OUTPUT_DIR)"
 	@$(MAKE) THINGINO_OUTPUT_DIR="$(RAM_OUTPUT_DIR)" fast
-	@mkdir -p "$(RAM_DISK_OUTPUT_DIR)/images"
-	@cp -a "$(RAM_OUTPUT_DIR)/images/." "$(RAM_DISK_OUTPUT_DIR)/images/"
-	@if [ -d "$(RAM_OUTPUT_DIR)/logs" ]; then \
-		mkdir -p "$(RAM_DISK_OUTPUT_DIR)/logs"; \
-		cp -a "$(RAM_OUTPUT_DIR)/logs/." "$(RAM_DISK_OUTPUT_DIR)/logs/"; \
-	fi
-	@for f in $(RAM_OUTPUT_DIR)/.config*; do \
-		[ -e "$$f" ] || continue; \
-		cp -a "$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-	done
-	@for f in buildscope-report.json uenv.txt; do \
-		if [ -e "$(RAM_OUTPUT_DIR)/$$f" ]; then \
-			cp -a "$(RAM_OUTPUT_DIR)/$$f" "$(RAM_DISK_OUTPUT_DIR)/"; \
-		fi; \
-	done
+	$(ram_copy_artifacts)
 	@$(GREEN) "Build complete. Tree kept at $(RAM_OUTPUT_DIR) - re-run 'make ram-dev' to resume as needed."
 
 # update repo and submodules (buildroot override patching is intentionally disabled
