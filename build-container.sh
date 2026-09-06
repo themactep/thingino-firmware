@@ -81,7 +81,9 @@ if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; th
     fi
 fi
 
-# Check for fresh container image
+# Check for fresh container image. The remote digest lookup is TTL-cached to
+# avoid a network round-trip on every invocation; set CONTAINER_SKIP_UPDATE_CHECK=1
+# to skip the check entirely (offline/CI).
 CONTAINER_IMAGE="ghcr.io/themactep/thingino-builder-image"
 CONTAINER_TAG="latest"
 case "$(uname -m)" in
@@ -90,34 +92,59 @@ case "$(uname -m)" in
     *)       ARCH="$(uname -m)" ;;
 esac
 
-print_info "Checking for container image updates..."
+IMAGE_CHECK_TTL="${CONTAINER_IMAGE_CHECK_TTL:-600}"
+IMAGE_CHECK_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/thingino/container-image-check"
 
-# Get local digest
-LOCAL_DIGEST=$($CONTAINER_ENGINE inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" --format '{{index .RepoDigests 0}}' 2>/dev/null | sed 's/.*@//')
-
-# Get remote digest for current platform
-REMOTE_DIGEST=""
-if command -v skopeo >/dev/null 2>&1; then
-    REMOTE_DIGEST=$(skopeo inspect "docker://$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
-        | python3 -c "import sys,json; print(json.load(sys.stdin).get('Digest',''))" 2>/dev/null)
-elif [ "$CONTAINER_ENGINE" = "podman" ]; then
-    REMOTE_DIGEST=$(podman manifest inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
-        | python3 -c "import sys,json; m=json.load(sys.stdin); print(next((x['digest'] for x in m.get('manifests',[]) if x.get('platform',{}).get('architecture')=='$ARCH'),''))" 2>/dev/null)
-fi
-
-if [ -z "$LOCAL_DIGEST" ]; then
-    print_info "Pulling container image..."
-    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
-    print_success "Pulled new container image"
-elif [ -n "$REMOTE_DIGEST" ] && [ "$LOCAL_DIGEST" = "$REMOTE_DIGEST" ]; then
-    print_info "Container image is current"
+if [ "${CONTAINER_SKIP_UPDATE_CHECK:-0}" = "1" ]; then
+    print_info "Skipping container image update check (CONTAINER_SKIP_UPDATE_CHECK=1)"
 else
-    print_info "Updating container image..."
-    $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
-    print_success "Updated container image"
+    print_info "Checking for container image updates..."
+
+    # Get local digest (cheap, always do)
+    LOCAL_DIGEST=$($CONTAINER_ENGINE inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" --format '{{index .RepoDigests 0}}' 2>/dev/null | sed 's/.*@//')
+
+    if [ -z "$LOCAL_DIGEST" ]; then
+        print_info "Pulling container image..."
+        $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+        print_success "Pulled new container image"
+    else
+        last_check=0
+        if [ -f "$IMAGE_CHECK_CACHE" ]; then
+            last_check=$(cat "$IMAGE_CHECK_CACHE" 2>/dev/null) || last_check=0
+        fi
+        case "$last_check" in
+            ''|*[!0-9]*) last_check=0 ;;
+        esac
+        now=$(date +%s)
+
+        if [ "$((now - last_check))" -lt "$IMAGE_CHECK_TTL" ]; then
+            print_info "Container image update check cached ($((now - last_check))s ago)"
+        else
+            # Get remote digest for current platform
+            REMOTE_DIGEST=""
+            if command -v skopeo >/dev/null 2>&1; then
+                REMOTE_DIGEST=$(skopeo inspect "docker://$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+                    | python3 -c "import sys,json; print(json.load(sys.stdin).get('Digest',''))" 2>/dev/null)
+            elif [ "$CONTAINER_ENGINE" = "podman" ]; then
+                REMOTE_DIGEST=$(podman manifest inspect "$CONTAINER_IMAGE:$CONTAINER_TAG" 2>/dev/null \
+                    | python3 -c "import sys,json; m=json.load(sys.stdin); print(next((x['digest'] for x in m.get('manifests',[]) if x.get('platform',{}).get('architecture')=='$ARCH'),''))" 2>/dev/null)
+            fi
+
+            if [ -n "$REMOTE_DIGEST" ] && [ "$LOCAL_DIGEST" = "$REMOTE_DIGEST" ]; then
+                print_info "Container image is current"
+            else
+                print_info "Updating container image..."
+                $CONTAINER_ENGINE pull "$CONTAINER_IMAGE:$CONTAINER_TAG"
+                print_success "Updated container image"
+            fi
+
+            mkdir -p "$(dirname "$IMAGE_CHECK_CACHE")"
+            echo "$now" > "$IMAGE_CHECK_CACHE"
+        fi
+    fi
 fi
 
-# Function to select camera
+# Select a camera, delegating the interactive UI to scripts/select_camera.sh.
 select_camera() {
     local cameras_dir="configs/cameras${GROUP:+-$GROUP}"
     local memo_file=".selected_camera${GROUP:+-$GROUP}"
