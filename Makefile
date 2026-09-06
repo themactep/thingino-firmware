@@ -216,6 +216,13 @@ THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOO
 THINGINO_UBOOT_VERSION_TAG := $(if $(filter 2026_07,$(THINGINO_UBOOT_VERSION_RAW)),2026-07,$(if $(filter 2026_04,$(THINGINO_UBOOT_VERSION_RAW)),2026-04,$(if $(filter 2013_07,$(THINGINO_UBOOT_VERSION_RAW)),2013-07,$(if $(filter CUSTOM_FORK,$(THINGINO_UBOOT_VERSION_RAW)),custom-fork,$(shell echo "$(THINGINO_UBOOT_VERSION_RAW)" | tr 'A-Z' 'a-z' | tr '_' '-')))))
 THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSION_TAG).fragment
 
+# SD-card autoupdate + uenv override hook for the modern (kconfig) U-Boot's
+# bootcmd; the legacy 2013.07 U-Boot has no autoupdate support. Referenced by
+# the bootcmd lines in Makefile.utils but previously never defined (piuma
+# defines and uses it), so modern-uboot builds silently lost the autoupdate
+# path. Deferred (=) on principle; TAG is already known here.
+AUTOUPDATE_PREFIX = $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;run loaduenv;)
+
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
 # Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
 ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
@@ -348,8 +355,13 @@ BACKUP_SIZE_KB := 64
 # in the offset chain below (U_BOOT -> UB_ENV -> BACKUP -> KERNEL -> ROOTFS)
 ROOTFS_MTD_NUM := 4
 
-# U-Boot CONFIG_ENV_SIZE (must match the value in isvp_common.h for SPI NOR)
+# U-Boot CONFIG_ENV_SIZE: 0x8000 for legacy 2013.07 (isvp_common.h), 0x10000
+# for the modern kconfig U-Boot (configs/uboot/layout/sfcnor.config).
+ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 UB_ENV_SIZE := 0x8000
+else
+UB_ENV_SIZE := 0x10000
+endif
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
