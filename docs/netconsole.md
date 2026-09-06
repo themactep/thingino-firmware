@@ -68,7 +68,7 @@ set that variable already:
 
     preboot=setenv stdout serial,nc;setenv stderr serial,nc;setenv stdin serial,nc
     bootdelay=5
-    ipaddr=<IP if the build had one, otherwise 192.168.1.10>
+    ipaddr=<IP if the build had a literal IPv4 address, otherwise 192.168.1.10>
 
 Without these in the flashed environment netconsole is compiled in but
 unreachable. The compiled-in `CONFIG_*` values are no substitute: U-Boot uses
@@ -88,8 +88,11 @@ the value has to be in `uenv.txt` to reach the board.
   broadcast so the value does not affect it; only unicast input depends on it.
   When the build is run with `IP=<address>`, that address is injected instead
   of the default, so each camera built for its own address gets a distinct
-  netconsole address instead of colliding on the shared fallback. `192.168.1.10`
-  is used only when the build has no `IP=`.
+  netconsole address instead of colliding on the shared fallback. Only a
+  literal dotted-quad is injected: `IP` is also used for ssh-style access
+  where a hostname is valid, so a non-IPv4 value such as `IP=cam.local` falls
+  back. `192.168.1.10` is used whenever the build has no `IP=` or a
+  non-literal one.
 
 USB-Ethernet boards
 -------------------
