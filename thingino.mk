@@ -162,7 +162,6 @@ else ifeq ($(SOC_FAMILY),t32)
 else ifeq ($(SOC_FAMILY),t23)
 	ifeq ($(KERNEL_VERSION),4.4.94)
 		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
 	else
 		KERNEL_BRANCH := ingenic-t31
 	endif
@@ -170,6 +169,29 @@ else
 	KERNEL_BRANCH := ingenic-t31
 endif
 
+# Pin the kernel commit per branch so builds are reproducible and make does
+# not hit the network at parse time for known branches.
+ifeq ($(KERNEL_BRANCH),ingenic-7.1-rc1)
+	KERNEL_HASH := 92b684b3674ed0ea2bd0c96b6b151402b19fd666
+else ifeq ($(KERNEL_BRANCH),ingenic-a1)
+	KERNEL_HASH := 42f0e91a310c3f5eec071760f46ad21ea0aa918a
+else ifeq ($(KERNEL_BRANCH),ingenic-t31-4.4.94)
+	KERNEL_HASH := 47a4ebc23f37990b61c53ad3108da6af4784ba94
+else ifeq ($(KERNEL_BRANCH),ingenic-t31)
+	KERNEL_HASH := a419397f3d0c6e7fcfe2173a7e34c8f3473d3b01
+else ifeq ($(KERNEL_BRANCH),ingenic-t41-4.4.94)
+	KERNEL_HASH := 5dad83aea68800a3c41309ce4e9e3d6dba972c28
+else ifeq ($(KERNEL_BRANCH),ingenic-t40)
+	KERNEL_HASH := e7f9a7439d40a539fad1525bd46a75bcdabffb17
+else ifeq ($(KERNEL_BRANCH),ingenic-t32-4.4.94)
+	KERNEL_HASH := fac1029eb6b7a01a709e0d912a5ac97621143055
+else ifeq ($(KERNEL_BRANCH),ingenic-t32)
+	KERNEL_HASH := 26fca510ab2dd6cfb9383ecc1b8932647556e6f1
+else ifeq ($(KERNEL_BRANCH),ingenic-t23-4.4.94)
+	KERNEL_HASH := f97f65461547f1543ee3da22e72612f29a797cb3
+endif
+
+# Fall back to the live branch tip for anything not mapped above.
 ifeq ($(KERNEL_HASH),)
 	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
