@@ -194,6 +194,14 @@ prescan_for_portal() {
 	rm -rf "$CTRLDIR" "$CONF"
 }
 
+start_web_server() {
+	for init in /etc/init.d/S60uhttpd /etc/init.d/S90httpd; do
+		[ -x "$init" ] || continue
+		"$init" restart
+		return
+	done
+}
+
 prepare_portal() {
 	# FIXME: should de done at compile time
 	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf
@@ -237,6 +245,9 @@ prepare_portal() {
 
 	echo "Set $PORTAL_MODE_FLAG"
 	touch "$PORTAL_MODE_FLAG"
+	rm -f "$PORTAL_PENDING_FLAG"
+	echo "Start web server on the portal interface"
+	start_web_server
 
 	echo "Portal prepared at $(ts)"
 }
@@ -489,14 +500,8 @@ case "$1" in
 		start
 		;;
 	portal_confirmed)
-		rm -f "$PORTAL_PENDING_FLAG"
 		prescan_for_portal
 		prepare_portal
-		if pgrep -x uhttpd >/dev/null 2>&1 && \
-			! pgrep -f "uhttpd -h /var/www-portal" >/dev/null 2>&1; then
-			echo "Moving uhttpd to the portal interface"
-			/etc/init.d/S60uhttpd restart
-		fi
 		finish_portal
 		;;
 	*)

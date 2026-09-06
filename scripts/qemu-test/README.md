@@ -20,10 +20,11 @@ scripts/qemu-test/run.sh qemu_t31x_eth        # run its suite
 is from its `qemu-test.json`, finds the newest matching image under
 `output/`, picks up the QEMU built alongside it, and re-execs itself
 under `sudo` and into a private network namespace when the run needs a
-tap device.
+tap device or the serial link.
 
 ```sh
-run.sh qemu_t31x                 # wifi portal flow (slirp)
+run.sh qemu_t31x                 # wifi portal flow, host access over the serial link (slip)
+run.sh qemu_a1n                  # the same over slirp: its eth0 is the a1 xgmac
 run.sh qemu_t31x_eth             # ethernet + full network lab (tap)
 run.sh qemu_t31x_ethwifi         # both interfaces (tap)
 run.sh qemu_t31x_eth --net slirp # override the backend
@@ -35,9 +36,10 @@ also runs standalone if you need full control (`harness.py --help`).
 
 Requirements: `dnsmasq` and `tcpdump` installed, `npm ci` in this
 directory plus `npx playwright install chromium` for the browser tests,
-and passwordless `sudo` for tap mode. A tap run lives in its own network
-namespace (`qt-<pid>`), so it never touches the host's DNS, NTP or syslog
-ports, nothing gets parked, and several tap runs can share one host.
+and passwordless `sudo` for tap and slip runs (slip also needs
+`/dev/net/tun`). A tap or slip run lives in its own network namespace
+(`qt-<pid>`), so it never touches the host's DNS, NTP or syslog ports,
+nothing gets parked, and several runs can share one host.
 
 ## A profile describes itself
 
@@ -51,12 +53,27 @@ ports, nothing gets parked, and several tap runs can share one host.
 | --- | --- |
 | `soc` | key into `SOC_MACHINES` (machine, RAM) |
 | `caps` | what the camera has: `wired` (an uplink), `wifi` (a radio) |
-| `net` | default backend: `tap` runs the full lab, `slirp` bridges through host port forwards |
+| `net` | default backend: `tap` runs the full lab, `slip` is IP over the guest's UART0 (no wired MAC, boots like a real WiFi-only camera), `slirp` bridges through host port forwards |
 
 What runs follows from the capabilities: a wifi-only camera exercises the
 portal, provisioning and the reboot into STA; a wired one the full network
 lab; one with both also the wired-gateway takeover. Nothing is inferred
 from the profile's name.
+
+## The serial link
+
+Wifi profiles carry no wired MAC, so the guest boots exactly like a
+WiFi-only camera, and the host still reaches it: over the board's first
+UART. The guest runs the kernel SLIP line discipline on `ttyS0` (busybox
+`slattach`; both come from the SLIP kopt), and on the host the frames are
+relayed in userspace between QEMU's pty and a TUN device inside the run's
+namespace: `sl0`, `10.99.0.1` on the host, `10.99.0.2` in the guest, with
+`172.16.0.0/24` routed over it so the portal is reached at its own
+address. The host kernel's SLIP discipline is deliberately not used: it
+registers its device in the initial network namespace, which inside a
+container is nobody's to see. The link is attached again after every
+guest reboot, and `sl0` never matches S40's `eth0 usb0` probe, so the
+wired-gateway decision is the one a real camera makes.
 
 ## Architecture
 
@@ -69,13 +86,14 @@ run.sh            exec harness.py --profile <name>
     profile       qemu-test.json -> soc, capabilities, backend;
                   newest image under output/ and the QEMU beside it
     driver        resolves the run, sudo and netns re-exec, boot, report
-    serial, qmp,  console with a guest state machine    ──► ttyS0
+    serial, qmp,  console with a guest state machine    ──► ttyS1
     guest         QMP (link up/down, reset, regs)       ──► monitor
                   SSH channel (ephemeral ed25519)       ──► dropbear
     probes        until(): every wait is a condition
     netlab        netns qt-<pid>: qtap0 + dnsmasq       ──► eth0
                   DHCPv4/RA/SLAAC/DHCPv6/DNS, SNTP and
-                  syslog sinks, WS-Discovery, mDNS
+                  syslog sinks, WS-Discovery, mDNS;
+                  or the SLIP<->TUN relay (sl0)         ──► ttyS0
     onvif_client  SOAP + WS-UsernameToken               ──► onvif_simple_server
     playwright    manifest-driven chromium scenarios    ──► uhttpd
     suites/       common, wifi, net, onvif, webui
@@ -119,7 +137,8 @@ Row fields:
 | `optional` | `False` means it always runs and `--only` never filters it out |
 
 Capabilities come from `Ctx.has()`. What the profile is: `wired`,
-`nowired`, `wifi`. What the run has: `lab`, `nolab`, `qmp`, `v4`, `host`,
+`nowired`, `wifi`. What the run has: `lab`, `nolab`, `slip`, `slirp`,
+`qmp`, `v4`, `host`,
 `pw`, `pw_ok`, `reboot`.
 
 Table position is execution order. The table is the union of every
@@ -162,7 +181,11 @@ wants it. There are no environment flags to keep in step.
 
 A SoC is one line in `SOC_MACHINES` in `qemutest/config.py` (machine name,
 RAM in MB). A profile needs no harness change at all: a directory under
-`configs/cameras-testing/` with its defconfig and a `qemu-test.json`.
+`configs/cameras-testing/` with its defconfig and a `qemu-test.json`. A
+wifi profile reaches the host over the serial link: its defconfig selects
+`BR2_PACKAGE_THINGINO_KOPT_UART`, `BR2_PACKAGE_THINGINO_KOPT_UART_UART0`
+and `BR2_PACKAGE_THINGINO_KOPT_SLIP` and no wired MAC kopt, and its
+`qemu-test.json` says `"net": "slip"`.
 
 ## The expected check list
 
@@ -225,14 +248,16 @@ These all cost real debugging time; check them before going deeper.
 - **Test images boot with `debug=1`** (`configs/cameras-testing/<profile>/uenv.txt`),
   so the console getty drops straight to a root shell with no login
   prompt. `login()` handles both.
-- **A wifi-only profile has an eth0 that real WiFi-only cameras lack.** An instant
-  slirp lease makes the wired-gateway logic kill WiFi, so the STA test
-  drops the link over QMP first.
+- **Only the slirp profiles (a1n) carry an eth0 that real WiFi-only cameras
+  lack.** The slip profiles have no wired MAC at all and boot exactly like
+  hardware; on slirp an instant lease makes the wired-gateway logic kill
+  WiFi, so the STA test drops the link over QMP first.
 - **Slirp host forwards target `10.0.2.15`.** The guest re-randomises its
   MAC each boot, so after a reboot re-add the address statically and ping
   the gateway once to refresh the stale ARP entry.
 - **Build load causes timing flakes.** Do not compile while a suite runs.
-- **A killed tap run leaves qemu and dnsmasq alive in its namespace.**
+- **A killed tap or slip run leaves qemu (and dnsmasq, for tap) alive in
+  its namespace.**
   They cannot block the next run, and the next run reaps them, but if
   you are hunting stray CPU, `ip netns list` shows them as `qt-<pid>`;
   never `pkill -x qemu-system-mipsel`, the name is truncated to 15

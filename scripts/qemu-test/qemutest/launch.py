@@ -20,20 +20,23 @@ def find_qemu():
     sys.exit("Cannot find qemu-system-mipsel (set QEMU_BIN or use run.sh)")
 
 
-def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
+def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
+               forwards=True):
     # /tmp keeps the path under the 108-char unix socket limit
     qmp_path = f"/tmp/qemu-test-{os.getpid()}.qmp"
     args = [
         qemu, "-M", machine, "-m", f"{ram_mb}M",
         "-display", "none",
-        "-serial", "null", "-serial", "pty",
+        # The console is the board's second UART; with slip the first one
+        # gets a pty too, for the IP link.
+        "-serial", "pty" if net == "slip" else "null", "-serial", "pty",
         "-qmp", f"unix:{qmp_path},server,nowait",
         "-drive", f"file={image},format=raw,if=none,id=flash0",
     ]
     if net == "tap":
         args += ["-netdev",
                  f"tap,id=n0,ifname={tap_if},script=no,downscript=no"]
-    else:
+    elif forwards and net == "slirp":
         args += [
             "-netdev", f"user,id=n0,"
             f"hostfwd=tcp::{PORTAL_PORT}-172.16.0.1:80,"
@@ -41,6 +44,9 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
             f"hostfwd=tcp::{WEBUI_PORT + 2}-:443,"
             f"hostfwd=tcp::{SSH_FWD_PORT}-:22",
         ]
+    else:
+        # No host-side tests: no forwards, so runs can share a host.
+        args += ["-netdev", "user,id=n0"]
 
     stdout_path = f"/tmp/qemu-test-{os.getpid()}.stdout"
     stdout_fh = open(stdout_path, "w+")
@@ -52,26 +58,31 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0"):
         stderr=stderr_fh,
     )
 
-    m = None
+    # QEMU announces each pty in -serial order, labelled serialN when it
+    # says so; fall back to that order otherwise.
+    want = ["serial0", "serial1"] if net == "slip" else ["serial1"]
+    ptys = {}
     for _ in range(10):
         time.sleep(1)
         stdout_fh.flush()
         stdout_fh.seek(0)
         out = stdout_fh.read()
-        m = re.search(r"redirected to (/dev/pts/\d+)", out)
-        if m:
+        found = re.findall(r"redirected to (/dev/pts/\d+)(?: \(label (serial\d)\))?", out)
+        ptys = {(label or want[i] if i < len(want) else f"serial{i}"): path
+                for i, (path, label) in enumerate(found)}
+        if all(k in ptys for k in want):
             break
         if proc.poll() is not None:
             stderr_fh.flush()
             err = open(os.path.join(report_dir, "qemu-stderr.log")).read()
             sys.exit(f"QEMU failed to start: {out[:300]} {err[:300]}")
     stdout_fh.close()
-    if not m:
+    if not all(k in ptys for k in want):
         proc.terminate()
-        sys.exit("Could not find pty in QEMU output (searched 10s)")
+        sys.exit(f"Could not find {want} pty in QEMU output (searched 10s)")
     os.unlink(stdout_path)
 
-    return proc, m.group(1), qmp_path
+    return proc, ptys["serial1"], qmp_path, ptys.get("serial0")
 
 
 def warm_reset_timer_wedge(report_dir):

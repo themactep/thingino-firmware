@@ -21,6 +21,7 @@ class Ctx:
         self.mode = args.mode
         self.caps = set(args.caps)          # what the profile declares it is
         self.lab = None
+        self.slip = None
         self.qmp = None
         self.guest_v4 = None
         self.guest_v6 = None
@@ -33,6 +34,8 @@ class Ctx:
             "wifi": "wifi" in self.caps,
             "lab": self.lab is not None,
             "nolab": self.lab is None,
+            "slip": self.slip is not None,
+            "slirp": self.args.net == "slirp",
             "qmp": self.qmp is not None,
             "v4": self.guest_v4 is not None,
             "host": self.args.host_tests,

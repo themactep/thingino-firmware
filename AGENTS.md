@@ -66,8 +66,10 @@ should be done on a real disk. See `docs/build/makefile.md`.
     Build with `make GROUP=testing CAMERA=qemu_t31x_eth fast`, run with
     `scripts/qemu-test/run.sh qemu_t31x_eth`. A profile is a directory
     under `configs/cameras-testing/` with a `qemu-test.json` and its
-    `expected-checks.txt` contract; add a check by adding one row to the
-    `SUITES` table in `scripts/qemu-test/qemutest/plan.py`.
+    `expected-checks.txt` contract; wifi profiles carry no wired MAC and
+    reach the host over a serial link (the UART0 and SLIP kopts), so never
+    add JZ_MAC to one; add a check by adding one row to the `SUITES`
+    table in `scripts/qemu-test/qemutest/plan.py`.
   - `scripts/ota-tests/` covers the sysupgrade partition-fitting logic.
 
 ## Repo layout

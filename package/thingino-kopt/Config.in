@@ -308,6 +308,15 @@ config BR2_PACKAGE_THINGINO_KOPT_UART_UART2
 	help
 	  Enables UART2 on the SoC
 
+config BR2_PACKAGE_THINGINO_KOPT_SLIP
+	bool "SLIP over a serial port"
+	depends on BR2_PACKAGE_THINGINO_KOPT_UART
+	help
+	  IP over a UART (kernel SLIP line discipline plus busybox slattach).
+	  Lets a host reach the camera over a serial line with no wired MAC,
+	  which is how the QEMU test profiles get host access while booting
+	  exactly like a WiFi-only camera.
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	bool "USB Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT

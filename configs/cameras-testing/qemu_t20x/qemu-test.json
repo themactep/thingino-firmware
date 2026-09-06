@@ -3,5 +3,5 @@
   "caps": [
     "wifi"
   ],
-  "net": "slirp"
+  "net": "slip"
 }

@@ -4,6 +4,7 @@
 DAEMON="/usr/sbin/httpd"
 PIDFILE="/var/run/httpd.pid"
 PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_PENDING_FLAG="/run/portal_pending"
 
 start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
@@ -12,12 +13,18 @@ start_daemon() {
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
 		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
-		status=$?
 		rm -f "$PIDFILE"
-		return $status
+	else
+		start-stop-daemon -K -x "$DAEMON"
 	fi
 
-	start-stop-daemon -K -x "$DAEMON"
+	i=0
+	while pgrep -x "$(basename "$DAEMON")" >/dev/null 2>&1; do
+		i=$((i + 1))
+		[ "$i" -eq 5 ] && start-stop-daemon -K -s KILL -x "$DAEMON" 2>/dev/null
+		[ "$i" -ge 8 ] && break
+		sleep 1
+	done
 }
 
 if [ -f "$PORTAL_MODE_FLAG" ]; then
@@ -27,6 +34,11 @@ else
 fi
 
 start() {
+	if [ -f "$PORTAL_PENDING_FLAG" ] && [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Portal decision pending, deferring HTTPD"
+		return 0
+	fi
+
 	echo -c 15 "Starting HTTPD"
 
 	# shellcheck disable=SC2086
