@@ -127,142 +127,30 @@ select_camera() {
         exit 1
     fi
 
-    # Check if CAMERA is already provided
+    # Short-circuit when CAMERA is already provided
     if [ -n "$CAMERA" ]; then
         if [ -d "$cameras_dir/$CAMERA" ]; then
             echo "$CAMERA"
             return 0
-        else
-            print_error "Provided CAMERA='$CAMERA' not found in $cameras_dir" >&2
-            exit 1
         fi
-    fi
-
-    # If IP is provided but CAMERA is not, try auto-detection from the device
-    if [ -z "$CAMERA" ] && [ -n "$IP" ]; then
-        print_info "Probing device at $IP for camera identity..." >&2
-        detected=$(scripts/detect_camera_from_ip.sh "$IP" 2>/dev/null) || true
-        if [ -n "$detected" ] && [ -d "$cameras_dir/$detected" ]; then
-            echo "" >&2
-            echo "Detected from device at $IP: $detected" >&2
-            read -p "Use this camera? [Y/n]: " use_detected >&2
-            if [ -z "$use_detected" ] || [ "$use_detected" = "y" ] || [ "$use_detected" = "Y" ]; then
-                echo "$detected" > "$memo_file"
-                echo "$detected"
-                return 0
-            fi
-        else
-            print_info "Could not identify device at $IP (not a Thingino device, or unreachable)" >&2
-        fi
-    fi
-
-    # Get list of cameras
-    local cameras=($(ls "$cameras_dir" | sort))
-
-    if [ ${#cameras[@]} -eq 0 ]; then
-        print_error "No camera configs found in $cameras_dir"
+        print_error "Provided CAMERA='$CAMERA' not found in $cameras_dir" >&2
         exit 1
     fi
 
-    local selected_camera=""
-
-    # Check if there's a previous selection
-    if [ -f "$memo_file" ]; then
-        local prev_camera=$(cat "$memo_file")
-        if [ -n "$prev_camera" ] && [ -d "$cameras_dir/$prev_camera" ]; then
-            echo "" >&2
-            echo "Previously selected: $prev_camera" >&2
-            read -p "Use this camera? [Y/n]: " use_prev >&2
-            if [ -z "$use_prev" ] || [ "$use_prev" = "y" ] || [ "$use_prev" = "Y" ]; then
-                selected_camera="$prev_camera"
-                echo "$selected_camera"
-                return 0
-            fi
+    # Auto-detect a candidate from the device and offer it as the first suggestion
+    local suggested_camera=""
+    if [ -n "$IP" ]; then
+        print_info "Probing device at $IP for camera identity..." >&2
+        suggested_camera=$(scripts/detect_camera_from_ip.sh "$IP" 2>/dev/null) || true
+        if [ -z "$suggested_camera" ] || [ ! -d "$cameras_dir/$suggested_camera" ]; then
+            print_info "Could not identify device at $IP (not a Thingino device, or unreachable)" >&2
+            suggested_camera=""
         fi
     fi
 
-    # Try fzf first (best UX) - can be disabled with USE_FZF=0
-    if [ "${USE_FZF:-1}" = "1" ] && command -v fzf >/dev/null 2>&1; then
-        print_info "Select camera (type to filter in order, e.g., 't20' shows t20* cameras):" >&2
-        selected_camera=$(printf '%s\n' "${cameras[@]}" | fzf \
-            --height=~100% \
-            --layout=reverse \
-            --exact \
-            --prompt="Camera: " \
-            --header="Select camera configuration (${#cameras[@]} available) - type to filter" \
-            --preview-window=hidden | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-
-        # Reset and clear terminal after fzf
-        tput sgr0 2>/dev/null || true
-        clear
-        echo "" >&2
-
-    # Try whiptail (used by main Makefile)
-    elif command -v whiptail >/dev/null 2>&1; then
-        # Build menu items for whiptail
-        local menu_items=()
-        for camera in "${cameras[@]}"; do
-            menu_items+=("$camera" "")
-        done
-
-        selected_camera=$(whiptail --title "Camera Selection" \
-            --menu "Select a camera config (${#cameras[@]} available):" \
-            20 76 12 \
-            "${menu_items[@]}" \
-            3>&1 1>&2 2>&3)
-
-    # Try dialog as fallback
-    elif command -v dialog >/dev/null 2>&1; then
-        # Build menu items for dialog
-        local menu_items=()
-        for camera in "${cameras[@]}"; do
-            menu_items+=("$camera" "")
-        done
-
-        selected_camera=$(dialog --stdout --title "Camera Selection" \
-            --menu "Select a camera config (${#cameras[@]} available):" \
-            20 76 12 \
-            "${menu_items[@]}")
-
-    # Fallback to numbered list
-    else
-        echo "" >&2
-        echo "Available cameras (${#cameras[@]} total):" >&2
-        echo "==========================================" >&2
-
-        local i=1
-        for camera in "${cameras[@]}"; do
-            printf "%3d) %s\n" $i "$camera" >&2
-            ((i++))
-        done
-
-        echo "" >&2
-        read -p "Select camera number (1-${#cameras[@]}), or press Enter to cancel: " selection >&2
-
-        if [ -z "$selection" ]; then
-            print_info "Cancelled"
-            exit 0
-        fi
-
-        if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#cameras[@]} ]; then
-            print_error "Invalid selection: $selection"
-            exit 1
-        fi
-
-        selected_camera="${cameras[$((selection-1))]}"
-    fi
-
-    if [ -z "$selected_camera" ]; then
-        exit 0
-    fi
-
-    # Strip any ANSI color codes that might have been captured
-    selected_camera=$(echo "$selected_camera" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-
-    # Save selection for next time
-    echo "$selected_camera" > "$memo_file"
-
-    echo "$selected_camera"
+    local result
+    result=$(scripts/select_camera.sh "$cameras_dir" "$memo_file" 0 "$suggested_camera") || true
+    echo "$result"
 }
 
 # Parse command
