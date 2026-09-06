@@ -33,8 +33,8 @@ The physical PIR sensor will trigger the floodlight independent of the software
 unless disconnected.
 
 The floodlight will still be triggered by the built-in PIR sensor and sensitivity
-can not be controlled.  Advanced users interested in relying just on Thingino's motion 
-detection can physically disconnect the PIR sensor.
+can not be controlled.  Advanced users interested in relying just on Thingino's 
+motion detection can physically disconnect the PIR sensor.
 
 The `floodlight_ctl` command
 ----------------------------
