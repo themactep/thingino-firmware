@@ -41,11 +41,11 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
-	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/var/www/a/config-floodlight.js \
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/config-floodlight.js \
 		$(TARGET_DIR)/var/www/a/config-floodlight.js
-	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/var/www/x/json-config-floodlight.cgi \
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/www/x/json-config-floodlight.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-floodlight.cgi
-	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/var/www/config-floodlight.html \
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/config-floodlight.html \
 		$(TARGET_DIR)/var/www/config-floodlight.html
 	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/floodlight.webui.json
