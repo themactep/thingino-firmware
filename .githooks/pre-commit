@@ -2,13 +2,20 @@
 
 set -e
 
-do_not_edit_files=$(git diff --cached --name-only --diff-filter=ACMR)
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
-if [ -n "$do_not_edit_files" ]; then
-	printf '%s\n' "$do_not_edit_files" | ./scripts/check-do-not-edit.sh
+if [ -n "$staged_files" ]; then
+	printf '%s\n' "$staged_files" | ./scripts/check-do-not-edit.sh
 fi
 
-js_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
+js_staged_files=$(
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		case "$file" in
+			package/thingino-webui/files/www/a/*.js) printf '%s\n' "$file" ;;
+		esac
+	done
+)
 
 if [ -n "$js_staged_files" ]; then
 	echo "pre-commit: formatting staged web UI JavaScript files with Prettier"
@@ -22,7 +29,16 @@ $js_staged_files
 EOF
 fi
 
-defconfig_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'configs/cameras/*defconfig*' 'configs/cameras-exp/*defconfig*')
+defconfig_staged_files=$(
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		case "$file" in
+			configs/cameras/*defconfig* | configs/cameras-exp/*defconfig*)
+				printf '%s\n' "$file"
+				;;
+		esac
+	done
+)
 
 if [ -n "$defconfig_staged_files" ]; then
 	echo "pre-commit: sorting staged camera defconfig files"
@@ -37,7 +53,8 @@ EOF
 fi
 
 shell_staged_files=$(
-	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
 		[ -f "$file" ] || continue
 
 		# Never format generated/vendored patch files
@@ -72,7 +89,8 @@ fi
 # --- shellcheck -----------------------------------------------------
 
 shellcheck_staged_files=$(
-	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
 		[ -f "$file" ] || continue
 
 		if git show ":$file" 2>/dev/null | head -1 | grep -qE '^#!.*/(ba)?sh'; then
@@ -102,7 +120,14 @@ if [ -n "$shellcheck_staged_files" ]; then
 fi
 
 # Validate staged webui plugin manifests
-plugin_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/*/files/*.webui.json')
+plugin_staged_files=$(
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		case "$file" in
+			package/*/files/*.webui.json) printf '%s\n' "$file" ;;
+		esac
+	done
+)
 if [ -n "$plugin_staged_files" ]; then
 	echo "pre-commit: validating staged webui plugin manifests"
 	./scripts/check-plugins.sh || {
