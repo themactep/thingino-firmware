@@ -135,7 +135,7 @@ if [ -z "$HA_ENV_READY" ]; then
 	[ -n "$HA_MQTT_USER" ] && _ha_args="$_ha_args -u $(_sq "$HA_MQTT_USER")"
 	[ -n "$HA_MQTT_PASS" ] && _ha_args="$_ha_args -P $(_sq "$HA_MQTT_PASS")"
 	if [ "$HA_MQTT_SSL" = "true" ]; then
-		_ha_args="$_ha_args --capath /etc/ssl/certs"
+		_ha_args="$_ha_args --tls-use-os-certs"
 		[ "$HA_MQTT_TLS_SKIP_VERIFY" = "true" ] && _ha_args="$_ha_args --insecure"
 	fi
 	HA_MQTT_BASE_ARGS="$_ha_args"

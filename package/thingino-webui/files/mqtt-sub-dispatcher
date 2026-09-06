@@ -126,7 +126,7 @@ CMD="mosquitto_sub -h $host -p $port -v -F \"%t %p\""
 [ -n "$username" ] && CMD="$CMD -u $username"
 [ -n "$password" ] && CMD="$CMD -P $password"
 if [ "$use_ssl" = "true" ]; then
-	CMD="$CMD --capath /etc/ssl/certs"
+	CMD="$CMD --tls-use-os-certs"
 	[ "$tls_skip_verify" = "true" ] && CMD="$CMD --insecure"
 fi
 CMD="$CMD $TOPICS"

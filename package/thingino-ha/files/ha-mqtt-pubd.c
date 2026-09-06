@@ -180,8 +180,7 @@ int main(int argc, char **argv)
 
 	if (getenv("HA_MQTT_SSL") &&
 	    strcmp(getenv("HA_MQTT_SSL"), "true") == 0) {
-		mosquitto_tls_set(mosq, NULL, "/etc/ssl/certs", NULL, NULL,
-				  NULL);
+		mosquitto_string_option(mosq, MOSQ_OPT_TLS_USE_OS_CERTS, "1");
 		if (getenv("HA_MQTT_TLS_SKIP_VERIFY") &&
 		    strcmp(getenv("HA_MQTT_TLS_SKIP_VERIFY"), "true") == 0)
 			mosquitto_tls_insecure_set(mosq, true);

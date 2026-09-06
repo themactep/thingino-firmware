@@ -118,7 +118,7 @@ command="mosquitto_pub -h $host -p $port -i $client_id"
 [ -n "$username" ] && command="$command -u $username"
 [ -n "$password" ] && command="$command -P $password"
 if [ "true" = "$(get_value use_ssl)" ]; then
-	command="$command --capath /etc/ssl/certs"
+	command="$command --tls-use-os-certs"
 	[ "true" = "$tls_skip_verify" ] && command="$command --insecure"
 fi
 

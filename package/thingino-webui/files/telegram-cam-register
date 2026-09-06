@@ -77,7 +77,7 @@ clear_registration() {
 	[ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 	[ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
 	if [ "$mqtt_use_ssl" = "true" ]; then
-		set -- "$@" --capath /etc/ssl/certs
+		set -- "$@" --tls-use-os-certs
 		[ "$mqtt_tls_skip_verify" = "true" ] && set -- "$@" --insecure
 	fi
 	exec mosquitto_pub "$@"
@@ -131,7 +131,7 @@ set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -m "$payload" -r
 [ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 [ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
 if [ "$mqtt_use_ssl" = "true" ]; then
-	set -- "$@" --capath /etc/ssl/certs
+	set -- "$@" --tls-use-os-certs
 	[ "$mqtt_tls_skip_verify" = "true" ] && set -- "$@" --insecure
 fi
 
