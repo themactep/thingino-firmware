@@ -32,11 +32,9 @@ PIR sensor. It only controls the lamp through the camera’s floodlight controll
 The physical PIR sensor will trigger the floodlight independent of the software
 unless disconnected.
 
-For advanced users that want to disable the PIR sensor itself, physically 
-disconnect it: switch off power at the circuit breaker, remove the PIR frame, 
-remove the four screw plugs and four screws, then unplug the PIR sensor cable. 
-If you are not comfortable working on a mains-powered fixture, use a qualified 
-electrician.
+The floodlight will still be triggered by the built-in PIR sensor and sensitivity
+can not be controlled.  Advanced users interested in relying just on Thingino's motion 
+detection can physically disconnect the PIR sensor.
 
 The `floodlight_ctl` command
 ----------------------------
