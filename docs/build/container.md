@@ -146,6 +146,8 @@ docker run --rm --user $(id -u):$(id -g) \
     CONTAINER_ENGINE    auto-detected   Force specific engine: podman or docker
     DL_DIR              dl              Buildroot download cache directory
     CONTAINER_TAG          latest          Image tag (use 'local' for air-gapped)
+    CONTAINER_SKIP_UPDATE_CHECK  unset     Set to 1 to skip the image update check (offline/CI)
+    CONTAINER_IMAGE_CHECK_TTL    600       Seconds between remote image update checks
 
 ## Volume Mounts
 
