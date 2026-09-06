@@ -36,6 +36,7 @@ endef
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight_ctl \
 		$(TARGET_DIR)/usr/sbin/floodlight_ctl
+
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight-motion.conf \
 		$(TARGET_DIR)/etc/floodlight-motion.conf
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a

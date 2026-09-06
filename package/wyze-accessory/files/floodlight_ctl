@@ -8,12 +8,20 @@
 #
 # Protocol and original script by gponick:
 # https://github.com/gtxaspec/wz_mini_hacks/discussions/771#discussioncomment-11737172
+
 # Usage:
 #   floodlight_ctl on <1-100>  Turn on at a brightness percentage.
 #   floodlight_ctl off         Turn off.
 #   floodlight_ctl motion      Process a night-time motion event.
 VERBOSE=0
 
+usage() {
+	echo "usage: $0 [-v] on <1-100> | off" >&2
+}
+
+log() {
+	[ "$VERBOSE" -eq 1 ] && echo "$1"
+}
 MOTION_CONFIG=/etc/floodlight-motion.conf
 NIGHTMODE=/run/thingino/daynight_mode
 MOTION_LOCK=/var/run/floodlight-motion.lock

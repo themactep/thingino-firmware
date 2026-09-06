@@ -27,8 +27,8 @@ Within a few seconds HA will show a new device containing all enabled entities.
 
 ## Configuration keys (`ha.*` in `/etc/thingino.json`)
 
-|Key | Default | Description |
-|-----|-----|-------------|
+| Key | Default | Description |
+|-----|---------|-------------|
 | `enabled` | `false` | Start the HA daemon on boot |
 | `discovery_prefix` | `"homeassistant"` | MQTT discovery prefix (match HA setting) |
 | `state_interval` | `15` | Seconds between state polls |
@@ -56,7 +56,7 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `enable_snapshot` | `true` | Button: take snapshot |
 | `enable_reboot` | `false` | Button: reboot camera |
 | `enable_ota` | `true` | Update: OTA firmware update |
-| `enable_ptz` | `false` | Buttons: PTZ up/down/left/right/home |                                                                                                 |
+`enable_ptz` | `false` | Buttons: PTZ up/down/left/right/home |
 
 The firmware update entity (`enable_ota`) uses a cached GitHub release lookup:
 `firmware/state` is still published every `state_interval`, but
@@ -116,7 +116,7 @@ swaps.
 | Firmware latest | `cameras/<id>/firmware/latest` | — |
 | Firmware install | — | `cameras/<id>/firmware/set` (payload: `install`) |
 | PTZ | — | `cameras/<id>/ptz/{up,down,left,right,home}/set` |
-| Availability | `cameras/<id>/status` | — (`online` / `offline`) |                     |
+Availability | `cameras/<id>/status` | — (`online` / `offline`) |
 
 ## Accepted command payloads
 
