@@ -2,7 +2,7 @@
 # shellcheck disable=SC2068,SC2086,SC2154,SC3043
 
 DAEMON="/usr/bin/motors-daemon"
-DAEMON_ARGS="-d -p"
+DAEMON_ARGS="-p"
 PIDFILE="/run/motors-daemon.pid"
 
 ensure_command() {
@@ -179,6 +179,16 @@ stop() {
 	fi
 }
 
+reload() {
+	echo -c 15 "Reloading motors config"
+
+	# Re-reads userspace settings without cycling the kernel module, which has oopsed live kernels on restart.
+	if ! motors -R; then
+		echo "Reload failed; is motors-daemon running?" >&2
+		exit 1
+	fi
+}
+
 case "$1" in
 	start)
 		start
@@ -191,8 +201,11 @@ case "$1" in
 		sleep 1
 		start
 		;;
+	reload)
+		reload
+		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac

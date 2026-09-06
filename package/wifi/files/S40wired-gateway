@@ -3,6 +3,14 @@
 
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 
+start_web_server() {
+	for init in /etc/init.d/S60uhttpd /etc/init.d/S90httpd; do
+		[ -x "$init" ] || continue
+		"$init" restart
+		return
+	done
+}
+
 unload_wlan_module() {
 	[ -n "$WLAN_MODULE_NAME" ] || return 0
 
@@ -44,6 +52,7 @@ watch_wired_uplink() {
 					/etc/init.d/S38wpa_supplicant stop
 					/etc/init.d/S36wireless stop
 					unload_wlan_module
+					start_web_server
 					exit 0
 				fi
 			done

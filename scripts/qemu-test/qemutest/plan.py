@@ -1,13 +1,13 @@
 """The ordered suite table that drives a run."""
 
-from .config import PORTAL_PORT, SSH_FWD_PORT
+from .config import SLIP_GUEST_IP, SSH_FWD_PORT
 from .playwright import run_playwright
 from .probes import tcp_open, until
 from .suites.common import setup_ssh, test_boot, test_health, test_services
 from .suites.net import test_dns_and_pref, test_dual_stack_listeners, test_ethernet, test_ethwifi_behavior, test_ipv4_dhcp, test_ipv6, test_link_flap, test_mdns, test_ntp, test_persist_reboot, test_syslog_remote
 from .suites.onvif import test_onvif
 from .suites.webui import test_host_http, test_host_webui_access, test_webui
-from .suites.wifi import test_host_portal_access, test_provision_reboot_sta, test_wifi_bridge_setup, test_wifi_modules, test_wifi_portal
+from .suites.wifi import portal_url, test_host_portal_access, test_provision_reboot_sta, test_slip_setup, test_wifi_bridge_setup, test_wifi_modules, test_wifi_portal
 
 
 #
@@ -24,8 +24,9 @@ def suite_ssh_lab(ctx):
 
 
 def suite_ssh_forward(ctx):
-    until(lambda: tcp_open("127.0.0.1", SSH_FWD_PORT), 15, 1)
-    setup_ssh(ctx, "127.0.0.1", SSH_FWD_PORT)
+    addr, port = (SLIP_GUEST_IP, 22) if ctx.slip else ("127.0.0.1", SSH_FWD_PORT)
+    until(lambda: tcp_open(addr, port), 15, 1)
+    setup_ssh(ctx, addr, port)
 
 
 def suite_dns(ctx):
@@ -41,7 +42,7 @@ def suite_net_services(ctx):
 
 def suite_playwright_wifi(ctx):
     ctx.playwright_ok = run_playwright(ctx.res, ctx.report_dir, {
-        "portal": {"url": f"http://localhost:{PORTAL_PORT}"},
+        "portal": {"url": portal_url(ctx)},
         "provision": True,
     })
 
@@ -113,8 +114,10 @@ SUITES = [
     Suite("services", suite_net_services, WIRED + ("lab", "v4"),
           header="mDNS / NTP / syslog"),
 
-    Suite("bridge", test_wifi_bridge_setup, WIFI_ONLY + ("host",),
+    Suite("bridge", test_wifi_bridge_setup, WIFI_ONLY + ("host", "slirp"),
           header="Bridge setup", optional=False),
+    Suite("slip", test_slip_setup, WIFI_ONLY + ("host", "slip"),
+          header="Serial link", optional=False),
     Suite("ssh", suite_ssh_forward, WIFI_ONLY + ("host",), optional=False),
     Suite("portal", test_host_portal_access, WIFI_ONLY + ("host",),
           header="Host access", optional=False),

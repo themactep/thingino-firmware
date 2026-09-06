@@ -39,6 +39,12 @@ WEBUI_PORT  = 19080
 
 SSH_FWD_PORT = 19022
 
+# IP over the guest's UART0 (SLIP), for profiles with no wired MAC at all:
+# the guest boots exactly like a WiFi-only camera and the host still gets in.
+SLIP_HOST_IP = "10.99.0.1"
+SLIP_GUEST_IP = "10.99.0.2"
+PORTAL_NET = "172.16.0.0/24"
+
 
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no",
             "-o", "UserKnownHostsFile=/dev/null",

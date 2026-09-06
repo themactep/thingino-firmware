@@ -31,7 +31,7 @@ class Profile:
         """The flags a plain run gets, per backend (what run.sh used to add):
         slirp runs bridge the guest and test from the host, tap runs have
         the lab for that."""
-        return {"host_tests": self.net == "slirp",
+        return {"host_tests": self.net in ("slirp", "slip"),
                 "playwright": True, "reboot_test": True}
 
 

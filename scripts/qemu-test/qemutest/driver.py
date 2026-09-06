@@ -70,8 +70,9 @@ def main():
     p.add_argument("--soc", default=None, help="SoC variant (t31x, t10n, ...)")
     p.add_argument("--mode", default=None, choices=["wifi", "eth", "ethwifi"],
                    help="Device modality, when not running a profile")
-    p.add_argument("--net", default=None, choices=["slirp", "tap"],
-                   help="Network backend (tap enables the full network lab)")
+    p.add_argument("--net", default=None, choices=["slirp", "tap", "slip"],
+                   help="Network backend: tap runs the full lab, slip is IP over "
+                        "the guest's UART0 (no wired MAC needed)")
     p.add_argument("--qemu", default=None, help="Path to qemu-system-mipsel")
     p.add_argument("--timeout", type=int, default=240,
                    help="Boot timeout in seconds")
@@ -110,7 +111,7 @@ def main():
             args.image = newest_image(args.profile)
             if not args.image:
                 sys.exit(f"No built image found for {args.profile} "
-                         f"(looked in output/**/{args.profile}-*/images/)\n"
+                         f"(looked in output/*/{args.profile}-*/images/)\n"
                          f"Build it with: make GROUP=testing "
                          f"CAMERA={args.profile}")
         if not args.qemu and not os.environ.get("QEMU_BIN"):
@@ -131,7 +132,7 @@ def main():
 
     if args.soc not in SOC_MACHINES:
         sys.exit(f"Unknown SoC: {args.soc}")
-    if args.net == "tap" and os.geteuid() != 0:
+    if args.net in ("tap", "slip") and os.geteuid() != 0:
         # The lab needs root. Runner sudo policies ignore -E, so carry the
         # inputs as explicit assignments; npx must stay findable across
         # sudo's secure_path.
@@ -146,7 +147,7 @@ def main():
         resolved = ["--image", args.image] + (["--qemu", args.qemu] if args.qemu else [])
         os.execvp("sudo", ["sudo", "-E", *(f"{k}={v}" for k, v in carry.items()),
                            sys.executable, *sys.argv, *resolved])
-    if args.net == "tap":
+    if args.net in ("tap", "slip"):
         enter_netns()          # re-execs once; returns only when inside
 
     machine, ram = SOC_MACHINES[args.soc]
@@ -198,15 +199,17 @@ def main():
     print()
 
     lab = None
+    slip = None
     if args.net == "tap":
         from .netlab import NetLab
         lab = NetLab(report_dir)
         lab.up()
 
     t_start = time.time()
-    proc, pty, qmp_path = start_qemu(qemu, tmp_image, machine, ram,
+    proc, pty, qmp_path, slip_pty = start_qemu(qemu, tmp_image, machine, ram,
                                      args.net, report_dir,
-                                     tap_if=lab.tap if lab else "qtap0")
+                                     tap_if=lab.tap if lab else "qtap0",
+                                     forwards=args.host_tests)
     ser = QemuSerial(proc, pty,
                      log_path=os.path.join(report_dir, "serial.log"))
     guest = Guest(ser)
@@ -229,6 +232,8 @@ def main():
             os.unlink(tmp_image)
         except Exception:
             pass
+        if slip:
+            slip.down()
         if lab:
             lab.down()
         if sig:
@@ -236,6 +241,12 @@ def main():
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
+
+    if args.net == "slip":
+        from .netlab import SlipLab
+        slip = SlipLab(report_dir)
+        slip.up(slip_pty)
+        ctx.slip = slip
 
     try:
         print("── Boot ──")

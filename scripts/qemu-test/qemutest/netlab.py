@@ -11,13 +11,19 @@ enter_netns), so the host's :53/:123/:514 and any system resolver are
 never touched, and several runs can share one host.
 """
 
+import fcntl
 import os
+import select
 import socket
+import termios
+import tty
 import struct
 import subprocess
 import sys
 import threading
 import time
+
+from .config import PORTAL_NET, SLIP_GUEST_IP, SLIP_HOST_IP
 
 V4_HOST = "192.168.100.1"
 V4_PLEN = 24
@@ -201,6 +207,131 @@ class FamilyEchoHttp(threading.Thread):
             self.sock.close()
         except OSError:
             pass
+
+
+# SLIP framing, RFC 1055.
+SLIP_END, SLIP_ESC, SLIP_ESC_END, SLIP_ESC_ESC = 0xC0, 0xDB, 0xDC, 0xDD
+
+
+def slip_encode(pkt):
+    out = bytearray([SLIP_END])
+    for b in pkt:
+        if b == SLIP_END:
+            out += bytes((SLIP_ESC, SLIP_ESC_END))
+        elif b == SLIP_ESC:
+            out += bytes((SLIP_ESC, SLIP_ESC_ESC))
+        else:
+            out.append(b)
+    out.append(SLIP_END)
+    return bytes(out)
+
+
+class SlipDecoder:
+    """Feed it serial bytes, get back whole packets."""
+
+    def __init__(self):
+        self.buf = bytearray()
+        self.esc = False
+
+    def feed(self, data):
+        pkts = []
+        for b in data:
+            if self.esc:
+                self.buf.append(SLIP_END if b == SLIP_ESC_END
+                                else SLIP_ESC if b == SLIP_ESC_ESC else b)
+                self.esc = False
+            elif b == SLIP_ESC:
+                self.esc = True
+            elif b == SLIP_END:
+                if self.buf:
+                    pkts.append(bytes(self.buf))
+                    self.buf.clear()
+            else:
+                self.buf.append(b)
+        return pkts
+
+
+class SlipLab(threading.Thread):
+    """Host end of an IP link over the guest's UART0.
+
+    The guest runs the kernel SLIP line discipline on ttyS0 (busybox
+    slattach). On the host the frames are relayed in userspace between the
+    UART's pty and a TUN device. The kernel's own SLIP discipline would
+    register its device in init_net, which inside a container is not this
+    run's namespace at all; a TUN device is created in the caller's
+    namespace, so this works wherever the run does and needs nothing from
+    the host kernel beyond /dev/net/tun."""
+    IFF_TUN, IFF_NO_PI, TUNSETIFF = 0x0001, 0x1000, 0x400454CA
+
+    def __init__(self, report_dir, dev="sl0"):
+        super().__init__(daemon=True)
+        self.dev = dev
+        self.pty = None
+        self.pty_fd = self.tun_fd = None
+        self._stop = False
+        self.rx = self.tx = 0
+
+    def up(self, pty):
+        self.pty = pty
+        self.pty_fd = os.open(pty, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        tty.setraw(self.pty_fd, termios.TCSANOW)
+        self.tun_fd = os.open("/dev/net/tun", os.O_RDWR)
+        fcntl.ioctl(self.tun_fd, self.TUNSETIFF,
+                    struct.pack("16sH22s", self.dev.encode(),
+                                self.IFF_TUN | self.IFF_NO_PI, b""))
+        run(f"ip addr add {SLIP_HOST_IP} peer {SLIP_GUEST_IP} dev {self.dev}")
+        run(f"ip link set {self.dev} up mtu 1500")
+        run(f"ip route add {PORTAL_NET} dev {self.dev}", check=False)
+        self.start()
+        print(f"  (slip: host end {SLIP_HOST_IP} on {pty} as {self.dev}, "
+              f"portal via {self.dev})")
+
+    def _write_all(self, data):
+        while data and not self._stop:
+            _, w, _ = select.select([], [self.pty_fd], [], 0.5)
+            if w:
+                n = os.write(self.pty_fd, data)
+                data = data[n:]
+
+    def run(self):
+        dec = SlipDecoder()
+        while not self._stop:
+            r, _, _ = select.select([self.pty_fd, self.tun_fd], [], [], 0.5)
+            if self.pty_fd in r:
+                try:
+                    data = os.read(self.pty_fd, 4096)
+                except OSError:
+                    data = b""
+                for pkt in dec.feed(data):
+                    try:
+                        os.write(self.tun_fd, pkt)
+                        self.rx += 1
+                    except OSError:
+                        pass
+            if self.tun_fd in r:
+                try:
+                    pkt = os.read(self.tun_fd, 65536)
+                except OSError:
+                    continue
+                self._write_all(slip_encode(pkt))
+                self.tx += 1
+
+    def ping(self, addr=SLIP_GUEST_IP):
+        return run(f"ping -c 1 -W 2 {addr}", check=False).returncode == 0
+
+    def down(self):
+        self._stop = True
+        if self.is_alive():
+            self.join(2)
+        for fd in (self.tun_fd, self.pty_fd):
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        # See NetLab.down: the name must go from the host's mount namespace.
+        run(f"nsenter --mount=/proc/1/ns/mnt ip netns del {os.environ[NETNS_ENV]}",
+            check=False)
 
 
 class NetLab:
