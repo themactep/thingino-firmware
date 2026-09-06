@@ -109,14 +109,14 @@ $(error * No camera selected)
 else
 $(error * Config file not found for camera: $(CAMERA))
 endif
-else ifneq ($(shell echo "$(CAMERA_CONFIG)" | wc -w), 1)
+else ifneq ($(words $(CAMERA_CONFIG)),1)
 $(error * found multiple config files: $(CAMERA_CONFIG))
 else
 $(info CAMERA_CONFIG = $(CAMERA_CONFIG))
 endif
 
 # Ensure CAMERA is set from CAMERA_CONFIG if not already set
-CAMERA ?= $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
+CAMERA ?= $(patsubst %_defconfig,%,$(notdir $(CAMERA_CONFIG)))
 CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)" 2>/dev/null)
 $(info CAMERA_CONFIG_REAL = $(CAMERA_CONFIG_REAL))
 
