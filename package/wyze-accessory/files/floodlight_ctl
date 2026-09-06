@@ -1,10 +1,18 @@
 #!/bin/sh
-# Control the Wyze Cam Floodlight v1 accessory board and its motion timer.
+# Control the light on the Wyze Cam Floodlight v1 accessory board.
 #
+# The light board is attached over an internal USB serial link (ch341)
+# and speaks a simple framed protocol:
+#
+#   <0xAA 0x55> <0x43> <len> <0x46> <payload> <checksum>
+#
+# Protocol and original script by gponick:
+# https://github.com/gtxaspec/wz_mini_hacks/discussions/771#discussioncomment-11737172
 # Usage:
 #   floodlight_ctl on <1-100>  Turn on at a brightness percentage.
 #   floodlight_ctl off         Turn off.
 #   floodlight_ctl motion      Process a night-time motion event.
+VERBOSE=0
 
 MOTION_CONFIG=/etc/floodlight-motion.conf
 NIGHTMODE=/run/thingino/daynight_mode
