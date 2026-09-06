@@ -24,6 +24,8 @@
 
 # Thingino application configs
 /etc/thingino.json
+/etc/timps.conf
+/etc/onvif.json
 
 # You can add more paths below, one per line:
 # /etc/prudynt.json
