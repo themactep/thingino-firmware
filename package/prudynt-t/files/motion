@@ -225,7 +225,7 @@ start() {
 }
 
 stop() {
-	echo_info "Stop motion."
+	echo_info "Stop motion"
 
 	if [ -f "$MOTION_ALARM" ]; then
 		echo_info "Remove $MOTION_ALARM"
