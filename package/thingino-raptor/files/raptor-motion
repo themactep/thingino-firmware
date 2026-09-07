@@ -137,7 +137,7 @@ start() {
   #Start timer to disable motion alarm for floodlight control
 	motion stop &
 
-#	[ "$any" = "true" ] || exit 0
+	[ "$any" = "true" ] || exit 0
 
 	MOTION_PHOTO_FILE=""
 	MOTION_VIDEO_FILE=""
