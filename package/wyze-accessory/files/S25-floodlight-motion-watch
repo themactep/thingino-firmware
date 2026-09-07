@@ -1,0 +1,26 @@
+#!/bin/sh
+
+NAME=floodlight-motion-watch
+DAEMON=/usr/sbin/floodlight-motion-watch
+PIDFILE=/var/run/${NAME}.pid
+
+case "$1" in
+	start)
+		[ -x "$DAEMON" ] || exit 0
+		start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+		;;
+	stop)
+		start-stop-daemon -K -p "$PIDFILE" 2>/dev/null || true
+		rm -f "$PIDFILE"
+		;;
+	restart)
+		"$0" stop
+		"$0" start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

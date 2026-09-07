@@ -112,11 +112,6 @@ start() {
 		return 0
 	fi
 
-	if [ -x /usr/sbin/floodlight_ctl ]; then
-		echo_info "Turn on floodlight when motion detected if night"
-		/usr/sbin/floodlight_ctl motion &
- 	fi
-
 	need_photo=false
 	need_video=false
 	any=false

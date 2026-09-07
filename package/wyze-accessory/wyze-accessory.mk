@@ -36,9 +36,6 @@ endef
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight_ctl \
 		$(TARGET_DIR)/usr/sbin/floodlight_ctl
-
-	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight-motion.conf \
-		$(TARGET_DIR)/etc/floodlight-motion.conf
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
@@ -51,7 +48,13 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight.webui.json \
 		$(TARGET_DIR)/var/www/a/plugins/floodlight.webui.json
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
-	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
++	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight-motion-watch \\
++		$(TARGET_DIR)/usr/sbin/floodlight-motion-watch
++	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/S25floodlight-motion-watch \\
++		$(TARGET_DIR)/etc/init.d/S25floodlight-motion-watch
+ 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight-motion.conf \\
+ 		$(TARGET_DIR)/etc/floodlight-motion.conf
+ 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
 	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/50-accessory
 endef
 
