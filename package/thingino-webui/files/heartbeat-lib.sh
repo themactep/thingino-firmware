@@ -375,7 +375,7 @@ thingino_heartbeat_raptor_payload() {
 thingino_heartbeat_native_payload() {
 	# Quick path: read daynight mode and brightness from daynightd's files.
 	# For full sensor data (total_gain, EV, etc), read /run/thingino/daynight_sensors.
-	# Also try prudyntctl for mic/spk/image data which only prudynt can provide.
+	# Audio/image state comes from prudynt's /run/prudynt runtime files.
 
 	now=$(date +%s)
 	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
@@ -407,40 +407,17 @@ thingino_heartbeat_native_payload() {
 		night) _color_mode=1 ;;
 	esac
 
-	# Audio and image from prudyntctl (prudynt still owns these)
+	# Audio/image state from prudynt's runtime files (no JSON round-trip)
 	mic_enabled=0
+	[ -f /run/prudynt/mic.active ] && mic_enabled=1
 	spk_enabled=0
-	unset _mic_queried _spk_queried
-	if command -v prudyntctl >/dev/null 2>&1; then
-		_tmp=$(mktemp)
-		if timeout 1 prudyntctl json '{"audio":{"mic_enabled":null,"spk_enabled":null},"image":{"running_mode":null}}' >"$_tmp" 2>/dev/null; then
-			_mic_val=$(jct "$_tmp" get audio.mic_enabled 2>/dev/null | tr -d '\n"')
-			case "$_mic_val" in true | 1)
-				mic_enabled=1
-				_mic_queried=1
-				;;
-			*)
-				mic_enabled=0
-				_mic_queried=1
-				;;
-			esac
-			_spk_val=$(jct "$_tmp" get audio.spk_enabled 2>/dev/null | tr -d '\n"')
-			case "$_spk_val" in true | 1)
-				spk_enabled=1
-				_spk_queried=1
-				;;
-			*)
-				spk_enabled=0
-				_spk_queried=1
-				;;
-			esac
-			# Always prefer image.running_mode from prudynt for color_mode
-			# (it reflects actual ISP state, unlike daynight_mode which is the
-			# photosensing policy and may not match after a manual toggle)
-			_cm=$(jct "$_tmp" get image.running_mode 2>/dev/null | tr -d '\n"')
-			case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
-		fi
-		rm -f "$_tmp"
+	[ -f /run/prudynt/spk.active ] && spk_enabled=1
+
+	# Prefer prudynt's running_mode (actual ISP state) for color_mode;
+	# fall back to daynight_mode (photosensing policy).
+	if [ -r /run/prudynt/running_mode ]; then
+		_cm=$(cat /run/prudynt/running_mode 2>/dev/null | tr -d '\n')
+		case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
 	fi
 
 	daynight_enabled="false"
@@ -459,14 +436,6 @@ thingino_heartbeat_native_payload() {
 
 	privacy_enabled=0
 	[ -f /run/prudynt/privacy.active ] && privacy_enabled=1
-
-	# mic/spk: prefer prudyntctl query, fall back to runtime files
-	if [ -z "${_mic_queried:-}" ]; then
-		mic_enabled=0
-		[ -f /run/prudynt/mic.active ] && mic_enabled=1
-		spk_enabled=0
-		[ -f /run/prudynt/spk.active ] && spk_enabled=1
-	fi
 
 	wg_status="0"
 	if command -v wg >/dev/null 2>&1; then
