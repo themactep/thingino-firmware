@@ -118,15 +118,16 @@ is still a valid dynamically-linked ELF; dependencies unchanged.
 removes the only plausible source of C++-induced jitter.**
 
 `VideoWorker.cpp` already does the heavy lifting with `NaluPool` (32 pooled
-buffers, `borrow()`/`returnBuf()`). What remains in the per-frame path:
+buffers, `borrow()`/`returnBuf()`). What remained in the per-frame path:
 
-| Site | Issue |
+| Site | Status |
 |---|---|
-| `mp4_sample` (`VideoWorker.cpp:223`) | grows via `reserve()` + `insert()`, reallocates on size growth |
-| `wrap_buf` (`:586`) | fresh `std::vector` per NAL when wrapping two slices |
-| `vps_copy` / `sps_copy` / `pps_copy` (`:882-884`) | fresh vectors per GOP header |
-| `sei_nal` (`:909`, `:955`, `:1155`) | fresh vector per SEI injection |
-| `sei_taps_copy` / `taps_copy` (`:973`, `:1072`) | fresh vectors per NAL dispatch |
+| `wrap_buf` | **fixed** -- persistent buffer in `run()` scope |
+| `taps_copy` / `sei_taps_copy` | **fixed** -- one persistent vector, reused |
+| `vps_copy` / `sps_copy` / `pps_copy` | **fixed** -- appended under lock, no temporaries |
+| `nalu.data = nalu_buf` (channel copy) | **open** -- per-NAL alloc; needs a pool-backed channel |
+| `sei_nal` via `SEIWriter::buildSEI` | **open** -- per-IDR alloc |
+| `mp4_sample` | amortized (reserved + cleared, capacity retained) |
 
 None of these is a language problem; all are fixable in C++:
 
@@ -145,9 +146,20 @@ after warm-up.
 Success criteria: malloc counter flat after the first GOP, at both 1080p/25fps
 and 640x360/25fps, with recording on and off.
 
-Expected result: eliminates allocation stalls in the frame path. Latency
-impact only measurable if the current churn was actually causing stalls --
-Phase 0's frame-cadence data is the before picture.
+### Remaining per-NAL allocation (not yet fixed)
+
+The channel copy `nalu.data = nalu_buf` still allocates one buffer per NAL:
+`MsgChannel::write` stores an owned `std::vector<uint8_t>` in a
+`std::deque`, so the encoder thread must hand over a fresh buffer. Moving the
+pooled buffer into the channel would empty `NaluPool` (borrowed buffers never
+return), so this is only fixable by making the channel pool-backed --
+consumers return the buffer to the pool after copying out. That touches
+`MsgChannel` and every reader (RTSP drain, taps, websocket), so it is split
+out as its own piece of work rather than a hot-path edit.
+
+Expected result: eliminates the remaining allocation stalls in the frame
+path. Latency impact only measurable if the churn was actually causing
+stalls -- Phase 0's frame-cadence data is the before picture.
 
 ---
 
