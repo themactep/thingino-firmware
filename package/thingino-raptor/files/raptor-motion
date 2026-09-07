@@ -190,7 +190,6 @@ start() {
 	[ -n "$pids" ] && wait $pids 2>/dev/null
 	[ -n "$MOTION_PHOTO_FILE" ] && rm -f "$MOTION_PHOTO_FILE"
 	[ -n "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
-
 }
 
 stop() {
