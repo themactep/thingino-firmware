@@ -19,12 +19,6 @@ CLIP_SECS="${MOTION_CLIP_SECS:-10}"
 SERVICES="email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook"
 MOTOR_ACTIVE_FLAG="${MOTOR_ACTIVE_FLAG:-/run/motors-active}"
 
-# Duration for motion cooldown (seconds). Read from config or default to 30.
-MOTION_COOLDOWN_TIME=$(jct /etc/prudynt.json get motion.cooldown_time 2>/dev/null)
-[ -z "$MOTION_COOLDOWN_TIME" ] && MOTION_COOLDOWN_TIME=30
-# Ensure it's a number
-[ "$MOTION_COOLDOWN_TIME" -eq "$MOTION_COOLDOWN_TIME" ] 2>/dev/null || MOTION_COOLDOWN_TIME=30
-
 motor_active() {
 	[ -f "$MOTOR_ACTIVE_FLAG" ]
 }
@@ -134,9 +128,6 @@ start() {
 	touch "$MOTION_ALARM"
 	[ -x /usr/sbin/ha-event ] && ha-event motion ON &
 
-  #Start timer to disable motion alarm for floodlight control
-	motion stop &
-
 	[ "$any" = "true" ] || exit 0
 
 	MOTION_PHOTO_FILE=""
@@ -203,12 +194,7 @@ start() {
 }
 
 stop() {
-  echo_info "Stop motion in $MOTION_COOLDOWN_TIME seconds."
-  sleep $MOTION_COOLDOWN_TIME
-
 	if [ -f "$MOTION_ALARM" ]; then
-	  echo_info "Stop motion in $MOTION_COOLDOWN_TIME seconds."
-    sleep $MOTION_COOLDOWN_TIME
 		rm -f "$MOTION_ALARM"
 		[ -x /usr/sbin/ha-event ] && ha-event motion OFF &
 	fi
