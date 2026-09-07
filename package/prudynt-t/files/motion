@@ -35,7 +35,6 @@ set_enabled() {
 
 start() {
 	echo_info "Start motion"
-
 	if [ -f "$MOTOR_ACTIVE_FLAG" ]; then
 		echo_info "Motors active; suppressing motion event."
 		exit 0
