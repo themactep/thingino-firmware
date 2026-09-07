@@ -1,5 +1,9 @@
 {
   "gpio": {
+    "alarm": {
+      "pin": 8,
+      "active_low": true
+    },
     "ir850": 49,
     "ircut": "57 58",
     "white": 50
