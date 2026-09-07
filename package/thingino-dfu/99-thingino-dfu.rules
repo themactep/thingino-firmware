@@ -3,7 +3,11 @@
 # Grants non-root users (and WebUSB in Chrome/Edge) raw access to Ingenic SoCs
 # in every USB state they pass through while flashing:
 #   - bootrom         a108:c309  (T/A/C series: T10-T41, A1)   601a:4770 (X series - future DFU)
-#   - U-Boot DFU      a108:4d44  ("USB download gadget")
+#   - U-Boot DFU      a108:c309  ("USB download gadget")
+# Both stages share one VID:PID: the DFU gadget was re-PID'd off a108:4d44 onto the
+# bootrom's a108:c309 in 2026-07, which is also what lets a WebUSB grant survive the
+# re-enumeration. Only the product string and the DFU interface tell them apart, so this
+# rule matches on the vendor and covers every stage.
 # (the cloner "firmware stage" keeps the bootrom VID:PID - no separate USB ID.)
 #
 # Without this, requestDevice() in the browser can still enumerate the device
