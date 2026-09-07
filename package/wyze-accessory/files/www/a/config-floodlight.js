@@ -13,6 +13,7 @@
     slider.disabled = !enabled;
     buttons.forEach(function (button) { button.disabled = !enabled; });
     unavailable.classList.toggle('d-none', enabled);
+    unavailable.hidden = enabled;
   }
 
   function setMotionDuration(seconds) {
