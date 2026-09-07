@@ -18,7 +18,7 @@ while :; do
 	# Fire once per inactive -> active transition. floodlight_ctl manages its
 	# own settings, day/night check, duration, and overlap lock.
 	if [ "$now" -eq 1 ] && [ "$active" -eq 0 ]; then
-		"$CTL" motion >/dev/null 2>&1 &
+		"$CTL" motion 2>&1 &
 	fi
 
 	active=$now

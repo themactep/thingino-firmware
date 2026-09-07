@@ -6,12 +6,18 @@
   const buttons = [$('#floodlight-on'), $('#floodlight-off'), $('#floodlight-set')];
   const motionEnabled = $('#floodlight-motion-enabled');
   const motionDuration = $('#floodlight-motion-duration');
+  const motionDurationValue = $('#floodlight-motion-duration-value');
   const motionSave = $('#floodlight-motion-save');
 
   function setControls(enabled) {
     slider.disabled = !enabled;
     buttons.forEach(function (button) { button.disabled = !enabled; });
     unavailable.classList.toggle('d-none', enabled);
+  }
+
+  function setMotionDuration(seconds) {
+    motionDuration.value = String(seconds);
+    motionDurationValue.textContent = seconds + ' seconds';
   }
 
   function showStatus(data) {
@@ -26,7 +32,7 @@
       motionEnabled.checked = data.motion_enabled;
     }
     if (Number.isInteger(data.motion_duration) && data.motion_duration >= 1 && data.motion_duration <= 3600) {
-      motionDuration.value = String(data.motion_duration);
+      setMotionDuration(data.motion_duration);
     }
     setControls(data.available === true);
   }
@@ -59,22 +65,13 @@
     }
   }
 
-  async function saveMotionSettings() {
+   async function saveMotionSettings() {
     const duration = Number(motionDuration.value);
-    if (!Number.isInteger(duration) || duration < 1 || duration > 3600) {
-      if (window.showAlert) showAlert('danger', 'Motion on time must be between 1 and 3600 seconds.');
-      return;
-    }
     motionSave.disabled = true;
     try {
       const response = await fetch('/x/json-config-floodlight.cgi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'motion-settings',
-          motion_enabled: motionEnabled.checked,
-          motion_duration: duration
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'motion-settings', motion_enabled: motionEnabled.checked, motion_duration: duration })
       });
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error && data.error.message || 'Could not save motion settings');
@@ -88,6 +85,7 @@
   }
 
   slider.addEventListener('input', function () { value.textContent = slider.value + '%'; });
+  motionDuration.addEventListener('input', function () { setMotionDuration(Number(motionDuration.value)); });
   $('#floodlight-on').addEventListener('click', function () { command('on'); });
   $('#floodlight-off').addEventListener('click', function () { command('off'); });
   $('#floodlight-set').addEventListener('click', function () { command('on'); });

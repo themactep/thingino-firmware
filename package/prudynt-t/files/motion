@@ -22,6 +22,12 @@ MOTION_VIDEO_LENGTH=$(jct /etc/prudynt.json get motion.video_length 2>/dev/null)
 # Ensure it's a number
 [ "$MOTION_VIDEO_LENGTH" -eq "$MOTION_VIDEO_LENGTH" ] 2>/dev/null || MOTION_VIDEO_LENGTH=10
 
+# Duration for cooldown (seconds). Read from config or default to 30.
+MOTION_COOLDOWN_TIME=$(jct /etc/prudynt.json get motion.cooldown_time 2>/dev/null)
+[ -z "$MOTION_COOLDOWN_TIME" ] && MOTION_COOLDOWN_TIME=30
+# Ensure it's a number
+[ "$MOTION_COOLDOWN_TIME" -eq "$MOTION_COOLDOWN_TIME" ] 2>/dev/null || MOTION_COOLDOWN_TIME=30
+
 domain=motion
 
 get_value() {
@@ -211,10 +217,12 @@ start() {
 			[ -f "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
 		) &
 	fi
+	motion stop &
 }
 
 stop() {
-	echo_info "Stop motion"
+	echo_info "Stop motion in $MOTION_COOLDOWN_TIME seconds."
+  sleep $MOTION_COOLDOWN_TIME
 
 	if [ -f "$MOTION_ALARM" ]; then
 		echo_info "Remove $MOTION_ALARM"
