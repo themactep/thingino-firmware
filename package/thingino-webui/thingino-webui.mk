@@ -54,8 +54,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S48webui-config
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S91mqttsub \
 		$(TARGET_DIR)/etc/init.d/S91mqttsub
-#	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
-#		$(TARGET_DIR)/etc/init.d/S99heartbeat
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
+		$(TARGET_DIR)/etc/init.d/S99heartbeat
 
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/mqtt-sub-dispatcher \
 		$(TARGET_DIR)/usr/sbin/mqtt-sub-dispatcher
