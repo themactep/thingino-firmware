@@ -146,16 +146,24 @@ after warm-up.
 Success criteria: malloc counter flat after the first GOP, at both 1080p/25fps
 and 640x360/25fps, with recording on and off.
 
-### Remaining per-NAL allocation (not yet fixed)
+### Per-NAL allocation eliminated
 
-The channel copy `nalu.data = nalu_buf` still allocates one buffer per NAL:
-`MsgChannel::write` stores an owned `std::vector<uint8_t>` in a
-`std::deque`, so the encoder thread must hand over a fresh buffer. Moving the
-pooled buffer into the channel would empty `NaluPool` (borrowed buffers never
-return), so this is only fixable by making the channel pool-backed --
-consumers return the buffer to the pool after copying out. That touches
-`MsgChannel` and every reader (RTSP drain, taps, websocket), so it is split
-out as its own piece of work rather than a hot-path edit.
+The channel copy `nalu.data = nalu_buf` (one malloc + memcpy per NAL) is
+removed. `MsgChannel` now owns an optional `NaluPool` and recycles a
+popped/evicted/cleared element's `std::vector<uint8_t>` buffer back into it.
+The video channel and every video tap share one pool (owned by
+`video_stream`). `VideoWorker` moves the pooled buffer into the main channel
+and fans out to taps first (each tap borrows + copies while the source is
+intact). Buffers cycle producer -> channel -> consumer -> pool; the consumer
+still copies on read into a reused buffer (no alloc after warmup).
+
+Pool stays at 32 buffers, so retained memory matches the previous
+transient-buffer pool; under backlog it drains and extra buffers fall back
+to alloc/free.
+
+Still open: `SEIWriter::buildSEI` / `getSEIJson()` allocate per IDR
+(~1/sec), and `tap_sei.data` copies per tap per IDR. Both are low-rate and
+recycled into the pool on the read side.
 
 Expected result: eliminates the remaining allocation stalls in the frame
 path. Latency impact only measurable if the churn was actually causing
