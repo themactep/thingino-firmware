@@ -217,12 +217,15 @@ start() {
 			[ -f "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
 		) &
 	fi
-	motion stop &
+	# Keep motion active throughout the configured cooldown, then stop it.
+	(
+		sleep "$MOTION_COOLDOWN_TIME"
+		motion stop
+	) &
 }
 
 stop() {
-	echo_info "Stop motion in $MOTION_COOLDOWN_TIME seconds."
-  sleep $MOTION_COOLDOWN_TIME
+	echo_info "Stop motion."
 
 	if [ -f "$MOTION_ALARM" ]; then
 		echo_info "Remove $MOTION_ALARM"
