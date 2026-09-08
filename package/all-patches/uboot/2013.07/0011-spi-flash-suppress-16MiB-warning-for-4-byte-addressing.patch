@@ -27,6 +27,6 @@ diff --git a/drivers/mtd/spi/spi_flash.c b/drivers/mtd/spi/spi_flash.c
  #ifndef CONFIG_SPI_FLASH_BAR
 -	if (flash->size > SPI_FLASH_16MB_BOUN) {
 +	if (flash->size > SPI_FLASH_16MB_BOUN && flash->addr_size < 4) {
- 		puts("SF:    Warning! Only lower 16MiB are accessible.");
- 		puts(" Add #define CONFIG_SPI_FLASH_BAR for full access.\n");
+ 		puts("SF: Warning - Only lower 16MiB accessible,");
+ 		puts(" Full access #define CONFIG_SPI_FLASH_BAR\n");
  	}
