@@ -551,20 +551,8 @@ loadInitialData().then(async () => {
 
   // Request a frame no wider than the on-screen preview element. The daemon
   // derives the height from the source aspect ratio, so only width is sent.
-  function computePreviewStreamWidth(img) {
-    const width = img && img.clientWidth ? img.clientWidth : 0;
-    if (!width) return 0;
-    let w = Math.floor(width / 16) * 16;
-    if (w < 320) w = 320;
-    return w;
-  }
-
   function buildPreviewStreamUrl(channel, img, cacheBust) {
     const parts = [];
-    const w = computePreviewStreamWidth(img);
-    if (w) {
-      parts.push(`w=${w}`);
-    }
     parts.push(`q=${previewQuality}`);
     if (cacheBust) {
       parts.push(`_=${new Date().getTime()}`);
@@ -698,12 +686,9 @@ loadInitialData().then(async () => {
       // Stop the small preview and suppress watchdog restarts
       isModalOpen = true;
       preview.src = ImageNoStream;
-      // Load main stream (ch0) in full-screen modal. The modal is not laid
-      // out yet at "show" time, so fall back to the viewport width.
-      const modalWidth = previewFullsize.clientWidth || window.innerWidth || 0;
-      const modalW = modalWidth >= 16 ? Math.floor(modalWidth / 16) * 16 : 0;
+      // Load main stream (ch0) in full-screen modal at the streamer's
+      // native size; the browser scales it to the viewport.
       const modalParts = [`q=${previewQuality}`, `_=${new Date().getTime()}`];
-      if (modalW) modalParts.unshift(`w=${modalW}`);
       previewFullsize.src = `/x/ch0.mjpg?${modalParts.join("&")}`;
       // Apply SEI rotation to full-screen image
       fetch("/x/json-osd-sei.cgi")
