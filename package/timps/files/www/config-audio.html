@@ -27,7 +27,7 @@
         <div class="card mb-3">
           <div class="card-header">
             <h2 class="card-title">Audio Settings</h2>
-            <small>Volume, gain, AGC, noise suppression and high-pass apply live. Codec, sampling rate, bitrate and stereo/speaker settings are saved and take effect after a streamer restart. Unsupported controls on this camera are greyed out.</small>
+            <small>Volume and gain apply live. AGC, noise suppression, high-pass and AEC are saved and take effect at the next streamer restart (AEC also re-engages on the next two-way-audio session, but may leave the mic noisier until a restart - see the docs). Codec, sampling rate, bitrate and stereo/speaker settings are saved and take effect after a streamer restart. Unsupported controls on this camera are greyed out.</small>
             <button type="button" class="btn btn-outline-secondary" id="audio-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
