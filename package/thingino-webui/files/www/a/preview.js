@@ -553,9 +553,9 @@ loadInitialData().then(async () => {
   // derives the height from the source aspect ratio, so only width is sent.
   function computePreviewStreamWidth(img) {
     const width = img && img.clientWidth ? img.clientWidth : 0;
-    if (!width || width < 16) return 0;
+    if (!width) return 0;
     let w = Math.floor(width / 16) * 16;
-    if (w < 16) w = 16;
+    if (w < 320) w = 320;
     return w;
   }
 
