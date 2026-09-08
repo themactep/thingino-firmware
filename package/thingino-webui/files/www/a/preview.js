@@ -546,14 +546,26 @@ loadInitialData().then(async () => {
 
   // Get stream from data-stream attribute, default to ch0 if not specified
   const preview = $("#preview");
+  const previewFrame = $("#frame");
   const streamChannel = preview?.dataset?.stream || "ch0";
   const previewQuality = 60;
 
-  // Request a frame no wider than the on-screen preview element. The daemon
-  // derives the height from the source aspect ratio, so only width is sent.
-  function buildPreviewStreamUrl(channel, img, cacheBust) {
-    const parts = [];
-    parts.push(`q=${previewQuality}`);
+  // Final rendered size of the preview frame (the canvas). Zero until the
+  // frame has a laid-out size.
+  function previewFrameSize() {
+    if (!previewFrame) return { w: 0, h: 0 };
+    return { w: previewFrame.clientWidth, h: previewFrame.clientHeight };
+  }
+
+  // Request a frame sized to the on-screen preview canvas. The daemon
+  // derives a missing dimension from the source aspect ratio; both are sent
+  // so the encoder matches the canvas exactly.
+  function buildPreviewStreamUrl(channel, cacheBust) {
+    const parts = [`q=${previewQuality}`];
+    const size = previewFrameSize();
+    if (size.w > 0 && size.h > 0) {
+      parts.push(`w=${size.w}`, `h=${size.h}`);
+    }
     if (cacheBust) {
       parts.push(`_=${new Date().getTime()}`);
     }
@@ -570,6 +582,7 @@ loadInitialData().then(async () => {
   let focusTimeoutId = null;
   let nextRestartAt = 0;
   let restartBackoffMs = restartBackoffInitialMs;
+  let lastRequestedSize = { w: 0, h: 0 };
 
   // Function to start the preview stream
   function startPreview() {
@@ -578,7 +591,8 @@ loadInitialData().then(async () => {
       focusTimeoutId = null;
     }
     if (isWindowVisible) {
-      preview.src = buildPreviewStreamUrl(streamChannel, preview, false);
+      preview.src = buildPreviewStreamUrl(streamChannel, false);
+      lastRequestedSize = previewFrameSize();
       lastLoadTime = Date.now();
       nextRestartAt = 0;
     }
@@ -634,7 +648,7 @@ loadInitialData().then(async () => {
       now >= nextRestartAt
     ) {
       // Restart stream
-      preview.src = buildPreviewStreamUrl(streamChannel, preview, true);
+      preview.src = buildPreviewStreamUrl(streamChannel, true);
       lastLoadTime = now;
       nextRestartAt = now + restartBackoffMs;
       restartBackoffMs = Math.min(restartBackoffMs * 2, restartBackoffMaxMs);
@@ -674,6 +688,33 @@ loadInitialData().then(async () => {
     window.addEventListener("blur", handleWindowBlur);
   }
 
+  // Request the mjpeg at the final rendered canvas size once the frame has
+  // finished transforming (resize, rotation, sidebar toggle). Debounced so
+  // only the settled size is requested, not every intermediate step.
+  let previewResizeTimer = null;
+
+  function requestPreviewAtCurrentSize() {
+    const size = previewFrameSize();
+    if (size.w <= 0 || size.h <= 0) return;
+    if (size.w === lastRequestedSize.w && size.h === lastRequestedSize.h) {
+      return;
+    }
+    startPreview();
+  }
+
+  if (previewFrame && typeof ResizeObserver !== "undefined") {
+    const previewResizeObserver = new ResizeObserver(function () {
+      if (previewResizeTimer) clearTimeout(previewResizeTimer);
+      previewResizeTimer = setTimeout(function () {
+        previewResizeTimer = null;
+        if (isWindowVisible && !isModalOpen) {
+          requestPreviewAtCurrentSize();
+        }
+      }, 200);
+    });
+    previewResizeObserver.observe(previewFrame);
+  }
+
   // Full-screen preview modal
   const previewModal = $("#mdPreview");
   const previewFullsize = $("#preview_fullsize");
@@ -710,7 +751,7 @@ loadInitialData().then(async () => {
       isModalOpen = false;
       // Restart the small preview
       if (savedPreviewSrc && isWindowVisible) {
-        preview.src = buildPreviewStreamUrl(streamChannel, preview, true);
+        preview.src = buildPreviewStreamUrl(streamChannel, true);
         lastLoadTime = Date.now();
       }
     });
