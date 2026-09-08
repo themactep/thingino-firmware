@@ -137,8 +137,9 @@ thingino_heartbeat_light_state() {
 }
 
 thingino_heartbeat_ircut_state() {
+	value=
 	if [ -r "$THINGINO_IRCUT_MODE_FILE" ]; then
-		value=$(sed -n '1p' "$THINGINO_IRCUT_MODE_FILE" 2>/dev/null | tr -d '\r\n ')
+		IFS= read -r value <"$THINGINO_IRCUT_MODE_FILE" 2>/dev/null
 	fi
 	case "$value" in
 		0 | 1)
@@ -373,31 +374,30 @@ thingino_heartbeat_raptor_payload() {
 }
 
 thingino_heartbeat_native_payload() {
-	# Quick path: read daynight mode and brightness from daynightd's files.
-	# For full sensor data (total_gain, EV, etc), read /run/thingino/daynight_sensors.
-	# Audio/image state comes from prudynt's /run/prudynt runtime files.
+	# Runtime state via shell builtins where possible; fork/exec only for
+	# date, the two jct config lookups, and the slow hardware fields
+	# (wg/light), which are cached between intervals.
 
 	now=$(date +%s)
-	uptime=$(cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0')
 
-	# daynightd is the single source of truth for photosensing
+	read -r uptime _ </proc/uptime 2>/dev/null || uptime=0
+	uptime=${uptime%%.*}
+
 	daynight_mode="unknown"
-	if [ -r /run/thingino/daynight_mode ]; then
-		daynight_mode=$(cat /run/thingino/daynight_mode 2>/dev/null | tr -d '\n')
-	fi
+	[ -r /run/thingino/daynight_mode ] &&
+		read -r daynight_mode </run/thingino/daynight_mode 2>/dev/null
 
 	daynight_brightness="null"
 	if [ -r /run/thingino/daynight_brightness ]; then
-		_v=$(cat /run/thingino/daynight_brightness 2>/dev/null | tr -d '\n')
-		[ -n "$_v" ] && daynight_brightness=$_v
+		read -r daynight_brightness </run/thingino/daynight_brightness 2>/dev/null ||
+			daynight_brightness="null"
 	fi
 
-	# Sensor telemetry from daynightd's JSON file.
-	# Use brightness_percent for the button display (0-100, user-friendly).
-	# ev_log2 / primary_signal are available in the sensor file for charts.
 	total_gain="null"
 	if [ -r /run/thingino/daynight_sensors ] && command -v jct >/dev/null 2>&1; then
-		_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null | tr -d '\n"')
+		_bp=$(jct /run/thingino/daynight_sensors get brightness_percent 2>/dev/null)
+		_bp=${_bp#\"}
+		_bp=${_bp%\"}
 		[ -n "$_bp" ] && [ "$_bp" != "null" ] && total_gain=$_bp
 	fi
 
@@ -407,7 +407,6 @@ thingino_heartbeat_native_payload() {
 		night) _color_mode=1 ;;
 	esac
 
-	# Audio/image state from prudynt's runtime files (no JSON round-trip)
 	mic_enabled=0
 	[ -f /run/prudynt/mic.active ] && mic_enabled=1
 	spk_enabled=0
@@ -416,13 +415,15 @@ thingino_heartbeat_native_payload() {
 	# Prefer prudynt's running_mode (actual ISP state) for color_mode;
 	# fall back to daynight_mode (photosensing policy).
 	if [ -r /run/prudynt/running_mode ]; then
-		_cm=$(cat /run/prudynt/running_mode 2>/dev/null | tr -d '\n')
+		read -r _cm </run/prudynt/running_mode 2>/dev/null
 		case "$_cm" in 1) _color_mode=1 ;; 0) _color_mode=0 ;; esac
 	fi
 
 	daynight_enabled="false"
 	if [ -f /etc/thingino.json ] && command -v jct >/dev/null 2>&1; then
-		_val=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null | tr -d '\n"')
+		_val=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null)
+		_val=${_val#\"}
+		_val=${_val%\"}
 		case "$_val" in true | 1) daynight_enabled=1 ;; *) daynight_enabled=0 ;; esac
 	fi
 
@@ -437,22 +438,31 @@ thingino_heartbeat_native_payload() {
 	privacy_enabled=0
 	[ -f /run/prudynt/privacy.active ] && privacy_enabled=1
 
-	wg_status="0"
-	if command -v wg >/dev/null 2>&1; then
-		case "$(wg show wg0 2>/dev/null)" in
-			*"latest handshake"*) wg_status="1" ;;
-		esac
+	ircut_state=$(thingino_heartbeat_ircut_state)
+
+	# Slow-changing hardware fields, refreshed every 3rd interval.
+	_hb_slow_tick=${_hb_slow_tick:-2}
+	_hb_slow_tick=$((_hb_slow_tick + 1))
+	if [ "$_hb_slow_tick" -ge 3 ]; then
+		_hb_slow_tick=0
+		_hb_wg=0
+		if command -v wg >/dev/null 2>&1; then
+			case "$(wg show wg0 2>/dev/null)" in
+				*"latest handshake"*) _hb_wg=1 ;;
+			esac
+		fi
+		_hb_ir850=$(light ir850 read 2>/dev/null)
+		_hb_ir940=$(light ir940 read 2>/dev/null)
+		_hb_white=$(light white read 2>/dev/null)
 	fi
+	case "${_hb_ir850:-}" in 0 | 1) ;; *) _hb_ir850=null ;; esac
+	case "${_hb_ir940:-}" in 0 | 1) ;; *) _hb_ir940=null ;; esac
+	case "${_hb_white:-}" in 0 | 1) ;; *) _hb_white=null ;; esac
 
 	printf '{"time_now":%s,"uptime":%s,"daynight_brightness":%s,"total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}\n' \
 		"$now" "$uptime" "$daynight_brightness" "$total_gain" "$daynight_mode" "$rec_ch0" "$rec_ch1" \
 		"$motion_enabled" "$privacy_enabled" "$_color_mode" "$mic_enabled" "$spk_enabled" \
-		"$daynight_enabled" \
-		"$(thingino_heartbeat_ircut_state)" \
-		"$(thingino_heartbeat_light_state ir850)" \
-		"$(thingino_heartbeat_light_state ir940)" \
-		"$(thingino_heartbeat_light_state white)" \
-		"$wg_status"
+		"$daynight_enabled" "$ircut_state" "${_hb_ir850}" "${_hb_ir940}" "${_hb_white}" "${_hb_wg:-0}"
 }
 
 thingino_heartbeat_payload() {
