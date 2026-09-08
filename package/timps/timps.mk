@@ -250,10 +250,16 @@ define TIMPS_INSTALL_TARGET_CMDS
 
 	# One template for every board means every other sensor warns once per
 	# start. Buildroot knows the right name - the kernel driver is built from
-	# it. i2c_addr stays as shipped: buildroot does not carry it, and
-	# /proc/jz/sensor supplies it wherever that exists.
+	# it. i2c_addr stays as shipped (gc2053's 0x37) except where a sensor's
+	# own driver hardcodes a different SENSOR_I2C_ADDRESS across every SoC
+	# variant it ships in - /proc/jz/sensor does not exist on T40/T41, so
+	# there is no runtime auto-detect fallback there.
 	if [ -n "$(call qstrip,$(BR2_SENSOR_1_NAME))" ]; then \
 		$(SED) 's|^sensor.model .*|sensor.model    = $(call qstrip,$(BR2_SENSOR_1_NAME))|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
+		$(SED) 's|^sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
