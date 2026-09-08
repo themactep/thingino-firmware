@@ -1,0 +1,3 @@
+# Locally computed, from the release the version above names
+sha256  3dc1621e2c4da13c00198f8691b4906dffc7311aceab2ae92d481349707ec49d  thingino-dfu-linux-x86_64.tar.gz
+sha256  ab063327eb3b232465bbf589e381ad65362a3f6bab6ea1247bfdf572dcd0942b  thingino-dfu-linux-aarch64.tar.gz
