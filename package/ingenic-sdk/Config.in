@@ -22,3 +22,16 @@ config BR2_INGENIC_SDK_JZ_AES
 	  Load the jz-aes kernel module at boot. Provides hardware AES-128
 	  acceleration via /dev/aes (ECB/CBC, DMA, IRQ). Useful for TLS
 	  offload (RTSPS, HTTPS) on Ingenic SoCs.
+
+config BR2_INGENIC_SDK_MOTOR
+	bool "SDK motor driver (TCU/GPIO stepper, ms419xx)"
+	depends on BR2_PACKAGE_INGENIC_SDK
+	default y if BR2_THINGINO_MOTORS_TCU || BR2_THINGINO_MOTORS_SPI
+	help
+	  The SDK's own motor.ko (TCU/GPIO stepper, or ms419xx over SPI).
+	  spi-tmi8152 ships its own drop-in motor.ko for a third driver
+	  type - the two collide by name in modules.dep if both are built,
+	  and depmod silently drops one. Explicit menu symbol instead of
+	  inferring from BR2_THINGINO_MOTORS, so a tmi8152 board (which
+	  sets BR2_PACKAGE_THINGINO_MOTORS directly, not the capability
+	  flag) never builds the SDK copy it doesn't use.
