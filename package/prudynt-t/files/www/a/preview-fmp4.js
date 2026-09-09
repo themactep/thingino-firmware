@@ -18,7 +18,9 @@
   };
   const hex = (v) => v.toString(16).toUpperCase().padStart(2, "0");
 
-  function codecFromAvcC(u8) {
+  function codecFromInit(u8) {
+    let videoCodec = "avc1.42E01E";
+    let hasAudio = false;
     for (let i = 0; i + 8 <= u8.length; i++) {
       if (
         u8[i] === 0x61 &&
@@ -26,10 +28,19 @@
         u8[i + 2] === 0x63 &&
         u8[i + 3] === 0x43
       ) {
-        return `avc1.${hex(u8[i + 5])}${hex(u8[i + 6])}${hex(u8[i + 7])}`;
+        videoCodec = `avc1.${hex(u8[i + 5])}${hex(u8[i + 6])}${hex(u8[i + 7])}`;
+      } else if (
+        u8[i] === 0x6d &&
+        u8[i + 1] === 0x70 &&
+        u8[i + 2] === 0x34 &&
+        u8[i + 3] === 0x61
+      ) {
+        hasAudio = true;
       }
     }
-    return "avc1.42E01E";
+    return hasAudio
+      ? `video/mp4; codecs="${videoCodec}, mp4a.40.2"`
+      : `video/mp4; codecs="${videoCodec}"`;
   }
 
   function boxAt(u8, off) {
@@ -155,14 +166,12 @@
           off += box.size;
         }
         if (moovEnd > 0) {
-          const codec = codecFromAvcC(buf.subarray(0, moovEnd));
+          const codecs = codecFromInit(buf.subarray(0, moovEnd));
           try {
-            sourceBuffer = mediaSource.addSourceBuffer(
-              `video/mp4; codecs="${codec}"`,
-            );
+            sourceBuffer = mediaSource.addSourceBuffer(codecs);
             sourceBuffer.mode = "segments";
           } catch (e) {
-            setStatus("Unsupported codec: " + codec);
+            setStatus("Unsupported codec: " + codecs);
             return;
           }
           await appendSegment(buf.subarray(0, moovEnd).slice());
