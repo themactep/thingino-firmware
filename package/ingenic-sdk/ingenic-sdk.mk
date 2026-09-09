@@ -165,6 +165,12 @@ define INSTALL_SENSOR_BIN
 		if [ -n "$(4)" ] && [ -f "$(4)" ]; then \
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
+		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+			for b in $(@D)/sensor-iq/t32/$(2)-PRJ007-*.bin; do \
+				[ -f "$$b" ] || continue; \
+				$(INSTALL) -D -m 0644 "$$b" \
+					$(TARGET_DIR)/usr/share/sensor/$$(basename "$$b"); \
+			done; \
 		else \
 			iqdir=$(@D)/sensor-iq/$(SOC_FAMILY); \
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
