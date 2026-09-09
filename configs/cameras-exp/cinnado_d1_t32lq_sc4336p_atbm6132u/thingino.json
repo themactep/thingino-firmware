@@ -1,0 +1,20 @@
+{
+  "gpio": {
+    "mmc_cd": 21,
+    "sensor_reset": 20
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "66 67 68 69",
+    "gpio_switch": -1,
+    "gpio_tilt": "57 58 61 64",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 3700,
+    "steps_tilt": 1000
+  }
+}
