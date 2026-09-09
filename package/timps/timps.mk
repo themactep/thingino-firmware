@@ -59,6 +59,9 @@ ifeq ($(BR2_PACKAGE_OPENIMP),y)
 TIMPS_DEPENDENCIES += openimp
 endif
 TIMPS_DEPENDENCIES += thingino-agent
+TIMPS_DEPENDENCIES += thingino-core host-thingino-jct
+TIMPS_JCT = $(HOST_DIR)/bin/jct
+TIMPS_CAMERA_JSON = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json
 ifeq ($(BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO),y)
 TIMPS_DEPENDENCIES += ingenic-system-libs-neo
 endif
@@ -261,6 +264,33 @@ define TIMPS_INSTALL_TARGET_CMDS
 	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
 		$(SED) 's|^sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
 			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# Physical sensor mounting compensation (e.g. a sensor soldered
+	# upside-down relative to its housing) lives in thingino.json, not
+	# Kconfig or a per-camera user/ overlay - same idea as the existing
+	# motors.invert_x/invert_y fields for the same class of hardware fact.
+	# thingino.json is streamer-agnostic, so this survives regardless of
+	# which streamer package a board selects (unlike a fix that only lives
+	# in a prudynt-specific per-camera prudynt.json).
+	#
+	# Read the per-camera SOURCE file directly (same path thingino-core.mk
+	# stages as its 90-camera.json fragment), not $(TARGET_DIR)/etc/
+	# thingino.json: that merged file is only produced by thingino-core's
+	# TARGET_FINALIZE_HOOKS, which runs after every package's own install
+	# step (including this one) - reading it here would always see the
+	# pre-merge (or, worse, a stale PER_PACKAGE_DIRECTORIES) copy.
+	if [ -r $(TIMPS_CAMERA_JSON) ] && [ -x $(TIMPS_JCT) ]; then \
+		img_hflip=$$($(TIMPS_JCT) $(TIMPS_CAMERA_JSON) get image.hflip 2>/dev/null || true); \
+		if [ "$$img_hflip" = "true" ] || [ "$$img_hflip" = "1" ]; then \
+			$(SED) 's|^image.hflip .*|image.hflip                  = 1|' \
+				$(TARGET_DIR)/etc/timps.conf; \
+		fi; \
+		img_vflip=$$($(TIMPS_JCT) $(TIMPS_CAMERA_JSON) get image.vflip 2>/dev/null || true); \
+		if [ "$$img_vflip" = "true" ] || [ "$$img_vflip" = "1" ]; then \
+			$(SED) 's|^image.vflip .*|image.vflip                  = 1|' \
+				$(TARGET_DIR)/etc/timps.conf; \
+		fi; \
 	fi
 
 	# When timps is built with TLS AND the WebUI's own uhttpd also has TLS
