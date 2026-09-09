@@ -410,6 +410,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/plugins/prudynt.webui.json
 
 	# HTML pages
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview-fmp4.html \
+		$(TARGET_DIR)/var/www/preview-fmp4.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-image.html \
@@ -430,6 +432,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/tool-timelapse.html
 
 	# JavaScript
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/preview-fmp4.js \
+		$(TARGET_DIR)/var/www/a/preview-fmp4.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/audio.js \
 		$(TARGET_DIR)/var/www/a/audio.js
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/a/sei-osd.js \

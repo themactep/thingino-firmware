@@ -29,6 +29,16 @@
     },
     {
       "section": "ddStreamer",
+      "position": "prepend",
+      "items": [
+        {
+          "label": "Live View (fMP4)",
+          "href": "/preview-fmp4.html"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
       "position": "append",
       "items": [
         {
@@ -124,6 +134,7 @@
     "/x/tool-timelapse.cgi"
   ],
   "pages": [
+    "/preview-fmp4.html",
     "/streamer-main.html",
     "/streamer-substream.html",
     "/streamer-image.html",
