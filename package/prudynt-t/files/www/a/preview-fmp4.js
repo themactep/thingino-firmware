@@ -315,17 +315,19 @@
     }
   });
 
-  // Custom controls: mute + fullscreen only; the preview stays playing.
+  // Custom controls: mute + volume + fullscreen; preview stays playing.
   const muteBtn = document.getElementById("fmp4-mute");
+  const volumeSlider = document.getElementById("fmp4-volume");
   const zoomBtn = document.getElementById("fmp4-zoom");
   const frame = document.getElementById("frame");
 
   function setMuteIcon() {
     if (muteBtn) {
-      muteBtn.querySelector("i").className = video.muted
+      const silent = video.muted || video.volume === 0;
+      muteBtn.querySelector("i").className = silent
         ? "bi bi-volume-mute"
         : "bi bi-volume-up";
-      muteBtn.title = video.muted ? "Unmute" : "Mute";
+      muteBtn.title = silent ? "Unmute" : "Mute";
     }
   }
 
@@ -339,7 +341,22 @@
 
   if (muteBtn) {
     muteBtn.addEventListener("click", () => {
-      video.muted = !video.muted;
+      if (video.muted || video.volume === 0) {
+        video.muted = false;
+        if (video.volume === 0) {
+          video.volume = 1;
+          if (volumeSlider) volumeSlider.value = "100";
+        }
+      } else {
+        video.muted = true;
+      }
+      setMuteIcon();
+    });
+  }
+  if (volumeSlider) {
+    volumeSlider.addEventListener("input", () => {
+      video.volume = Number(volumeSlider.value) / 100;
+      if (video.volume > 0) video.muted = false;
       setMuteIcon();
     });
   }

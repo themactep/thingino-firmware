@@ -38,10 +38,11 @@
           <div id="frame" class="position-relative mb-2">
             <video id="fmp4-video" class="w-100" autoplay muted playsinline></video>
             <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
-            <div class="position-absolute top-0 end-0 m-2 d-flex gap-2">
+            <div class="position-absolute top-0 end-0 m-2 d-flex align-items-center gap-2">
               <button type="button" id="fmp4-mute" class="btn btn-sm btn-dark rounded-circle" title="Unmute" aria-label="Toggle audio">
                 <i class="bi bi-volume-mute"></i>
               </button>
+              <input type="range" id="fmp4-volume" class="form-range" min="0" max="100" value="100" aria-label="Volume" style="width: 6rem">
               <button type="button" id="fmp4-zoom" class="btn btn-sm btn-dark rounded-circle" title="Fullscreen" aria-label="Toggle fullscreen">
                 <i class="bi bi-arrows-fullscreen"></i>
               </button>
