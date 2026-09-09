@@ -9,13 +9,16 @@ config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	bool "libimp.so (core SDK)"
 	depends on !BR2_PACKAGE_OPENIMP
 	default y
-	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30"
+	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t32"
 	help
 	  Proprietary Ingenic IMP core library. Required by streamers when
 	  OpenIMP is not selected.
-	  The T30 build of the blob (SDK 1.0.5) is the only libimp that
-	  links libstdc++.so.6, so the C++ runtime is kept on target
-	  there; no per-device config is needed.
+	  Of the blob versions this package pins, T30's (SDK 1.0.5) and
+	  T32's (SDK 2.1.0.0) link libstdc++.so.6, so the C++ runtime is
+	  kept on target for those two; no per-device config is needed.
+	  Other families have libstdc++-linking builds too (T20 3.9.0,
+	  the T31 and T41 zeratul variants), but none of those are the
+	  pinned version.
 
 config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 	bool "libalog.so (proprietary)"
