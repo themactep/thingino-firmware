@@ -11,6 +11,7 @@
   let abortController = null;
   let channel = 0;
   let sessionId = 0;
+  let runPromise = Promise.resolve();
 
   const host = () => window.location.hostname || "localhost";
   const streamUrl = (ch) => `http://${host()}:${HTTP_PORT}/ch${ch}.mp4`;
@@ -72,7 +73,13 @@
     const sb = sourceBuffer;
     const ms = mediaSource;
     return new Promise((resolve) => {
-      const done = () => resolve();
+      let settled = false;
+      const done = () => {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      };
       const tryAppend = () => {
         if (mySession !== sessionId || !sb || !ms || ms.readyState !== "open") {
           done();
@@ -83,6 +90,9 @@
           return;
         }
         sb.addEventListener("updateend", done, { once: true });
+        sb.addEventListener("error", done, { once: true });
+        sb.addEventListener("abort", done, { once: true });
+        window.setTimeout(done, 5000);
         try {
           sb.appendBuffer(buf);
         } catch (e) {
@@ -113,6 +123,7 @@
   }
 
   async function run(ch, mySession) {
+    if (mySession !== sessionId) return;
     abortController = new AbortController();
     let resp;
     try {
@@ -207,23 +218,32 @@
     }
   }
 
-  function start(ch) {
-    teardown();
+  function beginStream(ch, mySession) {
     channel = ch;
     setStatus("Connecting to /ch" + ch + ".mp4 ...");
-    if (!("MediaSource" in window)) {
-      setStatus("This browser does not support MediaSource.");
-      return;
-    }
-    const mySession = sessionId;
     mediaSource = new MediaSource();
     video.src = URL.createObjectURL(mediaSource);
-    mediaSource.addEventListener("sourceopen", () => run(ch, mySession), {
-      once: true,
-    });
+    mediaSource.addEventListener(
+      "sourceopen",
+      () => {
+        if (mySession !== sessionId) return;
+        runPromise = run(ch, mySession);
+      },
+      { once: true },
+    );
     video.play().catch(() => {
       /* autoplay may be blocked */
     });
+  }
+
+  function start(ch) {
+    teardown();
+    const mySession = sessionId;
+    runPromise = runPromise
+      .catch(() => {})
+      .then(() => {
+        if (mySession === sessionId) beginStream(ch, mySession);
+      });
   }
 
   function selectChannel(ch) {
