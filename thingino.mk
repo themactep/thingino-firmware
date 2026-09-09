@@ -77,7 +77,13 @@ CAMERA_DTS_DEST = shark
 else ifeq ($(SOC_FAMILY),t41)
 CAMERA_DTS_DEST = marmot
 else ifeq ($(SOC_FAMILY),t32)
+# Only T32's 4.4.94 tree carries arch/mips/boot/dts/ingenic/goat.dts and
+# builds it in (CONFIG_DT_GOAT). The 3.10.14 vendor kernel is board-file
+# based (soc-PRJ007/chip-PRJ007/isvp/Goat) with no dts directory at all,
+# so a profile shipping one there has nowhere to put it.
+ifeq ($(KERNEL_VERSION_4),y)
 CAMERA_DTS_DEST = goat
+endif
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif
