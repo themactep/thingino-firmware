@@ -1,8 +1,4 @@
 {
-  "image": {
-    "hflip": true,
-    "vflip": true
-  },
   "gpio": {
     "button_reset": 59,
     "ir850": 81,
