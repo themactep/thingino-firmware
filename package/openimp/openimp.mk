@@ -7,7 +7,7 @@
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/opensensor/openimp
 OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = f7cc227335f3853be578297a69f31c6143f66125
+OPENIMP_VERSION = 9cab2192f058c0c5e6c18a6052158a5f7a44b268
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
