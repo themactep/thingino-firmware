@@ -292,5 +292,49 @@
     }
   });
 
+  // Custom controls: mute + fullscreen only; the preview stays playing.
+  const muteBtn = document.getElementById("fmp4-mute");
+  const zoomBtn = document.getElementById("fmp4-zoom");
+  const frame = document.getElementById("frame");
+
+  function setMuteIcon() {
+    if (muteBtn) {
+      muteBtn.querySelector("i").className = video.muted
+        ? "bi bi-volume-mute"
+        : "bi bi-volume-up";
+      muteBtn.title = video.muted ? "Unmute" : "Mute";
+    }
+  }
+
+  function setZoomIcon() {
+    if (zoomBtn) {
+      zoomBtn.querySelector("i").className = document.fullscreenElement
+        ? "bi bi-fullscreen-exit"
+        : "bi bi-arrows-fullscreen";
+    }
+  }
+
+  if (muteBtn) {
+    muteBtn.addEventListener("click", () => {
+      video.muted = !video.muted;
+      setMuteIcon();
+    });
+  }
+  if (zoomBtn) {
+    zoomBtn.addEventListener("click", () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (frame && frame.requestFullscreen) {
+        frame.requestFullscreen();
+      }
+    });
+  }
+  document.addEventListener("fullscreenchange", setZoomIcon);
+  video.addEventListener("pause", () => {
+    video.play().catch(() => {});
+  });
+  setMuteIcon();
+  setZoomIcon();
+
   start(0);
 })();
