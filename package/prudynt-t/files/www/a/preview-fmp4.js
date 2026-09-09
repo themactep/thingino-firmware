@@ -10,6 +10,7 @@
   let sourceBuffer = null;
   let abortController = null;
   let channel = 0;
+  let sessionId = 0;
 
   const host = () => window.location.hostname || "localhost";
   const streamUrl = (ch) => `http://${host()}:${HTTP_PORT}/ch${ch}.mp4`;
@@ -67,47 +68,39 @@
     return out;
   }
 
-  function appendSegment(buf) {
+  function appendSegment(buf, mySession) {
+    const sb = sourceBuffer;
+    const ms = mediaSource;
     return new Promise((resolve) => {
-      if (!sourceBuffer || !mediaSource || mediaSource.readyState !== "open") {
-        resolve();
-        return;
-      }
+      const done = () => resolve();
       const tryAppend = () => {
-        if (sourceBuffer.updating) {
-          sourceBuffer.addEventListener("updateend", tryAppend, { once: true });
+        if (mySession !== sessionId || !sb || !ms || ms.readyState !== "open") {
+          done();
           return;
         }
-        sourceBuffer.addEventListener("updateend", () => resolve(), {
-          once: true,
-        });
-        sourceBuffer.appendBuffer(buf);
+        if (sb.updating) {
+          sb.addEventListener("updateend", tryAppend, { once: true });
+          return;
+        }
+        sb.addEventListener("updateend", done, { once: true });
+        try {
+          sb.appendBuffer(buf);
+        } catch (e) {
+          done();
+        }
       };
       tryAppend();
     });
   }
 
   function teardown() {
+    sessionId++;
     if (abortController) {
       abortController.abort();
       abortController = null;
     }
-    if (sourceBuffer && mediaSource && mediaSource.readyState === "open") {
-      try {
-        mediaSource.removeSourceBuffer(sourceBuffer);
-      } catch (e) {
-        /* noop */
-      }
-    }
     sourceBuffer = null;
-    if (mediaSource) {
-      try {
-        if (mediaSource.readyState === "open") mediaSource.endOfStream();
-      } catch (e) {
-        /* noop */
-      }
-      mediaSource = null;
-    }
+    mediaSource = null;
     if (video.src) {
       try {
         URL.revokeObjectURL(video.src);
@@ -119,7 +112,7 @@
     }
   }
 
-  async function run(ch) {
+  async function run(ch, mySession) {
     abortController = new AbortController();
     let resp;
     try {
@@ -128,15 +121,18 @@
         cache: "no-store",
       });
     } catch (e) {
-      setStatus(
-        window.location.protocol === "https:"
-          ? "fMP4 is served over HTTP. Open this page via http://" +
-              host() +
-              "/ to use it."
-          : "Failed to connect to " + streamUrl(ch) + ".",
-      );
+      if (mySession === sessionId) {
+        setStatus(
+          window.location.protocol === "https:"
+            ? "fMP4 is served over HTTP. Open this page via http://" +
+                host() +
+                "/ to use it."
+            : "Failed to connect to " + streamUrl(ch) + ".",
+        );
+      }
       return;
     }
+    if (mySession !== sessionId) return;
     if (!resp.ok || !resp.body) {
       setStatus("Stream unavailable (HTTP " + resp.status + ").");
       return;
@@ -149,6 +145,7 @@
     try {
       while (!initDone) {
         const { done, value } = await reader.read();
+        if (mySession !== sessionId) return;
         if (done) {
           setStatus("Stream ended before init segment.");
           return;
@@ -166,6 +163,7 @@
           off += box.size;
         }
         if (moovEnd > 0) {
+          if (mySession !== sessionId) return;
           const codecs = codecFromInit(buf.subarray(0, moovEnd));
           try {
             sourceBuffer = mediaSource.addSourceBuffer(codecs);
@@ -174,7 +172,7 @@
             setStatus("Unsupported codec: " + codecs);
             return;
           }
-          await appendSegment(buf.subarray(0, moovEnd).slice());
+          await appendSegment(buf.subarray(0, moovEnd).slice(), mySession);
           buf = buf.subarray(moovEnd);
           initDone = true;
           setStatus("Live: /ch" + ch + ".mp4");
@@ -183,6 +181,7 @@
 
       while (true) {
         const { done, value } = await reader.read();
+        if (mySession !== sessionId) return;
         if (done) break;
         buf = concat(buf, value);
         let off = 0;
@@ -193,7 +192,8 @@
             const mdat = boxAt(buf, off + box.size);
             if (!mdat || mdat.type !== "mdat") break;
             const segEnd = off + box.size + mdat.size;
-            await appendSegment(buf.subarray(off, segEnd).slice());
+            await appendSegment(buf.subarray(off, segEnd).slice(), mySession);
+            if (mySession !== sessionId) return;
             off = segEnd;
           } else {
             off += box.size;
@@ -201,9 +201,9 @@
         }
         buf = buf.subarray(off);
       }
-      setStatus("Stream ended.");
+      if (mySession === sessionId) setStatus("Stream ended.");
     } catch (e) {
-      setStatus("Stream stopped.");
+      if (mySession === sessionId) setStatus("Stream stopped.");
     }
   }
 
@@ -215,9 +215,12 @@
       setStatus("This browser does not support MediaSource.");
       return;
     }
+    const mySession = sessionId;
     mediaSource = new MediaSource();
     video.src = URL.createObjectURL(mediaSource);
-    mediaSource.addEventListener("sourceopen", () => run(ch), { once: true });
+    mediaSource.addEventListener("sourceopen", () => run(ch, mySession), {
+      once: true,
+    });
     video.play().catch(() => {
       /* autoplay may be blocked */
     });
