@@ -166,11 +166,17 @@ define INSTALL_SENSOR_BIN
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
 		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+			found=0; \
 			for b in $(@D)/sensor-iq/t32/$(2)-PRJ007-*.bin; do \
 				[ -f "$$b" ] || continue; \
 				$(INSTALL) -D -m 0644 "$$b" \
 					$(TARGET_DIR)/usr/share/sensor/$$(basename "$$b"); \
+				found=1; \
 			done; \
+			if [ $$found -eq 0 ]; then \
+				echo "ERROR: no IQ bin for $(2) in sensor-iq/t32/ (want $(2)-PRJ007-day.bin)"; \
+				exit 1; \
+			fi; \
 		else \
 			iqdir=$(@D)/sensor-iq/$(SOC_FAMILY); \
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
