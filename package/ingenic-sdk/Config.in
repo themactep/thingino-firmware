@@ -107,13 +107,20 @@ config BR2_INGENIC_SDK_PWM
 
 config BR2_INGENIC_SDK_MOTOR
 	bool "Motor driver"
-	default y if BR2_PACKAGE_THINGINO_MOTORS
+	# Keyed on the capability flags, not BR2_PACKAGE_THINGINO_MOTORS:
+	# tmi8152 boards select that package but ship their own drop-in
+	# motor.ko, which collides by name with this one in modules.dep.
+	# The flags below cover exactly the driver types this module
+	# implements.
+	default y if BR2_THINGINO_MOTORS_TCU || BR2_THINGINO_MOTORS_SPI
 	select BR2_INGENIC_SDK_TCU_ALLOC if BR2_INGENIC_SDK_K310
 	help
 	  The SDK's PTZ motor kernel module. This is the kernel side; the
 	  standalone thingino-motors package is the userspace utility that
-	  drives it. Defaults on when that package is selected. On 3.10 it
-	  needs the TCU allocator, pulled in automatically.
+	  drives it. Defaults on for boards with TCU/GPIO or ms419xx-SPI
+	  motors; boards driving their motors through spi-tmi8152 supply
+	  their own motor.ko and leave this off. On 3.10 it needs the TCU
+	  allocator, pulled in automatically.
 
 config BR2_INGENIC_SDK_TCU_ALLOC
 	bool "TCU channel allocator"
