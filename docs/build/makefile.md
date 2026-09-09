@@ -188,7 +188,11 @@ Remove binary files and reassemble firmware images.
 ```bash
 make repack
 ```
-Useful when modifying overlay files without rebuilding everything.
+Forces a full reassembly (removes `uImage`, `rootfs.squashfs`, the data image,
+and U-Boot, then rebuilds everything). Overlay and per-package target changes
+are already picked up automatically by `make`/`make pack`, so `repack` is only
+needed as an escape hatch to force a rebuild when you know the tree is stale
+for another reason.
 
 ### Cleanup Targets
 
@@ -387,7 +391,17 @@ make rebuild-telegrambot
 make rebuild-prudynt-t
 make rebuild-linux
 ```
-Equivalent to: `<package>-dirclean` + `<package>` + `<package>-reinstall` + `target-finalize`
+Equivalent to: `force-config` + `<package>-dirclean` + `<package>` + `<package>-reinstall`
+
+The reinstalled files land in the package's per-package target tree. A
+subsequent `make`, `make fast`, or `make pack` detects the change and
+automatically regenerates the rootfs image and reassembles the firmware, so no
+manual `rm images/rootfs.squashfs` or `make repack` is required:
+
+```bash
+make rebuild-prudynt-t
+make pack        # or just `make` — repacks because the package tree changed
+```
 
 ### Buildroot Package Targets (with `br-` prefix)
 
@@ -914,7 +928,13 @@ Sizes are 64KB-aligned for JFFS2 compatibility.
 
 ### Package Development
 
-1. **Use `rebuild-<package>`** for iterative package development
+1. **Use `rebuild-<package>`** for iterative package development:
+   ```bash
+   make rebuild-prudynt-t
+   make pack
+   ```
+   `make pack` (or `make`) detects the reinstalled package and regenerates the
+   rootfs and image automatically.
 2. **Clean build** after modifying package makefiles:
    ```bash
    make <package>-dirclean

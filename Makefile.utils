@@ -183,8 +183,19 @@ $(KERNEL_BIN):
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) linux-rebuild)
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
+# Rootfs inputs that must trigger a rebuild when they change: per-package
+# install trees (what target-finalize merges) plus every overlay directory.
+# Evaluated once at parse time; a non-empty result forces the rootfs recipe.
+ROOTFS_OVERLAY_INPUTS := $(BR2_EXTERNAL)/overlay \
+	$(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/overlay) \
+	$(THINGINO_USER_OVERLAY_DIRS)
+
+ROOTFS_DIRTY_INPUTS := $(shell \
+	find $(OUTPUT_DIR)/per-package -path '*/target/*' -newer $(ROOTFS_BIN) -print -quit 2>/dev/null; \
+	find $(ROOTFS_OVERLAY_INPUTS) -newer $(ROOTFS_BIN) -print -quit 2>/dev/null)
+
 # rebuild rootfs (depends on kernel to ensure proper build order)
-$(ROOTFS_BIN): $(KERNEL_BIN)
+$(ROOTFS_BIN): $(KERNEL_BIN) $(ROOTFS_DIRTY_INPUTS) $(BR2_EXTERNAL)/scripts/rootfs_script.sh
 	@$(TEAL) "$@"
 	rm -f $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools)
