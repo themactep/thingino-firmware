@@ -15,7 +15,9 @@ nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
 
 # Only act for the interface that carries the default route, so we do
 # not fire on a secondary link (e.g. usb0) before the NFS path exists.
-if ! ip route get "$nfs_share" >/dev/null 2>&1; then
+# ip route get needs the bare host, not the host:path NFS spec.
+nfs_host="${nfs_share%%:*}"
+if ! ip route get "$nfs_host" >/dev/null 2>&1; then
 	exit 0
 fi
 
@@ -26,7 +28,7 @@ fi
 # hard, not soft: a soft mount aborts a stalled write after ~9s and
 # returns EIO, which silently corrupts recordings (1 MiB holes where
 # the MP4 init segment lives). hard blocks instead of losing data.
-mount -o nolock,hard,timeo=30,retrans=2 "$nfs_share" "$NFS_MOUNT" && \
+mount -o nolock,hard,timeo=30,retrans=2 "$nfs_share" "$NFS_MOUNT" &&
 	echo -c 240 -e "- Mounted $nfs_share on $NFS_MOUNT"
 
 exit 0
