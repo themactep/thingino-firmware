@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Unmount the NFS share when its interface goes down. A lazy umount
+# detaches now and lets in-flight writers drain instead of blocking
+# the interface teardown.
+
+NFS_MOUNT="/mnt/nfs"
+
+nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
+[ -n "$nfs_share" ] || exit 0
+
+if mountpoint -q "$NFS_MOUNT"; then
+	umount -l "$NFS_MOUNT"
+fi
+
+exit 0

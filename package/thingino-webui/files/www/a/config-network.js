@@ -9,6 +9,10 @@
   const wifiPassInput = $("#wifi_pass");
   const wifiBssidInput = $("#wifi_bssid");
   const wifiApToggle = $("#wifi_ap_enabled");
+  const netwatchEnabledToggle = $("#netwatch_enabled");
+  const netwatchTargetInput = $("#netwatch_target");
+  const netwatchFailInput = $("#netwatch_fail");
+  const netwatchIntervalInput = $("#netwatch_interval");
 
   const ifaceCards = $$(".iface-card");
 
@@ -163,6 +167,18 @@
         data.wifi_ap &&
         (data.wifi_ap.enabled === true || data.wifi_ap.enabled === "true");
       updateWifiApValidation();
+      if (data.netwatch) {
+        netwatchEnabledToggle.checked =
+          data.netwatch.enabled === true ||
+          data.netwatch.enabled === "true";
+        netwatchTargetInput.value =
+          data.netwatch.target || data.netwatch.default_target || "";
+        netwatchFailInput.value =
+          data.netwatch.fail_count != null ? data.netwatch.fail_count : 3;
+        netwatchIntervalInput.value =
+          data.netwatch.interval != null ? data.netwatch.interval : 30;
+        netwatchTargetInput.placeholder = "";
+      }
       if (data.interfaces) {
         ifaceCards.forEach((card) => {
           const ifaceData = data.interfaces[card.dataset.iface] || {};
@@ -191,6 +207,12 @@
       },
       wifi_ap: {
         enabled: wifiApToggle.checked,
+      },
+      netwatch: {
+        enabled: netwatchEnabledToggle.checked,
+        target: netwatchTargetInput.value.trim(),
+        fail_count: parseInt(netwatchFailInput.value, 10) || 3,
+        interval: parseInt(netwatchIntervalInput.value, 10) || 30,
       },
       interfaces: {},
     };

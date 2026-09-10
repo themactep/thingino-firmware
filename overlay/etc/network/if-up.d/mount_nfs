@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# Mount the NFS share when an interface actually comes up.
+# This runs from ifup's run-parts hook AFTER the link is up and the
+# address is configured, so it is not subject to the boot-time race
+# that S43mounts has (an interface with a static address reports "up"
+# via ip before the PHY has negotiated a carrier).
+
+NFS_MOUNT="/mnt/nfs"
+
+[ -d "$NFS_MOUNT" ] || mkdir -p "$NFS_MOUNT"
+
+nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
+[ -n "$nfs_share" ] || exit 0
+
+# Only act for the interface that carries the default route, so we do
+# not fire on a secondary link (e.g. usb0) before the NFS path exists.
+if ! ip route get "$nfs_share" >/dev/null 2>&1; then
+	exit 0
+fi
+
+if mountpoint -q "$NFS_MOUNT"; then
+	exit 0
+fi
+
+# hard, not soft: a soft mount aborts a stalled write after ~9s and
+# returns EIO, which silently corrupts recordings (1 MiB holes where
+# the MP4 init segment lives). hard blocks instead of losing data.
+mount -o nolock,hard,timeo=30,retrans=2 "$nfs_share" "$NFS_MOUNT" && \
+	echo -c 240 -e "- Mounted $nfs_share on $NFS_MOUNT"
+
+exit 0
