@@ -182,13 +182,16 @@ load_module() {
 start() {
 	echo -c 15 "Initializing MMC"
 
-	# cd_gpio_pin is a jzmmc (XBurst1) module parameter. The XBurst2 driver
-	# (ingenic_sdhci_sdio) declares no parameters at all and takes its
-	# card-detect pin from the device tree (ingenic,cd-gpios), so passing it
-	# there is at best rejected and at worst faults during load.
+	# cd_gpio_pin is a jzmmc (XBurst1) module parameter and overrides the
+	# board's card-detect pin, so pass it only when the profile sets
+	# gpio.mmc_cd; a default would force a detect GPIO on boards with none.
+	# XBurst2's ingenic_sdhci_sdio takes its pin from the device tree and
+	# declares no parameters, so MMC_PARAM stays empty there.
 	if [ "$MMC_MODULE" = "jzmmc_v12" ]; then
-		gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd")
-		MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
+		MMC_PARAM=""
+		if gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd" 2>/dev/null); then
+			[ -n "$gpio_mmc_cd" ] && MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd}"
+		fi
 	else
 		MMC_PARAM=""
 	fi
