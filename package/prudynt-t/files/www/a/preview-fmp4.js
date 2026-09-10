@@ -14,7 +14,16 @@
   let runPromise = Promise.resolve();
 
   const host = () => window.location.hostname || "localhost";
-  const streamUrl = (ch) => `http://${host()}:${HTTP_PORT}/ch${ch}.mp4`;
+  const API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : { exists: false }))
+    .then((d) => (d.exists && d.api_key ? d.api_key : ""))
+    .catch(() => "");
+
+  const streamUrl = async (ch) => {
+    const key = await API_KEY_PROMISE;
+    const qs = key ? "?token=" + encodeURIComponent(key) : "";
+    return `http://${host()}:${HTTP_PORT}/ch${ch}.mp4${qs}`;
+  };
   const setStatus = (text) => {
     if (statusEl) statusEl.textContent = text;
   };
@@ -126,8 +135,10 @@
     if (mySession !== sessionId) return;
     abortController = new AbortController();
     let resp;
+    let url;
     try {
-      resp = await fetch(streamUrl(ch), {
+      url = await streamUrl(ch);
+      resp = await fetch(url, {
         signal: abortController.signal,
         cache: "no-store",
       });
@@ -138,7 +149,7 @@
             ? "fMP4 is served over HTTP. Open this page via http://" +
                 host() +
                 "/ to use it."
-            : "Failed to connect to " + streamUrl(ch) + ".",
+            : "Failed to connect to " + url + ".",
         );
       }
       return;
@@ -263,10 +274,6 @@
 
   const list = document.getElementById("preview-endpoint-list");
   const dropdown = document.getElementById("preview-endpoint-dropdown-menu");
-  const entries = [
-    { label: "fMP4 Main", url: streamUrl(0) },
-    { label: "fMP4 Sub", url: streamUrl(1) },
-  ];
 
   async function copyUrl(ev) {
     ev.preventDefault();
@@ -283,37 +290,46 @@
     window.setTimeout(() => link.classList.remove("copied"), 1200);
   }
 
-  entries.forEach((entry) => {
-    if (list) {
-      const a = document.createElement("a");
-      a.className = "preview-endpoint-link";
-      a.href = entry.url;
-      a.rel = "noopener";
-      a.dataset.copyUrl = entry.url;
-      a.title = entry.label + ": " + entry.url;
-      a.innerHTML =
-        '<span class="preview-endpoint-short">' +
-        entry.label +
-        '</span> <i class="bi bi-clipboard"></i>';
-      a.addEventListener("click", copyUrl);
-      list.appendChild(a);
-    }
-    if (dropdown) {
-      const li = document.createElement("li");
-      const a = document.createElement("a");
-      a.className = "dropdown-item preview-endpoint-dropdown-item";
-      a.href = entry.url;
-      a.dataset.copyUrl = entry.url;
-      a.title = entry.label + ": " + entry.url;
-      a.innerHTML =
-        '<span class="preview-endpoint-short">' +
-        entry.label +
-        '</span> <i class="bi bi-clipboard"></i>';
-      a.addEventListener("click", copyUrl);
-      li.appendChild(a);
-      dropdown.appendChild(li);
-    }
-  });
+  async function renderEndpointEntries() {
+    const entries = [
+      { label: "fMP4 Main", url: await streamUrl(0) },
+      { label: "fMP4 Sub", url: await streamUrl(1) },
+    ];
+
+    entries.forEach((entry) => {
+      if (list) {
+        const a = document.createElement("a");
+        a.className = "preview-endpoint-link";
+        a.href = entry.url;
+        a.rel = "noopener";
+        a.dataset.copyUrl = entry.url;
+        a.title = entry.label + ": " + entry.url;
+        a.innerHTML =
+          '<span class="preview-endpoint-short">' +
+          entry.label +
+          '</span> <i class="bi bi-clipboard"></i>';
+        a.addEventListener("click", copyUrl);
+        list.appendChild(a);
+      }
+      if (dropdown) {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.className = "dropdown-item preview-endpoint-dropdown-item";
+        a.href = entry.url;
+        a.dataset.copyUrl = entry.url;
+        a.title = entry.label + ": " + entry.url;
+        a.innerHTML =
+          '<span class="preview-endpoint-short">' +
+          entry.label +
+          '</span> <i class="bi bi-clipboard"></i>';
+        a.addEventListener("click", copyUrl);
+        li.appendChild(a);
+        dropdown.appendChild(li);
+      }
+    });
+  }
+
+  renderEndpointEntries();
 
   // Custom controls: mute + volume + fullscreen; preview stays playing.
   const muteBtn = document.getElementById("fmp4-mute");
