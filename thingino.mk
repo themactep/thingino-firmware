@@ -77,7 +77,16 @@ CAMERA_DTS_DEST = shark
 else ifeq ($(SOC_FAMILY),t41)
 CAMERA_DTS_DEST = marmot
 else ifeq ($(SOC_FAMILY),t32)
+# Only T32's 4.4.94 tree carries arch/mips/boot/dts/ingenic/goat.dts and
+# builds it in (CONFIG_DT_GOAT). The 3.10.14 vendor kernel is board-file
+# based (soc-PRJ007/chip-PRJ007/isvp/Goat) with no dts directory at all,
+# so there is nowhere to put one. That is a normal configuration, not a
+# broken profile: the same board dir serves both kernels.
+ifeq ($(KERNEL_VERSION_4),y)
 CAMERA_DTS_DEST = goat
+else
+CAMERA_DTS_NO_TREE = the t32 3.10.14 kernel is board-file based and has no dts tree
+endif
 else ifeq ($(SOC_FAMILY),a1)
 CAMERA_DTS_DEST = tucana
 endif
@@ -86,7 +95,14 @@ ifneq ($(words $(CAMERA_DTS_FILE)),1)
 $(error Camera profile $(CAMERA) has more than one .dts file: $(CAMERA_DTS_FILE))
 endif
 ifeq ($(CAMERA_DTS_DEST),)
+ifneq ($(CAMERA_DTS_NO_TREE),)
+# Known family, but this kernel has no dts tree. Drop the file so the
+# kopt pre-build hook never registers, and carry on.
+$(warning Camera profile $(CAMERA): ignoring $(notdir $(CAMERA_DTS_FILE)) - $(CAMERA_DTS_NO_TREE))
+CAMERA_DTS_FILE =
+else
 $(error Camera profile $(CAMERA) ships a .dts but SoC family '$(SOC_FAMILY)' has no known kernel dts name)
+endif
 endif
 endif
 export CAMERA_DTS_FILE

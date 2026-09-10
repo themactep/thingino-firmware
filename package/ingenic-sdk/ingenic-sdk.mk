@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = main
-INGENIC_SDK_VERSION = c2a8f9bc2e358388e0e7744e7e94875e226e6430
+INGENIC_SDK_VERSION = 932d7daf8da1b8108e39efe839931276760d60c4
 
 INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -165,6 +165,12 @@ define INSTALL_SENSOR_BIN
 		if [ -n "$(4)" ] && [ -f "$(4)" ]; then \
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
+		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+			for b in $(@D)/sensor-iq/t32/$(2)-PRJ007-*.bin; do \
+				[ -f "$$b" ] || continue; \
+				$(INSTALL) -D -m 0644 "$$b" \
+					$(TARGET_DIR)/usr/share/sensor/$$(basename "$$b"); \
+			done; \
 		else \
 			iqdir=$(@D)/sensor-iq/$(SOC_FAMILY); \
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
