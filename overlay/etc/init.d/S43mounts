@@ -1,13 +1,12 @@
 #!/bin/sh
 
+# The automatic boot-time mount is handled by the if-up.d/mount_nfs
+# hook, which fires only after the link is actually up. This script is
+# retained as a manual start/stop entry point for the NFS mount.
+
 NFS_MOUNT="/mnt/nfs"
 
 nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
-
-network_is_active() {
-	command -v ip >/dev/null 2>&1 || return 1
-	ip -o addr show up scope global 2>/dev/null | grep -q .
-}
 
 start() {
 	echo -c 15 "Mount $NFS_MOUNT"
@@ -17,14 +16,9 @@ start() {
 		return 0
 	fi
 
-	if ! network_is_active; then
-		echo -c 240 -e "- No active network connection"
-		return 0
-	fi
-
 	if mountpoint -q "$NFS_MOUNT"; then
 		echo -c 160 -e "$NFS_MOUNT already mounted" >&2
-		exit 1
+		return 0
 	fi
 
 	# hard, not soft: a soft mount aborts a stalled write after ~9s and
