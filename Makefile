@@ -205,6 +205,16 @@ TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(f
 TOOLCHAIN_LIBC_TAG := $(shell echo "$(TOOLCHAIN_LIBC_RAW)" | tr 'A-Z' 'a-z')
 TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc$(TOOLCHAIN_GCC_RAW)-$(TOOLCHAIN_LIBC_TAG).fragment
 
+# The from-source uClibc toolchain generates its locale data on the build
+# host: uClibc-ng's gen_locale calls setlocale(LC_ALL, "en_US.UTF-8") and
+# bakes the result into the toolchain. Fail early when the host cannot
+# provide that locale instead of a cryptic error deep inside the uClibc build.
+ifeq ($(TOOLCHAIN_TYPE_RAW)-$(TOOLCHAIN_LIBC_RAW),BUILDROOT-UCLIBC)
+ifneq ($(shell locale -a 2>/dev/null | grep -qiE '^en_US(\.utf-?8)?$$' && echo y),y)
+$(error Host locale en_US.UTF-8 is required to build the uClibc toolchain from source. Generate it with: sudo localedef -i en_US -f UTF-8 en_US.UTF-8)
+endif
+endif
+
 # Resolve U-Boot version fragment
 THINGINO_UBOOT_VERSION_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell grep -h '^BR2_THINGINO_UBOOT_VERSION_' $(EARLY_TOOLCHAIN_INPUT_FILES) 2>/dev/null | grep '=y$$' | head -1 | sed 's/.*UBOOT_VERSION_\(.*\)=y/\1/')))
 THINGINO_UBOOT_VERSION_RAW := $(if $(THINGINO_UBOOT_VERSION_RAW),$(THINGINO_UBOOT_VERSION_RAW),2013_07)
