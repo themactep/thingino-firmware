@@ -53,36 +53,36 @@ if [ -z "$url" ]; then
 	exit 1
 fi
 
+set -- $CURL
 if [ "true" = "$verbose" ]; then
-	command="$CURL --verbose"
+	set -- "$@" --verbose
 else
-	command="$CURL --silent"
+	set -- "$@" --silent
 fi
 
 if [ -n "$file" ]; then
-	command="$command -F 'file=@$file'"
+	set -- "$@" -F "file=@$file"
 fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	[ -n "$photo" ] && [ -f "$photo" ] && command="$command -F 'image=@$photo'"
+	[ -n "$photo" ] && [ -f "$photo" ] && set -- "$@" -F "image=@$photo"
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	[ -n "$video" ] && [ -f "$video" ] && command="$command -F 'video=@$video'"
+	[ -n "$video" ] && [ -f "$video" ] && set -- "$@" -F "video=@$video"
 fi
 
 # Message as the raw POST body (-d): ntfy publishes the body as the
 # message, generic webhook receivers get the standard body payload.
 # Multipart (-F) is used only when files are attached (curl switches
 # automatically when -F is present).
-command="$command -d \"$message\""
-command="$command --url \"$url\""
+set -- "$@" -d "$message" --url "$url"
 
-[ "true" = "$verbose" ] && echo_command "$command"
+[ "true" = "$verbose" ] && echo_command "$*"
 
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send webhook message"
 	exit 1
 fi

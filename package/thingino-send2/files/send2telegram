@@ -10,6 +10,10 @@ get_value() {
 	jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
+json_escape() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e ':a;N;$!ba;s/\n/\\n/g'
+}
+
 show_help() {
 	echo "Usage: $0 [options]
 Where:
@@ -78,11 +82,11 @@ if [ -z "$channel" ]; then
 	exit 1
 fi
 
-command="curl --silent --tlsv1.2 --tls-max 1.2"
-[ "true" = "$verbose" ] && command="$command --verbose"
-command="$command -F 'chat_id=$channel'"
-[ "true" = "$silent" ] && command="$command -F 'disable_notification=true'"
-command="$command -F 'rand=$RANDOM'"
+set -- curl --silent --tlsv1.2 --tls-max 1.2
+[ "true" = "$verbose" ] && set -- "$@" --verbose
+set -- "$@" -F "chat_id=$channel"
+[ "true" = "$silent" ] && set -- "$@" -F "disable_notification=true"
+set -- "$@" -F "rand=$RANDOM"
 
 url="https://api.telegram.org/bot$token/"
 
@@ -91,55 +95,51 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	url="${url}sendMediaGroup"
 
 	photo=$(copy_photo)
-	caption=$(parse_caption $photo)
-	command="$command -F 'photo=@$photo'"
+	caption=$(parse_caption "$photo")
 	[ -n "$message" ] && caption="$caption $message"
-	media='{"type":"photo","media":"attach://photo","caption":"'$caption'"},'
+	media="{\"type\":\"photo\",\"media\":\"attach://photo\",\"caption\":\"$(json_escape "$caption")\"},"
 
 	video=$(copy_video)
-	command="$command -F 'video=@$video'"
-	media=$media'{"type":"video","media":"attach://video"}'
+	media="${media}{\"type\":\"video\",\"media\":\"attach://video\"}"
 
-	command="$command -F 'media=[$media]' $url"
+	set -- "$@" -F "photo=@$photo" -F "video=@$video" -F "media=[$media]" "$url"
 
 elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
 	url="${url}sendVideo"
 	video=$(copy_video)
-	caption="$(parse_caption $video)"
+	caption="$(parse_caption "$video")"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'video=@$video' -F 'caption=\"$caption\"' $url"
+	set -- "$@" -F "video=@$video" -F "caption=$caption" "$url"
 
 elif [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto
 	url="${url}sendPhoto"
 	photo=$(copy_photo)
-	caption="$(parse_caption $photo)"
+	caption="$(parse_caption "$photo")"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'photo=@$photo' -F 'caption=\"$caption\"' $url"
+	set -- "$@" -F "photo=@$photo" -F "caption=$caption" "$url"
 
 elif [ -n "$message" ]; then
 	# https://core.telegram.org/bots/api#sendmessage
 	url="${url}sendMessage"
-	command="$command -F 'text=$message' $url"
+	set -- "$@" -F "text=$message" "$url"
 
 elif [ -n "$file" ] && [ -f "$file" ]; then
 	# https://core.telegram.org/bots/api#senddocument
 	url="${url}sendDocument"
-	caption="$(parse_caption $file)"
+	caption="$(parse_caption "$file")"
 	[ -n "$message" ] && caption="$caption $message"
-	command="$command -F 'document=@$1' -F 'caption=\"$caption\"' $url"
+	set -- "$@" -F "document=@$file" -F "caption=$caption" "$url"
 
 else
 	echo_error "Nothing to send"
 	exit 1
 fi
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$*"
 
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send message to Telegram"
 	exit 1
 fi

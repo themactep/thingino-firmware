@@ -113,23 +113,25 @@ url="ftp://"
 url="$url@$host:$port"
 if [ -n "$path" ]; then
 	path="$(date +"$path")"
-	url="$url/${path// /%20}"
+	url="$url/$(printf '%s' "$path" | tr ' ' '%20')"
 fi
 
+failed=0
 for local_file in $queue; do
+	set -- $CURL
 	if [ "true" = "$verbose" ]; then
-		command="$CURL --verbose"
+		set -- "$@" --verbose
 	else
-		command="$CURL --silent"
+		set -- "$@" --silent
 	fi
-	command="$command --url $url/$(basename $local_file) --upload-file $local_file --ftp-create-dirs"
+	set -- "$@" --url "$url/$(basename "$local_file")" --upload-file "$local_file" --ftp-create-dirs
 
-	[ "true" = "$verbose" ] && echo_command "$command"
+	[ "true" = "$verbose" ] && echo_command "$*"
 
-	if ! sh -c "$command"; then
+	if ! "$@"; then
 		echo_error "Failed to upload file to FTP server"
-		exit 1
+		failed=1
 	fi
 done
 
-exit 0
+exit $failed

@@ -31,10 +31,6 @@ Where:
 	exit 0
 }
 
-shell_escape() {
-	printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\''/g")"
-}
-
 escape_sed_replacement() {
 	printf '%s' "$1" | sed -e 's/[\\/&]/\\&/g'
 }
@@ -95,28 +91,32 @@ read_config() {
 	send_video=$(get_value send_video)
 }
 
-build_curl_base() {
+curl_base() {
+	# Populate "$@" with the base curl invocation (word-split on CURL
+	# happens once, here, so downstream args stay intact).
+	set -- $CURL
 	if [ "true" = "$verbose" ]; then
-		printf '%s --verbose' "$CURL"
+		set -- "$@" --verbose
 	else
-		printf '%s --silent' "$CURL"
+		set -- "$@" --silent
 	fi
 }
 
 refresh_access_token() {
-	local response_file command
+	local response_file
 	response_file=$(mktemp)
 	add_to_garbage "$response_file"
 
-	command="$(build_curl_base) --request POST --url $(shell_escape "$oauth_token_url")"
-	command="$command -H 'Content-Type: application/x-www-form-urlencoded'"
-	command="$command --data-urlencode $(shell_escape "client_id=$client_id")"
-	command="$command --data-urlencode $(shell_escape "client_secret=$client_secret")"
-	command="$command --data-urlencode $(shell_escape "refresh_token=$refresh_token")"
-	command="$command --data-urlencode 'grant_type=refresh_token'"
+	curl_base
+	set -- "$@" --request POST --url "$oauth_token_url"
+	set -- "$@" -H 'Content-Type: application/x-www-form-urlencoded'
+	set -- "$@" --data-urlencode "client_id=$client_id"
+	set -- "$@" --data-urlencode "client_secret=$client_secret"
+	set -- "$@" --data-urlencode "refresh_token=$refresh_token"
+	set -- "$@" --data-urlencode 'grant_type=refresh_token'
 
-	[ "true" = "$verbose" ] && echo_command "$command"
-	if ! sh -c "$command" > "$response_file"; then
+	[ "true" = "$verbose" ] && echo_command "$*"
+	if ! "$@" > "$response_file"; then
 		echo_error "Failed to refresh OAuth token"
 		return 1
 	fi
@@ -156,17 +156,19 @@ EOF
 }
 
 upload_media_file() {
-	local source_file="$1" file_name="$2" mime_type="$3" command output
-	command="$(build_curl_base) --request POST --url $(shell_escape "$photos_upload_url")"
-	command="$command -H $(shell_escape "Authorization: Bearer $ACCESS_TOKEN")"
-	command="$command -H 'Content-Type: application/octet-stream'"
-	command="$command -H $(shell_escape "X-Goog-Upload-File-Name: $file_name")"
-	command="$command -H $(shell_escape "X-Goog-Upload-Protocol: raw")"
-	command="$command -H $(shell_escape "X-Goog-Upload-Content-Type: $mime_type")"
-	command="$command --data-binary @$(shell_escape "$source_file")"
+	local source_file="$1" file_name="$2" mime_type="$3" output
 
-	[ "true" = "$verbose" ] && echo_command "$command"
-	if ! output=$(sh -c "$command"); then
+	curl_base
+	set -- "$@" --request POST --url "$photos_upload_url"
+	set -- "$@" -H "Authorization: Bearer $ACCESS_TOKEN"
+	set -- "$@" -H 'Content-Type: application/octet-stream'
+	set -- "$@" -H "X-Goog-Upload-File-Name: $file_name"
+	set -- "$@" -H 'X-Goog-Upload-Protocol: raw'
+	set -- "$@" -H "X-Goog-Upload-Content-Type: $mime_type"
+	set -- "$@" --data-binary "@$source_file"
+
+	[ "true" = "$verbose" ] && echo_command "$*"
+	if ! output=$("$@"); then
 		echo_error "Failed to upload $file_name to Google Photos"
 		return 1
 	fi
@@ -175,17 +177,18 @@ upload_media_file() {
 }
 
 create_media_item() {
-	local payload_file="$1" response_file command
+	local payload_file="$1" response_file
 	response_file=$(mktemp)
 	add_to_garbage "$response_file"
 
-	command="$(build_curl_base) --request POST --url $(shell_escape "$photos_create_url")"
-	command="$command -H $(shell_escape "Authorization: Bearer $ACCESS_TOKEN")"
-	command="$command -H 'Content-Type: application/json'"
-	command="$command --data-binary @$(shell_escape "$payload_file")"
+	curl_base
+	set -- "$@" --request POST --url "$photos_create_url"
+	set -- "$@" -H "Authorization: Bearer $ACCESS_TOKEN"
+	set -- "$@" -H 'Content-Type: application/json'
+	set -- "$@" --data-binary "@$payload_file"
 
-	[ "true" = "$verbose" ] && echo_command "$command"
-	if ! sh -c "$command" > "$response_file"; then
+	[ "true" = "$verbose" ] && echo_command "$*"
+	if ! "$@" > "$response_file"; then
 		echo_error "Failed to finalize Google Photos upload"
 		[ "true" = "$verbose" ] && cat "$response_file" >&2
 		return 1

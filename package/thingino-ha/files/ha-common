@@ -276,16 +276,29 @@ ha_pub_begin() {
 
 _ha_pub_exec() {
 	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
+	local mpub rc
 	[ -f "$tmpfile" ] || return 1
+
 	# Feed the persistent publisher daemon instead of forking a fresh
 	# mosquitto_pub (and a new TCP connection) per message. The daemon
 	# unlinks tmpfile once the message is sent or the attempt fails.
-	if printf '%s\t%s\t%s\n' "$retain" "$topic" "$tmpfile" \
-		>> "$HA_MQTT_PUB_FIFO" 2>/dev/null; then
+	if [ -p "$HA_MQTT_PUB_FIFO" ] &&
+		printf '%s\t%s\t%s\n' "$retain" "$topic" "$tmpfile" \
+			>> "$HA_MQTT_PUB_FIFO" 2>/dev/null; then
 		return 0
 	fi
+
+	# FIFO not available (ha-daemon not running) — publish directly so
+	# standalone callers such as ha-event still work.
+	mpub=$(ha_mpub_cmd "$suffix")
+	if [ "$retain" = "1" ]; then
+		eval "$mpub -r -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	else
+		eval "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	fi
+	rc=$?
 	rm -f "$tmpfile"
-	return 1
+	return $rc
 }
 
 _ha_queue_or_pub() {

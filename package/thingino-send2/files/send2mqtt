@@ -23,11 +23,6 @@ message_looks_like_json() {
 	esac
 }
 
-escape_single_quotes() {
-	# Escape single quotes for safe inclusion inside single-quoted strings
-	printf "%s" "$1" | sed "s/'/'\\\\''/g"
-}
-
 show_help() {
 	echo "Usage: $0 [options]
 Where:
@@ -112,8 +107,9 @@ fi
 
 message=$(date +"$message")
 
+# Build mosquitto_pub base args. Kept as a string because the per-message
+# args (-t/-m/-f) are appended directly below with quoted variables.
 command="mosquitto_pub -h $host -p $port -i $client_id"
-
 [ "true" = "$verbose" ] && command="$command -d"
 [ -n "$username" ] && command="$command -u $username"
 [ -n "$password" ] && command="$command -P $password"
@@ -125,25 +121,25 @@ fi
 failed=0
 
 if message_looks_like_json "$message"; then
-	tmpfile="$(mktemp -u).json"
-	echo "$message" > $tmpfile
-	send_command="$command -t $topic -f $tmpfile"
-	garbage="$garbage $tmpfile"
+	tmpfile="$(mktemp).json"
+	echo "$message" >"$tmpfile"
+	add_to_garbage "$tmpfile"
+	[ "true" = "$verbose" ] && echo_command "$command -t $topic -f $tmpfile"
+	if ! $command -t "$topic" -f "$tmpfile"; then
+		echo_error "Failed to send MQTT message"
+		failed=1
+	fi
 else
-	sanitized_message=$(escape_single_quotes "$message")
-	send_command="$command -t $topic -m '$sanitized_message'"
-fi
-
-[ "true" = "$verbose" ] && echo_command "$send_command"
-if ! sh -c "$send_command"; then
-	echo_error "Failed to send MQTT message"
-	failed=1
+	[ "true" = "$verbose" ] && echo_command "$command -t $topic -m '$message'"
+	if ! $command -t "$topic" -m "$message"; then
+		echo_error "Failed to send MQTT message"
+		failed=1
+	fi
 fi
 
 if [ -n "$file" ] && [ -f "$file" ]; then
-	send_command="$command -t $topic -f '$file'"
-	[ "true" = "$verbose" ] && echo_command "$send_command"
-	if ! sh -c "$send_command"; then
+	[ "true" = "$verbose" ] && echo_command "$command -t $topic -f $file"
+	if ! $command -t "$topic" -f "$file"; then
 		echo_error "Failed to send file via MQTT"
 		failed=1
 	fi
@@ -155,9 +151,8 @@ if [ "true" = "$send_photo" ]; then
 		echo_error "Failed to get photo"
 		failed=1
 	else
-		send_command="$command -t $topic_photo -f '$photo'"
-		[ "true" = "$verbose" ] && echo_command "$send_command"
-		if ! sh -c "$send_command"; then
+		[ "true" = "$verbose" ] && echo_command "$command -t $topic_photo -f $photo"
+		if ! $command -t "$topic_photo" -f "$photo"; then
 			echo_error "Failed to send photo via MQTT"
 			failed=1
 		fi
@@ -170,9 +165,8 @@ if [ "true" = "$send_video" ]; then
 		echo_error "Failed to get video"
 		failed=1
 	else
-		send_command="$command -t $topic_video -f '$video'"
-		[ "true" = "$verbose" ] && echo_command "$send_command"
-		if ! sh -c "$send_command"; then
+		[ "true" = "$verbose" ] && echo_command "$command -t $topic_video -f $video"
+		if ! $command -t "$topic_video" -f "$video"; then
 			echo_error "Failed to send video via MQTT"
 			failed=1
 		fi

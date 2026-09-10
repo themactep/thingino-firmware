@@ -27,33 +27,45 @@ read_config() {
 	template=$(get_value template)
 }
 
-# Files to send
-queue=""
-
-add_to_queue() {
-	queue="$queue $1"
-}
-
-# Rename by template. Extension comes from media kind, not the temp
-# path — motion/send2common use extensionless mktemp names (e.g.
-# /tmp/motion_XXXXXX), so ${file##*.} would invent junk suffixes.
-process_file() {
-	local file="$1"
-	local kind="$2" # photo | video
-	local ext="bin"
-
-	# empty / missing capture — don't invent junk names
-	[ -n "$file" ] && [ -f "$file" ] || return 0
+# Destination relative path from the template. Extension comes from media
+# kind, not the temp path — motion/send2common use extensionless mktemp
+# names, so ${file##*.} would invent junk suffixes.
+target_path() {
+	local kind="$1" ext="bin"
 
 	case "$kind" in
 		photo) ext="jpg" ;;
 		video) ext="mp4" ;;
 	esac
 
-	local name="/tmp/$(date +"$template").$ext"
-	mv "$file" "$name"
-	add_to_queue "$name"
-	# Don't add to garbage since we're keeping it
+	printf '%s.%s' "$(date +"$template")" "$ext"
+}
+
+process_file() {
+	local file="$1" kind="$2" rel dest_file
+
+	# empty / missing capture — don't invent junk names
+	[ -n "$file" ] && [ -f "$file" ] || return 0
+
+	rel=$(target_path "$kind")
+	dest_file="$dest_dir/$rel"
+
+	# template may contain directory components (e.g. %Y%m%d/%H)
+	if ! mkdir -p "$(dirname "$dest_file")"; then
+		echo_error "Failed to create directory: $(dirname "$dest_file")"
+		rm -f "$file"
+		return 1
+	fi
+
+	[ "true" = "$verbose" ] && echo_info "Copying $file to $dest_file"
+
+	if ! cp "$file" "$dest_file"; then
+		echo_error "Failed to copy file to storage: $dest_file"
+		rm -f "$file"
+		return 1
+	fi
+
+	rm -f "$file"
 }
 
 read_config
@@ -111,28 +123,12 @@ fi
 
 # Process media files
 if [ "true" = "$send_video" ]; then
-	process_file "$(copy_video)" video
+	process_file "$(copy_video)" video || exit 1
 fi
 
 if [ "true" = "$send_photo" ]; then
-	process_file "$(copy_photo)" photo
+	process_file "$(copy_photo)" photo || exit 1
 fi
-
-# Copy files to storage
-for local_file in $queue; do
-	dest_file="$dest_dir/$(basename $local_file)"
-
-	[ "true" = "$verbose" ] && echo_info "Copying $local_file to $dest_file"
-
-	if ! cp "$local_file" "$dest_file"; then
-		echo_error "Failed to copy file to storage: $dest_file"
-		rm -f "$local_file"
-		exit 1
-	fi
-
-	# Clean up temp file after successful copy
-	rm -f "$local_file"
-done
 
 [ "true" = "$verbose" ] && echo_info "Successfully saved files to $dest_dir"
 

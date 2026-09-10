@@ -99,51 +99,51 @@ fi
 [ -z "$port" ] && port=80
 [ "true" = "$use_ssl" ] && scheme="https" || scheme="http"
 
-command="$CURL -X POST"
+set -- $CURL -X POST
 
 if [ -n "$priority" ]; then
-	command="$command -H 'p: $priority'"
+	set -- "$@" -H "p: $priority"
 fi
 
 if [ "true" = "$verbose" ]; then
-	command="$command --verbose"
+	set -- "$@" --verbose
 else
-	command="$command --silent"
+	set -- "$@" --silent
 fi
 
 if [ -n "$token" ]; then
-	command="$command -H 'Authorization: Bearer $token'"
+	set -- "$@" -H "Authorization: Bearer $token"
 elif [ -n "$username" ] && [ -n "$password" ]; then
-	command="$command -u $username:$password"
+	set -- "$@" -u "$username:$password"
 fi
 
 if [ -n "$message" ]; then
 	message="$(date +"$message")"
-	command="$command -H 'Message: $message'"
+	set -- "$@" -H "Message: $message"
 fi
 
 if [ -n "$title" ]; then
 	title="$(date +"$title")"
-	command="$command -H 'Title: $title'"
+	set -- "$@" -H "Title: $title"
 fi
 
 # Seems only one attachment is allowed at a time
 # so we prioritize file over snapshot over video.
 if [ -n "$filename" ] && [ -f "$filename" ]; then
-	command="$command -T $filename -H 'Filename: $(basename "$filename")'"
+	set -- "$@" -T "$filename" -H "Filename: $(basename "$filename")"
 elif [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	[ -f "$photo" ] && command="$command -T $photo -H 'Filename: $(basename "$photo")'"
+	[ -f "$photo" ] && set -- "$@" -T "$photo" -H "Filename: $(basename "$photo")"
 elif [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	[ -f "$video" ] && command="$command -T $video -H 'Filename: $(basename "$video")'"
+	[ -f "$video" ] && set -- "$@" -T "$video" -H "Filename: $(basename "$video")"
 fi
 
-command="$command $scheme://$host:$port/$topic"
+set -- "$@" "$scheme://$host:$port/$topic"
 
-[ "true" = "$verbose" ] && echo_command "$command"
+[ "true" = "$verbose" ] && echo_command "$*"
 
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send NTFY message"
 	exit 1
 fi

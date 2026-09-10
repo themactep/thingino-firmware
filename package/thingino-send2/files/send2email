@@ -103,33 +103,33 @@ fi
 [ -z "$to_name" ] && to_name="Thingino Camera Admin"
 [ -z "$subject" ] && subject="Snapshot from Thingino Camera"
 
+set -- $CURL
 if [ "true" = "$verbose" ]; then
-	command="$CURL --verbose"
+	set -- "$@" --verbose
 else
-	command="$CURL --silent"
+	set -- "$@" --silent
 fi
-command="$command --mail-from $from_address --mail-rcpt $to_address"
-[ -n "$username" ] && [ -n "$password" ] && command="$command --user '$username:$password'"
+set -- "$@" --mail-from "$from_address" --mail-rcpt "$to_address"
+[ -n "$username" ] && [ -n "$password" ] && set -- "$@" --user "$username:$password"
 
 if [ "true" = "$use_ssl" ]; then
-	command="$command --url smtps://$host:$port --ssl-reqd"
-	[ "true" = "$trust_cert" ] && command="$command --insecure"
+	set -- "$@" --url "smtps://$host:$port" --ssl-reqd
+	[ "true" = "$trust_cert" ] && set -- "$@" --insecure
 else
-	command="$command --url smtp://$host:$port"
+	set -- "$@" --url "smtp://$host:$port"
 fi
 
 email_date=$(date -uR)
-email_body=${body//"/\\"}
-command="$command -H 'From: \"$from_name\" <$from_address>'"
-command="$command -H 'To: \"$to_name\" <$to_address>'"
-command="$command -H 'Date: $email_date'"
-command="$command -H 'Subject: $subject'"
-command="$command -F '=(;type=multipart/mixed'"
-command="$command -F \"=${body};type=text/plain\""
+set -- "$@" -H "From: \"$from_name\" <$from_address>"
+set -- "$@" -H "To: \"$to_name\" <$to_address>"
+set -- "$@" -H "Date: $email_date"
+set -- "$@" -H "Subject: $subject"
+set -- "$@" -F '=(;type=multipart/mixed'
+set -- "$@" -F "=${body};type=text/plain"
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	command="$command -F 'snapshot=@$photo;type=image/jpeg;encoder=base64'"
+	set -- "$@" -F "snapshot=@$photo;type=image/jpeg;encoder=base64"
 fi
 
 if [ "true" = "$send_video" ]; then
@@ -140,14 +140,14 @@ if [ "true" = "$send_video" ]; then
 		mp4) mime="video/mp4" ;;
 		*) mime="application/octet-stream" ;;
 	esac
-	command="$command -F 'video=@$video;type=$mime;encoder=base64'"
+	set -- "$@" -F "video=@$video;type=$mime;encoder=base64"
 fi
 
-command="$command -F '=)'"
+set -- "$@" -F '=)'
 
-[ "true" = "$verbose" ] && echo_command "$command"
+[ "true" = "$verbose" ] && echo_command "$*"
 
-if ! sh -c "$command" >/dev/null; then
+if ! "$@" >/dev/null; then
 	echo_error "Failed to send email"
 	exit 1
 fi
