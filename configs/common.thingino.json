@@ -4,6 +4,11 @@
   "led": {
     "startup_indicator": "off"
   },
+  "netwatch": {
+    "enabled": true,
+    "fail_count": 3,
+    "interval": 30
+  },
   "rsyslog": {
     "host": "",
     "local": false,
