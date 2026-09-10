@@ -317,6 +317,17 @@ Thingino Web UI through a build-time manifest system.  See
 - `"before:<label>"` — before the item with matching label
 - `"index:<n>"` — at 0-based position
 
+### Nav item fields
+
+Each `nav` item also takes per-item fields — `label`, `href`, `type`
+(`"divider"`), `className` (the `confirm` token shows a dialog),
+`trackActive`, `target`/`rel`/`title`, `hidden`, and `action`. Set
+`"action": true` to `fetch()` the `href` in the background and report the
+result in the message overlay instead of navigating — use it for
+state-changing CGI endpoints. Leave it off for `/x/reboot.cgi` and
+`/x/logout.cgi`, which answer with redirects and must navigate normally.
+See `docs/dev/webui-plugin.md` for the full field reference.
+
 ### Existing plugins (for reference)
 
 - `package/thingino-motors/files/motors.webui.json` — Pan/Tilt motors
