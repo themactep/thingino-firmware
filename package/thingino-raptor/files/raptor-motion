@@ -128,6 +128,9 @@ start() {
 	touch "$MOTION_ALARM"
 	[ -x /usr/sbin/ha-event ] && ha-event motion ON &
 
+	# Trigger the Wyze Floodlight v1 night-time motion lamp (if installed)
+	[ -x /usr/sbin/floodlight_ctl ] && floodlight_ctl motion &
+
 	[ "$any" = "true" ] || exit 0
 
 	MOTION_PHOTO_FILE=""

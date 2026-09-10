@@ -1,0 +1,32 @@
+{
+  "name": "floodlight",
+  "label": "Floodlight",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:GPIO pins",
+      "items": [
+        {
+          "label": "Floodlight",
+          "href": "/config-floodlight.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "floodlight": true
+  },
+  "cgi": [
+    "/x/json-config-floodlight.cgi"
+  ],
+  "pages": [
+    "/config-floodlight.html"
+  ]
+}

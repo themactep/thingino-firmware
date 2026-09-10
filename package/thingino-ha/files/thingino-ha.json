@@ -9,6 +9,7 @@
     "enable_doorbell": false,
     "enable_firmware_timestamp": true,
     "enable_firmware_version": true,
+    "enable_floodlight": false,
     "enable_gain": false,
     "enable_ir850": true,
     "enable_ir940": true,

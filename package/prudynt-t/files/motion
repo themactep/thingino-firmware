@@ -51,6 +51,9 @@ start() {
 	# Notify Home Assistant immediately (if installed)
 	[ -x /usr/sbin/ha-event ] && ha-event motion ON &
 
+	# Trigger the Wyze Floodlight v1 night-time motion lamp (if installed)
+	[ -x /usr/sbin/floodlight_ctl ] && floodlight_ctl motion &
+
 	# Check if any send2* service needs photo or video
 	need_photo=false
 	need_video=false

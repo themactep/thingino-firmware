@@ -45,6 +45,10 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 	# Auto-enable doorbell entity on doorbell-equipped cameras
 	$(if $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL),
 		printf '{"ha":{"enable_doorbell":true}}\n' > $(TARGET_DIR)/usr/share/thingino-defaults/55-ha-doorbell.json)
+
+	# Auto-enable floodlight entity on floodlight-equipped cameras
+	$(if $(BR2_PACKAGE_WYZE_ACCESSORY_FLOODLIGHT),
+		printf '{"ha":{"enable_floodlight":true}}\n' > $(TARGET_DIR)/usr/share/thingino-defaults/55-ha-floodlight.json)
 endef
 
 $(eval $(generic-package))

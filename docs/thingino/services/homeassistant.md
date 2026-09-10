@@ -48,6 +48,7 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `enable_ir850` | `true` | Switch: 850 nm IR LED |
 | `enable_ir940` | `true` | Switch: 940 nm IR LED |
 | `enable_white_light` | `true` | Switch: white light |
+| `enable_floodlight` | `false` | Light: Wyze Floodlight v1 on/off + 1–100% brightness |
 | `enable_firmware_version` | `true` | Sensor: firmware version (e.g. "ciao+9a88c72") |
 | `enable_firmware_timestamp` | `true` | Sensor: firmware build timestamp (e.g. "2026-07-24 03:04:32 UTC") |
 | `enable_gain` | `false` | Sensor: ISP gain (proxy for lux) |
@@ -69,6 +70,8 @@ jct /etc/thingino.json set ha.enable_reboot false
 jct /etc/thingino.json set ha.enable_ptz true   # enable PTZ buttons
 ```
 
+Floodlight brightness and motion activation are configured on the
+[Floodlight](../floodlight.md) page (Settings → Floodlight).
 
 ## MQTT topic layout
 
@@ -89,6 +92,8 @@ swaps.
 | IR LED 850 nm | `cameras/<id>/ir850/state` | `cameras/<id>/ir850/set` |
 | IR LED 940 nm | `cameras/<id>/ir940/state` | `cameras/<id>/ir940/set` |
 | White Light | `cameras/<id>/white/state` | `cameras/<id>/white/set` |
+| Floodlight | `cameras/<id>/floodlight/state` | `cameras/<id>/floodlight/set` |
+| Floodlight brightness | `cameras/<id>/floodlight_brightness/state` | `cameras/<id>/floodlight_brightness/set` |
 | Firmware version | `cameras/<id>/firmware_version/state` | — |
 | Firmware build | `cameras/<id>/firmware_timestamp/state` | — |
 | Gain | `cameras/<id>/gain/state` | — |
@@ -104,6 +109,7 @@ swaps.
 ## Accepted command payloads
 
 - **Switches**: `on` / `off` (also accepts `ON`/`OFF`, `1`/`0`)
+- **Floodlight**: `on` / `off`; send `1`–`100` to the brightness command topic
 - **Day/Night select**: `day` / `night` / `toggle`
 - **Snapshot / reboot / PTZ buttons**: `1`
 - **Firmware install**: `install`

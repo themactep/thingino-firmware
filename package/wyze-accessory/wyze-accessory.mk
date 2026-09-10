@@ -37,6 +37,18 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight_ctl \
 		$(TARGET_DIR)/usr/sbin/floodlight_ctl
 
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -d $(TARGET_DIR)/var/www/x
+	$(INSTALL) -d $(TARGET_DIR)/var/www/a/plugins
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/config-floodlight.html \
+		$(TARGET_DIR)/var/www/config-floodlight.html
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/config-floodlight.js \
+		$(TARGET_DIR)/var/www/a/config-floodlight.js
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/www/x/json-config-floodlight.cgi \
+		$(TARGET_DIR)/var/www/x/json-config-floodlight.cgi
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/floodlight.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/floodlight.webui.json
+
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
 	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/50-accessory
@@ -83,6 +95,9 @@ endef
 ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_FLOODLIGHT),y)
 	WYZE_ACCESSORY_INSTALL_TARGET_CMDS += $(WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT)$(sep)
 	WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS += $(WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_FLOODLIGHT)
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	WYZE_ACCESSORY_DEPENDENCIES += thingino-webui
+endif
 endif
 
 ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_SPOTLIGHT),y)

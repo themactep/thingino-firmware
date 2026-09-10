@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Floodlight</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-floodlight">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="card mb-3">
+        <div class="card-header">
+          <h2 class="card-title">Floodlight</h2>
+          <small>Wyze Floodlight v1 lamp control.</small>
+          <button type="button" class="btn btn-outline-secondary" id="reload-btn" title="Reload values from camera">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="floodlight-msg" class="alert mt-2" hidden></div>
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <h4>Lamp</h4>
+              <small>Turn the floodlight on and off and set its brightness.</small>
+              <p class="form-switch mt-3">
+                <input class="form-check-input" type="checkbox" role="switch" id="floodlight-switch">
+                <label class="form-check-label" for="floodlight-switch">Floodlight on</label>
+              </p>
+              <p class="mt-3">
+                <label class="form-label d-flex justify-content-between" for="floodlight-brightness">
+                  <span>Brightness</span>
+                  <strong id="floodlight-brightness-value">100%</strong>
+                </label>
+                <input type="range" class="form-range" id="floodlight-brightness" min="1" max="100" step="1" value="100">
+              </p>
+            </div>
+            <div class="col-lg-6">
+              <h4>Motion activation</h4>
+              <small>Turn the lamp on after a night-time motion event.</small>
+              <p class="form-switch mt-3">
+                <input class="form-check-input" type="checkbox" role="switch" id="motion-enabled">
+                <label class="form-check-label" for="motion-enabled">Enable motion activation</label>
+              </p>
+              <p class="mt-3">
+                <label class="form-label d-flex justify-content-between" for="motion-duration">
+                  <span>On time</span>
+                  <strong id="motion-duration-value">30 seconds</strong>
+                </label>
+                <input type="range" class="form-range" id="motion-duration" min="1" max="3600" step="1" value="30">
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-floodlight.js"></script>
+</body>
+</html>

@@ -131,6 +131,15 @@ if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
 			ha_pub_state white OFF "$FORCE"; }
 fi
 
+# Floodlight (Wyze v1): state files are written by floodlight_ctl after each
+# successful command; the controller itself exposes no readable lamp state.
+if ha_entity_enabled floodlight && ha_floodlight_available; then
+	val=$(ha_floodlight_state 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight "$val" "$FORCE"
+	val=$(ha_floodlight_brightness 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight_brightness "$val" "$FORCE"
+fi
+
 # Camera config sensor (IMAGE_ID from os-release, always published)
 image_id=""
 for f in /etc/os-release /usr/lib/os-release; do

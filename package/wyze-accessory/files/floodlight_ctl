@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2018,SC2019
 # Control the light on the Wyze Cam Floodlight v1 accessory board.
 #
 # The light board is attached over an internal USB serial link (ch341)
@@ -9,14 +10,18 @@
 # Protocol and original script by gponick:
 # https://github.com/gtxaspec/wz_mini_hacks/discussions/771#discussioncomment-11737172
 
-VERBOSE=0
+THINGINO_JSON="/etc/thingino.json"
+STATE_FILE="/var/run/floodlight.status"
+BRIGHTNESS_FILE="/var/run/floodlight.brightness"
+NIGHTMODE="/run/thingino/daynight_mode"
+MOTION_LOCK="/var/run/floodlight-motion.lock"
 
 usage() {
-	echo "usage: $0 [-v] on <1-100> | off" >&2
+	echo "usage: $0 {on [1-100]|off|motion}" >&2
 }
 
-log() {
-	[ "$VERBOSE" -eq 1 ] && echo "$1"
+get_config() {
+	jct "$THINGINO_JSON" get "$1" 2>/dev/null | tr -d '"'
 }
 
 get_floodlight_command_string() {
@@ -26,53 +31,110 @@ get_floodlight_command_string() {
 	printf '%s%s%s' "\xaa\x55\x43\x06\x46" "\x$(printf "%02x" "$brightness_dec")\x00\x07" "\x${check_bytes_raw%??}\x${check_bytes_raw#??}"
 }
 
-for DEVICE in /dev/ttyUSB*; do
-	[ -c "$DEVICE" ] && CH341_DEVICE="$DEVICE"
-done
-DEVICE="$CH341_DEVICE"
+find_device() {
+	DEVICE=""
+	for d in /dev/ttyUSB*; do
+		[ -c "$d" ] && DEVICE="$d" && break
+	done
+	[ -n "$DEVICE" ]
+}
 
-if [ -z "$DEVICE" ]; then
-	echo "Could not find a valid device" >&2
-	exit 1
-fi
-
-while getopts "vh" flag; do
-	case "$flag" in
-		v) VERBOSE=1 ;;
-		*)
-			usage
-			exit 1
-			;;
+valid_brightness() {
+	case "$1" in
+		'' | *[!0-9]*) return 1 ;;
 	esac
-done
-shift "$((OPTIND - 1))"
+	[ "$1" -ge 1 ] && [ "$1" -le 100 ]
+}
 
-[ $# -eq 0 ] && {
-	usage
-	exit 1
+configured_brightness() {
+	b=$(get_config floodlight.brightness)
+	valid_brightness "$b" || b=100
+	printf '%s' "$b"
+}
+
+turn_on() {
+	brightness=$1
+	valid_brightness "$brightness" || {
+		echo "Brightness must be 1-100" >&2
+		return 1
+	}
+	find_device || {
+		echo "Could not find a floodlight serial device" >&2
+		return 1
+	}
+	jct "$THINGINO_JSON" set floodlight.brightness "$brightness" >/dev/null 2>&1
+	printf '%s\n' ON >"$STATE_FILE"
+	printf '%s\n' "$brightness" >"$BRIGHTNESS_FILE"
+	printf '%b' "$(get_floodlight_command_string "$brightness")" >"$DEVICE"
+}
+
+turn_off() {
+	find_device || {
+		echo "Could not find a floodlight serial device" >&2
+		return 1
+	}
+	printf '%s\n' OFF >"$STATE_FILE"
+	printf '%b' "$(get_floodlight_command_string 0)" >"$DEVICE"
+}
+
+motion_enabled() {
+	[ "$(get_config floodlight.motion.enabled)" = "true" ]
+}
+
+motion_duration() {
+	d=$(get_config floodlight.motion.duration)
+	case "$d" in
+		'' | *[!0-9]*) d=30 ;;
+	esac
+	[ "$d" -ge 1 ] && [ "$d" -le 3600 ] || d=30
+	printf '%s' "$d"
+}
+
+is_night() {
+	[ -r "$NIGHTMODE" ] || return 1
+	mode=$(sed -n '1p' "$NIGHTMODE" 2>/dev/null | tr -d '\r\n ' | tr 'A-Z' 'a-z')
+	[ "$mode" = "night" ]
+}
+
+run_motion() {
+	motion_enabled || exit 0
+	is_night || exit 0
+
+	mkdir "$MOTION_LOCK" 2>/dev/null || exit 0
+	trap 'rmdir "$MOTION_LOCK" 2>/dev/null' EXIT INT TERM
+
+	brightness=$(configured_brightness)
+	duration=$(motion_duration)
+
+	turn_on "$brightness" || exit 1
+	sleep "$duration"
+	turn_off
 }
 
 case "$1" in
-	off | OFF)
-		echo "OFF" >/var/run/floodlight.status
-		printf '%b' "$(get_floodlight_command_string 0)" >"$DEVICE"
-		log "Setting brightness to 0"
-		;;
 	on | ON)
-		[ $# -ne 2 ] && {
-			usage
-			exit 1
-		}
-		if [ "$2" -lt 1 ] || [ "$2" -gt 100 ]; then
-			echo "Invalid brightness value" >&2
+		if [ $# -eq 1 ]; then
+			turn_on "$(configured_brightness)"
+		elif [ $# -eq 2 ]; then
+			turn_on "$2"
+		else
 			usage
 			exit 1
 		fi
-		brightness_pct=$2
-		echo "ON" >/var/run/floodlight.status
-		echo "${brightness_pct}" >/var/run/floodlight.brightness
-		printf '%b' "$(get_floodlight_command_string "$brightness_pct")" >"$DEVICE"
-		log "Setting brightness to ${brightness_pct}"
+		;;
+	off | OFF)
+		[ $# -eq 1 ] || {
+			usage
+			exit 1
+		}
+		turn_off
+		;;
+	motion)
+		[ $# -eq 1 ] || {
+			usage
+			exit 1
+		}
+		run_motion
 		;;
 	*)
 		usage
