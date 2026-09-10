@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>thingino · Camera preview</title>
+  <title>thingino · fMP4 preview</title>
   <script src="/a/theme-init.js"></script>
   <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="/a/main.css">
 </head>
 
-<body id="page-preview">
+<body id="page-preview-fmp4">
 <nav data-app-nav></nav>
 
 <main class="pb-4">
@@ -23,25 +23,35 @@
     <div data-app-controls></div>
 
     <section>
-      <form id="previewForm" class="needs-validation" novalidate autocomplete="off">
-        <div class="card mb-3">
-          <div class="card-header">
-            <h2 class="card-title">Live View</h2>
-            <small>The actual footage from the camera</small>
-            <div class="preview-header-actions">
-              <button type="button" class="btn btn-outline-secondary" id="preview-reload" title="Reload values from camera">
-                <i class="bi bi-arrow-clockwise"></i> Reload
+      <div class="card mb-3">
+        <div class="card-header">
+          <h2 class="card-title">Live View (fMP4)</h2>
+          <small>H.264 fragmented MP4 over MSE, reusing the encoder output</small>
+          <div class="preview-header-actions">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Stream channel">
+              <button type="button" class="btn btn-outline-secondary active" id="fmp4-ch0">Main</button>
+              <button type="button" class="btn btn-outline-secondary" id="fmp4-ch1">Sub</button>
+            </div>
+          </div>
+        </div><!-- .card-header -->
+        <div class="card-body">
+          <div id="frame" class="position-relative mb-2">
+            <video id="fmp4-video" class="w-100" autoplay muted playsinline></video>
+            <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
+            <div class="position-absolute top-0 end-0 m-2 d-flex align-items-center gap-2">
+              <button type="button" id="fmp4-mute" class="btn btn-sm btn-dark rounded-circle" title="Unmute" aria-label="Toggle audio">
+                <i class="bi bi-volume-mute"></i>
+              </button>
+              <input type="range" id="fmp4-volume" class="form-range" min="0" max="100" value="100" aria-label="Volume" style="width: 6rem">
+              <button type="button" id="fmp4-zoom" class="btn btn-sm btn-dark rounded-circle" title="Fullscreen" aria-label="Toggle fullscreen">
+                <i class="bi bi-arrows-fullscreen"></i>
               </button>
             </div>
-          </div><!-- .card-header -->
-          <div class="card-body">
-            <div id="frame" class="position-relative mb-2">
-              <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch0">
-            </div>
-            <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
           </div>
+          <div id="fmp4-status" class="text-muted small"></div>
         </div>
-      </form>
+      </div>
+
       <div class="preview-endpoints text-center" id="preview-endpoints">
         <small>Direct endpoints. Click a link to copy its URL to clipboard.</small>
         <div class="dropdown d-lg-none mt-2" id="preview-endpoint-dropdown">
@@ -63,6 +73,7 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-<script src="/a/preview.js"></script>
+<script src="/a/preview-endpoints.js"></script>
+<script src="/a/preview-fmp4.js"></script>
 </body>
 </html>

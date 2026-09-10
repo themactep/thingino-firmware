@@ -32,8 +32,8 @@
       "position": "prepend",
       "items": [
         {
-          "label": "Live View (fMP4)",
-          "href": "/preview-fmp4.html"
+          "label": "Live View (MJPEG)",
+          "href": "/preview-mjpeg.html"
         }
       ]
     },
@@ -142,7 +142,8 @@
     "/x/tool-timelapse.cgi"
   ],
   "pages": [
-    "/preview-fmp4.html",
+    "/preview.html",
+    "/preview-mjpeg.html",
     "/streamer-main.html",
     "/streamer-substream.html",
     "/streamer-image.html",

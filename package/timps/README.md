@@ -94,8 +94,9 @@ The preview page talks to timps directly (see below).
 `thingino-webui` uses for its own core preview page, and is installed
 straight over `/var/www/preview.html` — the same overlay `timps.mk` already
 does for its other ~15 native pages (`TIMPS_INSTALL_WEBUI_CGIS`'s `*.html`
-loop). raptor does the same with its own `preview.html`; prudynt-t installs
-none, so the core page stays.
+loop). raptor does the same with its own `preview.html`; prudynt-t also
+installs its own (fMP4) `preview.html`, with its MJPEG preview available at
+`/preview-mjpeg.html`.
 
 The whole timps WebUI overlay is installed in timps's **install** step
 (`TIMPS_POST_INSTALL_TARGET_HOOKS`, with `TIMPS_DEPENDENCIES +=

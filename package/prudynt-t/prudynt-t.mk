@@ -410,8 +410,13 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/plugins/prudynt.webui.json
 
 	# HTML pages
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview-fmp4.html \
-		$(TARGET_DIR)/var/www/preview-fmp4.html
+	# The fMP4 preview is prudynt's default preview page, installed as
+	# /var/www/preview.html (same convention as raptor and timps). The MJPEG
+	# preview stays available at /var/www/preview-mjpeg.html.
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview.html \
+		$(TARGET_DIR)/var/www/preview.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview-mjpeg.html \
+		$(TARGET_DIR)/var/www/preview-mjpeg.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-image.html \

@@ -57,7 +57,10 @@
   function boxAt(u8, off) {
     if (off + 8 > u8.length) return null;
     const size =
-      ((u8[off] << 24) | (u8[off + 1] << 16) | (u8[off + 2] << 8) | u8[off + 3]) >>>
+      ((u8[off] << 24) |
+        (u8[off + 1] << 16) |
+        (u8[off + 2] << 8) |
+        u8[off + 3]) >>>
       0;
     if (size < 8 || off + size > u8.length) return null;
     return {
@@ -272,64 +275,19 @@
     .getElementById("fmp4-ch1")
     .addEventListener("click", () => selectChannel(1));
 
-  const list = document.getElementById("preview-endpoint-list");
-  const dropdown = document.getElementById("preview-endpoint-dropdown-menu");
-
-  async function copyUrl(ev) {
-    ev.preventDefault();
-    const link = ev.currentTarget;
-    const url = link.dataset.copyUrl || link.href || "";
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
+  // Endpoint links are rendered by the shared /a/preview-endpoints.js
+  // module. Refresh the RTSP credentials it shows once the config answers;
+  // until then it renders the thingino/thingino/554 defaults.
+  fetch("http://" + host() + ":8080/api/v1/config/rtsp", {
+    cache: "no-store",
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((rtsp) => {
+      if (rtsp && window.thinginoPreviewEndpoints) {
+        window.thinginoPreviewEndpoints.updateState({ rtsp });
       }
-    } catch (e) {
-      /* noop */
-    }
-    link.classList.add("copied");
-    window.setTimeout(() => link.classList.remove("copied"), 1200);
-  }
-
-  async function renderEndpointEntries() {
-    const entries = [
-      { label: "fMP4 Main", url: await streamUrl(0) },
-      { label: "fMP4 Sub", url: await streamUrl(1) },
-    ];
-
-    entries.forEach((entry) => {
-      if (list) {
-        const a = document.createElement("a");
-        a.className = "preview-endpoint-link";
-        a.href = entry.url;
-        a.rel = "noopener";
-        a.dataset.copyUrl = entry.url;
-        a.title = entry.label + ": " + entry.url;
-        a.innerHTML =
-          '<span class="preview-endpoint-short">' +
-          entry.label +
-          '</span> <i class="bi bi-clipboard"></i>';
-        a.addEventListener("click", copyUrl);
-        list.appendChild(a);
-      }
-      if (dropdown) {
-        const li = document.createElement("li");
-        const a = document.createElement("a");
-        a.className = "dropdown-item preview-endpoint-dropdown-item";
-        a.href = entry.url;
-        a.dataset.copyUrl = entry.url;
-        a.title = entry.label + ": " + entry.url;
-        a.innerHTML =
-          '<span class="preview-endpoint-short">' +
-          entry.label +
-          '</span> <i class="bi bi-clipboard"></i>';
-        a.addEventListener("click", copyUrl);
-        li.appendChild(a);
-        dropdown.appendChild(li);
-      }
-    });
-  }
-
-  renderEndpointEntries();
+    })
+    .catch(() => {});
 
   // Custom controls: mute + volume + fullscreen; preview stays playing.
   const muteBtn = document.getElementById("fmp4-mute");
