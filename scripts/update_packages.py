@@ -709,9 +709,7 @@ def update_package_mk(mk_path: Path, package_name: str, old_hash: str, new_hash:
         log_error(f"Did not find a VERSION line with the old hash in {mk_path}")
         return False
 
-    backup = mk_path.with_suffix(mk_path.suffix + ".backup")
     try:
-        backup.write_text(text, encoding='utf-8')
         mk_path.write_text(new_text, encoding='utf-8')
         log_success(f"Updated {mk_path} with new hash: {new_hash}")
         return True
@@ -964,9 +962,7 @@ def update_package_mk_version(mk_path: Path, package_name: str, old_version: str
         log_error(f"Did not find a VERSION line with '{old_version}' in {mk_path}")
         return False
 
-    backup = mk_path.with_suffix(mk_path.suffix + ".backup")
     try:
-        backup.write_text(text, encoding='utf-8')
         mk_path.write_text(new_text, encoding='utf-8')
         log_success(f"Updated {mk_path}: {old_version} → {new_version}")
         return True
