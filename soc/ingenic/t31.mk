@@ -11,27 +11,33 @@ SOC_UBOOT_BIN := u-boot-with-tpl-lzma.bin
 ifeq ($(SOC_MODEL),t31l)
 SOC_RAM_MB    := 64
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31_sfcnand_lite,isvp_t31l_sfcnor)
+SOC_UBOOT_VARIANT := t31l
 else ifeq ($(SOC_MODEL),t31lc)
 SOC_RAM_MB    := 64
 SOC_UBOOT     := isvp_t31lc_sfcnor
+SOC_UBOOT_VARIANT := t31lc
 else ifeq ($(SOC_MODEL),t31n)
 SOC_RAM_MB    := 64
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31_sfcnand,isvp_t31n_sfcnor)
 else ifeq ($(SOC_MODEL),t31x)
 SOC_RAM_MB    := 128
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31_sfcnand_ddr128M,isvp_t31x_sfcnor)
+SOC_UBOOT_VARIANT := t31x
 else ifeq ($(SOC_MODEL),t31a)
 SOC_RAM_MB    := 128
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31a_sfcnand_ddr128M,isvp_t31a_sfcnor)
+SOC_UBOOT_VARIANT := t31a
 else ifeq ($(SOC_MODEL),t31al)
 SOC_RAM_MB    := 128
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31al_sfcnand_ddr128M,isvp_t31x_sfcnor)
+SOC_UBOOT_VARIANT := t31al
 else ifeq ($(SOC_MODEL),t31zl)
 SOC_RAM_MB    := 64
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31_sfcnand_lite,isvp_t31n_sfcnor)
 else
 SOC_RAM_MB    := 128
 SOC_UBOOT     := $(if $(BR2_THINGINO_FLASH_NAND),isvp_t31_sfcnand_ddr128M,isvp_t31x_sfcnor)
+SOC_UBOOT_VARIANT := t31x
 endif
 
 endif
