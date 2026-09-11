@@ -32,6 +32,12 @@ UHTTPD_HTTPS_LISTEN="443"
 UHTTPD_PORTAL_HTTP_LISTEN="172.16.0.1:80"
 UHTTPD_ERROR_HANDLER="/x/legacy-url-recovery.cgi"
 
+# Redirect plain HTTP (port 80) to HTTPS (port 443) via uhttpd's native -q
+# flag, when SSL is active. Set to 1 by thingino-uhttpd.mk when
+# BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y. Left at 0 here so a plain
+# `uhttpd` file on its own (no build-time substitution) stays non-redirecting.
+UHTTPD_TLS_REDIRECT="0"
+
 # Additional uhttpd arguments
 # Add any extra arguments here
 EXTRA_ARGS=""
