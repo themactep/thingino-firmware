@@ -72,14 +72,14 @@ turn_off() {
 motion_settings() {
 	motion_enabled=0
 	motion_duration=30
-	if [ -r "$MOTION_CONFIG" ]; then
+	if [ -r $MOTION_CONFIG ]; then
 		value=$(sed -n 's/^MOTION_ENABLED=\([01]\)$/\1/p' "$MOTION_CONFIG" | head -n 1)
 		[ -n "$value" ] && motion_enabled=$value
 		value=$(sed -n 's/^MOTION_DURATION=\([0-9][0-9]*\)$/\1/p' "$MOTION_CONFIG" | head -n 1)
 		[ -n "$value" ] && motion_duration=$value
 	fi
 	case "$motion_duration" in '' | *[!0-9]*) motion_duration=30 ;; esac
-	[ "$motion_duration" -ge 15 ] && [ "$motion_duration" -le 3600 ] || motion_duration=30
+	[ "$motion_duration" -ge 1 ] && [ "$motion_duration" -le 3600 ] || motion_duration=30
 }
 
 run_motion() {
