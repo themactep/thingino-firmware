@@ -262,7 +262,16 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# only links the shared cert pair when it sees this already set, so
 	# leaving it commented meant every TLS+WebUI image needed a manual
 	# post-flash edit before HTTPS actually worked.
-	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
+	#
+	# Also require BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y: that's what
+	# makes uhttpd actually redirect port 80 to 443 (see S60uhttpd's -q
+	# flag). Without it, http.https=1 makes timps's one preview port
+	# TLS-only while the WebUI keeps serving plain HTTP on :80 with no
+	# redirect - a page loaded over http:// then tries to fetch the stream
+	# over https:// with a self-signed cert and fails outright (no
+	# interstitial is possible for a subresource fetch). Gating on the
+	# redirect being wired up keeps page and stream on the same scheme.
+	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT)" = "y" ]; then \
 		$(SED) 's|^# http.https .*|http.https    = 1                       # serve the HTTP port over TLS|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
