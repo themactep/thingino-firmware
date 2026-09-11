@@ -80,7 +80,7 @@ endif
 
 config BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
 	bool "Redirect HTTP to HTTPS"
-	default y
+	default n
 	depends on BR2_PACKAGE_THINGINO_UHTTPD_TLS
 	help
 	  Automatically redirect HTTP requests on port 80 to HTTPS
