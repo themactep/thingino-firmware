@@ -41,7 +41,14 @@ UHTTPD_KEY=/etc/ssl/private/uhttpd.key
 # missing (e.g. after a flash), and a copy taken once would silently go stale
 # and desynchronise the two ports again - which is the exact bug this avoids.
 ensure_tls_certs() {
-	[ "$(conf_get http.https)" = "1" ] || [ "$(conf_get rtsp.tls)" = "1" ] || return 0
+	# http.https is a tri-state: 1 = http+https on the one port, 2 = TLS only.
+	# Both need a cert, and a missing one fails CLOSED (httpd.c): the listener
+	# is not bound at all, so http.https=2 without this would kill the HTTP
+	# port outright. rtsp.tls is still a plain boolean.
+	case "$(conf_get http.https)" in
+		1 | 2) ;;
+		*) [ "$(conf_get rtsp.tls)" = "1" ] || return 0 ;;
+	esac
 	crt=$(conf_get http.tls_cert)
 	key=$(conf_get http.tls_key)
 	[ -n "$crt" ] && [ -n "$key" ] || return 0
