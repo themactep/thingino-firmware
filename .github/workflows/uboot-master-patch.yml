@@ -1,15 +1,19 @@
-# Regenerate the squashed U-Boot patch that buildroot applies on top of the
+# Regenerate the squashed U-Boot patches that buildroot applies on top of the
 # pinned upstream release.
 #
 # thingino builds the upstream U-Boot *release* tarball (BR2_TARGET_UBOOT_VERSION)
 # and, via the global patch dir (BR2_GLOBAL_PATCH_DIR =
 # package/all-patches), applies package/all-patches/uboot/<version>/*.patch to it
-# with `patch -p1`. This workflow regenerates that single patch as the full diff
-# from the upstream release tag to our fork branch (gtxaspec/u-boot
-# ingenic-t-series): it carries everything between the two trees - the upstream
-# work merged since the release plus our T-series port - so "release tree + this
-# one patch" reproduces our exact fork tree. Same model as the existing
-# package/all-patches/uboot/2013.07/0001-from-2013.07-to-thingino.patch.
+# with `patch -p1`. The fork branch (gtxaspec/u-boot ingenic-t-series) is
+# maintained by merging upstream u-boot into itself, so a single diff from the
+# release tag to the fork branch carries upstream churn plus our T-series port.
+#
+# This workflow regenerates that as two patches, split at the most recent
+# upstream merge into the fork branch, so "release tree + upstream patch +
+# thingino patch" reproduces our exact fork tree and the thingino patch stays
+# small and reviewable:
+#   0001-from-<version>-to-u-boot-head.patch   upstream churn
+#   0002-from-u-boot-head-to-thingino.patch    thingino changes
 #
 # Manual trigger only. Binary files (binman self-test blobs) are excluded: GNU
 # patch cannot apply git binary hunks, and the firmware build never touches them.
@@ -50,61 +54,85 @@ jobs:
           git init uboot
           git -C uboot remote add upstream https://github.com/u-boot/u-boot.git
           git -C uboot remote add fork "${{ inputs.fork_repo }}"
-          # A two-tree diff only needs each tip's complete snapshot, so a depth-1
-          # fetch of the two refs is enough (no shared history required).
+          # The two diffs only need each tip's complete snapshot, but finding
+          # the split point needs the fork branch history back to the most
+          # recent upstream merge, so fetch a generous window.
           git -C uboot fetch --depth=1 upstream \
             "refs/tags/${{ inputs.base_tag }}:refs/tags/${{ inputs.base_tag }}"
-          git -C uboot fetch --depth=1 fork \
+          git -C uboot fetch --depth=4000 fork \
             "${{ inputs.fork_ref }}:refs/heads/fork-ref"
 
-      - name: Generate the patch (text-only, patch -p1 compatible)
+      - name: Generate the patches (text-only, patch -p1 compatible)
         run: |
           set -euxo pipefail
           base="${{ inputs.base_tag }}"
-          # GNU patch (buildroot's tool) cannot apply git binary hunks; drop any
-          # binary files from the diff. --no-renames keeps these paths plain.
-          mapfile -t bins < <(git -C uboot diff --no-renames --numstat "$base" fork-ref \
-                              | awk '$1=="-" || $2=="-" { print $3 }')
-          excludes=()
-          for f in "${bins[@]}"; do excludes+=(":(exclude)$f"); done
-          if [ "${#bins[@]}" -gt 0 ]; then
-            printf 'Excluding binary file: %s\n' "${bins[@]}"
-          fi
-          # --no-renames so renames become delete+add full hunks (GNU patch has no
-          # rename support); default a/ b/ prefixes => applied with -p1.
-          git -C uboot -c core.quotepath=false diff --no-renames --no-color \
-            "$base" fork-ref -- . "${excludes[@]}" > uboot-master.patch
-          ls -l uboot-master.patch
-          # Belt-and-suspenders: no git binary hunks may remain.
-          ! grep -qE '^Binary files|GIT binary patch' uboot-master.patch
+          # Most recent merge in the fork branch's first-parent history: the
+          # last upstream merge the thingino work sits on top of.
+          split="$(git -C uboot log --first-parent --merges -1 --format=%H fork-ref)"
+          [ -n "$split" ] || { echo "error: no merge found in fork branch; cannot split" >&2; exit 1; }
+          echo "split point: $split"
 
-      - name: Verify it applies to a pristine release tree (buildroot's patch cmd)
+          # GNU patch (buildroot's tool) cannot apply git binary hunks; drop any
+          # binary files from each diff. --no-renames keeps these paths plain.
+          gen_patch() {
+            from="$1"
+            to="$2"
+            out="$3"
+            mapfile -t bins < <(git -C uboot diff --no-renames --numstat "$from" "$to" \
+                                | awk '$1=="-" || $2=="-" { print $3 }')
+            excludes=()
+            for f in "${bins[@]}"; do excludes+=(":(exclude)$f"); done
+            if [ "${#bins[@]}" -gt 0 ]; then
+              printf 'Excluding binary file: %s\n' "${bins[@]}"
+            fi
+            # --no-renames so renames become delete+add full hunks (GNU patch has no
+            # rename support); default a/ b/ prefixes => applied with -p1.
+            git -C uboot -c core.quotepath=false diff --no-renames --no-color \
+              "$from" "$to" -- . "${excludes[@]}" > "$out"
+          }
+
+          gen_patch "$base" "$split" uboot-upstream.patch
+          gen_patch "$split" fork-ref uboot-thingino.patch
+          ls -l uboot-upstream.patch uboot-thingino.patch
+          # Belt-and-suspenders: no git binary hunks may remain.
+          ! grep -qE '^Binary files|GIT binary patch' uboot-upstream.patch uboot-thingino.patch
+
+      - name: Verify they apply to a pristine release tree (buildroot's patch cmd)
         run: |
           set -euxo pipefail
           base="${{ inputs.base_tag }}"
           rm -rf verify && mkdir verify
           git -C uboot archive "$base" | tar -x -C verify
-          # Exactly buildroot/support/scripts/apply-patches.sh, plus --dry-run.
-          patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N --dry-run \
-            < uboot-master.patch
+          # Exactly buildroot/support/scripts/apply-patches.sh, applied in order.
+          # Apply for real (not --dry-run): the second patch needs the first
+          # patch's result, so both are exercised against the same tree.
+          patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N \
+            < uboot-upstream.patch
+          patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N \
+            < uboot-thingino.patch
 
-      - name: Place patch and commit if it changed
+      - name: Place patches and commit if changed
         run: |
           set -euxo pipefail
           ver="${{ inputs.base_tag }}"; ver="${ver#v}"        # v2026.04 -> 2026.04
-          dest="package/all-patches/uboot/${ver}/0001-uboot-master.patch"
-          mkdir -p "$(dirname "$dest")"
-          mv uboot-master.patch "$dest"
-          git add "$dest"
+          dest_dir="package/all-patches/uboot/${ver}"
+          upstream_dest="${dest_dir}/0001-from-${ver}-to-u-boot-head.patch"
+          thingino_dest="${dest_dir}/0002-from-u-boot-head-to-thingino.patch"
+          mkdir -p "$dest_dir"
+          mv uboot-upstream.patch "$upstream_dest"
+          mv uboot-thingino.patch "$thingino_dest"
+          # Drop the old combined baseline patch if this is the first split run.
+          rm -f "${dest_dir}/0001-uboot-master.patch"
+          git add "$dest_dir"
           # Use the staged diff: a brand-new (untracked) patch must count as a
           # change. Plain `git diff` ignores untracked files, so it would report
           # "no change" on the very first run and skip the commit.
-          if git diff --cached --quiet -- "$dest"; then
-            echo "No change to $dest"
+          if git diff --cached --quiet -- "$dest_dir"; then
+            echo "No change to $dest_dir"
             exit 0
           fi
           sha="$(git -C uboot rev-parse fork-ref)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "uboot: regenerate ${ver} master patch (${{ inputs.fork_ref }} @ ${sha:0:12})"
+          git commit -m "uboot: regenerate ${ver} patches (${fork_ref} @ ${sha:0:12})"
           git push
