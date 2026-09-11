@@ -25,12 +25,6 @@ define WIFI_ATBM6162S_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
-	# This part is the SDIO variant (CONFIG_ATBM_SDIO_BUS_WIFI6), so the
-	# radio hangs off MSC1, which the t32 kernel config leaves disabled.
-	# The MSC1 pin choice defaults to PC 4-bit, matching the msc1-pc group
-	# (PC2-PC7) the vendor device tree selects.
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_SDHCI_MMC1)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_SDHCI_MMC1_PC_4BIT)
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))

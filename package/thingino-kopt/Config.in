@@ -245,7 +245,7 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT
 	bool "MMC1 PC 4-Bit"
-	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21"
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t32"
 	help
 	  Enables 4-bit support for MMC1 on GPIO PC.
 
