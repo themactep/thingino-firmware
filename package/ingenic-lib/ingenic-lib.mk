@@ -49,7 +49,7 @@ else ifeq ($(SOC_FAMILY),t31)
 		SDK_VERSION := 1.1.6
 	endif
 else ifeq ($(SOC_FAMILY),t32)
-	SDK_VERSION := 2.1.0.0
+	SDK_VERSION := 2.2.0
 else ifeq ($(SOC_FAMILY),t40)
 	SDK_VERSION := 1.3.1
 else ifeq ($(SOC_FAMILY),t41)
