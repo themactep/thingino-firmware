@@ -257,8 +257,15 @@ per-stream `audio_enabled`, and the remaining `prudyntctl events` consumers
 
 timps generates a random **per-boot token** and writes it to
 `/run/timps.token` (0640). `timps-token.cgi` (WebUI session auth via
-`auth.sh`) serves it as `{"token":"...","port":8880}` (port/token-file path
-read from `/etc/timps.conf`). With it a WebUI page can skip the localhost
+`auth.sh`) serves it as `{"token":"...","port":8880,"scheme":"..."}`
+(port/token-file path read from `/etc/timps.conf`). `scheme` mirrors the
+`http.https` tri-state — `"http"` (0), `"both"` (1) or `"https"` (2) — and is
+what the JS must use to build the URL: on `"both"` timps answers either scheme
+on that one port, so the page follows **its own** `location.protocol` rather
+than guessing, which is what lets an http:// and an https:// WebUI page both
+reach the preview without a mixed-content block. A legacy `"tls"` bool is
+still emitted (true for 1 and 2) for JS that predates `scheme`.
+With it a WebUI page can skip the localhost
 bridge CGIs and call timps **directly from the browser**: fetch the token
 once, then `fetch('http://<host>:8880/control', {method:'POST', headers:
 {'X-Timps-Token': token}, body: json})` — timps answers the CORS preflight
