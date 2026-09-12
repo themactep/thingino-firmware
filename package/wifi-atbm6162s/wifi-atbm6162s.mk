@@ -18,13 +18,13 @@ define WIFI_ATBM6162S_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,m)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# atbm6162s is a self-contained backports package: it builds its OWN cfg80211
+	# (CONFIG_CPTCFG_CFG80211=y in its config, newer API) and bundles mac80211 inside
+	# atbm6162s.ko. The kernel's 4.4.94 cfg80211/mac80211 MUST be off: linking them
+	# against the driver's newer bundled headers is an ABI mismatch (e.g. cfg80211_scan_done
+	# signature differs) that corrupts kernel memory. See CPTCFG_CFG80211 help: "<5.7 -> open".
+	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
