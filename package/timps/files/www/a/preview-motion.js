@@ -21,7 +21,21 @@
   const btn = document.getElementById("ms-motion");
   if (!video || !canvas || !btn) return;
 
-  let base = null;   // http://<host>:<port>
+  // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
+  // "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
+  // scheme: an https:// page may not fetch http:// (mixed content), and an
+  // http:// page cannot clear a self-signed cert on a subresource fetch.
+  // Falls back to the older "tls" bool when the CGI predates "scheme".
+  function timpsScheme(info) {
+    if (!info) return "http";
+    if (info.scheme === "both") {
+      return window.location.protocol === "https:" ? "https" : "http";
+    }
+    if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+    return info.tls ? "https" : "http";
+  }
+
+  let base = null;   // http(s)://<host>:<port>
   let token = null;
   let es = null;     // EventSource (push mode)
   let esErrors = 0;  // consecutive errors since the last successful open
@@ -275,7 +289,7 @@
     token = info.token;
     let host = location.hostname || "127.0.0.1";
     if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
-    base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || 8880);
+    base = timpsScheme(info) + "://" + host + ":" + (info.port || 8880);
 
     // Bind teardown before the probe below can start waiting on the network.
     window.addEventListener("pagehide", () => {
