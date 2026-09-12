@@ -262,8 +262,14 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# only links the shared cert pair when it sees this already set, so
 	# leaving it commented meant every TLS+WebUI image needed a manual
 	# post-flash edit before HTTPS actually worked.
+	#
+	# Since v1.9.11 the value written here, 1, means http AND https on the
+	# one port (picked per connection by a first-byte peek), not TLS-only -
+	# so this no longer depends on the WebUI and timps agreeing on a scheme,
+	# and the shipped comment has to say so. 2 is the old TLS-only meaning
+	# and stays a deliberate hand edit.
 	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
-		$(SED) 's|^# http.https .*|http.https    = 1                       # serve the HTTP port over TLS|' \
+		$(SED) 's|^# http.https .*|http.https    = 1                       # 0 plain, 1 http+https on one port, 2 TLS only|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
