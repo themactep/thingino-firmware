@@ -129,6 +129,8 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/ptz_presets \
 		$(TARGET_DIR)/usr/sbin
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/ptz_set_home \
+		$(TARGET_DIR)/usr/sbin
 
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/ptz-ctrl \
 		$(TARGET_DIR)/usr/sbin/ptz-ctrl
