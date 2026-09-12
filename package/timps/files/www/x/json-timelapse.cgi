@@ -143,13 +143,24 @@ printf '{"base":"%s","exists":true,"seqs":[' "$(esc "$BASE")"
 find "$BASE" -maxdepth 4 -type d 2>/dev/null | sort | (
 	i=0
 	while IFS= read -r d; do
-		set -- "$d"/*.jpg
-		[ -e "$1" ] || continue
+		# Same 4 case variants the ?file= fetch whitelist accepts (above) and
+		# the ?seq= single-folder listing's regex matches - a single *.jpg
+		# glob undercounted (or hid entirely) folders holding only .JPEG etc.
+		# Globbing all 4 patterns at once can leave unmatched ones as literal
+		# unexpanded strings (no nullglob in busybox ash), so count with a
+		# builtin -e test per token instead of trusting $# - no extra forks,
+		# `[` and arithmetic are shell builtins.
+		set -- "$d"/*.jpg "$d"/*.JPG "$d"/*.jpeg "$d"/*.JPEG
+		n=0
+		for f in "$@"; do
+			[ -e "$f" ] && n=$((n + 1))
+		done
+		[ "$n" -gt 0 ] || continue
 		rel=${d#"$BASE"}
 		rel=${rel#/}
 		[ -z "$rel" ] && rel="."
 		[ $i -gt 0 ] && printf ','
-		printf '{"seq":"%s","frames":%s}' "$(esc "$rel")" "$#"
+		printf '{"seq":"%s","frames":%s}' "$(esc "$rel")" "$n"
 		i=$((i + 1))
 	done
 )
