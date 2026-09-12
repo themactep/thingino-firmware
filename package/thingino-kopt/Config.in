@@ -330,14 +330,26 @@ choice
 	default BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
-	bool "Full USB support with OTG"
+	bool "USB host + networking (plug devices into the camera)"
 	select BR2_PACKAGE_USBNET
 	select BR2_PACKAGE_USBNET_CDC_ETHER
 	select BR2_PACKAGE_USBNET_CDC_NCM
 	select BR2_PACKAGE_USBNET_ASIX
 	help
-	  Enable the DWC2 USB driver with OTG support.
-	  Recommended for devices that have USB data ports.
+	  Host mode: attach a USB device to the camera (e.g. via an OTG
+	  adapter) - USB-Ethernet, storage, etc. Enables the usbnet drivers.
+	  No gadget/dual-role stack. The common "USB data port" case.
+
+config BR2_PACKAGE_THINGINO_KOPT_DWC2_DUAL_ROLE
+	bool "USB dual-role / device (webcam, usb-direct)"
+	select BR2_PACKAGE_USBNET
+	select BR2_PACKAGE_USBNET_CDC_ETHER
+	select BR2_PACKAGE_USBNET_CDC_NCM
+	select BR2_PACKAGE_USBNET_ASIX
+	help
+	  Dual-role + USB gadget stack, for cameras that themselves act as a
+	  USB device - UVC webcam or usb-direct network (NCM). Only needed
+	  when the camera plugs INTO a host.
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "USB Wi-Fi Module Only"
