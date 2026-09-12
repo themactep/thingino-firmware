@@ -16,10 +16,12 @@ This package provides a uHTTPd web server with optional HTTPS support for thingi
 Enables TLS/HTTPS support. Enabled by default. Provides:
 - HTTPS on port 443 with modern TLS protocols
 - SSL/TLS encryption for secure web access
-- Automatic HTTP to HTTPS redirection
 
 ### BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
 Enables automatic redirection from HTTP (port 80) to HTTPS (port 443).
+Off by default (opt-in) - enabling it does not change the WebUI's
+own default behavior, only cameras that explicitly turn it on will
+redirect.
 
 ### BR2_PACKAGE_THINGINO_UHTTPD_LUA
 Enables Lua scripting support in the uhttpd binary.
