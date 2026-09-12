@@ -1,19 +1,31 @@
 #!/bin/sh
-# daynight.irprobe_cmd target: timps execs "<cmd> on|off" with no shell.
+# daynight.irprobe_cmd target: timps's silent day/night probe execs
+# "<cmd> on|off" (no shell) to blip the illuminator for one dark reading.
 #
 # The three names are light's infrared types, tried in that order because 940nm
 # is invisible and 850nm faintly red; `light` resolves the pin per camera from
 # thingino.json. Enumerating gpio.* instead would reach `white` and `flood`.
 #
-# "off" arms a detached watchdog first: the daemon has no failsafe, so if it
-# dies during the dark window the illuminator would stay off. A later "on" is
-# idempotent.
+# "off" arms a detached watchdog: the daemon has no failsafe, so if it dies
+# during the dark window the illuminator would stay off. It used to fire
+# unconditionally, which re-lit the illuminator ~60s into a night->day switch
+# that had already (correctly) turned it off - stamped and nonce-checked so
+# a newer "on"/"off" invalidates every older watchdog instead.
 for t in ir940 ir850 ir; do
 	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
-		[ "$1" = off ] && (
-			sleep 60
-			light $t on
-		) >/dev/null 2>&1 &
+		stamp="/run/timps-irprobe.$t"
+		if [ "$1" = off ]; then
+			light $t off; rc=$?
+			if [ "$rc" -eq 0 ]; then
+				nonce=$$
+				echo "$nonce" >"$stamp"
+				( sleep 60
+				  [ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] && light $t on
+				) >/dev/null 2>&1 &
+			fi
+			exit "$rc"
+		fi
+		rm -f "$stamp"
 		exec light $t "$1"
 	fi
 done
