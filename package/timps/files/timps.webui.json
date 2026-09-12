@@ -110,7 +110,8 @@
     }
   ],
   "scripts": [
-    "/a/timps-control-bar.js"
+    "/a/timps-control-bar.js",
+    "/a/timps-auth-gate.js"
   ],
   "styles": [
     "/a/timps.css"
