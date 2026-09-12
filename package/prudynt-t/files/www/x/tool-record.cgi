@@ -233,7 +233,7 @@ build_state_payload() {
     "limit": $video_limit,
     "min_free_mb": $video_min_free_mb,
     "mount": "$(json_escape "$vr_mount")"
-
+  },
   "mounts": $mounts_json_str,
   "messages": {
     "strftime_hint": "$(json_escape "$STR_SUPPORTS_STRFTIME")"
