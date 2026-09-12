@@ -27,7 +27,10 @@
         <div class="card mb-3">
           <div class="card-header">
             <h2 class="card-title">Timelapse Recorder</h2>
-            <small>timps saves a JPEG snapshot every interval. Settings are saved live into <code>/etc/timps.conf</code>; shots go under <code>&lt;dir&gt;/&lt;hostname&gt;/timelapses/</code>. The control-bar timelapse button toggles the same switch.</small>
+            <small>timps saves a JPEG snapshot every interval. Settings are saved live into <code>/etc/timps.conf</code>; shots go under <code>&lt;dir&gt;/&lt;hostname&gt;/timelapses/</code>. The control-bar timelapse button toggles the same switch. Watch what has been captured in the <a href="/timelapse-player.html" class="link-light text-decoration-none">Timelapse Player</a>.</small>
+            <a href="/timelapse-player.html" class="btn btn-outline-primary" id="tl-play" title="Play back captured shots">
+              <i class="bi bi-play-btn"></i> Play back
+            </a>
             <button type="button" class="btn btn-outline-secondary" id="tl-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
