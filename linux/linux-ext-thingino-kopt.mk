@@ -1,5 +1,10 @@
 LINUX_EXTENSIONS += thingino-kopt
 
+# Run the LED header/patch hook after patches: the cumulative thingino
+# kernel patch ships its own board_base.c, which overwrites the changes
+# made by the PRE_PATCH hook.
+LINUX_POST_PATCH_HOOKS += THINGINO_KOPT_PREPARE_KERNEL
+
 THINGINO_LED_CONFIG = $(BR2_CONFIG)
 THINGINO_LED_HEADER = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/thingino_leds.h
 THINGINO_LED_BOARD_BASE = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$(SOC_FAMILY)/isvp/common/board_base.c
