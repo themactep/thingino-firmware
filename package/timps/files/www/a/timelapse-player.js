@@ -23,6 +23,16 @@
   var CGI = "/x/json-timelapse.cgi";
   var LOOKAHEAD = 3;       // frames prefetched ahead of the one on screen
   var MIN_DELAY_MS = 20;   // ceiling of ~50 fps, whatever the select says
+  // Whole-day playback stitches one day's hour folders together by asking the
+  // per-folder endpoint for each of them. Kept to the same in-flight budget as
+  // the JPEG look-ahead: every call forks a shell and an `ls` on the camera,
+  // and 24 of those at once for a week-old tree is a needless spike. Three
+  // keeps the wall time at ~8 rounds of a cheap listing.
+  var DAY_CONCURRENCY = 3;
+  // marks a picker row / deep link as "the whole day", not a folder rel. A
+  // bare YYYYMMDD is itself a legal folder rel (a name template may write one
+  // folder per day), so day mode needs a namespace of its own.
+  var DAY_PREFIX = "day:";
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -43,12 +53,14 @@
 
   var seqs = [];      // [{seq, frames}] from the index
   var curSeq = "";    // folder currently loaded ("." = the tree root)
-  var frames = [];    // [{f, s}] of curSeq, ascending
+  var frames = [];    // [{f, s, d}] ascending; d is the folder each frame is in
   var idx = 0;        // frame on screen
   var playing = false;
   var timer = null;
   var prefetched = {}; // idx -> Image, kept only as a sliding window
   var intervalS = 0;   // timelapse.interval_s, for the "x real time" hint
+  var hintExtra = "";  // day-mode note appended to the speed hint (skipped folders)
+  var loadGen = 0;     // bumped per pick, so a slow load can't land after a newer one
 
   function toast(type, msg, ms) {
     if (typeof window.showAlert === "function") window.showAlert(type, msg, ms);
@@ -80,10 +92,35 @@
     return m ? m[1] + "-" + m[2] + "-" + m[3] : "Other";
   }
 
+  // raw day bucket ("20260912/09" -> "20260912"), "" for a folder whose name
+  // the default template did not produce - those get no whole-day row.
+  function dayKeyOf(seq) {
+    var m = /^(\d{8})(?:\/|$)/.exec(seq);
+    return m ? m[1] : "";
+  }
+
+  // every indexed folder of one day, ascending (= chronological under the
+  // default template). This is the same index the <optgroup>s are built from.
+  function daySeqs(key) {
+    return seqs.filter(function (s) { return dayKeyOf(s.seq) === key; })
+      .map(function (s) { return s.seq; })
+      .sort();
+  }
+
+  function dayShots(key) {
+    return seqs.reduce(function (n, s) {
+      return dayKeyOf(s.seq) === key ? n + (s.frames || 0) : n;
+    }, 0);
+  }
+
+  // Each frame carries the folder it was listed from, so a merged whole-day
+  // list resolves every frame against ITS OWN hour rather than one shared
+  // prefix. Single-folder mode tags them all with that one folder.
   function relPath(i) {
-    var f = frames[i] && frames[i].f;
-    if (!f) return "";
-    return curSeq === "." ? f : curSeq + "/" + f;
+    var fr = frames[i];
+    if (!fr || !fr.f) return "";
+    var d = fr.d == null ? curSeq : fr.d;
+    return (!d || d === ".") ? fr.f : d + "/" + fr.f;
   }
 
   function frameUrl(i) {
@@ -223,42 +260,135 @@
       bits.push("covering ~" + Math.round(span / 60) + " min in " +
         Math.round((frames.length - 1) / fps()) + " s");
     }
+    if (hintExtra) bits.push(hintExtra);
     hintEl.textContent = bits.join(" · ");
   }
 
-  function loadSeq(seq) {
-    setPlaying(false);
-    curSeq = seq;
-    prefetched = {};
-    if (!seq) { setEmpty("Select a sequence."); return; }
-    emptyEl.hidden = false;
-    emptyEl.textContent = "Loading frames…";
-    frameEl.hidden = true;
-    fetch(CGI + "?seq=" + encodeURIComponent(seq), { cache: "no-store" })
+  // One folder's frames, names only, tagged with the folder they came from.
+  // The whole-day loader calls this once per hour folder - the endpoint and
+  // its response are exactly what single-folder playback has always used.
+  function fetchSeq(seq) {
+    return fetch(CGI + "?seq=" + encodeURIComponent(seq), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) {
         // sort by name rather than trusting the listing order: the default
         // template makes the name sort BE the chronological order
-        frames = (data.frames || []).slice().sort(function (a, b) {
+        return (data.frames || []).slice().sort(function (a, b) {
           return a.f < b.f ? -1 : a.f > b.f ? 1 : 0;
+        }).map(function (fr) {
+          return { f: fr.f, s: fr.s, d: seq };
         });
-        if (!frames.length) {
-          setEmpty("This folder holds no shots (it may have just been pruned). Try Reload.");
-          return;
-        }
-        idx = 0;
-        scrubEl.max = String(frames.length - 1);
-        scrubEl.disabled = frames.length < 2;
-        playBtn.disabled = frames.length < 2;
-        emptyEl.hidden = true;
-        speedHint();
-        showFrame(0);
-        if (window.location.hash !== "#seq=" + seq)
-          window.history.replaceState(null, "", "#seq=" + seq);
+      });
+  }
+
+  // The single hand-off into the playback state machine: both loaders end
+  // here, and nothing past this point knows whether the list came from one
+  // folder or from a day's worth of them.
+  function applyFrames(list, emptyMsg, hash) {
+    frames = list;
+    if (!frames.length) { setEmpty(emptyMsg); return; }
+    idx = 0;
+    scrubEl.max = String(frames.length - 1);
+    scrubEl.disabled = frames.length < 2;
+    playBtn.disabled = frames.length < 2;
+    emptyEl.hidden = true;
+    speedHint();
+    showFrame(0);
+    if (window.location.hash !== hash)
+      window.history.replaceState(null, "", hash);
+  }
+
+  function loadSeq(seq) {
+    setPlaying(false);
+    prefetched = {};
+    hintExtra = "";
+    curSeq = seq;
+    var gen = ++loadGen;
+    if (!seq) { setEmpty("Select a sequence."); return; }
+    if (seq.indexOf(DAY_PREFIX) === 0) {
+      loadDay(seq.slice(DAY_PREFIX.length), gen);
+      return;
+    }
+    emptyEl.hidden = false;
+    emptyEl.textContent = "Loading frames…";
+    frameEl.hidden = true;
+    fetchSeq(seq)
+      .then(function (list) {
+        if (gen !== loadGen) return;
+        applyFrames(list,
+          "This folder holds no shots (it may have just been pruned). Try Reload.",
+          "#seq=" + seq);
       })
       .catch(function (e) {
+        if (gen !== loadGen) return;
         setEmpty("Failed to list frames: " + (e.message || e));
       });
+  }
+
+  // Whole day: the day's hour folders, fetched through the SAME per-folder
+  // endpoint and concatenated in hour order. No server-side recursion, and
+  // one unreadable hour costs that hour only - the rest of the day still
+  // plays, with the gap named in the hint and a toast.
+  function loadDay(key, gen) {
+    var list = daySeqs(key);
+    if (!list.length) {
+      setEmpty("No folders left for that day - they may have just been pruned. Try Reload.");
+      return;
+    }
+    curSeq = "";
+    frameEl.hidden = true;
+    emptyEl.hidden = false;
+
+    var parts = new Array(list.length);  // by slot, so hour order survives
+    var failed = [];
+    var done = 0, next = 0, inflight = 0;
+
+    function progress() {
+      emptyEl.textContent = "Loading " + seqLabel(key) + " - folder " +
+        done + " / " + list.length + "…";
+    }
+
+    function finish() {
+      var all = [], i;
+      for (i = 0; i < list.length; i++)
+        if (parts[i] && parts[i].length) all = all.concat(parts[i]);
+      var ok = list.length - failed.length;
+      hintExtra = "whole day, " + ok + " folder" + (ok === 1 ? "" : "s");
+      if (failed.length) {
+        failed.sort();
+        var note = "skipped " + failed.length + " unreadable folder" +
+          (failed.length === 1 ? "" : "s") + " (" + failed.join(", ") + ")";
+        hintExtra += " · " + note;
+        toast("warning", "Whole day: " + note, 6000);
+      }
+      applyFrames(all, failed.length === list.length
+        ? "None of that day's folders could be listed. Try Reload."
+        : "That day's folders hold no shots any more. Try Reload.",
+        "#day=" + key);
+    }
+
+    function pump() {
+      while (inflight < DAY_CONCURRENCY && next < list.length) {
+        (function (slot, seq) {
+          inflight++;
+          fetchSeq(seq)
+            .then(function (fr) { parts[slot] = fr; })
+            .catch(function () { parts[slot] = []; failed.push(seq); })
+            .then(function () {
+              inflight--;
+              done++;
+              if (gen !== loadGen) return;  // a newer pick owns the player now
+              progress();
+              if (done === list.length) finish();
+              else pump();
+            });
+        })(next, list[next]);
+        next++;
+      }
+    }
+
+    progress();
+    pump();
   }
 
   function renderSeqs() {
@@ -273,6 +403,18 @@
         group = document.createElement("optgroup");
         group.label = day;
         seqEl.appendChild(group);
+        // First row of the group plays the day end to end. Offered only when
+        // there is more than one folder to stitch - with a single folder the
+        // plain row below already IS the whole day.
+        var key = dayKeyOf(s.seq);
+        var members = key ? daySeqs(key) : [];
+        if (members.length > 1) {
+          var all = document.createElement("option");
+          all.value = DAY_PREFIX + key;
+          all.textContent = "Whole day  (" + members.length + " folders, " +
+            dayShots(key) + " shots)";
+          group.appendChild(all);
+        }
       }
       var opt = document.createElement("option");
       opt.value = s.seq;
@@ -312,11 +454,25 @@
         }
         seqEl.disabled = false;
         renderSeqs();
-        // deep link (#seq=20260912/09) wins, else the newest folder
-        var want = /^#seq=(.+)$/.exec(window.location.hash);
-        var pick = want ? decodeURIComponent(want[1]) : "";
-        var known = seqs.some(function (s) { return s.seq === pick; });
-        if (!known) pick = seqs[seqs.length - 1].seq;
+        // A deep link wins over the newest folder: #seq=20260912/09 for one
+        // folder, #day=20260912 for the whole day. Two keys rather than
+        // "#seq= with no /HH", because a bare YYYYMMDD can itself be a real
+        // folder rel and the two would then be indistinguishable.
+        var pick = "";
+        var wantDay = /^#day=(.+)$/.exec(window.location.hash);
+        var wantSeq = /^#seq=(.+)$/.exec(window.location.hash);
+        if (wantDay) {
+          var key = decodeURIComponent(wantDay[1]);
+          var members = daySeqs(key);
+          // a day pruned down to one folder has no whole-day row any more -
+          // resume on the folder that is left rather than on the newest day
+          if (members.length > 1) pick = DAY_PREFIX + key;
+          else if (members.length === 1) pick = members[0];
+        } else if (wantSeq) {
+          var seq = decodeURIComponent(wantSeq[1]);
+          if (seqs.some(function (s) { return s.seq === seq; })) pick = seq;
+        }
+        if (!pick) pick = seqs[seqs.length - 1].seq;
         seqEl.value = pick;
         loadSeq(pick);
       })
