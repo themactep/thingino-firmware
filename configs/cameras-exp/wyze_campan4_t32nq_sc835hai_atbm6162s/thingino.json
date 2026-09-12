@@ -4,8 +4,12 @@
     "led_b": 61,
     "mmc_cd": 42,
     "mmc_power": 46,
-    "wlan": 47,
-    "motor_h": [62, 60, 59, 48],
-    "motor_v": [45, 41, 58, 57]
+    "wlan": 47
+  },
+  "motors": {
+    "gpio_pan": "62 60 59 48",
+    "gpio_tilt": "45 41 58 57",
+    "limitless": true,
+    "homing": false
   }
 }
