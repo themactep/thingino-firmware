@@ -103,6 +103,10 @@
           "href": "/tool-timelapse.html"
         },
         {
+          "label": "Timelapse Player",
+          "href": "/timelapse-player.html"
+        },
+        {
           "label": "Video Recorder",
           "href": "/tool-record.html"
         }
@@ -127,6 +131,7 @@
     "/x/timps-token.cgi",
     "/x/timps-imp.cgi",
     "/x/json-recordings.cgi",
+    "/x/json-timelapse.cgi",
     "/x/restart-prudynt.cgi",
     "/x/json-heartbeat.cgi",
     "/x/json-heartbeat-slow.cgi",
@@ -149,6 +154,7 @@
     "/recordings.html",
     "/tool-record.html",
     "/tool-timelapse.html",
+    "/timelapse-player.html",
     "/tool-sensor-data.html"
   ]
 }
