@@ -75,10 +75,7 @@
     return m[1] + "-" + m[2] + "-" + m[3] + " " + m[4] + ":" + m[5] + ":" + m[6];
   }
 
-  // Same stamp, as milliseconds since epoch - null when the name carries none
-  // (non-default template). Used to measure the REAL span a frame list
-  // covers, since frame count * interval_s silently assumes zero gaps and is
-  // wrong across a day-mode folder boundary or a missed capture.
+  // Same stamp as milliseconds since epoch, null if unparseable.
   function frameEpochMs(name) {
     var m = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(name);
     if (!m) return null;
@@ -256,20 +253,15 @@
     updateMeta();
   }
 
-  // Coverage + the dialed-in compression - NOT a promise of actual playback
-  // duration. Real throughput is bounded by the camera's SD card / network
-  // (measured ~1 fps on a T23 over WiFi at a 10 fps setting), so "N fps for
-  // M frames finishes in M/N seconds" does not hold; only the span covered
-  // and the nominal ratio the fps control is set to are stated.
+  // Coverage + the dialed-in compression, not a promise of actual playback
+  // duration - real throughput is SD-card/network bound, not fps bound.
   function speedHint() {
     if (!frames.length) { hintEl.innerHTML = "&nbsp;"; return; }
     var bits = [frames.length + " frame" + (frames.length === 1 ? "" : "s")];
     if (frames.length === 1) {
       bits.push("nothing to animate - showing it as a still");
     } else {
-      // Real span from the first/last frame's OWN timestamps when the name
-      // carries one; falls back to the frame-count*interval_s estimate only
-      // when it doesn't (non-default name template - no better source then).
+      // First/last frame's own timestamps when parseable, else estimate.
       var t0 = frameEpochMs(frames[0].f), t1 = frameEpochMs(frames[frames.length - 1].f);
       var spanS = (t0 != null && t1 != null) ? (t1 - t0) / 1000
         : (intervalS > 0 ? (frames.length - 1) * intervalS : 0);
