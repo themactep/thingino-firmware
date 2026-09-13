@@ -16,6 +16,18 @@ BR2_PACKAGE_THINGINO_KOPT_MMC1=y
 BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG=y
+# Status LEDs. Pin/polarity record only - on PRJ007 these are INERT:
+# generate_kernel_led_header.sh targets soc-<fam>/chip-<fam>/isvp/common/,
+# which only exists on the older XBurst1 isvp kernels, so nothing is
+# generated here. The LEDs are instantiated by the gpio-leds node in
+# wyze_panv4_t32nq.dts instead. Kept so the values are recorded (and
+# correct if that generator ever learns PRJ007); KOPT_LEDS is what
+# actually builds the leds-gpio driver.
+BR2_THINGINO_LED_R_GPIO=39
+BR2_THINGINO_LED_R_ACTIVE_LOW=y
+BR2_THINGINO_LED_B_GPIO=61
+BR2_THINGINO_LED_B_ACTIVE_LOW=y
+BR2_THINGINO_LED_W_GPIO=43
 BR2_PACKAGE_THINGINO_SECUREBOOP=y
 BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
 BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0_NOR=y

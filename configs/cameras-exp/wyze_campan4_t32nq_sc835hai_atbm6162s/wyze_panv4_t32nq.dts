@@ -805,6 +805,40 @@
 		status = "okay";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		/*
+		 * Status LEDs. gpb = phandle 0x05, cells = <pin flags extra>,
+		 * flags 0x01 = GPIO_ACTIVE_LOW. Polarity is MIXED on this board:
+		 * red/blue are active low (vendor factoryShell drives LED_ON=0),
+		 * white is active high (verified on HW).
+		 *
+		 * These live here rather than in the BR2_THINGINO_LED_*_GPIO
+		 * defconfig options: that path generates thingino_leds.h into
+		 * arch/mips/xburst/soc-<fam>/chip-<fam>/isvp/common/ and patches
+		 * board_base.c, which only exists on the older XBurst1 isvp
+		 * kernels. This SDK 2.2.0 kernel is PRJ007-named and DT-based, so
+		 * the generator silently writes nothing and /sys/class/leds stays
+		 * empty ("No kernel LED channels found"). The label must match
+		 * led_<letter> - that is what /usr/sbin/led scans for.
+		 */
+		led_r {
+			label = "led_r";
+			gpios = <0x05 0x07 0x01 0x00>;	/* PB7  = gpio 39, active low */
+		};
+
+		led_b {
+			label = "led_b";
+			gpios = <0x05 0x1d 0x01 0x00>;	/* PB29 = gpio 61, active low */
+		};
+
+		led_w {
+			label = "led_w";
+			gpios = <0x05 0x0b 0x00 0x00>;	/* PB11 = gpio 43, active high */
+		};
+	};
+
 	mmc0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		/*

@@ -1,7 +1,11 @@
 {
   "gpio": {
-    "led_y": 39,
+    "led_r": 39,
     "led_b": 61,
+    "led_w": 43,
+    "button_reset": 21,
+    "speaker": 14,
+    "ircut": "72 73",
     "mmc_cd": 42,
     "mmc_power": {
       "pin": 46,
