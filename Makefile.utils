@@ -326,6 +326,8 @@ help:
 	  make show-config-deps  show configuration dependencies\n\
 	  make clean-config   remove configuration files\n\
 	  make PRISTINE=1     ignore user files\n\
+	  make user-dirs      create the user/ config skeleton\n\
+	  make USER_DIRS=1    create it as part of a build\n\
 	  \n\
 	Buildroot Submodule Management:\n\
 	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
