@@ -15,12 +15,14 @@ for t in ir940 ir850 ir; do
 	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
 		stamp="/run/timps-irprobe.$t"
 		if [ "$1" = off ]; then
-			light $t off; rc=$?
+			light $t off
+			rc=$?
 			if [ "$rc" -eq 0 ]; then
 				nonce=$$
 				echo "$nonce" >"$stamp"
-				( sleep 60
-				  [ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] && light $t on
+				(
+					sleep 60
+					[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] && light $t on
 				) >/dev/null 2>&1 &
 			fi
 			exit "$rc"
