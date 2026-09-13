@@ -33,6 +33,7 @@
             token: data && data.token ? String(data.token) : "",
             port: data && data.port ? parseInt(data.port, 10) : DEFAULT_PORT,
             tls: !!(data && data.tls),
+            scheme: data && data.scheme ? String(data.scheme) : "",
           };
           return info;
         });
@@ -40,11 +41,24 @@
     return infoPending;
   }
 
+  // http.https is a tri-state; timps-token.cgi reports it as "scheme".
+  // "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
+  // scheme: an https:// page may not fetch http:// (mixed content), and an
+  // http:// page cannot get past a self-signed cert on a subresource fetch.
+  // Falls back to the older "tls" bool when the CGI predates "scheme".
+  function schemeOf(i) {
+    if (!i) return "http";
+    if (i.scheme === "both") {
+      return window.location.protocol === "https:" ? "https" : "http";
+    }
+    if (i.scheme === "https" || i.scheme === "http") return i.scheme;
+    return i.tls ? "https" : "http";
+  }
+
   function base() {
     var host = window.location.hostname || "127.0.0.1";
     if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]"; // IPv6
-    var scheme = (info && info.tls) ? "https" : "http";
-    return scheme + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
+    return schemeOf(info) + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
   }
 
   // one /control round trip with the token header; retries ONCE with a
