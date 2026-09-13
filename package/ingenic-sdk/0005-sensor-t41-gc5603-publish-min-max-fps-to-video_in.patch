@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000005 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@thingino.com>
+Date: Tue, 08 Sep 2026 00:00:05 +0000
+Subject: [PATCH] ingenic-sdk: t41/gc5603 publish min_fps/max_fps to video_in
+
+Second T40-copy fallout in t41/sensor-src/gc5603.c (see 0004 for the
+clock-name one). T40's struct tx_isp_video_in has no min_fps/max_fps
+members, so the T40 original never set them; T41's does
+(isp/t41/include/tx-isp-common.h:643-644) and the T41 ISP firmware
+*requires* them. gc5603.c is the only T41 gc5603 variant that was never
+updated: t41/gc5613.c:751-752, t41zrt/gc5603.c:774-775 and 1019-1020 and
+t41/gc5603s0.c:1105-1106 all set both fields, gc5603.c sets neither, so
+they stay 0 from the zeroed struct tx_isp_sensor.
+
+Consequence, traced in libt41-firmware.a 1.2.6
+(tisp_ae_sensor_par_ctrls_update, .text+0x21634):
+
+  +0x354  lhu  v0, 0x3a(tisp_par_info + idx*160)   ; max_fps numerator
+          bnez v0, ok
+          isp_printf(..., "max fps error !!!", 647)
+          sw   0x00190001 -> core+0x67c            ; fall back to 25/1
+  +0x3a8  lhu  v0, 0x36(tisp_par_info + idx*160)   ; min_fps numerator
+          bnez v0, ok
+          isp_printf(..., "min fps error !!!", 652)
+          sw   0x00050001 -> core+0x680            ; fall back to 5/1
+
+so both warnings fire together purely because the numerators are zero -
+not because a requested rate is out of range. Worse, the tail of the
+same function (+0x46c..+0x4a0) then unconditionally overwrites both
+words with ((val << 1) & 0xffff0000) + 2 recomputed from the SAME zero
+fields, clobbering the 25/1 and 5/1 fallbacks with 0/2 - i.e. the AE
+runs with max_fps = min_fps = 0 for the life of the stream.
+
+Fix mirrors t41zrt/gc5603.c: set both in sensor_set_attr() (so mode and
+WDR switches keep them current) and once more at the end of
+sensor_attr_check() (so they are valid before the first attr sync).
+
+Signed-off-by: Paul Philippov <paul@thingino.com>
+---
+--- a/4.4.94/sensor-src/t41/gc5603.c
++++ b/4.4.94/sensor-src/t41/gc5603.c
+@@ -816,6 +816,8 @@
+ 	sensor->video.mbus.field = TISP_FIELD_NONE;
+ 	sensor->video.mbus.colorspace = wsize->colorspace;
+ 	sensor->video.fps = wsize->fps;
++	sensor->video.max_fps = wsize->fps;
++	sensor->video.min_fps = SENSOR_OUTPUT_MIN_FPS << 16 | 1;
+
+ 	return 0;
+ }
+@@ -1080,6 +1082,8 @@
+
+ 	sensor_set_attr(sd, wsize);
+ 	sensor->priv = wsize;
++	sensor->video.max_fps = wsize->fps;
++	sensor->video.min_fps = SENSOR_OUTPUT_MIN_FPS << 16 | 1;
+
+ 	return 0;
+
