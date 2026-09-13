@@ -119,7 +119,7 @@ endif
 PRUDYNT_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include
 
-# OpenSSL support - link against OpenSSL if available and live555 uses it
+# OpenSSL support - link against OpenSSL if available
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
 PRUDYNT_T_DEPENDENCIES += host-pkgconf openssl
 PRUDYNT_LDFLAGS += `$(PKG_CONFIG_HOST_BINARY) --libs openssl`
@@ -130,8 +130,6 @@ endif
 # Build mode selection
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_STATIC),y)
 PRUDYNT_CFLAGS += -DBINARY_STATIC
-else ifeq ($(BR2_PACKAGE_PRUDYNT_T_HYBRID),y)
-PRUDYNT_CFLAGS += -DBINARY_HYBRID
 else
 PRUDYNT_CFLAGS += -DBINARY_DYNAMIC
 endif

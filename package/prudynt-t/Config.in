@@ -26,27 +26,12 @@ if BR2_PACKAGE_PRUDYNT_T
 
 choice
 	prompt "Prudynt linking mode"
-	default BR2_PACKAGE_PRUDYNT_T_HYBRID
+	default BR2_PACKAGE_PRUDYNT_T_DYNAMIC
 	help
 	  Choose how Prudynt links against its dependencies.
 
 	  Dynamic: All libraries linked dynamically (smallest binary, more .so files)
-	  Hybrid: live555 static, others dynamic (balanced, ~700KB flash savings)
-	  Static: All libraries static (largest binary, no .so files needed)
-
-config BR2_PACKAGE_PRUDYNT_T_HYBRID
-	bool "Hybrid linking (live555 static)"
-	help
-	  Statically link live555 libraries (RTSP/RTP stack) while keeping
-	  other libraries dynamic. This is a balanced approach that saves
-	  flash space by embedding only the actually-used live555 code.
-
-	  Binary size: ~1.6MB (includes live555)
-	  Shared libs: ~600KB (audio codecs, etc.)
-	  Total: ~2.2MB
-	  Flash savings: ~700KB vs dynamic
-
-	  Recommended for most deployments.
+	  Static: All libraries linked statically (largest binary, fewer .so files)
 
 config BR2_PACKAGE_PRUDYNT_T_DYNAMIC
 	bool "Dynamic linking"
@@ -54,19 +39,14 @@ config BR2_PACKAGE_PRUDYNT_T_DYNAMIC
 	  Link all libraries dynamically. This produces the smallest binary
 	  but requires all shared libraries (.so) on the target filesystem.
 
-	  Binary size: ~2.3MB
-	  Shared libs: ~2MB
-	  Total: ~4.3MB
+	  This is the normal build for firmware images.
 
 config BR2_PACKAGE_PRUDYNT_T_STATIC
 	bool "Static linking (full)"
 	help
-	  Statically link all libraries except system libraries (libc, libimp).
-	  This produces the largest binary but requires minimal .so files.
-
-	  Binary size: ~4MB+
-	  Shared libs: minimal (system only)
-	  Total: ~4.5MB
+	  Link all libraries statically, including libimp, the audio codecs
+	  and the built-in RTSP/RTP server. This produces the largest binary
+	  but requires almost no shared libraries on the target filesystem.
 
 	  Only use if you need complete library independence.
 
