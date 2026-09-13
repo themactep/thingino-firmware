@@ -751,8 +751,22 @@
 			status = "okay";
 			interrupt-parent = <0x04>;
 			interrupts = <0x24>;
-			pinctrl-names = "default";
+			/*
+			 * msc1 needs an "active" state as well as "default":
+			 * mmc_pwrseq_post_power_on() in drivers/mmc/core/pwrseq.c
+			 * selects "active" unconditionally, outside the
+			 * "if (pwrseq)" guard, so even this host - which has no
+			 * mmc-pwrseq node - hits it and logs "no 'active' pinctrl
+			 * state" + "Failed to power on msc1!: -1" on every power-on.
+			 * Harmless (that helper returns void and the error is only
+			 * logged) but noisy. Point "active" at the SAME group as
+			 * "default" (msc1-pc, GPC2-7), exactly as msc0 does with
+			 * 0x10/0x10. NOT msc1-pb: that muxes GPB8-11 + GPB13-14,
+			 * i.e. gpio 43 (white LED) and gpio 46 (SD slot supply).
+			 */
+			pinctrl-names = "default", "active";
 			pinctrl-0 = <0x12>;
+			pinctrl-1 = <0x12>;
 			cap-mmc-highspeed;
 			max-frequency = <0x17d7840>;
 			bus-width = <0x04>;
