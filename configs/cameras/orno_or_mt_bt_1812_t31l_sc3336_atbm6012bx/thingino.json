@@ -1,0 +1,29 @@
+{
+  "gpio": {
+    "button_reset": 14,
+    "ir850": 50,
+    "ircut": "17 16",
+    "led_g": 35,
+    "mmc_cd": 49,
+    "net": {
+      "pin": 6,
+      "active_low": false
+    },
+    "white": 59
+  },
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "54 52 53 64",
+    "gpio_switch": -1,
+    "gpio_tilt": "61 62 63 51",
+    "homing": true,
+    "invert_x": false,
+    "invert_y": false,
+    "is_spi": false,
+    "motion_driver": "legacy",
+    "speed_pan": 250,
+    "speed_tilt": 241,
+    "steps_pan": 3128,
+    "steps_tilt": 1024
+  }
+}
