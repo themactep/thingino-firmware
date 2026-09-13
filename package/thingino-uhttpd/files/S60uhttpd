@@ -16,6 +16,7 @@ UHTTPD_HTTPS_LISTEN="${UHTTPD_HTTPS_LISTEN:-443}"
 UHTTPD_PORTAL_HTTP_LISTEN="${UHTTPD_PORTAL_HTTP_LISTEN:-172.16.0.1:80}"
 UHTTPD_PORTAL_HTTPS_LISTEN="${UHTTPD_PORTAL_HTTPS_LISTEN:-172.16.0.1:443}"
 UHTTPD_ERROR_HANDLER="${UHTTPD_ERROR_HANDLER:-/x/legacy-url-recovery.cgi}"
+UHTTPD_TLS_REDIRECT="${UHTTPD_TLS_REDIRECT:-0}"
 
 build_uhttpd_args() {
 	local docroot="$1"
@@ -130,6 +131,9 @@ start() {
 		echo "SSL certificates found, attempting to start with SSL support..."
 
 		DAEMON_ARGS_SSL="$(build_uhttpd_args "$UHTTPD_DOCROOT" "$UHTTPD_HTTP_LISTEN" "$UHTTPD_HTTPS_LISTEN" "$UHTTPD_ERROR_HANDLER")"
+		if [ "$UHTTPD_TLS_REDIRECT" = "1" ]; then
+			DAEMON_ARGS_SSL="$DAEMON_ARGS_SSL -q"
+		fi
 
 		# Start uhttpd with SSL
 		echo "/usr/bin/$DAEMON $DAEMON_ARGS_SSL" >&2
@@ -143,7 +147,11 @@ start() {
 		if pgrep -x uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":443.*LISTEN" && netstat -ln | grep -q ":80.*LISTEN"; then
 			echo "uhttpd started successfully with SSL support"
 			echo "HTTPS: https://$display_hostname:443/"
-			echo "HTTP:  http://$display_hostname:80/ (redirects to HTTPS)"
+			if [ "$UHTTPD_TLS_REDIRECT" = "1" ]; then
+				echo "HTTP:  http://$display_hostname:80/ (redirects to HTTPS)"
+			else
+				echo "HTTP:  http://$display_hostname:80/"
+			fi
 			return 0
 		else
 			kill "$uhttpd_pid" 2>/dev/null

@@ -16,7 +16,7 @@ config BR2_PACKAGE_THINGINO_UHTTPD
 	  Features:
 	  - Native HTTPS support with wolfSSL or mbedTLS encryption
 	  - Session-based authentication and security
-	  - Automatic HTTP to HTTPS redirection
+	  - Optional HTTP to HTTPS redirection (opt-in, off by default)
 	  - RESTful API endpoints for automation
 
 	  https://wiki.openwrt.org/doc/howto/http.uhttpd
@@ -80,7 +80,7 @@ endif
 
 config BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
 	bool "Redirect HTTP to HTTPS"
-	default y
+	default n
 	depends on BR2_PACKAGE_THINGINO_UHTTPD_TLS
 	help
 	  Automatically redirect HTTP requests on port 80 to HTTPS

@@ -17,7 +17,7 @@ The following web servers are supported:
 - Optional TLS/HTTPS support with mbedTLS or wolfSSL
 - Optional Lua scripting support
 - Session-based authentication
-- Auto HTTP to HTTPS redirection
+- Optional HTTP to HTTPS redirection (opt-in, off by default)
 
 ### nginx
 - Full-featured HTTP server and reverse proxy

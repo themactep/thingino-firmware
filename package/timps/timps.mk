@@ -263,16 +263,30 @@ define TIMPS_INSTALL_TARGET_CMDS
 	# leaving it commented meant every TLS+WebUI image needed a manual
 	# post-flash edit before HTTPS actually worked.
 	#
-	# Also require BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y: that's what
-	# makes uhttpd actually redirect port 80 to 443 (see S60uhttpd's -q
-	# flag). Without it, http.https=1 makes timps's one preview port
-	# TLS-only while the WebUI keeps serving plain HTTP on :80 with no
-	# redirect - a page loaded over http:// then tries to fetch the stream
-	# over https:// with a self-signed cert and fails outright (no
-	# interstitial is possible for a subresource fetch). Gating on the
-	# redirect being wired up keeps page and stream on the same scheme.
-	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT)" = "y" ]; then \
-		$(SED) 's|^# http.https .*|http.https    = 1                       # serve the HTTP port over TLS|' \
+	# The value shipped is 1, which since timps v1.9.11 means BOTH schemes on
+	# the one port (per-connection, by a first-byte peek), not TLS-only - that
+	# is now 2. So an http:// WebUI page and an https:// one both reach the
+	# preview port with their own scheme, and the old mixed-content failure
+	# (http:// page, https:// subresource fetch, self-signed cert, no possible
+	# interstitial) cannot happen from this default any more.
+	#
+	# This used to ALSO require BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT=y,
+	# back when 1 meant TLS-only and the preview therefore had to be kept on
+	# whatever single scheme uhttpd ended up serving. Dropped, for three
+	# reasons: the tri-state removed the mismatch it guarded against; the
+	# symbol is force-selected alongside UHTTPD_TLS by
+	# BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD, so the condition could never be
+	# false when the one above it was true; and it had the failure backwards -
+	# redirect=n means :80 is not redirected, NOT that :443 is gone, so
+	# suppressing http.https=1 there is what left an https:// page facing a
+	# plaintext-only preview port (and no cert generated, since S95timps keys
+	# ensure_tls_certs() off this same value).
+	#
+	# Writing 1 is purely additive on any TLS-capable build - plaintext keeps
+	# working - so there is no image on which not writing it is the safer
+	# choice.
+	if [ "$(BR2_PACKAGE_TIMPS_TLS)" = "y" ] && [ "$(BR2_PACKAGE_THINGINO_UHTTPD_TLS)" = "y" ]; then \
+		$(SED) 's|^# http.https .*|http.https    = 1                       # 0 plain, 1 http+https on one port, 2 TLS only|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 
