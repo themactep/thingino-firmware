@@ -729,8 +729,9 @@
 			status = "okay";
 			interrupt-parent = <0x04>;
 			interrupts = <0x25>;
-			pinctrl-names = "default";
+			pinctrl-names = "default", "active";
 			pinctrl-0 = <0x10>;
+			pinctrl-1 = <0x10>;
 			cap-mmc-highspeed;
 			max-frequency = <0x17d7840>;
 			bus-width = <0x04>;
@@ -806,7 +807,16 @@
 
 	mmc0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <0x05 0x0e 0x00 0x00>;
+		/*
+		 * PB14 (gpio 46) is the SD slot's supply enable and it is
+		 * ACTIVE LOW on this board - measured on hardware: driving it
+		 * high leaves the card phantom-powered through its I/O
+		 * pull-ups, so it answers CMD0/CMD8/ACMD41 but never finishes
+		 * power-up ("card never left busy state", -145). This kernel's
+		 * pwrseq_simple drives the logical value 1 in post_power_on,
+		 * so the flag has to be GPIO_ACTIVE_LOW to pull the pin low.
+		 */
+		reset-gpios = <0x05 0x0e 0x01 0x00>;
 		linux,phandle = <0x11>;
 		phandle = <0x11>;
 	};
