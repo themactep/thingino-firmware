@@ -33,11 +33,11 @@ define WIFI_AIC8800_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# aic8800 is a full-MAC cfg80211 driver (rwnx): the module imports zero
+	# mac80211 symbols, so the soft-MAC stack (~421 KB built-in) was dead
+	# weight that overflowed the NOR kernel partition. Keep cfg80211, drop
+	# mac80211 (same as the full-MAC wifi-atbm6062u package).
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
 # USB driver path
