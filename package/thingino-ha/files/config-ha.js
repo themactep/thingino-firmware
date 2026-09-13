@@ -21,6 +21,7 @@
   const discoveryInterval = $('#ha_discovery_interval');
   const otaCheckInterval = $('#ha_ota_check_interval');
   const haEnabled        = $('#ha_enabled');
+  const floodlightEnabled = $('#ha_enable_floodlight');
 
   // Entity toggles
   const entities = [
@@ -60,7 +61,7 @@
      deviceName, deviceModel, discoveryPrefix, stateInterval, cameraInterval,
      discoveryInterval,
      otaCheckInterval,
-     haEnabled].forEach(function (el) { el.disabled = state; });
+      haEnabled, floodlightEnabled].forEach(function (el) { el.disabled = state; });
     entities.forEach(function (e) {
       const el = $('#ha_enable_' + e);
       if (el) el.disabled = state;
@@ -103,6 +104,7 @@
       discoveryInterval.value = sanitizeValue(String(d.discovery_interval || '')) || '3600';
       otaCheckInterval.value  = sanitizeValue(String(d.ota_check_interval || '')) || '21600';
       haEnabled.checked       = d.enabled === true;
+      floodlightEnabled.checked = d.enable_floodlight === true;
 
       entities.forEach(function (e) {
         const el = $('#ha_enable_' + e);
@@ -158,6 +160,7 @@
       camera_interval: parseInt(sanitizeValue(cameraInterval.value), 10) || 60,
       discovery_interval: parseInt(sanitizeValue(discoveryInterval.value), 10) || 3600,
       ota_check_interval: parseInt(sanitizeValue(otaCheckInterval.value), 10) || 21600,
+      enable_floodlight: floodlightEnabled.checked === true,
       mqtt: {
         host: sanitizeValue(mqttHost.value) || '',
         port: parseInt(sanitizeValue(mqttPort.value), 10) || 1883,

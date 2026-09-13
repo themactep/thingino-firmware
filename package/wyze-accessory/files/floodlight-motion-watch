@@ -1,0 +1,26 @@
+#!/bin/sh
+# Subscribe the Wyze Floodlight accessory to the common motion-alarm state.
+# This is deliberately package-local: no motion producer needs to know that
+# a floodlight is installed.
+
+ALARM="${MOTION_ALARM:-/run/motion/motion_alarm}"
+CTL="${FLOODLIGHT_CTL:-/usr/sbin/floodlight_ctl}"
+POLL_SECS="${FLOODLIGHT_MOTION_POLL_SECS:-1}"
+active=0
+
+while :; do
+	if [ -e "$ALARM" ]; then
+		now=1
+	else
+		now=0
+	fi
+
+	# Fire once per inactive -> active transition. floodlight_ctl manages its
+	# own settings, day/night check, duration, and overlap lock.
+	if [ "$now" -eq 1 ] && [ "$active" -eq 0 ]; then
+		"$CTL" motion 2>&1 &
+	fi
+
+	active=$now
+	sleep "$POLL_SECS"
+done

@@ -150,6 +150,15 @@ else
 	ha_clear_disc switch white
 fi
 
+# Light: Wyze Floodlight v1. The user-facing enable setting controls whether
+# this entity is published; the command handler verifies USB availability.
+if ha_entity_enabled floodlight && [ -x "$HA_FLOODLIGHT_CTL" ]; then
+	ha_pub_disc light floodlight \
+		"{\"name\":\"Floodlight\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_floodlight\",\"state_topic\":\"${ST}/floodlight/state\",\"command_topic\":\"${ST}/floodlight/set\",\"brightness_state_topic\":\"${ST}/floodlight_brightness/state\",\"brightness_command_topic\":\"${ST}/floodlight_brightness/set\",\"brightness_scale\":100,\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:light-flood-down\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc light floodlight
+fi
+
 # Sensor: Camera config (IMAGE_ID from os-release, always published)
 ha_pub_disc sensor camera_config \
 	"{\"name\":\"Camera Config\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_camera_config\",\"state_topic\":\"${ST}/camera_config/state\",\"icon\":\"mdi:cog\",\"entity_category\":\"diagnostic\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"

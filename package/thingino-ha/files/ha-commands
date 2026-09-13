@@ -172,6 +172,42 @@ dispatch() {
 			esac
 			;;
 
+		floodlight)
+			case "$payload" in
+				on | ON | 1 | true)
+					brightness=$(ha_floodlight_brightness 2>/dev/null)
+					brightness="${brightness:-100}"
+					if ha_floodlight_available && "$HA_FLOODLIGHT_CTL" on "$brightness"; then
+						ha_pub_state floodlight ON
+						ha_pub_state floodlight_brightness "$brightness"
+					else
+						echo "ha-commands: Floodlight v1 controller not available" >&2
+					fi
+					;;
+				off | OFF | 0 | false)
+					if ha_floodlight_available && "$HA_FLOODLIGHT_CTL" off; then
+						ha_pub_state floodlight OFF
+					else
+						echo "ha-commands: Floodlight v1 controller not available" >&2
+					fi
+					;;
+			esac
+			;;
+
+		floodlight_brightness)
+			case "$payload" in
+				'' | *[!0-9]*) echo "ha-commands: invalid floodlight brightness '$payload'" >&2 ;;
+				*)
+					if ha_floodlight_available && "$HA_FLOODLIGHT_CTL" on "$payload"; then
+						ha_pub_state floodlight ON
+						ha_pub_state floodlight_brightness "$payload"
+					else
+						echo "ha-commands: invalid brightness or Floodlight v1 controller unavailable" >&2
+					fi
+					;;
+			esac
+			;;
+
 		snapshot)
 			prudyntctl snapshot -c 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
 			;;
