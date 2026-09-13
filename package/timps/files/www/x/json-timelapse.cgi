@@ -1,5 +1,7 @@
 #!/bin/sh
-# shellcheck disable=SC1091,SC2086
+# shellcheck disable=SC1091,SC2086,SC2012
+# SC2012: `ls` here is deliberate, not a `find` oversight - see the frame
+# listing below for why (one fork for the whole folder, no per-file stat).
 # json-timelapse.cgi - browse/serve the timps timelapse shots. A FILESYSTEM
 # helper next to json-recordings.cgi (not a streamer bridge):
 #   GET                -> JSON index of shot FOLDERS under <timelapse.dir>/<host>/timelapses
