@@ -278,9 +278,12 @@
   // Endpoint links are rendered by the shared /a/preview-endpoints.js
   // module. Refresh the RTSP credentials it shows once the config answers;
   // until then it renders the thingino/thingino/554 defaults.
-  fetch("http://" + host() + ":8080/api/v1/config/rtsp", {
-    cache: "no-store",
-  })
+  API_KEY_PROMISE.then((key) =>
+    fetch("http://" + host() + ":8080/api/v1/config/rtsp", {
+      cache: "no-store",
+      headers: key ? { "X-API-Key": key } : {},
+    }),
+  )
     .then((r) => (r.ok ? r.json() : null))
     .then((rtsp) => {
       if (rtsp && window.thinginoPreviewEndpoints) {
