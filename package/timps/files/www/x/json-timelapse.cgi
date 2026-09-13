@@ -64,7 +64,10 @@ within_base_dir() {
 	esac
 }
 
-not_found() { printf 'Status: 404 Not Found\r\n\r\n'; exit 0; }
+not_found() {
+	printf 'Status: 404 Not Found\r\n\r\n'
+	exit 0
+}
 
 FILE=$(urldec "$(qval file)")
 SEQ=$(urldec "$(qval seq)")
