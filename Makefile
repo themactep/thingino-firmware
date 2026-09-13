@@ -69,6 +69,10 @@ endif
 export THINGINO_USER_DIR
 THINGINO_USER_COMMON_DIR := $(THINGINO_USER_DIR)/common
 
+# Opt-in creation of the user config skeleton (empty local.fragment, etc.).
+# Set USER_DIRS=1 or run `make user-dirs`; plain builds leave user/ untouched.
+USER_DIRS ?=
+
 # Global backup directory for camera overlay archives
 THINGINO_BACKUP_DIR ?= $(HOME)/.thingino/backups
 
