@@ -31,17 +31,20 @@ UTC2803M Darlington array; nothing in stock firmware drove them via
 TCU/PWM. Direction is handled by the gpio_tilt phase pin order, not
 invert_y (matching the current convention):
 
-- Pan: pins 39 45 46 40, steps 2100, speed 700
-- Tilt: pins 38 48 47 41, steps 2100, speed 700
+- Pan: pins 39 45 46 40, steps 3900, speed 700
+- Tilt: pins 38 48 47 41, steps 700, speed 700
 
 Steps were measured against the mechanical stops of a specific unit;
-both axes of this family are the same gearing, so 2100 is a reasonable
-default for other C200 (T31L) units.
+they can vary between units, so recalibrate if travel looks off.
+Home position (pan 1950, tilt 200) is what the daemon returns to on
+`motors -d b` and after a homing sweep.
 
 ## Notes
 
 - The C200 (T31L) board is closely related to the Tapo C500 (T31L)
-  profile; the motor phase pins and the 2100 steps match.
+  profile; the motor phase pins match. Pan travel measured on this
+  unit is longer than the C500 default (3900 vs 2100 steps).
+- Red and green indicator LEDs were verified on hardware (GPIO 42/43).
 - There are no limit switches: homing sweeps into the mechanical
   stops. `homing` is set to false here because moving both axes at
   once (the startup homing sweep) can brown out the 5V rail on stock

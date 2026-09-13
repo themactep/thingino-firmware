@@ -21,12 +21,14 @@
     "gpio_switch": -1,
     "gpio_tilt": "38 48 47 41",
     "homing": false,
+    "home_pan": 1950,
+    "home_tilt": 200,
     "invert_x": false,
     "invert_y": false,
     "is_spi": false,
     "speed_pan": 700,
     "speed_tilt": 700,
-    "steps_pan": 2100,
-    "steps_tilt": 2100
+    "steps_pan": 3900,
+    "steps_tilt": 700
   }
 }
