@@ -681,6 +681,37 @@ make help
 
 ## Troubleshooting
 
+### Host Toolchain Issues
+
+**Problem**: On Ubuntu 26.04 and newer the build fails early because the `install` utility is missing
+
+Recent Ubuntu releases ship Rust-based uutils coreutils as the native
+coreutils implementation, and uutils does not provide `install`, which
+Buildroot's `$(INSTALL)` steps (`install -D -m ...`) rely on.
+
+The recommended fix is to build in a container, which is independent of
+host coreutils; see [Building in a container](container.md).
+
+To keep building directly on the host, install the optional GNU coreutils
+package and point `install` at it:
+
+```bash
+sudo apt install gnu-coreutils
+sudo update-alternatives --install /usr/bin/install install /usr/bin/gnuinstall 100
+```
+
+`gnu-coreutils` coexists with the native uutils packages: it ships
+`/usr/bin/gnuinstall` and the alternative symlink provides `install`
+without overwriting any dpkg-owned file. Verify with `install --version`.
+To revert:
+
+```bash
+sudo update-alternatives --remove-all install
+```
+
+If other coreutils utilities misbehave the same way, the container build
+avoids this entire class of host toolchain differences.
+
 ### Configuration Issues
 
 **Problem**: Configuration seems outdated after editing fragments
