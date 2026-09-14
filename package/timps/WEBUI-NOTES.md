@@ -122,6 +122,64 @@ How the override works, and why it is safe:
   ("load", initAll)`, which is later still, so `initAll`'s click handlers
   already call the timps implementations.
 
+## a/timps-auth-gate.js
+
+### File header: why a second, earlier session check
+
+Core `main.js` already checks `/x/session-status.cgi` and redirects an
+unauthenticated visitor to `/login.html`, but it does that from
+`window.addEventListener("load", ...)` plus a 100 ms timeout - i.e. after
+every subresource has settled. The stock pages pull Bootstrap CSS/JS from
+jsdelivr and Montserrat from Google Fonts, so on a camera VLAN with no
+internet route `load` only fires once those requests hit their TCP timeout.
+Until then the visitor sits looking at a fully rendered `preview.html` -
+nav bar, empty video box, every control widget. Nothing leaks (the session
+cookie is `HttpOnly`, and `session-status.cgi`, `timps-token.cgi`, the
+snapshot CGIs and the stream all 401 on their own), but it looks like the
+camera let them in.
+
+This file closes that window without forking `main.js`:
+- It is a plugin-manifest "scripts" entry, so `assemble_plugins.py` injects
+  it as a plain `<script src>` before `</head>` - no `defer`, no `async`
+  (see `make_script_tag()`), so it is parser-blocking and runs before
+  `<body>` is parsed. There is therefore no moment at which page content
+  could paint before the gate is armed.
+- Arming is `document.documentElement.style.visibility = "hidden"`, and
+  revealing restores the previous inline value (normally `""`) rather than
+  writing `visible`, so it never overrides page CSS and there is no second
+  flash. `visibility` and not `display:none` so the themed page background
+  still paints - a blank dark page, not a white one.
+- The `HttpOnly` cookie is not readable from JS, so there is no way to know
+  the answer without the round trip. `credentials: "same-origin"` is fetch's
+  default for a same-origin URL and is spelled out here only to document
+  that the cookie does ride along (HttpOnly blocks JS *reads*, not sending).
+
+Fail-open, deliberately: a 1500 ms `setTimeout` reveals the page no matter
+what, and an `AbortController` on the same deadline drops the request. A
+network error, a 5xx, a non-JSON body or a missing `authenticated` key all
+reveal too. The gate never becomes the reason a camera looks bricked - a
+genuinely unauthenticated session still gets caught by `main.js`'s slower
+check on exactly today's timeline. 1500 ms is ~50x the measured LAN
+round trip (25-34 ms), so the timeout is a backstop, not a budget.
+
+Only a definitive answer redirects: HTTP 401/403, or `authenticated:false`.
+The target matches `main.js`'s `redirectToLogin()` (a bare `/login.html`;
+core keeps no return-to parameter, so neither does this). It uses
+`location.replace()` rather than assigning `location.href`, because this
+fires before paint: an `href` assignment would push a history entry for a
+page the user never saw, and Back from `/login.html` would land on it and
+be thrown forward again.
+
+Skipped pages (`SKIP`) are exactly the ones core does not gate: `/login.html`
+and `/401.html` (`redirectToLogin()` bails on both, to avoid a loop),
+`/wait.html` (the reboot splash - the CGI is down by design there, and a
+reboot must not end at the login form), `/gphotos-auth-callback.html` (an
+OAuth landing page that has to relay its code, and redirecting would lose
+it), and `/` + `/index.html` (an empty `<meta http-equiv="refresh">` stub
+with nothing to hide, whose refresh would race the gate). `wait.html`,
+`gphotos-auth-callback.html` and `login.html` do not load `main.js` at all;
+the injection is per-page-unconditional, hence the explicit list.
+
 ## a/streamer-osd.js
 
 ### File header: full data-flow spec (Phase 1, data-driven OSD items)

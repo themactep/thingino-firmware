@@ -1,0 +1,22 @@
+{
+  "gpio": {
+    "led_r": 39,
+    "led_b": 61,
+    "led_w": 43,
+    "button_reset": 21,
+    "speaker": 14,
+    "ircut": "72 73",
+    "mmc_cd": 42,
+    "mmc_power": {
+      "pin": 46,
+      "active_low": true
+    },
+    "wlan": 47
+  },
+  "motors": {
+    "gpio_pan": "62 60 59 48",
+    "gpio_tilt": "45 41 58 57",
+    "limitless": true,
+    "homing": false
+  }
+}

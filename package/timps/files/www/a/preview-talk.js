@@ -19,7 +19,8 @@
  *     ws:// accepted too. audio.talk_ws=1 on a plaintext port reports 0
  *     (/talk would 426), so there is nothing left here to second-guess -
  *     the only thing this file still derives is the SCHEME, from the same
- *     timps-token.cgi "tls" field that already picks http:// vs https://.
+ *     timps-token.cgi "scheme" field that already picks http:// vs https://
+ *     (and, when timps serves both on the one port, the page's own).
  *   - navigator.mediaDevices.getUserMedia. This is the one the camera cannot
  *     fix from its side: browsers refuse it outside a secure context, so on a
  *     plain-http:// page it is simply absent unless the operator granted the
@@ -59,7 +60,21 @@
   let base = null;    // http(s)://<host>:<port>
   let wsBase = null;  // ws(s)://<host>:<port>, same scheme family as `base`
   let token = null;
-  let tls = false;    // timps' http.https, per /x/timps-token.cgi
+  let tls = false;    // true once the scheme we actually dial is https/wss
+
+  // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
+  // "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
+  // scheme: an https:// page may only open wss:// (mixed content), and an
+  // http:// page cannot clear a self-signed cert on a WebSocket handshake.
+  // Falls back to the older "tls" bool when the CGI predates "scheme".
+  function timpsScheme(info) {
+    if (!info) return "http";
+    if (info.scheme === "both") {
+      return window.location.protocol === "https:" ? "https" : "http";
+    }
+    if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+    return info.tls ? "https" : "http";
+  }
   let stopped = false; // set on pagehide; stops the probe retry loop
 
   // live session state, all null/idle between presses
@@ -325,8 +340,9 @@
     let host = location.hostname || "127.0.0.1";
     if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
     const port = info.port || 8880;
-    tls = !!info.tls;
-    base = (tls ? "https" : "http") + "://" + host + ":" + port;
+    const sch = timpsScheme(info);
+    tls = sch === "https";
+    base = sch + "://" + host + ":" + port;
     // Same scheme family as `base`, never hardcoded: an https:// page may only
     // open wss:// (mixed content), and a plaintext timps listener only speaks
     // ws://. probe() refuses to show the button for any combination timps

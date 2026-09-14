@@ -1,4 +1,12 @@
+# Create the user config skeleton (common, per-camera, per-device).
+# Opt-in: run `make user-dirs` or pass USER_DIRS=1 to a build target, so
+# regular builds do not litter the user directory with empty files.
+USER_DIRS ?=
+ifeq (user-dirs,$(filter user-dirs,$(MAKECMDGOALS)))
+USER_DIRS := 1
+endif
 user-dirs:
+ifeq ($(USER_DIRS),1)
 ifneq ($(THINGINO_USER_DIR),/dev/null)
 	$(call create_user_dir,$(THINGINO_USER_COMMON_DIR))
 ifdef THINGINO_USER_CAMERA_DIR
@@ -7,6 +15,9 @@ endif
 ifdef THINGINO_USER_DEVICE_DIR
 	$(call create_user_dir,$(THINGINO_USER_DEVICE_DIR))
 endif
+endif
+else
+	@:
 endif
 
 # Default: fast parallel incremental build

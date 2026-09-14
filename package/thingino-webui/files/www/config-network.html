@@ -33,8 +33,8 @@
             </button>
           </div><!-- .card-header -->
           <div class="card-body">
-            <div class="row row-cols-1 rows-col-lg-3 mb-3">
-              <div class="col col-xl-4">
+            <div class="row row-cols-1 row-cols-lg-3 g-4 mb-3">
+              <div class="col">
                 <h4>General</h4>
                 <small>Hostname and DNS servers</small>
                 <p><label for="hostname">Hostname</label>
@@ -45,10 +45,10 @@
                   <input type="text" class="form-control" id="dns_secondary" placeholder="8.8.8.8"></p>
                 <p class="small">At least one DNS server is required; the second one is optional and provides redundancy.</p>
               </div><!-- .col -->
-              <div class="col col-xl-8">
+              <div class="col">
                 <h4>Wi-Fi Configuration</h4>
                 <small>Passwords shorter than 64 characters convert to WPA2 PSK on save.</small>
-                <div class="mb-3">
+                <p>
                   <label for="wifi_ssid">Wireless Network Name (SSID)</label>
                   <div class="input-group">
                     <input type="text" class="form-control" id="wifi_ssid" autocomplete="off" autocapitalize="none" placeholder="Enter network name or scan for networks">
@@ -58,7 +58,7 @@
                       <span id="wifi-scan-text"><i class="bi bi-search"></i></span>
                     </button>
                   </div>
-                </div>
+                </p>
                 <p><label for="wifi_bssid">Access Point MAC (BSSID)</label>
                   <input type="text" class="form-control text-uppercase" id="wifi_bssid" placeholder="AA:BB:CC:DD:EE:FF" data-help="Optional when SSID broadcast is enabled"></p>
                 <p><label for="wifi_pass">Wi-Fi Password / PSK</label>
@@ -67,6 +67,20 @@
                   <input class="form-check-input" type="checkbox" role="switch" id="wifi_ap_enabled" data-help="While the AP is enabled, station mode is stopped to avoid conflicts.">
                   <label class="form-check-label" for="wifi_ap_enabled">Enable Wi-Fi AP mode</label>
                 </p>
+              </div><!-- .col -->
+              <div class="col">
+                <h4>Connectivity Watchdog</h4>
+                <small>Reboots the camera if the network is unreachable for too long.</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="netwatch_enabled">
+                  <label class="form-check-label" for="netwatch_enabled">Enable watchdog</label>
+                </p>
+                <p><label for="netwatch_target">Ping target</label>
+                  <input type="text" class="form-control" id="netwatch_target" data-help="Defaults to the default-route gateway when empty."></p>
+                <p><label for="netwatch_interval">Ping interval (seconds)</label>
+                  <input type="number" min="5" max="3600" class="form-control" id="netwatch_interval" value="30"></p>
+                <p><label for="netwatch_fail">Failures before reboot</label>
+                  <input type="number" min="1" max="60" class="form-control" id="netwatch_fail" value="3"></p>
               </div><!-- .col -->
             </div><!-- .row -->
           </div><!-- .card-body -->

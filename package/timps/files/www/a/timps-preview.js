@@ -38,11 +38,26 @@ function fetchTimpsMediaInfo(force = false) {
           token: data && data.token ? String(data.token) : "",
           port: data && data.port ? parseInt(data.port, 10) : 8880,
           tls: !!(data && data.tls),
+          scheme: data && data.scheme ? String(data.scheme) : "",
         };
         return timpsMediaInfo;
       });
   }
   return timpsMediaPending;
+}
+
+// http.https tri-state, as reported by timps-token.cgi's "scheme" field.
+// "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
+// scheme: an https:// page may not load an http:// <img> (mixed content), and
+// an http:// page cannot clear a self-signed cert on a subresource. Falls back
+// to the older "tls" bool when the CGI predates "scheme".
+function timpsMediaScheme(info) {
+  if (!info) return "http";
+  if (info.scheme === "both") {
+    return window.location.protocol === "https:" ? "https" : "http";
+  }
+  if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+  return info.tls ? "https" : "http";
 }
 
 // kind "live" -> /stream.mjpeg, "still" -> /snapshot.jpg; chn is the numeric
@@ -51,7 +66,7 @@ function fetchTimpsMediaInfo(force = false) {
 function timpsMediaUrl(kind, chn, host) {
   const h = wrapIpv6Host(host || window.location.hostname || "127.0.0.1");
   const port = timpsMediaInfo ? timpsMediaInfo.port : 8880;
-  const scheme = timpsMediaInfo && timpsMediaInfo.tls ? "https" : "http";
+  const scheme = timpsMediaScheme(timpsMediaInfo);
   const path = kind === "still" ? "/snapshot.jpg" : "/stream.mjpeg";
   let url = `${scheme}://${h}:${port}${path}?chn=${chn}`;
   if (timpsMediaInfo && timpsMediaInfo.token) {

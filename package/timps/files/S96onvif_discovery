@@ -88,12 +88,16 @@ timps_rtsp_endpoint() {
 	echo "${ep#/}"
 }
 
+# http.https is a TRI-STATE, not a boolean: 0 = plaintext, 1 = http and https
+# together on the one port, 2 = TLS only (plaintext gets 426 Upgrade Required).
+# Deliberately not timps_bool_default(), which is shared with the genuinely
+# boolean keys and would report "http" for 2 - the URIs advertised to ONVIF
+# clients would then all be refused by the daemon.
 timps_http_scheme() {
-	if [ "$(timps_bool_default http.https false)" = "true" ]; then
-		echo "https"
-	else
-		echo "http"
-	fi
+	case "$(timps_conf_get http.https | tr 'A-Z' 'a-z')" in
+		1 | 2 | true | yes | on) echo "https" ;;
+		*) echo "http" ;;
+	esac
 }
 
 timps_http_port() {

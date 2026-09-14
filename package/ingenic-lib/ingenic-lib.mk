@@ -1,7 +1,7 @@
 INGENIC_LIB_SITE_METHOD = git
 INGENIC_LIB_SITE = https://github.com/gtxaspec/ingenic-lib
 INGENIC_LIB_SITE_BRANCH = master
-INGENIC_LIB_VERSION = 99ed33fd55fdf4fdfaa378a0924c5c6a7a31943b
+INGENIC_LIB_VERSION = ea62f3da40cdca2bbf7bdb89b663f89952f850c0
 INGENIC_LIB_INSTALL_STAGING = YES
 
 INGENIC_LIB_LICENSE = GPL-2.0
@@ -49,7 +49,7 @@ else ifeq ($(SOC_FAMILY),t31)
 		SDK_VERSION := 1.1.6
 	endif
 else ifeq ($(SOC_FAMILY),t32)
-	SDK_VERSION := 2.1.0.0
+	SDK_VERSION := 2.2.0
 else ifeq ($(SOC_FAMILY),t40)
 	SDK_VERSION := 1.3.1
 else ifeq ($(SOC_FAMILY),t41)

@@ -142,7 +142,7 @@ ifeq ($(WIFI_MODULE_IS_SDIO_FLAG),1)
 		else
 			WIFI_SDIO_SET_GPIO_FLAG := 1
 		endif
-	else ifneq ($(filter $(SOC_FAMILY),t10 t20 t21 t30 t40 t41),)
+	else ifneq ($(filter $(SOC_FAMILY),t10 t20 t21 t30 t32 t40 t41),)
 		# Skip mmc_gpio but still send MMC insert
 	else
 		WIFI_SDIO_UNSUPPORTED_FLAG := 1

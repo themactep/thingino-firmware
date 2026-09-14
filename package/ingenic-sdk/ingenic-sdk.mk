@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/thingino/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = main
-INGENIC_SDK_VERSION = 932d7daf8da1b8108e39efe839931276760d60c4
+INGENIC_SDK_VERSION = 343ae306c99b50f1c79e038a7ef0aee8af6c1c2e
 
 INGENIC_SDK_LICENSE = GPL-2.0+
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -166,11 +166,17 @@ define INSTALL_SENSOR_BIN
 			$(INSTALL) -D -m 0644 $(4) \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
 		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+			found=0; \
 			for b in $(@D)/sensor-iq/t32/$(2)-PRJ007-*.bin; do \
 				[ -f "$$b" ] || continue; \
 				$(INSTALL) -D -m 0644 "$$b" \
 					$(TARGET_DIR)/usr/share/sensor/$$(basename "$$b"); \
+				found=1; \
 			done; \
+			if [ $$found -eq 0 ]; then \
+				echo "ERROR: no IQ bin for $(2) in sensor-iq/t32/ (want $(2)-PRJ007-day.bin)"; \
+				exit 1; \
+			fi; \
 		else \
 			iqdir=$(@D)/sensor-iq/$(SOC_FAMILY); \
 			if [ -n "$(SENSOR_ISP_FW)" ] && [ -f $$iqdir/$(SENSOR_ISP_FW)/$(2).bin ]; then \
@@ -224,6 +230,8 @@ define GENERATE_MODULE_LOADER
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
+		elif [ "$(SOC_FAMILY)" = "t32" ]; then \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_CLKV_CLK_SRC) $(ISP_CLKV_CLK) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		else \
 			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		fi \

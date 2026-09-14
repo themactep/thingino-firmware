@@ -42,9 +42,11 @@ agent_timps_port() {
 	printf '%s' "$port"
 }
 
+# Tri-state: 0 = plaintext, 1 = http and https on the one port, 2 = TLS only
+# (plaintext answered with 426). Both on-values speak https.
 agent_timps_scheme() {
 	case "$(agent_conf_get http.https | tr 'A-Z' 'a-z')" in
-		1 | true | yes | on) printf 'https' ;;
+		1 | 2 | true | yes | on) printf 'https' ;;
 		*) printf 'http' ;;
 	esac
 }
