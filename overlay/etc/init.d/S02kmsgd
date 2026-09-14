@@ -1,0 +1,49 @@
+#!/bin/sh
+# Forward printk output to syslogd. The kernel console is the serial port,
+# so kernel messages never reach syslogd on their own. Messages already in
+# the ring buffer are dumped by S50kmsgdboot once the network is up, since
+# forwarding over UDP before that is a silent no-op.
+
+PIDFILE="/run/kmsgd.pid"
+
+kmsg_loop() {
+	while read -r line; do
+		# /dev/kmsg prefixes each record with "<pri>"; strip it because
+		# logger sets the priority itself.
+		case "$line" in
+			'<'*'>'*) line="${line#*>}" ;;
+		esac
+		logger -p kern.info -t kernel "$line"
+	done </proc/kmsg
+}
+
+start() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		return 0
+	fi
+	kmsg_loop &
+	echo $! >"$PIDFILE"
+}
+
+stop() {
+	if [ -f "$PIDFILE" ]; then
+		kill "$(cat "$PIDFILE")" 2>/dev/null
+		rm -f "$PIDFILE"
+	fi
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

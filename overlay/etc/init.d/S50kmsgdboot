@@ -1,0 +1,45 @@
+#!/bin/sh
+# Dump the buffered boot log to syslogd, including the reset reason and the
+# CPU reset-error PC left by the previous boot.
+#
+# Runs after the network is up: syslogd forwards over UDP, so anything sent
+# before the interface has an address is dropped without error.
+
+PIDFILE="/run/kmsgdboot.pid"
+
+start() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		return 0
+	fi
+
+	# Wait for syslogd's socket, then give the network a moment to settle.
+	i=0
+	while [ "$i" -lt 100 ]; do
+		[ -S /dev/log ] && break
+		sleep 0.1
+		i=$((i + 1))
+	done
+	sleep 2
+
+	dmesg 2>/dev/null | logger -p kern.info -t kernel
+	echo $$ >"$PIDFILE"
+}
+
+stop() {
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start) start ;;
+	stop) stop ;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0
