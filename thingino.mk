@@ -353,7 +353,7 @@ ISP_CLK := $(call resolve_clock_freq,ISP_CLK,isp_clk,\
 
 # ISP_CLKA
 ISP_CLKA_CLK_SRC := $(call resolve_clock_src,ISP_CLKA,clka_name,\
-  SCLKA:sclka INTERNAL:)
+  SCLKA:sclka VPLL:vpll INTERNAL:)
 ISP_CLKA_CLK := $(call resolve_clock_freq,ISP_CLKA,isp_clka,\
   400:400000000 450:450000000 500:500000000 550:550000000 \
   600:600000000 650:650000000 700:700000000)
@@ -364,6 +364,13 @@ ISP_CLKS_CLK_SRC := $(call resolve_clock_src,ISP_CLKS,clks_name,\
 ISP_CLKS_CLK := $(call resolve_clock_freq,ISP_CLKS,isp_clks,\
   400:400000000 450:450000000 500:500000000 550:550000000 \
   600:600000000 650:650000000 700:700000000)
+
+# ISP_CLKV
+ISP_CLKV_CLK_SRC := $(call resolve_clock_src,ISP_CLKV,clkv_name,\
+  SCLKA:sclka VPLL:vpll MPLL:mpll INTERNAL:)
+ISP_CLKV_CLK := $(call resolve_clock_freq,ISP_CLKV,isp_clkv,\
+  400:400000000 450:450000000 500:500000000 550:550000000 \
+  600:600000000)
 
 #
 # ISP configuration parameters
@@ -433,6 +440,8 @@ export ISP_CLKA_CLK_SRC
 export ISP_CLKA_CLK
 export ISP_CLKS_CLK_SRC
 export ISP_CLKS_CLK
+export ISP_CLKV_CLK_SRC
+export ISP_CLKV_CLK
 
 export ISP_MEMOPT
 export ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM

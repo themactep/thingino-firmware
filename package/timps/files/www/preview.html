@@ -293,6 +293,19 @@
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
     }
+    // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
+    // "both" = plain HTTP and HTTPS on the one timps port, so follow the
+    // PAGE's scheme: an https:// page may not fetch http:// (mixed content),
+    // and an http:// page cannot clear a self-signed cert on a fetch(). Falls
+    // back to the older "tls" bool when the CGI predates "scheme".
+    function timpsScheme(info) {
+      if (!info) return "http";
+      if (info.scheme === "both") {
+        return window.location.protocol === "https:" ? "https" : "http";
+      }
+      if (info.scheme === "https" || info.scheme === "http") return info.scheme;
+      return info.tls ? "https" : "http";
+    }
     window.timpsTokenInfo = window.timpsTokenInfo || fetchTimpsTokenInfo();
     // The token is per timps BOOT: if timpsd restarts under a running player,
     // every request with the old token comes back 401 and the preview is stuck
@@ -574,7 +587,7 @@
       if (statsEs || !window.EventSource) return;
       const info = await window.timpsTokenInfo;
       if (statsCard.style.display === "none") return; // toggled off while awaiting the token
-      const b = info ? (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT) : base;
+      const b = info ? timpsScheme(info) + "://" + host + ":" + (info.port || MS_PORT) : base;
       const tok = info && info.token ? "&token=" + encodeURIComponent(info.token) : "";
       statsEs = new EventSource(b + "/events?stream=stats" + tok);
       statsEs.addEventListener("stats", (ev) => {
@@ -689,7 +702,7 @@
     // and the "&token=..." suffix both the stream fetch and /control use.
     async function endpoint() {
       const info = await window.timpsTokenInfo;
-      if (info) base = (info.tls ? "https" : "http") + "://" + host + ":" + (info.port || MS_PORT);
+      if (info) base = timpsScheme(info) + "://" + host + ":" + (info.port || MS_PORT);
       return { base: base, tok: info && info.token ? "&token=" + encodeURIComponent(info.token) : "" };
     }
 

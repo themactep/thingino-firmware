@@ -354,6 +354,28 @@ send_state() {
 
 	printf '"wifi_ap":{"enabled":%s},' "$wifi_ap_enabled"
 
+	# netwatch (network watchdog) settings
+	local nw_enabled nw_target nw_fail
+	nw_enabled=$(jct "$CONFIG_JSON" get netwatch.enabled 2>/dev/null)
+	[ -n "$nw_enabled" ] && [ "$nw_enabled" != "null" ] || nw_enabled="true"
+	nw_target=$(jct "$CONFIG_JSON" get netwatch.target 2>/dev/null)
+	[ "$nw_target" != "null" ] || nw_target=""
+	nw_fail=$(jct "$CONFIG_JSON" get netwatch.fail_count 2>/dev/null)
+	[ -n "$nw_fail" ] && [ "$nw_fail" != "null" ] || nw_fail=3
+
+	nw_interval=$(jct "$CONFIG_JSON" get netwatch.interval 2>/dev/null)
+	case "$nw_interval" in
+		''|null|*[!0-9]*) nw_interval=30 ;;
+	esac
+
+	# The actual default ping target when netwatch.target is empty: the
+	# default-route gateway (same logic S52netwatch uses at runtime).
+	nw_default=$(ip route 2>/dev/null | awk '/^default/{print $3; exit}')
+	[ -n "$nw_default" ] || nw_default=""
+
+	printf '"netwatch":{"enabled":%s,"target":"%s","fail_count":%s,"interval":%s,"default_target":"%s"},' \
+		"$nw_enabled" "$(json_escape "$nw_target")" "$nw_fail" "$nw_interval" "$(json_escape "$nw_default")"
+
 	printf '"interfaces":{'
 	local first=1 iface output
 	for iface in eth0 wlan0 usb0; do
@@ -490,6 +512,21 @@ handle_post() {
 	wifi_bssid=$(trim_value "$(read_json_string wifi.bssid)")
 	wifi_ap_enabled=$(read_json_bool wifi_ap.enabled "false")
 
+	# netwatch (network watchdog)
+	netwatch_enabled=$(read_json_bool netwatch.enabled "true")
+	netwatch_target=$(trim_value "$(read_json_string netwatch.target)")
+	netwatch_fail=$(read_json_string netwatch.fail_count)
+	case "$netwatch_fail" in
+		''|*[!0-9]*) netwatch_fail=3 ;;
+	esac
+	[ "$netwatch_fail" -ge 1 ] 2>/dev/null || netwatch_fail=3
+
+	netwatch_interval=$(read_json_string netwatch.interval)
+	case "$netwatch_interval" in
+		''|*[!0-9]*) netwatch_interval=30 ;;
+	esac
+	[ "$netwatch_interval" -ge 5 ] 2>/dev/null || netwatch_interval=30
+
 	if [ -n "$wifi_bssid" ]; then
 		wifi_bssid=$(normalize_mac "$wifi_bssid")
 		valid_mac "$wifi_bssid" || json_error "400 Bad Request" "wlan0 BSSID format is invalid" "invalid_bssid"
@@ -507,6 +544,18 @@ handle_post() {
 
 	update_hostname_files "$hostname_value"
 	setup_dns "$dns_primary" "$dns_secondary"
+
+	# Persist netwatch settings
+	jct "$CONFIG_JSON" set netwatch.enabled "$netwatch_enabled"
+	[ -n "$netwatch_target" ] && jct "$CONFIG_JSON" set netwatch.target "$netwatch_target"
+	jct "$CONFIG_JSON" set netwatch.fail_count "$netwatch_fail"
+	jct "$CONFIG_JSON" set netwatch.interval "$netwatch_interval"
+
+	# Apply netwatch changes immediately (S52netwatch is independent of the
+	# interface settings that require a reboot).
+	if [ -x /etc/init.d/S52netwatch ]; then
+		/etc/init.d/S52netwatch restart >/dev/null 2>&1 || true
+	fi
 
 	if [ "$wifi_ap_enabled" = "true" ]; then
 		# create wlan ap wpa_supplicant.conf

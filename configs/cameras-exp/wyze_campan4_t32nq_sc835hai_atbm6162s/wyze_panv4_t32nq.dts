@@ -729,8 +729,9 @@
 			status = "okay";
 			interrupt-parent = <0x04>;
 			interrupts = <0x25>;
-			pinctrl-names = "default";
+			pinctrl-names = "default", "active";
 			pinctrl-0 = <0x10>;
+			pinctrl-1 = <0x10>;
 			cap-mmc-highspeed;
 			max-frequency = <0x17d7840>;
 			bus-width = <0x04>;
@@ -750,8 +751,22 @@
 			status = "okay";
 			interrupt-parent = <0x04>;
 			interrupts = <0x24>;
-			pinctrl-names = "default";
+			/*
+			 * msc1 needs an "active" state as well as "default":
+			 * mmc_pwrseq_post_power_on() in drivers/mmc/core/pwrseq.c
+			 * selects "active" unconditionally, outside the
+			 * "if (pwrseq)" guard, so even this host - which has no
+			 * mmc-pwrseq node - hits it and logs "no 'active' pinctrl
+			 * state" + "Failed to power on msc1!: -1" on every power-on.
+			 * Harmless (that helper returns void and the error is only
+			 * logged) but noisy. Point "active" at the SAME group as
+			 * "default" (msc1-pc, GPC2-7), exactly as msc0 does with
+			 * 0x10/0x10. NOT msc1-pb: that muxes GPB8-11 + GPB13-14,
+			 * i.e. gpio 43 (white LED) and gpio 46 (SD slot supply).
+			 */
+			pinctrl-names = "default", "active";
 			pinctrl-0 = <0x12>;
+			pinctrl-1 = <0x12>;
 			cap-mmc-highspeed;
 			max-frequency = <0x17d7840>;
 			bus-width = <0x04>;
@@ -804,9 +819,52 @@
 		status = "okay";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		/*
+		 * Status LEDs. gpb = phandle 0x05, cells = <pin flags extra>,
+		 * flags 0x01 = GPIO_ACTIVE_LOW. Polarity is MIXED on this board:
+		 * red/blue are active low (vendor factoryShell drives LED_ON=0),
+		 * white is active high (verified on HW).
+		 *
+		 * These live here rather than in the BR2_THINGINO_LED_*_GPIO
+		 * defconfig options: that path generates thingino_leds.h into
+		 * arch/mips/xburst/soc-<fam>/chip-<fam>/isvp/common/ and patches
+		 * board_base.c, which only exists on the older XBurst1 isvp
+		 * kernels. This SDK 2.2.0 kernel is PRJ007-named and DT-based, so
+		 * the generator silently writes nothing and /sys/class/leds stays
+		 * empty ("No kernel LED channels found"). The label must match
+		 * led_<letter> - that is what /usr/sbin/led scans for.
+		 */
+		led_r {
+			label = "led_r";
+			gpios = <0x05 0x07 0x01 0x00>;	/* PB7  = gpio 39, active low */
+		};
+
+		led_b {
+			label = "led_b";
+			gpios = <0x05 0x1d 0x01 0x00>;	/* PB29 = gpio 61, active low */
+		};
+
+		led_w {
+			label = "led_w";
+			gpios = <0x05 0x0b 0x00 0x00>;	/* PB11 = gpio 43, active high */
+		};
+	};
+
 	mmc0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <0x05 0x0e 0x00 0x00>;
+		/*
+		 * PB14 (gpio 46) is the SD slot's supply enable and it is
+		 * ACTIVE LOW on this board - measured on hardware: driving it
+		 * high leaves the card phantom-powered through its I/O
+		 * pull-ups, so it answers CMD0/CMD8/ACMD41 but never finishes
+		 * power-up ("card never left busy state", -145). This kernel's
+		 * pwrseq_simple drives the logical value 1 in post_power_on,
+		 * so the flag has to be GPIO_ACTIVE_LOW to pull the pin low.
+		 */
+		reset-gpios = <0x05 0x0e 0x01 0x00>;
 		linux,phandle = <0x11>;
 		phandle = <0x11>;
 	};

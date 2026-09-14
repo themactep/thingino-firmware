@@ -43,7 +43,34 @@ endif
 ################ MMC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
-ifeq ($(BR2_mips_xburst2),y)
+# Which MSC driver this SoC and kernel pair uses:
+#   jzmmc         XBurst1 on 3.10/4.4, everything except t32
+#   sdhci-jz      t32 (PRJ007) on 3.10 - jzmmc_v12 does not list SOC_PRJ007 in
+#                 its depends, so JZMMC_V12* values are dropped by kconfig there
+#   sdhci-ingenic XBurst2 always, and t32 on 4.4 - device-tree driven, so the
+#                 per-controller and pin fixups below do not apply at all
+#
+# KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
+# be compared rather than concatenated.
+ifeq ($(SOC_FAMILY),t32)
+ifeq ($(KERNEL_VERSION_4),y)
+KOPT_MMC_DRIVER = sdhci-ingenic
+else
+KOPT_MMC_DRIVER = sdhci-jz
+endif
+else ifeq ($(BR2_mips_xburst2),y)
+KOPT_MMC_DRIVER = sdhci-ingenic
+else
+KOPT_MMC_DRIVER = jzmmc
+endif
+
+ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
+KOPT_MMC_SYM = MMC_SDHCI
+else
+KOPT_MMC_SYM = JZMMC_V12
+endif
+
+ifeq ($(KOPT_MMC_DRIVER),sdhci-ingenic)
 # XBurst2 drives its MSC through sdhci-ingenic, which binds the "ingenic,sdhci"
 # nodes the device tree declares. The jzmmc driver below does not exist here.
 #
@@ -67,6 +94,25 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
 endef
+else ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
+# t32 on 3.10: sdhci-jz, built as ingenic_sdhci_sdio.ko - the same module name XBurst2 uses,
+# so thingino-mmc patches S09mmc the same way. Modular for the same reason:
+# root is on SFC NOR, nothing needs a card before userspace, and the t32 kernel
+# has very little room left in its 1600 KiB partition. The board file still
+# registers the platform devices, guarded by the MMC_SDHCI_MMC[01] bools, so
+# the driver binds when the module loads.
+# Only the host driver is modular here, exactly as the jzmmc arm below does
+# it. The 3.10 MMC core cannot be built as a module: mmc_core.ko then has
+# undefined __tracepoint_mmc_blk_{rw,erase}_{start,end}, which are only
+# defined when the core is built in.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI,m)
+	$(if $(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT), \
+		$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_SDHCI_JZ), \
+		$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI_JZ,m))
+endef
 else
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
@@ -87,56 +133,56 @@ endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0)
 	$(call KCONFIG_SET_OPT,CONFIG_MMC0_MAX_FREQ,48000000)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_1BIT
 	# 1bit needs the pb_4bit...
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_1BIT)
-#	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_1BIT)
+#	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_PB_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_PB_8BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC0_PB_8BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0_PB_8BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1)
 	$(call KCONFIG_SET_OPT,CONFIG_MMC1_MAX_FREQ,24000000)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PA_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PA_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PA_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PB_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PB_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PB_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PB_8BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PB_8BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PB_8BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PC_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PC_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PC_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PD_4BIT
-	$(call KCONFIG_ENABLE_OPT,CONFIG_JZMMC_V12_MMC1_PD_4BIT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PD_4BIT)
 endef
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
@@ -157,10 +203,36 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_COMMON)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
+	# T32-class kernels do not bake CONFIG_USB_DWC2 into *.generic.config the
+	# way T31 does, so enable the controller, its DMA buffer mode and the
+	# Ingenic INNO PHY here (the PHY must come up or the root port never
+	# enables). The USB mode (host / dual-role) is set by the choice below.
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DMA_BUFFER_MODE)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_INNOPHY)
 endef
 endif
+# DWC2_OTG = the camera is the USB host: attach a device to it (e.g. via an
+# OTG adapter) - USB-Ethernet, storage, etc. Host-only + the usbnet drivers,
+# no gadget/dual-role stack. Dual-role lives in DWC2_DUAL_ROLE below.
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_AX88179_178A)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_SUBSET)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_NET1080)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_ZAURUS)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_OTG_WHITELIST)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_HOST_ONLY)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
+endef
+endif
+# DWC2_DUAL_ROLE = the camera itself acts as a USB device (UVC webcam or
+# usb-direct NCM) - it plugs INTO a host. Dual-role + the USB gadget stack.
+# This is the old DWC2_OTG behaviour, kept for those models only.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2_DUAL_ROLE),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_DUAL_ROLE
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_AX88179_178A)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_NCM)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_NET_CDC_SUBSET)
@@ -169,7 +241,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG
 	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_OTG_WHITELIST)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DUAL_ROLE)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_GADGET)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_JZ_DWC2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_OTG)
@@ -186,7 +258,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_COMMON)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_HOST_ONLY)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_JZ_DWC2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_OTG)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_SUPPORT)
@@ -569,6 +641,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PD_4BIT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_OTG)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_DUAL_ROLE)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RTC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_PWM)
