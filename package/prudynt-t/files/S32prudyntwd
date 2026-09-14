@@ -18,11 +18,22 @@ RETRY_COUNT=3
 # Delay in seconds between retry attempts
 RETRY_DELAY=10
 
-# Maximum number of restarts before alerting
+# Consecutive restarts that fail to restore the stream before escalating.
+# S31prudynt already retries its own start three times, so each attempt here
+# is a full restart cycle; this many in a row means the streamer is not coming
+# back on its own.
 RESTART_LIMIT=3
 
 # Delay in seconds between restarts
 RESTART_DELAY=10
+
+# Once the limit is hit, wait this long before starting a new round.  Gives a
+# transient fault time to clear without hammering the restarts.
+COOLDOWN=600
+
+# Reboot the camera when the streamer has failed this many times in a row.
+# Set to 0 to disable rebooting and only log.
+REBOOT_AFTER=9
 
 # Seconds to wait for probe command
 CHECK_TIMEOUT=10
@@ -30,7 +41,6 @@ CHECK_TIMEOUT=10
 RTSP_HOST=""
 RTSP_PORT=""
 PID=""
-RESTART_COUNT=0
 
 is_streamer_disabled() {
 	[ "true" = "$disable_streamer" ] || [ -f "$PORTAL_MODE_FLAG" ]
@@ -104,39 +114,62 @@ cleanup() {
 }
 
 watch() {
+	local failures=0 consecutive=0
+
 	while true; do
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
 			if check_streamer_alive; then
 				SUCCESS=true
-				RESTART_COUNT=0 # Reset the restart count after a successful check
 				break
 			else
 				echo "Attempt $i failed. Retrying in $RETRY_DELAY seconds..."
-				sleep $RETRY_DELAY # Delay before retrying
+				sleep $RETRY_DELAY
 			fi
 		done
 
-		if ! $SUCCESS; then
-			echo "Stream stream is down, restarting server..."
-			service restart prudynt
-
-			RESTART_COUNT=$((RESTART_COUNT + 1))
-
-			# Delay before checking the stream again after a restart
-			echo "Waiting $RESTART_DELAY seconds before rechecking..."
-			sleep $RESTART_DELAY
-
-			if [ $RESTART_COUNT -ge $RESTART_LIMIT ]; then
-				echo "Restart limit reached, nothing to log..."
-				# ALERT!
-				RESTART_COUNT=0 # Reset the count after escalation
+		if $SUCCESS; then
+			if [ "$consecutive" -gt 0 ]; then
+				echo -c 240 -e "Stream Watchdog: stream recovered after $consecutive restart(s)"
 			fi
+			failures=0
+			consecutive=0
+			sleep $INTERVAL
+			continue
 		fi
 
-		# Sleep for a defined interval before the next full check cycle
-		sleep $INTERVAL
+		# Stream is down: restart and see whether that fixes it.
+		echo -c 160 -e "Stream Watchdog: stream is down, restarting prudynt"
+		service restart prudynt
+		consecutive=$((consecutive + 1))
+		failures=$((failures + 1))
+
+		sleep $RESTART_DELAY
+
+		if [ "$consecutive" -ge "$RESTART_LIMIT" ]; then
+			echo -c 196 -e "Stream Watchdog: $consecutive restarts without recovery"
+
+			if [ "$REBOOT_AFTER" -gt 0 ] 2>/dev/null && [ "$failures" -ge "$REBOOT_AFTER" ]; then
+				echo -c 196 -e "Stream Watchdog: $failures failed restarts, rebooting"
+				sync
+				# Hardware-watchdog fallback: stop feeding /dev/watchdog so its
+				# timer expires even if the normal reboot path is wedged.  Same
+				# guaranteed-recovery route rcK and S52netwatch use.
+				WD_PID=$(cat /var/run/watchdog.pid 2>/dev/null)
+				[ -n "$WD_PID" ] && kill -9 "$WD_PID" 2>/dev/null
+				killall -9 watchdog 2>/dev/null || true
+				reboot -f 2>/dev/null || echo b >/proc/sysrq-trigger 2>/dev/null
+				exit 0
+			fi
+
+			# Do not give up permanently, but stop restarting in a tight loop.
+			echo -c 240 -e "Stream Watchdog: backing off ${COOLDOWN}s"
+			sleep "$COOLDOWN"
+			consecutive=0
+		else
+			sleep $INTERVAL
+		fi
 	done
 }
 
