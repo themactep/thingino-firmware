@@ -1,0 +1,190 @@
+diff --git i/arch/mips/xburst/soc-4775/common/reset.c w/arch/mips/xburst/soc-4775/common/reset.c
+index c1538565b..a00ccecc7 100644
+--- i/arch/mips/xburst/soc-4775/common/reset.c
++++ w/arch/mips/xburst/soc-4775/common/reset.c
+@@ -395,7 +395,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-4780/common/reset.c w/arch/mips/xburst/soc-4780/common/reset.c
+index 242deee2b..21a84e256 100644
+--- i/arch/mips/xburst/soc-4780/common/reset.c
++++ w/arch/mips/xburst/soc-4780/common/reset.c
+@@ -432,7 +432,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-m200/common/reset.c w/arch/mips/xburst/soc-m200/common/reset.c
+index c1538565b..a00ccecc7 100644
+--- i/arch/mips/xburst/soc-m200/common/reset.c
++++ w/arch/mips/xburst/soc-m200/common/reset.c
+@@ -395,7 +395,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t10/common/reset.c w/arch/mips/xburst/soc-t10/common/reset.c
+index 6013d4371..568d511f2 100644
+--- i/arch/mips/xburst/soc-t10/common/reset.c
++++ w/arch/mips/xburst/soc-t10/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t15/common/reset.c w/arch/mips/xburst/soc-t15/common/reset.c
+index 6013d4371..568d511f2 100644
+--- i/arch/mips/xburst/soc-t15/common/reset.c
++++ w/arch/mips/xburst/soc-t15/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t20/common/reset.c w/arch/mips/xburst/soc-t20/common/reset.c
+index 6013d4371..568d511f2 100644
+--- i/arch/mips/xburst/soc-t20/common/reset.c
++++ w/arch/mips/xburst/soc-t20/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t21/common/reset.c w/arch/mips/xburst/soc-t21/common/reset.c
+index 6013d4371..568d511f2 100644
+--- i/arch/mips/xburst/soc-t21/common/reset.c
++++ w/arch/mips/xburst/soc-t21/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t23/common/reset.c w/arch/mips/xburst/soc-t23/common/reset.c
+index e7038b482..07776ed8b 100644
+--- i/arch/mips/xburst/soc-t23/common/reset.c
++++ w/arch/mips/xburst/soc-t23/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t30/common/reset.c w/arch/mips/xburst/soc-t30/common/reset.c
+index 6013d4371..568d511f2 100644
+--- i/arch/mips/xburst/soc-t30/common/reset.c
++++ w/arch/mips/xburst/soc-t30/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)
+diff --git i/arch/mips/xburst/soc-t31/common/reset.c w/arch/mips/xburst/soc-t31/common/reset.c
+index e7038b482..07776ed8b 100644
+--- i/arch/mips/xburst/soc-t31/common/reset.c
++++ w/arch/mips/xburst/soc-t31/common/reset.c
+@@ -399,7 +399,13 @@ int wdt_suspend(struct platform_device *pdev, pm_message_t state)
+ 
+ void wdt_shutdown(struct platform_device *pdev)
+ {
+-	wdt_stop_count();
++	/*
++	 * Do NOT stop the WDT here.
++	 * The hardware watchdog must stay armed as a fallback:
++	 * if device_shutdown() hangs on another device, or if
++	 * jz_wdt_restart() fails to fire, the WDT will reset the
++	 * system within the timeout configured by userspace.
++	 */
+ }
+ 
+ int wdt_resume(struct platform_device *pdev)

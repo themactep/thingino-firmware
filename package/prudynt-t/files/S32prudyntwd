@@ -8,6 +8,10 @@ PORTAL_MODE_FLAG="/run/portal_mode"
 # Interval to check the stream
 INTERVAL=60
 
+# HTTP API endpoint used as the liveness probe.  Always enabled, answers on
+# loopback without the RTSP auth dance.
+HTTP_API_URL="http://127.0.0.1:8080/api/v1/config"
+
 # Number of retries before declaring the stream down
 RETRY_COUNT=3
 
@@ -49,19 +53,35 @@ parse_rtsp_endpoint() {
 	[ -n "$RTSP_HOST" ] && [ -n "$RTSP_PORT" ]
 }
 
-check_with_curl() {
-	curl -s --max-time "$CHECK_TIMEOUT" --fail -X OPTIONS "$RTSP_URL" >/dev/null 2>&1
-}
-
 check_with_nc() {
 	[ -n "$RTSP_HOST" ] || parse_rtsp_endpoint || return 1
 	local payload
 	payload=$(printf 'OPTIONS %s RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: stream-watchdog\r\n\r\n' "$RTSP_URL")
-	printf '%s' "$payload" | timeout "$CHECK_TIMEOUT" nc -w "$CHECK_TIMEOUT" "$RTSP_HOST" "$RTSP_PORT" 2>/dev/null | grep -q "RTSP/1.0 200"
+	# 200 when the request is accepted, 401 when auth is required.  Both mean
+	# the server is answering, which is all we need.  Anything else (no reply,
+	# connection refused, 5xx) is a real failure.
+	printf '%s' "$payload" |
+		timeout "$CHECK_TIMEOUT" nc -w "$CHECK_TIMEOUT" "$RTSP_HOST" "$RTSP_PORT" 2>/dev/null |
+		grep -qE "RTSP/1\.0 (200|401)"
 }
 
-check_rtsp_stream() {
-	if check_with_curl; then
+# The HTTP API is always enabled and answers on loopback, so it is a cheaper
+# and more reliable liveness probe than RTSP.  Any HTTP status means the server
+# accepted the connection and replied.
+check_http_api() {
+	[ -n "$HTTP_API_URL" ] || return 1
+	code=$(curl -s -o /dev/null -w '%{http_code}' --max-time "$CHECK_TIMEOUT" \
+		-X GET "$HTTP_API_URL" 2>/dev/null)
+	case "$code" in
+		'' | 000 | 5??) return 1 ;;
+		*) return 0 ;;
+	esac
+}
+
+check_streamer_alive() {
+	# Prefer the API probe: it needs no RTSP client support in curl and does not
+	# depend on auth mode.
+	if check_http_api; then
 		return 0
 	fi
 
@@ -88,7 +108,7 @@ watch() {
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
-			if check_rtsp_stream; then
+			if check_streamer_alive; then
 				SUCCESS=true
 				RESTART_COUNT=0 # Reset the restart count after a successful check
 				break
