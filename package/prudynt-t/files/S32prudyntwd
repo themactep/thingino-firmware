@@ -181,6 +181,18 @@ start() {
 		exit 1
 	fi
 
+	# Adopt a watchdog that is already running rather than stacking a second
+	# one: the pidfile can go stale (the pidfile write happens after the fork
+	# and a restart races the previous instance's signal handling), and two
+	# watch loops would restart prudynt independently.
+	if [ -f "$PID_FILE" ]; then
+		PID=$(cat "$PID_FILE" 2>/dev/null)
+		if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+			echo -c 240 -e "Stream Watchdog already running (pid $PID)"
+			return 0
+		fi
+	fi
+
 	parse_rtsp_endpoint || true
 
 	watch &
@@ -191,18 +203,31 @@ start() {
 stop() {
 	echo -c 15 "Stopping Stream Watchdog"
 
-	if [ -f "$PID_FILE" ]; then
-		PID=$(cat "$PID_FILE")
-		if kill -0 "$PID" 2>/dev/null; then
-			kill "$PID"
-			echo "Watchdog process stopped."
-			rm -f "$PID_FILE" # Clean up the PID file
-		else
-			echo "No running watchdog process found."
-		fi
-	else
+	if [ ! -f "$PID_FILE" ]; then
 		echo "PID file not found."
+		return 0
 	fi
+
+	PID=$(cat "$PID_FILE" 2>/dev/null)
+	if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+		kill "$PID"
+		# Give the loop a moment to leave its sleep before checking again.
+		i=0
+		while [ $i -lt 20 ] && kill -0 "$PID" 2>/dev/null; do
+			usleep 100000
+			i=$((i + 1))
+		done
+		if kill -0 "$PID" 2>/dev/null; then
+			kill -9 "$PID" 2>/dev/null
+		fi
+		echo "Watchdog process stopped."
+	else
+		echo "No running watchdog process found."
+	fi
+
+	# Always clear the pidfile, including when it was stale, so the next start
+	# does not read a dead pid.
+	rm -f "$PID_FILE"
 }
 
 case "$1" in
