@@ -47,7 +47,7 @@ ensure_tls_certs() {
 	# port outright. rtsp.tls is still a plain boolean.
 	# webrtc.enabled is the third consumer: its DTLS identity is the same
 	# cert/key pair, and without one timpsd disables /webrtc/whep outright.
-	case "$(conf_get http.https | tr 'A-Z' 'a-z')" in
+	case "$(conf_get http.https | tr '[:upper:]' '[:lower:]')" in
 		1 | 2 | true | yes | on) ;;
 		*)
 			[ "$(conf_get rtsp.tls)" = "1" ] ||
