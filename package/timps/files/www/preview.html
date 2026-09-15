@@ -28,9 +28,10 @@
       mode, but WITH audio and with the browser's own jitter buffer and PLI
       recovery instead of a freeze. The stream it carries is whatever
       webrtc.channel names in timps.conf - the main/sub selector above does
-      NOT apply to it. Offered only where RTCPeerConnection exists AND a probe
-      of /webrtc/whep says this daemon really serves it; otherwise
-      removed/disabled, never silently broken - same rule as "Real-time".
+      NOT apply to it. Offered only where RTCPeerConnection exists, caps.webrtc
+      says this daemon really serves it, AND this browser would accept an
+      answer carrying this camera's H.264 profile; otherwise removed/disabled,
+      never silently broken - same rule as "Real-time".
 
   Installed straight over thingino-webui's own /preview.html
   (see timps.mk) but still goes through the normal plugin pipeline - the
@@ -173,8 +174,9 @@
               <option value="rt">Real-time (no audio)</option>
               <!-- "whep" switches the player to an RTCPeerConnection fed by
                    timps's POST /webrtc/whep. Removed at runtime when the
-                   browser has no RTCPeerConnection or when the probe finds no
-                   WHEP endpoint on this daemon (USE_WEBRTC=0 / webrtc.enabled=0). -->
+                   browser has no RTCPeerConnection or when caps.webrtc finds no
+                   WHEP endpoint on this daemon (USE_WEBRTC=0 / webrtc.enabled=0);
+                   disabled when the browser would refuse this camera's profile. -->
               <option value="whep">WebRTC (WHEP)</option>
               <option value="0">No buffer (0s)</option>
               <option value="0.5">Low latency (0.5s)</option>
@@ -228,8 +230,8 @@
       </div>
     </section>
 
-    <!-- Statistics: fed by /events?stream=stats SSE (fast) plus a slow
-         GET /control poll for fields the SSE doesn't carry. See WEBUI-NOTES.md. -->
+    <!-- Statistics: fed by /events?stream=stats,daynight,motion SSE plus a slow
+         GET /control?stats=1 poll for fields no push carries. See WEBUI-NOTES.md. -->
     <section>
       <div class="card mb-3" id="stats-card" style="display:none">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -394,10 +396,6 @@
     const whepOption = latencySelect
       ? latencySelect.querySelector('option[value="' + WHEP_VALUE + '"]') : null;
     const HAVE_WEBRTC = typeof window.RTCPeerConnection === "function";
-    // Firefox's H.264 decoder is baseline-only (see wiki: WebRTC.md#firefox-interop) -
-    // only Chromium browsers get WHEP as an unprompted default, below.
-    const IS_WEBRTC_DEFAULT_BROWSER = /Chrome\/|Edg\//.test(navigator.userAgent) &&
-                                      !/Firefox\//.test(navigator.userAgent);
     if (!HAVE_WEBRTC) {
       if (whepOption) whepOption.remove();
       if (mode === "whep") { mode = "mse"; localStorage.setItem("ms.latency", lastBufferedValue); }
@@ -486,11 +484,14 @@
       });
     }
 
-    // Statistics: /events?stream=stats SSE (fast path) plus a slow GET
-    // /control poll for the fields SSE doesn't carry. Independent of the
-    // player's connect/disconnect lifecycle - keeps ticking, and both loops
-    // only run while the card is visible. See WEBUI-NOTES.md for the field split.
+    // Statistics: /events?stream=stats SSE (fast path), a daynight+motion SSE
+    // subscription for the two summary fields, plus a slow GET
+    // /control?stats=1 poll for the handful of fields no push carries.
+    // Independent of the player's connect/disconnect lifecycle - keeps
+    // ticking, and all three only run while the card is visible.
+    // See WEBUI-NOTES.md for the field split.
     let statsEs = null;
+    let statsStateEs = null;
     let statsControlTimer = null;
     const MAX_HISTORY = 40; // ~80s of samples at the default 2s stats interval
     const streamRows = {};  // chn -> {cells:{...}, history:[kbps,...]}
@@ -597,12 +598,12 @@
       });
     }
 
-    // slow path: one GET /control every 5s while the card is visible - fills
-    // in the fields the stats SSE doesn't carry (config-level gop/profile/
-    // rc_mode, the encoder telemetry below, and day/night + motion status).
-    // Only updates rows the fast path already created; a stream absent from
-    // stats_json (disabled) never gets a control-only row.
-    function applyControlSnapshot(j) {
+    // slow path: one GET /control?stats=1 every 5s while the card is visible -
+    // fills in the fields no push carries (config-level gop/profile/rc_mode
+    // and the encoder telemetry below). Only updates rows the fast path
+    // already created; a stream absent from stats_json (disabled) never gets a
+    // control-only row.
+    function applyStatsExtra(j) {
       if (!j) return;
       const video = j.video || {}, enc = j.encoder || {};
       Object.keys(video).forEach((k) => {
@@ -631,20 +632,26 @@
           row.cells.avgBitrate.title = "";
         }
       });
-      const dn = j.daynight || {};
-      if (statsDaynight) {
-        const modeTxt = dn.mode === 1 ? "Night" : dn.mode === 0 ? "Day" : "Unknown";
-        const gain = (typeof dn.total_gain === "number" && dn.total_gain >= 0)
-          ? " · gain " + dn.total_gain.toFixed(0) : "";
-        statsDaynight.textContent = modeTxt + (dn.enabled ? " (auto)" : " (manual)") + gain;
-      }
-      const mo = j.motion || {};
-      if (statsMotion) {
-        statsMotion.textContent = !mo.available ? "Unavailable" : (mo.enabled ? "Enabled" : "Disabled");
-      }
     }
-    function fetchControlSnapshot() {
-      timpsApiReady().then((api) => api.get()).then(applyControlSnapshot)
+
+    // Day/Night + Motion summaries are PUSHED, never polled: timps emits the
+    // full daynight and motion state once on connect and again on every
+    // change, so opening the card mid-session shows current values without a
+    // priming fetch.
+    function renderDaynight(dn) {
+      if (!statsDaynight || !dn) return;
+      const modeTxt = dn.mode === 1 ? "Night" : dn.mode === 0 ? "Day" : "Unknown";
+      const gain = (typeof dn.total_gain === "number" && dn.total_gain >= 0)
+        ? " · gain " + dn.total_gain.toFixed(0) : "";
+      statsDaynight.textContent = modeTxt + (dn.enabled ? " (auto)" : " (manual)") + gain;
+    }
+    function renderMotion(mo) {
+      if (!statsMotion || !mo) return;
+      statsMotion.textContent = !mo.available ? "Unavailable" : (mo.enabled ? "Enabled" : "Disabled");
+    }
+
+    function fetchStatsExtra() {
+      timpsApiReady().then((api) => api.statsExtra()).then(applyStatsExtra)
         .catch(() => { /* offline poll tick - table just keeps its last values */ });
     }
 
@@ -659,11 +666,18 @@
         try { renderStats(JSON.parse(ev.data)); } catch (e) { /* ignore malformed frame */ }
       });
       statsEs.onerror = () => { /* EventSource auto-reconnects (server retry: 3000) */ };
-      fetchControlSnapshot();
-      if (!statsControlTimer) statsControlTimer = setInterval(fetchControlSnapshot, 5000);
+      if (!statsStateEs && window.timpsApi) {
+        statsStateEs = window.timpsApi.events("daynight,motion", (type, data) => {
+          if (type === "daynight") renderDaynight(data);
+          else if (type === "motion") renderMotion(data);
+        });
+      }
+      fetchStatsExtra();
+      if (!statsControlTimer) statsControlTimer = setInterval(fetchStatsExtra, 5000);
     }
     function stopStats() {
       if (statsEs) { statsEs.close(); statsEs = null; }
+      if (statsStateEs) { statsStateEs.close(); statsStateEs = null; }
       if (statsControlTimer) { clearInterval(statsControlTimer); statsControlTimer = null; }
       Object.keys(streamRows).forEach((k) => delete streamRows[k]);
       if (statsBody) statsBody.innerHTML = '<tr data-placeholder><td colspan="11" class="text-secondary">Waiting for stats…</td></tr>';
@@ -712,6 +726,10 @@
     // the one signal that cannot lie about a wedged reader.
     let wantStream = true;        // user intent; false only after a real Disconnect
     let reconnectPending = false; // a schedule*Reconnect() backoff timer is armed
+    // False once the boot IIFE's async mode resolution has run - guards
+    // resumeCheck against racing a pageshow into starting an "mse" stream
+    // before WHEP preference is decided.
+    let bootPending = true;
     let lastProgressAt = 0;       // performance.now() of the last byte off the wire
     function noteProgress() { lastProgressAt = performance.now(); }
 
@@ -1315,64 +1333,177 @@
       "This camera requires HTTPS for WebRTC signalling (webrtc.enabled=1) - " +
       "open this page over https:// to use WebRTC.";
 
-    // WebRTC availability, gate 2 of 2: the DAEMON. GET /control carries no
-    // caps.webrtc field today - every other optional subsystem has one
-    // (caps.record, caps.backchannel, caps.play, caps.motion) - so the only
-    // honest signal is the endpoint itself. A bare GET is a CORS-simple
-    // request: no preflight, no session created, and src/mp4/httpd.c answers
-    // it with a status code that says precisely what we need:
+    // WebRTC availability, gate 3 of 3: will THIS browser accept an answer
+    // carrying THIS camera's H.264 profile at all?
     //
-    //   405  endpoint live and reachable over this scheme  -> offer it
-    //   426  compiled and enabled, but plaintext signalling is refused here
-    //        (webrtc.enabled=1 with TLS configured on the port) -> offer it,
-    //        but label WHY it will not connect from an http:// page
-    //   503  compiled in, but webrtc.enabled=0              -> keep it, disabled
-    //   404  USE_WEBRTC=0 (or some other unavailability)    -> remove it
-    //   403  nothing we sent authenticated                  -> leave it alone
+    // timps answers on a payload type the browser offered, but with the live
+    // SPS's own profile-level-id (videoN.profile defaults to 2 = High). The
+    // two engines disagree about that, and the disagreement is total:
+    //   Chrome   offers no High profile, accepts the answer anyway, and
+    //            decodes - receivers initialise from the in-band SPS.
+    //   Firefox  offers baseline only and re-checks the answer's
+    //            profile-level-id against its offer, so setRemoteDescription()
+    //            throws "Answer had no codecs in common" and NOTHING connects.
+    // Measured on cam-garage (profile-level-id 640033) 2026-09-15: Chrome
+    // decoded 1920x1080, Firefox 154 never got past the answer.
     //
-    // Deliberately status-code-based: the response BODIES ("disabled" /
-    // "not found") are not a contract and must not be parsed.
-    // Returns the status code (-1 if unreachable) so callers can react to it.
-    async function refreshWhepOption() {
-      if (!HAVE_WEBRTC || !whepOption || !latencySelect) return -1;
-      let code = 0;
-      try {
-        const { base: b, tok } = await endpoint();
-        // ?token= here, not the header: a custom header would make even this
-        // probe a preflighted request. The POST below uses the header instead,
-        // where a preflight is unavoidable anyway.
-        const r = await fetch(b + "/webrtc/whep" + (tok ? "?" + tok.slice(1) : ""),
-                              { cache: "no-store" });
-        code = r.status;
-      } catch (e) {
-        // Unreachable daemon / blocked fetch: leave the option exactly as it
-        // is rather than yanking it out from under the user - the same rule
-        // refreshRtOption() follows for an unreachable /control.
-        console.warn("[preview] whep probe failed:",
-                     e && e.message ? e.message : e);
-        return -1;
+    // navigator.mediaCapabilities.decodingInfo({type:"webrtc"}) does NOT
+    // predict this - it answers about the DECODER (Firefox 154 reports High
+    // 4.0/5.1 as supported and powerEfficient), while what actually fails is
+    // the SDP negotiation in front of it. RTCRtpReceiver.getCapabilities()
+    // does not either: Chrome lists no High profile yet plays it fine.
+    // So run the real thing locally instead - build the answer timps would
+    // build out of the browser's own offer and hand it to a throwaway
+    // RTCPeerConnection. No UA sniffing, no network, no session slot, and it
+    // keeps telling the truth as engines change.
+    const H264_PROFILE_IDC = { 0: "4200", 1: "4d00", 2: "6400" };
+    const H264_PROFILE_NAME = { 0: "Baseline", 1: "Main", 2: "High" };
+
+    // The offer, rewritten the way webrtc.c's pick_h264_pt() + vparam_sdp_fmtp()
+    // rewrite it: one H.264 payload type with packetization-mode=1, carrying
+    // `idc` as the profile half of profile-level-id. The LEVEL half is copied
+    // from the offer untouched - level-asymmetry-allowed=1 makes it
+    // non-negotiated, and guessing one could only invent a false refusal.
+    function whepAnswerLike(offerSdp, idc) {
+      const lines = offerSdp.split(/\r\n|\n/);
+      const mi = lines.findIndex((l) => l.indexOf("m=video") === 0);
+      if (mi < 0) return null;
+      let end = lines.length;
+      for (let k = mi + 1; k < lines.length; k++)
+        if (lines[k].indexOf("m=") === 0) { end = k; break; }
+      const inSec = (n) => n > mi && n < end;
+
+      let pt = null, level = "1f";
+      for (const cand of lines[mi].split(" ").slice(3)) {
+        const rtp = lines.find((l, n) => inSec(n) && l.indexOf("a=rtpmap:" + cand + " ") === 0);
+        if (!rtp || !/H264\/90000/i.test(rtp)) continue;
+        const fmtp = lines.find((l, n) => inSec(n) && l.indexOf("a=fmtp:" + cand + " ") === 0);
+        if (!fmtp || !/packetization-mode=1/.test(fmtp)) continue;
+        const m = fmtp.match(/profile-level-id=[0-9a-f]{4}([0-9a-f]{2})/i);
+        if (m) level = m[1];
+        pt = cand; break;
       }
-      console.info("[preview] whep probe: HTTP " + code);
-      if (code === 404) {
-        if (whepOption) whepOption.remove();
+      if (!pt) return null;
+
+      const out = [];
+      for (let n = 0; n < lines.length; n++) {
+        let l = lines[n];
+        if (!l) continue;
+        if (n === mi) { out.push(lines[mi].split(" ").slice(0, 3).join(" ") + " " + pt); continue; }
+        if (inSec(n)) {
+          const m = l.match(/^a=(?:rtpmap|fmtp|rtcp-fb):(\d+)/);
+          if (m && m[1] !== pt) continue;
+          if (idc && l.indexOf("a=fmtp:" + pt + " ") === 0)
+            l = "a=fmtp:" + pt + " packetization-mode=1;profile-level-id=" + idc + level;
+          if (l === "a=recvonly") l = "a=sendonly";
+        }
+        if (l === "a=setup:actpass") l = "a=setup:passive";
+        out.push(l);
+      }
+      return out.join("\r\n") + "\r\n";
+    }
+
+    // One throwaway negotiation. `idc` null = leave the offer's own profile in
+    // place, which is the control run: it must be accepted, or the rewriting
+    // above is what is broken and no verdict may be read off the real run.
+    async function whepAnswerAccepted(idc) {
+      let pc = null;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        pc.addTransceiver("video", { direction: "recvonly" });
+        await pc.setLocalDescription(await pc.createOffer());
+        const sdp = whepAnswerLike(pc.localDescription.sdp, idc);
+        if (!sdp) return null;
+        await pc.setRemoteDescription({ type: "answer", sdp: sdp });
+        return true;
+      } catch (e) {
+        return idc ? false : null;
+      } finally { if (pc) try { pc.close(); } catch (e) { /* ignore */ } }
+    }
+
+    const whepProfileCache = {};
+    async function whepProfileNegotiable(prof) {
+      const idc = H264_PROFILE_IDC[prof];
+      if (!idc) return null;                       // unknown profile: no verdict
+      if (idc in whepProfileCache) return whepProfileCache[idc];
+      const p = (async () => {
+        if (await whepAnswerAccepted(null) !== true) return null;
+        return await whepAnswerAccepted(idc);
+      })();
+      whepProfileCache[idc] = p;
+      return p;
+    }
+
+    // WebRTC availability, gate 2 of 3: the DAEMON, read from caps.webrtc in
+    // the GET /control snapshot this page already holds (timps >= 1.9.17):
+    //
+    //   key absent     USE_WEBRTC=0, no endpoint exists here -> remove it
+    //   available: 0   compiled in but not serving (webrtc.enabled=0, or its
+    //                  DTLS context failed to build) -> keep it, disabled
+    //   enabled: 1     serving, but a plaintext POST is refused (TLS is
+    //                  configured on the port) -> offer it, and label WHY it
+    //                  will not connect from an http:// page
+    //   enabled: 2     serving over either scheme -> offer it
+    //
+    // Don't go back to probing /webrtc/whep for this: a bare GET against the
+    // POST-only endpoint reads the same verdicts off its 404/503/426/405, but
+    // logs a red DevTools line on every page load for a request that worked.
+    // Returns "absent" | "off" | "profile" | "tls" | "ok", or "unknown" when
+    // /control did not answer, so callers can react to the verdict.
+    async function refreshWhepOption() {
+      if (!HAVE_WEBRTC || !whepOption || !latencySelect) return "unknown";
+      const { base: b, tok } = await endpoint();
+      const j = await controlSnapshot(b, tok);
+      // Unreachable daemon, or a pre-1.9.17 one with no caps at all: leave the
+      // option exactly as it is rather than yanking it out from under the user
+      // - the same rule refreshRtOption() follows for an unreachable /control.
+      if (!j || !j.caps) return "unknown";
+      const w = j.caps.webrtc;
+      if (!w) {
+        whepOption.remove();
         if (mode === "whep")
           whepFallbackToMse("This camera has no WebRTC/WHEP endpoint", true);
-        return code;
+        return "absent";
       }
-      if (code === 503) {
+      if (!w.available) {
         whepOption.disabled = true;
         whepOption.title = "WebRTC is built into this camera but turned off " +
                            "(webrtc.enabled=0)";
         if (mode === "whep")
           whepFallbackToMse("WebRTC is turned off on this camera (webrtc.enabled=0)", true);
-        return code;
+        return "off";
       }
-      if (code === 403) return code;  // auth, not capability - say nothing
+      // Which channel webrtc.channel names is not in /control, so take the
+      // HIGHEST profile any enabled H.264 stream is configured for: guessing
+      // low would offer a default that cannot connect, which is the one
+      // outcome worth avoiding here.
+      let prof = -1;
+      for (const k in (j.video || {})) {
+        const v = j.video[k];
+        if (v && v.enabled && String(v.codec || "").toLowerCase() === "h264" &&
+            typeof v.profile === "number" && v.profile > prof) prof = v.profile;
+      }
+      if (await whepProfileNegotiable(prof) === false) {
+        const msg = "This camera streams H.264 " + H264_PROFILE_NAME[prof] +
+                    " profile, which this browser's WebRTC will not negotiate " +
+                    "(it accepts Baseline only). Set videoN.profile = 0 on the " +
+                    "camera, or use one of the buffered fMP4 options instead.";
+        whepOption.disabled = true;
+        whepOption.title = msg;
+        if (mode === "whep") whepFallbackToMse(msg, true);
+        return "profile";
+      }
+
+      // The daemon reports what IT requires; which scheme we actually signal
+      // over is ours to know - `b` is the endpoint() URL, not location, since
+      // timpsScheme() can land on a different scheme than the page's.
+      const ok = (w.enabled | 0) >= 2 || b.slice(0, 6) === "https:";
       whepOption.disabled = false;
-      whepOption.title = code === 426 ? WHEP_TLS_HINT
-        : "Browser-native WebRTC; streams whichever channel webrtc.channel " +
-          "names in timps.conf (the main/sub selector does not apply)";
-      return code;
+      whepOption.title = ok
+        ? "Browser-native WebRTC; streams whichever channel webrtc.channel " +
+          "names in timps.conf (the main/sub selector does not apply)"
+        : WHEP_TLS_HINT;
+      return ok ? "ok" : "tls";
     }
 
     // Leave the WebRTC path for the buffered one, keeping the select, the
@@ -1995,6 +2126,7 @@
       logState(tag);
       if (document.hidden && !evenIfHidden) return;
       if (!document.hidden) { wdWasHidden = false; wdVisibleSince = performance.now(); }
+      if (bootPending) { console.info("[preview] " + tag + ": boot still resolving, deferring"); return; }
       if (!wantStream) { console.info("[preview] " + tag + ": user disconnected, staying off"); return; }
       if (running || reconnectPending) {
         // Not necessarily healthy - just not obviously dead. The watchdog
@@ -2118,19 +2250,22 @@
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
 
-    // First-ever visit: prefer WHEP over the 1.5s default, but only when the
-    // browser is Chromium and the probe confirms it would connect now (405).
+    // First-ever visit: prefer WHEP over the 1.5s default only on the "ok"
+    // verdict - the daemon serves it AND this browser would accept an answer
+    // carrying this camera's profile. Every other verdict, "unknown"
+    // included, falls through to the buffered default: a first-time visitor
+    // must never land on a player that cannot connect.
     (async () => {
-      if (hadNoSavedLatencyPref && HAVE_WEBRTC && IS_WEBRTC_DEFAULT_BROWSER) {
-        const code = await refreshWhepOption();
-        if (code === 405) {
+      if (hadNoSavedLatencyPref && HAVE_WEBRTC) {
+        if (await refreshWhepOption() === "ok") {
           mode = "whep";
           localStorage.setItem("ms.latency", WHEP_VALUE);
         }
       } else {
-        refreshWhepOption();   // async; may disable/remove "whep" once the probe answers
+        refreshWhepOption();   // async; may disable/remove "whep" once caps arrive
       }
       applyModeUi();
+      bootPending = false;
       refreshRtOption();       // async; may disable "rt" once /control answers
       startWatchdog();
       startStream().catch((err) => {
