@@ -1,6 +1,9 @@
 config BR2_PACKAGE_THINGINO_MOTORS
 	bool "thingino-motors"
-	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_SPI
+	# There are three motor drivers, not two: TCU/GPIO, ms419xx-SPI
+	# (BR2_THINGINO_MOTORS_SPI) and spi-tmi8152. Without the third
+	# term this select claimed TCU on every tmi8152 board.
+	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_SPI && !BR2_PACKAGE_SPI_TMI8152
 	help
 	  Userspace programs to manage motor hardware
 
