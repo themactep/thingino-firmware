@@ -108,6 +108,50 @@ config BR2_PACKAGE_TIMPS_TLS
 	  (self-signed trust is per host+PORT); otherwise it generates a
 	  self-signed pair.
 
+config BR2_PACKAGE_TIMPS_WEBRTC
+	bool "WebRTC/WHEP endpoint (ICE-lite + DTLS-SRTP, H264 + G.711)"
+	depends on BR2_PACKAGE_TIMPS_TLS
+	depends on BR2_PACKAGE_TIMPS_CONTROL
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
+	default y
+	help
+	  Serve a WHEP-shaped signalling endpoint at POST /webrtc/whep on the
+	  http port: the browser posts its SDP offer, the camera answers as an
+	  ICE-lite peer with a single host candidate and completes the DTLS
+	  handshake as the passive side.
+
+	  timps's own runtime default for webrtc.enabled is 1 (on, TLS
+	  required for signalling wherever the http port has it) whenever
+	  this is compiled in - see the Configuration Reference wiki page.
+
+	  Media is H264 video over SRTP (SRTP_AES128_CM_HMAC_SHA1_80), plus
+	  G.711 audio when audio.codec is pcmu/pcma (an audio m-section is
+	  answered with port 0 for aac/opus/none). No Opus, no H265, no
+	  NACK/retransmission, no FEC, no congestion control, no IPv6 and no
+	  NAT traversal beyond the single host candidate - LAN or VPN only.
+	  DELETE /webrtc/whep/<id> frees a session immediately; one left open
+	  is reclaimed after 30 s of silence. At most 4 concurrent sessions.
+
+	  No new library: the ICE side is an ICE-lite RESPONDER (no STUN/TURN
+	  client, no candidate gathering, no connectivity checks of our own -
+	  the browser does all of that and we only answer its checks), and DTLS
+	  is the same mbedTLS that BR2_PACKAGE_TIMPS_TLS already links.
+
+	  BR2_PACKAGE_MBEDTLS_DTLS_SRTP is selected because a browser's
+	  ClientHello always carries the use_srtp extension and its DTLS stack
+	  aborts when the server answers without one - an mbedTLS built without
+	  it cannot complete this handshake at all. Note this changes the
+	  mbedTLS build, so mbedtls needs a dirclean/rebuild when turning this
+	  on in an existing output directory.
+
+	  mbedTLS itself is NOT selected here: BR2_PACKAGE_TIMPS_TLS already
+	  carries that select, and a second one for the same package is what
+	  produced the "recursive dependency detected" breakage documented in
+	  BR2_PACKAGE_TIMPS_BC_WS above.
+
+	  Gated at runtime by webrtc.enabled in timps.conf (default 0,
+	  restart-required), so enabling this is not a one-way door.
+
 config BR2_PACKAGE_TIMPS_SRT
 	bool "SRT output (libsrt)"
 	select BR2_PACKAGE_LIBSRT
