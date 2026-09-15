@@ -234,6 +234,8 @@ detect_streamer() {
 		echo "strero"
 	elif command -v prudynt >/dev/null 2>&1; then
 		echo "prudynt"
+	elif command -v timpsd >/dev/null 2>&1; then
+		echo "timps"
 	else
 		echo "unknown"
 	fi
