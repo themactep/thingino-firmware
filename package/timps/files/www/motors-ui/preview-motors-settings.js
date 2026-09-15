@@ -20,7 +20,9 @@
   const MOTOR_ENDPOINT = "/x/json-motor.cgi";
 
   function normalizeControlMode(value) {
-    return value === "continuous" || value === "joystick" ? value : "step";
+    return value === "continuous" || value === "joystick" || value === "drag"
+      ? value
+      : "step";
   }
 
   async function loadParams() {
@@ -93,6 +95,7 @@
     '                <option value="step">Step move (click / double-click)</option>' +
     '                <option value="continuous">Continuous move (press and hold)</option>' +
     '                <option value="joystick">Virtual joystick (drag)</option>' +
+    '                <option value="drag">Drag the image (camera follows the pointer)</option>' +
     "              </select>" +
     "            </p>" +
     '            <p class="row">' +
@@ -268,6 +271,162 @@
     } catch (err) {
       console.error("Failed to load PTZ presets", err);
     }
+    renderFavorites();
+  }
+
+  // -- favorites popover --------------------------------------------------
+  const FAV_MENU_HTML =
+    '<div class="dropdown-menu dropdown-menu-end p-0" id="ptz-fav-menu" aria-labelledby="preview-ptz-fav">' +
+    '  <div id="ptz-fav-list" class="py-1"></div>' +
+    '  <div id="ptz-fav-empty" class="text-secondary small px-3 py-2 d-none">No favorites yet.</div>' +
+    '  <hr class="dropdown-divider my-0">' +
+    '  <div class="d-flex gap-1 p-2">' +
+    '    <input type="text" class="form-control form-control-sm" id="ptz-fav-name" placeholder="Name this position" maxlength="64">' +
+    '    <button type="button" class="btn btn-sm btn-outline-primary" id="ptz-fav-save" title="Save the current position as a favorite">' +
+    '      <i class="bi bi-plus-lg"></i>' +
+    "    </button>" +
+    "  </div>" +
+    '  <hr class="dropdown-divider my-0">' +
+    '  <button type="button" class="dropdown-item small text-secondary py-2" id="ptz-fav-edit">' +
+    '    <i class="bi bi-pencil me-1"></i>Edit favorites&hellip;' +
+    "  </button>" +
+    "</div>";
+
+  let favPosition = null;
+  let favPollTimer = null;
+
+  function favIsActive(p) {
+    if (!favPosition || favPosition.xpos === undefined) return false;
+    return (
+      Number(favPosition.xpos) === Number(p.x) &&
+      Number(favPosition.ypos) === Number(p.y)
+    );
+  }
+
+  function renderFavorites() {
+    const list = $("#ptz-fav-list");
+    if (!list) return;
+    list.innerHTML = "";
+    const empty = $("#ptz-fav-empty");
+    if (empty) empty.classList.toggle("d-none", currentPresets.length > 0);
+
+    currentPresets.forEach((p) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className =
+        "dropdown-item d-flex align-items-center gap-2 ptz-fav-item";
+      item.classList.toggle("is-active", favIsActive(p));
+      const icon = document.createElement("i");
+      icon.className = favIsActive(p)
+        ? "bi bi-geo-alt-fill"
+        : "bi bi-geo-alt text-secondary";
+      const label = document.createElement("span");
+      label.className = "text-truncate";
+      label.textContent = p.description || `Preset ${p.id}`;
+      item.append(icon, label);
+      item.addEventListener("click", () => runPresetAction("pr", { n: p.id }));
+      list.appendChild(item);
+    });
+  }
+
+  async function syncFavPosition(seedFromStream) {
+    // window.motorPosition lags: the stream only pushes while a move is in
+    // flight, so it is a first-paint seed only - d=j is the authority
+    const latest = window.motorPosition;
+    if (seedFromStream && latest && latest.xpos !== undefined) {
+      favPosition = { xpos: latest.xpos, ypos: latest.ypos };
+      renderFavorites();
+    }
+    try {
+      const params = new URLSearchParams({ d: "j" });
+      const res = await fetch(`${MOTOR_ENDPOINT}?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => null);
+      const pos = payload && payload.message;
+      if (pos && pos.xpos !== undefined) {
+        favPosition = { xpos: pos.xpos, ypos: pos.ypos };
+        renderFavorites();
+      }
+    } catch (err) {
+      console.error("Failed to read motor position", err);
+    }
+  }
+
+  function initFavorites(row, anchorBtn) {
+    const wrap = document.createElement("div");
+    // plain "dropdown" doesn't stretch its button child to the row's
+    // height like the row's other direct-child buttons get by default
+    wrap.className = "dropdown d-flex";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-outline-secondary";
+    btn.id = "preview-ptz-fav";
+    btn.title = "PTZ favorites";
+    btn.setAttribute("aria-label", "PTZ favorites");
+    btn.setAttribute("data-bs-toggle", "dropdown");
+    // "outside" so typing a name in the save row does not dismiss the menu
+    btn.setAttribute("data-bs-auto-close", "outside");
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = '<i class="bi bi-star"></i>';
+
+    wrap.appendChild(btn);
+    wrap.insertAdjacentHTML("beforeend", FAV_MENU_HTML);
+
+    if (row && anchorBtn && anchorBtn.parentNode === row)
+      row.insertBefore(wrap, anchorBtn);
+    else if (row) row.appendChild(wrap);
+    else document.body.appendChild(wrap);
+
+    wrap.addEventListener("show.bs.dropdown", async () => {
+      await refreshPresets();
+      await syncFavPosition(true);
+      if (!favPollTimer)
+        favPollTimer = window.setInterval(() => syncFavPosition(false), 2000);
+    });
+    wrap.addEventListener("hidden.bs.dropdown", () => {
+      if (favPollTimer) {
+        window.clearInterval(favPollTimer);
+        favPollTimer = null;
+      }
+    });
+
+    const nameInput = $("#ptz-fav-name");
+    const saveBtn = $("#ptz-fav-save");
+    const doSave = async () => {
+      const description = nameInput.value.trim();
+      if (!description) {
+        if (typeof showAlert === "function")
+          showAlert("warning", "Enter a name for the favorite first.", 3000);
+        nameInput.focus();
+        return;
+      }
+      // d=ps stores the live position itself (ptz_presets -a -1) and
+      // auto-assigns the lowest free id
+      await runPresetAction("ps", { description });
+      nameInput.value = "";
+    };
+    saveBtn.addEventListener("click", doSave);
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doSave();
+      }
+    });
+
+    $("#ptz-fav-edit").addEventListener("click", async () => {
+      const dd = bootstrap.Dropdown.getInstance(btn);
+      if (dd) dd.hide();
+      try {
+        populateSettings(await loadParams());
+      } catch (err) {
+        console.error("Failed to load PTZ settings", err);
+      }
+      await refreshPresets();
+      bootstrap.Tab.getOrCreateInstance($("#ptz-presets-tab")).show();
+      bootstrap.Modal.getOrCreateInstance($("#ptzModal")).show();
+    });
   }
 
   async function runPresetAction(action, extra) {
@@ -358,7 +517,11 @@
       "#ptz-presets-list .drag-handle{cursor:grab;user-select:none}" +
       "#ptz-presets-list .drag-handle:active{cursor:grabbing}" +
       "#ptz-presets-list li.dragging{opacity:.5}" +
-      "#ptz-presets-list li.drop-target{outline:2px dashed var(--bs-primary)}";
+      "#ptz-presets-list li.drop-target{outline:2px dashed var(--bs-primary)}" +
+      "#ptz-fav-menu{min-width:15rem;max-width:20rem}" +
+      "#ptz-fav-list{max-height:14rem;overflow-y:auto}" +
+      "#ptz-fav-menu .ptz-fav-item.is-active{color:var(--bs-primary);font-weight:600}" +
+      "#ptz-fav-menu .ptz-fav-item.is-active>.bi{color:var(--bs-primary)}";
     document.head.appendChild(style);
 
     document.body.insertAdjacentHTML("beforeend", MODAL_HTML);
@@ -390,8 +553,12 @@
         console.error("Failed to load PTZ settings", err);
       }
       await refreshPresets();
-      new bootstrap.Modal($("#ptzModal")).show();
+      // reset to Movement - "Edit favorites" leaves the Presets tab active
+      bootstrap.Tab.getOrCreateInstance($("#ptz-settings-tab")).show();
+      bootstrap.Modal.getOrCreateInstance($("#ptzModal")).show();
     });
+
+    initFavorites(row || host, btn);
 
     $("#ptz-save").addEventListener("click", saveSettings);
 
