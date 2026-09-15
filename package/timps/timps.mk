@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.16
+TIMPS_VERSION = v1.9.18
 TIMPS_LICENSE = MIT
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
@@ -630,11 +630,6 @@ TIMPS_POST_INSTALL_TARGET_HOOKS += TIMPS_INSTALL_WEBUI
 # a new fork of a thingino-webui file, which is exactly what this package just
 # spent a rewrite getting rid of.
 define TIMPS_REAPPLY_WEBUI_OVERLAY
-	# Maintainer note: thingino-webui no longer ships preview.html (it moved
-	# to the prudynt package, mutually exclusive with timps), so nothing else
-	# can reintroduce a pristine copy and this re-install is now a no-op
-	# versus the *.html glob in TIMPS_INSTALL_WEBUI. Kept for explicitness;
-	# safe to drop in a future cleanup.
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/preview.html \
 		$(TARGET_DIR)/var/www/preview.html
 	$(INSTALL) -D -m 0644 $(TIMPS_PKGDIR)/files/www/tool-sensor-data.html \
