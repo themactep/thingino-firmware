@@ -209,14 +209,14 @@
           showAlert("warning", "Coordinates must be whole numbers.", 3000);
         return;
       }
-      runPresetAction("pu", { n: p.id, description, x, y });
+      runPresetAction("pu", { n: p.id, description, x, y }, description);
     });
 
     moveBtn.addEventListener("click", () =>
-      runPresetAction("pr", { n: p.id }),
+      runPresetAction("pr", { n: p.id }, p.description || `Preset ${p.id}`),
     );
     delBtn.addEventListener("click", () =>
-      runPresetAction("pd", { n: p.id }),
+      runPresetAction("pd", { n: p.id }, p.description || `Preset ${p.id}`),
     );
 
     li.addEventListener("dragover", (e) => {
@@ -295,11 +295,17 @@
   let favPosition = null;
   let favPollTimer = null;
 
+  // A real motor's settle position after "run preset" is not bit-exact with
+  // the stored coordinate (backlash, step rounding) - seen live as an exact
+  // x match with y off by 10 steps on a fresh move. Bit-exact equality would
+  // never highlight anything post-move, only right after a reflash where the
+  // calibrated position and the preset happen to be identical.
+  const FAV_POSITION_TOLERANCE = 20;
   function favIsActive(p) {
     if (!favPosition || favPosition.xpos === undefined) return false;
     return (
-      Number(favPosition.xpos) === Number(p.x) &&
-      Number(favPosition.ypos) === Number(p.y)
+      Math.abs(Number(favPosition.xpos) - Number(p.x)) <= FAV_POSITION_TOLERANCE &&
+      Math.abs(Number(favPosition.ypos) - Number(p.y)) <= FAV_POSITION_TOLERANCE
     );
   }
 
@@ -324,7 +330,9 @@
       label.className = "text-truncate";
       label.textContent = p.description || `Preset ${p.id}`;
       item.append(icon, label);
-      item.addEventListener("click", () => runPresetAction("pr", { n: p.id }));
+      item.addEventListener("click", () =>
+        runPresetAction("pr", { n: p.id }, p.description || `Preset ${p.id}`),
+      );
       list.appendChild(item);
     });
   }
@@ -429,10 +437,18 @@
     });
   }
 
-  async function runPresetAction(action, extra) {
+  // json-motor.cgi only ever echoes the numeric preset id back ("preset 3
+  // run") - it has no reason to look up the description for a fire-and-
+  // forget status string. Callers that already have the name (every row in
+  // this file does) pass it as `label` so the toast says something a human
+  // recognizes instead of an id they have to cross-reference.
+  const PRESET_ACTION_VERB = { pr: "Moved to", pd: "Deleted", pu: "Updated" };
+  async function runPresetAction(action, extra, label) {
     try {
       const status = await presetAction(action, extra);
-      if (typeof showAlert === "function") showAlert("success", status, 3000);
+      const verb = PRESET_ACTION_VERB[action];
+      const message = label && verb ? `${verb} "${label}"` : status;
+      if (typeof showAlert === "function") showAlert("success", message, 3000);
       await refreshPresets();
     } catch (err) {
       console.error(`Preset action ${action} failed`, err);
