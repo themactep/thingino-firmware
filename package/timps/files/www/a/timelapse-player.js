@@ -201,13 +201,13 @@
     }
     frameEl.onload = settle;
     frameEl.onerror = settle;
+    frameEl.hidden = false;
     if (frameEl.getAttribute("src") === url) {
       // same URL (single-frame folder, or a re-show): no load event would
       // fire, so settle on our own instead of stalling the loop
       setTimeout(settle, 0);
     } else {
       frameEl.src = url;
-      frameEl.hidden = false;
       // a cache hit can already be complete here and some browsers then fire
       // no further load event on this element
       if (frameEl.complete) setTimeout(settle, 0);

@@ -228,8 +228,15 @@ const motorWs = (function () {
 })();
 
 function normalizePreviewControlMode(value) {
-  return value === "continuous" || value === "joystick" ? value : "step";
+  return value === "continuous" || value === "joystick" || value === "drag"
+    ? value
+    : "step";
 }
+
+// Motor steps travelled when a drag crosses the full width of the video
+// image, when motors.drag_steps_per_frame says nothing. steps_pan defaults to
+// 4000 over the full ~355deg sweep, and a typical lens sees ~90deg of that.
+const DRAG_STEPS_PER_FRAME = 1000;
 
 function getPreviewControlMode() {
   const motorParams = window.motorParams || {};
@@ -863,6 +870,283 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
   }
 
+  // Drag-to-pan. The joystick is a rate control; this one maps the drag
+  // straight onto an absolute motor target, so the image content tracks
+  // the finger like panning a photo, landing where it is released.
+  // Streaming absolute targets is safe by construction: motor_ctl_absolute()
+  // re-reads the live position and recomputes its own delta per command,
+  // so a superseded target costs nothing.
+  function bindDragControls(signal) {
+    const surface = $("#motor-drag");
+    if (!surface) {
+      // stale manifest asset; degrade rather than nothing
+      bindJoystickControls(signal);
+      return;
+    }
+
+    const motorEl = $("#motor");
+    if (motorEl) motorEl.classList.add("drag-mode");
+    surface.hidden = false;
+    surface.setAttribute("aria-hidden", "false");
+
+    const SEND_INTERVAL_MS = 90; // matches the joystick's own cadence
+    const MIN_DELTA_STEPS = 8; // below this the motor is already heading there
+    const TAP_PX = 6;
+    // no absolute-target data by now: fall back to rate control
+    const FALLBACK_MS = 1500;
+
+    let dragging = false;
+    let armed = false; // absolute targets are computable
+    let vectorMode = false;
+    let fallbackTimer = null;
+    let anchor = { x: 0, y: 0 };
+    let anchorPos = { x: 0, y: 0 };
+    let pointer = { x: 0, y: 0 };
+    let stepsPerPx = 0;
+    let target = { x: 0, y: 0 };
+    let sent = null;
+    let moved = 0;
+    let lastSentAt = 0;
+    let flushTimer = null;
+    let cgiBusy = false;
+
+    function limits() {
+      const params = window.motorParams || {};
+      return {
+        x: motorWs.limits.x || Number(params.steps_pan) || 0,
+        y: motorWs.limits.y || Number(params.steps_tilt) || 0,
+      };
+    }
+
+    // The video's content box, not the element box: object-fit:contain
+    // letterboxes the stream, and a steps-per-pixel scale that counted the
+    // black bars would be wrong on every sensor that isn't 16:9.
+    function contentBox() {
+      const frame = $(".ms-video-wrap") || $("#frame");
+      if (!frame) return null;
+      const box = frame.getBoundingClientRect();
+      if (!box.width || !box.height) return null;
+      const video = $("#ms-video");
+      const rt = window.msPreviewSize;
+      const vw = (video && video.videoWidth) || (rt && rt.w) || 0;
+      const vh = (video && video.videoHeight) || (rt && rt.h) || 0;
+      const scale = vw && vh ? Math.min(box.width / vw, box.height / vh) : 0;
+      return {
+        cx: box.left + box.width / 2,
+        cy: box.top + box.height / 2,
+        w: scale ? vw * scale : box.width,
+      };
+    }
+
+    function stepsPerFrame() {
+      const v = Number((window.motorParams || {}).drag_steps_per_frame);
+      return Number.isFinite(v) && v > 0 ? v : DRAG_STEPS_PER_FRAME;
+    }
+
+    function latch() {
+      const pos = window.motorPosition;
+      const lim = limits();
+      const box = contentBox();
+      if (!pos || (!lim.x && !lim.y) || !box || !box.w) return false;
+      anchorPos = { x: pos.xpos, y: pos.ypos };
+      stepsPerPx = stepsPerFrame() / box.w;
+      return true;
+    }
+
+    function clamp(v, max) {
+      return Math.round(Math.min(Math.max(v, 0), max));
+    }
+
+    function recompute() {
+      if (!armed) return;
+      const dx = pointer.x - anchor.x;
+      const dy = pointer.y - anchor.y;
+      const lim = limits();
+      // both axes move opposite the drag (confirmed on hardware)
+      const rawX = anchorPos.x - dx * stepsPerPx;
+      const rawY = anchorPos.y + dy * stepsPerPx;
+      target = { x: clamp(rawX, lim.x), y: clamp(rawY, lim.y) };
+    }
+
+    function runCgi(args) {
+      cgiBusy = true;
+      runMotorCmd(args)
+        .catch(() => {})
+        .then(() => {
+          cgiBusy = false;
+        });
+    }
+
+    function sendAbs(force) {
+      if (
+        motorWs.trySend({ cmd: "move", mode: "abs", x: target.x, y: target.y })
+      ) {
+        sent = { x: target.x, y: target.y };
+        return;
+      }
+      // One CGI move in flight at a time; a tick that would queue behind the
+      // previous fetch is dropped instead. The landing send forces through.
+      if (cgiBusy && !force) return;
+      sent = { x: target.x, y: target.y };
+      runCgi("d=x&x=" + target.x + "&y=" + target.y);
+    }
+
+    function sendVector() {
+      const box = contentBox();
+      const span = (box ? box.w : 0) / 2 || 1;
+      const deflect = (d) =>
+        Math.max(-1000, Math.min(1000, Math.round((d / span) * 1000)));
+      const vx = deflect(anchor.x - pointer.x);
+      const vy = deflect(pointer.y - anchor.y);
+      if (motorWs.trySend({ cmd: "vector", x: vx, y: vy })) return;
+      const params = window.motorParams || {};
+      const x = Math.round(((Number(params.steps_pan) / 100 || 0) * vx) / 1000);
+      const y = Math.round(((Number(params.steps_tilt) / 100 || 0) * vy) / 1000);
+      if ((x || y) && !cgiBusy) runCgi("d=g&x=" + x + "&y=" + y);
+    }
+
+    function sendNow(force) {
+      lastSentAt = performance.now();
+      if (!vectorMode) {
+        sendAbs(force);
+        return;
+      }
+      sendVector();
+      // The socket's vector latches until the next one; a CGI nudge does not,
+      // so a pointer held still has to keep being re-sent to keep moving.
+      if (dragging && !motorWs.isOpen()) queueSend();
+    }
+
+    // trailing-edge throttle, like the joystick's
+    function queueSend() {
+      const wait = SEND_INTERVAL_MS - (performance.now() - lastSentAt);
+      if (wait <= 0) {
+        if (flushTimer) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        sendNow();
+        return;
+      }
+      if (!flushTimer) {
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          if (dragging) sendNow();
+        }, wait);
+      }
+    }
+
+    function aimAtTap() {
+      const box = contentBox();
+      if (!box) return;
+      const lim = limits();
+      target = {
+        x: clamp(anchorPos.x + (pointer.x - box.cx) * stepsPerPx, lim.x),
+        y: clamp(anchorPos.y - (pointer.y - box.cy) * stepsPerPx, lim.y),
+      };
+    }
+
+    // Idempotent: blur, pointerup and lostpointercapture all race for one
+    // gesture. commit=false means the gesture was aborted, not released.
+    function endDrag(commit) {
+      if (!dragging) return;
+      dragging = false;
+      surface.classList.remove("dragging");
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+
+      // A released absolute drag keeps travelling to its last target - that
+      // landing point is the whole gesture. An aborted one, and every
+      // rate-control session (which only moves while deflected), must stop.
+      if (commit && armed && !vectorMode) {
+        if (moved < TAP_PX) aimAtTap();
+        if (!sent || target.x !== sent.x || target.y !== sent.y) sendNow(true);
+      } else if (vectorMode || sent) {
+        if (!motorWs.trySend({ cmd: "stop" })) runMotorCmd("d=s");
+      }
+
+      armed = false;
+      vectorMode = false;
+      sent = null;
+    }
+
+    surface.addEventListener("pointerdown", (ev) => {
+      if (!ev.isPrimary) return;
+      if (ev.pointerType === "mouse" && ev.button !== 0) return;
+      ev.preventDefault();
+      // Guarded: setPointerCapture can throw NotFoundError, which would
+      // otherwise skip binding the rest of the gesture entirely.
+      try {
+        if (surface.setPointerCapture && ev.pointerId !== undefined) {
+          surface.setPointerCapture(ev.pointerId);
+        }
+      } catch (err) {
+        // no capture; blur/visibilitychange below still catch a runaway drag
+      }
+      dragging = true;
+      moved = 0;
+      sent = null;
+      vectorMode = false;
+      surface.classList.add("dragging");
+      anchor = { x: ev.clientX, y: ev.clientY };
+      pointer = anchor;
+      armed = latch();
+      if (!armed) {
+        fallbackTimer = setTimeout(() => {
+          fallbackTimer = null;
+          if (!dragging) return;
+          armed = latch();
+          vectorMode = !armed;
+          recompute();
+          sendNow();
+        }, FALLBACK_MS);
+      }
+      recompute();
+    }, { signal });
+
+    surface.addEventListener("pointermove", (ev) => {
+      if (!dragging || !ev.isPrimary) return;
+      ev.preventDefault();
+      pointer = { x: ev.clientX, y: ev.clientY };
+      moved = Math.max(moved, Math.hypot(pointer.x - anchor.x, pointer.y - anchor.y));
+      recompute();
+      if (!armed && !vectorMode) return;
+      if (
+        sent &&
+        Math.abs(target.x - sent.x) < MIN_DELTA_STEPS &&
+        Math.abs(target.y - sent.y) < MIN_DELTA_STEPS
+      ) {
+        return;
+      }
+      queueSend();
+    }, { signal });
+
+    surface.addEventListener("pointerup", () => endDrag(true), { signal });
+    ["pointercancel", "lostpointercapture"].forEach((name) =>
+      surface.addEventListener(name, () => endDrag(false), { signal }),
+    );
+    surface.addEventListener("contextmenu", (ev) => ev.preventDefault(), { signal });
+    surface.addEventListener("dragstart", (ev) => ev.preventDefault(), { signal });
+
+    window.addEventListener("blur", () => endDrag(false), { signal });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) endDrag(false);
+    }, { signal });
+
+    if (signal)
+      signal.addEventListener("abort", () => {
+        endDrag(false);
+        surface.hidden = true;
+        surface.setAttribute("aria-hidden", "true");
+      });
+  }
+
   // (Re-)bind the widget to one control mode; safe to call repeatedly since
   // aborting modeAbort tears down the previous mode's listeners first.
   function applyControlMode(mode) {
@@ -879,14 +1163,16 @@ document.addEventListener("DOMContentLoaded", async function () {
       el.ondblclick = null;
     });
     const motorEl = $("#motor");
-    if (motorEl) motorEl.classList.remove("stick-mode");
+    if (motorEl) motorEl.classList.remove("stick-mode", "drag-mode");
 
     activeControlMode = mode;
     motorPositionRenderer =
-      mode === "joystick" ? bindPositionReadout() : null;
+      mode === "joystick" || mode === "drag" ? bindPositionReadout() : null;
 
     if (mode === "joystick") {
       bindJoystickControls(signal);
+    } else if (mode === "drag") {
+      bindDragControls(signal);
     } else if (mode === "continuous") {
       bindContinuousControls(signal);
     } else {

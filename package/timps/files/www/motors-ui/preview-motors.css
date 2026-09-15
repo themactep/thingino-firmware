@@ -16,13 +16,21 @@
 }
 
 #motor.stick-mode #motor-stick,
-#motor.stick-mode #motor-pos {
+#motor.stick-mode #motor-pos,
+#motor.drag-mode #motor-pos {
   display: block;
 }
 
 /* The eight direction sectors would otherwise swallow every pointerdown. */
-#motor.stick-mode .jst a.s {
+#motor.stick-mode .jst a.s,
+#motor.drag-mode .jst a.s {
   display: none;
+}
+
+/* The readout rows position themselves off --motor-stick-size; drag mode has
+ * no ring, so pin them just clear of the centre/home button instead. */
+#motor.drag-mode {
+  --motor-stick-size: 200px;
 }
 
 #motor-stick {
@@ -84,6 +92,26 @@
 #motor-stick.dragging #motor-stick-handle {
   cursor: grabbing;
   transition: none;
+}
+
+/* Drag-to-point surface, used when motors.preview_control_mode is "drag".
+ * The whole image is the control, so it lives outside #motor's 300px box and
+ * stretches the preview frame itself. No `display` rule here: the element
+ * carries the `hidden` attribute out of the manifest and preview-motors.js
+ * clears it on bind. The bottom gutter keeps the <video> control bar
+ * reachable. */
+#motor-drag {
+  position: absolute;
+  inset: 0 0 48px 0;
+  pointer-events: auto;
+  touch-action: none; /* else the browser claims the gesture for scrolling */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#motor-drag.dragging {
+  cursor: grabbing;
 }
 
 /* Live position readout: pan (left/right) as a horizontal bar under the

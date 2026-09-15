@@ -63,7 +63,9 @@
 
   // one /control round trip with the token header; retries ONCE with a
   // freshly fetched token when the answer is 401/403 (rebooted camera).
-  function request(method, body, retried) {
+  // query is an optional "?..." suffix for the GET-only sub-endpoints
+  // (?fields=1, ?dn_history=1).
+  function request(method, body, retried, query) {
     return fetchInfo(false).then(function (i) {
       var opts = { method: method, cache: "no-store", headers: {} };
       if (i.token) opts.headers["X-Timps-Token"] = i.token;
@@ -71,10 +73,10 @@
         opts.headers["Content-Type"] = "application/json";
         opts.body = JSON.stringify(body);
       }
-      return fetch(base() + "/control", opts).then(function (res) {
+      return fetch(base() + "/control" + (query || ""), opts).then(function (res) {
         if ((res.status === 401 || res.status === 403) && !retried) {
           return fetchInfo(true).then(function () {
-            return request(method, body, true);
+            return request(method, body, true, query);
           });
         }
         // POST /control status codes (see WEBUI-NOTES.md for the full contract):
@@ -240,6 +242,19 @@
     return get().then(function (json) { return json.caps || {}; });
   }
 
+  // GET /control?dn_history=1: the daynight tuning series out of the daemon's
+  // in-RAM ring. opts.last = backfill from the newest N samples, opts.since =
+  // tail from a cursor, opts.max = rows per response. Unlike the SSE stream
+  // this keeps accumulating while no tab is open at all - the daemon holds the
+  // series, the page only pages through it.
+  function dnHistory(opts) {
+    var q = "?dn_history=1";
+    if (opts && opts.last > 0) q += "&last=" + (opts.last | 0);
+    else if (opts && opts.since !== undefined) q += "&since=" + (opts.since >>> 0);
+    if (opts && opts.max > 0) q += "&max=" + (opts.max | 0);
+    return request("GET", undefined, false, q);
+  }
+
   // /events SSE: streams = "motion,daynight,stats" (or "" for all).
   // onEvent(type, data) gets each parsed event; onError(err) any failure.
   // Auto-pauses while the tab is hidden and resumes on visibilitychange.
@@ -311,6 +326,7 @@
     takeCorrections: takeCorrections,
     correctionsText: correctionsText,
     caps: caps,
+    dnHistory: dnHistory,
     events: events,
   };
 })();
