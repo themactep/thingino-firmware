@@ -94,9 +94,8 @@ The preview page talks to timps directly (see below).
 `thingino-webui` uses for its own core preview page, and is installed
 straight over `/var/www/preview.html` — the same overlay `timps.mk` already
 does for its other ~15 native pages (`TIMPS_INSTALL_WEBUI_CGIS`'s `*.html`
-loop). raptor does the same with its own `preview.html`; prudynt-t also
-installs its own (fMP4) `preview.html`, with its MJPEG preview available at
-`/preview-mjpeg.html`.
+loop). raptor does the same with its own `preview.html`; prudynt-t installs
+none, so the core page stays.
 
 The whole timps WebUI overlay is installed in timps's **install** step
 (`TIMPS_POST_INSTALL_TARGET_HOOKS`, with `TIMPS_DEPENDENCIES +=
@@ -246,13 +245,14 @@ the WebUI session auth
 | `json-prudynt-config.cgi` | Config export: streams `GET /control` (timps shape) as a JSON download. |
 | `restart-prudynt.cgi` / `restart-timps.cgi` | `/etc/init.d/S95timps restart` (same ok-JSON as the original; the prudynt name is kept because the WebUI calls it). |
 | `json-heartbeat.cgi` / `json-heartbeat-slow.cgi` | timps-aware control-bar heartbeat (SSE / single shot; payload built by `timps-heartbeat.sh` from `GET /control` + the GPIO tools). Carries the day/night telemetry the control bar reads: `daynight_brightness` (%), `total_gain` (ISP [24.8] linear, 256 = 1x — feeds the `.dnd-gain` display), `daynight_mode` (`day`/`night`), `daynight_enabled`; `null` while unknown, like the stock heartbeat. |
-| `json-timegraph-stream.cgi` | Photosensing data-collector SSE (`tool-sensor-data.html`): polls `GET /control` every second (bounded, default 1 h — the page's EventSource reconnects) and emits `data: {"time_now","total_gain","daynight_brightness","daynight_mode"}` events, plus the `total_gain_*_threshold` chart lines when the photosensing page saved them to `/etc/thingino.json`. The page's history request (`json-prudynt.cgi`, `{"daynight":{"history":null}}`) is answered with the single current sample — timps keeps no sample ring, the graph grows from the live stream. |
+| `json-timegraph-stream.cgi` | **Gone** — neither shipped nor bridged any more (still in `timps.mk`'s purge list for old trees). `tool-sensor-data.html` talks to timps directly via `timps-api.js`: it subscribes to the `daynight` SSE stream for a live-only graph, or, when `daynight.history_s` is non-zero, pages the daemon's in-RAM decision ring with `GET /control?dn_history=1` — which is what lets the graph show hours with no tab open. |
 
 Not bridged (see the CGI headers for details): recording (`mp4`), motion
 toggle, mic/spk mute, `spk_sample_rate`, the G726/OPUS/PCM audio codecs,
 per-stream `audio_enabled`, and the remaining `prudyntctl events` consumers
-(`events.cgi`, `json-send2.cgi` live-apply). The page metrics `ev` and
-`ae_luma` are prudynt-only and stay absent from the timegraph stream.
+(`events.cgi`, `json-send2.cgi` live-apply). The page metric `ev` is
+prudynt-only; `ae_luma` is not — timps reports it in `GET /control`'s
+`daynight` object and as a column of the `?dn_history=1` series.
 
 ### Direct-to-timps token (`timps-token.cgi`)
 

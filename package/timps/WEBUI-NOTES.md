@@ -278,7 +278,7 @@ hit-testable while still starting invisible, so hovering the circle still
 reveals them exactly as before - only the container layers around/behind
 them become click-through.
 
-### Statistics card: why two data sources (SSE + polled /control)
+### Statistics card: why two data sources (SSE + polled `/control?stats=1`)
 
 Fed by timps's `/events?stream=stats` SSE - same token + EventSource
 pattern as `/a/preview-motion.js`. Independent of the video player's own
@@ -288,15 +288,27 @@ it also shows other clients' activity on this channel.
 The SSE "stats" frame (`src/mp4/httpd.c` `stats_json`, ~every 2s by default)
 carries the fast-moving per-frame numbers: fps/kbps/subs/drop per enabled
 stream, plus uptime_s/clients. It does NOT carry the config-level encoder
-fields (gop/profile/rc_mode) or the ave_bitrate/day-night/motion status
-blocks - those only exist in GET /control, so a slow poll of /control (5s,
-the same cadence as the control-bar heartbeat elsewhere in this webui) fills
-in the rest via timps-api.js (loaded on demand by main.js's
-`timpsApiReady()`, already used by the control bar on every page). Both
-loops only run while the Statistics card is visible (toggled by
+fields (gop/profile/rc_mode) or the encoder-backlog block, so a slow 5s poll
+(the same cadence as the control-bar heartbeat elsewhere in this webui)
+fills in the rest via `timpsApi.statsExtra()`.
+
+That poll hits **`GET /control?stats=1`**, not plain `GET /control`: the
+scoped sub-endpoint (same own-small-buffer pattern as `?fields=1` /
+`?dn_history=1`, see `src/mp4/httpd.c`) returns only those fields - a few
+hundred bytes against the full snapshot's ~8 KB, every 5s for as long as the
+card is open.
+
+The Day/Night and Motion summary blocks are **pushed**, not polled: the card
+opens a second subscription via `timpsApi.events("daynight,motion", ...)`.
+timps emits the full state of both once on connect and again on every change
+(`src/mp4/httpd.c`, `events_stream()`), so a card opened mid-session renders
+current values immediately - no priming fetch, and no reason for them to
+live in the polled payload at all.
+
+All three loops only run while the Statistics card is visible (toggled by
 `#ms-stats-toggle`).
 
-### `applyControlSnapshot()`: the `ave_bitrate` / queue-backlog fallback
+### `applyStatsExtra()`: the `ave_bitrate` / queue-backlog fallback
 
 `ave_bitrate` (`IMP_Encoder_GetChnAveBitrate`) only exists on T31; every
 other platform - and a T31 stream before its first frame - reports -1 and
@@ -323,17 +335,30 @@ instead.
 Full field map (all follow "daynight_\<key\>" -> "daynight.\<key\>", see
 `fillTimps()`/`collectTimps()`): `daynight_enabled`,
 `daynight_total_gain_night_threshold`, `daynight_total_gain_day_threshold`,
-`daynight_day_gain_pct`, `daynight_baseline_delay_s`,
-`daynight_night_reconfirm_s`, `daynight_boot_settle_s`/`_max_s`,
-`daynight_boot_stable_pct`, `daynight_mode` (sensor/time/sun),
+`daynight_day_confirm_s`, `daynight_probe_confirm_s`,
+`daynight_probe_min_gap_s`, `daynight_heartbeat_s`/`_max_s`,
+`daynight_interval_ms`, `daynight_boot_probe`,
+`daynight_diagnose_thresholds`, `daynight_mode` (auto/schedule),
 `daynight_time_night_start`/`day_start`, `daynight_sun_latitude`/
 `longitude`, `daynight_sun_sunrise`/`sunset_offset_min`. Read-only:
-`daynight_night_baseline`/`daynight_day_trigger` from the status fields of
-the same names (the adaptive trigger in effect).
+`daynight_night_baseline`/`daynight_day_trigger` (the adaptive trigger in
+effect), `daynight_sun_computed_sunrise`/`_sunset`, and the
+`probe_jump_pct`/`ref_delay_s`/`boot_settle_s` values that became fixed
+constants in the 2026-08-22 consolidation.
 
 The old "Time Schedule" column that also lived on
 `/x/json-config-daynight.cgi` was dead, orphaned config that nothing read -
-it has been replaced by the timps-native Override Mode selector.
+it has been replaced by the timps-native Decision source column.
+
+### `daynight_calendar` is a UI-only selector, derived from the values
+
+timps stores ONE calendar and picks it from the values themselves - a
+complete `time_night_start`+`time_day_start` window outranks `sun_latitude`/
+`longitude`, and 0/0 is "no location". There is no config key saying which was
+meant, so `calFromValues()` mirrors `dn_cal_kind()` in `daynight.c` to drive
+the selector, and `collectTimps()` always CLEARS the unselected calendar's
+values on save. Without that clear, a leftover time window keeps outranking a
+location the user just typed in and the save still reports success.
 
 ## a/preview-motion.js
 

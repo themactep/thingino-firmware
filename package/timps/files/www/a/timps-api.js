@@ -242,6 +242,13 @@
     return get().then(function (json) { return json.caps || {}; });
   }
 
+  // GET /control?stats=1: only what the /events "stats" push cannot carry
+  // (per-stream gop/profile/rc_mode + the encoder backlog). Same shape as the
+  // matching sub-objects of a full GET /control, a fraction of the bytes.
+  function statsExtra() {
+    return request("GET", undefined, false, "?stats=1");
+  }
+
   // GET /control?dn_history=1: the daynight tuning series out of the daemon's
   // in-RAM ring. opts.last = backfill from the newest N samples, opts.since =
   // tail from a cursor, opts.max = rows per response. Unlike the SSE stream
@@ -326,6 +333,7 @@
     takeCorrections: takeCorrections,
     correctionsText: correctionsText,
     caps: caps,
+    statsExtra: statsExtra,
     dnHistory: dnHistory,
     events: events,
   };
