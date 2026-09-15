@@ -110,6 +110,18 @@ jobs:
             < uboot-upstream.patch
           patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N \
             < uboot-thingino.patch
+          # Then the carry patches that buildroot applies after ours (skip the
+          # committed 0001/0002, which the two above replace). A carry patch the
+          # fork has since absorbed is refused as "previously applied" and would
+          # break every build of this U-Boot version: fail instead of pushing.
+          shopt -s nullglob
+          for p in "package/all-patches/uboot/${base#v}"/*.patch; do
+            case "${p##*/}" in 0001-* | 0002-*) continue ;; esac
+            patch -F0 -g0 -p1 --no-backup-if-mismatch -d verify -t -N < "$p" || {
+              echo "::error::${p##*/} does not apply on top of the regenerated patches; drop or refresh it in the same commit"
+              exit 1
+            }
+          done
 
       - name: Place patches and commit if changed
         run: |
@@ -134,5 +146,5 @@ jobs:
           sha="$(git -C uboot rev-parse fork-ref)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "uboot: regenerate ${ver} patches (${fork_ref} @ ${sha:0:12})"
+          git commit -m "uboot: regenerate ${ver} patches (${{ inputs.fork_ref }} @ ${sha:0:12})"
           git push
