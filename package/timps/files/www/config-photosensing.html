@@ -56,6 +56,12 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_diagnose_thresholds-false" name="daynight_diagnose_thresholds" value="false">
+                  <input type="checkbox" id="daynight_diagnose_thresholds" name="daynight_diagnose_thresholds" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_diagnose_thresholds" class="form-check-label">Warn when the day threshold looks unreachable</label>
+                </p>
+                <small class="text-secondary">When three probes in a row find night and the scene never came close to the day threshold, log once which value to raise &ldquo;switch to day mode below&rdquo; above.</small>
               </div>
               <div class="col">
                 <h4>Controls</h4>
@@ -87,18 +93,26 @@
                 </p>
               </div>
               <div class="col">
-                <h4>Override Mode</h4>
-                <small>Choose what drives the Day/Night decision</small>
+                <h4>Decision source</h4>
+                <small>What decides Day/Night, and which calendar it may use</small>
                 <p class="mt-3">
-                  <label for="daynight_mode" class="form-label">Decision source</label>
+                  <label for="daynight_mode" class="form-label">Decided by</label>
                   <select id="daynight_mode" name="daynight_mode" class="form-select">
-                    <option value="sensor">Sensor (light level)</option>
+                    <option value="auto">Light level (sensor and probes)</option>
+                    <option value="schedule">The calendar alone</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="daynight_calendar" class="form-label">Calendar</label>
+                  <select id="daynight_calendar" name="daynight_calendar" class="form-select">
+                    <option value="none">None</option>
                     <option value="time">Fixed time window</option>
                     <option value="sun">Sunrise / sunset</option>
                   </select>
+                  <small class="text-secondary">The camera stores one calendar, not a choice between two, so picking one clears the other one's values on save. With &ldquo;Light level&rdquo; a calendar is optional - it only sharpens when a forced probe is due.</small>
                 </p>
 
-                <!-- Fixed time window (mode=time) -->
+                <!-- Fixed time window (calendar=time) -->
                 <div id="daynight_time_fields" hidden>
                   <p>
                     <label for="daynight_time_night_start">Switch to night at</label>
@@ -111,7 +125,7 @@
                   <small class="text-secondary">Local camera clock. The night window may wrap past midnight (e.g. night 20:00, day 06:30).</small>
                 </div>
 
-                <!-- Sunrise / sunset (mode=sun) -->
+                <!-- Sunrise / sunset (calendar=sun) -->
                 <div id="daynight_sun_fields" hidden>
                   <div class="row g-2">
                     <p class="col">
@@ -138,55 +152,61 @@
                 </div>
               </div>
               <div class="col">
-                <h4>Adaptive night recovery</h4>
-                <small>Night&rarr;day triggers relative to a gain baseline sampled in darkness</small>
+                <h4>Probe economy</h4>
+                <small>Night&rarr;day is decided by a probe; these bound how often one may run</small>
                 <p class="number-range">
-                  <label for="daynight_day_gain_pct">Day trigger (% of night baseline)</label>
+                  <label for="daynight_day_confirm_s">Confirm before switching to night (s)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_day_gain_pct" name="daynight_day_gain_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
+                    <input type="text" id="daynight_day_confirm_s" name="daynight_day_confirm_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="1" data-max="3600" data-step="1">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_baseline_delay_s">Baseline sample delay (s)</label>
+                  <label for="daynight_probe_confirm_s">Confirm brightening before probing (s)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_baseline_delay_s" name="daynight_baseline_delay_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="1">
+                    <input type="text" id="daynight_probe_confirm_s" name="daynight_probe_confirm_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="1" data-max="3600" data-step="1">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_night_reconfirm_s">Night reconfirm probe every (s, 0 = off)</label>
+                  <label for="daynight_probe_min_gap_s">Minimum gap between probes (s)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_night_reconfirm_s" name="daynight_night_reconfirm_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="86400" data-step="1">
+                    <input type="text" id="daynight_probe_min_gap_s" name="daynight_probe_min_gap_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="60" data-max="86400" data-step="10">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-                <small class="text-secondary">Live: baseline <span id="daynight_night_baseline">-</span>,
-                  day below <span id="daynight_day_trigger">-</span>.
-                  The baseline self-corrects upward while night lasts, and a sustained
-                  brightening that stays above the strict trigger fires an early day probe.</small>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_boot_probe-false" name="daynight_boot_probe" value="false">
+                  <input type="checkbox" id="daynight_boot_probe" name="daynight_boot_probe" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_boot_probe" class="form-check-label">Probe once at boot</label>
+                </p>
+                <small class="text-secondary">Live: night reference <span id="daynight_night_baseline">-</span>,
+                  probe below <span id="daynight_day_trigger">-</span>.
+                  Fixed internals: probe trigger at <span id="daynight_probe_jump_pct">-</span>% of the night
+                  reference, reference anchored <span id="daynight_ref_delay_s">-</span> s into night,
+                  boot settle <span id="daynight_boot_settle_s">-</span> s.</small>
               </div>
               <div class="col">
-                <h4>Boot settle</h4>
-                <small>How long the first decision waits for the AE to converge after start</small>
+                <h4>Heartbeat</h4>
+                <small>The sensor-independent safety net - the only bound on how long a wrong night can last</small>
                 <p class="number-range">
-                  <label for="daynight_boot_settle_s">Minimum settle (s)</label>
+                  <label for="daynight_heartbeat_s">Forced probe, moving scene (s)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_boot_settle_s" name="daynight_boot_settle_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="600" data-step="1">
+                    <input type="text" id="daynight_heartbeat_s" name="daynight_heartbeat_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="300" data-max="604800" data-step="60">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_boot_settle_max_s">Maximum settle wait (s)</label>
+                  <label for="daynight_heartbeat_max_s">Forced probe, still scene (s)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_boot_settle_max_s" name="daynight_boot_settle_max_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="1">
+                    <input type="text" id="daynight_heartbeat_max_s" name="daynight_heartbeat_max_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="300" data-max="604800" data-step="60">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_boot_stable_pct">Gain considered stable within (%)</label>
+                  <label for="daynight_interval_ms">Sample interval (ms)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_boot_stable_pct" name="daynight_boot_stable_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="100" data-step="1">
+                    <input type="text" id="daynight_interval_ms" name="daynight_interval_ms" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="100" data-max="60000" data-step="100">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>

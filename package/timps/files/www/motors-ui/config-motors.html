@@ -122,6 +122,7 @@
                     <option value="step">Step move (click / double-click)</option>
                     <option value="continuous">Continuous move (press and hold)</option>
                     <option value="joystick">Analog joystick (drag to steer, further = faster)</option>
+                    <option value="drag">Drag the image (camera follows the pointer, tap to centre)</option>
                   </select>
                   <small class="text-secondary">Applies to motor controls in the preview overlay.</small>
                 </p>
@@ -132,6 +133,14 @@
                   <input type="range" class="form-range" id="joystick_sensitivity" name="joystick_sensitivity"
                     min="0.05" max="4" step="0.05" value="2">
                   <small class="text-secondary">Below 1.00 reacts faster to small movements near the stick's centre and reaches full speed sooner. Above 1.00 does the opposite - the centre is less sensitive, for finer close-up framing. 1.00 is a straight linear response. Takes effect immediately, no reboot.</small>
+                </div>
+
+                <div id="drag-sensitivity-field">
+                  <label for="drag_steps_per_frame">Drag sensitivity
+                    <span id="drag_steps_per_frame-value" class="text-secondary"></span></label>
+                  <input type="range" class="form-range" id="drag_steps_per_frame" name="drag_steps_per_frame"
+                    min="100" max="4000" step="50" value="1000">
+                  <small class="text-secondary">Motor steps travelled when a drag crosses the full width of the preview image. Lower is finer, higher covers more ground per drag. Takes effect immediately, no reboot.</small>
                 </div>
 
                 <div id="motion-accel-fields" class="d-flex gap-2">

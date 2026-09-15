@@ -38,7 +38,9 @@
   }
 
   function normalizePreviewControlMode(value) {
-    return value === "continuous" || value === "joystick" ? value : "step";
+    return value === "continuous" || value === "joystick" || value === "drag"
+      ? value
+      : "step";
   }
 
   function updateMotionDriverInputs() {
@@ -86,6 +88,19 @@
     const isJoystick = normalizePreviewControlMode(modeEl.value) === "joystick";
     wrap.classList.toggle("opacity-50", !isJoystick);
     if (slider) slider.disabled = !isJoystick;
+    if (valueLabel && slider) valueLabel.textContent = slider.value;
+  }
+
+  function updateDragSensitivityInputs() {
+    const modeEl = $("#preview_control_mode");
+    const wrap = $("#drag-sensitivity-field");
+    const slider = $("#drag_steps_per_frame");
+    const valueLabel = $("#drag_steps_per_frame-value");
+    if (!modeEl || !wrap) return;
+
+    const isDrag = normalizePreviewControlMode(modeEl.value) === "drag";
+    wrap.classList.toggle("opacity-50", !isDrag);
+    if (slider) slider.disabled = !isDrag;
     if (valueLabel && slider) valueLabel.textContent = slider.value;
   }
 
@@ -202,6 +217,15 @@
           : 2;
     }
     updateJoystickSensitivityInputs();
+    const dragStepsEl = $("#drag_steps_per_frame");
+    if (dragStepsEl) {
+      const parsed = parseInt(config.drag_steps_per_frame, 10);
+      dragStepsEl.value =
+        Number.isFinite(parsed) && parsed >= 100 && parsed <= 4000
+          ? parsed
+          : 1000;
+    }
+    updateDragSensitivityInputs();
     const homingEl = $("#homing");
     if (homingEl) {
       homingEl.checked = config.homing === true || config.homing === "true";
@@ -346,7 +370,9 @@
 
     const previewControlMode = formData.get("preview_control_mode");
     if (normalizePreviewControlMode(previewControlMode) !== previewControlMode) {
-      errors.push("Preview PTZ controls must be step, continuous or joystick");
+      errors.push(
+        "Preview PTZ controls must be step, continuous, joystick or drag",
+      );
     }
 
     if (motionDriver !== "profiled") {
@@ -364,6 +390,10 @@
     const joystickSensitivityEl = $("#joystick_sensitivity");
     if (joystickSensitivityEl) {
       formData.set("joystick_sensitivity", joystickSensitivityEl.value);
+    }
+    const dragStepsEl = $("#drag_steps_per_frame");
+    if (dragStepsEl) {
+      formData.set("drag_steps_per_frame", dragStepsEl.value);
     }
 
     if (errors.length > 0) {
@@ -492,10 +522,10 @@
 
   const previewControlModeSelect = $("#preview_control_mode");
   if (previewControlModeSelect) {
-    previewControlModeSelect.addEventListener(
-      "change",
-      updateJoystickSensitivityInputs,
-    );
+    previewControlModeSelect.addEventListener("change", () => {
+      updateJoystickSensitivityInputs();
+      updateDragSensitivityInputs();
+    });
   }
   const joystickSensitivitySlider = $("#joystick_sensitivity");
   if (joystickSensitivitySlider) {
@@ -504,6 +534,10 @@
       "input",
       updateJoystickSensitivityInputs,
     );
+  }
+  const dragStepsSlider = $("#drag_steps_per_frame");
+  if (dragStepsSlider) {
+    dragStepsSlider.addEventListener("input", updateDragSensitivityInputs);
   }
 
   // ------------------------------------------------------------------

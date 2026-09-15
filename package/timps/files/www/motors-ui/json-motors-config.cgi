@@ -131,6 +131,7 @@ handle_post() {
 	steps_pan_value=$POST_steps_pan
 	steps_tilt_value=$POST_steps_tilt
 	joystick_sensitivity_value=${POST_joystick_sensitivity:-2.00}
+	drag_steps_per_frame_value=${POST_drag_steps_per_frame:-1000}
 
 	[ "$homing_value" = "true" ] || homing_value="false"
 
@@ -159,11 +160,17 @@ handle_post() {
 	esac
 
 	case "$preview_control_mode_value" in
-		step | continuous | joystick) ;;
+		step | continuous | joystick | drag) ;;
 		*)
 			preview_control_mode_value="step"
 			;;
 	esac
+
+	case "$drag_steps_per_frame_value" in
+		'' | *[!0-9]*) drag_steps_per_frame_value=1000 ;;
+	esac
+	[ "$drag_steps_per_frame_value" -lt 100 ] && drag_steps_per_frame_value=100
+	[ "$drag_steps_per_frame_value" -gt 4000 ] && drag_steps_per_frame_value=4000
 
 	# busybox ash's test has no floating point; reject non-numeric, then
 	# clamp via awk into motor-daemon.c's own accepted range.
@@ -187,6 +194,7 @@ handle_post() {
 	motors_set_value motion_driver "$motion_driver_value"
 	motors_set_value preview_control_mode "$preview_control_mode_value"
 	motors_set_value joystick_sensitivity "$joystick_sensitivity_value"
+	motors_set_value drag_steps_per_frame "$drag_steps_per_frame_value"
 	motors_set_value homing "$homing_value"
 
 	if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then

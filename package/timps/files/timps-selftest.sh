@@ -11,8 +11,12 @@ VERBOSE=0
 
 port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
 [ -n "$port" ] || port=8880
-https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1)
-case "$https" in 1 | true | yes | on)
+# http.https is a tri-state since timps v1.9.11: 0 = plaintext, 1 = http and
+# https together on the one port, 2 = TLS only (plaintext gets a 426). Both
+# on-values speak https, so dial https for either - on 1 the plain scheme
+# would also work, on 2 it is the only one that does.
+https=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1 | tr '[:upper:]' '[:lower:]')
+case "$https" in 1 | 2 | true | yes | on)
 	scheme=https
 	K="-k"
 	;;

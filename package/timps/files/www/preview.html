@@ -21,6 +21,16 @@
       selected stream is H.264; otherwise removed/disabled, never silently
       broken. See dev_notes/PREVIEW_REALTIME_IDEAS_2026-08-29.md in the timps
       repo for the measurements behind this.
+    * "WebRTC (WHEP)" - the browser's own RTCPeerConnection, fed by timps's
+      POST /webrtc/whep endpoint (USE_WEBRTC builds only): SDP offer in, SDP
+      answer back, ICE-lite + DTLS-SRTP, H.264 video plus G.711 audio when
+      timps is muxing pcmu/pcma. Sub-second glass-to-glass like the real-time
+      mode, but WITH audio and with the browser's own jitter buffer and PLI
+      recovery instead of a freeze. The stream it carries is whatever
+      webrtc.channel names in timps.conf - the main/sub selector above does
+      NOT apply to it. Offered only where RTCPeerConnection exists AND a probe
+      of /webrtc/whep says this daemon really serves it; otherwise
+      removed/disabled, never silently broken - same rule as "Real-time".
 
   Installed straight over thingino-webui's own /preview.html
   (see timps.mk) but still goes through the normal plugin pipeline - the
@@ -30,7 +40,11 @@
 
   KNOWN LIMITATION: video loads over plain HTTP on port 8880, so an HTTPS
   web UI gets mixed-content blocked and the preview stays black (serve the
-  UI over HTTP, or reverse-proxy the port, to work around it).
+  UI over HTTP, or reverse-proxy the port, to work around it). The WebRTC
+  mode is the one exception on the MEDIA side - SRTP over a peer connection
+  is not a mixed-content subresource and is never blocked - but its WHEP
+  SIGNALLING is an ordinary fetch() and is subject to exactly the same rule,
+  which is why it goes through timpsScheme() like every other fetch here.
 
   If you change http.port in /etc/timps.conf, adjust MS_PORT below.
 -->
@@ -134,12 +148,19 @@
 
     <section>
       <div class="card mb-3">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-          <div>
+        <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+          <div style="flex:1 1 0%; min-width:0;">
             <h2 class="card-title mb-0">timps Live View</h2>
-            <small>Native fMP4 player (no iframe), stream from port 8880</small>
+            <small id="ms-format-desc">Native fMP4 player (no iframe), stream from port 8880</small>
           </div>
-          <div class="d-flex flex-wrap gap-2">
+          <!-- align-self-end rather than align-items-end on the row, so the
+               caption still stretches and keeps its text top-anchored even at
+               widths where the controls are the taller item.
+               No flex-shrink-0: the caption's flex:1 1 0% above is what keeps
+               this row on the header's first line at desktop widths, and
+               locking the row at its max-content width instead overflowed the
+               whole document on a phone. -->
+          <div class="d-flex flex-wrap align-self-end gap-2">
             <select class="form-select form-select-sm" id="ms-stream" title="Select stream" style="width:auto; min-width: 140px;">
               <option value="0">Main stream</option>
               <option value="1">Sub stream</option>
@@ -150,6 +171,11 @@
                    runtime when the browser has no VideoDecoder, disabled when
                    the selected stream is not H.264. -->
               <option value="rt">Real-time (no audio)</option>
+              <!-- "whep" switches the player to an RTCPeerConnection fed by
+                   timps's POST /webrtc/whep. Removed at runtime when the
+                   browser has no RTCPeerConnection or when the probe finds no
+                   WHEP endpoint on this daemon (USE_WEBRTC=0 / webrtc.enabled=0). -->
+              <option value="whep">WebRTC (WHEP)</option>
               <option value="0">No buffer (0s)</option>
               <option value="0.5">Low latency (0.5s)</option>
               <option value="1.5" selected>Balanced (1.5s)</option>
@@ -266,6 +292,7 @@
     const connectButton = document.getElementById("ms-connect");
     const streamSelect = document.getElementById("ms-stream");
     const latencySelect = document.getElementById("ms-latency");
+    const formatDesc = document.getElementById("ms-format-desc");
     const status = document.getElementById("ms-status");
     const overlay = document.getElementById("ms-connecting-overlay");
     const statsToggle = document.getElementById("ms-stats-toggle");
@@ -319,14 +346,12 @@
     const params = new URLSearchParams(window.location.search);
     const defaultStream = params.get("stream") || sessionStorage.getItem("ms.stream") || "0";
 
-    // Player mode + jitter margin, both driven by the one #ms-latency select
-    // and persisted under the same sessionStorage key as before:
-    //   "0.5" / "1.5" / "3"  -> MSE/<video>, that many seconds behind live
-    //   "rt"                 -> WebCodecs/canvas real-time player (no buffer)
-    // The numeric values keep their old meaning, so an "ms.latency" written by
-    // an older build still restores the same margin here (and parseFloat("rt")
-    // is NaN, so an older build reading a "rt" value falls back to 1.5s).
+    // Player mode + jitter margin, driven by #ms-latency, persisted in
+    // localStorage ("ms.latency" - per-camera since each camera is its own
+    // origin): "0.5"/"1.5"/"3" -> MSE margin, "rt" -> WebCodecs, "whep" -> WebRTC.
+    // An unavailable restored mode self-heals via refreshRtOption()/refreshWhepOption().
     const RT_VALUE = "rt";
+    const WHEP_VALUE = "whep";
     const DEFAULT_MARGIN_S = 1.5;    // unchanged default: the <option selected> above
     // Target buffer margin behind live (seconds), read live by the
     // updateend handler below - changing it while connected takes effect on
@@ -339,11 +364,14 @@
       return (isFinite(n) && n >= 0) ? n : null;
     }
     let targetBehindS = DEFAULT_MARGIN_S;
-    let mode = "mse";                                    // "mse" | "rt"
-    let lastBufferedValue = String(DEFAULT_MARGIN_S);    // margin to return to from rt
+    let mode = "mse";                                    // "mse" | "rt" | "whep"
+    let lastBufferedValue = String(DEFAULT_MARGIN_S);    // margin to return to from rt/whep
+    // True only on a genuinely first visit - gates the WHEP-preferred default below.
+    const hadNoSavedLatencyPref = localStorage.getItem("ms.latency") === null;
     (function readLatencyPref() {
-      const saved = sessionStorage.getItem("ms.latency");
+      const saved = localStorage.getItem("ms.latency");
       if (saved === RT_VALUE) { mode = "rt"; return; }
+      if (saved === WHEP_VALUE) { mode = "whep"; return; }
       const n = parseMargin(saved);
       if (n !== null) { targetBehindS = n; lastBufferedValue = String(n); }
     })();
@@ -357,12 +385,41 @@
                            typeof window.EncodedVideoChunk === "function";
     if (!HAVE_WEBCODECS) {
       if (rtOption) rtOption.remove();
-      if (mode === "rt") { mode = "mse"; sessionStorage.setItem("ms.latency", lastBufferedValue); }
+      if (mode === "rt") { mode = "mse"; localStorage.setItem("ms.latency", lastBufferedValue); }
+    }
+
+    // WebRTC availability, gate 1 of 2: the browser. Everything since ~2018 has
+    // RTCPeerConnection, but an insecure-context or stripped-down engine may
+    // not - and an option that can only ever throw is worse than no option.
+    const whepOption = latencySelect
+      ? latencySelect.querySelector('option[value="' + WHEP_VALUE + '"]') : null;
+    const HAVE_WEBRTC = typeof window.RTCPeerConnection === "function";
+    // Firefox's H.264 decoder is baseline-only (see wiki: WebRTC.md#firefox-interop) -
+    // only Chromium browsers get WHEP as an unprompted default, below.
+    const IS_WEBRTC_DEFAULT_BROWSER = /Chrome\/|Edg\//.test(navigator.userAgent) &&
+                                      !/Firefox\//.test(navigator.userAgent);
+    if (!HAVE_WEBRTC) {
+      if (whepOption) whepOption.remove();
+      if (mode === "whep") { mode = "mse"; localStorage.setItem("ms.latency", lastBufferedValue); }
     }
 
     function syncLatencySelect() {
       if (!latencySelect) return;
-      latencySelect.value = mode === "rt" ? RT_VALUE : String(targetBehindS);
+      latencySelect.value = mode === "rt" ? RT_VALUE
+                          : mode === "whep" ? WHEP_VALUE
+                          : String(targetBehindS);
+    }
+
+    // Kept in sync with mode/targetBehindS by applyModeUi(), plus the
+    // margin-only change path below (same mode, no reconnect).
+    function updateFormatDesc() {
+      if (!formatDesc) return;
+      formatDesc.textContent =
+        mode === "rt"
+          ? "Real-time (WebCodecs): lowest latency without WebRTC. No jitter buffer - a weak link freezes or drops frames instead of smoothing over it. Video only, no audio."
+        : mode === "whep"
+          ? "WebRTC (WHEP): lowest latency, encrypted audio + video over UDP. Needs a direct LAN/VPN path to the camera (no relay/NAT traversal); shares a small pool of concurrent sessions with other viewers."
+          : "Buffered fMP4, " + targetBehindS + "s behind live: tolerates network jitter without stalling, carries audio. Higher margin = more stall-proof, lower = less delay.";
     }
 
     // Show the canvas / hide the <video> (and vice versa). The <video> keeps
@@ -375,6 +432,7 @@
       video.style.visibility = rtOn ? "hidden" : "";
       if (!rtOn) window.msPreviewSize = null;
       syncLatencySelect();
+      updateFormatDesc();
     }
 
     // Audio contract for the real-time path: it decodes VIDEO ONLY (there is
@@ -400,23 +458,30 @@
       syncLatencySelect();
       latencySelect.addEventListener("change", () => {
         const v = latencySelect.value;
-        sessionStorage.setItem("ms.latency", v);
-        const newMode = v === RT_VALUE ? "rt" : "mse";
+        localStorage.setItem("ms.latency", v);
+        const newMode = v === RT_VALUE ? "rt" : v === WHEP_VALUE ? "whep" : "mse";
         if (newMode === "mse") {
           const n = parseMargin(v);
           targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
           lastBufferedValue = String(targetBehindS);
         }
-        if (newMode === mode) return;   // margin-only change: live, no reconnect
+        if (newMode === mode) { updateFormatDesc(); return; }   // margin-only change: live, no reconnect
         mode = newMode;
         rtRetries = 0;
+        whepRetries = 0;
         applyModeUi();
         applyModeAudio();
-        // Swapping the pipeline needs a fresh connection (different consumer of
-        // the same fMP4 stream); while disconnected, just say what will happen
-        // rather than auto-connecting behind a deliberate Disconnect.
+        // Swapping the pipeline needs a fresh connection (a different consumer
+        // of the stream, and for whep a different protocol entirely); while
+        // disconnected, just say what will happen rather than auto-connecting
+        // behind a deliberate Disconnect. stopStream() is also what fires the
+        // DELETE /webrtc/whep/<id> when we are LEAVING whep mode - a session
+        // abandoned here would otherwise hold one of the camera's four slots
+        // until its idle timeout.
         if (running) stopStream("Switching player…").then(() => startStream());
-        else setStatus((newMode === "rt" ? "Real-time player" : "Buffered player") +
+        else setStatus((newMode === "rt" ? "Real-time player"
+                        : newMode === "whep" ? "WebRTC player"
+                        : "Buffered player") +
                        " selected - click Connect.");
       });
     }
@@ -775,11 +840,16 @@
       if (!ok && mode === "rt") {
         mode = "mse";
         targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
-        sessionStorage.setItem("ms.latency", lastBufferedValue);
+        localStorage.setItem("ms.latency", lastBufferedValue);
         applyModeUi();
         applyModeAudio();
         setStatus("Real-time mode is H.264-only - this stream is " +
                   String(vcfg.codec).toUpperCase() + "; using buffered playback.");
+        // setStatus() alone gets overwritten within seconds - toast survives.
+        if (typeof window.showAlert === "function")
+          window.showAlert("warning", "Real-time mode needs H.264; this stream is " +
+                            String(vcfg.codec).toUpperCase() +
+                            ". Falling back to buffered playback.", 12000);
         if (running) stopStream("Switching player…").then(() => startStream());
       }
     }
@@ -797,6 +867,11 @@
         mediaSource = null;
       }
       rtTeardown();
+      // Also the WHEP DELETE: this is the single place every exit from the
+      // WebRTC mode funnels through (Disconnect, mode switch, stream switch,
+      // watchdog reconnect, pagehide), so the camera never keeps a session
+      // slot we abandoned.
+      whepTeardown(reason);
       video.removeAttribute("src");
       try { video.load(); } catch (e) { /* ignore */ }
       setConnectingUi(false);
@@ -960,10 +1035,13 @@
     function rtFallbackToMse(why) {
       mode = "mse";
       targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
-      sessionStorage.setItem("ms.latency", lastBufferedValue);
+      localStorage.setItem("ms.latency", lastBufferedValue);
       if (rtOption) { rtOption.disabled = true; rtOption.title = why; }
       applyModeUi();
       applyModeAudio();
+      // See whepFallbackToMse() for why this needs a toast, not just setStatus().
+      if (typeof window.showAlert === "function")
+        window.showAlert("warning", "Real-time mode: " + why + " Falling back to buffered playback.", 12000);
       stopStream(why + " - switched to buffered playback.").then(() => startStream());
     }
 
@@ -1206,6 +1284,405 @@
       }
     }
 
+    // ===================================================================
+    // WebRTC / WHEP player, the "whep" entry of #ms-latency.
+    //
+    // Nothing here parses media: the browser's own RTCPeerConnection does
+    // ICE + DTLS-SRTP + depacketise + decode, and the decoded stream is
+    // attached to the SAME <video id="ms-video"> the MSE path uses (via
+    // .srcObject instead of .src - see whepTeardown() for why that has to be
+    // cleared again). What this code owns is the signalling and the lifecycle:
+    //
+    //   POST   {base}/webrtc/whep      offer SDP  -> 201 + answer SDP + Location
+    //   DELETE {Location}                         -> 200, session slot freed
+    //
+    // exactly the contract src/mp4/httpd.c implements, no more. {base} comes
+    // from timpsScheme() like every other fetch on this page: the signalling
+    // is an ordinary cross-origin fetch() and is bound by mixed content and by
+    // the self-signed-cert problem just like /stream.mp4 is. The MEDIA is not
+    // - SRTP over a peer connection is exempt from the mixed-content rule -
+    // so this mode is the one that could eventually work from an https:// UI.
+    // ===================================================================
+
+    const WHEP_MAX_RETRIES = 5;
+    let whep = null;                // active peer-connection state, or null
+    let whepRetries = 0;            // consecutive reconnect attempts
+    let whepTokenRefreshed = false; // one token renewal per healthy run
+
+    // What a 426 from /webrtc/whep actually means, in one sentence, in the two
+    // places that have to say it (the option's tooltip and the status line).
+    const WHEP_TLS_HINT =
+      "This camera requires HTTPS for WebRTC signalling (webrtc.enabled=1) - " +
+      "open this page over https:// to use WebRTC.";
+
+    // WebRTC availability, gate 2 of 2: the DAEMON. GET /control carries no
+    // caps.webrtc field today - every other optional subsystem has one
+    // (caps.record, caps.backchannel, caps.play, caps.motion) - so the only
+    // honest signal is the endpoint itself. A bare GET is a CORS-simple
+    // request: no preflight, no session created, and src/mp4/httpd.c answers
+    // it with a status code that says precisely what we need:
+    //
+    //   405  endpoint live and reachable over this scheme  -> offer it
+    //   426  compiled and enabled, but plaintext signalling is refused here
+    //        (webrtc.enabled=1 with TLS configured on the port) -> offer it,
+    //        but label WHY it will not connect from an http:// page
+    //   503  compiled in, but webrtc.enabled=0              -> keep it, disabled
+    //   404  USE_WEBRTC=0 (or some other unavailability)    -> remove it
+    //   403  nothing we sent authenticated                  -> leave it alone
+    //
+    // Deliberately status-code-based: the response BODIES ("disabled" /
+    // "not found") are not a contract and must not be parsed.
+    // Returns the status code (-1 if unreachable) so callers can react to it.
+    async function refreshWhepOption() {
+      if (!HAVE_WEBRTC || !whepOption || !latencySelect) return -1;
+      let code = 0;
+      try {
+        const { base: b, tok } = await endpoint();
+        // ?token= here, not the header: a custom header would make even this
+        // probe a preflighted request. The POST below uses the header instead,
+        // where a preflight is unavoidable anyway.
+        const r = await fetch(b + "/webrtc/whep" + (tok ? "?" + tok.slice(1) : ""),
+                              { cache: "no-store" });
+        code = r.status;
+      } catch (e) {
+        // Unreachable daemon / blocked fetch: leave the option exactly as it
+        // is rather than yanking it out from under the user - the same rule
+        // refreshRtOption() follows for an unreachable /control.
+        console.warn("[preview] whep probe failed:",
+                     e && e.message ? e.message : e);
+        return -1;
+      }
+      console.info("[preview] whep probe: HTTP " + code);
+      if (code === 404) {
+        if (whepOption) whepOption.remove();
+        if (mode === "whep")
+          whepFallbackToMse("This camera has no WebRTC/WHEP endpoint", true);
+        return code;
+      }
+      if (code === 503) {
+        whepOption.disabled = true;
+        whepOption.title = "WebRTC is built into this camera but turned off " +
+                           "(webrtc.enabled=0)";
+        if (mode === "whep")
+          whepFallbackToMse("WebRTC is turned off on this camera (webrtc.enabled=0)", true);
+        return code;
+      }
+      if (code === 403) return code;  // auth, not capability - say nothing
+      whepOption.disabled = false;
+      whepOption.title = code === 426 ? WHEP_TLS_HINT
+        : "Browser-native WebRTC; streams whichever channel webrtc.channel " +
+          "names in timps.conf (the main/sub selector does not apply)";
+      return code;
+    }
+
+    // Leave the WebRTC path for the buffered one, keeping the select, the
+    // persisted preference and the audio state consistent - the whep twin of
+    // rtFallbackToMse(). `permanent` disables the option for the rest of the
+    // page's life (a verdict that cannot change without reconfiguring the
+    // camera); a 426 or a transport hiccup is NOT permanent, since reloading
+    // this page over https:// fixes it.
+    function whepFallbackToMse(why, permanent) {
+      mode = "mse";
+      const n = parseMargin(lastBufferedValue);
+      targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
+      localStorage.setItem("ms.latency", lastBufferedValue);
+      if (whepOption && permanent) { whepOption.disabled = true; whepOption.title = why; }
+      applyModeUi();
+      applyModeAudio();
+      console.warn("[preview] whep: " + why);
+      // The reason has to go somewhere that SURVIVES: setStatus() here would be
+      // overwritten within a second or two by the buffered player's own
+      // "Connecting…"/"Connected" line, leaving the user with a mode that
+      // silently snapped back and no explanation. The WebUI's own toast is the
+      // existing durable surface for exactly that, so use it.
+      if (typeof window.showAlert === "function")
+        window.showAlert("warning", "WebRTC: " + why + " Falling back to buffered playback.", 12000);
+      stopStream(why + " - switched to buffered playback.").then(() => startStream());
+    }
+
+    // The one predictable, fully-understood signalling failure, given its own
+    // path because a raw "HTTP 426" tells a user nothing actionable.
+    // webrtc.enabled=1 means timps refuses a PLAINTEXT WHEP POST wherever TLS
+    // is configured on its port: the offer carries the DTLS fingerprint we are
+    // held to and the answer carries our ICE password, so a rewritable
+    // exchange hands over the whole session. timpsScheme() was RIGHT to pick
+    // http:// here (this page is http://, and an https:// subresource fetch
+    // would die on the camera's self-signed cert with no interstitial to click
+    // through) - the fix is at the page level, not the fetch level. Note this
+    // is not the mixed-content limitation in the header comment above: WebRTC
+    // media is exempt from that, only this signalling fetch has a scheme.
+    function whepTlsRequired() {
+      const httpsUrl = "https://" + host + location.pathname;
+      const msg = WHEP_TLS_HINT + " Try " + httpsUrl;
+      if (whepOption) whepOption.title = WHEP_TLS_HINT;
+      whepFallbackToMse(msg, false);   // raises the toast that carries `msg`
+    }
+
+    // WHEP teardown. keepalive is what lets the DELETE survive the page going
+    // away, which is the whole point on pagehide: without it a closing tab
+    // leaves the camera holding one of its four session slots until the idle
+    // timeout. sendBeacon cannot be used here - it only does POST.
+    function whepDelete(resource, token, why) {
+      if (!resource) return;
+      console.info("[preview] whep: DELETE " + resource + " (" + why + ")");
+      try {
+        fetch(resource, {
+          method: "DELETE",
+          keepalive: true,
+          cache: "no-store",
+          headers: token ? { "X-Timps-Token": token } : {}
+        }).then((r) => console.info("[preview] whep: DELETE -> " + r.status))
+          .catch((e) => console.warn("[preview] whep: DELETE failed:", e));
+      } catch (e) { console.warn("[preview] whep: DELETE threw:", e); }
+    }
+
+    // Called from stopStream(), so it runs on EVERY exit from this mode:
+    // Disconnect, stream/mode switch, watchdog reconnect and pagehide alike.
+    function whepTeardown(why) {
+      if (!whep) return;
+      const st = whep;
+      whep = null;
+      st.dead = true;
+      if (st.statsTimer) { clearInterval(st.statsTimer); st.statsTimer = null; }
+      whepDelete(st.resource, st.token, why || "teardown");
+      st.resource = null;
+      if (st.pc) { try { st.pc.close(); } catch (e) { /* ignore */ } st.pc = null; }
+      // Hand the <video> back to the MSE path. A live srcObject takes
+      // precedence over .src, so leaving it set here would black out every
+      // buffered reconnect from this point on.
+      try { video.srcObject = null; } catch (e) { /* ignore */ }
+    }
+
+    async function startWhepStream(mySession) {
+      const { base: b } = await endpoint();
+      if (session !== mySession) return;
+      const info = await window.timpsTokenInfo;
+      if (session !== mySession) return;
+      const token = info && info.token ? info.token : "";
+
+      const st = {
+        dead: false, pc: null, resource: null, token: token, statsTimer: null,
+        bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0
+      };
+      whep = st;
+
+      // Same shape and the same budget discipline as the rt/mse paths: an
+      // exhausted budget parks the player with a Connect prompt rather than
+      // hammering the camera, and the progress watchdog may still retry later.
+      function scheduleWhepReconnect(msg) {
+        if (st.dead || session !== mySession) return;
+        whepTeardown("reconnect");
+        running = false;
+        if (whepRetries >= WHEP_MAX_RETRIES) {
+          reconnectPending = false;
+          setConnectedUi(false);
+          setConnectingUi(false);
+          setStatus(msg + " - gave up after " + WHEP_MAX_RETRIES +
+                    " attempts. Click Connect to retry.");
+          console.warn("[preview] whep: gave up after " + WHEP_MAX_RETRIES +
+                       " attempts (" + msg + ") - watchdog may still retry later");
+          return;
+        }
+        const delay = Math.min(8000, 500 * Math.pow(2, whepRetries));
+        whepRetries++;
+        reconnectPending = true;
+        setStatus(msg + " - reconnecting in " + (delay / 1000).toFixed(1) +
+                  "s (attempt " + whepRetries + "/" + WHEP_MAX_RETRIES + ")…");
+        console.warn("[preview] whep: " + msg + " - retry " + whepRetries + "/" +
+                     WHEP_MAX_RETRIES + " in " + delay + "ms");
+        setTimeout(() => {
+          if (session !== mySession || mode !== "whep") return;
+          reconnectPending = false;
+          startStream();
+        }, delay);
+      }
+
+      let pc;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });   // ICE-lite peer: no STUN needed
+      } catch (e) {
+        whepFallbackToMse("This browser refused to create an RTCPeerConnection", true);
+        return;
+      }
+      st.pc = pc;
+      pc.addTransceiver("video", { direction: "recvonly" });
+      // Always offer audio: where timps's hub codec is not G.711 the daemon
+      // answers that m-section with port 0 and the browser simply gets no
+      // audio track. Offering costs nothing and is the only way to get audio
+      // at all when the camera IS muxing pcmu/pcma.
+      pc.addTransceiver("audio", { direction: "recvonly" });
+
+      pc.ontrack = (e) => {
+        if (st.dead || session !== mySession) return;
+        if (!video.srcObject) video.srcObject = new MediaStream();
+        video.srcObject.addTrack(e.track);
+        if (e.track.kind === "audio") st.audio = true;
+        console.info("[preview] whep: ontrack " + e.track.kind);
+        // srcObject does not autoplay on its own in every browser; the click
+        // on Connect is the gesture that makes this allowed when unmuted.
+        try { const p = video.play(); if (p) p.catch(() => { /* autoplay policy */ }); }
+        catch (err) { /* ignore */ }
+      };
+      pc.onconnectionstatechange = () => {
+        if (st.dead || session !== mySession) return;
+        const s = pc.connectionState;
+        console.info("[preview] whep: connectionState=" + s);
+        if (s === "connected") { whepRetries = 0; setConnectedUi(true); noteProgress(); }
+        else if (s === "failed")
+          scheduleWhepReconnect("WebRTC connection failed (ICE/DTLS)");
+        else if (s === "disconnected")
+          // "disconnected" is transient by definition and usually recovers on
+          // its own, so it is reported but not acted on: the progress watchdog
+          // below judges it on real data (WD_STALL_MS) instead.
+          setStatus("WebRTC (WHEP) · link interrupted, waiting…");
+      };
+      pc.oniceconnectionstatechange = () =>
+        console.info("[preview] whep: iceConnectionState=" + pc.iceConnectionState);
+
+      let offer;
+      try {
+        offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        scheduleWhepReconnect("Could not build a WebRTC offer: " +
+                              (e && e.message ? e.message : e));
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+
+      const url = b + "/webrtc/whep";
+      const headers = { "Content-Type": "application/sdp" };
+      // The token goes in a HEADER, never in the URL: application/sdp is not a
+      // CORS-simple content type, so this request is preflighted either way and
+      // the credential never has to appear in a link, a history entry or a
+      // screenshot. httpd.c accepts X-Timps-Token and lists it in
+      // Access-Control-Allow-Headers, so the preflight passes.
+      if (token) headers["X-Timps-Token"] = token;
+
+      let res;
+      console.info("[preview] whep: POST " + url + " (" + offer.sdp.length + " byte offer)");
+      try {
+        res = await fetch(url, { method: "POST", headers: headers,
+                                 body: offer.sdp, cache: "no-store" });
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        // A POST that never reaches the daemon. An https:// page hitting the
+        // camera's self-signed cert, a blocked mixed-content fetch and a dead
+        // daemon are indistinguishable from here, so name all three.
+        whepFallbackToMse("WebRTC signalling could not reach " + url + " (" +
+          (e && e.message ? e.message : e) +
+          ") - camera down, blocked mixed content, or an untrusted camera " +
+          "certificate.", false);
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+      const answer = await res.text().catch(() => "");
+      if (st.dead || session !== mySession) return;
+
+      if (res.status !== 201) {
+        console.warn("[preview] whep: signalling -> HTTP " + res.status + " " + answer);
+        // A 401 right here is what a timpsd restart looks like: the per-boot
+        // token we hold is the previous boot's. Same one-shot renewal the
+        // rt/mse paths do.
+        if (res.status === 401 && !whepTokenRefreshed) {
+          whepTokenRefreshed = true;
+          controlCache = null;
+          refreshTimpsToken();
+          whepRetries = 0;                 // new failure class, fresh budget
+          scheduleWhepReconnect("WebRTC token expired (timps restarted?) - renewing");
+          return;
+        }
+        if (res.status === 426) { whepTlsRequired(); return; }
+        if (res.status === 404) {
+          whepFallbackToMse("This camera's timps serves no WebRTC/WHEP endpoint " +
+                            "(USE_WEBRTC=0, or webrtc.enabled=0)", true);
+          return;
+        }
+        if (res.status === 400) {
+          // webrtc.c 400s an offer it cannot answer - in practice because the
+          // channel webrtc.channel names is not H.264.
+          whepFallbackToMse("The camera rejected the WebRTC offer - the stream " +
+                            "webrtc.channel names must be H.264", true);
+          return;
+        }
+        if (res.status === 403) {
+          whepFallbackToMse("timps refused the WebRTC session (no valid token " +
+                            "for /webrtc/whep)", false);
+          return;
+        }
+        if (res.status === 503) {
+          scheduleWhepReconnect("All WebRTC sessions on this camera are in use");
+          return;
+        }
+        if (res.status >= 500) {
+          scheduleWhepReconnect("WebRTC signalling failed: HTTP " + res.status);
+          return;
+        }
+        whepFallbackToMse("WebRTC signalling failed: HTTP " + res.status + " " +
+                          res.statusText, false);
+        return;
+      }
+
+      // Location is relative ("/webrtc/whep/<id>") - resolve it against the
+      // CAMERA, not against the page serving this file.
+      const loc = res.headers.get("Location");
+      if (loc) { try { st.resource = new URL(loc, b + "/").href; } catch (e) { /* ignore */ } }
+      if (!st.resource)
+        console.warn("[preview] whep: 201 without a usable Location - teardown " +
+                     "will have to rely on the camera's idle timeout");
+
+      try {
+        await pc.setRemoteDescription({ type: "answer", sdp: answer });
+      } catch (e) {
+        if (st.dead || session !== mySession) return;
+        scheduleWhepReconnect("The camera's WebRTC answer was rejected: " +
+                              (e && e.message ? e.message : e));
+        return;
+      }
+      if (st.dead || session !== mySession) return;
+      setConnectedUi(true);
+      noteProgress();
+      setStatus("WebRTC (WHEP) · negotiating… (stream selected by webrtc.channel " +
+                "on the camera, not by the selector above)");
+
+      // Stats poll: doubles as the watchdog's liveness signal. bytesReceived
+      // climbing is the one fact that cannot lie about a wedged peer
+      // connection, and it is the WebRTC equivalent of the reader loops'
+      // noteProgress() on every chunk.
+      st.statsTimer = setInterval(async () => {
+        if (st.dead || session !== mySession) return;
+        let report;
+        try { report = await pc.getStats(); } catch (e) { return; }
+        if (st.dead || session !== mySession) return;
+        let v = null, a = null, tr = null;
+        report.forEach((r) => {
+          if (r.type === "inbound-rtp" && r.kind === "video") v = r;
+          else if (r.type === "inbound-rtp" && r.kind === "audio") a = r;
+          else if (r.type === "transport") tr = r;
+        });
+        const bytes = (v ? v.bytesReceived || 0 : 0) + (a ? a.bytesReceived || 0 : 0);
+        if (bytes > st.bytes) { st.bytes = bytes; noteProgress(); }
+        if (!v) return;
+        const now = performance.now();
+        let rate = "";
+        if (st.lastBytes >= 0 && now > st.lastAt)
+          rate = " · " + formatKbps((bytes - st.lastBytes) * 8 / (now - st.lastAt));
+        st.lastBytes = bytes; st.lastAt = now;
+        const w = v.frameWidth || 0, h = v.frameHeight || 0;
+        if (w && h) { st.w = w; st.h = h; }
+        const dtls = tr && tr.dtlsState && tr.dtlsState !== "connected"
+                   ? " · dtls " + tr.dtlsState : "";
+        setStatus("WebRTC (WHEP)" +
+                  (st.w ? " · " + st.w + "x" + st.h : "") +
+                  (v.framesPerSecond ? " · " + Math.round(v.framesPerSecond) + " fps" : "") +
+                  rate +
+                  (st.audio ? " · G.711 audio" : " · no audio") +
+                  (v.packetsLost ? " · lost " + v.packetsLost : "") +
+                  dtls);
+      }, 1000);
+    }
+
     // Port of timps's embedded MSE player (src/mp4/httpd.c PLAYER_TAIL):
     // sequence mode, append queue with pump(), eviction of data >10 s behind
     // playback, live-edge jump when drifting >6 s behind.
@@ -1220,6 +1697,7 @@
       applyModeUi();
       applyModeAudio();
       if (mode === "rt") return startRtStream(mySession);
+      if (mode === "whep") return startWhepStream(mySession);
       return startMseStream(forceVideoOnly, mySession);
     }
 
@@ -1448,6 +1926,15 @@
       // main and sub can run different codecs, so the real-time gate is
       // per-channel; this may also bounce an active rt session back to MSE
       refreshRtOption();
+      // WebRTC ignores this selector entirely - the channel it carries is
+      // webrtc.channel in timps.conf - so tearing a working peer connection
+      // down here would cost a reconnect and change nothing. Say so instead.
+      if (mode === "whep") {
+        setStatus("WebRTC streams the channel webrtc.channel names on the " +
+                  "camera; the main/sub selector applies to the buffered and " +
+                  "real-time players only.");
+        return;
+      }
       if (running) {
         stopStream("Switching stream...").then(() => startStream());
       }
@@ -1456,7 +1943,7 @@
     connectButton.addEventListener("click", () => {
       // wantStream is the watchdog's "should anything be playing at all?"
       // question: a deliberate Disconnect must not be undone 30s later.
-      if (running) { wantStream = false; rtRetries = 0; mseRetries = 0; stopStream(); }
+      if (running) { wantStream = false; rtRetries = 0; mseRetries = 0; whepRetries = 0; stopStream(); }
       // An explicit Connect deserves a fresh budget: without this, a click on
       // the "gave up after 5 attempts" dead end reuses the exhausted counter
       // and gives up again after a single try, reporting "5 attempts" for one.
@@ -1469,6 +1956,7 @@
         wantStream = true;
         rtRetries = 0; rtTokenRefreshed = false;
         mseRetries = 0; mseTokenRefreshed = false;
+        whepRetries = 0; whepTokenRefreshed = false;
         startStream();
       }
     });
@@ -1520,6 +2008,7 @@
       // budget and give up again after a single try.
       rtRetries = 0; rtTokenRefreshed = false;
       mseRetries = 0; mseTokenRefreshed = false;
+      whepRetries = 0; whepTokenRefreshed = false;
       console.info("[preview] " + tag + ": reconnecting");
       startStream().catch((err) => {
         console.warn("[preview] " + tag + ": reconnect failed:", err);
@@ -1530,7 +2019,12 @@
     window.addEventListener("pagehide", () => {
       stopWatchdog();
       if (running) stopStream();
+      else whepTeardown("pagehide");   // e.g. after a give-up, pc still open
     });
+    // beforeunload as well as pagehide: the two fire in different orders (and
+    // not always both) across browsers, and the keepalive DELETE is idempotent
+    // - whepTeardown() nulls the resource, so the second call is a no-op.
+    window.addEventListener("beforeunload", () => whepTeardown("beforeunload"));
     window.addEventListener("pageshow", () => {
       startWatchdog();
       resumeCheck("pageshow", true);
@@ -1554,6 +2048,7 @@
       // Whatever budget the wedged attempt burned says nothing about this one.
       rtRetries = 0; rtTokenRefreshed = false;
       mseRetries = 0; mseTokenRefreshed = false;
+      whepRetries = 0; whepTokenRefreshed = false;
       // stopStream() bumps `session` (cancelling any armed retry), aborts the
       // fetch - which is also what finally frees the socket timps still counts
       // against http_max_clients - and clears `running` so startStream() runs.
@@ -1622,13 +2117,27 @@
 
     streamSelect.value = defaultStream === "1" ? "1" : "0";
     setConnectedUi(false);
-    applyModeUi();
-    refreshRtOption();     // async; may disable "rt" once /control answers
-    startWatchdog();
-    startStream().catch((err) => {
-      console.warn("[preview] auto-connect failed:", err);
-      setStatus("Auto-connect failed. Click Connect to try again.");
-    });
+
+    // First-ever visit: prefer WHEP over the 1.5s default, but only when the
+    // browser is Chromium and the probe confirms it would connect now (405).
+    (async () => {
+      if (hadNoSavedLatencyPref && HAVE_WEBRTC && IS_WEBRTC_DEFAULT_BROWSER) {
+        const code = await refreshWhepOption();
+        if (code === 405) {
+          mode = "whep";
+          localStorage.setItem("ms.latency", WHEP_VALUE);
+        }
+      } else {
+        refreshWhepOption();   // async; may disable/remove "whep" once the probe answers
+      }
+      applyModeUi();
+      refreshRtOption();       // async; may disable "rt" once /control answers
+      startWatchdog();
+      startStream().catch((err) => {
+        console.warn("[preview] auto-connect failed:", err);
+        setStatus("Auto-connect failed. Click Connect to try again.");
+      });
+    })();
   })();
 </script>
 <script src="/a/preview-motion.js"></script>

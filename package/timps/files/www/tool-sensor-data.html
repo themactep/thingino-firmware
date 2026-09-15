@@ -41,19 +41,19 @@
       text-align: center;
     }
 
-    .stat-card.ev .stat-value {
+    .stat-card.exposure .stat-value {
       color: #FF6384;
     }
 
-    .stat-card.total_gain .stat-value {
+    .stat-card.gain .stat-value {
       color: #36A2EB;
     }
 
-    .stat-card.ae_luma .stat-value {
+    .stat-card.luma .stat-value {
       color: #FFCE56;
     }
 
-    .stat-card.daynight_brightness .stat-value {
+    .stat-card.bright .stat-value {
       color: #B8FF4D;
     }
 
@@ -130,6 +130,13 @@
               </div>
               <button id="export-json" class="btn btn-sm btn-outline-secondary">Export JSON</button>
               <button id="export-csv" class="btn btn-sm btn-outline-secondary">Export CSV</button>
+            </div>
+            <div class="form-check form-switch mt-2">
+              <input type="checkbox" id="bg-collect" role="switch" class="form-check-input">
+              <label class="form-check-label small" for="bg-collect">
+                Collect in background
+                <span class="text-secondary" id="bg-collect-note">— let the camera record whether or not this page is open</span>
+              </label>
             </div>
           </div>
         </div>
