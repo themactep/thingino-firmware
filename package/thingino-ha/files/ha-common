@@ -61,7 +61,7 @@ _ha_mqtt_cfg() {
 
 # Entities the integration knows about. Their enable flags are memoized
 # into exported HA_EN_<entity> variables by the environment block below.
-HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light gain rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
+HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light floodlight gain rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
 
 ha_entity_enabled() {
 	local flag
@@ -72,6 +72,32 @@ ha_entity_enabled() {
 		return
 	fi
 	[ "1" = "$flag" ]
+}
+
+# Wyze Floodlight v1 is controlled by floodlight_ctl over its internal USB
+# serial interface. The controller does not provide a state-query command;
+# floodlight_ctl records the last requested state under /var/run.
+HA_FLOODLIGHT_CTL="${HA_FLOODLIGHT_CTL:-/usr/sbin/floodlight_ctl}"
+HA_FLOODLIGHT_STATE_FILE="${HA_FLOODLIGHT_STATE_FILE:-/var/run/floodlight.status}"
+HA_FLOODLIGHT_BRIGHTNESS_FILE="${HA_FLOODLIGHT_BRIGHTNESS_FILE:-/var/run/floodlight.brightness}"
+
+ha_floodlight_available() {
+	[ -x "$HA_FLOODLIGHT_CTL" ] || return 1
+	[ -c /dev/ttyUSB0 ] || [ -c /dev/ttyUSB1 ]
+}
+
+ha_floodlight_state() {
+	[ -f "$HA_FLOODLIGHT_STATE_FILE" ] || return 1
+	IFS= read -r _state <"$HA_FLOODLIGHT_STATE_FILE" || return 1
+	case "$_state" in ON | OFF) printf '%s' "$_state" ;; *) return 1 ;; esac
+}
+
+ha_floodlight_brightness() {
+	[ -f "$HA_FLOODLIGHT_BRIGHTNESS_FILE" ] || return 1
+	IFS= read -r _brightness <"$HA_FLOODLIGHT_BRIGHTNESS_FILE" || return 1
+	case "$_brightness" in '' | *[!0-9]*) return 1 ;; esac
+	[ "$_brightness" -ge 1 ] && [ "$_brightness" -le 100 ] || return 1
+	printf '%s' "$_brightness"
 }
 
 # ---------------------------------------------------------------------------

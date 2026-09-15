@@ -45,6 +45,7 @@ Within a few seconds HA will show a new device containing all enabled entities.
 | `enable_daynight` | `true` | Select: day / night mode |
 | `enable_privacy` | `true` | Switch: privacy screen |
 | `enable_color` | `true` | Switch: color vs monochrome |
+| `enable_floodlight` | `false` | Light: Wyze Floodlight v1 with on/off and 1–100% brightness |
 | `enable_ir850` | `true` | Switch: 850 nm IR LED |
 | `enable_ir940` | `true` | Switch: 940 nm IR LED |
 | `enable_white_light` | `true` | Switch: white light |
@@ -69,6 +70,20 @@ jct /etc/thingino.json set ha.enable_reboot false
 jct /etc/thingino.json set ha.enable_ptz true   # enable PTZ buttons
 ```
 
+## Wyze Floodlight v1
+
+Floodlight control is available only on Wyze Floodlight v1 builds that include
+`/usr/sbin/floodlight_ctl`. Enable the Home Assistant light entity with:
+
+```sh
+jct /etc/thingino.json set ha.enable_floodlight true
+/etc/init.d/S93ha restart
+```
+
+Home Assistant discovers it as a **Light** entity with on/off and 1–100%
+brightness control. The reported state and brightness are the last commands
+sent to the controller; the Floodlight v1 accessory board does not report the
+physical lamp state.
 
 ## MQTT topic layout
 
@@ -91,6 +106,8 @@ swaps.
 | White Light | `cameras/<id>/white/state` | `cameras/<id>/white/set` |
 | Firmware version | `cameras/<id>/firmware_version/state` | — |
 | Firmware build | `cameras/<id>/firmware_timestamp/state` | — |
+| Floodlight | `cameras/<id>/floodlight/state` | (`on` / `off`) |
+| Floodlight Brightness | `cameras/<id>/floodlight_brightness/set` | (0-100) |
 | Gain | `cameras/<id>/gain/state` | — |
 | WiFi RSSI | `cameras/<id>/rssi/state` | — |
 | Snapshot | — | `cameras/<id>/snapshot/set` |
@@ -104,6 +121,8 @@ swaps.
 ## Accepted command payloads
 
 - **Switches**: `on` / `off` (also accepts `ON`/`OFF`, `1`/`0`)
+- **Floodlight**: `on` / `off`; send an integer from `1` to `100` to its
+  brightness command topic
 - **Day/Night select**: `day` / `night` / `toggle`
 - **Snapshot / reboot / PTZ buttons**: `1`
 - **Firmware install**: `install`
