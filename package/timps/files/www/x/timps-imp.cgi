@@ -19,13 +19,16 @@
 require_auth
 
 # derive timps's HTTP port + scheme from the config (http.port / http.https),
-# fall back to 8880/http. When http.https is set timps serves TLS-only on that
-# port, so this localhost bridge must use https + curl -k or every POST fails.
+# fall back to 8880/http. http.https is a tri-state since timps v1.9.11:
+# 0 = plaintext, 1 = http and https together on the one port, 2 = TLS only
+# (plaintext gets a 426). Both on-values speak https, so this localhost bridge
+# uses https + curl -k for either - on 2 anything else gets the 426 and every
+# POST fails.
 TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
 [ -z "$TIMPS_PORT" ] && TIMPS_PORT=8880
-TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
+TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1 | tr '[:upper:]' '[:lower:]')
 case "$TIMPS_HTTPS" in
-	1 | true | yes | on)
+	1 | 2 | true | yes | on)
 		TIMPS_SCHEME=https
 		TIMPS_CURL_K="-k"
 		;;
