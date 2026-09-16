@@ -81,38 +81,78 @@
     return out;
   }
 
-  function appendSegment(buf, mySession) {
+  // Seconds of already-played media to keep behind the playhead. Everything
+  // older is removed; without this the SourceBuffer grows for the whole
+  // session and the tab eventually runs out of memory.
+  const KEEP_BEHIND_S = 10;
+  // If playback falls this far behind the live edge, jump back to it.
+  const MAX_AHEAD_S = 20;
+  const UPDATE_TIMEOUT_MS = 5000;
+
+  // Resolve once the SourceBuffer has no pending operation. The listeners are
+  // always torn down, including error/abort, which otherwise never fire and
+  // keep the closure (and the appended segment) alive forever.
+  function waitIdle(sb) {
+    return new Promise((resolve) => {
+      let timer = null;
+      const done = () => {
+        sb.removeEventListener("updateend", done);
+        sb.removeEventListener("error", done);
+        sb.removeEventListener("abort", done);
+        if (timer !== null) {
+          window.clearTimeout(timer);
+          timer = null;
+        }
+        resolve();
+      };
+      sb.addEventListener("updateend", done);
+      sb.addEventListener("error", done);
+      sb.addEventListener("abort", done);
+      timer = window.setTimeout(done, UPDATE_TIMEOUT_MS);
+    });
+  }
+
+  async function appendSegment(buf, mySession) {
     const sb = sourceBuffer;
     const ms = mediaSource;
-    return new Promise((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (!settled) {
-          settled = true;
-          resolve();
-        }
-      };
-      const tryAppend = () => {
-        if (mySession !== sessionId || !sb || !ms || ms.readyState !== "open") {
-          done();
-          return;
-        }
-        if (sb.updating) {
-          sb.addEventListener("updateend", tryAppend, { once: true });
-          return;
-        }
-        sb.addEventListener("updateend", done, { once: true });
-        sb.addEventListener("error", done, { once: true });
-        sb.addEventListener("abort", done, { once: true });
-        window.setTimeout(done, 5000);
-        try {
-          sb.appendBuffer(buf);
-        } catch (e) {
-          done();
-        }
-      };
-      tryAppend();
-    });
+    if (mySession !== sessionId || !sb || !ms || ms.readyState !== "open")
+      return;
+    while (sb.updating) {
+      await waitIdle(sb);
+      if (mySession !== sessionId) return;
+    }
+    try {
+      sb.appendBuffer(buf);
+    } catch (e) {
+      return;
+    }
+    await waitIdle(sb);
+  }
+
+  async function trimBuffer(mySession) {
+    const sb = sourceBuffer;
+    const ms = mediaSource;
+    if (mySession !== sessionId || !sb || !ms || ms.readyState !== "open")
+      return;
+    while (sb.updating) {
+      await waitIdle(sb);
+      if (mySession !== sessionId) return;
+    }
+    if (sb.buffered.length === 0) return;
+    const start = sb.buffered.start(0);
+    const end = sb.buffered.end(sb.buffered.length - 1);
+    const keep = video.currentTime - KEEP_BEHIND_S;
+    if (keep > start) {
+      try {
+        sb.remove(start, keep);
+        await waitIdle(sb);
+      } catch (e) {
+        /* keep going; a failed trim must not kill the stream */
+      }
+    }
+    if (end - video.currentTime > MAX_AHEAD_S) {
+      video.currentTime = end - 0.5;
+    }
   }
 
   function teardown() {
@@ -198,7 +238,7 @@
             return;
           }
           await appendSegment(buf.subarray(0, moovEnd).slice(), mySession);
-          buf = buf.subarray(moovEnd);
+          buf = buf.slice(moovEnd);
           initDone = true;
           setStatus("Live: /ch" + ch + ".mp4");
         }
@@ -219,12 +259,14 @@
             const segEnd = off + box.size + mdat.size;
             await appendSegment(buf.subarray(off, segEnd).slice(), mySession);
             if (mySession !== sessionId) return;
+            await trimBuffer(mySession);
+            if (mySession !== sessionId) return;
             off = segEnd;
           } else {
             off += box.size;
           }
         }
-        buf = buf.subarray(off);
+        buf = buf.slice(off);
       }
       if (mySession === sessionId) setStatus("Stream ended.");
     } catch (e) {
