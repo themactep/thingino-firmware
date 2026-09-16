@@ -9,9 +9,11 @@
  * Two things keep that workable for a folder holding thousands of frames:
  *   - only the frame NAMES are fetched up front (one CGI call per folder, no
  *     per-file stat on the camera), never the images;
- *   - the images are pulled one at a time, with a LOOKAHEAD-frame prefetch
- *     into the browser's HTTP cache (the CGI marks shots immutable, so the
- *     src swap that follows is a cache hit, not a second trip to the SD card).
+ *   - the images are pulled ahead of the playhead by a LOOKAHEAD-frame
+ *     prefetch into the browser's HTTP cache (the CGI marks shots immutable,
+ *     so the src swap that follows is a cache hit, not a second trip to the
+ *     SD card), throttled to MAX_INFLIGHT concurrent camera requests so a
+ *     deep window doesn't burst the whole thing at once.
  * Nothing is ever held in the DOM except the single <img> being shown.
  *
  * Dependency-free, same shape as a/recordings.js. */
@@ -21,7 +23,14 @@
   if (!document.body || document.body.id !== "page-timelapse-player") return;
 
   var CGI = "/x/json-timelapse.cgi";
-  var LOOKAHEAD = 3;       // frames prefetched ahead of the one on screen
+  var LOOKAHEAD = 8;       // frames prefetched ahead of the one on screen -
+                           // deep enough to ride out a slow/late frame
+                           // without the playhead catching up to the fetch
+  var MAX_INFLIGHT = 4;    // cap on concurrent prefetch requests: each one
+                           // forks auth.sh plus a handful of busybox tools on
+                           // the camera, so bursting the whole LOOKAHEAD
+                           // window out at once (cold start, a big scrub)
+                           // would spike its CPU for nothing
   var MIN_DELAY_MS = 20;   // ceiling of ~50 fps, whatever the select says
   // Whole-day playback stitches one day's hour folders together by asking the
   // per-folder endpoint for each of them. Kept to the same in-flight budget as
@@ -58,6 +67,9 @@
   var playing = false;
   var timer = null;
   var prefetched = {}; // idx -> Image, kept only as a sliding window
+  var pfWanted = {};   // idx -> true, this call's lookahead window
+  var pfQueue = [];    // idx queue waiting for a free MAX_INFLIGHT slot
+  var pfInflight = 0;
   var intervalS = 0;   // timelapse.interval_s, for the "x real time" hint
   var hintExtra = "";  // day-mode note appended to the speed hint (skipped folders)
   var loadGen = 0;     // bumped per pick, so a slow load can't land after a newer one
@@ -144,28 +156,56 @@
     return Math.max(MIN_DELAY_MS, Math.round(1000 / fps()));
   }
 
-  // Warm the browser cache for the next few frames. References are dropped
-  // as the window slides, so at most LOOKAHEAD decoded images are held alive;
-  // the cached HTTP responses outlive them, which is the point.
+  // Pull queued indices into flight, MAX_INFLIGHT at a time. Re-entered from
+  // each load's onload/onerror as a slot frees up, and from prefetch() below
+  // whenever the window moves.
+  function pumpPrefetch() {
+    while (pfInflight < MAX_INFLIGHT && pfQueue.length) {
+      (function (i) {
+        if (prefetched[i] || !pfWanted[i]) return; // settled or fell out of window already
+        pfInflight++;
+        var im = new Image();
+        im.onload = im.onerror = function () {
+          pfInflight--;
+          // The window may have moved on by the time this settles - if so,
+          // this load only ever existed to warm the browser's HTTP cache;
+          // release our own reference to it now rather than leaving that to
+          // prefetch()'s eviction sweep, which only reaps COMPLETED loads.
+          if (prefetched[i] === im && !pfWanted[i]) delete prefetched[i];
+          pumpPrefetch();
+        };
+        im.src = frameUrl(i);
+        prefetched[i] = im;
+      })(pfQueue.shift());
+    }
+  }
+
+  // Warm the browser cache for the next few frames, MAX_INFLIGHT camera
+  // requests at a time. The cached HTTP responses are the point; the Image
+  // objects here just hold each request open until it settles.
   function prefetch(from) {
     if (!frames.length) return;
-    var keep = {}, i, k;
+    var i, k;
+    pfWanted = {};
     for (k = 0; k < LOOKAHEAD; k++) {
       i = from + k;
       if (i >= frames.length) {
         if (!loopEl.checked) break;
         i = i % frames.length;
       }
-      keep[i] = true;
-      if (!prefetched[i]) {
-        var im = new Image();
-        im.src = frameUrl(i);
-        prefetched[i] = im;
-      }
+      pfWanted[i] = true;
+      if (!prefetched[i] && pfQueue.indexOf(i) === -1) pfQueue.push(i);
     }
+    pfQueue = pfQueue.filter(function (i) { return pfWanted[i]; });
+    // Evict only SETTLED loads that fell out of the window. An in-flight
+    // request that fell behind still finishes the camera-side fork + SD
+    // read regardless - aborting the Image object here would throw that
+    // work away for nothing; pumpPrefetch()'s own onload/onerror above
+    // releases the reference once it actually settles.
     Object.keys(prefetched).forEach(function (key) {
-      if (!keep[key]) delete prefetched[key];
+      if (!pfWanted[key] && prefetched[key].complete) delete prefetched[key];
     });
+    pumpPrefetch();
   }
 
   function updateMeta() {
@@ -242,6 +282,8 @@
     setPlaying(false);
     frames = [];
     prefetched = {};
+    pfWanted = {};
+    pfQueue = [];
     idx = 0;
     frameEl.hidden = true;
     frameEl.removeAttribute("src");
@@ -310,6 +352,8 @@
   function loadSeq(seq) {
     setPlaying(false);
     prefetched = {};
+    pfWanted = {};
+    pfQueue = [];
     hintExtra = "";
     curSeq = seq;
     var gen = ++loadGen;
