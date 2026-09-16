@@ -185,8 +185,6 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
 
-# ---------------------------------------------------------------------------
-# Check for busybox long-option usage in init scripts (fatal on violations).
-# Thingino disables CONFIG_LONG_OPTS; --long-options silently fail at runtime.
-# ---------------------------------------------------------------------------
-$BR2_EXTERNAL/scripts/check-busybox-lopts.sh "${TARGET_DIR}" 1
+# BusyBox is built with long options enabled (CONFIG_LONG_OPTS=y in
+# package/busybox/busybox.config), so scripts/check-busybox-lopts.sh no longer
+# applies to the generated init scripts.
