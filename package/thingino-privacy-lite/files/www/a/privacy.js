@@ -7,8 +7,17 @@
   const saveButton = $("#privacy-save");
   const form = $("#privacy-form");
 
+  function agentEnabled() {
+    const ui = window.thinginoUIConfig;
+    return !!(ui && ui.device && ui.device.agent);
+  }
+
   function preferAgent() {
-    return typeof window.agentJsonRequest === "function";
+    const h = helper();
+    if (h && typeof h.preferAgent === "function") {
+      return h.preferAgent();
+    }
+    return agentEnabled();
   }
 
   async function agentRequest(path, options) {

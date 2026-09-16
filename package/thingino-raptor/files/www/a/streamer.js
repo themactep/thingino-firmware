@@ -6,7 +6,8 @@
   "use strict";
 
   function preferAgent() {
-    return typeof global.agentJsonRequest === "function";
+    const ui = global.thinginoUIConfig;
+    return !!(ui && ui.device && ui.device.agent);
   }
 
   async function agentRequest(path, options) {
