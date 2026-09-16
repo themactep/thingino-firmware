@@ -1,0 +1,1393 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hyx0329 <hyx0329@outlook.com>
+Date: Thu, 15 Jan 2026 18:20:01 +0800
+Subject: [PATCH 2/2] implement motor driver for 4.4(v3)
+
+This is based on existing code from 4.4 and 3.10, and further enhanced
+to allow smoother diagonal movement for any angle.
+
+Some differences to 3.10:
+- no invert_direction_polarity, motor_switch_gpio, hmotor2vmotor
+- gpio endstops added, but not tested yet
+- smoother diagonal movement for any angle
+- The coils power on state is determined by current step count values
+  and proper torque is applied.
+- Some `gpio_direction_output` are replaced with `gpio_set_value` for
+  spinlock safety.
+---
+ 4.4/misc/motor/Kbuild  |   4 +-
+ 4.4/misc/motor/motor.c | 902 ++++++++++++++++++++++++++++++++---------
+ 4.4/misc/motor/motor.h |  90 ++--
+ 3 files changed, 747 insertions(+), 249 deletions(-)
+
+diff --git a/4.4.94/misc/motor/Kbuild b/4.4.94/misc/motor/Kbuild
+index e7f70e53..2cb755f4 100644
+--- a/4.4.94/misc/motor/Kbuild
++++ b/4.4.94/misc/motor/Kbuild
+@@ -1,8 +1,8 @@
+-# Match the factory module name
+ MODULE_NAME := motor
++
+ OUT := $(MODULE_NAME)
+ 
+-DIR=$(KERNEL_VERSION)/misc/motor
++DIR := $(KERNEL_VERSION)/misc/motor
+ 
+ SRCS := $(DIR)/motor.c
+ 
+diff --git a/4.4.94/misc/motor/motor.c b/4.4.94/misc/motor/motor.c
+index 107d07a5..51020928 100644
+--- a/4.4.94/misc/motor/motor.c
++++ b/4.4.94/misc/motor/motor.c
+@@ -53,54 +53,183 @@
+ #include "motor.h"
+ 
+ #define JZ_MOTOR_DRIVER_VERSION "H20171206a"
++#define MOTOR_MAX_TCU 8
+ 
+ 
+-extern int jzgpio_ctrl_pull(enum gpio_port port, int enable_pull,unsigned long pins);
++/*
++ * Motors GPIOs
++ */
++
++/* Pan motor */
++
++int hst1 = -1;
++module_param(hst1, int, S_IRUGO);
++MODULE_PARM_DESC(hst1, "Pan motor Phase A pin");
++
++int hst2 = -1;
++module_param(hst2, int, S_IRUGO);
++MODULE_PARM_DESC(hst2, "Pan motor Phase B pin");
++
++int hst3 = -1;
++module_param(hst3, int, S_IRUGO);
++MODULE_PARM_DESC(hst3, "Pan motor Phase C pin");
++
++int hst4 = -1;
++module_param(hst4, int, S_IRUGO);
++MODULE_PARM_DESC(hst4, "Pan motor Phase D pin");
++
++/* Tilt motor */
++
++int vst1 = -1;
++module_param(vst1, int, S_IRUGO);
++MODULE_PARM_DESC(vst1, "Tilt motor Phase A pin");
++
++int vst2 = -1;
++module_param(vst2, int, S_IRUGO);
++MODULE_PARM_DESC(vst2, "Tilt motor Phase B pin");
++
++int vst3 = -1;
++module_param(vst3, int, S_IRUGO);
++MODULE_PARM_DESC(vst3, "Tilt motor Phase C pin");
++
++int vst4 = -1;
++module_param(vst4, int, S_IRUGO);
++MODULE_PARM_DESC(vst4, "Tilt motor Phase D pin");
++
++/*
++ * Motors GPIOs for direction control
++ */
++
++int motor_switch_gpio = -1;
++module_param(motor_switch_gpio, int, S_IRUGO);
++MODULE_PARM_DESC(motor_switch_gpio, "Motor switching GPIO");
++
++/* invert_gpio_dir=1 (true): LOW=energize, HIGH=cut -> value=1 */
++/* invert_gpio_dir=0 (false): HIGH=energize, LOW=cut -> value=0 */
++int invert_gpio_dir = 0;
++module_param(invert_gpio_dir, int, S_IRUGO);
++MODULE_PARM_DESC(invert_gpio_dir, "Invert motor GPIO values. Default: 0 (no, HIGH=energize, LOW=cut)");
++
++/*
++ * Motors motion parameters
++ *
++ *  0 - motor lower physical motion limit
++ *  (axis)min - motor start point
++ *  (axis)max - motor stop point
++ *  (axis)maxstep - motor upper physical motion limit
++ *
++ *   0 ---- hmin --------------- hmax ---- hmaxstep
++ */
++// TODO: make use of hmin and hmax
++
++/* Pan motor */
++
++int hmaxstep = 0x7fffffff;
++module_param(hmaxstep, int, S_IRUGO);
++MODULE_PARM_DESC(hmaxstep, "The max steps of pan motor");
++
++int hmin = 0;
++module_param(hmin, int, S_IRUGO);
++MODULE_PARM_DESC(hmin, "Pan motor start point step count");
++
++int hmax = -1;
++module_param(hmax, int, S_IRUGO);
++MODULE_PARM_DESC(hmax, "Pan motor stop point step count");
++
++int hmin_gpio = -1;
++module_param(hmin_gpio, int, S_IRUGO);
++MODULE_PARM_DESC(hmin_gpio, "Pan motor start point endstop GPIO");
++
++int hmax_gpio = -1;
++module_param(hmax_gpio, int, S_IRUGO);
++MODULE_PARM_DESC(hmax_gpio, "Pan motor stop point endstop GPIO");
++
++int hlevel = 0;
++module_param(hlevel, int, S_IRUGO);
++MODULE_PARM_DESC(hlevel, "Pan motor endstop trigger level, default is 0");
++
++/* Tilt motor */
++
++int vmaxstep = 0x7fffffff;
++module_param(vmaxstep, int, S_IRUGO);
++MODULE_PARM_DESC(vmaxstep, "The max steps of tilt motor");
+ 
++int vmin = 0;
++module_param(vmin, int, S_IRUGO);
++MODULE_PARM_DESC(vmin, "Tilt motor start point step count");
+ 
+-struct motor_platform_data motors_pdata[HAS_MOTOR_CNT] = {
++int vmax = -1;
++module_param(vmax, int, S_IRUGO);
++MODULE_PARM_DESC(vmax, "Tilt motor stop point step count");
++
++int vmin_gpio = -1;
++module_param(vmin_gpio, int, S_IRUGO);
++MODULE_PARM_DESC(vmin_gpio, "Tilt motor start point endstop GPIO");
++
++int vmax_gpio = -1;
++module_param(vmax_gpio, int, S_IRUGO);
++MODULE_PARM_DESC(vmax_gpio, "Tilt motor stop point endstop GPIO");
++
++int vlevel = 0;
++module_param(vlevel, int, S_IRUGO);
++MODULE_PARM_DESC(vlevel, "Tilt motor endstop trigger level, default is 0");
++
++
++static char *motor_tcu_channels;
++module_param_named(tcu_channels, motor_tcu_channels, charp, 0644);
++MODULE_PARM_DESC(tcu_channels, "Comma-separated TCU channels for motor (e.g., 2 or 2,3)");
++
++static int motor_bind_channel = 2; /* first channel parsed; used for binding */
++static void motor_parse_channels(void)
++{
++	if (motor_tcu_channels && *motor_tcu_channels) {
++		char *str = kstrdup(motor_tcu_channels, GFP_KERNEL);
++		char *p = str, *tok;
++		if (!str)
++			return;
++		while ((tok = strsep(&p, ",")) != NULL) {
++			unsigned long v;
++			if (!kstrtoul(tok, 0, &v) && v < MOTOR_MAX_TCU) {
++				motor_bind_channel = (int)v; /* pick first valid for binding */
++				break;
++			}
++		}
++		kfree(str);
++	}
++}
++
++
++static char motor_driver_name[16] = "tcu_chn2";
++
++
++struct motor_platform_data motors_pdata[NUMBER_OF_MOTORS] = {
+ 	{
+ 		.name = "Horizontal motor",
+-		.motor_min_gpio		= HORIZONTAL_MIN_GPIO,
+-		.motor_max_gpio 	= HORIZONTAL_MAX_GPIO,
+-		.motor_gpio_level	= HORIZONTAL_GPIO_LEVEL,
+-		.motor_st1_gpio		= HORIZONTAL_ST1_GPIO,
+-		.motor_st2_gpio		= HORIZONTAL_ST2_GPIO,
+-		.motor_st3_gpio		= HORIZONTAL_ST3_GPIO,
+-		.motor_st4_gpio		= HORIZONTAL_ST4_GPIO,
++		.motor_min_gpio		= -1,
++		.motor_max_gpio 	= -1,
++		.motor_endstop_level	=  0,
++		.motor_st1_gpio		= -1,
++		.motor_st2_gpio		= -1,
++		.motor_st3_gpio		= -1,
++		.motor_st4_gpio		= -1,
+ 	},
+ 	{
+ 		.name = "Vertical motor",
+-		.motor_min_gpio		= VERTICAL_MIN_GPIO,
+-		.motor_max_gpio 	= VERTICAL_MAX_GPIO,
+-		.motor_gpio_level	= VERTICAL_GPIO_LEVEL,
+-		.motor_st1_gpio		= VERTICAL_ST1_GPIO,
+-		.motor_st2_gpio		= VERTICAL_ST2_GPIO,
+-		.motor_st3_gpio		= VERTICAL_ST3_GPIO,
+-		.motor_st4_gpio		= VERTICAL_ST4_GPIO,
++		.motor_min_gpio		= -1,
++		.motor_max_gpio 	= -1,
++		.motor_endstop_level	=  0,
++		.motor_st1_gpio		= -1,
++		.motor_st2_gpio		= -1,
++		.motor_st3_gpio		= -1,
++		.motor_st4_gpio		= -1,
+ 	},
+ };
+ 
+-static void motor_set_default(struct motor_device *mdev)
+-{
+-	int index = 0;
+-	struct motor_driver *motor = NULL;
+-	mdev->dev_state = MOTOR_OPS_STOP;
+-	for(index = 0; index < HAS_MOTOR_CNT; index++){
+-		motor =  &mdev->motors[index];
+-		motor->state = MOTOR_OPS_STOP;
+-		if (motor->pdata->motor_st1_gpio)
+-			gpio_direction_output(motor->pdata->motor_st1_gpio, 0);
+-		if (motor->pdata->motor_st2_gpio)
+-			gpio_direction_output(motor->pdata->motor_st2_gpio, 0);
+-		if (motor->pdata->motor_st3_gpio)
+-			gpio_direction_output(motor->pdata->motor_st3_gpio, 0);
+-		if (motor->pdata->motor_st4_gpio)
+-			gpio_direction_output(motor->pdata->motor_st4_gpio, 0);
+-	}
+-	return;
+-}
+-
++/* This is the driving pattern for common step motors. The least significant bit
++ * is the phase D. 0x08 means phase A is active(powered), 0x0c means phase A and B, etc.
++ * If the common terminal is positive, this will likely to produce clockwise rotation
++ * viewed from the shaft side.
++ */
+ static unsigned char step_8[8] = {
+ 	0x08,
+ 	0x0c,
+@@ -112,92 +241,275 @@ static unsigned char step_8[8] = {
+ 	0x09
+ };
+ 
+-static void motor_move_step(struct motor_device *mdev)
++/* motor_power_off disables all motor GPIO pins to cut power
++ * When gpio_invert=true (invert_gpio_dir=1): set to HIGH (1) to cut power
++ * When gpio_invert=false (invert_gpio_dir=0): set to LOW (0) to cut power
++ *
++ * Normally you won't need this as the interrupt handler(stepping program) will
++ * turn off the power automatically if motor state is MOTOR_OPS_STOP.
++ *
++ * This is used to initialize the pins as outputs.
++ *
++ * NOTE: Use gpio_set_value in interrupt context for safety.
++ * NOTE: check against motor_move_step
++ */
++static void motor_power_off(struct motor_device *mdev)
+ {
++	int index;
++	int value;
+ 	struct motor_driver *motor = NULL;
+-	int index = 0;
+-	int step = 0;
+ 
+-	for(index = 0; index < HAS_MOTOR_CNT; index++){
++	/* Power-off state depends on inversion setting */
++	/* invert_gpio_dir=1 (true): LOW=energize, HIGH=cut -> value=1 */
++	/* invert_gpio_dir=0 (false): HIGH=energize, LOW=cut -> value=0 */
++	value = (invert_gpio_dir & 0x1);
++
++	for (index = 0; index < NUMBER_OF_MOTORS; index++) {
++		motor = &mdev->motors[index];
++
++		if (motor->pdata->motor_st1_gpio != -1)
++			gpio_direction_output(motor->pdata->motor_st1_gpio, value);
++		if (motor->pdata->motor_st2_gpio != -1)
++			gpio_direction_output(motor->pdata->motor_st2_gpio, value);
++		if (motor->pdata->motor_st3_gpio != -1)
++			gpio_direction_output(motor->pdata->motor_st3_gpio, value);
++		if (motor->pdata->motor_st4_gpio != -1)
++			gpio_direction_output(motor->pdata->motor_st4_gpio, value);
++	}
++}
++
++/*
++ * motor_power_on re-enables motor GPIO pins as outputs
++ * Called before motor movement to energize the coils, appling torque to
++ * maintain current position.
++ *
++ * NOTE: this function may run in spinlock/interrupt context, take care
++ * NOTE: check against motor_move_step
++ */
++static void motor_power_on(struct motor_device *mdev)
++{
++	int index;
++	int value;
++	int step;
++	struct motor_driver *motor = NULL;
++
++	// old driver behavior is to power all coils, which doesn't really make sense
++	// value = ((0 ^ invert_gpio_dir) & 0x1);
++
++	for (index = 0; index < NUMBER_OF_MOTORS; index++) {
++		motor = &mdev->motors[index];
++
++		// apply torque, assuming cur_steps reflects actual position
++		step = motor->cur_steps % 8;
++		step = step < 0 ? step + 8 : step;
++		value = invert_gpio_dir ? (step_8[step] ^ 0xff) : step_8[step];
++
++		if (motor->pdata->motor_st1_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st1_gpio, value & 0x8);
++		if (motor->pdata->motor_st2_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st2_gpio, value & 0x4);
++		if (motor->pdata->motor_st3_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st3_gpio, value & 0x2);
++		if (motor->pdata->motor_st4_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st4_gpio, value & 0x1);
++	}
++}
++
++static void motor_set_default(struct motor_device *mdev)
++{
++	int index = 0;
++	struct motor_driver *motor = NULL;
++	mdev->dev_state = MOTOR_OPS_STOP;
++	for(index = 0; index < NUMBER_OF_MOTORS; index++){
+ 		motor =  &mdev->motors[index];
+-		if(motor->state != MOTOR_OPS_STOP){
+-			step = motor->cur_steps % 8;
+-			step = step < 0 ? step + 8 : step;
+-			if (motor->pdata->motor_st1_gpio)
+-				gpio_direction_output(motor->pdata->motor_st1_gpio, step_8[step] & 0x8);
+-			if (motor->pdata->motor_st2_gpio)
+-				gpio_direction_output(motor->pdata->motor_st2_gpio, step_8[step] & 0x4);
+-			if (motor->pdata->motor_st3_gpio)
+-				gpio_direction_output(motor->pdata->motor_st3_gpio, step_8[step] & 0x2);
+-			if (motor->pdata->motor_st4_gpio)
+-				gpio_direction_output(motor->pdata->motor_st4_gpio, step_8[step] & 0x1);
+-		}else{
+-			if (motor->pdata->motor_st1_gpio)
+-				gpio_direction_output(motor->pdata->motor_st1_gpio, 0);
+-			if (motor->pdata->motor_st2_gpio)
+-				gpio_direction_output(motor->pdata->motor_st2_gpio, 0);
+-			if (motor->pdata->motor_st3_gpio)
+-				gpio_direction_output(motor->pdata->motor_st3_gpio, 0);
+-			if (motor->pdata->motor_st4_gpio)
+-				gpio_direction_output(motor->pdata->motor_st4_gpio, 0);
+-		}
+-		if(motor->state == MOTOR_OPS_RESET){
+-			motor->total_steps++;
+-		}
++		motor->state = MOTOR_OPS_STOP;
++	}
++
++	/* Cut power to motor coils */
++	motor_power_off(mdev);
++
++	return;
++}
++
++static void motor_move_step(struct motor_device *mdev, int index)
++{
++	struct motor_driver *motor = NULL;
++	int step;
++	int value;
++
++	motor =  &mdev->motors[index];
++	if (motor->state != MOTOR_OPS_STOP) {
++		step = motor->cur_steps % 8;
++		step = step < 0 ? step + 8 : step;
++
++		value = invert_gpio_dir ? (step_8[step] ^ 0xff) : step_8[step];
++
++		if (motor->pdata->motor_st1_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st1_gpio, value & 0x8);
++		if (motor->pdata->motor_st2_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st2_gpio, value & 0x4);
++		if (motor->pdata->motor_st3_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st3_gpio, value & 0x2);
++		if (motor->pdata->motor_st4_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st4_gpio, value & 0x1);
++	} else {
++		// power off the coils
++		value = invert_gpio_dir ? 1 : 0;
++
++		if (motor->pdata->motor_st1_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st1_gpio, value);
++		if (motor->pdata->motor_st2_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st2_gpio, value);
++		if (motor->pdata->motor_st3_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st3_gpio, value);
++		if (motor->pdata->motor_st4_gpio != -1)
++			gpio_set_value(motor->pdata->motor_st4_gpio, value);
++	}
++	if (motor->state == MOTOR_OPS_RESET) {
++		motor->total_steps++;
+ 	}
+ 
+ 	return;
+ }
+ 
++static void move_to_min_pose_ops(struct motor_driver *motor)
++{
++	if (motor->move_dir == MOTOR_MOVE_NEGATIVE) {
++		if (motor->state == MOTOR_OPS_CRUISE) {
++			// auto turn back
++			motor->move_dir = MOTOR_MOVE_POSITIVE;
++		} else if (motor->pdata->motor_min_gpio == -1) {
++			motor->state = MOTOR_OPS_STOP;
++		}
++
++		// only update cur_steps if *hitting* this direction, ignore leaving
++		if (motor->pdata->motor_min_gpio == -1)
++			motor->cur_steps = 0;
++	}
++}
++
++static void move_to_max_pose_ops(struct motor_driver *motor, int index)
++{
++	if (motor->move_dir == MOTOR_MOVE_POSITIVE) {
++		if (motor->state == MOTOR_OPS_RESET && motor->pdata->motor_max_gpio == -1) {
++			// soft endstop, apply preconfigured max_steps values and report completion
++			motor->state = MOTOR_OPS_STOP;
++			if (index == PAN_MOTOR)
++				motor->max_steps = hmaxstep;
++			else
++				motor->max_steps = vmaxstep;
++			complete(&motor->reset_completion);
++		} else if (motor->state == MOTOR_OPS_CRUISE) {
++			// auto turn back
++			motor->move_dir = MOTOR_MOVE_NEGATIVE;
++		} else if (motor->pdata->motor_max_gpio == -1) {
++			motor->state = MOTOR_OPS_STOP;
++		}
++
++		// only update cur_steps if *hitting* this direction, ignore leaving
++		if (motor->pdata->motor_max_gpio == -1)
++			motor->cur_steps = motor->max_steps;
++	}
++}
++
+ static irqreturn_t jz_timer_interrupt(int irq, void *dev_id)
+ {
+ 	struct motor_device *mdev = dev_id;
+ 	struct motor_move *dst = &mdev->dst_move;
+ 	struct motor_move *cur = &mdev->cur_move;
+ 	struct motor_driver *motors = mdev->motors;
+-	int flag = 0;
++	struct step_spread_param *step_spread = &mdev->step_spread;
++	int still_moving = 0;
+ 
+-	if(motors[HORIZONTAL_MOTOR].state == MOTOR_OPS_STOP
+-			&& motors[VERTICAL_MOTOR].state == MOTOR_OPS_STOP){
++	if(motors[PAN_MOTOR].state == MOTOR_OPS_STOP
++			&& motors[TILT_MOTOR].state == MOTOR_OPS_STOP)
++	{
+ 		mdev->dev_state = MOTOR_OPS_STOP;
+-		motor_move_step(mdev);
++		motor_move_step(mdev, PAN_MOTOR);
++		motor_move_step(mdev, TILT_MOTOR);
++
++		if (mdev->wait_stop) {
++			mdev->wait_stop = 0;
++			complete(&mdev->stop_completion);
++		}
++
+ 		return IRQ_HANDLED;
+ 	}
+ 
+-	if(mdev->dev_state == MOTOR_OPS_CRUISE){
+-		motors[HORIZONTAL_MOTOR].cur_steps += motors[HORIZONTAL_MOTOR].move_dir;
+-		motors[VERTICAL_MOTOR].cur_steps += motors[VERTICAL_MOTOR].move_dir;
+-		motor_move_step(mdev);
+-	}else{
+-		while(cur->times < dst->times){
+-			if(cur->one.x < dst->one.x && motors[HORIZONTAL_MOTOR].state != MOTOR_OPS_STOP){
+-				motors[HORIZONTAL_MOTOR].cur_steps += motors[HORIZONTAL_MOTOR].move_dir;
+-				cur->one.x++;
+-				flag = 1;
++	/* Soft limits, also does auto turn back for cruise */
++	if (motors[PAN_MOTOR].cur_steps <= 0)
++		move_to_min_pose_ops(&motors[PAN_MOTOR]);
++	if (motors[PAN_MOTOR].cur_steps >= motors[PAN_MOTOR].max_steps)
++		move_to_max_pose_ops(&motors[PAN_MOTOR],PAN_MOTOR);
++	if (motors[TILT_MOTOR].cur_steps <= 0)
++		move_to_min_pose_ops(&motors[TILT_MOTOR]);
++	if (motors[TILT_MOTOR].cur_steps >= motors[TILT_MOTOR].max_steps)
++		move_to_max_pose_ops(&motors[TILT_MOTOR],TILT_MOTOR);
++
++	if (mdev->dev_state == MOTOR_OPS_CRUISE) {
++		motors[PAN_MOTOR].cur_steps += motors[PAN_MOTOR].move_dir;
++		motors[TILT_MOTOR].cur_steps += motors[TILT_MOTOR].move_dir;
++		motor_move_step(mdev, PAN_MOTOR);
++		motor_move_step(mdev, TILT_MOTOR);
++	} else {
++		while (cur->times < dst->times) {
++			if (cur->one.x < dst->one.x
++				&& motors[PAN_MOTOR].state != MOTOR_OPS_STOP)
++			{
++				still_moving = 1;
++				if (step_spread->factor_a >= step_spread->factor_b) {
++					motors[PAN_MOTOR].cur_steps += motors[PAN_MOTOR].move_dir;
++					cur->one.x++;
++					motor_move_step(mdev, PAN_MOTOR);
++				} else {
++					step_spread->numerator += step_spread->factor_a;
++					if (step_spread->numerator >= step_spread->factor_b) {
++						step_spread->numerator -= step_spread->factor_b;
++						motors[PAN_MOTOR].cur_steps += motors[PAN_MOTOR].move_dir;
++						cur->one.x++;
++						motor_move_step(mdev, PAN_MOTOR);
++					}
++				}
+ 			}
+-			if(cur->one.y < dst->one.y && motors[VERTICAL_MOTOR].state != MOTOR_OPS_STOP){
+-				motors[VERTICAL_MOTOR].cur_steps += motors[VERTICAL_MOTOR].move_dir;
+-				cur->one.y++;
+-				flag = 1;
++			if (cur->one.y < dst->one.y
++				&& motors[TILT_MOTOR].state != MOTOR_OPS_STOP)
++			{
++				still_moving = 1;
++				if (step_spread->factor_a <= step_spread->factor_b) {
++					motors[TILT_MOTOR].cur_steps += motors[TILT_MOTOR].move_dir;
++					cur->one.y++;
++					motor_move_step(mdev, TILT_MOTOR);
++				} else {
++					step_spread->numerator += step_spread->factor_b;
++					if (step_spread->numerator >= step_spread->factor_a) {
++						step_spread->numerator -= step_spread->factor_a;
++						motors[TILT_MOTOR].cur_steps += motors[TILT_MOTOR].move_dir;
++						cur->one.y++;
++						motor_move_step(mdev, TILT_MOTOR);
++					}
++				}
+ 			}
+ 
+-			if(flag){
+-				flag = 0;
+-				motor_move_step(mdev);
++			if (still_moving) {
++				still_moving = 0;
+ 				break;
+-			}else{
++			} else {
+ 				cur->one.x = 0;
+ 				cur->one.y = 0;
+ 				cur->times++;
++				step_spread->numerator = 0;
+ 			}
+ 		}
+ 
+-		if(mdev->cur_move.times == mdev->dst_move.times &&
+-				mdev->cur_move.one.x == 0 && mdev->cur_move.one.y == 0){
+-			motors[HORIZONTAL_MOTOR].state = MOTOR_OPS_STOP;
+-			motors[VERTICAL_MOTOR].state = MOTOR_OPS_STOP;
++		if (mdev->cur_move.times == mdev->dst_move.times
++			&& mdev->cur_move.one.x == 0
++			&& mdev->cur_move.one.y == 0)
++		{
++			motors[PAN_MOTOR].state = MOTOR_OPS_STOP;
++			motors[TILT_MOTOR].state = MOTOR_OPS_STOP;
+ 		}
+ 	}
++
+ 	return IRQ_HANDLED;
+ }
+ 
+@@ -207,7 +519,7 @@ static void gpio_keys_min_timer(unsigned long _data)
+ 	int value = 0;
+     value = gpio_get_value(motor->pdata->motor_min_gpio);
+ 
+-	if(value == motor->pdata->motor_gpio_level){
++	if(value == motor->pdata->motor_endstop_level){
+ 	//	printk("%s min %d\n",motor->pdata->name,__LINE__);
+ 		if(motor->state == MOTOR_OPS_RESET){
+ 			motor->reset_min_pos = 1;
+@@ -219,13 +531,13 @@ static void gpio_keys_min_timer(unsigned long _data)
+ 			}else{
+ 				motor->total_steps = 0;
+ 			}
+-			motor->move_dir = MOTOR_MOVE_RIGHT_UP;
++			motor->move_dir = MOTOR_MOVE_POSITIVE;
+ 		}else if(motor->state == MOTOR_OPS_NORMAL){
+-			if(motor->move_dir == MOTOR_MOVE_LEFT_DOWN){
++			if(motor->move_dir == MOTOR_MOVE_NEGATIVE){
+ 				motor->state = MOTOR_OPS_STOP;
+ 			}
+ 		}else
+-			motor->move_dir = MOTOR_MOVE_RIGHT_UP;
++			motor->move_dir = MOTOR_MOVE_POSITIVE;
+ 
+ 
+ 		motor->cur_steps = 0;
+@@ -248,9 +560,9 @@ static void gpio_keys_max_timer(unsigned long _data)
+ {
+ 	struct motor_driver *motor = (struct motor_driver *)_data;
+ 	int value = 0;
+-     value = gpio_get_value(motor->pdata->motor_max_gpio);
++	value = gpio_get_value(motor->pdata->motor_max_gpio);
+ 
+-	if(value == motor->pdata->motor_gpio_level){
++	if(value == motor->pdata->motor_endstop_level){
+ 
+ 		if(motor->state == MOTOR_OPS_RESET){
+ 			motor->reset_max_pos = 1;
+@@ -262,13 +574,13 @@ static void gpio_keys_max_timer(unsigned long _data)
+ 			}else{
+ 				motor->total_steps = 0;
+ 			}
+-			motor->move_dir = MOTOR_MOVE_LEFT_DOWN;
++			motor->move_dir = MOTOR_MOVE_NEGATIVE;
+ 		}else if(motor->state == MOTOR_OPS_NORMAL){
+-			if(motor->move_dir == MOTOR_MOVE_RIGHT_UP){
++			if(motor->move_dir == MOTOR_MOVE_POSITIVE){
+ 				motor->state = MOTOR_OPS_STOP;
+ 			}
+ 		}else
+-			motor->move_dir = MOTOR_MOVE_LEFT_DOWN;
++			motor->move_dir = MOTOR_MOVE_NEGATIVE;
+ 		motor->cur_steps = motor->max_steps;
+ 		motor->max_pos_irq_cnt++;
+ 		//printk("%s max; cur_steps = %d max_steps = %d\n", motor->pdata->name,motor->cur_steps, motor->max_steps);
+@@ -307,54 +619,105 @@ static long motor_ops_move(struct motor_device *mdev, int x, int y)
+ 	int times = 1;
+ 	int value = 0;
+ 
+-	/* check x value */
+-	if(x > 0){
+-		value = gpio_get_value(mdev->motors[HORIZONTAL_MOTOR].pdata->motor_max_gpio);
+-		if(value == mdev->motors[HORIZONTAL_MOTOR].pdata->motor_gpio_level)
+-			x = 0;
+-	}else{
+-		value = gpio_get_value(mdev->motors[HORIZONTAL_MOTOR].pdata->motor_min_gpio);
+-		if(value == mdev->motors[HORIZONTAL_MOTOR].pdata->motor_gpio_level)
+-			x = 0;
+-	}
+-	/* check y value */
+-	if(y > 0){
+-		value = gpio_get_value(mdev->motors[VERTICAL_MOTOR].pdata->motor_max_gpio);
+-		if(value == mdev->motors[VERTICAL_MOTOR].pdata->motor_gpio_level)
+-			y = 0;
+-	}else{
+-		value = gpio_get_value(mdev->motors[VERTICAL_MOTOR].pdata->motor_min_gpio);
+-		if(value == mdev->motors[VERTICAL_MOTOR].pdata->motor_gpio_level)
+-			y = 0;
++	/* check x value, use endstop if available */
++	if (x > 0) {
++		if (mdev->motors[PAN_MOTOR].pdata->motor_max_gpio != -1) {
++			value = gpio_get_value(mdev->motors[PAN_MOTOR].pdata->motor_max_gpio);
++			if(value == mdev->motors[PAN_MOTOR].pdata->motor_endstop_level)
++				x = 0;
++		} else {
++			if (motors[PAN_MOTOR].cur_steps >= motors[PAN_MOTOR].max_steps)
++				x = 0;
++		}
++
++	} else {
++		if (mdev->motors[PAN_MOTOR].pdata->motor_min_gpio != -1) {
++			value = gpio_get_value(mdev->motors[PAN_MOTOR].pdata->motor_min_gpio);
++			if(value == mdev->motors[PAN_MOTOR].pdata->motor_endstop_level)
++				x = 0;
++		} else {
++			if (motors[PAN_MOTOR].cur_steps <= 0)
++				x = 0;
++		}
+ 	}
++	/* check y value, use endstop if available */
++	if (y > 0) {
++		if (mdev->motors[TILT_MOTOR].pdata->motor_max_gpio != -1) {
++			value = gpio_get_value(mdev->motors[TILT_MOTOR].pdata->motor_max_gpio);
++			if(value == mdev->motors[TILT_MOTOR].pdata->motor_endstop_level)
++				y = 0;
++		} else {
++			if (motors[TILT_MOTOR].cur_steps >= motors[TILT_MOTOR].max_steps)
++				y = 0;
++		}
++
++	} else {
++		if (mdev->motors[TILT_MOTOR].pdata->motor_min_gpio != -1) {
++			value = gpio_get_value(mdev->motors[TILT_MOTOR].pdata->motor_min_gpio);
++			if(value == mdev->motors[TILT_MOTOR].pdata->motor_endstop_level)
++				y = 0;
++		} else {
++			if (motors[TILT_MOTOR].cur_steps <= 0)
++				y = 0;
++		}
++	}
++
++	// always set MOTOR_MOVE_POSITIVE or MOTOR_MOVE_NEGATIVE to keep torque during movement
++	x_dir = x > 0 ? MOTOR_MOVE_POSITIVE : MOTOR_MOVE_NEGATIVE;
++	y_dir = y > 0 ? MOTOR_MOVE_POSITIVE : MOTOR_MOVE_NEGATIVE;
+ 
+-	x_dir = x > 0 ? MOTOR_MOVE_RIGHT_UP : (x < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
+-	y_dir = y > 0 ? MOTOR_MOVE_RIGHT_UP : (y < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
+ 	x1 = x < 0 ? 0 - x : x;
+ 	y1 = y < 0 ? 0 - y : y;
+ 
+-	if((x1 + y1) == 0){
++	if ((x1 + y1) == 0) {
+ 		return 0;
+-	}else if(x1 == 0){
++	} else if (x1 == 0) {
+ 		times = 1;
+-	}else if(y1 == 0){
++	} else if (y1 == 0) {
+ 		times = 1;
+-	}else
++	} else {
++		// to calculate proper diagonal speed
+ 		times = calc_max_divisor(x1, y1);
++	}
++
++	x1 = x1 / times;
++	y1 = y1 / times;
+ 
+ 	mutex_lock(&mdev->dev_mutex);
+ 	spin_lock_irqsave(&mdev->slock, flags);
++
++	/* Enable motor GPIO outputs before movement */
++	motor_power_on(mdev);
++
+ 	mdev->dev_state = MOTOR_OPS_NORMAL;
+-	mdev->dst_move.one.x = x1 / times;
+-	mdev->dst_move.one.y = y1 / times;
++	mdev->dst_move.one.x = x1;
++	mdev->dst_move.one.y = y1;
+ 	mdev->dst_move.times = times;
+ 	mdev->cur_move.one.x = 0;
+ 	mdev->cur_move.one.y = 0;
+ 	mdev->cur_move.times = 0;
+-	motors[HORIZONTAL_MOTOR].state = MOTOR_OPS_NORMAL;
+-	motors[HORIZONTAL_MOTOR].move_dir = x_dir;
+-	motors[VERTICAL_MOTOR].state = MOTOR_OPS_NORMAL;
+-	motors[VERTICAL_MOTOR].move_dir = y_dir;
++
++	/*
++	 * A simple step spread algorithm:
++	 * - find which axis has more steps to go, call it axis_a, the other axis_b
++	 *     - factor_a = axis_a_steps + 1
++	 *     - factor_b = axis_b_steps + 1
++	 * - for each independent segment(time), the step count of axis_b is determined by:
++	 *    floor( (current axis_a steps) * factor_b / factor_a )
++	 *
++	 * In practice, the multiplication and division are replaced by addition and comparision,
++	 * due to the restrictions in the hard interrupt context.
++	 * The bigger one in factor_a and factor_b becomes the real factor_a in the algorithm.
++	 */
++	mdev->step_spread.factor_a		= x1 + 1;
++	mdev->step_spread.factor_b		= y1 + 1;
++	mdev->step_spread.numerator		= 0;
++
++	motors[PAN_MOTOR].state = MOTOR_OPS_NORMAL;
++	motors[PAN_MOTOR].move_dir = x_dir;
++	motors[TILT_MOTOR].state = MOTOR_OPS_NORMAL;
++	motors[TILT_MOTOR].move_dir = y_dir;
++
+ 	spin_unlock_irqrestore(&mdev->slock, flags);
+ 	mutex_unlock(&mdev->dev_mutex);
+ 	//printk("%s%d x=%d y=%d t=%d\n",__func__,__LINE__,mdev->dst_move.one.x,mdev->dst_move.one.y,mdev->dst_move.times);
+@@ -366,58 +729,115 @@ static long motor_ops_move(struct motor_device *mdev, int x, int y)
+ 
+ static void motor_ops_stop(struct motor_device *mdev)
+ {
++	long ret;
+ 	unsigned long flags;
++	unsigned int remainder;
++
+ 	struct motor_driver *motors = mdev->motors;
+-	ingenic_tcu_counter_stop(mdev->tcu);
++	struct motor_move *dst = &mdev->dst_move;
++	struct motor_move *cur = &mdev->cur_move;
++
++	if (mdev->dev_state == MOTOR_OPS_STOP)
++		return;
++
+ 	mutex_lock(&mdev->dev_mutex);
+ 	spin_lock_irqsave(&mdev->slock, flags);
+-	mdev->dev_state = MOTOR_OPS_STOP;
+-	motors[HORIZONTAL_MOTOR].state = MOTOR_OPS_STOP;
+-	motors[VERTICAL_MOTOR].state = MOTOR_OPS_STOP;
++
++	// why a buffer distance is used here?
++	if (mdev->dev_state == MOTOR_OPS_NORMAL) {
++		remainder = dst->one.x - cur->one.x;
++		if (remainder > 30) {
++			dst->one.x = 29;
++			cur->one.x = 0;
++		}
++		remainder = dst->one.y - cur->one.y;
++		if (remainder > 8) {
++			dst->one.y = 6;
++			cur->one.y = 0;
++		}
++	}
++
++	if (mdev->dev_state == MOTOR_OPS_CRUISE) {
++		mdev->dev_state = MOTOR_OPS_NORMAL;
++		motors[PAN_MOTOR].state = MOTOR_OPS_NORMAL;
++		motors[TILT_MOTOR].state = MOTOR_OPS_NORMAL;
++		dst->one.x = 0;
++		cur->one.x = 0;
++		dst->one.y = 0;
++		cur->one.y = 0;
++	}
++
++	mdev->wait_stop = 1;
+ 	spin_unlock_irqrestore(&mdev->slock, flags);
+ 	mutex_unlock(&mdev->dev_mutex);
+-	motor_move_step(mdev);
++
++	do {
++		ret = wait_for_completion_interruptible_timeout(&mdev->stop_completion, msecs_to_jiffies(15000));
++		if (ret == 0) {
++			ret = -ETIMEDOUT;
++			break;
++		}
++	} while (ret == -ERESTARTSYS);
++
++	ingenic_tcu_counter_stop(mdev->tcu);
++
++	motor_set_default(mdev);
++
+ 	return;
+ }
+ 
++static long motor_ops_goback(struct motor_device *mdev)
++{
++	struct motor_driver *motors = mdev->motors;
++	int sx, sy;
++	int cx, cy;
++	sx = motors[PAN_MOTOR].max_steps >> 1;
++	sy = motors[TILT_MOTOR].max_steps >> 1;
++	cx = motors[PAN_MOTOR].cur_steps;
++	cy = motors[TILT_MOTOR].cur_steps;
++	//printk("sx=%d,sy=%d,cx=%d,cy=%d\n",sx,sy,cx,cy);
++	return motor_ops_move(mdev, sx-cx, sy-cy);
++}
++
+ static long motor_ops_cruise(struct motor_device *mdev)
+ {
+-	unsigned long flags;
+ 	struct motor_driver *motors = mdev->motors;
++	unsigned long flags;
++
++	motor_ops_goback(mdev);
++
+ 	mutex_lock(&mdev->dev_mutex);
+ 	spin_lock_irqsave(&mdev->slock, flags);
++
++	/* Enable motor GPIO outputs before cruise */
++	motor_power_on(mdev);
++
+ 	mdev->dev_state = MOTOR_OPS_CRUISE;
+-	motors[HORIZONTAL_MOTOR].state = MOTOR_OPS_CRUISE;
+-	motors[VERTICAL_MOTOR].state = MOTOR_OPS_CRUISE;
++	motors[PAN_MOTOR].state = MOTOR_OPS_CRUISE;
++	motors[TILT_MOTOR].state = MOTOR_OPS_CRUISE;
++
+ 	spin_unlock_irqrestore(&mdev->slock, flags);
+ 	mutex_unlock(&mdev->dev_mutex);
++
+ 	ingenic_tcu_counter_begin(mdev->tcu);
+ 	return 0;
+ }
+ 
+-static long motor_ops_goback(struct motor_device *mdev)
+-{
+-	struct motor_driver *motors = mdev->motors;
+-	int sx, sy;
+-	int cx, cy;
+-	sx = motors[HORIZONTAL_MOTOR].max_steps >> 1;
+-	sy = motors[VERTICAL_MOTOR].max_steps >> 1;
+-	cx = motors[HORIZONTAL_MOTOR].cur_steps;
+-	cy = motors[VERTICAL_MOTOR].cur_steps;
+-	//printk("sx=%d,sy=%d,cx=%d,cy=%d\n",sx,sy,cx,cy);
+-	return motor_ops_move(mdev, sx-cx, sy-cy);
+-}
+-
+ static void motor_get_message(struct motor_device *mdev, struct motor_message *msg)
+ {
+ 	struct motor_driver *motors = mdev->motors;
+-	msg->x = motors[HORIZONTAL_MOTOR].cur_steps;
+-	msg->y = motors[VERTICAL_MOTOR].cur_steps;
++	msg->x = motors[PAN_MOTOR].cur_steps;
++	msg->y = motors[TILT_MOTOR].cur_steps;
+ 	msg->speed = mdev->tcu_speed;
+ 	if(mdev->dev_state == MOTOR_OPS_STOP)
+ 		msg->status = MOTOR_IS_STOP;
+ 	else
+ 		msg->status = MOTOR_IS_RUNNING;
++
++	/* This is not standard, return the max_steps of each motor */
++	msg->x_max_steps = motors[PAN_MOTOR].max_steps;
++	msg->y_max_steps = motors[TILT_MOTOR].max_steps;
++
+ 	return;
+ }
+ 
+@@ -450,42 +870,45 @@ static long motor_ops_reset(struct motor_device *mdev, struct motor_reset_data *
+ 		/* app set max steps and current pos */
+ 		mutex_lock(&mdev->dev_mutex);
+ 		spin_lock_irqsave(&mdev->slock, flags);
+-		mdev->motors[HORIZONTAL_MOTOR].max_steps = rdata->x_max_steps;
+-		mdev->motors[HORIZONTAL_MOTOR].cur_steps = rdata->x_cur_step;
+-		mdev->motors[VERTICAL_MOTOR].max_steps = rdata->y_max_steps;
+-		mdev->motors[VERTICAL_MOTOR].cur_steps = rdata->y_cur_step;
++		mdev->motors[PAN_MOTOR].max_steps = rdata->x_max_steps;
++		mdev->motors[PAN_MOTOR].cur_steps = rdata->x_cur_step;
++		mdev->motors[TILT_MOTOR].max_steps = rdata->y_max_steps;
++		mdev->motors[TILT_MOTOR].cur_steps = rdata->y_cur_step;
+ 		spin_unlock_irqrestore(&mdev->slock, flags);
+ 		mutex_unlock(&mdev->dev_mutex);
+ 	}else{
+ 		/* driver calculate max steps. */
++
+ 		mutex_lock(&mdev->dev_mutex);
+ 		spin_lock_irqsave(&mdev->slock, flags);
+-		for(index = 0; index < HAS_MOTOR_CNT; index++){
+-			value = gpio_get_value(mdev->motors[index].pdata->motor_max_gpio);
+-			if(value == mdev->motors[index].pdata->motor_gpio_level){
+-				mdev->motors[index].move_dir = MOTOR_MOVE_LEFT_DOWN;
+-			}else
+-				mdev->motors[index].move_dir = MOTOR_MOVE_RIGHT_UP;
+-			mdev->motors[index].state = MOTOR_OPS_RESET;
+-			mdev->motors[index].max_steps = 0x0fffffff;
+-			mdev->motors[index].cur_steps = 0x00ffffff;
+-			mdev->motors[index].min_pos_irq_cnt = 0;
+-			mdev->motors[index].max_pos_irq_cnt = 0;
+-			mdev->motors[index].reset_max_pos = 0;
+-			mdev->motors[index].reset_min_pos = 0;
++
++		/* Enable motor GPIO outputs before reset/homing */
++		motor_power_on(mdev);
++
++		for (index = 0; index < NUMBER_OF_MOTORS; index++) {
++			struct motor_driver *drv = &mdev->motors[index];
++			int half = drv->max_steps > 0 ? drv->max_steps / 2 : 0;
++			drv->move_dir = MOTOR_MOVE_POSITIVE;
++			drv->state = MOTOR_OPS_RESET;
++			drv->cur_steps = half > 0 ? half : 0;
+ 		}
+-		mdev->dst_move.one.x = 0x0fffffff;
+-		mdev->dst_move.one.y = 0x0fffffff;
+-		mdev->dst_move.times = 1;
++		mdev->dst_move.one.x = mdev->motors[PAN_MOTOR].max_steps;
++		mdev->dst_move.one.y = mdev->motors[TILT_MOTOR].max_steps;
++		mdev->dst_move.times = 1; // ensures final reset move is excuted in jz_timer_interrupt
+ 		mdev->cur_move.one.x = 0;
+ 		mdev->cur_move.one.y = 0;
+ 		mdev->cur_move.times = 0;
+ 		mdev->dev_state = MOTOR_OPS_RESET;
++
++		// no step spread
++		mdev->step_spread.factor_a = 1;
++		mdev->step_spread.factor_b = 1;
++
+ 		spin_unlock_irqrestore(&mdev->slock, flags);
+ 		mutex_unlock(&mdev->dev_mutex);
+ 		ingenic_tcu_counter_begin(mdev->tcu);
+ 
+-		for(index = 0; index < HAS_MOTOR_CNT; index++){
++		for(index = 0; index < NUMBER_OF_MOTORS; index++){
+ 			do{
+ 				ret = wait_for_completion_interruptible_timeout(&mdev->motors[index].reset_completion, msecs_to_jiffies(150000));
+ 				if(ret == 0){
+@@ -495,11 +918,36 @@ static long motor_ops_reset(struct motor_device *mdev, struct motor_reset_data *
+ 			}while(ret == -ERESTARTSYS);
+ 		}
+ 	}
+-	//printk("x_max = %d, y_max = %d\n", mdev->motors[HORIZONTAL_MOTOR].max_steps,
+-			//mdev->motors[VERTICAL_MOTOR].max_steps);
++
++	/*
++	 * At this point 2 motors *think* they just reached their max mechanical limits,
++	 * while they can be either blocked by the limit, or just didn't reach it.
++	 * Run a reverse move back to the origin so max step counts reflect
++	 * the total travel range, then finish at center via motor_ops_goback().
++	 */
++	ret = motor_ops_move(mdev,
++			     -mdev->motors[PAN_MOTOR].cur_steps,
++			     -mdev->motors[TILT_MOTOR].cur_steps);
++
++	do {
++		msleep(10);
++		motor_get_message(mdev, &msg);
++		times++;
++		if (times > 1000) {
++			printk("ERROR:wait motor timeout %s%d\n", __func__, __LINE__);
++			ret = -ETIMEDOUT;
++			goto exit;
++		}
++	} while (msg.status == MOTOR_IS_RUNNING);
++
++	//printk("x_max = %d, y_max = %d\n", mdev->motors[PAN_MOTOR].max_steps,
++			//mdev->motors[TILT_MOTOR].max_steps);
+ 	ret = motor_ops_goback(mdev);
+-	/*ret =  motor_ops_move(mdev, (mdev->motors[HORIZONTAL_MOTOR].max_steps) >> 1, */
+-			/*(mdev->motors[VERTICAL_MOTOR].max_steps) >> 1);*/
++	/*ret =  motor_ops_move(mdev, (mdev->motors[PAN_MOTOR].max_steps) >> 1, */
++			/*(mdev->motors[TILT_MOTOR].max_steps) >> 1);*/
++
++	if (ret)
++		goto exit;
+ 
+ 	do{
+ 		msleep(10);
+@@ -511,13 +959,14 @@ static long motor_ops_reset(struct motor_device *mdev, struct motor_reset_data *
+ 			goto exit;
+ 		}
+ 	}while(msg.status == MOTOR_IS_RUNNING);
++
+ 	ret = 0;
+ 
+ 	/* sync data */
+-	 rdata->x_max_steps	= mdev->motors[HORIZONTAL_MOTOR].max_steps;
+-	 rdata->x_cur_step	= mdev->motors[HORIZONTAL_MOTOR].cur_steps;
+-	 rdata->y_max_steps	= mdev->motors[VERTICAL_MOTOR].max_steps;
+-	 rdata->y_cur_step	= mdev->motors[VERTICAL_MOTOR].cur_steps;
++	rdata->x_max_steps	= mdev->motors[PAN_MOTOR].max_steps;
++	rdata->x_cur_step	= mdev->motors[PAN_MOTOR].cur_steps;
++	rdata->y_max_steps	= mdev->motors[TILT_MOTOR].max_steps;
++	rdata->y_cur_step	= mdev->motors[TILT_MOTOR].cur_steps;
+ 
+ exit:
+ 	ingenic_tcu_counter_stop(mdev->tcu);
+@@ -570,15 +1019,14 @@ static long motor_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	struct motor_device *mdev = container_of(dev, struct motor_device, misc_dev);
+ 	long ret = 0;
+ 
+-	if(mdev->flag == 0){
+-		printk("Please Open /dev/motor Firstly\n");
++	if (mdev->flag == 0) {
++		dev_err(mdev->dev, "Please open /dev/motor before issuing commands.\n");
+ 		return -EPERM;
+ 	}
+ 
+ 	switch (cmd) {
+ 		case MOTOR_STOP:
+ 			motor_ops_stop(mdev);
+-			/*printk("MOTOR_STOP!!!!!!!!!!!!!!!!!!!\n");*/
+ 			break;
+ 		case MOTOR_RESET:
+ 			{
+@@ -681,7 +1129,7 @@ static int motor_info_show(struct seq_file *m, void *v)
+ 	seq_printf(m ,"The pos of motor is (%d, %d)\n", msg.x, msg.y);
+ 	seq_printf(m ,"The speed of motor is %d\n", msg.speed);
+ 
+-	for(index = 0; index < HAS_MOTOR_CNT; index++){
++	for(index = 0; index < NUMBER_OF_MOTORS; index++){
+ 		seq_printf(m ,"## motor is %s ##\n", mdev->motors[index].pdata->name);
+ 		seq_printf(m ,"max steps %d\n", mdev->motors[index].max_steps);
+ 		seq_printf(m ,"motor direction %d\n", mdev->motors[index].move_dir);
+@@ -730,7 +1178,7 @@ static int motor_probe(struct platform_device *pdev)
+ 	mdev->tcu = (struct ingenic_tcu_chn *)mdev->cell->platform_data;
+ 	mdev->tcu->irq_type = FULL_IRQ_MODE;
+ 	mdev->tcu->clk_src = TCU_CLKSRC_EXT;
+-	mdev->tcu_speed = MOTOR_MAX_SPEED;
++	mdev->tcu_speed = MOTOR_DEF_SPEED;
+ 	mdev->tcu->is_pwm = 0;
+ 	mdev->tcu->cib.func = TRACKBALL_FUNC;
+ 	mdev->tcu->clk_div = TCU_PRESCALE_64;
+@@ -742,7 +1190,32 @@ static int motor_probe(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, mdev);
+ 
+-	for(i = 0; i < HAS_MOTOR_CNT; i++) {
++	/* copy module parameters to the motors struct */
++	motors_pdata[0].motor_st1_gpio = hst1;
++	motors_pdata[0].motor_st2_gpio = hst2;
++	motors_pdata[0].motor_st3_gpio = hst3;
++	motors_pdata[0].motor_st4_gpio = hst4;
++	motors_pdata[0].motor_min_gpio = hmin_gpio;
++	motors_pdata[0].motor_max_gpio = hmax_gpio;
++	motors_pdata[0].motor_endstop_level = hlevel;
++
++	motors_pdata[1].motor_st1_gpio = vst1;
++	motors_pdata[1].motor_st2_gpio = vst2;
++	motors_pdata[1].motor_st3_gpio = vst3;
++	motors_pdata[1].motor_st4_gpio = vst4;
++	motors_pdata[1].motor_min_gpio = vmin_gpio;
++	motors_pdata[1].motor_max_gpio = vmax_gpio;
++	motors_pdata[1].motor_endstop_level = vlevel;
++
++	if (hmax == -1)
++		hmax = hmaxstep;
++	if (vmax == -1)
++		vmax = vmaxstep;
++
++	// have no switch support yet
++	// motors_pdata[0].motor_switch_gpio = motor_switch_gpio;
++
++	for(i = 0; i < NUMBER_OF_MOTORS; i++) {
+ 		motor = &(mdev->motors[i]);
+ 		motor->pdata = &motors_pdata[i];
+ 		motor->move_dir	= MOTOR_MOVE_STOP;
+@@ -754,7 +1227,7 @@ static int motor_probe(struct platform_device *pdev)
+ 
+ 			ret = request_irq(motor->min_pos_irq,
+ 					motor_min_gpio_interrupt,
+-					(motor->pdata->motor_gpio_level ?
++					(motor->pdata->motor_endstop_level ?
+ 					 IRQF_TRIGGER_RISING :
+ 					 IRQF_TRIGGER_FALLING)
+ 					| UMH_DISABLED ,
+@@ -764,7 +1237,6 @@ static int motor_probe(struct platform_device *pdev)
+ 				motor->min_pos_irq = 0;
+ 				goto error_min_gpio;
+ 			}
+-
+ 		}
+ 		if (motor->pdata->motor_max_gpio != -1) {
+ 			gpio_request(motor->pdata->motor_max_gpio, "motor_max_gpio");
+@@ -772,7 +1244,7 @@ static int motor_probe(struct platform_device *pdev)
+ 
+ 			ret = request_irq(motor->max_pos_irq,
+ 					motor_max_gpio_interrupt,
+-					(motor->pdata->motor_gpio_level ?
++					(motor->pdata->motor_endstop_level ?
+ 					 IRQF_TRIGGER_RISING :
+ 					 IRQF_TRIGGER_FALLING)
+ 					| UMH_DISABLED ,
+@@ -802,9 +1274,26 @@ static int motor_probe(struct platform_device *pdev)
+ 		setup_timer(&motor->max_timer,
+ 			    gpio_keys_max_timer, (unsigned long)motor);
+ 	}
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<13);
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<14);
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<18);
++
++	mdev->motors[PAN_MOTOR].max_steps = hmaxstep;
++	mdev->motors[TILT_MOTOR].max_steps = vmaxstep;
++
++	/*
++	 * Seed the logical position at mid travel so the very first
++	 * MOTORS_MOVE request can safely step in the negative direction.
++	 * Otherwise the guard in motor_ops_move() treats cur_steps == 0 as
++	 * already at the minimum stop and clamps any backward motion, which
++	 * prevents the initial two-way homing sweep from ever starting.
++	 */
++	if (mdev->motors[PAN_MOTOR].max_steps > 0) {
++		int half = mdev->motors[PAN_MOTOR].max_steps / 2;
++		mdev->motors[PAN_MOTOR].cur_steps = half > 0 ? half : 1;
++	}
++	if (mdev->motors[TILT_MOTOR].max_steps > 0) {
++		int half = mdev->motors[TILT_MOTOR].max_steps / 2;
++		mdev->motors[TILT_MOTOR].cur_steps = half > 0 ? half : 1;
++	}
++
+ 	ingenic_tcu_channel_to_virq(mdev->tcu);
+ 	mdev->run_step_irq = mdev->tcu->virq[0];
+ 	if (mdev->run_step_irq < 0) {
+@@ -820,9 +1309,13 @@ static int motor_probe(struct platform_device *pdev)
+ 		goto error_request_irq;
+ 	}
+ 
++	init_completion(&mdev->stop_completion);
++
++	mdev->wait_stop = 0;
+ 	mdev->misc_dev.minor = MISC_DYNAMIC_MINOR;
+ 	mdev->misc_dev.name = "motor";
+ 	mdev->misc_dev.fops = &motor_fops;
++
+ 	ret = misc_register(&mdev->misc_dev);
+ 	if (ret < 0) {
+ 		ret = -ENOENT;
+@@ -853,7 +1346,7 @@ error_request_irq:
+ error_get_irq:
+ error_max_gpio:
+ error_min_gpio:
+-	for(i = 0; i < HAS_MOTOR_CNT; i++) {
++	for(i = 0; i < NUMBER_OF_MOTORS; i++) {
+ 		motor = &(mdev->motors[i]);
+ 		if(motor->pdata == NULL)
+ 			continue;
+@@ -896,7 +1389,7 @@ static int motor_remove(struct platform_device *pdev)
+ 	mutex_destroy(&mdev->dev_mutex);
+ 
+ 	free_irq(mdev->run_step_irq, mdev);
+-	for(i = 0; i < HAS_MOTOR_CNT; i++) {
++	for(i = 0; i < NUMBER_OF_MOTORS; i++) {
+ 		motor = &(mdev->motors[i]);
+ 		if(motor->pdata == NULL)
+ 			continue;
+@@ -937,17 +1430,30 @@ static int motor_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
++static const struct of_device_id motor_ingenic_tcu_ids[] = {
++	{.compatible = "ingenic,tcu_chn2",},
++	{}
++};
++
+ static struct platform_driver motor_driver = {
+ 	.probe = motor_probe,
+ 	.remove = motor_remove,
+ 	.driver = {
+-		.name	= "tcu_chn2",
+-		.owner	= THIS_MODULE,
++		.name = motor_driver_name,
++		.owner = THIS_MODULE,
++		.of_match_table = of_match_ptr(motor_ingenic_tcu_ids),
+ 	}
+ };
+ 
+ static int __init motor_init(void)
+ {
++	/* Parse CSV channels and configure dynamic binding name based on first channel */
++	motor_parse_channels();
++	snprintf(motor_driver_name, sizeof(motor_driver_name), "tcu_chn%d", motor_bind_channel);
++
++	/* Update compatible field */
++	snprintf((char *)motor_ingenic_tcu_ids[0].compatible, sizeof(motor_ingenic_tcu_ids[0].compatible), "ingenic,tcu_chn%d", motor_bind_channel);
++
+ 	return platform_driver_register(&motor_driver);
+ }
+ 
+diff --git a/4.4.94/misc/motor/motor.h b/4.4.94/misc/motor/motor.h
+index b4e18187..22fa25c0 100644
+--- a/4.4.94/misc/motor/motor.h
++++ b/4.4.94/misc/motor/motor.h
+@@ -19,58 +19,36 @@
+ #include <linux/seq_file.h>
+ #include <linux/proc_fs.h>
+ #include <jz_proc.h>
++
+ /*
+  *  HORIZONTAL is X axis and VERTICAL is Y axis;
+  *  while the Zero point is left-bottom, Origin point
+  *  is cross point of horizontal midpoint and vertical midpoint.
+- *
+-*/
+-
++ */
+ 
+ /*#define PLATFORM_HAS_HORIZONTAL_MOTOR 	1*/
+ /*#define PLATFORM_HAS_VERTICAL_MOTOR 	1*/
+ 
+ enum jz_motor_cnt {
+-	HORIZONTAL_MOTOR,
+-	VERTICAL_MOTOR,
+-	HAS_MOTOR_CNT,
++	PAN_MOTOR,
++	TILT_MOTOR,
++	NUMBER_OF_MOTORS,
+ };
+ 
+-
+-/*************************** HORIZONTAL  MOTOR ************************************/
+-#define HORIZONTAL_MIN_GPIO		GPIO_PC(13)	/**< motor start point */
+-#define HORIZONTAL_MAX_GPIO		GPIO_PC(14)	/**< motor stop point */
+-#define HORIZONTAL_GPIO_LEVEL	0		/**< motor irq style */
+-
+-#define HORIZONTAL_ST1_GPIO		GPIO_PB(22)	/**< Phase A */
+-#define HORIZONTAL_ST2_GPIO		GPIO_PB(21)	/**< Phase B */
+-#define HORIZONTAL_ST3_GPIO		GPIO_PB(20)	/**< Phase C */
+-#define HORIZONTAL_ST4_GPIO		GPIO_PB(19)	/**< Phase D */
+-
+-/*************************** VERTICAL  MOTOR ************************************/
+-#define VERTICAL_MIN_GPIO		GPIO_PC(18)
+-#define VERTICAL_MAX_GPIO		GPIO_PB(28)
+-#define VERTICAL_GPIO_LEVEL		0
+-
+-#define VERTICAL_ST1_GPIO		GPIO_PC(11)
+-#define VERTICAL_ST2_GPIO		GPIO_PC(12)
+-#define VERTICAL_ST3_GPIO		GPIO_PC(15)
+-#define VERTICAL_ST4_GPIO		GPIO_PC(16)
+-
+-/****************************** MOTOR END ************************************/
+-
+ /* ioctl cmd */
+-#define MOTOR_STOP		0x1
+-#define MOTOR_RESET		0x2
+-#define MOTOR_MOVE		0x3
++#define MOTOR_STOP			0x1
++#define MOTOR_RESET			0x2
++#define MOTOR_MOVE			0x3
+ #define MOTOR_GET_STATUS	0x4
+-#define MOTOR_SPEED		0x5
+-#define MOTOR_GOBACK	0x6
+-#define MOTOR_CRUISE	0x7
++#define MOTOR_SPEED			0x5
++#define MOTOR_GOBACK		0x6
++#define MOTOR_CRUISE		0x7
++// #define MOTOR_GET_MAXSTEPS	0x8
+ 
+-/* motor speed */
+-#define MOTOR_MAX_SPEED	900		/**< unit: beats per second */
+-#define MOTOR_MIN_SPEED	100
++/* motor speed, beats per second */
++#define MOTOR_MAX_SPEED		2000
++#define MOTOR_DEF_SPEED		300
++#define MOTOR_MIN_SPEED		1
+ 
+ enum motor_status {
+ 	MOTOR_IS_STOP,
+@@ -82,6 +60,10 @@ struct motor_message {
+ 	int y;
+ 	enum motor_status status;
+ 	int speed;
++
++	// these 2 fields are not standard
++	unsigned int x_max_steps;
++	unsigned int y_max_steps;
+ };
+ 
+ struct motors_steps{
+@@ -97,21 +79,21 @@ struct motor_reset_data {
+ };
+ 
+ enum motor_direction {
+-	MOTOR_MOVE_LEFT_DOWN = -1,
++	MOTOR_MOVE_NEGATIVE = -1,
+ 	MOTOR_MOVE_STOP,
+-	MOTOR_MOVE_RIGHT_UP,
++	MOTOR_MOVE_POSITIVE,
+ };
+ 
+ struct motor_platform_data {
+ 	const char name[32];
+-	unsigned int motor_min_gpio;
+-	unsigned int motor_max_gpio;
+-	int motor_gpio_level;
+-
+-	unsigned int motor_st1_gpio;
+-	unsigned int motor_st2_gpio;
+-	unsigned int motor_st3_gpio;
+-	unsigned int motor_st4_gpio;
++	int motor_min_gpio;
++	int motor_max_gpio;
++	int motor_endstop_level;
++
++	int motor_st1_gpio;
++	int motor_st2_gpio;
++	int motor_st3_gpio;
++	int motor_st4_gpio;
+ };
+ 
+ enum motor_ops_state {
+@@ -146,12 +128,20 @@ struct motor_move {
+ 	short times;
+ };
+ 
++struct step_spread_param {
++	int factor_a;
++	int factor_b;
++	int numerator;
++};
++
+ struct motor_device {
+ 	struct platform_device *pdev;
+ 	const struct mfd_cell *cell;
+ 	struct device	 *dev;
+ 	struct miscdevice misc_dev;
+-	struct motor_driver motors[HAS_MOTOR_CNT];
++	struct motor_driver motors[NUMBER_OF_MOTORS];
++	struct completion stop_completion;
++	unsigned int wait_stop;
+ 	struct ingenic_tcu_chn *tcu;
+ 	int tcu_speed;
+ 
+@@ -166,6 +156,8 @@ struct motor_device {
+ 	int run_step_irq;
+ 	int flag;
+ 
++	struct step_spread_param step_spread;
++
+ 	/* debug parameters */
+ 	struct proc_dir_entry *proc;
+ };
