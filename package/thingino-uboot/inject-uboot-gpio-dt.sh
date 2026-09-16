@@ -33,17 +33,19 @@
 #                 itself; a fixed regulator can only own one gpio, which is
 #                 why multi-pin boards get plain hogs instead.
 #
-#   gpio.ircut (+ gpio.ircut_sub) - IR-cut filter coil pins parked at the
-#                 /usr/sbin/ircut idle level so the solenoid is not left
-#                 floating or energised through the boot window. Dual-pin
-#                 boards rest both pins at idle between pulses and single-pin
-#                 boards de-energise at the "open" level; both work out to
-#                 active_low ? HIGH : LOW per pin. NOTE the ircut token
-#                 suffix means polarity, not a drive level as in gpio.wlan:
-#                 "57o" = active-low pin = idle HIGH ("57O" = active-high =
-#                 idle LOW). Pin 999 is the tmi8152 kernel-shim sentinel (no
-#                 gpio) and a -1 token disables the whole domain, exactly as
-#                 the runtime script treats them.
+#   gpio.ircut, gpio.ircut_2 .. gpio.ircut_4 - IR-cut filter coil pins, one
+#                 key per image sensor numbered like BR2_SENSOR_<n>_NAME
+#                 (plain ircut is sensor 1; the legacy ircut_sub is still
+#                 read), parked at the /usr/sbin/ircut idle level so the
+#                 solenoid is not left floating or energised through the boot
+#                 window. Dual-pin boards rest both pins at idle between
+#                 pulses and single-pin boards de-energise at the "open"
+#                 level; both work out to active_low ? HIGH : LOW per pin.
+#                 NOTE the ircut token suffix means polarity, not a drive
+#                 level as in gpio.wlan: "57o" = active-low pin = idle HIGH
+#                 ("57O" = active-high = idle LOW). Pin 999 is the tmi8152
+#                 kernel-shim sentinel (no gpio) and a -1 token disables the
+#                 whole domain, exactly as the runtime script treats them.
 #
 #   gpio.speaker - the speaker amplifier enable line, held at its muted
 #                 (inactive) level so the amp is not left floating through
@@ -190,7 +192,7 @@ if isinstance(mp, list):
         if isinstance(e, dict) and isinstance(e.get("pin"), int) and e["pin"] >= 0:
             out.append(("mmc_power", e["pin"], 0 if is_true(e.get("active_low")) else 1))
 
-# ---- gpio.ircut / gpio.ircut_sub: park filter coil pins at idle -----------
+# ---- gpio.ircut .. gpio.ircut_4 (+ legacy ircut_sub): park coil pins idle -
 def bool_flag(v, dflt):  # /usr/sbin/ircut bool_flag
     if isinstance(v, bool):
         return 1 if v else 0
@@ -227,7 +229,7 @@ def ircut_walk(v, default_al, acc):
             acc.append((int(tok), al))
     return True
 
-for key in ("ircut", "ircut_sub"):
+for key in ("ircut", "ircut_2", "ircut_3", "ircut_4", "ircut_sub"):
     acc = []
     if ircut_walk(root.get("gpio", {}).get(key), 0, acc):
         out += [("ircut", p, 1 if al else 0) for p, al in acc]
