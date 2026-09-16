@@ -2,7 +2,7 @@
 # nino
 ################################################################################
 
-NINO_VERSION = 0.2.0
+NINO_VERSION = 0.2.1
 NINO_SITE = $(call github,evanlin96069,nino,v$(NINO_VERSION))
 
 NINO_LICENSE = BSD-2-Clause
