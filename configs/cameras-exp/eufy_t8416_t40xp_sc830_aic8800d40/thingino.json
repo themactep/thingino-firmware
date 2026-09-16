@@ -1,7 +1,23 @@
 {
   "gpio": {
-    "ir850": 67,
-    "ircut": "118 119",
-    "white": 66
+    "button_reset": 40,
+    "ir850": 38,
+    "ircut": "43 45",
+    "ircut_2": "41 42",
+    "mmc_cd": 112,
+    "mmc_power": 47,
+    "speaker": 63,
+    "wlan": {
+      "pin": 6,
+      "toggle": true
+    }
+  },
+  "motors": {
+    "gpio_pan": "99 100 101 102",
+    "gpio_tilt": "103 105 106 107",
+    "homing": false,
+    "limitless": true,
+    "steps_pan": 4100,
+    "steps_tilt": 850
   }
 }

@@ -10,13 +10,16 @@ raptor_bval = $(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_$(1)_TRUE)),tru
 define THINGINO_RAPTOR_PATCH_CONF
 	CONF=$(TARGET_DIR)/etc/raptor.conf; \
 	rset() { \
-		[ -n "$$3" ] && \
-		sed -i "/^\[$$1\]/,/^[# ]*\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF" || true; \
+		[ -n "$$3" ] || return 0; \
+		if sed -n "/^\[$$1\]/,/^[# ]*\[/p" "$$CONF" | grep -qE "^[# ]*$$2 = "; then \
+			sed -i "/^\[$$1\]/,/^[# ]*\[/{s|^[# ]*$$2 = .*|$$2 = $$3|;}" "$$CONF"; \
+		else \
+			sed -i "/^\[$$1\]/a $$2 = $$3" "$$CONF"; \
+		fi; \
 	}; \
 	\
 	if [ "$(BR2_THINGINO_IMAGE_SENSOR_QTY)" -gt 1 ] 2>/dev/null; then \
 		sed -i 's/^\[sensor\]/[sensor0]/' "$$CONF"; \
-		sed -i 's/^# \[sensor0\]/[sensor0]/' "$$CONF"; \
 		sed -i 's/^# \[sensor1\]/[sensor1]/' "$$CONF"; \
 		sed -i 's/^# \[mipi_switch\]/[mipi_switch]/' "$$CONF"; \
 		sed -i 's/^# \[sensor1_image\]/[sensor1_image]/' "$$CONF"; \
@@ -48,6 +51,20 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset sensor1 i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_I2C_ADAPTER))"; \
 	rset sensor1 sensor_id "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_SENSOR_ID))"; \
 	rset sensor1 fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_FPS))"; \
+	rset sensor1 width "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_WIDTH))"; \
+	rset sensor1 height "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_HEIGHT))"; \
+	rset sensor0 rst_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_RST_GPIO))"; \
+	rset sensor0 pwdn_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_PWDN_GPIO))"; \
+	rset sensor0 power_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_POWER_GPIO))"; \
+	rset sensor0 boot "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_BOOT))"; \
+	rset sensor0 mclk "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_MCLK))"; \
+	rset sensor0 video_interface "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR0_VIDEO_INTERFACE))"; \
+	rset sensor1 rst_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_RST_GPIO))"; \
+	rset sensor1 pwdn_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_PWDN_GPIO))"; \
+	rset sensor1 power_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_POWER_GPIO))"; \
+	rset sensor1 boot "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_BOOT))"; \
+	rset sensor1 mclk "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_MCLK))"; \
+	rset sensor1 video_interface "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR1_VIDEO_INTERFACE))"; \
 	\
 	rset mipi_switch enabled "$(call raptor_bval,MIPI_SWITCH_ENABLED)"; \
 	rset mipi_switch switch_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MIPI_SWITCH_GPIO))"; \
