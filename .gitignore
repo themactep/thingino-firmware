@@ -12,6 +12,9 @@
 \#*#
 core
 core.*
+# The core-dump rules above also match the XBurst core/ asset directory.
+!/package/linux/files/**/core/
+!/package/linux/files/**/core/**
 
 # Docker
 .bash_history

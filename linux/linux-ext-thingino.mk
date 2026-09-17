@@ -1,27 +1,31 @@
 # Thingino linux kernel extension
-# Extracts binary assets (host tools, firmware blobs) that cannot be
+# Restores binary assets (host tools, firmware blobs) that cannot be
 # included in text patches. These are Ingenic-specific files that live
 # outside the main cumulative patch.
 #
 # The big cumulative patch is applied first, then follow-up text patches,
-# then this hook extracts binary assets from a versioned tarball, if one
-# exists for this exact kernel version. Only 3.10.14 (xburst1) has a bundle
-# today; xburst2 kernels (T40/T41/...) resolve LINUX_VERSION to a live git
-# hash via KERNEL_HASH in thingino.mk, so there is no stable filename to
-# ship a bundle under, and none is needed while the kernel source itself
-# comes from git rather than a stripped official tarball.
+# then this hook restores the assets from a per-kernel-version directory.
+# The tree is kept in extracted form under package/linux/files/<version>/,
+# mirroring package/all-patches/linux/<version>/ and the u-boot
+# package/thingino-uboot/files/<version>/ layout.
 #
-# NOTE: buildroot includes linux/linux.mk (Makefile:553) - and from it, this
-# file - *before* it re-includes .br2-external.mk to un-quote the
-# BR2_EXTERNAL_*_PATH values (Makefile:561). At parse time the variable still
-# holds the quoted .config value, and $(wildcard "...") never matches. Strip
-# the quotes for the parse-time test; the recipe below expands later, when the
-# variable is already unquoted (same idiom as package/thingino-overrides.mk).
-ifneq ($(wildcard $(patsubst "%",%,$(strip $(BR2_EXTERNAL_THINGINO_PATH)))/package/linux/thingino-binary-assets-$(LINUX_VERSION).tar.gz),)
-define LINUX_EXTRACT_THINGINO_BINARY_ASSETS
-	@echo ">>> Thingino: extracting binary assets for Linux $(LINUX_VERSION)"
-	$(TAR) -C $(@D) -xzf \
-		$(BR2_EXTERNAL_THINGINO_PATH)/package/linux/thingino-binary-assets-$(LINUX_VERSION).tar.gz
+# Directories are keyed by KERNEL_VERSION (3.10.14, 4.4.94, ...), not
+# LINUX_VERSION: for custom-git kernels Buildroot sets LINUX_VERSION to the
+# commit hash, which changes on every rebase. A version without a files
+# subdirectory has nothing to restore.
+#
+# The directory test runs inside the recipe because that is when
+# BR2_EXTERNAL_THINGINO_PATH is unquoted. Buildroot includes linux/linux.mk
+# (and from it, this file) before re-including .br2-external.mk, so a
+# parse-time $(wildcard) would see the quoted .config value.
+
+LINUX_THINGINO_BINARY_ASSETS_DIR = \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/linux/files/$(KERNEL_VERSION)
+
+define LINUX_THINGINO_RESTORE_BINARY_ASSETS
+	@if [ -d "$(LINUX_THINGINO_BINARY_ASSETS_DIR)" ]; then \
+		echo ">>> Thingino: restoring binary assets for Linux $(KERNEL_VERSION)"; \
+		cp -a "$(LINUX_THINGINO_BINARY_ASSETS_DIR)/." "$(@D)/"; \
+	fi
 endef
-LINUX_POST_PATCH_HOOKS += LINUX_EXTRACT_THINGINO_BINARY_ASSETS
-endif
+LINUX_POST_PATCH_HOOKS += LINUX_THINGINO_RESTORE_BINARY_ASSETS
