@@ -77,6 +77,32 @@ OpenIMP also installs `openimp-tuningd`; its init script (`S30openimp-tuning`)
 starts it only when Raptor reports the V4L2 video backend
 (`raptorctl config get system video_backend`).
 
+## Sensor info registry (/proc/jz/sensor)
+
+`/proc/jz/sensor` is owned by the ISP, not by the sensor modules. The ISP
+publishes an indexed registry - `count`, `events`, and one `sensorN/`
+directory per registered sensor with `name`, `i2c_addr`, `status`, geometry,
+fps and the wiring fields - which is what Raptor's multi-sensor model reads
+(`rvd` scans `sensorN/status` to find the active sensor).
+
+The vendor ISP implements this in `tx-isp-sinfo.c`; the open driver ports it
+as `tx_isp_sinfo` (`driver/common/tx_isp_sinfo.c`, with a per-SoC ABI config
+in `driver/<soc>/tx_isp_<soc>_sinfo.c`). The SDK sensor modules must not
+create the same node: procfs resolves a duplicated name to the last
+registrant, so their flat tree shadowed the ISP's `sensorN/` and Raptor could
+not find the active sensor. ciao passes `-DSENSOR_PROC_OWNED_BY_ISP` to the
+sensor module build (`package/ingenic-sdk/ingenic-sdk.mk`) when the open
+stack is selected; `common/sensor/common/sensor-info.c` then only registers
+attributes and leaves the node to the ISP. Proprietary builds keep the sensor
+module's tree because their ISP has no such registry.
+
+Known gap on T31: the open driver logs `tx-isp-sinfo: driver_add` but never
+`tx-isp-sinfo: sensor_bind`, so the slot's subdev stays NULL and the registry
+reports `name`/`status` but not `i2c_addr` (reads 0), `width`/`height`
+(empty) or `max_fps`. Raptor therefore still needs the sensor pinned in
+`raptor.conf` (`BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_*`) on T31 open-ISP
+builds until the bind path is wired.
+
 ## Status
 
 Per the upstream `open-tx-isp` README, the driver is device-tested on T20,
