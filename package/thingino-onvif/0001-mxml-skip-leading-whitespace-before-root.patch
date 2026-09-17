@@ -1,0 +1,55 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 17 Sep 2026 08:55:00 -0400
+Subject: [PATCH] mxml: skip leading whitespace before the SOAP root element
+
+init_xml() calls mxmlLoadString() with a NULL top. mxml_load_data() then
+requires the very first byte to be '<':
+
+    else if (ch != '<' && !top) {
+        _mxml_error(options, "XML does not start with '<' (saw '%c').", ch);
+        return (NULL);
+    }
+
+A SOAP body that begins with whitespace and no XML declaration is valid
+XML, but fails that check, so the whole request is rejected with a
+ter:InvalidArgVal "Malformed request" fault. ZoneMinder's ONVIF control
+module sends exactly that shape, which broke every PTZ command against
+the camera.
+
+Reproduced against the linked mxml 4.0.4: a body starting with "\n    "
+returns NULL from mxmlLoadString(), while the identical body parses once
+the leading whitespace is skipped.
+
+Skip leading whitespace before handing the buffer to mxmlLoadString().
+get_method() already skips non-element siblings, so the Envelope and Body
+are still located.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+--- a/src/mxml_wrapper.c
++++ b/src/mxml_wrapper.c
+@@ -22,6 +22,7 @@
+ #include "string.h"
+ #include "utils.h"
+ 
++#include <ctype.h>
+ #include <stdlib.h>
+ 
+ // In mxml v4, mxmlLoadString returns a document node, not the root element
+@@ -56,7 +57,15 @@
+     memcpy(tmp_buf, buffer, (size_t) buffer_size);
+     tmp_buf[buffer_size] = '\0';
+ 
+-    doc_xml = mxmlLoadString(NULL, NULL, tmp_buf);
++    // mxmlLoadString() with a NULL top rejects a document that does not start
++    // with '<' (mxml_load_data()), but SOAP clients such as ZoneMinder send a
++    // body that begins with whitespace and no XML declaration. Skip it so the
++    // Envelope is still found.
++    char *xml_start = tmp_buf;
++    while (isspace((unsigned char) *xml_start))
++        xml_start++;
++
++    doc_xml = mxmlLoadString(NULL, NULL, xml_start);
+     free(tmp_buf);
+     if (!doc_xml) {
+         log_error("Failed to parse XML string - mxmlLoadString returned NULL");
