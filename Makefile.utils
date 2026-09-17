@@ -219,7 +219,7 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN) $(BR2_EXTERNAL)/configs/common.uenv.txt $(CAMER
 	echo 'overlay_wipe=echo \"wiping overlay\"; sf probe && sf erase $${data_addr} $${data_size} && echo \"overlay wipe done\"' >> $@
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	# MMC boot: set bootargs and load kernel from FAT partition
-	echo 'bootcmd=setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)setenv bootargs mem=$${osmem} rmem=$${rmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} rootwait init=$${init};mmc rescan;fatload mmc 0:1 $${loadaddr} uImage;bootm $${loadaddr}' >> $@
 else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	# SFC-NAND boot: kernel + squashfs rootfs live in UBI volumes inside the
 	# "ubi" MTD partition (layout from the fork's t40-isvp-nand.dtsi).
@@ -249,8 +249,14 @@ else
 	echo "data_size=$$(printf '0x%x' $(DATA_PARTITION_SIZE))" >> $@
 	echo "flash_len=$(FLASH_SIZE_HEX)" >> $@
 	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(DATA_SIZE_KB)k(data),$(FLASH_SIZE_KB)k@0(all)" >> $@
-	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
+	echo 'bootcmd=$(AUTOUPDATE_PREFIX)sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM) console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${loadaddr} $${kern_addr} $${kern_size};bootm $${loadaddr}' >> $@
 endif
+	@if ! grep -q '^BR2_THINGINO_SDCARD=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		sed -i '/^autoupdate=/d; /^loaduenv=/d; s|run autoupdate;||; s|run loaduenv;||' $@; \
+	fi
+	@if ! grep -q '^BR2_THINGINO_BUTTON=y' $(OUTPUT_DIR)/.config 2>/dev/null; then \
+		sed -i '/^button_cmd_0_name=/d; /^button_cmd_0=/d; /^overlay_wipe=/d' $@; \
+	fi
 	exit
 
 # Rebuild U-Boot with actual partition sizes after rootfs is ready

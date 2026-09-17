@@ -232,6 +232,11 @@ ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 else
  UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
 endif
+# loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
+# (env partition included) and resets, so an env imported before flashing would
+# be lost. Running after means uenv.txt is applied on the first boot of the
+# freshly flashed firmware (autoupdate skips via its .done marker by then).
+AUTOUPDATE_PREFIX := $(if $(filter 2013-07,$(THINGINO_UBOOT_VERSION_TAG)),,run autoupdate;run loaduenv;)
 
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
