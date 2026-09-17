@@ -5,7 +5,7 @@
 . /var/www/x/auth.sh
 require_auth
 
-tmp=$(mktemp /tmp/raptor-snap.XXXXXX.jpg) || exit 1
+tmp=$(mktemp /tmp/raptor-snap.XXXXXX) || exit 1
 trap 'rm -f "$tmp"' EXIT INT TERM
 
 if ! command -v raptorctl >/dev/null 2>&1; then

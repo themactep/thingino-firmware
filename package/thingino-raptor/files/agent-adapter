@@ -2508,7 +2508,7 @@ agent_snapshot() {
 		echo "snapshot is not supported on this camera" >&2
 		return 1
 	}
-	tmp=$(mktemp /tmp/agent-snap.XXXXXX.jpg) || return 1
+	tmp=$(mktemp /tmp/agent-snap.XXXXXX) || return 1
 	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
 		rm -f "$tmp"
 		echo "failed to capture snapshot" >&2
