@@ -10,34 +10,83 @@ default. Select the experimental implementation in `menuconfig` under
 BR2_PACKAGE_THINGINO_ISP_OPEN=y
 ```
 
-The open provider selects:
+The open provider selects `open-tx-isp` (the kernel driver) plus OpenIMP
+(`libimp.so`) where available, with `ingenic-system-libs-neo` and
+`libaudioProcess-neo` replacing the support libraries.
 
-| Component | T23 | T31 | T40 | T41 |
-| --- | --- | --- | --- | --- |
-| open-tx-isp kernel driver | yes | yes | yes | yes |
-| OpenIMP `libimp.so` | no | yes | yes | yes |
-| ingenic-system-libs-neo | yes | yes | yes | yes |
-| libaudioProcess-neo | yes | yes | yes | yes |
+## SoC coverage
 
-T23/T31 are limited to the vendor Linux 3.10.14 trees. T40/T41 are limited to
-the vendor Linux 4.4.94 trees. C100 is not included in the T31 support claim.
+Upstream (as cloned into `overrides/open-tx-isp/` and `overrides/openimp/`)
+has moved past the original four-SoC scope.
 
-OpenIMP currently has device builds for T31, T40, and T41. T23 therefore keeps
-the proprietary `libimp.so` while replacing the ISP kernel driver and the
-system/audio support libraries.
+| Component | Upstream driver/build scope |
+| --- | --- |
+| open-tx-isp driver | T10, T20, T21, T23, T30, T31, T40, T41 |
+| OpenIMP `libimp.so` | T20, T21, T30, T31, T40, T41 |
 
-The T31 OpenIMP build is currently video-focused and intentionally omits IMP
-audio entry points; some optional OSD/IVS calls used by feature-rich streamers
-are also incomplete. Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to return
-the entire camera profile to the Ingenic ISP driver and libimp provider.
+The Thingino Kconfig gates mirror that, minus the two odd cases:
+
+- `OPEN_TX_ISP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on
+  4.4.94).
+- `OPENIMP_SUPPORTED` (T20/T21/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
+
+Two upstream targets are intentionally left out of the OpenIMP gate:
+
+- **T23** is a hybrid build: a partial `libimp.so` with no audio entry points
+  plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the
+  proprietary Helix encoder, while RAD keeps using OEM `libimp.so` for audio.
+  Thingino's `openimp.mk` does not install the helixd worker or preserve the
+  OEM `libimp.so`, so T23 keeps the proprietary userspace.
+- **T10** has an open-tx-isp driver but no OpenIMP build target.
+
+C100 is not covered by either component.
+
+Kernel focus:
+
+- Linux 3.10.14 vendor trees: T10, T20, T21, T23, T30, T31
+- Linux 4.4.94 vendor trees: T40, T41
+- T31 also builds on the mainline Linux 7.1 compatibility path upstream
+  (Thingino's Kconfig exposes the open stack only on the vendor trees)
+
+## Module completeness
+
+- **Audio**: `IMP_AI_*` implemented for T31 and T40; T20/T21 reuse the T31
+  audio implementation. T30 is video-only — its build deliberately refuses to
+  export the IMP audio entry points.
+- **OSD**: implemented for T31; T40 marks the `IMP_OSD_*` entry points
+  `P3_UNSUPPORTED` (returns `ENOTSUP`).
+- **ISP**: `isp_tseries.c` provides the `IMP_ISP_*` tuning surface
+  (brightness/contrast/sharpness and friends).
+- **IVS**: still incomplete — no `IMP_IVS_MoveDetect`, and T40 stubs the IVS
+  entry points.
+- **Encoder**: per-SoC encode paths exist — Helix for T21/T30, the shared
+  AVPU backend for T31/T40/T41, and for T23 the AVPU backend plus the
+  separate `openimp-t23-helixd` worker that links the OEM Helix encoder. The
+  upstream README reports decoder-clean H.264 on T30/T31/T40; T41 is still
+  in correctness bring-up.
+
+## Installation
 
 The open driver is installed as `tx-isp-<soc>.ko`, preserving the module name
-expected by the SDK sensor drivers and `/etc/modules.d/20-isp`. OpenIMP and the
-neo libraries are installed to staging before consumers link, and target
+expected by the SDK sensor drivers and `/etc/modules.d/20-isp`. OpenIMP and
+the neo libraries are installed to staging before consumers link, and target
 finalization preserves the selected replacements in the root filesystem.
-OpenIMP also installs `openimp-tuningd`; its init script activates only when
-Raptor is configured for the V4L2 backend.
 
-This profile is experimental. Upstream reports working streams on supported
-targets, but image tuning, sensor coverage, WDR, flip, exposure range, and
-OEM-equivalent image quality remain incomplete.
+OpenIMP also installs `openimp-tuningd`; its init script (`S30openimp-tuning`)
+starts it only when Raptor reports the V4L2 video backend
+(`raptorctl config get system video_backend`).
+
+## Status
+
+Per the upstream `open-tx-isp` README, the driver is device-tested on T20,
+T23, T30, T31, T40, and T41 (T10/T21 hardware validation pending), with
+near-OEM daylight parity demonstrated on T31/SC301IOT. OpenIMP streams on
+device on T20 and T31. H/V flip control now reaches the real MSCA output
+register.
+
+Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
+long-duration stability lack OEM-comparable validation, and some tuning tables
+remain synthetic or partially reconstructed.
+
+Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to return to the Ingenic
+driver and libimp provider.

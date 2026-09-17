@@ -67,5 +67,5 @@ filesystem.
 Related
 -------
 
-- :doc:`streamer` — RTSP stream recording and metadata
-- :doc:`diagnostics` — general camera diagnostics
+- [Streamer](streamer.md) — RTSP stream recording and metadata
+- [Diagnostics](../device/diagnostics.md) — general camera diagnostics
