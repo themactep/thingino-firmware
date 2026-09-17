@@ -109,6 +109,17 @@ the pre-bind registry reports the address and Raptor autodetects without a
 per-camera pin. Verified on T31: `sensor0/{name,i2c_addr,status,width,height,
 fps}` populate and `rvd` brings the full stack up with `[sensor]` unset.
 
+## Video rings and refmode
+
+`rvd` publishes H.264 into `rss_ring_main` in zero-copy refmode by default,
+which assumes the encoder's output buffers live inside the ISP `rmem`
+reservation. OpenIMP's AVPU encoder allocates them elsewhere, so every frame
+falls back to an inline copy that the refmode-sized ring cannot hold - the
+H.264 ring stays empty and RTSP and the WebRTC preview stay black (the JPEG
+path is unaffected, which is why snapshots and MJPEG work). `thingino-raptor`'s
+`[ring] refmode` now defaults to false when `BR2_PACKAGE_OPENIMP` is selected;
+the proprietary libimp allocates from rmem and keeps zero-copy.
+
 ## Status
 
 Per the upstream `open-tx-isp` README, the driver is device-tested on T20,
