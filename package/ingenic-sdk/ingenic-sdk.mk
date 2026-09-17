@@ -41,6 +41,16 @@ define INGENIC_SDK_LINUX_CONFIG_FIXUPS
 endef
 endif
 
+# With the open ISP stack, open-tx-isp's tx_isp_sinfo owns /proc/jz/sensor and
+# publishes the indexed sensorN/ registry (name, i2c_addr, status). The sensor
+# modules must not create the node as well: procfs resolves a duplicated name to
+# the last registrant, so their flat tree would shadow sensorN/ and Raptor
+# could not autodetect the active sensor. Proprietary builds keep the sensor
+# module's tree because their ISP has no such registry.
+ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN),y)
+INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
+endif
+
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
 
 # Per-camera IQ file overrides (paths relative to BR2_EXTERNAL root)
