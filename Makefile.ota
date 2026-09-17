@@ -146,6 +146,9 @@ rebuild-uboot: force-config
 	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(call thingino_run_build,$(BR2_MAKE) $(BR2_MAKE_JOBS) host-libyaml host-uboot-tools uboot-dirclean uboot)
 
+# rebuild-<pkg> stops after -reinstall: target-finalize is the slow step and
+# this target exists for fast iteration. Run 'make pack' to finalize; it pulls
+# target-finalize in through rootfs-squashfs once the package changed.
 rebuild-%: force-config
 	@$(TEAL) "$@"
 	@PKG_NAME="$(subst rebuild-,,$@)"; \
@@ -157,7 +160,7 @@ rebuild-%: force-config
 	true
 	rm -f $(U_BOOT_ENV_TXT)
 	$(MAKE) $(U_BOOT_ENV_TXT)
-	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall target-finalize
+	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall
 
 bundle-%:
 	@$(TEAL) "$@"
