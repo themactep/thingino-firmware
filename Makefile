@@ -362,8 +362,15 @@ BACKUP_SIZE_KB := 64
 # in the offset chain below (U_BOOT -> UB_ENV -> BACKUP -> KERNEL -> ROOTFS)
 ROOTFS_MTD_NUM := 4
 
-# U-Boot CONFIG_ENV_SIZE (must match the value in isvp_common.h for SPI NOR)
+# U-Boot CONFIG_ENV_SIZE. mkenvimage must pad the env to exactly this size or
+# U-Boot rejects it with a bad CRC on every fresh flash. The 2013.07 tree
+# hardcodes 0x8000 in include/configs/isvp_common.h; the Kconfig-era trees take
+# 0x10000 from configs/uboot/layout/{sfcnor,sfcnand}.config.
+ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
 UB_ENV_SIZE := 0x8000
+else
+UB_ENV_SIZE := 0x10000
+endif
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
