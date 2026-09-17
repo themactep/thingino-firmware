@@ -460,6 +460,19 @@ scriba:
 #   1. It would break non-buildroot targets (like when this rule incorrectly matched 'update')
 #   2. Buildroot targets will fail gracefully if config is missing
 #   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
+#
+# Caution: GNU make also consults .DEFAULT for prerequisites it cannot remake,
+# not only for command-line goals.  A prerequisite that existed at parse time
+# but is missing by the time make tries to remake it (e.g. a user file listed
+# by $(wildcard) in THINGINO_USER_UENV_FILES that something deleted mid-build)
+# lands here with $@ set to that path, and gets forwarded verbatim to Buildroot:
+#
+#   make -C buildroot ... /home/paul/.thingino/user/common/local.uenv.txt
+#   make[1]: *** No rule to make target '.../local.uenv.txt'.  Stop.
+#
+# If that message reappears, check the user config files under
+# $(THINGINO_USER_DIR) first, then guard this rule with a MAKECMDGOALS check so
+# it only forwards real command-line goals.
 .DEFAULT:
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $@
