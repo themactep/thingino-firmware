@@ -22,22 +22,23 @@ has moved past the original four-SoC scope.
 | Component | Upstream driver/build scope |
 | --- | --- |
 | open-tx-isp driver | T10, T20, T21, T23, T30, T31, T40, T41 |
-| OpenIMP `libimp.so` | T20, T21, T30, T31, T40, T41 |
+| OpenIMP `libimp.so` | T20, T21, T23, T30, T31, T40, T41 |
 
-The Thingino Kconfig gates mirror that, minus the two odd cases:
+The Thingino Kconfig gates mirror that, minus the T10 odd case:
 
 - `OPEN_TX_ISP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on
   4.4.94).
-- `OPENIMP_SUPPORTED` (T20/T21/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
+- `OPENIMP_SUPPORTED` (T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
 
-Two upstream targets are intentionally left out of the OpenIMP gate:
+**T10** has an open-tx-isp driver but no OpenIMP build target, so it stays
+out of the OpenIMP gate and keeps the Ingenic libimp provider.
 
-- **T23** is a hybrid build: a partial `libimp.so` with no audio entry points
-  plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the
-  proprietary Helix encoder, while RAD keeps using OEM `libimp.so` for audio.
-  Thingino's `openimp.mk` does not install the helixd worker or preserve the
-  OEM `libimp.so`, so T23 keeps the proprietary userspace.
-- **T10** has an open-tx-isp driver but no OpenIMP build target.
+**T23** is a hybrid build: a partial `libimp.so` with no audio entry points
+plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the
+proprietary Helix encoder, while RAD keeps using OEM `libimp.so` for audio.
+`openimp.mk` selects `BR2_PACKAGE_INGENIC_LIB_LIBIMP`, copies that OEM
+`libimp.so` to `/opt/openimp-t23/libimp.so` next to the helixd worker, and
+installs OpenIMP's `libimp.so` as `/usr/lib/libimp.so` for RAD.
 
 C100 is not covered by either component.
 
