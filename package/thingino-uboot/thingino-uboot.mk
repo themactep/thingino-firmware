@@ -76,20 +76,31 @@ THINGINO_UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
 
 # GNU patch cannot apply binary diffs, so every binary blob shipped inside
-# 0001-from-2013.07-to-thingino.patch comes out empty after patching: the
-# prebuilt SPL images (spl/binary/*.bin) needed by T31LC / Xiaomi boards,
-# the prebuilt host tools, the boot/charge logos, the GPT/MBR blobs, and
-# the NAND manager library. A missing SPL bricks boards that boot from a
-# prebuilt SPL; the rest silently corrupt their respective features.
-# Restore the vendored copies from this package's files directory, which
-# mirrors the U-Boot source tree layout.
+# a version patch comes out empty after patching: the prebuilt SPL images
+# (spl/binary/*.bin) needed by T31LC / Xiaomi boards, the prebuilt host
+# tools, the boot/charge logos, the GPT/MBR blobs, and the NAND manager
+# library. A missing SPL bricks boards that boot from a prebuilt SPL; the
+# rest silently corrupt their respective features. Restore the vendored
+# copies from this package's files directory, which mirrors the U-Boot
+# source tree layout. Binaries are split per U-Boot version in
+# files/<version>/, mirroring package/all-patches/uboot/<version>/; a
+# version without a files subdirectory simply has nothing to restore.
 # https://github.com/themactep/thingino-firmware/issues/1299
 ifeq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+THINGINO_UBOOT_BINARIES_VERSION := 2013.07
+else ifeq ($(BR2_THINGINO_UBOOT_VERSION_2026_07),y)
+THINGINO_UBOOT_BINARIES_VERSION := 2026.07
+else ifeq ($(BR2_THINGINO_UBOOT_VERSION_CUSTOM_FORK),y)
+THINGINO_UBOOT_BINARIES_VERSION := custom-fork
+endif
+
 define THINGINO_UBOOT_RESTORE_BINARIES
-	cp -a $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/. $(@D)/
+	@if [ -n "$(THINGINO_UBOOT_BINARIES_VERSION)" ] && \
+		[ -d $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/$(THINGINO_UBOOT_BINARIES_VERSION) ]; then \
+		cp -a $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/files/$(THINGINO_UBOOT_BINARIES_VERSION)/. $(@D)/; \
+	fi
 endef
 UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_RESTORE_BINARIES
-endif
 
 define THINGINO_UBOOT_COPY_SHA1_HEADER
 	if [ -f $(@D)/include/sha1.h ]; then \
