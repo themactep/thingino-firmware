@@ -1,0 +1,41 @@
+--- a/driver/t20/sdk/source/tx-isp-video-in.c
++++ b/driver/t20/sdk/source/tx-isp-video-in.c
+@@ -9,6 +9,10 @@
+ #include <media/v4l2-mediabus.h>
+ 
+ #include "tx-isp-video-in.h"
++
++/* Thingino sensor-info registry (open-tx-isp's tx_isp_sinfo). */
++int tx_isp_sinfo_sensor_bind(void *subdev, struct module *owner);
++void tx_isp_sinfo_sensor_unbind(void *subdev, struct module *owner);
+ /*
+  * Sensor subdevice helper functions
+  */
+@@ -94,6 +98,19 @@
+ 	list_add_tail(&sensor->list, &vi->sensors);
+ 	spin_unlock(&vi->slock);
+ 
++	/*
++	 * Publish the sensor to the tx-isp-sinfo registry so /proc/jz/sensor/
++	 * sensorN/ reports name, i2c_addr and geometry. The T20 apical
++	 * registration path does not reach the sinfo otherwise.
++	 */
++	{
++		struct i2c_client *sinfo_client = v4l2_get_subdevdata(sd);
++		struct module *sinfo_owner = THIS_MODULE;
++
++		if (sinfo_client && sinfo_client->dev.driver)
++			sinfo_owner = sinfo_client->dev.driver->owner;
++		tx_isp_sinfo_sensor_bind(sensor, sinfo_owner);
++	}
+ 	v4l2_info(v4l2_dev, "Registered sensor subdevice %s\n", sd->name);
+ 	printk(KERN_INFO "T20TRACE register_sensor exit sensor=%p sd=%p\n", sensor, sd);
+ 	return ISP_SUCCESS;
+@@ -134,6 +151,7 @@
+ 
+ 	list_del(&sensor->list);
+ 	spin_unlock(&vi->slock);
++	tx_isp_sinfo_sensor_unbind(sensor, THIS_MODULE);
+ 
+ 	if(sensor->info.cbus_type == TX_SENSOR_CONTROL_INTERFACE_I2C){
+ 		struct i2c_client *client = v4l2_get_subdevdata(sd);
