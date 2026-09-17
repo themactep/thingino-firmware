@@ -98,16 +98,17 @@ module's tree because their ISP has no such registry.
 
 Known gap closed: the bind path works (`sensor_bind` populates the slot once
 the sensor is active), and the pre-bind values come from
-`tx_isp_sinfo_driver_add()`. The one missing piece was the I2C address - the
-real `private_i2c_add_driver()` passes a hardcoded 0, and `rvd` reads
-`i2c_addr` *before* it binds the sensor, so autodetect failed with "i2c_addr
-not in config and not in /proc/jz/sensor/sensor0/i2c_addr". The SDK's
-`common/isp/<arch>/include/sensor-common.h` now redefines
-`private_i2c_add_driver()` to `private_i2c_add_driver_addr()` with the
-driver's own `SENSOR_I2C_ADDRESS` when `SENSOR_PROC_OWNED_BY_ISP` is set, so
-the pre-bind registry reports the address and Raptor autodetects without a
-per-camera pin. Verified on T31: `sensor0/{name,i2c_addr,status,width,height,
-fps}` populate and `rvd` brings the full stack up with `[sensor]` unset.
+`tx_isp_sinfo_driver_add()`. The one missing piece was the I2C address -
+`rvd` reads `i2c_addr` *before* it binds the sensor, so the sensor module has
+to publish the driver with the real address at load time. Every family's
+`common/isp/<arch>/include/sensor-common.h` now wraps
+`private_i2c_add_driver()` to call `tx_isp_sinfo_driver_add()` with the
+driver's own `SENSOR_I2C_ADDRESS` when `SENSOR_PROC_OWNED_BY_ISP` is set (the
+registry merges the repeat call, so t31's legacy-zero wrapper is fine too).
+The pre-bind registry then reports the address and Raptor autodetects
+without a per-camera pin. Verified on T31: `sensor0/{name,i2c_addr,status,
+width,height,fps}` populate and `rvd` brings the full stack up with
+`[sensor]` unset; the other families share the same header shape.
 
 ## Video rings and refmode
 
