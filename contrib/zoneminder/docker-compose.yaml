@@ -1,0 +1,36 @@
+services:
+  zoneminder:
+    build: .
+    image: thingino/zoneminder:1.36
+    container_name: zoneminder
+    restart: unless-stopped
+    ports:
+      # Bind to all interfaces so the UI and stream are reachable remotely.
+      # Set ZM_BIND=127.0.0.1 in .env to restrict it to the host.
+      - "${ZM_BIND:-0.0.0.0}:${ZM_PORT:-8080}:80"
+    # ZoneMinder keeps frame buffers in shared memory. The 64M default is
+    # enough for one low-res camera and nothing else.
+    shm_size: "${ZM_SHM_SIZE:-1g}"
+    environment:
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - events:/var/cache/zoneminder/events
+      - images:/var/cache/zoneminder/images
+      - mysql:/var/lib/mysql
+      - logs:/var/log/zm
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/zm/index.php"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    # ONVIF WS-Discovery needs the container on the LAN. Uncomment to enable
+    # discovery/probing; the UI then binds port 80 of the host directly and
+    # ZM_PORT is ignored.
+    # network_mode: host
+
+volumes:
+  events:
+  images:
+  mysql:
+  logs:
