@@ -150,11 +150,21 @@ Known issue - T23 + Raptor: the open ISP plus Raptor hangs the device a
 minute or so into boot on T23 (userspace starves, SSH stops completing the
 banner exchange, ping still answers) and the watchdog resets it in a loop.
 The registry is populated and `tx-isp-t23`/`sensor_gc2083_t23` load, so the
-runaway appears once `rvd` brings the encoder up; the OpenIMP T23 encoder
-goes through the `openimp-t23-helixd` bridge, whose session code is a
-suspect. T31 (`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine. The
+runaway is in the OpenIMP userspace (its T23 encoder goes through the
+`openimp-t23-helixd` bridge), not the kernel driver: a T23 build with the
+vendor libimp.so userspace instead of OpenIMP stays up for as long as it is
+watched, with `tx-isp-t23` streaming and load under 1. T31
+(`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine under Raptor. The
 classic build (proprietary ISP + prudynt) is unaffected and is the T23
-fallback until this is isolated.
+fallback.
+
+T23 + vendor libimp.so: `IMP_ISP_AddSensor()` returns -1 against the open
+driver, so the stock userspace never attaches the sensor. prudynt then
+keeps its configured `width: 0` (resolved from the flat
+`/proc/jz/sensor/width`) and libimp dies in `IMP_FrameSource` with an
+integer divide by zero. The open driver's libimp.so compatibility evidently
+does not cover this T23 libimp build's sensor-attach ABI; the sensor-attach
+path in the recovered `tx_isp_t23_core.c` is where to look next.
 
 Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
 long-duration stability lack OEM-comparable validation, and some tuning tables
@@ -162,3 +172,22 @@ remain synthetic or partially reconstructed.
 
 Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to return to the Ingenic
 driver and libimp provider.
+
+## Open kernel driver with the Ingenic libimp.so
+
+`BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP` keeps the stock libimp.so as
+the userspace on top of open-tx-isp instead of OpenIMP. The driver is built
+for both (upstream device-tests T20 and T31 with each), and the split
+matters: OpenIMP exports no `IMP_AENC_*`/`IMP_ADEC_*`, so prudynt cannot run
+under it, while the stock libimp keeps the audio codecs and, on T23, avoids
+the OpenIMP Helix encoder hybrid.
+
+The two userspaces also read the sensor through different procfs layouts, so
+the sensor module build is keyed accordingly (`package/ingenic-sdk`):
+`SENSOR_PROC_OWNED_BY_ISP` (the `sensor-common.h` hook that feeds the ISP's
+`sensorN/` registry) is set for every `ISP_OPEN` build, because both
+providers resolve a sensor through `IMP_ISP_AddSensor` -> `driver_add`/bind.
+`SENSOR_PROC_PUBLISH_FLAT_TREE` is set when the vendor libimp is the
+provider, so the sensor modules also publish the flat
+`/proc/jz/sensor/{width,height,max_fps,...}` tree prudynt reads (it carries
+`max_fps`, which the T23 open driver's registry does not).
