@@ -108,7 +108,24 @@ registry merges the repeat call, so t31's legacy-zero wrapper is fine too).
 The pre-bind registry then reports the address and Raptor autodetects
 without a per-camera pin. Verified on T31: `sensor0/{name,i2c_addr,status,
 width,height,fps}` populate and `rvd` brings the full stack up with
-`[sensor]` unset; the other families share the same header shape.
+`[sensor]` unset.
+
+The bind - the second half of the slot, which fills `width/height/fps/
+chip_id` and moves `status` to active - is wired per family, because the
+vendor wrappers differ:
+
+- **T31** - the ISP calls `tx_isp_sinfo_sensor_bind()` itself when it
+  registers the subdev, so the SDK needs nothing.
+- **T23** - the recovered ISP never calls it, so
+  `common/isp/t23/include/sensor-common.h` wraps the sensor's
+  `tx_isp_subdev_init()`/`deinit()` and binds there (the probe is where the
+  subdev and its attributes become valid).
+- **T20** - the sensor drivers use the apical `v4l2_i2c_subdev_init()`, not
+  the tx-isp subdev, so the call is added to `subdev_core_ops_register_sensor()`
+  in the driver (`package/open-tx-isp/0001-t20-publish-sensors-to-the-sinfo-registry.patch`).
+
+The remaining families' `sensor-common.h` share the T23 shape and would take
+the same hook, but only T31/T20/T23 have been built and run.
 
 ## Video rings and refmode
 
@@ -128,6 +145,16 @@ T23, T30, T31, T40, and T41 (T10/T21 hardware validation pending), with
 near-OEM daylight parity demonstrated on T31/SC301IOT. OpenIMP streams on
 device on T20 and T31. H/V flip control now reaches the real MSCA output
 register.
+
+Known issue - T23 + Raptor: the open ISP plus Raptor hangs the device a
+minute or so into boot on T23 (userspace starves, SSH stops completing the
+banner exchange, ping still answers) and the watchdog resets it in a loop.
+The registry is populated and `tx-isp-t23`/`sensor_gc2083_t23` load, so the
+runaway appears once `rvd` brings the encoder up; the OpenIMP T23 encoder
+goes through the `openimp-t23-helixd` bridge, whose session code is a
+suspect. T31 (`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine. The
+classic build (proprietary ISP + prudynt) is unaffected and is the T23
+fallback until this is isolated.
 
 Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
 long-duration stability lack OEM-comparable validation, and some tuning tables
