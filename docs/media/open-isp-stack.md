@@ -146,25 +146,33 @@ near-OEM daylight parity demonstrated on T31/SC301IOT. OpenIMP streams on
 device on T20 and T31. H/V flip control now reaches the real MSCA output
 register.
 
-Known issue - T23 + Raptor: the open ISP plus Raptor hangs the device a
+T23 + vendor libimp.so (fixed): `IMP_ISP_AddSensor()` used to return -1
+against the open driver, so the stock userspace never attached the sensor.
+The cause was prudynt's preemptive T23 cleanup calling
+`IMP_ISP_DisableSensor()` before the sensor had ever been enabled: the
+proprietary ISP fails that call, the open driver's stubbed
+`VIDIOC_G_INPUT` reported a sensor and let it through, and the libimp then
+decremented its enable count below zero (`1 - 2` = `0xffffffff`).
+`IMP_ISP_Close()` refuses while that count reads "enabled", so `gISPdev` was
+never freed and every later `AddSensor()` failed with "Sensor is runing".
+
+Two changes fix it: prudynt no longer calls `DisableSensor()` from that
+cleanup (`overrides/prudynt-t`, for upstream), and the driver reports `-1`
+from `VIDIOC_G_INPUT` until libimp registers a sensor, matching the vendor
+(`package/open-tx-isp/0002-...patch`). With both, T23 attaches the sensor,
+encodes H.264 1920x1080 @ 15 fps and serves RTSP plus AAC. Note that the T23
+adapter's delegated ioctl handler is a recovery stub - most vendor commands
+return 0 without side effects - so behaviour leans on the driver's own
+regtrace pipeline; `daynightd` still logs "Failed to read ISP data" because
+its tuning procfs layout differs.
+
+Known issue - T23 + Raptor: the OpenIMP userspace still hangs the device a
 minute or so into boot on T23 (userspace starves, SSH stops completing the
 banner exchange, ping still answers) and the watchdog resets it in a loop.
 The registry is populated and `tx-isp-t23`/`sensor_gc2083_t23` load, so the
 runaway is in the OpenIMP userspace (its T23 encoder goes through the
-`openimp-t23-helixd` bridge), not the kernel driver: a T23 build with the
-vendor libimp.so userspace instead of OpenIMP stays up for as long as it is
-watched, with `tx-isp-t23` streaming and load under 1. T31
-(`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine under Raptor. The
-classic build (proprietary ISP + prudynt) is unaffected and is the T23
-fallback.
-
-T23 + vendor libimp.so: `IMP_ISP_AddSensor()` returns -1 against the open
-driver, so the stock userspace never attaches the sensor. prudynt then
-keeps its configured `width: 0` (resolved from the flat
-`/proc/jz/sensor/width`) and libimp dies in `IMP_FrameSource` with an
-integer divide by zero. The open driver's libimp.so compatibility evidently
-does not cover this T23 libimp build's sensor-attach ABI; the sensor-attach
-path in the recovered `tx_isp_t23_core.c` is where to look next.
+`openimp-t23-helixd` bridge), not the kernel driver. T31
+(`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine under Raptor.
 
 Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
 long-duration stability lack OEM-comparable validation, and some tuning tables
