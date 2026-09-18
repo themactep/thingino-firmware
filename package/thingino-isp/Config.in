@@ -35,8 +35,8 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_INGENIC_SDK
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_OPEN_TX_ISP
-	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED
-	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED
+	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED && !BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
+	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
 	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
@@ -52,3 +52,18 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	  Image tuning and sensor coverage remain experimental.
 
 endchoice
+
+config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
+	bool "Use the Ingenic libimp.so userspace with the open kernel driver"
+	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
+	help
+	  Keep Ingenic's proprietary libimp.so as the userspace ABI on top
+	  of open-tx-isp instead of OpenIMP. The open driver preserves
+	  libimp.so compatibility (device-tested on T20 and T31), so the
+	  stock userspace - and the streamers that need it, notably
+	  prudynt's IMP_AENC/IMP_ADEC audio codecs - run unchanged on the
+	  open kernel driver.
+
+	  Turn this on to tell a kernel problem apart from an OpenIMP one,
+	  and on T23 to skip the OpenIMP Helix encoder hybrid. Off means
+	  OpenIMP supplies the userspace wherever it is supported.
