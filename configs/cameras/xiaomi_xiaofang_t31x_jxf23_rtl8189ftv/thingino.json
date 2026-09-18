@@ -8,10 +8,6 @@
       "pin": 48,
       "active_low": true
     },
-    "net": {
-      "pin": 48,
-      "active_low": true
-    },
     "usb_en": 47,
     "wlan": 57
   }

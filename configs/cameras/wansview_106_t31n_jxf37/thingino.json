@@ -1,8 +1,7 @@
 {
   "gpio": {
     "ircut": "",
-    "mmc_cd": "",
-    "net": ""
+    "mmc_cd": ""
   },
   "motors": {
     "gpio_focus": 51

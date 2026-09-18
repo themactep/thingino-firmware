@@ -8,10 +8,6 @@
     "mmc_power": {
       "pin": 48,
       "active_low": true
-    },
-    "net": {
-      "pin": 48,
-      "active_low": true
     }
   }
 }

@@ -2,7 +2,10 @@
   "gpio": {
     "button_call": 47,
     "button_reset": 7,
-    "eth": 52,
+    "eth": {
+      "pin": 52,
+      "toggle": true
+    },
     "ir940": 14,
     "ircut": "59 60",
     "mmc_cd": 61,

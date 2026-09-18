@@ -4,7 +4,10 @@
       "pin": 62,
       "active_low": true
     },
-    "eth": 60,
+    "eth": {
+      "pin": 60,
+      "toggle": true
+    },
     "ir850": "79",
     "ircut": "50 49",
     "led_g": {
