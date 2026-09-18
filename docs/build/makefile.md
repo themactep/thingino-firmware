@@ -825,6 +825,13 @@ make pack
 # - Use larger flash chip
 ```
 
+`pack` only prints these as warnings. Every `make ota*` target runs the same
+checks as a hard preflight and refuses to flash a build whose partitions do
+not fit (`U_BOOT PARTITION OVERFLOW`, `KERNEL PARTITION OVERFLOW`, `DATA
+PARTITION OVERFLOW`, `DATA PARTITION TOO SMALL FOR JFFS2`, `OVERSIZE`). The
+device-side flash stage also refuses a full image larger than the sum of its
+partitions, before erasing anything.
+
 **Problem**: Extras partition too small
 ```bash
 # Check the pack output - you'll see "EXTRAS PARTITION IS TOO SMALL"

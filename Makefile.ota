@@ -191,20 +191,58 @@ toolchain: defconfig
 	@$(TEAL) "$@"
 	$(BR2_MAKE) sdk
 
+.PHONY: check-image-fits
+
+# Refuse to OTA a build whose partitions do not fit the flash layout.
+# pack prints these as warnings and still assembles the image; flashing it
+# truncates the data partition and can leave the camera without a usable
+# overlay. The checks mirror the SFC branch of pack (plus the bootloader
+# slot), but are fatal here.
+check-image-fits:
+ifeq ($(SKIP_CAMERA_SELECTION),)
+ifneq ($(BR2_THINGINO_FLASH_NAND),y)
+ifneq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+	@bad=0; \
+	if [ -f "$(U_BOOT_BIN)" ] && [ $(U_BOOT_BIN_SIZE) -gt $(U_BOOT_PARTITION_SIZE) ]; then \
+		$(RED) "U_BOOT PARTITION OVERFLOW: $(U_BOOT_BIN_SIZE) > $(U_BOOT_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ -f "$(KERNEL_BIN)" ] && [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
+		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then \
+		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ -f "$(DATA_BIN)" ] && [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \
+		$(RED) "DATA PARTITION OVERFLOW: $(DATA_BIN_SIZE) > $(DATA_PARTITION_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ -f "$(FIRMWARE_BIN_FULL)" ] && [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then \
+		$(RED) "OVERSIZE: image $(FIRMWARE_BIN_FULL_SIZE) > flash $(FLASH_SIZE) bytes"; bad=1; \
+	fi; \
+	if [ $$bad -ne 0 ]; then \
+		$(RED) "Refusing to flash a build that does not fit the partition layout."; \
+		exit 1; \
+	fi
+endif
+endif
+endif
+
 # flash compiled full image to the camera
 ota: ota-full
 
 # Full firmware OTA (default)
-ota-full:
+ota-full: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@fw_path="$(FIRMWARE_BIN_FULL)"; \
 	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
 	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
+	if [ -n "$(FLASH_SIZE)" ] && [ "$$(stat -c%s "$$fw_path")" -gt "$(FLASH_SIZE)" ]; then \
+		echo "ERROR: $$fw_path is larger than the $(FLASH_SIZE_MB)MB flash; refusing to flash."; exit 1; \
+	fi; \
 	$(SCRIPTS_DIR)/fw_ota.sh -a $(CAMERA_IP_ADDRESS) -p "$$fw_path" $(if $(filter 1 y yes true,$(FORCE)),-f) -m all
 
 # Kernel-only OTA
-ota-kernel:
+ota-kernel: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(KERNEL_BIN)" || { echo "ERROR: $(KERNEL_BIN) not found. Run make first."; exit 1; }; \
@@ -212,7 +250,7 @@ ota-kernel:
 	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
 
 # Bootloader-only OTA
-ota-uboot:
+ota-uboot: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(U_BOOT_BIN)" || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }; \
@@ -220,7 +258,7 @@ ota-uboot:
 	# $(if $(filter 1 y yes true,$(FORCE)),-f) $(if $(filter 1 y yes true,$(BACKUP)),-B)
 
 # Rootfs+data upgrade with config backup (safe upgrade)
-ota-upgrade:
+ota-upgrade: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \
@@ -228,7 +266,7 @@ ota-upgrade:
 	# $(if $(filter 1 y yes true,$(FORCE)),-f)
 
 # Rootfs-only OTA (flashes rootfs + data)
-ota-rootfs:
+ota-rootfs: check-image-fits
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@test -f "$(ROOTFS_BIN)" || { echo "ERROR: $(ROOTFS_BIN) not found. Run make first."; exit 1; }; \

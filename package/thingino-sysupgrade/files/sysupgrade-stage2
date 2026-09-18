@@ -29,11 +29,29 @@ flash_firmware() {
 }
 
 flash_full() {
-	local mtd sz name needle fw_size align_block bs sz_dec
+	local mtd sz name needle fw_size align_block bs sz_dec flash_size
 	fw_size=$(wc -c <"$fw_file")
 	align_block=32768
 	needle=0
 	tail -n +2 /proc/mtd >/tmp/sysupgrade/mtd.txt
+
+	# The image is written partition by partition from offset 0; a file
+	# larger than the sum of the real partitions would run past the end of
+	# flash. Refuse before erasing anything.
+	flash_size=0
+	while read -r _ sz _ name; do
+		name="${name#\"}"
+		name="${name%\"}"
+		[ "$name" = "all" ] && continue
+		[ "$name" = "upgrade" ] && continue
+		flash_size=$((flash_size + 0x$sz))
+	done </tmp/sysupgrade/mtd.txt
+	if [ "$fw_size" -gt "$flash_size" ]; then
+		echo_c 160 "Firmware is larger than the flash: $fw_size > $flash_size"
+		echo_c 160 "Refusing to flash an oversized image."
+		return 1
+	fi
+
 	while read -r mtd sz _ name; do
 		mtd="${mtd%:}"
 		name="${name#\"}"
