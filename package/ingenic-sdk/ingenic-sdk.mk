@@ -41,16 +41,25 @@ define INGENIC_SDK_LINUX_CONFIG_FIXUPS
 endef
 endif
 
-# OpenIMP's Raptor model reads open-tx-isp's indexed sensorN/ registry, so the
-# ISP owns /proc/jz/sensor there and the sensor modules must not create the node
-# as well: procfs resolves a duplicated name to the last registrant, so their
-# flat tree would shadow sensorN/ and Raptor could not autodetect the active
-# sensor. The vendor userspace still reads the flat tree (prudynt's IMPSystem
-# takes the sensor width/height/max_fps from /proc/jz/sensor/*), so when the
-# open kernel driver runs under Ingenic's libimp.so the sensor modules keep
-# publishing it, exactly as they do under the proprietary ISP.
-ifeq ($(BR2_PACKAGE_OPENIMP),y)
+# open-tx-isp's tx_isp_sinfo owns /proc/jz/sensor and is the registry both
+# userspaces resolve a sensor through (IMP_ISP_AddSensor -> driver_add/bind),
+# so the sensor modules always feed it - that is the SENSOR_PROC_OWNED_BY_ISP
+# hook in common/isp/<arch>/include/sensor-common.h.
+#
+# OpenIMP's Raptor model reads the same registry as the indexed sensorN/ tree,
+# and the sensor modules must not create the procfs node in that case: procfs
+# resolves a duplicated name to the last registrant, so the vendor flat tree
+# would shadow sensorN/ and Raptor could not autodetect the active sensor.
+ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
+# The stock libimp.so userspace (prudynt, and the open driver's libimp.so
+# compatibility goal) reads the vendor's flat /proc/jz/sensor/{width,height,
+# max_fps,...} tree - which also carries max_fps, a value the T23 open driver
+# does not expose. Publish it alongside the registry, as the proprietary ISP
+# build does; the registry stays the source of truth for AddSensor.
+ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP),y)
+INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_PUBLISH_FLAT_TREE
+endif
 endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
