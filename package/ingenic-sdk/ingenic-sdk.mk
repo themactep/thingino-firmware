@@ -41,13 +41,15 @@ define INGENIC_SDK_LINUX_CONFIG_FIXUPS
 endef
 endif
 
-# With the open ISP stack, open-tx-isp's tx_isp_sinfo owns /proc/jz/sensor and
-# publishes the indexed sensorN/ registry (name, i2c_addr, status). The sensor
-# modules must not create the node as well: procfs resolves a duplicated name to
-# the last registrant, so their flat tree would shadow sensorN/ and Raptor
-# could not autodetect the active sensor. Proprietary builds keep the sensor
-# module's tree because their ISP has no such registry.
-ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN),y)
+# OpenIMP's Raptor model reads open-tx-isp's indexed sensorN/ registry, so the
+# ISP owns /proc/jz/sensor there and the sensor modules must not create the node
+# as well: procfs resolves a duplicated name to the last registrant, so their
+# flat tree would shadow sensorN/ and Raptor could not autodetect the active
+# sensor. The vendor userspace still reads the flat tree (prudynt's IMPSystem
+# takes the sensor width/height/max_fps from /proc/jz/sensor/*), so when the
+# open kernel driver runs under Ingenic's libimp.so the sensor modules keep
+# publishing it, exactly as they do under the proprietary ISP.
+ifeq ($(BR2_PACKAGE_OPENIMP),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
 endif
 
