@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 18 Sep 2026 11:37:00 -0400
+Subject: [PATCH] mtd: jz_sfc: don't touch flash after kfree on probe error
+
+jz_sfc_probe() frees the freshly allocated struct jz_sfc when
+mtd_device_parse_register() fails and then reads flash->dev for
+dev_set_drvdata(). With SLUB debugging enabled the freed slot is
+poisoned with 0x6b, so the CPU takes an unhandled unaligned access at
+0x6b6b6b6f instead of the driver failing cleanly:
+
+  mtd: partition size too small (0)
+  $ 4 : 6b6b6b6b ...
+  BadVA : 6b6b6b6f
+  epc   : 801e118c dev_set_drvdata+0x4
+  ra    : 8042ad80 jz_sfc_probe+0x634
+
+dev_set_drvdata(flash->dev, NULL) is just platform_set_drvdata(pdev,
+NULL) here, so clear the driver data before the free.
+
+The reported trigger is an 8MB SPI-NOR camera whose rootfs grew to fill
+the whole flash, leaving the generated command line as
+"...6144k(rootfs),0k(data),8192k@0(all)". cmdlinepart rejects any
+partition smaller than a page, which is what makes
+mtd_device_parse_register() return -EINVAL in the first place.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mtd/devices/jz_sfc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/devices/jz_sfc.c b/drivers/mtd/devices/jz_sfc.c
+--- a/drivers/mtd/devices/jz_sfc.c
++++ b/drivers/mtd/devices/jz_sfc.c
+@@ -1247,8 +1247,9 @@
+ 
+ 	ret = mtd_device_parse_register(&flash->mtd, NULL , NULL, NULL, 0);
+ 	if (ret) {
+-		kfree(flash);
++		/* flash->dev is &pdev->dev: clear the drvdata before freeing */
+ 		dev_set_drvdata(flash->dev, NULL);
++		kfree(flash);
+ 		return -ENODEV;
+ 	}
+ 	printk("SPI NOR MTD LOAD OK\n");
+-- 
+2.34.1
+
