@@ -167,7 +167,7 @@ else ifeq ($(SOC_FAMILY),t32)
 else ifeq ($(SOC_FAMILY),t23)
 	ifeq ($(KERNEL_VERSION),4.4.94)
 		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
+		KERNEL_HASH := f97f65461547f1543ee3da22e72612f29a797cb3
 	else
 		KERNEL_BRANCH := ingenic-t31
 	endif
