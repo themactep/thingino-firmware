@@ -1,0 +1,36 @@
+--- base/driver/t23/tx_isp_t23_core.c	2026-09-18 04:32:03.194877335 -0400
++++ b/driver/t23/tx_isp_t23_core.c	2026-09-18 04:40:44.389160021 -0400
+@@ -15422,8 +15422,32 @@
+             printk(KERN_WARNING "tx_isp_t23_recovered: framechan%d streamoff arg=0x%lx ret=0\n",
+                    channel, arg);
+         break;
+-    case REGTRACE_FRAMECHAN_WAIT:
++    case REGTRACE_FRAMECHAN_WAIT: {
++        /*
++         * The legacy wait blocks until a frame is done; libimp's
++         * frame_pooling_thread loops on it and OpenIMP waits on it the same
++         * way. Returning immediately added no waiting at all and made those
++         * loops spin at 100% CPU, so wait on the frame-done queue exactly as
++         * regtrace_framechan_repair_dqbuf() does - without consuming the
++         * frame, which the following DQBUF does.
++         */
++        uint32_t ready = 0;
++
++        if (channel >= 0 && channel < REGTRACE_FRAMECHAN_COUNT &&
++            regtrace_t23_source_frame_done) {
++            if (!regtrace_framechan_done_count[channel])
++                wait_event_interruptible_timeout(
++                    regtrace_framechan_done_wait[channel],
++                    regtrace_framechan_done_count[channel] ||
++                        !regtrace_framechan_streaming[channel],
++                    msecs_to_jiffies(1000));
++            ready = regtrace_framechan_done_count[channel];
++        }
++        if (arg && copy_to_user((void __user *)(uintptr_t)arg, &ready,
++                                sizeof(ready)))
++            ret = -EFAULT;
+         break;
++    }
+     default:
+         printk(KERN_INFO "tx_isp_t23_recovered: framechan%d ioctl cmd=0x%x arg=0x%lx ret=0 pid=%d comm=%s\n",
+                channel, cmd, arg, current->pid, current->comm);
