@@ -770,10 +770,17 @@ endef
 TARGET_FINALIZE_HOOKS := TIMPS_REAPPLY_MOTORS_UI $(TARGET_FINALIZE_HOOKS)
 endif
 
+endif
+
 # libstdc++.so is 2130 KB and, once timps links the C++ runtime statically and
 # libaudioprocess-neo replaces the proprietary (C++) libaudioProcess.so, has no
 # consumer left. Verify that before removing: NEEDED scan only, so this cannot
 # see dlopen - hence the opt-in Kconfig entry.
+#
+# Deliberately OUTSIDE the WebUI+CONTROL block above: nothing about the NEEDED
+# scan involves the web UI, and the Kconfig entry promises the drop on any
+# image. Nested in that block it silently did nothing on a headless build -
+# no removal, no "KEEPING" message, 2130 KB left behind.
 ifeq ($(BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP),y)
 define TIMPS_DROP_LIBSTDCPP
 	@users=$$(find $(TARGET_DIR) -type f \( -name '*.so*' -o -perm -u+x \) 2>/dev/null \
@@ -788,8 +795,6 @@ define TIMPS_DROP_LIBSTDCPP
 	fi
 endef
 TARGET_FINALIZE_HOOKS += TIMPS_DROP_LIBSTDCPP
-endif
-
 endif
 
 # NOTE: motors-detection fix. Stock S48webui-config reports
