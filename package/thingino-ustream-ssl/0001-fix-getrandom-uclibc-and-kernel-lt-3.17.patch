@@ -1,5 +1,5 @@
---- a/ustream-mbedtls.c	2026-03-17 15:12:42.981678124 -0400
-+++ b/ustream-mbedtls.c	2026-03-17 15:13:08.798212320 -0400
+--- a/ustream-mbedtls.c
++++ b/ustream-mbedtls.c
 @@ -17,11 +17,14 @@
   */
  
@@ -15,7 +15,7 @@
  
  #include "ustream-ssl.h"
  #include "ustream-internal.h"
-@@ -115,17 +118,28 @@
+@@ -143,18 +146,29 @@
  
  static int _random(void *ctx, unsigned char *out, size_t len)
  {
@@ -24,16 +24,17 @@
 -		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
 -#else
 -	static FILE *f;
+-
+-	if (!f)
+-		f = fopen("/dev/urandom", "r");
+-	if (!f || fread(out, len, 1, f) != 1)
 +#if defined(linux) && !defined(__UCLIBC__)
 +	ssize_t r;
 +
 +	do {
 +		r = getrandom(out, len, 0);
 +	} while (r == -1 && errno == EINTR);
- 
--	if (!f)
--		f = fopen("/dev/urandom", "r");
--	if (fread(out, len, 1, f) != 1)
++
 +	if (r == (ssize_t)len)
 +		return 0;
 +
