@@ -3,5 +3,14 @@
     "button_reset": 14,
     "mmc_cd": 49,
     "wlan": 6
+  },
+  "daynight": {
+    "controls": {
+      "ir850": false,
+      "ir940": false,
+      "ircut": false
+    },
+    "day_threshold": 50,
+    "night_threshold": 25
   }
 }
