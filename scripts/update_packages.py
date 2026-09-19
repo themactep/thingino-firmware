@@ -32,9 +32,11 @@ UPDATED_PACKAGES: List[str] = []
 LOG_LEVEL = 20
 # Dry-run mode: when True, do not prompt or modify files
 DRY_RUN = False
-# Stash reference for temporarily saving uncommitted changes
-STASH_REF: Optional[str] = None
-STASH_SHA: Optional[str] = None
+# When True, resolve a missing _SITE_BRANCH from the remote default branch and
+# offer to record it (each write is confirmed, defaulting to No)
+INFER_BRANCH = False
+# Packages skipped because they pin a commit hash but declare no branch
+SKIPPED_NO_BRANCH: List[str] = []
 
 HASH_RE = re.compile(r"^[a-f0-9]{7,40}$")
 SOURCE_RE = re.compile(r'\bsource\s+"([^"]*Config\.in\.host)"')
@@ -277,92 +279,6 @@ def check_git_working_directory() -> bool:
     return True
 
 
-def stash_uncommitted_changes() -> Optional[str]:
-    """
-    Stash any uncommitted changes in the working directory.
-    Returns the stash reference if successful, None if failed or no changes to stash.
-    """
-    global STASH_REF, STASH_SHA
-
-    if check_git_working_directory():
-        log_debug("No uncommitted changes to stash")
-        return None
-
-    log_info("Stashing uncommitted changes to ensure clean working directory")
-
-    # Create a stash with a descriptive message
-    stash_message = f"check-git-package-updates.py auto-stash at {subprocess.run(['date', '+%Y-%m-%d %H:%M:%S'], capture_output=True, text=True).stdout.strip()}"
-
-    code, out, err = run_git(["stash", "push", "-u", "-m", stash_message], cwd=PROJECT_ROOT)
-    if code != 0:
-        log_error(f"Failed to stash uncommitted changes: {err}")
-        return None
-
-    # Get the stash reference
-    code, out, err = run_git(["stash", "list", "--format=%H %gd", "-n", "1"], cwd=PROJECT_ROOT)
-    if code != 0 or not out.strip():
-        log_error("Failed to get stash reference")
-        return None
-
-    try:
-        sha, ref = out.strip().split(maxsplit=1)
-    except ValueError:
-        log_error("Unexpected format when reading stash reference")
-        return None
-
-    STASH_SHA = sha
-    STASH_REF = ref  # e.g., 'stash@{0}'
-    log_success(f"Successfully stashed changes with reference: {ref}")
-    return ref
-
-
-def restore_stashed_changes() -> bool:
-    """
-    Restore previously stashed changes.
-    Returns True if successful or no stash to restore, False if failed.
-    """
-    global STASH_REF, STASH_SHA
-
-    if not STASH_REF:
-        log_debug("No stashed changes to restore")
-        return True
-
-    log_info("Restoring previously stashed changes")
-
-    # Apply and drop the stash
-    code, out, err = run_git(["stash", "pop", STASH_REF], cwd=PROJECT_ROOT)
-
-    # Determine whether the stash still exists (by SHA) regardless of exit code
-    still_exists = False
-    if STASH_SHA:
-        ls_code, ls_out, ls_err = run_git(["stash", "list", "--format=%H"], cwd=PROJECT_ROOT)
-        if ls_code == 0 and STASH_SHA in ls_out.splitlines():
-            still_exists = True
-
-    if code != 0 and still_exists:
-        # Include stdout and stderr to aid diagnosis
-        details = (out + ("\n" if out and err else "") + err).strip()
-        log_error(f"Failed to restore stashed changes: {details}")
-        log_warn(f"You may need to manually restore stash {STASH_REF}")
-        return False
-
-    # Consider success if the stash no longer exists (it may have applied with warnings/conflicts)
-    if code != 0 and not still_exists:
-        details = (out + ("\n" if out and err else "") + err).strip()
-        if details:
-            log_warn(f"Stash restored with warnings: {details}")
-        log_success("Successfully restored stashed changes")
-        STASH_REF = None
-        STASH_SHA = None
-        return True
-
-    # code == 0
-    log_success("Successfully restored stashed changes")
-    STASH_REF = None
-    STASH_SHA = None
-    return True
-
-
 def download_release_tarball_hash(repo_url: str, tag: str, package_name: str, version: str) -> Optional[Tuple[str, str]]:
     """
     Download the GitHub release tarball for *tag* and compute its SHA-256.
@@ -454,7 +370,8 @@ def update_package_hash_file(mk_path: Path, tarball_name: str, sha256_hash: str)
         return False
 
 
-def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_hash: str, commit_log: List[str]) -> bool:
+def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_hash: str, commit_log: List[str],
+                          note: Optional[str] = None) -> bool:
     """
     Create a Git commit for a package update.
     Returns True if successful, False if failed.
@@ -489,6 +406,9 @@ def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_h
         ""
     ]
 
+    if note:
+        commit_body_lines.extend([note, ""])
+
     if commit_log:
         commit_body_lines.extend([
             "Changelog:",
@@ -506,6 +426,29 @@ def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_h
     if code != 0:
         log_error(f"Failed to create commit for {package_name}: {err}")
         # Unstage the file
+        run_git(["reset", "HEAD", str(relative_mk_path)], cwd=PROJECT_ROOT)
+        return False
+
+    log_success(f"Created commit for {package_name}: {commit_title}")
+    return True
+
+
+def create_branch_only_commit(package_name: str, mk_path: Path, branch: str) -> bool:
+    """Commit a _SITE_BRANCH-only change (the pinned hash was already at the tip)."""
+    relative_mk_path = mk_path.relative_to(PROJECT_ROOT)
+    code, out, err = run_git(["add", str(relative_mk_path)], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to stage {relative_mk_path}: {err}")
+        return False
+
+    commit_title = f"package/{package_name}: track branch {branch}"
+    commit_message = (
+        f"{commit_title}\n\n"
+        f"Add _SITE_BRANCH = {branch} so updates are visible to the package update script.\n"
+    )
+    code, out, err = run_git(["commit", "-m", commit_message], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to create commit for {package_name}: {err}")
         run_git(["reset", "HEAD", str(relative_mk_path)], cwd=PROJECT_ROOT)
         return False
 
@@ -587,6 +530,181 @@ def parse_mk_file(mk_path: Path) -> Optional[Tuple[str, str, str, str]]:
     if branch is None:
         return None
     return package_name, site, branch, version
+
+
+def parse_mk_file_no_branch(mk_path: Path) -> Optional[Tuple[str, str, str]]:
+    """
+    Return (package_name, repo_url, version_hash) for a git-sourced package
+    that pins a bare commit hash but declares no branch. These are invisible
+    to parse_mk_file() and were previously skipped without any notice.
+    """
+    pkg_dir = mk_path.parent
+    package_name = pkg_dir.name
+    pkg_upper = package_name.upper().replace('-', '_')
+
+    site_method = None
+    site = None
+    branch = None
+    version = None
+
+    try:
+        with mk_path.open('r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except Exception:
+        return None
+
+    re_site_method = re.compile(rf"^{re.escape(pkg_upper)}_SITE_METHOD\s*=\s*(.+)$")
+    re_site = re.compile(rf"^{re.escape(pkg_upper)}_SITE\s*=\s*(.+)$")
+    re_site_branch = re.compile(rf"^{re.escape(pkg_upper)}_SITE_BRANCH\s*=\s*(.+)$")
+    re_branch_alt = re.compile(rf"^{re.escape(pkg_upper)}_BRANCH\s*=\s*(.+)$")
+    re_version = re.compile(rf"^{re.escape(pkg_upper)}_VERSION\s*=\s*(.+)$")
+
+    for line in lines:
+        line = line.rstrip('\n')
+        m = re_site_method.match(line)
+        if m:
+            site_method = m.group(1).strip().strip('"')
+            continue
+        m = re_site_branch.match(line)
+        if m and branch is None:
+            branch = m.group(1).strip().strip('"')
+            continue
+        m = re_branch_alt.match(line)
+        if m and branch is None:
+            branch = m.group(1).strip().strip('"')
+            continue
+        m = re_version.match(line)
+        if m and version is None:
+            version = m.group(1).strip().strip('"')
+            continue
+        m = re_site.match(line)
+        if m and site is None:
+            site = m.group(1).strip().strip('"')
+            continue
+
+    if site_method != 'git' and site and site.startswith('$('):
+        m = re.match(r'^\$\(call\s+github,\s*([^,]+),\s*([^,]+)', site)
+        if m:
+            site_method = 'git'
+            site = f"https://github.com/{m.group(1).strip()}/{m.group(2).strip()}.git"
+
+    if site_method != 'git' or not site or not version:
+        return None
+    if '$(' in version or not is_valid_hash(version):
+        return None
+    if branch is not None:
+        return None
+    return package_name, site, version
+
+
+def looks_like_release_branch(branch: str) -> bool:
+    """
+    Heuristic: release/version refs (v5.3.9, 1.2, release-3.4, stable-2024) are
+    typically pinned, not tracked. Development branches (master, main, dev,
+    next, openwrt-23.05) are named descriptively.
+    """
+    if re.match(r'^v?\d+\.\d+', branch):
+        return True
+    if re.match(r'^(release|stable)[-_]?\d*\.?\d*$', branch, re.IGNORECASE):
+        return True
+    return False
+
+
+def get_remote_default_branch(repo_url: str) -> Optional[str]:
+    """
+    Resolve the remote's default branch from the HEAD symref.
+    Returns None when HEAD is detached or the symref is unavailable, so
+    callers do not guess a branch name.
+    """
+    log_debug(f"Resolving default branch for {repo_url}")
+    code, out, err = run_git(["ls-remote", "--symref", repo_url, "HEAD"])
+    if code != 0 or not out:
+        log_warn(f"Could not resolve default branch for {repo_url}: {err.strip()}")
+        return None
+    for line in out.splitlines():
+        m = re.match(r'^ref:\s+refs/heads/(\S+)\s+HEAD$', line.strip())
+        if m:
+            return m.group(1)
+    log_warn(f"Remote HEAD is not a branch symref for {repo_url} (detached or tagged)")
+    return None
+
+
+def hash_on_branch(repo_url: str, branch: str, commit_hash: str) -> bool:
+    """Return True if commit_hash is reachable from the branch tip."""
+    code, out, err = run_git(["ls-remote", repo_url, f"refs/heads/{branch}"])
+    if code != 0 or not out:
+        return False
+    remote_hash = out.splitlines()[0].split('\t')[0]
+    if hashes_match(commit_hash, remote_hash):
+        return True
+    # The pinned commit may be an ancestor; a shallow fetch is the cheap check.
+    tmpdir = Path(tempfile.mkdtemp(prefix='up-check-'))
+    try:
+        run_git(["init", "--quiet"], cwd=tmpdir)
+        run_git(["remote", "add", "origin", repo_url], cwd=tmpdir)
+        code, _, err = run_git(
+            ["fetch", "--quiet", "--depth=200", "--filter=blob:none", "origin", branch],
+            cwd=tmpdir, timeout=180,
+        )
+        if code != 0:
+            log_debug(f"  fetch of {branch} failed: {err.strip()}")
+            return False
+        code, _, _ = run_git(
+            ["merge-base", "--is-ancestor", commit_hash, "FETCH_HEAD"], cwd=tmpdir, timeout=60,
+        )
+        return code == 0
+    except Exception as e:
+        log_debug(f"  ancestry check failed: {e}")
+        return False
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def add_site_branch(mk_path: Path, package_name: str, branch: str) -> bool:
+    """Insert <PKG>_SITE_BRANCH = <branch> after the _SITE_METHOD = git line."""
+    pkg_upper = package_name.upper().replace('-', '_')
+    try:
+        text = mk_path.read_text(encoding='utf-8', errors='ignore')
+    except Exception as e:
+        log_error(f"Failed to read {mk_path}: {e}")
+        return False
+
+    method_re = re.compile(
+        rf"^(?P<indent>[ \t]*)(?P<var>{re.escape(pkg_upper)}_SITE_METHOD\s*=\s*git)[ \t]*$",
+        re.MULTILINE,
+    )
+    m = method_re.search(text)
+    if not m:
+        log_error(f"No '{pkg_upper}_SITE_METHOD = git' line found in {mk_path}")
+        return False
+
+    new_text = text[:m.end()] + f"\n{m.group('indent')}{pkg_upper}_SITE_BRANCH = {branch}" + text[m.end():]
+    try:
+        mk_path.write_text(new_text, encoding='utf-8')
+        log_success(f"Added {pkg_upper}_SITE_BRANCH = {branch} to {mk_path}")
+        return True
+    except Exception as e:
+        log_error(f"Failed to write {mk_path}: {e}")
+        try:
+            mk_path.write_text(text, encoding='utf-8')  # restore
+        except Exception:
+            pass
+        return False
+
+
+def confirm(prompt: str) -> bool:
+    """Ask a yes/no question, defaulting to No when not interactive."""
+    try:
+        if sys.stdin.isatty():
+            print(prompt, end="", file=sys.stdout, flush=True)
+            resp = input()
+        else:
+            with open("/dev/tty", "r") as tty_in, open("/dev/tty", "w") as tty_out:
+                print(prompt, end="", file=tty_out, flush=True)
+                resp = tty_in.readline()
+        return resp.strip().lower() in ("y", "yes")
+    except Exception:
+        return False
 
 
 def get_remote_hash(repo_url: str, branch: str) -> Optional[str]:
@@ -981,12 +1099,122 @@ def print_summary() -> None:
     print(f"{BLUE}Total packages scanned:{NC} {TOTAL_PACKAGES_SCANNED}", file=sys.stderr)
     print(f"{BLUE}Packages with updates available:{NC} {PACKAGES_WITH_UPDATES}", file=sys.stderr)
     print(f"{BLUE}Packages actually updated:{NC} {PACKAGES_UPDATED}", file=sys.stderr)
+    if SKIPPED_NO_BRANCH:
+        print(
+            f"{YELLOW}Skipped (pinned commit, no _SITE_BRANCH):{NC} "
+            f"{len(SKIPPED_NO_BRANCH)}",
+            file=sys.stderr,
+        )
+        for name in SKIPPED_NO_BRANCH:
+            print(f"  {YELLOW}!{NC} {name}", file=sys.stderr)
+        print(
+            f"  Re-run with {GREEN}--infer-branch{NC} to resolve these branches.",
+            file=sys.stderr,
+        )
     if UPDATED_PACKAGES:
         print("", file=sys.stderr)
         print(f"{GREEN}Updated packages:{NC}", file=sys.stderr)
         for u in UPDATED_PACKAGES:
             print(f"  {GREEN}\u2713{NC} {u}", file=sys.stderr)
     print("", file=sys.stderr)
+
+
+def process_package_no_branch(mk_path: Path, package_name: str, repo_url: str, current_hash: str) -> None:
+    """
+    A git package pins a commit hash but declares no _SITE_BRANCH, so its
+    updates are invisible to the remote-tracking comparison. Report it loudly
+    and, when --infer-branch is set, offer to resolve and record the branch.
+    """
+    global PACKAGES_WITH_UPDATES, PACKAGES_UPDATED
+
+    log_warn(
+        f"Package {package_name} pins a commit hash but has no _SITE_BRANCH; "
+        "updates cannot be tracked"
+    )
+    SKIPPED_NO_BRANCH.append(package_name)
+
+    if not INFER_BRANCH:
+        log_info(
+            f"  Re-run with --infer-branch to resolve the branch for {package_name}"
+        )
+        return
+
+    branch = get_remote_default_branch(repo_url)
+    if not branch:
+        log_warn(f"  Could not determine a default branch for {package_name}; leaving as-is")
+        return
+
+    if looks_like_release_branch(branch):
+        log_warn(
+            f"  Remote default branch '{branch}' for {package_name} looks like a "
+            "release ref, not a development branch. Set _SITE_BRANCH manually if "
+            "it really is a rolling branch."
+        )
+        return
+
+    if not hash_on_branch(repo_url, branch, current_hash):
+        log_warn(
+            f"  Pinned hash {get_short_hash(current_hash)} is not an ancestor of "
+            f"'{branch}' for {package_name}; this looks like a pinned release, not a "
+            "rolling branch. Set _SITE_BRANCH manually if it really is one."
+        )
+        return
+
+    remote_hash = get_remote_hash(repo_url, branch)
+    behind = bool(remote_hash) and not hashes_match(current_hash, remote_hash)
+    pkg_upper = package_name.upper().replace('-', '_')
+
+    print(package_name)
+    print("---------------")
+    print(repo_url)
+    print(f"+ {pkg_upper}_SITE_BRANCH = {branch}")
+    if behind:
+        print(f"- {pkg_upper}_VERSION = {current_hash}")
+        print(f"+ {pkg_upper}_VERSION = {remote_hash}")
+    print()
+    sys.stdout.flush()
+
+    if DRY_RUN:
+        log_debug(f"Dry-run: not updating {package_name}")
+        return
+
+    if behind:
+        question = (
+            f"  Add _SITE_BRANCH = {branch} and update {package_name} "
+            f"{get_short_hash(current_hash)} -> {get_short_hash(remote_hash)}?"
+        )
+    else:
+        question = f"  Add _SITE_BRANCH = {branch} to {package_name}?"
+
+    if not confirm(f"{YELLOW}{question} [y/N]: {NC}"):
+        log_debug(f"Declined branch resolution for {package_name}")
+        return
+
+    if not add_site_branch(mk_path, package_name, branch):
+        return
+
+    if behind:
+        if update_package_mk(mk_path, package_name, current_hash, remote_hash):
+            PACKAGES_WITH_UPDATES += 1
+            if create_package_commit(
+                package_name, mk_path, current_hash, remote_hash, [],
+                note=f"Add _SITE_BRANCH = {branch}",
+            ):
+                PACKAGES_UPDATED += 1
+                UPDATED_PACKAGES.append(
+                    f"{package_name}:{get_short_hash(current_hash)}->{get_short_hash(remote_hash)}"
+                )
+            else:
+                log_error(f"Failed to create commit for package {package_name}")
+                return
+        else:
+            log_error(f"Failed to update {package_name} to {get_short_hash(remote_hash)}")
+            return
+    elif not create_branch_only_commit(package_name, mk_path, branch):
+        log_error(f"Failed to create commit for package {package_name}")
+        return
+
+    log_success(f"Resolved {package_name} to track '{branch}'")
 
 
 def process_package(mk_path: Path) -> None:
@@ -997,6 +1225,10 @@ def process_package(mk_path: Path) -> None:
         release_parsed = parse_mk_file_release(mk_path)
         if release_parsed:
             process_package_release(mk_path, *release_parsed)
+            return
+        no_branch = parse_mk_file_no_branch(mk_path)
+        if no_branch:
+            process_package_no_branch(mk_path, *no_branch)
         return
 
     package_name, repo_url, branch, current_hash = parsed
@@ -1141,16 +1373,24 @@ def find_mk_from_host_config() -> List[Path]:
 
 
 def main() -> int:
-    global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN
+    global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN, INFER_BRANCH
 
     parser = argparse.ArgumentParser(description="Check Git-sourced package hashes and GitHub release-bundle versions, then interactively update.")
     parser.add_argument("patterns", nargs="*", help="Optional package name patterns (glob), e.g., wifi-* thingino-*")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Only check for updates; do not prompt or modify files")
+    parser.add_argument(
+        "--infer-branch",
+        action="store_true",
+        help="For packages that pin a commit hash but declare no _SITE_BRANCH, "
+             "resolve the remote default branch and offer to record it "
+             "(confirmation defaults to No)",
+    )
     args = parser.parse_args()
     if args.debug:
         LOG_LEVEL = 10
     DRY_RUN = args.dry_run
+    INFER_BRANCH = args.infer_branch
 
     log_info("Starting Git package hash update check")
     if args.patterns:
@@ -1162,9 +1402,20 @@ def main() -> int:
         log_error(f"Package directory not found: {PACKAGE_DIR}")
         return 1
 
-    # Stash uncommitted changes if Git commit mode is enabled and not in dry-run
-    if not DRY_RUN:
-        stash_uncommitted_changes()
+    # Refuse to run on a dirty tree: the script edits .mk files and creates
+    # commits, and an uncommitted change could be silently overwritten or
+    # committed alongside ours.
+    if not DRY_RUN and not check_git_working_directory():
+        log_error("Working directory has uncommitted changes.")
+        log_error("Commit or stash them first, or re-run with --dry-run.")
+        code, out, err = run_git(
+            ["status", "--short", "--", str(PACKAGE_DIR.relative_to(PROJECT_ROOT))],
+            cwd=PROJECT_ROOT,
+        )
+        if code == 0 and out.strip():
+            for line in out.strip().splitlines():
+                print(f"  {line}", file=sys.stderr)
+        return 1
 
     # Find .mk files whose filename matches the package directory name
     seen: set[Path] = set()
@@ -1213,12 +1464,6 @@ def main() -> int:
         if PACKAGES_UPDATED > 0:
             log_success(f"Successfully updated {PACKAGES_UPDATED} package(s).")
 
-    # Restore stashed changes if any were stashed
-    if not DRY_RUN:
-        if not restore_stashed_changes():
-            log_warn("Failed to restore stashed changes - please check manually")
-            return 1
-
     return 0
 
 
@@ -1228,15 +1473,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("", file=sys.stderr)
         log_warn("Interrupted by user")
-        # Try to restore stashed changes if interrupted
-        if not DRY_RUN and STASH_REF:
-            log_info("Attempting to restore stashed changes before exit...")
-            restore_stashed_changes()
         sys.exit(130)
     except Exception as e:
         log_error(f"Unexpected error: {e}")
-        # Try to restore stashed changes on unexpected error
-        if not DRY_RUN and STASH_REF:
-            log_info("Attempting to restore stashed changes before exit...")
-            restore_stashed_changes()
         sys.exit(1)
