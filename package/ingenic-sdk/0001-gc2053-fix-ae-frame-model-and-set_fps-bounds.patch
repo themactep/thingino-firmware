@@ -1,0 +1,153 @@
+From f52a3b97ac8c38386fd401c7dc6a84809b8f19ba Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lutz@fiebach.de>
+Date: Sat, 19 Sep 2026 00:48:51 +0200
+Subject: [PATCH] sensor: t31/gc2053 AE frame model and set_fps bounds
+
+1. sensor_probe() (and the static defaults) publish total_height 1418 /
+   max_integration_time 1410 for the MIPI 30 fps mode, but the register
+   table it selects programs VTS 0x49d = 1181. The ISP derives its line
+   time and AE limits from total_height, so on a 30 fps GC2053 (e.g. Wyze
+   Cam v3) the AE model is 1.2x off: its anti-flicker nodes land at ~10 ms
+   instead of 8.33 ms and the AE may ask for more lines than the frame
+   has. Use the table's VTS, as every other branch already does, and fix
+   the stale "1418 / 25fps" comment above the table.
+
+2. sensor_set_fps() range-checks the two 30 fps modes against
+   SENSOR_OUTPUT_MAX_FPS (40) although they run a 30 fps clock, so 31..40
+   fps is accepted with a VTS below the smallest frame any table programs.
+   Bound them to 30 fps, add a minimum-VTS backstop, and refuse a zero fps
+   denominator or zero HTS before dividing.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+---
+ common/sensor/t31/gc2053.c | 56 ++++++++++++++++++++++++--------------
+ 1 file changed, 36 insertions(+), 20 deletions(-)
+
+diff --git a/common/sensor/t31/gc2053.c b/common/sensor/t31/gc2053.c
+index f5f9a47..06ec54b 100644
+--- a/common/sensor/t31/gc2053.c
++++ b/common/sensor/t31/gc2053.c
+@@ -28,6 +28,9 @@
+ #define SENSOR_NAME "gc2053"
+ #define SENSOR_OUTPUT_MAX_FPS 40
+ #define SENSOR_OUTPUT_MIN_FPS 5
++/* smallest VTS any table here programs (40fps MIPI, 15fps DVP): 1080
++ * active rows plus the minimum blanking; a shorter frame is not readable */
++#define SENSOR_MIN_VTS 0x465
+ #define SENSOR_REG_DELAY 0x00
+ #define SENSOR_REG_END 0xff
+ #define SENSOR_SUPPORT_15FPS_DVP_SCLK (37125000)
+@@ -39,10 +42,11 @@
+ #define SENSOR_VERSION "H20230726a"
+ 
+ 
+-static unsigned char vts0 = 0x05;
+-static unsigned char vts1 = 0x8a;
+-static unsigned char vtsn0 = 0x05;
+-static unsigned char vtsn1 = 0x8a;
++/* defaults follow the MIPI 30fps table (VTS 0x49d), the default mode */
++static unsigned char vts0 = 0x04;
++static unsigned char vts1 = 0x9d;
++static unsigned char vtsn0 = 0x04;
++static unsigned char vtsn1 = 0x9d;
+ 
+ static int reset_gpio = GPIO_PA(18);
+ module_param(reset_gpio, int, S_IRUGO);
+@@ -215,11 +219,11 @@ struct tx_isp_sensor_attribute sensor_attr = {
+ 	.max_dgain = 0,
+ 	.min_integration_time = 1,
+ 	.min_integration_time_native = 4,
+-	.max_integration_time_native = 0x58a - 8,
+-	.integration_time_limit = 0x58a - 8,
++	.max_integration_time_native = 0x49d - 8,
++	.integration_time_limit = 0x49d - 8,
+ 	.total_width = 0x44c * 2,
+-	.total_height = 0x58a,
+-	.max_integration_time = 0x58a - 8,
++	.total_height = 0x49d,
++	.max_integration_time = 0x49d - 8,
+ 	.integration_time_apply_delay = 2,
+ 	.again_apply_delay = 2,
+ 	.dgain_apply_delay = 2,
+@@ -234,8 +238,8 @@ struct tx_isp_sensor_attribute sensor_attr = {
+  * mipi data rate=624mbps/lane
+  * wpclk=156mhz
+  * row_time=28.2us
+- * frame length=1418
+- * 25fps
++ * frame length=1181
++ * 30fps
+  */
+ static struct regval_list sensor_init_regs_1920_1080_30fps_mipi[] = {
+ 	/* SYS */
+@@ -1469,13 +1473,13 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	int ret = 0;
+ 
+ 	if ((data_interface == TX_SENSOR_DATA_INTERFACE_DVP) && (sensor_max_fps == TX_SENSOR_MAX_FPS_30)) {
+-		max_fps = SENSOR_OUTPUT_MAX_FPS;
++		max_fps = TX_SENSOR_MAX_FPS_30;
+ 		wpclk = SENSOR_SUPPORT_30FPS_DVP_SCLK;
+ 	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_DVP) && (sensor_max_fps == TX_SENSOR_MAX_FPS_15)) {
+ 		max_fps = TX_SENSOR_MAX_FPS_15;
+ 		wpclk = SENSOR_SUPPORT_15FPS_DVP_SCLK;
+ 	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_MIPI) && (sensor_max_fps == TX_SENSOR_MAX_FPS_30)) {
+-		max_fps = SENSOR_OUTPUT_MAX_FPS;
++		max_fps = TX_SENSOR_MAX_FPS_30;
+ 		wpclk = SENSOR_SUPPORT_30FPS_MIPI_SCLK;
+ 	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_MIPI) && (sensor_max_fps == TX_SENSOR_MAX_FPS_25)) {
+ 		max_fps = TX_SENSOR_MAX_FPS_25;
+@@ -1491,6 +1495,10 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 	}
+ 
+ 	/* the format of fps is 16/16. for example 25 << 16 | 2, the value is 25/2 fps. */
++	if ((fps & 0xffff) == 0) {
++		ISP_ERROR("warn: fps(%x) has a zero denominator\n", fps);
++		return -1;
++	}
+ 	newformat = (((fps >> 16) / (fps & 0xffff)) << 8) + ((((fps >> 16) % (fps & 0xffff)) << 8) / (fps & 0xffff));
+ 	if (newformat > (max_fps << 8) || newformat < (SENSOR_OUTPUT_MIN_FPS << 8)) {
+ 		ISP_ERROR("warn: fps(%x) not in range\n", fps);
+@@ -1505,7 +1513,15 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps) {
+ 		return -1;
+ 
+ 	hts = ((hts << 8) + tmp) << 1;
++	if (hts == 0)
++		return -1;
+ 	vts = wpclk * (fps & 0xffff) / hts / ((fps & 0xffff0000) >> 16);
++	/* the per-mode clock cannot read 1080 rows out in fewer lines */
++	if (vts < SENSOR_MIN_VTS) {
++		ISP_ERROR("warn: fps(%x) needs vts %u below the minimum %u\n", fps, (unsigned int)vts,
++			  (unsigned int)SENSOR_MIN_VTS);
++		return -1;
++	}
+ 	// vtsn0 = (unsigned char)((vts & 0x3f00) >> 8);
+ 	// vtsn1 = (unsigned char)(vts & 0xff);
+ 	ret += sensor_write(sd, 0x41, (unsigned char)((vts & 0x3f00) >> 8));
+@@ -1820,16 +1836,16 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *i
+ 		wsize = &sensor_win_sizes[2];
+ 		sensor_info.max_fps = 30;
+ 		memcpy((void *)(&(sensor_attr.mipi)), (void *)(&sensor_mipi), sizeof(sensor_mipi));
+-		sensor_attr.max_integration_time_native = 0x58a - 8;
+-		sensor_attr.integration_time_limit = 0x58a - 8;
++		sensor_attr.max_integration_time_native = 0x49d - 8;
++		sensor_attr.integration_time_limit = 0x49d - 8;
+ 		sensor_attr.total_width = 0x44c * 2;
+-		sensor_attr.total_height = 0x58a;
+-		sensor_attr.max_integration_time = 0x58a - 8;
++		sensor_attr.total_height = 0x49d;
++		sensor_attr.max_integration_time = 0x49d - 8;
+ 		sensor_attr.one_line_expr_in_us = 28;
+-		vts0 = 0x05;
+-		vts1 = 0x8a;
+-		vtsn0 = 0x05;
+-		vtsn1 = 0x8a;
++		vts0 = 0x04;
++		vts1 = 0x9d;
++		vtsn0 = 0x04;
++		vtsn1 = 0x9d;
+ 	} else if ((data_interface == TX_SENSOR_DATA_INTERFACE_MIPI) && (sensor_max_fps == TX_SENSOR_MAX_FPS_25)) {
+ 		wsize = &sensor_win_sizes[3];
+ 		sensor_info.max_fps = 25;
+-- 
+2.53.0
+
