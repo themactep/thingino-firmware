@@ -88,7 +88,7 @@ wait_stop() {
 	# is 1 s, and 50 iterations would make this a 50 s wait, not a 5 s one.
 	usleep 1 2>/dev/null && n=50 || n=5
 	i=0
-	while [ $i -lt $n ]; do
+	while [ "$i" -lt "$n" ]; do
 		[ -f "$PIDFILE" ] || return 0
 		p=$(cat "$PIDFILE" 2>/dev/null)
 		[ -n "$p" ] && kill -0 "$p" 2>/dev/null || return 0
