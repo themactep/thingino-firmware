@@ -2,9 +2,10 @@
 # subzeroclaw
 ################################################################################
 
-SUBZEROCLAW_VERSION = ab18b786da2486a39a680fdcc87d3a08a6c9f5b9
+SUBZEROCLAW_VERSION = e39b51b8eccc1cfc35a209d728df8a32b312ddf1
 SUBZEROCLAW_SITE = https://github.com/jmlago/subzeroclaw
 SUBZEROCLAW_SITE_METHOD = git
+SUBZEROCLAW_SITE_BRANCH = main
 
 SUBZEROCLAW_LICENSE = MIT
 SUBZEROCLAW_LICENSE_FILES = LICENSE
