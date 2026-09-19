@@ -94,7 +94,12 @@ if [ -n "$FILE" ]; then
 	# browser cache instead of the SD card. "private" keeps an intermediary
 	# from storing an auth-protected image.
 	printf 'Cache-Control: private, max-age=86400, immutable\r\n'
-	printf 'Connection: close\r\n\r\n'
+	# No Connection: close here, unlike the other CGIs in this dir - this is
+	# the one endpoint the player hits back-to-back for every frame, and a
+	# fresh TCP+TLS handshake per JPEG was the dominant source of playback
+	# stutter. Content-Length is already set above, so uhttpd keeps the
+	# connection alive on its own (see thingino-uhttpd 0004-*.patch).
+	printf '\r\n'
 	cat "$F"
 	exit 0
 fi
