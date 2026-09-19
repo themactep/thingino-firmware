@@ -1107,10 +1107,11 @@ def print_summary() -> None:
         )
         for name in SKIPPED_NO_BRANCH:
             print(f"  {YELLOW}!{NC} {name}", file=sys.stderr)
-        print(
-            f"  Re-run with {GREEN}--infer-branch{NC} to resolve these branches.",
-            file=sys.stderr,
-        )
+        if not INFER_BRANCH:
+            print(
+                f"  Re-run with {GREEN}--infer-branch{NC} to resolve these branches.",
+                file=sys.stderr,
+            )
     if UPDATED_PACKAGES:
         print("", file=sys.stderr)
         print(f"{GREEN}Updated packages:{NC}", file=sys.stderr)
@@ -1214,6 +1215,8 @@ def process_package_no_branch(mk_path: Path, package_name: str, repo_url: str, c
         log_error(f"Failed to create commit for package {package_name}")
         return
 
+    if package_name in SKIPPED_NO_BRANCH:
+        SKIPPED_NO_BRANCH.remove(package_name)
     log_success(f"Resolved {package_name} to track '{branch}'")
 
 
