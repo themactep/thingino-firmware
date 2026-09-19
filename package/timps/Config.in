@@ -408,6 +408,10 @@ config BR2_PACKAGE_TIMPS_DIAG_TOOLS
 
 config BR2_PACKAGE_TIMPS_DROP_LIBSTDCPP
 	bool "Drop libstdc++.so from the image when nothing links it"
+	# Only timps.mk implements this, and this symbol sits outside the
+	# "if BR2_PACKAGE_TIMPS" block above - so without this it is offered
+	# on prudynt/raptor/strero images too, where it does nothing.
+	depends on BR2_PACKAGE_TIMPS
 	help
 	  libstdc++.so.6 is 2130 KB - on a 5 MB rootfs the largest single
 	  file, bigger than libimp.so or the ISP driver. Two things put it
