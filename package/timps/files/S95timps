@@ -84,8 +84,11 @@ ensure_tls_certs() {
 # Wait for the daemon to actually exit (IMP/rmem teardown can take a while);
 # starting a new instance too early makes ISP init fail.
 wait_stop() {
+	# busybox usleep is optional (CONFIG_USLEEP); without it the finest grain
+	# is 1 s, and 50 iterations would make this a 50 s wait, not a 5 s one.
+	usleep 1 2>/dev/null && n=50 || n=5
 	i=0
-	while [ $i -lt 50 ]; do
+	while [ $i -lt $n ]; do
 		[ -f "$PIDFILE" ] || return 0
 		p=$(cat "$PIDFILE" 2>/dev/null)
 		[ -n "$p" ] && kill -0 "$p" 2>/dev/null || return 0
@@ -105,8 +108,22 @@ case "$1" in
 	stop)
 		echo "Stopping timpsd..."
 		start-stop-daemon -K -p "$PIDFILE" 2>/dev/null
-		wait_stop || echo "timpsd still stopping..."
-		rm -f "$PIDFILE"
+		if ! wait_stop; then
+			# Past timpsd's own 3 s shutdown guillotine (main.c), so it is
+			# wedged rather than slow. SIGKILL releases the /run/timps.lock
+			# flock; while it is held the next instance refuses to start and
+			# nothing respawns it.
+			echo "timpsd not responding, sending KILL..."
+			start-stop-daemon -K -s KILL -p "$PIDFILE" 2>/dev/null
+		fi
+		# Keep the pidfile while the process is still there: it is the only
+		# thing that stops restart's wait - and start-stop-daemon -S - from
+		# landing on a still-exiting instance.
+		if wait_stop; then
+			rm -f "$PIDFILE"
+		else
+			echo "timpsd still stopping..."
+		fi
 		;;
 	restart)
 		"$0" stop
