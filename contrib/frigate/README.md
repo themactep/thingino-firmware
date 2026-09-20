@@ -26,7 +26,10 @@ cp .env.example .env            # optional: timezone, ports, credentials
 podman compose up -d            # or: docker compose up -d
 ```
 
-- Web UI: `http://<server-ip>:8971/`. On first start Frigate generates the
+- Web UI: `https://<server-ip>:8971/`. Port 8971 is HTTPS-only, so a plain
+  `http://` URL is rejected with `400 Bad Request`. Frigate uses a
+  self-signed certificate, so the browser shows a warning on first visit;
+  accept it to continue. On first start Frigate generates the
   admin user and password and prints them in the container log:
   `podman logs frigate | grep -i password`. Change the password after logging
   in.
