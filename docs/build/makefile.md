@@ -632,7 +632,7 @@ The system tracks the buildroot git commit hash:
 ### Repository Updates
 
 #### `update`
-Update repository and submodules (excludes buildroot patches).
+Update repository and submodules.
 ```bash
 make update
 ```

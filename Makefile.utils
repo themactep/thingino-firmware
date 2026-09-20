@@ -306,7 +306,7 @@ help:
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make setup-hooks    configure local git hooks path (.githooks)\n\
-	  make update         update local repo and submodules (excludes buildroot)\n\
+	  make update         update local repo and submodules\n\
 	  make                build from scratch (clean + parallel) [DEFAULT]\n\
 	  make dev            serial build for debugging compilation errors\n\
 	  make fast           fast incremental build (no clean)\n\

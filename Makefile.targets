@@ -153,9 +153,8 @@ ram-dev:
 	$(ram_copy_artifacts)
 	@$(GREEN) "Build complete. Tree kept at $(RAM_OUTPUT_DIR) - re-run 'make ram-dev' to resume as needed."
 
-# update repo and submodules (buildroot override patching is intentionally disabled
-# here -- applying patches dirties the submodule and triggers agents; apply them
-# explicitly with `make patch-buildroot` when needed)
+# update repo and submodules (buildroot overrides live in the pinned
+# themactep/buildroot branch, so there is nothing to patch here)
 update:
 	@$(TEAL) "$@"
 	@echo "=== UPDATING MAIN REPOSITORY ==="
@@ -167,47 +166,6 @@ update:
 	BR2_DL_DIR=$(BR2_DL_DIR) \
 		$(SCRIPTS_DIR)/update_toolchain_bundles.sh
 	@$(ORANGE) "$(GIT_BRANCH)"
-
-patch-buildroot:
-	@$(TEAL) "$@"
-	@if [ ! -d "$(BUILDROOT_DIR)" ]; then \
-		echo "ERROR: buildroot submodule is not initialized yet"; \
-		exit 1; \
-	fi
-	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
-		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do \
-			if git -C "$(BUILDROOT_DIR)" apply --check "$$patch"; then \
-				echo "Applying $$patch"; \
-				git -C "$(BUILDROOT_DIR)" apply "$$patch"; \
-			elif git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
-				echo "Already applied: $$patch"; \
-			else \
-				echo "ERROR: failed to apply $$patch"; \
-				exit 1; \
-			fi; \
-		done; \
-	else \
-		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
-	fi
-
-unpatch-buildroot:
-	@$(TEAL) "$@"
-	@if [ ! -d "$(BUILDROOT_DIR)" ]; then \
-		echo "ERROR: buildroot submodule is not initialized yet"; \
-		exit 1; \
-	fi
-	@if [ -d "$(BUILDROOT_OVERRIDE_PATCH_DIR)" ]; then \
-		for patch in $$(find "$(BUILDROOT_OVERRIDE_PATCH_DIR)" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort -r); do \
-			if git -C "$(BUILDROOT_DIR)" apply -R --check "$$patch"; then \
-				echo "Unapplying $$patch"; \
-				git -C "$(BUILDROOT_DIR)" apply -R "$$patch"; \
-			else \
-				echo "Skipping (not applied): $$patch"; \
-			fi; \
-		done; \
-	else \
-		echo "No buildroot override patch directory: $(BUILDROOT_OVERRIDE_PATCH_DIR)"; \
-	fi
 
 update_manual:
 	@echo "=== UPDATING BUILDROOT MANUALS ==="

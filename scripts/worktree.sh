@@ -39,28 +39,6 @@ git_common_dir() {
 	(cd "$d" && pwd)
 }
 
-# Apply Thingino buildroot override patches to a worktree's buildroot submodule.
-# Mirrors the apply loop of `make update` (idempotent: skips already-applied).
-apply_buildroot_patches() {
-	local wt="$1"
-	local patch_dir="$wt/package/all-patches/buildroot"
-	[ -d "$patch_dir" ] || {
-		echo "No buildroot override patch directory: $patch_dir"
-		return 0
-	}
-	local patch
-	for patch in $(find "$patch_dir" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort); do
-		if git -C "$wt/buildroot" apply --check "$patch" 2>/dev/null; then
-			echo "Applying $(basename "$patch")"
-			git -C "$wt/buildroot" apply "$patch"
-		elif git -C "$wt/buildroot" apply -R --check "$patch" 2>/dev/null; then
-			echo "Already applied: $(basename "$patch")"
-		else
-			die "failed to apply buildroot patch: $patch"
-		fi
-	done
-}
-
 cmd_create() {
 	local branch="${1:?Usage: $0 create <branch> [base]}"
 	local base="${2:-$(default_base)}"
@@ -99,10 +77,6 @@ cmd_create() {
 	fi
 
 	echo ""
-	echo "=== APPLYING BUILDROOT OVERRIDES ==="
-	apply_buildroot_patches "$wt_path"
-
-	echo ""
 	echo "=== SHARING DOWNLOAD CACHE ==="
 	if [ -e "$root/dl" ] && [ ! -e "$wt_path/dl" ]; then
 		ln -s "$root/dl" "$wt_path/dl"
@@ -136,7 +110,7 @@ cmd_sync() {
 		exit 0
 	fi
 
-	# Refuse a dirty tree (patched buildroot submodule content is expected -- ignore it)
+	# Refuse a dirty tree (submodule dirt is ignored)
 	if ! git diff --quiet --ignore-submodules=dirty ||
 		! git diff --cached --quiet --ignore-submodules=dirty; then
 		echo "ERROR: uncommitted changes detected. Commit a checkpoint first:" >&2
@@ -151,7 +125,6 @@ cmd_sync() {
 	echo ""
 	echo "=== SYNCING BUILDROOT SUBMODULE ==="
 	git submodule update -- buildroot
-	apply_buildroot_patches "$root"
 
 	echo ""
 	echo "Done. '$branch' is up to date with origin/$base."
