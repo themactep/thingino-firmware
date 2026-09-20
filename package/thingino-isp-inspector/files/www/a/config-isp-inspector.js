@@ -39,6 +39,7 @@
   let history = [];
   let lastData = null;
   let lastFs = null;
+  let lastRates = null;
   let lastMode = null;
   let charts = {};
 
@@ -113,9 +114,11 @@
       '</div></div></div>';
   }
 
-  // ── Absolute health classification ─────────────────────────────
-  // Badge colors are derived ONLY from the current absolute value.
-  // They must never compare against the previous sample ("went up/down").
+  // ── Health classification ──────────────────────────────────────
+  // Point-in-time metrics (FPS, gains, queue depth) use the current absolute
+  // value. Monotonic counters (drops, interrupt-ahead) must NOT: they only
+  // grow since boot, so an absolute threshold is a permanent alarm on any
+  // camera that has been up for a while. Those are judged by rate instead.
   // ok = healthy (green), warn = troubled (yellow), crit = critical (red).
   //
   // healthAbove: larger is healthier (FPS, DMA queue depth).
@@ -127,7 +130,7 @@
     return "crit";
   }
 
-  // healthBelow: larger is worse (drops, near-misses).
+  // healthBelow: larger is worse (rate per minute).
   //   value <= okAt -> ok, value <= warnAt -> warn, otherwise crit.
   function healthBelow(value, okAt, warnAt) {
     if (value === null || isNaN(value)) return "info";
@@ -136,18 +139,87 @@
     return "crit";
   }
 
+  // ── Rate estimation for cumulative frame-source counters ───────
+  // Measure a counter's slope over the history window, not its total, so a
+  // boot-time burst ages out and only a sustained problem stays lit.
+  const RATE_WINDOW_S = 300; // look back at most 5 minutes
+  const RATE_MIN_SPAN_S = 20; // need this much elapsed time to trust a slope
+  const RATE_DROP_OK_PER_MIN = 0.1;
+  const RATE_DROP_CRIT_PER_MIN = 2;
+  const RATE_INTC_OK_PER_MIN = 5;
+  const RATE_INTC_CRIT_PER_MIN = 20;
+
+  function rateOf(delta, spanSec) {
+    return spanSec > 0 ? (delta * 60) / spanSec : null;
+  }
+
+  // Oldest buffered sample inside the window that is at least RATE_MIN_SPAN_S
+  // older than ts, or null when the page has not been watching long enough.
+  function rateBaseline(ts) {
+    var base = null;
+    for (var i = history.length - 1; i >= 0; i--) {
+      var h = history[i];
+      if (!h.fs) continue;
+      var age = ts - h.ts;
+      if (age > RATE_WINDOW_S) break;
+      if (age < RATE_MIN_SPAN_S) continue;
+      base = h;
+    }
+    return base;
+  }
+
+  function channelRates(cur, prev, spanSec) {
+    if (!cur || !prev) return null;
+    var cd = parseInt(cur.drop, 10);
+    var ci = parseInt(cur.intc_ahead, 10);
+    var pd = parseInt(prev.drop, 10);
+    var pi = parseInt(prev.intc_ahead, 10);
+    if (isNaN(cd) || isNaN(ci) || isNaN(pd) || isNaN(pi)) return null;
+    if (cd < pd || ci < pi) return null; // counter reset (module reload)
+    return {
+      dropDelta: cd - pd,
+      intcDelta: ci - pi,
+      dropPerMin: rateOf(cd - pd, spanSec),
+      intcPerMin: rateOf(ci - pi, spanSec),
+      totalDrop: cd,
+      totalIntc: ci,
+      spanSec: spanSec
+    };
+  }
+
+  function fsRates(fsData, ts) {
+    if (!fsData || !fsData.ch0) return null;
+    var base = rateBaseline(ts);
+    if (!base || !base.fs || !base.fs.ch0) return null;
+    var spanSec = ts - base.ts;
+    if (spanSec < RATE_MIN_SPAN_S) return null;
+    return {
+      spanSec: spanSec,
+      ch0: channelRates(fsData.ch0, base.fs.ch0, spanSec),
+      ch1: channelRates(fsData.ch1, base.fs.ch1, spanSec)
+    };
+  }
+
+  function preDequeueEnabled(fsData) {
+    return !!(fsData && fsData.pre_dequeue &&
+      parseInt(fsData.pre_dequeue.time, 10) > 0);
+  }
+
   // ── Issue detection ────────────────────────────────────────────
-  function detectIssues(data, fsData) {
+  // Every issue carries a stable `key` so the log dedups on identity, not on
+  // message text (which embeds changing numbers). Severity is folded into the
+  // key, so an escalation is logged as a new line.
+  function detectIssues(data, fsData, rates) {
     var issues = [];
 
     // FPS: check if num/div ratio is below common targets
     if (data.fps && data.fps.num && data.fps.div) {
       var fps = parseFloat(data.fps.num) / parseFloat(data.fps.div);
       if (fps < 10) {
-        issues.push({ severity: "crit", msg: "FPS critically low: " + fps.toFixed(1) + " fps" +
+        issues.push({ key: "fps", severity: "crit", msg: "FPS critically low: " + fps.toFixed(1) + " fps" +
           " (causes: integration time at max, sensor bottleneck, high gain)" });
       } else if (fps < 15) {
-        issues.push({ severity: "warn", msg: "FPS low: " + fps.toFixed(1) + " fps" +
+        issues.push({ key: "fps", severity: "warn", msg: "FPS low: " + fps.toFixed(1) + " fps" +
           " (may be normal at night; check integration time)" });
       }
     }
@@ -156,7 +228,7 @@
     var intTime = parseInt(data.exposure.int_time, 10);
     var intMax = parseInt(data.exposure.int_time_max, 10);
     if (intMax > 0 && intTime >= intMax) {
-      issues.push({ severity: "warn", msg: "Integration time at maximum (" + intTime + " / " + intMax +
+      issues.push({ key: "int_time_max", severity: "warn", msg: "Integration time at maximum (" + intTime + " / " + intMax +
         " lines) — sensor at FPS floor. Normal at night, but if scene is bright, check AE config." });
     }
 
@@ -164,63 +236,74 @@
     var again = parseInt(data.exposure.again, 10);
     var againMax = parseInt(data.exposure.again_max, 10);
     if (againMax > 0 && again >= againMax) {
-      issues.push({ severity: "crit", msg: "Analog gain pinned at maximum (" + again + " / " + againMax +
+      issues.push({ key: "again", severity: "crit", msg: "Analog gain pinned at maximum (" + again + " / " + againMax +
         ") — image will be extremely noisy. Scene is too dark or IR illumination failed." });
     } else if (againMax > 0 && again > againMax * 0.8) {
-      issues.push({ severity: "warn", msg: "Analog gain high (" + again + " / " + againMax +
+      issues.push({ key: "again", severity: "warn", msg: "Analog gain high (" + again + " / " + againMax +
         ") — approach noise ceiling. Check lighting or IR-cut filter state." });
     }
 
     // Digital gain in use while analog has headroom → driver misconfiguration
     var dgain = parseInt(data.exposure.dgain, 10);
     if (dgain > 0 && againMax > 0 && again < againMax * 0.5) {
-      issues.push({ severity: "warn", msg: "Digital gain active (" + dgain +
+      issues.push({ key: "dgain", severity: "warn", msg: "Digital gain active (" + dgain +
         ") while analog gain has headroom (" + again + " / " + againMax +
         ") — analog gain is always preferable. Possible driver misconfiguration." });
     }
 
-    // Frame source buffer issues (absolute counts, not deltas)
+    // Frame source: drops and interrupt-ahead only grow since boot, so judge
+    // them by measured rate, never by the running total. A boot-time burst
+    // ages out of the window and clears itself.
     if (fsData && fsData.ch0) {
-      var drop = parseInt(fsData.ch0.drop, 10);
-      var intc = parseInt(fsData.ch0.intc_ahead, 10);
-      if (drop >= 10) {
-        issues.push({ severity: "crit", msg: "Frame drops on channel 0: " + drop +
-          " frames dropped. Buffer starvation — reduce resolution, drop sub stream, or lower FPS." });
-      } else if (drop > 0) {
-        issues.push({ severity: "warn", msg: "Frame drops on channel 0: " + drop +
-          " frames dropped. A few drops may be transient, but watch for a rising count." });
-      }
-      if (intc >= 10) {
-        issues.push({ severity: "crit", msg: "Near-misses on channel 0: " + intc +
-          " interrupt-ahead events. Pipeline is close to dropping frames." });
-      } else if (intc > 0) {
-        issues.push({ severity: "warn", msg: "Near-misses on channel 0: " + intc +
-          " interrupt-ahead events. Pipeline close to dropping frames." });
-      }
-      var qc = parseInt(fsData.ch0.queue_count, 10);
-      if (qc < 2) {
-        issues.push({ severity: "crit", msg: "Queue count is " + qc +
-          " — pipeline has no slack. Any hiccup will drop a frame." });
-      } else if (qc < 3) {
-        issues.push({ severity: "warn", msg: "Queue count is " + qc +
-          " — minimal buffering slack. Any hiccup may drop a frame." });
+      var ch0 = rates && rates.ch0;
+      if (ch0) {
+        if (ch0.dropPerMin > RATE_DROP_CRIT_PER_MIN) {
+          issues.push({ key: "fs_ch0_drop_rate", severity: "crit",
+            msg: "Channel 0 dropping " + ch0.dropPerMin.toFixed(1) + " frames/min (" +
+              ch0.dropDelta + " in " + Math.round(ch0.spanSec) + "s) — buffer starvation. " +
+              "Reduce resolution, drop the sub stream, or lower FPS." });
+        } else if (ch0.dropPerMin > RATE_DROP_OK_PER_MIN) {
+          issues.push({ key: "fs_ch0_drop_rate", severity: "warn",
+            msg: "Channel 0 dropping " + ch0.dropPerMin.toFixed(1) + " frames/min (" +
+              ch0.dropDelta + " in " + Math.round(ch0.spanSec) + "s). Watch whether it sustains." });
+        }
+        if (ch0.intcPerMin > RATE_INTC_CRIT_PER_MIN) {
+          issues.push({ key: "fs_ch0_intc_rate", severity: "crit",
+            msg: "Channel 0 near-misses at " + ch0.intcPerMin.toFixed(1) + "/min (" +
+              ch0.intcDelta + " in " + Math.round(ch0.spanSec) + "s) — pipeline is close to dropping frames." });
+        } else if (ch0.intcPerMin > RATE_INTC_OK_PER_MIN) {
+          issues.push({ key: "fs_ch0_intc_rate", severity: "warn",
+            msg: "Channel 0 near-misses at " + ch0.intcPerMin.toFixed(1) + "/min (" +
+              ch0.intcDelta + " in " + Math.round(ch0.spanSec) + "s). Not drops yet, but the margin is thin." });
+        }
       }
 
-      if (fsData.ch1) {
-        var drop1 = parseInt(fsData.ch1.drop, 10);
-        if (drop1 >= 10) {
-          issues.push({ severity: "crit", msg: "Frame drops on channel 1 (sub stream): " + drop1 +
-            " frames. If ch0 is clean, problem is specific to the sub stream." });
-        } else if (drop1 > 0) {
-          issues.push({ severity: "warn", msg: "Frame drops on channel 1 (sub stream): " + drop1 +
-            " frames. If ch0 is clean, problem is specific to the sub stream." });
+      // Queue depth: pre-dequeue runs the non-scaled channel single-buffer by
+      // design, so a count of 1 there is expected, not starvation.
+      if (!preDequeueEnabled(fsData)) {
+        var qc = parseInt(fsData.ch0.queue_count, 10);
+        if (qc < 2) {
+          issues.push({ key: "fs_ch0_queue", severity: "crit", msg: "Queue count is " + qc +
+            " — pipeline has no slack. Any hiccup will drop a frame." });
+        } else if (qc < 3) {
+          issues.push({ key: "fs_ch0_queue", severity: "warn", msg: "Queue count is " + qc +
+            " — minimal buffering slack. Any hiccup may drop a frame." });
         }
+      }
+
+      var ch1 = rates && rates.ch1;
+      if (ch1 && ch1.dropPerMin > RATE_DROP_OK_PER_MIN) {
+        issues.push({ key: "fs_ch1_drop_rate",
+          severity: ch1.dropPerMin > RATE_DROP_CRIT_PER_MIN ? "crit" : "warn",
+          msg: "Channel 1 (sub stream) dropping " + ch1.dropPerMin.toFixed(1) + " frames/min (" +
+            ch1.dropDelta + " in " + Math.round(ch1.spanSec) + "s). If ch0 is clean, " +
+            "the sub stream is the problem." });
       }
     }
 
     // WDR and FPS
     if (data.mode && data.mode.wdr === "Enable") {
-      issues.push({ severity: "info", msg: "WDR is enabled — effective frame rate is halved (two captures per frame)." });
+      issues.push({ key: "wdr", severity: "info", msg: "WDR is enabled — effective frame rate is halved (two captures per frame)." });
     }
 
     // Custom mode off when user may expect tuning
@@ -230,7 +313,7 @@
 
     // Antiflicker disabled
     if (data.antiflicker && (data.antiflicker.mode === "0" || data.antiflicker.mode === "Disable")) {
-      issues.push({ severity: "info", msg: "Antiflicker is disabled. If under artificial light, expect rolling bands." });
+      issues.push({ key: "antiflicker", severity: "info", msg: "Antiflicker is disabled. If under artificial light, expect rolling bands." });
     }
 
     return issues;
@@ -238,7 +321,7 @@
 
   // ── Issue log (cumulative, dedup'd, timestamped) ────────────
   var seenIssues = {};     // key -> true (ever seen)
-  var activeIssues = {};   // key -> true (currently active)
+  var activeIssues = {};   // key -> { msg, severity } (currently active)
 
   function renderIssues(issues) {
     issuesCard.classList.remove("d-none");
@@ -248,13 +331,14 @@
     var added = false;
     var currentKeys = {};
 
-    // Log new issues
+    // Log new issues. Identity is the stable key plus severity, not the
+    // message, so a changing count does not spam the log.
     (issues || []).forEach(function(i) {
-      var key = i.msg;
+      var key = (i.key || i.msg) + ":" + i.severity;
       currentKeys[key] = true;
       if (seenIssues[key]) return;
       seenIssues[key] = true;
-      activeIssues[key] = true;
+      activeIssues[key] = { msg: i.msg, severity: i.severity };
       added = true;
 
       var cls = i.severity === "crit" ? "text-danger" :
@@ -269,12 +353,14 @@
     // Log resolved issues (was active, now gone)
     Object.keys(activeIssues).forEach(function(key) {
       if (currentKeys[key]) return; // still active
+      var resolved = activeIssues[key];
       delete activeIssues[key];
+      delete seenIssues[key]; // allow a recurrence to be logged again
       added = true;
       var line = document.createElement("div");
       line.className = "isp-issue-log";
       line.innerHTML = '<span class="text-muted">' + ts + '</span> ' +
-        '<span class="text-success">[NORM]</span> ' + key;
+        '<span class="text-success">[NORM]</span> ' + resolved.msg;
       issuesBody.appendChild(line);
     });
 
@@ -284,7 +370,7 @@
   }
 
   // ── Stats rendering ────────────────────────────────────────────
-  function renderStats(data, fsData) {
+  function renderStats(data, fsData, rates) {
     var cards = [];
 
     // Header line
@@ -386,20 +472,47 @@
     cards.push(statCard("WB Color Temp", wb.color_temp ? wb.color_temp + "K" : "?", "", "info",
       "White balance color temperature in Kelvin. Lower = warmer/redder. Rgain boosts red channel, Bgain boosts blue. Auto WB adjusts these to make white objects look white under different lighting."));
 
-    // Frame source: queue count
+    // Frame source: queue count is a point-in-time value; drops and
+    // interrupt-ahead are cumulative, so those are shown as a rate.
     if (fsData && fsData.ch0) {
       var qc = fsData.ch0.queue_count || "?";
       var qcNum = parseInt(qc, 10);
-      var qcStatus = healthAbove(qcNum, 3, 2);
-      cards.push(statCard("DMA Queue", qc, "", qcStatus, "Number of DMA buffers in the sensor→ISP pipeline. <2 = no buffering slack, any hiccup drops a frame. Typical healthy values: 3–4 (2 = minimal slack)."));
+      if (preDequeueEnabled(fsData)) {
+        cards.push(statCard("DMA Queue", qc, "", "info",
+          "Number of DMA buffers in the sensor→ISP pipeline. Pre-dequeue is enabled (" +
+          fsData.pre_dequeue.time + " ms), which runs the non-scaled channel single-buffer " +
+          "by design — a count of 1 is expected here, not starvation."));
+      } else {
+        cards.push(statCard("DMA Queue", qc, "", healthAbove(qcNum, 3, 2),
+          "Number of DMA buffers in the sensor→ISP pipeline. <2 = no buffering slack, any hiccup drops a frame. Typical healthy values: 3–4 (2 = minimal slack)."));
+      }
 
-      var drop = fsData.ch0.drop || "0";
-      var dropStatus = healthBelow(parseInt(drop, 10), 0, 9);
-      cards.push(statCard("Dropped Frames", drop, "", dropStatus, "Frames that the ISP discarded because no DMA buffer was available when the sensor produced them. Reduce resolution or FPS to fix."));
+      var dropTotal = fsData.ch0.drop || "0";
+      var intcTotal = fsData.ch0.intc_ahead || "0";
+      var ch0 = rates && rates.ch0;
 
-      var intcAhead = fsData.ch0.intc_ahead || "0";
-      var intcStatus = healthBelow(parseInt(intcAhead, 10), 0, 9);
-      cards.push(statCard("Interrupt Ahead", intcAhead, "", intcStatus, "Times the sensor finished a frame before a DMA buffer was ready. Not a drop yet, but close. If this climbs, expect drops next."));
+      if (ch0) {
+        cards.push(statCard("Dropped Frames", ch0.dropPerMin.toFixed(1), "/min",
+          healthBelow(ch0.dropPerMin, RATE_DROP_OK_PER_MIN, RATE_DROP_CRIT_PER_MIN),
+          "Frames the ISP discarded because no DMA buffer was available. " + dropTotal +
+          " since boot, " + ch0.dropDelta + " in the last " + Math.round(ch0.spanSec) +
+          "s. Measured by rate so a boot-time burst ages out; reduce resolution or FPS " +
+          "if the rate stays up."));
+
+        cards.push(statCard("Interrupt Ahead", ch0.intcPerMin.toFixed(1), "/min",
+          healthBelow(ch0.intcPerMin, RATE_INTC_OK_PER_MIN, RATE_INTC_CRIT_PER_MIN),
+          "Times a frame ended before a DMA buffer was ready: a near-miss, not a drop. " +
+          intcTotal + " since boot, " + ch0.intcDelta + " in the last " +
+          Math.round(ch0.spanSec) + "s. Some near-misses are normal with pre-dequeue; " +
+          "a rising rate precedes drops."));
+      } else {
+        cards.push(statCard("Dropped Frames", dropTotal, "", "info",
+          "Frames the ISP discarded because no DMA buffer was available. " + dropTotal +
+          " since boot. Rate appears once the inspector has watched for a few polls."));
+        cards.push(statCard("Interrupt Ahead", intcTotal, "", "info",
+          "Times a frame ended before a DMA buffer was ready: a near-miss, not a drop. " +
+          intcTotal + " since boot. Rate appears once the inspector has watched for a few polls."));
+      }
     }
 
     // Debug counters
@@ -581,8 +694,13 @@
       return;
     }
 
-    renderStats(data, fsData);
-    var issues = detectIssues(data, fsData);
+    // Rate is measured against the buffered history, which does not yet
+    // include this sample.
+    var rates = fsRates(fsData, payload.timestamp || Math.floor(Date.now() / 1000));
+    lastRates = rates;
+
+    renderStats(data, fsData, rates);
+    var issues = detectIssues(data, fsData, rates);
     renderIssues(issues);
 
     if (rawM0) rawM0.textContent = JSON.stringify(data, null, 2);
@@ -643,7 +761,7 @@
   }
 
   // ── LLM Analysis ───────────────────────────────────────────────
-  function buildLlmPrompt(data, fsData, issues) {
+  function buildLlmPrompt(data, fsData, issues, rates) {
     var parts = [];
 
     parts.push("You are an Ingenic ISP hardware expert analyzing live camera sensor data.");
@@ -691,10 +809,22 @@
     if (fsData && fsData.ch0) {
       parts.push("");
       parts.push("## Frame Source (DMA buffers)");
-      parts.push("Queue count: " + fsData.ch0.queue_count);
+      parts.push("Queue count: " + fsData.ch0.queue_count +
+        (preDequeueEnabled(fsData) ? " (pre-dequeue " + fsData.pre_dequeue.time +
+          " ms -> single-buffer schedule expected on the non-scaled channel)" : ""));
       parts.push("Ch0 drops: " + fsData.ch0.drop + "  interrupt-ahead: " + fsData.ch0.intc_ahead);
+      if (rates && rates.ch0) {
+        parts.push("Ch0 rate over " + Math.round(rates.ch0.spanSec) + "s: " +
+          rates.ch0.dropPerMin.toFixed(1) + " drops/min, " +
+          rates.ch0.intcPerMin.toFixed(1) + " near-misses/min");
+      }
       if (fsData.ch1) {
         parts.push("Ch1 drops: " + fsData.ch1.drop + "  interrupt-ahead: " + fsData.ch1.intc_ahead);
+        if (rates && rates.ch1) {
+          parts.push("Ch1 rate over " + Math.round(rates.ch1.spanSec) + "s: " +
+            rates.ch1.dropPerMin.toFixed(1) + " drops/min, " +
+            rates.ch1.intcPerMin.toFixed(1) + " near-misses/min");
+        }
       }
     }
 
@@ -736,8 +866,8 @@
     llmResponse.classList.add("d-none");
     analyzeBtn.disabled = true;
 
-    var issues = detectIssues(lastData, lastFs);
-    var prompt = buildLlmPrompt(lastData, lastFs, issues);
+    var issues = detectIssues(lastData, lastFs, lastRates);
+    var prompt = buildLlmPrompt(lastData, lastFs, issues, lastRates);
 
     fetch(getLlmEndpoint(), {
       method: "POST",
@@ -848,8 +978,9 @@
       if (last && last.data) {
         lastData = last.data;
         lastFs = last.fs || null;
-        renderStats(last.data, last.fs);
-        var issues = detectIssues(last.data, last.fs);
+        lastRates = fsRates(lastFs, last.data.timestamp);
+        renderStats(last.data, last.fs, lastRates);
+        var issues = detectIssues(last.data, last.fs, lastRates);
         renderIssues(issues);
         if (rawM0) rawM0.textContent = JSON.stringify(last.data, null, 2);
         if (rawFs) rawFs.textContent = last.fs ? JSON.stringify(last.fs, null, 2) : "No isp-fs data";

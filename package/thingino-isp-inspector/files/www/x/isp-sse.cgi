@@ -39,6 +39,16 @@ getval() {
 	sed -n "s/^$1[[:space:]]*:[[:space:]]*//p" "$2" | head -1
 }
 
+# Read an ISP module parameter, trying each tx_isp_* module.
+isp_param() {
+	for f in /sys/module/tx_isp_*/parameters/"$1"; do
+		if [ -r "$f" ]; then
+			cat "$f" 2>/dev/null
+			return
+		fi
+	done
+}
+
 # Determine platform from soc command for accurate model
 platform=$(soc -f 2>/dev/null || echo "unknown")
 
@@ -46,7 +56,7 @@ platform=$(soc -f 2>/dev/null || echo "unknown")
 while true; do
 	ts=$(date +%s)
 
-	# ── Build isp-m0 JSON ──────────────────────────────────
+	# Build isp-m0 JSON
 	m0_json="null"
 	if [ -n "$ISP_FILE" ]; then
 		f="$ISP_FILE"
@@ -152,7 +162,7 @@ while true; do
 		)
 	fi
 
-	# ── Build isp-fs JSON ──────────────────────────────────
+	# Build isp-fs JSON
 	fs_json="null"
 	if [ -r "$ISP_FS" ]; then
 		qc=$(grep "queue count" "$ISP_FS" 2>/dev/null | head -1 | sed 's/.*queue count[[:space:]]*[:=]*[[:space:]]*//; s/[[:space:]]*$//')
@@ -161,8 +171,14 @@ while true; do
 		ch1_drop=$(grep "ch1_pre_dequeue_drop is" "$ISP_FS" 2>/dev/null | head -1 | sed 's/.*ch1_pre_dequeue_drop is[[:space:]]*[:=]*[[:space:]]*//; s/[[:space:]]*$//')
 		ch1_intc=$(grep "ch1_pre_dequeue_intc_ahead_cnt is" "$ISP_FS" 2>/dev/null | head -1 | sed 's/.*ch1_pre_dequeue_intc_ahead_cnt is[[:space:]]*[:=]*[[:space:]]*//; s/[[:space:]]*$//')
 
-		fs_json=$(printf '{"ch0":{"queue_count":"%s","drop":"%s","intc_ahead":"%s"},"ch1":{"drop":"%s","intc_ahead":"%s"}}' \
-			"$qc" "$ch0_drop" "$ch0_intc" "$ch1_drop" "$ch1_intc")
+		# Pre-dequeue forces a single-buffer schedule on the non-scaled
+		# channel, so the inspector must know it is on to not flag queue
+		# count 1 as starvation.
+		pd_time=$(isp_param isp_ch0_pre_dequeue_time)
+		pd_lines=$(isp_param isp_ch0_pre_dequeue_valid_lines)
+
+		fs_json=$(printf '{"ch0":{"queue_count":"%s","drop":"%s","intc_ahead":"%s"},"ch1":{"drop":"%s","intc_ahead":"%s"},"pre_dequeue":{"time":"%s","valid_lines":"%s"}}' \
+			"$qc" "$ch0_drop" "$ch0_intc" "$ch1_drop" "$ch1_intc" "$pd_time" "$pd_lines")
 	fi
 
 	printf 'event: isp\ndata: {"platform":"%s","timestamp":%s,"m0":%s,"fs":%s}\n\n' \
