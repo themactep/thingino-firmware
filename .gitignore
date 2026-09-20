@@ -3,6 +3,7 @@
 /.vscode
 /.gitconfig
 /.settings
+/.kilo
 
 # OS files
 .DS_Store
