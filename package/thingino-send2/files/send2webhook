@@ -35,7 +35,7 @@ while getopts f:m:u:vSV flag; do
 		v) verbose="true" ;;
 		# sending a file from the command line disables sending photo
 		# and video defined in config unless explicitly set so (-S/-V)
-		f) file=$OPTARG; send_photo="false"; send_photo="false" ;;
+		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
 		*) show_help ;;
@@ -60,25 +60,38 @@ else
 	set -- "$@" --silent
 fi
 
+has_attachment=""
+
 if [ -n "$file" ]; then
 	set -- "$@" -F "file=@$file"
+	has_attachment="true"
 fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	[ -n "$photo" ] && [ -f "$photo" ] && set -- "$@" -F "image=@$photo"
+	if [ -n "$photo" ] && [ -f "$photo" ]; then
+		set -- "$@" -F "image=@$photo"
+		has_attachment="true"
+	fi
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	[ -n "$video" ] && [ -f "$video" ] && set -- "$@" -F "video=@$video"
+	if [ -n "$video" ] && [ -f "$video" ]; then
+		set -- "$@" -F "video=@$video"
+		has_attachment="true"
+	fi
 fi
 
-# Message as the raw POST body (-d): ntfy publishes the body as the
-# message, generic webhook receivers get the standard body payload.
-# Multipart (-F) is used only when files are attached (curl switches
-# automatically when -F is present).
-set -- "$@" -d "$message" --url "$url"
+# Multipart and raw body are mutually exclusive in curl. With an attachment
+# the message must be a form field; with none, keep the raw-body behavior
+# (ntfy-style receivers, documented in docs/thingino/send2webhook.md).
+if [ -n "$has_attachment" ]; then
+	set -- "$@" --form-string "message=$message"
+else
+	set -- "$@" -d "$message"
+fi
+set -- "$@" --url "$url"
 
 [ "true" = "$verbose" ] && echo_command "$*"
 
