@@ -35,6 +35,11 @@ REPLACEMENTS = [
     (re.compile(
         r'<script\s+src="https://cdn\.jsdelivr\.net/npm/bootstrap@5\.3\.\d+/dist/js/bootstrap\.bundle\.min\.js"\s*\n?\s*integrity="[^"]*"\s+crossorigin="anonymous"\s*></script>'
     ), '<script src="/a/vendor/bootstrap.bundle.min.js"></script>'),
+
+    # Chart.js UMD CDN → local
+    (re.compile(
+        r'<script\s+src="https://cdn\.jsdelivr\.net/npm/chart\.js@[\d.]+/dist/chart\.umd\.min\.js"\s*></script>'
+    ), '<script src="/a/vendor/chart.umd.min.js"></script>'),
 ]
 
 HTML_EXTENSIONS = {'.html', '.htm'}

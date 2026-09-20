@@ -10,7 +10,7 @@ config BR2_PACKAGE_THINGINO_WEBUI_PARANOID
 	bool "Paranoid mode — bundle assets locally, no CDN"
 	depends on BR2_PACKAGE_THINGINO_WEBUI
 	help
-	  Bundle Bootstrap, icons, and font assets on the camera.
+	  Bundle Bootstrap, icons, font, and Chart.js assets on the camera.
 	  All HTML pages reference local vendor files instead of CDNs.
 	  Useful when the camera is isolated from the internet.
-	  Adds ~248 KB to the firmware image.
+	  Adds ~490 KB to the firmware image.
