@@ -290,6 +290,53 @@
     if (tilt) tilt.value = data.speed_tilt ?? "";
   }
 
+  // Preset names and coordinates are edited in the list, not in the form.
+  // Collect the rows that differ from what was loaded so the modal's Save
+  // button persists them too; otherwise the edit is silently dropped.
+  function collectPresetEdits() {
+    const list = $("#ptz-presets-list");
+    if (!list) return [];
+    const edits = [];
+    list.querySelectorAll("li[data-id]").forEach((li) => {
+      const current = currentPresets.find(
+        (p) => String(p.id) === li.dataset.id,
+      );
+      if (!current) return;
+      const nameInput = li.querySelector(".preset-name");
+      const xInput = li.querySelector(".preset-x");
+      const yInput = li.querySelector(".preset-y");
+      if (!nameInput || !xInput || !yInput) return;
+      const description = nameInput.value.trim();
+      const x = xInput.value.trim();
+      const y = yInput.value.trim();
+      if (
+        description === (current.description || "") &&
+        x === String(current.x) &&
+        y === String(current.y)
+      ) {
+        return;
+      }
+      if (!description) {
+        throw new Error(`Preset ${li.dataset.id} needs a description.`);
+      }
+      if (!/^\d+$/.test(x) || !/^\d+$/.test(y)) {
+        throw new Error(
+          `Preset ${li.dataset.id} coordinates must be whole numbers.`,
+        );
+      }
+      edits.push({ n: li.dataset.id, description, x, y });
+    });
+    return edits;
+  }
+
+  async function savePresetEdits() {
+    const edits = collectPresetEdits();
+    for (const edit of edits) {
+      await presetAction("pu", edit);
+    }
+    return edits.length;
+  }
+
   async function saveSettings() {
     const btn = $("#ptz-save");
     if (!btn) return;
@@ -315,6 +362,7 @@
 
     btn.disabled = true;
     try {
+      await savePresetEdits();
       const data = await saveParams(fields);
       if (window.motorParams) {
         if (data.preview_control_mode !== undefined)
@@ -324,6 +372,7 @@
         if (data.speed_tilt !== undefined)
           window.motorParams.speed_tilt = data.speed_tilt;
       }
+      await refreshPresets();
       if (typeof showAlert === "function")
         showAlert("success", "PTZ settings saved.", 4000);
       const modal = bootstrap.Modal.getInstance($("#ptzModal"));
