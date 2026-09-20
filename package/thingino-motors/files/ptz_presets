@@ -87,16 +87,19 @@ next_preset_id() {
 
 # Replace motors.presets with the JSON array in the given file.
 # Other motors keys survive: import merges the motors object and only
-# replaces the presets key (arrays are not deep-merged).
+# replaces the presets key (arrays are not deep-merged). Non-zero when
+# jct rejects the write, so callers never report a save that did not happen.
 import_presets() {
-	tmp=$(mktemp)
+	payload=$(mktemp)
 	{
 		printf '{"motors":{"presets":'
 		cat "$1"
 		printf '}}\n'
-	} >"$tmp"
-	jct "$MOTORS_CONFIG" import "$tmp" >/dev/null 2>&1
-	rm -f "$tmp"
+	} >"$payload"
+	rc=0
+	jct "$MOTORS_CONFIG" import "$payload" >/dev/null 2>&1 || rc=1
+	rm -f "$payload"
+	return "$rc"
 }
 
 # One-time import of the pre-JSON /etc/ptz_presets.conf on upgraded
@@ -127,8 +130,7 @@ migrate_legacy_conf() {
 	done <"$LEGACY_CONF"
 	printf ']\n' >>"$tmp"
 
-	if [ "$found" = 1 ]; then
-		import_presets "$tmp"
+	if [ "$found" = 1 ] && import_presets "$tmp"; then
 		mv "$LEGACY_CONF" "$LEGACY_CONF.imported"
 		logger -t ptz_presets "Imported legacy presets from $LEGACY_CONF"
 	fi
@@ -234,7 +236,12 @@ case "$1" in
 		fi
 		printf ']\n' >>"$tmp"
 		import_presets "$tmp"
+		rc=$?
 		rm -f "$tmp"
+		if [ "$rc" -ne 0 ]; then
+			echo "Error: failed to write preset $PRESET_NUM." >&2
+			exit 1
+		fi
 
 		if [ "$added" = 1 ]; then
 			echo "Preset $PRESET_NUM updated."
@@ -276,6 +283,12 @@ case "$1" in
 		printf ']\n' >>"$tmp"
 		if [ "$found" = 1 ]; then
 			import_presets "$tmp"
+			rc=$?
+			if [ "$rc" -ne 0 ]; then
+				rm -f "$tmp"
+				echo "Error: failed to remove preset $PRESET_NUM." >&2
+				exit 1
+			fi
 			echo "Preset $PRESET_NUM removed."
 		else
 			echo "Preset $PRESET_NUM not found."
@@ -326,7 +339,12 @@ case "$1" in
 		done
 		printf ']\n' >>"$tmp"
 		import_presets "$tmp"
+		rc=$?
 		rm -f "$tmp"
+		if [ "$rc" -ne 0 ]; then
+			echo "Error: failed to reorder presets." >&2
+			exit 1
+		fi
 		echo "Presets reordered."
 		exit 0
 		;;
