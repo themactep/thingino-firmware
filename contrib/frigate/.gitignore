@@ -1,0 +1,10 @@
+.env
+
+# config/config.yml is rendered by add-camera.sh.
+/config/config.yml
+
+# Frigate runtime state.
+/config/frigate.db
+/config/frigate.db-*
+/config/model_cache/
+/media/

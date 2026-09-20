@@ -1,0 +1,41 @@
+services:
+  frigate:
+    # Pinned: 0.18.0 is the current stable. Use "stable" to track releases.
+    image: ghcr.io/blakeblackshear/frigate:0.18.0
+    container_name: frigate
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # Frigate keeps decoded frames in shared memory. 512mb covers a couple of
+    # 720p detect streams; raise it for several high-res cameras.
+    shm_size: "${FRIGATE_SHM_SIZE:-512mb}"
+    environment:
+      TZ: "${TZ:-UTC}"
+      # Referenced from config.yml as {FRIGATE_RTSP_USER} and
+      # {FRIGATE_RTSP_PASSWORD}.
+      FRIGATE_RTSP_USER: "${FRIGATE_RTSP_USER:-thingino}"
+      FRIGATE_RTSP_PASSWORD: "${FRIGATE_RTSP_PASSWORD:-thingino}"
+    ports:
+      # Authenticated UI/API. Set FRIGATE_BIND=127.0.0.1 to keep it on the host.
+      - "${FRIGATE_BIND:-0.0.0.0}:${FRIGATE_PORT:-8971}:8971"
+      # go2rtc RTSP restream.
+      - "${FRIGATE_RTSP_PORT:-8554}:8554"
+      # WebRTC.
+      - "${FRIGATE_WEBRTC_PORT:-8555}:8555/tcp"
+      - "${FRIGATE_WEBRTC_PORT:-8555}:8555/udp"
+      # Internal unauthenticated UI/API. Handy when scripting against Frigate,
+      # but anyone who reaches it has full access. Leave commented by default.
+      # - "127.0.0.1:5000:5000"
+    volumes:
+      - ./config:/config
+      - ./media:/media/frigate
+      # Recording segments are staged in memory before being moved to ./media.
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+      - /etc/localtime:/etc/localtime:ro
+    # A Coral or GPU must be passed through explicitly. For a USB Coral add:
+    #   devices:
+    #     - /dev/bus/usb:/dev/bus/usb
+    # For an Intel/AMD GPU add /dev/dri/renderD128 and see the Frigate docs for
+    # the matching hwaccel_args and detector.
