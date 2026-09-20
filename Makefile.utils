@@ -475,4 +475,8 @@ scriba:
 # it only forwards real command-line goals.
 .DEFAULT:
 	@$(TEAL) "$@"
-	$(BR2_MAKE) $@
+	@if [ -n "$(MAKECMDGOALS)" ] && echo "$(MAKECMDGOALS)" | grep -qw "$@"; then \
+		$(BR2_MAKE) $@; \
+	else \
+		echo "WARNING: ignoring prerequisite $@ (not a command-line goal)"; \
+	fi
