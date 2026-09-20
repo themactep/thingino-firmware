@@ -541,6 +541,11 @@
 
   // ── Charts ──────────────────────────────────────────────────────
   function initCharts() {
+    // Chart.js is loaded from a CDN. When it is unavailable (offline client,
+    // blocked CDN) the charts are skipped but the live cards, issue log and
+    // raw data must keep working -- throwing here would abort init().
+    if (typeof window.Chart !== "function") return;
+
     var opts = {
       responsive: true,
       maintainAspectRatio: false,
@@ -992,7 +997,11 @@
   function init() {
     loadLlmConfig();
     updateLlmUi();
-    initCharts();
+    try {
+      initCharts();
+    } catch (e) {
+      /* charts are optional; never let them block the dashboard */
+    }
     loadHistory();
     if (autoRefreshCb.checked) {
       startSse();
