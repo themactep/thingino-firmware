@@ -17,7 +17,6 @@ endif
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
-BUILDROOT_OVERRIDE_PATCH_DIR := $(BR2_EXTERNAL)/package/all-patches/buildroot
 
 # --- CI / automation fast-paths -------------------------------------
 #
