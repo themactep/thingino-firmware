@@ -116,6 +116,14 @@ if [ -z "$HA_CAMERA_ID" ]; then
 	export HA_CAMERA_ID
 fi
 
+# HA allows only [a-zA-Z0-9_-] in a discovery topic's node_id/object_id, so an
+# FQDN hostname is rejected there even though it is valid in the cameras/...
+# state topics. Derive a sanitized id for discovery topics only.
+if [ -z "$HA_DISCOVERY_ID" ]; then
+	HA_DISCOVERY_ID=$(printf '%s' "$HA_CAMERA_ID" | sed 's/[^a-zA-Z0-9_-]/_/g')
+	export HA_DISCOVERY_ID
+fi
+
 if [ -z "$HA_CAMERA_HOSTNAME" ]; then
 	HA_CAMERA_HOSTNAME=$HA_CAMERA_ID
 	export HA_CAMERA_HOSTNAME
@@ -382,7 +390,7 @@ ha_pub_state_json() {
 ha_clear_disc() {
 	local component="$1" object_id="$2"
 	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
-	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local topic="${disc_prefix}/${component}/thingino_${HA_DISCOVERY_ID}/${object_id}/config"
 	local tmpfile
 	# Empty payload file: the daemon publishes a zero-length retained
 	# message, which removes the entity from Home Assistant.
@@ -395,7 +403,7 @@ ha_clear_disc() {
 ha_pub_disc() {
 	local component="$1" object_id="$2" payload="$3"
 	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
-	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local topic="${disc_prefix}/${component}/thingino_${HA_DISCOVERY_ID}/${object_id}/config"
 	local tmpfile
 	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
 	printf '%s' "$payload" > "$tmpfile"
