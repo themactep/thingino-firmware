@@ -308,6 +308,21 @@ export ISP_NMEM_MB
 
 export ISP_NMEM_MB
 
+# Guard: the ISP rmem (plus the ispmem/nmem reservation on some families) is
+# carved out of the top of RAM, so it has to leave something for Linux. A
+# camera whose reservations reach SOC_RAM_MB otherwise reaches thingino-uboot,
+# which emits osmem=0M and builds an unbootable image.
+ISP_RESERVED_MB := $(ISP_RMEM_MB)
+ifneq ($(filter $(SOC_FAMILY),t10 t20),)
+ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_ISPMEM_MB))
+endif
+ifneq ($(filter $(SOC_FAMILY),t40 t41),)
+ISP_RESERVED_MB := $(shell expr $(ISP_RMEM_MB) + $(ISP_NMEM_MB))
+endif
+ifeq ($(shell test $(ISP_RESERVED_MB) -ge $(SOC_RAM_MB) 2>/dev/null && echo yes),yes)
+$(error $(CAMERA): ISP reservation $(ISP_RESERVED_MB)MB (rmem=$(ISP_RMEM_MB)MB) leaves no RAM for Linux on $(SOC_MODEL) with $(SOC_RAM_MB)MB - lower BR2_THINGINO_RMEM_MB in the camera defconfig)
+endif
+
 #
 # ISP / IPU / AVPU clock & configuration helpers
 #
