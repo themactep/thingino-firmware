@@ -357,7 +357,7 @@ send_state() {
 	# netwatch (network watchdog) settings
 	local nw_enabled nw_target nw_fail
 	nw_enabled=$(jct "$CONFIG_JSON" get netwatch.enabled 2>/dev/null)
-	[ -n "$nw_enabled" ] && [ "$nw_enabled" != "null" ] || nw_enabled="true"
+	[ -n "$nw_enabled" ] && [ "$nw_enabled" != "null" ] || nw_enabled="false"
 	nw_target=$(jct "$CONFIG_JSON" get netwatch.target 2>/dev/null)
 	[ "$nw_target" != "null" ] || nw_target=""
 	nw_fail=$(jct "$CONFIG_JSON" get netwatch.fail_count 2>/dev/null)
@@ -365,7 +365,7 @@ send_state() {
 
 	nw_interval=$(jct "$CONFIG_JSON" get netwatch.interval 2>/dev/null)
 	case "$nw_interval" in
-		''|null|*[!0-9]*) nw_interval=30 ;;
+		'' | null | *[!0-9]*) nw_interval=30 ;;
 	esac
 
 	# The actual default ping target when netwatch.target is empty: the
@@ -513,17 +513,17 @@ handle_post() {
 	wifi_ap_enabled=$(read_json_bool wifi_ap.enabled "false")
 
 	# netwatch (network watchdog)
-	netwatch_enabled=$(read_json_bool netwatch.enabled "true")
+	netwatch_enabled=$(read_json_bool netwatch.enabled "false")
 	netwatch_target=$(trim_value "$(read_json_string netwatch.target)")
 	netwatch_fail=$(read_json_string netwatch.fail_count)
 	case "$netwatch_fail" in
-		''|*[!0-9]*) netwatch_fail=3 ;;
+		'' | *[!0-9]*) netwatch_fail=3 ;;
 	esac
 	[ "$netwatch_fail" -ge 1 ] 2>/dev/null || netwatch_fail=3
 
 	netwatch_interval=$(read_json_string netwatch.interval)
 	case "$netwatch_interval" in
-		''|*[!0-9]*) netwatch_interval=30 ;;
+		'' | *[!0-9]*) netwatch_interval=30 ;;
 	esac
 	[ "$netwatch_interval" -ge 5 ] 2>/dev/null || netwatch_interval=30
 
