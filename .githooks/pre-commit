@@ -12,6 +12,9 @@ js_staged_files=$(
 	printf '%s\n' "$staged_files" | while IFS= read -r file; do
 		[ -n "$file" ] || continue
 		case "$file" in
+			# Vendored assets ship minified; a shell pattern's * crosses
+			# directory separators, so exclude them explicitly.
+			package/thingino-webui/files/www/a/vendor/*) continue ;;
 			package/thingino-webui/files/www/a/*.js) printf '%s\n' "$file" ;;
 		esac
 	done
