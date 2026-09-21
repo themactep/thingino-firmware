@@ -1,8 +1,10 @@
 # SNMP Monitoring with thingino-snmpd
 
 Thingino cameras can be monitored via SNMP using the `thingino-snmpd`
-package, which bundles [mini-snmpd 2.0](https://github.com/troglobit/mini-snmpd)
-— a minimal, read-only SNMP agent purpose-built for embedded systems.
+package, which wires [mini-snmpd 2.0](https://github.com/troglobit/mini-snmpd)
+— a minimal, read-only SNMP agent purpose-built for embedded systems — into
+Thingino. The daemon itself is built by Buildroot's `mini-snmpd` package;
+`thingino-snmpd` adds the init script, shipped defaults and WebUI plugin.
 
 ## Overview
 
@@ -93,21 +95,23 @@ This way:
 - **libconfuse is not needed** — the package builds with `--without-config`,
   saving ~60–80 KB that libconfuse would otherwise cost.
 
-### Why not Buildroot's mini-snmpd?
+### Buildroot's mini-snmpd and the Thingino layer
 
-Buildroot ships `mini-snmpd` 1.6. Using it directly (or overriding it)
-would mean:
+Buildroot ships `mini-snmpd` 2.0. `thingino-snmpd` does not rebuild it:
+selecting `BR2_PACKAGE_THINGINO_SNMPD` pulls in `BR2_PACKAGE_MINI_SNMPD`,
+and `package/thingino-snmpd/mini-snmpd-override.mk` adds the integration
+layer on top:
 
-- v1.6 lacks dual-stack IPv4/IPv6, SNMPv2c traps, netlink-based interface
-  tracking, hwmon temperature sensors, SIGHUP reload, and the extended
-  HOST-RESOURCES-MIB tables.
-- The 1.6 package depends on libconfuse, adding a new library to the image.
-- No Thingino integration layer (thingino.json, WebUI plugin, init script,
-  bundle support).
+- builds with `--without-config`, so libconfuse never enters the image;
+- replaces Buildroot's generic `S60mini-snmpd` init script and
+  `/etc/default/mini-snmpd` with `S60snmpd`, which reads
+  `/etc/thingino.json`;
+- stages the shipped defaults for thingino-core and installs the WebUI
+  plugin when thingino-webui is enabled.
 
-The `thingino-snmpd` wrapper follows the same pattern as other Thingino
-service packages (`thingino-mosquitto-20x`, `thingino-vpn`, etc.) — a thin
-integration layer around an upstream daemon.
+This is the same shadow-package pattern as `thingino-mosquitto-212`,
+`thingino-libcurl` and `thingino-live555` — a thin integration layer around
+a package Buildroot already provides.
 
 ## Configuration reference
 
@@ -331,10 +335,10 @@ existing cameras without a full rebuild:
 
 ```bash
 # On the build host, create the bundle
-make thingino-snmpd-bundle
+make bundle-thingino-snmpd CAMERA=<camera>
 
 # Copy to the camera
-scp -O output/*/bundle/thingino-snmpd-*.tgz root@192.168.88.127:/tmp/
+scp -O output/*/<camera>*/bundles/thingino-snmpd-*.tgz root@192.168.88.127:/tmp/
 
 # On the camera, install
 thingino-pkg install /tmp/thingino-snmpd-*.tgz

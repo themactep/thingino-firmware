@@ -30,6 +30,7 @@ include $(THINGINO_OVERRIDE_DIR)/package/thingino-live555/live555-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-mbedtls/mbedtls-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-mosquitto-212/mosquitto-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-mxml/mxml-override.mk
+include $(THINGINO_OVERRIDE_DIR)/package/thingino-snmpd/mini-snmpd-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-v4l2loopback/v4l2loopback-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-wireguard-tools/wireguard-tools-override.mk
 include $(THINGINO_OVERRIDE_DIR)/package/thingino-wpa_supplicant/wpa_supplicant-override.mk
