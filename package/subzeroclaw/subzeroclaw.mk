@@ -2,7 +2,7 @@
 # subzeroclaw
 ################################################################################
 
-SUBZEROCLAW_VERSION = e39b51b8eccc1cfc35a209d728df8a32b312ddf1
+SUBZEROCLAW_VERSION = 6b6b5adcb4662e0202838b5549d254feca1fc2a3
 SUBZEROCLAW_SITE = https://github.com/jmlago/subzeroclaw
 SUBZEROCLAW_SITE_METHOD = git
 SUBZEROCLAW_SITE_BRANCH = main
