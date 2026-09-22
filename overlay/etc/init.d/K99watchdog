@@ -7,8 +7,9 @@ get_wd_device() {
 }
 
 get_wd_enabled() {
-	jct /etc/thingino.json get watchdog.enabled 2>/dev/null ||
-		fw_printenv -n watchdog_enabled
+	# the config says when to keep it off, the U-Boot env when to run it
+	[ "true" = "$(jct /etc/thingino.json get watchdog.disable 2>/dev/null)" ] && echo false && return
+	fw_printenv -n watchdog_enabled
 }
 
 get_wd_timeout() {
