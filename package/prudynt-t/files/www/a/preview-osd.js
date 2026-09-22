@@ -93,6 +93,9 @@
         alpha = cur.substring(7, 9);
       }
       input.value = picker.value + alpha;
+      // Programmatic assignment does not fire input, so listeners that persist
+      // or repaint (applyVisualsLive) would never run when the swatch is used.
+      input.dispatchEvent(new Event("input", { bubbles: true }));
       updateSwatch(input, swatch);
     });
     input.addEventListener("input", function () {
@@ -117,6 +120,7 @@
           -2,
         );
         input.value = v.substring(0, 7) + alpha;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
         updateSwatch(input, swatch);
       });
     }
@@ -377,6 +381,38 @@
     if (window.SeiOSD && window.SeiOSD.repaint) window.SeiOSD.repaint();
   }
 
+  // "#rrggbb" from a possibly 8-digit hex, for the native color pickers.
+  function normalizeHexColor(value) {
+    var v = String(value || "")
+      .trim()
+      .replace(/^#/, "");
+    if (/^[0-9a-fA-F]{8}$/.test(v)) v = v.slice(0, 6);
+    if (/^[0-9a-fA-F]{6}$/.test(v)) return "#" + v.toLowerCase();
+    return "#ffffff";
+  }
+
+  // Preset the SEI tab fields, swatches and native color pickers from the
+  // locally stored visuals whenever the modal opens, so the form reflects what
+  // is actually being rendered.
+  function populateSeiVisuals() {
+    var s = loadSettings();
+    var fs = document.getElementById("osd-fontsize");
+    var stw = document.getElementById("osd-stroke");
+    var fill = document.getElementById("osd-color");
+    var stroke = document.getElementById("osd-stroke-color");
+    if (fs) fs.value = s.fs || 16;
+    if (stw) stw.value = s.stw || 1;
+    if (fill) fill.value = s.fc || "#ffffff";
+    if (stroke) stroke.value = s.sc || "#000000";
+    updateSwatch(fill, document.getElementById("sei-swatch-fill"));
+    updateSwatch(stroke, document.getElementById("sei-swatch-stroke"));
+    var pickerFill = document.getElementById("sei-picker-fill");
+    var pickerStroke = document.getElementById("sei-picker-stroke");
+    if (pickerFill && fill) pickerFill.value = normalizeHexColor(fill.value);
+    if (pickerStroke && stroke)
+      pickerStroke.value = normalizeHexColor(stroke.value);
+  }
+
   async function saveOsdConfig() {
     var confirmed = await confirm("Save OSD elements to /etc/prudynt.json?");
     if (!confirmed) return;
@@ -404,7 +440,11 @@
               undefined,
           },
         },
-        action: { save_config: null, restart_thread: 32 },
+        // 64 = PNT_FLAG_RESTART_VIDEO, which restarts the encoder and the OSD
+        // thread (re-reading osd.sei.entries) while keeping the RTSP server and
+        // its sessions up. 32 would restart RTSP and drop every connected
+        // client just to apply an OSD change.
+        action: { save_config: null, restart_thread: 64 },
       };
       var r = await osdApiFetch(CFG, {
         method: "POST",
@@ -490,21 +530,16 @@
 
     btn.addEventListener("click", function () {
       loadOsdConfig();
-      var s = loadSettings();
-      document.getElementById("osd-fontsize").value = s.fs || 16;
-      document.getElementById("osd-stroke").value = s.stw || 1;
-      document.getElementById("osd-color").value = s.fc || "#ffffff";
-      document.getElementById("osd-stroke-color").value = s.sc || "#000000";
-      updateSwatch(
-        document.getElementById("osd-color"),
-        document.getElementById("sei-swatch-fill"),
-      );
-      updateSwatch(
-        document.getElementById("osd-stroke-color"),
-        document.getElementById("sei-swatch-stroke"),
-      );
+      populateSeiVisuals();
       new bootstrap.Modal(document.getElementById("osdModal")).show();
     });
+
+    // Any path that opens the modal presets the SEI fields from localStorage.
+    var osdModalEl = document.getElementById("osdModal");
+    if (osdModalEl)
+      osdModalEl.addEventListener("show.bs.modal", function () {
+        populateSeiVisuals();
+      });
 
     document
       .getElementById("osd-add-element")
