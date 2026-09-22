@@ -39,6 +39,16 @@
     },
     {
       "section": "ddStreamer",
+      "position": "after:Live View (MJPEG)",
+      "items": [
+        {
+          "label": "Live View (PTZ)",
+          "href": "/preview-ptz.html"
+        }
+      ]
+    },
+    {
+      "section": "ddStreamer",
       "position": "append",
       "items": [
         {
@@ -144,6 +154,7 @@
   "pages": [
     "/preview.html",
     "/preview-mjpeg.html",
+    "/preview-ptz.html",
     "/streamer-main.html",
     "/streamer-substream.html",
     "/streamer-image.html",

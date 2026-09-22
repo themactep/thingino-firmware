@@ -415,6 +415,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/preview.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview-mjpeg.html \
 		$(TARGET_DIR)/var/www/preview-mjpeg.html
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/preview-ptz.html \
+		$(TARGET_DIR)/var/www/preview-ptz.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/www/streamer-image.html \
