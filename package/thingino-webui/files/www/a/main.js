@@ -2612,7 +2612,7 @@ function initPasswordRevealToggles(root = document) {
     if (document.hidden) {
       if ($("#preview")) $("#preview").src = ImageNoStream;
     } else {
-      if ($("#preview")) $("#preview").src = "/x/ch0.mjpg";
+      if ($("#preview")) $("#preview").src = "/x/ch1.mjpg";
     }
   });
 

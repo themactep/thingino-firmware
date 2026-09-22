@@ -9,7 +9,7 @@
   let mediaSource = null;
   let sourceBuffer = null;
   let abortController = null;
-  let channel = 0;
+  let channel = 1;
   let sessionId = 0;
   let runPromise = Promise.resolve();
   // Resolver of the active session's append pump, woken on teardown so the
@@ -483,5 +483,5 @@
   setMuteIcon();
   setZoomIcon();
 
-  start(0);
+  start(channel);
 })();

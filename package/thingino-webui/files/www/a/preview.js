@@ -309,9 +309,9 @@ loadInitialData().then(async () => {
     }
   };
 
-  // Get stream from data-stream attribute, default to ch0 if not specified
+  // Get stream from data-stream attribute, default to the ch1 substream
   const preview = $("#preview");
-  const streamChannel = preview?.dataset?.stream || "ch0";
+  const streamChannel = preview?.dataset?.stream || "ch1";
   const previewQuality = 60;
 
   // Request the stream at its native size; the browser scales it to the
@@ -452,10 +452,10 @@ loadInitialData().then(async () => {
       // Stop the small preview and suppress watchdog restarts
       isModalOpen = true;
       preview.src = ImageNoStream;
-      // Load main stream (ch0) in full-screen modal at the streamer's
+      // Load the ch1 substream in the full-screen modal at the streamer's
       // native size; the browser scales it to the viewport.
       const modalParts = [`q=${previewQuality}`, `_=${new Date().getTime()}`];
-      previewFullsize.src = `/x/ch0.mjpg?${modalParts.join("&")}`;
+      previewFullsize.src = `/x/ch1.mjpg?${modalParts.join("&")}`;
       // Apply SEI rotation to full-screen image
       fetch("/x/json-osd-sei.cgi")
         .then(function (r) {
