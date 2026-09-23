@@ -44,7 +44,7 @@ Thank you for using Thingino! For questions or contributions, please join our Di
 ### Building
 
 ```
-git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
+git clone --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
 make update
 make
@@ -55,7 +55,7 @@ Read [Building from sources][7] article for more info.
 ### Building in a Container
 
 ```
-git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
+git clone --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
 ./build-container.sh
 ```
