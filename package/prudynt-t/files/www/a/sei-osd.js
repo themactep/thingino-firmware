@@ -37,13 +37,6 @@
     }
   }
 
-  function resolvePos(rawPos, containerSize, scale) {
-    var px = rawPos * scale;
-    if (rawPos < 0) return Math.max(containerSize + px, 0);
-    if (rawPos === 0) return Math.max(containerSize / 2, 0);
-    return px;
-  }
-
   function escapeHTML(str) {
     const div = document.createElement("div");
     div.textContent = str;
@@ -76,14 +69,25 @@
     return html;
   }
 
+  // The MJPEG page renders into <img id="preview">; the fMP4 pages render
+  // into <video id="fmp4-video">. Support both.
+  function previewTarget() {
+    return (
+      document.getElementById(PREVIEW_IMG_ID) ||
+      document.getElementById("fmp4-video")
+    );
+  }
+
   function reposition() {
-    const img = document.getElementById(PREVIEW_IMG_ID);
+    const img = previewTarget();
     const overlay = document.getElementById(OVERLAY_ID);
     if (!img || !overlay) return;
 
     const rect = img.getBoundingClientRect();
-    const sw = (lastData && lastData.sw) || img.naturalWidth || rect.width || 1;
-    const sh = (lastData && lastData.sh) || img.naturalHeight || rect.height || 1;
+    const natW = img.naturalWidth || img.videoWidth || rect.width || 1;
+    const natH = img.naturalHeight || img.videoHeight || rect.height || 1;
+    const sw = (lastData && lastData.sw) || natW;
+    const sh = (lastData && lastData.sh) || natH;
     const scale = Math.min(rect.width / sw, rect.height / sh);
     const vis = visualSettings();
     const baseFs =
@@ -98,28 +102,57 @@
     for (const el of overlay.querySelectorAll(".sei-el")) {
       const rawX = parseFloat(el.dataset.seiX) || 0;
       const rawY = parseFloat(el.dataset.seiY) || 0;
-      el.style.left = resolvePos(rawX, rect.width, scale) + "px";
-      el.style.top = resolvePos(rawY, rect.height, scale) + "px";
+      // A negative offset means "that far from the opposite edge", so it must
+      // anchor the element's right/bottom, not its left/top. Otherwise the text
+      // is placed with its left edge at the offset and runs off the frame.
+      el.style.left = "auto";
+      el.style.right = "auto";
+      el.style.top = "auto";
+      el.style.bottom = "auto";
+      el.style.transform = "";
+      if (rawX < 0) {
+        el.style.right = -rawX * scale + "px";
+      } else if (rawX === 0) {
+        el.style.left = "50%";
+        el.style.transform = "translateX(-50%)";
+      } else {
+        el.style.left = rawX * scale + "px";
+      }
+      if (rawY < 0) {
+        el.style.bottom = -rawY * scale + "px";
+      } else {
+        el.style.top = rawY * scale + "px";
+      }
       el.style.fontSize = fontSize + "px";
     }
   }
 
   function ensureOverlay() {
     let overlay = document.getElementById(OVERLAY_ID);
-    const img = document.getElementById(PREVIEW_IMG_ID);
-    if (!img) return null;
+    const target = previewTarget();
+    if (!target) return null;
 
     if (!overlay) {
-      const wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:relative;display:inline-block;";
-      img.parentNode.insertBefore(wrapper, img);
-      wrapper.appendChild(img);
+      let host;
+      if (target.tagName === "VIDEO" && target.parentNode) {
+        // #frame is already position:relative; host the overlay there so the
+        // inline-block wrapper does not disturb the video's width.
+        host = target.parentNode;
+        if (getComputedStyle(host).position === "static")
+          host.style.position = "relative";
+      } else {
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = "position:relative;display:inline-block;";
+        target.parentNode.insertBefore(wrapper, target);
+        wrapper.appendChild(target);
+        host = wrapper;
+      }
 
       overlay = document.createElement("div");
       overlay.id = OVERLAY_ID;
       overlay.style.cssText =
         "position:absolute;left:0;top:0;pointer-events:none;overflow:hidden;z-index:10;";
-      wrapper.appendChild(overlay);
+      host.appendChild(overlay);
     }
     return overlay;
   }
