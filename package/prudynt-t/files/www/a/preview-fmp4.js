@@ -88,8 +88,12 @@
   // older is removed; without this the SourceBuffer grows for the whole
   // session and the tab eventually runs out of memory.
   const KEEP_BEHIND_S = 10;
-  // If playback falls this far behind the live edge, jump back to it.
-  const MAX_AHEAD_S = 20;
+  // If playback falls this far behind the live edge, jump back to it. A
+  // config write (preset save) can stall the camera long enough to push the
+  // player behind; 20s was so lax the lag persisted, while 1.5s seeked on
+  // every fragment and starved the reader. 5s recovers from a stall without
+  // churning during normal play.
+  const MAX_AHEAD_S = 5;
   // Hard ceiling on the buffered window. Trimming is capped against the live
   // edge as well as the playhead, so a stalled decoder or a suspended tab
   // cannot let the SourceBuffer grow for the whole session.

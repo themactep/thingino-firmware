@@ -20,6 +20,14 @@
       max-width: 960px;
     }
 
+    /* The shared stylesheet pins .preview-header-actions inside a card header
+       to the top-right corner, which collides with the Main/Sub group. Here it
+       should flow inline in the header instead. */
+    #page-preview-ptz .card-header .preview-header-actions {
+      position: static;
+      inset: auto;
+    }
+
     #frame:fullscreen {
       display: flex;
       align-items: center;
@@ -111,6 +119,11 @@
       font-weight: 600;
     }
 
+    .ptz-preset.is-confirm {
+      border-color: var(--bs-danger);
+      color: var(--bs-danger);
+    }
+
     .ptz-preset-empty {
       color: var(--bs-secondary-color);
       font-size: 0.85rem;
@@ -131,11 +144,14 @@
           <div class="card-header d-flex align-items-center justify-content-between gap-2">
             <div>
               <h2 class="card-title mb-0">Live View</h2>
-              <small class="text-muted">H.264 fragmented MP4 over MSE, substream by default</small>
+              <small id="fmp4-status" class="text-muted"></small>
             </div>
-            <div class="btn-group btn-group-sm" role="group" aria-label="Stream channel">
-              <button type="button" class="btn btn-outline-secondary" id="fmp4-ch0">Main</button>
-              <button type="button" class="btn btn-outline-secondary active" id="fmp4-ch1">Sub</button>
+            <div class="d-flex align-items-center gap-2">
+              <div class="preview-header-actions d-flex flex-wrap gap-2"></div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Stream channel">
+                <button type="button" class="btn btn-outline-secondary" id="fmp4-ch0">Main</button>
+                <button type="button" class="btn btn-outline-secondary active" id="fmp4-ch1">Sub</button>
+              </div>
             </div>
           </div>
           <div class="card-body">
@@ -143,7 +159,6 @@
               <div id="frame" class="position-relative">
                 <video id="fmp4-video" class="w-100 rounded" autoplay muted playsinline disablepictureinpicture></video>
               </div>
-              <div id="fmp4-status" class="text-muted small mt-2"></div>
             </div>
           </div>
         </div>
@@ -151,19 +166,13 @@
 
       <div class="col-12 col-xl-4 col-xxl-3">
         <div class="card" id="ptz-card">
-          <div class="card-header">
-            <h2 class="card-title mb-0">Pan / Tilt</h2>
-          </div>
           <div class="card-body">
+            <div class="text-muted small text-uppercase mb-2">Audio</div>
             <div class="d-flex align-items-center gap-2 mb-3">
-              <span class="text-muted small text-uppercase me-1">Stream</span>
               <button type="button" id="fmp4-mute" class="btn btn-sm btn-outline-secondary rounded-circle" title="Unmute" aria-label="Toggle audio">
                 <i class="bi bi-volume-mute"></i>
               </button>
               <input type="range" id="fmp4-volume" class="form-range flex-fill" min="0" max="100" value="100" aria-label="Volume">
-              <button type="button" id="fmp4-zoom" class="btn btn-sm btn-outline-secondary rounded-circle" title="Fullscreen" aria-label="Toggle fullscreen">
-                <i class="bi bi-arrows-fullscreen"></i>
-              </button>
             </div>
 
             <div id="ptz-unavailable" class="alert alert-secondary small mb-0" hidden>
@@ -171,12 +180,18 @@
             </div>
 
             <div id="ptz-controls">
+              <div class="text-muted small text-uppercase mb-2">Pan/Tilt</div>
+              <div class="text-muted small mb-2">
+                Hold to move, release to stop. Shift-click for one fine step.
+                Shift + arrow keys jog; H home, S stop.
+              </div>
+
               <div class="ptz-pad mb-3" role="group" aria-label="Jog pad">
                 <button type="button" data-dir="ul" title="Up-left" aria-label="Up-left"><i class="bi bi-arrow-up-left"></i></button>
                 <button type="button" data-dir="u" title="Up" aria-label="Up"><i class="bi bi-arrow-up"></i></button>
                 <button type="button" data-dir="ur" title="Up-right" aria-label="Up-right"><i class="bi bi-arrow-up-right"></i></button>
                 <button type="button" data-dir="l" title="Left" aria-label="Left"><i class="bi bi-arrow-left"></i></button>
-                <button type="button" class="ptz-center" data-dir="c" title="Center" aria-label="Center"><i class="bi bi-record-circle"></i></button>
+                <button type="button" class="ptz-center" data-dir="s" title="Stop" aria-label="Stop"><i class="bi bi-stop-fill"></i></button>
                 <button type="button" data-dir="r" title="Right" aria-label="Right"><i class="bi bi-arrow-right"></i></button>
                 <button type="button" data-dir="dl" title="Down-left" aria-label="Down-left"><i class="bi bi-arrow-down-left"></i></button>
                 <button type="button" data-dir="d" title="Down" aria-label="Down"><i class="bi bi-arrow-down"></i></button>
@@ -189,30 +204,22 @@
                 <button type="button" class="btn btn-outline-secondary" data-step="coarse">Coarse</button>
               </div>
 
-              <div class="d-flex gap-2 mb-3">
-                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="ptz-home">
-                  <i class="bi bi-house"></i> Home
-                </button>
-                <button type="button" class="btn btn-danger btn-sm flex-fill" id="ptz-stop">
-                  <i class="bi bi-stop-fill"></i> Stop
-                </button>
+              <div class="text-muted small text-uppercase mb-2">Presets</div>
+              <div class="text-muted small mb-2">
+                Click to move, long-press an empty slot to store the position,
+                long-press a set slot to rename or overwrite, right-click to
+                delete.
               </div>
-
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small text-uppercase">Presets</span>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="ptz-preset-add">
-                  <i class="bi bi-plus-lg"></i> Save
-                </button>
+              <div id="ptz-presets" class="ptz-presets mb-2"></div>
+              <div id="ptz-preset-form" class="input-group input-group-sm mb-2" hidden>
+                <input type="text" id="ptz-preset-name" class="form-control" placeholder="Preset name" maxlength="32" aria-label="Preset name">
+                <button type="button" class="btn btn-outline-secondary" id="ptz-preset-confirm" title="Save" aria-label="Save preset"><i class="bi bi-check-lg"></i></button>
+                <button type="button" class="btn btn-outline-secondary" id="ptz-preset-cancel" title="Cancel" aria-label="Cancel"><i class="bi bi-x-lg"></i></button>
               </div>
-              <div id="ptz-presets" class="ptz-presets mb-3"></div>
+              <div id="ptz-preset-status" class="text-muted small mb-2" hidden></div>
 
               <div class="ptz-readout text-muted small">
                 X <span id="ptz-x">--</span> · Y <span id="ptz-y">--</span>
-              </div>
-              <div class="text-muted small mt-2">
-                Hold to move, release to stop. Shift-click for one fine step.
-                Shift + arrow keys jog; H home, S stop.
-                Presets: click to move, long-press to overwrite, right-click to delete.
               </div>
             </div>
           </div>
@@ -226,11 +233,13 @@
   integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 <script src="/a/main.js"></script>
 <script src="/a/runtime-config.js"></script>
-<script src="/a/plugins.js"></script>
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/preview-fmp4.js"></script>
+<script src="/a/sei-osd.js"></script>
+<script src="/a/preview-osd.js"></script>
+<script src="/a/preview-motors-settings.js"></script>
 <script>
   // Self-contained PTZ pad. Talks to the same motor CGI endpoints as the
   // streamer uses; no dependency on the motors plugin overlay.
@@ -313,8 +322,8 @@
             if (el.setPointerCapture && ev.pointerId !== undefined) {
               el.setPointerCapture(ev.pointerId);
             }
-            if (dir === "c") {
-              center();
+            if (dir === "s") {
+              stop();
               return;
             }
             el.classList.add("active");
@@ -332,7 +341,7 @@
           function release() {
             stopHold();
             el.classList.remove("active");
-            if (dir !== "c") stop();
+            if (dir !== "s") stop();
           }
 
           el.addEventListener("pointerup", release);
@@ -368,11 +377,30 @@
           stop();
         });
 
-      var addBtn = document.getElementById("ptz-preset-add");
-      if (addBtn)
-        addBtn.addEventListener("click", function (ev) {
+      var confirmBtn = document.getElementById("ptz-preset-confirm");
+      if (confirmBtn)
+        confirmBtn.addEventListener("click", function (ev) {
           ev.preventDefault();
-          savePreset();
+          confirmSavePreset();
+        });
+
+      var cancelBtn = document.getElementById("ptz-preset-cancel");
+      if (cancelBtn)
+        cancelBtn.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          hidePresetForm();
+        });
+
+      var nameInput = document.getElementById("ptz-preset-name");
+      if (nameInput)
+        nameInput.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            confirmSavePreset();
+          } else if (ev.key === "Escape") {
+            ev.preventDefault();
+            hidePresetForm();
+          }
         });
     }
 
@@ -439,34 +467,50 @@
       return preset.description || "P" + preset.id;
     }
 
+    // Ten fixed slots, ids 0-9, matching the streamer's preset model. A slot
+    // shows its description when set, or its number when empty.
     function renderPresets() {
       var host = document.getElementById("ptz-presets");
       if (!host) return;
       host.innerHTML = "";
-      if (!presets.length) {
-        var empty = document.createElement("span");
-        empty.className = "ptz-preset-empty";
-        empty.textContent = "No presets saved.";
-        host.appendChild(empty);
-        return;
-      }
-      presets.forEach(function (preset) {
+      for (var id = 0; id < 10; id++) {
+        var match = null;
+        for (var j = 0; j < presets.length; j++) {
+          if (Number(presets[j].id) === id) {
+            match = presets[j];
+            break;
+          }
+        }
         var el = document.createElement("button");
         el.type = "button";
         el.className = "ptz-preset";
-        el.dataset.id = preset.id;
-        el.textContent = presetLabel(preset);
-        el.title =
-          "Preset " +
-          preset.id +
-          " (" +
-          preset.x +
-          ", " +
-          preset.y +
-          ") - click to move, long-press to overwrite, right-click to delete";
-        bindPreset(el, preset);
+        el.dataset.id = id;
+        el.classList.toggle("is-set", !!match);
+        el.textContent = match ? presetLabel(match) : String(id + 1);
+        el.title = match
+          ? "Preset " +
+            id +
+            " (" +
+            match.x +
+            ", " +
+            match.y +
+            ") - click to move, long-press to overwrite, right-click to delete"
+          : "Empty slot " +
+            id +
+            " - long-press to store the current position here";
+        bindPreset(
+          el,
+          match
+            ? {
+                id: id,
+                x: match.x,
+                y: match.y,
+                description: match.description,
+              }
+            : { id: id, empty: true },
+        );
         host.appendChild(el);
-      });
+      }
       highlightPresets();
     }
 
@@ -487,24 +531,64 @@
         clear();
         timer = setTimeout(function () {
           longPressed = true;
-          overwritePreset(preset);
+          if (preset.empty) saveToSlot(preset.id);
+          else overwritePreset(preset);
         }, PRESET_LONG_PRESS_MS);
       });
       el.addEventListener("pointerup", function () {
         clear();
-        if (!longPressed) recallPreset(preset.id);
+        if (longPressed) return;
+        if (!preset.empty) recallPreset(preset.id);
       });
       el.addEventListener("pointerleave", clear);
       el.addEventListener("pointercancel", clear);
       el.addEventListener("contextmenu", function (ev) {
         ev.preventDefault();
         clear();
-        deletePreset(preset);
+        if (!preset.empty) deletePreset(preset);
       });
     }
 
     function recallPreset(id) {
       cmd("d=pr&n=" + id);
+      setPresetStatus("Moving to preset " + id + "...");
+    }
+
+    function setPresetStatus(text) {
+      var el = document.getElementById("ptz-preset-status");
+      if (!el) return;
+      el.textContent = text || "";
+      el.hidden = !text;
+    }
+
+    function writePreset(id, name, x, y) {
+      cmd(
+        "d=pu&n=" +
+          id +
+          "&description=" +
+          encodeURIComponent(name) +
+          "&x=" +
+          x +
+          "&y=" +
+          y,
+      );
+      setPresetStatus("Saved '" + name + "' to slot " + id);
+      setTimeout(loadPresets, 700);
+    }
+
+    // Naming form state: {mode:"create"} for a new auto-slot preset, or
+    // {mode:"update", id, x, y} to name and store into a specific slot.
+    var presetFormTarget = null;
+
+    function openNameForm(target, defaultName) {
+      var form = document.getElementById("ptz-preset-form");
+      var input = document.getElementById("ptz-preset-name");
+      if (!form || !input) return;
+      presetFormTarget = target;
+      form.hidden = false;
+      input.value = defaultName || "";
+      input.focus();
+      input.select();
     }
 
     function overwritePreset(preset) {
@@ -512,50 +596,62 @@
         if (!pos) return;
         var x = Math.round(Number(pos.xpos) || 0);
         var y = Math.round(Number(pos.ypos) || 0);
-        var name = presetLabel(preset);
-        if (
-          !confirm(
-            "Overwrite preset '" +
-              name +
-              "' with current position (" +
-              x +
-              ", " +
-              y +
-              ")?",
-          )
-        ) {
-          return;
-        }
-        cmd(
-          "d=pu&n=" +
-            preset.id +
-            "&description=" +
-            encodeURIComponent(name) +
-            "&x=" +
-            x +
-            "&y=" +
-            y,
+        openNameForm(
+          { mode: "update", id: preset.id, x: x, y: y },
+          presetLabel(preset),
         );
-        setTimeout(loadPresets, 700);
       });
     }
 
-    function deletePreset(preset) {
-      if (!confirm("Delete preset '" + presetLabel(preset) + "'?")) return;
+    function saveToSlot(id) {
+      currentPos().then(function (pos) {
+        if (!pos) return;
+        var x = Math.round(Number(pos.xpos) || 0);
+        var y = Math.round(Number(pos.ypos) || 0);
+        openNameForm(
+          { mode: "update", id: id, x: x, y: y },
+          "Pos " + x + "x" + y,
+        );
+      });
+    }
+
+    async function deletePreset(preset) {
+      var name = presetLabel(preset);
+      var ok = await confirm("Delete preset '" + name + "'?", {
+        title: "Delete preset",
+        confirmLabel: "Delete",
+        intent: "danger",
+      });
+      if (!ok) return;
       cmd("d=pd&n=" + preset.id);
+      setPresetStatus("Deleted '" + name + "'");
       setTimeout(loadPresets, 700);
     }
 
-    function savePreset() {
-      currentPos().then(function (pos) {
-        var suggestion = pos ? "Pos " + pos.xpos + "x" + pos.ypos : "";
-        var name = prompt("Preset name:", suggestion);
-        if (name === null) return;
-        name = String(name).trim();
-        if (!name) return;
-        cmd("d=ps&description=" + encodeURIComponent(name));
-        setTimeout(loadPresets, 900);
+    function hidePresetForm() {
+      var form = document.getElementById("ptz-preset-form");
+      if (form) form.hidden = true;
+      presetFormTarget = null;
+    }
+
+    async function confirmSavePreset() {
+      var input = document.getElementById("ptz-preset-name");
+      if (!input) return;
+      var name = String(input.value || "").trim();
+      if (!name) {
+        input.focus();
+        return;
+      }
+      var target = presetFormTarget;
+      if (!target || target.mode !== "update") return;
+      hidePresetForm();
+      input.value = "";
+      var ok = await confirm("Save '" + name + "' to slot " + target.id + "?", {
+        title: "Save preset",
+        confirmLabel: "Save",
       });
+      if (!ok) return;
+      writePreset(target.id, name, target.x, target.y);
     }
 
     function highlightPresets() {
@@ -613,7 +709,23 @@
       return !!(cfg.device && cfg.device.motors === true);
     }
 
+    // Click the image to toggle fullscreen; the zoom trigger lives on the
+    // picture itself instead of the card.
+    function bindFullscreen() {
+      var frame = document.getElementById("frame");
+      if (!frame) return;
+      frame.style.cursor = "zoom-in";
+      frame.addEventListener("click", function () {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else if (frame.requestFullscreen) {
+          frame.requestFullscreen();
+        }
+      });
+    }
+
     function init() {
+      bindFullscreen();
       var controls = document.getElementById("ptz-controls");
       var unavailable = document.getElementById("ptz-unavailable");
       var flagged = hasMotors();
