@@ -345,10 +345,11 @@ def inject_preview_scripts(
 def is_preview_page(path: Path) -> bool:
     """Check if an HTML file is a preview page variant."""
     name = path.name.lower()
-    # preview-ptz.html ships its own OSD/PTZ scripts, preset UI and controls.
-    # Injecting the plugin preview scripts and body would load them a second
-    # time, duplicate the OSD/PTZ buttons and add the joystick overlay.
-    if name == "preview-ptz.html":
+    # The default preview page ships its own OSD/PTZ scripts, preset UI and
+    # controls. Injecting the plugin preview scripts and body would load them a
+    # second time, duplicate the OSD/PTZ buttons and add the joystick overlay.
+    # The stock variants (preview-fmp4.html, preview-mjpeg.html) still get it.
+    if name == "preview.html":
         return False
     return name.startswith("preview") and name.endswith(".html")
 

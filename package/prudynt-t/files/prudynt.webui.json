@@ -42,8 +42,8 @@
       "position": "after:Live View (MJPEG)",
       "items": [
         {
-          "label": "Live View (PTZ)",
-          "href": "/preview-ptz.html"
+          "label": "Live View (fMP4)",
+          "href": "/preview-fmp4.html"
         }
       ]
     },
@@ -153,8 +153,8 @@
   ],
   "pages": [
     "/preview.html",
+    "/preview-fmp4.html",
     "/preview-mjpeg.html",
-    "/preview-ptz.html",
     "/streamer-main.html",
     "/streamer-substream.html",
     "/streamer-image.html",
