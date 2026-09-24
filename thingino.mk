@@ -624,6 +624,10 @@ endif
 # would wrongly point the env at a raw offset.
 ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnand.config
+else ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
+# The msc0 defconfigs keep the env past U-Boot on the card. The NOR offset
+# (0x50000) lands inside the compressed U-Boot there and corrupts it.
+UBOOT_LAYOUT_FRAGMENT :=
 else
 UBOOT_LAYOUT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/layout/sfcnor.config
 endif
