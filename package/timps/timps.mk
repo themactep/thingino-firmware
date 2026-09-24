@@ -8,6 +8,7 @@ TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
 TIMPS_VERSION = v1.9.19
 TIMPS_LICENSE = MIT
+TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
 # once it exists so legal-info can capture it.
 
@@ -262,6 +263,16 @@ define TIMPS_INSTALL_TARGET_CMDS
 	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
 		$(SED) 's|^sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
 			$(TARGET_DIR)/etc/timps.conf; \
+	fi
+
+	# Per-camera overrides: a profile's timps.conf lists only the keys that
+	# differ. A listed key replaces the shipped line, otherwise it is appended.
+	if [ -f "$(TIMPS_CAMERA_CONF)" ]; then \
+		awk 'NR==FNR{ if($$0 ~ /^[ \t]*[A-Za-z0-9_.]+[ \t]*=/){ k=$$0; sub(/[ \t]*=.*/,"",k); gsub(/^[ \t]+/,"",k); if(!(k in v)) o[++n]=k; v[k]=$$0 } next } \
+			{ k=$$0; if(k ~ /^[A-Za-z0-9_.]+[ \t]*=/){ sub(/[ \t]*=.*/,"",k); if(k in v){ print v[k]; u[k]=1; next } } print } \
+			END{ for(i=1;i<=n;i++) if(!(o[i] in u)) print v[o[i]] }' \
+			"$(TIMPS_CAMERA_CONF)" $(TARGET_DIR)/etc/timps.conf > $(TARGET_DIR)/etc/timps.conf.new && \
+		mv $(TARGET_DIR)/etc/timps.conf.new $(TARGET_DIR)/etc/timps.conf; \
 	fi
 
 	# When timps is built with TLS AND the WebUI's own uhttpd also has TLS
