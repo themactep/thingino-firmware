@@ -17,9 +17,9 @@
     "invert_x": false,
     "invert_y": false,
     "is_spi": false,
-    "speed_pan": 900,
-    "speed_tilt": 900,
-    "steps_pan": 1500,
-    "steps_tilt": 700
+    "speed_pan": 250,
+    "speed_tilt": 250,
+    "steps_pan": 4000,
+    "steps_tilt": 1900
   }
 }
