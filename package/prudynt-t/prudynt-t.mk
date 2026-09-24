@@ -331,6 +331,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# from package/thingino-send2 (selected via Config.in).
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/prudynt-helpers \
 		$(TARGET_DIR)/usr/share/prudynt-helpers
+	# Single accessor for the layered core/user configuration.
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/prudynt-config \
+		$(TARGET_DIR)/usr/bin/prudynt-config
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/playonspeaker \
 		$(TARGET_DIR)/usr/sbin/playonspeaker
 

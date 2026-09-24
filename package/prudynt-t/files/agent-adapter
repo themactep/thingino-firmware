@@ -1,7 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC2018,SC2019,SC2086  # tr a-z/A-Z on ASCII values; deliberate IFS word-splits into positional params
 
-AGENT_CONFIG="${AGENT_CONFIG:-/etc/prudynt.json}"
+AGENT_CONFIG="${AGENT_CONFIG:-/run/prudynt.json}"
 THINGINO_AGENT_SEND2_CONFIG="${THINGINO_AGENT_SEND2_CONFIG:-/etc/send2.json}"
 
 agent_name() {
@@ -1522,8 +1522,8 @@ agent_apply_payload() {
 agent_persist_value() {
 	path=$1
 	value=$2
-	if command -v jct >/dev/null 2>&1 && [ -f "$AGENT_CONFIG" ] && [ -n "$value" ]; then
-		jct "$AGENT_CONFIG" set "$path" "$value" >/dev/null 2>&1 || true
+	if command -v prudynt-config >/dev/null 2>&1 && [ -n "$value" ]; then
+		prudynt-config set "$path" "$value" >/dev/null 2>&1 || true
 	fi
 }
 

@@ -7,7 +7,8 @@
 require_auth
 
 config_file="/etc/send2.json"
-prudynt_config="/etc/prudynt.json"
+prudynt_config="/run/prudynt.json"
+prudynt_user_config="/etc/prudynt.user.json"
 
 send_json_response() {
 	printf 'Content-Type: application/json\r\nConnection: close\r\n\r\n'
@@ -145,7 +146,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 		motion_val=$(jct "$temp_json" get motion)
 		printf '{"motion": %s}\n' "$motion_val" >"$motion_temp"
 		if [ -f "$prudynt_config" ]; then
-			jct "$prudynt_config" import "$motion_temp"
+			jct "$prudynt_user_config" import "$motion_temp"
+			prudynt-config refresh >/dev/null 2>&1 || true
 			sync
 			if pidof prudynt >/dev/null 2>&1; then
 				prudyntctl json - <"$motion_temp" >/dev/null 2>&1

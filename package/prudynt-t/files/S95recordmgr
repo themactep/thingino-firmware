@@ -23,7 +23,7 @@ stop_daemon() {
 	start-stop-daemon -K -x "$DAEMON"
 }
 
-CONFIG_FILE="/etc/prudynt.json"
+CONFIG_FILE="/run/prudynt.json"
 
 cleanup_enabled() {
 	local val

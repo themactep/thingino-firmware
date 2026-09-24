@@ -17,7 +17,7 @@ fi
 
 # Pre-flight check for recording start: verify mount is available
 if echo "$body" | grep -q '"mp4".*"start"'; then
-	recorder_mount=$(jct /etc/prudynt.json get recorder.mount 2>/dev/null)
+	recorder_mount=$(prudynt-config get recorder.mount 2>/dev/null)
 	if [ -n "$recorder_mount" ] && [ ! -d "$recorder_mount" ]; then
 		echo "Content-Type: application/json"
 		echo "Connection: close"

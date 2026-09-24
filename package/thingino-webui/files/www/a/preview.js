@@ -1076,16 +1076,23 @@ fetchImagingState();
 async function loadConfigFps() {
   try {
     if (preferStreamerAgent()) return;
-    const resp = await fetch("/etc/prudynt.json", { cache: "no-store" });
-    if (!resp.ok) return;
-    const cfg = await resp.json();
-    if (cfg.stream0 && cfg.stream0.fps !== undefined && cfg.stream0.fps !== 0) {
-      const el0 = $("#stream0_fps");
-      if (el0) el0.value = cfg.stream0.fps;
+    const [res0, res1] = await Promise.all([
+      apiFetch(API_BASE + "/stream0"),
+      apiFetch(API_BASE + "/stream1"),
+    ]);
+    if (res0.ok) {
+      const cfg = await res0.json();
+      if (cfg.fps !== undefined && cfg.fps !== 0) {
+        const el0 = $("#stream0_fps");
+        if (el0) el0.value = cfg.fps;
+      }
     }
-    if (cfg.stream1 && cfg.stream1.fps !== undefined && cfg.stream1.fps !== 0) {
-      const el1 = $("#stream1_fps");
-      if (el1) el1.value = cfg.stream1.fps;
+    if (res1.ok) {
+      const cfg = await res1.json();
+      if (cfg.fps !== undefined && cfg.fps !== 0) {
+        const el1 = $("#stream1_fps");
+        if (el1) el1.value = cfg.fps;
+      }
     }
   } catch (_) {
     /* ignore */

@@ -138,8 +138,7 @@ EOF
 			extras=$(button_restore_from_rom "/etc/onvif.json")
 			;;
 		prudynt)
-			cmd="cat /etc/prudynt.json"
-			extras=$(button_restore_from_rom "/etc/prudynt.json")
+			cmd="cat /run/prudynt.json"
 			;;
 		raptor)
 			cmd="cat /etc/raptor.conf"

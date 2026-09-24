@@ -66,7 +66,8 @@ OPTIONS:
   --pause SECONDS            Pause between sessions (default: 2)
   --output-dir DIR           Output directory (default: ./rtsp-stress-YYYYmmdd-HHMMSS)
   --server-log PATH          Optional remote prudynt log to slice per session
-  --config PATH              Remote prudynt config path (default: /etc/prudynt.json)
+  --config PATH              Remote prudynt config path (default: /run/prudynt.json)
+  --user-config PATH         Remote prudynt user layer path (default: /etc/prudynt.user.json)
   --remote-update PATH       Remote temp json path (default: /tmp/rtsp-stress-update.json)
   --boot-timeout SECONDS     Wait for SSH after reboot (default: 180)
   --stream-timeout SECONDS   Wait for RTSP readiness (default: 60)
@@ -129,7 +130,8 @@ SESSIONS=8
 SESSION_DURATION=15
 SESSION_PAUSE=2
 SERVER_LOG=""
-REMOTE_CONFIG="/etc/prudynt.json"
+REMOTE_CONFIG="/run/prudynt.json"
+REMOTE_USER_CONFIG="/etc/prudynt.user.json"
 REMOTE_UPDATE_PATH="/tmp/rtsp-stress-update.json"
 BOOT_TIMEOUT=180
 STREAM_TIMEOUT=60
@@ -192,6 +194,10 @@ while [ $# -gt 0 ]; do
 			;;
 		--config)
 			REMOTE_CONFIG="${2:-}"
+			shift 2
+			;;
+		--user-config)
+			REMOTE_USER_CONFIG="${2:-}"
 			shift 2
 			;;
 		--remote-update)
@@ -444,7 +450,7 @@ apply_json_update() {
 		return 0
 	fi
 	send_json_to_remote "$json_file"
-	remote_ssh "jct $(printf '%q' "$REMOTE_CONFIG") import $(printf '%q' "$REMOTE_UPDATE_PATH") >/dev/null"
+	remote_ssh "jct $(printf '%q' "$REMOTE_USER_CONFIG") import $(printf '%q' "$REMOTE_UPDATE_PATH") >/dev/null && prudynt-config refresh"
 }
 
 reboot_and_wait() {

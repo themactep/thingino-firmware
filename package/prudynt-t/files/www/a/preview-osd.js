@@ -414,7 +414,7 @@
   }
 
   async function saveOsdConfig() {
-    var confirmed = await confirm("Save OSD elements to /etc/prudynt.json?");
+    var confirmed = await confirm("Save OSD elements to /etc/prudynt.user.json?");
     if (!confirmed) return;
     var btn = document.getElementById("osd-save");
     btn.disabled = true;

@@ -9,6 +9,33 @@ export PATH
 DAEMON="/usr/bin/prudynt"
 PIDFILE="/run/prudynt.pid"
 HEARTBEAT_INIT="/etc/init.d/S99heartbeat"
+CONFIG_CORE="/etc/prudynt.json"
+CONFIG_USER="/etc/prudynt.user.json"
+CONFIG_ROM="/rom/etc/prudynt.json"
+CONFIG_OVERLAY="/overlay/etc/prudynt.json"
+
+# Older images kept a writable /etc/prudynt.json in the overlay. Turn it into
+# the user layer once, then drop the overlay copy so the read-only core from
+# the image applies again. Idempotent: does nothing once migrated.
+migrate_legacy_config() {
+	[ -e "$CONFIG_OVERLAY" ] || return 0
+	[ -f "$CONFIG_CORE" ] || return 0
+
+	echo -c 240 -e "- migrating legacy /etc/prudynt.json to $CONFIG_USER"
+	if [ -s "$CONFIG_USER" ]; then
+		tmp="/tmp/prudynt-migrate.$$"
+		if jct "$CONFIG_CORE" export "$CONFIG_ROM" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+			jct "$CONFIG_USER" import "$tmp" >/dev/null 2>&1 || true
+		fi
+		rm -f "$tmp"
+	else
+		jct "$CONFIG_CORE" export "$CONFIG_ROM" >"$CONFIG_USER" 2>/dev/null || true
+		# An empty diff is not a user layer.
+		[ -s "$CONFIG_USER" ] || rm -f "$CONFIG_USER"
+	fi
+
+	jct "$CONFIG_CORE" restore >/dev/null 2>&1 || rm -f "$CONFIG_OVERLAY"
+}
 
 restart_heartbeat() {
 	if [ -x "$HEARTBEAT_INIT" ]; then
@@ -50,6 +77,10 @@ stop_daemon() {
 
 start() {
 	log -c 15 "Starting Prudynt"
+	migrate_legacy_config
+	# Seed the consolidated tmpfs config for consumers that read before
+	# prudynt rewrites it. A corrupt user layer is ignored by prudynt-config.
+	prudynt-config refresh 2>/dev/null || true
 	start_daemon
 	status=$?
 	if [ "$status" -eq 0 ]; then

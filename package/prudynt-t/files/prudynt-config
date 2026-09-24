@@ -1,0 +1,63 @@
+#!/bin/sh
+# Read and write the effective prudynt configuration.
+#
+#   /etc/prudynt.json       read-only core shipped with the image
+#   /etc/prudynt.user.json  writable deltas applied on top of the core
+#   /run/prudynt.json       consolidated working copy all consumers read
+#
+# A corrupt user layer is ignored, leaving the core in effect.
+
+CORE="/etc/prudynt.json"
+USER="/etc/prudynt.user.json"
+RUNTIME="/run/prudynt.json"
+
+usage() {
+	echo "Usage: $0 {get <key>|set <key> <value>|refresh}" >&2
+	exit 1
+}
+
+# A user layer is only usable when it is a JSON object: anything else would
+# replace the whole consolidated config instead of layering onto it.
+user_layer_is_object() {
+	case "$(head -c 512 "$USER" | tr -d '[:space:]' | cut -c1)" in
+		"{") return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+user_layer_is_valid() {
+	[ -s "$USER" ] || return 0
+	user_layer_is_object || return 1
+	jct "$USER" print >/dev/null 2>&1
+}
+
+refresh() {
+	[ -f "$CORE" ] || return 1
+	cp "$CORE" "$RUNTIME" || return 1
+	if [ -s "$USER" ] && user_layer_is_object; then
+		jct "$RUNTIME" import "$USER" >/dev/null 2>&1 || true
+	fi
+}
+
+case "$1" in
+	get)
+		[ $# -ge 2 ] || usage
+		[ -s "$RUNTIME" ] || refresh
+		jct "$RUNTIME" get "$2"
+		;;
+	set)
+		[ $# -ge 3 ] || usage
+		if ! user_layer_is_valid; then
+			echo "$0: $USER is corrupt, refusing to overwrite it" >&2
+			exit 1
+		fi
+		jct "$USER" set "$2" "$3" >/dev/null 2>&1 || exit 1
+		refresh
+		;;
+	refresh)
+		refresh
+		;;
+	*)
+		usage
+		;;
+esac
