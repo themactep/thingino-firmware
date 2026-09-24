@@ -1,5 +1,6 @@
 config BR2_PACKAGE_OPENIMP_SUPPORTED
 	bool
+	default y if BR2_SOC_FAMILY = "t10" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
@@ -20,7 +21,8 @@ config BR2_PACKAGE_OPENIMP
 	  reverse-engineered implementation of libimp.so that can
 	  replace the proprietary Ingenic library.
 
-	  Current upstream builds support T20, T21, T23, T30, T31, T40,
+	  Current upstream builds support T10 (through the shared T20
+	  userspace), T20, T21, T23, T30, T31, T40,
 	  and T41. This package installs the matching build/<soc>/libimp.so
 	  in staging and on the target, then preserves that replacement
 	  during target finalization.
@@ -30,7 +32,7 @@ config BR2_PACKAGE_OPENIMP
 	  openimp-t23-helixd worker are installed under /opt/openimp-t23/
 	  for the proprietary Helix encoder. T30 is video-only: its build
 	  deliberately refuses to export the IMP audio entry points.
-	  T20/T21 reuse the T31 audio implementation; T31/T40/T41 include
+	  T10/T20/T21 reuse the T31 audio implementation; T31/T40/T41 include
 	  audio. Some optional OSD/IVS entry points remain incomplete.
 
 	  https://github.com/opensensor/openimp

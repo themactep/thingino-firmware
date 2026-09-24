@@ -31,16 +31,17 @@ has moved past the original four-SoC scope.
 | Component | Upstream driver/build scope |
 | --- | --- |
 | open-tx-isp driver | T10, T20, T21, T23, T30, T31, T40, T41 |
-| OpenIMP `libimp.so` | T20, T21, T23, T30, T31, T40, T41 |
+| OpenIMP `libimp.so` | T10, T20, T21, T23, T30, T31, T40, T41 |
 
-The Thingino Kconfig gates mirror that, minus the T10 odd case:
+The Thingino Kconfig gates mirror that:
 
 - `OPEN_TX_ISP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on
   4.4.94).
-- `OPENIMP_SUPPORTED` (T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
+- `OPENIMP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
 
-**T10** has an open-tx-isp driver but no OpenIMP build target, so it stays
-out of the OpenIMP gate and keeps the Ingenic libimp provider.
+**T10** shares the T20 userspace and SDK, so OpenIMP builds it with the T20
+platform (`openimp.mk` maps `t10` to the `T20` build). The open-tx-isp driver
+has its own `driver/t10`.
 
 **T23** is a hybrid build: a partial `libimp.so` with no audio entry points
 plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the

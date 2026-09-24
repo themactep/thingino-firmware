@@ -37,7 +37,7 @@ reverse-engineered components:
 | Component | Package | Scope |
 | --- | --- | --- |
 | `open-tx-isp` | `open-tx-isp` | kernel driver, installed as `tx-isp-<soc>.ko` |
-| OpenIMP | `openimp` | `libimp.so`, builds for T20/T21/T30/T31/T40/T41 |
+| OpenIMP | `openimp` | `libimp.so`, builds for T10/T20/T21/T30/T31/T40/T41 |
 | `ingenic-system-libs-neo` | — | `libalog` + `libsysutils` (thread-safe, 51% smaller) |
 | `libaudioprocess-neo` | — | `libaudioProcess` (libc-only) |
 

@@ -53,7 +53,8 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	  the userspace ABI, which keeps the stock userspace running,
 	  notably prudynt's IMP_AENC/IMP_ADEC audio codecs. Turn off
 	  "Use the Ingenic libimp.so userspace with the open kernel
-	  driver" to pair the driver with OpenIMP instead.
+	  driver" to pair the driver with OpenIMP instead (T10 builds
+	  OpenIMP through the shared T20 userspace).
 
 	  Image tuning and sensor coverage remain experimental.
 

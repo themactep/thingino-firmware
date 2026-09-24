@@ -19,6 +19,12 @@ OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
 
 OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
+
+# T10 shares the T20 userspace and SDK; build it with the T20 platform.
+ifeq ($(SOC_FAMILY),t10)
+OPENIMP_PLATFORM = T20
+OPENIMP_PLATFORM_LOWER = t20
+endif
 OPENIMP_TOOLCHAIN_PREFIX = $(patsubst %-,%,$(TARGET_CROSS))
 OPENIMP_OUTPUT_DIR = $(@D)/build/$(OPENIMP_PLATFORM_LOWER)
 OPENIMP_BUILT_LIB = $(BUILD_DIR)/openimp-$(OPENIMP_VERSION)/build/$(OPENIMP_PLATFORM_LOWER)/libimp.so
