@@ -1,14 +1,23 @@
 # Open ISP stack
 
 Thingino exposes the Ingenic media implementation through the same kind of
-virtual-package choice used for streamers. The proprietary stack remains the
-default. Select the experimental implementation in `menuconfig` under
-`Thingino Firmware → System Packages → ISP stack`, or put this in a scoped
+virtual-package choice used for streamers. On every SoC the open stack
+supports it is the default: the open-tx-isp kernel driver paired with the
+Ingenic `libimp.so` userspace, so the stock userspace (prudynt and its audio
+codecs) runs unchanged on the open driver. The proprietary stack is the
+fallback for SoCs the open stack does not cover.
+
+Select the pairing in `menuconfig` under
+`Thingino Firmware → System Packages → ISP stack`, or in a scoped
 `local.fragment`:
 
 ```text
 BR2_PACKAGE_THINGINO_ISP_OPEN=y
+BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP=y
 ```
+
+Turn `OPEN_VENDOR_LIBIMP` off to pair the driver with OpenIMP instead (the
+raptor path; OpenIMP has no `IMP_AENC_*`/`IMP_ADEC_*` yet).
 
 The open provider selects `open-tx-isp` (the kernel driver) plus OpenIMP
 (`libimp.so`) where available, with `ingenic-system-libs-neo` and
@@ -178,13 +187,14 @@ Still experimental: night/IR, WDR, extreme exposure, additional sensors, and
 long-duration stability lack OEM-comparable validation, and some tuning tables
 remain synthetic or partially reconstructed.
 
-Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to return to the Ingenic
+Select `BR2_PACKAGE_THINGINO_ISP_PROPRIETARY=y` to fall back to the Ingenic
 driver and libimp provider.
 
 ## Open kernel driver with the Ingenic libimp.so
 
 `BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP` keeps the stock libimp.so as
-the userspace on top of open-tx-isp instead of OpenIMP. The driver is built
+the userspace on top of open-tx-isp instead of OpenIMP, and is the default
+pairing. The driver is built
 for both (upstream device-tests T20 and T31 with each), and the split
 matters: OpenIMP exports no `IMP_AENC_*`/`IMP_ADEC_*`, so prudynt cannot run
 under it, while the stock libimp keeps the audio codecs and, on T23, avoids

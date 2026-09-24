@@ -6,10 +6,16 @@ choice
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_THINGINO_TOOLCHAIN
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_SOC_FAMILY = "a1"
 	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_THINGINO_DEV_CAMERA
+	default BR2_PACKAGE_THINGINO_ISP_OPEN if BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	default BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	help
 	  Select the ISP kernel and userspace implementation used by the
 	  camera stack.
+
+	  Defaults to the open stack on every SoC it supports, where the
+	  open-tx-isp kernel driver is paired with OpenIMP userspace (or
+	  the Ingenic libimp on SoCs with no OpenIMP build). SoCs the open
+	  stack does not cover keep the proprietary Ingenic stack.
 
 config BR2_PACKAGE_THINGINO_ISP_NONE
 	bool "None"
@@ -43,11 +49,11 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
-	  T40, and T41 targets. OpenIMP supplies the userspace ABI on
-	  T20, T21, T23, T30, T31, T40, and T41; the T23 build is a
-	  hybrid that keeps the OEM libimp.so under /opt/openimp-t23/
-	  for the proprietary Helix encoder. T10 has no OpenIMP build
-	  and retains the Ingenic libimp provider.
+	  T40, and T41 targets. By default the Ingenic libimp.so supplies
+	  the userspace ABI, which keeps the stock userspace running,
+	  notably prudynt's IMP_AENC/IMP_ADEC audio codecs. Turn off
+	  "Use the Ingenic libimp.so userspace with the open kernel
+	  driver" to pair the driver with OpenIMP instead.
 
 	  Image tuning and sensor coverage remain experimental.
 
@@ -56,6 +62,7 @@ endchoice
 config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	bool "Use the Ingenic libimp.so userspace with the open kernel driver"
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
+	default y
 	help
 	  Keep Ingenic's proprietary libimp.so as the userspace ABI on top
 	  of open-tx-isp instead of OpenIMP. The open driver preserves
@@ -64,6 +71,7 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	  prudynt's IMP_AENC/IMP_ADEC audio codecs - run unchanged on the
 	  open kernel driver.
 
-	  Turn this on to tell a kernel problem apart from an OpenIMP one,
-	  and on T23 to skip the OpenIMP Helix encoder hybrid. Off means
-	  OpenIMP supplies the userspace wherever it is supported.
+	  This is the default pairing. Turn it off to let OpenIMP supply
+	  the userspace where it is supported, which is the raptor path
+	  (OpenIMP has no IMP_AENC/IMP_ADEC yet); on T23 it also skips the
+	  OpenIMP Helix encoder hybrid.
