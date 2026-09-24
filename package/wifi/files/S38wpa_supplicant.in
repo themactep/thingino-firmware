@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON_SHORT="wpa_supplicant"
 DAEMON_FULL="/usr/sbin/wpa_supplicant"
 
@@ -7,15 +10,15 @@ iface_exists() {
 	iface="$1"
 
 	if [ -z "$iface" ]; then
-		echo "Interface parameter missing." >&2
+		log -c 142 "Interface parameter missing" >&2
 		return 1
 	fi
 
 	if ip link show "$iface" >/dev/null 2>&1; then
-		echo "Interface '$iface' exists."
+		log "Interface '$iface' exists"
 		return 0
 	else
-		echo "Interface '$iface' does not exist."
+		log -c 142 "Interface '$iface' does not exist"
 		return 1
 	fi
 }
@@ -29,7 +32,11 @@ AP_IFACE=@WLAN_AP_NETDEV@
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 
 CONFIG="/etc/$DAEMON_SHORT.conf"
+CONFIG_OVERLAY="/overlay/etc/$DAEMON_SHORT.conf"
 PORTAL_CONF="/run/$DAEMON_SHORT.portal.conf"
+PRESET_CONF="/etc/$DAEMON_SHORT.preset.conf"
+# Marks CONFIG as a one-boot preset fallback copy; see fallback_to_preset().
+PRESET_FALLBACK_FLAG="/overlay/etc/$DAEMON_SHORT.preset_fallback"
 
 PORTAL_MODE_FLAG="/run/portal_mode"
 PORTAL_CNET=172.16.0
@@ -41,12 +48,24 @@ WLANAP_IP=${WLANAP_CNET}.1
 
 hostname=$(hostname)
 
+SCRIPT_ACTION="$1"
+
+# fallback_to_preset() is a one-boot rescue: it copies the preset over CONFIG
+# so the camera stays reachable, and marks it. Clear that copy before mode
+# detection so a reboot - even an unclean power cycle, where stop() never ran -
+# falls through to portal mode and retries the AP. wlan configure/reset clears
+# the marker, so a deliberately configured network is never removed here.
+if [ "$SCRIPT_ACTION" = "start" ] && [ -f "$PRESET_FALLBACK_FLAG" ]; then
+	log -c 142 "Clearing preset fallback, retrying portal mode" >&2
+	rm -f "$CONFIG_OVERLAY" "$PRESET_FALLBACK_FLAG"
+fi
+
 # Determine the wireless mode
 if ! grep -q 'ssid=' $CONFIG >/dev/null; then
-	echo "WiFi network missing" >&2
+	log -c 142 "WiFi network missing" >&2
 	mode="portal"
 elif ! grep -q 'psk=' $CONFIG >/dev/null; then
-	echo "WiFi password missing" >&2
+	log -c 142 "WiFi password missing" >&2
 	mode="portal"
 elif grep -q 'mode=2' $CONFIG >/dev/null; then
 	mode="ap"
@@ -88,10 +107,51 @@ credentials_from_card() {
 	wlan configure "$ssid" "$password"
 }
 
+preset_available() {
+	[ -f "$PRESET_CONF" ] || return 1
+	grep -q 'ssid=' "$PRESET_CONF" || return 1
+	grep -q 'psk=' "$PRESET_CONF" || return 1
+	return 0
+}
+
+# Portal could not start, or nobody configured it in time: fall back to a
+# preset client config if the image/overlay ships one, so the camera stays
+# reachable, and mark the copy as a one-boot rescue. The next boot drops it and
+# retries the portal (in stop() on a clean reboot, at the top of this script
+# after an unclean one); a network configured with `wlan configure` clears the
+# marker, so a deliberate config survives.
+fallback_to_preset() {
+	preset_available || return 1
+
+	log -c 142 "Portal failed; falling back to $PRESET_CONF" >&2
+	stop_portal
+
+	if ! cp "$PRESET_CONF" "$CONFIG"; then
+		log -c 160 "ERROR: failed to install preset $PRESET_CONF" >&2
+		return 1
+	fi
+
+	# Re-enter the normal boot path: mode detection now sees the client
+	# credentials, so start_client brings the station up on STA_IFACE
+	# (handles modules where AP_IFACE != STA_IFACE).
+	/etc/init.d/S38wpa_supplicant start
+	/etc/init.d/S40network start
+
+	# Mark after the re-entrant start: that invocation must not see the
+	# marker at the top of this script, or it would delete what we just wrote.
+	touch "$PRESET_FALLBACK_FLAG"
+}
+
 timeout() {
-	sleep 600 &&
-		play /usr/share/sounds/configurationportalisdown.@SOUND_EXT@ &&
+	sleep 600
+	# Portal was already configured or already fell back; do nothing.
+	[ -f "$PORTAL_MODE_FLAG" ] || return 0
+	play /usr/share/sounds/configurationportalisdown.@SOUND_EXT@
+	if preset_available; then
+		fallback_to_preset
+	else
 		$0 stop
+	fi
 }
 
 # Survey the radio in plain station mode, before the portal AP goes up.
@@ -117,7 +177,7 @@ prescan_for_portal() {
 	CTRLDIR="/tmp/wpa_prescan"
 	CONF="/tmp/wpa_prescan.conf"
 
-	echo "Running pre-portal Wi-Fi scan"
+	log "Running pre-portal Wi-Fi scan"
 	ip link set $IFACE up
 
 	# Standalone supplicant with a private ctrl socket, so we never
@@ -133,7 +193,7 @@ prescan_for_portal() {
 		i=$((i + 1))
 	done
 	if [ ! -S "$CTRLDIR/$IFACE" ]; then
-		echo "Prescan supplicant did not start; skipping" >&2
+		log -c 142 "Prescan supplicant did not start; skipping" >&2
 		rm -f "$CONF"
 		return 0
 	fi
@@ -177,10 +237,10 @@ prescan_for_portal() {
 	# The second attempt only runs while the overall deadline allows.
 	if scan_once || { time_left && scan_once; }; then
 		mv "$CACHE.tmp" "$CACHE"
-		echo "Prescan complete: $(grep -v '^Selected interface' "$CACHE" | tail -n +2 | grep -c .) entries"
+		log "Prescan complete: $(grep -v '^Selected interface' "$CACHE" | tail -n +2 | grep -c .) entries"
 	else
 		rm -f "$CACHE.tmp"
-		echo "Prescan returned no results; continuing without cached list" >&2
+		log -c 142 "Prescan returned no results; continuing without cached list" >&2
 	fi
 
 	# Always tear down the scan supplicant before the portal starts
@@ -190,6 +250,9 @@ prescan_for_portal() {
 		sleep 1
 		i=$((i + 1))
 	done
+	if pgrep -f "wpa_supplicant.*$CONF" >/dev/null 2>&1; then
+		log -c 142 "Prescan supplicant still running; portal AP may fail to start" >&2
+	fi
 	rm -rf "$CTRLDIR" "$CONF"
 }
 
@@ -197,24 +260,24 @@ prepare_portal() {
 	# FIXME: should de done at compile time
 	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf
 
-	echo "Prepare Captive Portal"
+	log "Prepare Captive Portal"
 
-	echo "Create DHCP leases database"
+	log "Create DHCP leases database"
 	touch /run/udhcpd.leases
 
-	echo "Assign ${PORTAL_IP} to $IFACE"
+	log "Assign ${PORTAL_IP} to $IFACE"
 	ip address add ${PORTAL_IP}/24 dev $IFACE
 
-	echo "Bring $IFACE interface up"
+	log "Bring $IFACE interface up"
 	ip link set $IFACE up
 
-	echo "Add route ${PORTAL_CNET}.0/24 to $IFACE"
+	log "Add route ${PORTAL_CNET}.0/24 to $IFACE"
 	ip route replace ${PORTAL_CNET}.0/24 dev $IFACE
 
 	# Generate portal AP config in tmpfs so the transient portal settings
 	# (SSID suffix, optional PSK) never overwrite the persistent config.
 	# That keeps an unconfigured camera re-entering portal mode on boot.
-	echo "Update SSID with last two octets of MAC address"
+	log "Update SSID with last two octets of MAC address"
 	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
 	last_two=$(echo "$mac_address" | awk -F: '{print $(NF-1) $NF}')
 	cat >$PORTAL_CONF <<-WPAEOF
@@ -230,14 +293,17 @@ prepare_portal() {
 		}
 	WPAEOF
 
-	echo "Start wpa_supplicant"
+	log "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$PORTAL_CONF" 2>&1
+	# -s: send wpa_supplicant's own log to syslogd, so an AP bring-up
+	# failure is visible remotely and not only on the serial console.
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -s -c "$PORTAL_CONF" 2>&1
 
-	echo "Set $PORTAL_MODE_FLAG"
+	log "Set $PORTAL_MODE_FLAG"
 	touch "$PORTAL_MODE_FLAG"
 
-	echo "Portal prepared at $(ts)"
+	log "Portal AP config: $(tr '\n' ' ' <"$PORTAL_CONF")"
+	log "Portal prepared at $(ts)"
 }
 
 ap_is_up() {
@@ -251,123 +317,127 @@ finish_portal() {
 		i=$((i + 1))
 	done
 	if ! ap_is_up; then
-		echo "ERROR: portal AP is not up; not starting DHCP/DNS" >&2
+		log -c 160 "ERROR: portal AP is not up; not starting DHCP/DNS" >&2
+		log "Portal AP config: $(tr '\n' ' ' <"$PORTAL_CONF")"
+		log "Portal AP status: $(wpa_cli -p /run/wpa_supplicant -i "$IFACE" status 2>&1 | tr '\n' ' ')"
+		log "wpa_supplicant processes: $(pgrep -x wpa_supplicant 2>/dev/null | wc -l)"
 		play /usr/share/sounds/configurationportalisdown.@SOUND_EXT@ 2>/dev/null
+		fallback_to_preset && return 0
 		return 1
 	fi
 
-	echo "Start DHCP server"
+	log "Start DHCP server"
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $PORTAL_IP /etc/udhcpd-portal.conf
 
-	echo "Start DNS server"
+	log "Start DNS server"
 	start-stop-daemon -S -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf -d
 
-	echo "Portal started at $(ts)"
+	log "Portal started at $(ts)"
 	play /usr/share/sounds/configurationportalisup.@SOUND_EXT@
 
-	echo "Start timeout countdown"
+	log "Start timeout countdown"
 	timeout &
 }
 
 stop_portal() {
-	echo -c 15 "Captive Portal"
+	log -c 15 "Captive Portal"
 
-	echo "Stop udhcp"
+	log "Stop udhcp"
 	start-stop-daemon -K -q -x /sbin/udhcpd
 
-	echo "Stop dnsd"
+	log "Stop dnsd"
 	start-stop-daemon -K -q -x /sbin/dnsd
 
-	echo "Stop wpa_supplicant"
+	log "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x $DAEMON_FULL
 
-	echo "Remove route ${PORTAL_CNET}.0/24 from $IFACE"
+	log "Remove route ${PORTAL_CNET}.0/24 from $IFACE"
 	ip route delete ${PORTAL_CNET}.0/24 dev $IFACE
 
-	echo "Remove IP address from $IFACE"
+	log "Remove IP address from $IFACE"
 	ip address delete dev $IFACE ${PORTAL_IP}/24
 
-	echo "Bring down $IFACE"
+	log "Bring down $IFACE"
 	ip link set $IFACE down
 
-	echo "Remove $PORTAL_MODE_FLAG"
+	log "Remove $PORTAL_MODE_FLAG"
 	rm -f "$PORTAL_MODE_FLAG"
 
-	echo "Portal stopped at $(ts)"
+	log "Portal stopped at $(ts)"
 }
 
 start_access_point() {
 	# Define in the global scope (populated at build time)
 	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-ap.conf
 
-	echo -c 15 "WLAN Access Point"
+	log -c 15 "WLAN Access Point"
 
-	echo "Create DHCP leases database"
+	log "Create DHCP leases database"
 	touch /run/udhcpd_ap.leases
 
-	echo "Set WLAN AP resolver configuration"
+	log "Set WLAN AP resolver configuration"
 	cp /etc/resolv-ap.conf /tmp/resolv.conf
 
-	echo "Bring $IFACE up"
+	log "Bring $IFACE up"
 	ip link set $IFACE up
 
-	echo "Add IP address ${WLANAP_IP}/24 to $IFACE"
+	log "Add IP address ${WLANAP_IP}/24 to $IFACE"
 	ip address add ${WLANAP_IP}/24 dev $IFACE
 
-	echo "Add route ${WLANAP_CNET}.0/24 to $IFACE"
+	log "Add route ${WLANAP_CNET}.0/24 to $IFACE"
 	ip route replace ${WLANAP_CNET}.0/24 dev $IFACE
 
-	echo "Set WLAN AP DNS configuration"
+	log "Set WLAN AP DNS configuration"
 	cp /etc/dnsd-ap.conf /tmp/dnsd.conf
 	if ! grep -q "$hostname" /tmp/dnsd.conf; then
-		echo "Add ${hostname}.local to DNS configuration"
+		log "Add ${hostname}.local to DNS configuration"
 		echo "${hostname}.local $WLANAP_IP" >>/tmp/dnsd.conf
 	fi
 
-	echo "Start wpa_supplicant"
+	log "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
 
-	echo "Start udhcpd"
+	log "Start udhcpd"
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $WLANAP_IP /etc/udhcpd-ap.conf
 
-	echo "Start dnsd"
+	log "Start dnsd"
 	start-stop-daemon -S -x /sbin/dnsd -- -i $WLANAP_IP -c /tmp/dnsd.conf -d
 
-	echo "WLAN Access Point started"
+	log "WLAN Access Point started"
 	touch "$WLANAP_MODE_FLAG"
 }
 
 stop_access_point() {
-	echo -c 15 "WLAN Access Point"
+	log -c 15 "WLAN Access Point"
 
-	echo "Stop udhcpd"
+	log "Stop udhcpd"
 	start-stop-daemon -K -q -x /sbin/udhcpd
 
-	echo "Stop dnsd"
+	log "Stop dnsd"
 	start-stop-daemon -K -q -x /sbin/dnsd
 
-	echo "Stop wpa_supplicant"
+	log "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x $DAEMON_FULL
 
-	echo "Remove IP address from $IFACE"
+	log "Remove IP address from $IFACE"
 	ip address delete dev $IFACE ${WLANAP_IP}/24
 
-	echo "Bring down $IFACE"
+	log "Bring down $IFACE"
 	ip link set $IFACE down
 
-	echo "WLAN Access Point stopped"
+	log "WLAN Access Point stopped"
 	rm -f "$WLANAP_MODE_FLAG"
 }
 
 start_client() {
-	echo "Start wpa_supplicant"
+	log "Start wpa_supplicant"
 	# shellcheck disable=SC2086 # DAEMON_ARGS holds flags that must word-split
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
 }
 
 stop_client() {
-	echo "Stop wpa_supplicant"
+	log "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x $DAEMON_FULL
 	if [ -f /var/run/udhcpc.${IFACE}.pid ]; then
 		kill "$(cat /var/run/udhcpc.${IFACE}.pid)" 2>/dev/null
@@ -380,25 +450,25 @@ start() {
 	# Credential from SD card
 	credentials_from_card
 
-	echo -c 15 "Starting WPA Supplicant"
+	log -c 15 "Starting WPA Supplicant"
 
 	# Interface is not present
 	if iface_exists "$IFACE"; then
-		echo "Found $IFACE interface"
+		log "Found $IFACE interface"
 	else
-		echo "Wireless interface $IFACE not found" >&2
+		log -c 160 "Wireless interface $IFACE not found" >&2
 		exit 1
 	fi
 
 	# Interface is present but disabled
 	if grep -q "^#auto $IFACE" $WLAN_INT_FILE; then
-		echo "$IFACE manually disabled" >&2
+		log -c 142 "$IFACE manually disabled" >&2
 		exit 1
 	else
-		echo "$IFACE is enabled"
+		log "$IFACE is enabled"
 	fi
 
-	echo "Starting in $mode mode"
+	log "Starting in $mode mode"
 
 	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 	case "$WLAN_MODULE_NAME" in
@@ -460,7 +530,15 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping WPA Supplicant"
+	log -c 15 "Stopping WPA Supplicant"
+
+	# A fallback copy must not survive the reboot it rescued: drop it (and
+	# its marker) on a real stop, not on `restart`, so the next boot retries
+	# the portal. The top-of-script check covers unclean power cycles.
+	if [ "$SCRIPT_ACTION" = "stop" ] && [ -f "$PRESET_FALLBACK_FLAG" ]; then
+		log -c 142 "Removing preset fallback config" >&2
+		rm -f "$CONFIG_OVERLAY" "$PRESET_FALLBACK_FLAG"
+	fi
 
 	case "$mode" in
 		portal) stop_portal ;;

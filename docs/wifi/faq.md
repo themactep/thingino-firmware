@@ -41,3 +41,29 @@ connections, which is the setting the nl80211 driver expects.
 
 So: leave the note alone. It only matters if someone puts `ap_scan=2` into a
 station-mode config.
+
+## How does the portal fall back to a preset network?
+
+A camera normally enters portal mode when `/etc/wpa_supplicant.conf` has no
+`psk=`. If the image (or the writable overlay) also ships a preset client
+config at `/etc/wpa_supplicant.preset.conf`, the portal is still attempted
+first. When the portal AP fails to come up, or the 600 s idle timeout expires
+with nobody having configured the camera, `S38wpa_supplicant`:
+
+1. Tears the portal AP down.
+2. Copies the preset over `/etc/wpa_supplicant.conf` and marks it.
+3. Re-enters the normal boot path, bringing the station up on the preset
+   network.
+
+The fallback is a one-boot rescue, not a new configuration: `S38wpa_supplicant`
+removes the copy (and its marker) on shutdown, and again at the top of the next
+boot in case the camera was power-cycled, so the portal is retried on every
+boot. `wlan configure` clears the marker, so a network configured deliberately
+survives reboots; `wlan reset` removes `/overlay/etc/wpa_supplicant.conf` and
+returns the camera to portal mode.
+
+The preset must contain both `ssid=` and `psk=`, and (as with any station
+config) `ap_scan=1`. The file carries the network key: keep it in the
+gitignored user overlay or drop it onto the writable overlay at runtime, never
+in the repository. Without a preset file the behavior is unchanged: the portal
+stays up, and the timeout stops it as before.

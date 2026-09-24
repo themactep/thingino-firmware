@@ -61,6 +61,7 @@ cli() {
 reset() {
 	local tmp_file=$(mktemp)
 	rm /overlay/etc/wpa_supplicant.conf
+	rm -f /overlay/etc/wpa_supplicant.preset_fallback
 }
 
 rssi() {
@@ -160,6 +161,7 @@ configure() {
 		echo "        psk=\"$password\""
 		echo "}"
 	} >/etc/wpa_supplicant.conf
+	rm -f /overlay/etc/wpa_supplicant.preset_fallback
 	return
 	@endif@
 	# Derive PSK hex from passphrase so the plain password is never stored on disk.
@@ -211,6 +213,10 @@ network={
 "
 		} >/etc/wpa_supplicant.conf
 	fi
+
+	# A deliberate configuration must survive a reboot even if a preset
+	# fallback happened earlier in this boot.
+	rm -f /overlay/etc/wpa_supplicant.preset_fallback
 }
 
 setup() {
