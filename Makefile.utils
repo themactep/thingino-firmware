@@ -70,11 +70,17 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_MMC)
 		_spl_skip=$(SPL_BLOCK); \
 	fi; \
 	dd if=$(U_BOOT_BIN) of=$@ bs=512 skip=$$_spl_skip seek=$(SPL_BLOCK) count=$$(( $(SPL_PAD_TO) / 512 )) conv=notrunc status=none; \
-	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$$(( $$_spl_skip * 512 + $(SPL_PAD_TO) )) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none
-	# write U-Boot environment (offset from U-Boot .config, converted to decimal for dd)
+	dd if=$(U_BOOT_BIN) of=$@ bs=1 skip=$$(( $$_spl_skip * 512 + $(SPL_PAD_TO) )) seek=$$(( $(UBOOT_BLOCK) * 512 )) conv=notrunc status=none; \
+	_uboot_end=$$(( $(UBOOT_BLOCK) * 512 + $$(stat -c%s $(U_BOOT_BIN)) - $$_spl_skip * 512 - $(SPL_PAD_TO) )); \
 	_env_off=$$(sed -n 's/^CONFIG_ENV_OFFSET=//p' $(OUTPUT_DIR)/build/uboot-*/\.config); \
 	if [ -n "$$_env_off" ]; then \
 		_env_dec=$$(printf '%d' "$$_env_off"); \
+		if [ $$_env_dec -lt $$_uboot_end ] || \
+		   [ $$(( _env_dec + $$(stat -c%s $(UB_ENV_BIN)) )) -gt $$(( $(FAT_START_MB) * 1048576 )) ]; then \
+			echo "ERROR: U-Boot env at $$_env_off must sit between the end of U-Boot ($$(printf '0x%x' $$_uboot_end)) and the FAT partition ($(FAT_START_MB) MiB)"; \
+			rm -f $@; \
+			exit 1; \
+		fi; \
 		dd if=$(UB_ENV_BIN) of=$@ bs=1 seek=$$_env_dec conv=notrunc status=none; \
 	fi
 	# create partition table (overwrites block 0 but leaves boot data alone)
