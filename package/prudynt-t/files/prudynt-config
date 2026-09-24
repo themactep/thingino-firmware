@@ -25,12 +25,6 @@ user_layer_is_object() {
 	esac
 }
 
-user_layer_is_valid() {
-	[ -s "$USER" ] || return 0
-	user_layer_is_object || return 1
-	jct "$USER" print >/dev/null 2>&1
-}
-
 refresh() {
 	[ -f "$CORE" ] || return 1
 	cp "$CORE" "$RUNTIME" || return 1
@@ -47,10 +41,7 @@ case "$1" in
 		;;
 	set)
 		[ $# -ge 3 ] || usage
-		if ! user_layer_is_valid; then
-			echo "$0: $USER is corrupt, refusing to overwrite it" >&2
-			exit 1
-		fi
+		# A corrupt layer is repaired by jct; there is nothing usable to lose.
 		jct "$USER" set "$2" "$3" >/dev/null 2>&1 || exit 1
 		refresh
 		;;
