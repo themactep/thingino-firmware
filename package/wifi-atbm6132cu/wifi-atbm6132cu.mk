@@ -33,19 +33,40 @@ define WIFI_ATBM6132CU_INSTALL_CONFIGS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
+endef
 
+define WIFI_ATBM6132CU_INSTALL_FIRMWARE_WIFI
 	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb_ocea.bin \
 		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132CU_MODULE_NAME))_fw.bin
 endef
 
-WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_CONFIGS
+define WIFI_ATBM6132CU_INSTALL_FIRMWARE_BLE
+	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb_wifi_bt_comb_ocea.bin \
+		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132CU_MODULE_NAME))_fw.bin
+endef
 
 define WIFI_ATBM6132CU_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6132cu_ingenic.config \
 		$(@D)/.config
 endef
 
+define WIFI_ATBM6132CU_COPY_CONFIG_BLE
+	echo "CONFIG_ATBM_BLE_WIFI6=y" >> $(@D)/.config
+	echo "CONFIG_ATBM_BLE_WIFI_PLATFORM_WIFI6=y" >> $(@D)/.config
+endef
+
+WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_CONFIGS
 WIFI_ATBM6132CU_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132CU_COPY_CONFIG
+
+# WARNING: the BLE/comb path is untested on hardware. Validate on a 6132cu +
+# BLE module with BR2_PACKAGE_THINGINO_BLUETOOTH=y before relying on it.
+ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
+	ATBM6132CU_MODULE_OPTS += wifi_bt_comb=1
+	WIFI_ATBM6132CU_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132CU_COPY_CONFIG_BLE
+	WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_FIRMWARE_BLE
+else
+	WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_FIRMWARE_WIFI
+endif
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
