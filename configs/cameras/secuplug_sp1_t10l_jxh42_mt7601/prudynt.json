@@ -1,0 +1,14 @@
+{
+  "audio": {
+    "mic_hq": false
+  },
+  "image": {
+    "hflip": true,
+    "vflip": true
+  },
+  "stream0": {
+    "fps": 25,
+    "height": 720,
+    "width": 1280
+  }
+}
