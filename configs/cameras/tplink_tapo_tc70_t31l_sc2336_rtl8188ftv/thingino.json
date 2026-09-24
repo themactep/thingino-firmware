@@ -3,7 +3,11 @@
     "button_reset": 62,
     "ir850": 49,
     "ircut": "57o 58o",
-    "mmc_power": 60,
+    "mmc_cd": 59,
+    "mmc_power": {
+      "pin": 60,
+      "active_low": true
+    },
     "speaker": 63,
     "white": {
       "pin": 50,
@@ -15,8 +19,10 @@
     "gpio_invert": false,
     "gpio_pan": "39 45 46 40",
     "gpio_switch": -1,
-    "gpio_tilt": "41 47 48 38",
-    "homing": true,
+    "gpio_tilt": "38 48 47 41",
+    "homing": false,
+    "home_pan": 1950,
+    "home_tilt": 200,
     "invert_x": false,
     "invert_y": false,
     "is_spi": false,
@@ -28,9 +34,9 @@
         "description": "Home"
       }
     ],
-    "speed_pan": 900,
-    "speed_tilt": 900,
-    "steps_pan": 4000,
-    "steps_tilt": 790
+    "speed_pan": 700,
+    "speed_tilt": 700,
+    "steps_pan": 3900,
+    "steps_tilt": 700
   }
 }
