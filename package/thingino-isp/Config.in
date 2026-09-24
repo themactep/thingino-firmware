@@ -49,12 +49,11 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
-	  T40, and T41 targets. By default the Ingenic libimp.so supplies
-	  the userspace ABI, which keeps the stock userspace running,
-	  notably prudynt's IMP_AENC/IMP_ADEC audio codecs. Turn off
-	  "Use the Ingenic libimp.so userspace with the open kernel
-	  driver" to pair the driver with OpenIMP instead (T10 builds
-	  OpenIMP through the shared T20 userspace).
+	  T40, and T41 targets. OpenIMP supplies the userspace ABI where
+	  it is supported (T10 builds it through the shared T20 userspace).
+	  Turn on "Use the Ingenic libimp.so userspace with the open kernel
+	  driver" to keep Ingenic's proprietary libimp.so instead, for full
+	  IMP audio codec parity.
 
 	  Image tuning and sensor coverage remain experimental.
 
@@ -63,7 +62,6 @@ endchoice
 config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	bool "Use the Ingenic libimp.so userspace with the open kernel driver"
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
-	default y
 	help
 	  Keep Ingenic's proprietary libimp.so as the userspace ABI on top
 	  of open-tx-isp instead of OpenIMP. The open driver preserves
@@ -72,7 +70,8 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	  prudynt's IMP_AENC/IMP_ADEC audio codecs - run unchanged on the
 	  open kernel driver.
 
-	  This is the default pairing. Turn it off to let OpenIMP supply
-	  the userspace where it is supported, which is the raptor path
-	  (OpenIMP has no IMP_AENC/IMP_ADEC yet); on T23 it also skips the
-	  OpenIMP Helix encoder hybrid.
+	  Off (the default) lets OpenIMP supply the userspace where it is
+	  supported. prudynt then builds with -DOPENIMP, which drops the
+	  IMP-native G711/G726 encode and ADEC backchannel paths but keeps
+	  direct-encoded AAC/Opus. On T23, off also skips the OpenIMP
+	  Helix encoder hybrid.

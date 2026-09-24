@@ -2,10 +2,10 @@
 
 Thingino exposes the Ingenic media implementation through the same kind of
 virtual-package choice used for streamers. On every SoC the open stack
-supports it is the default: the open-tx-isp kernel driver paired with the
-Ingenic `libimp.so` userspace, so the stock userspace (prudynt and its audio
-codecs) runs unchanged on the open driver. The proprietary stack is the
-fallback for SoCs the open stack does not cover.
+supports it is the default: the open-tx-isp kernel driver paired with OpenIMP
+`libimp.so`, with the Ingenic `libimp.so` userspace one flag away for full IMP
+audio codec parity. The proprietary stack is the fallback for SoCs the open
+stack does not cover.
 
 Select the pairing in `menuconfig` under
 `Thingino Firmware → System Packages → ISP stack`, or in a scoped
@@ -13,11 +13,13 @@ Select the pairing in `menuconfig` under
 
 ```text
 BR2_PACKAGE_THINGINO_ISP_OPEN=y
-BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP=y
+# default: OpenIMP userspace
+# BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP is not set
 ```
 
-Turn `OPEN_VENDOR_LIBIMP` off to pair the driver with OpenIMP instead (the
-raptor path; OpenIMP has no `IMP_AENC_*`/`IMP_ADEC_*` yet).
+Turn `OPEN_VENDOR_LIBIMP` on to keep Ingenic's `libimp.so` instead, which
+restores the IMP-native `IMP_AENC_*`/`IMP_ADEC_*` codecs (prudynt builds
+without `-DOPENIMP`).
 
 The open provider selects `open-tx-isp` (the kernel driver) plus OpenIMP
 (`libimp.so`) where available, with `ingenic-system-libs-neo` and
@@ -194,8 +196,7 @@ driver and libimp provider.
 ## Open kernel driver with the Ingenic libimp.so
 
 `BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP` keeps the stock libimp.so as
-the userspace on top of open-tx-isp instead of OpenIMP, and is the default
-pairing. The driver is built
+the userspace on top of open-tx-isp instead of OpenIMP. The driver is built
 for both (upstream device-tests T20 and T31 with each), and the split
 matters: OpenIMP exports no `IMP_AENC_*`/`IMP_ADEC_*`, so prudynt cannot run
 under it, while the stock libimp keeps the audio codecs and, on T23, avoids

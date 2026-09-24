@@ -55,12 +55,13 @@ package (menuconfig: `Thingino Firmware → System Packages → ISP stack`):
 
 | Provider | Kernel driver | Userspace libimp | Status |
 | --- | --- | --- | --- |
-| `THINGINO_ISP_OPEN` | `open-tx-isp` | Ingenic `libimp.so` (default) or OpenIMP | default |
+| `THINGINO_ISP_OPEN` | `open-tx-isp` | OpenIMP `libimp.so` (default) or Ingenic `libimp.so` | default |
 | `THINGINO_ISP_PROPRIETARY` | Ingenic `tx-isp` | Ingenic `libimp.so` | fallback |
 
 The open stack is the default on every SoC `OPEN_TX_ISP_SUPPORTED` covers,
-paired with the Ingenic `libimp.so` userspace so prudynt and its audio codecs
-run unchanged. SoCs outside that set keep the proprietary stack. See
+paired with OpenIMP by default and the Ingenic `libimp.so` one flag away
+(`THINGINO_ISP_OPEN_VENDOR_LIBIMP`) for full IMP audio codec parity. SoCs
+outside that set keep the proprietary stack. See
 `package/thingino-isp/Config.in` and `docs/media/open-isp-stack.md`.
 
 ## Document series
