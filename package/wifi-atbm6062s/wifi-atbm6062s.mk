@@ -46,6 +46,8 @@ WIFI_ATBM6062S_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6062S_INSTALL_CONFIGS
 define WIFI_ATBM6062S_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6062s.config \
 		$(@D)/.config
+	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6 is not set/CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6=y/' \
+		$(@D)/.config
 	cp $(@D)/Kbuild.4.4 $(@D)/Kbuild
 endef
 
