@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2018,SC2019,SC2086,SC2295,SC2329,SC3026,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 MMC_MODULE="jzmmc_v12"
 MMC_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
@@ -180,7 +183,7 @@ load_module() {
 }
 
 start() {
-	echo -c 15 "Initializing MMC"
+	log -c 15 "Initializing MMC"
 
 	# cd_gpio_pin is a jzmmc (XBurst1) module parameter and overrides the
 	# board's card-detect pin, so pass it only when the profile sets

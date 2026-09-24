@@ -8,8 +8,11 @@
 # long-running daemon (timps/raptor/prudynt-t alike, no code changes needed)
 # pick up /etc/TZ edits live. Interactive shells still get TZ exported fresh
 # on each login via /etc/profile, so this only affects daemons.
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 TZCODE_FILE="/etc/TZ"
-[ -s "$TZCODE_FILE" ] || echo -c 240 -e "- Cannot find $TZCODE_FILE"
+[ -s "$TZCODE_FILE" ] || log -c 240 -e "- Cannot find $TZCODE_FILE"
 
 # Run init scripts in numerical order
 for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do

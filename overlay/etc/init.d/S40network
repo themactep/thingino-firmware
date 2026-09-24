@@ -2,10 +2,13 @@
 # shellcheck disable=SC2086
 # shellcheck disable=SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 start() {
-	echo -c 15 "Starting network"
+	log -c 15 "Starting network"
 	if [ -f /run/wlan_ap_mode ] || [ -f /run/portal_mode ]; then
-		echo -c 160 -e "WiFi in AP/portal mode, skipping network bring-up" >&2
+		log -c 160 -e "WiFi in AP/portal mode, skipping network bring-up" >&2
 		# Ensure loopback is up (normally done by ifup -a)
 		ip addr add 127.0.0.1/8 dev lo 2>/dev/null || true
 		ip link set lo up 2>/dev/null || true
@@ -29,14 +32,14 @@ start() {
 		sleep 0.5
 		gpio set $pin $high
 	else
-		echo -c 142 -e "Ethernet GPIO does not need a toggle" >&2
+		log -c 142 -e "Ethernet GPIO does not need a toggle" >&2
 	fi
 
 	ifup -v -a
 }
 
 stop() {
-	echo -c 15 "Stopping network"
+	log -c 15 "Stopping network"
 
 	ifdown -v -a
 }

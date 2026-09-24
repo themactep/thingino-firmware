@@ -2,6 +2,9 @@
 # Find the first available indicator LED and start blinking
 
 # order: blue, green, white, yellow, violet, red
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 for color in b g w y v r; do
 	if [ -d "/sys/class/leds/led_$color" ]; then
 		[ -w "/sys/class/leds/led_$color/trigger" ] && printf 'timer\n' >"/sys/class/leds/led_$color/trigger"
@@ -11,6 +14,6 @@ for color in b g w y v r; do
 	fi
 done
 
-echo -c 160 "No LED indicator GPIO found."
+log -c 160 "No LED indicator GPIO found."
 
 exit 1

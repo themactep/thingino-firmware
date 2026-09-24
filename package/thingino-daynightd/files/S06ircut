@@ -1,7 +1,10 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 start() {
-	echo -c 15 "Initializing IR-CUT"
+	log -c 15 "Initializing IR-CUT"
 
 	ircut off >/dev/null 2>&1
 	sleep 0.5

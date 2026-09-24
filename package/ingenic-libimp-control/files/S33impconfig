@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2086,SC2154,SC3037,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PORTAL_MODE_FLAG="/run/portal_mode"
 SOC_FAMILY="$(soc -f)"
 
@@ -39,7 +42,7 @@ check_imp() {
 }
 
 start() {
-	echo -c 15 "IMP Configuration"
+	log -c 15 "IMP Configuration"
 
 	if is_streamer_disabled; then
 		echo "Streamer disabled" >&2

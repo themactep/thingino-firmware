@@ -5,6 +5,9 @@
 # The new watchdog monitors the streamer process directly instead of testing RTSP streams
 # This script is kept for compatibility but should not be used
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PORTAL_MODE_FLAG="/run/portal_mode"
 
 is_streamer_disabled() {
@@ -81,7 +84,7 @@ watch() {
 }
 
 start() {
-	echo -c 15 "Starting Stream Watchdog"
+	log -c 15 "Starting Stream Watchdog"
 
 	if is_streamer_disabled; then
 		echo "Streamer disabled" >&2
@@ -93,7 +96,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Stream Watchdog"
+	log -c 15 "Stopping Stream Watchdog"
 
 	if [ -f "$PID_FILE" ]; then
 		PID=$(cat "$PID_FILE")

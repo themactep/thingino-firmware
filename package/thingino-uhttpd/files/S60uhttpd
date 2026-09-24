@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2046,SC2086,SC2155,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 [ -r /etc/default/uhttpd ] && . /etc/default/uhttpd
 
 DAEMON="uhttpd"
@@ -78,7 +81,7 @@ start() {
 
 	# Portal mode: bind to portal IP, use error handler for captive portal detection
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
-		echo -c 15 "Starting uhttpd with Portal interface"
+		log -c 15 "Starting uhttpd with Portal interface"
 
 		if [ ! -d "$UHTTPD_PORTAL_DOCROOT" ]; then
 			echo "Portal directory $UHTTPD_PORTAL_DOCROOT not found"
@@ -123,7 +126,7 @@ start() {
 			return 1
 		fi
 	else
-		echo -c 15 "Starting uhttpd"
+		log -c 15 "Starting uhttpd"
 	fi
 
 	# Try SSL first if certificates exist
@@ -183,7 +186,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping uhttpd"
+	log -c 15 "Stopping uhttpd"
 
 	# Try to kill using PID file first
 	if [ -f $PIDFILE ]; then

@@ -1,10 +1,13 @@
 #!/bin/sh
 # shellcheck disable=SC2086,SC2295
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 modulename="rndis_host"
 
 start() {
-	echo -c 15 "Starting USB NET"
+	log -c 15 "Starting USB NET"
 
 	if [ -n "$gpio_usbnet" ]; then
 		num=${gpio_usbnet%[oO]}

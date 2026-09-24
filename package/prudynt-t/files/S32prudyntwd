@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2154,SC2329,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 RTSP_URL="rtsp://thingino:thingino@127.0.0.1/ch0"
 PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID
 PORTAL_MODE_FLAG="/run/portal_mode"
@@ -131,7 +134,7 @@ watch() {
 
 		if $SUCCESS; then
 			if [ "$consecutive" -gt 0 ]; then
-				echo -c 240 -e "Stream Watchdog: stream recovered after $consecutive restart(s)"
+				log -c 240 -e "Stream Watchdog: stream recovered after $consecutive restart(s)"
 			fi
 			failures=0
 			consecutive=0
@@ -140,7 +143,7 @@ watch() {
 		fi
 
 		# Stream is down: restart and see whether that fixes it.
-		echo -c 160 -e "Stream Watchdog: stream is down, restarting prudynt"
+		log -c 160 -e "Stream Watchdog: stream is down, restarting prudynt"
 		service restart prudynt
 		consecutive=$((consecutive + 1))
 		failures=$((failures + 1))
@@ -148,10 +151,10 @@ watch() {
 		sleep $RESTART_DELAY
 
 		if [ "$consecutive" -ge "$RESTART_LIMIT" ]; then
-			echo -c 196 -e "Stream Watchdog: $consecutive restarts without recovery"
+			log -c 196 -e "Stream Watchdog: $consecutive restarts without recovery"
 
 			if [ "$REBOOT_AFTER" -gt 0 ] 2>/dev/null && [ "$failures" -ge "$REBOOT_AFTER" ]; then
-				echo -c 196 -e "Stream Watchdog: $failures failed restarts, rebooting"
+				log -c 196 -e "Stream Watchdog: $failures failed restarts, rebooting"
 				sync
 				# Hardware-watchdog fallback: stop feeding /dev/watchdog so its
 				# timer expires even if the normal reboot path is wedged.  Same
@@ -164,7 +167,7 @@ watch() {
 			fi
 
 			# Do not give up permanently, but stop restarting in a tight loop.
-			echo -c 240 -e "Stream Watchdog: backing off ${COOLDOWN}s"
+			log -c 240 -e "Stream Watchdog: backing off ${COOLDOWN}s"
 			sleep "$COOLDOWN"
 			consecutive=0
 		else
@@ -174,7 +177,7 @@ watch() {
 }
 
 start() {
-	echo -c 15 "Starting Stream Watchdog"
+	log -c 15 "Starting Stream Watchdog"
 
 	if is_streamer_disabled; then
 		echo "Streamer disabled" >&2
@@ -188,7 +191,7 @@ start() {
 	if [ -f "$PID_FILE" ]; then
 		PID=$(cat "$PID_FILE" 2>/dev/null)
 		if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-			echo -c 240 -e "Stream Watchdog already running (pid $PID)"
+			log -c 240 -e "Stream Watchdog already running (pid $PID)"
 			return 0
 		fi
 	fi
@@ -201,7 +204,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Stream Watchdog"
+	log -c 15 "Stopping Stream Watchdog"
 
 	if [ ! -f "$PID_FILE" ]; then
 		echo "PID file not found."

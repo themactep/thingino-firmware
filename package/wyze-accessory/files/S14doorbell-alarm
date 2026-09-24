@@ -1,10 +1,13 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/doorbell_alarm"
 PIDFILE="/run/doorbell_alarm.pid"
 
 start() {
-	echo -c 15 "Checking doorbell chime alarm"
+	log -c 15 "Checking doorbell chime alarm"
 
 	# Only activate if doorbell chime feature is present
 	[ -x "$DAEMON" ] || return 0
@@ -14,7 +17,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping doorbell chime alarm"
+	log -c 15 "Stopping doorbell chime alarm"
 	if [ -f "$PIDFILE" ]; then
 		kill "$(cat "$PIDFILE")" 2>/dev/null
 		rm -f "$PIDFILE"

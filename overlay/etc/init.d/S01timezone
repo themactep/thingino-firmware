@@ -1,11 +1,14 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 start() {
-	echo -c 15 "Setting timezone"
+	log -c 15 "Setting timezone"
 
 	name=$(cat /etc/timezone 2>/dev/null)
 	[ -n "$name" ] || name="Etc/GMT"
-	echo -c 240 -e "- Timezone name: $name"
+	log -c 240 -e "- Timezone name: $name"
 
 	timectl refresh
 }

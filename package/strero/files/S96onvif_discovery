@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2046,SC2068,SC2086,SC2231,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/wsd_simple_server"
 DAEMON_SHORT="wsd_simple_server"
 PORTAL_MODE_FLAG="/run/portal_mode"
@@ -40,7 +43,7 @@ stop_daemon() {
 iface="$(iface_default)"
 
 start() {
-	echo -c 15 "Starting ONVIF discovery"
+	log -c 15 "Starting ONVIF discovery"
 
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
 		echo "Disabled" >&2
@@ -62,7 +65,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping ONVIF discovery"
+	log -c 15 "Stopping ONVIF discovery"
 
 	for pidfile in /run/${DAEMON_SHORT}_*.pid; do
 		[ -f "$pidfile" ] || continue

@@ -1,11 +1,14 @@
 #!/bin/sh
 # shellcheck disable=SC2086
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 MOUNT_SHARE=
 MOUNT_POINT="/var/www"
 
 start() {
-	echo -c 15 "Mounting $MOUNT_SHARE to $MOUNT_POINT"
+	log -c 15 "Mounting $MOUNT_SHARE to $MOUNT_POINT"
 
 	if mountpoint -q $MOUNT_POINT; then
 		echo "Already mounted" >&2
@@ -22,7 +25,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Unmounting $MOUNT_POINT"
+	log -c 15 "Unmounting $MOUNT_POINT"
 
 	if ! mountpoint -q $MOUNT_POINT; then
 		echo "Nothing to unmount" >&2

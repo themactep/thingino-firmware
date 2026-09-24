@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1090
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 OS_RELEASE_FILE="/etc/os-release"
 
@@ -13,7 +16,7 @@ start() {
 
 	# Always enter failsafe if enable_failsafe is true
 	if [ "true" = "$(fw_printenv -n enable_failsafe 2>/dev/null)" ]; then
-		echo -c 118 "Automatically entering failsafe mode..."
+		log -c 118 "Automatically entering failsafe mode..."
 		touch /tmp/.fs
 		. /etc/profile
 		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
@@ -21,7 +24,7 @@ start() {
 	fi
 
 	echo
-	echo -c 104 "Press the [f] key to enter failsafe mode"
+	log -c 104 "Press the [f] key to enter failsafe mode"
 	echo
 
 	stty -icanon min 0 time 20 -echo
@@ -31,14 +34,14 @@ start() {
 	if [ "f" = "$key" ]; then
 		touch /tmp/.fs
 		. /etc/profile
+		log -c 118 "Failsafe mode..."
 		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
-		echo -c 118 "Failsafe mode..."
 	fi
 
 	if [ -f "$OS_RELEASE_FILE" ]; then
 		. "$OS_RELEASE_FILE"
-		echo -c 208 "Thingino firmware built for $IMAGE_ID"
-		echo -c 208 "[$BUILD_ID]"
+		log -c 208 "Thingino firmware built for $IMAGE_ID"
+		log -c 208 "[$BUILD_ID]"
 	fi
 
 	/etc/init.d/rcS

@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2005,SC2034,SC2086,SC2155,SC3043,SC1091,SC2154
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 HOSTNAME_FILE="/etc/hostname"
 HOSTS_FILE="/etc/hosts"
 OS_RELEASE_FILE="/etc/os-release"
@@ -15,26 +18,26 @@ is_user_modified_hostname() {
 	hostname="$(hostname)"
 
 	if [ -z "$hostname" ]; then
-		echo -c 142 -e "Hostname is blank and should be generated" >&2
+		log -c 142 -e "Hostname is blank and should be generated" >&2
 		return 1
 	fi
 
 	if [ "(none)" = "$hostname" ]; then
-		echo -c 142 -e "Hostname is '(none)' and should be generated" >&2
+		log -c 142 -e "Hostname is '(none)' and should be generated" >&2
 		return 1
 	fi
 
 	if [ "$(default_hostname)" = "$hostname" ]; then
-		echo -c 142 -e "Hostname $hostname is default and should be generated" >&2
+		log -c 142 -e "Hostname $hostname is default and should be generated" >&2
 		return 1
 	fi
 
 	if echo "$hostname" | grep -i -q "^$(default_hostname)-[0-9a-f]\{4\}$"; then
-		echo -c 142 -e "Hostname $hostname is auto-generated and should be regenerated" >&2
+		log -c 142 -e "Hostname $hostname is auto-generated and should be regenerated" >&2
 		return 1
 	fi
 
-	echo -c 240 -e "- Hostname $hostname is custom, skipping generation"
+	log -c 240 -e "- Hostname $hostname is custom, skipping generation"
 
 	return 0
 }
@@ -43,10 +46,10 @@ set_hostname() {
 	local new_hostname="$1"
 	local source="$2"
 
-	echo -c 240 -e "- Setting hostname to $new_hostname ($source)"
+	log -c 240 -e "- Setting hostname to $new_hostname ($source)"
 
 	if [ "$(hostname)" != "$new_hostname" ]; then
-		echo -c 240 -e "- Updating current hostname"
+		log -c 240 -e "- Updating current hostname"
 		hostname "$new_hostname"
 	fi
 
@@ -54,20 +57,20 @@ set_hostname() {
 
 	ip="127.0.1.1"
 	hostname_in_hosts=$(sed -nE "s/^$ip\s+(.*)$/\1/p" $HOSTS_FILE)
-	echo -c 240 -e "- Hostname in $HOSTS_FILE is $hostname_in_hosts"
+	log -c 240 -e "- Hostname in $HOSTS_FILE is $hostname_in_hosts"
 
 	if [ "$hostname_in_hosts" = "$new_hostname" ]; then
-		echo -c 240 -e "- Hostname in $HOSTS_FILE is correct"
+		log -c 240 -e "- Hostname in $HOSTS_FILE is correct"
 	else
-		echo -c 240 -e "- Updating hostname in $HOSTS_FILE"
+		log -c 240 -e "- Updating hostname in $HOSTS_FILE"
 		sed -i "/^$ip/c$ip\t$new_hostname" $HOSTS_FILE
 	fi
 
 	hostname_in_hostname=$(cat $HOSTNAME_FILE)
 	if [ "$hostname_in_hostname" = "$new_hostname" ]; then
-		echo -c 240 -e "- Hostname in $HOSTNAME_FILE is correct"
+		log -c 240 -e "- Hostname in $HOSTNAME_FILE is correct"
 	else
-		echo -c 240 -e "- Saving hostname in $HOSTNAME_FILE"
+		log -c 240 -e "- Saving hostname in $HOSTNAME_FILE"
 		echo $new_hostname >$HOSTNAME_FILE
 	fi
 }
@@ -83,27 +86,27 @@ generate() {
 	if [ -r /etc/init.d/lib-serial-mac ] && . /etc/init.d/lib-serial-mac && derive_serial_mac; then
 		unique_id=$(printf "%02x%02x%02x%02x%02x" $m1 $m2 $m3 $m4 $m5)
 	else
-		echo -c 240 -e "- No serial number available, keeping current hostname"
+		log -c 240 -e "- No serial number available, keeping current hostname"
 	fi
 
 	suffix=$(echo "$unique_id" | sed -E 's/.*(.{4})$/\1/')
 	local generated_hostname="$(default_hostname)-$suffix"
 
-	echo -c 240 -e "- Generated name: $generated_hostname"
+	log -c 240 -e "- Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"
 }
 
 start() {
-	echo -c 15 "Configuring hostname"
+	log -c 15 "Configuring hostname"
 
 	if is_user_modified_hostname; then
-		echo -c 240 -e "- Hostname is already customized, keeping current"
+		log -c 240 -e "- Hostname is already customized, keeping current"
 	else
 		generate
 	fi
 
 	current_hostname=$(hostname)
-	echo -c 240 -e "- Hostname set to $current_hostname"
+	log -c 240 -e "- Hostname set to $current_hostname"
 
 	HOSTNAME="$current_hostname"
 	export HOSTNAME

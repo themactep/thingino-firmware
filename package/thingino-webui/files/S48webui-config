@@ -1,6 +1,9 @@
 #!/bin/sh
 #set -euo pipefail
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
 WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
 API_KEY_FILE=${API_KEY_FILE:-/etc/thingino-api.key}
@@ -16,7 +19,7 @@ fi
 
 start() {
 	if [ ! -f "$API_KEY_FILE" ]; then
-		echo -c 15 "Generating API key"
+		log -c 15 "Generating API key"
 		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
 		echo "$new_key" >"$API_KEY_FILE"
 		chmod 600 "$API_KEY_FILE"

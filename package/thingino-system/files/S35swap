@@ -8,6 +8,9 @@
 # swap_file_size (if swap_type is 'file', in M, ex. 256M)
 # swap_partition_dev (if swap_type is 'partition')
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 setup_swap_partition() {
@@ -123,7 +126,7 @@ start() {
 		swap_file_size=$(echo "$swap_file_size" | tr '[:lower:]' '[:upper:]')
 	fi
 
-	echo -c 15 "Configuring swap"
+	log -c 15 "Configuring swap"
 	case "$swap_type" in
 		"partition")
 			if [ -z "$swap_partition_dev" ]; then

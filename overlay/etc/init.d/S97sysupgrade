@@ -1,16 +1,19 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PORTAL_MODE_FLAG="/run/portal_mode"
 
 start() {
-	echo -c 15 "Checking sysupgrade"
+	log -c 15 "Checking sysupgrade"
 
 	if [ "true" != "$(fw_printenv -n sysupgrade_complete)" ]; then
-		echo -c 240 -e "- Mark sysupgrade complete"
+		log -c 240 -e "- Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
 
 		if [ -f "$PORTAL_MODE_FLAG" ]; then
-			echo -c 240 -e "- Portal mode is active"
+			log -c 240 -e "- Portal mode is active"
 		else
 			play /usr/share/sounds/thingino.@SOUND_EXT@
 		fi
@@ -18,10 +21,10 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Checking for upgrade"
+	log -c 15 "Checking for upgrade"
 
 	if [ -f "/tmp/upgrade.me" ]; then
-		echo -c 142 -e "Running full upgrade" >&2
+		log -c 142 -e "Running full upgrade" >&2
 		yes yes | sysupgrade -f
 	fi
 }

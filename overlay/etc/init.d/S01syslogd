@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 json_get() {
 	local key="$1" value="$2"
 	jct /etc/thingino.json get "$key" 2>/dev/null || printf '%s' "$value"
@@ -44,7 +47,7 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting syslogd"
+	log -c 15 "Starting syslogd"
 	daemon_args="$BASE_DAEMON_ARGS"
 
 	rsyslog_enabled=$(json_get rsyslog.enabled "false")
@@ -54,16 +57,16 @@ start() {
 	rsyslog_local=$(json_get rsyslog.local "$rsyslog_file")
 
 	if [ -z "$rsyslog_host" ]; then
-		echo -c 142 -e "Remote logging not configured" >&2
+		log -c 142 -e "Remote logging not configured" >&2
 	elif [ "true" != "$rsyslog_enabled" ]; then
-		echo -c 142 -e "Remote logging disabled" >&2
+		log -c 142 -e "Remote logging disabled" >&2
 	else
-		echo -c 240 -e "- Adding remote logging to $rsyslog_host:${rsyslog_port}"
+		log -c 240 -e "- Adding remote logging to $rsyslog_host:${rsyslog_port}"
 		daemon_args="$daemon_args -R $rsyslog_host:${rsyslog_port} -L"
 	fi
 
 	if [ "true" = "$rsyslog_local" ] || [ "true" = "$rsyslog_file" ]; then
-		echo -c 240 -e "- Adding local logging"
+		log -c 240 -e "- Adding local logging"
 		daemon_args="$daemon_args -L"
 	fi
 
@@ -72,7 +75,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping syslogd"
+	log -c 15 "Stopping syslogd"
 
 	stop_daemon
 }

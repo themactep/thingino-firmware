@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 get_wd_device() {
 	jct /etc/thingino.json get watchdog.device 2>/dev/null ||
 		fw_printenv -n watchdog_device
@@ -40,10 +43,10 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting watchdog"
+	log -c 15 "Starting watchdog"
 
 	if [ "false" = "$watchdog_enabled" ]; then
-		echo -c 160 -e "$DAEMON is disabled" >&2
+		log -c 160 -e "$DAEMON is disabled" >&2
 		exit 1
 	fi
 
@@ -52,7 +55,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping watchdog"
+	log -c 15 "Stopping watchdog"
 
 	stop_daemon
 }

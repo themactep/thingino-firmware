@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2018,SC2019,SC2086
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 GPIO_FILE="/etc/gpio.conf"
 [ -f "$GPIO_FILE" ] || {
 	echo "GPIO configuration file not found: $GPIO_FILE" >&2
@@ -11,7 +14,7 @@ GPIO_FILE="/etc/gpio.conf"
 MAX_GPIO=192
 
 start() {
-	echo -c 15 "Setting GPIOs"
+	log -c 15 "Setting GPIOs"
 
 	while IFS= read -r line; do
 		# Skip empty lines and comments

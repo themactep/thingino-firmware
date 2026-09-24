@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 MODULE="snd_soc_aw87xxx"
 PROFILE="Voice"
 
@@ -28,7 +31,7 @@ wait_ready() {
 }
 
 start() {
-	echo -c 15 "Starting aw87xxx amp ($PROFILE)"
+	log -c 15 "Starting aw87xxx amp ($PROFILE)"
 	modprobe "$MODULE" 2>/dev/null
 	if wait_ready; then
 		set_profile "$PROFILE"

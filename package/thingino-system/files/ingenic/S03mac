@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2004,SC2086,SC1091,SC2154
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 CONFIG_JSON="/etc/thingino.json"
 
 command -v jct >/dev/null 2>&1 || exit 0
@@ -14,7 +17,7 @@ jct "$CONFIG_JSON" get eth.mac >/dev/null 2>&1 && exit 0
 derive_serial_mac || exit 0
 
 eth_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $m1 $m2 $m3 $m4 $m5)
-echo -c 240 -e "- Generated ETH MAC: $eth_mac"
+log -c 240 -e "- Generated ETH MAC: $eth_mac"
 
 # Generate WLAN MAC = ETH MAC + 1 with carry
 w1=$m1
@@ -36,7 +39,7 @@ if [ "$w5" -eq 0 ]; then
 fi
 
 wlan_mac=$(printf "02:%02x:%02x:%02x:%02x:%02x" $w1 $w2 $w3 $w4 $w5)
-echo -c 240 -e "- Generated WLAN MAC: $wlan_mac"
+log -c 240 -e "- Generated WLAN MAC: $wlan_mac"
 
 # Persist to thingino.json
 jct "$CONFIG_JSON" set eth.mac "$eth_mac"

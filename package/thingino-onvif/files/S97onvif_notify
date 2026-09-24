@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/onvif_notify_server"
 PIDFILE="/run/onvif_notify_server.pid"
 DAEMON_ARGS="-c /etc/onvif.json -p $PIDFILE"
@@ -51,7 +54,7 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting ONVIF Notify service"
+	log -c 15 "Starting ONVIF Notify service"
 
 	if [ -f "$PORTAL_MODE_FLAG" ]; then
 		echo "Disabled" >&2
@@ -70,7 +73,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping ONVIF Notify service"
+	log -c 15 "Stopping ONVIF Notify service"
 
 	stop_daemon
 }

@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2034,SC2119,SC2120,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/recordmgr"
 DAEMON_ARGS=""
 PIDFILE="/run/recordmgr.pid"
@@ -41,7 +44,7 @@ debug_enabled() {
 }
 
 start() {
-	echo -c 15 "Starting Recording Storage Manager"
+	log -c 15 "Starting Recording Storage Manager"
 
 	if ! cleanup_enabled && ! timelapse_enabled; then
 		echo "Recording storage manager is disabled"
@@ -58,7 +61,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Recording Storage Manager"
+	log -c 15 "Stopping Recording Storage Manager"
 
 	stop_daemon
 }

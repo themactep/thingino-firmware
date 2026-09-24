@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PATH=/bin:/sbin:/usr/bin:/usr/sbin${PATH:+:$PATH}
 export PATH
 
@@ -46,7 +49,7 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting Prudynt"
+	log -c 15 "Starting Prudynt"
 	start_daemon
 	status=$?
 	if [ "$status" -eq 0 ]; then
@@ -92,7 +95,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Prudynt"
+	log -c 15 "Stopping Prudynt"
 	stop_heartbeat
 	stop_daemon
 
@@ -105,7 +108,7 @@ stop() {
 
 	# Force-kill if still alive after timeout.
 	if is_alive; then
-		echo -c 15 "Prudynt did not stop, force-killing"
+		log -c 15 "Prudynt did not stop, force-killing"
 		if [ -f "$PIDFILE" ]; then
 			start-stop-daemon -K -s KILL -p "$PIDFILE"
 		else
@@ -132,10 +135,10 @@ case "$1" in
 				exit 0
 			fi
 			r=$((r + 1))
-			echo -c 15 "Prudynt start failed (attempt $r), retrying..."
+			log -c 15 "Prudynt start failed (attempt $r), retrying..."
 			sleep 2
 		done
-		echo -c 15 "Prudynt failed to start after 3 attempts"
+		log -c 15 "Prudynt failed to start after 3 attempts"
 		exit 1
 		;;
 	*)

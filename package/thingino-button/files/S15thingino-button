@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/bin/thingino-button"
 DAEMON_ARGS="-d"
 
@@ -22,14 +25,14 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting Button service"
+	log -c 15 "Starting Button service"
 
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo -c 15 "Stopping Button service"
+	log -c 15 "Stopping Button service"
 
 	stop_daemon
 }

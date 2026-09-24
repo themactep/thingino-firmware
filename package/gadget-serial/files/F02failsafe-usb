@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1090,SC2086,SC2154
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 OS_RELEASE_FILE="/etc/os-release"
 
 die() {
@@ -30,7 +33,7 @@ start_usb_console() {
 	usb-role -m device
 	sleep 2
 
-	echo -c 104 -e "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" >/dev/ttyGS0
+	log -c 104 -e "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" >/dev/ttyGS0
 
 	stty -icanon min 0 time 20 -echo </dev/ttyGS0
 	key=$(dd bs=1 count=1 2>/dev/null </dev/ttyGS0)
@@ -39,7 +42,7 @@ start_usb_console() {
 	print_release >/dev/ttyGS0
 
 	if [ "$key" = "f" ]; then
-		echo -c 118 "Failsafe mode..." >/dev/ttyGS0
+		log -c 118 "Failsafe mode..." >/dev/ttyGS0
 		touch /tmp/.fs
 		. /etc/profile >/dev/ttyGS0 2>&1 </dev/ttyGS0
 		while :; do

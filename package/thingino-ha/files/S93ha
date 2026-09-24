@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2034,SC2086,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/ha-daemon"
 DAEMON_NAME="ha-daemon"
 PIDFILE="/run/ha-daemon.pid"
@@ -33,7 +36,7 @@ read_config() {
 }
 
 start() {
-	echo -c 15 "Starting HA daemon"
+	log -c 15 "Starting HA daemon"
 
 	# Clear stop flag from previous shutdown
 	rm -f /run/ha-stop
@@ -62,7 +65,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping HA daemon"
+	log -c 15 "Stopping HA daemon"
 
 	# Provides HA_CAMERA_ID, needed to match this camera's mosquitto clients
 	[ -f /usr/share/ha-common ] && . /usr/share/ha-common

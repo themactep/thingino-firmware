@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2016,SC2086,SC2154,SC2317,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
 RESOLV_WORKING_FILE="/tmp/resolv.conf"
@@ -27,11 +30,11 @@ wireguard_json_get() {
 wireguard_load_config() {
 	local key value var
 	if [ -z "$JCT_BIN" ]; then
-		echo -c 160 -e "jct utility not found; cannot read $CONFIG_JSON" >&2
+		log -c 160 -e "jct utility not found; cannot read $CONFIG_JSON" >&2
 		return 1
 	fi
 	if [ ! -r "$CONFIG_JSON" ]; then
-		echo -c 160 -e "Config file $CONFIG_JSON not found" >&2
+		log -c 160 -e "Config file $CONFIG_JSON not found" >&2
 		return 1
 	fi
 	for key in enabled address allowed dns endpoint keepalive mtu peerpsk peerpub port privkey watchdog watchdog_interval watchdog_stale; do
@@ -47,7 +50,7 @@ wireguard_load_config() {
 
 wireguard_validate_config() {
 	if [ -z "$wireguard_address" ]; then
-		echo -c 160 -e "No WireGuard IP address configured" >&2
+		log -c 160 -e "No WireGuard IP address configured" >&2
 		return 1
 	fi
 }
@@ -65,12 +68,12 @@ wireguard_watchdog_loop_start() {
 	local interval seconds
 
 	[ -x "$WIREGUARD_WATCHDOG_BIN" ] || {
-		echo -c 160 -e "WireGuard watchdog script $WIREGUARD_WATCHDOG_BIN not found" >&2
+		log -c 160 -e "WireGuard watchdog script $WIREGUARD_WATCHDOG_BIN not found" >&2
 		return 1
 	}
 
 	[ "true" = "$wireguard_watchdog" ] || {
-		echo -c 240 -e "- WireGuard watchdog disabled"
+		log -c 240 -e "- WireGuard watchdog disabled"
 		return 0
 	}
 
@@ -90,11 +93,11 @@ wireguard_watchdog_loop_start() {
 		    while true; do "$2" >/dev/null 2>&1; sleep "$1"; done' \
 		wireguard-watchdog-loop "$seconds" "$WIREGUARD_WATCHDOG_BIN"
 
-	echo -c 240 -e "- WireGuard watchdog scheduled every $interval minute(s)"
+	log -c 240 -e "- WireGuard watchdog scheduled every $interval minute(s)"
 }
 
 start() {
-	echo -c 15 "Starting WireGuard"
+	log -c 15 "Starting WireGuard"
 
 	# "force" is for testing, to start WireGuard on demand without having it enabled at boot
 	# "start" is for the normal boot process
@@ -103,29 +106,29 @@ start() {
 	wireguard_validate_config || exit 1
 
 	if [ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ]; then
-		echo -c 160 -e "WireGuard disabled" >&2
+		log -c 160 -e "WireGuard disabled" >&2
 		exit 1
 	fi
 
 	wireguard_watchdog_loop_start || exit 1
 
 	if ! network_is_active; then
-		echo -c 240 -e "- No active network connection; watchdog will retry"
+		log -c 240 -e "- No active network connection; watchdog will retry"
 		return 0
 	fi
 
 	if ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP'; then
-		echo -c 160 -e "WireGuard interface $WIREGUARD_INTERFACE already up" >&2
+		log -c 160 -e "WireGuard interface $WIREGUARD_INTERFACE already up" >&2
 		exit 1
 	fi
 
 	# sync clock; bounded so an unreachable NTP server can't deadlock boot
 	timeout 15 ntpd -qnN
 
-	echo -c 240 -e "- Create WireGuard network interface"
+	log -c 240 -e "- Create WireGuard network interface"
 	ip link add dev $WIREGUARD_INTERFACE type wireguard
 
-	echo -c 240 -e "- Create WireGuard configuration"
+	log -c 240 -e "- Create WireGuard configuration"
 	tmp_file=$(mktemp -u)
 	{
 		echo '[Interface]'
@@ -139,60 +142,60 @@ start() {
 		[ -n "$wireguard_keepalive" ] && echo "PersistentKeepalive=$wireguard_keepalive"
 	} >>"$tmp_file"
 
-	echo -c 240 -e "- Apply WireGuard configuration"
+	log -c 240 -e "- Apply WireGuard configuration"
 	wg setconf "$WIREGUARD_INTERFACE" "$tmp_file"
 
-	echo -c 240 -e "- Clean up"
+	log -c 240 -e "- Clean up"
 	rm "$tmp_file"
 
-	echo -c 240 -e "- Assign IP address to WireGuard interface"
+	log -c 240 -e "- Assign IP address to WireGuard interface"
 	ip address add $wireguard_address dev $WIREGUARD_INTERFACE
 
 	if [ -n "$wireguard_mtu" ]; then
 		link_mtu="mtu $wireguard_mtu"
 	fi
 
-	echo -c 240 -e "- Start WireGuard interface"
+	log -c 240 -e "- Start WireGuard interface"
 	ip link set $link_mtu up dev $WIREGUARD_INTERFACE
 
 	if [ -n "$wireguard_dns" ]; then
-		echo -c 240 -e "- Create custom resolver configuration"
+		log -c 240 -e "- Create custom resolver configuration"
 		tmp_file=$(mktemp)
 		grep -v nameserver $RESOLV_WORKING_FILE >>"$tmp_file"
 		for x in $(echo $wireguard_dns | tr "," " "); do
 			echo "nameserver $x" >>"$tmp_file"
 		done
 
-		echo -c 240 -e "- Back up existing resolver configuration"
+		log -c 240 -e "- Back up existing resolver configuration"
 		mv "$RESOLV_WORKING_FILE" "$RESOLV_BAK"
 
-		echo -c 240 -e "- Set up custom resolver configuration"
+		log -c 240 -e "- Set up custom resolver configuration"
 		mv "$tmp_file" "$RESOLV_WORKING_FILE"
 	fi
 
 	for r in $(echo "$wireguard_allowed" | tr "," " "); do
-		echo -c 240 -e "- Add routing to $r"
+		log -c 240 -e "- Add routing to $r"
 		ip route add $r dev $WIREGUARD_INTERFACE
 	done
 }
 
 stop() {
-	echo -c 15 "Stopping WireGuard"
+	log -c 15 "Stopping WireGuard"
 
 	wireguard_load_config || exit 1
 	wireguard_validate_config || exit 1
 	wireguard_watchdog_loop_stop
 
 	for r in $(ip route | awk '/dev wg/{print $1}'); do
-		echo -c 240 -e "- Remove routing to $r"
+		log -c 240 -e "- Remove routing to $r"
 		ip route del $r dev $WIREGUARD_INTERFACE 2>/dev/null || true
 	done
 
-	echo -c 240 -e "- Remove WireGuard interface"
+	log -c 240 -e "- Remove WireGuard interface"
 	ip link del dev $WIREGUARD_INTERFACE 2>/dev/null || true
 
 	if [ -s "$RESOLV_BAK" ]; then
-		echo -c 240 -e "- Restore original resolver configuration"
+		log -c 240 -e "- Restore original resolver configuration"
 		mv "$RESOLV_BAK" "$RESOLV_WORKING_FILE"
 	fi
 }

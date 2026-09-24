@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2018,SC2019,SC2034,SC2086,SC2154,SC2295,SC2317,SC3026,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 IFACE=wlan0
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
@@ -242,7 +245,7 @@ apply_wlan_sequence() {
 }
 
 start() {
-	echo -c 15 "Starting wireless interface"
+	log -c 15 "Starting wireless interface"
 
 	if [ "true" = "$disable_wlan" ]; then
 		echo "WLAN disabled" >&2
@@ -346,7 +349,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping wireless interface"
+	log -c 15 "Stopping wireless interface"
 
 	ifdown $IFACE
 	# play /usr/share/sounds/wifidisconnected.opus

@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068,SC2086,SC2329
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/bin/go2rtc"
 
 DAEMON_ARGS="-d -c /etc/go2rtc.yaml"
@@ -22,14 +25,14 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting Go2RTC"
+	log -c 15 "Starting Go2RTC"
 
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo -c 15 "Stopping Go2RTC"
+	log -c 15 "Stopping Go2RTC"
 
 	stop_daemon
 }

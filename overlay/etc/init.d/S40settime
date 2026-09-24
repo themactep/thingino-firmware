@@ -8,6 +8,9 @@
 # Runs between S40network and S41ifplugd: it needs a route to the server, and
 # S41 needs a correct clock for its own messages.
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 NTP_DEFAULT_FILE="/etc/default/ntp.conf"
 NTP_WORKING_FILE="/tmp/ntp.conf"
 
@@ -26,17 +29,17 @@ get_config_file() {
 SYNC_TIMEOUT=3
 
 start() {
-	echo -c 15 "Setting clock"
+	log -c 15 "Setting clock"
 
 	# AP/portal modes have no upstream server to query.
 	if [ -f /run/wlan_ap_mode ] || [ -f /run/portal_mode ]; then
-		echo -c 142 -e "- AP/portal mode, skipping" >&2
+		log -c 142 -e "- AP/portal mode, skipping" >&2
 		return 0
 	fi
 
 	config_file="$(get_config_file)"
 	if [ -z "$config_file" ]; then
-		echo -c 142 -e "- No NTP configuration, keeping build time" >&2
+		log -c 142 -e "- No NTP configuration, keeping build time" >&2
 		return 0
 	fi
 
@@ -44,15 +47,15 @@ start() {
 	# with the one already resolved in the config file.
 	peer="$(awk '$1 == "server" { print $2; exit }' "$config_file" 2>/dev/null)"
 	if [ -z "$peer" ]; then
-		echo -c 142 -e "- No NTP server configured, keeping build time" >&2
+		log -c 142 -e "- No NTP server configured, keeping build time" >&2
 		return 0
 	fi
 
-	echo -c 240 -e "- Syncing with $peer"
+	log -c 240 -e "- Syncing with $peer"
 	if timeout "$SYNC_TIMEOUT" ntpd -q -n -p "$peer" >/dev/null 2>&1; then
-		echo -c 240 -e "- Clock set to $(date)"
+		log -c 240 -e "- Clock set to $(date)"
 	else
-		echo -c 142 -e "- Sync failed, keeping build time" >&2
+		log -c 142 -e "- Sync failed, keeping build time" >&2
 	fi
 
 	return 0

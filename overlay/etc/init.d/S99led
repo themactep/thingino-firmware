@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 has_sysfs_leds() {
@@ -10,10 +13,10 @@ has_sysfs_leds() {
 }
 
 start() {
-	echo -c 15 "Configuring LEDs"
+	log -c 15 "Configuring LEDs"
 
 	if ! has_sysfs_leds; then
-		echo -c 142 -e "No kernel LED channels found" >&2
+		log -c 142 -e "No kernel LED channels found" >&2
 		return
 	fi
 

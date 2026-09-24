@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2086,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 load_modules() {
 	local file=$1
 	[ -r "$file" ] || return 0
@@ -9,13 +12,13 @@ load_modules() {
 		case "$module" in
 			"" | "#"*) continue ;;
 		esac
-		echo -c 240 -e "- Loading $module $args"
+		log -c 240 -e "- Loading $module $args"
 		modprobe $module $args
 	done <$file
 }
 
 start() {
-	echo -c 15 "Loading kernel modules"
+	log -c 15 "Loading kernel modules"
 
 	load_modules /etc/modules
 	[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do

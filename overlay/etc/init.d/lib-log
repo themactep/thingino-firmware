@@ -1,0 +1,40 @@
+#!/bin/sh
+# Shared logging helper for init scripts. Sourced, not an init entry point.
+#
+#   log -c COLOR [-e] MESSAGE
+#
+# Prints MESSAGE to the console exactly like the BusyBox echo -c extension and
+# also hands the plain text to syslogd, so boot-time status lines survive on a
+# remote collector. The syslog priority is derived from the color: 160 is an
+# error, 142 a warning, 118/196/208 a notice, everything else is info. Logging
+# before syslogd has opened /dev/log is silently dropped.
+
+log() {
+	echo "$@"
+	_log_to_syslog "$@"
+}
+
+_log_to_syslog() {
+	_log_prio=info
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			-c)
+				case "$2" in
+					160) _log_prio=err ;;
+					142) _log_prio=warning ;;
+					118 | 196 | 208) _log_prio=notice ;;
+				esac
+				shift 2
+				;;
+			-n | -e | -E)
+				shift
+				;;
+			*)
+				break
+				;;
+		esac
+	done
+	[ $# -gt 0 ] || return 0
+	logger -p "daemon.$_log_prio" -t "${0##*/}" "$*" 2>/dev/null || true
+	return 0
+}

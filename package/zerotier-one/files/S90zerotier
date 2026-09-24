@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2181
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/zerotier-one"
 DAEMON_NAME="zerotier-one"
 action="$1"
@@ -35,7 +38,7 @@ case "$action" in
 	force)
 		abort_if_running
 		validate
-		echo -c 15 "Starting ZeroTier-One"
+		log -c 15 "Starting ZeroTier-One"
 		modprobe tun && $DAEMON -d >/dev/null 2>&1
 		join
 		;;
@@ -52,7 +55,7 @@ case "$action" in
 		join
 		;;
 	stop)
-		echo -c 15 "Stopping ZeroTier-One"
+		log -c 15 "Stopping ZeroTier-One"
 		killall -q -9 "$DAEMON_NAME" &&
 			sleep 2 &&
 			rmmod tun &&

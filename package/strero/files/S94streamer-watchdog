@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1090,SC2154,SC2329
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PORTAL_MODE_FLAG="/run/portal_mode"
 DAEMON="$0"
 PIDFILE="/run/streamer-watchdog.pid"
@@ -219,7 +222,7 @@ watchdog_loop() {
 }
 
 start() {
-	echo -c 15 "Starting Streamer Watchdog"
+	log -c 15 "Starting Streamer Watchdog"
 
 	if [ "$ENABLED" != "true" ]; then
 		echo "Streamer watchdog disabled"
@@ -235,7 +238,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Streamer Watchdog"
+	log -c 15 "Stopping Streamer Watchdog"
 
 	stop_daemon
 

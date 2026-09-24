@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2154
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PORTAL_MODE_FLAG="/run/portal_mode"
 DAEMON="/usr/bin/streamer"
 PIDFILE="/run/streamer.pid"
@@ -55,7 +58,7 @@ check_ssl_certificates() {
 }
 
 start() {
-	echo -c 15 "Starting Streamer"
+	log -c 15 "Starting Streamer"
 
 	if is_streamer_disabled; then
 		echo "Streamer disabled" >&2
@@ -69,7 +72,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Streamer"
+	log -c 15 "Stopping Streamer"
 
 	if is_streamer_disabled; then
 		echo "Streamer disabled" >&2

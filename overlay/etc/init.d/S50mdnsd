@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1090,SC2018,SC2019,SC2068,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/sbin/mdnsd"
 PORTAL_MODE_FLAG="/run/portal_mode"
 AP_MODE_FLAG="/run/wlan_ap_mode"
@@ -286,7 +289,7 @@ generate_rtsp_services() {
 }
 
 start() {
-	echo -c 15 "Starting mdnsd"
+	log -c 15 "Starting mdnsd"
 
 	generate_web_services
 	generate_thingino_service
@@ -307,7 +310,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping mdnsd"
+	log -c 15 "Stopping mdnsd"
 
 	stop_daemon
 }

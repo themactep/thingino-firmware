@@ -6,6 +6,9 @@
 # and applies the configuration to the system
 #
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
 
 die() {
@@ -466,7 +469,7 @@ do_provisioning() {
 
 case "$1" in
 	start)
-		echo -c 15 "Starting provisioning"
+		log -c 15 "Starting provisioning"
 		do_provisioning
 		;;
 	stop) ;;
@@ -474,7 +477,7 @@ case "$1" in
 		$0 start
 		;;
 	genpw)
-		echo -c 15 "Generate provisioning password hash"
+		log -c 15 "Generate provisioning password hash"
 		echo "Enter password (will be hidden):"
 		read -s password
 		echo

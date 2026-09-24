@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC1090
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/bin/floodlightd"
 PIDFILE="/run/floodlightd.pid"
 CONF="/etc/floodlightd.conf"
@@ -35,13 +38,13 @@ build_args() {
 }
 
 start() {
-	echo -c 15 "Starting floodlightd"
+	log -c 15 "Starting floodlightd"
 	# shellcheck disable=SC2046
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $(build_args)
 }
 
 stop() {
-	echo -c 15 "Stopping floodlightd"
+	log -c 15 "Stopping floodlightd"
 	start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
 	rm -f "$PIDFILE"
 }

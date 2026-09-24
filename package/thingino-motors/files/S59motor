@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068,SC2086,SC2154,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/bin/motors-daemon"
 DAEMON_ARGS="-p"
 PIDFILE="/run/motors-daemon.pid"
@@ -78,7 +81,7 @@ position_motors() {
 }
 
 start() {
-	echo -c 15 "Setting up motors"
+	log -c 15 "Setting up motors"
 
 	gpio_pan=$(jct $MOTORS_CONFIG get motors.gpio_pan)
 	gpio_tilt=$(jct $MOTORS_CONFIG get motors.gpio_tilt)
@@ -169,7 +172,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping motors"
+	log -c 15 "Stopping motors"
 
 	stop_daemon
 
@@ -180,7 +183,7 @@ stop() {
 }
 
 reload() {
-	echo -c 15 "Reloading motors config"
+	log -c 15 "Reloading motors config"
 
 	# Re-read userspace motor settings (invert_x/invert_y, speeds, accel,
 	# timeouts, pos_0) in the running daemon without touching the kernel

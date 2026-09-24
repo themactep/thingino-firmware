@@ -1,11 +1,14 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 PRUDYNT_APP="prudynt"
 PRUDYNT_CONFIG="/etc/prudynt.json"
 FIFO_PATH="/run/prudynt/mp4ctl"
 
 start() {
-	echo -c 15 "Starting Record service"
+	log -c 15 "Starting Record service"
 
 	if ! pidof $PRUDYNT_APP >/dev/null 2>&1; then
 		echo "Streamer is not running" >&2
@@ -21,7 +24,7 @@ start() {
 }
 
 stop() {
-	echo -c 15 "Stopping Recording service"
+	log -c 15 "Stopping Recording service"
 
 	pidof prudynt || return 0
 

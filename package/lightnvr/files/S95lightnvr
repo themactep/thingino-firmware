@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2068
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="/usr/bin/lightnvr"
 DAEMON_ARGS=""
 PIDFILE="/var/run/lightnvr.pid"
@@ -23,14 +26,14 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting LightNVR"
+	log -c 15 "Starting LightNVR"
 
 	# shellcheck disable=SC2086
 	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo -c 15 "Stopping LightNVR"
+	log -c 15 "Stopping LightNVR"
 
 	stop_daemon
 }

@@ -1,9 +1,12 @@
 #!/bin/sh
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 MDEV="/sbin/mdev"
 
 start() {
-	echo -c 15 "Configuring mdev"
+	log -c 15 "Configuring mdev"
 
 	if [ -w /proc/sys/kernel/hotplug ]; then
 		echo "$MDEV" >/proc/sys/kernel/hotplug

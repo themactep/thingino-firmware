@@ -1,6 +1,9 @@
 #! /bin/sh
 # shellcheck disable=SC2086
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 DAEMON="$(command -v seedrng 2>/dev/null || echo /sbin/seedrng)"
 DAEMON_ARGS="-d /etc/seedrng"
 PIDFILE="/run/seedrng.pid"
@@ -26,13 +29,13 @@ stop_daemon() {
 }
 
 start() {
-	echo -c 15 "Starting seedrng"
+	log -c 15 "Starting seedrng"
 
 	start_daemon
 }
 
 stop() {
-	echo -c 15 "Stopping seedrng"
+	log -c 15 "Stopping seedrng"
 
 	stop_daemon
 }

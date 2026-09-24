@@ -1,6 +1,9 @@
 #!/bin/sh
 # shellcheck disable=SC2086,SC3043
 
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
 decrement_mac() {
 	local mac last_byte_dec
 
@@ -34,7 +37,7 @@ start() {
 		daddr=$usbmac
 	fi
 
-	echo -c 15 "Starting CDC Ethernet client gadget"
+	log -c 15 "Starting CDC Ethernet client gadget"
 	modprobe g_ncm iManufacturer=thingino host_addr=$host_addr dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 }

@@ -1,6 +1,9 @@
 #!/bin/sh
 
-echo -c 196 -e "\n\nGoing to reboot!\n"
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
+log -c 196 -e "\n\nGoing to reboot!\n"
 
 # Run init scripts in the desired order: F, K, S with reversed numerical order within each group.
 # Skip K99watchdog — handled after sync so the hardware watchdog stays armed as a fallback.
