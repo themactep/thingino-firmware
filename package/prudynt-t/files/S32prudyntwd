@@ -142,7 +142,14 @@ watch() {
 			continue
 		fi
 
-		# Stream is down: restart and see whether that fixes it.
+		# Stream is down: restart and see whether that fixes it. Skip while an
+		# S31 restart (manual or another watchdog) is in flight; re-probe next
+		# round instead of stacking a concurrent stop/start.
+		if [ -d /run/prudynt.lock ]; then
+			log -c 240 -e "Stream Watchdog: prudynt restart in progress, waiting"
+			sleep $RESTART_DELAY
+			continue
+		fi
 		log -c 160 -e "Stream Watchdog: stream is down, restarting prudynt"
 		service restart prudynt
 		consecutive=$((consecutive + 1))
