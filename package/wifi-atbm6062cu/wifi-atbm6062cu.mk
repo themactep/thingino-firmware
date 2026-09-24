@@ -22,6 +22,16 @@ define WIFI_ATBM6062CU_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_DYNAMIC_DEBUG)
+	# The prebuilt blob is built against a kernel with CONFIG_XFRM=y; on 3.10
+	# that adds sk_policy[2] to struct sock, so without it the blob misreads
+	# socket structs and oopses. Enable the IPsec framework (and the ESP pieces
+	# that ride with it) only for boards using this blob.
+	$(call KCONFIG_ENABLE_OPT,CONFIG_XFRM)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_XFRM_ALGO)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INET_ESP)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INET_TUNNEL)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CRYPTO_AUTHENC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CRYPTO_AEAD)
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
