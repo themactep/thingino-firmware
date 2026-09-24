@@ -1,0 +1,15 @@
+{
+    "image": {
+        "hflip": true,
+        "vflip": true
+    },
+    "sensor": {
+        "model": "sc2337p",
+        "i2c_address": 48,
+        "width": 1920,
+        "height": 1080,
+        "fps": 30,
+        "min_fps": 5,
+        "gpio_reset": 18
+    }
+}
