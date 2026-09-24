@@ -291,4 +291,16 @@ endef
 INGENIC_SDK_ROOTFS_PRE_CMD_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
 
 $(eval $(kernel-module))
+
+# open-tx-isp installs the same canonical tx-isp-<soc>.ko path. Drop the SDK's
+# proprietary module after the kernel-module install so the two packages
+# cannot race for that file when the final target is assembled; the open
+# driver must be the one that ships.
+ifeq ($(BR2_PACKAGE_OPEN_TX_ISP),y)
+define INGENIC_SDK_DROP_PROPRIETARY_TX_ISP
+	rm -f $(TARGET_DIR)/usr/lib/modules/*/ingenic/tx-isp-*.ko
+endef
+INGENIC_SDK_POST_INSTALL_TARGET_HOOKS += INGENIC_SDK_DROP_PROPRIETARY_TX_ISP
+endif
+
 $(eval $(generic-package))
