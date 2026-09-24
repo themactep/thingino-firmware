@@ -28,5 +28,10 @@
     "speed_tilt": 900,
     "steps_pan": 4050,
     "steps_tilt": 1000
+  },
+  "daynight": {
+    "initial_mode": "day",
+    "day_threshold": 38,
+    "night_threshold": 30
   }
 }
