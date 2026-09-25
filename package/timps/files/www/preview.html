@@ -158,7 +158,22 @@
               </div>
               <div class="text-light small">Connecting...</div>
             </div>
-            <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
+            <!-- PTZ joystick; preview-motors.js shows it on pan/tilt cameras -->
+            <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
+              <div id="motor">
+                <div class="jst">
+                  <a class="s" data-dir="uc"></a>
+                  <a class="s" data-dir="ur"></a>
+                  <a class="s" data-dir="cr"></a>
+                  <a class="s" data-dir="dr"></a>
+                  <a class="s" data-dir="dc"></a>
+                  <a class="s" data-dir="dl"></a>
+                  <a class="s" data-dir="cl"></a>
+                  <a class="s" data-dir="ul"></a>
+                  <a class="b" data-dir="h"></a>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
           <!-- talk-channel state, written only by /a/preview-talk.js. -->
@@ -260,10 +275,13 @@
     let targetBehindS = DEFAULT_MARGIN_S;
     let mode = "mse";                                    // "mse" | "rt" | "whep"
     let lastBufferedValue = String(DEFAULT_MARGIN_S);    // margin to return to from rt/whep
-    // True only on a genuinely first visit - gates the WHEP-preferred default below.
-    const hadNoSavedLatencyPref = localStorage.getItem("ms.latency") === null;
+    // Only a choice made in the dropdown is stored. Fallbacks (WHEP refused,
+    // signalling down during a streamer restart, ...) used to be saved too and
+    // pinned the page to buffered for good; "ms.format" leaves those behind.
+    const PREF_KEY = "ms.format";
+    const hadNoSavedLatencyPref = localStorage.getItem(PREF_KEY) === null;
     (function readLatencyPref() {
-      const saved = localStorage.getItem("ms.latency");
+      const saved = localStorage.getItem(PREF_KEY);
       if (saved === RT_VALUE) { mode = "rt"; return; }
       if (saved === WHEP_VALUE) { mode = "whep"; return; }
       const n = parseMargin(saved);
@@ -277,7 +295,7 @@
                            typeof window.EncodedVideoChunk === "function";
     if (!HAVE_WEBCODECS) {
       if (rtOption) rtOption.remove();
-      if (mode === "rt") { mode = "mse"; localStorage.setItem("ms.latency", lastBufferedValue); }
+      if (mode === "rt") mode = "mse";
     }
 
     // WebRTC availability, gate 1 of 2: the browser.
@@ -286,7 +304,7 @@
     const HAVE_WEBRTC = typeof window.RTCPeerConnection === "function";
     if (!HAVE_WEBRTC) {
       if (whepOption) whepOption.remove();
-      if (mode === "whep") { mode = "mse"; localStorage.setItem("ms.latency", lastBufferedValue); }
+      if (mode === "whep") mode = "mse";
     }
 
     function syncLatencySelect() {
@@ -332,7 +350,7 @@
       syncLatencySelect();
       latencySelect.addEventListener("change", () => {
         const v = latencySelect.value;
-        localStorage.setItem("ms.latency", v);
+        localStorage.setItem(PREF_KEY, v);
         const newMode = v === RT_VALUE ? "rt" : v === WHEP_VALUE ? "whep" : "mse";
         if (newMode === "mse") {
           const n = parseMargin(v);
@@ -707,7 +725,6 @@
       if (!ok && mode === "rt") {
         mode = "mse";
         targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
-        localStorage.setItem("ms.latency", lastBufferedValue);
         applyModeUi();
         applyModeAudio();
         setStatus("Real-time mode is H.264-only - this stream is " +
@@ -866,7 +883,6 @@
     function rtFallbackToMse(why) {
       mode = "mse";
       targetBehindS = parseMargin(lastBufferedValue) === null ? DEFAULT_MARGIN_S : parseMargin(lastBufferedValue);
-      localStorage.setItem("ms.latency", lastBufferedValue);
       if (rtOption) { rtOption.disabled = true; rtOption.title = why; }
       applyModeUi();
       applyModeAudio();
@@ -1231,7 +1247,6 @@
       mode = "mse";
       const n = parseMargin(lastBufferedValue);
       targetBehindS = n === null ? DEFAULT_MARGIN_S : n;
-      localStorage.setItem("ms.latency", lastBufferedValue);
       if (whepOption && permanent) { whepOption.disabled = true; whepOption.title = why; }
       applyModeUi();
       applyModeAudio();
@@ -1822,10 +1837,7 @@
 
     (async () => {
       if (hadNoSavedLatencyPref && HAVE_WEBRTC) {
-        if (await refreshWhepOption() === "ok") {
-          mode = "whep";
-          localStorage.setItem("ms.latency", WHEP_VALUE);
-        }
+        if (await refreshWhepOption() === "ok") mode = "whep";
       } else {
         refreshWhepOption();   // async; may disable/remove "whep" once caps arrive
       }
@@ -1842,5 +1854,18 @@
 </script>
 <script src="/a/preview-motion.js"></script>
 <script src="/a/preview-talk.js"></script>
+<script>
+  // assemble_plugins.py no longer injects plugin preview scripts into
+  // preview.html (upstream e51a4a76b). Written during parsing so they still
+  // see DOMContentLoaded, like the tags it used to add.
+  (function () {
+    var p = (window.thinginoUIConfig || {}).plugins || {};
+    Object.keys(p).forEach(function (k) {
+      (p[k].previewScripts || []).forEach(function (src) {
+        if (/^\/a\/[\w.-]+\.js$/.test(src)) document.write('<script src="' + src + '"><\/script>');
+      });
+    });
+  })();
+</script>
 </body>
 </html>
