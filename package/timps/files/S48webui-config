@@ -16,7 +16,7 @@ fi
 
 start() {
 	if [ ! -f "$API_KEY_FILE" ]; then
-		echo -c 15 "Generating API key"
+		echo "Generating API key"
 		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
 		echo "$new_key" >"$API_KEY_FILE"
 		chmod 600 "$API_KEY_FILE"
