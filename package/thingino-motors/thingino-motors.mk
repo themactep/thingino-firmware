@@ -7,11 +7,16 @@ THINGINO_MOTORS_SITE_METHOD = git
 ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(if $(BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY),,$(BR2_PACKAGE_THINGINO_STREAMER_TIMPS))),)
 THINGINO_MOTORS_SITE = https://github.com/Lu-Fi/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = thingino-motors-websocket
-THINGINO_MOTORS_VERSION = e0b7c8c25ea99610e9d137d57a83db9f9b82527c
+THINGINO_MOTORS_VERSION = b73170f7eb2b75662003cced223165ca5ad7428e
+# -flto on the fork's daemon: cross-file inlining over its seven sources, a
+# further text 63522 -> 57734 B (-9.1%), xz 26684 -> 24660 B on the WS+TLS
+# build. Fork only - upstream is one source file and untested with it.
+THINGINO_MOTORS_DAEMON_LTO = -flto
 else
 THINGINO_MOTORS_SITE = https://github.com/thingino/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = main
 THINGINO_MOTORS_VERSION = dcfdc27473d23a528e7bb57407fbc242de9b7053
+THINGINO_MOTORS_DAEMON_LTO =
 endif
 THINGINO_MOTORS_LICENSE = MIT
 THINGINO_MOTORS_LICENSE_FILES = LICENSE
@@ -112,9 +117,10 @@ endif
 
 # -ffunction-sections/-fdata-sections + --gc-sections: per-function dead-code
 # stripping. Measured -7680 B (-12.2%) on the WS build.
+# THINGINO_MOTORS_DAEMON_LTO: -flto on the fork only, see the SITE block.
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_VERSION_DEF) $(@D)/src/motor.c -o $(@D)/motors -ljct -Wl,--gc-sections
-	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_DAEMON_DEFS) $(THINGINO_MOTORS_DAEMON_SRCS) -o $(@D)/motors-daemon $(THINGINO_MOTORS_DAEMON_LIBS) -Wl,--gc-sections
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(THINGINO_MOTORS_DAEMON_LTO) -ffunction-sections -fdata-sections $(THINGINO_MOTORS_DAEMON_DEFS) $(THINGINO_MOTORS_DAEMON_SRCS) -o $(@D)/motors-daemon $(THINGINO_MOTORS_DAEMON_LIBS) -Wl,--gc-sections
 endef
 
 define THINGINO_MOTORS_INSTALL_TARGET_CMDS
