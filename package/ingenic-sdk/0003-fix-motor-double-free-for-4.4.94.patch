@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000005 Mon Sep 17 00:00:00 2001
+From: Thingino Project
+Date: Thu, 17 Jul 2025 21:00:00 +0000
+Subject: [PATCH] motor: remove kfree(mdev) to fix double-free
+
+motor_probe() allocates mdev with devm_kzalloc(), which is
+automatically freed by the kernel devres framework on device unbind.
+The original motor_remove() also calls kfree(mdev), causing a
+double-free that corrupts the kernel heap.
+
+This bug was latent because motor_probe() was never called until
+of_match_table was added. Now that the driver actually probes,
+the double-free triggers on module unload/reboot.
+
+Remove the manual kfree and let devm handle it.
+
+Signed-off-by: Thingino Project
+---
+--- a/4.4.94/misc/motor/motor.c
++++ b/4.4.94/misc/motor/motor.c
+@@ -933,7 +933,6 @@ static int motor_remove(struct platform_device *pdev)
+ 
+ 	misc_deregister(&mdev->misc_dev);
+ 
+-	kfree(mdev);
+ 	return 0;
+ }
+ 
