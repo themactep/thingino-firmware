@@ -1104,6 +1104,7 @@
     let whep = null;                // active peer-connection state, or null
     let whepRetries = 0;            // consecutive reconnect attempts
     let whepTokenRefreshed = false; // one token renewal per healthy run
+    let whepChnSelect = false;      // caps.webrtc.chn_select: POST honours ?chn=
 
     // What a 426 from /webrtc/whep actually means, in one sentence, in the two
     // places that have to say it (the option's tooltip and the status line).
@@ -1188,6 +1189,7 @@
       const j = await controlSnapshot(b, tok);
       if (!j || !j.caps) return "unknown";
       const w = j.caps.webrtc;
+      whepChnSelect = !!(w && w.chn_select);
       if (!w) {
         whepOption.remove();
         if (mode === "whep")
@@ -1221,10 +1223,10 @@
 
       const ok = (w.enabled | 0) >= 2 || b.slice(0, 6) === "https:";
       whepOption.disabled = false;
-      whepOption.title = ok
-        ? "Browser-native WebRTC; streams whichever channel webrtc.channel " +
-          "names in timps.conf (the main/sub selector does not apply)"
-        : WHEP_TLS_HINT;
+      whepOption.title = !ok ? WHEP_TLS_HINT
+        : whepChnSelect ? "Browser-native WebRTC"
+        : "Browser-native WebRTC; streams whichever channel webrtc.channel " +
+          "names in timps.conf (the main/sub selector does not apply)";
       return ok ? "ok" : "tls";
     }
 
@@ -1365,7 +1367,9 @@
       }
       if (st.dead || session !== mySession) return;
 
-      const url = b + "/webrtc/whep";
+      const chn = streamSelect.value === "1" ? "1" : "0";
+      // An older timps ignores the query and sends webrtc.channel.
+      const url = b + "/webrtc/whep?chn=" + chn;
       const headers = { "Content-Type": "application/sdp" };
       if (token) headers["X-Timps-Token"] = token;
 
@@ -1408,9 +1412,15 @@
         }
         if (res.status === 400) {
           // webrtc.c 400s an offer it cannot answer - in practice because the
-          // channel webrtc.channel names is not H.264.
-          whepFallbackToMse("The camera rejected the WebRTC offer - the stream " +
-                            "webrtc.channel names must be H.264", true);
+          // stream is not H.264 (or, with ?chn=, not running). Only that
+          // stream is at fault, so the other one keeps its WebRTC option.
+          if (whepChnSelect)
+            whepFallbackToMse("The camera rejected the WebRTC offer - the " +
+                              (chn === "1" ? "sub" : "main") + " stream must " +
+                              "be running and H.264", false);
+          else
+            whepFallbackToMse("The camera rejected the WebRTC offer - the " +
+                              "stream webrtc.channel names must be H.264", true);
           return;
         }
         if (res.status === 403) {
@@ -1450,8 +1460,9 @@
       if (st.dead || session !== mySession) return;
       setConnectedUi(true);
       noteProgress();
-      setStatus("WebRTC (WHEP) · negotiating… (stream selected by webrtc.channel " +
-                "on the camera, not by the selector above)");
+      setStatus(whepChnSelect ? "WebRTC (WHEP) · negotiating…"
+        : "WebRTC (WHEP) · negotiating… (stream selected by webrtc.channel " +
+          "on the camera, not by the selector above)");
 
       st.statsTimer = setInterval(async () => {
         if (st.dead || session !== mySession) return;
@@ -1683,7 +1694,7 @@
       // main and sub can run different codecs, so the real-time gate is
       // per-channel; this may also bounce an active rt session back to MSE
       refreshRtOption();
-      if (mode === "whep") {
+      if (mode === "whep" && !whepChnSelect) {
         setStatus("WebRTC streams the channel webrtc.channel names on the " +
                   "camera; the main/sub selector applies to the buffered and " +
                   "real-time players only.");
