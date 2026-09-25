@@ -158,22 +158,7 @@
               </div>
               <div class="text-light small">Connecting...</div>
             </div>
-            <!-- PTZ joystick; preview-motors.js shows it on pan/tilt cameras -->
-            <div class="position-absolute top-50 start-50 translate-middle" id="motor-overlay" style="display:none">
-              <div id="motor">
-                <div class="jst">
-                  <a class="s" data-dir="uc"></a>
-                  <a class="s" data-dir="ur"></a>
-                  <a class="s" data-dir="cr"></a>
-                  <a class="s" data-dir="dr"></a>
-                  <a class="s" data-dir="dc"></a>
-                  <a class="s" data-dir="dl"></a>
-                  <a class="s" data-dir="cl"></a>
-                  <a class="s" data-dir="ul"></a>
-                  <a class="b" data-dir="h"></a>
-                </div>
-              </div>
-            </div>
+            <!-- THINGINO_PLUGIN_PREVIEW_BODY -->
           </div>
           <div class="ms-hint mt-2" id="ms-status"></div>
           <!-- talk-channel state, written only by /a/preview-talk.js. -->
@@ -1854,18 +1839,5 @@
 </script>
 <script src="/a/preview-motion.js"></script>
 <script src="/a/preview-talk.js"></script>
-<script>
-  // assemble_plugins.py no longer injects plugin preview scripts into
-  // preview.html (upstream e51a4a76b). Written during parsing so they still
-  // see DOMContentLoaded, like the tags it used to add.
-  (function () {
-    var p = (window.thinginoUIConfig || {}).plugins || {};
-    Object.keys(p).forEach(function (k) {
-      (p[k].previewScripts || []).forEach(function (src) {
-        if (/^\/a\/[\w.-]+\.js$/.test(src)) document.write('<script src="' + src + '"><\/script>');
-      });
-    });
-  })();
-</script>
 </body>
 </html>

@@ -828,6 +828,21 @@ define TIMPS_INSTALL_WEBUI_CONFIG_FIX
 		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
+
+# assemble_plugins.py skips every preview.html (prudynt's ships its own PTZ
+# UI), but ours relies on the plugins' preview html + scripts (motors
+# joystick, drag-to-point). Apply them with the assembler's own functions,
+# from the manifests actually installed; the marker makes it run once.
+define TIMPS_PREVIEW_PLUGINS
+	@python3 -c 'import sys; sys.path.insert(0, "$(THINGINO_WEBUI_PKGDIR)/scripts"); \
+		from pathlib import Path; import assemble_plugins as a; \
+		t = Path("$(TARGET_DIR)"); p = t / "var/www/preview.html"; \
+		s = p.read_text(encoding="utf-8") if p.is_file() else ""; \
+		m = [x[0] for x in a.load_manifests(t)] if a.PREVIEW_BODY_MARKER in s else []; \
+		ts = a.ASSET_TS_RE.search(s); ts = ts.group(1) if ts else ""; \
+		m and p.write_text(a.inject_preview_scripts(a.inject_preview_body(s, m), m, ts), encoding="utf-8")'
+endef
+TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_PREVIEW_PLUGINS
 endif
 
 # NOTE: send-to-* notification toolkit now lives in package/thingino-send2.
