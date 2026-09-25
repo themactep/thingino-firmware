@@ -1,18 +1,4 @@
-/**
- * Preview-page PTZ settings modal (thingino-motors).
- *
- * An icon button in the Live View card header - alongside the motion-grid
- * and stats toggles - opens a modal with quick settings (preview control
- * mode, pan/tilt speed) and PTZ presets.
- *
- * Settings read/write through /x/json-motor-params.cgi (control mode and
- * speeds; the CGI reloads the motors-daemon config on save so speed
- * changes apply without a reboot). Presets read/write through
- * /x/json-motor.cgi (d=pg / d=ps / d=pr / d=pd / d=pu / d=po).
- *
- * Plugin-owned file: registered via motors.webui.json `preview.scripts`,
- * injected into the preview page at build time.
- */
+// Preview-page PTZ settings modal (thingino-motors).
 (function () {
   "use strict";
 
@@ -295,11 +281,6 @@
   let favPosition = null;
   let favPollTimer = null;
 
-  // A real motor's settle position after "run preset" is not bit-exact with
-  // the stored coordinate (backlash, step rounding) - seen live as an exact
-  // x match with y off by 10 steps on a fresh move. Bit-exact equality would
-  // never highlight anything post-move, only right after a reflash where the
-  // calibrated position and the preset happen to be identical.
   const FAV_POSITION_TOLERANCE = 20;
   function favIsActive(p) {
     if (!favPosition || favPosition.xpos === undefined) return false;
@@ -437,11 +418,6 @@
     });
   }
 
-  // json-motor.cgi only ever echoes the numeric preset id back ("preset 3
-  // run") - it has no reason to look up the description for a fire-and-
-  // forget status string. Callers that already have the name (every row in
-  // this file does) pass it as `label` so the toast says something a human
-  // recognizes instead of an id they have to cross-reference.
   const PRESET_ACTION_VERB = { pr: "Moved to", pd: "Deleted", pu: "Updated" };
   async function runPresetAction(action, extra, label) {
     try {

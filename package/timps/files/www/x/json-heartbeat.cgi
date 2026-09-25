@@ -1,10 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091
 # timps replacement for the SSE heartbeat CGI (same name, same URL).
-# The stock version proxies the thingino agent, which has no timps backend
-# and reports unknown/false for every control-bar field (resetting the
-# day/night/auto and Mic buttons). This one builds the payload from timps's
-# GET /control and the thingino GPIO tools (see timps-heartbeat.sh).
 
 # Check authentication
 . /var/www/x/auth.sh

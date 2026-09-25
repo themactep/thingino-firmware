@@ -380,13 +380,6 @@
       formData.set("accel_tilt", "0");
     }
 
-    // #joystick_sensitivity is disabled outside joystick mode (see
-    // updateJoystickSensitivityInputs()), and FormData silently drops
-    // disabled controls - without this, saving the form in any other mode
-    // would submit no value at all and the CGI's own fallback would reset
-    // whatever sensitivity was previously configured back to its default.
-    // The input's own .value still holds the loaded config value even
-    // while disabled, so re-adding it here just carries it through.
     const joystickSensitivityEl = $("#joystick_sensitivity");
     if (joystickSensitivityEl) {
       formData.set("joystick_sensitivity", joystickSensitivityEl.value);
@@ -641,9 +634,7 @@
     }
   }
 
-  // The build version rides along in the same `motors -j` status the CGI
-  // already proxies, so no extra endpoint. Stays blank on an older daemon
-  // build that has no "version" field, or when the daemon is down.
+  // The build version rides along in the same `motors -j` status the CGI already proxies, so no extra endpoint.
   async function loadMotorsVersion() {
     if (!versionBadge) return;
     try {

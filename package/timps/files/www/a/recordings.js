@@ -1,7 +1,3 @@
-/* recordings.js - browse/play/download/delete the timps SD recordings listed
- * by /x/json-recordings.cgi (a filesystem helper). Playback + download stream
- * the segment from the same CGI (?file=<rel>). Free-space is read from timps
- * GET /control (record.free_mb) when available. Dependency-free. */
 (function () {
   "use strict";
 

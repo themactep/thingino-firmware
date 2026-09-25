@@ -1,11 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091
-# json-recordings.cgi - browse/serve the timps SD recordings. This is a
-# FILESYSTEM helper (like json-sensor-info.cgi), not a streamer bridge:
-#   GET                -> JSON list of segments under <record.dir>/<host>/records
-#   GET ?file=<rel>    -> streams that segment as video/mp4 (play/download)
-#   GET ?del=<rel>     -> deletes that segment
-# Auth-protected; the file/del parameter is guarded against path traversal.
+# json-recordings.cgi - browse/serve the timps SD recordings.
 
 . /var/www/x/auth.sh
 require_auth
@@ -14,20 +9,9 @@ CONF=/etc/timps.conf
 DIR=$(sed -n 's/^[[:space:]]*record\.dir[[:space:]]*=[[:space:]]*"\{0,1\}\([^"#]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1 | tr -d ' \t')
 [ -z "$DIR" ] && DIR=/mnt/mmcblk0p1
 BASE="$DIR/$(hostname)/records"
-# Resolved once, used by within_base() below - if BASE itself doesn't exist
-# yet (no recordings ever made), fall back to the literal path so the
-# listing branch further down still reports an empty list instead of erroring.
 REAL_BASE=$(readlink -f "$BASE" 2>/dev/null) || REAL_BASE=$BASE
 
 qval() { printf '%s' "$QUERY_STRING" | sed -n "s/.*$1=\([^&]*\).*/\1/p"; }
-# Found by review: printf '%b' interprets EVERY backslash escape in its
-# argument, not just the \xHH sequences the second/third substitutions
-# below insert for %XX - a raw (unencoded) backslash in the query string
-# hits one of printf's other escapes (e.g. \c, "stop all output now") and
-# truncates the decoded value. Doubling any backslash already present in
-# the input FIRST means %b's \\ -> \ folds it right back to a single
-# literal backslash instead of triggering a special escape; it runs before
-# the %XX substitution below so the backslashes THAT inserts stay single.
 urldec() { printf '%b' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/+/ /g; s/%\(..\)/\\x\1/g')"; }
 
 FILE=$(urldec "$(qval file)")
@@ -36,13 +20,6 @@ DEL=$(urldec "$(qval del)")
 # reject absolute paths and traversal
 safe() { case "$1" in "" | /* | *..*) return 1 ;; *) return 0 ;; esac }
 
-# The leaf-only symlink check further down (-L on $BASE/$FILE) only catches
-# a symlinked FILE - a symlinked DIRECTORY anywhere under BASE (e.g. a
-# planted "records/x -> /etc") walks the leaf-check right past it, since
-# the leaf itself is then a perfectly ordinary file. Resolving the whole
-# path and checking it's still under BASE closes that: a request that
-# reaches outside the recordings tree via any intermediate symlink is
-# rejected regardless of what the final component looks like.
 within_base() {
 	resolved=$(readlink -f "$1" 2>/dev/null) || return 1
 	case "$resolved" in
@@ -60,9 +37,6 @@ if [ -n "$DEL" ]; then
 fi
 
 if [ -n "$FILE" ]; then
-	# reject traversal, missing files, symlinked leaves, and (within_base)
-	# any symlinked directory component - a planted symlink anywhere under
-	# BASE could otherwise exfiltrate or delete arbitrary files
 	if ! safe "$FILE" || [ ! -f "$BASE/$FILE" ] || [ -L "$BASE/$FILE" ] || ! within_base "$BASE/$FILE"; then
 		printf 'Status: 404 Not Found\r\n\r\n'
 		exit 0

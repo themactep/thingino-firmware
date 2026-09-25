@@ -1,40 +1,4 @@
-/* preview-talk.js - push-to-talk (browser microphone -> camera speaker) for the
- * timps preview page.
- *
- * Captures the visitor's microphone, encodes it as G.711 mu-law and streams
- * 20 ms binary frames over a WebSocket to timps' /talk endpoint, which decodes
- * them straight into the same IMP_AO speaker path the ONVIF/RTSP backchannel
- * uses. A browser cannot speak RTSP/RTP, which is the whole reason this
- * transport exists.
- *
- * Fails soft throughout, exactly like preview-motion.js: no token, no secure
- * context, or a build without the endpoint just leaves the button hidden. The
- * button is HIDDEN rather than disabled - a greyed control invites "why
- * doesn't this work", a missing one asks nothing.
- *
- * Requires all three of:
- *   - caps.backchannel.talk_ws != 0 from GET /control. That field is timps'
- *     already-decided answer, not a raw config value: 0 = it would not serve
- *     /talk at all right now, 1 = serving, TLS required, 2 = serving, plain
- *     ws:// accepted too. audio.talk_ws=1 on a plaintext port reports 0
- *     (/talk would 426), so there is nothing left here to second-guess -
- *     the only thing this file still derives is the SCHEME, from the same
- *     timps-token.cgi "scheme" field that already picks http:// vs https://
- *     (and, when timps serves both on the one port, the page's own).
- *   - navigator.mediaDevices.getUserMedia. This is the one the camera cannot
- *     fix from its side: browsers refuse it outside a secure context, so on a
- *     plain-http:// page it is simply absent unless the operator granted the
- *     origin one (chrome://flags/#unsafely-treat-insecure-origin-as-secure, a
- *     trusted tunnel, localhost). Hence the check stays, and hence talk_ws=2
- *     is only ever useful to someone who has already done that.
- *   - AudioContext with createScriptProcessor
- *
- * ScriptProcessorNode is deprecated in favour of AudioWorklet and runs on the
- * main thread, so it can glitch under heavy page load. That is a deliberate
- * first-cut choice: a worklet processor's exceptions are swallowed on the
- * audio render thread with no console trace, which is a poor place to be while
- * the C side of this protocol is also new. Revisit once /talk has real miles.
- */
+// preview-talk.js - push-to-talk (browser microphone -> camera speaker) for the timps preview page.
 (function () {
   "use strict";
 
@@ -43,17 +7,11 @@
   if (!btn) return;
 
   const FRAME_MS = 20;
-  /* Must not exceed WS_MAX_PAYLOAD in timps' src/ws.h. One mu-law byte per
-   * sample, so 20 ms at 48 kHz = 960 bytes is the largest frame we can emit
-   * and still fit. Every rate in RATES_OK stays under this. */
+  // Must not exceed WS_MAX_PAYLOAD in timps' src/ws.h.
   const WS_MAX_PAYLOAD = 1024;
-  /* Sample rates timps' talk_ws.c accepts via ?rate= (TALK_RATES there). Kept
-   * in sync by hand; an unlisted rate is refused with 400 by the server, so
-   * checking here just turns a mystery failure into a readable message. */
+  // Sample rates timps' talk_ws.c accepts via ?rate= (TALK_RATES there).
   const RATES_OK = [8000, 16000, 24000, 32000, 44100, 48000];
-  /* Client-side backpressure. The server has its own drop-if-behind guard, but
-   * there is no point handing the socket audio it cannot drain: past this much
-   * queued, drop frames here instead. ~10 frames = 200 ms. */
+  // Client-side backpressure.
   const MAX_BUFFERED = 10 * WS_MAX_PAYLOAD;
   const PROBE_MAX_BACKOFF_MS = 30000;
 
@@ -63,10 +21,6 @@
   let tls = false;    // true once the scheme we actually dial is https/wss
 
   // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
-  // "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
-  // scheme: an https:// page may only open wss:// (mixed content), and an
-  // http:// page cannot clear a self-signed cert on a WebSocket handshake.
-  // Falls back to the older "tls" bool when the CGI predates "scheme".
   function timpsScheme(info) {
     if (!info) return "http";
     if (info.scheme === "both") {
@@ -106,19 +60,13 @@
               : "Talk to the camera (microphone -> camera speaker)";
   }
 
-  /* Reveal the control. Unlike preview-motion.js this is one-way: motion can be
-   * switched on and off live, so that module re-hides its button off the event
-   * stream, but audio.talk_ws is restart-only - once /control says the endpoint
-   * is being served, it is served for the life of this page. */
+  // Reveal the control.
   function showBtn() {
     btn.style.display = "";
     setBtn();
   }
 
-  /* float [-1,1] -> G.711 mu-law byte. The exact inverse of g711_ulaw_decode()
-   * in timps' src/codec/g711.c (Sun/CCITT), so what the camera reconstructs is
-   * what we sampled. No table: ~10 integer ops per sample is cheaper than the
-   * cache miss, and this runs on the main thread. */
+  // float [-1,1] -> G.711 mu-law byte.
   function ulawEncode(f) {
     let s = (f < -1 ? -1 : f > 1 ? 1 : f) * 32767 | 0;
     const sign = (s >> 8) & 0x80;
@@ -131,9 +79,7 @@
     return ~(sign | (exp << 4) | mant) & 0xFF;
   }
 
-  /* ScriptProcessorNode wants a power-of-two buffer (256..16384). Target ~30 ms
-   * so latency stays low without making main-thread glitches likely: 256 at
-   * 8 kHz (32 ms), 1024 at 48 kHz (21 ms). */
+  // ScriptProcessorNode wants a power-of-two buffer (256..16384).
   function bufSizeFor(rate) {
     let n = 256;
     while (n < 16384 && n * 2 <= rate * 0.03) n *= 2;
@@ -150,11 +96,6 @@
     pending = null; pendN = 0; frameSamples = 0;
   }
 
-  /* Always the client-initiated path: a real close frame (1000) makes timps'
-   * ws_read_message() return WS_CLOSED immediately, so talk_ws.c runs
-   * bc_release() and drops the speaker now instead of after its 10 s
-   * stale-owner timeout. Abandoning the socket would "work" but leave the
-   * camera's speaker owned by a session that is already gone. */
   function stop(msg, isErr) {
     teardown();
     if (ws) {
@@ -196,9 +137,6 @@
     try {
       mic = await navigator.mediaDevices.getUserMedia({
         audio: {
-          // The camera has its own AEC (audio.aec / IMP_AI_EnableAec) for the
-          // far end; this is the near-end half - it stops the camera's own
-          // audio, playing out of these speakers, from being sent back.
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
@@ -211,10 +149,7 @@
     }
     if (stopped) { stop(""); return; }
 
-    // Ask for 8 kHz (mu-law's native rate, 64 kbit/s on the wire). Browsers may
-    // decline and impose the hardware rate - iOS Safari commonly forces 48 kHz
-    // - so the requested value is never assumed: read it back and tell the
-    // server what we actually got. timps resamples whatever it is handed.
+    // Ask for 8 kHz (mu-law's native rate, 64 kbit/s on the wire).
     const AC = window.AudioContext || window.webkitAudioContext;
     try {
       ctx = new AC({ sampleRate: 8000 });
@@ -254,9 +189,6 @@
       const n = bufSizeFor(rate);
       spn = ctx.createScriptProcessor(n, 1, 1);
       src = ctx.createMediaStreamSource(mic);
-      // A ScriptProcessorNode only runs while it is connected to a
-      // destination, but routing the microphone to these speakers would be an
-      // instant feedback loop - so terminate it in a muted gain node.
       sink = ctx.createGain();
       sink.gain.value = 0;
 
@@ -316,9 +248,6 @@
     const mode = (data && data.caps && data.caps.backchannel &&
                   data.caps.backchannel.talk_ws) | 0;
     if (!mode) return false;
-    // mode 1 is TLS-only. timps already reports 0 for "=1 but plaintext port",
-    // so this only catches a mismatch (a stale daemon, a hand-edited proxy) -
-    // cheap enough to keep rather than trust the other end completely.
     return mode >= 2 || tls;
   }
 
@@ -343,18 +272,10 @@
     const sch = timpsScheme(info);
     tls = sch === "https";
     base = sch + "://" + host + ":" + port;
-    // Same scheme family as `base`, never hardcoded: an https:// page may only
-    // open wss:// (mixed content), and a plaintext timps listener only speaks
-    // ws://. probe() refuses to show the button for any combination timps
-    // would not actually serve.
     wsBase = (tls ? "wss" : "ws") + "://" + host + ":" + port;
 
     window.addEventListener("pagehide", () => { stopped = true; stop(""); });
 
-    // Hard gates, all permanent for this page load - no point probing without
-    // them. getUserMedia is undefined outside a secure context, which is why
-    // audio.talk_ws=2 alone is not enough on a plain-http:// page: the
-    // operator must also have granted this origin one.
     if (!window.WebSocket) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (!(window.AudioContext || window.webkitAudioContext)) return;

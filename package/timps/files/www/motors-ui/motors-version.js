@@ -35,9 +35,6 @@
         return res.json();
       })
       .then(function (j) {
-        // json-motor.cgi's json_ok() wraps every payload as
-        // {"code":200,"result":"success","message":<motors -j's own object>} -
-        // the version field lives at j.message.version, not j.version.
         var v = j && j.message && j.message.version;
         if (!v) return;
         var el = document.createElement("div");

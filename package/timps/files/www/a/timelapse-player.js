@@ -1,22 +1,3 @@
-/* timelapse-player.js - play back the timps timelapse shots listed by
- * /x/json-timelapse.cgi (a filesystem helper) as a client-side slideshow.
- *
- * There is no video here and deliberately so: the shots are individual JPEGs
- * on the SD card, and muxing them into a clip would mean an encoder pass on a
- * camera SoC. Playback is an <img> src swap driven by a timer, which costs the
- * camera nothing beyond serving the files.
- *
- * Two things keep that workable for a folder holding thousands of frames:
- *   - only the frame NAMES are fetched up front (one CGI call per folder, no
- *     per-file stat on the camera), never the images;
- *   - the images are pulled ahead of the playhead by a LOOKAHEAD-frame
- *     prefetch into the browser's HTTP cache (the CGI marks shots immutable,
- *     so the src swap that follows is a cache hit, not a second trip to the
- *     SD card), throttled to MAX_INFLIGHT concurrent camera requests so a
- *     deep window doesn't burst the whole thing at once.
- * Nothing is ever held in the DOM except the single <img> being shown.
- *
- * Dependency-free, same shape as a/recordings.js. */
 (function () {
   "use strict";
 
@@ -26,21 +7,10 @@
   var LOOKAHEAD = 8;       // frames prefetched ahead of the one on screen -
                            // deep enough to ride out a slow/late frame
                            // without the playhead catching up to the fetch
-  var MAX_INFLIGHT = 4;    // cap on concurrent prefetch requests: each one
-                           // forks auth.sh plus a handful of busybox tools on
-                           // the camera, so bursting the whole LOOKAHEAD
-                           // window out at once (cold start, a big scrub)
-                           // would spike its CPU for nothing
-  var MIN_DELAY_MS = 20;   // ceiling of ~50 fps, whatever the select says
-  // Whole-day playback stitches one day's hour folders together by asking the
-  // per-folder endpoint for each of them. Kept to the same in-flight budget as
-  // the JPEG look-ahead: every call forks a shell and an `ls` on the camera,
-  // and 24 of those at once for a week-old tree is a needless spike. Three
-  // keeps the wall time at ~8 rounds of a cheap listing.
+  var MAX_INFLIGHT = 4;
+  var MIN_DELAY_MS = 20;
   var DAY_CONCURRENCY = 3;
-  // marks a picker row / deep link as "the whole day", not a folder rel. A
-  // bare YYYYMMDD is itself a legal folder rel (a name template may write one
-  // folder per day), so day mode needs a namespace of its own.
+  // marks a picker row / deep link as "the whole day", not a folder rel.
   var DAY_PREFIX = "day:";
 
   var $ = function (id) { return document.getElementById(id); };
@@ -132,9 +102,6 @@
     }, 0);
   }
 
-  // Each frame carries the folder it was listed from, so a merged whole-day
-  // list resolves every frame against ITS OWN hour rather than one shared
-  // prefix. Single-folder mode tags them all with that one folder.
   function relPath(i) {
     var fr = frames[i];
     if (!fr || !fr.f) return "";
@@ -156,9 +123,7 @@
     return Math.max(MIN_DELAY_MS, Math.round(1000 / fps()));
   }
 
-  // Pull queued indices into flight, MAX_INFLIGHT at a time. Re-entered from
-  // each load's onload/onerror as a slot frees up, and from prefetch() below
-  // whenever the window moves.
+  // Pull queued indices into flight, MAX_INFLIGHT at a time.
   function pumpPrefetch() {
     while (pfInflight < MAX_INFLIGHT && pfQueue.length) {
       (function (i) {
@@ -167,10 +132,6 @@
         var im = new Image();
         im.onload = im.onerror = function () {
           pfInflight--;
-          // The window may have moved on by the time this settles - if so,
-          // this load only ever existed to warm the browser's HTTP cache;
-          // release our own reference to it now rather than leaving that to
-          // prefetch()'s eviction sweep, which only reaps COMPLETED loads.
           if (prefetched[i] === im && !pfWanted[i]) delete prefetched[i];
           pumpPrefetch();
         };
@@ -180,9 +141,7 @@
     }
   }
 
-  // Warm the browser cache for the next few frames, MAX_INFLIGHT camera
-  // requests at a time. The cached HTTP responses are the point; the Image
-  // objects here just hold each request open until it settles.
+  // Warm the browser cache for the next few frames, MAX_INFLIGHT camera requests at a time.
   function prefetch(from) {
     if (!frames.length) return;
     var i, k;
@@ -197,11 +156,7 @@
       if (!prefetched[i] && pfQueue.indexOf(i) === -1) pfQueue.push(i);
     }
     pfQueue = pfQueue.filter(function (i) { return pfWanted[i]; });
-    // Evict only SETTLED loads that fell out of the window. An in-flight
-    // request that fell behind still finishes the camera-side fork + SD
-    // read regardless - aborting the Image object here would throw that
-    // work away for nothing; pumpPrefetch()'s own onload/onerror above
-    // releases the reference once it actually settles.
+    // Evict only SETTLED loads that fell out of the window.
     Object.keys(prefetched).forEach(function (key) {
       if (!pfWanted[key] && prefetched[key].complete) delete prefetched[key];
     });
@@ -225,9 +180,7 @@
     }
   }
 
-  // Show frame i and call done() once its load settles (either way). Pacing
-  // playback off the settle rather than off a bare interval keeps the frame
-  // rate honest on a slow link instead of queueing up requests.
+  // Show frame i and call done() once its load settles (either way).
   function showFrame(i, done) {
     if (!frames.length) { if (done) done(); return; }
     var n = frames.length;
@@ -316,8 +269,6 @@
   }
 
   // One folder's frames, names only, tagged with the folder they came from.
-  // The whole-day loader calls this once per hour folder - the endpoint and
-  // its response are exactly what single-folder playback has always used.
   function fetchSeq(seq) {
     return fetch(CGI + "?seq=" + encodeURIComponent(seq), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
@@ -332,9 +283,6 @@
       });
   }
 
-  // The single hand-off into the playback state machine: both loaders end
-  // here, and nothing past this point knows whether the list came from one
-  // folder or from a day's worth of them.
   function applyFrames(list, emptyMsg, hash) {
     frames = list;
     if (!frames.length) { setEmpty(emptyMsg); return; }
@@ -378,10 +326,7 @@
       });
   }
 
-  // Whole day: the day's hour folders, fetched through the SAME per-folder
-  // endpoint and concatenated in hour order. No server-side recursion, and
-  // one unreadable hour costs that hour only - the rest of the day still
-  // plays, with the gap named in the hint and a toast.
+  // Whole day: the day's hour folders, fetched through the SAME per-folder endpoint and concatenated in hour order.
   function loadDay(key, gen) {
     var list = daySeqs(key);
     if (!list.length) {
@@ -456,9 +401,7 @@
         group = document.createElement("optgroup");
         group.label = day;
         seqEl.appendChild(group);
-        // First row of the group plays the day end to end. Offered only when
-        // there is more than one folder to stitch - with a single folder the
-        // plain row below already IS the whole day.
+        // First row of the group plays the day end to end.
         var key = dayKeyOf(s.seq);
         var members = key ? daySeqs(key) : [];
         if (members.length > 1) {
@@ -507,10 +450,7 @@
         }
         seqEl.disabled = false;
         renderSeqs();
-        // A deep link wins over the newest folder: #seq=20260912/09 for one
-        // folder, #day=20260912 for the whole day. Two keys rather than
-        // "#seq= with no /HH", because a bare YYYYMMDD can itself be a real
-        // folder rel and the two would then be indistinguishable.
+        // A deep link wins over the newest folder: #seq=20260912/09 for one folder, #day=20260912 for the whole day.
         var pick = "";
         var wantDay = /^#day=(.+)$/.exec(window.location.hash);
         var wantSeq = /^#seq=(.+)$/.exec(window.location.hash);

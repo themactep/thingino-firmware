@@ -25,7 +25,7 @@
     <section>
       <div class="card mb-3">
         <div class="card-header">
-          <h2 class="card-title">Streamer config</h2>
+          <h2 class="tv-ct">Streamer config</h2>
           <small>The live timps configuration file (<code>/etc/timps.conf</code>).</small>
           <button type="button" class="btn btn-outline-secondary" id="conf-reload" title="Reload from camera">
             <i class="bi bi-arrow-clockwise"></i> Reload
@@ -57,10 +57,6 @@
 <script src="/a/timps-api.js"></script>
 <script src="/a/timps-version.js"></script>
 <script>
-/* Read-only viewer of /etc/timps.conf via the stock texteditor.cgi (auth'd by
- * the WebUI session; no timps token / port needed, so it works over http or
- * https alike). timps persists every /control change to this file, so this is
- * always the effective running config. */
 (function () {
   "use strict";
   var CONF = "/etc/timps.conf";

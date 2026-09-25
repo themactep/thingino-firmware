@@ -17,110 +17,95 @@
 
 <body id="page-streamer-image">
 <nav data-app-nav></nav>
-
 <main class="pb-4">
   <div class="container">
     <div data-app-controls></div>
-
-    <h3>Image Quality</h3>
-
-    <div class="row mb-3">
-      <div class="col-12 col-xl-4 mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <h3 class="mb-0">Image Quality</h3>
+      <span class="small text-body-secondary ms-auto"><span class="tv-badge live">live</span> every change applies to the running image and is saved</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-xl-5">
         <div id="frame" class="position-relative">
-          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+          <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+        </div>
+        <p class="form-text mt-2 mb-0" id="img-unsupported"></p>
+      </div>
+      <div class="col-12 col-xl-7 d-grid gap-3">
+        <div class="tv-card">
+          <h6>Picture</h6>
+          <div class="tv-fields">
+            <div data-f="brightness"><label for="brightness">Brightness <output class="ms-auto font-monospace" id="brightness-v"></output></label>
+              <input type="range" class="form-range" id="brightness" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="contrast"><label for="contrast">Contrast <output class="ms-auto font-monospace" id="contrast-v"></output></label>
+              <input type="range" class="form-range" id="contrast" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="saturation"><label for="saturation">Saturation <output class="ms-auto font-monospace" id="saturation-v"></output></label>
+              <input type="range" class="form-range" id="saturation" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="sharpness"><label for="sharpness">Sharpness <output class="ms-auto font-monospace" id="sharpness-v"></output></label>
+              <input type="range" class="form-range" id="sharpness" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+          </div>
+        </div>
+        <div class="tv-card">
+          <h6>Light &amp; exposure</h6>
+          <div class="tv-fields">
+            <div data-f="image_ae_compensation"><label for="image_ae_compensation"><abbr title="Automatic exposure">AE</abbr> compensation <output class="ms-auto font-monospace" id="image_ae_compensation-v"></output></label>
+              <input type="range" class="form-range" id="image_ae_compensation" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="backlight"><label for="backlight">Backlight <output class="ms-auto font-monospace" id="backlight-v"></output></label>
+              <input type="range" class="form-range" id="backlight" min="0" max="10" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="wide_dynamic_range"><label for="wide_dynamic_range">WDR <output class="ms-auto font-monospace" id="wide_dynamic_range-v"></output></label>
+              <input type="range" class="form-range" id="wide_dynamic_range" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="tone"><label for="tone">Highlights <output class="ms-auto font-monospace" id="tone-v"></output></label>
+              <input type="range" class="form-range" id="tone" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="defog"><label for="defog">Defog <output class="ms-auto font-monospace" id="defog-v"></output></label>
+              <input type="range" class="form-range" id="defog" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+          </div>
+        </div>
+        <div class="tv-card">
+          <h6>Noise</h6>
+          <div class="tv-fields">
+            <div data-f="noise_reduction"><label for="noise_reduction">Noise reduction <output class="ms-auto font-monospace" id="noise_reduction-v"></output></label>
+              <input type="range" class="form-range" id="noise_reduction" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+          </div>
+        </div>
+        <div class="tv-card">
+          <h6>White balance</h6>
+          <div class="tv-fields">
+            <div data-f="image_core_wb_mode"><label for="image_core_wb_mode">Mode</label>
+              <select class="form-select" id="image_core_wb_mode">
+                <option value="0">Auto</option><option value="1">Manual</option><option value="2">Daylight</option>
+                <option value="3">Cloudy</option><option value="4">Incandescent</option><option value="5">Fluorescent</option>
+                <option value="6">Twilight</option><option value="7">Shade</option><option value="8">Warm fluorescent</option>
+                <option value="9">Custom</option>
+              </select></div>
+            <div data-f="image_wb_rgain"><label for="image_wb_rgain">Red gain <output class="ms-auto font-monospace" id="image_wb_rgain-v"></output></label>
+              <input type="range" class="form-range" id="image_wb_rgain" min="0" max="1024" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="image_wb_bgain"><label for="image_wb_bgain">Blue gain <output class="ms-auto font-monospace" id="image_wb_bgain-v"></output></label>
+              <input type="range" class="form-range" id="image_wb_bgain" min="0" max="1024" step="1" title="Double-click resets to the middle"></div>
+          </div>
+          <p class="form-text mb-0 mt-2" id="img-wb-note"></p>
+        </div>
+        <div class="tv-card">
+          <h6>Orientation</h6>
+          <div class="d-flex flex-wrap gap-4">
+            <div class="form-check form-switch mb-0" data-f="image_hflip"><input class="form-check-input" type="checkbox" role="switch" id="image_hflip">
+              <label class="form-check-label" for="image_hflip">Mirror (H-flip)</label></div>
+            <div class="form-check form-switch mb-0" data-f="image_vflip"><input class="form-check-input" type="checkbox" role="switch" id="image_vflip">
+              <label class="form-check-label" for="image_vflip">Upside down (V-flip)</label></div>
+          </div>
+        </div>
+        <div class="tv-card" id="iq">
+          <h6>Sensor IQ file <span class="tv-badge rst">restart</span></h6>
+          <p class="small text-body-secondary mb-2">The ISP tuning tables (exposure, white balance, colour, noise, night mode) loaded at streamer start. The sliders above adjust on top of it.</p>
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2"><span class="tv-badge" data-up="kind"></span><span class="tv-cfg" data-up="info">Loading…</span></div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <label class="btn btn-sm btn-outline-primary mb-0"><i class="bi bi-upload me-1"></i>Upload .bin<input type="file" data-up="file" accept=".bin" hidden></label>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-up="reset" hidden><i class="bi bi-arrow-counterclockwise me-1"></i>Restore stock file</button>
+            <span class="small text-body-secondary" data-up="hint"></span>
+          </div>
         </div>
       </div>
-      <div class="col col-xl-8">
-        <div class="row g-2">
-          <div class="col">
-            <p>
-              <label for="brightness">Brightness</label>
-              <input type="text" id="brightness" name="brightness" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="contrast">Contrast</label>
-              <input type="text" id="contrast" name="contrast" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="sharpness">Sharpness</label>
-              <input type="text" id="sharpness" name="sharpness" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="saturation">Saturation</label>
-              <input type="text" id="saturation" name="saturation" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p>
-              <label for="backlight">Backlight</label>
-              <input type="text" id="backlight" name="backlight" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="10" data-step="1">
-            </p>
-            <p>
-              <label for="wide_dynamic_range">WDR</label><span class="input-group">
-              <input type="text" id="wide_dynamic_range" name="wide_dynamic_range" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="tone">Highlights</label>
-              <input type="text" id="tone" name="tone" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="defog">Defog</label>
-              <input type="text" id="defog" name="defog" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-            <p>
-              <label for="noise_reduction">Noise reduction</label>
-              <input type="text" id="noise_reduction" name="noise_reduction" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="select" id="image_core_wb_mode_wrap">
-              <label for="image_core_wb_mode">White balance mode</label>
-              <select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
-                <option value="0">AUTO</option>
-                <option value="1">MANUAL</option>
-                <option value="2">DAY LIGHT</option>
-                <option value="3">CLOUDY</option>
-                <option value="4">INCANDESCENT</option>
-                <option value="5">FLOURESCENT</option>
-                <option value="6">TWILIGHT</option>
-                <option value="7">SHADE</option>
-                <option value="8">WARM FLOURESCENT</option>
-                <option value="9">CUSTOM</option>
-              </select>
-            </p>
-            <p>
-              <label for="image_wb_bgain">Blue channel gain</label>
-              <input type="text" id="image_wb_bgain" name="image_wb_bgain" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="1024" data-step="1">
-            </p>
-            <p>
-              <label for="image_wb_rgain">Red channel gain</label>
-              <input type="text" id="image_wb_rgain" name="image_wb_rgain" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="1024" data-step="1">
-            </p>
-            <p>
-              <label for="image_ae_compensation"><abbr title="Automatic Exposure">AE</abbr> compensation</label>
-              <input type="text" id="image_ae_compensation" name="image_ae_compensation" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
-            </p>
-          </div><!-- .col -->
-          <div class="col">
-            <p class="boolean form-switch" id="image_hflip_wrap">
-              <input type="hidden" id="image_hflip-false" name="image_hflip" value="false">
-              <input type="checkbox" id="image_hflip" name="image_hflip" value="true" role="switch" class="form-check-input">
-              <label for="image_hflip" class="form-check-label">H-Flip</label>
-            </p>
-            <p class="boolean form-switch" id="image_vflip_wrap">
-              <input type="hidden" id="image_vflip-false" name="image_vflip" value="false">
-              <input type="checkbox" id="image_vflip" name="image_vflip" value="true" role="switch" class="form-check-input">
-              <label for="image_vflip" class="form-check-label">V-Flip</label>
-            </p>
-          </div><!-- .col -->
-        </div><!-- .row -->
-      </div><!-- .col -->
-    </div><!-- .row -->
-
-    <button type="button" id="save-prudynt-config" class="btn btn-primary mt-3">
-      <i class="bi bi-floppy me-1"></i> Save configuration to file
-    </button>
-  </div><!-- .container -->
+    </div>
+  </div>
 </main>
 
 <footer data-app-footer></footer>
@@ -135,6 +120,7 @@
 <script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
 <script src="/a/timps-version.js"></script>
+<script src="/a/timps-ui.js"></script>
 <script src="/a/streamer-image.js"></script>
 </body>
 </html>

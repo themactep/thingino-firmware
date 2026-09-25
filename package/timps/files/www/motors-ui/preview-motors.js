@@ -22,9 +22,7 @@
  * motorPositionStream below keeps exactly one of them live.
  */
 
-// Position only - no control command goes through here any more. Kept because
-// the SSE stream and the socket both need a one-shot seed on a build where
-// the other one isn't running.
+// Position only - no control command goes through here any more.
 function runMotorCmd(args) {
   return fetch(`/x/json-motor.cgi?${args}`)
     .then((res) => res.json())
@@ -35,23 +33,16 @@ function runMotorCmd(args) {
     });
 }
 
-// WebSocket transport. Token via query string, not a header: the WebSocket
-// constructor can't set request headers on the handshake (same as timps's
-// EventSource); motors-daemon accepts ?token= for that reason.
+// WebSocket transport.
 const MOTOR_WS_TOKEN_URL = "/x/json-motor-token.cgi";
 const MOTOR_WS_CONNECT_TIMEOUT_MS = 4000;
 // After this many failed attempts, give up on the socket for the rest of the
 // page's life - and with it on PTZ control, which now has nowhere else to go.
 const MOTOR_WS_MAX_ATTEMPTS = 3;
 
-// Assigned by motorPositionStream below, once it exists. Called from every
-// place the socket's state can change so exactly one position transport is
-// ever running; a no-op until then, which covers the module-load window.
+// Assigned by motorPositionStream below, once it exists.
 let syncPositionTransport = function () {};
 
-// Same contract, for the control side: assigned once the widget exists, and
-// called from the same two places the socket's state actually changes, so
-// "PTZ unavailable" can never disagree with whether a socket is open.
 let syncControlAvailability = function () {};
 
 const motorWs = (function () {
@@ -77,9 +68,6 @@ const motorWs = (function () {
     return true; // https:// vs wss:// is decided later, in openSocket()
   }
 
-  // https:// page must use wss:// (mixed content) or not connect at all -
-  // never ws:// even if the daemon offers it, since an untrusted self-signed
-  // wss:// cert has no browser prompt to fall back on.
   function socketScheme(info) {
     if (location.protocol !== "https:") return "ws";
     return info && info.tls === true ? "wss" : null;
@@ -217,9 +205,6 @@ const motorWs = (function () {
     return connecting;
   }
 
-  // Synchronous: returns 0 (falsy) on failure so a half-open socket can't
-  // swallow a stop; returns the stamped id on success (seq starts at 1, so
-  // callers can treat it as a boolean too) for matching error frames back.
   function trySend(obj) {
     if (!socket || socket.readyState !== WebSocket.OPEN) return 0;
     try {
@@ -264,9 +249,6 @@ function normalizePreviewControlMode(value) {
     : "step";
 }
 
-// Motor steps travelled when a drag crosses the full width of the video
-// image, when motors.drag_steps_per_frame says nothing. steps_pan defaults to
-// 4000 over the full ~355deg sweep, and a typical lens sees ~90deg of that.
 const DRAG_STEPS_PER_FRAME = 1000;
 
 function getPreviewControlMode() {
@@ -306,14 +288,7 @@ function motorDirSigns(dir) {
   };
 }
 
-// Home, then travel to the configured start point. Two steps, and the
-// socket's `home` acks immediately and runs the sweep on a detached thread -
-// so the second step has to wait for the sweep to actually end. Sending it
-// early doesn't just arrive too soon: motor_steps() opens with
-// wait_until_idle(5000), so it would time out mid-sweep and then fight it.
-//
-// No "home finished" frame in the protocol, so watch `moving` in the status
-// pushes instead: up, then down.
+// Home, then travel to the configured start point.
 const MOTOR_HOME_SETTLE_MS = 2000; // sweep hasn't started moving yet
 const MOTOR_HOME_TIMEOUT_MS = 120000; // hard cap, a full sweep is tens of s
 
@@ -398,26 +373,16 @@ async function moveMotor(dir, steps = 100) {
 
 // --- live position -----------------------------------------------------
 
-// Joystick mode's DOM readout (bindPositionReadout's closure), or null in the
-// modes that draw no position. Module-level so every transport can reach it
-// through the single funnel below instead of each wiring up its own.
+// Joystick mode's DOM readout (bindPositionReadout's closure), or null in the modes that draw no position.
 let motorPositionRenderer = null;
 
-// THE funnel. Every source of a position - the WS status/hello pushes, the
-// SSE stream, and json-motor.cgi's d=j one-shot - lands here, so the DOM
-// readout and window.motorPosition can never disagree about which transport
-// is live.
+// THE funnel.
 function updatePositionDisplay(xpos, ypos) {
   if (xpos === undefined || ypos === undefined) return;
-  // `motors -j` (and therefore the CGI and the SSE stream) reports these as
-  // JSON strings; the WS frames report numbers. Normalize, or the readout
-  // arithmetic below silently concatenates instead of adding.
+  // `motors -j` (and therefore the CGI and the SSE stream) reports these as JSON strings; the WS frames report numbers.
   const x = Number(xpos);
   const y = Number(ypos);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  // Expose for other plugins/view models (e.g. the settings modal's
-  // "capture current position" button), so a reader always gets the latest
-  // value without polling json-motor.cgi d=j itself.
   window.motorPosition = { xpos: x, ypos: y };
   if (motorPositionRenderer) motorPositionRenderer(x, y);
 }
@@ -483,13 +448,6 @@ const motorPositionStream = (function () {
 
 syncPositionTransport = motorPositionStream.sync;
 
-// upstream's keyboard-jog (Shift+arrow) feature is deliberately not ported
-// here, same decision as this morning's merge: it depends on a
-// `currentStepName` module-level variable (and the step-size UI that sets
-// it) that this fork's own preview-motors.js never adopted, so pulling in
-// just this commit's refinement of it would reference an undeclared
-// variable. Revisit as one deliberate piece of work if this fork ever wants
-// keyboard PTZ, not as a side effect of a routine upstream sync.
 
 // --- initialization ----------------------------------------------------
 document.addEventListener("DOMContentLoaded", async function () {
@@ -543,46 +501,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (!motorWs.enabledAtBuild()) setControlAvailability(false);
 
   // Not awaited: a slow/absent listener must not delay binding the controls.
-  // The position transport IS decided on the result though - starting the SSE
-  // stream first and cancelling it a moment later would spawn a CGI process
-  // per page load on every WS build for nothing. connect() resolves
-  // immediately (with null) when the build has no WS path at all, so the
-  // CGI-only case pays no delay for this.
   motorWs.connect().then(syncPositionTransport);
 
-  // A bfcache restore (browser back/forward) revives this exact DOM/JS state
-  // without re-running DOMContentLoaded, so the socket connect() above never
-  // fires again - the WebSocket that was open before navigating away is
-  // already closed by the browser, and nothing would otherwise reconnect it.
-  // connect() itself is a no-op if a socket is already open, so this is safe
-  // to call on every non-bfcache pageshow too.
-  // A bfcache restore also closed the EventSource, so sync afterwards either
-  // way: it reopens the stream if the socket didn't come back.
   window.addEventListener("pageshow", (ev) => {
     if (ev.persisted) motorWs.connect().then(syncPositionTransport);
   });
 
-  // Belt and braces: some browsers evict a long-backgrounded tab into the
-  // same bfcache path (observed: Edge's tab-freeze after ~20 min hidden)
-  // without reliably firing pageshow's persisted flag on the way back.
-  // visibilitychange fires whenever the tab regains focus regardless of
-  // *why* the socket died - idle discard, a network blip, the daemon
-  // restarting - so this is the actual catch-all; the pageshow listener
-  // above just covers the common case a little earlier.
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) motorWs.connect().then(syncPositionTransport);
   });
 
-  // ...and a periodic backstop, for the same reason preview.html grew one: a
-  // long-backgrounded tab may come back without either of the two handlers
-  // above firing at all (the socket's onclose can land while hidden, after
-  // the last visibilitychange), leaving PTZ with no control path at all until
-  // the user switches tabs again. Only while visible; connect() is a no-op
-  // when a socket is already open, so this costs one readyState read every
-  // 15s. Not armed at all on a build without the WS control path, where
-  // connect() is a permanent no-op; and it only logs on an actual recovery,
-  // so a camera whose listener is simply absent (the attempts cap in
-  // connect() ends that quickly) stays quiet.
   if (motorWs.enabledAtBuild()) {
     setInterval(() => {
       if (document.hidden || motorWs.isOpen()) return;
@@ -599,9 +527,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   let activeControlMode = null;
   let modeAbort = null; // owns every listener the active mode registered
 
-  // A step click is one "move rel" over the socket, same as it always was -
-  // it just has no CGI fallback behind it now, so a click with no socket has
-  // to say so rather than do nothing.
   function stepMove(dir, steps) {
     if (!motorWs.isOpen()) {
       setControlAvailability(false);
@@ -631,12 +556,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   function bindContinuousControls(signal) {
     let wsHolding = false;
 
-    // Hold-to-move: one command down, one stop up, no repeat in between. The
-    // delta is the full axis travel - motor_ctl_relative() clamps to the
-    // limit and recomputes, so this means "go until the far end". An unknown
-    // limit (x_max 0 and no configured steps_pan) is the one case that can't
-    // be expressed this way, and there is no repeat-nudge path left to fall
-    // back to, so it reports itself as unavailable instead.
+    // Hold-to-move: one command down, one stop up, no repeat in between.
     const startContinuousMove = (dir) => {
       if (!dir) return;
       stopContinuousMove();
@@ -700,16 +620,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (signal) signal.addEventListener("abort", stopContinuousMove);
   }
 
-  // Live pan/tilt readout, joystick mode only - a held stick runs toward a
-  // limit the video gives no warning of. 200ms cadence over the socket
-  // (matches its own); ~1s over the SSE stream, which is what the CGI-only
-  // build has always offered. The CSS transition smooths either for free.
-  //
-  // Takes plain x/y rather than a WS frame: the SSE stream has no frame
-  // shape to speak of, and the travel limits are better sourced here anyway
-  // - the daemon's reported limits when there is a daemon, and the
-  // configured steps_pan/steps_tilt otherwise (a frame's own x_max is 0 when
-  // unknown, which used to collapse the bar to zero width).
   function bindPositionReadout() {
     const wrap = $("#motor-pos");
     const barX = $("#motor-pos-x");
@@ -730,9 +640,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
   }
 
-  // Virtual analog stick. The drag deflection goes over the wire as a
-  // per-mille value, not a distance/speed - only the daemon knows travel
-  // limits, speed cap, and (motor_ctl_vector) per-axis speed support.
+  // Virtual analog stick.
   function bindJoystickControls(signal) {
     const stick = $("#motor-stick");
     const handle = $("#motor-stick-handle");
@@ -744,11 +652,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     $("#motor").classList.add("stick-mode");
 
-    // Ring size: measured from the real preview box (timps's
-    // ".ms-video-wrap" or the stock "#frame"), not a vw/vh guess, since
-    // neither can know the stream's aspect ratio. --motor-stick-size lives
-    // on #motor (not the ring): the readout rows are the ring's siblings
-    // and custom properties only inherit downward.
     const GAP = 8; // matches the +8px offsets in preview-motors.css
     const MIN_RING = 110; // below this the ring stops being drag-able
     const motorEl = $("#motor");
@@ -805,18 +708,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     const DEAD_ZONE = 0.12; // radial; felt dead zone, daemon's is a backstop
 
     // Minor-axis gate, as a fraction of the major axis, with hysteresis.
-    //
-    // The radial dead zone above says nothing about a pointer held NEAR an
-    // axis: at full throw, 2-4deg off "right" still puts the minor axis at
-    // 35-70 per-mille, right where the daemon's own per-axis dead zone sits.
-    // A hand wobbling across that threshold flipped dir_y 0<->1 every update,
-    // and the daemon reads any dir change as a reversal - full stop, decel
-    // tail, restart. Measured: ~533 steps/s wobbling vs ~863 held steady.
-    //
-    // Two thresholds so a value parked on one edge can't chatter across it -
-    // same reason the daemon now has two. The daemon-side fix alone would do
-    // for correctness; this one is also what makes a near-axis hold behave
-    // like the pure axis move the user was aiming for.
     const MINOR_AXIS_ON = 0.25; // engage the minor axis above this ratio
     const MINOR_AXIS_OFF = 0.15; // drop it again below this one
 
@@ -829,13 +720,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     let lastSentAt = 0;
     let flushTimer = null;
 
-    // Position is NOT handled here any more: onMessage() already funnels
-    // every frame's x/y through updatePositionDisplay(), which is what draws
-    // the readout now. This listener is only for the error frames below.
     const dropFrameListener = motorWs.addFrameListener((frame) => {
-      // Daemon has no vector command (older than the WS control path, or
-      // limits it can't read). Nothing left to fall back to, so stop the
-      // gesture and say the controls are out of action.
+      // Daemon has no vector command (older than the WS control path, or limits it can't read).
       if (
         frame.type === "error" &&
         frame.id === lastVectorId &&
@@ -883,10 +769,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     }
 
-    // Zero whichever axis is only along for the ride, so a near-axis hold
-    // sends a clean single-axis vector rather than one hovering on the
-    // daemon's per-axis dead zone. Sticky: once engaged it stays engaged
-    // until it falls under the lower ratio.
     function gateMinorAxis(vx, vy) {
       const ax = Math.abs(vx);
       const ay = Math.abs(vy);
@@ -1001,12 +883,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
   }
 
-  // Drag-to-pan. The joystick is a rate control; this one maps the drag
-  // straight onto an absolute motor target, so the image content tracks
-  // the finger like panning a photo, landing where it is released.
-  // Streaming absolute targets is safe by construction: motor_ctl_absolute()
-  // re-reads the live position and recomputes its own delta per command,
-  // so a superseded target costs nothing.
+  // Drag-to-pan.
   function bindDragControls(signal) {
     const surface = $("#motor-drag");
     if (!surface) {
@@ -1048,9 +925,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       };
     }
 
-    // The video's content box, not the element box: object-fit:contain
-    // letterboxes the stream, and a steps-per-pixel scale that counted the
-    // black bars would be wrong on every sensor that isn't 16:9.
     function contentBox() {
       const frame = $(".ms-video-wrap") || $("#frame");
       if (!frame) return null;
@@ -1173,9 +1047,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         flushTimer = null;
       }
 
-      // A released absolute drag keeps travelling to its last target - that
-      // landing point is the whole gesture. An aborted one, and every
-      // rate-control session (which only moves while deflected), must stop.
+      // A released absolute drag keeps travelling to its last target - that landing point is the whole gesture.
       if (commit && armed && !vectorMode) {
         if (moved < TAP_PX) aimAtTap();
         if (!sent || target.x !== sent.x || target.y !== sent.y) sendNow();

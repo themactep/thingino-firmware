@@ -66,19 +66,6 @@ json_escape() {
 [ -z "$d" ] && d="g"
 
 # Motion commands answer with a bare acknowledgement.
-#
-# They used to fall through to a trailing emit_status that ran `motors -j` and
-# returned the position with every single move. That echo made sense when this
-# CGI was the only way to drive the motors and the page had no other source of
-# position - but it doubled the process cost of the hottest path in the whole
-# UI: a held arrow fired one of these every 90ms, and each one paid for
-# busybox-httpd, this shell, `motors`, and then a SECOND `motors` purely to
-# report a position that was already stale by the time it was read (the move
-# is asynchronous; the daemon has not finished it when the status is sampled).
-#
-# preview-motors.js tracks position client-side from the moves it issues and
-# only ever console.log()s this echo, so dropping it costs nothing there.
-# Callers that actually want a fresh position ask for one explicitly with d=j.
 motion_ok() {
 	json_ok "$1"
 }
@@ -115,10 +102,7 @@ case "$d" in
 		motion_ok "goback"
 		;;
 	j)
-		# Explicit one-shot status - config-motors.js calls it from the
-		# settings page's "capture current position" button. (The 'i' case
-		# that sat next to it - `motors -i`, an initial-position echo - had
-		# no caller anywhere in this tree and is gone.)
+		# Explicit one-shot status - config-motors.js calls it from the settings page's "capture current position" button.
 		payload=$(motors -j 2>/dev/null) || json_error "motors-status-failed"
 		json_ok "$payload"
 		;;
