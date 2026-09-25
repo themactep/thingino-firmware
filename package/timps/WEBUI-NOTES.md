@@ -180,10 +180,17 @@ with nothing to hide, whose refresh would race the gate). `wait.html`,
 `gphotos-auth-callback.html` and `login.html` do not load `main.js` at all;
 the injection is per-page-unconditional, hence the explicit list.
 
+## Redirect stubs
+
+Only the three the core WebUI links to stay: `tool-record.html` and
+`config-privacy.html` (control-bar.js buttons) and `tool-sensor-data.html`
+(control bar, and core ships its own page of that name, which would come
+back without ours). The other merged pages' old names were dropped.
+
 ## Video pages: streamer-video.html + streamer-overlays.html
 
 Two pages replace the four per-stream pages (streamer-main/-substream/
--osd0/-osd1.html, now redirect stubs so bookmarks keep working). Each page
+-osd0/-osd1.html, removed: nothing links to them any more). Each page
 shows both streams behind tabs; `a/timps-ui.js` holds what they share.
 
 ### a/timps-ui.js
@@ -427,8 +434,8 @@ Manual or Custom white balance. Double-click resets a slider to its middle.
 `#rec-reload` belongs to the clip list). `timelapse-player.html` has Player
 (`a/timelapse-player.js`) and Settings (`a/tool-timelapse.js`). The tabs come
 from `timps-ui.js` `initPageTabs()`, and `#settings` deep-links, which is
-what the redirects from tool-record.html / tool-timelapse.html and the
-"Video Recorder" menu entry use.
+what the tool-record.html redirect uses (the core control bar's "Recording
+settings" link points there).
 
 ## a/config-audio.js
 
@@ -480,7 +487,7 @@ The font GET also lists every TTF/OTF there; the Overlays select box sets
 upload switches the selection to `default.ttf` since that is what it replaced.
 `/etc/sensor` is a symlink to `/usr/share/sensor`, so the overlay copy lives
 under `/overlay/usr/share/sensor/`. Both are read at streamer start, so the
-cards raise the restart bar. `streamer-sensor.html` is a redirect stub.
+cards raise the restart bar.
 
 ### Photosensing controls (`x/timps-dn-controls.cgi`)
 
