@@ -818,9 +818,14 @@ endif
 # the preview page in general, not the /control API - so only gated on the
 # WebUI being present at all (nothing to override otherwise).
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+# Flash operations (dev builds) would sysupgrade to a stock release without
+# timps, so the page and its CGI are dropped and S48 never enables the entry.
 define TIMPS_INSTALL_WEBUI_CONFIG_FIX
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
+	rm -f $(TARGET_DIR)/var/www/tool-upgrade.html \
+		$(TARGET_DIR)/var/www/a/tool-upgrade.js \
+		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
 endef
 TIMPS_TARGET_FINALIZE_HOOKS += TIMPS_INSTALL_WEBUI_CONFIG_FIX
 endif
