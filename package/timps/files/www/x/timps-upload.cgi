@@ -46,7 +46,8 @@ info() {
 	local list="" f
 	case "$QUERY_STRING" in *kind=font*)
 		for f in "$DIR"/*.ttf "$DIR"/*.otf; do [ -f "$f" ] && list="$list${list:+,}\"${f##*/}\""; done
-		list=",\"fonts\":[$list]" ;;
+		list=",\"fonts\":[$list]"
+		;;
 	esac
 	reply "200 OK" "{\"file\":\"$FILE\",\"size\":${size:-0},\"md5\":\"$md5\",\"custom\":$custom,\"stock\":$stock,\"overlay_free_kb\":${free:-0}$list}"
 }
