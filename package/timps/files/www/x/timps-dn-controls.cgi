@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC3043
 # daynight.controls in thingino.json: what /usr/sbin/daynight toggles when timps switches.
 # (json-config-daynight.cgi ships only with thingino-daynightd.)
 

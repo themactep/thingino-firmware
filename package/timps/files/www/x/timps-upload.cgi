@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC1091
+# shellcheck disable=SC1091,SC3043,SC2015
 # Replace a firmware file the streamer loads at start. ?kind=iq (sensor IQ .bin) or font (OSD default.ttf).
 # GET = info, POST raw file = install into the overlay, POST &reset = drop the overlay copy (stock is back).
 
