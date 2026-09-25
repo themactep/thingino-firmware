@@ -1,14 +1,4 @@
-/* preview-motion.js - live motion-grid overlay for the timps preview page.
- *
- * Draws the timps IMP_IVS detection grid over the video and highlights
- * cells reporting motion, via an EventSource push stream
- * (/events?stream=motion&token=) with a 4 Hz GET /control poll as fallback
- * when SSE is unavailable or fails repeatedly. Canvas is aligned to the
- * video's DISPLAYED content rect (object-fit:contain letterboxing), not the
- * element box. Fails soft throughout: no token/endpoint or no IMP_IVS
- * support just leaves the toggle button hidden. See WEBUI-NOTES.md for the full
- * protocol/token details.
- */
+// preview-motion.js - live motion-grid overlay for the timps preview page.
 (function () {
   "use strict";
 
@@ -22,10 +12,6 @@
   if (!video || !canvas || !btn) return;
 
   // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
-  // "both" = plain HTTP and HTTPS on the one timps port, so follow the PAGE's
-  // scheme: an https:// page may not fetch http:// (mixed content), and an
-  // http:// page cannot clear a self-signed cert on a subresource fetch.
-  // Falls back to the older "tls" bool when the CGI predates "scheme".
   function timpsScheme(info) {
     if (!info) return "http";
     if (info.scheme === "both") {
@@ -126,9 +112,6 @@
       clear();
       return;
     }
-    // show the canvas BEFORE measuring it: a display:none element reports
-    // clientWidth/Height 0, which made contentRect() bail so the overlay could
-    // never become visible (chicken-and-egg deadlock).
     canvas.style.display = "";
     const rect = contentRect();
     if (!rect || rect.w < 8 || rect.h < 8) { clear(); return; }

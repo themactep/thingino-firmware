@@ -1,13 +1,8 @@
-/* Virtual analog stick for the preview PTZ overlay, used when
- * motors.preview_control_mode is "joystick". Plugin stylesheet rather than
- * more rules in main.css: markup comes from this plugin's own manifest.
- */
+/* Virtual analog stick for the preview PTZ overlay, used when * motors.preview_control_mode is "joystick". */
 
 #motor {
   position: relative;
-  /* --motor-stick-size is written here at runtime (sizeStick() in
-   * preview-motors.js), not on #motor-stick: the readout rows are the
-   * ring's siblings and custom properties only inherit downward. */
+  
 }
 
 #motor-stick,
@@ -94,12 +89,6 @@
   transition: none;
 }
 
-/* Drag-to-point surface, used when motors.preview_control_mode is "drag".
- * The whole image is the control, so it lives outside #motor's 300px box and
- * stretches the preview frame itself. No `display` rule here: the element
- * carries the `hidden` attribute out of the manifest and preview-motors.js
- * clears it on bind. The bottom gutter keeps the <video> control bar
- * reachable. */
 #motor-drag {
   position: absolute;
   inset: 0 0 48px 0;
@@ -114,10 +103,6 @@
   cursor: grabbing;
 }
 
-/* Live position readout: pan (left/right) as a horizontal bar under the
- * ring, tilt (up/down) as a vertical one beside it - both positioned off
- * --motor-stick-size, hidden individually by sizeStick() when they don't
- * fit next to the ring. */
 #motor-pos {
   position: absolute;
   left: 50%;
@@ -173,9 +158,6 @@
   transition: width 220ms linear;
 }
 
-/* Beside the ring, not stacked under the pan bar - two rows under a short
- * (portrait-phone) ring is what overran the frame before. Label rotates via
- * writing-mode (simpler than rotating the whole flex row + fill direction). */
 .motor-pos-tilt {
   left: calc(var(--motor-stick-size, 450px) / 2 + 8px);
   top: 50%;
@@ -211,9 +193,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* PTZ control is WebSocket-only. Without a socket there is no control path at
- * all (the CGI fallback was the flood this page was reported for), so the
- * widget has to look inert rather than accept presses that go nowhere. */
+/* PTZ control is WebSocket-only. */
 #motor.ptz-unavailable .jst,
 #motor.ptz-unavailable #motor-stick {
   opacity: 0.35;

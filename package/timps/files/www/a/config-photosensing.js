@@ -1,19 +1,4 @@
-/* config-photosensing.js - timps day/night (photosensing) settings.
- *
- * Overlay replacing the stock thingino page script, which POSTed the gain
- * thresholds to /x/json-config-daynight.cgi (thingino.json) - a file the
- * timps streamer never reads, so the thresholds did nothing. This version
- * talks DIRECTLY to timps via GET/POST /control (a/timps-api.js); fields
- * follow the "daynight_<key>" -> "daynight.<key>" convention (see
- * fillTimps()/collectTimps() below). The Decision source column mirrors the
- * daemon's two independent axes: daynight.mode (auto = light level, schedule
- * = the calendar decides outright) and WHICH calendar is stored, which timps
- * derives from the values rather than from a field of its own.
- *
- * The Controls (color/ircut/IR850/IR940/white) column is a SEPARATE feature:
- * it configures the BOARD daynight script (/sbin/daynight hardware toggles),
- * not timps, and legitimately stays on the stock /x/json-config-daynight.cgi
- * backend, loaded and saved best-effort. */
+// config-photosensing.js - timps day/night (photosensing) settings.
 (function () {
   "use strict";
 
@@ -23,7 +8,7 @@
     return;
   }
 
-  var LEGACY = "/x/json-config-daynight.cgi"; // board script config (controls only)
+  var LEGACY = "/x/timps-dn-controls.cgi"; // daynight.controls for /usr/sbin/daynight
   var CONTROLS = ["color", "ircut", "ir850", "ir940", "white"];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -43,10 +28,6 @@
     return el ? el.value : "none";
   }
 
-  // mirrors dn_cal_kind() in daynight.c: a COMPLETE time window outranks
-  // lat/long, and 0/0 is "no location". timps has no field saying which
-  // calendar was meant, so the page has to derive it the daemon's way -
-  // anything else lets the selector show a calendar that isn't running.
   function calFromValues(night, day, lat, lon) {
     if (night && day) return "time";
     if (Number(lat) || Number(lon)) return "sun";
@@ -61,9 +42,7 @@
     if (sunF) sunF.hidden = (cal !== "sun");
   }
 
-  // every way this column can be saved into a no-op. The daemon reads its
-  // calendar out of the values, so a half-filled one is simply no calendar
-  // (daynight.c: "mode=schedule but no usable calendar - forcing nothing").
+  // every way this column can be saved into a no-op.
   function calendarProblem() {
     var cal = calValue();
     var mode = $("daynight_mode");
@@ -167,10 +146,6 @@
       if (!isNaN(v) && v >= 0) out[k] = v;
     });
 
-    // The unselected calendar is always CLEARED, never just left alone: timps
-    // picks its calendar from the values (calFromValues above), so a time
-    // window left over from an earlier configuration would keep outranking a
-    // location the user just typed in, and the save would report success.
     var cal = calValue();
     var num = function (id) {
       var el = $(id);
@@ -244,6 +219,8 @@
     if (reloadBtn) reloadBtn.disabled = true;
     var t = window.timpsApi.get().then(function (json) {
       fillTimps(json && json.daynight);
+      onNow(json && json.daynight);
+      durHints();
     }).catch(function (e) {
       toast("danger", "Unable to load timps day/night settings: " + (e.message || e));
     });
@@ -265,18 +242,11 @@
           (e.message || e) + ").", 6000);
       }).then(function () { return r; });
     }).then(function (r) {
-      // corrected (clamped) values go straight back into their fields from
-      // the "applied" echo; load() still runs for the computed/adaptive
-      // read-only feedback and the legacy half, but the user need not wait
-      // for it to see what really got stored
       var corr = r && r.corrections;
       if (corr) Object.keys(corr).forEach(function (k) {
         applyTimpsKV(k, corr[k]);
       });
       corr = window.timpsApi.takeCorrections(r);
-      // a 200 can still carry rejected>0: the daemon refused SOME value
-      // (empty/invalid) while applying the rest - a plain "saved" would lie
-      // about those; the reload below shows what it actually kept
       if (r && r.rejected > 0)
         toast("warning", "Saved, but the streamer refused " + r.rejected +
           " value(s) (empty or invalid).", 6000);
@@ -294,9 +264,6 @@
 
   /* ---- live sync: another open tab/client changing a timps field ------- */
 
-  // config.c echoes SSE/GET under the canonical day_gain/night_gain name, not
-  // the pre-2026-08-17 alias this page's two threshold fields still use.
-  // Everything else follows the "daynight_<key>" id convention.
   var TIMPS_REVERSE = {
     "daynight.night_gain": "daynight_total_gain_night_threshold",
     "daynight.day_gain": "daynight_total_gain_day_threshold",
@@ -312,9 +279,6 @@
     return TIMPS_REVERSE[key] || "daynight_" + key.slice(9);
   }
 
-  // write one "daynight.<key>" value into its field - shared by the config-
-  // sync push and the save-time "applied" corrections, so a clamped value
-  // renders exactly like a remote edit.
   function applyTimpsKV(key, value) {
     var id = fieldId(key);
     var el = id ? $(id) : null;
@@ -340,7 +304,56 @@
     }
   }
 
+  /* ---- "Now" box: mode, gain against both limits, what comes next ------ */
+
+  var now = {};
+  function drawNow() {
+    var d = now, night = Number(d.mode) === 1, g = Number(d.total_gain);
+    var lo = Number(d.day_gain), hi = Number(d.night_gain);
+    $("dn-icon").className = night ? "bi bi-moon-stars" : "bi bi-sun";
+    $("dn-now").textContent = d.mode === undefined ? "–" : night ? "Night" : "Day";
+    var auto = d.dn_mode !== "schedule";
+    $("dn-src").textContent = !(d.enabled === 1 || d.enabled === true) ? "automatic switching off"
+      : auto ? "auto · light level" : "auto · calendar";
+    var sc = $("dn-scale"), mk = $("dn-mark");
+    if (lo > 0 && hi > lo) {
+      var span = Math.max(hi * 2, g * 1.05 || 0), p = function (v) { return (v / span * 100).toFixed(2) + "%"; };
+      sc.style.background = "linear-gradient(90deg,#f0c040 0 " + p(lo) + ",#555 " + p(lo) + " " + p(hi) + ",#3a5fcd " + p(hi) + ")";
+      sc.querySelectorAll(".tk,.lb").forEach(function (e) { e.remove(); });
+      sc.insertAdjacentHTML("beforeend",
+        '<span class="lb" style="left:' + p(lo / 2) + ';color:#f0c040">Day</span>' +
+        '<span class="lb" style="left:' + p((lo + hi) / 2) + '">hysteresis</span>' +
+        '<span class="lb" style="left:' + p((hi + span) / 2) + ';color:#7b9cff">Night</span>' +
+        '<span class="tk" style="left:' + p(lo) + '">' + lo + '</span><span class="tk" style="left:' + p(hi) + '">' + hi + "</span>");
+      if (g >= 0) { mk.style.left = p(Math.min(g, span)); mk.hidden = false; }
+    }
+    var next = "";
+    if (!auto) next = "the calendar decides";
+    else if (night && d.day_trigger > 0) next = "probe for day when gain <b>&lt; " + Math.round(d.day_trigger) + "</b>";
+    else if (night) next = "day when gain <b>&lt; " + lo + "</b>";
+    else if (hi > 0) next = "night when gain <b>&gt; " + hi + "</b>" + (d.day_confirm_s ? " for " + d.day_confirm_s + " s" : "");
+    $("dn-next").innerHTML = (next ? "next: " + next : "") + (g >= 0 ? "<br>gain now " + Math.round(g) : "");
+  }
+  function onNow(d) {
+    if (!d) return;
+    Object.keys(d).forEach(function (k) { now[k] = d[k]; });
+    drawNow();
+  }
+
+  // hour/minute reading next to the second-valued fields
+  function durHints() {
+    ["heartbeat_s", "heartbeat_max_s", "probe_min_gap_s"].forEach(function (k) {
+      var el = $("daynight_" + k), lab = el && document.querySelector('label[for="daynight_' + k + '"]');
+      if (!lab) return;
+      var h = lab.querySelector(".dur") || lab.appendChild(Object.assign(document.createElement("span"), { className: "dur ms-1 text-body-secondary" }));
+      var v = parseInt(el.value, 10);
+      h.textContent = v >= 3600 ? "≈ " + +(v / 3600).toFixed(1) + " h" : v >= 60 ? "≈ " + Math.round(v / 60) + " min" : "";
+    });
+  }
+  document.addEventListener("input", function (e) { if (/daynight_(heartbeat|probe_min_gap)/.test(e.target.id)) durHints(); });
+
   function onConfigEvent(type, data) {
+    if (type === "daynight") { onNow(data); return; }
     if (!data) return;
     if (data.resync) { load(); return; }
     var id = fieldId(data.key);
@@ -354,7 +367,7 @@
   if (reloadBtn) reloadBtn.addEventListener("click", load);
   var calSel = $("daynight_calendar");
   if (calSel) calSel.addEventListener("change", syncCalendarUI);
-  window.timpsApi.events("config", onConfigEvent);
+  window.timpsApi.events("config,daynight", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });

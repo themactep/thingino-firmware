@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>thingino · Photosensing</title>
+  <title>thingino · Day / Night</title>
   <script src="/a/theme-init.js"></script>
   <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,6 +13,33 @@
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
+  <style>
+    .dn-strip { display: grid; grid-template-columns: auto 1fr auto; gap: 1.2rem; align-items: center; }
+    .dn-mode { display: flex; gap: .7rem; align-items: center; }
+    .dn-mode i { font-size: 2rem; color: darkorange; }
+    .dn-mode b { font-size: 1.25rem; font-weight: 500; display: block; line-height: 1.1; }
+    .dn-scale { position: relative; height: 10px; border-radius: 5px; margin: 1.3rem 0 1.2rem; background: var(--bs-secondary-bg); }
+    .dn-scale .m { position: absolute; top: -5px; width: 3px; height: 20px; background: #fff; box-shadow: 0 0 0 1px #000; transition: left .6s; }
+    .dn-scale .tk, .dn-scale .lb { position: absolute; font-size: .7rem; transform: translateX(-50%); white-space: nowrap; }
+    .dn-scale .tk { top: 14px; color: var(--bs-secondary-color); }
+    .dn-scale .lb { top: -18px; }
+    .dn-next { text-align: right; font-size: .8rem; color: var(--bs-secondary-color); }
+    .dn-next b { color: var(--bs-body-color); font-weight: 500; }
+    .mt-tile { border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius); padding: .55rem .75rem; }
+    .mt-tile .l { font-size: .72rem; color: var(--bs-secondary-color); display: flex; gap: .4rem; align-items: center; }
+    .mt-tile .l i { width: .6rem; height: .6rem; border-radius: 50%; display: inline-block; }
+    .mt-tile .v { font-size: 1.35rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .mt-tile .r { font-size: .7rem; color: var(--bs-secondary-color); font-variant-numeric: tabular-nums; }
+    #chart-container { position: relative; height: 330px; }
+    #max-points .btn.active, #toggle-pause.active { color: #ff8800; border-color: #ff8800; background: rgb(255 136 0 / .1); }
+    .stream-status { font-size: .5rem; }
+    .stream-status.connected { color: #28a745; }
+    .stream-status.disconnected { color: #dc3545; }
+    .dn-save { position: sticky; bottom: 0; z-index: 5; background: var(--bs-body-bg); border-top: 1px solid var(--bs-border-color-translucent);
+      padding: .6rem 0; margin-top: 1rem; display: flex; gap: .6rem; align-items: center; }
+    .dn-form .number-range, .dn-form .form-switch { margin-bottom: .75rem; }
+    @media (max-width: 768px) { .dn-strip { grid-template-columns: 1fr; } .dn-next { text-align: left; } }
+  </style>
 </head>
 
 <body id="page-config-photosensing">
@@ -21,22 +48,63 @@
 <main class="pb-4">
   <div class="container" style="min-height:80vh">
     <div data-app-controls></div>
+    <h3 class="mb-3">Day / Night</h3>
 
-    <section>
-      <form id="photosensing-form" class="needs-validation" novalidate  autocomplete="off">
-        <div class="card mb-3">
-          <div class="card-header">
-            <h2 class="card-title">Photosensing</h2>
-            <small>Configure the day/night automation thresholds and the controls it toggles.</small>
-            <button type="button" class="btn btn-outline-secondary" id="photosensing-reload" title="Reload values from camera">
-              <i class="bi bi-arrow-clockwise"></i> Reload
-            </button>
-          </div><!-- .card-header -->
-          <div class="card-body">
-            <div class="row row-cols-lg-3 g-4">
-              <div class="col">
-                <h4>Thresholds</h4>
-                <small>Maximum and minimum boundaries of Day/Night modes</small>
+    <div class="tv-card mb-3">
+      <h6>Now <span class="ms-auto small text-body-secondary fw-normal"><i id="stream-status" class="bi bi-circle-fill stream-status disconnected me-1" title="Connecting..."></i>live from timps</span></h6>
+      <div class="dn-strip">
+        <div class="dn-mode"><i class="bi bi-moon-stars" id="dn-icon"></i><div><b id="dn-now">–</b><span class="small text-body-secondary" id="dn-src"></span></div></div>
+        <div class="dn-scale" id="dn-scale"><span class="m" id="dn-mark" hidden></span></div>
+        <div class="dn-next" id="dn-next"></div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs tv-tabs mb-3" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="settings">Settings</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="live">Live data</button></li>
+    </ul>
+
+    <div data-page-pane="live">
+      <div class="row g-3">
+        <div class="col-lg-4 d-grid gap-3 align-content-start">
+          <div id="frame" class="position-relative"><img id="preview" src="/a/nostream.svg" data-stream="ch1" class="img-fluid w-100 rounded" alt="Image: Preview"></div>
+          <div class="row g-2" id="data-stats"></div>
+        </div>
+        <div class="col-lg-8">
+          <div class="tv-card">
+            <h6>History
+              <span class="ms-auto form-check form-switch mb-0 small fw-normal">
+                <input type="checkbox" id="bg-collect" role="switch" class="form-check-input">
+                <label class="form-check-label text-body-secondary" for="bg-collect">Record on the camera</label></span></h6>
+            <div id="chart-container"><canvas id="dataChart"></canvas></div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+              <div class="btn-group btn-group-sm" role="group" id="max-points" aria-label="Time window">
+                <button type="button" class="btn btn-outline-secondary" data-points="100">100</button>
+                <button type="button" class="btn btn-outline-secondary active" data-points="300">300</button>
+                <button type="button" class="btn btn-outline-secondary" data-points="600">600</button>
+                <button type="button" class="btn btn-outline-secondary" data-points="1200">1200</button>
+              </div>
+              <button type="button" id="toggle-pause" class="btn btn-sm btn-outline-secondary">Pause</button>
+              <button type="button" id="clear-data" class="btn btn-sm btn-outline-secondary">Clear</button>
+              <div class="dropdown ms-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-download me-1"></i>Export</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><button type="button" class="dropdown-item" id="export-csv">CSV</button></li>
+                  <li><button type="button" class="dropdown-item" id="export-json">JSON</button></li>
+                </ul>
+              </div>
+            </div>
+            <p class="small text-body-secondary mt-2 mb-0">Night is shaded blue. <span id="bg-collect-note"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-page-pane="settings" hidden>
+      <form id="photosensing-form" class="needs-validation dn-form" novalidate autocomplete="off">
+        <div class="row g-3">
+          <div class="col-lg-6 d-grid gap-3 align-content-start">
+            <div class="tv-card"><h6>When to switch</h6>
                 <p class="form-switch">
                   <input type="hidden" id="daynight_enabled-false" name="daynight_enabled" value="false">
                   <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
@@ -62,39 +130,8 @@
                   <label for="daynight_diagnose_thresholds" class="form-check-label">Warn when the day threshold looks unreachable</label>
                 </p>
                 <small class="text-secondary">When three probes in a row find night and the scene never came close to the day threshold, log once which value to raise &ldquo;switch to day mode below&rdquo; above.</small>
-              </div>
-              <div class="col">
-                <h4>Controls</h4>
-                <small>Select actions to perform when changing Day/Night mode</small>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_controls_color-false" name="daynight_controls_color" value="false">
-                  <input type="checkbox" id="daynight_controls_color" name="daynight_controls_color" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_controls_color" class="form-check-label">Change color mode</label>
-                </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_controls_ircut-false" name="daynight_controls_ircut" value="false">
-                  <input type="checkbox" id="daynight_controls_ircut" name="daynight_controls_ircut" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_controls_ircut" class="form-check-label">Flip IR cut filter</label>
-                </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_controls_ir850-false" name="daynight_controls_ir850" value="false">
-                  <input type="checkbox" id="daynight_controls_ir850" name="daynight_controls_ir850" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_controls_ir850" class="form-check-label">Toggle IR 850 nm</label>
-                </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_controls_ir940-false" name="daynight_controls_ir940" value="false">
-                  <input type="checkbox" id="daynight_controls_ir940" name="daynight_controls_ir940" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_controls_ir940" class="form-check-label">Toggle IR 940 nm</label>
-                </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_controls_white-false" name="daynight_controls_white" value="false">
-                  <input type="checkbox" id="daynight_controls_white" name="daynight_controls_white" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_controls_white" class="form-check-label">Toggle white light</label>
-                </p>
-              </div>
-              <div class="col">
-                <h4>Decision source</h4>
-                <small>What decides Day/Night, and which calendar it may use</small>
+            </div>
+            <div class="tv-card"><h6>Decision source</h6>
                 <p class="mt-3">
                   <label for="daynight_mode" class="form-label">Decided by</label>
                   <select id="daynight_mode" name="daynight_mode" class="form-select">
@@ -150,10 +187,24 @@
                   <small class="text-secondary">Positive/negative minutes shift the switch relative to the real sun (e.g. -30 = switch to night 30 min before sunset). Today at this location:
                     day <span id="daynight_sun_computed_sunrise">--:--</span> &rarr; night <span id="daynight_sun_computed_sunset">--:--</span>.</small>
                 </div>
-              </div>
-              <div class="col">
-                <h4>Probe economy</h4>
-                <small>Night&rarr;day is decided by a probe; these bound how often one may run</small>
+            </div>
+          </div>
+          <div class="col-lg-6 d-grid gap-3 align-content-start">
+            <div class="tv-card"><h6>On switch, toggle</h6>
+          <div class="d-flex flex-wrap gap-2">
+            <input type="checkbox" class="btn-check" id="daynight_controls_color" name="daynight_controls_color" value="true" autocomplete="off">
+            <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_color"><i class="bi bi-palette me-1"></i>Colour mode</label>
+            <input type="checkbox" class="btn-check" id="daynight_controls_ircut" name="daynight_controls_ircut" value="true" autocomplete="off">
+            <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_ircut"><i class="bi bi-filter-circle me-1"></i>IR-cut filter</label>
+            <input type="checkbox" class="btn-check" id="daynight_controls_ir850" name="daynight_controls_ir850" value="true" autocomplete="off">
+            <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_ir850"><i class="bi bi-lightbulb me-1"></i>IR 850 nm</label>
+            <input type="checkbox" class="btn-check" id="daynight_controls_ir940" name="daynight_controls_ir940" value="true" autocomplete="off">
+            <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_ir940"><i class="bi bi-lightbulb me-1"></i>IR 940 nm</label>
+            <input type="checkbox" class="btn-check" id="daynight_controls_white" name="daynight_controls_white" value="true" autocomplete="off">
+            <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_white"><i class="bi bi-brightness-high me-1"></i>White light</label>
+          </div>
+            </div>
+            <div class="tv-card"><h6>Probing <span class="ms-auto small text-body-secondary fw-normal">advanced</span></h6>
                 <p class="number-range">
                   <label for="daynight_day_confirm_s">Confirm before switching to night (s)</label>
                   <span class="input-group">
@@ -185,10 +236,8 @@
                   Fixed internals: probe trigger at <span id="daynight_probe_jump_pct">-</span>% of the night
                   reference, reference anchored <span id="daynight_ref_delay_s">-</span> s into night,
                   boot settle <span id="daynight_boot_settle_s">-</span> s.</small>
-              </div>
-              <div class="col">
-                <h4>Heartbeat</h4>
-                <small>The sensor-independent safety net - the only bound on how long a wrong night can last</small>
+            </div>
+            <div class="tv-card"><h6>Heartbeat <span class="ms-auto small text-body-secondary fw-normal">safety net</span></h6>
                 <p class="number-range">
                   <label for="daynight_heartbeat_s">Forced probe, moving scene (s)</label>
                   <span class="input-group">
@@ -210,17 +259,17 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-              </div>
             </div>
           </div>
-        </section>
-
-        <button type="button" id="save-prudynt-config" class="btn btn-primary">
-          <i class="bi bi-floppy me-1"></i> Save changes
-        </button>
+        </div>
+        <div class="dn-save">
+          <button type="button" id="save-prudynt-config" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Save changes</button>
+          <button type="button" class="btn btn-outline-secondary" id="photosensing-reload" title="Reload values from camera"><i class="bi bi-arrow-clockwise"></i> Reload</button>
+          <span class="small text-body-secondary">saved live into timps.conf</span>
+        </div>
       </form>
     </div>
-  </section>
+  </div>
 </main>
 
 <footer data-app-footer></footer>
@@ -232,6 +281,11 @@
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
-<script src="/a/config-photosensing.js"></script></body>
+<script src="/a/timps-ui.js"></script>
+<script src="/a/config-photosensing.js"></script>
+<script src="/a/tool-sensor-data.js"></script>
+</body>
 </html>

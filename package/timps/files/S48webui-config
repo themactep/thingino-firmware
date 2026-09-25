@@ -1,9 +1,6 @@
 #!/bin/sh
 #set -euo pipefail
 
-# shellcheck source=/dev/null
-. /etc/init.d/lib-log
-
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
 WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
 API_KEY_FILE=${API_KEY_FILE:-/etc/thingino-api.key}
@@ -19,7 +16,7 @@ fi
 
 start() {
 	if [ ! -f "$API_KEY_FILE" ]; then
-		log -c 15 "Generating API key"
+		echo -c 15 "Generating API key"
 		new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
 		echo "$new_key" >"$API_KEY_FILE"
 		chmod 600 "$API_KEY_FILE"
@@ -43,9 +40,11 @@ start() {
 	if [ -n "$motors_pan" ] && [ -n "$motors_tilt" ]; then
 		motors_enabled="true"
 	fi
+	# never on timps: the stock sysupgrade flashes a release without timps
 	flash_operations_enabled="false"
-	if [ -f /var/www/tool-upgrade.html ]; then
-		flash_operations_enabled="true"
+	agent_enabled="false"
+	if [ -f /etc/init.d/S95agent ]; then
+		agent_enabled="true"
 	fi
 	soc="$(soc -f)"
 
@@ -60,6 +59,7 @@ start() {
 		echo "  timezone: \"$(escape "$timezone")\","
 		echo "  motors: $motors_enabled,"
 		echo "  flashOperations: $flash_operations_enabled,"
+		echo "  agent: $agent_enabled,"
 		echo "  soc: \"$soc\""
 		echo "});"
 		echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"

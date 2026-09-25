@@ -31,6 +31,11 @@
       <span class="text-secondary small" id="rec-info"></span>
     </div>
 
+    <ul class="nav nav-tabs tv-tabs my-2" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="clips">Clips</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="settings">Settings</button></li>
+    </ul>
+    <div data-page-pane="clips">
     <div id="rec-alerts" class="mt-2"></div>
 
     <div class="table-responsive mt-2">
@@ -38,6 +43,102 @@
         <thead><tr><th>Recorded</th><th>Segment</th><th class="text-end">Size</th><th class="text-end">Actions</th></tr></thead>
         <tbody id="rec-list"><tr><td colspan="4" class="text-secondary">Loading…</td></tr></tbody>
       </table>
+    </div>
+    </div>
+    <div data-page-pane="settings" hidden>
+<section>
+      <form id="recForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="tv-ct">Recorder</h2>
+            <small>Fragmented-MP4 clips on your storage target; saved live into <code>/etc/timps.conf</code>.</small>
+            <button type="button" class="btn btn-outline-secondary" id="rec-cfg-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+
+              <div class="col">
+                <h4>Storage</h4>
+                <small>where clips are written</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="rec_enabled">
+                  <label class="form-check-label" for="rec_enabled">Enable recorder (also starts on boot)</label>
+                </p>
+                <p>
+                  <label for="rec_dir">Storage directory</label>
+                  <a href="/tool-file-manager.html" class="small text-decoration-none">
+                    <i class="bi bi-folder2-open ms-2 me-1"></i> Open in File Manager
+                  </a>
+                  <input type="text" class="form-control" id="rec_dir" placeholder="/mnt/mmcblk0p1"
+                    data-help="SD card or share mount; clips go under &lt;dir&gt;/&lt;hostname&gt;/records/">
+                </p>
+                <p>
+                  <label for="rec_name">File name template</label>
+                  <input type="text" class="form-control strftime" id="rec_name" placeholder="%Y%m%d/%H/%Y%m%dT%H%M%S"
+                    data-help="strftime path under the records folder (.mp4 is appended)">
+                </p>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="rec_audio">
+                  <label class="form-check-label" for="rec_audio">Record audio (when available)</label>
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Recorder</h4>
+                <small>source, mode and clip length</small>
+                <p>
+                  <label for="rec_mode">Recording mode</label>
+                  <select class="form-select" id="rec_mode">
+                    <option value="0">Continuous</option>
+                    <option value="1">Motion-triggered</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="rec_channel">Stream to record</label>
+                  <select class="form-select" id="rec_channel">
+                    <option value="0">Main stream</option>
+                    <option value="1">Substream</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="rec_segment">Clip length, seconds</label>
+                  <input type="number" class="form-control" id="rec_segment" min="0" max="3600" step="5"
+                    data-help="Rotate to a new file every N seconds at a keyframe (0 = single file)">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Motion &amp; storage</h4>
+                <small>pre/post-roll and free-space guard</small>
+                <p>
+                  <label for="rec_preroll">Motion pre-roll, seconds</label>
+                  <input type="number" class="form-control" id="rec_preroll" min="0" max="60" step="1"
+                    data-help="Motion mode: keep this much video from before the trigger">
+                </p>
+                <p>
+                  <label for="rec_postroll">Motion post-roll, seconds</label>
+                  <input type="number" class="form-control" id="rec_postroll" min="0" max="600" step="1"
+                    data-help="Motion mode: keep recording this long after the last motion">
+                </p>
+                <p>
+                  <label for="rec_minfree">Minimum free space, megabytes</label>
+                  <input type="number" class="form-control" id="rec_minfree" min="0" max="102400" step="50"
+                    data-help="Oldest clips are pruned to keep at least this much free">
+                </p>
+              </div>
+
+            </div><!-- .row -->
+            <p class="small text-secondary mb-0" id="rec-status">&nbsp;</p>
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <button type="submit" class="btn btn-primary" id="rec-save">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
+    </section>
     </div>
   </div>
 </main>
@@ -66,6 +167,8 @@
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/timps-api.js"></script>
+<script src="/a/timps-ui.js"></script>
 <script src="/a/recordings.js"></script>
+<script src="/a/tool-record.js"></script>
 </body>
 </html>

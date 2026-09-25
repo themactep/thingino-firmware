@@ -120,13 +120,17 @@ config BR2_PACKAGE_TIMPS_WEBRTC
 	  ICE-lite peer with a single host candidate and completes the DTLS
 	  handshake as the passive side.
 
-	  timps's own runtime default for webrtc.enabled is 1 (on, TLS
-	  required for signalling wherever the http port has it) whenever
-	  this is compiled in - see the Configuration Reference wiki page.
+	  timps's own runtime default for webrtc.enabled is 2 (on, plaintext
+	  signalling accepted) whenever this is compiled in: most cameras have
+	  no http->https redirect configured, so defaulting to 1 (TLS
+	  required) would silently 426 the very feature this turns on - see
+	  the Configuration Reference wiki page.
 
 	  Media is H264 video over SRTP (SRTP_AES128_CM_HMAC_SHA1_80), plus
-	  G.711 audio when audio.codec is pcmu/pcma (an audio m-section is
-	  answered with port 0 for aac/opus/none). No Opus, no H265, no
+	  G.711 audio via a second encode of the captured PCM (audio.codec2,
+	  defaults to pcmu on these builds) independent of the primary
+	  audio.codec used for recording/RTSP/fMP4 - an audio m-section is
+	  answered with port 0 only when codec2 is none. No Opus, no H265, no
 	  NACK/retransmission, no FEC, no congestion control, no IPv6 and no
 	  NAT traversal beyond the single host candidate - LAN or VPN only.
 	  DELETE /webrtc/whep/<id> frees a session immediately; one left open
@@ -149,7 +153,7 @@ config BR2_PACKAGE_TIMPS_WEBRTC
 	  produced the "recursive dependency detected" breakage documented in
 	  BR2_PACKAGE_TIMPS_BC_WS above.
 
-	  Gated at runtime by webrtc.enabled in timps.conf (default 0,
+	  Gated at runtime by webrtc.enabled in timps.conf (default 2,
 	  restart-required), so enabling this is not a one-way door.
 
 config BR2_PACKAGE_TIMPS_SRT

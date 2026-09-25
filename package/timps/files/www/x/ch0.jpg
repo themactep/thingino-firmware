@@ -1,28 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC1091
-# timps replacement for the stock (prudynt-flavored) snapshot CGIs. The stock
-# scripts shell out to prudyntctl, which does not exist on a timps image; this
-# one fetches timps's own /snapshot.jpg endpoint over loopback (timps skips
-# auth for 127.0.0.0/8) and passes the JPEG through.
-#
-# timps.mk installs this ONE script under FOUR names in /var/www/x/:
-#   ch0.jpg / ch1.jpg  - inline snapshot, channel 0 / 1
-#   dl0.jpg / dl1.jpg  - same, but Content-Disposition: attachment (the
-#                        WebUI "download snapshot" buttons in a/main.js)
-# and symlinks /var/www/onvif/image.cgi -> /var/www/x/ch0.jpg plus
-# /var/www/onvif/image1.cgi -> /var/www/x/ch1.jpg for the ONVIF snapurls.
-# uhttpd canonicalizes those symlinks to a physical path under its /x CGI
-# prefix (-x /x) and therefore EXECUTES them; busybox httpd does the same for
-# executable files, so the mechanism works on both webservers. (busybox "P:"
-# proxy lines would NOT: uhttpd never reads /etc/httpd.conf.)
-#
-# Channel and disposition are derived from the invoked name, so the four
-# copies are byte-identical; an explicit chn=0|1 query param overrides the
-# channel (uhttpd and busybox httpd both export QUERY_STRING).
+# timps replacement for the stock (prudynt-flavored) snapshot CGIs.
 
-# Check authentication (session cookie, X-API-Key header, ?token= query param,
-# or trusted-IP bypass) - the same auth surface as the stock snapshot CGIs.
-# ONVIF clients pass the ?token= that onvif_simple_server appends to snapurls.
 . /var/www/x/auth.sh
 require_auth
 
@@ -49,9 +28,7 @@ for KV in $QUERY_STRING; do
 done
 IFS=$OLD_IFS
 
-# Derive timps's HTTP port + scheme from its config (http.port / http.https),
-# fall back to 8880/http. When http.https is set timps serves TLS-only on that
-# port, so this loopback fetch must use https + curl -k or it always fails.
+# Derive timps's HTTP port + scheme from its config (http.port / http.https), fall back to 8880/http.
 TIMPS_PORT=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
 [ -z "$TIMPS_PORT" ] && TIMPS_PORT=8880
 TIMPS_HTTPS=$(sed -n 's/^[[:space:]]*http\.https[[:space:]]*=[[:space:]]*\([0-9A-Za-z]*\).*/\1/p' /etc/timps.conf 2>/dev/null | head -n1)
@@ -66,9 +43,6 @@ case "$TIMPS_HTTPS" in
 		;;
 esac
 
-# Spool to tmpfs first so an upstream failure (timps not running, no frame
-# available yet) becomes a proper 502 instead of a bodyless 200, and so we can
-# send an exact Content-Length (NVRs are picky about truncated snapshots).
 TMPFILE=$(mktemp "/tmp/.snap${CHN}.XXXXXX") || exit 1
 trap 'rm -f "$TMPFILE"' EXIT
 

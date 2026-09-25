@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Video encoder</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-streamer-video">
+<nav data-app-nav></nav>
+<main class="pb-5">
+  <div class="container">
+    <div data-app-controls></div>
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
+      <h3 class="mb-0">Video encoder</h3>
+      <div class="form-check form-switch ms-auto mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="v-compare">
+        <label class="form-check-label text-body-secondary" for="v-compare">Compare streams</label>
+      </div>
+    </div>
+    <ul class="nav nav-tabs tv-tabs mb-3" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-stream-tab="0"><span>Main stream</span><small></small></button></li>
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-stream-tab="1"><span>Substream</span><small></small></button></li>
+    </ul>
+    <div class="row g-3">
+      <div class="col-12 col-xl-5">
+        <div id="frame" class="position-relative">
+          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch0">
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2 small font-monospace" id="v-chips"></div>
+        <div class="input-group input-group-sm mt-2">
+          <span class="input-group-text">RTSP</span>
+          <input type="text" id="v-url" class="form-control font-monospace" readonly>
+          <button type="button" id="v-copy" class="btn btn-outline-secondary">Copy</button>
+        </div>
+      </div>
+      <div class="col-12 col-xl-7 d-grid gap-3">
+        <div class="tv-card" id="v-cmp" hidden>
+          <h6>Both streams</h6>
+          <div class="table-responsive"><table class="table table-sm tv-cmp mb-0"><thead><tr><th></th><th>Main stream</th><th>Substream</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="tv-card">
+          <h6>Picture</h6>
+          <div class="tv-fields">
+            <div><label>Resolution <span data-badge="width"></span></label>
+              <div class="tv-pair"><input type="number" id="v-width" class="form-control" aria-label="Width"><span>×</span><input type="number" id="v-height" class="form-control" aria-label="Height"></div></div>
+            <div><label for="v-fps">Frame rate <span data-badge="fps"></span></label>
+              <input type="number" id="v-fps" class="form-control" min="1" max="120"></div>
+            <div><label for="v-format">Codec <span data-badge="codec"></span></label>
+              <select id="v-format" class="form-select"></select></div>
+            <div><label for="v-profile">Profile <span data-badge="profile"></span></label>
+              <select id="v-profile" class="form-select"><option value="0">Baseline</option><option value="1">Main</option><option value="2">High</option></select></div>
+          </div>
+        </div>
+        <div class="tv-card">
+          <h6>Rate control</h6>
+          <div class="btn-group btn-group-sm flex-wrap mb-3" role="group" aria-label="Rate control mode" id="v-modes"></div>
+          <div class="tv-fields">
+            <div><label for="v-bitrate">Bitrate, kbit/s <span data-badge="bitrate"></span></label>
+              <input type="number" id="v-bitrate" class="form-control"></div>
+            <div data-rc="min_qp"><label>QP range <span data-badge="min_qp"></span></label>
+              <div class="tv-pair"><input type="number" id="v-min_qp" class="form-control" aria-label="Min QP" title="1..51; raising it lowers the bitrate"><span>–</span><input type="number" id="v-max_qp" class="form-control" aria-label="Max QP" title="1..51"></div></div>
+            <div data-rc="qp"><label for="v-qp">Fixed QP <span data-badge="qp"></span></label>
+              <input type="number" id="v-qp" class="form-control" title="1..51"></div>
+            <div data-rc="i_bias_lvl"><label for="v-i_bias_lvl">I-frame bias <span data-badge="i_bias_lvl"></span></label>
+              <select id="v-i_bias_lvl" class="form-select" title="negative spends more bits on keyframes"><option>-3</option><option>-2</option><option>-1</option><option>0</option><option>1</option><option>2</option><option>3</option></select></div>
+            <div data-rc="quality_lvl"><label for="v-quality_lvl">Quality level <span data-badge="quality_lvl"></span></label>
+              <input type="number" id="v-quality_lvl" class="form-control" min="0" max="7" title="0..7; lower = better picture, higher bitrate"></div>
+            <div data-rc="change_pos"><label for="v-change_pos">Change position <span data-badge="change_pos"></span></label>
+              <input type="number" id="v-change_pos" class="form-control" min="50" max="100" title="50..100 %"></div>
+            <div data-rc="fluc_lvl"><label for="v-fluc_lvl">Fluctuation level <span data-badge="fluc_lvl"></span></label>
+              <input type="number" id="v-fluc_lvl" class="form-control" min="0" max="4"></div>
+            <div><label for="v-gop">Keyframe every <span data-badge="gop"></span></label>
+              <input type="number" id="v-gop" class="form-control" min="1" max="1000"><div class="form-text" id="v-gop-s"></div></div>
+          </div>
+          <p class="form-text font-monospace mb-0 mt-2" id="v-holds">Encoder readback: &hellip;</p>
+          <p class="form-text mb-0" id="v-hidden"></p>
+        </div>
+        <div class="tv-card">
+          <h6>Delivery</h6>
+          <div class="tv-fields">
+            <div><label for="v-rtsp_endpoint">RTSP path <span data-badge="rtsp_path"></span></label>
+              <input type="text" id="v-rtsp_endpoint" class="form-control"></div>
+            <div><label for="v-buffers">Buffers <span data-badge="buffers"></span></label>
+              <input type="number" id="v-buffers" class="form-control" min="1" max="8"></div>
+          </div>
+          <div class="d-flex flex-wrap gap-4 mt-3">
+            <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" role="switch" id="v-enabled">
+              <label class="form-check-label" for="v-enabled">Stream enabled <span data-badge="enabled"></span></label></div>
+            <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" role="switch" id="v-audio_enabled">
+              <label class="form-check-label" for="v-audio_enabled">Audio <span class="tv-badge rst">restart</span></label></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/timps-preview.js"></script>
+<script src="/a/timps-api.js"></script>
+<script src="/a/timps-version.js"></script>
+<script src="/a/timps-ui.js"></script>
+<script src="/a/streamer-encoder.js"></script>
+</body>
+</html>
