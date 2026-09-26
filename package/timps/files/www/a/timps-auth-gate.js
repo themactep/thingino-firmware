@@ -1,8 +1,4 @@
-/* timps-auth-gate.js - pre-paint session gate. Injected into <head> by
- * assemble_plugins.py, so it runs before <body> is parsed: it hides the
- * document, asks /x/session-status.cgi, then reveals or leaves for
- * /login.html. Fails OPEN - any error, non-JSON, 5xx or timeout reveals the
- * page and defers to main.js's own load-time check. See WEBUI-NOTES.md. */
+// timps-auth-gate.js - pre-paint session gate.
 (function () {
   "use strict";
 

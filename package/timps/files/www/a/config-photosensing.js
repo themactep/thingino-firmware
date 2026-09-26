@@ -1,18 +1,4 @@
-/* config-photosensing.js - timps day/night (photosensing) settings.
- *
- * Overlay replacing the stock thingino page script, which POSTed the gain
- * thresholds to /x/json-config-daynight.cgi (thingino.json) - a file the
- * timps streamer never reads, so the thresholds did nothing. This version
- * talks DIRECTLY to timps via GET/POST /control (a/timps-api.js); fields
- * follow the "daynight_<key>" -> "daynight.<key>" convention (see
- * fillTimps()/collectTimps() below). The Override Mode selector chooses the
- * decision source: sensor (gain-based, default), a fixed local-clock
- * window, or today's real sunrise/sunset for a lat/long - all three native.
- *
- * The Controls (color/ircut/IR850/IR940/white) column is a SEPARATE feature:
- * it configures the BOARD daynight script (/sbin/daynight hardware toggles),
- * not timps, and legitimately stays on the stock /x/json-config-daynight.cgi
- * backend, loaded and saved best-effort. */
+// config-photosensing.js - timps day/night (photosensing) settings.
 (function () {
   "use strict";
 
@@ -22,7 +8,7 @@
     return;
   }
 
-  var LEGACY = "/x/json-config-daynight.cgi"; // board script config (controls only)
+  var LEGACY = "/x/timps-dn-controls.cgi"; // daynight.controls for /usr/sbin/daynight
   var CONTROLS = ["color", "ircut", "ir850", "ir940", "white"];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -35,46 +21,83 @@
     else console.log("[photosensing]", type + ":", msg);
   }
 
-  /* ---- mode UI: show only the selected sub-fields ---------------------- */
+  /* ---- calendar UI: show only the selected calendar's sub-fields ------- */
 
-  function syncModeUI() {
-    var sel = $("daynight_mode");
-    var mode = sel ? sel.value : "sensor";
-    var timeF = $("daynight_time_fields");
-    var sunF = $("daynight_sun_fields");
-    if (timeF) timeF.hidden = (mode !== "time");
-    if (sunF) sunF.hidden = (mode !== "sun");
+  function calValue() {
+    var el = $("daynight_calendar");
+    return el ? el.value : "none";
   }
 
-  /* ---- timps part: enabled + gain thresholds + override mode ---------- */
+  function calFromValues(night, day, lat, lon) {
+    if (night && day) return "time";
+    if (Number(lat) || Number(lon)) return "sun";
+    return "none";
+  }
 
-  var NUM_FIELDS = [
+  function syncCalendarUI() {
+    var cal = calValue();
+    var timeF = $("daynight_time_fields");
+    var sunF = $("daynight_sun_fields");
+    if (timeF) timeF.hidden = (cal !== "time");
+    if (sunF) sunF.hidden = (cal !== "sun");
+  }
+
+  // every way this column can be saved into a no-op.
+  function calendarProblem() {
+    var cal = calValue();
+    var mode = $("daynight_mode");
+    var n = $("daynight_time_night_start"), d = $("daynight_time_day_start");
+    var la = $("daynight_sun_latitude"), lo = $("daynight_sun_longitude");
+    if (cal === "time" && !(n && d && n.value && d.value))
+      return "A fixed time window needs both a night and a day time.";
+    if (cal === "sun" && !(la && lo && (parseFloat(la.value) || parseFloat(lo.value))))
+      return "Sunrise / sunset needs a latitude and a longitude.";
+    if (mode && mode.value === "schedule" && cal === "none")
+      return "Deciding by the calendar alone needs a calendar - pick a fixed " +
+             "time window or sunrise / sunset.";
+    return null;
+  }
+
+  /* ---- timps part: enabled + gain thresholds + decision source -------- */
+
+  var INT_FIELDS = [
     "total_gain_night_threshold", "total_gain_day_threshold",
-    "sun_latitude", "sun_longitude",
-    "sun_sunrise_offset_min", "sun_sunset_offset_min",
+    "day_confirm_s", "probe_confirm_s", "probe_min_gap_s",
+    "heartbeat_s", "heartbeat_max_s", "interval_ms",
   ];
   var STR_FIELDS = ["time_night_start", "time_day_start"];
+  var BOOL_FIELDS = ["boot_probe", "diagnose_thresholds"];
+  // constants since the 2026-08-22 consolidation (see the DN_* block in
+  // daynight.h) - reported by timps, shown, not settable
+  var FIXED_FIELDS = ["probe_jump_pct", "ref_delay_s", "boot_settle_s"];
 
   function fillTimps(dn) {
     dn = dn || {};
     var en = $("daynight_enabled");
     if (en) en.checked = (dn.enabled === true || dn.enabled === 1);
+    BOOL_FIELDS.forEach(function (k) {
+      var el = $("daynight_" + k);
+      if (el) el.checked = (dn[k] === true || dn[k] === 1);
+    });
 
     var mode = $("daynight_mode");
     if (mode && typeof dn.dn_mode === "string") mode.value = dn.dn_mode;
+    var cal = $("daynight_calendar");
+    if (cal) cal.value = calFromValues(dn.time_night_start, dn.time_day_start,
+                                       dn.sun_latitude, dn.sun_longitude);
 
-    // gain thresholds + adaptive/boot tunables are rounded ints; the rest
-    // keep their given value
-    ["total_gain_night_threshold", "total_gain_day_threshold",
-     "day_gain_pct", "baseline_delay_s", "night_reconfirm_s",
-     "boot_settle_s", "boot_settle_max_s", "boot_stable_pct"].forEach(function (k) {
+    INT_FIELDS.forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el) return;
       var v = dn[k];
       el.value = (v === null || typeof v === "undefined") ? "" : Math.round(v);
     });
+    FIXED_FIELDS.forEach(function (k) {
+      var el = $("daynight_" + k);
+      if (el) el.textContent = (typeof dn[k] === "number") ? Math.round(dn[k]) : "-";
+    });
 
-    // read-only adaptive-baseline feedback (only meaningful in night mode;
+    // read-only night-reference feedback (only meaningful in night mode;
     // timps reports -1 when none is in effect)
     var nb = $("daynight_night_baseline");
     var dt = $("daynight_day_trigger");
@@ -100,7 +123,7 @@
     if (sr) sr.textContent = dn.sun_computed_sunrise || "--:--";
     if (ss) ss.textContent = dn.sun_computed_sunset || "--:--";
 
-    syncModeUI();
+    syncCalendarUI();
   }
 
   function collectTimps() {
@@ -108,32 +131,45 @@
     var en = $("daynight_enabled");
     if (en) out.enabled = !!en.checked;
 
+    BOOL_FIELDS.forEach(function (k) {
+      var el = $("daynight_" + k);
+      if (el) out[k] = el.checked ? 1 : 0;
+    });
+
     var mode = $("daynight_mode");
     if (mode) out.mode = mode.value;
 
-    ["total_gain_night_threshold", "total_gain_day_threshold",
-     "day_gain_pct", "baseline_delay_s", "night_reconfirm_s",
-     "boot_settle_s", "boot_settle_max_s", "boot_stable_pct"].forEach(function (k) {
+    INT_FIELDS.forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el) return;
       var v = parseInt(el.value, 10);
       if (!isNaN(v) && v >= 0) out[k] = v;
     });
-    ["sun_latitude", "sun_longitude"].forEach(function (k) {
-      var el = $("daynight_" + k);
-      if (!el || el.value === "") return;
-      var v = parseFloat(el.value);
-      if (!isNaN(v)) out[k] = v;
-    });
+
+    var cal = calValue();
+    var num = function (id) {
+      var el = $(id);
+      var v = el ? parseFloat(el.value) : NaN;
+      return isNaN(v) ? 0 : v;
+    };
+    if (cal === "time") {
+      STR_FIELDS.forEach(function (k) {
+        var el = $("daynight_" + k);
+        out[k] = el ? el.value : "";         // "HH:MM"
+      });
+      out.sun_latitude = 0;
+      out.sun_longitude = 0;
+    } else {
+      out.time_night_start = "";
+      out.time_day_start = "";
+      out.sun_latitude = (cal === "sun") ? num("daynight_sun_latitude") : 0;
+      out.sun_longitude = (cal === "sun") ? num("daynight_sun_longitude") : 0;
+    }
     ["sun_sunrise_offset_min", "sun_sunset_offset_min"].forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el || el.value === "") return;
       var v = parseInt(el.value, 10);      // negatives allowed
       if (!isNaN(v)) out[k] = v;
-    });
-    STR_FIELDS.forEach(function (k) {
-      var el = $("daynight_" + k);
-      if (el && el.value) out[k] = el.value;   // "HH:MM"
     });
     return out;
   }
@@ -183,6 +219,8 @@
     if (reloadBtn) reloadBtn.disabled = true;
     var t = window.timpsApi.get().then(function (json) {
       fillTimps(json && json.daynight);
+      onNow(json && json.daynight);
+      durHints();
     }).catch(function (e) {
       toast("danger", "Unable to load timps day/night settings: " + (e.message || e));
     });
@@ -194,6 +232,8 @@
 
   function save(ev) {
     if (ev) { ev.preventDefault(); ev.stopImmediatePropagation(); }
+    var problem = calendarProblem();
+    if (problem) { toast("danger", problem, 6000); return; }
     if (saveBtn) saveBtn.disabled = true;
     window.timpsApi.set({ daynight: collectTimps() }).then(function (r) {
       // controls stay on the board-script backend; best-effort
@@ -202,18 +242,11 @@
           (e.message || e) + ").", 6000);
       }).then(function () { return r; });
     }).then(function (r) {
-      // corrected (clamped) values go straight back into their fields from
-      // the "applied" echo; load() still runs for the computed/adaptive
-      // read-only feedback and the legacy half, but the user need not wait
-      // for it to see what really got stored
       var corr = r && r.corrections;
       if (corr) Object.keys(corr).forEach(function (k) {
         applyTimpsKV(k, corr[k]);
       });
       corr = window.timpsApi.takeCorrections(r);
-      // a 200 can still carry rejected>0: the daemon refused SOME value
-      // (empty/invalid) while applying the rest - a plain "saved" would lie
-      // about those; the reload below shows what it actually kept
       if (r && r.rejected > 0)
         toast("warning", "Saved, but the streamer refused " + r.rejected +
           " value(s) (empty or invalid).", 6000);
@@ -232,45 +265,125 @@
   /* ---- live sync: another open tab/client changing a timps field ------- */
 
   var TIMPS_REVERSE = {
-    "daynight.enabled": "daynight_enabled",
-    "daynight.mode": "daynight_mode",
-    "daynight.total_gain_night_threshold": "daynight_total_gain_night_threshold",
-    "daynight.total_gain_day_threshold": "daynight_total_gain_day_threshold",
-    "daynight.time_night_start": "daynight_time_night_start",
-    "daynight.time_day_start": "daynight_time_day_start",
-    "daynight.sun_latitude": "daynight_sun_latitude",
-    "daynight.sun_longitude": "daynight_sun_longitude",
-    "daynight.sun_sunrise_offset_min": "daynight_sun_sunrise_offset_min",
-    "daynight.sun_sunset_offset_min": "daynight_sun_sunset_offset_min",
+    "daynight.night_gain": "daynight_total_gain_night_threshold",
+    "daynight.day_gain": "daynight_total_gain_day_threshold",
   };
 
-  // write one "daynight.<key>" value into its field - shared by the config-
-  // sync push and the save-time "applied" corrections, so a clamped value
-  // renders exactly like a remote edit. Field ids follow the "daynight_<key>"
-  // convention, so the adaptive/boot tunables resolve without their own
-  // TIMPS_REVERSE entries. The section guard matters: without it a key like
-  // "record.enabled" would fall back onto "daynight_enabled".
+  var CAL_KEYS = ["daynight.time_night_start", "daynight.time_day_start",
+                  "daynight.sun_latitude", "daynight.sun_longitude"];
+
+  // the section guard matters: without it a key like "record.enabled" would
+  // fall back onto "daynight_enabled"
+  function fieldId(key) {
+    if (key.indexOf("daynight.") !== 0) return null;
+    return TIMPS_REVERSE[key] || "daynight_" + key.slice(9);
+  }
+
   function applyTimpsKV(key, value) {
-    if (key.indexOf("daynight.") !== 0) return;
-    var id = TIMPS_REVERSE[key] || "daynight_" + key.split(".").pop();
-    var el = $(id);
+    var id = fieldId(key);
+    var el = id ? $(id) : null;
     if (!el) return;
-    if (id === "daynight_enabled") {
+    if (el.type === "checkbox") {
       el.checked = (value === "1" || value === "true");
-    } else if (id === "daynight_mode") {
-      el.value = value;
-      syncModeUI();
-    } else if (key.indexOf("threshold") !== -1) {
+    } else if (id.indexOf("threshold") !== -1) {
       el.value = Math.round(Number(value));
     } else {
-      el.value = value;   // times ("HH:MM"), lat/long, offsets
+      el.value = value;   // mode, times ("HH:MM"), lat/long, offsets, s/ms ints
+    }
+    // a remote change to any of the four calendar values can change which
+    // calendar timps will actually use, so re-derive the selector with them
+    if (CAL_KEYS.indexOf(key) !== -1) {
+      var cal = $("daynight_calendar");
+      if (cal && document.activeElement !== cal) {
+        cal.value = calFromValues($("daynight_time_night_start").value,
+                                  $("daynight_time_day_start").value,
+                                  $("daynight_sun_latitude").value,
+                                  $("daynight_sun_longitude").value);
+        syncCalendarUI();
+      }
     }
   }
 
+  /* ---- "Now" box: mode, gain against both limits, what comes next ------ */
+
+  var now = {};
+  function drawNow() {
+    var d = now, night = Number(d.mode) === 1;
+    // the decision runs on the exposure index (= gain in the dark); older
+    // timps only send total_gain
+    var g = Number(d.exposure) >= 0 ? Number(d.exposure) : Number(d.total_gain);
+    var lo = Number(d.day_gain), hi = Number(d.night_gain), trig = Number(d.day_trigger);
+    $("dn-icon").className = night ? "bi bi-moon-stars" : "bi bi-sun";
+    $("dn-now").textContent = d.mode === undefined ? "–" : night ? "Night" : "Day";
+    var auto = d.dn_mode !== "schedule";
+    $("dn-src").textContent = !(d.enabled === 1 || d.enabled === true) ? "automatic switching off"
+      : auto ? "auto · light level" : "auto · calendar";
+    var sc = $("dn-scale"), mk = $("dn-mark");
+    sc.querySelectorAll(".tk,.lb").forEach(function (e) { e.remove(); });
+    mk.style.opacity = "";
+    if (night) {
+      // In the night pipeline the IR light keeps the exposure low, so it is
+      // not comparable with the day thresholds: only the drop below the probe
+      // bar (day_trigger, from the night reference) asks for a day probe.
+      var ref = Number(d.night_baseline);
+      var span = Math.max(trig > 0 ? trig * 2 : 0, ref > 0 ? ref * 1.3 : 0,
+                          ref > 0 ? Math.min(g * 1.05 || 0, ref * 2.5) : g * 1.05 || 0, 1),
+          p = function (v) { return (v / span * 100).toFixed(2) + "%"; };
+      if (trig > 0) {
+        sc.style.background = "linear-gradient(90deg,#f0c040 0 " + p(trig) + ",#3a5fcd " + p(trig) + ")";
+        sc.insertAdjacentHTML("beforeend",
+          '<span class="lb" style="left:' + p(trig / 2) + ';color:#f0c040">probe day</span>' +
+          '<span class="lb" style="left:' + p((trig + span) / 2) + ';color:#7b9cff">Night</span>' +
+          '<span class="tk" style="left:' + p(trig) + '">' + Math.round(trig) + "</span>" +
+          (ref > 0 ? '<span class="tk" style="left:' + p(ref) + '">ref ' + Math.round(ref) + "</span>" : ""));
+      } else {
+        sc.style.background = "#3a5fcd";
+        sc.insertAdjacentHTML("beforeend",
+          '<span class="lb" style="left:50%;color:#7b9cff">Night · reference pending</span>');
+        mk.style.opacity = ".4";
+      }
+      if (g >= 0) { mk.style.left = p(Math.min(g, span)); mk.hidden = false; }
+    } else if (lo > 0 && hi > lo) {
+      var span2 = Math.max(hi * 2, g * 1.05 || 0), q = function (v) { return (v / span2 * 100).toFixed(2) + "%"; };
+      sc.style.background = "linear-gradient(90deg,#f0c040 0 " + q(lo) + ",#555 " + q(lo) + " " + q(hi) + ",#3a5fcd " + q(hi) + ")";
+      sc.insertAdjacentHTML("beforeend",
+        '<span class="lb" style="left:' + q(lo / 2) + ';color:#f0c040">Day</span>' +
+        '<span class="lb" style="left:' + q((lo + hi) / 2) + '">hysteresis</span>' +
+        '<span class="lb" style="left:' + q((hi + span2) / 2) + ';color:#7b9cff">Night</span>' +
+        '<span class="tk" style="left:' + q(lo) + '">' + lo + '</span><span class="tk" style="left:' + q(hi) + '">' + hi + "</span>");
+      if (g >= 0) { mk.style.left = q(Math.min(g, span2)); mk.hidden = false; }
+    }
+    var next = "";
+    if (!auto) next = "the calendar decides";
+    else if (night && trig > 0) next = "probe for day when exposure <b>&lt; " + Math.round(trig) + "</b>";
+    else if (night) next = "night reference still being taken";
+    else if (hi > 0) next = "night when exposure <b>&gt; " + hi + "</b>" + (d.day_confirm_s ? " for " + d.day_confirm_s + " s" : "");
+    $("dn-next").innerHTML = (next ? "next: " + next : "") + (g >= 0 ? "<br>exposure now " + Math.round(g) : "");
+    mk.title = night ? "night-pipeline exposure: IR-lit, not comparable with the day thresholds" : "";
+  }
+  function onNow(d) {
+    if (!d) return;
+    Object.keys(d).forEach(function (k) { now[k] = d[k]; });
+    drawNow();
+  }
+
+  // hour/minute reading next to the second-valued fields
+  function durHints() {
+    ["heartbeat_s", "heartbeat_max_s", "probe_min_gap_s"].forEach(function (k) {
+      var el = $("daynight_" + k), lab = el && document.querySelector('label[for="daynight_' + k + '"]');
+      if (!lab) return;
+      var h = lab.querySelector(".dur") || lab.appendChild(Object.assign(document.createElement("span"), { className: "dur ms-1 text-body-secondary" }));
+      var v = parseInt(el.value, 10);
+      h.textContent = v >= 3600 ? "≈ " + +(v / 3600).toFixed(1) + " h" : v >= 60 ? "≈ " + Math.round(v / 60) + " min" : "";
+    });
+  }
+  document.addEventListener("input", function (e) { if (/daynight_(heartbeat|probe_min_gap)/.test(e.target.id)) durHints(); });
+
   function onConfigEvent(type, data) {
+    if (type === "daynight") { onNow(data); return; }
     if (!data) return;
     if (data.resync) { load(); return; }
-    var id = TIMPS_REVERSE[data.key];
+    var id = fieldId(data.key);
     var el = id ? $(id) : null;
     // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
@@ -279,9 +392,9 @@
 
   if (saveBtn) saveBtn.addEventListener("click", save, { capture: true });
   if (reloadBtn) reloadBtn.addEventListener("click", load);
-  var modeSel = $("daynight_mode");
-  if (modeSel) modeSel.addEventListener("change", syncModeUI);
-  window.timpsApi.events("config", onConfigEvent);
+  var calSel = $("daynight_calendar");
+  if (calSel) calSel.addEventListener("change", syncCalendarUI);
+  window.timpsApi.events("config,daynight", onConfigEvent);
 
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", load, { once: true });

@@ -1,30 +1,4 @@
-/* timps.css - the only rules timps's old a/main.css fork actually needed.
- *
- * timps used to ship a whole copy of thingino-webui's a/main.css (1000 lines)
- * to add three rules; two of them (.usage-bar-extras, p.disabled) matched no
- * markup anywhere in either package's www tree, and a third
- * (.navbar { margin-top: 30px }) carried no rationale and no counterpart in
- * core, prudynt or raptor - so all three were dropped when the fork was
- * replaced by this stylesheet (declared in timps.webui.json "styles", which
- * assemble_plugins.py injects into every page).
- *
- * What IS kept is the brand-bar fix that timps's navigation.js fork used to
- * apply by adding Bootstrap's .mw-100 / .text-truncate classes in JS. That
- * fork is gone (the menu comes from the manifest now), so the fix is
- * expressed as CSS instead - same effect, no forked file:
- *
- *   the logo is a fixed 150px and the brand label is the page title, so a
- *   long title (e.g. "Raw Sensor Data Collection") pushed the brand past a
- *   375px viewport and gave the whole page a horizontal scrollbar - measured
- *   18px over on tool-sensor-data, 3px on tool-timelapse, 0 on the other
- *   fifteen pages. Truncating rather than wrapping keeps logo and label on
- *   one line, which is what a brand bar should look like; overflow:hidden is
- *   also what lets the span shrink below its content width inside the flex
- *   row.
- *
- * This is not timps-specific and belongs upstream in thingino-webui's
- * main.css / navigation.js; it lives here until it is taken there.
- */
+
 .navbar-brand {
   max-width: 100%;
 }
@@ -34,3 +8,62 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* video/overlay pages */
+.tv-tabs .nav-link { display: grid; text-align: left; line-height: 1.25; }
+.tv-tabs .nav-link small { font-family: var(--bs-font-monospace); font-size: .72rem; color: var(--bs-secondary-color); }
+.tv-tabs .nav-link.active { color: #ff8800; }
+/* same look as the preview's .card, title at tab size */
+.tv-card { border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius); padding: 0 1rem 1rem; background: var(--bs-body-bg); }
+.tv-card > h6, .card-header .tv-ct { font-size: 1rem; font-weight: 400; color: darkorange; }
+.tv-card > h6 { margin: 0 -1rem 1rem; padding: .5rem 1rem; display: flex; gap: .4rem; align-items: center;
+  background: rgba(var(--bs-body-color-rgb), .03); border-bottom: 1px solid var(--bs-border-color-translucent); }
+.card-header .tv-ct { margin: 0; }
+.tv-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .75rem; }
+.tv-fields label { font-size: .82rem; color: var(--bs-secondary-color); display: flex; gap: .35rem; align-items: center; margin-bottom: .25rem; }
+.tv-badge { font-size: .62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; border-radius: .25rem; padding: 0 .3rem; line-height: 1.5; }
+.tv-badge.live { color: #4cc38a; background: rgb(76 195 138 / .12); }
+.tv-badge.rst { color: #f0b429; background: rgb(240 180 41 / .12); }
+.tv-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: .35rem; align-items: center; }
+.tv-pair input { padding-inline: .45rem; min-width: 0; }
+#v-modes .btn.active { color: #ff8800; border-color: #ff8800; background: rgb(255 136 0 / .1); }
+.tv-pending { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; max-width: 1100px; margin: 0 auto; z-index: 1050;
+  display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; background: #3a2f12; border: 1px solid #f0b429; border-radius: .6rem; padding: .6rem .9rem; }
+.tv-pending[hidden] { display: none; }
+.tv-pending b { color: #f0b429; }
+.tv-pending .tv-keys { flex: 1; min-width: 12rem; font-family: var(--bs-font-monospace); font-size: .8rem; color: #f5dca0; }
+.tv-frame { position: relative; }
+.tv-frame:focus-visible { outline: 2px solid #ff8800; outline-offset: 2px; }
+.tv-box { position: absolute; border: 1px dashed rgb(255 255 255 / .55); cursor: pointer; }
+.tv-box::after { content: ""; position: absolute; inset: -5px; }
+.tv-box.sel { border: 1px solid #ff8800; cursor: move; touch-action: none; background: rgb(255 136 0 / .08); }
+.tv-hint { font-size: .75rem; color: var(--bs-secondary-color); display: flex; flex-wrap: wrap; gap: .2rem .7rem; justify-content: flex-end; }
+.tv-hint kbd { font-size: .7rem; padding: 0 .3rem; }
+.tv-item { border: 1px solid var(--bs-border-color); border-radius: .45rem; }
+.tv-item.open { border-color: #ff8800; }
+.tv-ih { display: grid; grid-template-columns: auto auto 1fr auto auto; gap: .6rem; align-items: center; padding: .45rem .6rem; cursor: pointer; }
+.tv-ih .tv-tx { font-family: var(--bs-font-monospace); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-ih .tv-pos { font-size: .78rem; color: var(--bs-secondary-color); white-space: nowrap; }
+.tv-ib { padding: .25rem .6rem .75rem; }
+.tv-anchor { display: grid; grid-template-columns: repeat(3, 1.6rem); gap: .25rem; }
+.tv-anchor button { width: 1.6rem; height: 1.1rem; border-radius: .2rem; border: 1px solid var(--bs-border-color); background: var(--bs-body-bg); padding: 0; }
+.tv-anchor button.active { background: #ff8800; border-color: #ff8800; }
+.tv-cfg { font-family: var(--bs-font-monospace); font-size: .75rem; color: var(--bs-secondary-color); }
+.tv-cmp td, .tv-cmp th { font-size: .85rem; white-space: nowrap; }
+.tv-cmp tr.diff td:not(:first-child) { color: #ff8800; }
+.tv-fields .grid-column-full { grid-column: 1 / -1; }
+.pm-box { position: absolute; box-sizing: border-box; cursor: pointer; touch-action: none; border: 1px dashed rgb(255 255 255 / .7);
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / .06) 0 6px, transparent 6px 12px); border-radius: 2px; }
+.pm-box.sel { cursor: move; border: 2px solid #ff8800; background: rgb(255 136 0 / .12); box-shadow: 0 0 0 1px rgb(0 0 0 / .6); }
+.pm-box .pm-tag { position: absolute; left: -2px; top: -1.35rem; font-size: .7rem; line-height: 1.4; padding: 0 .35rem; border-radius: .25rem;
+  background: rgb(0 0 0 / .65); color: #fff; white-space: nowrap; pointer-events: none; }
+.pm-box.sel .pm-tag { background: #ff8800; color: #111; font-weight: 600; }
+.pm-box .pm-handle { position: absolute; width: 14px; height: 14px; right: -8px; bottom: -8px; border-radius: 50%; cursor: nwse-resize;
+  background: #fff; border: 2px solid #ff8800; box-shadow: 0 1px 3px rgb(0 0 0 / .6); opacity: 0; transition: opacity .12s, transform .12s; }
+.pm-box.sel .pm-handle, .pm-box:hover .pm-handle { opacity: 1; }
+.pm-box .pm-handle:hover { transform: scale(1.25); }
+.pm-swatch { width: 1rem; height: 1rem; border-radius: .2rem; border: 1px solid var(--bs-border-color); display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .pm-box .pm-handle { transition: none; } }
+body[data-pane="privacy"] #osd-boxes, body[data-pane="privacy"] .tv-hint-text,
+body:not([data-pane="privacy"]) .pm-box, body:not([data-pane="privacy"]) .tv-hint-privacy { display: none; }
+.tv-fields output { color: var(--bs-body-color); }

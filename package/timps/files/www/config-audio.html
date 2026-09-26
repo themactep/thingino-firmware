@@ -26,8 +26,8 @@
       <form id="audio-form" class="needs-validation" novalidate autocomplete="off">
         <div class="card mb-3">
           <div class="card-header">
-            <h2 class="card-title">Audio Settings</h2>
-            <small>Volume, gain, AGC, noise suppression and high-pass apply live. Codec, sampling rate, bitrate and stereo/speaker settings are saved and take effect after a streamer restart. Unsupported controls on this camera are greyed out.</small>
+            <h2 class="tv-ct">Audio Settings</h2>
+            <small>Volume and gain apply live. AGC, noise suppression, high-pass and AEC are saved and take effect at the next streamer restart (AEC also re-engages on the next two-way-audio session, but may leave the mic noisier until a restart - see the docs). Codec, sampling rate, bitrate and stereo/speaker settings are saved and take effect after a streamer restart. Unsupported controls on this camera are greyed out.</small>
             <button type="button" class="btn btn-outline-secondary" id="audio-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
@@ -177,7 +177,7 @@
 
         <div class="card mb-3" id="backchannel-card">
           <div class="card-header">
-            <h2 class="card-title">ONVIF Audio Backchannel</h2>
+            <h2 class="tv-ct">ONVIF Audio Backchannel</h2>
             <small>Two-way audio: an ONVIF client sends audio to the camera over RTSP, played out natively through the camera speaker (IMP_AO). Changes apply after a streamer restart.</small>
           </div><!-- .card-header -->
           <div class="card-body">

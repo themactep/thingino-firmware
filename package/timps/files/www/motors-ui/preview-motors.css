@@ -1,13 +1,8 @@
-/* Virtual analog stick for the preview PTZ overlay, used when
- * motors.preview_control_mode is "joystick". Plugin stylesheet rather than
- * more rules in main.css: markup comes from this plugin's own manifest.
- */
+/* Virtual analog stick for the preview PTZ overlay, used when * motors.preview_control_mode is "joystick". */
 
 #motor {
   position: relative;
-  /* --motor-stick-size is written here at runtime (sizeStick() in
-   * preview-motors.js), not on #motor-stick: the readout rows are the
-   * ring's siblings and custom properties only inherit downward. */
+  
 }
 
 #motor-stick,
@@ -16,13 +11,21 @@
 }
 
 #motor.stick-mode #motor-stick,
-#motor.stick-mode #motor-pos {
+#motor.stick-mode #motor-pos,
+#motor.drag-mode #motor-pos {
   display: block;
 }
 
 /* The eight direction sectors would otherwise swallow every pointerdown. */
-#motor.stick-mode .jst a.s {
+#motor.stick-mode .jst a.s,
+#motor.drag-mode .jst a.s {
   display: none;
+}
+
+/* The readout rows position themselves off --motor-stick-size; drag mode has
+ * no ring, so pin them just clear of the centre/home button instead. */
+#motor.drag-mode {
+  --motor-stick-size: 200px;
 }
 
 #motor-stick {
@@ -86,10 +89,20 @@
   transition: none;
 }
 
-/* Live position readout: pan (left/right) as a horizontal bar under the
- * ring, tilt (up/down) as a vertical one beside it - both positioned off
- * --motor-stick-size, hidden individually by sizeStick() when they don't
- * fit next to the ring. */
+#motor-drag {
+  position: absolute;
+  inset: 0 0 48px 0;
+  pointer-events: auto;
+  touch-action: none; /* else the browser claims the gesture for scrolling */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#motor-drag.dragging {
+  cursor: grabbing;
+}
+
 #motor-pos {
   position: absolute;
   left: 50%;
@@ -145,9 +158,6 @@
   transition: width 220ms linear;
 }
 
-/* Beside the ring, not stacked under the pan bar - two rows under a short
- * (portrait-phone) ring is what overran the frame before. Label rotates via
- * writing-mode (simpler than rotating the whole flex row + fill direction). */
 .motor-pos-tilt {
   left: calc(var(--motor-stick-size, 450px) / 2 + 8px);
   top: 50%;
@@ -181,4 +191,28 @@
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* PTZ control is WebSocket-only. */
+#motor.ptz-unavailable .jst,
+#motor.ptz-unavailable #motor-stick {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.ptz-unavailable-note {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  max-width: 15rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
 }

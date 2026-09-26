@@ -1,10 +1,3 @@
-/* timps-control-bar.js - the timps-specific half of thingino-webui's control
- * bar, as a PLUGIN SCRIPT instead of a fork of /a/main.js. Everything here is
- * ADDITIVE: it overrides window.<fn> globals AFTER main.js has evaluated but
- * BEFORE initAll() wires up click handlers, so core main.js stays pristine
- * and the timps versions still get called. See WEBUI-NOTES.md for why this
- * ordering is safe and why it replaced an old full main.js fork.
- */
 (function () {
   "use strict";
 
@@ -12,10 +5,6 @@
     return document.querySelector(sel);
   }
 
-  /* ---- timps native API loader -------------------------------------- *
-   * The control bar is on every page, but a/timps-api.js is only <script>
-   * -included by the streamer/preview pages, so load it on demand.
-   * Resolves with window.timpsApi. */
   var apiPromise = null;
   function timpsApiReady() {
     if (window.timpsApi) return Promise.resolve(window.timpsApi);
@@ -39,13 +28,7 @@
 
   /* ---- control-bar actions ------------------------------------------ */
 
-  // timps records ONE channel at a time (record.channel). The REC ch0 / ch1
-  // buttons pick WHICH stream to record: starting sets record.channel to the
-  // clicked channel AND record.active=1 (so ch0 really records ch0); stopping
-  // sets active=0. The heartbeat reports the real rec_chN state back.
-  // (core's `recordingState` is a top-level `let`, so it is NOT reachable as
-  // window.recordingState; the button's own "active" class is the same state,
-  // kept in sync by core's updateRecordingIcons().)
+  // timps records ONE channel at a time (record.channel).
   function toggleRecording(channel) {
     var button = $("#recorder-ch" + channel);
     var want = button && button.classList.contains("active") ? 0 : 1;
@@ -61,12 +44,6 @@
             ch0: !!want && channel === 0,
             ch1: !!want && channel === 1,
           });
-          // A start request that /control ACCEPTS can still never actually
-          // record - e.g. record.min_free_mb unreachable on this card - and
-          // that only surfaces later, out of band, on the next segment-open
-          // attempt in the record thread. Poll once, short delay: if the
-          // daemon still isn't recording and just logged why, the click
-          // didn't do what the now-"active" button claims - correct both.
           if (want) {
             setTimeout(function () {
               api.get().then(function (info) {
@@ -185,12 +162,7 @@
       });
   }
 
-  /* /x/timps-imp.cgi is timps's own day/night + IR/white-light bridge. It is
-   * deliberately NOT called json-imp.cgi: thingino-webui ships a file of that
-   * name with a different contract (it drives daynightd / raptor's ric), and
-   * two same-named CGIs with different semantics is how the old overlay used
-   * to lose to the per-package-directory merge. Only the two functions below
-   * ever call it, and both are overridden here. */
+  // /x/timps-imp.cgi is timps's own day/night + IR/white-light bridge.
   var IMP_CGI = "/x/timps-imp.cgi";
 
   function impPost(payload) {
@@ -228,9 +200,6 @@
       });
   }
 
-  // Same as core's toggleButton minus its "#auto goes through the agent"
-  // special case: on timps every ISP/light command - auto included - is a
-  // {cmd,val} POST to the timps bridge.
   function toggleButton(el) {
     if (!el) return Promise.resolve();
     var currentState = el.classList.contains("active") ? 1 : 0;
@@ -288,11 +257,6 @@
     window.toggleDayNight = toggleDayNight;
     window.toggleButton = toggleButton;
 
-    /* "spk_supported":false is a timps-only heartbeat field (see
-     * x/timps-heartbeat.sh): timps has no AO pipeline, so the Speaker button
-     * must stay greyed out rather than show a dead toggle. Wrapping instead
-     * of replacing keeps the other ~200 lines of core's updateHeartbeatUi
-     * (and every future change to them) in force. */
     var coreUpdateHeartbeatUi = window.updateHeartbeatUi;
     if (typeof coreUpdateHeartbeatUi === "function") {
       window.updateHeartbeatUi = function (json) {
@@ -303,13 +267,6 @@
       };
     }
 
-    /* Core's setValue() clears the "disabled" class off the wrapper of the
-     * field it just filled in, but its selector list predates Bootstrap
-     * .form-switch wrappers, which ten timps pages use (config-motion,
-     * config-privacy, tool-record, streamer-*). Without this the switch stays
-     * at opacity .4 / pointer-events:none after the values load, i.e. dead.
-     * Worth upstreaming into thingino-webui; wrapped here so timps does not
-     * have to fork main.js again for one selector. */
     var coreSetValue = window.setValue;
     if (typeof coreSetValue === "function") {
       window.setValue = function (data, domain, name) {
@@ -322,13 +279,6 @@
       };
     }
 
-    /* Core restores the small page preview by setting #preview.src back to
-     * /x/ch0.mjpg when the tab becomes visible again. timps serves its
-     * preview straight from the daemon (token + channel in the URL, see
-     * a/timps-preview.js) and does not ship /x/ch0.mjpg at all, so re-run the
-     * owner of that URL instead. Registered here - i.e. after main.js's own
-     * two visibilitychange listeners, which are registered while the document
-     * is still parsing - so this runs last and wins. */
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) return;
       if (typeof window.restartStreamPreview === "function")

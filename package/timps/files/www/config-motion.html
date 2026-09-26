@@ -1,15 +1,5 @@
 <!DOCTYPE html>
-<!--
-  thingino · Motion Detection (timps)
 
-  Configures the timps IMP_IVS grid motion detection live via /control
-  (a/config-motion.js). Grid size is limited by the SoC/SDK cell budget
-  (caps.motion.max_cells: 52 on most SoCs, 4 on the old T10/T20 3.9.0 SDK).
-
-  Event ACTIONS on motion (email/Telegram/webhook/...) are NOT configured
-  here - use Tools -> "Send to services"; timps triggers them through the
-  motion.on_motion command in /etc/timps.conf (config-file only).
--->
 <html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
@@ -65,7 +55,7 @@
         <div class="col-12 col-lg-8">
           <div class="card mb-3">
             <div class="card-header">
-              <h5 class="card-title mb-0">Detection grid</h5>
+              <h2 class="tv-ct">Detection grid</h2>
             </div>
             <div class="card-body">
               <p class="boolean form-switch">
@@ -104,7 +94,7 @@
         <div class="col-12 col-lg-4">
           <div class="card mb-3">
             <div class="card-header">
-              <h5 class="card-title mb-0">Grid raster</h5>
+              <h2 class="tv-ct">Grid raster</h2>
             </div>
             <div class="card-body">
               <div id="motion-grid-preview" aria-hidden="true"></div>

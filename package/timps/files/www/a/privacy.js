@@ -1,38 +1,23 @@
-/* privacy.js - NATIVE privacy-mask VISUAL editor. Talks directly to the timps
- * streamer over window.timpsApi (GET/POST /control, per-boot token) - no bridge.
- *
- * Privacy masks are solid cover rectangles per video stream (timps "privacy"
- * section: privacy<S>.<N>.{enabled,x,y,w,h,color}, caps.privacy = {available,
- * max_regions}). This page shows a live snapshot of the selected stream and
- * lets you drag/resize the mask rectangles directly on it; every change is
- * applied LIVE via timpsApi.set({privacy:{<s>:{<n>:{...}}}}). A side list gives
- * per-mask enable / colour / alpha / exact coordinates / delete.
- *
- * Coordinates are the stream's own pixels; the editor scales them to the
- * displayed snapshot. Dependency-free, pointer events (mouse + touch).
- */
+// privacy.js - privacy-mask editor, "Privacy masks" tab of streamer-overlays.html.
 (function () {
   "use strict";
 
-  if (!document.body || document.body.id !== "page-config-privacy") return;
+  if (!document.body || document.body.id !== "page-streamer-overlays" || !window.timpsUi) return;
 
   var MIN = 8;                 // smallest mask edge, stream px
   var maxRegions = 4;
-  var streamIdx = 0;
+  var streamIdx = window.timpsUi.stream();
   var streamW = 1920, streamH = 1080;
-  var applyBoth = false;       // mirror every change onto the other stream
+  var linkEl = document.getElementById("osd-link"); // page-wide "both streams" switch
   var otherW = 0, otherH = 0;  // other stream's resolution (for scaling)
   var regions = [];            // [{enabled,x,y,w,h,color}] in STREAM coords
   var selected = -1;
   var dragging = false;        // true while a box move/resize drag is live
 
-  var stage = document.getElementById("pm-stage");
-  var img = document.getElementById("pm-img");
-  var noimg = document.getElementById("pm-noimg");
+  var stage = document.getElementById("frame");   // boxes sit over the live preview
+  var img = document.getElementById("preview");
   var list = document.getElementById("pm-list");
-  var streamSel = document.getElementById("pm-stream");
   var addBtn = document.getElementById("pm-add");
-  var reloadBtn = document.getElementById("pm-reload");
 
   function toast(type, msg, ms) {
     if (typeof window.showAlert === "function") window.showAlert(type, msg, ms);
@@ -76,7 +61,7 @@
     };
     // "apply to both": mirror the mask onto the other stream, scaled to its
     // resolution (streams differ, e.g. 1920x1080 main vs 640x360 sub).
-    if (applyBoth && otherW > 0 && otherH > 0) {
+    if (linkEl && linkEl.checked && otherW > 0 && otherH > 0) {
       var o = 1 - streamIdx;               // only two video streams
       var fx = otherW / streamW, fy = otherH / streamH;
       // scale, then clamp against the OTHER stream's bounds + MIN so the mirror
@@ -91,10 +76,6 @@
       };
     }
     window.timpsApi.set({ privacy: payload }).then(function (r) {
-      // Fold "privacy<s>.<n>.<field>" echoes back into the region model so
-      // the box on screen is the box that actually masks (the daemon may
-      // clamp further than clampRegion() did). Mirrored OTHER-stream echoes
-      // are DELIBERATELY not folded back - see WEBUI-NOTES.md.
       var corr = r && r.corrections;
       if (corr) {
         var redraw = false;
@@ -123,7 +104,7 @@
   /* ---- rendering ---- */
 
   function renderBoxes() {
-    // drop existing boxes (keep img + noimg)
+    // drop existing mask boxes
     Array.prototype.slice.call(stage.querySelectorAll(".pm-box")).forEach(function (b) { b.remove(); });
     var s = scale();
     regions.forEach(function (r, n) {
@@ -147,34 +128,61 @@
     box.style.height = r.h * s.sy + "px";
   }
 
+  var shown = {};              // mask slots listed for this stream
+  function inUse(r) { return r.enabled || (r.w > 0 && r.h > 0); }
+
   function renderList() {
     list.innerHTML = "";
+    var count = 0;
     regions.forEach(function (r, n) {
-      var c = colorFromTimps(r.color);
-      var card = document.createElement("div");
-      card.className = "card mb-2" + (n === selected ? " border-warning" : "");
-      card.innerHTML =
-        '<div class="card-body p-2">' +
-        '<div class="d-flex align-items-center gap-2 mb-1">' +
-        '<div class="form-check form-switch mb-0">' +
-        '<input class="form-check-input" type="checkbox" id="pm-en-' + n + '"' + (r.enabled ? " checked" : "") + ">" +
-        '<label class="form-check-label small" for="pm-en-' + n + '">Mask ' + (n + 1) + "</label></div>" +
-        '<input type="color" class="form-control form-control-color form-control-sm" id="pm-col-' + n + '" value="' + c.rgb + '" title="Fill color">' +
-        '<input type="number" class="form-control form-control-sm" style="max-width:5rem" id="pm-al-' + n + '" min="0" max="255" value="' + c.alpha + '" title="Alpha">' +
-        '<button type="button" class="btn btn-outline-danger btn-sm ms-auto" id="pm-del-' + n + '" title="Disable mask"><i class="bi bi-trash"></i></button>' +
-        "</div>" +
-        '<div class="row g-1">' +
-        coord("pm-x-" + n, "X", r.x) + coord("pm-y-" + n, "Y", r.y) +
-        coord("pm-w-" + n, "W", r.w) + coord("pm-h-" + n, "H", r.h) +
-        "</div></div>";
-      list.appendChild(card);
+      if (!shown[n]) return;
+      count++;
+      var c = colorFromTimps(r.color), open = n === selected;
+      var w = document.createElement("div");
+      w.className = "tv-item mb-2" + (open ? " open" : "");
+      w.setAttribute("data-n", String(n));
+      w.innerHTML =
+        '<div class="tv-ih"><div class="form-check form-switch m-0">' +
+        '<input class="form-check-input" type="checkbox" role="switch" id="pm-en-' + n + '" aria-label="Show mask"' +
+        (r.enabled ? " checked" : "") + "></div>" +
+        '<span class="pm-swatch" style="background:' + c.rgb + ";opacity:" + Math.max(0.15, c.alpha / 255) + '"></span>' +
+        '<span class="tv-tx">Mask ' + (n + 1) + "</span>" +
+        '<span class="tv-pos">' + posText(r) + "</span>" +
+        (r.enabled ? '<span class="badge text-bg-success">On</span>' : '<span class="badge text-bg-secondary">Off</span>') +
+        "</div>";
+      if (open) {
+        var ib = document.createElement("div");
+        ib.className = "tv-ib";
+        ib.innerHTML = '<div class="tv-fields">' +
+          coord("pm-x-" + n, "From left", r.x) + coord("pm-y-" + n, "From top", r.y) +
+          coord("pm-w-" + n, "Width", r.w) + coord("pm-h-" + n, "Height", r.h) +
+          '<div><label>Colour</label><div class="d-flex gap-2 align-items-center">' +
+          '<input type="color" class="form-control form-control-color" id="pm-col-' + n + '" value="' + c.rgb + '">' +
+          '<input type="range" min="0" max="255" class="form-range" id="pm-al-' + n + '" value="' + c.alpha + '" title="Opacity"></div></div>' +
+          "</div>" +
+          '<div class="d-flex flex-wrap align-items-center gap-2 mt-2"><span class="tv-cfg me-auto">' + cfgText(n, r) + "</span>" +
+          '<button type="button" class="btn btn-sm btn-outline-danger" id="pm-del-' + n + '"><i class="bi bi-trash me-1"></i>Remove</button></div>';
+        w.appendChild(ib);
+      }
+      w.querySelector(".tv-ih").addEventListener("click", function (e) {
+        if (e.target.closest(".form-check")) return;
+        select(selected === n ? -1 : n);
+        if (selected >= 0) stage.focus({ preventScroll: true });
+      });
+      list.appendChild(w);
       wireListRow(n);
     });
+    var empty = document.getElementById("pm-empty");
+    if (empty) empty.classList.toggle("d-none", count > 0);
+    if (addBtn) addBtn.disabled = count >= maxRegions;
   }
 
+  function posText(r) { return r.x + "," + r.y + " · " + r.w + "×" + r.h; }
+  function cfgText(n, r) { return "privacy" + streamIdx + "." + n + ": x=" + r.x + ", y=" + r.y + ", w=" + r.w + ", h=" + r.h; }
+
   function coord(id, label, val) {
-    return '<div class="col-3"><label class="form-label small mb-0" for="' + id + '">' + label +
-      '</label><input type="number" min="0" class="form-control form-control-sm" id="' + id + '" value="' + val + '"></div>';
+    return '<div><label for="' + id + '">' + label + '</label><input type="number" min="0" class="form-control" id="' +
+      id + '" value="' + val + '"></div>';
   }
 
   function render() {
@@ -221,6 +229,7 @@
       try { ev.target.releasePointerCapture(e.pointerId); } catch (er) { /* ok */ }
       dragging = false;
       send(n);
+      stage.focus({ preventScroll: true });
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -228,19 +237,44 @@
 
   function syncCoordInputs(n) {
     var r = regions[n];
+    var row = list.querySelector('.tv-item[data-n="' + n + '"]');
+    if (row) {
+      var p = row.querySelector(".tv-pos"), c = row.querySelector(".tv-cfg");
+      if (p) p.textContent = posText(r);
+      if (c) c.textContent = cfgText(n, r);
+    }
     setVal("pm-x-" + n, r.x); setVal("pm-y-" + n, r.y);
     setVal("pm-w-" + n, r.w); setVal("pm-h-" + n, r.h);
   }
   function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v; }
 
+  // arrows move the selected mask, Ctrl/Cmd+arrows resize it (Alt+Left is "back"); Shift = 10 px
+  var nudgeTimer = null;
+  function nudge(e) {
+    if (document.body.getAttribute("data-pane") !== "privacy" || selected < 0) return;
+    var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    var r = regions[selected];
+    if (!d || !r || !r.enabled) return;
+    e.preventDefault();
+    var step = e.shiftKey ? 10 : 1, n = selected;
+    if (e.ctrlKey || e.metaKey) { r.w += d[0] * step; r.h += d[1] * step; }
+    else { r.x += d[0] * step; r.y += d[1] * step; }
+    clampRegion(r);
+    var box = stage.querySelector('.pm-box[data-n="' + n + '"]');
+    if (box) positionBox(box, r, scale());
+    syncCoordInputs(n);
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(function () { send(n); }, 300);
+  }
+  stage.addEventListener("keydown", nudge);
+
   function select(n) {
+    if (selected === n) return;
     selected = n;
     Array.prototype.slice.call(stage.querySelectorAll(".pm-box")).forEach(function (b) {
       b.classList.toggle("sel", b.dataset.n === String(n));
     });
-    Array.prototype.slice.call(list.querySelectorAll(".card")).forEach(function (c, i) {
-      c.classList.toggle("border-warning", i === n);
-    });
+    renderList();
   }
 
   function wireListRow(n) {
@@ -249,7 +283,7 @@
     if (en) en.addEventListener("change", function () {
       r.enabled = en.checked ? 1 : 0;
       if (r.enabled && (r.w < MIN || r.h < MIN)) defaultRect(r);
-      send(n); render(); select(n);
+      send(n); render();
     });
     var colEl = document.getElementById("pm-col-" + n);
     var alEl = document.getElementById("pm-al-" + n);
@@ -261,14 +295,15 @@
     if (alEl) alEl.addEventListener("change", colorChanged);
     var del = document.getElementById("pm-del-" + n);
     if (del) del.addEventListener("click", function () {
-      r.enabled = 0; send(n); render();
+      r.enabled = 0; delete shown[n]; if (selected === n) selected = -1;
+      send(n); render();
     });
     ["x", "y", "w", "h"].forEach(function (k) {
       var el = document.getElementById("pm-" + k + "-" + n);
       if (!el) return;
       el.addEventListener("change", function () {
         var v = parseInt(el.value, 10); if (isNaN(v)) return;
-        r[k] = v; clampRegion(r); send(n); render(); select(n);
+        r[k] = v; clampRegion(r); send(n); render();
       });
     });
   }
@@ -281,41 +316,17 @@
   }
 
   function addMask() {
-    var n = regions.findIndex(function (r) { return !r.enabled; });
+    var n = -1;
+    regions.forEach(function (r, i) { if (n < 0 && !shown[i]) n = i; });
+    if (n < 0) n = regions.findIndex(function (r) { return !r.enabled; });
     if (n < 0) { toast("warning", "All " + maxRegions + " masks are in use on this stream."); return; }
     var r = regions[n];
     r.enabled = 1;
     if (!r.color) r.color = "0xFF000000";
     defaultRect(r);
+    shown[n] = true;
     send(n); render(); select(n);
   }
-
-  /* ---- snapshot ---- */
-
-  var SNAPSHOT_REFRESH_MS = 4000;
-  var isWindowVisible = document.visibilityState !== "hidden";
-
-  function setSnapshot() {
-    window.timpsApi.token().then(function (tok) {
-      var url = window.timpsApi.base() + "/snapshot.jpg?chn=" + streamIdx +
-        (tok ? "&token=" + encodeURIComponent(tok) : "") + "&_=" + Date.now();
-      img.onload = function () { if (noimg) noimg.classList.add("d-none"); renderBoxes(); };
-      img.onerror = function () { if (noimg) noimg.classList.remove("d-none"); };
-      img.src = url;
-    });
-  }
-
-  // Periodic re-fetch so the reference image tracks the scene (snapshot.jpg
-  // is otherwise only fetched once, unlike /stream.mjpeg). Paused during a
-  // drag and while the tab is hidden (each fetch wakes the JPEG encoder).
-  setInterval(function () {
-    if (!isWindowVisible || dragging || !window.timpsApi) return;
-    setSnapshot();
-  }, SNAPSHOT_REFRESH_MS);
-  document.addEventListener("visibilitychange", function () {
-    isWindowVisible = document.visibilityState !== "hidden";
-    if (isWindowVisible) setSnapshot();
-  });
 
   /* ---- load ---- */
 
@@ -330,7 +341,6 @@
       if (msg) unavailEl.textContent = msg;
     }
     if (addBtn) addBtn.disabled = true;
-    if (streamSel) streamSel.disabled = true;
   }
 
   // Exact inverse of markUnavailable(), run on every successful load() -
@@ -342,7 +352,6 @@
       unavailEl.innerHTML = unavailHtml;
     }
     if (addBtn) addBtn.disabled = false;
-    if (streamSel) streamSel.disabled = false;
   }
 
   function load() {
@@ -356,7 +365,6 @@
 
       var v = (json.video && (json.video[streamIdx] || json.video[String(streamIdx)])) || {};
       if (v.width > 0 && v.height > 0) { streamW = v.width; streamH = v.height; }
-      stage.style.aspectRatio = streamW + " / " + streamH;
 
       // other stream's resolution, for the "apply to both" scaling
       var ovi = 1 - streamIdx;
@@ -375,9 +383,11 @@
           color: r.color || "0xFF000000",
         });
       }
-      selected = regions.findIndex(function (r) { return r.enabled; });
+      var keep = selected;
+      shown = {};
+      regions.forEach(function (r, i) { if (inUse(r)) shown[i] = true; });
+      selected = shown[keep] ? keep : -1;
       markAvailable();
-      setSnapshot();
       render();
     }).catch(function (err) {
       console.warn("timps unreachable:", err);
@@ -406,24 +416,13 @@
     render();
   }
 
-  if (streamSel) streamSel.addEventListener("change", function () {
-    streamIdx = parseInt(streamSel.value, 10) || 0;
+  document.addEventListener("timps-stream", function (e) {
+    streamIdx = e.detail;
+    selected = -1;
     load();
   });
   if (addBtn) addBtn.addEventListener("click", addMask);
-  if (reloadBtn) reloadBtn.addEventListener("click", load);
-  var bothChk = document.getElementById("pm-both");
-  if (bothChk) bothChk.addEventListener("change", function () {
-    applyBoth = bothChk.checked;
-    // Enabling mirrors the current masks onto the other stream immediately, but
-    // ONLY the enabled ones: mirroring disabled slots would push enabled:0 onto
-    // the other stream and wipe masks that exist only there.
-    if (applyBoth) {
-      var any = false;
-      regions.forEach(function (r, n) { if (r.enabled) { send(n); any = true; } });
-      if (any) toast("info", "Enabled masks mirrored onto the other stream.", 2500);
-    }
-  });
+  img.addEventListener("load", function () { if (!dragging) renderBoxes(); });
   window.addEventListener("resize", renderBoxes);
   if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
 
