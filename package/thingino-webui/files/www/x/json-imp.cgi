@@ -34,15 +34,15 @@ json_ok() {
 	json_header
 	case "$1" in
 		{*) printf '{"code":200,"result":"success","message":%s}\n' "$1" ;;
-		*) printf '{"code":200,"result":"success","message":"%s"\n' "$1" ;;
+		*) printf '{"code":200,"result":"success","message":"%s"}\n' "$1" ;;
 	esac
 	exit 0
 }
 
 bad_request() {
 	http_400
-	echo
-	echo "$1"
+	json_header
+	printf '{"error":{"code":400,"message":"%s"}}\n' "$1"
 	exit 1
 }
 
