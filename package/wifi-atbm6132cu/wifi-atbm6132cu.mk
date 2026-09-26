@@ -1,12 +1,31 @@
 WIFI_ATBM6132CU_SITE_METHOD = git
 WIFI_ATBM6132CU_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_ATBM6132CU_SITE_BRANCH = atbm-606x-c
-WIFI_ATBM6132CU_VERSION = 6f4f1223e8545d15d64ea8c92fb7957f52ed511b
+WIFI_ATBM6132CU_VERSION = 7f1ba356acbd8ae7d3caca371d45d96c42a3ad13
 
 WIFI_ATBM6132CU_LICENSE = GPL-2.0
 
 ATBM6132CU_MODULE_NAME = atbm6132cu
+
+# The 6132cu ships as USB DID 0x6055 (wifi-only) and 0x6162 (BT-comb). The
+# 0x6162 part must run the comb firmware with wifi_bt_comb=1 or transmit stalls
+# a minute or two after association; its validated config also drops MODULE_FS
+# (and with it the atbm_printk_mask parameter) and takes p2p0/mon0 out.
+ifeq ($(BR2_PACKAGE_WIFI_ATBM6132CU_6162),y)
+WIFI_ATBM6132CU_CONFIG = atbm6132cu_6162.config
+ATBM6132CU_MODULE_OPTS = wifi_bt_comb=1
+ATBM6132CU_FIRMWARE = firmware_usb_wifi_bt_comb_ocea.bin
+else
+WIFI_ATBM6132CU_CONFIG = atbm6132cu_ingenic.config
 ATBM6132CU_MODULE_OPTS = atbm_printk_mask=0
+ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
+ATBM6132CU_MODULE_OPTS += wifi_bt_comb=1
+ATBM6132CU_FIRMWARE = firmware_usb_wifi_bt_comb_ocea.bin
+WIFI_ATBM6132CU_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132CU_COPY_CONFIG_BLE
+else
+ATBM6132CU_FIRMWARE = firmware_usb_ocea.bin
+endif
+endif
 
 WIFI_ATBM6132CU_MODULE_MAKE_OPTS = \
 	KERDIR=$(LINUX_DIR)
@@ -33,20 +52,17 @@ define WIFI_ATBM6132CU_INSTALL_CONFIGS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
+	$(INSTALL) -m 0644 $(WIFI_ATBM6132CU_PKGDIR)/files/set_rate_power_5g.txt \
+		$(TARGET_DIR)/usr/share/wifi/set_rate_power_5g.txt
 endef
 
-define WIFI_ATBM6132CU_INSTALL_FIRMWARE_WIFI
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb_ocea.bin \
-		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132CU_MODULE_NAME))_fw.bin
-endef
-
-define WIFI_ATBM6132CU_INSTALL_FIRMWARE_BLE
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb_wifi_bt_comb_ocea.bin \
+define WIFI_ATBM6132CU_INSTALL_FIRMWARE
+	$(INSTALL) -D -m 0644 $(@D)/firmware/$(ATBM6132CU_FIRMWARE) \
 		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6132CU_MODULE_NAME))_fw.bin
 endef
 
 define WIFI_ATBM6132CU_COPY_CONFIG
-	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6132cu_ingenic.config \
+	$(INSTALL) -D -m 0644 $(@D)/configs/$(WIFI_ATBM6132CU_CONFIG) \
 		$(@D)/.config
 endef
 
@@ -56,17 +72,8 @@ define WIFI_ATBM6132CU_COPY_CONFIG_BLE
 endef
 
 WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_CONFIGS
+WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_FIRMWARE
 WIFI_ATBM6132CU_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132CU_COPY_CONFIG
-
-# WARNING: the BLE/comb path is untested on hardware. Validate on a 6132cu +
-# BLE module with BR2_PACKAGE_THINGINO_BLUETOOTH=y before relying on it.
-ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
-	ATBM6132CU_MODULE_OPTS += wifi_bt_comb=1
-	WIFI_ATBM6132CU_PRE_CONFIGURE_HOOKS += WIFI_ATBM6132CU_COPY_CONFIG_BLE
-	WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_FIRMWARE_BLE
-else
-	WIFI_ATBM6132CU_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6132CU_INSTALL_FIRMWARE_WIFI
-endif
 
 $(eval $(kernel-module))
 $(eval $(generic-package))

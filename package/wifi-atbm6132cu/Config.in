@@ -3,3 +3,11 @@ config BR2_PACKAGE_WIFI_ATBM6132CU
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "AltoBeam ATBM6132CU"
+
+config BR2_PACKAGE_WIFI_ATBM6132CU_6162
+	depends on BR2_PACKAGE_WIFI_ATBM6132CU
+	bool "ATBM6132CU with USB DID 0x6162 (BT-comb firmware)"
+	help
+	  The ATBM6132CU ships under two USB DIDs. Parts reporting 0x6162
+	  need the BT-comb firmware and the wifi_bt_comb=1 module parameter,
+	  or transmit stalls a minute or two after association.
