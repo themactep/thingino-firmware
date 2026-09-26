@@ -49,7 +49,7 @@ jct "$CFG" import "$TMP" >/dev/null 2>&1 || reply "500 Internal Server Error" '{
 # whichever of those didn't change, the fix for whichever did.
 mode=$(cat /run/thingino/daynight_mode 2>/dev/null)
 case "$mode" in
-day | night) command -v daynight >/dev/null 2>&1 && daynight "$mode" >/dev/null 2>&1 & ;;
+	day | night) command -v daynight >/dev/null 2>&1 && daynight "$mode" >/dev/null 2>&1 & ;;
 esac
 
 get
