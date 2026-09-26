@@ -87,6 +87,17 @@
     .st-foot { font-size: .75rem; color: var(--bs-secondary-color); display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
     .st-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
     canvas.st-chart { display: block; width: 100%; height: 70px; }
+    .st-cl td, .st-cl th { font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .st-cl .cl-ip, .st-cl .cl-s { display: none; }
+    .st-cl .cl-ip { font-size: .72rem; color: var(--bs-secondary-color); }
+    @media (max-width: 575.98px) {
+      .st-cl .cl-opt, .st-cl .cl-l { display: none; }
+      .st-cl td, .st-cl th { padding-left: .15rem; padding-right: .15rem; }
+      #st-clients-panel { margin-left: -.75rem; margin-right: -.75rem; }
+      .st-cl .cl-ip { display: block; }
+      .st-cl .cl-s { display: inline; }
+    }
+    .st-cl th { font-weight: 400; color: var(--bs-secondary-color); }
     .st-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
     .st-tile { padding: .7rem .9rem; display: grid; grid-template-columns: auto 1fr; gap: .1rem .7rem; align-items: center; }
     .st-tile > i { grid-row: span 2; font-size: 1.4rem; color: darkorange; }
@@ -184,9 +195,18 @@
               <span class="s" id="st-dn-s"></span><div class="st-gain" id="st-gain" hidden><span class="m"></span></div></div>
             <div class="st-panel st-tile"><i class="bi bi-person-walking"></i><span class="v" id="st-mo">–</span><span class="s" id="st-mo-s"></span></div>
             <div class="st-panel st-tile"><i class="bi bi-record-circle"></i><span class="v" id="st-rec">–</span><span class="s" id="st-rec-s"></span></div>
-            <div class="st-panel st-tile"><i class="bi bi-people"></i><span class="v" id="st-cl">–</span><span class="s">all protocols</span></div>
+            <div class="st-panel st-tile"><i class="bi bi-people"></i><span class="v" id="st-cl">–</span><span class="s">all protocols, no events</span></div>
             <div class="st-panel st-tile"><i class="bi bi-clock-history"></i><span class="v" id="st-up">–</span><span class="s" id="st-ver"></span></div>
             <div class="st-panel st-tile"><i class="bi bi-heart-pulse"></i><span class="v"><span class="st-dot me-1" id="st-hd"></span><span id="st-h">–</span></span><span class="s" id="st-h-s"></span></div>
+          </div>
+          <div class="st-panel mt-3" id="st-clients-panel" hidden>
+            <div class="st-ph"><b>Connected clients</b><span class="st-chip" id="st-clients-n"></span></div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0 st-cl">
+                <thead><tr><th class="cl-opt">Address</th><th>Client</th><th><span class="cl-l">Protocol</span><span class="cl-s">Proto</span></th><th class="cl-opt">Stream</th><th class="cl-opt">Connected</th><th class="text-end" title="Sensor capture to send, measured by timps per client"><span class="cl-l">Camera</span><span class="cl-s">Cam</span></th><th class="text-end" title="Capture to screen, only for this tab's own WebRTC / fMP4 session"><span class="cl-l">End-to-end</span><span class="cl-s">E2E</span></th><th class="text-end">Rate</th><th class="text-end cl-opt">Total</th></tr></thead>
+                <tbody id="st-clients"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -368,7 +388,8 @@
     function formatBytes(n) {
       if (n < 1024) return n + " B";
       if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
-      return (n / (1024 * 1024)).toFixed(1) + " MB";
+      if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+      return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
     }
     function formatKbps(kbps) {
       return kbps >= 1000 ? (kbps / 1000).toFixed(2) + " Mb/s" : kbps.toFixed(0) + " kb/s";
@@ -452,7 +473,7 @@
     // fast path: every "stats" SSE frame (~2s)
     function renderStats(j) {
       $st("up").textContent = formatUptime(j.uptime_s);
-      $st("cl").textContent = j.clients + (j.clients === 1 ? " client" : " clients");
+      $st("cl").textContent = j.clients + (j.clients === 1 ? " stream client" : " stream clients");
       stLive.drops = 0;
       (j.video || []).forEach((s) => {
         const row = ensureStatsRow(s.chn);
@@ -509,17 +530,31 @@
       const mode = dn.dn_mode || (dn.enabled ? "auto" : "manual");
       $st("dn").textContent = (night ? "Night" : dn.mode === 0 ? "Day" : "Unknown") + " · " + mode;
       $st("dn-i").className = night ? "bi bi-moon-stars" : "bi bi-sun";
-      const g = dn.total_gain, lo = dn.total_gain_day_threshold, hi = dn.total_gain_night_threshold;
-      const bar = $st("gain");
-      if (typeof g === "number" && g >= 0 && lo > 0 && hi > lo && mode === "auto") {
-        $st("dn-s").textContent = "gain " + g.toFixed(0) + (night ? " · day below " + lo : " · night above " + hi);
+      // the decision runs on the exposure index; in the night pipeline only
+      // the drop below day_trigger matters (IR keeps it low)
+      const g = dn.exposure >= 0 ? dn.exposure : dn.total_gain,
+            lo = dn.total_gain_day_threshold, hi = dn.total_gain_night_threshold, trig = dn.day_trigger;
+      const bar = $st("gain"), pct = (v, span) => Math.min(100, v / span * 100) + "%";
+      bar.firstChild.style.opacity = "";
+      if (typeof g === "number" && g >= 0 && mode === "auto" && night) {
+        const ref = dn.night_baseline;
+        const span = Math.max(trig > 0 ? trig * 2 : 0, ref > 0 ? ref * 1.3 : 0,
+                              ref > 0 ? Math.min(g * 1.05, ref * 2.5) : g * 1.05, 1);
+        $st("dn-s").textContent = "exp " + g.toFixed(0) + (trig > 0 ? " · probe day below " + trig.toFixed(0) : " · reference pending");
+        bar.style.background = trig > 0
+          ? "linear-gradient(90deg,#f0c040 0 " + pct(trig, span) + ",#3a5fcd " + pct(trig, span) + ")" : "#3a5fcd";
+        if (!(trig > 0)) bar.firstChild.style.opacity = ".4";
+        bar.firstChild.style.left = pct(g, span);
+        bar.hidden = false;
+      } else if (typeof g === "number" && g >= 0 && lo > 0 && hi > lo && mode === "auto") {
+        $st("dn-s").textContent = "exp " + g.toFixed(0) + " · night above " + hi;
         const span = hi * 2;
         bar.style.background = "linear-gradient(90deg,#f0c040 0 " + (lo / span * 100) + "%,#555 " +
           (lo / span * 100) + "% " + (hi / span * 100) + "%,#3a5fcd " + (hi / span * 100) + "%)";
-        bar.firstChild.style.left = Math.min(100, g / span * 100) + "%";
+        bar.firstChild.style.left = pct(g, span);
         bar.hidden = false;
       } else {
-        $st("dn-s").textContent = typeof g === "number" && g >= 0 ? "gain " + g.toFixed(0) : "";
+        $st("dn-s").textContent = typeof g === "number" && g >= 0 ? "exp " + g.toFixed(0) : "";
         bar.hidden = true;
       }
     }
@@ -553,6 +588,69 @@
     function fetchStatsExtra() {
       timpsApiReady().then((api) => api.statsExtra()).then(applyStatsExtra)
         .catch(() => { /* offline poll tick - panels just keep their last values */ });
+      fetchClients();
+    }
+
+    const PROTO = { "rtsp/udp": "RTSP (UDP)", "rtsp/tcp": "RTSP (TCP)", rtsps: "RTSPS", fmp4: "fMP4",
+      mjpeg: "MJPEG", events: "Events (SSE)", webrtc: "WebRTC", srt: "SRT" };
+    const PROTO_S = { "rtsp/udp": "RTSP/U", "rtsp/tcp": "RTSP/T", events: "SSE" };
+    // a readable name for a User-Agent; the raw string goes in the tooltip
+    function uaShort(ua) {
+      if (!ua) return "–";
+      const m = (re) => { const r = ua.match(re); return r ? r[1] : null; };
+      let v;
+      if ((v = m(/Frigate\/([\d.]+)/))) return "Frigate " + v;
+      if ((v = m(/^Lavf(\d+)/))) return "ffmpeg (Lavf" + v + ")";
+      if ((v = m(/go2rtc\/([\d.]+)/i))) return "go2rtc " + v;
+      if ((v = m(/LibVLC\/([\d.]+)/))) return "VLC " + v;
+      if ((v = m(/Edg[A-Z]?\/(\d+)/))) return "Edge " + v;
+      if ((v = m(/Firefox\/(\d+)/))) return "Firefox " + v;
+      if ((v = m(/(?:Chrome|CriOS)\/(\d+)/))) return "Chrome " + v;
+      if (/Safari\//.test(ua) && (v = m(/Version\/(\d+)/))) return "Safari " + v;
+      if ((v = m(/curl\/([\d.]+)/))) return "curl " + v;
+      if (/GStreamer/i.test(ua)) return "GStreamer";
+      if (/Home ?Assistant/i.test(ua)) return "Home Assistant";
+      return ua.split(/[\s/(]/)[0] || "–";
+    }
+
+    function fetchClients() {
+      timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+        const panel = $st("clients-panel"), body = $st("clients");
+        if (!j || !Array.isArray(j.clients)) { panel.hidden = true; return; }   // timps without ?clients=1
+        panel.hidden = false;
+        const list = j.clients.slice().sort((a, b) =>
+          (a.proto > b.proto) - (a.proto < b.proto) || (a.ip > b.ip) - (a.ip < b.ip));
+        $st("clients-n").textContent = list.length;
+        body.textContent = "";
+        if (!list.length) body.innerHTML = '<tr><td colspan="9" class="text-body-secondary">none</td></tr>';
+        list.forEach((c) => {
+          const tr = document.createElement("tr");
+          const own = ownDelay && performance.now() - ownDelay.at < 5000 &&
+                      c.proto === ownDelay.proto && c.port === ownDelay.port ? ownDelay : null;
+          [c.ip + ":" + c.port, uaShort(c.agent), PROTO[c.proto] || c.proto,
+           c.chn === 0 ? "Main" : c.chn === 1 ? "Sub" : "–",
+           c.since_s < 60 ? c.since_s + " s" : formatUptime(c.since_s),
+           c.lat_ms >= 0 ? c.lat_ms + " ms" : "–",
+           own ? own.total + " ms" : "–",
+           formatKbps(c.kbps), c.bytes == null ? "–" : formatBytes(c.bytes)].forEach((v, i) => {
+            const td = document.createElement("td");
+            const span = (text, cls) => {
+              const e = document.createElement(cls === "cl-ip" ? "div" : "span");
+              e.className = cls; e.textContent = text; td.appendChild(e);
+            };
+            if (i === 2 && PROTO_S[c.proto]) { span(v, "cl-l"); span(PROTO_S[c.proto], "cl-s"); }
+            else td.textContent = v;
+            if (i === 1) span(c.ip, "cl-ip");      // Address and Stream columns are hidden on phones
+            if (i === 2 && c.chn >= 0) span(c.chn === 0 ? "Main" : "Sub", "cl-ip");
+            if (i >= 5) td.className = "text-end";
+            if (i === 0 || i === 3 || i === 4 || i === 8) td.classList.add("cl-opt");
+            if (i === 1 && c.agent) td.title = c.agent;
+            if (i === 6 && own) td.title = "this tab\n" + own.tip;
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+      }).catch(() => {});
     }
 
     async function startStats() {
@@ -587,6 +685,7 @@
       if (statsBox) statsBox.innerHTML = '<div class="col text-secondary" data-placeholder>Waiting for stats…</div>';
       ["dn", "mo", "rec", "cl", "up", "h"].forEach((k) => { $st(k).textContent = "–"; });
       ["dn-s", "mo-s", "rec-s", "ver", "h-s"].forEach((k) => { $st(k).textContent = ""; });
+      $st("clients-panel").hidden = true;
       $st("gain").hidden = true;
     }
     if (statsToggle && statsCard) {
@@ -616,7 +715,7 @@
     let lastProgressAt = 0;       // performance.now() of the last byte off the wire
     function noteProgress() { lastProgressAt = performance.now(); }
 
-    function setStatus(message) { status.textContent = message; }
+    function setStatus(message, tip) { status.textContent = message; status.title = tip || ""; }
 
     function setConnectingUi(active) {
       if (overlay) overlay.style.display = active ? "" : "none";
@@ -892,7 +991,8 @@
         dead: false, decoder: null, trackId: null, timescale: 90000,
         lenSize: 4, pendingVideo: false, pendingDts: null, sawKey: false,
         frames: 0, lastFrames: 0, queueMax: 0, lastArrival: 0, lat: 0,
-        buf: new Uint8Array(0), statsTimer: null, w: 0, h: 0
+        buf: new Uint8Array(0), statsTimer: null, w: 0, h: 0,
+        t0: performance.now(), camMs: -1, camTick: 0
       };
       rt = st;
 
@@ -1049,11 +1149,15 @@
         if (st.dead || !st.decoder) return;
         const fps = st.frames - st.lastFrames;
         st.lastFrames = st.frames;
+        pollFmp4CamLatency(st, chn);
+        const d = delayText([["camera", st.camMs], ["decode + render", st.lat]],
+                            "without network (TCP), sensor exposure and display");
         setStatus("Real-time (" + label + " stream) · " +
           (st.w ? st.w + "x" + st.h + " · " : "") +
           fps.toFixed(0) + " fps · " + st.frames + " frames · queue " +
           st.decoder.decodeQueueSize + " · render +" + st.lat.toFixed(1) + " ms" +
-          audioNote);
+          d.text + audioNote, d.tip);
+        noteOwnDelay("fmp4", st.selfPort, d.total, d.tip);
       }, 1000);
 
       const ctrl = new AbortController();
@@ -1288,7 +1392,8 @@
 
       const st = {
         dead: false, pc: null, resource: null, token: token, statsTimer: null,
-        bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0
+        bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0,
+        prevV: null, camMs: -1, tick: 0
       };
       whep = st;
 
@@ -1469,12 +1574,14 @@
         let report;
         try { report = await pc.getStats(); } catch (e) { return; }
         if (st.dead || session !== mySession) return;
-        let v = null, a = null, tr = null;
+        let v = null, a = null, tr = null, pair = null;
         report.forEach((r) => {
           if (r.type === "inbound-rtp" && r.kind === "video") v = r;
           else if (r.type === "inbound-rtp" && r.kind === "audio") a = r;
           else if (r.type === "transport") tr = r;
+          else if (r.type === "candidate-pair" && (r.selected || (r.nominated && r.state === "succeeded"))) pair = r;
         });
+        if (tr && tr.selectedCandidatePairId) pair = report.get(tr.selectedCandidatePairId) || pair;
         const bytes = (v ? v.bytesReceived || 0 : 0) + (a ? a.bytesReceived || 0 : 0);
         if (bytes > st.bytes) { st.bytes = bytes; noteProgress(); }
         if (!v) return;
@@ -1487,14 +1594,82 @@
         if (w && h) { st.w = w; st.h = h; }
         const dtls = tr && tr.dtlsState && tr.dtlsState !== "connected"
                    ? " · dtls " + tr.dtlsState : "";
+        const lat = whepLatency(st, v, pair, report);
         setStatus("WebRTC (WHEP)" +
                   (st.w ? " · " + st.w + "x" + st.h : "") +
                   (v.framesPerSecond ? " · " + Math.round(v.framesPerSecond) + " fps" : "") +
                   rate +
                   (st.audio ? " · G.711 audio" : " · no audio") +
                   (v.packetsLost ? " · lost " + v.packetsLost : "") +
-                  dtls);
+                  (lat ? " · delay " + lat.total + " ms" : "") +
+                  dtls, lat ? lat.tip : "");
+        if (lat) noteOwnDelay("webrtc", st.selfPort, lat.total, lat.tip);
       }, 1000);
+    }
+
+    // This tab's own end-to-end delay, for its row in the client table.
+    let ownDelay = null;
+    function noteOwnDelay(proto, port, total, tip) {
+      ownDelay = port ? { proto: proto, port: port, total: total, tip: tip, at: performance.now() } : null;
+    }
+
+    // Glass-to-glass minus exposure and display: camera part from timps
+    // (?clients=1 lat_ms, capture -> send), browser part from getStats deltas.
+    function whepLatency(st, v, pair, report) {
+      const p = st.prevV, per = (k, n) => {
+        const dn = (v[n] || 0) - (p ? p[n] || 0 : 0);
+        return dn > 0 ? ((v[k] || 0) - (p ? p[k] || 0 : 0)) / dn * 1000 : null;
+      };
+      const jb = per("jitterBufferDelay", "jitterBufferEmittedCount");
+      const dec = per("totalDecodeTime", "framesDecoded");
+      st.prevV = { jitterBufferDelay: v.jitterBufferDelay, jitterBufferEmittedCount: v.jitterBufferEmittedCount,
+                   totalDecodeTime: v.totalDecodeTime, framesDecoded: v.framesDecoded };
+      const net = pair && pair.currentRoundTripTime != null ? pair.currentRoundTripTime * 500 : null;
+      const local = pair && report.get(pair.localCandidateId);
+      st.selfPort = local && local.port;
+      if (local && local.port && st.tick++ % 5 === 0)
+        timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+          const c = j && Array.isArray(j.clients) && j.clients.find((c) => c.proto === "webrtc" && c.port === local.port);
+          st.camMs = c && c.lat_ms >= 0 ? c.lat_ms : -1;
+        }).catch(() => {});
+      if (jb == null) return null;
+      const parts = [["camera", st.camMs >= 0 ? st.camMs : null], ["network", net],
+                     ["jitter buffer", jb], ["decode", dec]];
+      const known = parts.filter((x) => x[1] != null);
+      const total = Math.round(known.reduce((sum, x) => sum + x[1], 0));
+      return {
+        total: (st.camMs >= 0 ? "≈ " : "≥ ") + total,
+        tip: known.map((x) => x[0] + " " + Math.round(x[1]) + " ms").join(" + ") +
+             (st.camMs >= 0 ? "" : " (camera part unknown)") +
+             "\nwithout sensor exposure and display, ~1-2 frames"
+      };
+    }
+
+    // fMP4 has no port the page can see: pick our /stream.mp4 connection by
+    // stream, User-Agent and the connection age closest to ours.
+    function pollFmp4CamLatency(st, chn) {
+      if (st.camTick++ % 5) return;
+      const age = (performance.now() - st.t0) / 1000;
+      timpsApiReady().then((api) => api.clients && api.clients()).then((j) => {
+        const mine = (j && Array.isArray(j.clients) ? j.clients : []).filter((c) =>
+          c.proto === "fmp4" && c.chn === +chn && c.agent === navigator.userAgent)
+          .sort((a, b) => Math.abs(a.since_s - age) - Math.abs(b.since_s - age));
+        st.camMs = mine.length && mine[0].lat_ms >= 0 ? mine[0].lat_ms : -1;
+        st.selfPort = mine.length ? mine[0].port : 0;
+      }).catch(() => {});
+    }
+
+    function delayText(parts, note) {
+      const known = parts.filter((x) => x[1] != null && x[1] >= 0);
+      const cam = parts.find((x) => x[0] === "camera");
+      const exact = cam && cam[1] != null && cam[1] >= 0;
+      const total = Math.round(known.reduce((sum, x) => sum + x[1], 0));
+      return {
+        total: (exact ? "≈ " : "≥ ") + total,
+        text: " · delay " + (exact ? "≈ " : "≥ ") + total + " ms",
+        tip: known.map((x) => x[0] + " " + Math.round(x[1]) + " ms").join(" + ") +
+             (exact ? "" : " (camera part unknown)") + "\n" + note
+      };
     }
 
     async function startStream(forceVideoOnly = false) {
@@ -1662,7 +1837,19 @@
           setConnectedUi(true);
           noteProgress();
           console.info("[preview] mse: connected (" + (chn === "1" ? "sub" : "main") + " stream)");
-          setStatus("Connected (" + (chn === "1" ? "sub" : "main") + " stream)");
+          const connMsg = "Connected (" + (chn === "1" ? "sub" : "main") + " stream)";
+          setStatus(connMsg);
+          const lst = { t0: performance.now(), camMs: -1, camTick: 0 };
+          const latTimer = setInterval(() => {
+            if (dead || session !== mySession) { clearInterval(latTimer); return; }
+            if (!video.buffered.length) return;
+            pollFmp4CamLatency(lst, chn);
+            const buf = (video.buffered.end(video.buffered.length - 1) - video.currentTime) * 1000;
+            const d = delayText([["camera", lst.camMs], ["playback buffer", Math.max(0, buf)]],
+                                "without network (TCP), decode, sensor exposure and display");
+            setStatus(connMsg + d.text, d.tip);
+            noteOwnDelay("fmp4", lst.selfPort, d.total, d.tip);
+          }, 1000);
           const rd = res.body.getReader();
           while (true) {
             const { done, value } = await rd.read();

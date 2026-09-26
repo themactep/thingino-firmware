@@ -308,31 +308,58 @@
 
   var now = {};
   function drawNow() {
-    var d = now, night = Number(d.mode) === 1, g = Number(d.total_gain);
-    var lo = Number(d.day_gain), hi = Number(d.night_gain);
+    var d = now, night = Number(d.mode) === 1;
+    // the decision runs on the exposure index (= gain in the dark); older
+    // timps only send total_gain
+    var g = Number(d.exposure) >= 0 ? Number(d.exposure) : Number(d.total_gain);
+    var lo = Number(d.day_gain), hi = Number(d.night_gain), trig = Number(d.day_trigger);
     $("dn-icon").className = night ? "bi bi-moon-stars" : "bi bi-sun";
     $("dn-now").textContent = d.mode === undefined ? "–" : night ? "Night" : "Day";
     var auto = d.dn_mode !== "schedule";
     $("dn-src").textContent = !(d.enabled === 1 || d.enabled === true) ? "automatic switching off"
       : auto ? "auto · light level" : "auto · calendar";
     var sc = $("dn-scale"), mk = $("dn-mark");
-    if (lo > 0 && hi > lo) {
-      var span = Math.max(hi * 2, g * 1.05 || 0), p = function (v) { return (v / span * 100).toFixed(2) + "%"; };
-      sc.style.background = "linear-gradient(90deg,#f0c040 0 " + p(lo) + ",#555 " + p(lo) + " " + p(hi) + ",#3a5fcd " + p(hi) + ")";
-      sc.querySelectorAll(".tk,.lb").forEach(function (e) { e.remove(); });
-      sc.insertAdjacentHTML("beforeend",
-        '<span class="lb" style="left:' + p(lo / 2) + ';color:#f0c040">Day</span>' +
-        '<span class="lb" style="left:' + p((lo + hi) / 2) + '">hysteresis</span>' +
-        '<span class="lb" style="left:' + p((hi + span) / 2) + ';color:#7b9cff">Night</span>' +
-        '<span class="tk" style="left:' + p(lo) + '">' + lo + '</span><span class="tk" style="left:' + p(hi) + '">' + hi + "</span>");
+    sc.querySelectorAll(".tk,.lb").forEach(function (e) { e.remove(); });
+    mk.style.opacity = "";
+    if (night) {
+      // In the night pipeline the IR light keeps the exposure low, so it is
+      // not comparable with the day thresholds: only the drop below the probe
+      // bar (day_trigger, from the night reference) asks for a day probe.
+      var ref = Number(d.night_baseline);
+      var span = Math.max(trig > 0 ? trig * 2 : 0, ref > 0 ? ref * 1.3 : 0,
+                          ref > 0 ? Math.min(g * 1.05 || 0, ref * 2.5) : g * 1.05 || 0, 1),
+          p = function (v) { return (v / span * 100).toFixed(2) + "%"; };
+      if (trig > 0) {
+        sc.style.background = "linear-gradient(90deg,#f0c040 0 " + p(trig) + ",#3a5fcd " + p(trig) + ")";
+        sc.insertAdjacentHTML("beforeend",
+          '<span class="lb" style="left:' + p(trig / 2) + ';color:#f0c040">probe day</span>' +
+          '<span class="lb" style="left:' + p((trig + span) / 2) + ';color:#7b9cff">Night</span>' +
+          '<span class="tk" style="left:' + p(trig) + '">' + Math.round(trig) + "</span>" +
+          (ref > 0 ? '<span class="tk" style="left:' + p(ref) + '">ref ' + Math.round(ref) + "</span>" : ""));
+      } else {
+        sc.style.background = "#3a5fcd";
+        sc.insertAdjacentHTML("beforeend",
+          '<span class="lb" style="left:50%;color:#7b9cff">Night · reference pending</span>');
+        mk.style.opacity = ".4";
+      }
       if (g >= 0) { mk.style.left = p(Math.min(g, span)); mk.hidden = false; }
+    } else if (lo > 0 && hi > lo) {
+      var span2 = Math.max(hi * 2, g * 1.05 || 0), q = function (v) { return (v / span2 * 100).toFixed(2) + "%"; };
+      sc.style.background = "linear-gradient(90deg,#f0c040 0 " + q(lo) + ",#555 " + q(lo) + " " + q(hi) + ",#3a5fcd " + q(hi) + ")";
+      sc.insertAdjacentHTML("beforeend",
+        '<span class="lb" style="left:' + q(lo / 2) + ';color:#f0c040">Day</span>' +
+        '<span class="lb" style="left:' + q((lo + hi) / 2) + '">hysteresis</span>' +
+        '<span class="lb" style="left:' + q((hi + span2) / 2) + ';color:#7b9cff">Night</span>' +
+        '<span class="tk" style="left:' + q(lo) + '">' + lo + '</span><span class="tk" style="left:' + q(hi) + '">' + hi + "</span>");
+      if (g >= 0) { mk.style.left = q(Math.min(g, span2)); mk.hidden = false; }
     }
     var next = "";
     if (!auto) next = "the calendar decides";
-    else if (night && d.day_trigger > 0) next = "probe for day when gain <b>&lt; " + Math.round(d.day_trigger) + "</b>";
-    else if (night) next = "day when gain <b>&lt; " + lo + "</b>";
-    else if (hi > 0) next = "night when gain <b>&gt; " + hi + "</b>" + (d.day_confirm_s ? " for " + d.day_confirm_s + " s" : "");
-    $("dn-next").innerHTML = (next ? "next: " + next : "") + (g >= 0 ? "<br>gain now " + Math.round(g) : "");
+    else if (night && trig > 0) next = "probe for day when exposure <b>&lt; " + Math.round(trig) + "</b>";
+    else if (night) next = "night reference still being taken";
+    else if (hi > 0) next = "night when exposure <b>&gt; " + hi + "</b>" + (d.day_confirm_s ? " for " + d.day_confirm_s + " s" : "");
+    $("dn-next").innerHTML = (next ? "next: " + next : "") + (g >= 0 ? "<br>exposure now " + Math.round(g) : "");
+    mk.title = night ? "night-pipeline exposure: IR-lit, not comparable with the day thresholds" : "";
   }
   function onNow(d) {
     if (!d) return;
