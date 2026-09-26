@@ -7,7 +7,7 @@ THINGINO_MOTORS_SITE_METHOD = git
 ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_MOTORS_WS) $(if $(BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY),,$(BR2_PACKAGE_THINGINO_STREAMER_TIMPS))),)
 THINGINO_MOTORS_SITE = https://github.com/Lu-Fi/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = thingino-motors-websocket
-THINGINO_MOTORS_VERSION = cf2cc6043a13935e3a4cacdec71521f7aa48b181
+THINGINO_MOTORS_VERSION = b73170f7eb2b75662003cced223165ca5ad7428e
 else
 THINGINO_MOTORS_SITE = https://github.com/thingino/thingino-motors.git
 THINGINO_MOTORS_SITE_BRANCH = main
@@ -116,9 +116,11 @@ ifeq ($(BR2_PACKAGE_THINGINO_MOTORS_WS),y)
 # stripping. Measured -7680 B (-12.2%) on the WS build. WS-only, same as
 # the variables it references - the plain upstream daemon build below is
 # untouched, byte for byte, from what thingino/thingino-motors ships.
+# -flto on the daemon: cross-file inlining over the fork's sources, text
+# 63522 -> 57734 B (-9.1%) on the WS+TLS build.
 define THINGINO_MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_VERSION_DEF) $(@D)/src/motor.c -o $(@D)/motors -ljct -Wl,--gc-sections
-	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -ffunction-sections -fdata-sections $(THINGINO_MOTORS_DAEMON_DEFS) $(THINGINO_MOTORS_DAEMON_SRCS) -o $(@D)/motors-daemon $(THINGINO_MOTORS_DAEMON_LIBS) -Wl,--gc-sections
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s -flto -ffunction-sections -fdata-sections $(THINGINO_MOTORS_DAEMON_DEFS) $(THINGINO_MOTORS_DAEMON_SRCS) -o $(@D)/motors-daemon $(THINGINO_MOTORS_DAEMON_LIBS) -Wl,--gc-sections
 endef
 else
 define THINGINO_MOTORS_BUILD_CMDS
