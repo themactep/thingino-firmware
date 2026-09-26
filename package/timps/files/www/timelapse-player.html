@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>thingino · Timelapse Player</title>
+  <title>thingino · Timelapse</title>
   <script src="/a/theme-init.js"></script>
   <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css">
   <style>
-    /* Fixed-aspect stage: the frame count can change under us and the shots
-       themselves may be any resolution, so the stage never resizes - the
-       image is letterboxed inside it instead. Without this the whole control
-       row jumps on the first frame of every sequence. */
+    
     #tlp-stage {
       position: relative;
       width: 100%;
@@ -74,17 +71,20 @@
     <div data-app-controls></div>
 
     <div class="d-flex align-items-center flex-wrap gap-2">
-      <h3 class="mb-0">Timelapse Player</h3>
+      <h3 class="mb-0">Timelapse</h3>
       <button type="button" id="tlp-reload" class="btn btn-outline-secondary btn-sm" title="Rescan the timelapse folder">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
       <span class="text-secondary small" id="tlp-info"></span>
-      <a href="/tool-timelapse.html" class="btn btn-outline-secondary btn-sm ms-auto">
-        <i class="bi bi-sliders me-1"></i> Settings
-      </a>
     </div>
 
+    <ul class="nav nav-tabs tv-tabs my-2" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="player">Player</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" role="tab" data-page-tab="settings">Settings</button></li>
+    </ul>
+    <div data-page-pane="player">
     <div class="card mt-2">
+      <div class="card-header"><h2 class="tv-ct">Player</h2></div>
       <div class="card-body">
         <div class="row g-2 align-items-end mb-2">
           <div class="col-12 col-md">
@@ -150,6 +150,81 @@
         <p class="small text-secondary mb-0 mt-2" id="tlp-hint">&nbsp;</p>
       </div>
     </div>
+    </div>
+    <div data-page-pane="settings" hidden>
+<section>
+      <form id="tlForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="tv-ct">Timelapse</h2>
+            <small>A JPEG snapshot every interval under <code>&lt;dir&gt;/&lt;hostname&gt;/timelapses/</code>; saved live into <code>/etc/timps.conf</code>. The control-bar timelapse button toggles the same switch.</small>
+            <button type="button" class="btn btn-outline-secondary" id="tl-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+
+              <div class="col">
+                <h4>Storage</h4>
+                <small>where snapshots are written</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="tl_enabled">
+                  <label class="form-check-label" for="tl_enabled">Enable timelapse (also starts on boot)</label>
+                </p>
+                <p>
+                  <label for="tl_dir">Storage directory</label>
+                  <a href="/tool-file-manager.html" class="small text-decoration-none">
+                    <i class="bi bi-folder2-open ms-2 me-1"></i> Open in File Manager
+                  </a>
+                  <input type="text" class="form-control" id="tl_dir" placeholder="/mnt/mmcblk0p1"
+                    data-help="SD card or share mount; shots go under &lt;dir&gt;/&lt;hostname&gt;/timelapses/">
+                </p>
+                <p>
+                  <label for="tl_name">File name template</label>
+                  <input type="text" class="form-control strftime" id="tl_name" placeholder="%Y%m%d/%H/%Y%m%dT%H%M%S"
+                    data-help="strftime path under the timelapses folder (.jpg is appended)">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Capture</h4>
+                <small>source and cadence</small>
+                <p>
+                  <label for="tl_channel">Stream to capture</label>
+                  <select class="form-select" id="tl_channel">
+                    <option value="0">Main stream</option>
+                    <option value="1">Substream</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="tl_interval">Interval, seconds</label>
+                  <input type="number" class="form-control" id="tl_interval" min="1" max="86400" step="1"
+                    data-help="Save one snapshot every N seconds">
+                </p>
+              </div>
+
+              <div class="col">
+                <h4>Retention</h4>
+                <small>automatic cleanup</small>
+                <p>
+                  <label for="tl_keepdays">Keep, days</label>
+                  <input type="number" class="form-control" id="tl_keepdays" min="0" max="3650" step="1"
+                    data-help="Snapshots older than this are deleted (0 = keep forever)">
+                </p>
+              </div>
+
+            </div><!-- .row -->
+            <p class="small text-secondary mb-0" id="tl-status">&nbsp;</p>
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <button type="submit" class="btn btn-primary" id="tl-save">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
+    </section>
+    </div>
   </div>
 </main>
 
@@ -163,6 +238,8 @@
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
 <script src="/a/timps-api.js"></script>
+<script src="/a/timps-ui.js"></script>
 <script src="/a/timelapse-player.js"></script>
+<script src="/a/tool-timelapse.js"></script>
 </body>
 </html>

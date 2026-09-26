@@ -79,7 +79,7 @@ clear_registration() {
 	set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -n -r
 	[ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 	[ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
-	[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+	[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --tls-use-os-certs
 	exec mosquitto_pub "$@"
 }
 
@@ -129,6 +129,6 @@ payload=$(printf '{"camera_id":"%s","name":"%s","hostname":"%s","ip":"%s","snaps
 set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -m "$payload" -r
 [ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
 [ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
-[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --tls-use-os-certs
 
 exec mosquitto_pub "$@"

@@ -1,17 +1,4 @@
-/* streamer-image.js - NATIVE Image Quality page. Talks directly to the timps
- * streamer over window.timpsApi (GET/POST /control on timps's own port, per-
- * boot token) - no json-imaging.cgi / json-prudynt*.cgi bridge for this page.
- *
- * Load:  timpsApi.get() -> populate every control from the "image" object and
- *        enable ONLY the controls whose timps key is listed in caps.image
- *        (the SoC capability matrix); everything else stays greyed out.
- * Save:  every change goes straight to timpsApi.set({image:{key:val}}) -
- *        debounced, so a burst of quick changes coalesces into one POST.
- *        timps applies live AND persists to its config file immediately, so
- *        the "Save configuration" button is just a confirmation toast.
- * Offline: if timps is unreachable the controls stay disabled and a small
- *        notice appears; nothing throws.
- */
+// streamer-image.js - Image Quality page (cards with sliders).
 (function () {
   "use strict";
 
@@ -44,16 +31,41 @@
     else console.log("[streamer-image]", type + ":", message);
   }
 
-  // same disabled styling the page always used: input.disabled + a
-  // "disabled" class on the wrapping <p>/.select/.boolean block
+  var LABEL = {};
+  var unsupported = {};
+
+  // unsupported on this SoC: hidden and named under the preview
   function setEnabled(id, on) {
     var el = $id(id);
     if (!el) return;
     el.disabled = !on;
-    var wrap =
-      el.closest("p, .number-range, .select, .boolean, .col") ||
-      el.parentElement;
-    if (wrap) wrap.classList.toggle("disabled", !on);
+    var wrap = el.closest("[data-f]");
+    if (wrap) wrap.classList.toggle("d-none", !on);
+    if (on) delete unsupported[id]; else unsupported[id] = true;
+  }
+
+  function showValue(id) {
+    var o = $id(id + "-v"), el = $id(id);
+    if (o && el) o.textContent = el.value;
+  }
+
+  // RGB gains only act in manual/custom white balance
+  function wbGate() {
+    var mode = $id("image_core_wb_mode");
+    var manual = mode && isManual(mode.value);
+    ["image_wb_rgain", "image_wb_bgain"].forEach(function (id) {
+      var w = $id(id) && $id(id).closest("[data-f]");
+      if (w && !unsupported[id]) w.classList.toggle("d-none", !manual);
+    });
+    var note = $id("img-wb-note");
+    if (note) note.textContent = manual || unsupported.image_wb_rgain ? "" :
+      "Red/blue gain apply in Manual or Custom mode.";
+  }
+
+  function renderUnsupported() {
+    var names = Object.keys(unsupported).map(function (id) { return LABEL[id] || id; });
+    var el = $id("img-unsupported");
+    if (el) el.textContent = names.length ? "Not supported on this camera: " + names.join(", ") + "." : "";
   }
 
   function populate(id, value) {
@@ -61,11 +73,10 @@
     if (!el || value === undefined || value === null) return;
     if (el.type === "checkbox") el.checked = !!Number(value);
     else el.value = value;
+    showValue(id);
+    if (id === "image_core_wb_mode") wbGate();
   }
 
-  // reverse of FIELD_MAP ("image.<key>" -> page field id): the daemon echoes
-  // the EFFECTIVE value of everything it changed ("applied"), so an out-of-
-  // range slider can be put back to what really got stored - no follow-up GET
   var REVERSE = {};
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["image." + FIELD_MAP[id]] = id;
@@ -116,35 +127,57 @@
       });
   }
 
+  function isManual(v) { return v === "1" || v === "9"; }
+
+  // entering manual/custom: start from the gains AWB applies now, so the picture doesn't jump
+  function wbEnterManual(el) {
+    el.classList.add("opacity-75");
+    window.timpsApi.get().then(function (json) {
+      var live = json.image && json.image.wb_live;
+      var image = { core_wb_mode: parseInt(el.value, 10) };
+      if (live) {
+        image.wb_rgain = live.rgain;
+        image.wb_bgain = live.bgain;
+        populate("image_wb_rgain", live.rgain);
+        populate("image_wb_bgain", live.bgain);
+      }
+      return window.timpsApi.set({ image: image });
+    }).then(applyCorrections, function (err) {
+      toast("danger", "Failed to apply setting: " + (err.message || err));
+    }).then(function () { el.classList.remove("opacity-75"); });
+  }
+
   function wireControls() {
+    var wbPrev = null;
     Object.keys(FIELD_MAP).forEach(function (id) {
       var el = $id(id);
       if (!el) return;
-      setEnabled(id, false); // disabled until caps confirm support
-      el.addEventListener("change", function () { send(id); });
+      var lab = document.querySelector('label[for="' + id + '"]');
+      LABEL[id] = lab ? lab.textContent.replace(/\s+\d*\s*$/, "").trim() : id;
+      el.disabled = true; // until caps confirm support
+      el.addEventListener("input", function () { showValue(id); });
+      if (id === "image_core_wb_mode")
+        el.addEventListener("focus", function () { wbPrev = el.value; });
+      el.addEventListener("change", function () {
+        if (id === "image_core_wb_mode") {
+          var from = wbPrev;
+          wbPrev = el.value;
+          wbGate();
+          if (isManual(el.value) && !isManual(from)) return wbEnterManual(el);
+        }
+        send(id);
+      });
       // double-click resets a numeric field to the midpoint of its range
       if (el.type !== "checkbox" && el.tagName !== "SELECT") {
         el.addEventListener("dblclick", function () {
-          var min = Number(el.dataset.min || 0);
-          var max = Number(el.dataset.max || 255);
+          var min = Number(el.min || 0);
+          var max = Number(el.max || 255);
           el.value = Math.round((min + max) / 2);
+          showValue(id);
           send(id);
         });
       }
     });
-
-    // timps applies + persists every change immediately; the button is
-    // kept only to reassure users trained on the old save-to-file step.
-    var saveBtn = $id("save-prudynt-config");
-    if (saveBtn) {
-      saveBtn.addEventListener("click", function () {
-        toast(
-          "success",
-          "Nothing to do: image settings are applied live and already saved to the streamer configuration.",
-          4000,
-        );
-      });
-    }
   }
 
   function offlineNotice() {
@@ -177,6 +210,8 @@
           populate(id, image[key]);
           setEnabled(id, capsImage.indexOf(key) >= 0);
         });
+        renderUnsupported();
+        wbGate();
       })
       .catch(function (err) {
         console.warn("timps unreachable, image controls stay disabled:", err);
@@ -184,10 +219,6 @@
       });
   }
 
-  // reverse of FIELD_MAP (timps "image.<key>" -> page field id), so another
-  // open tab/client changing a setting (e.g. brightness) via /control shows
-  // up here live instead of only on next reload. temper_strength mirrors
-  // send()'s noise_reduction special case (one slider, two backend keys).
   var REVERSE = {};
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["image." + FIELD_MAP[id]] = id;
@@ -208,8 +239,16 @@
     populate(id, data.value);
   }
 
+  function initIq() {
+    var c = $id("iq");
+    if (!c || !window.timpsUi) return;
+    window.timpsUi.uploadCard(c, "iq", "sensor IQ file");
+    if (location.hash === "#iq") c.scrollIntoView();
+  }
+
   function init() {
     wireControls();
+    initIq();
     load();
     if (window.timpsApi) window.timpsApi.events("config", onConfigEvent);
   }

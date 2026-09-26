@@ -24,6 +24,8 @@ motion_driver_val=$(jct "$MOTORS_CONFIG" get motors.motion_driver 2>/dev/null)
 [ -z "$motion_driver_val" ] && motion_driver_val=legacy
 preview_control_mode_val=$(jct "$MOTORS_CONFIG" get motors.preview_control_mode 2>/dev/null)
 [ -z "$preview_control_mode_val" ] && preview_control_mode_val=step
+drag_steps_per_frame_val=$(jct "$MOTORS_CONFIG" get motors.drag_steps_per_frame 2>/dev/null)
+[ -z "$drag_steps_per_frame_val" ] && drag_steps_per_frame_val=1000
 pos_0_x_val=$(jct "$MOTORS_CONFIG" get motors.presets.0.x 2>/dev/null)
 [ -z "$pos_0_x_val" ] && pos_0_x_val=0
 pos_0_y_val=$(jct "$MOTORS_CONFIG" get motors.presets.0.y 2>/dev/null)
@@ -51,7 +53,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 	changed=0
 
 	case "$POST_preview_control_mode" in
-		step | continuous | joystick)
+		step | continuous | joystick | drag)
 			if [ "$POST_preview_control_mode" != "$preview_control_mode_val" ]; then
 				jct "$MOTORS_CONFIG" set motors.preview_control_mode "$POST_preview_control_mode" >/dev/null 2>&1
 				preview_control_mode_val=$POST_preview_control_mode
@@ -82,9 +84,21 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 			;;
 	esac
 
+	case "$POST_drag_steps_per_frame" in
+		'' | *[!0-9]*) ;;
+		*)
+			if [ "$POST_drag_steps_per_frame" -ge 100 ] && [ "$POST_drag_steps_per_frame" -le 4000 ] &&
+				[ "$POST_drag_steps_per_frame" != "$drag_steps_per_frame_val" ]; then
+				jct "$MOTORS_CONFIG" set motors.drag_steps_per_frame "$POST_drag_steps_per_frame" >/dev/null 2>&1
+				drag_steps_per_frame_val=$POST_drag_steps_per_frame
+				changed=1
+			fi
+			;;
+	esac
+
 	[ "$changed" = 1 ] && motors -R >/dev/null 2>&1
 fi
 
 printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n'
 
-printf '{"steps_pan":%s,"steps_tilt":%s,"speed_pan":%s,"speed_tilt":%s,"accel_pan":%s,"accel_tilt":%s,"motion_driver":"%s","preview_control_mode":"%s","pos_0_x":%s,"pos_0_y":%s}' "$steps_pan_val" "$steps_tilt_val" "$speed_pan_val" "$speed_tilt_val" "$accel_pan_val" "$accel_tilt_val" "$motion_driver_val" "$preview_control_mode_val" "$pos_0_x_val" "$pos_0_y_val"
+printf '{"steps_pan":%s,"steps_tilt":%s,"speed_pan":%s,"speed_tilt":%s,"accel_pan":%s,"accel_tilt":%s,"motion_driver":"%s","preview_control_mode":"%s","drag_steps_per_frame":%s,"pos_0_x":%s,"pos_0_y":%s}' "$steps_pan_val" "$steps_tilt_val" "$speed_pan_val" "$speed_tilt_val" "$accel_pan_val" "$accel_tilt_val" "$motion_driver_val" "$preview_control_mode_val" "$drag_steps_per_frame_val" "$pos_0_x_val" "$pos_0_y_val"

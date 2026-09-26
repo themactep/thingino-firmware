@@ -1,18 +1,4 @@
-/* config-motion.js - NATIVE timps IMP_IVS grid motion detection settings.
- *
- * Talks DIRECTLY to the timps streamer over window.timpsApi (GET/POST /control,
- * per-boot token) - no /x/json-prudynt.cgi bridge.
- *   load: timpsApi.get() -> json.motion {available,enabled,cols,rows,
- *         max_cells,sensitivity,monitor_stream} (caps.motion carries the same
- *         available/max_cells). All settings apply LIVE (timps stops and
- *         recreates its IVS grid) and persist.
- *   save: timpsApi.set({motion:{key:val}}); timps clamps cols*rows to the
- *         SDK cell budget, so we re-read once and re-apply the (possibly
- *         clamped) echo. When motion is unavailable (no IMP_IVS move API) or
- *         timps is unreachable the whole page is greyed with a notice.
- *
- * Kept lean (embedded target): no libraries, no polling, changes fire on
- * 'change' only. */
+// config-motion.js - NATIVE timps IMP_IVS grid motion detection settings.
 (function () {
   "use strict";
 
@@ -153,9 +139,6 @@
     if (loading) return;
     try {
       const r = await window.timpsApi.set({ motion: { [key]: value } });
-      // clamped cols/rows change the grid GEOMETRY, so re-rendering from a
-      // full re-read stays the right move for the elements - the "applied"
-      // echo is used for the top-bar notice, which the re-read cannot give
       const corr = window.timpsApi.takeCorrections(r);
       if (corr) showAlert("info", window.timpsApi.correctionsText(corr));
       // cols/rows may come back CLAMPED by timps: re-read the live state once
@@ -188,9 +171,6 @@
     }
   }
 
-  // cols/rows/sensitivity all interact (axis limits are re-clamped against
-  // max_cells), so a remote change just re-runs the normal full load instead
-  // of patching one field - cheap (one GET) and always internally consistent.
   function onConfigEvent(type, data) {
     if (!data || loading) return;
     if (!data.resync && (typeof data.key !== "string" || data.key.indexOf("motion.") !== 0))

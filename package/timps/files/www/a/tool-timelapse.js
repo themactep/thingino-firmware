@@ -1,15 +1,8 @@
-/* tool-timelapse.js - timps native Timelapse Recorder settings.
- *
- * Replaces the stock thingino timelapse page (which edited /etc/timelapse.json
- * + a cron entry calling a prudynt-derived capture script). This version talks
- * DIRECTLY to the timps native timelapse via GET/POST /control (a/timps-api.js):
- * every field maps to a timelapse.* config key, timps persists the changed
- * keys into /etc/timps.conf itself and the running timelapse thread reads
- * them live. Same structure as a/tool-record.js. */
+// tool-timelapse.js - timelapse settings tab of timelapse-player.html.
 (function () {
   "use strict";
 
-  if (!document.body || document.body.id !== "page-tool-timelapse") return;
+  if (!document.body || document.body.id !== "page-timelapse-player") return;
   if (!window.timpsApi) {
     console.error("[tool-timelapse] timps-api.js not loaded");
     return;
@@ -102,9 +95,6 @@
         if (id) applyKV(id, corr[k]);
       });
       corr = window.timpsApi.takeCorrections(r);
-      // refused values keep their OLD stored value, which is NOT echoed
-      // (nothing changed), and a truncated echo is incomplete - only a
-      // reload shows the truth in those two cases
       var needReload = r && (r.rejected > 0 || r.truncated);
       if (r && r.rejected > 0)
         toast("warning", "Saved, but the streamer refused " + r.rejected +
@@ -121,9 +111,6 @@
     });
   }
 
-  // write one field's timps value into its element - shared by the config-
-  // sync push and the save-time "applied" corrections, so a clamped value
-  // renders exactly like a remote edit
   function applyKV(id, value) {
     var f = FIELDS.find(function (x) { return x.id === id; });
     var el = $(id);
