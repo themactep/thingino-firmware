@@ -41,4 +41,15 @@ TMP=$(mktemp /tmp/dnc.XXXXXX) || reply "500 Internal Server Error" '{"error":"no
 trap 'rm -f "$TMP"' EXIT
 printf '%s' "$BODY" >"$TMP"
 jct "$CFG" import "$TMP" >/dev/null 2>&1 || reply "500 Internal Server Error" '{"error":"write failed"}'
+
+# apply now: timps only re-runs the board hook at the next real day/night
+# transition (or at boot), so without this a saved change sits inert until
+# then. Re-running it for the mode we're already in re-reads the controls
+# we just wrote and re-drives ircut/light/color to match - a no-op for
+# whichever of those didn't change, the fix for whichever did.
+mode=$(cat /run/thingino/daynight_mode 2>/dev/null)
+case "$mode" in
+day | night) command -v daynight >/dev/null 2>&1 && daynight "$mode" >/dev/null 2>&1 & ;;
+esac
+
 get
