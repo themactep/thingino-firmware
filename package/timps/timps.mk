@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.22
+TIMPS_VERSION = v1.9.26
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -252,7 +252,7 @@ define TIMPS_INSTALL_TARGET_CMDS
 
 	# One template for every board means every other sensor warns once per
 	# start. Buildroot knows the right name - the kernel driver is built from
-	# it. i2c_addr stays as shipped (gc2053's 0x37) except where a sensor's
+	# it. i2c_addr stays unset (auto-detected, 0x37 fallback) except where a sensor's
 	# own driver hardcodes a different SENSOR_I2C_ADDRESS across every SoC
 	# variant it ships in - /proc/jz/sensor does not exist on T40/T41, so
 	# there is no runtime auto-detect fallback there.
@@ -261,7 +261,7 @@ define TIMPS_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 	if [ "$(call qstrip,$(BR2_SENSOR_1_NAME))" = "gc5603" ]; then \
-		$(SED) 's|^sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
+		$(SED) 's|^#* *sensor.i2c_addr .*|sensor.i2c_addr = 0x31|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
 

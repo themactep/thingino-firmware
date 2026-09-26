@@ -192,6 +192,11 @@
     return request("GET", undefined, false, "?stats=1");
   }
 
+  // who streams what: [{ip, port, proto, chn, since_s, kbps}]
+  function clients() {
+    return request("GET", undefined, false, "?clients=1");
+  }
+
   function dnHistory(opts) {
     var q = "?dn_history=1";
     if (opts && opts.last > 0) q += "&last=" + (opts.last | 0);
@@ -270,6 +275,7 @@
     correctionsText: correctionsText,
     caps: caps,
     statsExtra: statsExtra,
+    clients: clients,
     dnHistory: dnHistory,
     events: events,
   };

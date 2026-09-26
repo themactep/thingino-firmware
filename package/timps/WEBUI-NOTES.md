@@ -305,6 +305,51 @@ and `version`. ~8 KB per 15s; moving these into `?stats=1` would let it go.
 All loops only run while the Statistics card is visible (toggled by
 `#ms-stats-toggle`).
 
+### Connected clients panel: `GET /control?clients=1`
+
+`fetchClients()` rides the 5 s `?stats=1` loop and fills `#st-clients` from
+`timpsApi.clients()` (timps >= 1.9.24). The panel stays hidden when the
+daemon has no such endpoint. The per-client rate is measured by timps at read
+time, so the page only formats it, like the `bytes` total ("Total"
+column, `-` on a daemon without it). `uaShort()` turns the User-Agent into a
+short name (Frigate, ffmpeg/Lavf, VLC, go2rtc, the browser); the full string
+is the cell's tooltip. The SSE `/events` connections of open WebUI tabs are
+listed too, which is why the "stream clients" tile (subscribers only) can
+show fewer.
+
+### `whepLatency()`: the `delay ≈ N ms` in the WebRTC status line
+
+Sum of the camera's share (`lat_ms` of this session's `?clients=1` entry,
+matched by the selected candidate pair's local port, refreshed every 5 s)
+and the browser's share from `getStats()` deltas over the last second:
+network (RTT/2), jitter buffer (`jitterBufferDelay/jitterBufferEmittedCount`)
+and decode (`totalDecodeTime/framesDecoded`). Without `lat_ms` (older timps)
+it shows `≥ N`. Breakdown in the status line's tooltip. Sensor exposure and
+display are not included (~1-2 frames). With audio the video jitter
+buffer is mostly Chrome's A/V sync, and that follows the viewer's audio
+output latency (~240 ms on Bluetooth: ~360 ms total vs ~180 ms on a built-in
+speaker and ~85 ms video-only on Garage).
+
+### fMP4 delay (`pollFmp4CamLatency()`, `delayText()`)
+
+Real-time and the MSE modes show `delay ≈ N ms` too: the camera's `lat_ms`
+plus decode + render (Real-time) or the playback buffer
+(`buffered.end - currentTime`, MSE). The page cannot see its TCP port, so
+its `?clients=1` entry is picked by `fmp4`, stream, `navigator.userAgent` and
+the connection age closest to its own. Network is not included (TCP, small
+in a LAN).
+
+The client table has two latency columns: "Camera" is `lat_ms` for every
+client; "End-to-end" is filled only in this tab's own WebRTC / fMP4 row, from
+the same `delay ≈` value (`noteOwnDelay()`, matched by proto + port, stale
+after 5 s), with the breakdown as the cell's tooltip. Other viewers' buffers
+are invisible to the camera, so their rows stay `-`.
+
+Below 576 px the table drops Address, Stream, Connected and Total, shows the
+IP under the client name and Main/Sub under the protocol (`cl-ip`), and uses
+short labels (`cl-s`: Proto, Cam, E2E, RTSP/T, SSE), so Camera, End-to-end
+and Rate fit a 390 px phone without sideways scrolling.
+
 ### `applyStatsExtra()`: the `ave_bitrate` / queue-backlog fallback
 
 `ave_bitrate` (`IMP_Encoder_GetChnAveBitrate`) only exists on T31; every
@@ -356,6 +401,18 @@ meant, so `calFromValues()` mirrors `dn_cal_kind()` in `daynight.c` to drive
 the selector, and `collectTimps()` always CLEARS the unselected calendar's
 values on save. Without that clear, a leftover time window keeps outranking a
 location the user just typed in and the save still reports success.
+
+### "Now" scale (`drawNow()`) and the preview's Day/Night tile
+
+Both plot the exposure index (`exposure`, what the decision runs on; falls
+back to `total_gain` on an older timps), and the scale depends on the mode.
+Day: the two thresholds (day below / hysteresis / night above). Night: the
+IR light keeps the exposure low, so the day thresholds say nothing there;
+the scale is the probe bar `day_trigger` (yellow "probe day" below it, blue
+"Night" above) with the night reference `night_baseline` as a tick, capped at
+2.5x the reference so the ticks stay readable on a phone. Before the
+reference exists (`day_trigger` -1) the bar is plain blue and the marker
+dimmed.
 
 ## a/preview-motion.js
 
