@@ -681,6 +681,15 @@ static int parse_isp_m0(sensor_sample_t *s) {
     s->total_gain = -1;  /* not available in isp-m0 */
     if (s->ev_log2 > 0) {
         s->primary_signal = s->ev_log2;
+    } else if (s->integration_time >= 0 && s->max_integration_time > 0) {
+        /*
+         * The open tx-isp driver does not publish the EV log2 field, so derive
+         * the decision signal from the integration ratio and map it into the
+         * same raw domain the configured thresholds use.
+         */
+        int pct = compute_brightness_pct(s);
+        if (pct >= 0)
+            s->primary_signal = pct_to_raw_ev(pct);
     }
 
     return 0;

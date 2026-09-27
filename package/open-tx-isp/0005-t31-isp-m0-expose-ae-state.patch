@@ -1,0 +1,39 @@
+--- a/driver/t31/tx_isp_proc.c
++++ b/driver/t31/tx_isp_proc.c
+@@ -374,14 +374,34 @@ static const TX_ISP_PROC_OPS tx_isp_proc_fs_fops = {
+ static int tx_isp_proc_m0_show(struct seq_file *m, void *v)
+ {
+     struct tx_isp_dev *isp = m->private;
++    struct tx_isp_sensor *sensor;
+ 
+     if (!isp) {
+         seq_printf(m, "0");
+         return 0;
+     }
+ 
+-    /* M0 proc entry for main ISP core status */
+-    seq_printf(m, "%u", isp->frame_count);
++    /*
++     * The vendor isp-m0 is a key/value block that userspace parses (daynightd,
++     * the day/night dev script, diagnostics).  The recovered driver printed
++     * only the frame counter, so every field read back as -1 and photosensing
++     * never transitioned.  Expose the AE state the driver already tracks.
++     * The EV log2 field is intentionally omitted: it is a 16.16 log2 of the
++     * total exposure and the callers fall back to the integration ratio.
++     */
++    sensor = isp->sensor;
++    seq_printf(m, "ISP Runing Mode : %s\n",
++               isp->day_night ? "Night" : "Day");
++    if (sensor) {
++        seq_printf(m, "SENSOR Integration Time : %u lines\n",
++                   (unsigned)sensor->attr.integration_time);
++        seq_printf(m, "SENSOR Max Integration Time : %u lines\n",
++                   (unsigned)sensor->attr.max_integration_time);
++        seq_printf(m, "SENSOR analog gain : %u\n", (unsigned)sensor->attr.again);
++        seq_printf(m, "MAX SENSOR analog gain : %u\n",
++                   (unsigned)sensor->attr.max_again);
++        seq_printf(m, "SENSOR digital gain : %u\n", (unsigned)sensor->attr.dgain);
++    }
+ 
+     return 0;
+ }
