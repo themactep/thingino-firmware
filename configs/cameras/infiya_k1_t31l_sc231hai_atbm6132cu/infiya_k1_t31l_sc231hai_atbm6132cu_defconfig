@@ -6,16 +6,22 @@ BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6132CU=y
+BR2_PACKAGE_WIFI_ATBM6132CU_6162=y
 BR2_SENSOR_1_NAME="sc231hai"
 BR2_SENSOR_1_PARAMS="shvflip=1"
 BR2_THINGINO_AUDIO=y
-BR2_THINGINO_AUDIO_ACTIVE_LOW=true
 BR2_THINGINO_AUDIO_GPIO=7
+BR2_THINGINO_AUDIO_GPIO_LOW=y
 BR2_THINGINO_BUTTON=y
-BR2_THINGINO_LED_B_ACTIVE_LOW=true
+BR2_THINGINO_LED_B_ACTIVE_LOW=y
 BR2_THINGINO_LED_B_GPIO=9
 BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=8
 
-# isp_clk=220000000 isp_ch0_pre_dequeue_time=20 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_day_night_switch_drop_frame_num=6 shvflip=1
+# isp_clk=220000000
+# isp_ch0_pre_dequeue_time=20
+# isp_ch0_pre_dequeue_interrupt_process=0 
+# isp_ch0_pre_dequeue_valid_lines=540
+# isp_day_night_switch_drop_frame_num=6
+# shvflip=1
