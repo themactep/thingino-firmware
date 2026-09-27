@@ -1,0 +1,51 @@
+From: Ignaciensen <argentum150694@gmail.com>
+Subject: [PATCH] Add support for the Zbit ZB25Q256, a 32MB flash seen in
+ Personal Cam Pan cameras
+
+Personal Cam Pan units ship with two different 32MB flash chips: the
+PY25Q256HB (supported since 8955aa8f) and a Zbit ZB25Q256 (JEDEC ID
+0x5e4019), which has no entry in the flash support table. Add it,
+modeled on the existing ZB25VQ64/ZB25VQ128 entries, with 4-byte
+addressing and the QE bit in status register 2, like the other 32MB
+parts.
+
+Signed-off-by: Ignaciensen <argentum150694@gmail.com>
+---
+ drivers/spi/jz_spi.h | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/drivers/spi/jz_spi.h b/drivers/spi/jz_spi.h
+--- a/drivers/spi/jz_spi.h
++++ b/drivers/spi/jz_spi.h
+@@ -1167,6 +1167,27 @@
+             .cmd_read = CMD_QUAD_READ,
+ #ifdef CONFIG_JZ_SFC
+             .sfc_mode = TRAN_SPI_QUAD,
++#endif
++        },
++    },
++    {
++        .name = "ZB25Q256",
++        .id_manufactory = 0x5e4019,
++        .page_size = SIZE_256B,
++        .sector_size = SIZE_4KB,
++        .addr_size = 4,
++        .size = SIZE_32MB,
++        .quad_mode = {
++            .dummy_byte = 8,
++            .RDSR_CMD = CMD_RDSR_1,
++            .WRSR_CMD = CMD_WRSR_1,
++            .RDSR_DATE = 0x2, /* the data is write the spi status register for QE bit */
++            .RD_DATE_SIZE = 1,
++            .WRSR_DATE = 0x2, /* this bit should be the flash QUAD mode enable */
++            .WD_DATE_SIZE = 1,
++            .cmd_read = CMD_QUAD_READ,
++#ifdef CONFIG_JZ_SFC
++            .sfc_mode = TRAN_SPI_QUAD,
++#endif
++        },
++    },
+             .sfc_mode = TRAN_SPI_QUAD,
+ #endif
+         },
+     },
