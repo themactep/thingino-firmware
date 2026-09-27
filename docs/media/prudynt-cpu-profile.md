@@ -89,6 +89,8 @@ targets (though those still matter for jitter).
   pick the live pid before profiling.
 - Runtime `set<>` does not reconfigure the encoder. Bisect features with a
   restart, or with a client, not with a bare `prudyntctl json`.
-- Thread attribution would be trivial with names; prudynt does not call
-  `pthread_setname_np` on its workers. Adding that is the one small change that
-  would make `top -H` self-explanatory.
+- prudynt names its worker threads (`signal`, `videoN`, `jpegN`, `audio-in`,
+  `audio-out`, `backchan`, `osd`, `motion`, `ws`, `rtsp`) through
+  `WorkerUtils::setCurrentThreadName`, so `top -H` and `/proc/<tid>/comm` are
+  self-explanatory. OpenIMP's framesource threads are already named
+  `FS(n)-tick`; its AVPU IRQ and ISP tuning threads are not.
