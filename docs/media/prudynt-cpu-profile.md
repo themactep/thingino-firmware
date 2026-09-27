@@ -87,13 +87,21 @@ Two concrete levers fall out of this, before any of the roadmap phases:
    Implemented: the worker is now started at boot only for a periodic snapshot
    file (`jpeg_refresh > 0`), snapshots and MJPEG start it on demand through
    `JPEGWorker::ensure_running`, and `stream2`/`stream3` ship
-   `jpeg_idle_fps: 0`. Verified on `.31`: no `jpeg0` at boot, box ~91% idle
-   (load 0.7, was 0% idle / load ~5), and `prudyntctl snapshot` still starts
-   the worker. Open: after a snapshot the worker stays at ~40% instead of
-   falling back to the condition-variable pause. Something refreshes
-   `request_or_overrun()` or the JPEG encoder is not stopped again; that needs
-   a follow-up (a pause-after-idle watchdog on the JPEG encoder is the blunt
-   fix).
+   `jpeg_idle_fps: 0`. Verified on `.31`: no `jpeg0` at boot, box ~74-91% idle
+   (load 0.7-1.7), and `prudyntctl snapshot` still starts the worker.
+   A second fix (`175ebc0`) makes the worker recompute `targetFps` from
+   `jpeg_idle_fps` as soon as `request_or_overrun()` lapses, so it returns to
+   the condition-variable pause after a one-shot snapshot instead of running on
+   at the last subscriber rate.
+
+   When `jpeg0` does run, an MJPEG consumer is attached: `HTTPMJPEG.cpp:1236`
+   calls `global_jpeg[ch]->request()` for every frame it sends, so the worker
+   stays subscribed for the life of that stream. On `.31` a browser kept a
+   second `:8080` connection open besides the fMP4 stream, which is what kept
+   `jpeg0` at ~50%. With no JPEG/MJPEG consumer attached the worker pauses and
+   `jpeg0` disappears; the fMP4 preview (`/chN.mp4`) does not touch it. If a
+   camera with an fMP4-only preview still runs `jpeg0`, find the page or script
+   pulling `/mjpg` or the WS preview.
 2. Kill the per-frame allocation in the JPEG path. `JPEGWorker` does
    `snapshot_buf.resize(total_size)` plus a `memcpy` per frame (the same
    resize-and-copy the roadmap's Phase 2 removed from the video path, still
