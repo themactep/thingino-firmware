@@ -96,6 +96,26 @@ what the names show is `jpeg0` at ~24% and `video0` at ~17%. The two are
 separate workers and both run while a `stream0` client or the preview is
 active.
 
+The top consumer is not stable: it moves with whichever optional pipeline is
+running. A later sample showed `audio-out` at ~60%, `jpeg0` at ~18%, `video0`
+at ~2%; another showed `jpeg0` at ~21% with `audio-out` absent. The workers are
+created or not at startup from config (`main.cpp`: JPEG only when
+`stream2/3.enabled && (jpeg_idle_fps > 0 || jpeg_refresh > 0)`; audio-out only
+when `audio.output_enabled`), so the profile depends on the persisted config
+and on a client being present.
+
+The JPEG finding matters because the WebUI preview is fMP4 (fragmented MP4 over
+WebSocket), not MJPEG or snapshots. So on a camera whose preview is fMP4 the
+JPEG worker has no consumer at all: `stream2` still ships `enabled: true` with
+`jpeg_idle_fps: 1` and a snapshot path, and the worker encodes and writes
+`/tmp/snapshot.jpg` for nobody, pulling `video0` along. That is pure waste.
+
+A caveat on attribution: runtime `set<>` over `prudyntctl` does not
+reconfigure the encoder, and a restart does not always apply cleanly, so a
+config toggle such as `stream2.enabled=false` or `jpeg_idle_fps=0` can appear
+to have no effect. Judge by the thread names and a restart, and prefer
+disabling a whole feature at build/config level when testing.
+
 ## Ruled out
 
 | Path | Why not |
