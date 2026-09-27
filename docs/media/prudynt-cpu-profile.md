@@ -83,9 +83,17 @@ frames it pulls.
 Two concrete levers fall out of this, before any of the roadmap phases:
 
 1. Stop the idle preview. If nothing is consuming MJPEG or snapshots, the JPEG
-   worker should block on its condition variable like the video worker does,
-   and `stream2` should be disabled (or `jpeg_idle_fps` set to 0) by default on
-   cameras that do not need a standing snapshot.
+   worker should block on its condition variable like the video worker does.
+   Implemented: the worker is now started at boot only for a periodic snapshot
+   file (`jpeg_refresh > 0`), snapshots and MJPEG start it on demand through
+   `JPEGWorker::ensure_running`, and `stream2`/`stream3` ship
+   `jpeg_idle_fps: 0`. Verified on `.31`: no `jpeg0` at boot, box ~91% idle
+   (load 0.7, was 0% idle / load ~5), and `prudyntctl snapshot` still starts
+   the worker. Open: after a snapshot the worker stays at ~40% instead of
+   falling back to the condition-variable pause. Something refreshes
+   `request_or_overrun()` or the JPEG encoder is not stopped again; that needs
+   a follow-up (a pause-after-idle watchdog on the JPEG encoder is the blunt
+   fix).
 2. Kill the per-frame allocation in the JPEG path. `JPEGWorker` does
    `snapshot_buf.resize(total_size)` plus a `memcpy` per frame (the same
    resize-and-copy the roadmap's Phase 2 removed from the video path, still
