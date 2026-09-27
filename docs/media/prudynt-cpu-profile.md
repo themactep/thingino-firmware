@@ -58,6 +58,44 @@ delivery, and it scales with the number of streams and clients, not with the
 languages or the allocation churn that `prudynt-optimization-roadmap.md`
 targets (though those still matter for jitter).
 
+## Named profile
+
+prudynt now names its worker threads (`WorkerUtils::setCurrentThreadName`), so
+`top -H` and `/proc/<tid>/comm` identify them. Measured on `.31` with no RTSP
+client attached (SSH only), 1080p15 H.264 on `stream0`:
+
+| thread | CPU | role |
+|---|---|---|
+| `jpeg0` | 24-30% | ch0 JPEG/preview worker |
+| `video0` | ~17% | ch0 H.264 worker |
+| `rtsp` | ~3.5% | |
+| `audio-in` | ~2% | |
+| `osd` | ~0.8% | |
+
+The surprise is that the JPEG/preview path is the largest single consumer, with
+no MJPEG or snapshot client connected. `stream2` (the ch0 JPEG channel) ships
+`enabled: true`, `jpeg_idle_fps: 1`, `jpeg_path: /tmp/snapshot.jpg`, so the
+preview pipeline keeps encoding and writing a snapshot for nobody, and it drags
+`video0` along to feed it. Disabling `stream2` drops `video0` to ~6% but leaves
+`jpeg0` at ~21%, so most of the cost is inside the JPEG worker itself, not the
+frames it pulls.
+
+Two concrete levers fall out of this, before any of the roadmap phases:
+
+1. Stop the idle preview. If nothing is consuming MJPEG or snapshots, the JPEG
+   worker should block on its condition variable like the video worker does,
+   and `stream2` should be disabled (or `jpeg_idle_fps` set to 0) by default on
+   cameras that do not need a standing snapshot.
+2. Kill the per-frame allocation in the JPEG path. `JPEGWorker` does
+   `snapshot_buf.resize(total_size)` plus a `memcpy` per frame (the same
+   resize-and-copy the roadmap's Phase 2 removed from the video path, still
+   present here). A pooled, reused buffer removes the churn.
+
+The earlier "one RTSP client -> one worker at 26%" reading predates the names;
+what the names show is `jpeg0` at ~24% and `video0` at ~17%. The two are
+separate workers and both run while a `stream0` client or the preview is
+active.
+
 ## Ruled out
 
 | Path | Why not |
