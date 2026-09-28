@@ -357,6 +357,21 @@ stop_daemon() {
 
 iface="$(iface_default)"
 
+# A slow WiFi association outlasts udhcpc's foreground tries, so the lease
+# (and default route) can land after rcS has passed S96. Poll off the boot
+# path instead of losing discovery until the next reboot; 10 min covers a
+# router still booting after a power cut.
+wait_for_gateway() {
+	i=0
+	while [ "$i" -lt 120 ]; do
+		sleep 5
+		iface="$(iface_default)"
+		is_gateway_reachable && exec "$0" start
+		i=$((i + 1))
+	done
+	log -c 160 -e "Disabled: no reachable gateway" >&2
+}
+
 start() {
 	log -c 15 "Starting ONVIF discovery"
 
@@ -366,8 +381,9 @@ start() {
 	fi
 
 	if ! is_gateway_reachable; then
-		log -c 160 -e "Disabled" >&2
-		exit 1
+		log -c 142 -e "No reachable gateway yet, retrying in the background" >&2
+		wait_for_gateway </dev/null >/dev/null 2>&1 &
+		exit 0
 	fi
 
 	# Start one instance per active non-loopback interface
