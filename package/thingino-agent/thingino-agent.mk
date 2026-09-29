@@ -32,10 +32,19 @@ define THINGINO_AGENT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/agentctl
 	$(INSTALL) -D -m 0644 $(@D)/agent-lib \
 		$(TARGET_DIR)/usr/libexec/agent/lib.sh
-	# Install the null adapter as the build-time fallback. The chosen streamer
-	# package (prudynt-t or thingino-raptor) overwrites it at this fixed path.
-	$(INSTALL) -D -m 0644 $(@D)/agent-adapter-null \
-		$(TARGET_DIR)/usr/libexec/agent/adapter.sh
 endef
+
+# The null adapter is only a fallback for images with no streamer-provided
+# adapter. Install it at finalize time, after the per-package targets are
+# merged. That merge is sorted alphabetically, and prudynt-t/thingino-raptor
+# sort before thingino-agent, so a null adapter staged at install time would
+# overwrite the real one. Skip it when a streamer already provided an adapter.
+define THINGINO_AGENT_INSTALL_ADAPTER_FALLBACK
+	if [ ! -e "$(TARGET_DIR)/usr/libexec/agent/adapter.sh" ]; then \
+		$(INSTALL) -D -m 0644 $(THINGINO_AGENT_PKGDIR)/files/agent-adapter-null \
+			$(TARGET_DIR)/usr/libexec/agent/adapter.sh; \
+	fi
+endef
+THINGINO_AGENT_TARGET_FINALIZE_HOOKS += THINGINO_AGENT_INSTALL_ADAPTER_FALLBACK
 
 $(eval $(generic-package))
