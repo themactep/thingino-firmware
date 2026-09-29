@@ -1273,7 +1273,7 @@ agent_get_runtime() {
 			printf '"daynight_mode":%s,' "$(agent_json_string_or_null "$_daynight_mode")"
 			printf '"rec_ch0":%s,' "$(agent_stream_recording_active 0)"
 			printf '"rec_ch1":%s,' "$(agent_stream_recording_active 1)"
-			printf '"motion_enabled":%s,' "$(agent_motion_active)"
+			printf '"motion_enabled":%s,' "$(agent_motion_enabled)"
 			printf '"privacy_enabled":%s,' "$(agent_privacy_enabled)"
 			printf '"color_mode":%s,' "$(agent_json_value_or "${_heartbeat_color_mode:-}" null)"
 			printf '"mic_enabled":%s,' "$(agent_json_value_or "${_heartbeat_mic_enabled:-}" false)"

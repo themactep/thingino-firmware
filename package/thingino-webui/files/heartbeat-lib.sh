@@ -432,8 +432,18 @@ thingino_heartbeat_native_payload() {
 	[ -f /run/prudynt/mp4ctl-ch0.active ] && rec_ch0=1
 	[ -f /run/prudynt/mp4ctl-ch1.active ] && rec_ch1=1
 
+	# motion_enabled is the enable setting, not the active/detected flag: the
+	# WebUI #motion button toggles the setting and would flip back off between
+	# detections if this tracked /run/prudynt/motion.active.
 	motion_enabled=0
-	[ -f /run/prudynt/motion.active ] && motion_enabled=1
+	_motion_cfg=/run/prudynt.json
+	[ -s "$_motion_cfg" ] || _motion_cfg=/etc/prudynt.json
+	if command -v jct >/dev/null 2>&1; then
+		_val=$(jct "$_motion_cfg" get motion.enabled 2>/dev/null)
+		_val=${_val#\"}
+		_val=${_val%\"}
+		case "$_val" in true | 1) motion_enabled=1 ;; *) motion_enabled=0 ;; esac
+	fi
 
 	privacy_enabled=0
 	[ -f /run/prudynt/privacy.active ] && privacy_enabled=1
