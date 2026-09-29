@@ -386,6 +386,7 @@
 
   function start(ch) {
     teardown();
+    channel = ch;
     const mySession = sessionId;
     runPromise = runPromise
       .catch(() => {})
@@ -395,6 +396,7 @@
   }
 
   function selectChannel(ch) {
+    channel = ch;
     const b0 = document.getElementById("fmp4-ch0");
     const b1 = document.getElementById("fmp4-ch1");
     if (b0) b0.classList.toggle("active", ch === 0);
@@ -488,4 +490,25 @@
   setZoomIcon();
 
   start(channel);
+
+  // Restart the stream whenever the streamer's privacy state changes. An
+  // already-open fMP4/MSE client keeps the avcC it started with, so a restart
+  // is needed to pick up the cover's CAVLC parameter set (the server also
+  // pushes the cover every frame, but the restart makes the switch reliable).
+  let lastPrivacy = null;
+  window.setInterval(() => {
+    fetch("/x/agent.cgi?agent_path=" +
+      encodeURIComponent("/api/v1/runtime/heartbeat"), { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || typeof d.privacy_enabled === "undefined") return;
+        const now = !!d.privacy_enabled;
+        if (lastPrivacy === null) lastPrivacy = now;
+        else if (now !== lastPrivacy) {
+          lastPrivacy = now;
+          start(channel);
+        }
+      })
+      .catch(() => {});
+  }, 2000);
 })();
