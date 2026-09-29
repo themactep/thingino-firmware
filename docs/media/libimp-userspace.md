@@ -41,6 +41,15 @@ reverse-engineered components:
 | `ingenic-system-libs-neo` | — | `libalog` + `libsysutils` (thread-safe, 51% smaller) |
 | `libaudioprocess-neo` | — | `libaudioProcess` (libc-only) |
 
+The support-library replacements are not tied to the open provider: they are
+on by default for Ingenic targets, and the streamers and audio consumers also
+select them directly. The Ingenic `libalog`, `libsysutils` and
+`libaudioProcess` are therefore replaced even when the proprietary kernel
+driver and `libimp.so` are kept; turn `ingenic-system-libs-neo` or
+`libaudioprocess-neo` off to keep the stock blobs. `libimp.so` itself is only
+replaced by the open provider, since the stock one is needed for the IMP-native
+audio codecs.
+
 T23 is excluded from the OpenIMP gate: upstream's T23 build is a hybrid that
 keeps the OEM `libimp.so` for audio and the Helix encoder. See
 `docs/media/open-isp-stack.md` for the full matrix.
