@@ -326,11 +326,24 @@ def inject_preview_body(
 def inject_preview_scripts(
     html_content: str, manifests: List[Dict[str, Any]], asset_ts: str = ""
 ) -> str:
-    """Inject preview-specific scripts before </body>."""
+    """Inject preview-specific scripts before </body>.
+
+    Scripts the page already references are skipped. preview.html hardcodes the
+    streamer-owned OSD scripts, which are also in the prudynt manifest; adding
+    them again would run them twice.
+    """
+    existing = {
+        re.sub(r"\?.*$", "", m.group(1))
+        for m in re.finditer(
+            r'<script\b[^>]*\bsrc="([^"]+)"', html_content, re.IGNORECASE
+        )
+    }
     tags: List[str] = []
     for m in manifests:
         preview = m.get("preview", {})
         for script in preview.get("scripts", []):
+            if re.sub(r"\?.*$", "", script) in existing:
+                continue
             tags.append(make_script_tag(script, asset_ts))
 
     if not tags:
@@ -345,12 +358,6 @@ def inject_preview_scripts(
 def is_preview_page(path: Path) -> bool:
     """Check if an HTML file is a preview page variant."""
     name = path.name.lower()
-    # The default preview page ships its own OSD/PTZ scripts, preset UI and
-    # controls. Injecting the plugin preview scripts and body would load them a
-    # second time, duplicate the OSD/PTZ buttons and add the joystick overlay.
-    # The stock variants (preview-fmp4.html, preview-mjpeg.html) still get it.
-    if name == "preview.html":
-        return False
     return name.startswith("preview") and name.endswith(".html")
 
 
@@ -385,7 +392,11 @@ def process_html_files(
 
         # Preview-specific injections
         if is_preview_page(path):
-            content = inject_preview_body(content, manifests)
+            # preview.html ships its own OSD/PTZ controls and has no body
+            # marker, so it takes plugin scripts only; the stock variants
+            # (preview-fmp4.html, preview-mjpeg.html) take the body snippets too.
+            if path.name.lower() != "preview.html":
+                content = inject_preview_body(content, manifests)
             content = inject_preview_scripts(content, manifests, asset_ts)
 
         if content != original:
