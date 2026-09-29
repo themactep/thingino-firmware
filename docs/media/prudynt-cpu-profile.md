@@ -96,12 +96,14 @@ Two concrete levers fall out of this, before any of the roadmap phases:
 
    When `jpeg0` does run, an MJPEG consumer is attached: `HTTPMJPEG.cpp:1236`
    calls `global_jpeg[ch]->request()` for every frame it sends, so the worker
-   stays subscribed for the life of that stream. On `.31` a browser kept a
-   second `:8080` connection open besides the fMP4 stream, which is what kept
-   `jpeg0` at ~50%. With no JPEG/MJPEG consumer attached the worker pauses and
-   `jpeg0` disappears; the fMP4 preview (`/chN.mp4`) does not touch it. If a
-   camera with an fMP4-only preview still runs `jpeg0`, find the page or script
-   pulling `/mjpg` or the WS preview.
+   stays subscribed for the life of that stream. With no JPEG/MJPEG consumer
+   attached the worker pauses and `jpeg0` disappears. The fMP4 preview
+   (`preview.html` -> `/a/preview-fmp4.js` -> `:8080/chN.mp4`) does not touch
+   `jpeg0`, and neither does RTSP. A page that does pull JPEG is one with
+   `<img id="preview">` plus `/a/preview.js` (`preview-mjpeg.html`, the
+   `streamer-*.html` pages), which request `/x/chN.mjpg`. `a/preview.js` still
+   carries the `/x/chN.mjpg` logic, but `preview.html` does not load it, so an
+   fMP4 preview alone leaves `jpeg0` idle.
 2. Kill the per-frame allocation in the JPEG path. `JPEGWorker` does
    `snapshot_buf.resize(total_size)` plus a `memcpy` per frame (the same
    resize-and-copy the roadmap's Phase 2 removed from the video path, still
