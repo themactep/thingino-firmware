@@ -115,6 +115,13 @@ else
 PRUDYNT_CFLAGS += -DISP_CH0_PRE_DEQUEUE_TIME=0
 endif
 
+# open-tx-isp has no hardware IVS support. Binding IMP_IVS to the framesource
+# tears the ISP pipeline down and kills the streams (and can SIGSEGV prudynt),
+# so motion detection must stay off on this stack.
+ifeq ($(BR2_PACKAGE_OPEN_TX_ISP),y)
+PRUDYNT_CFLAGS += -DPRUDYNT_NO_HW_IVS
+endif
+
 # Add include paths
 PRUDYNT_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include
