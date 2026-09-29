@@ -272,6 +272,11 @@ def make_link_tag(href: str, asset_ts: str = "") -> str:
 
 def inject_plugins_js(html_content: str, www_root: Path, asset_ts: str = "") -> str:
     """Insert <script src='/a/plugins.js'> after runtime-config.js."""
+    # preview.html ships its own include so a raw source copy still works when
+    # hand-deployed to a camera; do not add a second tag here.
+    if "/a/plugins.js" in html_content:
+        return html_content
+
     plugin_tag = make_script_tag("/a/plugins.js", asset_ts)
 
     def replacement(match):

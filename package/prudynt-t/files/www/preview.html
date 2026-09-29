@@ -233,6 +233,21 @@
         </div>
       </div>
     </div>
+
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="preview-endpoints text-center" id="preview-endpoints">
+          <p class="x-small mb-0">Direct endpoints. Click a link to copy its URL to clipboard.</p>
+          <div class="dropdown d-lg-none mt-2" id="preview-endpoint-dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-link-45deg"></i> Endpoints
+            </button>
+            <ul class="dropdown-menu" id="preview-endpoint-dropdown-menu"></ul>
+          </div>
+          <div class="preview-endpoint-list m-3 d-none d-lg-inline-flex" id="preview-endpoint-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -240,13 +255,14 @@
   integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 <script src="/a/main.js"></script>
 <script src="/a/runtime-config.js"></script>
+<script src="/a/plugins.js"></script>
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/preview-endpoints.js"></script>
 <script src="/a/preview-fmp4.js"></script>
 <script src="/a/sei-osd.js"></script>
 <script src="/a/preview-osd.js"></script>
-<script src="/a/preview-motors-settings.js"></script>
 <script>
   // Self-contained PTZ pad. Talks to the same motor CGI endpoints as the
   // streamer uses; no dependency on the motors plugin overlay.
@@ -716,6 +732,16 @@
       return !!(cfg.device && cfg.device.motors === true);
     }
 
+    // The PTZ settings modal (control mode, pan/tilt speed, preset editor) is
+    // a file owned by the thingino-motors plugin and only ships when that
+    // package is built. Load it on demand, keyed on the same flag, so cameras
+    // without motors do not 404 on it.
+    function loadMotorsSettings() {
+      var s = document.createElement("script");
+      s.src = "/a/preview-motors-settings.js";
+      document.head.appendChild(s);
+    }
+
     // Click the image to toggle fullscreen; the zoom trigger lives on the
     // picture itself instead of the card.
     function bindFullscreen() {
@@ -736,6 +762,7 @@
       var controls = document.getElementById("ptz-controls");
       var unavailable = document.getElementById("ptz-unavailable");
       var flagged = hasMotors();
+      if (flagged) loadMotorsSettings();
 
       function enable(data) {
         if (data) params = data;
