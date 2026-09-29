@@ -36,7 +36,13 @@ start() {
 	fi
 	agent_enabled="false"
 	if [ -f /etc/init.d/S95agent ]; then
-		agent_enabled="true"
+		# S95agent only starts the listener when agent.enabled is true, so the
+		# script's presence alone does not mean the agent is reachable. Mirror
+		# the runtime gate; fall back to the old behavior if jct is missing.
+		agent_flag="$(jct "${THINGINO_CONFIG:-/etc/thingino.json}" get agent.enabled 2>/dev/null | tr -d '\n')"
+		if [ -z "$agent_flag" ] || [ "$agent_flag" = "true" ]; then
+			agent_enabled="true"
+		fi
 	fi
 	soc="$(soc -f)"
 

@@ -99,6 +99,14 @@ if (typeof window !== "undefined") {
   window.agentApiUrl = agentApiUrl;
 }
 
+// The agent listener is only started when agent.enabled is true; the device
+// flag mirrors that. Agent-less streamers (prudynt with the agent off) have no
+// /api/v1 backend, so calling agent.cgi would just return 502.
+function streamerAgentAvailable() {
+  const ui = typeof window !== "undefined" ? window.thinginoUIConfig : null;
+  return !!(ui && ui.device && ui.device.agent);
+}
+
 const AgentConfigCache = {
   pending: null,
   value: null,
@@ -156,6 +164,11 @@ function isPreviewBootPending() {
 }
 
 async function agentJsonRequest(path, options = {}) {
+  if (!streamerAgentAvailable()) {
+    const error = new Error("Streamer agent is not available");
+    error.status = 503;
+    throw error;
+  }
   const requestOptions = { ...options };
   const headers = new Headers(requestOptions.headers || {});
   headers.set("Accept", "application/json");
@@ -557,6 +570,7 @@ function toggleMotion(state) {
   })
     .then((data) => {
       console.log(ts(), "<===", JSON.stringify(data));
+      suppressHeartbeatFields(["motion_enabled"]);
       if (data && data.resource && data.resource.enabled !== undefined) {
         updateHeartbeatUi({ motion_enabled: data.resource.enabled });
         return;
@@ -588,6 +602,7 @@ function togglePrivacy(state) {
   })
     .then((data) => {
       console.log(ts(), "<===", JSON.stringify(data));
+      suppressHeartbeatFields(["privacy_enabled"]);
       if (data && data.privacy && data.privacy.enabled !== undefined) {
         updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
         return;
@@ -646,6 +661,36 @@ function toggleWireGuard(state) {
 function toggleDayNight(mode) {
   const button = $("#daynight");
   if (button) button.classList.add("pending");
+  suppressHeartbeatFields(["daynight_enabled", "daynight_mode"]);
+
+  const applyResult = () => {
+    if (mode === "auto") {
+      updateHeartbeatUi({ daynight_enabled: true });
+    } else {
+      updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
+    }
+  };
+
+  // Agent-less streamers (prudynt) drive day/night through json-imp.cgi.
+  if (!streamerAgentAvailable()) {
+    const cmd = mode === "auto" ? "auto" : "daynight";
+    const val = mode === "auto" ? 1 : mode;
+    fetch("/x/json-imp.cgi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cmd, val }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(ts(), "<===", JSON.stringify(data));
+        applyResult();
+      })
+      .catch((err) => {
+        console.error("DayNight toggle error", err);
+        if (button) button.classList.remove("pending");
+      });
+    return;
+  }
 
   agentJsonRequest("/api/v1/actions/daynight", {
     method: "POST",
@@ -654,11 +699,7 @@ function toggleDayNight(mode) {
   })
     .then((data) => {
       console.log(ts(), "<===", JSON.stringify(data));
-      if (mode === "auto") {
-        updateHeartbeatUi({ daynight_enabled: true });
-      } else {
-        updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
-      }
+      applyResult();
     })
     .catch((err) => {
       console.error("DayNight toggle error", err);
@@ -671,6 +712,7 @@ function toggleAudio(device, state) {
   if (button) button.classList.add("pending");
 
   const param = device === "microphone" ? "mic_enabled" : "spk_enabled";
+  suppressHeartbeatFields([param]);
   const settingPath =
     device === "microphone"
       ? "/api/v1/settings/audio/mic-enabled"
@@ -733,17 +775,26 @@ async function toggleButton(el) {
   // Auto day/night uses the agent action; other ISP/light cmds stay on json-imp.
   if (el.id === "auto") {
     try {
+      suppressHeartbeatFields(["daynight_enabled", "daynight_mode"]);
       const daynightBtn = $("#daynight");
       const currentMode =
         daynightBtn && daynightBtn.classList.contains("is-night")
           ? "night"
           : "day";
-      const mode = newState ? "auto" : currentMode;
-      await agentJsonRequest("/api/v1/actions/daynight", {
-        method: "POST",
-        body: { mode },
-        cache: "no-store",
-      });
+      if (streamerAgentAvailable()) {
+        const mode = newState ? "auto" : currentMode;
+        await agentJsonRequest("/api/v1/actions/daynight", {
+          method: "POST",
+          body: { mode },
+          cache: "no-store",
+        });
+      } else {
+        await fetch("/x/json-imp.cgi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cmd: "auto", val: newState ? 1 : 0 }),
+        }).then((res) => res.json());
+      }
       const update = {
         daynight_enabled: !!newState,
       };
@@ -796,8 +847,28 @@ async function toggleButton(el) {
     });
 }
 
-function updateHeartbeatUi(json) {
+// A setting change reaches the heartbeat only after the daemon regenerates its
+// cached payload (up to one interval later). Ignore heartbeat values for a
+// field just toggled so the stale payload cannot flip the button back.
+const heartbeatLocalOverrideUntil = {};
+function suppressHeartbeatFields(fields, ms = 6000) {
+  const until = Date.now() + ms;
+  for (const field of fields) heartbeatLocalOverrideUntil[field] = until;
+}
+
+function updateHeartbeatUi(json, options) {
   if (!json) return;
+
+  if (options && options.fromHeartbeat) {
+    const now = Date.now();
+    for (const field of Object.keys(heartbeatLocalOverrideUntil)) {
+      if (heartbeatLocalOverrideUntil[field] > now) {
+        delete json[field];
+      } else {
+        delete heartbeatLocalOverrideUntil[field];
+      }
+    }
+  }
 
   const hasBrightness =
     typeof json.daynight_brightness !== "undefined" &&
@@ -1028,7 +1099,7 @@ function startHeartbeatSse() {
   heartbeatSource.onmessage = (event) => {
     try {
       currentReconnectDelay = HeartBeatReconnectDelay;
-      updateHeartbeatUi(JSON.parse(event.data));
+      updateHeartbeatUi(JSON.parse(event.data), { fromHeartbeat: true });
     } catch (error) {
       console.error("Heartbeat SSE payload error", error);
     }
@@ -1069,7 +1140,7 @@ async function fetchSlowHeartbeatStatus() {
       throw new Error(`Slow heartbeat request failed: ${response.status}`);
     }
 
-    updateHeartbeatUi(await response.json());
+    updateHeartbeatUi(await response.json(), { fromHeartbeat: true });
   } catch (error) {
     console.error("Slow heartbeat fetch error", error);
   } finally {
@@ -1655,34 +1726,41 @@ function buildSendModalGrid() {
   });
   downloadGroup.appendChild(downloadLinkCh1);
 
-  agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
-    .then((mediaConfig) => {
-      const ch0Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch0");
-      const ch1Enabled = resolveSnapshotStreamEnabled(mediaConfig, "ch1");
-      setDownloadLinkEnabled(
-        downloadLinkCh0,
-        ch0Enabled,
-        "Download main stream is not available on this camera.",
-      );
-      setDownloadLinkEnabled(
-        downloadLinkCh1,
-        ch1Enabled,
-        "Download substream is not available on this camera.",
-      );
-    })
-    .catch((error) => {
-      if (
-        typeof console !== "undefined" &&
-        typeof console.warn === "function"
-      ) {
-        console.warn(
-          "Could not load media capabilities for send modal downloads",
-          error,
+  const enableBothDownloads = () => {
+    setDownloadLinkEnabled(downloadLinkCh0, true, "");
+    setDownloadLinkEnabled(downloadLinkCh1, true, "");
+  };
+  if (streamerAgentAvailable()) {
+    agentJsonRequest("/api/v1/runtime/media", { cache: "no-store" })
+      .then((mediaConfig) => {
+        setDownloadLinkEnabled(
+          downloadLinkCh0,
+          resolveSnapshotStreamEnabled(mediaConfig, "ch0"),
+          "Download main stream is not available on this camera.",
         );
-      }
-      setDownloadLinkEnabled(downloadLinkCh0, true, "");
-      setDownloadLinkEnabled(downloadLinkCh1, true, "");
-    });
+        setDownloadLinkEnabled(
+          downloadLinkCh1,
+          resolveSnapshotStreamEnabled(mediaConfig, "ch1"),
+          "Download substream is not available on this camera.",
+        );
+      })
+      .catch((error) => {
+        if (
+          typeof console !== "undefined" &&
+          typeof console.warn === "function"
+        ) {
+          console.warn(
+            "Could not load media capabilities for send modal downloads",
+            error,
+          );
+        }
+        enableBothDownloads();
+      });
+  } else {
+    // No agent backend (prudynt with the agent off): /x/dlN.jpg is served by
+    // the streamer, so both download links are usable without the agent.
+    enableBothDownloads();
+  }
 
   downloadCol.appendChild(downloadGroup);
   grid.appendChild(downloadCol);

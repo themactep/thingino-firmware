@@ -127,8 +127,10 @@ is_event_stream_request() {
 }
 
 send_status() {
-	status_line=$1
-	content_type=$2
+	# Strip CR/LF: the backend's status line carries a trailing CR from its
+	# headers, and a second CR here makes the CGI status line "200 OK\r\r\n".
+	status_line=$(printf '%s' "$1" | tr -d '\r\n')
+	content_type=$(printf '%s' "$2" | tr -d '\r\n')
 	printf 'Status: %s\r\n' "$status_line"
 	printf 'Content-Type: %s\r\n' "$content_type"
 	printf 'Cache-Control: no-store\r\n'
