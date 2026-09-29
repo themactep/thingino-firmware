@@ -34,7 +34,7 @@ json_ok() {
 	json_header
 	case "$1" in
 		{*) printf '{"code":200,"result":"success","message":%s}\n' "$1" ;;
-		*) printf '{"code":200,"result":"success","message":"%s"\n' "$1" ;;
+		*) printf '{"code":200,"result":"success","message":"%s"}\n' "$1" ;;
 	esac
 	exit 0
 }
