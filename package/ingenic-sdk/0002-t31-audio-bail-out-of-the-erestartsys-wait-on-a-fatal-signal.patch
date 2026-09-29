@@ -1,0 +1,37 @@
+--- a/common/audio/t31/oss2/interface/xb_snd_dsp.c
++++ b/common/audio/t31/oss2/interface/xb_snd_dsp.c
+@@ -13,6 +13,7 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/vmalloc.h>
+ #include <linux/kthread.h>
++#include <linux/sched.h>
+ #include <linux/delay.h>
+ #include <linux/slab.h>
+ #include <linux/interrupt.h>
+@@ -1278,6 +1279,8 @@
+ 		mutex_unlock(&dp->mutex);
+ 		do{
+ 			ret = wait_event_interruptible(dp->wq, object->datanode.flags == SND_TASK_NODE_FINISHED);
++			if (fatal_signal_pending(current))
++				break;
+ 		}while(ret == -ERESTARTSYS);
+ 
+ 		if(ret < 0){
+@@ -1344,6 +1347,8 @@
+ 		mutex_unlock(&dp->mutex);
+ 		do{
+ 			ret = wait_event_interruptible(dp->wq, object->datanode.flags == SND_TASK_NODE_FINISHED);
++			if (fatal_signal_pending(current))
++				break;
+ 		}while(ret == -ERESTARTSYS);
+ 
+ 		if(ret < 0){
+@@ -1434,6 +1439,8 @@
+ 		mutex_unlock(&dp_dmic->mutex);
+ 		do{
+ 			ret = wait_event_interruptible(dp_dmic->wq, object->datanode.flags == SND_TASK_NODE_FINISHED);
++			if (fatal_signal_pending(current))
++				break;
+ 		} while(ret == -ERESTARTSYS);
+ 
+ 		ret = copy_to_user(dmic_buff, object->dmic_buffer, dmic_size);
