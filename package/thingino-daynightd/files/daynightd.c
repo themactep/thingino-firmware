@@ -1219,6 +1219,56 @@ static int main_loop(void) {
 
         bool within_schedule = is_within_schedule();
 
+        /* --- Force mode from config --- */
+        /* A locked mode overrides photosensing and initial detection
+           entirely.  Without the early continue below, the hysteresis would
+           flip the mode back on the very next sample and the camera would
+           flap day<->night. */
+        static char last_force_mode[16] = "";
+        bool was_forced = (last_force_mode[0] != '\0');
+        bool now_forced = (g_config.force_mode[0] != '\0');
+
+        if (now_forced) {
+            daynight_mode_t forced = MODE_UNKNOWN;
+            if (strcmp(g_config.force_mode, "day") == 0)
+                forced = MODE_DAY;
+            else if (strcmp(g_config.force_mode, "night") == 0)
+                forced = MODE_NIGHT;
+
+            if (forced != MODE_UNKNOWN && forced != g_state.current_mode) {
+                log_message(LOG_INFO, "Force mode from config: %s", g_config.force_mode);
+                apply_mode(forced);
+                g_state.current_mode = forced;
+            }
+            g_state.night_count = 0;
+            g_state.day_count = 0;
+            g_state.anti_flap_cooldown = anti_flap_iterations / 2;
+            g_state.initial_mode_set = true;
+            strncpy(last_force_mode, g_config.force_mode, sizeof(last_force_mode) - 1);
+
+            strncpy(s.daynight_mode,
+                    (g_state.current_mode == MODE_DAY) ? "day" :
+                    (g_state.current_mode == MODE_NIGHT) ? "night" : "unknown",
+                    sizeof(s.daynight_mode) - 1);
+            history_push(&s);
+            write_state_files(&s, g_state.current_mode);
+            if (g_history.count % 60 == 0) write_history_json();
+            usleep(g_config.sample_interval_ms * 1000);
+            continue;
+        }
+
+        if (was_forced) {
+            /* Force mode cleared — re-enter photosensing */
+            log_message(LOG_INFO, "Force mode cleared, resuming photosensing");
+            g_state.initial_mode_set = false;
+            g_state.night_count = 0;
+            g_state.day_count = 0;
+            g_state.initial_night_confirm = 0;
+            g_state.initial_day_confirm = 0;
+            g_state.initial_fallback_countdown = g_config.night_count_threshold * 3;
+        }
+        last_force_mode[0] = '\0';
+
         /* --- Initial mode detection --- */
         if (!g_state.initial_mode_set) {
             daynight_mode_t initial = MODE_UNKNOWN;
@@ -1287,38 +1337,6 @@ static int main_loop(void) {
             usleep(g_config.sample_interval_ms * 1000);
             continue;
         }
-
-        /* --- Force mode from config --- */
-        static char last_force_mode[16] = "";
-        bool was_forced = (last_force_mode[0] != '\0');
-        bool now_forced = (g_config.force_mode[0] != '\0');
-
-        if (now_forced) {
-            daynight_mode_t forced = MODE_UNKNOWN;
-            if (strcmp(g_config.force_mode, "day") == 0)
-                forced = MODE_DAY;
-            else if (strcmp(g_config.force_mode, "night") == 0)
-                forced = MODE_NIGHT;
-
-            if (forced != MODE_UNKNOWN && forced != g_state.current_mode) {
-                log_message(LOG_INFO, "Force mode from config: %s", g_config.force_mode);
-                apply_mode(forced);
-                g_state.current_mode = forced;
-                g_state.night_count = 0;
-                g_state.day_count = 0;
-                g_state.anti_flap_cooldown = anti_flap_iterations / 2;
-            }
-        } else if (was_forced && !now_forced) {
-            /* Force mode cleared — re-enter photosensing */
-            log_message(LOG_INFO, "Force mode cleared, resuming photosensing");
-            g_state.initial_mode_set = false;
-            g_state.night_count = 0;
-            g_state.day_count = 0;
-            g_state.initial_night_confirm = 0;
-            g_state.initial_day_confirm = 0;
-            g_state.initial_fallback_countdown = g_config.night_count_threshold * 3;
-        }
-        strncpy(last_force_mode, g_config.force_mode, sizeof(last_force_mode) - 1);
 
         /* --- Main hysteresis --- */
         int sig = s.primary_signal;
