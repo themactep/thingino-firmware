@@ -1,0 +1,174 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 30 Sep 2026 16:10:10 -0400
+Subject: [PATCH] prudynt-t: restore the OpenIMP guards for AENC/ADEC
+
+prudynt 2fe05c7 dropped most of the #if !defined(OPENIMP) guards around
+IMP_AENC_* and IMP_ADEC_* call sites (AudioWorker, IMPAudio,
+IMPBackchannel, BackchannelWorker, main). OpenIMP exports no AENC/ADEC
+entry points, so an aperto/openimp build fails to link with undefined
+references to them.
+
+Restore the guards so the call sites compile out under -DOPENIMP, which
+the package already passes (USE_OPENIMP=1 when BR2_PACKAGE_OPENIMP=y),
+and so the AAC direct-encode path keeps working without AENC/ADEC.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+--- a/src/audio/AudioWorker.cpp
++++ b/src/audio/AudioWorker.cpp
+@@ -217,7 +217,9 @@
+     frame_samples = frame.len / (sample_size_bytes * channels);
+   }
+ 
++#if !defined(OPENIMP)
+   IMPAudioStream stream;
++#endif
+   bool got_stream = false;
+   if (global_audio[encChn]->imp_audio->directEncode) {
+     // Direct encoding --- bypass IMP_AENC to avoid its heap corruption bug
+@@ -237,6 +239,7 @@
+       start = end = nullptr;
+     }
+   } else if (global_audio[encChn]->imp_audio->format != IMPAudioFormat::PCM) {
++#if !defined(OPENIMP)
+     // IMP_AENC path for built-in codecs (G711A, G711U, G726)
+     if (IMP_AENC_SendFrame(global_audio[encChn]->aeChn, &frame) != 0) {
+       LOG_ERROR("IMP_AENC_SendFrame(" << global_audio[encChn]->devId << ", "
+@@ -258,6 +261,7 @@
+       start = (uint8_t *)stream.stream;
+       end = start + stream.len;
+     }
++#endif
+   }
+ 
+   if (end > start) {
+@@ -324,11 +328,13 @@
+   }
+ 
+   if (got_stream) {
++#if !defined(OPENIMP)
+     if (IMP_AENC_ReleaseStream(global_audio[encChn]->aeChn, &stream) < 0) {
+       LOG_ERROR("IMP_AENC_ReleaseStream(" << global_audio[encChn]->devId << ", "
+                                           << global_audio[encChn]->aeChn
+                                           << ", &stream) failed");
+     }
++#endif
+   }
+ }
+ 
+--- a/src/audio/BackchannelWorker.cpp
++++ b/src/audio/BackchannelWorker.cpp
+@@ -93,6 +93,7 @@
+   }
+ #endif
+ 
++#if !defined(OPENIMP)
+   IMPAudioStream stream_in;
+   stream_in.stream = const_cast<uint8_t *>(payload);
+   stream_in.len = static_cast<int>(payloadSize);
+@@ -140,6 +141,13 @@
+   LOG_DEBUG("ADEC_GetStream succeeded but produced no data.");
+   outPcmBuffer.clear();
+   return true;
++#else
++  (void)payload;
++  (void)payloadSize;
++  (void)format;
++  outPcmBuffer.clear();
++  return false;
++#endif
+ }
+ 
+ bool BackchannelWorker::processFrame(const BackchannelFrame &frame) {
+--- a/src/audio/IMPAudio.cpp
++++ b/src/audio/IMPAudio.cpp
+@@ -129,8 +129,14 @@
+   sample_rate = ioattr.samplerate;
+ 
+   if (encattr.type > IMPAudioPalyloadType::PT_PCM) {
++#if !defined(OPENIMP)
+     ret = IMP_AENC_CreateChn(aeChn, &encattr);
+     LOG_DEBUG_OR_ERROR(ret, "IMP_AENC_CreateChn(" << aeChn << ", &encattr)");
++#else
++    LOG_WARN("OpenIMP build: IMP AENC is unavailable; "
++             << cfg->audio.input_format
++             << " audio input will be captured as raw PCM");
++#endif
+   }
+ 
+   // FAAC encodes fixed 1024-sample frames.  The HAL requires numPerFrm to be
+@@ -323,8 +329,10 @@
+   }
+ 
+   if (!directEncode && format != IMPAudioFormat::PCM) {
++#if !defined(OPENIMP)
+     ret = IMP_AENC_DestroyChn(aeChn);
+     LOG_DEBUG_OR_ERROR(ret, "IMP_AENC_DestroyChn(" << aeChn << ")");
++#endif
+   }
+ 
+   ret = IMP_AI_DisableChn(devId, inChn);
+--- a/src/audio/IMPBackchannel.cpp
++++ b/src/audio/IMPBackchannel.cpp
+@@ -146,6 +146,11 @@
+ }
+ 
+ int IMPBackchannel::ensureDecoderChannel(IMPBackchannelFormat format) {
++#if defined(OPENIMP)
++  (void)format;
++  LOG_WARN("OpenIMP build: IMP ADEC unavailable; backchannel disabled");
++  return -1;
++#else
+   int ret = 0;
+   IMPAudioDecChnAttr adec_attr;
+   adec_attr.mode = ADEC_MODE_PACK;
+@@ -204,10 +209,15 @@
+   default:
+     return -1;
+   }
++#endif
+ }
+ 
+ int IMPBackchannel::init() {
+   LOG_DEBUG("IMPBackchannel::init()");
++#if defined(OPENIMP)
++  LOG_INFO("OpenIMP build: skipping IMP ADEC channel setup");
++  return 0;
++#else
+   int ret = 0;
+ 
+ #if !defined(PLATFORM_T23)
+@@ -270,10 +280,14 @@
+ #endif
+ 
+   return 0;
++#endif
+ }
+ 
+ void IMPBackchannel::deinit() {
+   LOG_DEBUG("IMPBackchannel::deinit()");
++#if defined(OPENIMP)
++  return;
++#else
+   int ret;
+ 
+ #define DESTROY_ADEC(EnumName, NameString, PayloadType, Frequency, MimeType)   \
+@@ -293,4 +307,5 @@
+     aacDecoderHandle = -1;
+   }
+ #endif
++#endif
+ }
+--- a/src/core/main.cpp
++++ b/src/core/main.cpp
+@@ -218,7 +218,9 @@
+   }
+ 
+   for (int ch = 0; ch < 4; ++ch) {
++#if !defined(OPENIMP)
+     IMP_ADEC_DestroyChn(ch);
++#endif
+   }
+ 
+   IMP_AO_DisableChn(0, 0);
