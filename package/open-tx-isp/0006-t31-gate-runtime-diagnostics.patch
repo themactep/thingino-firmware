@@ -1,0 +1,88 @@
+--- a/driver/t31/include/tx_isp_debug.h
++++ b/driver/t31/include/tx_isp_debug.h
+@@ -3,8 +3,27 @@
+ 
+ #include <linux/hrtimer.h>
+ #include <linux/dma-mapping.h>
++#include <linux/printk.h>
+ #include <txx_funcs.h>
+ 
++/*
++ * t31_runtime_trace is defined in tx_isp_tuning.c as a writable module
++ * parameter (default 0). The recovered T31 driver logs a bring-up firehose at
++ * info level - over a thousand pr_info calls across init, per-frame AE/AWB/ADR
++ * and DMA paths. Route them through the trace flag so a production boot is
++ * quiet; "tx-isp-t31 t31_runtime_trace=1" (or the sysfs param) restores the
++ * trace. Warnings and errors are untouched.
++ */
++extern int t31_runtime_trace;
++
++#undef pr_info
++#define pr_info(fmt, ...) \
++	do { if (t31_runtime_trace) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__); } while (0)
++
++#undef pr_info_ratelimited
++#define pr_info_ratelimited(fmt, ...) \
++	do { if (t31_runtime_trace) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__); } while (0)
++
+ /* =================== switchs ================== */
+ 
+ /**
+--- a/driver/t31/tx_isp_csi.c
++++ b/driver/t31/tx_isp_csi.c
+@@ -12,6 +12,8 @@
+ #include <linux/uaccess.h>
+ #include <linux/fcntl.h>
+ 
++#include "include/tx_isp_debug.h"
++
+ 
+ /* CSI periodic dump thread controls */
+ static struct task_struct *csi_dump_kthread;
+--- a/driver/t31/tx_isp_proc.c
++++ b/driver/t31/tx_isp_proc.c
+@@ -6,6 +6,7 @@
+ #include "include/tx_isp.h"
+ #include "include/tx_isp_vic.h"
+ #include "include/tx_isp_vin.h"
++#include "include/tx_isp_debug.h"
+ 
+ #define TX_ISP_PROC_ISP_DIR "jz/isp"
+ #define TX_ISP_PROC_ISP_W00_FILE "isp-w00"
+--- a/driver/t31/tx_isp_subdev.c
++++ b/driver/t31/tx_isp_subdev.c
+@@ -12,6 +12,7 @@
+ #include "include/tx_isp_sysfs.h"
+ #include "../include/tx_isp/tx_isp_frame_channel.h"
+ #include "../include/tx_isp/tx_isp_subdev.h"
++#include "include/tx_isp_debug.h"
+ /* Keep the named T31 subdevice model pinned to the recovered legacy ABI. */
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+ TX_ISP_ABI_ASSERT(t31_subdev_name,
+--- a/driver/t31/tx_isp_tuning.c
++++ b/driver/t31/tx_isp_tuning.c
+@@ -2838,6 +2838,14 @@ module_param(isp_bypass_all, int, 0644);
+ static uint isp_bypass_override = 0;
+ module_param(isp_bypass_override, uint, 0644);
+ 
++/* Runtime bring-up tracing: all of the driver's pr_info diagnostics (init,
++ * per-frame AE/AWB/ADR, DMA) print only when set. Default off so a production
++ * boot is quiet. Writable at runtime:
++ * /sys/module/tx_isp_t31/parameters/t31_runtime_trace */
++int t31_runtime_trace;
++module_param(t31_runtime_trace, int, 0644);
++MODULE_PARM_DESC(t31_runtime_trace, "enable T31 runtime informational logging");
++
+ /* Module parameter: bitmask of ISP blocks to enable (clear bypass bit).
+  * Each set bit in this mask clears the corresponding bypass register bit,
+  * enabling that processing block.  Start with 0 (all bypassed = safe
+--- a/driver/t31/tx_isp_v4l2.c
++++ b/driver/t31/tx_isp_v4l2.c
+@@ -21,6 +21,7 @@
+ #include "include/tx_isp.h"
+ #include "include/tx_isp_device.h"
+ #include "../include/tx_isp/tx_isp_frame_channel.h"
++#include "include/tx_isp_debug.h"
+ 
+ #ifndef CONFIG_DMA_SHARED_BUFFER
+ #error "CONFIG_TX_ISP_T31_V4L2 requires CONFIG_DMA_SHARED_BUFFER"
