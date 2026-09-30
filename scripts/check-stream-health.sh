@@ -29,11 +29,14 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
 capture() {
+	stream=$1
+	shift
 	ffmpeg -hide_banner -nostdin -v error -rtsp_transport tcp \
-		-i "rtsp://$USER:$PASS@$IP/$1" -t "$SECS" -c copy "$TMP/$1.mkv" -y \
-		>/dev/null 2>&1 || true
-	[ -s "$TMP/$1.mkv" ] || {
-		echo "FAIL: no data from /$1" >&2
+		-analyzeduration 10000000 -probesize 10000000 \
+		-i "rtsp://$USER:$PASS@$IP/$stream" "$@" -t "$SECS" -c copy \
+		"$TMP/$stream.mkv" -y >/dev/null 2>&1 || true
+	[ -s "$TMP/$stream.mkv" ] || {
+		echo "FAIL: no data from /$stream" >&2
 		return 1
 	}
 }
@@ -50,11 +53,21 @@ gaps() {
 		awk -F, '$1!=""{if(p!=""){d=$1-p; if(d>0.05) n++} p=$1} END{print n+0}'
 }
 
+# ch0 is captured audio-only: the check is about the audio path, and an
+# encoder needing recovery would otherwise make ffmpeg fail to write the
+# container instead of reporting a rate.
 rc=0
 for stream in mic ch0; do
-	if ! capture "$stream"; then
-		rc=1
-		continue
+	if [ "$stream" = ch0 ]; then
+		capture ch0 -map 0:a:0 || {
+			rc=1
+			continue
+		}
+	else
+		capture "$stream" || {
+			rc=1
+			continue
+		}
 	fi
 	n=$(frames "$stream")
 	echo "$stream: $n audio frames in ${SECS}s (need >= $MIN_FRAMES)"
