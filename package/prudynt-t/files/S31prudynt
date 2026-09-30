@@ -109,6 +109,15 @@ stop_daemon() {
 }
 
 start() {
+	# Never stack a second instance. stop() can fail to reap an instance whose
+	# thread is wedged in the kernel; starting another then leaves two owners
+	# of the ISP and wedges the whole video pipeline. Refuse and let the
+	# watchdog escalate.
+	if is_alive; then
+		log -c 240 -e "Prudynt already running, not starting another instance"
+		return 0
+	fi
+
 	log -c 15 "Starting Prudynt"
 	migrate_legacy_config
 	# Seed the consolidated tmpfs config for consumers that read before
