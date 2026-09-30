@@ -1,0 +1,84 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 30 Sep 2026 02:22:12 -0400
+Subject: [PATCH] t31: read whole OSS fragments in IMP_AI_GetFrame
+
+The T31 OSS driver (xb_snd_dsp.c) completes an AI/record read only in
+whole 10 ms fragments (rate/100 * channels * 2 bytes, e.g. 960 bytes at
+48 kHz mono). dsp_ioctl_ai_stream() waits for a task node to reach
+SND_TASK_NODE_FINISHED, and ai_copy_to_user() only copies
+"node->size / fragment_size" fragments. When the requested size is not
+a multiple of the fragment size, the leftover bytes can never be
+copied: the node never finishes and the ioctl blocks in
+wait_event_interruptible() forever.
+
+The capture path requested a fixed 1280-byte chunk. 1280 = 1*960 + 320,
+so microphone capture hung on the first read: the audio worker parked,
+RTSP/fMP4 advertised an audio track that never produced a frame, and
+prudynt could not be stopped (the thread was stuck in the driver).
+
+Read exactly one fragment per ioctl (rate/100 * channels * sizeof(short))
+and keep any surplus in the buffer for the next frame.
+
+While here, IMP_AO_SendFrame() treated the driver returning 0 (success)
+as a failure; the replay ring showed the data was queued, so only the
+return-value check was wrong.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+--- a/src/t31/openimp_t31_audio.c
++++ b/src/t31/openimp_t31_audio.c
+@@ -367,10 +367,26 @@ int IMP_AI_PollingFrame(int device, int channel, unsigned int timeout_ms)
+                : -1;
+ }
+ 
++/* The T31 OSS driver delivers whole 10 ms fragments: rate/100 samples times
++ * channels times 2 bytes. A read that is not a multiple of that fragment size
++ * never reaches SND_TASK_NODE_FINISHED (the driver only copies whole
++ * fragments), so the ioctl blocks forever. Read exactly one fragment per call
++ * and leave any surplus in the buffer for the next frame. */
++static size_t t31_capture_fragment_size(void)
++{
++    unsigned channels =
++        t31_audio.ai_attr.soundmode == AUDIO_SOUND_MODE_STEREO ? 2U : 1U;
++    size_t fragment = (size_t)(t31_audio.ai_attr.samplerate / 100) * channels *
++                      sizeof(int16_t);
++
++    return fragment ? fragment : T31_CAPTURE_CHUNK_BYTES;
++}
++
+ static int t31_capture_fill(size_t required)
+ {
+     T31AudioInputStream stream;
+-    size_t capacity = required + T31_CAPTURE_CHUNK_BYTES;
++    size_t chunk = t31_capture_fragment_size();
++    size_t capacity = required + chunk;
+ 
+     if (capacity > t31_audio.capture_capacity) {
+         void *buffer = realloc(t31_audio.capture_buffer, capacity);
+@@ -382,10 +398,10 @@ static int t31_capture_fill(size_t required)
+     while (t31_audio.capture_valid < required) {
+         memset(&stream, 0, sizeof(stream));
+         stream.data = t31_audio.capture_buffer + t31_audio.capture_valid;
+-        stream.size = T31_CAPTURE_CHUNK_BYTES;
++        stream.size = chunk;
+         if (ioctl(t31_audio.ai_fd, T31_AI_GET_STREAM, &stream) != 0)
+             return -1;
+-        t31_audio.capture_valid += T31_CAPTURE_CHUNK_BYTES;
++        t31_audio.capture_valid += chunk;
+     }
+     return 0;
+ }
+@@ -729,9 +745,9 @@ int IMP_AO_SendFrame(int device, int channel, IMPAudioFrame *frame,
+         written = ioctl(t31_audio.ao_fd, T31_AO_SET_STREAM, &stream);
+         if (written < 0)
+             return -1;
+-        if (written == 0)
+-            return -1;
+-        if (written > remaining)
++        /* The T31 OSS driver returns 0 on success; a positive value is the
++         * number of bytes consumed. Treat 0 as "whole chunk accepted". */
++        if (written == 0 || written > remaining)
+             written = remaining;
+         data += written;
+         remaining -= written;
