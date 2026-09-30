@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 30 Sep 2026 00:59:23 -0400
+Subject: [PATCH] uid_stat: create proc entries from a workqueue
+
+uid_stat_tcp_rcv() is called from tcp_read_sock(), which the RPC receive
+path (xs_tcp_data_ready()) invokes under read_lock_bh(&sk_callback_lock),
+i.e. with bottom halves disabled. On the first packet for a uid,
+find_or_create_uid_stat() then ran create_stat_proc(), whose
+proc_mkdir()/proc_create_data() allocate with GFP_KERNEL. With
+CONFIG_DEBUG_ATOMIC_SLEEP this trips "BUG: sleeping function called from
+invalid context" at mm/slub.c:926 whenever an RPC client (NFS) receives
+data - e.g. mounting /mnt/nfs on a camera.
+
+create_stat() already uses GFP_ATOMIC for the tracking struct; only the
+proc entry creation sleeps. Defer that to a workqueue and link it into
+the existing uid_stat. The atomic counters are valid immediately, so the
+only difference is that /proc/uid_stat/<uid>/ appears shortly after the
+first packet instead of synchronously.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/misc/uid_stat.c | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+--- a/drivers/misc/uid_stat.c
++++ b/drivers/misc/uid_stat.c
+@@ -25,6 +25,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/stat.h>
+ #include <linux/uid_stat.h>
++#include <linux/workqueue.h>
+ #include <net/activity_stats.h>
+ 
+ static DEFINE_SPINLOCK(uid_lock);
+@@ -33,11 +34,14 @@
+ 
+ struct uid_stat {
+ 	struct list_head link;
++	struct work_struct work;
+ 	uid_t uid;
+ 	atomic_t tcp_rcv;
+ 	atomic_t tcp_snd;
+ };
+ 
++static void create_stat_proc_work(struct work_struct *work);
++
+ static struct uid_stat *find_uid_stat(uid_t uid) {
+ 	struct uid_stat *entry;
+ 
+@@ -82,6 +86,7 @@
+ 	/* Counters start at INT_MIN, so we can track 4GB of network traffic. */
+ 	atomic_set(&new_uid->tcp_rcv, INT_MIN);
+ 	atomic_set(&new_uid->tcp_snd, INT_MIN);
++	INIT_WORK(&new_uid->work, create_stat_proc_work);
+ 
+ 	list_add_tail(&new_uid->link, &uid_list);
+ 	return new_uid;
+@@ -102,6 +107,20 @@
+ 			 &uid_stat_read_atomic_int_fops, &new_uid->tcp_rcv);
+ }
+ 
++/*
++ * proc_mkdir()/proc_create_data() allocate with GFP_KERNEL, but
++ * find_or_create_uid_stat() can be reached from softirq context:
++ * tcp_read_sock() calls uid_stat_tcp_rcv() while xs_tcp_data_ready() holds
++ * sk_callback_lock with bottom halves disabled. Create the proc entries from
++ * a workqueue instead. The atomic counters are usable immediately, so the
++ * only observable difference is that /proc/uid_stat/<uid>/ appears a moment
++ * after the first packet.
++ */
++static void create_stat_proc_work(struct work_struct *work)
++{
++	create_stat_proc(container_of(work, struct uid_stat, work));
++}
++
+ static struct uid_stat *find_or_create_uid_stat(uid_t uid)
+ {
+ 	struct uid_stat *entry;
+@@ -115,7 +134,7 @@
+ 	entry = create_stat(uid);
+ 	spin_unlock_irqrestore(&uid_lock, flags);
+ 	if (entry)
+-		create_stat_proc(entry);
++		schedule_work(&entry->work);
+ 	return entry;
+ }
+ 
