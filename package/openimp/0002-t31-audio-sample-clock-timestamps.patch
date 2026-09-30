@@ -1,0 +1,60 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 30 Sep 2026 02:36:02 -0400
+Subject: [PATCH] t31: stamp captured frames from a sample clock
+
+IMP_AI_GetFrame() timestamped each frame with IMP_System_GetTimeStamp(),
+i.e. the time the read completed. The OSS driver hands back 10 ms
+fragments in bursts, so consecutive frames can carry timestamps only a
+few ms apart or more than a frame apart. Consumers treat the timestamp
+as capture time: the prudynt AAC encoder uses it to anchor and drift-
+correct the output PTS, and when the error exceeds four frames it snaps
+to the HAL value, producing periodic multi-frame PTS gaps (audible as
+dropouts, A/V desync, audio underrun).
+
+Anchor once and advance by numPerFrm/samplerate per frame instead, so
+the reported capture time is uniform regardless of read scheduling.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+--- a/src/t31/openimp_t31_audio.c
++++ b/src/t31/openimp_t31_audio.c
+@@ -116,6 +116,8 @@
+     void *agc;
+     int agc_mode;
+     int agc_enabled;
++    uint64_t stream_ts_base_us;
++    uint64_t stream_ts_samples;
+ } t31_audio = {
+     .ai_fd = -1,
+     .ao_fd = -1,
+@@ -300,6 +302,8 @@
+     t31_audio.ai_fd = fd;
+     t31_audio.ai_enabled = 1;
+     t31_audio.capture_valid = 0;
++    t31_audio.stream_ts_base_us = 0;
++    t31_audio.stream_ts_samples = 0;
+     return 0;
+ }
+ 
+@@ -440,7 +444,19 @@
+     frame->bitwidth = t31_audio.ai_attr.bitwidth;
+     frame->soundmode = t31_audio.ai_attr.soundmode;
+     frame->virAddr = (uint32_t *)(void *)t31_audio.frame_buffer;
+-    frame->timeStamp = IMP_System_GetTimeStamp();
++    /* Stamp frames from a uniform sample clock rather than the read time.
++     * The OSS driver delivers fragments in bursts, so a wall-clock timestamp
++     * taken here jitters; consumers (prudynt's AAC drift correction) then see
++     * phantom gaps and drop/duplicate audio. Anchor once and advance by
++     * numPerFrm/samplerate per frame. */
++    if (t31_audio.stream_ts_base_us == 0)
++        t31_audio.stream_ts_base_us = (uint64_t)IMP_System_GetTimeStamp();
++    frame->timeStamp = (int64_t)(t31_audio.stream_ts_base_us +
++        (t31_audio.ai_attr.samplerate > 0
++             ? t31_audio.stream_ts_samples * 1000000ULL /
++                   (uint64_t)t31_audio.ai_attr.samplerate
++             : 0));
++    t31_audio.stream_ts_samples += (uint64_t)t31_audio.ai_attr.numPerFrm;
+     frame->seq = t31_audio.sequence++;
+     frame->len = (int)bytes;
+     t31_audio.frame_outstanding = 1;
