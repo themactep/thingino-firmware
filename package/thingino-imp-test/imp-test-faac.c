@@ -21,8 +21,8 @@
  * Exit codes:
  *   0   OK, no crash
  *   1   Usage error
- *   2   faacEncOpen failed
- *   3   faacEncSetConfiguration failed
+ *   2   faac_params_init or faac_encoder_open failed
+ *   3   faac_encoder_get_info failed
  *   4   malloc failed
  *   20  SIGFPE caught
  */
@@ -34,6 +34,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+/* faac_params_init() gained a caller_size argument in SONAME 2; pass sizeof(*p)
+ * there and keep the one-argument form for SONAME 1. */
+static faac_status faac_params_init_compat(faac_params *p) {
+#if defined(FAAC_VERSION_MAJOR) && (FAAC_VERSION_MAJOR >= 2)
+	return faac_params_init(p, (uint32_t)sizeof(*p));
+#else
+	return faac_params_init(p);
+#endif
+}
 
 /* ---- MIPS FPU Control/Status Register (FCSR) helpers ----
  *
@@ -143,53 +153,62 @@ int main(int argc, char *argv[]) {
 
 	fcsr_dump("at-startup");
 
-	/* Open FAAC encoder — same as prudynt's AACEncoder::open() */
-	unsigned long input_samples = 0;
-	unsigned long output_buffer_size = 0;
-
-	faacEncHandle handle = faacEncOpen(sample_rate, num_channels,
-		&input_samples, &output_buffer_size);
-	if (!handle) {
-		fprintf(stderr, "[imp-test-faac] FAIL: faacEncOpen returned NULL\n");
+	/* Open FAAC encoder - same configuration as prudynt's AACEncoder::open() */
+	faac_params params;
+	faac_status st = faac_params_init_compat(&params);
+	if (st != FAAC_OK) {
+		fprintf(stderr, "[imp-test-faac] FAIL: faac_params_init: %s\n", faac_strerror(st));
 		return 2;
 	}
 
-	fprintf(stderr, "[imp-test-faac] faacEncOpen OK: inputSamples=%lu outputBufferSize=%lu\n",
-		input_samples, output_buffer_size);
-	fcsr_dump("after-open");
+	params.sample_rate = sample_rate;
+	params.num_channels = num_channels;
+	params.mpeg_version = FAAC_MPEG4;
+	params.object_type = FAAC_OBJ_LOW;
+	params.input_format = FAAC_INPUT_16BIT;
+	params.output_format = FAAC_STREAM_RAW;
+	params.bit_rate = bitrate_kbps * 1000;
+	params.bandwidth = sample_rate;
+	params.joint_mode = FAAC_JOINT_NONE;
+	params.use_tns = false;
 
-	/* Configure — same as prudynt */
-	faacEncConfigurationPtr config = faacEncGetCurrentConfiguration(handle);
-	config->aacObjectType = LOW;
-	config->bandWidth = sample_rate;
-	config->bitRate = bitrate_kbps * 1000;
-	config->inputFormat = FAAC_INPUT_16BIT;
-	config->mpegVersion = MPEG4;
-	config->outputFormat = 0; /* RAW_STREAM */
-	config->allowMidside = 0;
-	config->useTns = 0;
+	faac_encoder *handle = NULL;
+	st = faac_encoder_open(&params, &handle);
+	if (st != FAAC_OK) {
+		fprintf(stderr, "[imp-test-faac] FAIL: faac_encoder_open: %s\n", faac_strerror(st));
+		return 2;
+	}
 
-	if (!faacEncSetConfiguration(handle, config)) {
-		fprintf(stderr, "[imp-test-faac] FAIL: faacEncSetConfiguration failed\n");
-		faacEncClose(handle);
+	faac_encoder_info info;
+	info.struct_size = sizeof(info);
+	st = faac_encoder_get_info(handle, &info);
+	if (st != FAAC_OK) {
+		fprintf(stderr, "[imp-test-faac] FAIL: faac_encoder_get_info: %s\n", faac_strerror(st));
+		faac_encoder_close(&handle);
 		return 3;
 	}
-	fprintf(stderr, "[imp-test-faac] configured: bitRate=%ld bandWidth=%d\n",
-		config->bitRate, config->bandWidth);
-	fcsr_dump("after-config");
+
+	uint32_t frame_samples = info.frame_samples;
+	uint32_t out_cap = info.max_output_bytes;
+	uint32_t frame_total = frame_samples * (uint32_t)num_channels;
+
+	fprintf(stderr, "[imp-test-faac] faac_encoder_open OK: frameSamples=%u maxOutputBytes=%u\n",
+		frame_samples, out_cap);
+	fcsr_dump("after-open");
 
 	/* Allocate buffers */
-	int16_t *pcm = (int16_t *)calloc(input_samples, sizeof(int16_t));
-	unsigned char *outbuf = (unsigned char *)malloc(output_buffer_size);
+	int16_t *pcm = (int16_t *)calloc(frame_total, sizeof(int16_t));
+	unsigned char *outbuf = (unsigned char *)malloc(out_cap);
 	if (!pcm || !outbuf) {
 		fprintf(stderr, "[imp-test-faac] FAIL: malloc\n");
+		faac_encoder_close(&handle);
 		return 4;
 	}
 
 	if (!use_silence) {
 		/* Fill with very low-level noise (like a quiet mic) */
 		srand(42);
-		for (unsigned long i = 0; i < input_samples; i++)
+		for (uint32_t i = 0; i < frame_total; i++)
 			pcm[i] = (int16_t)((rand() % 16) - 8);
 	}
 
@@ -199,24 +218,26 @@ int main(int argc, char *argv[]) {
 		fcsr_dump("after-fix");
 	}
 
-	fprintf(stderr, "[imp-test-faac] --- encoding %d frames (inputSamples=%lu per frame) ---\n",
-		max_frames, input_samples);
+	fprintf(stderr, "[imp-test-faac] --- encoding %d frames (%u samples/channel, %u per call) ---\n",
+		max_frames, frame_samples, frame_total);
 
 	int total_bytes = 0;
 	for (int i = 0; i < max_frames; i++) {
-		int len = faacEncEncode(handle, (int32_t *)pcm, input_samples,
-			outbuf, output_buffer_size);
+		uint32_t written = 0;
+		st = faac_encoder_encode(handle, pcm, frame_total,
+			outbuf, out_cap, &written);
 
-		if (len < 0) {
-			fprintf(stderr, "[imp-test-faac] ERROR: faacEncEncode returned %d at frame %d\n", len, i);
+		if (st != FAAC_OK) {
+			fprintf(stderr, "[imp-test-faac] ERROR: faac_encoder_encode: %s at frame %d\n",
+				faac_strerror(st), i);
 			fcsr_dump("after-error");
 			break;
 		}
 
-		total_bytes += len;
+		total_bytes += (int)written;
 		if (i < 5 || (i % 10 == 0)) {
-			fprintf(stderr, "[imp-test-faac] frame %d: encoded %d bytes (total %d)\n",
-				i, len, total_bytes);
+			fprintf(stderr, "[imp-test-faac] frame %d: encoded %u bytes (total %d)\n",
+				i, written, total_bytes);
 		}
 
 		/* Dump FCSR on first few frames to catch when flags appear */
@@ -225,10 +246,19 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	/* Flush the encoder with an empty input until no more bytes come out. */
+	for (;;) {
+		uint32_t written = 0;
+		st = faac_encoder_encode(handle, NULL, 0, outbuf, out_cap, &written);
+		if (st != FAAC_OK || written == 0)
+			break;
+		total_bytes += (int)written;
+	}
+
 	fcsr_dump("after-encode");
 	fprintf(stderr, "[imp-test-faac] --- done: %d total bytes encoded ---\n", total_bytes);
 
-	faacEncClose(handle);
+	faac_encoder_close(&handle);
 	free(pcm);
 	free(outbuf);
 
