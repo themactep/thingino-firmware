@@ -1,0 +1,189 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20/t30: add soc_vpu TLB mapping for the encoder buffers
+
+The stock T20/T10 libimp does not hand the VPU physical addresses.  It
+maps every encoder buffer into the soc_vpu DMMU with IOCTL_CHANNEL_BUF_INIT
+(0xc0386306, hwicodec_tlb) and lets jz_nvpu's vpu_start_vpu() program
+REG_SCH_TLBA / the SCH_TLBE bits from clist->tlb_flag.  OpenIMP has only
+ever used the HIAXI (physical) path, which on T10 leaves the scheduler
+with no TLB base.
+
+Add the BUF_INIT plumbing to the native T30 Helix encoder: after REQUEST
+map the descriptor, bitstream and both reference frames, map each input
+frame before RUN, and put the mapped virtual addresses into the job list.
+The whole path is behind OPENIMP_T30_TLB=1 so the existing physical mode
+is the default and can be A/B tested on the bench.
+
+This is a structural port of hwicodec_tlb() from the OEM T20 libimp; the
+descriptor itself is already byte-for-byte the OEM one, so the difference
+being tested is the address space the VPU walks.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/t30/t30_helix_encoder.c | 86 +++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 79 insertions(+), 7 deletions(-)
+
+diff --git a/src/t30/t30_helix_encoder.c b/src/t30/t30_helix_encoder.c
+--- a/src/t30/t30_helix_encoder.c
++++ b/src/t30/t30_helix_encoder.c
+@@ -33,6 +33,7 @@
+ #define T30_CHANNEL_REQUEST 0xc0386300u
+ #define T30_CHANNEL_RELEASE 0xc0386301u
+ #define T30_CHANNEL_RUN     0xc0386302u
++#define T30_CHANNEL_BUF_INIT 0xc0386306u
+ 
+ #if defined(PLATFORM_T20)
+ /* Stock T20 libimp passes RANDOM_ID (-1) and lets soc_vpu select/open the
+@@ -100,6 +101,28 @@
+ _Static_assert(sizeof(T30ChannelNode) == 56,
+                "T30 soc_vpu channel ABI mismatch");
+ 
++/* IOCTL_CHANNEL_BUF_INIT payload (soc_vpu.h: struct init_buf_info).  The
++ * kernel dmmu_map()s alloc_vaddr/alloc_size and programs REG_SCH_TLBA so the
++ * VPU walks the job list through the DMMU using the caller's virtual
++ * addresses.  The stock T20/T10 libimp always maps its encoder buffers this
++ * way; the HIAXI (physical) path is what OpenIMP has used so far. */
++typedef struct {
++    uint32_t clist;
++    uint32_t alloc_vaddr;
++    uint32_t alloc_paddr;
++    uint32_t alloc_size;
++    uint32_t align_value;
++    uint32_t align_vaddr;
++    uint32_t align_paddr;
++    uint32_t align_size;
++    uint8_t tlb_needed;
++    uint8_t tlb_maped;
++    uint8_t reserved[2];
++} T30InitBufInfo;
++
++_Static_assert(sizeof(T30InitBufInfo) == 36,
++               "T30 soc_vpu BUF_INIT ABI mismatch");
++
+ typedef struct {
+     IMPDMABufferInfo dma;
+     uint32_t y;
+@@ -129,6 +152,7 @@
+     int force_idr;
+     OpenIMPT31RateController rate_control;
+     int rate_control_enabled;
++    int tlb_enabled;
+ };
+ 
+ static void t30_dma_release(IMPDMABufferInfo *dma)
+@@ -152,6 +176,25 @@
+     return 0;
+ }
+ 
++static int t30_tlb_map(T30HelixEncoder *encoder, uint32_t vaddr, uint32_t size)
++{
++    T30InitBufInfo info;
++
++    if (!encoder->channel.clist || !vaddr || !size)
++        return -1;
++    memset(&info, 0, sizeof(info));
++    info.clist = encoder->channel.clist;
++    info.alloc_vaddr = vaddr;
++    info.alloc_size = size;
++    info.tlb_needed = 1;
++    if (ioctl(encoder->fd, T30_CHANNEL_BUF_INIT, &info) != 0) {
++        LOG_CODEC("T30 Helix: BUF_INIT failed vaddr=0x%08x size=%u errno=%d",
++                  vaddr, size, errno);
++        return -1;
++    }
++    return 0;
++}
++
+ static uint32_t t30_level_for_size(uint32_t width, uint32_t height)
+ {
+     uint64_t macroblocks = ((uint64_t)width + 15u) / 16u;
+@@ -300,10 +343,13 @@
+     slice->raw_format = T30_NV12_MODE;
+     slice->stride[0] = (int)encoder->params.width;
+     slice->stride[1] = (int)encoder->params.width;
+-    slice->raw[0] = frame->phyAddr;
++    /* With the soc_vpu TLB enabled the VPU resolves the job-list addresses
++     * through the DMMU, so the descriptor must carry the virtual addresses the
++     * kernel dmmu_map()ed, not the physical ones. */
++    slice->raw[0] = encoder->tlb_enabled ? frame->virAddr : frame->phyAddr;
+     /* T30 FrameSource lays NV12 chroma after the macroblock-aligned luma
+      * plane, not immediately after the visible-height plane. */
+-    slice->raw[1] = frame->phyAddr +
++    slice->raw[1] = slice->raw[0] +
+                     (uint32_t)encoder->sps.i_mb_width * 16u *
+                     (uint32_t)encoder->sps.i_mb_height * 16u;
+     slice->raw[2] = 0;
+@@ -313,7 +359,9 @@
+     }
+     slice->output_y = encoder->reference[output_index].y;
+     slice->output_c = encoder->reference[output_index].c;
+-    slice->bitstream = encoder->temporary.phys_addr + T30_SLICE_OFFSET;
++    slice->bitstream = (encoder->tlb_enabled ? encoder->temporary.virt_addr
++                                             : encoder->temporary.phys_addr) +
++                       T30_SLICE_OFFSET;
+     slice->descriptor = (uint32_t *)(uintptr_t)encoder->descriptor.virt_addr;
+     slice->descriptor_words = encoder->descriptor.size / sizeof(uint32_t);
+ #if defined(PLATFORM_T21) && !defined(PLATFORM_T20)
+@@ -347,6 +395,10 @@
+     if (!encoder)
+         return -1;
+     encoder->fd = -1;
++    {
++        const char *tlb_env = getenv("OPENIMP_T30_TLB");
++        encoder->tlb_enabled = (tlb_env && tlb_env[0] == '1') ? 1 : 0;
++    }
+     encoder->params = *params;
+     if (!encoder->params.gop_length)
+         encoder->params.gop_length = 25;
+@@ -381,9 +433,23 @@
+                              (uint32_t)reference_size,
+                              "t30-helix-ref") != 0)
+             goto fail;
+-        encoder->reference[i].y = encoder->reference[i].dma.phys_addr;
+-        encoder->reference[i].c = encoder->reference[i].y +
+-                                  (uint32_t)aligned_luma_size;
++    }
++    if (encoder->tlb_enabled &&
++        (t30_tlb_map(encoder, encoder->descriptor.virt_addr,
++                     encoder->descriptor.size) != 0 ||
++         t30_tlb_map(encoder, encoder->temporary.virt_addr,
++                     encoder->temporary.size) != 0 ||
++         t30_tlb_map(encoder, encoder->reference[0].dma.virt_addr,
++                     encoder->reference[0].dma.size) != 0 ||
++         t30_tlb_map(encoder, encoder->reference[1].dma.virt_addr,
++                     encoder->reference[1].dma.size) != 0))
++        goto fail;
++    for (i = 0; i < 2u; i++) {
++        uint32_t base = encoder->tlb_enabled
++                            ? encoder->reference[i].dma.virt_addr
++                            : encoder->reference[i].dma.phys_addr;
++        encoder->reference[i].y = base;
++        encoder->reference[i].c = base + (uint32_t)aligned_luma_size;
+     }
+     t30_init_parameter_sets(encoder);
+     h264_cabac_init();
+@@ -458,6 +524,10 @@
+                             (int)qp,
+                             encoder->slice_header.i_cabac_init_idc);
+ 
++    if (encoder->tlb_enabled &&
++        (!frame->virAddr ||
++         t30_tlb_map(encoder, frame->virAddr, frame->size) != 0))
++        return -1;
+     t30_fill_slice(encoder, frame, qp, idr, output_index);
+ #if defined(PLATFORM_T21) && !defined(PLATFORM_T20)
+     if (T21_H264_BuildDescriptor(&encoder->slice,
+@@ -492,7 +562,9 @@
+     }
+     encoder->channel.vpu_id = (int32_t)T30_HELIX_H264_CORE;
+     encoder->channel.codecdir = T30_H264_ENCODE;
+-    encoder->channel.dma_addr = encoder->descriptor.phys_addr;
++    encoder->channel.dma_addr = encoder->tlb_enabled
++                                    ? encoder->descriptor.virt_addr
++                                    : encoder->descriptor.phys_addr;
+     encoder->channel.thread_id = -1;
+     if (ioctl(encoder->fd, T30_CHANNEL_RUN, &encoder->channel) != 0 ||
+         !encoder->channel.output_len ||
+-- 
+2.43.0
+
