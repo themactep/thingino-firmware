@@ -1,0 +1,104 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] framesource: bail out of an unbounded empty-frame poll
+
+frame_pooling_thread() polls the capture channel forever when no frame
+ever arrives (dead ISP/encoder).  The DQBUF EAGAIN path slept 1 ms and
+looped, pinning a core and wedging the whole box: prudynt could not be
+interrupted and the camera stopped responding.
+
+Track the continuous idle window and back the select cadence off from
+25 ms to 200 ms as the channel stays empty, then give the poll thread up
+after OPENIMP_FS_MAX_IDLE_MS (default 30000 ms) without a single frame.
+A live channel resets the idle window on every delivered frame, so normal
+operation never reaches the bound.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/framesource/framesource_tseries.c | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/framesource/framesource_tseries.c b/src/framesource/framesource_tseries.c
+--- a/src/framesource/framesource_tseries.c
++++ b/src/framesource/framesource_tseries.c
+@@ -895,6 +895,15 @@
+  * channel state is promoted to ENABLED by EnableChn().
+  * ------------------------------------------------------------------- */
+ 
++static uint64_t fs_monotonic_us(void)
++{
++    struct timespec now;
++
++    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
++        return 0;
++    return (uint64_t)now.tv_sec * 1000000u + (uint64_t)now.tv_nsec / 1000u;
++}
++
+ static void *frame_pooling_thread(void *arg)
+ {
+     int chn = *(int *)arg;
+@@ -906,6 +915,16 @@
+     int software_mode = 0;
+     int last_state = -1;
+     int first_enabled_seen = 0;
++    uint64_t idle_start_us = 0;
++    uint64_t idle_limit_us = 30000000ull; /* 30 s without a frame -> bail */
++    const char *idle_limit_env = getenv("OPENIMP_FS_MAX_IDLE_MS");
++
++    if (idle_limit_env && idle_limit_env[0] != '\0') {
++        unsigned long parsed = strtoul(idle_limit_env, NULL, 10);
++
++        if (parsed > 0)
++            idle_limit_us = (uint64_t)parsed * 1000ull;
++    }
+ 
+     if (chn < 0 || chn >= FS_MAX_CHANNELS) {
+         return NULL;
+@@ -935,6 +954,23 @@
+             dprintf(2, "FSDBG ch=%d step=loop_top iter=%d fd=%d running=%d\n",
+                     chn, poll_count, ctx->fd, ctx->running);
+         }
++        /* A frame channel that never fills (dead ISP/encoder) must not pin a
++         * core forever: track the continuous idle window and give up after a
++         * bounded budget.  no_frame_cycles resets on every delivered frame. */
++        if (no_frame_cycles == 0)
++            idle_start_us = 0;
++        else if (idle_start_us == 0)
++            idle_start_us = fs_monotonic_us();
++        if (idle_start_us != 0 &&
++            fs_monotonic_us() - idle_start_us >= idle_limit_us) {
++            fprintf(stderr, "[FS] ch=%d: frame channel idle for %llu ms "
++                            "while enabled; bailing out of the poll loop\n",
++                    chn, (unsigned long long)(idle_limit_us / 1000ull));
++            fs_trace("libimp/FS: pooling-thread idle-bail ch=%d idle=%d\n",
++                     chn, no_frame_cycles);
++            ctx->running = 0;
++            return NULL;
++        }
+         ch_state = fs_chan_get_state(chn);
+         if (ch_state != last_state) {
+             fs_trace("libimp/FS: thread-state ch=%d iter=%d state=%d fd=%d running=%d\n",
+@@ -964,6 +1000,7 @@
+             fd_set rfds;
+             struct timeval tv;
+             int select_ret;
++            unsigned int idle_shift;
+ 
+             if (poll_count <= 2) {
+                 fs_thread_trace("libimp/FS: thread-mark ch=%d step=select iter=%d fd=%d state=%d errno=%d\n",
+@@ -975,7 +1012,12 @@
+             FD_ZERO(&rfds);
+             FD_SET(ctx->fd, &rfds);
+             tv.tv_sec = 0;
+-            tv.tv_usec = 25000;
++            /* Back the poll cadence off while the channel stays empty so a
++             * dead source cannot pin a core.  25 ms -> 200 ms. */
++            idle_shift = (unsigned int)(no_frame_cycles / 200);
++            if (idle_shift > 3u)
++                idle_shift = 3u;
++            tv.tv_usec = 25000u << idle_shift;
+ 
+             errno = 0;
+             fs_trace("libimp/FS: pooling select-enter ch=%d fd=%d iter=%d\n",
+-- 
+2.43.0
+
