@@ -1,0 +1,116 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] prudynt-t: abort on IMP bring-up failure instead of a SIGFPE
+
+LOG_DEBUG_OR_ERROR_AND_EXIT() is a no-op unless ENABLE_LOG_DEBUG is
+defined, and the release build does not define it.  IMP_ISP_Open(),
+AddSensor(), EnableSensor(), IMP_System_Init() and IMP_ISP_EnableTuning()
+therefore failed silently in production, IMPSystem::init() still returned
+0, IMPSystem::createNew() handed back a half-initialised object, and
+prudynt walked on into IMPFramesource::init().  With no sensor attached
+the stream geometry stays 0x0 and
+
+    int mem_cap = std::max(2, ram_budget / frame_bytes);
+
+divides by zero: SIGFPE.  The failure was observed when prudynt was run
+with the ISP/sensor modules not loaded.
+
+Make the bring-up failures fatal regardless of the log macro, refuse to
+start streams when IMPSystem::createNew() returns null, and reject an
+invalid stream geometry in IMPFramesource::init() so a 0x0 stream can
+never divide by zero again.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/core/main.cpp           |  6 ++++++
+ src/isp/IMPSystem.cpp       | 23 ++++++++++++++++++-----
+ src/video/IMPFramesource.cpp |  6 ++++++
+ 3 files changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/src/core/main.cpp b/src/core/main.cpp
+--- a/src/core/main.cpp
++++ b/src/core/main.cpp
+@@ -487,6 +487,12 @@
+ 
+   if (!imp_system) {
+     imp_system = IMPSystem::createNew();
++    if (!imp_system) {
++      LOG_ERROR("IMP system initialization failed; refusing to start streams "
++                "(check that the ISP and sensor modules are loaded)");
++      join_signal_thread(true);
++      return 1;
++    }
+   }
+ 
+   bool mic_is_digital = cfg && cfg->audio.mic_is_digital;
+diff --git a/src/isp/IMPSystem.cpp b/src/isp/IMPSystem.cpp
+--- a/src/isp/IMPSystem.cpp
++++ b/src/isp/IMPSystem.cpp
+@@ -486,7 +486,10 @@
+ #endif
+ 
+   ret = IMP_ISP_Open();
+-  LOG_DEBUG_OR_ERROR_AND_EXIT(ret, "IMP_ISP_Open()");
++  if (ret != 0) {
++    LOG_ERROR("IMP_ISP_Open() failed: " << ret);
++    return ret;
++  }
+ 
+   /* sensor */
+   sinfo = create_sensor_info(cfg->sensor.model);
+@@ -494,10 +497,16 @@
+   cleanup_stale_t23_isp_state(sinfo);
+ #endif
+   ret = add_sensor_with_retry(sinfo);
+-  LOG_DEBUG_OR_ERROR_AND_EXIT(ret, "hal::isp::add_sensor(&sinfo)");
++  if (ret != 0) {
++    LOG_ERROR("hal::isp::add_sensor(&sinfo) failed: " << ret);
++    return ret;
++  }
+ 
+   ret = hal::isp::enable_sensor(&sinfo);
+-  LOG_DEBUG_OR_ERROR_AND_EXIT(ret, "hal::isp::enable_sensor(&sinfo)");
++  if (ret != 0) {
++    LOG_ERROR("hal::isp::enable_sensor(&sinfo) failed: " << ret);
++    return ret;
++  }
+ 
+   // Wait for sensor to initialize and populate procfs files
+   // Some sensors (like sc3332) need time after enable before procfs is ready
+@@ -519,10 +528,16 @@
+ 
+   /* system */
+   ret = IMP_System_Init();
+-  LOG_DEBUG_OR_ERROR_AND_EXIT(ret, "IMP_System_Init()");
++  if (ret != 0) {
++    LOG_ERROR("IMP_System_Init() failed: " << ret);
++    return ret;
++  }
+ 
+   ret = IMP_ISP_EnableTuning();
+-  LOG_DEBUG_OR_ERROR_AND_EXIT(ret, "IMP_ISP_EnableTuning()");
++  if (ret != 0) {
++    LOG_ERROR("IMP_ISP_EnableTuning() failed: " << ret);
++    return ret;
++  }
+ 
+ #if !defined(NO_TUNINGS)
+   ret = hal::isp::set_contrast(static_cast<unsigned char>(cfg->image.contrast));
+diff --git a/src/video/IMPFramesource.cpp b/src/video/IMPFramesource.cpp
+--- a/src/video/IMPFramesource.cpp
++++ b/src/video/IMPFramesource.cpp
+@@ -52,6 +52,12 @@
+   int auto_buffers = std::max(2, (stream->fps + 9) / 10);
+   long frame_bytes =
+       static_cast<long>(stream->width) * stream->height * 3 / 2; // NV12
++  if (stream->width <= 0 || stream->height <= 0 || frame_bytes <= 0) {
++    LOG_ERROR("Channel " << chnNr << ": invalid stream geometry "
++                         << stream->width << "x" << stream->height
++                         << "; aborting framesource init");
++    return -1;
++  }
+   long ram_budget = get_total_ram_bytes() * 15 / 100;
+   int mem_cap = std::max(2, static_cast<int>(ram_budget / frame_bytes));
+   int min_bufs;
+-- 
+2.43.0
+
