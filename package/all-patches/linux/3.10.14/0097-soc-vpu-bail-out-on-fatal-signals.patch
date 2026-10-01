@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 1 Oct 2026 18:00:00 -0400
+Subject: [PATCH] soc-vpu: stop spinning on a fatal signal
+
+The soc_vpu request/wait paths retry forever when
+wait_for_completion_interruptible_timeout() returns -ERESTARTSYS:
+
+    } else if (ret == -ERESTARTSYS) {
+        goto find_vpu_try_point;
+    }
+
+-ERESTARTSYS means a signal is pending, and a fatal signal (SIGKILL)
+stays pending until the task returns to userspace.  Since the code never
+returns, the retry loop spins in the kernel forever: the task becomes
+unkillable, pins a core, and the only way out is a power cycle.  This is
+what makes `kill -9 $(pidof prudynt)` wedge the T10 bench after a VPU
+wait, while a plain VPU timeout (which returns through the error path)
+does not.
+
+Bail out of the wait when a fatal signal is pending; keep retrying on
+benign ones.  Fix the same loop in the channel request and VPU request
+helpers in soc_vpu.c and in jz_nvpu's vpu_wait_complete().
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/video/soc_vpu/jz_nvpu/jz_nvpu.c | 7 +++++++
+ drivers/video/soc_vpu/soc_vpu.c         | 4 ++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/drivers/video/soc_vpu/jz_nvpu/jz_nvpu.c b/drivers/video/soc_vpu/jz_nvpu/jz_nvpu.c
+--- a/drivers/video/soc_vpu/jz_nvpu/jz_nvpu.c
++++ b/drivers/video/soc_vpu/jz_nvpu/jz_nvpu.c
+@@ -283,6 +283,13 @@
+ 
+ 		dev_dbg(vpu->vpu.dev, "[%d:%d] wait complete\n", current->tgid, current->pid);
+ 	} else if (ret == -ERESTARTSYS) {
++		/*
++		 * A fatal signal (SIGKILL) stays pending until the task returns
++		 * to userspace, so restarting the wait here spins in the kernel
++		 * forever and makes the task unkillable.  Let it out instead.
++		 */
++		if (fatal_signal_pending(current))
++			return -ERESTARTSYS;
+ 		dev_dbg(vpu->vpu.dev, "[%d:%d]:fun:%s,line:%d vpu is interrupt\n", current->tgid, current->pid, __func__, __LINE__);
+ 		goto hard_vpu_wait_restart;
+ 	} else {
+diff --git a/drivers/video/soc_vpu/soc_vpu.c b/drivers/video/soc_vpu/soc_vpu.c
+--- a/drivers/video/soc_vpu/soc_vpu.c
++++ b/drivers/video/soc_vpu/soc_vpu.c
+@@ -378,6 +378,8 @@
+ 			goto err_copy_to_user;
+ 		}
+ 	} else if (ret == -ERESTARTSYS) {
++		if (fatal_signal_pending(current))
++			return -ERESTARTSYS;
+ 		dev_dbg(sc->mdev.this_device, "[fun:%s,line:%d] fclist wait is interrupt, ingnore this info\n", __func__, __LINE__);
+ 		goto find_channel_try_point;
+ 	} else {
+@@ -492,6 +494,8 @@
+ 		cnode->workphase = WORKING;
+ 		spin_unlock_irqrestore(&fvlist->slock, fvflag);
+ 	} else if (ret == -ERESTARTSYS) {
++		if (fatal_signal_pending(current))
++			return -ERESTARTSYS;
+ 		dev_dbg(sc->mdev.this_device, "[fun:%s,line:%d] fvlist wait is interrupt, ingnore this info\n", __func__, __LINE__);
+ 		goto find_vpu_try_point;
+ 	} else {
+-- 
+2.43.0
+
