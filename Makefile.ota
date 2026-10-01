@@ -149,7 +149,13 @@ rebuild-uboot: force-config
 # rebuild-<pkg> stops after -reinstall: target-finalize is the slow step and
 # this target exists for fast iteration. Run 'make pack' to finalize; it pulls
 # target-finalize in through rootfs-squashfs once the package changed.
-rebuild-%: force-config
+#
+# It must not build the kernel, rootfs, or U-Boot env: those are slow, and
+# doing them here both wastes the build and races the package rebuild that
+# follows. Use check-config so .config is regenerated only when an input
+# actually changed. 'make pack' regenerates uenv.txt, the kernel, and the
+# rootfs from the per-package install trees once the package has been rebuilt.
+rebuild-%: check-config
 	@$(TEAL) "$@"
 	@PKG_NAME="$(subst rebuild-,,$@)"; \
 	OVERRIDE_DIR="overrides/$$PKG_NAME"; \
@@ -158,8 +164,6 @@ rebuild-%: force-config
 		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
 	fi; \
 	true
-	rm -f $(U_BOOT_ENV_TXT)
-	$(MAKE) $(U_BOOT_ENV_TXT)
 	$(BR2_MAKE) host-libyaml $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) $(subst rebuild-,,$@)-reinstall
 
 bundle-%:
