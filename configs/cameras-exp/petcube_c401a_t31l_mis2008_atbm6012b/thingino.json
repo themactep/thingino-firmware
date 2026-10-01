@@ -1,0 +1,10 @@
+{
+  "gpio": {
+    "button_reset": 62,
+    "ir850": 60,
+    "ircut": "52 53",
+    "mmc_cd": 38,
+    "speaker": 63,
+    "white": 50
+  }
+}

@@ -1,0 +1,20 @@
+# NAME: Petcube C401A (T31L, MIS2008, ATBM6012B)
+# FRAG: soc-xburst1 core
+# STATUS: hardware verified on a live unit via root shell on stock firmware.
+#   SoC T31L (no NNA), 64MB RAM (stock mem=40M+rmem=24M), 16MB SPI NOR.
+#   Sensor MIS2008 MIPI confirmed from stock cmdline + loaded module.
+#   WiFi ATBM6012B on USB (stock atbm603x_usb driver, chipver 0x49,
+#   VID:PID 007a:8888). GPIOs below all verified by live toggling.
+BR2_AVPU_CLK_600MHZ=y
+BR2_INGENIC_SOC_MODEL="t31l"
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6012B=y
+BR2_SENSOR_1_NAME="mis2008"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_BUTTON=y
+BR2_THINGINO_LED_W_GPIO=50
+BR2_THINGINO_RMEM_MB=24
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16
