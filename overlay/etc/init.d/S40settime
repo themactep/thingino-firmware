@@ -26,7 +26,16 @@ get_config_file() {
 # BusyBox ntpd has no timeout option, so bound it from outside. The server is
 # on the local network: if it does not answer quickly, something is wrong and
 # boot should not wait for it.
+#
+# The kill fallback is required, not belt-and-braces: ntpd installs its
+# SIGTERM/SIGALRM handlers via signal(), which on uClibc-ng uses BSD semantics
+# (SA_RESTART). A plain SIGTERM is recorded but the blocking poll() is
+# auto-restarted, so ntpd does not act on it until its own poll interval
+# expires (up to 1<<MAXPOLL seconds). Without -k, timeout would sit waiting and
+# stall rcS -- and with it the login prompt -- for minutes when the server or
+# its DNS is unavailable.
 SYNC_TIMEOUT=3
+SYNC_KILL_TIMEOUT=1
 
 start() {
 	log -c 15 "Setting clock"
@@ -52,7 +61,7 @@ start() {
 	fi
 
 	log -c 240 -e "- Syncing with $peer"
-	if timeout "$SYNC_TIMEOUT" ntpd -q -n -p "$peer" >/dev/null 2>&1; then
+	if timeout -k "$SYNC_KILL_TIMEOUT" "$SYNC_TIMEOUT" ntpd -q -n -p "$peer" >/dev/null 2>&1; then
 		log -c 240 -e "- Clock set to $(date)"
 	else
 		log -c 142 -e "- Sync failed, keeping build time" >&2
