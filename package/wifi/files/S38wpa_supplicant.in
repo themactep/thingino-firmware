@@ -178,12 +178,16 @@ prescan_for_portal() {
 	CONF="/tmp/wpa_prescan.conf"
 
 	log "Running pre-portal Wi-Fi scan"
-	ip link set $IFACE up
+	# Bound the driver-touching calls too, not just the scan polling: the
+	# deadline above is worthless if bring-up or supplicant init wedges.
+	# -k forces SIGKILL, since a plain SIGTERM is ignored while a driver
+	# ioctl is in flight.
+	timeout -k 1 5 ip link set $IFACE up
 
 	# Standalone supplicant with a private ctrl socket, so we never
 	# touch the shared /run/wpa_supplicant the portal instance uses.
 	echo "ctrl_interface=$CTRLDIR" >"$CONF"
-	wpa_supplicant -i $IFACE -c "$CONF" -B >/dev/null 2>&1
+	timeout -k 1 5 wpa_supplicant -i $IFACE -c "$CONF" -B >/dev/null 2>&1
 
 	# Wait for the ctrl socket to appear (supplicant failed to start -> bail)
 	i=0
