@@ -142,7 +142,7 @@ fallback_to_preset() {
 	touch "$PRESET_FALLBACK_FLAG"
 }
 
-timeout() {
+portal_timeout() {
 	sleep 600
 	# Portal was already configured or already fell back; do nothing.
 	[ -f "$PORTAL_MODE_FLAG" ] || return 0
@@ -340,7 +340,7 @@ finish_portal() {
 	play /usr/share/sounds/configurationportalisup.@SOUND_EXT@
 
 	log "Start timeout countdown"
-	timeout &
+	portal_timeout &
 }
 
 stop_portal() {
