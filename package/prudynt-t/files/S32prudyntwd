@@ -7,6 +7,7 @@
 RTSP_URL="rtsp://thingino:thingino@127.0.0.1/ch0"
 PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID
 PORTAL_MODE_FLAG="/run/portal_mode"
+PRUDYNT_BIN="/usr/bin/prudynt"
 
 # Interval to check the stream
 INTERVAL=60
@@ -46,7 +47,10 @@ RTSP_PORT=""
 PID=""
 
 is_streamer_disabled() {
-	[ "true" = "$disable_streamer" ] || [ -f "$PORTAL_MODE_FLAG" ]
+	# A non-executable binary is how a build or an operator disables the
+	# streamer without touching config or the U-Boot env; the watchdog must
+	# not keep restarting something that is deliberately absent.
+	[ "true" = "$disable_streamer" ] || [ -f "$PORTAL_MODE_FLAG" ] || [ ! -x "$PRUDYNT_BIN" ]
 }
 
 parse_rtsp_endpoint() {
@@ -120,6 +124,13 @@ watch() {
 	local failures=0 consecutive=0
 
 	while true; do
+		# Stop feeding restarts the moment the streamer is disabled (chmod -x
+		# or portal mode), instead of looping against its absence.
+		if is_streamer_disabled; then
+			log -c 240 -e "Stream Watchdog: streamer disabled, exiting"
+			exit 0
+		fi
+
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
