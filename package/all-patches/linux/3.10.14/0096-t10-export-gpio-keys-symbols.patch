@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Thu, 1 Oct 2026 13:45:00 -0400
+Subject: [PATCH] MIPS: xburst: t10: export the gpio-keys platform data symbols
+
+The gpio-userkeys module (built from the Ingenic SDK tree) has no board
+headers of its own; it takes the board's button table, platform data, and
+platform device by name:
+
+    extern struct platform_device jz_button_device;
+    extern struct gpio_keys_button board_buttons[];
+    extern struct gpio_keys_platform_data board_button_data;
+
+Every supported SoC exports those three symbols from its isvp
+keyboard_gpio.c, which is what lets the module link.  T10 never did, so
+on T10 the module fails to load:
+
+    modprobe: can't load module gpio-userkeys (ingenic/gpio-userkeys.ko):
+    unknown symbol in module, or unknown parameter
+
+and the user button is dead.  Export the three symbols like T20, T21,
+T23, T30, and T31 do.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ arch/mips/xburst/soc-t10/chip-t10/isvp/common/keyboard_gpio.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/mips/xburst/soc-t10/chip-t10/isvp/common/keyboard_gpio.c b/arch/mips/xburst/soc-t10/chip-t10/isvp/common/keyboard_gpio.c
+--- a/arch/mips/xburst/soc-t10/chip-t10/isvp/common/keyboard_gpio.c
++++ b/arch/mips/xburst/soc-t10/chip-t10/isvp/common/keyboard_gpio.c
+@@ -140,3 +140,7 @@
+                 .platform_data	= &board_button_data,
+ 	}
+ };
++
++EXPORT_SYMBOL(board_buttons);
++EXPORT_SYMBOL(board_button_data);
++EXPORT_SYMBOL(jz_button_device);
+-- 
+2.43.0
+
