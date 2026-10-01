@@ -233,6 +233,15 @@ endif
 endif
 endif
 
+# Root password used once by scripts/fw_ota.sh to install the operator's SSH
+# public key on first contact, so later ssh/scp never prompt. Defaults to the
+# image's BR2_TARGET_GENERIC_ROOT_PASSWD; override with OTA_PASSWORD=... on the
+# command line. OTA_SSH_PUBKEY selects the key to install (empty auto-detects
+# ~/.ssh/id_{ed25519,ecdsa,rsa}.pub).
+OTA_PASSWORD ?= $(shell grep -m1 '^BR2_TARGET_GENERIC_ROOT_PASSWD=' $(OUTPUT_DIR)/.config 2>/dev/null | cut -d'"' -f2)
+OTA_SSH_PUBKEY ?=
+export OTA_PASSWORD OTA_SSH_PUBKEY
+
 # flash compiled full image to the camera
 ota: ota-full
 

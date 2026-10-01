@@ -1,9 +1,11 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2029,SC2001
+# shellcheck disable=SC2086,SC2029,SC2001,SC2016
 # SC2086: $SSH_OPTS is a space-separated list that must word-split.
 #   $REMOTE_HOST is always set and contains no spaces or glob chars.
 # SC2029: remote_run's $1 intentionally expands on the client side.
 # SC2001: sed 's/M@.*//' clearer than ${var%%M@*} for rmem parsing.
+# SC2016: the authorized_keys install command is single-quoted so $(cat) and
+#   $k run on the device, not on the host.
 
 die() {
 	echo -e "\e[38;5;160m$1\e[0m" >&2
@@ -88,6 +90,70 @@ select_remote_fw_path() {
 
 remote_mem_available_kb() {
 	remote_run "awk '\$1==\"MemAvailable:\" { print int(\$2); found=1 } \$1==\"MemFree:\" && !memfree { memfree=int(\$2) } END { if (!found) print memfree }' /proc/meminfo" 2>/dev/null | tr -d '[:space:]'
+}
+
+# Pick the operator's public key for the one-time install, most modern first.
+local_ssh_pubkey() {
+	local k
+	for k in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_ecdsa.pub" "$HOME/.ssh/id_rsa.pub"; do
+		if [ -f "$k" ]; then
+			printf '%s' "$k"
+			return 0
+		fi
+	done
+	return 1
+}
+
+# Install the operator's public key on the device once, using OTA_PASSWORD
+# over password auth, so every later ssh/scp (OTA and otherwise) is keyless.
+# Best-effort: with no key, no sshpass, or no password it prints why and
+# leaves the existing password flow in place rather than failing the OTA.
+ensure_ssh_key() {
+	local pubkey_path pubkey
+
+	# Already accepted without a password (installed by an earlier run)?
+	if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no \
+		-o UserKnownHostsFile=/dev/null "$REMOTE_HOST" true >/dev/null 2>&1; then
+		return 0
+	fi
+
+	pubkey_path="${OTA_SSH_PUBKEY:-}"
+	if [ -z "$pubkey_path" ]; then
+		pubkey_path=$(local_ssh_pubkey) || {
+			echo "No SSH public key found; set OTA_SSH_PUBKEY to enable key auth." >&2
+			return 0
+		}
+	fi
+	[ -f "$pubkey_path" ] || {
+		echo "OTA_SSH_PUBKEY '$pubkey_path' does not exist; using password auth." >&2
+		return 0
+	}
+	command -v sshpass >/dev/null 2>&1 || {
+		echo "sshpass not found; skipping SSH key install (password auth still works)." >&2
+		return 0
+	}
+	[ -n "${OTA_PASSWORD:-}" ] || {
+		echo "OTA_PASSWORD unset; skipping SSH key install (password auth still works)." >&2
+		return 0
+	}
+
+	echo "Installing SSH key $pubkey_path on $REMOTE_HOST (one-time)..."
+	pubkey=$(cat "$pubkey_path")
+	if printf '%s\n' "$pubkey" | sshpass -p "$OTA_PASSWORD" ssh \
+		-o PreferredAuthentications=password -o PubkeyAuthentication=no \
+		-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+		-o ConnectTimeout=30 "$REMOTE_HOST" \
+		'mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && k=$(cat) && { grep -qxF "$k" ~/.ssh/authorized_keys || printf "%s\n" "$k" >>~/.ssh/authorized_keys; } && chmod 600 ~/.ssh/authorized_keys' 2>/dev/null; then
+		if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no \
+			-o UserKnownHostsFile=/dev/null "$REMOTE_HOST" true >/dev/null 2>&1; then
+			echo "SSH key authentication enabled."
+		else
+			echo "Warning: key installed but key auth did not take; password auth remains." >&2
+		fi
+	else
+		echo "Warning: failed to install SSH key; continuing with password auth." >&2
+	fi
+	return 0
 }
 
 is_integer() {
@@ -266,6 +332,10 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
+
+# Install the key before the multiplexed connection is created, so this run
+# and every later one authenticate without a password.
+ensure_ssh_key
 
 [ -n "${DEBUG:-}" ] && echo "Initializing SSH connection to $REMOTE_HOST..."
 ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
