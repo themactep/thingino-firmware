@@ -62,6 +62,21 @@
       "Red/blue gain apply in Manual or Custom mode.";
   }
 
+  // The T10/T20/T30 SDKs have no Custom white-balance mode (their isp_core_wb_mode
+  // ends at Warm fluorescent), and timps would clamp the 9 to 8. Hide it there
+  // rather than offer a choice that comes back as something else. An unknown SoC
+  // keeps every option.
+  function hideCustomWb() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var m = soc && String(soc).toLowerCase().match(/^(t10|t20|t30)/);
+    var sel = $id("image_core_wb_mode");
+    if (!m || !sel) return;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (o.value === "9") { o.hidden = true; o.disabled = true; }
+    });
+  }
+
   function renderUnsupported() {
     var names = Object.keys(unsupported).map(function (id) { return LABEL[id] || id; });
     var el = $id("img-unsupported");
@@ -205,6 +220,7 @@
       .then(function (json) {
         var image = json.image || {};
         var capsImage = (json.caps && json.caps.image) || [];
+        hideCustomWb();
         Object.keys(FIELD_MAP).forEach(function (id) {
           var key = FIELD_MAP[id];
           populate(id, image[key]);
