@@ -1,0 +1,264 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t20/t30: optional soc_vpu private TLB for the EFE
+
+The stock T20/T10 libimp runs the scheduler through the soc_vpu TLB.  Add a
+userspace two-level page-table builder (libdmmu.c layout, valid bit 0x1)
+that maps the bitstream, both reference frames and each captured frame into
+a VPU virtual window, puts those VAs in the job list, and registers the PGD
+with IOCTL_CHANNEL_PRIVATE_TLB before RUN.  The descriptor DHA stays
+physical (private_tlb_flag keeps soc_channel_flush_cache_all on
+phys_to_virt).
+
+This mirrors the OEM.  It is gated on OPENIMP_T30_PRIVATE_TLB=1 and off by
+default: on the T10 bench the table is built and the ioctl is accepted
+(pgd/pmd logged), but the VDMA still reads vpu_stat=0 and the 20s wait times
+out, so the private TLB is not by itself what starts the encoder.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/t30/t30_helix_encoder.c | 148 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 136 insertions(+), 12 deletions(-)
+
+--- a/src/t30/t30_helix_encoder.c
++++ b/src/t30/t30_helix_encoder.c
+@@ -34,6 +34,18 @@
+ #define T30_CHANNEL_RELEASE 0xc0386301u
+ #define T30_CHANNEL_RUN     0xc0386302u
+ #define T30_CHANNEL_BUF_INIT 0xc0386306u
++#define T30_CHANNEL_PRIVATE_TLB 0xc038630au
++
++/* Userspace-built soc_vpu TLB.  The T10 DMMU walks the layout in
++ * arch/mips/xburst/soc-t10/common/libdmmu.c: two levels, valid bit 0x1.
++ * The scheduler is put in EFE-TLB mode, so only the EFE's memory references
++ * (raw/reference/bitstream) are translated; the descriptor itself is fetched
++ * physically by the VDMA.  Sizes are aligned to 4 MB so each buffer lands in
++ * one PGD entry (one PMD page). */
++#define T30_TLB_BLOCK_SIZE (64u * 1024u)
++#define T30_TLB_VA_BASE 0x10000000u
++#define T30_TLB_VA_ALIGN 0x400000u
++#define T30_TLB_CACHE_ENTRIES 8
+ 
+ #if defined(PLATFORM_T20)
+ /* Stock T20 libimp passes RANDOM_ID (-1) and lets soc_vpu select/open the
+@@ -153,6 +165,18 @@
+     OpenIMPT31RateController rate_control;
+     int rate_control_enabled;
+     int tlb_enabled;
++    int private_tlb;
++    IMPDMABufferInfo tlb_table; /* PGD page + PMD pages, rmem */
++    uint32_t tlb_next_va;
++    int tlb_pmd_used;
++    uint32_t temporary_va;
++    uint32_t cur_raw_va;
++    struct {
++        uint32_t phys;
++        uint32_t size;
++        uint32_t va;
++    } tlb_cache[T30_TLB_CACHE_ENTRIES];
++    int tlb_cache_count;
+ };
+ 
+ static void t30_dma_release(IMPDMABufferInfo *dma)
+@@ -195,6 +219,63 @@
+     return 0;
+ }
+ 
++/* Map [phys, phys+size) into a fresh VPU virtual window and return the VA.
++ * The same physical buffer is mapped once (per-frame pool buffers repeat). */
++static int t30_privtlb_map(T30HelixEncoder *encoder, uint32_t phys,
++                           uint32_t size, uint32_t *va_out)
++{
++    uint8_t *base;
++    uint32_t va, off;
++    int i;
++
++    if (!encoder->private_tlb || !encoder->tlb_table.virt_addr || !phys ||
++        !size || !va_out)
++        return -1;
++    for (i = 0; i < encoder->tlb_cache_count; i++) {
++        if (encoder->tlb_cache[i].phys == phys &&
++            encoder->tlb_cache[i].size >= size) {
++            *va_out = encoder->tlb_cache[i].va;
++            return 0;
++        }
++    }
++
++    base = (uint8_t *)(uintptr_t)encoder->tlb_table.virt_addr;
++    va = (encoder->tlb_next_va + T30_TLB_VA_ALIGN - 1u) &
++         ~(T30_TLB_VA_ALIGN - 1u);
++    for (off = 0; off < size; off += 4096u) {
++        uint32_t v = va + off;
++        uint32_t *pgd = (uint32_t *)(uintptr_t)encoder->tlb_table.virt_addr;
++        uint32_t *pmd;
++        uint32_t gi = v >> 22;
++        uint32_t mi = (v >> 12) & 0x3ffu;
++
++        if (!(pgd[gi] & 1u)) {
++            uint32_t pmd_phys;
++            if ((2u + (uint32_t)encoder->tlb_pmd_used) * 4096u >
++                T30_TLB_BLOCK_SIZE)
++                return -1;
++            pmd_phys = encoder->tlb_table.phys_addr + 4096u +
++                       (uint32_t)encoder->tlb_pmd_used * 4096u;
++            memset(base + 4096u + (size_t)encoder->tlb_pmd_used * 4096u, 0,
++                   4096u);
++            pgd[gi] = pmd_phys | 1u;
++            encoder->tlb_pmd_used++;
++        }
++        pmd = (uint32_t *)(base + ((pgd[gi] & ~0xfffu) -
++                                   encoder->tlb_table.phys_addr));
++        pmd[mi] = ((phys + off) & ~0xfffu) | 1u;
++    }
++    encoder->tlb_next_va = va + ((size + 4095u) & ~4095u);
++    if (encoder->tlb_cache_count < T30_TLB_CACHE_ENTRIES) {
++        encoder->tlb_cache[encoder->tlb_cache_count].phys = phys;
++        encoder->tlb_cache[encoder->tlb_cache_count].size = size;
++        encoder->tlb_cache[encoder->tlb_cache_count].va = va;
++        encoder->tlb_cache_count++;
++    }
++    *va_out = va;
++    return 0;
++}
++
+ static uint32_t t30_level_for_size(uint32_t width, uint32_t height)
+ {
+     uint64_t macroblocks = ((uint64_t)width + 15u) / 16u;
+@@ -343,10 +424,14 @@
+     slice->raw_format = T30_NV12_MODE;
+     slice->stride[0] = (int)encoder->params.width;
+     slice->stride[1] = (int)encoder->params.width;
+-    /* With the soc_vpu TLB enabled the VPU resolves the job-list addresses
+-     * through the DMMU, so the descriptor must carry the virtual addresses the
+-     * kernel dmmu_map()ed, not the physical ones. */
+-    slice->raw[0] = encoder->tlb_enabled ? frame->virAddr : frame->phyAddr;
++    /* In a TLB mode the VPU resolves the job-list memory references through
++     * the DMMU, so the descriptor carries VPU virtual addresses: the kernel
++     * dmmu_map() VA for the shared-TLB path, our privately mapped VA for the
++     * private-TLB path. */
++    slice->raw[0] = encoder->private_tlb
++                        ? encoder->cur_raw_va
++                        : (encoder->tlb_enabled ? frame->virAddr
++                                                : frame->phyAddr);
+     /* T30 FrameSource lays NV12 chroma after the macroblock-aligned luma
+      * plane, not immediately after the visible-height plane. */
+     slice->raw[1] = slice->raw[0] +
+@@ -359,9 +444,12 @@
+     }
+     slice->output_y = encoder->reference[output_index].y;
+     slice->output_c = encoder->reference[output_index].c;
+-    slice->bitstream = (encoder->tlb_enabled ? encoder->temporary.virt_addr
+-                                             : encoder->temporary.phys_addr) +
+-                       T30_SLICE_OFFSET;
++    slice->bitstream =
++        (encoder->private_tlb
++             ? encoder->temporary_va
++             : (encoder->tlb_enabled ? encoder->temporary.virt_addr
++                                     : encoder->temporary.phys_addr)) +
++        T30_SLICE_OFFSET;
+     slice->descriptor = (uint32_t *)(uintptr_t)encoder->descriptor.virt_addr;
+     slice->descriptor_words = encoder->descriptor.size / sizeof(uint32_t);
+ #if defined(PLATFORM_T21) && !defined(PLATFORM_T20)
+@@ -397,7 +485,14 @@
+     encoder->fd = -1;
+     {
+         const char *tlb_env = getenv("OPENIMP_T30_TLB");
++        const char *ptlb_env = getenv("OPENIMP_T30_PRIVATE_TLB");
+         encoder->tlb_enabled = (tlb_env && tlb_env[0] == '1') ? 1 : 0;
++        /* Kept for the OEM-parity path; registering the private TLB builds
++         * and is accepted by the kernel, but on this T10 the VDMA still reads
++         * vpu_stat=0, so it is gated until the VPU bring-up is understood. */
++        encoder->private_tlb = (ptlb_env && ptlb_env[0] == '1') ? 1 : 0;
++        if (encoder->private_tlb)
++            encoder->tlb_enabled = 0;
+     }
+     encoder->params = *params;
+     if (!encoder->params.gop_length)
+@@ -434,6 +529,39 @@
+                              "t30-helix-ref") != 0)
+             goto fail;
+     }
++    if (encoder->private_tlb) {
++        T30InitBufInfo info;
++
++        if (t30_dma_allocate(&encoder->tlb_table, T30_TLB_BLOCK_SIZE,
++                             "t30-helix-pt") != 0)
++            goto fail;
++        memset((void *)(uintptr_t)encoder->tlb_table.virt_addr, 0, 4096u);
++        encoder->tlb_next_va = T30_TLB_VA_BASE;
++        if (t30_privtlb_map(encoder, encoder->temporary.phys_addr,
++                            encoder->temporary.size,
++                            &encoder->temporary_va) != 0 ||
++            t30_privtlb_map(encoder, encoder->reference[0].dma.phys_addr,
++                            encoder->reference[0].dma.size,
++                            &encoder->reference[0].y) != 0 ||
++            t30_privtlb_map(encoder, encoder->reference[1].dma.phys_addr,
++                            encoder->reference[1].dma.size,
++                            &encoder->reference[1].y) != 0)
++            goto fail;
++        encoder->reference[0].c = encoder->reference[0].y +
++                                  (uint32_t)aligned_luma_size;
++        encoder->reference[1].c = encoder->reference[1].y +
++                                  (uint32_t)aligned_luma_size;
++        memset(&info, 0, sizeof(info));
++        info.clist = (uint32_t)encoder->channel.clist;
++        info.alloc_paddr = encoder->tlb_table.phys_addr;
++        info.tlb_needed = 1;
++        if (ioctl(encoder->fd, T30_CHANNEL_PRIVATE_TLB, &info) != 0) {
++            LOG_CODEC("T30 Helix: PRIVATE_TLB ioctl failed errno=%d", errno);
++            goto fail;
++        }
++        LOG_CODEC("T30 Helix: private TLB pgd=0x%08x pmds=%d",
++                  encoder->tlb_table.phys_addr, encoder->tlb_pmd_used);
++    }
+     if (encoder->tlb_enabled &&
+         (t30_tlb_map(encoder, encoder->descriptor.virt_addr,
+                      encoder->descriptor.size) != 0 ||
+@@ -444,12 +572,14 @@
+          t30_tlb_map(encoder, encoder->reference[1].dma.virt_addr,
+                      encoder->reference[1].dma.size) != 0))
+         goto fail;
+-    for (i = 0; i < 2u; i++) {
+-        uint32_t base = encoder->tlb_enabled
+-                            ? encoder->reference[i].dma.virt_addr
+-                            : encoder->reference[i].dma.phys_addr;
+-        encoder->reference[i].y = base;
+-        encoder->reference[i].c = base + (uint32_t)aligned_luma_size;
++    if (!encoder->private_tlb) {
++        for (i = 0; i < 2u; i++) {
++            uint32_t base = encoder->tlb_enabled
++                                ? encoder->reference[i].dma.virt_addr
++                                : encoder->reference[i].dma.phys_addr;
++            encoder->reference[i].y = base;
++            encoder->reference[i].c = base + (uint32_t)aligned_luma_size;
++        }
+     }
+     t30_init_parameter_sets(encoder);
+     h264_cabac_init();
+@@ -524,9 +654,16 @@
+                             (int)qp,
+                             encoder->slice_header.i_cabac_init_idc);
+ 
+-    if (encoder->tlb_enabled &&
+-        (!frame->virAddr ||
+-         t30_tlb_map(encoder, frame->virAddr, frame->size) != 0))
++    if (encoder->private_tlb) {
++        if (t30_privtlb_map(encoder, frame->phyAddr, frame->size,
++                            &encoder->cur_raw_va) != 0) {
++            LOG_CODEC("T30 Helix: private TLB map failed frame=0x%08x",
++                      frame->phyAddr);
++            return -1;
++        }
++    } else if (encoder->tlb_enabled &&
++               (!frame->virAddr ||
++                t30_tlb_map(encoder, frame->virAddr, frame->size) != 0))
+         return -1;
+     t30_fill_slice(encoder, frame, qp, idr, output_index);
+ #if defined(PLATFORM_T21) && !defined(PLATFORM_T20)
+@@ -675,6 +812,7 @@
+         t30_dma_release(&encoder->reference[i].dma);
+     t30_dma_release(&encoder->temporary);
+     t30_dma_release(&encoder->emc);
++    t30_dma_release(&encoder->tlb_table);
+     t30_dma_release(&encoder->descriptor);
+     free(encoder);
+ }
