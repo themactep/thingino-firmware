@@ -1,0 +1,86 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] prudynt-t: bound the encoder force-cycle recovery
+
+When the encoder produces no frames, VideoWorker force-cycles it every 10
+polling timeouts: StopRecvPic, FrameSource DisableChn/EnableChn,
+StartRecvPic.  On the T10/openimp path that loop never converges and each
+cycle re-opens the capture device without its DMA buffers coming back, so
+VBM CreatePool() starts failing and the board runs out of memory:
+
+    Encoder ch0: 10 consecutive polling timeouts --- force-cycling ...
+    [VBM] CreatePool: allocation failed
+    ...
+    MemFree: 1048 kB
+
+Observed with a client connected: 12 cycles, MemFree down to ~1 MB, and
+the camera effectively dead.  Cap the number of cycles with no frames
+(kMaxEncoderRecoveryCycles) and stop restarting the capture device once
+the cap is reached; reset the counter whenever a frame is encoded.
+
+This does not make the stream work - the capture buffers are still not
+returned to the driver, which is what starves the encoder - but it stops
+the recovery loop from OOMing the box.
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/video/VideoWorker.cpp | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/video/VideoWorker.cpp b/src/video/VideoWorker.cpp
+--- a/src/video/VideoWorker.cpp
++++ b/src/video/VideoWorker.cpp
+@@ -211,12 +211,17 @@
+             .count());
+   };
+   constexpr uint64_t kIdrRequestIntervalMs = 250;
++  // Each encoder force-cycle re-opens the capture device and its buffers are
++  // not returned, so CreatePool() starts failing and the board runs out of
++  // memory.  Cap the attempts instead of cycling forever.
++  constexpr int kMaxEncoderRecoveryCycles = 5;
+ 
+   uint32_t bps = 0;
+   uint32_t fps = 0;
+   int poll_timeout_streak = 0; // Encoder watchdog: consecutive timeouts
+   uint64_t total_frames = 0; // frames produced since this loop started
+   bool fs_fallback_done = false; // nrVBs=1 framesource fallback attempted
++  int recovery_cycles = 0; // bounded force-cycles since the last good frame
+   unsigned long long ms = 0;
+   bool run_for_jpeg = false;
+   auto video_state = global_video[encChn];
+@@ -514,6 +519,7 @@
+       if (IMP_Encoder_PollingStream(encChn,
+                                     cfg->general.imp_polling_timeout_ms) == 0) {
+         poll_timeout_streak = 0;  // reset watchdog on success
++        recovery_cycles = 0;
+         IMPEncoderStream stream;
+         memset(&stream, 0, sizeof(stream));
+         if (IMP_Encoder_GetStream(encChn, &stream, GET_STREAM_BLOCKING) != 0) {
+@@ -1274,9 +1280,12 @@
+               LOG_ERROR("Encoder ch" << encChn
+                        << ": nrVBs=1 fallback failed (ret=" << fret << ")");
+             }
+-          } else {
++          } else if (recovery_cycles < kMaxEncoderRecoveryCycles) {
++            recovery_cycles++;
+             LOG_WARN("Encoder ch" << encChn << ": 10 consecutive polling "
+-                     "timeouts --- force-cycling encoder to recover");
++                     "timeouts --- force-cycling encoder to recover ("
++                     << recovery_cycles << "/" << kMaxEncoderRecoveryCycles
++                     << ")");
+             IMP_Encoder_StopRecvPic(encChn);
+             IMP_FrameSource_DisableChn(encChn);
+             IMP_FrameSource_EnableChn(encChn);
+@@ -1287,6 +1296,11 @@
+               LOG_ERROR("Encoder ch" << encChn << ": StartRecvPic failed "
+                         "during recovery");
+             }
++          } else if (recovery_cycles == kMaxEncoderRecoveryCycles) {
++            recovery_cycles++;
++            LOG_ERROR("Encoder ch" << encChn << ": giving up after "
++                      << kMaxEncoderRecoveryCycles << " recovery cycles with "
++                      "no frames; not restarting the capture device again");
+           }
+         }
+       }
+-- 
+2.43.0
+
