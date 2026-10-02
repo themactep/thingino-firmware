@@ -1149,6 +1149,7 @@ static int main_loop(void) {
     int last_bright_pct = -1;
     daynight_mode_t last_logged_mode = MODE_UNKNOWN;
     int log_counter = 0;
+    bool isp_read_failed_logged = false;
 
     while (g_state.running && !g_terminate_flag) {
         /* Handle signals */
@@ -1184,10 +1185,20 @@ static int main_loop(void) {
         /* Read sensor data */
         sensor_sample_t s;
         if (parse_isp(&s) != 0) {
-            log_message(LOG_ERR, "Failed to read ISP data");
+            /*
+             * parse_isp() only fails when neither tuning proc file can be
+             * opened. The open tx-isp driver publishes neither /proc/jz/isp/
+             * isp-m0 nor isp_info, so on those targets this is permanent:
+             * report it once instead of once per sample.
+             */
+            if (!isp_read_failed_logged) {
+                log_message(LOG_INFO, "No ISP tuning proc file; photosensing inactive");
+                isp_read_failed_logged = true;
+            }
             usleep(g_config.sample_interval_ms * 1000);
             continue;
         }
+        isp_read_failed_logged = false;
 
         /* Re-detect platform if it changed (shouldn't, but be safe) */
         if (s.gain_log2 >= 0 && !g_state.use_total_gain) {

@@ -1,6 +1,9 @@
 # NAME: Sonoff CAM Outdoor B1P (T23N, SC2336, ATBM6012BX)
 # FRAG: soc-xburst1 core
 BR2_INGENIC_SOC_MODEL="t23n"
+# Open kernel driver with the vendor libimp userspace: OpenIMP's T23 Helix
+# hybrid reset-loops under streaming load (docs/media/open-isp-stack.md).
+BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP=y
 BR2_PACKAGE_THINGINO_KOPT_I2C=y
 BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
