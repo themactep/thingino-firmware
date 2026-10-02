@@ -85,14 +85,8 @@ dispatch() {
 			;;
 
 		daynight)
-			# Use prudyntctl to set force_mode — this controls both ISP processing
-			# and hardware (ircut, LEDs, color) through prudynt's day/night engine.
 			case "$payload" in
-				day | night)
-					printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$payload" |
-						prudyntctl json - >/dev/null 2>&1
-					ha_pub_state daynight "$payload"
-					;;
+				auto | day | night) ha_daynight_set "$payload" ;;
 			esac
 			# Daynight changes ircut/color/ir850 — re-sync all states after settle
 			{
