@@ -844,7 +844,7 @@ const imageFieldBounds = {
   saturation: { min: 0, max: 255, default: 128 },
   backlight: { min: 0, max: 10, default: 0 },
   wide_dynamic_range: { min: 0, max: 255, default: 128 },
-  tone: { min: 0, max: 255, default: 0 },
+  tone: { min: 0, max: 10, default: 0 },
   defog: { min: 0, max: 255, default: 128 },
   noise_reduction: { min: 0, max: 255, default: 128 },
 };
