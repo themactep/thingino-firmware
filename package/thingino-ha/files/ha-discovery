@@ -184,9 +184,12 @@ fi
 # Sensor: Gain
 if ha_entity_enabled gain; then
 	ha_pub_disc sensor gain \
-		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"unit_of_measurement\":\"dB\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"state_class\":\"measurement\",\"entity_category\":\"diagnostic\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	ha_pub_disc sensor brightness \
+		"{\"name\":\"Brightness\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_brightness\",\"state_topic\":\"${ST}/brightness/state\",\"unit_of_measurement\":\"%\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-percent\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc sensor gain
+	ha_clear_disc sensor brightness
 fi
 
 # Sensor: WiFi RSSI

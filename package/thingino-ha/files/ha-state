@@ -186,6 +186,12 @@ PEOF
 		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
 	fi
 	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+
+	brightness=$(cat /run/thingino/daynight_brightness 2>/dev/null)
+	case "$brightness" in
+		'' | *[!0-9]*) ;;
+		*) ha_pub_state brightness "$brightness" "$FORCE" ;;
+	esac
 fi
 
 # WiFi RSSI sensor — only for cameras with a wireless interface
