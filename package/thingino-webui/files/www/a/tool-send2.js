@@ -31,7 +31,6 @@
   const speakerGainInput = $("#speaker_gain");
   const speakerGainValue = $("#speaker_gain_value");
   const speakerLoopInput = $("#speaker_loop");
-  const testSpeakerButton = $("#test_speaker");
 
   // Update slider value displays
   if (motionSensitivityInput) {
@@ -270,31 +269,6 @@
     }
   }
 
-  function testSpeaker() {
-    if (!testSpeakerButton) return;
-    testSpeakerButton.disabled = true;
-
-    const params = new URLSearchParams({ to: "speaker" });
-    fetch(`/x/send.cgi?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          showAlert(
-            "danger",
-            `Speaker test failed: ${data.error.message || data.error}`,
-          );
-        } else {
-          showAlert("success", "Speaker test played.", 3000);
-        }
-      })
-      .catch((err) => {
-        showAlert("danger", `Speaker test failed: ${err}`);
-      })
-      .finally(() => {
-        testSpeakerButton.disabled = false;
-      });
-  }
-
   // Handle motion service toggles
   $$(".motion-sendto").forEach((checkbox) => {
     checkbox.addEventListener("change", (ev) => {
@@ -376,10 +350,6 @@
 
   if (saveAllButton) {
     saveAllButton.addEventListener("click", saveAllSettings);
-  }
-
-  if (testSpeakerButton) {
-    testSpeakerButton.addEventListener("click", testSpeaker);
   }
 
   loadConfig();

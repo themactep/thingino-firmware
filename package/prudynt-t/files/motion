@@ -195,7 +195,7 @@ start() {
 
 	if [ "true" = "$(get_value playonspeaker)" ]; then
 		echo_info "Send alert to play on speaker"
-		playonspeaker &
+		playonspeaker motiondetectionactivated &
 		send2_pids="$send2_pids $!"
 	fi
 
