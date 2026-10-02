@@ -1,0 +1,168 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rmem: reclaim freed buffers instead of leaking the arena
+
+The reserved-memory arena is a bump allocator and dma_free_buffer() made
+freeing an RMEM buffer a deliberate no-op:
+
+    if ((buf->flags & 0x2) && g_is_rmem) {
+        /* RMEM bump allocations are not individually freed (no-op) */
+    }
+
+Every IMP_FrameSource_EnableChn allocates a fresh ~1.7 MB pool for the
+two frame buffers (1280x720 + 640x360) from rmem; DisableChn ->
+VBMDestroyPool -> DMA_FreePhys -> this no-op, so nothing is ever
+reclaimed.  Any enable/disable cycle (the encoder recovery loop, a stream
+restart, daynight) advances the bump pointer; the 14 MB region is gone
+after a handful of them, and VBM CreatePool then fails:
+
+    [VBM] CreatePool: allocation failed
+    ...
+    MemFree: 1048 kB
+
+which is what makes the camera unusable.  The recovery bound committed in
+prudynt only slows how fast this is hit; a single restart still leaks a
+whole pool.
+
+Keep a 4 KiB-aligned best-fit reclaim list for the arena: DMA_FreePhys
+returns the range, and allocation reuses a fitting free range before it
+bumps.  Ranges are coalesced with an adjacent neighbour so the repeated
+same-size pool churn resolves to one range.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/dma_alloc.c | 78 ++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 67 insertions(+), 11 deletions(-)
+
+diff --git a/src/dma_alloc.c b/src/dma_alloc.c
+--- a/src/dma_alloc.c
++++ b/src/dma_alloc.c
+@@ -95,6 +95,17 @@
+ static size_t g_rmem_offset = 0; /* bump pointer */
+ static char g_chosen_dev_path[64] = {0};
+ 
++/* Reclaim list for the /dev/rmem bump arena.  Buffers are handed back on
++ * DMA_FreePhys; without this the bump pointer only ever advances and the
++ * reserved region is exhausted after a few enable/disable cycles (each
++ * framesource pool is ~1.7 MB).  Ranges are kept 4 KiB aligned. */
++#define RMEM_MAX_FREE_RANGES 128
++static struct {
++    size_t off;
++    size_t size;
++} g_rmem_free[RMEM_MAX_FREE_RANGES];
++static int g_rmem_free_count;
++
+ static const uint32_t kCompatMaxAllocSize = 256u * 1024u * 1024u;
+ 
+ int IMP_FlushCache(void *virt_addr, uint32_t size);
+@@ -517,6 +528,60 @@
+     return -1;
+ }
+ 
++static size_t rmem_round(size_t size)
++{
++    return (size + 0xfffull) & ~0xfffull;
++}
++
++/* Caller holds g_alloc_mutex. */
++static void rmem_reclaim(size_t off, size_t size)
++{
++    int i;
++
++    if (size == 0)
++        return;
++    /* Merge with an immediately adjacent range on either side. */
++    for (i = 0; i < g_rmem_free_count; i++) {
++        if (g_rmem_free[i].off + g_rmem_free[i].size == off) {
++            g_rmem_free[i].size += size;
++            return;
++        }
++        if (off + size == g_rmem_free[i].off) {
++            g_rmem_free[i].off = off;
++            g_rmem_free[i].size += size;
++            return;
++        }
++    }
++    if (g_rmem_free_count < RMEM_MAX_FREE_RANGES) {
++        g_rmem_free[g_rmem_free_count].off = off;
++        g_rmem_free[g_rmem_free_count].size = size;
++        g_rmem_free_count++;
++    }
++}
++
++/* Caller holds g_alloc_mutex.  Best-fit; returns -1 when nothing fits. */
++static int rmem_reuse(size_t size, size_t *off_out)
++{
++    int i, best = -1;
++
++    for (i = 0; i < g_rmem_free_count; i++) {
++        if (g_rmem_free[i].size >= size &&
++            (best < 0 || g_rmem_free[i].size < g_rmem_free[best].size))
++            best = i;
++    }
++    if (best < 0)
++        return -1;
++    *off_out = g_rmem_free[best].off;
++    if (g_rmem_free[best].size == size) {
++        g_rmem_free[best] = g_rmem_free[g_rmem_free_count - 1];
++        g_rmem_free_count--;
++    } else {
++        g_rmem_free[best].off += size;
++        g_rmem_free[best].size -= size;
++    }
++    return 0;
++}
++
+ static int dma_free_buffer(DMABufferRecord *buf)
+ {
+     if (buf == NULL) {
+@@ -527,7 +592,12 @@
+ 
+     if (buf->virt_addr != NULL) {
+         if ((buf->flags & 0x2) && g_is_rmem) {
+-            /* RMEM bump allocations are not individually freed (no-op) */
++            /* Return the range to the arena so a later pool can reuse it
++             * instead of advancing the bump pointer forever. */
++            pthread_mutex_lock(&g_alloc_mutex);
++            rmem_reclaim((size_t)(buf->phys_addr - g_rmem_base_phys),
++                         rmem_round((size_t)buf->size));
++            pthread_mutex_unlock(&g_alloc_mutex);
+         } else if ((buf->flags & 0x4) && g_is_avpu) {
+             /* The AVPU channel owns the coherent allocation.  Unmapping the
+              * userspace alias here is sufficient; the driver releases the
+@@ -586,17 +656,27 @@
+     if (g_rmem_supported && g_mem_fd >= 0) {
+         if (g_is_rmem && g_rmem_virt_base != NULL) {
+             size_t align = 4096;
+-            size_t off = (g_rmem_offset + (align - 1)) & ~(align - 1);
+-            if (off + (size_t)size <= g_rmem_size) {
++            size_t need = rmem_round((size_t)size);
++            size_t off;
++            if (rmem_reuse(need, &off) == 0) {
+                 buf->virt_addr = (void*)((uintptr_t)g_rmem_virt_base + off);
+                 buf->phys_addr = g_rmem_base_phys + (uint32_t)off;
+                 buf->flags |= 0x2;
+-                g_rmem_offset = off + (size_t)size;
+-                LOG_DMA("Alloc: %s size=%d phys=0x%x virt=%p (rmem off=0x%zx)",
++                LOG_DMA("Alloc: %s size=%d phys=0x%x virt=%p (rmem reuse off=0x%zx)",
+                         buf->name[0] ? buf->name : "(unnamed)", size, buf->phys_addr, buf->virt_addr, off);
+             } else {
+-                LOG_DMA("Alloc: /dev/rmem out of memory (requested=%d, used=%zu/%zu); refusing unsafe fallback",
+-                        size, g_rmem_offset, g_rmem_size);
++                off = (g_rmem_offset + (align - 1)) & ~(align - 1);
++                if (off + (size_t)size <= g_rmem_size) {
++                    buf->virt_addr = (void*)((uintptr_t)g_rmem_virt_base + off);
++                    buf->phys_addr = g_rmem_base_phys + (uint32_t)off;
++                    buf->flags |= 0x2;
++                    g_rmem_offset = off + (size_t)size;
++                    LOG_DMA("Alloc: %s size=%d phys=0x%x virt=%p (rmem off=0x%zx)",
++                            buf->name[0] ? buf->name : "(unnamed)", size, buf->phys_addr, buf->virt_addr, off);
++                } else {
++                    LOG_DMA("Alloc: /dev/rmem out of memory (requested=%d, used=%zu/%zu); refusing unsafe fallback",
++                            size, g_rmem_offset, g_rmem_size);
++                }
+             }
+         } else if (g_is_avpu) {
+             struct avpu_dma_info info;
+-- 
+2.43.0
+
