@@ -59,6 +59,16 @@ redact_json() {
 		-e 's/^([[:space:]]*"(mac|host|listen|endpoint|peerpub|auth_bypass_ips|nfs_share|address|allowed|dns)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/'
 }
 
+# Redact the MQTT broker host, username and password from a ps listing.
+# thingino-ha quotes each broker value with _sq, so an embedded single quote
+# is emitted as '\'' and the value may hold spaces inside its quotes. Match
+# the whole shell word, escapes included, so no fragment is left behind.
+# Invoked indirectly via eval in inforun, so shellcheck cannot see the call.
+# shellcheck disable=SC2329
+redact_ps() {
+	ps | sed -E "/mosquitto_/s/ -(h|u|P) (('[^']*'|\\\\')+|[^ ]+)/ -\1 REDACTED/g"
+}
+
 # Per-command watchdog. Commands that talk to the IMP/ISP layer
 # (libimp-debug, sensor, lsusb) or wireless tools can block
 # indefinitely when the underlying daemon or hardware is wedged;
@@ -235,7 +245,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 		inforun "libimp-debug --enc_info" "libimp enc_info"
 	fi
 
-	inforun "ps | sed -E \"/mosquitto_/s/ -(h|u|P) ('[^']*'|[^ ]+)/ -\1 REDACTED/g\"" "PS"
+	inforun "redact_ps" "PS"
 	inforun "lsof" "LSOF"
 	inforun "ip addr show 2>/dev/null || ifconfig -a 2>/dev/null" "NETWORK"
 	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
