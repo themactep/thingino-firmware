@@ -105,9 +105,12 @@ fi
 # Select: Day/Night mode
 if ha_entity_enabled daynight; then
 	ha_pub_disc select daynight \
-		"{\"name\":\"Day\\/Night Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight\",\"state_topic\":\"${ST}/daynight/state\",\"command_topic\":\"${ST}/daynight/set\",\"options\":[\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+		"{\"name\":\"Day\\/Night Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight\",\"state_topic\":\"${ST}/daynight/state\",\"command_topic\":\"${ST}/daynight/set\",\"options\":[\"auto\",\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	ha_pub_disc sensor daynight_state \
+		"{\"name\":\"Day\\/Night State\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight_state\",\"state_topic\":\"${ST}/daynight_state/state\",\"device_class\":\"enum\",\"options\":[\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc select daynight
+	ha_clear_disc sensor daynight_state
 fi
 
 # Switch: Privacy screen
@@ -181,9 +184,12 @@ fi
 # Sensor: Gain
 if ha_entity_enabled gain; then
 	ha_pub_disc sensor gain \
-		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"unit_of_measurement\":\"dB\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"state_class\":\"measurement\",\"entity_category\":\"diagnostic\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	ha_pub_disc sensor brightness \
+		"{\"name\":\"Brightness\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_brightness\",\"state_topic\":\"${ST}/brightness/state\",\"unit_of_measurement\":\"%\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-percent\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
 	ha_clear_disc sensor gain
+	ha_clear_disc sensor brightness
 fi
 
 # Sensor: WiFi RSSI

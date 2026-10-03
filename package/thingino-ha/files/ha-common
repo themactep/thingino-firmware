@@ -415,3 +415,54 @@ ha_json_escape() {
 }
 
 HA_AVAIL_TOPIC="cameras/${HA_CAMERA_ID}/status"
+
+# ---------------------------------------------------------------------------
+# Day/night: daynightd when present, prudynt otherwise
+# ---------------------------------------------------------------------------
+ha_daynight_set() {
+	if command -v daynightd >/dev/null 2>&1; then
+		case "$1" in
+			auto)
+				jct /etc/thingino.json set daynight.enabled true >/dev/null 2>&1
+				jct /etc/thingino.json set daynight.force_mode "" >/dev/null 2>&1
+				;;
+			*)
+				jct /etc/thingino.json set daynight.enabled false >/dev/null 2>&1
+				jct /etc/thingino.json set daynight.force_mode "$1" >/dev/null 2>&1
+				daynight "$1" >/dev/null 2>&1
+				;;
+		esac
+		[ -f /run/daynightd.pid ] && kill -HUP "$(cat /run/daynightd.pid)" 2>/dev/null
+	elif [ "$1" = auto ]; then
+		printf '{"daynight":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+	else
+		printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$1" |
+			prudyntctl json - >/dev/null 2>&1
+	fi
+}
+
+# Prints auto, day or night: the setting, not the applied mode.
+ha_daynight_setting() {
+	local enabled
+	if command -v daynightd >/dev/null 2>&1; then
+		enabled=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null)
+	else
+		printf '{"daynight":{"enabled":null}}' | prudyntctl json - 2>/dev/null |
+			grep -q '"daynight":{"enabled":true' && enabled=true
+	fi
+	if [ "$enabled" = true ]; then
+		echo auto
+	else
+		ha_daynight_mode
+	fi
+}
+
+# Prints day or night: the mode currently applied.
+ha_daynight_mode() {
+	local mode
+	mode=$(awk 'NR==1 {print $1}' /run/thingino/daynight_mode /run/prudynt/daynight_mode 2>/dev/null | head -n 1)
+	case "$mode" in
+		night) echo night ;;
+		*) echo day ;;
+	esac
+}
