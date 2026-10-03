@@ -235,7 +235,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 		inforun "libimp-debug --enc_info" "libimp enc_info"
 	fi
 
-	inforun "ps" "PS"
+	inforun "ps | sed -E \"/mosquitto_/s/ -(h|u|P) ('[^']*'|[^ ]+)/ -\1 REDACTED/g\"" "PS"
 	inforun "lsof" "LSOF"
 	inforun "ip addr show 2>/dev/null || ifconfig -a 2>/dev/null" "NETWORK"
 	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
