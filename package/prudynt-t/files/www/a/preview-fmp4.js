@@ -15,6 +15,10 @@
   // Resolver of the active session's append pump, woken on teardown so the
   // pump does not stay parked on a promise that will never resolve.
   let pumpWake = null;
+  // Wall-clock anchor for the current session: the live edge at the first
+  // appended fragment and the time it arrived.
+  let edgeMediaRef = null;
+  let edgeWallRef = null;
 
   const host = () => window.location.hostname || "localhost";
   const API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
@@ -94,6 +98,13 @@
   // every fragment and starved the reader. 5s recovers from a stall without
   // churning during normal play.
   const MAX_AHEAD_S = 5;
+  // Camera-side backlog budget. A client that stalls makes prudynt queue
+  // fragments, and it drains that queue one per produced frame, so the
+  // playhead and the live edge stay close while the whole session plays
+  // stale content. Buffer geometry cannot see that; anchor the media
+  // timeline to the wall clock and reconnect once the live edge falls this
+  // far behind realtime.
+  const MAX_DRIFT_S = 5;
   // Hard ceiling on the buffered window. Trimming is capped against the live
   // edge as well as the playhead, so a stalled decoder or a suspended tab
   // cannot let the SourceBuffer grow for the whole session.
@@ -169,6 +180,19 @@
       if (video.paused) video.play().catch(() => {});
     }
 
+    // Detect a camera-side backlog the geometry checks cannot see. Only a
+    // fresh fetch resets prudynt's per-client queue, so reconnect rather than
+    // seek within the stale buffer.
+    const now = performance.now();
+    if (edgeMediaRef === null) {
+      edgeMediaRef = end;
+      edgeWallRef = now;
+    } else if (edgeMediaRef + (now - edgeWallRef) / 1000 - end > MAX_DRIFT_S) {
+      setStatus("Preview drifted behind live edge, resyncing...");
+      start(channel);
+      return;
+    }
+
     // Never keep more than MAX_BUFFERED_S of media, even if the playhead never
     // moves. Both bounds are evaluated against the live edge: keep behind the
     // playhead, but always drop anything past the hard ceiling.
@@ -188,6 +212,8 @@
 
   function teardown() {
     sessionId++;
+    edgeMediaRef = null;
+    edgeWallRef = null;
     if (pumpWake) {
       const wake = pumpWake;
       pumpWake = null;
