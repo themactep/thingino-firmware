@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 7a160931ba99513a5054dc60927e314108e9f5ab
+INGENIC_SDK_VERSION = e0974182df7e001ff76e6cdf25d36d593fde7ed4
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -60,6 +60,15 @@ INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
 ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_PUBLISH_FLAT_TREE
 endif
+else ifneq ($(filter $(SOC_FAMILY),t23 t31 t40 t41),)
+# Proprietary ISP: compile the SDK registry (common/isp/common/tx-isp-sinfo.c)
+# into tx-isp-<soc> and feed it from the sensor modules via the
+# SENSOR_REGISTRY_IN_SDK hook, the same sensorN/ ABI the open stack uses.
+# The vendor flat tree stays published by the sensor modules: prudynt reads
+# /proc/jz/sensor/{width,height,max_fps,min_fps}, which the registry cannot
+# supply for every family (the sensor attribute carries no min/max fps).
+INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_REGISTRY_IN_SDK
+INGENIC_SDK_MODULE_MAKE_OPTS += SENSOR_REGISTRY_IN_SDK=1
 endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
