@@ -33,6 +33,42 @@ set_enabled() {
 	jct /etc/prudynt.json set "motion.enabled" $1
 }
 
+# Invoke one send2 service. Captured media paths, when present, are read
+# from the environment by the service script.
+run_service() {
+	case "$1" in
+		email) echo_info "Send alert to email" ;;
+		ftp) echo_info "Send alert to FTP" ;;
+		mqtt) echo_info "Send alert to MQTT" ;;
+		ntfy) echo_info "Send alert to Ntfy" ;;
+		storage) echo_info "Save to storage" ;;
+		gphotos) echo_info "Upload to Google Photos" ;;
+		gotify) echo_info "Send alert to Gotify" ;;
+		pushover) echo_info "Send alert to Pushover" ;;
+		webhook) echo_info "Send alert to WebHook" ;;
+		xmpp) echo_info "Send alert to XMPP" ;;
+		telegram) echo_info "Send alert to Telegram" ;;
+	esac
+
+	case "$1" in
+		xmpp)
+			if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
+				send2xmpp -i "$MOTION_PHOTO_FILE" -m "Motion detected on $(hostname) at $(date)" &
+			else
+				send2xmpp -m "Motion detected on $(hostname) at $(date)" &
+			fi
+			;;
+		telegram)
+			MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" \
+				send2telegram -v >>/tmp/send2telegram.log 2>&1 &
+			;;
+		*)
+			MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" "send2$1" &
+			;;
+	esac
+	send2_pids="$send2_pids $!"
+}
+
 start() {
 	echo_info "Start motion"
 	if [ -f "$MOTOR_ACTIVE_FLAG" ]; then
@@ -54,14 +90,35 @@ start() {
 	# Trigger the Wyze Floodlight v1 night-time motion lamp (if installed)
 	[ -x /usr/sbin/floodlight_ctl ] && floodlight_ctl motion &
 
-	# Check if any send2* service needs photo or video
+	# Audible alert needs no captured media: fire it before the capture so a
+	# long clip does not delay it.
+	if [ "true" = "$(get_value playonspeaker)" ]; then
+		echo_info "Send alert to play on speaker"
+		playonspeaker motiondetectionactivated &
+	fi
+
+	# Split the send2 services by whether they attach the captured media.
+	# Text-only ones fire now; media-bound ones wait for the capture.
+	send2_pids=""
+	send2_deferred=""
 	need_photo=false
 	need_video=false
 
-	for service in email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook; do
-		if [ "true" = "$(get_value send2${service})" ]; then
-			[ "true" = "$(jct /etc/send2.json get ${service}.send_photo 2>/dev/null)" ] && need_photo=true
-			[ "true" = "$(jct /etc/send2.json get ${service}.send_video 2>/dev/null)" ] && need_video=true
+	for service in email ftp gphotos gotify mqtt ntfy pushover storage telegram webhook xmpp; do
+		[ "true" = "$(get_value send2${service})" ] || continue
+		want_photo=false
+		want_video=false
+		[ "true" = "$(jct /etc/send2.json get ${service}.send_photo 2>/dev/null)" ] && want_photo=true
+		[ "true" = "$(jct /etc/send2.json get ${service}.send_video 2>/dev/null)" ] && want_video=true
+		# XMPP carries photos only, never video.
+		[ "$service" = "xmpp" ] && want_video=false
+
+		if [ "$want_photo" = "true" ] || [ "$want_video" = "true" ]; then
+			send2_deferred="$send2_deferred $service"
+			[ "$want_photo" = "true" ] && need_photo=true
+			[ "$want_video" = "true" ] && need_video=true
+		elif [ "$service" != "telegram" ]; then
+			run_service "$service"
 		fi
 	done
 
@@ -115,89 +172,10 @@ start() {
 		unset MOTION_VIDEO_FILE
 	fi
 
-	# send2 actions
-	send2_pids=""
-
-	if [ "true" = "$(get_value send2email)" ]; then
-		echo_info "Send alert to email"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2email &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2ftp)" ]; then
-		echo_info "Send alert to FTP"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ftp &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2mqtt)" ]; then
-		echo_info "Send alert to MQTT"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2mqtt &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2ntfy)" ]; then
-		echo_info "Send alert to Ntfy"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ntfy &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2storage)" ]; then
-		echo_info "Save to storage"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2storage &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2gphotos)" ]; then
-		echo_info "Upload to Google Photos"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2gphotos &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2gotify)" ]; then
-		echo_info "Send alert to Gotify"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2gotify &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2pushover)" ]; then
-		echo_info "Send alert to Pushover"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2pushover &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2xmpp)" ]; then
-		echo_info "Send alert to XMPP"
-		if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
-			send2xmpp -i "$MOTION_PHOTO_FILE" -m "Motion detected on $(hostname) at $(date)" &
-		else
-			send2xmpp -m "Motion detected on $(hostname) at $(date)" &
-		fi
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value send2telegram)" ]; then
-		echo_info "Send alert to Telegram"
-		if [ "$need_photo" = "true" ] || [ "$need_video" = "true" ]; then
-			echo_info "MOTION_PHOTO_FILE=$MOTION_PHOTO_FILE MOTION_VIDEO_FILE=$MOTION_VIDEO_FILE"
-			MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2telegram -v >>/tmp/send2telegram.log 2>&1 &
-			send2_pids="$send2_pids $!"
-		else
-			echo_info "Skipping Telegram (no media to send)"
-		fi
-	fi
-
-	if [ "true" = "$(get_value send2webhook)" ]; then
-		echo_info "Send alert to WebHook"
-		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2webhook &
-		send2_pids="$send2_pids $!"
-	fi
-
-	if [ "true" = "$(get_value playonspeaker)" ]; then
-		echo_info "Send alert to play on speaker"
-		playonspeaker motiondetectionactivated &
-		send2_pids="$send2_pids $!"
-	fi
+	# Media-bound send2 actions, after the capture above.
+	for service in $send2_deferred; do
+		run_service "$service"
+	done
 
 	# Wait for all send2 processes to complete in background, then cleanup
 	if [ -n "$send2_pids" ]; then

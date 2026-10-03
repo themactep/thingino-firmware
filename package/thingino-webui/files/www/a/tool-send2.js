@@ -22,6 +22,9 @@
   const motionSensitivityValue = $("#motion_sensitivity_value");
   const motionCooldownInput = $("#motion_cooldown");
   const motionCooldownValue = $("#motion_cooldown_value");
+  const motionVideoLengthInput = $("#motion_video_length");
+  const motionPostTimeInput = $("#motion_post_time");
+  const motionMinTimeInput = $("#motion_min_time");
   const saveAllButton = $("#save_all");
 
   // Speaker elements
@@ -119,6 +122,15 @@
           if (motionCooldownValue)
             motionCooldownValue.textContent = motionCooldownInput.value;
         }
+        if (motionVideoLengthInput)
+          motionVideoLengthInput.value =
+            data.motion.video_length != null ? data.motion.video_length : 10;
+        if (motionPostTimeInput)
+          motionPostTimeInput.value =
+            data.motion.post_time != null ? data.motion.post_time : 0;
+        if (motionMinTimeInput)
+          motionMinTimeInput.value =
+            data.motion.min_time != null ? data.motion.min_time : 1;
 
         // Update motion service checkboxes
         const services = [
@@ -236,6 +248,13 @@
           cooldown_time: motionCooldownInput
             ? Number(motionCooldownInput.value)
             : 15,
+          video_length: motionVideoLengthInput
+            ? Number(motionVideoLengthInput.value)
+            : 10,
+          post_time: motionPostTimeInput
+            ? Number(motionPostTimeInput.value)
+            : 0,
+          min_time: motionMinTimeInput ? Number(motionMinTimeInput.value) : 1,
         },
         speaker: {
           file: speakerFileInput ? speakerFileInput.value : "",

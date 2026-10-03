@@ -44,6 +44,21 @@
                 <label class="col-4" for="motion_cooldown">Cooldown: <span id="motion_cooldown_value"></span> seconds</label>
                 <input class="col form-range" type="range" id="motion_cooldown" min="1" max="60" step="1">
               </p>
+              <p class="row">
+                <label class="col-4 form-label" for="motion_video_length">Clip length <span class="text-secondary">(s)</span></label>
+                <input class="col form-control" type="number" id="motion_video_length" min="1" max="3600" step="1" value="10">
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="motion_post_time">Post time <span class="text-secondary">(s)</span></label>
+                <input class="col form-control" type="number" id="motion_post_time" min="0" max="3600" step="1" value="0">
+              </p>
+              <p class="row">
+                <label class="col-4 form-label" for="motion_min_time">Min time <span class="text-secondary">(s)</span></label>
+                <input class="col form-control" type="number" id="motion_min_time" min="0" max="3600" step="1" value="1">
+              </p>
+              <p class="small text-secondary">
+                Post time is how long the scene must stay quiet before a motion episode ends; raise it if busy scenes fragment into many clips. A motion event that arrives while an earlier clip is still recording is ignored, so continuous motion produces one clip per cycle.
+              </p>
 
               <h4 class="mb-3">Speaker</h4>
               <p class="form-switch">
