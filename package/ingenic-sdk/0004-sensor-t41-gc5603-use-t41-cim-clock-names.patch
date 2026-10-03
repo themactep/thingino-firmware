@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000004 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@thingino.com>
+Date: Tue, 08 Sep 2026 00:00:04 +0000
+Subject: [PATCH] ingenic-sdk: t41/gc5603 use T41 CIM clock names, not T40's
+
+t41/sensor-src/gc5603.c is a verbatim copy of t40/sensor-src/gc5603.c
+and still asks the kernel for T40's numbered CIM clocks (mux_cim0/1/2,
+div_cim0/1/2) and T40's epll. Neither exists on T41: clk-t41.c
+registers only unnumbered mux_cim/div_cim, and T41 has no epll at all
+(only apll/mpll/vpll). clk_get() on the wrong name silently returns
+-ENOENT, so sensor->mclk is never obtained, private_clk_set_rate()/
+private_clk_prepare_enable() are never reached, and the sensor is left
+completely unclocked. With no MCLK the GC5603's own I2C slave logic
+never runs, so the chip-ID read at probe NAKs (ret=-EIO, v=0x00) and
+sensor_g_chip_ident() reports "is not an gc5603 chip" - read as a
+missing/dead sensor, when the real fault is upstream in clock lookup.
+
+Every other T41 sensor driver in this SDK (107 of 108, including the
+structurally identical t41/gc5613.c this fix mirrors) already resolves
+MCLK via the SEN_MCLK/SEN_BCLK/SEN_TCLK macros from sensor-common.h,
+which map to T41's real "mux_cim"/"div_cim"/"vpll" clock names -
+gc5603.c is the one file that was never updated when it was ported
+from the T40 tree.
+
+Confirmed on real T41LQ+GC5603 hardware (Vanhua T55A board): before
+this fix, /proc/jz/clock/clocks shows div_cim parked at its 1104 MHz
+reset-time rate with usecount 0 (no driver ever claimed it) and
+IMP_ISP_AddSensor fails every 60s. After, div_cim should read 27 MHz
+with a non-zero usecount.
+
+Signed-off-by: Paul Philippov <paul@thingino.com>
+---
+--- a/4.4.94/sensor-src/t41/gc5603.c
++++ b/4.4.94/sensor-src/t41/gc5603.c
+@@ -1035,19 +1035,11 @@
+
+ 	switch (info->mclk) {
+ 		case TISP_SENSOR_MCLK0:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim0");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim0");
+-			set_sensor_mclk_function(0);
+-			break;
+ 		case TISP_SENSOR_MCLK1:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim1");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim1");
+-			set_sensor_mclk_function(1);
+-			break;
+ 		case TISP_SENSOR_MCLK2:
+-			sclka = private_devm_clk_get(&client->dev, "mux_cim2");
+-			sensor->mclk = private_devm_clk_get(sensor->dev, "div_cim2");
+-			set_sensor_mclk_function(2);
++			sclka = private_devm_clk_get(&client->dev, SEN_MCLK);
++			sensor->mclk = private_devm_clk_get(sensor->dev, SEN_BCLK);
++			set_sensor_mclk_function(0);
+ 			break;
+ 		default:
+ 			ISP_ERROR("Have no this MCLK Source!!!\n");
+@@ -1060,8 +1052,8 @@
+
+ 	rate = private_clk_get_rate(sensor->mclk);
+ 	if (((rate / 1000) % 27000) != 0) {
+-		ret = clk_set_parent(sclka, clk_get(NULL, "epll"));
+-		sclka = private_devm_clk_get(&client->dev, "epll");
++		ret = clk_set_parent(sclka, clk_get(NULL, SEN_TCLK));
++		sclka = private_devm_clk_get(&client->dev, SEN_TCLK);
+ 		if (IS_ERR(sclka)) {
+ 			pr_err("get sclka failed\n");
+ 		} else {
