@@ -1,0 +1,4 @@
+#!/bin/sh
+# ONVIF relays and aux commands call irled; light does the actual work.
+
+exec light ir "$@"
