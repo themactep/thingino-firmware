@@ -218,16 +218,17 @@ dispatch() {
 			;;
 
 		firmware)
-			# Partial upgrade (preserves config): sysupgrade -p fetches the
-			# latest release from GitHub, flashes rootfs+data+backup and
-			# reboots. Run in background — it takes minutes and the camera
-			# will drop off MQTT.
+			# Full upgrade with a config backup: sysupgrade -f -B fetches the
+			# latest release from GitHub, flashes the whole image while keeping
+			# the backup partition, and reboots; S37cfg-autorestore restores the
+			# config. Run in background: it takes minutes and the camera will
+			# drop off MQTT.
 			case "$payload" in
 				UPDATE | update | 1 | true)
-					echo "ha-commands: starting partial firmware upgrade" >&2
-					logger -t ha-commands "starting partial firmware upgrade"
+					echo "ha-commands: starting full firmware upgrade" >&2
+					logger -t ha-commands "starting full firmware upgrade"
 					if command -v sysupgrade >/dev/null 2>&1; then
-						sysupgrade -p >/dev/null 2>&1 &
+						sysupgrade -f -B >/dev/null 2>&1 &
 					else
 						echo "ha-commands: sysupgrade not installed" >&2
 					fi

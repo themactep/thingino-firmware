@@ -245,7 +245,7 @@
     const selectedLabel = selected
       ? selected.parentElement.querySelector("label .fw-semibold").textContent
       : "update";
-    const value = selected ? selected.value : "partial";
+    const value = selected ? selected.value : "full";
 
     const confirmed = await confirm(
       `Are you sure you want to download and apply ${selectedLabel}?\n\nThis will reboot the camera when finished.`,

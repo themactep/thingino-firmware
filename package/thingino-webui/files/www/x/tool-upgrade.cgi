@@ -203,7 +203,6 @@ build_state_payload() {
   "ota": {
     "options": [
       {"id":"full","label":"Full image","flag":"-f","description":"Will erase everything and install a pristine new image. No customization will survive. You will have to reconfigure the system from scratch."},
-      {"id":"partial","label":"Partial update","flag":"-p","description":"Will keep overlay partition with configuration and changed files. Most likely will end up in conflicts, so you might need to reset and reconfigure the system."},
       {"id":"bootloader","label":"Bootloader","flag":"-b","description":"Writes new bootloader only. Relatively safe operation when you know what you are doing. Intended for developers."}
     ],
     "pre_command": "$(json_escape "$OTA_PRE_COMMAND")",
@@ -276,8 +275,7 @@ ota_command_for_option() {
 	local option="$1" flag=""
 	case "$(printf '%s' "$option" | tr 'A-Z' 'a-z')" in
 		bootloader) flag="-b" ;;
-		full) flag="-f" ;;
-		'' | partial) flag="-p" ;;
+		'' | full) flag="-f" ;;
 		*) return 1 ;;
 	esac
 	if [ -n "$flag" ]; then

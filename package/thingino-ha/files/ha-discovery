@@ -225,8 +225,8 @@ if ha_entity_enabled ota; then
 
 	# Native HA update entity: shows in Settings -> Updates with an Install
 	# button. installed = firmware_version state, latest = firmware_latest
-	# state (both published retained by ha-state); install runs a partial
-	# upgrade via sysupgrade -p, preserving the camera config.
+	# state (both published retained by ha-state); install runs a full
+	# upgrade via sysupgrade -f -B, preserving the camera config.
 	ha_pub_disc update firmware \
 		"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware_update\",\"state_topic\":\"${ST}/firmware_version/state\",\"latest_version_topic\":\"${ST}/firmware_latest/state\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"UPDATE\",\"title\":\"Thingino Firmware\",\"device_class\":\"firmware\",\"release_url\":\"https://github.com/themactep/thingino-firmware/releases\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
