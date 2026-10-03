@@ -44,7 +44,7 @@ stop_daemon() {
 
 	# Fallback: kill by name if PID file approach didn't work.
 	if is_alive; then
-		killall "$DAEMON" 2>/dev/null || killall -9 "$DAEMON" 2>/dev/null
+		killall prudynt 2>/dev/null || killall -9 prudynt 2>/dev/null
 	fi
 }
 
@@ -97,6 +97,12 @@ start() {
 stop() {
 	log -c 15 "Stopping Prudynt"
 	stop_heartbeat
+
+	# Capture the PID before stop_daemon removes the pidfile, so a wedged
+	# prudynt can still be killed by PID below.
+	pid=""
+	[ -f "$PIDFILE" ] && pid=$(cat "$PIDFILE" 2>/dev/null)
+
 	stop_daemon
 
 	# Wait up to 5 s for the process to actually exit.
@@ -106,14 +112,13 @@ stop() {
 		i=$((i + 1))
 	done
 
-	# Force-kill if still alive after timeout.
-	if is_alive; then
+	# Force-kill if still alive after the timeout. A process stuck in a driver
+	# wait ignores SIGTERM and may not be matchable by start-stop-daemon, so
+	# signal the captured PID directly and fall back to the process name.
+	if { [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; } || is_alive; then
 		log -c 15 "Prudynt did not stop, force-killing"
-		if [ -f "$PIDFILE" ]; then
-			start-stop-daemon -K -s KILL -p "$PIDFILE"
-		else
-			start-stop-daemon -K -s KILL -x "$DAEMON"
-		fi
+		[ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
+		killall -9 prudynt 2>/dev/null
 		usleep 500000
 	fi
 }
