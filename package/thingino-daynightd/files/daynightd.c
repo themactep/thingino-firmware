@@ -91,7 +91,7 @@ typedef enum {
 typedef struct {
     int64_t  time_now;
     int      ev;
-    int      ev_log2;           /* T31: ISP EV value log2; T20: ISP exposure log2 id */
+    int      ev_log2;           /* T31: ISP EV value log2; T20: ISP exposure log2 id; -1 = absent */
     int      ev_us;
     int      total_gain;        /* T20: ISP total gain (direct); T31: approximated from gains */
     int      integration_time;
@@ -679,7 +679,7 @@ static int parse_isp_m0(sensor_sample_t *s) {
     /* T31 does not expose ISP total gain; approximate from available gains.
      * Use EV log2 as the primary decision signal. */
     s->total_gain = -1;  /* not available in isp-m0 */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         s->primary_signal = s->ev_log2;
     }
 
@@ -727,7 +727,7 @@ static int parse_isp_info(sensor_sample_t *s) {
 
     /* T20: use exposure_log2_id as primary signal (combines gain+integration,
      * same metric as T31 ev_log2). */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         s->primary_signal = s->ev_log2;
     }
 
@@ -759,7 +759,7 @@ static int parse_isp(sensor_sample_t *s) {
 static int compute_brightness_pct(const sensor_sample_t *s) {
     /* Use ev_log2 for both T20 (exposure_log2_id) and T31 (ISP EV value log2).
      * Both are log2 of total exposure (integration × gain) and map the same way. */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         double lo = 200000.0;   /* bright: 100% */
         double hi = 2000000.0;  /* dark: 0% */
         double ev = (double)s->ev_log2;
@@ -1219,7 +1219,7 @@ static int main_loop(void) {
 
             if (sig > night_thr) {
                 initial = MODE_NIGHT;
-            } else if (sig > 0 && sig < day_thr) {
+            } else if (sig >= 0 && sig < day_thr) {
                 initial = MODE_DAY;
             }
 
@@ -1325,7 +1325,7 @@ static int main_loop(void) {
                 if (g_state.night_count > 0) --g_state.night_count;
             }
         } else if (g_state.current_mode == MODE_NIGHT) {
-            if (sig > 0 && sig < day_thr) {
+            if (sig >= 0 && sig < day_thr) {
                 if (++g_state.day_count >= g_config.day_count_threshold)
                     target_mode = MODE_DAY;
             } else {
@@ -1334,7 +1334,7 @@ static int main_loop(void) {
         } else {
             if (sig > night_thr)
                 target_mode = MODE_NIGHT;
-            else if (sig > 0 && sig < day_thr)
+            else if (sig >= 0 && sig < day_thr)
                 target_mode = MODE_DAY;
         }
 
