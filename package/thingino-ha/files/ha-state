@@ -81,6 +81,8 @@ fi
 # Day/Night select and the mode actually applied
 if ha_entity_enabled daynight; then
 	ha_pub_state daynight "$(ha_daynight_setting)" "$FORCE"
+fi
+if ha_entity_enabled daynight_state; then
 	ha_pub_state daynight_state "$(ha_daynight_mode)" "$FORCE"
 fi
 
@@ -186,7 +188,9 @@ PEOF
 		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
 	fi
 	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+fi
 
+if ha_entity_enabled brightness; then
 	brightness=$(cat /run/thingino/daynight_brightness 2>/dev/null)
 	case "$brightness" in
 		'' | *[!0-9]*) ;;

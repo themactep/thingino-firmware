@@ -106,10 +106,15 @@ fi
 if ha_entity_enabled daynight; then
 	ha_pub_disc select daynight \
 		"{\"name\":\"Day\\/Night Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight\",\"state_topic\":\"${ST}/daynight/state\",\"command_topic\":\"${ST}/daynight/set\",\"options\":[\"auto\",\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc select daynight
+fi
+
+# Sensor: the day/night mode actually applied
+if ha_entity_enabled daynight_state; then
 	ha_pub_disc sensor daynight_state \
 		"{\"name\":\"Day\\/Night State\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight_state\",\"state_topic\":\"${ST}/daynight_state/state\",\"device_class\":\"enum\",\"options\":[\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
-	ha_clear_disc select daynight
 	ha_clear_disc sensor daynight_state
 fi
 
@@ -185,10 +190,15 @@ fi
 if ha_entity_enabled gain; then
 	ha_pub_disc sensor gain \
 		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"state_class\":\"measurement\",\"entity_category\":\"diagnostic\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+else
+	ha_clear_disc sensor gain
+fi
+
+# Sensor: Brightness, written by daynightd, so skip discovery without it
+if ha_entity_enabled brightness && command -v daynightd >/dev/null 2>&1; then
 	ha_pub_disc sensor brightness \
 		"{\"name\":\"Brightness\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_brightness\",\"state_topic\":\"${ST}/brightness/state\",\"unit_of_measurement\":\"%\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-percent\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else
-	ha_clear_disc sensor gain
 	ha_clear_disc sensor brightness
 fi
 
