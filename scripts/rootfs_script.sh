@@ -21,6 +21,60 @@ sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 # must target that volume instead of a raw MTD offset (the NOR default).
 if grep -q "^BR2_THINGINO_FLASH_NAND=y" "$BR2_CONFIG"; then
 	printf '/dev/ubi0:uboot-env 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+elif grep -q '^BR2_TARGET_UBOOT_VERSION="20[2-9][0-9]\.' "$BR2_CONFIG" &&
+	[ "$(cat "${TARGET_DIR}/etc/fw_env.config" 2>/dev/null)" = "/dev/mtd1 0x0 0x8000" ]; then
+	# The modern NOR U-Boot (2026.07: T20/T32/T40/T41) keeps a 64 KiB env
+	# (CONFIG_ENV_SIZE=0x10000, CONFIG_ENV_SECT_SIZE=0x10000, 64k "env"
+	# partition). The overlay default 0x8000 is right for U-Boot 2013.07 only:
+	# on this one fw_setenv would write a 32 KiB env whose CRC U-Boot rejects,
+	# silently dropping every user variable. A board overlay that already sets
+	# its own fw_env.config (the Wyze T20s) is left alone.
+	printf '/dev/mtd1 0x0 0x10000 0x10000\n' > "${TARGET_DIR}/etc/fw_env.config"
+fi
+
+# U-Boot 2026.07: never let fw_setenv replace an environment that fails its CRC.
+# When the stored env is unreadable (blank, or written with the wrong size by an
+# older image), fw_printenv/fw_setenv fall back to the tool's own 3-variable
+# default and fw_setenv would then store THAT as a valid env - U-Boot would take
+# it as real (bootcmd=bootp...) and the camera would no longer boot from flash,
+# where an invalid env makes U-Boot use its built-in defaults and boot. The real
+# tool moves to /usr/libexec/uboot-env, the old names become a guard that refuses
+# on "Bad CRC" (FW_SETENV_FORCE=1 overrides).
+if grep -q '^BR2_TARGET_UBOOT_VERSION="20[2-9][0-9]\.' "$BR2_CONFIG" &&
+	[ -L "${TARGET_DIR}/usr/sbin/fw_setenv" ]; then
+	install -d "${TARGET_DIR}/usr/libexec/uboot-env"
+	ln -sf ../../sbin/fw_printenv "${TARGET_DIR}/usr/libexec/uboot-env/fw_setenv"
+	for d in usr/sbin sbin; do
+		[ -L "${TARGET_DIR}/${d}/fw_setenv" ] || continue
+		rm -f "${TARGET_DIR}/${d}/fw_setenv"
+		cat > "${TARGET_DIR}/${d}/fw_setenv" <<'GUARD_EOF'
+#!/bin/sh
+# Refuse to write the U-Boot environment while the stored one fails its CRC (see
+# scripts/rootfs_script.sh). FW_SETENV_FORCE=1 overrides.
+cfg=""
+prev=""
+for a in "$@"; do
+	if [ "$prev" = "-c" ] || [ "$prev" = "--config" ]; then cfg="$a"; fi
+	prev="$a"
+done
+if [ -z "$FW_SETENV_FORCE" ]; then
+	if [ -n "$cfg" ]; then
+		w=$(/usr/sbin/fw_printenv -c "$cfg" bootcmd 2>&1 >/dev/null)
+	else
+		w=$(/usr/sbin/fw_printenv bootcmd 2>&1 >/dev/null)
+	fi
+	case "$w" in
+	*"Bad CRC"*)
+		echo "fw_setenv: the stored U-Boot environment fails its CRC - refusing to write (it would replace U-Boot's built-in defaults with a minimal environment). FW_SETENV_FORCE=1 overrides." >&2
+		logger -t fw_setenv "refused: stored U-Boot environment has a bad CRC" 2>/dev/null
+		exit 1
+		;;
+	esac
+fi
+exec /usr/libexec/uboot-env/fw_setenv "$@"
+GUARD_EOF
+		chmod 755 "${TARGET_DIR}/${d}/fw_setenv"
+	done
 fi
 
 cd $BR2_EXTERNAL
