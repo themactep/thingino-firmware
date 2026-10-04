@@ -1,7 +1,0 @@
-{
-  "gpio": {
-    "button_reset": 14,
-    "mmc_cd": 49,
-    "wlan": 6
-  }
-}
