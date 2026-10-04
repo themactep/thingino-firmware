@@ -398,8 +398,22 @@ free_overlay_space() {
 upload_sysupgrade() {
 	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" || \
 		die "Failed to transfer sysupgrade utility"
-	remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" || \
-		die "Failed to transfer sysupgrade-stage2 utility"
+	# The device usually ships the same stage2 in /sbin already. After
+	# free_overlay_space() a write to /sbin can fail on 3.10 overlayfs, so
+	# skip the copy when the remote copy is identical, and only fail if the
+	# device has no stage2 at all.
+	_s2="/sbin/$(basename "$LOCAL_SCRIPT2")"
+	_s2_local=$(md5sum "$LOCAL_SCRIPT2" | cut -d' ' -f1)
+	_s2_remote=$(remote_run "md5sum $_s2 2>/dev/null | cut -d' ' -f1" 2>/dev/null)
+	if [ "$_s2_local" = "$_s2_remote" ]; then
+		echo "sysupgrade-stage2 on device is up to date, not copying."
+	elif ! remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:$_s2"; then
+		if [ -n "$_s2_remote" ]; then
+			echo "Warning: could not update $_s2 (overlay), using the device's copy" >&2
+		else
+			die "Failed to transfer sysupgrade-stage2 utility"
+		fi
+	fi
 	remote_run "chmod +x $REMOTE_SCRIPT" || \
 		die "Failed to set execute permissions on sysupgrade utility"
 	echo "Sysupgrade utility installed successfully."
