@@ -153,11 +153,6 @@ endif
 # The upstream Makefile defaults to static: -l:libimp.a etc.
 # We override to use the shared libraries installed by ingenic-lib.
 TIMPS_IMPLIBS = -limp -lalog -lsysutils
-# timps imports no SU_*/alog symbol itself and OpenIMP's libimp does not link
-# libalog/libsysutils: with OpenIMP no Ingenic/neo blob is linked or shipped.
-ifeq ($(BR2_PACKAGE_OPENIMP),y)
-TIMPS_IMPLIBS = -limp
-endif
 
 # Additional system libs (extended from upstream -lpthread -lrt -lm)
 TIMPS_LIBS = -lpthread -lrt -lm
@@ -216,7 +211,6 @@ define TIMPS_BUILD_CMDS
 		LDFLAGS="$(TARGET_LDFLAGS) -Wl,--gc-sections -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
 		LIBS="$(TIMPS_LIBS)" \
 		USE_FAAC=$(if $(BR2_PACKAGE_TIMPS_FAAC),1,0) \
-		USE_OPENIMP=$(if $(BR2_PACKAGE_OPENIMP),1,0) \
 		USE_TRACE=$(if $(filter 1,$(TIMPS_TRACE)),1,0) \
 		USE_CONTROL=$(if $(BR2_PACKAGE_TIMPS_CONTROL),1,0) \
 		USE_DAYNIGHT=$(if $(BR2_PACKAGE_TIMPS_DAYNIGHT),1,0) \
