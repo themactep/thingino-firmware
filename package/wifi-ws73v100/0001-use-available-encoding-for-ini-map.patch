@@ -1,0 +1,5 @@
+--- a/build/scripts/hconfig_to_ini.py
++++ b/build/scripts/hconfig_to_ini.py
+@@ -31 +31 @@
+-        with open(ini_map_file, newline="", encoding="gb2312") as f:
++        with open(ini_map_file, newline="", encoding="latin-1") as f:
