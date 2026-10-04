@@ -1,0 +1,565 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] soc_vpu/helix: bounded waits, validated nodes, register window, channel release by file
+
+On top of 0098-0100.  Rebased onto 0097 (fatal-signal bail-out): the
+fclist/fvlist waits become killable here, so their ERESTARTSYS branch is
+only reached on a fatal signal and returns -ERESTARTSYS as 0097 does; the
+old restart labels are gone, so 0097's fallback goto is dropped there.
+
+ - helix vpu_wait_complete(): one killable wait with the job timeout
+   instead of an interruptible wait that restarted with the full timeout
+   on every -ERESTARTSYS (and spun while a signal stayed pending).  A
+   fatal signal resets the core and returns -EINTR.
+ - vpu_interrupt(): an error interrupt (no ENDFLAG/BSFULL) completes the
+   wait - the handler masks all sources, so nothing else would follow -
+   and vpu_wait_complete() reports it as a failure (core reset) instead
+   of waiting out the timeout.
+ - vpu_wait_bs_complete(): same killable wait; a timeout or an empty
+   length returns an error instead of resetting the core and waiting
+   again forever for an interrupt the reset core cannot raise.
+ - soc_channel_request()/soc_vpu_request(): killable waits, no
+   ERESTARTSYS retry loop.
+ - The kernel pointers channel_node.vlist/.clist and init_buf_info.clist
+   (and the suspend/resume vlist) are checked against vpu_list[] and
+   channel_list[] before use: CHANNEL_REL, RUN, START (clist, used by the
+   cache flush), WAIT_COMPLETE, WAIT_BSFULL_COMPLETE, SET_BSFULL_PADDR,
+   BUF_INIT, PRIVATE_TLB, VPU_SUSPEND/RESUME return -EINVAL otherwise.
+ - IOCTL_CHANNEL_WOR_VPU_REG only reads/writes aligned words inside the
+   Helix register window(s) (HELIX_IOBASE_UNIT(i) + 1 MiB), the Radix
+   window when built, and on T23 the IVDC page (0x13200000 + 4 KiB);
+   -EPERM otherwise.  The OEM T21/T23 libimp only reads Helix registers
+   with it (_jz_hwicodec_pf_h264e_t21_set_priv, 0x1310xxxx on T23,
+   0x1320xxxx on T21); OpenIMP does not use it.
+ - Channels remember the requesting struct file; close releases the
+   channels of that file (or all on the last close) instead of those
+   whose tgid/pid equals the closing thread.  The release tests and
+   clears the phase under clist->slock and never adds a node that is
+   already on the free list.
+ - /sys/module/helix/parameters/bsf_stop (read-only, 1): marker for
+   userspace that BSFULL-only stops are handled (0099) and waits are
+   bounded; OpenIMP enables the core's bitstream-full stop only then.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/video/soc_vpu/helix/helix.c |  82 +++++++++++--
+ drivers/video/soc_vpu/soc_vpu.c     | 182 ++++++++++++++++++++++++----
+ drivers/video/soc_vpu/soc_vpu.h     |   1 +
+ 3 files changed, 233 insertions(+), 32 deletions(-)
+
+diff --git a/drivers/video/soc_vpu/helix/helix.c b/drivers/video/soc_vpu/helix/helix.c
+index a09c2a89..be8ffbc9 100644
+--- a/drivers/video/soc_vpu/helix/helix.c
++++ b/drivers/video/soc_vpu/helix/helix.c
+@@ -20,6 +20,17 @@
+ 
+ static int timeoffset = 50;
+ static int data_threshold = 500;
++
++/*
++ * Read-only marker for userspace (/sys/module/helix/parameters/bsf_stop):
++ * a job that ends on BSFULL without ENDFLAG is reported with this job's
++ * length and the core is stopped before the VPU is handed back, and all
++ * waits are bounded.  Kernels without it report a stale length on such a
++ * stop, so userspace must not enable the bitstream-full interrupt there.
++ */
++static int bsf_stop = 1;
++module_param(bsf_stop, int, 0444);
++MODULE_PARM_DESC(bsf_stop, "1: BSFULL-only stops are safe to request (read-only)");
+ struct jz_vpu_helix {
+ 	struct vpu          vpu;
+ 	char                name[16];
+@@ -275,11 +286,25 @@ enc_cancel:
+ static long vpu_wait_complete(struct device *dev, struct channel_node * const cnode)
+ {
+ 	long ret = 0, bsreadcnt = 3;
+-	bool bsfull_only;
++	bool bsfull_only, hw_error;
+ 	struct jz_vpu_helix *vpu = dev_get_drvdata(dev);
+ 
+-hard_vpu_wait_restart:
+-	ret = wait_for_completion_interruptible_timeout(&vpu->done, msecs_to_jiffies(cnode->mdelay));
++	/*
++	 * One bounded wait for the whole job.  The old interruptible wait
++	 * restarted with the full timeout on every signal and spun while a
++	 * signal stayed pending, so a dying process (or a stream of signals)
++	 * could keep the caller - and the VPU - here forever.  Only a fatal
++	 * signal ends the wait early; the core is then stopped below.
++	 */
++	ret = wait_for_completion_killable_timeout(&vpu->done, msecs_to_jiffies(cnode->mdelay));
++	/*
++	 * An error interrupt (resolution, bitstream or ACFG error without
++	 * ENDFLAG/BSFULL) completes the wait too: the handler has masked all
++	 * interrupt sources, so no end-of-frame will follow.
++	 */
++	hw_error = (ret > 0) && !(vpu->status & (SCH_STAT_ENDFLAG | SCH_STAT_BSFULL));
++	if (hw_error)
++		ret = 0;
+ 	/*
+ 	 * BSFULL without ENDFLAG: the bitstream buffer is full and the core is
+ 	 * paused in the middle of the picture.  The interrupt handler does not
+@@ -325,10 +350,17 @@ hard_vpu_wait_restart:
+ 		ret = 0;
+ 		dev_dbg(vpu->vpu.dev, "[%d:%d] wait complete finish\n", current->tgid, current->pid);
+ 	} else if (ret == -ERESTARTSYS) {
+-		dev_dbg(vpu->vpu.dev, "[%d:%d]:fun:%s,line:%d vpu is interrupt\n", current->tgid, current->pid, __func__, __LINE__);
+-		goto hard_vpu_wait_restart;
++		dev_dbg(vpu->vpu.dev, "[%d:%d] fatal signal, stopping the core\n", current->tgid, current->pid);
++		if (vpu_reset(dev) < 0) {
++			dev_warn(dev, "vpu reset failed\n");
++		}
++		vpu->bslen = 0;
++		ret = -EINTR;
+ 	} else {
+-		dev_warn(dev, "[%d:%d] wait_for_completion timeout\n", current->tgid, current->pid);
++		if (hw_error)
++			dev_warn(dev, "[%d:%d] vpu error interrupt, status = %x\n", current->tgid, current->pid, vpu->status);
++		else
++			dev_warn(dev, "[%d:%d] wait_for_completion timeout\n", current->tgid, current->pid);
+ 		dev_warn(dev, "vpu_stat = %x\n", vpu_readl(vpu,REG_SCH_STAT));
+ 		dev_warn(dev, "vdma_task = %x\n", vpu_readl(vpu,REG_VDMA_TASKST));
+ 		dev_warn(dev, "ret = %ld\n", ret);
+@@ -380,8 +412,22 @@ static long vpu_wait_bs_complete(struct device *dev, struct channel_node *cnode)
+ 	unsigned int bs_paddr;
+ 	struct jz_vpu_helix *vpu = dev_get_drvdata(dev);
+ 
+-hard_vpu_wait_bs_restart:
+-	ret = wait_for_completion_interruptible_timeout(&vpu->done, msecs_to_jiffies(cnode->mdelay));
++	/*
++	 * Bounded like vpu_wait_complete(): a fatal signal or a timeout ends
++	 * the wait with an error.  The old code went back to waiting after
++	 * resetting the core on a timeout - for an interrupt the reset core
++	 * can never raise - and so never returned.
++	 */
++	ret = wait_for_completion_killable_timeout(&vpu->done, msecs_to_jiffies(cnode->mdelay));
++	if (ret <= 0) {
++		dev_warn(dev, "[%d:%d] wait_bs %s, status = %x\n", current->tgid, current->pid,
++			 ret ? "interrupted" : "timeout", vpu_readl(vpu, REG_SCH_STAT));
++		if (vpu_reset(dev) < 0) {
++			dev_warn(dev, "vpu reset failed\n");
++		}
++		bs_cnt = 0;
++		return ret ? -EINTR : -1;
++	}
+ 	vpu_stat = vpu->status;
+ 	bs_paddr = vpu_readl(vpu, REG_EMC_BS_ADDR);
+ 
+@@ -425,7 +471,8 @@ hard_vpu_wait_bs_restart:
+ 			if (vpu_reset(dev) < 0) {
+ 				dev_warn(dev, "vpu reset failed\n");
+ 			}
+-			goto hard_vpu_wait_bs_restart;
++			bs_cnt = 0;
++			return -1;
+ 		}
+ 		cnode->output_len = vpu->bslen;
+ 		cnode->status = vpu->status;
+@@ -482,12 +529,21 @@ hard_vpu_wait_bs_restart:
+ 			if (vpu_reset(dev) < 0) {
+ 				dev_warn(dev, "vpu reset failed\n");
+ 			}
+-			goto hard_vpu_wait_bs_restart;
++			bs_cnt = 0;
++			return -1;
+ 		}
+ 		cnode->output_len = vpu->bslen;
+ 		cnode->status = vpu->status;
+ 		cnode->cmpx = vpu->cmpx;
+ 		ret = 0x4;
++	} else {
++		/* error interrupt: neither end of frame nor bitstream full */
++		dev_warn(dev, "[%d:%d] vpu error interrupt, status = %x\n", current->tgid, current->pid, vpu_stat);
++		if (vpu_reset(dev) < 0) {
++			dev_warn(dev, "vpu reset failed\n");
++		}
++		bs_cnt = 0;
++		ret = -1;
+ 	}
+ 
+ 	return ret;
+@@ -560,6 +616,12 @@ static irqreturn_t vpu_interrupt(int irq, void *dev)
+ 			vpu->bslen = 0;
+ 			vpu->status = vpu_stat;
+ 			vpu->cmpx = 0;
++			/*
++			 * All interrupt sources are masked above, so this job
++			 * ends here: wake the waiter now instead of letting it
++			 * sit out the full timeout.
++			 */
++			complete(&vpu->done);
+ 		}
+ 	}
+ 
+diff --git a/drivers/video/soc_vpu/soc_vpu.c b/drivers/video/soc_vpu/soc_vpu.c
+index 7327a687..7ef8bc66 100644
+--- a/drivers/video/soc_vpu/soc_vpu.c
++++ b/drivers/video/soc_vpu/soc_vpu.c
+@@ -8,6 +8,7 @@
+ #include <linux/syscalls.h>
+ #include <mach/libdmmu.h>
+ #include <asm/delay.h>
++#include <soc/base.h>
+ 
+ #include "soc_vpu.h"
+ 
+@@ -21,6 +22,50 @@ static struct channel_list channel_list[CONFIG_CHANNEL_NODE_NUM];
+ static int vpu_node_num = 0;
+ static struct vpu_list vpu_list[CONFIG_VPU_NODE_NUM];
+ struct soc_channel *soc_channel = NULL;
++
++/*
++ * channel_node.vlist / .clist and init_buf_info.clist are kernel pointers
++ * that make a round trip through userspace.  Only accept the addresses of
++ * our own nodes; anything else would be dereferenced (and written) as a
++ * kernel object.
++ */
++static struct vpu_list *soc_vpu_find_vlist(const struct list_head *node)
++{
++	int i;
++
++	for (i = 0; i < vpu_node_num; i++) {
++		if ((node == &vpu_list[i].list) && vpu_list[i].vlist)
++			return &vpu_list[i];
++	}
++	return NULL;
++}
++
++static struct channel_list *soc_vpu_find_clist(const struct list_head *node)
++{
++	int i;
++
++	for (i = 0; i < CONFIG_CHANNEL_NODE_NUM; i++) {
++		if (node == &channel_list[i].list)
++			return &channel_list[i];
++	}
++	return NULL;
++}
++
++/* A NULL pointer passes unless the ioctl needs that node. */
++static long soc_vpu_check_cnode(struct soc_channel *sc, const struct channel_node *cnode,
++				bool need_vlist, bool need_clist)
++{
++	if ((cnode->vlist || need_vlist) && !soc_vpu_find_vlist(cnode->vlist))
++		goto err_bad_node;
++	if ((cnode->clist || need_clist) && !soc_vpu_find_clist(cnode->clist))
++		goto err_bad_node;
++	return 0;
++
++err_bad_node:
++	dev_err_ratelimited(sc->mdev.this_device, "[%d:%d] invalid vpu/channel node %p/%p\n",
++			    current->tgid, current->pid, cnode->vlist, cnode->clist);
++	return -EINVAL;
++}
+ /*
+  * Vpu_register needn't lock because there are only
+  * one process using it at the register context.
+@@ -323,7 +368,7 @@ static int channel_tlb_unmap_all_vaddr(struct device *dev, struct channel_list *
+ }
+ #endif
+ 
+-static long soc_channel_request(struct soc_channel *sc, long usr_arg)
++static long soc_channel_request(struct soc_channel *sc, struct file *file, long usr_arg)
+ {
+ 	struct channel_node cnode;
+ 	long ret = 0;
+@@ -337,8 +382,8 @@ static long soc_channel_request(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 	fclist = list_entry(sc->fclist_head, struct free_channel_list, fclist_head);
+-find_channel_try_point:
+-	ret = wait_for_completion_interruptible_timeout(&fclist->cdone, msecs_to_jiffies(cnode.mdelay));
++	/* killable: a pending signal used to make the ERESTARTSYS retry spin */
++	ret = wait_for_completion_killable_timeout(&fclist->cdone, msecs_to_jiffies(cnode.mdelay));
+ 	if (ret > 0) {
+ 		spin_lock_irqsave(&fclist->slock, fcflag);
+ 		if (list_empty(&fclist->fclist_head)) {
+@@ -371,6 +416,7 @@ find_channel_try_point:
+ 		clist->phase = REQUEST_CHANNEL;
+ 		clist->tgid = current->tgid;
+ 		clist->pid = current->pid;
++		clist->file = file;
+ 		cnode.channel_id = clist->id;
+ 		spin_unlock_irqrestore(&clist->slock, clflag);
+ 
+@@ -380,10 +426,8 @@ find_channel_try_point:
+ 			goto err_copy_to_user;
+ 		}
+ 	} else if (ret == -ERESTARTSYS) {
+-		if (fatal_signal_pending(current))
+-			return -ERESTARTSYS;
+-		dev_dbg(sc->mdev.this_device, "[fun:%s,line:%d] fclist wait is interrupt, ingnore this info\n", __func__, __LINE__);
+-		goto find_channel_try_point;
++		/* the wait is killable: only a fatal signal gets here (0097) */
++		return -ERESTARTSYS;
+ 	} else {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] fclist is empty\n", __func__, __LINE__);
+ 		return -EBUSY;
+@@ -396,6 +440,7 @@ err_copy_to_user:
+ 	clist->phase = INIT_CHANNEL;
+ 	clist->tgid = -1;
+ 	clist->pid = -1;
++	clist->file = NULL;
+ 	spin_unlock_irqrestore(&clist->slock, clflag);
+ err_tlb_deinit:
+ err_tlb_unmap_all_vaddr:
+@@ -423,7 +468,7 @@ static long soc_vpu_request(struct soc_channel *sc, struct channel_node *cnode,
+ 
+ 	//start = current_kernel_time();
+ find_vpu_try_point:
+-	ret = wait_for_completion_interruptible_timeout(&fvlist->vdone, msecs_to_jiffies(cnode->mdelay));
++	ret = wait_for_completion_killable_timeout(&fvlist->vdone, msecs_to_jiffies(cnode->mdelay));
+ 	if (ret > 0) {
+ 		struct vpu *vpu = NULL;
+ 		spin_lock_irqsave(&fvlist->slock, fvflag);
+@@ -497,10 +542,8 @@ find_vpu_try_point:
+ 		cnode->workphase = WORKING;
+ 		spin_unlock_irqrestore(&fvlist->slock, fvflag);
+ 	} else if (ret == -ERESTARTSYS) {
+-		if (fatal_signal_pending(current))
+-			return -ERESTARTSYS;
+-		dev_dbg(sc->mdev.this_device, "[fun:%s,line:%d] fvlist wait is interrupt, ingnore this info\n", __func__, __LINE__);
+-		goto find_vpu_try_point;
++		/* the wait is killable: only a fatal signal gets here (0097) */
++		return -ERESTARTSYS;
+ 	} else {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] fvlist is empty\n", __func__, __LINE__);
+ 		return -EBUSY;
+@@ -612,17 +655,30 @@ static long soc_channel_release_internal(struct soc_channel *sc, struct channel_
+ err_tlb_deinit:
+ err_tlb_unmap_all_vaddr:
+ 
++		/*
++		 * Test and clear the phase in one step and never add a node
++		 * that is already on the free list: two releases of the same
++		 * channel (ioctl + close, or two threads) used to list_add it
++		 * twice and corrupt the free list.
++		 */
++		spin_lock_irqsave(&clist->slock, clflag);
+ 		if (clist->phase >= REQUEST_CHANNEL) {
+-			spin_lock_irqsave(&clist->slock, clflag);
+ 			clist->phase = INIT_CHANNEL;
+ 			clist->tgid = -1;
+ 			clist->pid = -1;
++			clist->file = NULL;
+ 			spin_unlock_irqrestore(&clist->slock, clflag);
+ 
+ 			spin_lock_irqsave(&fclist->slock, fcflag);
+-			list_add_tail(&clist->list, &fclist->fclist_head);
+-			complete(&fclist->cdone);
++			if (list_empty(&clist->list)) {
++				list_add_tail(&clist->list, &fclist->fclist_head);
++				complete(&fclist->cdone);
++			} else {
++				WARN_ONCE(1, "soc_vpu: channel node %p released twice\n", clist);
++			}
+ 			spin_unlock_irqrestore(&fclist->slock, fcflag);
++		} else {
++			spin_unlock_irqrestore(&clist->slock, clflag);
+ 		}
+ 	}
+ 
+@@ -641,6 +697,9 @@ static long soc_channel_release(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, false, false)) < 0)
++		goto err_copy_from_user;
++
+ 	soc_vpu_release(sc, &cnode);
+ 	if (cnode.clist) {
+ 		clist = list_entry(cnode.clist, struct channel_list, list);
+@@ -794,6 +853,9 @@ static long soc_channel_run(struct soc_channel *sc, struct file *file, long usr_
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, false, true)) < 0)
++		goto err_copy_from_user;
++
+ 	if ((ret = soc_vpu_request(sc, &cnode, file)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] request vpu failed\n", __func__, __LINE__);
+ 		goto  err_vpu_request;
+@@ -848,6 +910,9 @@ static long soc_channel_start(struct soc_channel *sc, struct file *file, long us
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, false, true)) < 0)
++		goto err_copy_from_user;
++
+ 	if ((ret = soc_vpu_request(sc, &cnode, file)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] request vpu failed\n", __func__, __LINE__);
+ 		goto  err_vpu_request;
+@@ -897,6 +962,9 @@ static long soc_channel_wait_complete(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, true, false)) < 0)
++		goto err_copy_from_user;
++
+ 	if ((ret = soc_vpu_wait_complete(sc, &cnode)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] start vpu on failed\n", __func__, __LINE__);
+ 		goto err_vpu_wait_complete;
+@@ -954,7 +1022,12 @@ static long soc_channel_buf_init(struct soc_channel *sc, long usr_arg)
+ 		goto warn_tlb_needed_false;
+ 	}
+ 
+-	clist = list_entry(binfo.clist, struct channel_list, list);
++	clist = soc_vpu_find_clist(binfo.clist);
++	if (!clist) {
++		ret = -EINVAL;
++		dev_err_ratelimited(sc->mdev.this_device, "[fun:%s,line:%d] invalid channel node\n", __func__, __LINE__);
++		goto err_copy_from_user;
++	}
+ 
+ 	if (clist->tlb_flag == false) {
+ 		if ((ret = channel_tlb_init(sc->mdev.this_device, clist)) < 0) {
+@@ -977,6 +1050,47 @@ err_copy_from_user:
+ 	return ret;
+ }
+ 
++/*
++ * IOCTL_CHANNEL_WOR_VPU_REG used to read or write any physical address
++ * below 512 MiB through KSEG1.  The stock libimp only reads Helix registers
++ * with it (T23: _jz_hwicodec_pf_h264e_t21_set_priv(), base 0x13100000;
++ * T21: 0x13200000); OpenIMP does not use it.  Keep reads and writes, but
++ * only for aligned words inside the VPU register windows.
++ */
++#define SOC_VPU_REG_WINDOW	0x100000
++#if defined(CONFIG_VPU_HELIX_NUM)
++#define SOC_VPU_HELIX_UNITS	CONFIG_VPU_HELIX_NUM
++#else
++#define SOC_VPU_HELIX_UNITS	1
++#endif
++
++static bool soc_vpu_reg_allowed(unsigned int paddr)
++{
++	int i __maybe_unused;
++
++	if (paddr & 0x3)
++		return false;
++#ifdef HELIX_IOBASE_UNIT
++	for (i = 0; i < SOC_VPU_HELIX_UNITS; i++) {
++		if ((paddr >= HELIX_IOBASE_UNIT(i)) && (paddr < HELIX_IOBASE_UNIT(i) + SOC_VPU_REG_WINDOW))
++			return true;
++	}
++#elif defined(HELIX_IOBASE)
++	if ((paddr >= HELIX_IOBASE) && (paddr < HELIX_IOBASE + SOC_VPU_REG_WINDOW))
++		return true;
++#endif
++#if defined(CONFIG_VPU_RADIX) && defined(RADIX_IOBASE)
++	if ((paddr >= RADIX_IOBASE) && (paddr < RADIX_IOBASE + SOC_VPU_REG_WINDOW))
++		return true;
++#endif
++#if defined(CONFIG_SOC_T23) && defined(IVDC_IOBASE)
++	/* IVDC (direct ISP->VPU path), as mapped by the Helix driver */
++	if ((paddr >= IVDC_IOBASE) && (paddr < IVDC_IOBASE + 0x1000))
++		return true;
++#endif
++	return false;
++}
++
+ static long soc_channel_write_read_reg(struct soc_channel *sc, long usr_arg)
+ {
+ 	struct reg_info reginfo;
+@@ -988,6 +1102,13 @@ static long soc_channel_write_read_reg(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if (!soc_vpu_reg_allowed(reginfo.paddr)) {
++		ret = -EPERM;
++		dev_err_ratelimited(sc->mdev.this_device, "[%d:%d] register 0x%08x outside the vpu windows\n",
++				    current->tgid, current->pid, reginfo.paddr);
++		goto err_copy_from_user;
++	}
++
+ 	switch (reginfo.dir) {
+ 	case WRITE_DIR:
+ 		writel(reginfo.value, (void *)(reginfo.paddr | 0xa0000000));
+@@ -1028,7 +1149,11 @@ static long soc_channel_vpu_suspend(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
+-	vlist = list_entry(vpu_list, struct vpu_list, list);
++	vlist = soc_vpu_find_vlist(vpu_list);
++	if (!vlist) {
++		ret = -EINVAL;
++		goto err_copy_from_user;
++	}
+ 	vpu = list_entry(vlist->vlist, struct vpu, vlist);
+ 	if (vpu->dev && vpu->ops && vpu->ops->suspend) {
+ 		ret = vpu->ops->suspend(vpu->dev);
+@@ -1063,7 +1188,11 @@ static long soc_channel_vpu_resume(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
+-	vlist = list_entry(vpu_list, struct vpu_list, list);
++	vlist = soc_vpu_find_vlist(vpu_list);
++	if (!vlist) {
++		ret = -EINVAL;
++		goto err_copy_from_user;
++	}
+ 	vpu = list_entry(vlist->vlist, struct vpu, vlist);
+ 	if (vpu->dev && vpu->ops && vpu->ops->suspend) {
+ 		ret = vpu->ops->resume(vpu->dev);
+@@ -1098,7 +1227,7 @@ static long soc_channel_private_tlb(struct soc_channel *sc, long usr_arg)
+ 		return -1;
+ 	}
+ 
+-	clist = list_entry(binfo.clist, struct channel_list, list);
++	clist = soc_vpu_find_clist(binfo.clist);
+ 	if(clist == NULL) {
+ 		dev_warn(sc->mdev.this_device, "[fun:%s,line:%d] get clist is false\n", __func__, __LINE__);
+ 		return -1;
+@@ -1163,6 +1292,9 @@ static long soc_channel_wait_bsfull_complete(struct soc_channel *sc, long usr_ar
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, true, false)) < 0)
++		goto err_copy_from_user;
++
+ 	if ((ret = soc_vpu_wait_bs_complete(sc, &cnode)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] wait bs complete failed\n", __func__, __LINE__);
+ 		goto err_vpu_wait_complete;
+@@ -1227,6 +1359,9 @@ static long soc_channel_set_bsfull_paddr(struct soc_channel *sc, long usr_arg)
+ 		goto err_copy_from_user;
+ 	}
+ 
++	if ((ret = soc_vpu_check_cnode(sc, &cnode, true, true)) < 0)
++		goto err_copy_from_user;
++
+ 	soc_channel_flush_cache_all(sc, &cnode);
+ 
+ 	if ((ret = soc_vpu_set_bsfull_paddr(sc, &cnode)) < 0) {
+@@ -1319,8 +1454,11 @@ static int soc_channel_vpu_release(struct inode *inode, struct file *file)
+ 	}
+ 
+ 	for (i = 0; i < CONFIG_CHANNEL_NODE_NUM; i++) {
+-		if (((channel_list[i].tgid == current->tgid) && (channel_list[i].pid == current->pid))
+-			|| (last_release == true)) {
++		/*
++		 * Like the VPUs: release the channels requested through this
++		 * file, not those of whichever thread happens to close it.
++		 */
++		if ((channel_list[i].file == file) || (last_release == true)) {
+ 			soc_channel_release_internal(sc, &channel_list[i]);
+ 		}
+ 	}
+@@ -1362,7 +1500,7 @@ static long soc_channel_ioctl(struct file *file, unsigned int cmd, unsigned long
+ 
+ 	switch (cmd) {
+ 	case IOCTL_CHANNEL_REQ:
+-		ret = soc_channel_request(sc, arg);
++		ret = soc_channel_request(sc, file, arg);
+ 		break;
+ 	case IOCTL_CHANNEL_REL:
+ 		ret = soc_channel_release(sc, arg);
+diff --git a/drivers/video/soc_vpu/soc_vpu.h b/drivers/video/soc_vpu/soc_vpu.h
+index 7058bc24..16609518 100644
+--- a/drivers/video/soc_vpu/soc_vpu.h
++++ b/drivers/video/soc_vpu/soc_vpu.h
+@@ -47,6 +47,7 @@ struct channel_list {
+ 	bool				tlb_flag;
+ 	bool				private_tlb_flag;
+ 	struct channel_tlb_pidmanager	*tlb_pidmanager;
++	struct file			*file;		/* file that requested the channel */
+ };
+ 
+ struct free_channel_list {
