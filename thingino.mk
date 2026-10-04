@@ -115,70 +115,38 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# default to older kernel if none set
-ifeq ($(KERNEL_VERSION),)
-	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.1-rc1
-	else ifeq ($(KERNEL_VERSION_4),y)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t41)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t40)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),a1)
-		KERNEL_VERSION := 4.4.94
-	else
-		KERNEL_VERSION := 3.10.14
-	endif
+# What the defconfig asked for, if anything. No guard on KERNEL_VERSION being
+# empty: a value given on the command line already wins over any assignment in a
+# makefile, so guarding only ever protected an environment variable, which
+# nothing sets.
+ifeq ($(KERNEL_VERSION_7),y)
+KERNEL_VERSION := 7.1-rc1
+else ifeq ($(KERNEL_VERSION_4),y)
+KERNEL_VERSION := 4.4.94
 endif
 
-KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+# Which kernels a vendor's SoCs run: fills in the version when the defconfig
+# named none, and names the branch. Absent for a vendor that names its kernel
+# through Buildroot symbols instead, which is why this include may find nothing.
+-include $(BR2_EXTERNAL)/kernels/$(SOC_VENDOR).mk
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
-	KERNEL_BRANCH := ingenic-7.1-rc1
-else ifeq ($(SOC_FAMILY),a1)
-	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(SOC_FAMILY),c100)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t41)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t41-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t41-3.10.14
-	endif
-else ifeq ($(SOC_FAMILY),t40)
-	KERNEL_BRANCH := ingenic-t40
-else ifeq ($(SOC_FAMILY),t31)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t32)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t32-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t32
-	endif
-else ifeq ($(SOC_FAMILY),t23)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := f97f65461547f1543ee3da22e72612f29a797cb3
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else
-	KERNEL_BRANCH := ingenic-t31
+# A vendor that names its kernel through Buildroot symbols instead sets no
+# KERNEL_SITE, and there is nothing here to resolve -- without this the
+# ls-remote below would run on every make for a value it never reads.
+ifneq ($(KERNEL_SITE),)
+
+# A combination the vendor's file names no branch for is an error rather than a
+# fallback, because carrying another version's branch builds a kernel that
+# disagrees with the version everything else was told.
+ifeq ($(KERNEL_BRANCH),)
+$(error SoC family '$(SOC_FAMILY)' does not run kernel '$(KERNEL_VERSION)')
 endif
 
 ifeq ($(KERNEL_HASH),)
-	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
+KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+endif
 
 ifeq ($(KERNEL_VERSION),7.1-rc1)
 KERNEL_VERSION_7 := y
