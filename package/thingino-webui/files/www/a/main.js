@@ -45,13 +45,9 @@ const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
 const SessionStatusEndpoint = "/x/session-status.cgi";
-// The SSE error event exposes no HTTP status, so a stream that keeps failing
-// cannot tell an expired session from a network blip on its own. After this
-// many failures in a row, ask an endpoint that does report a status.
+// SSE errors carry no status: after this many in a row, ask session-status.
 const HeartBeatAuthCheckFailures = 3;
-// An open SSE stream is authenticated once, when it opens, and keeps delivering
-// after the session expired server-side. So the session is also probed on a
-// timer while the page is visible.
+// An open SSE stream outlives the session, so probe on a timer too.
 const SessionCheckInterval = 60 * 1000;
 let sessionCheckTimer = null;
 let heartbeatSource = null;
@@ -63,9 +59,7 @@ let debugModalCtx = null;
 // Password check state - must be initialized before heartbeat can start
 let isDefaultPassword = false;
 let passwordCheckComplete = false;
-// Set once a definitive auth refusal has been seen, so the session check, the
-// slow heartbeat and the SSE retry loop cannot race each other into the login
-// page more than once.
+// Stops the session check, slow heartbeat and SSE retries racing to /login.html.
 let authRedirectInProgress = false;
 
 function $(n) {
@@ -1026,8 +1020,6 @@ function updateHeartbeatUi(json) {
   }
 }
 
-// Single exit to the login page. Only a definitive auth refusal may call this;
-// everything else retries.
 function redirectToLogin() {
   if (authRedirectInProgress) return;
   if (
@@ -1041,10 +1033,7 @@ function redirectToLogin() {
   window.location.href = "/login.html";
 }
 
-// Session probe for callers that only see opaque errors (the SSE stream) and
-// for the periodic check. session-status.cgi is public and always answers 200;
-// the signal is authenticated:false. An unreachable endpoint or a 5xx leaves
-// the page alone so the normal retries can continue.
+// session-status.cgi always answers 200; only authenticated:false redirects.
 async function verifySessionStillValid() {
   if (authRedirectInProgress) return;
 
@@ -1096,8 +1085,6 @@ function startHeartbeatSse() {
     heartbeatSource.close();
     heartbeatSource = null;
     heartbeatSseFailures++;
-    // The error event itself says nothing about why the stream died, so only
-    // escalate to a real session check once it has failed repeatedly.
     if (heartbeatSseFailures >= HeartBeatAuthCheckFailures) {
       verifySessionStillValid();
     }
@@ -1131,7 +1118,6 @@ async function fetchSlowHeartbeatStatus() {
     });
 
     if (response.status === 401 || response.status === 403) {
-      // definitive auth refusal from the server - the session is gone
       redirectToLogin();
       return;
     }
@@ -1190,7 +1176,6 @@ document.addEventListener("visibilitychange", () => {
 
 function heartbeat() {
   console.trace("heartbeat() called");
-  // Don't reopen anything while we are on our way to the login page
   if (authRedirectInProgress) return;
   // Don't start heartbeat until password check is complete
   if (!passwordCheckComplete) {
