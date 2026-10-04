@@ -1,0 +1,39 @@
+From: Lu-Fi <lu-fi@users.noreply.github.com>
+Subject: [PATCH] sensor/t31/sc2336: vflip returns the real I2C result
+
+sensor_set_vflip() started with ret = -1 and added the read and write
+results, so a successful flip returned -1: the ISP logged "sensor flip
+failed: -1" on every stream start and the SYNC_SENSOR_ATTR notify after
+the write was skipped, although register 0x3221 was written. Return the
+read error, otherwise the write result, and notify on success.
+---
+ common/sensor/t31/sc2336.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/common/sensor/t31/sc2336.c b/common/sensor/t31/sc2336.c
+index 64a39ea1..e325d198 100644
+--- a/common/sensor/t31/sc2336.c
++++ b/common/sensor/t31/sc2336.c
+@@ -827,17 +827,19 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd, struct tx_isp_chip_iden
+ }
+ 
+ static int sensor_set_vflip(struct tx_isp_subdev *sd, int enable) {
+-	int ret = -1;
++	int ret;
+ 	struct tx_isp_sensor *sensor = sd_to_sensor_device(sd);
+ 	unsigned char val = 0x00;
+ 
+-	ret += sensor_read(sd, 0x3221, &val);
++	ret = sensor_read(sd, 0x3221, &val);
++	if (ret < 0)
++		return ret;
+ 	if (enable & 0x02) {
+ 		val |= 0x60;
+ 	} else {
+ 		val &= 0x9f;
+ 	}
+-	ret += sensor_write(sd, 0x3221, val);
++	ret = sensor_write(sd, 0x3221, val);
+ 	if (!ret) {
+ 		ret = tx_isp_call_subdev_notify(sd, TX_ISP_EVENT_SYNC_SENSOR_ATTR, &sensor->video);
+ 	}
