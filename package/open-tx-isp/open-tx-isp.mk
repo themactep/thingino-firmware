@@ -6,9 +6,10 @@
 
 OPEN_TX_ISP_SITE_METHOD = git
 OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
-# Release tag of the Lu-Fi open-stack fork. The tag is cut after the soak
-# of its candidate, 40cc77eccb959d265b307b7517eff9eb97552a7f.
-OPEN_TX_ISP_VERSION = v2026.10.05
+# Lu-Fi open-stack fork, branch next (device-tested integration state).
+# Will move to a release tag once the first one is cut.
+OPEN_TX_ISP_SITE_BRANCH = next
+OPEN_TX_ISP_VERSION = 40cc77eccb959d265b307b7517eff9eb97552a7f
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
