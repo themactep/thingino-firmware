@@ -1,7 +1,7 @@
 From: Claude <noreply@anthropic.com>
 Subject: [PATCH] rmem: validate direction and range of RMEN_CMD_FLUSH_CACHE
 
-On top of 0001-0099.
+On top of 0001-0097.
 
 The /dev/rmem flush ioctl handed the user's {addr, len, dir} straight to
 dma_cache_sync():

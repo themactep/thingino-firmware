@@ -1,0 +1,31 @@
+From: OpenIMP campaign
+Subject: [PATCH] soc_vpu/helix: ignore residual interrupt status after a finished job
+
+On top of 0099.  Helix can raise a second interrupt for a job whose
+ENDFLAG interrupt already completed it (SCH_STAT 0x301 -> 0x100 once the
+handler cleared the done flags).  Since 0099 the error branch completed
+the wait for it, so the waiter saw no END/BSFULL, reset the core and
+dropped a finished picture (~4-6 per hour on a T23).  A status without
+ENDFLAG and without an error bit is now ignored; status and length of the
+job stay as they are.
+---
+--- a/drivers/video/soc_vpu/helix/helix.c
++++ b/drivers/video/soc_vpu/helix/helix.c
+@@ -612,6 +612,17 @@
+ 			vpu->status = vpu_stat;
+ 			complete(&vpu->done);
+ 
++		} else if (!(vpu_stat & (SCH_STAT_ORESERR | SCH_STAT_BSERR |
++					 SCH_STAT_ACFGERR))) {
++			/*
++			 * No end flag and no error bit: the residue of a
++			 * second invocation for a job whose ENDFLAG interrupt
++			 * already completed it (SCH_STAT 0x301 -> 0x100 once
++			 * the handler cleared the SDE/DBLK done flags).  Keep
++			 * that job's status and length; failing it here (0099)
++			 * dropped a finished picture every few minutes on T23.
++			 */
++			dev_dbg(vpu->vpu.dev, "spurious interrupt, status = %x\n", vpu_stat);
+ 		} else {
+ 			check_vpu_status(SCH_STAT_ORESERR, "out fo resolution error!\n");
+ 			check_vpu_status(SCH_STAT_BSERR, "BS error!\n");
