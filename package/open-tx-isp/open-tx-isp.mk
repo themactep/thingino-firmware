@@ -5,9 +5,11 @@
 ################################################################################
 
 OPEN_TX_ISP_SITE_METHOD = git
-OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
-OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = e92166b985606613f2395831bac65413c7542877
+OPEN_TX_ISP_SITE = https://github.com/Lu-Fi/open-tx-isp
+# Lu-Fi open-stack fork, branch next (device-tested integration state).
+# Will move to a release tag once the first one is cut.
+OPEN_TX_ISP_SITE_BRANCH = next
+OPEN_TX_ISP_VERSION = 40cc77eccb959d265b307b7517eff9eb97552a7f
 
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
