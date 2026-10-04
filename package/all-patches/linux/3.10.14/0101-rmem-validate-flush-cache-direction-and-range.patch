@@ -1,0 +1,85 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] rmem: validate direction and range of RMEN_CMD_FLUSH_CACHE
+
+On top of 0001-0100.
+
+The /dev/rmem flush ioctl handed the user's {addr, len, dir} straight to
+dma_cache_sync():
+
+ - dir 3 (DMA_NONE) hits BUG_ON() in dma_cache_sync(), any dir >= 4 hits
+   BUG() in __dma_sync_virtual(); one ioctl from any process that can
+   open /dev/rmem took the kernel down.  Now -EINVAL.
+ - addr/len were not checked: a kernel address, a hole, a PROT_NONE
+   mapping or a range running past the end of a mapping made the cache
+   instructions fault in kernel mode without a fixup (oops).  The range
+   must now start in an accessible mapping of the caller; it is clamped
+   to the accessible mappings that follow contiguously (a flush rounded
+   up past the end of a buffer keeps the part that matters), otherwise
+   -EFAULT.  len 0 is a no-op; an overflowing or above-TASK_SIZE range is
+   -EFAULT.
+
+Valid callers (libimp/OpenIMP: rmem VA, dir 1/2, inside the arena) see no
+change.  This is the 3.10 driver, which flushes by virtual address; the
+4.4 T41 driver takes a physical address and is not touched here.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/misc/rmem.c | 39 +++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/misc/rmem.c b/drivers/misc/rmem.c
+index be3c0b23..06846ffb 100644
+--- a/drivers/misc/rmem.c
++++ b/drivers/misc/rmem.c
+@@ -46,14 +46,49 @@ static int rmem_release(struct inode *inode, struct file *filp)
+ static long rmem_cmd_flush_cache(long arg)
+ {
+ 	struct rmem_flush_cache_info info;
+-	long ret = 0;
++	struct mm_struct *mm = current->mm;
++	struct vm_area_struct *vma;
++	unsigned long addr, end;
++
+ 	if (copy_from_user(&info, (void *)arg, sizeof(info))) {
+ 		return -EFAULT;
+ 	}
+ 
++	/* dma_cache_sync() hits BUG_ON() for DMA_NONE (3) and BUG() for any
++	 * other unknown direction. */
++	if (!valid_dma_direction(info.dir))
++		return -EINVAL;
++	if (!info.len)
++		return 0;
++
++	addr = info.addr;
++	end = addr + info.len;
++	if (end < addr || end > TASK_SIZE || !mm)
++		return -EFAULT;
++
++	/* The cache instructions run on the caller's virtual address. A hole,
++	 * a PROT_NONE mapping or a kernel address faults in kernel mode without
++	 * a fixup and oopses, so flush only the accessible mappings that run
++	 * contiguously from the start address and refuse a start that is not
++	 * mapped. mmap_sem is dropped before the cache operation because a
++	 * page fault there takes it again. */
++	down_read(&mm->mmap_sem);
++	while (addr < end) {
++		vma = find_vma(mm, addr);
++		if (!vma || vma->vm_start > addr ||
++		    !(vma->vm_flags & (VM_READ | VM_WRITE)))
++			break;
++		addr = vma->vm_end;
++	}
++	up_read(&mm->mmap_sem);
++	if (addr == info.addr)
++		return -EFAULT;
++	if (addr < end)
++		info.len = addr - info.addr;
++
+ 	dma_cache_sync(NULL, (void *)info.addr, info.len, info.dir);
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static long rmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
