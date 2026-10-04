@@ -262,4 +262,6 @@ esac
 
 sync
 echo "Flash complete. Rebooting..."
+# reboot -f skips the init stop scripts; release the optional ISP boot guard
+[ -x /etc/init.d/S10isp-guard ] && /etc/init.d/S10isp-guard stop || true
 reboot -f

@@ -1,0 +1,153 @@
+#!/bin/sh
+# Boot guard for the open ISP stack (open-tx-isp modules + sensor drivers).
+# Runs before the module loader and S95timps.
+#
+# u-boot env "isp_open" selects what happens at boot:
+#   auto   (default when unset) load the modules normally, with a crash-loop
+#          guard: a boot that does not reach STABLE_SECS of uptime with timpsd
+#          running leaves /etc/isp-guard/pending behind; the next boot then
+#          skips the ISP stack and records /etc/isp-guard/tripped until
+#          "clear" is run.
+#   manual do not load the ISP and sensor modules and do not start timps; load
+#          them by hand with "/etc/init.d/S10isp-guard load" while watching
+#          the kernel log.
+#   off    never load them.
+# Change it with: fw_setenv isp_open auto|manual|off  (takes effect at the
+# next boot). From u-boot (serial): setenv isp_open off; boot
+#
+# The modules and timps are suppressed for this boot only, by bind-mounting
+# empty files over /etc/modules.d entries and /etc/init.d/S95timps (tmpfs
+# state, nothing on flash changes).
+#
+# A clean reboot (rcK, sysupgrade's stop_services, timps' recovery reboot,
+# flash-ota) runs "stop", which clears the pending mark; a crash, watchdog
+# reset or power loss within STABLE_SECS keeps it and trips the guard.
+
+# shellcheck source=/dev/null
+. /etc/init.d/lib-log
+
+STATE_DIR=/etc/isp-guard
+STABLE_SECS=300
+NOOP=/run/isp-guard-noop
+
+isp_module_files() {
+	for f in /etc/modules.d/*; do
+		[ -f "$f" ] || continue
+		case "$(awk 'NF && $1 !~ /^#/ {print $1; exit}' "$f")" in
+			tx-isp-* | tx_isp_* | sensor_*) echo "$f" ;;
+		esac
+	done
+}
+
+suppress() {
+	log -c 208 "isp-guard: $1 - open ISP stack not loaded this boot"
+	echo "$1" >/run/isp-guard.reason
+	for f in $(isp_module_files); do
+		mount --bind /dev/null "$f"
+	done
+	printf '#!/bin/sh\nexit 0\n' >"$NOOP"
+	chmod 755 "$NOOP"
+	[ -f /etc/init.d/S95timps ] && mount --bind "$NOOP" /etc/init.d/S95timps
+}
+
+release() {
+	grep -q ' /etc/init.d/S95timps ' /proc/mounts && umount /etc/init.d/S95timps
+	for f in $(isp_module_files) /etc/modules.d/*; do
+		grep -q " $f " /proc/mounts && umount "$f"
+	done
+	rm -f /run/isp-guard.reason
+}
+
+load_now() {
+	release
+	for f in $(isp_module_files); do
+		while read -r module args; do
+			case "$module" in "" | "#"*) continue ;; esac
+			echo "isp-guard: modprobe $module $args"
+			# shellcheck disable=SC2086 # module arguments are intentionally word-split
+			modprobe $module $args || {
+				echo "isp-guard: modprobe $module failed"
+				return 1
+			}
+		done <"$f"
+	done
+	[ "$1" = "--no-timps" ] || /etc/init.d/S95timps start
+}
+
+mark_stable() {
+	(
+		while :; do
+			up=$(awk '{print int($1)}' /proc/uptime)
+			if [ "$up" -ge "$STABLE_SECS" ] && pidof timpsd >/dev/null; then
+				rm -f "$STATE_DIR/pending"
+				sync
+				log -c 118 "isp-guard: stable after ${up}s, pending mark cleared"
+				exit 0
+			fi
+			sleep 10
+		done
+	) </dev/null >/dev/null 2>&1 &
+}
+
+start() {
+	mode=$(fw_printenv -n isp_open 2>/dev/null)
+	mkdir -p "$STATE_DIR"
+	case "$mode" in
+		off)
+			suppress "isp_open=off"
+			return 0
+			;;
+		manual)
+			suppress "isp_open=manual"
+			return 0
+			;;
+	esac
+	if [ -f "$STATE_DIR/tripped" ]; then
+		suppress "guard tripped earlier ($(cat "$STATE_DIR/tripped")), run '$0 clear'"
+		return 0
+	fi
+	if [ -f "$STATE_DIR/pending" ]; then
+		echo "previous boot $(cat "$STATE_DIR/pending") did not stay up ${STABLE_SECS}s with timpsd" >"$STATE_DIR/tripped"
+		rm -f "$STATE_DIR/pending"
+		sync
+		suppress "previous boot did not stay up ${STABLE_SECS}s with timpsd"
+		return 0
+	fi
+	echo "boot at $(date '+%F %T')" >"$STATE_DIR/pending"
+	sync
+	log -c 118 "isp-guard: isp_open=${mode:-auto}, loading the open ISP stack (crash guard armed)"
+	mark_stable
+}
+
+status() {
+	echo "isp_open=$(fw_printenv -n isp_open 2>/dev/null || echo '(unset = auto)')"
+	[ -f /run/isp-guard.reason ] && echo "suppressed this boot: $(cat /run/isp-guard.reason)"
+	[ -f "$STATE_DIR/pending" ] && echo "pending: $(cat "$STATE_DIR/pending")"
+	[ -f "$STATE_DIR/tripped" ] && echo "tripped: $(cat "$STATE_DIR/tripped")"
+	grep -E '^(tx_isp|sensor_)' /proc/modules || echo "no ISP/sensor module loaded"
+}
+
+case "$1" in
+	start) start ;;
+	stop)
+		# clean shutdown (rcK on reboot, sysupgrade stop_services): the reboot is
+		# intentional, so do not let it count as a failed boot. Crashes and
+		# watchdog resets skip this and keep the crash-loop guard working.
+		rm -f "$STATE_DIR/pending"
+		sync
+		;;
+	restart) true ;;
+	status) status ;;
+	clear)
+		rm -f "$STATE_DIR/pending" "$STATE_DIR/tripped"
+		sync
+		echo "isp-guard: cleared"
+		;;
+	load) load_now "$2" ;;
+	*)
+		echo "Usage: $0 {start|status|clear|load [--no-timps]}"
+		exit 1
+		;;
+esac
+
+exit 0
