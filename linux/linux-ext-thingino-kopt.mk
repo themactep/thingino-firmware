@@ -15,9 +15,6 @@ define THINGINO_KOPT_PREPARE_KERNEL
 		$(THINGINO_LED_HEADER)
 	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/patch_kernel_leds_board_base.sh \
 		$(THINGINO_LED_BOARD_BASE)
-	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/patch_kernel_ipu_wedge.sh \
-		$(LINUX_DIR) \
-		$(BR2_EXTERNAL_THINGINO_PATH)/linux/patches/jz_ipu_v13-wedge-mitigation.patch
 endef
 
 # Per-device dts from the camera profile dir (CAMERA_DTS_FILE/DEST come
