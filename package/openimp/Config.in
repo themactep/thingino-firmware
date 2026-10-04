@@ -35,4 +35,5 @@ config BR2_PACKAGE_OPENIMP
 	  T10/T20/T21 reuse the T31 audio implementation; T31/T40/T41 include
 	  audio. Some optional OSD/IVS entry points remain incomplete.
 
-	  https://github.com/opensensor/openimp
+	  https://github.com/Lu-Fi/openimp
+	  (open-stack fork of https://github.com/opensensor/openimp)

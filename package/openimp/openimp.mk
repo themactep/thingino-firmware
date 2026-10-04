@@ -5,9 +5,10 @@
 ################################################################################
 
 OPENIMP_SITE_METHOD = git
-OPENIMP_SITE = https://github.com/opensensor/openimp
-OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = 9cab2192f058c0c5e6c18a6052158a5f7a44b268
+OPENIMP_SITE = https://github.com/Lu-Fi/openimp
+# Release tag of the Lu-Fi open-stack fork. The tag is cut after the soak
+# of its candidate, 0c02f45a7886832e7351e32f9f08954142858d06.
+OPENIMP_VERSION = v2026.10.05
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
