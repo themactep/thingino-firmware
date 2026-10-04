@@ -1,0 +1,76 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] soc_vpu/helix: vpu_open: no -EBUSY return with the lock held, bound the reset
+
+vpu_open() runs with vpu->slock held and interrupts disabled (and is
+called from soc_vpu_request() under vlist->slock, irqsave as well).
+
+ - The CPM_OPCR idle check returned -EBUSY without unlocking: the lock and
+   the disabled-interrupt/preempt state leaked.
+ - vpu_reset() polls the stop-ack bit up to 0x7fff * 20 us = 655 ms; with
+   interrupts off that freezes the whole system for that long.  The open
+   now waits at most 1 ms; soc_channel_run()/soc_channel_start() call
+   ops->reset (full timeout, interrupts on) right after every request.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/video/soc_vpu/helix/helix.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/video/soc_vpu/helix/helix.c b/drivers/video/soc_vpu/helix/helix.c
+index 5a31659b..8f0e6c75 100644
+--- a/drivers/video/soc_vpu/helix/helix.c
++++ b/drivers/video/soc_vpu/helix/helix.c
+@@ -40,10 +40,18 @@ struct jz_vpu_helix {
+ 	unsigned int        cmpx;
+ };
+ 
+-static long vpu_reset(struct device *dev)
++/*
++ * Bound for the stop-ack poll when the caller has interrupts disabled
++ * (vpu_open runs under vpu->slock and soc_vpu_request's vlist->slock):
++ * 50 * 20 us = 1 ms instead of 0x7fff * 20 us = 655 ms.  soc_channel_run()
++ * and soc_channel_start() reset the core again, with the full timeout and
++ * interrupts enabled, right after the open.
++ */
++#define VPU_RESET_ATOMIC_LOOPS	50
++
++static long __vpu_reset(struct device *dev, int timeout)
+ {
+ 	struct jz_vpu_helix *vpu = dev_get_drvdata(dev);
+-	int timeout = 0x7fff;
+ 	unsigned int srbc = cpm_inl(CPM_SRBC);
+ 
+ 	cpm_set_bit(CPM_HELIX_STP(vpu->vpu.idx), CPM_SRBC);
+@@ -62,14 +70,22 @@ static long vpu_reset(struct device *dev)
+ 	return 0;
+ }
+ 
++static long vpu_reset(struct device *dev)
++{
++	return __vpu_reset(dev, 0x7fff);
++}
++
+ static long vpu_open(struct device *dev)
+ {
+ 	struct jz_vpu_helix *vpu = dev_get_drvdata(dev);
+ 	unsigned long slock_flag = 0;
+ 
+ 	spin_lock_irqsave(&vpu->slock, slock_flag);
+-	if (cpm_inl(CPM_OPCR) & OPCR_IDLE)
++	if (cpm_inl(CPM_OPCR) & OPCR_IDLE) {
++		/* never return with the lock held and interrupts off */
++		spin_unlock_irqrestore(&vpu->slock, slock_flag);
+ 		return -EBUSY;
++	}
+ 
+ 	clk_enable(vpu->clk);
+ 	clk_enable(vpu->ahb1_gate);
+@@ -82,7 +98,7 @@ static long vpu_open(struct device *dev)
+ 			"mtc0  $2, $16,  7  \n\t"
+ 			"nop                  \n\t");
+ 
+-	vpu_reset(dev);
++	__vpu_reset(dev, VPU_RESET_ATOMIC_LOOPS);
+ 	enable_irq(vpu->irq);
+ 	vpu->vpu_status = VPU_STATUS_OPEN;
+ 	spin_unlock_irqrestore(&vpu->slock, slock_flag);
