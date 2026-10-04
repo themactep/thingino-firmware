@@ -1,5 +1,24 @@
+From 3d0137196d688d4dccb5c989e5bcf69896970bdd Mon Sep 17 00:00:00 2001
+From: "copilot-swe-agent[bot]" <198982749+Copilot@users.noreply.github.com>
+Date: Sun, 4 Oct 2026 18:48:41 +0000
+Subject: [PATCH] wifi-ws73v100: use available encoding for INI map
+
+Buildroot host Python disables the _codecs_cn extension, so its interpreter cannot resolve gb2312. The vendor INI generator reads a CSV whose non-ASCII header is skipped; all mapping rows are ASCII. latin-1 is available without the CJK codec module and preserves those mappings.
+
+Signed-off-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>
+---
+ build/scripts/hconfig_to_ini.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/build/scripts/hconfig_to_ini.py b/build/scripts/hconfig_to_ini.py
 --- a/build/scripts/hconfig_to_ini.py
 +++ b/build/scripts/hconfig_to_ini.py
-@@ -31 +31 @@
+@@ -28,7 +28,7 @@
+     # csv对照表
+     ini_re_mapping = {}
+     if os.path.isfile(ini_map_file):
 -        with open(ini_map_file, newline="", encoding="gb2312") as f:
 +        with open(ini_map_file, newline="", encoding="latin-1") as f:
+             reader = csv.reader(f)
+             for row in reader:
+                 if reader.line_num == 1:
