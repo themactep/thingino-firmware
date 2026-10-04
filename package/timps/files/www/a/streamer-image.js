@@ -16,6 +16,8 @@
     defog: "defog_strength",
     noise_reduction: "sinter_strength", // set() also mirrors temper_strength
     dpc: "dpc_strength",
+    image_colorfx: "colorfx",
+    image_scene: "scene",
     image_core_wb_mode: "core_wb_mode",
     image_wb_bgain: "wb_bgain",
     image_wb_rgain: "wb_rgain",
@@ -76,6 +78,24 @@
     Array.prototype.forEach.call(sel.options, function (o) {
       if (o.value === "9") { o.hidden = true; o.disabled = true; }
     });
+  }
+
+  // Sepia is a T20 effect (the other drivers answer EINVAL), so only offer it there.
+  function hideSepia() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var sel = $id("image_colorfx");
+    if (!sel || (soc && /^t20/i.test(String(soc)))) return;
+    Array.prototype.forEach.call(sel.options, function (o) {
+      if (o.value === "2") { o.hidden = true; o.disabled = true; }
+    });
+  }
+
+  // the Effects card is pointless when neither control is supported
+  function effectsCard() {
+    var card = $id("img-effects-card");
+    if (card) card.classList.toggle("d-none",
+      !!(unsupported.image_colorfx && unsupported.image_scene));
   }
 
   function renderUnsupported() {
@@ -222,12 +242,14 @@
         var image = json.image || {};
         var capsImage = (json.caps && json.caps.image) || [];
         hideCustomWb();
+        hideSepia();
         Object.keys(FIELD_MAP).forEach(function (id) {
           var key = FIELD_MAP[id];
           populate(id, image[key]);
           setEnabled(id, capsImage.indexOf(key) >= 0);
         });
         renderUnsupported();
+        effectsCard();
         wbGate();
       })
       .catch(function (err) {
