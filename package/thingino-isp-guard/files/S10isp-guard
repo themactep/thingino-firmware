@@ -23,6 +23,7 @@
 # flash-ota) runs "stop", which clears the pending mark; a crash, watchdog
 # reset or power loss within STABLE_SECS keeps it and trips the guard.
 
+# shellcheck source=/dev/null
 . /etc/init.d/lib-log
 
 STATE_DIR=/etc/isp-guard
@@ -63,6 +64,7 @@ load_now() {
 		while read -r module args; do
 			case "$module" in "" | "#"*) continue ;; esac
 			echo "isp-guard: modprobe $module $args"
+			# shellcheck disable=SC2086 # module arguments are intentionally word-split
 			modprobe $module $args || {
 				echo "isp-guard: modprobe $module failed"
 				return 1
