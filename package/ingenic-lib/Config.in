@@ -20,7 +20,7 @@ config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 config BR2_PACKAGE_INGENIC_LIB_LIBALOG
 	bool "libalog.so (proprietary)"
 	depends on !BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
-	default y
+	default y if !BR2_PACKAGE_OPENIMP
 	help
 	  Ingenic proprietary logging library.
 	  Overridden by ingenic-system-libs-neo libalog when selected.
