@@ -16,7 +16,7 @@ LIBSRT_CONF_OPTS = \
 	-DENABLE_STATIC=ON \
 	-DENABLE_LOGGING=OFF \
 	-DUSE_ENCLIB=mbedtls \
-	-DCMAKE_C_FLAGS="$(TARGET_CFLAGS)" \
-	-DCMAKE_CXX_FLAGS="$(TARGET_CXXFLAGS)"
+	-DCMAKE_C_FLAGS="$(TARGET_CFLAGS) -ffunction-sections -fdata-sections" \
+	-DCMAKE_CXX_FLAGS="$(TARGET_CXXFLAGS) -ffunction-sections -fdata-sections"
 
 $(eval $(cmake-package))
