@@ -49,6 +49,11 @@ const SessionStatusEndpoint = "/x/session-status.cgi";
 // cannot tell an expired session from a network blip on its own. After this
 // many failures in a row, ask an endpoint that does report a status.
 const HeartBeatAuthCheckFailures = 3;
+// An open SSE stream is authenticated once, when it opens, and keeps delivering
+// after the session expired server-side. So the session is also probed on a
+// timer while the page is visible.
+const SessionCheckInterval = 60 * 1000;
+let sessionCheckTimer = null;
 let heartbeatSource = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
@@ -1036,9 +1041,10 @@ function redirectToLogin() {
   window.location.href = "/login.html";
 }
 
-// Status-code-visible session probe for callers that only see opaque errors
-// (the SSE stream). Redirects only on a definitive refusal - an unreachable
-// endpoint or a 5xx leaves the page alone so the normal retries can continue.
+// Session probe for callers that only see opaque errors (the SSE stream) and
+// for the periodic check. session-status.cgi is public and always answers 200;
+// the signal is authenticated:false. An unreachable endpoint or a 5xx leaves
+// the page alone so the normal retries can continue.
 async function verifySessionStillValid() {
   if (authRedirectInProgress) return;
 
@@ -1048,17 +1054,14 @@ async function verifySessionStillValid() {
       credentials: "same-origin",
     });
 
-    if (response.status === 401 || response.status === 403) {
-      redirectToLogin();
-      return;
-    }
-
     if (!response.ok) return;
 
     const data = await response.json();
     if (data && data.authenticated === false) {
       redirectToLogin();
+      return;
     }
+    heartbeatSseFailures = 0;
   } catch (error) {
     console.error("Session re-check failed:", error);
   }
@@ -1150,7 +1153,18 @@ function startSlowHeartbeatStatus() {
   fetchSlowHeartbeatStatus();
 }
 
+function startSessionWatch() {
+  if (sessionCheckTimer) return;
+  sessionCheckTimer = setInterval(() => {
+    if (!document.hidden) verifySessionStillValid();
+  }, SessionCheckInterval);
+}
+
 function cleanupHeartbeatResources() {
+  if (sessionCheckTimer) {
+    clearInterval(sessionCheckTimer);
+    sessionCheckTimer = null;
+  }
   if (heartbeatSource) {
     heartbeatSource.close();
     heartbeatSource = null;
@@ -1190,6 +1204,7 @@ function heartbeat() {
   }
   startHeartbeatSse();
   startSlowHeartbeatStatus();
+  startSessionWatch();
 }
 
 function initCopyToClipboard() {
