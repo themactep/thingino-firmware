@@ -561,30 +561,11 @@ else
 	UBOOT_DEFCONFIG := $(patsubst "%",%,$(BR2_TARGET_UBOOT_BOARD_DEFCONFIG))
 endif
 
-ifeq ($(SOC_MODEL),t10l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t10l.config
-else ifeq ($(SOC_MODEL),t20l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20l.config
-else ifeq ($(SOC_MODEL),t20x)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t20x.config
-else ifeq ($(SOC_MODEL),t23dl)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t23dl.config
-else ifeq ($(SOC_MODEL),t30x)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t30x.config
-else ifeq ($(SOC_MODEL),t31a)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31a.config
-else ifeq ($(SOC_MODEL),t31al)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31al.config
-else ifeq ($(SOC_MODEL),t31l)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31l.config
-else ifeq ($(SOC_MODEL),t31lc)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31lc.config
-else ifneq ($(filter t31x t31zx,$(SOC_MODEL)),)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t31x.config
-else ifeq ($(SOC_MODEL),c100)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/c100.config
-else ifeq ($(SOC_MODEL),t32nq)
-	UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/t32nq.config
+# Only some models need one, and the file is almost always named after the
+# model -- t31zx sharing t31x's is the exception, which is why the family file
+# names the fragment rather than this deriving it from SOC_MODEL.
+ifneq ($(SOC_UBOOT_VARIANT),)
+UBOOT_VARIANT_FRAGMENT := $(BR2_EXTERNAL)/configs/uboot/variants/$(SOC_UBOOT_VARIANT).config
 endif
 
 # NAND keeps the U-Boot env in a UBI volume, NOT a raw flash offset, so it needs
