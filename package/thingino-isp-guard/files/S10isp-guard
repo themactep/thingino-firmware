@@ -40,11 +40,11 @@ isp_module_files() {
 
 suppress() {
 	log -c 208 "isp-guard: $1 - open ISP stack not loaded this boot"
-	echo "$1" > /run/isp-guard.reason
+	echo "$1" >/run/isp-guard.reason
 	for f in $(isp_module_files); do
 		mount --bind /dev/null "$f"
 	done
-	printf '#!/bin/sh\nexit 0\n' > "$NOOP"
+	printf '#!/bin/sh\nexit 0\n' >"$NOOP"
 	chmod 755 "$NOOP"
 	[ -f /etc/init.d/S95timps ] && mount --bind "$NOOP" /etc/init.d/S95timps
 }
@@ -63,8 +63,11 @@ load_now() {
 		while read -r module args; do
 			case "$module" in "" | "#"*) continue ;; esac
 			echo "isp-guard: modprobe $module $args"
-			modprobe $module $args || { echo "isp-guard: modprobe $module failed"; return 1; }
-		done < "$f"
+			modprobe $module $args || {
+				echo "isp-guard: modprobe $module failed"
+				return 1
+			}
+		done <"$f"
 	done
 	[ "$1" = "--no-timps" ] || /etc/init.d/S95timps start
 }
@@ -88,21 +91,27 @@ start() {
 	mode=$(fw_printenv -n isp_open 2>/dev/null)
 	mkdir -p "$STATE_DIR"
 	case "$mode" in
-		off) suppress "isp_open=off"; return 0 ;;
-		manual) suppress "isp_open=manual"; return 0 ;;
+		off)
+			suppress "isp_open=off"
+			return 0
+			;;
+		manual)
+			suppress "isp_open=manual"
+			return 0
+			;;
 	esac
 	if [ -f "$STATE_DIR/tripped" ]; then
 		suppress "guard tripped earlier ($(cat "$STATE_DIR/tripped")), run '$0 clear'"
 		return 0
 	fi
 	if [ -f "$STATE_DIR/pending" ]; then
-		echo "previous boot $(cat "$STATE_DIR/pending") did not stay up ${STABLE_SECS}s with timpsd" > "$STATE_DIR/tripped"
+		echo "previous boot $(cat "$STATE_DIR/pending") did not stay up ${STABLE_SECS}s with timpsd" >"$STATE_DIR/tripped"
 		rm -f "$STATE_DIR/pending"
 		sync
 		suppress "previous boot did not stay up ${STABLE_SECS}s with timpsd"
 		return 0
 	fi
-	echo "boot at $(date '+%F %T')" > "$STATE_DIR/pending"
+	echo "boot at $(date '+%F %T')" >"$STATE_DIR/pending"
 	sync
 	log -c 118 "isp-guard: isp_open=${mode:-auto}, loading the open ISP stack (crash guard armed)"
 	mark_stable
@@ -122,12 +131,21 @@ case "$1" in
 		# clean shutdown (rcK on reboot, sysupgrade stop_services): the reboot is
 		# intentional, so do not let it count as a failed boot. Crashes and
 		# watchdog resets skip this and keep the crash-loop guard working.
-		rm -f "$STATE_DIR/pending"; sync ;;
+		rm -f "$STATE_DIR/pending"
+		sync
+		;;
 	restart) true ;;
 	status) status ;;
-	clear) rm -f "$STATE_DIR/pending" "$STATE_DIR/tripped"; sync; echo "isp-guard: cleared" ;;
+	clear)
+		rm -f "$STATE_DIR/pending" "$STATE_DIR/tripped"
+		sync
+		echo "isp-guard: cleared"
+		;;
 	load) load_now "$2" ;;
-	*) echo "Usage: $0 {start|status|clear|load [--no-timps]}"; exit 1 ;;
+	*)
+		echo "Usage: $0 {start|status|clear|load [--no-timps]}"
+		exit 1
+		;;
 esac
 
 exit 0
