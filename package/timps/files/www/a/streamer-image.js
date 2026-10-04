@@ -15,6 +15,7 @@
     tone: "highlight_depress",
     defog: "defog_strength",
     noise_reduction: "sinter_strength", // set() also mirrors temper_strength
+    dpc: "dpc_strength",
     image_core_wb_mode: "core_wb_mode",
     image_wb_bgain: "wb_bgain",
     image_wb_rgain: "wb_rgain",

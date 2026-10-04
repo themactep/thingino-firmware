@@ -823,6 +823,7 @@ const imagingFields = [
   "tone",
   "defog",
   "noise_reduction",
+  "dpc",
 ];
 
 const imageConfigKeyMap = {
@@ -835,6 +836,7 @@ const imageConfigKeyMap = {
   tone: "highlight_depress",
   defog: "defog_strength",
   noise_reduction: "sinter_strength",
+  dpc: "dpc_strength",
 };
 
 const imageFieldBounds = {
@@ -847,6 +849,7 @@ const imageFieldBounds = {
   tone: { min: 0, max: 10, default: 0 },
   defog: { min: 0, max: 255, default: 128 },
   noise_reduction: { min: 0, max: 255, default: 128 },
+  dpc: { min: 0, max: 255, default: 128 },
 };
 
 const previewSliderIds = [
@@ -859,6 +862,7 @@ const previewSliderIds = [
   "tone",
   "defog",
   "noise_reduction",
+  "dpc",
   "image_wb_bgain",
   "image_wb_rgain",
   "image_ae_compensation",
