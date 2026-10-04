@@ -1,0 +1,76 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] soc_vpu/helix: per-job completion/length, stop the core on BSFULL-only completion
+
+ - vpu_start() now drops a completion and the bslen/cmpx left by an earlier
+   job (a late interrupt, a job that ended on BSFULL) before kicking the
+   new job, so a stale completion can no longer end the next job early
+   with another job's length while the hardware is still running.
+ - The interrupt handler completes a BSFULL-without-ENDFLAG job without
+   updating bslen, and vpu_wait_complete() reported the previous job's
+   length as success.  It now reads this job's length (bslen was zeroed at
+   start), keeps returning success with BSFULL in the status (callers
+   check it), and resets the paused core before the VPU goes back to the
+   free list.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+--- a/drivers/video/soc_vpu/helix/helix.c
++++ b/drivers/video/soc_vpu/helix/helix.c
+@@ -245,6 +245,15 @@
+ 	}
+ #endif /* CONFIG_SOC_T23 */
+ 
++	/*
++	 * Forget the previous job before starting this one: a completion or a
++	 * length left behind by an earlier job (a late interrupt, a job that
++	 * ended on BSFULL) must not be taken for this job's result.
++	 */
++	INIT_COMPLETION(vpu->done);
++	vpu->bslen = 0;
++	vpu->cmpx = 0;
++
+ #if defined(CONFIG_SOC_T21) || defined(CONFIG_SOC_T23)
+ 	vpu_writel(vpu, REG_VDMA_TASKRG_T21, VDMA_ACFG_DHA(cnode->dma_addr)
+ 			| VDMA_ACFG_RUN);
+@@ -266,10 +275,19 @@
+ static long vpu_wait_complete(struct device *dev, struct channel_node * const cnode)
+ {
+ 	long ret = 0, bsreadcnt = 3;
++	bool bsfull_only;
+ 	struct jz_vpu_helix *vpu = dev_get_drvdata(dev);
+ 
+ hard_vpu_wait_restart:
+ 	ret = wait_for_completion_interruptible_timeout(&vpu->done, msecs_to_jiffies(cnode->mdelay));
++	/*
++	 * BSFULL without ENDFLAG: the bitstream buffer is full and the core is
++	 * paused in the middle of the picture.  The interrupt handler does not
++	 * update bslen in that case; vpu_start() zeroed it, so the loop below
++	 * reads this job's length instead of reporting the previous job's.
++	 */
++	bsfull_only = (ret > 0) && (vpu->status & SCH_STAT_BSFULL) &&
++		!(vpu->status & SCH_STAT_ENDFLAG);
+ 	if ((ret > 0) && (cnode->codecdir == HWJPEGDEC)) {
+ 		vpu->bslen = vpu_readl(vpu, REG_JPGC_MCUS);
+ 		vpu->cmpx = 0;
+@@ -290,7 +308,20 @@
+ 			continue;
+ 		}
+ 	}
+-	if ((ret > 0) && vpu->bslen) {
++	if (bsfull_only) {
++		/*
++		 * Still a completed RUN for the caller (status carries BSFULL,
++		 * as before), but stop the core before the VPU goes back to the
++		 * free list so the abandoned picture cannot keep using the
++		 * buffers or raise a late interrupt into the next job.
++		 */
++		dev_warn_ratelimited(dev, "[%d:%d] bitstream full, status = %x, len = %u, stopping the core\n",
++				     current->tgid, current->pid, vpu->status, vpu->bslen);
++		if (vpu_reset(dev) < 0) {
++			dev_warn(dev, "vpu reset failed\n");
++		}
++		ret = 0;
++	} else if ((ret > 0) && vpu->bslen) {
+ 		ret = 0;
+ 		dev_dbg(vpu->vpu.dev, "[%d:%d] wait complete finish\n", current->tgid, current->pid);
+ 	} else if (ret == -ERESTARTSYS) {

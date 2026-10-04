@@ -1,0 +1,210 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] soc_vpu: tie VPU release on close to the file, never list a free VPU twice
+
+soc_channel_vpu_release() released (returned to the free list and powered
+down) every VPU whose last requester tgid/pid equalled the closing thread.
+That test ran without vlist->slock, so with CONFIG_PREEMPT a concurrent
+soc_vpu_request() of another thread/process could take the VPU in between:
+the VPU was put on the free list and ops->release()d while that job was
+running, and when the job finished soc_vpu_release_internal() could add
+the node a second time.  list_add_tail() of a listed node makes it point
+to itself; soc_vpu_request()'s list_for_each_entry() then spins forever
+under fvlist->slock with interrupts off (silent hard hang on UP).
+
+ - remember the struct file of the last request; on close release only the
+   VPUs requested through that file (or all on the last close), decided
+   under vlist->slock in one critical section;
+ - soc_vpu_release_internal() never adds a node that is already listed
+   (WARN_ONCE instead).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+--- a/drivers/video/soc_vpu/soc_vpu.h
++++ b/drivers/video/soc_vpu/soc_vpu.h
+@@ -73,6 +73,7 @@
+ 	int			user_cnt;	/* the child vpu use times */
+ 	pid_t			tgid;		/* current process id */
+ 	pid_t			pid;		/* current thread id */
++	struct file		*file;		/* file of the last requester */
+ 	spinlock_t		slock;
+ };
+ 
+--- a/drivers/video/soc_vpu/soc_vpu.c
++++ b/drivers/video/soc_vpu/soc_vpu.c
+@@ -45,6 +45,7 @@
+ 	vpu_list[vpu_node_num].user_cnt = 0;
+ 	vpu_list[vpu_node_num].tgid = -1;
+ 	vpu_list[vpu_node_num].pid = -1;
++	vpu_list[vpu_node_num].file = NULL;
+ 	spin_lock_init(&vpu_list[vpu_node_num].slock);
+ 	vpu_node_num++;
+ 
+@@ -67,6 +68,7 @@
+ 			vpu_list[j].user_cnt = 0;
+ 			vpu_list[j].tgid = -1;
+ 			vpu_list[j].pid = -1;
++			vpu_list[j].file = NULL;
+ 			vpu_node_num--;
+ 			break;
+ 		}
+@@ -406,7 +408,7 @@
+ 	return ret;
+ }
+ 
+-static long soc_vpu_request(struct soc_channel *sc, struct channel_node *cnode)
++static long soc_vpu_request(struct soc_channel *sc, struct channel_node *cnode, struct file *file)
+ {
+ 	long ret = 0;
+ 	unsigned long fvflag = 0, vlflag = 0;
+@@ -485,6 +487,7 @@
+ 		}
+ 		vlist->tgid = current->tgid;
+ 		vlist->pid = current->pid;
++		vlist->file = file;
+ 		vlist->phase = REQUEST_VPU;
+ 		spin_unlock_irqrestore(&vlist->slock, vlflag);
+ 
+@@ -513,25 +516,40 @@
+ 	return ret;
+ }
+ 
+-static long soc_vpu_release_internal(struct soc_channel *sc, struct vpu_list *vlist)
++/* Return a requested VPU to the free list.  Called with vlist->slock held. */
++static void soc_vpu_put_free_locked(struct soc_channel *sc, struct vpu_list *vlist)
+ {
+-	unsigned long fvflag = 0, vlflag = 0;
+-	struct vpu *vpu = NULL;
+-	struct free_vpu_list *fvlist = NULL;
++	unsigned long fvflag = 0;
++	struct free_vpu_list *fvlist = list_entry(sc->fvlist_head, struct free_vpu_list, fvlist_head);
+ 
+-	if (vlist) {
+-		vpu = list_entry(vlist->vlist, struct vpu, vlist);
+-		fvlist = list_entry(sc->fvlist_head, struct free_vpu_list, fvlist_head);
+-		spin_lock_irqsave(&vlist->slock, vlflag);
+-		if (vlist->phase >= OPEN_VPU) {
+-			if (vlist->phase < RELASE_VPU) {
+-				spin_lock_irqsave(&fvlist->slock, fvflag);
++	if (vlist->phase >= OPEN_VPU) {
++		if (vlist->phase < RELASE_VPU) {
++			spin_lock_irqsave(&fvlist->slock, fvflag);
++			/*
++			 * A node that is already on the free list must not be
++			 * added again: list_add_tail() of a listed node makes it
++			 * point to itself and the next soc_vpu_request() spins
++			 * in list_for_each_entry() with interrupts off.
++			 */
++			if (list_empty(&vlist->list)) {
+ 				list_add_tail(&vlist->list, &fvlist->fvlist_head);
+ 				complete(&fvlist->vdone);
+-				vlist->phase = RELASE_VPU;
+-				spin_unlock_irqrestore(&fvlist->slock, fvflag);
++			} else {
++				WARN_ONCE(1, "soc_vpu: vpu node %p released twice\n", vlist);
+ 			}
++			vlist->phase = RELASE_VPU;
++			spin_unlock_irqrestore(&fvlist->slock, fvflag);
+ 		}
++	}
++}
++
++static long soc_vpu_release_internal(struct soc_channel *sc, struct vpu_list *vlist)
++{
++	unsigned long vlflag = 0;
++
++	if (vlist) {
++		spin_lock_irqsave(&vlist->slock, vlflag);
++		soc_vpu_put_free_locked(sc, vlist);
+ 		spin_unlock_irqrestore(&vlist->slock, vlflag);
+ 	}
+ 
+@@ -761,7 +779,7 @@
+ 	return 0;
+ }
+ 
+-static long soc_channel_run(struct soc_channel *sc, long usr_arg)
++static long soc_channel_run(struct soc_channel *sc, struct file *file, long usr_arg)
+ {
+ 	struct channel_node cnode;
+ 	long ret = 0;
+@@ -772,7 +790,7 @@
+ 		goto err_copy_from_user;
+ 	}
+ 
+-	if ((ret = soc_vpu_request(sc, &cnode)) < 0) {
++	if ((ret = soc_vpu_request(sc, &cnode, file)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] request vpu failed\n", __func__, __LINE__);
+ 		goto  err_vpu_request;
+ 	}
+@@ -815,7 +833,7 @@
+ 	return ret;
+ }
+ 
+-static long soc_channel_start(struct soc_channel *sc, long usr_arg)
++static long soc_channel_start(struct soc_channel *sc, struct file *file, long usr_arg)
+ {
+ 	struct channel_node cnode;
+ 	long ret = 0;
+@@ -826,7 +844,7 @@
+ 		goto err_copy_from_user;
+ 	}
+ 
+-	if ((ret = soc_vpu_request(sc, &cnode)) < 0) {
++	if ((ret = soc_vpu_request(sc, &cnode, file)) < 0) {
+ 		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] request vpu failed\n", __func__, __LINE__);
+ 		goto  err_vpu_request;
+ 	}
+@@ -1266,12 +1284,23 @@
+ 	}
+ 	spin_unlock_irqrestore(&sc->cnt_slock, scflag);
+ 
++	/*
++	 * Release only the VPUs last requested through this file, and decide
++	 * that under vlist->slock: the old unlocked "last requester is the
++	 * closing thread" test raced with soc_vpu_request() of another thread
++	 * or process, gave away (and powered down) a VPU with that job still
++	 * running and let the job add the node to the free list a second time.
++	 * No ioctl of this file is in flight here, so a VPU requested through
++	 * it and not yet returned (START without WAIT_COMPLETE) is not in use.
++	 */
+ 	for (i = 0; i < vpu_node_num; i++) {
+-		if ((((vpu_list[i].tgid == current->tgid) && (vpu_list[i].pid == current->pid))
+-					|| (last_release == true)) && (vpu_list[i].user_cnt > 0)) {
+-			struct vpu *vpu = list_entry(vpu_list[i].vlist, struct vpu, vlist);
+-			soc_vpu_release_internal(sc, &vpu_list[i]);
+-			spin_lock_irqsave(&vpu_list[i].slock, vlflag);
++		struct vpu *vpu = list_entry(vpu_list[i].vlist, struct vpu, vlist);
++		bool mine;
++
++		spin_lock_irqsave(&vpu_list[i].slock, vlflag);
++		mine = (vpu_list[i].file == file);
++		if ((mine || (last_release == true)) && (vpu_list[i].user_cnt > 0)) {
++			soc_vpu_put_free_locked(sc, &vpu_list[i]);
+ 			if ((((vpu_list[i].user_cnt > 0) && (--vpu_list[i].user_cnt == 0)) || (last_release == true)) && (vpu->ops->release)) {
+ 				vpu->ops->release(vpu->dev);
+ 				vpu_list[i].phase = INIT_VPU;
+@@ -1279,8 +1308,10 @@
+ 				vpu_list[i].tgid = -1;
+ 				vpu_list[i].pid = -1;
+ 			}
+-			spin_unlock_irqrestore(&vpu_list[i].slock, vlflag);
+ 		}
++		if (mine)
++			vpu_list[i].file = NULL;
++		spin_unlock_irqrestore(&vpu_list[i].slock, vlflag);
+ 	}
+ 
+ 	for (i = 0; i < CONFIG_CHANNEL_NODE_NUM; i++) {
+@@ -1333,10 +1364,10 @@
+ 		ret = soc_channel_release(sc, arg);
+ 		break;
+ 	case IOCTL_CHANNEL_RUN:
+-		ret = soc_channel_run(sc, arg);
++		ret = soc_channel_run(sc, file, arg);
+ 		break;
+ 	case IOCTL_CHANNEL_START:
+-		ret = soc_channel_start(sc, arg);
++		ret = soc_channel_start(sc, file, arg);
+ 		break;
+ 	case IOCTL_CHANNEL_WAIT_COMPLETE:
+ 		ret = soc_channel_wait_complete(sc, arg);
