@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lu-fi@users.noreply.github.com>
+Date: Sun, 4 Oct 2026 11:39:39 +0200
+Subject: [PATCH 2/3] sensors: t21 jxf23: track and release only the GPIOs it
+ owns
+
+g_chip_ident() requests the reset and power-down GPIOs every time the ISP
+registers the sensor, and remove() frees both unconditionally. A second
+registration (re-register after a failed detect, or a module reload while
+the I2C client survived) logs "gpio request failed" and skips the reset
+sequence, and remove() then frees lines this module never got (or, after
+a failed request, a line another owner holds).
+
+Remember which lines were actually requested, request each once, and free
+exactly those in remove(). The reset/power-down sequence now runs on
+every g_chip_ident() call while the line is held, so a retry after a
+failed detect (the ISP unregisters the subdev without calling remove())
+gets the pulse as well; the first registration is unchanged.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ common/sensor/t21/jxf23.c | 58 ++++++++++++++++++++++++++-----------
+
+diff --git a/common/sensor/t21/jxf23.c b/common/sensor/t21/jxf23.c
+index 508b3ec6..f60ccb52 100644
+--- a/common/sensor/t21/jxf23.c
++++ b/common/sensor/t21/jxf23.c
+@@ -43,6 +43,12 @@ static int pwdn_gpio = GPIO_PA(22);
+ module_param(pwdn_gpio, int, S_IRUGO);
+ MODULE_PARM_DESC(pwdn_gpio, "Power down GPIO NUM");
+ 
++/* GPIOs this module actually owns: requested in g_chip_ident(), released in
++ * remove() only when held, so a module reload never frees a line it does not
++ * own and never leaves one requested. */
++static bool reset_gpio_held;
++static bool pwdn_gpio_held;
++
+ static int sensor_gpio_func = DVP_PA_LOW_10BIT;
+ module_param(sensor_gpio_func, int, S_IRUGO);
+ MODULE_PARM_DESC(sensor_gpio_func, "Sensor GPIO function");
+@@ -861,29 +867,37 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd, struct tx_isp_chip_iden
+ 	struct i2c_client *client = tx_isp_get_subdevdata(sd);
+ 	unsigned int ident = 0;
+ 	int ret = ISP_SUCCESS;
+-	if (reset_gpio != -1) {
++	/* Request each line once (it stays held until remove()), but run the
++	 * reset and power-down sequence on every call: a retry after a failed
++	 * detect (the ISP unregisters the subdev without calling remove())
++	 * needs the pulse as much as the first registration does. */
++	if (reset_gpio != -1 && !reset_gpio_held) {
+ 		ret = private_gpio_request(reset_gpio, "sensor_reset");
+-		if (!ret) {
+-			private_gpio_direction_output(reset_gpio, 1);
+-			private_msleep(50);
+-			private_gpio_direction_output(reset_gpio, 0);
+-			private_msleep(35);
+-			private_gpio_direction_output(reset_gpio, 1);
+-			private_msleep(35);
+-		} else {
++		if (!ret)
++			reset_gpio_held = true;
++		else
+ 			ISP_ERROR("gpio request failed %d\n", reset_gpio);
+-		}
+ 	}
+-	if (pwdn_gpio != -1) {
++	if (reset_gpio_held) {
++		private_gpio_direction_output(reset_gpio, 1);
++		private_msleep(50);
++		private_gpio_direction_output(reset_gpio, 0);
++		private_msleep(35);
++		private_gpio_direction_output(reset_gpio, 1);
++		private_msleep(35);
++	}
++	if (pwdn_gpio != -1 && !pwdn_gpio_held) {
+ 		ret = private_gpio_request(pwdn_gpio, "sensor_pwdn");
+-		if (!ret) {
+-			private_gpio_direction_output(pwdn_gpio, 1);
+-			private_msleep(150);
+-			private_gpio_direction_output(pwdn_gpio, 0);
+-			private_msleep(10);
+-		} else {
++		if (!ret)
++			pwdn_gpio_held = true;
++		else
+ 			ISP_ERROR("gpio request failed %d\n", pwdn_gpio);
+-		}
++	}
++	if (pwdn_gpio_held) {
++		private_gpio_direction_output(pwdn_gpio, 1);
++		private_msleep(150);
++		private_gpio_direction_output(pwdn_gpio, 0);
++		private_msleep(10);
+ 	}
+ 	ret = sensor_detect(sd, &ident);
+ 	if (ret) {
+@@ -1129,10 +1143,14 @@ err_get_mclk:
+ static int sensor_remove(struct i2c_client *client) {
+ 	struct tx_isp_subdev *sd = private_i2c_get_clientdata(client);
+ 	struct tx_isp_sensor *sensor = tx_isp_get_subdev_hostdata(sd);
+-	if (reset_gpio != -1)
++	if (reset_gpio_held) {
+ 		private_gpio_free(reset_gpio);
+-	if (pwdn_gpio != -1)
++		reset_gpio_held = false;
++	}
++	if (pwdn_gpio_held) {
+ 		private_gpio_free(pwdn_gpio);
++		pwdn_gpio_held = false;
++	}
+ 	private_clk_disable(sensor->mclk);
+ 	private_clk_put(sensor->mclk);
+ 	tx_isp_subdev_deinit(sd);
