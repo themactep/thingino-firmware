@@ -7,15 +7,12 @@ if BR2_PACKAGE_INGENIC_LIB
 
 config BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	bool "libimp.so (core SDK)"
-	depends on !BR2_PACKAGE_OPENIMP || BR2_SOC_FAMILY = "t23"
+	depends on !BR2_PACKAGE_OPENIMP
 	default y
 	select BR2_THINGINO_LIBSTDCPP if BR2_SOC_FAMILY = "t30"
 	help
 	  Proprietary Ingenic IMP core library. Required by streamers when
 	  OpenIMP is not selected.
-	  On T23 it coexists with OpenIMP: the OEM libimp is kept for the
-	  Helix encoder hybrid under /opt/openimp-t23/, so the OpenIMP
-	  exclusion is lifted there.
 	  The T30 build of the blob (SDK 1.0.5) is the only libimp that
 	  links libstdc++.so.6, so the C++ runtime is kept on target
 	  there; no per-device config is needed.

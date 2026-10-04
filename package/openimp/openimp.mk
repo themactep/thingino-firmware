@@ -61,18 +61,6 @@ define OPENIMP_BUILD_CMDS
 		$(@D)/build-for-device.sh $(OPENIMP_PLATFORM)
 endef
 
-ifeq ($(SOC_FAMILY),t23)
-# Hybrid T23 build: the OEM libimp.so (installed by ingenic-lib) and the
-# Helix worker live under /opt/openimp-t23/, while OpenIMP's libimp.so takes
-# /usr/lib/libimp.so for RAD.
-define OPENIMP_INSTALL_T23_TARGET
-	$(INSTALL) -D -m 0755 $(TARGET_DIR)/usr/lib/libimp.so \
-		$(TARGET_DIR)/opt/openimp-t23/libimp.so
-	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-t23-helixd \
-		$(TARGET_DIR)/opt/openimp-t23/openimp-t23-helixd
-endef
-endif
-
 define OPENIMP_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(STAGING_DIR)/usr/lib/libimp.so
@@ -85,7 +73,6 @@ define OPENIMP_INSTALL_STAGING_CMDS
 endef
 
 define OPENIMP_INSTALL_TARGET_CMDS
-	$(OPENIMP_INSTALL_T23_TARGET)
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/libimp.so \
 		$(TARGET_DIR)/usr/lib/libimp.so
 	$(INSTALL) -D -m 0755 $(OPENIMP_OUTPUT_DIR)/openimp-tuningd \
