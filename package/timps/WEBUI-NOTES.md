@@ -33,8 +33,9 @@ which is accepted on the LAN. The token is per-boot, so it is fetched once
 and cached; when the stream errors (e.g. 401 after a camera reboot minted a
 new token) it is re-fetched once and the `<img>` retried, and if the token
 endpoint itself is unavailable the preview falls back to the nostream
-placeholder. Without a token the URLs still work on open timps configs
-(empty `http.user`) and from localhost.
+placeholder. Without a token an open camera (empty `http.user` and
+`rtsp.user`) still serves the URLs, but since timps v1.9.33 a cross-origin
+`fetch()` (MSE/RT preview) gets CORS only with the token or from loopback.
 
 ### `startPreview()` / the stream watchdog `timeout` constant
 
