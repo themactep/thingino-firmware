@@ -49,7 +49,10 @@ const SessionStatusEndpoint = "/x/session-status.cgi";
 const HeartBeatAuthCheckFailures = 3;
 // An open SSE stream outlives the session, so probe on a timer too.
 const SessionCheckInterval = 60 * 1000;
+const SessionProbeMinGap = 10 * 1000;
 let sessionCheckTimer = null;
+let lastSessionProbe = -SessionProbeMinGap;
+let sessionProbeGap = SessionProbeMinGap;
 let heartbeatSource = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
@@ -1033,9 +1036,12 @@ function redirectToLogin() {
   window.location.href = "/login.html";
 }
 
-// session-status.cgi always answers 200; only authenticated:false redirects.
+// Only authenticated:false redirects; a non-2xx backs off.
 async function verifySessionStillValid() {
   if (authRedirectInProgress) return;
+  const now = performance.now();
+  if (now - lastSessionProbe < sessionProbeGap) return;
+  lastSessionProbe = now;
 
   try {
     const response = await fetch(SessionStatusEndpoint, {
@@ -1043,15 +1049,16 @@ async function verifySessionStillValid() {
       credentials: "same-origin",
     });
 
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     if (data && data.authenticated === false) {
       redirectToLogin();
       return;
     }
-    heartbeatSseFailures = 0;
+    sessionProbeGap = SessionProbeMinGap;
   } catch (error) {
+    sessionProbeGap = Math.min(sessionProbeGap * 2, SessionCheckInterval);
     console.error("Session re-check failed:", error);
   }
 }
