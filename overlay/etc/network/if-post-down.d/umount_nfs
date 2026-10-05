@@ -6,7 +6,7 @@
 
 NFS_MOUNT="/mnt/nfs"
 
-nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
+nfs_share="$(jct /etc/thingino.json get nfs.share 2>/dev/null)"
 [ -n "$nfs_share" ] || exit 0
 
 if mountpoint -q "$NFS_MOUNT"; then

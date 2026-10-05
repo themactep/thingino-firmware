@@ -10,7 +10,11 @@ NFS_MOUNT="/mnt/nfs"
 
 [ -d "$NFS_MOUNT" ] || mkdir -p "$NFS_MOUNT"
 
-nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
+# Opt-in: mount only when nfs.enabled is explicitly true, so the share
+# address can be kept in the config without mounting it on boot.
+nfs_enabled="$(jct /etc/thingino.json get nfs.enabled 2>/dev/null)"
+nfs_share="$(jct /etc/thingino.json get nfs.share 2>/dev/null)"
+[ "$nfs_enabled" = "true" ] || exit 0
 [ -n "$nfs_share" ] || exit 0
 
 # Only act for the interface that carries the default route, so we do

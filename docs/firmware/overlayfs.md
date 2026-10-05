@@ -42,7 +42,7 @@ the data.jffs2 partition image, which serves as the overlayfs upperdir covering 
 ### Size limits
 
 Our overlay partition is not large but should be enough for basic changes to the camera configuration.
-For storing large files use an SD card or mount an NFS share.
+For storing large files use an SD card or [mount an NFS share](../thingino/nfs-share.md).
 
 
 ### How to use

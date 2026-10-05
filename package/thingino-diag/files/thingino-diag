@@ -56,7 +56,7 @@ redact_json() {
 	sed -E \
 		-e 's/^([[:space:]]*"(password|passphrase|psk|peerpsk|privkey|token|secret|key|private_key|preshared_key|community|username)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/' \
 		-e 's/^([[:space:]]*"(email|discord|telegram|name|contact)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/' \
-		-e 's/^([[:space:]]*"(mac|host|listen|endpoint|peerpub|auth_bypass_ips|nfs_share|address|allowed|dns)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/'
+		-e 's/^([[:space:]]*"(mac|host|listen|endpoint|peerpub|auth_bypass_ips|nfs_share|share|address|allowed|dns)")[[:space:]]*:[[:space:]]*"[^"]*"/\1: "REDACTED"/'
 }
 
 # Redact the MQTT broker host, username and password from a ps listing.
