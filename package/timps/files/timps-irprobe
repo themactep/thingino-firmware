@@ -1,34 +1,62 @@
 #!/bin/sh
 # daynight.irprobe_cmd target: timps's silent day/night probe execs
-# "<cmd> on|off" (no shell) to blip the illuminator for one dark reading.
+# "<cmd> on|off" (no shell) to blip the illuminators for one dark reading.
 #
-# The three names are light's infrared types, tried in that order because 940nm
-# is invisible and 850nm faintly red; `light` resolves the pin per camera from
-# thingino.json. Enumerating gpio.* instead would reach `white` and `flood`.
+# Switches the same set as the board's `daynight` script: ir850, ir940 and
+# white, each gated by thingino.json daynight.controls.* with that script's
+# defaults, and only if `light` resolves a pin. Any of them left lit makes
+# the probe read as day.
 #
 # "off" arms a detached watchdog: the daemon has no failsafe, so if it dies
-# during the dark window the illuminator would stay off. It used to fire
-# unconditionally, which re-lit the illuminator ~60s into a night->day switch
-# that had already (correctly) turned it off - stamped and nonce-checked so
-# a newer "on"/"off" invalidates every older watchdog instead.
-for t in ir940 ir850 ir; do
-	if [ -n "$(light $t gpio 2>/dev/null)" ]; then
-		stamp="/run/timps-irprobe.$t"
-		if [ "$1" = off ]; then
-			light $t off
-			rc=$?
-			if [ "$rc" -eq 0 ]; then
-				nonce=$$
-				echo "$nonce" >"$stamp"
-				(
-					sleep 60
-					[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] && light $t on
-				) >/dev/null 2>&1 &
-			fi
+# during the dark window the illuminators would stay off. Stamped and
+# nonce-checked so a newer "on"/"off" invalidates every older watchdog.
+cfg=${THINGINO_CONFIG:-/etc/thingino.json}
+stamp=${STAMP_DIR:-/run}/timps-irprobe
+delay=${IRPROBE_WATCHDOG_S:-60}
+
+lights=
+for t in ir850:true ir940:true white:false; do
+	v=$(jct "$cfg" get "daynight.controls.${t%:*}" 2>/dev/null) || v=${t#*:}
+	[ "$v" = true ] && [ -n "$(light "${t%:*}" gpio 2>/dev/null)" ] &&
+		lights="$lights ${t%:*}"
+done
+[ -n "$lights" ] || exit 1 # nothing switchable: timps logs it and skips the probe
+
+case "$1" in
+on)
+	rm -f "$stamp"
+	rc=0
+	for t in $lights; do
+		light "$t" on || rc=$?
+	done
+	exit "$rc"
+	;;
+off)
+	nonce=$$
+	# before switching, so an older watchdog cannot relight mid-way;
+	# without a stamp there is no failsafe, so stay lit
+	echo "$nonce" >"$stamp" || exit 1
+	dark=
+	for t in $lights; do
+		light "$t" off
+		rc=$?
+		if [ "$rc" -ne 0 ]; then
+			rm -f "$stamp"
+			for u in $dark; do
+				light "$u" on
+			done
 			exit "$rc"
 		fi
-		rm -f "$stamp"
-		exec light $t "$1"
-	fi
-done
-exit 1 # no switchable illuminator: timps logs the failure and skips the probe
+		dark="$dark $t"
+	done
+	(
+		sleep "$delay"
+		[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
+		for t in $lights; do
+			light "$t" on
+		done
+	) >/dev/null 2>&1 &
+	exit 0
+	;;
+esac
+exit 2
