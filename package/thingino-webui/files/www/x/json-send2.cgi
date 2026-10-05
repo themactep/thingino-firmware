@@ -38,19 +38,22 @@ EOF
 
 # GET - Load configuration
 if [ "$REQUEST_METHOD" = "GET" ]; then
-	# Prefer agent motion enable; fall back to prudynt.json
+	# The full motion object (enabled, sensitivity, cooldown_time, send2*)
+	# lives in prudynt.json. The agent answers only per-leaf, so a single
+	# motion/enabled query drops the send2* keys and the UI renders every
+	# "On Motion" toggle as off.
 	motion_data=
-	if command -v agentctl >/dev/null 2>&1; then
+	if [ -f "$prudynt_config" ]; then
+		motion_data=$(jct "$prudynt_config" get motion 2>/dev/null)
+	fi
+	case "$motion_data" in
+		'' | null | '{}') motion_data='' ;;
+	esac
+	if [ -z "$motion_data" ] && command -v agentctl >/dev/null 2>&1; then
 		enabled=$(agentctl get-setting motion/enabled 2>/dev/null | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n 1)
 		[ -n "$enabled" ] && motion_data="{\"enabled\":$enabled}"
 	fi
-	if [ -z "$motion_data" ]; then
-		if [ -f "$prudynt_config" ]; then
-			motion_data=$(jct "$prudynt_config" get motion 2>/dev/null || echo '{}')
-		else
-			motion_data='{}'
-		fi
-	fi
+	[ -n "$motion_data" ] || motion_data='{}'
 
 	# Helper to safely get config values
 	get_domain_config() {
