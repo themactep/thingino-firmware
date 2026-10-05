@@ -106,7 +106,7 @@ case "$cmd" in
 		fi
 		;;
 	daynight)
-		# Direct day/night force — disables photosensing
+		# Direct day/night force - disables photosensing
 		if is_raptor; then
 			# ric mode day/night is itself the force
 			/usr/sbin/daynight "$val" >/dev/null 2>&1

@@ -146,8 +146,10 @@ update_resolv() {
 	(
 		flock 9
 		# Markers on their own lines: a trailing comment would become part of
-		# the address for busybox nslookup
-		sed '/^# odhcp6c begin$/,/^# odhcp6c end$/d' /tmp/resolv.conf >/tmp/resolv.conf.tmp
+		# the address for busybox nslookup. Drop entries written by the older
+		# trailing-comment format too, so they do not linger as duplicates.
+		sed -e '/^# odhcp6c begin$/,/^# odhcp6c end$/d' \
+			-e '/# added by odhcp6c/d' /tmp/resolv.conf >/tmp/resolv.conf.tmp
 		echo "# odhcp6c begin" >>/tmp/resolv.conf.tmp
 
 		# Add unique search domains to resolv.conf

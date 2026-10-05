@@ -1,4 +1,9 @@
 #!/bin/sh
 # ONVIF relays and aux commands call irled; light does the actual work.
 
+if ! command -v light >/dev/null 2>&1; then
+	echo "irled: light not found (install thingino-daynightd or thingino-raptor)" >&2
+	exit 127
+fi
+
 exec light ir "$@"

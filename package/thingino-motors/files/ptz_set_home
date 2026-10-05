@@ -1,7 +1,8 @@
 #!/bin/sh
 # ONVIF SetHomePosition. Preset 0 is the position S59motor parks at on boot.
+# An empty description makes ptz_presets keep the existing label (or default it).
 
 pos=$(motors -p) || exit 1
 [ -n "$pos" ] || exit 1
 
-exec ptz_presets -a 0 Home "${pos%,*}" "${pos#*,}"
+exec ptz_presets -a 0 "" "${pos%,*}" "${pos#*,}"
