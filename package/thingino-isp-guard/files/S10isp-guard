@@ -4,10 +4,9 @@
 #
 # u-boot env "isp_open" selects what happens at boot:
 #   auto   (default when unset) load the modules normally, with a crash-loop
-#          guard: a boot that does not reach STABLE_SECS of uptime with timpsd
-#          running leaves /etc/isp-guard/pending behind; the next boot then
-#          skips the ISP stack and records /etc/isp-guard/tripped until
-#          "clear" is run.
+#          guard: a boot that does not become stable (see below) leaves
+#          /etc/isp-guard/pending behind; the next boot then skips the ISP
+#          stack and records /etc/isp-guard/tripped until "clear" is run.
 #   manual do not load the ISP and sensor modules and do not start timps; load
 #          them by hand with "/etc/init.d/S10isp-guard load" while watching
 #          the kernel log.
@@ -19,15 +18,26 @@
 # empty files over /etc/modules.d entries and /etc/init.d/S95timps (tmpfs
 # state, nothing on flash changes).
 #
-# A clean reboot (rcK, sysupgrade's stop_services, timps' recovery reboot,
+# A boot counts as stable once it has been up STABLE_SECS with the ISP
+# device opened by any process (whichever streamer is configured: timps,
+# prudynt, raptor, ...), or IDLE_SECS without any ISP client at all (no
+# streamer enabled - nothing exercised the ISP, so there is no crash loop
+# to catch).
+#
+# A planned reboot (rcK, sysupgrade's stop_services, timps' recovery reboot,
 # flash-ota) runs "stop", which clears the pending mark; a crash, watchdog
-# reset or power loss within STABLE_SECS keeps it and trips the guard.
+# reset or power loss before the boot became stable keeps it and trips the
+# guard. The first boot of a different firmware image (BUILD_ID in
+# /etc/os-release, compared with the copy in /etc/isp-guard/image) starts
+# from a clean state: flashing new firmware is how a crash loop gets fixed,
+# and /overlay survives most upgrades.
 
 # shellcheck source=/dev/null
 . /etc/init.d/lib-log
 
 STATE_DIR=/etc/isp-guard
 STABLE_SECS=300
+IDLE_SECS=900
 NOOP=/run/isp-guard-noop
 
 isp_module_files() {
@@ -74,14 +84,43 @@ load_now() {
 	[ "$1" = "--no-timps" ] || /etc/init.d/S95timps start
 }
 
+image_id() {
+	grep -E '^(IMAGE_ID|BUILD_ID|BUILD_TIMESTAMP)=' /etc/os-release 2>/dev/null | tr '\n' ' '
+}
+
+# Name of a process that holds the ISP open (tx-isp, isp-m*, framechan*).
+isp_client() {
+	for fd in /proc/[0-9]*/fd/*; do
+		case "$(readlink "$fd" 2>/dev/null)" in
+			/dev/tx-isp | /dev/isp-m* | /dev/framechan*)
+				pid=${fd#/proc/}
+				cat "/proc/${pid%%/*}/comm" 2>/dev/null || echo "?"
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
+
+# Prints the reason and succeeds once this boot is stable.
+stable_reason() {
+	up=$(awk '{print int($1)}' /proc/uptime)
+	[ "$up" -ge "$STABLE_SECS" ] || return 1
+	if client=$(isp_client); then
+		echo "up ${up}s, ISP in use by $client"
+		return 0
+	fi
+	[ "$up" -ge "$IDLE_SECS" ] || return 1
+	echo "up ${up}s, no ISP client"
+}
+
 mark_stable() {
 	(
 		while :; do
-			up=$(awk '{print int($1)}' /proc/uptime)
-			if [ "$up" -ge "$STABLE_SECS" ] && pidof timpsd >/dev/null; then
+			if why=$(stable_reason); then
 				rm -f "$STATE_DIR/pending"
 				sync
-				log -c 118 "isp-guard: stable after ${up}s, pending mark cleared"
+				log -c 118 "isp-guard: stable ($why), pending mark cleared"
 				exit 0
 			fi
 			sleep 10
@@ -102,15 +141,24 @@ start() {
 			return 0
 			;;
 	esac
+	image=$(image_id)
+	if [ "$image" != "$(cat "$STATE_DIR/image" 2>/dev/null)" ]; then
+		if [ -f "$STATE_DIR/pending" ] || [ -f "$STATE_DIR/tripped" ]; then
+			log -c 118 "isp-guard: new firmware image, previous guard state reset"
+		fi
+		rm -f "$STATE_DIR/pending" "$STATE_DIR/tripped"
+		echo "$image" >"$STATE_DIR/image"
+		sync
+	fi
 	if [ -f "$STATE_DIR/tripped" ]; then
 		suppress "guard tripped earlier ($(cat "$STATE_DIR/tripped")), run '$0 clear'"
 		return 0
 	fi
 	if [ -f "$STATE_DIR/pending" ]; then
-		echo "previous boot $(cat "$STATE_DIR/pending") did not stay up ${STABLE_SECS}s with timpsd" >"$STATE_DIR/tripped"
+		echo "previous boot $(cat "$STATE_DIR/pending") did not become stable" >"$STATE_DIR/tripped"
 		rm -f "$STATE_DIR/pending"
 		sync
-		suppress "previous boot did not stay up ${STABLE_SECS}s with timpsd"
+		suppress "previous boot did not become stable (crash or reset within ${STABLE_SECS}s)"
 		return 0
 	fi
 	echo "boot at $(date '+%F %T')" >"$STATE_DIR/pending"
@@ -124,6 +172,7 @@ status() {
 	[ -f /run/isp-guard.reason ] && echo "suppressed this boot: $(cat /run/isp-guard.reason)"
 	[ -f "$STATE_DIR/pending" ] && echo "pending: $(cat "$STATE_DIR/pending")"
 	[ -f "$STATE_DIR/tripped" ] && echo "tripped: $(cat "$STATE_DIR/tripped")"
+	[ -f "$STATE_DIR/image" ] && echo "image: $(cat "$STATE_DIR/image")"
 	grep -E '^(tx_isp|sensor_)' /proc/modules || echo "no ISP/sensor module loaded"
 }
 

@@ -146,6 +146,10 @@ flash_one() {
 }
 
 stop_streamer
+# reboot -f below skips the init stop scripts: release the optional ISP boot
+# guard now, while the rootfs is still intact and writable (rootfs mode
+# remounts it read-only and then overwrites it).
+[ -x /etc/init.d/S10isp-guard ] && /etc/init.d/S10isp-guard stop || true
 flush_memory
 
 # Resolve MTD names now (while rootfs is still mounted rw).
@@ -262,6 +266,4 @@ esac
 
 sync
 echo "Flash complete. Rebooting..."
-# reboot -f skips the init stop scripts; release the optional ISP boot guard
-[ -x /etc/init.d/S10isp-guard ] && /etc/init.d/S10isp-guard stop || true
 reboot -f
