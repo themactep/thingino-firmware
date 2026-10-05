@@ -55,7 +55,7 @@
             <div data-f="wide_dynamic_range"><label for="wide_dynamic_range">WDR <output class="ms-auto font-monospace" id="wide_dynamic_range-v"></output></label>
               <input type="range" class="form-range" id="wide_dynamic_range" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
             <div data-f="tone"><label for="tone">Highlights <output class="ms-auto font-monospace" id="tone-v"></output></label>
-              <input type="range" class="form-range" id="tone" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+              <input type="range" class="form-range" id="tone" min="0" max="10" step="1" title="Double-click resets to the middle"></div>
             <div data-f="defog"><label for="defog">Defog <output class="ms-auto font-monospace" id="defog-v"></output></label>
               <input type="range" class="form-range" id="defog" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
           </div>
@@ -65,6 +65,26 @@
           <div class="tv-fields">
             <div data-f="noise_reduction"><label for="noise_reduction">Noise reduction <output class="ms-auto font-monospace" id="noise_reduction-v"></output></label>
               <input type="range" class="form-range" id="noise_reduction" min="0" max="255" step="1" title="Double-click resets to the middle"></div>
+            <div data-f="dpc"><label for="dpc">Dead pixels <output class="ms-auto font-monospace" id="dpc-v"></output></label>
+              <input type="range" class="form-range" id="dpc" min="0" max="255" step="1" title="Dead-pixel correction strength. Double-click resets to the middle"></div>
+          </div>
+        </div>
+        <div class="tv-card" id="img-effects-card">
+          <h6>Effects</h6>
+          <div class="tv-fields">
+            <div data-f="image_colorfx"><label for="image_colorfx">Colour effect</label>
+              <select class="form-select" id="image_colorfx">
+                <option value="0">None</option><option value="1">Black &amp; white</option><option value="2">Sepia</option>
+                <option value="3">Negative</option><option value="9">Vivid</option>
+              </select></div>
+            <div data-f="image_scene"><label for="image_scene">Scene</label>
+              <select class="form-select" id="image_scene">
+                <option value="0">Auto</option><option value="2">Beach / snow</option><option value="3">Candle light</option>
+                <option value="4">Dawn / dusk</option><option value="5">Fall colours</option><option value="6">Fireworks</option>
+                <option value="7">Landscape</option><option value="8">Night</option><option value="9">Party / indoor</option>
+                <option value="11">Sports</option><option value="12">Sunset</option><option value="13">Text</option>
+                <option value="14">Night portrait</option>
+              </select></div>
           </div>
         </div>
         <div class="tv-card">
