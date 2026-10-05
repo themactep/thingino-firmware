@@ -40,6 +40,37 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_INTERNAL_PHY
 endef
 endif
 
+# 4.4 kernels name the MAC driver differently and take its pins, clock and PHY
+# from the device tree, so the options above do nothing there. The 4.4 base
+# configs leave the MAC out; this turns it back on as they used to carry it.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_JZ_MAC),y)
+ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(SOC_FAMILY),a1)
+# A1 uses stmmac. DWMAC_GENERIC defaults on with the platform glue, and the
+# base config never had it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_ETH)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_PLATFORM)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_DWMAC_INGENIC)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_DWMAC_GENERIC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PTP_1588_CLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PHYLIB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NETWORK_PHY_TIMESTAMPING)
+endef
+else
+# The driver picks its DMA setup from the bus option (T40 sits on AHB, the
+# others on AXI) and calls into phylib without selecting it.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC_DMA_INTERFACES)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MAC_$(if $(filter t40,$(SOC_FAMILY)),AHB,AXI)_BUS)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_PHYLIB)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NETWORK_PHY_TIMESTAMPING)
+endef
+endif
+endif
+endif
+
 ################ MMC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
@@ -629,6 +660,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V12)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V13)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_INTERNAL_PHY)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1)
