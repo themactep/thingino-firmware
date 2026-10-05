@@ -4,11 +4,14 @@ config BR2_PACKAGE_THINGINO_ISP_GUARD
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
 	help
 	  Install /etc/init.d/S10isp-guard, a crash-loop guard for the
-	  open-tx-isp kernel modules: a boot that does not stay up for 300 s
-	  with timpsd running makes the next boot skip the ISP and sensor
-	  modules and timps (the camera stays reachable over SSH and the
-	  web UI; "S10isp-guard clear" re-arms it). The u-boot variable
-	  isp_open=auto|manual|off selects the behaviour.
+	  open-tx-isp kernel modules: a boot that crashes or resets before
+	  it has run 300 s with the ISP opened by a streamer (timps, prudynt,
+	  raptor, ...) makes the next boot skip the ISP and sensor modules
+	  and timps (the camera stays reachable over SSH and the web UI;
+	  "S10isp-guard clear" re-arms it). Planned reboots and firmware
+	  upgrades do not count; the first boot of a new image starts with a
+	  clean guard state. The u-boot variable isp_open=auto|manual|off
+	  selects the behaviour.
 
 	  Meant for development and bring-up of the open stack. Do not
 	  enable it on cameras that must keep streaming through repeated
