@@ -7,7 +7,7 @@
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 OS_RELEASE_FILE="/etc/os-release"
 
-usb_console=$(jct /etc/thingino.json get usb.console 2>/dev/null || fw_printenv -n usb_console)
+usb_console=$(jct /etc/thingino.json get usb_console 2>/dev/null || fw_printenv -n usb_console)
 
 start() {
 	if [ "true" = "$usb_console" ] && [ -f "$USB_SCRIPT" ]; then
