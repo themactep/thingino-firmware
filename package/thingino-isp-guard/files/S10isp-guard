@@ -27,8 +27,9 @@
 # A planned reboot (rcK, sysupgrade's stop_services, timps' recovery reboot,
 # flash-ota) runs "stop", which clears the pending mark; a crash, watchdog
 # reset or power loss before the boot became stable keeps it and trips the
-# guard. The first boot of a different firmware image (BUILD_ID in
-# /etc/os-release, compared with the copy in /etc/isp-guard/image) starts
+# guard. The first boot of a different firmware image (IMAGE_ID, BUILD_ID
+# or BUILD_TIMESTAMP in /etc/os-release, compared with the copy in
+# /etc/isp-guard/image) starts
 # from a clean state: flashing new firmware is how a crash loop gets fixed,
 # and /overlay survives most upgrades.
 
@@ -90,19 +91,21 @@ image_id() {
 
 # Name of a process that holds the ISP open (tx-isp, isp-m*, framechan*).
 isp_client() {
-	for fd in /proc/[0-9]*/fd/*; do
-		case "$(readlink "$fd" 2>/dev/null)" in
-			/dev/tx-isp | /dev/isp-m* | /dev/framechan*)
-				pid=${fd#/proc/}
-				cat "/proc/${pid%%/*}/comm" 2>/dev/null || echo "?"
-				return 0
-				;;
-		esac
-	done
-	return 1
+	# one ls for all fds instead of a readlink per fd (low-end SoCs).
+	# shellcheck disable=SC2012
+	# /dev/framechan* are the open-tx-isp frame channels (T21/T31).
+	pid=$(ls -l /proc/[0-9]*/fd 2>/dev/null | awk '
+		/^\/proc\// { p = $1 }
+		/ -> \/dev\/(tx-isp|isp-m|framechan)/ {
+			sub("^/proc/", "", p); sub("/fd:$", "", p); print p; exit
+		}')
+	[ -n "$pid" ] || return 1
+	cat "/proc/$pid/comm" 2>/dev/null || echo "?"
 }
 
-# Prints the reason and succeeds once this boot is stable.
+# Prints the reason and succeeds once this boot is stable. A streamer that
+# hangs while keeping the ISP open still counts as stable here; the
+# streamer's own watchdog has to catch that case.
 stable_reason() {
 	up=$(awk '{print int($1)}' /proc/uptime)
 	[ "$up" -ge "$STABLE_SECS" ] || return 1
