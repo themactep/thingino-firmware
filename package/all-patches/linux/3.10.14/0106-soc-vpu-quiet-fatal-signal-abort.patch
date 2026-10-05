@@ -1,0 +1,72 @@
+From: OpenIMP campaign
+Subject: [PATCH] soc_vpu: do not report a fatal-signal abort as "wait timeout"
+
+On top of 0097/0101.  When the encoder process is killed (SIGKILL) while
+a RUN ioctl waits for the Helix/nVPU, the backend wait_complete() returns
+-EINTR after it has already reset the core.  soc_vpu_start() turned every
+negative return into -EIO and logged "wait timeout", and
+soc_channel_run() added "start vpu failed".  Seen on a T21 in about half
+of all `kill -9` of the streamer during streaming, at the moment of the
+kill (same timestamp, no 2 s wait); the next open/start works without
+any module reload.  The messages were misleading only.
+
+-EINTR from the backend is now passed through and logged at debug level;
+real timeouts and hardware errors are logged as before.  Also fix the
+copy-pasted "start vpu on failed" text in the WAIT_COMPLETE ioctl.
+---
+ drivers/video/soc_vpu/soc_vpu.c | 25 ++++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)
+
+--- a/drivers/video/soc_vpu/soc_vpu.c
++++ b/drivers/video/soc_vpu/soc_vpu.c
+@@ -795,7 +795,16 @@
+ 		spin_unlock_irqrestore(&vlist->slock, vlflag);
+ 		if (vpu->ops->wait_complete) {
+ 			ret = vpu->ops->wait_complete(vpu->dev, cnode);
+-			if (ret < 0) {
++			if (ret == -EINTR) {
++				/*
++				 * The caller is being killed: the backend has
++				 * already stopped the core.  Not a hardware
++				 * timeout, so do not log it as one.
++				 */
++				dev_dbg(sc->mdev.this_device, "[%d:%d] job aborted by fatal signal\n",
++					current->tgid, current->pid);
++				goto err_wait_complete;
++			} else if (ret < 0) {
+ 				ret = -EIO;
+ 				dev_err(sc->mdev.this_device, "[fun:%s,line:%d] wait timeout\n", __func__, __LINE__);
+ 				goto err_wait_complete;
+@@ -852,7 +861,11 @@
+ 
+ 	if (vpu->dev && vpu->ops && vpu->ops->wait_complete) {
+ 		ret = vpu->ops->wait_complete(vpu->dev, cnode);
+-		if (ret < 0) {
++		if (ret == -EINTR) {
++			dev_dbg(sc->mdev.this_device, "[%d:%d] job aborted by fatal signal\n",
++				current->tgid, current->pid);
++			goto err_wait_complete;
++		} else if (ret < 0) {
+ 			ret = -EIO;
+ 			dev_err(sc->mdev.this_device, "[fun:%s,line:%d] wait timeout\n", __func__, __LINE__);
+ 			goto err_wait_complete;
+@@ -905,7 +918,8 @@
+ 	soc_channel_flush_cache_all(sc, &cnode);
+ 	ret = soc_vpu_start(sc, &cnode);
+ 	if (ret < 0) {
+-		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] start vpu failed\n", __func__, __LINE__);
++		if (ret != -EINTR)
++			dev_err(sc->mdev.this_device, "[fun:%s,line:%d] start vpu failed\n", __func__, __LINE__);
+ 		goto err_vpu_start_vpu;
+ 	} else if (0x2 == ret) {
+ 		goto err_vpu_start_vpu;
+@@ -1002,7 +1016,8 @@
+ 		goto err_copy_from_user;
+ 
+ 	if ((ret = soc_vpu_wait_complete(sc, &cnode)) < 0) {
+-		dev_err(sc->mdev.this_device, "[fun:%s,line:%d] start vpu on failed\n", __func__, __LINE__);
++		if (ret != -EINTR)
++			dev_err(sc->mdev.this_device, "[fun:%s,line:%d] wait complete failed\n", __func__, __LINE__);
+ 		goto err_vpu_wait_complete;
+ 	}
+ 
