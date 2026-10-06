@@ -16,13 +16,6 @@
   <style>
     /* Preview canvas never grows past the ch1 substream width, so it is
        shown at native size instead of upscaled. */
-    /* Cameras without pan/tilt hardware still show the controls, greyed out,
-       so the layout is the same and the reason is visible above them. */
-    #ptz-controls.is-disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
     #ptz-preview-frame {
       max-width: 960px;
     }
@@ -186,7 +179,7 @@
               No pan/tilt hardware reported by the streamer.
             </div>
 
-            <div id="ptz-controls">
+            <div id="ptz-controls" hidden>
               <div class="text-muted small text-uppercase mb-2">Pan/Tilt</div>
               <div class="text-muted small mb-2">
                 Hold to move, release to stop. Shift-click for one fine step.
@@ -759,13 +752,15 @@
 
     function init() {
       bindFullscreen();
-      var controls = document.getElementById("ptz-controls");
       var unavailable = document.getElementById("ptz-unavailable");
       var flagged = hasMotors();
       if (flagged) loadMotorsSettings();
 
       function enable(data) {
         if (data) params = data;
+        var controls = document.getElementById("ptz-controls");
+        if (controls) controls.hidden = false;
+        if (unavailable) unavailable.hidden = true;
         bindPad();
         bindButtons();
         bindKeyboard();
@@ -777,10 +772,7 @@
       function disable() {
         if (unavailable) unavailable.hidden = false;
         var controls = document.getElementById("ptz-controls");
-        if (!controls) return;
-        controls.classList.add("is-disabled");
-        var nodes = controls.querySelectorAll("button, input, select");
-        for (var i = 0; i < nodes.length; i++) nodes[i].disabled = true;
+        if (controls) controls.hidden = true;
       }
 
       // Prefer the live motor params as the source of truth, so the pad
