@@ -279,8 +279,7 @@
       var im = j.image || {};
       crop = { en: +im.fcrop_enable || 0, x: +im.fcrop_x || 0, y: +im.fcrop_y || 0, w: +im.fcrop_w || 0, h: +im.fcrop_h || 0 };
       $("crop-tier").textContent = cropTier;
-      note($("crop-note"), cropTier === "effective" ? "" : cropTier,
-        cropTier === "unsupported" ? "" : !fc.live ? "Applies after a streamer restart." : "");
+      note($("crop-note"), cropTier === "effective" ? "" : cropTier);
       slidersFromCrop();
       renderCrop(fc.state);
     }).catch(function () {
