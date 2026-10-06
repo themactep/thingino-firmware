@@ -83,8 +83,8 @@ ensure_tls_certs() {
 
 # timpsd --check-libs: 78 = OpenIMP build on a vendor libimp or vice versa,
 # 79 = libimp lacks a function every start calls. The daemon would only crash,
-# so it is not started. Anything else (an older timpsd without the option, a
-# loader error) starts as before. Only asked of a binary that knows the
+# so it is not started. Anything else (80 = could not check, an older timpsd
+# without the option, a loader error) starts as before. Only asked of a binary that knows the
 # option: before v1.9.30 an unknown one started the daemon in the foreground.
 # tr: busybox grep stops at NUL bytes.
 preflight() {
