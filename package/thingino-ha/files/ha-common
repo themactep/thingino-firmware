@@ -61,7 +61,7 @@ _ha_mqtt_cfg() {
 
 # Entities the integration knows about. Their enable flags are memoized
 # into exported HA_EN_<entity> variables by the environment block below.
-HA_ENTITIES="motion motion_guard ircut daynight daynight_state privacy color ir850 ir940 white_light floodlight gain brightness rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
+HA_ENTITIES="motion motion_guard ircut daynight daynight_state privacy color ir850 ir940 white_light floodlight lamp_socket gain brightness rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
 
 ha_entity_enabled() {
 	local flag
@@ -72,6 +72,13 @@ ha_entity_enabled() {
 		return
 	fi
 	[ "1" = "$flag" ]
+}
+
+# Wyze Lamp Socket: installed, turned on in its own settings, and enabled here.
+ha_lamp_socket_ok() {
+	command -v lamp_socket_ctl >/dev/null 2>&1 || return 1
+	[ "$(jct "$HA_CONFIG_FILE" get lamp_socket.enabled 2>/dev/null)" = "true" ] || return 1
+	ha_entity_enabled lamp_socket
 }
 
 # ---------------------------------------------------------------------------

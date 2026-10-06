@@ -1,0 +1,47 @@
+#!/bin/sh
+
+# lib-log is not shipped on every branch; fall back to plain echo.
+if [ -r /etc/init.d/lib-log ]; then
+	# shellcheck source=/dev/null
+	. /etc/init.d/lib-log
+else
+	log() { echo "$@"; }
+fi
+
+CTL="/usr/sbin/lamp_socket_ctl"
+
+start() {
+	[ -x "$CTL" ] || return 0
+	[ "true" = "$(jct /etc/thingino.json get lamp_socket.enabled 2>/dev/null)" ] || return 0
+
+	log -c 15 "Restoring lamp socket state"
+
+	# The USB serial device enumerates after boot reaches this point.
+	(
+		i=0
+		while [ $i -lt 20 ]; do
+			"$CTL" device >/dev/null 2>&1 && {
+				"$CTL" restore >/dev/null 2>&1
+				exit 0
+			}
+			i=$((i + 1))
+			sleep 1
+		done
+	) &
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop) ;;
+	restart | reload)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
+
+exit 0

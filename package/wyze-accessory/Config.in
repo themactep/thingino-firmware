@@ -15,6 +15,15 @@ config BR2_PACKAGE_WYZE_ACCESSORY_SPOTLIGHT
 	help
 	  Kernel modules and scripts for controlling the Wyze Spotlight accessory
 
+config BR2_PACKAGE_WYZE_ACCESSORY_LAMP_SOCKET
+	bool "Wyze Lamp Socket"
+	depends on BR2_PACKAGE_WYZE_ACCESSORY
+	help
+	  Kernel modules, lamp_socket_ctl and a web UI page for switching the
+	  Wyze Lamp Socket (v1) that powers a Wyze Cam v3 over its USB cable.
+	  Adds a Lamp button to the control bar and, with thingino-ha, a
+	  Home Assistant switch. Off until enabled under Settings > Lamp Socket.
+
 config BR2_PACKAGE_WYZE_ACCESSORY_CAR
 	bool "Wyze Car"
 	depends on BR2_PACKAGE_WYZE_ACCESSORY
