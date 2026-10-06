@@ -24,94 +24,97 @@
     <div data-app-controls></div>
 
     <section>
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>OSD Elements</h3>
-        <button type="button" id="add-element" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i> Add
-        </button>
-      </div>
-
-      <div class="row mb-3">
-        <div class="col-12 col-xl-4">
-          <div id="frame" class="position-relative">
-            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Preview" tabindex="-1" data-stream="ch1">
-          </div>
-        </div>
-        <div class="col col-xl-8">
-          <div class="card bg-dark-subtle mb-3 p-2">
-            <h6 class="mb-2">OSD</h6>
-            <p class="form-switch mb-2">
-              <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
-              <label for="burnin_enabled" class="form-check-label small">Enabled</label>
-            </p>
-            <div class="row g-2 mb-2">
-              <div class="col">
-                <label class="form-label small mb-0">Format</label>
-                <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
-              </div>
-              <div class="col-auto" style="min-width:80px">
-                <label class="form-label small mb-0">Scale</label>
-                <select id="burnin_scale" class="form-select form-select-sm">
-                  <option value="0">auto</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                </select>
-              </div>
-            </div>
-            <div class="d-flex align-items-end gap-2">
-              <div>
-                <label class="form-label small mb-0">Fill</label>
-                <div class="input-group input-group-sm color-picker-group">
-                  <span class="input-group-text color-swatch" id="swatch_fill" title="Pick color">&nbsp;</span>
-                  <input type="color" id="picker_fill" class="d-none">
-                  <input type="text" id="burnin_fill_color" class="form-control form-control-sm font-monospace"
-                    placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
-                </div>
-                <input type="range" id="alpha_fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
-              </div>
-              <div>
-                <label class="form-label small mb-0">Outline</label>
-                <div class="input-group input-group-sm color-picker-group">
-                  <span class="input-group-text color-swatch" id="swatch_outline" title="Pick color">&nbsp;</span>
-                  <input type="color" id="picker_outline" class="d-none">
-                  <input type="text" id="burnin_outline_color" class="form-control form-control-sm font-monospace"
-                    placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
-                </div>
-                <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
-              </div>
-              <div>
-                <label class="form-label small mb-0">Background</label>
-                <div class="input-group input-group-sm color-picker-group">
-                  <span class="input-group-text color-swatch" id="swatch_bg" title="Pick color">&nbsp;</span>
-                  <input type="color" id="picker_bg" class="d-none">
-                  <input type="text" id="burnin_background_color" class="form-control form-control-sm font-monospace"
-                    placeholder="#00000080" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
-                </div>
-                <input type="range" id="alpha_bg" class="alpha-slider" min="0" max="255" value="128" title="Alpha">
-              </div>
-            </div>
-          </div>
-          <div class="card bg-dark-subtle mb-3 p-2">
-            <h6 class="mb-2">SEI OSD</h6>
-            <p class="form-switch mb-0">
-              <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
-              <label for="osd_enabled" class="form-check-label small">Enabled</label>
-            </p>
-            <div id="elements-list" class="mt-2"></div>
-          </div>
-          <button type="button" id="save-osd-config" class="btn btn-primary">
-            <i class="bi bi-floppy me-1"></i> Save configuration
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+          <h2 class="card-title mb-0">OSD Elements</h2>
+          <button type="button" id="add-element" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i> Add
           </button>
-        </div>
-      </div>
+        </div><!-- .card-header -->
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-12 col-xl-4">
+              <div id="frame" class="position-relative">
+                <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Preview" tabindex="-1" data-stream="ch1">
+              </div>
+            </div>
+            <div class="col col-xl-8">
+              <div class="card bg-dark-subtle mb-3 p-2">
+                <h6 class="mb-2">OSD</h6>
+                <p class="form-switch mb-2">
+                  <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
+                  <label for="burnin_enabled" class="form-check-label small">Enabled</label>
+                </p>
+                <div class="row g-2 mb-2">
+                  <div class="col">
+                    <label class="form-label small mb-0">Format</label>
+                    <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
+                  </div>
+                  <div class="col-auto" style="min-width:80px">
+                    <label class="form-label small mb-0">Scale</label>
+                    <select id="burnin_scale" class="form-select form-select-sm">
+                      <option value="0">auto</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="d-flex align-items-end gap-2">
+                  <div>
+                    <label class="form-label small mb-0">Fill</label>
+                    <div class="input-group input-group-sm color-picker-group">
+                      <span class="input-group-text color-swatch" id="swatch_fill" title="Pick color">&nbsp;</span>
+                      <input type="color" id="picker_fill" class="d-none">
+                      <input type="text" id="burnin_fill_color" class="form-control form-control-sm font-monospace"
+                        placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                    </div>
+                    <input type="range" id="alpha_fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+                  </div>
+                  <div>
+                    <label class="form-label small mb-0">Outline</label>
+                    <div class="input-group input-group-sm color-picker-group">
+                      <span class="input-group-text color-swatch" id="swatch_outline" title="Pick color">&nbsp;</span>
+                      <input type="color" id="picker_outline" class="d-none">
+                      <input type="text" id="burnin_outline_color" class="form-control form-control-sm font-monospace"
+                        placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                    </div>
+                    <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+                  </div>
+                  <div>
+                    <label class="form-label small mb-0">Background</label>
+                    <div class="input-group input-group-sm color-picker-group">
+                      <span class="input-group-text color-swatch" id="swatch_bg" title="Pick color">&nbsp;</span>
+                      <input type="color" id="picker_bg" class="d-none">
+                      <input type="text" id="burnin_background_color" class="form-control form-control-sm font-monospace"
+                        placeholder="#00000080" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                    </div>
+                    <input type="range" id="alpha_bg" class="alpha-slider" min="0" max="255" value="128" title="Alpha">
+                  </div>
+                </div>
+              </div>
+              <div class="card bg-dark-subtle mb-3 p-2">
+                <h6 class="mb-2">SEI OSD</h6>
+                <p class="form-switch mb-0">
+                  <input type="checkbox" id="osd_enabled" role="switch" class="form-check-input">
+                  <label for="osd_enabled" class="form-check-label small">Enabled</label>
+                </p>
+                <div id="elements-list" class="mt-2"></div>
+              </div>
+              <button type="button" id="save-osd-config" class="btn btn-primary">
+                <i class="bi bi-floppy me-1"></i> Save configuration
+              </button>
+            </div>
+          </div>
+        </div><!-- .card-body -->
+      </div><!-- .card -->
     </section>
   </div>
 </main>

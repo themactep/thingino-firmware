@@ -28,67 +28,69 @@
     <div data-app-controls></div>
 
     <section>
-      <h3 class="mb-3">OSD Elements</h3>
-      <p class="text-secondary small mb-3">
-        Raptor uses ROD burn-in overlays. Timestamp settings below map to the
-        global OSD timestamp element via the camera agent.
-      </p>
-
-      <div class="row mb-3">
-        <div class="col-12 col-xl-4">
-          <div id="frame" class="position-relative">
-            <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Preview" tabindex="-1" data-stream="ch0">
-          </div>
-        </div>
-        <div class="col col-xl-8">
-          <div class="card bg-dark-subtle mb-3 p-3">
-            <h6 class="mb-2">Timestamp overlay</h6>
-            <p class="form-switch mb-2">
-              <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
-              <label for="burnin_enabled" class="form-check-label small">Enabled</label>
-            </p>
-            <div class="row g-2 mb-2">
-              <div class="col">
-                <label class="form-label small mb-0" for="burnin_format">Format</label>
-                <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
-              </div>
-              <div class="col-auto" style="min-width:90px">
-                <label class="form-label small mb-0" for="burnin_font_size">Font size</label>
-                <input type="number" id="burnin_font_size" class="form-control form-control-sm" min="8" max="96" step="1" placeholder="24">
-              </div>
-              <div class="col-auto" style="min-width:110px">
-                <label class="form-label small mb-0" for="burnin_position">Position</label>
-                <input type="text" id="burnin_position" class="form-control form-control-sm" placeholder="-10,-10">
+      <div class="card mb-3">
+        <div class="card-header">
+          <h2 class="card-title">OSD Elements</h2>
+          <small>Raptor uses ROD burn-in overlays. Timestamp settings below map to the global OSD timestamp element via the camera agent.</small>
+        </div><!-- .card-header -->
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-12 col-xl-4">
+              <div id="frame" class="position-relative">
+                <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Preview" tabindex="-1" data-stream="ch0">
               </div>
             </div>
-            <div class="d-flex align-items-end gap-2 flex-wrap">
-              <div>
-                <label class="form-label small mb-0">Fill</label>
-                <div class="input-group input-group-sm color-picker-group">
-                  <span class="input-group-text color-swatch" id="swatch_fill" title="Pick color">&nbsp;</span>
-                  <input type="color" id="picker_fill" class="d-none">
-                  <input type="text" id="burnin_fill_color" class="form-control form-control-sm font-monospace"
-                    placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+            <div class="col col-xl-8">
+              <div class="card bg-dark-subtle mb-3 p-3">
+                <h6 class="mb-2">Timestamp overlay</h6>
+                <p class="form-switch mb-2">
+                  <input type="checkbox" id="burnin_enabled" role="switch" class="form-check-input">
+                  <label for="burnin_enabled" class="form-check-label small">Enabled</label>
+                </p>
+                <div class="row g-2 mb-2">
+                  <div class="col">
+                    <label class="form-label small mb-0" for="burnin_format">Format</label>
+                    <input type="text" id="burnin_format" class="form-control form-control-sm" placeholder="%F %T">
+                  </div>
+                  <div class="col-auto" style="min-width:90px">
+                    <label class="form-label small mb-0" for="burnin_font_size">Font size</label>
+                    <input type="number" id="burnin_font_size" class="form-control form-control-sm" min="8" max="96" step="1" placeholder="24">
+                  </div>
+                  <div class="col-auto" style="min-width:110px">
+                    <label class="form-label small mb-0" for="burnin_position">Position</label>
+                    <input type="text" id="burnin_position" class="form-control form-control-sm" placeholder="-10,-10">
+                  </div>
                 </div>
-                <input type="range" id="alpha_fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
-              </div>
-              <div>
-                <label class="form-label small mb-0">Outline</label>
-                <div class="input-group input-group-sm color-picker-group">
-                  <span class="input-group-text color-swatch" id="swatch_outline" title="Pick color">&nbsp;</span>
-                  <input type="color" id="picker_outline" class="d-none">
-                  <input type="text" id="burnin_outline_color" class="form-control form-control-sm font-monospace"
-                    placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                <div class="d-flex align-items-end gap-2 flex-wrap">
+                  <div>
+                    <label class="form-label small mb-0">Fill</label>
+                    <div class="input-group input-group-sm color-picker-group">
+                      <span class="input-group-text color-swatch" id="swatch_fill" title="Pick color">&nbsp;</span>
+                      <input type="color" id="picker_fill" class="d-none">
+                      <input type="text" id="burnin_fill_color" class="form-control form-control-sm font-monospace"
+                        placeholder="#ffffffff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                    </div>
+                    <input type="range" id="alpha_fill" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+                  </div>
+                  <div>
+                    <label class="form-label small mb-0">Outline</label>
+                    <div class="input-group input-group-sm color-picker-group">
+                      <span class="input-group-text color-swatch" id="swatch_outline" title="Pick color">&nbsp;</span>
+                      <input type="color" id="picker_outline" class="d-none">
+                      <input type="text" id="burnin_outline_color" class="form-control form-control-sm font-monospace"
+                        placeholder="#000000ff" pattern="#?[0-9a-fA-F]{8}" maxlength="9">
+                    </div>
+                    <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
+                  </div>
                 </div>
-                <input type="range" id="alpha_outline" class="alpha-slider" min="0" max="255" value="255" title="Alpha">
               </div>
+              <button type="button" id="save-osd-config" class="btn btn-primary">
+                <i class="bi bi-floppy me-1"></i> Save configuration
+              </button>
             </div>
           </div>
-          <button type="button" id="save-osd-config" class="btn btn-primary">
-            <i class="bi bi-floppy me-1"></i> Save configuration
-          </button>
-        </div>
-      </div>
+        </div><!-- .card-body -->
+      </div><!-- .card -->
     </section>
   </div>
 </main>
