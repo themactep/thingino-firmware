@@ -83,7 +83,81 @@
     return codec;
   }
 
+  // Some prudynt builds build the hvcC profile_tier_level from the raw,
+  // still emulation-escaped VPS bytes. The copied 0x000003 sequences shift the
+  // compatibility/constraint flags and general_level_idc to the wrong offsets,
+  // so the level reads as 0 and the codec string is invalid. Rebuild the 12
+  // header bytes from the VPS NAL the record already carries.
+  function deescapeNal(nal) {
+    const out = [];
+    for (let i = 0; i < nal.length; i++) {
+      if (
+        i + 2 < nal.length &&
+        nal[i] === 0 &&
+        nal[i + 1] === 0 &&
+        nal[i + 2] === 3
+      ) {
+        out.push(0, 0);
+        i += 2;
+      } else {
+        out.push(nal[i]);
+      }
+    }
+    return Uint8Array.from(out);
+  }
+
+  function repairHvcC(u8) {
+    let typeAt = -1;
+    for (let i = 0; i + 8 <= u8.length; i++) {
+      if (
+        u8[i] === 0x68 &&
+        u8[i + 1] === 0x76 &&
+        u8[i + 2] === 0x63 &&
+        u8[i + 3] === 0x43
+      ) {
+        typeAt = i;
+        break;
+      }
+    }
+    if (typeAt < 4) return;
+
+    const boxStart = typeAt - 4;
+    const boxSize =
+      ((u8[boxStart] << 24) |
+        (u8[boxStart + 1] << 16) |
+        (u8[boxStart + 2] << 8) |
+        u8[boxStart + 3]) >>>
+      0;
+    const payloadStart = typeAt + 4;
+    const payloadEnd = payloadStart + boxSize - 8;
+    if (boxSize < 31 || payloadEnd > u8.length) return;
+
+    let off = payloadStart + 22;
+    const numArrays = u8[off++];
+    let vps = null;
+    for (let a = 0; a < numArrays && off + 3 <= payloadEnd; a++) {
+      const nalType = u8[off] & 0x3f;
+      off += 1;
+      const count = (u8[off] << 8) | u8[off + 1];
+      off += 2;
+      for (let n = 0; n < count; n++) {
+        if (off + 2 > payloadEnd) return;
+        const len = (u8[off] << 8) | u8[off + 1];
+        off += 2;
+        if (off + len > payloadEnd) return;
+        if (nalType === 32 && !vps) vps = u8.subarray(off, off + len);
+        off += len;
+      }
+    }
+    if (!vps || vps.length < 18) return;
+
+    const ptl = deescapeNal(vps);
+    if (ptl.length < 18) return;
+    for (let k = 0; k < 12; k++) u8[payloadStart + 1 + k] = ptl[6 + k];
+  }
+
   function codecFromInit(u8) {
+    repairHvcC(u8);
     let videoCodec = "avc1.42E01E";
     let hevc = false;
     let hasAudio = false;
@@ -712,8 +786,10 @@
         }
       },
       error: (e) => {
-        setStatus("H.265 decoder error: " + (e && e.message ? e.message : e));
-        scheduleReconnect(mySession, "Decoder reset.");
+        scheduleReconnect(
+          mySession,
+          "H.265 decoder error: " + (e && e.message ? e.message : e) + ".",
+        );
       },
     });
     wcDecoder = decoder;
