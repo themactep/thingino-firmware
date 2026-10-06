@@ -1,7 +1,7 @@
 #!/bin/sh
 # daynight.irprobe_cmd target: timps's silent day/night probe execs
 # "<cmd> on|off" (no shell) to blip the illuminators for one dark reading.
-# Idle-Dark (daynight.ir_idle_off) adds "idle" (off without the watchdog:
+# Idle-Dark (daynight.ir_idle_off) adds "idle" (off with a long watchdog:
 # dark on purpose until a consumer arrives) and "state" (prints on|off).
 #
 # Switches the same set as the board's `daynight` script: ir850, ir940 and
@@ -12,13 +12,18 @@
 # "off" arms a detached watchdog: the daemon has no failsafe, so if it dies
 # during the dark window the illuminators would stay off. Stamped and
 # nonce-checked so a newer "on"/"off"/"idle" invalidates every older watchdog.
+# "idle" arms one too, longer than timps's 600 s re-assert that renews it; it
+# stands down if the board script has since switched to day. "state" leaves
+# the stamp alone.
 #
 # Exit: 0 ok, 1 nothing switchable, 2 unknown verb, 3 "idle" refused because
 # white light is in the set (it would light the ambient reading), 4 "idle"
-# could not switch (rolled back).
+# could not switch or stamp (rolled back).
 cfg=${THINGINO_CONFIG:-/etc/thingino.json}
 stamp=${STAMP_DIR:-/run}/timps-irprobe
 delay=${IRPROBE_WATCHDOG_S:-60}
+idle_delay=${IRPROBE_IDLE_WATCHDOG_S:-900}
+mode_file=${DAYNIGHT_MODE_FILE:-/run/thingino/daynight_mode}
 
 lights=
 for t in ir850:true ir940:true white:false; do
@@ -66,10 +71,12 @@ off)
 	;;
 idle)
 	case " $lights " in *" white "*) exit 3 ;; esac
-	rm -f "$stamp"
+	nonce=$$
+	echo "$nonce" >"$stamp" || exit 4
 	dark=
 	for t in $lights; do
 		if ! light "$t" off; then
+			rm -f "$stamp"
 			for u in $dark; do
 				light "$u" on
 			done
@@ -77,6 +84,14 @@ idle)
 		fi
 		dark="$dark $t"
 	done
+	(
+		sleep "$idle_delay"
+		[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
+		[ "$(cat "$mode_file" 2>/dev/null)" = day ] && exit 0
+		for t in $lights; do
+			light "$t" on
+		done
+	) >/dev/null 2>&1 &
 	exit 0
 	;;
 state)
