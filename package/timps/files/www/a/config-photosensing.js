@@ -80,6 +80,11 @@
       if (el) el.checked = (dn[k] === true || dn[k] === 1);
     });
 
+    var io = $("daynight_ir_idle_off");
+    if (io) io.checked = Number(dn.ir_idle_off) === 1;
+    var il = $("daynight_ir_idle_linger_s");
+    if (il && typeof dn.ir_idle_linger_s === "number") il.value = dn.ir_idle_linger_s;
+
     var mode = $("daynight_mode");
     if (mode && typeof dn.dn_mode === "string") mode.value = dn.dn_mode;
     var cal = $("daynight_calendar");
@@ -139,6 +144,14 @@
     var mode = $("daynight_mode");
     if (mode) out.mode = mode.value;
 
+    // an older timps would reject keys it does not know
+    if (idleShown) {
+      var io = $("daynight_ir_idle_off");
+      if (io) out.ir_idle_off = io.checked ? 1 : 0;
+      var lv = parseInt(($("daynight_ir_idle_linger_s") || {}).value, 10);
+      if (!isNaN(lv) && lv >= 0) out.ir_idle_linger_s = lv;
+    }
+
     INT_FIELDS.forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el) return;
@@ -172,6 +185,61 @@
       if (!isNaN(v)) out[k] = v;
     });
     return out;
+  }
+
+  /* ---- Idle-Dark (daynight.ir_idle_off) card --------------------------- */
+
+  // Pure: null = card hidden. ageS = seconds since dn arrived (the linger
+  // countdown is only pushed on state changes). Tested by timps's
+  // scripts/test_webui_idle.js, which extracts this function by name.
+  function idleView(dn, caps, ageS) {
+    var ii = dn && dn.ir_idle;
+    if (!ii || typeof ii !== "object") return null;
+    var cfg = Number(ii.cfg) === 1;
+    var cd = caps && caps.daynight;
+    if (cd && !Number(cd.ir_idle) && !cfg) return null;
+    var R = {
+      disabled: ["switching off", "Needs “Enable photosensing on boot” (daynight.enabled)."],
+      schedule: ["calendar mode", "Works only when “Decided by” is “Light level” (daynight.mode = auto)."],
+      keepalive: ["no keepalive", "Needs general.fs_keepalive (auto on T23/T41 with OpenIMP). Elsewhere set general.fs_keepalive = 1 in /etc/timps.conf and restart timps (untested there)."],
+      no_illuminator: ["no switchable IR light", "daynight.irprobe_cmd is empty, or the IR light failed to switch twice and is retired until timps restarts. Check that IR 850/940 nm is ticked under “On switch, toggle”."],
+      white_light: ["white light in the set", "Untick “White light” under “On switch, toggle”: it would light every reading while idle."],
+      hook: ["IR hook not usable", "timps-irprobe has no “idle” verb (firmware older than 2026-10), has nothing to switch, or failed twice. Update the firmware or check the log; turning this off and on retries."],
+    };
+    if (!cfg) return { chip: "off", cls: "secondary", why: "The IR light follows day and night as usual." };
+    if (!Number(ii.available)) {
+      var r = R[ii.reason] || [ii.reason || "unknown", "See the timps log."];
+      return { chip: "not available: " + r[0], cls: "warning", why: r[1] };
+    }
+    if (Number(ii.dark))
+      return { chip: "IR off (idle)", cls: "primary",
+               why: "Nobody is watching. The next viewer gets the IR light at once, or day if the scene is bright enough without it." };
+    if (Number(dn.mode) !== 1)
+      return { chip: "ready (day)", cls: "success", why: "Acts at night only; by day the IR light is off anyway." };
+    if (Number(ii.watched))
+      return { chip: "IR on · watched", cls: "info",
+               why: "A stream, snapshot, recording or motion detection is using the camera." };
+    var left = Math.ceil(Number(ii.linger_left_s) - (Number(ageS) || 0));
+    if (left > 0)
+      return { chip: "IR on · off in " + left + " s", cls: "info", why: "Nobody is watching; the linger is running.", countdown: true };
+    return { chip: "IR on · going dark", cls: "info",
+             why: "Nobody is watching; the light goes off at the next quiet moment (not during a probe or right after a switch). If it stays on, look for “exposure did not move” in the log." };
+  }
+
+  var caps = null, idleShown = false, idleAt = 0, idleTimer = null;
+
+  function drawIdle() {
+    var v = idleView(now, caps, (Date.now() - idleAt) / 1000);
+    var card = $("dn-idle-card");
+    idleShown = !!v;
+    if (card) card.hidden = !v;
+    clearTimeout(idleTimer);
+    if (!v) return;
+    var chip = $("dn-idle-chip");
+    chip.textContent = v.chip;
+    chip.className = "ms-auto badge rounded-pill fw-normal text-wrap text-end text-bg-" + v.cls;
+    $("dn-idle-why").textContent = v.why;
+    if (v.countdown) idleTimer = setTimeout(drawIdle, 1000);
   }
 
   /* ---- legacy part: controls only (board daynight script) ------------- */
@@ -218,6 +286,7 @@
   function load() {
     if (reloadBtn) reloadBtn.disabled = true;
     var t = window.timpsApi.get().then(function (json) {
+      caps = (json && json.caps) || null;
       fillTimps(json && json.daynight);
       onNow(json && json.daynight);
       durHints();
@@ -364,12 +433,14 @@
   function onNow(d) {
     if (!d) return;
     Object.keys(d).forEach(function (k) { now[k] = d[k]; });
+    if (d.ir_idle) idleAt = Date.now();
     drawNow();
+    drawIdle();
   }
 
   // hour/minute reading next to the second-valued fields
   function durHints() {
-    ["heartbeat_s", "heartbeat_max_s", "probe_min_gap_s"].forEach(function (k) {
+    ["heartbeat_s", "heartbeat_max_s", "probe_min_gap_s", "ir_idle_linger_s"].forEach(function (k) {
       var el = $("daynight_" + k), lab = el && document.querySelector('label[for="daynight_' + k + '"]');
       if (!lab) return;
       var h = lab.querySelector(".dur") || lab.appendChild(Object.assign(document.createElement("span"), { className: "dur ms-1 text-body-secondary" }));
@@ -377,7 +448,7 @@
       h.textContent = v >= 3600 ? "≈ " + +(v / 3600).toFixed(1) + " h" : v >= 60 ? "≈ " + Math.round(v / 60) + " min" : "";
     });
   }
-  document.addEventListener("input", function (e) { if (/daynight_(heartbeat|probe_min_gap)/.test(e.target.id)) durHints(); });
+  document.addEventListener("input", function (e) { if (/daynight_(heartbeat|probe_min_gap|ir_idle_linger)/.test(e.target.id)) durHints(); });
 
   function onConfigEvent(type, data) {
     if (type === "daynight") { onNow(data); return; }
