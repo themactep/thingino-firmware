@@ -156,6 +156,10 @@ jobs:
           while IFS= read -r file; do
             [ -f "$file" ] || continue
             case "$file" in
+              # Vendored assets ship minified; a shell pattern's * crosses
+              # directory separators, so exclude them explicitly. vendor*
+              # covers both a/vendor and the reduced a/vendor-lite.
+              package/thingino-webui/files/www/a/vendor*/*) continue ;;
               package/thingino-webui/files/www/a/*.js)
                 npx --yes prettier --check "$file" || failed=1
                 ;;
