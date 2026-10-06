@@ -227,6 +227,13 @@ textarea.nowrap {
   color: lightgray;
 }
 
+/* Single action button directly after the subtitle (config, tool, usage pages). */
+.card-header h2 + small + .btn {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+}
+
 .card-header .preview-header-actions {
   position: absolute;
   right: 1rem;

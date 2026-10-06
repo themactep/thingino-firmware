@@ -1,20 +1,245 @@
 (function () {
   const outputsEl = $("#infoOutputs");
   const extrasEl = $("#infoExtras");
+  const tabsEl = $("#infoTabs");
+
+  const DEFAULT_SECTION = "status";
+
+  const INFO_GROUPS = [
+    {
+      label: "Files",
+      items: [
+        { id: "crontab", label: "crontab" },
+        { id: "onvif", label: "onvif.json" },
+        { id: "thingino", label: "thingino.json" },
+      ],
+    },
+    {
+      label: "Logs",
+      items: [
+        { id: "dmesg", label: "dmesg" },
+        { id: "logcat", label: "logcat" },
+        { id: "logread", label: "logread" },
+      ],
+    },
+    {
+      label: "Info",
+      items: [
+        { id: "lsmod", label: "lsmod" },
+        { id: "netstat", label: "netstat" },
+        { id: "release", label: "os-release" },
+        { id: "top", label: "top" },
+        { id: "status", label: "status" },
+      ],
+    },
+  ];
+
+  const PREFIX_GROUPS = {
+    "File:": "Files",
+    "Log:": "Logs",
+    "Info:": "Info",
+  };
+
+  function stripPrefix(label) {
+    if (typeof label !== "string") return "";
+    const match = label.match(/^(File|Log|Info):\s*/);
+    return match ? label.slice(match[0].length) : label;
+  }
+
+  function groupForLabel(label) {
+    if (typeof label !== "string") return null;
+    const match = label.match(/^(File|Log|Info):/);
+    return match ? PREFIX_GROUPS[match[0]] : null;
+  }
+
+  function sectionIdFromHref(href) {
+    if (typeof href !== "string") return null;
+    const index = href.indexOf("?");
+    if (index === -1) return null;
+    const query = href.slice(index + 1).replace(/^(section|tab|name)=/, "");
+    try {
+      return decodeURIComponent(query) || null;
+    } catch (err) {
+      return query || null;
+    }
+  }
+
+  function findGroup(label) {
+    return INFO_GROUPS.find(function (group) {
+      return group.label === label;
+    });
+  }
+
+  function insertPluginItem(group, item, position) {
+    if (!group) return;
+    const items = group.items;
+    const duplicate = items.some(function (existing) {
+      return existing.id === item.id;
+    });
+    if (duplicate) return;
+
+    let idx;
+    if (position === "prepend") {
+      idx = 0;
+    } else if (
+      typeof position === "string" &&
+      position.indexOf("after:") === 0
+    ) {
+      const target = stripPrefix(position.slice(6).trim());
+      const found = items.findIndex(function (it) {
+        return it.label === target;
+      });
+      idx = found === -1 ? items.length : found + 1;
+    } else if (
+      typeof position === "string" &&
+      position.indexOf("before:") === 0
+    ) {
+      const target = stripPrefix(position.slice(7).trim());
+      const found = items.findIndex(function (it) {
+        return it.label === target;
+      });
+      idx = found === -1 ? items.length : found;
+    } else if (
+      typeof position === "string" &&
+      position.indexOf("index:") === 0
+    ) {
+      idx = parseInt(position.slice(6), 10) || 0;
+      idx = Math.max(0, Math.min(idx, items.length));
+    } else {
+      idx = items.length;
+    }
+    items.splice(idx, 0, item);
+  }
+
+  function mergePluginSections() {
+    const uiConfig = window.thinginoUIConfig || {};
+    const plugins = uiConfig.plugins || {};
+    Object.keys(plugins).forEach(function (name) {
+      const plugin = plugins[name];
+      if (!plugin || !Array.isArray(plugin.nav)) return;
+      plugin.nav.forEach(function (contribution) {
+        if (!contribution || contribution.section !== "ddInfo") return;
+        const items = Array.isArray(contribution.items)
+          ? contribution.items
+          : [];
+        items.forEach(function (item) {
+          if (!item || typeof item.href !== "string") return;
+          if (!/^\/?info\.html\?/.test(item.href)) return;
+          const id = sectionIdFromHref(item.href);
+          if (!id) return;
+          const rawLabel = typeof item.label === "string" ? item.label : id;
+          const group = findGroup(groupForLabel(rawLabel));
+          if (!group) return;
+          insertPluginItem(
+            group,
+            { id: id, label: stripPrefix(rawLabel) || id },
+            contribution.position,
+          );
+        });
+      });
+    });
+  }
+
+  function allSectionIds() {
+    const ids = [];
+    INFO_GROUPS.forEach(function (group) {
+      group.items.forEach(function (item) {
+        ids.push(item.id);
+      });
+    });
+    return ids;
+  }
+
+  function sectionLabel(id) {
+    let label = null;
+    INFO_GROUPS.some(function (group) {
+      const found = group.items.find(function (item) {
+        return item.id === id;
+      });
+      if (found) {
+        label = found.label;
+        return true;
+      }
+      return false;
+    });
+    return label;
+  }
+
+  function markActivePill(id) {
+    if (!tabsEl) return;
+    tabsEl.querySelectorAll("[data-section]").forEach(function (button) {
+      button.classList.toggle("active", button.dataset.section === id);
+    });
+  }
+
+  function renderTabs() {
+    if (!tabsEl) return;
+    tabsEl.innerHTML = "";
+    INFO_GROUPS.forEach(function (group) {
+      if (!group.items.length) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "d-flex align-items-center flex-wrap gap-2 mb-1";
+
+      const heading = document.createElement("div");
+      heading.className = "text-uppercase text-secondary x-small";
+      heading.textContent = group.label;
+      wrapper.appendChild(heading);
+
+      const pills = document.createElement("div");
+      pills.className = "nav nav-pills flex-wrap gap-1";
+
+      group.items.forEach(function (item) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "nav-link py-0 px-2 small";
+        button.dataset.section = item.id;
+        button.textContent = item.label;
+        button.addEventListener("click", function () {
+          selectSection(item.id);
+        });
+        pills.appendChild(button);
+      });
+
+      wrapper.appendChild(pills);
+      tabsEl.appendChild(wrapper);
+    });
+  }
+
+  function selectSection(id) {
+    if (!id) return;
+    markActivePill(id);
+    if (window.history && typeof window.history.replaceState === "function") {
+      window.history.replaceState(
+        null,
+        "",
+        "/info.html?" + encodeURIComponent(id),
+      );
+    }
+    loadSection(id);
+  }
 
   function parseInitialTab() {
     const search = window.location.search.replace(/^\?/, "");
-    if (!search) return "system";
+    if (!search) return DEFAULT_SECTION;
+
+    let value;
     if (search.includes("=")) {
       const params = new URLSearchParams(search);
-      return (
+      value =
         params.get("section") ||
         params.get("name") ||
         params.get("tab") ||
-        "system"
-      );
+        DEFAULT_SECTION;
+    } else {
+      try {
+        value = decodeURIComponent(search);
+      } catch (err) {
+        value = DEFAULT_SECTION;
+      }
     }
-    return decodeURIComponent(search);
+
+    return allSectionIds().indexOf(value) === -1 ? DEFAULT_SECTION : value;
   }
 
   function buildShareUrl(command) {
@@ -96,8 +321,10 @@
   }
 
   async function loadSection(tabId) {
-    const section = tabId || "system";
-    showBusy("Loading system information...");
+    const section = tabId || DEFAULT_SECTION;
+    const label = sectionLabel(section) || section;
+    showBusy("Loading " + label + "...");
+    markActivePill(section);
     outputsEl.innerHTML = "";
     extrasEl.innerHTML = "";
     showAlert();
@@ -350,5 +577,7 @@
     loadTextFile(filePath);
   };
 
+  mergePluginSections();
+  renderTabs();
   loadSection(parseInitialTab());
 })();

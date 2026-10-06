@@ -34,7 +34,13 @@
         );
         if (!section || !section.items) continue;
         const items = section.items;
-        const newItems = contribution.items || [];
+        // Plugin file sections (prudynt.json, raptor.conf) now live as tabs
+        // inside info.html, so drop their dropdown links to avoid duplicates.
+        const newItems = (contribution.items || []).filter(function (it) {
+          if (!it || typeof it.href !== "string") return true;
+          const href = it.href.replace(/^\//, "");
+          return !(sectionId === "ddInfo" && href.indexOf("info.html") === 0);
+        });
         if (!newItems.length) continue;
         const position = contribution.position || "append";
         let idx;
@@ -112,17 +118,8 @@
         id: "ddInfo",
         label: "Information",
         items: [
-          { label: "File: crontab", href: "/info.html?crontab" },
-          { label: "File: onvif.json", href: "/info.html?onvif" },
-          { label: "File: thingino.json", href: "/info.html?thingino" },
-          { label: "Log: dmesg", href: "/info.html?dmesg" },
-          { label: "Log: logcat", href: "/info.html?logcat" },
-          { label: "Log: logread", href: "/info.html?logread" },
-          { label: "Info: lsmod", href: "/info.html?lsmod" },
-          { label: "Info: netstat", href: "/info.html?netstat" },
-          { label: "Info: os-release", href: "/info.html?release" },
-          { label: "Info: top", href: "/info.html?top" },
-          { label: "Info: status", href: "/info.html?status" },
+          { label: "Commands and logs", href: "/info.html" },
+          { type: "divider" },
           { label: "Overlay partition", href: "/info-overlay.html" },
           { label: "System usage", href: "/info-usage.html" },
           { label: "Diagnostic info", href: "/info-diagnostic.html" },
@@ -656,9 +653,17 @@
     const normalizedCurrent = normalizePath(
       currentPath || window.location.pathname + window.location.search,
     );
+    const currentBase = normalizedCurrent.split("?")[0];
     const anchors = nav.querySelectorAll("a[data-nav-path]");
     anchors.forEach((anchor) => {
-      if (anchor.dataset.navPath === normalizedCurrent) {
+      const navPath = anchor.dataset.navPath;
+      // A queryless landing link (e.g. /info.html) stays active for any
+      // query on that page (e.g. /info.html?dmesg).
+      const baseMatch =
+        navPath.indexOf("?") === -1 &&
+        navPath.split("?")[0] === currentBase &&
+        currentBase !== "/";
+      if (navPath === normalizedCurrent || baseMatch) {
         anchor.classList.add("active");
         const dropdown = anchor.closest(".dropdown");
         if (dropdown) {
