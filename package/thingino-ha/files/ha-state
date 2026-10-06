@@ -140,6 +140,15 @@ if ha_entity_enabled floodlight && ha_floodlight_available; then
 	[ -n "$val" ] && ha_pub_state floodlight_brightness "$val" "$FORCE"
 fi
 
+# Wyze Lamp Socket: last state commanded from this camera ("None" = unknown)
+if ha_lamp_socket_ok; then
+	case "$(lamp_socket_ctl status 2>/dev/null)" in
+		on) ha_pub_state lamp_socket ON "$FORCE" ;;
+		off) ha_pub_state lamp_socket OFF "$FORCE" ;;
+		*) ha_pub_state lamp_socket None "$FORCE" ;;
+	esac
+fi
+
 # Camera config sensor (IMAGE_ID from os-release, always published)
 image_id=""
 for f in /etc/os-release /usr/lib/os-release; do

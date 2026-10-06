@@ -209,6 +209,18 @@ dispatch() {
 			esac
 			;;
 
+		lamp_socket)
+			ha_lamp_socket_ok || return
+			case "$payload" in
+				on | ON | 1)
+					lamp_socket_ctl on >/dev/null && ha_pub_state lamp_socket ON
+					;;
+				off | OFF | 0)
+					lamp_socket_ctl off >/dev/null && ha_pub_state lamp_socket OFF
+					;;
+			esac
+			;;
+
 		snapshot)
 			prudyntctl snapshot -c 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
 			;;

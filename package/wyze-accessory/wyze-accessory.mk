@@ -57,9 +57,30 @@ endef
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
 	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/spotlight_ctl \
 		$(TARGET_DIR)/usr/sbin/spotlight_ctl
+endef
 
+define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CH341
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/50-accessory
+endef
+
+define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_LAMP_SOCKET
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/lamp_socket_ctl \
+		$(TARGET_DIR)/usr/sbin/lamp_socket_ctl
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/S15lamp-socket \
+		$(TARGET_DIR)/etc/init.d/S15lamp-socket
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/lamp-socket.json \
+		$(TARGET_DIR)/usr/share/thingino-defaults/55-lamp-socket.json
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/config-lamp-socket.html \
+		$(TARGET_DIR)/var/www/config-lamp-socket.html
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/config-lamp-socket.js \
+		$(TARGET_DIR)/var/www/a/config-lamp-socket.js
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/www/a/lamp-socket-button.js \
+		$(TARGET_DIR)/var/www/a/lamp-socket-button.js
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/www/x/json-lamp-socket.cgi \
+		$(TARGET_DIR)/var/www/x/json-lamp-socket.cgi
+	$(INSTALL) -D -m 0644 $(WYZE_ACCESSORY_PKGDIR)/files/lamp-socket.webui.json \
+		$(TARGET_DIR)/var/www/a/plugins/lamp-socket.webui.json
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
@@ -79,7 +100,7 @@ define WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_FLOODLIGHT
 	$(call KCONFIG_SET_OPT,CONFIG_SND_USB_AUDIO,m)
 endef
 
-define WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_SPOTLIGHT
+define WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_CH341
 	$(call KCONFIG_SET_OPT,CONFIG_USB_SERIAL,m)
 	$(call KCONFIG_SET_OPT,CONFIG_USB_SERIAL_CH341,m)
 endef
@@ -102,7 +123,19 @@ endif
 
 ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_SPOTLIGHT),y)
 	WYZE_ACCESSORY_INSTALL_TARGET_CMDS += $(WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT)$(sep)
-	WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS += $(WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_SPOTLIGHT)
+endif
+
+ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_LAMP_SOCKET),y)
+	WYZE_ACCESSORY_INSTALL_TARGET_CMDS += $(WYZE_ACCESSORY_INSTALL_TARGET_CMDS_LAMP_SOCKET)$(sep)
+ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
+	WYZE_ACCESSORY_DEPENDENCIES += thingino-webui
+endif
+endif
+
+# The Spotlight and the Lamp Socket share the CH341 serial driver.
+ifneq ($(filter y,$(BR2_PACKAGE_WYZE_ACCESSORY_SPOTLIGHT) $(BR2_PACKAGE_WYZE_ACCESSORY_LAMP_SOCKET)),)
+	WYZE_ACCESSORY_INSTALL_TARGET_CMDS += $(WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CH341)$(sep)
+	WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS += $(WYZE_ACCESSORY_LINUX_CONFIG_FIXUPS_CH341)
 endif
 
 ifeq ($(BR2_PACKAGE_WYZE_ACCESSORY_CAR),y)
