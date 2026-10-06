@@ -19,6 +19,11 @@
   // appended fragment and the time it arrived.
   let edgeMediaRef = null;
   let edgeWallRef = null;
+  // Browsers without MSE HEVC fall back to WebCodecs. The decision is cached
+  // per channel so a reconnect goes straight to the decoder sink.
+  const wcMode = {};
+  let wcCanvas = null;
+  let wcDecoder = null;
 
   const host = () => window.location.hostname || "localhost";
   const API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
@@ -92,6 +97,7 @@
         videoCodec = hevcCodecString(u8.subarray(i + 4));
         hevc = true;
       } else if (
+        !hevc &&
         u8[i] === 0x61 &&
         u8[i + 1] === 0x76 &&
         u8[i + 2] === 0x63 &&
@@ -109,6 +115,7 @@
     }
     return {
       hevc: hevc,
+      codec: videoCodec,
       mime: hasAudio
         ? `video/mp4; codecs="${videoCodec}, mp4a.40.2"`
         : `video/mp4; codecs="${videoCodec}"`,
@@ -140,6 +147,177 @@
     out.set(a, 0);
     out.set(b, a.length);
     return out;
+  }
+
+  // Payload of the first direct child box of `type`, or null.
+  function findBoxPayload(bytes, type) {
+    let off = 0;
+    let b;
+    while ((b = boxAt(bytes, off))) {
+      if (b.type === type) return bytes.subarray(off + 8, off + b.size);
+      off += b.size;
+    }
+    return null;
+  }
+
+  function findInPath(bytes, path) {
+    let cur = bytes;
+    for (let i = 0; i < path.length; i++) {
+      cur = findBoxPayload(cur, path[i]);
+      if (!cur) return null;
+    }
+    return cur;
+  }
+
+  // The video track's decoder config, geometry and timescale out of the moov,
+  // for VideoDecoder.configure. The camera muxes hvc1, so only that sample
+  // entry is accepted here.
+  function parseVideoTrack(init) {
+    const moov = findBoxPayload(init, "moov");
+    if (!moov) return null;
+    let off = 0;
+    let b;
+    while ((b = boxAt(moov, off))) {
+      if (b.type !== "trak") {
+        off += b.size;
+        continue;
+      }
+      const trak = moov.subarray(off + 8, off + b.size);
+      const stsd = findInPath(trak, ["mdia", "minf", "stbl", "stsd"]);
+      const entry = stsd ? boxAt(stsd, 8) : null;
+      if (entry && (entry.type === "hvc1" || entry.type === "hev1")) {
+        const payload = stsd.subarray(16, 8 + entry.size);
+        // VisualSampleEntry is 78 bytes before its child boxes.
+        let config = null;
+        let cOff = 78;
+        let cb;
+        while ((cb = boxAt(payload, cOff))) {
+          if (cb.type === "hvcC") {
+            config = payload.subarray(cOff + 8, cOff + cb.size);
+            break;
+          }
+          cOff += cb.size;
+        }
+        if (config) {
+          const mdhd = findInPath(trak, ["mdia", "mdhd"]);
+          let timescale = 90000;
+          if (mdhd && mdhd.length >= 20) {
+            const dv = new DataView(mdhd.buffer, mdhd.byteOffset, mdhd.length);
+            timescale = mdhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+          }
+          const tkhd = findBoxPayload(trak, "tkhd");
+          let trackId = 1;
+          if (tkhd && tkhd.length >= 24) {
+            const dv = new DataView(tkhd.buffer, tkhd.byteOffset, tkhd.length);
+            trackId = tkhd[0] === 1 ? dv.getUint32(20) : dv.getUint32(12);
+          }
+          const dv = new DataView(
+            payload.buffer,
+            payload.byteOffset,
+            payload.length,
+          );
+          return {
+            id: trackId,
+            timescale: timescale,
+            width: dv.getUint16(24),
+            height: dv.getUint16(26),
+            config: config.slice(),
+          };
+        }
+      }
+      off += b.size;
+    }
+    return null;
+  }
+
+  // Samples out of one moof, resolved as byte offsets relative to the moof
+  // start. The muxer writes one trun per fragment; this still walks a multi
+  // sample trun. Only the video track is returned.
+  function parseMoof(moof, timescale, videoTrackId) {
+    const out = [];
+    let off = 0;
+    let b;
+    while ((b = boxAt(moof, off))) {
+      if (b.type === "traf") {
+        const traf = moof.subarray(off + 8, off + b.size);
+        const tfhd = findBoxPayload(traf, "tfhd");
+        const trun = findBoxPayload(traf, "trun");
+        const tfdt = findBoxPayload(traf, "tfdt");
+        if (tfhd && trun) {
+          const dvt = new DataView(tfhd.buffer, tfhd.byteOffset, tfhd.length);
+          if (dvt.getUint32(4) === videoTrackId) {
+            let base = 0;
+            if (tfdt) {
+              const dvd = new DataView(
+                tfdt.buffer,
+                tfdt.byteOffset,
+                tfdt.length,
+              );
+              base =
+                tfdt[0] === 1 ? Number(dvd.getBigUint64(4)) : dvd.getUint32(4);
+            }
+            const dvr = new DataView(trun.buffer, trun.byteOffset, trun.length);
+            const flags = (trun[1] << 16) | (trun[2] << 8) | trun[3];
+            let p = 4;
+            const count = dvr.getUint32(p);
+            p += 4;
+            let rel = 0;
+            if (flags & 0x000001) {
+              rel = dvr.getUint32(p);
+              p += 4;
+            }
+            if (flags & 0x000004) p += 4; // first_sample_flags
+            let t = base;
+            for (let i = 0; i < count; i++) {
+              let dur = 0;
+              let size = 0;
+              let sampleFlags = 0;
+              let cts = 0;
+              if (flags & 0x000100) {
+                dur = dvr.getUint32(p);
+                p += 4;
+              }
+              if (flags & 0x000200) {
+                size = dvr.getUint32(p);
+                p += 4;
+              }
+              if (flags & 0x000400) {
+                sampleFlags = dvr.getUint32(p);
+                p += 4;
+              }
+              if (flags & 0x000800) {
+                cts = dvr.getUint32(p);
+                p += 4;
+              }
+              out.push({
+                dataOffset: rel,
+                size: size,
+                timestampUs: ((t + cts) * 1e6) / timescale,
+                durationUs: (dur * 1e6) / timescale,
+                key: (sampleFlags & 0x00010000) === 0,
+              });
+              rel += size;
+              t += dur;
+            }
+          }
+        }
+      }
+      off += b.size;
+    }
+    return out;
+  }
+
+  // Canvas sink for decoded frames, sized and shown in place of the video
+  // element. Created once and reused across reconnects.
+  function ensureCanvas() {
+    if (wcCanvas) return wcCanvas;
+    wcCanvas = document.createElement("canvas");
+    wcCanvas.className = "w-100";
+    wcCanvas.style.display = "none";
+    const frame = document.getElementById("frame") || video.parentNode;
+    if (video.nextSibling) frame.insertBefore(wcCanvas, video.nextSibling);
+    else frame.appendChild(wcCanvas);
+    return wcCanvas;
   }
 
   // Seconds of already-played media to keep behind the playhead. Everything
@@ -277,6 +455,16 @@
       abortController.abort();
       abortController = null;
     }
+    if (wcDecoder) {
+      try {
+        wcDecoder.close();
+      } catch (e) {
+        /* ignore */
+      }
+      wcDecoder = null;
+    }
+    if (wcCanvas) wcCanvas.style.display = "none";
+    video.style.display = "";
     sourceBuffer = null;
     mediaSource = null;
     if (video.src) {
@@ -386,9 +574,18 @@
         if (moovEnd > 0) {
           if (mySession !== sessionId) return;
           const info = codecFromInit(buf.subarray(0, moovEnd));
-          if (info.hevc && !MediaSource.isTypeSupported(info.mime)) {
-            setStatus(
-              "This browser can't decode H.265 (HEVC). Use a HEVC-capable browser or the camera's H.264 substream.",
+          const mseHevc =
+            !info.hevc ||
+            !!(window.MediaSource && MediaSource.isTypeSupported(info.mime));
+          if (!mseHevc || wcMode[ch]) {
+            wcMode[ch] = true;
+            await startDecoder(
+              ch,
+              mySession,
+              info,
+              buf.subarray(0, moovEnd),
+              buf.subarray(moovEnd),
+              reader,
             );
             return;
           }
@@ -396,6 +593,18 @@
             sourceBuffer = mediaSource.addSourceBuffer(info.mime);
             sourceBuffer.mode = "segments";
           } catch (e) {
+            if (info.hevc) {
+              wcMode[ch] = true;
+              await startDecoder(
+                ch,
+                mySession,
+                info,
+                buf.subarray(0, moovEnd),
+                buf.subarray(moovEnd),
+                reader,
+              );
+              return;
+            }
             setStatus("Unsupported codec: " + info.mime);
             return;
           }
@@ -439,6 +648,165 @@
     }
   }
 
+  // WebCodecs path for HEVC where MSE will not take it. Demuxes the same
+  // custom fMP4 the MSE path appends, feeds VideoDecoder and paints frames to
+  // the canvas sink.
+  async function startDecoder(ch, mySession, info, init, leftover, reader) {
+    if (typeof VideoDecoder === "undefined") {
+      setStatus(
+        "H.265 preview needs MSE HEVC or WebCodecs. WebCodecs is https-only, so on plain http use the H.264 substream or a HEVC-capable browser.",
+      );
+      return;
+    }
+    const track = parseVideoTrack(init);
+    if (!track) {
+      setStatus("H.265: no hvcC in the init segment.");
+      return;
+    }
+    if (mediaSource) {
+      try {
+        if (mediaSource.readyState === "open") mediaSource.endOfStream();
+      } catch (e) {
+        /* ignore */
+      }
+      mediaSource = null;
+    }
+    if (video.getAttribute("src")) {
+      const objUrl = video.getAttribute("src");
+      video.removeAttribute("src");
+      try {
+        URL.revokeObjectURL(objUrl);
+      } catch (e) {
+        /* ignore */
+      }
+      try {
+        video.load();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    video.style.display = "none";
+    const canvas = ensureCanvas();
+    canvas.style.display = "";
+    const ctx = canvas.getContext("2d");
+
+    let gotFrame = false;
+    const decoder = new VideoDecoder({
+      output: (frame) => {
+        if (mySession !== sessionId) {
+          frame.close();
+          return;
+        }
+        if (
+          canvas.width !== frame.displayWidth ||
+          canvas.height !== frame.displayHeight
+        ) {
+          canvas.width = frame.displayWidth;
+          canvas.height = frame.displayHeight;
+        }
+        ctx.drawImage(frame, 0, 0);
+        frame.close();
+        if (!gotFrame) {
+          gotFrame = true;
+          setStatus("Live: /ch" + ch + ".mp4 (WebCodecs)");
+        }
+      },
+      error: (e) => {
+        setStatus("H.265 decoder error: " + (e && e.message ? e.message : e));
+        scheduleReconnect(mySession, "Decoder reset.");
+      },
+    });
+    wcDecoder = decoder;
+    try {
+      decoder.configure({
+        codec: info.codec,
+        description: track.config,
+        codedWidth: track.width || undefined,
+        codedHeight: track.height || undefined,
+        hardwareAcceleration: "prefer-hardware",
+        optimizeForLatency: true,
+      });
+    } catch (e) {
+      setStatus("H.265 decoder rejected the config: " + e.message);
+      return;
+    }
+    setStatus("H.265 over WebCodecs...");
+
+    const MAX_DECODE_QUEUE = 6;
+    let dropping = false;
+    const feed = (sample, tsUs, durUs, key) => {
+      // Live view: when the decoder falls behind, drop deltas until the next
+      // key frame instead of growing an unbounded backlog.
+      if (dropping && !key) return;
+      if (!key && decoder.decodeQueueSize > MAX_DECODE_QUEUE) {
+        dropping = true;
+        return;
+      }
+      dropping = false;
+      try {
+        decoder.decode(
+          new EncodedVideoChunk({
+            type: key ? "key" : "delta",
+            timestamp: Math.round(tsUs),
+            duration: Math.round(durUs),
+            data: sample,
+          }),
+        );
+      } catch (e) {
+        /* a rejected chunk is not fatal for a live stream */
+      }
+    };
+
+    let buf = leftover;
+    try {
+      while (mySession === sessionId) {
+        const { done, value } = await reader.read();
+        if (mySession !== sessionId) return;
+        if (done) break;
+        buf = concat(buf, value);
+        let off = 0;
+        while (true) {
+          const box = boxAt(buf, off);
+          if (!box) break;
+          if (box.type === "moof") {
+            const mdat = boxAt(buf, off + box.size);
+            if (!mdat || mdat.type !== "mdat") break;
+            const samples = parseMoof(
+              buf.subarray(off + 8, off + box.size),
+              track.timescale,
+              track.id,
+            );
+            for (let i = 0; i < samples.length; i++) {
+              const s = samples[i];
+              feed(
+                buf.subarray(off + s.dataOffset, off + s.dataOffset + s.size),
+                s.timestampUs,
+                s.durationUs,
+                s.key,
+              );
+            }
+            off += box.size + mdat.size;
+          } else {
+            off += box.size;
+          }
+        }
+        buf = buf.slice(off);
+      }
+      await decoder.flush().catch(() => {});
+      scheduleReconnect(mySession, "Stream ended.");
+    } catch (e) {
+      if (mySession === sessionId)
+        scheduleReconnect(mySession, "Stream stopped.");
+    } finally {
+      if (wcDecoder === decoder) wcDecoder = null;
+      try {
+        decoder.close();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }
+
   function scheduleReconnect(mySession, why) {
     if (mySession !== sessionId) return;
     setStatus(why + " Reconnecting...");
@@ -455,6 +823,11 @@
   function beginStream(ch, mySession) {
     channel = ch;
     setStatus("Connecting to /ch" + ch + ".mp4 ...");
+    // A channel already known to need the decoder has no MSE sink to open.
+    if (wcMode[ch]) {
+      runPromise = run(ch, mySession);
+      return;
+    }
     mediaSource = new MediaSource();
     video.src = URL.createObjectURL(mediaSource);
     mediaSource.addEventListener(
