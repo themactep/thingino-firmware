@@ -32,12 +32,12 @@ fi
 PIDFILE="/var/run/${DAEMON}.${IFACE}.pid"
 IFPLUGD_ARGS="${IFPLUGD_ARGS} -i ${IFACE}"
 
-# BusyBox' ifplugd does not create a pidfile, so pass "-n" in the
-# command line and use "-m" to instruct start-stop-daemon to create one.
+# ifplugd writes $PIDFILE itself and refuses to start while the pid in
+# it is alive, so start-stop-daemon must not create it (no "-m").
 start() {
 	printf 'Starting %s for %s: ' "$DAEMON" "$IFACE"
 	# shellcheck disable=SC2086 # we need the word splitting
-	start-stop-daemon -S -b -m \
+	start-stop-daemon -S -b \
 		-p "$PIDFILE" -x "/usr/sbin/$DAEMON" \
 		-- -n $IFPLUGD_ARGS
 	status=$?
