@@ -81,6 +81,37 @@ ensure_tls_certs() {
 		logger -t timps "TLS cert generation failed: $out"
 }
 
+# timpsd --check-libs: 78 = OpenIMP build on a vendor libimp or vice versa,
+# 79 = libimp lacks a function every start calls. The daemon would only crash,
+# so it is not started. Anything else (an older timpsd without the option, a
+# loader error) starts as before. Only asked of a binary that knows the
+# option: before v1.9.30 an unknown one started the daemon in the foreground.
+# tr: busybox grep stops at NUL bytes.
+preflight() {
+	tr -d '\000' 2>/dev/null <"$DAEMON" | grep -q -- --check-libs || return 0
+	out=$("$DAEMON" --check-libs 2>&1)
+	rc=$?
+	case $rc in
+	0) return 0 ;;
+	78 | 79)
+		echo "$out" | while IFS= read -r l; do
+			[ -n "$l" ] || continue
+			logger -t timps -p daemon.err "$l"
+			echo "$l"
+		done
+		msg="timpsd not started (exit $rc): libimp does not fit this timpsd build"
+		logger -t timps -p daemon.err "$msg"
+		echo "$msg"
+		return 1
+		;;
+	*)
+		[ -z "$out" ] ||
+			logger -t timps -p daemon.warn "timpsd --check-libs exited $rc, starting anyway: $(echo "$out" | head -n 1)"
+		return 0
+		;;
+	esac
+}
+
 # Wait for the daemon to actually exit (IMP/rmem teardown can take a while);
 # starting a new instance too early makes ISP init fail.
 wait_stop() {
@@ -101,6 +132,7 @@ wait_stop() {
 case "$1" in
 	start)
 		echo "Starting timpsd..."
+		preflight || exit 1
 		ensure_tls_certs
 		start-stop-daemon -S -b -m -p "$PIDFILE" \
 			-x "$DAEMON" -- -c "$CONF"
@@ -128,7 +160,7 @@ case "$1" in
 	restart)
 		"$0" stop
 		wait_stop
-		"$0" start
+		"$0" start || exit 1
 		;;
 	status)
 		if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
