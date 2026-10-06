@@ -89,11 +89,13 @@
 
     const dropdown = document.createElement("button");
     dropdown.type = "button";
-    dropdown.className = "btn btn-secondary dropdown-toggle dropdown-toggle-split";
+    dropdown.className =
+      "btn btn-secondary dropdown-toggle dropdown-toggle-split";
     dropdown.title = "Lamp options";
     dropdown.setAttribute("data-bs-toggle", "dropdown");
     dropdown.setAttribute("aria-expanded", "false");
-    dropdown.innerHTML = '<span class="visually-hidden">Toggle lamp menu</span>';
+    dropdown.innerHTML =
+      '<span class="visually-hidden">Toggle lamp menu</span>';
 
     const menu = document.createElement("ul");
     menu.className = "dropdown-menu";

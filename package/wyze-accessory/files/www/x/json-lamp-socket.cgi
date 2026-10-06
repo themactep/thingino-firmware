@@ -62,6 +62,9 @@ handle_get() {
 }
 
 read_body() {
+	case "$CONTENT_LENGTH" in
+		*[!0-9]*) json_error 400 "Invalid Content-Length" ;;
+	esac
 	REQ_FILE=$(mktemp /tmp/lamp-socket-req.XXXXXX)
 	trap 'rm -f "$REQ_FILE"' EXIT
 	if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ]; then
@@ -93,10 +96,12 @@ do_save() {
 		on | off | last | none) ;;
 		*) json_error 400 "boot_state must be on, off, last or none" ;;
 	esac
-	case "$device" in
-		"" | /dev/tty[A-Za-z0-9]*) ;;
-		*) json_error 400 "device must be empty or a /dev/tty* path" ;;
-	esac
+	if [ -n "$device" ]; then
+		# Only /dev/tty followed by letters and digits, e.g. /dev/ttyUSB0.
+		case "${device#/dev/tty}" in
+			"" | "$device" | *[!A-Za-z0-9]*) json_error 400 "device must be empty or a /dev/tty* device name" ;;
+		esac
+	fi
 	was_enabled=$(cfg enabled)
 	jct "$CONFIG_FILE" set lamp_socket.enabled "$enabled" >/dev/null 2>&1
 	jct "$CONFIG_FILE" set lamp_socket.boot_state "$boot_state" >/dev/null 2>&1
