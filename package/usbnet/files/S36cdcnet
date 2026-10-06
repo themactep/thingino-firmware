@@ -42,9 +42,9 @@ start() {
 		i=$((i + 1))
 	done
 	ifconfig usb0 $CNET netmask 255.255.255.0 up 2>/dev/null
-	touch /run/udhcpd.leases
-	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf -d
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET /etc/udhcpd.conf 2>&1
+	touch /run/udhcpd_usb.leases
+	start-stop-daemon -S -b -m -p /run/dnsd_usb.pid -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf
+	start-stop-daemon -S -b -m -p /run/udhcpd_usb.pid -x /sbin/udhcpd -- -f -S -I $CNET /etc/udhcpd.conf 2>&1
 }
 
 case "$1" in
