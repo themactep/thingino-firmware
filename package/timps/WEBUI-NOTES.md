@@ -415,6 +415,30 @@ the scale is the probe bar `day_trigger` (yellow "probe day" below it, blue
 reference exists (`day_trigger` -1) the bar is plain blue and the marker
 dimmed.
 
+### Idle-Dark card (`daynight.ir_idle_off`, "IR light when idle")
+
+Switch `daynight_ir_idle_off`, field `daynight_ir_idle_linger_s` (0..3600)
+and a chip from the status object `daynight.ir_idle` (`cfg`, `available`,
+`reason`, `dark`, `watched`, `linger_left_s`). Only timps reaches this page
+(timps.mk installs it over thingino-daynightd's), and the card stays hidden
+unless the status carries `ir_idle`: an older timps neither shows it nor gets
+the two keys POSTed (it would count them as rejected). `caps.daynight.ir_idle
+= 0` (no FrameSource keepalive on this start) hides it too, except while the
+key is on, so the chip can say "no keepalive" and the switch can turn it off.
+
+`idleView()` is pure (status, caps, age in s → chip text, colour, the
+explanation line incl. the fix per `reason`) and is tested on the host by
+timps's `scripts/test_webui_idle.js`, which extracts it by name - keep the
+name and keep it free of DOM access. `/events` pushes `daynight` only when
+`available`/`dark`/`reason` change (and on brightness/gain moves), so the
+linger countdown runs locally from the last status's `linger_left_s`.
+
+The page's own MJPEG preview (`#preview`, ch1) runs even on the Settings tab
+and is a picture consumer, so while the page is open the chip normally reads
+"IR on · watched"; "IR off (idle)" appears only after the preview stopped
+(browser tab hidden, `track_focus`) and the linger ran out, or in
+`GET /control` from elsewhere.
+
 ## a/preview-motion.js
 
 ### File header: SSE protocol, token, and the polling fallback

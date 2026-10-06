@@ -204,6 +204,23 @@
             <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_white"><i class="bi bi-brightness-high me-1"></i>White light</label>
           </div>
             </div>
+            <div class="tv-card" id="dn-idle-card" hidden><h6>IR light when idle <span id="dn-idle-chip" class="ms-auto badge rounded-pill fw-normal text-wrap text-end">–</span></h6>
+                <p class="form-switch">
+                  <input type="checkbox" id="daynight_ir_idle_off" name="daynight_ir_idle_off" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_ir_idle_off" class="form-check-label">Turn the IR light off at night while nobody watches</label>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_ir_idle_linger_s">Keep it on after the last viewer (s)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_ir_idle_linger_s" name="daynight_ir_idle_linger_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="10">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="small mb-2" id="dn-idle-why"></p>
+                <small class="text-secondary">Streams, snapshots, recording, timelapse and motion detection count as watching, and so does this page's own preview.
+                  With 850 nm LEDs the red glow is visible: when it goes out, anyone in front of the camera can tell that nobody is watching or recording - &ldquo;IR off&rdquo; means &ldquo;nobody is watching&rdquo;.
+                  A new viewer gets the light at once, but the first seconds of video are dark and a snapshot can take up to 5 s longer.</small>
+            </div>
             <div class="tv-card"><h6>Probing <span class="ms-auto small text-body-secondary fw-normal">advanced</span></h6>
                 <p class="number-range">
                   <label for="daynight_day_confirm_s">Confirm before switching to night (s)</label>
