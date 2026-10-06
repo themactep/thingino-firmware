@@ -1,0 +1,34 @@
+{
+  "name": "lamp-socket",
+  "label": "Lamp Socket",
+  "apiVersion": 1,
+  "nav": [
+    {
+      "section": "ddSettings",
+      "position": "after:GPIO pins",
+      "items": [
+        {
+          "label": "Lamp Socket",
+          "href": "/config-lamp-socket.html"
+        }
+      ]
+    }
+  ],
+  "scripts": [
+    "/a/lamp-socket-button.js"
+  ],
+  "styles": [],
+  "preview": {
+    "scripts": [],
+    "html": null
+  },
+  "featureFlags": {
+    "lampSocket": true
+  },
+  "cgi": [
+    "/x/json-lamp-socket.cgi"
+  ],
+  "pages": [
+    "/config-lamp-socket.html"
+  ]
+}
