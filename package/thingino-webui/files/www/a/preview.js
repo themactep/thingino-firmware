@@ -311,7 +311,7 @@ loadInitialData().then(async () => {
 
   // Get stream from data-stream attribute, default to the ch1 substream
   const preview = $("#preview");
-  const streamChannel = preview?.dataset?.stream || "ch1";
+  let streamChannel = preview?.dataset?.stream || "ch1";
   const previewQuality = 60;
 
   // Request the stream at its native size; the browser scales it to the
@@ -390,6 +390,16 @@ loadInitialData().then(async () => {
     nextRestartAt = 0;
   });
 
+  // Not every camera can serve the ch1 substream JPEG (for example when the
+  // Main stream occupies the encoder), so /x/ch1.mjpg answers with an error and
+  // the image never loads. Fall back to the Main snapshot once.
+  preview.addEventListener("error", () => {
+    if (streamChannel !== "ch0") {
+      streamChannel = "ch0";
+      startPreview();
+    }
+  });
+
   // Stream watchdog - restart if no frames received
   setInterval(() => {
     const now = Date.now();
@@ -452,10 +462,13 @@ loadInitialData().then(async () => {
       // Stop the small preview and suppress watchdog restarts
       isModalOpen = true;
       preview.src = ImageNoStream;
-      // Load the ch1 substream in the full-screen modal at the streamer's
-      // native size; the browser scales it to the viewport.
-      const modalParts = [`q=${previewQuality}`, `_=${new Date().getTime()}`];
-      previewFullsize.src = `/x/ch1.mjpg?${modalParts.join("&")}`;
+      // Load the substream in the full-screen modal at the streamer's native
+      // size; the browser scales it to the viewport.
+      previewFullsize.src = buildPreviewStreamUrl(
+        streamChannel,
+        previewFullsize,
+        true,
+      );
       // Apply SEI rotation to full-screen image
       fetch("/x/json-osd-sei.cgi")
         .then(function (r) {
