@@ -479,6 +479,20 @@ masks until the user reloads by hand. `#pm-reload` had the same problem -
 it was not disabled, so it re-ran `load()`, appeared to work, and still
 left a dead editor.
 
+## a/roi-crop.js
+
+The "ROI" and "Crop / zoom" tabs of streamer-overlays.html (timps encoder ROI
+`roi<S>.<N>.*` and ISP FrontCrop `image.fcrop_*`). Both read their tier from
+`caps.roi` / `caps.fcrop`: `effective` shows no warning, `experimental` a
+warning that the effect is unverified on this SoC, `unsupported` disables the
+controls. ROI boxes are drawn over `#preview` in stream pixels and snap to
+16 px macroblocks while dragging, so the box is what the encoder gets; the
+"both streams" switch is hidden on both tabs (no mirroring). The crop tab works
+in sensor pixels from `caps.fcrop.sensor`: zoom/pan sliders keep the sensor
+aspect ratio, the number fields allow any window; the small map shows the
+window inside the sensor, because the preview itself already shows the crop.
+After each (debounced) POST it re-reads `caps.fcrop.state` and shows it.
+
 ## a/streamer-image.js (streamer-image.html)
 
 Cards with sliders; every image key is live. Keys missing from `caps.image`

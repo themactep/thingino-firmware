@@ -99,7 +99,7 @@
       var v = obj[sec];
       if (v === null || typeof v !== "object") { out[sec] = v; return; }
       Object.keys(v).forEach(function (k) {
-        var pfx = (sec === "video" || sec === "privacy") ? sec + k : sec + "." + k;
+        var pfx = (sec === "video" || sec === "privacy" || sec === "roi") ? sec + k : sec + "." + k;
         flattenInto(out, pfx, v[k]);
       });
     });
