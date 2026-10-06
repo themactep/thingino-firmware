@@ -216,7 +216,7 @@
   }
 
   function nudge(e) {
-    if (openItem < 0 || document.body.getAttribute("data-pane") === "privacy") return;
+    if (openItem < 0 || (document.body.getAttribute("data-pane") || "text") !== "text") return;
     var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (!d) return;
     e.preventDefault();
