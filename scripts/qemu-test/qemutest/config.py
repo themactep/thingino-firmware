@@ -39,6 +39,13 @@ WEBUI_PORT  = 19080
 
 SSH_FWD_PORT = 19022
 
+# USB direct: host ports into the camera over its emulated USB cable, and
+# the two ends of the dgram socket the usbpc host listens on.
+USB_HTTP_PORT = 19180
+USB_SSH_PORT = 19122
+USB_PC_PORT = 19190
+USB_PC_QEMU_PORT = 19191
+
 # IP over the guest's UART0 (SLIP), for profiles with no wired MAC at all:
 # the guest boots exactly like a WiFi-only camera and the host still gets in.
 SLIP_HOST_IP = "10.99.0.1"

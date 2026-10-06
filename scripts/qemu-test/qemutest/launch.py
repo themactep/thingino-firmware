@@ -6,7 +6,9 @@ import shutil
 import subprocess
 import sys
 import time
-from .config import PORTAL_PORT, SSH_FWD_PORT, WEBUI_PORT
+from .config import (PORTAL_PORT, SSH_FWD_PORT, USB_HTTP_PORT,
+                     USB_PC_PORT, USB_PC_QEMU_PORT, USB_SSH_PORT,
+                     WEBUI_PORT)
 
 
 def find_qemu():
@@ -20,8 +22,36 @@ def find_qemu():
     sys.exit("Cannot find qemu-system-mipsel (set QEMU_BIN or use run.sh)")
 
 
+def usb_args(mode):
+    """The camera's USB port cabled to a QEMU hub. The fork's dwc2-ncm-host
+    enumerates the gadget on one side; on the other a slirp carries host
+    TCP (and is the DHCP server in client mode) and, in server mode, the
+    usbpc socket is a second host that leases from the camera."""
+    if mode == "server":
+        # A laptop on the cable, so no router advertisements: an IPv6
+        # default route on usb0 would read as a wired uplink.
+        net = ("ipv6=off,net=172.16.17.0/24,host=172.16.17.2,"
+               "dhcpstart=172.16.17.200")
+        guest = "172.16.17.1"
+    else:
+        net, guest = "net=10.0.3.0/24", "10.0.3.15"
+    args = ["-netdev", "hubport,id=usbwire,hubid=1",
+            "-device", "dwc2-ncm-host,id=usbhost,netdev=usbwire",
+            "-netdev", f"user,id=usbslirp,{net},"
+            f"hostfwd=tcp::{USB_HTTP_PORT}-{guest}:80,"
+            f"hostfwd=tcp::{USB_SSH_PORT}-{guest}:22",
+            "-netdev", "hubport,id=usbport1,hubid=1,netdev=usbslirp"]
+    if mode == "server":
+        args += ["-netdev", "dgram,id=usbpc,local.type=inet,"
+                 f"local.host=127.0.0.1,local.port={USB_PC_QEMU_PORT},"
+                 "remote.type=inet,"
+                 f"remote.host=127.0.0.1,remote.port={USB_PC_PORT}",
+                 "-netdev", "hubport,id=usbport2,hubid=1,netdev=usbpc"]
+    return args
+
+
 def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
-               forwards=True):
+               forwards=True, usb=None):
     # /tmp keeps the path under the 108-char unix socket limit
     qmp_path = f"/tmp/qemu-test-{os.getpid()}.qmp"
     args = [
@@ -47,6 +77,8 @@ def start_qemu(qemu, image, machine, ram_mb, net, report_dir, tap_if="qtap0",
     else:
         # No host-side tests: no forwards, so runs can share a host.
         args += ["-netdev", "user,id=n0"]
+    if usb:
+        args += usb_args(usb)
 
     stdout_path = f"/tmp/qemu-test-{os.getpid()}.stdout"
     stdout_fh = open(stdout_path, "w+")

@@ -32,6 +32,8 @@ class Ctx:
             "wired": "wired" in self.caps,
             "nowired": "wired" not in self.caps,
             "wifi": "wifi" in self.caps,
+            "usb_direct": "usb_direct" in self.caps,
+            "usb_direct_client": "usb_direct_client" in self.caps,
             "lab": self.lab is not None,
             "nolab": self.lab is None,
             "slip": self.slip is not None,

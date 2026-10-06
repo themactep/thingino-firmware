@@ -28,6 +28,8 @@ run.sh qemu_a1n                  # the same over slirp: its eth0 is the a1 xgmac
 run.sh qemu_t31x_eth             # ethernet + full network lab (tap)
 run.sh qemu_t31x_ethwifi         # both interfaces (tap)
 run.sh qemu_t31x_eth --net slirp # override the backend
+run.sh qemu_t31x_usbncm          # USB direct: the camera as an NCM gadget, server mode
+run.sh qemu_t31x_usbonly         # the same with the cable as its only link
 run.sh qemu_t31x_eth --only onvif,ipv6   # just these optional suites
 ```
 
@@ -52,7 +54,7 @@ nothing gets parked, and several runs can share one host.
 | Field | Meaning |
 | --- | --- |
 | `soc` | key into `SOC_MACHINES` (machine, RAM) |
-| `caps` | what the camera has: `wired` (an uplink), `wifi` (a radio) |
+| `caps` | what the camera has: `wired` (an uplink), `wifi` (a radio), `usb_direct` / `usb_direct_client` (an NCM gadget on its USB port, serving or leasing addresses) |
 | `net` | default backend: `tap` runs the full lab, `slip` is IP over the guest's UART0 (no wired MAC, boots like a real WiFi-only camera), `slirp` bridges through host port forwards |
 
 What runs follows from the capabilities: a wifi-only camera exercises the
@@ -95,8 +97,9 @@ run.sh            exec harness.py --profile <name>
                   syslog sinks, WS-Discovery, mDNS;
                   or the SLIP<->TUN relay (sl0)         ──► ttyS0
     onvif_client  SOAP + WS-UsernameToken               ──► onvif_simple_server
+    usbpc         a host on the USB cable: DHCP, DNS    ──► usb0
     playwright    manifest-driven chromium scenarios    ──► uhttpd
-    suites/       common, wifi, net, onvif, webui
+    suites/       common, wifi, net, onvif, webui, usb
     plan          the ordered suite table
     results       the ordered check list and its contract
     report        report.html with screenshots
@@ -104,6 +107,16 @@ run.sh            exec harness.py --profile <name>
 
 Lab addressing: `192.168.100.1/24` and `fd00:5c1::1/64` on `qtap0`, DHCP
 pools `.50-.150` and `fd00:5c1::100-1ff`.
+
+USB direct profiles cable the camera's USB port to a QEMU hub: the fork's
+`dwc2-ncm-host` enumerates the gadget through the emulated DWC2 controller,
+a slirp on the hub forwards host ports 19180 (HTTP) and 19122 (SSH) to
+the camera's usb0, and in server mode `usbpc` is a second host on the hub
+that takes a lease from the camera's udhcpd and queries its dnsd. A
+client-mode camera leases `10.0.3.15` from that slirp instead. No root.
+The device is newer than the pinned ingenic-0.6.8 release, so until the
+next one these profiles need `--qemu` (or `QEMU_BIN`) pointing at a fork
+build.
 
 ## Adding a suite
 
@@ -137,7 +150,7 @@ Row fields:
 | `optional` | `False` means it always runs and `--only` never filters it out |
 
 Capabilities come from `Ctx.has()`. What the profile is: `wired`,
-`nowired`, `wifi`. What the run has: `lab`, `nolab`, `slip`, `slirp`,
+`nowired`, `wifi`, `usb_direct`, `usb_direct_client`. What the run has: `lab`, `nolab`, `slip`, `slirp`,
 `qmp`, `v4`, `host`,
 `pw`, `pw_ok`, `reboot`.
 
