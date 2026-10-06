@@ -36,11 +36,62 @@
   };
   const hex = (v) => v.toString(16).toUpperCase().padStart(2, "0");
 
+  // RFC 6381 codec string for an HEVC track, from the hvcC box payload
+  // (General_profile/tier/level fields, ISO/IEC 14496-15 Annex E). The camera
+  // muxes hvc1 with the parameter sets in hvcC, so the sample entry is always
+  // "hvc1".
+  function hevcCodecString(base) {
+    const b1 = base[1];
+    const space = (b1 >> 6) & 0x03;
+    const tier = (b1 >> 5) & 0x01;
+    const profile = b1 & 0x1f;
+    // general_profile_compatibility_flags is a 32-bit value whose RFC 6381
+    // rendering is the bit-reversed field as lowercase hex.
+    let compat = 0;
+    for (let i = 0; i < 4; i++) compat = (compat * 256 + base[2 + i]) >>> 0;
+    let rev = 0;
+    for (let i = 0; i < 32; i++) {
+      rev = ((rev << 1) | (compat & 1)) >>> 0;
+      compat >>>= 1;
+    }
+    // general_constraint_indicator_flags: six bytes with trailing zeros
+    // trimmed.
+    let constraints = "";
+    for (let i = 11; i >= 6; i--) {
+      if (base[i] !== 0) {
+        for (let k = 6; k <= i; k++) constraints += hex(base[k]);
+        break;
+      }
+    }
+    const spaceLetter = ["", "A", "B", "C"][space] || "";
+    const tierLetter = tier ? "H" : "L";
+    let codec =
+      "hvc1." +
+      spaceLetter +
+      profile +
+      "." +
+      rev.toString(16) +
+      "." +
+      tierLetter +
+      base[12];
+    if (constraints) codec += "." + constraints;
+    return codec;
+  }
+
   function codecFromInit(u8) {
     let videoCodec = "avc1.42E01E";
+    let hevc = false;
     let hasAudio = false;
     for (let i = 0; i + 8 <= u8.length; i++) {
       if (
+        u8[i] === 0x68 &&
+        u8[i + 1] === 0x76 &&
+        u8[i + 2] === 0x63 &&
+        u8[i + 3] === 0x43
+      ) {
+        videoCodec = hevcCodecString(u8.subarray(i + 4));
+        hevc = true;
+      } else if (
         u8[i] === 0x61 &&
         u8[i + 1] === 0x76 &&
         u8[i + 2] === 0x63 &&
@@ -56,9 +107,12 @@
         hasAudio = true;
       }
     }
-    return hasAudio
-      ? `video/mp4; codecs="${videoCodec}, mp4a.40.2"`
-      : `video/mp4; codecs="${videoCodec}"`;
+    return {
+      hevc: hevc,
+      mime: hasAudio
+        ? `video/mp4; codecs="${videoCodec}, mp4a.40.2"`
+        : `video/mp4; codecs="${videoCodec}"`,
+    };
   }
 
   function boxAt(u8, off) {
@@ -331,12 +385,18 @@
         }
         if (moovEnd > 0) {
           if (mySession !== sessionId) return;
-          const codecs = codecFromInit(buf.subarray(0, moovEnd));
+          const info = codecFromInit(buf.subarray(0, moovEnd));
+          if (info.hevc && !MediaSource.isTypeSupported(info.mime)) {
+            setStatus(
+              "This browser can't decode H.265 (HEVC). Use a HEVC-capable browser or the camera's H.264 substream.",
+            );
+            return;
+          }
           try {
-            sourceBuffer = mediaSource.addSourceBuffer(codecs);
+            sourceBuffer = mediaSource.addSourceBuffer(info.mime);
             sourceBuffer.mode = "segments";
           } catch (e) {
-            setStatus("Unsupported codec: " + codecs);
+            setStatus("Unsupported codec: " + info.mime);
             return;
           }
           enqueue(buf.subarray(0, moovEnd).slice());
