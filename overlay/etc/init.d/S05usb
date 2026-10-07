@@ -122,6 +122,7 @@ configure_usb_role() {
 	#FIXME: we should store the host type in the system config for USB-DIRECT devices, etc.
 	kernel_version=$(uname -r | cut -d. -f1-2)
 	if [ "$kernel_version" = "4.4" ]; then
+		command -v usb-role >/dev/null 2>&1 || return 0
 		echo -c 240 -e "- Setting USB controller to host mode"
 		usb-role -m host >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
