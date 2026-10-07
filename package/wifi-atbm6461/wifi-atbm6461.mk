@@ -48,9 +48,9 @@ endef
 
 define WIFI_ATBM6461_INSTALL_CONFIGS
 	$(INSTALL) -m 0755 -d \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)
 	touch \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)/modules.builtin.modinfo
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)/modules.builtin.modinfo
 
 	$(INSTALL) -D -m 0755 $(@D)/files/librtos.so \
 		$(TARGET_DIR)/usr/lib/librtos.so
@@ -64,7 +64,7 @@ WIFI_ATBM6461_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6461_INSTALL_CONFIGS
 
 define WIFI_ATBM6461_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/files/atbm6461_wifi_sdio.ko \
-		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6461_KERN_LOCALVER)/extra/atbm6461_wifi_sdio.ko
+		$(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(WIFI_ATBM6461_KERN_LOCALVER)/extra/atbm6461_wifi_sdio.ko
 endef
 
 $(eval $(generic-package))
