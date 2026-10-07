@@ -59,16 +59,17 @@ thingino-pkg install https://bundles.thingino.com/t31/go2rtc-1.9.14-t31.tgz
 ### How it fits in the filesystem
 
 ```
-┌─────────────────────────────────┐
-│  /  (overlayfs, writable)       │
-│   ┌─ upper: /overlay (JFFS2)    │  ← bundle files land here
-│   └─ lower: /rom    (squashfs)  │  ← read-only factory image
-└─────────────────────────────────┘
+┌────────────────────────────────────┐
+│  /  (overlayfs, writable)          │
+│   ┌─ upper: /overlay/root (JFFS2)  │  ← bundle files land here
+│   └─ lower: /rom      (squashfs)   │  ← read-only factory image
+└────────────────────────────────────┘
 ```
 
 When a bundle extracts files to `/usr/bin/go2rtc`, overlayfs writes them to the
-data partition (`/overlay`).  The file appears at `/usr/bin/go2rtc` and survives
-reboots because the data partition is persistent JFFS2.
+data partition upperdir (`DATA/root`, exposed at `/overlay`).  The file appears at
+`/usr/bin/go2rtc` and survives reboots because the data partition is persistent
+JFFS2.
 
 ### Components
 
@@ -305,7 +306,7 @@ force one with `-t`.
 
 | Tier | Location | Size | Persistent | Best for |
 |------|----------|------|-----------|----------|
-| **overlay** | `/` → `/overlay/` (JFFS2) | 8MB flash: ~0.5 MB free<br>16MB flash: ~8 MB free | Yes | Small packages: config tools, small daemons |
+| **overlay** | `/` → upper (`/overlay`) (JFFS2) | 8MB flash: ~0.5 MB free<br>16MB flash: ~8 MB free | Yes | Small packages: config tools, small daemons |
 | **sdcard** | `/mnt/mmcblk0p1/pkg/<name>/` + symlinks | GBs | Yes | Large packages: go2rtc, zerotier |
 | **tmp** | `/tmp/pkg/<name>/` | RAM-sized | **No** (volatile) | Testing before committing |
 
