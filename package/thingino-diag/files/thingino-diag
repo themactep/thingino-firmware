@@ -251,7 +251,7 @@ diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 	inforun "ip route show 2>/dev/null || route -n 2>/dev/null" "ROUTE"
 	inforun "(iw dev wlan0 info 2>/dev/null || iwconfig wlan0 2>/dev/null) | sed -E -e 's/ESSID:\"[^\"]*\"/ESSID:\"REDACTED\"/' -e 's/Encryption key:[^ ]*/Encryption key:REDACTED/' -e 's/^([[:space:]]*ssid ).*/\1REDACTED/'" "WIFI-INFO"
 	inforun "wpa_cli -i wlan0 status 2>/dev/null | sed -E 's/^(ssid|psk|passphrase)=.*/\1=REDACTED/'" "WPA-STATUS"
-	inforun "wpa_cli -i wlan0 scan_results 2>/dev/null | sed -E 's/^(..:..:..:..:..:..)\t.*/\1\tREDACTED/'" "WIFI-SCAN"
+	inforun "wpa_cli -i wlan0 scan_results 2>/dev/null | sed -E 's/\t[^\t]*$/\tREDACTED/'" "WIFI-SCAN"
 	inforun "dmesg" "DMESG"
 	inforun "logcat -t" "LOGCAT"
 	inforun "logread" "SYSLOG"
@@ -280,6 +280,8 @@ fi
 if [ "$output_mode" != "stdout" ]; then
 	sed -E -i 's/(openRTSP -V -u) (\w*) (\w*) (.*)$/\1 REDACTED REDACTED \4/' "$output_file"
 	# ATBM wifi drivers log the SSID in cleartext inside dmesg (atbm_log authen lines)
+	# Assumption: the SSID itself contains no ')' - ssid(...) redacts up to the
+	# first closing paren, so an SSID like "Home )Net" would leak up to it.
 	sed -E -i 's/ssid\([^)]*\)/ssid(REDACTED)/g' "$output_file"
 fi
 
