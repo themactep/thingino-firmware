@@ -5,6 +5,21 @@ WIFI_ATBM6162U_VERSION = 6f4f1223e8545d15d64ea8c92fb7957f52ed511b
 
 WIFI_ATBM6162U_LICENSE = GPL-2.0
 
+# FIXME: intermittent kernel crash in the vendored mac80211 teardown when the
+# interface is brought down (rcK does this on reboot/shutdown). Sometimes kfree()
+# is called on an already-freed / non-slab pointer, oopsing the kernel and
+# wedging the reboot until the hardware watchdog fires (~60 s).
+# Trace tail on 4.4.94 with 6f4f122 (all in this package's bundled mac80211):
+#   kfree
+#   __ieee80211_key_destroy        (hal_apollo/mac80211/key.c)
+#   __sta_info_destroy             (hal_apollo/mac80211/sta_info.c, gtk/ptk free block)
+#   sta_info_flush / ieee80211_mgd_deauth
+#   cfg80211_mlme_deauth / cfg80211_mlme_down / cfg80211_disconnect / cfg80211_leave
+# Suspect the station PTK teardown (__ieee80211_key_free / __ieee80211_key_replace,
+# and whether sta->ptk is NULLed) and the vendor CONFIG_MAC80211_ATBM_ROAMING_CHANGES
+# async sta/key free. Reproduces only from long-lived / manually-brought-up
+# sessions; a guarded kfree did NOT catch a double free during forced ifdown and
+# rcK runs. Upstream branch atbm-606x-c has no fix as of this version.
 ATBM6162U_MODULE_NAME = atbm6162u
 ATBM6162U_MODULE_OPTS = atbm_printk_mask=0
 
