@@ -182,6 +182,42 @@ if (window.thinginoUIConfig.device.myplugin) { ... }
 Flags are **build-time** (set when the package is built). For runtime
 conditions, query a CGI endpoint from your page's JS instead.
 
+## Backend calls over HTTPS
+
+uhttpd serves HTTPS on 443 alongside HTTP on 80, so the UI is often loaded over
+HTTPS. Browsers block active mixed content: a `fetch()` from an HTTPS page to an
+absolute `http://<host>:8080/...` URL never reaches the camera. A config form
+that depends on it fails to load and fails to save, with nothing useful in the
+response.
+
+Call the backend through a same-origin CGI under `/x/` instead. The request is
+then `https://` like the page, the browser allows it, and session auth comes
+along for free.
+
+| Backend | Same-origin entry point |
+|---------|-------------------------|
+| thingino agent | `/x/agent.cgi?agent_path=/api/v1/...` |
+| prudynt config API | `/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config` |
+| prudynt fMP4 live stream | `/x/fmp4.cgi?ch=0` or `?ch=1` |
+| one endpoint that needs extra server-side work | a purpose-built CGI, e.g. `/x/json-config-rtsp.cgi` |
+
+Media streams are no exception. MJPEG already streams through `/x/ch0.mjpg`;
+fMP4 goes through `/x/fmp4.cgi`, which reads the API key on the camera and
+streams `chN.mp4` from `127.0.0.1:8080` with `curl -N`.
+
+`json-prudynt-proxy.cgi` (in `package/prudynt-t`) is a session-authenticated
+reverse proxy to `127.0.0.1:8080`. It accepts any `/api/v1/*` upstream path,
+forwards the method, body, `Content-Type`, `Accept` and `X-API-Key`, and returns
+the upstream status and content type.
+
+```js
+var API_BASE = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config";
+```
+
+No browser code should build an absolute `:8080` URL. Only server-side CGIs
+talk to `127.0.0.1:8080`. A plugin that owns its own local HTTP service should
+ship an equivalent proxy CGI in its own package.
+
 ## Global scripts
 
 Scripts listed in `"scripts"` load on **every** page — keep them small

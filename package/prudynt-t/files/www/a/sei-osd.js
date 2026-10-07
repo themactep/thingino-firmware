@@ -11,7 +11,7 @@
     .catch(function () {
       return "";
     });
-  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+  var API_BASE = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config";
 
   async function apiFetch(url, options) {
     var key = await API_KEY_PROMISE;

@@ -9,7 +9,7 @@
     .catch(function () {
       return "";
     });
-  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+  var API_BASE = "/x/json-config-rtsp.cgi";
 
   async function apiFetch(url, options) {
     var key = await API_KEY_PROMISE;
@@ -100,7 +100,7 @@
       toggleBusy(true, "Loading RTSP settings...");
     }
     try {
-      const response = await apiFetch(API_BASE + "/rtsp", {
+      const response = await apiFetch(API_BASE, {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error("Failed to load RTSP configuration");
@@ -132,7 +132,7 @@
       const response = await apiFetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rtsp: { password } }),
+        body: JSON.stringify({ password }),
       });
       const result = await response.json();
       if (!response.ok || result.error) {

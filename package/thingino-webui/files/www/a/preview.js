@@ -184,7 +184,7 @@ async function loadConfig() {
       hideBusy();
     }
   }
-  const BASE = "http://" + location.hostname + ":8080/api/v1/config/";
+  const BASE = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config/";
   try {
     const [image, motion, privacy, rtsp, stream0, stream1] = await Promise.all([
       apiFetch(BASE + "image").then((r) => r.json()),
@@ -202,7 +202,7 @@ async function loadConfig() {
   }
 }
 
-var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+var API_BASE = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config";
 
 async function sendToEndpoint(payload) {
   console.log(ts(), "--->", payload);

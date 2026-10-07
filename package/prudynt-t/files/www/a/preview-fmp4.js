@@ -5,7 +5,6 @@
   const statusEl = document.getElementById("fmp4-status");
   if (!video) return;
 
-  const HTTP_PORT = 8080;
   let mediaSource = null;
   let sourceBuffer = null;
   let abortController = null;
@@ -25,17 +24,12 @@
   let wcCanvas = null;
   let wcDecoder = null;
 
-  const host = () => window.location.hostname || "localhost";
   const API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
     .then((r) => (r.ok ? r.json() : { exists: false }))
     .then((d) => (d.exists && d.api_key ? d.api_key : ""))
     .catch(() => "");
 
-  const streamUrl = async (ch) => {
-    const key = await API_KEY_PROMISE;
-    const qs = key ? "?token=" + encodeURIComponent(key) : "";
-    return `http://${host()}:${HTTP_PORT}/ch${ch}.mp4${qs}`;
-  };
+  const streamUrl = (ch) => `/x/fmp4.cgi?ch=${ch}`;
   const setStatus = (text) => {
     if (statusEl) statusEl.textContent = text;
   };
@@ -603,14 +597,6 @@
       });
     } catch (e) {
       if (mySession !== sessionId) return;
-      if (window.location.protocol === "https:") {
-        setStatus(
-          "fMP4 is served over HTTP. Open this page via http://" +
-            host() +
-            "/ to use it.",
-        );
-        return;
-      }
       scheduleReconnect(mySession, "Failed to connect to " + url + ".");
       return;
     }
@@ -948,7 +934,7 @@
   // module. Refresh the RTSP credentials it shows once the config answers;
   // until then it renders the thingino/thingino/554 defaults.
   API_KEY_PROMISE.then((key) =>
-    fetch("http://" + host() + ":8080/api/v1/config/rtsp", {
+    fetch("/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config/rtsp", {
       cache: "no-store",
       headers: key ? { "X-API-Key": key } : {},
     }),
