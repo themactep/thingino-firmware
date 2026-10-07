@@ -23,6 +23,16 @@
   const wcMode = {};
   let wcCanvas = null;
   let wcDecoder = null;
+  // A browser with no HEVC decoder at all (no MSE HEVC and no WebCodecs HEVC)
+  // cannot show the fMP4 stream; fall back to the camera's MJPEG, which the
+  // ISP produces independently of the video codec. Cached per channel so a
+  // reconnect does not reopen the fMP4 socket.
+  const mjpegMode = {};
+  let mjpegImg = null;
+  // Encoding ("H.264"/"H.265") reported by the init segment, cached per channel
+  // so the MJPEG fallback can still label what the camera would have sent.
+  const encodingByCh = {};
+  const formatEl = document.getElementById("fmp4-format");
 
   const API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
     .then((r) => (r.ok ? r.json() : { exists: false }))
@@ -32,6 +42,19 @@
   const streamUrl = (ch) => `/x/fmp4.cgi?ch=${ch}`;
   const setStatus = (text) => {
     if (statusEl) statusEl.textContent = text;
+  };
+  // Stream badge: encoding + transport, e.g. "H.265 - fMP4 (MSE)".
+  const setFormat = (encoding, transport) => {
+    if (!formatEl) return;
+    formatEl.textContent = [encoding, transport]
+      .filter(Boolean)
+      .join(" \u00b7 ");
+    formatEl.hidden = !formatEl.textContent;
+  };
+  const clearFormat = () => {
+    if (!formatEl) return;
+    formatEl.hidden = true;
+    formatEl.textContent = "";
   };
   const hex = (v) => v.toString(16).toUpperCase().padStart(2, "0");
 
@@ -388,6 +411,65 @@
     return wcCanvas;
   }
 
+  // MJPEG sink for browsers with no HEVC decoder. The camera's JPEG stream is
+  // codec-independent, so it still plays where the fMP4 cannot. Created once
+  // and reused across channel switches.
+  function ensureMjpegImg() {
+    if (mjpegImg) return mjpegImg;
+    mjpegImg = document.createElement("img");
+    mjpegImg.className = "w-100";
+    mjpegImg.alt = "Live view";
+    mjpegImg.style.display = "none";
+    const frame = document.getElementById("frame") || video.parentNode;
+    if (video.nextSibling) frame.insertBefore(mjpegImg, video.nextSibling);
+    else frame.appendChild(mjpegImg);
+    return mjpegImg;
+  }
+
+  function stopMjpeg() {
+    if (!mjpegImg) return;
+    mjpegImg.onload = null;
+    mjpegImg.onerror = null;
+    mjpegImg.removeAttribute("src");
+    mjpegImg.style.display = "none";
+  }
+
+  // Last resort when the browser cannot decode the H.265 fMP4. Show the MJPEG
+  // substream in place of the video; the ch1 JPEG is unavailable while the
+  // Main stream owns the encoder, so fall back to ch0 once.
+  function startMjpegFallback(ch, mySession) {
+    if (mySession !== sessionId) return;
+    if (mediaSource) {
+      try {
+        if (mediaSource.readyState === "open") mediaSource.endOfStream();
+      } catch (e) {
+        /* ignore */
+      }
+      mediaSource = null;
+    }
+    sourceBuffer = null;
+    if (wcCanvas) wcCanvas.style.display = "none";
+    video.style.display = "none";
+    const img = ensureMjpegImg();
+    img.style.display = "";
+    setFormat(encodingByCh[ch], "MJPEG");
+    let target = ch;
+    img.onerror = () => {
+      if (mySession !== sessionId) return;
+      if (target !== 0) {
+        target = 0;
+        img.src = "/x/ch0.mjpg";
+        return;
+      }
+      setStatus("H.265 not decodable here and the MJPEG fallback failed.");
+    };
+    img.onload = () => {
+      if (mySession !== sessionId) return;
+      setStatus("Live: /ch" + target + ".mjpg (MJPEG fallback)");
+    };
+    img.src = "/x/ch" + target + ".mjpg";
+  }
+
   // Seconds of already-played media to keep behind the playhead. Everything
   // older is removed; without this the SourceBuffer grows for the whole
   // session and the tab eventually runs out of memory.
@@ -532,6 +614,8 @@
       wcDecoder = null;
     }
     if (wcCanvas) wcCanvas.style.display = "none";
+    stopMjpeg();
+    clearFormat();
     video.style.display = "";
     sourceBuffer = null;
     mediaSource = null;
@@ -634,6 +718,7 @@
         if (moovEnd > 0) {
           if (mySession !== sessionId) return;
           const info = codecFromInit(buf.subarray(0, moovEnd));
+          encodingByCh[ch] = info.hevc ? "H.265" : "H.264";
           const mseHevc =
             !info.hevc ||
             !!(window.MediaSource && MediaSource.isTypeSupported(info.mime));
@@ -668,6 +753,7 @@
             setStatus("Unsupported codec: " + info.mime);
             return;
           }
+          setFormat(encodingByCh[ch], "fMP4 (MSE)");
           enqueue(buf.subarray(0, moovEnd).slice());
           buf = buf.slice(moovEnd);
           initDone = true;
@@ -712,15 +798,37 @@
   // custom fMP4 the MSE path appends, feeds VideoDecoder and paints frames to
   // the canvas sink.
   async function startDecoder(ch, mySession, info, init, leftover, reader) {
-    if (typeof VideoDecoder === "undefined") {
-      setStatus(
-        "H.265 preview needs MSE HEVC or WebCodecs. WebCodecs is https-only, so on plain http use the H.264 substream or a HEVC-capable browser.",
-      );
+    // No WebCodecs (plain http), an init segment without hvcC, or a platform
+    // without an HEVC decoder all mean this browser cannot show the H.265
+    // stream. Hand over to MJPEG instead of reconnecting forever.
+    const track =
+      typeof VideoDecoder === "undefined" ? null : parseVideoTrack(init);
+    if (!track) {
+      mjpegMode[ch] = true;
+      start(ch);
       return;
     }
-    const track = parseVideoTrack(init);
-    if (!track) {
-      setStatus("H.265: no hvcC in the init segment.");
+    const config = {
+      codec: info.codec,
+      description: track.config,
+      codedWidth: track.width || undefined,
+      codedHeight: track.height || undefined,
+      hardwareAcceleration: "prefer-hardware",
+      optimizeForLatency: true,
+    };
+    // Exposing VideoDecoder does not guarantee an HEVC decoder behind it.
+    // Ask first; otherwise configure() fails asynchronously and the error
+    // callback would reconnect on every attempt.
+    let hevcSupported = false;
+    try {
+      const support = await VideoDecoder.isConfigSupported(config);
+      hevcSupported = !!(support && support.supported);
+    } catch (e) {
+      hevcSupported = false;
+    }
+    if (!hevcSupported) {
+      mjpegMode[ch] = true;
+      start(ch);
       return;
     }
     if (mediaSource) {
@@ -772,26 +880,27 @@
         }
       },
       error: (e) => {
-        scheduleReconnect(
-          mySession,
-          "H.265 decoder error: " + (e && e.message ? e.message : e) + ".",
-        );
+        if (mySession !== sessionId) return;
+        const message = e && e.message ? e.message : String(e);
+        // A platform that surfaces VideoDecoder but has no HEVC decoder
+        // reports this forever; switch sinks rather than reconnect on it.
+        if (/unsupported configuration/i.test(message)) {
+          mjpegMode[ch] = true;
+          start(ch);
+          return;
+        }
+        scheduleReconnect(mySession, "H.265 decoder error: " + message + ".");
       },
     });
     wcDecoder = decoder;
     try {
-      decoder.configure({
-        codec: info.codec,
-        description: track.config,
-        codedWidth: track.width || undefined,
-        codedHeight: track.height || undefined,
-        hardwareAcceleration: "prefer-hardware",
-        optimizeForLatency: true,
-      });
+      decoder.configure(config);
     } catch (e) {
-      setStatus("H.265 decoder rejected the config: " + e.message);
+      mjpegMode[ch] = true;
+      start(ch);
       return;
     }
+    setFormat(info.hevc ? "H.265" : "H.264", "fMP4 (WebCodecs)");
     setStatus("H.265 over WebCodecs...");
 
     const MAX_DECODE_QUEUE = 6;
@@ -884,6 +993,12 @@
 
   function beginStream(ch, mySession) {
     channel = ch;
+    // A channel already known to be undecodable goes straight to MJPEG; there
+    // is no point reopening the fMP4 socket just to inspect its init segment.
+    if (mjpegMode[ch]) {
+      startMjpegFallback(ch, mySession);
+      return;
+    }
     setStatus("Connecting to /ch" + ch + ".mp4 ...");
     // A channel already known to need the decoder has no MSE sink to open.
     if (wcMode[ch]) {
