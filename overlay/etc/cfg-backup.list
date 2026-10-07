@@ -27,6 +27,9 @@
 /etc/timps.conf
 /etc/onvif.json
 
+# Prudynt user layer (deltas over the read-only /etc/prudynt.json)
+/etc/prudynt.user.json
+
 # You can add more paths below, one per line:
 # /etc/prudynt.json
 # /etc/telegrambot.json

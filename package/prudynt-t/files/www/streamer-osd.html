@@ -383,7 +383,7 @@
   // Save via prudynt API
   saveBtn.addEventListener('click', async function() {
     var confirmed = await confirm(
-      'Save the current OSD configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera and restart the OSD thread.'
+      'Save the current OSD configuration to /etc/prudynt.user.json?\n\nOnly the changes over the read-only core are stored and the OSD thread restarts.'
     );
     if (!confirmed) return;
 

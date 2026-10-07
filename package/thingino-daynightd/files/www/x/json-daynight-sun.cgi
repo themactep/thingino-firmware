@@ -1,6 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2329
-# Read/write daynight.sun config directly from /etc/prudynt.json via jct.
+# Read/write daynight.sun config directly from /etc/thingino.json via jct.
 # Bypasses prudynt API which does not know about these fields.
 
 . /var/www/x/auth.sh

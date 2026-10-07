@@ -14,7 +14,7 @@
 #   user/<camera>/<ip>/overlay/* -> same paths on the camera
 #   user/*/opt/*                 -> /opt on the camera
 #   user/*/thingino.json         -> jct import into /etc/thingino.json
-#   user/*/prudynt.json          -> jct import into /etc/prudynt.json
+#   user/*/prudynt.json          -> jct import into /etc/prudynt.user.json
 #
 # Build-time-only inputs (local.fragment, local.mk, local.uenv.txt) are
 # skipped: they are baked into the firmware image at compile time.
@@ -279,7 +279,7 @@ apply_camera() {
 			import_json /etc/thingino.json "$layer/thingino.json" || status=1
 		fi
 		if [ -s "$layer/prudynt.json" ]; then
-			import_json /etc/prudynt.json "$layer/prudynt.json" || status=1
+			import_json /etc/prudynt.user.json "$layer/prudynt.json" || status=1
 			changed_prudynt=1
 		fi
 	done
