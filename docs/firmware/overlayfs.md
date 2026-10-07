@@ -37,19 +37,36 @@ Camera-scoped and device-scoped user overlays follow the same pattern:
 
 Please note, files from user overlay are not part of the rootfs partition, and they are not packed into
 the .tar bundle or rootfs.squahsfs files in the output images/ directory! Instead, these files end up in
-the data.jffs2 partition image, which holds the overlayfs layers covering the full filesystem: the writable `root/` (upperdir) and, on mainline kernels, the `work/` workdir.
+the data.jffs2 partition image, as the overlayfs upperdir covering the full filesystem.
 
 ### On-device layout
 
-Both overlay drivers use the same upperdir, `DATA/root`:
+Both overlay drivers use the same upperdir, and the workdir (mainline kernels only)
+is its sibling:
 
 ```
-/overlay/          data partition during boot, then bind-mounted to root/
-/overlay/root/     overlayfs upperdir (writable layer)
-/overlay/work/     overlayfs workdir (mainline kernels only; created at boot)
+DATA/root/   overlayfs upperdir
+DATA/work/   overlayfs workdir (mainline kernels only, created at boot)
 ```
 
-The legacy `overlayfs` driver (kernel 3.10.14) has no workdir option and accepts a subdirectory as upperdir; the mainline `overlay` driver (4.4.94, 7.x) requires the workdir to be a sibling of the upperdir. When the data partition is moved to the new root, the upperdir is bind-mounted over `/overlay`, so on a running camera `/overlay/etc/foo` is the upper layer of `/etc/foo` on every kernel.
+During early boot the partition is mounted at `/overlay`, so both layers are visible
+there. After the pivot the partition root is moved to `/overlay` and the upperdir is
+bind-mounted over it, so on a running camera `/overlay` shows the upper layer only:
+`/overlay/etc/foo` is the upper of `/etc/foo`, `/overlay/root` is the upper of
+`/root`. The workdir is no longer reachable by path once the bind is in place; the
+kernel holds it from mount time.
+
+This is the contract every writer relies on. `jct /etc/foo restore` unlinks
+`/overlay/etc/foo` to expose the ROM copy, `wlan.in` removes
+`/overlay/etc/wpa_supplicant.conf`, `S44devmounts` removes `/overlay/var/www`, and
+overlay backup/restore tars `/overlay`. The contract is identical on the 3.10 legacy
+driver and the mainline driver; the two differ only in the mount line.
+
+A partition written by an older build may hold a flat upperdir at the partition root
+instead. On first boot it is folded under `root/` exactly once, marked with
+`DATA/.overlay-migrated`. A `root/` or `work/` entry on the legacy driver is the
+upper of `/root` or `/work`, so it is shuffled inside the container rather than
+consumed as it.
 
 ### Size limits
 
