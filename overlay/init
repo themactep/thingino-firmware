@@ -54,31 +54,77 @@ mount_ubifs() {
 		die "Failed to mount ubi0:$volname as $target!"
 }
 
+# True when the partition root holds a flat upperdir: any entry other than the
+# new container, the workdir, or the migration markers themselves.
+flat_upper_present() {
+	for entry in /overlay/* /overlay/.[!.]*; do
+		[ -e "$entry" ] || continue
+		case "$entry" in
+			/overlay/root | /overlay/work | /overlay/.overlay-migrated | /overlay/.overlay-old-root | /overlay/.overlay-old-work) continue ;;
+		esac
+		return 0
+	done
+	return 1
+}
+
+# Fold a legacy flat upperdir into the shared DATA/root container. Only the
+# 3.10 driver ever lands here: its upperdir is the partition root, so DATA/root
+# and DATA/work are the uppers of /root and /work and must be shuffled aside,
+# not consumed as the container.
+migrate_flat_upper() {
+	if [ -e /overlay/root ]; then
+		mv /overlay/root /overlay/.overlay-old-root || return 1
+	fi
+	if [ -e /overlay/work ]; then
+		mv /overlay/work /overlay/.overlay-old-work || return 1
+	fi
+	mkdir -p /overlay/root || return 1
+	for entry in /overlay/* /overlay/.[!.]*; do
+		[ -e "$entry" ] || continue
+		case "$entry" in
+			/overlay/root | /overlay/.overlay-migrated | /overlay/.overlay-old-root | /overlay/.overlay-old-work) continue ;;
+		esac
+		mv -- "$entry" /overlay/root/ || return 1
+	done
+	if [ -e /overlay/.overlay-old-root ]; then
+		mv /overlay/.overlay-old-root /overlay/root/root || return 1
+	fi
+	if [ -e /overlay/.overlay-old-work ]; then
+		mv /overlay/.overlay-old-work /overlay/root/work || return 1
+	fi
+	return 0
+}
+
 prepare_overlay_dirs() {
 	overlay_rootdir="/overlay/root"
 	overlay_workdir="/overlay/work"
+
+	# One-time layout migration, marked so it can never rerun. Mainline
+	# devices already keep the upperdir at DATA/root; only a legacy 3.10
+	# partition with a flat upper needs folding in.
+	if [ ! -e /overlay/.overlay-migrated ]; then
+		if grep -q overlayfs /proc/filesystems && flat_upper_present; then
+			migrate_flat_upper || return 1
+		fi
+		: >/overlay/.overlay-migrated || return 1
+	fi
+
 	mkdir -p "$overlay_rootdir" || return 1
 	rm -rf "$overlay_workdir"
 	mkdir -p "$overlay_workdir" || return 1
 }
 
-cleanup_overlay_dirs() {
-	rmdir /overlay/work 2>/dev/null
-	rmdir /overlay/root 2>/dev/null
-}
-
 mount_overlay() {
+	prepare_overlay_dirs || return 1
+
+	# Legacy driver: no workdir option, accepts a subdirectory as upperdir.
 	if grep -q overlayfs /proc/filesystems; then
-		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
-		prepare_overlay_dirs || return 1
-		mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
+		mount -t overlayfs -o noatime,lowerdir=/,upperdir="$overlay_rootdir" overlay /mnt && return 0
 		return 1
 	fi
 
-	prepare_overlay_dirs || return 1
+	# Mainline driver: workdir must sit outside the upperdir.
 	mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
-	cleanup_overlay_dirs
-	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
 	return 1
 }
 
@@ -108,3 +154,8 @@ mount -o noatime,move /rom/dev /dev
 
 # Move data partition to new root
 mount -o noatime,move /rom/overlay /overlay || die "Failed to move /overlay"
+
+# Expose the writable layer at /overlay, so /overlay/<path> is the upper of
+# /<path> on every overlay driver. The partition root (with work/) stays
+# mounted underneath; the kernel already holds the workdir from mount time.
+mount -o bind /overlay/root /overlay || die "Failed to bind /overlay"

@@ -167,17 +167,19 @@ $(DATA_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	rm -rf $(OUTPUT_DIR)/data
-	mkdir -p $(OUTPUT_DIR)/data/overlay
+	mkdir -p $(OUTPUT_DIR)/data/overlay/root
 	# add layered user overlays (files that go into overlayfs upperdir)
+	# Both overlay drivers use upperdir=DATA/root, so seed under root/, not
+	# at the partition root.
 	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
-		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/; \
+		$(RSYNC) --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/root/; \
 	done
 	# delete stub files
-	find $(OUTPUT_DIR)/data/overlay -name ".*keep" -o -name ".empty" -delete
+	find $(OUTPUT_DIR)/data/overlay/root -name ".*keep" -o -name ".empty" -delete
 	# add user opt files into the overlay (they'll be at /opt at runtime,
 	# shadowing any /opt files from the rootfs lowerdir)
 	for dir in $(THINGINO_USER_OPT_DIRS); do \
-		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/opt/; \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/data/overlay/root/opt/; \
 	done
 	# pack the data partition image
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/data/overlay/ \

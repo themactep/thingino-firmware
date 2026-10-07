@@ -37,7 +37,19 @@ Camera-scoped and device-scoped user overlays follow the same pattern:
 
 Please note, files from user overlay are not part of the rootfs partition, and they are not packed into
 the .tar bundle or rootfs.squahsfs files in the output images/ directory! Instead, these files end up in
-the data.jffs2 partition image, which serves as the overlayfs upperdir covering the full filesystem.
+the data.jffs2 partition image, which holds the overlayfs layers covering the full filesystem: the writable `root/` (upperdir) and, on mainline kernels, the `work/` workdir.
+
+### On-device layout
+
+Both overlay drivers use the same upperdir, `DATA/root`:
+
+```
+/overlay/          data partition during boot, then bind-mounted to root/
+/overlay/root/     overlayfs upperdir (writable layer)
+/overlay/work/     overlayfs workdir (mainline kernels only; created at boot)
+```
+
+The legacy `overlayfs` driver (kernel 3.10.14) has no workdir option and accepts a subdirectory as upperdir; the mainline `overlay` driver (4.4.94, 7.x) requires the workdir to be a sibling of the upperdir. When the data partition is moved to the new root, the upperdir is bind-mounted over `/overlay`, so on a running camera `/overlay/etc/foo` is the upper layer of `/etc/foo` on every kernel.
 
 ### Size limits
 

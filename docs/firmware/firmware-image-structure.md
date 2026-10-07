@@ -24,7 +24,7 @@ The firmware consists of the following partitions, written sequentially to flash
 | Env       | 64 KB   | Fixed  | U-Boot environment variables |
 | Kernel    | Dynamic | Dynamic| Linux kernel (uImage format) |
 | RootFS    | Dynamic | Dynamic| Root filesystem (SquashFS, compressed) |
-| Data      | Dynamic | Dynamic| JFFS2 overlay upperdir covering full filesystem |
+| Data      | Dynamic | Dynamic| JFFS2 overlay layers (upperdir + workdir) |
 
 ### Partition Details
 
@@ -45,11 +45,20 @@ A compressed SquashFS filesystem containing:
 - Size depends on selected packages and features
 
 #### Data Partition (dynamic size, fills remaining flash)
-A single JFFS2 filesystem mounted as the overlayfs upperdir, covering the entire root filesystem. Contains:
+A single JFFS2 filesystem holding the overlayfs layers, covering the entire root filesystem. The writable layer lives under `root/`, and `work/` (mainline kernels only) is the overlay workdir:
+
+```
+root/    overlayfs upperdir (writable layer, mirrors the rootfs)
+work/    overlayfs workdir (created at boot)
+```
+
+Contains:
 - User overlay files from `user/common/overlay/`, camera- and device-scoped overlays
 - User opt files from `user/common/opt/`, camera- and device-scoped opt directories
 - All runtime configuration changes and package installations
 - Acts as both the persistent config storage (replacing the old fixed config partition) and the `/opt/` writable area (replacing the old extras partition)
+
+At boot the upperdir is bind-mounted over `/overlay`, so `/overlay/<path>` is the upper layer of `/<path>` (same contract on the 3.10 legacy driver and the mainline `overlay` driver).
 
 ## Flash Size Considerations
 
@@ -78,7 +87,7 @@ The build process:
    - `u-boot-env.bin` - environment binary from uenv.txt
    - `uImage` - kernel binary
    - `rootfs.squashfs` - compressed root filesystem
-   - `data.jffs2` - single JFFS2 data partition containing overlay upperdir with user overlays and opt files
+   - `data.jffs2` - single JFFS2 data partition holding the overlay upperdir (`root/`) with user overlays and opt files
 3. **Image Assembly**: `make pack` combines partitions into final images
 
 ### Build Commands

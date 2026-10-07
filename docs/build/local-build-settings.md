@@ -225,9 +225,9 @@ Purpose:
 
 Build behavior:
 
-- `OUTPUT_DIR/data/overlay/` is rebuilt from scratch for each data image
+- `OUTPUT_DIR/data/overlay/root/` is rebuilt from scratch for each data image
 - Overlay directories are copied in scope order: global, then camera, then device
-- Packed into `images/data.jffs2` as part of the overlay upperdir
+- Packed into `images/data.jffs2` as the overlay upperdir (under `root/`)
 - Not included in `rootfs.squashfs`
 - Not included in `rootfs.tar`
 
@@ -267,9 +267,9 @@ Purpose:
 
 Build behavior:
 
-- User `opt/` directories are copied into `OUTPUT_DIR/data/overlay/opt/`
+- User `opt/` directories are copied into `OUTPUT_DIR/data/overlay/root/opt/`
   in scope order: global, then camera, then device
-- Packed into `images/data.jffs2` as part of the overlay upperdir
+- Packed into `images/data.jffs2` as part of the overlay upperdir (under `root/`)
 
 Important detail:
 
