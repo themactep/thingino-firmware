@@ -21,6 +21,14 @@ ATBM6132U_MODULE_OPTS = atbm_printk_mask=0
 WIFI_ATBM6132U_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR)
 
+# A built-in cfg80211 pushes a 4.4 kernel past its 1600 KiB NOR partition;
+# the driver only imports it, so modprobe loads cfg80211.ko ahead of it.
+ifeq ($(KERNEL_VERSION),4.4.94)
+WIFI_ATBM6132U_CFG80211 = m
+else
+WIFI_ATBM6132U_CFG80211 = y
+endif
+
 define WIFI_ATBM6132U_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
@@ -28,7 +36,7 @@ define WIFI_ATBM6132U_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,$(WIFI_ATBM6132U_CFG80211))
 	# The driver builds its own mac80211 into the module and imports nothing
 	# from the kernel's, so keep the kernel's out of the image.
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
