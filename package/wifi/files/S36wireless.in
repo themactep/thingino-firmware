@@ -256,26 +256,29 @@ start() {
 
 	kernel_version=$(uname -r | cut -d. -f1-2)
 
-	if [ "$kernel_version" = "3.10" ]; then
-		if ! wlan_sequence=$(get_wlan_sequence); then
-			wlan_sequence=""
-		fi
-
-		if [ -z "$wlan_sequence" ]; then
-			echo "Wireless module GPIO is not set"
-		else
-			apply_wlan_sequence "$wlan_sequence"
-
-			if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
-				for pin in $wlan_pins_used; do
-					echo "Unexport GPIO pin $pin"
-					gpio unexport "$pin"
-				done
+	case "$kernel_version" in
+		3.10 | 4.4)
+			if ! wlan_sequence=$(get_wlan_sequence); then
+				wlan_sequence=""
 			fi
-		fi
-	else
-		echo "Skipping WLAN GPIO toggling for kernel $kernel_version"
-	fi
+
+			if [ -z "$wlan_sequence" ]; then
+				echo "Wireless module GPIO is not set"
+			else
+				apply_wlan_sequence "$wlan_sequence"
+
+				if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
+					for pin in $wlan_pins_used; do
+						echo "Unexport GPIO pin $pin"
+						gpio unexport "$pin"
+					done
+				fi
+			fi
+			;;
+		*)
+			echo "Skipping WLAN GPIO toggling for kernel $kernel_version"
+			;;
+	esac
 
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"
