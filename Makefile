@@ -318,6 +318,7 @@ ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
 TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
 RED := printf '\033[1;38;5;160m%s\033[0m\n'
 GREEN := printf '\033[1;38;5;40m%s\033[0m\n'
+YELLOW := printf '\033[1;38;5;226m%s\033[0m\n'
 
 ALIGN_BLOCK := 65536
 
@@ -329,6 +330,9 @@ ALIGN_BLOCK := 65536
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
 JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
+
+# JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
+JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
