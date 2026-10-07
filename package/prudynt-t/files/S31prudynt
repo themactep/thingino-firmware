@@ -7,102 +7,180 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin${PATH:+:$PATH}
 export PATH
 
 DAEMON="/usr/bin/prudynt"
+DAEMON_NAME="prudynt"
 PIDFILE="/run/prudynt.pid"
 HEARTBEAT_INIT="/etc/init.d/S99heartbeat"
+CONFIG_CORE="/etc/prudynt.json"
+CONFIG_USER="/etc/prudynt.user.json"
+CONFIG_ROM="/rom/etc/prudynt.json"
+CONFIG_OVERLAY="/overlay/etc/prudynt.json"
+
+# Older images kept a writable /etc/prudynt.json in the overlay. Turn it into
+# the user layer once, then drop the overlay copy so the read-only core from
+# the image applies again. Idempotent: does nothing once migrated.
+migrate_legacy_config() {
+	[ -e "$CONFIG_OVERLAY" ] || return 0
+	[ -f "$CONFIG_CORE" ] || return 0
+
+	log -c 240 -e "- migrating legacy /etc/prudynt.json to $CONFIG_USER"
+	if [ -s "$CONFIG_USER" ]; then
+		tmp="/tmp/prudynt-migrate.$$"
+		if jct "$CONFIG_CORE" export "$CONFIG_ROM" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+			jct "$CONFIG_USER" import "$tmp" >/dev/null 2>&1 || true
+		fi
+		rm -f "$tmp"
+	else
+		jct "$CONFIG_CORE" export "$CONFIG_ROM" >"$CONFIG_USER" 2>/dev/null || true
+		# An empty diff is not a user layer.
+		[ -s "$CONFIG_USER" ] || rm -f "$CONFIG_USER"
+	fi
+
+	jct "$CONFIG_CORE" restore >/dev/null 2>&1 || rm -f "$CONFIG_OVERLAY"
+}
 
 restart_heartbeat() {
+	# Fire and forget with a bound: the heartbeat payload probes hardware that
+	# can block while the ISP is being torn down, and a hung heartbeat must not
+	# stall the prudynt restart (the loop regenerates every interval anyway).
 	if [ -x "$HEARTBEAT_INIT" ]; then
-		"$HEARTBEAT_INIT" restart >/dev/null 2>&1
+		timeout 10 "$HEARTBEAT_INIT" restart >/dev/null 2>&1 &
 	fi
 }
 
 stop_heartbeat() {
 	if [ -x "$HEARTBEAT_INIT" ]; then
-		"$HEARTBEAT_INIT" stop >/dev/null 2>&1
+		timeout 10 "$HEARTBEAT_INIT" stop >/dev/null 2>&1
 	fi
+}
+
+# Returns 0 if the pid is alive and not a zombie. An unreaped zombie must not
+# count as alive: a stale pidfile or an unreaped entry would otherwise keep
+# stop() looping and block the next start.
+proc_alive() {
+	[ -r "/proc/$1/stat" ] || return 1
+	[ "$(awk '{print $3}' "/proc/$1/stat" 2>/dev/null)" != "Z" ]
 }
 
 # Returns 0 if prudynt process is alive (by PID file or name match).
 is_alive() {
 	if [ -f "$PIDFILE" ]; then
-		kill -0 "$(cat "$PIDFILE")" 2>/dev/null && return 0
+		pid=$(cat "$PIDFILE" 2>/dev/null)
+		[ -n "$pid" ] && proc_alive "$pid" && return 0
 	fi
-	pidof "$DAEMON" >/dev/null 2>&1 && return 0
+	for pid in $(pidof "$DAEMON_NAME" 2>/dev/null); do
+		proc_alive "$pid" && return 0
+	done
 	return 1
 }
 
 start_daemon() {
-	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+	rm -f "$PIDFILE"
+	"$DAEMON" >/dev/null 2>&1 &
+	pid=$!
+	echo "$pid" >"$PIDFILE"
+
+	# Wait briefly for it to come up; the process may re-exec itself.
+	i=0
+	while [ $i -lt 30 ]; do
+		proc_alive "$pid" && return 0
+		is_alive && return 0
+		usleep 100000
+		i=$((i + 1))
+	done
+	return 1
 }
 
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON" 2>/dev/null
-		status=$?
+		pid=$(cat "$PIDFILE" 2>/dev/null)
+		[ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
 		rm -f "$PIDFILE"
 	fi
 
-	# Fallback: kill by name if PID file approach didn't work.
-	if is_alive; then
-		killall prudynt 2>/dev/null || killall -9 prudynt 2>/dev/null
-	fi
+	# Terminate any live prudynt left behind, ignoring unreaped zombies.
+	for pid in $(pidof "$DAEMON_NAME" 2>/dev/null); do
+		proc_alive "$pid" && kill -TERM "$pid" 2>/dev/null
+	done
+
+	# Drop prudynt's instance lock. A child that inherited the flock fd keeps it
+	# held after prudynt exits, and the next instance would refuse to start; a
+	# fresh file gets a fresh lock.
+	rm -f /run/prudynt/prudynt.lock
 }
 
 start() {
+	# Never stack a second instance. stop() can fail to reap an instance whose
+	# thread is wedged in the kernel; starting another then leaves two owners
+	# of the ISP and wedges the whole video pipeline. Refuse and let the
+	# watchdog escalate.
+	if is_alive; then
+		log -c 240 -e "Prudynt already running, not starting another instance"
+		return 0
+	fi
+
 	log -c 15 "Starting Prudynt"
+	migrate_legacy_config
+	# Seed the consolidated tmpfs config for consumers that read before
+	# prudynt rewrites it. A corrupt user layer is ignored by prudynt-config.
+	prudynt-config refresh 2>/dev/null || true
 	start_daemon
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		restart_heartbeat
 
-		# Re-sync ISP daynight mode after prudynt is up.
-		# daynightd starts at S10 (before prudynt), so any color
-		# command it issued would have failed silently because
-		# prudynt's HTTP API wasn't listening yet.
-		(
-			MODE_FILE="/run/thingino/daynight_mode"
-			API_URL="http://127.0.0.1:8080/api/v1/config"
-			API_KEY_FILE="/etc/thingino-api.key"
-
-			# Wait for prudynt's HTTP API to be available (up to 15 s)
-			i=0
-			while [ $i -lt 30 ]; do
-				if curl -s "$API_URL" >/dev/null 2>&1; then
-					break
-				fi
-				usleep 500000
-				i=$((i + 1))
-			done
-
-			if [ -f "$MODE_FILE" ] && [ -f "$API_KEY_FILE" ]; then
-				MODE=$(cat "$MODE_FILE" 2>/dev/null)
-				API_KEY=$(cat "$API_KEY_FILE" 2>/dev/null | tr -d '\n\r ')
-				if [ "$MODE" = "night" ] && [ -n "$API_KEY" ]; then
-					curl -s -X POST "$API_URL" \
-						-H "X-API-Key: $API_KEY" \
-						-H "Content-Type: application/json" \
-						-d '{"image":{"running_mode":1}}' >/dev/null 2>&1 || true
-				elif [ "$MODE" = "day" ] && [ -n "$API_KEY" ]; then
-					curl -s -X POST "$API_URL" \
-						-H "X-API-Key: $API_KEY" \
-						-H "Content-Type: application/json" \
-						-d '{"image":{"running_mode":0}}' >/dev/null 2>&1 || true
-				fi
-			fi
-		) &
+		# Re-sync ISP daynight mode after prudynt is up. daynightd starts at S10
+		# (before prudynt), so any color command it issued would have failed
+		# silently because prudynt's HTTP API wasn't listening yet. Run it
+		# bounded and detached so a stalled HTTP call cannot leak a shell or
+		# stall the restart.
+		self="$0"
+		case "$self" in
+			*/*) ;;
+			*) self="/etc/init.d/$self" ;;
+		esac
+		timeout 20 "$self" __resync_daynight >/dev/null 2>&1 &
 	fi
 	return "$status"
+}
+
+resync_daynight() {
+	MODE_FILE="/run/thingino/daynight_mode"
+	API_URL="http://127.0.0.1:8080/api/v1/config"
+	API_KEY_FILE="/etc/thingino-api.key"
+
+	# Wait for prudynt's HTTP API to be available (up to 15 s).
+	i=0
+	while [ $i -lt 30 ]; do
+		if curl -s --max-time 2 "$API_URL" >/dev/null 2>&1; then
+			break
+		fi
+		usleep 500000
+		i=$((i + 1))
+	done
+
+	[ -f "$MODE_FILE" ] || return 0
+	[ -f "$API_KEY_FILE" ] || return 0
+	MODE=$(cat "$MODE_FILE" 2>/dev/null)
+	API_KEY=$(cat "$API_KEY_FILE" 2>/dev/null | tr -d '\n\r ')
+	[ -n "$API_KEY" ] || return 0
+
+	if [ "$MODE" = "night" ]; then
+		curl -s --max-time 3 -X POST "$API_URL" \
+			-H "X-API-Key: $API_KEY" \
+			-H "Content-Type: application/json" \
+			-d '{"image":{"running_mode":1}}' >/dev/null 2>&1 || true
+	elif [ "$MODE" = "day" ]; then
+		curl -s --max-time 3 -X POST "$API_URL" \
+			-H "X-API-Key: $API_KEY" \
+			-H "Content-Type: application/json" \
+			-d '{"image":{"running_mode":0}}' >/dev/null 2>&1 || true
+	fi
+	return 0
 }
 
 stop() {
 	log -c 15 "Stopping Prudynt"
 	stop_heartbeat
-
-	# Capture the PID before stop_daemon removes the pidfile, so a wedged
-	# prudynt can still be killed by PID below.
-	pid=""
-	[ -f "$PIDFILE" ] && pid=$(cat "$PIDFILE" 2>/dev/null)
-
 	stop_daemon
 
 	# Wait up to 5 s for the process to actually exit.
@@ -112,39 +190,83 @@ stop() {
 		i=$((i + 1))
 	done
 
-	# Force-kill if still alive after the timeout. A process stuck in a driver
-	# wait ignores SIGTERM and may not be matchable by start-stop-daemon, so
-	# signal the captured PID directly and fall back to the process name.
-	if { [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; } || is_alive; then
+	# Force-kill if still alive after timeout.
+	if is_alive; then
 		log -c 15 "Prudynt did not stop, force-killing"
-		[ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
-		killall -9 prudynt 2>/dev/null
+		for pid in $(pidof "$DAEMON_NAME" 2>/dev/null); do
+			proc_alive "$pid" && kill -9 "$pid" 2>/dev/null
+		done
 		usleep 500000
 	fi
 }
 
+# Serialize start/stop/restart. A watchdog restart and an explicit one used to
+# run stop and start concurrently, which left the daemon unreaped and stacked
+# restart shells. A held lock is reclaimed after ~10 s, assuming the holder died.
+LOCKDIR="/run/prudynt.lock"
+
+# The lock is only reclaimed when the recorded holder is gone (dead or an
+# unreaped zombie). Never steal from a live holder: two waiters doing that
+# removed each other's lock and livelocked the restart.
+lock() {
+	i=0
+	while ! mkdir "$LOCKDIR" 2>/dev/null; do
+		hp=$(cat "$LOCKDIR/pid" 2>/dev/null)
+		if [ -n "$hp" ] && ! proc_alive "$hp"; then
+			rm -rf "$LOCKDIR"
+			i=0
+			continue
+		fi
+		# Holder died before writing its pid; reclaim after a grace period.
+		if [ -z "$hp" ] && [ "$i" -ge 50 ]; then
+			rm -rf "$LOCKDIR"
+			i=0
+			continue
+		fi
+		i=$((i + 1))
+		usleep 100000
+	done
+	echo $$ >"$LOCKDIR/pid"
+}
+
+unlock() {
+	rm -rf "$LOCKDIR" 2>/dev/null
+}
+
 case "$1" in
 	start)
+		lock
 		start
+		rc=$?
+		unlock
+		exit "$rc"
 		;;
 	stop)
+		lock
 		stop
+		unlock
 		;;
 	restart)
+		lock
 		stop || true
 		sleep 2
 		# Retry start up to 3 times if the first attempt fails.
 		r=0
 		while [ $r -lt 3 ]; do
 			if start; then
+				unlock
 				exit 0
 			fi
 			r=$((r + 1))
 			log -c 15 "Prudynt start failed (attempt $r), retrying..."
 			sleep 2
 		done
+		unlock
 		log -c 15 "Prudynt failed to start after 3 attempts"
 		exit 1
+		;;
+	__resync_daynight)
+		resync_daynight
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart}"

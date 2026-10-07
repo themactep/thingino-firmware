@@ -10,7 +10,8 @@ CRONTABS="/etc/cron/crontabs/root"
 RECORD_FILENAME_FB="%Y%m%d/%H/%Y%m%dT%H%M%S"
 
 vr_domain="recorder"
-vr_config_file="/etc/prudynt.json"
+vr_config_file="/run/prudynt.json"
+vr_user_config_file="/etc/prudynt.user.json"
 vr_temp_config_file="/tmp/${vr_domain}.json"
 
 request_body=""
@@ -304,11 +305,12 @@ process_video_form() {
 	vr_set_value min_free_mb "$vr_min_free_mb"
 	vr_set_value mount "$vr_mount"
 
-	if ! jct "$vr_config_file" import "$vr_temp_config_file"; then
+	if ! jct "$vr_user_config_file" import "$vr_temp_config_file"; then
 		rm -f "$vr_temp_config_file"
 		json_error 500 "Failed to update video recorder configuration"
 	fi
 	rm -f "$vr_temp_config_file"
+	prudynt-config refresh >/dev/null 2>&1 || true
 	update_caminfo
 	/etc/init.d/S95recordmgr restart >/dev/null 2>&1 || true
 	send_state_response "Video recorder settings updated."

@@ -4,7 +4,7 @@
 . /usr/share/prudynt-helpers
 
 PRUDYNT_APP="prudynt"
-PRUDYNT_CONFIG="/etc/prudynt.json"
+PRUDYNT_CONFIG="/run/prudynt.json"
 FIFO_PATH="/run/prudynt/mp4ctl"
 
 usage() {

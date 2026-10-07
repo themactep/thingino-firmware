@@ -6,7 +6,7 @@
 require_auth
 
 ONVIF_CONFIG="/etc/onvif.json"
-PRUDYNT_CONFIG="/etc/prudynt.json"
+PRUDYNT_CONFIG="/run/prudynt.json"
 
 emit_json() {
 	status="$1"
@@ -73,19 +73,13 @@ cleanup() {
 	[ -n "$req_file" ] && rm -f "$req_file"
 }
 
-ensure_file() {
-	[ -f "$1" ] || printf '{}\n' >"$1"
-}
-
 update_password() {
 	new_password=$(jct "$req_file" get password 2>/dev/null)
 	[ -n "$new_password" ] || json_error "400 Bad Request" "Password is required" "missing_password"
 
 	read_config
 
-	ensure_file "$PRUDYNT_CONFIG"
-
-	jct "$PRUDYNT_CONFIG" set "rtsp.password" "$new_password" >/dev/null 2>&1
+	prudynt-config set "rtsp.password" "$new_password"
 
 	username=${username:-$(jct "$PRUDYNT_CONFIG" get "rtsp.username" 2>/dev/null)}
 	[ -n "$username" ] || username="thingino"
