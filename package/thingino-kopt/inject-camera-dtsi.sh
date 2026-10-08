@@ -11,6 +11,11 @@
 # leaf that already declares a gpio-leds node - that keeps a fragment shipped
 # ahead of a family's 4.4 tree from breaking that family's build.
 #
+# When the fragment declares a gpio-keys node, the SoC tree's own dev-board
+# gpio_keys node (power/boot select) is deleted first - by label when present
+# (the Ingenic trees carry "gpio_keys: gpio_keys"), else by node name - or
+# gpio-keys would claim those pins on every board.
+#
 # Usage: inject-camera-dtsi.sh <camera.dtsi> <linux-dir>
 set -e
 
@@ -32,8 +37,11 @@ frag = open(src).read()
 # Labels the fragment opens with "&label" that the leaf chain must define.
 wanted = sorted(set(re.findall(r'&([A-Za-z_][A-Za-z0-9_]*)', frag)))
 adds_leds = bool(re.search(r'^[ \t]*gpio-leds[ \t]*\{', frag, re.M))
+adds_keys = bool(re.search(r'^[ \t]*gpio-keys[ \t]*\{', frag, re.M))
 
 LEDS_RE = re.compile(r'^[ \t]*gpio-leds[ \t]*\{', re.M)
+KEY_LABEL_RE = re.compile(r'^[ \t]*gpio_keys[ \t]*:', re.M)
+KEY_NODE_RE = re.compile(r'^[ \t]*(gpio[-_]keys)[ \t]*\{', re.M)
 LABEL_RE = re.compile(r'^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*:', re.M)
 INCLUDE_RE = re.compile(r'^[ \t]*#include[ \t]+"([^"]+)"', re.M)
 
@@ -78,7 +86,16 @@ for opt, leaf in built:
     if adds_leds and LEDS_RE.search(chain):
         skipped.append("%s (gpio-leds already present)" % leaf)
         continue
+    deletes = []
+    if adds_keys:
+        if KEY_LABEL_RE.search(chain):
+            deletes.append("/delete-node/ &gpio_keys;")
+        else:
+            for nm in KEY_NODE_RE.finditer(body):
+                deletes.append("/delete-node/ %s;" % nm.group(1))
     with open(path, "a") as f:
+        for d in deletes:
+            f.write("\n%s\n" % d)
         f.write('\n#include "%s"\n' % name)
     applied.append(leaf)
 

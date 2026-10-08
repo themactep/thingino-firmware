@@ -1,7 +1,5 @@
 {
   "gpio": {
-    "chime": 40,
-    "button_reset": 46,
     "ir940": 90,
     "ircut": "72 73",
     "sub1g": 60,

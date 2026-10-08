@@ -59,7 +59,7 @@
 #                 it for ownership - it only defines the level until then.
 #
 # A pin that inject-uboot-mmc-dt.sh turns into a DT binding (camera dtsi
-# card-detect -> cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
+# card-detect -> cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, dtsi reset button
 # -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
 # binding's own request then fails, breaking the subsystem that needed it
 # (cinnado_b6 lists pin 61 as both card-detect and a motor phase - card-detect
@@ -82,7 +82,7 @@ grep -q 'thingino GPIO presets' "$DTS" && exit 0
 
 # Emit "<name>:<pin>:<level>" tokens, or nothing when there is nothing to hog.
 vals=$(
-	python3 - "$JSON" "${MMC_CD_PIN:--1}" 2>/dev/null <<'PY'
+	python3 - "$JSON" "${MMC_CD_PIN:--1}" "${BUTTON_PIN:--1}" 2>/dev/null <<'PY'
 import json, sys
 
 root = json.load(open(sys.argv[1]))
@@ -248,21 +248,24 @@ if isinstance(sp_pin, int) and not isinstance(sp_pin, bool) and sp_pin >= 0:
 # request must win, so these are never hogged (level 's' = skip note).
 g = root.get("gpio", {})
 reserved = set()
-# Card-detect comes from the camera dtsi (MMC_CD_PIN), not thingino.json.
+# Card-detect and the reset button come from the camera dtsi (MMC_CD_PIN,
+# BUTTON_PIN), not thingino.json.
 try:
     cd = int(sys.argv[2])
 except (IndexError, ValueError):
     cd = -1
 if cd >= 0:
     reserved.add(cd)
+try:
+    bp = int(sys.argv[3])
+except (IndexError, ValueError):
+    bp = -1
+if bp >= 0:
+    reserved.add(bp)
 if isinstance(mp, dict) and isinstance(mp.get("pin"), int) and mp["pin"] >= 0:
     reserved.add(mp["pin"])
 elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
     reserved.add(mp)  # short notation: bare int = active-high pin
-br = g.get("button_reset")
-bp = br.get("pin") if isinstance(br, dict) else br
-if isinstance(bp, int) and bp >= 0:
-    reserved.add(bp)
 
 seen = set()
 final_out = []

@@ -4,7 +4,6 @@
     "sda": 57,
     "scl": 58,
     "ir850": 61,
-    "wlan": 62,
-    "button_reset": 64
+    "wlan": 62
   }
 }

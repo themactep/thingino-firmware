@@ -114,6 +114,14 @@ export CAMERA_DTSI_FILE
 MMC_CD_PIN := $(shell sh $(BR2_EXTERNAL)/scripts/mmc_cd_pin.sh $(CAMERA_DTSI_FILE))
 export MMC_CD_PIN
 
+# Reset/chime button gpios, from the same fragment's gpio-keys node. The kernel
+# 4.4+ device tree carries them; the U-Boot injection and S09mmc's 3.10
+# gpio-userkeys read these instead of thingino.json.
+BUTTON_PIN := $(shell sh $(BR2_EXTERNAL)/scripts/button_pins.sh $(CAMERA_DTSI_FILE) reset)
+CHIME_PIN := $(shell sh $(BR2_EXTERNAL)/scripts/button_pins.sh $(CAMERA_DTSI_FILE) chime)
+export BUTTON_PIN
+export CHIME_PIN
+
 export SOC_RAM_MB
 export SOC_ARCH
 export SOC_TARGET_ARCH

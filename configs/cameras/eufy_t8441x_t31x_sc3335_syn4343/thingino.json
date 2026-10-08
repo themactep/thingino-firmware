@@ -1,6 +1,5 @@
 {
   "gpio": {
-    "button_reset": 8,
     "ir850": 7,
     "ircut": "49 50",
     "mmc_power": 17,
