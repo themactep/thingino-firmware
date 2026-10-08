@@ -1,0 +1,28 @@
+// Jooan A2R-U (T23N, SC1A4T, SSV6355) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_g {
+			label = "led_g";
+			gpios = <&gpb 25 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpb 26 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};
+
+/* Card detect; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpb 29 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};

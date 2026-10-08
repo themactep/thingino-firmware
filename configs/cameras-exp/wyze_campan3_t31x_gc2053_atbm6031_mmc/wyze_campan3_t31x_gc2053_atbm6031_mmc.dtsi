@@ -1,0 +1,10 @@
+// Wyze Cam Pan v3 MMC Boot (T31X, GC2053, ATBM6031) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/* Card detect; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpb 16 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
