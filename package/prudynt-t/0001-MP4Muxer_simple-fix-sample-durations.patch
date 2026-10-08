@@ -1,0 +1,82 @@
+diff --git a/src/recording/MP4Muxer_simple.cpp b/src/recording/MP4Muxer_simple.cpp
+index 4d9c1aa..8b18632 100644
+--- a/src/recording/MP4Muxer_simple.cpp
++++ b/src/recording/MP4Muxer_simple.cpp
+@@ -52,6 +52,13 @@ struct TrackState {
+   std::vector<uint8_t> codec_config; // avcC or AudioSpecificConfig
+   uint64_t last_pts = 0;
+   bool have_last_pts = false;
++  // A fragment's sample duration is the distance to the next sample of the
++  // same track, which is not known when the fragment is built. Hold the built
++  // fragment until the next sample arrives, then patch its trun duration.
++  std::vector<uint8_t> pending;
++  size_t pending_duration_pos = 0;
++  uint64_t pending_pts_ticks = 0;
++  bool have_pending = false;
+ };
+ 
+ class SimpleMP4Muxer : public MP4Muxer {
+@@ -496,6 +503,44 @@ private:
+     uint64_t pts = (pts_ms <= 0)
+                        ? 0
+                        : static_cast<uint64_t>(pts_ms) * t.timescale / 1000ull;
++
++    // Resolve the previously deferred fragment now that the next PTS is known.
++    // Its trun sample_duration is the delta to this sample; non-increasing
++    // deltas fall back to the default duration so the stream stays monotonic.
++    std::vector<uint8_t> resolved_out;
++    if (t.have_pending) {
++      uint32_t resolved_duration = 0;
++      if (pts > t.pending_pts_ticks) {
++        uint64_t delta = pts - t.pending_pts_ticks;
++        resolved_duration = (delta > 0xFFFFFFFFull)
++                                ? 0xFFFFFFFFu
++                                : static_cast<uint32_t>(delta);
++      } else {
++        resolved_duration = t.default_duration_ticks;
++        if (resolved_duration == 0) {
++          resolved_duration =
++              isVideo ? (t.timescale / 30) : (t.timescale / 50);
++          if (resolved_duration == 0) {
++            resolved_duration = 1;
++          }
++        }
++      }
++      if (t.pending_duration_pos != 0 &&
++          t.pending_duration_pos + 4 <= t.pending.size()) {
++        t.pending[t.pending_duration_pos + 0] =
++            static_cast<uint8_t>((resolved_duration >> 24) & 0xFF);
++        t.pending[t.pending_duration_pos + 1] =
++            static_cast<uint8_t>((resolved_duration >> 16) & 0xFF);
++        t.pending[t.pending_duration_pos + 2] =
++            static_cast<uint8_t>((resolved_duration >> 8) & 0xFF);
++        t.pending[t.pending_duration_pos + 3] =
++            static_cast<uint8_t>(resolved_duration & 0xFF);
++      }
++      resolved_out = std::move(t.pending);
++      t.pending.clear();
++      t.have_pending = false;
++    }
++
+     const uint64_t prev_pts = t.last_pts;
+ 
+     uint32_t sample_duration_ticks = 0;
+@@ -634,8 +679,17 @@ private:
+     mdat_payload.insert(mdat_payload.end(), data, data + size);
+     write_box(out, "mdat", mdat_payload);
+ 
++    // The sample_duration written above is provisional; hold the fragment and
++    // patch it to the real delta when this track's next sample arrives. The
++    // duration field sits 4 bytes past the trun data_offset in the moof payload.
++    t.pending_duration_pos =
++        data_offset_patch_pos ? (8u + data_offset_patch_pos + 4u) : 0u;
++    t.pending_pts_ticks = pts;
++    t.pending = std::move(out);
++    t.have_pending = true;
++
+     (void)isVideo; // currently unused, reserved for future logic
+-    return out;
++    return resolved_out;
+   }
+ 
+   TrackState video_;
