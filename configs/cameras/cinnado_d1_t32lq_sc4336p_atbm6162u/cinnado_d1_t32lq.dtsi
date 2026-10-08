@@ -18,3 +18,8 @@
 		};
 	};
 };
+
+/* Card detect from gpio.mmc_cd; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpa 21 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
