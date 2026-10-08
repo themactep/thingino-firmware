@@ -12,7 +12,8 @@ THINGINO_LED_BOARD_BASE = $(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/chip-$
 define THINGINO_KOPT_PREPARE_KERNEL
 	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/generate_kernel_led_header.sh \
 		$(THINGINO_LED_CONFIG) \
-		$(THINGINO_LED_HEADER)
+		$(THINGINO_LED_HEADER) \
+		'$(CAMERA_DTSI_FILE)'
 	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/patch_kernel_leds_board_base.sh \
 		$(THINGINO_LED_BOARD_BASE)
 endef
