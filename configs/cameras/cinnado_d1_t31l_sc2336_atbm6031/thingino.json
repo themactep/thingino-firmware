@@ -1,6 +1,5 @@
 {
   "gpio": {
-    "button_reset": 14,
     "ir940": 11,
     "ircut": "57 58",
     "wlan": 47

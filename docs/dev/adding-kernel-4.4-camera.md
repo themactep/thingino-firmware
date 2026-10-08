@@ -215,6 +215,16 @@ Use it for board pins that have a kernel device-tree binding:
 			default-state = "off";
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpa 22 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
 };
 
 &msc0 {
@@ -222,15 +232,24 @@ Use it for board pins that have a kernel device-tree binding:
 };
 ```
 
-A profile that must describe the whole board should ship a `.dts` instead.
-`thingino.json` and the defconfig remain the source for pins consumed by
-userspace and the U-Boot injections.
+When the fragment declares `gpio-keys`, the injector deletes the SoC tree's own
+dev-board `gpio_keys` node first (`/delete-node/ &gpio_keys;` by label, else by
+node name), or gpio-keys would claim the vendor power/boot-select pins.
 
-The fragment also feeds the 3.10 `gpio-leds` board header: the header
-generator prefers the fragment's `gpio-leds` node and falls back to the legacy
-`BR2_THINGINO_LED_*` defconfig values when the fragment is absent or has no
-LEDs. A profile can therefore drop its LED defconfig entries and use the
-fragment as the single LED source, on both kernel lines.
+A profile that must describe the whole board should ship a `.dts` instead.
+`thingino.json` and the defconfig remain the source for the pins userspace and
+the U-Boot `gpio.mmc_power` use.
+
+The fragment is the single source for three board functions, feeding both
+kernel lines:
+- **LEDs** - 4.4 includes the `gpio-leds` node in DT; the 3.10 header generator
+  prefers it and falls back to the legacy `BR2_THINGINO_LED_*` defconfig values.
+- **MMC card-detect** - 4.4 reads `ingenic,cd-gpios`; `MMC_CD_PIN` (parsed from
+  the fragment) feeds the U-Boot `cd-gpios` injection and S09mmc's jzmmc
+  `cd_gpio_pin` parameter.
+- **Reset/chime buttons** - 4.4 reads the `gpio-keys` node; `BUTTON_PIN`/
+  `CHIME_PIN` feed the U-Boot `gpio-keys` injection and the 3.10 `gpio-userkeys`
+  module config.
 
 ## Step 3: Create Device Tree File
 

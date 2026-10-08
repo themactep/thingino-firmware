@@ -116,25 +116,17 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstr
 # dependency (above) so the tool exists when this runs.
 INGENIC_SDK_JCT = $(HOST_DIR)/bin/jct
 
+# 3.10 buttons are read through the gpio-userkeys module, whose gpio_config
+# lists "code,gpio,active_low" entries. The pins come from the camera dtsi
+# fragment (BUTTON_PIN/CHIME_PIN, exported by thingino.mk) - the same gpio-keys
+# node the 4.4+ kernel and the U-Boot injection use. Codes match
+# thingino-button.conf: reset is KEY_ENTER, chime is KEY_1.
 define GENERATE_GPIO_USERKEYS_CONFIG
-	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
-		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
-			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
-		fi; \
-		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null || true); \
-		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-			gpio_userkeys_config="28,$${button_reset},1"; \
-		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null || true); \
-		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
-			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
-		fi; \
-		if [ -n "$$gpio_userkeys_config" ]; then \
-			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
-		else \
-			echo "WARNING: gpio-userkeys config not generated - no button_reset/chime found in thingino.json"; \
-		fi; \
+	gpio_userkeys_config=""; \
+	[ -n "$(BUTTON_PIN)" ] && gpio_userkeys_config="28,$(BUTTON_PIN),1"; \
+	[ -n "$(CHIME_PIN)" ] && gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$(CHIME_PIN),1"; \
+	if [ -n "$$gpio_userkeys_config" ]; then \
+		echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
 	fi
 endef
 
@@ -296,7 +288,9 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
+ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_ROOTFS_PRE_CMD_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
+endif
 
 $(eval $(kernel-module))
 $(eval $(generic-package))

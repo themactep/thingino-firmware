@@ -1,9 +1,5 @@
 {
   "gpio": {
-    "button_reset": {
-      "pin": 62,
-      "active_low": true
-    },
     "eth": {
       "pin": 60,
       "toggle": true

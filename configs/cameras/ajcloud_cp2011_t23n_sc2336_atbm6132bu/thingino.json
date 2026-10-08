@@ -1,7 +1,6 @@
 {
   "gpio": {
     "button_call": 51,
-    "button_reset": 38,
     "ir850": 45,
     "ircut": "57 58",
     "wlan": {

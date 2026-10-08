@@ -10,7 +10,7 @@
 #   - cd-gpios    : native card-detect, only on SoCs whose gpio driver applies
 #                   pull-up bias (T23 and everything from T31 on); others keep
 #                   the plain probe behaviour.
-#   - gpio-keys   : a "reset" button from gpio.button_reset, so CONFIG_BUTTON_CMD
+#   - gpio-keys   : a "reset" button from the camera dtsi fragment, so CONFIG_BUTTON_CMD
 #                   runs "button_cmd_0" (factory reset) when it is held at boot.
 #   - bus-width   : how many SD data lines the board actually routes. Not from
 #                   the json - it is passed in, because the kernel already gets
@@ -52,17 +52,20 @@ fi
 # left to inject here. (The bus-width injection above is json-independent.)
 [ -f "$JSON" ] || exit 0
 
-# Card-detect comes from the camera dtsi fragment (MMC_CD_PIN, exported by
-# thingino.mk), the same source the kernel 4.4+ device tree uses. gpio.mmc_power
-# and gpio.button_reset are still read from thingino.json. All in one shot;
+# Card-detect comes from the camera dtsi fragment (MMC_CD_PIN) and the
+# reset button from its gpio-keys node (BUTTON_PIN), both exported by
+# thingino.mk - the same sources the kernel 4.4+ device tree uses. gpio.mmc_power
+# is still read from thingino.json. All in one shot;
 # python3 is already a U-Boot build dependency (binman), so this needs no host
 # package.
 CD="${MMC_CD_PIN:--1}"
 [ -n "$CD" ] || CD=-1
+BTN="${BUTTON_PIN:--1}"
+[ -n "$BTN" ] || BTN=-1
 vals=$(
-	python3 - "$JSON" "$CD" 2>/dev/null <<'PY'
+	python3 - "$JSON" "$CD" "$BTN" 2>/dev/null <<'PY'
 import json, sys
-cd = sys.argv[2]
+cd, bp = sys.argv[2], sys.argv[3]
 g = json.load(open(sys.argv[1])).get("gpio", {})
 mp = g.get("mmc_power")
 # Object {pin, active_low} or short notation (bare int = active-high pin).
@@ -73,12 +76,10 @@ elif isinstance(mp, int) and not isinstance(mp, bool) and mp >= 0:
     pin, al = mp, False
 else:
     pin, al = None, None
-br = g.get("button_reset")
-bp = br.get("pin") if isinstance(br, dict) else (br if isinstance(br, int) else None)
 print(cd,
       pin if isinstance(pin, int) else -1,
       1 if al else 0,
-      bp if isinstance(bp, int) else -1)
+      bp)
 PY
 )
 [ -n "$vals" ] || exit 0
@@ -149,7 +150,7 @@ if [ "$BTN" -ge 0 ] && ! grep -q 'gpio-keys' "$DTS"; then
 	BB=$(bank "$BTN")
 	if [ -n "$BB" ]; then
 		{
-			printf '\n/ {\t/* factory-reset button, board gpio.button_reset=%s */\n' "$BTN"
+			printf '\n/ {\t/* factory-reset button, camera dtsi gpio %s */\n' "$BTN"
 			printf '\tgpio-keys {\n'
 			printf '\t\tcompatible = "gpio-keys";\n'
 			printf '\t\treset {\n'

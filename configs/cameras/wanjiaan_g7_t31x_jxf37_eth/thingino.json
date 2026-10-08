@@ -1,6 +1,5 @@
 {
   "gpio": {
-    "button_reset": 54,
     "ir850": 49,
     "ircut": "58 57",
     "white": 50
