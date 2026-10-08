@@ -1,0 +1,10 @@
+// Wansview W5 (T21N, PS5260, ETH, MT7601STA) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/* Card detect; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpb 20 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};

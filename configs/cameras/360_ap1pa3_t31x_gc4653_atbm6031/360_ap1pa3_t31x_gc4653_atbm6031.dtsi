@@ -1,0 +1,28 @@
+// 360 AP1PA3 (T31X, GC4653, ATBM6031) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 19 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+
+		led_g {
+			label = "led_g";
+			gpios = <&gpb 22 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};
+
+/* Card detect; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpb 29 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};

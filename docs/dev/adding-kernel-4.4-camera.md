@@ -195,11 +195,15 @@ Create `uenv.txt`:
 ### 2.4 Optional: Camera-Profile Device-Tree Fragment
 
 A camera profile may ship exactly one `.dtsi` file alongside its defconfig.
-The `thingino-kopt` Linux extension copies it into the family dts directory and
-appends a single `#include` to the family leaf dts (`goat.dts` on t32,
-`shark.dts` on t40, `marmot.dts` on t41, `tucana.dts` on a1) before every kernel
-build, so the fragment augments the family tree instead of replacing it. Use it
-for board pins that have a kernel device-tree binding:
+On kernel 4.4 and later the `thingino-kopt` Linux extension finds the leaf dts
+the kernel config builds, copies the fragment into the dts directory and
+appends a single `#include` to that leaf, so the fragment augments the family
+tree instead of replacing it. On 3.10 there is no device-tree directory and the
+fragment is ignored. A fragment may ship ahead of a family's 4.4 tree: the
+injector skips a leaf whose tree does not define the labels the fragment opens
+(`&gpa`..`&gpd`, `&msc0`) or that already declares a `gpio-leds` node.
+
+Use it for board pins that have a kernel device-tree binding:
 
 ```dts
 / {
@@ -212,11 +216,15 @@ for board pins that have a kernel device-tree binding:
 		};
 	};
 };
+
+&msc0 {
+	ingenic,cd-gpios = <&gpa 21 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
 ```
 
 A profile that must describe the whole board should ship a `.dts` instead.
-`thingino.json` remains the source for pins consumed by userspace and the
-U-Boot injections.
+`thingino.json` and the defconfig remain the source for pins consumed by
+userspace and the U-Boot injections.
 
 ## Step 3: Create Device Tree File
 

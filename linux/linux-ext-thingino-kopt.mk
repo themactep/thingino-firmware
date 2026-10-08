@@ -29,20 +29,19 @@ LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_CAMERA_DTS
 endif
 
 # Per-device dtsi fragment from the camera profile dir (CAMERA_DTSI_FILE comes
-# from thingino.mk). Copied into the family's dts dir and #included by the leaf
-# .dts the kernel config builds. Runs after the .dts sync above so a profile's
-# own .dts is the include target when it ships one. The include is appended
-# once, so an incremental build cannot duplicate it.
+# from thingino.mk). The injector finds the leaf .dts the kernel config builds,
+# copies the fragment in and #includes it, 4.4 and later only: a 3.10 tree has
+# no device-tree directory and is left untouched. It also skips a leaf whose
+# tree lacks the labels the fragment needs, so an ahead-of-time fragment cannot
+# break a family that has no 4.4 tree yet. Runs after the .dts sync above.
 ifneq ($(CAMERA_DTSI_FILE),)
-THINGINO_KOPT_CAMERA_DTSI = $(notdir $(CAMERA_DTSI_FILE))
+ifneq ($(KERNEL_VERSION),3.10.14)
 define THINGINO_KOPT_SYNC_CAMERA_DTSI
-	cp -f $(CAMERA_DTSI_FILE) \
-		$(LINUX_DIR)/arch/mips/boot/dts/ingenic/$(THINGINO_KOPT_CAMERA_DTSI)
-	leaf=$(LINUX_DIR)/arch/mips/boot/dts/ingenic/$(CAMERA_DTS_DEST).dts; \
-	grep -q '#include "$(THINGINO_KOPT_CAMERA_DTSI)"' $$leaf || \
-		printf '\n#include "%s"\n' "$(THINGINO_KOPT_CAMERA_DTSI)" >>$$leaf
+	sh $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-kopt/inject-camera-dtsi.sh \
+		$(CAMERA_DTSI_FILE) $(LINUX_DIR)
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_CAMERA_DTSI
+endif
 endif
 
 # The DWC2 driver needs its controller and PHY enabled in the 4.4 device
