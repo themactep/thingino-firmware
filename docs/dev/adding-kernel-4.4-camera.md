@@ -226,6 +226,12 @@ A profile that must describe the whole board should ship a `.dts` instead.
 `thingino.json` and the defconfig remain the source for pins consumed by
 userspace and the U-Boot injections.
 
+The fragment also feeds the 3.10 `gpio-leds` board header: the header
+generator prefers the fragment's `gpio-leds` node and falls back to the legacy
+`BR2_THINGINO_LED_*` defconfig values when the fragment is absent or has no
+LEDs. A profile can therefore drop its LED defconfig entries and use the
+fragment as the single LED source, on both kernel lines.
+
 ## Step 3: Create Device Tree File
 
 ### 3.1 Add Device Tree Kconfig Entry
