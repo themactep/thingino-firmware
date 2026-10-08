@@ -1,8 +1,9 @@
 #!/bin/sh
 # Inject per-board MMC + button device-tree properties into a U-Boot leaf .dts at
-# build time, read from the board's thingino.json. These GPIOs are board-specific
-# while the U-Boot device tree is per-SoC, so they cannot live in the shared .dts
-# and are appended to this board's build copy instead:
+# build time. These GPIOs are board-specific while the U-Boot device tree is per-SoC,
+# so they cannot live in the shared .dts and are appended to this board's build
+# copy instead. Card-detect comes from the camera dtsi fragment (the same source
+# the kernel 4.4+ tree uses); the rest from the board's thingino.json:
 #
 #   - vmmc-supply : a regulator-fixed gated by gpio.mmc_power, so the mmc core
 #                   powers the slot itself (any SoC - it just drives a gpio).
@@ -51,14 +52,18 @@ fi
 # left to inject here. (The bus-width injection above is json-independent.)
 [ -f "$JSON" ] || exit 0
 
-# Read gpio.mmc_cd, gpio.mmc_power.{pin,active_low} and gpio.button_reset in one
-# shot. python3 is already a U-Boot build dependency (binman), so this needs no
-# host package.
+# Card-detect comes from the camera dtsi fragment (MMC_CD_PIN, exported by
+# thingino.mk), the same source the kernel 4.4+ device tree uses. gpio.mmc_power
+# and gpio.button_reset are still read from thingino.json. All in one shot;
+# python3 is already a U-Boot build dependency (binman), so this needs no host
+# package.
+CD="${MMC_CD_PIN:--1}"
+[ -n "$CD" ] || CD=-1
 vals=$(
-	python3 - "$JSON" 2>/dev/null <<'PY'
+	python3 - "$JSON" "$CD" 2>/dev/null <<'PY'
 import json, sys
+cd = sys.argv[2]
 g = json.load(open(sys.argv[1])).get("gpio", {})
-cd = g.get("mmc_cd")
 mp = g.get("mmc_power")
 # Object {pin, active_low} or short notation (bare int = active-high pin).
 # The multi-pin list form is handled as gpio-hogs by inject-uboot-gpio-dt.sh.
@@ -70,7 +75,7 @@ else:
     pin, al = None, None
 br = g.get("button_reset")
 bp = br.get("pin") if isinstance(br, dict) else (br if isinstance(br, int) else None)
-print(cd if isinstance(cd, int) else -1,
+print(cd,
       pin if isinstance(pin, int) else -1,
       1 if al else 0,
       bp if isinstance(bp, int) else -1)
@@ -124,7 +129,7 @@ if [ "$CD" -ge 0 ] && ! grep -q 'cd-gpios' "$DTS"; then
 	CB=$(bank "$CD")
 	if [ -n "$CB" ]; then
 		{
-			printf '\n&msc0 {\t/* MMC card-detect, board gpio.mmc_cd=%s */\n' "$CD"
+			printf '\n&msc0 {\t/* MMC card-detect, camera dtsi gpio %s */\n' "$CD"
 			printf '\tstatus = "okay";\n'
 			printf '\tbus-width = <4>;\n'
 			printf '\t/delete-property/ broken-cd;\n'

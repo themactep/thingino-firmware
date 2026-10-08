@@ -220,12 +220,13 @@ THINGINO_UBOOT_MMC_BUS_WIDTH = 1
 endif
 
 # Inject this board's MMC card-detect, slot-power and bus width into the
-# per-SoC U-Boot device tree (the GPIOs come from thingino.json; all of it is
-# board-specific, so none of it can live in the shared .dts). The helper
-# appends a vmmc-supply regulator and, on pull-up-capable SoCs, cd-gpios, to
-# this board's build copy of the leaf .dts - so the mmc core powers and detects
-# the slot natively, with no env gpio gate or power-up. The helper reads
-# thingino.json with python3 (already a U-Boot build dependency via binman).
+# per-SoC U-Boot device tree (board-specific, so none of it can live in the
+# shared .dts). The helper appends a vmmc-supply regulator and, on
+# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
+# so the mmc core powers and detects the slot natively, with no env gpio gate or
+# power-up. Card-detect comes from the camera dtsi fragment (MMC_CD_PIN); the
+# helper reads thingino.json with python3 (already a U-Boot build dependency via
+# binman) for the rest.
 ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 define THINGINO_UBOOT_INJECT_MMC_DT
 	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \

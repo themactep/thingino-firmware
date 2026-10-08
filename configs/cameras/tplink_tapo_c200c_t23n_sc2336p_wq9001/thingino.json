@@ -6,7 +6,6 @@
       "active_low": true
     },
     "ircut": 999,
-    "mmc_cd": 57,
     "mmc_power": {
       "pin": 58,
       "active_low": true

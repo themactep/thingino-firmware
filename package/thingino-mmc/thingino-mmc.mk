@@ -17,6 +17,8 @@ define THINGINO_MMC_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S09mmc
 	$(SED) 's|^MMC_MODULE=.*|MMC_MODULE="$(THINGINO_MMC_MODULE)"|' \
 		$(TARGET_DIR)/etc/init.d/S09mmc
+	$(SED) 's|^MMC_CD_PIN=.*|MMC_CD_PIN="$(MMC_CD_PIN)"|' \
+		$(TARGET_DIR)/etc/init.d/S09mmc
 
 	$(INSTALL) -D -m 0755 $(THINGINO_MMC_PKGDIR)/files/mmc \
 		$(TARGET_DIR)/usr/sbin/mmc

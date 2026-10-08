@@ -6,7 +6,6 @@
     "white": 83,
     "led_r": 77,
     "led_b": 78,
-    "mmc_cd": 58,
     "spk_en": 71,
     "wlan": 60
   }

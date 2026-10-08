@@ -3,7 +3,6 @@
     "button_reset": 50,
     "ir940": 9,
     "ircut": "57 58",
-    "mmc_cd": 49,
     "wlan": 8
   },
   "motors": {

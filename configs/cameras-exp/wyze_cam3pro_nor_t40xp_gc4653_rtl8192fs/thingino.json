@@ -11,7 +11,6 @@
       "pin": 106,
       "active_low": true
     },
-    "mmc_cd": 70,
     "mmc_power": {
       "pin": 71,
       "active_low": true

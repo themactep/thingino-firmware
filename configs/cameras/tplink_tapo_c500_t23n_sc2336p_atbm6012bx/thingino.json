@@ -3,7 +3,6 @@
     "button_reset": 40,
     "ir850": 49,
     "ircut": 999,
-    "mmc_cd": 41,
     "mmc_power": {
       "pin": 47,
       "active_low": true
