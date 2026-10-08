@@ -1,0 +1,20 @@
+// Cinnado D1 (T32LQ) per-board GPIO definitions.
+// Included into the family device tree (goat.dts) at build time.
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 7 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 39 */
+			default-state = "off";
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpb 6 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 38 */
+			default-state = "off";
+		};
+	};
+};

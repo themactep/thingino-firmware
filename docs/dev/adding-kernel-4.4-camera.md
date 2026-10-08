@@ -192,6 +192,32 @@ Create `uenv.txt`:
 # Usually this can be empty or minimal
 ```
 
+### 2.4 Optional: Camera-Profile Device-Tree Fragment
+
+A camera profile may ship exactly one `.dtsi` file alongside its defconfig.
+The `thingino-kopt` Linux extension copies it into the family dts directory and
+appends a single `#include` to the family leaf dts (`goat.dts` on t32,
+`shark.dts` on t40, `marmot.dts` on t41, `tucana.dts` on a1) before every kernel
+build, so the fragment augments the family tree instead of replacing it. Use it
+for board pins that have a kernel device-tree binding:
+
+```dts
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 7 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};
+```
+
+A profile that must describe the whole board should ship a `.dts` instead.
+`thingino.json` remains the source for pins consumed by userspace and the
+U-Boot injections.
+
 ## Step 3: Create Device Tree File
 
 ### 3.1 Add Device Tree Kconfig Entry

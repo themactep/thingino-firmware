@@ -91,6 +91,23 @@ endif
 endif
 export CAMERA_DTS_FILE
 export CAMERA_DTS_DEST
+
+# Per-device device-tree fragment: a single .dtsi in the camera profile dir is
+# copied into the family's kernel dts dir and #included by the family dts (or
+# the camera's own .dts, if it ships one) before every kernel build. Unlike
+# CAMERA_DTS_FILE it augments the family tree instead of replacing it. The
+# include target is CAMERA_DTS_DEST, so the family leaf name above is required.
+CAMERA_DTSI_FILE = $(wildcard $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/*.dtsi)
+ifneq ($(CAMERA_DTSI_FILE),)
+ifneq ($(words $(CAMERA_DTSI_FILE)),1)
+$(error Camera profile $(CAMERA) has more than one .dtsi file: $(CAMERA_DTSI_FILE))
+endif
+ifeq ($(CAMERA_DTS_DEST),)
+$(error Camera profile $(CAMERA) ships a .dtsi but SoC family '$(SOC_FAMILY)' has no known kernel dts name)
+endif
+endif
+export CAMERA_DTSI_FILE
+
 export SOC_RAM_MB
 export SOC_ARCH
 export SOC_TARGET_ARCH
