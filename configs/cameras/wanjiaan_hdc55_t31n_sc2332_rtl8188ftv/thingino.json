@@ -2,8 +2,7 @@
   "gpio": {
     "button_reset": 54,
     "ircds": 7,
-    "ircut": "57 58",
-    "mmc_cd": 59
+    "ircut": "57 58"
   },
   "motors": {
     "gpio_invert": false,

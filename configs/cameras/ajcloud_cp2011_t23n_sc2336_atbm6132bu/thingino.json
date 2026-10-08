@@ -4,7 +4,6 @@
     "button_reset": 38,
     "ir850": 45,
     "ircut": "57 58",
-    "mmc_cd": 50,
     "wlan": {
       "active_low": true,
       "pin": 47,

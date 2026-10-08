@@ -107,6 +107,13 @@ endif
 endif
 export CAMERA_DTSI_FILE
 
+# MMC card-detect gpio, taken from the camera's device-tree fragment. It is the
+# single source for gpio.mmc_cd: the kernel 4.4+ device tree already carries it,
+# and both the U-Boot injection and S09mmc's jzmmc cd_gpio_pin parameter read
+# this. Empty when the fragment has no card-detect line.
+MMC_CD_PIN := $(shell sh $(BR2_EXTERNAL)/scripts/mmc_cd_pin.sh $(CAMERA_DTSI_FILE))
+export MMC_CD_PIN
+
 export SOC_RAM_MB
 export SOC_ARCH
 export SOC_TARGET_ARCH

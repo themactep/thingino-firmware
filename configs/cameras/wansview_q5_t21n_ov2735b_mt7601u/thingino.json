@@ -10,8 +10,7 @@
     "led_r": {
       "pin": 72,
       "active_low": true
-    },
-    "mmc_cd": 52
+    }
   },
   "motors": {
     "gpio_invert": false,

@@ -58,11 +58,11 @@
 #                 codec node as ingenic,spk-gpio), so the hog does not fight
 #                 it for ownership - it only defines the level until then.
 #
-# A pin that inject-uboot-mmc-dt.sh turns into a DT binding (gpio.mmc_cd ->
-# cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
+# A pin that inject-uboot-mmc-dt.sh turns into a DT binding (camera dtsi
+# card-detect -> cd-gpios, single-pin gpio.mmc_power (object or bare int) -> vmmc regulator, gpio.button_reset
 # -> gpio-keys) is never hogged: a hog claims the gpio at DM init and the
 # binding's own request then fails, breaking the subsystem that needed it
-# (cinnado_b6 lists pin 61 as both mmc_cd and a motor phase - card-detect
+# (cinnado_b6 lists pin 61 as both card-detect and a motor phase - card-detect
 # must win). Such pins are reported as skipped in the build log. Repeated
 # pins within/across hog domains collapse to the first occurrence.
 #
@@ -82,7 +82,7 @@ grep -q 'thingino GPIO presets' "$DTS" && exit 0
 
 # Emit "<name>:<pin>:<level>" tokens, or nothing when there is nothing to hog.
 vals=$(
-	python3 - "$JSON" 2>/dev/null <<'PY'
+	python3 - "$JSON" "${MMC_CD_PIN:--1}" 2>/dev/null <<'PY'
 import json, sys
 
 root = json.load(open(sys.argv[1]))
@@ -248,8 +248,12 @@ if isinstance(sp_pin, int) and not isinstance(sp_pin, bool) and sp_pin >= 0:
 # request must win, so these are never hogged (level 's' = skip note).
 g = root.get("gpio", {})
 reserved = set()
-cd = g.get("mmc_cd")
-if isinstance(cd, int) and cd >= 0:
+# Card-detect comes from the camera dtsi (MMC_CD_PIN), not thingino.json.
+try:
+    cd = int(sys.argv[2])
+except (IndexError, ValueError):
+    cd = -1
+if cd >= 0:
     reserved.add(cd)
 if isinstance(mp, dict) and isinstance(mp.get("pin"), int) and mp["pin"] >= 0:
     reserved.add(mp["pin"])

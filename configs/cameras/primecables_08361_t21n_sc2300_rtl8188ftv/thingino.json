@@ -6,7 +6,6 @@
       "active_low": true
     },
     "ircut": "79 80",
-    "mmc_cd": 52,
     "scl": 39,
     "sda": 48
   },
