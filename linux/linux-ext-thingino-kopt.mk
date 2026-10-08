@@ -16,6 +16,8 @@ define THINGINO_KOPT_PREPARE_KERNEL
 		'$(CAMERA_DTSI_FILE)'
 	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/patch_kernel_leds_board_base.sh \
 		$(THINGINO_LED_BOARD_BASE)
+	sh $(BR2_EXTERNAL_THINGINO_PATH)/scripts/fix_kernel_spk_gpio_default.sh \
+		$(LINUX_DIR)
 endef
 
 # Per-device dts from the camera profile dir (CAMERA_DTS_FILE/DEST come
