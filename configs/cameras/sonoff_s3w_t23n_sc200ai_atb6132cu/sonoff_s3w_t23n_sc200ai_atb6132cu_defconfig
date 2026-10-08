@@ -17,6 +17,7 @@ BR2_THINGINO_LED_B_GPIO=9
 BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=16
+KERNEL_VERSION_3=y
 
 # The sensor answers i2c0@0x30 with chip-id 0xcb1c = SC200AI, not the SC231HAI
 # (0xcb6a) this profile is named after; the stock image ships IQ for both.
