@@ -99,20 +99,14 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# default to older kernel if none set
+# 4.4.94 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
 ifeq ($(KERNEL_VERSION),)
 	ifeq ($(KERNEL_VERSION_7),y)
 		KERNEL_VERSION := 7.1-rc1
-	else ifeq ($(KERNEL_VERSION_4),y)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t41)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),t40)
-		KERNEL_VERSION := 4.4.94
-	else ifeq ($(SOC_FAMILY),a1)
-		KERNEL_VERSION := 4.4.94
-	else
+	else ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10.14
+	else
+		KERNEL_VERSION := 4.4.94
 	endif
 endif
 
@@ -184,7 +178,7 @@ else ifeq ($(KERNEL_BRANCH),ingenic-t41-4.4.94)
 else ifeq ($(KERNEL_BRANCH),ingenic-t40)
 	KERNEL_HASH := e7f9a7439d40a539fad1525bd46a75bcdabffb17
 else ifeq ($(KERNEL_BRANCH),ingenic-t32-4.4.94)
-	KERNEL_HASH := fac1029eb6b7a01a709e0d912a5ac97621143055
+	KERNEL_HASH := 470050ba3702da8bac092f26b327f590abcf976c
 else ifeq ($(KERNEL_BRANCH),ingenic-t32)
 	KERNEL_HASH := 26fca510ab2dd6cfb9383ecc1b8932647556e6f1
 else ifeq ($(KERNEL_BRANCH),ingenic-t23-4.4.94)
@@ -193,7 +187,7 @@ endif
 
 # Fall back to the live branch tip for anything not mapped above.
 ifeq ($(KERNEL_HASH),)
-	KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
+KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 

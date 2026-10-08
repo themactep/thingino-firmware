@@ -930,8 +930,8 @@ choice
 	prompt "Kernel version"
 	help
 	  Select the desired  kernel version
-	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
-	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
+	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t33"
+	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32"
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
 	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
