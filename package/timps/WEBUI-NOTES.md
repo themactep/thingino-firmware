@@ -532,39 +532,31 @@ part `#crop-zoom-h` says "Crop only (this camera does not upscale)"
 (`upscale_pct` 0) or "no upscaling at these stream sizes".
 
 Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
-crop is applied `#preview` shows the cropped scene and a rectangle drawn on it
-could not address the rest of the sensor. The one preview on the left is the
-editor: the crop window is the same draggable box as ROI/privacy
-(`.rc-box.rc-crop`, body = pan, corner = zoom, pointer events) on a
-full-sensor surface. While the preview stream does not show the crop (`state`
-not `on`, or `caps.fcrop.zoomed[S]` 0) that surface is `#preview` itself.
-Otherwise (`body.rc-pip`) `#crop-ed`, a canvas holding the last full-sensor
-preview frame (grabbed every 1.5 s while no crop is applied, not within 3 s
-of a POST), is the large picture with the box, and `#preview` becomes a 30 %
-inset (`.rc-inset`, placed in the corner away from the window) with the live
-result. A tap on the inset swaps them; with the live picture large the box is
-hidden. The frame is kept in localStorage (`timps-crop-full:<host>:<sensor>`,
-640 px JPEG 0.7), refreshed every 10 s while crop is off: `#preview` is
-cross-origin (timps port) and taints a canvas, so the stored copy comes from a
-CORS fetch of `/snapshot.jpg` of stream S when the preview cannot be read.
-With crop on, no frame and `caps.fcrop.live` 1, opening the tab captures one
-once (`capture`): controls disabled, POST the same window with
-`fcrop_enable` 0, wait 1.2 s, two fresh stills (or two preview `load`s, at most
-3.5 s), draw, then always POST the identical window with `fcrop_enable` 1
-(timeout 6 s, tab or stream switch abort, one retry, keepalive POST on
-`pagehide`). Without a frame (`live` 0 or a failed capture) the cut-out stays
-large without rectangle or inset, with a banner and, on live cameras,
-"Capture full view". Leaving the tab dispatches `resize` so the other tabs re-place
-their boxes on the full-width preview.
-A click on the large live picture opens the preview modal as on the other
-tabs; only the inset and "Capture full view" swallow it. `#crop-scale` lists every enabled
+crop is applied `#preview` shows only the window. In the crop tab `#frame`
+(`.rc-sens`) takes the sensor aspect (`--sa`) and stands for the whole sensor.
+Crop off (or the preview stream does not show the crop: `state` not `on`, or
+`caps.fcrop.zoomed[S]` 0): the live picture fills it and the crop window is
+the draggable box (`.rc-box.rc-crop`, body = pan, corner = zoom, pointer
+events, `cropDragView`). Crop on (`body.rc-pip`): `#preview` is placed at the
+window (`--cl/--ct/--cw/--ch` from `cropPct`) under the same box, so dragging
+the box moves the live cut-out; the rest is a dimmed backdrop picked by
+`cropBackdrop`: `#crop-ed`, the last full frame, or a grid. The frame is
+grabbed every 1.5 s while crop is off (not within 3 s of a POST) and stored in
+localStorage (`timps-crop-full:<host>:<sensor>`, 640 px JPEG 0.7) every 10 s;
+`#preview` is cross-origin (timps port) and taints a canvas, so the stored
+copy then comes from a CORS GET of `/snapshot.jpg` of stream S. The page
+never POSTs to get a frame. The wheel over the box zooms around the pointer
+(`cropZoomAt`, 1.1x per notch, clamped to the slider range, debounced like a
+drag; one POST 0.5 s after the last notch on start-only cameras). A click on
+the live picture outside the box opens the preview modal as on the other
+tabs. `#crop-scale` lists every enabled
 `video.<n>` with `cropScale` (stream size / window): "not zoomed" when
 `zoomed` (state on) or `zoomable` says the stream keeps the full frame, amber
 above 1x. Corner drag keeps the sensor aspect
 like the zoom slider; dragging the box never toggles the switch (place it with
 crop off, then enable), the sliders still switch it on as before. All edits go
 through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
-`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`
+`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`/`cropDragView`/`cropZoomAt`/`cropBackdrop`
 (even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
 and one four-key POST; timps's
 `scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
