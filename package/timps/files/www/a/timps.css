@@ -80,7 +80,9 @@ body[data-pane="crop"] .rc-inset { position: absolute; z-index: 3; width: 30% !i
   cursor: pointer; border: 2px solid #ff8800; border-radius: 3px; box-shadow: 0 1px 6px rgb(0 0 0 / .7); }
 body[data-pane="crop"] .rc-inset.at-l { right: auto; left: 6px; }
 body[data-pane="crop"] .rc-inset.at-t { bottom: auto; top: 6px; }
-.rc-nopic { position: absolute; left: 10%; right: 10%; top: 40%; text-align: center; font-size: .8rem; color: var(--bs-secondary-color); pointer-events: none; }
+.rc-msg { position: absolute; left: 0; right: 0; top: 0; z-index: 4; display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: center;
+  padding: .3rem .5rem; font-size: .75rem; color: #fff; background: rgb(0 0 0 / .65); }
+.rc-msg.busy { top: 40%; justify-content: center; }
 .rc-zoom { --nat: 1; --tk: transparent; --np: calc(.5rem + (100% - 1rem) * var(--nat)); }
 .rc-zoom::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--bs-secondary-bg) calc(var(--np) - 1px),
   var(--tk) 0 calc(var(--np) + 1px), rgb(240 180 41 / .6) 0); }

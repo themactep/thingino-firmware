@@ -543,8 +543,18 @@ preview frame (grabbed every 1.5 s while no crop is applied, not within 3 s
 of a POST), is the large picture with the box, and `#preview` becomes a 30 %
 inset (`.rc-inset`, placed in the corner away from the window) with the live
 result. A tap on the inset swaps them; with the live picture large the box is
-hidden. `.rc-nopic` says so when no frame was grabbed yet (page opened with
-crop on). Leaving the tab dispatches `resize` so the other tabs re-place
+hidden. The frame is kept in localStorage (`timps-crop-full:<host>:<sensor>`,
+640 px JPEG 0.7), refreshed every 10 s while crop is off: `#preview` is
+cross-origin (timps port) and taints a canvas, so the stored copy comes from a
+CORS fetch of `/snapshot.jpg` of stream S when the preview cannot be read.
+With crop on, no frame and `caps.fcrop.live` 1, opening the tab captures one
+once (`capture`): controls disabled, POST the same window with
+`fcrop_enable` 0, wait 1.2 s, two fresh stills (or two preview `load`s, at most
+3.5 s), draw, then always POST the identical window with `fcrop_enable` 1
+(timeout 6 s, tab or stream switch abort, one retry, keepalive POST on
+`pagehide`). Without a frame (`live` 0 or a failed capture) the cut-out stays
+large without rectangle or inset, with a banner and, on live cameras,
+"Capture full view". Leaving the tab dispatches `resize` so the other tabs re-place
 their boxes on the full-width preview.
 "Select area" (or Shift+drag) draws a rubber band on the large picture
 (on the cropped live picture it maps through the applied window); on release
