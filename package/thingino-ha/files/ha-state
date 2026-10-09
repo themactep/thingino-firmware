@@ -13,8 +13,6 @@
 
 . /usr/share/ha-common
 
-PRUDYNT_CONFIG="/etc/prudynt.json"
-
 [ -n "$HA_CAMERA_ID" ] || {
 	echo "ha-state: cannot determine camera ID" >&2
 	exit 1
@@ -65,9 +63,11 @@ fi
 
 # Motion Guard switch
 if ha_entity_enabled motion_guard; then
-	[ -f /run/prudynt/motion.active ] &&
-		ha_pub_state motion_guard ON "$FORCE" ||
+	if [ "$(ha_json_get "$(ha_agent runtime motion)" enabled)" = "true" ]; then
+		ha_pub_state motion_guard ON "$FORCE"
+	else
 		ha_pub_state motion_guard OFF "$FORCE"
+	fi
 fi
 
 # IR Cut Filter switch: 1 = filter in (day), 0 = filter out (night)
@@ -78,30 +78,48 @@ if ha_entity_enabled ircut; then
 		ha_pub_state ircut OFF "$FORCE"
 fi
 
-# Day/Night select
+# Day/Night select (the setting), the mode actually applied and the Color
+# mode switch share one runtime read. Color follows the applied mode
+# (day = color), except after a manual color command while automatic
+# day/night is off.
+daynight_rt=""
+if ha_entity_enabled daynight || ha_entity_enabled daynight_state || ha_entity_enabled color; then
+	daynight_rt=$(ha_agent runtime daynight)
+fi
+running_mode=$(ha_json_get "$daynight_rt" running_mode)
+
 if ha_entity_enabled daynight; then
-	val=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null)
-	ha_pub_state daynight "${val:-day}" "$FORCE"
+	target_mode=$(ha_json_get "$daynight_rt" target_mode)
+	case "$target_mode" in
+		auto | day | night) ha_pub_state daynight "$target_mode" "$FORCE" ;;
+	esac
+fi
+if ha_entity_enabled daynight_state; then
+	case "$running_mode" in
+		day | night) ha_pub_state daynight_state "$running_mode" "$FORCE" ;;
+	esac
 fi
 
 # Privacy screen switch
 if ha_entity_enabled privacy; then
-	[ -f /run/prudynt/privacy.active ] &&
-		ha_pub_state privacy ON "$FORCE" ||
+	if [ "$(ha_json_get "$(ha_agent runtime privacy)" enabled)" = "true" ]; then
+		ha_pub_state privacy ON "$FORCE"
+	else
 		ha_pub_state privacy OFF "$FORCE"
+	fi
 fi
 
-# Color mode switch (0=color, 1=monochrome)
 if ha_entity_enabled color; then
-	val=$(
-		prudyntctl json - 2>/dev/null <<'EOF'
-{"image":{"running_mode":null}}
-EOF
-	)
-	mode=$(printf '%s' "$val" | grep -o '"running_mode":[^,}]*' | cut -d: -f2 | tr -d ' ')
-	[ "$mode" = "0" ] &&
-		ha_pub_state color ON "$FORCE" ||
-		ha_pub_state color OFF "$FORCE"
+	color_state=""
+	[ "$(ha_json_get "$daynight_rt" enabled)" = "false" ] &&
+		[ -f "$HA_COLOR_OVERRIDE" ] && read -r color_state <"$HA_COLOR_OVERRIDE"
+	if [ -z "$color_state" ]; then
+		case "$running_mode" in
+			day) color_state=ON ;;
+			night) color_state=OFF ;;
+		esac
+	fi
+	[ -n "$color_state" ] && ha_pub_state color "$color_state" "$FORCE"
 fi
 
 # IR LED 850 nm
@@ -129,6 +147,15 @@ if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
 		{ [ "$val" = "1" ] &&
 			ha_pub_state white ON "$FORCE" ||
 			ha_pub_state white OFF "$FORCE"; }
+fi
+
+# Floodlight (Wyze v1): state files are written by floodlight_ctl after each
+# successful command; the controller itself exposes no readable lamp state.
+if ha_entity_enabled floodlight && ha_floodlight_available; then
+	val=$(ha_floodlight_state 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight "$val" "$FORCE"
+	val=$(ha_floodlight_brightness 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight_brightness "$val" "$FORCE"
 fi
 
 # Wyze Lamp Socket: last state commanded from this camera ("None" = unknown)
@@ -177,15 +204,16 @@ if ha_entity_enabled gain; then
 	gain=""
 	[ -f /proc/jz/isp/isp-m0 ] &&
 		gain=$(awk '/total_gain/{print $NF; exit}' /proc/jz/isp/isp-m0 2>/dev/null)
-	if [ -z "$gain" ] && command -v prudyntctl >/dev/null 2>&1; then
-		pdata=$(
-			prudyntctl json - 2>/dev/null <<'PEOF'
-{"image":{"running_mode":null},"daynight":{"status":null,"enabled":null}}
-PEOF
-		)
-		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
-	fi
+	[ -z "$gain" ] && gain=$(ha_json_get "$(ha_agent runtime heartbeat)" total_gain)
 	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+fi
+
+if ha_entity_enabled brightness; then
+	brightness=$(cat /run/thingino/daynight_brightness 2>/dev/null)
+	case "$brightness" in
+		'' | *[!0-9]*) ;;
+		*) ha_pub_state brightness "$brightness" "$FORCE" ;;
+	esac
 fi
 
 # WiFi RSSI sensor — only for cameras with a wireless interface
