@@ -513,8 +513,13 @@ controls. ROI boxes are drawn over `#preview` in stream pixels and snap to
 16 px macroblocks while dragging, so the box is what the encoder gets; the
 "both streams" switch is hidden on both tabs (no mirroring). The crop tab works
 in sensor pixels from `caps.fcrop.sensor`: zoom/pan sliders keep the sensor
-aspect ratio, the number fields allow any window. After each (debounced) POST
-it re-reads `caps.fcrop.state` and shows it.
+aspect ratio. The smallest window is `caps.fcrop.min_win` per axis (64x64
+when absent), the zoom slider ends at `caps.fcrop.zoom_max` (at most 8), and
+`caps.fcrop.zoomable` names the streams that show the crop in the note. ROI QP
+fields use `caps.roi.qp_delta`/`qp_abs` (and show `qp_delta_eff` when it is
+narrower). After each (debounced) POST it re-reads `caps.fcrop.state` and
+shows it; `waiting` is re-read every 3 s (10 times at most) because the switch
+to `on` at a stream start sends no config event.
 
 Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
 crop is applied `#preview` shows the cropped scene and a rectangle drawn on it
@@ -522,14 +527,15 @@ could not address the rest of the sensor. The crop window is therefore the
 same draggable box as ROI/privacy (`.rc-box.rc-crop`, body = pan, corner =
 zoom, pointer events), and it always lives on a full-sensor surface: the map
 in the tab (`#crop-map`, full tab width, sensor aspect) at all times, and the
-preview too, but only while `caps.fcrop.state` is not `on` (preview = whole
-sensor). While a crop is applied the preview shows the result and the map
+preview too, but only while the preview stream does not show the crop
+(`state` not `on`, or `caps.fcrop.zoomed[S]` 0: preview = whole sensor). While a crop is applied the preview shows the result and the map
 keeps the last full-sensor preview frame as a reference (a canvas refreshed
 every 1.5 s while no crop is applied). Corner drag keeps the sensor aspect
 like the zoom slider; dragging the box never toggles the switch (place it with
 crop off, then enable), the sliders still switch it on as before. All edits go
 through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`
-(even values, >= 64x64, inside the sensor) and one four-key POST; timps's
+(even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
+and one four-key POST; timps's
 `scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
 `caps.fcrop.live` 0 (T23, start-only) shows "Applies after restarting timps",
 sends nothing while dragging and one plain POST on release (slider `change`,
