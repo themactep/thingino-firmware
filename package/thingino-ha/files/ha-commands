@@ -16,10 +16,10 @@
 	exit 1
 }
 
-# Disable prudynt's automatic day/night management before manual hardware control.
-# Without this, prudynt may immediately undo hardware changes.
-prudynt_disable_auto() {
-	printf '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+# Disable the streamer's automatic day/night switching before manual hardware
+# control, otherwise it may immediately undo the change.
+daynight_disable_auto() {
+	ha_agent_set daynight/enabled enabled false
 }
 
 # ---------------------------------------------------------------------------
@@ -53,25 +53,22 @@ dispatch() {
 	case "$entity" in
 
 		motion_guard)
-			# Use prudyntctl directly — calling 'motion enable' goes through the
-			# motion event script which has a singleton guard and may fail silently
-			# if a motion event is already in progress.
+			# Not the 'motion enable' wrapper: it goes through the motion event
+			# script, whose singleton guard fails silently during an event.
 			case "$payload" in
 				on | ON | 1 | true)
-					printf '{"motion":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
-					jct /etc/prudynt.json set motion.enabled true >/dev/null 2>&1
+					ha_agent_set motion/enabled enabled true
 					ha_pub_state motion_guard ON
 					;;
 				off | OFF | 0 | false)
-					printf '{"motion":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
-					jct /etc/prudynt.json set motion.enabled false >/dev/null 2>&1
+					ha_agent_set motion/enabled enabled false
 					ha_pub_state motion_guard OFF
 					;;
 			esac
 			;;
 
 		ircut)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | day | 1)
 					ircut on
@@ -109,23 +106,23 @@ dispatch() {
 			;;
 
 		color)
-			# running_mode: 0 = color, 1 = monochrome
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":0}}' |
-						prudyntctl json - >/dev/null 2>&1
+					color on
+					echo ON >"$HA_COLOR_OVERRIDE"
 					ha_pub_state color ON
 					;;
 				off | OFF | 0)
-					printf '{"daynight":{"enabled":false},"image":{"running_mode":1}}' |
-						prudyntctl json - >/dev/null 2>&1
+					color off
+					echo OFF >"$HA_COLOR_OVERRIDE"
 					ha_pub_state color OFF
 					;;
 			esac
 			;;
 
 		ir850)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light ir850 on
@@ -139,7 +136,7 @@ dispatch() {
 			;;
 
 		ir940)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light ir940 on
@@ -153,7 +150,7 @@ dispatch() {
 			;;
 
 		white)
-			prudynt_disable_auto
+			daynight_disable_auto
 			case "$payload" in
 				on | ON | 1)
 					light white on
@@ -216,7 +213,7 @@ dispatch() {
 			;;
 
 		snapshot)
-			prudyntctl snapshot -c 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
+			ha_agent snapshot 0 >"/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
 			;;
 
 		reboot)

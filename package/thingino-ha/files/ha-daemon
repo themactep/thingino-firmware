@@ -137,7 +137,7 @@ if ha_entity_enabled live_view; then
 				sleep "$CAMERA_INTERVAL"
 			fi
 			snap=$(mktemp /tmp/ha_snap.XXXXXX) || continue
-			prudyntctl snapshot -c 1 >"$snap" 2>/dev/null
+			ha_agent snapshot 1 >"$snap"
 			if [ -s "$snap" ]; then
 				b64="${snap}.b64"
 				base64 "$snap" | tr -d '\n' >"$b64"
