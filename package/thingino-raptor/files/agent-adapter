@@ -45,7 +45,14 @@ agent_config_get() {
 	section=$1
 	key=$2
 	command -v raptorctl >/dev/null 2>&1 || return 0
-	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
+	value=$(raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"')
+	# A single-key get only finds keys set in raptor.conf; the section listing
+	# also carries the defaults the daemons run with.
+	if [ -z "$value" ]; then
+		value=$(raptorctl config get "$section" 2>/dev/null |
+			sed -n "s/^$key = //p" | head -n 1 | tr -d '\r\n"')
+	fi
+	printf '%s' "$value"
 }
 
 agent_config_bool() {
