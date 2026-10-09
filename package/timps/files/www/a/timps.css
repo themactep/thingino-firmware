@@ -78,3 +78,6 @@ body[data-pane="crop"] .tv-hint-text, body[data-pane="roi"] .tv-link, body[data-
 .rc-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .7; }
 .rc-box.rc-crop { border: 2px solid #ff8800; background: rgb(255 136 0 / .12); box-shadow: 0 0 0 1px rgb(0 0 0 / .6); }
 .rc-box.rc-crop .pm-tag { left: 0; top: 0; }
+.tv-help { font-size: .8rem; color: var(--bs-secondary-color); border: 1px solid var(--bs-border-color); border-radius: .45rem; padding: .35rem .7rem; margin-bottom: .6rem; }
+.tv-help summary { cursor: pointer; color: var(--bs-body-color); }
+.tv-help p { margin: .5rem 0 0; }

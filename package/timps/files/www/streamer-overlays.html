@@ -50,6 +50,10 @@
           <span id="osd-link-txt"></span>
         </div>
         <div data-page-pane="text">
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>Text and logo overlays are drawn into the video itself, so every viewer and every recording sees them. Each stream has its own list. Drag an overlay on the preview or edit its position in the list.</p>
+            <p>Overlays that are larger than the picture are clipped, so keep the text short on the substream. Font and the global on/off switch affect all streams and need a restart.</p>
+          </details>
           <div id="osd-items" class="d-grid gap-2"></div>
           <p id="osd-items-empty" class="text-body-secondary d-none">No overlays on this stream. Use &ldquo;Add overlay&rdquo; to create one.</p>
           <div class="d-flex flex-wrap align-items-center gap-3 mt-2">
@@ -77,6 +81,10 @@
           </div>
         </div>
         <div data-page-pane="privacy" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>A privacy mask is a solid rectangle burned into the stream before it is encoded. It hides that part of the picture for every viewer and recording; it cannot be removed on the client side.</p>
+            <p>Masks belong to one stream, are applied live, and stay in place on the picture when the sensor crop changes.</p>
+          </details>
           <div class="alert alert-warning d-none" id="privacy-unavailable" role="alert">
             <i class="bi bi-exclamation-triangle me-1"></i>The streamer does not report privacy support (or is unreachable); the editor is disabled.
           </div>
@@ -88,6 +96,11 @@
           </div>
         </div>
         <div data-page-pane="roi" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>A region of interest (ROI) gives part of the picture its own encoder quality (QP) while the rest keeps the normal rate control. A lower QP is sharper and costs more bits; a higher QP is coarser and saves bits. Use it to keep a door or a plate sharp, or to spend fewer bits on sky or foliage.</p>
+            <p><b>Delta</b> adds or subtracts QP relative to the stream (negative = sharper). <b>Absolute</b> sets a fixed QP; some cameras convert it to a delta internally.</p>
+            <p>Regions snap to 16&nbsp;px macroblocks and apply to H.264 streams only; H.265 and rotated streams ignore them. Under constant bitrate (CBR) the effect can be weak, and the usable QP range differs per SoC (the badge above shows how well it is supported on this camera).</p>
+          </details>
           <div class="alert alert-warning small py-2 d-none" id="roi-note" role="alert"></div>
           <div id="roi-list"></div>
           <p id="roi-empty" class="text-body-secondary d-none">No ROI regions on this stream. A region gets its own encoder QP: lower = sharper, higher = coarser.</p>
@@ -97,6 +110,11 @@
           </div>
         </div>
         <div data-page-pane="crop" hidden>
+          <details class="tv-help"><summary>What is this?</summary>
+            <p>Sensor crop selects a window of the sensor and scales it to the stream size. This is a digital zoom/pan that happens before encoding, so the zoomed picture keeps full stream resolution as long as the window is at least as large as the stream.</p>
+            <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64). Drag the frame on the map to pan, its corner to zoom.</p>
+            <p>On some cameras only the substream is zoomed and the main stream keeps the full frame; some cameras apply the window only after a restart (see the badge). <b>State</b>: <i>on</i> = active; <i>off</i> = disabled; <i>waiting</i> = accepted, applies as soon as a stream that can show it is running; <i>rejected</i> = invalid window; <i>failed</i> = the camera refused it.</p>
+          </details>
           <div class="alert alert-warning small py-2 d-none" id="crop-note" role="alert"></div>
           <div class="tv-card">
             <h6>Sensor crop (all streams) <span class="tv-badge live" id="crop-live">live</span><span class="tv-badge ms-auto" id="crop-tier"></span></h6>
