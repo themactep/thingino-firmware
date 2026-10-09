@@ -556,20 +556,15 @@ once (`capture`): controls disabled, POST the same window with
 large without rectangle or inset, with a banner and, on live cameras,
 "Capture full view". Leaving the tab dispatches `resize` so the other tabs re-place
 their boxes on the full-width preview.
-"Select area" (or Shift+drag) draws a rubber band on the large picture
-(on the cropped live picture it maps through the applied window); on release
-`cropSelect` grows it to the aspect of the first enabled stream that shows the
-crop and to the effective min window, then
-enables crop through the same `sendCrop(true)`. A tap without a band stores
-the centre for "Max zoom" (`cropMax`, smallest window); in the crop tab the
-preview's click-to-modal is swallowed. `#crop-scale` lists every enabled
+A click on the large live picture opens the preview modal as on the other
+tabs; only the inset and "Capture full view" swallow it. `#crop-scale` lists every enabled
 `video.<n>` with `cropScale` (stream size / window): "not zoomed" when
 `zoomed` (state on) or `zoomable` says the stream keeps the full frame, amber
 above 1x. Corner drag keeps the sensor aspect
 like the zoom slider; dragging the box never toggles the switch (place it with
 crop off, then enable), the sliders still switch it on as before. All edits go
 through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
-`cropSelect`/`cropMax`/`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`
+`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`
 (even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
 and one four-key POST; timps's
 `scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.

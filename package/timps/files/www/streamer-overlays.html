@@ -38,8 +38,7 @@
         <div class="tv-hint mb-1 tv-hint-privacy"><span>Click a mask to select</span><span>Drag to move, corner to resize</span>
           <span><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> 1 px</span><span><kbd>Shift</kbd>+arrows 10 px</span><span><kbd>Ctrl</kbd>+arrows resize</span></div>
         <div class="tv-hint mb-1 tv-hint-roi"><span>Click a region to select</span><span>Drag to move, corner to resize</span><span>Snaps to 16 px macroblocks</span></div>
-        <div class="tv-hint mb-1 tv-hint-crop"><span>Drag the frame to pan, corner to zoom</span><span>Crop on: the inset is the live result, tap it to swap</span>
-          <span><b>Select area</b> or <kbd>Shift</kbd>+drag: zoom onto it</span><span>Tap: centre for <b>Max zoom</b></span></div>
+        <div class="tv-hint mb-1 tv-hint-crop"><span>Drag the frame to pan, corner to zoom</span><span>Crop on: the inset is the live result, tap it to swap</span></div>
         <div id="frame" class="tv-frame" tabindex="0" aria-label="Preview; arrow keys move the selected overlay">
           <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch0">
           <div id="osd-boxes"></div>
@@ -115,7 +114,6 @@
             <p>Sensor crop selects a window of the sensor and scales it to the stream size. This is a digital zoom/pan that happens before encoding, so the zoomed picture keeps full stream resolution as long as the window is at least as large as the stream.</p>
             <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64 or the smallest window this camera takes). Drag the frame on the preview to pan, its corner to zoom. While crop is off the preview is the whole sensor. While crop is on the stream only shows the window, so the preview shows the last picture of the whole sensor (a still frame, kept in this browser) with the frame on it, and a small live inset with the result; tap the inset to swap the two. Without such a picture the page switches crop off for about two seconds to take one and then back on with the same window (cameras that apply crop live only). If that is not possible the preview shows the cut-out without a frame; <b>Capture full view</b> tries again.</p>
             <p>The zoom slider runs from 1&times; to the largest zoom this camera allows. Up to the white mark the window is at least as large as every zoomed stream: <b>Crop</b>, full resolution. Above it (amber) the stream scales the window up: <b>Crop + zoom</b>, a softer picture. Without the amber part the camera only crops.</p>
-            <p><b>Select area</b> (or <kbd>Shift</kbd>+drag with a mouse): draw a rectangle around an object on the preview; the window is set to it, grown to the stream aspect ratio and the smallest window this camera takes, and crop is switched on. <b>Max zoom</b> sets the smallest window, centred on the last point you tapped (or the current window).</p>
             <p>The lines under the fields show how each stream scales the window. A window smaller than the stream is upscaled and looks soft; a lower stream resolution lets you zoom tighter onto an object without upscaling.</p>
             <p>On some cameras only the substream is zoomed and the main stream keeps the full frame; some cameras apply the window only after a restart (see the badge). <b>State</b>: <i>on</i> = active; <i>off</i> = disabled; <i>waiting</i> = accepted, applies as soon as a stream that can show it is running; <i>rejected</i> = invalid window; <i>failed</i> = the camera refused it.</p>
           </details>
@@ -132,11 +130,7 @@
               <div><label for="crop-px">Pan horizontal</label><input type="range" class="form-range" id="crop-px" min="0" max="100" value="50"></div>
               <div><label for="crop-py">Pan vertical</label><input type="range" class="form-range" id="crop-py" min="0" max="100" value="50"></div>
             </div>
-            <div class="d-flex flex-wrap gap-2 my-3">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="crop-sel" aria-pressed="false"><i class="bi bi-bounding-box me-1"></i>Select area</button>
-              <button type="button" class="btn btn-sm btn-outline-primary" id="crop-max"><i class="bi bi-zoom-in me-1"></i>Max zoom</button>
-            </div>
-            <div class="tv-fields">
+            <div class="tv-fields mt-3">
               <div><label for="crop-x">Left</label><input type="number" min="0" step="2" class="form-control" id="crop-x"></div>
               <div><label for="crop-y">Top</label><input type="number" min="0" step="2" class="form-control" id="crop-y"></div>
               <div><label for="crop-w">Width</label><input type="number" min="64" step="2" class="form-control" id="crop-w"></div>
