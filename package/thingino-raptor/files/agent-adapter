@@ -1360,6 +1360,16 @@ agent_get_runtime() {
 			printf '"wg_status":%s' "$(agent_heartbeat_wg_status)"
 			printf '}\n'
 			;;
+		encoder)
+			caps=$(agent_ctl rvd get-enc-caps 2>/dev/null)
+			case "$caps" in
+				*'"status":"ok"'*) printf '%s\n' "$caps" ;;
+				*)
+					echo "encoder capabilities unavailable" >&2
+					return 1
+					;;
+			esac
+			;;
 		*)
 			echo "unsupported runtime resource: $resource" >&2
 			return 1
