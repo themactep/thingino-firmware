@@ -514,28 +514,42 @@ controls. ROI boxes are drawn over `#preview` in stream pixels and snap to
 "both streams" switch is hidden on both tabs (no mirroring). The crop tab works
 in sensor pixels from `caps.fcrop.sensor`: zoom/pan sliders keep the sensor
 aspect ratio. The smallest window is `caps.fcrop.min_win` per axis (64x64
-when absent), the zoom slider ends at `caps.fcrop.zoom_max` (at most 8), and
+when absent), the zoom slider (`step="any"`) runs from 1 to exactly the zoom
+of the smallest window (`cropEffMin`/`cropZoomMax`: min_win, tightened by
+`zoom_max` only when clearly lower; 8 without caps), and
 `caps.fcrop.zoomable` names the streams that show the crop in the note. ROI QP
 fields use `caps.roi.qp_delta`/`qp_abs` (and show `qp_delta_eff` when it is
 narrower). After each (debounced) POST it re-reads `caps.fcrop.state` and
 shows it; `waiting` is re-read every 3 s (10 times at most) because the switch
 to `on` at a stream start sends no config event.
 
+Zoom slider: `cropNative` is the zoom at which the window reaches the size of
+the largest enabled stream that shows the crop. Up to it the label says
+"Crop", above it "Crop + zoom, upscaled N× on stream i" (amber, from
+`cropScale` of the real window); the track is grey up to a white mark at that
+point and amber after it (`--nat` fraction on `.rc-zoom`). Without an amber
+part `#crop-zoom-h` says "Crop only (this camera does not upscale)"
+(`upscale_pct` 0) or "no upscaling at these stream sizes".
+
 Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
 crop is applied `#preview` shows the cropped scene and a rectangle drawn on it
-could not address the rest of the sensor. The crop window is therefore the
-same draggable box as ROI/privacy (`.rc-box.rc-crop`, body = pan, corner =
-zoom, pointer events), and it always lives on a full-sensor surface: the
-preview while the preview stream does not show the crop (`state` not `on`, or
-`caps.fcrop.zoomed[S]` 0: preview = whole sensor), otherwise the map
-(`#crop-map`, sensor aspect), which is shown only then, so crop off never
-shows two identical pictures. While a crop is applied the preview shows the
-result and the map keeps the last full-sensor preview frame as a reference (a
-canvas refreshed every 1.5 s while no crop is applied).
-"Select area" (or Shift+drag) draws a rubber band on the preview or the map
-(on the cropped preview it maps through the applied window); on release
+could not address the rest of the sensor. The one preview on the left is the
+editor: the crop window is the same draggable box as ROI/privacy
+(`.rc-box.rc-crop`, body = pan, corner = zoom, pointer events) on a
+full-sensor surface. While the preview stream does not show the crop (`state`
+not `on`, or `caps.fcrop.zoomed[S]` 0) that surface is `#preview` itself.
+Otherwise (`body.rc-pip`) `#crop-ed`, a canvas holding the last full-sensor
+preview frame (grabbed every 1.5 s while no crop is applied, not within 3 s
+of a POST), is the large picture with the box, and `#preview` becomes a 30 %
+inset (`.rc-inset`, placed in the corner away from the window) with the live
+result. A tap on the inset swaps them; with the live picture large the box is
+hidden. `.rc-nopic` says so when no frame was grabbed yet (page opened with
+crop on). Leaving the tab dispatches `resize` so the other tabs re-place
+their boxes on the full-width preview.
+"Select area" (or Shift+drag) draws a rubber band on the large picture
+(on the cropped live picture it maps through the applied window); on release
 `cropSelect` grows it to the aspect of the first enabled stream that shows the
-crop and to `min_win` (tightened by `zoom_max` only when clearly lower), then
+crop and to the effective min window, then
 enables crop through the same `sendCrop(true)`. A tap without a band stores
 the centre for "Max zoom" (`cropMax`, smallest window); in the crop tab the
 preview's click-to-modal is swallowed. `#crop-scale` lists every enabled
@@ -545,7 +559,7 @@ above 1x. Corner drag keeps the sensor aspect
 like the zoom slider; dragging the box never toggles the switch (place it with
 crop off, then enable), the sliders still switch it on as before. All edits go
 through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
-`cropSelect`/`cropMax`/`cropScale`
+`cropSelect`/`cropMax`/`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`
 (even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
 and one four-key POST; timps's
 `scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
