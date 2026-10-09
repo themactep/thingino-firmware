@@ -93,7 +93,3 @@ body[data-pane="crop"] .rc-inset.at-t { bottom: auto; top: 6px; }
 .tv-help { font-size: .8rem; color: var(--bs-secondary-color); border: 1px solid var(--bs-border-color); border-radius: .45rem; padding: .35rem .7rem; margin-bottom: .6rem; }
 .tv-help summary { cursor: pointer; color: var(--bs-body-color); }
 .tv-help p { margin: .5rem 0 0; }
-.rc-band { position: absolute; border: 1px dashed #ff8800; background: rgb(255 136 0 / .15); pointer-events: none; }
-.rc-pt { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #ff8800; background: rgb(0 0 0 / .5); pointer-events: none; }
-body.rc-selecting[data-pane="crop"] #frame { touch-action: none; cursor: crosshair; }
-body.rc-selecting .rc-box.rc-crop { pointer-events: none; }
