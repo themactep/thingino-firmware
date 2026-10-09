@@ -38,6 +38,7 @@
         <div class="tv-hint mb-1 tv-hint-privacy"><span>Click a mask to select</span><span>Drag to move, corner to resize</span>
           <span><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> 1 px</span><span><kbd>Shift</kbd>+arrows 10 px</span><span><kbd>Ctrl</kbd>+arrows resize</span></div>
         <div class="tv-hint mb-1 tv-hint-roi"><span>Click a region to select</span><span>Drag to move, corner to resize</span><span>Snaps to 16 px macroblocks</span></div>
+        <div class="tv-hint mb-1 tv-hint-crop"><span>Crop off: drag the frame to place it</span><span>Crop on: the preview shows the result</span></div>
         <div id="frame" class="tv-frame" tabindex="0" aria-label="Preview; arrow keys move the selected overlay">
           <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch0">
           <div id="osd-boxes"></div>
@@ -98,7 +99,7 @@
         <div data-page-pane="crop" hidden>
           <div class="alert alert-warning small py-2 d-none" id="crop-note" role="alert"></div>
           <div class="tv-card">
-            <h6>Sensor crop (all streams) <span class="tv-badge live">live</span><span class="tv-badge ms-auto" id="crop-tier"></span></h6>
+            <h6>Sensor crop (all streams) <span class="tv-badge live" id="crop-live">live</span><span class="tv-badge ms-auto" id="crop-tier"></span></h6>
             <div class="form-check form-switch mb-3">
               <input type="checkbox" id="crop-en" role="switch" class="form-check-input">
               <label for="crop-en" class="form-check-label">Crop enabled</label>
@@ -108,7 +109,8 @@
               <div><label for="crop-px">Pan horizontal</label><input type="range" class="form-range" id="crop-px" min="0" max="100" value="50"></div>
               <div><label for="crop-py">Pan vertical</label><input type="range" class="form-range" id="crop-py" min="0" max="100" value="50"></div>
             </div>
-            <div class="rc-map my-3" id="crop-map"><div></div></div>
+            <p class="small text-body-secondary mt-3 mb-1">Drag the frame to pan, its corner to zoom. The map is the whole sensor; while crop is off you can also drag it on the preview.</p>
+            <div class="rc-map mb-3" id="crop-map"><canvas></canvas></div>
             <div class="tv-fields">
               <div><label for="crop-x">Left</label><input type="number" min="0" step="2" class="form-control" id="crop-x"></div>
               <div><label for="crop-y">Top</label><input type="number" min="0" step="2" class="form-control" id="crop-y"></div>
