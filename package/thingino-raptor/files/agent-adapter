@@ -1511,16 +1511,19 @@ agent_osd_spec() {
 		time/enabled) printf 'osd.timestamp|visible|enabled|bool|element:timestamp\n' ;;
 		time/format) printf 'osd|time_format|format|text|time_format\n' ;;
 		time/position) printf 'osd.timestamp|position|position|text|element:timestamp\n' ;;
+		time/max-chars) printf 'osd.timestamp|max_chars|max_chars|int|element:timestamp\n' ;;
 		time/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		time/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		uptime/enabled) printf 'osd.uptime|visible|enabled|bool|element:uptime\n' ;;
 		uptime/format) printf 'osd.uptime|template|format|text|element:uptime\n' ;;
 		uptime/position) printf 'osd.uptime|position|position|text|element:uptime\n' ;;
+		uptime/max-chars) printf 'osd.uptime|max_chars|max_chars|int|element:uptime\n' ;;
 		uptime/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		uptime/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		usertext/enabled) printf 'osd.camera|visible|enabled|bool|element:camera\n' ;;
 		usertext/format) printf 'osd.camera|template|format|text|element:camera\n' ;;
 		usertext/position) printf 'osd.camera|position|position|text|element:camera\n' ;;
+		usertext/max-chars) printf 'osd.camera|max_chars|max_chars|int|element:camera\n' ;;
 		usertext/fill-color) printf 'osd|font_color|fill_color|text|font_color\n' ;;
 		usertext/stroke-color) printf 'osd|stroke_color|stroke_color|text|stroke_color\n' ;;
 		logo/enabled) printf 'osd.logo|visible|enabled|bool|element:logo\n' ;;
@@ -1680,6 +1683,38 @@ agent_print_osd_setting() {
 	esac
 }
 
+# A single `raptorctl config set` on a missing [osd.<name>] section creates it
+# with that one key only, and an element section without its type, template
+# or position scrambles the OSD regions on T20. Write the whole default
+# section first (values from raptor's stock raptor.conf).
+agent_osd_ensure_section() {
+	section=$1
+	case "$section" in
+		osd.timestamp | osd.uptime | osd.camera | osd.logo) ;;
+		*) return 0 ;;
+	esac
+	raptorctl config get "$section" 2>/dev/null | grep -q '^type = ' && return 0
+	case "$section" in
+		osd.timestamp)
+			set -- type text visible false template %time% position top_left align left max_chars 22
+			;;
+		osd.uptime)
+			set -- type text visible false template %uptime% position top_right align right max_chars 18
+			;;
+		osd.camera)
+			set -- type text visible false template Camera position top_center align center max_chars 14 update change
+			;;
+		osd.logo)
+			set -- type image visible false path /usr/share/images/thingino_100x30.bgra width 100 height 30 position bottom_right
+			;;
+	esac
+	osd_section=$section
+	while [ $# -ge 2 ]; do
+		agent_config_set "$osd_section" "$1" "$2" || return 1
+		shift 2
+	done
+}
+
 agent_set_osd_setting() {
 	path=$1
 	body_file=$2
@@ -1735,9 +1770,12 @@ agent_set_osd_setting() {
 		return 0
 	fi
 
-	agent_config_set "$section" "$config_key" "$persist_value" || return 1
+	osd_key=$config_key
+	osd_value=$persist_value
+	agent_osd_ensure_section "$section" || return 1
+	agent_config_set "$section" "$osd_key" "$osd_value" || return 1
 	agent_config_save
-	agent_osd_apply_runtime "$runtime_hint" "$config_key" "$persist_value"
+	agent_osd_apply_runtime "$runtime_hint" "$osd_key" "$osd_value"
 	agent_print_setting_update "$path" "$response_key" "$json_value"
 }
 

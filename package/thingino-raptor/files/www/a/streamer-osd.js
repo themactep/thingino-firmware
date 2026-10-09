@@ -86,6 +86,90 @@
     alert(message);
   }
 
+  // Other OSD elements: [osd.camera] (agent "usertext"), [osd.uptime] and
+  // [osd.logo]. Each field is one agent setting leaf.
+  const ELEMENTS = ["usertext", "uptime", "logo"];
+  const elementField = (key, field) =>
+    document.getElementById("osd_" + key + "_" + field);
+
+  async function loadElements(helper, osd) {
+    for (const key of ELEMENTS) {
+      const cfg = osd[key] || {};
+      const enabled = elementField(key, "enabled");
+      const format = elementField(key, "format");
+      const position = elementField(key, "position");
+      if (enabled) enabled.checked = cfg.enabled === true;
+      if (format && cfg.format) format.value = cfg.format;
+      if (position && cfg.position) position.value = cfg.position;
+      const maxChars = elementField(key, "max_chars");
+      if (!maxChars) continue;
+      try {
+        const leaf = await helper.agentRequest(
+          "/api/v1/settings/streams/0/osd/" + key + "/max-chars",
+          { cache: "no-store" },
+        );
+        if (leaf && leaf.max_chars != null) maxChars.value = leaf.max_chars;
+      } catch (err) {
+        console.warn("Failed to load " + key + " max chars", err);
+      }
+    }
+  }
+
+  async function saveElements(helper) {
+    for (const key of ELEMENTS) {
+      const leaves = [];
+      const enabled = elementField(key, "enabled");
+      const format = elementField(key, "format");
+      const position = elementField(key, "position");
+      const maxChars = elementField(key, "max_chars");
+      if (enabled) leaves.push(["enabled", "enabled", !!enabled.checked]);
+      if (format && format.value.trim())
+        leaves.push(["format", "format", format.value.trim()]);
+      if (position && position.value.trim())
+        leaves.push(["position", "position", position.value.trim()]);
+      if (maxChars && Number(maxChars.value) > 0)
+        leaves.push(["max-chars", "max_chars", Number(maxChars.value)]);
+      for (const [path, field, value] of leaves) {
+        await helper.agentRequest(
+          "/api/v1/settings/streams/0/osd/" + key + "/" + path,
+          { method: "PATCH", body: { [field]: value }, cache: "no-store" },
+        );
+      }
+    }
+  }
+
+  // Each position input holds the value; a select in front of it offers the
+  // named positions and reveals the input only for custom x,y coordinates.
+  function positionSelects() {
+    return document.querySelectorAll("select[data-position-for]");
+  }
+
+  function refreshPositionSelects() {
+    positionSelects().forEach((select) => {
+      const input = document.getElementById(select.dataset.positionFor);
+      const value = input.value.trim();
+      const named = [...select.options].some(
+        (o) => o.value === value && o.value !== "custom",
+      );
+      select.value = named ? value : value ? "custom" : "";
+      input.classList.toggle("d-none", select.value !== "custom");
+    });
+  }
+
+  positionSelects().forEach((select) => {
+    select.addEventListener("change", () => {
+      const input = document.getElementById(select.dataset.positionFor);
+      const custom = select.value === "custom";
+      input.classList.toggle("d-none", !custom);
+      if (custom) {
+        if (/^[a-z_]+$/.test(input.value)) input.value = "";
+        input.focus();
+      } else {
+        input.value = select.value;
+      }
+    });
+  });
+
   async function loadOsdConfig() {
     const helper = window.thinginoStreamer;
     if (!helper || !helper.agentRequest) return;
@@ -107,6 +191,8 @@
       updateSwatch(burninOutlineColor, swatchOutline);
       syncAlphaFromInput(burninFillColor, alphaFill);
       syncAlphaFromInput(burninOutlineColor, alphaOutline);
+      await loadElements(helper, osd);
+      refreshPositionSelects();
     } catch (err) {
       console.warn("Failed to load OSD config", err);
     }
@@ -144,12 +230,12 @@
       }
 
       await helper.applyPayload({ stream0: { osd } });
+      await saveElements(helper);
       if (helper.saveConfig) await helper.saveConfig();
       showAlert(
         "success",
-        (helper.saveSuccessMessage && helper.saveSuccessMessage()) ||
-          "OSD configuration saved",
-        4000,
+        "OSD configuration saved. Reboot the camera to apply it.",
+        6000,
       );
     } catch (err) {
       console.error("Failed to save OSD config", err);

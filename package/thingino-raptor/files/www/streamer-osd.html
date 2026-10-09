@@ -30,8 +30,8 @@
     <section>
       <h3 class="mb-3">OSD Elements</h3>
       <p class="text-secondary small mb-3">
-        Raptor uses ROD burn-in overlays. Timestamp settings below map to the
-        global OSD timestamp element via the camera agent.
+        Raptor uses ROD burn-in overlays. Each element below maps to its
+        [osd.&lt;name&gt;] section in raptor.conf via the camera agent.
       </p>
 
       <div class="row mb-3">
@@ -56,9 +56,19 @@
                 <label class="form-label small mb-0" for="burnin_font_size">Font size</label>
                 <input type="number" id="burnin_font_size" class="form-control form-control-sm" min="8" max="96" step="1" placeholder="24">
               </div>
-              <div class="col-auto" style="min-width:110px">
+              <div class="col-auto" style="min-width:150px">
                 <label class="form-label small mb-0" for="burnin_position">Position</label>
-                <input type="text" id="burnin_position" class="form-control form-control-sm" placeholder="-10,-10">
+                <select class="form-select form-select-sm" data-position-for="burnin_position" aria-label="Position">
+                  <option value="top_left">Top left</option>
+                  <option value="top_center">Top center</option>
+                  <option value="top_right">Top right</option>
+                  <option value="center">Center</option>
+                  <option value="bottom_left">Bottom left</option>
+                  <option value="bottom_center">Bottom center</option>
+                  <option value="bottom_right">Bottom right</option>
+                  <option value="custom">Custom (x,y)</option>
+                </select>
+                <input type="text" id="burnin_position" class="form-control form-control-sm mt-1 d-none" placeholder="x,y">
               </div>
             </div>
             <div class="d-flex align-items-end gap-2 flex-wrap">
@@ -84,6 +94,96 @@
               </div>
             </div>
           </div>
+          <div class="card bg-dark-subtle mb-3 p-3">
+            <h6 class="mb-2">Camera name</h6>
+            <p class="form-switch mb-2">
+              <input type="checkbox" id="osd_usertext_enabled" role="switch" class="form-check-input">
+              <label for="osd_usertext_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div class="row g-2">
+              <div class="col">
+                <label class="form-label small mb-0" for="osd_usertext_format">Text</label>
+                <input type="text" id="osd_usertext_format" class="form-control form-control-sm" placeholder="%hostname%">
+              </div>
+              <div class="col-auto" style="min-width:90px">
+                <label class="form-label small mb-0" for="osd_usertext_max_chars">Max chars</label>
+                <input type="number" id="osd_usertext_max_chars" class="form-control form-control-sm" min="1" max="128" step="1">
+              </div>
+              <div class="col-auto" style="min-width:150px">
+                <label class="form-label small mb-0" for="osd_usertext_position">Position</label>
+                <select class="form-select form-select-sm" data-position-for="osd_usertext_position" aria-label="Position">
+                  <option value="top_left">Top left</option>
+                  <option value="top_center">Top center</option>
+                  <option value="top_right">Top right</option>
+                  <option value="center">Center</option>
+                  <option value="bottom_left">Bottom left</option>
+                  <option value="bottom_center">Bottom center</option>
+                  <option value="bottom_right">Bottom right</option>
+                  <option value="custom">Custom (x,y)</option>
+                </select>
+                <input type="text" id="osd_usertext_position" class="form-control form-control-sm mt-1 d-none" placeholder="x,y">
+              </div>
+            </div>
+          </div>
+          <div class="card bg-dark-subtle mb-3 p-3">
+            <h6 class="mb-2">Uptime</h6>
+            <p class="form-switch mb-2">
+              <input type="checkbox" id="osd_uptime_enabled" role="switch" class="form-check-input">
+              <label for="osd_uptime_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div class="row g-2">
+              <div class="col">
+                <label class="form-label small mb-0" for="osd_uptime_format">Text</label>
+                <input type="text" id="osd_uptime_format" class="form-control form-control-sm" placeholder="%uptime%">
+              </div>
+              <div class="col-auto" style="min-width:90px">
+                <label class="form-label small mb-0" for="osd_uptime_max_chars">Max chars</label>
+                <input type="number" id="osd_uptime_max_chars" class="form-control form-control-sm" min="1" max="128" step="1">
+              </div>
+              <div class="col-auto" style="min-width:150px">
+                <label class="form-label small mb-0" for="osd_uptime_position">Position</label>
+                <select class="form-select form-select-sm" data-position-for="osd_uptime_position" aria-label="Position">
+                  <option value="top_left">Top left</option>
+                  <option value="top_center">Top center</option>
+                  <option value="top_right">Top right</option>
+                  <option value="center">Center</option>
+                  <option value="bottom_left">Bottom left</option>
+                  <option value="bottom_center">Bottom center</option>
+                  <option value="bottom_right">Bottom right</option>
+                  <option value="custom">Custom (x,y)</option>
+                </select>
+                <input type="text" id="osd_uptime_position" class="form-control form-control-sm mt-1 d-none" placeholder="x,y">
+              </div>
+            </div>
+          </div>
+          <div class="card bg-dark-subtle mb-3 p-3">
+            <h6 class="mb-2">Logo</h6>
+            <p class="form-switch mb-2">
+              <input type="checkbox" id="osd_logo_enabled" role="switch" class="form-check-input">
+              <label for="osd_logo_enabled" class="form-check-label small">Enabled</label>
+            </p>
+            <div class="row g-2">
+              <div class="col-auto" style="min-width:150px">
+                <label class="form-label small mb-0" for="osd_logo_position">Position</label>
+                <select class="form-select form-select-sm" data-position-for="osd_logo_position" aria-label="Position">
+                  <option value="top_left">Top left</option>
+                  <option value="top_center">Top center</option>
+                  <option value="top_right">Top right</option>
+                  <option value="center">Center</option>
+                  <option value="bottom_left">Bottom left</option>
+                  <option value="bottom_center">Bottom center</option>
+                  <option value="bottom_right">Bottom right</option>
+                  <option value="custom">Custom (x,y)</option>
+                </select>
+                <input type="text" id="osd_logo_position" class="form-control form-control-sm mt-1 d-none" placeholder="x,y">
+              </div>
+            </div>
+          </div>
+          <p class="text-secondary small">
+            Saved to /etc/raptor.conf. Raptor does not reliably apply OSD element
+            changes to a running stream, so <a href="/x/reboot.cgi">reboot the camera</a>
+            to apply them.
+          </p>
           <button type="button" id="save-osd-config" class="btn btn-primary">
             <i class="bi bi-floppy me-1"></i> Save configuration
           </button>
