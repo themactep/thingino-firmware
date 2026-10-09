@@ -213,7 +213,7 @@ ifneq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 	if [ -f "$(KERNEL_BIN)" ] && [ $(KERNEL_BIN_SIZE) -gt $(KERNEL_PARTITION_SIZE) ]; then \
 		$(RED) "KERNEL PARTITION OVERFLOW: $(KERNEL_BIN_SIZE) > $(KERNEL_PARTITION_SIZE) bytes"; bad=1; \
 	fi; \
-	if [ $(DATA_PARTITION_SIZE) -lt 327680 ]; then \
+	if [ $(DATA_PARTITION_SIZE) -lt $(JFFS2_MIN_SIZE) ]; then \
 		$(RED) "DATA PARTITION TOO SMALL FOR JFFS2 (min 5 erase blocks): $(DATA_PARTITION_SIZE) bytes"; bad=1; \
 	fi; \
 	if [ -f "$(DATA_BIN)" ] && [ $(DATA_BIN_SIZE) -gt $(DATA_PARTITION_SIZE) ]; then \
