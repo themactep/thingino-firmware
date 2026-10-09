@@ -112,7 +112,7 @@
         <div data-page-pane="crop" hidden>
           <details class="tv-help"><summary>What is this?</summary>
             <p>Sensor crop selects a window of the sensor and scales it to the stream size. This is a digital zoom/pan that happens before encoding, so the zoomed picture keeps full stream resolution as long as the window is at least as large as the stream.</p>
-            <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64). Drag the frame on the map to pan, its corner to zoom.</p>
+            <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64 or the smallest window this camera takes). Drag the frame on the map to pan, its corner to zoom.</p>
             <p>On some cameras only the substream is zoomed and the main stream keeps the full frame; some cameras apply the window only after a restart (see the badge). <b>State</b>: <i>on</i> = active; <i>off</i> = disabled; <i>waiting</i> = accepted, applies as soon as a stream that can show it is running; <i>rejected</i> = invalid window; <i>failed</i> = the camera refused it.</p>
           </details>
           <div class="alert alert-warning small py-2 d-none" id="crop-note" role="alert"></div>
