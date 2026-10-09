@@ -236,20 +236,35 @@
   }
   // > 1: the stream upscales the window
   function cropScale(c, vw, vh) { return Math.max(vw / c.w, vh / c.h); }
-
-  // cropOn: the preview (stream S) shows the window
-  var cropLive = 1, cropOn = false, cropSeq = 0, cmap = $("crop-map"), cref = cmap.querySelector("canvas");
-  var fmin = [FMIN, FMIN], zoomCap = 8, waitPoll = null;
-  var vids = [], fcInfo = {}, selMode = false, lastPt = null, selBtn = $("crop-sel"), maxBtn = $("crop-max");
-
-  function maxZoom() {
-    var z = Math.min(zoomCap, Math.min(sw / fmin[0], sh / fmin[1]));
-    return Math.max(1, Math.min(8, Math.floor(z * 10) / 10));
-  }
   // zoom_max is rounded down to 0.01, so it only tightens min_win when clearly lower
-  function effMin() {
-    if (zoomCap * 1.01 >= Math.min(sw / fmin[0], sh / fmin[1])) return fmin;
-    return [Math.max(fmin[0], Math.ceil(sw / zoomCap / 2) * 2), Math.max(fmin[1], Math.ceil(sh / zoomCap / 2) * 2)];
+  function cropEffMin(sw, sh, fmin, zcap) {
+    if (!(zcap > 0) || zcap * 1.01 >= Math.min(sw / fmin[0], sh / fmin[1])) return fmin;
+    return [Math.max(fmin[0], Math.ceil(sw / zcap / 2) * 2), Math.max(fmin[1], Math.ceil(sh / zcap / 2) * 2)];
+  }
+  // end of the zoom slider: the smallest window
+  function cropZoomMax(sw, sh, em) { return Math.max(1, Math.min(sw / em[0], sh / em[1])); }
+  // above this zoom the window is smaller than a zoomed stream [w, h], which then upscales it
+  function cropNative(sw, sh, sizes, zmax) {
+    var z = zmax;
+    sizes.forEach(function (s) { z = Math.min(z, sw / s[0], sh / s[1]); });
+    return Math.max(1, z);
+  }
+
+  // cropOn: the preview (stream S) shows the window; then the editor is the last full-sensor frame (#crop-ed)
+  // with the live result as an inset; liveBig swaps the two
+  var cropLive = 1, cropOn = false, cropSeq = 0, liveBig = false, shot = false, sentAt = 0;
+  var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, waitPoll = null;
+  var vids = [], fcInfo = {}, selMode = false, lastPt = null, selBtn = $("crop-sel"), maxBtn = $("crop-max"), zs = $("crop-zoom");
+  var ed = document.createElement("canvas"), nopic = document.createElement("div");
+  ed.id = "crop-ed"; ed.className = "rc-crop";
+  nopic.className = "rc-nopic rc-crop";
+  nopic.textContent = "No picture of the whole sensor yet: switch crop off for a moment to take one.";
+  stage.insertBefore(ed, img); stage.appendChild(nopic);
+
+  function zoomedSizes() {
+    var a = [];
+    vids.forEach(function (v, i) { if (v && v.en && showsCrop(i)) a.push([v.w, v.h]); });
+    return a;
   }
   function showsCrop(i) {
     var a = fcInfo.state === "on" && Array.isArray(fcInfo.zoomed) ? fcInfo.zoomed : fcInfo.zoomable;
@@ -268,32 +283,30 @@
   }
 
   function cropFromSliders() {
-    setCrop(cropFromZoom(+$("crop-zoom").value, +$("crop-px").value / 100, +$("crop-py").value / 100, sw, sh, fmin));
+    setCrop(cropFromZoom(+zs.value, +$("crop-px").value / 100, +$("crop-py").value / 100, sw, sh, emin));
   }
   function slidersFromCrop() {
-    var v = zoomFromCrop(crop, sw, sh, maxZoom());
-    $("crop-zoom").value = String(v.z); $("crop-px").value = String(v.px); $("crop-py").value = String(v.py);
+    var v = zoomFromCrop(crop, sw, sh, zmax);
+    zs.value = String(v.z); $("crop-px").value = String(v.px); $("crop-py").value = String(v.py);
   }
 
-  function cropBox(host) {
-    var b = document.createElement("div");
-    b.className = "rc-box rc-crop sel";
-    b.innerHTML = '<span class="pm-tag">Crop</span><div class="pm-handle"></div>';
-    host.appendChild(b);
-    b.addEventListener("pointerdown", function (ev) {
-      if (selMode || ev.shiftKey) return;
-      cropDragStart(ev, host, ev.target.classList.contains("pm-handle") ? "size" : "move");
-    });
-    return b;
-  }
-  var mapBox = cropBox(cmap), prevBox = cropBox(stage);
-  var dots = [cmap, stage].map(function (h) { var d = document.createElement("div"); d.className = "rc-pt rc-crop"; h.appendChild(d); return d; });
+  var box = document.createElement("div"), dot = document.createElement("div");
+  box.className = "rc-box rc-crop sel";
+  box.innerHTML = '<span class="pm-tag">Crop</span><div class="pm-handle"></div>';
+  dot.className = "rc-pt rc-crop";
+  stage.appendChild(box); stage.appendChild(dot);
+  box.addEventListener("pointerdown", function (ev) {
+    if (selMode || ev.shiftKey) return;
+    cropDragStart(ev, ev.target.classList.contains("pm-handle") ? "size" : "move");
+  });
 
   function inCrop() { return document.body.getAttribute("data-pane") === "crop"; }
-  // the sensor window a surface shows: the map always the whole sensor, the preview the applied crop
-  function surfaceWin(host) { return host === stage && cropOn && cropValid() ? crop : { x: 0, y: 0, w: sw, h: sh }; }
-  function toSensor(host, rc, e) {
-    var b = surfaceWin(host), cl = function (v) { return Math.max(0, Math.min(1, v)); };
+  function pip() { return cropOn && !!sw; }
+  // the large picture and the sensor window it shows
+  function surf() { return pip() && !liveBig ? ed : img; }
+  function surfWin() { return pip() && liveBig && cropValid() ? crop : { x: 0, y: 0, w: sw, h: sh }; }
+  function toSensor(rc, e) {
+    var b = surfWin(), cl = function (v) { return Math.max(0, Math.min(1, v)); };
     return { x: b.x + cl((e.clientX - rc.left) / (rc.width || 1)) * b.w, y: b.y + cl((e.clientY - rc.top) / (rc.height || 1)) * b.h };
   }
   function setSel(on) {
@@ -304,13 +317,13 @@
   }
 
   // tap = centre for Max zoom; Select area / Shift+drag = rubber band
-  function surfaceDown(ev, host) {
-    if (!inCrop() || cropTier === "unsupported" || !sw || ev.button > 0) return;
+  function surfaceDown(ev) {
+    if (!inCrop() || cropTier === "unsupported" || !sw || ev.button > 0 || ev.target.classList.contains("rc-inset")) return;
     ev.preventDefault();
-    var rc = (host === stage ? img : host).getBoundingClientRect(), hr = host.getBoundingClientRect();
+    var rc = surf().getBoundingClientRect(), hr = stage.getBoundingClientRect();
     var band = null, p0 = { x: ev.clientX, y: ev.clientY }, p1 = p0;
     if (selMode || ev.shiftKey) {
-      band = document.createElement("div"); band.className = "rc-band rc-crop"; host.appendChild(band);
+      band = document.createElement("div"); band.className = "rc-band rc-crop"; stage.appendChild(band);
       dragging = true;
     }
     var cx = function (v) { return Math.max(rc.left, Math.min(rc.right, v)); }, cy = function (v) { return Math.max(rc.top, Math.min(rc.bottom, v)); };
@@ -329,31 +342,33 @@
       dragging = false;
       if (e.type !== "pointerup") return;
       p1 = { x: e.clientX, y: e.clientY };
-      var a = toSensor(host, rc, { clientX: p0.x, clientY: p0.y }), b = toSensor(host, rc, { clientX: p1.x, clientY: p1.y });
+      var a = toSensor(rc, { clientX: p0.x, clientY: p0.y }), b = toSensor(rc, { clientX: p1.x, clientY: p1.y });
       if (!band || (Math.abs(p1.x - p0.x) < 8 && Math.abs(p1.y - p0.y) < 8)) { lastPt = b; renderCrop(); return; }
-      setCrop(cropSelect({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y }, sw, sh, effMin(), streamAR()));
+      setCrop(cropSelect({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y }, sw, sh, emin, streamAR()));
       crop.en = 1; lastPt = null; setSel(false); slidersFromCrop(); sendCrop(true);
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   }
-  [cmap, stage].forEach(function (h) {
-    h.addEventListener("pointerdown", function (ev) { surfaceDown(ev, h); });
-  });
+  stage.addEventListener("pointerdown", surfaceDown);
   // the preview's click opens the full-size modal (timps-preview.js); on this tab a tap sets the centre
-  stage.addEventListener("click", function (ev) { if (inCrop()) ev.stopPropagation(); }, true);
+  stage.addEventListener("click", function (ev) {
+    if (!inCrop()) return;
+    ev.stopPropagation();
+    if (ev.target.classList.contains("rc-inset")) { liveBig = !liveBig; renderCrop(); }
+  }, true);
 
-  function cropDragStart(ev, host, mode) {
+  function cropDragStart(ev, mode) {
     if (cropTier === "unsupported" || !sw) return;
     ev.preventDefault(); ev.stopPropagation();
     if (!cropValid()) cropFromSliders();
     dragging = true;
-    var bw = host === stage ? img.clientWidth : host.clientWidth, bh = host === stage ? img.clientHeight : host.clientHeight;
+    var bw = surf().clientWidth, bh = surf().clientHeight;
     var o = { px: ev.clientX, py: ev.clientY, x: crop.x, y: crop.y, w: crop.w, h: crop.h }, moved = false;
     function move(e) {
       moved = true;
-      setCrop(cropDrag(o, mode, (e.clientX - o.px) * sw / (bw || 1), (e.clientY - o.py) * sh / (bh || 1), sw, sh, fmin));
+      setCrop(cropDrag(o, mode, (e.clientX - o.px) * sw / (bw || 1), (e.clientY - o.py) * sh / (bh || 1), sw, sh, emin));
       slidersFromCrop(); sendCrop(false);
     }
     function up() {
@@ -371,27 +386,32 @@
   function renderCrop(state) {
     $("crop-en").checked = !!crop.en;
     ["x", "y", "w", "h"].forEach(function (k) { $("crop-" + k).value = crop[k]; });
-    $("crop-zoom-v").textContent = (+$("crop-zoom").value).toFixed(1) + "×";
     $("crop-sensor").textContent = sw && sh ? sw + "×" + sh : "unknown";
-    if (sw && sh) cmap.style.aspectRatio = sw + " / " + sh;
-    var dis = cropTier === "unsupported" || !sw, show = sw && cropValid();
-    var p = show ? cropPct(crop, sw, sh) : null, iw = img.clientWidth, ih = img.clientHeight;
-    [mapBox, prevBox].forEach(function (b) {
-      b.style.display = show && (b === mapBox || !cropOn) ? "" : "none";
-      b.classList.toggle("off", dis);
-      if (!p) return;
-      var u = b === mapBox ? [1, 1, "%"] : [iw / 100, ih / 100, "px"];
-      b.style.left = p.left * u[0] + u[2]; b.style.top = p.top * u[1] + u[2];
-      b.style.width = p.width * u[0] + u[2]; b.style.height = p.height * u[1] + u[2];
+    if (sw && sh) ed.style.aspectRatio = sw + " / " + sh;
+    var pp = pip(), big = surf(), win = surfWin(), cv = sw && cropValid();
+    var right = cv && crop.x + crop.w / 2 > sw / 2, low = cv && crop.y + crop.h / 2 > sh / 2;
+    document.body.classList.toggle("rc-pip", pp);
+    [img, ed].forEach(function (e) {
+      var ins = pp && e !== big;
+      e.classList.toggle("rc-inset", ins); e.classList.toggle("at-l", ins && right); e.classList.toggle("at-t", ins && low);
     });
-    $("crop-mapwrap").classList.toggle("d-none", !cropOn);
-    dots.forEach(function (d, i) {
-      var on = !!lastPt && sw && (i === 0 ? cropOn : !cropOn);
-      d.style.display = on ? "" : "none";
-      if (!on) return;
-      d.style.left = i === 0 ? lastPt.x / sw * 100 + "%" : lastPt.x / sw * iw + "px";
-      d.style.top = i === 0 ? lastPt.y / sh * 100 + "%" : lastPt.y / sh * ih + "px";
-    });
+    nopic.style.display = pp && !liveBig && !shot ? "" : "none";
+    var dis = cropTier === "unsupported" || !sw, show = cv && !(pp && liveBig);
+    var bw = big.clientWidth, bh = big.clientHeight, ox = big.offsetLeft, oy = big.offsetTop;
+    box.style.display = show ? "" : "none";
+    box.classList.toggle("off", dis);
+    if (show) {
+      var p = cropPct(crop, sw, sh);
+      box.style.left = ox + p.left * bw / 100 + "px"; box.style.top = oy + p.top * bh / 100 + "px";
+      box.style.width = p.width * bw / 100 + "px"; box.style.height = p.height * bh / 100 + "px";
+    }
+    var pt = !!lastPt && sw && lastPt.x >= win.x && lastPt.x <= win.x + win.w && lastPt.y >= win.y && lastPt.y <= win.y + win.h;
+    dot.style.display = pt ? "" : "none";
+    if (pt) {
+      dot.style.left = ox + (lastPt.x - win.x) / win.w * bw + "px";
+      dot.style.top = oy + (lastPt.y - win.y) / win.h * bh + "px";
+    }
+    renderZoom();
     renderScale();
     if (state !== undefined)
       $("crop-state").textContent = "State: " + state + (state === "failed" ? " (the SoC refused this window)" :
@@ -399,8 +419,27 @@
         state === "rejected" ? " (smaller than " + fmin[0] + "×" + fmin[1] + ", outside the sensor, or no stream can show it)" : "");
     Array.prototype.forEach.call(document.querySelectorAll('[data-page-pane="crop"] input'), function (e) { e.disabled = dis; });
     selBtn.disabled = dis;
-    maxBtn.disabled = dis || maxZoom() <= 1;
+    maxBtn.disabled = dis || zmax <= 1;
     if (dis && selMode) setSel(false);
+  }
+
+  // value + Crop / Crop + zoom; the track turns amber above the native threshold
+  function renderZoom() {
+    var out = $("crop-zoom-v"), sizes = zoomedSizes(), cv = sw && cropValid(), ups = [];
+    var zn = cropNative(sw, sh, sizes, zmax), f = zmax > 1 ? Math.min(1, (zn - 1) / (zmax - 1)) : 1;
+    zs.style.setProperty("--nat", String(f));
+    zs.style.setProperty("--tk", f < 0.999 ? "#fff" : "transparent");
+    if (cv) vids.forEach(function (v, i) {
+      if (!v || !v.en || !showsCrop(i)) return;
+      var k = cropScale(crop, v.w, v.h);
+      if (k > 1.005) ups.push("upscaled " + (Math.round(k * 100) / 100) + "× on stream " + i);
+    });
+    out.textContent = (cv ? zoomFromCrop(crop, sw, sh, zmax).z : +zs.value).toFixed(2) + "× " +
+      (ups.length ? "Crop + zoom, " + ups.join(", ") : "Crop");
+    out.classList.toggle("text-warning", ups.length > 0);
+    $("crop-zoom-h").textContent = !sw || zmax <= 1.005 || !sizes.length ? "" : zmax - zn < 0.005 ?
+      (upPct === 0 ? "Crop only (this camera does not upscale)" : "Crop only (no upscaling at these stream sizes)") :
+      "1–" + zn.toFixed(2) + "×: crop at full resolution. Above the mark, up to " + zmax.toFixed(2) + "×: crop + zoom (upscaled, softer).";
   }
 
   function renderScale() {
@@ -427,7 +466,7 @@
   maxBtn.addEventListener("click", function () {
     if (!sw) return;
     var c = lastPt || (cropValid() ? { x: crop.x + crop.w / 2, y: crop.y + crop.h / 2 } : { x: sw / 2, y: sh / 2 });
-    setCrop(cropMax(c.x, c.y, sw, sh, effMin(), streamAR()));
+    setCrop(cropMax(c.x, c.y, sw, sh, emin, streamAR()));
     crop.en = 1; slidersFromCrop(); sendCrop(true);
   });
   selBtn.addEventListener("click", function () { setSel(!selMode); });
@@ -436,6 +475,7 @@
   function sendCrop(final) {
     renderCrop();
     if (!cropLive && !final) return;
+    sentAt = Date.now();
     // every merged setDebounced() call resolves; only the newest re-reads the state
     var n = ++cropSeq, body = { image: { fcrop_enable: crop.en ? 1 : 0, fcrop_x: crop.x, fcrop_y: crop.y, fcrop_w: crop.w, fcrop_h: crop.h } };
     (cropLive ? api.setDebounced(body, 400) : api.set(body))
@@ -465,13 +505,15 @@
     })();
   }
 
-  // last full-sensor frame of the preview, so the map still shows the scene while a crop is applied
-  setInterval(function () {
-    if (cropOn || !sw || document.hidden || document.body.getAttribute("data-pane") !== "crop" ||
+  // last full-sensor frame of the preview; skipped right after a POST, the stream may already be cropped
+  function grab() {
+    if (cropOn || !sw || document.hidden || !inCrop() || Date.now() - sentAt < 3000 ||
       !img.naturalWidth || /nostream\.svg$/.test(img.src)) return;
-    cref.width = 320; cref.height = Math.round(320 * sh / sw);
-    try { cref.getContext("2d").drawImage(img, 0, 0, cref.width, cref.height); } catch (e) {}
-  }, 1500);
+    var w = Math.min(960, sw), h = Math.round(w * sh / sw);
+    if (ed.width !== w || ed.height !== h) { ed.width = w; ed.height = h; }
+    try { ed.getContext("2d").drawImage(img, 0, 0, w, h); shot = true; } catch (e) {}
+  }
+  setInterval(grab, 1500);
 
   $("crop-en").addEventListener("change", function () {
     crop.en = this.checked ? 1 : 0;
@@ -486,7 +528,7 @@
     $("crop-" + k).addEventListener("change", function () {
       var v = parseInt(this.value, 10); if (isNaN(v) || !sw) return;
       var c = { x: crop.x, y: crop.y, w: crop.w || sw, h: crop.h || sh }; c[k] = v;
-      setCrop(cropFit(c, sw, sh, fmin)); slidersFromCrop(); sendCrop(true);
+      setCrop(cropFit(c, sw, sh, emin)); slidersFromCrop(); sendCrop(true);
     });
   });
 
@@ -522,7 +564,10 @@
       var mn = fc.min_win;
       fmin = Array.isArray(mn) && mn[0] > 0 && mn[1] > 0 ? [Math.max(FMIN, +mn[0]), Math.max(FMIN, +mn[1])] : [FMIN, FMIN];
       zoomCap = +fc.zoom_max > 0 ? +fc.zoom_max : 8;
-      $("crop-zoom").max = String(maxZoom());
+      upPct = fc.upscale_pct === undefined ? -1 : +fc.upscale_pct;
+      emin = sw && sh ? cropEffMin(sw, sh, fmin, zoomCap) : fmin;
+      zmax = sw && sh ? cropZoomMax(sw, sh, emin) : 1;
+      zs.max = String(zmax);
       var im = j.image || {};
       crop = { en: +im.fcrop_enable || 0, x: +im.fcrop_x || 0, y: +im.fcrop_y || 0, w: +im.fcrop_w || 0, h: +im.fcrop_h || 0 };
       cropLive = fc.live === undefined ? 1 : +fc.live; takeFc(fc);
@@ -534,11 +579,11 @@
       $("crop-tier").textContent = cropTier;
       $("crop-live").textContent = cropLive ? "live" : "restart";
       $("crop-live").className = "tv-badge " + (cropLive ? "live" : "rst");
-      var zs = [], zn = Array.isArray(fc.zoomable) ? fc.zoomable : null;
-      if (zn) zn.forEach(function (z, i) { if (z) zs.push(i ? "substream" : "main stream"); });
-      var zt = !zn || zs.length === zn.length ? "" : !zs.length ? "No stream can show a crop window here." :
-        "Only the " + zs.join(" and ") + " shows the crop; the others keep the full picture.";
-      if (sw && zoomCap <= 1) zt = (zt ? zt + " " : "") + "Zoom is not possible with the current stream sizes.";
+      var zl = [], zn = Array.isArray(fc.zoomable) ? fc.zoomable : null;
+      if (zn) zn.forEach(function (z, i) { if (z) zl.push(i ? "substream" : "main stream"); });
+      var zt = !zn || zl.length === zn.length ? "" : !zl.length ? "No stream can show a crop window here." :
+        "Only the " + zl.join(" and ") + " shows the crop; the others keep the full picture.";
+      if (sw && zmax <= 1.005) zt = (zt ? zt + " " : "") + "Zoom is not possible with the current stream sizes.";
       note($("crop-note"), cropTier === "effective" ? "" : cropTier,
         [cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", zt].filter(Boolean).join(" "));
       slidersFromCrop();
@@ -561,6 +606,9 @@
   function relayout() { if (!dragging) { renderBoxes(); renderCrop(); } }
   img.addEventListener("load", relayout);
   window.addEventListener("resize", relayout);
+  // the inset resizes #preview: let every tab re-place its boxes
+  new MutationObserver(function () { grab(); window.dispatchEvent(new Event("resize")); })
+    .observe(document.body, { attributes: true, attributeFilter: ["data-pane"] });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load, { once: true });
   else load();
 })();
