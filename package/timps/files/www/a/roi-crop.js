@@ -62,7 +62,7 @@
   }
 
   function renderBoxes() {
-    Array.prototype.slice.call(stage.querySelectorAll(".rc-box")).forEach(function (b) { b.remove(); });
+    Array.prototype.slice.call(stage.querySelectorAll(".rc-box:not(.rc-crop)")).forEach(function (b) { b.remove(); });
     var s = scale();
     regions.forEach(function (r, n) {
       if (!shown[n] || r.w <= 0 || r.h <= 0) return;
@@ -189,19 +189,81 @@
 
   /* ---------------- crop / zoom ---------------- */
 
+  // pure geometry, host-tested by timps scripts/test_webui_crop.js
+  function cropFit(c, sw, sh, fmin) {
+    var e = function (v) { return Math.round(v / 2) * 2; };
+    var w = Math.max(fmin, Math.min(sw, e(c.w))), h = Math.max(fmin, Math.min(sh, e(c.h)));
+    return { x: Math.max(0, Math.min(sw - w, e(c.x))), y: Math.max(0, Math.min(sh - h, e(c.y))), w: w, h: h };
+  }
+  // "size" keeps the sensor aspect like the zoom slider; top-left stays put
+  function cropDrag(o, mode, dx, dy, sw, sh, fmin) {
+    if (mode === "move") return cropFit({ x: o.x + dx, y: o.y + dy, w: o.w, h: o.h }, sw, sh, fmin);
+    var a = sh / sw, w = o.w + (dx + dy / a) / 2;
+    w = Math.max(fmin, fmin / a, Math.min(w, sw - o.x, (sh - o.y) / a));
+    return cropFit({ x: o.x, y: o.y, w: w, h: w * a }, sw, sh, fmin);
+  }
+  function cropFromZoom(z, px, py, sw, sh, fmin) {
+    var w = Math.round(sw / z / 2) * 2, h = Math.round(sh / z / 2) * 2;
+    return cropFit({ x: (sw - w) * px, y: (sh - h) * py, w: w, h: h }, sw, sh, fmin);
+  }
+  function zoomFromCrop(c, sw, sh, zmax) {
+    var w = c.w > 0 ? c.w : sw, h = c.h > 0 ? c.h : sh;
+    return { z: Math.min(zmax, sw / w), px: sw > w ? Math.round(c.x / (sw - w) * 100) : 50,
+      py: sh > h ? Math.round(c.y / (sh - h) * 100) : 50 };
+  }
+  // window in % of a full-sensor surface (the map, or the preview while no crop is applied)
+  function cropPct(c, sw, sh) {
+    return { left: c.x / sw * 100, top: c.y / sh * 100, width: c.w / sw * 100, height: c.h / sh * 100 };
+  }
+
+  var cropLive = 1, cropOn = false, cropSeq = 0, cmap = $("crop-map"), cref = cmap.querySelector("canvas");
+
   function maxZoom() { return Math.max(1, Math.min(8, Math.floor(Math.min(sw, sh) / FMIN * 10) / 10)); }
-  function even(v) { return Math.max(0, Math.round(v / 2) * 2); }
+  function setCrop(c) { crop.x = c.x; crop.y = c.y; crop.w = c.w; crop.h = c.h; }
+  function cropValid() { return crop.w >= FMIN && crop.h >= FMIN; }
 
   function cropFromSliders() {
-    var z = +$("crop-zoom").value, px = +$("crop-px").value / 100, py = +$("crop-py").value / 100;
-    crop.w = even(sw / z); crop.h = even(sh / z);
-    crop.x = even((sw - crop.w) * px); crop.y = even((sh - crop.h) * py);
+    setCrop(cropFromZoom(+$("crop-zoom").value, +$("crop-px").value / 100, +$("crop-py").value / 100, sw, sh, FMIN));
   }
   function slidersFromCrop() {
-    var w = crop.w > 0 ? crop.w : sw, h = crop.h > 0 ? crop.h : sh;
-    $("crop-zoom").value = String(Math.min(maxZoom(), sw / w));
-    $("crop-px").value = String(sw > w ? Math.round(crop.x / (sw - w) * 100) : 50);
-    $("crop-py").value = String(sh > h ? Math.round(crop.y / (sh - h) * 100) : 50);
+    var v = zoomFromCrop(crop, sw, sh, maxZoom());
+    $("crop-zoom").value = String(v.z); $("crop-px").value = String(v.px); $("crop-py").value = String(v.py);
+  }
+
+  function cropBox(host) {
+    var b = document.createElement("div");
+    b.className = "rc-box rc-crop sel";
+    b.innerHTML = '<span class="pm-tag">Crop</span><div class="pm-handle"></div>';
+    host.appendChild(b);
+    b.addEventListener("pointerdown", function (ev) {
+      cropDragStart(ev, host, ev.target.classList.contains("pm-handle") ? "size" : "move");
+    });
+    return b;
+  }
+  var mapBox = cropBox(cmap), prevBox = cropBox(stage);
+
+  function cropDragStart(ev, host, mode) {
+    if (cropTier === "unsupported" || !sw) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if (!cropValid()) cropFromSliders();
+    dragging = true;
+    var bw = host === stage ? img.clientWidth : host.clientWidth, bh = host === stage ? img.clientHeight : host.clientHeight;
+    var o = { px: ev.clientX, py: ev.clientY, x: crop.x, y: crop.y, w: crop.w, h: crop.h }, moved = false;
+    function move(e) {
+      moved = true;
+      setCrop(cropDrag(o, mode, (e.clientX - o.px) * sw / (bw || 1), (e.clientY - o.py) * sh / (bh || 1), sw, sh, FMIN));
+      slidersFromCrop(); sendCrop(false);
+    }
+    function up() {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      dragging = false;
+      if (moved && !cropLive) sendCrop(true);
+    }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   }
 
   function renderCrop(state) {
@@ -209,41 +271,61 @@
     ["x", "y", "w", "h"].forEach(function (k) { $("crop-" + k).value = crop[k]; });
     $("crop-zoom-v").textContent = (+$("crop-zoom").value).toFixed(1) + "×";
     $("crop-sensor").textContent = sw && sh ? sw + "×" + sh : "unknown";
-    var m = $("crop-map");
-    if (sw && sh) m.style.aspectRatio = sw + " / " + sh;
-    var b = m.firstElementChild, on = crop.en && crop.w > 0 && sw;
-    b.style.display = on ? "" : "none";
-    if (on) {
-      b.style.left = crop.x / sw * 100 + "%"; b.style.top = crop.y / sh * 100 + "%";
-      b.style.width = crop.w / sw * 100 + "%"; b.style.height = crop.h / sh * 100 + "%";
-    }
+    if (sw && sh) cmap.style.aspectRatio = sw + " / " + sh;
+    var dis = cropTier === "unsupported" || !sw, show = sw && cropValid();
+    var p = show ? cropPct(crop, sw, sh) : null, iw = img.clientWidth, ih = img.clientHeight;
+    [mapBox, prevBox].forEach(function (b) {
+      b.style.display = show && (b === mapBox || !cropOn) ? "" : "none";
+      b.classList.toggle("off", dis);
+      if (!p) return;
+      var u = b === mapBox ? [1, 1, "%"] : [iw / 100, ih / 100, "px"];
+      b.style.left = p.left * u[0] + u[2]; b.style.top = p.top * u[1] + u[2];
+      b.style.width = p.width * u[0] + u[2]; b.style.height = p.height * u[1] + u[2];
+    });
     if (state !== undefined)
       $("crop-state").textContent = "State: " + state + (state === "failed" ? " (the SoC refused this window)" :
-        state === "rejected" ? " (below 64×64 or outside the sensor)" : "");
-    var dis = cropTier === "unsupported" || !sw;
+        state === "rejected" ? " (below 64×64, outside the sensor, or smaller than stream 0)" : "");
     Array.prototype.forEach.call(document.querySelectorAll('[data-page-pane="crop"] input'), function (e) { e.disabled = dis; });
   }
 
-  function sendCrop() {
+  // T23 (caps.fcrop.live 0) applies the window only at start: one POST on release, no live drag stream
+  function sendCrop(final) {
     renderCrop();
-    api.setDebounced({ image: { fcrop_enable: crop.en ? 1 : 0, fcrop_x: crop.x, fcrop_y: crop.y, fcrop_w: crop.w, fcrop_h: crop.h } }, 400)
-      .then(function () { return api.get(); })
-      .then(function (j) { renderCrop(j.caps && j.caps.fcrop ? j.caps.fcrop.state : ""); },
-        function (e) { toast("danger", "Crop update failed: " + (e.message || e)); });
+    if (!cropLive && !final) return;
+    // every merged setDebounced() call resolves; only the newest re-reads the state
+    var n = ++cropSeq, body = { image: { fcrop_enable: crop.en ? 1 : 0, fcrop_x: crop.x, fcrop_y: crop.y, fcrop_w: crop.w, fcrop_h: crop.h } };
+    (cropLive ? api.setDebounced(body, 400) : api.set(body))
+      .then(function () { return n === cropSeq && cropLive ? api.get() : null; })
+      .then(function (j) {
+        if (n !== cropSeq) return;
+        if (!j) { renderCrop("saved, applies after restart"); return; }
+        var fc = (j.caps && j.caps.fcrop) || {};
+        cropOn = fc.state === "on"; renderCrop(fc.state || "");
+      }, function (e) { if (n === cropSeq) toast("danger", "Crop update failed: " + (e.message || e)); });
   }
+
+  // last full-sensor frame of the preview, so the map still shows the scene while a crop is applied
+  setInterval(function () {
+    if (cropOn || !sw || document.hidden || document.body.getAttribute("data-pane") !== "crop" ||
+      !img.naturalWidth || /nostream\.svg$/.test(img.src)) return;
+    cref.width = 320; cref.height = Math.round(320 * sh / sw);
+    try { cref.getContext("2d").drawImage(img, 0, 0, cref.width, cref.height); } catch (e) {}
+  }, 1500);
 
   $("crop-en").addEventListener("change", function () {
     crop.en = this.checked ? 1 : 0;
-    if (crop.en && !(crop.w >= FMIN && crop.h >= FMIN)) cropFromSliders();
-    sendCrop();
+    if (crop.en && !cropValid()) cropFromSliders();
+    sendCrop(true);
   });
   ["crop-zoom", "crop-px", "crop-py"].forEach(function (id) {
-    $(id).addEventListener("input", function () { cropFromSliders(); crop.en = 1; sendCrop(); });
+    $(id).addEventListener("input", function () { cropFromSliders(); crop.en = 1; sendCrop(false); });
+    $(id).addEventListener("change", function () { if (!cropLive) sendCrop(true); });
   });
   ["x", "y", "w", "h"].forEach(function (k) {
     $("crop-" + k).addEventListener("change", function () {
-      var v = parseInt(this.value, 10); if (isNaN(v)) return;
-      crop[k] = even(v); slidersFromCrop(); sendCrop();
+      var v = parseInt(this.value, 10); if (isNaN(v) || !sw) return;
+      var c = { x: crop.x, y: crop.y, w: crop.w || sw, h: crop.h || sh }; c[k] = v;
+      setCrop(cropFit(c, sw, sh, FMIN)); slidersFromCrop(); sendCrop(true);
     });
   });
 
@@ -278,9 +360,14 @@
       $("crop-zoom").max = String(maxZoom());
       var im = j.image || {};
       crop = { en: +im.fcrop_enable || 0, x: +im.fcrop_x || 0, y: +im.fcrop_y || 0, w: +im.fcrop_w || 0, h: +im.fcrop_h || 0 };
+      cropLive = fc.live === undefined ? 1 : +fc.live; cropOn = fc.state === "on";
       $("crop-tier").textContent = cropTier;
-      note($("crop-note"), cropTier === "effective" ? "" : cropTier);
+      $("crop-live").textContent = cropLive ? "live" : "restart";
+      $("crop-live").className = "tv-badge " + (cropLive ? "live" : "rst");
+      note($("crop-note"), cropTier === "effective" ? "" : cropTier,
+        cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "");
       slidersFromCrop();
+      if (!cropValid() && sw) cropFromSliders();
       renderCrop(fc.state);
     }).catch(function () {
       note($("roi-note"), "unsupported", "The streamer is not reachable.");
@@ -296,8 +383,9 @@
     clearTimeout(reload); reload = setTimeout(load, 500);
   });
   document.addEventListener("timps-stream", function (e) { S = e.detail; sel = -1; load(); });
-  img.addEventListener("load", function () { if (!dragging) renderBoxes(); });
-  window.addEventListener("resize", renderBoxes);
+  function relayout() { if (!dragging) { renderBoxes(); renderCrop(); } }
+  img.addEventListener("load", relayout);
+  window.addEventListener("resize", relayout);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load, { once: true });
   else load();
 })();
