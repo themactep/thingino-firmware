@@ -65,6 +65,10 @@ process_file() {
 		return 1
 	fi
 
+	# capture paths stage via mktemp (mode 600) and cp preserves the mode;
+	# published files must stay world-readable for NAS/NFS shares
+	chmod 644 "$dest_file"
+
 	rm -f "$file"
 }
 
