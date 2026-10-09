@@ -525,15 +525,27 @@ Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
 crop is applied `#preview` shows the cropped scene and a rectangle drawn on it
 could not address the rest of the sensor. The crop window is therefore the
 same draggable box as ROI/privacy (`.rc-box.rc-crop`, body = pan, corner =
-zoom, pointer events), and it always lives on a full-sensor surface: the map
-in the tab (`#crop-map`, full tab width, sensor aspect) at all times, and the
-preview too, but only while the preview stream does not show the crop
-(`state` not `on`, or `caps.fcrop.zoomed[S]` 0: preview = whole sensor). While a crop is applied the preview shows the result and the map
-keeps the last full-sensor preview frame as a reference (a canvas refreshed
-every 1.5 s while no crop is applied). Corner drag keeps the sensor aspect
+zoom, pointer events), and it always lives on a full-sensor surface: the
+preview while the preview stream does not show the crop (`state` not `on`, or
+`caps.fcrop.zoomed[S]` 0: preview = whole sensor), otherwise the map
+(`#crop-map`, sensor aspect), which is shown only then, so crop off never
+shows two identical pictures. While a crop is applied the preview shows the
+result and the map keeps the last full-sensor preview frame as a reference (a
+canvas refreshed every 1.5 s while no crop is applied).
+"Select area" (or Shift+drag) draws a rubber band on the preview or the map
+(on the cropped preview it maps through the applied window); on release
+`cropSelect` grows it to the aspect of the first enabled stream that shows the
+crop and to `min_win` (tightened by `zoom_max` only when clearly lower), then
+enables crop through the same `sendCrop(true)`. A tap without a band stores
+the centre for "Max zoom" (`cropMax`, smallest window); in the crop tab the
+preview's click-to-modal is swallowed. `#crop-scale` lists every enabled
+`video.<n>` with `cropScale` (stream size / window): "not zoomed" when
+`zoomed` (state on) or `zoomable` says the stream keeps the full frame, amber
+above 1x. Corner drag keeps the sensor aspect
 like the zoom slider; dragging the box never toggles the switch (place it with
 crop off, then enable), the sliders still switch it on as before. All edits go
-through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`
+through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
+`cropSelect`/`cropMax`/`cropScale`
 (even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
 and one four-key POST; timps's
 `scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
