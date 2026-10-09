@@ -142,15 +142,33 @@ ifeq ($(KERNEL_VERSION),)
 endif
 
 # Kernel source configuration.
-# 3.10.14: uses BR2_LINUX_KERNEL_CUSTOM_VERSION (official kernel.org tarball
-#   + U-Boot-style cumulative patch from package/all-patches/linux/3.10.14/).
+# Official kernel.org tarball plus patches (BR2_LINUX_KERNEL_CUSTOM_VERSION):
+#   3.10.14: one cumulative patch under package/all-patches/linux/3.10.14/.
+#   4.4.94:  a common patch plus a per-SoC patch under
+#            package/all-patches/linux/4.4.94/. KERNEL_SOC selects the SoC
+#            patch and the matching binary-asset directory.
+# 4.4.94 uses the tarball only for the families that have an ingenic-*-4.4.94
+# branch; a1 and t40 keep the custom git tree.
 # All other versions: use custom git repo (github.com/gtxaspec/thingino-linux).
 ifeq ($(KERNEL_VERSION),3.10.14)
+KERNEL_OFFICIAL_TARBALL := y
+else ifeq ($(KERNEL_VERSION),4.4.94)
+ifneq ($(filter t23 t31 t32 t41 c100,$(SOC_FAMILY)),)
+KERNEL_OFFICIAL_TARBALL := y
+endif
+endif
+
+ifeq ($(KERNEL_OFFICIAL_TARBALL),y)
 # Official kernel.org tarball -- no custom git needed
 KERNEL_SITE :=
 KERNEL_BRANCH :=
 KERNEL_HASH :=
 KERNEL_TARBALL_URL :=
+KERNEL_SOC :=
+ifeq ($(KERNEL_VERSION),4.4.94)
+# c100 shares the t31 tree; every other 4.4 SoC has its own.
+KERNEL_SOC := $(or $(filter t23 t31 t32 t41,$(SOC_FAMILY)),t31)
+endif
 else
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
@@ -159,37 +177,17 @@ ifeq ($(KERNEL_VERSION),7.1-rc1)
 else ifeq ($(SOC_FAMILY),a1)
 	KERNEL_BRANCH := ingenic-a1
 else ifeq ($(SOC_FAMILY),c100)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(SOC_FAMILY),t41)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t41-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t41-3.10.14
-	endif
+	KERNEL_BRANCH := ingenic-t41-3.10.14
 else ifeq ($(SOC_FAMILY),t40)
 	KERNEL_BRANCH := ingenic-t40
 else ifeq ($(SOC_FAMILY),t31)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(SOC_FAMILY),t32)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t32-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t32
-	endif
+	KERNEL_BRANCH := ingenic-t32
 else ifeq ($(SOC_FAMILY),t23)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t23-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
+	KERNEL_BRANCH := ingenic-t31
 else
 	KERNEL_BRANCH := ingenic-t31
 endif
@@ -200,20 +198,12 @@ ifeq ($(KERNEL_BRANCH),ingenic-7.1-rc1)
 	KERNEL_HASH := 92b684b3674ed0ea2bd0c96b6b151402b19fd666
 else ifeq ($(KERNEL_BRANCH),ingenic-a1)
 	KERNEL_HASH := 42f0e91a310c3f5eec071760f46ad21ea0aa918a
-else ifeq ($(KERNEL_BRANCH),ingenic-t31-4.4.94)
-	KERNEL_HASH := 47a4ebc23f37990b61c53ad3108da6af4784ba94
 else ifeq ($(KERNEL_BRANCH),ingenic-t31)
 	KERNEL_HASH := a419397f3d0c6e7fcfe2173a7e34c8f3473d3b01
-else ifeq ($(KERNEL_BRANCH),ingenic-t41-4.4.94)
-	KERNEL_HASH := 5dad83aea68800a3c41309ce4e9e3d6dba972c28
 else ifeq ($(KERNEL_BRANCH),ingenic-t40)
 	KERNEL_HASH := e7f9a7439d40a539fad1525bd46a75bcdabffb17
-else ifeq ($(KERNEL_BRANCH),ingenic-t32-4.4.94)
-	KERNEL_HASH := 470050ba3702da8bac092f26b327f590abcf976c
 else ifeq ($(KERNEL_BRANCH),ingenic-t32)
 	KERNEL_HASH := 26fca510ab2dd6cfb9383ecc1b8932647556e6f1
-else ifeq ($(KERNEL_BRANCH),ingenic-t23-4.4.94)
-	KERNEL_HASH := f97f65461547f1543ee3da22e72612f29a797cb3
 endif
 
 # Fall back to the live branch tip for anything not mapped above.
@@ -239,6 +229,7 @@ endif
 export KERNEL_BRANCH
 export KERNEL_HASH
 export KERNEL_SITE
+export KERNEL_SOC
 export KERNEL_TARBALL_URL
 export KERNEL_VERSION
 export KERNEL_VERSION_4
