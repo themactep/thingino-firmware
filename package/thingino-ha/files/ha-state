@@ -78,10 +78,12 @@ if ha_entity_enabled ircut; then
 		ha_pub_state ircut OFF "$FORCE"
 fi
 
-# Day/Night select
+# Day/Night select and the mode actually applied
 if ha_entity_enabled daynight; then
-	val=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null)
-	ha_pub_state daynight "${val:-day}" "$FORCE"
+	ha_pub_state daynight "$(ha_daynight_setting)" "$FORCE"
+fi
+if ha_entity_enabled daynight_state; then
+	ha_pub_state daynight_state "$(ha_daynight_mode)" "$FORCE"
 fi
 
 # Privacy screen switch
@@ -129,6 +131,15 @@ if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
 		{ [ "$val" = "1" ] &&
 			ha_pub_state white ON "$FORCE" ||
 			ha_pub_state white OFF "$FORCE"; }
+fi
+
+# Floodlight (Wyze v1): state files are written by floodlight_ctl after each
+# successful command; the controller itself exposes no readable lamp state.
+if ha_entity_enabled floodlight && ha_floodlight_available; then
+	val=$(ha_floodlight_state 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight "$val" "$FORCE"
+	val=$(ha_floodlight_brightness 2>/dev/null)
+	[ -n "$val" ] && ha_pub_state floodlight_brightness "$val" "$FORCE"
 fi
 
 # Wyze Lamp Socket: last state commanded from this camera ("None" = unknown)
@@ -186,6 +197,14 @@ PEOF
 		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
 	fi
 	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+fi
+
+if ha_entity_enabled brightness; then
+	brightness=$(cat /run/thingino/daynight_brightness 2>/dev/null)
+	case "$brightness" in
+		'' | *[!0-9]*) ;;
+		*) ha_pub_state brightness "$brightness" "$FORCE" ;;
+	esac
 fi
 
 # WiFi RSSI sensor — only for cameras with a wireless interface

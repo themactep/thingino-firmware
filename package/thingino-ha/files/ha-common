@@ -61,7 +61,7 @@ _ha_mqtt_cfg() {
 
 # Entities the integration knows about. Their enable flags are memoized
 # into exported HA_EN_<entity> variables by the environment block below.
-HA_ENTITIES="motion motion_guard ircut daynight privacy color ir850 ir940 white_light lamp_socket gain rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
+HA_ENTITIES="motion motion_guard ircut daynight daynight_state privacy color ir850 ir940 white_light floodlight lamp_socket gain brightness rssi doorbell ota firmware_version firmware_timestamp live_view snapshot reboot"
 
 ha_entity_enabled() {
 	local flag
@@ -79,6 +79,40 @@ ha_lamp_socket_ok() {
 	command -v lamp_socket_ctl >/dev/null 2>&1 || return 1
 	[ "$(jct "$HA_CONFIG_FILE" get lamp_socket.enabled 2>/dev/null)" = "true" ] || return 1
 	ha_entity_enabled lamp_socket
+}
+
+# ---------------------------------------------------------------------------
+# Wyze Floodlight v1
+#
+# Controlled by floodlight_ctl over the accessory board's internal USB serial
+# link. The controller cannot report physical lamp state, so floodlight_ctl
+# records the last requested on/off state and brightness under /var/run.
+# ---------------------------------------------------------------------------
+HA_FLOODLIGHT_CTL="${HA_FLOODLIGHT_CTL:-/usr/sbin/floodlight_ctl}"
+HA_FLOODLIGHT_STATE_FILE="${HA_FLOODLIGHT_STATE_FILE:-/var/run/floodlight.status}"
+HA_FLOODLIGHT_BRIGHTNESS_FILE="${HA_FLOODLIGHT_BRIGHTNESS_FILE:-/var/run/floodlight.brightness}"
+
+ha_floodlight_available() {
+	[ -x "$HA_FLOODLIGHT_CTL" ]
+}
+
+ha_floodlight_state() {
+	[ -f "$HA_FLOODLIGHT_STATE_FILE" ] || return 1
+	IFS= read -r _state <"$HA_FLOODLIGHT_STATE_FILE" || return 1
+	case "$_state" in
+		ON | OFF) printf '%s' "$_state" ;;
+		*) return 1 ;;
+	esac
+}
+
+ha_floodlight_brightness() {
+	[ -f "$HA_FLOODLIGHT_BRIGHTNESS_FILE" ] || return 1
+	IFS= read -r _brightness <"$HA_FLOODLIGHT_BRIGHTNESS_FILE" || return 1
+	case "$_brightness" in
+		'' | *[!0-9]*) return 1 ;;
+	esac
+	[ "$_brightness" -ge 1 ] && [ "$_brightness" -le 100 ] || return 1
+	printf '%s' "$_brightness"
 }
 
 # ---------------------------------------------------------------------------
@@ -150,7 +184,7 @@ if [ -z "$HA_ENV_READY" ]; then
 	[ -n "$HA_MQTT_USER" ] && _ha_args="$_ha_args -u $(_sq "$HA_MQTT_USER")"
 	[ -n "$HA_MQTT_PASS" ] && _ha_args="$_ha_args -P $(_sq "$HA_MQTT_PASS")"
 	if [ "$HA_MQTT_SSL" = "true" ]; then
-		_ha_args="$_ha_args --capath /etc/ssl/certs"
+		_ha_args="$_ha_args --tls-use-os-certs"
 		[ "$HA_MQTT_TLS_SKIP_VERIFY" = "true" ] && _ha_args="$_ha_args --insecure"
 	fi
 	HA_MQTT_BASE_ARGS="$_ha_args"
@@ -243,6 +277,12 @@ _ha_state_changed() {
 _HA_PUB_QUEUE_FILE=""
 _HA_PUB_QUEUE_OPEN=0
 
+# FIFO consumed by ha-mqtt-pubd, the persistent MQTT publisher.
+# ha-daemon creates the FIFO and starts the daemon before the first
+# publish; the daemon holds the read end open so writers never block.
+HA_MQTT_PUB_FIFO="/run/ha/mqtt-pub.fifo"
+export HA_MQTT_PUB_FIFO
+
 # Opening a session is free: the queue file is only created when the first
 # publish is actually queued, so idle poll cycles fork no mktemp/rm.
 ha_pub_begin() {
@@ -251,13 +291,29 @@ ha_pub_begin() {
 
 _ha_pub_exec() {
 	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
+	local mpub rc
 	[ -f "$tmpfile" ] || return 1
-	local mpub
+
+	# Feed the persistent publisher daemon instead of forking a fresh
+	# mosquitto_pub (and a new TCP connection) per message. The daemon
+	# unlinks tmpfile once the message is sent or the attempt fails.
+	if [ -p "$HA_MQTT_PUB_FIFO" ] &&
+		printf '%s\t%s\t%s\n' "$retain" "$topic" "$tmpfile" \
+			>> "$HA_MQTT_PUB_FIFO" 2>/dev/null; then
+		return 0
+	fi
+
+	# FIFO not available (ha-daemon not running) — publish directly so
+	# standalone callers such as ha-event still work.
 	mpub=$(ha_mpub_cmd "$suffix")
-	[ "$retain" = "1" ] && mpub="$mpub -r"
-	# eval instead of sh -c: saves one shell fork per publish
-	eval "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	if [ "$retain" = "1" ]; then
+		eval "$mpub -r -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	else
+		eval "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	fi
+	rc=$?
 	rm -f "$tmpfile"
+	return $rc
 }
 
 _ha_queue_or_pub() {
@@ -342,10 +398,12 @@ ha_clear_disc() {
 	local component="$1" object_id="$2"
 	local disc_prefix="${HA_DISC_PREFIX:-homeassistant}"
 	local topic="${disc_prefix}/${component}/thingino_${HA_DISCOVERY_ID}/${object_id}/config"
-	local mpub
-	mpub=$(ha_mpub_cmd disc)
-	eval "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
-	usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
+	local tmpfile
+	# Empty payload file: the daemon publishes a zero-length retained
+	# message, which removes the entity from Home Assistant.
+	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
+	: >"$tmpfile"
+	_ha_queue_or_pub 1 disc "$topic" "$tmpfile"
 }
 
 # Publish a retained discovery payload.
@@ -364,3 +422,54 @@ ha_json_escape() {
 }
 
 HA_AVAIL_TOPIC="cameras/${HA_CAMERA_ID}/status"
+
+# ---------------------------------------------------------------------------
+# Day/night: daynightd when present, prudynt otherwise
+# ---------------------------------------------------------------------------
+ha_daynight_set() {
+	if command -v daynightd >/dev/null 2>&1; then
+		case "$1" in
+			auto)
+				jct /etc/thingino.json set daynight.enabled true >/dev/null 2>&1
+				jct /etc/thingino.json set daynight.force_mode "" >/dev/null 2>&1
+				;;
+			*)
+				jct /etc/thingino.json set daynight.enabled false >/dev/null 2>&1
+				jct /etc/thingino.json set daynight.force_mode "$1" >/dev/null 2>&1
+				daynight "$1" >/dev/null 2>&1
+				;;
+		esac
+		[ -f /run/daynightd.pid ] && kill -HUP "$(cat /run/daynightd.pid)" 2>/dev/null
+	elif [ "$1" = auto ]; then
+		printf '{"daynight":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+	else
+		printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$1" |
+			prudyntctl json - >/dev/null 2>&1
+	fi
+}
+
+# Prints auto, day or night: the setting, not the applied mode.
+ha_daynight_setting() {
+	local enabled
+	if command -v daynightd >/dev/null 2>&1; then
+		enabled=$(jct /etc/thingino.json get daynight.enabled 2>/dev/null)
+	else
+		printf '{"daynight":{"enabled":null}}' | prudyntctl json - 2>/dev/null |
+			grep -q '"daynight":{"enabled":true' && enabled=true
+	fi
+	if [ "$enabled" = true ]; then
+		echo auto
+	else
+		ha_daynight_mode
+	fi
+}
+
+# Prints day or night: the mode currently applied.
+ha_daynight_mode() {
+	local mode
+	mode=$(awk 'NR==1 {print $1}' /run/thingino/daynight_mode /run/prudynt/daynight_mode 2>/dev/null | head -n 1)
+	case "$mode" in
+		night) echo night ;;
+		*) echo day ;;
+	esac
+}

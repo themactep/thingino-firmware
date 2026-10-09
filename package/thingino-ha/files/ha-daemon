@@ -39,6 +39,29 @@ fi
 printf '%s\n' "$$" >"${HA_LOCK_DIR}/pid"
 
 # ---------------------------------------------------------------------------
+# Persistent MQTT publisher
+#
+# One long-lived ha-mqtt-pubd holds a single broker connection for all
+# state/discovery publishes, instead of forking a fresh mosquitto_pub (plus
+# TCP connect + teardown) per message. ha-common feeds it through
+# HA_MQTT_PUB_FIFO. Restart it if it ever exits so a broker outage does not
+# permanently kill the publish path.
+# ---------------------------------------------------------------------------
+mkdir -p /run/ha
+rm -f "$HA_MQTT_PUB_FIFO"
+mkfifo "$HA_MQTT_PUB_FIFO"
+run_pubd() {
+	local delay=2
+	while true; do
+		ha-mqtt-pubd "$HA_MQTT_PUB_FIFO"
+		sleep "$delay"
+		[ "$delay" -lt 60 ] && delay=$((delay * 2))
+	done
+}
+run_pubd &
+PUBD_PID=$!
+
+# ---------------------------------------------------------------------------
 # Clear state cache on startup.
 # This ensures the first ha-state call (with "force") publishes all entity
 # values to fully sync Home Assistant, even if the camera was previously
@@ -135,6 +158,9 @@ cleanup() {
 	# Kill children first so shutdown is never delayed by network.
 	kill "$CMD_PID" 2>/dev/null
 	wait "$CMD_PID" 2>/dev/null
+	[ -n "${PUBD_PID:-}" ] && kill "$PUBD_PID" 2>/dev/null
+	[ -n "${PUBD_PID:-}" ] && wait "$PUBD_PID" 2>/dev/null
+	killall -q ha-mqtt-pubd 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && kill "$CAMERA_PID" 2>/dev/null
 	[ -n "${CAMERA_PID:-}" ] && wait "$CAMERA_PID" 2>/dev/null
 
