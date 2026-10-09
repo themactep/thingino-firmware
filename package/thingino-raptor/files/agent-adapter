@@ -448,6 +448,18 @@ agent_motion_enabled() {
 	agent_config_bool motion enabled false
 }
 
+# A running rmd answers config reads itself and keeps detecting, so it is
+# stopped before false is written and started after true is written.
+agent_motion_set_enabled() {
+	[ "$1" = false ] && agent_ctl rmd stop >/dev/null 2>&1
+	agent_config_set motion enabled "$1" || return 1
+	if [ "$1" = true ]; then
+		agent_config_save
+		agent_ctl rmd start >/dev/null 2>&1
+	fi
+	return 0
+}
+
 agent_motion_active() {
 	status=$(agent_daemon_status rmd)
 	state=$(agent_json_string_field state "$status")
@@ -2148,7 +2160,7 @@ agent_set_setting() {
 		motion/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_config_set motion enabled "$value" || return 1
+			agent_motion_set_enabled "$value" || return 1
 			agent_config_save
 			agent_print_setting_update "$path" enabled "$value"
 			;;
@@ -2473,7 +2485,7 @@ agent_apply_config() {
 	done
 
 	value=$(agent_json_config_value "$source_file" motion.enabled)
-	[ -n "$value" ] && agent_config_set motion enabled "$value"
+	[ -n "$value" ] && agent_motion_set_enabled "$value"
 
 	value=$(agent_json_config_value "$source_file" daynight.enabled)
 	case "$value" in
@@ -2508,8 +2520,10 @@ agent_snapshot() {
 		echo "snapshot is not supported on this camera" >&2
 		return 1
 	}
-	tmp=$(mktemp /tmp/agent-snap.XXXXXX.jpg) || return 1
-	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
+	tmp=$(mktemp /tmp/agent-snap.XXXXXX) || return 1
+	# raptorctl exits 0 on a failed save and reports it only in its JSON reply.
+	if ! raptorctl rvd save jpeg "$tmp" "$channel" 2>/dev/null | grep -q '"status":"ok"' ||
+		[ ! -s "$tmp" ]; then
 		rm -f "$tmp"
 		echo "failed to capture snapshot" >&2
 		return 1
