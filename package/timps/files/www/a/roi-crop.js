@@ -284,6 +284,7 @@
     });
     if (state !== undefined)
       $("crop-state").textContent = "State: " + state + (state === "failed" ? " (the SoC refused this window)" :
+        state === "waiting" ? " (applies when a stream that can show this window is running)" :
         state === "rejected" ? " (below 64×64, outside the sensor, or smaller than stream 0)" : "");
     Array.prototype.forEach.call(document.querySelectorAll('[data-page-pane="crop"] input'), function (e) { e.disabled = dis; });
   }
