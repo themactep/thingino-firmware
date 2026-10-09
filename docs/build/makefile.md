@@ -869,15 +869,22 @@ partitions, before erasing anything.
 
 Kernels come from one of two sources:
 
-- **3.10.14** — the official kernel.org tarball plus the cumulative patch under
-  `package/all-patches/linux/3.10.14/`. No commit pin; this is the default for
-  most SoCs.
-- **Everything else** (4.4.94, 7.1-rc1, and the t40/t41/a1 branches) — the
-  custom `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each
-  branch to a pinned commit in the `KERNEL_HASH` table, so builds are
-  reproducible and `make` does not hit the network at parse time.
+- **3.10.14** — the official kernel.org tarball plus one cumulative patch under
+  `package/all-patches/linux/3.10.14/`. No commit pin.
+- **4.4.94** — the official kernel.org tarball plus a common patch
+  (`package/all-patches/linux/4.4.94/0001-4.4.94-common.patch`) and a per-SoC
+  patch under `package/all-patches/linux/4.4.94/soc/<soc>/`. `KERNEL_SOC`
+  (derived from the SoC family; c100 uses t31) selects the SoC patch. Binary
+  ISP firmware and other non-text assets that a text patch cannot carry are
+  restored from `package/linux/files/4.4.94/<soc>/`. The snapped commits are
+  recorded in `package/all-patches/linux/4.4.94/SOURCES` and the patches are
+  produced by `scripts/generate_kernel_4.4.94_patches.rb`.
+- **Everything else** (7.1-rc1 and the t40/a1 branches) — the custom
+  `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each branch to
+  a pinned commit in the `KERNEL_HASH` table, so builds are reproducible and
+  `make` does not hit the network at parse time.
 
-When a kernel branch advances, bump its pin:
+When a custom-git kernel branch advances, bump its pin:
 
 ```bash
 scripts/update_kernel_hashes.sh            # report drift (exit 1 if stale)
