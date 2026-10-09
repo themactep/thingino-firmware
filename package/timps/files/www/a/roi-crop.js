@@ -250,16 +250,17 @@
     return Math.max(1, z);
   }
 
-  // cropOn: the preview (stream S) shows the window; then the editor is the last full-sensor frame (#crop-ed)
-  // with the live result as an inset; liveBig swaps the two
-  var cropLive = 1, cropOn = false, cropSeq = 0, liveBig = false, shot = false, sentAt = 0;
+  // cropOn: the preview (stream S) shows the window; with a full-sensor frame (shot) the editor is that
+  // frame (#crop-ed) with the live result as an inset, liveBig swaps the two; without one the cut-out
+  var cropLive = 1, cropOn = false, cropSeq = 0, liveBig = false, shot = false, sentAt = 0, savedAt = 0;
+  var capRun = null, capTried = false, tokInfo = null;
   var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, waitPoll = null;
   var vids = [], fcInfo = {}, selMode = false, lastPt = null, selBtn = $("crop-sel"), maxBtn = $("crop-max"), zs = $("crop-zoom");
-  var ed = document.createElement("canvas"), nopic = document.createElement("div");
+  var ed = document.createElement("canvas"), msg = document.createElement("div");
   ed.id = "crop-ed"; ed.className = "rc-crop";
-  nopic.className = "rc-nopic rc-crop";
-  nopic.textContent = "No picture of the whole sensor yet: switch crop off for a moment to take one.";
-  stage.insertBefore(ed, img); stage.appendChild(nopic);
+  msg.className = "rc-msg rc-crop";
+  msg.innerHTML = '<span></span><button type="button" class="btn btn-sm btn-outline-light py-0" id="crop-capture">Capture full view</button>';
+  stage.insertBefore(ed, img); stage.appendChild(msg);
 
   function zoomedSizes() {
     var a = [];
@@ -302,9 +303,10 @@
 
   function inCrop() { return document.body.getAttribute("data-pane") === "crop"; }
   function pip() { return cropOn && !!sw; }
+  function edMode() { return pip() && shot; }
   // the large picture and the sensor window it shows
-  function surf() { return pip() && !liveBig ? ed : img; }
-  function surfWin() { return pip() && liveBig && cropValid() ? crop : { x: 0, y: 0, w: sw, h: sh }; }
+  function surf() { return edMode() && !liveBig ? ed : img; }
+  function surfWin() { return pip() && surf() === img && cropValid() ? crop : { x: 0, y: 0, w: sw, h: sh }; }
   function toSensor(rc, e) {
     var b = surfWin(), cl = function (v) { return Math.max(0, Math.min(1, v)); };
     return { x: b.x + cl((e.clientX - rc.left) / (rc.width || 1)) * b.w, y: b.y + cl((e.clientY - rc.top) / (rc.height || 1)) * b.h };
@@ -318,7 +320,8 @@
 
   // tap = centre for Max zoom; Select area / Shift+drag = rubber band
   function surfaceDown(ev) {
-    if (!inCrop() || cropTier === "unsupported" || !sw || ev.button > 0 || ev.target.classList.contains("rc-inset")) return;
+    if (!inCrop() || cropTier === "unsupported" || !sw || capRun || ev.button > 0 ||
+      ev.target.classList.contains("rc-inset") || ev.target.closest(".rc-msg")) return;
     ev.preventDefault();
     var rc = surf().getBoundingClientRect(), hr = stage.getBoundingClientRect();
     var band = null, p0 = { x: ev.clientX, y: ev.clientY }, p1 = p0;
@@ -357,10 +360,11 @@
     if (!inCrop()) return;
     ev.stopPropagation();
     if (ev.target.classList.contains("rc-inset")) { liveBig = !liveBig; renderCrop(); }
+    else if (ev.target.id === "crop-capture") capture();
   }, true);
 
   function cropDragStart(ev, mode) {
-    if (cropTier === "unsupported" || !sw) return;
+    if (cropTier === "unsupported" || !sw || capRun) return;
     ev.preventDefault(); ev.stopPropagation();
     if (!cropValid()) cropFromSliders();
     dragging = true;
@@ -388,15 +392,19 @@
     ["x", "y", "w", "h"].forEach(function (k) { $("crop-" + k).value = crop[k]; });
     $("crop-sensor").textContent = sw && sh ? sw + "×" + sh : "unknown";
     if (sw && sh) ed.style.aspectRatio = sw + " / " + sh;
-    var pp = pip(), big = surf(), win = surfWin(), cv = sw && cropValid();
+    var pp = edMode(), big = surf(), win = surfWin(), cv = sw && cropValid();
     var right = cv && crop.x + crop.w / 2 > sw / 2, low = cv && crop.y + crop.h / 2 > sh / 2;
     document.body.classList.toggle("rc-pip", pp);
     [img, ed].forEach(function (e) {
       var ins = pp && e !== big;
       e.classList.toggle("rc-inset", ins); e.classList.toggle("at-l", ins && right); e.classList.toggle("at-t", ins && low);
     });
-    nopic.style.display = pp && !liveBig && !shot ? "" : "none";
-    var dis = cropTier === "unsupported" || !sw, show = cv && !(pp && liveBig);
+    var dis = cropTier === "unsupported" || !sw, show = cv && (!pip() || big === ed);
+    msg.style.display = capRun || (pip() && !shot) ? "" : "none";
+    msg.firstChild.textContent = capRun ? "Taking a full-sensor picture..." : "Showing the cut-out. Switch crop off to see the whole sensor.";
+    msg.lastChild.hidden = !!capRun || !cropLive || dis;
+    msg.classList.toggle("busy", !!capRun);
+    dis = dis || !!capRun;
     var bw = big.clientWidth, bh = big.clientHeight, ox = big.offsetLeft, oy = big.offsetTop;
     box.style.display = show ? "" : "none";
     box.classList.toggle("off", dis);
@@ -505,15 +513,109 @@
     })();
   }
 
-  // last full-sensor frame of the preview; skipped right after a POST, the stream may already be cropped
+  /* full-sensor frame: grabbed while crop is off, kept per camera + sensor in localStorage */
+  function frameKey() { return "timps-crop-full:" + location.host + ":" + sw + "x" + sh; }
+  function fit(c) { var w = Math.min(640, sw), h = Math.round(w * sh / sw); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
+  function paint(src) { fit(ed).getContext("2d").drawImage(src, 0, 0, ed.width, ed.height); shot = true; }
+  // the preview <img> is cross-origin (timps port) and taints a canvas: then a CORS still is stored instead
+  function store(src) {
+    try {
+      var c = fit(document.createElement("canvas"));
+      c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+      localStorage.setItem(frameKey(), c.toDataURL("image/jpeg", 0.7));
+      return true;
+    } catch (e) { return false; }
+  }
+  function hasCache() { try { return !!localStorage.getItem(frameKey()); } catch (e) { return false; } }
+  function loadCache() {
+    if (shot || !sw) return;
+    try {
+      var d = localStorage.getItem(frameKey()), i = new Image();
+      if (!d) return;
+      i.onload = function () { if (!shot) { paint(i); renderCrop(); } };
+      i.src = d;
+    } catch (e) {}
+  }
+  function snap() {
+    if (typeof timpsMediaUrl !== "function") return Promise.reject(new Error("no media url"));
+    return fetch(timpsMediaUrl("still", S) + "&_=" + Date.now(), { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.blob();
+    }).then(function (b) {
+      return new Promise(function (res, rej) {
+        var i = new Image(), u = URL.createObjectURL(b);
+        i.onload = function () { URL.revokeObjectURL(u); res(i); };
+        i.onerror = function () { URL.revokeObjectURL(u); rej(new Error("bad still")); };
+        i.src = u;
+      });
+    });
+  }
+  function fresh() { return !cropOn && !capRun && Date.now() - sentAt >= 3000; }
+  function persist() {
+    savedAt = Date.now();
+    if (!store(img)) snap().then(function (i) { if (fresh()) store(i); }, function () {});
+  }
+  // skipped right after a POST: the stream may already be cropped
   function grab() {
-    if (cropOn || !sw || document.hidden || !inCrop() || Date.now() - sentAt < 3000 ||
-      !img.naturalWidth || /nostream\.svg$/.test(img.src)) return;
-    var w = Math.min(960, sw), h = Math.round(w * sh / sw);
-    if (ed.width !== w || ed.height !== h) { ed.width = w; ed.height = h; }
-    try { ed.getContext("2d").drawImage(img, 0, 0, w, h); shot = true; } catch (e) {}
+    if (!fresh() || !sw || document.hidden || !inCrop() || !img.naturalWidth || /nostream\.svg$/.test(img.src)) return;
+    try { paint(img); } catch (e) { return; }
+    if (Date.now() - savedAt > 10000) persist();
   }
   setInterval(grab, 1500);
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function cropBody(c, en) { return { image: { fcrop_enable: en, fcrop_x: c.x, fcrop_y: c.y, fcrop_w: c.w, fcrop_h: c.h } }; }
+  function autoCapture() {
+    if (!capTried && inCrop() && pip() && !shot && !hasCache() && cropLive && cropTier !== "unsupported") { capTried = true; capture(); }
+  }
+  // live cameras only: crop off until two fresh frames arrived, draw one, then always the identical window back on
+  function capture() {
+    if (capRun || !cropLive || !pip() || cropTier === "unsupported" || !cropValid()) return;
+    var win = { x: crop.x, y: crop.y, w: crop.w, h: crop.h }, run = capRun = { stop: false, on: cropBody(win, 1) };
+    var loads = 0, t0 = 0, tm = null, onl = function () { loads++; };
+    var guard = function () { if (run.stop) throw new Error("stopped"); };
+    cropSeq++; clearTimeout(waitPoll); waitPoll = null; setSel(false); renderCrop();
+    fetch("/x/timps-token.cgi", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { tokInfo = j; }, function () {});
+    var steps = api.set(cropBody(win, 0)).then(function () {
+      guard(); t0 = Date.now(); img.addEventListener("load", onl);
+      return wait(1200);
+    }).then(function () {
+      guard();
+      return snap().then(function () { guard(); return snap(); }).catch(function (e) {
+        if (run.stop) throw e;
+        return new Promise(function (res, rej) {
+          (function chk() {
+            if (run.stop) return rej(new Error("stopped"));
+            if (loads >= 2 || Date.now() - t0 > 3500) return res(img);
+            setTimeout(chk, 100);
+          })();
+        });
+      });
+    }).then(function (src) { guard(); paint(src); store(src); });
+    steps.catch(function () {});
+    Promise.race([steps, new Promise(function (_, rej) { tm = setTimeout(function () { rej(new Error("timeout")); }, 6000); })])
+      .catch(function () { run.stop = true; })
+      .then(function () { clearTimeout(tm); img.removeEventListener("load", onl); return restore(run, 2); });
+  }
+  function restore(run, tries) {
+    return api.set(run.on).then(function () { return api.get(); }).then(function (j) {
+      capRun = null;
+      var fc = (j.caps && j.caps.fcrop) || {};
+      takeFc(fc); renderCrop(fc.state || ""); watchWaiting(fc.state);
+    }, function (e) {
+      if (tries > 1) return wait(500).then(function () { return restore(run, tries - 1); });
+      capRun = null; renderCrop();
+      toast("danger", "Switching the crop back on failed: " + (e.message || e));
+    });
+  }
+  window.addEventListener("pagehide", function () {
+    if (!capRun || !tokInfo) return;
+    var h = location.hostname, t = tokInfo, hd = { "Content-Type": "application/json" };
+    if (h.indexOf(":") >= 0 && h.charAt(0) !== "[") h = "[" + h + "]";
+    var sc = t.scheme === "https" || (t.scheme === "both" && location.protocol === "https:") || (!t.scheme && t.tls) ? "https" : "http";
+    if (t.token) hd["X-Timps-Token"] = t.token;
+    try { fetch(sc + "://" + h + ":" + (t.port || 8880) + "/control", { method: "POST", keepalive: true, headers: hd, body: JSON.stringify(capRun.on) }); } catch (e) {}
+  });
 
   $("crop-en").addEventListener("change", function () {
     crop.en = this.checked ? 1 : 0;
@@ -589,6 +691,7 @@
       slidersFromCrop();
       if (!cropValid() && sw) cropFromSliders();
       renderCrop(fc.state); watchWaiting(fc.state);
+      loadCache(); autoCapture();
     }).catch(function () {
       note($("roi-note"), "unsupported", "The streamer is not reachable.");
       note($("crop-note"), "unsupported", "The streamer is not reachable.");
@@ -597,17 +700,20 @@
 
   var reload = null;
   if (api) api.events("config", function (t, d) {
-    if (!d || dragging || !(d.resync || /^(roi\d|image\.fcrop_)/.test(d.key || ""))) return;
+    if (!d || dragging || capRun || !(d.resync || /^(roi\d|image\.fcrop_)/.test(d.key || ""))) return;
     var ae = document.activeElement;
     if (ae && ae.id && /^(roi|crop)-/.test(ae.id)) return;
     clearTimeout(reload); reload = setTimeout(load, 500);
   });
-  document.addEventListener("timps-stream", function (e) { S = e.detail; sel = -1; load(); });
+  document.addEventListener("timps-stream", function (e) { if (capRun) capRun.stop = true; S = e.detail; sel = -1; load(); });
   function relayout() { if (!dragging) { renderBoxes(); renderCrop(); } }
   img.addEventListener("load", relayout);
   window.addEventListener("resize", relayout);
   // the inset resizes #preview: let every tab re-place its boxes
-  new MutationObserver(function () { grab(); window.dispatchEvent(new Event("resize")); })
+  new MutationObserver(function () {
+    if (capRun && !inCrop()) capRun.stop = true;
+    grab(); autoCapture(); window.dispatchEvent(new Event("resize"));
+  })
     .observe(document.body, { attributes: true, attributeFilter: ["data-pane"] });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load, { once: true });
   else load();
