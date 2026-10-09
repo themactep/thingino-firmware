@@ -15,7 +15,11 @@ SOC_MODEL=$(soc -f 2>/dev/null)
 SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
 
 SENSOR_IQ_PATH="/etc/sensor"
-SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
+# The SDK for T10/T20/T30 names the IQ file without the SoC (see ingenic-sdk.mk).
+case "$SOC_MODEL" in
+	t10 | t20 | t30) SENSOR_IQ_FILE="${SENSOR_MODEL}.bin" ;;
+	*) SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin" ;;
+esac
 SENSOR_FILE_FULL_PATH="${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}"
 
 if [ -f "$SENSOR_FILE_FULL_PATH" ]; then
