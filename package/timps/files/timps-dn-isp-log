@@ -1,4 +1,6 @@
 #!/bin/sh
+# the vendor T21 driver oopses when isp-m0 is read while no process holds the ISP open
+pidof timpsd >/dev/null 2>&1 || exit 0
 # day/night exposure-index measurement - see scripts/dn-isp-probe.sh in timps
 # Prefer the SD card so a reboot does not discard the series (/tmp is tmpfs).
 # Deliberately NOT falling back to the /etc overlay: this runs once a MINUTE,
