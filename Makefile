@@ -227,9 +227,9 @@ THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSIO
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
 # Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
 ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
- UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
+UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
 else
- UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
 endif
 # loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
 # (env partition included) and resets, so an env imported before flashing would
@@ -413,7 +413,7 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
-KERNEL_PARTITION_SIZE := 1638400  # 1600KB universal (aligned max kernel: 1581008B)
+KERNEL_PARTITION_SIZE := 1769472  # 1728KB universal
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 export U_BOOT_PARTITION_SIZE

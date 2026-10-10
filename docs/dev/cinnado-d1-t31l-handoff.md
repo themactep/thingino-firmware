@@ -1,0 +1,384 @@
+# Session Handoff - Cinnado D1 T31L (sc2336) bring-up
+
+Date: 2026-10-09
+Camera: `cinnado_d1_t31l_sc2336_atbm6031`, IP `192.168.88.141`, T31 (4.4.94, uclibc)
+Build tree: `/home/paul/thingino/firmware/ciao` (branch `ciao`). Overrides live in
+`/home/paul/thingino/overrides/` (`BR2_OVERRIDES_DIR`).
+Goal of the session: clear boot warnings/oopses and get prudynt to stream.
+
+## TL;DR
+
+- Several boot-time driver bugs fixed and deployed (motor IRQ, wifi RX, IR-CUT/i2c1).
+- **Breakthrough**: the encoder now initializes and prudynt streams, after fixing the
+  SDK avpu driver to use `clk_prepare_enable()` (was bare `clk_enable()`, which WARNs and
+  fails on 4.4 -> AVPU unclocked -> whole video pipeline wedged).
+- ~~**Still open**: hard-wedge of the video pipeline.~~ **ROOT-CAUSED (2026-10-09):**
+  the wedge is the **OSD burn-in path** - `IMP_OSD_Start()` at the first RTSP PLAY,
+  which the open ISP stack + vendor libimp does not implement correctly, stalls an ISP
+  register access -> IRQs off -> watchdog reset. Fixed for this device by shipping
+  `"osd":{"burnin":{"enabled":false}}` (device-scoped `prudynt.json`); a 90 s ch1 pull
+  then runs clean. See "RESOLVED: OSD burn-in..." below. Prudynt is re-enabled.
+- **Probe run**: instrumented prudynt + tx-isp and reproduced the wedge on demand. It
+  is triggered by an RTSP client reading (PLAY), needs only a **single** client, and is
+  stable while idle - all consistent with the OSD-start-at-PLAY cause. Probe details and
+  the earlier (pre-OSD) MSCA-handoff observations are in
+  "Video-pipeline wedge - probe findings".
+- **ch0 fixed (2026-10-09)**: the main stream showed only ~6-10 image rows then green.
+  The open-tx-isp reimpl fed the MSCA a bogus frame crop (`fcrop=1/38,38 1882x6`) so the
+  ch0 output size register held height **6**. Root cause + fix in
+  "RESOLVED: ch0 MSCA output...". Both ch0 (1920x1080) and ch1 (768x432) now decode full
+  frames with correct chroma, and a 60 s dual-stream pull runs clean.
+- **fMP4 preview fixed (2026-10-10)**: browser showed MJPEG but no fMP4. Two causes:
+  (1) the on-board AAC encoder does not open ("faac_encoder_get_info failed"), yet
+  prudynt still declared an mp4a track with 0 samples, so MSE buffered nothing - fixed by
+  disabling audio for this device; (2) `MP4Muxer_simple` wrote each fragment's `tfdt` as
+  the raw (jittery) encoder PTS with the previous-delta duration, so fragments overlapped
+  and MSE dropped them, driving the preview's "drifted behind live edge" resync loop -
+  fixed by emitting `tfdt` from an accumulator of sample durations so fragments tile
+  exactly. Preview now plays at 1.0x with contiguous buffering. See the two
+  "RESOLVED: fMP4 preview..." sections below.
+
+## What changed (all deployed via cleanbuild + OTA unless noted)
+
+1. **Motor IRQ sleeping bug** - `overrides/ingenic-sdk/common/misc/motors-pp/motor.c`
+   `jz_timer_interrupt -> motor_move_step` called `gpio_direction_output()` (takes the
+   pinctrl mutex -> sleeps) from IRQ context. Changed to `gpio_set_value()`; direction is
+   established once in `motor_power_on/off` and at probe for `motor_switch_gpio`.
+   Fixes: `BUG: sleeping function called from invalid context at mutex.c`.
+
+2. **Wifi RX kthread** - `overrides/wifi-atbm6031/hal_apollo/apollo_sdio.c`
+   `atbm_sdio_wait_action()` ran `period_handle`/`pre_sched` (which call `sdio_claim_host`
+   -> sleeps) while the task was `TASK_INTERRUPTIBLE`. Set `__set_current_state(TASK_RUNNING)`
+   across those handlers. Fixes: `do not call blocking ops when !TASK_RUNNING` in `phy0-sdio_rx`.
+   NOTE: the wifi override must have `package/wifi-atbm6031/0001-*.patch` applied manually
+   (overrides bypass Buildroot patches); it is applied in that override tree.
+
+3. **IR-CUT / i2c1 pinmux conflict** - `configs/cameras/cinnado_d1_t31l_sc2336_atbm6031/*.dtsi`
+   The base `swan_t31.dts` enables I2C1 on PB25/PB26; this board wires PB25/PB26 to the
+   IR-CUT (thingino.json `gpio.ircut: "57 58"`). Added `&i2c1 { status = "disabled"; };`.
+   Fixes: `pinctrl-ingenic.c: gpio functions has redefinition` on IR-CUT init.
+
+4. **ciao<->master clock-resolver parity** - `ciao/thingino.mk`
+   `ISP_CLKA` gained `VPLL:vpll`; added the missing `ISP_CLKV` block + `export ISP_CLKV_CLK_SRC/CLK`.
+
+5. **THE encoder fix** - `overrides/ingenic-sdk/common/avpu/avpu_main.c` (T31 branch).
+   The SDK T31 branch used 3.10-era clock names and bare `clk_enable()`. Fixed to:
+   - names `gate_ahb1` / `gate_el150` / `div_el150` (matching the SDK's own T40 branch);
+   - source PLL selected on `mux_el150` (`mux_el150 -> div_el150 -> gate_el150`);
+   - `clk_prepare_enable()` instead of `clk_enable()` (4.4 `clk.c:740` WARNs and returns
+     `-ESHUTDOWN` when `prepare_count==0` -> clocks never enabled -> AVPU unclocked -> hang).
+   Result: `/dev/avpu` present, avpu probe ok, sensor `s_stream` ret=0, encoder channels
+   init, RTSP on :554 (1080p@15 + sub@10).
+
+6. **Diagnostic probes** (still compiled in, harmless, remove when done):
+   - `overrides/ingenic-sdk/common/sensor/t31/sc2336.c` - logs `sc2336 s_stream` enter + write ret.
+   - `overrides/open-tx-isp/driver/t31/tx_isp_module.c` - logs `sd.clk_num/cgu_isp/isp_clk/csi_clk`.
+
+## Video-pipeline wedge - probe findings (2026-10-09, same day)
+
+Instrumentation added (temporary, `grep WEDGE` / `grep PWEDGE` to find every site):
+
+- Kernel (open-tx-isp override, `[WEDGE]` `pr_err`):
+  - `driver/t31/tx_isp_core.c` `ispcore_interrupt_service_routine`: `ISR in`/`ISR out`
+    for frame-end (`int & 1`) and error (`int & 0x3f8`) bits plus a 1/16 heartbeat;
+    drain counts per channel; bounded the two ISP rel-ack busy-waits.
+  - `driver/t31/tx_isp_frame_done.c` `isp_frame_done_wakeup`: frame counter (1/4).
+  - `driver/t31/tx_isp_vic.c`: `vic_start`/`vic_stop` enter/ok, `vic_frd`/`vic_mdma`
+    counts (1/4), `tx_isp_vic_wait_frame_done` timeout.
+  - `driver/t31/tx_isp_module.c`: frame-channel ioctl entry (QBUF/DQBUF/REQBUFS),
+    `DQBUF ... done`, `QBUF ... done`, and sub-steps inside
+    `__submit_buffer_to_msca` (`msca ... y/built/wr-y/wr-uv/wr-done`), plus the
+    ISR `dqbuf ... y=` handoff in `frame_chan_event`.
+- prudynt (override tree at `ef72164`, `[PWEDGE]`): `src/util/WedgeProbe.hpp` writes
+  `<3>[PWEDGE] ...` to `/dev/kmsg` (prudynt's stdout is `/dev/null` in S31prudynt, so
+  `/dev/kmsg` is the only way the userspace breadcrumbs reach the serial console and
+  syslog at once). Call sites: `VideoWorker.cpp` (`poll`, `get-begin`, `get-done`,
+  `mp4 emit`) and `MP4Muxer_simple.cpp` (`muxVideo`).
+
+Console gotcha: `overlay/etc/sysctl.conf` sets `kernel.printk = 3 3 1 3`, so `pr_err`
+(level 3) never reaches the serial console. `echo 4 > /proc/sys/kernel/printk` at
+runtime makes the probes visible; no persistent config was changed.
+
+Reproduction: boot to login, then connect one RTSP client
+(`ffmpeg -rtsp_transport tcp -i rtsp://thingino:thingino@192.168.88.141:554/ch0 ...`).
+The wedge fires within ~1-2 s of playback starting; while idle the pipeline runs
+indefinitely. Two clients reproduce just as readily as one, so it is **not**
+load-dependent.
+
+Symptom: serial output stops mid-stream with no panic/oops; IRQs are off (no further
+ISR heartbeat), and the hardware watchdog resets the SoC. The camera came back on its
+own every time in these runs (no cloner needed).
+
+Where it hangs: the last printed line is always a *completed* handoff operation, and
+which one varies per run:
+
+- frame-end `ISR out` (`drains=1/0/0`),
+- `DQBUF ch0 ... done`,
+- `QBUF ch0 idx=0 done`,
+- one run stopped inside `__submit_buffer_to_msca` right after its entry print, before
+  the `built`/`wr-y` prints.
+
+The submit path only does arithmetic (`tx_isp_nv12_buffer_build`,
+`tx_isp_dma_range_validate`, both loop-free) and two `writel`s to the MSCA FIFO ports
+`core_regs + (ch << 8) + 0x996c` (Y) and `+ 0x9984` (UV). A wedge that moves between
+the ISR, DQBUF and QBUF, and always lands on an MMIO access, reads as an **ISP/MSCA AXI
+stall (or clock/rmem glitch) entered during buffer handoff**, not a deterministic
+single-instruction bug. The identical writes exist in the OEM queue-buffer path
+(`tx_isp_core.c` `ispcore_pad_event_handle` case 0x3000005) with no polling, so it is
+not a software FIFO-full guard that is missing per se.
+
+Next threads (not yet run):
+
+- Probe the encoder side: `IMP_Encoder_GetStream`/`PollingStream` map to `/dev/avpu`
+  (`avpu_main.c`, `wait_event_interruptible(chan->irq_queue, ...)` at line 236). The
+  userspace `get-begin`/`poll` probes are already in place to tell whether the hang is
+  in the encoder path instead of tx-isp; every captured hang so far ended on a tx-isp
+  op, but a couple more runs would make that conclusive.
+- Re-audit ISP/MSCA clocks: the ciao<->master clock-resolver parity fix (item 4 above)
+  may still be missing the MSCA/AXI clock; a gated-block MMIO access stalls the bus
+  exactly like this.
+- Consider `CONFIG_DEBUG_SPINLOCK`/lockdep or a bounded MSCA status check to rule a
+  spinlock deadlock and a FIFO-full stall in/out.
+
+### RESOLVED: OSD burn-in is what wedges the ISP
+
+The wedge is the **OSD burn-in path**, not the MSCA buffer handoff itself. On the
+first reader (RTSP PLAY on ch1) prudynt creates and starts the timestamp overlay:
+
+    IMP_OSD_CreateRgn -> IMP_OSD_RegisterRgn -> IMP_OSD_SetRgnAttr
+      -> IMP_OSD_SetGrpRgnAttr -> IMP_OSD_Start(osdGrp)
+
+`IMP_OSD_Start()` is the last call before the hang (the `OSD: burned-in timestamp`
+log is the line right before it). The open ISP stack + vendor libimp does not drive
+the ISP OSD/region hardware correctly, so starting the OSD group stalls an ISP
+register access -> IRQs off -> watchdog reset. That is why "it runs until someone
+reads it", and why the fatal trace line drifts between ISP register accesses.
+
+Proof (device test, 2026-10-09):
+
+- `osd.burnin.enabled=true` (default): PLAY -> `IMP_FrameSource_EnableChn(1)` ->
+  `encoder resumed` -> `OSD: burned-in timestamp` -> hang.
+- `osd.burnin.enabled=false`: PLAY -> `encoder resumed` -> `ch1 prepending SPS/PPS
+  to frame`; a 90 s RTSP pull (`ffmpeg -t 90 ... ch1`) finished with exit 0, camera
+  up, no reboot.
+
+Fix shipped (device-scoped, written to
+`$THINGINO_USER_DIR/cinnado_d1_t31l_sc2336_atbm6031/192.168.88.141/prudynt.json`,
+`/home/paul/.thingino/user/...` on this machine):
+
+    { "osd": { "burnin": { "enabled": false } } }
+
+`prudynt-t.mk` deep-merges user `prudynt.json` files (common/camera/device, in that
+order) into `/etc/prudynt.json` via `jct import`, so this flips only that one key.
+
+This is still a workaround: the correct fix is to implement the OSD/region path in
+the open stack and re-enable burn-in. SEI and privacy OSD are also off in the config,
+so no other `IMP_OSD_*` path is exercised. Watch for anything that turns OSD back on
+(WebUI toggle, other camera configs) - that reintroduces the wedge.
+
+Retired crutch: while the cause was unknown, prudynt was disabled with a
+non-executable shadow (`overlay/usr/bin/prudynt`). That stub is now parked at
+`$THINGINO_USER_DIR/cinnado_d1_t31l_sc2336_atbm6031/192.168.88.141/prudynt-stub.disabled`
+(outside the overlay, so it is not deployed). Restore it to
+`overlay/usr/bin/prudynt` and rebuild if a future build regresses and the camera
+must boot without the streamer (`S31prudynt` exec fails, `S32prudyntwd` sees
+`[ ! -x /usr/bin/prudynt ]` and exits). `chmod -x` on the real binary does **not**
+work here: this 4.4 overlayfs has no metadata-only copy-up.
+
+If `make ota` ever fails with `scp: /sbin/sysupgrade-stage2: No such file or
+directory`, the device overlay upperdir is in a bad state (seen after manual `rm`s:
+`/usr`/`/usr/sbin` reject new files with ENOENT). Recover by flashing with the
+in-place wrapper (the camera already carries a matching stage2):
+`scp -O images/thingino-*.bin root@<ip>:/tmp/fw.bin && ssh root@<ip> '/tmp/sup -x /tmp/fw.bin'`.
+
+### RESOLVED: ch0 MSCA output was a bogus frame crop
+
+Symptom: ch0 (main) showed only ~6-10 image rows then all green; ch1 was fine.
+
+Diagnosis - live `devmem` at the ISP base `0x13300000` while ch0 streamed:
+
+    0x9900 (ch0 MSCA output size) = 0x075A0006  -> 1882 x 6    (WRONG)
+    0x9A00 (ch1 MSCA output size) = 0x030001B0  ->  768 x 432  (correct)
+
+so the ch0 output-height register literally held **6** -> the MSCA wrote only a handful
+of lines per frame. (The earlier "all green" was just the RGB view of an all-zero NV12
+buffer.)
+
+The driver trace (`echo 1 > /sys/module/tx_isp_t31/parameters/t31_runtime_trace`)
+pinned it:
+
+    SET_FORMAT ch=0 ... fcrop=1/38,38 1882x6
+    ATTR_SET   ch=0 ... fcrop=1/1882x6+38+38 attr=0/0x0 -> out=0x075a0006
+
+Two reimplementation bugs in `tx_isp_core.c`:
+
+1. `tisp_channel_attr_set` read the *global* frame crop out of `ds0_attr` words 8..12.
+   Those words are the per-channel attr (`memcpy(ds0_attr, arg2, 0x34)` just above), not
+   the fcrop. The OEM keeps the fcrop in dedicated globals (`data_a2df4..data_a2e04`,
+   set by `tisp_s_fcrop_control`), which the memcpy cannot disturb. Fix: use the
+   `data_b2e04/e08/e0c/e10/e14` globals and drop the block that wrote them from
+   `ds0_attr`. (With no crop armed, `data_b2e04 == 0` -> full sensor size.)
+2. `ispcore_pad_event_handle` SET_FORMAT armed the crop from the VIC payload
+   (`format->fcrop_*`). The OEM never does that - it sets the fcrop only through its
+   dedicated control (ioctl 0x80000e3 / the netlink param path). The VIC payload carries
+   a bogus `fcrop=1/38,38 1882x6` (ch0) / `1/38,38 730x394` (ch1). Fix: drop the
+   `tisp_s_fcrop_control()` call from SET_FORMAT.
+
+After the fix: live registers `0x9900 = 0x07800438` (1920x1080), `0x9A00 = 0x030001B0`
+(768x432); plane capture shows ch0 rows 0..1079 with normal chroma, ch1 unchanged, and a
+60 s dual-stream pull exits clean with no reboot.
+
+Not chased further: *where* libimp's VIC payload sources the `38,38 1882x6` fcrop (likely
+a vendor-libimp <-> open-struct mismatch). The fix makes the driver ignore it, matching
+OEM. If a real frame crop is ever needed, it must come through the 0x80000e3 path.
+
+### RESOLVED: fMP4 preview declared a broken audio track
+
+Symptom: the WebUI preview showed MJPEG but never fMP4 (main `/preview.html` uses
+`/a/preview-fmp4.js` with an MJPEG fallback).
+
+Diagnosis (headless Chrome + playwright against the real page, session cookie):
+
+- The fMP4 endpoint is fine: `:8080/chN.mp4` and `/x/fmp4.cgi?ch=N` both return 200
+  `video/mp4` with valid `ftyp`/`moov`/`moof+mdat` and decode in ffmpeg.
+- In the browser, `MediaSource.addSourceBuffer('video/mp4; codecs="avc1.4D001E,
+  mp4a.40.2"')` succeeded and every `appendBuffer` succeeded, but `buffered` stayed
+  **empty** and `readyState` stayed 1 forever.
+- The `moov` declared **two** tracks (video + aac) but every fragment carried a single
+  (video) `traf`, and the audio track had **0 packets** - because the AAC encoder never
+  opened ("faac_encoder_get_info failed: invalid argument" / "IMPAudio::createNew
+  failed"). MSE initialised for `avc1+mp4a` then buffered nothing.
+- With audio disabled the fMP4 is video-only (muxer emits one `traf`, no mp4a in the
+  `moov`); MSE buffered and played (reached `readyState=4`, `currentTime` advancing).
+
+Fix (device-scoped `prudynt.json`, merged by `prudynt-t.mk`):
+
+    { "audio": {"mic_enabled": false},
+      "stream0": {"audio_enabled": false},
+      "stream1": {"audio_enabled": false} }
+
+This is a workaround for the broken on-board AAC encoder. The real fix is either to make
+the AAC encoder open (audio bring-up) or to make prudynt's MP4 muxer omit the audio track
+when the encoder is unavailable - then audio can be re-enabled.
+
+Note: while probing I hit a transient overload (load ~10, `isp_fw_process` in D-state,
+a stale `fmp4.cgi`->`curl` left holding a `ch0.mp4` client). Not the cause, but the fMP4
+CGI `exec`s `curl`; a browser that reconnect-loops on a stalled stream can leave those
+around. Reboot clears it.
+
+### RESOLVED: fMP4 preview - fragment timing (tfdt)
+
+With the audio track gone the fMP4 is video-only and MSE can decode it, but the
+preview still showed "Preview drifted behind live edge, resyncing..." and blank,
+because MSE buffered only a couple of small ranges (e.g. `[[0.07,0.33],
+[6.07,6.53]]`) out of ~80 `appendBuffer` calls.
+
+`MP4Muxer_simple::write_fragment` wrote each one-sample fragment's `tfdt` as the
+raw encoder PTS while the sample `duration` was the *previous* delta. The ch1
+substream is 10 fps off a 15 fps source, so its PTS steps 66/134 ms; jittered PTS
+plus previous-delta durations makes consecutive fragments overlap (and gap). MSE
+discards the overlapping fragments (ffmpeg tolerates them), so the buffer stayed
+sparse, the media edge lagged the wall clock by more than `MAX_DRIFT_S` (5 s), and
+`preview-fmp4.js` resynced in a loop.
+
+Fix: emit `tfdt` from a running accumulator of the sample durations
+(`TrackState::accum_ticks`) instead of the raw PTS, so consecutive fragments tile
+exactly. It still tracks the encoder PTS in aggregate (the accumulator sums the
+same deltas), so the live edge stays in sync. This is prudynt code:
+`overrides/prudynt-t/src/recording/MP4Muxer_simple.cpp` (also affects the recorder
+muxer, which is the same class).
+
+### RESOLVED: fMP4 preview stall - lost wakeup resuming the substream
+
+Even after the tfdt fix the preview still stalled/resynced intermittently: the
+ch1 fMP4 client received only the cached init segment (~663 bytes) and no
+frames, the JS drift guard fired, and the resync loop froze the view.
+
+`VideoWorker`'s idle path waited with a bare `should_grab_frames.wait(lock)`
+after checking the wake conditions once. `video_consumer_add()` (called by the
+HTTP fMP4/MJPEG path) sets `hasDataCallback` and `notify_one()` *without* taking
+`mutex_main`, so a notification landing between that check and the wait was
+lost. The ch1 worker then stayed parked with the substream encoder paused and
+never resumed it, so the per-client fMP4 tap got no frames (ch0 is unaffected -
+it never pauses).
+
+Fix: replace the bare wait with a predicate wait that re-evaluates every wake
+condition, so the notification cannot be lost. `overrides/prudynt-t/src/video/
+VideoWorker.cpp`, idle-path loop.
+
+After the fix, ch1 fMP4 streams from the first request (TTFB ~0.2 s, ~200 KB in
+8 s) and the browser preview runs 120 s at 1.0x with contiguous buffering and no
+resync.
+
+## Commands
+
+Build (ALWAYS cleanbuild while debugging - user's rule; staging incremental rebuilds into
+`target/` repeatedly shipped stale modules):
+```
+cd /home/paul/thingino/firmware/ciao
+CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.141 make cleanbuild
+CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.141 make ota      # full image, reboots
+```
+Recovery from a hard wedge (bootrom; SoC enumerates as `a108:c309`):
+```
+thingino-cloner -l
+thingino-cloner -i 0 -b -w <image.bin> --cpu t31x --reboot -v
+```
+Image: `$(THINGINO_OUTPUT_ROOT_DIR)/ciao/cinnado_d1_t31l_sc2336_atbm6031-4.4.94-uclibc-192.168.88.141/images/thingino-cinnado_d1_t31l_sc2336_atbm6031.bin`
+
+Useful on-device:
+- `/proc/jz/isp/clks` (ISP clocks), `/proc/jz/sensor/*` (`mclk` here is NOT the live MCLK - red herring)
+- `dmesg | grep '\[CLK\]'`, `logcat`, `/etc/init.d/S31prudynt {start|stop}`
+
+## Open follow-ups
+
+1. **Video-pipeline wedge** (main open issue). With prudynt enabled it intermittently
+   hard-wedges the kernel (IRQs off, serial dead) at boot or shortly after. Confirmed NOT
+   audio (a build with `mic_enabled:false` + stream `audio_enabled:false` still wedged).
+   Next: `pr_err` probes through prudynt's `VideoWorker`/`MP4Muxer_simple` frame path and
+   the kernel VIC/ISP frame IRQ + buffer handoff (`tx_isp_core.c` VIC start,
+   `tx_isp_vic.c` frame done); also try reduced load (lower res / 1 stream / lower fps)
+   to test whether it is load/race triggered.
+
+2. **Daemon heartbeat / WebUI**: `json-heartbeat.cgi` is an SSE stream; main.js's XHR to it
+   times out by design. Heartbeat daemon (`S99heartbeat` -> `/run/thingino/heartbeat.json`)
+   was healthy (cache age ~4s). `fmp4.cgi` (preview) is not in `thingino-webui`.
+   Re-check only if the preview is actually broken.
+
+3. **Upstream the real fixes**: avpu `clk_prepare_enable` (SDK), motor `gpio_set_value`
+   (SDK motors-pp), wifi `apollo_sdio.c` state fix (gtxaspec/atbm-wifi), and remove the
+   diagnostic probes.
+
+## Uncommitted dev-tree changes (all revertible)
+
+- `overrides/ingenic-sdk`: `Kbuild`, `common/avpu/avpu_main.c`, `common/misc/motors-pp/motor.c`,
+  `common/sensor/t31/sc2336.c`, `common/sensor/t32/gc2063.c`, `common/sensor/t32/gc2083.c`
+- `overrides/open-tx-isp` (not a git repo): the temporary `[WEDGE]` probes in
+  `driver/t31/{tx_isp_core,tx_isp_vic,tx_isp_module,tx_isp_frame_done}.c` have been
+  **reverted** (`tx_isp_vic/module/frame_done` are back to their pre-probe state). The
+  only remaining change is the **ch0 fcrop fix** in `tx_isp_core.c` (two hunks:
+  globals in `tisp_channel_attr_set`, and no crop arming in SET_FORMAT). The probe
+  `pr_err` firehose was starving the pipeline: with it in, ch0 ran ~11 fps; after
+  removing it, ch0 holds 15.01 fps over 90 s. Backups (pre-probe) in
+  `/tmp/kilo/wedge-backup/` for this session only.
+- `overrides/prudynt-t`: `src/video/VideoWorker.cpp` and
+  `src/recording/MP4Muxer_simple.cpp` probe edits and `src/util/WedgeProbe.hpp` have
+  also been **reverted** - prudynt is back to the plain `ef72164` tree.
+- `overrides/wifi-atbm6031`: `hal_apollo/apollo_sdio.c` (+ `0001` patch applied manually)
+- `ciao/local.mk`: `INGENIC_SDK_OVERRIDE_SRCDIR`, `OPEN_TX_ISP_OVERRIDE_SRCDIR`,
+  `WIFI_ATBM6031_OVERRIDE_SRCDIR` enabled, and now also
+  `PRUDYNT_T_OVERRIDE_SRCDIR` enabled so the instrumented prudynt-t tree is built
+  (`local.mk` backs up to `/tmp/kilo/wedge-backup/local.mk`; revert to disable probes)
+- `ciao/thingino.mk`: clock-resolver parity
+- `ciao/configs/cameras/cinnado_d1_t31l_sc2336_atbm6031/*.dtsi`: i2c1 disabled
+
+## Risks / assumptions
+
+- The i2c1 disable assumes IR-CUT is truly on PB25/PB26 (user confirmed the dtsi is
+  hardware-bound). Sensor is on i2c0 (`0-0030`).
+- `override` builds bypass Buildroot patches; apply `package/<pkg>/*.patch` into the
+  override tree manually (bit the wifi override).
+- Incremental `make rebuild-<pkg>` leaves the final `target/` stale / shadowed between
+  per-package snapshots (seen with motor.ko and avpu.ko) - hence the cleanbuild rule.
+- The camera currently only boots with prudynt disabled; do not re-enable until the
+  video-pipeline wedge is fixed.

@@ -28,6 +28,28 @@
 	ingenic,cd-gpios = <&gpb 18 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
 };
 
+/* SDIO WLAN (atbm6031) hangs off MMC1 on PB8-11/PB13-14; the family tree
+   disables msc1 because it uses MSC0 for the card slot. */
+&msc1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&msc1_pb>;
+	/* Power/enable of the SDIO WLAN (thingino "wlan", GPIO 47) and the
+	   bus pinmux are driven by the userspace wifi init, which then forces a
+	   rescan via the sysfs "present" node, so leave both out of the DT. */
+	/* SDIO needs the clock kept running (not LPM) or CMD53 transfers time out. */
+	ingenic,sdio_clk = <1>;
+	/* Commands work at 50 MHz but data transfers don't; drop the bus clock. */
+	max-frequency = <25000000>;
+};
+
+/* The reference tree enables I2C1 on PB25/PB26 (i2c1_pb); this board wires
+   those pins to the IR-CUT (gpio.ircut = "57 58"), so i2c1 must not hold the
+   pinmux or the IR-CUT GPIO request logs a pinmux conflict. */
+&i2c1 {
+	status = "disabled";
+};
+
 / {
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -39,4 +61,10 @@
 			gpios = <&gpa 14 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
 		};
 	};
+};
+
+/* The SoC t31.dtsi ships the ISP disabled; the vendor tx-isp driver must
+   probe before any sensor module can register with it. */
+&isp {
+	status = "okay";
 };

@@ -15,6 +15,12 @@ define WIFI_ATBM6031_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	# wext compat so the interface shows up in /proc/net/wireless, which the
+	# wifi init polls to detect when the driver has come up.
+	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS_EXT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
@@ -42,6 +48,10 @@ define WIFI_ATBM6031_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6031.config \
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE is not set/CONFIG_ATBM_FUNC_P2P_ENABLE=y/' \
+		$(@D)/.config
+	# request_firmware() searches under /lib/firmware and prepends it to the
+	# name, so the name must be a basename, not an absolute path.
+	$(SED) 's#^CONFIG_ATBM_FW_NAME=.*#CONFIG_ATBM_FW_NAME="$(ATBM6031_MODULE_NAME)_fw.bin"#' \
 		$(@D)/.config
 endef
 

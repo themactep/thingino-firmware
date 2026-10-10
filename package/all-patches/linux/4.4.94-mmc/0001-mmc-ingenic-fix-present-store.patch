@@ -1,0 +1,20 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mmc: ingenic: use host->pdata in present_store
+
+ingenic_mmc_present_store() reads dev->platform_data, which is NULL for a
+device-tree probed host. Writing INSERT/REMOVE to the sysfs "present" node
+then faults on pdata->removal. Every other use of pdata in the driver takes
+it from host->pdata; do the same here so the non-removable path (used by the
+T31 SDIO WLAN init to force a rescan after power-on) works.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mmc/host/ingenic_mmc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+--- a/drivers/mmc/host/ingenic_mmc.c
++++ b/drivers/mmc/host/ingenic_mmc.c
+@@ -1302,2 +1302,2 @@
+-	struct ingenic_mmc_pdata *pdata = dev->platform_data;
+ 	struct ingenic_mmc_host *host = dev_get_drvdata(dev);
++	struct ingenic_mmc_pdata *pdata = host->pdata;

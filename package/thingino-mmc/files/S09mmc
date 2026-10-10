@@ -159,16 +159,17 @@ set_power() {
 }
 
 load_module() {
-	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
-		echo "$MMC_MODULE is already loaded" >&2
-		exit 1
-	fi
+	# The MSC host is built into the kernel on some targets (e.g. T31 on 4.4)
+	# so there is no module file to modprobe; only load one when it exists.
+	if [ -n "$MMC_MODULE" ] &&
+		! grep -q "$MMC_MODULE" /proc/modules >/dev/null 2>&1 &&
+		find /lib/modules/"$(uname -r)" -name "$MMC_MODULE.ko*" 2>/dev/null | grep -q .; then
+		echo "Load $MMC_MODULE $MMC_PARAM"
 
-	echo "Load $MMC_MODULE $MMC_PARAM"
-
-	if ! modprobe $MMC_MODULE $MMC_PARAM; then
-		echo "Failed to load module!" >&2
-		exit 1
+		if ! modprobe $MMC_MODULE $MMC_PARAM; then
+			echo "Failed to load module!" >&2
+			exit 1
+		fi
 	fi
 
 	# The card/block driver is a separate module wherever MMC is modular
