@@ -234,6 +234,16 @@
                 </p>
                 <small class="text-secondary d-block mb-3">How far the IR-lit night level must drop below its value at the last look (for 20 s) to count as new light and start a look. Lower reacts to weaker lamps but looks more often. Otherwise the camera looks every 45 min.</small>
                 </div>
+                <div id="dn-color-row" hidden>
+                <p class="number-range mb-1">
+                  <label for="daynight_color_pct">Look at once on a colour change (%)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_color_pct" name="daynight_color_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="50" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <small class="text-secondary d-block mb-3" id="dn-color-help">A weak lamp barely brightens the IR-lit picture but changes its colour. When the colour moves this much from the last look (for 20 s), the camera looks at once; at most every 5 min, less often while it finds nothing. 0 = off.</small>
+                </div>
                 <small class="text-secondary d-block mb-2" id="dn-live">Live: -</small>
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                   <button type="button" class="btn btn-sm btn-outline-secondary" id="dn-look-now" title="Switch the IR light off for a few seconds and read the scene without it"><i class="bi bi-eye me-1"></i>Request a look now</button>

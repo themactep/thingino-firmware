@@ -62,7 +62,7 @@
 
   var INT_FIELDS = [
     "total_gain_night_threshold", "total_gain_day_threshold",
-    "day_confirm_s", "jump_pct",
+    "day_confirm_s", "jump_pct", "color_pct",
     "heartbeat_s", "heartbeat_max_s", "interval_ms",
   ];
   var STR_FIELDS = ["time_night_start", "time_day_start"];
@@ -99,6 +99,11 @@
     });
     var jr = $("dn-jump-row");
     if (jr) jr.hidden = !reported.jump_pct;
+    var cr = $("dn-color-row");
+    if (cr) cr.hidden = !reported.color_pct;
+    var ch = $("dn-color-help");
+    if (ch && dn.color_trigger === "unavailable")
+      ch.textContent = "This camera's ISP gives no colour statistics: the setting has no effect here.";
     ["sun_latitude", "sun_longitude",
      "sun_sunrise_offset_min", "sun_sunset_offset_min"].forEach(function (k) {
       var el = $("daynight_" + k);
@@ -465,7 +470,8 @@
     var night = Number(d.mode) === 1;
     if (lookEngine(d))
       el.textContent = night
-        ? "Live: IR-lit level at the last look " + n(A) + ", day check if the reading without IR is below " + n(T) + "."
+        ? "Live: IR-lit level at the last look " + n(A) + ", day check if the reading without IR is below " + n(T) + "." +
+          (Number(d.color_dev_pct) >= 0 ? " Colour change since the look " + Number(d.color_dev_pct).toFixed(1) + " %." : "")
         : "Live: looks run at night only.";
     else
       el.textContent = "Live: night reference " + (night ? n(A) : "-") + ", probe below " + (night ? n(T) : "-") + ".";
