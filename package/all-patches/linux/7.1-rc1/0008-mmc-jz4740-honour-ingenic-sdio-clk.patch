@@ -1,19 +1,20 @@
 From: Thingino <dev@thingino.com>
-Subject: [PATCH] mmc: jz4740: honour the vendor ingenic,sdio_clk property
+Subject: [PATCH] mmc: jz4740: keep the SD clock running for ingenic,sdio_clk hosts
 
-The vendor Ingenic trees keep the SDMMC clock out of low-power mode for
-SDIO hosts ("the SDIO device's clock can't use Low-Power-Mode") via the
-`ingenic,sdio_clk` DT property; the mainline jz4740_mmc driver ignores it
-and enables LPM whenever the bus clock is above 25 MHz, which can stop the
-SDIO clock and break CMD53 traffic. The vendor driver also keeps the SD
-clock running across transfers for those hosts (jzmmc_set_ios() writes
-CTRL_CLOCK_START and never LPM_LPM), while jz4740_mmc stops the clock after
-every transfer.
+The vendor Ingenic trees treat SDIO hosts specially: jzmmc_set_ios()
+writes CTRL_CLOCK_START and never LPM_LPM, keeps the SD clock running
+across transfers instead of stopping it after every command, and keeps the
+CGU gate open across power transitions. The mainline jz4740_mmc driver
+ignores all of that (and enables LPM above 25 MHz, which stops the clock).
 
-Parse `ingenic,sdio_clk`, skip the LPM setup when it is set, and do not
-gate the SD clock between transfers for such hosts. Boards that already
-carry the property (the cinnado_d1 fragment sets it to <1>) get the vendor
-behaviour.
+Parse `ingenic,sdio_clk` and, when set:
+ - skip the LPM programming;
+ - do not gate the MSC clock between transfers (jz4740_mmc_clock_disable);
+ - leave the MSC clock enabled on MMC_POWER_OFF;
+ - enable the MSC clock at probe and keep it running.
+
+Boards that already carry the property (the cinnado_d1 fragment sets it to
+<1>) then get the vendor's SDIO clock behaviour.
 
 --- a/drivers/mmc/host/jz4740_mmc.c
 +++ b/drivers/mmc/host/jz4740_mmc.c
@@ -54,7 +55,22 @@ behaviour.
  		if (host->version >= JZ_MMC_JZ4780) {
  			writel(JZ_MMC_LPM_DRV_RISING_QTR_PHASE_DLY |
  				   JZ_MMC_LPM_SMP_RISING_QTR_OR_HALF_PHASE_DLY |
-@@ -1061,6 +1075,14 @@ static int jz4740_mmc_probe(struct platform_device *pdev)
+@@ -969,7 +983,13 @@ static void jz4740_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+ 			regulator_disable(mmc->supply.vqmmc);
+ 			host->vqmmc_enabled = false;
+ 		}
+-		clk_disable_unprepare(host->clk);
++		/*
++		 * SDIO hosts keep the MSC clock gated open across power
++		 * transitions (the vendor never gates it), otherwise the card
++		 * loses its clock and stops answering.
++		 */
++		if (!host->sdio_clk)
++			clk_disable_unprepare(host->clk);
+ 		break;
+ 	default:
+ 		break;
+@@ -1061,6 +1081,14 @@ static int jz4740_mmc_probe(struct platform_device *pdev)
  
  	mmc_regulator_get_supply(mmc);
  
@@ -69,3 +85,14 @@ behaviour.
  	host->irq = platform_get_irq(pdev, 0);
  	if (host->irq < 0)
  		return host->irq;
+@@ -1074,6 +1102,10 @@ static int jz4740_mmc_probe(struct platform_device *pdev)
+ 	if (IS_ERR(host->base))
+ 		return PTR_ERR(host->base);
+ 
++	/* SDIO hosts keep the MSC clock running from probe on. */
++	if (host->sdio_clk)
++		clk_prepare_enable(host->clk);
++
+ 	mmc->ops = &jz4740_mmc_ops;
+ 	if (!mmc->f_max)
+ 		mmc->f_max = JZ_MMC_CLK_RATE;
