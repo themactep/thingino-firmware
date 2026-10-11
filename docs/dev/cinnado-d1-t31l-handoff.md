@@ -389,12 +389,17 @@ Goal: run the Cinnado D1 (T31L + SC2336) on **mainline Linux 7.x** with the open
 tx-isp driver - no vendor kernel, no blob `tx-isp.ko`, libimp still the vendor one
 (the AKoo7 / gtxaspec approach). Do **not** fall back to 4.4.
 
-## Current state: builds, boots, hangs in the SFC flash driver
+## Current state: BOOTS to userspace on mainline 7.1-rc1
 
 - cleanbuild produces a fitting 8 MB image (kernel 7.1-rc1 + DTB + open ISP +
-  SC2336 + rootfs), and the kernel **boots** (serial console up).
-- It then hangs in `drivers/spi/spi-ingenic-sfc.c` (`ingenic_sfc_driver_init`)
-  while adding the MTD partitions.
+  SC2336 + rootfs), and the kernel **boots all the way to the Thingino login
+  prompt** (`Welcome to Thingino!` / `...-cinnado-d1-f8a3 login:`) with the
+  squashfs rootfs mounted from `mtdblock4`.
+- The former boot hang (once attributed to the SFC driver) is **root-caused and
+  fixed** - see "RESOLVED: the boot hang was a blk-mq scheduler init hang".
+- Still open for a *usable* camera: atbm6031 WiFi does not build on 7.1, so the
+  image is networkless; and the camera `.dtsi` is skipped (no `isp`/`msc1_pb`
+  labels), so GPIOs / open ISP are not applied. See "Also open for mainline".
 
 ## Branch / wiring (all local, not pushed)
 
@@ -430,6 +435,10 @@ tx-isp driver - no vendor kernel, no blob `tx-isp.ko`, libimp still the vendor o
   - `0002-dt-thingino-t31-match-sfc-layout.patch` (ours) rewrites
     `thingino-t31.dts` partitions to the thingino SFC map:
     `320k(boot),64k(env),64k(backup),2560k(kernel)@0x70000,4416k(rootfs)@0x2f0000,768k(data)@0x740000,8192k@0(all)`.
+  - `0003-mtd-mtdblock-avoid-blk-mq-sched-init-hang.patch` (ours) - the boot
+    fix; see "RESOLVED: the boot hang was a blk-mq scheduler init hang".
+  - `0004-spi-ingenic-sfc-bound-sr-end-poll.patch` (ours) - defensive bound of
+    the PIO RX `SR_END` poll (was `timeout_us = 0`).
 
 ## The hang
 
@@ -464,6 +473,55 @@ handshake as still-to-upstream). Rebuild + re-flash. Whether the flash op truly
 never completes matters: if not, squashfs can't mount, so the poll fix alone may
 not boot.
 
+### RESOLVED: the boot hang was a blk-mq scheduler init hang
+
+The SFC poll was **not** the cause. Instrumenting the kernel (with
+`CONFIG_CMDLINE="earlycon keep_bootcon"` so the boot console survives the
+`ttyS1` handover, plus `pr_err` breadcrumbs) showed the flash and MTD paths work
+and the hang is one layer above the flash:
+
+```
+ingenic_sfc_driver_init
+  spi-nor probe: RDID 0x9f + SFDP 0x5a reads  -> OK
+  mtd_device_parse_register -> add_mtd_partitions
+    allocate_partition "boot"                  -> OK
+    add_mtd_device("boot")
+      device_register                          -> OK
+      blktrans_notify_add -> add_mtd_blktrans_dev
+        blk_mq_alloc_disk                      -> OK
+        device_add_disk
+          __add_disk: device_add ... blk_register_queue
+            elevator_set_default -> elevator_change
+              elevator_switch                  -> HANG
+```
+
+So the last serial line ("... : \"boot\"") is just the last print before the
+first MTD partition's **mtdblock** device is registered; no flash read happens
+there. `elevator_switch()` spins with preemption disabled (no soft-lockup or
+hung-task backtrace is emitted even with both detectors enabled).
+
+Fix (patch `0003-mtd-mtdblock-avoid-blk-mq-sched-init-hang.patch`): mark the
+mtdblock tag set with `BLK_MQ_F_NO_SCHED_BY_DEFAULT` so
+`elevator_set_default()` returns before `elevator_change()`. mtdblock is happy
+with the "none" scheduler, and the mtdblock4 squashfs rootfs mounts. This is a
+workaround - the real bug (why `elevator_switch()`/`blk_mq_init_sched()` spins
+for this queue on T31/7.1) is still open.
+
+Defensive extra (patch `0004-spi-ingenic-sfc-bound-sr-end-poll.patch`): bound
+the PIO RX `readl_poll_timeout(..., SR_END, 10, 0)` (a trailing 0 means "no
+timeout") and log SFC state if `SR_END` is never seen. Verified on the T31 that
+this poll does pass (SFDP + `0x03` page reads step through it), so it only turns
+a theoretical infinite loop into a bounded failure.
+
+Reproduction / debug recipe that made this visible:
+- Boot via U-Boot with `setenv bootargs ... earlycon ignore_loglevel
+  initcall_debug keep_bootcon` then `sf probe; sf read $loadaddr $kern_addr
+  $kern_size; bootm $loadaddr`. **Without `keep_bootcon` the real ttyS1 console
+  stops after the bootconsole handover**, so all later output (including panic
+  or breadcrumbs) is invisible - always boot with `keep_bootcon` when debugging.
+- `make dfu` (thingino-dfu over USB bootrom) flashes the whole 8 MB image;
+  entering bootrom: at U-Boot `sf erase 0 10000` then `reset`.
+
 ## Also open for mainline
 
 - **WiFi (`atbm6031`) doesn't build on 7.1**: `hal_apollo/Makefile` `k-dir`
@@ -477,13 +535,30 @@ not boot.
   card-detect, msc1 SDIO, `&isp { status = "okay" }`, i2c1 disable) is not
   applied. Needed before the open ISP binds / video works.
 
-## Recovering a hung camera
+## Recovering / reflashing the camera
 
-The camera hard-hangs in the kernel; reset brings it back to U-Boot (bootloader
-is fine). The goal is 7.x - to re-flash without a booted userspace use the U-Boot
-autoupdate (FAT `autoupdate-full.bin`, delete `autoupdate-full.done`) or
-`sf probe; sf erase 0 800000; sf write ${loadaddr} 0 ${filesize}` with the image
-over TFTP/USB.
+As of the boot fix the camera comes up on its own (login prompt on the serial
+console), so the normal `make ota` path works again.
+
+For flashing without a booted userspace (e.g. iterating a kernel patch while the
+camera is hung), use `make dfu` - `thingino-dfu` bootstraps the SoC over USB
+bootrom and writes the whole 8 MB image (`thingino-<camera>.bin`). To *enter*
+bootrom, reset to the U-Boot prompt and run `sf erase 0 10000` then `reset`; the
+SPL/U-Boot is erased, so the boot ROM enumerates as `a108:c309` and
+`thingino-cloner -l` reports stage `bootrom` (`t31x`). Then `make dfu`.
+(The DFU boot does not stop at U-Boot, so it autoboots the freshly written
+kernel unless you set `CONFIG_CMDLINE="... keep_bootcon"` or interrupt U-Boot.)
+
+Fast kernel-iteration loop used this session (avoids a full `make fast`):
+1. edit the kernel source in `output/.../build/linux-<hash>/`;
+2. `PATH=$HAVE/host/bin:$PATH make -C <linuxdir> ARCH=mips CROSS_COMPILE=mipsel-linux- -j$(nproc) uImage`
+   (incremental; detects the changed `.c` and relinks);
+3. `cp <linuxdir>/arch/mips/boot/uImage output/.../images/uImage`;
+4. `CAMERA=... IP=... make pack` (rebuilds `thingino-<camera>.bin` from `images/`);
+5. `make dfu`.
+
+The `images/uImage` is LZMA-compressed, so `strings images/uImage` finds nothing;
+check `build/linux-*/vmlinux` for symbols/strings instead.
 
 ## Build/run notes learned this session
 
@@ -497,5 +572,11 @@ over TFTP/USB.
 - The open-tx-isp override is rsynced into `build/open-tx-isp-custom`; after
   editing the override, remove that dir (or `make open-tx-isp-rebuild`) to force a
   re-rsync.
+- **Debugging the post-handover console**: after the real `ttyS1` console is
+  registered the boot console is disabled and, on this port, the real console
+  emits nothing further (so panics and `pr_err` breadcrumbs are lost). Boot with
+  `keep_bootcon` on the kernel command line (e.g. bake it into
+  `CONFIG_CMDLINE`) to keep the boot console alive and see the whole boot.
 - Build with `CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.141`; output
   lands under `$THINGINO_OUTPUT_ROOT_DIR/<branch>/...-7.1-rc1-uclibc-<ip>/`.
+
