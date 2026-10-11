@@ -13,10 +13,17 @@ OPEN_TX_ISP_VERSION = e92166b985606613f2395831bac65413c7542877
 # top-level license file for legal-info to collect.
 OPEN_TX_ISP_LICENSE = GPL-3.0
 
+# 7.x mainline: the ingenic-sdk is disabled (its sensor/audio/AVPU modules are
+# 4.4-only), so the open driver carries its own sensors from sensor-src/<soc>/.
+# 3.10/4.4 keep using the SDK sensor module, as before.
+ifeq ($(KERNEL_VERSION),7.1-rc1)
+OPEN_TX_ISP_DEPENDENCIES = linux
+OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY) sensor-src/$(SOC_FAMILY)
+else
 OPEN_TX_ISP_DEPENDENCIES = ingenic-sdk linux
-
 # Build as out-of-tree kernel module
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY)
+endif
 
 OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR) \
@@ -24,11 +31,14 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	INSTALL_MOD_DIR=ingenic \
 	DIR=.
 
-# Add XBurst platform include paths for soc headers
+# Add XBurst platform include paths for soc headers (3.10/4.4 only; the
+# mainline 7.x tree has no arch/mips/xburst).
+ifneq ($(KERNEL_VERSION),7.1-rc1)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \
 	EXTRA_CFLAGS="-I$(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/include \
 	-I$(LINUX_DIR)/arch/mips/xburst/core/include \
 	-I$(LINUX_DIR)/arch/mips/xburst/common/include"
+endif
 
 # The T20 driver was written against the pre-refactor ingenic-sdk layout:
 # it includes external/ingenic-sdk/{include,3.10.14/isp/t20,3.10.14/sensor-src/

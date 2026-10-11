@@ -5,7 +5,7 @@ config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && (KERNEL_VERSION_3 || KERNEL_VERSION_4)
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && (KERNEL_VERSION_3 || KERNEL_VERSION_4 || KERNEL_VERSION_7)
 	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
 
@@ -13,7 +13,10 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	bool
 	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
-	depends on BR2_PACKAGE_INGENIC_SDK
+	# On kernel 7 the SDK is deliberately disabled (its sensor/audio/AVPU
+	# modules are 4.4-only); the open driver then carries its own sensors
+	# from sensor-src/, so it no longer builds "after ingenic-sdk".
+	depends on BR2_PACKAGE_INGENIC_SDK || KERNEL_VERSION_7
 	depends on BR2_THINGINO_DEV_CAMERA
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP

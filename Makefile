@@ -413,7 +413,14 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
+ifeq ($(KERNEL_VERSION),7.1-rc1)
+# The mainline 7.x kernel image is larger than the 4.4 line; widen the kernel
+# slot (rootfs/data shrink to fit the 8 MB flash). Must match the kernel DT
+# partitions in thingino-t31.dts.
+KERNEL_PARTITION_SIZE := 2621440  # 2560KB (mainline 7.x)
+else
 KERNEL_PARTITION_SIZE := 1769472  # 1728KB universal
+endif
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 export U_BOOT_PARTITION_SIZE

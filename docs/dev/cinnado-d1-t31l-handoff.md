@@ -382,3 +382,120 @@ Useful on-device:
   per-package snapshots (seen with motor.ko and avpu.ko) - hence the cleanbuild rule.
 - The camera currently only boots with prudynt disabled; do not re-enable until the
   video-pipeline wedge is fixed.
+
+# Mainline 7.x bring-up (branch `mainline-7x`)
+
+Goal: run the Cinnado D1 (T31L + SC2336) on **mainline Linux 7.x** with the open
+tx-isp driver - no vendor kernel, no blob `tx-isp.ko`, libimp still the vendor one
+(the AKoo7 / gtxaspec approach). Do **not** fall back to 4.4.
+
+## Current state: builds, boots, hangs in the SFC flash driver
+
+- cleanbuild produces a fitting 8 MB image (kernel 7.1-rc1 + DTB + open ISP +
+  SC2336 + rootfs), and the kernel **boots** (serial console up).
+- It then hangs in `drivers/spi/spi-ingenic-sfc.c` (`ingenic_sfc_driver_init`)
+  while adding the MTD partitions.
+
+## Branch / wiring (all local, not pushed)
+
+- Branch `mainline-7x`, branched from `open-4.4.94`.
+- `local.mk` (gitignored, so NOT in the commit): `OPEN_TX_ISP_OVERRIDE_SRCDIR`
+  points at `overrides/open-tx-isp-mainline`.
+- **Override `overrides/open-tx-isp-mainline`** = AKoo7 `t31-6.12-port-v2`
+  (github.com/AKoo7/open-tx-isp) + our ch0 fcrop fix (both hunks) + new
+  `sensor-src/t31/sc2336.c` (copied from `overrides/ingenic-sdk/common/sensor/t31/`,
+  includes adapted, registered in `sensor-src/t31/Kbuild`) + compat:
+  `#include <linux/clk-provider.h>` in `driver/t31/include/tx_isp_kernel_compat.h`
+  (for `__clk_is_enabled`), and `V4L2_MBUS_FMT_SBGGR10_1X10`/`SGBRG10_1X10` ->
+  `MEDIA_BUS_FMT_*` aliases in `sensor-src/t31/include/sensor-common.h`.
+- `package/open-tx-isp/Config.in`: `..._SUPPORTED` also `KERNEL_VERSION_7` for
+  t31; `BR2_PACKAGE_OPEN_TX_ISP` `depends on BR2_PACKAGE_INGENIC_SDK ||
+  KERNEL_VERSION_7`.
+- `package/open-tx-isp/open-tx-isp.mk`: on `7.1-rc1` drop `ingenic-sdk`, add
+  `sensor-src/$(SOC_FAMILY)` to `MODULE_SUBDIRS`, skip the xburst `EXTRA_CFLAGS`.
+- `package/thingino-isp/Config.in`: `select BR2_PACKAGE_INGENIC_SDK` made
+  `if !KERNEL_VERSION_7` (was the "selects SDK even on kernel 7" bug).
+- Camera defconfig: `KERNEL_VERSION_7=y`; `BR2_THINGINO_DEV_PACKAGES=y`
+  (required, because `BR2_THINGINO_DEV_EXPERIMENTAL` - which gates the kernel-7
+  choice - lives inside `if BR2_THINGINO_DEV_PACKAGES`); `BR2_LINUX_KERNEL_PATCH`
+  -> `package/all-patches/linux/7.1-rc1`; `# BR2_PACKAGE_THINGINO_KOPT_IPV6 is
+  not set`; WiFi package lines removed (atbm6031 doesn't build on 7.1 yet); the
+  4.4.94-mmc patch line dropped.
+- `Makefile`: `KERNEL_PARTITION_SIZE` = 2621440 (2560K) for `KERNEL_VERSION_7`,
+  else the 1728K universal. Must match the DT.
+- `package/all-patches/linux/7.1-rc1/`:
+  - `0001-mips-only-build-FIT-image-for-generic-kernel.patch` (pre-existing, by
+    gtxaspec; it was never wired before - that's why the MIPS FIT `.itb` step
+    failed the whole kernel build).
+  - `0002-dt-thingino-t31-match-sfc-layout.patch` (ours) rewrites
+    `thingino-t31.dts` partitions to the thingino SFC map:
+    `320k(boot),64k(env),64k(backup),2560k(kernel)@0x70000,4416k(rootfs)@0x2f0000,768k(data)@0x740000,8192k@0(all)`.
+
+## The hang
+
+Serial, booting with `earlycon ignore_loglevel initcall_debug` (earlycon kept
+working even after the real console would appear):
+
+```
+calling 0x8077b944 @ 1                     = ingenic_sfc_driver_init
+7 fixed-partitions partitions found on MTD device spi0.0
+Creating 7 MTD partitions on "spi0.0":
+0x000000000000-0x000000050000 : "boot"
+<hang - no more output, no SFC PIO timeout log>
+```
+
+Addresses resolve against `System.map` with `mipsel-linux-nm` on the built
+`vmlinux` (`vmlinux` text base 0x80000000; e.g. `0x8077b944 ->
+ingenic_sfc_driver_init`).
+
+Prime suspect: in `spi-ingenic-sfc.c`, the PIO READ path does
+`readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10, 0)` - the
+trailing `timeout_us = 0` means **no timeout / infinite poll** on `SR_END`. If
+`SR_END` never asserts it spins forever. The IRQ-completion wait just above uses
+`SFC_TRANSFER_TIMEOUT = 1000` ms and would log `SFC PIO timeout: SR=… GLB=…
+CONF=…` instead. DT: `sfc: spi@13440000`, `compatible = "ingenic,t31-sfc"`,
+`interrupts = <7>`, `clocks = <&cgu T31_CLK_SFC>` (node ships `status =
+"disabled"`, enabled by `thingino-t31.dts` `&sfc`).
+
+Next: patch `spi-ingenic-sfc.c` to bound that poll (real timeout) and add an
+explicit `dev_err` where `SR_END` never sets; if the transfer IRQ isn't arriving,
+diagnose IRQ 7 / `T31_CLK_SFC` (AKoo7's notes flag the T31 CGU CE/busy/stop
+handshake as still-to-upstream). Rebuild + re-flash. Whether the flash op truly
+never completes matters: if not, squashfs can't mount, so the poll fix alone may
+not boot.
+
+## Also open for mainline
+
+- **WiFi (`atbm6031`) doesn't build on 7.1**: `hal_apollo/Makefile` `k-dir`
+  resolves to the kernel tree (`$(k-dir)/../include/linux/compat-2.6.h` ->
+  `<linux>/include/...`, no such file) and it's a 4.4-era backport. The camera is
+  WiFi-only, so the flashed image is networkless - fix this to get remote access.
+- **Camera `.dtsi` skipped on the 7.1 tree**: `inject-camera-dtsi.sh` logs
+  `skipped thingino-t31 (no label: isp, msc1_pb)`. The 7.1
+  `t31.dtsi`/`thingino-t31.dts` define neither an `isp` label nor an `msc1_pb`
+  pinctrl group, so the whole camera fragment (`gpio-leds`, `gpio-keys`, msc0
+  card-detect, msc1 SDIO, `&isp { status = "okay" }`, i2c1 disable) is not
+  applied. Needed before the open ISP binds / video works.
+
+## Recovering a hung camera
+
+The camera hard-hangs in the kernel; reset brings it back to U-Boot (bootloader
+is fine). The goal is 7.x - to re-flash without a booted userspace use the U-Boot
+autoupdate (FAT `autoupdate-full.bin`, delete `autoupdate-full.done`) or
+`sf probe; sf erase 0 800000; sf write ${loadaddr} 0 ${filesize}` with the image
+over TFTP/USB.
+
+## Build/run notes learned this session
+
+- Kernel 7 is only selectable with `BR2_THINGINO_DEV_EXPERIMENTAL`, which needs
+  `BR2_THINGINO_DEV_PACKAGES` (see defconfig above).
+- `KERNEL_VERSION_7` also gates the kernel-headers fragment choice; `defconfig`
+  re-assembly is needed after defconfig edits.
+- Changing the kernel config file / kernel patches does NOT re-prep the kernel on
+  an incremental `make fast`; force it by removing `output/<...>/build/linux-*`
+  (and `images/uImage`) so the kernel re-extracts + re-patches.
+- The open-tx-isp override is rsynced into `build/open-tx-isp-custom`; after
+  editing the override, remove that dir (or `make open-tx-isp-rebuild`) to force a
+  re-rsync.
+- Build with `CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.141`; output
+  lands under `$THINGINO_OUTPUT_ROOT_DIR/<branch>/...-7.1-rc1-uclibc-<ip>/`.

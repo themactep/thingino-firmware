@@ -32,7 +32,9 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	depends on BR2_THINGINO_DEV_CAMERA
 	select BR2_PACKAGE_THINGINO_ISP
-	select BR2_PACKAGE_INGENIC_SDK
+	# On kernel 7 the SDK is disabled and the open driver carries its own
+	# sensors from sensor-src/, so do not force the SDK back on.
+	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_OPEN_TX_ISP
 	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED && !BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
