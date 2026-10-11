@@ -750,11 +750,29 @@ it doubles every console line.
 As of the boot fix the camera comes up on its own (login prompt on the serial
 console), so the normal `make ota` path works again.
 
-On mainline 7.x there is no network (the ATBM6031 is not up), so `make ota` is
-unavailable and DFU is the only path. U-Boot autoboot is keyed: it waits 1 s and
-stops on Ctrl-C (`CONFIG_AUTOBOOT_STOP_STR "\x3"`, prompt `isvp_t31#`). If a
-`screen` already holds `/dev/ttyUSB0` it can be driven from another shell with
+With an attached USB-Ethernet adapter the camera gets network (see below), so
+`make ota` / SSH work and kernel iteration is fast. Without it, mainline 7.x has
+no network (the ATBM6031 is not up), `make ota` is unavailable, and DFU is the
+only path. U-Boot autoboot is keyed: it waits 1 s and stops on Ctrl-C
+(`CONFIG_AUTOBOOT_STOP_STR "\x3"`, prompt `isvp_t31#`). If a `screen` already
+holds `/dev/ttyUSB0` it can be driven from another shell with
 `screen -S <session> -X stuff '...'` and read back with `-X hardcopy <file>`.
+
+### Fast kernel iteration over SSH (USB-Ethernet attached)
+
+The USB-Ethernet dongle (in-tree `asix`/`r8153_ecm`, `&otg` enabled) gives the
+camera an IP (e.g. `192.168.88.111`) and SSH. Then a kernel-only change can be
+flashed without bootrom/DFU:
+
+```sh
+make -C "$LINUX_DIR" ARCH=mips CROSS_COMPILE=mipsel-linux- -j"$(nproc)" uImage
+scp -O "$OUT/images/uImage" root@<cam>:/tmp/uImage
+ssh root@<cam> 'flashcp -v /tmp/uImage /dev/mtd3 && reboot'
+```
+
+`/dev/mtd3` is the kernel partition and is writable (unlike the read-only
+`/dev/mtd0` boot partition), and `flashcp` erases+writes+verifies. This turns a
+~12-minute bootrom+DFU cycle into seconds. Root password is `987987`.
 
 For flashing without a booted userspace (e.g. iterating a kernel patch while the
 camera is hung), use `make dfu` - `thingino-dfu` bootstraps the SoC over USB
