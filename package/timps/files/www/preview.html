@@ -530,20 +530,32 @@
       const mode = dn.dn_mode || (dn.enabled ? "auto" : "manual");
       $st("dn").textContent = (night ? "Night" : dn.mode === 0 ? "Day" : "Unknown") + " · " + mode;
       $st("dn-i").className = night ? "bi bi-moon-stars" : "bi bi-sun";
-      // the decision runs on the exposure index; in the night pipeline only
-      // the drop below day_trigger matters (IR keeps it low)
+      // the decision runs on the exposure index; at night the IR-lit level is
+      // not comparable with the day thresholds. timps 1.10.1 (jump_pct):
+      // night_baseline = lit level at the last look, a drop by jump_pct starts
+      // a look, day_trigger is the bar for the reading WITHOUT IR (idle-dark).
+      // 1.10.0: day_trigger is a bar on the lit level.
       const g = dn.exposure >= 0 ? dn.exposure : dn.total_gain,
             lo = dn.total_gain_day_threshold, hi = dn.total_gain_night_threshold, trig = dn.day_trigger;
       const bar = $st("gain"), pct = (v, span) => Math.min(100, v / span * 100) + "%";
       bar.firstChild.style.opacity = "";
       if (typeof g === "number" && g >= 0 && mode === "auto" && night) {
-        const ref = dn.night_baseline;
-        const span = Math.max(trig > 0 ? trig * 2 : 0, ref > 0 ? ref * 1.3 : 0,
+        let ref = dn.night_baseline, nb = trig, txt;
+        if (typeof dn.jump_pct !== "number")
+          txt = trig > 0 ? " · probe day below " + trig.toFixed(0) : " · reference pending";
+        else if (dn.ir_idle && Number(dn.ir_idle.dark)) {
+          ref = -1;   // the reading is without IR here, the lit level does not apply
+          txt = " · IR off (idle)" + (trig > 0 ? " · day below " + trig.toFixed(0) : "");
+        } else {
+          nb = ref > 0 ? ref * (1 - dn.jump_pct / 100) : -1;
+          txt = nb > 0 ? " · look below " + nb.toFixed(0) : " · IR-lit level pending";
+        }
+        const span = Math.max(nb > 0 ? nb * 2 : 0, ref > 0 ? ref * 1.3 : 0,
                               ref > 0 ? Math.min(g * 1.05, ref * 2.5) : g * 1.05, 1);
-        $st("dn-s").textContent = "exp " + g.toFixed(0) + (trig > 0 ? " · probe day below " + trig.toFixed(0) : " · reference pending");
-        bar.style.background = trig > 0
-          ? "linear-gradient(90deg,#f0c040 0 " + pct(trig, span) + ",#3a5fcd " + pct(trig, span) + ")" : "#3a5fcd";
-        if (!(trig > 0)) bar.firstChild.style.opacity = ".4";
+        $st("dn-s").textContent = "exp " + g.toFixed(0) + txt;
+        bar.style.background = nb > 0
+          ? "linear-gradient(90deg,#f0c040 0 " + pct(nb, span) + ",#3a5fcd " + pct(nb, span) + ")" : "#3a5fcd";
+        if (!(nb > 0)) bar.firstChild.style.opacity = ".4";
         bar.firstChild.style.left = pct(g, span);
         bar.hidden = false;
       } else if (typeof g === "number" && g >= 0 && lo > 0 && hi > lo && mode === "auto") {
