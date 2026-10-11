@@ -30,6 +30,7 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	  the proprietary module while retaining the SDK sensor, audio,
 	  and AVPU modules.
 
-	  https://github.com/opensensor/open-tx-isp
+	  https://github.com/Lu-Fi/open-tx-isp
+	  (open-stack fork of https://github.com/opensensor/open-tx-isp)
 
 	  If unsure, say N.
