@@ -600,6 +600,55 @@ CMD/DAT (mainline `mmc1` groups set no bias), the exact vendor pinmux group
 (vendor `ingenic,sdio-reset`), or a bus-width/clock timing quirk. Needs the
 vendor 4.4 mmc driver/DTS diffed pin-for-pin.
 
+### W0 - reference box comparison (2026-10-11)
+
+A hardware-identical camera running the vendor 3.10 firmware was made
+reachable (SSH), which gives ground truth:
+
+- **Pins confirmed:** `/sbin/mmc_gpio` (run by `S09mmc`) sets **pb08-pb14,
+  function 1** (`gpio-diag mode func1`, pb08 drive 2, the rest drive 1). Our
+  `mmc1-1bit`+`mmc1-4bit` (PB8-14, func 1) is correct. The vendor also sets
+  **pin drive strengths** we do not.
+- **Driver:** in-tree `jzmmc_v1.2` (not mainline `jz4740_mmc`); the card is
+  brought up by a userspace **"card insert via sysfs"** (~7.7 s) ->
+  `mmc1: new SDIO card at address 0001`, then `S36wireless` loads `atbm6031`.
+- **WLAN power:** `gpio.wlan = 47` (thingino.json). U-Boot does not leave it
+  asserted; the vendor's `S36wireless` drives it for 3.10/4.4.
+- **No DTB on the box** (embedded in the kernel image).
+
+Direct register comparison (both cameras, same SoC):
+
+| reg | `.141` (mainline, failing) | `.109` (vendor, working) |
+|---|---|---|
+| GPB `PAT0` (out) | `0x01555015` | `0x01555015` |
+| GPB `PAT1` (dir) | `0x55555000` | `0x55555000` |
+| `MSC1CDR` (CGU) | `0x080000FF` | `0x00000014` |
+| `CLKGR0` bit5 (msc1 gate) | set (gated) | clear (running) |
+
+So the **GPIO/power state is byte-for-byte identical**: power, pins and pin
+function are not the difference. The mmc **driver/clock configuration** is. The
+vendor's `jzmmc_v12.c` `jzmmc_set_ios()` keeps the SD clock running for SDIO:
+
+```c
+if (host->pdata->sdio_clk) {
+        msc_writel(host, LPM, lpm);            /* no LPM_LPM bit */
+        msc_writel(host, CTRL, CTRL_CLOCK_START);
+} else {
+        lpm |= LPM_LPM;
+        msc_writel(host, LPM, lpm);
+}
+```
+
+and `jzmmc_reset()` likewise writes `CTRL_CLOCK_START` for SDIO. The mainline
+`jz4740_mmc` writes the divisor with a 16-bit `writew(..., JZ_REG_MMC_CLKRT)`
+and uses the CGU clock framework (CE/stop/busy handshake) instead. Note the
+`MSC1CDR` mismatch above - the mainline leaves a very different divisor.
+
+**W0 conclusion:** not power, not pins, not timing (a re-probe at 89 s uptime
+still fails). It is the MSC/SDIO clock programming: mirror the vendor's SDIO
+behaviour in `jz4740_mmc` (keep the SD clock running via `CTRL_CLOCK_START`,
+never `LPM_LPM`, and match the `CLKRT`/`MSC1CDR` divisor) and re-test.
+
 - Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
   `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
