@@ -43,6 +43,12 @@
 	max-frequency = <25000000>;
 };
 
+/* This board is WiFi-only, but the generic T31 tree enables the MAC, whose
+   RMII pinmux claims PB6-14 - the same pins MSC1/SDIO needs. Disable it. */
+&mac {
+	status = "disabled";
+};
+
 /* The reference tree enables I2C1 on PB25/PB26 (i2c1_pb); this board wires
    those pins to the IR-CUT (gpio.ircut = "57 58"), so i2c1 must not hold the
    pinmux or the IR-CUT GPIO request logs a pinmux conflict. */

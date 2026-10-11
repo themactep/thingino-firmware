@@ -1,0 +1,47 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] pinctrl: ingenic: add T31 mmc1 (SDIO) pin groups
+
+The T31-specific pinctrl data (t31_chip_info) only defines the MSC0 pins
+(GPB0-5). Boards that use MSC1 for SDIO WiFi (e.g. atbm6031) wire it to
+PB8-11/PB13-14 with function 1, which no group covers, so the pins can
+never be muxed and the SDIO card fails to initialise.
+
+Add the mmc1 1-bit/4-bit groups and expose them under the "mmc1"
+function. Pin numbers are the SoC-global values (GPB8..14 = 0x28..0x2e).
+
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -2840,6 +2840,8 @@
+ static int t31_i2c1_c_pins[] = { 0x48, 0x49, };
+ static int t31_mmc0_1bit_pins[] = { 0x20, 0x21, 0x22, };
+ static int t31_mmc0_4bit_pins[] = { 0x23, 0x24, 0x25, };
++static int t31_mmc1_1bit_pins[] = { 0x28, 0x29, 0x2a, };
++static int t31_mmc1_4bit_pins[] = { 0x2b, 0x2d, 0x2e, };
+ static int t31_sfc_data_pins[] = { 0x17, 0x18, 0x1b, 0x1c, };
+ static int t31_ssi0_dt_pins[] = { 0x4b, };
+ static int t31_ssi0_dr_pins[] = { 0x4c, };
+@@ -2867,6 +2869,8 @@
+ 	INGENIC_PIN_GROUP("i2c1-data-c", t31_i2c1_c, 3),
+ 	INGENIC_PIN_GROUP("mmc0-1bit", t31_mmc0_1bit, 0),
+ 	INGENIC_PIN_GROUP("mmc0-4bit", t31_mmc0_4bit, 0),
++	INGENIC_PIN_GROUP("mmc1-1bit", t31_mmc1_1bit, 1),
++	INGENIC_PIN_GROUP("mmc1-4bit", t31_mmc1_4bit, 1),
+ 	INGENIC_PIN_GROUP("sfc-data", t31_sfc_data, 1),
+ 	INGENIC_PIN_GROUP("ssi0-dt", t31_ssi0_dt, 0),
+ 	INGENIC_PIN_GROUP("ssi0-dr", t31_ssi0_dr, 0),
+@@ -2889,6 +2893,7 @@
+ 	"i2c1-data-a", "i2c1-data-b", "i2c1-data-c",
+ };
+ static const char *t31_mmc0_groups[] = { "mmc0-1bit", "mmc0-4bit", };
++static const char *t31_mmc1_groups[] = { "mmc1-1bit", "mmc1-4bit", };
+ static const char *t31_sfc_groups[] = { "sfc-data", };
+ static const char *t31_ssi0_groups[] = {
+ 	"ssi0-dt", "ssi0-dr", "ssi0-clk", "ssi0-ce",
+@@ -2906,6 +2911,7 @@
+ 	INGENIC_PIN_FUNCTION("i2c0", t31_i2c0),
+ 	INGENIC_PIN_FUNCTION("i2c1", t31_i2c1),
+ 	INGENIC_PIN_FUNCTION("mmc0", t31_mmc0),
++	INGENIC_PIN_FUNCTION("mmc1", t31_mmc1),
+ 	INGENIC_PIN_FUNCTION("sfc", t31_sfc),
+ 	INGENIC_PIN_FUNCTION("ssi0", t31_ssi0),
+ 	INGENIC_PIN_FUNCTION("mac", t31_mac),

@@ -528,12 +528,43 @@ Reproduction / debug recipe that made this visible:
   resolves to the kernel tree (`$(k-dir)/../include/linux/compat-2.6.h` ->
   `<linux>/include/...`, no such file) and it's a 4.4-era backport. The camera is
   WiFi-only, so the flashed image is networkless - fix this to get remote access.
-- **Camera `.dtsi` skipped on the 7.1 tree**: `inject-camera-dtsi.sh` logs
-  `skipped thingino-t31 (no label: isp, msc1_pb)`. The 7.1
-  `t31.dtsi`/`thingino-t31.dts` define neither an `isp` label nor an `msc1_pb`
-  pinctrl group, so the whole camera fragment (`gpio-leds`, `gpio-keys`, msc0
-  card-detect, msc1 SDIO, `&isp { status = "okay" }`, i2c1 disable) is not
-  applied. Needed before the open ISP binds / video works.
+  See "SDIO / WiFi (atbm6031)" below for the bus-side progress.
+- **Camera `.dtsi` is now applied on 7.1** (patches 0005-0007); it used to be
+  skipped because the tree had no `isp` label and no `msc1_pb` group. It is still
+  worth watching on other 7.1 cameras: the fragments are the 4.4-vendor
+  3-cell-GPIO form and now rely on the `ingenic-pinctrl.h` shim
+  (`INGENIC_GPIO_*` defined empty).
+
+## SDIO / WiFi (atbm6031) - in progress
+
+MSC1 is the SDIO bus for the atbm6031. The bus now comes up on 7.1:
+
+- `t31_chip_info` had no `mmc1` pin groups at all (only `mmc0` on GPB0-5), so
+  the pins could never mux. Patch `0005` adds the PB8-11/PB13-14 groups
+  (function 1) and the `msc1`/`msc1_pb` plumbing is added in `0006`.
+- The board is WiFi-only, so the camera fragment also disables `&mac` (the
+  generic T31 leaf enables it and its `mac-rmii` group claims PB6-14, the same
+  pins MSC1 needs).
+- With that, `jz4740-mmc 13460000.mmc` probes and starts SDIO init
+  (`mmc1: Using PIO, 1-bit mode`).
+
+**Still failing:** the SDIO card does not finish initialising -
+`jz4740-mmc 13460000.mmc: no support for card's volts` -> `mmc1: error -22
+whilst initialising SDIO card` -> `mmc1: Card stuck being busy!
+__mmc_poll_for_busy` (repeats). Notes:
+- The mainline `jz4740_mmc` driver parses no DT properties, so the fragment's
+  `ingenic,sdio_clk = <1>` (keep the SDIO clock out of LPM) and `bus-width` are
+  ignored; the vendor driver honoured `ingenic,sdio_clk`.
+- The board powers the WLAN (GPIO 47) and its clock from userspace; per the
+  fragment comment the kernel is expected to fail the first probe and userspace
+  then forces a rescan. But the userspace path is not ready on 7.1:
+  `/etc/init.d/S36wireless` aborts with
+  `line 188: syntax error: unexpected end of file (expecting "fi")`, and the
+  atbm6031 module is not in the image (does not build, below).
+- Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
+  `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
+  (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
+  re-check `no support for card's volts` / `Card stuck being busy`.
 
 ## Recovering / reflashing the camera
 
