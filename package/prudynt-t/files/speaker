@@ -6,7 +6,7 @@ set_speaker_enabled() {
 }
 
 get_speaker_enabled() {
-	jct /etc/prudynt.json get "audio.spk_enabled"
+	prudynt-config get "audio.spk_enabled"
 }
 
 case "$1" in

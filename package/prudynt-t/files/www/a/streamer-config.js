@@ -20,7 +20,7 @@
     return fetch(url, options);
   }
 
-  var API_BASE = "http://" + location.hostname + ":8080/api/v1/config";
+  var API_BASE = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config";
 
   async function confirm(message) {
     return new Promise((resolve) => {
@@ -82,7 +82,7 @@
 
   async function saveConfig() {
     const confirmed = await confirm(
-      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+      "Save the current configuration to /etc/prudynt.user.json?\n\nOnly the changes over the read-only core are stored.",
     );
     if (!confirmed) return;
 
@@ -126,7 +126,7 @@
 
       showAlert(
         "success",
-        "Configuration saved successfully to /etc/prudynt.json",
+        "Configuration saved successfully to /etc/prudynt.user.json",
         3000,
       );
     } catch (err) {

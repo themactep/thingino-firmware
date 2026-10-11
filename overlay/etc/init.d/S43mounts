@@ -9,10 +9,16 @@
 
 NFS_MOUNT="/mnt/nfs"
 
-nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
+nfs_enabled="$(jct /etc/thingino.json get nfs.enabled 2>/dev/null)"
+nfs_share="$(jct /etc/thingino.json get nfs.share 2>/dev/null)"
 
 start() {
 	log -c 15 "Mount $NFS_MOUNT"
+
+	if [ "$nfs_enabled" != "true" ]; then
+		log -c 142 -e "NFS mount is disabled (run '$0 force' to enable and mount)" >&2
+		return 0
+	fi
 
 	if [ -z "$nfs_share" ]; then
 		log -c 240 -e "- Mount share is not set"
@@ -51,9 +57,21 @@ stop() {
 	fi
 }
 
+force() {
+	if ! jct /etc/thingino.json set nfs.enabled true; then
+		log -c 160 -e "Failed to enable NFS mount in /etc/thingino.json" >&2
+		exit 1
+	fi
+	nfs_enabled="true"
+	start
+}
+
 case "$1" in
 	start)
 		start
+		;;
+	force)
+		force
 		;;
 	stop)
 		stop
@@ -64,7 +82,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart|force}"
 		exit 1
 		;;
 esac

@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.9.33
+TIMPS_VERSION = v1.10.0
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -397,7 +397,7 @@ endef
 #
 #   timps daynight thread -> execlp("daynight", "night") -> rc=127
 #
-# Live incident (cam-01, T31/SC4336P, 2026-08-12): timps's own detection was
+# Live incident (Garage, T31/SC4336P, 2026-08-12): timps's own detection was
 # working perfectly ("[DAYNIGHT] switching to night (total_gain 3557)") but
 # every switch_cmd invocation failed with rc=127, so the IR-cut filter was
 # never removed and the IR illuminator never lit. The sensor kept ramping

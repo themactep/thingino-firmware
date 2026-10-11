@@ -7,32 +7,38 @@
 
 start() {
 	log -c 15 "Starting network"
+
+	# Wake the Ethernet PHY if the board declares a reset line.
+	# This runs BEFORE the portal/AP short-circuit below: the pulse is a
+	# no-op on boards that do not declare gpio.eth.toggle, and the PHY
+	# must be out of reset for any later ifup to succeed. The line is
+	# left in the deasserted state.
+	local toggle
+	toggle=$(jct /etc/thingino.json get gpio.eth.toggle 2>/dev/null)
+	if [ "true" = "$toggle" ]; then
+		local pin active assert deassert
+		pin=$(jct /etc/thingino.json get gpio.eth.pin 2>/dev/null)
+		active=$(jct /etc/thingino.json get gpio.eth.active_low 2>/dev/null)
+		if [ "true" = "$active" ]; then
+			assert=0
+			deassert=1
+		else
+			assert=1
+			deassert=0
+		fi
+		gpio set $pin $deassert
+		sleep 0.05
+		gpio set $pin $assert
+		sleep 0.05
+		gpio set $pin $deassert
+	fi
+
 	if [ -f /run/wlan_ap_mode ] || [ -f /run/portal_mode ]; then
 		log -c 160 -e "WiFi in AP/portal mode, skipping network bring-up" >&2
 		# Ensure loopback is up (normally done by ifup -a)
 		ip addr add 127.0.0.1/8 dev lo 2>/dev/null || true
 		ip link set lo up 2>/dev/null || true
 		exit 0
-	fi
-
-	local toggle
-	toggle=$(jct /etc/thingino.json get gpio.eth.toggle 2>/dev/null)
-	if [ "true" = "$toggle" ]; then
-		local pin active low high
-		pin=$(jct /etc/thingino.json get gpio.eth.pin 2>/dev/null)
-		active=$(jct /etc/thingino.json get gpio.eth.active_low 2>/dev/null)
-		if [ "true" = "$active" ]; then
-			low=1
-			high=0
-		else
-			low=0
-			high=1
-		fi
-		gpio set $pin $low
-		sleep 0.5
-		gpio set $pin $high
-	else
-		log -c 142 -e "Ethernet GPIO does not need a toggle" >&2
 	fi
 
 	ifup -v -a

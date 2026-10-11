@@ -128,10 +128,10 @@ normalize_legacy_uploaded_font_references() {
 	printf '{' >"$live_update"
 
 	for stream_id in 0 1; do
-		current_path=$(jct /etc/prudynt.json get "stream${stream_id}.osd.font_path" 2>/dev/null | tr -d '\"\r\n')
+		current_path=$(prudynt-config get "stream${stream_id}.osd.font_path" 2>/dev/null | tr -d '\"\r\n')
 		[ "$current_path" = "$LEGACY_UPLOADED_FONT_FILE" ] || continue
 
-		jct /etc/prudynt.json set "stream${stream_id}.osd.font_path" "$DEFAULT_OSD_FONT_FILE" >/dev/null 2>&1 || {
+		prudynt-config set "stream${stream_id}.osd.font_path" "$DEFAULT_OSD_FONT_FILE" >/dev/null 2>&1 || {
 			rm -f "$live_update"
 			return 1
 		}

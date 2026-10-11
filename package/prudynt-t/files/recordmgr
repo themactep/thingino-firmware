@@ -11,7 +11,7 @@
 #   - Removes oldest frames when free space drops below the floor
 #   - Optionally enforces a separate size cap via timelapse.limit GB
 #
-# Configuration is read from the recorder section of /etc/prudynt.json:
+# Configuration is read from the recorder section of /run/prudynt.json:
 #   recorder.mount            - storage mount point
 #   recorder.device_path      - subdirectory within mount for recordings
 #   recorder.limit            - maximum storage used by recordings in GB
@@ -29,7 +29,7 @@
 #   -d, --debug               - force debug logging on regardless of config
 
 PIDFILE="/var/run/recordmgr.pid"
-CONFIG_FILE="/etc/prudynt.json"
+CONFIG_FILE="/run/prudynt.json"
 TL_CONFIG_FILE="/etc/timelapse.json"
 DOMAIN="recorder"
 

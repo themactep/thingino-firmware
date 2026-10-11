@@ -111,7 +111,7 @@ typedef struct {
     int      day_threshold;     /* active day threshold */
     char     isp_mode[32];
     char     daynight_mode[16];
-    char     platform[8];       /* "t31" or "t20" */
+    char     platform[8];       /* SoC name, e.g. "t23" */
 } sensor_sample_t;
 
 /* Ring buffer */
@@ -636,13 +636,32 @@ static void init_sample(sensor_sample_t *s) {
     s->platform[0] = '\0';
 }
 
+/* SoC name from /etc/os-release; the ISP parser family is the fallback */
+static const char *soc_name(void) {
+    static char soc[8];
+    static bool looked_up = false;
+
+    if (!looked_up) {
+        FILE *fp = fopen("/etc/os-release", "r");
+        looked_up = true;
+        if (fp) {
+            char line[MAX_LINE_LEN];
+            while (fgets(line, sizeof(line), fp)) {
+                if (sscanf(line, "SOC=%7[a-zA-Z0-9]", soc) == 1) break;
+            }
+            fclose(fp);
+        }
+    }
+    return soc;
+}
+
 /* Parse /proc/jz/isp/isp-m0 — T31, T23, T21, T30 */
 static int parse_isp_m0(sensor_sample_t *s) {
     FILE *fp = fopen(ISP_M0_PATH, "r");
     if (!fp) return -1;
 
     char line[MAX_LINE_LEN];
-    strncpy(s->platform, "t31", sizeof(s->platform) - 1);
+    strncpy(s->platform, soc_name()[0] ? soc_name() : "t31", sizeof(s->platform) - 1);
 
     while (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "ISP Runing Mode :"))
@@ -692,7 +711,7 @@ static int parse_isp_info(sensor_sample_t *s) {
     if (!fp) return -1;
 
     char line[MAX_LINE_LEN];
-    strncpy(s->platform, "t20", sizeof(s->platform) - 1);
+    strncpy(s->platform, soc_name()[0] ? soc_name() : "t20", sizeof(s->platform) - 1);
 
     while (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "ISP Runing Mode :"))
@@ -1087,7 +1106,7 @@ static int main_loop(void) {
     }
 
     log_message(LOG_INFO, "Starting main loop (platform=%s, signal=%s)",
-                g_state.use_total_gain ? "T20" : "T31",
+                soc_name()[0] ? soc_name() : (g_state.use_total_gain ? "t20" : "t31"),
                 g_state.use_total_gain ? "gain_log2" : "ev_log2");
 
     /* Apply brightness-% thresholds from config if set (> 0).

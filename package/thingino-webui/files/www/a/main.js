@@ -5,30 +5,6 @@ const ThreadOSD = 8;
 
 const ImageNoStream = "/a/nostream.svg";
 
-var API_BASE =
-  "http://" +
-  (window.network_address || location.hostname) +
-  ":8080/api/v1/config";
-
-var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (d) {
-    return d.exists && d.api_key ? d.api_key : "";
-  })
-  .catch(function () {
-    return "";
-  });
-
-async function apiFetch(url, options) {
-  var key = await API_KEY_PROMISE;
-  options = options || {};
-  options.headers = options.headers || {};
-  if (key) options.headers["X-API-Key"] = key;
-  return fetch(url, options);
-}
-
 let max = 0;
 
 if (typeof window !== "undefined") {
@@ -45,10 +21,14 @@ const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = "/x/json-heartbeat.cgi";
 const SlowHeartbeatEndpoint = "/x/json-heartbeat-slow.cgi";
 const SessionStatusEndpoint = "/x/session-status.cgi";
-// The SSE error event exposes no HTTP status, so a stream that keeps failing
-// cannot tell an expired session from a network blip on its own. After this
-// many failures in a row, ask an endpoint that does report a status.
+// SSE errors carry no status: after this many in a row, ask session-status.
 const HeartBeatAuthCheckFailures = 3;
+// An open SSE stream outlives the session, so probe on a timer too.
+const SessionCheckInterval = 60 * 1000;
+const SessionProbeMinGap = 10 * 1000;
+let sessionCheckTimer = null;
+let lastSessionProbe = -SessionProbeMinGap;
+let sessionProbeGap = SessionProbeMinGap;
 let heartbeatSource = null;
 let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
@@ -58,9 +38,7 @@ let debugModalCtx = null;
 // Password check state - must be initialized before heartbeat can start
 let isDefaultPassword = false;
 let passwordCheckComplete = false;
-// Set once a definitive auth refusal has been seen, so the session check, the
-// slow heartbeat and the SSE retry loop cannot race each other into the login
-// page more than once.
+// Stops the session check, slow heartbeat and SSE retries racing to /login.html.
 let authRedirectInProgress = false;
 
 function $(n) {
@@ -1021,8 +999,6 @@ function updateHeartbeatUi(json) {
   }
 }
 
-// Single exit to the login page. Only a definitive auth refusal may call this;
-// everything else retries.
 function redirectToLogin() {
   if (authRedirectInProgress) return;
   if (
@@ -1036,11 +1012,12 @@ function redirectToLogin() {
   window.location.href = "/login.html";
 }
 
-// Status-code-visible session probe for callers that only see opaque errors
-// (the SSE stream). Redirects only on a definitive refusal - an unreachable
-// endpoint or a 5xx leaves the page alone so the normal retries can continue.
+// Only authenticated:false redirects; a non-2xx backs off.
 async function verifySessionStillValid() {
   if (authRedirectInProgress) return;
+  const now = performance.now();
+  if (now - lastSessionProbe < sessionProbeGap) return;
+  lastSessionProbe = now;
 
   try {
     const response = await fetch(SessionStatusEndpoint, {
@@ -1048,18 +1025,16 @@ async function verifySessionStillValid() {
       credentials: "same-origin",
     });
 
-    if (response.status === 401 || response.status === 403) {
-      redirectToLogin();
-      return;
-    }
-
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
     if (data && data.authenticated === false) {
       redirectToLogin();
+      return;
     }
+    sessionProbeGap = SessionProbeMinGap;
   } catch (error) {
+    sessionProbeGap = Math.min(sessionProbeGap * 2, SessionCheckInterval);
     console.error("Session re-check failed:", error);
   }
 }
@@ -1093,8 +1068,6 @@ function startHeartbeatSse() {
     heartbeatSource.close();
     heartbeatSource = null;
     heartbeatSseFailures++;
-    // The error event itself says nothing about why the stream died, so only
-    // escalate to a real session check once it has failed repeatedly.
     if (heartbeatSseFailures >= HeartBeatAuthCheckFailures) {
       verifySessionStillValid();
     }
@@ -1128,7 +1101,6 @@ async function fetchSlowHeartbeatStatus() {
     });
 
     if (response.status === 401 || response.status === 403) {
-      // definitive auth refusal from the server - the session is gone
       redirectToLogin();
       return;
     }
@@ -1150,7 +1122,18 @@ function startSlowHeartbeatStatus() {
   fetchSlowHeartbeatStatus();
 }
 
+function startSessionWatch() {
+  if (sessionCheckTimer) return;
+  sessionCheckTimer = setInterval(() => {
+    if (!document.hidden) verifySessionStillValid();
+  }, SessionCheckInterval);
+}
+
 function cleanupHeartbeatResources() {
+  if (sessionCheckTimer) {
+    clearInterval(sessionCheckTimer);
+    sessionCheckTimer = null;
+  }
   if (heartbeatSource) {
     heartbeatSource.close();
     heartbeatSource = null;
@@ -1176,7 +1159,6 @@ document.addEventListener("visibilitychange", () => {
 
 function heartbeat() {
   console.trace("heartbeat() called");
-  // Don't reopen anything while we are on our way to the login page
   if (authRedirectInProgress) return;
   // Don't start heartbeat until password check is complete
   if (!passwordCheckComplete) {
@@ -1190,6 +1172,7 @@ function heartbeat() {
   }
   startHeartbeatSse();
   startSlowHeartbeatStatus();
+  startSessionWatch();
 }
 
 function initCopyToClipboard() {

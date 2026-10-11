@@ -6,7 +6,7 @@ set_mic_enabled() {
 }
 
 get_mic_enabled() {
-	jct /etc/prudynt.json get "audio.mic_enabled"
+	prudynt-config get "audio.mic_enabled"
 }
 
 case "$1" in

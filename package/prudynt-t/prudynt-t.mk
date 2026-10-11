@@ -331,6 +331,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# from package/thingino-send2 (selected via Config.in).
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/prudynt-helpers \
 		$(TARGET_DIR)/usr/share/prudynt-helpers
+	# Single accessor for the layered core/user configuration.
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/prudynt-config \
+		$(TARGET_DIR)/usr/bin/prudynt-config
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/playonspeaker \
 		$(TARGET_DIR)/usr/sbin/playonspeaker
 
@@ -470,12 +473,16 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/dl1.jpg
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/events.cgi \
 		$(TARGET_DIR)/var/www/x/events.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/fmp4.cgi \
+		$(TARGET_DIR)/var/www/x/fmp4.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-imaging.cgi \
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-osd-sei.cgi \
 		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-config-rtsp.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-rtsp.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-proxy.cgi \
+		$(TARGET_DIR)/var/www/x/json-prudynt-proxy.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/tool-record.cgi \
 		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt.cgi \

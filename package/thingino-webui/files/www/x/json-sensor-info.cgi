@@ -12,7 +12,7 @@ printf '\r\n'
 
 SENSOR_MODEL=$(cat /proc/jz/sensor/sensor0/name 2>/dev/null || cat /proc/jz/sensor/name 2>/dev/null)
 SOC_MODEL=$(soc -f 2>/dev/null)
-SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
+SOC_FAMILY=$(printf '%s' "$SOC_MODEL" | tr '[:upper:]' '[:lower:]')
 
 SENSOR_IQ_PATH="/etc/sensor"
 SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"

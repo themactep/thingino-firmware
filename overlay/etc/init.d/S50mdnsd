@@ -14,7 +14,7 @@ UHTTPD_HTTP_LISTEN_DEFAULT="80"
 UHTTPD_HTTPS_LISTEN_DEFAULT="443"
 UHTTPD_CERT_DEFAULT="/etc/ssl/certs/uhttpd.crt"
 UHTTPD_KEY_DEFAULT="/etc/ssl/private/uhttpd.key"
-PRUDYNT_CONFIG="/etc/prudynt.json"
+PRUDYNT_CONFIG="/run/prudynt.json"
 STRERO_RTSP_CONFIG="/etc/streamer.d/rtsp.json"
 
 ensure_dir() {

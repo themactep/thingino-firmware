@@ -6,7 +6,8 @@
 require_auth
 
 SEND2_CONFIG="/etc/send2.json"
-PRUDYNT_JSON="/etc/prudynt.json"
+PRUDYNT_JSON="/run/prudynt.json"
+PRUDYNT_USER_JSON="/etc/prudynt.user.json"
 REQ_FILE=""
 
 emit_json() {
@@ -63,11 +64,7 @@ ensure_send2_file() {
 
 ensure_prudynt_file() {
 	[ -f "$PRUDYNT_JSON" ] && return
-	local old_umask
-	old_umask=$(umask)
-	umask 077
-	echo '{}' >"$PRUDYNT_JSON"
-	umask "$old_umask"
+	prudynt-config refresh >/dev/null 2>&1 || true
 }
 
 load_send2_config() {
@@ -131,11 +128,12 @@ apply_motion_payload() {
 	tmp=$(mktemp /tmp/json-config-send2-motion.XXXXXX)
 	printf '{"motion":%s}' "$payload" >"$tmp"
 	ensure_prudynt_file
-	if ! jct "$PRUDYNT_JSON" import "$tmp" >/dev/null 2>&1; then
+	if ! jct "$PRUDYNT_USER_JSON" import "$tmp" >/dev/null 2>&1; then
 		rm -f "$tmp"
 		json_error "400 Bad Request" "Unable to apply motion configuration." "invalid_motion"
 	fi
 	rm -f "$tmp"
+	prudynt-config refresh >/dev/null 2>&1 || true
 }
 
 handle_get() {

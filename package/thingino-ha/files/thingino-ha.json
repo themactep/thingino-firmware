@@ -14,6 +14,7 @@
     "enable_ir850": true,
     "enable_ir940": true,
     "enable_ircut": true,
+    "enable_lamp_socket": true,
     "enable_live_view": false,
     "enable_motion": true,
     "enable_motion_guard": true,

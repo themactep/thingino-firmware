@@ -92,4 +92,16 @@ needs a decision before moving, so they're tracked here for future sessions.
   recordmgr, S95recordmgr gated on `BR2_THINGINO_DEV_IPCAM`); nav via plugin
   manifest; core `navigation.js` hide removed; `control-bar.js` recorder menu
   gated on non-raptor (raptor records natively via rmr).
+- **Prudynt config over HTTPS** — browser-facing
+  `http://<host>:8080/api/v1/config` calls replaced with the same-origin proxy
+  `package/prudynt-t/files/www/x/json-prudynt-proxy.cgi`
+  (session-authenticated, `/api/v1/*` only). Repointed `preview.js`, `audio.js`,
+  `sei-osd.js`, `preview-osd.js`, `streamer-config.js`, `preview-fmp4.js`, and
+  the inline script in `streamer-osd.html`. The fMP4 live stream moved off
+  `http://<host>:8080/chN.mp4` to the streaming proxy `x/fmp4.cgi` (reads the
+  API key on the camera, streams `chN.mp4` with `curl -N`). The RTSP page keeps
+  its purpose-built `json-config-rtsp.cgi`. The dead `API_BASE` /
+  `API_KEY_PROMISE` / `apiFetch` cluster was removed from core `main.js`. No
+  browser code builds an absolute `:8080` URL anymore; only server-side CGIs
+  talk to `127.0.0.1:8080`.
 - **`json-motion.cgi`** — deleted (orphan, zero callers anywhere).
