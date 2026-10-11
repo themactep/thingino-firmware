@@ -1,0 +1,33 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] mmc: jz4740: trace the SDIO clock only for the LPM-workaround host
+
+Bring-up aid for the ATBM6031 SDIO host on 7.1.  jz4740_mmc_set_ios()
+reaches jz4740_mmc_set_clock_rate() on every bus-clock programming, and
+the MMC core does that repeatedly during card detection, so an
+unconditional print floods the boot log - and mostly traces the wrong
+host: the MSC0 card slot fires it more often than the MSC1 SDIO host.
+
+Gate the print on host->sdio_clk so only the controller that opted into
+the ingenic,sdio_clk workaround is traced, and report the requested rate,
+the achieved rate, the divider and the bus width rather than the achieved
+rate alone.
+
+Temporary: drop this patch once the SDIO host enumerates.
+
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -922,6 +922,14 @@ static int jz4740_mmc_set_clock_rate(struct jz4740_mmc_host *host, int rate)
+ 				   host->base + JZ_REG_MMC_LPM);
+ 	}
+ 
++	/* SDIO bring-up aid: trace only the host that opts into the LPM
++	 * workaround, not every MMC controller. */
++	if (host->sdio_clk)
++		dev_info(&host->pdev->dev,
++			 "%s: req=%d real=%d div=%d width=%d sdio_clk=%d\n",
++			 mmc_hostname(host->mmc), rate, real_rate, div,
++			 host->mmc->ios.bus_width, host->sdio_clk);
++
+ 	return real_rate;
+ }
+ 
