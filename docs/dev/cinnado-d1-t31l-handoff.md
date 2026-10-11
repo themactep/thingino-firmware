@@ -633,16 +633,22 @@ Fix:
   SPI NOR stack (and vendor `CONFIG_ERASE_SIZE_64K`), 32 KiB otherwise, and the
   `mkfs.jffs2` rule now uses it instead of the hardcoded `ALIGN_BLOCK`.
 
-Built (kernel + 64 KiB `data.jffs2`) and flashed via bootrom DFU, but the
-camera **wedged at ~0.036 s**, right after the `ttyS1` console handover
-(`printk: legacy bootconsole [t31_uart0] disabled`); the serial console went
-dead (Enter, Ctrl-Q, serial SysRq all do nothing) and needs a power cycle. This
-is not the 4 KiB change - that only runs at MTD probe (~1 s in) - it looks like
-a bad reset-but-not-power-cycle out of the DFU reboot. Verify on next session.
+Built (kernel + 64 KiB `data.jffs2`) and flashed via bootrom DFU. Verified on
+the next boot: `/proc/mtd` reports `erasesize 0x10000` on every partition, the
+`jffs2` scan is clean (`0 xdatum / 0 xref`, no "wrong erase size") and the
+overlay mounts (the `tmpfile` / `RENAME_WHITEOUT` lines are benign JFFS2
+limitations).
 
-Next: power-cycle, capture the boot, confirm the `jffs2` scan is clean (no
-"wrong erase size"), `/proc/mtd` reports `erasesize 0x10000`, and the overlay
-mounts.
+The earlier "wedged at ~0.036 s" was **not** the 4 KiB change: the config
+regeneration that came with it dropped the local `keep_bootcon` tweak that had
+been living only in the output tree, so the boot stopped at the 8250 handover
+(`printk: legacy bootconsole [t31_uart0] disabled`) and needed a power cycle.
+`keep_bootcon` is now carried in the fragment
+(`board/ingenic/xburst1/kernel/7.1-rc1/t31.generic.config`,
+`CONFIG_CMDLINE="earlycon keep_bootcon"`), so a clean rebuild keeps it. The
+root cause of the handover stop (why the real `ttyS1` console goes silent
+without the boot console) is still open - `keep_bootcon` is a workaround, and
+it doubles every console line.
 
 ## Recovering / reflashing the camera
 
