@@ -6,6 +6,48 @@ Build tree: `/home/paul/thingino/firmware/ciao` (branch `ciao`). Overrides live 
 `/home/paul/thingino/overrides/` (`BR2_OVERRIDES_DIR`).
 Goal of the session: clear boot warnings/oopses and get prudynt to stream.
 
+## mainline-7x (Linux 7.1-rc1) - status (2026-10-11)
+
+The camera also runs a mainline **Linux 7.1-rc1** build on branch `mainline-7x`
+(camera defconfig `KERNEL_VERSION_7`, uclibc, `BR2_THINGINO_DEV_EXPERIMENTAL`).
+This section is self-contained; the 4.4 material below is a different branch.
+
+**Works**
+- Builds an 8 MB image and boots to the Thingino userspace (login prompt on the
+  serial console); squashfs rootfs on `mtdblock4` mounts.
+- JFFS2 data partition / overlayfs: fixed and clean (`/proc/mtd` `erasesize 0x10000`,
+  no "wrong erase size", write-through and reboot-persistent).
+- MSC1/SDIO bus: pins PB8-14 func 1 (vendor-confirmed), clock running, WLAN power
+  on GPIO 47 - the SDIO card still does not answer CMD5 (see W0 below).
+- `isp` node present and enabled; camera `.dtsi` fragment now applies (LEDs/keys/
+  i2c1/mac-disable/msc1).
+- Network via **USB-Ethernet** on the OTG port (`asix`/`r8153_ecm` built in) ->
+  SSH + `make ota` + a fast kernel-flash loop (see "Fast kernel iteration over SSH").
+
+**Open**
+- **ATBM6031 WiFi**: the vendor driver does not build on 7.x, and the mainline
+  `jz4740_mmc` cannot bring up the SDIO card (W0). Needs the vendor SDIO driver
+  (see the SDK reference below) - a port, not a tweak.
+- **ISP / video**: the `.dtsi` applies and the `isp` node is enabled, but the open
+  ISP stack has not been brought up on 7.x.
+- The `ttyS1` boot-console handover stop (worked around with `keep_bootcon` in the
+  kernel fragment) is still not root-caused.
+
+**Kernel patches** (`package/all-patches/linux/7.1-rc1/`):
+`0001` FIT image, `0002` thingino-t31 SFC partition map, `0003` mtdblock
+`BLK_MQ_F_NO_SCHED_BY_DEFAULT` (boot-hang fix), `0004` bound the SFC `SR_END` poll,
+`0005` T31 `mmc1` pin groups, `0006` `isp` node + `msc1_pb` group, `0007`
+`ingenic-pinctrl.h` compat shim, `0008` `jz4740_mmc` `ingenic,sdio_clk` handling,
+`0009` (temporary) SDIO clock debug trace.
+
+**Key commits on `mainline-7x`**: `5e95e3440` (boot hang), `cfa6c30b6` (SDIO DT
+plumbing), `3e530c8c2` (JFFS2 erase size), `915214b57` (keep_bootcon), W0 SDIO
+driver work through `c5d15d17c`.
+
+See "SDIO / WiFi (atbm6031) - in progress" and "W0 - newer Ingenic SDK" below for
+the full W0 analysis, and `docs/dev/cinnado-d1-wifi-roadmap.md` for the WiFi
+conversion plan.
+
 ## TL;DR
 
 - Several boot-time driver bugs fixed and deployed (motor IRQ, wifi RX, IR-CUT/i2c1).
