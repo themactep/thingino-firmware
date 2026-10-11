@@ -666,6 +666,34 @@ Open paths, in effort order:
    - a real driver port, the fallback if the mainline driver can't drive this
    SoC's SDIO.
 
+### W0 - newer Ingenic SDK (5.15.170) SDIO reference (2026-10-11)
+
+The user provided a newer Ingenic SDK (`~/thingino/sdk/t32-33-2.0.0`, kernels
+3.10/4.4/**5.15.170**). The 5.15 tree has a dedicated SDIO path:
+
+- `drivers/mmc/host/ingenic_sdio.c` (uses `ingenic_mmc.h` or `sdhci-ingenic.h`)
+  - a vendor SDIO glue, not mainline `jz4740_mmc`.
+- SDIO bring-up is explicit and userspace-driven, `ingenic_sdio_wlan_power_onoff()`:
+  1. power regulators (`wlreg_on`, `wl_vccio`);
+  2. **`ingenic_mmc_clk_ctrl(index, 1)`** - turn the MSC clock gate ON;
+  3. **reset pulse** - `gpio_set_value(reset, 0); msleep(10); gpio_set_value(reset, 1);`
+     (with the clock already running);
+  4. **`jzmmc_manual_detect(index, 1)`** - manual insert
+     (`set_bit(CARD_PRESENT); mmc_detect_change()`).
+- The driver keeps the clock running for `sdio_clk` hosts (`CTRL_CLOCK_START`,
+  no `LPM_LPM`) - the same thing patch 0008 now does - and uses two clocks
+  (`clk_cgu` + `clk_gate`).
+- `ingenic_sdio_wlan_init()` requires an `ingenic,sdio-reset` GPIO (via the
+  `android,bcmdhd_wlan` / `rtk,rtl8723ds_wlan` child node); without it the
+  power-on helper returns `-EINVAL`.
+
+**Implication:** the mainline `jz4740_mmc` never does the **reset pulse** (with
+the clock on) or a **manual detect**; it relies on auto-detect. That - plus a
+proper SDIO-capable driver - is the missing piece. Next test: pulse the WLAN
+enable/reset (GPIO 47) low->high with the MSC clock running and force a rescan
+on `.141`; if the card then answers CMD5, the fix is a reset-pulse+detect path
+in the driver (or porting `ingenic_mmc`/`sdhci-ingenic`).
+
 - Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
   `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
