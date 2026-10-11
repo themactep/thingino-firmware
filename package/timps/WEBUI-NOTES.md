@@ -218,6 +218,22 @@ shows both streams behind tabs; `a/timps-ui.js` holds what they share.
 - Live chips (kbit/s, fps, subscribers, clients) from the `stats` SSE, the
   same feed as the preview page's stats card.
 - "Compare streams" renders both streams side by side from the last GET.
+- **Rotation** (timps v1.10.1): the select offers only `caps.rotation` and is
+  hidden without it or when it lists only 0; restart-bound like every
+  `videoN.*` geometry key. The note under the Picture card shows
+  `video[i].rotation_state` (why the stream runs unrotated since the last
+  start) and the POST reply's `errors["videoN.rotation"]` (what the next
+  start will refuse; the value is stored anyway). A POST that touches
+  rotation/width/height/fps/enabled resets that prediction.
+
+### a/timps-errors.js
+
+English text for timps' numeric `/control` codes (`errors`,
+`rotation_state`; timps `src/err_codes.h`, `docs/ai/error-codes.md`).
+`timpsErrors.text(code)` (unknown code -> "error N"), `list(errors)`,
+`known(code)`, `v` = the table version a page can compare with
+`caps.err_v`. timps' `scripts/test_webui_errors.js` fails when a code has
+no text here.
 
 ### a/streamer-osd.js (streamer-overlays.html)
 
