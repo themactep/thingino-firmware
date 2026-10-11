@@ -92,6 +92,13 @@ signal there has ever been, and `rejected>0` does discriminate correctly -
 so use it, but ONLY when the daemon did not tell us. On a current build this
 branch never runs.
 
+timps 1.10.1 adds a per-key `errors` object (`{"image.bogus":102}`) to the
+reply. On an error status `request()` appends it to the Error message
+(`errorsText()`: the `timps-errors.js` text when the page loads it, else
+`key: error N`), so every page that toasts `e.message` names the key and
+why. A 200 with `errors` (a partial refusal) is left to the page; the video
+and day/night pages show it.
+
 ## a/timps-control-bar.js
 
 ### File header: why a plugin script instead of a main.js fork, and why the override is safe
