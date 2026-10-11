@@ -341,10 +341,14 @@ ALIGN_BLOCK := 65536
 # mkfs.jffs2 must pack nodes in the erase block size the kernel's NOR driver
 # reports, or every node crossing the boundary is discarded at mount
 # ("Perhaps the file system was created with the wrong erase size?").
-# Ingenic SFC NOR reports 32 KiB by default; only kernels whose config
-# explicitly selects CONFIG_ERASE_SIZE_64K use 64 KiB.
+# The mainline SPI NOR stack reports the flash's uniform block size; the
+# supported parts use 64 KiB blocks, and 4 KiB sectors are disabled in the
+# 7.1 config because mkfs.jffs2 rejects erase blocks below 8 KiB. The Ingenic
+# vendor trees report 32 KiB unless the config selects CONFIG_ERASE_SIZE_64K.
 KERNEL_CONFIG_FILE := $(BR2_EXTERNAL)/board/ingenic/$(SOC_ARCH)/kernel/$(KERNEL_VERSION)/$(SOC_FAMILY).generic.config
-JFFS2_ERASE_BLOCK := $(shell if grep -q '^CONFIG_ERASE_SIZE_64K=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; else echo 32768; fi)
+JFFS2_ERASE_BLOCK := $(shell \
+	if grep -Eq '^CONFIG_(ERASE_SIZE_64K|MTD_SPI_NOR)=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; \
+	else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
 
 # JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
