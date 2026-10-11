@@ -72,6 +72,8 @@
               msg = "malformed /control request (client bug); nothing was applied";
             else if (reason === "oom" || res.status === 503)
               msg = "the streamer is out of memory; nothing was applied - try again shortly";
+            var et = errorsText(json && json.errors);
+            if (et) msg += " (" + et + ")";
             var err = new Error(msg);
             err.status = res.status;
             err.reason = reason;   // pages that need to branch should use THIS
@@ -82,6 +84,16 @@
         });
       });
     });
+  }
+
+  // POST "errors" (timps 1.10.1+, docs/ai/error-codes.md); text from
+  // timps-errors.js when the page loads it, else the bare code
+  function errorsText(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    var E = window.timpsErrors;
+    return (E ? E.list(errors) : Object.keys(errors).map(function (k) {
+      return k + ": error " + errors[k];
+    })).join("; ");
   }
 
   function flattenInto(out, prefix, v) {
