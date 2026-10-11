@@ -537,6 +537,10 @@ Reproduction / debug recipe that made this visible:
 
 ## SDIO / WiFi (atbm6031) - in progress
 
+Planned conversion work, options and decision points are in
+[docs/dev/cinnado-d1-wifi-roadmap.md](cinnado-d1-wifi-roadmap.md). Summary of
+where it stands:
+
 MSC1 is the SDIO bus for the atbm6031. The bus now comes up on 7.1:
 
 - `t31_chip_info` had no `mmc1` pin groups at all (only `mmc0` on GPB0-5), so
