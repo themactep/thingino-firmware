@@ -1,15 +1,19 @@
 From: Thingino <dev@thingino.com>
 Subject: [PATCH] mmc: jz4740: honour the vendor ingenic,sdio_clk property
 
-The vendor Ingenic trees keep the MMC clock out of low-power mode for
+The vendor Ingenic trees keep the SDMMC clock out of low-power mode for
 SDIO hosts ("the SDIO device's clock can't use Low-Power-Mode") via the
 `ingenic,sdio_clk` DT property; the mainline jz4740_mmc driver ignores it
 and enables LPM whenever the bus clock is above 25 MHz, which can stop the
-SDIO clock and break CMD53 traffic.
+SDIO clock and break CMD53 traffic. The vendor driver also keeps the SD
+clock running across transfers for those hosts (jzmmc_set_ios() writes
+CTRL_CLOCK_START and never LPM_LPM), while jz4740_mmc stops the clock after
+every transfer.
 
-Parse `ingenic,sdio_clk` and skip the LPM setup when it is set. Boards
-that already carry the property (the cinnado_d1 fragment sets it to <1>)
-now get the vendor behaviour.
+Parse `ingenic,sdio_clk`, skip the LPM setup when it is set, and do not
+gate the SD clock between transfers for such hosts. Boards that already
+carry the property (the cinnado_d1 fragment sets it to <1>) get the vendor
+behaviour.
 
 --- a/drivers/mmc/host/jz4740_mmc.c
 +++ b/drivers/mmc/host/jz4740_mmc.c
@@ -24,7 +28,24 @@ now get the vendor behaviour.
  	unsigned long waiting;
  
  	uint32_t cmdat;
-@@ -903,7 +907,7 @@ static int jz4740_mmc_set_clock_rate(struct jz4740_mmc_host *host, int rate)
+@@ -435,6 +439,16 @@ static void jz4740_mmc_clock_disable(struct jz4740_mmc_host *host)
+ 	uint32_t status;
+ 	unsigned int timeout = 1000;
+ 
++	/*
++	 * SDIO cards need a continuously running SD clock (the vendor driver
++	 * writes CTRL_CLOCK_START and never stops it for sdio_clk hosts), so
++	 * do not gate the clock between transfers.
++	 */
++	if (host->sdio_clk) {
++		writew(JZ_MMC_STRPCL_CLOCK_START, host->base + JZ_REG_MMC_STRPCL);
++		return;
++	}
++
+ 	writew(JZ_MMC_STRPCL_CLOCK_STOP, host->base + JZ_REG_MMC_STRPCL);
+ 	do {
+ 		status = readl(host->base + JZ_REG_MMC_STATUS);
+@@ -903,7 +917,7 @@ static int jz4740_mmc_set_clock_rate(struct jz4740_mmc_host *host, int rate)
  
  	writew(div, host->base + JZ_REG_MMC_CLKRT);
  
@@ -33,7 +54,7 @@ now get the vendor behaviour.
  		if (host->version >= JZ_MMC_JZ4780) {
  			writel(JZ_MMC_LPM_DRV_RISING_QTR_PHASE_DLY |
  				   JZ_MMC_LPM_SMP_RISING_QTR_OR_HALF_PHASE_DLY |
-@@ -1061,6 +1065,14 @@ static int jz4740_mmc_probe(struct platform_device *pdev)
+@@ -1061,6 +1075,14 @@ static int jz4740_mmc_probe(struct platform_device *pdev)
  
  	mmc_regulator_get_supply(mmc);
  
