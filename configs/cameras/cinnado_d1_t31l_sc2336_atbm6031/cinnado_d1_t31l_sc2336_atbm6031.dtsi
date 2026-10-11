@@ -34,13 +34,26 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&msc1_pb>;
-	/* Power/enable of the SDIO WLAN (thingino "wlan", GPIO 47) and the
-	   bus pinmux are driven by the userspace wifi init, which then forces a
-	   rescan via the sysfs "present" node, so leave both out of the DT. */
+	vmmc-supply = <&wlan_pwr>;
 	/* SDIO needs the clock kept running (not LPM) or CMD53 transfers time out. */
 	ingenic,sdio_clk = <1>;
 	/* Commands work at 50 MHz but data transfers don't; drop the bus clock. */
 	max-frequency = <25000000>;
+};
+
+/* WLAN power/enable, GPIO 47 (PB15), active high. The kernel must assert it
+   before talking to MMC1, or the SDIO card never answers CMD5 (OCR reads 0). */
+/ {
+	wlan_pwr: wlan-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpb 15 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 /* This board is WiFi-only, but the generic T31 tree enables the MAC, whose

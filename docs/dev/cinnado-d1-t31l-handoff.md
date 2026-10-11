@@ -581,6 +581,25 @@ Next experiment for W0: instrument `mmc_select_voltage()` (or
 decide between widening `ocr_avail`, adding an `mmc-pwrseq`/`regulator-fixed`
 for GPIO 47 on msc1, and a `bus-width = <4>` + timing fixup.
 
+W0 results (all done, still not enumerating):
+- `mmc_select_voltage()` shows `card_ocr=0x00000000 host_ocr_avail=0x00300000`
+  - the card answers nothing to CMD5, so this is not a voltage-window mismatch.
+- The first real bug was the pinmux: the `msc1_pb` group only listed
+  `"mmc1-4bit"`, so only PB11/PB13/PB14 were muxed and PB8-10 (CLK/CMD/DAT0)
+  stayed GPIO. Fixed (patch 0006 now lists `"mmc1-1bit", "mmc1-4bit"`), and
+  debugfs `pinmux-pins` confirms all six pins now belong to `13460000.mmc`.
+- Made the mainline `jz4740_mmc` honour `ingenic,sdio_clk` (patch 0008) so the
+  clock stays out of LPM; `clock:` debug showed `real_rate=187500 lpm=0`.
+- Added a `regulator-fixed` (`wlan_pwr`, GPIO 47/PB15 active high) and wired it
+  as `vmmc-supply` on msc1 in the camera `.dtsi`.
+
+Despite pins + clock + power being correct, CMD5 still returns OCR 0 and the
+card reports `Card stuck being busy`. Remaining hypotheses: pin bias/pull-ups on
+CMD/DAT (mainline `mmc1` groups set no bias), the exact vendor pinmux group
+(`msc1_pb` here vs `msc1_4bit` in the 4.4 node) / func number, a reset sequence
+(vendor `ingenic,sdio-reset`), or a bus-width/clock timing quirk. Needs the
+vendor 4.4 mmc driver/DTS diffed pin-for-pin.
+
 - Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
   `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then

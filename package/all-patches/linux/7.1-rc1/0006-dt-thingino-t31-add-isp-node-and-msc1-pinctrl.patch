@@ -36,6 +36,6 @@ Add:
 +	   for the SDIO WiFi rather than the MAC. */
 +	msc1_pb: msc1-4bit {
 +		function = "mmc1";
-+		groups = "mmc1-4bit";
++		groups = "mmc1-1bit", "mmc1-4bit";
 +	};
  };
