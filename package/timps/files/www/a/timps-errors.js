@@ -1,0 +1,54 @@
+// timps-errors.js - text for the numeric /control error codes (timps src/err_codes.h,
+// docs/ai/error-codes.md): POST "errors" and GET video.N.rotation_state.
+(function () {
+  "use strict";
+
+  var ERR_V = 1;
+
+  function fam() {
+    var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
+      window.thinginoUIConfig.device.soc;
+    var m = soc && String(soc).toLowerCase().match(/^(t\d+|c\d+)/);
+    return m ? m[1] : "";
+  }
+
+  function rotAlign(f) {
+    if (f === "t31") return "width and height must be multiples of 64, e.g. 1280×704 or 640×384";
+    if (f === "t23") return "the height must be a multiple of 16";
+    if (/^t(10|20|21)$/.test(f)) return "width and height must be multiples of 16, e.g. 640×368";
+    return "width and height are not aligned for rotation";
+  }
+
+  var TEXT = {
+    101: "value refused (empty or not allowed)",
+    102: "unknown setting for this streamer build",
+    103: "can only be set in /etc/timps.conf",
+    104: "not supported on this SoC",
+    201: "this rotation is not available on this camera",
+    202: "only the substream can be rotated on this SoC",
+    203: rotAlign,
+    204: function (f) { return "picture too large for rotation (at most " + (f === "t31" ? "1280×704" : "704×576") + ")"; },
+    205: "frame rate too high for rotation (at most 15 fps)",
+    206: "the installed libimp cannot rotate (needs OpenIMP with T1x rotation)",
+    207: "the streamer's libimp refused the rotation at start (see the log)",
+    208: "the height must be at least 256 for rotation",
+  };
+
+  function text(code) {
+    var t = TEXT[code];
+    if (typeof t === "function") t = t(fam());
+    return t || "error " + code;
+  }
+
+  // "errors" object -> ["video1.rotation: …", …]
+  function list(errors) {
+    return Object.keys(errors || {}).map(function (k) { return k + ": " + text(errors[k]); });
+  }
+
+  window.timpsErrors = {
+    v: ERR_V,
+    known: function (code) { return Object.prototype.hasOwnProperty.call(TEXT, code); },
+    text: text,
+    list: list,
+  };
+})();
