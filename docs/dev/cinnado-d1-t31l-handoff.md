@@ -637,7 +637,8 @@ Built (kernel + 64 KiB `data.jffs2`) and flashed via bootrom DFU. Verified on
 the next boot: `/proc/mtd` reports `erasesize 0x10000` on every partition, the
 `jffs2` scan is clean (`0 xdatum / 0 xref`, no "wrong erase size") and the
 overlay mounts (the `tmpfile` / `RENAME_WHITEOUT` lines are benign JFFS2
-limitations).
+limitations). Persistence also confirmed: a file written through the overlay
+before a reboot (`/etc/ovtest`) survived the reboot with a clean re-scan.
 
 The earlier "wedged at ~0.036 s" was **not** the 4 KiB change: the config
 regeneration that came with it dropped the local `keep_bootcon` tweak that had
