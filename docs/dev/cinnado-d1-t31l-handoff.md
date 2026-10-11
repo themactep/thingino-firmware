@@ -649,6 +649,23 @@ still fails). It is the MSC/SDIO clock programming: mirror the vendor's SDIO
 behaviour in `jz4740_mmc` (keep the SD clock running via `CTRL_CLOCK_START`,
 never `LPM_LPM`, and match the `CLKRT`/`MSC1CDR` divisor) and re-test.
 
+**Tried (2026-10-11):** extended patch 0008 so `jz4740_mmc_clock_disable()` does
+not gate the clock for `sdio_clk` hosts (keeps the SD clock running, mirroring
+`jzmmc_set_ios()`). Built, flashed, and the card **still** returns OCR 0 /
+`Card stuck being busy`. So the continuous clock alone is not enough - the
+mainline `jz4740_mmc` still differs from the vendor `jzmmc_v1.2` somewhere in
+the SDIO power-up/reset or CGU clock programming (`MSC1CDR` is still nowhere
+near the vendor's `0x14`).
+
+Open paths, in effort order:
+1. Mirror the vendor's CGU clock programming for `sdio_clk` (set the CGU clock
+   to the target rate like `jzmmc_set_ios()` does, not `f_max` + CLKRT divide)
+   and its `jzmmc_reset()`/`jzmmc_power_on()` sequence.
+2. Set the vendor pin drive strengths (pb08 drive 2, rest drive 1) via pinconf.
+3. Port `jzmmc_v12.c` (source is in the 3.10 patch) onto the mainline mmc core
+   - a real driver port, the fallback if the mainline driver can't drive this
+   SoC's SDIO.
+
 - Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
   `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
