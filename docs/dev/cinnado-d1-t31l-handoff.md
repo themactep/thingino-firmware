@@ -555,16 +555,32 @@ MSC1 is the SDIO bus for the atbm6031. The bus now comes up on 7.1:
 **Still failing:** the SDIO card does not finish initialising -
 `jz4740-mmc 13460000.mmc: no support for card's volts` -> `mmc1: error -22
 whilst initialising SDIO card` -> `mmc1: Card stuck being busy!
-__mmc_poll_for_busy` (repeats). Notes:
-- The mainline `jz4740_mmc` driver parses no DT properties, so the fragment's
-  `ingenic,sdio_clk = <1>` (keep the SDIO clock out of LPM) and `bus-width` are
-  ignored; the vendor driver honoured `ingenic,sdio_clk`.
-- The board powers the WLAN (GPIO 47) and its clock from userspace; per the
-  fragment comment the kernel is expected to fail the first probe and userspace
-  then forces a rescan. But the userspace path is not ready on 7.1:
-  `/etc/init.d/S36wireless` aborts with
-  `line 188: syntax error: unexpected end of file (expecting "fi")`, and the
-  atbm6031 module is not in the image (does not build, below).
+__mmc_poll_for_busy` (repeats). W0 investigation so far:
+- `Card stuck being busy` means the card drives DAT0, so it **is** powered -
+  this is an SDIO OCR/protocol failure, not a missing WLAN power rail.
+  `no support for card's volts` is `mmc_select_voltage()` finding the CMD5
+  OCR with no bits in `host->ocr_avail` (only `MMC_VDD_32_33 | MMC_VDD_33_34`).
+- Re-probing msc1 (`echo 13460000.mmc > .../jz4740-mmc/unbind` then `bind`)
+  reproduces it exactly, so it is not a one-shot init race.
+- The mainline `jz4740_mmc` driver parses **no** DT properties: the fragment's
+  `ingenic,sdio_clk = <1>` and `bus-width` are ignored. LPM only engages above
+  25 MHz (`jz4740_mmc_set_clock_rate`), and `max-frequency = <25000000>` is at
+  the boundary, so LPM is not the cause here.
+- Userspace is not ready to help on 7.x: `/etc/init.d/S36wireless` only powers
+  the WLAN GPIO for `3.10|4.4` (`*)` branch prints "Skipping WLAN GPIO
+  toggling") and it exits with `line 188: syntax error: unexpected end of file`;
+  `/sbin/gpio` uses the **sysfs** GPIO ABI but this kernel exposes no
+  `gpiochipN` nodes (only `export`/`unexport`), so `gpio set 47 1` fails with
+  `Invalid argument`; the `mmc` / `mmc_gpio` helpers are not installed.
+- WLAN power is GPIO 47 active-high (`gpio_default` in the camera `uenv.txt`
+  has `47O`, and `thingino.json` `gpio.wlan` is 47) - U-Boot likely already
+  asserts it.
+
+Next experiment for W0: instrument `mmc_select_voltage()` (or
+`mmc_sdio_init_card`) to print the card's raw CMD5 OCR and `ocr_avail`, then
+decide between widening `ocr_avail`, adding an `mmc-pwrseq`/`regulator-fixed`
+for GPIO 47 on msc1, and a `bus-width = <4>` + timing fixup.
+
 - Multi-issue: (1) port the atbm6031 module build to 7.1, (2) fix the
   `S36wireless` script for 7.1, (3) decide how the WLAN power/clock is driven
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
