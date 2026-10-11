@@ -605,10 +605,55 @@ vendor 4.4 mmc driver/DTS diffed pin-for-pin.
   (userspace vs. a `mmc-pwrseq`/`ingenic,sdio_clk` in the mmc driver), then
   re-check `no support for card's volts` / `Card stuck being busy`.
 
+## Overlay corruption: JFFS2 erase-size mismatch (2026-10-11)
+
+The 7.1 data partition (the overlayfs upperdir, `jffs2` on `/dev/mtdblock5`)
+did not mount cleanly:
+
+```
+jffs2: Node at 0x00000e14 with length 0x000001ef would run over the end of the erase block
+jffs2: Perhaps the file system was created with the wrong erase size?
+jffs2: jffs2_scan_eraseblock(): Magic bitmask 0x1985 not found at 0x00001000: 0x1951 instead
+jffs2: Truncating ino #25 to 7206 bytes failed because it only had 4096 bytes to start with!
+overlayfs: upper fs does not support tmpfile / RENAME_WHITEOUT   <- benign, JFFS2 limitation
+```
+
+Root cause: erase-block mismatch. The mainline SPI NOR stack selects **4 KiB**
+sectors (`CONFIG_MTD_SPI_NOR_USE_4K_SECTORS` defaults to `y`), so
+`mtd->erasesize == 4096`, while the data image is packed with 64 KiB erase
+blocks, so nodes straddle the kernel's 4 KiB scan boundary and are discarded.
+4 KiB is not usable anyway: `mkfs.jffs2` rejects it ("Erase size 0x1000 too
+small. Increasing to 8KiB minimum").
+
+Fix:
+- `board/ingenic/xburst1/kernel/7.1-rc1/t31.generic.config`: disable
+  `CONFIG_MTD_SPI_NOR_USE_4K_SECTORS`. The 25Q64 has uniform 64 KiB blocks, so
+  the driver then reports `erasesize == 65536`.
+- `Makefile` / `Makefile.utils`: `JFFS2_ERASE_BLOCK` is 64 KiB for the mainline
+  SPI NOR stack (and vendor `CONFIG_ERASE_SIZE_64K`), 32 KiB otherwise, and the
+  `mkfs.jffs2` rule now uses it instead of the hardcoded `ALIGN_BLOCK`.
+
+Built (kernel + 64 KiB `data.jffs2`) and flashed via bootrom DFU, but the
+camera **wedged at ~0.036 s**, right after the `ttyS1` console handover
+(`printk: legacy bootconsole [t31_uart0] disabled`); the serial console went
+dead (Enter, Ctrl-Q, serial SysRq all do nothing) and needs a power cycle. This
+is not the 4 KiB change - that only runs at MTD probe (~1 s in) - it looks like
+a bad reset-but-not-power-cycle out of the DFU reboot. Verify on next session.
+
+Next: power-cycle, capture the boot, confirm the `jffs2` scan is clean (no
+"wrong erase size"), `/proc/mtd` reports `erasesize 0x10000`, and the overlay
+mounts.
+
 ## Recovering / reflashing the camera
 
 As of the boot fix the camera comes up on its own (login prompt on the serial
 console), so the normal `make ota` path works again.
+
+On mainline 7.x there is no network (the ATBM6031 is not up), so `make ota` is
+unavailable and DFU is the only path. U-Boot autoboot is keyed: it waits 1 s and
+stops on Ctrl-C (`CONFIG_AUTOBOOT_STOP_STR "\x3"`, prompt `isvp_t31#`). If a
+`screen` already holds `/dev/ttyUSB0` it can be driven from another shell with
+`screen -S <session> -X stuff '...'` and read back with `-X hardcopy <file>`.
 
 For flashing without a booted userspace (e.g. iterating a kernel patch while the
 camera is hung), use `make dfu` - `thingino-dfu` bootstraps the SoC over USB
