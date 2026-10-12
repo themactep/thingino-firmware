@@ -292,7 +292,7 @@
   });
   // wheel over the window zooms around the pointer
   box.addEventListener("wheel", function (ev) {
-    if (cropTier === "unsupported" || !sw || !ev.deltaY || !cropValid()) return;
+    if (cropLocked() || !ev.deltaY || !cropValid()) return;
     ev.preventDefault();
     var rc = box.getBoundingClientRect(), z = sw / crop.w * (ev.deltaY < 0 ? 1.1 : 1 / 1.1);
     z = z >= zmax ? zmax : Math.round(z * 100) / 100;
@@ -303,9 +303,10 @@
 
   function inCrop() { return document.body.getAttribute("data-pane") === "crop"; }
   function pip() { return cropOn && !!sw; }
+  function cropLocked() { return cropTier === "unsupported" || !sw || zmax <= 1.005; }
 
   function cropDragStart(ev, mode) {
-    if (cropTier === "unsupported" || !sw) return;
+    if (cropLocked()) return;
     ev.preventDefault(); ev.stopPropagation();
     if (!cropValid()) cropFromSliders();
     dragging = true;
@@ -333,7 +334,7 @@
     ["x", "y", "w", "h"].forEach(function (k) { $("crop-" + k).value = crop[k]; });
     $("crop-sensor").textContent = sw && sh ? sw + "×" + sh : "unknown";
     if (sw && sh) stage.style.setProperty("--sa", sw + " / " + sh);
-    var cv = sw && cropValid(), dis = cropTier === "unsupported" || !sw, bd = cropBackdrop(pip() && cv, shot);
+    var cv = sw && cropValid(), dis = cropLocked(), bd = cropBackdrop(pip() && cv, shot);
     document.body.classList.toggle("rc-pip", bd !== "none");
     ed.classList.toggle("has", bd === "frame");
     box.style.display = cv ? "" : "none";
@@ -351,7 +352,8 @@
       $("crop-state").textContent = "State: " + state + (state === "failed" ? " (the SoC refused this window)" :
         state === "waiting" ? " (applies when a stream that can show this window is running)" :
         state === "rejected" ? " (smaller than " + fmin[0] + "×" + fmin[1] + ", outside the sensor, or no stream can show it)" : "");
-    Array.prototype.forEach.call(document.querySelectorAll('[data-page-pane="crop"] input'), function (e) { e.disabled = dis; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-page-pane="crop"] input:not(.rc-up)'), function (e) { e.disabled = dis; });
+    if (dis && crop.en && cropTier !== "unsupported") $("crop-en").disabled = false;
   }
 
   // value + Crop / Crop + zoom; the track turns amber above the native threshold
@@ -484,6 +486,30 @@
     if (crop.en && !cropValid()) cropFromSliders();
     sendCrop(true);
   });
+  function upText(p) { return (1 + p / 100).toFixed(1) + "×"; }
+  function renderUp(max) {
+    var w = $("crop-up-w"), t = $("crop-up"), r = $("crop-up-v");
+    if (!w) return;
+    w.hidden = max < 0 || cropTier === "unsupported";
+    if (w.hidden) return;
+    t.disabled = max <= 0;
+    t.checked = upPct > 0;
+    r.max = String(Math.max(10, max));
+    if (upPct > 0) r.value = String(upPct);
+    $("crop-up-r").hidden = !t.checked || max <= 0;
+    $("crop-up-o").textContent = upText(+r.value);
+    $("crop-up-h").textContent = max <= 0 ? "Upscaling is not released for this camera yet." :
+      t.checked ? "Upscaled pictures get soft; the zoom slider reaches further." : "";
+  }
+  function sendUp(p) {
+    api.set({ image: { fcrop_upscale_pct: p } }).then(load, function (e) { toast("danger", "Upscaling update failed: " + (e.message || e)); });
+  }
+  if ($("crop-up")) {
+    $("crop-up").addEventListener("change", function () { sendUp(this.checked ? +$("crop-up-v").value : 0); });
+    $("crop-up-v").addEventListener("input", function () { $("crop-up-o").textContent = upText(+this.value); });
+    $("crop-up-v").addEventListener("change", function () { sendUp(+this.value); });
+  }
+
   ["crop-zoom", "crop-px", "crop-py"].forEach(function (id) {
     $(id).addEventListener("input", function () { cropFromSliders(); crop.en = 1; sendCrop(false); });
     $(id).addEventListener("change", function () { if (!cropLive) sendCrop(true); });
@@ -497,6 +523,16 @@
   });
 
   /* ---------------- load / sync ---------------- */
+
+  function hideTab(name, off) {
+    var t = document.querySelector('[data-page-tab="' + name + '"]');
+    if (!t) return;
+    (t.closest("li") || t).hidden = off;
+    if (off && document.body.getAttribute("data-pane") === name) {
+      var first = document.querySelector('[data-page-tab]:not([data-page-tab="' + name + '"])');
+      if (first) first.click();
+    }
+  }
 
   function load() {
     if (!api) return;
@@ -524,11 +560,14 @@
       renderList(); renderBoxes();
 
       cropTier = fc.tier || "unsupported";
+      hideTab("roi", roiTier === "unsupported");
+      hideTab("crop", cropTier === "unsupported");
       sw = (fc.sensor && fc.sensor[0]) || 0; sh = (fc.sensor && fc.sensor[1]) || 0;
       var mn = fc.min_win;
       fmin = Array.isArray(mn) && mn[0] > 0 && mn[1] > 0 ? [Math.max(FMIN, +mn[0]), Math.max(FMIN, +mn[1])] : [FMIN, FMIN];
       zoomCap = +fc.zoom_max > 0 ? +fc.zoom_max : 8;
       upPct = fc.upscale_pct === undefined ? -1 : +fc.upscale_pct;
+      renderUp(fc.upscale_max === undefined ? -1 : +fc.upscale_max);
       emin = sw && sh ? cropEffMin(sw, sh, fmin, zoomCap) : fmin;
       zmax = sw && sh ? cropZoomMax(sw, sh, emin) : 1;
       zs.max = String(zmax);
@@ -547,7 +586,8 @@
       if (zn) zn.forEach(function (z, i) { if (z) zl.push(i ? "substream" : "main stream"); });
       var zt = !zn || zl.length === zn.length ? "" : !zl.length ? "No stream can show a crop window here." :
         "Only the " + zl.join(" and ") + " shows the crop; the others keep the full picture.";
-      if (sw && zmax <= 1.005) zt = (zt ? zt + " " : "") + "Zoom is not possible with the current stream sizes.";
+      if (sw && zmax <= 1.005) zt = (zt ? zt + " " : "") + "Zoom is not possible with the current stream sizes" +
+        (upPct === 0 ? " (this camera does not upscale)" : "") + ". Set the main stream below " + sw + "×" + sh + " on the Video page to crop.";
       note($("crop-note"), cropTier === "effective" ? "" : cropTier,
         [cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", zt].filter(Boolean).join(" "));
       slidersFromCrop();

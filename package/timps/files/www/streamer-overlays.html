@@ -124,6 +124,14 @@
               <input type="checkbox" id="crop-en" role="switch" class="form-check-input">
               <label for="crop-en" class="form-check-label">Crop enabled</label>
             </div>
+            <div id="crop-up-w" hidden>
+              <div class="form-check form-switch mb-1">
+                <input type="checkbox" id="crop-up" role="switch" class="form-check-input rc-up">
+                <label for="crop-up" class="form-check-label">Allow upscaling</label>
+              </div>
+              <div id="crop-up-r" hidden><label for="crop-up-v">Zoom up to <output id="crop-up-o"></output></label><input type="range" class="form-range rc-up" id="crop-up-v" min="10" max="100" step="10" value="50"></div>
+              <div class="small text-body-secondary mb-3" id="crop-up-h"></div>
+            </div>
             <div class="tv-fields">
               <div class="grid-column-full"><label for="crop-zoom">Zoom <output id="crop-zoom-v"></output></label><input type="range" class="form-range rc-zoom" id="crop-zoom" min="1" max="8" step="any" value="1">
                 <div class="small text-body-secondary" id="crop-zoom-h"></div></div>
