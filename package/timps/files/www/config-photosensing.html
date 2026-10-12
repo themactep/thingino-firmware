@@ -23,7 +23,7 @@
     .dn-scale .tk, .dn-scale .lb { position: absolute; font-size: .7rem; transform: translateX(-50%); white-space: nowrap; }
     .dn-scale .tk { top: 14px; color: var(--bs-secondary-color); }
     .dn-scale .lb { top: -18px; }
-    .dn-next { text-align: right; font-size: .8rem; color: var(--bs-secondary-color); }
+    .dn-next { text-align: right; font-size: .8rem; color: var(--bs-secondary-color); max-width: 22rem; }
     .dn-next b { color: var(--bs-body-color); font-weight: 500; }
     .mt-tile { border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius); padding: .55rem .75rem; }
     .mt-tile .l { font-size: .72rem; color: var(--bs-secondary-color); display: flex; gap: .4rem; align-items: center; }
@@ -124,18 +124,13 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_diagnose_thresholds-false" name="daynight_diagnose_thresholds" value="false">
-                  <input type="checkbox" id="daynight_diagnose_thresholds" name="daynight_diagnose_thresholds" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_diagnose_thresholds" class="form-check-label">Warn when the day threshold looks unreachable</label>
-                </p>
-                <small class="text-secondary">When three probes in a row find night and the scene never came close to the day threshold, log once which value to raise &ldquo;switch to day mode below&rdquo; above.</small>
+                <small class="text-secondary">Both values are the exposure index (256 = 1&times; amplification). At night the camera's own IR light makes the picture look bright, so it switches the light off for a few seconds now and then (a &ldquo;look&rdquo;); if the scene is bright enough without it, it tries the day picture and stays day when that reads below &ldquo;switch to day mode below&rdquo;. A room that stays between the two values keeps its mode: raise the day value for dim but lit rooms.</small>
             </div>
             <div class="tv-card"><h6>Decision source</h6>
                 <p class="mt-3">
                   <label for="daynight_mode" class="form-label">Decided by</label>
                   <select id="daynight_mode" name="daynight_mode" class="form-select">
-                    <option value="auto">Light level (sensor and probes)</option>
+                    <option value="auto">Light level (sensor and looks)</option>
                     <option value="schedule">The calendar alone</option>
                   </select>
                 </p>
@@ -146,7 +141,7 @@
                     <option value="time">Fixed time window</option>
                     <option value="sun">Sunrise / sunset</option>
                   </select>
-                  <small class="text-secondary">The camera stores one calendar, not a choice between two, so picking one clears the other one's values on save. With &ldquo;Light level&rdquo; a calendar is optional - it only sharpens when a forced probe is due.</small>
+                  <small class="text-secondary">The camera stores one calendar, not a choice between two, so picking one clears the other one's values on save. With &ldquo;Light level&rdquo; timps 1.10.1 and later ignore the calendar (1.10.0 used it to time the forced checks).</small>
                 </p>
 
                 <!-- Fixed time window (calendar=time) -->
@@ -204,7 +199,24 @@
             <label class="btn btn-sm btn-outline-warning rounded-pill" for="daynight_controls_white"><i class="bi bi-brightness-high me-1"></i>White light</label>
           </div>
             </div>
-            <div class="tv-card"><h6>Probing <span class="ms-auto small text-body-secondary fw-normal">advanced</span></h6>
+            <div class="tv-card" id="dn-idle-card" hidden><h6>IR light when idle <span id="dn-idle-chip" class="ms-auto badge rounded-pill fw-normal text-wrap text-end">–</span></h6>
+                <p class="form-switch">
+                  <input type="checkbox" id="daynight_ir_idle_off" name="daynight_ir_idle_off" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_ir_idle_off" class="form-check-label">Turn the IR light off at night while nobody watches</label>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_ir_idle_linger_s">Keep it on after the last viewer (s)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_ir_idle_linger_s" name="daynight_ir_idle_linger_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3600" data-step="10">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="small mb-2" id="dn-idle-why"></p>
+                <small class="text-secondary">Streams, snapshots, recording, timelapse and motion detection count as watching, and so does this page's own preview.
+                  With 850 nm LEDs the red glow is visible: when it goes out, anyone in front of the camera can tell that nobody is watching or recording - &ldquo;IR off&rdquo; means &ldquo;nobody is watching&rdquo;.
+                  A new viewer gets the light at once, but the first seconds of video are dark and a snapshot can take up to 5 s longer.</small>
+            </div>
+            <div class="tv-card"><h6>Looks at night <span class="ms-auto small text-body-secondary fw-normal">advanced</span></h6>
                 <p class="number-range">
                   <label for="daynight_day_confirm_s">Confirm before switching to night (s)</label>
                   <span class="input-group">
@@ -212,46 +224,38 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-                <p class="number-range">
-                  <label for="daynight_probe_confirm_s">Confirm brightening before probing (s)</label>
+                <div id="dn-jump-row" hidden>
+                <p class="number-range mb-1">
+                  <label for="daynight_jump_pct">Look at once on new light (%)</label>
                   <span class="input-group">
-                    <input type="text" id="daynight_probe_confirm_s" name="daynight_probe_confirm_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="1" data-max="3600" data-step="1">
+                    <input type="text" id="daynight_jump_pct" name="daynight_jump_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="70" data-step="1">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-                <p class="number-range">
-                  <label for="daynight_probe_min_gap_s">Minimum gap between probes (s)</label>
-                  <span class="input-group">
-                    <input type="text" id="daynight_probe_min_gap_s" name="daynight_probe_min_gap_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="60" data-max="86400" data-step="10">
-                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
-                  </span>
-                </p>
-                <p class="form-switch">
-                  <input type="hidden" id="daynight_boot_probe-false" name="daynight_boot_probe" value="false">
-                  <input type="checkbox" id="daynight_boot_probe" name="daynight_boot_probe" value="true" role="switch" class="form-check-input">
-                  <label for="daynight_boot_probe" class="form-check-label">Probe once at boot</label>
-                </p>
-                <small class="text-secondary">Live: night reference <span id="daynight_night_baseline">-</span>,
-                  probe below <span id="daynight_day_trigger">-</span>.
-                  Fixed internals: probe trigger at <span id="daynight_probe_jump_pct">-</span>% of the night
-                  reference, reference anchored <span id="daynight_ref_delay_s">-</span> s into night,
-                  boot settle <span id="daynight_boot_settle_s">-</span> s.</small>
+                <small class="text-secondary d-block mb-3">How far the IR-lit night level must drop below its value at the last look (for 20 s) to count as new light and start a look. Lower reacts to weaker lamps but looks more often. Otherwise the camera looks every 45 min.</small>
+                </div>
+                <small class="text-secondary d-block mb-2" id="dn-live">Live: -</small>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="dn-look-now" title="Switch the IR light off for a few seconds and read the scene without it"><i class="bi bi-eye me-1"></i>Request a look now</button>
+                  <span class="small text-body-secondary" id="dn-look-res"></span>
+                </div>
             </div>
             <div class="tv-card"><h6>Heartbeat <span class="ms-auto small text-body-secondary fw-normal">safety net</span></h6>
                 <p class="number-range">
-                  <label for="daynight_heartbeat_s">Forced probe, moving scene (s)</label>
+                  <label for="daynight_heartbeat_s">Check interval without switchable IR light (s)</label>
                   <span class="input-group">
                     <input type="text" id="daynight_heartbeat_s" name="daynight_heartbeat_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="300" data-max="604800" data-step="60">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
                 <p class="number-range">
-                  <label for="daynight_heartbeat_max_s">Forced probe, still scene (s)</label>
+                  <label for="daynight_heartbeat_max_s">Longest night without a day check (s)</label>
                   <span class="input-group">
                     <input type="text" id="daynight_heartbeat_max_s" name="daynight_heartbeat_max_s" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="300" data-max="604800" data-step="60">
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
+                <small class="text-secondary d-block mb-3">Cameras whose IR light cannot be switched on its own cannot look; they try the day picture at this interval. After the longest night without a day reading every camera tries the day picture anyway, so it cannot stay stuck in night.</small>
                 <p class="number-range">
                   <label for="daynight_interval_ms">Sample interval (ms)</label>
                   <span class="input-group">
@@ -284,6 +288,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="/a/timps-preview.js"></script>
 <script src="/a/timps-api.js"></script>
+<script src="/a/timps-errors.js"></script>
 <script src="/a/timps-ui.js"></script>
 <script src="/a/config-photosensing.js"></script>
 <script src="/a/tool-sensor-data.js"></script>
