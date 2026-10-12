@@ -275,17 +275,17 @@
     var m = cropMinAt(out, p);
     return pmax > p && m[0] === fmin[0] && m[1] === fmin[1] ? cropMinAt(out, pmax) : fmin;
   }
-  // the upscaling window c needs, rounded up to the slider step; never below p
-  function cropNeedUp(c, out, p, pmax) {
-    if (!(c.w > 0 && c.h > 0)) return p;
+  // the upscaling window c needs, rounded up to the slider step, within 10..pmax
+  function cropNeedUp(c, out, pmax) {
+    if (!(c.w > 0 && c.h > 0)) return Math.min(10, pmax);
     var n = Math.max(Math.floor((out[0] * 100 + c.w - 1) / c.w), Math.floor((out[1] * 100 + c.h - 1) / c.h)) - 100;
-    return n <= p ? p : Math.max(p, Math.min(pmax, Math.ceil(n / 10) * 10));
+    return Math.max(10, Math.min(pmax, Math.ceil(n / 10) * 10));
   }
 
   // in the crop tab #frame has the sensor aspect; cropOn: the preview (stream S) shows the window,
   // so #preview sits inside the box over a backdrop (#crop-ed: the last full frame, cached while crop is off)
   var rv = 0, cropLive = 1, cropOn = false, cropSeq = 0, shot = false, sentAt = 0, savedAt = 0, wheelEnd = null;
-  var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, upMax = -1, upWant = -1, waitPoll = null;
+  var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, upMax = -1, upWant = -1, upOk = false, waitPoll = null;
   var vids = [], fcInfo = {}, zs = $("crop-zoom");
   var ed = document.createElement("canvas");
   ed.id = "crop-ed"; ed.className = "rc-crop";
@@ -440,8 +440,8 @@
   // T23 (caps.fcrop.live 0) applies the window only at start: one POST on release, no live drag stream
   function sendCrop(final) {
     if (crop.en && cropValid() && upAuto()) {
-      var p = cropNeedUp(crop, upOut(), upWant, upMax);
-      if (p > upWant) { upWant = p; $("crop-up-v").value = String(p); $("crop-up-o").textContent = upText(p); }
+      var p = cropNeedUp(crop, upOut(), upMax);
+      if (p !== upWant) { upWant = p; $("crop-up-v").value = String(p); $("crop-up-o").textContent = upText(p); }
     }
     renderCrop();
     if (!cropLive && !final) return;
@@ -449,7 +449,7 @@
     // every merged setDebounced() call resolves; only the newest re-reads the state
     var n = ++cropSeq, body = { image: { fcrop_enable: crop.en ? 1 : 0, fcrop_x: crop.x, fcrop_y: crop.y, fcrop_w: crop.w, fcrop_h: crop.h } };
     // timps writes fcrop_upscale_pct to the driver before it applies the window of the same request
-    if (upWant > upPct && upPct > 0) body.image.fcrop_upscale_pct = upWant;
+    if (upAuto() && upWant !== upPct) body.image.fcrop_upscale_pct = upWant;
     (cropLive ? api.setDebounced(body, 400) : api.set(body))
       .then(function () { return n === cropSeq && cropLive ? api.get() : null; })
       .then(function (j) {
@@ -546,29 +546,31 @@
     $("crop-up-r").hidden = !t.checked || max <= 0;
     $("crop-up-o").textContent = upText(+r.value);
     $("crop-up-h").textContent = max <= 0 ? "Upscaling is not released for this camera yet." :
-      !t.checked ? "" : cropLive ? "Upscaled pictures get soft. Zooming in further raises this as needed." :
+      !t.checked ? "" : cropLive ? "Upscaled pictures get soft. This follows the frame: up when it gets smaller, down when it gets larger." :
       "Upscaled pictures get soft; the zoom slider reaches further.";
   }
   function upAuto() {
     var t = $("crop-up");
-    return !!t && t.checked && cropLive && upPct > 0 && upMax > upPct && cropTier !== "unsupported";
+    return !!t && t.checked && cropLive && upOk && upPct > 0 && upMax > 0 && cropTier !== "unsupported";
   }
   function upOut() {
     var o = [0, 0];
     vids.forEach(function (v) { if (v && v.en) { o[0] = Math.max(o[0], v.w); o[1] = Math.max(o[1], v.h); } });
     return o;
   }
-  // keep: a raised fcrop_upscale_pct not yet confirmed stays
+  // keep: an fcrop_upscale_pct not yet confirmed stays
   function limits(fc, keep) {
     var mn = fc.min_win;
     fmin = Array.isArray(mn) && mn[0] > 0 && mn[1] > 0 ? [Math.max(FMIN, +mn[0]), Math.max(FMIN, +mn[1])] : [FMIN, FMIN];
     zoomCap = +fc.zoom_max > 0 ? +fc.zoom_max : 8;
     upPct = fc.upscale_pct === undefined ? -1 : +fc.upscale_pct;
     upMax = fc.upscale_max === undefined ? -1 : +fc.upscale_max;
-    upWant = keep ? Math.max(upWant, upPct) : upPct;
+    upWant = keep && upWant > 0 ? upWant : upPct;
+    var m = cropMinAt(upOut(), upPct);
+    upOk = !!(sw && sh) && m[0] === fmin[0] && m[1] === fmin[1];
     renderUp();
     emin = sw && sh ? cropEffMin(sw, sh, fmin, zoomCap) : fmin;
-    if (sw && sh && upAuto()) {
+    if (upAuto()) {
       var u = cropUpMin(upOut(), upPct, upMax, fmin);
       emin = [Math.min(emin[0], u[0]), Math.min(emin[1], u[1])];
     }
