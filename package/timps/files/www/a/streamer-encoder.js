@@ -9,6 +9,8 @@
   var stats = null; // last "stats" event
   var videoLive = null;
   var curMode = "";
+  var rotPred = [0, 0]; // per stream: code the next start would refuse the rotation with
+  var ROT_KEYS = ["rotation", "width", "height", "fps", "enabled"];
 
   // form field suffix (id "v-<suffix>") -> timps video.* key + value type
   var FIELD_MAP = {
@@ -29,6 +31,7 @@
     change_pos: { key: "change_pos", type: "int" },
     i_bias_lvl: { key: "i_bias_lvl", type: "int" },
     fluc_lvl: { key: "fluc_lvl", type: "int" },
+    rotation: { key: "rotation", type: "int" },
   };
   var KEY_TO_SUFFIX = {};
   Object.keys(FIELD_MAP).forEach(function (s) { KEY_TO_SUFFIX[FIELD_MAP[s].key] = s; });
@@ -109,6 +112,18 @@
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
+  // "errors" of a POST reply: the rotation prediction goes to the note, the rest to a toast
+  function noteErrors(r, s, key) {
+    var E = window.timpsErrors, errs = (r && r.errors) || {};
+    var rk = "video" + s + ".rotation", rest = {}, n = 0;
+    if (ROT_KEYS.indexOf(key) >= 0) rotPred[s] = errs[rk] || 0;
+    Object.keys(errs).forEach(function (k) { if (k !== rk) { rest[k] = errs[k]; n++; } });
+    if (!E) return;
+    if (errs[rk] && ROT_KEYS.indexOf(key) >= 0)
+      toast("warning", "Saved, but after a restart this stream runs unrotated: " + E.text(errs[rk]) + ".");
+    if (n) toast("warning", E.list(rest).join(". "));
+  }
+
   function post(key, value, busyEl) {
     var inner = {}; inner[key] = value;
     var video = {}; video[idx] = inner;
@@ -118,12 +133,16 @@
       if (s !== idx) return;
       applyCorrections(r);
       verdict(r, key);
+      noteErrors(r, s, key);
       if (last && last.video && last.video[s]) last.video[s][key] = value;
       renderMeta();
+      renderRot();
       if (key === "rc_mode" || key === "codec") rcGate();
       refreshRcHolds();
     }, function (err) {
-      toast("danger", "Failed to save setting: " + (err.message || err));
+      var errs = err && err.result && err.result.errors;
+      toast("danger", "Failed to save setting: " + (errs && window.timpsErrors
+        ? window.timpsErrors.list(errs).join(". ") : (err.message || err)));
     }).then(function () { if (busyEl) busyEl.classList.remove("opacity-75"); });
   }
 
@@ -173,6 +192,31 @@
       });
       box.appendChild(b);
     });
+  }
+
+  // rotation: only the values caps.rotation offers; rotation_state = why it runs unrotated now
+  function renderRot() {
+    var vals = last && last.caps && last.caps.rotation;
+    var on = Array.isArray(vals) && vals.length > 1;
+    var sel = $id("v-rotation"), note = $id("v-rot-state"), E = window.timpsErrors;
+    $id("v-rot-wrap").hidden = !on;
+    if (on && sel.options.length !== vals.length) {
+      sel.innerHTML = "";
+      vals.forEach(function (d) {
+        var o = document.createElement("option");
+        o.value = String(d); o.textContent = d + "°";
+        sel.appendChild(o);
+      });
+      populate("rotation", (last.video && last.video[idx]) || {});
+    }
+    var v = (last && last.video && last.video[idx]) || {}, t = [];
+    var st = Number(v.rotation_state) || 0;
+    if (on && E) {
+      if (st) t.push("Running unrotated: " + E.text(st) + ".");
+      if (rotPred[idx]) t.push("After a restart it will run unrotated: " + E.text(rotPred[idx]) + ".");
+    }
+    note.textContent = t.join(" ");
+    note.hidden = !t.length;
   }
 
   function renderBadges() {
@@ -290,7 +334,7 @@
     curMode = String(video.rc_mode || "").toUpperCase();
     var au = $id("v-audio_enabled");
     if (last.audio && last.audio.enabled !== undefined) au.checked = !!Number(last.audio.enabled);
-    renderModes(); renderMeta(); rcGate(); refreshRcHolds();
+    renderModes(); renderMeta(); rcGate(); renderRot(); refreshRcHolds();
   }
 
   function setDisabled(off) {
@@ -315,6 +359,7 @@
     if (!window.timpsApi) { offlineNotice(true); setDisabled(true); return; }
     window.timpsApi.get().then(function (json) {
       last = json;
+      rotPred = [0, 0];
       videoLive = (json.caps && json.caps.video_live) || [];
       renderBadges();
       setDisabled(false);

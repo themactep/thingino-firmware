@@ -92,6 +92,13 @@ signal there has ever been, and `rejected>0` does discriminate correctly -
 so use it, but ONLY when the daemon did not tell us. On a current build this
 branch never runs.
 
+timps 1.10.1 adds a per-key `errors` object (`{"image.bogus":102}`) to the
+reply. On an error status `request()` appends it to the Error message
+(`errorsText()`: the `timps-errors.js` text when the page loads it, else
+`key: error N`), so every page that toasts `e.message` names the key and
+why. A 200 with `errors` (a partial refusal) is left to the page; the video
+and day/night pages show it.
+
 ## a/timps-control-bar.js
 
 ### File header: why a plugin script instead of a main.js fork, and why the override is safe
@@ -218,6 +225,22 @@ shows both streams behind tabs; `a/timps-ui.js` holds what they share.
 - Live chips (kbit/s, fps, subscribers, clients) from the `stats` SSE, the
   same feed as the preview page's stats card.
 - "Compare streams" renders both streams side by side from the last GET.
+- **Rotation** (timps v1.10.1): the select offers only `caps.rotation` and is
+  hidden without it or when it lists only 0; restart-bound like every
+  `videoN.*` geometry key. The note under the Picture card shows
+  `video[i].rotation_state` (why the stream runs unrotated since the last
+  start) and the POST reply's `errors["videoN.rotation"]` (what the next
+  start will refuse; the value is stored anyway). A POST that touches
+  rotation/width/height/fps/enabled resets that prediction.
+
+### a/timps-errors.js
+
+English text for timps' numeric `/control` codes (`errors`,
+`rotation_state`; timps `src/err_codes.h`, `docs/ai/error-codes.md`).
+`timpsErrors.text(code)` (unknown code -> "error N"), `list(errors)`,
+`known(code)`, `v` = the table version a page can compare with
+`caps.err_v`. timps' `scripts/test_webui_errors.js` fails when a code has
+no text here.
 
 ### a/streamer-osd.js (streamer-overlays.html)
 
@@ -378,16 +401,18 @@ instead.
 Full field map (all follow "daynight_\<key\>" -> "daynight.\<key\>", see
 `fillTimps()`/`collectTimps()`): `daynight_enabled`,
 `daynight_total_gain_night_threshold`, `daynight_total_gain_day_threshold`,
-`daynight_day_confirm_s`, `daynight_probe_confirm_s`,
-`daynight_probe_min_gap_s`, `daynight_heartbeat_s`/`_max_s`,
-`daynight_interval_ms`, `daynight_boot_probe`,
-`daynight_diagnose_thresholds`, `daynight_mode` (auto/schedule),
-`daynight_time_night_start`/`day_start`, `daynight_sun_latitude`/
-`longitude`, `daynight_sun_sunrise`/`sunset_offset_min`. Read-only:
-`daynight_night_baseline`/`daynight_day_trigger` (the adaptive trigger in
-effect), `daynight_sun_computed_sunrise`/`_sunset`, and the
-`probe_jump_pct`/`ref_delay_s`/`boot_settle_s` values that became fixed
-constants in the 2026-08-22 consolidation.
+`daynight_day_confirm_s`, `daynight_jump_pct` (timps 1.10.1+),
+`daynight_heartbeat_s`/`_max_s`, `daynight_interval_ms`, `daynight_mode`
+(auto/schedule), `daynight_time_night_start`/`day_start`,
+`daynight_sun_latitude`/`longitude`, `daynight_sun_sunrise`/`sunset_offset_min`.
+Read-only: the `#dn-live` line (`night_baseline`/`day_trigger`) and
+`daynight_sun_computed_sunrise`/`_sunset`.
+
+An integer field is POSTed only when the loaded status object reported it
+(`reported`), so a 1.10.0 daemon never gets `jump_pct` and the
+`#dn-jump-row` stays hidden there. 1.10.1 retired `probe_min_gap_s`,
+`probe_confirm_s`, `boot_probe` and `diagnose_thresholds` (parsed from the
+file and ignored); the page no longer shows or sends them, also not to 1.10.0.
 
 The old "Time Schedule" column that also lived on
 `/x/json-config-daynight.cgi` was dead, orphaned config that nothing read -
@@ -408,12 +433,57 @@ location the user just typed in and the save still reports success.
 Both plot the exposure index (`exposure`, what the decision runs on; falls
 back to `total_gain` on an older timps), and the scale depends on the mode.
 Day: the two thresholds (day below / hysteresis / night above). Night: the
-IR light keeps the exposure low, so the day thresholds say nothing there;
-the scale is the probe bar `day_trigger` (yellow "probe day" below it, blue
-"Night" above) with the night reference `night_baseline` as a tick, capped at
-2.5x the reference so the ticks stay readable on a phone. Before the
-reference exists (`day_trigger` -1) the bar is plain blue and the marker
-dimmed.
+IR light keeps the exposure low, so the day thresholds say nothing there.
+What the night scale shows (`nightScale()`; the preview tile has the same
+branches inline):
+
+* timps 1.10.1 (status has `jump_pct`): `night_baseline` is the IR-lit level
+  at the last look and `day_trigger` the bar the reading WITHOUT IR must fall
+  below (`day_gain` or a scene bar after a failed check). The scale shows the
+  lit level against the jump bar `night_baseline × (1 - jump_pct/100)`
+  (yellow "new light": a look within 20 s). While idle-dark
+  (`ir_idle.dark`) the reading is without IR, so it is drawn against
+  `day_trigger` instead. With `ir_idle.reason = "no_illuminator"` the bar is
+  50 % (such cameras check instead of looking).
+* timps 1.10.0: `day_trigger` is a probe bar on the lit level and
+  `night_baseline` the night reference.
+
+The reference tick is left out when it would sit on the bar's tick. Before
+the level exists (-1) the bar is plain blue and the marker dimmed. timps
+publishes both numbers in day too (1.10.1); they are only shown at night.
+
+"Request a look now" POSTs `{"daynight":{"probe":1}}`: 200 = armed for the
+next tick, 409 = refused (no `daynight.irprobe_cmd`, or the illuminator was
+retired after two failures). Enabled only at night in auto mode; by day the
+request is dropped by timps.
+
+### Idle-Dark card (`daynight.ir_idle_off`, "IR light when idle")
+
+Switch `daynight_ir_idle_off`, field `daynight_ir_idle_linger_s` (0..3600)
+and a chip from the status object `daynight.ir_idle` (`cfg`, `available`,
+`reason`, `dark`, `watched`, `linger_left_s`). Only timps reaches this page
+(timps.mk installs it over thingino-daynightd's), and the card stays hidden
+unless the status carries `ir_idle`: an older timps neither shows it nor gets
+the two keys POSTed (it would count them as rejected). `caps.daynight.ir_idle
+= 0` (no FrameSource keepalive on this start) hides it too, except while the
+key is on, so the chip can say "no keepalive" and the switch can turn it off.
+
+The "IR off (idle)" text depends on the engine: 1.10.1 keeps reading the
+scene without the LED and checks the day picture after 30 s below
+`day_trigger`; 1.10.0 went to day at the first viewer instead.
+
+`idleView()` is pure (status, caps, age in s → chip text, colour, the
+explanation line incl. the fix per `reason`) and is tested on the host by
+timps's `scripts/test_webui_idle.js`, which extracts it by name - keep the
+name and keep it free of DOM access. `/events` pushes `daynight` only when
+`available`/`dark`/`reason` change (and on brightness/gain moves), so the
+linger countdown runs locally from the last status's `linger_left_s`.
+
+The page's own MJPEG preview (`#preview`, ch1) runs even on the Settings tab
+and is a picture consumer, so while the page is open the chip normally reads
+"IR on · watched"; "IR off (idle)" appears only after the preview stopped
+(browser tab hidden, `track_focus`) and the linger ran out, or in
+`GET /control` from elsewhere.
 
 ## a/preview-motion.js
 
@@ -478,6 +548,68 @@ controls dead, leaving a page that looks fine yet cannot add or switch
 masks until the user reloads by hand. `#pm-reload` had the same problem -
 it was not disabled, so it re-ran `load()`, appeared to work, and still
 left a dead editor.
+
+## a/roi-crop.js
+
+The "ROI" and "Crop / zoom" tabs of streamer-overlays.html (timps encoder ROI
+`roi<S>.<N>.*` and ISP FrontCrop `image.fcrop_*`). Both read their tier from
+`caps.roi` / `caps.fcrop`: `effective` shows no warning, `experimental` a
+warning that the effect is unverified on this SoC, `unsupported` disables the
+controls. ROI boxes are drawn over `#preview` in stream pixels and snap to
+16 px macroblocks while dragging, so the box is what the encoder gets; the
+"both streams" switch is hidden on both tabs (no mirroring). The crop tab works
+in sensor pixels from `caps.fcrop.sensor`: zoom/pan sliders keep the sensor
+aspect ratio. The smallest window is `caps.fcrop.min_win` per axis (64x64
+when absent), the zoom slider (`step="any"`) runs from 1 to exactly the zoom
+of the smallest window (`cropEffMin`/`cropZoomMax`: min_win, tightened by
+`zoom_max` only when clearly lower; 8 without caps), and
+`caps.fcrop.zoomable` names the streams that show the crop in the note. ROI QP
+fields use `caps.roi.qp_delta`/`qp_abs` (and show `qp_delta_eff` when it is
+narrower). After each (debounced) POST it re-reads `caps.fcrop.state` and
+shows it; `waiting` is re-read every 3 s (10 times at most) because the switch
+to `on` at a stream start sends no config event.
+
+Zoom slider: `cropNative` is the zoom at which the window reaches the size of
+the largest enabled stream that shows the crop. Up to it the label says
+"Crop", above it "Crop + zoom, upscaled N× on stream i" (amber, from
+`cropScale` of the real window); the track is grey up to a white mark at that
+point and amber after it (`--nat` fraction on `.rc-zoom`). Without an amber
+part `#crop-zoom-h` says "Crop only (this camera does not upscale)"
+(`upscale_pct` 0) or "no upscaling at these stream sizes".
+
+Crop interaction model: FrontCrop is ISP-wide before the scaler, so once a
+crop is applied `#preview` shows only the window. In the crop tab `#frame`
+(`.rc-sens`) takes the sensor aspect (`--sa`) and stands for the whole sensor.
+Crop off (or the preview stream does not show the crop: `state` not `on`, or
+`caps.fcrop.zoomed[S]` 0): the live picture fills it and the crop window is
+the draggable box (`.rc-box.rc-crop`, body = pan, corner = zoom, pointer
+events, `cropDragView`). Crop on (`body.rc-pip`): `#preview` is placed at the
+window (`--cl/--ct/--cw/--ch` from `cropPct`) under the same box, so dragging
+the box moves the live cut-out; the rest is a dimmed backdrop picked by
+`cropBackdrop`: `#crop-ed`, the last full frame, or a grid. The frame is
+grabbed every 1.5 s while crop is off (not within 3 s of a POST) and stored in
+localStorage (`timps-crop-full:<host>:<sensor>`, 640 px JPEG 0.7) every 10 s;
+`#preview` is cross-origin (timps port) and taints a canvas, so the stored
+copy then comes from a CORS GET of `/snapshot.jpg` of stream S. The page
+never POSTs to get a frame. The wheel over the box zooms around the pointer
+(`cropZoomAt`, 1.1x per notch, clamped to the slider range, debounced like a
+drag; one POST 0.5 s after the last notch on start-only cameras). A click on
+the live picture outside the box opens the preview modal as on the other
+tabs. `#crop-scale` lists every enabled
+`video.<n>` with `cropScale` (stream size / window): "not zoomed" when
+`zoomed` (state on) or `zoomable` says the stream keeps the full frame, amber
+above 1x. Corner drag keeps the sensor aspect
+like the zoom slider; dragging the box never toggles the switch (place it with
+crop off, then enable), the sliders still switch it on as before. All edits go
+through the pure `cropFit`/`cropDrag`/`cropFromZoom`/`zoomFromCrop`/`cropPct`/
+`cropScale`/`cropEffMin`/`cropZoomMax`/`cropNative`/`cropDragView`/`cropZoomAt`/`cropBackdrop`
+(even values, >= min_win, inside the sensor; `fmin` is a number or [w, h])
+and one four-key POST; timps's
+`scripts/test_webui_crop.js` extracts them by name - keep them DOM-free.
+`caps.fcrop.live` 0 (T23, start-only) shows "Applies after restarting timps",
+sends nothing while dragging and one plain POST on release (slider `change`,
+`pointerup`), then shows "saved, applies after restart" since `state` cannot
+change before the restart.
 
 ## a/streamer-image.js (streamer-image.html)
 
