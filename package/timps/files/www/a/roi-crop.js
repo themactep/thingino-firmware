@@ -477,7 +477,7 @@
       i.src = d;
     } catch (e) {}
   }
-  function snap() {
+  function grabStill() {
     if (typeof timpsMediaUrl !== "function") return Promise.reject(new Error("no media url"));
     return fetch(timpsMediaUrl("still", S) + "&_=" + Date.now(), { cache: "no-store" }).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -494,7 +494,7 @@
   function fresh() { return !cropOn && Date.now() - sentAt >= 3000; }
   function persist() {
     savedAt = Date.now();
-    if (!store(img)) snap().then(function (i) { if (fresh()) store(i); }, function () {});
+    if (!store(img)) grabStill().then(function (i) { if (fresh()) store(i); }, function () {});
   }
   // skipped right after a POST: the stream may already be cropped
   function grab() {
