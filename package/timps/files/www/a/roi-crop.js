@@ -265,11 +265,27 @@
     sizes.forEach(function (s) { z = Math.min(z, sw / s[0], sh / s[1]); });
     return Math.max(1, z);
   }
+  // timps fcrop_min_msca: window * (100 + p) >= out * 100 per axis, out = the largest enabled stream
+  function cropMinAt(out, p) {
+    p = Math.max(0, p);
+    return out.map(function (o) { var v = Math.floor((o * 100 + 99 + p) / (100 + p)); return Math.max(64, v + (v & 1)); });
+  }
+  // the smallest window at pmax, only while out reproduces caps.fcrop.min_win at p
+  function cropUpMin(out, p, pmax, fmin) {
+    var m = cropMinAt(out, p);
+    return pmax > p && m[0] === fmin[0] && m[1] === fmin[1] ? cropMinAt(out, pmax) : fmin;
+  }
+  // the upscaling window c needs, rounded up to the slider step; never below p
+  function cropNeedUp(c, out, p, pmax) {
+    if (!(c.w > 0 && c.h > 0)) return p;
+    var n = Math.max(Math.floor((out[0] * 100 + c.w - 1) / c.w), Math.floor((out[1] * 100 + c.h - 1) / c.h)) - 100;
+    return n <= p ? p : Math.max(p, Math.min(pmax, Math.ceil(n / 10) * 10));
+  }
 
   // in the crop tab #frame has the sensor aspect; cropOn: the preview (stream S) shows the window,
   // so #preview sits inside the box over a backdrop (#crop-ed: the last full frame, cached while crop is off)
   var rv = 0, cropLive = 1, cropOn = false, cropSeq = 0, shot = false, sentAt = 0, savedAt = 0, wheelEnd = null;
-  var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, waitPoll = null;
+  var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, upMax = -1, upWant = -1, waitPoll = null;
   var vids = [], fcInfo = {}, zs = $("crop-zoom");
   var ed = document.createElement("canvas");
   ed.id = "crop-ed"; ed.className = "rc-crop";
@@ -423,17 +439,24 @@
 
   // T23 (caps.fcrop.live 0) applies the window only at start: one POST on release, no live drag stream
   function sendCrop(final) {
+    if (crop.en && cropValid() && upAuto()) {
+      var p = cropNeedUp(crop, upOut(), upWant, upMax);
+      if (p > upWant) { upWant = p; $("crop-up-v").value = String(p); $("crop-up-o").textContent = upText(p); }
+    }
     renderCrop();
     if (!cropLive && !final) return;
     sentAt = Date.now();
     // every merged setDebounced() call resolves; only the newest re-reads the state
     var n = ++cropSeq, body = { image: { fcrop_enable: crop.en ? 1 : 0, fcrop_x: crop.x, fcrop_y: crop.y, fcrop_w: crop.w, fcrop_h: crop.h } };
+    // timps writes fcrop_upscale_pct to the driver before it applies the window of the same request
+    if (upWant > upPct && upPct > 0) body.image.fcrop_upscale_pct = upWant;
     (cropLive ? api.setDebounced(body, 400) : api.set(body))
       .then(function () { return n === cropSeq && cropLive ? api.get() : null; })
       .then(function (j) {
         if (n !== cropSeq) return;
         if (!j) { renderCrop("saved, applies after restart"); return; }
         var fc = (j.caps && j.caps.fcrop) || {};
+        if (fc.upscale_pct !== undefined && +fc.upscale_pct !== upPct) limits(fc, true);
         takeFc(fc); renderCrop(fc.state || ""); watchWaiting(fc.state);
       }, function (e) { if (n === cropSeq) toast("danger", "Crop update failed: " + (e.message || e)); });
   }
@@ -511,19 +534,46 @@
     sendCrop(true);
   });
   function upText(p) { return (1 + p / 100).toFixed(1) + "×"; }
-  function renderUp(max) {
-    var w = $("crop-up-w"), t = $("crop-up"), r = $("crop-up-v");
+  function renderUp() {
+    var w = $("crop-up-w"), t = $("crop-up"), r = $("crop-up-v"), max = upMax;
     if (!w) return;
     w.hidden = max < 0 || cropTier === "unsupported";
     if (w.hidden) return;
     t.disabled = max <= 0;
     t.checked = upPct > 0;
     r.max = String(Math.max(10, max));
-    if (upPct > 0) r.value = String(upPct);
+    if (upWant > 0) r.value = String(upWant);
     $("crop-up-r").hidden = !t.checked || max <= 0;
     $("crop-up-o").textContent = upText(+r.value);
     $("crop-up-h").textContent = max <= 0 ? "Upscaling is not released for this camera yet." :
-      t.checked ? "Upscaled pictures get soft; the zoom slider reaches further." : "";
+      !t.checked ? "" : cropLive ? "Upscaled pictures get soft. Zooming in further raises this as needed." :
+      "Upscaled pictures get soft; the zoom slider reaches further.";
+  }
+  function upAuto() {
+    var t = $("crop-up");
+    return !!t && t.checked && cropLive && upPct > 0 && upMax > upPct && cropTier !== "unsupported";
+  }
+  function upOut() {
+    var o = [0, 0];
+    vids.forEach(function (v) { if (v && v.en) { o[0] = Math.max(o[0], v.w); o[1] = Math.max(o[1], v.h); } });
+    return o;
+  }
+  // keep: a raised fcrop_upscale_pct not yet confirmed stays
+  function limits(fc, keep) {
+    var mn = fc.min_win;
+    fmin = Array.isArray(mn) && mn[0] > 0 && mn[1] > 0 ? [Math.max(FMIN, +mn[0]), Math.max(FMIN, +mn[1])] : [FMIN, FMIN];
+    zoomCap = +fc.zoom_max > 0 ? +fc.zoom_max : 8;
+    upPct = fc.upscale_pct === undefined ? -1 : +fc.upscale_pct;
+    upMax = fc.upscale_max === undefined ? -1 : +fc.upscale_max;
+    upWant = keep ? Math.max(upWant, upPct) : upPct;
+    renderUp();
+    emin = sw && sh ? cropEffMin(sw, sh, fmin, zoomCap) : fmin;
+    if (sw && sh && upAuto()) {
+      var u = cropUpMin(upOut(), upPct, upMax, fmin);
+      emin = [Math.min(emin[0], u[0]), Math.min(emin[1], u[1])];
+    }
+    zmax = sw && sh ? cropZoomMax(sw, sh, emin) : 1;
+    zs.max = String(zmax);
   }
   function sendUp(p) {
     api.set({ image: { fcrop_upscale_pct: p } }).then(load, function (e) { toast("danger", "Upscaling update failed: " + (e.message || e)); });
@@ -590,22 +640,16 @@
       hideTab("roi", roiTier === "unsupported");
       hideTab("crop", cropTier === "unsupported");
       sw = (fc.sensor && fc.sensor[0]) || 0; sh = (fc.sensor && fc.sensor[1]) || 0;
-      var mn = fc.min_win;
-      fmin = Array.isArray(mn) && mn[0] > 0 && mn[1] > 0 ? [Math.max(FMIN, +mn[0]), Math.max(FMIN, +mn[1])] : [FMIN, FMIN];
-      zoomCap = +fc.zoom_max > 0 ? +fc.zoom_max : 8;
-      upPct = fc.upscale_pct === undefined ? -1 : +fc.upscale_pct;
-      renderUp(fc.upscale_max === undefined ? -1 : +fc.upscale_max);
-      emin = sw && sh ? cropEffMin(sw, sh, fmin, zoomCap) : fmin;
-      zmax = sw && sh ? cropZoomMax(sw, sh, emin) : 1;
-      zs.max = String(zmax);
-      var im = j.image || {};
-      crop = { en: +im.fcrop_enable || 0, x: +im.fcrop_x || 0, y: +im.fcrop_y || 0, w: +im.fcrop_w || 0, h: +im.fcrop_h || 0 };
-      cropLive = fc.live === undefined ? 1 : +fc.live; takeFc(fc);
+      cropLive = fc.live === undefined ? 1 : +fc.live;
       vids = [];
       for (var i = 0; i < 4; i++) {
         var vi = j.video && (j.video[i] || j.video[String(i)]);
         if (vi && vi.width > 0 && vi.height > 0) vids[i] = { en: vi.enabled === undefined ? 1 : +vi.enabled, w: +vi.width, h: +vi.height };
       }
+      limits(fc, false);
+      var im = j.image || {};
+      crop = { en: +im.fcrop_enable || 0, x: +im.fcrop_x || 0, y: +im.fcrop_y || 0, w: +im.fcrop_w || 0, h: +im.fcrop_h || 0 };
+      takeFc(fc);
       $("crop-tier").textContent = cropTier;
       $("crop-live").textContent = cropLive ? "live" : "restart";
       $("crop-live").className = "tv-badge " + (cropLive ? "live" : "rst");
