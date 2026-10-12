@@ -62,7 +62,7 @@
       var o = 1 - streamIdx;
       var fx = otherW / streamW, fy = otherH / streamH;
       var mr = { x: r.x * fx, y: r.y * fy, w: r.w * fx, h: r.h * fy };
-      clampRegionTo(mr, otherW, otherH);
+      if (r.w > 0 && r.h > 0) clampRegionTo(mr, otherW, otherH);
       payload[o] = {};
       payload[o][n] = {
         enabled: r.enabled ? 1 : 0,
@@ -286,7 +286,7 @@
     if (alEl) alEl.addEventListener("change", colorChanged);
     var del = document.getElementById("pm-del-" + n);
     if (del) del.addEventListener("click", function () {
-      r.enabled = 0; delete shown[n]; if (selected === n) selected = -1;
+      r.enabled = 0; r.x = r.y = r.w = r.h = 0; delete shown[n]; if (selected === n) selected = -1;
       send(n); render();
     });
     ["x", "y", "w", "h"].forEach(function (k) {

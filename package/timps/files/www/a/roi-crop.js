@@ -176,7 +176,7 @@
       r.qp = Math.max(q[0], Math.min(q[1], v)); sendRoi(n); renderList(); renderBoxes();
     });
     $("roi-del-" + n).addEventListener("click", function () {
-      r.enabled = 0; delete shown[n]; sel = -1; sendRoi(n); renderList(); renderBoxes();
+      r.enabled = 0; r.x = r.y = r.w = r.h = 0; delete shown[n]; sel = -1; sendRoi(n); renderList(); renderBoxes();
     });
   }
 
