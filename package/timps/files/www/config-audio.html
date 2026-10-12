@@ -31,7 +31,7 @@
             <button type="button" class="btn btn-outline-secondary" id="audio-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
-          </div><!-- .card-header -->
+          </div>
           <div class="card-body">
             <h4>Microphone</h4>
             <small>Parameters of the sound coming from the camera</small>
@@ -61,7 +61,7 @@
                     <option value="">- Select -</option>
                   </select>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <p class="number-range">
                   <label for="audio_mic_vol">Mic volume</label>
@@ -86,7 +86,7 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <p class="number-range">
                   <label for="audio_mic_noise_suppression">Noise suppression</label>
@@ -109,7 +109,7 @@
                     <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
                   </span>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <p class="form-switch">
                   <input type="hidden" id="audio_mic_agc_enabled-false" name="audio_mic_agc_enabled" value="false">
@@ -126,8 +126,8 @@
                   <input type="checkbox" id="audio_force_stereo" name="audio_force_stereo" value="true" role="switch" class="form-check-input">
                   <label for="audio_force_stereo" class="form-check-label">Force stereo</label>
                 </p>
-              </div><!-- .col -->
-            </div><!-- .row -->
+              </div>
+            </div>
 
             <h4>Speaker</h4>
             <small>Parameters of the sound played on the camera speaker</small>
@@ -152,10 +152,8 @@
                   <option value="">- Select -</option>
                 </select>
               </p>
-            </div><!-- .row -->
+            </div>
 
-            <!-- test-sound control: shown by config-audio.js only when the
-                 play queue is compiled in (caps.play.available) -->
             <div class="row row-cols-1 row-cols-md-2 mb-1 d-none" id="spk-test-wrap">
               <p class="col select">
                 <label for="audio_spk_test_sound">Test sound</label>
@@ -171,15 +169,15 @@
                   <i class="bi bi-stop-fill me-1"></i> Stop
                 </button>
               </p>
-            </div><!-- #spk-test-wrap -->
-          </div><!-- .card-body -->
-        </div><!-- .card -->
+            </div>
+          </div>
+        </div>
 
         <div class="card mb-3" id="backchannel-card">
           <div class="card-header">
             <h2 class="tv-ct">ONVIF Audio Backchannel</h2>
             <small>Two-way audio: an ONVIF client sends audio to the camera over RTSP, played out natively through the camera speaker (IMP_AO). Changes apply after a streamer restart.</small>
-          </div><!-- .card-header -->
+          </div>
           <div class="card-body">
             <div class="row row-cols-1 row-cols-md-3 mb-3">
               <div class="col">
@@ -188,7 +186,7 @@
                   <input type="checkbox" id="audio_backchannel_enabled" name="audio_backchannel_enabled" value="true" role="switch" class="form-check-input">
                   <label for="audio_backchannel_enabled" class="form-check-label">Enable backchannel</label>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <p class="select" id="audio_backchannel_codec_wrap">
                   <label for="audio_backchannel_codec">Codec</label>
@@ -199,7 +197,7 @@
                     <option value="AAC">AAC</option>
                   </select>
                 </p>
-              </div><!-- .col -->
+              </div>
               <div class="col">
                 <p class="select" id="audio_backchannel_rate_wrap">
                   <label for="audio_backchannel_rate">Speaker sampling, Hz</label>
@@ -207,10 +205,10 @@
                     <option value="">- Select -</option>
                   </select>
                 </p>
-              </div><!-- .col -->
-            </div><!-- .row -->
-          </div><!-- .card-body -->
-        </div><!-- .card -->
+              </div>
+            </div>
+          </div>
+        </div>
 
         <button type="button" id="save-prudynt-config" class="btn btn-primary">
           <i class="bi bi-floppy me-1"></i> Save configuration to file

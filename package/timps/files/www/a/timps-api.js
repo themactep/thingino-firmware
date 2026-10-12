@@ -2,9 +2,9 @@
   "use strict";
 
   var DEFAULT_PORT = 8880;
-  var info = null; // cached {token, port} from /x/timps-token.cgi
-  var infoPending = null; // in-flight token fetch (dedup)
-  var controlCache = null; // last successful GET /control JSON (for caps())
+  var info = null;
+  var infoPending = null;
+  var controlCache = null;
 
   function fetchInfo(force) {
     if (info && !force) return Promise.resolve(info);
@@ -26,7 +26,6 @@
     return infoPending;
   }
 
-  // http.https is a tri-state; timps-token.cgi reports it as "scheme".
   function schemeOf(i) {
     if (!i) return "http";
     if (i.scheme === "both") {
@@ -38,7 +37,7 @@
 
   function base() {
     var host = window.location.hostname || "127.0.0.1";
-    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]"; // IPv6
+    if (host.indexOf(":") >= 0 && host.charAt(0) !== "[") host = "[" + host + "]";
     return schemeOf(info) + "://" + host + ":" + (info ? info.port : DEFAULT_PORT);
   }
 
@@ -59,8 +58,6 @@
         return res.json().catch(function () { return {}; }).then(function (json) {
           if (!res.ok) {
             var reason = json && typeof json.reason === "string" ? json.reason : "";
-            // Pre-split daemons answer 422 to both failures with no "reason";
-            // fall back to the counters only then (never on a current build).
             if (!reason && res.status === 422)
               reason = json.rejected > 0 ? "values_rejected" : "unknown_fields";
             var msg = "timps /control HTTP " + res.status;
@@ -76,7 +73,7 @@
             if (et) msg += " (" + et + ")";
             var err = new Error(msg);
             err.status = res.status;
-            err.reason = reason;   // pages that need to branch should use THIS
+            err.reason = reason;
             err.result = json;
             throw err;
           }
@@ -86,8 +83,6 @@
     });
   }
 
-  // POST "errors" (timps 1.10.1+, docs/ai/error-codes.md); text from
-  // timps-errors.js when the page loads it, else the bare code
   function errorsText(errors) {
     if (!errors || typeof errors !== "object") return "";
     var E = window.timpsErrors;
@@ -118,7 +113,6 @@
     return out;
   }
 
-  // entries of result.applied whose EFFECTIVE (post-clamp) value differs from what this POST sent.
   function computeCorrections(body, result) {
     if (!result || !result.applied) return null;
     var sent = flattenBody(body);
@@ -141,7 +135,6 @@
     return r.corrections;
   }
 
-  // shared wording for a corrections map.
   function correctionsText(corr) {
     return Object.keys(corr).map(function (k) {
       return k.split(".").pop().replace(/_/g, " ") +
@@ -163,7 +156,6 @@
     });
   }
 
-  // merge rapid set() calls (slider drags) into one POST per quiet period.
   var debounceBuf = null, debounceTimer = null, debounceWaiters = [];
   function setDebounced(obj, ms) {
     if (!debounceBuf) debounceBuf = {};
@@ -193,7 +185,6 @@
     });
   }
 
-  // caps object from a cached GET /control (fetches once when not cached)
   function caps() {
     if (controlCache && controlCache.caps)
       return Promise.resolve(controlCache.caps);
@@ -204,7 +195,6 @@
     return request("GET", undefined, false, "?stats=1");
   }
 
-  // who streams what: [{ip, port, proto, chn, since_s, kbps}]
   function clients() {
     return request("GET", undefined, false, "?clients=1");
   }
@@ -233,13 +223,12 @@
           return;
         }
         es.onopen = function () {
-          // after a streamer restart: tell the page (preview reconnect etc.)
           if (down) { down = false; document.dispatchEvent(new Event("timps-back")); }
         };
         types.forEach(function (t) {
           es.addEventListener(t, function (ev) {
             var data = null;
-            try { data = JSON.parse(ev.data); } catch (e) { /* keep null */ }
+            try { data = JSON.parse(ev.data); } catch (e) {}
             if (onEvent) onEvent(t, data);
           });
         });

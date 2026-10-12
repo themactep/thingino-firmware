@@ -1,20 +1,19 @@
-// privacy.js - privacy-mask editor, "Privacy masks" tab of streamer-overlays.html.
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-overlays" || !window.timpsUi) return;
 
-  var MIN = 8;                 // smallest mask edge, stream px
+  var MIN = 8;
   var maxRegions = 4;
   var streamIdx = window.timpsUi.stream();
   var streamW = 1920, streamH = 1080;
-  var linkEl = document.getElementById("osd-link"); // page-wide "both streams" switch
-  var otherW = 0, otherH = 0;  // other stream's resolution (for scaling)
-  var regions = [];            // [{enabled,x,y,w,h,color}] in STREAM coords
+  var linkEl = document.getElementById("osd-link");
+  var otherW = 0, otherH = 0;
+  var regions = [];
   var selected = -1;
-  var dragging = false;        // true while a box move/resize drag is live
+  var dragging = false;
 
-  var stage = document.getElementById("frame");   // boxes sit over the live preview
+  var stage = document.getElementById("frame");
   var img = document.getElementById("preview");
   var list = document.getElementById("pm-list");
   var addBtn = document.getElementById("pm-add");
@@ -24,7 +23,6 @@
     else console.log("[privacy]", type + ":", msg);
   }
 
-  // timps color 0xAARRGGBB <-> {rgb:"#RRGGBB", alpha:0..255}
   function colorToTimps(rgb, alpha) {
     var m = /^#([0-9a-fA-F]{6})$/.exec(String(rgb || ""));
     var body = m ? m[1].toUpperCase() : "000000";
@@ -59,13 +57,9 @@
       enabled: r.enabled ? 1 : 0,
       x: r.x, y: r.y, w: r.w, h: r.h, color: r.color,
     };
-    // "apply to both": mirror the mask onto the other stream, scaled to its
-    // resolution (streams differ, e.g. 1920x1080 main vs 640x360 sub).
     if (linkEl && linkEl.checked && otherW > 0 && otherH > 0) {
-      var o = 1 - streamIdx;               // only two video streams
+      var o = 1 - streamIdx;
       var fx = otherW / streamW, fy = otherH / streamH;
-      // scale, then clamp against the OTHER stream's bounds + MIN so the mirror
-      // can't round past its width/height or shrink below the minimum edge.
       var mr = { x: r.x * fx, y: r.y * fy, w: r.w * fx, h: r.h * fy };
       clampRegionTo(mr, otherW, otherH);
       payload[o] = {};
@@ -80,7 +74,7 @@
       if (corr) {
         var redraw = false;
         Object.keys(corr).forEach(function (k) {
-          var parts = k.split(".");           // ["privacy0", "3", "x"]
+          var parts = k.split(".");
           if (parts.length !== 3 || parts[0] !== "privacy" + streamIdx) return;
           var reg = regions[parseInt(parts[1], 10)];
           var f = parts[2];
@@ -101,10 +95,7 @@
     });
   }
 
-  /* ---- rendering ---- */
-
   function renderBoxes() {
-    // drop existing mask boxes
     Array.prototype.slice.call(stage.querySelectorAll(".pm-box")).forEach(function (b) { b.remove(); });
     var s = scale();
     regions.forEach(function (r, n) {
@@ -128,7 +119,7 @@
     box.style.height = r.h * s.sy + "px";
   }
 
-  var shown = {};              // mask slots listed for this stream
+  var shown = {};
   function inUse(r) { return r.enabled || (r.w > 0 && r.h > 0); }
 
   function renderList() {
@@ -190,11 +181,9 @@
     renderList();
   }
 
-  /* ---- interaction: drag to move, corner handle to resize ---- */
-
   function wireBox(box, n) {
     box.addEventListener("pointerdown", function (ev) {
-      if (ev.target.classList.contains("pm-handle")) return; // handled below
+      if (ev.target.classList.contains("pm-handle")) return;
       startDrag(ev, n, "move");
     });
     var handle = box.querySelector(".pm-handle");
@@ -212,7 +201,7 @@
     var r = regions[n];
     var start = { px: ev.clientX, py: ev.clientY, x: r.x, y: r.y, w: r.w, h: r.h };
     var box = stage.querySelector('.pm-box[data-n="' + n + '"]');
-    try { ev.target.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
+    try { ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
 
     function move(e) {
       var ddx = (e.clientX - start.px) / s.sx;
@@ -226,7 +215,7 @@
     function up(e) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      try { ev.target.releasePointerCapture(e.pointerId); } catch (er) { /* ok */ }
+      try { ev.target.releasePointerCapture(e.pointerId); } catch (er) {}
       dragging = false;
       send(n);
       stage.focus({ preventScroll: true });
@@ -248,7 +237,6 @@
   }
   function setVal(id, v) { var el = document.getElementById(id); if (el) el.value = v; }
 
-  // arrows move the selected mask, Ctrl/Cmd+arrows resize it (Alt+Left is "back"); Shift = 10 px
   var nudgeTimer = null;
   function nudge(e) {
     if (document.body.getAttribute("data-pane") !== "privacy" || selected < 0) return;
@@ -328,10 +316,6 @@
     send(n); render(); select(n);
   }
 
-  /* ---- load ---- */
-
-  // Captured before any markUnavailable(msg) can overwrite it with textContent,
-  // so markAvailable() can put the original markup (icon included) back.
   var unavailEl = document.getElementById("privacy-unavailable");
   var unavailHtml = unavailEl ? unavailEl.innerHTML : "";
 
@@ -343,9 +327,6 @@
     if (addBtn) addBtn.disabled = true;
   }
 
-  // Exact inverse of markUnavailable(), run on every successful load() -
-  // fixes a real transient-unavailability bug during a streamer restart.
-  // See WEBUI-NOTES.md.
   function markAvailable() {
     if (unavailEl) {
       unavailEl.classList.add("d-none");
@@ -366,7 +347,6 @@
       var v = (json.video && (json.video[streamIdx] || json.video[String(streamIdx)])) || {};
       if (v.width > 0 && v.height > 0) { streamW = v.width; streamH = v.height; }
 
-      // other stream's resolution, for the "apply to both" scaling
       var ovi = 1 - streamIdx;
       var ov = (json.video && (json.video[ovi] || json.video[String(ovi)])) || {};
       otherW = ov.width > 0 ? ov.width : 0;
@@ -395,8 +375,6 @@
     });
   }
 
-  /* ---- live sync: another open tab/client editing a mask on this stream --- */
-
   function onConfigEvent(type, data) {
     if (!data) return;
     if (data.resync) { load(); return; }
@@ -405,7 +383,6 @@
     var s = Number(m[1]), n = Number(m[2]), leaf = m[3];
     if (s !== streamIdx || n < 0 || n >= regions.length || dragging) return;
     var ae = document.activeElement;
-    // don't fight the user mid-drag/mid-edit of this same mask's list row
     if (ae && ae.id && ae.id.indexOf("pm-") === 0) return;
     var r = regions[n];
     if (leaf === "enabled") r.enabled = (data.value === "1" || data.value === "true") ? 1 : 0;

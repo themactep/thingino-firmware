@@ -1,18 +1,16 @@
-// streamer-encoder.js - video encoder page, both streams behind tabs.
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-video") return;
 
-  var idx = 0;      // stream shown in the form
-  var last = null;  // last GET /control
-  var stats = null; // last "stats" event
+  var idx = 0;
+  var last = null;
+  var stats = null;
   var videoLive = null;
   var curMode = "";
-  var rotPred = [0, 0]; // per stream: code the next start would refuse the rotation with
+  var rotPred = [0, 0];
   var ROT_KEYS = ["rotation", "width", "height", "fps", "enabled"];
 
-  // form field suffix (id "v-<suffix>") -> timps video.* key + value type
   var FIELD_MAP = {
     width: { key: "width", type: "int" },
     height: { key: "height", type: "int" },
@@ -41,7 +39,7 @@
     min_qp: {},
     quality_lvl: { modes: ["VBR", "SMART"], classicOnly: true, name: "Quality level" },
     change_pos: { modes: ["VBR", "SMART"], classicOnly: true, name: "Change position" },
-    i_bias_lvl: { name: "I-frame bias" },   // classic yes, T31/C100 via QpIPDelta, T40/T41 no
+    i_bias_lvl: { name: "I-frame bias" },
     fluc_lvl: { codecs: ["H265"], classicOnly: true, name: "Fluctuation level" },
   };
   var CLASSIC_FAMS = ["t10", "t20", "t21", "t23", "t30"];
@@ -86,8 +84,6 @@
       " · " + v.fps + " fps";
   }
 
-  // ---- save -------------------------------------------------------------
-
   function verdict(r, key) {
     var full = "video" + idx + "." + key;
     var deferred = r && Array.isArray(r.deferred_keys)
@@ -112,7 +108,6 @@
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // "errors" of a POST reply: the rotation prediction goes to the note, the rest to a toast
   function noteErrors(r, s, key) {
     var E = window.timpsErrors, errs = (r && r.errors) || {};
     var rk = "video" + s + ".rotation", rest = {}, n = 0;
@@ -156,8 +151,6 @@
     return isNaN(n) ? undefined : n;
   }
 
-  // ---- fill -------------------------------------------------------------
-
   function populate(suffix, video) {
     var el = $id("v-" + suffix), map = FIELD_MAP[suffix];
     if (!el) return;
@@ -194,7 +187,6 @@
     });
   }
 
-  // rotation: only the values caps.rotation offers; rotation_state = why it runs unrotated now
   function renderRot() {
     var vals = last && last.caps && last.caps.rotation;
     var on = Array.isArray(vals) && vals.length > 1;
@@ -286,7 +278,6 @@
     });
   }
 
-  // hide rc fields that do nothing for this SoC/mode/codec, and say which
   function rcGate() {
     var fam = socFamily();
     var classic = fam ? CLASSIC_FAMS.indexOf(fam) >= 0 : null;

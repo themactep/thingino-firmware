@@ -1,4 +1,3 @@
-// timps-ui.js - stream tabs, restart bar and live/restart badges shared by the video pages.
 (function () {
   "use strict";
 
@@ -21,7 +20,6 @@
     return 0;
   }
 
-  // Wire the [data-stream-tab] buttons; onChange(i) runs on user switches.
   function initTabs(onChange) {
     var tabs = document.querySelectorAll("[data-stream-tab]");
     function set(i, fire) {
@@ -117,7 +115,6 @@
       .then(function () { b.querySelector(".tv-restart").disabled = false; });
   }
 
-  // [data-page-tab=name] buttons switch [data-page-pane=name]; #name deep-links
   function initPageTabs() {
     var tabs = document.querySelectorAll("[data-page-tab]");
     if (!tabs.length) return;
@@ -148,7 +145,6 @@
     document.addEventListener("DOMContentLoaded", initPageTabs, { once: true });
   else initPageTabs();
 
-  // file card backed by /x/timps-upload.cgi?kind=K; markup uses data-up=kind|info|file|reset|hint
   function uploadCard(root, kind, pendingKey, onInfo) {
     if (!root) return;
     var q = function (n) { return root.querySelector('[data-up="' + n + '"]'); };

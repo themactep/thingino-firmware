@@ -9,11 +9,9 @@
   white-space: nowrap;
 }
 
-/* video/overlay pages */
 .tv-tabs .nav-link { display: grid; text-align: left; line-height: 1.25; }
 .tv-tabs .nav-link small { font-family: var(--bs-font-monospace); font-size: .72rem; color: var(--bs-secondary-color); }
 .tv-tabs .nav-link.active { color: #ff8800; }
-/* same look as the preview's .card, title at tab size */
 .tv-card { border: 1px solid var(--bs-border-color-translucent); border-radius: var(--bs-border-radius); padding: 0 1rem 1rem; background: var(--bs-body-bg); }
 .tv-card > h6, .card-header .tv-ct { font-size: 1rem; font-weight: 400; color: darkorange; }
 .tv-card > h6 { margin: 0 -1rem 1rem; padding: .5rem 1rem; display: flex; gap: .4rem; align-items: center;

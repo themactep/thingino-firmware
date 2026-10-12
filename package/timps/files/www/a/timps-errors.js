@@ -1,5 +1,3 @@
-// timps-errors.js - text for the numeric /control error codes (timps src/err_codes.h,
-// docs/ai/error-codes.md): POST "errors" and GET video.N.rotation_state.
 (function () {
   "use strict";
 
@@ -40,7 +38,6 @@
     return t || "error " + code;
   }
 
-  // "errors" object -> ["video1.rotation: …", …]
   function list(errors) {
     return Object.keys(errors || {}).map(function (k) { return k + ": " + text(errors[k]); });
   }

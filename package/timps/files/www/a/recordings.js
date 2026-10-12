@@ -24,8 +24,6 @@
     return (b / 1073741824).toFixed(2) + " GB";
   }
 
-  // "20260712/09/20260712T095252" -> a readable local timestamp; fall back to
-  // the file mtime when the name isn't the default pattern.
   function labelFor(rel, mtime) {
     var m = /(\d{8})T(\d{2})(\d{2})(\d{2})/.exec(rel);
     if (m) {
@@ -48,7 +46,7 @@
     if (title) title.textContent = label;
     if (!modal && window.bootstrap) modal = new window.bootstrap.Modal(modalEl);
     if (modal) modal.show();
-    video.play().catch(function () { /* user can press play */ });
+    video.play().catch(function () {});
   }
 
   function del(rel, tr) {
@@ -94,8 +92,7 @@
 
       var tdWhen = document.createElement("td"); tdWhen.textContent = label;
       var tdSeg = document.createElement("td");
-      // textContent, not innerHTML: the segment name comes from the SD card and
-      // must never be interpreted as HTML (stored-XSS otherwise).
+      // textContent, not innerHTML: the name comes from the SD card (stored XSS)
       var segSpan = document.createElement("span");
       segSpan.className = "text-secondary small";
       segSpan.textContent = f.file;
@@ -119,7 +116,6 @@
         listEl.innerHTML = '<tr><td colspan="4" class="text-danger">Failed to list recordings: ' +
           (e.message || e) + "</td></tr>";
       });
-    // free space (best effort)
     if (window.timpsApi) {
       window.timpsApi.get().then(function (j) {
         var fm = j && j.record && j.record.free_mb;
