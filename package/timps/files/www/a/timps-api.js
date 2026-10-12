@@ -207,59 +207,111 @@
     return request("GET", undefined, false, q);
   }
 
-  function events(streams, onEvent, onError) {
-    var es = null, closed = false, down = false;
-    var types = String(streams || "motion,daynight,stats")
-      .split(",").map(function (s) { return s.trim(); })
-      .filter(Boolean);
+  var es = null, esKey = "", esGen = 0, esTimer = null, esWait = 3000, esDown = false;
+  var esSubs = [], esLast = {};
 
-    function open() {
-      fetchInfo(false).then(function (i) {
-        if (closed || document.hidden) return;
-        var url = base() + "/events?stream=" + encodeURIComponent(types.join(","));
-        if (i.token) url += "&token=" + encodeURIComponent(i.token);
-        try { es = new EventSource(url); } catch (e) {
-          if (onError) onError(e);
-          return;
-        }
-        es.onopen = function () {
-          if (down) { down = false; document.dispatchEvent(new Event("timps-back")); }
-        };
-        types.forEach(function (t) {
-          es.addEventListener(t, function (ev) {
-            var data = null;
-            try { data = JSON.parse(ev.data); } catch (e) {}
-            if (onEvent) onEvent(t, data);
-          });
-        });
-        es.onerror = function (err) {
-          if (closed) return;
-          stop();
-          down = true;
-          if (onError) onError(err);
-          fetchInfo(true).then(function () {
-            if (!closed && !document.hidden) setTimeout(open, 3000);
-          });
-        };
+  function esWanted() {
+    if (document.hidden) return "";
+    var seen = {};
+    esSubs.forEach(function (s) { s.types.forEach(function (t) { seen[t] = 1; }); });
+    return Object.keys(seen).sort().join(",");
+  }
+
+  function esCovers(s) {
+    var have = esKey.split(",");
+    return s.types.every(function (t) { return have.indexOf(t) >= 0; });
+  }
+
+  function esAttach(s) {
+    s.types.forEach(function (t) { es.addEventListener(t, s.fns[t]); });
+  }
+
+  function esStop() {
+    esGen++;
+    if (es) { es.close(); es = null; }
+    esKey = "";
+    esLast = {};
+  }
+
+  function esSync() {
+    clearTimeout(esTimer);
+    esTimer = null;
+    var want = esWanted();
+    if (want === esKey) return;
+    esStop();
+    if (!want) return;
+    var gen = esGen;
+    esKey = want;
+    fetchInfo(false).then(function (i) {
+      if (gen !== esGen) return;
+      var url = base() + "/events?stream=" + encodeURIComponent(want);
+      if (i.token) url += "&token=" + encodeURIComponent(i.token);
+      try { es = new EventSource(url); } catch (e) {
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(e, true); });
+        return;
+      }
+      var src = es;
+      src.onopen = function () {
+        esWait = 3000;
+        if (esDown) { esDown = false; document.dispatchEvent(new Event("timps-back")); }
+      };
+      want.split(",").forEach(function (t) {
+        if (t !== "config") src.addEventListener(t, function (ev) { esLast[t] = ev.data; });
       });
-    }
+      esSubs.forEach(esAttach);
+      src.onerror = function (err) {
+        if (gen !== esGen) return;
+        var fatal = src.readyState === 2;
+        esStop();
+        esDown = true;
+        esSubs.slice().forEach(function (s) { if (s.onError) s.onError(err, fatal); });
+        fetchInfo(true);
+        clearTimeout(esTimer);
+        esTimer = setTimeout(esSync, esWait);
+        esWait = Math.min(esWait * 2, 30000);
+      };
+    });
+  }
 
-    function stop() {
-      if (es) { es.close(); es = null; }
-    }
+  function esKick() {
+    if (!esTimer) esTimer = setTimeout(esSync, 0);
+  }
 
-    function onVis() {
-      if (document.hidden) stop();
-      else if (!es && !closed) open();
+  document.addEventListener("visibilitychange", esSync);
+
+  function events(streams, onEvent, onError) {
+    var s = { types: [], fns: {}, onError: onError, closed: false };
+    String(streams || "motion,daynight,stats").split(",").forEach(function (t) {
+      t = t.trim();
+      if (!t || s.fns[t]) return;
+      s.types.push(t);
+      s.fns[t] = function (ev) {
+        if (s.closed) return;
+        var data = null;
+        try { data = JSON.parse(ev.data); } catch (e) {}
+        if (onEvent) onEvent(t, data);
+      };
+    });
+    esSubs.push(s);
+    if (es && esCovers(s)) {
+      esAttach(s);
+      var last = esLast;
+      setTimeout(function () {
+        s.types.forEach(function (t) {
+          if (last === esLast && t in last) s.fns[t]({ data: last[t] });
+        });
+      }, 0);
+    } else {
+      esKick();
     }
-    document.addEventListener("visibilitychange", onVis);
-    open();
 
     return {
       close: function () {
-        closed = true;
-        document.removeEventListener("visibilitychange", onVis);
-        stop();
+        if (s.closed) return;
+        s.closed = true;
+        esSubs.splice(esSubs.indexOf(s), 1);
+        if (es) s.types.forEach(function (t) { es.removeEventListener(t, s.fns[t]); });
+        esKick();
       },
     };
   }

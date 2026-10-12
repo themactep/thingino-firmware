@@ -367,7 +367,6 @@
     }
 
     let statsEs = null;
-    let statsStateEs = null;
     let statsControlTimer = null;
     let statsFullTimer = null;
     const MAX_HISTORY = 40;
@@ -668,23 +667,13 @@
       }).catch(() => {});
     }
 
-    async function startStats() {
-      if (statsEs || !window.EventSource) return;
-      const info = await window.timpsTokenInfo;
-      if (statsCard.style.display === "none") return;
-      const b = info ? timpsScheme(info) + "://" + host + ":" + (info.port || MS_PORT) : base;
-      const tok = info && info.token ? "&token=" + encodeURIComponent(info.token) : "";
-      statsEs = new EventSource(b + "/events?stream=stats" + tok);
-      statsEs.addEventListener("stats", (ev) => {
-        try { renderStats(JSON.parse(ev.data)); } catch (e) {}
+    function startStats() {
+      if (statsEs || !window.timpsApi) return;
+      statsEs = window.timpsApi.events("stats,daynight,motion", (type, data) => {
+        if (type === "stats") { try { renderStats(data); } catch (e) {} }
+        else if (type === "daynight") renderDaynight(data);
+        else if (type === "motion") renderMotion(data);
       });
-      statsEs.onerror = () => {};
-      if (!statsStateEs && window.timpsApi) {
-        statsStateEs = window.timpsApi.events("daynight,motion", (type, data) => {
-          if (type === "daynight") renderDaynight(data);
-          else if (type === "motion") renderMotion(data);
-        });
-      }
       fetchStatsFull();
       fetchStatsExtra();
       if (!statsFullTimer) statsFullTimer = setInterval(fetchStatsFull, 15000);
@@ -692,7 +681,6 @@
     }
     function stopStats() {
       if (statsEs) { statsEs.close(); statsEs = null; }
-      if (statsStateEs) { statsStateEs.close(); statsStateEs = null; }
       if (statsControlTimer) { clearInterval(statsControlTimer); statsControlTimer = null; }
       if (statsFullTimer) { clearInterval(statsFullTimer); statsFullTimer = null; }
       Object.keys(streamRows).forEach((k) => delete streamRows[k]);

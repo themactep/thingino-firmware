@@ -198,29 +198,20 @@
   }
 
   function startPush() {
-    if (es || fellBack || !window.EventSource) return;
-    es = new EventSource(base + "/events?stream=motion&token=" +
-                         encodeURIComponent(token));
-    es.addEventListener("motion", (e) => {
+    if (es || fellBack || !window.timpsApi) return;
+    es = window.timpsApi.events("motion", (t, d) => {
       esErrors = 0;
-      try {
-        last = JSON.parse(e.data);
-      } catch (err) {
-        last = null;
-      }
+      last = d;
       applyAvailability(last);
       noteActive(last);
       ensureAnim();
-    });
-    es.onopen = () => { esErrors = 0; };
-    es.onerror = () => {
-      esErrors++;
-      if (esErrors >= ES_MAX_ERRORS || (es && es.readyState === EventSource.CLOSED)) {
+    }, (err, fatal) => {
+      if (++esErrors >= ES_MAX_ERRORS || fatal) {
         fellBack = true;
         stopPush();
         startPoll();
       }
-    };
+    });
   }
 
   function pause() {
@@ -282,7 +273,7 @@
     window.addEventListener("resize", () => draw(last));
     video.addEventListener("loadedmetadata", () => draw(last));
 
-    if (window.EventSource) startPush();
+    if (window.EventSource && window.timpsApi) startPush();
     else { fellBack = true; startPoll(); }
 
     document.addEventListener("visibilitychange", () => {
