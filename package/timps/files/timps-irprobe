@@ -34,75 +34,75 @@ done
 [ -n "$lights" ] || exit 1 # nothing switchable: timps logs it and skips the probe
 
 case "$1" in
-on)
-	rm -f "$stamp"
-	rc=0
-	for t in $lights; do
-		light "$t" on || rc=$?
-	done
-	exit "$rc"
-	;;
-off)
-	nonce=$$
-	# before switching, so an older watchdog cannot relight mid-way;
-	# without a stamp there is no failsafe, so stay lit
-	echo "$nonce" >"$stamp" || exit 1
-	dark=
-	for t in $lights; do
-		light "$t" off
-		rc=$?
-		if [ "$rc" -ne 0 ]; then
-			rm -f "$stamp"
-			for u in $dark; do
-				light "$u" on
-			done
-			exit "$rc"
-		fi
-		dark="$dark $t"
-	done
-	(
-		sleep "$delay"
-		[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
+	on)
+		rm -f "$stamp"
+		rc=0
 		for t in $lights; do
-			light "$t" on
+			light "$t" on || rc=$?
 		done
-	) >/dev/null 2>&1 &
-	exit 0
-	;;
-idle)
-	case " $lights " in *" white "*) exit 3 ;; esac
-	nonce=$$
-	echo "$nonce" >"$stamp" || exit 4
-	dark=
-	for t in $lights; do
-		if ! light "$t" off; then
-			rm -f "$stamp"
-			for u in $dark; do
-				light "$u" on
-			done
-			exit 4
-		fi
-		dark="$dark $t"
-	done
-	(
-		sleep "$idle_delay"
-		[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
-		[ "$(cat "$mode_file" 2>/dev/null)" = day ] && exit 0
+		exit "$rc"
+		;;
+	off)
+		nonce=$$
+		# before switching, so an older watchdog cannot relight mid-way;
+		# without a stamp there is no failsafe, so stay lit
+		echo "$nonce" >"$stamp" || exit 1
+		dark=
 		for t in $lights; do
-			light "$t" on
+			light "$t" off
+			rc=$?
+			if [ "$rc" -ne 0 ]; then
+				rm -f "$stamp"
+				for u in $dark; do
+					light "$u" on
+				done
+				exit "$rc"
+			fi
+			dark="$dark $t"
 		done
-	) >/dev/null 2>&1 &
-	exit 0
-	;;
-state)
-	for t in $lights; do
-		[ "$(light "$t" read 2>/dev/null)" = 0 ] || {
-			echo on
-			exit 0
-		}
-	done
-	echo off
-	exit 0
-	;;
+		(
+			sleep "$delay"
+			[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
+			for t in $lights; do
+				light "$t" on
+			done
+		) >/dev/null 2>&1 &
+		exit 0
+		;;
+	idle)
+		case " $lights " in *" white "*) exit 3 ;; esac
+		nonce=$$
+		echo "$nonce" >"$stamp" || exit 4
+		dark=
+		for t in $lights; do
+			if ! light "$t" off; then
+				rm -f "$stamp"
+				for u in $dark; do
+					light "$u" on
+				done
+				exit 4
+			fi
+			dark="$dark $t"
+		done
+		(
+			sleep "$idle_delay"
+			[ "$(cat "$stamp" 2>/dev/null)" = "$nonce" ] || exit 0
+			[ "$(cat "$mode_file" 2>/dev/null)" = day ] && exit 0
+			for t in $lights; do
+				light "$t" on
+			done
+		) >/dev/null 2>&1 &
+		exit 0
+		;;
+	state)
+		for t in $lights; do
+			[ "$(light "$t" read 2>/dev/null)" = 0 ] || {
+				echo on
+				exit 0
+			}
+		done
+		echo off
+		exit 0
+		;;
 esac
 exit 2

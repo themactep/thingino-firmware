@@ -92,23 +92,23 @@ preflight() {
 	out=$("$DAEMON" --check-libs 2>&1)
 	rc=$?
 	case $rc in
-	0) return 0 ;;
-	78 | 79)
-		echo "$out" | while IFS= read -r l; do
-			[ -n "$l" ] || continue
-			logger -t timps -p daemon.err "$l"
-			echo "$l"
-		done
-		msg="timpsd not started (exit $rc): libimp does not fit this timpsd build"
-		logger -t timps -p daemon.err "$msg"
-		echo "$msg"
-		return 1
-		;;
-	*)
-		[ -z "$out" ] ||
-			logger -t timps -p daemon.warn "timpsd --check-libs exited $rc, starting anyway: $(echo "$out" | head -n 1)"
-		return 0
-		;;
+		0) return 0 ;;
+		78 | 79)
+			echo "$out" | while IFS= read -r l; do
+				[ -n "$l" ] || continue
+				logger -t timps -p daemon.err "$l"
+				echo "$l"
+			done
+			msg="timpsd not started (exit $rc): libimp does not fit this timpsd build"
+			logger -t timps -p daemon.err "$msg"
+			echo "$msg"
+			return 1
+			;;
+		*)
+			[ -z "$out" ] ||
+				logger -t timps -p daemon.warn "timpsd --check-libs exited $rc, starting anyway: $(echo "$out" | head -n 1)"
+			return 0
+			;;
 	esac
 }
 
