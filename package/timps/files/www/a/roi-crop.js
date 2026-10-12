@@ -79,8 +79,9 @@
     });
   }
 
+  function roiOff() { return roiTier === "unsupported" || roiState === "rotated"; }
   function drag(ev, n, mode, box) {
-    if (roiTier === "unsupported") return;
+    if (roiOff()) return;
     ev.preventDefault(); ev.stopPropagation();
     dragging = true; select(n);
     var s = scale(), r = regions[n], o = { px: ev.clientX, py: ev.clientY, x: r.x, y: r.y, w: r.w, h: r.h };
@@ -117,7 +118,7 @@
 
   function renderList() {
     list.innerHTML = "";
-    var count = 0, off = roiTier === "unsupported";
+    var count = 0, off = roiOff();
     regions.forEach(function (r, n) {
       if (!shown[n]) return;
       count++;
@@ -230,6 +231,23 @@
     var w = Math.round(sw / z / 2) * 2, h = Math.round(sh / z / 2) * 2;
     return cropFit({ x: c.x + fx * (c.w - w), y: c.y + fy * (c.h - h), w: w, h: h }, sw, sh, fmin);
   }
+  // view rotation in clockwise degrees: 90 = clockwise on T23/T40/T41, counter-clockwise on T31/T1x
+  function cropRotView(soc, rot) {
+    if (rot !== 90 && rot !== 270) return rot === 180 ? 180 : 0;
+    return /^t(31|10|20|21)/i.test(String(soc || "")) ? 360 - rot : rot;
+  }
+  // sensor window <-> the rotated view of the sensor (view is sh x sw for 90/270)
+  function cropToView(c, rv, sw, sh) {
+    if (rv === 90) return { x: sh - c.y - c.h, y: c.x, w: c.h, h: c.w };
+    if (rv === 270) return { x: c.y, y: sw - c.x - c.w, w: c.h, h: c.w };
+    if (rv === 180) return { x: sw - c.x - c.w, y: sh - c.y - c.h, w: c.w, h: c.h };
+    return { x: c.x, y: c.y, w: c.w, h: c.h };
+  }
+  function cropFromView(r, rv, sw, sh) {
+    if (rv === 90) return { x: r.y, y: sh - r.x - r.w, w: r.h, h: r.w };
+    if (rv === 270) return { x: sw - r.y - r.h, y: r.x, w: r.h, h: r.w };
+    return cropToView(r, rv, sw, sh);
+  }
   // behind the cut-out while crop is on: the cached full frame or a grid
   function cropBackdrop(on, frame) { return !on ? "none" : frame ? "frame" : "grid"; }
   // > 1: the stream upscales the window
@@ -250,7 +268,7 @@
 
   // in the crop tab #frame has the sensor aspect; cropOn: the preview (stream S) shows the window,
   // so #preview sits inside the box over a backdrop (#crop-ed: the last full frame, cached while crop is off)
-  var cropLive = 1, cropOn = false, cropSeq = 0, shot = false, sentAt = 0, savedAt = 0, wheelEnd = null;
+  var rv = 0, cropLive = 1, cropOn = false, cropSeq = 0, shot = false, sentAt = 0, savedAt = 0, wheelEnd = null;
   var fmin = [FMIN, FMIN], emin = fmin, zoomCap = 8, zmax = 1, upPct = -1, waitPoll = null;
   var vids = [], fcInfo = {}, zs = $("crop-zoom");
   var ed = document.createElement("canvas");
@@ -269,6 +287,12 @@
   }
   function takeFc(fc) { fcInfo = fc; cropOn = shownOn(fc); }
   function setCrop(c) { crop.x = c.x; crop.y = c.y; crop.w = c.w; crop.h = c.h; }
+  function q90() { return rv === 90 || rv === 270; }
+  function vw() { return q90() ? sh : sw; }
+  function vh() { return q90() ? sw : sh; }
+  function vem() { return q90() ? [emin[1], emin[0]] : emin; }
+  function toV(c) { return cropToView(c, rv, sw, sh); }
+  function setV(r) { setCrop(cropFromView(r, rv, sw, sh)); }
   function cropValid() { return crop.w >= FMIN && crop.h >= FMIN; }
   function shownOn(fc) {
     if (fc.state !== "on") return false;
@@ -276,10 +300,10 @@
   }
 
   function cropFromSliders() {
-    setCrop(cropFromZoom(+zs.value, +$("crop-px").value / 100, +$("crop-py").value / 100, sw, sh, emin));
+    setV(cropFromZoom(+zs.value, +$("crop-px").value / 100, +$("crop-py").value / 100, vw(), vh(), vem()));
   }
   function slidersFromCrop() {
-    var v = zoomFromCrop(crop, sw, sh, zmax);
+    var v = zoomFromCrop(toV(crop), vw(), vh(), zmax);
     zs.value = String(v.z); $("crop-px").value = String(v.px); $("crop-py").value = String(v.py);
   }
 
@@ -294,9 +318,9 @@
   box.addEventListener("wheel", function (ev) {
     if (cropLocked() || !ev.deltaY || !cropValid()) return;
     ev.preventDefault();
-    var rc = box.getBoundingClientRect(), z = sw / crop.w * (ev.deltaY < 0 ? 1.1 : 1 / 1.1);
+    var rc = box.getBoundingClientRect(), c = toV(crop), z = vw() / c.w * (ev.deltaY < 0 ? 1.1 : 1 / 1.1);
     z = z >= zmax ? zmax : Math.round(z * 100) / 100;
-    setCrop(cropZoomAt(crop, z, (ev.clientX - rc.left) / (rc.width || 1), (ev.clientY - rc.top) / (rc.height || 1), sw, sh, emin, zmax));
+    setV(cropZoomAt(c, z, (ev.clientX - rc.left) / (rc.width || 1), (ev.clientY - rc.top) / (rc.height || 1), vw(), vh(), vem(), zmax));
     slidersFromCrop(); sendCrop(false);
     if (!cropLive) { clearTimeout(wheelEnd); wheelEnd = setTimeout(function () { sendCrop(true); }, 500); }
   }, { passive: false });
@@ -311,10 +335,10 @@
     if (!cropValid()) cropFromSliders();
     dragging = true;
     var bw = stage.clientWidth, bh = stage.clientHeight;
-    var o = { px: ev.clientX, py: ev.clientY, x: crop.x, y: crop.y, w: crop.w, h: crop.h }, moved = false;
+    var o = toV(crop), px = ev.clientX, py = ev.clientY, moved = false;
     function move(e) {
       moved = true;
-      setCrop(cropDragView(o, mode, e.clientX - o.px, e.clientY - o.py, bw, bh, sw, sh, emin));
+      setV(cropDragView(o, mode, e.clientX - px, e.clientY - py, bw, bh, vw(), vh(), vem()));
       slidersFromCrop(); sendCrop(false);
     }
     function up() {
@@ -332,15 +356,15 @@
   function renderCrop(state) {
     $("crop-en").checked = !!crop.en;
     ["x", "y", "w", "h"].forEach(function (k) { $("crop-" + k).value = crop[k]; });
-    $("crop-sensor").textContent = sw && sh ? sw + "×" + sh : "unknown";
-    if (sw && sh) stage.style.setProperty("--sa", sw + " / " + sh);
+    $("crop-sensor").textContent = sw && sh ? sw + "×" + sh + (rv ? ", before the " + (rv === 180 ? 180 : 90) + "° rotation of this stream" : "") : "unknown";
+    if (sw && sh) { stage.style.setProperty("--sa", vw() + " / " + vh()); stage.style.setProperty("--sw", String(vw() / vh())); }
     var cv = sw && cropValid(), dis = cropLocked(), bd = cropBackdrop(pip() && cv, shot);
     document.body.classList.toggle("rc-pip", bd !== "none");
     ed.classList.toggle("has", bd === "frame");
     box.style.display = cv ? "" : "none";
     box.classList.toggle("off", dis);
     if (cv) {
-      var p = cropPct(crop, sw, sh);
+      var p = cropPct(toV(crop), vw(), vh());
       ["left", "top", "width", "height"].forEach(function (k) {
         box.style[k] = p[k] + "%";
         stage.style.setProperty("--c" + k.charAt(0), p[k] + "%");
@@ -367,7 +391,7 @@
       var k = cropScale(crop, v.w, v.h);
       if (k > 1.005) ups.push("upscaled " + (Math.round(k * 100) / 100) + "× on stream " + i);
     });
-    out.textContent = (cv ? zoomFromCrop(crop, sw, sh, zmax).z : +zs.value).toFixed(2) + "× " +
+    out.textContent = (cv ? zoomFromCrop(toV(crop), vw(), vh(), zmax).z : +zs.value).toFixed(2) + "× " +
       (ups.length ? "Crop + zoom, " + ups.join(", ") : "Crop");
     out.classList.toggle("text-warning", ups.length > 0);
     $("crop-zoom-h").textContent = !sw || zmax <= 1.005 || !sizes.length ? "" : zmax - zn < 0.005 ?
@@ -432,8 +456,8 @@
   }
 
   /* full-sensor frame: grabbed while crop is off, kept per camera + sensor in localStorage */
-  function frameKey() { return "timps-crop-full:" + location.host + ":" + sw + "x" + sh; }
-  function fit(c) { var w = Math.min(640, sw), h = Math.round(w * sh / sw); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
+  function frameKey() { return "timps-crop-full:" + location.host + ":" + sw + "x" + sh + (rv ? ":r" + rv : ""); }
+  function fit(c) { var w = Math.min(640, vw()), h = Math.round(w * vh() / vw()); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
   function paint(src) { fit(ed).getContext("2d").drawImage(src, 0, 0, ed.width, ed.height); shot = true; }
   // the preview <img> is cross-origin (timps port) and taints a canvas: then a CORS still is stored instead
   function store(src) {
@@ -543,10 +567,13 @@
       if (rc.regions > 0) maxRoi = Math.min(rc.regions, 8);
       qpDelta = pair(rc.qp_delta, [-25, 25]); qpAbs = pair(rc.qp_abs, [0, 51]); qpEff = pair(rc.qp_delta_eff, null);
       $("roi-max").textContent = String(maxRoi);
-      var v = (j.video && (j.video[S] || j.video[String(S)])) || {};
-      if (v.width > 0 && v.height > 0) { W = v.width; H = v.height; }
+      var v = (j.video && (j.video[S] || j.video[String(S)])) || {}, f = window.timpsUi.frame(v);
+      if (f.w > 0 && f.h > 0) { W = f.w; H = f.h; }
+      var orv = rv;
+      rv = f.path === "off" ? 0 : cropRotView(window.thinginoUIConfig && window.thinginoUIConfig.device && window.thinginoUIConfig.device.soc, f.rot);
+      if (rv !== orv) { shot = false; ed.width = 0; }
       var st = roiState === "h265" ? "This stream is H.265: ROI regions are ignored." :
-        roiState === "rotated" ? "This stream is rotated: ROI regions are ignored." : "";
+        roiState === "rotated" ? "This stream is rotated: the encoder ignores ROI regions, so they cannot be edited here." : "";
       note($("roi-note"), roiTier === "effective" ? "" : roiTier, st);
       var src = (j.roi && (j.roi[S] || j.roi[String(S)])) || {};
       regions = []; shown = {};

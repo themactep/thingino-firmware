@@ -12,6 +12,7 @@
   var regions = [];
   var selected = -1;
   var dragging = false;
+  var locked = false;
 
   var stage = document.getElementById("frame");
   var img = document.getElementById("preview");
@@ -99,7 +100,7 @@
     Array.prototype.slice.call(stage.querySelectorAll(".pm-box")).forEach(function (b) { b.remove(); });
     var s = scale();
     regions.forEach(function (r, n) {
-      if (!r.enabled || r.w <= 0 || r.h <= 0) return;
+      if (locked || !r.enabled || r.w <= 0 || r.h <= 0) return;
       var box = document.createElement("div");
       box.className = "pm-box" + (n === selected ? " sel" : "");
       box.dataset.n = String(n);
@@ -165,7 +166,8 @@
     });
     var empty = document.getElementById("pm-empty");
     if (empty) empty.classList.toggle("d-none", count > 0);
-    if (addBtn) addBtn.disabled = count >= maxRegions;
+    if (addBtn) addBtn.disabled = locked || count >= maxRegions;
+    if (locked) Array.prototype.forEach.call(list.querySelectorAll("input,button"), function (e) { e.disabled = true; });
   }
 
   function posText(r) { return r.x + "," + r.y + " · " + r.w + "×" + r.h; }
@@ -195,6 +197,7 @@
 
   function startDrag(ev, n, mode) {
     ev.preventDefault();
+    if (locked) return;
     dragging = true;
     select(n);
     var s = scale();
@@ -239,7 +242,7 @@
 
   var nudgeTimer = null;
   function nudge(e) {
-    if (document.body.getAttribute("data-pane") !== "privacy" || selected < 0) return;
+    if (document.body.getAttribute("data-pane") !== "privacy" || selected < 0 || locked) return;
     var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     var r = regions[selected];
     if (!d || !r || !r.enabled) return;
@@ -344,13 +347,13 @@
       var maxSpan = document.getElementById("privacy-max");
       if (maxSpan) maxSpan.textContent = String(maxRegions);
 
-      var v = (json.video && (json.video[streamIdx] || json.video[String(streamIdx)])) || {};
-      if (v.width > 0 && v.height > 0) { streamW = v.width; streamH = v.height; }
+      var f = window.timpsUi.frame(json.video && (json.video[streamIdx] || json.video[String(streamIdx)]));
+      if (f.w > 0 && f.h > 0) { streamW = f.w; streamH = f.h; }
 
       var ovi = 1 - streamIdx;
-      var ov = (json.video && (json.video[ovi] || json.video[String(ovi)])) || {};
-      otherW = ov.width > 0 ? ov.width : 0;
-      otherH = ov.height > 0 ? ov.height : 0;
+      var of = window.timpsUi.frame(json.video && (json.video[ovi] || json.video[String(ovi)]));
+      otherW = of.path === "sw" ? 0 : of.w;
+      otherH = of.h;
 
       var priv = (json.privacy && (json.privacy[streamIdx] || json.privacy[String(streamIdx)])) || {};
       regions = [];
@@ -368,6 +371,8 @@
       regions.forEach(function (r, i) { if (inUse(r)) shown[i] = true; });
       selected = shown[keep] ? keep : -1;
       markAvailable();
+      locked = f.path === "sw";
+      if (locked) markUnavailable("Privacy masks are not available on a software-rotated stream.");
       render();
     }).catch(function (err) {
       console.warn("timps unreachable:", err);

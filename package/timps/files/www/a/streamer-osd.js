@@ -14,6 +14,7 @@
   var items = { 0: {}, 1: {} };
   var bootEnabled = { 0: {}, 1: {} };
   var dims = { 0: { w: 1920, h: 1080 }, 1: { w: 640, h: 360 } };
+  var frames = {};
   var shown = {};
   var openItem = -1;
   var linked = false;
@@ -159,7 +160,7 @@
     host.innerHTML = "";
     Object.keys(shown).forEach(function (k) {
       var i = +k, it = items[S][i];
-      if (!it || !Number(it.enabled)) return;
+      if (!it || !Number(it.enabled) || noLogo(it)) return;
       var b = document.createElement("div");
       b.className = "tv-box" + (i === openItem ? " sel" : "");
       b.title = it.type === "logo" ? "logo" : it.text;
@@ -208,6 +209,7 @@
     if (!d) return;
     e.preventDefault();
     var it = items[S][openItem], a = anchorOf(it), step = e.shiftKey ? 10 : 1;
+    if (noLogo(it)) return;
     var x = num(it.x, 0), y = num(it.y, 0);
     if (d[0]) {
       if (a[1] === "c") { lockHint("x"); return; }
@@ -222,9 +224,12 @@
     push(openItem, { x: x, y: y }, { debounce: true, quiet: true });
   }
 
+  function noLogo(it) { return it.type === "logo" && frames[S] && frames[S].path === "sw"; }
+
   function status(i) {
     var it = items[S][i] || {};
     if (!Number(it.enabled)) return '<span class="badge text-bg-secondary">Off</span>';
+    if (noLogo(it)) return '<span class="badge text-bg-secondary">Not shown on a rotated stream</span>';
     return bootEnabled[S][i] ? '<span class="badge text-bg-success">Live</span>'
       : '<span class="badge text-bg-warning">Needs restart</span>';
   }
@@ -283,7 +288,8 @@
     h += '<div class="d-flex flex-wrap align-items-center gap-2 mt-2"><span class="tv-cfg me-auto">' + cfgText(i, it) +
       '</span><button type="button" class="btn btn-sm btn-outline-danger e-remove"><i class="bi bi-trash me-1"></i>Remove</button></div>';
     if (it.type === "logo")
-      h += '<p class="form-text mb-0">The logo image is set in the streamer configuration file.</p>';
+      h += '<p class="form-text mb-0">The logo image is set in the streamer configuration file.' +
+        (noLogo(it) ? " Logos are not drawn on a software-rotated stream." : "") + "</p>";
     return h;
   }
 
@@ -355,6 +361,7 @@
         ib.innerHTML = editorHtml(i, it);
         w.appendChild(ib);
         wireEditor(ib, i);
+        if (noLogo(it)) Array.prototype.forEach.call(ib.querySelectorAll("input,select,button"), function (e) { e.disabled = true; });
       }
       w.querySelector(".tv-ih").addEventListener("click", function (e) {
         if (e.target.closest(".form-check")) return;
@@ -362,6 +369,7 @@
         render();
         if (openItem >= 0) $id("frame").focus({ preventScroll: true });
       });
+      if (noLogo(it)) w.querySelector(".e-en").disabled = true;
       w.querySelector(".e-en").addEventListener("change", function () { push(i, { enabled: this.checked ? 1 : 0 }); });
       host.appendChild(w);
     });
@@ -388,6 +396,7 @@
     for (var i = 0; i < MAX_OSD; i++) if (inUse(items[S][i])) shown[i] = true;
     if (!shown[openItem]) openItem = -1;
     renderLink();
+    ui().setFrame(frames[S]);
     render();
   }
 
@@ -411,8 +420,9 @@
       [0, 1].forEach(function (s) {
         var set = json["osd" + s] || {};
         var v = json.video && json.video[s];
-        if (v && v.width) dims[s] = { w: +v.width, h: +v.height };
-        ui().setTabSummary(s, v && v.width ? v.width + "×" + v.height : "");
+        var f = frames[s] = ui().frame(v);
+        if (f.w) dims[s] = { w: f.w, h: f.h };
+        ui().setTabSummary(s, f.w ? f.w + "×" + f.h + (f.path !== "off" ? " · " + f.rot + "°" : "") : "");
         for (var i = 0; i < MAX_OSD; i++) {
           items[s][i] = set[String(i)] || {};
           if (first) bootEnabled[s][i] = !!Number(items[s][i].enabled);
@@ -494,7 +504,7 @@
     });
     $id("osd-add-item").addEventListener("click", function () {
       for (var i = 0; i < MAX_OSD; i++) {
-        if (shown[i]) continue;
+        if (shown[i] || noLogo(items[S][i] || {})) continue;
         shown[i] = true;
         openItem = i;
         var it = items[S][i];
