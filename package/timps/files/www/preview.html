@@ -99,11 +99,15 @@
     .st-tile > i { grid-row: span 2; font-size: 1.4rem; color: darkorange; }
     .st-tile .v { font-weight: 500; }
     .st-tile .s { grid-column: 2; font-size: .75rem; color: var(--bs-secondary-color); }
-    .st-sys { grid-column: 1 / -1; }
-    .st-sys > i { grid-row: span 4; }
-    .st-sys .st-bar { grid-column: 2; max-width: 22rem; margin: .1rem 0 .15rem; }
+    .st-sys > i { grid-row: span 3; }
+    .st-sys .st-bar { grid-column: 2; display: flex; height: 6px; margin: .2rem 0; }
+    .st-sys .st-bar > i { flex: none; }
+    .st-sys .st-bar > i + i, .st-sys .k2 { background: #4cc38a; }
+    .st-sys .k1 { background: #ff8800; }
+    .st-sys .k1, .st-sys .k2 { display: inline-block; width: .55rem; height: .55rem; border-radius: 2px; margin-right: .3rem; vertical-align: baseline; }
     .st-gain { position: relative; grid-column: 1 / -1; height: 6px; border-radius: 3px; margin-top: .45rem; }
     .st-gain .m { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; box-shadow: 0 0 0 1px #000; transition: left .6s; }
+    @media (min-width: 992px) { .st-tiles { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 768px) { .st-tiles { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 500px) { .st-metrics { grid-template-columns: 1fr 1fr; } }
   </style>
@@ -193,7 +197,9 @@
             <div class="st-panel st-tile"><i class="bi bi-clock-history"></i><span class="v" id="st-up">–</span><span class="s" id="st-ver"></span></div>
             <div class="st-panel st-tile"><i class="bi bi-heart-pulse"></i><span class="v"><span class="st-dot me-1" id="st-hd"></span><span id="st-h">–</span></span><span class="s" id="st-h-s"></span></div>
             <div class="st-panel st-tile st-sys"><i class="bi bi-cpu"></i><span class="v" id="st-sys">–</span>
-              <div class="st-bar ok"><i id="st-sysb"></i></div><span class="s" id="st-sys-s"></span><span class="s" id="st-sys-t"></span></div>
+              <div class="st-bar"><i id="st-sysb-t"></i><i id="st-sysb"></i></div><span class="s" id="st-sys-s"></span></div>
+            <div class="st-panel st-tile st-sys"><i class="bi bi-memory"></i><span class="v" id="st-mem">–</span>
+              <div class="st-bar"><i id="st-memb-t"></i><i id="st-memb"></i></div><span class="s" id="st-mem-s"></span></div>
           </div>
           <div class="st-panel mt-3" id="st-clients-panel" hidden>
             <div class="st-ph"><b>Connected clients</b><span class="st-chip" id="st-clients-n"></span></div>
@@ -507,16 +513,23 @@
 
     function renderSystem(y) {
       if (!y) return;
-      const ok = (v) => typeof v === "number" && v >= 0, mb = (kb) => Math.round(kb / 1024);
-      $st("sys").textContent = "CPU " + (ok(y.cpu_pct) ? y.cpu_pct + " %" : "–");
+      const ok = (v) => typeof v === "number" && v >= 0, mb = (kb) => (kb / 1024).toFixed(kb < 10240 ? 1 : 0);
+      const c = ok(y.cpu_pct) ? Math.min(100, y.cpu_pct) : -1, t = ok(y.timps_cpu_pct) ? Math.min(c, y.timps_cpu_pct) : -1;
+      $st("sys").textContent = "CPU " + (c >= 0 ? c + " %" : "–");
       $st("sys").parentNode.title = "Whole camera" + (y.ncpu > 1 ? ", " + y.ncpu + " cores together" : "") +
-        "; CPU % since the previous poll";
-      $st("sysb").style.width = (ok(y.cpu_pct) ? Math.min(100, y.cpu_pct) : 0) + "%";
-      $st("sysb").parentNode.classList.toggle("ok", !(y.cpu_pct >= 80));
-      $st("sys-s").textContent = "load " + (ok(y.load && y.load[0]) ? y.load[0].toFixed(2) : "–") + " · mem " +
-        (ok(y.mem_total_kb) && ok(y.mem_avail_kb) ? mb(y.mem_total_kb - y.mem_avail_kb) + "/" + mb(y.mem_total_kb) + " MB" : "–");
-      $st("sys-t").textContent = "timps " + (ok(y.timps_cpu_pct) ? y.timps_cpu_pct + " %" : "–") + " · " +
-        (ok(y.timps_rss_kb) ? (y.timps_rss_kb / 1024).toFixed(1) + " MB" : "–");
+        "; since the previous poll";
+      $st("sysb-t").style.width = Math.max(t, 0) + "%";
+      $st("sysb").style.width = (c >= 0 ? c - Math.max(t, 0) : 0) + "%";
+      $st("sys-s").innerHTML = '<i class="k1"></i>timps ' + (t >= 0 ? t + " %" : "–") +
+        ' <i class="k2 ms-1"></i>other ' + (c >= 0 && t >= 0 ? c - t + " %" : "–") +
+        " · load " + (ok(y.load && y.load[0]) ? y.load[0].toFixed(2) : "–");
+      const T = y.mem_total_kb, u = ok(T) && ok(y.mem_avail_kb) ? T - y.mem_avail_kb : -1, r = ok(y.timps_rss_kb) ? Math.min(y.timps_rss_kb, Math.max(u, 0)) : -1;
+      $st("mem").textContent = u >= 0 ? "Mem " + mb(u) + " / " + mb(T) + " MB" : "Mem –";
+      $st("memb-t").style.width = (r >= 0 && T > 0 ? r / T * 100 : 0) + "%";
+      $st("memb").style.width = (u >= 0 && T > 0 ? (u - Math.max(r, 0)) / T * 100 : 0) + "%";
+      $st("mem-s").innerHTML = '<i class="k1"></i>timps ' + (r >= 0 ? mb(r) : "–") +
+        ' <i class="k2 ms-1"></i>other ' + (u >= 0 && r >= 0 ? mb(u - r) : "–") +
+        " · free " + (ok(y.mem_avail_kb) ? mb(y.mem_avail_kb) : "–");
     }
 
     function renderDaynight(dn) {
@@ -685,9 +698,9 @@
       Object.keys(streamRows).forEach((k) => delete streamRows[k]);
       stLive.dn = null;
       if (statsBox) statsBox.innerHTML = '<div class="col text-secondary" data-placeholder>Waiting for stats…</div>';
-      ["dn", "mo", "rec", "cl", "up", "h", "sys"].forEach((k) => { $st(k).textContent = "–"; });
-      $st("sysb").style.width = "0";
-      ["dn-s", "mo-s", "rec-s", "ver", "h-s", "sys-s", "sys-t"].forEach((k) => { $st(k).textContent = ""; });
+      ["dn", "mo", "rec", "cl", "up", "h", "sys", "mem"].forEach((k) => { $st(k).textContent = "–"; });
+      ["sysb", "sysb-t", "memb", "memb-t"].forEach((k) => { $st(k).style.width = "0"; });
+      ["dn-s", "mo-s", "rec-s", "ver", "h-s", "sys-s", "mem-s"].forEach((k) => { $st(k).textContent = ""; });
       $st("clients-panel").hidden = true;
       $st("gain").hidden = true;
     }
