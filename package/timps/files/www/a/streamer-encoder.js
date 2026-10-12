@@ -209,6 +209,36 @@
     }
     note.textContent = t.join(" ");
     note.hidden = !t.length;
+    var fx = on && E && E.rotFit ? E.rotFit(rotPred[idx] || st, v) : null;
+    if (fx) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn btn-sm btn-outline-warning d-block mt-2 px-3 py-1";
+      b.textContent = "Use " + fx.width + "×" + fx.height + (fx.fps !== +v.fps ? " @ " + fx.fps + " fps" : "");
+      b.addEventListener("click", function () { applyFit(fx, b); });
+      note.appendChild(b);
+    }
+  }
+
+  function applyFit(fx, b) {
+    var s = idx, video = {};
+    video[s] = fx;
+    b.disabled = true;
+    window.timpsApi.set({ video: video }).then(function (r) {
+      if (s !== idx) return;
+      applyCorrections(r);
+      var keys = Object.keys(fx).map(function (k) { return "video" + s + "." + k; });
+      var def = r && Array.isArray(r.deferred_keys) ? keys.filter(function (k) { return r.deferred_keys.indexOf(k) >= 0; }) : keys;
+      if (def.length && (!r || r.changed !== 0)) ui().markPending(def);
+      noteErrors(r, s, "width");
+      if (last && last.video && last.video[s]) Object.keys(fx).forEach(function (k) { last.video[s][k] = fx[k]; });
+      ["width", "height", "fps"].forEach(function (k) { populate(k, fx); });
+      renderMeta();
+      renderRot();
+      if (!rotPred[s]) toast("success", "Saved. Restart the streamer to apply the rotation.");
+    }, function (err) {
+      b.disabled = false;
+      toast("danger", "Failed to save setting: " + (err.message || err));
+    });
   }
 
   function renderBadges() {

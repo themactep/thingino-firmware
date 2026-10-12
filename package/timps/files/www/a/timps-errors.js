@@ -42,8 +42,23 @@
     return Object.keys(errors || {}).map(function (k) { return k + ": " + text(errors[k]); });
   }
 
+  function rotFit(code, v) {
+    var f = fam(), w = +v.width, h = +v.height, fps = +v.fps;
+    var L = f === "t31" ? [1280, 704, 64, 64, 15, 0] : f === "t23" ? [704, 576, 16, 32, 15, 256] :
+      /^t(10|20|21)$/.test(f) ? [704, 576, 16, 16, 0, 0] : null;
+    if (!L || !w || !h || [203, 204, 205, 208].indexOf(code) < 0) return null;
+    var s = Math.min(1, L[0] / w, L[1] / h);
+    function al(x, a, m) { var r = Math.round(x / a) * a; return r > m ? Math.floor(m / a) * a : r; }
+    var nw = al(w * s, L[2], L[0]), nh = al(h * s, L[3], L[1]);
+    if (L[5] && nh < L[5]) { nh = L[5]; nw = al(nh * w / h, L[2], L[0]); }
+    var nf = L[4] && fps > L[4] ? L[4] : fps;
+    if (nw === w && nh === h && nf === fps) return null;
+    return { width: nw, height: nh, fps: nf };
+  }
+
   window.timpsErrors = {
     v: ERR_V,
+    rotFit: rotFit,
     known: function (code) { return Object.prototype.hasOwnProperty.call(TEXT, code); },
     text: text,
     list: list,
