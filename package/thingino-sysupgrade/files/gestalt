@@ -57,7 +57,7 @@ ntpd -nNq
 
 fetch_profiles() {
 	echo "Fetching available profiles..."
-	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | sed -En 's/\s*"name": "(.*)",/\1/p' 2>/dev/null)
+	profiles=$(curl -m 10 -s --tls-max 1.2 -H "Accept: application/vnd.github+json" "$LIST_URL" | sed -En 's/\s*"name": "(.*)",/\1/p' 2>/dev/null)
 
 	if [ -z "$profiles" ]; then
 		echo "Error: gestalt list empty. Please try again later or check your network connection." >&2
