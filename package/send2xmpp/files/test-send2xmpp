@@ -48,7 +48,7 @@ fi
 
 echo ""
 echo "=== Testing BOSH Endpoint ==="
-if curl -sS --max-time 10 "$XMPP_BOSH_URL" >/dev/null 2>&1; then
+if curl -sS --max-time 10 --tls-max 1.2 "$XMPP_BOSH_URL" >/dev/null 2>&1; then
 	echo "✅ BOSH endpoint reachable"
 else
 	echo "❌ BOSH endpoint not reachable: $XMPP_BOSH_URL"

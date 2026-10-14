@@ -293,7 +293,7 @@ if [ "$ota_due" = "1" ]; then
 
 	check_ok=0
 	if [ "$should_check" = "1" ] && command -v curl >/dev/null 2>&1; then
-		fetched=$(curl -sf --max-time 10 \
+		fetched=$(curl -sf --max-time 10 --tls-max 1.2 \
 			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
 			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' |
 			tr -cd '[:alnum:]._-')
