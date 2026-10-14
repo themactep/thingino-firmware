@@ -1,0 +1,41 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 14 Oct 2026 13:00:00 -0400
+Subject: [PATCH] chansession: mark the pty master fd as bidirectional
+
+The pty master is a single fd used for both reading and writing, but
+ptycommand() marked the channel as non-bidirectional (bidir_fd = 0).
+
+When the client sends CHANNEL_EOF (which OpenSSH does immediately when
+its stdin is already at EOF, e.g. `ssh -tt host cmd` from a non-tty),
+check_close() calls close_chan_fd() on channel->writefd. With
+bidir_fd = 0 that performs a real close() of the pty master, which hangs
+up the slave and unlinks /dev/pts/N. That both breaks the session I/O and
+races with the session child, which may not have opened /dev/pts/N yet:
+
+  ioctl(TIOCSCTTY): Input/output error
+  /dev/pts/0: No such file or directory
+  open /dev/tty failed - could not set controlling tty: No such device or address
+
+Marking the channel bidirectional (as other channels that share one fd
+for both directions do) makes close_chan_fd() use shutdown(), which is a
+no-op on a pty, so a client EOF no longer tears down the master. The
+master is still closed at teardown when all channel fds are marked
+closed.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/svr-chansession.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/svr-chansession.c b/src/svr-chansession.c
+--- a/src/svr-chansession.c
++++ b/src/svr-chansession.c
+@@ -927,7 +927,7 @@
+ 		channel->readfd = chansess->master;
+ 		/* don't need to set stderr here */
+ 		ses.maxfd = MAX(ses.maxfd, chansess->master);
+-		channel->bidir_fd = 0;
++		channel->bidir_fd = 1;
+ 
+ 		setnonblocking(chansess->master);
+ 
