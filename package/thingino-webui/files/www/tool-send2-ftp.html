@@ -56,6 +56,14 @@
                   <label for="ftp_password">Password</label>
                   <input type="password" class="form-control" id="ftp_password" name="ftp_password" autocomplete="current-password">
                 </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="ftp_use_ssl" name="ftp_use_ssl">
+                  <label class="form-check-label" for="ftp_use_ssl">Use FTPS (explicit TLS)</label>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="ftp_trust_cert" name="ftp_trust_cert">
+                  <label class="form-check-label" for="ftp_trust_cert">Ignore SSL certificate validity</label>
+                </p>
               </div>
             </div>
           </div>

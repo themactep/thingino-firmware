@@ -11,6 +11,16 @@ fields with the FTP server details.
 
 The `Path on FTP server` field should contain the path where the file will be saved on the FTP server.
 
+### Enable FTPS
+
+Enable `Use FTPS (explicit TLS)` to upload over FTP over TLS (AUTH TLS).
+This uses explicit FTPS on the configured control port (typically 21); implicit
+FTPS on port 990 is not supported.
+
+The server certificate is validated against the system CA store. Enable
+`Ignore SSL certificate validity` only for servers with a self-signed
+certificate that cannot be trusted otherwise.
+
 ### Set up storage path and filename template
 
 The `Filename template` field should contain the template for the filename.
