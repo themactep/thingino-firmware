@@ -223,33 +223,75 @@
   }
 
   // API Key Management
+  const keyDisplay = $("#api_key_display");
+  const copyBtn = $("#api_key_copy");
+  const deleteBtn = $("#api_key_delete");
+  const saveBtn = $("#api_key_save");
+  const exampleDiv = $("#api_key_example");
+  const exampleValue = $("#api_key_example_value");
+
+  function updateSaveButtonState() {
+    if (!saveBtn) return;
+    saveBtn.disabled = keyDisplay.readOnly || keyDisplay.value.trim() === "";
+  }
+
   async function loadApiKey() {
     try {
       const response = await fetch("/x/api-key.cgi");
       const data = await response.json();
 
-      const keyDisplay = $("#api_key_display");
-      const copyBtn = $("#api_key_copy");
-      const deleteBtn = $("#api_key_delete");
-      const exampleDiv = $("#api_key_example");
-      const exampleValue = $("#api_key_example_value");
-
       if (data.exists && data.api_key) {
+        keyDisplay.readOnly = true;
         keyDisplay.value = data.api_key;
+        keyDisplay.placeholder = "No API key generated";
         copyBtn.disabled = false;
         deleteBtn.disabled = false;
+        if (saveBtn) saveBtn.classList.add("d-none");
         exampleDiv.classList.remove("d-none");
         exampleValue.textContent = data.api_key;
       } else {
+        keyDisplay.readOnly = false;
         keyDisplay.value = "";
-        keyDisplay.placeholder = "No API key generated";
+        keyDisplay.placeholder = "Paste an API key or generate one";
         copyBtn.disabled = true;
         deleteBtn.disabled = true;
+        if (saveBtn) saveBtn.classList.remove("d-none");
         exampleDiv.classList.add("d-none");
       }
+      updateSaveButtonState();
     } catch (err) {
       console.error("Failed to load API key:", err);
     }
+  }
+
+  keyDisplay.addEventListener("input", updateSaveButtonState);
+
+  async function postApiKey(body) {
+    const options = { method: "POST" };
+    if (body !== undefined) {
+      options.headers = { "Content-Type": "application/json" };
+      options.body = JSON.stringify(body);
+    }
+    const response = await fetch("/x/api-key.cgi", options);
+    const data = await response.json();
+    if (!response.ok || (data && data.error)) {
+      throw new Error((data && data.error) || "Failed to save API key");
+    }
+    return data;
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const key = keyDisplay.value.trim();
+      if (!key) return;
+      try {
+        await postApiKey({ api_key: key });
+        await loadApiKey();
+        showAlert("success", "API key saved!");
+      } catch (err) {
+        showAlert("danger", "Error: " + err.message);
+      }
+    });
   }
 
   const generateBtn = $("#api_key_generate");
@@ -264,22 +306,15 @@
       }
 
       try {
-        const response = await fetch("/x/api-key.cgi", { method: "POST" });
-        const data = await response.json();
-
-        if (data.api_key) {
-          await loadApiKey();
-          showAlert("success", "API key generated successfully!");
-        } else {
-          showAlert("danger", "Failed to generate API key");
-        }
+        await postApiKey();
+        await loadApiKey();
+        showAlert("success", "API key generated successfully!");
       } catch (err) {
         showAlert("danger", "Error: " + err.message);
       }
     });
   }
 
-  const deleteBtn = $("#api_key_delete");
   if (deleteBtn) {
     deleteBtn.addEventListener("click", async () => {
       if (
@@ -299,10 +334,8 @@
     });
   }
 
-  const copyBtn = $("#api_key_copy");
   if (copyBtn) {
     copyBtn.addEventListener("click", () => {
-      const keyDisplay = $("#api_key_display");
       keyDisplay.select();
       document.execCommand("copy");
 
