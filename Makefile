@@ -208,10 +208,18 @@ TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(f
 TOOLCHAIN_LIBC_TAG := $(shell echo "$(TOOLCHAIN_LIBC_RAW)" | tr 'A-Z' 'a-z')
 TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc$(TOOLCHAIN_GCC_RAW)-$(TOOLCHAIN_LIBC_TAG).fragment
 
+# Path to a locally installed toolchain (BR2_THINGINO_TOOLCHAIN_TYPE_LOCAL).
+# Host-specific: override by exporting THINGINO_TOOLCHAIN_LOCAL_PATH. The
+# default matches the Buildroot SDK built for this kernel version.
+THINGINO_TOOLCHAIN_LOCAL_PATH ?= $(HOME)/thingino/toolchain/mipsel-thingino-linux-uclibc_sdk-buildroot-k$(KERNEL_VERSION)
+export THINGINO_TOOLCHAIN_LOCAL_PATH
+
 # The from-source uClibc toolchain generates its locale data on the build
 # host: uClibc-ng's gen_locale calls setlocale(LC_ALL, "en_US.UTF-8") and
 # bakes the result into the toolchain. Fail early when the host cannot
 # provide that locale instead of a cryptic error deep inside the uClibc build.
+# The check itself lives in scripts/dep_check.sh (--check-locale), which the
+# full dependency check cannot gate because the toolchain is resolved later.
 ifeq ($(TOOLCHAIN_TYPE_RAW)-$(TOOLCHAIN_LIBC_RAW),BUILDROOT-UCLIBC)
 ifneq ($(shell locale -a 2>/dev/null | grep -qiE '^en_US(\.utf-?8)?$$' && echo y),y)
 $(error Host locale en_US.UTF-8 is required to build the uClibc toolchain from source. Generate it with: sudo localedef -i en_US -f UTF-8 en_US.UTF-8)
@@ -305,6 +313,14 @@ endif
 endif
 export TOOLCHAIN_SOC_TAG
 
+# Validate a LOCAL toolchain path. Evaluated here so KERNEL_VERSION (set by
+# thingino.mk) is already resolved for the default path.
+ifeq ($(TOOLCHAIN_TYPE_RAW),LOCAL)
+ifeq ($(wildcard $(THINGINO_TOOLCHAIN_LOCAL_PATH)/bin),)
+$(error LOCAL toolchain not found at '$(THINGINO_TOOLCHAIN_LOCAL_PATH)'; set THINGINO_TOOLCHAIN_LOCAL_PATH)
+endif
+endif
+
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 
 # hardcoded variables
@@ -318,6 +334,7 @@ SED_CONFIG_VARS = sed \
 	 s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; \
 	 s/\$$[(]SOC_TARGET_ARCH[)]/$(SOC_TARGET_ARCH)/g; \
 	 s/\$$[(]TOOLCHAIN_SOC_TAG[)]/$(TOOLCHAIN_SOC_TAG)/g; \
+	 s/\$$[(]THINGINO_TOOLCHAIN_LOCAL_PATH[)]/$(subst /,\/,$(THINGINO_TOOLCHAIN_LOCAL_PATH))/g; \
 	 s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; \
 	 s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; \
 	 s/\$$[(]NAND_FLASH_CONTROLLER_SYM[)]/$(NAND_FLASH_CONTROLLER_SYM)/g; \
@@ -370,7 +387,7 @@ FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
-U_BOOT_SIZE_KB := 320
+U_BOOT_SIZE_KB := 192
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
 
@@ -417,11 +434,14 @@ DATA_BIN_SIZE_ALIGNED = $(shell echo $$((($(DATA_BIN_SIZE) + $(ALIGN_BLOCK) - 1)
 U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
 UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
 BACKUP_PARTITION_SIZE := $(shell echo $$(($(BACKUP_SIZE_KB) * 1024)))
-ifeq ($(KERNEL_VERSION),7.1-rc1)
-# The mainline 7.x kernel image is larger than the 4.4 line; widen the kernel
-# slot (rootfs/data shrink to fit the 8 MB flash). Must match the kernel DT
-# partitions in thingino-t31.dts.
-KERNEL_PARTITION_SIZE := 2621440  # 2560KB (mainline 7.x)
+ifeq ($(KERNEL_VERSION),5.15.170)
+# The t31 5.15 vendor kernel is small once the unused subsystems are off, so
+# hand the slot back to the rootfs. Must match the kernel DT partitions in
+# thingino-t31.dts.
+KERNEL_PARTITION_SIZE := 2359296  # 2304KB (5.15 t31)
+else ifeq ($(KERNEL_VERSION),7.1.0-rc1)
+# The mainline 7.x kernel image is larger than the 4.4 line; widen the slot.
+KERNEL_PARTITION_SIZE := 2621440  # 2560KB (7.x)
 else
 KERNEL_PARTITION_SIZE := 1769472  # 1728KB universal
 endif

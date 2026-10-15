@@ -879,7 +879,7 @@ Kernels come from one of two sources:
   restored from `package/linux/files/4.4.94/<soc>/`. The snapped commits are
   recorded in `package/all-patches/linux/4.4.94/SOURCES` and the patches are
   produced by `scripts/generate_kernel_4.4.94_patches.rb`.
-- **Everything else** (7.1-rc1 and the t40/a1 branches) — the custom
+- **Everything else** (7.1.0-rc1 and the t40/a1 branches) — the custom
   `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each branch to
   a pinned commit in the `KERNEL_HASH` table, so builds are reproducible and
   `make` does not hit the network at parse time.

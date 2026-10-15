@@ -6,9 +6,9 @@ Build tree: `/home/paul/thingino/firmware/ciao` (branch `ciao`). Overrides live 
 `/home/paul/thingino/overrides/` (`BR2_OVERRIDES_DIR`).
 Goal of the session: clear boot warnings/oopses and get prudynt to stream.
 
-## mainline-7x (Linux 7.1-rc1) - status (2026-10-11)
+## mainline-7x (Linux 7.1.0-rc1) - status (2026-10-11)
 
-The camera also runs a mainline **Linux 7.1-rc1** build on branch `mainline-7x`
+The camera also runs a mainline **Linux 7.1.0-rc1** build on branch `mainline-7x`
 (camera defconfig `KERNEL_VERSION_7`, uclibc, `BR2_THINGINO_DEV_EXPERIMENTAL`).
 This section is self-contained; the 4.4 material below is a different branch.
 
@@ -33,7 +33,7 @@ This section is self-contained; the 4.4 material below is a different branch.
 - The `ttyS1` boot-console handover stop (worked around with `keep_bootcon` in the
   kernel fragment) is still not root-caused.
 
-**Kernel patches** (`package/all-patches/linux/7.1-rc1/`):
+**Kernel patches** (`package/all-patches/linux/7.1.0-rc1/`):
 `0001` FIT image, `0002` thingino-t31 SFC partition map, `0003` mtdblock
 `BLK_MQ_F_NO_SCHED_BY_DEFAULT` (boot-hang fix), `0004` bound the SFC `SR_END` poll,
 `0005` T31 `mmc1` pin groups, `0006` `isp` node + `msc1_pb` group, `0007`
@@ -431,9 +431,9 @@ Goal: run the Cinnado D1 (T31L + SC2336) on **mainline Linux 7.x** with the open
 tx-isp driver - no vendor kernel, no blob `tx-isp.ko`, libimp still the vendor one
 (the AKoo7 / gtxaspec approach). Do **not** fall back to 4.4.
 
-## Current state: BOOTS to userspace on mainline 7.1-rc1
+## Current state: BOOTS to userspace on mainline 7.1.0-rc1
 
-- cleanbuild produces a fitting 8 MB image (kernel 7.1-rc1 + DTB + open ISP +
+- cleanbuild produces a fitting 8 MB image (kernel 7.1.0-rc1 + DTB + open ISP +
   SC2336 + rootfs), and the kernel **boots all the way to the Thingino login
   prompt** (`Welcome to Thingino!` / `...-cinnado-d1-f8a3 login:`) with the
   squashfs rootfs mounted from `mtdblock4`.
@@ -458,19 +458,19 @@ tx-isp driver - no vendor kernel, no blob `tx-isp.ko`, libimp still the vendor o
 - `package/open-tx-isp/Config.in`: `..._SUPPORTED` also `KERNEL_VERSION_7` for
   t31; `BR2_PACKAGE_OPEN_TX_ISP` `depends on BR2_PACKAGE_INGENIC_SDK ||
   KERNEL_VERSION_7`.
-- `package/open-tx-isp/open-tx-isp.mk`: on `7.1-rc1` drop `ingenic-sdk`, add
+- `package/open-tx-isp/open-tx-isp.mk`: on `7.1.0-rc1` drop `ingenic-sdk`, add
   `sensor-src/$(SOC_FAMILY)` to `MODULE_SUBDIRS`, skip the xburst `EXTRA_CFLAGS`.
 - `package/thingino-isp/Config.in`: `select BR2_PACKAGE_INGENIC_SDK` made
   `if !KERNEL_VERSION_7` (was the "selects SDK even on kernel 7" bug).
 - Camera defconfig: `KERNEL_VERSION_7=y`; `BR2_THINGINO_DEV_PACKAGES=y`
   (required, because `BR2_THINGINO_DEV_EXPERIMENTAL` - which gates the kernel-7
   choice - lives inside `if BR2_THINGINO_DEV_PACKAGES`); `BR2_LINUX_KERNEL_PATCH`
-  -> `package/all-patches/linux/7.1-rc1`; `# BR2_PACKAGE_THINGINO_KOPT_IPV6 is
+  -> `package/all-patches/linux/7.1.0-rc1`; `# BR2_PACKAGE_THINGINO_KOPT_IPV6 is
   not set`; WiFi package lines removed (atbm6031 doesn't build on 7.1 yet); the
   4.4.94-mmc patch line dropped.
 - `Makefile`: `KERNEL_PARTITION_SIZE` = 2621440 (2560K) for `KERNEL_VERSION_7`,
   else the 1728K universal. Must match the DT.
-- `package/all-patches/linux/7.1-rc1/`:
+- `package/all-patches/linux/7.1.0-rc1/`:
   - `0001-mips-only-build-FIT-image-for-generic-kernel.patch` (pre-existing, by
     gtxaspec; it was never wired before - that's why the MIPS FIT `.itb` step
     failed the whole kernel build).
@@ -762,7 +762,7 @@ blocks, so nodes straddle the kernel's 4 KiB scan boundary and are discarded.
 small. Increasing to 8KiB minimum").
 
 Fix:
-- `board/ingenic/xburst1/kernel/7.1-rc1/t31.generic.config`: disable
+- `board/ingenic/xburst1/kernel/7.1.0-rc1/t31.generic.config`: disable
   `CONFIG_MTD_SPI_NOR_USE_4K_SECTORS`. The 25Q64 has uniform 64 KiB blocks, so
   the driver then reports `erasesize == 65536`.
 - `Makefile` / `Makefile.utils`: `JFFS2_ERASE_BLOCK` is 64 KiB for the mainline
@@ -781,7 +781,7 @@ regeneration that came with it dropped the local `keep_bootcon` tweak that had
 been living only in the output tree, so the boot stopped at the 8250 handover
 (`printk: legacy bootconsole [t31_uart0] disabled`) and needed a power cycle.
 `keep_bootcon` is now carried in the fragment
-(`board/ingenic/xburst1/kernel/7.1-rc1/t31.generic.config`,
+(`board/ingenic/xburst1/kernel/7.1.0-rc1/t31.generic.config`,
 `CONFIG_CMDLINE="earlycon keep_bootcon"`), so a clean rebuild keeps it. The
 root cause of the handover stop (why the real `ttyS1` console goes silent
 without the boot console) is still open - `keep_bootcon` is a workaround, and
@@ -854,5 +854,5 @@ check `build/linux-*/vmlinux` for symbols/strings instead.
   `keep_bootcon` on the kernel command line (e.g. bake it into
   `CONFIG_CMDLINE`) to keep the boot console alive and see the whole boot.
 - Build with `CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.141`; output
-  lands under `$THINGINO_OUTPUT_ROOT_DIR/<branch>/...-7.1-rc1-uclibc-<ip>/`.
+  lands under `$THINGINO_OUTPUT_ROOT_DIR/<branch>/...-7.1.0-rc1-uclibc-<ip>/`.
 

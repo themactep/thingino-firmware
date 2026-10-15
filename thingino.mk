@@ -130,16 +130,20 @@ export SOC_TARGET_ARCH
 # KERNEL
 #
 
-# 4.4.94 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
+# 7.1 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
 ifeq ($(KERNEL_VERSION),)
 	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.1-rc1
+		KERNEL_VERSION := 7.1.0-rc1
 	else ifeq ($(KERNEL_VERSION_6),y)
 		KERNEL_VERSION := 6.12.112
+	else ifeq ($(KERNEL_VERSION_5),y)
+		KERNEL_VERSION := 5.15.170
+	else ifeq ($(KERNEL_VERSION_4),y)
+		KERNEL_VERSION := 4.4.94
 	else ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10.14
 	else
-		KERNEL_VERSION := 4.4.94
+		KERNEL_VERSION := 7.1.0-rc1
 	endif
 endif
 
@@ -149,6 +153,9 @@ endif
 #   4.4.94:  a common patch plus a per-SoC patch under
 #            package/all-patches/linux/4.4.94/. KERNEL_SOC selects the SoC
 #            patch and the matching binary-asset directory.
+#   5.15.170: one cumulative patch (official 5.15.170 -> Ingenic SDK tree)
+#            under package/all-patches/linux/5.15.170/ plus binary assets
+#            under package/linux/files/5.15.170/.
 # 4.4.94 uses the tarball only for the families that have an ingenic-*-4.4.94
 # branch; a1 and t40 keep the custom git tree.
 # All other versions: use custom git repo (github.com/gtxaspec/thingino-linux).
@@ -158,6 +165,8 @@ else ifeq ($(KERNEL_VERSION),4.4.94)
 ifneq ($(filter t23 t31 t32 t41 c100,$(SOC_FAMILY)),)
 KERNEL_OFFICIAL_TARBALL := y
 endif
+else ifeq ($(KERNEL_VERSION),5.15.170)
+KERNEL_OFFICIAL_TARBALL := y
 endif
 
 ifeq ($(KERNEL_OFFICIAL_TARBALL),y)
@@ -174,7 +183,7 @@ endif
 else
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),7.1.0-rc1)
 	KERNEL_BRANCH := ingenic-7.1-rc1
 else ifeq ($(SOC_FAMILY),a1)
 	KERNEL_BRANCH := ingenic-a1
@@ -216,7 +225,13 @@ KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 
 endif # custom git vs official kernel
 
-ifeq ($(KERNEL_VERSION),7.1-rc1)
+ifeq ($(KERNEL_VERSION),5.15.170)
+KERNEL_VERSION_5 := y
+else
+KERNEL_VERSION_5 := n
+endif
+
+ifeq ($(KERNEL_VERSION),7.1.0-rc1)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -235,6 +250,7 @@ export KERNEL_SOC
 export KERNEL_TARBALL_URL
 export KERNEL_VERSION
 export KERNEL_VERSION_4
+export KERNEL_VERSION_5
 export KERNEL_VERSION_7
 
 #
@@ -587,6 +603,13 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_FLASH_CONTROLLER := $(NAND_FLASH_CONTROLLER)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
+endif
+# The t31 5.15 vendor SFC is driven through the mainline spi-nor framework,
+# which names the MTD device after the SPI device ("spi1.0"), not jz_sfc. The
+# U-Boot cmdline mtdparts id must match that name so the kernel takes the
+# dynamic rootfs/data sizes from the cmdline instead of the DT partitions.
+ifeq ($(KERNEL_VERSION),5.15.170)
+	UBOOT_FLASH_CONTROLLER := spi1.0
 endif
 export UBOOT_FLASH_CONTROLLER
 

@@ -117,7 +117,7 @@ adding a SoC means adding it to both.
 `ISP_RMEM_MB`, `STREAMER`, etc.
 
 Kernel branches are mapped from SOC family + version in `thingino.mk`.
-Kernel versions: `3.10.14`, `4.4.94`, `7.1-rc1`.
+Kernel versions: `3.10.14`, `4.4.94`, `7.1.0-rc1`.
 Kernel source: `github.com/gtxaspec/thingino-linux`.
 
 ## Streamers
