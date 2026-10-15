@@ -73,6 +73,7 @@ if [ "true" = "$send_video" ]; then
 	command="$command -F 'video=@$video'"
 fi
 
+command="$command --tls-max 1.2"
 command="$command -F \"message=$message\""
 command="$command --url \"$url\""
 
