@@ -604,12 +604,15 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
-# The t31 5.15 vendor SFC is driven through the mainline spi-nor framework,
-# which names the MTD device after the SPI device ("spi1.0"), not jz_sfc. The
-# U-Boot cmdline mtdparts id must match that name so the kernel takes the
-# dynamic rootfs/data sizes from the cmdline instead of the DT partitions.
+# The t31 SFC is driven through the mainline spi-nor framework, which names
+# the MTD device after the SPI bus (spiX.0), not jz_sfc. The U-Boot cmdline
+# mtdparts id must match that name so cmdlinepart wins over the DT and the
+# kernel takes the dynamic rootfs/data sizes from the cmdline. The bus number
+# is kernel-specific: spi1.0 on the 5.15 vendor tree, spi0.0 on mainline 7.x.
 ifeq ($(KERNEL_VERSION),5.15.170)
 	UBOOT_FLASH_CONTROLLER := spi1.0
+else ifeq ($(KERNEL_VERSION),7.1.0-rc1)
+	UBOOT_FLASH_CONTROLLER := spi0.0
 endif
 export UBOOT_FLASH_CONTROLLER
 
