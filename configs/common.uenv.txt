@@ -3,7 +3,8 @@ baudrate=115200
 button_cmd_0=echo \"RST: factory reset\"; run overlay_wipe
 button_cmd_0_name=reset
 enable_updates=true
-loadaddr=0x80600000
+loadaddr=0x81000000
 loaduenv=if test \"${enable_updates}\" = \"true\"; then if fatsize mmc 0:1 uenv.done; then echo \"UENV: uenv.txt already applied\"; else if fatload mmc 0:1 ${loadaddr} uenv.txt; then echo \"UENV: importing uenv.txt\"; if env import -t -r ${loadaddr} ${filesize}; then saveenv; fatwrite mmc 0:1 ${loadaddr} uenv.done 1; echo \"UENV: env saved\"; fi; fi; fi; fi
+nuke=sf probe; sf erase 0 10000; reset
 panic_timeout=2
 serialport=ttyS1
