@@ -219,7 +219,7 @@ $(shell \
 endef
 
 # Smart configuration check - only regenerate if needed
-check-config: buildroot/Makefile
+check-config: $(BUILDROOT_DIR)/Makefile
 	@$(TEAL) "$@"
 	@if [ "$(call config_needs_regen)" = "yes" ]; then \
 		echo "Configuration files have changed, regenerating .config"; \
@@ -229,7 +229,7 @@ check-config: buildroot/Makefile
 	fi
 
 # Force configuration regeneration
-force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep
+force-config: $(BUILDROOT_DIR)/Makefile $(OUTPUT_DIR)/.keep
 	@$(TEAL) "$@"
 	# delete older config
 	$(info * remove existing .config file)
@@ -319,9 +319,10 @@ endif
 		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
-	# Kernel config override: 3.10.14 and 4.4.94 use the official kernel.org
-	# tarball + patches; all other versions use the thingino-linux git repo.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ]; then \
+	# Kernel config override: 3.10.14, 4.4.94, 5.15.170 and 7.1.13 use the
+	# official kernel.org tarball + patches; all other versions use the
+	# thingino-linux git repo.
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ] && [ "$(KERNEL_VERSION)" != "5.15.170" ] && [ "$(KERNEL_VERSION)" != "7.1.13" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \

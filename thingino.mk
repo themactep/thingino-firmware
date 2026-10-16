@@ -133,7 +133,7 @@ export SOC_TARGET_ARCH
 # 7.1 is the default; a camera pins KERNEL_VERSION_3=y for 3.10.14.
 ifeq ($(KERNEL_VERSION),)
 	ifeq ($(KERNEL_VERSION_7),y)
-		KERNEL_VERSION := 7.1.0-rc1
+		KERNEL_VERSION := 7.1.13
 	else ifeq ($(KERNEL_VERSION_6),y)
 		KERNEL_VERSION := 6.12.112
 	else ifeq ($(KERNEL_VERSION_5),y)
@@ -143,7 +143,7 @@ ifeq ($(KERNEL_VERSION),)
 	else ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10.14
 	else
-		KERNEL_VERSION := 7.1.0-rc1
+		KERNEL_VERSION := 7.1.13
 	endif
 endif
 
@@ -156,6 +156,12 @@ endif
 #   5.15.170: one cumulative patch (official 5.15.170 -> Ingenic SDK tree)
 #            under package/all-patches/linux/5.15.170/ plus binary assets
 #            under package/linux/files/5.15.170/.
+#   7.1.13:  one cumulative patch (official 7.1.13 -> thingino), rebased from
+#            the former ingenic-7.1-rc1 git branch, under
+#            package/all-patches/linux/7.1.13/.
+#            Pick the newest stable 7.1.y at
+#            https://www.kernel.org/pub/linux/kernel/v7.x/ then bump
+#            KERNEL_VERSION, the patch dir, and the kernel config dir.
 # 4.4.94 uses the tarball only for the families that have an ingenic-*-4.4.94
 # branch; a1 and t40 keep the custom git tree.
 # All other versions: use custom git repo (github.com/gtxaspec/thingino-linux).
@@ -166,6 +172,8 @@ ifneq ($(filter t23 t31 t32 t41 c100,$(SOC_FAMILY)),)
 KERNEL_OFFICIAL_TARBALL := y
 endif
 else ifeq ($(KERNEL_VERSION),5.15.170)
+KERNEL_OFFICIAL_TARBALL := y
+else ifeq ($(KERNEL_VERSION),7.1.13)
 KERNEL_OFFICIAL_TARBALL := y
 endif
 
@@ -183,9 +191,7 @@ endif
 else
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
-ifeq ($(KERNEL_VERSION),7.1.0-rc1)
-	KERNEL_BRANCH := ingenic-7.1-rc1
-else ifeq ($(SOC_FAMILY),a1)
+ifeq ($(SOC_FAMILY),a1)
 	KERNEL_BRANCH := ingenic-a1
 else ifeq ($(SOC_FAMILY),c100)
 	KERNEL_BRANCH := ingenic-t31
@@ -205,9 +211,7 @@ endif
 
 # Pin the kernel commit per branch so builds are reproducible and make does
 # not hit the network at parse time for known branches.
-ifeq ($(KERNEL_BRANCH),ingenic-7.1-rc1)
-	KERNEL_HASH := 92b684b3674ed0ea2bd0c96b6b151402b19fd666
-else ifeq ($(KERNEL_BRANCH),ingenic-a1)
+ifeq ($(KERNEL_BRANCH),ingenic-a1)
 	KERNEL_HASH := 42f0e91a310c3f5eec071760f46ad21ea0aa918a
 else ifeq ($(KERNEL_BRANCH),ingenic-t31)
 	KERNEL_HASH := a419397f3d0c6e7fcfe2173a7e34c8f3473d3b01
@@ -231,7 +235,7 @@ else
 KERNEL_VERSION_5 := n
 endif
 
-ifeq ($(KERNEL_VERSION),7.1.0-rc1)
+ifeq ($(KERNEL_VERSION),7.1.13)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
@@ -604,14 +608,14 @@ else ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 else
 	UBOOT_FLASH_CONTROLLER := jz_sfc
 endif
-# The t31 SFC is driven through the mainline spi-nor framework, which names
-# the MTD device after the SPI bus (spiX.0), not jz_sfc. The U-Boot cmdline
-# mtdparts id must match that name so cmdlinepart wins over the DT and the
-# kernel takes the dynamic rootfs/data sizes from the cmdline. The bus number
-# is kernel-specific: spi1.0 on the 5.15 vendor tree, spi0.0 on mainline 7.x.
+# The t31 SFC is driven through the mainline spi-nor framework, which names the MTD device
+# after the SPI bus (spiX.0), not jz_sfc.
+# The U-Boot cmdline mtdparts id must match that name so cmdlinepart wins over the DT and
+# the kernel takes the dynamic rootfs/data sizes from the cmdline.
+# The bus number is kernel-specific: spi1.0 on the 5.15 vendor tree, spi0.0 on mainline 7.x.
 ifeq ($(KERNEL_VERSION),5.15.170)
 	UBOOT_FLASH_CONTROLLER := spi1.0
-else ifeq ($(KERNEL_VERSION),7.1.0-rc1)
+else ifeq ($(KERNEL_VERSION),7.1.13)
 	UBOOT_FLASH_CONTROLLER := spi0.0
 endif
 export UBOOT_FLASH_CONTROLLER

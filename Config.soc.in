@@ -962,7 +962,7 @@ config KERNEL_MODERN
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
 	string
-	default "7.1.0-rc1" if KERNEL_VERSION_7
+	default "7.1.13" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

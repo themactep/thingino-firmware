@@ -20,7 +20,7 @@ OPEN_TX_ISP_LICENSE = GPL-3.0
 # Modern kernels (5.15 vendor, 7.x mainline): the ingenic-sdk is disabled (its
 # sensor/audio/AVPU modules are 4.4-only), so the open driver carries its own
 # sensors from sensor-src/<soc>/. 3.10/4.4 keep using the SDK sensor module.
-ifneq ($(filter 5.15.170 7.1.0-rc1,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.1.13,$(KERNEL_VERSION)),)
 OPEN_TX_ISP_DEPENDENCIES = linux
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY) sensor-src/$(SOC_FAMILY)
 else
@@ -44,7 +44,7 @@ endif
 
 # Add XBurst platform include paths for soc headers (the vendor trees carry
 # arch/mips/xburst; the mainline 7.x tree does not).
-ifneq ($(KERNEL_VERSION),7.1.0-rc1)
+ifneq ($(KERNEL_VERSION),7.1.13)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \
 	EXTRA_CFLAGS="-I$(LINUX_DIR)/arch/mips/xburst/soc-$(SOC_FAMILY)/include \
 	-I$(LINUX_DIR)/arch/mips/xburst/core/include \
@@ -162,7 +162,7 @@ endif
 # 30-sensor and the ISP + sensor modules are never loaded at boot. The
 # streamer's HAL init then loops on IMP_ISP_Open forever and RTSP never comes
 # up. Install the same loaders the SDK path would have written.
-ifneq ($(filter 5.15.170 7.1.0-rc1,$(KERNEL_VERSION)),)
+ifneq ($(filter 5.15.170 7.1.13,$(KERNEL_VERSION)),)
 ifeq ($(BR2_THINGINO_DEV_CAMERA),y)
 define OPEN_TX_ISP_INSTALL_MODULES_D
 	$(INSTALL) -d $(TARGET_DIR)/etc/modules.d

@@ -16,7 +16,10 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
-BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+# Buildroot tree. Defaults to the in-tree buildroot/ (a submodule); set
+# THINGINO_BUILDROOT_DIR to point at an external checkout instead, so the
+# in-tree symlink/submodule is not needed.
+BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 
 # --- CI / automation fast-paths -------------------------------------
 #
@@ -439,7 +442,7 @@ ifeq ($(KERNEL_VERSION),5.15.170)
 # hand the slot back to the rootfs. Must match the kernel DT partitions in
 # thingino-t31.dts.
 KERNEL_PARTITION_SIZE := 2359296  # 2304KB (5.15 t31)
-else ifeq ($(KERNEL_VERSION),7.1.0-rc1)
+else ifeq ($(KERNEL_VERSION),7.1.13)
 # The mainline 7.x kernel image is larger than the 4.4 line; widen the slot.
 KERNEL_PARTITION_SIZE := 2621440  # 2560KB (7.x)
 else
@@ -492,7 +495,7 @@ export BACKUP_SIZE_KB
 export KERNEL_SIZE_KB
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
 	O=$(OUTPUT_DIR) \
 	BR2_DL_DIR=$(BR2_DL_DIR)

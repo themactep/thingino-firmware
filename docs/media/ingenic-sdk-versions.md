@@ -26,7 +26,9 @@ Kernel branch selection lives in `thingino.mk`:
 | t41 | `ingenic-t41-3.10.14` | `ingenic-t41-4.4.94` |
 | a1 | — | `ingenic-a1` |
 
-The `7.1.0-rc1` line maps to `ingenic-7.1-rc1`.
+The `7.1.13` line no longer maps to a git branch: it is built from the official
+kernel.org `7.1.13` tarball plus the rebased cumulative patch, replacing the
+former `ingenic-7.1-rc1` branch.
 
 ## SoC family / arch
 

@@ -159,7 +159,7 @@ Drive from the compiler, file by file, against a stock 7.x reference:
   product; removing them (B) is a product decision, not just an engineering one.
 - SDIO timing on T31 may need vendor-style clock/LPM handling that mainline
   `jz4740_mmc` does not implement - budget for a small mmc driver patch.
-- `7.1.0-rc1` is a moving target; pin an LTS before investing.
+- `7.1.13` is a moving target; pin an LTS before investing.
 
 ## Immediate next actions
 
