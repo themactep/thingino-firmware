@@ -33,6 +33,7 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
+	INSTALL_MOD_STRIP=--strip-unneeded \
 	DIR=.
 
 # The vendor 5.15 tree predates the mainline kernel APIs the T31 driver was

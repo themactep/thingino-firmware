@@ -377,4 +377,25 @@ define THINGINO_WEBUI_ASSEMBLE_PLUGINS
 endef
 THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_ASSEMBLE_PLUGINS
 
+# The webui ships Prettier-formatted JS (readable, not minified): ~750K across
+# the rootfs. Minify the installed copies in place, after plugin assembly so
+# plugin scripts are covered too. vendor/ is left alone (third-party dists).
+# Skipped with a warning if terser is missing, so hosts without node still build.
+define THINGINO_WEBUI_MINIFY_JS
+	@if command -v terser >/dev/null 2>&1; then \
+		find "$(TARGET_DIR)/var/www" -type f -name '*.js' -not -path '*/vendor/*' | \
+		while IFS= read -r f; do \
+			if terser "$$f" -c -m -o "$$f.min" 2>/dev/null; then \
+				mv "$$f.min" "$$f"; \
+			else \
+				rm -f "$$f.min"; \
+				printf 'thingino-webui: terser failed on %s (left as-is)\n' "$$f"; \
+			fi; \
+		done; \
+	else \
+		printf 'thingino-webui: terser not found, JS not minified (image may not fit)\n'; \
+	fi
+endef
+THINGINO_WEBUI_TARGET_FINALIZE_HOOKS += THINGINO_WEBUI_MINIFY_JS
+
 $(eval $(generic-package))
