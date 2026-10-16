@@ -199,10 +199,10 @@ else ifeq ($(SOC_FAMILY),t41)
 	KERNEL_BRANCH := ingenic-t41-3.10.14
 else ifeq ($(SOC_FAMILY),t40)
 	KERNEL_BRANCH := ingenic-t40
-else ifeq ($(SOC_FAMILY),t31)
-	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(SOC_FAMILY),t32)
 	KERNEL_BRANCH := ingenic-t32
+else ifeq ($(SOC_FAMILY),t31)
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(SOC_FAMILY),t23)
 	KERNEL_BRANCH := ingenic-t31
 else
@@ -213,12 +213,12 @@ endif
 # not hit the network at parse time for known branches.
 ifeq ($(KERNEL_BRANCH),ingenic-a1)
 	KERNEL_HASH := 42f0e91a310c3f5eec071760f46ad21ea0aa918a
-else ifeq ($(KERNEL_BRANCH),ingenic-t31)
-	KERNEL_HASH := a419397f3d0c6e7fcfe2173a7e34c8f3473d3b01
 else ifeq ($(KERNEL_BRANCH),ingenic-t40)
 	KERNEL_HASH := e7f9a7439d40a539fad1525bd46a75bcdabffb17
 else ifeq ($(KERNEL_BRANCH),ingenic-t32)
 	KERNEL_HASH := 26fca510ab2dd6cfb9383ecc1b8932647556e6f1
+else ifeq ($(KERNEL_BRANCH),ingenic-t31)
+	KERNEL_HASH := a419397f3d0c6e7fcfe2173a7e34c8f3473d3b01
 endif
 
 # Fall back to the live branch tip for anything not mapped above.
@@ -229,16 +229,16 @@ KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 
 endif # custom git vs official kernel
 
-ifeq ($(KERNEL_VERSION),5.15.170)
-KERNEL_VERSION_5 := y
-else
-KERNEL_VERSION_5 := n
-endif
-
 ifeq ($(KERNEL_VERSION),7.1.13)
 KERNEL_VERSION_7 := y
 else
 KERNEL_VERSION_7 := n
+endif
+
+ifeq ($(KERNEL_VERSION),5.15.170)
+KERNEL_VERSION_5 := y
+else
+KERNEL_VERSION_5 := n
 endif
 
 ifeq ($(KERNEL_VERSION),4.4.94)
