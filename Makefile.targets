@@ -355,6 +355,14 @@ endif
 		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_URL="$(KERNEL_SITE)"' >> $(OUTPUT_DIR)/.config; \
 		echo 'BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="$(KERNEL_HASH)"' >> $(OUTPUT_DIR)/.config; \
 	fi
+	# buildscope only feeds the CI size/composition report (which falls back
+	# to a copy on PATH), so keep the host package out of local builds.
+	@if [ -n "$(THINGINO_CI)" ]; then \
+		echo "** CI build: enabling buildscope"; \
+		echo "BR2_PACKAGE_HOST_BUILDSCOPE=y" >> $(OUTPUT_DIR)/.config; \
+	else \
+		echo "# BR2_PACKAGE_HOST_BUILDSCOPE is not set" >> $(OUTPUT_DIR)/.config; \
+	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# Create dependency tracking file

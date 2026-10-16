@@ -21,6 +21,10 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 # in-tree symlink/submodule is not needed.
 BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 
+# CI detection. GitHub Actions exports CI and GITHUB_ACTIONS; the thingino CI
+# also passes WORKFLOW=1. Gates CI-only tooling (buildscope).
+THINGINO_CI := $(if $(filter 1 true,$(WORKFLOW) $(CI) $(GITHUB_ACTIONS)),1)
+
 # --- CI / automation fast-paths -------------------------------------
 #
 # WORKFLOW=1
