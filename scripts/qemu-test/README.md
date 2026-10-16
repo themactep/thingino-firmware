@@ -114,9 +114,6 @@ a slirp on the hub forwards host ports 19180 (HTTP) and 19122 (SSH) to
 the camera's usb0, and in server mode `usbpc` is a second host on the hub
 that takes a lease from the camera's udhcpd and queries its dnsd. A
 client-mode camera leases `10.0.3.15` from that slirp instead. No root.
-The device is newer than the pinned ingenic-0.6.8 release, so until the
-next one these profiles need `--qemu` (or `QEMU_BIN`) pointing at a fork
-build.
 
 ## Adding a suite
 
