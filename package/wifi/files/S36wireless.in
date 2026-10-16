@@ -257,31 +257,25 @@ start() {
 		exit 1
 	fi
 
-	kernel_version=$(uname -r | cut -d. -f1-2)
+	# The WLAN power/enable sequence is board hardware (gpio.wlan in
+	# thingino.json), not kernel-specific, so apply it whenever one is
+	# defined rather than gating on the kernel version.
+	if ! wlan_sequence=$(get_wlan_sequence); then
+		wlan_sequence=""
+	fi
 
-	case "$kernel_version" in
-		3.10 | 4.4)
-			if ! wlan_sequence=$(get_wlan_sequence); then
-				wlan_sequence=""
-			fi
+	if [ -z "$wlan_sequence" ]; then
+		echo "Wireless module GPIO is not set"
+	else
+		apply_wlan_sequence "$wlan_sequence"
 
-			if [ -z "$wlan_sequence" ]; then
-				echo "Wireless module GPIO is not set"
-			else
-				apply_wlan_sequence "$wlan_sequence"
-
-				if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
-					for pin in $wlan_pins_used; do
-						echo "Unexport GPIO pin $pin"
-						gpio unexport "$pin"
-					done
-				fi
-			fi
-			;;
-		*)
-			echo "Skipping WLAN GPIO toggling for kernel $kernel_version"
-			;;
-	esac
+		if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
+			for pin in $wlan_pins_used; do
+				echo "Unexport GPIO pin $pin"
+				gpio unexport "$pin"
+			done
+		fi
+	fi
 
 	@if WIFI_MODULE_IS_SDIO@
 	echo "$WLAN_MODULE_NAME is an SDIO module"

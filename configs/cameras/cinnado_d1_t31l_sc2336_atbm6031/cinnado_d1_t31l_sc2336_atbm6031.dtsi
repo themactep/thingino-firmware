@@ -29,15 +29,20 @@
 };
 
 /* SDIO WLAN (atbm6031) hangs off MMC1 on PB8-11/PB13-14; the family tree
-   disables msc1 because it uses MSC0 for the card slot. */
+   disables msc1 because it uses MSC0 for the card slot. The SoC node uses
+   the mainline jz4740_mmc compatible, which cannot bring up this SDIO card;
+   select the Ingenic vendor MSC driver instead, with the same setup as the
+   working 5.15 board (clock kept running, 4-bit, soldered module). */
 &msc1 {
 	status = "okay";
-	pinctrl-names = "default";
+	compatible = "ingenic,mmc";
+	pinctrl-names = "default", "active";
 	pinctrl-0 = <&msc1_pb>;
-	/* SDIO needs the clock kept running (not LPM) or CMD53 transfers time out. */
+	pinctrl-1 = <&msc1_pb>;
 	ingenic,sdio_clk = <1>;
-	/* Commands work at 50 MHz but data transfers don't; drop the bus clock. */
-	max-frequency = <25000000>;
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	non-removable;
 };
 
 /* This board is WiFi-only, but the generic T31 tree enables the MAC, whose

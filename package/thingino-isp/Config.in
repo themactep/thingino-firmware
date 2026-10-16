@@ -6,6 +6,7 @@ choice
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_THINGINO_TOOLCHAIN
 	default BR2_PACKAGE_THINGINO_ISP_NONE if BR2_SOC_FAMILY = "a1"
 	default BR2_PACKAGE_THINGINO_ISP_NONE if !BR2_THINGINO_DEV_CAMERA
+	default BR2_PACKAGE_THINGINO_ISP_OPEN if BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	default BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	help
 	  Select the ISP kernel and userspace implementation used by the
@@ -20,8 +21,10 @@ config BR2_PACKAGE_THINGINO_ISP_PROPRIETARY
 	bool "Proprietary Ingenic ISP stack"
 	depends on !BR2_SOC_FAMILY = "a1"
 	depends on BR2_THINGINO_DEV_CAMERA
+	# The Ingenic SDK is legacy-only; modern kernels use the open stack.
+	depends on !KERNEL_MODERN
 	select BR2_PACKAGE_THINGINO_ISP
-	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_MODERN
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP
 	help
@@ -34,7 +37,7 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_THINGINO_ISP
 	# On kernel 7 the SDK is disabled and the open driver carries its own
 	# sensors from sensor-src/, so do not force the SDK back on.
-	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_VERSION_7
+	select BR2_PACKAGE_INGENIC_SDK if !KERNEL_MODERN
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_OPEN_TX_ISP
 	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED && !BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP

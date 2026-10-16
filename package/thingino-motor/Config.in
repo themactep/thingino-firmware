@@ -1,0 +1,20 @@
+config BR2_PACKAGE_THINGINO_MOTOR
+	bool "thingino-motor"
+	default y if BR2_THINGINO_MOTORS && BR2_SOC_FAMILY = "t31" && KERNEL_VERSION_5
+	depends on BR2_SOC_FAMILY = "t31"
+	depends on KERNEL_VERSION_5
+	depends on BR2_THINGINO_MOTORS
+	help
+	  Vendor T31 TCU stepper-motor driver (the /dev/motor char device
+	  that thingino-motors' motors-daemon drives for PTZ).
+
+	  The modern 5.15 tree does not build the vendor SDK, so nothing
+	  provides motor.ko: S59motor's `modprobe motor` fails, motors-daemon
+	  never starts, and its WebSocket PTZ listener (:8089) never comes up
+	  - the preview page then shows "PTZ unavailable - camera needs a
+	  rebuild with the WebSocket control path". This builds the SDK motor
+	  driver as a module and installs it under the kernel modules dir so
+	  S59motor can load it.
+
+	  Only meaningful for the vendor 5.15 T31 tree; on 3.10/4.4 the
+	  ingenic-sdk package already builds and loads motor.ko.

@@ -1,0 +1,4 @@
+obj-m := avpu.o
+avpu-y := avpu_main.o avpu_ip.o avpu_alloc.o avpu_alloc_ioctl.o avpu_dmabuf.o
+
+ccflags-y += -Wno-error=incompatible-pointer-types -Wno-error=strict-prototypes

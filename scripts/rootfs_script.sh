@@ -185,6 +185,15 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
 
+# exfatprogs ships tune/dump/label/exfat2img as well; only mkfs.exfat
+# (formatsd/WebUI) and fsck.exfat are worth the flash.
+if grep -q ^BR2_PACKAGE_EXFATPROGS $BR2_CONFIG >/dev/null; then
+	rm -vf ${TARGET_DIR}/usr/sbin/tune.exfat
+	rm -vf ${TARGET_DIR}/usr/sbin/dump.exfat
+	rm -vf ${TARGET_DIR}/usr/sbin/exfat2img
+	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
+fi
+
 # BusyBox is built with long options enabled (CONFIG_LONG_OPTS=y in
 # package/busybox/busybox.config), so scripts/check-busybox-lopts.sh no longer
 # applies to the generated init scripts.

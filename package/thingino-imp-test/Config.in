@@ -4,5 +4,9 @@ config BR2_PACKAGE_THINGINO_IMP_TEST
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
 	help
-	  Minimal IMP audio capture test tool.
-	  Tests the Ingenic audio input subsystem in isolation.
+	  Minimal IMP test tools:
+	  - imp-test-audio: audio capture, isolated.
+	  - imp-test-video: FrameSource chn0 -> encoder chn0 bring-up harness
+	    (no OSD/RTSP), with a caller-stack canary and a SIGSEGV handler
+	    that prints pc/ra/sp/gp. Takes an optional PollingStream timeout
+	    argument (0 = non-blocking).

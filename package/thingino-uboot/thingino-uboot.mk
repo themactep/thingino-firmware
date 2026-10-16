@@ -166,6 +166,9 @@ define THINGINO_PATCH_DEV_ENV
 		MTDPARTS="$(THINGINO_UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(BACKUP_SIZE_KB)k(backup),$(KERNEL_SIZE_KB)k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${DATA_SIZE_KB}k(data),$${FLASH_SIZE_KB}k@0(all)"; \
 		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
 		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h; \
+		ENV_OFFSET_HEX=$$(printf '0x%x' $(U_BOOT_PARTITION_SIZE)); \
+		echo "Compiling U-Boot with CONFIG_ENV_OFFSET=$$ENV_OFFSET_HEX"; \
+		sed -i "s|^#define CONFIG_ENV_OFFSET[[:space:]]*0x50000|#define CONFIG_ENV_OFFSET\t\t$$ENV_OFFSET_HEX|" $(@D)/include/configs/isvp_common.h; \
 		$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(THINGINO_UENV_TXT) \
 			$(@D)/include/configs/isvp_common.h; \
 	fi

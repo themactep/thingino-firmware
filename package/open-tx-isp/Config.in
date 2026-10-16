@@ -5,7 +5,7 @@ config BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t23" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t30" && KERNEL_VERSION_3
-	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && (KERNEL_VERSION_3 || KERNEL_VERSION_4 || KERNEL_VERSION_7)
+	default y if BR2_SOC_FAMILY = "t31" && BR2_INGENIC_SOC_MODEL != "c100" && (KERNEL_VERSION_3 || KERNEL_VERSION_4 || KERNEL_VERSION_5 || KERNEL_VERSION_7)
 	default y if BR2_SOC_FAMILY = "t40" && KERNEL_VERSION_4
 	default y if BR2_SOC_FAMILY = "t41" && KERNEL_VERSION_4
 
@@ -13,10 +13,11 @@ config BR2_PACKAGE_OPEN_TX_ISP
 	bool
 	depends on BR2_PACKAGE_OPEN_TX_ISP_SUPPORTED
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
-	# On kernel 7 the SDK is deliberately disabled (its sensor/audio/AVPU
-	# modules are 4.4-only); the open driver then carries its own sensors
-	# from sensor-src/, so it no longer builds "after ingenic-sdk".
-	depends on BR2_PACKAGE_INGENIC_SDK || KERNEL_VERSION_7
+	# On the modern kernels (5.15, 7.x) the SDK is disabled (its
+	# sensor/audio/AVPU modules are vendor 4.4-only); the open driver then
+	# carries its own sensors from sensor-src/, so it does not build
+	# "after ingenic-sdk".
+	depends on BR2_PACKAGE_INGENIC_SDK || KERNEL_MODERN
 	depends on BR2_THINGINO_DEV_CAMERA
 	help
 	  Open-source replacement for the proprietary Ingenic TX-ISP
@@ -26,8 +27,10 @@ config BR2_PACKAGE_OPEN_TX_ISP
 
 	  The active upstream targets are the vendor Linux 3.10.14 trees
 	  for T10/T20/T21/T23/T30/T31 and Linux 4.4.94 trees for T40/T41.
-	  The recovered drivers are experimental and image quality is not
-	  yet OEM-equivalent on every sensor.
+	  The T31 driver also builds against the vendor Linux 5.15.170 tree
+	  through a compatibility shim. The recovered drivers are
+	  experimental and image quality is not yet OEM-equivalent on every
+	  sensor.
 
 	  This package builds after ingenic-sdk so its module replaces
 	  the proprietary module while retaining the SDK sensor, audio,

@@ -1,0 +1,164 @@
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -37,7 +37,7 @@
+ #endif
+ #endif
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) && !defined(PDE_DATA)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) && !defined(PDE_DATA) && !defined(TX_ISP_VENDOR_TREE)
+ #define PDE_DATA(inode) pde_data(inode)
+ #endif
+ 
+--- a/driver/t31/include/tx_isp_kernel_compat.h
++++ b/driver/t31/include/tx_isp_kernel_compat.h
+@@ -8,6 +8,8 @@
+ #include <linux/proc_fs.h>
+ #include <linux/timekeeping.h>
+ #include <linux/types.h>
++#include <linux/uaccess.h>
++#include <media/v4l2-mediabus.h>
+ 
+ /* Types removed from the in-kernel API but retained in the T31 userspace ABI. */
+ struct timespec {
+@@ -15,27 +17,78 @@
+ 	long tv_nsec;
+ };
+ 
++#ifndef TX_ISP_VENDOR_TREE
+ struct timeval {
+ 	long tv_sec;
+ 	long tv_usec;
+ };
++#endif
+ 
+ typedef phys_addr_t phys_t;
+ 
+-/* set_fs() disappeared once kernel_read()/kernel_write() became universal. */
++/*
++ * The vendor 5.15 tree predates the mainline mediabus rename; its V4L2
++ * headers only carry MEDIA_BUS_FMT_*. Alias the legacy names the driver
++ * uses so the same source builds on both trees.
++ */
++#ifndef V4L2_MBUS_FMT_UYVY8_1X16
++#define V4L2_MBUS_FMT_UYVY8_1_5X8	MEDIA_BUS_FMT_UYVY8_1_5X8
++#define V4L2_MBUS_FMT_VYUY8_1_5X8	MEDIA_BUS_FMT_VYUY8_1_5X8
++#define V4L2_MBUS_FMT_YUYV8_1_5X8	MEDIA_BUS_FMT_YUYV8_1_5X8
++#define V4L2_MBUS_FMT_YVYU8_1_5X8	MEDIA_BUS_FMT_YVYU8_1_5X8
++#define V4L2_MBUS_FMT_UYVY8_2X8		MEDIA_BUS_FMT_UYVY8_2X8
++#define V4L2_MBUS_FMT_VYUY8_2X8		MEDIA_BUS_FMT_VYUY8_2X8
++#define V4L2_MBUS_FMT_YUYV8_2X8		MEDIA_BUS_FMT_YUYV8_2X8
++#define V4L2_MBUS_FMT_YVYU8_2X8		MEDIA_BUS_FMT_YVYU8_2X8
++#define V4L2_MBUS_FMT_UYVY8_1X16	MEDIA_BUS_FMT_UYVY8_1X16
++#define V4L2_MBUS_FMT_VYUY8_1X16	MEDIA_BUS_FMT_VYUY8_1X16
++#define V4L2_MBUS_FMT_YUYV8_1X16	MEDIA_BUS_FMT_YUYV8_1X16
++#define V4L2_MBUS_FMT_YVYU8_1X16	MEDIA_BUS_FMT_YVYU8_1X16
++#define V4L2_MBUS_FMT_YUYV10_2X10	MEDIA_BUS_FMT_YUYV10_2X10
++#define V4L2_MBUS_FMT_YVYU10_2X10	MEDIA_BUS_FMT_YVYU10_2X10
++#define V4L2_MBUS_FMT_YUYV10_1X20	MEDIA_BUS_FMT_YUYV10_1X20
++#define V4L2_MBUS_FMT_YVYU10_1X20	MEDIA_BUS_FMT_YVYU10_1X20
++#endif
++
++/* set_fs() disappeared once kernel_read()/kernel_write() became universal.
++   The vendor 5.15 tree still provides it (with a struct mm_segment_t), so
++   only shim it on mainline. */
++#ifndef TX_ISP_VENDOR_TREE
+ #ifndef KERNEL_DS
+ #define KERNEL_DS 0UL
+ #endif
+ #define get_fs() 0UL
+ #define set_fs(segment) do { (void)(segment); } while (0)
++#else
++/* The vendor 5.15 kernel is built without CONFIG_SET_FS: set_fs()/get_fs()
++   and KERNEL_DS do not exist and mm_segment_t is an empty struct. The driver
++   only wraps kernel_read()/kernel_write() in a pointless set_fs(KERNEL_DS)
++   pair, so make them no-ops. */
++#ifndef KERNEL_DS
++#define KERNEL_DS	((mm_segment_t) { })
++#endif
++#ifndef get_fs
++#define get_fs()	((mm_segment_t) { })
++#endif
++#ifndef set_fs
++#define set_fs(segment)	do { (void)(segment); } while (0)
++#endif
++#endif
+ #define vfs_read(file, buf, count, pos) kernel_read((file), (buf), (count), (pos))
+ #define vfs_write(file, buf, count, pos) kernel_write((file), (buf), (count), (pos))
+ #define ioremap_nocache(offset, size) ioremap((offset), (size))
+ #define INIT_COMPLETION(completion) reinit_completion(&(completion))
+ 
++/* ACCESS_ONCE() was dropped after 5.1; the driver uses it as an lvalue. */
++#ifndef ACCESS_ONCE
++#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
++#endif
++
++#ifndef TX_ISP_VENDOR_TREE
+ #ifndef PDE_DATA
+ #define PDE_DATA(inode) pde_data(inode)
+ #endif
++#endif
+ 
+ static inline void do_gettimeofday(struct timeval *tv)
+ {
+--- a/driver/t31/include/txx_funcs.h
++++ b/driver/t31/include/txx_funcs.h
+@@ -67,8 +67,10 @@
+ 	GPIO_NR_PORTS,
+ };
+ 
++#ifndef TX_ISP_VENDOR_TREE
+ typedef unsigned long mm_segment_t;
+ #endif
++#endif
+ 
+ struct jz_driver_common_interfaces {
+ 	unsigned int flags_0;			// The flags must be checked.
+--- a/driver/t31/Kbuild
++++ b/driver/t31/Kbuild
+@@ -1,5 +1,13 @@
+ ccflags-y += -I$(src)/include -I$(src)/../include
+ ccflags-y += -include $(src)/include/tx_isp_kernel_compat.h
++
++# The vendor 5.15 tree still builds with -std=gnu89 but the driver uses C99
++# declarations in for-loops; the vendor kernel also lacks CONFIG_SET_FS and
++# other mainline-only APIs (see tx_isp_kernel_compat.h).
++ifdef TX_ISP_VENDOR_TREE
++ccflags-y += -DTX_ISP_VENDOR_TREE -std=gnu99
++endif
++
+ ccflags-y += -Wno-error=incompatible-pointer-types -Wno-error=strict-prototypes
+ 
+ # Main ISP module objects - note changed name to tx-isp-t31 (ensure tx_isp_module.o is first)
+--- a/driver/t31/tx_isp_core.c
++++ b/driver/t31/tx_isp_core.c
+@@ -31,8 +31,15 @@
+ #include <linux/device.h>
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
++#ifdef TX_ISP_VENDOR_TREE
++/* Vendor 5.15 exposes the T31 CGU through clkdev, not a DT provider; the
++   T31_CLK_CIM fallback below is dead code there, so the real binding header
++   (mainline-only) is not needed. */
++#define T31_CLK_CIM	0
++#else
+ #include <dt-bindings/clock/ingenic,t31-cgu.h>
+ #endif
++#endif
+ 
+ 
+ static int print_level = ISP_WARN_LEVEL;
+--- a/sensor-src/t31/Kbuild
++++ b/sensor-src/t31/Kbuild
+@@ -1,6 +1,12 @@
+ ccflags-y += -I$(src)/include -I$(src)/../../driver/t31/include
+ ccflags-y += -I$(src)/../../driver/include
+ ccflags-y += -include $(src)/../../driver/t31/include/tx_isp_kernel_compat.h
++
++# Vendor 5.15: see driver/t31/Kbuild.
++ifdef TX_ISP_VENDOR_TREE
++ccflags-y += -DTX_ISP_VENDOR_TREE -std=gnu99
++endif
++
+ ccflags-y += -Wno-error=incompatible-pointer-types -Wno-error=strict-prototypes
+ 
+ KBUILD_EXTRA_SYMBOLS := $(src)/../../driver/t31/Module.symvers

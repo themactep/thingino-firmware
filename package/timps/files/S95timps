@@ -4,8 +4,13 @@
 #
 
 PIDFILE=/var/run/timpsd.pid
+SUPPIDFILE=/var/run/timpsd-supervisor.pid
 DAEMON=/usr/bin/timpsd
 CONF=/etc/timps.conf
+# Respawn the daemon if it dies. It can fault in the encoder/ISP no-frame
+# watchdog path; without this the camera goes dark until a manual restart.
+# Set TIMPS_NO_RESPAWN=1 to disable (debugging).
+RESPAWN_INTERVAL=5
 
 # Read a "key = value" from timps.conf (strips inline comments + quotes).
 conf_get() {
@@ -104,9 +109,37 @@ case "$1" in
 		ensure_tls_certs
 		start-stop-daemon -S -b -m -p "$PIDFILE" \
 			-x "$DAEMON" -- -c "$CONF"
+		[ "$TIMPS_NO_RESPAWN" = "1" ] && exit 0
+		# One watcher only, and check in the parent: the subshell cannot test
+		# SUPPIDFILE (it would find its own pid just written below and exit).
+		if [ -f "$SUPPIDFILE" ] &&
+			kill -0 "$(cat "$SUPPIDFILE" 2>/dev/null)" 2>/dev/null; then
+			exit 0
+		fi
+		# Watcher: respawn the daemon if it died. It only looks at the
+		# pidfile, so a clean `stop` (which removes it) wins.
+		(
+			while :; do
+				sleep "$RESPAWN_INTERVAL"
+				if [ -f "$PIDFILE" ] &&
+					kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
+					continue
+				fi
+				logger -t timps "timpsd not running, respawning"
+				rm -f "$PIDFILE"
+				start-stop-daemon -S -b -m -p "$PIDFILE" \
+					-x "$DAEMON" -- -c "$CONF"
+			done
+		) &
+		echo $! >"$SUPPIDFILE"
 		;;
 	stop)
 		echo "Stopping timpsd..."
+		# Stop the watcher first so it cannot respawn while we tear down.
+		if [ -f "$SUPPIDFILE" ]; then
+			start-stop-daemon -K -p "$SUPPIDFILE" 2>/dev/null
+			rm -f "$SUPPIDFILE"
+		fi
 		start-stop-daemon -K -p "$PIDFILE" 2>/dev/null
 		if ! wait_stop; then
 			# Past timpsd's own 3 s shutdown guillotine (main.c), so it is

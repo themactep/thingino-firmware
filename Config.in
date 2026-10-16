@@ -88,7 +88,11 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_MOTORS if BR2_THINGINO_MOTORS
 	select BR2_PACKAGE_THINGINO_SOUNDS if BR2_THINGINO_AUDIO
-	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD && !KERNEL_VERSION_7
+	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD && !KERNEL_MODERN
+	# mkfs.exfat/fsck.exfat for the WebUI and formatsd. Pair the tools
+	# with the driver: relan's exfat-utils for exfat-nofuse (selected by
+	# that package), exfatprogs for the in-tree fs/exfat on modern kernels.
+	select BR2_PACKAGE_EXFATPROGS if BR2_THINGINO_SDCARD && KERNEL_MODERN && BR2_USE_WCHAR
 	# virtual packages
 	select BR2_PACKAGE_THINGINO_SSL
 	select BR2_PACKAGE_THINGINO_VPN
@@ -127,6 +131,8 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-isp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/subzeroclaw/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/telegrambot/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-avpu/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-motor/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluetooth/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluez/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"

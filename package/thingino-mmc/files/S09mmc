@@ -175,11 +175,12 @@ load_module() {
 	# The card/block driver is a separate module wherever MMC is modular
 	# (XBurst2). Without it the host registers and the card enumerates, but
 	# no /dev/mmcblk* node is ever created and nothing can be mounted.
-	# vfat likewise: /lib/mdev/automount uses "mount -t auto", which only
-	# tries filesystems already listed in /proc/filesystems, so it has to be
-	# resident before a card shows up. Both are no-ops when built in.
+	# vfat and exfat likewise: /lib/mdev/automount uses "mount -t auto",
+	# which only tries filesystems already listed in /proc/filesystems, so
+	# they have to be resident before a card shows up. No-ops when built in.
 	modprobe mmc_block 2>/dev/null || true
 	modprobe vfat 2>/dev/null || true
+	modprobe exfat 2>/dev/null || true
 
 	set_power
 }

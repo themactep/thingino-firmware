@@ -75,6 +75,7 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
 # Which MSC driver this SoC and kernel pair uses:
+#   ingenic-mmc   5.15 (T31 vendor SDK) - mainline-style Ingenic MSC
 #   jzmmc         XBurst1 on 3.10/4.4, everything except t32
 #   sdhci-jz      t32 (PRJ007) on 3.10 - jzmmc_v12 does not list SOC_PRJ007 in
 #                 its depends, so JZMMC_V12* values are dropped by kconfig there
@@ -83,7 +84,9 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 #
 # KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
 # be compared rather than concatenated.
-ifeq ($(SOC_FAMILY),t32)
+ifeq ($(KERNEL_VERSION_5),y)
+KOPT_MMC_DRIVER = ingenic-mmc
+else ifeq ($(SOC_FAMILY),t32)
 ifeq ($(KERNEL_VERSION_4),y)
 KOPT_MMC_DRIVER = sdhci-ingenic
 else
@@ -97,6 +100,8 @@ endif
 
 ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
 KOPT_MMC_SYM = MMC_SDHCI
+else ifeq ($(KOPT_MMC_DRIVER),ingenic-mmc)
+KOPT_MMC_SYM = INGENIC_MMC
 else
 KOPT_MMC_SYM = JZMMC_V12
 endif
@@ -144,6 +149,21 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 		$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_SDHCI_JZ), \
 		$(call KCONFIG_SET_OPT,CONFIG_MMC_SDHCI_JZ,m))
 endef
+else ifeq ($(KOPT_MMC_DRIVER),ingenic-mmc)
+# 5.15 T31: mainline-style Ingenic MSC. Keep the controller built in - the SD
+# slot and any SDIO wifi part both want it up before userspace.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_MMC)
+endef
+# A card slot is expected to mount FAT32; modular like the rest of the stack.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
 else
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
@@ -161,6 +181,19 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK_BOUNCE)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS)
 endef
+endif
+
+# exFAT on modern kernels comes from the in-tree driver (fs/exfat); the
+# out-of-tree exfat-nofuse no longer builds past 5.4. Enable it as a module
+# wherever an SD slot is expected, so a card mounts through the same
+# "mount -t auto" path as vfat. Legacy kernels keep exfat-nofuse.
+ifneq ($(filter y,$(KERNEL_VERSION_5) $(KERNEL_VERSION_7)),)
+ifeq ($(BR2_THINGINO_SDCARD),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT
+	$(call KCONFIG_SET_OPT,CONFIG_EXFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_EXFAT_DEFAULT_IOCHARSET,"utf8")
+endef
+endif
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0
@@ -240,7 +273,10 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2
 	# enables). The USB mode (host / dual-role) is set by the choice below.
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DMA_BUFFER_MODE)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_INNOPHY)
+	# The INNO PHY driver is PRJ007/PRJ008-only in the vendor 5.15 tree
+	# (OPCR_USB_SPENDN0 is undefined on T31); skip it for t31 until the
+	# T31 PHY is ported.
+	$(if $(filter t31,$(SOC_FAMILY)),$(call KCONFIG_DISABLE_OPT,CONFIG_INGENIC_INNOPHY),$(call KCONFIG_ENABLE_OPT,CONFIG_INGENIC_INNOPHY))
 endef
 endif
 # DWC2_OTG = the camera is the USB host: attach a device to it (e.g. via an
@@ -416,6 +452,15 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS
 endef
 endif
 
+################ NFS FS #########################
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_NFS),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NFS
+	$(call KCONFIG_ENABLE_OPT,CONFIG_NFS_FS)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_ROOT_NFS)
+endef
+endif
+
 ################ GPIO LEDS #########################
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_LEDS),y)
@@ -578,6 +623,16 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC
 endef
 endif
 
+ifeq ($(BR2_THINGINO_AUDIO),y)
+# SOUND is the sound-core parent the audio path expects. SOUND_OSS3 (the
+# jzsound oss3 driver) is PRJ007/PRJ008-only and does not compile for t31,
+# and it defaults to y under SOUND, so force it off.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SOUND)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_SOUND_OSS3)
+endef
+endif
+
 ################### IPV6 ##############################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_IPV6),y)
 # ip6tables is not here - it needs the netfilter core, which no base config
@@ -671,6 +726,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_INTERNAL_PHY)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_4_4)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0_1BIT)
@@ -692,6 +748,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SLIP)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_LEDS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP)
@@ -712,6 +769,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_CLK)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO_DMIC)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_AUDIO)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_WIREGUARD_UDP_TUNNEL)
 endef
 

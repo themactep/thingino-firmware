@@ -1,0 +1,2 @@
+obj-m += tcu_alloc.o
+obj-m += motor.o

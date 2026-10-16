@@ -1,0 +1,17 @@
+config BR2_PACKAGE_THINGINO_AVPU
+	bool "thingino-avpu"
+	default y if BR2_PACKAGE_THINGINO_ISP_OPEN && BR2_THINGINO_DEV_CAMERA && BR2_SOC_FAMILY = "t31" && KERNEL_VERSION_5
+	depends on BR2_SOC_FAMILY = "t31"
+	depends on KERNEL_VERSION_5
+	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
+	depends on BR2_THINGINO_DEV_CAMERA
+	help
+	  Vendor T31 AVPU (el150) H.264/H.265 encoder driver.
+
+	  The modern kernels (5.15, 7.x) do not build the vendor SDK, so
+	  nothing provides /dev/avpu, and the vendored libimp's
+	  IMP_System_Init (AL_Board_Create) fails without it. This builds the
+	  SDK AVPU driver as a module and installs /etc/modules.d/10-avpu.
+
+	  Only meaningful for the vendor 5.15 T31 tree; on 3.10/4.4 the
+	  ingenic-sdk package already builds and loads avpu.
