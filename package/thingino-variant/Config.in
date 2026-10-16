@@ -1,0 +1,58 @@
+config BR2_PACKAGE_THINGINO_VARIANT
+	bool
+
+# Hidden tier helpers. Each tier selects the packages it ships; moving the
+# app-layer enables out of configs/fragments/core.fragment into these symbols
+# is what lets a variant turn packages OFF (a fragment line can only turn on).
+config BR2_PACKAGE_THINGINO_VARIANT_APPS
+	bool
+	select BR2_PACKAGE_MDNSD
+	select BR2_PACKAGE_MDNSD_HTTP_SERVICE
+	select BR2_PACKAGE_MDNSD_MQUERY
+	select BR2_PACKAGE_THINGINO_DIAG
+	select BR2_PACKAGE_THINGINO_GPIO
+	select BR2_PACKAGE_THINGINO_ISP_INSPECTOR
+	select BR2_PACKAGE_THINGINO_SYSTEM
+	select BR2_PACKAGE_THINGINO_SYSUPGRADE
+
+# Full-only extras trimmed from the 8 MB profile.
+config BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA
+	bool
+	select BR2_PACKAGE_THINGINO_AGENT
+	select BR2_PACKAGE_THINGINO_HA
+	# legacy 2.0.x mosquitto is preferred over 2.1.2 due to smaller size
+	select BR2_PACKAGE_THINGINO_MOSQUITTO_20X
+
+choice
+	prompt "Firmware variant"
+	default BR2_PACKAGE_THINGINO_VARIANT_FULL
+	help
+	  Select the firmware package profile. Full is the standard
+	  image. 8 MB trims the app layer to fit an 8 MB SPI NOR chip.
+	  Minimal is a kernel + shell + SSH image for fast development
+	  builds.
+
+config BR2_PACKAGE_THINGINO_VARIANT_FULL
+	bool "Full"
+	select BR2_PACKAGE_THINGINO_VARIANT
+	select BR2_PACKAGE_THINGINO_VARIANT_APPS
+	select BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA
+	help
+	  Everything Thingino ships today.
+
+config BR2_PACKAGE_THINGINO_VARIANT_FLASH8
+	bool "8 MB flash"
+	select BR2_PACKAGE_THINGINO_VARIANT
+	select BR2_PACKAGE_THINGINO_VARIANT_APPS
+	help
+	  Full feature set trimmed to fit an 8 MB flash chip. Pairs
+	  with FLASH_SIZE_MB=8.
+
+config BR2_PACKAGE_THINGINO_VARIANT_MINIMAL
+	bool "Minimal (development)"
+	select BR2_PACKAGE_THINGINO_VARIANT
+	help
+	  Kernel, shell, and SSH only. Fastest incremental rebuilds;
+	  not a shippable camera image.
+
+endchoice

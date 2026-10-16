@@ -62,23 +62,14 @@ BR2_PACKAGE_OVERRIDE_FILE="$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-overri
 
 # packages
 # BR2_PACKAGE_COREUTILS is not set
-BR2_PACKAGE_MDNSD=y
-BR2_PACKAGE_MDNSD_HTTP_SERVICE=y
-BR2_PACKAGE_MDNSD_MQUERY=y
-# BR2_PACKAGE_MDNSD_SSH_SERVICE is not set
 BR2_PACKAGE_THINGINO_KOPT_IPV6=y
-BR2_PACKAGE_THINGINO_AGENT=y
-BR2_PACKAGE_THINGINO_DIAG=y
-BR2_PACKAGE_THINGINO_GPIO=y
-BR2_PACKAGE_THINGINO_HA=y
-BR2_PACKAGE_THINGINO_ISP_INSPECTOR=y
-BR2_PACKAGE_THINGINO_SYSTEM=y
-BR2_PACKAGE_THINGINO_SYSUPGRADE=y
-BR2_PACKAGE_THINGINO_VPN_WIREGUARD=y
-# legacy 2.0.x mosquitto version is preferred due to smaller size
-# BR2_PACKAGE_THINGINO_MOSQUITTO_212 is not set
-BR2_PACKAGE_THINGINO_MOSQUITTO_20X=y
+# App-layer packages are selected by the firmware variant (see
+# package/thingino-variant/Config.in): APPS for Full and 8 MB, APPS_EXTRA
+# for Full only. A select can only turn symbols on, so explicit off switches
+# like MDNSD's SSH advertisement stay here.
+# BR2_PACKAGE_MDNSD_SSH_SERVICE is not set
 # override Buildroot package settings
+# BR2_PACKAGE_THINGINO_MOSQUITTO_212 is not set
 # BR2_PACKAGE_MOSQUITTO_BROKER is not set
 # BR2_PACKAGE_MOSQUITTO_APPS is not set
 

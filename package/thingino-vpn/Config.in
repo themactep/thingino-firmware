@@ -3,6 +3,7 @@ config BR2_PACKAGE_THINGINO_VPN
 
 choice
 	prompt "VPN Selection"
+	default BR2_PACKAGE_THINGINO_VPN_WIREGUARD if BR2_PACKAGE_THINGINO_VARIANT_APPS_EXTRA
 	default BR2_PACKAGE_THINGINO_VPN_NONE
 	help
 	  Select one VPN solution to include in the firmware.

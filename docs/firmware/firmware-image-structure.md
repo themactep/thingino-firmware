@@ -153,5 +153,6 @@ sha256sum -c thingino-camera.bin.sha256sum
 
 ## See Also
 
+- [Firmware variants](../dev/firmware-variants.md) - Full, 8 MB, and Minimal package profiles
 - [Firmware Dumping](firmware.md) - How to backup existing firmware
 - [Camera Recovery](camera-recovery.md) - Recovering from failed updates
