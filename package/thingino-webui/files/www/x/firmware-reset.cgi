@@ -69,7 +69,7 @@ resolve_action() {
 		wipeoverlay)
 			action_label="Wipe overlay"
 			action_description="Erase data stored in the overlay partition."
-			action_command="flash_eraseall -j /dev/mtd2"
+			action_command="firstboot -e -f"
 			action_reboot="true"
 			;;
 		fullreset)
