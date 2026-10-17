@@ -54,7 +54,7 @@ from .serial import QemuSerial
 PROG = sys.argv[0] or "qemu-dev"
 
 # SPI NAND images run on a 128 MiB GigaDevice GD5F1GQ5UE: the SPL, U-Boot
-# and Linux of a thingino NAND build all know it
+# and Linux of thingino and vendor NAND builds all know it
 NAND_ID = 0xc851
 NAND_SIZE = 128 << 20
 
@@ -196,6 +196,12 @@ def soc_type(family):
     """The device -global soc-variant= applies to."""
     return {"t40": "ingenic-t40", "t41": "ingenic-t40",
             "a1": "ingenic-a1"}.get(family, "ingenic-t31")
+
+
+def sfc_type(family):
+    """The flash controller device -global nand-id= applies to."""
+    return ("ingenic-a1-sfc" if family in ("t40", "t41", "a1")
+            else "ingenic-t31-sfc")
 
 
 def find_qemu(image, explicit):
@@ -899,9 +905,6 @@ def cmd_up(args, extra):
     if not machine:
         die(f"no QEMU machine for {model}; pass --machine")
     nand = spi_nand(image)
-    if nand and family not in ("t40", "t41", "a1"):
-        die(f"{model} SPI NAND is not emulated; the fork has it on the "
-            f"T40, T41 and A1")
     if args.variant is not None:
         variant = args.variant or None
     else:
@@ -954,7 +957,7 @@ def cmd_up(args, extra):
     if variant:
         argv += ["-global", f"{soc_type(family)}.soc-variant={variant}"]
     if nand:
-        argv += ["-global", f"ingenic-a1-sfc.nand-id={NAND_ID:#x}"]
+        argv += ["-global", f"{sfc_type(family)}.nand-id={NAND_ID:#x}"]
     if ports:
         argv += ["-netdev", "user,id=n0"]
     if args.sd:

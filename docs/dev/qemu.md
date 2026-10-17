@@ -70,9 +70,9 @@ again for a session that is already up replaces it. Other options:
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - Anything after `--` goes to QEMU as it is.
 
-A SPI NAND image (its boot header says so) boots on the T40, T41 and A1
-with a 128 MiB GigaDevice GD5F1GQ5UE for its flash, a chip the SPL,
-U-Boot and Linux of a NAND build all know. The flash copy is padded to the
+A SPI NAND image (its boot header says so) boots with a 128 MiB
+GigaDevice GD5F1GQ5UE for its flash, a chip the SPL, U-Boot and Linux of
+thingino's and Ingenic's NAND builds know. The flash copy is padded to the
 whole chip, erased, for the UBI volumes to grow into. NAND needs a
 qemu-ingenic release newer than ingenic-0.6.11.
 
