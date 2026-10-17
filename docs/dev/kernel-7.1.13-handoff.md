@@ -14,14 +14,16 @@ Kernel 7.1.13 built from the official kernel.org tarball plus one cumulative
 patch (`package/all-patches/linux/7.1.13/0001-linux-7.1.13-to-thingino.patch`)
 and the numbered follow-ups in the same directory.
 
-**Video works end to end.** The SC2336 probes, the chip id reads back
+**Video and PTZ work end to end.** The SC2336 probes, the chip id reads back
 correctly (`0xcb3a`), `s_stream(1)` writes the init array, libimp's
 `IMP_System_Init` completes, and `timpsd` reports `video chn0 streaming`
 with encoded key frames (`first encoded frame ... key=1`). RTSP and HTTP
-are listening on the camera.
+are listening on the camera. `motors-daemon` runs, `/dev/motor` exists and
+`motors -j` reports the homed position (1850,500) and speed 900; a move to
+1800,480 and back succeeds.
 
-The last missing piece was the AVPU encoder driver (see 5), now ported and
-built into the kernel.
+The AVPU encoder driver (section 5) and the GPIO stepper motor driver
+(section 6) are the two ports that completed the pipeline.
 
 Committed before this session:
 
@@ -45,12 +47,20 @@ Committed as `eff23357e` (linux: 7.1 t31: fix the SC2336 sensor bring-up):
 0016-misc-add-ingenic-rmem-device.patch
 ```
 
-Uncommitted (new, AVPU):
+Committed as `e10ff1a5c` (linux: 7.1 t31: add the AVPU encoder driver):
 
 ```
 0017-misc-add-t31-avpu-driver.patch
 configs/cameras/.../*.dtsi        (&avpu status = "okay")
 board/ingenic/xburst1/kernel/7.1.13/t31.generic.config (CONFIG_INGENIC_AVPU=y)
+```
+
+Uncommitted (new, PTZ):
+
+```
+0018-misc-add-ingenic-gpio-motor-driver.patch
+configs/cameras/.../*.dtsi        (ptz_motor node with hst/vst-gpios)
+board/ingenic/xburst1/kernel/7.1.13/t31.generic.config (CONFIG_INGENIC_MOTOR=m)
 ```
 
 Uncommitted (intentionally):
@@ -78,6 +88,7 @@ Patch series in `package/all-patches/linux/7.1.13/`:
 0015 pinctrl: ingenic: allow the T31 shadow window
 0016 misc: add the Ingenic rmem device
 0017 misc: add the T31 AVPU encoder driver
+0018 misc: add an Ingenic GPIO stepper motor driver
 ```
 
 ## 2. SDIO / WiFi (done)
@@ -121,6 +132,10 @@ sleep in the MMC probe at ~0.06 s and would stall the whole boot ~8 s.
 - `BR2_PACKAGE_WIRELESS_REGDB` is selected by the `BR2_PACKAGE_WIFI` menu
   (installs `/lib/firmware/regulatory.db`; fixes `failed to load
   regulatory.db`).
+- `local.mk` sets `WIFI_ATBM6031_OVERRIDE_SRCDIR=~/thingino/overrides/
+  wifi-atbm6031`. Overrides bypass Buildroot patches, so patch 0003 must be
+  applied to that tree by hand (done). Without it a clean build still warns
+  `Incorrect netdev->dev_addr`; with it the clean image is silent.
 
 ## 4. SC2336 (fixed)
 
@@ -210,7 +225,46 @@ timpsd: [HAL_ING] chn0: first encoded frame packCount=3 aulen=84941 key=1
 
 `IMP_AI_Enable failed` is expected: this board has no microphone.
 
-## 6. Debug techniques that worked
+## 6. PTZ stepper motors (fixed)
+
+`S59motor` loads the vendor `motor` module from ingenic-sdk, but that
+package is disabled on modern kernels (`BR2_PACKAGE_INGENIC_SDK` depends on
+`!KERNEL_MODERN`) and its driver uses the 3.10/4.4 TCU/PP kernel API.
+Without `motor.ko` the script exits before starting motors-daemon:
+`motors -r` reports "Motors daemon is NOT running".
+
+Patch 0018 adds `drivers/misc/motor.c`, a mainline driver with the same
+`/dev/motor` ioctl ABI. Facts:
+
+- The four phase GPIOs per axis come from the camera DT node `ptz_motor`
+  (compatible `ingenic,motor`), not from the vendor module parameters:
+  pan PB17/PB31/PB30/PB29 and tilt PB27/PC0/PB21/PB20 (the numbers in the
+  vendor `gpio_pan`/`gpio_tilt` are port*32+pin).
+- Step timing is a kthread (`usleep_range` at 1e6/speed us), so the
+  TCU/PP channels and the vendor tcu_alloc module are not needed.
+- The ioctl ABI/state machine (MOTOR_STOP/RESET/MOVE/GET_STATUS/SPEED/
+  GOBACK/CRUISE) follows the vendor driver. The daemon's MOTOR_SPEED_AXIS
+  (0x8) gets -EINVAL, so it falls back to MOTOR_SPEED, as on the T31
+  vendor kernels.
+- Built as a module (`CONFIG_INGENIC_MOTOR=m`) because S59motor passes the
+  step limits at modprobe time and checks `/proc/modules`. The DT supplies
+  the pins; the module parameters are accepted but ignored. The module is
+  ~12 KB stripped and fits the 4608 KB rootfs; the kernel DTB carries the
+  motor node, so **both the kernel and the rootfs must be flashed**.
+- No limit switches on this board (`gpio_switch=-1`); homing uses the
+  daemon-seeded max steps and current position, then moves to 0 and back
+  to the first preset, as the vendor driver does without switches.
+
+Verified on .116 after the kernel OTA and rootfs upgrade:
+
+```
+ingenic-motor motor: ready: pan 3700 steps, tilt 1000 steps
+motors -j -> {"status":"0","xpos":"1850","ypos":"500","speed":"900"}
+move to 1800,480 -> motors -j xpos=1800 ypos=480
+return to 1850,500 -> motors -j xpos=1850 ypos=500
+```
+
+## 7. Debug techniques that worked
 
 - Compare live registers with .109 (`devmem` at CPCCR/VPLL/MPLL/CIMCDR/
   ISPCDR/CLKGR/GPIO PAT0/PAT1, shadow window), and read the vendor clock
@@ -229,7 +283,7 @@ timpsd: [HAL_ING] chn0: first encoded frame packCount=3 aulen=84941 key=1
 - `i2cdetect -y 0` quick-write is unreliable while the bus is float; use
   `i2cdetect -y -r 0` or a targeted `i2ctransfer`.
 
-## 7. Cosmetic / expected (do not chase)
+## 8. Cosmetic / expected (do not chase)
 
 - `jitterentropy: Initialization failed with host not compliant` - benign
   early-boot RNG health check.
@@ -245,8 +299,11 @@ timpsd: [HAL_ING] chn0: first encoded frame packCount=3 aulen=84941 key=1
   `mem=42M`, and patch 0016 only exposes the device.
 - `[HAL_ING] IMP_AI_Enable failed` - the D1 has no microphone; audio is not
   wired.
+- `motors-daemon: MOTOR_SPEED_AXIS unsupported, falling back to
+  MOTOR_SPEED` - expected; the mainline motor driver does not implement the
+  fork's per-axis speed ioctl 0x8, exactly like the vendor T31 driver.
 
-## 8. Build / run
+## 9. Build / run
 
 ```sh
 # toolchain (only this one; the dir was renamed with the kernel bump)
@@ -261,11 +318,18 @@ CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.116 make rebuild-linux
 # output tree
 #   ~/output/feature/kernel-7.1/cinnado_d1_t31l_sc2336_atbm6031-7.1.13-uclibc-192.168.88.116/
 
-# kernel-only OTA to the device
+# kernel-only OTA to the device (needed for DT changes)
 CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.116 make ota-kernel
+
+# rootfs+data upgrade with config backup (needed for module changes)
+CAMERA=cinnado_d1_t31l_sc2336_atbm6031 IP=192.168.88.116 make ota-upgrade
 
 # U-Boot: `nuke` (sf probe; sf erase 0 10000; reset) re-enters DFU
 ```
+
+- A PTZ change touches both sides: the motor DT node is in the kernel DTB
+  (`ota-kernel`) and `motor.ko` is in the rootfs (`ota-upgrade`). The rootfs
+  upgrade backs up `/etc`/overlay to mtd2 and restores it.
 
 - `patch 0013` and the `IMDBG` instrumentation from the vendor-driver
   debugging were removed in the previous session; do not reintroduce them.

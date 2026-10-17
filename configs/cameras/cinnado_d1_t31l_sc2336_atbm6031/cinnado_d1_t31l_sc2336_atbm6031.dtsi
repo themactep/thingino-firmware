@@ -78,3 +78,23 @@
 &avpu {
 	status = "okay";
 };
+
+/* PTZ stepper motors: pan PB17/PB31/PB30/PB29, tilt PB27/PC0/PB21/PB20.
+   The pins come from the vendor /etc/thingino.json gpio_pan/gpio_tilt. */
+/ {
+	ptz_motor: motor {
+		compatible = "ingenic,motor";
+
+		hst-gpios = <&gpb 17 GPIO_ACTIVE_HIGH>,
+			    <&gpb 31 GPIO_ACTIVE_HIGH>,
+			    <&gpb 30 GPIO_ACTIVE_HIGH>,
+			    <&gpb 29 GPIO_ACTIVE_HIGH>;
+		vst-gpios = <&gpb 27 GPIO_ACTIVE_HIGH>,
+			    <&gpc 0 GPIO_ACTIVE_HIGH>,
+			    <&gpb 21 GPIO_ACTIVE_HIGH>,
+			    <&gpb 20 GPIO_ACTIVE_HIGH>;
+
+		ingenic,hmaxstep = <3700>;
+		ingenic,vmaxstep = <1000>;
+	};
+};
