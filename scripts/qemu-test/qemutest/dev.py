@@ -53,9 +53,9 @@ from .serial import QemuSerial
 
 PROG = sys.argv[0] or "qemu-dev"
 
-# SPI NAND images run on a 128 MiB GigaDevice GD5F1GM7UE: the SPL, U-Boot
+# SPI NAND images run on a 128 MiB GigaDevice GD5F1GQ5UE: the SPL, U-Boot
 # and Linux of a thingino NAND build all know it
-NAND_ID = 0xc891
+NAND_ID = 0xc851
 NAND_SIZE = 128 << 20
 
 # The soc-variant names the pinned fork knows; any other model boots as
