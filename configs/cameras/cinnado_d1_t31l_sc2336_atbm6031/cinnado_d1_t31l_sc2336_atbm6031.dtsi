@@ -73,3 +73,8 @@
 &isp {
 	status = "okay";
 };
+
+/* libimp's IMP_System_Init opens /dev/avpu for the encoder. */
+&avpu {
+	status = "okay";
+};

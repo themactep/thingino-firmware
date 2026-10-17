@@ -1,0 +1,1130 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] misc: add the T31 AVPU encoder driver
+
+libimp's IMP_System_Init creates its AL board object by opening
+/dev/avpu. Without it every streamer start fails with
+"AL_Board_Create failed" and the sensor is stopped again, even though
+the ISP and the SC2336 are working. The vendor 3.10/4.4 kernels
+provide this device from the AVPU driver; the open-tx-isp tree carries
+the T31 sources only for 4.4.
+
+Port the T31 AVPU driver to 7.x: keep the libimp ioctl ABI, drop the
+hardcoded platform device (the DT node supplies the base, IRQ 62 and
+the el150/ahb1/vpll clocks), map the coherent buffers without the
+removed dma_cache_sync() and use the current class_create() and
+vm_flags_set() APIs. The AVPU core clock runs from VPLL/3 = 400 MHz;
+the EL150 divider needs the T31 CE/busy/stop handshake so the rate
+change actually latches and clears the stop bit left by the
+bootloader.
+
+Build it into the kernel: the rootfs has only ~12 KB spare, while the
+kernel partition has ~56 KB.
+
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_alloc.c
+@@ -0,0 +1,41 @@
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/dma-mapping.h>
++
++#include "avpu_alloc.h"
++
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Kevin Grandemange");
++MODULE_AUTHOR("Sebastien Alaiwan");
++MODULE_AUTHOR("Antoine Gruzelle");
++MODULE_DESCRIPTION("JZ Common");
++
++struct avpu_dma_buffer *avpu_alloc_dma(struct device *dev, size_t size)
++{
++	struct avpu_dma_buffer *buf =
++		kmalloc(sizeof(struct avpu_dma_buffer),
++			GFP_KERNEL);
++
++	if (!buf)
++		return NULL;
++
++	buf->size = size;
++	buf->cpu_handle = dma_alloc_coherent(dev, buf->size,
++					     &buf->dma_handle,
++					     GFP_KERNEL | GFP_DMA);
++
++	if (!buf->cpu_handle) {
++		kfree(buf);
++		return NULL;
++	}
++
++	return buf;
++}
++
++void avpu_free_dma(struct device *dev, struct avpu_dma_buffer *buf)
++{
++	if (buf)
++		dma_free_coherent(dev, buf->size, buf->cpu_handle,
++				  buf->dma_handle);
++	kfree(buf);
++}
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_alloc.h
+@@ -0,0 +1,15 @@
++#ifndef _AL_ALLOC_H_
++#define _AL_ALLOC_H_
++
++#include <linux/device.h>
++
++struct avpu_dma_buffer {
++	u32 size;
++	dma_addr_t dma_handle;
++	void *cpu_handle;
++};
++
++struct avpu_dma_buffer *avpu_alloc_dma(struct device *dev, size_t size);
++void avpu_free_dma(struct device *dev, struct avpu_dma_buffer *buf);
++
++#endif /* _AL_ALLOC_H_ */
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_alloc_ioctl.c
+@@ -0,0 +1,92 @@
++#include "avpu_alloc_ioctl.h"
++#include "avpu_alloc.h"
++
++#include <linux/uaccess.h>
++#include "avpu_dmabuf.h"
++
++int avpu_ioctl_get_dma_fd(struct device *dev, unsigned long arg)
++{
++	struct avpu_dma_info info;
++	int err;
++
++	if (copy_from_user(&info, (struct avpu_dma_info *)arg, sizeof(info)))
++		return -EFAULT;
++
++	err = avpu_allocate_dmabuf(dev, info.size, &info.fd);
++	if (err)
++		return err;
++
++	err = avpu_dmabuf_get_address(dev, info.fd, &info.phy_addr);
++	if (err)
++		return err;
++
++	if (copy_to_user((void *)arg, &info, sizeof(info)))
++		return -EFAULT;
++
++	return 0;
++}
++
++static int add_buffer_to_list(struct avpu_codec_chan *chan, struct avpu_dma_buffer *buf)
++{
++	struct avpu_dma_buf_mmap *buf_mmap = kmalloc(sizeof(*buf_mmap), GFP_KERNEL);
++
++	if (!buf_mmap)
++		return -1;
++	buf_mmap->buf = buf;
++	spin_lock(&chan->lock);
++	list_add_tail(&buf_mmap->list, &chan->mem);
++	buf_mmap->buf_id = chan->num_bufs++;
++	spin_unlock(&chan->lock);
++	return buf_mmap->buf_id;
++}
++
++int avpu_ioctl_get_dma_mmap(struct device *dev, struct avpu_codec_chan *chan,
++			   unsigned long arg)
++{
++	struct avpu_dma_info info;
++	struct avpu_dma_buffer *buf = NULL;
++
++	if (copy_from_user(&info, (struct avpu_dma_info *)arg, sizeof(info)))
++		return -EFAULT;
++
++	buf = avpu_alloc_dma(dev, info.size);
++
++	if (!buf) {
++		dev_err(dev, "Can't alloc DMA buffer\n");
++		return -ENOMEM;
++	}
++
++	info.fd = add_buffer_to_list(chan, buf);
++	if (info.fd == -1)
++		return -ENOMEM;
++	/* offset for mmap needs to be a multiple of page size */
++	info.fd = info.fd << PAGE_SHIFT;
++
++	info.phy_addr = (__u32)buf->dma_handle;
++
++	pr_info("allocated buffer cpu: %p, phy:%d, offset:%d\n", buf->cpu_handle,
++		info.phy_addr, info.fd);
++
++	if (copy_to_user((void *)arg, &info, sizeof(info)))
++		return -EFAULT;
++
++	return 0;
++}
++
++int avpu_ioctl_get_dmabuf_dma_addr(struct device *dev, unsigned long arg)
++{
++	struct avpu_dma_info info;
++	int err;
++
++	if (copy_from_user(&info, (struct avpu_dma_info *)arg, sizeof(info)))
++		return -EFAULT;
++
++	err = avpu_dmabuf_get_address(dev, info.fd, &info.phy_addr);
++	if (err)
++		return err;
++
++	if (copy_to_user((void *)arg, &info, sizeof(info)))
++		return -EFAULT;
++
++	return 0;
++}
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_alloc_ioctl.h
+@@ -0,0 +1,12 @@
++#ifndef _AVPU_ALLOC_IOCTL_H_
++#define _AVPU_ALLOC_IOCTL_H_
++
++#include <linux/device.h>
++#include "avpu_ip.h"
++
++int avpu_ioctl_get_dma_fd(struct device *dev, unsigned long arg);
++int avpu_ioctl_get_dmabuf_dma_addr(struct device *dev, unsigned long arg);
++int avpu_ioctl_get_dma_mmap(struct device *dev, struct avpu_codec_chan *chan,
++			   unsigned long arg);
++
++#endif /* _AVPU_ALLOC_IOCTL_H_ */
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_dmabuf.h
+@@ -0,0 +1,17 @@
++#ifndef _AVPU_DMABUF_H_
++#define _AVPU_DMABUF_H_
++
++#include <linux/device.h>
++#include "avpu_alloc.h"
++
++struct avpu_buffer_info {
++	u32 bus_address;
++	u32 size;
++};
++
++int avpu_create_dmabuf_fd(struct device *dev, unsigned long size,
++			 struct avpu_dma_buffer *buffer);
++int avpu_allocate_dmabuf(struct device *dev, int size, u32 *fd);
++int avpu_dmabuf_get_address(struct device *dev, u32 fd, u32 *bus_address);
++
++#endif /* _AVPU_DMABUF_H_ */
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_ioctl.h
+@@ -0,0 +1,27 @@
++#ifndef _AVPU_IOCTL_H_
++#define _AVPU_IOCTL_H_
++
++#include <linux/types.h>
++
++#define AL_CMD_UNBLOCK_CHANNEL	_IO('q', 1)
++
++#define AL_CMD_IP_WRITE_REG	_IOWR('q', 10, struct avpu_reg)
++#define AL_CMD_IP_READ_REG	_IOWR('q', 11, struct avpu_reg)
++#define AL_CMD_IP_WAIT_IRQ	_IOWR('q', 12, int)
++#define GET_DMA_MMAP		_IOWR('q', 26, struct avpu_dma_info)
++#define GET_DMA_FD		_IOWR('q', 13, struct avpu_dma_info)
++#define GET_DMA_PHY		_IOWR('q', 18, struct avpu_dma_info)
++#define JZ_CMD_FLUSH_CACHE	_IOWR('q', 14, int)
++
++struct avpu_reg {
++	unsigned int id;
++	unsigned int value;
++};
++
++struct avpu_dma_info {
++	__u32 fd;
++	__u32 size;
++	__u32 phy_addr;
++};
++
++#endif /* _AVPU_IOCTL_H_ */
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_ip.c
+@@ -0,0 +1,144 @@
++#include <linux/device.h>
++#include <linux/dma-mapping.h>
++#include <linux/err.h>
++#include <linux/firmware.h>
++#include <linux/fs.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/io.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/clk.h>
++#include <linux/uaccess.h>
++#include <linux/wait.h>
++
++#include "avpu_ip.h"
++
++int avpu_codec_bind_channel(struct avpu_codec_chan *chan,
++			    struct inode *inode)
++{
++	struct avpu_codec_desc *codec;
++	unsigned long flags;
++	struct list_head *pos, *n;
++	struct r_irq *tmp;
++	int ret = 0;
++
++	codec = container_of(inode->i_cdev, struct avpu_codec_desc, cdev);
++
++	spin_lock_irqsave(&codec->i_lock, flags);
++
++	clk_enable(codec->clk);
++	clk_enable(codec->ahb1_gate);
++	clk_enable(codec->clk_gate);
++
++	chan->codec = codec;
++	/* No mcu, there is a one for one mapping */
++	if (codec->chan != NULL) {
++		ret = -ENODEV;
++		goto unlock;
++	}
++
++	list_for_each_safe(pos, n, &codec->irq_masks) {
++		tmp = list_entry(pos, struct r_irq, list);
++		avpu_err("Previous channel lost irq:%x\n", tmp->bitfield);
++		list_del(pos);
++		kmem_cache_free(codec->cache, tmp);
++	}
++
++	codec->chan = chan;
++
++unlock:
++	spin_unlock_irqrestore(&codec->i_lock, flags);
++	return ret;
++
++}
++
++void avpu_codec_unbind_channel(struct avpu_codec_chan *chan)
++{
++	struct avpu_codec_desc *codec;
++	unsigned long flags;
++
++	codec = chan->codec;
++	spin_lock_irqsave(&codec->i_lock, flags);
++
++	clk_disable(codec->clk);
++	clk_disable(codec->clk_gate);
++	clk_disable(codec->ahb1_gate);
++
++	codec->chan = NULL;
++
++	spin_unlock_irqrestore(&codec->i_lock, flags);
++}
++
++int avpu_codec_read_register(struct avpu_codec_chan *chan,
++			     struct avpu_reg *reg)
++{
++	struct avpu_codec_desc *codec = chan->codec;
++
++	if (!chan->codec->regs) {
++		avpu_err("Registers not mapped\n");
++		return -EINVAL;
++	}
++	reg->value = ioread32(chan->codec->regs + reg->id);
++
++	return 0;
++}
++
++void avpu_codec_write_register(struct avpu_codec_chan *chan,
++			       struct avpu_reg *reg)
++{
++	struct avpu_codec_desc *codec = chan->codec;
++
++	if (!chan->codec->regs) {
++		avpu_err("Registers not mapped\n");
++		return;
++	}
++	iowrite32(reg->value, chan->codec->regs + reg->id);
++
++}
++
++irqreturn_t avpu_hardirq_handler(int irq, void *data)
++{
++	struct avpu_codec_desc *codec = (struct avpu_codec_desc *)data;
++	u32 unmasked_irq_bitfield, irq_bitfield;
++	u32 mask;
++	unsigned long flags;
++	struct r_irq *i_callback;
++	int callback_nb;
++	int i = 0;
++	int avpu_interrupt_nb = 20;
++
++	mask = ioread32(codec->regs + AVPU_INTERRUPT_MASK);
++	unmasked_irq_bitfield = ioread32(codec->regs + AVPU_INTERRUPT);
++	irq_bitfield = unmasked_irq_bitfield & mask;
++	if (irq_bitfield == 0) {
++		avpu_dbg("bitfield is 0\n");
++		return IRQ_NONE;
++	}
++	iowrite32(unmasked_irq_bitfield, codec->regs + AVPU_INTERRUPT);
++	ioread32(codec->regs + AVPU_INTERRUPT);
++
++	for (i = 0; i < avpu_interrupt_nb; ++i) {
++		callback_nb = 1U << i;
++		if (irq_bitfield & callback_nb) {
++			i_callback = kmem_cache_alloc(codec->cache, GFP_ATOMIC);
++			if (!i_callback) {
++				avpu_dbg("ENOMEM: Missed interrupt\n");
++				return IRQ_NONE;
++			}
++			i_callback->bitfield = i;
++			spin_lock_irqsave(&codec->i_lock, flags);
++			list_add_tail(&i_callback->list, &codec->irq_masks);
++			spin_unlock_irqrestore(&codec->i_lock, flags);
++		}
++	}
++
++	spin_lock_irqsave(&codec->i_lock, flags);
++	if (codec->chan)
++		wake_up_interruptible(&codec->chan->irq_queue);
++	spin_unlock_irqrestore(&codec->i_lock, flags);
++
++	return IRQ_HANDLED;
++}
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_ip.h
+@@ -0,0 +1,84 @@
++#ifndef _AVPU_IP_H_
++#define _AVPU_IP_H_
++
++#include <linux/cdev.h>
++#include <linux/platform_device.h>
++#include <linux/interrupt.h>
++#include <linux/time.h>
++#include <linux/spinlock.h>
++#include <linux/slab.h>
++#include <linux/clk.h>
++
++#include "avpu_ioctl.h"
++#include "avpu_alloc.h"
++
++#define AVPU_NR_DEVS 4
++#define AVPU_BASE_OFFSET 0x8000
++
++#define AXI_ADDR_OFFSET_IP (AVPU_BASE_OFFSET + 0x1208)
++#define AVPU_INTERRUPT_MASK (AVPU_BASE_OFFSET + 0x14)
++#define AVPU_INTERRUPT (AVPU_BASE_OFFSET + 0x18)
++
++#define avpu_writel(val, reg) iowrite32(val, codec->regs + reg)
++#define avpu_readl(reg) ioread32(codec->regs + reg)
++
++#define avpu_dbg(format, ...) \
++	dev_dbg(codec->device, format, ## __VA_ARGS__)
++
++#define avpu_info(format, ...) \
++	dev_info(codec->device, format, ## __VA_ARGS__)
++
++#define avpu_err(format, ...) \
++	dev_err(codec->device, format, ## __VA_ARGS__)
++
++struct avpu_codec_desc;
++struct dma_buf_info {
++	struct avpu_dma_buffer *buffer;
++	struct avpu_codec_desc *codec;
++};
++
++struct r_irq {
++	struct list_head list;
++	u32 bitfield;
++};
++
++struct avpu_codec_desc {
++	struct device *device;
++	void __iomem *regs;             /* Base addr for regs */
++	unsigned long regs_size;        /* end addr for regs */
++	struct cdev cdev;
++	/* one for one mapping in the no mcu case */
++	struct avpu_codec_chan *chan;
++	struct list_head irq_masks;
++	spinlock_t i_lock;
++	struct kmem_cache *cache;
++	int minor;
++	struct clk          *clk;
++	struct clk          *clk_mux;
++	struct clk          *clk_gate;
++	struct clk          *ahb1_gate;
++};
++
++struct avpu_dma_buf_mmap {
++	struct list_head list;
++	struct avpu_dma_buffer *buf;
++	int buf_id;
++};
++
++struct avpu_codec_chan {
++	wait_queue_head_t irq_queue;
++	int unblock;
++	spinlock_t lock;
++	struct list_head mem;
++	int num_bufs;
++	struct avpu_codec_desc *codec;
++};
++
++int avpu_codec_bind_channel(struct avpu_codec_chan *chan, struct inode *inode);
++void avpu_codec_unbind_channel(struct avpu_codec_chan *chan);
++int avpu_codec_read_register(struct avpu_codec_chan *chan, struct avpu_reg *reg);
++void avpu_codec_write_register(struct avpu_codec_chan *chan, struct avpu_reg *reg);
++irqreturn_t avpu_irq_handler(int irq, void *data);
++irqreturn_t avpu_hardirq_handler(int irq, void *data);
++
++#endif /* _AVPU_IP_H_ */
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_main.c
+@@ -0,0 +1,560 @@
++#include <linux/cdev.h>
++#include <linux/delay.h>
++#include <linux/device.h>
++#include <linux/dma-mapping.h>
++#include <linux/err.h>
++#include <linux/fs.h>
++#include <linux/init.h>
++#include <linux/interrupt.h>
++#include <linux/io.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/moduleparam.h>
++#include <linux/of.h>
++#include <linux/of_address.h>
++#include <linux/of_irq.h>
++#include <linux/platform_device.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/stddef.h>
++#include <linux/uaccess.h>
++
++#include "avpu_ioctl.h"
++#include "avpu_alloc_ioctl.h"
++#include "avpu_ip.h"
++
++#define DEV_NAME "avpu"
++
++int avpu_codec_major;
++int avpu_codec_nr_devs = AVPU_NR_DEVS;
++module_param(avpu_codec_nr_devs, int, S_IRUGO);
++static int avpu_clk = 400000000;
++module_param(avpu_clk, int, S_IRUGO);
++MODULE_PARM_DESC(avpu_clk, "avpu clock freq");
++static struct class *module_class;
++
++struct flush_cache_info {
++	unsigned int	addr;
++	unsigned int	len;
++#define WBACK		DMA_TO_DEVICE
++#define INV		DMA_FROM_DEVICE
++#define WBACK_INV	DMA_BIDIRECTIONAL
++	unsigned int	dir;
++};
++
++
++
++static int channel_is_ready(struct avpu_codec_chan *chan)
++{
++	unsigned long flags;
++	int ret = chan->unblock;
++
++	spin_lock_irqsave(&chan->codec->i_lock, flags);
++	ret = ret || !list_empty(&chan->codec->irq_masks);
++	spin_unlock_irqrestore(&chan->codec->i_lock, flags);
++	return ret;
++}
++
++static int avpu_codec_open(struct inode *inode, struct file *filp)
++{
++	struct avpu_codec_chan *chan;
++	int ret;
++	/* initialize channel */
++	chan = kzalloc(sizeof(struct avpu_codec_chan), GFP_KERNEL);
++	if (!chan) {
++		ret = -ENOMEM;
++		goto fail;
++	}
++
++	INIT_LIST_HEAD(&chan->mem);
++	spin_lock_init(&chan->lock);
++	chan->num_bufs = 0;
++
++	filp->private_data = chan;
++
++	/* irq */
++	init_waitqueue_head(&chan->irq_queue);
++
++	ret = avpu_codec_bind_channel(chan, inode);
++	if (ret)
++		goto fail_codec_binding;
++	return 0;
++
++fail_codec_binding:
++	kfree(chan);
++fail:
++	return ret;
++}
++
++static int avpu_codec_release(struct inode *inode, struct file *filp)
++{
++	struct avpu_codec_chan *chan = filp->private_data;
++	struct avpu_dma_buf_mmap *tmp;
++	struct list_head *pos, *n;
++	avpu_codec_unbind_channel(chan);
++	list_for_each_safe(pos, n, &chan->mem){
++		tmp = list_entry(pos, struct avpu_dma_buf_mmap, list);
++		list_del(pos);
++		kfree(tmp);
++	}
++
++	kfree(chan);
++	return 0;
++}
++
++static long avpu_codec_compat_ioctl(struct file *file, unsigned int cmd,
++				    unsigned long arg)
++{
++	long ret = -ENOIOCTLCMD;
++
++	if (file->f_op->unlocked_ioctl)
++		ret = file->f_op->unlocked_ioctl(file, cmd, arg);
++
++	return ret;
++}
++
++static struct avpu_dma_buffer *find_buf_by_id(struct avpu_codec_chan *chan, int desc_id)
++{
++	struct avpu_dma_buf_mmap *cur_buf_mmap;
++
++	list_for_each_entry(cur_buf_mmap, &chan->mem, list){
++		if (cur_buf_mmap->buf_id == desc_id)
++			return cur_buf_mmap->buf;
++	}
++
++	return NULL;
++}
++
++static int avpu_dma_mmap(struct file *filp, struct vm_area_struct *vma)
++{
++	struct avpu_codec_chan *chan = filp->private_data;
++	unsigned long start = vma->vm_start;
++	unsigned long vsize = vma->vm_end - start;
++	/* offset if already in page */
++	int desc_id = vma->vm_pgoff;
++	int ret = 0;
++	struct avpu_dma_buffer *buf = find_buf_by_id(chan, desc_id);
++
++	if (!buf)
++		return -EINVAL;
++
++	vma->vm_pgoff = 0;
++
++	ret = dma_mmap_coherent(chan->codec->device, vma, buf->cpu_handle,
++				buf->dma_handle, vsize);
++	if (ret < 0) {
++		pr_err("Remapping memory failed, error: %d\n", ret);
++		return ret;
++	}
++
++	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
++
++	return 0;
++}
++
++static int unblock_channel(struct avpu_codec_chan *chan)
++{
++	chan->unblock = 1;
++	wake_up_interruptible(&chan->irq_queue);
++	return 0;
++}
++
++static int wait_irq(struct avpu_codec_chan *chan, unsigned long arg)
++{
++	struct avpu_codec_desc *codec = chan->codec;
++	int callback;
++	struct r_irq *i_callback;
++	unsigned long flags;
++	int ret;
++
++	ret = wait_event_interruptible(chan->irq_queue,
++				       channel_is_ready(chan));
++	if (ret == -ERESTARTSYS)
++		return ret;
++	if (chan->unblock) {
++		avpu_dbg("Unblocking channel\n");
++		return -EINTR;
++	}
++
++	spin_lock_irqsave(&codec->i_lock, flags);
++	i_callback = list_first_entry(&chan->codec->irq_masks,
++				      struct r_irq, list);
++	callback = i_callback->bitfield;
++	list_del(&i_callback->list);
++	kmem_cache_free(codec->cache, i_callback);
++	spin_unlock_irqrestore(&codec->i_lock, flags);
++
++	if (copy_to_user((void *)arg, &callback, sizeof(__u32)))
++		return -EFAULT;
++
++	return ret;
++}
++
++static int read_reg(struct avpu_codec_chan *chan, unsigned long arg)
++{
++	struct avpu_reg reg;
++	struct avpu_codec_desc *codec = chan->codec;
++	int err;
++
++	if (copy_from_user(&reg, (struct avpu_reg *)arg, sizeof(struct avpu_reg)))
++		return -EFAULT;
++
++	if (reg.id % 4) {
++		avpu_err("Unaligned register access: 0x%.4X\n",
++			reg.id);
++		return -EINVAL;
++	}
++	if (reg.id < 0x8000 || reg.id > chan->codec->regs_size) {
++		avpu_err("Out-of-range register read: 0x%.4X\n",
++			reg.id);
++		return -EINVAL;
++	}
++
++	err = avpu_codec_read_register(chan, &reg);
++	if (err)
++		return err;
++
++	if (copy_to_user((struct avpu_reg *)arg, &reg, sizeof(struct avpu_reg)))
++		return -EFAULT;
++
++	avpu_dbg("Reg read: 0x%.4X: 0x%.8x\n", reg.id, reg.value);
++
++	return 0;
++}
++
++static int write_reg(struct avpu_codec_chan *chan, unsigned long arg)
++{
++	struct avpu_reg reg;
++	struct avpu_codec_desc *codec = chan->codec;
++
++	if (copy_from_user(&reg, (struct avpu_reg *)arg, sizeof(struct avpu_reg)))
++		return -EFAULT;
++
++	avpu_dbg("Reg write: 0x%.4X: 0x%.8x\n", reg.id, reg.value);
++	if (reg.id == 0x8084 || reg.id == 0x8094)
++		avpu_dbg("Reg write: 0x%.4X: 0x%.8x\n", reg.id, reg.value);
++
++	if (reg.id % 4) {
++		avpu_err("Unaligned register access: 0x%.4X\n",
++			reg.id);
++		return -EINVAL;
++	}
++	if (reg.id < 0x8000 || reg.id > chan->codec->regs_size) {
++		avpu_dbg("Out-of-range register write: 0x%.4X\n", reg.id);
++		return -EINVAL;
++	}
++
++	avpu_codec_write_register(chan, &reg);
++
++	if (copy_to_user((struct avpu_reg *)arg, &reg, sizeof(struct avpu_reg)))
++		return -EFAULT;
++
++	return 0;
++}
++static long jz_cmd_flush_cache(long arg)
++{
++	struct flush_cache_info info;
++	long ret = 0;
++	if (copy_from_user(&info, (void *)arg, sizeof(info))) {
++		return -EFAULT;
++	}
++
++	return ret;
++}
++
++static long avpu_codec_ioctl(struct file *filp, unsigned int cmd,
++			     unsigned long arg)
++{
++	struct avpu_codec_chan *chan = filp->private_data;
++	struct avpu_codec_desc *codec = chan->codec;
++
++	switch (cmd) {
++	case GET_DMA_MMAP:
++		return avpu_ioctl_get_dma_mmap(codec->device, chan, arg);
++	case GET_DMA_FD:
++		return avpu_ioctl_get_dma_fd(codec->device, arg);
++	case GET_DMA_PHY:
++		return avpu_ioctl_get_dmabuf_dma_addr(codec->device, arg);
++	case AL_CMD_UNBLOCK_CHANNEL:
++		return unblock_channel(chan);
++	case AL_CMD_IP_WAIT_IRQ:
++		return wait_irq(chan, arg);
++	case AL_CMD_IP_READ_REG:
++		return read_reg(chan, arg);
++	case AL_CMD_IP_WRITE_REG:
++		return write_reg(chan, arg);
++	case JZ_CMD_FLUSH_CACHE:
++		return jz_cmd_flush_cache(arg);
++	default:
++		avpu_err("Unknown ioctl: 0x%.8X\n", cmd);
++		return -EINVAL;
++	}
++}
++
++const struct file_operations avpu_codec_fops = {
++	.owner		= THIS_MODULE,
++	.open		= avpu_codec_open,
++	.release	= avpu_codec_release,
++	.unlocked_ioctl = avpu_codec_ioctl,
++	.compat_ioctl	= avpu_codec_compat_ioctl,
++	.mmap		= avpu_dma_mmap,
++};
++
++static void clean_up_avpu_codec_cdev(struct avpu_codec_desc *dev)
++{
++	cdev_del(&dev->cdev);
++}
++
++static int setup_chrdev_region(void)
++{
++	dev_t dev = 0;
++	int err;
++
++	if (avpu_codec_major == 0) {
++		err = alloc_chrdev_region(&dev, 0, avpu_codec_nr_devs, "avpu");
++		avpu_codec_major = MAJOR(dev);
++
++		if (err) {
++			pr_alert("Allegro codec: can't get major %d\n",
++				 avpu_codec_major);
++			return err;
++		}
++	}
++	return 0;
++}
++
++static int avpu_setup_codec_cdev(struct avpu_codec_desc *codec, int minor,
++			  const char *device_name)
++{
++	struct device *device;
++	int err, devno =
++		MKDEV(avpu_codec_major, minor);
++
++	cdev_init(&codec->cdev, &avpu_codec_fops);
++	codec->cdev.owner = THIS_MODULE;
++	err = cdev_add(&codec->cdev, devno, 1);
++	if (err) {
++		avpu_err("Error %d adding avpu device number %d", err, minor);
++		return err;
++	}
++
++	if (device_name != NULL) {
++		device = device_create(module_class, NULL, devno, NULL,
++				       device_name);
++		if (IS_ERR(device)) {
++			pr_err("device not created\n");
++			clean_up_avpu_codec_cdev(codec);
++			return PTR_ERR(device);
++		}
++	}
++
++	return 0;
++}
++
++static int init_codec_desc(struct avpu_codec_desc *codec)
++{
++	INIT_LIST_HEAD(&codec->irq_masks);
++	spin_lock_init(&codec->i_lock);
++	/* make chan requirement explicit */
++	codec->chan = NULL;
++	codec->cache =  kmem_cache_create("avpu_codec_ram",
++					  sizeof(struct r_irq),
++					  0, SLAB_HWCACHE_ALIGN, NULL);
++	if (!codec->cache)
++		return -ENOMEM;
++
++	return 0;
++}
++
++static void deinit_codec_desc(struct avpu_codec_desc *codec)
++{
++	kmem_cache_destroy(codec->cache);
++}
++
++static int avpu_codec_probe(struct platform_device *pdev)
++{
++	struct avpu_codec_desc *codec;
++	struct clk *parent;
++	struct resource *res;
++	int irq, err;
++	static int current_minor;
++
++	codec = devm_kzalloc(&pdev->dev, sizeof(*codec), GFP_KERNEL);
++	if (!codec)
++		return -ENOMEM;
++
++	codec->device = &pdev->dev;
++
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res) {
++		avpu_err("Can't get resource\n");
++		return -ENODEV;
++	}
++
++	codec->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
++	codec->regs_size = resource_size(res);
++	if (IS_ERR(codec->regs)) {
++		avpu_err("Can't map registers\n");
++		return PTR_ERR(codec->regs);
++	}
++
++	codec->ahb1_gate = devm_clk_get(&pdev->dev, "ahb1");
++	if (IS_ERR(codec->ahb1_gate)) {
++		avpu_err("ahb1 clock not found\n");
++		return PTR_ERR(codec->ahb1_gate);
++	}
++
++	codec->clk = devm_clk_get(&pdev->dev, "el150");
++	if (IS_ERR(codec->clk)) {
++		avpu_err("el150 clock not found\n");
++		return PTR_ERR(codec->clk);
++	}
++	codec->clk_gate = codec->clk;
++
++	parent = devm_clk_get(&pdev->dev, "vpll");
++	if (!IS_ERR(parent))
++		clk_set_parent(codec->clk, parent);
++	else
++		avpu_info("no vpll parent, keeping the bootloader mux\n");
++
++	err = clk_set_rate(codec->clk, avpu_clk);
++	if (err)
++		avpu_err("cannot set %d Hz: %d\n", avpu_clk, err);
++
++	err = clk_prepare_enable(codec->ahb1_gate);
++	if (err)
++		return err;
++	err = clk_prepare_enable(codec->clk);
++	if (err) {
++		clk_disable_unprepare(codec->ahb1_gate);
++		return err;
++	}
++
++	err = init_codec_desc(codec);
++	if (err)
++		goto err_clocks;
++
++	irq = platform_get_irq(pdev, 0);
++	if (irq < 0) {
++		avpu_info("no irq, running without interrupts\n");
++	} else {
++		err = devm_request_irq(&pdev->dev, irq, avpu_hardirq_handler,
++				       IRQF_SHARED, dev_name(&pdev->dev), codec);
++		if (err) {
++			avpu_err("failed to request IRQ %d: %d\n", irq, err);
++			goto err_desc;
++		}
++	}
++
++	platform_set_drvdata(pdev, codec);
++
++	err = avpu_setup_codec_cdev(codec, current_minor, DEV_NAME);
++	if (err)
++		goto err_desc;
++
++	codec->minor = current_minor++;
++	avpu_info("AVPU codec ready, minor %d\n", codec->minor);
++
++	return 0;
++
++err_desc:
++	deinit_codec_desc(codec);
++err_clocks:
++	clk_disable_unprepare(codec->clk);
++	clk_disable_unprepare(codec->ahb1_gate);
++	return err;
++}
++
++static void avpu_codec_remove(struct platform_device *pdev)
++{
++	struct avpu_codec_desc *codec = platform_get_drvdata(pdev);
++
++	device_destroy(module_class, MKDEV(avpu_codec_major, codec->minor));
++	clean_up_avpu_codec_cdev(codec);
++	deinit_codec_desc(codec);
++	clk_disable_unprepare(codec->clk);
++	clk_disable_unprepare(codec->ahb1_gate);
++}
++
++static const struct of_device_id avpu_codec_of_match[] = {
++	{ .compatible = "t31,avpu" },
++	{ .compatible = "c100,avpu" },
++	{ /* sentinel */ },
++};
++
++MODULE_DEVICE_TABLE(of, avpu_codec_of_match);
++
++static struct platform_driver avpu_platform_driver = {
++	.probe			= avpu_codec_probe,
++	.remove			= avpu_codec_remove,
++	.driver			=       {
++		.name		= "avpu",
++		.of_match_table = of_match_ptr(avpu_codec_of_match),
++	},
++};
++
++static int create_module_class(void)
++{
++	module_class = class_create("avpu_class");
++	if (IS_ERR(module_class))
++		return PTR_ERR(module_class);
++
++	return 0;
++}
++
++static void destroy_module_class(void)
++{
++	class_destroy(module_class);
++}
++
++static int avpu_module_init(void)
++{
++	return platform_driver_register(&avpu_platform_driver);
++}
++
++static void avpu_module_deinit(void)
++{
++	platform_driver_unregister(&avpu_platform_driver);
++}
++
++static int __init avpu_codec_init(void)
++{
++	dev_t devno;
++	int err = setup_chrdev_region();
++
++	if (err)
++		return err;
++
++	err = create_module_class();
++	if (err)
++		goto fail;
++
++	err = avpu_module_init();
++	if (err)
++		goto fail;
++
++	return 0;
++
++fail:
++	devno = MKDEV(avpu_codec_major, 0);
++	unregister_chrdev_region(devno, avpu_codec_nr_devs);
++
++	return err;
++}
++
++static void __exit avpu_codec_exit(void)
++{
++	dev_t devno = MKDEV(avpu_codec_major, 0);
++
++	avpu_module_deinit();
++	destroy_module_class();
++	unregister_chrdev_region(devno, avpu_codec_nr_devs);
++}
++
++module_init(avpu_codec_init);
++module_exit(avpu_codec_exit);
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Kevin Grandemange");
++MODULE_AUTHOR("Sebastien Alaiwan");
++MODULE_DESCRIPTION("Ingenic VPU Driver");
+--- /dev/null
++++ b/drivers/misc/avpu/avpu_no_dmabuf.c
+@@ -0,0 +1,20 @@
++#include "avpu_dmabuf.h"
++
++int avpu_create_dmabuf_fd(struct device *dev, unsigned long size,
++			 struct avpu_dma_buffer *buffer)
++{
++	pr_err("dmabuf interface not supported");
++	return -EINVAL;
++}
++
++int avpu_allocate_dmabuf(struct device *dev, int size, u32 *fd)
++{
++	pr_err("dmabuf interface not supported");
++	return -EINVAL;
++}
++
++int avpu_dmabuf_get_address(struct device *dev, u32 fd, u32 *bus_address)
++{
++	pr_err("dmabuf interface not supported");
++	return -EINVAL;
++}
+--- /dev/null
++++ b/drivers/misc/avpu/Kconfig
+@@ -0,0 +1,9 @@
++# SPDX-License-Identifier: GPL-2.0
++config INGENIC_AVPU
++	bool "Ingenic AVPU video encoder"
++	depends on MACH_T31
++	default y
++	help
++	  Character device for the Ingenic AVPU audio/video processing
++	  block.  The vendor libimp opens /dev/avpu while initialising the
++	  ISP pipeline and drives the H.264 encoder through its ioctls.
+--- /dev/null
++++ b/drivers/misc/avpu/Makefile
+@@ -0,0 +1,4 @@
++# SPDX-License-Identifier: GPL-2.0
++obj-$(CONFIG_INGENIC_AVPU) += avpu.o
++
++avpu-y := avpu_main.o avpu_ip.o avpu_alloc.o avpu_alloc_ioctl.o avpu_no_dmabuf.o
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -670,4 +670,5 @@
+ 	  "rmem=" boot argument) for the Ingenic libimp allocator and
+ 	  services its cache-maintenance ioctl.
+ 
++source "drivers/misc/avpu/Kconfig"
+ endmenu
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -76,3 +76,4 @@
+ obj-y				+= amd-sbi/
+ obj-$(CONFIG_MISC_RP1)		+= rp1/
+ obj-$(CONFIG_RMEM)		+= rmem.o
++obj-$(CONFIG_INGENIC_AVPU)	+= avpu/
+--- a/drivers/clk/ingenic/t31-cgu.c
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -322,7 +322,7 @@
+ 		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
+ 			     T31_CLK_VPLL, -1 },
+ 		.mux = { CGU_REG_EL150CDR, 30, 2 },
+-		.div = { CGU_REG_EL150CDR, 0, 1, 4, -1, -1, -1 },
++		.div = { CGU_REG_EL150CDR, 0, 1, 4, 29, 28, 27 },
+ 		.gate = { CGU_REG_CLKGR1, 0 },
+ 	},
+ 
+--- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -20,6 +20,18 @@
+ 		reg = <0x0 0x8000000>;
+ 	};
+ 
++	avpu: avpu@13200000 {
++		compatible = "t31,avpu";
++		reg = <0x13200000 0x100000>;
++		interrupt-parent = <&intc>;
++		interrupts = <62>;
++		clocks = <&cgu T31_CLK_EL150>,
++			 <&cgu T31_CLK_AHB1>,
++			 <&cgu T31_CLK_VPLL>;
++		clock-names = "el150", "ahb1", "vpll";
++		status = "disabled";
++	};
++
+ 	isp: isp@13300000 {
+ 		compatible = "ingenic,t31-isp";
+ 		reg = <0x13300000 0x100000>;
