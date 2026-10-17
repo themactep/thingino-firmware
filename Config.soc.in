@@ -418,6 +418,16 @@ config BR2_ISP_PRINT_LEVEL_3
 	  Enable ISP debug print level 3 - No messages will be printed
 endchoice
 
+config BR2_ISP_TRACE
+	bool "ISP bring-up trace (large, development only)"
+	depends on BR2_SOC_FAMILY = "t31"
+	help
+	  Keep the recovered T31 ISP pr_info trace in the module. It adds
+	  about 220 KB, so it does not fit the standard rootfs; use it from
+	  /tmp after rmmod, or with a larger image. Together with print
+	  level 0 and t31_runtime_trace=1 it enables the per-event debug.
+	  Keep this off for release builds.
+
 choice
 	prompt "ISP Memory Optimization Level"
 	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40"

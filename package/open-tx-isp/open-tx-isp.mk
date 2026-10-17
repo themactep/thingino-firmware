@@ -43,6 +43,12 @@ ifeq ($(KERNEL_VERSION),5.15.170)
 OPEN_TX_ISP_MODULE_MAKE_OPTS += TX_ISP_VENDOR_TREE=1
 endif
 
+# Development-only bring-up trace. Off by default; the trace adds ~220 KB
+# and does not fit the standard rootfs, so release builds must leave it off.
+ifeq ($(BR2_ISP_TRACE),y)
+OPEN_TX_ISP_MODULE_MAKE_OPTS += TX_ISP_T31_TRACE=y
+endif
+
 # Add XBurst platform include paths for soc headers (the vendor trees carry
 # arch/mips/xburst; the mainline 7.x tree does not).
 ifneq ($(KERNEL_VERSION),7.1.13)

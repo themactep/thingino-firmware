@@ -55,7 +55,8 @@ configs/cameras/.../*.dtsi        (&avpu status = "okay")
 board/ingenic/xburst1/kernel/7.1.13/t31.generic.config (CONFIG_INGENIC_AVPU=y)
 ```
 
-Uncommitted (new, PTZ):
+Committed as `8032186ad` (linux: 7.1 t31: add a mainline GPIO stepper
+motor driver):
 
 ```
 0018-misc-add-ingenic-gpio-motor-driver.patch
@@ -63,11 +64,25 @@ configs/cameras/.../*.dtsi        (ptz_motor node with hst/vst-gpios)
 board/ingenic/xburst1/kernel/7.1.13/t31.generic.config (CONFIG_INGENIC_MOTOR=m)
 ```
 
+Uncommitted (new, ISP debug policy):
+
+```
+Config.soc.in                     (BR2_ISP_TRACE, print-level docs)
+configs/cameras/.../*.defconfig   (drop BR2_ISP_PRINT_LEVEL_0)
+package/open-tx-isp/*.mk          (BR2_ISP_TRACE -> TX_ISP_T31_TRACE)
+docs/dev/isp-debug.md             (policy)
+```
+
+The `open-tx-isp-mainline` override source changes (`tx_isp_debug.h`,
+`tx_isp_core.c`, `tx_isp_module.c`, `tx_isp_tuning.c`, `tx_isp_vic.c`,
+`tx_isp_guard.h`) live in that separate repo and are not part of this
+worktree.
+
 Uncommitted (intentionally):
 
-- `configs/cameras/cinnado_d1_t31l_sc2336_atbm6031/cinnado_d1_t31l_sc2336_atbm6031_defconfig`
-  has `BR2_ISP_PRINT_LEVEL_0=y` - a **debug** setting used to see the ISP /
-  sensor `ISP_INFO` lines. It can be dropped now that the pipeline works.
+- The camera defconfig no longer pins `BR2_ISP_PRINT_LEVEL_0`; release
+  builds use the global default (level 1, warnings/errors). Select print
+  level 0 in menuconfig for a debug build; see `docs/dev/isp-debug.md`.
 
 Patch series in `package/all-patches/linux/7.1.13/`:
 
@@ -266,16 +281,19 @@ return to 1850,500 -> motors -j xpos=1850 ypos=500
 
 ## 7. Debug techniques that worked
 
+- ISP logging has its own policy: see `docs/dev/isp-debug.md`. Release
+  builds use `print_level=1` (warning/error) and `TX_ISP_T31_NO_TRACE`;
+  `ISP_INFO` is runtime-gated at `print_level=0`, while `ISP_DEBUG` and the
+  `pr_info` firehose exist only in a `BR2_ISP_TRACE` build. `isp_printf()`
+  prefixes every message with `tx-isp:` and the level tag.
 - Compare live registers with .109 (`devmem` at CPCCR/VPLL/MPLL/CIMCDR/
   ISPCDR/CLKGR/GPIO PAT0/PAT1, shadow window), and read the vendor clock
   tree on .109:
   `cat /proc/jz/clock/clocks` (vpll 1200, mpll 1000, apll 1008, cgu_cim 24).
-- The open-tx-isp module trace is off by default (`TX_ISP_T31_NO_TRACE`);
-  `pr_info` is compiled out. For diagnosis, build it with
-  `TX_ISP_T31_TRACE=y` and load the resulting `.ko` from `/tmp` after
-  `rmmod` of the production modules (`t31_runtime_trace=1`). Do **not**
-  ship that module: it is ~218 KB larger and does not fit the 704 KB
-  data partition; it is not in the current build.
+- The open-tx-isp bring-up trace is opt-in (`BR2_ISP_TRACE`, which passes
+  `TX_ISP_T31_TRACE=y`). That module is ~220 KB larger and does not fit the
+  standard rootfs; load it from `/tmp` after `rmmod` and set both
+  `t31_runtime_trace=1` and `print_level=0`. Do **not** ship it.
 - libimp logs its own errors to stdout, which timpsd discards when it
   daemonizes. An `LD_PRELOAD` shim overriding `daemon()` and setting
   `stdout` to line buffered exposes messages such as
