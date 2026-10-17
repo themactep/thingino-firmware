@@ -161,10 +161,10 @@ case "$TARGET_PATH" in
 	*) json_error '400 Bad Request' 'Invalid agent path.' ;;
 esac
 
-TARGET_URL_BASE="$(agent_base_url)"
+TARGET_URL="$(agent_base_url)$TARGET_PATH"
 FORWARD_QUERY=$(strip_query_param agent_path "${QUERY_STRING:-}")
 if [ -n "$FORWARD_QUERY" ]; then
-	TARGET_URL_BASE="$TARGET_URL_BASE?$FORWARD_QUERY"
+	TARGET_URL="$TARGET_URL?$FORWARD_QUERY"
 fi
 
 if [ "${REQUEST_METHOD:-GET}" = GET ] && is_event_stream_request; then
@@ -172,15 +172,15 @@ if [ "${REQUEST_METHOD:-GET}" = GET ] && is_event_stream_request; then
 	auth_header=$(agent_auth_header || true)
 	if [ -n "$HTTP_ACCEPT" ]; then
 		if [ -n "$auth_header" ]; then
-			exec curl -sS -N -H "$auth_header" -H "Accept: $HTTP_ACCEPT" "$TARGET_URL_BASE"
+			exec curl -sS -N -H "$auth_header" -H "Accept: $HTTP_ACCEPT" "$TARGET_URL"
 		else
-			exec curl -sS -N -H "Accept: $HTTP_ACCEPT" "$TARGET_URL_BASE"
+			exec curl -sS -N -H "Accept: $HTTP_ACCEPT" "$TARGET_URL"
 		fi
 	else
 		if [ -n "$auth_header" ]; then
-			exec curl -sS -N -H "$auth_header" -H 'Accept: text/event-stream' "$TARGET_URL_BASE"
+			exec curl -sS -N -H "$auth_header" -H 'Accept: text/event-stream' "$TARGET_URL"
 		else
-			exec curl -sS -N -H 'Accept: text/event-stream' "$TARGET_URL_BASE"
+			exec curl -sS -N -H 'Accept: text/event-stream' "$TARGET_URL"
 		fi
 	fi
 fi
