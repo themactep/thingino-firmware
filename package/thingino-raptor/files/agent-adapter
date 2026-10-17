@@ -45,7 +45,14 @@ agent_config_get() {
 	section=$1
 	key=$2
 	command -v raptorctl >/dev/null 2>&1 || return 0
-	raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"'
+	value=$(raptorctl config get "$section" "$key" 2>/dev/null | tr -d '\r\n"')
+	# A single-key get only finds keys set in raptor.conf; the section listing
+	# also carries the defaults the daemons run with.
+	if [ -z "$value" ]; then
+		value=$(raptorctl config get "$section" 2>/dev/null |
+			sed -n "s/^$key = //p" | head -n 1 | tr -d '\r\n"')
+	fi
+	printf '%s' "$value"
 }
 
 agent_config_bool() {
@@ -446,6 +453,18 @@ agent_profile_to_name() {
 
 agent_motion_enabled() {
 	agent_config_bool motion enabled false
+}
+
+# A running rmd answers config reads itself and keeps detecting, so it is
+# stopped before false is written and started after true is written.
+agent_motion_set_enabled() {
+	[ "$1" = false ] && agent_ctl rmd stop >/dev/null 2>&1
+	agent_config_set motion enabled "$1" || return 1
+	if [ "$1" = true ]; then
+		agent_config_save
+		agent_ctl rmd start >/dev/null 2>&1
+	fi
+	return 0
 }
 
 agent_motion_active() {
@@ -1832,6 +1851,64 @@ agent_set_storage_setting() {
 	esac
 }
 
+# Audio input/output tuning. rad applies each value live but keeps only some
+# of them in its config, so every write is also saved to raptor.conf.
+agent_audio_rad() {
+	agent_ctl rad "$@" 2>/dev/null | grep -q '"status":"ok"' || {
+		echo "rad $1 failed" >&2
+		return 1
+	}
+}
+
+agent_audio_save() {
+	agent_config_set audio "$1" "$2" || return 1
+	agent_config_save
+}
+
+agent_audio_int() {
+	agent_json_value_or "$(agent_config_get audio "$1")" "$2"
+}
+
+# 0 = off, 1-3 = on at that rad noise suppression level.
+agent_audio_ns() {
+	if [ "$(agent_config_bool audio ns_enabled false)" = true ]; then
+		agent_audio_int ns_level 1
+	else
+		printf '0'
+	fi
+}
+
+agent_audio_codec_to_name() {
+	case "$1" in
+		aac) printf 'AAC' ;;
+		opus) printf 'OPUS' ;;
+		pcma) printf 'G711A' ;;
+		pcmu) printf 'G711U' ;;
+		l16) printf 'PCM' ;;
+		*) printf '%s' "$1" ;;
+	esac
+}
+
+agent_audio_codec_from_name() {
+	case "$1" in
+		AAC) printf 'aac' ;;
+		OPUS) printf 'opus' ;;
+		G711A) printf 'pcma' ;;
+		G711U) printf 'pcmu' ;;
+		PCM) printf 'l16' ;;
+		*) return 1 ;;
+	esac
+}
+
+# set-agc takes the switch, target and compression together.
+agent_audio_agc() {
+	enabled=$1
+	target=$2
+	compression=$3
+	[ "$enabled" = true ] && on=1 || on=0
+	agent_audio_rad set-agc "$on" "$target" "$compression"
+}
+
 agent_get_setting() {
 	path=$1
 	case "$path" in
@@ -1873,6 +1950,36 @@ agent_get_setting() {
 			;;
 		audio/spk-enabled)
 			agent_print_setting_leaf spk_enabled "$(agent_command_bool speaker "$(agent_config_bool audio ao_enabled false)")"
+			;;
+		audio/mic-format)
+			agent_print_setting_leaf mic_format "$(agent_json_string "$(agent_audio_codec_to_name "$(agent_config_get audio codec)")")"
+			;;
+		audio/mic-vol)
+			agent_print_setting_leaf mic_vol "$(agent_audio_int volume null)"
+			;;
+		audio/mic-gain)
+			agent_print_setting_leaf mic_gain "$(agent_audio_int gain null)"
+			;;
+		audio/mic-noise-suppression)
+			agent_print_setting_leaf mic_noise_suppression "$(agent_audio_ns)"
+			;;
+		audio/mic-high-pass-filter)
+			agent_print_setting_leaf mic_high_pass_filter "$(agent_config_bool audio hpf_enabled false)"
+			;;
+		audio/mic-agc-enabled)
+			agent_print_setting_leaf mic_agc_enabled "$(agent_config_bool audio agc_enabled false)"
+			;;
+		audio/mic-agc-target-level-dbfs)
+			agent_print_setting_leaf mic_agc_target_level_dbfs "$(agent_audio_int agc_target_dbfs 10)"
+			;;
+		audio/mic-agc-compression-gain-db)
+			agent_print_setting_leaf mic_agc_compression_gain_db "$(agent_audio_int agc_compression_db 0)"
+			;;
+		audio/spk-vol)
+			agent_print_setting_leaf spk_vol "$(agent_audio_int ao_volume null)"
+			;;
+		audio/spk-gain)
+			agent_print_setting_leaf spk_gain "$(agent_audio_int ao_gain null)"
 			;;
 		motion/enabled)
 			agent_print_setting_leaf enabled "$(agent_motion_enabled)"
@@ -2145,10 +2252,85 @@ agent_set_setting() {
 			agent_config_save
 			agent_print_setting_update "$path" spk_enabled "$value"
 			;;
+		audio/mic-format)
+			audio_value=$(agent_setting_value "$body_file" mic_format | tr -d '"') || return 1
+			codec=$(agent_audio_codec_from_name "$audio_value") || {
+				echo "unsupported codec: $audio_value" >&2
+				return 1
+			}
+			agent_audio_rad set-codec "$codec" || return 1
+			agent_audio_save codec "$codec" || return 1
+			agent_print_setting_update "$path" mic_format "$(agent_json_string "$audio_value")"
+			;;
+		audio/mic-vol | audio/mic-gain | audio/spk-vol | audio/spk-gain)
+			case "$path" in
+				audio/mic-vol) field=mic_vol key=volume cmd=set-volume ;;
+				audio/mic-gain) field=mic_gain key=gain cmd=set-gain ;;
+				audio/spk-vol) field=spk_vol key=ao_volume cmd=ao-set-volume ;;
+				audio/spk-gain) field=spk_gain key=ao_gain cmd=ao-set-gain ;;
+			esac
+			audio_value=$(agent_setting_value "$body_file" "$field") || return 1
+			agent_validate_int "$audio_value" || return 1
+			agent_audio_rad "$cmd" "$audio_value" || return 1
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
+		audio/mic-noise-suppression)
+			audio_value=$(agent_setting_value "$body_file" mic_noise_suppression) || return 1
+			agent_validate_int "$audio_value" || return 1
+			if [ "$audio_value" -le 0 ]; then
+				agent_audio_rad set-ns 0 || return 1
+				agent_config_set audio ns_enabled false || return 1
+			else
+				[ "$audio_value" -gt 3 ] && audio_value=3
+				agent_audio_rad set-ns 1 "$audio_value" || return 1
+				agent_config_set audio ns_enabled true || return 1
+				agent_config_set audio ns_level "$audio_value" || return 1
+			fi
+			agent_config_save
+			agent_print_setting_update "$path" mic_noise_suppression "$audio_value"
+			;;
+		audio/mic-high-pass-filter)
+			audio_value=$(agent_setting_value "$body_file" mic_high_pass_filter) || return 1
+			agent_validate_bool "$audio_value" || return 1
+			[ "$audio_value" = true ] && on=1 || on=0
+			agent_audio_rad set-hpf "$on" || return 1
+			agent_audio_save hpf_enabled "$audio_value" || return 1
+			agent_print_setting_update "$path" mic_high_pass_filter "$audio_value"
+			;;
+		audio/mic-agc-enabled | audio/mic-agc-target-level-dbfs | audio/mic-agc-compression-gain-db)
+			enabled=$(agent_config_bool audio agc_enabled false)
+			target=$(agent_audio_int agc_target_dbfs 10)
+			compression=$(agent_audio_int agc_compression_db 0)
+			case "$path" in
+				audio/mic-agc-enabled)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_enabled) || return 1
+					agent_validate_bool "$audio_value" || return 1
+					enabled=$audio_value field=mic_agc_enabled key=agc_enabled
+					;;
+				audio/mic-agc-target-level-dbfs)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_target_level_dbfs) || return 1
+					agent_validate_int "$audio_value" || return 1
+					target=$audio_value field=mic_agc_target_level_dbfs key=agc_target_dbfs
+					;;
+				*)
+					audio_value=$(agent_setting_value "$body_file" mic_agc_compression_gain_db) || return 1
+					agent_validate_int "$audio_value" || return 1
+					compression=$audio_value field=mic_agc_compression_gain_db key=agc_compression_db
+					;;
+			esac
+			# rad has no separate target/compression command, so they only
+			# reach it while AGC is on; the saved values apply when it is.
+			if [ "$enabled" = true ] || [ "$key" = agc_enabled ]; then
+				agent_audio_agc "$enabled" "$target" "$compression" || return 1
+			fi
+			agent_audio_save "$key" "$audio_value" || return 1
+			agent_print_setting_update "$path" "$field" "$audio_value"
+			;;
 		motion/enabled)
 			value=$(agent_setting_value "$body_file" enabled) || return 1
 			agent_validate_bool "$value" || return 1
-			agent_config_set motion enabled "$value" || return 1
+			agent_motion_set_enabled "$value" || return 1
 			agent_config_save
 			agent_print_setting_update "$path" enabled "$value"
 			;;
@@ -2473,7 +2655,7 @@ agent_apply_config() {
 	done
 
 	value=$(agent_json_config_value "$source_file" motion.enabled)
-	[ -n "$value" ] && agent_config_set motion enabled "$value"
+	[ -n "$value" ] && agent_motion_set_enabled "$value"
 
 	value=$(agent_json_config_value "$source_file" daynight.enabled)
 	case "$value" in
@@ -2508,8 +2690,10 @@ agent_snapshot() {
 		echo "snapshot is not supported on this camera" >&2
 		return 1
 	}
-	tmp=$(mktemp /tmp/agent-snap.XXXXXX.jpg) || return 1
-	if ! raptorctl rvd save jpeg "$tmp" "$channel" >/dev/null 2>&1; then
+	tmp=$(mktemp /tmp/agent-snap.XXXXXX) || return 1
+	# raptorctl exits 0 on a failed save and reports it only in its JSON reply.
+	if ! raptorctl rvd save jpeg "$tmp" "$channel" 2>/dev/null | grep -q '"status":"ok"' ||
+		[ ! -s "$tmp" ]; then
 		rm -f "$tmp"
 		echo "failed to capture snapshot" >&2
 		return 1
