@@ -12,6 +12,8 @@ running in the background and driven one command at a time.
   qemu-dev wait [NAME]                     the shell, after --no-wait
   qemu-dev send [NAME] -- TEXT             type at the console (--expect RE)
   qemu-dev monitor [NAME] -- COMMAND       a QEMU monitor command
+  qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
+  qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
 
@@ -1252,6 +1254,111 @@ def cmd_monitor(args, words):
     return 0
 
 
+def gpio_pin(word):
+    """(port, pin) from PB14 or a Linux GPIO number (46)."""
+    m = re.fullmatch(r"p([a-f])(\d{1,2})", word.lower())
+    if m and int(m.group(2)) < 32:
+        return ord(m.group(1)) - ord("a"), int(m.group(2))
+    if word.isdigit():
+        return int(word) // 32, int(word) % 32
+    die(f"not a pin: {word} (PB14 or a GPIO number)")
+
+
+def gpio_mode(regs, b):
+    """What a pin is, from its INT, MSK, PAT1 and PAT0 bits."""
+    intr, msk, pat1, pat0 = ((regs[r] >> b) & 1
+                             for r in ("int", "msk", "pat1", "pat0"))
+    if intr:
+        trig = ("low", "high", "falling", "rising")[pat1 << 1 | pat0]
+        return f"irq {trig}" + (" masked" if msk else "")
+    if msk:
+        return "in" if pat1 else "out"
+    return f"func{pat1 << 1 | pat0}"
+
+
+def qom_props(q, path, want):
+    """The properties at path, or a clear stop when this QEMU predates
+    the one wanted."""
+    try:
+        props = {p["name"] for p in q.cmd("qom-list", path=path)}
+    except RuntimeError:
+        props = set()
+    if want not in props:
+        die(f"this QEMU cannot do that ({path} has no {want}); it needs "
+            f"a qemu-ingenic release newer than ingenic-0.6.11")
+    return props
+
+
+def cmd_gpio(args, words):
+    """Read pins, or drive inputs from outside: GPIO outputs read what
+    the camera drives, every other pin what was last driven here (high
+    until then); a driven change fires the pin's interrupt if it has
+    one."""
+    s = pick(args.name)
+    path = "/machine/soc/gpio"
+    q = Qmp(s.path("qmp"))
+    try:
+        props = qom_props(q, path, "in-pa")
+        ports = sum(f"in-p{c}" in props for c in "abcdef")
+
+        def get(field, port):
+            return q.cmd("qom-get", path=path,
+                         property=f"{field}-p{chr(97 + port)}")
+
+        sets = [w for w in words if "=" in w]
+        for w in sets:
+            name, value = w.split("=", 1)
+            port, pin = gpio_pin(name)
+            if port >= ports or value not in ("0", "1"):
+                die(f"cannot drive {w}")
+            level = get("in", port) & ~(1 << pin) | int(value) << pin
+            q.cmd("qom-set", path=path, property=f"in-p{chr(97 + port)}",
+                  value=level)
+        want = {gpio_pin(w.split("=")[0]) for w in words}
+        rows = []
+        for port in range(ports):
+            regs = {f: get(f, port)
+                    for f in ("int", "msk", "pat1", "pat0", "pin", "flg")}
+            for b in range(32):
+                mode = gpio_mode(regs, b)
+                if want and (port, b) not in want or not want and \
+                        mode.startswith("func") and not args.all:
+                    continue
+                rows.append(f"P{chr(65 + port)}{b:<3} {port * 32 + b:>3}  "
+                            f"{mode:<20} {regs['pin'] >> b & 1}"
+                            + ("  flag" if regs["flg"] >> b & 1 else ""))
+    finally:
+        q.close()
+    print("\n".join(rows) if rows else "no GPIO pins configured (--all "
+          "lists the pins in device functions too)")
+    return 0
+
+
+def cmd_adc(args, words):
+    """Read or set the samples the SADC's channels convert (0-4095), as
+    a photoresistor or a battery divider would present them."""
+    s = pick(args.name)
+    path = "/machine/soc/sadc"
+    q = Qmp(s.path("qmp"))
+    try:
+        qom_props(q, path, "aux0")
+        want = []
+        for w in words:
+            ch, _, value = w.partition("=")
+            if not ch.isdigit() or int(ch) > 7 or value and not (
+                    value.isdigit() and int(value) < 4096):
+                die(f"not a channel (0-7) or a sample (0-4095): {w}")
+            if value:
+                q.cmd("qom-set", path=path, property=f"aux{ch}",
+                      value=int(value))
+            want.append(int(ch))
+        for ch in want or range(8):
+            print(f"{ch} {q.cmd('qom-get', path=path, property=f'aux{ch}')}")
+    finally:
+        q.close()
+    return 0
+
+
 def cmd_wait(args):
     s = pick(args.name)
     ensure_shell(s, args.timeout)
@@ -1440,6 +1547,24 @@ def main(argv=None):
     sp.add_argument("--raw", action="store_true",
                     help="keep escape sequences and carriage returns")
 
+    sp = add("gpio", "read pins, or drive inputs", None,
+             "%(prog)s [NAME] [--all] [PIN[=0|1] ...]",
+             "List the pins set up as GPIO (with --all, every pin), show "
+             "the PINs named, or drive inputs from outside: PB14=0 pulls "
+             "PB14 low, as a pressed button or an inserted card would. "
+             "A PIN is PB14 or a Linux GPIO number (46). Columns: pin, "
+             "GPIO number, mode, level.")
+    sp.add_argument("words", nargs="*", metavar="NAME")
+    sp.add_argument("--all", action="store_true",
+                    help="also list pins in device functions")
+
+    sp = add("adc", "read or set ADC channels", None,
+             "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",
+             "Show the samples the camera's SADC channels convert, or set "
+             "them: 0=150 makes channel 0 read 150 of 4095, a dark room "
+             "to a photoresistor. Lines: channel, sample.")
+    sp.add_argument("words", nargs="*", metavar="NAME")
+
     sp = add("monitor", "run a QEMU monitor command", None,
              "%(prog)s [NAME] -- COMMAND",
              "Run a QEMU monitor command, such as info registers, set_link "
@@ -1463,7 +1588,8 @@ def main(argv=None):
     try:
         if args.command == "up":
             return cmd_up(args, tail)
-        if args.command in ("sh", "uboot", "send", "monitor"):
+        if args.command in ("sh", "uboot", "send", "monitor", "gpio",
+                            "adc"):
             # [NAME] -- WORDS, or [NAME] 'WORDS'
             words = args.words
             named = words and os.path.exists(Session(words[0]).dir)

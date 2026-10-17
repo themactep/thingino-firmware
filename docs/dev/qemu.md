@@ -35,6 +35,8 @@ scripts/qemu-dev down                          # stop it
 | `wait [NAME]` | wait for the shell, after `up --no-wait` or `reboot --no-wait` |
 | `send [NAME] -- TEXT` | type at the console, as a person would; see below |
 | `monitor [NAME] -- COMMAND` | a QEMU monitor command, such as `info registers` |
+| `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
+| `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
 
@@ -135,6 +137,31 @@ output of later commands.
 is, `set_link n0 off` and `set_link n0 on` pull and replug the network
 cable, `stop` and `cont` pause and resume the machine, `system_reset` is
 the reset button and `gdbserver` starts a gdb stub.
+
+## Pins and the ADC
+
+The camera's GPIO pins behave as on the silicon: an output reads back
+what the camera drives, and an input reads what is driven onto it from
+outside, high until a test says otherwise. `gpio` lists the pins set up
+as GPIO with their mode and level, shows the pins named, or drives
+inputs. A pin is `PB14` or its Linux GPIO number (`46`). Driving a pin
+fires its interrupt as the hardware would, so a button press or a card
+insertion reaches the camera's drivers. Pins no test has driven never
+interrupt.
+
+```bash
+scripts/qemu-dev gpio                  # what the camera has set up
+scripts/qemu-dev gpio PB28=0           # press a button wired to PB28 (active low) ...
+scripts/qemu-dev gpio PB28=1           # ... and let go
+scripts/qemu-dev gpio 50=0             # assert a card-detect pin, by GPIO number
+```
+
+`adc` does the same for the SADC's eight channels: `adc 0=150` makes
+channel 0 read 150 of 4095, a dark room to a photoresistor (raptor's
+`ric` reads one in its adc trigger mode). Every channel starts at 2025.
+
+Both need a qemu-ingenic release newer than ingenic-0.6.11; with that
+one they say so and stop.
 
 ## Iterating on a package
 
