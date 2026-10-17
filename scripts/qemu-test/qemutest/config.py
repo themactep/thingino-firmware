@@ -22,6 +22,7 @@ SOC_MACHINES = {
     "t31x": ("ingenic-t31",  128),
     "t32":  ("ingenic-t32",  256),
     "t32nq":("ingenic-t32",  256),
+    "t33":  ("ingenic-t33",  256),
     "t40":  ("ingenic-t40",  256),
     "t40nn":("ingenic-t40",  256),
     "t41":  ("ingenic-t41",  256),

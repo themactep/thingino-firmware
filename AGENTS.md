@@ -72,6 +72,19 @@ should be done on a real disk. See `docs/build/makefile.md`.
     table in `scripts/qemu-test/qemutest/plan.py`.
   - `scripts/ota-tests/` covers the sysupgrade partition-fitting logic.
 
+## Running images in QEMU
+
+`scripts/qemu-dev` boots a built or release image under the Ingenic QEMU
+fork and drives it one command at a time, so a change can be tried without
+a camera; it only ever touches the emulated one, and nothing needs a
+terminal. See `docs/dev/qemu.md`.
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth             # boot the newest build; returns at a root shell
+scripts/qemu-dev sh -- 'cat /proc/cmdline'    # run a command; exits with its status
+scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, down
+```
+
 ## Repo layout
 
 ```
