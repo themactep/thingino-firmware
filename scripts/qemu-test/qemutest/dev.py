@@ -53,6 +53,11 @@ from .serial import QemuSerial
 
 PROG = sys.argv[0] or "qemu-dev"
 
+# SPI NAND images run on a 128 MiB GigaDevice GD5F1GM7UE: the SPL, U-Boot
+# and Linux of a thingino NAND build all know it
+NAND_ID = 0xc891
+NAND_SIZE = 128 << 20
+
 # The soc-variant names the pinned fork knows; any other model boots as
 # its machine's default variant.
 FORK_VARIANTS = set("""
@@ -163,6 +168,28 @@ def resolve_soc(image, cfg, soc):
     if not m:
         die("cannot tell the SoC from the image; pass --soc (e.g. --soc t31x)")
     return m.group(0), m.group(1)
+
+
+def spi_nand(image):
+    """Whether the image boots from SPI NAND: the boot ROM reads that
+    from byte 8 of the SPL header, 0x00 for NAND, 0xaa for NOR."""
+    with open(image, "rb") as f:
+        head = f.read(9)
+    return len(head) == 9 and head[:4] == b"\x06\x05\x04\x03" and not head[8]
+
+
+def pad_nand(flash):
+    """Fill the copy out to the whole chip, erased, so what the guest
+    writes past the image (UBI grows into it) outlasts QEMU."""
+    size = os.path.getsize(flash)
+    if size > NAND_SIZE:
+        die(f"the image is larger than the emulated {NAND_SIZE >> 20} MiB "
+            f"SPI NAND")
+    with open(flash, "ab") as f:
+        while size < NAND_SIZE:
+            n = min(NAND_SIZE - size, 1 << 20)
+            f.write(b"\xff" * n)
+            size += n
 
 
 def soc_type(family):
@@ -871,6 +898,10 @@ def cmd_up(args, extra):
     machine = args.machine or machine
     if not machine:
         die(f"no QEMU machine for {model}; pass --machine")
+    nand = spi_nand(image)
+    if nand and family not in ("t40", "t41", "a1"):
+        die(f"{model} SPI NAND is not emulated; the fork has it on the "
+            f"T40, T41 and A1")
     if args.variant is not None:
         variant = args.variant or None
     else:
@@ -895,6 +926,8 @@ def cmd_up(args, extra):
     flash = s.path("flash.bin")
     if not (args.keep and os.path.exists(flash)):
         shutil.copyfile(image, flash)
+        if nand:
+            pad_nand(flash)
     for leaf in ("qmp", "uart0.log", "uart1.log"):
         with contextlib.suppress(FileNotFoundError):
             os.unlink(s.path(leaf))
@@ -920,6 +953,8 @@ def cmd_up(args, extra):
         argv += ["-m", f"{args.ram or ram}M"]
     if variant:
         argv += ["-global", f"{soc_type(family)}.soc-variant={variant}"]
+    if nand:
+        argv += ["-global", f"ingenic-a1-sfc.nand-id={NAND_ID:#x}"]
     if ports:
         argv += ["-netdev", "user,id=n0"]
     if args.sd:

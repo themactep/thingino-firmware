@@ -70,6 +70,12 @@ again for a session that is already up replaces it. Other options:
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - Anything after `--` goes to QEMU as it is.
 
+A SPI NAND image (its boot header says so) boots on the T40, T41 and A1
+with a 128 MiB GigaDevice GD5F1GM7UE for its flash, a chip the SPL,
+U-Boot and Linux of a NAND build all know. The flash copy is padded to the
+whole chip, erased, for the UBI volumes to grow into. NAND needs a
+qemu-ingenic release newer than ingenic-0.6.11.
+
 ## Getting in
 
 Commands run on the serial console, as they would over a board's UART: on
@@ -195,5 +201,7 @@ a session's console and another waits its turn; SSH copies run alongside.
   Real camera images boot as well, but nothing emulates their sensor or
   radio, and board details such as an SD card-detect pin may not match.
 - The guest runs under TCG: its timing is not the hardware's.
+- The emulated NAND never wears: no bitflips, no bad blocks, and its
+  spare areas are blank again whenever QEMU starts.
 - The console is UART1 on most cameras and UART0 on a few; `up` takes
   whichever speaks first.
