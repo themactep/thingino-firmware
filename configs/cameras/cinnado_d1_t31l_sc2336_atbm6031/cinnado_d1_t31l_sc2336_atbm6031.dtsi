@@ -29,20 +29,17 @@
 };
 
 /* SDIO WLAN (atbm6031) hangs off MMC1 on PB8-11/PB13-14; the family tree
-   disables msc1 because it uses MSC0 for the card slot. The SoC node uses
-   the mainline jz4740_mmc compatible, which cannot bring up this SDIO card;
-   select the Ingenic vendor MSC driver instead, with the same setup as the
-   working 5.15 board (clock kept running, 4-bit, soldered module). */
+   disables msc1 because it uses MSC0 for the card slot. The module needs
+   ~7-9 s after power-on before it answers CMD5, so poll instead of scanning
+   once at boot: the core retries every second (broken-cd) and the card
+   registers at ~9 s. A boot-time non-removable scan fails with OCR 0. */
 &msc1 {
 	status = "okay";
-	compatible = "ingenic,mmc";
-	pinctrl-names = "default", "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&msc1_pb>;
-	pinctrl-1 = <&msc1_pb>;
 	ingenic,sdio_clk = <1>;
-	bus-width = <4>;
-	max-frequency = <50000000>;
-	non-removable;
+	max-frequency = <24000000>;
+	broken-cd;
 };
 
 /* This board is WiFi-only, but the generic T31 tree enables the MAC, whose
