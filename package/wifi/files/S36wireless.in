@@ -324,7 +324,7 @@ start() {
 
 	m=50 # limit to 5 seconds
 	while [ "$m" -gt 0 ]; do
-		grep -q $IFACE /proc/net/wireless && break
+		[ -e "/sys/class/net/$IFACE/wireless" ] && break
 		m=$((m - 1))
 		sleep 0.1
 	done
