@@ -380,12 +380,10 @@ config BR2_THINGINO_ISPMEM_MB
 config BR2_THINGINO_NMEM_MB
 	int "Neural Network Reserved RAM (nmem), MB"
 	depends on BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
-	default 23 if BR2_SOC_RAM_MB = 64
-	default 29 if BR2_SOC_RAM_MB = 128
-	default 64 if BR2_SOC_RAM_MB = 256
-	default 23
+	default 0
 	help
 	  Specify reserved memory for the Neural Network module in MB.
+	  0 leaves nmem off the kernel command line.
 
 
 menu "ISP Kernel Module Configuration"
