@@ -1,5 +1,10 @@
 config BR2_PACKAGE_OPENIMP_SUPPORTED
 	bool
+	# OpenIMP exports no IMP_AENC_*/IMP_ADEC_* and no fisheye entry
+	# point; prudynt links all of them, so it cannot run under OpenIMP
+	# (see docs/media/open-isp-stack.md). Keep the vendor libimp as the
+	# userspace provider whenever prudynt is the streamer.
+	depends on !BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT
 	default y if BR2_SOC_FAMILY = "t10" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t20" && KERNEL_VERSION_3
 	default y if BR2_SOC_FAMILY = "t21" && KERNEL_VERSION_3
@@ -31,7 +36,12 @@ config BR2_PACKAGE_OPENIMP
 	  openimp-t23-helixd worker are installed under /opt/openimp-t23/
 	  for the proprietary Helix encoder. T30 is video-only: its build
 	  deliberately refuses to export the IMP audio entry points.
-	  T20/T21 reuse the T31 audio implementation; T31/T40/T41 include
-	  audio. Some optional OSD/IVS entry points remain incomplete.
+	  T20/T21 reuse the T31 audio implementation; T31/T40/T41 export the
+	  IMP_AI/IMP_AO capture and playback paths. None of the builds export
+	  IMP_AENC_*/IMP_ADEC_* or the fisheye control, so a streamer that
+	  uses them, notably prudynt, needs the vendor libimp
+	  (BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP); OpenIMP is not
+	  offered while prudynt is selected. Some optional OSD/IVS entry
+	  points remain incomplete.
 
 	  https://github.com/opensensor/openimp

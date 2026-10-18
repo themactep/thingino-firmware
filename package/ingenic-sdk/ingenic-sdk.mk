@@ -56,8 +56,11 @@ INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
 # compatibility goal) reads the vendor's flat /proc/jz/sensor/{width,height,
 # max_fps,...} tree - which also carries max_fps, a value the T23 open driver
 # does not expose. Publish it alongside the registry, as the proprietary ISP
-# build does; the registry stays the source of truth for AddSensor.
-ifeq ($(BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP),y)
+# build does; the registry stays the source of truth for AddSensor. This is
+# every open-stack build whose userspace provider is the vendor libimp, which
+# includes the ones where OpenIMP is unavailable (unsupported SoC, or prudynt
+# selected).
+ifneq ($(BR2_PACKAGE_OPENIMP),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_PUBLISH_FLAT_TREE
 endif
 else ifneq ($(filter $(SOC_FAMILY),t23 t31 t40 t41),)
