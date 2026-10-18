@@ -2,6 +2,7 @@
   "gpio": {
     "button_reset": 62,
     "ir850": 46,
+    "ircut": "50 49",
     "led_b": 38,
     "led_r": 39,
     "led_w": 48,
