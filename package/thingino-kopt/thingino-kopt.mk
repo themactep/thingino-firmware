@@ -75,6 +75,7 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 
 # Which MSC driver this SoC and kernel pair uses:
+#   jz4740-mmc    7.x mainline T31 - DT driven, one driver for msc0/msc1
 #   ingenic-mmc   5.15 (T31 vendor SDK) - mainline-style Ingenic MSC
 #   jzmmc         XBurst1 on 3.10/4.4, everything except t32
 #   sdhci-jz      t32 (PRJ007) on 3.10 - jzmmc_v12 does not list SOC_PRJ007 in
@@ -84,7 +85,9 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 #
 # KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
 # be compared rather than concatenated.
-ifeq ($(KERNEL_VERSION_5),y)
+ifeq ($(KERNEL_VERSION_7),y)
+KOPT_MMC_DRIVER = jz4740-mmc
+else ifeq ($(KERNEL_VERSION_5),y)
 KOPT_MMC_DRIVER = ingenic-mmc
 else ifeq ($(SOC_FAMILY),t32)
 ifeq ($(KERNEL_VERSION_4),y)
@@ -102,6 +105,8 @@ ifeq ($(KOPT_MMC_DRIVER),sdhci-jz)
 KOPT_MMC_SYM = MMC_SDHCI
 else ifeq ($(KOPT_MMC_DRIVER),ingenic-mmc)
 KOPT_MMC_SYM = INGENIC_MMC
+else ifeq ($(KOPT_MMC_DRIVER),jz4740-mmc)
+KOPT_MMC_SYM = MMC_JZ4740
 else
 KOPT_MMC_SYM = JZMMC_V12
 endif
@@ -164,6 +169,21 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
 	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
 endef
+else ifeq ($(KOPT_MMC_DRIVER),jz4740-mmc)
+# 7.x mainline: one jz4740-mmc driver binds both msc0 (SD slot) and msc1
+# (SDIO WiFi) from the device tree; there are no per-controller Kconfig
+# symbols to toggle.
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_BLOCK)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC_JZ4740)
+endef
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_FS
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_VFAT_FS,m)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_CODEPAGE,437)
+	$(call KCONFIG_SET_OPT,CONFIG_FAT_DEFAULT_IOCHARSET,"iso8859-1")
+endef
 else
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_HOST
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MMC)
@@ -195,6 +215,9 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_EXFAT
 endef
 endif
 endif
+# 7.x uses the DT and one host driver; there are no per-controller/pin
+# Kconfig knobs to apply.
+ifneq ($(KERNEL_VERSION_7),y)
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC0
 	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC0)
@@ -248,6 +271,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC1_PD_4BIT
 	$(call KCONFIG_ENABLE_OPT,CONFIG_$(KOPT_MMC_SYM)_MMC1_PD_4BIT)
 endef
+endif
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MMC_BOOT

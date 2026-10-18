@@ -1122,7 +1122,7 @@ kernel partition has ~56 KB.
 +			 <&cgu T31_CLK_AHB1>,
 +			 <&cgu T31_CLK_VPLL>;
 +		clock-names = "el150", "ahb1", "vpll";
-+		status = "disabled";
++		status = "okay";
 +	};
 +
  	isp: isp@13300000 {

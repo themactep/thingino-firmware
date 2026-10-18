@@ -156,8 +156,7 @@ endif
 #   5.15.170: one cumulative patch (official 5.15.170 -> Ingenic SDK tree)
 #            under package/all-patches/linux/5.15.170/ plus binary assets
 #            under package/linux/files/5.15.170/.
-#   7.2.11:  one cumulative patch (official 7.2.11 -> thingino), ported from
-#            the 7.1.13 rebase of the former ingenic-7.1-rc1 git branch, under
+#   7.2.11:  one cumulative patch (official 7.2.11 -> thingino) under
 #            package/all-patches/linux/7.2.11/.
 #            Pick the newest stable 7.2.y at
 #            https://www.kernel.org/pub/linux/kernel/v7.x/ then bump

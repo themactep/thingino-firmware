@@ -27,8 +27,8 @@ Kernel branch selection lives in `thingino.mk`:
 | a1 | — | `ingenic-a1` |
 
 The `7.2.11` line no longer maps to a git branch: it is built from the official
-kernel.org `7.2.11` tarball plus the cumulative patch ported from the 7.1.13
-rebase, replacing the former `ingenic-7.1-rc1` branch.
+kernel.org `7.2.11` tarball plus the cumulative thingino patch, replacing the
+former vendor kernel branch.
 
 ## SoC family / arch
 

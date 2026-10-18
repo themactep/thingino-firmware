@@ -287,9 +287,13 @@ else
 			echo "BR2_KERNEL_HEADERS_AS_KERNEL=y" >>$(OUTPUT_DIR)/.config; \
 		fi; \
 	elif [ "$(KERNEL_VERSION_7)" = "y" ]; then \
-		echo "** add kernel headers: 7.x (SOC: $(SOC_FAMILY))"; \
-		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_1=y" >>$(OUTPUT_DIR)/.config; \
-		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_1=y" >>$(OUTPUT_DIR)/.config; \
+		echo "** add kernel headers: 7.2 (SOC: $(SOC_FAMILY))"; \
+		if ! grep -q '^config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_2' "$(BUILDROOT_DIR)/package/linux-headers/Config.in.host"; then \
+			echo "ERROR: $(BUILDROOT_DIR) has no 7.2 kernel headers support"; \
+			exit 1; \
+		fi; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_2=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_2=y" >>$(OUTPUT_DIR)/.config; \
 		if [ "$(TOOLCHAIN_TYPE_RAW)" = "BUILDROOT" ]; then \
 			echo "BR2_KERNEL_HEADERS_AS_KERNEL=y" >>$(OUTPUT_DIR)/.config; \
 		fi; \

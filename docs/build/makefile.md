@@ -883,9 +883,8 @@ Kernels come from one of two sources:
   cumulative patch each (`package/all-patches/linux/5.15.170/`,
   `package/all-patches/linux/7.2.11/0001-linux-7.2.11-to-thingino.patch`),
   followed by the small thingino patches. The 7.2.11 tree carries the thingino
-  changes ported from the 7.1.13 rebase of the former `ingenic-7.1-rc1` git
-  branch, so the core follows upstream rather than the vendor branch. No
-  commit pin.
+  changes on top of upstream, so the core follows the stable release rather
+  than a vendor branch. No commit pin.
 - **Everything else** (the t40/a1 branches) — the custom
   `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each branch to
   a pinned commit in the `KERNEL_HASH` table, so builds are reproducible and

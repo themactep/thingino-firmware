@@ -46,7 +46,7 @@ Kernel focus:
 
 - Linux 3.10.14 vendor trees: T10, T20, T21, T23, T30, T31
 - Linux 4.4.94 vendor trees: T40, T41
-- T31 also builds on the mainline Linux 7.1 compatibility path upstream
+- T31 also builds on the mainline Linux 7.2 compatibility path upstream
   (Thingino's Kconfig exposes the open stack only on the vendor trees)
 
 ## Module completeness
