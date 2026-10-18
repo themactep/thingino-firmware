@@ -1,25 +1,118 @@
 From: Thingino <dev@thingino.com>
-Subject: [PATCH] hal: poll the encoder non-blocking on T31 (open-tx-isp)
+Subject: [PATCH] hal: work around the T31 libimp blocking-poll register clobber
 
 On the T31 with the open-tx-isp driver, libimp's blocking
 IMP_Encoder_PollingStream path (timeout > 0) clobbers a callee-saved
 register in the caller: measured with a minimal harness, s0 comes back
 wild after a blocking poll and the next instruction faults
 (si_addr=0). video_thread then crashes right after "video chn%d
-streaming" and the encoder never streams.
+streaming", jpeg_thread does the same on the first MJPEG/snapshot
+client, and the vendor's own IMP_Encoder_StopRecvPic calls the same
+blocking poll internally while frames are queued - it then faults on
+the corrupted channel pointer when an idle stream is stopped.
 
-Poll non-blocking (timeout 0) and yield instead. Verified on
-cinnado_d1_t31l_sc2336_atbm6031 (5.15 open-tx-isp): stable RTSP stream,
-encoder IRQ advancing, no SIGSEGV.
+Poll non-blocking (timeout 0) in both threads and yield instead. On
+T31 the idle paths keep both the encoder and the framesource running
+and simply drop the frames while nobody is watching: the queued output
+is drained on wake-up, the encoder binding is never torn down across a
+framesource edge, and StopRecvPic's faulting internal poll is never
+entered. Verified on vanhua_s37i_t31l_imx307_eth (7.2.11, vendor
+libimp): RTSP, fMP4 and MJPEG streams survive repeated preview
+connect/disconnect/idle cycles, including a reconnect after a long idle.
 
-v1.10.1 added roi_poll()/poll_t0 around the poll, so this is a re-port
-of the same one-line change against the new context.
+v1.10.1 added roi_poll()/poll_t0 around the video poll, so this is a
+re-port of the original patch against the new context.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 
 --- a/src/hal/hal_ingenic.c
 +++ b/src/hal/hal_ingenic.c
-@@ -3320,7 +3320,17 @@
+@@ -573,6 +573,25 @@
+         LOGI(MOD,"framesource %d disabled (idle)", chn);
+     pthread_mutex_unlock(&g_fs_mtx);
+ }
++#if defined(PLATFORM_T31)
++/* libimp's IMP_Encoder_StopRecvPic calls its own IMP_Encoder_PollingStream
++ * with a 1000 ms timeout while received frames are still waiting to encode.
++ * That blocking path clobbers a callee-saved register (see the non-blocking
++ * poll workaround in video_thread), so StopRecvPic itself then faults on the
++ * corrupted channel pointer. The idle paths therefore keep both the encoder
++ * and the framesource running on T31 and drop the frames while nobody is
++ * watching; the queue is drained on wake-up so no stale frames are published,
++ * and the encoder binding never sees a framesource edge. */
++static void enc_drain_queued(int chn)
++{
++    IMPEncoderStream st;
++    for (int i=0; i<8; i++){
++        if (IMP_Encoder_PollingStream(chn, 0)!=0) break;
++        if (IMP_Encoder_GetStream(chn, &st, 0)!=0) break;
++        IMP_Encoder_ReleaseStream(chn, &st);
++    }
++}
++#endif
+ /* Refcount-neutral Disable+Enable of a live FS: the force-recycle that the
+  * fs_unuse()+fs_use() pair in the watchdogs cannot be while a second holder
+  * (piggyback video wake, motion pin) keeps the count above 0. A co-holder sees
+@@ -3232,6 +3251,9 @@
+      * copy at publish. The pool sizes/reuses buffers to the observed frame peak
+      * (bounded by MS_AU_BUF_MAX) exactly as the old on-demand-grown au[] did. */
+     int receiving=0;
++#if defined(PLATFORM_T31)
++    int idle_stopped=0;                /* stream kept up, frames dropped */
++#endif
+     int64_t idle_since=0;
+     int dbg_first=0, dbg_pollfail=0;   /* one-shot encoder diagnostics */
+     int dbg_getfail=0;                 /* rate-limits GetStream failures */
+@@ -3261,11 +3283,27 @@
+             /* fully idle: block until ing_set_active() wakes us (1 s safety
+              * timeout). No polling, no frame flow - the framesource is off. */
+             if (!receiving){ fs_kick_reap(); act_wait(act_ready_vchan, vc); continue; }
++#if defined(PLATFORM_T31)
++            if (idle_stopped){
++                enc_drain_queued(vc->chn);    /* drop frames a co-holder still feeds */
++                fs_kick_reap(); act_wait(act_ready_vchan, vc); continue;
++            }
++#endif
+             /* debounce the stop: only shut the encoder down after a sustained
+              * idle period; rapid client churn must not toggle Start/StopRecvPic */
+             int64_t now = ms_now_us();
+             if (idle_since==0) idle_since = now;
+             if (now - idle_since >= MS_IDLE_STOP_US) {
++#if defined(PLATFORM_T31)
++                /* StopRecvPic polls internally on T31 and faults on the
++                 * corrupted channel pointer; the framesource edge also breaks
++                 * the encoder binding, so keep both the encoder and the
++                 * framesource running and just drop the frames while idle. */
++                hub_pool_trim(vc->chn);
++                idle_since=0; idle_stopped=1;
++                LOGI(MOD,"video chn%d idle (stream kept running)",vc->chn);
++                continue;
++#else
+                 IMP_Encoder_StopRecvPic(vc->chn);
+                 fs_unuse(vc->chn);            /* stop the frame flow entirely */
+                 /* R-01: no more frames from this source until a client comes
+@@ -3278,11 +3316,20 @@
+                 receiving=0; idle_since=0;
+                 LOGI(MOD,"video chn%d idle",vc->chn);
+                 continue;
++#endif
+             }
+             /* during the debounce window keep draining the encoder below so
+              * the pipeline never backs up (publish is a no-op with 0 subs) */
+         } else {
+             idle_since = 0;
++#if defined(PLATFORM_T31)
++            if (idle_stopped){
++                /* Nothing was torn down while idle: drop whatever queued up
++                 * and resume publishing the live frames. */
++                enc_drain_queued(vc->chn);
++                idle_stopped=0;
++            }
++#endif
+             if (!receiving){
+                 fs_use(vc->chn);
+                 /* an unchecked StartRecvPic failure used to flip receiving=1
+@@ -3320,7 +3367,17 @@
          if (vc->idr_req){ vc->idr_req=0; IMP_Encoder_RequestIDR(vc->chn); }
          roi_poll(vc);
          int64_t poll_t0 = ms_now_us();
@@ -37,3 +130,67 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
          IMPEncoderStream st;
  #if defined(PLATFORM_T40)||defined(PLATFORM_T41)
          /* ABI tripwire (same idea as the T23 fcrop store in fs_create): the
+@@ -4330,6 +4387,9 @@
+      * (hub_pkt_get) and handed off with hub_publish_take() - no persistent
+      * jbuf scratch and no copy at publish. */
+     int receiving=0;
++#if defined(PLATFORM_T31)
++    int idle_stopped=0;                /* stream kept up, frames dropped */
++#endif
+     int dbg_jstartfail=0;              /* rate-limits StartRecvPic failures */
+     int dbg_jpollfail=0;               /* J1: PollingStream-miss watchdog */
+     int dbg_jrecover_fails=0;          /* consecutive forced-recovery cycles
+@@ -4365,16 +4425,38 @@
+             /* fully idle: block until reactivated (see act_wait). snap_due is
+              * time-based (no act_wake), so it rides the 1 s timeout re-poll. */
+             if (!receiving){ fs_kick_reap(); act_wait(act_ready_jchan, jc); continue; }
++#if defined(PLATFORM_T31)
++            if (idle_stopped){
++                enc_drain_queued(jc->chn);    /* drop frames a co-holder still feeds */
++                fs_kick_reap(); act_wait(act_ready_jchan, jc); continue;
++            }
++#endif
+             int64_t nowi = ms_now_us();
+             if (idle_since==0) idle_since = nowi;
+             if (nowi - idle_since >= MS_IDLE_STOP_US) {
++#if defined(PLATFORM_T31)
++                /* Same StopRecvPic internal-poll fault as video_thread: keep
++                 * the encoder and framesource running, drop the frames. */
++                hub_pool_trim(jc->src);       /* R-01, see video_thread */
++                idle_since=0; idle_stopped=1;
++                continue;
++#else
+                 IMP_Encoder_StopRecvPic(jc->chn);
+                 fs_unuse(jc->fs_chn);         /* stop the frame flow entirely */
+                 hub_pool_trim(jc->src);       /* R-01, see video_thread */
+                 receiving=0; idle_since=0;
+                 continue;
++#endif
+             }
+         } else idle_since = 0;
++#if defined(PLATFORM_T31)
++        if (idle_stopped){
++            /* Nothing was torn down while idle: drop whatever queued up and
++             * resume publishing the live frames. */
++            enc_drain_queued(jc->chn);
++            idle_stopped=0;
++        }
++#endif
+         if (!receiving){
+             fs_use(jc->fs_chn);
+             /* same failure class as video_thread: never mark the channel
+@@ -4397,7 +4479,14 @@
+         if (!jc->run) break;
+         next=ms_now_us()+period;
+ 
++#if defined(PLATFORM_T31)
++        /* Same libimp blocking-poll register clobber as video_thread above.
++         * The loop already paces itself with `period`, so a non-blocking
++         * poll needs no extra sleep here. */
++        if (IMP_Encoder_PollingStream(jc->chn, 0)!=0){
++#else
+         if (IMP_Encoder_PollingStream(jc->chn, g_hcfg->imp_polling_timeout)!=0){
++#endif
+             if (++dbg_jpollfail == 1) jmiss_t0 = ms_now_us();
+             /* a lone miss is the normal cold start of an idle JPEG channel */
+             if ((dbg_jpollfail % 20)==2)

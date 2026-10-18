@@ -284,7 +284,6 @@
     // signalling down during a streamer restart, ...) used to be saved too and
     // pinned the page to buffered for good; "ms.format" leaves those behind.
     const PREF_KEY = "ms.format";
-    const hadNoSavedLatencyPref = localStorage.getItem(PREF_KEY) === null;
     (function readLatencyPref() {
       const saved = localStorage.getItem(PREF_KEY);
       if (saved === RT_VALUE) { mode = "rt"; return; }
@@ -1405,7 +1404,7 @@
       const st = {
         dead: false, pc: null, resource: null, token: token, statsTimer: null,
         bytes: -1, lastBytes: -1, lastAt: 0, audio: false, w: 0, h: 0,
-        prevV: null, camMs: -1, tick: 0
+        prevV: null, camMs: -1, tick: 0, startedAt: performance.now()
       };
       whep = st;
 
@@ -1596,7 +1595,20 @@
         if (tr && tr.selectedCandidatePairId) pair = report.get(tr.selectedCandidatePairId) || pair;
         const bytes = (v ? v.bytesReceived || 0 : 0) + (a ? a.bytesReceived || 0 : 0);
         if (bytes > st.bytes) { st.bytes = bytes; noteProgress(); }
-        if (!v) return;
+        const whepAge = performance.now() - st.startedAt;
+        if (!v) {
+          if (whepAge > 6000)
+            whepFallbackToMse("WebRTC signalling is up but no video track " +
+              "arrived - using buffered playback.", false);
+          return;
+        }
+        /* SDP accepts the camera's High-profile H.264, but some browser
+         * WebRTC stacks cannot decode it: connected, no frame ever decoded. */
+        if (!(v.framesDecoded > 0) && whepAge > 6000) {
+          whepFallbackToMse("WebRTC is connected but this browser cannot " +
+            "decode the camera's H.264 stream - using buffered playback.", false);
+          return;
+        }
         const now = performance.now();
         let rate = "";
         if (st.lastBytes >= 0 && now > st.lastAt)
@@ -2031,11 +2043,11 @@
     setConnectedUi(false);
 
     (async () => {
-      if (hadNoSavedLatencyPref && HAVE_WEBRTC) {
-        if (await refreshWhepOption() === "ok") mode = "whep";
-      } else {
-        refreshWhepOption();   // async; may disable/remove "whep" once caps arrive
-      }
+      /* Buffered fMP4 is the default: the camera's High-profile H.264 SPS is
+       * not decodable by every browser's WebRTC stack, and the session then
+       * sits at "negotiating" with no video. WHEP stays selectable and falls
+       * back below when no frame decodes. */
+      refreshWhepOption();   // async; may disable/remove "whep" once caps arrive
       applyModeUi();
       bootPending = false;
       refreshRtOption();       // async; may disable "rt" once /control answers
