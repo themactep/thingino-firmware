@@ -1,13 +1,20 @@
 {
   "gpio": {
+    "button_reset": 22,
+    "ir850": 59,
+    "ircut": "47 48",
     "mmc_cd": 21,
-    "sensor_reset": 20
+    "sensor_reset": 20,
+    "speaker": {
+      "active_low": true,
+      "pin": 63
+    }
   },
   "motors": {
     "gpio_invert": false,
-    "gpio_pan": "66 67 68 69",
+    "gpio_pan": "67 66 68 69",
     "gpio_switch": -1,
-    "gpio_tilt": "57 58 61 64",
+    "gpio_tilt": "64 61 57 58",
     "homing": true,
     "invert_x": false,
     "invert_y": false,
