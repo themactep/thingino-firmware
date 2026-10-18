@@ -35,7 +35,6 @@ BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_RMEM_MB=10
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=8
-KERNEL_VERSION_3=y
 
 # tx-isp-t23.ko isp_memopt=1 direct_mode=1 isp_clk=200000000 isp_clka=600000000 ivdc_mem_line=300
 # sensor_gc1084_t23.ko shvflip=1
