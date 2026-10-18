@@ -954,8 +954,8 @@ config KERNEL_VERSION_5
 	bool "Kernel 5.15"
 	depends on BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t33"
 config KERNEL_VERSION_7
-	bool "Kernel 7.1"
-	# t31 defaults to 7.1 on this branch, so the default must not hide
+	bool "Kernel 7.2"
+	# t31 defaults to 7.2 on this branch, so the default must not hide
 	# behind the experimental toggle (a user fragment that turns off
 	# BR2_THINGINO_DEV_PACKAGES would drop it and silently fall back to
 	# 4.4). Other families still opt in.
@@ -972,7 +972,7 @@ config KERNEL_MODERN
 
 config BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION
 	string
-	default "7.1.13" if KERNEL_VERSION_7
+	default "7.2.11" if KERNEL_VERSION_7
 
 menu "Device Type"
 	choice

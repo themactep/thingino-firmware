@@ -848,10 +848,10 @@ index f595b33..e043586 100644
 +	select SYS_HAS_CPU_MIPS32_R2
 +	select SYS_SUPPORTS_HIGHMEM
 diff --git a/drivers/char/hw_random/ingenic-trng.c b/drivers/char/hw_random/ingenic-trng.c
-index 1672320..9a454ab 100644
+index 0dbe116..2adda8c 100644
 --- a/drivers/char/hw_random/ingenic-trng.c
 +++ b/drivers/char/hw_random/ingenic-trng.c
-@@ -110,6 +110,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
+@@ -109,6 +109,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
  
  static const struct of_device_id ingenic_trng_of_match[] = {
  	{ .compatible = "ingenic,x1830-dtrng" },
@@ -1775,10 +1775,10 @@ index 7e62d46..3b1ebfa 100644
  	{ .compatible = "ingenic,x2000-phy", .data = &x2000_soc_info },
  	{ /* sentinel */ }
 diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
-index c7f1454..c53dec8 100644
+index 1aa6a6d..11318a6 100644
 --- a/drivers/pinctrl/pinctrl-ingenic.c
 +++ b/drivers/pinctrl/pinctrl-ingenic.c
-@@ -113,6 +113,7 @@ enum jz_version {
+@@ -112,6 +112,7 @@ enum jz_version {
  	ID_X1500,
  	ID_X1600,
  	ID_X1830,
@@ -1786,7 +1786,7 @@ index c7f1454..c53dec8 100644
  	ID_X2000,
  	ID_X2100,
  };
-@@ -164,6 +165,7 @@ static const unsigned long enabled_socs =
+@@ -163,6 +164,7 @@ static const unsigned long enabled_socs =
  	IS_ENABLED(CONFIG_MACH_X1500) << ID_X1500 |
  	IS_ENABLED(CONFIG_MACH_X1600) << ID_X1600 |
  	IS_ENABLED(CONFIG_MACH_X1830) << ID_X1830 |
@@ -1794,7 +1794,7 @@ index c7f1454..c53dec8 100644
  	IS_ENABLED(CONFIG_MACH_X2000) << ID_X2000 |
  	IS_ENABLED(CONFIG_MACH_X2100) << ID_X2100;
  
-@@ -2824,6 +2826,125 @@ static const struct ingenic_chip_info x1830_chip_info = {
+@@ -2823,6 +2825,125 @@ static const struct ingenic_chip_info x1830_chip_info = {
  	.access_table = &x1830_access_table,
  };
  
@@ -1932,7 +1932,7 @@ index c7f1454..c53dec8 100644
  		.compatible = "ingenic,x2000-pinctrl",
  		.data = IF_ENABLED(CONFIG_MACH_X2000, &x2000_chip_info)
 diff --git a/drivers/spi/Kconfig b/drivers/spi/Kconfig
-index b563f49..e17349e 100644
+index 8782514..4c9b88e 100644
 --- a/drivers/spi/Kconfig
 +++ b/drivers/spi/Kconfig
 @@ -522,6 +522,14 @@ config SPI_INGENIC
@@ -1951,7 +1951,7 @@ index b563f49..e17349e 100644
  	tristate
  
 diff --git a/drivers/spi/Makefile b/drivers/spi/Makefile
-index 9d36190..b3647cf 100644
+index 9fa1249..629e75e 100644
 --- a/drivers/spi/Makefile
 +++ b/drivers/spi/Makefile
 @@ -73,6 +73,7 @@ obj-$(CONFIG_SPI_HISI_SFC_V3XX)		+= spi-hisi-sfc-v3xx.o
@@ -2773,10 +2773,10 @@ index f375c51..e37d483 100644
  	}
  
 diff --git a/drivers/usb/dwc2/core.h b/drivers/usb/dwc2/core.h
-index 34127b8..cb0ca16 100644
+index 767251a..b51e560 100644
 --- a/drivers/usb/dwc2/core.h
 +++ b/drivers/usb/dwc2/core.h
-@@ -1232,7 +1232,11 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+@@ -1233,7 +1233,11 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
  {
  	u32 val;
  
@@ -2788,7 +2788,7 @@ index 34127b8..cb0ca16 100644
  	if (hsotg->needs_byte_swap)
  		return swab32(val);
  	else
-@@ -1242,9 +1246,13 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+@@ -1243,9 +1247,13 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
  static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
  {
  	if (hsotg->needs_byte_swap)

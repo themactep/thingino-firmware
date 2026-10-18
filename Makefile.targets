@@ -287,7 +287,7 @@ else
 			echo "BR2_KERNEL_HEADERS_AS_KERNEL=y" >>$(OUTPUT_DIR)/.config; \
 		fi; \
 	elif [ "$(KERNEL_VERSION_7)" = "y" ]; then \
-		echo "** add kernel headers: 7.1 (SOC: $(SOC_FAMILY))"; \
+		echo "** add kernel headers: 7.x (SOC: $(SOC_FAMILY))"; \
 		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_7_1=y" >>$(OUTPUT_DIR)/.config; \
 		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_7_1=y" >>$(OUTPUT_DIR)/.config; \
 		if [ "$(TOOLCHAIN_TYPE_RAW)" = "BUILDROOT" ]; then \
@@ -344,10 +344,10 @@ endif
 		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
-	# Kernel config override: 3.10.14, 4.4.94, 5.15.170 and 7.1.13 use the
+	# Kernel config override: 3.10.14, 4.4.94, 5.15.170 and 7.2.11 use the
 	# official kernel.org tarball + patches; all other versions use the
 	# thingino-linux git repo.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ] && [ "$(KERNEL_VERSION)" != "5.15.170" ] && [ "$(KERNEL_VERSION)" != "7.1.13" ]; then \
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ] && [ "$(KERNEL_VERSION)" != "5.15.170" ] && [ "$(KERNEL_VERSION)" != "7.2.11" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \

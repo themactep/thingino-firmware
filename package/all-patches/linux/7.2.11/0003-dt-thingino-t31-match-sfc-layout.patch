@@ -5,27 +5,27 @@
  			partition@0 {
  				label = "boot";
 -				reg = <0x0 0x40000>;
-+				reg = <0x0 0x50000>;
++				reg = <0x0 0x30000>;
  				read-only;
  			};
  
 -			partition@40000 {
-+			partition@50000 {
++			partition@30000 {
  				label = "env";
 -				reg = <0x40000 0x10000>;
-+				reg = <0x50000 0x10000>;
++				reg = <0x30000 0x10000>;
  			};
  
 -			partition@50000 {
-+			partition@60000 {
++			partition@40000 {
 +				label = "backup";
-+				reg = <0x60000 0x10000>;
++				reg = <0x40000 0x10000>;
 +			};
 +
-+			partition@70000 {
++			partition@50000 {
  				label = "kernel";
 -				reg = <0x50000 0x200000>;
-+				reg = <0x70000 0x280000>;
++				reg = <0x50000 0x2a0000>;
  			};
  
 -			partition@250000 {

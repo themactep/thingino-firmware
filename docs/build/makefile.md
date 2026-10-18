@@ -879,12 +879,13 @@ Kernels come from one of two sources:
   restored from `package/linux/files/4.4.94/<soc>/`. The snapped commits are
   recorded in `package/all-patches/linux/4.4.94/SOURCES` and the patches are
   produced by `scripts/generate_kernel_4.4.94_patches.rb`.
-- **5.15.170** and **7.1.13** — the official kernel.org tarball plus one
+- **5.15.170** and **7.2.11** — the official kernel.org tarball plus one
   cumulative patch each (`package/all-patches/linux/5.15.170/`,
-  `package/all-patches/linux/7.1.13/0001-linux-7.1.13-to-thingino.patch`),
-  followed by the small thingino patches. The 7.1.13 tree was rebased from the
-  former `ingenic-7.1-rc1` git branch onto the stable 7.1.13 release, so the
-  core follows upstream rather than the vendor branch. No commit pin.
+  `package/all-patches/linux/7.2.11/0001-linux-7.2.11-to-thingino.patch`),
+  followed by the small thingino patches. The 7.2.11 tree carries the thingino
+  changes ported from the 7.1.13 rebase of the former `ingenic-7.1-rc1` git
+  branch, so the core follows upstream rather than the vendor branch. No
+  commit pin.
 - **Everything else** (the t40/a1 branches) — the custom
   `github.com/gtxaspec/thingino-linux` repo. `thingino.mk` maps each branch to
   a pinned commit in the `KERNEL_HASH` table, so builds are reproducible and

@@ -446,9 +446,10 @@ ifeq ($(KERNEL_VERSION),5.15.170)
 # hand the slot back to the rootfs. Must match the kernel DT partitions in
 # thingino-t31.dts.
 KERNEL_PARTITION_SIZE := 2359296  # 2304KB (5.15 t31)
-else ifeq ($(KERNEL_VERSION),7.1.13)
-# The mainline 7.x kernel image is larger than the 4.4 line; widen the slot.
-KERNEL_PARTITION_SIZE := 2621440  # 2560KB (7.x)
+else ifeq ($(KERNEL_VERSION),7.2.11)
+# The mainline 7.x kernel image is larger than the 4.4 line; the 7.2 line
+# additionally carries the STMMAC driver. Widen the slot to 2688KB.
+KERNEL_PARTITION_SIZE := 2752512  # 2688KB (7.x)
 else
 KERNEL_PARTITION_SIZE := 1769472  # 1728KB universal
 endif

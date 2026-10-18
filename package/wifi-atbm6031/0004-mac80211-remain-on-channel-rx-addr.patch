@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sun, 18 Oct 2026 00:00:00 +0000
+Subject: [PATCH] mac80211: accept the 7.2 remain_on_channel rx address
+
+Linux 7.2 adds a const u8 *rx_addr argument to cfg80211_ops
+.remain_on_channel. The vendored mac80211 still installs the 7.1
+prototype, so cfg.c fails to build:
+
+  cfg.c:4294:30: error: initialization of 'int (*)(struct wiphy *, struct
+  wireless_dev *, struct ieee80211_channel *, unsigned int, u64 *,
+  const u8 *)' from incompatible pointer type 'int (*)(struct wiphy *,
+  struct wireless_dev *, struct ieee80211_channel *, unsigned int,
+  u64 *)' [-Wincompatible-pointer-types]
+
+Guard the extra argument on the kernel version. The driver has no use
+for a per-peer ROC yet, so the address is ignored.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/hal_apollo/mac80211/cfg.c b/hal_apollo/mac80211/cfg.c
+--- a/hal_apollo/mac80211/cfg.c
++++ b/hal_apollo/mac80211/cfg.c
+@@ -3312,7 +3312,11 @@
+ 				       enum nl80211_channel_type channel_type,
+ 				       #endif
+ 				       unsigned int duration,
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,2,0))
++				       u64 *cookie, const u8 *rx_addr)
++#else
+ 				       u64 *cookie)
++#endif
+ {
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+ 	struct net_device *dev = wdev_to_ndev(wdev);
+@@ -3320,6 +3324,9 @@
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
+     enum nl80211_channel_type channel_type = NL80211_CHAN_HT20;
+ #endif
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7,2,0))
++	(void)rx_addr;
++#endif
+ 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+ 	struct ieee80211_local *local = sdata->local;
+ 	int ret;
