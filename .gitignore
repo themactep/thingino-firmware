@@ -3,6 +3,7 @@
 /.vscode
 /.gitconfig
 /.settings
+.env
 
 # OS files
 .DS_Store
@@ -41,3 +42,11 @@ __pycache__/
 /local.mk
 /.prereqs.done
 /.selected_camera*
+
+# AI
+/.kilo
+
+# Contrib
+/contrib/frigate/.env
+/contrib/frigate/config
+/contrib/frigate/media
