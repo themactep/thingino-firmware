@@ -666,7 +666,8 @@
       if (Array.isArray(fc.restart)) fc.restart.forEach(function (r, i) { if (r) rl.push(i ? "substream" : "main stream"); });
       var rt = rl.length ? "The " + rl.join(" and ") + " takes the new window only after restarting timps." : "";
       note($("crop-note"), cropTier === "effective" ? "" : cropTier,
-        [cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", rt, zt].filter(Boolean).join(" "));
+        [fc.api === "autozoom" && cropTier !== "unsupported" ? "Crop runs through the ISP AutoZoom on this camera." : "",
+          cropTier !== "unsupported" && !cropLive ? "Applies after restarting timps." : "", rt, zt].filter(Boolean).join(" "));
       slidersFromCrop();
       if (!cropValid() && sw) cropFromSliders();
       renderCrop(fc.state); watchWaiting(fc.state);
