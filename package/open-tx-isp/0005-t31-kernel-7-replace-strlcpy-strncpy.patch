@@ -1,0 +1,157 @@
+--- a/driver/t31/tx_isp_v4l2.c
++++ b/driver/t31/tx_isp_v4l2.c
+@@ -304,11 +304,12 @@
+ static int tx_isp_v4l2_querycap(struct file *file, void *private,
+ 				struct v4l2_capability *capability)
+ {
+-	strlcpy(capability->driver, "tx-isp-t31", sizeof(capability->driver));
+-	strlcpy(capability->card, "Ingenic T31 ISP capture",
+-		sizeof(capability->card));
+-	strlcpy(capability->bus_info, "platform:tx-isp-t31",
+-		sizeof(capability->bus_info));
++	snprintf((char *)capability->driver, sizeof(capability->driver), "%s",
++		"tx-isp-t31");
++	snprintf((char *)capability->card, sizeof(capability->card), "%s",
++		"Ingenic T31 ISP capture");
++	snprintf((char *)capability->bus_info, sizeof(capability->bus_info), "%s",
++		"platform:tx-isp-t31");
+ 	capability->version = KERNEL_VERSION(0, 1, 0);
+ 	capability->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+ 	capability->capabilities = capability->device_caps |
+@@ -322,7 +323,8 @@
+ 	if (format->index)
+ 		return -EINVAL;
+ 	format->pixelformat = V4L2_PIX_FMT_NV12;
+-	strlcpy(format->description, "NV12", sizeof(format->description));
++	snprintf((char *)format->description, sizeof(format->description), "%s",
++		"NV12");
+ 	return 0;
+ }
+ 
+@@ -764,8 +766,8 @@
+ 		ret = -ENOMEM;
+ 		goto fail_v4l2;
+ 	}
+-	strlcpy(video->video_device->name, "tx-isp-t31-capture",
+-		sizeof(video->video_device->name));
++	snprintf(video->video_device->name, sizeof(video->video_device->name),
++		"%s", "tx-isp-t31-capture");
+ 	video->video_device->v4l2_dev = &video->v4l2_device;
+ 	video->video_device->fops = &tx_isp_v4l2_file_ops;
+ 	video->video_device->ioctl_ops = &tx_isp_v4l2_ioctl_ops;
+--- a/driver/t31/tx_isp_core.c
++++ b/driver/t31/tx_isp_core.c
+@@ -582,8 +582,8 @@
+             line_time_us = 1;
+ 
+         if (sensor_attr->name)
+-            strlcpy((char *)&info->words[TISP_SI_WORD_NAME0],
+-                    sensor_attr->name, 3 * sizeof(u32));
++            snprintf((char *)&info->words[TISP_SI_WORD_NAME0],
++                     3 * sizeof(u32), "%s", sensor_attr->name);
+         tisp_si_set_word(info, TISP_SI_WORD_INTEGRATION_TIME,
+                          sensor_attr->integration_time);
+         tisp_si_set_word(info, TISP_SI_WORD_MAX_AGAIN, sensor_attr->max_again);
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -772,7 +772,7 @@
+ 			ret = -ENODEV;
+ 			break;
+ 		}
+-		strlcpy(name, driver_name, name_size);
++		snprintf(name, name_size, "%s", driver_name);
+ 		if (default_i2c_addr)
+ 			*default_i2c_addr = slot->default_i2c_addr;
+ 		ret = 0;
+--- a/driver/t31/tx_isp_module.c
++++ b/driver/t31/tx_isp_module.c
+@@ -286,8 +286,9 @@
+     /* sensor subdev now references ISP dev via ourISPdev global */
+ 
+     if (sensor->info.name[0]) {
+-        strncpy(isp_dev->sensor_name, sensor->info.name,
+-                sizeof(isp_dev->sensor_name) - 1);
++        snprintf(isp_dev->sensor_name, sizeof(isp_dev->sensor_name),
++                 "%.*s", (int)(sizeof(isp_dev->sensor_name) - 1),
++                 sensor->info.name);
+         isp_dev->sensor_name[sizeof(isp_dev->sensor_name) - 1] = '\0';
+     }
+ 
+@@ -2675,8 +2676,9 @@
+     stable_attr = sensor->video.attr ? sensor->video.attr : &sensor->attr;
+ 
+     if (stable_attr->name) {
+-        strncpy(isp_dev->sensor_name, stable_attr->name,
+-                sizeof(isp_dev->sensor_name) - 1);
++        snprintf(isp_dev->sensor_name, sizeof(isp_dev->sensor_name),
++                 "%.*s", (int)(sizeof(isp_dev->sensor_name) - 1),
++                 stable_attr->name);
+         isp_dev->sensor_name[sizeof(isp_dev->sensor_name) - 1] = '\0';
+     }
+ 
+@@ -4910,7 +4912,8 @@
+ 	            return -EFAULT;
+ 	        }
+ 
+-	        strncpy(sensor_name, sensor_data, sizeof(sensor_name) - 1);
++	        snprintf(sensor_name, sizeof(sensor_name), "%.*s",
++	                 (int)(sizeof(sensor_name) - 1), sensor_data);
+ 	        sensor_name[sizeof(sensor_name) - 1] = '\0';
+ 	        pr_info("Sensor register request: %s\n", sensor_name);
+ 
+@@ -4990,7 +4993,9 @@
+         /* SIMPLE APPROACH: Use the connected sensor's name directly */
+         if (isp_dev->sensor && isp_dev->sensor->info.name[0] != '\0') {
+             /* Copy sensor name from the connected sensor */
+-            strncpy(input_data.name, isp_dev->sensor->info.name, sizeof(input_data.name) - 1);
++            snprintf(input_data.name, sizeof(input_data.name), "%.*s",
++                     (int)(sizeof(input_data.name) - 1),
++                     isp_dev->sensor->info.name);
+             input_data.name[sizeof(input_data.name) - 1] = '\0';
+ 
+             pr_info("*** FOUND SENSOR: index=%d name=%s ***\n", input_data.index, input_data.name);
+@@ -4998,7 +5003,9 @@
+             mutex_lock(&sensor_list_mutex);
+             list_for_each_entry(listed_sensor, &sensor_list, list) {
+                 if (listed_sensor->index == input_data.index) {
+-                    strncpy(input_data.name, listed_sensor->name, sizeof(input_data.name) - 1);
++                    snprintf(input_data.name, sizeof(input_data.name),
++                             "%.*s", (int)(sizeof(input_data.name) - 1),
++                             listed_sensor->name);
+                     input_data.name[sizeof(input_data.name) - 1] = '\0';
+                     found_sensor = 1;
+                     break;
+@@ -7672,7 +7679,8 @@
+         /* Add to sensor enumeration list */
+         reg_sensor = kzalloc(sizeof(struct registered_sensor), GFP_KERNEL);
+         if (reg_sensor) {
+-            strncpy(reg_sensor->name, sensor->info.name, sizeof(reg_sensor->name) - 1);
++            snprintf(reg_sensor->name, sizeof(reg_sensor->name), "%.*s",
++                     (int)(sizeof(reg_sensor->name) - 1), sensor->info.name);
+             reg_sensor->name[sizeof(reg_sensor->name) - 1] = '\0';
+             reg_sensor->index = sensor_count;
+             reg_sensor->subdev = sd;
+--- a/driver/t31/tx_isp_subdev_mgmt.c
++++ b/driver/t31/tx_isp_subdev_mgmt.c
+@@ -625,7 +625,9 @@
+             generic_data->device_id = desc->device_id;
+             generic_data->src_index = desc->src_index;
+             generic_data->dst_index = desc->dst_index;
+-            strncpy(generic_data->device_name, desc->name, sizeof(generic_data->device_name) - 1);
++            snprintf(generic_data->device_name,
++                     sizeof(generic_data->device_name), "%.*s",
++                     (int)(sizeof(generic_data->device_name) - 1), desc->name);
+             generic_data->file_ops = desc->fops;
+             data = generic_data;
+         }
+--- a/sensor-src/t31/gc2053.c
++++ b/sensor-src/t31/gc2053.c
+@@ -1932,7 +1932,7 @@
+ 	
+ 	/* Initialize sensor info FIRST so name is available during registration
+ 	 * The info field is tx_isp_sensor_register_info, not sensor_info */
+-	strncpy(sensor->info.name, SENSOR_NAME, sizeof(sensor->info.name) - 1);
++	snprintf(sensor->info.name, sizeof(sensor->info.name), "%s", SENSOR_NAME);
+ 	sensor->info.name[sizeof(sensor->info.name) - 1] = '\0';
+ 	sensor->info.cbus_type = TX_SENSOR_CONTROL_INTERFACE_I2C;
+ 	sensor->info.i2c.i2c_adapter_id = 0;
