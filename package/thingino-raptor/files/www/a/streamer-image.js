@@ -9,6 +9,9 @@
  *
  * brightness/contrast/sharpness/saturation are already handled end-to-end by
  * preview.js; this module owns only the fields preview.js leaves disabled.
+ * Noise-reduction fields additionally get their own save path via the agent
+ * settings endpoints (image/noise-reduction, image/temporal-nr), which map to
+ * the sinter/temper tuning controls (SetModule_Ratio on Gen3 SoCs).
  */
 (function () {
   "use strict";
@@ -21,6 +24,21 @@
     image_ae_compensation: "ae_compensation",
     image_hflip: "hflip",
     image_vflip: "vflip",
+    image_noise_reduction: "sinter",
+    image_temporal_noise_reduction: "temper",
+  };
+
+  // field id -> agent settings endpoint (own save path; preview.js does not
+  // wire these two fields)
+  var ENDPOINT_MAP = {
+    image_noise_reduction: "image/noise-reduction",
+    image_temporal_noise_reduction: "image/temporal-nr",
+  };
+
+  // field id -> JSON payload member name the agent expects
+  var PAYLOAD_MAP = {
+    image_noise_reduction: "noise_reduction",
+    image_temporal_noise_reduction: "temporal_noise_reduction",
   };
 
   function el(id) {
@@ -48,6 +66,27 @@
     }
   }
 
+  function saveField(id) {
+    var helper = window.thinginoStreamer;
+    var endpoint = ENDPOINT_MAP[id];
+    var node = el(id);
+    if (!helper || !endpoint || !node) return;
+    var body = {};
+    body[PAYLOAD_MAP[id]] = node.value;
+    helper
+      .agentRequest("/api/v1/settings/" + endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      .then(function () {
+        enable(id);
+      })
+      .catch(function (err) {
+        console.warn("Failed to save " + id, err);
+      });
+  }
+
   async function load() {
     var helper = window.thinginoStreamer;
     if (!helper || typeof helper.agentRequest !== "function") return;
@@ -68,6 +107,15 @@
   function init() {
     // Re-enable immediately; values arrive when the config fetch resolves.
     Object.keys(FIELD_MAP).forEach(enable);
+    // Noise-reduction fields save through the agent directly (preview.js
+    // does not wire them).
+    Object.keys(ENDPOINT_MAP).forEach(function (id) {
+      var node = el(id);
+      if (!node) return;
+      node.addEventListener("change", function () {
+        saveField(id);
+      });
+    });
     load();
   }
 

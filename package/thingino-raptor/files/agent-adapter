@@ -2016,6 +2016,22 @@ agent_set_setting() {
 			agent_config_save
 			agent_print_setting_update "$path" contrast "$value"
 			;;
+		image/noise-reduction)
+			value=$(agent_setting_value "$body_file" noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-sinter "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image sinter "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" noise_reduction "$value"
+			;;
+		image/temporal-nr)
+			value=$(agent_setting_value "$body_file" temporal_noise_reduction) || return 1
+			agent_validate_int "$value" || return 1
+			agent_ctl rvd set-temper "$value" >/dev/null 2>&1 || return 1
+			agent_config_set image temper "$value" || return 1
+			agent_config_save
+			agent_print_setting_update "$path" temporal_noise_reduction "$value"
+			;;
 		image/saturation)
 			value=$(agent_setting_value "$body_file" saturation) || return 1
 			agent_validate_int "$value" || return 1
