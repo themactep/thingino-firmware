@@ -53,6 +53,7 @@
 	bus-width = <4>;
 	max-frequency = <24000000>;
 	non-removable;
+	ingenic,sdio_clk = <1>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&msc1_pb>;

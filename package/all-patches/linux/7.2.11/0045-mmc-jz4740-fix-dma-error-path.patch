@@ -1,0 +1,31 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mmc: jz4740: fix DMA teardown without a data request
+
+jz4740_mmc_post_request() runs the DMA teardown path whenever the
+request failed. It does not check that the request has data, and it
+does not check that DMA channels were acquired. When
+jz4740_mmc_acquire_dma_channels() fails, host->dma_tx/host->dma_rx
+hold error pointers, so terminating the channel dereferences
+ERR_PTR(-ENODEV). A failing SDIO command during probe then takes the
+kernel down with an unaligned access instead of returning the error.
+
+Only touch DMA for a data request when host->use_dma is set, and skip
+invalid channels.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -399,10 +399,11 @@ static void jz4740_mmc_post_request(struct mmc_host *mmc,
+ 	if (data && data->host_cookie != COOKIE_UNMAPPED)
+ 		jz4740_mmc_dma_unmap(host, data);
+ 
+-	if (err) {
++	if (err && host->use_dma && data && !IS_ERR(data)) {
+ 		struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
+ 
+-		dmaengine_terminate_all(chan);
++		if (chan)
++			dmaengine_terminate_all(chan);
+ 	}
+ }

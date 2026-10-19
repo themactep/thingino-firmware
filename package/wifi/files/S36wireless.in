@@ -297,8 +297,16 @@ start() {
 		@else@
 		echo "Skip GPIO setup for @SOC_MODEL@"
 		@endif@
+		@if WIFI_SDIO_MMC_RESET@
+		echo "Reset MMC1"
+		echo 13460000.mmc >/sys/bus/platform/drivers/jz4740-mmc/unbind 2>/dev/null
+		sleep 1
+		echo 13460000.mmc >/sys/bus/platform/drivers/jz4740-mmc/bind 2>/dev/null
+		sleep 2
+		@else@
 		echo "Send INSERT to MMC1"
 		mmc 1
+		@endif@
 		@endif@
 		@endif@
 	fi
