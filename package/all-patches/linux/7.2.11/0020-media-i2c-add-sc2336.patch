@@ -1,0 +1,1079 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC2336 sensor driver
+
+Add a mainline V4L2 subdev driver for the SC2336, a 1920x1080 10-bit
+Bayer sensor used on most Ingenic T31 camera models. The mode register
+sequence and the 161-step analogue gain table come from the Ingenic
+vendor sensor driver.
+
+The sensor uses 16-bit register addresses, so the driver instantiates
+the CCI regmap with a 16-bit address width. Exposure is a 20-bit value
+in 1/16-line units; HTS/VTS, gain, and mirror/flip are exposed through
+standard V4L2 controls.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc2336.c
+@@ -0,0 +1,910 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC2336 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc2336_t31).
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC2336_CHIP_ID_H			0xcb
++#define SC2336_CHIP_ID_L			0x3a
++
++#define SC2336_REG_CHIP_ID_H			CCI_REG8(0x3107)
++#define SC2336_REG_CHIP_ID_L			CCI_REG8(0x3108)
++
++#define SC2336_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC2336_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS/VTS are big-endian 16-bit values. */
++#define SC2336_REG_HTS				CCI_REG16(0x320c)
++#define SC2336_REG_VTS				CCI_REG16(0x320e)
++
++/*
++ * Exposure is a 20-bit value in units of 1/16 line, laid out
++ * big-endian over 0x3e00..0x3e02.
++ */
++#define SC2336_REG_EXPOSURE			CCI_REG24(0x3e00)
++
++#define SC2336_REG_GAIN_FINE			CCI_REG8(0x3e07)
++#define SC2336_REG_GAIN_COARSE			CCI_REG8(0x3e09)
++
++#define SC2336_REG_FLIP				CCI_REG8(0x3221)
++#define SC2336_FLIP_MIRROR			BIT(5)
++#define SC2336_FLIP_VFLIP			BIT(6)
++
++#define SC2336_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC2336_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC2336_NATIVE_WIDTH			1920U
++#define SC2336_NATIVE_HEIGHT			1080U
++
++/* 2 lanes, 405 Mbit/s per lane. */
++#define SC2336_LINK_FREQ			202500000
++/* 2250 x 1200 pixels at 30 fps. */
++#define SC2336_PIXEL_RATE			81000000
++
++static const s64 sc2336_link_freqs[] = {
++	SC2336_LINK_FREQ,
++};
++
++#define SC2336_HTS_MIN				2250U
++#define SC2336_HTS_MAX				0xffffU
++#define SC2336_VTS_MAX				0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC2336_EXPOSURE_OFFSET			4
++
++static const u16 sc2336_gains[] = {
++	0x80, 0x84, 0x88, 0x8c, 0x90, 0x94, 0x98, 0x9c,
++	0xa0, 0xa4, 0xa8, 0xac, 0xb0, 0xb4, 0xb8, 0xbc,
++	0xc0, 0xc4, 0xc8, 0xcc, 0xd0, 0xd4, 0xd8, 0xdc,
++	0xe0, 0xe4, 0xe8, 0xec, 0xf0, 0xf4, 0xf8, 0xfc,
++	0x880, 0x884, 0x888, 0x88c, 0x890, 0x894, 0x898, 0x89c,
++	0x8a0, 0x8a4, 0x8a8, 0x8ac, 0x8b0, 0x8b4, 0x8b8, 0x8bc,
++	0x8c0, 0x8c4, 0x8c8, 0x8cc, 0x8d0, 0x8d4, 0x8d8, 0x8dc,
++	0x8e0, 0x8e4, 0x8e8, 0x8ec, 0x8f0, 0x8f4, 0x8f8, 0x8fc,
++	0x980, 0x984, 0x988, 0x98c, 0x990, 0x994, 0x998, 0x99c,
++	0x9a0, 0x9a4, 0x9a8, 0x9ac, 0x9b0, 0x9b4, 0x9b8, 0x9bc,
++	0x9c0, 0x9c4, 0x9c8, 0x9cc, 0x9d0, 0x9d4, 0x9d8, 0x9dc,
++	0x9e0, 0x9e4, 0x9e8, 0x9ec, 0x9f0, 0x9f4, 0x9f8, 0x9fc,
++	0xb80, 0xb84, 0xb88, 0xb8c, 0xb90, 0xb94, 0xb98, 0xb9c,
++	0xba0, 0xba4, 0xba8, 0xbac, 0xbb0, 0xbb4, 0xbb8, 0xbbc,
++	0xbc0, 0xbc4, 0xbc8, 0xbcc, 0xbd0, 0xbd4, 0xbd8, 0xbdc,
++	0xbe0, 0xbe4, 0xbe8, 0xbec, 0xbf0, 0xbf4, 0xbf8, 0xbfc,
++	0xf80, 0xf84, 0xf88, 0xf8c, 0xf90, 0xf94, 0xf98, 0xf9c,
++	0xfa0, 0xfa4, 0xfa8, 0xfac, 0xfb0, 0xfb4, 0xfb8, 0xfbc,
++	0xfc0, 0xfc4, 0xfc8, 0xfcc, 0xfd0, 0xfd4, 0xfd8, 0xfdc,
++	0xfe0, 0xfe4, 0xfe8, 0xfec, 0xff0, 0xff4, 0xff8, 0xffc,
++	0x1f80,
++};
++
++struct sc2336_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc2336_1080p30_regs[] = {
++	/* cleaned 0x02 24Mmclk 2lane 405Mbps 10bit 1080p@30fps */
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x0100), 0x00 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x37f9), 0x80 },
++	{ CCI_REG8(0x301f), 0x02 },
++	{ CCI_REG8(0x3106), 0x05 },
++	{ CCI_REG8(0x320c), 0x08 },
++	{ CCI_REG8(0x320d), 0xca },
++	{ CCI_REG8(0x320e), 0x05 },
++	{ CCI_REG8(0x320f), 0xa0 },
++	{ CCI_REG8(0x3248), 0x04 },
++	{ CCI_REG8(0x3249), 0x0b },
++	{ CCI_REG8(0x3253), 0x08 },
++	{ CCI_REG8(0x3301), 0x09 },
++	{ CCI_REG8(0x3302), 0xff },
++	{ CCI_REG8(0x3303), 0x10 },
++	{ CCI_REG8(0x3306), 0x60 },
++	{ CCI_REG8(0x3307), 0x02 },
++	{ CCI_REG8(0x330a), 0x01 },
++	{ CCI_REG8(0x330b), 0x10 },
++	{ CCI_REG8(0x330c), 0x16 },
++	{ CCI_REG8(0x330d), 0x90 },
++	{ CCI_REG8(0x3318), 0x02 },
++	{ CCI_REG8(0x3321), 0x0a },
++	{ CCI_REG8(0x3327), 0x0e },
++	{ CCI_REG8(0x332b), 0x12 },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x3334), 0x40 },
++	{ CCI_REG8(0x335e), 0x06 },
++	{ CCI_REG8(0x335f), 0x0a },
++	{ CCI_REG8(0x3364), 0x1f },
++	{ CCI_REG8(0x337c), 0x02 },
++	{ CCI_REG8(0x337d), 0x0e },
++	{ CCI_REG8(0x3390), 0x09 },
++	{ CCI_REG8(0x3391), 0x0f },
++	{ CCI_REG8(0x3392), 0x1f },
++	{ CCI_REG8(0x3393), 0x20 },
++	{ CCI_REG8(0x3394), 0x20 },
++	{ CCI_REG8(0x3395), 0xff },
++	{ CCI_REG8(0x33a2), 0x04 },
++	{ CCI_REG8(0x33b1), 0x80 },
++	{ CCI_REG8(0x33b2), 0x68 },
++	{ CCI_REG8(0x33b3), 0x42 },
++	{ CCI_REG8(0x33f9), 0x70 },
++	{ CCI_REG8(0x33fb), 0xd0 },
++	{ CCI_REG8(0x33fc), 0x0f },
++	{ CCI_REG8(0x33fd), 0x1f },
++	{ CCI_REG8(0x349f), 0x03 },
++	{ CCI_REG8(0x34a6), 0x0f },
++	{ CCI_REG8(0x34a7), 0x1f },
++	{ CCI_REG8(0x34a8), 0x42 },
++	{ CCI_REG8(0x34a9), 0x06 },
++	{ CCI_REG8(0x34aa), 0x01 },
++	{ CCI_REG8(0x34ab), 0x23 },
++	{ CCI_REG8(0x34ac), 0x01 },
++	{ CCI_REG8(0x34ad), 0x84 },
++	{ CCI_REG8(0x3630), 0xf4 },
++	{ CCI_REG8(0x3633), 0x22 },
++	{ CCI_REG8(0x3639), 0xf4 },
++	{ CCI_REG8(0x363c), 0x47 },
++	{ CCI_REG8(0x3670), 0x09 },
++	{ CCI_REG8(0x3674), 0xf8 },
++	{ CCI_REG8(0x3675), 0xfb },
++	{ CCI_REG8(0x3676), 0xed },
++	{ CCI_REG8(0x367c), 0x09 },
++	{ CCI_REG8(0x367d), 0x0f },
++	{ CCI_REG8(0x3690), 0x22 },
++	{ CCI_REG8(0x3691), 0x32 },
++	{ CCI_REG8(0x3692), 0x33 },
++	{ CCI_REG8(0x3698), 0x89 },
++	{ CCI_REG8(0x3699), 0x95 },
++	{ CCI_REG8(0x369a), 0xbb },
++	{ CCI_REG8(0x369b), 0xbb },
++	{ CCI_REG8(0x369c), 0x09 },
++	{ CCI_REG8(0x369d), 0x0f },
++	{ CCI_REG8(0x36a2), 0x09 },
++	{ CCI_REG8(0x36a3), 0x0f },
++	{ CCI_REG8(0x36a4), 0x1f },
++	{ CCI_REG8(0x36d0), 0x01 },
++	{ CCI_REG8(0x36ea), 0x09 },
++	{ CCI_REG8(0x36eb), 0x0c },
++	{ CCI_REG8(0x36ec), 0x1c },
++	{ CCI_REG8(0x36ed), 0x28 },
++	{ CCI_REG8(0x3722), 0xe1 },
++	{ CCI_REG8(0x3724), 0x41 },
++	{ CCI_REG8(0x3725), 0xc1 },
++	{ CCI_REG8(0x3728), 0x20 },
++	{ CCI_REG8(0x37fa), 0x09 },
++	{ CCI_REG8(0x37fb), 0x32 },
++	{ CCI_REG8(0x37fc), 0x11 },
++	{ CCI_REG8(0x37fd), 0x37 },
++	{ CCI_REG8(0x3900), 0x0d },
++	{ CCI_REG8(0x3905), 0x98 },
++	{ CCI_REG8(0x391b), 0x81 },
++	{ CCI_REG8(0x391c), 0x10 },
++	{ CCI_REG8(0x3933), 0x81 },
++	{ CCI_REG8(0x3934), 0xc9 },
++	{ CCI_REG8(0x3940), 0x6d },
++	{ CCI_REG8(0x3942), 0x01 },
++	{ CCI_REG8(0x3943), 0xcb },
++	{ CCI_REG8(0x3952), 0x02 },
++	{ CCI_REG8(0x3953), 0x0f },
++	{ CCI_REG8(0x3e01), 0x4a },
++	{ CCI_REG8(0x3e02), 0xb0 },
++	{ CCI_REG8(0x3e08), 0x1f },
++	{ CCI_REG8(0x3e1b), 0x14 },
++	{ CCI_REG8(0x440e), 0x02 },
++	{ CCI_REG8(0x4509), 0x38 },
++	{ CCI_REG8(0x4819), 0x06 },
++	{ CCI_REG8(0x481b), 0x03 },
++	{ CCI_REG8(0x481d), 0x0b },
++	{ CCI_REG8(0x481f), 0x03 },
++	{ CCI_REG8(0x4821), 0x08 },
++	{ CCI_REG8(0x4823), 0x03 },
++	{ CCI_REG8(0x4825), 0x03 },
++	{ CCI_REG8(0x4827), 0x03 },
++	{ CCI_REG8(0x4829), 0x05 },
++	{ CCI_REG8(0x5799), 0x06 },
++	{ CCI_REG8(0x5ae0), 0xfe },
++	{ CCI_REG8(0x5ae1), 0x40 },
++	{ CCI_REG8(0x5ae2), 0x30 },
++	{ CCI_REG8(0x5ae3), 0x28 },
++	{ CCI_REG8(0x5ae4), 0x20 },
++	{ CCI_REG8(0x5ae5), 0x30 },
++	{ CCI_REG8(0x5ae6), 0x28 },
++	{ CCI_REG8(0x5ae7), 0x20 },
++	{ CCI_REG8(0x5ae8), 0x3c },
++	{ CCI_REG8(0x5ae9), 0x30 },
++	{ CCI_REG8(0x5aea), 0x28 },
++	{ CCI_REG8(0x5aeb), 0x3c },
++	{ CCI_REG8(0x5aec), 0x30 },
++	{ CCI_REG8(0x5aed), 0x28 },
++	{ CCI_REG8(0x5aee), 0xfe },
++	{ CCI_REG8(0x5aef), 0x40 },
++	{ CCI_REG8(0x5af4), 0x30 },
++	{ CCI_REG8(0x5af5), 0x28 },
++	{ CCI_REG8(0x5af6), 0x20 },
++	{ CCI_REG8(0x5af7), 0x30 },
++	{ CCI_REG8(0x5af8), 0x28 },
++	{ CCI_REG8(0x5af9), 0x20 },
++	{ CCI_REG8(0x5afa), 0x3c },
++	{ CCI_REG8(0x5afb), 0x30 },
++	{ CCI_REG8(0x5afc), 0x28 },
++	{ CCI_REG8(0x5afd), 0x3c },
++	{ CCI_REG8(0x5afe), 0x30 },
++	{ CCI_REG8(0x5aff), 0x28 },
++	{ CCI_REG8(0x36e9), 0x53 },
++	{ CCI_REG8(0x37f9), 0x53 },
++};
++
++static const struct sc2336_mode sc2336_modes[] = {
++	{
++		.width = SC2336_NATIVE_WIDTH,
++		.height = SC2336_NATIVE_HEIGHT,
++		.hblank = SC2336_HTS_MIN - SC2336_NATIVE_WIDTH,
++		.vblank = 1200 - SC2336_NATIVE_HEIGHT,
++		.regs = sc2336_1080p30_regs,
++		.regs_num = ARRAY_SIZE(sc2336_1080p30_regs),
++	},
++};
++
++struct sc2336_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *hflip;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc2336 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc2336_ctrls ctrls;
++
++	const struct sc2336_mode *mode;
++};
++
++static inline struct sc2336 *to_sc2336(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc2336, sd);
++}
++
++static inline struct v4l2_subdev *sc2336_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc2336, ctrls.handler)->sd;
++}
++
++static void sc2336_fill_format(const struct sc2336_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc2336_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc2336_fill_format(&sc2336_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc2336_modes[0].width;
++	crop->height = sc2336_modes[0].height;
++
++	return 0;
++}
++
++static int sc2336_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc2336_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc2336_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc2336_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc2336_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc2336_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC2336_NATIVE_WIDTH;
++		sel->r.height = SC2336_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc2336_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc2336 *sc2336 = to_sc2336(sd);
++	const struct sc2336_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc2336_modes, ARRAY_SIZE(sc2336_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc2336_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc2336->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc2336->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc2336->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc2336_exposure_update(struct sc2336 *sc2336)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc2336->ctrls.vblank->val + sc2336->mode->height -
++		       SC2336_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xfffffU);
++
++	__v4l2_ctrl_modify_range(sc2336->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc2336_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc2336 *sc2336 = to_sc2336(sc2336_ctrl_to_sd(ctrl));
++	u32 hts;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc2336_exposure_update(sc2336);
++
++	if (!pm_runtime_get_if_in_use(sc2336->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(sc2336->regmap, SC2336_REG_EXPOSURE,
++				(u32)ctrl->val << 4, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		ret = cci_write(sc2336->regmap, SC2336_REG_GAIN_COARSE,
++				sc2336_gains[ctrl->val] >> 8, NULL);
++		ret = cci_write(sc2336->regmap, SC2336_REG_GAIN_FINE,
++				sc2336_gains[ctrl->val] & 0xff, &ret);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc2336->mode->width;
++		ret = cci_write(sc2336->regmap, SC2336_REG_HTS, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc2336->regmap, SC2336_REG_VTS,
++				ctrl->val + sc2336->mode->height, NULL);
++		break;
++	case V4L2_CID_HFLIP:
++		ret = cci_update_bits(sc2336->regmap, SC2336_REG_FLIP,
++				      SC2336_FLIP_MIRROR,
++				      ctrl->val ? SC2336_FLIP_MIRROR : 0, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc2336->regmap, SC2336_REG_FLIP,
++				      SC2336_FLIP_VFLIP,
++				      ctrl->val ? SC2336_FLIP_VFLIP : 0, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc2336->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc2336_ctrl_ops = {
++	.s_ctrl = sc2336_set_ctrl,
++};
++
++static int sc2336_init_controls(struct sc2336 *sc2336)
++{
++	struct v4l2_ctrl_handler *hdl = &sc2336->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc2336_ctrl_ops;
++	unsigned int hblank_max = SC2336_HTS_MAX - SC2336_NATIVE_WIDTH;
++	unsigned int vblank_max = SC2336_VTS_MAX - SC2336_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	sc2336->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC2336_PIXEL_RATE, SC2336_PIXEL_RATE, 1,
++				  SC2336_PIXEL_RATE);
++
++	sc2336->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc2336_link_freqs);
++	if (sc2336->ctrls.link_freq)
++		sc2336->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc2336->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  sc2336_modes[0].vblank +
++				  sc2336_modes[0].height -
++				  SC2336_EXPOSURE_OFFSET, 1,
++				  sc2336_modes[0].vblank +
++				  sc2336_modes[0].height -
++				  SC2336_EXPOSURE_OFFSET);
++
++	sc2336->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc2336_gains) - 1, 1, 0);
++
++	sc2336->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC2336_HTS_MIN - SC2336_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc2336_modes[0].hblank);
++
++	sc2336->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc2336_modes[0].vblank, vblank_max, 1,
++				  sc2336_modes[0].vblank);
++
++	sc2336->ctrls.hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP,
++						0, 1, 1, 0);
++	sc2336->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						0, 1, 1, 0);
++	v4l2_ctrl_cluster(2, &sc2336->ctrls.hflip);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc2336->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc2336->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc2336_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC2336_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC2336_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc2336_power_on(struct device *dev)
++{
++	struct sc2336 *sc2336 = to_sc2336(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc2336->supplies),
++				    sc2336->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc2336->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc2336->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc2336->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc2336->supplies), sc2336->supplies);
++
++	return ret;
++}
++
++static int sc2336_power_off(struct device *dev)
++{
++	struct sc2336 *sc2336 = to_sc2336(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc2336->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc2336->powerdown_gpio, 1);
++	clk_disable_unprepare(sc2336->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc2336->supplies), sc2336->supplies);
++
++	return 0;
++}
++
++static int sc2336_identify_module(struct sc2336 *sc2336)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc2336->regmap, SC2336_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc2336->regmap, SC2336_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC2336_CHIP_ID_H || id_l != SC2336_CHIP_ID_L) {
++		dev_err(sc2336->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC2336_CHIP_ID_H, SC2336_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc2336_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc2336 *sc2336 = to_sc2336(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc2336->regmap, sc2336->mode->regs,
++			    sc2336->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc2336->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc2336->regmap, SC2336_REG_STREAM, SC2336_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc2336_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc2336 *sc2336 = to_sc2336(sd);
++	int ret = 0;
++
++	cci_write(sc2336->regmap, SC2336_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc2336_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc2336_pad_ops = {
++	.enum_mbus_code = sc2336_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc2336_set_pad_format,
++	.get_selection = sc2336_get_selection,
++	.enum_frame_size = sc2336_enum_frame_size,
++	.enable_streams = sc2336_enable_streams,
++	.disable_streams = sc2336_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc2336_subdev_ops = {
++	.video = &sc2336_video_ops,
++	.pad = &sc2336_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc2336_subdev_internal_ops = {
++	.init_state = sc2336_init_state,
++};
++
++static const char * const sc2336_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc2336_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc2336 *sc2336;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc2336 = devm_kzalloc(dev, sizeof(*sc2336), GFP_KERNEL);
++	if (!sc2336)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc2336->sd, client, &sc2336_subdev_ops);
++	sc2336->sd.internal_ops = &sc2336_subdev_internal_ops;
++
++	ret = sc2336_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc2336->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc2336->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc2336->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc2336->xclk);
++	if (xclk_freq != SC2336_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc2336->supplies); i++)
++		sc2336->supplies[i].supply = sc2336_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc2336->supplies),
++				      sc2336->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc2336->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc2336->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc2336->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc2336->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc2336->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc2336->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc2336->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc2336->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc2336->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc2336_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc2336_identify_module(sc2336);
++	if (ret)
++		goto err_power_off;
++
++	sc2336->mode = &sc2336_modes[0];
++
++	ret = sc2336_init_controls(sc2336);
++	if (ret)
++		goto err_power_off;
++
++	sc2336->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc2336->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc2336->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc2336->sd.entity, 1, &sc2336->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc2336->sd.state_lock = sc2336->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc2336->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc2336->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc2336->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc2336->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc2336->ctrls.handler);
++err_power_off:
++	sc2336_power_off(dev);
++
++	return ret;
++}
++
++static void sc2336_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc2336 *sc2336 = to_sc2336(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc2336->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc2336_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc2336_dt_ids[] = {
++	{ .compatible = "smartens,sc2336" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc2336_dt_ids);
++
++static const struct i2c_device_id sc2336_id[] = {
++	{ .name = "sc2336" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc2336_id);
++
++static const struct dev_pm_ops sc2336_pm_ops = {
++	RUNTIME_PM_OPS(sc2336_power_off, sc2336_power_on, NULL)
++};
++
++static struct i2c_driver sc2336_i2c_driver = {
++	.driver = {
++		.name = "sc2336",
++		.of_match_table = sc2336_dt_ids,
++		.pm = pm_ptr(&sc2336_pm_ops),
++	},
++	.id_table = sc2336_id,
++	.probe = sc2336_probe,
++	.remove = sc2336_remove,
++};
++
++module_i2c_driver(sc2336_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC2336 sensor driver");
++MODULE_LICENSE("GPL");
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -813,6 +813,16 @@
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called s5kjn1.
+ 
++config VIDEO_SC2336
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC2336 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC2336
++	  2 Mpixel camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc2336.
++
+ config VIDEO_T4KA3
+ 	tristate "Toshiba T4KA3 sensor support"
+ 	depends on ACPI || COMPILE_TEST
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -141,6 +141,7 @@
+ obj-$(CONFIG_VIDEO_SAA7185) += saa7185.o
+ obj-$(CONFIG_VIDEO_SONY_BTF_MPX) += sony-btf-mpx.o
+ obj-$(CONFIG_VIDEO_ST_MIPID02) += st-mipid02.o
++obj-$(CONFIG_VIDEO_SC2336) += sc2336.o
+ obj-$(CONFIG_VIDEO_T4KA3) += t4ka3.o
+ obj-$(CONFIG_VIDEO_TC358743) += tc358743.o
+ obj-$(CONFIG_VIDEO_TC358746) += tc358746.o
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -1541,6 +1541,8 @@
+     description: SKOV A/S
+   "^skyworks,.*":
+     description: Skyworks Solutions, Inc.
++  "^smartens,.*":
++    description: SmartSens Technology Co. Ltd.
+   "^smartfiber,.*":
+     description: ShenZhen Smartfiber Technology Co, Ltd.
+   "^smartlabs,.*":
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc2336.yaml
+@@ -0,0 +1,108 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc2336.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC2336 1/2.8" 1080p CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC2336 is a 2 Megapixel CMOS image sensor with a
++  1920x1080 active pixel array and a 10-bit ADC. It is programmable
++  through an I2C interface and outputs raw Bayer data over a two-lane
++  MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc2336
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc2336";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <202500000>;
++                };
++            };
++        };
++    };
++
++...

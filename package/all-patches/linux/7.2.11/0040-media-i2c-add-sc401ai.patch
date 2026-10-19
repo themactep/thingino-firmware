@@ -1,0 +1,1277 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC401AI sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC401AI image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc401ai_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc401ai.c
+@@ -0,0 +1,1152 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC401AI CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc401ai_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC401AI_CHIP_ID_H			0xcd
++#define SC401AI_CHIP_ID_L			0x2e
++
++#define SC401AI_REG_CHIP_ID_H			CCI_REG8(0x3107)
++#define SC401AI_REG_CHIP_ID_L			CCI_REG8(0x3108)
++
++#define SC401AI_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC401AI_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS holds half the number of pixels per line. */
++#define SC401AI_REG_HTS				CCI_REG16(0x320c)
++#define SC401AI_REG_VTS				CCI_REG16(0x320e)
++
++/* 16-bit exposure in 1/16 line units, split over three registers. */
++#define SC401AI_REG_EXPOSURE_H			CCI_REG8(0x3e00)
++#define SC401AI_REG_EXPOSURE_M			CCI_REG8(0x3e01)
++#define SC401AI_REG_EXPOSURE_L			CCI_REG8(0x3e02)
++
++#define SC401AI_REG_GAIN_L			CCI_REG8(0x3e09)
++#define SC401AI_REG_GAIN_H			CCI_REG8(0x3e08)
++#define SC401AI_REG_GAIN_LIMIT			CCI_REG8(0x363a)
++
++#define SC401AI_REG_FLIP			CCI_REG8(0x3221)
++#define SC401AI_FLIP_BITS			(BIT(5) | BIT(6))
++
++#define SC401AI_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC401AI_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC401AI_NATIVE_WIDTH			2560U
++#define SC401AI_NATIVE_HEIGHT			1440U
++
++/* 2 lanes, 630 Mbit/s per lane. */
++#define SC401AI_LINK_FREQ			315000000
++/* 2800 x 1800 pixels at 25 fps. */
++#define SC401AI_PIXEL_RATE			126000000
++
++static const s64 sc401ai_link_freqs[] = {
++	SC401AI_LINK_FREQ,
++};
++
++#define SC401AI_HTS_MIN				2800U
++#define SC401AI_HTS_MAX				0xffffU
++#define SC401AI_VTS_MAX				0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC401AI_EXPOSURE_OFFSET			4
++#define SC401AI_EXPOSURE_MIN			3
++
++/* Above this LUT gain the vendor switches the internal DCG path. */
++#define SC401AI_GAIN_DCG_THRESHOLD		0x2740
++
++struct sc401ai_gain {
++	u8 reg_3e09;
++	u8 reg_3e08;
++};
++
++static const struct sc401ai_gain sc401ai_gains[] = {
++	{ 0x40, 0x03 }, /* 0x0340, gain 0 */
++	{ 0x41, 0x03 }, /* 0x0341, gain 1500 */
++	{ 0x42, 0x03 }, /* 0x0342, gain 2886 */
++	{ 0x43, 0x03 }, /* 0x0343, gain 4342 */
++	{ 0x44, 0x03 }, /* 0x0344, gain 5776 */
++	{ 0x45, 0x03 }, /* 0x0345, gain 7101 */
++	{ 0x46, 0x03 }, /* 0x0346, gain 8494 */
++	{ 0x47, 0x03 }, /* 0x0347, gain 9781 */
++	{ 0x48, 0x03 }, /* 0x0348, gain 11136 */
++	{ 0x49, 0x03 }, /* 0x0349, gain 12471 */
++	{ 0x4a, 0x03 }, /* 0x034a, gain 13706 */
++	{ 0x4b, 0x03 }, /* 0x034b, gain 15005 */
++	{ 0x4c, 0x03 }, /* 0x034c, gain 16287 */
++	{ 0x4d, 0x03 }, /* 0x034d, gain 17474 */
++	{ 0x4e, 0x03 }, /* 0x034e, gain 18723 */
++	{ 0x4f, 0x03 }, /* 0x034f, gain 19879 */
++	{ 0x50, 0x03 }, /* 0x0350, gain 21097 */
++	{ 0x51, 0x03 }, /* 0x0351, gain 22300 */
++	{ 0x52, 0x03 }, /* 0x0352, gain 23413 */
++	{ 0x53, 0x03 }, /* 0x0353, gain 24587 */
++	{ 0x54, 0x03 }, /* 0x0354, gain 25746 */
++	{ 0x55, 0x03 }, /* 0x0355, gain 26820 */
++	{ 0x56, 0x03 }, /* 0x0356, gain 27952 */
++	{ 0x57, 0x03 }, /* 0x0357, gain 29002 */
++	{ 0x58, 0x03 }, /* 0x0358, gain 30108 */
++	{ 0x59, 0x03 }, /* 0x0359, gain 31202 */
++	{ 0x5a, 0x03 }, /* 0x035a, gain 32216 */
++	{ 0x5b, 0x03 }, /* 0x035b, gain 33286 */
++	{ 0x5c, 0x03 }, /* 0x035c, gain 34344 */
++	{ 0x5d, 0x03 }, /* 0x035d, gain 35325 */
++	{ 0x40, 0x23 }, /* 0x2340, gain 36361 */
++	{ 0x41, 0x23 }, /* 0x2341, gain 37829 */
++	{ 0x42, 0x23 }, /* 0x2342, gain 39276 */
++	{ 0x43, 0x23 }, /* 0x2343, gain 40700 */
++	{ 0x44, 0x23 }, /* 0x2344, gain 42104 */
++	{ 0x45, 0x23 }, /* 0x2345, gain 43487 */
++	{ 0x46, 0x23 }, /* 0x2346, gain 44850 */
++	{ 0x47, 0x23 }, /* 0x2347, gain 46193 */
++	{ 0x48, 0x23 }, /* 0x2348, gain 47518 */
++	{ 0x49, 0x23 }, /* 0x2349, gain 48825 */
++	{ 0x4a, 0x23 }, /* 0x234a, gain 50113 */
++	{ 0x4b, 0x23 }, /* 0x234b, gain 51330 */
++	{ 0x4c, 0x23 }, /* 0x234c, gain 52585 */
++	{ 0x4d, 0x23 }, /* 0x234d, gain 53824 */
++	{ 0x4e, 0x23 }, /* 0x234e, gain 55046 */
++	{ 0x4f, 0x23 }, /* 0x234f, gain 56253 */
++	{ 0x50, 0x23 }, /* 0x2350, gain 57445 */
++	{ 0x51, 0x23 }, /* 0x2351, gain 58622 */
++	{ 0x52, 0x23 }, /* 0x2352, gain 59785 */
++	{ 0x53, 0x23 }, /* 0x2353, gain 60933 */
++	{ 0x54, 0x23 }, /* 0x2354, gain 62068 */
++	{ 0x55, 0x23 }, /* 0x2355, gain 63189 */
++	{ 0x56, 0x23 }, /* 0x2356, gain 64297 */
++	{ 0x57, 0x23 }, /* 0x2357, gain 65393 */
++	{ 0x58, 0x23 }, /* 0x2358, gain 66475 */
++	{ 0x59, 0x23 }, /* 0x2359, gain 67546 */
++	{ 0x5a, 0x23 }, /* 0x235a, gain 68604 */
++	{ 0x5b, 0x23 }, /* 0x235b, gain 69651 */
++	{ 0x5c, 0x23 }, /* 0x235c, gain 70686 */
++	{ 0x5d, 0x23 }, /* 0x235d, gain 71710 */
++	{ 0x5e, 0x23 }, /* 0x235e, gain 72723 */
++	{ 0x5f, 0x23 }, /* 0x235f, gain 73726 */
++	{ 0x60, 0x23 }, /* 0x2360, gain 74718 */
++	{ 0x61, 0x23 }, /* 0x2361, gain 75657 */
++	{ 0x62, 0x23 }, /* 0x2362, gain 76629 */
++	{ 0x63, 0x23 }, /* 0x2363, gain 77591 */
++	{ 0x64, 0x23 }, /* 0x2364, gain 78543 */
++	{ 0x65, 0x23 }, /* 0x2365, gain 79486 */
++	{ 0x66, 0x23 }, /* 0x2366, gain 80419 */
++	{ 0x67, 0x23 }, /* 0x2367, gain 81344 */
++	{ 0x68, 0x23 }, /* 0x2368, gain 82259 */
++	{ 0x69, 0x23 }, /* 0x2369, gain 83166 */
++	{ 0x6a, 0x23 }, /* 0x236a, gain 84064 */
++	{ 0x6b, 0x23 }, /* 0x236b, gain 84953 */
++	{ 0x6c, 0x23 }, /* 0x236c, gain 85835 */
++	{ 0x6d, 0x23 }, /* 0x236d, gain 86708 */
++	{ 0x6e, 0x23 }, /* 0x236e, gain 87573 */
++	{ 0x6f, 0x23 }, /* 0x236f, gain 88430 */
++	{ 0x70, 0x23 }, /* 0x2370, gain 89280 */
++	{ 0x71, 0x23 }, /* 0x2371, gain 90122 */
++	{ 0x72, 0x23 }, /* 0x2372, gain 90956 */
++	{ 0x73, 0x23 }, /* 0x2373, gain 91784 */
++	{ 0x74, 0x23 }, /* 0x2374, gain 92604 */
++	{ 0x75, 0x23 }, /* 0x2375, gain 93417 */
++	{ 0x76, 0x23 }, /* 0x2376, gain 94188 */
++	{ 0x77, 0x23 }, /* 0x2377, gain 94988 */
++	{ 0x78, 0x23 }, /* 0x2378, gain 95781 */
++	{ 0x79, 0x23 }, /* 0x2379, gain 96567 */
++	{ 0x7a, 0x23 }, /* 0x237a, gain 97347 */
++	{ 0x7b, 0x23 }, /* 0x237b, gain 98120 */
++	{ 0x7c, 0x23 }, /* 0x237c, gain 98888 */
++	{ 0x7d, 0x23 }, /* 0x237d, gain 99649 */
++	{ 0x7e, 0x23 }, /* 0x237e, gain 100404 */
++	{ 0x7f, 0x23 }, /* 0x237f, gain 101153 */
++	{ 0x40, 0x27 }, /* 0x2740, gain 101896 */
++	{ 0x41, 0x27 }, /* 0x2741, gain 103364 */
++	{ 0x42, 0x27 }, /* 0x2742, gain 104811 */
++	{ 0x43, 0x27 }, /* 0x2743, gain 106235 */
++	{ 0x44, 0x27 }, /* 0x2744, gain 107639 */
++	{ 0x45, 0x27 }, /* 0x2745, gain 109022 */
++	{ 0x46, 0x27 }, /* 0x2746, gain 110355 */
++	{ 0x47, 0x27 }, /* 0x2747, gain 111699 */
++	{ 0x48, 0x27 }, /* 0x2748, gain 113024 */
++	{ 0x49, 0x27 }, /* 0x2749, gain 114331 */
++	{ 0x4a, 0x27 }, /* 0x274a, gain 115620 */
++	{ 0x4b, 0x27 }, /* 0x274b, gain 116892 */
++	{ 0x4c, 0x27 }, /* 0x274c, gain 118147 */
++	{ 0x4d, 0x27 }, /* 0x274d, gain 119385 */
++	{ 0x4e, 0x27 }, /* 0x274e, gain 120608 */
++	{ 0x4f, 0x27 }, /* 0x274f, gain 121814 */
++	{ 0x50, 0x27 }, /* 0x2750, gain 123006 */
++	{ 0x51, 0x27 }, /* 0x2751, gain 124157 */
++	{ 0x52, 0x27 }, /* 0x2752, gain 125320 */
++	{ 0x53, 0x27 }, /* 0x2753, gain 126468 */
++	{ 0x54, 0x27 }, /* 0x2754, gain 127603 */
++	{ 0x55, 0x27 }, /* 0x2755, gain 128724 */
++	{ 0x56, 0x27 }, /* 0x2756, gain 129832 */
++	{ 0x57, 0x27 }, /* 0x2757, gain 130928 */
++	{ 0x58, 0x27 }, /* 0x2758, gain 132010 */
++	{ 0x59, 0x27 }, /* 0x2759, gain 133081 */
++	{ 0x5a, 0x27 }, /* 0x275a, gain 134139 */
++	{ 0x5b, 0x27 }, /* 0x275b, gain 135163 */
++	{ 0x5c, 0x27 }, /* 0x275c, gain 136199 */
++	{ 0x5d, 0x27 }, /* 0x275d, gain 137223 */
++	{ 0x5e, 0x27 }, /* 0x275e, gain 138236 */
++	{ 0x5f, 0x27 }, /* 0x275f, gain 139239 */
++	{ 0x60, 0x27 }, /* 0x2760, gain 140231 */
++	{ 0x61, 0x27 }, /* 0x2761, gain 141213 */
++	{ 0x62, 0x27 }, /* 0x2762, gain 142185 */
++	{ 0x63, 0x27 }, /* 0x2763, gain 143146 */
++	{ 0x64, 0x27 }, /* 0x2764, gain 144098 */
++	{ 0x65, 0x27 }, /* 0x2765, gain 145041 */
++	{ 0x66, 0x27 }, /* 0x2766, gain 145954 */
++	{ 0x67, 0x27 }, /* 0x2767, gain 146879 */
++	{ 0x68, 0x27 }, /* 0x2768, gain 147794 */
++	{ 0x69, 0x27 }, /* 0x2769, gain 148701 */
++	{ 0x6a, 0x27 }, /* 0x276a, gain 149599 */
++	{ 0x6b, 0x27 }, /* 0x276b, gain 150488 */
++	{ 0x6c, 0x27 }, /* 0x276c, gain 151370 */
++	{ 0x6d, 0x27 }, /* 0x276d, gain 152243 */
++	{ 0x6e, 0x27 }, /* 0x276e, gain 153108 */
++	{ 0x6f, 0x27 }, /* 0x276f, gain 153965 */
++	{ 0x70, 0x27 }, /* 0x2770, gain 154815 */
++	{ 0x71, 0x27 }, /* 0x2771, gain 155639 */
++	{ 0x72, 0x27 }, /* 0x2772, gain 156473 */
++	{ 0x73, 0x27 }, /* 0x2773, gain 157301 */
++	{ 0x74, 0x27 }, /* 0x2774, gain 158121 */
++	{ 0x75, 0x27 }, /* 0x2775, gain 158934 */
++	{ 0x76, 0x27 }, /* 0x2776, gain 159741 */
++	{ 0x77, 0x27 }, /* 0x2777, gain 160540 */
++	{ 0x78, 0x27 }, /* 0x2778, gain 161333 */
++	{ 0x79, 0x27 }, /* 0x2779, gain 162119 */
++	{ 0x7a, 0x27 }, /* 0x277a, gain 162899 */
++	{ 0x7b, 0x27 }, /* 0x277b, gain 163655 */
++	{ 0x7c, 0x27 }, /* 0x277c, gain 164423 */
++	{ 0x7d, 0x27 }, /* 0x277d, gain 165184 */
++	{ 0x7e, 0x27 }, /* 0x277e, gain 165939 */
++	{ 0x7f, 0x27 }, /* 0x277f, gain 166688 */
++	{ 0x40, 0x2f }, /* 0x2f40, gain 167431 */
++	{ 0x41, 0x2f }, /* 0x2f41, gain 168899 */
++	{ 0x42, 0x2f }, /* 0x2f42, gain 170346 */
++	{ 0x43, 0x2f }, /* 0x2f43, gain 171755 */
++	{ 0x44, 0x2f }, /* 0x2f44, gain 173159 */
++	{ 0x45, 0x2f }, /* 0x2f45, gain 174542 */
++	{ 0x46, 0x2f }, /* 0x2f46, gain 175905 */
++	{ 0x47, 0x2f }, /* 0x2f47, gain 177249 */
++	{ 0x48, 0x2f }, /* 0x2f48, gain 178574 */
++	{ 0x49, 0x2f }, /* 0x2f49, gain 179866 */
++	{ 0x4a, 0x2f }, /* 0x2f4a, gain 181155 */
++	{ 0x4b, 0x2f }, /* 0x2f4b, gain 182427 */
++	{ 0x4c, 0x2f }, /* 0x2f4c, gain 183682 */
++	{ 0x4d, 0x2f }, /* 0x2f4d, gain 184920 */
++	{ 0x4e, 0x2f }, /* 0x2f4e, gain 186129 */
++	{ 0x4f, 0x2f }, /* 0x2f4f, gain 187336 */
++	{ 0x50, 0x2f }, /* 0x2f50, gain 188528 */
++	{ 0x51, 0x2f }, /* 0x2f51, gain 189705 */
++	{ 0x52, 0x2f }, /* 0x2f52, gain 190867 */
++	{ 0x53, 0x2f }, /* 0x2f53, gain 192003 */
++	{ 0x54, 0x2f }, /* 0x2f54, gain 193138 */
++	{ 0x55, 0x2f }, /* 0x2f55, gain 194259 */
++	{ 0x56, 0x2f }, /* 0x2f56, gain 195367 */
++	{ 0x57, 0x2f }, /* 0x2f57, gain 196463 */
++	{ 0x58, 0x2f }, /* 0x2f58, gain 197545 */
++	{ 0x59, 0x2f }, /* 0x2f59, gain 198604 */
++	{ 0x5a, 0x2f }, /* 0x2f5a, gain 199663 */
++	{ 0x5b, 0x2f }, /* 0x2f5b, gain 200710 */
++	{ 0x5c, 0x2f }, /* 0x2f5c, gain 201745 */
++	{ 0x5d, 0x2f }, /* 0x2f5d, gain 202769 */
++	{ 0x5e, 0x2f }, /* 0x2f5e, gain 203771 */
++	{ 0x5f, 0x2f }, /* 0x2f5f, gain 204774 */
++	{ 0x60, 0x2f }, /* 0x2f60, gain 205766 */
++	{ 0x61, 0x2f }, /* 0x2f61, gain 206748 */
++	{ 0x62, 0x2f }, /* 0x2f62, gain 207720 */
++	{ 0x63, 0x2f }, /* 0x2f63, gain 208671 */
++	{ 0x64, 0x2f }, /* 0x2f64, gain 209623 */
++	{ 0x65, 0x2f }, /* 0x2f65, gain 210566 */
++	{ 0x66, 0x2f }, /* 0x2f66, gain 211499 */
++	{ 0x67, 0x2f }, /* 0x2f67, gain 212424 */
++	{ 0x68, 0x2f }, /* 0x2f68, gain 213339 */
++	{ 0x69, 0x2f }, /* 0x2f69, gain 214236 */
++	{ 0x6a, 0x2f }, /* 0x2f6a, gain 215134 */
++	{ 0x6b, 0x2f }, /* 0x2f6b, gain 216023 */
++	{ 0x6c, 0x2f }, /* 0x2f6c, gain 216905 */
++	{ 0x6d, 0x2f }, /* 0x2f6d, gain 217778 */
++	{ 0x6e, 0x2f }, /* 0x2f6e, gain 218633 */
++	{ 0x6f, 0x2f }, /* 0x2f6f, gain 219491 */
++	{ 0x70, 0x2f }, /* 0x2f70, gain 220341 */
++	{ 0x71, 0x2f }, /* 0x2f71, gain 221183 */
++	{ 0x72, 0x2f }, /* 0x2f72, gain 222017 */
++	{ 0x73, 0x2f }, /* 0x2f73, gain 222836 */
++	{ 0x74, 0x2f }, /* 0x2f74, gain 223656 */
++	{ 0x75, 0x2f }, /* 0x2f75, gain 224469 */
++	{ 0x76, 0x2f }, /* 0x2f76, gain 225276 */
++	{ 0x77, 0x2f }, /* 0x2f77, gain 226075 */
++	{ 0x78, 0x2f }, /* 0x2f78, gain 226868 */
++	{ 0x79, 0x2f }, /* 0x2f79, gain 227646 */
++	{ 0x7a, 0x2f }, /* 0x2f7a, gain 228425 */
++	{ 0x7b, 0x2f }, /* 0x2f7b, gain 229199 */
++	{ 0x7c, 0x2f }, /* 0x2f7c, gain 229966 */
++	{ 0x7d, 0x2f }, /* 0x2f7d, gain 230727 */
++	{ 0x7e, 0x2f }, /* 0x2f7e, gain 231474 */
++	{ 0x7f, 0x2f }, /* 0x2f7f, gain 232223 */
++	{ 0x40, 0x3f }, /* 0x3f40, gain 232966 */
++	{ 0x41, 0x3f }, /* 0x3f41, gain 234434 */
++	{ 0x42, 0x3f }, /* 0x3f42, gain 235873 */
++	{ 0x43, 0x3f }, /* 0x3f43, gain 237298 */
++	{ 0x44, 0x3f }, /* 0x3f44, gain 238701 */
++	{ 0x45, 0x3f }, /* 0x3f45, gain 240077 */
++	{ 0x46, 0x3f }, /* 0x3f46, gain 241440 */
++	{ 0x47, 0x3f }, /* 0x3f47, gain 242777 */
++	{ 0x48, 0x3f }, /* 0x3f48, gain 244102 */
++	{ 0x49, 0x3f }, /* 0x3f49, gain 245408 */
++	{ 0x4a, 0x3f }, /* 0x3f4a, gain 246690 */
++	{ 0x4b, 0x3f }, /* 0x3f4b, gain 247962 */
++	{ 0x4c, 0x3f }, /* 0x3f4c, gain 249217 */
++	{ 0x4d, 0x3f }, /* 0x3f4d, gain 250449 */
++	{ 0x4e, 0x3f }, /* 0x3f4e, gain 251671 */
++	{ 0x4f, 0x3f }, /* 0x3f4f, gain 252871 */
++	{ 0x50, 0x3f }, /* 0x3f50, gain 254063 */
++	{ 0x51, 0x3f }, /* 0x3f51, gain 255240 */
++	{ 0x52, 0x3f }, /* 0x3f52, gain 256396 */
++	{ 0x53, 0x3f }, /* 0x3f53, gain 257545 */
++	{ 0x54, 0x3f }, /* 0x3f54, gain 258679 */
++	{ 0x55, 0x3f }, /* 0x3f55, gain 259794 */
++	{ 0x56, 0x3f }, /* 0x3f56, gain 260902 */
++	{ 0x57, 0x3f }, /* 0x3f57, gain 261992 */
++	{ 0x58, 0x3f }, /* 0x3f58, gain 263074 */
++	{ 0x59, 0x3f }, /* 0x3f59, gain 264145 */
++	{ 0x5a, 0x3f }, /* 0x3f5a, gain 265198 */
++	{ 0x5b, 0x3f }, /* 0x3f5b, gain 266245 */
++	{ 0x5c, 0x3f }, /* 0x3f5c, gain 267280 */
++	{ 0x5d, 0x3f }, /* 0x3f5d, gain 268299 */
++	{ 0x5e, 0x3f }, /* 0x3f5e, gain 269312 */
++	{ 0x5f, 0x3f }, /* 0x3f5f, gain 270309 */
++	{ 0x60, 0x3f }, /* 0x3f60, gain 271301 */
++	{ 0x61, 0x3f }, /* 0x3f61, gain 272283 */
++	{ 0x62, 0x3f }, /* 0x3f62, gain 273249 */
++	{ 0x63, 0x3f }, /* 0x3f63, gain 274211 */
++	{ 0x64, 0x3f }, /* 0x3f64, gain 275163 */
++	{ 0x65, 0x3f }, /* 0x3f65, gain 276101 */
++	{ 0x66, 0x3f }, /* 0x3f66, gain 277034 */
++	{ 0x67, 0x3f }, /* 0x3f67, gain 277954 */
++	{ 0x68, 0x3f }, /* 0x3f68, gain 278869 */
++	{ 0x69, 0x3f }, /* 0x3f69, gain 279775 */
++	{ 0x6a, 0x3f }, /* 0x3f6a, gain 280669 */
++	{ 0x6b, 0x3f }, /* 0x3f6b, gain 281558 */
++	{ 0x6c, 0x3f }, /* 0x3f6c, gain 282440 */
++	{ 0x6d, 0x3f }, /* 0x3f6d, gain 283308 */
++	{ 0x6e, 0x3f }, /* 0x3f6e, gain 284173 */
++	{ 0x6f, 0x3f }, /* 0x3f6f, gain 285026 */
++	{ 0x70, 0x3f }, /* 0x3f70, gain 285876 */
++	{ 0x71, 0x3f }, /* 0x3f71, gain 286718 */
++	{ 0x72, 0x3f }, /* 0x3f72, gain 287548 */
++	{ 0x73, 0x3f }, /* 0x3f73, gain 288375 */
++	{ 0x74, 0x3f }, /* 0x3f74, gain 289196 */
++	{ 0x75, 0x3f }, /* 0x3f75, gain 290004 */
++	{ 0x76, 0x3f }, /* 0x3f76, gain 290811 */
++	{ 0x77, 0x3f }, /* 0x3f77, gain 291606 */
++	{ 0x78, 0x3f }, /* 0x3f78, gain 292399 */
++	{ 0x79, 0x3f }, /* 0x3f79, gain 293185 */
++	{ 0x7a, 0x3f }, /* 0x3f7a, gain 293960 */
++	{ 0x7b, 0x3f }, /* 0x3f7b, gain 294734 */
++	{ 0x7c, 0x3f }, /* 0x3f7c, gain 295501 */
++	{ 0x7d, 0x3f }, /* 0x3f7d, gain 296258 */
++	{ 0x7e, 0x3f }, /* 0x3f7e, gain 297013 */
++	{ 0x7f, 0x3f }, /* 0x3f7f, gain 297758 */
++};
++
++struct sc401ai_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc401ai_1440p25_regs[] = {
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x0100), 0x00 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x36f9), 0x80 },
++	{ CCI_REG8(0x3018), 0x3a },
++	{ CCI_REG8(0x3019), 0x0c },
++	{ CCI_REG8(0x301c), 0x78 },
++	{ CCI_REG8(0x301f), 0x08 },
++	{ CCI_REG8(0x3208), 0x0a },
++	{ CCI_REG8(0x3209), 0x00 },
++	{ CCI_REG8(0x320a), 0x05 },
++	{ CCI_REG8(0x320b), 0xa0 },
++	{ CCI_REG8(0x320e), 0x07 },
++	{ CCI_REG8(0x320f), 0x08 },
++	{ CCI_REG8(0x3214), 0x11 },
++	{ CCI_REG8(0x3215), 0x11 },
++	{ CCI_REG8(0x3223), 0x80 },
++	{ CCI_REG8(0x3250), 0x00 },
++	{ CCI_REG8(0x3253), 0x08 },
++	{ CCI_REG8(0x3274), 0x01 },
++	{ CCI_REG8(0x3301), 0x20 },
++	{ CCI_REG8(0x3302), 0x18 },
++	{ CCI_REG8(0x3303), 0x10 },
++	{ CCI_REG8(0x3304), 0x50 },
++	{ CCI_REG8(0x3306), 0x38 },
++	{ CCI_REG8(0x3308), 0x18 },
++	{ CCI_REG8(0x3309), 0x60 },
++	{ CCI_REG8(0x330b), 0xc0 },
++	{ CCI_REG8(0x330d), 0x10 },
++	{ CCI_REG8(0x330e), 0x18 },
++	{ CCI_REG8(0x330f), 0x04 },
++	{ CCI_REG8(0x3310), 0x02 },
++	{ CCI_REG8(0x331c), 0x04 },
++	{ CCI_REG8(0x331e), 0x41 },
++	{ CCI_REG8(0x331f), 0x51 },
++	{ CCI_REG8(0x3320), 0x09 },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x334c), 0x08 },
++	{ CCI_REG8(0x3356), 0x09 },
++	{ CCI_REG8(0x3364), 0x17 },
++	{ CCI_REG8(0x338e), 0xfd },
++	{ CCI_REG8(0x3390), 0x08 },
++	{ CCI_REG8(0x3391), 0x18 },
++	{ CCI_REG8(0x3392), 0x38 },
++	{ CCI_REG8(0x3393), 0x20 },
++	{ CCI_REG8(0x3394), 0x20 },
++	{ CCI_REG8(0x3395), 0x20 },
++	{ CCI_REG8(0x3396), 0x08 },
++	{ CCI_REG8(0x3397), 0x18 },
++	{ CCI_REG8(0x3398), 0x38 },
++	{ CCI_REG8(0x3399), 0x20 },
++	{ CCI_REG8(0x339a), 0x20 },
++	{ CCI_REG8(0x339b), 0x20 },
++	{ CCI_REG8(0x339c), 0x20 },
++	{ CCI_REG8(0x33ac), 0x10 },
++	{ CCI_REG8(0x33ae), 0x18 },
++	{ CCI_REG8(0x33af), 0x19 },
++	{ CCI_REG8(0x360f), 0x01 },
++	{ CCI_REG8(0x3620), 0x08 },
++	{ CCI_REG8(0x3637), 0x25 },
++	{ CCI_REG8(0x363a), 0x12 },
++	{ CCI_REG8(0x3670), 0x0a },
++	{ CCI_REG8(0x3671), 0x07 },
++	{ CCI_REG8(0x3672), 0x57 },
++	{ CCI_REG8(0x3673), 0x5e },
++	{ CCI_REG8(0x3674), 0x84 },
++	{ CCI_REG8(0x3675), 0x88 },
++	{ CCI_REG8(0x3676), 0x8a },
++	{ CCI_REG8(0x367a), 0x58 },
++	{ CCI_REG8(0x367b), 0x78 },
++	{ CCI_REG8(0x367c), 0x58 },
++	{ CCI_REG8(0x367d), 0x78 },
++	{ CCI_REG8(0x3690), 0x33 },
++	{ CCI_REG8(0x3691), 0x43 },
++	{ CCI_REG8(0x3692), 0x34 },
++	{ CCI_REG8(0x369c), 0x40 },
++	{ CCI_REG8(0x369d), 0x78 },
++	{ CCI_REG8(0x36ea), 0x39 },
++	{ CCI_REG8(0x36eb), 0x0d },
++	{ CCI_REG8(0x36ec), 0x1c },
++	{ CCI_REG8(0x36ed), 0x24 },
++	{ CCI_REG8(0x36fa), 0x39 },
++	{ CCI_REG8(0x36fb), 0x33 },
++	{ CCI_REG8(0x36fc), 0x10 },
++	{ CCI_REG8(0x36fd), 0x14 },
++	{ CCI_REG8(0x3908), 0x41 },
++	{ CCI_REG8(0x396c), 0x0e },
++	{ CCI_REG8(0x3e00), 0x00 },
++	{ CCI_REG8(0x3e01), 0xb6 },
++	{ CCI_REG8(0x3e02), 0x00 },
++	{ CCI_REG8(0x3e03), 0x0b },
++	{ CCI_REG8(0x3e08), 0x03 },
++	{ CCI_REG8(0x3e09), 0x40 },
++	{ CCI_REG8(0x3e1b), 0x2a },
++	{ CCI_REG8(0x4509), 0x30 },
++	{ CCI_REG8(0x4819), 0x08 },
++	{ CCI_REG8(0x481b), 0x05 },
++	{ CCI_REG8(0x481d), 0x11 },
++	{ CCI_REG8(0x481f), 0x04 },
++	{ CCI_REG8(0x4821), 0x09 },
++	{ CCI_REG8(0x4823), 0x04 },
++	{ CCI_REG8(0x4825), 0x04 },
++	{ CCI_REG8(0x4827), 0x04 },
++	{ CCI_REG8(0x4829), 0x07 },
++	{ CCI_REG8(0x57a8), 0xd0 },
++	{ CCI_REG8(0x36e9), 0x23 },
++	{ CCI_REG8(0x36f9), 0x23 },
++	{ CCI_REG8(0x0100), 0x01 },
++};
++
++static const struct sc401ai_mode sc401ai_modes[] = {
++	{
++		.width = SC401AI_NATIVE_WIDTH,
++		.height = SC401AI_NATIVE_HEIGHT,
++		.hblank = SC401AI_HTS_MIN - SC401AI_NATIVE_WIDTH,
++		.vblank = 1800 - SC401AI_NATIVE_HEIGHT,
++		.regs = sc401ai_1440p25_regs,
++		.regs_num = ARRAY_SIZE(sc401ai_1440p25_regs),
++	},
++};
++
++struct sc401ai_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc401ai {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc401ai_ctrls ctrls;
++
++	const struct sc401ai_mode *mode;
++};
++
++static inline struct sc401ai *to_sc401ai(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc401ai, sd);
++}
++
++static inline struct v4l2_subdev *sc401ai_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc401ai, ctrls.handler)->sd;
++}
++
++static void sc401ai_fill_format(const struct sc401ai_mode *mode,
++				struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc401ai_init_state(struct v4l2_subdev *sd,
++			      struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc401ai_fill_format(&sc401ai_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc401ai_modes[0].width;
++	crop->height = sc401ai_modes[0].height;
++
++	return 0;
++}
++
++static int sc401ai_enum_mbus_code(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc401ai_enum_frame_size(struct v4l2_subdev *sd,
++				   struct v4l2_subdev_state *state,
++				   struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc401ai_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc401ai_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc401ai_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc401ai_get_selection(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC401AI_NATIVE_WIDTH;
++		sel->r.height = SC401AI_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc401ai_set_pad_format(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_format *fmt)
++{
++	struct sc401ai *sc401ai = to_sc401ai(sd);
++	const struct sc401ai_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc401ai_modes, ARRAY_SIZE(sc401ai_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc401ai_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc401ai->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc401ai->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc401ai->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc401ai_exposure_update(struct sc401ai *sc401ai)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc401ai->ctrls.vblank->val + sc401ai->mode->height -
++		       SC401AI_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xffffU);
++
++	__v4l2_ctrl_modify_range(sc401ai->ctrls.exposure,
++				 SC401AI_EXPOSURE_MIN, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc401ai_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc401ai *sc401ai = to_sc401ai(sc401ai_ctrl_to_sd(ctrl));
++	const struct sc401ai_gain *gain;
++	u32 hts, it, value;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc401ai_exposure_update(sc401ai);
++
++	if (!pm_runtime_get_if_in_use(sc401ai->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		it = (u32)ctrl->val * 2;
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_EXPOSURE_H,
++				(it >> 12) & 0x0f, NULL);
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_EXPOSURE_M,
++				(it >> 4) & 0xff, &ret);
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_EXPOSURE_L,
++				(it & 0x0f) << 4, &ret);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		gain = &sc401ai_gains[ctrl->val];
++		value = ((u16)gain->reg_3e08 << 8) | gain->reg_3e09;
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_GAIN_L,
++				gain->reg_3e09, NULL);
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_GAIN_H,
++				gain->reg_3e08, &ret);
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_GAIN_LIMIT,
++				value < SC401AI_GAIN_DCG_THRESHOLD ? 0x0b : 0x17,
++				&ret);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc401ai->mode->width;
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_HTS, hts / 2, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc401ai->regmap, SC401AI_REG_VTS,
++				ctrl->val + sc401ai->mode->height, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc401ai->regmap, SC401AI_REG_FLIP,
++				      SC401AI_FLIP_BITS,
++				      ctrl->val ? SC401AI_FLIP_BITS : 0, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc401ai->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc401ai_ctrl_ops = {
++	.s_ctrl = sc401ai_set_ctrl,
++};
++
++static int sc401ai_init_controls(struct sc401ai *sc401ai)
++{
++	struct v4l2_ctrl_handler *hdl = &sc401ai->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc401ai_ctrl_ops;
++	unsigned int hblank_max = SC401AI_HTS_MAX - SC401AI_NATIVE_WIDTH;
++	unsigned int vblank_max = SC401AI_VTS_MAX - SC401AI_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 8);
++	if (ret)
++		return ret;
++
++	sc401ai->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC401AI_PIXEL_RATE, SC401AI_PIXEL_RATE, 1,
++				  SC401AI_PIXEL_RATE);
++
++	sc401ai->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc401ai_link_freqs);
++	if (sc401ai->ctrls.link_freq)
++		sc401ai->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc401ai->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
++				  SC401AI_EXPOSURE_MIN,
++				  sc401ai_modes[0].vblank +
++				  sc401ai_modes[0].height -
++				  SC401AI_EXPOSURE_OFFSET, 1,
++				  sc401ai_modes[0].vblank +
++				  sc401ai_modes[0].height -
++				  SC401AI_EXPOSURE_OFFSET);
++
++	sc401ai->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc401ai_gains) - 1, 1, 0);
++
++	sc401ai->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC401AI_HTS_MIN - SC401AI_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc401ai_modes[0].hblank);
++
++	sc401ai->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc401ai_modes[0].vblank, vblank_max, 1,
++				  sc401ai_modes[0].vblank);
++
++	sc401ai->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						 0, 1, 1, 0);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc401ai->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc401ai->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc401ai_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC401AI_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC401AI_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc401ai_power_on(struct device *dev)
++{
++	struct sc401ai *sc401ai = to_sc401ai(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc401ai->supplies),
++				    sc401ai->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc401ai->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc401ai->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc401ai->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc401ai->supplies), sc401ai->supplies);
++
++	return ret;
++}
++
++static int sc401ai_power_off(struct device *dev)
++{
++	struct sc401ai *sc401ai = to_sc401ai(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc401ai->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc401ai->powerdown_gpio, 1);
++	clk_disable_unprepare(sc401ai->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc401ai->supplies), sc401ai->supplies);
++
++	return 0;
++}
++
++static int sc401ai_identify_module(struct sc401ai *sc401ai)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc401ai->regmap, SC401AI_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc401ai->regmap, SC401AI_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC401AI_CHIP_ID_H || id_l != SC401AI_CHIP_ID_L) {
++		dev_err(sc401ai->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC401AI_CHIP_ID_H, SC401AI_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc401ai_enable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc401ai *sc401ai = to_sc401ai(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc401ai->regmap, sc401ai->mode->regs,
++			    sc401ai->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	/* The vendor init sequence ends with a 16 ms settle delay. */
++	msleep(16);
++
++	ret = __v4l2_ctrl_handler_setup(&sc401ai->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc401ai->regmap, SC401AI_REG_STREAM, SC401AI_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc401ai_disable_streams(struct v4l2_subdev *sd,
++				   struct v4l2_subdev_state *state, u32 pad,
++				   u64 streams_mask)
++{
++	struct sc401ai *sc401ai = to_sc401ai(sd);
++	int ret = 0;
++
++	cci_write(sc401ai->regmap, SC401AI_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc401ai_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc401ai_pad_ops = {
++	.enum_mbus_code = sc401ai_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc401ai_set_pad_format,
++	.get_selection = sc401ai_get_selection,
++	.enum_frame_size = sc401ai_enum_frame_size,
++	.enable_streams = sc401ai_enable_streams,
++	.disable_streams = sc401ai_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc401ai_subdev_ops = {
++	.video = &sc401ai_video_ops,
++	.pad = &sc401ai_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc401ai_subdev_internal_ops = {
++	.init_state = sc401ai_init_state,
++};
++
++static const char * const sc401ai_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc401ai_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc401ai *sc401ai;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc401ai = devm_kzalloc(dev, sizeof(*sc401ai), GFP_KERNEL);
++	if (!sc401ai)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc401ai->sd, client, &sc401ai_subdev_ops);
++	sc401ai->sd.internal_ops = &sc401ai_subdev_internal_ops;
++
++	ret = sc401ai_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc401ai->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc401ai->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc401ai->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc401ai->xclk);
++	if (xclk_freq != SC401AI_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc401ai->supplies); i++)
++		sc401ai->supplies[i].supply = sc401ai_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc401ai->supplies),
++				      sc401ai->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc401ai->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						      GPIOD_OUT_HIGH);
++	if (IS_ERR(sc401ai->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc401ai->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc401ai->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							  GPIOD_OUT_HIGH);
++	if (IS_ERR(sc401ai->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc401ai->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc401ai->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc401ai->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc401ai->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc401ai_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc401ai_identify_module(sc401ai);
++	if (ret)
++		goto err_power_off;
++
++	sc401ai->mode = &sc401ai_modes[0];
++
++	ret = sc401ai_init_controls(sc401ai);
++	if (ret)
++		goto err_power_off;
++
++	sc401ai->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc401ai->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc401ai->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc401ai->sd.entity, 1, &sc401ai->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc401ai->sd.state_lock = sc401ai->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc401ai->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc401ai->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc401ai->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc401ai->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc401ai->ctrls.handler);
++err_power_off:
++	sc401ai_power_off(dev);
++
++	return ret;
++}
++
++static void sc401ai_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc401ai *sc401ai = to_sc401ai(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc401ai->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc401ai_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc401ai_dt_ids[] = {
++	{ .compatible = "smartens,sc401ai" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc401ai_dt_ids);
++
++static const struct i2c_device_id sc401ai_id[] = {
++	{ .name = "sc401ai" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc401ai_id);
++
++static const struct dev_pm_ops sc401ai_pm_ops = {
++	RUNTIME_PM_OPS(sc401ai_power_off, sc401ai_power_on, NULL)
++};
++
++static struct i2c_driver sc401ai_i2c_driver = {
++	.driver = {
++		.name = "sc401ai",
++		.of_match_table = sc401ai_dt_ids,
++		.pm = pm_ptr(&sc401ai_pm_ops),
++	},
++	.probe = sc401ai_probe,
++	.remove = sc401ai_remove,
++	.id_table = sc401ai_id,
++};
++
++module_i2c_driver(sc401ai_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC401AI sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc401ai.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc401ai.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC401AI 2560x1440 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC401AI is a 2560x1440 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc401ai
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc401ai";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <315000000>;
++                };
++            };
++        };
++    };
++
++...

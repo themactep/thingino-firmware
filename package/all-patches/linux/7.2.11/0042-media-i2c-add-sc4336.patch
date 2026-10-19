@@ -1,0 +1,1172 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC4336 sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC4336 image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc4336_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc4336.c
+@@ -0,0 +1,1047 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC4336 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc4336_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC4336_CHIP_ID_H			0xdc
++#define SC4336_CHIP_ID_L			0x42
++
++#define SC4336_REG_CHIP_ID_H			CCI_REG8(0x3107)
++#define SC4336_REG_CHIP_ID_L			CCI_REG8(0x3108)
++
++#define SC4336_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS/VTS are big-endian 16-bit values. */
++#define SC4336_REG_HTS				CCI_REG16(0x320c)
++#define SC4336_REG_VTS_H			CCI_REG8(0x320e)
++#define SC4336_REG_VTS_L			CCI_REG8(0x320f)
++
++/* Exposure is a 16-bit value in units of 1 line, split 4/8/4 bits. */
++#define SC4336_REG_EXPOSURE_0			CCI_REG8(0x3e00)
++#define SC4336_REG_EXPOSURE_1			CCI_REG8(0x3e01)
++#define SC4336_REG_EXPOSURE_2			CCI_REG8(0x3e02)
++
++#define SC4336_REG_GAIN_L			CCI_REG8(0x3e07)
++#define SC4336_REG_GAIN_H			CCI_REG8(0x3e09)
++
++#define SC4336_REG_DENOISE_3632			CCI_REG8(0x3632)
++#define SC4336_REG_DENOISE_3631			CCI_REG8(0x3631)
++#define SC4336_REG_DENOISE_3636			CCI_REG8(0x3636)
++
++#define SC4336_REG_FLIP				CCI_REG8(0x3221)
++#define SC4336_FLIP_MASK			0x60
++
++#define SC4336_STREAM_ON			0x01
++
++/* External clock is 27 MHz. */
++#define SC4336_XCLK_FREQ			(27 * HZ_PER_MHZ)
++
++#define SC4336_NATIVE_WIDTH			2560U
++#define SC4336_NATIVE_HEIGHT			1440U
++
++/* 2 lanes, 630 Mbit/s per lane. */
++#define SC4336_LINK_FREQ			315000000
++/* 2800 x 1500 pixels at 30 fps. */
++#define SC4336_PIXEL_RATE			126000000
++
++static const s64 sc4336_link_freqs[] = {
++	SC4336_LINK_FREQ,
++};
++
++#define SC4336_HTS_MIN				2800U
++#define SC4336_HTS_MAX				0xffffU
++#define SC4336_VTS_MAX				0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC4336_EXPOSURE_OFFSET			4
++
++struct sc4336_gain {
++	u8 reg_3e07;
++	u8 reg_3e09;
++};
++
++static const struct sc4336_gain sc4336_gains[] = {
++	{ 0x80, 0x00 },
++	{ 0x84, 0x00 },
++	{ 0x88, 0x00 },
++	{ 0x8c, 0x00 },
++	{ 0x90, 0x00 },
++	{ 0x94, 0x00 },
++	{ 0x98, 0x00 },
++	{ 0x9c, 0x00 },
++	{ 0xa0, 0x00 },
++	{ 0xa4, 0x00 },
++	{ 0xa8, 0x00 },
++	{ 0xac, 0x00 },
++	{ 0xb0, 0x00 },
++	{ 0xb4, 0x00 },
++	{ 0xb8, 0x00 },
++	{ 0xbc, 0x00 },
++	{ 0xc0, 0x00 },
++	{ 0xc4, 0x00 },
++	{ 0xc8, 0x00 },
++	{ 0xcc, 0x00 },
++	{ 0xd0, 0x00 },
++	{ 0xd4, 0x00 },
++	{ 0xd8, 0x00 },
++	{ 0xdc, 0x00 },
++	{ 0xe0, 0x00 },
++	{ 0xe4, 0x00 },
++	{ 0xe8, 0x00 },
++	{ 0xec, 0x00 },
++	{ 0xf0, 0x00 },
++	{ 0xf4, 0x00 },
++	{ 0xf8, 0x00 },
++	{ 0xfc, 0x00 },
++	{ 0x80, 0x08 },
++	{ 0x84, 0x08 },
++	{ 0x88, 0x08 },
++	{ 0x8c, 0x08 },
++	{ 0x90, 0x08 },
++	{ 0x94, 0x08 },
++	{ 0x98, 0x08 },
++	{ 0x9c, 0x08 },
++	{ 0xa0, 0x08 },
++	{ 0xa4, 0x08 },
++	{ 0xa8, 0x08 },
++	{ 0xac, 0x08 },
++	{ 0xb0, 0x08 },
++	{ 0xb4, 0x08 },
++	{ 0xb8, 0x08 },
++	{ 0xbc, 0x08 },
++	{ 0xc0, 0x08 },
++	{ 0xc4, 0x08 },
++	{ 0xc8, 0x08 },
++	{ 0xcc, 0x08 },
++	{ 0xd0, 0x08 },
++	{ 0xd4, 0x08 },
++	{ 0xd8, 0x08 },
++	{ 0xdc, 0x08 },
++	{ 0xe0, 0x08 },
++	{ 0xe4, 0x08 },
++	{ 0xe8, 0x08 },
++	{ 0xec, 0x08 },
++	{ 0xf0, 0x08 },
++	{ 0xf4, 0x08 },
++	{ 0xf8, 0x08 },
++	{ 0xfc, 0x08 },
++	{ 0x80, 0x09 },
++	{ 0x84, 0x09 },
++	{ 0x88, 0x09 },
++	{ 0x8c, 0x09 },
++	{ 0x90, 0x09 },
++	{ 0x94, 0x09 },
++	{ 0x98, 0x09 },
++	{ 0x9c, 0x09 },
++	{ 0xa0, 0x09 },
++	{ 0xa4, 0x09 },
++	{ 0xa8, 0x09 },
++	{ 0xac, 0x09 },
++	{ 0xb0, 0x09 },
++	{ 0xb4, 0x09 },
++	{ 0xb8, 0x09 },
++	{ 0xbc, 0x09 },
++	{ 0xc0, 0x09 },
++	{ 0xc4, 0x09 },
++	{ 0xc8, 0x09 },
++	{ 0xcc, 0x09 },
++	{ 0xd0, 0x09 },
++	{ 0xd4, 0x09 },
++	{ 0xd8, 0x09 },
++	{ 0xdc, 0x09 },
++	{ 0xe0, 0x09 },
++	{ 0xe4, 0x09 },
++	{ 0xe8, 0x09 },
++	{ 0xec, 0x09 },
++	{ 0xf0, 0x09 },
++	{ 0xf4, 0x09 },
++	{ 0xf8, 0x09 },
++	{ 0xfc, 0x09 },
++	{ 0x80, 0x0b },
++	{ 0x84, 0x0b },
++	{ 0x88, 0x0b },
++	{ 0x8c, 0x0b },
++	{ 0x90, 0x0b },
++	{ 0x94, 0x0b },
++	{ 0x98, 0x0b },
++	{ 0x9c, 0x0b },
++	{ 0xa0, 0x0b },
++	{ 0xa4, 0x0b },
++	{ 0xa8, 0x0b },
++	{ 0xac, 0x0b },
++	{ 0xb0, 0x0b },
++	{ 0xb4, 0x0b },
++	{ 0xb8, 0x0b },
++	{ 0xbc, 0x0b },
++	{ 0xc0, 0x0b },
++	{ 0xc4, 0x0b },
++	{ 0xc8, 0x0b },
++	{ 0xcc, 0x0b },
++	{ 0xd0, 0x0b },
++	{ 0xd4, 0x0b },
++	{ 0xd8, 0x0b },
++	{ 0xdc, 0x0b },
++	{ 0xe0, 0x0b },
++	{ 0xe4, 0x0b },
++	{ 0xe8, 0x0b },
++	{ 0xec, 0x0b },
++	{ 0xf0, 0x0b },
++	{ 0xf4, 0x0b },
++	{ 0xf8, 0x0b },
++	{ 0xfc, 0x0b },
++};
++
++struct sc4336_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc4336_1440p30_regs[] = {
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x37f9), 0x80 },
++	{ CCI_REG8(0x301f), 0x01 },
++	{ CCI_REG8(0x30b8), 0x44 },
++	{ CCI_REG8(0x3221), 0x66 },
++	{ CCI_REG8(0x3253), 0x10 },
++	{ CCI_REG8(0x3301), 0x0a },
++	{ CCI_REG8(0x3302), 0xff },
++	{ CCI_REG8(0x3305), 0x00 },
++	{ CCI_REG8(0x3306), 0x90 },
++	{ CCI_REG8(0x3308), 0x20 },
++	{ CCI_REG8(0x330a), 0x01 },
++	{ CCI_REG8(0x330b), 0xb0 },
++	{ CCI_REG8(0x330d), 0xf0 },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x335e), 0x06 },
++	{ CCI_REG8(0x335f), 0x0a },
++	{ CCI_REG8(0x3364), 0x5e },
++	{ CCI_REG8(0x337d), 0x0e },
++	{ CCI_REG8(0x3390), 0x08 },
++	{ CCI_REG8(0x3391), 0x09 },
++	{ CCI_REG8(0x3392), 0x0f },
++	{ CCI_REG8(0x3393), 0x18 },
++	{ CCI_REG8(0x3394), 0x60 },
++	{ CCI_REG8(0x3395), 0xff },
++	{ CCI_REG8(0x3396), 0x08 },
++	{ CCI_REG8(0x3397), 0x09 },
++	{ CCI_REG8(0x3398), 0x0f },
++	{ CCI_REG8(0x3399), 0x0a },
++	{ CCI_REG8(0x339a), 0x18 },
++	{ CCI_REG8(0x339b), 0x60 },
++	{ CCI_REG8(0x339c), 0xff },
++	{ CCI_REG8(0x33a2), 0x04 },
++	{ CCI_REG8(0x33ad), 0x3c },
++	{ CCI_REG8(0x33b2), 0x40 },
++	{ CCI_REG8(0x33b3), 0x30 },
++	{ CCI_REG8(0x33f8), 0x00 },
++	{ CCI_REG8(0x33f9), 0xa0 },
++	{ CCI_REG8(0x33fa), 0x00 },
++	{ CCI_REG8(0x33fb), 0xe0 },
++	{ CCI_REG8(0x33fc), 0x09 },
++	{ CCI_REG8(0x33fd), 0x1f },
++	{ CCI_REG8(0x349f), 0x03 },
++	{ CCI_REG8(0x34a6), 0x09 },
++	{ CCI_REG8(0x34a7), 0x1f },
++	{ CCI_REG8(0x34a8), 0x28 },
++	{ CCI_REG8(0x34a9), 0x28 },
++	{ CCI_REG8(0x34aa), 0x01 },
++	{ CCI_REG8(0x34ab), 0xd0 },
++	{ CCI_REG8(0x34ac), 0x02 },
++	{ CCI_REG8(0x34ad), 0x10 },
++	{ CCI_REG8(0x34f8), 0x1f },
++	{ CCI_REG8(0x34f9), 0x20 },
++	{ CCI_REG8(0x3630), 0xc0 },
++	{ CCI_REG8(0x3631), 0x84 },
++	{ CCI_REG8(0x3633), 0x44 },
++	{ CCI_REG8(0x3637), 0x4c },
++	{ CCI_REG8(0x3641), 0x38 },
++	{ CCI_REG8(0x3670), 0x56 },
++	{ CCI_REG8(0x3674), 0xc0 },
++	{ CCI_REG8(0x3675), 0xa0 },
++	{ CCI_REG8(0x3676), 0xa0 },
++	{ CCI_REG8(0x3677), 0x84 },
++	{ CCI_REG8(0x3678), 0x88 },
++	{ CCI_REG8(0x3679), 0x8a },
++	{ CCI_REG8(0x367c), 0x09 },
++	{ CCI_REG8(0x367d), 0x0b },
++	{ CCI_REG8(0x367e), 0x08 },
++	{ CCI_REG8(0x367f), 0x0f },
++	{ CCI_REG8(0x3696), 0x44 },
++	{ CCI_REG8(0x3697), 0x54 },
++	{ CCI_REG8(0x3698), 0x54 },
++	{ CCI_REG8(0x36a0), 0x0f },
++	{ CCI_REG8(0x36a1), 0x1f },
++	{ CCI_REG8(0x36b0), 0x81 },
++	{ CCI_REG8(0x36b1), 0x83 },
++	{ CCI_REG8(0x36b2), 0x85 },
++	{ CCI_REG8(0x36b3), 0x8b },
++	{ CCI_REG8(0x36b4), 0x09 },
++	{ CCI_REG8(0x36b5), 0x0b },
++	{ CCI_REG8(0x36b6), 0x0f },
++	{ CCI_REG8(0x370f), 0x01 },
++	{ CCI_REG8(0x3722), 0x09 },
++	{ CCI_REG8(0x3724), 0x21 },
++	{ CCI_REG8(0x3771), 0x09 },
++	{ CCI_REG8(0x3772), 0x05 },
++	{ CCI_REG8(0x3773), 0x05 },
++	{ CCI_REG8(0x377a), 0x0f },
++	{ CCI_REG8(0x377b), 0x1f },
++	{ CCI_REG8(0x3905), 0x8c },
++	{ CCI_REG8(0x391d), 0x04 },
++	{ CCI_REG8(0x3926), 0x21 },
++	{ CCI_REG8(0x3933), 0x80 },
++	{ CCI_REG8(0x3934), 0x03 },
++	{ CCI_REG8(0x3935), 0x00 },
++	{ CCI_REG8(0x3936), 0x1b },
++	{ CCI_REG8(0x3937), 0x76 },
++	{ CCI_REG8(0x3938), 0x75 },
++	{ CCI_REG8(0x3939), 0x00 },
++	{ CCI_REG8(0x393a), 0x00 },
++	{ CCI_REG8(0x39dc), 0x02 },
++	{ CCI_REG8(0x3e00), 0x00 },
++	{ CCI_REG8(0x3e01), 0x5d },
++	{ CCI_REG8(0x3e02), 0x40 },
++	{ CCI_REG8(0x440e), 0x02 },
++	{ CCI_REG8(0x4509), 0x28 },
++	{ CCI_REG8(0x450d), 0x32 },
++	{ CCI_REG8(0x5000), 0x06 },
++	{ CCI_REG8(0x5799), 0x46 },
++	{ CCI_REG8(0x579a), 0x77 },
++	{ CCI_REG8(0x57d9), 0x46 },
++	{ CCI_REG8(0x57da), 0x77 },
++	{ CCI_REG8(0x5ae0), 0xfe },
++	{ CCI_REG8(0x5ae1), 0x40 },
++	{ CCI_REG8(0x5ae2), 0x38 },
++	{ CCI_REG8(0x5ae3), 0x30 },
++	{ CCI_REG8(0x5ae4), 0x28 },
++	{ CCI_REG8(0x5ae5), 0x38 },
++	{ CCI_REG8(0x5ae6), 0x30 },
++	{ CCI_REG8(0x5ae7), 0x28 },
++	{ CCI_REG8(0x5ae8), 0x3f },
++	{ CCI_REG8(0x5ae9), 0x34 },
++	{ CCI_REG8(0x5aea), 0x2c },
++	{ CCI_REG8(0x5aeb), 0x3f },
++	{ CCI_REG8(0x5aec), 0x34 },
++	{ CCI_REG8(0x5aed), 0x2c },
++	{ CCI_REG8(0x36e9), 0x44 },
++	{ CCI_REG8(0x37f9), 0x44 },
++};
++
++static const struct sc4336_mode sc4336_modes[] = {
++	{
++		.width = SC4336_NATIVE_WIDTH,
++		.height = SC4336_NATIVE_HEIGHT,
++		.hblank = SC4336_HTS_MIN - SC4336_NATIVE_WIDTH,
++		.vblank = 1500 - SC4336_NATIVE_HEIGHT,
++		.regs = sc4336_1440p30_regs,
++		.regs_num = ARRAY_SIZE(sc4336_1440p30_regs),
++	},
++};
++
++struct sc4336_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc4336 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc4336_ctrls ctrls;
++
++	const struct sc4336_mode *mode;
++};
++
++static inline struct sc4336 *to_sc4336(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc4336, sd);
++}
++
++static inline struct v4l2_subdev *sc4336_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc4336, ctrls.handler)->sd;
++}
++
++static void sc4336_fill_format(const struct sc4336_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc4336_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc4336_fill_format(&sc4336_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc4336_modes[0].width;
++	crop->height = sc4336_modes[0].height;
++
++	return 0;
++}
++
++static int sc4336_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc4336_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc4336_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc4336_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc4336_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc4336_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC4336_NATIVE_WIDTH;
++		sel->r.height = SC4336_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc4336_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc4336 *sc4336 = to_sc4336(sd);
++	const struct sc4336_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc4336_modes, ARRAY_SIZE(sc4336_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc4336_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc4336->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc4336->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc4336->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc4336_exposure_update(struct sc4336 *sc4336)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc4336->ctrls.vblank->val + sc4336->mode->height -
++		       SC4336_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xffffU);
++
++	__v4l2_ctrl_modify_range(sc4336->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc4336_gain_write(struct sc4336 *sc4336, u16 again)
++{
++	int ret;
++
++	ret = cci_write(sc4336->regmap, SC4336_REG_GAIN_L, again & 0xff, NULL);
++	ret = cci_write(sc4336->regmap, SC4336_REG_GAIN_H, again >> 8, &ret);
++
++	/* Legacy gain-dependent denoise registers. */
++	if (again < 0x720) {
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3632,
++				0x18, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3631,
++				0x88, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3636,
++				0x25, &ret);
++	} else if (again < 0xf20) {
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3632,
++				0x18, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3631,
++				0x8e, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3636,
++				0x25, &ret);
++	} else if (again < 0x1f20) {
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3632,
++				0x18, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3631,
++				0x80, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3636,
++				0x65, &ret);
++	} else {
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3632,
++				0xd8, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3631,
++				0x80, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_DENOISE_3636,
++				0x65, &ret);
++	}
++
++	return ret;
++}
++
++static int sc4336_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc4336 *sc4336 = to_sc4336(sc4336_ctrl_to_sd(ctrl));
++	const struct sc4336_gain *gain;
++	u32 hts, vts, it;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc4336_exposure_update(sc4336);
++
++	if (!pm_runtime_get_if_in_use(sc4336->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		it = ctrl->val;
++		ret = cci_write(sc4336->regmap, SC4336_REG_EXPOSURE_0,
++				(it >> 12) & 0x0f, NULL);
++		ret = cci_write(sc4336->regmap, SC4336_REG_EXPOSURE_1,
++				(it >> 4) & 0xff, &ret);
++		ret = cci_write(sc4336->regmap, SC4336_REG_EXPOSURE_2,
++				(it & 0x0f) << 4, &ret);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		gain = &sc4336_gains[ctrl->val];
++		ret = sc4336_gain_write(sc4336,
++					(gain->reg_3e09 << 8) | gain->reg_3e07);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc4336->mode->width;
++		ret = cci_write(sc4336->regmap, SC4336_REG_HTS, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		vts = ctrl->val + sc4336->mode->height;
++		ret = cci_write(sc4336->regmap, SC4336_REG_VTS_L,
++				vts & 0xff, NULL);
++		ret = cci_write(sc4336->regmap, SC4336_REG_VTS_H,
++				(vts >> 8) & 0xff, &ret);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc4336->regmap, SC4336_REG_FLIP,
++				      SC4336_FLIP_MASK,
++				      ctrl->val ? SC4336_FLIP_MASK : 0, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc4336->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc4336_ctrl_ops = {
++	.s_ctrl = sc4336_set_ctrl,
++};
++
++static int sc4336_init_controls(struct sc4336 *sc4336)
++{
++	struct v4l2_ctrl_handler *hdl = &sc4336->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc4336_ctrl_ops;
++	unsigned int hblank_max = SC4336_HTS_MAX - SC4336_NATIVE_WIDTH;
++	unsigned int vblank_max = SC4336_VTS_MAX - SC4336_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	sc4336->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC4336_PIXEL_RATE, SC4336_PIXEL_RATE, 1,
++				  SC4336_PIXEL_RATE);
++
++	sc4336->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc4336_link_freqs);
++	if (sc4336->ctrls.link_freq)
++		sc4336->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc4336->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  sc4336_modes[0].vblank +
++				  sc4336_modes[0].height -
++				  SC4336_EXPOSURE_OFFSET, 1,
++				  sc4336_modes[0].vblank +
++				  sc4336_modes[0].height -
++				  SC4336_EXPOSURE_OFFSET);
++
++	sc4336->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc4336_gains) - 1, 1, 0);
++
++	sc4336->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC4336_HTS_MIN - SC4336_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc4336_modes[0].hblank);
++
++	sc4336->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc4336_modes[0].vblank, vblank_max, 1,
++				  sc4336_modes[0].vblank);
++
++	sc4336->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						0, 1, 1, 0);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc4336->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc4336->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc4336_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC4336_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC4336_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc4336_power_on(struct device *dev)
++{
++	struct sc4336 *sc4336 = to_sc4336(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc4336->supplies),
++				    sc4336->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc4336->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc4336->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc4336->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc4336->supplies), sc4336->supplies);
++
++	return ret;
++}
++
++static int sc4336_power_off(struct device *dev)
++{
++	struct sc4336 *sc4336 = to_sc4336(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc4336->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc4336->powerdown_gpio, 1);
++	clk_disable_unprepare(sc4336->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc4336->supplies), sc4336->supplies);
++
++	return 0;
++}
++
++static int sc4336_identify_module(struct sc4336 *sc4336)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc4336->regmap, SC4336_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc4336->regmap, SC4336_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC4336_CHIP_ID_H || id_l != SC4336_CHIP_ID_L) {
++		dev_err(sc4336->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC4336_CHIP_ID_H, SC4336_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc4336_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc4336 *sc4336 = to_sc4336(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc4336->regmap, sc4336->mode->regs,
++			    sc4336->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc4336->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc4336->regmap, SC4336_REG_STREAM, SC4336_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc4336_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc4336 *sc4336 = to_sc4336(sd);
++	int ret = 0;
++
++	cci_write(sc4336->regmap, SC4336_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc4336_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc4336_pad_ops = {
++	.enum_mbus_code = sc4336_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc4336_set_pad_format,
++	.get_selection = sc4336_get_selection,
++	.enum_frame_size = sc4336_enum_frame_size,
++	.enable_streams = sc4336_enable_streams,
++	.disable_streams = sc4336_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc4336_subdev_ops = {
++	.video = &sc4336_video_ops,
++	.pad = &sc4336_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc4336_subdev_internal_ops = {
++	.init_state = sc4336_init_state,
++};
++
++static const char * const sc4336_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc4336_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc4336 *sc4336;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc4336 = devm_kzalloc(dev, sizeof(*sc4336), GFP_KERNEL);
++	if (!sc4336)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc4336->sd, client, &sc4336_subdev_ops);
++	sc4336->sd.internal_ops = &sc4336_subdev_internal_ops;
++
++	ret = sc4336_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc4336->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc4336->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc4336->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc4336->xclk);
++	if (xclk_freq != SC4336_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc4336->supplies); i++)
++		sc4336->supplies[i].supply = sc4336_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc4336->supplies),
++				      sc4336->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc4336->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc4336->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc4336->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc4336->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc4336->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc4336->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc4336->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc4336->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc4336->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc4336_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc4336_identify_module(sc4336);
++	if (ret)
++		goto err_power_off;
++
++	sc4336->mode = &sc4336_modes[0];
++
++	ret = sc4336_init_controls(sc4336);
++	if (ret)
++		goto err_power_off;
++
++	sc4336->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc4336->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc4336->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc4336->sd.entity, 1, &sc4336->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc4336->sd.state_lock = sc4336->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc4336->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc4336->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc4336->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc4336->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc4336->ctrls.handler);
++err_power_off:
++	sc4336_power_off(dev);
++
++	return ret;
++}
++
++static void sc4336_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc4336 *sc4336 = to_sc4336(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc4336->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc4336_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc4336_dt_ids[] = {
++	{ .compatible = "smartens,sc4336" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc4336_dt_ids);
++
++static const struct i2c_device_id sc4336_id[] = {
++	{ .name = "sc4336" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc4336_id);
++
++static const struct dev_pm_ops sc4336_pm_ops = {
++	RUNTIME_PM_OPS(sc4336_power_off, sc4336_power_on, NULL)
++};
++
++static struct i2c_driver sc4336_i2c_driver = {
++	.driver = {
++		.name = "sc4336",
++		.of_match_table = sc4336_dt_ids,
++		.pm = pm_ptr(&sc4336_pm_ops),
++	},
++	.probe = sc4336_probe,
++	.remove = sc4336_remove,
++	.id_table = sc4336_id,
++};
++
++module_i2c_driver(sc4336_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC4336 sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc4336.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc4336.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC4336 2560x1440 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC4336 is a 2560x1440 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc4336
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc4336";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <315000000>;
++                };
++            };
++        };
++    };
++
++...

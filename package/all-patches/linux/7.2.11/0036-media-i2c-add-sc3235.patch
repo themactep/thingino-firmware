@@ -1,0 +1,1129 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC3235 sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC3235 image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc3235_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc3235.c
+@@ -0,0 +1,1004 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC3235 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc3235_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC3235_CHIP_ID_H			0xcc
++#define SC3235_CHIP_ID_L			0x05
++
++#define SC3235_REG_CHIP_ID_H			CCI_REG8(0x3107)
++#define SC3235_REG_CHIP_ID_L			CCI_REG8(0x3108)
++
++#define SC3235_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC3235_REG_STREAM			CCI_REG8(0x0100)
++#define SC3235_REG_GROUP_HOLD			CCI_REG8(0x3812)
++
++#define SC3235_REG_HTS				CCI_REG16(0x320c)
++#define SC3235_REG_VTS				CCI_REG16(0x320e)
++
++/* 16-bit exposure in 1/16 line units, split over three registers. */
++#define SC3235_REG_EXPOSURE_H			CCI_REG8(0x3e00)
++#define SC3235_REG_EXPOSURE_M			CCI_REG8(0x3e01)
++#define SC3235_REG_EXPOSURE_L			CCI_REG8(0x3e02)
++#define SC3235_REG_EXPOSURE_BAND		CCI_REG8(0x3314)
++
++#define SC3235_REG_GAIN_L			CCI_REG8(0x3e09)
++#define SC3235_REG_GAIN_H			CCI_REG8(0x3e08)
++
++#define SC3235_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC3235_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC3235_NATIVE_WIDTH			2304U
++#define SC3235_NATIVE_HEIGHT			1296U
++
++/* 2 lanes, 486 Mbit/s per lane. */
++#define SC3235_LINK_FREQ			243000000
++/* 2400 x 1620 pixels at 25 fps. */
++#define SC3235_PIXEL_RATE			97200000
++
++static const s64 sc3235_link_freqs[] = {
++	SC3235_LINK_FREQ,
++};
++
++#define SC3235_HTS_MIN				2400U
++#define SC3235_HTS_MAX				0xffffU
++#define SC3235_VTS_MAX				0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC3235_EXPOSURE_OFFSET			4
++#define SC3235_EXPOSURE_MIN			2
++
++struct sc3235_gain {
++	u8 reg_3e09;
++	u8 reg_3e08;
++	u8 reg_3632;
++	u8 reg_3306;
++	u8 reg_330b;
++};
++
++static const struct sc3235_gain sc3235_gains[] = {
++	{ 0x20, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0320, gain 0 */
++	{ 0x21, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0321, gain 2886 */
++	{ 0x22, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0322, gain 5776 */
++	{ 0x23, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0323, gain 8494 */
++	{ 0x24, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0324, gain 11136 */
++	{ 0x25, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0325, gain 13706 */
++	{ 0x26, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0326, gain 16287 */
++	{ 0x27, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0327, gain 18723 */
++	{ 0x28, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0328, gain 21097 */
++	{ 0x29, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0329, gain 23414 */
++	{ 0x2a, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032a, gain 25746 */
++	{ 0x2b, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032b, gain 27953 */
++	{ 0x2c, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032c, gain 30109 */
++	{ 0x2d, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032d, gain 32217 */
++	{ 0x2e, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032e, gain 34345 */
++	{ 0x2f, 0x03, 0x18, 0x50, 0xd0 }, /* 0x032f, gain 36361 */
++	{ 0x30, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0330, gain 38336 */
++	{ 0x31, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0331, gain 40270 */
++	{ 0x32, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0332, gain 42226 */
++	{ 0x33, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0333, gain 44082 */
++	{ 0x34, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0334, gain 45904 */
++	{ 0x35, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0335, gain 47690 */
++	{ 0x36, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0336, gain 49500 */
++	{ 0x37, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0337, gain 51220 */
++	{ 0x38, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0338, gain 52910 */
++	{ 0x39, 0x03, 0x18, 0x50, 0xd0 }, /* 0x0339, gain 54571 */
++	{ 0x3a, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033a, gain 56254 */
++	{ 0x3b, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033b, gain 57857 */
++	{ 0x3c, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033c, gain 59433 */
++	{ 0x3d, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033d, gain 60984 */
++	{ 0x3e, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033e, gain 62558 */
++	{ 0x3f, 0x03, 0x18, 0x50, 0xd0 }, /* 0x033f, gain 64059 */
++	{ 0x20, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0720, gain 65536 */
++	{ 0x21, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0721, gain 68468 */
++	{ 0x22, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0722, gain 71267 */
++	{ 0x23, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0723, gain 74030 */
++	{ 0x24, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0724, gain 76672 */
++	{ 0x25, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0725, gain 79283 */
++	{ 0x26, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0726, gain 81784 */
++	{ 0x27, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0727, gain 84259 */
++	{ 0x28, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0728, gain 86633 */
++	{ 0x29, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0729, gain 89538 */
++	{ 0x2a, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072a, gain 91246 */
++	{ 0x2b, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072b, gain 93489 */
++	{ 0x2c, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072c, gain 95645 */
++	{ 0x2d, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072d, gain 97686 */
++	{ 0x2e, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072e, gain 99848 */
++	{ 0x2f, 0x07, 0x58, 0x58, 0xd8 }, /* 0x072f, gain 101961 */
++	{ 0x30, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0730, gain 103872 */
++	{ 0x31, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0731, gain 105744 */
++	{ 0x32, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0732, gain 107731 */
++	{ 0x33, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0733, gain 109678 */
++	{ 0x34, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0734, gain 111440 */
++	{ 0x35, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0735, gain 113169 */
++	{ 0x36, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0736, gain 115008 */
++	{ 0x37, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0737, gain 116811 */
++	{ 0x38, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0738, gain 118446 */
++	{ 0x39, 0x07, 0x58, 0x58, 0xd8 }, /* 0x0739, gain 120053 */
++	{ 0x3a, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073a, gain 121764 */
++	{ 0x3b, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073b, gain 123444 */
++	{ 0x3c, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073c, gain 124969 */
++	{ 0x3d, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073d, gain 126470 */
++	{ 0x3e, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073e, gain 128070 */
++	{ 0x3f, 0x07, 0x58, 0x58, 0xd8 }, /* 0x073f, gain 129643 */
++	{ 0x20, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f20, gain 131072 */
++	{ 0x21, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f21, gain 134095 */
++	{ 0x22, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f22, gain 136803 */
++	{ 0x23, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f23, gain 139652 */
++	{ 0x24, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f24, gain 142208 */
++	{ 0x25, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f25, gain 144900 */
++	{ 0x26, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f26, gain 147320 */
++	{ 0x27, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f27, gain 149873 */
++	{ 0x28, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f28, gain 152169 */
++	{ 0x29, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f29, gain 154596 */
++	{ 0x2a, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2a, gain 156782 */
++	{ 0x2b, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2b, gain 159095 */
++	{ 0x2c, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2c, gain 161181 */
++	{ 0x2d, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2d, gain 163390 */
++	{ 0x2e, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2e, gain 165384 */
++	{ 0x2f, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f2f, gain 167497 */
++	{ 0x30, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f30, gain 169408 */
++	{ 0x31, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f31, gain 171434 */
++	{ 0x32, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f32, gain 173267 */
++	{ 0x33, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f33, gain 175214 */
++	{ 0x34, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f34, gain 176976 */
++	{ 0x35, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f35, gain 178848 */
++	{ 0x36, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f36, gain 180544 */
++	{ 0x37, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f37, gain 182347 */
++	{ 0x38, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f38, gain 183982 */
++	{ 0x39, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f39, gain 185722 */
++	{ 0x3a, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3a, gain 187300 */
++	{ 0x3b, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3b, gain 188980 */
++	{ 0x3c, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3c, gain 190505 */
++	{ 0x3d, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3d, gain 192130 */
++	{ 0x3e, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3e, gain 193606 */
++	{ 0x3f, 0x0f, 0x58, 0x58, 0xd8 }, /* 0x0f3f, gain 195179 */
++	{ 0x20, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f20, gain 196608 */
++	{ 0x21, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f21, gain 199517 */
++	{ 0x22, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f22, gain 202339 */
++	{ 0x23, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f23, gain 205080 */
++	{ 0x24, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f24, gain 207744 */
++	{ 0x25, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f25, gain 210334 */
++	{ 0x26, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f26, gain 212856 */
++	{ 0x27, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f27, gain 215312 */
++	{ 0x28, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f28, gain 217705 */
++	{ 0x29, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f29, gain 220040 */
++	{ 0x2a, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2a, gain 222318 */
++	{ 0x2b, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2b, gain 224543 */
++	{ 0x2c, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2c, gain 226717 */
++	{ 0x2d, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2d, gain 228842 */
++	{ 0x2e, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2e, gain 230920 */
++	{ 0x2f, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f2f, gain 232953 */
++	{ 0x30, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f30, gain 234944 */
++	{ 0x31, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f31, gain 236893 */
++	{ 0x32, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f32, gain 238803 */
++	{ 0x33, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f33, gain 240676 */
++	{ 0x34, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f34, gain 242512 */
++	{ 0x35, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f35, gain 244313 */
++	{ 0x36, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f36, gain 246080 */
++	{ 0x37, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f37, gain 247815 */
++	{ 0x38, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f38, gain 249518 */
++	{ 0x39, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f39, gain 251192 */
++	{ 0x3a, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3a, gain 252836 */
++	{ 0x3b, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3b, gain 254452 */
++	{ 0x3c, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3c, gain 256041 */
++	{ 0x3d, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3d, gain 257604 */
++	{ 0x3e, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3e, gain 259142 */
++	{ 0x3f, 0x1f, 0xd8, 0x5c, 0xdb }, /* 0x1f3f, gain 260655 */
++};
++
++struct sc3235_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc3235_1296p25_regs[] = {
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x0100), 0x00 },
++	{ CCI_REG8(0x301f), 0x26 },
++	{ CCI_REG8(0x3038), 0x66 },
++	{ CCI_REG8(0x3253), 0x08 },
++	{ CCI_REG8(0x3301), 0x11 },
++	{ CCI_REG8(0x3304), 0x30 },
++	{ CCI_REG8(0x3306), 0x50 },
++	{ CCI_REG8(0x330a), 0x00 },
++	{ CCI_REG8(0x330b), 0xd0 },
++	{ CCI_REG8(0x330e), 0x30 },
++	{ CCI_REG8(0x3314), 0x94 },
++	{ CCI_REG8(0x331c), 0x01 },
++	{ CCI_REG8(0x331e), 0x29 },
++	{ CCI_REG8(0x3320), 0x03 },
++	{ CCI_REG8(0x3347), 0x05 },
++	{ CCI_REG8(0x334c), 0x10 },
++	{ CCI_REG8(0x3356), 0x01 },
++	{ CCI_REG8(0x3364), 0x17 },
++	{ CCI_REG8(0x3367), 0x10 },
++	{ CCI_REG8(0x3368), 0x04 },
++	{ CCI_REG8(0x3369), 0x00 },
++	{ CCI_REG8(0x336a), 0x00 },
++	{ CCI_REG8(0x336b), 0x00 },
++	{ CCI_REG8(0x3390), 0x08 },
++	{ CCI_REG8(0x3391), 0x38 },
++	{ CCI_REG8(0x3392), 0x38 },
++	{ CCI_REG8(0x3393), 0x1a },
++	{ CCI_REG8(0x3394), 0x88 },
++	{ CCI_REG8(0x3395), 0x88 },
++	{ CCI_REG8(0x360f), 0x05 },
++	{ CCI_REG8(0x3614), 0x80 },
++	{ CCI_REG8(0x3622), 0xf6 },
++	{ CCI_REG8(0x3630), 0xc3 },
++	{ CCI_REG8(0x3631), 0x8a },
++	{ CCI_REG8(0x3632), 0x18 },
++	{ CCI_REG8(0x3633), 0x44 },
++	{ CCI_REG8(0x3635), 0x20 },
++	{ CCI_REG8(0x3637), 0x2c },
++	{ CCI_REG8(0x3638), 0x28 },
++	{ CCI_REG8(0x363a), 0xa8 },
++	{ CCI_REG8(0x363b), 0x20 },
++	{ CCI_REG8(0x363c), 0x06 },
++	{ CCI_REG8(0x3641), 0x00 },
++	{ CCI_REG8(0x3670), 0x0a },
++	{ CCI_REG8(0x3671), 0xf6 },
++	{ CCI_REG8(0x3672), 0x76 },
++	{ CCI_REG8(0x3673), 0x16 },
++	{ CCI_REG8(0x3674), 0xa0 },
++	{ CCI_REG8(0x3675), 0x98 },
++	{ CCI_REG8(0x3676), 0x6a },
++	{ CCI_REG8(0x367a), 0x08 },
++	{ CCI_REG8(0x367b), 0x38 },
++	{ CCI_REG8(0x367c), 0x08 },
++	{ CCI_REG8(0x367d), 0x38 },
++	{ CCI_REG8(0x3690), 0x64 },
++	{ CCI_REG8(0x3691), 0x63 },
++	{ CCI_REG8(0x3692), 0x64 },
++	{ CCI_REG8(0x369c), 0x08 },
++	{ CCI_REG8(0x369d), 0x38 },
++	{ CCI_REG8(0x36e9), 0x23 },
++	{ CCI_REG8(0x36ea), 0x25 },
++	{ CCI_REG8(0x36eb), 0x05 },
++	{ CCI_REG8(0x36ec), 0x15 },
++	{ CCI_REG8(0x36ed), 0x04 },
++	{ CCI_REG8(0x36f9), 0x33 },
++	{ CCI_REG8(0x36fa), 0x25 },
++	{ CCI_REG8(0x36fb), 0x23 },
++	{ CCI_REG8(0x36fc), 0x01 },
++	{ CCI_REG8(0x36fd), 0x04 },
++	{ CCI_REG8(0x3900), 0x29 },
++	{ CCI_REG8(0x3902), 0xc5 },
++	{ CCI_REG8(0x3905), 0xd1 },
++	{ CCI_REG8(0x3906), 0x62 },
++	{ CCI_REG8(0x3908), 0x41 },
++	{ CCI_REG8(0x3909), 0x00 },
++	{ CCI_REG8(0x390a), 0x19 },
++	{ CCI_REG8(0x390b), 0x00 },
++	{ CCI_REG8(0x390c), 0x4c },
++	{ CCI_REG8(0x390d), 0x00 },
++	{ CCI_REG8(0x390e), 0x19 },
++	{ CCI_REG8(0x390f), 0x00 },
++	{ CCI_REG8(0x3910), 0x4c },
++	{ CCI_REG8(0x391d), 0x04 },
++	{ CCI_REG8(0x391e), 0x00 },
++	{ CCI_REG8(0x3920), 0x00 },
++	{ CCI_REG8(0x3921), 0x4c },
++	{ CCI_REG8(0x3922), 0x00 },
++	{ CCI_REG8(0x3923), 0x19 },
++	{ CCI_REG8(0x3924), 0x00 },
++	{ CCI_REG8(0x3925), 0x4c },
++	{ CCI_REG8(0x3926), 0x00 },
++	{ CCI_REG8(0x3927), 0x19 },
++	{ CCI_REG8(0x3933), 0x0a },
++	{ CCI_REG8(0x3934), 0x28 },
++	{ CCI_REG8(0x3935), 0x18 },
++	{ CCI_REG8(0x3936), 0x08 },
++	{ CCI_REG8(0x3937), 0x13 },
++	{ CCI_REG8(0x3940), 0x68 },
++	{ CCI_REG8(0x3942), 0x02 },
++	{ CCI_REG8(0x3943), 0x33 },
++	{ CCI_REG8(0x3e01), 0xa8 },
++	{ CCI_REG8(0x3e02), 0x40 },
++	{ CCI_REG8(0x3e09), 0x20 },
++	{ CCI_REG8(0x3e1b), 0x35 },
++	{ CCI_REG8(0x3e25), 0x03 },
++	{ CCI_REG8(0x3e26), 0x20 },
++	{ CCI_REG8(0x5781), 0x04 },
++	{ CCI_REG8(0x5782), 0x04 },
++	{ CCI_REG8(0x5783), 0x02 },
++	{ CCI_REG8(0x5784), 0x02 },
++	{ CCI_REG8(0x5785), 0x40 },
++	{ CCI_REG8(0x5786), 0x20 },
++	{ CCI_REG8(0x5787), 0x18 },
++	{ CCI_REG8(0x5788), 0x10 },
++	{ CCI_REG8(0x5789), 0x10 },
++	{ CCI_REG8(0x578a), 0x30 },
++	{ CCI_REG8(0x57a4), 0xa0 },
++	{ CCI_REG8(0x320e), 0x06 },
++	{ CCI_REG8(0x320f), 0x54 },
++	{ CCI_REG8(0x0100), 0x01 },
++};
++
++static const struct sc3235_mode sc3235_modes[] = {
++	{
++		.width = SC3235_NATIVE_WIDTH,
++		.height = SC3235_NATIVE_HEIGHT,
++		.hblank = SC3235_HTS_MIN - SC3235_NATIVE_WIDTH,
++		.vblank = 1620 - SC3235_NATIVE_HEIGHT,
++		.regs = sc3235_1296p25_regs,
++		.regs_num = ARRAY_SIZE(sc3235_1296p25_regs),
++	},
++};
++
++struct sc3235_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++};
++
++struct sc3235 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc3235_ctrls ctrls;
++
++	const struct sc3235_mode *mode;
++};
++
++static inline struct sc3235 *to_sc3235(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc3235, sd);
++}
++
++static inline struct v4l2_subdev *sc3235_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc3235, ctrls.handler)->sd;
++}
++
++static void sc3235_fill_format(const struct sc3235_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc3235_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc3235_fill_format(&sc3235_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc3235_modes[0].width;
++	crop->height = sc3235_modes[0].height;
++
++	return 0;
++}
++
++static int sc3235_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc3235_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc3235_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc3235_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc3235_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc3235_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC3235_NATIVE_WIDTH;
++		sel->r.height = SC3235_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc3235_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc3235 *sc3235 = to_sc3235(sd);
++	const struct sc3235_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc3235_modes, ARRAY_SIZE(sc3235_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc3235_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc3235->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc3235->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc3235->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc3235_exposure_update(struct sc3235 *sc3235)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc3235->ctrls.vblank->val + sc3235->mode->height -
++		       SC3235_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xffffU);
++
++	__v4l2_ctrl_modify_range(sc3235->ctrls.exposure,
++				 SC3235_EXPOSURE_MIN, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc3235_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc3235 *sc3235 = to_sc3235(sc3235_ctrl_to_sd(ctrl));
++	const struct sc3235_gain *gain;
++	u32 hts, it;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc3235_exposure_update(sc3235);
++
++	if (!pm_runtime_get_if_in_use(sc3235->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		it = (u32)ctrl->val * 2;
++		ret = cci_write(sc3235->regmap, SC3235_REG_GROUP_HOLD, 0x00, NULL);
++		ret = cci_write(sc3235->regmap, SC3235_REG_EXPOSURE_H,
++				(it >> 12) & 0x0f, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_EXPOSURE_M,
++				(it >> 4) & 0xff, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_EXPOSURE_L,
++				(it & 0x0f) << 4, &ret);
++		if (it < 0x250)
++			ret = cci_write(sc3235->regmap, SC3235_REG_EXPOSURE_BAND,
++					0x14, &ret);
++		else if (it > 0x450)
++			ret = cci_write(sc3235->regmap, SC3235_REG_EXPOSURE_BAND,
++					0x04, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_GROUP_HOLD, 0x30, &ret);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		gain = &sc3235_gains[ctrl->val];
++		ret = cci_write(sc3235->regmap, SC3235_REG_GROUP_HOLD, 0x00, NULL);
++		ret = cci_write(sc3235->regmap, CCI_REG8(0x3632),
++				gain->reg_3632, &ret);
++		ret = cci_write(sc3235->regmap, CCI_REG8(0x3306),
++				gain->reg_3306, &ret);
++		ret = cci_write(sc3235->regmap, CCI_REG8(0x330b),
++				gain->reg_330b, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_GROUP_HOLD, 0x30, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_GAIN_L,
++				gain->reg_3e09, &ret);
++		ret = cci_write(sc3235->regmap, SC3235_REG_GAIN_H,
++				gain->reg_3e08, &ret);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc3235->mode->width;
++		ret = cci_write(sc3235->regmap, SC3235_REG_HTS, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc3235->regmap, SC3235_REG_VTS,
++				ctrl->val + sc3235->mode->height, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc3235->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc3235_ctrl_ops = {
++	.s_ctrl = sc3235_set_ctrl,
++};
++
++static int sc3235_init_controls(struct sc3235 *sc3235)
++{
++	struct v4l2_ctrl_handler *hdl = &sc3235->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc3235_ctrl_ops;
++	unsigned int hblank_max = SC3235_HTS_MAX - SC3235_NATIVE_WIDTH;
++	unsigned int vblank_max = SC3235_VTS_MAX - SC3235_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 8);
++	if (ret)
++		return ret;
++
++	sc3235->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC3235_PIXEL_RATE, SC3235_PIXEL_RATE, 1,
++				  SC3235_PIXEL_RATE);
++
++	sc3235->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc3235_link_freqs);
++	if (sc3235->ctrls.link_freq)
++		sc3235->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc3235->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
++				  SC3235_EXPOSURE_MIN,
++				  sc3235_modes[0].vblank +
++				  sc3235_modes[0].height -
++				  SC3235_EXPOSURE_OFFSET, 1,
++				  sc3235_modes[0].vblank +
++				  sc3235_modes[0].height -
++				  SC3235_EXPOSURE_OFFSET);
++
++	sc3235->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc3235_gains) - 1, 1, 0);
++
++	sc3235->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC3235_HTS_MIN - SC3235_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc3235_modes[0].hblank);
++
++	sc3235->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc3235_modes[0].vblank, vblank_max, 1,
++				  sc3235_modes[0].vblank);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc3235->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc3235->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc3235_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC3235_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC3235_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc3235_power_on(struct device *dev)
++{
++	struct sc3235 *sc3235 = to_sc3235(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc3235->supplies),
++				    sc3235->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc3235->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc3235->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc3235->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc3235->supplies), sc3235->supplies);
++
++	return ret;
++}
++
++static int sc3235_power_off(struct device *dev)
++{
++	struct sc3235 *sc3235 = to_sc3235(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc3235->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc3235->powerdown_gpio, 1);
++	clk_disable_unprepare(sc3235->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc3235->supplies), sc3235->supplies);
++
++	return 0;
++}
++
++static int sc3235_identify_module(struct sc3235 *sc3235)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc3235->regmap, SC3235_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc3235->regmap, SC3235_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC3235_CHIP_ID_H || id_l != SC3235_CHIP_ID_L) {
++		dev_err(sc3235->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC3235_CHIP_ID_H, SC3235_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc3235_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc3235 *sc3235 = to_sc3235(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc3235->regmap, sc3235->mode->regs,
++			    sc3235->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc3235->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc3235->regmap, SC3235_REG_STREAM, SC3235_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc3235_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc3235 *sc3235 = to_sc3235(sd);
++	int ret = 0;
++
++	cci_write(sc3235->regmap, SC3235_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc3235_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc3235_pad_ops = {
++	.enum_mbus_code = sc3235_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc3235_set_pad_format,
++	.get_selection = sc3235_get_selection,
++	.enum_frame_size = sc3235_enum_frame_size,
++	.enable_streams = sc3235_enable_streams,
++	.disable_streams = sc3235_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc3235_subdev_ops = {
++	.video = &sc3235_video_ops,
++	.pad = &sc3235_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc3235_subdev_internal_ops = {
++	.init_state = sc3235_init_state,
++};
++
++static const char * const sc3235_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc3235_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc3235 *sc3235;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc3235 = devm_kzalloc(dev, sizeof(*sc3235), GFP_KERNEL);
++	if (!sc3235)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc3235->sd, client, &sc3235_subdev_ops);
++	sc3235->sd.internal_ops = &sc3235_subdev_internal_ops;
++
++	ret = sc3235_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc3235->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc3235->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc3235->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc3235->xclk);
++	if (xclk_freq != SC3235_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc3235->supplies); i++)
++		sc3235->supplies[i].supply = sc3235_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc3235->supplies),
++				      sc3235->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc3235->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc3235->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc3235->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc3235->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc3235->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc3235->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc3235->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc3235->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc3235->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc3235_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc3235_identify_module(sc3235);
++	if (ret)
++		goto err_power_off;
++
++	sc3235->mode = &sc3235_modes[0];
++
++	ret = sc3235_init_controls(sc3235);
++	if (ret)
++		goto err_power_off;
++
++	sc3235->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc3235->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc3235->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc3235->sd.entity, 1, &sc3235->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc3235->sd.state_lock = sc3235->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc3235->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc3235->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc3235->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc3235->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc3235->ctrls.handler);
++err_power_off:
++	sc3235_power_off(dev);
++
++	return ret;
++}
++
++static void sc3235_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc3235 *sc3235 = to_sc3235(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc3235->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc3235_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc3235_dt_ids[] = {
++	{ .compatible = "smartens,sc3235" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc3235_dt_ids);
++
++static const struct i2c_device_id sc3235_id[] = {
++	{ .name = "sc3235" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc3235_id);
++
++static const struct dev_pm_ops sc3235_pm_ops = {
++	RUNTIME_PM_OPS(sc3235_power_off, sc3235_power_on, NULL)
++};
++
++static struct i2c_driver sc3235_i2c_driver = {
++	.driver = {
++		.name = "sc3235",
++		.of_match_table = sc3235_dt_ids,
++		.pm = pm_ptr(&sc3235_pm_ops),
++	},
++	.probe = sc3235_probe,
++	.remove = sc3235_remove,
++	.id_table = sc3235_id,
++};
++
++module_i2c_driver(sc3235_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC3235 sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc3235.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc3235.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC3235 2304x1296 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC3235 is a 2304x1296 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc3235
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc3235";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <243000000>;
++                };
++            };
++        };
++    };
++
++...

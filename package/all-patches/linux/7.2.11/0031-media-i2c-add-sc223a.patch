@@ -1,0 +1,1261 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC223A sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC223A image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc223a_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc223a.c
+@@ -0,0 +1,1136 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC223A CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc223a_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC223A_CHIP_ID_H			0xcb
++#define SC223A_CHIP_ID_L			0x3e
++
++#define SC223A_REG_CHIP_ID_H		CCI_REG8(0x3107)
++#define SC223A_REG_CHIP_ID_L		CCI_REG8(0x3108)
++
++#define SC223A_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC223A_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS/VTS are big-endian 16-bit values. */
++#define SC223A_REG_HTS			CCI_REG16(0x320c)
++#define SC223A_REG_VTS			CCI_REG16(0x320e)
++
++/*
++ * Exposure is a 20-bit value in units of half lines, laid out
++ * big-endian over 0x3e00..0x3e02.
++ */
++#define SC223A_REG_EXPOSURE		CCI_REG24(0x3e00)
++
++#define SC223A_REG_GAIN_3E07		CCI_REG8(0x3e07)
++#define SC223A_REG_GAIN_3E09		CCI_REG8(0x3e09)
++#define SC223A_REG_FLIP			CCI_REG8(0x3221)
++#define SC223A_FLIP_BOTH		0x60
++
++#define SC223A_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC223A_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC223A_NATIVE_WIDTH		1920U
++#define SC223A_NATIVE_HEIGHT		1080U
++
++/* 2 lanes, 405 Mbit/s per lane. */
++#define SC223A_LINK_FREQ			202500000
++/* 2250 x 1440 pixels at 25 fps. */
++#define SC223A_PIXEL_RATE			81000000
++
++static const s64 sc223a_link_freqs[] = {
++	SC223A_LINK_FREQ,
++};
++
++#define SC223A_HTS_MIN			2250U
++#define SC223A_HTS_MAX			0xffffU
++#define SC223A_VTS_MAX			0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC223A_EXPOSURE_OFFSET		5
++
++struct sc223a_gain {
++	u8 reg_3e07; u8 reg_3e09;
++};
++
++static const struct sc223a_gain sc223a_gains[] = {
++	{ 0x80, 0x00 }, /* 0x00000 */
++	{ 0x84, 0x00 }, /* 0x00b5d */
++	{ 0x88, 0x00 }, /* 0x01663 */
++	{ 0x8c, 0x00 }, /* 0x02118 */
++	{ 0x90, 0x00 }, /* 0x02b80 */
++	{ 0x94, 0x00 }, /* 0x0359e */
++	{ 0x98, 0x00 }, /* 0x03f77 */
++	{ 0x9c, 0x00 }, /* 0x0490f */
++	{ 0xa0, 0x00 }, /* 0x05269 */
++	{ 0xa4, 0x00 }, /* 0x05b88 */
++	{ 0xa8, 0x00 }, /* 0x0646e */
++	{ 0xac, 0x00 }, /* 0x06d1f */
++	{ 0xb0, 0x00 }, /* 0x0759c */
++	{ 0xb4, 0x00 }, /* 0x07de9 */
++	{ 0xb8, 0x00 }, /* 0x08607 */
++	{ 0xbc, 0x00 }, /* 0x08df8 */
++	{ 0xc0, 0x00 }, /* 0x095bf */
++	{ 0xc4, 0x00 }, /* 0x09d5d */
++	{ 0xc8, 0x00 }, /* 0x0a4d3 */
++	{ 0xcc, 0x00 }, /* 0x0ac23 */
++	{ 0xd0, 0x00 }, /* 0x0b34f */
++	{ 0xd4, 0x00 }, /* 0x0ba58 */
++	{ 0xd8, 0x00 }, /* 0x0c13f */
++	{ 0xdc, 0x00 }, /* 0x0c806 */
++	{ 0xe0, 0x00 }, /* 0x0ceae */
++	{ 0xe4, 0x00 }, /* 0x0d537 */
++	{ 0x80, 0x40 }, /* 0x0db21 */
++	{ 0x84, 0x40 }, /* 0x0e67e */
++	{ 0x88, 0x40 }, /* 0x0f185 */
++	{ 0x8c, 0x40 }, /* 0x0fc39 */
++	{ 0x90, 0x40 }, /* 0x106a1 */
++	{ 0x94, 0x40 }, /* 0x110bf */
++	{ 0x98, 0x40 }, /* 0x11a99 */
++	{ 0x9c, 0x40 }, /* 0x12431 */
++	{ 0xa0, 0x40 }, /* 0x12d8a */
++	{ 0xa4, 0x40 }, /* 0x136a9 */
++	{ 0xa8, 0x40 }, /* 0x13f8f */
++	{ 0xac, 0x40 }, /* 0x14840 */
++	{ 0xb0, 0x40 }, /* 0x150be */
++	{ 0xb4, 0x40 }, /* 0x1590a */
++	{ 0xb8, 0x40 }, /* 0x16128 */
++	{ 0xbc, 0x40 }, /* 0x1691a */
++	{ 0xc0, 0x40 }, /* 0x170e0 */
++	{ 0xc4, 0x40 }, /* 0x1787e */
++	{ 0xc8, 0x40 }, /* 0x17ff4 */
++	{ 0xcc, 0x40 }, /* 0x18744 */
++	{ 0xd0, 0x40 }, /* 0x18e70 */
++	{ 0xd4, 0x40 }, /* 0x19579 */
++	{ 0xd8, 0x40 }, /* 0x19c60 */
++	{ 0xdc, 0x40 }, /* 0x1a327 */
++	{ 0xe0, 0x40 }, /* 0x1a9cf */
++	{ 0xe4, 0x40 }, /* 0x1b058 */
++	{ 0xe8, 0x40 }, /* 0x1b6c5 */
++	{ 0xec, 0x40 }, /* 0x1bd15 */
++	{ 0xf0, 0x40 }, /* 0x1c34a */
++	{ 0xf4, 0x40 }, /* 0x1c965 */
++	{ 0xf8, 0x40 }, /* 0x1cf66 */
++	{ 0xfc, 0x40 }, /* 0x1d54f */
++	{ 0x80, 0x48 }, /* 0x1db20 */
++	{ 0x84, 0x48 }, /* 0x1e67d */
++	{ 0x88, 0x48 }, /* 0x1f184 */
++	{ 0x8c, 0x48 }, /* 0x1fc38 */
++	{ 0x90, 0x48 }, /* 0x206a0 */
++	{ 0x94, 0x48 }, /* 0x210be */
++	{ 0x98, 0x48 }, /* 0x21a98 */
++	{ 0x9c, 0x48 }, /* 0x22430 */
++	{ 0xa0, 0x48 }, /* 0x22d89 */
++	{ 0xa4, 0x48 }, /* 0x236a8 */
++	{ 0xa8, 0x48 }, /* 0x23f8e */
++	{ 0xac, 0x48 }, /* 0x2483f */
++	{ 0xb0, 0x48 }, /* 0x250bd */
++	{ 0xb4, 0x48 }, /* 0x25909 */
++	{ 0xb8, 0x48 }, /* 0x26127 */
++	{ 0xbc, 0x48 }, /* 0x26919 */
++	{ 0xc0, 0x48 }, /* 0x270df */
++	{ 0xc4, 0x48 }, /* 0x2787d */
++	{ 0xc8, 0x48 }, /* 0x27ff3 */
++	{ 0xcc, 0x48 }, /* 0x28743 */
++	{ 0xd0, 0x48 }, /* 0x28e6f */
++	{ 0xd4, 0x48 }, /* 0x29578 */
++	{ 0xd8, 0x48 }, /* 0x29c5f */
++	{ 0xdc, 0x48 }, /* 0x2a326 */
++	{ 0xe0, 0x48 }, /* 0x2a9ce */
++	{ 0xe4, 0x48 }, /* 0x2b057 */
++	{ 0xe8, 0x48 }, /* 0x2b6c4 */
++	{ 0xec, 0x48 }, /* 0x2bd14 */
++	{ 0xf0, 0x48 }, /* 0x2c349 */
++	{ 0xf4, 0x48 }, /* 0x2c964 */
++	{ 0xf8, 0x48 }, /* 0x2cf65 */
++	{ 0xfc, 0x48 }, /* 0x2d54e */
++	{ 0x80, 0x49 }, /* 0x2db1f */
++	{ 0x84, 0x49 }, /* 0x2e67c */
++	{ 0x88, 0x49 }, /* 0x2f183 */
++	{ 0x8c, 0x49 }, /* 0x2fc37 */
++	{ 0x90, 0x49 }, /* 0x3069f */
++	{ 0x94, 0x49 }, /* 0x310bd */
++	{ 0x98, 0x49 }, /* 0x31a97 */
++	{ 0x9c, 0x49 }, /* 0x3242f */
++	{ 0xa0, 0x49 }, /* 0x32d88 */
++	{ 0xa4, 0x49 }, /* 0x336a7 */
++	{ 0xa8, 0x49 }, /* 0x33f8d */
++	{ 0xac, 0x49 }, /* 0x3483e */
++	{ 0xb0, 0x49 }, /* 0x350bc */
++	{ 0xb4, 0x49 }, /* 0x35908 */
++	{ 0xb8, 0x49 }, /* 0x36126 */
++	{ 0xbc, 0x49 }, /* 0x36918 */
++	{ 0xc0, 0x49 }, /* 0x370de */
++	{ 0xc4, 0x49 }, /* 0x3787c */
++	{ 0xc8, 0x49 }, /* 0x37ff2 */
++	{ 0xcc, 0x49 }, /* 0x38742 */
++	{ 0xd0, 0x49 }, /* 0x38e6e */
++	{ 0xd4, 0x49 }, /* 0x39577 */
++	{ 0xd8, 0x49 }, /* 0x39c5e */
++	{ 0xdc, 0x49 }, /* 0x3a325 */
++	{ 0xe0, 0x49 }, /* 0x3a9cd */
++	{ 0xe4, 0x49 }, /* 0x3b056 */
++	{ 0xe8, 0x49 }, /* 0x3b6c3 */
++	{ 0xec, 0x49 }, /* 0x3bd13 */
++	{ 0xf0, 0x49 }, /* 0x3c348 */
++	{ 0xf4, 0x49 }, /* 0x3c963 */
++	{ 0xf8, 0x49 }, /* 0x3cf64 */
++	{ 0xfc, 0x49 }, /* 0x3d54d */
++	{ 0x80, 0x4b }, /* 0x3db1e */
++	{ 0x84, 0x4b }, /* 0x3e67b */
++	{ 0x88, 0x4b }, /* 0x3f182 */
++	{ 0x8c, 0x4b }, /* 0x3fc36 */
++	{ 0x90, 0x4b }, /* 0x4069e */
++	{ 0x94, 0x4b }, /* 0x410bc */
++	{ 0x98, 0x4b }, /* 0x41a96 */
++	{ 0x9c, 0x4b }, /* 0x4242e */
++	{ 0xa0, 0x4b }, /* 0x42d87 */
++	{ 0xa4, 0x4b }, /* 0x436a6 */
++	{ 0xa8, 0x4b }, /* 0x43f8c */
++	{ 0xac, 0x4b }, /* 0x4483d */
++	{ 0xb0, 0x4b }, /* 0x450bb */
++	{ 0xb4, 0x4b }, /* 0x45907 */
++	{ 0xb8, 0x4b }, /* 0x46125 */
++	{ 0xbc, 0x4b }, /* 0x46917 */
++	{ 0xc0, 0x4b }, /* 0x470dd */
++	{ 0xc4, 0x4b }, /* 0x4787b */
++	{ 0xc8, 0x4b }, /* 0x47ff1 */
++	{ 0xcc, 0x4b }, /* 0x48741 */
++	{ 0xd0, 0x4b }, /* 0x48e6d */
++	{ 0xd4, 0x4b }, /* 0x49576 */
++	{ 0xd8, 0x4b }, /* 0x49c5d */
++	{ 0xdc, 0x4b }, /* 0x4a324 */
++	{ 0xe0, 0x4b }, /* 0x4a9cc */
++	{ 0xe4, 0x4b }, /* 0x4b055 */
++	{ 0xe8, 0x4b }, /* 0x4b6c2 */
++	{ 0xec, 0x4b }, /* 0x4bd12 */
++	{ 0xf0, 0x4b }, /* 0x4c347 */
++	{ 0xf4, 0x4b }, /* 0x4c962 */
++	{ 0xf8, 0x4b }, /* 0x4cf63 */
++	{ 0xfc, 0x4b }, /* 0x4d54c */
++	{ 0x80, 0x4f }, /* 0x4db1d */
++	{ 0x84, 0x4f }, /* 0x4e67a */
++	{ 0x88, 0x4f }, /* 0x4f181 */
++	{ 0x8c, 0x4f }, /* 0x4fc35 */
++	{ 0x90, 0x4f }, /* 0x5069d */
++	{ 0x94, 0x4f }, /* 0x510bb */
++	{ 0x98, 0x4f }, /* 0x51a95 */
++	{ 0x9c, 0x4f }, /* 0x5242d */
++	{ 0xa0, 0x4f }, /* 0x52d86 */
++	{ 0xa4, 0x4f }, /* 0x536a5 */
++	{ 0xa8, 0x4f }, /* 0x53f8b */
++	{ 0xac, 0x4f }, /* 0x5483c */
++	{ 0xb0, 0x4f }, /* 0x550ba */
++	{ 0xb4, 0x4f }, /* 0x55906 */
++	{ 0xb8, 0x4f }, /* 0x56124 */
++	{ 0xbc, 0x4f }, /* 0x56916 */
++	{ 0xc0, 0x4f }, /* 0x570dc */
++	{ 0xc4, 0x4f }, /* 0x5787a */
++	{ 0xc8, 0x4f }, /* 0x57ff0 */
++	{ 0xcc, 0x4f }, /* 0x58740 */
++	{ 0xd0, 0x4f }, /* 0x58e6c */
++	{ 0xd4, 0x4f }, /* 0x59575 */
++	{ 0xd8, 0x4f }, /* 0x59c5c */
++	{ 0xdc, 0x4f }, /* 0x5a323 */
++	{ 0xe0, 0x4f }, /* 0x5a9cb */
++	{ 0xe4, 0x4f }, /* 0x5b054 */
++	{ 0xe8, 0x4f }, /* 0x5b6c1 */
++	{ 0xec, 0x4f }, /* 0x5bd11 */
++	{ 0xf0, 0x4f }, /* 0x5c346 */
++	{ 0xf4, 0x4f }, /* 0x5c961 */
++	{ 0xf8, 0x4f }, /* 0x5cf62 */
++	{ 0xfc, 0x4f }, /* 0x5d54b */
++	{ 0x80, 0x5f }, /* 0x5db1c */
++	{ 0x84, 0x5f }, /* 0x5e679 */
++	{ 0x88, 0x5f }, /* 0x5f180 */
++	{ 0x8c, 0x5f }, /* 0x5fc34 */
++	{ 0x90, 0x5f }, /* 0x6069c */
++	{ 0x94, 0x5f }, /* 0x610ba */
++	{ 0x98, 0x5f }, /* 0x61a94 */
++	{ 0x9c, 0x5f }, /* 0x6242c */
++	{ 0xa0, 0x5f }, /* 0x62d85 */
++	{ 0xa4, 0x5f }, /* 0x636a4 */
++	{ 0xa8, 0x5f }, /* 0x63f8a */
++	{ 0xac, 0x5f }, /* 0x6483b */
++	{ 0xb0, 0x5f }, /* 0x650b9 */
++	{ 0xb4, 0x5f }, /* 0x65905 */
++	{ 0xb8, 0x5f }, /* 0x66123 */
++	{ 0xbc, 0x5f }, /* 0x66915 */
++	{ 0xc0, 0x5f }, /* 0x670db */
++	{ 0xc4, 0x5f }, /* 0x67879 */
++	{ 0xc8, 0x5f }, /* 0x67fef */
++	{ 0xcc, 0x5f }, /* 0x6873f */
++	{ 0xd0, 0x5f }, /* 0x68e6b */
++	{ 0xd4, 0x5f }, /* 0x69574 */
++	{ 0xd8, 0x5f }, /* 0x69c5b */
++	{ 0xdc, 0x5f }, /* 0x6a322 */
++	{ 0xe0, 0x5f }, /* 0x6a9ca */
++	{ 0xe4, 0x5f }, /* 0x6b053 */
++	{ 0xe8, 0x5f }, /* 0x6b6c0 */
++	{ 0xec, 0x5f }, /* 0x6bd10 */
++	{ 0xf0, 0x5f }, /* 0x6c345 */
++	{ 0xf4, 0x5f }, /* 0x6c960 */
++	{ 0xf8, 0x5f }, /* 0x6cf61 */
++	{ 0xfc, 0x5f }, /* 0x6d54a */
++};
++
++struct sc223a_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc223a_1920h25_regs[] = {
++	{ CCI_REG8(0x0100), 0x00 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x37f9), 0x80 },
++	{ CCI_REG8(0x301f), 0x08 },
++	{ CCI_REG8(0x30b8), 0x44 },
++	{ CCI_REG8(0x320c), 0x08 },
++	{ CCI_REG8(0x320d), 0xca },
++	{ CCI_REG8(0x320e), 0x05 },
++	{ CCI_REG8(0x320f), 0xa0 },
++	{ CCI_REG8(0x3253), 0x0c },
++	{ CCI_REG8(0x3281), 0x80 },
++	{ CCI_REG8(0x3301), 0x06 },
++	{ CCI_REG8(0x3302), 0x12 },
++	{ CCI_REG8(0x3306), 0x84 },
++	{ CCI_REG8(0x3309), 0x60 },
++	{ CCI_REG8(0x330a), 0x00 },
++	{ CCI_REG8(0x330b), 0xe0 },
++	{ CCI_REG8(0x330d), 0x20 },
++	{ CCI_REG8(0x3314), 0x15 },
++	{ CCI_REG8(0x331e), 0x41 },
++	{ CCI_REG8(0x331f), 0x51 },
++	{ CCI_REG8(0x3320), 0x0a },
++	{ CCI_REG8(0x3326), 0x0e },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x3334), 0x40 },
++	{ CCI_REG8(0x335d), 0x60 },
++	{ CCI_REG8(0x335e), 0x06 },
++	{ CCI_REG8(0x335f), 0x08 },
++	{ CCI_REG8(0x3364), 0x56 },
++	{ CCI_REG8(0x337a), 0x06 },
++	{ CCI_REG8(0x337b), 0x0e },
++	{ CCI_REG8(0x337c), 0x02 },
++	{ CCI_REG8(0x337d), 0x0a },
++	{ CCI_REG8(0x3390), 0x03 },
++	{ CCI_REG8(0x3391), 0x0f },
++	{ CCI_REG8(0x3392), 0x1f },
++	{ CCI_REG8(0x3393), 0x06 },
++	{ CCI_REG8(0x3394), 0x06 },
++	{ CCI_REG8(0x3395), 0x06 },
++	{ CCI_REG8(0x3396), 0x48 },
++	{ CCI_REG8(0x3397), 0x4b },
++	{ CCI_REG8(0x3398), 0x5f },
++	{ CCI_REG8(0x3399), 0x06 },
++	{ CCI_REG8(0x339a), 0x06 },
++	{ CCI_REG8(0x339b), 0x9c },
++	{ CCI_REG8(0x339c), 0x9c },
++	{ CCI_REG8(0x33a2), 0x04 },
++	{ CCI_REG8(0x33a3), 0x0a },
++	{ CCI_REG8(0x33ad), 0x1c },
++	{ CCI_REG8(0x33af), 0x40 },
++	{ CCI_REG8(0x33b1), 0x80 },
++	{ CCI_REG8(0x33b3), 0x20 },
++	{ CCI_REG8(0x349f), 0x02 },
++	{ CCI_REG8(0x34a6), 0x48 },
++	{ CCI_REG8(0x34a7), 0x4b },
++	{ CCI_REG8(0x34a8), 0x20 },
++	{ CCI_REG8(0x34a9), 0x20 },
++	{ CCI_REG8(0x34f8), 0x5f },
++	{ CCI_REG8(0x34f9), 0x10 },
++	{ CCI_REG8(0x3616), 0xac },
++	{ CCI_REG8(0x3630), 0xc0 },
++	{ CCI_REG8(0x3631), 0x86 },
++	{ CCI_REG8(0x3632), 0x26 },
++	{ CCI_REG8(0x3633), 0x32 },
++	{ CCI_REG8(0x3637), 0x29 },
++	{ CCI_REG8(0x363a), 0x84 },
++	{ CCI_REG8(0x363b), 0x04 },
++	{ CCI_REG8(0x363c), 0x08 },
++	{ CCI_REG8(0x3641), 0x3a },
++	{ CCI_REG8(0x364f), 0x39 },
++	{ CCI_REG8(0x3670), 0xce },
++	{ CCI_REG8(0x3674), 0xc0 },
++	{ CCI_REG8(0x3675), 0xc0 },
++	{ CCI_REG8(0x3676), 0xc0 },
++	{ CCI_REG8(0x3677), 0x86 },
++	{ CCI_REG8(0x3678), 0x8b },
++	{ CCI_REG8(0x3679), 0x8c },
++	{ CCI_REG8(0x367c), 0x4b },
++	{ CCI_REG8(0x367d), 0x5f },
++	{ CCI_REG8(0x367e), 0x4b },
++	{ CCI_REG8(0x367f), 0x5f },
++	{ CCI_REG8(0x3690), 0x62 },
++	{ CCI_REG8(0x3691), 0x63 },
++	{ CCI_REG8(0x3692), 0x63 },
++	{ CCI_REG8(0x3699), 0x86 },
++	{ CCI_REG8(0x369a), 0x92 },
++	{ CCI_REG8(0x369b), 0xa4 },
++	{ CCI_REG8(0x369c), 0x48 },
++	{ CCI_REG8(0x369d), 0x4b },
++	{ CCI_REG8(0x36a2), 0x4b },
++	{ CCI_REG8(0x36a3), 0x4f },
++	{ CCI_REG8(0x36ea), 0x09 },
++	{ CCI_REG8(0x36eb), 0x0c },
++	{ CCI_REG8(0x36ec), 0x1c },
++	{ CCI_REG8(0x36ed), 0x28 },
++	{ CCI_REG8(0x370f), 0x01 },
++	{ CCI_REG8(0x3721), 0x6c },
++	{ CCI_REG8(0x3722), 0x09 },
++	{ CCI_REG8(0x3724), 0x41 },
++	{ CCI_REG8(0x3725), 0xc4 },
++	{ CCI_REG8(0x37b0), 0x09 },
++	{ CCI_REG8(0x37b1), 0x09 },
++	{ CCI_REG8(0x37b2), 0x09 },
++	{ CCI_REG8(0x37b3), 0x48 },
++	{ CCI_REG8(0x37b4), 0x5f },
++	{ CCI_REG8(0x37fa), 0x09 },
++	{ CCI_REG8(0x37fb), 0x32 },
++	{ CCI_REG8(0x37fc), 0x10 },
++	{ CCI_REG8(0x37fd), 0x37 },
++	{ CCI_REG8(0x3900), 0x19 },
++	{ CCI_REG8(0x3901), 0x02 },
++	{ CCI_REG8(0x3905), 0xb8 },
++	{ CCI_REG8(0x391b), 0x82 },
++	{ CCI_REG8(0x391c), 0x00 },
++	{ CCI_REG8(0x391f), 0x04 },
++	{ CCI_REG8(0x3933), 0x81 },
++	{ CCI_REG8(0x3934), 0x4c },
++	{ CCI_REG8(0x393f), 0xff },
++	{ CCI_REG8(0x3940), 0x73 },
++	{ CCI_REG8(0x3942), 0x01 },
++	{ CCI_REG8(0x3943), 0x4d },
++	{ CCI_REG8(0x3946), 0x20 },
++	{ CCI_REG8(0x3957), 0x86 },
++	{ CCI_REG8(0x3e01), 0x95 },
++	{ CCI_REG8(0x3e02), 0x60 },
++	{ CCI_REG8(0x3e28), 0xc4 },
++	{ CCI_REG8(0x440e), 0x02 },
++	{ CCI_REG8(0x4501), 0xc0 },
++	{ CCI_REG8(0x4509), 0x14 },
++	{ CCI_REG8(0x450d), 0x11 },
++	{ CCI_REG8(0x4518), 0x00 },
++	{ CCI_REG8(0x451b), 0x0a },
++	{ CCI_REG8(0x4819), 0x07 },
++	{ CCI_REG8(0x481b), 0x04 },
++	{ CCI_REG8(0x481d), 0x0e },
++	{ CCI_REG8(0x481f), 0x03 },
++	{ CCI_REG8(0x4821), 0x09 },
++	{ CCI_REG8(0x4823), 0x04 },
++	{ CCI_REG8(0x4825), 0x03 },
++	{ CCI_REG8(0x4827), 0x03 },
++	{ CCI_REG8(0x4829), 0x06 },
++	{ CCI_REG8(0x501c), 0x00 },
++	{ CCI_REG8(0x501d), 0x60 },
++	{ CCI_REG8(0x501e), 0x00 },
++	{ CCI_REG8(0x501f), 0x40 },
++	{ CCI_REG8(0x5799), 0x06 },
++	{ CCI_REG8(0x5ae0), 0xfe },
++	{ CCI_REG8(0x5ae1), 0x40 },
++	{ CCI_REG8(0x5ae2), 0x38 },
++	{ CCI_REG8(0x5ae3), 0x30 },
++	{ CCI_REG8(0x5ae4), 0x28 },
++	{ CCI_REG8(0x5ae5), 0x38 },
++	{ CCI_REG8(0x5ae6), 0x30 },
++	{ CCI_REG8(0x5ae7), 0x28 },
++	{ CCI_REG8(0x5ae8), 0x3f },
++	{ CCI_REG8(0x5ae9), 0x34 },
++	{ CCI_REG8(0x5aea), 0x2c },
++	{ CCI_REG8(0x5aeb), 0x3f },
++	{ CCI_REG8(0x5aec), 0x34 },
++	{ CCI_REG8(0x5aed), 0x2c },
++	{ CCI_REG8(0x5aee), 0xfe },
++	{ CCI_REG8(0x5aef), 0x40 },
++	{ CCI_REG8(0x5af4), 0x38 },
++	{ CCI_REG8(0x5af5), 0x30 },
++	{ CCI_REG8(0x5af6), 0x28 },
++	{ CCI_REG8(0x5af7), 0x38 },
++	{ CCI_REG8(0x5af8), 0x30 },
++	{ CCI_REG8(0x5af9), 0x28 },
++	{ CCI_REG8(0x5afa), 0x3f },
++	{ CCI_REG8(0x5afb), 0x34 },
++	{ CCI_REG8(0x5afc), 0x2c },
++	{ CCI_REG8(0x5afd), 0x3f },
++	{ CCI_REG8(0x5afe), 0x34 },
++	{ CCI_REG8(0x5aff), 0x2c },
++	{ CCI_REG8(0x36e9), 0x53 },
++	{ CCI_REG8(0x37f9), 0x53 },
++};
++
++static const struct sc223a_mode sc223a_modes[] = {
++	{
++		.width = SC223A_NATIVE_WIDTH,
++		.height = SC223A_NATIVE_HEIGHT,
++		.hblank = SC223A_HTS_MIN - SC223A_NATIVE_WIDTH,
++		.vblank = 1440 - SC223A_NATIVE_HEIGHT,
++		.regs = sc223a_1920h25_regs,
++		.regs_num = ARRAY_SIZE(sc223a_1920h25_regs),
++	},
++};
++
++struct sc223a_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc223a {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc223a_ctrls ctrls;
++
++	const struct sc223a_mode *mode;
++};
++
++static inline struct sc223a *to_sc223a(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc223a, sd);
++}
++
++static inline struct v4l2_subdev *sc223a_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc223a, ctrls.handler)->sd;
++}
++
++static void sc223a_fill_format(const struct sc223a_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc223a_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc223a_fill_format(&sc223a_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc223a_modes[0].width;
++	crop->height = sc223a_modes[0].height;
++
++	return 0;
++}
++
++static int sc223a_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc223a_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc223a_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc223a_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc223a_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc223a_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC223A_NATIVE_WIDTH;
++		sel->r.height = SC223A_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc223a_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc223a *sc223a = to_sc223a(sd);
++	const struct sc223a_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc223a_modes, ARRAY_SIZE(sc223a_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc223a_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc223a->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc223a->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc223a->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc223a_exposure_update(struct sc223a *sc223a)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc223a->ctrls.vblank->val + sc223a->mode->height -
++		       SC223A_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xfffffU >> 5);
++
++	__v4l2_ctrl_modify_range(sc223a->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc223a_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc223a *sc223a = to_sc223a(sc223a_ctrl_to_sd(ctrl));
++	u32 hts;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc223a_exposure_update(sc223a);
++
++	if (!pm_runtime_get_if_in_use(sc223a->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(sc223a->regmap, SC223A_REG_EXPOSURE,
++				(u32)ctrl->val << 5, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++	{
++		const struct sc223a_gain *gain = &sc223a_gains[ctrl->val];
++
++		ret = cci_write(sc223a->regmap, SC223A_REG_GAIN_3E07,
++				gain->reg_3e07, NULL);
++		ret = cci_write(sc223a->regmap, SC223A_REG_GAIN_3E09,
++				gain->reg_3e09, &ret);
++		break;
++	}
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc223a->mode->width;
++		ret = cci_write(sc223a->regmap, SC223A_REG_HTS, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc223a->regmap, SC223A_REG_VTS,
++				ctrl->val + sc223a->mode->height, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc223a->regmap, SC223A_REG_FLIP,
++				      SC223A_FLIP_BOTH,
++				      ctrl->val ? SC223A_FLIP_BOTH : 0,
++				      NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc223a->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc223a_ctrl_ops = {
++	.s_ctrl = sc223a_set_ctrl,
++};
++
++static int sc223a_init_controls(struct sc223a *sc223a)
++{
++	struct v4l2_ctrl_handler *hdl = &sc223a->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc223a_ctrl_ops;
++	unsigned int hblank_max = SC223A_HTS_MAX - SC223A_NATIVE_WIDTH;
++	unsigned int vblank_max = SC223A_VTS_MAX - SC223A_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	sc223a->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC223A_PIXEL_RATE, SC223A_PIXEL_RATE, 1,
++				  SC223A_PIXEL_RATE);
++
++	sc223a->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc223a_link_freqs);
++	if (sc223a->ctrls.link_freq)
++		sc223a->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc223a->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  sc223a_modes[0].vblank +
++				  sc223a_modes[0].height -
++				  SC223A_EXPOSURE_OFFSET, 1,
++				  sc223a_modes[0].vblank +
++				  sc223a_modes[0].height -
++				  SC223A_EXPOSURE_OFFSET);
++
++	sc223a->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc223a_gains) - 1, 1, 0);
++
++	sc223a->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC223A_HTS_MIN - SC223A_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc223a_modes[0].hblank);
++
++	sc223a->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc223a_modes[0].vblank, vblank_max, 1,
++				  sc223a_modes[0].vblank);
++
++	sc223a->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						0, 1, 1, 0);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc223a->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc223a->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc223a_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC223A_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC223A_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc223a_power_on(struct device *dev)
++{
++	struct sc223a *sc223a = to_sc223a(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc223a->supplies),
++				    sc223a->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc223a->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc223a->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc223a->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc223a->supplies), sc223a->supplies);
++
++	return ret;
++}
++
++static int sc223a_power_off(struct device *dev)
++{
++	struct sc223a *sc223a = to_sc223a(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc223a->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc223a->powerdown_gpio, 1);
++	clk_disable_unprepare(sc223a->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc223a->supplies), sc223a->supplies);
++
++	return 0;
++}
++
++static int sc223a_identify_module(struct sc223a *sc223a)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc223a->regmap, SC223A_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc223a->regmap, SC223A_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC223A_CHIP_ID_H || id_l != SC223A_CHIP_ID_L) {
++		dev_err(sc223a->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC223A_CHIP_ID_H, SC223A_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc223a_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc223a *sc223a = to_sc223a(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc223a->regmap, sc223a->mode->regs,
++			    sc223a->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc223a->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc223a->regmap, SC223A_REG_STREAM, SC223A_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc223a_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc223a *sc223a = to_sc223a(sd);
++	int ret = 0;
++
++	cci_write(sc223a->regmap, SC223A_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc223a_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc223a_pad_ops = {
++	.enum_mbus_code = sc223a_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc223a_set_pad_format,
++	.get_selection = sc223a_get_selection,
++	.enum_frame_size = sc223a_enum_frame_size,
++	.enable_streams = sc223a_enable_streams,
++	.disable_streams = sc223a_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc223a_subdev_ops = {
++	.video = &sc223a_video_ops,
++	.pad = &sc223a_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc223a_subdev_internal_ops = {
++	.init_state = sc223a_init_state,
++};
++
++static const char * const sc223a_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc223a_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc223a *sc223a;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc223a = devm_kzalloc(dev, sizeof(*sc223a), GFP_KERNEL);
++	if (!sc223a)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc223a->sd, client, &sc223a_subdev_ops);
++	sc223a->sd.internal_ops = &sc223a_subdev_internal_ops;
++
++	ret = sc223a_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc223a->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc223a->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc223a->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc223a->xclk);
++	if (xclk_freq != SC223A_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc223a->supplies); i++)
++		sc223a->supplies[i].supply = sc223a_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc223a->supplies),
++				      sc223a->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc223a->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc223a->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc223a->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc223a->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc223a->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc223a->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc223a->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc223a->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc223a->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc223a_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc223a_identify_module(sc223a);
++	if (ret)
++		goto err_power_off;
++
++	sc223a->mode = &sc223a_modes[0];
++
++	ret = sc223a_init_controls(sc223a);
++	if (ret)
++		goto err_power_off;
++
++	sc223a->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc223a->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc223a->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc223a->sd.entity, 1, &sc223a->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc223a->sd.state_lock = sc223a->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc223a->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc223a->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc223a->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc223a->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc223a->ctrls.handler);
++err_power_off:
++	sc223a_power_off(dev);
++
++	return ret;
++}
++
++static void sc223a_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc223a *sc223a = to_sc223a(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc223a->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc223a_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc223a_dt_ids[] = {
++	{ .compatible = "smartens,sc223a" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc223a_dt_ids);
++
++static const struct i2c_device_id sc223a_id[] = {
++	{ .name = "sc223a" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc223a_id);
++
++static const struct dev_pm_ops sc223a_pm_ops = {
++	RUNTIME_PM_OPS(sc223a_power_off, sc223a_power_on, NULL)
++};
++
++static struct i2c_driver sc223a_i2c_driver = {
++	.driver = {
++		.name = "sc223a",
++		.of_match_table = sc223a_dt_ids,
++		.pm = pm_ptr(&sc223a_pm_ops),
++	},
++	.probe = sc223a_probe,
++	.remove = sc223a_remove,
++	.id_table = sc223a_id,
++};
++
++module_i2c_driver(sc223a_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC223A sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc223a.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc223a.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC223A 1920x1080 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC223A is a 1920x1080 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc223a
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc223a";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <202500000>;
++                };
++            };
++        };
++    };
++
++...

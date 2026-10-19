@@ -35,7 +35,13 @@ name = os.path.basename(src)
 frag = open(src).read()
 
 # Labels the fragment opens with "&label" that the leaf chain must define.
-wanted = sorted(set(re.findall(r'&([A-Za-z_][A-Za-z0-9_]*)', frag)))
+# Labels the fragment defines itself are internal references, not leaf labels.
+frag_labels = set(
+    m.group(1)
+    for m in re.finditer(r'(?:^|[:{\s])([A-Za-z_][A-Za-z0-9_]*)[ \t]*:',
+                         frag, re.M))
+wanted = sorted(set(re.findall(r'&([A-Za-z_][A-Za-z0-9_]*)', frag)) -
+                frag_labels)
 adds_leds = bool(re.search(r'^[ \t]*gpio-leds[ \t]*\{', frag, re.M))
 adds_keys = bool(re.search(r'^[ \t]*gpio-keys[ \t]*\{', frag, re.M))
 

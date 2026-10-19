@@ -1,0 +1,287 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: enable the Thingino T31 sensor drivers
+
+Add the Kconfig and Makefile entries for the mainline V4L2 subdev drivers
+ported from the Ingenic T31 vendor sensor modules, and register the JX
+Imaging DT vendor prefix.
+
+The drivers are selected per camera by open-tx-isp from the sensor name,
+so only the driver a board needs is built into the kernel.
+
+WARNING: only the SC2336 driver has been validated on hardware. The other
+drivers in this series are register-level ports from the Ingenic vendor
+sources and have not been tested on a camera.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -843,6 +843,226 @@
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called sc2336.
+ 
++config VIDEO_GC2083
++	select V4L2_CCI_I2C
++	tristate "GalaxyCore GC2083 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the GalaxyCore GC2083
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called gc2083.
++
++config VIDEO_GC4023
++	select V4L2_CCI_I2C
++	tristate "GalaxyCore GC4023 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the GalaxyCore GC4023
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called gc4023.
++
++config VIDEO_IMX327
++	select V4L2_CCI_I2C
++	tristate "Sony IMX327 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the Sony IMX327
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called imx327.
++
++config VIDEO_JXF23
++	select V4L2_CCI_I2C
++	tristate "JX Imaging JXF23 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the JX Imaging JXF23
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called jxf23.
++
++config VIDEO_JXF37
++	select V4L2_CCI_I2C
++	tristate "JX Imaging JXF37 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the JX Imaging JXF37
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called jxf37.
++
++config VIDEO_JXQ03
++	select V4L2_CCI_I2C
++	tristate "JX Imaging JXQ03 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the JX Imaging JXQ03
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called jxq03.
++
++config VIDEO_JXQ03P
++	select V4L2_CCI_I2C
++	tristate "JX Imaging JXQ03P sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the JX Imaging JXQ03P
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called jxq03p.
++
++config VIDEO_OS03B10
++	select V4L2_CCI_I2C
++	tristate "OmniVision OS03B10 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the OmniVision OS03B10
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called os03b10.
++
++config VIDEO_SC223A
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC223A sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC223A
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc223a.
++
++config VIDEO_SC231HAI
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC231HAI sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC231HAI
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc231hai.
++
++config VIDEO_SC2332
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC2332 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC2332
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc2332.
++
++config VIDEO_SC2336P
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC2336P sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC2336P
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc2336p.
++
++config VIDEO_SC301IOT
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC301IOT sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC301IOT
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc301iot.
++
++config VIDEO_SC3235
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC3235 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC3235
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc3235.
++
++config VIDEO_SC3335
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC3335 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC3335
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc3335.
++
++config VIDEO_SC3336
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC3336 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC3336
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc3336.
++
++config VIDEO_SC3338
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC3338 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC3338
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc3338.
++
++config VIDEO_SC401AI
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC401AI sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC401AI
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc401ai.
++
++config VIDEO_SC4236
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC4236 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC4236
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc4236.
++
++config VIDEO_SC4336
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC4336 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC4336
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc4336.
++
++config VIDEO_SC4336P
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC4336P sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC4336P
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc4336p.
++
++config VIDEO_SC5235
++	select V4L2_CCI_I2C
++	tristate "SmartSens SC5235 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the SmartSens SC5235
++	  camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sc5235.
++
+ config VIDEO_T4KA3
+ 	tristate "Toshiba T4KA3 sensor support"
+ 	depends on ACPI || COMPILE_TEST
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -144,6 +144,28 @@
+ obj-$(CONFIG_VIDEO_SONY_BTF_MPX) += sony-btf-mpx.o
+ obj-$(CONFIG_VIDEO_ST_MIPID02) += st-mipid02.o
+ obj-$(CONFIG_VIDEO_SC2336) += sc2336.o
++obj-$(CONFIG_VIDEO_GC2083) += gc2083.o
++obj-$(CONFIG_VIDEO_GC4023) += gc4023.o
++obj-$(CONFIG_VIDEO_IMX327) += imx327.o
++obj-$(CONFIG_VIDEO_JXF23) += jxf23.o
++obj-$(CONFIG_VIDEO_JXF37) += jxf37.o
++obj-$(CONFIG_VIDEO_JXQ03) += jxq03.o
++obj-$(CONFIG_VIDEO_JXQ03P) += jxq03p.o
++obj-$(CONFIG_VIDEO_OS03B10) += os03b10.o
++obj-$(CONFIG_VIDEO_SC223A) += sc223a.o
++obj-$(CONFIG_VIDEO_SC231HAI) += sc231hai.o
++obj-$(CONFIG_VIDEO_SC2332) += sc2332.o
++obj-$(CONFIG_VIDEO_SC2336P) += sc2336p.o
++obj-$(CONFIG_VIDEO_SC301IOT) += sc301iot.o
++obj-$(CONFIG_VIDEO_SC3235) += sc3235.o
++obj-$(CONFIG_VIDEO_SC3335) += sc3335.o
++obj-$(CONFIG_VIDEO_SC3336) += sc3336.o
++obj-$(CONFIG_VIDEO_SC3338) += sc3338.o
++obj-$(CONFIG_VIDEO_SC401AI) += sc401ai.o
++obj-$(CONFIG_VIDEO_SC4236) += sc4236.o
++obj-$(CONFIG_VIDEO_SC4336) += sc4336.o
++obj-$(CONFIG_VIDEO_SC4336P) += sc4336p.o
++obj-$(CONFIG_VIDEO_SC5235) += sc5235.o
+ obj-$(CONFIG_VIDEO_T4KA3) += t4ka3.o
+ obj-$(CONFIG_VIDEO_TC358743) += tc358743.o
+ obj-$(CONFIG_VIDEO_TC358746) += tc358746.o
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -877,6 +877,8 @@
+     description: JTY
+   "^jutouch,.*":
+     description: JuTouch Technology Co., Ltd.
++  "^jxf,.*":
++    description: JX Imaging
+   "^kam,.*":
+     description: Kamstrup A/S
+   "^karo,.*":

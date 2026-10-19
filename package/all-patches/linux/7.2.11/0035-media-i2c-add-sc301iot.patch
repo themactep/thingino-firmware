@@ -1,0 +1,1182 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC301IOT sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC301IOT image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc301iot_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc301iot.c
+@@ -0,0 +1,1057 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC301IOT CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc301iot_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC301IOT_CHIP_ID_H			0xcc
++#define SC301IOT_CHIP_ID_L			0x40
++
++#define SC301IOT_REG_CHIP_ID_H		CCI_REG8(0x3107)
++#define SC301IOT_REG_CHIP_ID_L		CCI_REG8(0x3108)
++
++#define SC301IOT_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC301IOT_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS/VTS are big-endian 16-bit values. */
++#define SC301IOT_REG_HTS			CCI_REG16(0x320c)
++#define SC301IOT_REG_VTS			CCI_REG16(0x320e)
++
++/*
++ * Exposure is a 20-bit value in units of half lines, laid out
++ * big-endian over 0x3e00..0x3e02.
++ */
++#define SC301IOT_REG_EXPOSURE		CCI_REG24(0x3e00)
++
++#define SC301IOT_REG_GAIN_3E09		CCI_REG8(0x3e09)
++#define SC301IOT_REG_GAIN_3E07		CCI_REG8(0x3e07)
++#define SC301IOT_REG_FLIP		CCI_REG8(0x3221)
++#define SC301IOT_FLIP_BOTH		0x60
++
++#define SC301IOT_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC301IOT_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC301IOT_NATIVE_WIDTH		2048U
++#define SC301IOT_NATIVE_HEIGHT		1536U
++
++/* 2 lanes, 540 Mbit/s per lane. */
++#define SC301IOT_LINK_FREQ			270000000
++/* 2250 x 1920 pixels at 25 fps. */
++#define SC301IOT_PIXEL_RATE			108000000
++
++static const s64 sc301iot_link_freqs[] = {
++	SC301IOT_LINK_FREQ,
++};
++
++#define SC301IOT_HTS_MIN			2250U
++#define SC301IOT_HTS_MAX			0xffffU
++#define SC301IOT_VTS_MAX			0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC301IOT_EXPOSURE_OFFSET		5
++
++struct sc301iot_gain {
++	u8 reg_3e09; u8 reg_3e07;
++};
++
++static const struct sc301iot_gain sc301iot_gains[] = {
++	{ 0x00, 0x80 }, /* 0x00000 */
++	{ 0x00, 0x84 }, /* 0x00b46 */
++	{ 0x00, 0x88 }, /* 0x01690 */
++	{ 0x00, 0x8c }, /* 0x0212e */
++	{ 0x00, 0x90 }, /* 0x02b80 */
++	{ 0x00, 0x94 }, /* 0x0358a */
++	{ 0x00, 0x98 }, /* 0x03f9f */
++	{ 0x00, 0x9c }, /* 0x04923 */
++	{ 0x00, 0xa0 }, /* 0x05269 */
++	{ 0x00, 0xa4 }, /* 0x05b76 */
++	{ 0x00, 0xa8 }, /* 0x06492 */
++	{ 0x00, 0xac }, /* 0x06d31 */
++	{ 0x00, 0xb0 }, /* 0x0759d */
++	{ 0x00, 0xb4 }, /* 0x07dd9 */
++	{ 0x00, 0xb8 }, /* 0x08629 */
++	{ 0x00, 0xbc }, /* 0x08e09 */
++	{ 0x00, 0xc0 }, /* 0x095c0 */
++	{ 0x00, 0xc4 }, /* 0x09d4e */
++	{ 0x00, 0xc8 }, /* 0x0a4f2 */
++	{ 0x40, 0x80 }, /* 0x0a65c */
++	{ 0x40, 0x84 }, /* 0x0b1b7 */
++	{ 0x40, 0x88 }, /* 0x0bcf5 */
++	{ 0x40, 0x8c }, /* 0x0c76f */
++	{ 0x40, 0x90 }, /* 0x0d1d5 */
++	{ 0x40, 0x94 }, /* 0x0dbf2 */
++	{ 0x40, 0x98 }, /* 0x0e5fd */
++	{ 0x40, 0x9c }, /* 0x0ef93 */
++	{ 0x40, 0xa0 }, /* 0x0f8ba */
++	{ 0x40, 0xa4 }, /* 0x101d7 */
++	{ 0x40, 0xa8 }, /* 0x10aea */
++	{ 0x40, 0xac }, /* 0x1136c */
++	{ 0x40, 0xb0 }, /* 0x11be9 */
++	{ 0x40, 0xb4 }, /* 0x12434 */
++	{ 0x40, 0xb8 }, /* 0x12c7c */
++	{ 0x40, 0xbc }, /* 0x13442 */
++	{ 0x40, 0xc0 }, /* 0x13c08 */
++	{ 0x40, 0xc4 }, /* 0x143a4 */
++	{ 0x40, 0xc8 }, /* 0x14b40 */
++	{ 0x40, 0xcc }, /* 0x15269 */
++	{ 0x40, 0xd0 }, /* 0x15995 */
++	{ 0x40, 0xd4 }, /* 0x1609d */
++	{ 0x40, 0xd8 }, /* 0x167a7 */
++	{ 0x40, 0xdc }, /* 0x16e6d */
++	{ 0x40, 0xe0 }, /* 0x174f1 */
++	{ 0x40, 0xe4 }, /* 0x17b7a */
++	{ 0x40, 0xe8 }, /* 0x18207 */
++	{ 0x40, 0xec }, /* 0x18856 */
++	{ 0x40, 0xf0 }, /* 0x18e6a */
++	{ 0x40, 0xf4 }, /* 0x19484 */
++	{ 0x40, 0xf8 }, /* 0x19aa4 */
++	{ 0x40, 0xfc }, /* 0x1a08c */
++	{ 0x48, 0x80 }, /* 0x1a65c */
++	{ 0x48, 0x84 }, /* 0x1b19a */
++	{ 0x48, 0x88 }, /* 0x1bcf5 */
++	{ 0x48, 0x8c }, /* 0x1c78b */
++	{ 0x48, 0x90 }, /* 0x1d1d5 */
++	{ 0x48, 0x94 }, /* 0x1dbf2 */
++	{ 0x48, 0x98 }, /* 0x1e5fd */
++	{ 0x48, 0x9c }, /* 0x1ef7a */
++	{ 0x48, 0xa0 }, /* 0x1f8d2 */
++	{ 0x48, 0xa4 }, /* 0x201d7 */
++	{ 0x48, 0xa8 }, /* 0x20aea */
++	{ 0x48, 0xac }, /* 0x21382 */
++	{ 0x48, 0xb0 }, /* 0x21bff */
++	{ 0x48, 0xb4 }, /* 0x22434 */
++	{ 0x48, 0xb8 }, /* 0x22c7c */
++	{ 0x48, 0xbc }, /* 0x2346b */
++	{ 0x48, 0xc0 }, /* 0x23c1c */
++	{ 0x48, 0xc4 }, /* 0x243a4 */
++	{ 0x48, 0xc8 }, /* 0x24b54 */
++	{ 0x48, 0xcc }, /* 0x2528f */
++	{ 0x48, 0xd0 }, /* 0x259a7 */
++	{ 0x48, 0xd4 }, /* 0x260af */
++	{ 0x48, 0xd8 }, /* 0x267b9 */
++	{ 0x48, 0xdc }, /* 0x26e6d */
++	{ 0x48, 0xe0 }, /* 0x27502 */
++	{ 0x48, 0xe4 }, /* 0x27b8b */
++	{ 0x48, 0xe8 }, /* 0x28217 */
++	{ 0x48, 0xec }, /* 0x28856 */
++	{ 0x48, 0xf0 }, /* 0x28e8a */
++	{ 0x48, 0xf4 }, /* 0x29494 */
++	{ 0x48, 0xf8 }, /* 0x29ab3 */
++	{ 0x48, 0xfc }, /* 0x2a09b */
++	{ 0x49, 0x80 }, /* 0x2a65c */
++	{ 0x49, 0x84 }, /* 0x2b1a9 */
++	{ 0x49, 0x88 }, /* 0x2bce7 */
++	{ 0x49, 0x8c }, /* 0x2c78b */
++	{ 0x49, 0x90 }, /* 0x2d1e3 */
++	{ 0x49, 0x94 }, /* 0x2dbe5 */
++	{ 0x49, 0x98 }, /* 0x2e5fd */
++	{ 0x49, 0x9c }, /* 0x2ef7a */
++	{ 0x49, 0xa0 }, /* 0x2f8c6 */
++	{ 0x49, 0xa4 }, /* 0x301d7 */
++	{ 0x49, 0xa8 }, /* 0x30aea */
++	{ 0x49, 0xac }, /* 0x3138e */
++	{ 0x49, 0xb0 }, /* 0x31bff */
++	{ 0x49, 0xb4 }, /* 0x32434 */
++	{ 0x49, 0xb8 }, /* 0x32c86 */
++	{ 0x49, 0xbc }, /* 0x33461 */
++	{ 0x49, 0xc0 }, /* 0x33c1c */
++	{ 0x49, 0xc4 }, /* 0x343ae */
++	{ 0x49, 0xc8 }, /* 0x34b4a */
++	{ 0x49, 0xcc }, /* 0x3528f */
++	{ 0x49, 0xd0 }, /* 0x359a7 */
++	{ 0x49, 0xd4 }, /* 0x360a6 */
++	{ 0x49, 0xd8 }, /* 0x367b9 */
++	{ 0x49, 0xdc }, /* 0x36e6d */
++	{ 0x49, 0xe0 }, /* 0x3750b */
++	{ 0x49, 0xe4 }, /* 0x37b8b */
++	{ 0x49, 0xe8 }, /* 0x38217 */
++	{ 0x49, 0xec }, /* 0x3885e */
++	{ 0x49, 0xf0 }, /* 0x38e82 */
++	{ 0x49, 0xf4 }, /* 0x39494 */
++	{ 0x49, 0xf8 }, /* 0x39abb */
++	{ 0x49, 0xfc }, /* 0x3a093 */
++	{ 0x4b, 0x80 }, /* 0x3a65c */
++	{ 0x4b, 0x84 }, /* 0x3b1a1 */
++	{ 0x4b, 0x88 }, /* 0x3bcee */
++	{ 0x4b, 0x8c }, /* 0x3c78b */
++	{ 0x4b, 0x90 }, /* 0x3d1dc */
++	{ 0x4b, 0x94 }, /* 0x3dbe5 */
++	{ 0x4b, 0x98 }, /* 0x3e5fd */
++	{ 0x4b, 0x9c }, /* 0x3ef80 */
++	{ 0x4b, 0xa0 }, /* 0x3f8c6 */
++	{ 0x4b, 0xa4 }, /* 0x401d1 */
++	{ 0x4b, 0xa8 }, /* 0x40af0 */
++	{ 0x4b, 0xac }, /* 0x4138e */
++	{ 0x4b, 0xb0 }, /* 0x41bf9 */
++	{ 0x4b, 0xb4 }, /* 0x42434 */
++	{ 0x4b, 0xb8 }, /* 0x42c86 */
++	{ 0x4b, 0xbc }, /* 0x43466 */
++	{ 0x4b, 0xc0 }, /* 0x43c1c */
++	{ 0x4b, 0xc4 }, /* 0x443a9 */
++	{ 0x4b, 0xc8 }, /* 0x44b4f */
++	{ 0x4b, 0xcc }, /* 0x4528f */
++	{ 0x4b, 0xd0 }, /* 0x459ac */
++	{ 0x4b, 0xd4 }, /* 0x460a6 */
++	{ 0x4b, 0xd8 }, /* 0x467b9 */
++	{ 0x4b, 0xdc }, /* 0x46e71 */
++	{ 0x4b, 0xe0 }, /* 0x4750b */
++	{ 0x4b, 0xe4 }, /* 0x47b86 */
++	{ 0x4b, 0xe8 }, /* 0x4821b */
++	{ 0x4b, 0xec }, /* 0x4885e */
++	{ 0x4b, 0xf0 }, /* 0x48e86 */
++	{ 0x4b, 0xf4 }, /* 0x49494 */
++	{ 0x4b, 0xf8 }, /* 0x49abb */
++	{ 0x4b, 0xfc }, /* 0x4a097 */
++	{ 0x4f, 0x80 }, /* 0x4a65c */
++	{ 0x4f, 0x84 }, /* 0x4b1a1 */
++	{ 0x4f, 0x88 }, /* 0x4bcee */
++	{ 0x4f, 0x8c }, /* 0x4c78b */
++	{ 0x4f, 0x90 }, /* 0x4d1dc */
++	{ 0x4f, 0x94 }, /* 0x4dbe5 */
++	{ 0x4f, 0x98 }, /* 0x4e5fd */
++	{ 0x4f, 0x9c }, /* 0x4ef80 */
++	{ 0x4f, 0xa0 }, /* 0x4f8c6 */
++	{ 0x4f, 0xa4 }, /* 0x501d1 */
++	{ 0x4f, 0xa8 }, /* 0x50af0 */
++	{ 0x4f, 0xac }, /* 0x5138e */
++	{ 0x4f, 0xb0 }, /* 0x51bf9 */
++	{ 0x4f, 0xb4 }, /* 0x52434 */
++	{ 0x4f, 0xb8 }, /* 0x52c86 */
++	{ 0x4f, 0xbc }, /* 0x53466 */
++	{ 0x4f, 0xc0 }, /* 0x53c1c */
++	{ 0x4f, 0xc4 }, /* 0x543a9 */
++	{ 0x4f, 0xc8 }, /* 0x54b4f */
++	{ 0x4f, 0xcc }, /* 0x5528f */
++	{ 0x4f, 0xd0 }, /* 0x559ac */
++	{ 0x4f, 0xd4 }, /* 0x560a6 */
++	{ 0x4f, 0xd8 }, /* 0x567b9 */
++	{ 0x4f, 0xdc }, /* 0x56e71 */
++	{ 0x4f, 0xe0 }, /* 0x5750b */
++	{ 0x4f, 0xe4 }, /* 0x57b86 */
++	{ 0x4f, 0xe8 }, /* 0x5821b */
++	{ 0x4f, 0xec }, /* 0x5885e */
++	{ 0x4f, 0xf0 }, /* 0x58e86 */
++	{ 0x4f, 0xf4 }, /* 0x59494 */
++	{ 0x4f, 0xf8 }, /* 0x59abb */
++	{ 0x4f, 0xfc }, /* 0x5a097 */
++};
++
++struct sc301iot_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc301iot_2048h25_regs[] = {
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x0100), 0x00 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x37f9), 0x80 },
++	{ CCI_REG8(0x301c), 0x78 },
++	{ CCI_REG8(0x301f), 0x05 },
++	{ CCI_REG8(0x30b8), 0x44 },
++	{ CCI_REG8(0x3208), 0x08 },
++	{ CCI_REG8(0x3209), 0x00 },
++	{ CCI_REG8(0x320a), 0x06 },
++	{ CCI_REG8(0x320b), 0x00 },
++	{ CCI_REG8(0x320c), 0x04 },
++	{ CCI_REG8(0x320d), 0x65 },
++	{ CCI_REG8(0x320e), 0x07 },
++	{ CCI_REG8(0x320f), 0x80 },
++	{ CCI_REG8(0x3214), 0x11 },
++	{ CCI_REG8(0x3215), 0x11 },
++	{ CCI_REG8(0x3223), 0xc0 },
++	{ CCI_REG8(0x3253), 0x0c },
++	{ CCI_REG8(0x3274), 0x09 },
++	{ CCI_REG8(0x3301), 0x08 },
++	{ CCI_REG8(0x3306), 0x58 },
++	{ CCI_REG8(0x3308), 0x08 },
++	{ CCI_REG8(0x330a), 0x00 },
++	{ CCI_REG8(0x330b), 0xe0 },
++	{ CCI_REG8(0x330e), 0x10 },
++	{ CCI_REG8(0x331e), 0x55 },
++	{ CCI_REG8(0x331f), 0x7d },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x3334), 0x40 },
++	{ CCI_REG8(0x335e), 0x06 },
++	{ CCI_REG8(0x335f), 0x08 },
++	{ CCI_REG8(0x3364), 0x5e },
++	{ CCI_REG8(0x337c), 0x02 },
++	{ CCI_REG8(0x337d), 0x0a },
++	{ CCI_REG8(0x3390), 0x01 },
++	{ CCI_REG8(0x3391), 0x03 },
++	{ CCI_REG8(0x3392), 0x07 },
++	{ CCI_REG8(0x3393), 0x08 },
++	{ CCI_REG8(0x3394), 0x08 },
++	{ CCI_REG8(0x3395), 0x08 },
++	{ CCI_REG8(0x3396), 0x08 },
++	{ CCI_REG8(0x3397), 0x09 },
++	{ CCI_REG8(0x3398), 0x1f },
++	{ CCI_REG8(0x3399), 0x08 },
++	{ CCI_REG8(0x339a), 0x20 },
++	{ CCI_REG8(0x339b), 0x40 },
++	{ CCI_REG8(0x339c), 0x78 },
++	{ CCI_REG8(0x33a2), 0x04 },
++	{ CCI_REG8(0x33ad), 0x0c },
++	{ CCI_REG8(0x33b1), 0x80 },
++	{ CCI_REG8(0x33b3), 0x30 },
++	{ CCI_REG8(0x33f9), 0x68 },
++	{ CCI_REG8(0x33fb), 0x88 },
++	{ CCI_REG8(0x33fc), 0x48 },
++	{ CCI_REG8(0x33fd), 0x5f },
++	{ CCI_REG8(0x349f), 0x03 },
++	{ CCI_REG8(0x34a6), 0x48 },
++	{ CCI_REG8(0x34a7), 0x5f },
++	{ CCI_REG8(0x34a8), 0x30 },
++	{ CCI_REG8(0x34a9), 0x30 },
++	{ CCI_REG8(0x34aa), 0x00 },
++	{ CCI_REG8(0x34ab), 0xf0 },
++	{ CCI_REG8(0x34ac), 0x01 },
++	{ CCI_REG8(0x34ad), 0x12 },
++	{ CCI_REG8(0x34f8), 0x5f },
++	{ CCI_REG8(0x34f9), 0x10 },
++	{ CCI_REG8(0x3630), 0xf0 },
++	{ CCI_REG8(0x3631), 0x85 },
++	{ CCI_REG8(0x3632), 0x74 },
++	{ CCI_REG8(0x3633), 0x22 },
++	{ CCI_REG8(0x3637), 0x4d },
++	{ CCI_REG8(0x3638), 0xcb },
++	{ CCI_REG8(0x363a), 0x8b },
++	{ CCI_REG8(0x3641), 0x00 },
++	{ CCI_REG8(0x3670), 0x4e },
++	{ CCI_REG8(0x3674), 0xf0 },
++	{ CCI_REG8(0x3675), 0xc0 },
++	{ CCI_REG8(0x3676), 0xc0 },
++	{ CCI_REG8(0x3677), 0x85 },
++	{ CCI_REG8(0x3678), 0x8a },
++	{ CCI_REG8(0x3679), 0x8d },
++	{ CCI_REG8(0x367c), 0x48 },
++	{ CCI_REG8(0x367d), 0x49 },
++	{ CCI_REG8(0x367e), 0x49 },
++	{ CCI_REG8(0x367f), 0x5f },
++	{ CCI_REG8(0x3690), 0x22 },
++	{ CCI_REG8(0x3691), 0x33 },
++	{ CCI_REG8(0x3692), 0x44 },
++	{ CCI_REG8(0x3699), 0x88 },
++	{ CCI_REG8(0x369a), 0x98 },
++	{ CCI_REG8(0x369b), 0xc4 },
++	{ CCI_REG8(0x369c), 0x48 },
++	{ CCI_REG8(0x369d), 0x5f },
++	{ CCI_REG8(0x36a2), 0x49 },
++	{ CCI_REG8(0x36a3), 0x4f },
++	{ CCI_REG8(0x36ea), 0x09 },
++	{ CCI_REG8(0x36eb), 0x0d },
++	{ CCI_REG8(0x36ec), 0x1c },
++	{ CCI_REG8(0x36ed), 0x25 },
++	{ CCI_REG8(0x370f), 0x01 },
++	{ CCI_REG8(0x3714), 0x80 },
++	{ CCI_REG8(0x3722), 0x09 },
++	{ CCI_REG8(0x3724), 0x41 },
++	{ CCI_REG8(0x3725), 0xc1 },
++	{ CCI_REG8(0x3728), 0x00 },
++	{ CCI_REG8(0x3771), 0x09 },
++	{ CCI_REG8(0x3772), 0x05 },
++	{ CCI_REG8(0x3773), 0x05 },
++	{ CCI_REG8(0x377a), 0x48 },
++	{ CCI_REG8(0x377b), 0x49 },
++	{ CCI_REG8(0x37fa), 0x06 },
++	{ CCI_REG8(0x37fb), 0x33 },
++	{ CCI_REG8(0x37fc), 0x11 },
++	{ CCI_REG8(0x37fd), 0x38 },
++	{ CCI_REG8(0x3905), 0x8d },
++	{ CCI_REG8(0x391d), 0x08 },
++	{ CCI_REG8(0x3922), 0x1a },
++	{ CCI_REG8(0x3926), 0x21 },
++	{ CCI_REG8(0x3933), 0x80 },
++	{ CCI_REG8(0x3934), 0x02 },
++	{ CCI_REG8(0x3937), 0x72 },
++	{ CCI_REG8(0x3939), 0x00 },
++	{ CCI_REG8(0x393a), 0x03 },
++	{ CCI_REG8(0x39dc), 0x02 },
++	{ CCI_REG8(0x3e00), 0x00 },
++	{ CCI_REG8(0x3e01), 0x77 },
++	{ CCI_REG8(0x3e02), 0xc0 },
++	{ CCI_REG8(0x3e03), 0x0b },
++	{ CCI_REG8(0x3e1b), 0x2a },
++	{ CCI_REG8(0x4407), 0x34 },
++	{ CCI_REG8(0x440e), 0x02 },
++	{ CCI_REG8(0x5001), 0x40 },
++	{ CCI_REG8(0x5007), 0x80 },
++	{ CCI_REG8(0x36e9), 0x24 },
++	{ CCI_REG8(0x37f9), 0x24 },
++};
++
++static const struct sc301iot_mode sc301iot_modes[] = {
++	{
++		.width = SC301IOT_NATIVE_WIDTH,
++		.height = SC301IOT_NATIVE_HEIGHT,
++		.hblank = SC301IOT_HTS_MIN - SC301IOT_NATIVE_WIDTH,
++		.vblank = 1920 - SC301IOT_NATIVE_HEIGHT,
++		.regs = sc301iot_2048h25_regs,
++		.regs_num = ARRAY_SIZE(sc301iot_2048h25_regs),
++	},
++};
++
++struct sc301iot_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc301iot {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc301iot_ctrls ctrls;
++
++	const struct sc301iot_mode *mode;
++};
++
++static inline struct sc301iot *to_sc301iot(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc301iot, sd);
++}
++
++static inline struct v4l2_subdev *sc301iot_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc301iot, ctrls.handler)->sd;
++}
++
++static void sc301iot_fill_format(const struct sc301iot_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc301iot_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc301iot_fill_format(&sc301iot_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc301iot_modes[0].width;
++	crop->height = sc301iot_modes[0].height;
++
++	return 0;
++}
++
++static int sc301iot_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc301iot_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc301iot_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc301iot_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc301iot_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc301iot_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC301IOT_NATIVE_WIDTH;
++		sel->r.height = SC301IOT_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc301iot_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc301iot *sc301iot = to_sc301iot(sd);
++	const struct sc301iot_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc301iot_modes, ARRAY_SIZE(sc301iot_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc301iot_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc301iot->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc301iot->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc301iot->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc301iot_exposure_update(struct sc301iot *sc301iot)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc301iot->ctrls.vblank->val + sc301iot->mode->height -
++		       SC301IOT_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xfffffU >> 4);
++
++	__v4l2_ctrl_modify_range(sc301iot->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc301iot_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc301iot *sc301iot = to_sc301iot(sc301iot_ctrl_to_sd(ctrl));
++	u32 hts;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc301iot_exposure_update(sc301iot);
++
++	if (!pm_runtime_get_if_in_use(sc301iot->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(sc301iot->regmap, SC301IOT_REG_EXPOSURE,
++				(u32)ctrl->val << 4, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++	{
++		const struct sc301iot_gain *gain = &sc301iot_gains[ctrl->val];
++
++		ret = cci_write(sc301iot->regmap, SC301IOT_REG_GAIN_3E09,
++				gain->reg_3e09, NULL);
++		ret = cci_write(sc301iot->regmap, SC301IOT_REG_GAIN_3E07,
++				gain->reg_3e07, &ret);
++		break;
++	}
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc301iot->mode->width;
++		ret = cci_write(sc301iot->regmap, SC301IOT_REG_HTS, hts / 2, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc301iot->regmap, SC301IOT_REG_VTS,
++				ctrl->val + sc301iot->mode->height, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc301iot->regmap, SC301IOT_REG_FLIP,
++				      SC301IOT_FLIP_BOTH,
++				      ctrl->val ? SC301IOT_FLIP_BOTH : 0,
++				      NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc301iot->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc301iot_ctrl_ops = {
++	.s_ctrl = sc301iot_set_ctrl,
++};
++
++static int sc301iot_init_controls(struct sc301iot *sc301iot)
++{
++	struct v4l2_ctrl_handler *hdl = &sc301iot->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc301iot_ctrl_ops;
++	unsigned int hblank_max = SC301IOT_HTS_MAX - SC301IOT_NATIVE_WIDTH;
++	unsigned int vblank_max = SC301IOT_VTS_MAX - SC301IOT_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	sc301iot->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC301IOT_PIXEL_RATE, SC301IOT_PIXEL_RATE, 1,
++				  SC301IOT_PIXEL_RATE);
++
++	sc301iot->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc301iot_link_freqs);
++	if (sc301iot->ctrls.link_freq)
++		sc301iot->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc301iot->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  sc301iot_modes[0].vblank +
++				  sc301iot_modes[0].height -
++				  SC301IOT_EXPOSURE_OFFSET, 1,
++				  sc301iot_modes[0].vblank +
++				  sc301iot_modes[0].height -
++				  SC301IOT_EXPOSURE_OFFSET);
++
++	sc301iot->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc301iot_gains) - 1, 1, 0);
++
++	sc301iot->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC301IOT_HTS_MIN - SC301IOT_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc301iot_modes[0].hblank);
++
++	sc301iot->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc301iot_modes[0].vblank, vblank_max, 1,
++				  sc301iot_modes[0].vblank);
++
++	sc301iot->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						  0, 1, 1, 0);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc301iot->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc301iot->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc301iot_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC301IOT_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC301IOT_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc301iot_power_on(struct device *dev)
++{
++	struct sc301iot *sc301iot = to_sc301iot(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc301iot->supplies),
++				    sc301iot->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc301iot->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc301iot->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc301iot->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc301iot->supplies), sc301iot->supplies);
++
++	return ret;
++}
++
++static int sc301iot_power_off(struct device *dev)
++{
++	struct sc301iot *sc301iot = to_sc301iot(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc301iot->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc301iot->powerdown_gpio, 1);
++	clk_disable_unprepare(sc301iot->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc301iot->supplies), sc301iot->supplies);
++
++	return 0;
++}
++
++static int sc301iot_identify_module(struct sc301iot *sc301iot)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc301iot->regmap, SC301IOT_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc301iot->regmap, SC301IOT_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC301IOT_CHIP_ID_H || id_l != SC301IOT_CHIP_ID_L) {
++		dev_err(sc301iot->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC301IOT_CHIP_ID_H, SC301IOT_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc301iot_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc301iot *sc301iot = to_sc301iot(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc301iot->regmap, sc301iot->mode->regs,
++			    sc301iot->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc301iot->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc301iot->regmap, SC301IOT_REG_STREAM, SC301IOT_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc301iot_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc301iot *sc301iot = to_sc301iot(sd);
++	int ret = 0;
++
++	cci_write(sc301iot->regmap, SC301IOT_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc301iot_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc301iot_pad_ops = {
++	.enum_mbus_code = sc301iot_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc301iot_set_pad_format,
++	.get_selection = sc301iot_get_selection,
++	.enum_frame_size = sc301iot_enum_frame_size,
++	.enable_streams = sc301iot_enable_streams,
++	.disable_streams = sc301iot_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc301iot_subdev_ops = {
++	.video = &sc301iot_video_ops,
++	.pad = &sc301iot_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc301iot_subdev_internal_ops = {
++	.init_state = sc301iot_init_state,
++};
++
++static const char * const sc301iot_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc301iot_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc301iot *sc301iot;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc301iot = devm_kzalloc(dev, sizeof(*sc301iot), GFP_KERNEL);
++	if (!sc301iot)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc301iot->sd, client, &sc301iot_subdev_ops);
++	sc301iot->sd.internal_ops = &sc301iot_subdev_internal_ops;
++
++	ret = sc301iot_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc301iot->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc301iot->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc301iot->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc301iot->xclk);
++	if (xclk_freq != SC301IOT_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc301iot->supplies); i++)
++		sc301iot->supplies[i].supply = sc301iot_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc301iot->supplies),
++				      sc301iot->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc301iot->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc301iot->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc301iot->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc301iot->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc301iot->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc301iot->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc301iot->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc301iot->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc301iot->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc301iot_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc301iot_identify_module(sc301iot);
++	if (ret)
++		goto err_power_off;
++
++	sc301iot->mode = &sc301iot_modes[0];
++
++	ret = sc301iot_init_controls(sc301iot);
++	if (ret)
++		goto err_power_off;
++
++	sc301iot->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc301iot->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc301iot->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc301iot->sd.entity, 1, &sc301iot->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc301iot->sd.state_lock = sc301iot->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc301iot->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc301iot->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc301iot->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc301iot->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc301iot->ctrls.handler);
++err_power_off:
++	sc301iot_power_off(dev);
++
++	return ret;
++}
++
++static void sc301iot_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc301iot *sc301iot = to_sc301iot(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc301iot->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc301iot_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc301iot_dt_ids[] = {
++	{ .compatible = "smartens,sc301iot" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc301iot_dt_ids);
++
++static const struct i2c_device_id sc301iot_id[] = {
++	{ .name = "sc301iot" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc301iot_id);
++
++static const struct dev_pm_ops sc301iot_pm_ops = {
++	RUNTIME_PM_OPS(sc301iot_power_off, sc301iot_power_on, NULL)
++};
++
++static struct i2c_driver sc301iot_i2c_driver = {
++	.driver = {
++		.name = "sc301iot",
++		.of_match_table = sc301iot_dt_ids,
++		.pm = pm_ptr(&sc301iot_pm_ops),
++	},
++	.probe = sc301iot_probe,
++	.remove = sc301iot_remove,
++	.id_table = sc301iot_id,
++};
++
++module_i2c_driver(sc301iot_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC301IOT sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc301iot.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc301iot.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC301IOT 2048x1536 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC301IOT is a 2048x1536 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc301iot
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc301iot";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <270000000>;
++                };
++            };
++        };
++    };
++
++...

@@ -1,0 +1,1224 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the SmartSens SC231HAI sensor driver
+
+Add a mainline V4L2 subdev driver for the SmartSens SC231HAI image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_sc231hai_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/sc231hai.c
+@@ -0,0 +1,1099 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * SmartSens SC231HAI CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_sc231hai_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define SC231HAI_CHIP_ID_H			0xcb
++#define SC231HAI_CHIP_ID_L			0x6a
++
++#define SC231HAI_REG_CHIP_ID_H		CCI_REG8(0x3107)
++#define SC231HAI_REG_CHIP_ID_L		CCI_REG8(0x3108)
++
++#define SC231HAI_REG_SOFTWARE_RESET		CCI_REG8(0x0103)
++#define SC231HAI_REG_STREAM			CCI_REG8(0x0100)
++
++/* HTS/VTS are big-endian 16-bit values. */
++#define SC231HAI_REG_HTS			CCI_REG16(0x320c)
++#define SC231HAI_REG_VTS			CCI_REG16(0x320e)
++
++/*
++ * Exposure is a 20-bit value in units of half lines, laid out
++ * big-endian over 0x3e00..0x3e02.
++ */
++#define SC231HAI_REG_EXPOSURE		CCI_REG24(0x3e00)
++
++#define SC231HAI_REG_GAIN_3E08		CCI_REG8(0x3e08)
++#define SC231HAI_REG_GAIN_3E09		CCI_REG8(0x3e09)
++#define SC231HAI_REG_FLIP		CCI_REG8(0x3221)
++#define SC231HAI_FLIP_BOTH		0x60
++
++#define SC231HAI_STREAM_ON			0x01
++
++/* External clock is 24 MHz. */
++#define SC231HAI_XCLK_FREQ			(24 * HZ_PER_MHZ)
++
++#define SC231HAI_NATIVE_WIDTH		1920U
++#define SC231HAI_NATIVE_HEIGHT		1080U
++
++/* 2 lanes, 396 Mbit/s per lane. */
++#define SC231HAI_LINK_FREQ			198000000
++/* 2200 x 1200 pixels at 30 fps. */
++#define SC231HAI_PIXEL_RATE			79200000
++
++static const s64 sc231hai_link_freqs[] = {
++	SC231HAI_LINK_FREQ,
++};
++
++#define SC231HAI_HTS_MIN			2200U
++#define SC231HAI_HTS_MAX			0xffffU
++#define SC231HAI_VTS_MAX			0xffffU
++
++/* Number of lines by which exposure must be less than VTS. */
++#define SC231HAI_EXPOSURE_OFFSET		8
++
++struct sc231hai_gain {
++	u8 reg_3e08; u8 reg_3e09;
++};
++
++static const struct sc231hai_gain sc231hai_gains[] = {
++	{ 0x00, 0x20 }, /* 0x00000 */
++	{ 0x00, 0x21 }, /* 0x00b46 */
++	{ 0x00, 0x22 }, /* 0x01690 */
++	{ 0x00, 0x23 }, /* 0x0212e */
++	{ 0x00, 0x24 }, /* 0x02b80 */
++	{ 0x00, 0x25 }, /* 0x0358a */
++	{ 0x00, 0x26 }, /* 0x03fa0 */
++	{ 0x00, 0x27 }, /* 0x04924 */
++	{ 0x00, 0x28 }, /* 0x0526a */
++	{ 0x00, 0x29 }, /* 0x05b76 */
++	{ 0x00, 0x2a }, /* 0x06493 */
++	{ 0x00, 0x2b }, /* 0x06d31 */
++	{ 0x00, 0x2c }, /* 0x0759d */
++	{ 0x00, 0x2d }, /* 0x07dd9 */
++	{ 0x00, 0x2e }, /* 0x08629 */
++	{ 0x00, 0x2f }, /* 0x08e0a */
++	{ 0x00, 0x30 }, /* 0x095c0 */
++	{ 0x00, 0x31 }, /* 0x09d4e */
++	{ 0x00, 0x32 }, /* 0x0a4f2 */
++	{ 0x00, 0x33 }, /* 0x0ac33 */
++	{ 0x00, 0x34 }, /* 0x0b350 */
++	{ 0x00, 0x35 }, /* 0x0ba4b */
++	{ 0x00, 0x36 }, /* 0x0c15c */
++	{ 0x00, 0x37 }, /* 0x0c815 */
++	{ 0x00, 0x38 }, /* 0x0ceaf */
++	{ 0x00, 0x39 }, /* 0x0d52b */
++	{ 0x00, 0x3a }, /* 0x0dbbf */
++	{ 0x00, 0x3b }, /* 0x0e202 */
++	{ 0x00, 0x3c }, /* 0x0e82a */
++	{ 0x00, 0x3d }, /* 0x0ee38 */
++	{ 0x00, 0x3e }, /* 0x0f45f */
++	{ 0x00, 0x3f }, /* 0x0fa3b */
++	{ 0x01, 0x20 }, /* 0x10000 */
++	{ 0x01, 0x21 }, /* 0x10b74 */
++	{ 0x01, 0x22 }, /* 0x11664 */
++	{ 0x01, 0x23 }, /* 0x1212e */
++	{ 0x01, 0x24 }, /* 0x12b80 */
++	{ 0x01, 0x25 }, /* 0x135b3 */
++	{ 0x01, 0x26 }, /* 0x13f78 */
++	{ 0x01, 0x27 }, /* 0x14924 */
++	{ 0x01, 0x28 }, /* 0x1526a */
++	{ 0x01, 0x29 }, /* 0x15b9b */
++	{ 0x01, 0x2a }, /* 0x1646f */
++	{ 0x01, 0x2b }, /* 0x16d31 */
++	{ 0x01, 0x2c }, /* 0x1759d */
++	{ 0x01, 0x2d }, /* 0x17dfb */
++	{ 0x01, 0x2e }, /* 0x18608 */
++	{ 0x01, 0x2f }, /* 0x18e0a */
++	{ 0x01, 0x30 }, /* 0x195c0 */
++	{ 0x01, 0x31 }, /* 0x19d6d */
++	{ 0x01, 0x32 }, /* 0x1a4d4 */
++	{ 0x01, 0x33 }, /* 0x1ac33 */
++	{ 0x01, 0x34 }, /* 0x1b350 */
++	{ 0x01, 0x35 }, /* 0x1ba67 */
++	{ 0x01, 0x36 }, /* 0x1c140 */
++	{ 0x01, 0x37 }, /* 0x1c815 */
++	{ 0x01, 0x38 }, /* 0x1ceaf */
++	{ 0x01, 0x39 }, /* 0x1d546 */
++	{ 0x01, 0x3a }, /* 0x1dba5 */
++	{ 0x01, 0x3b }, /* 0x1e202 */
++	{ 0x80, 0x20 }, /* 0x1e335 */
++	{ 0x80, 0x21 }, /* 0x1ee9c */
++	{ 0x80, 0x22 }, /* 0x1f993 */
++	{ 0x80, 0x23 }, /* 0x20450 */
++	{ 0x80, 0x24 }, /* 0x20ec0 */
++	{ 0x80, 0x25 }, /* 0x218d1 */
++	{ 0x80, 0x26 }, /* 0x222b2 */
++	{ 0x80, 0x27 }, /* 0x22c3d */
++	{ 0x80, 0x28 }, /* 0x2359f */
++	{ 0x80, 0x29 }, /* 0x23ec5 */
++	{ 0x80, 0x2a }, /* 0x2479f */
++	{ 0x80, 0x2b }, /* 0x25057 */
++	{ 0x80, 0x2c }, /* 0x258db */
++	{ 0x80, 0x2d }, /* 0x2611d */
++	{ 0x80, 0x2e }, /* 0x26941 */
++	{ 0x80, 0x2f }, /* 0x27128 */
++	{ 0x80, 0x30 }, /* 0x278f5 */
++	{ 0x80, 0x31 }, /* 0x28099 */
++	{ 0x80, 0x32 }, /* 0x28805 */
++	{ 0x80, 0x33 }, /* 0x28f5b */
++	{ 0x80, 0x34 }, /* 0x2968d */
++	{ 0x80, 0x35 }, /* 0x29d8c */
++	{ 0x80, 0x36 }, /* 0x2a479 */
++	{ 0x80, 0x37 }, /* 0x2ab36 */
++	{ 0x80, 0x38 }, /* 0x2b1e4 */
++	{ 0x80, 0x39 }, /* 0x2b873 */
++	{ 0x80, 0x3a }, /* 0x2bed6 */
++	{ 0x80, 0x3b }, /* 0x2c52b */
++	{ 0x80, 0x3c }, /* 0x2cb66 */
++	{ 0x80, 0x3d }, /* 0x2d178 */
++	{ 0x80, 0x3e }, /* 0x2d77e */
++	{ 0x80, 0x3f }, /* 0x2dd5f */
++	{ 0x81, 0x20 }, /* 0x2e335 */
++	{ 0x81, 0x21 }, /* 0x2ee8f */
++	{ 0x81, 0x22 }, /* 0x2f99f */
++	{ 0x81, 0x23 }, /* 0x30450 */
++	{ 0x81, 0x24 }, /* 0x30eb5 */
++	{ 0x81, 0x25 }, /* 0x318d1 */
++	{ 0x81, 0x26 }, /* 0x322b2 */
++	{ 0x81, 0x27 }, /* 0x32c48 */
++	{ 0x81, 0x28 }, /* 0x3359f */
++	{ 0x81, 0x29 }, /* 0x33ebb */
++	{ 0x81, 0x2a }, /* 0x347a9 */
++	{ 0x81, 0x2b }, /* 0x35057 */
++	{ 0x81, 0x2c }, /* 0x358d2 */
++	{ 0x81, 0x2d }, /* 0x3611d */
++	{ 0x81, 0x2e }, /* 0x36941 */
++	{ 0x81, 0x2f }, /* 0x37131 */
++	{ 0x81, 0x30 }, /* 0x378f5 */
++	{ 0x81, 0x31 }, /* 0x38090 */
++	{ 0x81, 0x32 }, /* 0x3880d */
++	{ 0x81, 0x33 }, /* 0x38f5b */
++	{ 0x81, 0x34 }, /* 0x39685 */
++	{ 0x81, 0x35 }, /* 0x39d8c */
++	{ 0x81, 0x36 }, /* 0x3a479 */
++	{ 0x81, 0x37 }, /* 0x3ab3e */
++	{ 0x81, 0x38 }, /* 0x3b1e4 */
++	{ 0x81, 0x39 }, /* 0x3b86b */
++	{ 0x81, 0x3a }, /* 0x3bedd */
++	{ 0x81, 0x3b }, /* 0x3c52b */
++	{ 0x81, 0x3c }, /* 0x3cb5f */
++	{ 0x81, 0x3d }, /* 0x3d178 */
++	{ 0x81, 0x3e }, /* 0x3d77e */
++	{ 0x81, 0x3f }, /* 0x3dd66 */
++	{ 0x83, 0x20 }, /* 0x3e335 */
++	{ 0x83, 0x21 }, /* 0x3ee95 */
++	{ 0x83, 0x22 }, /* 0x3f999 */
++	{ 0x83, 0x23 }, /* 0x40450 */
++	{ 0x83, 0x24 }, /* 0x40eb5 */
++	{ 0x83, 0x25 }, /* 0x418d6 */
++	{ 0x83, 0x26 }, /* 0x422ad */
++	{ 0x83, 0x27 }, /* 0x42c48 */
++	{ 0x83, 0x28 }, /* 0x4359f */
++	{ 0x83, 0x29 }, /* 0x43ec0 */
++	{ 0x83, 0x2a }, /* 0x447a4 */
++	{ 0x83, 0x2b }, /* 0x45057 */
++	{ 0x83, 0x2c }, /* 0x458d2 */
++	{ 0x83, 0x2d }, /* 0x46121 */
++	{ 0x83, 0x2e }, /* 0x4693d */
++	{ 0x83, 0x2f }, /* 0x47131 */
++	{ 0x83, 0x30 }, /* 0x478f5 */
++	{ 0x83, 0x31 }, /* 0x48095 */
++	{ 0x83, 0x32 }, /* 0x48809 */
++	{ 0x83, 0x33 }, /* 0x48f5b */
++	{ 0x83, 0x34 }, /* 0x49685 */
++	{ 0x83, 0x35 }, /* 0x49d90 */
++	{ 0x83, 0x36 }, /* 0x4a475 */
++	{ 0x83, 0x37 }, /* 0x4ab3e */
++	{ 0x83, 0x38 }, /* 0x4b1e4 */
++	{ 0x83, 0x39 }, /* 0x4b86f */
++	{ 0x83, 0x3a }, /* 0x4beda */
++	{ 0x83, 0x3b }, /* 0x4c52c */
++	{ 0x83, 0x3c }, /* 0x4cb5f */
++	{ 0x83, 0x3d }, /* 0x4d17b */
++	{ 0x83, 0x3e }, /* 0x4d77b */
++	{ 0x83, 0x3f }, /* 0x4dd66 */
++	{ 0x87, 0x20 }, /* 0x4e335 */
++	{ 0x87, 0x21 }, /* 0x4ee92 */
++	{ 0x87, 0x22 }, /* 0x4f999 */
++	{ 0x87, 0x23 }, /* 0x5044e */
++	{ 0x87, 0x24 }, /* 0x50eb5 */
++	{ 0x87, 0x25 }, /* 0x518d4 */
++	{ 0x87, 0x26 }, /* 0x522ad */
++	{ 0x87, 0x27 }, /* 0x52c45 */
++	{ 0x87, 0x28 }, /* 0x5359f */
++	{ 0x87, 0x29 }, /* 0x53ebd */
++	{ 0x87, 0x2a }, /* 0x547a4 */
++	{ 0x87, 0x2b }, /* 0x55055 */
++	{ 0x87, 0x2c }, /* 0x558d2 */
++	{ 0x87, 0x2d }, /* 0x5611f */
++	{ 0x87, 0x2e }, /* 0x5693d */
++	{ 0x87, 0x2f }, /* 0x5712e */
++	{ 0x87, 0x30 }, /* 0x578f5 */
++	{ 0x87, 0x31 }, /* 0x58092 */
++	{ 0x87, 0x32 }, /* 0x58809 */
++	{ 0x87, 0x33 }, /* 0x58f59 */
++	{ 0x87, 0x34 }, /* 0x59685 */
++	{ 0x87, 0x35 }, /* 0x59d8e */
++	{ 0x87, 0x36 }, /* 0x5a475 */
++	{ 0x87, 0x37 }, /* 0x5ab3c */
++	{ 0x87, 0x38 }, /* 0x5b1e4 */
++	{ 0x87, 0x39 }, /* 0x5b86d */
++	{ 0x87, 0x3a }, /* 0x5beda */
++	{ 0x87, 0x3b }, /* 0x5c52a */
++	{ 0x87, 0x3c }, /* 0x5cb5f */
++	{ 0x87, 0x3d }, /* 0x5d17a */
++	{ 0x87, 0x3e }, /* 0x5d77b */
++	{ 0x87, 0x3f }, /* 0x5dd64 */
++	{ 0x8f, 0x20 }, /* 0x5e335 */
++	{ 0x8f, 0x21 }, /* 0x5ee92 */
++	{ 0x8f, 0x22 }, /* 0x5f999 */
++	{ 0x8f, 0x23 }, /* 0x6044e */
++	{ 0x8f, 0x24 }, /* 0x60eb5 */
++	{ 0x8f, 0x25 }, /* 0x618d4 */
++	{ 0x8f, 0x26 }, /* 0x622ad */
++	{ 0x8f, 0x27 }, /* 0x62c45 */
++	{ 0x8f, 0x28 }, /* 0x6359f */
++	{ 0x8f, 0x29 }, /* 0x63ebd */
++	{ 0x8f, 0x2a }, /* 0x647a4 */
++	{ 0x8f, 0x2b }, /* 0x65055 */
++	{ 0x8f, 0x2c }, /* 0x658d2 */
++	{ 0x8f, 0x2d }, /* 0x6611f */
++	{ 0x8f, 0x2e }, /* 0x6693d */
++	{ 0x8f, 0x2f }, /* 0x6712e */
++	{ 0x8f, 0x30 }, /* 0x678f5 */
++	{ 0x8f, 0x31 }, /* 0x68092 */
++	{ 0x8f, 0x32 }, /* 0x68809 */
++	{ 0x8f, 0x33 }, /* 0x68f59 */
++	{ 0x8f, 0x34 }, /* 0x69685 */
++	{ 0x8f, 0x35 }, /* 0x69d8e */
++	{ 0x8f, 0x36 }, /* 0x6a475 */
++	{ 0x8f, 0x37 }, /* 0x6ab3c */
++	{ 0x8f, 0x38 }, /* 0x6b1e4 */
++	{ 0x8f, 0x39 }, /* 0x6b86d */
++	{ 0x8f, 0x3a }, /* 0x6beda */
++	{ 0x8f, 0x3b }, /* 0x6c52a */
++	{ 0x8f, 0x3c }, /* 0x6cb5f */
++	{ 0x8f, 0x3d }, /* 0x6d17a */
++	{ 0x8f, 0x3e }, /* 0x6d77b */
++	{ 0x8f, 0x3f }, /* 0x6dd64 */
++};
++
++struct sc231hai_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence sc231hai_1920h30_regs[] = {
++	{ CCI_REG8(0x0103), 0x01 },
++	{ CCI_REG8(0x36e9), 0x80 },
++	{ CCI_REG8(0x37f9), 0x80 },
++	{ CCI_REG8(0x301f), 0x14 },
++	{ CCI_REG8(0x3058), 0x21 },
++	{ CCI_REG8(0x3059), 0x53 },
++	{ CCI_REG8(0x305a), 0x40 },
++	{ CCI_REG8(0x320e), 0x04 },
++	{ CCI_REG8(0x320f), 0xb0 },
++	{ CCI_REG8(0x3210), 0x00 },
++	{ CCI_REG8(0x3211), 0x04 },
++	{ CCI_REG8(0x3212), 0x00 },
++	{ CCI_REG8(0x3213), 0x04 },
++	{ CCI_REG8(0x3250), 0x00 },
++	{ CCI_REG8(0x3301), 0x0a },
++	{ CCI_REG8(0x3302), 0x20 },
++	{ CCI_REG8(0x3304), 0x90 },
++	{ CCI_REG8(0x3305), 0x00 },
++	{ CCI_REG8(0x3306), 0x68 },
++	{ CCI_REG8(0x3309), 0xd0 },
++	{ CCI_REG8(0x330b), 0xd8 },
++	{ CCI_REG8(0x330d), 0x08 },
++	{ CCI_REG8(0x331c), 0x04 },
++	{ CCI_REG8(0x331e), 0x81 },
++	{ CCI_REG8(0x331f), 0xc1 },
++	{ CCI_REG8(0x3323), 0x06 },
++	{ CCI_REG8(0x3333), 0x10 },
++	{ CCI_REG8(0x3334), 0x40 },
++	{ CCI_REG8(0x3364), 0x5e },
++	{ CCI_REG8(0x336c), 0x8e },
++	{ CCI_REG8(0x337f), 0x13 },
++	{ CCI_REG8(0x338f), 0x80 },
++	{ CCI_REG8(0x3390), 0x08 },
++	{ CCI_REG8(0x3391), 0x18 },
++	{ CCI_REG8(0x3392), 0xb8 },
++	{ CCI_REG8(0x3393), 0x0e },
++	{ CCI_REG8(0x3394), 0x14 },
++	{ CCI_REG8(0x3395), 0x10 },
++	{ CCI_REG8(0x3396), 0x88 },
++	{ CCI_REG8(0x3397), 0x98 },
++	{ CCI_REG8(0x3398), 0xf8 },
++	{ CCI_REG8(0x3399), 0x0a },
++	{ CCI_REG8(0x339a), 0x0e },
++	{ CCI_REG8(0x339b), 0x10 },
++	{ CCI_REG8(0x339c), 0x3c },
++	{ CCI_REG8(0x33ae), 0x80 },
++	{ CCI_REG8(0x33af), 0xc0 },
++	{ CCI_REG8(0x33b2), 0x50 },
++	{ CCI_REG8(0x33b3), 0x14 },
++	{ CCI_REG8(0x33f8), 0x00 },
++	{ CCI_REG8(0x33f9), 0x68 },
++	{ CCI_REG8(0x33fa), 0x00 },
++	{ CCI_REG8(0x33fb), 0x68 },
++	{ CCI_REG8(0x33fc), 0x48 },
++	{ CCI_REG8(0x33fd), 0x78 },
++	{ CCI_REG8(0x349f), 0x03 },
++	{ CCI_REG8(0x34a6), 0x40 },
++	{ CCI_REG8(0x34a7), 0x58 },
++	{ CCI_REG8(0x34a8), 0x10 },
++	{ CCI_REG8(0x34a9), 0x10 },
++	{ CCI_REG8(0x34f8), 0x78 },
++	{ CCI_REG8(0x34f9), 0x10 },
++	{ CCI_REG8(0x3619), 0x20 },
++	{ CCI_REG8(0x361a), 0x90 },
++	{ CCI_REG8(0x3633), 0x44 },
++	{ CCI_REG8(0x3637), 0x5c },
++	{ CCI_REG8(0x363c), 0xc0 },
++	{ CCI_REG8(0x363d), 0x02 },
++	{ CCI_REG8(0x3660), 0x80 },
++	{ CCI_REG8(0x3661), 0x81 },
++	{ CCI_REG8(0x3662), 0x8f },
++	{ CCI_REG8(0x3663), 0x81 },
++	{ CCI_REG8(0x3664), 0x81 },
++	{ CCI_REG8(0x3665), 0x82 },
++	{ CCI_REG8(0x3666), 0x8f },
++	{ CCI_REG8(0x3667), 0x08 },
++	{ CCI_REG8(0x3668), 0x80 },
++	{ CCI_REG8(0x3669), 0x88 },
++	{ CCI_REG8(0x366a), 0x98 },
++	{ CCI_REG8(0x366b), 0xb8 },
++	{ CCI_REG8(0x366c), 0xf8 },
++	{ CCI_REG8(0x3670), 0xb2 },
++	{ CCI_REG8(0x3671), 0xa2 },
++	{ CCI_REG8(0x3672), 0x88 },
++	{ CCI_REG8(0x3680), 0x33 },
++	{ CCI_REG8(0x3681), 0x33 },
++	{ CCI_REG8(0x3682), 0x43 },
++	{ CCI_REG8(0x36c0), 0x80 },
++	{ CCI_REG8(0x36c1), 0x88 },
++	{ CCI_REG8(0x36c8), 0x88 },
++	{ CCI_REG8(0x36c9), 0xb8 },
++	{ CCI_REG8(0x36ea), 0x0b },
++	{ CCI_REG8(0x36eb), 0x0c },
++	{ CCI_REG8(0x36ec), 0x5c },
++	{ CCI_REG8(0x36ed), 0x04 },
++	{ CCI_REG8(0x3718), 0x04 },
++	{ CCI_REG8(0x3722), 0x8b },
++	{ CCI_REG8(0x3724), 0xd1 },
++	{ CCI_REG8(0x3741), 0x08 },
++	{ CCI_REG8(0x3770), 0x17 },
++	{ CCI_REG8(0x3771), 0x9b },
++	{ CCI_REG8(0x3772), 0x9b },
++	{ CCI_REG8(0x37c0), 0x88 },
++	{ CCI_REG8(0x37c1), 0xb8 },
++	{ CCI_REG8(0x37fa), 0x0b },
++	{ CCI_REG8(0x37fc), 0x10 },
++	{ CCI_REG8(0x37fd), 0x04 },
++	{ CCI_REG8(0x3902), 0xc0 },
++	{ CCI_REG8(0x3903), 0x40 },
++	{ CCI_REG8(0x3909), 0x00 },
++	{ CCI_REG8(0x391f), 0x41 },
++	{ CCI_REG8(0x3926), 0xe0 },
++	{ CCI_REG8(0x3933), 0x80 },
++	{ CCI_REG8(0x3934), 0x02 },
++	{ CCI_REG8(0x3937), 0x6f },
++	{ CCI_REG8(0x3e00), 0x00 },
++	{ CCI_REG8(0x3e01), 0x95 },
++	{ CCI_REG8(0x3e02), 0x50 },
++	{ CCI_REG8(0x3e08), 0x00 },
++	{ CCI_REG8(0x4509), 0x20 },
++	{ CCI_REG8(0x450d), 0x07 },
++	{ CCI_REG8(0x4837), 0x33 },
++	{ CCI_REG8(0x5780), 0x76 },
++	{ CCI_REG8(0x5784), 0x10 },
++	{ CCI_REG8(0x5787), 0x0a },
++	{ CCI_REG8(0x5788), 0x0a },
++	{ CCI_REG8(0x5789), 0x08 },
++	{ CCI_REG8(0x578a), 0x0a },
++	{ CCI_REG8(0x578b), 0x0a },
++	{ CCI_REG8(0x578c), 0x08 },
++	{ CCI_REG8(0x578d), 0x40 },
++	{ CCI_REG8(0x5792), 0x04 },
++	{ CCI_REG8(0x5795), 0x04 },
++	{ CCI_REG8(0x57ac), 0x00 },
++	{ CCI_REG8(0x57ad), 0x00 },
++	{ CCI_REG8(0x36e9), 0x27 },
++	{ CCI_REG8(0x37f9), 0x27 },
++};
++
++static const struct sc231hai_mode sc231hai_modes[] = {
++	{
++		.width = SC231HAI_NATIVE_WIDTH,
++		.height = SC231HAI_NATIVE_HEIGHT,
++		.hblank = SC231HAI_HTS_MIN - SC231HAI_NATIVE_WIDTH,
++		.vblank = 1200 - SC231HAI_NATIVE_HEIGHT,
++		.regs = sc231hai_1920h30_regs,
++		.regs_num = ARRAY_SIZE(sc231hai_1920h30_regs),
++	},
++};
++
++struct sc231hai_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct sc231hai {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct sc231hai_ctrls ctrls;
++
++	const struct sc231hai_mode *mode;
++};
++
++static inline struct sc231hai *to_sc231hai(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct sc231hai, sd);
++}
++
++static inline struct v4l2_subdev *sc231hai_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct sc231hai, ctrls.handler)->sd;
++}
++
++static void sc231hai_fill_format(const struct sc231hai_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int sc231hai_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	sc231hai_fill_format(&sc231hai_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = sc231hai_modes[0].width;
++	crop->height = sc231hai_modes[0].height;
++
++	return 0;
++}
++
++static int sc231hai_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return 0;
++}
++
++static int sc231hai_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(sc231hai_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
++		return -EINVAL;
++
++	fse->min_width = sc231hai_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = sc231hai_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int sc231hai_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = SC231HAI_NATIVE_WIDTH;
++		sel->r.height = SC231HAI_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int sc231hai_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct sc231hai *sc231hai = to_sc231hai(sd);
++	const struct sc231hai_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(sc231hai_modes, ARRAY_SIZE(sc231hai_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	sc231hai_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		sc231hai->mode = mode;
++		__v4l2_ctrl_s_ctrl(sc231hai->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(sc231hai->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void sc231hai_exposure_update(struct sc231hai *sc231hai)
++{
++	unsigned int exposure_max;
++
++	exposure_max = sc231hai->ctrls.vblank->val + sc231hai->mode->height -
++		       SC231HAI_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0xfffffU >> 5);
++
++	__v4l2_ctrl_modify_range(sc231hai->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int sc231hai_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct sc231hai *sc231hai = to_sc231hai(sc231hai_ctrl_to_sd(ctrl));
++	u32 hts;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		sc231hai_exposure_update(sc231hai);
++
++	if (!pm_runtime_get_if_in_use(sc231hai->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(sc231hai->regmap, SC231HAI_REG_EXPOSURE,
++				(u32)ctrl->val << 5, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++	{
++		const struct sc231hai_gain *gain = &sc231hai_gains[ctrl->val];
++
++		ret = cci_write(sc231hai->regmap, SC231HAI_REG_GAIN_3E08,
++				gain->reg_3e08, NULL);
++		ret = cci_write(sc231hai->regmap, SC231HAI_REG_GAIN_3E09,
++				gain->reg_3e09, &ret);
++		break;
++	}
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + sc231hai->mode->width;
++		ret = cci_write(sc231hai->regmap, SC231HAI_REG_HTS, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(sc231hai->regmap, SC231HAI_REG_VTS,
++				ctrl->val + sc231hai->mode->height, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(sc231hai->regmap, SC231HAI_REG_FLIP,
++				      SC231HAI_FLIP_BOTH,
++				      ctrl->val ? SC231HAI_FLIP_BOTH : 0,
++				      NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(sc231hai->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops sc231hai_ctrl_ops = {
++	.s_ctrl = sc231hai_set_ctrl,
++};
++
++static int sc231hai_init_controls(struct sc231hai *sc231hai)
++{
++	struct v4l2_ctrl_handler *hdl = &sc231hai->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &sc231hai_ctrl_ops;
++	unsigned int hblank_max = SC231HAI_HTS_MAX - SC231HAI_NATIVE_WIDTH;
++	unsigned int vblank_max = SC231HAI_VTS_MAX - SC231HAI_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	sc231hai->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  SC231HAI_PIXEL_RATE, SC231HAI_PIXEL_RATE, 1,
++				  SC231HAI_PIXEL_RATE);
++
++	sc231hai->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       sc231hai_link_freqs);
++	if (sc231hai->ctrls.link_freq)
++		sc231hai->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	sc231hai->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  sc231hai_modes[0].vblank +
++				  sc231hai_modes[0].height -
++				  SC231HAI_EXPOSURE_OFFSET, 1,
++				  sc231hai_modes[0].vblank +
++				  sc231hai_modes[0].height -
++				  SC231HAI_EXPOSURE_OFFSET);
++
++	sc231hai->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(sc231hai_gains) - 1, 1, 0);
++
++	sc231hai->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  SC231HAI_HTS_MIN - SC231HAI_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  sc231hai_modes[0].hblank);
++
++	sc231hai->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  sc231hai_modes[0].vblank, vblank_max, 1,
++				  sc231hai_modes[0].vblank);
++
++	sc231hai->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						  0, 1, 1, 0);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(sc231hai->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	sc231hai->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int sc231hai_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == SC231HAI_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", SC231HAI_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int sc231hai_power_on(struct device *dev)
++{
++	struct sc231hai *sc231hai = to_sc231hai(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(sc231hai->supplies),
++				    sc231hai->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(sc231hai->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(sc231hai->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(sc231hai->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(sc231hai->supplies), sc231hai->supplies);
++
++	return ret;
++}
++
++static int sc231hai_power_off(struct device *dev)
++{
++	struct sc231hai *sc231hai = to_sc231hai(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(sc231hai->reset_gpio, 1);
++	gpiod_set_value_cansleep(sc231hai->powerdown_gpio, 1);
++	clk_disable_unprepare(sc231hai->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(sc231hai->supplies), sc231hai->supplies);
++
++	return 0;
++}
++
++static int sc231hai_identify_module(struct sc231hai *sc231hai)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(sc231hai->regmap, SC231HAI_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(sc231hai->regmap, SC231HAI_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != SC231HAI_CHIP_ID_H || id_l != SC231HAI_CHIP_ID_L) {
++		dev_err(sc231hai->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, SC231HAI_CHIP_ID_H, SC231HAI_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int sc231hai_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct sc231hai *sc231hai = to_sc231hai(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(sc231hai->regmap, sc231hai->mode->regs,
++			    sc231hai->mode->regs_num, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&sc231hai->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(sc231hai->regmap, SC231HAI_REG_STREAM, SC231HAI_STREAM_ON, &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int sc231hai_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct sc231hai *sc231hai = to_sc231hai(sd);
++	int ret = 0;
++
++	cci_write(sc231hai->regmap, SC231HAI_REG_STREAM, 0x00, &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops sc231hai_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops sc231hai_pad_ops = {
++	.enum_mbus_code = sc231hai_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = sc231hai_set_pad_format,
++	.get_selection = sc231hai_get_selection,
++	.enum_frame_size = sc231hai_enum_frame_size,
++	.enable_streams = sc231hai_enable_streams,
++	.disable_streams = sc231hai_disable_streams,
++};
++
++static const struct v4l2_subdev_ops sc231hai_subdev_ops = {
++	.video = &sc231hai_video_ops,
++	.pad = &sc231hai_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops sc231hai_subdev_internal_ops = {
++	.init_state = sc231hai_init_state,
++};
++
++static const char * const sc231hai_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int sc231hai_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct sc231hai *sc231hai;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	sc231hai = devm_kzalloc(dev, sizeof(*sc231hai), GFP_KERNEL);
++	if (!sc231hai)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&sc231hai->sd, client, &sc231hai_subdev_ops);
++	sc231hai->sd.internal_ops = &sc231hai_subdev_internal_ops;
++
++	ret = sc231hai_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	sc231hai->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(sc231hai->xclk))
++		return dev_err_probe(dev, PTR_ERR(sc231hai->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(sc231hai->xclk);
++	if (xclk_freq != SC231HAI_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(sc231hai->supplies); i++)
++		sc231hai->supplies[i].supply = sc231hai_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sc231hai->supplies),
++				      sc231hai->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	sc231hai->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(sc231hai->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc231hai->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	sc231hai->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(sc231hai->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(sc231hai->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	sc231hai->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(sc231hai->regmap))
++		return dev_err_probe(dev, PTR_ERR(sc231hai->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = sc231hai_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = sc231hai_identify_module(sc231hai);
++	if (ret)
++		goto err_power_off;
++
++	sc231hai->mode = &sc231hai_modes[0];
++
++	ret = sc231hai_init_controls(sc231hai);
++	if (ret)
++		goto err_power_off;
++
++	sc231hai->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	sc231hai->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	sc231hai->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&sc231hai->sd.entity, 1, &sc231hai->pad);
++	if (ret)
++		goto err_handler_free;
++
++	sc231hai->sd.state_lock = sc231hai->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&sc231hai->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&sc231hai->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&sc231hai->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&sc231hai->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&sc231hai->ctrls.handler);
++err_power_off:
++	sc231hai_power_off(dev);
++
++	return ret;
++}
++
++static void sc231hai_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct sc231hai *sc231hai = to_sc231hai(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&sc231hai->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		sc231hai_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id sc231hai_dt_ids[] = {
++	{ .compatible = "smartens,sc231hai" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, sc231hai_dt_ids);
++
++static const struct i2c_device_id sc231hai_id[] = {
++	{ .name = "sc231hai" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, sc231hai_id);
++
++static const struct dev_pm_ops sc231hai_pm_ops = {
++	RUNTIME_PM_OPS(sc231hai_power_off, sc231hai_power_on, NULL)
++};
++
++static struct i2c_driver sc231hai_i2c_driver = {
++	.driver = {
++		.name = "sc231hai",
++		.of_match_table = sc231hai_dt_ids,
++		.pm = pm_ptr(&sc231hai_pm_ops),
++	},
++	.probe = sc231hai_probe,
++	.remove = sc231hai_remove,
++	.id_table = sc231hai_id,
++};
++
++module_i2c_driver(sc231hai_i2c_driver);
++
++MODULE_DESCRIPTION("SmartSens SC231HAI sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/smartens,sc231hai.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/smartens,sc231hai.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: SmartSens SC231HAI 1920x1080 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The SmartSens SC231HAI is a 1920x1080 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: smartens,sc231hai
++
++  reg:
++    const: 0x30
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@30 {
++            compatible = "smartens,sc231hai";
++            reg = <0x30>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <198000000>;
++                };
++            };
++        };
++    };
++
++...

@@ -1,0 +1,986 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the Sony IMX307 sensor driver
+
+Add a mainline V4L2 subdev driver for the IMX307, a 1920x1080 12-bit
+Bayer STARVIS sensor used on Ingenic T31 cameras. The register sequence,
+exposure calculation, and gain register layout come from the Ingenic
+vendor sensor driver.
+
+The driver exposes a single 1080p30 mode with HBLANK/VBLANK, exposure,
+analogue gain, and mirror/flip controls. The register sequence has three
+timed phases; they are replayed on every stream start because the sensor
+leaves standby only after the final delay.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/imx307.c
+@@ -0,0 +1,821 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Sony IMX307 CMOS Image Sensor Driver
++ *
++ * The register sequences are adapted from the Ingenic vendor sensor
++ * driver (sensor_imx307_t31).
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define IMX307_CHIP_ID_H			0xa0
++#define IMX307_CHIP_ID_L			0xb2
++
++#define IMX307_REG_CHIP_ID_H			CCI_REG8(0x3008)
++#define IMX307_REG_CHIP_ID_L			CCI_REG8(0x301e)
++
++#define IMX307_REG_STANDBY			CCI_REG8(0x3000)
++#define IMX307_STANDBY_ON			0x01
++#define IMX307_STANDBY_OFF			0x00
++
++#define IMX307_REG_GAIN				CCI_REG8(0x3014)
++/* VMAX and SHS1 are little-endian 24-bit registers. */
++#define IMX307_REG_VMAX				CCI_REG24_LE(0x3018)
++#define IMX307_REG_SHS1				CCI_REG24_LE(0x3020)
++#define IMX307_REG_HMAX				CCI_REG16_LE(0x301c)
++#define IMX307_VMAX_MAX				0x3ffffU
++
++#define IMX307_REG_FLIP				CCI_REG8(0x3007)
++#define IMX307_VREVERSE				BIT(0)
++#define IMX307_HREVERSE				BIT(1)
++
++/* External clock is 37.125 MHz. */
++#define IMX307_XCLK_FREQ			37125000
++
++#define IMX307_NATIVE_WIDTH			1920U
++#define IMX307_NATIVE_HEIGHT			1080U
++
++/* 2 lanes, 891 Mbit/s per lane. */
++#define IMX307_LINK_FREQ			445500000
++/* 2200 x 1125 pixels at 30 fps. */
++#define IMX307_PIXEL_RATE			148500000
++
++static const s64 imx307_link_freqs[] = {
++	IMX307_LINK_FREQ,
++};
++
++#define IMX307_HTS_MIN				2200U
++#define IMX307_HTS_MAX				0x7fffU
++#define IMX307_VTS_MAX				IMX307_VMAX_MAX
++
++/* Number of lines by which exposure must be less than VTS. */
++#define IMX307_EXPOSURE_OFFSET			2
++
++
++
++struct imx307_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++};
++
++static const struct cci_reg_sequence imx307_init_1[] = {
++	{ CCI_REG8(0x3000), 0x01 },
++	{ CCI_REG8(0x3001), 0x01 },
++	{ CCI_REG8(0x3002), 0x01 },
++};
++
++static const struct cci_reg_sequence imx307_init_2[] = {
++	{ CCI_REG8(0x3005), 0x01 },
++	{ CCI_REG8(0x3007), 0x00 },
++	{ CCI_REG8(0x3009), 0x12 },
++	{ CCI_REG8(0x300A), 0xF0 },
++	{ CCI_REG8(0x300B), 0x00 },
++	{ CCI_REG8(0x3011), 0x0A },
++	{ CCI_REG8(0x3012), 0x64 },
++	{ CCI_REG8(0x3014), 0x00 },
++	{ CCI_REG8(0x3018), 0x65 },
++	{ CCI_REG8(0x3019), 0x04 },
++	{ CCI_REG8(0x301A), 0x00 },
++	{ CCI_REG8(0x301C), 0x30 },
++	{ CCI_REG8(0x301D), 0x11 },
++	{ CCI_REG8(0x3020), 0xFE },
++	{ CCI_REG8(0x3021), 0x03 },
++	{ CCI_REG8(0x3022), 0x00 },
++	{ CCI_REG8(0x3046), 0x01 },
++	{ CCI_REG8(0x3048), 0x00 },
++	{ CCI_REG8(0x3049), 0x08 },
++	{ CCI_REG8(0x304B), 0x0A },
++	{ CCI_REG8(0x305C), 0x18 },
++	{ CCI_REG8(0x305D), 0x03 },
++	{ CCI_REG8(0x305E), 0x20 },
++	{ CCI_REG8(0x305F), 0x01 },
++	{ CCI_REG8(0x309E), 0x4A },
++	{ CCI_REG8(0x309F), 0x4A },
++	{ CCI_REG8(0x311C), 0x0E },
++	{ CCI_REG8(0x3128), 0x04 },
++	{ CCI_REG8(0x3129), 0x00 },
++	{ CCI_REG8(0x313B), 0x41 },
++	{ CCI_REG8(0x315E), 0x1A },
++	{ CCI_REG8(0x3164), 0x1A },
++	{ CCI_REG8(0x317C), 0x00 },
++	{ CCI_REG8(0x31EC), 0x0E },
++	{ CCI_REG8(0x3405), 0x10 },
++	{ CCI_REG8(0x3407), 0x01 },
++	{ CCI_REG8(0x3414), 0x0A },
++	{ CCI_REG8(0x3418), 0x49 },
++	{ CCI_REG8(0x3419), 0x04 },
++	{ CCI_REG8(0x3441), 0x0C },
++	{ CCI_REG8(0x3442), 0x0C },
++	{ CCI_REG8(0x3443), 0x01 },
++	{ CCI_REG8(0x3444), 0x20 },
++	{ CCI_REG8(0x3445), 0x25 },
++	{ CCI_REG8(0x3446), 0x57 },
++	{ CCI_REG8(0x3447), 0x00 },
++	{ CCI_REG8(0x3448), 0x37 },
++	{ CCI_REG8(0x3449), 0x00 },
++	{ CCI_REG8(0x344A), 0x24 },
++	{ CCI_REG8(0x344B), 0x00 },
++	{ CCI_REG8(0x344C), 0x1F },
++	{ CCI_REG8(0x344D), 0x00 },
++	{ CCI_REG8(0x344E), 0x1F },
++	{ CCI_REG8(0x344F), 0x00 },
++	{ CCI_REG8(0x3450), 0x77 },
++	{ CCI_REG8(0x3451), 0x00 },
++	{ CCI_REG8(0x3452), 0x1F },
++	{ CCI_REG8(0x3453), 0x00 },
++	{ CCI_REG8(0x3454), 0x17 },
++	{ CCI_REG8(0x3455), 0x00 },
++	{ CCI_REG8(0x3472), 0x9C },
++	{ CCI_REG8(0x3473), 0x07 },
++	{ CCI_REG8(0x346a), 0x9c },
++	{ CCI_REG8(0x346b), 0x07 },
++	{ CCI_REG8(0x3480), 0x49 },
++};
++
++static const struct cci_reg_sequence imx307_init_3[] = {
++	{ CCI_REG8(0x3001), 0x00 },
++	{ CCI_REG8(0x3002), 0x00 },
++};
++
++static const struct imx307_mode imx307_modes[] = {
++	{
++		.width = IMX307_NATIVE_WIDTH,
++		.height = IMX307_NATIVE_HEIGHT,
++		.hblank = IMX307_HTS_MIN - IMX307_NATIVE_WIDTH,
++		.vblank = 1125 - IMX307_NATIVE_HEIGHT,
++	},
++};
++
++struct imx307_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *hflip;
++	struct v4l2_ctrl *vflip;
++};
++
++struct imx307 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct imx307_ctrls ctrls;
++
++	const struct imx307_mode *mode;
++};
++
++static inline struct imx307 *to_imx307(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct imx307, sd);
++}
++
++static inline struct v4l2_subdev *imx307_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct imx307, ctrls.handler)->sd;
++}
++
++static void imx307_fill_format(const struct imx307_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SRGGB12_1X12;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int imx307_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	imx307_fill_format(&imx307_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = imx307_modes[0].width;
++	crop->height = imx307_modes[0].height;
++
++	return 0;
++}
++
++static int imx307_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SRGGB12_1X12;
++
++	return 0;
++}
++
++static int imx307_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(imx307_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SRGGB12_1X12)
++		return -EINVAL;
++
++	fse->min_width = imx307_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = imx307_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int imx307_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = IMX307_NATIVE_WIDTH;
++		sel->r.height = IMX307_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int imx307_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct imx307 *imx307 = to_imx307(sd);
++	const struct imx307_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(imx307_modes, ARRAY_SIZE(imx307_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	imx307_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		imx307->mode = mode;
++		__v4l2_ctrl_s_ctrl(imx307->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(imx307->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void imx307_exposure_update(struct imx307 *imx307)
++{
++	unsigned int exposure_max;
++
++	exposure_max = imx307->ctrls.vblank->val + imx307->mode->height -
++		       IMX307_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, IMX307_VMAX_MAX - IMX307_EXPOSURE_OFFSET);
++
++	__v4l2_ctrl_modify_range(imx307->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct imx307 *imx307 = to_imx307(imx307_ctrl_to_sd(ctrl));
++	u32 hts;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		imx307_exposure_update(imx307);
++
++	if (!pm_runtime_get_if_in_use(imx307->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		hts = imx307->ctrls.vblank->val + imx307->mode->height;
++		ret = cci_write(imx307->regmap, IMX307_REG_SHS1,
++				hts - ctrl->val - IMX307_EXPOSURE_OFFSET, NULL);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		ret = cci_write(imx307->regmap, IMX307_REG_GAIN, ctrl->val,
++				NULL);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = (ctrl->val + imx307->mode->width) * 2;
++		ret = cci_write(imx307->regmap, IMX307_REG_HMAX, hts, NULL);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(imx307->regmap, IMX307_REG_VMAX,
++				ctrl->val + imx307->mode->height, NULL);
++		ctrl = imx307->ctrls.exposure;
++		hts = imx307->ctrls.vblank->val + imx307->mode->height;
++		ret = cci_write(imx307->regmap, IMX307_REG_SHS1,
++				hts - ctrl->val - IMX307_EXPOSURE_OFFSET, &ret);
++		break;
++	case V4L2_CID_HFLIP:
++		ret = cci_update_bits(imx307->regmap, IMX307_REG_FLIP,
++				      IMX307_HREVERSE,
++				      ctrl->val ? IMX307_HREVERSE : 0, NULL);
++		break;
++	case V4L2_CID_VFLIP:
++		ret = cci_update_bits(imx307->regmap, IMX307_REG_FLIP,
++				      IMX307_VREVERSE,
++				      ctrl->val ? IMX307_VREVERSE : 0, NULL);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(imx307->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops imx307_ctrl_ops = {
++	.s_ctrl = imx307_set_ctrl,
++};
++
++static int imx307_init_controls(struct imx307 *imx307)
++{
++	struct v4l2_ctrl_handler *hdl = &imx307->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &imx307_ctrl_ops;
++	unsigned int hblank_max = IMX307_HTS_MAX - IMX307_NATIVE_WIDTH;
++	unsigned int vblank_max = IMX307_VTS_MAX - IMX307_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	imx307->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  IMX307_PIXEL_RATE, IMX307_PIXEL_RATE, 1,
++				  IMX307_PIXEL_RATE);
++
++	imx307->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       imx307_link_freqs);
++	if (imx307->ctrls.link_freq)
++		imx307->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	imx307->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  imx307_modes[0].vblank +
++				  imx307_modes[0].height -
++				  IMX307_EXPOSURE_OFFSET, 1,
++				  imx307_modes[0].vblank +
++				  imx307_modes[0].height -
++				  IMX307_EXPOSURE_OFFSET);
++
++	imx307->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0, 140, 1, 0);
++
++	imx307->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  IMX307_HTS_MIN - IMX307_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  imx307_modes[0].hblank);
++
++	imx307->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  imx307_modes[0].vblank, vblank_max, 1,
++				  imx307_modes[0].vblank);
++
++	imx307->ctrls.hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP,
++						0, 1, 1, 0);
++	imx307->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						0, 1, 1, 0);
++	v4l2_ctrl_cluster(2, &imx307->ctrls.hflip);
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(imx307->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	imx307->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int imx307_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == IMX307_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", IMX307_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int imx307_power_on(struct device *dev)
++{
++	struct imx307 *imx307 = to_imx307(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(imx307->supplies),
++				    imx307->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(imx307->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(imx307->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(imx307->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(imx307->supplies), imx307->supplies);
++
++	return ret;
++}
++
++static int imx307_power_off(struct device *dev)
++{
++	struct imx307 *imx307 = to_imx307(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(imx307->reset_gpio, 1);
++	gpiod_set_value_cansleep(imx307->powerdown_gpio, 1);
++	clk_disable_unprepare(imx307->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(imx307->supplies), imx307->supplies);
++
++	return 0;
++}
++
++static int imx307_identify_module(struct imx307 *imx307)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(imx307->regmap, IMX307_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(imx307->regmap, IMX307_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != IMX307_CHIP_ID_H || id_l != IMX307_CHIP_ID_L) {
++		dev_err(imx307->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, IMX307_CHIP_ID_H, IMX307_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int imx307_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct imx307 *imx307 = to_imx307(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(imx307->regmap, imx307_init_1,
++			    ARRAY_SIZE(imx307_init_1), &ret);
++	if (ret)
++		goto err_rpm_put;
++	msleep(24);
++
++	cci_multi_reg_write(imx307->regmap, imx307_init_2,
++			    ARRAY_SIZE(imx307_init_2), &ret);
++	if (ret)
++		goto err_rpm_put;
++	msleep(24);
++
++	cci_multi_reg_write(imx307->regmap, imx307_init_3,
++			    ARRAY_SIZE(imx307_init_3), &ret);
++	if (ret)
++		goto err_rpm_put;
++	msleep(254);
++
++	ret = __v4l2_ctrl_handler_setup(&imx307->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	cci_write(imx307->regmap, IMX307_REG_STANDBY, IMX307_STANDBY_OFF,
++		  &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int imx307_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	struct imx307 *imx307 = to_imx307(sd);
++	int ret = 0;
++
++	cci_write(imx307->regmap, IMX307_REG_STANDBY, IMX307_STANDBY_ON,
++		  &ret);
++	if (ret)
++		dev_err(sd->dev, "failed to stop streaming: %d\n", ret);
++
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static const struct v4l2_subdev_video_ops imx307_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
++	.enum_mbus_code = imx307_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = imx307_set_pad_format,
++	.get_selection = imx307_get_selection,
++	.enum_frame_size = imx307_enum_frame_size,
++	.enable_streams = imx307_enable_streams,
++	.disable_streams = imx307_disable_streams,
++};
++
++static const struct v4l2_subdev_ops imx307_subdev_ops = {
++	.video = &imx307_video_ops,
++	.pad = &imx307_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops imx307_subdev_internal_ops = {
++	.init_state = imx307_init_state,
++};
++
++static const char * const imx307_supply_names[] = {
++	"vdda",
++	"vddd",
++	"vdddo",
++};
++
++static int imx307_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct imx307 *imx307;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	imx307 = devm_kzalloc(dev, sizeof(*imx307), GFP_KERNEL);
++	if (!imx307)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&imx307->sd, client, &imx307_subdev_ops);
++	imx307->sd.internal_ops = &imx307_subdev_internal_ops;
++
++	ret = imx307_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	imx307->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(imx307->xclk))
++		return dev_err_probe(dev, PTR_ERR(imx307->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(imx307->xclk);
++	if (xclk_freq != IMX307_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(imx307->supplies); i++)
++		imx307->supplies[i].supply = imx307_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(imx307->supplies),
++				      imx307->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	imx307->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(imx307->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(imx307->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	imx307->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(imx307->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(imx307->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	imx307->regmap = devm_cci_regmap_init_i2c(client, 16);
++	if (IS_ERR(imx307->regmap))
++		return dev_err_probe(dev, PTR_ERR(imx307->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = imx307_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = imx307_identify_module(imx307);
++	if (ret)
++		goto err_power_off;
++
++	imx307->mode = &imx307_modes[0];
++
++	ret = imx307_init_controls(imx307);
++	if (ret)
++		goto err_power_off;
++
++	imx307->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	imx307->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	imx307->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&imx307->sd.entity, 1, &imx307->pad);
++	if (ret)
++		goto err_handler_free;
++
++	imx307->sd.state_lock = imx307->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&imx307->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&imx307->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&imx307->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&imx307->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&imx307->ctrls.handler);
++err_power_off:
++	imx307_power_off(dev);
++
++	return ret;
++}
++
++static void imx307_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct imx307 *imx307 = to_imx307(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&imx307->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		imx307_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id imx307_dt_ids[] = {
++	{ .compatible = "sony,imx307" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, imx307_dt_ids);
++
++static const struct i2c_device_id imx307_id[] = {
++	{ .name = "imx307" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, imx307_id);
++
++static const struct dev_pm_ops imx307_pm_ops = {
++	RUNTIME_PM_OPS(imx307_power_off, imx307_power_on, NULL)
++};
++
++static struct i2c_driver imx307_i2c_driver = {
++	.driver = {
++		.name = "imx307",
++		.of_match_table = imx307_dt_ids,
++		.pm = pm_ptr(&imx307_pm_ops),
++	},
++	.id_table = imx307_id,
++	.probe = imx307_probe,
++	.remove = imx307_remove,
++};
++
++module_i2c_driver(imx307_i2c_driver);
++
++MODULE_DESCRIPTION("Sony IMX307 sensor driver");
++MODULE_LICENSE("GPL");
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -245,6 +245,16 @@
+ 
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called imx296.
++
++config VIDEO_IMX307
++	select V4L2_CCI_I2C
++	tristate "Sony IMX307 sensor support"
++	help
++	  This is a V4L2 sensor-level driver for the Sony IMX307
++	  2 Mpixel camera sensor.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called imx307.
+ 
+ config VIDEO_IMX319
+ 	tristate "Sony IMX319 sensor support"
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -57,6 +57,7 @@
+ obj-$(CONFIG_VIDEO_IMX283) += imx283.o
+ obj-$(CONFIG_VIDEO_IMX290) += imx290.o
+ obj-$(CONFIG_VIDEO_IMX296) += imx296.o
++obj-$(CONFIG_VIDEO_IMX307) += imx307.o
+ obj-$(CONFIG_VIDEO_IMX319) += imx319.o
+ obj-$(CONFIG_VIDEO_IMX334) += imx334.o
+ obj-$(CONFIG_VIDEO_IMX335) += imx335.o
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/sony,imx307.yaml
+@@ -0,0 +1,115 @@
++# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/sony,imx307.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: Sony IMX307 1/2.8-Inch CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description: |-
++  The Sony IMX307 is a 1/2.8-Inch CMOS solid-state image sensor with a
++  1920x1080 active pixel array and a 12-bit ADC. It is programmable through
++  I2C and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: sony,imx307
++
++  reg:
++    const: 0x1a
++
++  clocks:
++    maxItems: 1
++
++  clock-names:
++    description: Input clock (37.125 MHz)
++    items:
++      - const: xclk
++
++  vdda-supply:
++    description: Analog power supply (2.9V)
++
++  vddd-supply:
++    description: Digital core power supply (1.2V)
++
++  vdddo-supply:
++    description: Digital I/O power supply (1.8V)
++
++  reset-gpios:
++    description: Sensor reset (XCLR) GPIO
++    maxItems: 1
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++    description: Video output port
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          data-lanes:
++            items:
++              - const: 1
++              - const: 2
++
++          link-frequencies: true
++
++        required:
++          - data-lanes
++          - link-frequencies
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - clock-names
++  - vdda-supply
++  - vddd-supply
++  - vdddo-supply
++  - port
++
++unevaluatedProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@1a {
++            compatible = "sony,imx307";
++            reg = <0x1a>;
++            clocks = <&clk_ext_camera>;
++            clock-names = "xclk";
++            vdda-supply = <&vcc_2v8>;
++            vddd-supply = <&vcc_1v2>;
++            vdddo-supply = <&vcc_1v8>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <445500000>;
++                };
++            };
++        };
++    };
++
++...

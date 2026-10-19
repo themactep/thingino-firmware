@@ -88,6 +88,28 @@ endif
 
 # The TX-ISP kernel modules build against the V4L2/media API, so enable that
 # stack here instead of baking it into the shared generic kernel config.
+#
+# WARNING: only the SC2336 driver has been validated on hardware. Every other
+# mainline sensor driver in this tree is a register-level port from the
+# Ingenic vendor source and has not been tested on a camera.
+#
+# On the 7.2 mainline path the sensor drivers are built into the kernel (not
+# modules): tx-isp's V4L2 bridge attaches to the subdev that probed from DT,
+# and the vendor sensor module is neither built nor loaded. Enable only the
+# driver this camera uses; CONFIG_VIDEO_<MODEL> matches the driver symbol.
+ifeq ($(KERNEL_VERSION),7.2.11)
+OPEN_TX_ISP_MAINLINE_SENSORS = sc2336 gc2053 gc4653 imx307 gc2083 gc4023 \
+	imx327 jxf23 jxf37 jxq03 jxq03p os03b10 sc223a sc231hai sc2332 \
+	sc2336p sc301iot sc3235 sc3335 sc3336 sc3338 sc401ai sc4236 \
+	sc4336 sc4336p sc5235
+ifneq ($(SENSOR_1_MODEL),)
+OPEN_TX_ISP_SENSOR_1_CONFIG := CONFIG_VIDEO_$(shell echo $(SENSOR_1_MODEL) | tr a-z A-Z)
+endif
+ifneq ($(SENSOR_2_MODEL),)
+OPEN_TX_ISP_SENSOR_2_CONFIG := CONFIG_VIDEO_$(shell echo $(SENSOR_2_MODEL) | tr a-z A-Z)
+endif
+endif
+
 define OPEN_TX_ISP_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_SUPPORT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_SUPPORT_FILTER)
@@ -95,6 +117,8 @@ define OPEN_TX_ISP_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_PLATFORM_SUPPORT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_V4L_PLATFORM_DRIVERS)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MEDIA_SUBDRV_AUTOSELECT)
+	$(if $(OPEN_TX_ISP_SENSOR_1_CONFIG),$(call KCONFIG_ENABLE_OPT,$(OPEN_TX_ISP_SENSOR_1_CONFIG)))
+	$(if $(OPEN_TX_ISP_SENSOR_2_CONFIG),$(call KCONFIG_ENABLE_OPT,$(OPEN_TX_ISP_SENSOR_2_CONFIG)))
 	$(OPEN_TX_ISP_MODPOST_FIXUP)
 endef
 
@@ -176,8 +200,13 @@ define OPEN_TX_ISP_INSTALL_MODULES_D
 	echo "tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS)" \
 		> $(TARGET_DIR)/etc/modules.d/20-isp
 	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \
-		echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(SENSOR_1_PARAMS)" \
-			> $(TARGET_DIR)/etc/modules.d/30-sensor; \
+		case " $(OPEN_TX_ISP_MAINLINE_SENSORS) " in \
+			*" $(SENSOR_1_MODEL) "*) \
+				rm -f $(TARGET_DIR)/etc/modules.d/30-sensor \
+					$(TARGET_DIR)/lib/modules/$(LINUX_VERSION)/ingenic/sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY).ko ;; \
+			*) echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(SENSOR_1_PARAMS)" \
+				> $(TARGET_DIR)/etc/modules.d/30-sensor ;; \
+		esac; \
 	fi
 endef
 OPEN_TX_ISP_POST_INSTALL_TARGET_HOOKS += OPEN_TX_ISP_INSTALL_MODULES_D
@@ -191,11 +220,13 @@ $(eval $(kernel-module))
 # sensor(s) this camera loads (see /etc/modules.d/30-sensor) before the
 # kernel-module build hook runs, so only those are built and installed.
 OPEN_TX_ISP_SENSOR_MODELS = $(filter-out none,$(SENSOR_1_MODEL) $(SENSOR_2_MODEL))
+# Sensors with an in-tree V4L2 driver, consumed through tx-isp's V4L2 bridge.
+OPEN_TX_ISP_VENDOR_SENSORS = $(filter-out $(OPEN_TX_ISP_MAINLINE_SENSORS),$(OPEN_TX_ISP_SENSOR_MODELS))
 
 define OPEN_TX_ISP_LIMIT_SENSORS
 	if [ -f "$(@D)/sensor-src/$(SOC_FAMILY)/Kbuild" ]; then \
 		$(SED) '/^obj-m += sensor_/d' "$(@D)/sensor-src/$(SOC_FAMILY)/Kbuild"; \
-		for m in $(OPEN_TX_ISP_SENSOR_MODELS); do \
+		for m in $(OPEN_TX_ISP_VENDOR_SENSORS); do \
 			echo "obj-m += sensor_$${m}_$(SOC_FAMILY).o" \
 				>> "$(@D)/sensor-src/$(SOC_FAMILY)/Kbuild"; \
 		done; \

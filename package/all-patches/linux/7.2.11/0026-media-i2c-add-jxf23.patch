@@ -1,0 +1,1029 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the JX Imaging JXF23 sensor driver
+
+Add a mainline V4L2 subdev driver for the JX Imaging JXF23 image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_jxf23_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/jxf23.c
+@@ -0,0 +1,904 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * JXF23 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_jxf23_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define JXF23_CHIP_ID_H			0x0f
++#define JXF23_CHIP_ID_L			0x23
++
++#define JXF23_REG_CHIP_ID_H			CCI_REG8(0xf0)
++#define JXF23_REG_CHIP_ID_L			CCI_REG8(0xf1)
++
++#define JXF23_REG_EXPOSURE_L			CCI_REG8(0x01)
++#define JXF23_REG_EXPOSURE_H			CCI_REG8(0x02)
++#define JXF23_REG_HTS_L				CCI_REG8(0x20)
++#define JXF23_REG_HTS_H				CCI_REG8(0x21)
++#define JXF23_REG_VTS_L				CCI_REG8(0x22)
++#define JXF23_REG_VTS_H				CCI_REG8(0x23)
++#define JXF23_REG_GAIN				CCI_REG8(0x00)
++
++#define JXF23_XCLK_FREQ				(27 * HZ_PER_MHZ)
++#define JXF23_NATIVE_WIDTH			1920U
++#define JXF23_NATIVE_HEIGHT			1080U
++#define JXF23_LINK_FREQ				222500000
++#define JXF23_PIXEL_RATE				86400000
++
++static const s64 jxf23_link_freqs[] = {
++	JXF23_LINK_FREQ,
++};
++
++#define JXF23_HTS_MIN				2560U
++#define JXF23_HTS_MAX				0xffffU
++#define JXF23_VTS_MAX				0xffffU
++#define JXF23_EXPOSURE_OFFSET			4
++
++struct jxf23_gain {
++	u8 code;
++};
++
++static const struct jxf23_gain jxf23_gains[] = {
++	{ 0x00 },
++	{ 0x01 },
++	{ 0x02 },
++	{ 0x03 },
++	{ 0x04 },
++	{ 0x05 },
++	{ 0x06 },
++	{ 0x07 },
++	{ 0x08 },
++	{ 0x09 },
++	{ 0x0a },
++	{ 0x0b },
++	{ 0x0c },
++	{ 0x0d },
++	{ 0x0e },
++	{ 0x0f },
++	{ 0x10 },
++	{ 0x11 },
++	{ 0x12 },
++	{ 0x13 },
++	{ 0x14 },
++	{ 0x15 },
++	{ 0x16 },
++	{ 0x17 },
++	{ 0x18 },
++	{ 0x19 },
++	{ 0x1a },
++	{ 0x1b },
++	{ 0x1c },
++	{ 0x1d },
++	{ 0x1e },
++	{ 0x1f },
++	{ 0x20 },
++	{ 0x21 },
++	{ 0x22 },
++	{ 0x23 },
++	{ 0x24 },
++	{ 0x25 },
++	{ 0x26 },
++	{ 0x27 },
++	{ 0x28 },
++	{ 0x29 },
++	{ 0x2a },
++	{ 0x2b },
++	{ 0x2c },
++	{ 0x2d },
++	{ 0x2e },
++	{ 0x2f },
++	{ 0x30 },
++	{ 0x31 },
++	{ 0x32 },
++	{ 0x33 },
++	{ 0x34 },
++	{ 0x35 },
++	{ 0x36 },
++	{ 0x37 },
++	{ 0x38 },
++	{ 0x39 },
++	{ 0x3a },
++	{ 0x3b },
++	{ 0x3c },
++	{ 0x3d },
++	{ 0x3e },
++	{ 0x3f },
++	{ 0x40 },
++	{ 0x41 },
++	{ 0x42 },
++	{ 0x43 },
++	{ 0x44 },
++	{ 0x45 },
++	{ 0x46 },
++	{ 0x47 },
++	{ 0x48 },
++	{ 0x49 },
++	{ 0x4a },
++	{ 0x4b },
++	{ 0x4c },
++	{ 0x4d },
++	{ 0x4e },
++	{ 0x4f },
++};
++
++
++struct jxf23_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence jxf23_1080p25_regs[] = {
++	{ CCI_REG8(0x0e), 0x11 },
++	{ CCI_REG8(0x0f), 0x14 },
++	{ CCI_REG8(0x10), 0x40 },
++	{ CCI_REG8(0x11), 0x80 },
++	{ CCI_REG8(0x48), 0x05 },
++	{ CCI_REG8(0x96), 0xaa },
++	{ CCI_REG8(0x94), 0xc0 },
++	{ CCI_REG8(0x97), 0x8d },
++	{ CCI_REG8(0x96), 0x00 },
++	{ CCI_REG8(0x12), 0x40 },
++	{ CCI_REG8(0x48), 0x8a },
++	{ CCI_REG8(0x48), 0x0a },
++	{ CCI_REG8(0x0e), 0x11 },
++	{ CCI_REG8(0x0f), 0x14 },
++	{ CCI_REG8(0x10), 0x24 },
++	{ CCI_REG8(0x11), 0x80 },
++	{ CCI_REG8(0x0d), 0xa0 },
++	{ CCI_REG8(0x5f), 0x41 },
++	{ CCI_REG8(0x60), 0x20 },
++	{ CCI_REG8(0x58), 0x12 },
++	{ CCI_REG8(0x57), 0x60 },
++	{ CCI_REG8(0x9d), 0x00 },
++	{ CCI_REG8(0x20), 0x00 },
++	{ CCI_REG8(0x21), 0x05 },
++	{ CCI_REG8(0x22), 0x46 },
++	{ CCI_REG8(0x23), 0x05 },
++	{ CCI_REG8(0x24), 0xc0 },
++	{ CCI_REG8(0x25), 0x38 },
++	{ CCI_REG8(0x26), 0x43 },
++	{ CCI_REG8(0x27), 0xc3 },
++	{ CCI_REG8(0x28), 0x19 },
++	{ CCI_REG8(0x29), 0x04 },
++	{ CCI_REG8(0x2c), 0x00 },
++	{ CCI_REG8(0x2d), 0x00 },
++	{ CCI_REG8(0x2e), 0x18 },
++	{ CCI_REG8(0x2f), 0x44 },
++	{ CCI_REG8(0x41), 0xc9 },
++	{ CCI_REG8(0x42), 0x13 },
++	{ CCI_REG8(0x46), 0x00 },
++	{ CCI_REG8(0x76), 0x60 },
++	{ CCI_REG8(0x77), 0x09 },
++	{ CCI_REG8(0x1d), 0x00 },
++	{ CCI_REG8(0x1e), 0x04 },
++	{ CCI_REG8(0x6c), 0x40 },
++	{ CCI_REG8(0x68), 0x00 },
++	{ CCI_REG8(0x6e), 0x2c },
++	{ CCI_REG8(0x70), 0x6c },
++	{ CCI_REG8(0x71), 0x8a },
++	{ CCI_REG8(0x72), 0x88 },
++	{ CCI_REG8(0x73), 0x36 },
++	{ CCI_REG8(0x74), 0x02 },
++	{ CCI_REG8(0x78), 0x9e },
++	{ CCI_REG8(0x89), 0x01 },
++	{ CCI_REG8(0x2a), 0xb1 },
++	{ CCI_REG8(0x2b), 0x24 },
++	{ CCI_REG8(0x31), 0x08 },
++	{ CCI_REG8(0x32), 0x4f },
++	{ CCI_REG8(0x33), 0x20 },
++	{ CCI_REG8(0x34), 0x5e },
++	{ CCI_REG8(0x35), 0x5e },
++	{ CCI_REG8(0x3a), 0xaf },
++	{ CCI_REG8(0x56), 0x32 },
++	{ CCI_REG8(0x59), 0xbf },
++	{ CCI_REG8(0x5a), 0x04 },
++	{ CCI_REG8(0x85), 0x5a },
++	{ CCI_REG8(0x8a), 0x04 },
++	{ CCI_REG8(0x8f), 0x90 },
++	{ CCI_REG8(0x91), 0x13 },
++	{ CCI_REG8(0x5b), 0xa0 },
++	{ CCI_REG8(0x5c), 0xf0 },
++	{ CCI_REG8(0x5d), 0xfc },
++	{ CCI_REG8(0x5e), 0x1f },
++	{ CCI_REG8(0x62), 0x04 },
++	{ CCI_REG8(0x63), 0x0f },
++	{ CCI_REG8(0x64), 0xc0 },
++	{ CCI_REG8(0x66), 0x44 },
++	{ CCI_REG8(0x67), 0x73 },
++	{ CCI_REG8(0x69), 0x7c },
++	{ CCI_REG8(0x6a), 0x28 },
++	{ CCI_REG8(0x7a), 0xc0 },
++	{ CCI_REG8(0x4a), 0x05 },
++	{ CCI_REG8(0x7e), 0xcd },
++	{ CCI_REG8(0x49), 0x10 },
++	{ CCI_REG8(0x50), 0x02 },
++	{ CCI_REG8(0x7b), 0x4a },
++	{ CCI_REG8(0x7c), 0x0c },
++	{ CCI_REG8(0x7f), 0x57 },
++	{ CCI_REG8(0x90), 0x00 },
++	{ CCI_REG8(0x8e), 0x00 },
++	{ CCI_REG8(0x8c), 0xff },
++	{ CCI_REG8(0x8d), 0xc7 },
++	{ CCI_REG8(0x8b), 0x01 },
++	{ CCI_REG8(0x0c), 0x40 },
++	{ CCI_REG8(0x65), 0x02 },
++	{ CCI_REG8(0x80), 0x1a },
++	{ CCI_REG8(0x81), 0xc0 },
++	{ CCI_REG8(0x19), 0x20 },
++	{ CCI_REG8(0x99), 0x0f },
++	{ CCI_REG8(0x9b), 0x0f },
++	{ CCI_REG8(0x12), 0x00 },
++	{ CCI_REG8(0x48), 0x8a },
++};
++
++static const struct cci_reg_sequence jxf23_1080p25_regs_post[] = {
++	{ CCI_REG8(0x48), 0x0a },
++};
++
++
++static const struct jxf23_mode jxf23_modes[] = {
++	{
++		.width = JXF23_NATIVE_WIDTH,
++		.height = JXF23_NATIVE_HEIGHT,
++		.hblank = JXF23_HTS_MIN - JXF23_NATIVE_WIDTH,
++		.vblank = 1350 - JXF23_NATIVE_HEIGHT,
++		.regs = jxf23_1080p25_regs,
++		.regs_num = ARRAY_SIZE(jxf23_1080p25_regs),
++	},
++};
++
++struct jxf23_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++};
++
++struct jxf23 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct jxf23_ctrls ctrls;
++
++	const struct jxf23_mode *mode;
++};
++
++static inline struct jxf23 *to_jxf23(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct jxf23, sd);
++}
++
++static inline struct v4l2_subdev *jxf23_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct jxf23, ctrls.handler)->sd;
++}
++
++static void jxf23_fill_format(const struct jxf23_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int jxf23_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	jxf23_fill_format(&jxf23_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = jxf23_modes[0].width;
++	crop->height = jxf23_modes[0].height;
++
++	return 0;
++}
++
++static int jxf23_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++
++	return 0;
++}
++
++static int jxf23_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(jxf23_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
++		return -EINVAL;
++
++	fse->min_width = jxf23_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = jxf23_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int jxf23_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = JXF23_NATIVE_WIDTH;
++		sel->r.height = JXF23_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int jxf23_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct jxf23 *jxf23 = to_jxf23(sd);
++	const struct jxf23_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(jxf23_modes, ARRAY_SIZE(jxf23_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	jxf23_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		jxf23->mode = mode;
++		__v4l2_ctrl_s_ctrl(jxf23->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(jxf23->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void jxf23_exposure_update(struct jxf23 *jxf23)
++{
++	unsigned int exposure_max;
++
++	exposure_max = jxf23->ctrls.vblank->val + jxf23->mode->height -
++		       JXF23_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0x3fffU);
++
++	__v4l2_ctrl_modify_range(jxf23->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int jxf23_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct jxf23 *jxf23 = to_jxf23(jxf23_ctrl_to_sd(ctrl));
++	u32 hts;
++	u8 code, r2f, r0c, r82;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		jxf23_exposure_update(jxf23);
++
++	if (!pm_runtime_get_if_in_use(jxf23->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(jxf23->regmap, JXF23_REG_EXPOSURE_L,
++				ctrl->val & 0xff, NULL);
++		ret = cci_write(jxf23->regmap, JXF23_REG_EXPOSURE_H,
++				(ctrl->val >> 8) & 0xff, &ret);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		code = jxf23_gains[ctrl->val].code;
++		if (code < 0x30) {
++			ret = cci_write(jxf23->regmap, CCI_REG8(0x66), 0x04, NULL);
++			ret = cci_write(jxf23->regmap, CCI_REG8(0x0c), 0x00, &ret);
++		} else {
++			ret = cci_write(jxf23->regmap, CCI_REG8(0x0c), 0x40, NULL);
++			ret = cci_write(jxf23->regmap, CCI_REG8(0x66), 0x44, &ret);
++		}
++		ret = cci_write(jxf23->regmap, JXF23_REG_GAIN, code & 0x7f, &ret);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + jxf23->mode->width;
++		ret = cci_write(jxf23->regmap, JXF23_REG_HTS_L,
++				(hts / 2) & 0xff, NULL);
++		ret = cci_write(jxf23->regmap, JXF23_REG_HTS_H,
++				((hts / 2) >> 8) & 0xff, &ret);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(jxf23->regmap, JXF23_REG_VTS_L,
++				(ctrl->val + jxf23->mode->height) & 0xff, NULL);
++		ret = cci_write(jxf23->regmap, JXF23_REG_VTS_H,
++				((ctrl->val + jxf23->mode->height) >> 8) & 0xff, &ret);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(jxf23->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops jxf23_ctrl_ops = {
++	.s_ctrl = jxf23_set_ctrl,
++};
++
++static int jxf23_init_controls(struct jxf23 *jxf23)
++{
++	struct v4l2_ctrl_handler *hdl = &jxf23->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &jxf23_ctrl_ops;
++	unsigned int hblank_max = JXF23_HTS_MAX - JXF23_NATIVE_WIDTH;
++	unsigned int vblank_max = JXF23_VTS_MAX - JXF23_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	jxf23->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  JXF23_PIXEL_RATE, JXF23_PIXEL_RATE, 1,
++				  JXF23_PIXEL_RATE);
++
++	jxf23->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       jxf23_link_freqs);
++	if (jxf23->ctrls.link_freq)
++		jxf23->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	jxf23->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  jxf23_modes[0].vblank +
++				  jxf23_modes[0].height -
++				  JXF23_EXPOSURE_OFFSET, 1,
++				  jxf23_modes[0].vblank +
++				  jxf23_modes[0].height -
++				  JXF23_EXPOSURE_OFFSET);
++
++	jxf23->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(jxf23_gains) - 1, 1, 0);
++
++	jxf23->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  JXF23_HTS_MIN - JXF23_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  jxf23_modes[0].hblank);
++
++	jxf23->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  jxf23_modes[0].vblank, vblank_max, 1,
++				  jxf23_modes[0].vblank);
++
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(jxf23->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	jxf23->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int jxf23_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == JXF23_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", JXF23_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int jxf23_power_on(struct device *dev)
++{
++	struct jxf23 *jxf23 = to_jxf23(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(jxf23->supplies),
++				    jxf23->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(jxf23->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(jxf23->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(jxf23->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(jxf23->supplies), jxf23->supplies);
++
++	return ret;
++}
++
++static int jxf23_power_off(struct device *dev)
++{
++	struct jxf23 *jxf23 = to_jxf23(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(jxf23->reset_gpio, 1);
++	gpiod_set_value_cansleep(jxf23->powerdown_gpio, 1);
++	clk_disable_unprepare(jxf23->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(jxf23->supplies), jxf23->supplies);
++
++	return 0;
++}
++
++static int jxf23_identify_module(struct jxf23 *jxf23)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != JXF23_CHIP_ID_H || id_l != JXF23_CHIP_ID_L) {
++		dev_err(jxf23->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, JXF23_CHIP_ID_H, JXF23_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int jxf23_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct jxf23 *jxf23 = to_jxf23(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs,
++			    ARRAY_SIZE(jxf23_1080p25_regs), &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	msleep(250);
++	cci_multi_reg_write(jxf23->regmap, jxf23_1080p25_regs_post,
++			    ARRAY_SIZE(jxf23_1080p25_regs_post), &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&jxf23->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int jxf23_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return 0;
++}
++
++static const struct v4l2_subdev_video_ops jxf23_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops jxf23_pad_ops = {
++	.enum_mbus_code = jxf23_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = jxf23_set_pad_format,
++	.get_selection = jxf23_get_selection,
++	.enum_frame_size = jxf23_enum_frame_size,
++	.enable_streams = jxf23_enable_streams,
++	.disable_streams = jxf23_disable_streams,
++};
++
++static const struct v4l2_subdev_ops jxf23_subdev_ops = {
++	.video = &jxf23_video_ops,
++	.pad = &jxf23_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops jxf23_subdev_internal_ops = {
++	.init_state = jxf23_init_state,
++};
++
++static const char * const jxf23_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int jxf23_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct jxf23 *jxf23;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	jxf23 = devm_kzalloc(dev, sizeof(*jxf23), GFP_KERNEL);
++	if (!jxf23)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&jxf23->sd, client, &jxf23_subdev_ops);
++	jxf23->sd.internal_ops = &jxf23_subdev_internal_ops;
++
++	ret = jxf23_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	jxf23->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(jxf23->xclk))
++		return dev_err_probe(dev, PTR_ERR(jxf23->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(jxf23->xclk);
++	if (xclk_freq != JXF23_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(jxf23->supplies); i++)
++		jxf23->supplies[i].supply = jxf23_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(jxf23->supplies),
++				      jxf23->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	jxf23->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(jxf23->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(jxf23->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	jxf23->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(jxf23->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(jxf23->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	jxf23->regmap = devm_cci_regmap_init_i2c(client, 8);
++	if (IS_ERR(jxf23->regmap))
++		return dev_err_probe(dev, PTR_ERR(jxf23->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = jxf23_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = jxf23_identify_module(jxf23);
++	if (ret)
++		goto err_power_off;
++
++	jxf23->mode = &jxf23_modes[0];
++
++	ret = jxf23_init_controls(jxf23);
++	if (ret)
++		goto err_power_off;
++
++	jxf23->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	jxf23->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	jxf23->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&jxf23->sd.entity, 1, &jxf23->pad);
++	if (ret)
++		goto err_handler_free;
++
++	jxf23->sd.state_lock = jxf23->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&jxf23->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&jxf23->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&jxf23->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&jxf23->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&jxf23->ctrls.handler);
++err_power_off:
++	jxf23_power_off(dev);
++
++	return ret;
++}
++
++static void jxf23_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct jxf23 *jxf23 = to_jxf23(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&jxf23->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		jxf23_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id jxf23_dt_ids[] = {
++	{ .compatible = "jxf,jxf23" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, jxf23_dt_ids);
++
++static const struct i2c_device_id jxf23_id[] = {
++	{ .name = "jxf23" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, jxf23_id);
++
++static const struct dev_pm_ops jxf23_pm_ops = {
++	RUNTIME_PM_OPS(jxf23_power_off, jxf23_power_on, NULL)
++};
++
++static struct i2c_driver jxf23_i2c_driver = {
++	.driver = {
++		.name = "jxf23",
++		.of_match_table = jxf23_dt_ids,
++		.pm = pm_ptr(&jxf23_pm_ops),
++	},
++	.id_table = jxf23_id,
++	.probe = jxf23_probe,
++	.remove = jxf23_remove,
++};
++
++module_i2c_driver(jxf23_i2c_driver);
++
++MODULE_DESCRIPTION("JXF23 sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/jxf,jxf23.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/jxf,jxf23.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: JX Imaging JXF23 1920x1080 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The JX Imaging JXF23 is a 1920x1080 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: jxf,jxf23
++
++  reg:
++    const: 0x40
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@40 {
++            compatible = "jxf,jxf23";
++            reg = <0x40>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <222500000>;
++                };
++            };
++        };
++    };
++
++...

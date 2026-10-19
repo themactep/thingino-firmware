@@ -1,0 +1,1037 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: add the JX Imaging JXQ03 sensor driver
+
+Add a mainline V4L2 subdev driver for the JX Imaging JXQ03 image
+sensor. The mode register sequence and gain table are adapted from the
+Ingenic vendor sensor driver (sensor_jxq03_t31).
+
+The driver uses the CCI register helpers, runtime PM, and the current
+state-based subdev pad API. It exposes the full-resolution mode with
+HBLANK/VBLANK, exposure, analogue gain, and mirror/flip controls where
+the vendor driver provides them.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- /dev/null
++++ b/drivers/media/i2c/jxq03.c
+@@ -0,0 +1,912 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * JXQ03 CMOS Image Sensor Driver
++ *
++ * The register sequences and gain table are adapted from the Ingenic
++ * vendor sensor driver (sensor_jxq03_t31).
++ *
++ * WARNING: this driver has not been validated on hardware. Only the SC2336
++ * driver has been tested on a camera.
++ */
++
++#include <linux/clk.h>
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/pm_runtime.h>
++#include <linux/regulator/consumer.h>
++#include <linux/units.h>
++
++#include <media/v4l2-cci.h>
++#include <media/v4l2-ctrls.h>
++#include <media/v4l2-device.h>
++#include <media/v4l2-fwnode.h>
++#include <media/v4l2-mediabus.h>
++
++#define JXQ03_CHIP_ID_H			0x05
++#define JXQ03_CHIP_ID_L			0x07
++
++#define JXQ03_REG_CHIP_ID_H			CCI_REG8(0xf0)
++#define JXQ03_REG_CHIP_ID_L			CCI_REG8(0xf1)
++
++#define JXQ03_REG_EXPOSURE_L			CCI_REG8(0x01)
++#define JXQ03_REG_EXPOSURE_H			CCI_REG8(0x02)
++#define JXQ03_REG_HTS_L				CCI_REG8(0x20)
++#define JXQ03_REG_HTS_H				CCI_REG8(0x21)
++#define JXQ03_REG_VTS_L				CCI_REG8(0x22)
++#define JXQ03_REG_VTS_H				CCI_REG8(0x23)
++#define JXQ03_REG_GAIN				CCI_REG8(0x00)
++#define JXQ03_REG_FLIP				CCI_REG8(0x12)
++#define JXQ03_FLIP_VFLIP				BIT(4)
++
++#define JXQ03_XCLK_FREQ				(24 * HZ_PER_MHZ)
++#define JXQ03_NATIVE_WIDTH			2304U
++#define JXQ03_NATIVE_HEIGHT			1296U
++#define JXQ03_LINK_FREQ				360000000
++#define JXQ03_PIXEL_RATE				144000000
++
++static const s64 jxq03_link_freqs[] = {
++	JXQ03_LINK_FREQ,
++};
++
++#define JXQ03_HTS_MIN				3600U
++#define JXQ03_HTS_MAX				0xffffU
++#define JXQ03_VTS_MAX				0xffffU
++#define JXQ03_EXPOSURE_OFFSET			4
++
++struct jxq03_gain {
++	u8 code;
++};
++
++static const struct jxq03_gain jxq03_gains[] = {
++	{ 0x00 },
++	{ 0x01 },
++	{ 0x02 },
++	{ 0x03 },
++	{ 0x04 },
++	{ 0x05 },
++	{ 0x06 },
++	{ 0x07 },
++	{ 0x08 },
++	{ 0x09 },
++	{ 0x0a },
++	{ 0x0b },
++	{ 0x0c },
++	{ 0x0d },
++	{ 0x0e },
++	{ 0x0f },
++	{ 0x10 },
++	{ 0x11 },
++	{ 0x12 },
++	{ 0x13 },
++	{ 0x14 },
++	{ 0x15 },
++	{ 0x16 },
++	{ 0x17 },
++	{ 0x18 },
++	{ 0x19 },
++	{ 0x1a },
++	{ 0x1b },
++	{ 0x1c },
++	{ 0x1d },
++	{ 0x1e },
++	{ 0x1f },
++	{ 0x20 },
++	{ 0x21 },
++	{ 0x22 },
++	{ 0x23 },
++	{ 0x24 },
++	{ 0x25 },
++	{ 0x26 },
++	{ 0x27 },
++	{ 0x28 },
++	{ 0x29 },
++	{ 0x2a },
++	{ 0x2b },
++	{ 0x2c },
++	{ 0x2d },
++	{ 0x2e },
++	{ 0x2f },
++	{ 0x30 },
++	{ 0x31 },
++	{ 0x32 },
++	{ 0x33 },
++	{ 0x34 },
++	{ 0x35 },
++	{ 0x36 },
++	{ 0x37 },
++	{ 0x38 },
++	{ 0x39 },
++	{ 0x3a },
++	{ 0x3b },
++	{ 0x3c },
++	{ 0x3d },
++	{ 0x3e },
++	{ 0x3f },
++	{ 0x40 },
++	{ 0x41 },
++	{ 0x42 },
++	{ 0x43 },
++	{ 0x44 },
++	{ 0x45 },
++	{ 0x46 },
++	{ 0x47 },
++	{ 0x48 },
++	{ 0x49 },
++	{ 0x4a },
++	{ 0x4b },
++	{ 0x4c },
++	{ 0x4d },
++	{ 0x4e },
++	{ 0x4f },
++};
++
++
++struct jxq03_mode {
++	u32 width;
++	u32 height;
++	u32 hblank;
++	u32 vblank;
++	const struct cci_reg_sequence *regs;
++	unsigned int regs_num;
++};
++
++static const struct cci_reg_sequence jxq03_1296p25_regs[] = {
++	{ CCI_REG8(0x12), 0x40 },
++	{ CCI_REG8(0x48), 0x96 },
++	{ CCI_REG8(0x48), 0x16 },
++	{ CCI_REG8(0x0e), 0x11 },
++	{ CCI_REG8(0x0f), 0x14 },
++	{ CCI_REG8(0x10), 0x3c },
++	{ CCI_REG8(0x11), 0x80 },
++	{ CCI_REG8(0x0d), 0xb0 },
++	{ CCI_REG8(0x5f), 0x41 },
++	{ CCI_REG8(0x60), 0x20 },
++	{ CCI_REG8(0x58), 0x1a },
++	{ CCI_REG8(0x57), 0x60 },
++	{ CCI_REG8(0x20), 0x84 },
++	{ CCI_REG8(0x21), 0x03 },
++	{ CCI_REG8(0x22), 0x40 },
++	{ CCI_REG8(0x23), 0x06 },
++	{ CCI_REG8(0x24), 0x40 },
++	{ CCI_REG8(0x25), 0x10 },
++	{ CCI_REG8(0x26), 0x52 },
++	{ CCI_REG8(0x27), 0x76 },
++	{ CCI_REG8(0x28), 0x15 },
++	{ CCI_REG8(0x29), 0x03 },
++	{ CCI_REG8(0x2a), 0x70 },
++	{ CCI_REG8(0x2b), 0x13 },
++	{ CCI_REG8(0x2c), 0x00 },
++	{ CCI_REG8(0x2d), 0x00 },
++	{ CCI_REG8(0x2e), 0x4a },
++	{ CCI_REG8(0x2f), 0x64 },
++	{ CCI_REG8(0x41), 0x84 },
++	{ CCI_REG8(0x42), 0x14 },
++	{ CCI_REG8(0x47), 0x42 },
++	{ CCI_REG8(0x76), 0x40 },
++	{ CCI_REG8(0x77), 0x0b },
++	{ CCI_REG8(0x80), 0x00 },
++	{ CCI_REG8(0xaf), 0x22 },
++	{ CCI_REG8(0xab), 0x00 },
++	{ CCI_REG8(0x46), 0x00 },
++	{ CCI_REG8(0x1d), 0x00 },
++	{ CCI_REG8(0x1e), 0x04 },
++	{ CCI_REG8(0x6c), 0x40 },
++	{ CCI_REG8(0x6e), 0x2c },
++	{ CCI_REG8(0x70), 0xd9 },
++	{ CCI_REG8(0x71), 0xd0 },
++	{ CCI_REG8(0x72), 0xd5 },
++	{ CCI_REG8(0x73), 0x59 },
++	{ CCI_REG8(0x74), 0x02 },
++	{ CCI_REG8(0x78), 0x96 },
++	{ CCI_REG8(0x89), 0x01 },
++	{ CCI_REG8(0x6b), 0x20 },
++	{ CCI_REG8(0x86), 0x40 },
++	{ CCI_REG8(0x31), 0x0a },
++	{ CCI_REG8(0x32), 0x21 },
++	{ CCI_REG8(0x33), 0x5c },
++	{ CCI_REG8(0x34), 0x44 },
++	{ CCI_REG8(0x35), 0x40 },
++	{ CCI_REG8(0x3a), 0xa0 },
++	{ CCI_REG8(0x3b), 0x38 },
++	{ CCI_REG8(0x3c), 0x50 },
++	{ CCI_REG8(0x3d), 0x5b },
++	{ CCI_REG8(0x3e), 0xff },
++	{ CCI_REG8(0x3f), 0x56 },
++	{ CCI_REG8(0x40), 0xff },
++	{ CCI_REG8(0x56), 0xb2 },
++	{ CCI_REG8(0x59), 0x50 },
++	{ CCI_REG8(0x5a), 0x04 },
++	{ CCI_REG8(0x85), 0x34 },
++	{ CCI_REG8(0x8a), 0x04 },
++	{ CCI_REG8(0x91), 0x08 },
++	{ CCI_REG8(0xa9), 0x08 },
++	{ CCI_REG8(0x9c), 0xe1 },
++	{ CCI_REG8(0x5b), 0xa0 },
++	{ CCI_REG8(0x5c), 0x80 },
++	{ CCI_REG8(0x5d), 0xef },
++	{ CCI_REG8(0x5e), 0x14 },
++	{ CCI_REG8(0x64), 0xe0 },
++	{ CCI_REG8(0x66), 0x04 },
++	{ CCI_REG8(0x67), 0x77 },
++	{ CCI_REG8(0x68), 0x00 },
++	{ CCI_REG8(0x69), 0x41 },
++	{ CCI_REG8(0x7a), 0xa0 },
++	{ CCI_REG8(0x8f), 0x91 },
++	{ CCI_REG8(0x9d), 0x70 },
++	{ CCI_REG8(0xae), 0x30 },
++	{ CCI_REG8(0x13), 0x81 },
++	{ CCI_REG8(0x96), 0x04 },
++	{ CCI_REG8(0x4a), 0x01 },
++	{ CCI_REG8(0x7e), 0xc9 },
++	{ CCI_REG8(0x50), 0x02 },
++	{ CCI_REG8(0x49), 0x10 },
++	{ CCI_REG8(0x7b), 0x4a },
++	{ CCI_REG8(0x7c), 0x0f },
++	{ CCI_REG8(0x7f), 0x57 },
++	{ CCI_REG8(0x62), 0x21 },
++	{ CCI_REG8(0x90), 0x00 },
++	{ CCI_REG8(0x8c), 0xff },
++	{ CCI_REG8(0x8d), 0xc7 },
++	{ CCI_REG8(0x8e), 0x00 },
++	{ CCI_REG8(0x8b), 0x01 },
++	{ CCI_REG8(0x0c), 0x00 },
++	{ CCI_REG8(0xbb), 0x11 },
++	{ CCI_REG8(0x6a), 0x12 },
++	{ CCI_REG8(0x65), 0x32 },
++	{ CCI_REG8(0x82), 0x01 },
++	{ CCI_REG8(0xa3), 0x20 },
++	{ CCI_REG8(0xa0), 0x01 },
++	{ CCI_REG8(0x81), 0x74 },
++	{ CCI_REG8(0xa2), 0xff },
++	{ CCI_REG8(0x19), 0x20 },
++	{ CCI_REG8(0x12), 0x00 },
++	{ CCI_REG8(0x48), 0x96 },
++	{ CCI_REG8(0x48), 0x16 },
++};
++
++
++static const struct jxq03_mode jxq03_modes[] = {
++	{
++		.width = JXQ03_NATIVE_WIDTH,
++		.height = JXQ03_NATIVE_HEIGHT,
++		.hblank = JXQ03_HTS_MIN - JXQ03_NATIVE_WIDTH,
++		.vblank = 1600 - JXQ03_NATIVE_HEIGHT,
++		.regs = jxq03_1296p25_regs,
++		.regs_num = ARRAY_SIZE(jxq03_1296p25_regs),
++	},
++};
++
++struct jxq03_ctrls {
++	struct v4l2_ctrl_handler handler;
++	struct v4l2_ctrl *pixel_rate;
++	struct v4l2_ctrl *link_freq;
++	struct v4l2_ctrl *hblank;
++	struct v4l2_ctrl *vblank;
++	struct v4l2_ctrl *exposure;
++	struct v4l2_ctrl *gain;
++	struct v4l2_ctrl *vflip;
++};
++
++struct jxq03 {
++	struct v4l2_subdev sd;
++	struct media_pad pad;
++
++	struct regmap *regmap;
++	struct clk *xclk;
++
++	struct gpio_desc *reset_gpio;
++	struct gpio_desc *powerdown_gpio;
++	struct regulator_bulk_data supplies[3];
++
++	struct jxq03_ctrls ctrls;
++
++	const struct jxq03_mode *mode;
++};
++
++static inline struct jxq03 *to_jxq03(struct v4l2_subdev *sd)
++{
++	return container_of(sd, struct jxq03, sd);
++}
++
++static inline struct v4l2_subdev *jxq03_ctrl_to_sd(struct v4l2_ctrl *ctrl)
++{
++	return &container_of(ctrl->handler, struct jxq03, ctrls.handler)->sd;
++}
++
++static void jxq03_fill_format(const struct jxq03_mode *mode,
++			       struct v4l2_mbus_framefmt *fmt)
++{
++	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	fmt->width = mode->width;
++	fmt->height = mode->height;
++	fmt->field = V4L2_FIELD_NONE;
++	fmt->colorspace = V4L2_COLORSPACE_RAW;
++	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
++	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
++	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
++}
++
++static int jxq03_init_state(struct v4l2_subdev *sd,
++			     struct v4l2_subdev_state *state)
++{
++	struct v4l2_mbus_framefmt *fmt;
++	struct v4l2_rect *crop;
++
++	fmt = v4l2_subdev_state_get_format(state, 0);
++	jxq03_fill_format(&jxq03_modes[0], fmt);
++
++	crop = v4l2_subdev_state_get_crop(state, 0);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = jxq03_modes[0].width;
++	crop->height = jxq03_modes[0].height;
++
++	return 0;
++}
++
++static int jxq03_enum_mbus_code(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_mbus_code_enum *code)
++{
++	if (code->index != 0)
++		return -EINVAL;
++
++	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++
++	return 0;
++}
++
++static int jxq03_enum_frame_size(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state,
++				  struct v4l2_subdev_frame_size_enum *fse)
++{
++	if (fse->index >= ARRAY_SIZE(jxq03_modes))
++		return -EINVAL;
++
++	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
++		return -EINVAL;
++
++	fse->min_width = jxq03_modes[fse->index].width;
++	fse->max_width = fse->min_width;
++	fse->min_height = jxq03_modes[fse->index].height;
++	fse->max_height = fse->min_height;
++
++	return 0;
++}
++
++static int jxq03_get_selection(struct v4l2_subdev *sd,
++				struct v4l2_subdev_state *state,
++				struct v4l2_subdev_selection *sel)
++{
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		sel->r = *v4l2_subdev_state_get_crop(state, 0);
++		return 0;
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = JXQ03_NATIVE_WIDTH;
++		sel->r.height = JXQ03_NATIVE_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
++static int jxq03_set_pad_format(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state,
++				 struct v4l2_subdev_format *fmt)
++{
++	struct jxq03 *jxq03 = to_jxq03(sd);
++	const struct jxq03_mode *mode;
++	struct v4l2_mbus_framefmt *framefmt;
++	struct v4l2_rect *crop;
++
++	mode = v4l2_find_nearest_size(jxq03_modes, ARRAY_SIZE(jxq03_modes),
++				      width, height,
++				      fmt->format.width, fmt->format.height);
++
++	jxq03_fill_format(mode, &fmt->format);
++	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
++	*framefmt = fmt->format;
++
++	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
++		jxq03->mode = mode;
++		__v4l2_ctrl_s_ctrl(jxq03->ctrls.hblank, mode->hblank);
++		__v4l2_ctrl_s_ctrl(jxq03->ctrls.vblank, mode->vblank);
++	}
++
++	crop = v4l2_subdev_state_get_crop(state, fmt->pad);
++	crop->left = 0;
++	crop->top = 0;
++	crop->width = mode->width;
++	crop->height = mode->height;
++
++	return 0;
++}
++
++static void jxq03_exposure_update(struct jxq03 *jxq03)
++{
++	unsigned int exposure_max;
++
++	exposure_max = jxq03->ctrls.vblank->val + jxq03->mode->height -
++		       JXQ03_EXPOSURE_OFFSET;
++	exposure_max = min(exposure_max, 0x3fffU);
++
++	__v4l2_ctrl_modify_range(jxq03->ctrls.exposure, 1, exposure_max, 1,
++				 exposure_max);
++}
++
++static int jxq03_set_ctrl(struct v4l2_ctrl *ctrl)
++{
++	struct jxq03 *jxq03 = to_jxq03(jxq03_ctrl_to_sd(ctrl));
++	u32 hts;
++	u8 code;
++	u64 val, r0c, r82;
++	int ret = 0;
++
++	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
++		return 0;
++
++	if (ctrl->id == V4L2_CID_VBLANK)
++		jxq03_exposure_update(jxq03);
++
++	if (!pm_runtime_get_if_in_use(jxq03->sd.dev))
++		return 0;
++
++	switch (ctrl->id) {
++	case V4L2_CID_EXPOSURE:
++		ret = cci_write(jxq03->regmap, JXQ03_REG_EXPOSURE_L,
++				ctrl->val & 0xff, NULL);
++		ret = cci_write(jxq03->regmap, JXQ03_REG_EXPOSURE_H,
++				(ctrl->val >> 8) & 0xff, &ret);
++		break;
++	case V4L2_CID_ANALOGUE_GAIN:
++		code = jxq03_gains[ctrl->val].code;
++		ret = cci_read(jxq03->regmap, CCI_REG8(0x0c), &r0c, NULL);
++		ret = cci_read(jxq03->regmap, CCI_REG8(0x82), &r82, &ret);
++		if (code < 0x10) {
++			r0c |= 0x40; r82 |= 0x02;
++		} else {
++			r0c &= 0xbf; r82 &= 0xfd;
++		}
++		ret = cci_write(jxq03->regmap, JXQ03_REG_GAIN, code & 0x7f, NULL);
++		ret = cci_write(jxq03->regmap, CCI_REG8(0x0c), r0c, &ret);
++		ret = cci_write(jxq03->regmap, CCI_REG8(0x3b), code < 0x10 ? 0x00 : 0x38, &ret);
++		ret = cci_write(jxq03->regmap, CCI_REG8(0x82), r82, &ret);
++		break;
++	case V4L2_CID_HBLANK:
++		hts = ctrl->val + jxq03->mode->width;
++		ret = cci_write(jxq03->regmap, JXQ03_REG_HTS_L, (hts / 2) & 0xff, NULL);
++		ret = cci_write(jxq03->regmap, JXQ03_REG_HTS_H, ((hts / 2) >> 8) & 0xff, &ret);
++		break;
++	case V4L2_CID_VBLANK:
++		ret = cci_write(jxq03->regmap, JXQ03_REG_VTS_L,
++				(ctrl->val + jxq03->mode->height) & 0xff, NULL);
++		ret = cci_write(jxq03->regmap, JXQ03_REG_VTS_H,
++				((ctrl->val + jxq03->mode->height) >> 8) & 0xff, &ret);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++	pm_runtime_put_autosuspend(jxq03->sd.dev);
++
++	return ret;
++}
++
++static const struct v4l2_ctrl_ops jxq03_ctrl_ops = {
++	.s_ctrl = jxq03_set_ctrl,
++};
++
++static int jxq03_init_controls(struct jxq03 *jxq03)
++{
++	struct v4l2_ctrl_handler *hdl = &jxq03->ctrls.handler;
++	struct v4l2_fwnode_device_properties props;
++	const struct v4l2_ctrl_ops *ops = &jxq03_ctrl_ops;
++	unsigned int hblank_max = JXQ03_HTS_MAX - JXQ03_NATIVE_WIDTH;
++	unsigned int vblank_max = JXQ03_VTS_MAX - JXQ03_NATIVE_HEIGHT;
++	int ret;
++
++	ret = v4l2_ctrl_handler_init(hdl, 10);
++	if (ret)
++		return ret;
++
++	jxq03->ctrls.pixel_rate =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
++				  JXQ03_PIXEL_RATE, JXQ03_PIXEL_RATE, 1,
++				  JXQ03_PIXEL_RATE);
++
++	jxq03->ctrls.link_freq =
++		v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ, 0, 0,
++				       jxq03_link_freqs);
++	if (jxq03->ctrls.link_freq)
++		jxq03->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	jxq03->ctrls.exposure =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 1,
++				  jxq03_modes[0].vblank +
++				  jxq03_modes[0].height -
++				  JXQ03_EXPOSURE_OFFSET, 1,
++				  jxq03_modes[0].vblank +
++				  jxq03_modes[0].height -
++				  JXQ03_EXPOSURE_OFFSET);
++
++	jxq03->ctrls.gain =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN, 0,
++				  ARRAY_SIZE(jxq03_gains) - 1, 1, 0);
++
++	jxq03->ctrls.hblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
++				  JXQ03_HTS_MIN - JXQ03_NATIVE_WIDTH,
++				  hblank_max, 1,
++				  jxq03_modes[0].hblank);
++
++	jxq03->ctrls.vblank =
++		v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
++				  jxq03_modes[0].vblank, vblank_max, 1,
++				  jxq03_modes[0].vblank);
++
++	jxq03->ctrls.vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
++						0, 1, 1, 0);
++
++
++	if (hdl->error) {
++		ret = hdl->error;
++		goto error;
++	}
++
++	ret = v4l2_fwnode_device_parse(jxq03->sd.dev, &props);
++	if (ret)
++		goto error;
++
++	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
++	if (ret)
++		goto error;
++
++	jxq03->sd.ctrl_handler = hdl;
++
++	return 0;
++
++error:
++	v4l2_ctrl_handler_free(hdl);
++
++	return ret;
++}
++
++static int jxq03_check_hwcfg(struct device *dev)
++{
++	struct v4l2_fwnode_endpoint ep = {
++		.bus_type = V4L2_MBUS_CSI2_DPHY,
++	};
++	struct fwnode_handle *endpoint;
++	unsigned int i;
++	int ret;
++
++	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
++	if (!endpoint) {
++		dev_err(dev, "endpoint node not found\n");
++		return -EINVAL;
++	}
++
++	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
++	fwnode_handle_put(endpoint);
++	if (ret)
++		return ret;
++
++	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
++		dev_err(dev, "only 2 data lanes are currently supported\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (!ep.nr_of_link_frequencies) {
++		dev_err(dev, "link-frequency property not found in DT\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	for (i = 0; i < ep.nr_of_link_frequencies; i++) {
++		if (ep.link_frequencies[i] == JXQ03_LINK_FREQ)
++			break;
++	}
++
++	if (i == ep.nr_of_link_frequencies) {
++		dev_err(dev, "expected link frequency %u\n", JXQ03_LINK_FREQ);
++		ret = -EINVAL;
++	}
++
++out:
++	v4l2_fwnode_endpoint_free(&ep);
++
++	return ret;
++}
++
++static int jxq03_power_on(struct device *dev)
++{
++	struct jxq03 *jxq03 = to_jxq03(dev_get_drvdata(dev));
++	int ret;
++
++	ret = regulator_bulk_enable(ARRAY_SIZE(jxq03->supplies),
++				    jxq03->supplies);
++	if (ret)
++		return ret;
++
++	ret = clk_prepare_enable(jxq03->xclk);
++	if (ret)
++		goto err_regulators;
++
++	/* The sensor needs MCLK while reset is released. */
++	gpiod_set_value_cansleep(jxq03->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(jxq03->reset_gpio, 0);
++	msleep(20);
++
++	return 0;
++
++err_regulators:
++	regulator_bulk_disable(ARRAY_SIZE(jxq03->supplies), jxq03->supplies);
++
++	return ret;
++}
++
++static int jxq03_power_off(struct device *dev)
++{
++	struct jxq03 *jxq03 = to_jxq03(dev_get_drvdata(dev));
++
++	gpiod_set_value_cansleep(jxq03->reset_gpio, 1);
++	gpiod_set_value_cansleep(jxq03->powerdown_gpio, 1);
++	clk_disable_unprepare(jxq03->xclk);
++	regulator_bulk_disable(ARRAY_SIZE(jxq03->supplies), jxq03->supplies);
++
++	return 0;
++}
++
++static int jxq03_identify_module(struct jxq03 *jxq03)
++{
++	u64 id_h, id_l;
++	int ret;
++
++	ret = cci_read(jxq03->regmap, JXQ03_REG_CHIP_ID_H, &id_h, NULL);
++	if (ret)
++		return ret;
++
++	ret = cci_read(jxq03->regmap, JXQ03_REG_CHIP_ID_L, &id_l, NULL);
++	if (ret)
++		return ret;
++
++	if (id_h != JXQ03_CHIP_ID_H || id_l != JXQ03_CHIP_ID_L) {
++		dev_err(jxq03->sd.dev, "chip id mismatch: %x%x != %x%x\n",
++			(u8)id_h, (u8)id_l, JXQ03_CHIP_ID_H, JXQ03_CHIP_ID_L);
++		return -EIO;
++	}
++
++	return 0;
++}
++
++static int jxq03_enable_streams(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *state, u32 pad,
++				 u64 streams_mask)
++{
++	struct jxq03 *jxq03 = to_jxq03(sd);
++	int ret;
++
++	ret = pm_runtime_resume_and_get(sd->dev);
++	if (ret)
++		return ret;
++
++	cci_multi_reg_write(jxq03->regmap, jxq03_1296p25_regs,
++			    ARRAY_SIZE(jxq03_1296p25_regs), &ret);
++	if (ret)
++		goto err_rpm_put;
++
++	ret = __v4l2_ctrl_handler_setup(&jxq03->ctrls.handler);
++	if (ret)
++		goto err_rpm_put;
++
++	return 0;
++
++err_rpm_put:
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return ret;
++}
++
++static int jxq03_disable_streams(struct v4l2_subdev *sd,
++				  struct v4l2_subdev_state *state, u32 pad,
++				  u64 streams_mask)
++{
++	pm_runtime_put_autosuspend(sd->dev);
++
++	return 0;
++}
++
++static const struct v4l2_subdev_video_ops jxq03_video_ops = {
++	.s_stream = v4l2_subdev_s_stream_helper,
++};
++
++static const struct v4l2_subdev_pad_ops jxq03_pad_ops = {
++	.enum_mbus_code = jxq03_enum_mbus_code,
++	.get_fmt = v4l2_subdev_get_fmt,
++	.set_fmt = jxq03_set_pad_format,
++	.get_selection = jxq03_get_selection,
++	.enum_frame_size = jxq03_enum_frame_size,
++	.enable_streams = jxq03_enable_streams,
++	.disable_streams = jxq03_disable_streams,
++};
++
++static const struct v4l2_subdev_ops jxq03_subdev_ops = {
++	.video = &jxq03_video_ops,
++	.pad = &jxq03_pad_ops,
++};
++
++static const struct v4l2_subdev_internal_ops jxq03_subdev_internal_ops = {
++	.init_state = jxq03_init_state,
++};
++
++static const char * const jxq03_supply_names[] = {
++	"iovdd",
++	"avdd",
++	"dvdd",
++};
++
++static int jxq03_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct jxq03 *jxq03;
++	unsigned int i;
++	unsigned long xclk_freq;
++	int ret;
++
++	jxq03 = devm_kzalloc(dev, sizeof(*jxq03), GFP_KERNEL);
++	if (!jxq03)
++		return -ENOMEM;
++
++	v4l2_i2c_subdev_init(&jxq03->sd, client, &jxq03_subdev_ops);
++	jxq03->sd.internal_ops = &jxq03_subdev_internal_ops;
++
++	ret = jxq03_check_hwcfg(dev);
++	if (ret)
++		return ret;
++
++	jxq03->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
++	if (IS_ERR(jxq03->xclk))
++		return dev_err_probe(dev, PTR_ERR(jxq03->xclk),
++				     "failed to get xclk\n");
++
++	xclk_freq = clk_get_rate(jxq03->xclk);
++	if (xclk_freq != JXQ03_XCLK_FREQ)
++		return dev_err_probe(dev, -EINVAL,
++				     "xclk frequency %lu Hz not supported\n",
++				     xclk_freq);
++
++	for (i = 0; i < ARRAY_SIZE(jxq03->supplies); i++)
++		jxq03->supplies[i].supply = jxq03_supply_names[i];
++
++	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(jxq03->supplies),
++				      jxq03->supplies);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to get regulators\n");
++
++	jxq03->reset_gpio = devm_gpiod_get_optional(dev, "reset",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(jxq03->reset_gpio))
++		return dev_err_probe(dev, PTR_ERR(jxq03->reset_gpio),
++				     "failed to get reset gpio\n");
++
++	jxq03->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
++							 GPIOD_OUT_HIGH);
++	if (IS_ERR(jxq03->powerdown_gpio))
++		return dev_err_probe(dev, PTR_ERR(jxq03->powerdown_gpio),
++				     "failed to get powerdown gpio\n");
++
++	jxq03->regmap = devm_cci_regmap_init_i2c(client, 8);
++	if (IS_ERR(jxq03->regmap))
++		return dev_err_probe(dev, PTR_ERR(jxq03->regmap),
++				     "failed to get cci regmap\n");
++
++	ret = jxq03_power_on(dev);
++	if (ret)
++		return ret;
++
++	ret = jxq03_identify_module(jxq03);
++	if (ret)
++		goto err_power_off;
++
++	jxq03->mode = &jxq03_modes[0];
++
++	ret = jxq03_init_controls(jxq03);
++	if (ret)
++		goto err_power_off;
++
++	jxq03->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
++	jxq03->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
++	jxq03->pad.flags = MEDIA_PAD_FL_SOURCE;
++
++	ret = media_entity_pads_init(&jxq03->sd.entity, 1, &jxq03->pad);
++	if (ret)
++		goto err_handler_free;
++
++	jxq03->sd.state_lock = jxq03->ctrls.handler.lock;
++	ret = v4l2_subdev_init_finalize(&jxq03->sd);
++	if (ret)
++		goto err_media_entity;
++
++	pm_runtime_set_active(dev);
++	pm_runtime_get_noresume(dev);
++	pm_runtime_enable(dev);
++	pm_runtime_set_autosuspend_delay(dev, 1000);
++	pm_runtime_use_autosuspend(dev);
++	pm_runtime_put_autosuspend(dev);
++
++	ret = v4l2_async_register_subdev_sensor(&jxq03->sd);
++	if (ret)
++		goto err_subdev_cleanup;
++
++	return 0;
++
++err_subdev_cleanup:
++	v4l2_subdev_cleanup(&jxq03->sd);
++	pm_runtime_disable(dev);
++	pm_runtime_set_suspended(dev);
++err_media_entity:
++	media_entity_cleanup(&jxq03->sd.entity);
++err_handler_free:
++	v4l2_ctrl_handler_free(&jxq03->ctrls.handler);
++err_power_off:
++	jxq03_power_off(dev);
++
++	return ret;
++}
++
++static void jxq03_remove(struct i2c_client *client)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(client);
++	struct jxq03 *jxq03 = to_jxq03(sd);
++
++	v4l2_subdev_cleanup(sd);
++	v4l2_async_unregister_subdev(sd);
++	media_entity_cleanup(&sd->entity);
++	v4l2_ctrl_handler_free(&jxq03->ctrls.handler);
++
++	pm_runtime_disable(&client->dev);
++	if (!pm_runtime_status_suspended(&client->dev))
++		jxq03_power_off(&client->dev);
++	pm_runtime_set_suspended(&client->dev);
++}
++
++static const struct of_device_id jxq03_dt_ids[] = {
++	{ .compatible = "jxf,jxq03" },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, jxq03_dt_ids);
++
++static const struct i2c_device_id jxq03_id[] = {
++	{ .name = "jxq03" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, jxq03_id);
++
++static const struct dev_pm_ops jxq03_pm_ops = {
++	RUNTIME_PM_OPS(jxq03_power_off, jxq03_power_on, NULL)
++};
++
++static struct i2c_driver jxq03_i2c_driver = {
++	.driver = {
++		.name = "jxq03",
++		.of_match_table = jxq03_dt_ids,
++		.pm = pm_ptr(&jxq03_pm_ops),
++	},
++	.id_table = jxq03_id,
++	.probe = jxq03_probe,
++	.remove = jxq03_remove,
++};
++
++module_i2c_driver(jxq03_i2c_driver);
++
++MODULE_DESCRIPTION("JXQ03 sensor driver");
++MODULE_LICENSE("GPL");
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/jxf,jxq03.yaml
+@@ -0,0 +1,105 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/jxf,jxq03.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: JX Imaging JXQ03 2304x1296 CMOS Image Sensor
++
++maintainers:
++  - Paul Philippov <paul@themactep.com>
++
++description:
++  The JX Imaging JXQ03 is a 2304x1296 CMOS image sensor with a 10-bit ADC. It is programmable through an I2C interface and outputs raw Bayer data over a two-lane MIPI CSI-2 interface.
++
++allOf:
++  - $ref: /schemas/media/video-interface-devices.yaml#
++
++properties:
++  compatible:
++    const: jxf,jxq03
++
++  reg:
++    const: 0x40
++
++  clocks:
++    maxItems: 1
++
++  reset-gpios:
++    maxItems: 1
++
++  powerdown-gpios:
++    maxItems: 1
++
++  iovdd-supply:
++    description: Power supply for the I/O circuits (1.8 V).
++
++  avdd-supply:
++    description: Power supply for the analog circuits (2.8 V).
++
++  dvdd-supply:
++    description: Power supply for the digital core (1.2 V).
++
++  orientation: true
++
++  rotation: true
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          link-frequencies: true
++
++        required:
++          - link-frequencies
++
++    required:
++      - endpoint
++
++    additionalProperties: false
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - reset-gpios
++  - iovdd-supply
++  - avdd-supply
++  - dvdd-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++        #address-cells = <1>;
++        #size-cells = <0>;
++
++        camera@40 {
++            compatible = "jxf,jxq03";
++            reg = <0x40>;
++            clocks = <&clk_ext_camera>;
++            reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
++            iovdd-supply = <&vcc_1v8>;
++            avdd-supply = <&vcc_2v8>;
++            dvdd-supply = <&vcc_1v2>;
++
++            port {
++                endpoint {
++                    remote-endpoint = <&csi_in>;
++                    data-lanes = <1 2>;
++                    link-frequencies = /bits/ 64 <360000000>;
++                };
++            };
++        };
++    };
++
++...
