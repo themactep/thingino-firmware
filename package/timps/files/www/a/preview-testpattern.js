@@ -37,10 +37,13 @@
       $("tp-lat-s").textContent = e.hits ? "detection delay, max " + e.lat_max_ms + " ms" : "detection delay";
       $("tp-note").textContent = e.motion ? "Objects appear in the grid; each one should raise a motion event." :
         "Motion detection is off: enable it on the Motion page to score the test.";
+    } else if (t.pending) {
+      $("tp-note").textContent = "Switching to day mode first; the sensor pattern follows once the exposure has settled (a few seconds).";
     } else if (mode === 4) {
       $("tp-note").textContent = "The sensor outputs its own test pattern (" + sensor + "), so it runs through the whole ISP. AE" +
         ($("tp-ae").checked ? " is held" : " keeps running") + ", white balance" + ($("tp-awb").checked ? " is held." : " keeps running.");
     } else {
+      if (+t.refused === 4) err = "The sensor refused its test pattern (no register table for it, or the driver cannot write sensor registers).";
       $("tp-note").textContent = err || NOTE;
     }
     return true;
@@ -49,7 +52,7 @@
   function poll() {
     clearTimeout(timer);
     window.timpsApiReady().then((api) => api.get()).then((j) => {
-      if (show(j)) timer = setTimeout(poll, mode ? 1000 : 5000);
+      if (show(j)) timer = setTimeout(poll, mode || (j.testpattern && j.testpattern.pending) ? 1000 : 5000);
     }).catch(() => { timer = setTimeout(poll, 10000); });
   }
 
