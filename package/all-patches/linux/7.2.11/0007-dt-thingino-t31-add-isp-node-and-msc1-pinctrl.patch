@@ -1,14 +1,14 @@
 From: Thingino <dev@thingino.com>
 Subject: [PATCH] MIPS: dts: ingenic: thingino-t31: add ISP node and MSC1 pinmux
 
-The generic thingino-t31 leaf has no `isp` label and no MSC1 pin group,
-so the per-camera fragment (which opens &isp and &msc1_pb) is skipped by
-inject-camera-dtsi.sh and none of the board GPIOs (msc1 SDIO, gpio-leds,
-gpio-keys, i2c1 disable) are applied.
+The generic thingino-t31 leaf has no `isp` label and no MSC1 pin group.
+Fragments that open either label are skipped by inject-camera-dtsi.sh, and
+no T31 board can start tx-isp without the ISP node.
 
 Add:
- - a disabled `isp` node so `&isp { status = "okay"; }` resolves (the
-   open ISP driver maps 0x13300000 itself and does not bind via DT);
+ - an enabled `isp` node; every T31 board running the mainline kernel
+   needs tx-isp, and the open driver maps 0x13300000 itself (it does not
+   bind through DT);
  - an `msc1_pb` group using the new "mmc1" pins, so a board can enable
    MSC1 SDIO.
 
@@ -22,7 +22,7 @@ Add:
 +	isp: isp@13300000 {
 +		compatible = "ingenic,t31-isp";
 +		reg = <0x13300000 0x100000>;
-+		status = "disabled";
++		status = "okay";
 +	};
  };
  

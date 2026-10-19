@@ -29,6 +29,17 @@ endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_CAMERA_DTS
 endif
 
+# Shared per-sensor dtsi fragment (SENSOR_DTSI_FILE comes from thingino.mk).
+# Injected before the camera fragment so a camera can override the labelled
+# sensor node with board-specific wiring.
+ifneq ($(SENSOR_DTSI_FILE),)
+define THINGINO_KOPT_SYNC_SENSOR_DTSI
+	sh $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-kopt/inject-camera-dtsi.sh \
+		$(SENSOR_DTSI_FILE) $(LINUX_DIR)
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_SENSOR_DTSI
+endif
+
 # Per-device dtsi fragment from the camera profile dir (CAMERA_DTSI_FILE comes
 # from thingino.mk). The injector finds the leaf .dts the kernel config builds,
 # copies the fragment in and #includes it, 4.4 and later only: a 3.10 tree has

@@ -1,7 +1,6 @@
 // Cinnado D1 (T31L, SC2336, ATBM6031) per-board GPIO definitions.
 // Injected into the kernel 4.4+ device tree; ignored on 3.10.
 
-#include <dt-bindings/clock/ingenic,t31-cgu.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/ingenic-pinctrl.h>
@@ -69,12 +68,6 @@
 	};
 };
 
-/* The SoC t31.dtsi ships the ISP disabled; the vendor tx-isp driver must
-   probe before any sensor module can register with it. */
-&isp {
-	status = "okay";
-};
-
 /* libimp's IMP_System_Init opens /dev/avpu for the encoder. */
 &avpu {
 	status = "okay";
@@ -97,59 +90,5 @@
 
 		ingenic,hmaxstep = <3700>;
 		ingenic,vmaxstep = <1000>;
-	};
-};
-
-/*
- * Mainline SC2336 sensor. The rails are hardwired on this board; the sensor
- * MCLK comes from the T31 CIM clock (PA15 is left at function 1 by the
- * bootloader). tx-isp consumes this subdev through its V4L2 bridge.
- */
-/ {
-	sc2336_iovdd: sc2336-iovdd {
-		compatible = "regulator-fixed";
-		regulator-name = "sc2336-iovdd";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
-
-	sc2336_avdd: sc2336-avdd {
-		compatible = "regulator-fixed";
-		regulator-name = "sc2336-avdd";
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-		regulator-always-on;
-	};
-
-	sc2336_dvdd: sc2336-dvdd {
-		compatible = "regulator-fixed";
-		regulator-name = "sc2336-dvdd";
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-		regulator-always-on;
-	};
-};
-
-&i2c0 {
-	sc2336: camera@30 {
-		compatible = "smartens,sc2336";
-		reg = <0x30>;
-
-		clocks = <&cgu T31_CLK_CIM>;
-		clock-names = "xclk";
-		assigned-clocks = <&cgu T31_CLK_CIM>;
-		assigned-clock-rates = <24000000>;
-
-		iovdd-supply = <&sc2336_iovdd>;
-		avdd-supply = <&sc2336_avdd>;
-		dvdd-supply = <&sc2336_dvdd>;
-
-		port {
-			sc2336_ep: endpoint {
-				data-lanes = <1 2>;
-				link-frequencies = /bits/ 64 <202500000>;
-			};
-		};
 	};
 };
