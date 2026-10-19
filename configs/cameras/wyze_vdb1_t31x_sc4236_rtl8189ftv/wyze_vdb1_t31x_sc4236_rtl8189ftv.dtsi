@@ -41,3 +41,19 @@
 		};
 	};
 };
+
+/* SDIO WiFi is wired to MSC1 (PB8-11/PB13-14). This board has no SD card;
+   leaving MSC0 enabled only produces spurious SDIO probe errors. */
+&msc0 {
+	status = "disabled";
+};
+
+&msc1 {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <24000000>;
+	non-removable;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&msc1_pb>;
+};
