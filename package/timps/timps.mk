@@ -332,6 +332,19 @@ define TIMPS_INSTALL_TARGET_CMDS
 		$(SED) 's|^# audio.talk_ws *=.*|audio.talk_ws     = 1                   # + browser mic over /talk (1 = TLS required, 2 = also allow ws://)|' \
 			$(TARGET_DIR)/etc/timps.conf; \
 	fi
+	# Same again for the WHEP endpoint, and here the value is timps's own
+	# compiled default rather than a conservative one: 2, not 1. 1 requires a
+	# TLS signalling POST, and most of these cameras serve the WebUI over plain
+	# http with no http->https redirect, so 1 would answer 426 to the preview
+	# page's own POST - the endpoint would be compiled in and unusable. Media is
+	# DTLS-SRTP either way; the flag only grades the signalling request. Written
+	# out rather than left to the compiled default so the enabled endpoint is
+	# visible in /etc/timps.conf and a future default change cannot switch it
+	# off silently.
+	if [ "$(BR2_PACKAGE_TIMPS_WEBRTC)" = "y" ]; then \
+		$(SED) 's|^# webrtc.enabled *=.*|webrtc.enabled = 2                   # 0 off, 1 TLS required, 2 http+https signalling|' \
+			$(TARGET_DIR)/etc/timps.conf; \
+	fi
 
 	# Install init script
 	$(INSTALL) -D -m 0755 $(TIMPS_PKGDIR)/files/S95timps \
