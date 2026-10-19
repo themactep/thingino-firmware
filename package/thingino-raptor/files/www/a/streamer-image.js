@@ -24,21 +24,21 @@
     image_ae_compensation: "ae_compensation",
     image_hflip: "hflip",
     image_vflip: "vflip",
-    image_noise_reduction: "sinter",
-    image_temporal_noise_reduction: "temper",
+    noise_reduction: "noise_reduction",
+    temporal_noise_reduction: "temporal_noise_reduction",
   };
 
   // field id -> agent settings endpoint (own save path; preview.js does not
   // wire these two fields)
   var ENDPOINT_MAP = {
-    image_noise_reduction: "image/noise-reduction",
-    image_temporal_noise_reduction: "image/temporal-nr",
+    noise_reduction: "image/noise-reduction",
+    temporal_noise_reduction: "image/temporal-nr",
   };
 
   // field id -> JSON payload member name the agent expects
   var PAYLOAD_MAP = {
-    image_noise_reduction: "noise_reduction",
-    image_temporal_noise_reduction: "temporal_noise_reduction",
+    noise_reduction: "noise_reduction",
+    temporal_noise_reduction: "temporal_noise_reduction",
   };
 
   function el(id) {

@@ -1357,6 +1357,8 @@ agent_get_config() {
 	printf '"contrast":%s,' "$(agent_json_value_or "$(agent_image_raw contrast)" null)"
 	printf '"saturation":%s,' "$(agent_json_value_or "$(agent_image_raw saturation)" null)"
 	printf '"sharpness":%s,' "$(agent_json_value_or "$(agent_image_raw sharpness)" null)"
+	printf '"noise_reduction":%s,' "$(agent_config_get image sinter)"
+	printf '"temporal_noise_reduction":%s,' "$(agent_config_get image temper)"
 	printf '"anti_flicker":%s,' "$(agent_json_value_or "$(agent_config_get sensor antiflicker)" null)"
 	printf '"ae_compensation":%s,' "$(agent_json_value_or "$(agent_image_raw ae_comp)" null)"
 	printf '"core_wb_mode":%s,' "$(agent_json_value_or "$(agent_wb_mode_to_int "$(agent_wb_mode_raw)")" null)"
