@@ -49,9 +49,17 @@
     var node = el(id);
     if (!node) return;
     node.disabled = false;
-    var wrap =
-      node.closest("p, .select, .boolean, .col") || node.parentElement;
-    if (wrap) wrap.classList.remove("disabled");
+    // Walk every ancestor the preview.js disable paths may have tagged, up
+    // to the column; the nearest wrapper alone is not enough because
+    // preview.js and the hideUnsupportedControls path pick different ones.
+    var wrap = node.closest("p, .select, .boolean, .mb-3, .col");
+    while (wrap) {
+      wrap.classList.remove("disabled");
+      wrap.classList.remove("d-none");
+      wrap = wrap.parentElement
+        ? wrap.parentElement.closest("p, .mb-3, .col")
+        : null;
+    }
   }
 
   function populate(id, value) {

@@ -197,6 +197,12 @@
         doc.querySelector("#" + param) ||
         doc.querySelector("#image_" + param);
       if (!el) return;
+      /* Raptor NR fields stay hidden only while the backend reports no
+       * value; the Raptor image module re-shows and wires them. */
+      if (param === "noise_reduction") {
+        el.dataset.streamerHide = "1";
+        return;
+      }
       const wrap =
         el.closest(".mb-3, .col, .form-check, .row > div, p") || el.parentElement;
       if (wrap) wrap.classList.add("d-none");
