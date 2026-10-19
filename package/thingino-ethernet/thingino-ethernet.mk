@@ -30,4 +30,14 @@ define THINGINO_ETHERNET_LINUX_CONFIG_FIXUPS
 endef
 endif
 
+ifeq ($(KERNEL_VERSION_7),y)
+# 7.x builds the DWMAC stack as modules; the MAC platform device is already
+# registered from the device tree, so loading the glue driver triggers probe.
+define THINGINO_ETHERNET_INSTALL_MODULES
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+	echo dwmac-ingenic > $(TARGET_DIR)/etc/modules.d/40-ethernet
+endef
+THINGINO_ETHERNET_POST_INSTALL_TARGET_HOOKS += THINGINO_ETHERNET_INSTALL_MODULES
+endif
+
 $(eval $(generic-package))

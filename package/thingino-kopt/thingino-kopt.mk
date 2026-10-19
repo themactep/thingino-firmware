@@ -42,18 +42,17 @@ endif
 
 # 7.x mainline drives the Ingenic MAC through the Synopsys DWMAC glue. The
 # generic T31 config keeps it off to save kernel partition space; boards with
-# Ethernet turn it back on here.
+# Ethernet load it as modules. The PHY drivers stay built in so the MAC module
+# can attach them as soon as it probes.
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_JZ_MAC),y)
 ifeq ($(KERNEL_VERSION_7),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_MAC_7
 	$(call KCONFIG_ENABLE_OPT,CONFIG_NET_VENDOR_STMICRO)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_ETH)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_STMMAC_PLATFORM)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_DWMAC_GENERIC)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_DWMAC_INGENIC)
+	$(call KCONFIG_SET_OPT,CONFIG_STMMAC_ETH,m)
+	$(call KCONFIG_SET_OPT,CONFIG_STMMAC_PLATFORM,m)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_DWMAC_GENERIC)
+	$(call KCONFIG_SET_OPT,CONFIG_DWMAC_INGENIC,m)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_PHYLIB)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_PTP_1588_CLOCK)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_NETWORK_PHY_TIMESTAMPING)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MOTORCOMM_PHY)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_FIXED_PHY)
 endef
