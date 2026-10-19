@@ -199,13 +199,44 @@ if ha_entity_enabled firmware_version || ha_entity_enabled firmware_timestamp; t
 	fi
 fi
 
+# Total gain is [24.8] fixed point (256 = 1x), published in dB with one decimal.
+ha_gain_db() {
+	x=$1
+	n=0
+	while [ "$x" -ge 2 ]; do
+		x=$((x / 2))
+		n=$((n + 1))
+	done
+	m=$(($1 * 65536 >> n))
+	f=0
+	i=0
+	while [ "$i" -lt 8 ]; do
+		m=$((m * m / 65536))
+		if [ "$m" -ge 131072 ]; then
+			m=$((m / 2))
+			f=$((f * 2 + 1))
+		else
+			f=$((f * 2))
+		fi
+		i=$((i + 1))
+	done
+	db=$((((n * 256 + f - 2048) * 60206 + 128000) / 256000))
+	printf '%d.%d' $((db / 10)) $((db % 10))
+}
+
 # Gain sensor
 if ha_entity_enabled gain; then
 	gain=""
 	[ -f /proc/jz/isp/isp-m0 ] &&
 		gain=$(awk '/total_gain/{print $NF; exit}' /proc/jz/isp/isp-m0 2>/dev/null)
 	[ -z "$gain" ] && gain=$(ha_json_get "$(ha_agent runtime heartbeat)" total_gain)
-	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+	case "$gain" in
+		'' | *[!0-9]*) ;;
+		*)
+			[ "$gain" -ge 256 ] || gain=256
+			ha_pub_state gain "$(ha_gain_db "$gain")" "$FORCE"
+			;;
+	esac
 fi
 
 if ha_entity_enabled brightness; then
