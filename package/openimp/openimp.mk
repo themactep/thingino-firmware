@@ -5,9 +5,9 @@
 ################################################################################
 
 OPENIMP_SITE_METHOD = git
-OPENIMP_SITE = https://github.com/opensensor/openimp
-OPENIMP_SITE_BRANCH = main
-OPENIMP_VERSION = 9cab2192f058c0c5e6c18a6052158a5f7a44b268
+OPENIMP_SITE = https://github.com/Lu-Fi/openimp
+OPENIMP_SITE_BRANCH = next
+OPENIMP_VERSION = 6ba7df7f34e064d11ec3cb3ba412ae3749a962f7
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
@@ -15,7 +15,10 @@ OPENIMP_LICENSE = MIT
 
 OPENIMP_INSTALL_STAGING = YES
 
-OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
+OPENIMP_DEPENDENCIES = ingenic-lib
+ifeq ($(BR2_PACKAGE_INGENIC_SDK),y)
+OPENIMP_DEPENDENCIES += ingenic-sdk
+endif
 
 OPENIMP_PLATFORM = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 OPENIMP_PLATFORM_LOWER = $(shell echo $(SOC_FAMILY) | tr A-Z a-z)
