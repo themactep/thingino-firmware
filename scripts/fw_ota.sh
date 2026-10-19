@@ -321,17 +321,22 @@ echo "Firmware compatibility verified."
 echo "Current MTD layout on device:"
 remote_run "cat /proc/mtd"
 
-free_overlay_space() {
-	echo "Freeing overlay space on device..."
-	remote_run "rm -rf /overlay/var /overlay/usr 2>/dev/null; mount -o remount / 2>/dev/null; echo done" >/dev/null || \
-		echo "Warning: failed to free overlay space (non-fatal)"
-}
-
 upload_sysupgrade() {
 	remote_copy "$LOCAL_SCRIPT" "$REMOTE_HOST:$REMOTE_SCRIPT" || \
 		die "Failed to transfer sysupgrade utility"
-	remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:/sbin/$(basename "$LOCAL_SCRIPT2")" || \
-		die "Failed to transfer sysupgrade-stage2 utility"
+	# The rootfs ships sysupgrade-stage2, so the device copy is usually
+	# identical. Skip the write then: it would copy the file up through
+	# overlayfs, spending data-partition space for no reason.
+	local remote_stage2 local_md5 remote_md5
+	remote_stage2="/sbin/$(basename "$LOCAL_SCRIPT2")"
+	local_md5=$(md5sum "$LOCAL_SCRIPT2" | cut -d' ' -f1)
+	remote_md5=$(remote_run "md5sum $remote_stage2 2>/dev/null | cut -d' ' -f1" 2>/dev/null || true)
+	if [ "$local_md5" = "$remote_md5" ]; then
+		echo "sysupgrade-stage2 on device is up to date."
+	else
+		remote_copy "$LOCAL_SCRIPT2" "$REMOTE_HOST:$remote_stage2" || \
+			die "Failed to transfer sysupgrade-stage2 utility"
+	fi
 	remote_run "chmod +x $REMOTE_SCRIPT" || \
 		die "Failed to set execute permissions on sysupgrade utility"
 	echo "Sysupgrade utility installed successfully."
@@ -344,8 +349,6 @@ upload_flash_ota() {
 		die "Failed to set execute permissions on flash-ota"
 	echo "flash-ota utility installed."
 }
-
-free_overlay_space
 
 if [ "$MODE" = "full" ]; then
 	# Full firmware - use traditional sysupgrade
