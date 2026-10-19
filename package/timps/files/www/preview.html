@@ -201,6 +201,22 @@
             <div class="st-panel st-tile st-sys"><i class="bi bi-memory"></i><span class="v" id="st-mem">–</span>
               <div class="st-bar"><i id="st-memb-t"></i><i id="st-memb"></i></div><span class="s" id="st-mem-s"></span></div>
           </div>
+          <div class="st-panel mt-3" id="tp-panel" hidden>
+            <div class="st-ph"><b>Test pattern</b><span class="st-chip" id="tp-chip"></span></div>
+            <div class="btn-group btn-group-sm flex-wrap mb-2" role="group" id="tp-btns">
+              <button type="button" class="btn btn-outline-secondary" data-tp="0">Off</button>
+              <button type="button" class="btn btn-outline-secondary" data-tp="1">Pattern</button>
+              <button type="button" class="btn btn-outline-secondary" data-tp="2">Moving</button>
+              <button type="button" class="btn btn-outline-secondary" data-tp="3">Motion test</button>
+            </div>
+            <div class="small text-secondary" id="tp-note">Replaces the camera picture with a synthetic one to check encoder, rotation, OSD and motion detection. Day/night stays in day mode meanwhile.</div>
+            <div class="st-tiles mt-2" id="tp-eval" hidden>
+              <div class="st-panel st-tile"><i class="bi bi-bullseye"></i><span class="v" id="tp-hits">–</span><span class="s">detected objects</span></div>
+              <div class="st-panel st-tile"><i class="bi bi-eye-slash"></i><span class="v" id="tp-miss">–</span><span class="s">missed objects</span></div>
+              <div class="st-panel st-tile"><i class="bi bi-exclamation-triangle"></i><span class="v" id="tp-fa">–</span><span class="s">false alarms</span></div>
+              <div class="st-panel st-tile"><i class="bi bi-stopwatch"></i><span class="v" id="tp-lat">–</span><span class="s" id="tp-lat-s">detection delay</span></div>
+            </div>
+          </div>
           <div class="st-panel mt-3" id="st-clients-panel" hidden>
             <div class="st-ph"><b>Connected clients</b><span class="st-chip" id="st-clients-n"></span></div>
             <div class="table-responsive">
@@ -1968,6 +1984,7 @@
   })();
 </script>
 <script src="/a/preview-motion.js"></script>
+<script src="/a/preview-testpattern.js"></script>
 <script src="/a/preview-talk.js"></script>
 </body>
 </html>
