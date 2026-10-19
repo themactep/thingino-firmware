@@ -5,9 +5,15 @@
 ################################################################################
 
 OPEN_TX_ISP_SITE_METHOD = git
-OPEN_TX_ISP_SITE = https://github.com/opensensor/open-tx-isp
-OPEN_TX_ISP_SITE_BRANCH = main
-OPEN_TX_ISP_VERSION = e92166b985606613f2395831bac65413c7542877
+# Pinned to the thingino fork's T31 7.x line, not upstream: upstream
+# (opensensor/open-tx-isp) stops short of the mainline port this tree needs on
+# kernel 5.15/7.x - the vendor clock-name resolution and the 7.x kernel-API
+# adaptation - and has no way to attach a drivers/media/i2c sensor to the
+# vendor ABI. The branch is the full port, offered to Lu-Fi as a PR; it sits on
+# that repo's next branch and carries the patches this package used to apply.
+OPEN_TX_ISP_SITE = https://github.com/themactep/open-tx-isp
+OPEN_TX_ISP_SITE_BRANCH = port/mainline-t31-7x
+OPEN_TX_ISP_VERSION = f3dc5c9f6d160f9bd7369a3416039aeede0983a9
 # external/ingenic-sdk carries the per-SoC sensor IQ tuning blobs
 # (sensor-iq/<soc>/<model>.bin) installed by the open path; see the sensor IQ
 # section below.
@@ -16,6 +22,15 @@ OPEN_TX_ISP_GIT_SUBMODULES = YES
 # Upstream identifies the project as GPLv3 but does not currently ship a
 # top-level license file for legal-info to collect.
 OPEN_TX_ISP_LICENSE = GPL-3.0
+
+# NOTE: no package patches. The 0001-0005 series in this directory was written
+# against the old upstream pin; the pinned fork already carries that content
+# (0001 t20 sinfo publish, 0002 t23 G_INPUT gate, 0004 t31 5.15 compat), a
+# later implementation of it (0003 t23 frame wait, superseded there by
+# "succeed only when a frame is ready"), and its own fix for 0005's problem
+# (the kernel compat header supplies strlcpy()/strncpy() on 6.8+/7.2+). They
+# are renamed to *.patch.disabled rather than deleted so they can be restored
+# if the pin ever goes back to upstream.
 
 # Modern kernels (5.15 vendor, 7.x mainline): the ingenic-sdk is disabled (its
 # sensor/audio/AVPU modules are 4.4-only), so the open driver carries its own
