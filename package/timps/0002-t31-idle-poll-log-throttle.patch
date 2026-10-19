@@ -1,0 +1,47 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] hal: throttle the T31 idle-poll log line by time
+
+0001 polls non-blocking on T31, so an idle video channel reaches the miss
+path every couple of milliseconds instead of once per 500 ms timeout. The
+line was throttled to one per 20 misses, which on that cadence still
+prints ~5 lines a second: the syslog ring is 644 lines, so it rotated in
+under two minutes and took the boot diagnostics with it - the sensor
+attach and clock bring-up lines were gone by the time anyone looked.
+
+Throttle by time (one line per 5 s) and leave dbg_pollfail alone: it is
+the watchdog's miss counter, not a log counter. The jpeg_thread line is
+not touched - with a dedicated JPEG channel its misses are rare, and on
+the piggyback configuration it is idle rather than spinning.
+
+Measured on cinnado_d1_t31l_sc2336_atbm6031 (7.2.11, OpenIMP): 598 lines
+in 107 s before, ring intact after.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+--- a/src/hal/hal_ingenic.c
++++ b/src/hal/hal_ingenic.c
+@@ -3400,9 +3400,21 @@
+         if (pr!=0 || gs_fail){
+             if (receiving){
+                 if (++dbg_pollfail == 1) miss_t0 = ms_now_us();
+-                if (!gs_fail && (dbg_pollfail % 20)==1)
+-                    LOGW(MOD,"chn%d: PollingStream idle (rc=%d, miss#%d) - encoder emits no frames",
+-                         vc->chn, pr, dbg_pollfail);
++                /* The T31 build polls non-blocking (see the workaround
++                 * above), so an idle channel reaches this miss path every
++                 * couple of milliseconds: a line per 20 misses still printed
++                 * ~5 lines a second and rotated the syslog ring in under two
++                 * minutes, taking the boot diagnostics with it. Throttle the
++                 * line by time and leave dbg_pollfail to the watchdog. */
++                if (!gs_fail){
++                    static int64_t poll_log_us;
++                    int64_t log_now = ms_now_us();
++                    if (log_now - poll_log_us >= 5000000){
++                        poll_log_us = log_now;
++                        LOGW(MOD,"chn%d: PollingStream idle (rc=%d, miss#%d) - encoder emits no frames",
++                             vc->chn, pr, dbg_pollfail);
++                    }
++                }
+                 if (dbg_pollfail >= MS_VIDEO_WATCHDOG_ITERS &&
+                     ms_now_us() - miss_t0 >= MS_WATCHDOG_MIN_US){
+                     dbg_recover_fails++;
