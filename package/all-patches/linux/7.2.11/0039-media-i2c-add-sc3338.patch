@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc3338.c
-@@ -0,0 +1,1094 @@
+@@ -0,0 +1,1103 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC3338 CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_sc3338_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -637,6 +636,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc3338_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc3338 *sc3338 = to_sc3338(sc3338_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc3338->sd.dev, "sc3338: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -817,6 +818,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc3338_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc3338: power on\n");
 +	struct sc3338 *sc3338 = to_sc3338(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -844,6 +846,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc3338_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc3338: power off\n");
 +	struct sc3338 *sc3338 = to_sc3338(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc3338->reset_gpio, 1);
@@ -873,6 +876,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc3338->sd.dev, "sc3338: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -881,6 +885,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc3338 *sc3338 = to_sc3338(sd);
++
++	dev_info(sd->dev, "sc3338: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -912,6 +918,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc3338: stream off\n");
 +	struct sc3338 *sc3338 = to_sc3338(sd);
 +	int ret = 0;
 +
@@ -956,6 +963,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc3338_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc3338: probe at i2c 0x%02x\n", client->addr);
 +	struct sc3338 *sc3338;
 +	unsigned int i;
 +	unsigned long xclk_freq;

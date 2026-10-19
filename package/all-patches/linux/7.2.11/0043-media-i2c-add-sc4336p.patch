@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc4336p.c
-@@ -0,0 +1,1047 @@
+@@ -0,0 +1,1056 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC4336P CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_sc4336p_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -588,6 +587,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc4336p_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc4336p *sc4336p = to_sc4336p(sc4336p_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc4336p->sd.dev, "sc4336p: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	const struct sc4336p_gain *gain;
 +	u32 hts, vts, it;
 +	int ret = 0;
@@ -770,6 +771,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc4336p_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc4336p: power on\n");
 +	struct sc4336p *sc4336p = to_sc4336p(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -797,6 +799,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc4336p_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc4336p: power off\n");
 +	struct sc4336p *sc4336p = to_sc4336p(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc4336p->reset_gpio, 1);
@@ -826,6 +829,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc4336p->sd.dev, "sc4336p: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -834,6 +838,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc4336p *sc4336p = to_sc4336p(sd);
++
++	dev_info(sd->dev, "sc4336p: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -865,6 +871,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc4336p: stream off\n");
 +	struct sc4336p *sc4336p = to_sc4336p(sd);
 +	int ret = 0;
 +
@@ -909,6 +916,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc4336p_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc4336p: probe at i2c 0x%02x\n", client->addr);
 +	struct sc4336p *sc4336p;
 +	unsigned int i;
 +	unsigned long xclk_freq;

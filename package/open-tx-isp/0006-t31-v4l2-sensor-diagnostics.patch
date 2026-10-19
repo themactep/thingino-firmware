@@ -1,0 +1,163 @@
+--- a/driver/t31/tx_isp_v4l2_sensor.c
++++ b/driver/t31/tx_isp_v4l2_sensor.c
+@@ -191,6 +191,11 @@
+ 	s->sensor.video.vi_max_height = s->height;
+ 	s->sensor.video.fps = (30 << 16) | 1;
+ 
++	dev_dbg(&s->client->dev,
++		"tx-isp-v4l2: %ux%u hts %u vts %u lanes %u link %llu Hz pixel %u Hz\n",
++		s->width, s->height, s->hts, s->vts, s->lanes,
++		s->link_freq_hz, s->pixel_rate_hz);
++
+ 	return 0;
+ }
+ 
+@@ -199,6 +204,7 @@
+ {
+ 	struct tx_isp_sensor *sensor = tx_isp_get_subdev_hostdata(sd);
+ 	struct tx_isp_sensor_attribute *attr;
++	struct tx_isp_v4l2_sensor *s = sd_to_v4l2_sensor(sd);
+ 
+ 	if (!sensor || !chip)
+ 		return -EINVAL;
+@@ -211,6 +217,10 @@
+ 	chip->ident = attr->chip_id;
+ 	chip->revision = "v4l2";
+ 
++	if (s)
++		dev_dbg(&s->client->dev, "tx-isp-v4l2: g_chip_ident %s/0x%x\n",
++			attr->name, attr->chip_id);
++
+ 	return 0;
+ }
+ 
+@@ -257,6 +267,9 @@
+ 	if (ret == -ENOIOCTLCMD)
+ 		ret = 0;
+ 
++	dev_dbg(&s->client->dev, "tx-isp-v4l2: s_stream(%d) -> %d\n",
++		enable, ret);
++
+ 	return ret;
+ }
+ 
+@@ -303,6 +316,9 @@
+ 	if (!s)
+ 		return -ENODEV;
+ 
++	dev_dbg(&s->client->dev, "tx-isp-v4l2: expo it=%d again=%d\n",
++		it, again);
++
+ 	if (it) {
+ 		ret = v4l2_ctrl_s_ctrl(s->exposure, it);
+ 		if (ret)
+@@ -408,20 +424,44 @@
+ 	if (!client)
+ 		return 0;
+ 
+-	if (!client->dev.driver || !client->dev.of_node)
++	if (strcmp(client->name, lookup->name))
++		return 0;
++
++	dev_info(dev, "tx-isp-v4l2: found i2c client %s at 0x%02x\n",
++		 lookup->name, client->addr);
++
++	if (!client->dev.of_node) {
++		dev_info(dev, "tx-isp-v4l2: %s: no OF node (missing camera@%02x in the DTSI?)\n",
++			 lookup->name, client->addr);
+ 		return 0;
++	}
+ 
+-	if (strcmp(client->name, lookup->name))
++	if (!client->dev.driver) {
++		dev_info(dev, "tx-isp-v4l2: %s: no driver bound (is the mainline sensor driver enabled and probed?)\n",
++			 lookup->name);
+ 		return 0;
++	}
+ 
+ 	if (!client->dev.driver->of_match_table ||
+ 	    !of_match_node(client->dev.driver->of_match_table,
+-			   client->dev.of_node))
++			   client->dev.of_node)) {
++		dev_info(dev, "tx-isp-v4l2: %s: driver %s does not match the node compatible\n",
++			 lookup->name, client->dev.driver->name);
+ 		return 0;
++	}
+ 
+ 	vsd = i2c_get_clientdata(client);
+-	if (!vsd || !vsd->ctrl_handler)
++	if (!vsd) {
++		dev_info(dev, "tx-isp-v4l2: %s: driver bound but no V4L2 subdev in clientdata\n",
++			 lookup->name);
++		return 0;
++	}
++
++	if (!vsd->ctrl_handler) {
++		dev_info(dev, "tx-isp-v4l2: %s: V4L2 subdev has no control handler\n",
++			 lookup->name);
+ 		return 0;
++	}
+ 
+ 	lookup->client = client;
+ 	lookup->vsd = vsd;
+@@ -440,14 +480,20 @@
+ 	s->lanes = 2;
+ 
+ 	endpoint = fwnode_graph_get_next_endpoint(s->client->dev.fwnode, NULL);
+-	if (!endpoint)
++	if (!endpoint) {
++		dev_info(&s->client->dev,
++			 "tx-isp-v4l2: no endpoint, assuming 2 lanes\n");
+ 		return 0;
++	}
+ 
+ 	if (!v4l2_fwnode_endpoint_parse(endpoint, &ep) &&
+-	    ep.bus.mipi_csi2.num_data_lanes)
++	    ep.bus.mipi_csi2.num_data_lanes) {
+ 		s->lanes = ep.bus.mipi_csi2.num_data_lanes;
+-	else
++	} else {
++		dev_err(&s->client->dev,
++			"tx-isp-v4l2: endpoint parse failed, assuming 2 lanes\n");
+ 		ret = -EINVAL;
++	}
+ 
+ 	fwnode_handle_put(endpoint);
+ 
+@@ -477,6 +523,9 @@
+ 	if (!adapter || !name || !name[0])
+ 		return NULL;
+ 
++	dev_info(&adapter->dev, "tx-isp-v4l2: looking for %s on i2c-%d\n",
++		 name, adapter->nr);
++
+ 	if (tx_isp_v4l2_sensor_sd) {
+ 		s = sd_to_v4l2_sensor(tx_isp_v4l2_sensor_sd);
+ 		if (s && !strcmp(s->name, name))
+@@ -486,11 +535,14 @@
+ 	device_for_each_child(&adapter->dev, &lookup, tx_v4l2_lookup_client);
+ 	if (!lookup.vsd) {
+ 		dev_err(&adapter->dev,
+-			"tx-isp-v4l2: no mainline V4L2 sensor named %s\n",
+-			name);
++			"tx-isp-v4l2: no mainline V4L2 sensor named %s on i2c-%d; check that the camera DTSI has a camera@<addr> node with a compatible, clocks, supplies and an endpoint\n",
++			name, adapter->nr);
+ 		return NULL;
+ 	}
+ 
++	dev_info(&lookup.client->dev, "tx-isp-v4l2: matched %s at 0x%02x\n",
++		 name, lookup.client->addr);
++
+ 	s = kzalloc(sizeof(*s), GFP_KERNEL);
+ 	if (!s)
+ 		return NULL;
+@@ -500,6 +552,9 @@
+ 	if (s->vsd->dev && s->vsd->dev->driver)
+ 		s->owner = s->vsd->dev->driver->owner;
+ 	if (s->owner && !try_module_get(s->owner)) {
++		dev_err(&lookup.client->dev,
++			"tx-isp-v4l2: failed to pin the %s driver module\n",
++			name);
+ 		kfree(s);
+ 		return NULL;
+ 	}

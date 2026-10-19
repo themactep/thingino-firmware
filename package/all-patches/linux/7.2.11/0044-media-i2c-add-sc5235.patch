@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc5235.c
-@@ -0,0 +1,1040 @@
+@@ -0,0 +1,1049 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC5235 CMOS Image Sensor Driver
@@ -23,8 +23,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * vendor sensor driver (sensor_sc5235_t31).  Only the linear mode is
 + * supported; the vendor WDR path is not ported.
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -566,6 +565,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc5235_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc5235 *sc5235 = to_sc5235(sc5235_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc5235->sd.dev, "sc5235: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	const struct sc5235_gain *gain;
 +	u32 hts, it;
 +	int ret = 0;
@@ -760,6 +761,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc5235_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc5235: power on\n");
 +	struct sc5235 *sc5235 = to_sc5235(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -787,6 +789,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc5235_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc5235: power off\n");
 +	struct sc5235 *sc5235 = to_sc5235(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc5235->reset_gpio, 1);
@@ -816,6 +819,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc5235->sd.dev, "sc5235: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -824,6 +828,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc5235 *sc5235 = to_sc5235(sd);
++
++	dev_info(sd->dev, "sc5235: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -858,6 +864,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc5235: stream off\n");
 +	struct sc5235 *sc5235 = to_sc5235(sd);
 +	int ret = 0;
 +
@@ -902,6 +909,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc5235_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc5235: probe at i2c 0x%02x\n", client->addr);
 +	struct sc5235 *sc5235;
 +	unsigned int i;
 +	unsigned long xclk_freq;

@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc223a.c
-@@ -0,0 +1,1136 @@
+@@ -0,0 +1,1145 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC223A CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_sc223a_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -679,6 +678,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc223a_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc223a *sc223a = to_sc223a(sc223a_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc223a->sd.dev, "sc223a: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -859,6 +860,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc223a_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc223a: power on\n");
 +	struct sc223a *sc223a = to_sc223a(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -886,6 +888,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc223a_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc223a: power off\n");
 +	struct sc223a *sc223a = to_sc223a(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc223a->reset_gpio, 1);
@@ -915,6 +918,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc223a->sd.dev, "sc223a: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -923,6 +927,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc223a *sc223a = to_sc223a(sd);
++
++	dev_info(sd->dev, "sc223a: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -954,6 +960,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc223a: stream off\n");
 +	struct sc223a *sc223a = to_sc223a(sd);
 +	int ret = 0;
 +
@@ -998,6 +1005,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc223a_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc223a: probe at i2c 0x%02x\n", client->addr);
 +	struct sc223a *sc223a;
 +	unsigned int i;
 +	unsigned long xclk_freq;

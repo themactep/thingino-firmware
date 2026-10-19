@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc3336.c
-@@ -0,0 +1,1094 @@
+@@ -0,0 +1,1103 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC3336 CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_sc3336_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -637,6 +636,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc3336_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc3336 *sc3336 = to_sc3336(sc3336_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc3336->sd.dev, "sc3336: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -817,6 +818,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc3336_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc3336: power on\n");
 +	struct sc3336 *sc3336 = to_sc3336(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -844,6 +846,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc3336_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc3336: power off\n");
 +	struct sc3336 *sc3336 = to_sc3336(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc3336->reset_gpio, 1);
@@ -873,6 +876,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc3336->sd.dev, "sc3336: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -881,6 +885,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc3336 *sc3336 = to_sc3336(sd);
++
++	dev_info(sd->dev, "sc3336: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -912,6 +918,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc3336: stream off\n");
 +	struct sc3336 *sc3336 = to_sc3336(sd);
 +	int ret = 0;
 +
@@ -956,6 +963,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc3336_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc3336: probe at i2c 0x%02x\n", client->addr);
 +	struct sc3336 *sc3336;
 +	unsigned int i;
 +	unsigned long xclk_freq;

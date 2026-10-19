@@ -249,4 +249,12 @@ define OPEN_TX_ISP_LIMIT_SENSORS
 endef
 OPEN_TX_ISP_PRE_BUILD_HOOKS += OPEN_TX_ISP_LIMIT_SENSORS
 
+# Bring-up visibility: report which sensor path this build selected.
+define OPEN_TX_ISP_REPORT_SENSOR
+	@echo ">>> open-tx-isp: sensors $(or $(SENSOR_1_MODEL),none)$(if $(SENSOR_2_MODEL), + $(SENSOR_2_MODEL))"
+	@echo ">>> open-tx-isp: mainline driver $(if $(OPEN_TX_ISP_SENSOR_1_CONFIG),$(OPEN_TX_ISP_SENSOR_1_CONFIG)=y,$(if $(OPEN_TX_ISP_SENSOR_2_CONFIG),$(OPEN_TX_ISP_SENSOR_2_CONFIG)=y,none))"
+	@echo ">>> open-tx-isp: legacy modules $(if $(OPEN_TX_ISP_VENDOR_SENSORS),$(OPEN_TX_ISP_VENDOR_SENSORS),none)"
+endef
+OPEN_TX_ISP_PRE_BUILD_HOOKS += OPEN_TX_ISP_REPORT_SENSOR
+
 $(eval $(generic-package))

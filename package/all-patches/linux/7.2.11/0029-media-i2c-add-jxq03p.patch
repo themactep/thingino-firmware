@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/jxq03p.c
-@@ -0,0 +1,901 @@
+@@ -0,0 +1,910 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * JXQ03P CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_jxq03p_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -460,6 +459,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int jxq03p_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct jxq03p *jxq03p = to_jxq03p(jxq03p_ctrl_to_sd(ctrl));
++
++	dev_dbg(jxq03p->sd.dev, "jxq03p: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	u8 code;
 +	u64 val, r0c, r82;
@@ -635,6 +636,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int jxq03p_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "jxq03p: power on\n");
 +	struct jxq03p *jxq03p = to_jxq03p(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -662,6 +664,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int jxq03p_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "jxq03p: power off\n");
 +	struct jxq03p *jxq03p = to_jxq03p(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(jxq03p->reset_gpio, 1);
@@ -691,6 +694,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(jxq03p->sd.dev, "jxq03p: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -699,6 +703,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct jxq03p *jxq03p = to_jxq03p(sd);
++
++	dev_info(sd->dev, "jxq03p: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -726,6 +732,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "jxq03p: stream off\n");
 +	pm_runtime_put_autosuspend(sd->dev);
 +
 +	return 0;
@@ -763,6 +770,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int jxq03p_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "jxq03p: probe at i2c 0x%02x\n", client->addr);
 +	struct jxq03p *jxq03p;
 +	unsigned int i;
 +	unsigned long xclk_freq;

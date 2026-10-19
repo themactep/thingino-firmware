@@ -15,7 +15,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/sc2336.c
-@@ -0,0 +1,910 @@
+@@ -0,0 +1,920 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * SmartSens SC2336 CMOS Image Sensor Driver
@@ -452,6 +452,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc2336_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct sc2336 *sc2336 = to_sc2336(sc2336_ctrl_to_sd(ctrl));
++
++	dev_dbg(sc2336->sd.dev, "sc2336: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -634,6 +636,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc2336_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "sc2336: power on\n");
 +	struct sc2336 *sc2336 = to_sc2336(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -661,6 +664,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int sc2336_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "sc2336: power off\n");
 +	struct sc2336 *sc2336 = to_sc2336(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(sc2336->reset_gpio, 1);
@@ -690,6 +694,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(sc2336->sd.dev, "sc2336: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -698,6 +703,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct sc2336 *sc2336 = to_sc2336(sd);
++
++	dev_info(sd->dev, "sc2336: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -729,6 +736,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "sc2336: stream off\n");
 +	struct sc2336 *sc2336 = to_sc2336(sd);
 +	int ret = 0;
 +
@@ -773,6 +781,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int sc2336_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "sc2336: probe at i2c 0x%02x\n", client->addr);
 +	struct sc2336 *sc2336;
 +	unsigned int i;
 +	unsigned long xclk_freq;

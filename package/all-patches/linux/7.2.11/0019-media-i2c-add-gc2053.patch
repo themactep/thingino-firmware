@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/gc2053.c
-@@ -0,0 +1,930 @@
+@@ -0,0 +1,940 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * GalaxyCore GC2053 CMOS Image Sensor Driver
@@ -463,6 +463,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct gc2053 *gc2053 = to_gc2053(gc2053_ctrl_to_sd(ctrl));
++
++	dev_dbg(gc2053->sd.dev, "gc2053: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	const struct gc2053_gain *gain;
 +	u32 hts;
 +	int ret = 0;
@@ -651,6 +653,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int gc2053_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "gc2053: power on\n");
 +	struct gc2053 *gc2053 = to_gc2053(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -678,6 +681,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int gc2053_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "gc2053: power off\n");
 +	struct gc2053 *gc2053 = to_gc2053(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(gc2053->reset_gpio, 1);
@@ -707,6 +711,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(gc2053->sd.dev, "gc2053: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -715,6 +720,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct gc2053 *gc2053 = to_gc2053(sd);
++
++	dev_info(sd->dev, "gc2053: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -747,6 +754,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "gc2053: stream off\n");
 +	struct gc2053 *gc2053 = to_gc2053(sd);
 +	int ret = 0;
 +
@@ -792,6 +800,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int gc2053_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "gc2053: probe at i2c 0x%02x\n", client->addr);
 +	struct gc2053 *gc2053;
 +	unsigned int i;
 +	unsigned long xclk_freq;

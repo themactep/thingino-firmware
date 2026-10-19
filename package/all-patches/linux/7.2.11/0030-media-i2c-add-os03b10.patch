@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/os03b10.c
-@@ -0,0 +1,908 @@
+@@ -0,0 +1,917 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * OmniVision OS03B10 CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences and gain table are adapted from the Ingenic
 + * vendor sensor driver (sensor_os03b10_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -446,6 +445,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int os03b10_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct os03b10 *os03b10 = to_os03b10(os03b10_ctrl_to_sd(ctrl));
++
++	dev_dbg(os03b10->sd.dev, "os03b10: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	u8 code, val;
 +	unsigned int hflip_val, vflip_val, flip;
@@ -642,6 +643,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int os03b10_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "os03b10: power on\n");
 +	struct os03b10 *os03b10 = to_os03b10(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -669,6 +671,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int os03b10_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "os03b10: power off\n");
 +	struct os03b10 *os03b10 = to_os03b10(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(os03b10->reset_gpio, 1);
@@ -698,6 +701,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(os03b10->sd.dev, "os03b10: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -706,6 +710,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct os03b10 *os03b10 = to_os03b10(sd);
++
++	dev_info(sd->dev, "os03b10: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -733,6 +739,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "os03b10: stream off\n");
 +	pm_runtime_put_autosuspend(sd->dev);
 +
 +	return 0;
@@ -770,6 +777,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int os03b10_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "os03b10: probe at i2c 0x%02x\n", client->addr);
 +	struct os03b10 *os03b10;
 +	unsigned int i;
 +	unsigned long xclk_freq;

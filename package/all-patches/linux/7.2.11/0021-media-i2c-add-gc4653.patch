@@ -15,7 +15,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/gc4653.c
-@@ -0,0 +1,935 @@
+@@ -0,0 +1,945 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * GalaxyCore GC4653 CMOS Image Sensor Driver
@@ -461,6 +461,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int gc4653_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct gc4653 *gc4653 = to_gc4653(gc4653_ctrl_to_sd(ctrl));
++
++	dev_dbg(gc4653->sd.dev, "gc4653: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -659,6 +661,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int gc4653_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "gc4653: power on\n");
 +	struct gc4653 *gc4653 = to_gc4653(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -686,6 +689,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int gc4653_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "gc4653: power off\n");
 +	struct gc4653 *gc4653 = to_gc4653(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(gc4653->reset_gpio, 1);
@@ -715,6 +719,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(gc4653->sd.dev, "gc4653: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -723,6 +728,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct gc4653 *gc4653 = to_gc4653(sd);
++
++	dev_info(sd->dev, "gc4653: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -754,6 +761,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "gc4653: stream off\n");
 +	struct gc4653 *gc4653 = to_gc4653(sd);
 +	int ret = 0;
 +
@@ -798,6 +806,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int gc4653_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "gc4653: probe at i2c 0x%02x\n", client->addr);
 +	struct gc4653 *gc4653;
 +	unsigned int i;
 +	unsigned long xclk_freq;

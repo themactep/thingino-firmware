@@ -14,7 +14,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- /dev/null
 +++ b/drivers/media/i2c/imx327.c
-@@ -0,0 +1,782 @@
+@@ -0,0 +1,791 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Sony IMX327 CMOS Image Sensor Driver
@@ -22,8 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 + * The register sequences are adapted from the Ingenic vendor sensor
 + * driver (sensor_imx327_t31).
 + *
-+ * WARNING: this driver has not been validated on hardware. Only the SC2336
-+ * driver has been tested on a camera.
++ * WARNING: this driver has not been validated on hardware.
 + */
 +
 +#include <linux/clk.h>
@@ -335,6 +334,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int imx327_set_ctrl(struct v4l2_ctrl *ctrl)
 +{
 +	struct imx327 *imx327 = to_imx327(imx327_ctrl_to_sd(ctrl));
++
++	dev_dbg(imx327->sd.dev, "imx327: ctrl 0x%x = %d\n", ctrl->id, ctrl->val);
 +	u32 hts;
 +	int ret = 0;
 +
@@ -503,6 +504,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int imx327_power_on(struct device *dev)
 +{
++	dev_dbg(dev, "imx327: power on\n");
 +	struct imx327 *imx327 = to_imx327(dev_get_drvdata(dev));
 +	int ret;
 +
@@ -530,6 +532,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static int imx327_power_off(struct device *dev)
 +{
++	dev_dbg(dev, "imx327: power off\n");
 +	struct imx327 *imx327 = to_imx327(dev_get_drvdata(dev));
 +
 +	gpiod_set_value_cansleep(imx327->reset_gpio, 1);
@@ -559,6 +562,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		return -EIO;
 +	}
 +
++	dev_info(imx327->sd.dev, "imx327: chip id %02x%02x\n", (u8)id_h, (u8)id_l);
 +	return 0;
 +}
 +
@@ -567,6 +571,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				 u64 streams_mask)
 +{
 +	struct imx327 *imx327 = to_imx327(sd);
++
++	dev_info(sd->dev, "imx327: stream on\n");
 +	int ret;
 +
 +	ret = pm_runtime_resume_and_get(sd->dev);
@@ -599,6 +605,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +				  struct v4l2_subdev_state *state, u32 pad,
 +				  u64 streams_mask)
 +{
++	dev_info(sd->dev, "imx327: stream off\n");
 +	struct imx327 *imx327 = to_imx327(sd);
 +	int ret = 0;
 +
@@ -644,6 +651,8 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +static int imx327_probe(struct i2c_client *client)
 +{
 +	struct device *dev = &client->dev;
++
++	dev_info(dev, "imx327: probe at i2c 0x%02x\n", client->addr);
 +	struct imx327 *imx327;
 +	unsigned int i;
 +	unsigned long xclk_freq;
