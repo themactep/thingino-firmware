@@ -103,7 +103,7 @@ is_integer() {
 
 prepare_upload_memory() {
 	echo "Freeing memory before upload..."
-	remote_run "rm -f /tmp/snapshot.jpg; rm -rf /tmp/sysupgrade /tmp/fw.bin; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
+	remote_run "rm -f /tmp/snapshot.jpg; rm -rf /tmp/sysupgrade /tmp/fw.bin; sync; if [ -x /etc/init.d/S95timps ]; then /etc/init.d/S95timps stop; elif [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof timpsd >/dev/null 2>&1; then killall timpsd 2>/dev/null || true; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
 		echo "Warning: failed to free memory before upload."
 }
 

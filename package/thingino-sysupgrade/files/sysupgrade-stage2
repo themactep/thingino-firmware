@@ -130,14 +130,18 @@ disarm_watchdog() {
 
 stop_streamer() {
 	echo_c 112 "\nStopping streamer in detached stage"
-	if [ -x /etc/init.d/S31raptor ]; then
+	if [ -x /etc/init.d/S95timps ]; then
+		/etc/init.d/S95timps stop
+	elif [ -x /etc/init.d/S31raptor ]; then
 		/etc/init.d/S31raptor stop
 	elif [ -x /etc/init.d/S31prudynt ]; then
 		/etc/init.d/S31prudynt stop
 	else
-		killall prudynt 2>/dev/null || true
+		killall timpsd prudynt 2>/dev/null || true
 		sleep 1
-		pidof prudynt >/dev/null 2>&1 && killall -9 prudynt 2>/dev/null || true
+		for p in timpsd prudynt; do
+			pidof "$p" >/dev/null 2>&1 && killall -9 "$p" 2>/dev/null || true
+		done
 	fi
 	sleep 1
 }
