@@ -3,9 +3,12 @@ Subject: [PATCH] sound: add the T31 AIC and internal codec nodes
 
 Add the AIC at 0x10020000, the internal codec at 0x10021000 and a
 simple-audio-card to the Thingino T31 board. The AIC uses PDMA request
-lines 6/7 (I2S0 TX/RX) and IRQ 1. The I2S clock is modelled as the 12 MHz
-audio clock the vendor/jzsound path uses; the codec compatible is
-provisional until the T31 codec variant is validated on hardware.
+lines 6/7 (I2S0 TX/RX) and IRQ 1. The codec side is the clock master, as
+the v12 internal codec drives the I2S bus; the AIC is the consumer.
+
+The codec compatible is provisional until the T31 v12 codec is
+programmed; the card probes and hw_params succeeds, but capture needs
+the v12 codec init.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -25,7 +28,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		interrupts = <1>;
 +
 +		clocks = <&cgu T31_CLK_AIC>,
-+			 <&aic_12m>;
++			 <&cgu T31_CLK_AIC>;
 +		clock-names = "aic", "i2s";
 +
 +		dmas = <&pdma 0x07 0xffffffff>,
@@ -48,20 +51,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 --- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
 +++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
-@@ -7,6 +7,12 @@
- 	compatible = "thingino,t31", "ingenic,t31";
- 	model = "Thingino T31 Generic Board";
- 
-+	aic_12m: aic-clock {
-+		compatible = "fixed-clock";
-+		#clock-cells = <0>;
-+		clock-frequency = <12000000>;
-+	};
-+
- 	aliases {
- 		serial1 = &uart1;
- 	};
-@@ -37,6 +43,26 @@
+@@ -37,6 +37,26 @@
  		reg = <0x13300000 0x100000>;
  		status = "okay";
  	};
@@ -73,14 +63,14 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +		simple-audio-card,dai-link@0 {
 +			link-name = "t31-aic";
 +			format = "i2s";
-+			bitclock-master = <&codec>;
-+			frame-master = <&codec>;
++			bitclock-master = <&dailink0_codec>;
++			frame-master = <&dailink0_codec>;
 +
 +			cpu {
 +				sound-dai = <&aic>;
 +			};
 +
-+			codec {
++			dailink0_codec: codec {
 +				sound-dai = <&codec>;
 +			};
 +		};
