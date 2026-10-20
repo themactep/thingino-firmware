@@ -1,0 +1,78 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.2: update dev_addr shadow on every MAC write
+
+The driver still writes dev_addr directly in the INTEL_BYT paths and at
+registration. Kernel 5.17+ tracks a shadow copy and warns when it is
+stale. Route every write through rtw_set_netdev_addr(), which uses
+eth_hw_addr_set() on modern kernels.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h
++++ b/include/osdep_service_linux.h
+@@ -52,6 +52,12 @@
+ #include <linux/delay.h>
+ #include <linux/timer.h>
+ 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
++#define rtw_set_netdev_addr(dev, addr) eth_hw_addr_set((dev), (addr))
++#else
++#define rtw_set_netdev_addr(dev, addr) _rtw_memcpy((dev)->dev_addr, (addr), ETH_ALEN)
++#endif
++
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
+ static inline char *rtw_strncpy(char *dest, const char *src, size_t count)
+ {
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -1776,11 +1776,7 @@
+ 	}
+ 
+ 	_rtw_memcpy(adapter_mac_addr(padapter), sa->sa_data, ETH_ALEN); /* set mac addr to adapter */
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+-	eth_hw_addr_set(pnetdev, sa->sa_data); /* keep dev_addr shadow in sync */
+-#else
+-	_rtw_memcpy(pnetdev->dev_addr, sa->sa_data, ETH_ALEN); /* set mac addr to net_device */
+-#endif
++	rtw_set_netdev_addr(pnetdev, sa->sa_data);
+ 
+ 	rtw_hal_set_hw_macaddr(padapter, sa->sa_data);
+ 
+@@ -2298,7 +2294,7 @@
+ 	/* alloc netdev name */
+ 	rtw_init_netdev_name(ndev, name);
+ 
+-	_rtw_memcpy(ndev->dev_addr, adapter_mac_addr(adapter), ETH_ALEN);
++	rtw_set_netdev_addr(ndev, adapter_mac_addr(adapter));
+ 
+ 	/* Tell the network stack we exist */
+ 
+@@ -3410,7 +3406,7 @@
+ 		rtw_mbid_camid_alloc(padapter, adapter_mac_addr(padapter));
+ #endif
+ 		rtw_init_wifidirect_addrs(padapter, adapter_mac_addr(padapter), adapter_mac_addr(padapter));
+-		_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
++		rtw_set_netdev_addr(pnetdev, adapter_mac_addr(padapter));
+ 	}
+ #endif /*CONFIG_PLATFORM_INTEL_BYT*/
+ 
+@@ -4165,7 +4161,7 @@
+ 		rtw_mbid_camid_alloc(padapter, adapter_mac_addr(padapter));
+ #endif
+ 		rtw_init_wifidirect_addrs(padapter, adapter_mac_addr(padapter), adapter_mac_addr(padapter));
+-		_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
++		rtw_set_netdev_addr(pnetdev, adapter_mac_addr(padapter));
+ #endif /* CONFIG_PLATFORM_INTEL_BYT */
+ 
+ 		rtw_clr_surprise_removed(padapter);
+--- a/os_dep/linux/mlme_linux.c
++++ b/os_dep/linux/mlme_linux.c
+@@ -412,7 +412,7 @@
+ 	mac[4] = 0x11;
+ 	mac[5] = 0x12;
+ 
+-	_rtw_memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
++	rtw_set_netdev_addr(pnetdev, mac);
+ 
+ 
+ 	rtw_netif_carrier_off(pnetdev);
