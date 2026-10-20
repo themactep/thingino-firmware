@@ -1,0 +1,63 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] mfd: ingenic-tcu: repair the T31 channel step interrupt
+
+The 5.15 vendor MFD is the T32/T33 variant. Two things differ from the 4.4
+T31 SDK driver and each one breaks the TCU channel step interrupt the PTZ
+stepper driver (misc/motor) blocks on:
+
+1. ingenic_tcu_set_clksrc() programs TCSR_PWM_BYPASS (bit 11). On T31 that
+   bit means "clear counter to 0, TCU2 mode", and the motor's channel 2 is
+   a TCU_MODE2 channel, so the counter is held at 0: CH_TCNT never advances
+   and the channel-full flag in TCU_TFR never latches. Program only the
+   clock-source field, as the 4.4 T31 driver does.
+
+2. setup_tcu_irq() chains tcu_irq_demux() on tcu_int0, but on T31 channels
+   0-4 and 6-7 raise tcu_int2 (the header comments them as sharing the
+   "common hardware irq(TCU2)"); tcu_int0 serves only channel 15. With the
+   wrong parent the demux never runs: the flag latches, the INTC reports
+   the line pending, but the channel virq is never dispatched. Fetch
+   tcu_int2 and chain the demux on it, matching the 4.4 T31 driver.
+
+--- a/drivers/mfd/ingenic-tcu.c	2026-10-15 03:03:23.780446467 -0400
++++ b/drivers/mfd/ingenic-tcu.c	2026-10-15 03:03:36.612818719 -0400
+@@ -65,6 +65,7 @@
+ 	char idmap[32];
+ 	int channel_mask;
+ 	int irq_tcu0;
++	int irq_tcu2;
+ 	int channel_num;
+ 	int channel_irq_num;
+ 	spinlock_t lock;
+@@ -331,10 +332,7 @@
+ 	//spin_lock_irqsave(&tcu->lock, flags);
+ 	val = tcu_readl(tcu, CH_TCSR(id));
+ 	val &= ~0x7;
+-	val |= 1<<2;
+-	/* set gate signal and poal */
+-	val &= ~(0x3<<11);
+-	val |= 1<<11 | 1 <<14 | 1<<16;
++	val |= src;
+ 	tcu_writel(tcu, CH_TCSR(id), val);
+ 
+ 	//spin_unlock_irqrestore(&tcu->lock, flags);
+@@ -604,7 +602,7 @@
+ 		pr_err("Failed to add tcu irq into irq domain\n");
+ 		return -ENOMEM;
+ 	}
+-	irq_set_chained_handler_and_data(tcu->irq_tcu0, tcu_irq_demux, tcu);
++	irq_set_chained_handler_and_data(tcu->irq_tcu2, tcu_irq_demux, tcu);
+ 
+ 	return 0;
+ }
+@@ -679,6 +677,11 @@
+ 		dev_err(tcu->dev, "int0:unable to get IRQ from DT, %d\n", tcu->irq_tcu0);
+ 		return -ENXIO;
+ 	}
++	tcu->irq_tcu2 = of_irq_get_byname(tcu->np, "tcu_int2");
++	if (tcu->irq_tcu2 < 0) {
++		dev_err(tcu->dev, "int2:unable to get IRQ from DT, %d\n", tcu->irq_tcu2);
++		return -ENXIO;
++	}
+ 
+     /*printk("%s[%d]: tcu->irq_tcu0 = %d\n",__func__,__LINE__, tcu->irq_tcu0);*/
+ 	tcu->clk = devm_clk_get(tcu->dev,"gate_tcu");

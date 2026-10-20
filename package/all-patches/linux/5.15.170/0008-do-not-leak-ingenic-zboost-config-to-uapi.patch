@@ -1,0 +1,12 @@
+diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+--- a/include/uapi/asm-generic/unistd.h
++++ b/include/uapi/asm-generic/unistd.h
+@@ -879,7 +879,7 @@
+ #endif
+ #define __NR_process_mrelease 448
+ __SYSCALL(__NR_process_mrelease, sys_process_mrelease)
+-#ifdef CONFIG_INGENIC_ZBOOST
++#ifdef __ARCH_WANT_INGENIC_ZBOOST
+ #define __NR_zboost_pause 449
+ __SYSCALL(__NR_zboost_pause, sys_zboost_pause)
+ #define __NR_zboost_sleep 450
