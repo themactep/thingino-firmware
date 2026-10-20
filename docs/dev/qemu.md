@@ -73,8 +73,7 @@ again for a session that is already up replaces it. Other options:
 A SPI NAND image (its boot header says so) boots with a 128 MiB
 GigaDevice GD5F1GQ5UE for its flash, a chip the SPL, U-Boot and Linux of
 thingino's and Ingenic's NAND builds know. The flash copy is padded to the
-whole chip, erased, for the UBI volumes to grow into. NAND needs a
-qemu-ingenic release newer than ingenic-0.6.11.
+whole chip, erased, for the UBI volumes to grow into.
 
 ## Getting in
 
@@ -165,9 +164,6 @@ scripts/qemu-dev gpio 50=0             # assert a card-detect pin, by GPIO numbe
 `adc` does the same for the SADC's eight channels: `adc 0=150` makes
 channel 0 read 150 of 4095, a dark room to a photoresistor (raptor's
 `ric` reads one in its adc trigger mode). Every channel starts at 2025.
-
-Both need a qemu-ingenic release newer than ingenic-0.6.11; with that
-one they say so and stop.
 
 ## Iterating on a package
 
