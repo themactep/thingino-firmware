@@ -24,8 +24,8 @@
     image_ae_compensation: "ae_compensation",
     image_hflip: "hflip",
     image_vflip: "vflip",
-    noise_reduction: "noise_reduction",
-    temporal_noise_reduction: "temporal_noise_reduction",
+    noise_reduction: "sinter",
+    temporal_noise_reduction: "temper",
   };
 
   // field id -> agent settings endpoint (own save path; preview.js does not
