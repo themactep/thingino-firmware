@@ -1,0 +1,75 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: fix the SC2336 analogue gain model
+
+The V4L2 bridge derived the AE's Q10 gain table with
+1 + coarse + (fine - 128) / 128, which only holds for coarse 0. The
+vendor SDK's sensor_again_lut stores log2(gain) in Q16 next to each
+index; convert that column to Q10 linear with 1024 * 2^(gain / 65536).
+The real curve is 1x, 2x, 4x, 8x, 16x, 32x, and the current table
+claims 9x, 10x and 12x at the 2x, 4x and 8x boundaries, so the AE sees
+a 4.5x jump between indices 31 and 32 and limit-cycles between 1.97x
+and 9x.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t31/tx_isp_v4l2_sensor.c
++++ b/driver/t31/tx_isp_v4l2_sensor.c
+@@ -76,35 +76,32 @@
+  * the V4L2 analogue-gain control values; the sensor writes
+  * {coarse, fine} = {index>>8, index&0xff} scaled through its own table.
+  *
+- * Derived from the SC gain coding, gain = 1 + coarse + (fine - 128)/128, which
+- * is what the sensor does for the register table the driver ports from the
+- * vendor source.  The vendor driver's own Q10 column is not that curve: it is
+- * a linear ramp in the index (0, 2886, 5776, ... 327680), so it claimed 62x
+- * where the sensor gives 1.97x and 0x where it gives 1.0x.  The AE trusted it,
+- * could not close its loop, and oscillated the integration time instead - see
+- * the observation behind this change: index 0 has to read 1.0x, never 0.
++ * The SDK sensor_again_lut stores log2(gain) in Q16 next to each index.
++ * Convert that column to Q10 linear with 1024 * 2^(gain / 65536).  Deriving
++ * the gain from 1 + coarse + (fine - 128) / 128 is only valid for coarse 0,
++ * and claims 9x, 10x and 12x where the sensor gives 2x, 4x and 8x.
+  */
+ static const u32 tx_v4l2_gain_lut[] = {
+-	  1024,   1056,   1088,   1120,   1152,   1184,   1216,   1248,
+-	  1280,   1312,   1344,   1376,   1408,   1440,   1472,   1504,
+-	  1536,   1568,   1600,   1632,   1664,   1696,   1728,   1760,
++	  1024,   1056,   1089,   1120,   1152,   1184,   1216,   1248,
++	  1280,   1312,   1344,   1376,   1408,   1440,   1473,   1504,
++	  1536,   1568,   1601,   1632,   1664,   1696,   1729,   1760,
+ 	  1792,   1824,   1856,   1888,   1920,   1952,   1984,   2016,
+-	  9216,   9248,   9280,   9312,   9344,   9376,   9408,   9440,
+-	  9472,   9504,   9536,   9568,   9600,   9632,   9664,   9696,
+-	  9728,   9760,   9792,   9824,   9856,   9888,   9920,   9952,
+-	  9984,  10016,  10048,  10080,  10112,  10144,  10176,  10208,
+-	 10240,  10272,  10304,  10336,  10368,  10400,  10432,  10464,
+-	 10496,  10528,  10560,  10592,  10624,  10656,  10688,  10720,
+-	 10752,  10784,  10816,  10848,  10880,  10912,  10944,  10976,
+-	 11008,  11040,  11072,  11104,  11136,  11168,  11200,  11232,
+-	 12288,  12320,  12352,  12384,  12416,  12448,  12480,  12512,
+-	 12544,  12576,  12608,  12640,  12672,  12704,  12736,  12768,
+-	 12800,  12832,  12864,  12896,  12928,  12960,  12992,  13024,
+-	 13056,  13088,  13120,  13152,  13184,  13216,  13248,  13280,
+-	 16384,  16416,  16448,  16480,  16512,  16544,  16576,  16608,
+-	 16640,  16672,  16704,  16736,  16768,  16800,  16832,  16864,
+-	 16896,  16928,  16960,  16992,  17024,  17056,  17088,  17120,
+-	 17152,  17184,  17216,  17248,  17280,  17312,  17344,  17376,
++	  2048,   2111,   2177,   2241,   2304,   2367,   2433,   2496,
++	  2560,   2623,   2689,   2753,   2816,   2879,   2945,   3008,
++	  3072,   3135,   3201,   3264,   3328,   3391,   3457,   3520,
++	  3584,   3647,   3713,   3776,   3840,   3903,   3969,   4033,
++	  4096,   4223,   4354,   4481,   4608,   4735,   4866,   4993,
++	  5120,   5247,   5378,   5505,   5632,   5759,   5890,   6017,
++	  6144,   6271,   6402,   6529,   6656,   6783,   6914,   7041,
++	  7168,   7295,   7426,   7553,   7680,   7807,   7938,   8065,
++	  8192,   8446,   8708,   8962,   9216,   9470,   9732,   9986,
++	 10240,  10494,  10756,  11010,  11264,  11518,  11780,  12034,
++	 12288,  12542,  12804,  13058,  13312,  13566,  13828,  14082,
++	 14336,  14590,  14852,  15106,  15360,  15614,  15876,  16130,
++	 16384,  16892,  17416,  17924,  18432,  18940,  19464,  19972,
++	 20480,  20988,  21512,  22020,  22528,  23036,  23560,  24068,
++	 24576,  25084,  25608,  26116,  26624,  27132,  27656,  28164,
++	 28672,  29180,  29704,  30212,  30720,  31228,  31752,  32260,
+ 	 32768
+ };
+ 
