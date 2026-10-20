@@ -1,0 +1,135 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: keep ISP IRQ enable/disable balanced
+
+Both the ISP core and the subdev IRQ handlers call enable_irq() for the
+same line at stream start, which trips the kernel "Unbalanced enable"
+warning. Track the enabled state per IRQ and make enable/disable
+idempotent. The request path still disables the line directly because
+request_threaded_irq() starts it enabled.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/driver/t31/tx_isp_module.c b/driver/t31/tx_isp_module.c
+index 5ad7712b..083f7a4b 100644
+--- a/driver/t31/tx_isp_module.c
++++ b/driver/t31/tx_isp_module.c
+@@ -3330,6 +3330,35 @@ static int tx_isp_activate_sensor_pipeline(struct tx_isp_dev *isp_dev, const cha
+ 
+ // Initialize real hardware interrupt handling - Kernel 3.10 compatible, SDK compatible
+ /* tx_isp_enable_irq - CORRECTED Binary Ninja exact implementation */
++static DEFINE_MUTEX(tx_isp_irq_state_lock);
++static unsigned long tx_isp_irq_on[BITS_TO_LONGS(1024)];
++
++void tx_isp_irq_enable_once(int irq)
++{
++	if (irq < 0 || irq >= 1024)
++		return;
++	mutex_lock(&tx_isp_irq_state_lock);
++	if (test_and_set_bit(irq, tx_isp_irq_on)) {
++		mutex_unlock(&tx_isp_irq_state_lock);
++		return;
++	}
++	enable_irq(irq);
++	mutex_unlock(&tx_isp_irq_state_lock);
++}
++
++void tx_isp_irq_disable_once(int irq)
++{
++	if (irq < 0 || irq >= 1024)
++		return;
++	mutex_lock(&tx_isp_irq_state_lock);
++	if (!test_and_clear_bit(irq, tx_isp_irq_on)) {
++		mutex_unlock(&tx_isp_irq_state_lock);
++		return;
++	}
++	disable_irq(irq);
++	mutex_unlock(&tx_isp_irq_state_lock);
++}
++
+ void tx_isp_enable_irq(struct tx_isp_dev *isp_dev)
+ {
+     if (!isp_dev || isp_dev->isp_irq <= 0) {
+@@ -3342,7 +3371,7 @@ void tx_isp_enable_irq(struct tx_isp_dev *isp_dev)
+ 
+     /* Binary Ninja: return private_enable_irq(*arg1) __tailcall
+      * This means: enable_irq(isp_dev->isp_irq) */
+-    enable_irq(isp_dev->isp_irq);
++    tx_isp_irq_enable_once(isp_dev->isp_irq);
+ 
+     pr_info("*** tx_isp_enable_irq: Kernel IRQ %d ENABLED ***\n", isp_dev->isp_irq);
+ }
+@@ -3360,7 +3389,7 @@ void tx_isp_disable_irq(struct tx_isp_dev *isp_dev)
+ 
+     /* Binary Ninja: return private_disable_irq(*arg1) __tailcall
+      * This means: disable_irq(isp_dev->isp_irq) */
+-    disable_irq(isp_dev->isp_irq);
++    tx_isp_irq_disable_once(isp_dev->isp_irq);
+ 
+     pr_info("*** tx_isp_disable_irq: Kernel IRQ %d DISABLED ***\n", isp_dev->isp_irq);
+ }
+@@ -3417,7 +3446,7 @@ int tx_isp_request_irq2(struct platform_device *pdev, struct tx_isp_dev *isp_dev
+         isp_dev->irq_disable_func = tx_isp_disable_irq; /* arg2[2] = tx_isp_disable_irq */
+ 
+         /* Binary Ninja: tx_isp_disable_irq(arg2) */
+-        tx_isp_disable_irq(isp_dev);
++        disable_irq(irq_num);
+ 
+         pr_info("*** tx_isp_request_irq: IRQ %d registered, stored, and left disabled until stream enable ***\n", irq_num);
+ 
+@@ -7395,7 +7424,7 @@ static void tx_vic_irq_slot_enable(struct tx_isp_irq_info *irq_info)
+         irq = 38;
+ 
+     irq_info->irq = irq;
+-    enable_irq(irq);
++    tx_isp_irq_enable_once(irq);
+ }
+ 
+ static void tx_vic_irq_slot_disable(struct tx_isp_irq_info *irq_info)
+@@ -7412,7 +7441,7 @@ static void tx_vic_irq_slot_disable(struct tx_isp_irq_info *irq_info)
+         irq = 38;
+ 
+     irq_info->irq = irq;
+-    disable_irq(irq);
++    tx_isp_irq_disable_once(irq);
+ }
+ 
+ static void tx_vic_seed_irq_slots(struct tx_isp_vic_device *vic_dev, int irq)
+diff --git a/driver/t31/tx_isp_subdev.c b/driver/t31/tx_isp_subdev.c
+index 1af1f51a..4d7588a5 100644
+--- a/driver/t31/tx_isp_subdev.c
++++ b/driver/t31/tx_isp_subdev.c
+@@ -110,12 +110,15 @@ int vic_core_ops_ioctl(struct tx_isp_subdev *sd, unsigned int cmd, void *arg);
+ int vic_event_handler(void *subdev, int event_type, void *data);
+ int tx_isp_module_notify_handler(struct tx_isp_module *module, unsigned int cmd, void *arg);
+ 
++void tx_isp_irq_enable_once(int irq);
++void tx_isp_irq_disable_once(int irq);
++
+ static void tx_isp_irq_info_enable(struct tx_isp_irq_info *irq_info)
+ {
+ 	if (!irq_info || irq_info->irq <= 0)
+ 		return;
+ 
+-	enable_irq(irq_info->irq);
++	tx_isp_irq_enable_once(irq_info->irq);
+ }
+ 
+ static void tx_isp_irq_info_disable(struct tx_isp_irq_info *irq_info)
+@@ -123,7 +126,7 @@ static void tx_isp_irq_info_disable(struct tx_isp_irq_info *irq_info)
+ 	if (!irq_info || irq_info->irq <= 0)
+ 		return;
+ 
+-	disable_irq(irq_info->irq);
++	tx_isp_irq_disable_once(irq_info->irq);
+ }
+ 
+ /* Binary Ninja interrupt handlers - EXACT reference implementation */
+@@ -756,7 +759,7 @@ int tx_isp_request_irq(struct platform_device *pdev, struct tx_isp_irq_info *irq
+ 	irq_info->irq = irq_num;
+ 	irq_info->handler = (void *)tx_isp_irq_info_enable;
+ 	irq_info->data = (void *)tx_isp_irq_info_disable;
+-	tx_isp_irq_info_disable(irq_info);
++	disable_irq(irq_num);
+ 	pr_info("tx_isp_request_irq: registered irq %d for %s (dev_id=%p, left disabled)\n",
+ 		irq_num, dev_name(&pdev->dev), irq_info);
+ 

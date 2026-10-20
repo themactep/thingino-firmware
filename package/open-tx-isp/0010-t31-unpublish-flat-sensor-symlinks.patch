@@ -1,0 +1,22 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: unpublish flat sensor symlinks on exit
+
+remove_proc_subtree() can leave the flat /proc/jz/sensor symlinks
+behind, and the next publish then trips the procfs "already
+registered" warning. Remove them explicitly before dropping the root.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -1519,7 +1519,9 @@
+ 	}
+ 	mutex_unlock(&tx_isp_sinfo_lock);
+ 	if (root) {
+-		/* remove_proc_subtree() below takes the flat symlinks too. */
++		/* Remove the flat symlinks explicitly: remove_proc_subtree()
++		 * can miss them when the proc root is detached separately. */
++		tx_isp_sinfo_flat_unpublish(root);
+ 		tx_isp_sinfo_flat_published = false;
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+ 		remove_proc_subtree("sensor", jz_root);
