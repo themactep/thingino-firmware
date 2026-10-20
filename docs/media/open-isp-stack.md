@@ -49,6 +49,13 @@ Kernel focus:
 - T31 also builds on the mainline Linux 7.2 compatibility path upstream
   (Thingino's Kconfig exposes the open stack only on the vendor trees)
 
+## Mainline sensor drivers
+
+The T31 7.2 path uses in-tree V4L2 sensor drivers through the open-tx-isp
+V4L2 bridge. The driver layers, the AE gain-model contract, and the steps for
+adding a sensor (including its Q10 gain LUT) are documented in
+[t31-mainline-sensor-drivers.md](t31-mainline-sensor-drivers.md).
+
 ## Module completeness
 
 - **Audio**: `IMP_AI_*` implemented for T31 and T40; T20/T21 reuse the T31
