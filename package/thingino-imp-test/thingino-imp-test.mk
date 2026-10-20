@@ -27,6 +27,11 @@ ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 	THINGINO_IMP_TEST_SHIM = -luclibcshim
 endif
 
+# imp-test-video includes the IMP SDK headers (<imp/imp_*.h>). The SDK
+# header tree is staged by the vendor libimp package on most SoCs; point this
+# at wherever the matching imp/ headers are for your tree.
+THINGINO_IMP_TEST_IMP_INC ?= $(STAGING_DIR)/usr/include
+
 define THINGINO_IMP_TEST_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_CFLAGS) -Wall -Wextra -o $(@D)/imp-test-audio \
 		$(@D)/imp-test-audio.c \
@@ -36,6 +41,16 @@ define THINGINO_IMP_TEST_BUILD_CMDS
 		-limp -lalog -laudioProcess \
 		-Wl,--no-as-needed $(THINGINO_IMP_TEST_SHIM) -Wl,--as-needed \
 		-lrt -lpthread
+	$(TARGET_CC) $(TARGET_CFLAGS) -Wall -Wextra \
+		-I$(THINGINO_IMP_TEST_IMP_INC) \
+		-o $(@D)/imp-test-video \
+		$(@D)/imp-test-video.c \
+		$(TARGET_LDFLAGS) \
+		-L$(STAGING_DIR)/usr/lib \
+		-L$(TARGET_DIR)/usr/lib \
+		-limp -lalog \
+		-Wl,--no-as-needed $(THINGINO_IMP_TEST_SHIM) -Wl,--as-needed \
+		-lrt -lpthread -lm -ldl
 	if [ "$(THINGINO_IMP_TEST_BUILD_FAAC)" = "yes" ]; then \
 		$(TARGET_CC) $(TARGET_CFLAGS) -Wall -Wextra \
 			-I$(STAGING_DIR)/usr/include \
@@ -50,6 +65,8 @@ endef
 define THINGINO_IMP_TEST_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/imp-test-audio \
 		$(TARGET_DIR)/usr/bin/imp-test-audio
+	$(INSTALL) -D -m 0755 $(@D)/imp-test-video \
+		$(TARGET_DIR)/usr/bin/imp-test-video
 	if [ -f $(@D)/imp-test-faac ]; then \
 		$(INSTALL) -D -m 0755 $(@D)/imp-test-faac \
 			$(TARGET_DIR)/usr/bin/imp-test-faac; \
