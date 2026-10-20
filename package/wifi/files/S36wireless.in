@@ -65,6 +65,10 @@ emit_pin_command() {
 			printf '%s toggle\n' "$pin"
 			return 0
 			;;
+		delay)
+			printf '%s delay %s\n' "$pin" "$state"
+			return 0
+			;;
 		set | '')
 			case "$state" in
 				0 | 1)
@@ -170,9 +174,15 @@ emit_wlan_object_path() {
 		esac
 		if [ -n "$pre_state" ]; then
 			emit_pin_command "$pin" "set" "$pre_state"
+			# keep the chip unpowered long enough to really reset it
+			emit_pin_command "$pin" "delay" "1"
 		fi
 	fi
 	emit_pin_command "$pin" "set" "$state"
+	if bool_is_true "$toggle_flag" && [ -n "$pre_state" ]; then
+		# let the chip power up before the driver probes it
+		emit_pin_command "$pin" "delay" "0.5"
+	fi
 }
 
 get_wlan_sequence() {
@@ -219,6 +229,10 @@ apply_wlan_sequence() {
 	while IFS=' ' read -r pin action state; do
 		[ -n "$pin" ] || continue
 		case "$action" in
+			delay)
+				sleep "$state"
+				continue
+				;;
 			toggle)
 				echo "Toggle GPIO $pin"
 				gpio toggle "$pin"
