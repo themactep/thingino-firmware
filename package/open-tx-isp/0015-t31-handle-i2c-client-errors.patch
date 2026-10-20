@@ -1,0 +1,24 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: handle i2c client creation errors
+
+i2c_new_client_device() returns an ERR_PTR on failure. The recovered
+vendor flow treats the result as a plain pointer and dereferences it, so
+starting tx-isp before the DT sensor driver has bound (the address is
+already claimed) panics the kernel on -EBUSY.
+
+Handle the error pointer the same way the vendor i2c_new_device() NULL
+return is handled.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t31/tx_isp_module.c
++++ b/driver/t31/tx_isp_module.c
+@@ -944,7 +944,7 @@
+ #else
+     client = i2c_new_client_device(adapter, info);
+ #endif
+-    if (!client)
++    if (IS_ERR_OR_NULL(client))
+         return NULL;
+ 
+     /* Stock: dev = *(client + 0x1c) - get client->dev */
