@@ -59,11 +59,11 @@
 	pinctrl-0 = <&msc1_pb>;
 };
 
-/* The sub-GHz chime radio is on UART0 (PC10/PC11); the console is UART1. */
+/* The sub-GHz chime radio is on UART0 (PB19/PB22); the console is UART1. */
 &pinctrl {
 	pins_uart0: uart0 {
 		function = "uart0";
-		groups = "uart0-data-c";
+		groups = "uart0-data-b";
 	};
 };
 
