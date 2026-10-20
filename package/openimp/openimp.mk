@@ -7,7 +7,7 @@
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/Lu-Fi/openimp
 OPENIMP_SITE_BRANCH = next
-OPENIMP_VERSION = 6ba7df7f34e064d11ec3cb3ba412ae3749a962f7
+OPENIMP_VERSION = d702887b5cd4b816c9ba3c6c6ce0907ef866c06a
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
