@@ -1,0 +1,23 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.2: sync the addr shadow after registration
+
+The pre-register dev_addr write cannot update dev_addr_shadow because
+the netdev address list is not initialized yet. Sync it right after a
+successful register, before the interface can be opened.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -2303,6 +2303,11 @@
+ 	else
+ 		ret = (register_netdevice(ndev) == 0) ? _SUCCESS : _FAIL;
+ 
++	/* The address list exists now; sync the shadow the pre-register
++	 * write could not update. */
++	if (ret == _SUCCESS)
++		rtw_set_netdev_addr(ndev, adapter_mac_addr(adapter));
++
+ 	if (ret == _SUCCESS)
+ 		adapter->registered = 1;
+ 	else
