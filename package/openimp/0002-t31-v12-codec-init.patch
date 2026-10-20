@@ -1,14 +1,14 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] t31: initialise the v12 codec for the ALSA transport
+Subject: [PATCH] t31: complete the v12 codec init for the ALSA transport
 
-The mainline 7.2 AIC provides only the I2S port; the T31 v12 internal
-codec still has to be powered, switched to I2S master, and routed from
-MIC1 to the ADC. Its registers are indirect through the AIC RGADW/RGDATA
-window, so program them after the PCM is opened.
+The mainline AIC needs the internal codec selected and its I2S/PCM
+clocks enabled before the v12 register window responds. Program the
+AIC AICFR bits, the T31 CGU I2S dividers (12 MHz), and then the v12
+codec power, I2S master, ADC/mic route and 16 kHz/16-bit setup from
+userspace through RGADW.
 
-This keeps the vendor codec driver out of the kernel and works with the
-simple-audio-card transport. The codec is the I2S clock master; the AIC
-consumes the bit/frame clocks.
+Keep a start/read diagnostic so an AIC-DMA failure is distinguishable
+from a codec-route failure.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -22,7 +22,40 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  #endif
  
  #include "audio/openimp_aec.h"
-@@ -1071,6 +1072,8 @@
+@@ -795,6 +796,11 @@
+     (void)argument;
+     openimp_thread_setname("ai-_ai_record_t");
+     align = t31_audio.ai_attr.soundmode == AUDIO_SOUND_MODE_STEREO ? 4U : 2U;
++#if defined(OPENIMP_T31_ALSA)
++    if (t31_audio.ai_pcm && pcm_start(t31_audio.ai_pcm) < 0)
++        syslog(LOG_WARNING, "openimp: AI start failed: %s",
++               pcm_get_error(t31_audio.ai_pcm));
++#endif
+     pthread_mutex_lock(&t31_capture_lock);
+     while (!t31_audio.capture_stop) {
+         size_t size;
+@@ -820,6 +826,20 @@
+             } else {
+                 result = got;
+                 size = 0;
++#if defined(OPENIMP_T31_ALSA)
++                if (got < 0) {
++                    static time_t last_log;
++                    time_t now = time(NULL);
++
++                    if (now != last_log) {
++                        syslog(LOG_WARNING, "openimp: AI read %d: %s (%s)", got,
++                               t31_audio.ai_pcm ?
++                                   pcm_get_error(t31_audio.ai_pcm) : "no pcm",
++                               strerror(-got));
++                        last_log = now;
++                    }
++                }
++#endif
+             }
+         }
+         if (with_ref)
+@@ -1071,6 +1091,8 @@
              return -1;
          }
          t31_audio.ai_fd = 0;
@@ -31,7 +64,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
      }
  #else
      fd = open("/dev/dsp", O_RDONLY | O_CLOEXEC);
-@@ -1886,6 +1889,8 @@
+@@ -1886,6 +1908,8 @@
              return -1;
          }
          t31_audio.ao_fd = 0;
@@ -60,7 +93,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
      "$output_dir/audio_enc_dec.o" \
 --- /dev/null
 +++ b/src/t31/openimp_t31_codec_v12.c
-@@ -0,0 +1,202 @@
+@@ -0,0 +1,228 @@
 +#include <errno.h>
 +#include <fcntl.h>
 +#include <stdint.h>
@@ -73,6 +106,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +#include "openimp_t31_codec_v12.h"
 +
 +#define AIC_PHYS        0x10020000
++#define CGU_PHYS        0x10000000
++#define CPM_I2SSPKCDR   0x70
++#define CPM_I2SMICCDR   0x84
 +#define AIC_SIZE        0x1000
 +#define AIC_RGADW       0xa4
 +#define AIC_RGDATA      0xa8
@@ -214,12 +250,35 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +        return -1;
 +    }
 +
++    /* Select the internal codec in the AIC and make it the I2S slave. */
++    {
++        uint32_t conf = aic_read(aic, 0x0);
++
++        conf |= 1 << 7;
++        conf |= 1 << 5;
++        aic_write(aic, 0x0, conf);
++        aic_write(aic, AIC_RGADW, 0);
++    }
++
++    /* Enable the T31 I2S clocks: SCLKA / 100 = 12 MHz. */
++    {
++        void *cgu;
++        uint32_t cdr = (1 << 20) | 100 | (1 << 29);
++
++        cgu = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, CGU_PHYS);
++        if (cgu != MAP_FAILED) {
++            aic_write(cgu, CPM_I2SSPKCDR, cdr);
++            aic_write(cgu, CPM_I2SMICCDR, cdr);
++            munmap(cgu, 0x1000);
++        }
++    }
++
 +    /* Power the codec and let the ADC settle. */
 +    codec_write(aic, CR_VIC, 0);
 +    usleep(400000);
 +
 +    /* Codec is the I2S clock master; 12 MHz crystal; I2S interfaces. */
-+    codec_bit(aic, AICR_DAC, AICR_DAC_MODE, 0);
++    codec_bit(aic, AICR_DAC, AICR_DAC_MODE, 1);
 +    codec_mask(aic, AICR_DAC, 0, 0x3, 3);
 +    codec_bit(aic, AICR_DAC, AICR_DAC_SB, 0);
 +    codec_mask(aic, AICR_ADC, 0, 0x3, 3);
