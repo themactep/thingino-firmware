@@ -1,0 +1,27 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: replace stale flat sensor proc symlinks
+
+When a tx-isp instance leaves /proc/jz/sensor behind, the next
+publish calls proc_symlink() for an entry that already exists and
+procfs warns "already registered". Remove the stale entry first.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/driver/common/tx_isp_sinfo.c b/driver/common/tx_isp_sinfo.c
+index f1d33719..cd5ecfe1 100644
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -922,6 +922,13 @@ static void tx_isp_sinfo_flat_publish(void)
+ 			continue;
+ 		snprintf(target, sizeof(target), "sensor0/%s",
+ 			 tx_isp_sinfo_key_name[key]);
++		/*
++		 * A previous tx-isp instance can leave the flat symlink behind
++		 * when its proc root was torn down separately. Replacing it
++		 * avoids the proc_dir_entry already registered warning.
++		 */
++		remove_proc_entry(tx_isp_sinfo_key_name[key],
++				  tx_isp_sinfo_root);
+ 		proc_symlink(tx_isp_sinfo_key_name[key], tx_isp_sinfo_root,
+ 			     target);
+ 	}
