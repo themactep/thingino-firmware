@@ -1,0 +1,186 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: select the gain model per V4L2 sensor
+
+The bridge used one hardcoded SC2336 gain table for every mainline
+V4L2 sensor. The other ports have different gain tables and control
+ranges: sc4236 has 63 entries and reaches 15x, gc2083 has 29 entries
+and reaches 125x, gc4023 has 25 entries and reaches 64x. Feeding them
+the SC2336 model made the AE see the wrong gain and, for sensors with
+fewer entries, clamp at the top of the V4L2 control.
+
+Add a gain model keyed by sensor name, with Q10 tables derived from
+the mainline drivers' log2-Q16 gain columns. Select it when the sensor
+is attached and cap the index at the V4L2 control maximum. Sensors
+without a model keep the SC2336 table capped at their control maximum,
+with a warning, until their table is added.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/t31/tx_isp_v4l2_sensor.c
++++ b/driver/t31/tx_isp_v4l2_sensor.c
+@@ -32,10 +32,15 @@
+ 
+ #define TX_V4L2_NAME_LEN	32
+ #define TX_V4L2_CHIP_ID		0xcb3a
+-#define TX_V4L2_MAX_GAIN	tx_v4l2_gain_lut[ARRAY_SIZE(tx_v4l2_gain_lut) - 1]
+ #define TX_V4L2_MIN_EXPOSURE	2
+ #define TX_V4L2_EXPOSURE_OFFSET	4
+ 
++struct tx_v4l2_gain_model {
++	const char *name;
++	const u32 *lut;
++	unsigned int size;
++};
++
+ struct tx_isp_v4l2_sensor {
+ 	struct tx_isp_sensor sensor;
+ 	struct platform_device pdev;
+@@ -64,6 +69,8 @@
+ };
+ 
+ static struct tx_isp_subdev *tx_isp_v4l2_sensor_sd;
++static const struct tx_v4l2_gain_model *tx_v4l2_active_gain;
++static u32 tx_v4l2_active_gain_max;
+ 
+ /*
+  * The mainline sc2336 driver maps the V4L2 analogue gain control to the
+@@ -104,27 +111,81 @@
+ 	 28672,  29180,  29704,  30212,  30720,  31228,  31752,  32260,
+ 	 32768
+ };
++static const u32 tx_v4l2_sc4236_gain_lut[] = {
++	  1024,   1088,   1152,   1216,   1280,   1344,   1408,   1472,
++	  1536,   1600,   1664,   1728,   1792,   1856,   1920,   1984,
++	  2048,   2176,   2304,   2432,   2560,   2688,   2816,   2944,
++	  3072,   3200,   3328,   3456,   3584,   3712,   3840,   3968,
++	  4096,   4352,   4608,   4864,   5120,   5376,   5632,   5888,
++	  6144,   6400,   6656,   6912,   7168,   7424,   7680,   7936,
++	  8192,   8704,   9216,   9728,  10240,  10752,  11264,  11776,
++	 12288,  12800,  13312,  13824,  14336,  14848,  15360
++};
++
++static const u32 tx_v4l2_gc2083_gain_lut[] = {
++	  1024,   1216,   1440,   1712,   2048,   2432,   2864,   3408,
++	  4096,   4880,   5728,   6832,   8192,   9760,  11472,  13664,
++	 16384,  19520,  22944,  27311,  32768,  39024,  45871,  54639,
++	 65536,  78047,  91743, 109278, 128447
++};
++
++static const u32 tx_v4l2_gc4023_gain_lut[] = {
++	  1024,   1215,   1440,   1696,   2048,   2432,   2863,   3391,
++	  4096,   4848,   5727,   6799,   8192,   9712,  11472,  13583,
++	 16384,  19408,  22944,  27183,  32768,  38831,  45871,  54367,
++	 65536
++};
++
++static const struct tx_v4l2_gain_model tx_v4l2_gain_models[] = {
++	{ "sc2336",  tx_v4l2_gain_lut,        ARRAY_SIZE(tx_v4l2_gain_lut) },
++	{ "sc2336p", tx_v4l2_gain_lut,        ARRAY_SIZE(tx_v4l2_gain_lut) },
++	{ "sc4236",  tx_v4l2_sc4236_gain_lut, ARRAY_SIZE(tx_v4l2_sc4236_gain_lut) },
++	{ "gc2083",  tx_v4l2_gc2083_gain_lut, ARRAY_SIZE(tx_v4l2_gc2083_gain_lut) },
++	{ "gc4023",  tx_v4l2_gc4023_gain_lut, ARRAY_SIZE(tx_v4l2_gc4023_gain_lut) },
++};
++
++static const struct tx_v4l2_gain_model *
++tx_v4l2_gain_model_by_name(const char *name)
++{
++	unsigned int i;
++
++	for (i = 0; i < ARRAY_SIZE(tx_v4l2_gain_models); i++)
++		if (!strcmp(tx_v4l2_gain_models[i].name, name))
++			return &tx_v4l2_gain_models[i];
++
++	return NULL;
++}
+ 
+ static unsigned int tx_v4l2_alloc_again(unsigned int isp_gain,
+ 					unsigned char shift,
+ 					unsigned int *sensor_again)
+ {
+-	unsigned int i;
++	const struct tx_v4l2_gain_model *model = tx_v4l2_active_gain;
++	unsigned int i, max;
++
++	if (!model) {
++		model = &tx_v4l2_gain_models[0];
++		max = model->size - 1;
++	} else {
++		max = tx_v4l2_active_gain_max;
++		if (max >= model->size)
++			max = model->size - 1;
++	}
+ 
+ 	if (isp_gain == 0) {
+ 		*sensor_again = 0;
+-		return tx_v4l2_gain_lut[0];
++		return model->lut[0];
+ 	}
+ 
+-	for (i = 1; i < ARRAY_SIZE(tx_v4l2_gain_lut); i++) {
+-		if (isp_gain < tx_v4l2_gain_lut[i]) {
++	for (i = 1; i <= max; i++) {
++		if (isp_gain < model->lut[i]) {
+ 			*sensor_again = i - 1;
+-			return tx_v4l2_gain_lut[i - 1];
++			return model->lut[i - 1];
+ 		}
+ 	}
+ 
+-	*sensor_again = ARRAY_SIZE(tx_v4l2_gain_lut) - 1;
+-	return tx_v4l2_gain_lut[ARRAY_SIZE(tx_v4l2_gain_lut) - 1];
++	*sensor_again = max;
++	return model->lut[max];
+ }
+ 
+ static unsigned int tx_v4l2_alloc_dgain(unsigned int isp_gain,
+@@ -533,6 +594,8 @@
+ 	struct tx_isp_v4l2_sensor *s;
+ 	struct tx_isp_sensor *sensor;
+ 	struct tx_isp_sensor_attribute *attr;
++	const struct tx_v4l2_gain_model *gain_model;
++	u32 gain_index_max;
+ 	int ret;
+ 
+ 	if (!adapter || !name || !name[0])
+@@ -597,6 +660,23 @@
+ 		return NULL;
+ 	}
+ 
++	gain_model = tx_v4l2_gain_model_by_name(name);
++	if (!gain_model) {
++		dev_warn(&s->client->dev,
++			 "tx-isp-v4l2: no gain model for %s, using the SC2336 model capped at index %u\n",
++			 name, (u32)s->gain->maximum);
++		gain_model = &tx_v4l2_gain_models[0];
++	}
++
++	gain_index_max = (u32)s->gain->maximum;
++	if (gain_index_max >= gain_model->size)
++		gain_index_max = gain_model->size - 1;
++	tx_v4l2_active_gain = gain_model;
++	tx_v4l2_active_gain_max = gain_index_max;
++	dev_info(&s->client->dev,
++		 "tx-isp-v4l2: gain model %s (%u entries, max index %u)\n",
++		 gain_model->name, gain_model->size, gain_index_max);
++
+ 	if (tx_v4l2_parse_lanes(s)) {
+ 		dev_err(&s->client->dev, "failed to parse MIPI lanes\n");
+ 		tx_v4l2_sensor_free(s);
+@@ -620,7 +700,7 @@
+ 	attr->mipi.mipi_sc.sensor_frame_mode = TX_SENSOR_DEFAULT_FRAME_MODE;
+ 	attr->mipi.mipi_sc.sensor_mode = TX_SENSOR_DEFAULT_MODE;
+ 	attr->data_type = TX_SENSOR_DATA_TYPE_LINEAR;
+-	attr->max_again = TX_V4L2_MAX_GAIN;
++	attr->max_again = gain_model->lut[gain_index_max];
+ 	attr->max_dgain = 0;
+ 	attr->min_integration_time = TX_V4L2_MIN_EXPOSURE;
+ 	attr->min_integration_time_native = TX_V4L2_MIN_EXPOSURE;
+@@ -673,6 +753,8 @@
+ 
+ 	s = sd_to_v4l2_sensor(sd);
+ 	tx_isp_v4l2_sensor_sd = NULL;
++	tx_v4l2_active_gain = NULL;
++	tx_v4l2_active_gain_max = 0;
+ 
+ 	if (!s)
+ 		return;
