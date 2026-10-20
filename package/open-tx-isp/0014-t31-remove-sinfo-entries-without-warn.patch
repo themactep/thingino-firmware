@@ -1,0 +1,57 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: remove sinfo entries without warning when absent
+
+remove_proc_entry() WARNs when the name does not exist. The sinfo
+refresh paths deliberately remove before creating, so a first-time
+entry triggers the warning. remove_proc_subtree() returns -ENOENT
+quietly and removes a plain entry the same way.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -877,7 +877,7 @@
+ #else
+ 		ctx = &slot->files[key];
+ #endif
+-		remove_proc_entry(tx_isp_sinfo_vendor_files[n].name, dir);
++		remove_proc_subtree(tx_isp_sinfo_vendor_files[n].name, dir);
+ 		proc_create_data(tx_isp_sinfo_vendor_files[n].name, 0444, dir,
+ 				 version ? &tx_isp_sinfo_vendor_version_fops :
+ 					   &tx_isp_sinfo_vendor_fops, ctx);
+@@ -946,7 +946,7 @@
+ 		 * when its proc root was torn down separately. Replacing it
+ 		 * avoids the proc_dir_entry already registered warning.
+ 		 */
+-		remove_proc_entry(tx_isp_sinfo_key_name[key],
++		remove_proc_subtree(tx_isp_sinfo_key_name[key],
+ 				  tx_isp_sinfo_root);
+ 		proc_symlink(tx_isp_sinfo_key_name[key], tx_isp_sinfo_root,
+ 			     target);
+@@ -962,7 +962,7 @@
+ 		return;
+ 	for (key = 0; key < TX_ISP_SINFO_NKEYS; ++key)
+ 		if (tx_isp_sinfo_key_supported(key))
+-			remove_proc_entry(tx_isp_sinfo_key_name[key], root);
++			remove_proc_subtree(tx_isp_sinfo_key_name[key], root);
+ 	tx_isp_sinfo_flat_published = false;
+ }
+ 
+@@ -1005,7 +1005,7 @@
+ #endif
+ 		if (!tx_isp_sinfo_key_supported(key))
+ 			continue;
+-		remove_proc_entry(tx_isp_sinfo_key_name[key], slot->dir);
++		remove_proc_subtree(tx_isp_sinfo_key_name[key], slot->dir);
+ 		proc_create_data(tx_isp_sinfo_key_name[key], 0444, slot->dir,
+ 				 &tx_isp_sinfo_fops,
+ #ifdef TX_ISP_SINFO_STABLE_PROC_SNAPSHOT
+@@ -1243,7 +1243,7 @@
+ 			remove_proc_subtree(aliases[i], root);
+ 		if (had_flat[i] && root)
+ 			for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n)
+-				remove_proc_entry(
++				remove_proc_subtree(
+ 					tx_isp_sinfo_vendor_files[n].name,
+ 					root);
+ 	}
