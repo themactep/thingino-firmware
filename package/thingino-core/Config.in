@@ -1,6 +1,5 @@
 config BR2_PACKAGE_THINGINO_CORE
 	bool "thingino-core"
-	select BR2_PACKAGE_THINGINO_KOPT_NFS
 	help
 	  Core system setup tasks for Thingino firmware, including
 	  generating /etc/thingino.json from layered configuration sources.

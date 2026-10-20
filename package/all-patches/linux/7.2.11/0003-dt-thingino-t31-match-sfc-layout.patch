@@ -25,14 +25,14 @@
 +			partition@50000 {
  				label = "kernel";
 -				reg = <0x50000 0x200000>;
-+				reg = <0x50000 0x2a0000>;
++				reg = <0x50000 0x240000>;
  			};
  
 -			partition@250000 {
-+			partition@2f0000 {
++			partition@290000 {
  				label = "rootfs";
 -				reg = <0x250000 0x500000>;
-+				reg = <0x2f0000 0x450000>;
++				reg = <0x290000 0x4b0000>;
  			};
  
 -			partition@750000 {

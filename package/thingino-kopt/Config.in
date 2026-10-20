@@ -23,8 +23,8 @@ config BR2_PACKAGE_THINGINO_KOPT_NFS
 	bool "NFS"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enable the kernel NFS client (and root-over-NFS) for network
-	  mounts and development.
+	  Enable the kernel NFS client as a module for network mounts
+	  and development.
 
 config BR2_PACKAGE_THINGINO_KOPT_LEDS
 	bool "GPIO LEDs"

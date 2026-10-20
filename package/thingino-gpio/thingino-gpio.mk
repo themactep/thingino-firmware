@@ -28,10 +28,6 @@ define THINGINO_GPIO_INSTALL_TARGET_CMDS
 	$(THINGINO_GPIO_INSTALL_WWW_CMDS)
 endef
 
-define THINGINO_GPIO_LINUX_CONFIG_FIXUPS
-	$(call KCONFIG_ENABLE_OPT,CONFIG_DEBUG_FS)
-endef
-
 define INSTALL_GPIO_CONF
 	if [ -n "$(BR2_THINGINO_GPIO_LIST)" ]; then \
 		echo "$(BR2_THINGINO_GPIO_LIST)" | tr ',' '\n' | while read gpio; do \

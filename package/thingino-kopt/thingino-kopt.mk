@@ -315,6 +315,9 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2
 	# enables). The USB mode (host / dual-role) is set by the choice below.
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_DMA_BUFFER_MODE)
+	# Mainline 7.x uses the generic Ingenic USB PHY driver; the vendor INNO
+	# PHY is PRJ007/PRJ008-only. Without the PHY the root port never enables.
+	$(if $(filter y,$(KERNEL_VERSION_7)),$(call KCONFIG_ENABLE_OPT,CONFIG_PHY_INGENIC_USB))
 	# The INNO PHY driver is PRJ007/PRJ008-only in the vendor 5.15 tree
 	# (OPCR_USB_SPENDN0 is undefined on T31); skip it for t31 until the
 	# T31 PHY is ported.
@@ -498,8 +501,7 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_NFS),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NFS
-	$(call KCONFIG_ENABLE_OPT,CONFIG_NFS_FS)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_ROOT_NFS)
+	$(call KCONFIG_SET_OPT,CONFIG_NFS_FS,m)
 endef
 endif
 
