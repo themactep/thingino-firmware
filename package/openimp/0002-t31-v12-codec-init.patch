@@ -7,8 +7,8 @@ AIC AICFR bits, the T31 CGU I2S dividers (12 MHz), and then the v12
 codec power, I2S master, ADC/mic route and 16 kHz/16-bit setup from
 userspace through RGADW.
 
-Keep a start/read diagnostic so an AIC-DMA failure is distinguishable
-from a codec-route failure.
+Keep a read diagnostic so an AIC-DMA failure is distinguishable from a
+codec-route failure.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -22,19 +22,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  #endif
  
  #include "audio/openimp_aec.h"
-@@ -795,6 +796,11 @@
-     (void)argument;
-     openimp_thread_setname("ai-_ai_record_t");
-     align = t31_audio.ai_attr.soundmode == AUDIO_SOUND_MODE_STEREO ? 4U : 2U;
-+#if defined(OPENIMP_T31_ALSA)
-+    if (t31_audio.ai_pcm && pcm_start(t31_audio.ai_pcm) < 0)
-+        syslog(LOG_WARNING, "openimp: AI start failed: %s",
-+               pcm_get_error(t31_audio.ai_pcm));
-+#endif
-     pthread_mutex_lock(&t31_capture_lock);
-     while (!t31_audio.capture_stop) {
-         size_t size;
-@@ -820,6 +826,20 @@
+@@ -820,6 +821,20 @@
              } else {
                  result = got;
                  size = 0;
@@ -55,7 +43,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
              }
          }
          if (with_ref)
-@@ -1071,6 +1091,8 @@
+@@ -1071,6 +1086,8 @@
              return -1;
          }
          t31_audio.ai_fd = 0;
@@ -64,7 +52,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
      }
  #else
      fd = open("/dev/dsp", O_RDONLY | O_CLOEXEC);
-@@ -1886,6 +1908,8 @@
+@@ -1886,6 +1903,8 @@
              return -1;
          }
          t31_audio.ao_fd = 0;
