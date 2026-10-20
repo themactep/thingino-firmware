@@ -1,0 +1,26 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.2: do not touch the addr shadow before registration
+
+eth_hw_addr_set() expects the netdev address list to exist; it is not
+initialized until register_netdev(). Writing it from rtw_register_netdev
+faults at module load. Keep the direct dev_addr write before
+NETREG_UNINITIALIZED clears, and use eth_hw_addr_set() afterwards.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h
++++ b/include/osdep_service_linux.h
+@@ -53,7 +53,12 @@
+ #include <linux/timer.h>
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+-#define rtw_set_netdev_addr(dev, addr) eth_hw_addr_set((dev), (addr))
++#define rtw_set_netdev_addr(dev, addr) do { \
++	if ((dev)->reg_state == NETREG_UNINITIALIZED) \
++		_rtw_memcpy((dev)->dev_addr, (addr), ETH_ALEN); \
++	else \
++		eth_hw_addr_set((dev), (addr)); \
++} while (0)
+ #else
+ #define rtw_set_netdev_addr(dev, addr) _rtw_memcpy((dev)->dev_addr, (addr), ETH_ALEN)
+ #endif
