@@ -1,0 +1,274 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: initialise the v12 codec for the ALSA transport
+
+The mainline 7.2 AIC provides only the I2S port; the T31 v12 internal
+codec still has to be powered, switched to I2S master, and routed from
+MIC1 to the ADC. Its registers are indirect through the AIC RGADW/RGDATA
+window, so program them after the PCM is opened.
+
+This keeps the vendor codec driver out of the kernel and works with the
+simple-audio-card transport. The codec is the I2S clock master; the AIC
+consumes the bit/frame clocks.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/src/t31/openimp_t31_audio.c
++++ b/src/t31/openimp_t31_audio.c
+@@ -32,6 +32,7 @@
+ #if defined(OPENIMP_T31_ALSA)
+ #include <syslog.h>
+ #include <tinyalsa/asoundlib.h>
++#include "openimp_t31_codec_v12.h"
+ #endif
+ 
+ #include "audio/openimp_aec.h"
+@@ -1071,6 +1072,8 @@
+             return -1;
+         }
+         t31_audio.ai_fd = 0;
++        if (t31_codec_v12_init() != 0)
++            syslog(LOG_WARNING, "openimp: v12 codec init failed");
+     }
+ #else
+     fd = open("/dev/dsp", O_RDONLY | O_CLOEXEC);
+@@ -1886,6 +1889,8 @@
+             return -1;
+         }
+         t31_audio.ao_fd = 0;
++        if (t31_codec_v12_init() != 0)
++            syslog(LOG_WARNING, "openimp: v12 codec init failed");
+     }
+ #else
+     fd = open("/dev/dsp", O_WRONLY | O_CLOEXEC);
+--- a/build-t31.sh
++++ b/build-t31.sh
+@@ -98,6 +98,7 @@
+ compile t31_ivs_move src/t31/openimp_t31_ivs_move.c $hot_flags -Werror
+ compile t31_ivs_move_v2 src/t31/openimp_ivs_move_v2.c $hot_flags -Werror
+ compile t31_audio src/t31/openimp_t31_audio.c -Werror
++compile t31_codec_v12 src/t31/openimp_t31_codec_v12.c
+ compile openimp_aec src/audio/openimp_aec.c $hot_flags -Werror -I"$project_dir/src/audio"
+ compile audio_codec src/audio/openimp_audio_codec.c -Werror
+ compile audio_enc_dec src/audio/openimp_audio_enc_dec.c -Werror
+@@ -145,6 +146,7 @@
+     "$output_dir/t31_ivs_move.o" \
+     "$output_dir/t31_ivs_move_v2.o" \
+     "$output_dir/t31_audio.o" \
++    "$output_dir/t31_codec_v12.o" \
+     "$output_dir/openimp_aec.o" \
+     "$output_dir/audio_codec.o" \
+     "$output_dir/audio_enc_dec.o" \
+--- /dev/null
++++ b/src/t31/openimp_t31_codec_v12.c
+@@ -0,0 +1,202 @@
++#include <errno.h>
++#include <fcntl.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++#include <syslog.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++#include "openimp_t31_codec_v12.h"
++
++#define AIC_PHYS        0x10020000
++#define AIC_SIZE        0x1000
++#define AIC_RGADW       0xa4
++#define AIC_RGDATA      0xa8
++#define AIC_RGWR        (1 << 16)
++#define AIC_RGADDR(v)   (((v) & 0x7f) << 8)
++#define AIC_RGDIN(v)    ((v) & 0xff)
++
++#define CR_VIC          0x1b
++#define CR_VIC_SB       0
++#define CR_VIC_SB_SLEEP 1
++
++#define AICR_DAC        0x08
++#define AICR_DAC_MODE   5
++#define AICR_DAC_SB     4
++#define AICR_ADC        0x09
++#define AICR_ADC_SB     4
++#define AICR_ADC_ADWL   6
++
++#define CR_CK           0x1c
++
++#define CR_MIC1         0x11
++#define CR_MIC1_MICBIAS 5
++#define CR_MIC1_DIFF    6
++#define CR_MIC1_SEL     0
++#define CR_MIC1_SB      4
++#define CR_MIC1_STEREO  7
++#define CR_MIC2         0x12
++#define CR_MIC2_MICBIAS 5
++#define CR_MIC2_SB      4
++
++#define CR_ADC          0x18
++#define CR_ADC_DMIC_SEL 6
++#define CR_ADC_SB       4
++#define CR_ADC_LEFT     5
++#define CR_ADC_IN_SEL   0
++#define CR_DMIC         0x10
++#define CR_DMIC_CLKON   7
++
++#define CR_MIX          0x19
++#define CR_MIX_EN       7
++#define CR_MIX_LOAD     6
++#define CR_MIX_ADD      0
++#define DR_MIX          0x1a
++#define DR_MIX_DATA     0
++
++#define FCR_ADC         0x20
++#define FCR_ADC_HPF     6
++#define FCR_ADC_FREQ    0
++
++#define GCR_MIC1        0x2e
++#define GCR_MIC2        0x2f
++#define GCR_ADCL        0x30
++#define GCR_ADCR        0x31
++
++static inline uint32_t aic_read(void *aic, unsigned int reg)
++{
++    return *(volatile uint32_t *)((uint8_t *)aic + reg);
++}
++
++static inline void aic_write(void *aic, unsigned int reg, uint32_t val)
++{
++    *(volatile uint32_t *)((uint8_t *)aic + reg) = val;
++}
++
++static int codec_read(void *aic, unsigned int reg)
++{
++    int i, val = 0;
++
++    while (aic_read(aic, AIC_RGADW) & AIC_RGWR)
++        ;
++    aic_write(aic, AIC_RGADW, AIC_RGADDR(reg));
++    for (i = 0; i < 6; i++)
++        val = aic_read(aic, AIC_RGDATA);
++    return val & 0xff;
++}
++
++static void codec_write(void *aic, unsigned int reg, int val)
++{
++    uint32_t word = AIC_RGADDR(reg) | AIC_RGDIN(val);
++
++    while (aic_read(aic, AIC_RGADW) & AIC_RGWR)
++        ;
++    aic_write(aic, AIC_RGADW, word);
++    aic_write(aic, AIC_RGADW, word | AIC_RGWR);
++}
++
++static void codec_bit(void *aic, unsigned int reg, unsigned int bit, int on)
++{
++    int val = codec_read(aic, reg);
++
++    if (on)
++        val |= 1 << bit;
++    else
++        val &= ~(1 << bit);
++    codec_write(aic, reg, val);
++}
++
++static void codec_mask(void *aic, unsigned int reg, unsigned int off,
++                       unsigned int mask, unsigned int val)
++{
++    int v = codec_read(aic, reg);
++
++    v = (v & ~(mask << off)) | ((val & mask) << off);
++    codec_write(aic, reg, v);
++}
++
++static int mix_read(void *aic, int mix)
++{
++    if (!(codec_read(aic, CR_MIX) & (1 << CR_MIX_EN)))
++        codec_bit(aic, CR_MIX, CR_MIX_EN, 1);
++    codec_bit(aic, CR_MIX, CR_MIX_LOAD, 0);
++    codec_mask(aic, CR_MIX, CR_MIX_ADD, 0x3, mix);
++    return codec_read(aic, DR_MIX) & 0xff;
++}
++
++static void mix_write(void *aic, int mix, int data)
++{
++    if (!(codec_read(aic, CR_MIX) & (1 << CR_MIX_EN)))
++        codec_bit(aic, CR_MIX, CR_MIX_EN, 1);
++    codec_bit(aic, CR_MIX, CR_MIX_LOAD, 1);
++    codec_mask(aic, CR_MIX, CR_MIX_ADD, 0x3, mix);
++    codec_mask(aic, DR_MIX, DR_MIX_DATA, 0xff, data);
++}
++
++int t31_codec_v12_init(void)
++{
++    void *aic;
++    int fd;
++
++    fd = open("/dev/mem", O_RDWR | O_SYNC);
++    if (fd < 0) {
++        syslog(LOG_ERR, "openimp: /dev/mem open failed: %s", strerror(errno));
++        return -1;
++    }
++    aic = mmap(NULL, AIC_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, AIC_PHYS);
++    if (aic == MAP_FAILED) {
++        syslog(LOG_ERR, "openimp: AIC mmap failed: %s", strerror(errno));
++        close(fd);
++        return -1;
++    }
++
++    /* Power the codec and let the ADC settle. */
++    codec_write(aic, CR_VIC, 0);
++    usleep(400000);
++
++    /* Codec is the I2S clock master; 12 MHz crystal; I2S interfaces. */
++    codec_bit(aic, AICR_DAC, AICR_DAC_MODE, 0);
++    codec_mask(aic, AICR_DAC, 0, 0x3, 3);
++    codec_bit(aic, AICR_DAC, AICR_DAC_SB, 0);
++    codec_mask(aic, AICR_ADC, 0, 0x3, 3);
++    codec_mask(aic, AICR_ADC, AICR_ADC_ADWL, 0x3, 0);
++    codec_bit(aic, AICR_ADC, AICR_ADC_SB, 0);
++    codec_mask(aic, CR_CK, 0, 0xf, 0);
++
++    /* MIC1 differential with micbias; MIC2 disabled. */
++    codec_bit(aic, CR_MIC1, CR_MIC1_MICBIAS, 0);
++    codec_bit(aic, CR_MIC1, CR_MIC1_DIFF, 1);
++    codec_bit(aic, CR_MIC1, CR_MIC1_SEL, 0);
++    codec_bit(aic, CR_MIC1, CR_MIC1_STEREO, 0);
++    codec_bit(aic, CR_MIC1, CR_MIC1_SB, 0);
++    codec_bit(aic, CR_MIC2, CR_MIC2_MICBIAS, 0);
++    codec_bit(aic, CR_MIC2, CR_MIC2_SB, 1);
++
++    /* ADC: analog input, left only, input L -> L/R. */
++    codec_bit(aic, CR_ADC, CR_ADC_DMIC_SEL, 0);
++    codec_bit(aic, CR_DMIC, CR_DMIC_CLKON, 0);
++    codec_bit(aic, CR_ADC, CR_ADC_SB, 0);
++    codec_bit(aic, CR_ADC, CR_ADC_LEFT, 1);
++    codec_mask(aic, CR_ADC, CR_ADC_IN_SEL, 0x3, 0);
++
++    /* Record mixer: input only, L -> L and L -> R. */
++    mix_write(aic, 2, (mix_read(aic, 2) & ~1) | 0);
++    mix_write(aic, 2, 0x10 | (mix_read(aic, 2) & 1));
++    codec_bit(aic, CR_MIX, CR_MIX_EN, 0);
++
++    /* ADC high-pass, 16 kHz (index 3), 16-bit words. */
++    codec_bit(aic, FCR_ADC, FCR_ADC_HPF, 1);
++    codec_mask(aic, FCR_ADC, FCR_ADC_FREQ, 0xf, 3);
++    codec_mask(aic, AICR_ADC, AICR_ADC_ADWL, 0x3, 0);
++
++    /* Input gain 20 (index 5), ADC digital gain 0 dB. */
++    codec_write(aic, GCR_MIC1, 5);
++    codec_write(aic, GCR_MIC2, 5);
++    codec_write(aic, GCR_ADCL, 0);
++    codec_write(aic, GCR_ADCR, 0);
++
++    munmap(aic, AIC_SIZE);
++    close(fd);
++    return 0;
++}
+--- /dev/null
++++ b/src/t31/openimp_t31_codec_v12.h
+@@ -0,0 +1,6 @@
++#ifndef OPENIMP_T31_CODEC_V12_H
++#define OPENIMP_T31_CODEC_V12_H
++
++int t31_codec_v12_init(void);
++
++#endif
