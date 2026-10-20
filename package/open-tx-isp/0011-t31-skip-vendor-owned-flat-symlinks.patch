@@ -1,0 +1,44 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: do not symlink keys owned by flat vendor files
+
+The flat sensor view creates both regular vendor files and compatibility
+symlinks for the same key names. The vendor files are created after the
+symlinks, so procfs warns that sensor/<key> is already registered.
+
+Skip the symlinks for keys the vendor file table owns; the vendor files
+supply the same values.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -658,6 +658,19 @@
+ #define TX_ISP_SINFO_VENDOR_NFILES \
+ 	(sizeof(tx_isp_sinfo_vendor_files) / sizeof(tx_isp_sinfo_vendor_files[0]))
+ 
++/* Keys published as regular vendor files in the flat view.  Do not also
++ * create compatibility symlinks for them: procfs would warn on the second
++ * registration and the vendor file is the one readers expect. */
++static bool tx_isp_sinfo_vendor_flat_key(int key)
++{
++	unsigned int n;
++
++	for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n)
++		if (tx_isp_sinfo_vendor_files[n].key == key)
++			return true;
++	return false;
++}
++
+ static bool tx_isp_sinfo_module_image(struct module *mod, const void **base,
+ 				      unsigned long *size)
+ {
+@@ -920,6 +933,9 @@
+ 	for (key = 0; key < TX_ISP_SINFO_NKEYS; ++key) {
+ 		if (!tx_isp_sinfo_key_supported(key))
+ 			continue;
++		/* The flat vendor files own these names. */
++		if (tx_isp_sinfo_vendor_flat_key(key))
++			continue;
+ 		snprintf(target, sizeof(target), "sensor0/%s",
+ 			 tx_isp_sinfo_key_name[key]);
+ 		/*
