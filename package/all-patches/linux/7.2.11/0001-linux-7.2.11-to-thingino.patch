@@ -1,0 +1,2899 @@
+diff --git a/arch/mips/boot/dts/ingenic/Makefile b/arch/mips/boot/dts/ingenic/Makefile
+index 6e674f1..a34b377 100644
+--- a/arch/mips/boot/dts/ingenic/Makefile
++++ b/arch/mips/boot/dts/ingenic/Makefile
+@@ -5,3 +5,4 @@ dtb-$(CONFIG_JZ4770_GCW0)	+= gcw0.dtb
+ dtb-$(CONFIG_JZ4780_CI20)	+= ci20.dtb
+ dtb-$(CONFIG_X1000_CU1000_NEO)	+= cu1000-neo.dtb
+ dtb-$(CONFIG_X1830_CU1830_NEO)	+= cu1830-neo.dtb
++dtb-$(CONFIG_MACH_T31)		+= thingino-t31.dtb
+diff --git a/arch/mips/boot/dts/ingenic/t31.dtsi b/arch/mips/boot/dts/ingenic/t31.dtsi
+new file mode 100644
+index 0000000..d94499f
+--- /dev/null
++++ b/arch/mips/boot/dts/ingenic/t31.dtsi
+@@ -0,0 +1,385 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <dt-bindings/clock/ingenic,tcu.h>
++#include <dt-bindings/clock/ingenic,t31-cgu.h>
++
++/ {
++	#address-cells = <1>;
++	#size-cells = <1>;
++	compatible = "ingenic,t31";
++
++	cpus {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		cpu0: cpu@0 {
++			device_type = "cpu";
++			compatible = "ingenic,xburst-fpu1.0-mxu1.1";
++			reg = <0>;
++
++			clocks = <&cgu T31_CLK_CPU>;
++			clock-names = "cpu";
++		};
++	};
++
++	cpuintc: interrupt-controller {
++		#address-cells = <0>;
++		#interrupt-cells = <1>;
++		interrupt-controller;
++		compatible = "mti,cpu-interrupt-controller";
++	};
++
++	intc: interrupt-controller@10001000 {
++		compatible = "ingenic,t31-intc", "ingenic,jz4780-intc";
++		reg = <0x10001000 0x50>;
++
++		interrupt-controller;
++		#interrupt-cells = <1>;
++
++		interrupt-parent = <&cpuintc>;
++		interrupts = <2>;
++	};
++
++	exclk: ext {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++	};
++
++	rtclk: rtc {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <32768>;
++	};
++
++	cgu: clock-controller@10000000 {
++		compatible = "ingenic,t31-cgu", "simple-mfd";
++		reg = <0x10000000 0x100>;
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0 0x10000000 0x100>;
++
++		#clock-cells = <1>;
++
++		clocks = <&exclk>, <&rtclk>;
++		clock-names = "ext", "rtc";
++
++		mac_phy_ctrl: mac-phy-ctrl@e8 {
++			compatible = "syscon";
++			reg = <0xe8 0x4>;
++		};
++
++		otg_phy: usb-phy@3c {
++			compatible = "ingenic,t31-phy";
++			reg = <0x3c 0x10>;
++
++			clocks = <&cgu T31_CLK_OTGPHY>;
++
++			#phy-cells = <0>;
++
++			status = "disabled";
++		};
++	};
++
++	tcu: timer@10002000 {
++		compatible = "ingenic,t31-tcu", "ingenic,jz4760-tcu",
++			     "simple-mfd";
++		reg = <0x10002000 0x1000>;
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0 0x10002000 0x1000>;
++
++		#clock-cells = <1>;
++
++		clocks = <&cgu T31_CLK_RTCLK>,
++			 <&cgu T31_CLK_EXCLK>,
++			 <&cgu T31_CLK_PCLK>,
++			 <&cgu T31_CLK_TCU>;
++		clock-names = "rtc", "ext", "pclk", "tcu";
++
++		interrupt-controller;
++		#interrupt-cells = <1>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <27 26 25>;
++
++		watchdog: watchdog@0 {
++			compatible = "ingenic,t31-watchdog",
++				     "ingenic,jz4780-watchdog";
++			reg = <0x0 0x10>;
++
++			clocks = <&tcu TCU_CLK_WDT>;
++			clock-names = "wdt";
++		};
++
++		pwm: pwm@40 {
++			compatible = "ingenic,t31-pwm", "ingenic,jz4740-pwm";
++			reg = <0x40 0x80>;
++
++			#pwm-cells = <3>;
++
++			clocks = <&tcu TCU_CLK_TIMER0>,
++				 <&tcu TCU_CLK_TIMER1>,
++				 <&tcu TCU_CLK_TIMER2>,
++				 <&tcu TCU_CLK_TIMER3>,
++				 <&tcu TCU_CLK_TIMER4>,
++				 <&tcu TCU_CLK_TIMER5>,
++				 <&tcu TCU_CLK_TIMER6>,
++				 <&tcu TCU_CLK_TIMER7>;
++			clock-names = "timer0", "timer1", "timer2", "timer3",
++				      "timer4", "timer5", "timer6", "timer7";
++		};
++
++		ost: timer@e0 {
++			compatible = "ingenic,t31-ost", "ingenic,jz4760b-ost";
++			reg = <0xe0 0x20>;
++
++			clocks = <&tcu TCU_CLK_OST>;
++			clock-names = "ost";
++
++			interrupts = <15>;
++		};
++	};
++
++	pinctrl: pin-controller@10010000 {
++		compatible = "ingenic,t31-pinctrl";
++		reg = <0x10010000 0x1000>;
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		gpa: gpio@0 {
++			compatible = "ingenic,t31-gpio";
++			reg = <0>;
++
++			gpio-controller;
++			gpio-ranges = <&pinctrl 0 0 32>;
++			#gpio-cells = <2>;
++
++			interrupt-controller;
++			#interrupt-cells = <2>;
++
++			interrupt-parent = <&intc>;
++			interrupts = <17>;
++		};
++
++		gpb: gpio@1 {
++			compatible = "ingenic,t31-gpio";
++			reg = <1>;
++
++			gpio-controller;
++			gpio-ranges = <&pinctrl 0 32 32>;
++			#gpio-cells = <2>;
++
++			interrupt-controller;
++			#interrupt-cells = <2>;
++
++			interrupt-parent = <&intc>;
++			interrupts = <16>;
++		};
++
++		gpc: gpio@2 {
++			compatible = "ingenic,t31-gpio";
++			reg = <2>;
++
++			gpio-controller;
++			gpio-ranges = <&pinctrl 0 64 32>;
++			#gpio-cells = <2>;
++
++			interrupt-controller;
++			#interrupt-cells = <2>;
++
++			interrupt-parent = <&intc>;
++			interrupts = <15>;
++		};
++	};
++
++	uart0: serial@10030000 {
++		compatible = "ingenic,t31-uart", "ingenic,x1000-uart";
++		reg = <0x10030000 0x100>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <51>;
++
++		clocks = <&exclk>, <&cgu T31_CLK_UART0>;
++		clock-names = "baud", "module";
++
++		status = "disabled";
++	};
++
++	uart1: serial@10031000 {
++		compatible = "ingenic,t31-uart", "ingenic,x1000-uart";
++		reg = <0x10031000 0x100>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <50>;
++
++		clocks = <&exclk>, <&cgu T31_CLK_UART1>;
++		clock-names = "baud", "module";
++
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,t31-uart", "ingenic,x1000-uart";
++		reg = <0x10032000 0x100>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <49>;
++
++		clocks = <&exclk>, <&cgu T31_CLK_UART2>;
++		clock-names = "baud", "module";
++
++		status = "disabled";
++	};
++
++	i2c0: i2c@10050000 {
++		compatible = "ingenic,t31-i2c", "ingenic,jz4780-i2c";
++		reg = <0x10050000 0x1000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <60>;
++
++		clocks = <&cgu T31_CLK_SMB0>;
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		status = "disabled";
++	};
++
++	i2c1: i2c@10051000 {
++		compatible = "ingenic,t31-i2c", "ingenic,jz4780-i2c";
++		reg = <0x10051000 0x1000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <59>;
++
++		clocks = <&cgu T31_CLK_SMB1>;
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		status = "disabled";
++	};
++
++	dtrng: trng@10072000 {
++		compatible = "ingenic,t31-dtrng";
++		reg = <0x10072000 0xc>;
++
++		clocks = <&cgu T31_CLK_DTRNG>;
++
++		status = "disabled";
++	};
++
++	efuse: efuse@13540000 {
++		compatible = "ingenic,t31-efuse";
++		reg = <0x13540000 0x10>;
++
++		clocks = <&cgu T31_CLK_EFUSE>;
++
++		status = "disabled";
++	};
++
++	pdma: dma-controller@13420000 {
++		compatible = "ingenic,x1000-dma";
++		reg = <0x13420000 0x400>, <0x13421000 0x40>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <10>;
++
++		clocks = <&cgu T31_CLK_PDMA>;
++
++		#dma-cells = <2>;
++	};
++
++	msc0: mmc@13450000 {
++		compatible = "ingenic,x1000-mmc";
++		reg = <0x13450000 0x1000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <37>;
++
++		clocks = <&cgu T31_CLK_MSC0>;
++		clock-names = "mmc";
++
++		dmas = <&pdma 0x1b 0xffffffff>,
++		       <&pdma 0x1a 0xffffffff>;
++		dma-names = "rx", "tx";
++
++		status = "disabled";
++	};
++
++	msc1: mmc@13460000 {
++		compatible = "ingenic,x1000-mmc";
++		reg = <0x13460000 0x1000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <36>;
++
++		clocks = <&cgu T31_CLK_MSC1>;
++		clock-names = "mmc";
++
++		status = "disabled";
++	};
++
++	sfc: spi@13440000 {
++		compatible = "ingenic,t31-sfc";
++		reg = <0x13440000 0x10000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <7>;
++
++		clocks = <&cgu T31_CLK_SFC>;
++		clock-names = "sfc";
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		status = "disabled";
++	};
++
++	otg: usb@13500000 {
++		compatible = "ingenic,x1830-otg";
++		reg = <0x13500000 0x40000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <21>;
++
++		phys = <&otg_phy>;
++		phy-names = "usb2-phy";
++
++		dr_mode = "host";
++
++		g-rx-fifo-size = <768>;
++		g-np-tx-fifo-size = <256>;
++		g-tx-fifo-size = <256 256 256 256 256 256 256 512>;
++
++		status = "disabled";
++	};
++
++	mac: ethernet@134b0000 {
++		compatible = "ingenic,t31-mac", "snps,dwmac";
++		reg = <0x134b0000 0x2000>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <55>;
++		interrupt-names = "macirq";
++
++		clocks = <&cgu T31_CLK_GMAC>;
++		clock-names = "stmmaceth";
++
++		mode-reg = <&mac_phy_ctrl>;
++
++		snps,clk-csr = <4>;
++
++		status = "disabled";
++
++		mdio: mdio {
++			compatible = "snps,dwmac-mdio";
++			#address-cells = <1>;
++			#size-cells = <0>;
++		};
++	};
++
++
++
++};
+diff --git a/arch/mips/boot/dts/ingenic/thingino-t31.dts b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+new file mode 100644
+index 0000000..5771b17
+--- /dev/null
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -0,0 +1,165 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t31.dtsi"
++
++/ {
++	compatible = "thingino,t31", "ingenic,t31";
++	model = "Thingino T31 Generic Board";
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x40000>;
++				read-only;
++			};
++
++			partition@40000 {
++				label = "env";
++				reg = <0x40000 0x10000>;
++			};
++
++			partition@50000 {
++				label = "kernel";
++				reg = <0x50000 0x200000>;
++			};
++
++			partition@250000 {
++				label = "rootfs";
++				reg = <0x250000 0x500000>;
++			};
++
++			partition@750000 {
++				label = "rootfs_data";
++				reg = <0x750000 0xb0000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&dtrng {
++	status = "okay";
++};
++
++&efuse {
++	status = "okay";
++};
++
++&otg_phy {
++	status = "okay";
++};
++
++&otg {
++	status = "okay";
++	disable-over-current;
++};
++
++&mac {
++	status = "okay";
++
++	phy-mode = "rmii";
++	phy-handle = <&eth_phy>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mac>;
++};
++
++&mdio {
++	eth_phy: ethernet-phy@0 {
++		reg = <0>;
++	};
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mac: mac {
++		function = "mac";
++		groups = "mac-rmii";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+diff --git a/arch/mips/configs/ingenic_t31_defconfig b/arch/mips/configs/ingenic_t31_defconfig
+new file mode 100644
+index 0000000..55a15ed
+--- /dev/null
++++ b/arch/mips/configs/ingenic_t31_defconfig
+@@ -0,0 +1,217 @@
++CONFIG_KERNEL_LZMA=y
++CONFIG_SYSVIPC=y
++CONFIG_NO_HZ_IDLE=y
++# CONFIG_SUSPEND is not set
++CONFIG_BPF_SYSCALL=y
++CONFIG_IKCONFIG=y
++CONFIG_IKCONFIG_PROC=y
++CONFIG_MEMCG=y
++CONFIG_BLK_CGROUP=y
++CONFIG_CFS_BANDWIDTH=y
++CONFIG_CGROUP_PIDS=y
++CONFIG_CGROUP_FREEZER=y
++CONFIG_CGROUP_DEVICE=y
++CONFIG_CGROUP_CPUACCT=y
++CONFIG_NAMESPACES=y
++CONFIG_USER_NS=y
++CONFIG_SCHED_AUTOGROUP=y
++CONFIG_BLK_DEV_INITRD=y
++CONFIG_EXPERT=y
++CONFIG_MACH_INGENIC_SOC=y
++CONFIG_CPU_MIPS32_R2=y
++CONFIG_HIGHMEM=y
++CONFIG_MIPS_O32_FP64_SUPPORT=y
++CONFIG_MIPS_CMDLINE_FROM_DTB=y
++CONFIG_JUMP_LABEL=y
++CONFIG_MODULES=y
++CONFIG_MODULE_UNLOAD=y
++CONFIG_TRIM_UNUSED_KSYMS=y
++# CONFIG_COMPAT_BRK is not set
++CONFIG_USERFAULTFD=y
++CONFIG_NET=y
++CONFIG_PACKET=y
++CONFIG_IP_PNP=y
++CONFIG_IP_PNP_DHCP=y
++CONFIG_NETFILTER=y
++CONFIG_BRIDGE=y
++CONFIG_NET_DSA=y
++CONFIG_NET_9P=y
++CONFIG_NET_9P_VIRTIO=y
++CONFIG_DEVTMPFS=y
++CONFIG_DEVTMPFS_MOUNT=y
++CONFIG_MTD=y
++CONFIG_MTD_CMDLINE_PARTS=y
++CONFIG_MTD_BLOCK=y
++CONFIG_MTD_CFI=y
++CONFIG_MTD_CFI_INTELEXT=y
++CONFIG_MTD_PHYSMAP=y
++CONFIG_MTD_PHYSMAP_OF=y
++CONFIG_MTD_RAW_NAND=y
++CONFIG_MTD_NAND_GPIO=y
++CONFIG_MTD_NAND_PLATFORM=y
++CONFIG_MTD_NAND_ECC_SW_BCH=y
++CONFIG_MTD_SPI_NOR=y
++CONFIG_MTD_UBI=y
++CONFIG_MTD_UBI_GLUEBI=y
++CONFIG_MTD_UBI_BLOCK=y
++CONFIG_BLK_DEV_LOOP=y
++CONFIG_BLK_DEV_RAM=y
++CONFIG_VIRTIO_BLK=y
++CONFIG_SRAM=y
++CONFIG_EEPROM_93CX6=y
++CONFIG_BLK_DEV_SD=y
++CONFIG_ATA=y
++CONFIG_NETDEVICES=y
++CONFIG_VIRTIO_NET=y
++CONFIG_LITEX_LITEETH=y
++CONFIG_MSCC_OCELOT_SWITCH=y
++CONFIG_SMSC911X=y
++CONFIG_STMMAC_ETH=y
++CONFIG_XILINX_EMACLITE=y
++CONFIG_MICROSEMI_PHY=y
++CONFIG_SMSC_PHY=y
++CONFIG_MDIO_MSCC_MIIM=y
++CONFIG_INPUT_EVDEV=y
++CONFIG_KEYBOARD_GOLDFISH_EVENTS=y
++CONFIG_SERIAL_8250=y
++CONFIG_SERIAL_8250_CONSOLE=y
++CONFIG_SERIAL_8250_DW=y
++CONFIG_SERIAL_8250_INGENIC=y
++CONFIG_SERIAL_OF_PLATFORM=y
++CONFIG_SERIAL_LITEUART=y
++CONFIG_SERIAL_LITEUART_CONSOLE=y
++CONFIG_GOLDFISH_TTY=y
++CONFIG_VIRTIO_CONSOLE=y
++CONFIG_HW_RANDOM=y
++CONFIG_HW_RANDOM_INGENIC_TRNG=y
++CONFIG_NVMEM_JZ4780_EFUSE=y
++CONFIG_I2C=y
++CONFIG_I2C_CHARDEV=y
++CONFIG_I2C_MUX=y
++CONFIG_I2C_DESIGNWARE_CORE=y
++CONFIG_I2C_IMG=y
++CONFIG_I2C_JZ4780=y
++CONFIG_I2C_XILINX=y
++CONFIG_SPI=y
++CONFIG_SPI_BITBANG=y
++CONFIG_SPI_DESIGNWARE=y
++CONFIG_SPI_DW_MMIO=y
++CONFIG_SPI_INGENIC_SFC=y
++CONFIG_SPI_SPIDEV=y
++CONFIG_PINCTRL_OCELOT=y
++CONFIG_PINCTRL_PISTACHIO=y
++CONFIG_GPIO_SYSFS=y
++CONFIG_GPIO_GENERIC_PLATFORM=y
++CONFIG_GPIO_XILINX=y
++CONFIG_POWER_RESET=y
++CONFIG_POWER_RESET_SYSCON=y
++CONFIG_POWER_RESET_SYSCON_POWEROFF=y
++CONFIG_SYSCON_REBOOT_MODE=y
++CONFIG_POWER_SUPPLY=y
++CONFIG_BATTERY_GOLDFISH=y
++# CONFIG_HWMON is not set
++CONFIG_WATCHDOG=y
++CONFIG_JZ4740_WDT=y
++CONFIG_AUXDISPLAY=y
++CONFIG_IMG_ASCII_LCD=y
++CONFIG_FB=y
++CONFIG_FB_GOLDFISH=y
++CONFIG_HID_A4TECH=y
++CONFIG_HID_APPLE=y
++CONFIG_HID_BELKIN=y
++CONFIG_HID_CHERRY=y
++CONFIG_HID_CHICONY=y
++CONFIG_HID_CYPRESS=y
++CONFIG_HID_EZKEY=y
++CONFIG_HID_KENSINGTON=y
++CONFIG_HID_MICROSOFT=y
++CONFIG_HID_MONTEREY=y
++CONFIG_USB=y
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_EHCI_HCD=y
++CONFIG_USB_OHCI_HCD=y
++CONFIG_USB_OHCI_HCD_PLATFORM=y
++CONFIG_USB_DWC2=y
++CONFIG_USB_STORAGE=y
++CONFIG_USB_USBNET=y
++CONFIG_USB_NET_AX8817X=y
++CONFIG_NLS_CODEPAGE_437=y
++CONFIG_NLS_ASCII=y
++CONFIG_MMC=y
++CONFIG_MMC_SDHCI=y
++CONFIG_MMC_SPI=y
++CONFIG_MMC_DW=y
++CONFIG_MMC_JZ4740=y
++CONFIG_MMC_CQHCI=y
++CONFIG_MMC_LITEX=y
++CONFIG_NEW_LEDS=y
++CONFIG_LEDS_CLASS=y
++CONFIG_LEDS_SYSCON=y
++CONFIG_RTC_CLASS=y
++CONFIG_RTC_DRV_M41T80=y
++CONFIG_RTC_DRV_GOLDFISH=y
++CONFIG_DMADEVICES=y
++CONFIG_DMA_JZ4780=y
++CONFIG_IMG_MDC_DMA=y
++CONFIG_VIRTIO_BALLOON=y
++CONFIG_VIRTIO_MMIO=y
++CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
++CONFIG_STAGING=y
++# CONFIG_MIPS_PLATFORM_DEVICES is not set
++CONFIG_GOLDFISH=y
++CONFIG_GOLDFISH_PIPE=y
++CONFIG_COMMON_CLK_BOSTON=y
++# CONFIG_INGENIC_CGU_JZ4740 is not set
++# CONFIG_INGENIC_CGU_JZ4725B is not set
++# CONFIG_INGENIC_CGU_JZ4770 is not set
++# CONFIG_INGENIC_CGU_JZ4780 is not set
++# CONFIG_INGENIC_CGU_X1000 is not set
++# CONFIG_INGENIC_CGU_X1830 is not set
++CONFIG_COMMON_CLK_PISTACHIO=y
++CONFIG_CLKSRC_PISTACHIO=y
++CONFIG_INGENIC_OST=y
++# CONFIG_IOMMU_SUPPORT is not set
++CONFIG_LITEX_SOC_CONTROLLER=y
++CONFIG_GOLDFISH_PIC=y
++CONFIG_RESET_PISTACHIO=y
++CONFIG_PHY_PISTACHIO_USB=y
++CONFIG_PHY_INGENIC_USB=y
++CONFIG_EXT4_FS=y
++CONFIG_EXT4_FS_POSIX_ACL=y
++CONFIG_EXT4_FS_SECURITY=y
++CONFIG_FS_ENCRYPTION=y
++CONFIG_FANOTIFY=y
++CONFIG_FUSE_FS=y
++CONFIG_CUSE=y
++CONFIG_OVERLAY_FS=y
++CONFIG_MSDOS_FS=y
++CONFIG_VFAT_FS=y
++CONFIG_TMPFS=y
++CONFIG_TMPFS_POSIX_ACL=y
++CONFIG_MISC_FILESYSTEMS=y
++CONFIG_SQUASHFS=y
++CONFIG_SQUASHFS_XZ=y
++CONFIG_SQUASHFS_ZSTD=y
++CONFIG_NFS_FS=y
++CONFIG_NFS_V3_ACL=y
++CONFIG_NFS_V4=y
++CONFIG_NFS_V4_2=y
++CONFIG_ROOT_NFS=y
++CONFIG_CRYPTO_DEV_IMGTEC_HASH=y
++# CONFIG_XZ_DEC_X86 is not set
++# CONFIG_XZ_DEC_POWERPC is not set
++# CONFIG_XZ_DEC_ARM is not set
++# CONFIG_XZ_DEC_ARMTHUMB is not set
++# CONFIG_XZ_DEC_SPARC is not set
++CONFIG_PRINTK_TIME=y
++CONFIG_DYNAMIC_DEBUG_CORE=y
++CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y
++CONFIG_DEBUG_INFO_REDUCED=y
++CONFIG_MAGIC_SYSRQ=y
++CONFIG_DEBUG_FS=y
++# CONFIG_SLUB_DEBUG is not set
++CONFIG_PANIC_ON_OOPS=y
++CONFIG_RCU_TRACE=y
++# CONFIG_FTRACE is not set
++CONFIG_CMDLINE_BOOL=y
++CONFIG_CMDLINE="earlycon"
+diff --git a/arch/mips/generic/board-ingenic.c b/arch/mips/generic/board-ingenic.c
+index 1f49068..8a70232 100644
+--- a/arch/mips/generic/board-ingenic.c
++++ b/arch/mips/generic/board-ingenic.c
+@@ -24,6 +24,8 @@
+ static __init char *ingenic_get_system_type(unsigned long machtype)
+ {
+ 	switch (machtype) {
++	case MACH_INGENIC_T31:
++		return "T31";
+ 	case MACH_INGENIC_X2100:
+ 		return "X2100";
+ 	case MACH_INGENIC_X2000H:
+@@ -151,6 +153,7 @@ static const struct of_device_id ingenic_of_match[] __initconst = {
+ 	{ .compatible = "ingenic,x2000e", .data = (void *)MACH_INGENIC_X2000E },
+ 	{ .compatible = "ingenic,x2000h", .data = (void *)MACH_INGENIC_X2000H },
+ 	{ .compatible = "ingenic,x2100", .data = (void *)MACH_INGENIC_X2100 },
++	{ .compatible = "ingenic,t31", .data = (void *)MACH_INGENIC_T31 },
+ 	{}
+ };
+ 
+diff --git a/arch/mips/include/asm/bootinfo.h b/arch/mips/include/asm/bootinfo.h
+index 2128ba9..198f005 100644
+--- a/arch/mips/include/asm/bootinfo.h
++++ b/arch/mips/include/asm/bootinfo.h
+@@ -86,6 +86,7 @@ enum ingenic_machine_type {
+ 	MACH_INGENIC_X2000E,
+ 	MACH_INGENIC_X2000H,
+ 	MACH_INGENIC_X2100,
++	MACH_INGENIC_T31,
+ };
+ 
+ extern char *system_type;
+diff --git a/arch/mips/ingenic/Kconfig b/arch/mips/ingenic/Kconfig
+index f595b33..e043586 100644
+--- a/arch/mips/ingenic/Kconfig
++++ b/arch/mips/ingenic/Kconfig
+@@ -9,6 +9,7 @@ config MACH_INGENIC_GENERIC
+ 	select MACH_JZ4780
+ 	select MACH_X1000
+ 	select MACH_X1830
++	select MACH_T31
+ 
+ choice
+ 	prompt "Machine type"
+@@ -76,3 +77,9 @@ config MACH_X1830
+ 	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T31
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
+diff --git a/drivers/char/hw_random/ingenic-trng.c b/drivers/char/hw_random/ingenic-trng.c
+index 0dbe116..2adda8c 100644
+--- a/drivers/char/hw_random/ingenic-trng.c
++++ b/drivers/char/hw_random/ingenic-trng.c
+@@ -109,6 +109,7 @@ static int ingenic_trng_probe(struct platform_device *pdev)
+ 
+ static const struct of_device_id ingenic_trng_of_match[] = {
+ 	{ .compatible = "ingenic,x1830-dtrng" },
++	{ .compatible = "ingenic,t31-dtrng" },
+ 	{ /* sentinel */ }
+ };
+ MODULE_DEVICE_TABLE(of, ingenic_trng_of_match);
+diff --git a/drivers/clk/ingenic/Kconfig b/drivers/clk/ingenic/Kconfig
+index f80ac4f..1713379 100644
+--- a/drivers/clk/ingenic/Kconfig
++++ b/drivers/clk/ingenic/Kconfig
+@@ -85,6 +85,16 @@ config INGENIC_CGU_X1830
+ 
+ 	  If building for a X1830 SoC, you want to say Y here.
+ 
++config INGENIC_CGU_T31
++	bool "Ingenic T31 CGU driver"
++	default MACH_T31
++	select INGENIC_CGU_COMMON
++	help
++	  Support the clocks provided by the CGU hardware on Ingenic T31
++	  and compatible SoCs.
++
++	  If building for a T31 SoC, you want to say Y here.
++
+ config INGENIC_TCU_CLK
+ 	bool "Ingenic JZ47xx TCU clocks driver"
+ 	default MACH_INGENIC
+diff --git a/drivers/clk/ingenic/Makefile b/drivers/clk/ingenic/Makefile
+index 81d8e23..364f73d 100644
+--- a/drivers/clk/ingenic/Makefile
++++ b/drivers/clk/ingenic/Makefile
+@@ -8,4 +8,5 @@ obj-$(CONFIG_INGENIC_CGU_JZ4770)	+= jz4770-cgu.o
+ obj-$(CONFIG_INGENIC_CGU_JZ4780)	+= jz4780-cgu.o
+ obj-$(CONFIG_INGENIC_CGU_X1000)		+= x1000-cgu.o
+ obj-$(CONFIG_INGENIC_CGU_X1830)		+= x1830-cgu.o
++obj-$(CONFIG_INGENIC_CGU_T31)		+= t31-cgu.o
+ obj-$(CONFIG_INGENIC_TCU_CLK)		+= tcu.o
+diff --git a/drivers/clk/ingenic/t31-cgu.c b/drivers/clk/ingenic/t31-cgu.c
+new file mode 100644
+index 0000000..779766c
+--- /dev/null
++++ b/drivers/clk/ingenic/t31-cgu.c
+@@ -0,0 +1,538 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Ingenic T31 SoC CGU driver
++ *
++ * Copyright (C) 2026 Alfonso Gamboa <gtxent@gmail.com>
++ */
++
++#include <linux/clk-provider.h>
++#include <linux/delay.h>
++#include <linux/io.h>
++#include <linux/of.h>
++
++#include <dt-bindings/clock/ingenic,t31-cgu.h>
++
++#include "cgu.h"
++#include "pm.h"
++
++/* CGU register offsets */
++#define CGU_REG_CPCCR		0x00
++#define CGU_REG_CPPCR		0x0c
++#define CGU_REG_APLL		0x10
++#define CGU_REG_MPLL		0x14
++#define CGU_REG_CLKGR0		0x20
++#define CGU_REG_OPCR		0x24
++#define CGU_REG_CLKGR1		0x28
++#define CGU_REG_DDRCDR		0x2c
++#define CGU_REG_EL150CDR	0x30
++#define CGU_REG_USBPCR		0x3c
++#define CGU_REG_USBRDT		0x40
++#define CGU_REG_USBVBFIL	0x44
++#define CGU_REG_USBPCR1		0x48
++#define CGU_REG_RSACDR		0x4c
++#define CGU_REG_MACCDR		0x54
++#define CGU_REG_LPCDR		0x64
++#define CGU_REG_MSC0CDR		0x68
++#define CGU_REG_SSICDR		0x74
++#define CGU_REG_CIMCDR		0x7c
++#define CGU_REG_ISPCDR		0x80
++#define CGU_REG_MSC1CDR		0xa4
++#define CGU_REG_VPLL		0xe0
++#define CGU_REG_MACPHYC		0xe8
++
++/* bits within the OPCR register */
++#define OPCR_GATE_USBPHYCLK	BIT(23)
++#define OPCR_SPENDN0		BIT(7)
++
++/* bits within the USBPCR register */
++#define USBPCR_SIDDQ		BIT(21)
++#define USBPCR_OTG_DISABLE	BIT(20)
++
++static struct ingenic_cgu *cgu;
++
++static int t31_usb_phy_enable(struct clk_hw *hw)
++{
++	return 0;
++}
++
++static void t31_usb_phy_disable(struct clk_hw *hw)
++{
++	void __iomem *reg_opcr	= cgu->base + CGU_REG_OPCR;
++	void __iomem *reg_usbpcr = cgu->base + CGU_REG_USBPCR;
++
++	writel((readl(reg_opcr) & ~OPCR_SPENDN0) | OPCR_GATE_USBPHYCLK,
++	       reg_opcr);
++	writel(readl(reg_usbpcr) | USBPCR_OTG_DISABLE | USBPCR_SIDDQ,
++	       reg_usbpcr);
++}
++
++static int t31_usb_phy_is_enabled(struct clk_hw *hw)
++{
++	void __iomem *reg_opcr	= cgu->base + CGU_REG_OPCR;
++	void __iomem *reg_usbpcr = cgu->base + CGU_REG_USBPCR;
++
++	return (readl(reg_opcr) & OPCR_SPENDN0) &&
++	       !(readl(reg_usbpcr) & USBPCR_SIDDQ) &&
++	       !(readl(reg_usbpcr) & USBPCR_OTG_DISABLE);
++}
++
++static const struct clk_ops t31_otg_phy_ops = {
++	.enable		= t31_usb_phy_enable,
++	.disable	= t31_usb_phy_disable,
++	.is_enabled	= t31_usb_phy_is_enabled,
++};
++
++/*
++ * T31 PLL OD encoding.
++ *
++ * T31 PLLs have two output divider fields: OD1 (bits 13:11) and OD0
++ * (bits 10:8). The effective output divider is OD1 * OD0. In practice,
++ * the bootloader always sets OD0 = 1, so we model only OD1 here.
++ *
++ * The register value maps directly to the divider value (1-based):
++ * The table maps divider index to register value. The CGU framework
++ * searches for the register value in the table; the matching index
++ * is the divider. Index 0 is unused (divide-by-0 is invalid).
++ */
++static const s8 t31_pll_od_encoding[8] = {
++	-1, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
++};
++
++static const struct ingenic_cgu_clk_info t31_cgu_clocks[] = {
++
++	/* External clocks */
++
++	[T31_CLK_EXCLK] = { "ext", CGU_CLK_EXT },
++	[T31_CLK_RTCLK] = { "rtc", CGU_CLK_EXT },
++
++	/* PLLs */
++
++	[T31_CLK_APLL] = {
++		"apll", CGU_CLK_PLL,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.pll = {
++			.reg = CGU_REG_APLL,
++			.rate_multiplier = 1,
++			.m_shift = 20,
++			.m_bits = 12,
++			.m_offset = 0,
++			.n_shift = 14,
++			.n_bits = 6,
++			.n_offset = 0,
++			.od_shift = 11,
++			.od_bits = 3,
++			.od_max = 8,
++			.od_encoding = t31_pll_od_encoding,
++			.bypass_reg = CGU_REG_APLL,
++			.bypass_bit = -1,
++			.enable_bit = 0,
++			.stable_bit = 3,
++		},
++	},
++
++	[T31_CLK_MPLL] = {
++		"mpll", CGU_CLK_PLL,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.pll = {
++			.reg = CGU_REG_MPLL,
++			.rate_multiplier = 1,
++			.m_shift = 20,
++			.m_bits = 12,
++			.m_offset = 0,
++			.n_shift = 14,
++			.n_bits = 6,
++			.n_offset = 0,
++			.od_shift = 11,
++			.od_bits = 3,
++			.od_max = 8,
++			.od_encoding = t31_pll_od_encoding,
++			.bypass_reg = CGU_REG_MPLL,
++			.bypass_bit = -1,
++			.enable_bit = 0,
++			.stable_bit = 3,
++		},
++	},
++
++	[T31_CLK_VPLL] = {
++		"vpll", CGU_CLK_PLL,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.pll = {
++			.reg = CGU_REG_VPLL,
++			.rate_multiplier = 1,
++			.m_shift = 20,
++			.m_bits = 12,
++			.m_offset = 0,
++			.n_shift = 14,
++			.n_bits = 6,
++			.n_offset = 0,
++			.od_shift = 11,
++			.od_bits = 3,
++			.od_max = 8,
++			.od_encoding = t31_pll_od_encoding,
++			.bypass_reg = CGU_REG_VPLL,
++			.bypass_bit = -1,
++			.enable_bit = 0,
++			.stable_bit = 3,
++		},
++	},
++
++	/* Custom (SoC-specific) OTG PHY */
++
++	[T31_CLK_OTGPHY] = {
++		"otg_phy", CGU_CLK_CUSTOM,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.custom = { &t31_otg_phy_ops },
++	},
++
++	/* Muxes & dividers */
++
++	[T31_CLK_SCLKA] = {
++		"sclk_a", CGU_CLK_MUX,
++		.parents = { -1, T31_CLK_EXCLK, T31_CLK_APLL, -1 },
++		.mux = { CGU_REG_CPCCR, 30, 2 },
++	},
++
++	[T31_CLK_CPUMUX] = {
++		"cpu_mux", CGU_CLK_MUX,
++		.parents = { -1, T31_CLK_SCLKA, T31_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 28, 2 },
++	},
++
++	[T31_CLK_CPU] = {
++		"cpu", CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T31_CLK_CPUMUX, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 15 },
++	},
++
++	[T31_CLK_L2CACHE] = {
++		"l2cache", CGU_CLK_DIV,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T31_CLK_CPUMUX, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
++	},
++
++	[T31_CLK_AHB0] = {
++		"ahb0", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { -1, T31_CLK_SCLKA, T31_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 26, 2 },
++		.div = { CGU_REG_CPCCR, 8, 1, 4, 21, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 10 },
++	},
++
++	[T31_CLK_AHB2] = {
++		"ahb2", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { -1, T31_CLK_SCLKA, T31_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 24, 2 },
++		.div = { CGU_REG_CPCCR, 12, 1, 4, 20, -1, -1 },
++	},
++
++	[T31_CLK_PCLK] = {
++		"pclk", CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 16, 1, 4, 20, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 14 },
++	},
++
++	[T31_CLK_DDR] = {
++		"ddr", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { -1, T31_CLK_SCLKA, T31_CLK_MPLL, -1 },
++		.mux = { CGU_REG_DDRCDR, 30, 2 },
++		.div = { CGU_REG_DDRCDR, 0, 1, 4, 29, 28, 27 },
++		.gate = { CGU_REG_CLKGR0, 31 },
++	},
++
++	[T31_CLK_MAC] = {
++		"mac", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_MACCDR, 30, 2 },
++		.div = { CGU_REG_MACCDR, 0, 1, 8, 29, 28, 27 },
++	},
++
++	[T31_CLK_LCD] = {
++		"lcd", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_LPCDR, 30, 2 },
++		.div = { CGU_REG_LPCDR, 0, 1, 8, 28, 27, 26 },
++		.gate = { CGU_REG_CLKGR0, 24 },
++	},
++
++	[T31_CLK_MSCMUX] = {
++		"msc_mux", CGU_CLK_MUX,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_MSC0CDR, 30, 2 },
++	},
++
++	[T31_CLK_MSC0] = {
++		"msc0", CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_MSCMUX, -1, -1, -1 },
++		.div = { CGU_REG_MSC0CDR, 0, 4, 8, 29, 28, 27 },
++		.gate = { CGU_REG_CLKGR0, 4 },
++	},
++
++	[T31_CLK_MSC1] = {
++		"msc1", CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_MSCMUX, -1, -1, -1 },
++		.div = { CGU_REG_MSC1CDR, 0, 4, 8, 29, 28, 27 },
++		.gate = { CGU_REG_CLKGR0, 5 },
++	},
++
++	[T31_CLK_SSIPLL] = {
++		"ssi_pll", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_SSICDR, 30, 2 },
++		.div = { CGU_REG_SSICDR, 0, 1, 8, 28, 27, 26 },
++	},
++
++	[T31_CLK_ISP] = {
++		"isp", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_ISPCDR, 30, 2 },
++		.div = { CGU_REG_ISPCDR, 0, 1, 4, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 23 },
++	},
++
++	[T31_CLK_CIM] = {
++		"cim", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_CIMCDR, 30, 2 },
++		.div = { CGU_REG_CIMCDR, 0, 1, 8, -1, -1, -1 },
++	},
++
++	[T31_CLK_RSA] = {
++		"rsa", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_RSACDR, 30, 2 },
++		.div = { CGU_REG_RSACDR, 0, 1, 4, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 27 },
++	},
++
++	[T31_CLK_EL150] = {
++		"el150", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T31_CLK_SCLKA, T31_CLK_MPLL,
++			     T31_CLK_VPLL, -1 },
++		.mux = { CGU_REG_EL150CDR, 30, 2 },
++		.div = { CGU_REG_EL150CDR, 0, 1, 4, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 0 },
++	},
++
++	/* Gate-only clocks */
++
++	[T31_CLK_NEMC] = {
++		"nemc", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 0 },
++	},
++
++	[T31_CLK_EFUSE] = {
++		"efuse", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 1 },
++	},
++
++	[T31_CLK_OTG] = {
++		"otg", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 3 },
++	},
++
++	[T31_CLK_SSI0] = {
++		"ssi0", CGU_CLK_GATE,
++		.parents = { T31_CLK_SSIPLL, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 6 },
++	},
++
++	[T31_CLK_SMB0] = {
++		"smb0", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 7 },
++	},
++
++	[T31_CLK_SMB1] = {
++		"smb1", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 8 },
++	},
++
++	[T31_CLK_AIC] = {
++		"aic", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 11 },
++	},
++
++	[T31_CLK_DMIC] = {
++		"dmic", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 12 },
++	},
++
++	[T31_CLK_SADC] = {
++		"sadc", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 13 },
++	},
++
++	[T31_CLK_UART0] = {
++		"uart0", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 14 },
++	},
++
++	[T31_CLK_UART1] = {
++		"uart1", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 15 },
++	},
++
++	[T31_CLK_UART2] = {
++		"uart2", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 16 },
++	},
++
++	[T31_CLK_SLV] = {
++		"slv", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 17 },
++	},
++
++	[T31_CLK_HASH] = {
++		"hash", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 18 },
++	},
++
++	[T31_CLK_SSI1] = {
++		"ssi1", CGU_CLK_GATE,
++		.parents = { T31_CLK_SSIPLL, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 19 },
++	},
++
++	[T31_CLK_SFC] = {
++		"sfc", CGU_CLK_GATE,
++		.parents = { T31_CLK_SSIPLL, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 20 },
++	},
++
++	[T31_CLK_PDMA] = {
++		"pdma", CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 21 },
++	},
++
++	[T31_CLK_MIPI_CSI] = {
++		"mipi_csi", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 25 },
++	},
++
++	[T31_CLK_RISCV] = {
++		"riscv", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 26 },
++	},
++
++	[T31_CLK_DES] = {
++		"des", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 28 },
++	},
++
++	[T31_CLK_TCU] = {
++		"tcu_gate", CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR0, 30 },
++	},
++
++	[T31_CLK_DTRNG] = {
++		"dtrng", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 1 },
++	},
++
++	[T31_CLK_IPU] = {
++		"ipu", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 2 },
++	},
++
++	[T31_CLK_GMAC] = {
++		"gmac", CGU_CLK_GATE,
++		.parents = { T31_CLK_MAC, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 4 },
++	},
++
++	[T31_CLK_AES] = {
++		"aes", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 5 },
++	},
++
++	[T31_CLK_AHB1] = {
++		"ahb1", CGU_CLK_GATE,
++		.parents = { T31_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 6 },
++	},
++
++	[T31_CLK_OST] = {
++		"ost_gate", CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T31_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 11 },
++	},
++
++	[T31_CLK_EXCLK_DIV512] = {
++		"exclk_div512", CGU_CLK_FIXDIV,
++		.parents = { T31_CLK_EXCLK },
++		.fixdiv = { 512 },
++	},
++
++	[T31_CLK_RTC] = {
++		"rtc_ercs", CGU_CLK_MUX | CGU_CLK_GATE,
++		.parents = { T31_CLK_EXCLK_DIV512, T31_CLK_RTCLK, -1, -1 },
++		.mux = { CGU_REG_OPCR, 2, 1 },
++		.gate = { CGU_REG_CLKGR0, 29 },
++	},
++
++	[T31_CLK_USBPHY] = {
++		"usb_phy", CGU_CLK_GATE,
++		.parents = { T31_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_OPCR, 23, .clear_to_gate = true },
++	},
++};
++
++static void __init t31_cgu_init(struct device_node *np)
++{
++	int retval;
++
++	cgu = ingenic_cgu_new(t31_cgu_clocks,
++			      ARRAY_SIZE(t31_cgu_clocks), np);
++	if (!cgu) {
++		pr_err("%s: failed to initialise CGU\n", __func__);
++		return;
++	}
++
++	retval = ingenic_cgu_register_clocks(cgu);
++	if (retval) {
++		pr_err("%s: failed to register CGU clocks\n", __func__);
++		return;
++	}
++
++	ingenic_cgu_register_syscore(cgu);
++}
++/*
++ * CGU has some children devices, this is useful for probing children devices
++ * in the case where the device node is compatible with "simple-mfd".
++ */
++CLK_OF_DECLARE_DRIVER(t31_cgu, "ingenic,t31-cgu", t31_cgu_init);
+diff --git a/drivers/clocksource/ingenic-ost.c b/drivers/clocksource/ingenic-ost.c
+index e0ec333..4a032eb 100644
+--- a/drivers/clocksource/ingenic-ost.c
++++ b/drivers/clocksource/ingenic-ost.c
+@@ -170,6 +170,7 @@ static const struct of_device_id ingenic_ost_of_match[] = {
+ 	{ .compatible = "ingenic,jz4725b-ost", .data = &jz4725b_ost_soc_info, },
+ 	{ .compatible = "ingenic,jz4760b-ost", .data = &jz4760b_ost_soc_info, },
+ 	{ .compatible = "ingenic,jz4770-ost", .data = &jz4760b_ost_soc_info, },
++	{ .compatible = "ingenic,t31-ost", .data = &jz4760b_ost_soc_info, },
+ 	{ }
+ };
+ 
+diff --git a/drivers/irqchip/irq-ingenic.c b/drivers/irqchip/irq-ingenic.c
+index 27d8c7f..6d38845 100644
+--- a/drivers/irqchip/irq-ingenic.c
++++ b/drivers/irqchip/irq-ingenic.c
+@@ -158,3 +158,4 @@ IRQCHIP_DECLARE(jz4760_intc, "ingenic,jz4760-intc", intc_2chip_of_init);
+ IRQCHIP_DECLARE(jz4770_intc, "ingenic,jz4770-intc", intc_2chip_of_init);
+ IRQCHIP_DECLARE(jz4775_intc, "ingenic,jz4775-intc", intc_2chip_of_init);
+ IRQCHIP_DECLARE(jz4780_intc, "ingenic,jz4780-intc", intc_2chip_of_init);
++IRQCHIP_DECLARE(t31_intc, "ingenic,t31-intc", intc_2chip_of_init);
+diff --git a/drivers/mmc/host/jz4740_mmc.c b/drivers/mmc/host/jz4740_mmc.c
+index 6a3c26b..a430e0c 100644
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -947,11 +947,11 @@ static void jz4740_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+ 
+ 	switch (ios->power_mode) {
+ 	case MMC_POWER_UP:
++		clk_prepare_enable(host->clk);
+ 		jz4740_mmc_reset(host);
+ 		if (!IS_ERR(mmc->supply.vmmc))
+ 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
+ 		host->cmdat |= JZ_MMC_CMDAT_INIT;
+-		clk_prepare_enable(host->clk);
+ 		break;
+ 	case MMC_POWER_ON:
+ 		if (!IS_ERR(mmc->supply.vqmmc) && !host->vqmmc_enabled) {
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-ingenic.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-ingenic.c
+index 8e4a30c..e9b9301 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-ingenic.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-ingenic.c
+@@ -7,6 +7,8 @@
+ 
+ #include <linux/bitfield.h>
+ #include <linux/clk.h>
++#include <linux/io.h>
++#include <linux/iopoll.h>
+ #include <linux/kernel.h>
+ #include <linux/mfd/syscon.h>
+ #include <linux/module.h>
+@@ -18,6 +20,8 @@
+ #include <linux/slab.h>
+ #include <linux/stmmac.h>
+ 
++#include "stmmac.h"
++#include "dwmac_dma.h"
+ #include "stmmac_platform.h"
+ 
+ #define MACPHYC_TXCLK_SEL_MASK		GENMASK(31, 31)
+@@ -134,23 +138,6 @@ static int x2000_mac_set_mode(struct ingenic_mac *mac, u8 phy_intf_sel)
+ 	return regmap_update_bits(mac->regmap, 0, mac->soc_info->mask, val);
+ }
+ 
+-static int ingenic_set_phy_intf_sel(void *bsp_priv, u8 phy_intf_sel)
+-{
+-	struct ingenic_mac *mac = bsp_priv;
+-
+-	if (!mac->soc_info->set_mode)
+-		return 0;
+-
+-	if (phy_intf_sel >= BITS_PER_BYTE ||
+-	    ~mac->soc_info->valid_phy_intf_sel & BIT(phy_intf_sel))
+-		return -EINVAL;
+-
+-	dev_dbg(mac->dev, "MAC PHY control register: interface %s\n",
+-		phy_modes(mac->plat_dat->phy_interface));
+-
+-	return mac->soc_info->set_mode(mac, phy_intf_sel);
+-}
+-
+ static int ingenic_mac_probe(struct platform_device *pdev)
+ {
+ 	struct plat_stmmacenet_data *plat_dat;
+@@ -210,7 +197,42 @@ static int ingenic_mac_probe(struct platform_device *pdev)
+ 	mac->plat_dat = plat_dat;
+ 
+ 	plat_dat->bsp_priv = mac;
+-	plat_dat->set_phy_intf_sel = ingenic_set_phy_intf_sel;
++
++	/*
++	 * Configure MACPHYC in probe context rather than through the
++	 * set_phy_intf_sel callback. On T-series Ingenic SoCs writing
++	 * the CPM MACPHYC register from within the STMMAC probe call
++	 * chain deadlocks the GMAC AHB interface.
++	 */
++	if (mac->soc_info->set_mode) {
++		int phy_intf_sel = stmmac_get_phy_intf_sel(plat_dat->phy_interface);
++
++		if (phy_intf_sel >= 0) {
++			ret = mac->soc_info->set_mode(mac, phy_intf_sel);
++			if (ret)
++				return dev_err_probe(&pdev->dev, ret,
++						     "Failed to set MAC mode\n");
++		}
++	}
++
++	/*
++	 * Software-reset the DMA so MDIO starts from a known state.
++	 * The standard dwmac_dma_reset() helper uses readl_poll_timeout()
++	 * which sleeps via usleep_range(); on T31 this is reached before
++	 * the scheduler is ready and causes a hang. Open-code with the
++	 * atomic variant.
++	 */
++	writel(readl(stmmac_res.addr + DMA_BUS_MODE) | DMA_BUS_MODE_SFT_RESET,
++	       stmmac_res.addr + DMA_BUS_MODE);
++	{
++		u32 val;
++
++		ret = readl_poll_timeout_atomic(stmmac_res.addr + DMA_BUS_MODE,
++						val, !(val & DMA_BUS_MODE_SFT_RESET),
++						100, 20000);
++		if (ret)
++			dev_warn(&pdev->dev, "DMA soft reset timeout\n");
++	}
+ 
+ 	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
+ }
+@@ -264,6 +286,7 @@ static const struct of_device_id ingenic_mac_of_matches[] = {
+ 	{ .compatible = "ingenic,x1000-mac", .data = &x1000_soc_info },
+ 	{ .compatible = "ingenic,x1600-mac", .data = &x1600_soc_info },
+ 	{ .compatible = "ingenic,x1830-mac", .data = &x1830_soc_info },
++	{ .compatible = "ingenic,t31-mac", .data = &x1830_soc_info },
+ 	{ .compatible = "ingenic,x2000-mac", .data = &x2000_soc_info },
+ 	{ }
+ };
+diff --git a/drivers/net/ethernet/stmicro/stmmac/stmmac_mdio.c b/drivers/net/ethernet/stmicro/stmmac/stmmac_mdio.c
+index afe98ff..f44f369 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/stmmac_mdio.c
++++ b/drivers/net/ethernet/stmicro/stmmac/stmmac_mdio.c
+@@ -49,7 +49,7 @@ static int stmmac_mdio_wait(void __iomem *reg, u32 mask)
+ {
+ 	u32 v;
+ 
+-	if (readl_poll_timeout(reg, v, !(v & mask), 100, 10000))
++	if (readl_poll_timeout_atomic(reg, v, !(v & mask), 100, 10000))
+ 		return -EBUSY;
+ 
+ 	return 0;
+diff --git a/drivers/nvmem/jz4780-efuse.c b/drivers/nvmem/jz4780-efuse.c
+index 0b01b84..34bea83 100644
+--- a/drivers/nvmem/jz4780-efuse.c
++++ b/drivers/nvmem/jz4780-efuse.c
+@@ -59,12 +59,24 @@
+ #define EFUSTATE_WR_DONE	BIT(1)
+ #define EFUSTATE_RD_DONE	BIT(0)
+ 
++struct jz4780_efuse_soc_data {
++	size_t size;
++};
++
+ struct jz4780_efuse {
+ 	struct device *dev;
+ 	struct regmap *map;
+ 	struct clk *clk;
+ };
+ 
++static const struct jz4780_efuse_soc_data jz4780_efuse_soc_data = {
++	.size = 1024,
++};
++
++static const struct jz4780_efuse_soc_data t31_efuse_soc_data = {
++	.size = 32,
++};
++
+ /* main entry point */
+ static int jz4780_efuse_read(void *context, unsigned int offset,
+ 			     void *val, size_t bytes)
+@@ -209,6 +221,8 @@ static int jz4780_efuse_probe(struct platform_device *pdev)
+ 	cfg = jz4780_efuse_nvmem_config;
+ 	cfg.dev = &pdev->dev;
+ 	cfg.priv = efuse;
++	cfg.size = ((const struct jz4780_efuse_soc_data *)
++		    of_device_get_match_data(&pdev->dev))->size;
+ 
+ 	nvmem = devm_nvmem_register(dev, &cfg);
+ 
+@@ -216,7 +230,8 @@ static int jz4780_efuse_probe(struct platform_device *pdev)
+ }
+ 
+ static const struct of_device_id jz4780_efuse_match[] = {
+-	{ .compatible = "ingenic,jz4780-efuse" },
++	{ .compatible = "ingenic,jz4780-efuse", .data = &jz4780_efuse_soc_data },
++	{ .compatible = "ingenic,t31-efuse",    .data = &t31_efuse_soc_data    },
+ 	{ /* sentinel */ },
+ };
+ MODULE_DEVICE_TABLE(of, jz4780_efuse_match);
+diff --git a/drivers/phy/ingenic/phy-ingenic-usb.c b/drivers/phy/ingenic/phy-ingenic-usb.c
+index 7e62d46..3b1ebfa 100644
+--- a/drivers/phy/ingenic/phy-ingenic-usb.c
++++ b/drivers/phy/ingenic/phy-ingenic-usb.c
+@@ -85,6 +85,7 @@
+ 
+ struct ingenic_soc_info {
+ 	void (*usb_phy_init)(struct phy *phy);
++	bool handles_por;
+ };
+ 
+ struct ingenic_usb_phy {
+@@ -102,6 +103,15 @@ static int ingenic_usb_phy_init(struct phy *phy)
+ 	int err;
+ 	u32 reg;
+ 
++	/*
++	 * On T-series SoCs the PHY is fully initialised from the probe
++	 * context (see ingenic_usb_phy_probe) because writing CPM
++	 * registers from inside the DWC2 probe call chain deadlocks the
++	 * DWC2 AHB. Nothing left to do here.
++	 */
++	if (priv->soc_info->handles_por)
++		return 0;
++
+ 	err = clk_prepare_enable(priv->clk);
+ 	if (err) {
+ 		dev_err(&phy->dev, "Unable to start clock: %d\n", err);
+@@ -277,6 +287,24 @@ static void x1830_usb_phy_init(struct phy *phy)
+ 	writel(reg, priv->base + REG_USBPCR_OFFSET);
+ }
+ 
++/*
++ * T-series (T10/T20/T21/T23/T30/T31) USB PHY.
++ *
++ * On T-series SoCs, writing to CPM USB registers (USBPCR, OPCR) from
++ * within the DWC2 probe call chain deadlocks the DWC2 AHB interface.
++ * The PHY must be configured during the PHY driver's own probe, which
++ * runs as a separate device probe before DWC2.  The phy_init callback
++ * is therefore a no-op.
++ */
++static void t_series_usb_phy_init(struct phy *phy)
++{
++}
++
++static const struct ingenic_soc_info t_series_soc_info = {
++	.usb_phy_init = t_series_usb_phy_init,
++	.handles_por = true,
++};
++
+ static void x2000_usb_phy_init(struct phy *phy)
+ {
+ 	struct ingenic_usb_phy *priv = phy_get_drvdata(phy);
+@@ -354,6 +382,81 @@ static int ingenic_usb_phy_probe(struct platform_device *pdev)
+ 
+ 	phy_set_drvdata(priv->phy, priv);
+ 
++	/*
++	 * T-series: configure PHY during probe rather than phy_init.
++	 * Writing CPM USB registers from within the DWC2 probe call
++	 * chain deadlocks the DWC2 AHB interface.  Doing it here
++	 * (separate probe context) gives the bus time to settle.
++	 */
++	if (priv->soc_info->handles_por) {
++		void __iomem *reg_opcr = priv->base - 0x18;
++		void __iomem *reg_srbc = priv->base - 0x08;
++		u32 reg;
++
++		err = clk_prepare_enable(priv->clk);
++		if (err) {
++			dev_err(dev, "Failed to enable PHY clock: %d\n", err);
++			return err;
++		}
++
++		/*
++		 * Full BSP PHY init using __raw_writel (no barriers).
++		 * The MIPS sync instruction in mainline writel deadlocks
++		 * the DWC2 AHB on T-series Ingenic SoCs.
++		 */
++		__raw_writel(__raw_readl(priv->base - 0x1c) & ~BIT(3),
++			     priv->base - 0x1c);
++
++		reg = __raw_readl(priv->base + REG_USBPCR1_OFFSET);
++		reg |= BIT(8) | BIT(9) | BIT(28) | BIT(29) | BIT(30);
++		reg &= ~BIT(19);
++		reg &= ~(0x7 << 23);
++		reg |= (5 << 23);
++		__raw_writel(reg, priv->base + REG_USBPCR1_OFFSET);
++
++		__raw_writel(0, priv->base + REG_USBVBFIL_OFFSET);
++		__raw_writel(0x96 | BIT(25), priv->base + REG_USBRDT_OFFSET);
++
++		__raw_writel(0x8380385a, priv->base + REG_USBPCR_OFFSET);
++
++		reg = __raw_readl(priv->base + REG_USBPCR_OFFSET);
++		reg |= USBPCR_USB_MODE | USBPCR_COMMONONN;
++		reg &= ~(USBPCR_SIDDQ | USBPCR_OTG_DISABLE |
++			 USBPCR_VBUSVLDEXT | USBPCR_VBUSVLDEXTSEL |
++			 FIELD_PREP(USBPCR_IDPULLUP_MASK, 3));
++		__raw_writel(reg, priv->base + REG_USBPCR_OFFSET);
++
++		__raw_writel(__raw_readl(priv->base + REG_USBPCR_OFFSET) |
++			     USBPCR_POR, priv->base + REG_USBPCR_OFFSET);
++		__raw_writel(__raw_readl(priv->base + REG_USBRDT_OFFSET) &
++			     ~BIT(27), priv->base + REG_USBRDT_OFFSET);
++		__raw_writel(__raw_readl(reg_srbc) | BIT(12), reg_srbc);
++		udelay(5);
++		__raw_writel(__raw_readl(priv->base + REG_USBPCR_OFFSET) &
++			     ~USBPCR_POR, priv->base + REG_USBPCR_OFFSET);
++
++		udelay(10);
++		__raw_writel(__raw_readl(reg_opcr) | BIT(7), reg_opcr);
++
++		udelay(550);
++		__raw_writel(__raw_readl(priv->base + REG_USBRDT_OFFSET) |
++			     BIT(27), priv->base + REG_USBRDT_OFFSET);
++
++		udelay(10);
++		__raw_writel(__raw_readl(reg_srbc) & ~BIT(12), reg_srbc);
++
++		{
++			void __iomem *utmi = ioremap(0x10060000, 0x100);
++			if (utmi) {
++				__raw_writel(__raw_readl(utmi + 0x78) | 0x20,
++					     utmi + 0x78);
++				__raw_writel(__raw_readl(utmi + 0x70) & ~0x8,
++					     utmi + 0x70);
++				iounmap(utmi);
++			}
++		}
++	}
++
+ 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
+ 
+ 	return PTR_ERR_OR_ZERO(provider);
+@@ -364,6 +467,7 @@ static const struct of_device_id ingenic_usb_phy_of_matches[] = {
+ 	{ .compatible = "ingenic,jz4775-phy", .data = &jz4775_soc_info },
+ 	{ .compatible = "ingenic,jz4780-phy", .data = &jz4780_soc_info },
+ 	{ .compatible = "ingenic,x1000-phy", .data = &x1000_soc_info },
++	{ .compatible = "ingenic,t31-phy", .data = &t_series_soc_info },
+ 	{ .compatible = "ingenic,x1830-phy", .data = &x1830_soc_info },
+ 	{ .compatible = "ingenic,x2000-phy", .data = &x2000_soc_info },
+ 	{ /* sentinel */ }
+diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
+index 1aa6a6d..11318a6 100644
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -112,6 +112,7 @@ enum jz_version {
+ 	ID_X1500,
+ 	ID_X1600,
+ 	ID_X1830,
++	ID_T31,
+ 	ID_X2000,
+ 	ID_X2100,
+ };
+@@ -163,6 +164,7 @@ static const unsigned long enabled_socs =
+ 	IS_ENABLED(CONFIG_MACH_X1500) << ID_X1500 |
+ 	IS_ENABLED(CONFIG_MACH_X1600) << ID_X1600 |
+ 	IS_ENABLED(CONFIG_MACH_X1830) << ID_X1830 |
++	IS_ENABLED(CONFIG_MACH_T31) << ID_T31 |
+ 	IS_ENABLED(CONFIG_MACH_X2000) << ID_X2000 |
+ 	IS_ENABLED(CONFIG_MACH_X2100) << ID_X2100;
+ 
+@@ -2823,6 +2825,125 @@ static const struct ingenic_chip_info x1830_chip_info = {
+ 	.access_table = &x1830_access_table,
+ };
+ 
++/* T31 */
++static int t31_uart0_data_b_pins[] = { 0x33, 0x36, };
++static int t31_uart0_data_c_pins[] = { 0x48, 0x49, };
++static int t31_uart0_hwflow_pins[] = { 0x34, 0x35, };
++static int t31_uart1_data_b_pins[] = { 0x37, 0x38, };
++static int t31_uart1_data_a_pins[] = { 0x06, 0x07, };
++static int t31_uart2_data_c_pins[] = { 0x4d, 0x4e, };
++static int t31_uart2_data_a_pins[] = { 0x0a, 0x0b, };
++static int t31_i2c0_pins[] = { 0x0c, 0x0d, };
++static int t31_i2c1_a_pins[] = { 0x10, 0x11, };
++static int t31_i2c1_b_pins[] = { 0x39, 0x3a, };
++static int t31_i2c1_c_pins[] = { 0x48, 0x49, };
++static int t31_mmc0_1bit_pins[] = { 0x20, 0x21, 0x22, };
++static int t31_mmc0_4bit_pins[] = { 0x23, 0x24, 0x25, };
++static int t31_sfc_data_pins[] = { 0x17, 0x18, 0x1b, 0x1c, };
++static int t31_ssi0_dt_pins[] = { 0x4b, };
++static int t31_ssi0_dr_pins[] = { 0x4c, };
++static int t31_ssi0_clk_pins[] = { 0x4d, };
++static int t31_ssi0_ce_pins[] = { 0x4e, };
++static int t31_mac_rmii_pins[] = {
++	0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e,
++};
++static int t31_pwm_pwm0_pins[] = { 0x51, };
++static int t31_pwm_pwm1_pins[] = { 0x52, };
++static int t31_pwm_pwm2_pins[] = { 0x53, };
++static int t31_pwm_pwm3_pins[] = { 0x54, };
++
++static const struct group_desc t31_groups[] = {
++	INGENIC_PIN_GROUP("uart0-data-b", t31_uart0_data_b, 0),
++	INGENIC_PIN_GROUP("uart0-data-c", t31_uart0_data_c, 1),
++	INGENIC_PIN_GROUP("uart0-hwflow", t31_uart0_hwflow, 0),
++	INGENIC_PIN_GROUP("uart1-data-b", t31_uart1_data_b, 0),
++	INGENIC_PIN_GROUP("uart1-data-a", t31_uart1_data_a, 2),
++	INGENIC_PIN_GROUP("uart2-data-c", t31_uart2_data_c, 2),
++	INGENIC_PIN_GROUP("uart2-data-a", t31_uart2_data_a, 2),
++	INGENIC_PIN_GROUP("i2c0-data", t31_i2c0, 1),
++	INGENIC_PIN_GROUP("i2c1-data-a", t31_i2c1_a, 2),
++	INGENIC_PIN_GROUP("i2c1-data-b", t31_i2c1_b, 0),
++	INGENIC_PIN_GROUP("i2c1-data-c", t31_i2c1_c, 3),
++	INGENIC_PIN_GROUP("mmc0-1bit", t31_mmc0_1bit, 0),
++	INGENIC_PIN_GROUP("mmc0-4bit", t31_mmc0_4bit, 0),
++	INGENIC_PIN_GROUP("sfc-data", t31_sfc_data, 1),
++	INGENIC_PIN_GROUP("ssi0-dt", t31_ssi0_dt, 0),
++	INGENIC_PIN_GROUP("ssi0-dr", t31_ssi0_dr, 0),
++	INGENIC_PIN_GROUP("ssi0-clk", t31_ssi0_clk, 0),
++	INGENIC_PIN_GROUP("ssi0-ce", t31_ssi0_ce, 0),
++	INGENIC_PIN_GROUP("mac-rmii", t31_mac_rmii, 0),
++	INGENIC_PIN_GROUP("pwm0", t31_pwm_pwm0, 0),
++	INGENIC_PIN_GROUP("pwm1", t31_pwm_pwm1, 0),
++	INGENIC_PIN_GROUP("pwm2", t31_pwm_pwm2, 0),
++	INGENIC_PIN_GROUP("pwm3", t31_pwm_pwm3, 0),
++};
++
++static const char *t31_uart0_groups[] = {
++	"uart0-data-b", "uart0-data-c", "uart0-hwflow",
++};
++static const char *t31_uart1_groups[] = { "uart1-data-b", "uart1-data-a", };
++static const char *t31_uart2_groups[] = { "uart2-data-c", "uart2-data-a", };
++static const char *t31_i2c0_groups[] = { "i2c0-data", };
++static const char *t31_i2c1_groups[] = {
++	"i2c1-data-a", "i2c1-data-b", "i2c1-data-c",
++};
++static const char *t31_mmc0_groups[] = { "mmc0-1bit", "mmc0-4bit", };
++static const char *t31_sfc_groups[] = { "sfc-data", };
++static const char *t31_ssi0_groups[] = {
++	"ssi0-dt", "ssi0-dr", "ssi0-clk", "ssi0-ce",
++};
++static const char *t31_mac_groups[] = { "mac-rmii", };
++static const char *t31_pwm0_groups[] = { "pwm0", };
++static const char *t31_pwm1_groups[] = { "pwm1", };
++static const char *t31_pwm2_groups[] = { "pwm2", };
++static const char *t31_pwm3_groups[] = { "pwm3", };
++
++static const struct pinfunction t31_functions[] = {
++	INGENIC_PIN_FUNCTION("uart0", t31_uart0),
++	INGENIC_PIN_FUNCTION("uart1", t31_uart1),
++	INGENIC_PIN_FUNCTION("uart2", t31_uart2),
++	INGENIC_PIN_FUNCTION("i2c0", t31_i2c0),
++	INGENIC_PIN_FUNCTION("i2c1", t31_i2c1),
++	INGENIC_PIN_FUNCTION("mmc0", t31_mmc0),
++	INGENIC_PIN_FUNCTION("sfc", t31_sfc),
++	INGENIC_PIN_FUNCTION("ssi0", t31_ssi0),
++	INGENIC_PIN_FUNCTION("mac", t31_mac),
++	INGENIC_PIN_FUNCTION("pwm0", t31_pwm0),
++	INGENIC_PIN_FUNCTION("pwm1", t31_pwm1),
++	INGENIC_PIN_FUNCTION("pwm2", t31_pwm2),
++	INGENIC_PIN_FUNCTION("pwm3", t31_pwm3),
++};
++
++static const u32 t31_pull_ups[3] = {
++	0xffffffff, 0xffffffff, 0xffffffff,
++};
++
++static const u32 t31_pull_downs[3] = {
++	0xffffffff, 0xffffffff, 0xffffffff,
++};
++
++static const struct regmap_range t31_access_ranges[] = {
++	regmap_reg_range(0x0000, 0x3000 - 4),
++};
++
++static const struct regmap_access_table t31_access_table = {
++	.yes_ranges = t31_access_ranges,
++	.n_yes_ranges = ARRAY_SIZE(t31_access_ranges),
++};
++
++static const struct ingenic_chip_info t31_chip_info = {
++	.num_chips = 3,
++	.reg_offset = 0x1000,
++	.version = ID_T31,
++	.groups = t31_groups,
++	.num_groups = ARRAY_SIZE(t31_groups),
++	.functions = t31_functions,
++	.num_functions = ARRAY_SIZE(t31_functions),
++	.pull_ups = t31_pull_ups,
++	.pull_downs = t31_pull_downs,
++	.access_table = &t31_access_table,
++};
++
+ static const u32 x2000_pull_ups[5] = {
+ 	0x0003ffff, 0xffffffff, 0x1ff0ffff, 0xc7fe3f3f, 0x8fff003f,
+ };
+@@ -4655,6 +4776,10 @@ static const struct of_device_id ingenic_pinctrl_of_matches[] = {
+ 		.compatible = "ingenic,x1830-pinctrl",
+ 		.data = IF_ENABLED(CONFIG_MACH_X1830, &x1830_chip_info)
+ 	},
++	{
++		.compatible = "ingenic,t31-pinctrl",
++		.data = IF_ENABLED(CONFIG_MACH_T31, &t31_chip_info)
++	},
+ 	{
+ 		.compatible = "ingenic,x2000-pinctrl",
+ 		.data = IF_ENABLED(CONFIG_MACH_X2000, &x2000_chip_info)
+diff --git a/drivers/spi/Kconfig b/drivers/spi/Kconfig
+index 8782514..4c9b88e 100644
+--- a/drivers/spi/Kconfig
++++ b/drivers/spi/Kconfig
+@@ -522,6 +522,14 @@ config SPI_INGENIC
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called spi-ingenic.
+ 
++config SPI_INGENIC_SFC
++	tristate "Ingenic SoCs SPI Flash Controller"
++	depends on MACH_INGENIC || COMPILE_TEST
++	depends on SPI_MEM
++	help
++	  This enables support for the Ingenic SoCs SPI Flash Controller
++	  found on X1000, X1600, X1830, T31, X2000 and related SoCs.
++
+ config SPI_INTEL
+ 	tristate
+ 
+diff --git a/drivers/spi/Makefile b/drivers/spi/Makefile
+index 9fa1249..629e75e 100644
+--- a/drivers/spi/Makefile
++++ b/drivers/spi/Makefile
+@@ -73,6 +73,7 @@ obj-$(CONFIG_SPI_HISI_SFC_V3XX)		+= spi-hisi-sfc-v3xx.o
+ obj-$(CONFIG_SPI_IMG_SPFI)		+= spi-img-spfi.o
+ obj-$(CONFIG_SPI_IMX)			+= spi-imx.o
+ obj-$(CONFIG_SPI_INGENIC)		+= spi-ingenic.o
++obj-$(CONFIG_SPI_INGENIC_SFC)		+= spi-ingenic-sfc.o
+ obj-$(CONFIG_SPI_INTEL)			+= spi-intel.o
+ obj-$(CONFIG_SPI_INTEL_PCI)		+= spi-intel-pci.o
+ obj-$(CONFIG_SPI_INTEL_PLATFORM)	+= spi-intel-platform.o
+diff --git a/drivers/spi/spi-ingenic-sfc.c b/drivers/spi/spi-ingenic-sfc.c
+new file mode 100644
+index 0000000..dde5feb
+--- /dev/null
++++ b/drivers/spi/spi-ingenic-sfc.c
+@@ -0,0 +1,719 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Ingenic SoCs SPI Flash Controller Driver
++ * Copyright (c) 2022 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>
++ */
++
++#include <linux/bitfield.h>
++#include <linux/bitops.h>
++#include <linux/clk.h>
++#include <linux/completion.h>
++#include <linux/interrupt.h>
++#include <linux/iopoll.h>
++#include <linux/module.h>
++#include <linux/mtd/mtd.h>
++#include <linux/of_device.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/spi/spi.h>
++#include <linux/spi/spi-mem.h>
++#include <linux/dmaengine.h>
++#include <linux/dma-mapping.h>
++
++/* SFC register offsets */
++#define SFC_REG_GLB						0x0000
++#define	SFC_REG_DEV_CONF				0x0004
++#define	SFC_REG_DEV_STA_EXP				0x0008
++#define	SFC_REG_DEV_STA_RT				0x000c
++#define	SFC_REG_DEV_STA_MSK				0x0010
++#define	SFC_REG_TRAN_CONF(n)			0x0014 + n * 4
++#define	SFC_REG_TRAN_CFG0(n)			0x0014 + n * 4
++#define	SFC_REG_TRAN_LEN				0x002c
++#define	SFC_REG_DEV_ADDR(n)				0x0030 + n * 4
++#define	SFC_REG_DEV_ADDR_PLUS(n)		0x0048 + n * 4
++#define	SFC_REG_MEM_ADDR				0x0060
++#define	SFC_REG_TRIG					0x0064
++#define	SFC_REG_SR						0x0068
++#define	SFC_REG_SCR						0x006c
++#define	SFC_REG_INTC					0x0070
++#define	SFC_REG_FSM						0x0074
++#define	SFC_REG_CGE						0x0078
++#define SFC_REG_TRAN_CFG1(n)			0x009c + n * 4
++#define	SFC_REG_DR						0x1000
++
++/* bits within the GLB register */
++#define GLB_TRAN_DIR_MASK				GENMASK(13, 13)
++#define GLB_TRAN_DIR_WRITE				0x1
++#define GLB_TRAN_DIR_READ				0x0
++#define GLB_THRESHOLD_MASK				GENMASK(12, 7)
++#define GLB_OP_MODE_MASK				GENMASK(6, 6)
++#define GLB_OP_MODE_DMA					0x1
++#define GLB_OP_MODE_SLAVE				0x0
++#define GLB_PHASE_NUM_MASK				GENMASK(5, 3)
++#define GLB_WP_EN						BIT(2)
++#define GLB_BURST_MD_MASK				GENMASK(1, 0)
++#define GLB_BURST_MD_INCR32				0x3
++#define GLB_BURST_MD_INCR16				0x2
++#define GLB_BURST_MD_INCR8				0x1
++#define GLB_BURST_MD_INCR4				0x0
++
++/* bits within the DEV_CONF register */
++#define DEV_CONF_SMP_DELAY_MASK			GENMASK(20, 16)
++#define	DEV_CONF_SMP_DELAY_180DEG		0x4
++#define	DEV_CONF_SMP_DELAY_HALF_CYCLE	0x1
++#define DEV_CONF_CMD_TYPE_MASK			GENMASK(15, 15)
++#define DEV_CONF_CMD_TYPE_16BIT			0x1
++#define DEV_CONF_CMD_TYPE_8BIT			0x0
++#define DEV_CONF_STA_TYPE_MASK			GENMASK(14, 13)
++#define DEV_CONF_THOLD_MASK				GENMASK(12, 11)
++#define DEV_CONF_TSETUP_MASK			GENMASK(10, 9)
++#define DEV_CONF_TSH_MASK				GENMASK(8, 5)
++#define DEV_CONF_CPHA					BIT(4)
++#define DEV_CONF_CPOL					BIT(3)
++#define DEV_CONF_CE_DL					BIT(2)
++#define DEV_CONF_HOLD_DL				BIT(1)
++#define DEV_CONF_WP_DL					BIT(0)
++
++/* bits within the TRAN_CONF(n) register */
++#define TRAN_CONF_TRAN_MODE_MASK		GENMASK(31, 29)
++#define	TRAN_CONF_ADDR_WIDTH_MASK		GENMASK(28, 26)
++#define TRAN_CONF_POLL_EN				BIT(25)
++#define TRAN_CONF_CMD_EN				BIT(24)
++#define TRAN_CONF_PHASE_FORMAT_MASK		GENMASK(23, 23)
++#define TRAN_CONF_DMY_BITS_MASK			GENMASK(22, 17)
++#define TRAN_CONF_DATA_EN				BIT(16)
++#define TRAN_CONF_CMD_MASK				GENMASK(15, 0)
++
++/* bits within the TRIG register */
++#define TRIG_FLUSH						BIT(2)
++#define TRIG_STOP						BIT(1)
++#define TRIG_START						BIT(0)
++
++/* bits within the SR register */
++#define SR_FIFO_NUM_MASK				GENMASK(22, 16)
++#define	SR_END							BIT(4)
++#define SR_TRAN_REQ						BIT(3)
++#define SR_RECE_REQ						BIT(2)
++#define SR_OVER							BIT(1)
++#define SR_UNDER						BIT(0)
++
++/* bits within the SCR register */
++#define	SCR_CLR_END						BIT(4)
++#define SCR_CLR_TREQ					BIT(3)
++#define SCR_CLR_RREQ					BIT(2)
++#define SCR_CLR_OVER					BIT(1)
++#define SCR_CLR_UNDER					BIT(0)
++
++/* bits within the INTC register */
++#define	INTC_MASK_END					BIT(4)
++#define INTC_MASK_TREQ					BIT(3)
++#define INTC_MASK_RREQ					BIT(2)
++#define INTC_MASK_OVER					BIT(1)
++#define INTC_MASK_UNDER					BIT(0)
++
++/* bits within the TRAN_CFG1(n) register */
++#define TRAN_CFG1_TRAN_MODE_MASK		GENMASK(7, 4)
++
++#define TRAN_MODE_STANDARD				0
++#define TRAN_MODE_DUAL_DATA				1
++#define TRAN_MODE_DUAL_IO				2
++#define TRAN_MODE_DUAL_FULL				3
++#define TRAN_MODE_QUAD_DATA				5
++#define TRAN_MODE_QUAD_IO				6
++#define TRAN_MODE_QUAD_FULL				7
++#define TRAN_MODE_OCTAL_DATA			9
++#define TRAN_MODE_OCTAL_IO				10
++#define TRAN_MODE_OCTAL_FULL			11
++
++#define SFC_TRANSFER_TIMEOUT			1000
++
++enum ingenic_sfc_version {
++	ID_X1000,
++	ID_X1600,
++	ID_X2000,
++};
++
++struct ingenic_soc_info {
++	enum ingenic_sfc_version version;
++
++	unsigned int max_bus_width;
++
++	const u32 tran_mode_mask;
++};
++
++struct ingenic_sfc {
++	const struct ingenic_soc_info *soc_info;
++
++	void __iomem *base;
++	struct device *dev;
++	struct clk *clk;
++	int irq;
++
++	struct completion completion;
++};
++
++static irqreturn_t ingenic_sfc_irq_handler(int irq, void *data)
++{
++	struct ingenic_sfc *sfc = data;
++
++	writel(0x1f, sfc->base + SFC_REG_INTC);
++
++	complete(&sfc->completion);
++
++	return IRQ_HANDLED;
++}
++
++static int ingenic_sfc_dma_eligible(struct ingenic_sfc *sfc, const struct spi_mem_op *op) {
++	const unsigned int dma_len = 4;
++
++	if (op->data.dir == SPI_MEM_NO_DATA)
++		return 0;
++
++	if (sfc->soc_info->version >= ID_X1600)
++		return 1;
++
++	if ((op->data.nbytes % dma_len) == 0) {
++		if (op->data.dir == SPI_MEM_DATA_IN) {
++			if (IS_ALIGNED(virt_to_phys(op->data.buf.in), dma_len)) {
++				return 1;
++			}
++		}
++		if (op->data.dir == SPI_MEM_DATA_OUT) {
++			if (IS_ALIGNED(virt_to_phys(op->data.buf.out), dma_len)) {
++				return 1;
++			}
++		}
++	}
++
++	return 0;
++}
++
++static int ingenic_sfc_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
++{
++	struct spi_device *spi = mem->spi;
++	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++
++	// if (!ingenic_sfc_dma_eligible(sfc, op)) {
++
++		if (op->data.nbytes > 64 * 4)
++				op->data.nbytes = 64 * 4;
++	// }
++
++	return 0;
++}
++
++static bool ingenic_sfc_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
++{
++	struct spi_device *spi = mem->spi;
++	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++
++	/* The controller only supports Standard SPI mode, Duall mode and Quad mode. */
++	if (op->cmd.buswidth > sfc->soc_info->max_bus_width ||
++		op->addr.buswidth > sfc->soc_info->max_bus_width ||
++		op->dummy.buswidth > sfc->soc_info->max_bus_width ||
++		op->data.buswidth > sfc->soc_info->max_bus_width) {
++		return false;
++}
++
++	/* Max 32 dummy clock cycles supported */
++	if (op->dummy.nbytes && (op->dummy.nbytes * 8 / op->dummy.buswidth > 32)){
++		return false;
++	}
++
++	/* Max rx data length, check controller limits and alignment */
++	if (op->data.dir == SPI_MEM_DATA_IN &&
++	   (op->data.nbytes > 64 * 4 && !IS_ALIGNED(op->data.nbytes, 4))){
++		return false;
++}
++
++	/* Max tx data length, check controller limits */
++	if (op->data.dir == SPI_MEM_DATA_OUT && op->data.nbytes > 64 * 4) {
++		return false;
++	}
++
++	/* Max 6 bytes address width supported */
++	if (op->addr.nbytes > 6) {
++		return false;
++	}
++
++	return spi_mem_default_supports_op(mem, op);
++}
++
++static void ingenic_sfc_set_transfer_mode(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
++{
++	int val;
++
++	val = readl(sfc->base +
++			(sfc->soc_info->version >= ID_X1600 ? SFC_REG_TRAN_CFG1(0) : SFC_REG_TRAN_CONF(0)));
++	val &= ~sfc->soc_info->tran_mode_mask;
++	if (op->cmd.buswidth == 8)
++		val |= (TRAN_MODE_OCTAL_FULL << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->cmd.buswidth == 4)
++		val |= (TRAN_MODE_QUAD_FULL << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->cmd.buswidth == 2)
++		val |= (TRAN_MODE_DUAL_FULL << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->addr.buswidth == 8)
++		val |= (TRAN_MODE_OCTAL_IO << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->addr.buswidth == 4)
++		val |= (TRAN_MODE_QUAD_IO << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->addr.buswidth == 2)
++		val |= (TRAN_MODE_DUAL_IO << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->data.buswidth == 8)
++		val |= (TRAN_MODE_OCTAL_DATA << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->data.buswidth == 4)
++		val |= (TRAN_MODE_QUAD_DATA << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else if (op->data.buswidth == 2)
++		val |= (TRAN_MODE_DUAL_DATA << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	else
++		val |= (TRAN_MODE_STANDARD << (ffs(sfc->soc_info->tran_mode_mask) - 1)) &
++				sfc->soc_info->tran_mode_mask;
++	writel(val, sfc->base +
++			(sfc->soc_info->version >= ID_X1600 ? SFC_REG_TRAN_CFG1(0) : SFC_REG_TRAN_CONF(0)));
++}
++
++/*
++ * memcpy_{to,from}io doesn't gurantee 32b accesses - which we require for the
++ * SFC_REG_DR register -so use __io{read,write}32_copy when possible. For
++ * trailing bytes, copy them byte-by-byte from the SFC_REG_DR register, as we
++ * can't clobber outside the source/dest buffer.
++ *
++ * For efficient data read/write, we try to put any start 32b unaligned data
++ * into a separate transaction in ingenic_sfc_adjust_op_size().
++ */
++static void ingenic_sfc_read_rxfifo(struct ingenic_sfc *sfc, u8 *to, unsigned int len)
++{
++	void __iomem *from;
++	int i;
++
++	from = sfc->base + SFC_REG_DR;
++
++	for (i = 0; i < DIV_ROUND_UP(len, 4); i++) {
++		u32 val = __raw_readl(from);
++		int j;
++
++		for (j = 0; j < 4 && (j + (i * 4) < len); to++, val >>= 8, j++)
++			*to = (u8)val;
++	}
++}
++
++static void ingenic_sfc_write_txfifo(struct ingenic_sfc *sfc, const u8 *from, unsigned int len)
++{
++	void __iomem *to;
++	int i;
++
++	to = sfc->base + SFC_REG_DR;
++
++	for (i = 0; i < DIV_ROUND_UP(len, 4); i++) {
++		u32 val = 0;
++		int j;
++
++		for (j = 0; j < 4 && (j + (i * 4) < len); from++, j++)
++			val |= *from << j * 8;
++		__raw_writel(val, to);
++	}
++}
++
++static int ingenic_sfc_exec_op_pio(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
++{
++	int ret, val;
++
++	val = readl(sfc->base + SFC_REG_GLB);
++	u32p_replace_bits(&val,
++			op->data.dir == SPI_MEM_DATA_IN ? GLB_TRAN_DIR_READ : GLB_TRAN_DIR_WRITE,
++			GLB_TRAN_DIR_MASK);
++	u32p_replace_bits(&val, GLB_OP_MODE_SLAVE, GLB_OP_MODE_MASK);
++	writel(val, sfc->base + SFC_REG_GLB);
++
++	val = TRAN_CONF_CMD_EN | op->cmd.opcode;
++
++	if (op->addr.nbytes > 0) {
++		val |= FIELD_PREP(TRAN_CONF_ADDR_WIDTH_MASK, op->addr.nbytes);
++
++		writel(op->addr.val & 0xffffffff, sfc->base + SFC_REG_DEV_ADDR(0));
++		writel(op->addr.val >> 32, sfc->base + SFC_REG_DEV_ADDR_PLUS(0));
++	}
++
++	if (op->dummy.nbytes > 0)
++		val |= FIELD_PREP(TRAN_CONF_DMY_BITS_MASK, op->dummy.nbytes * 8 / op->dummy.buswidth);
++
++	if (op->data.nbytes > 0)
++		val |= TRAN_CONF_DATA_EN;
++
++	writel(val, sfc->base + SFC_REG_TRAN_CONF(0));
++	writel(op->data.nbytes, sfc->base + SFC_REG_TRAN_LEN);
++
++	ingenic_sfc_set_transfer_mode(sfc, op);
++
++	writel(0x1f, sfc->base + SFC_REG_SCR);
++	writel(~(INTC_MASK_END | INTC_MASK_RREQ), sfc->base + SFC_REG_INTC);
++
++	writel(0, sfc->base + SFC_REG_MEM_ADDR);
++
++	writel(TRIG_FLUSH, sfc->base + SFC_REG_TRIG);
++	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
++
++	if (op->data.dir == SPI_MEM_DATA_OUT)
++		ingenic_sfc_write_txfifo(sfc, op->data.buf.out, op->data.nbytes);
++
++	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
++	if (!ret) {
++		writel(0x1f, sfc->base + SFC_REG_INTC);
++		writel(0x1f, sfc->base + SFC_REG_SCR);
++		dev_err(sfc->dev, "SFC PIO timeout: SR=0x%08x GLB=0x%08x CONF=0x%08x\n",
++			readl(sfc->base + SFC_REG_SR),
++			readl(sfc->base + SFC_REG_GLB),
++			readl(sfc->base + SFC_REG_TRAN_CONF(0)));
++		return -ETIMEDOUT;
++	}
++
++	if (op->data.dir == SPI_MEM_DATA_IN) {
++		ingenic_sfc_read_rxfifo(sfc, op->data.buf.in, op->data.nbytes);
++		readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10, 0);
++	}
++
++	writel(INTC_MASK_END | INTC_MASK_RREQ, sfc->base + SFC_REG_SCR);
++	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
++
++	return 0;
++}
++
++static int ingenic_sfc_exec_op_dma(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
++{
++	int ret, val;
++
++	// printk(KERN_INFO "sfc_dma: nbytes = %u, dir = %d, addr = 0x%08lx\n", op->data.nbytes, op->data.dir, op->data.dir == SPI_MEM_DATA_IN ? (uintptr_t)op->data.buf.in : (uintptr_t)op->data.buf.out);
++
++	val = readl(sfc->base + SFC_REG_GLB);
++	u32p_replace_bits(&val,
++			op->data.dir == SPI_MEM_DATA_IN ? GLB_TRAN_DIR_READ : GLB_TRAN_DIR_WRITE,
++			GLB_TRAN_DIR_MASK);
++	u32p_replace_bits(&val, GLB_OP_MODE_DMA, GLB_OP_MODE_MASK);
++	writel(val, sfc->base + SFC_REG_GLB);
++
++	val = TRAN_CONF_CMD_EN | op->cmd.opcode;
++
++	if (op->addr.nbytes > 0) {
++		val |= FIELD_PREP(TRAN_CONF_ADDR_WIDTH_MASK, op->addr.nbytes);
++		writel(op->addr.val & 0xffffffff, sfc->base + SFC_REG_DEV_ADDR(0));
++		writel(op->addr.val >> 32, sfc->base + SFC_REG_DEV_ADDR_PLUS(0));
++	}
++
++	if (op->dummy.nbytes > 0)
++		val |= FIELD_PREP(TRAN_CONF_DMY_BITS_MASK, op->dummy.nbytes * 8 / op->dummy.buswidth);
++
++	if (op->data.nbytes > 0)
++		val |= TRAN_CONF_DATA_EN;
++
++	writel(val, sfc->base + SFC_REG_TRAN_CONF(0));
++	writel(op->data.nbytes, sfc->base + SFC_REG_TRAN_LEN);
++
++	ingenic_sfc_set_transfer_mode(sfc, op);
++
++	writel(0x1f, sfc->base + SFC_REG_SCR);
++	writel(~INTC_MASK_END, sfc->base + SFC_REG_INTC);
++
++	switch (op->data.dir) {
++	case SPI_MEM_DATA_IN:
++		writel(virt_to_phys(op->data.buf.in), sfc->base + SFC_REG_MEM_ADDR);
++		dma_sync_single_for_device(sfc->dev, virt_to_phys(op->data.buf.in),
++				op->data.nbytes, DMA_FROM_DEVICE);
++		break;
++
++	case SPI_MEM_DATA_OUT:
++		writel(virt_to_phys(op->data.buf.out), sfc->base + SFC_REG_MEM_ADDR);
++		dma_sync_single_for_device(sfc->dev, virt_to_phys(op->data.buf.out),
++				op->data.nbytes, DMA_TO_DEVICE);
++		break;
++
++	default:
++		return -EINVAL;
++	}
++
++	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
++
++	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
++	if (!ret) {
++		writel(0x1f, sfc->base + SFC_REG_INTC);
++		writel(0x1f, sfc->base + SFC_REG_SCR);
++		dev_err(sfc->dev, "line:%d Timeout for ACK from SFC device\n", __LINE__);
++		return -ETIMEDOUT;
++	}
++
++	if (op->data.dir == SPI_MEM_DATA_IN)
++		dma_sync_single_for_cpu(sfc->dev, virt_to_phys(op->data.buf.in),
++				op->data.nbytes, DMA_FROM_DEVICE);
++
++	writel(INTC_MASK_END, sfc->base + SFC_REG_SCR);
++	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
++
++	return 0;
++}
++
++static int ingenic_sfc_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
++{
++	struct spi_device *spi = mem->spi;
++	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++
++	reinit_completion(&sfc->completion);
++
++	return ingenic_sfc_exec_op_pio(sfc, op);
++	// if (ingenic_sfc_dma_eligible(sfc, op))
++	// 	return ingenic_sfc_exec_op_dma(sfc, op);
++	// else
++	// 	return ingenic_sfc_exec_op_pio(sfc, op);
++}
++
++static int ingenic_sfc_poll_status(struct spi_mem *mem, const struct spi_mem_op *op,
++			u16 mask, u16 match, unsigned long initial_delay_us,
++			unsigned long polling_delay_us, unsigned long timeout_ms)
++{
++	struct spi_device *spi = mem->spi;
++	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++	int ret, val;
++
++	//init_completion(&sfc->completion);
++
++	val = readl(sfc->base + SFC_REG_GLB);
++	u32p_replace_bits(&val, GLB_TRAN_DIR_READ, GLB_TRAN_DIR_MASK);
++	u32p_replace_bits(&val, GLB_OP_MODE_SLAVE, GLB_OP_MODE_MASK);
++	writel(val, sfc->base + SFC_REG_GLB);
++
++	writel(match, sfc->base + SFC_REG_DEV_STA_EXP);
++	writel(mask, sfc->base + SFC_REG_DEV_STA_MSK);
++
++	val = TRAN_CONF_POLL_EN | TRAN_CONF_CMD_EN | op->cmd.opcode;
++
++	if (op->addr.nbytes > 0) {
++		val |= FIELD_PREP(TRAN_CONF_ADDR_WIDTH_MASK, op->addr.nbytes);
++
++		writel(op->addr.val & 0xffffffff, sfc->base + SFC_REG_DEV_ADDR(0));
++		writel(op->addr.val >> 32, sfc->base + SFC_REG_DEV_ADDR_PLUS(0));
++	}
++
++	if (op->dummy.nbytes > 0)
++		val |= FIELD_PREP(TRAN_CONF_DMY_BITS_MASK, op->dummy.nbytes * 8 / op->dummy.buswidth);
++
++	if (op->data.nbytes > 0)
++		val |= TRAN_CONF_DATA_EN;
++
++	writel(val, sfc->base + SFC_REG_TRAN_CONF(0));
++	writel(op->data.nbytes, sfc->base + SFC_REG_TRAN_LEN);
++
++	ingenic_sfc_set_transfer_mode(sfc, op);
++
++	writel(0x1f, sfc->base + SFC_REG_SCR);
++	writel(~INTC_MASK_END, sfc->base + SFC_REG_INTC);
++
++	writel(0, sfc->base + SFC_REG_MEM_ADDR);
++
++	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
++
++	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
++	if (!ret) {
++		writel(0x1f, sfc->base + SFC_REG_INTC);
++		writel(0x1f, sfc->base + SFC_REG_SCR);
++		dev_err(sfc->dev, "line:%d Timeout for ACK from SFC device\n", __LINE__);
++		return -ETIMEDOUT;
++	}
++
++	writel(SCR_CLR_END, sfc->base + SFC_REG_SCR);
++	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
++
++	return 0;
++}
++
++static const struct spi_controller_mem_ops ingenic_sfc_mem_ops = {
++	.adjust_op_size = ingenic_sfc_adjust_op_size,
++	.supports_op = ingenic_sfc_supports_op,
++	.exec_op = ingenic_sfc_exec_op,
++	.poll_status = ingenic_sfc_poll_status,
++};
++
++static int ingenic_sfc_setup(struct spi_device *spi)
++{
++	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++	unsigned long rate;
++	int ret, val;
++
++	if (!spi->max_speed_hz)
++		return -EINVAL;
++
++	/* Skip clk_set_rate — use U-Boot's SFC clock config.
++	 * The Ingenic CGU SSICDR CE/BUSY bit handling can break
++	 * the working clock configuration set by the bootloader.
++	 */
++
++	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
++
++	/* X1000 need set to 0, but X2000 can be set to 1 */
++	writel(0, sfc->base + SFC_REG_CGE);
++
++	val = readl(sfc->base + SFC_REG_GLB);
++	u32p_replace_bits(&val, 64 - 1, GLB_THRESHOLD_MASK);
++	u32p_replace_bits(&val, GLB_BURST_MD_INCR8, GLB_BURST_MD_MASK);
++	writel(val, sfc->base + SFC_REG_GLB);
++
++	val = readl(sfc->base + SFC_REG_DEV_CONF);
++
++	/* cpha bit:0 , cpol bit:0 */
++	val &= ~(DEV_CONF_CPHA | DEV_CONF_CPOL);
++	val |= spi->mode & SPI_CPHA ? DEV_CONF_CPHA : 0;
++	val |= spi->mode & SPI_CPOL ? DEV_CONF_CPOL : 0;
++
++	/* ce_dl bit:1, hold bit:1, wp bit:1 */
++	val |= (DEV_CONF_CE_DL | DEV_CONF_HOLD_DL | DEV_CONF_WP_DL);
++
++	writel(val, sfc->base + SFC_REG_DEV_CONF);
++
++	val = readl(sfc->base + SFC_REG_GLB);
++	u32p_replace_bits(&val, GLB_OP_MODE_SLAVE, GLB_OP_MODE_MASK);
++	writel(val, sfc->base + SFC_REG_GLB);
++
++	rate = clk_get_rate(sfc->clk);
++	val = readl(sfc->base + SFC_REG_DEV_CONF);
++	if (sfc->soc_info->version >= ID_X1600 && rate >= 200000000)
++		u32p_replace_bits(&val, DEV_CONF_SMP_DELAY_180DEG, DEV_CONF_SMP_DELAY_MASK);
++	else if (sfc->soc_info->version == ID_X1000 && rate >= 100000000)
++		u32p_replace_bits(&val, DEV_CONF_SMP_DELAY_HALF_CYCLE, DEV_CONF_SMP_DELAY_MASK);
++	writel(val, sfc->base + SFC_REG_DEV_CONF);
++
++	return 0;
++}
++
++static int ingenic_sfc_probe(struct platform_device *pdev)
++{
++	struct ingenic_sfc *sfc;
++	struct spi_controller *ctlr;
++	int ret;
++
++	ctlr = spi_alloc_host(&pdev->dev, sizeof(*sfc));
++	if (!ctlr)
++		return -ENOMEM;
++
++	sfc = spi_controller_get_devdata(ctlr);
++
++	sfc->soc_info = of_device_get_match_data(&pdev->dev);
++	if (!sfc->soc_info) {
++		dev_err(&pdev->dev, "No of match data provided\n");
++		ret = -ENODEV;
++		goto err_put_master;
++	}
++
++	sfc->base = devm_platform_ioremap_resource(pdev, 0);
++	if (IS_ERR(sfc->base)) {
++		ret = PTR_ERR(sfc->base);
++		goto err_put_master;
++	}
++
++	sfc->clk = devm_clk_get(&pdev->dev, "sfc");
++	if (IS_ERR(sfc->clk)) {
++		ret = IS_ERR(sfc->clk);
++		goto err_put_master;
++	}
++
++	ret = clk_prepare_enable(sfc->clk);
++	if (ret)
++		goto err_put_master;
++
++	sfc->irq = platform_get_irq(pdev, 0);
++	if (sfc->irq < 0) {
++		ret = sfc->irq;
++		goto err_put_master;
++	}
++
++	sfc->dev = &pdev->dev;
++
++	platform_set_drvdata(pdev, sfc);
++
++	/* Clear any pending interrupts from U-Boot */
++	writel(0x1f, sfc->base + SFC_REG_SCR);
++	writel(0x1f, sfc->base + SFC_REG_INTC);
++
++	ret = devm_request_irq(&pdev->dev, sfc->irq, ingenic_sfc_irq_handler, 0,
++			dev_name(&pdev->dev), sfc);
++	if (ret) {
++		dev_err(&pdev->dev, "Failed to request irq%d, ret = %d\n", sfc->irq, ret);
++		goto err_put_master;
++	}
++
++	init_completion(&sfc->completion);
++
++	ctlr->bus_num = -1;
++	ctlr->num_chipselect = 1;
++	ctlr->mem_ops = &ingenic_sfc_mem_ops;
++	ctlr->dev.of_node = pdev->dev.of_node;
++	ctlr->setup = ingenic_sfc_setup;
++	ctlr->mode_bits = SPI_CPHA | SPI_CPOL |
++			SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_DUAL | SPI_TX_QUAD;
++	if (sfc->soc_info->version >= ID_X2000)
++		ctlr->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
++
++	ret = devm_spi_register_controller(&pdev->dev, ctlr);
++	if (ret)
++		goto err_put_master;
++
++	return 0;
++
++err_put_master:
++	spi_controller_put(ctlr);
++
++	return ret;
++}
++
++static const struct ingenic_soc_info x1000_soc_info = {
++	.version = ID_X1000,
++
++	.max_bus_width = 4,
++
++	.tran_mode_mask = TRAN_CONF_TRAN_MODE_MASK,
++};
++
++static const struct ingenic_soc_info x1600_soc_info = {
++	.version = ID_X1600,
++
++	.max_bus_width = 4,
++
++	.tran_mode_mask = TRAN_CONF_TRAN_MODE_MASK,
++};
++
++static const struct ingenic_soc_info x2000_soc_info = {
++	.version = ID_X2000,
++
++	.max_bus_width = 8,
++
++	.tran_mode_mask = TRAN_CFG1_TRAN_MODE_MASK,
++};
++
++static const struct of_device_id ingenic_sfc_of_matches[] = {
++	{ .compatible = "ingenic,x1000-sfc", .data = &x1000_soc_info },
++	{ .compatible = "ingenic,x1600-sfc", .data = &x1600_soc_info },
++	{ .compatible = "ingenic,x1700-sfc", .data = &x1600_soc_info },
++	{ .compatible = "ingenic,x1830-sfc", .data = &x1000_soc_info },
++	{ .compatible = "ingenic,t31-sfc", .data = &x1000_soc_info },
++	{ .compatible = "ingenic,x2000-sfc", .data = &x2000_soc_info },
++	{ .compatible = "ingenic,x2500-sfc", .data = &x2000_soc_info },
++	{ /* sentinel */ }
++};
++MODULE_DEVICE_TABLE(of, ingenic_sfc_of_matches);
++
++static struct platform_driver ingenic_sfc_driver = {
++	.driver = {
++		.name = "ingenic-sfc",
++		.of_match_table = ingenic_sfc_of_matches,
++	},
++	.probe = ingenic_sfc_probe,
++};
++module_platform_driver(ingenic_sfc_driver);
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>");
++MODULE_DESCRIPTION("Ingenic SoCs SPI Flash Controller Driver");
+diff --git a/drivers/tty/serial/8250/8250_ingenic.c b/drivers/tty/serial/8250/8250_ingenic.c
+index 94542fc..4a713c0 100644
+--- a/drivers/tty/serial/8250/8250_ingenic.c
++++ b/drivers/tty/serial/8250/8250_ingenic.c
+@@ -168,6 +168,9 @@ OF_EARLYCON_DECLARE(jz4780_uart, "ingenic,jz4780-uart",
+ OF_EARLYCON_DECLARE(x1000_uart, "ingenic,x1000-uart",
+ 		    ingenic_early_console_setup);
+ 
++OF_EARLYCON_DECLARE(t31_uart, "ingenic,t31-uart",
++		    ingenic_early_console_setup);
++
+ static void ingenic_uart_serial_out(struct uart_port *p, unsigned int offset, u32 value)
+ {
+ 	u32 ier;
+@@ -351,6 +354,7 @@ static const struct of_device_id of_match[] = {
+ 	{ .compatible = "ingenic,jz4775-uart", .data = &jz4760_uart_config },
+ 	{ .compatible = "ingenic,jz4780-uart", .data = &jz4780_uart_config },
+ 	{ .compatible = "ingenic,x1000-uart", .data = &x1000_uart_config },
++	{ .compatible = "ingenic,t31-uart", .data = &x1000_uart_config },
+ 	{ /* sentinel */ }
+ };
+ MODULE_DEVICE_TABLE(of, of_match);
+diff --git a/drivers/usb/dwc2/core.c b/drivers/usb/dwc2/core.c
+index f375c51..e37d483 100644
+--- a/drivers/usb/dwc2/core.c
++++ b/drivers/usb/dwc2/core.c
+@@ -423,6 +423,20 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
+ 		}
+ 	}
+ 
++#ifdef CONFIG_MACH_INGENIC
++	/*
++	 * On Ingenic T-series SoCs writing CSFTRST to GRSTCTL takes the
++	 * DWC2 AHB slave offline; XBurst1 has no bus timeout, so the
++	 * next register access hangs the CPU. The controller is already
++	 * reset by SRBC in the phy-ingenic-usb probe, so the GRSTCTL
++	 * dance and the AHBIDLE wait are unnecessary.
++	 */
++	dwc2_clear_fifo_map(hsotg);
++	if (wait_for_host_mode && !skip_wait)
++		dwc2_wait_for_mode(hsotg, true);
++	return 0;
++#endif
++
+ 	/* Core Soft Reset */
+ 	greset = dwc2_readl(hsotg, GRSTCTL);
+ 	greset |= GRSTCTL_CSFTRST;
+@@ -924,6 +938,12 @@ int dwc2_hsotg_wait_bit_set(struct dwc2_hsotg *hsotg, u32 offset, u32 mask,
+ {
+ 	u32 i;
+ 
++#ifdef CONFIG_MACH_INGENIC
++	if (offset == GRSTCTL) {
++		udelay(10);
++		return 0;
++	}
++#endif
+ 	for (i = 0; i < timeout; i++) {
+ 		if (dwc2_readl(hsotg, offset) & mask)
+ 			return 0;
+@@ -947,6 +967,12 @@ int dwc2_hsotg_wait_bit_clear(struct dwc2_hsotg *hsotg, u32 offset, u32 mask,
+ {
+ 	u32 i;
+ 
++#ifdef CONFIG_MACH_INGENIC
++	if (offset == GRSTCTL) {
++		udelay(10);
++		return 0;
++	}
++#endif
+ 	for (i = 0; i < timeout; i++) {
+ 		if (!(dwc2_readl(hsotg, offset) & mask))
+ 			return 0;
+@@ -1204,9 +1230,9 @@ int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
+ 
+ 	if (!hsotg->params.activate_ingenic_overcurrent_detection) {
+ 		if (dwc2_is_host_mode(hsotg)) {
+-			otgctl = readl(hsotg->regs + GOTGCTL);
++			otgctl = dwc2_readl(hsotg, GOTGCTL);
+ 			otgctl |= GOTGCTL_VBVALOEN | GOTGCTL_VBVALOVAL;
+-			writel(otgctl, hsotg->regs + GOTGCTL);
++			dwc2_writel(hsotg, otgctl, GOTGCTL);
+ 		}
+ 	}
+ 
+diff --git a/drivers/usb/dwc2/core.h b/drivers/usb/dwc2/core.h
+index 767251a..b51e560 100644
+--- a/drivers/usb/dwc2/core.h
++++ b/drivers/usb/dwc2/core.h
+@@ -1233,7 +1233,11 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+ {
+ 	u32 val;
+ 
++#ifdef CONFIG_MACH_INGENIC
++	val = __raw_readl(hsotg->regs + offset);
++#else
+ 	val = readl(hsotg->regs + offset);
++#endif
+ 	if (hsotg->needs_byte_swap)
+ 		return swab32(val);
+ 	else
+@@ -1243,9 +1247,13 @@ static inline u32 dwc2_readl(struct dwc2_hsotg *hsotg, u32 offset)
+ static inline void dwc2_writel(struct dwc2_hsotg *hsotg, u32 value, u32 offset)
+ {
+ 	if (hsotg->needs_byte_swap)
+-		writel(swab32(value), hsotg->regs + offset);
+-	else
+-		writel(value, hsotg->regs + offset);
++		value = swab32(value);
++
++#ifdef CONFIG_MACH_INGENIC
++	__raw_writel(value, hsotg->regs + offset);
++#else
++	writel(value, hsotg->regs + offset);
++#endif
+ 
+ #ifdef DWC2_LOG_WRITES
+ 	pr_info("info:: wrote %08x to %p\n", value, hsotg->regs + offset);
+diff --git a/drivers/usb/dwc2/platform.c b/drivers/usb/dwc2/platform.c
+index ef0d730..1dcbeb6 100644
+--- a/drivers/usb/dwc2/platform.c
++++ b/drivers/usb/dwc2/platform.c
+@@ -385,7 +385,11 @@ static bool dwc2_check_core_endianness(struct dwc2_hsotg *hsotg)
+ {
+ 	u32 snpsid;
+ 
++#ifdef CONFIG_MACH_INGENIC
++	snpsid = __raw_readl(hsotg->regs + GSNPSID);
++#else
+ 	snpsid = ioread32(hsotg->regs + GSNPSID);
++#endif
+ 	if ((snpsid & GSNPSID_ID_MASK) == DWC2_OTG_ID ||
+ 	    (snpsid & GSNPSID_ID_MASK) == DWC2_FS_IOT_ID ||
+ 	    (snpsid & GSNPSID_ID_MASK) == DWC2_HS_IOT_ID)
+diff --git a/include/dt-bindings/clock/ingenic,t31-cgu.h b/include/dt-bindings/clock/ingenic,t31-cgu.h
+new file mode 100644
+index 0000000..8e67cf5
+--- /dev/null
++++ b/include/dt-bindings/clock/ingenic,t31-cgu.h
+@@ -0,0 +1,70 @@
++/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
++/*
++ * This header provides clock numbers for the ingenic,t31-cgu DT binding.
++ *
++ * They are roughly ordered as:
++ *   - external clocks
++ *   - PLLs
++ *   - muxes/dividers in the order they appear in the T31 programmers manual
++ *   - gates in order of their bit in the CLKGR* registers
++ */
++
++#ifndef __DT_BINDINGS_CLOCK_T31_CGU_H__
++#define __DT_BINDINGS_CLOCK_T31_CGU_H__
++
++#define T31_CLK_EXCLK		0
++#define T31_CLK_RTCLK		1
++#define T31_CLK_APLL		2
++#define T31_CLK_MPLL		3
++#define T31_CLK_VPLL		4
++#define T31_CLK_OTGPHY		5
++#define T31_CLK_SCLKA		6
++#define T31_CLK_CPUMUX		7
++#define T31_CLK_CPU		8
++#define T31_CLK_L2CACHE		9
++#define T31_CLK_AHB0		10
++#define T31_CLK_AHB2		11
++#define T31_CLK_PCLK		12
++#define T31_CLK_DDR		13
++#define T31_CLK_MAC		14
++#define T31_CLK_LCD		15
++#define T31_CLK_MSCMUX		16
++#define T31_CLK_MSC0		17
++#define T31_CLK_MSC1		18
++#define T31_CLK_SSIPLL		19
++#define T31_CLK_ISP		20
++#define T31_CLK_CIM		21
++#define T31_CLK_RSA		22
++#define T31_CLK_EL150		23
++#define T31_CLK_NEMC		24
++#define T31_CLK_EFUSE		25
++#define T31_CLK_OTG		26
++#define T31_CLK_SSI0		27
++#define T31_CLK_SSI1		28
++#define T31_CLK_SMB0		29
++#define T31_CLK_SMB1		30
++#define T31_CLK_UART0		31
++#define T31_CLK_UART1		32
++#define T31_CLK_UART2		33
++#define T31_CLK_DMIC		34
++#define T31_CLK_AIC		35
++#define T31_CLK_SFC		36
++#define T31_CLK_PDMA		37
++#define T31_CLK_TCU		38
++#define T31_CLK_DES		39
++#define T31_CLK_HASH		40
++#define T31_CLK_MIPI_CSI	41
++#define T31_CLK_RISCV		42
++#define T31_CLK_SADC		43
++#define T31_CLK_SLV		44
++#define T31_CLK_AHB1		45
++#define T31_CLK_AES		46
++#define T31_CLK_GMAC		47
++#define T31_CLK_IPU		48
++#define T31_CLK_DTRNG		49
++#define T31_CLK_OST		50
++#define T31_CLK_EXCLK_DIV512	51
++#define T31_CLK_RTC		52
++#define T31_CLK_USBPHY		53
++
++#endif /* __DT_BINDINGS_CLOCK_T31_CGU_H__ */

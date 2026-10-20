@@ -1,0 +1,39 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] spi: spi-ingenic-sfc: bound the PIO RX SR_END poll
+
+The PIO read path polls SFC_REG_SR for SR_END with a timeout of 0, which
+readl_poll_timeout() treats as "no timeout" and spins forever if SR_END
+never asserts. Give it a real timeout and log the SFC state on failure
+so a stuck transfer is diagnosable instead of hanging the boot.
+
+Verified readable on the T31: the SFDP (0x5a) and page-read (0x03) paths
+step through this poll and SR_END is seen, so the transfer completes; this
+change only converts a would-be infinite loop into a bounded failure.
+
+--- a/drivers/spi/spi-ingenic-sfc.c
++++ b/drivers/spi/spi-ingenic-sfc.c
+@@ -126,6 +126,7 @@
+ #define TRAN_MODE_OCTAL_FULL			11
+ 
+ #define SFC_TRANSFER_TIMEOUT			1000
++#define SFC_POLL_TIMEOUT_US			100000
+ 
+ enum ingenic_sfc_version {
+ 	ID_X1000,
+@@ -377,7 +378,15 @@ static int ingenic_sfc_exec_op_pio(struct ingenic_sfc *sfc, const struct spi_mem
+ 
+ 	if (op->data.dir == SPI_MEM_DATA_IN) {
+ 		ingenic_sfc_read_rxfifo(sfc, op->data.buf.in, op->data.nbytes);
+-		readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10, 0);
++		ret = readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10,
++					 SFC_POLL_TIMEOUT_US);
++		if (ret)
++			dev_err(sfc->dev,
++				"SFC read failed to see SR_END: SR=0x%08x GLB=0x%08x CONF=0x%08x len=%u\n",
++				readl(sfc->base + SFC_REG_SR),
++				readl(sfc->base + SFC_REG_GLB),
++				readl(sfc->base + SFC_REG_TRAN_CONF(0)),
++				op->data.nbytes);
+ 	}
+ 
+ 	writel(INTC_MASK_END | INTC_MASK_RREQ, sfc->base + SFC_REG_SCR);

@@ -1,0 +1,44 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] dt-bindings: pinctrl: add Ingenic GPIO bias compat shim
+
+The shared per-camera GPIO fragments in configs/cameras/<board>/<board>.dtsi
+are written for the Ingenic vendor trees and #include
+<dt-bindings/pinctrl/ingenic-pinctrl.h> plus the vendor GPIO bias macros
+(INGENIC_GPIO_NOBIAS/PULLUP/PULLDOWN) as a third GPIO cell. The mainline
+tree has neither the header nor the third cell, so every such fragment
+fails to compile.
+
+Provide the header with the vendor bias selectors defined empty. The
+three-cell vendor form then collapses to the two-cell mainline form
+(<&gpa pin GPIO_ACTIVE_*>), so the same fragment compiles on both, with
+the bias left at the pin's reset default.
+
+--- /dev/null
++++ b/include/dt-bindings/pinctrl/ingenic-pinctrl.h
+@@ -0,0 +1,26 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Ingenic pinctrl/GPIO DT bindings, mainline compatibility shim.
++ *
++ * The Ingenic vendor trees (3.10/4.4) describe a GPIO as three cells:
++ *
++ *	<&gpa pin GPIO_ACTIVE_* INGENIC_GPIO_NOBIAS>
++ *
++ * where the third cell is a pin bias selector. The mainline pinctrl-ingenic
++ * binding is two cells (<&gpa pin GPIO_ACTIVE_*>); the bias is a pinctrl
++ * property rather than a GPIO flag.
++ *
++ * The shared per-camera GPIO fragments in every camera profile directory are
++ * written in the vendor three-cell form and #include this header. Defining the vendor
++ * bias selectors empty makes those fragments expand to the two-cell mainline
++ * form when built against mainline, while the vendor trees keep their own
++ * valued definitions. The bias is then left at the pin's reset default.
++ */
++#ifndef __DT_BINDINGS_INGENIC_PINCTRL_H__
++#define __DT_BINDINGS_INGENIC_PINCTRL_H__
++
++#define INGENIC_GPIO_NOBIAS
++#define INGENIC_GPIO_PULLUP
++#define INGENIC_GPIO_PULLDOWN
++
++#endif /* __DT_BINDINGS_INGENIC_PINCTRL_H__ */

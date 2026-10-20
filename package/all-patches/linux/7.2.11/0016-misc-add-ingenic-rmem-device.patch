@@ -1,0 +1,148 @@
+From: Thingino <dev@thingino.com>
+Subject: [PATCH] misc: add the Ingenic reserved-memory (rmem) device
+
+The vendor libimp allocator does not allocate ISP buffers itself: it
+mmaps the reserved rmem region through /dev/rmem and flushes it with
+an ioctl. The T31 bootargs reserve the region (rmem=22M@0x2a00000,
+outside the mem= limit), but 7.x has no rmem driver, so open() fails
+and IMP_Alloc reports "alloc init failed". IMP_ISP_AddSensor then
+fails after a successful sensor registration and the streamer never
+starts.
+
+Port the small vendor misc driver: map the pfn passed as the mmap
+offset (the physical rmem base) and expose it to libimp. The mapping
+is uncached so the buffer stays coherent with the ISP DMA engines and
+the flush ioctl needs no cache maintenance on 7.x, which no longer
+exports the virtual-address dma_cache_sync() the vendor driver used.
+The region is reserved by the boot argument; the driver only exposes
+it, it does not allocate.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+---
+--- /dev/null
++++ b/drivers/misc/rmem.c
+@@ -0,0 +1,100 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Ingenic reserved-memory device for libimp.
++ *
++ * libimp mmaps the reserved rmem region through this device and uses
++ * the ioctl to keep the non-coherent mapping in sync.  The region
++ * itself is reserved by the "rmem=" boot argument; this driver only
++ * exposes it to user space.
++ */
++
++#include <linux/fs.h>
++#include <linux/io.h>
++#include <linux/miscdevice.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/uaccess.h>
++#include <asm/pgtable.h>
++
++#define RMEM_MAGIC			'r'
++#define RMEM_CMD_FLUSH_CACHE		_IOWR(RMEM_MAGIC, 0, struct rmem_flush_cache_info)
++
++struct rmem_flush_cache_info {
++	unsigned int addr;
++	unsigned int len;
++	unsigned int dir;
++};
++
++static int rmem_open(struct inode *inode, struct file *filp)
++{
++	return 0;
++}
++
++static int rmem_release(struct inode *inode, struct file *filp)
++{
++	return 0;
++}
++
++/*
++ * The mapping is uncached, so the buffer is coherent with the ISP DMA
++ * engines and no cache maintenance is required.  Keep the ioctl so the
++ * libimp allocator's ABI is complete.
++ */
++static long rmem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
++{
++	struct rmem_flush_cache_info info;
++
++	if (cmd != RMEM_CMD_FLUSH_CACHE)
++		return -EINVAL;
++
++	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
++		return -EFAULT;
++
++	return 0;
++}
++
++static int rmem_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	vm_flags_set(vma, VM_IO);
++
++	pgprot_val(vma->vm_page_prot) &= ~_CACHE_MASK;
++	pgprot_val(vma->vm_page_prot) |= _CACHE_UNCACHED;
++
++	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
++			       vma->vm_end - vma->vm_start,
++			       vma->vm_page_prot))
++		return -EAGAIN;
++
++	return 0;
++}
++
++static const struct file_operations rmem_fops = {
++	.owner		= THIS_MODULE,
++	.open		= rmem_open,
++	.release	= rmem_release,
++	.unlocked_ioctl	= rmem_ioctl,
++	.mmap		= rmem_mmap,
++};
++
++static struct miscdevice rmem_mdev = {
++	.minor	= MISC_DYNAMIC_MINOR,
++	.name	= "rmem",
++	.fops	= &rmem_fops,
++	.mode	= 0600,
++};
++
++static int __init rmem_init(void)
++{
++	return misc_register(&rmem_mdev);
++}
++
++static void __exit rmem_exit(void)
++{
++	misc_deregister(&rmem_mdev);
++}
++
++module_init(rmem_init);
++module_exit(rmem_exit);
++
++MODULE_LICENSE("GPL v2");
++MODULE_DESCRIPTION("Ingenic reserved memory device");
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -661,4 +661,13 @@
+ source "drivers/misc/keba/Kconfig"
+ source "drivers/misc/amd-sbi/Kconfig"
+ source "drivers/misc/rp1/Kconfig"
++
++config RMEM
++	bool "Ingenic reserved memory driver (rmem)"
++	default y
++	help
++	  Character device that maps the reserved rmem region (the
++	  "rmem=" boot argument) for the Ingenic libimp allocator and
++	  services its cache-maintenance ioctl.
++
+ endmenu
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -75,3 +75,4 @@
+ obj-y				+= keba/
+ obj-y				+= amd-sbi/
+ obj-$(CONFIG_MISC_RP1)		+= rp1/
++obj-$(CONFIG_RMEM)		+= rmem.o
