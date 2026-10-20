@@ -7,6 +7,21 @@
 # Helper: map bool choice to "true", "false", or "" (default = don't touch)
 raptor_bval = $(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_$(1)_TRUE)),true,$(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_$(1)_FALSE)),false,))
 
+# Mainline sensor drivers are plain V4L2 subdevices and publish nothing under
+# /proc/jz/sensor, so rvd cannot auto-detect the sensor. Fall back to the
+# build-time model and the address from its DT fragment.
+RAPTOR_CONF_SENSOR_NAME := $(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_NAME))
+RAPTOR_CONF_SENSOR_I2C_ADDR := $(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADDR))
+
+ifneq ($(SENSOR_DTSI_FILE),)
+ifeq ($(RAPTOR_CONF_SENSOR_NAME),)
+RAPTOR_CONF_SENSOR_NAME := $(SENSOR_1_MODEL)
+endif
+ifeq ($(RAPTOR_CONF_SENSOR_I2C_ADDR),)
+RAPTOR_CONF_SENSOR_I2C_ADDR := $(shell sed -n 's/.*reg = <\(0x[0-9A-Fa-f]*\)>.*/\1/p' $(SENSOR_DTSI_FILE) | head -n 1)
+endif
+endif
+
 define THINGINO_RAPTOR_PATCH_CONF
 	CONF=$(TARGET_DIR)/etc/raptor.conf; \
 	rset() { \
@@ -22,8 +37,8 @@ define THINGINO_RAPTOR_PATCH_CONF
 		sed -i 's/^# \[sensor1_image\]/[sensor1_image]/' "$$CONF"; \
 	fi; \
 	\
-	rset sensor name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_NAME))"; \
-	rset sensor i2c_addr "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADDR))"; \
+	rset sensor name "$(RAPTOR_CONF_SENSOR_NAME)"; \
+	rset sensor i2c_addr "$(RAPTOR_CONF_SENSOR_I2C_ADDR)"; \
 	rset sensor i2c_adapter "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADAPTER))"; \
 	rset sensor fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_FPS))"; \
 	rset sensor rst_gpio "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_RST_GPIO))"; \
