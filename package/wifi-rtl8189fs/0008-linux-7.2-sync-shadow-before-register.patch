@@ -1,0 +1,28 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.2: sync the addr shadow before registration
+
+register_netdevice() checks dev_addr against dev_addr_shadow. The
+pre-register direct write leaves the shadow zeroed, so the check warns
+at module load. Copy the address into both fields while the netdev is
+still uninitialized; eth_hw_addr_set() is unsafe there because the
+address list does not exist yet.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h
++++ b/include/osdep_service_linux.h
+@@ -54,10 +54,12 @@
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+ #define rtw_set_netdev_addr(dev, addr) do { \
+-	if ((dev)->reg_state == NETREG_UNINITIALIZED) \
++	if ((dev)->reg_state == NETREG_UNINITIALIZED) { \
+ 		_rtw_memcpy((dev)->dev_addr, (addr), ETH_ALEN); \
+-	else \
++		_rtw_memcpy((dev)->dev_addr_shadow, (addr), ETH_ALEN); \
++	} else { \
+ 		eth_hw_addr_set((dev), (addr)); \
++	} \
+ } while (0)
+ #else
+ #define rtw_set_netdev_addr(dev, addr) _rtw_memcpy((dev)->dev_addr, (addr), ETH_ALEN)
