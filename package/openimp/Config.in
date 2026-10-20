@@ -21,6 +21,7 @@ config BR2_PACKAGE_OPENIMP
 	depends on BR2_PACKAGE_THINGINO_ISP_OPEN
 	depends on BR2_THINGINO_DEV_CAMERA
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if BR2_SOC_FAMILY = "t23"
+	select BR2_PACKAGE_TINYALSA if BR2_SOC_FAMILY = "t31" && KERNEL_VERSION_7
 	help
 	  OpenIMP is an open-source implementation of the Ingenic IMP
 	  (Image Media Process) library. It provides a
