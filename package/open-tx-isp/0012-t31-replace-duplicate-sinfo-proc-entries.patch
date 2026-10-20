@@ -1,0 +1,36 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: replace existing sinfo proc entries before creating
+
+The sinfo publish paths can run again after a streamer restart. Procfs
+warns when the same sensor0/<key> or flat vendor file is registered
+twice. Remove the stale entry first so the refresh is silent.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -863,6 +863,8 @@
+ {
+ 	unsigned int n;
+ 
++	if (!dir)
++		return;
+ 	for (n = 0; n < TX_ISP_SINFO_VENDOR_NFILES; ++n) {
+ 		int key = tx_isp_sinfo_vendor_files[n].key;
+ 		bool version = key == TX_ISP_SINFO_NKEYS;
+@@ -875,6 +877,7 @@
+ #else
+ 		ctx = &slot->files[key];
+ #endif
++		remove_proc_entry(tx_isp_sinfo_vendor_files[n].name, dir);
+ 		proc_create_data(tx_isp_sinfo_vendor_files[n].name, 0444, dir,
+ 				 version ? &tx_isp_sinfo_vendor_version_fops :
+ 					   &tx_isp_sinfo_vendor_fops, ctx);
+@@ -1002,6 +1005,7 @@
+ #endif
+ 		if (!tx_isp_sinfo_key_supported(key))
+ 			continue;
++		remove_proc_entry(tx_isp_sinfo_key_name[key], slot->dir);
+ 		proc_create_data(tx_isp_sinfo_key_name[key], 0444, slot->dir,
+ 				 &tx_isp_sinfo_fops,
+ #ifdef TX_ISP_SINFO_STABLE_PROC_SNAPSHOT
