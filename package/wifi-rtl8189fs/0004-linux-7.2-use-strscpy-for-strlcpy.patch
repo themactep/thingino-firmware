@@ -1,0 +1,72 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] linux 7.2: use strscpy for the driver strlcpy calls
+
+strlcpy() was removed from the kernel. Use the kernel strscpy() on
+kernels that provide it and keep strlcpy() for the old 3.10 builds.
+Replace the global strlcpy macro with an explicit rtw_strlcpy alias and
+use it at the five call sites.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h
++++ b/include/osdep_service_linux.h
+@@ -64,21 +64,13 @@
+ 	return dest;
+ }
+ 
+-static inline size_t rtw_strlcpy(char *dest, const char *src, size_t size)
+-{
+-	size_t len = strlen(src);
+-
+-	if (size) {
+-		size_t n = len < size - 1 ? len : size - 1;
+-
+-		memcpy(dest, src, n);
+-		dest[n] = 0;
+-	}
+-	return len;
+-}
+-
+ #define strncpy rtw_strncpy
+-#define strlcpy rtw_strlcpy
++#endif
++
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0))
++#define rtw_strlcpy strscpy
++#else
++#define rtw_strlcpy strlcpy
+ #endif
+ #include <linux/interrupt.h>	/* for struct tasklet_struct */
+ #include <linux/ip.h>
+--- a/os_dep/linux/os_intfs.c
++++ b/os_dep/linux/os_intfs.c
+@@ -2167,13 +2167,13 @@
+ 
+ 	wdev = dev->ieee80211_ptr;
+ 	if (wdev) {
+-		strlcpy(info->driver, wiphy_dev(wdev->wiphy)->driver->name,
++		rtw_strlcpy(info->driver, wiphy_dev(wdev->wiphy)->driver->name,
+ 			sizeof(info->driver));
+ 	} else {
+-		strlcpy(info->driver, "N/A", sizeof(info->driver));
++		rtw_strlcpy(info->driver, "N/A", sizeof(info->driver));
+ 	}
+ 
+-	strlcpy(info->version, DRIVERVERSION, sizeof(info->version));
++	rtw_strlcpy(info->version, DRIVERVERSION, sizeof(info->version));
+ 
+ 	padapter = (_adapter *)rtw_netdev_priv(dev);
+ 	if (padapter) {
+@@ -2184,10 +2184,10 @@
+ 		scnprintf(info->fw_version, sizeof(info->fw_version), "%d.%d",
+ 			  hal_data->firmware_version, hal_data->firmware_sub_version);
+ 	} else {
+-		strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
++		rtw_strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+ 	}
+ 
+-	strlcpy(info->bus_info, dev_name(wiphy_dev(wdev->wiphy)),
++	rtw_strlcpy(info->bus_info, dev_name(wiphy_dev(wdev->wiphy)),
+ 		sizeof(info->bus_info));
+ }
+ 
