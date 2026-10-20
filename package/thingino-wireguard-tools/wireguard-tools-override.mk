@@ -14,6 +14,11 @@ override WIREGUARD_TOOLS_SITE = https://git.zx2c4.com/wireguard-tools/snapshot
 override WIREGUARD_TOOLS_HASH_FILES = \
 	$(BR2_EXTERNAL_THINGINO_PATH)/package/all-patches/wireguard-tools/wireguard-tools.hash
 
+# Modern kernels carry WireGuard in-tree; the compat module covers the rest.
+define WIREGUARD_TOOLS_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_WIREGUARD,m)
+endef
+
 ifeq ($(BR2_PACKAGE_THINGINO_WEBUI),y)
 WIREGUARD_TOOLS_DEPENDENCIES += thingino-webui
 
