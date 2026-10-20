@@ -1,0 +1,25 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: clear a stale sensor proc tree on init
+
+If a previous tx-isp instance left /proc/jz/sensor behind, the next
+module init recreates the directory and its files over the stale ones,
+and procfs warns about duplicate entries. Remove the old subtree before
+creating the fresh one.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/driver/common/tx_isp_sinfo.c
++++ b/driver/common/tx_isp_sinfo.c
+@@ -1482,8 +1482,11 @@
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+ 	/* Mainline procfs no longer accepts a slash in a single entry name. */
+ 	tx_isp_sinfo_jz_root = tx_isp_get_jz_proc_root();
+-	if (tx_isp_sinfo_jz_root)
++	if (tx_isp_sinfo_jz_root) {
++		/* A previous tx-isp instance may have left the tree behind. */
++		remove_proc_subtree("sensor", tx_isp_sinfo_jz_root);
+ 		tx_isp_sinfo_root = proc_mkdir("sensor", tx_isp_sinfo_jz_root);
++	}
+ #else
+ 	tx_isp_sinfo_root = proc_mkdir("jz/sensor", NULL);
+ #endif
