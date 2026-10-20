@@ -1,0 +1,90 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] sound: add the T31 AIC and internal codec nodes
+
+Add the AIC at 0x10020000, the internal codec at 0x10021000 and a
+simple-audio-card to the Thingino T31 board. The AIC uses PDMA request
+lines 6/7 (I2S0 TX/RX) and IRQ 1. The I2S clock is modelled as the 12 MHz
+audio clock the vendor/jzsound path uses; the codec compatible is
+provisional until the T31 codec variant is validated on hardware.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/t31.dtsi
++++ b/arch/mips/boot/dts/ingenic/t31.dtsi
+@@ -279,6 +279,34 @@
+ 		status = "disabled";
+ 	};
+ 
++	aic: audio-controller@10020000 {
++		compatible = "ingenic,jz4780-i2s";
++		reg = <0x10020000 0x1000>;
++
++		#sound-dai-cells = <0>;
++
++		interrupt-parent = <&intc>;
++		interrupts = <1>;
++
++		clocks = <&cgu T31_CLK_AIC>,
++			 <&aic_12m>;
++		clock-names = "aic", "i2s";
++
++		dmas = <&pdma 0x07 0xffffffff>,
++		       <&pdma 0x06 0xffffffff>;
++		dma-names = "rx", "tx";
++	};
++
++	codec: audio-codec@10021000 {
++		compatible = "ingenic,jz4740-codec";
++		reg = <0x10021000 0x1000>;
++
++		#sound-dai-cells = <0>;
++
++		clocks = <&cgu T31_CLK_AIC>;
++		clock-names = "aic";
++	};
++
+ 	pdma: dma-controller@13420000 {
+ 		compatible = "ingenic,x1000-dma";
+ 		reg = <0x13420000 0x400>, <0x13421000 0x40>;
+--- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -7,6 +7,12 @@
+ 	compatible = "thingino,t31", "ingenic,t31";
+ 	model = "Thingino T31 Generic Board";
+ 
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
+ 	aliases {
+ 		serial1 = &uart1;
+ 	};
+@@ -37,6 +43,26 @@
+ 		reg = <0x13300000 0x100000>;
+ 		status = "okay";
+ 	};
++
++	sound {
++		compatible = "simple-audio-card";
++		simple-audio-card,name = "t31-aic";
++
++		simple-audio-card,dai-link@0 {
++			link-name = "t31-aic";
++			format = "i2s";
++			bitclock-master = <&codec>;
++			frame-master = <&codec>;
++
++			cpu {
++				sound-dai = <&aic>;
++			};
++
++			codec {
++				sound-dai = <&codec>;
++			};
++		};
++	};
+ };
+ 
+ &exclk {
