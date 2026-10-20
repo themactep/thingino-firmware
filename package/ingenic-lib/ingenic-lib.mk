@@ -136,17 +136,4 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 	)
 endef
 
-# libimp.so and friends are prebuilt vendor blobs shipped unstripped (~1.1M for
-# libimp alone). Strip them at target-finalize: an install-time strip can be
-# undone by a later package whose per-package target hardlinks the unstripped
-# copy, so do it after every package has been rsynced into TARGET_DIR.
-define INGENIC_LIB_STRIP_TARGET_LIBS
-	@for f in libimp.so libalog.so libsysutils.so libaudioProcess.so; do \
-		if [ -f "$(TARGET_DIR)/usr/lib/$$f" ]; then \
-			$(TARGET_STRIP) "$(TARGET_DIR)/usr/lib/$$f" || true; \
-		fi; \
-	done
-endef
-TARGET_FINALIZE_HOOKS += INGENIC_LIB_STRIP_TARGET_LIBS
-
 $(eval $(generic-package))
