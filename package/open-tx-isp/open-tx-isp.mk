@@ -13,7 +13,7 @@ OPEN_TX_ISP_SITE_METHOD = git
 # that repo's next branch and carries the patches this package used to apply.
 OPEN_TX_ISP_SITE = https://github.com/themactep/open-tx-isp
 OPEN_TX_ISP_SITE_BRANCH = port/mainline-t31-7x
-OPEN_TX_ISP_VERSION = f3dc5c9f6d160f9bd7369a3416039aeede0983a9
+OPEN_TX_ISP_VERSION = 57d16f169e763422b66260c63c5efd65b08938e4
 # external/ingenic-sdk carries the per-SoC sensor IQ tuning blobs
 # (sensor-iq/<soc>/<model>.bin) installed by the open path; see the sensor IQ
 # section below.
