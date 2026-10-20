@@ -239,6 +239,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(@D)/config/S31raptor \
 			$(TARGET_DIR)/etc/init.d/S31raptor; \
 	fi
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S30raptor-sensor-wait \
+		$(TARGET_DIR)/etc/init.d/S30raptor-sensor-wait
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/microphone \

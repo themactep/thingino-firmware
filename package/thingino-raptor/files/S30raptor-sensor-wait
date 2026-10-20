@@ -1,0 +1,34 @@
+#!/bin/sh
+
+set -eu
+
+CONF=/etc/raptor.conf
+TIMEOUT_TENTHS=300
+
+[ -r "$CONF" ] || exit 0
+
+sensor="$(raptorctl config get sensor name 2>/dev/null | tr -d ' \t\r\n' || true)"
+[ -n "$sensor" ] || exit 0
+
+client=""
+for dev in /sys/bus/i2c/devices/*; do
+	[ -r "$dev/name" ] || continue
+	[ "$(cat "$dev/name" 2>/dev/null || true)" = "$sensor" ] || continue
+	client="$dev"
+	if [ -e "$dev/driver" ]; then
+		break
+	fi
+done
+
+# No DT-instantiated client: the vendor sensor module owns bring-up.
+[ -n "$client" ] || exit 0
+
+# Mainline sensor drivers probe asynchronously. tx-isp's AddSensor needs the
+# V4L2 subdev bound, so hold the streamer until the i2c client has a driver.
+i=0
+while [ "$i" -lt "$TIMEOUT_TENTHS" ] && [ ! -e "$client/driver" ]; do
+	usleep 100000
+	i=$((i + 1))
+done
+
+exit 0
