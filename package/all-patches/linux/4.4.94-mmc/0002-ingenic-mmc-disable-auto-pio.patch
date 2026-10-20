@@ -1,0 +1,19 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mmc: ingenic: use DMA for all data transfers
+
+Small transfers (sg_len == 1 and length < PIO_THRESHOLD, 64 bytes) are
+switched to the PIO path, whose read handler hangs waiting for
+STAT_DATA_TRAN_DONE. SDIO function drivers issue small CMD53 transfers, so
+the card enumerates but every data access times out. Use the DMA path for
+all data by lowering the auto-PIO threshold to 0.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ drivers/mmc/host/ingenic_mmc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/drivers/mmc/host/ingenic_mmc.c
++++ b/drivers/mmc/host/ingenic_mmc.c
+@@ -42,1 +42,1 @@
+-#define PIO_THRESHOLD		64	/* use pio mode if data length < PIO_THRESHOLD */
++#define PIO_THRESHOLD		0	/* use pio mode if data length < PIO_THRESHOLD */
