@@ -202,8 +202,8 @@ else
 	ha_clear_disc sensor gain
 fi
 
-# Sensor: Brightness, written by daynightd, so skip discovery without it
-if ha_entity_enabled brightness && command -v daynightd >/dev/null 2>&1; then
+# Sensor: Brightness
+if ha_entity_enabled brightness; then
 	ha_pub_disc sensor brightness \
 		"{\"name\":\"Brightness\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_brightness\",\"state_topic\":\"${ST}/brightness/state\",\"unit_of_measurement\":\"%\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-percent\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
 else

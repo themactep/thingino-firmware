@@ -241,6 +241,7 @@ fi
 
 if ha_entity_enabled brightness; then
 	brightness=$(cat /run/thingino/daynight_brightness 2>/dev/null)
+	[ -n "$brightness" ] || brightness=$(ha_json_get "$(ha_agent runtime heartbeat)" daynight_brightness)
 	case "$brightness" in
 		'' | *[!0-9]*) ;;
 		*) ha_pub_state brightness "$brightness" "$FORCE" ;;
