@@ -2,7 +2,6 @@
   "gpio": {
     "ir940": 72,
     "ircut": "25 26",
-    "mmc_cd": 59,
     "mmc_power": 43,
     "usb_en": 47,
     "wlan": 60

@@ -1,0 +1,36 @@
+// EC76-U15 (T21N, JXF23, RTL8188FTV) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpc 14 GPIO_ACTIVE_HIGH INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};
+
+/* Card detect; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpb 20 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};
+
+/ {
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpb 27 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+};

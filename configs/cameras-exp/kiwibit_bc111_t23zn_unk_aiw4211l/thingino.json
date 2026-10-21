@@ -5,7 +5,6 @@
     "led_b": 49,
     "led_r": 50,
     "white": 60,
-    "speaker": 63,
-    "mmc_cd": 61
+    "speaker": 63
   }
 }

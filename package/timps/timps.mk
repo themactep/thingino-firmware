@@ -6,7 +6,7 @@
 
 TIMPS_SITE_METHOD = git
 TIMPS_SITE = https://github.com/Lu-Fi/timps
-TIMPS_VERSION = v1.10.0
+TIMPS_VERSION = v1.10.1
 TIMPS_LICENSE = MIT
 TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/timps.conf
 # Upstream ships no LICENSE file yet; add one and set TIMPS_LICENSE_FILES = LICENSE
@@ -45,6 +45,10 @@ TIMPS_CAMERA_CONF = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/tim
 # version otherwise.
 ifneq ($(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)),)
 TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_OVERRIDE_SRCDIR)) describe --tags --always --dirty 2>/dev/null)
+endif
+# agg31: pinned commit from a local git checkout (TIMPS_SITE=/path): describe it
+ifneq ($(wildcard $(call qstrip,$(TIMPS_SITE))/.git),)
+TIMPS_GIT_DESCRIBE := $(shell git -C $(call qstrip,$(TIMPS_SITE)) describe --tags --always $(TIMPS_VERSION) 2>/dev/null)
 endif
 ifneq ($(TIMPS_GIT_DESCRIBE),)
 TIMPS_BUILD_VERSION = $(TIMPS_GIT_DESCRIBE)

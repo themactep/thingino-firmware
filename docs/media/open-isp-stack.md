@@ -22,23 +22,20 @@ has moved past the original four-SoC scope.
 | Component | Upstream driver/build scope |
 | --- | --- |
 | open-tx-isp driver | T10, T20, T21, T23, T30, T31, T40, T41 |
-| OpenIMP `libimp.so` | T20, T21, T23, T30, T31, T40, T41 |
+| OpenIMP `libimp.so` | T10 (via the T20 build), T20, T21, T23, T30, T31, T40, T41 |
 
-The Thingino Kconfig gates mirror that, minus the T10 odd case:
+The Thingino Kconfig gates mirror that:
 
 - `OPEN_TX_ISP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on
   4.4.94).
-- `OPENIMP_SUPPORTED` (T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
+- `OPENIMP_SUPPORTED` (T10/T20/T21/T23/T30/T31 on 3.10.14, T40/T41 on 4.4.94).
 
-**T10** has an open-tx-isp driver but no OpenIMP build target, so it stays
-out of the OpenIMP gate and keeps the Ingenic libimp provider.
+**T10** shares the T20 userspace and SDK: `openimp.mk` builds it with the
+T20 platform, and `open-tx-isp.mk` recreates the T10 and T20 SDK include
+paths the T10 driver compiles against.
 
-**T23** is a hybrid build: a partial `libimp.so` with no audio entry points
-plus an `openimp-t23-helixd` worker that links the OEM `libimp.so` for the
-proprietary Helix encoder, while RAD keeps using OEM `libimp.so` for audio.
-`openimp.mk` selects `BR2_PACKAGE_INGENIC_LIB_LIBIMP`, copies that OEM
-`libimp.so` to `/opt/openimp-t23/libimp.so` next to the helixd worker, and
-installs OpenIMP's `libimp.so` as `/usr/lib/libimp.so` for RAD.
+**T23** runs fully on OpenIMP, Helix encoder included; no OEM `libimp.so` is
+installed.
 
 C100 is not covered by either component.
 
@@ -61,8 +58,7 @@ Kernel focus:
 - **IVS**: still incomplete — no `IMP_IVS_MoveDetect`, and T40 stubs the IVS
   entry points.
 - **Encoder**: per-SoC encode paths exist — Helix for T21/T30, the shared
-  AVPU backend for T31/T40/T41, and for T23 the AVPU backend plus the
-  separate `openimp-t23-helixd` worker that links the OEM Helix encoder. The
+  AVPU backend for T31/T40/T41, and an in-library Helix encoder for T23. The
   upstream README reports decoder-clean H.264 on T30/T31/T40; T41 is still
   in correctness bring-up.
 
@@ -122,7 +118,7 @@ vendor wrappers differ:
   subdev and its attributes become valid).
 - **T20** - the sensor drivers use the apical `v4l2_i2c_subdev_init()`, not
   the tx-isp subdev, so the call is added to `subdev_core_ops_register_sensor()`
-  in the driver (`package/open-tx-isp/0001-t20-publish-sensors-to-the-sinfo-registry.patch`).
+  in the driver.
 
 The remaining families' `sensor-common.h` share the T23 shape and would take
 the same hook, but only T31/T20/T23 have been built and run.
@@ -159,7 +155,7 @@ never freed and every later `AddSensor()` failed with "Sensor is runing".
 Two changes fix it: prudynt no longer calls `DisableSensor()` from that
 cleanup (`overrides/prudynt-t`, for upstream), and the driver reports `-1`
 from `VIDIOC_G_INPUT` until libimp registers a sensor, matching the vendor
-(`package/open-tx-isp/0002-...patch`). With both, T23 attaches the sensor,
+(in the driver). With both, T23 attaches the sensor,
 encodes H.264 1920x1080 @ 15 fps and serves RTSP plus AAC. Note that the T23
 adapter's delegated ioctl handler is a recovery stub - most vendor commands
 return 0 without side effects - so behaviour leans on the driver's own
@@ -170,8 +166,8 @@ Known issue - T23 + Raptor: the OpenIMP userspace still hangs the device a
 minute or so into boot on T23 (userspace starves, SSH stops completing the
 banner exchange, ping still answers) and the watchdog resets it in a loop.
 The registry is populated and `tx-isp-t23`/`sensor_gc2083_t23` load, so the
-runaway is in the OpenIMP userspace (its T23 encoder goes through the
-`openimp-t23-helixd` bridge), not the kernel driver. T31
+runaway is in the OpenIMP userspace, not the kernel driver; this was seen
+with the earlier helixd-bridge T23 encoder and is not yet re-checked. T31
 (`wyze_cam3_t31x`) and T20 (`wyze_cam2_t20x`) stream fine under Raptor.
 
 Still experimental: night/IR, WDR, extreme exposure, additional sensors, and

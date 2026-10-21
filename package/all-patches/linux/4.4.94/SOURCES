@@ -1,0 +1,15 @@
+# Source snapshots for the 4.4.94 kernel patches.
+#
+# 0001-4.4.94-common.patch and soc/<soc>/0001-4.4.94-<soc>.patch are diffed
+# against the official kernel.org linux-4.4.94 tarball and these branches of
+# github.com/gtxaspec/thingino-linux. Binary assets that a text patch cannot
+# carry live in package/linux/files/4.4.94/.
+#
+# Regenerate with scripts/generate_kernel_4.4.94_patches.rb after updating a
+# commit below. c100 shares the t31 tree.
+#
+# soc branch commit
+t23 ingenic-t23-4.4.94 f97f65461547f1543ee3da22e72612f29a797cb3
+t31 ingenic-t31-4.4.94 47a4ebc23f37990b61c53ad3108da6af4784ba94
+t32 ingenic-t32-4.4.94 470050ba3702da8bac092f26b327f590abcf976c
+t41 ingenic-t41-4.4.94 5dad83aea68800a3c41309ce4e9e3d6dba972c28

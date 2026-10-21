@@ -37,17 +37,23 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN
 	select BR2_PACKAGE_OPEN_TX_ISP
 	select BR2_PACKAGE_OPENIMP if BR2_PACKAGE_OPENIMP_SUPPORTED && !BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	select BR2_PACKAGE_INGENIC_LIB_LIBIMP if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG
-	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP || !BR2_PACKAGE_THINGINO_STREAMER_TIMPS
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBALOG if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP || !BR2_PACKAGE_THINGINO_STREAMER_TIMPS
+	select BR2_PACKAGE_INGENIC_SYSTEM_LIBS_NEO_LIBSYSUTILS if !BR2_PACKAGE_OPENIMP_SUPPORTED || BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP || !BR2_PACKAGE_THINGINO_STREAMER_TIMPS
 	select BR2_PACKAGE_LIBAUDIOPROCESS_NEO
 	help
 	  Use open-tx-isp on supported T10, T20, T21, T23, T30, T31,
 	  T40, and T41 targets. OpenIMP supplies the userspace ABI on
-	  T20, T21, T23, T30, T31, T40, and T41; the T23 build is a
-	  hybrid that keeps the OEM libimp.so under /opt/openimp-t23/
-	  for the proprietary Helix encoder. T10 has no OpenIMP build
-	  and retains the Ingenic libimp provider.
+	  all of them (T10 builds it through the shared T20 userspace);
+	  T23 runs fully on OpenIMP, Helix encoder included.
+	  Turn on "Use the Ingenic libimp.so userspace with the open kernel
+	  driver" to keep Ingenic's proprietary libimp.so instead, for full
+	  IMP audio codec parity.
+
+	  With OpenIMP and timps neither the stock libalog/libsysutils nor
+	  a forced neo replacement is needed: timps imports no SU_*/alog
+	  symbol and OpenIMP's libimp.so does not link them. (The neo
+	  libraries still follow their own default.)
 
 	  Image tuning and sensor coverage remain experimental.
 
@@ -64,6 +70,7 @@ config BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP
 	  prudynt's IMP_AENC/IMP_ADEC audio codecs - run unchanged on the
 	  open kernel driver.
 
-	  Turn this on to tell a kernel problem apart from an OpenIMP one,
-	  and on T23 to skip the OpenIMP Helix encoder hybrid. Off means
-	  OpenIMP supplies the userspace wherever it is supported.
+	  Off (the default) lets OpenIMP supply the userspace where it is
+	  supported. prudynt then builds with -DOPENIMP, which drops the
+	  IMP-native G711/G726 encode and ADEC backchannel paths but keeps
+	  direct-encoded AAC/Opus.

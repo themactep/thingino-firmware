@@ -15,6 +15,8 @@ Where:
 	-P password  FTP password
 	-d path      Directory relative to FTP root
 	-f file      File to upload
+	-s           Use FTPS (explicit TLS)
+	-k           Ignore SSL certificate validity
 	-v           Verbose output
 	-S           Send photo
 	-V           Send video
@@ -30,6 +32,8 @@ read_config() {
 	password=$(get_value password)
 	port=$(get_value port)
 	template=$(get_value template)
+	trust_cert=$(get_value trust_cert)
+	use_ssl=$(get_value use_ssl)
 	username=$(get_value username)
 }
 
@@ -65,12 +69,14 @@ process_file() {
 read_config
 
 # order is important!
-while getopts d:h:p:u:vP:f:SV flag; do
+while getopts d:h:p:u:vP:f:skSV flag; do
 	case "$flag" in
 		d) path=$OPTARG ;;
 		h) host=$OPTARG ;;
 		p) port=$OPTARG ;;
 		u) username=$OPTARG ;;
+		s) use_ssl="true" ;;
+		k) trust_cert="true" ;;
 		v) verbose="true" ;;
 		P) password=$OPTARG ;;
 		# sending a file from the command line disables sending photo
@@ -108,7 +114,13 @@ if [ "true" = "$send_photo" ]; then
 	process_file "$(copy_photo)" photo
 fi
 
-url="ftp://"
+# Explicit FTPS (AUTH TLS on the control port). curl's ftps:// scheme is
+# explicit only; implicit FTPS (port 990) is not supported.
+if [ "true" = "$use_ssl" ]; then
+	url="ftps://"
+else
+	url="ftp://"
+fi
 [ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
 url="$url@$host:$port"
 if [ -n "$path" ]; then
@@ -125,6 +137,10 @@ for local_file in $queue; do
 		set -- "$@" --silent
 	fi
 	set -- "$@" --url "$url/$(basename "$local_file")" --upload-file "$local_file" --ftp-create-dirs
+	if [ "true" = "$use_ssl" ]; then
+		set -- "$@" --ssl-reqd
+		[ "true" = "$trust_cert" ] && set -- "$@" --insecure
+	fi
 
 	[ "true" = "$verbose" ] && echo_command "$*"
 

@@ -383,6 +383,19 @@ index 0e09715cc6..8f29a51ea9 100644
 +a1-*.bin
 +a1-spl-*.txt
 +a1-spl-*.json
+diff --git a/.mailmap b/.mailmap
+index bcb393e581..6ff7f05160 100644
+--- a/.mailmap
++++ b/.mailmap
+@@ -74,6 +74,8 @@ Jagan Teki <jagannadha.sutradharudu-teki@xilinx.com>
+ Jakob Unterwurzacher <jakob.unterwurzacher@cherry.de> <jakob.unterwurzacher@theobroma-systems.com>
+ Javier Tia <floss@jetm.me> <javier.tia@linaro.org>
+ Jay Buddhabhatti <jay.buddhabhatti@amd.com> <jay.buddhabhatti@xilinx.com>
++Jens Wiklander <jenswi@kernel.org> <jens.wiklander@linaro.org>
++Jens Wiklander <jenswi@kernel.org> <jens.wiklander@oss.qualcomm.com>
+ Jernej Skrabec <jernej.skrabec@gmail.com> <jernej.skrabec@siol.net>
+ Jerome Forissier <jerome.forissier@arm.com> <jerome.forissier@linaro.org>
+ Jerome Forissier <jerome.forissier@arm.com> <jerome@forissier.org>
 diff --git a/Kconfig b/Kconfig
 index e5de815d8c..f6ab5d9b85 100644
 --- a/Kconfig
@@ -396,10 +409,10 @@ index e5de815d8c..f6ab5d9b85 100644
  	help
  	  Define Max stack size that can be used by U-Boot. The UEFI sub-system
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 86ab813aee..b6e1c6b887 100644
+index 79365697c2..5cd5032a54 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -1357,6 +1357,17 @@ F:	include/dt-bindings/mscc/
+@@ -1363,6 +1363,17 @@ F:	include/dt-bindings/mscc/
  F:	drivers/pinctrl/mscc/
  F:	drivers/net/mscc_eswitch/
  
@@ -417,8 +430,17 @@ index 86ab813aee..b6e1c6b887 100644
  MIPS JZ4780
  M:	Ezequiel Garcia <ezequiel@collabora.com>
  S:	Maintained
+@@ -1819,7 +1830,7 @@ F:	include/configs/tq*.h
+ F:	include/env/tq/*
+ 
+ TEE
+-M:	Jens Wiklander <jens.wiklander@linaro.org>
++M:	Jens Wiklander <jenswi@kernel.org>
+ M:	Ilias Apalodimas <ilias.apalodimas@linaro.org>
+ T:	git https://git.u-boot-project.org/u-boot/custodians/u-boot-tpm.git
+ S:	Maintained
 diff --git a/Makefile b/Makefile
-index c5cc8276fa..987d8bb6f7 100644
+index 25c614381d..d53f31f1af 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1369,7 +1369,13 @@ quiet_cmd_pad_cat = CAT     $@
@@ -532,10 +554,10 @@ index 7c4ee8b668..52bf245987 100644
  dtb-$(CONFIG_SOC_JR2) += jr2_pcb110.dtb jr2_pcb111.dtb serval2_pcb112.dtb
 diff --git a/arch/mips/dts/a1-isvp-dfu.dtsi b/arch/mips/dts/a1-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..05ff4ef28a
+index 0000000000..0b533c989b
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp-dfu.dtsi
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,204 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 USB-boot DFU-loader board body, shared by every A1
@@ -619,6 +641,11 @@ index 0000000000..05ff4ef28a
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -635,6 +662,16 @@ index 0000000000..05ff4ef28a
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -643,6 +680,14 @@ index 0000000000..05ff4ef28a
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	sfc: spi@b3440000 {
@@ -719,10 +764,10 @@ index 0000000000..05ff4ef28a
 +};
 diff --git a/arch/mips/dts/a1-isvp.dtsi b/arch/mips/dts/a1-isvp.dtsi
 new file mode 100644
-index 0000000000..34664b2e4a
+index 0000000000..025be12738
 --- /dev/null
 +++ b/arch/mips/dts/a1-isvp.dtsi
-@@ -0,0 +1,231 @@
+@@ -0,0 +1,254 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-A1 board body, shared by every A1 SKU. The per-SKU
@@ -805,6 +850,11 @@ index 0000000000..34664b2e4a
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -821,6 +871,16 @@ index 0000000000..34664b2e4a
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -829,6 +889,14 @@ index 0000000000..34664b2e4a
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	/*
@@ -1408,10 +1476,10 @@ index 0000000000..07193c2453
 +#endif
 diff --git a/arch/mips/dts/t10.dtsi b/arch/mips/dts/t10.dtsi
 new file mode 100644
-index 0000000000..7dfa40ff4c
+index 0000000000..4b885fe60f
 --- /dev/null
 +++ b/arch/mips/dts/t10.dtsi
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,305 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t10-cgu.h>
@@ -1527,9 +1595,27 @@ index 0000000000..7dfa40ff4c
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -1601,6 +1687,16 @@ index 0000000000..7dfa40ff4c
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -2499,10 +2595,10 @@ index 0000000000..b5ec2b2fb3
 +};
 diff --git a/arch/mips/dts/t20.dtsi b/arch/mips/dts/t20.dtsi
 new file mode 100644
-index 0000000000..5652d5b192
+index 0000000000..c5d20ad958
 --- /dev/null
 +++ b/arch/mips/dts/t20.dtsi
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,298 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t20-cgu.h>
@@ -2618,9 +2714,27 @@ index 0000000000..5652d5b192
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -2686,6 +2800,16 @@ index 0000000000..5652d5b192
 +			reg = <2>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -3456,10 +3580,10 @@ index 0000000000..2d1daac952
 +};
 diff --git a/arch/mips/dts/t21.dtsi b/arch/mips/dts/t21.dtsi
 new file mode 100644
-index 0000000000..730020f77f
+index 0000000000..718db16f5d
 --- /dev/null
 +++ b/arch/mips/dts/t21.dtsi
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,299 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t21-cgu.h>
@@ -3568,9 +3692,27 @@ index 0000000000..730020f77f
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -3642,6 +3784,16 @@ index 0000000000..730020f77f
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -4301,10 +4453,10 @@ index 0000000000..ec7aeba99b
 +};
 diff --git a/arch/mips/dts/t23.dtsi b/arch/mips/dts/t23.dtsi
 new file mode 100644
-index 0000000000..95010f9934
+index 0000000000..434705a94e
 --- /dev/null
 +++ b/arch/mips/dts/t23.dtsi
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,305 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t23-cgu.h>
@@ -4417,9 +4569,27 @@ index 0000000000..95010f9934
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -4491,6 +4661,16 @@ index 0000000000..95010f9934
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -5714,10 +5894,10 @@ index 0000000000..488e780988
 +};
 diff --git a/arch/mips/dts/t30.dtsi b/arch/mips/dts/t30.dtsi
 new file mode 100644
-index 0000000000..a26b115b29
+index 0000000000..1714eb186c
 --- /dev/null
 +++ b/arch/mips/dts/t30.dtsi
-@@ -0,0 +1,272 @@
+@@ -0,0 +1,300 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t30-cgu.h>
@@ -5826,9 +6006,27 @@ index 0000000000..a26b115b29
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -5900,6 +6098,16 @@ index 0000000000..a26b115b29
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -6763,10 +6971,10 @@ index 0000000000..8c05094449
 +};
 diff --git a/arch/mips/dts/t31.dtsi b/arch/mips/dts/t31.dtsi
 new file mode 100644
-index 0000000000..bf37c1d34f
+index 0000000000..2da701b840
 --- /dev/null
 +++ b/arch/mips/dts/t31.dtsi
-@@ -0,0 +1,278 @@
+@@ -0,0 +1,306 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t31-cgu.h>
@@ -6884,9 +7092,27 @@ index 0000000000..bf37c1d34f
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -6954,6 +7180,16 @@ index 0000000000..bf37c1d34f
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -7488,10 +7724,10 @@ index 0000000000..75f23b6ac0
 +#include "t31-isvp-dfu-uboot-common.dtsi"
 diff --git a/arch/mips/dts/t31x-isvp-dfu.dts b/arch/mips/dts/t31x-isvp-dfu.dts
 new file mode 100644
-index 0000000000..ef72ff0fc8
+index 0000000000..fd77baeab2
 --- /dev/null
 +++ b/arch/mips/dts/t31x-isvp-dfu.dts
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,49 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T31X DFU/USB-boot loader (DDR2 128 MB, CPU 1392 MHz).
@@ -7511,17 +7747,20 @@ index 0000000000..ef72ff0fc8
 +};
 +
 +&ddr {
-+	/* T31X: DDR2 128 MB M14D1G1664A (8-bank), CPU 1392 / DDR 600 MHz. */
++	/* T31X USB-boot loader: full vendor-cloner clock+DDR config (CPU src
++	 * select 0x6a + APLL 0x04805900, DDR 400 MHz MPLL/3). Captured from the
++	 * vendor cloner; 600 MHz corrupts the mask-ROM stage2 cache-writeback on
++	 * some boards (Wyze VDB1 T31ZX). */
 +	ingenic,sdram-params = <
-+		0x07405100 0x06405100 0x9a0b5510	/* APLL1392 MPLL1200 CPCCR */
-+		0 0					/* ddr_cdr (MPLL/2); DDR2 */
++		0x04805900 0x06405100 0x6a0b5510	/* APLL MPLL1200 CPCCR(vendor src) */
++		2 0					/* ddr_cdr MPLL/3=400MHz; DDR2 */
 +		13 10 1 1 0 0				/* row col bank8 cs0 cs1 dw32 */
 +		0x08000000				/* 128 MB */
-+		0x0aa88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
-+		0x000020f8 0x00002800 0x00910003	/* MMAP0 MMAP1 REFCNT */
-+		0x050f0a06 0x021c0a07 0x200a0722	/* TIMING1..3 */
-+		0x26240031 0xff060405 0x321c0505	/* TIMING4..6 */
-+		0x00000f73				/* MR0 */
++		0x0ae88a42 0x0000d91e			/* DDRC_CFG DDRC_CTRL */
++		0x000020f8 0x00002800 0x00c20001	/* MMAP0 MMAP1 REFCNT(CON=0xc2) */
++		0x030d0606 0x02120707 0x20070417	/* TIMING1..3 */
++		0x19640031 0xff060405 0x32120505	/* TIMING4..6 */
++		0x00000a73				/* MR0 */
 +	>;
 +};
 +
@@ -7984,10 +8223,10 @@ index 0000000000..bcbd594bce
 +};
 diff --git a/arch/mips/dts/t32.dtsi b/arch/mips/dts/t32.dtsi
 new file mode 100644
-index 0000000000..133ccd79a5
+index 0000000000..6fdf696f8e
 --- /dev/null
 +++ b/arch/mips/dts/t32.dtsi
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,318 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t32-cgu.h>
@@ -8097,9 +8336,27 @@ index 0000000000..133ccd79a5
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -8249,6 +8506,16 @@ index 0000000000..133ccd79a5
 +			reg = <3>;
 +			gpio-controller;
 +			#gpio-cells = <2>;
++		};
++
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
 +		};
 +
 +		pins_sfc: sfc {
@@ -9115,10 +9382,10 @@ index 0000000000..53f98b5a50
 +};
 diff --git a/arch/mips/dts/t33.dtsi b/arch/mips/dts/t33.dtsi
 new file mode 100644
-index 0000000000..af818037bf
+index 0000000000..2853f3eb85
 --- /dev/null
 +++ b/arch/mips/dts/t33.dtsi
-@@ -0,0 +1,180 @@
+@@ -0,0 +1,208 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +
 +#include <dt-bindings/clock/ingenic,t33-cgu.h>
@@ -9193,9 +9460,27 @@ index 0000000000..af818037bf
 +		};
 +	};
 +
++	uart0: serial@10030000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@10031000 {
 +		compatible = "ingenic,jz4780-uart";
 +		reg = <0x10031000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
++	};
++
++	uart2: serial@10032000 {
++		compatible = "ingenic,jz4780-uart";
++		reg = <0x10032000 0x100>;
 +		reg-shift = <2>;
 +		clock-frequency = <24000000>;
 +		status = "disabled";
@@ -9288,6 +9573,16 @@ index 0000000000..af818037bf
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
++		pins_uart1: uart1 {
++			function = "uart1";
++			groups = "uart1-data";
++		};
++
 +		pins_sfc: sfc {
 +			function = "sfc";
 +			groups = "sfc-data";
@@ -9331,10 +9626,10 @@ index 0000000000..eacce1165e
 +&uart1 { bootph-all; };
 diff --git a/arch/mips/dts/t40-isvp-dfu.dtsi b/arch/mips/dts/t40-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..7e6099c80d
+index 0000000000..341b7d7955
 --- /dev/null
 +++ b/arch/mips/dts/t40-isvp-dfu.dtsi
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,216 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T40 USB-boot DFU-loader board body, shared by every
@@ -9418,6 +9713,11 @@ index 0000000000..7e6099c80d
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -9439,6 +9739,16 @@ index 0000000000..7e6099c80d
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -9447,6 +9757,14 @@ index 0000000000..7e6099c80d
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	/*
@@ -9631,10 +9949,10 @@ index 0000000000..2d3ed2f34e
 +&msc0 { bootph-all; };
 diff --git a/arch/mips/dts/t40-isvp.dtsi b/arch/mips/dts/t40-isvp.dtsi
 new file mode 100644
-index 0000000000..8e7c478c8d
+index 0000000000..dc7259b3ec
 --- /dev/null
 +++ b/arch/mips/dts/t40-isvp.dtsi
-@@ -0,0 +1,256 @@
+@@ -0,0 +1,279 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T40 board body, shared by every T40 SKU and boot mode.
@@ -9723,6 +10041,11 @@ index 0000000000..8e7c478c8d
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -9744,6 +10067,16 @@ index 0000000000..8e7c478c8d
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -9752,6 +10085,14 @@ index 0000000000..8e7c478c8d
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	/*
@@ -10577,10 +10918,10 @@ index 0000000000..60032641bb
 +&uart1 { bootph-all; };
 diff --git a/arch/mips/dts/t41-isvp-dfu.dtsi b/arch/mips/dts/t41-isvp-dfu.dtsi
 new file mode 100644
-index 0000000000..78ce8edac0
+index 0000000000..7d75b08ece
 --- /dev/null
 +++ b/arch/mips/dts/t41-isvp-dfu.dtsi
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,227 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T41 USB-boot DFU-loader board body, shared by every
@@ -10662,6 +11003,11 @@ index 0000000000..78ce8edac0
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -10683,6 +11029,16 @@ index 0000000000..78ce8edac0
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -10691,6 +11047,14 @@ index 0000000000..78ce8edac0
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	/*
@@ -10956,10 +11320,10 @@ index 0000000000..0081a0d674
 +&msc0 { bootph-all; };
 diff --git a/arch/mips/dts/t41-isvp.dtsi b/arch/mips/dts/t41-isvp.dtsi
 new file mode 100644
-index 0000000000..c8f88dfb5d
+index 0000000000..e0ead08e73
 --- /dev/null
 +++ b/arch/mips/dts/t41-isvp.dtsi
-@@ -0,0 +1,250 @@
+@@ -0,0 +1,273 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic ISVP-T41 SFC-NOR board body, shared by every T41 SKU.
@@ -11048,6 +11412,11 @@ index 0000000000..c8f88dfb5d
 +			#gpio-cells = <2>;
 +		};
 +
++		pins_uart0: uart0 {
++			function = "uart0";
++			groups = "uart0-data";
++		};
++
 +		pins_uart1: uart1 {
 +			function = "uart1";
 +			groups = "uart1-data";
@@ -11110,6 +11479,16 @@ index 0000000000..c8f88dfb5d
 +		};
 +	};
 +
++	uart0: serial@b0030000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0030000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&pins_uart0>;
++		status = "disabled";
++	};
++
 +	uart1: serial@b0031000 {
 +		compatible = "ingenic,jz4780-uart", "ns16550a";
 +		reg = <0xb0031000 0x100>;
@@ -11118,6 +11497,14 @@ index 0000000000..c8f88dfb5d
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pins_uart1>;
 +		status = "okay";
++	};
++
++	uart2: serial@b0032000 {
++		compatible = "ingenic,jz4780-uart", "ns16550a";
++		reg = <0xb0032000 0x100>;
++		reg-shift = <2>;
++		clock-frequency = <24000000>;
++		status = "disabled";
 +	};
 +
 +	/*
@@ -28469,7 +28856,7 @@ index 0000000000..03d6bc7ca5
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_a1n_usbboot_defconfig b/configs/isvp_a1n_usbboot_defconfig
 new file mode 100644
-index 0000000000..3d9a1d6903
+index 0000000000..5b88109737
 --- /dev/null
 +++ b/configs/isvp_a1n_usbboot_defconfig
 @@ -0,0 +1,112 @@
@@ -28499,7 +28886,7 @@ index 0000000000..3d9a1d6903
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
-+CONFIG_BOOTCOMMAND="dfu 0 sf 0:0"
++CONFIG_BOOTCOMMAND="run dfubootcmd"
 +CONFIG_DISPLAY_CPUINFO=y
 +CONFIG_BOARD_INIT=y
 +CONFIG_BOARD_LATE_INIT=y
@@ -28587,7 +28974,7 @@ index 0000000000..3d9a1d6903
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t10l_msc0_defconfig b/configs/isvp_t10l_msc0_defconfig
 new file mode 100644
-index 0000000000..2d273f2b2d
+index 0000000000..13fff73d68
 --- /dev/null
 +++ b/configs/isvp_t10l_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -28699,7 +29086,7 @@ index 0000000000..2d273f2b2d
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -28742,7 +29129,7 @@ index 0000000000..2d273f2b2d
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t10l_sfcnor_defconfig b/configs/isvp_t10l_sfcnor_defconfig
 new file mode 100644
-index 0000000000..604b8f94a9
+index 0000000000..07adbd8434
 --- /dev/null
 +++ b/configs/isvp_t10l_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -28853,7 +29240,7 @@ index 0000000000..604b8f94a9
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -28895,7 +29282,7 @@ index 0000000000..604b8f94a9
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t10l_usbboot_defconfig b/configs/isvp_t10l_usbboot_defconfig
 new file mode 100644
-index 0000000000..355f308a12
+index 0000000000..c69ae628cd
 --- /dev/null
 +++ b/configs/isvp_t10l_usbboot_defconfig
 @@ -0,0 +1,129 @@
@@ -28994,7 +29381,7 @@ index 0000000000..355f308a12
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -29030,7 +29417,7 @@ index 0000000000..355f308a12
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t10n_msc0_defconfig b/configs/isvp_t10n_msc0_defconfig
 new file mode 100644
-index 0000000000..c7c7de5b54
+index 0000000000..83acbd014c
 --- /dev/null
 +++ b/configs/isvp_t10n_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -29142,7 +29529,7 @@ index 0000000000..c7c7de5b54
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -29185,7 +29572,7 @@ index 0000000000..c7c7de5b54
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t10n_sfcnor_defconfig b/configs/isvp_t10n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..8f098b3567
+index 0000000000..0d53549687
 --- /dev/null
 +++ b/configs/isvp_t10n_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -29296,7 +29683,7 @@ index 0000000000..8f098b3567
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -29338,7 +29725,7 @@ index 0000000000..8f098b3567
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t10n_usbboot_defconfig b/configs/isvp_t10n_usbboot_defconfig
 new file mode 100644
-index 0000000000..4b285d9d26
+index 0000000000..32a7fae8e1
 --- /dev/null
 +++ b/configs/isvp_t10n_usbboot_defconfig
 @@ -0,0 +1,129 @@
@@ -29437,7 +29824,7 @@ index 0000000000..4b285d9d26
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -29473,7 +29860,7 @@ index 0000000000..4b285d9d26
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20l_msc0_defconfig b/configs/isvp_t20l_msc0_defconfig
 new file mode 100644
-index 0000000000..0a1b7c67cb
+index 0000000000..e89a75481c
 --- /dev/null
 +++ b/configs/isvp_t20l_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -29585,7 +29972,7 @@ index 0000000000..0a1b7c67cb
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -29628,7 +30015,7 @@ index 0000000000..0a1b7c67cb
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20l_sfcnor_defconfig b/configs/isvp_t20l_sfcnor_defconfig
 new file mode 100644
-index 0000000000..5555abd7bf
+index 0000000000..c68b53b2eb
 --- /dev/null
 +++ b/configs/isvp_t20l_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -29739,7 +30126,7 @@ index 0000000000..5555abd7bf
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -29781,7 +30168,7 @@ index 0000000000..5555abd7bf
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20l_usbboot_defconfig b/configs/isvp_t20l_usbboot_defconfig
 new file mode 100644
-index 0000000000..82f86c386e
+index 0000000000..cc88f3a0b8
 --- /dev/null
 +++ b/configs/isvp_t20l_usbboot_defconfig
 @@ -0,0 +1,129 @@
@@ -29880,7 +30267,7 @@ index 0000000000..82f86c386e
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -29916,7 +30303,7 @@ index 0000000000..82f86c386e
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20n_msc0_defconfig b/configs/isvp_t20n_msc0_defconfig
 new file mode 100644
-index 0000000000..8661c5f330
+index 0000000000..fa72a3cdc2
 --- /dev/null
 +++ b/configs/isvp_t20n_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -30028,7 +30415,7 @@ index 0000000000..8661c5f330
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -30071,7 +30458,7 @@ index 0000000000..8661c5f330
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20n_sfcnor_defconfig b/configs/isvp_t20n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..f62cefd588
+index 0000000000..6ae35d11bc
 --- /dev/null
 +++ b/configs/isvp_t20n_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -30182,7 +30569,7 @@ index 0000000000..f62cefd588
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -30224,7 +30611,7 @@ index 0000000000..f62cefd588
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20n_usbboot_defconfig b/configs/isvp_t20n_usbboot_defconfig
 new file mode 100644
-index 0000000000..d46d0e82be
+index 0000000000..a7378cf33b
 --- /dev/null
 +++ b/configs/isvp_t20n_usbboot_defconfig
 @@ -0,0 +1,129 @@
@@ -30323,7 +30710,7 @@ index 0000000000..d46d0e82be
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -30359,7 +30746,7 @@ index 0000000000..d46d0e82be
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20x_msc0_defconfig b/configs/isvp_t20x_msc0_defconfig
 new file mode 100644
-index 0000000000..0dda032fe5
+index 0000000000..39ec3baecd
 --- /dev/null
 +++ b/configs/isvp_t20x_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -30471,7 +30858,7 @@ index 0000000000..0dda032fe5
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -30514,7 +30901,7 @@ index 0000000000..0dda032fe5
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20x_sfcnor_defconfig b/configs/isvp_t20x_sfcnor_defconfig
 new file mode 100644
-index 0000000000..94c55efa8e
+index 0000000000..19ca74e2b2
 --- /dev/null
 +++ b/configs/isvp_t20x_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -30625,7 +31012,7 @@ index 0000000000..94c55efa8e
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -30667,7 +31054,7 @@ index 0000000000..94c55efa8e
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t20x_usbboot_defconfig b/configs/isvp_t20x_usbboot_defconfig
 new file mode 100644
-index 0000000000..7cff93f48f
+index 0000000000..ad3eea1dc0
 --- /dev/null
 +++ b/configs/isvp_t20x_usbboot_defconfig
 @@ -0,0 +1,129 @@
@@ -30766,7 +31153,7 @@ index 0000000000..7cff93f48f
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -30802,7 +31189,7 @@ index 0000000000..7cff93f48f
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21hp_msc0_defconfig b/configs/isvp_t21hp_msc0_defconfig
 new file mode 100644
-index 0000000000..32f45004e1
+index 0000000000..2ed339c9ac
 --- /dev/null
 +++ b/configs/isvp_t21hp_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -30914,7 +31301,7 @@ index 0000000000..32f45004e1
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -30957,7 +31344,7 @@ index 0000000000..32f45004e1
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21hp_sfcnor_defconfig b/configs/isvp_t21hp_sfcnor_defconfig
 new file mode 100644
-index 0000000000..e37c2f731a
+index 0000000000..f1e5057970
 --- /dev/null
 +++ b/configs/isvp_t21hp_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -31068,7 +31455,7 @@ index 0000000000..e37c2f731a
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -31110,7 +31497,7 @@ index 0000000000..e37c2f731a
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21hp_usbboot_defconfig b/configs/isvp_t21hp_usbboot_defconfig
 new file mode 100644
-index 0000000000..faee7c0933
+index 0000000000..e3eb7e9a14
 --- /dev/null
 +++ b/configs/isvp_t21hp_usbboot_defconfig
 @@ -0,0 +1,132 @@
@@ -31212,7 +31599,7 @@ index 0000000000..faee7c0933
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -31248,7 +31635,7 @@ index 0000000000..faee7c0933
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21n_msc0_defconfig b/configs/isvp_t21n_msc0_defconfig
 new file mode 100644
-index 0000000000..11a2b61195
+index 0000000000..6a585b4e40
 --- /dev/null
 +++ b/configs/isvp_t21n_msc0_defconfig
 @@ -0,0 +1,149 @@
@@ -31360,7 +31747,7 @@ index 0000000000..11a2b61195
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -31403,7 +31790,7 @@ index 0000000000..11a2b61195
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21n_sfcnor_defconfig b/configs/isvp_t21n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..3851814378
+index 0000000000..dedb5e1874
 --- /dev/null
 +++ b/configs/isvp_t21n_sfcnor_defconfig
 @@ -0,0 +1,147 @@
@@ -31514,7 +31901,7 @@ index 0000000000..3851814378
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -31556,7 +31943,7 @@ index 0000000000..3851814378
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t21n_usbboot_defconfig b/configs/isvp_t21n_usbboot_defconfig
 new file mode 100644
-index 0000000000..d33048b2b4
+index 0000000000..e800c46ad9
 --- /dev/null
 +++ b/configs/isvp_t21n_usbboot_defconfig
 @@ -0,0 +1,132 @@
@@ -31658,7 +32045,7 @@ index 0000000000..d33048b2b4
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -31694,7 +32081,7 @@ index 0000000000..d33048b2b4
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dl_msc0_defconfig b/configs/isvp_t23dl_msc0_defconfig
 new file mode 100644
-index 0000000000..bac21019a0
+index 0000000000..21fa574908
 --- /dev/null
 +++ b/configs/isvp_t23dl_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -31807,7 +32194,7 @@ index 0000000000..bac21019a0
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -31850,7 +32237,7 @@ index 0000000000..bac21019a0
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dl_sfcnor_defconfig b/configs/isvp_t23dl_sfcnor_defconfig
 new file mode 100644
-index 0000000000..f0ebd5879e
+index 0000000000..815afec197
 --- /dev/null
 +++ b/configs/isvp_t23dl_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -31962,7 +32349,7 @@ index 0000000000..f0ebd5879e
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -32004,7 +32391,7 @@ index 0000000000..f0ebd5879e
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dl_usbboot_defconfig b/configs/isvp_t23dl_usbboot_defconfig
 new file mode 100644
-index 0000000000..6e677f5322
+index 0000000000..5a0eb802f9
 --- /dev/null
 +++ b/configs/isvp_t23dl_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -32111,7 +32498,7 @@ index 0000000000..6e677f5322
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -32144,7 +32531,7 @@ index 0000000000..6e677f5322
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dn_msc0_defconfig b/configs/isvp_t23dn_msc0_defconfig
 new file mode 100644
-index 0000000000..45cb6683b6
+index 0000000000..003237fc1e
 --- /dev/null
 +++ b/configs/isvp_t23dn_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -32257,7 +32644,7 @@ index 0000000000..45cb6683b6
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -32300,7 +32687,7 @@ index 0000000000..45cb6683b6
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dn_sfcnor_defconfig b/configs/isvp_t23dn_sfcnor_defconfig
 new file mode 100644
-index 0000000000..a4c0b38bea
+index 0000000000..59af50d902
 --- /dev/null
 +++ b/configs/isvp_t23dn_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -32412,7 +32799,7 @@ index 0000000000..a4c0b38bea
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -32454,7 +32841,7 @@ index 0000000000..a4c0b38bea
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23dn_usbboot_defconfig b/configs/isvp_t23dn_usbboot_defconfig
 new file mode 100644
-index 0000000000..5790cb923a
+index 0000000000..a6024875ad
 --- /dev/null
 +++ b/configs/isvp_t23dn_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -32561,7 +32948,7 @@ index 0000000000..5790cb923a
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -32594,7 +32981,7 @@ index 0000000000..5790cb923a
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23n_msc0_defconfig b/configs/isvp_t23n_msc0_defconfig
 new file mode 100644
-index 0000000000..09c7da4b7f
+index 0000000000..c1c3f7bb52
 --- /dev/null
 +++ b/configs/isvp_t23n_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -32707,7 +33094,7 @@ index 0000000000..09c7da4b7f
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -32750,7 +33137,7 @@ index 0000000000..09c7da4b7f
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23n_msc0_mmc1bit_defconfig b/configs/isvp_t23n_msc0_mmc1bit_defconfig
 new file mode 100644
-index 0000000000..1bcd5a786d
+index 0000000000..58dce9d850
 --- /dev/null
 +++ b/configs/isvp_t23n_msc0_mmc1bit_defconfig
 @@ -0,0 +1,150 @@
@@ -32863,7 +33250,7 @@ index 0000000000..1bcd5a786d
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -32906,7 +33293,7 @@ index 0000000000..1bcd5a786d
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23n_sfcnor_defconfig b/configs/isvp_t23n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..2a6b564233
+index 0000000000..6bf2c168ad
 --- /dev/null
 +++ b/configs/isvp_t23n_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -33018,7 +33405,7 @@ index 0000000000..2a6b564233
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -33060,7 +33447,7 @@ index 0000000000..2a6b564233
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23n_sfcnor_mmc1bit_defconfig b/configs/isvp_t23n_sfcnor_mmc1bit_defconfig
 new file mode 100644
-index 0000000000..c0dd93c489
+index 0000000000..d6c5e02955
 --- /dev/null
 +++ b/configs/isvp_t23n_sfcnor_mmc1bit_defconfig
 @@ -0,0 +1,148 @@
@@ -33172,7 +33559,7 @@ index 0000000000..c0dd93c489
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -33214,7 +33601,7 @@ index 0000000000..c0dd93c489
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23n_usbboot_defconfig b/configs/isvp_t23n_usbboot_defconfig
 new file mode 100644
-index 0000000000..f611a792bb
+index 0000000000..0e15463af1
 --- /dev/null
 +++ b/configs/isvp_t23n_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -33321,7 +33708,7 @@ index 0000000000..f611a792bb
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -33354,7 +33741,7 @@ index 0000000000..f611a792bb
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nhp_msc0_defconfig b/configs/isvp_t23nhp_msc0_defconfig
 new file mode 100644
-index 0000000000..bc149f1bd4
+index 0000000000..fc842ecc6a
 --- /dev/null
 +++ b/configs/isvp_t23nhp_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -33467,7 +33854,7 @@ index 0000000000..bc149f1bd4
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -33510,7 +33897,7 @@ index 0000000000..bc149f1bd4
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nhp_sfcnor_defconfig b/configs/isvp_t23nhp_sfcnor_defconfig
 new file mode 100644
-index 0000000000..ee761d1b73
+index 0000000000..34552edd8c
 --- /dev/null
 +++ b/configs/isvp_t23nhp_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -33622,7 +34009,7 @@ index 0000000000..ee761d1b73
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -33664,7 +34051,7 @@ index 0000000000..ee761d1b73
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nhp_usbboot_defconfig b/configs/isvp_t23nhp_usbboot_defconfig
 new file mode 100644
-index 0000000000..9929a7cce7
+index 0000000000..1b5d2a4e02
 --- /dev/null
 +++ b/configs/isvp_t23nhp_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -33771,7 +34158,7 @@ index 0000000000..9929a7cce7
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -33804,7 +34191,7 @@ index 0000000000..9929a7cce7
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nlp_msc0_defconfig b/configs/isvp_t23nlp_msc0_defconfig
 new file mode 100644
-index 0000000000..1ccb23789a
+index 0000000000..7cf1923027
 --- /dev/null
 +++ b/configs/isvp_t23nlp_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -33917,7 +34304,7 @@ index 0000000000..1ccb23789a
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -33960,7 +34347,7 @@ index 0000000000..1ccb23789a
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nlp_sfcnor_defconfig b/configs/isvp_t23nlp_sfcnor_defconfig
 new file mode 100644
-index 0000000000..b0ff79dff5
+index 0000000000..b1545872d2
 --- /dev/null
 +++ b/configs/isvp_t23nlp_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -34072,7 +34459,7 @@ index 0000000000..b0ff79dff5
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -34114,7 +34501,7 @@ index 0000000000..b0ff79dff5
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23nlp_usbboot_defconfig b/configs/isvp_t23nlp_usbboot_defconfig
 new file mode 100644
-index 0000000000..93beb9cf53
+index 0000000000..47abe69cdf
 --- /dev/null
 +++ b/configs/isvp_t23nlp_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -34221,7 +34608,7 @@ index 0000000000..93beb9cf53
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -34254,7 +34641,7 @@ index 0000000000..93beb9cf53
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23x_msc0_defconfig b/configs/isvp_t23x_msc0_defconfig
 new file mode 100644
-index 0000000000..43d42b6686
+index 0000000000..b357cd2d11
 --- /dev/null
 +++ b/configs/isvp_t23x_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -34367,7 +34754,7 @@ index 0000000000..43d42b6686
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -34410,7 +34797,7 @@ index 0000000000..43d42b6686
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23x_sfcnor_defconfig b/configs/isvp_t23x_sfcnor_defconfig
 new file mode 100644
-index 0000000000..da99f837fe
+index 0000000000..cd1fdd2dfd
 --- /dev/null
 +++ b/configs/isvp_t23x_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -34522,7 +34909,7 @@ index 0000000000..da99f837fe
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -34564,7 +34951,7 @@ index 0000000000..da99f837fe
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23x_usbboot_defconfig b/configs/isvp_t23x_usbboot_defconfig
 new file mode 100644
-index 0000000000..e0dc0d9e99
+index 0000000000..b943079fa8
 --- /dev/null
 +++ b/configs/isvp_t23x_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -34671,7 +35058,7 @@ index 0000000000..e0dc0d9e99
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -34704,7 +35091,7 @@ index 0000000000..e0dc0d9e99
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23zn_msc0_defconfig b/configs/isvp_t23zn_msc0_defconfig
 new file mode 100644
-index 0000000000..b0ad984d88
+index 0000000000..6b23d7213d
 --- /dev/null
 +++ b/configs/isvp_t23zn_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -34817,7 +35204,7 @@ index 0000000000..b0ad984d88
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -34860,7 +35247,7 @@ index 0000000000..b0ad984d88
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23zn_sfcnor_defconfig b/configs/isvp_t23zn_sfcnor_defconfig
 new file mode 100644
-index 0000000000..9fa46aee38
+index 0000000000..f422e4ae57
 --- /dev/null
 +++ b/configs/isvp_t23zn_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -34972,7 +35359,7 @@ index 0000000000..9fa46aee38
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -35014,7 +35401,7 @@ index 0000000000..9fa46aee38
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t23zn_usbboot_defconfig b/configs/isvp_t23zn_usbboot_defconfig
 new file mode 100644
-index 0000000000..583514c25d
+index 0000000000..581531b4a0
 --- /dev/null
 +++ b/configs/isvp_t23zn_usbboot_defconfig
 @@ -0,0 +1,134 @@
@@ -35121,7 +35508,7 @@ index 0000000000..583514c25d
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -35154,7 +35541,7 @@ index 0000000000..583514c25d
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30a_msc0_defconfig b/configs/isvp_t30a_msc0_defconfig
 new file mode 100644
-index 0000000000..0ba8d55a9a
+index 0000000000..36dd90684a
 --- /dev/null
 +++ b/configs/isvp_t30a_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -35267,7 +35654,7 @@ index 0000000000..0ba8d55a9a
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -35310,7 +35697,7 @@ index 0000000000..0ba8d55a9a
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30a_sfcnor_defconfig b/configs/isvp_t30a_sfcnor_defconfig
 new file mode 100644
-index 0000000000..c99e880fc3
+index 0000000000..f1a2b09502
 --- /dev/null
 +++ b/configs/isvp_t30a_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -35422,7 +35809,7 @@ index 0000000000..c99e880fc3
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -35464,7 +35851,7 @@ index 0000000000..c99e880fc3
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30a_usbboot_defconfig b/configs/isvp_t30a_usbboot_defconfig
 new file mode 100644
-index 0000000000..e805212ef1
+index 0000000000..21723bf562
 --- /dev/null
 +++ b/configs/isvp_t30a_usbboot_defconfig
 @@ -0,0 +1,130 @@
@@ -35564,7 +35951,7 @@ index 0000000000..e805212ef1
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -35600,7 +35987,7 @@ index 0000000000..e805212ef1
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30l_msc0_defconfig b/configs/isvp_t30l_msc0_defconfig
 new file mode 100644
-index 0000000000..0759bac06c
+index 0000000000..cdc7e20023
 --- /dev/null
 +++ b/configs/isvp_t30l_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -35713,7 +36100,7 @@ index 0000000000..0759bac06c
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -35756,7 +36143,7 @@ index 0000000000..0759bac06c
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30l_sfcnor_defconfig b/configs/isvp_t30l_sfcnor_defconfig
 new file mode 100644
-index 0000000000..06784bbcaf
+index 0000000000..746bac35f5
 --- /dev/null
 +++ b/configs/isvp_t30l_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -35868,7 +36255,7 @@ index 0000000000..06784bbcaf
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -35910,7 +36297,7 @@ index 0000000000..06784bbcaf
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30l_usbboot_defconfig b/configs/isvp_t30l_usbboot_defconfig
 new file mode 100644
-index 0000000000..37765b3491
+index 0000000000..4e66c20423
 --- /dev/null
 +++ b/configs/isvp_t30l_usbboot_defconfig
 @@ -0,0 +1,130 @@
@@ -36010,7 +36397,7 @@ index 0000000000..37765b3491
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -36046,7 +36433,7 @@ index 0000000000..37765b3491
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30n_msc0_defconfig b/configs/isvp_t30n_msc0_defconfig
 new file mode 100644
-index 0000000000..7e5892070b
+index 0000000000..9470053644
 --- /dev/null
 +++ b/configs/isvp_t30n_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -36159,7 +36546,7 @@ index 0000000000..7e5892070b
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -36202,7 +36589,7 @@ index 0000000000..7e5892070b
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30n_sfcnor_defconfig b/configs/isvp_t30n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..50efa4a988
+index 0000000000..fb1c5984e7
 --- /dev/null
 +++ b/configs/isvp_t30n_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -36314,7 +36701,7 @@ index 0000000000..50efa4a988
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -36356,7 +36743,7 @@ index 0000000000..50efa4a988
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30n_usbboot_defconfig b/configs/isvp_t30n_usbboot_defconfig
 new file mode 100644
-index 0000000000..020069f435
+index 0000000000..086be9d59e
 --- /dev/null
 +++ b/configs/isvp_t30n_usbboot_defconfig
 @@ -0,0 +1,130 @@
@@ -36456,7 +36843,7 @@ index 0000000000..020069f435
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -36492,7 +36879,7 @@ index 0000000000..020069f435
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30x_msc0_defconfig b/configs/isvp_t30x_msc0_defconfig
 new file mode 100644
-index 0000000000..6b462ebd15
+index 0000000000..40a89a439b
 --- /dev/null
 +++ b/configs/isvp_t30x_msc0_defconfig
 @@ -0,0 +1,150 @@
@@ -36605,7 +36992,7 @@ index 0000000000..6b462ebd15
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -36648,7 +37035,7 @@ index 0000000000..6b462ebd15
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30x_sfcnor_defconfig b/configs/isvp_t30x_sfcnor_defconfig
 new file mode 100644
-index 0000000000..c83b10c602
+index 0000000000..ac5dc6ad03
 --- /dev/null
 +++ b/configs/isvp_t30x_sfcnor_defconfig
 @@ -0,0 +1,148 @@
@@ -36760,7 +37147,7 @@ index 0000000000..c83b10c602
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -36802,7 +37189,7 @@ index 0000000000..c83b10c602
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t30x_usbboot_defconfig b/configs/isvp_t30x_usbboot_defconfig
 new file mode 100644
-index 0000000000..7b6af18f09
+index 0000000000..6ce46a95ba
 --- /dev/null
 +++ b/configs/isvp_t30x_usbboot_defconfig
 @@ -0,0 +1,130 @@
@@ -36902,7 +37289,7 @@ index 0000000000..7b6af18f09
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -36938,7 +37325,7 @@ index 0000000000..7b6af18f09
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31a_msc0_defconfig b/configs/isvp_t31a_msc0_defconfig
 new file mode 100644
-index 0000000000..ecd77aea39
+index 0000000000..efc1c55271
 --- /dev/null
 +++ b/configs/isvp_t31a_msc0_defconfig
 @@ -0,0 +1,148 @@
@@ -37049,7 +37436,7 @@ index 0000000000..ecd77aea39
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -37092,7 +37479,7 @@ index 0000000000..ecd77aea39
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31a_sfcnor_defconfig b/configs/isvp_t31a_sfcnor_defconfig
 new file mode 100644
-index 0000000000..473644bd58
+index 0000000000..2c77c945c9
 --- /dev/null
 +++ b/configs/isvp_t31a_sfcnor_defconfig
 @@ -0,0 +1,146 @@
@@ -37202,7 +37589,7 @@ index 0000000000..473644bd58
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -37244,10 +37631,10 @@ index 0000000000..473644bd58
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31a_usbboot_defconfig b/configs/isvp_t31a_usbboot_defconfig
 new file mode 100644
-index 0000000000..3ad6924691
+index 0000000000..7ac4d22c28
 --- /dev/null
 +++ b/configs/isvp_t31a_usbboot_defconfig
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +CONFIG_MIPS=y
 +CONFIG_SKIP_LOWLEVEL_INIT=y
 +CONFIG_SYS_MALLOC_LEN=0x1000000
@@ -37276,6 +37663,7 @@ index 0000000000..3ad6924691
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1512000000
++CONFIG_MIPS_RELOCATION_TABLE_SIZE=0xc000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -37351,7 +37739,7 @@ index 0000000000..3ad6924691
 +CONFIG_MTD_UBI_FASTMAP=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -37384,7 +37772,7 @@ index 0000000000..3ad6924691
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31l_msc0_defconfig b/configs/isvp_t31l_msc0_defconfig
 new file mode 100644
-index 0000000000..f661c6f8d4
+index 0000000000..c28e634a1d
 --- /dev/null
 +++ b/configs/isvp_t31l_msc0_defconfig
 @@ -0,0 +1,148 @@
@@ -37495,7 +37883,7 @@ index 0000000000..f661c6f8d4
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -37538,7 +37926,7 @@ index 0000000000..f661c6f8d4
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31l_sfcnor_defconfig b/configs/isvp_t31l_sfcnor_defconfig
 new file mode 100644
-index 0000000000..ccd7967957
+index 0000000000..b0fc894632
 --- /dev/null
 +++ b/configs/isvp_t31l_sfcnor_defconfig
 @@ -0,0 +1,146 @@
@@ -37648,7 +38036,7 @@ index 0000000000..ccd7967957
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -37690,10 +38078,10 @@ index 0000000000..ccd7967957
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31l_usbboot_defconfig b/configs/isvp_t31l_usbboot_defconfig
 new file mode 100644
-index 0000000000..bda365c323
+index 0000000000..b5db9222fa
 --- /dev/null
 +++ b/configs/isvp_t31l_usbboot_defconfig
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +CONFIG_MIPS=y
 +CONFIG_SKIP_LOWLEVEL_INIT=y
 +CONFIG_SYS_MALLOC_LEN=0x1000000
@@ -37722,6 +38110,7 @@ index 0000000000..bda365c323
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1008000000
++CONFIG_MIPS_RELOCATION_TABLE_SIZE=0xc000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -37797,7 +38186,7 @@ index 0000000000..bda365c323
 +CONFIG_MTD_UBI_FASTMAP=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -37830,7 +38219,7 @@ index 0000000000..bda365c323
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31lc_msc0_defconfig b/configs/isvp_t31lc_msc0_defconfig
 new file mode 100644
-index 0000000000..a0aca57786
+index 0000000000..4691c056f2
 --- /dev/null
 +++ b/configs/isvp_t31lc_msc0_defconfig
 @@ -0,0 +1,148 @@
@@ -37941,7 +38330,7 @@ index 0000000000..a0aca57786
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -37984,7 +38373,7 @@ index 0000000000..a0aca57786
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31lc_sfcnor_defconfig b/configs/isvp_t31lc_sfcnor_defconfig
 new file mode 100644
-index 0000000000..faa36b6402
+index 0000000000..3b2cc7fab5
 --- /dev/null
 +++ b/configs/isvp_t31lc_sfcnor_defconfig
 @@ -0,0 +1,146 @@
@@ -38094,7 +38483,7 @@ index 0000000000..faa36b6402
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -38136,10 +38525,10 @@ index 0000000000..faa36b6402
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31lc_usbboot_defconfig b/configs/isvp_t31lc_usbboot_defconfig
 new file mode 100644
-index 0000000000..0932c917f3
+index 0000000000..ee53eb2b0b
 --- /dev/null
 +++ b/configs/isvp_t31lc_usbboot_defconfig
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +CONFIG_MIPS=y
 +CONFIG_SKIP_LOWLEVEL_INIT=y
 +CONFIG_SYS_MALLOC_LEN=0x1000000
@@ -38168,6 +38557,7 @@ index 0000000000..0932c917f3
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1104000000
++CONFIG_MIPS_RELOCATION_TABLE_SIZE=0xc000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -38243,7 +38633,7 @@ index 0000000000..0932c917f3
 +CONFIG_MTD_UBI_FASTMAP=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -38276,7 +38666,7 @@ index 0000000000..0932c917f3
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31n_msc0_defconfig b/configs/isvp_t31n_msc0_defconfig
 new file mode 100644
-index 0000000000..b78861f4d1
+index 0000000000..bf45720306
 --- /dev/null
 +++ b/configs/isvp_t31n_msc0_defconfig
 @@ -0,0 +1,148 @@
@@ -38387,7 +38777,7 @@ index 0000000000..b78861f4d1
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -38430,7 +38820,7 @@ index 0000000000..b78861f4d1
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31n_sfcnor_defconfig b/configs/isvp_t31n_sfcnor_defconfig
 new file mode 100644
-index 0000000000..c822856305
+index 0000000000..b7f50554e9
 --- /dev/null
 +++ b/configs/isvp_t31n_sfcnor_defconfig
 @@ -0,0 +1,146 @@
@@ -38540,7 +38930,7 @@ index 0000000000..c822856305
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -38582,10 +38972,10 @@ index 0000000000..c822856305
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31n_usbboot_defconfig b/configs/isvp_t31n_usbboot_defconfig
 new file mode 100644
-index 0000000000..e20f5d5152
+index 0000000000..389351abdf
 --- /dev/null
 +++ b/configs/isvp_t31n_usbboot_defconfig
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +CONFIG_MIPS=y
 +CONFIG_SKIP_LOWLEVEL_INIT=y
 +CONFIG_SYS_MALLOC_LEN=0x1000000
@@ -38614,6 +39004,7 @@ index 0000000000..e20f5d5152
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1404000000
++CONFIG_MIPS_RELOCATION_TABLE_SIZE=0xc000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -38689,7 +39080,7 @@ index 0000000000..e20f5d5152
 +CONFIG_MTD_UBI_FASTMAP=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -38722,7 +39113,7 @@ index 0000000000..e20f5d5152
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31x_msc0_defconfig b/configs/isvp_t31x_msc0_defconfig
 new file mode 100644
-index 0000000000..8cece0f0f2
+index 0000000000..c1466287b0
 --- /dev/null
 +++ b/configs/isvp_t31x_msc0_defconfig
 @@ -0,0 +1,148 @@
@@ -38833,7 +39224,7 @@ index 0000000000..8cece0f0f2
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -38876,7 +39267,7 @@ index 0000000000..8cece0f0f2
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31x_sfcnor_defconfig b/configs/isvp_t31x_sfcnor_defconfig
 new file mode 100644
-index 0000000000..171db7f463
+index 0000000000..f8525f6f4c
 --- /dev/null
 +++ b/configs/isvp_t31x_sfcnor_defconfig
 @@ -0,0 +1,146 @@
@@ -38986,7 +39377,7 @@ index 0000000000..171db7f463
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -39028,10 +39419,10 @@ index 0000000000..171db7f463
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t31x_usbboot_defconfig b/configs/isvp_t31x_usbboot_defconfig
 new file mode 100644
-index 0000000000..3028d5759d
+index 0000000000..d4a8bec9d2
 --- /dev/null
 +++ b/configs/isvp_t31x_usbboot_defconfig
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +CONFIG_MIPS=y
 +CONFIG_SKIP_LOWLEVEL_INIT=y
 +CONFIG_SYS_MALLOC_LEN=0x1000000
@@ -39060,6 +39451,7 @@ index 0000000000..3028d5759d
 +CONFIG_SPL_PAYLOAD="u-boot.bin"
 +CONFIG_BUILD_TARGET="u-boot-lzma.img"
 +CONFIG_SYS_MIPS_TIMER_FREQ=1392000000
++CONFIG_MIPS_RELOCATION_TABLE_SIZE=0xc000
 +# CONFIG_BOOTSTD is not set
 +CONFIG_BOOTDELAY=0
 +CONFIG_USE_BOOTCOMMAND=y
@@ -39135,7 +39527,7 @@ index 0000000000..3028d5759d
 +CONFIG_MTD_UBI_FASTMAP=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -39168,7 +39560,7 @@ index 0000000000..3028d5759d
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32lq_msc0_defconfig b/configs/isvp_t32lq_msc0_defconfig
 new file mode 100644
-index 0000000000..d448c45bd5
+index 0000000000..889e44b593
 --- /dev/null
 +++ b/configs/isvp_t32lq_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -39282,7 +39674,7 @@ index 0000000000..d448c45bd5
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -39325,7 +39717,7 @@ index 0000000000..d448c45bd5
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32lq_sfcnor_defconfig b/configs/isvp_t32lq_sfcnor_defconfig
 new file mode 100644
-index 0000000000..df06278746
+index 0000000000..a761d40fc4
 --- /dev/null
 +++ b/configs/isvp_t32lq_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -39438,7 +39830,7 @@ index 0000000000..df06278746
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -39480,7 +39872,7 @@ index 0000000000..df06278746
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32lq_usbboot_defconfig b/configs/isvp_t32lq_usbboot_defconfig
 new file mode 100644
-index 0000000000..eb7afffcb0
+index 0000000000..e6259e12c2
 --- /dev/null
 +++ b/configs/isvp_t32lq_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -39588,7 +39980,7 @@ index 0000000000..eb7afffcb0
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -39622,7 +40014,7 @@ index 0000000000..eb7afffcb0
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32nq_msc0_defconfig b/configs/isvp_t32nq_msc0_defconfig
 new file mode 100644
-index 0000000000..2c18a9170c
+index 0000000000..71ee901144
 --- /dev/null
 +++ b/configs/isvp_t32nq_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -39736,7 +40128,7 @@ index 0000000000..2c18a9170c
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -39779,7 +40171,7 @@ index 0000000000..2c18a9170c
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32nq_sfcnor_defconfig b/configs/isvp_t32nq_sfcnor_defconfig
 new file mode 100644
-index 0000000000..e1bc9dc28b
+index 0000000000..9835eab958
 --- /dev/null
 +++ b/configs/isvp_t32nq_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -39892,7 +40284,7 @@ index 0000000000..e1bc9dc28b
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -39934,7 +40326,7 @@ index 0000000000..e1bc9dc28b
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32nq_usbboot_defconfig b/configs/isvp_t32nq_usbboot_defconfig
 new file mode 100644
-index 0000000000..df73001b05
+index 0000000000..23240159c3
 --- /dev/null
 +++ b/configs/isvp_t32nq_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -40042,7 +40434,7 @@ index 0000000000..df73001b05
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -40076,7 +40468,7 @@ index 0000000000..df73001b05
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vn_msc0_defconfig b/configs/isvp_t32vn_msc0_defconfig
 new file mode 100644
-index 0000000000..74aa85f327
+index 0000000000..8d7c06b7bc
 --- /dev/null
 +++ b/configs/isvp_t32vn_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -40190,7 +40582,7 @@ index 0000000000..74aa85f327
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -40233,7 +40625,7 @@ index 0000000000..74aa85f327
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vn_sfcnor_defconfig b/configs/isvp_t32vn_sfcnor_defconfig
 new file mode 100644
-index 0000000000..d04777d1b3
+index 0000000000..903d99803f
 --- /dev/null
 +++ b/configs/isvp_t32vn_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -40346,7 +40738,7 @@ index 0000000000..d04777d1b3
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -40388,7 +40780,7 @@ index 0000000000..d04777d1b3
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vn_usbboot_defconfig b/configs/isvp_t32vn_usbboot_defconfig
 new file mode 100644
-index 0000000000..18fc18d048
+index 0000000000..4c529aa4f3
 --- /dev/null
 +++ b/configs/isvp_t32vn_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -40496,7 +40888,7 @@ index 0000000000..18fc18d048
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -40530,7 +40922,7 @@ index 0000000000..18fc18d048
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vnp_msc0_defconfig b/configs/isvp_t32vnp_msc0_defconfig
 new file mode 100644
-index 0000000000..b00bbbc682
+index 0000000000..f4febee2ce
 --- /dev/null
 +++ b/configs/isvp_t32vnp_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -40644,7 +41036,7 @@ index 0000000000..b00bbbc682
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -40687,7 +41079,7 @@ index 0000000000..b00bbbc682
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vnp_sfcnor_defconfig b/configs/isvp_t32vnp_sfcnor_defconfig
 new file mode 100644
-index 0000000000..7ff676dee6
+index 0000000000..ee03ea53e3
 --- /dev/null
 +++ b/configs/isvp_t32vnp_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -40800,7 +41192,7 @@ index 0000000000..7ff676dee6
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -40842,7 +41234,7 @@ index 0000000000..7ff676dee6
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vnp_usbboot_defconfig b/configs/isvp_t32vnp_usbboot_defconfig
 new file mode 100644
-index 0000000000..ae6050a219
+index 0000000000..3117612d11
 --- /dev/null
 +++ b/configs/isvp_t32vnp_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -40950,7 +41342,7 @@ index 0000000000..ae6050a219
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -40984,7 +41376,7 @@ index 0000000000..ae6050a219
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vx_msc0_defconfig b/configs/isvp_t32vx_msc0_defconfig
 new file mode 100644
-index 0000000000..fd706d4337
+index 0000000000..e2afd33f5a
 --- /dev/null
 +++ b/configs/isvp_t32vx_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -41098,7 +41490,7 @@ index 0000000000..fd706d4337
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -41141,7 +41533,7 @@ index 0000000000..fd706d4337
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vx_sfcnor_defconfig b/configs/isvp_t32vx_sfcnor_defconfig
 new file mode 100644
-index 0000000000..de5beb6278
+index 0000000000..17647750ca
 --- /dev/null
 +++ b/configs/isvp_t32vx_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -41254,7 +41646,7 @@ index 0000000000..de5beb6278
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -41296,7 +41688,7 @@ index 0000000000..de5beb6278
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32vx_usbboot_defconfig b/configs/isvp_t32vx_usbboot_defconfig
 new file mode 100644
-index 0000000000..6a13e242a0
+index 0000000000..2d9d0b93c3
 --- /dev/null
 +++ b/configs/isvp_t32vx_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -41404,7 +41796,7 @@ index 0000000000..6a13e242a0
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -41438,7 +41830,7 @@ index 0000000000..6a13e242a0
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32xq_msc0_defconfig b/configs/isvp_t32xq_msc0_defconfig
 new file mode 100644
-index 0000000000..df651487bd
+index 0000000000..36d9a644f5
 --- /dev/null
 +++ b/configs/isvp_t32xq_msc0_defconfig
 @@ -0,0 +1,151 @@
@@ -41552,7 +41944,7 @@ index 0000000000..df651487bd
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_SPL_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -41595,7 +41987,7 @@ index 0000000000..df651487bd
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32xq_sfcnor_defconfig b/configs/isvp_t32xq_sfcnor_defconfig
 new file mode 100644
-index 0000000000..0f96c4c946
+index 0000000000..10f87c7128
 --- /dev/null
 +++ b/configs/isvp_t32xq_sfcnor_defconfig
 @@ -0,0 +1,149 @@
@@ -41708,7 +42100,7 @@ index 0000000000..0f96c4c946
 +CONFIG_SPI_FLASH_ZBIT=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_DM_REGULATOR=y
@@ -41750,7 +42142,7 @@ index 0000000000..0f96c4c946
 +CONFIG_SPL_LZMA_SIZE_OPTIMIZATION=y
 diff --git a/configs/isvp_t32xq_usbboot_defconfig b/configs/isvp_t32xq_usbboot_defconfig
 new file mode 100644
-index 0000000000..b63e0a29e9
+index 0000000000..92bc0ec3ec
 --- /dev/null
 +++ b/configs/isvp_t32xq_usbboot_defconfig
 @@ -0,0 +1,136 @@
@@ -41858,7 +42250,7 @@ index 0000000000..b63e0a29e9
 +# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
 +CONFIG_RAM=y
@@ -42350,7 +42742,7 @@ index 0000000000..203373f860
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t40n_usbboot_defconfig b/configs/isvp_t40n_usbboot_defconfig
 new file mode 100644
-index 0000000000..12df135219
+index 0000000000..c3c3047dde
 --- /dev/null
 +++ b/configs/isvp_t40n_usbboot_defconfig
 @@ -0,0 +1,127 @@
@@ -42450,7 +42842,7 @@ index 0000000000..12df135219
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43012,7 +43404,7 @@ index 0000000000..5368469069
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t40xp_usbboot_defconfig b/configs/isvp_t40xp_usbboot_defconfig
 new file mode 100644
-index 0000000000..5be84f2064
+index 0000000000..50642d502e
 --- /dev/null
 +++ b/configs/isvp_t40xp_usbboot_defconfig
 @@ -0,0 +1,127 @@
@@ -43112,7 +43504,7 @@ index 0000000000..5be84f2064
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43145,7 +43537,7 @@ index 0000000000..5be84f2064
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41lq_msc0_defconfig b/configs/isvp_t41lq_msc0_defconfig
 new file mode 100644
-index 0000000000..ba9bcf5b59
+index 0000000000..3b422e4e95
 --- /dev/null
 +++ b/configs/isvp_t41lq_msc0_defconfig
 @@ -0,0 +1,126 @@
@@ -43244,7 +43636,7 @@ index 0000000000..ba9bcf5b59
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43277,7 +43669,7 @@ index 0000000000..ba9bcf5b59
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41lq_sfcnor_defconfig b/configs/isvp_t41lq_sfcnor_defconfig
 new file mode 100644
-index 0000000000..6647c02bbe
+index 0000000000..ab19c71bf6
 --- /dev/null
 +++ b/configs/isvp_t41lq_sfcnor_defconfig
 @@ -0,0 +1,126 @@
@@ -43376,7 +43768,7 @@ index 0000000000..6647c02bbe
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43409,7 +43801,7 @@ index 0000000000..6647c02bbe
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41lq_usbboot_defconfig b/configs/isvp_t41lq_usbboot_defconfig
 new file mode 100644
-index 0000000000..38b4f4b664
+index 0000000000..7c8e9682ce
 --- /dev/null
 +++ b/configs/isvp_t41lq_usbboot_defconfig
 @@ -0,0 +1,122 @@
@@ -43504,7 +43896,7 @@ index 0000000000..38b4f4b664
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43537,7 +43929,7 @@ index 0000000000..38b4f4b664
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41nq_msc0_defconfig b/configs/isvp_t41nq_msc0_defconfig
 new file mode 100644
-index 0000000000..e0b479ea9e
+index 0000000000..2bcc0e192d
 --- /dev/null
 +++ b/configs/isvp_t41nq_msc0_defconfig
 @@ -0,0 +1,126 @@
@@ -43636,7 +44028,7 @@ index 0000000000..e0b479ea9e
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43669,7 +44061,7 @@ index 0000000000..e0b479ea9e
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41nq_sfc0_nand_defconfig b/configs/isvp_t41nq_sfc0_nand_defconfig
 new file mode 100644
-index 0000000000..0e06122102
+index 0000000000..c70397bce5
 --- /dev/null
 +++ b/configs/isvp_t41nq_sfc0_nand_defconfig
 @@ -0,0 +1,112 @@
@@ -43753,7 +44145,7 @@ index 0000000000..0e06122102
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43787,7 +44179,7 @@ index 0000000000..0e06122102
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41nq_sfcnor_defconfig b/configs/isvp_t41nq_sfcnor_defconfig
 new file mode 100644
-index 0000000000..8b53daf8e9
+index 0000000000..a8883633c3
 --- /dev/null
 +++ b/configs/isvp_t41nq_sfcnor_defconfig
 @@ -0,0 +1,126 @@
@@ -43886,7 +44278,7 @@ index 0000000000..8b53daf8e9
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -43919,7 +44311,7 @@ index 0000000000..8b53daf8e9
 +CONFIG_SPL_LZMA=y
 diff --git a/configs/isvp_t41nq_usbboot_defconfig b/configs/isvp_t41nq_usbboot_defconfig
 new file mode 100644
-index 0000000000..90ca4fcf25
+index 0000000000..ab2fff06ea
 --- /dev/null
 +++ b/configs/isvp_t41nq_usbboot_defconfig
 @@ -0,0 +1,122 @@
@@ -44014,7 +44406,7 @@ index 0000000000..90ca4fcf25
 +CONFIG_DM_MDIO=y
 +CONFIG_ETH_DESIGNWARE=y
 +CONFIG_ETH_DESIGNWARE_INGENIC=y
-+CONFIG_PHY_ICPLUS=y
++CONFIG_PHY_MOTORCOMM=y
 +CONFIG_PHY=y
 +CONFIG_PINCTRL=y
 +CONFIG_PINCTRL_INGENIC=y
@@ -44576,10 +44968,10 @@ index 0000000000..3a604f3117
 +            bootph-all;
 +    };
 diff --git a/drivers/clk/Kconfig b/drivers/clk/Kconfig
-index 145e4cfa2d..65bddab677 100644
+index 47da49c831..ab4822fa44 100644
 --- a/drivers/clk/Kconfig
 +++ b/drivers/clk/Kconfig
-@@ -271,6 +271,7 @@ source "drivers/clk/analogbits/Kconfig"
+@@ -278,6 +278,7 @@ source "drivers/clk/analogbits/Kconfig"
  source "drivers/clk/at91/Kconfig"
  source "drivers/clk/exynos/Kconfig"
  source "drivers/clk/imx/Kconfig"
@@ -44588,7 +44980,7 @@ index 145e4cfa2d..65bddab677 100644
  source "drivers/clk/microchip/Kconfig"
  source "drivers/clk/mvebu/Kconfig"
 diff --git a/drivers/clk/Makefile b/drivers/clk/Makefile
-index 2bfa789e48..3308ea86dc 100644
+index 4b241a9240..e0f6497676 100644
 --- a/drivers/clk/Makefile
 +++ b/drivers/clk/Makefile
 @@ -17,6 +17,7 @@ obj-y += adi/
@@ -49955,7 +50347,7 @@ index cccf9d54e0..6b0cfb1a7a 100644
  #define DMAMAC_SRST		(1 << 0)
  
 diff --git a/drivers/net/dwc_eth_xgmac.c b/drivers/net/dwc_eth_xgmac.c
-index 311b57011c..d51d422a96 100644
+index 4e664a88f6..644a2048f4 100644
 --- a/drivers/net/dwc_eth_xgmac.c
 +++ b/drivers/net/dwc_eth_xgmac.c
 @@ -451,7 +451,19 @@ static int xgmac_read_rom_hwaddr(struct udevice *dev)
@@ -49979,7 +50371,7 @@ index 311b57011c..d51d422a96 100644
  }
  
  static int xgmac_get_phy_addr(struct xgmac_priv *priv, struct udevice *dev)
-@@ -707,6 +719,9 @@ static int xgmac_start(struct udevice *dev)
+@@ -708,6 +720,9 @@ static int xgmac_start(struct udevice *dev)
  	       XGMAC_DMA_SYSBUS_MODE_BLEN4 |
  	       XGMAC_DMA_SYSBUS_MODE_BLEN32;
  
@@ -49989,7 +50381,7 @@ index 311b57011c..d51d422a96 100644
  	writel(val, &xgmac->dma_regs->sysbus_mode);
  
  	/* Set up descriptors */
-@@ -723,7 +738,7 @@ static int xgmac_start(struct udevice *dev)
+@@ -724,7 +739,7 @@ static int xgmac_start(struct udevice *dev)
  	for (i = 0; i < XGMAC_DESCRIPTORS_RX; i++) {
  		rx_desc = (struct xgmac_desc *)xgmac_get_desc(xgmac, i, true);
  
@@ -49998,7 +50390,7 @@ index 311b57011c..d51d422a96 100644
  					(i * XGMAC_MAX_PACKET_SIZE));
  
  		rx_desc->des0 = lower_32_bits(address);
-@@ -737,14 +752,14 @@ static int xgmac_start(struct udevice *dev)
+@@ -738,14 +753,14 @@ static int xgmac_start(struct udevice *dev)
  						       XGMAC_MAX_PACKET_SIZE);
  	}
  
@@ -50015,7 +50407,7 @@ index 311b57011c..d51d422a96 100644
  	writel(upper_32_bits(address),
  	       &xgmac->dma_regs->ch0_rxdesc_list_haddress);
  	writel(lower_32_bits(address),
-@@ -769,7 +784,7 @@ static int xgmac_start(struct udevice *dev)
+@@ -770,7 +785,7 @@ static int xgmac_start(struct udevice *dev)
  	 * that's not distinguishable from none of the descriptors being
  	 * available.
  	 */
@@ -50024,7 +50416,7 @@ index 311b57011c..d51d422a96 100644
  	writel(last_rx_desc, &xgmac->dma_regs->ch0_rxdesc_tail_pointer);
  
  	xgmac->started = true;
-@@ -872,8 +887,8 @@ static int xgmac_send(struct udevice *dev, void *packet, int length)
+@@ -873,8 +888,8 @@ static int xgmac_send(struct udevice *dev, void *packet, int length)
  	xgmac->tx_desc_idx++;
  	xgmac->tx_desc_idx %= XGMAC_DESCRIPTORS_TX;
  
@@ -50035,7 +50427,7 @@ index 311b57011c..d51d422a96 100644
  	tx_desc->des2 = length;
  	/*
  	 * Make sure that if HW sees the _OWN write below, it will see all the
-@@ -883,7 +898,7 @@ static int xgmac_send(struct udevice *dev, void *packet, int length)
+@@ -884,7 +899,7 @@ static int xgmac_send(struct udevice *dev, void *packet, int length)
  	tx_desc->des3 = XGMAC_DESC3_OWN | XGMAC_DESC3_FD | XGMAC_DESC3_LD | length;
  	xgmac->config->ops->xgmac_flush_desc(tx_desc);
  
@@ -50044,7 +50436,7 @@ index 311b57011c..d51d422a96 100644
  	       &xgmac->dma_regs->ch0_txdesc_tail_pointer);
  
  	start_time = get_timer(0);
-@@ -954,7 +969,7 @@ static int xgmac_free_pkt(struct udevice *dev, uchar *packet, int length)
+@@ -955,7 +970,7 @@ static int xgmac_free_pkt(struct udevice *dev, uchar *packet, int length)
  			mb();
  			xgmac->config->ops->xgmac_flush_desc(rx_desc);
  			xgmac->config->ops->xgmac_inval_buffer(packet, length);
@@ -50053,7 +50445,7 @@ index 311b57011c..d51d422a96 100644
  					(idx * XGMAC_MAX_PACKET_SIZE));
  			rx_desc->des0 = lower_32_bits(address);
  			rx_desc->des1 = upper_32_bits(address);
-@@ -968,7 +983,7 @@ static int xgmac_free_pkt(struct udevice *dev, uchar *packet, int length)
+@@ -969,7 +984,7 @@ static int xgmac_free_pkt(struct udevice *dev, uchar *packet, int length)
  			rx_desc->des3 = XGMAC_DESC3_OWN;
  			xgmac->config->ops->xgmac_flush_desc(rx_desc);
  		}
@@ -50062,7 +50454,7 @@ index 311b57011c..d51d422a96 100644
  	}
  
  	xgmac->rx_desc_idx++;
-@@ -1199,10 +1214,18 @@ static const struct eth_ops xgmac_ops = {
+@@ -1200,10 +1215,18 @@ static const struct eth_ops xgmac_ops = {
  };
  
  static const struct udevice_id xgmac_ids[] = {
@@ -50796,108 +51188,156 @@ index 0000000000..cd165ff11b
 +	.flags		= DM_FLAG_ALLOC_PRIV_DMA,
 +};
 diff --git a/drivers/net/phy/Kconfig b/drivers/net/phy/Kconfig
-index ee43852449..7bc76f34d4 100644
+index ee43852449..65777361b7 100644
 --- a/drivers/net/phy/Kconfig
 +++ b/drivers/net/phy/Kconfig
-@@ -175,6 +175,13 @@ config PHY_DAVICOM
- config PHY_ET1011C
- 	bool "LSI TruePHY ET1011C support"
+@@ -236,7 +236,8 @@ config PHY_MOTORCOMM
+ 	bool "Motorcomm PHYs"
+ 	help
+ 	  Enables support for Motorcomm network PHYs.
+-	  Currently supports the YT8511 and YT8531 Gigabit Ethernet PHYs.
++	  Currently supports the YT8512 Fast Ethernet PHY and the YT8511
++	  and YT8531 Gigabit Ethernet PHYs.
  
-+config PHY_ICPLUS
-+	bool "ICPlus IP101x Ethernet PHY support"
-+	help
-+	  Enable support for the ICPlus IP101G Ethernet PHY, including
-+	  the RMII reference-clock and mode setup required for the PHY
-+	  to establish a link.
+ config PHY_MSCC
+ 	depends on !COMPILE_TEST
+diff --git a/drivers/net/phy/motorcomm.c b/drivers/net/phy/motorcomm.c
+index e1630e1c22..e21ab21fe5 100644
+--- a/drivers/net/phy/motorcomm.c
++++ b/drivers/net/phy/motorcomm.c
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0+
+ /*
+- * Motorcomm YT8511/YT8531/YT8531S/YT8821/YT8521S PHY driver.
++ * Motorcomm YT8512/YT8511/YT8531/YT8531S/YT8821/YT8521S PHY driver.
+  *
+  * Copyright (C) 2023 StarFive Technology Co., Ltd.
+  * Copyright (C) 2024 Motorcomm Electronic Technology Co., Ltd.
+@@ -18,6 +18,30 @@
+ #define PHY_ID_YT8521S				0x0000011a
+ #define PHY_ID_MASK				GENMASK(31, 0)
+ 
++/* YT8512 10/100 PHY: the 0x0118 ID is the YT8512B silicon revision */
++#define PHY_ID_YT8512				0x00000128
++#define PHY_ID_YT8512B				0x00000118
 +
- config PHY_LXT
- 	bool "LXT971 Ethernet PHY support"
- 
-diff --git a/drivers/net/phy/Makefile b/drivers/net/phy/Makefile
-index 83520de7f1..532cae8b1e 100644
---- a/drivers/net/phy/Makefile
-+++ b/drivers/net/phy/Makefile
-@@ -18,6 +18,7 @@ obj-$(CONFIG_PHY_CORTINA) += cortina.o
- obj-$(CONFIG_PHY_CORTINA_ACCESS) += ca_phy.o
- obj-$(CONFIG_PHY_DAVICOM) += davicom.o
- obj-$(CONFIG_PHY_ET1011C) += et1011c.o
-+obj-$(CONFIG_PHY_ICPLUS) += icplus.o
- obj-$(CONFIG_PHY_LXT) += lxt.o
- obj-$(CONFIG_PHY_MARVELL) += marvell.o
- obj-$(CONFIG_PHY_MARVELL_10G) += marvell10g.o
-diff --git a/drivers/net/phy/icplus.c b/drivers/net/phy/icplus.c
-new file mode 100644
-index 0000000000..90539a4fc3
---- /dev/null
-+++ b/drivers/net/phy/icplus.c
-@@ -0,0 +1,67 @@
-+// SPDX-License-Identifier: GPL-2.0+
 +/*
-+ * ICPlus IP101G PHY driver.
-+ *
-+ * The IP101G needs RMII-specific setup before it will establish a
-+ * link: an extended page is selected through register 0x1e and the
-+ * RMII reference-clock divider and RMII mode are set through the
-+ * paged register 0x1f. Without this auto-negotiation never completes
-+ * (MDIO still works, so phylib finds the PHY but the link stays down).
-+ *
-+ * The sequence mirrors the known-good vendor Ingenic U-Boot
-+ * (SynopGMAC_Dev.c synopGMAC_search_phy) for this PHY.
++ * YT8512 extended registers (datasheet "EXT 4000H: extended combo
++ * control1"). Rmii_en and Clk_sel power up from the RX_DV and
++ * RXD3/CLK_CTL straps: {Rmii_en, Clk_sel} = 00 MII, 01 ReMII,
++ * 10 RMII with the PHY driving the 50 MHz REF_CLK on TXC (RMII2),
++ * 11 RMII with REF_CLK supplied by the MAC (RMII1).
 + */
-+#include <miiphy.h>
++#define YT8512_EXTREG_EXTEND_COMBO1		0x4000
++#define YT8512_COMBO1_RMII_RX_DV_SEL		BIT(4)	/* CRS_DV pad = RX_DV */
++#define YT8512_COMBO1_RMII_EN			BIT(1)
++#define YT8512_COMBO1_CLK_SEL			BIT(0)	/* 1: TXC/RXC are inputs */
 +
-+#define IP101G_PAGE_SEL		0x1e	/* extended page select */
-+#define IP101G_PAGE_DATA	0x1f	/* selected-page data */
++/*
++ * EXT 0x50 is undocumented apart from a note that RMII1 needs bit 6
++ * set. The vendor bring-up sets it for every mode, and with it clear
++ * the PHY never negotiates a link even in RMII2, so keep it set.
++ */
++#define YT8512_EXTREG_AFE_PLL			0x50
++#define YT8512_PLL_REFCLK_SEL_EN		BIT(6)
 +
-+#define IP101G_PAGE_RMII_CLK	0x0050
-+#define IP101G_RMII_CLK_25M	0x0040	/* bit6: REFCLK divide to 25 MHz */
-+
-+#define IP101G_PAGE_RMII_MODE	0x4000
-+#define IP101G_RMII_MODE	0x0010	/* bit4: RMII mode */
-+
-+static int ip101g_config(struct phy_device *phydev)
+ /* Extended Register's Address Offset Register */
+ #define YTPHY_PAGE_SELECT			0x1E
+ 
+@@ -497,6 +521,66 @@ static void ytphy_dt_parse(struct phy_device *phydev)
+ 		priv->flag |= TX_CLK_1000_INVERTED;
+ }
+ 
++/*
++ * The YT8512 has no fixed interface mode: it latches the RX_DV strap
++ * (weak internal pull-down = MII, external pull-up = RMII) when its
++ * reset releases and seeds the RW Rmii_en bit from it. A marginal
++ * pull-up samples MII on a random subset of power-ups, which leaves
++ * MDIO, auto-negotiation and the PHY's own clock alive while no frame
++ * crosses the RMII pins. Program the mode the MAC was described with
++ * instead of trusting the strap.
++ *
++ * The REF_CLK direction (Clk_sel, from the RXD3/CLK_CTL strap) stays
++ * as strapped: clear = the PHY drives 50 MHz on TXC from its crystal
++ * (RMII2), set = the MAC supplies REF_CLK (RMII1). CRS_DV is driven by
++ * RX_DV in RMII mode and the PLL reference select bit is set, as the
++ * vendor bring-up does.
++ */
++static int yt8512_config(struct phy_device *phydev)
 +{
-+	int reg;
++	u16 mask, set;
++	int ret, val;
 +
-+	phy_write(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_SEL,
-+		  IP101G_PAGE_RMII_CLK);
-+	reg = phy_read(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_DATA);
-+	reg |= IP101G_RMII_CLK_25M;
-+	phy_write(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_DATA, reg);
++	switch (phydev->interface) {
++	case PHY_INTERFACE_MODE_MII:
++		mask = YT8512_COMBO1_RMII_EN | YT8512_COMBO1_CLK_SEL;
++		set = 0;
++		break;
++	case PHY_INTERFACE_MODE_RMII:
++		mask = YT8512_COMBO1_RMII_EN | YT8512_COMBO1_RMII_RX_DV_SEL;
++		set = mask;
++		break;
++	default:
++		return -EOPNOTSUPP;
++	}
 +
-+	phy_write(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_SEL,
-+		  IP101G_PAGE_RMII_MODE);
-+	reg = phy_read(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_DATA);
-+	reg |= IP101G_RMII_MODE;
-+	phy_write(phydev, MDIO_DEVAD_NONE, IP101G_PAGE_DATA, reg);
++	val = ytphy_read_ext(phydev, YT8512_EXTREG_EXTEND_COMBO1);
++	if (val < 0)
++		return val;
++	debug("%s: combo control1 0x%04x -> 0x%04x\n", phydev->dev->name,
++	      val, (val & ~mask) | set);
 +
-+	return genphy_config_aneg(phydev);
++	ret = ytphy_modify_ext(phydev, YT8512_EXTREG_EXTEND_COMBO1, mask, set);
++	if (ret < 0)
++		return ret;
++
++	ret = ytphy_modify_ext(phydev, YT8512_EXTREG_AFE_PLL,
++			       YT8512_PLL_REFCLK_SEL_EN,
++			       YT8512_PLL_REFCLK_SEL_EN);
++	if (ret < 0)
++		return ret;
++
++	/*
++	 * The interface and PLL configuration only takes effect after a
++	 * soft reset; the extended registers survive it.
++	 */
++	ret = phy_reset(phydev);
++	if (ret < 0)
++		return ret;
++
++	return genphy_config(phydev);
 +}
 +
-+/*
-+ * This IP101G variant reports PHY ID register 2 = 0x0000 and register
-+ * 3 = 0x0118 or 0x0128 (two silicon revisions), i.e. phy_id 0x00000118
-+ * / 0x00000128. Match both exactly, as the vendor driver does.
-+ */
-+U_BOOT_PHY_DRIVER(ip101g_0118) = {
-+	.name = "ICPlus IP101G",
-+	.uid = 0x00000118,
-+	.mask = 0xffffffff,
-+	.features = PHY_BASIC_FEATURES,
-+	.config = &ip101g_config,
-+	.startup = &genphy_startup,
-+	.shutdown = &genphy_shutdown,
+ static int yt8511_config(struct phy_device *phydev)
+ {
+ 	u32 ge, fe;
+@@ -1273,6 +1357,26 @@ static int yt8531s_startup(struct phy_device *phydev)
+ 	return 0;
+ }
+ 
++U_BOOT_PHY_DRIVER(motorcomm8512) = {
++	.name          = "YT8512 Fast Ethernet",
++	.uid           = PHY_ID_YT8512,
++	.mask          = PHY_ID_MASK,
++	.features      = PHY_BASIC_FEATURES,
++	.config        = &yt8512_config,
++	.startup       = &genphy_startup,
++	.shutdown      = &genphy_shutdown,
 +};
 +
-+U_BOOT_PHY_DRIVER(ip101g_0128) = {
-+	.name = "ICPlus IP101G",
-+	.uid = 0x00000128,
-+	.mask = 0xffffffff,
-+	.features = PHY_BASIC_FEATURES,
-+	.config = &ip101g_config,
-+	.startup = &genphy_startup,
-+	.shutdown = &genphy_shutdown,
++U_BOOT_PHY_DRIVER(motorcomm8512B) = {
++	.name          = "YT8512B Fast Ethernet",
++	.uid           = PHY_ID_YT8512B,
++	.mask          = PHY_ID_MASK,
++	.features      = PHY_BASIC_FEATURES,
++	.config        = &yt8512_config,
++	.startup       = &genphy_startup,
++	.shutdown      = &genphy_shutdown,
 +};
++
+ U_BOOT_PHY_DRIVER(motorcomm8511) = {
+ 	.name          = "YT8511 Gigabit Ethernet",
+ 	.uid           = PHY_ID_YT8511,
 diff --git a/drivers/pinctrl/Kconfig b/drivers/pinctrl/Kconfig
 index fd30aaeeaa..5061687f0b 100644
 --- a/drivers/pinctrl/Kconfig
@@ -50931,10 +51371,10 @@ index 91149796bb..57f804f8c9 100644
  obj-$(CONFIG_PINCTRL_MESON)		+= meson/
 diff --git a/drivers/pinctrl/pinctrl-ingenic.c b/drivers/pinctrl/pinctrl-ingenic.c
 new file mode 100644
-index 0000000000..20bae867a6
+index 0000000000..94138e7d29
 --- /dev/null
 +++ b/drivers/pinctrl/pinctrl-ingenic.c
-@@ -0,0 +1,498 @@
+@@ -0,0 +1,542 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
 + * Ingenic XBurst pin controller + GPIO (XBurst1 T10-T33, XBurst2 A1).
@@ -51035,8 +51475,18 @@ index 0000000000..20bae867a6
 + */
 +static const int txx_mac_rmii[]	  = { 0x26, 0x27, 0x28, 0x29, 0x2a,
 +				      0x2b, 0x2c, 0x2d, 0x2e };
-+/* UART1 console = PB23/PB24, function 0 (T40/T41; A1 puts it elsewhere). */
++/*
++ * UART0 = PB19/PB22, function 0 (T10..T31 and T41). TX and RX are three pins
++ * apart, not adjacent: the vendor tables spell the mask 0x9 << 19, i.e. bits
++ * 19 and 22. T32/T33, T40 and A1 route UART0 elsewhere and have their own.
++ */
++static const int txx_uart0_data[] = { 0x33, 0x36 };
++/* UART1 console = PB23/PB24, function 0 (T10..T41; A1 puts it elsewhere). */
 +static const int txx_uart1_data[] = { 0x37, 0x38 };
++/* T32/T33 UART0 = PC8/PC9, function 0. */
++static const int t32_uart0_data[] = { 0x48, 0x49 };
++/* T40 UART0 = PC2/PC5, function 0 (again the 0x9 split mask, 0x9 << 2). */
++static const int t40_uart0_data[] = { 0x42, 0x45 };
 +/* SFC0 4-wire = PA23,24,27,28 function 1 - the classic XBurst1 parts. */
 +static const int txx_sfc4_data[]  = { 0x17, 0x18, 0x1b, 0x1c };
 +/*
@@ -51048,6 +51498,7 @@ index 0000000000..20bae867a6
 +static const int t32_sfc1_data[]  = { 0x42, 0x43, 0x44, 0x45, 0x46, 0x47 };
 +
 +/* A1 (XBurst2, banks PA..PE) has its own map. */
++static const int a1_uart0_data[]  = { 0x52, 0x53 };		/* PC18, PC19 */
 +static const int a1_uart1_data[]  = { 0x46, 0x47 };		/* PC6, PC7   */
 +static const int a1_sfc_data[]	  = { 0x54, 0x55, 0x56,		/* PC20..PC25 */
 +				      0x57, 0x58, 0x59 };
@@ -51058,49 +51509,74 @@ index 0000000000..20bae867a6
 +
 +/* ---- classic XBurst1: T10/T20/T21/T23/T30/T31 ---------------------- */
 +static const struct ingenic_group txx_classic_groups[] = {
-+	GRP("mmc0-1bit", txx_mmc0_1bit, 0),
-+	GRP("mmc0-4bit", txx_mmc0_4bit, 0),
-+	GRP("sfc-data",	 txx_sfc4_data, 1),
-+	GRP("mac-rmii",	 txx_mac_rmii,	0),
++	GRP("mmc0-1bit",  txx_mmc0_1bit,  0),
++	GRP("mmc0-4bit",  txx_mmc0_4bit,  0),
++	GRP("sfc-data",	  txx_sfc4_data,  1),
++	GRP("uart0-data", txx_uart0_data, 0),
++	GRP("uart1-data", txx_uart1_data, 0),
++	GRP("mac-rmii",	  txx_mac_rmii,	  0),
 +};
-+static const char * const txx_g_mmc0[] = { "mmc0-1bit", "mmc0-4bit" };
-+static const char * const txx_g_sfc[]  = { "sfc-data" };
-+static const char * const txx_g_mac[]  = { "mac-rmii" };
++static const char * const txx_g_mmc0[]  = { "mmc0-1bit", "mmc0-4bit" };
++static const char * const txx_g_sfc[]   = { "sfc-data" };
++static const char * const txx_g_uart0[] = { "uart0-data" };
++static const char * const txx_g_uart1[] = { "uart1-data" };
++static const char * const txx_g_mac[]   = { "mac-rmii" };
 +static const struct ingenic_function txx_classic_functions[] = {
-+	FUNC("mmc0", txx_g_mmc0),
-+	FUNC("sfc",  txx_g_sfc),
-+	FUNC("mac",  txx_g_mac),
++	FUNC("mmc0",  txx_g_mmc0),
++	FUNC("sfc",   txx_g_sfc),
++	FUNC("uart0", txx_g_uart0),
++	FUNC("uart1", txx_g_uart1),
++	FUNC("mac",   txx_g_mac),
 +};
 +
 +/* ---- T32/T33: 6-wire SFC0 (func 0) plus the SFC1 park group --------- */
 +static const struct ingenic_group t32_groups[] = {
-+	GRP("mmc0-1bit", txx_mmc0_1bit, 0),
-+	GRP("mmc0-4bit", txx_mmc0_4bit, 0),
-+	GRP("sfc-data",	 txx_sfc6_data, 0),
-+	GRP("sfc1-data", t32_sfc1_data, 1),
-+	GRP("mac-rmii",	 txx_mac_rmii,	0),
++	GRP("mmc0-1bit",  txx_mmc0_1bit,  0),
++	GRP("mmc0-4bit",  txx_mmc0_4bit,  0),
++	GRP("sfc-data",	  txx_sfc6_data,  0),
++	GRP("sfc1-data",  t32_sfc1_data,  1),
++	GRP("uart0-data", t32_uart0_data, 0),
++	GRP("uart1-data", txx_uart1_data, 0),
++	GRP("mac-rmii",	  txx_mac_rmii,	  0),
 +};
-+static const char * const t32_g_sfc1[] = { "sfc1-data" };
++static const char * const t32_g_sfc1[]  = { "sfc1-data" };
++static const char * const t32_g_uart0[] = { "uart0-data" };
 +static const struct ingenic_function t32_functions[] = {
-+	FUNC("mmc0", txx_g_mmc0),
-+	FUNC("sfc",  txx_g_sfc),
-+	FUNC("sfc1", t32_g_sfc1),
-+	FUNC("mac",  txx_g_mac),
++	FUNC("mmc0",  txx_g_mmc0),
++	FUNC("sfc",   txx_g_sfc),
++	FUNC("sfc1",  t32_g_sfc1),
++	FUNC("uart0", t32_g_uart0),
++	FUNC("uart1", txx_g_uart1),
++	FUNC("mac",   txx_g_mac),
 +};
 +
-+/* ---- T40/T41: 6-wire SFC0 (func 1), mac0, uart1 -------------------- */
++/*
++ * ---- T40/T41: 6-wire SFC0 (func 1), mac0, uart0/uart1 ---------------
++ * T40 and T41 agree on everything here except UART0, which T40 puts on
++ * PC2/PC5 and T41 on PB19/PB22, so they cannot share one group table.
++ */
 +static const struct ingenic_group t40_groups[] = {
 +	GRP("mmc0-1bit",  txx_mmc0_1bit,  0),
 +	GRP("mmc0-4bit",  txx_mmc0_4bit,  0),
 +	GRP("sfc-data",	  txx_sfc6_data,  1),
++	GRP("uart0-data", t40_uart0_data, 0),
 +	GRP("uart1-data", txx_uart1_data, 0),
 +	GRP("mac0-data",  txx_mac_rmii,	  0),
 +};
-+static const char * const txx_g_uart1[] = { "uart1-data" };
++static const struct ingenic_group t41_groups[] = {
++	GRP("mmc0-1bit",  txx_mmc0_1bit,  0),
++	GRP("mmc0-4bit",  txx_mmc0_4bit,  0),
++	GRP("sfc-data",	  txx_sfc6_data,  1),
++	GRP("uart0-data", txx_uart0_data, 0),
++	GRP("uart1-data", txx_uart1_data, 0),
++	GRP("mac0-data",  txx_mac_rmii,	  0),
++};
++static const char * const t40_g_uart0[] = { "uart0-data" };
 +static const char * const t40_g_mac0[]  = { "mac0-data" };
 +static const struct ingenic_function t40_functions[] = {
 +	FUNC("mmc0",  txx_g_mmc0),
 +	FUNC("sfc",   txx_g_sfc),
++	FUNC("uart0", t40_g_uart0),
 +	FUNC("uart1", txx_g_uart1),
 +	FUNC("mac0",  t40_g_mac0),
 +};
@@ -51108,14 +51584,17 @@ index 0000000000..20bae867a6
 +/* ---- A1 (XBurst2) ------------------------------------------------- */
 +static const struct ingenic_group a1_groups[] = {
 +	GRP("sfc-data",	  a1_sfc_data,	 0),
++	GRP("uart0-data", a1_uart0_data, 0),
 +	GRP("uart1-data", a1_uart1_data, 0),
 +	GRP("mac0-data",  a1_mac0_data,	 0),
 +};
 +static const char * const a1_g_sfc[]   = { "sfc-data" };
++static const char * const a1_g_uart0[] = { "uart0-data" };
 +static const char * const a1_g_uart1[] = { "uart1-data" };
 +static const char * const a1_g_mac0[]  = { "mac0-data" };
 +static const struct ingenic_function a1_functions[] = {
 +	FUNC("sfc",   a1_g_sfc),
++	FUNC("uart0", a1_g_uart0),
 +	FUNC("uart1", a1_g_uart1),
 +	FUNC("mac0",  a1_g_mac0),
 +};
@@ -51157,8 +51636,13 @@ index 0000000000..20bae867a6
 +	.functions = t32_functions, .nfunctions = ARRAY_SIZE(t32_functions),
 +	.bank_stride = BANK_STRIDE, .split_pull = true,
 +};
-+static const struct ingenic_chip_info t40_chip_info = {		/* T40/T41 */
++static const struct ingenic_chip_info t40_chip_info = {		/* T40 */
 +	.groups = t40_groups, .ngroups = ARRAY_SIZE(t40_groups),
++	.functions = t40_functions, .nfunctions = ARRAY_SIZE(t40_functions),
++	.bank_stride = BANK_STRIDE, .split_pull = true,
++};
++static const struct ingenic_chip_info t41_chip_info = {		/* T41 */
++	.groups = t41_groups, .ngroups = ARRAY_SIZE(t41_groups),
 +	.functions = t40_functions, .nfunctions = ARRAY_SIZE(t40_functions),
 +	.bank_stride = BANK_STRIDE, .split_pull = true,
 +};
@@ -51269,7 +51753,7 @@ index 0000000000..20bae867a6
 +	{ .compatible = "ingenic,t32-pinctrl", .data = (ulong)&t32_chip_info },
 +	{ .compatible = "ingenic,t33-pinctrl", .data = (ulong)&t32_chip_info },
 +	{ .compatible = "ingenic,t40-pinctrl", .data = (ulong)&t40_chip_info },
-+	{ .compatible = "ingenic,t41-pinctrl", .data = (ulong)&t40_chip_info },
++	{ .compatible = "ingenic,t41-pinctrl", .data = (ulong)&t41_chip_info },
 +	{ .compatible = "ingenic,a1-pinctrl",  .data = (ulong)&a1_chip_info },
 +	{ }
 +};
@@ -59747,7 +60231,7 @@ index 16f21fa908..83fc6a9c6b 100644
  	*actual_len = xfer_len;
  
 diff --git a/drivers/watchdog/Kconfig b/drivers/watchdog/Kconfig
-index b91727e126..14be17bc79 100644
+index 3c56c54150..04a8ee0962 100644
 --- a/drivers/watchdog/Kconfig
 +++ b/drivers/watchdog/Kconfig
 @@ -214,6 +214,15 @@ config SPL_WDT_GPIO
@@ -59921,6 +60405,25 @@ index 0000000000..27ee1cae4e
 +	.priv_auto	= sizeof(struct jz4740_wdt_priv),
 +	.ops		= &jz4740_wdt_ops,
 +};
+diff --git a/env/Kconfig b/env/Kconfig
+index bbd657682d..c6df09a334 100644
+--- a/env/Kconfig
++++ b/env/Kconfig
+@@ -536,10 +536,10 @@ config ENV_REDUNDANT_UPGRADE
+ 	help
+ 	  Normally, redundant environment is expected to always operate on
+ 	  two copies of the environment. However, hardware that may have
+-	  originally shipped with single-copy environment can be upgraded
+-	  to redundant environment without loss of existing environment
+-	  content by correctly configuring the location of the redundant
+-	  environment copy and by enabling this option.
++	  originally shipped with a single-copy environment that can be
++	  upgraded to redundant environment without loss of existing
++	  environment content by correctly configuring the location of
++	  the redundant environment copy and by enabling this option.
+ 
+ config ENV_FAT_INTERFACE
+ 	string "Name of the block device for the environment"
 diff --git a/include/configs/isvp-a1.h b/include/configs/isvp-a1.h
 new file mode 100644
 index 0000000000..aa6052190f

@@ -1,9 +1,7 @@
 {
   "gpio": {
-    "button_reset": 62,
     "ir940": 61,
     "ircut": -1,
-    "mmc_cd": 59,
     "mmc_power": {
       "pin": 50,
       "active_low": true

@@ -1,0 +1,31 @@
+motors-daemon: relative jog on an inverted axis was clamped in the wrong frame
+
+motor_ctl_relative_ex() clamps against the RAW kernel counter but fed it the
+LOGICAL delta (inversion is applied later in motor_steps_impl). With invert_y,
+a jog away from the end the axis had reached was cut to 0, so tilt got stuck
+at logical y=0 (raw max) in both directions until motors -r.
+Convert the delta to raw before the clamp and back afterwards.
+---
+--- a/src/motor-daemon.c	2026-10-17 14:59:20.078777970 +0200
++++ b/src/motor-daemon.c	2026-10-17 14:59:20.133998174 +0200
+@@ -1957,6 +1957,11 @@
+ 
+   motor_status_get(&motor_message);
+   {
++    // rel_x/rel_y are LOGICAL jog deltas, motor_message is RAW: bring the
++    // delta into the raw frame before clamping, otherwise an inverted axis
++    // is clamped against the wrong end and gets stuck there (+jog at raw max
++    // was cut to 0, so the axis could never leave the end it reached).
++    physical_delta_to_steps(&rel_x, &rel_y);
+     int target_x = motor_message.x + rel_x;
+     int target_y = motor_message.y + rel_y;
+     int runtime_x_max =
+@@ -2011,6 +2016,8 @@
+ 
+     rel_x = target_x - motor_message.x;
+     rel_y = target_y - motor_message.y;
++    // back to the logical frame (dispatch inverts again to raw)
++    physical_delta_to_steps(&rel_x, &rel_y);
+ 
+     if (applied_x)
+       *applied_x = rel_x;

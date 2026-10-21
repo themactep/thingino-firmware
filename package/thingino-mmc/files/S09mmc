@@ -5,6 +5,7 @@
 . /etc/init.d/lib-log
 
 MMC_MODULE="jzmmc_v12"
+MMC_CD_PIN=""
 MMC_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 set_gpio() {
@@ -186,15 +187,14 @@ start() {
 	log -c 15 "Initializing MMC"
 
 	# cd_gpio_pin is a jzmmc (XBurst1) module parameter and overrides the
-	# board's card-detect pin, so pass it only when the profile sets
-	# gpio.mmc_cd; a default would force a detect GPIO on boards with none.
-	# XBurst2's ingenic_sdhci_sdio takes its pin from the device tree and
-	# declares no parameters, so MMC_PARAM stays empty there.
-	if [ "$MMC_MODULE" = "jzmmc_v12" ]; then
-		MMC_PARAM=""
-		if gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd" 2>/dev/null); then
-			[ -n "$gpio_mmc_cd" ] && MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd}"
-		fi
+	# board's card-detect pin, so pass it only when the profile defines one;
+	# a default would force a detect GPIO on boards with none. The pin comes
+	# from the camera dtsi (MMC_CD_PIN, substituted at build time) - the same
+	# fragment the 4.4+ kernel takes its card-detect from. XBurst2's
+	# ingenic_sdhci_sdio takes its pin from the device tree and declares no
+	# parameters, so MMC_PARAM stays empty there.
+	if [ "$MMC_MODULE" = "jzmmc_v12" ] && [ -n "$MMC_CD_PIN" ]; then
+		MMC_PARAM="cd_gpio_pin=${MMC_CD_PIN}"
 	else
 		MMC_PARAM=""
 	fi

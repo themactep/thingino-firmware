@@ -1,0 +1,42 @@
+// Cinnado D1 (T32LQ) per-board GPIO definitions.
+// Included into the family device tree (goat.dts) at build time.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 7 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 39 */
+			default-state = "off";
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpb 6 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 38 */
+			default-state = "off";
+		};
+	};
+
+	/* gpio.key set in thingino.json; the label is what thingino-button
+	 * autodetects, the key code matches thingino-button.conf. */
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpa 22 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+		};
+	};
+};
+
+/* Card detect from gpio.mmc_cd; the family tree carries the reference pin. */
+&msc0 {
+	ingenic,cd-gpios = <&gpa 21 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
+};

@@ -329,9 +329,9 @@ endif
 		echo 'BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="$(UBOOT_BIN_NAME)"' >>$(OUTPUT_DIR)/.config; \
 	fi
 	@echo >>$(OUTPUT_DIR)/.config
-	# Kernel config override: only 3.10.14 uses official kernel.org tarball + patches.
-	# All other versions (4.4.94, 7.1-rc1) use custom git repo from thingino-linux.
-	@if [ "$(KERNEL_VERSION)" != "3.10.14" ]; then \
+	# Kernel config override: 3.10.14 and 4.4.94 use the official kernel.org
+	# tarball + patches; all other versions use the thingino-linux git repo.
+	@if [ "$(KERNEL_VERSION)" != "3.10.14" ] && [ "$(KERNEL_VERSION)" != "4.4.94" ]; then \
 		echo "** kernel override: $(KERNEL_VERSION) uses custom git repo"; \
 		$(SED) 's/^BR2_LINUX_KERNEL_CUSTOM_VERSION=y/# BR2_LINUX_KERNEL_CUSTOM_VERSION is not set/' $(OUTPUT_DIR)/.config; \
 		$(SED) '/^BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE=/d' $(OUTPUT_DIR)/.config; \
