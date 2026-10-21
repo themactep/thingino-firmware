@@ -1453,8 +1453,7 @@ def cmd_gpio(args, words):
         trace = s.path("gpio.jsonl")
         if not os.path.exists(trace):
             die("this session logs no pin changes: its QEMU predates "
-                "ingenic-gpio's trace (a qemu-ingenic release newer than "
-                "ingenic-0.6.14, or --qemu with a newer build)")
+                "ingenic-gpio's trace (ingenic-0.6.15)")
         if args.serve is not None:
             from .gpioview import serve
             serve(s, args.serve, pin_table(s.info.get("model")), clean,
