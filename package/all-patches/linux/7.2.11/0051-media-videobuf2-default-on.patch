@@ -1,0 +1,29 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: videobuf2: default the core helpers on
+
+VIDEOBUF2_CORE, VIDEOBUF2_V4L2 and VIDEOBUF2_MEMOPS are hidden
+tristates selected by in-tree drivers. Out-of-tree camera drivers
+(the T20 tx-isp module) need them exported, but there is no visible
+symbol to turn them on. Default them on whenever the media stack is
+enabled.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/common/videobuf2/Kconfig
++++ b/drivers/media/common/videobuf2/Kconfig
+@@ -3,12 +3,15 @@
+ config VIDEOBUF2_CORE
+ 	select DMA_SHARED_BUFFER
+ 	tristate
++	default y if MEDIA_SUPPORT
+ 
+ config VIDEOBUF2_V4L2
+ 	tristate
++	default y if MEDIA_SUPPORT
+ 
+ config VIDEOBUF2_MEMOPS
+ 	tristate
++	default y if MEDIA_SUPPORT
+ 
+ config VIDEOBUF2_DMA_CONTIG
+ 	tristate

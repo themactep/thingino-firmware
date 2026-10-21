@@ -37,7 +37,11 @@ OPEN_TX_ISP_LICENSE = GPL-3.0
 # sensors from sensor-src/<soc>/. 3.10/4.4 keep using the SDK sensor module.
 ifneq ($(filter 5.15.170 7.2.11,$(KERNEL_VERSION)),)
 OPEN_TX_ISP_DEPENDENCIES = linux
+ifeq ($(SOC_FAMILY),t20)
+OPEN_TX_ISP_MODULE_SUBDIRS = driver/t20
+else
 OPEN_TX_ISP_MODULE_SUBDIRS = driver/$(SOC_FAMILY) sensor-src/$(SOC_FAMILY)
+endif
 else
 OPEN_TX_ISP_DEPENDENCIES = ingenic-sdk linux
 # Build as out-of-tree kernel module
@@ -79,6 +83,10 @@ endif
 # recreate the old paths as symlinks for the T20 build. Other families are
 # self-contained and do not reference external/.
 ifeq ($(SOC_FAMILY),t20)
+ifneq ($(filter 5.15.170 7.2.11,$(KERNEL_VERSION)),)
+# The pinned tree already carries the unmerged SDK layout under
+# external/ingenic-sdk; nothing to relink for the modern kernels.
+else
 OPEN_TX_ISP_SDK_DIR = $(firstword $(wildcard $(BUILD_DIR)/ingenic-sdk-*))
 define OPEN_TX_ISP_T20_COMPAT_TREE
 	mkdir -p $(@D)/external/ingenic-sdk/3.10.14/isp \
@@ -91,6 +99,7 @@ define OPEN_TX_ISP_T20_COMPAT_TREE
 		$(@D)/external/ingenic-sdk/3.10.14/sensor-src/include
 endef
 OPEN_TX_ISP_PRE_BUILD_HOOKS += OPEN_TX_ISP_T20_COMPAT_TREE
+endif
 endif
 
 # The T31 driver exports functions annotated __init/__exit; the 5.15 kernel's
@@ -130,6 +139,8 @@ define OPEN_TX_ISP_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_SUPPORT_FILTER)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_CAMERA_SUPPORT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_PLATFORM_SUPPORT)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MEDIA_CONTROLLER)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_VIDEO_V4L2_SUBDEV_API)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_V4L_PLATFORM_DRIVERS)
 	$(call KCONFIG_DISABLE_OPT,CONFIG_MEDIA_SUBDRV_AUTOSELECT)
 	$(if $(OPEN_TX_ISP_SENSOR_1_CONFIG),$(call KCONFIG_ENABLE_OPT,$(OPEN_TX_ISP_SENSOR_1_CONFIG)))
