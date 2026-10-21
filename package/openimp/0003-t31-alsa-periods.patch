@@ -1,0 +1,29 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] t31: cap the ALSA period count for the AIC DMA
+
+The IMP frame depth is not the ALSA period count. Using frmNum + 1
+periods produced more descriptors than the AIC/PDMA cyclic path can
+handle, so the first capture start failed with EINVAL. Use four
+periods; the capture chunk still fits in the larger buffer.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/src/t31/openimp_t31_audio.c
++++ b/src/t31/openimp_t31_audio.c
+@@ -1029,15 +1029,11 @@
+                             const IMPAudioIOAttr *attribute,
+                             unsigned int channels)
+ {
+-    unsigned int periods = attribute->frmNum >= 2 ? attribute->frmNum : 8;
+-
+-    if (periods > 64)
+-        periods = 64;
+     memset(config, 0, sizeof(*config));
+     config->channels = channels;
+     config->rate = attribute->samplerate;
+     config->period_size = attribute->numPerFrm ? attribute->numPerFrm : 160;
+-    config->period_count = periods + 1;
++    config->period_count = 4;
+     config->format = PCM_FORMAT_S16_LE;
+     config->start_threshold = config->period_size;
+     config->stop_threshold = config->period_size * config->period_count;
