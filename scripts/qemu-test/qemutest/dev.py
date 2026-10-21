@@ -64,10 +64,13 @@ FORK_VARIANTS = set("""
     t10 t10l t20n t20x t20l t21n t21l t21z t23n t23x t23dl t23zn
     t30n t30x t30l t30a t30z t31n t31x t31l t31a t31zl t31zx t31al t31zc
     t31lc t32nq t32lq t32xq t32zn t33n t40n t40nn t40xp t40a t41nq t41lq
-    t41zx a1n a1l a1x a1a a1nt""".split())
+    t41zx a1n a1l a1x a1a a1nt t10n t10a c100 t33zl t33zn t41xq t32prozl
+    t32prozn t32prozx t32provl t32provn t32provx t32provnp t32proa cw080sn
+    cw080snp""".split())
 
-# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100
-SOC = re.compile(r"(t[1-4]\d|a1|c100)[a-z]*")
+# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100,
+# cw080sn
+SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
