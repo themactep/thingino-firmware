@@ -76,7 +76,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  dtb-$(CONFIG_X1000_CU1000_NEO)	+= cu1000-neo.dtb
  dtb-$(CONFIG_X1830_CU1830_NEO)	+= cu1830-neo.dtb
  dtb-$(CONFIG_MACH_T31)		+= thingino-t31.dtb
-+dtb-$(CONFIG_MACH_T20)		+= thingino-t20.dtb
++dtb-$(CONFIG_MACH_T20_PRIMARY)	+= thingino-t20.dtb
 +ifeq ($(CONFIG_MACH_T20_PRIMARY),y)
 +dtb-y := thingino-t20.dtb $(filter-out thingino-t20.dtb,$(dtb-y))
 +endif
