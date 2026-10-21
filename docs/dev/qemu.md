@@ -36,6 +36,7 @@ scripts/qemu-dev down                          # stop it
 | `send [NAME] -- TEXT` | type at the console, as a person would; see below |
 | `monitor [NAME] -- COMMAND` | a QEMU monitor command, such as `info registers` |
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
+| `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |

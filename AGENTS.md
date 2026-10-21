@@ -82,7 +82,7 @@ terminal. See `docs/dev/qemu.md`.
 ```bash
 scripts/qemu-dev up qemu_t31x_eth             # boot the newest build; returns at a root shell
 scripts/qemu-dev sh -- 'cat /proc/cmdline'    # run a command; exits with its status
-scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, down
+scripts/qemu-dev put rsd /usr/bin/            # also get, log, reboot, uboot, send, monitor, gpio, adc, down
 ```
 
 ## Repo layout

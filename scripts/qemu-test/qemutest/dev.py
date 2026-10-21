@@ -13,6 +13,7 @@ running in the background and driven one command at a time.
   qemu-dev send [NAME] -- TEXT             type at the console (--expect RE)
   qemu-dev monitor [NAME] -- COMMAND       a QEMU monitor command
   qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
+  qemu-dev gpio [NAME] --log|--serve       pin changes (--watch, --vcd FILE)
   qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
