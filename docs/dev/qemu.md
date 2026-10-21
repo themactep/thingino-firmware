@@ -165,6 +165,75 @@ scripts/qemu-dev gpio 50=0             # assert a card-detect pin, by GPIO numbe
 channel 0 read 150 of 4095, a dark room to a photoresistor (raptor's
 `ric` reads one in its adc trigger mode). Every channel starts at 2025.
 
+## Video
+
+The emulated camera streams once its session has the camera's image
+sensor: give it after `--`, and the SoC's ISP and video encoder do the
+rest, so raptor streams as it does on the board. Every T-series SoC and
+the T40 and T41 stream from QEMU ingenic-0.6.14 on (the T31, T40 and T41
+from ingenic-0.6.12).
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth -- -device image-sensor,model=gc2053,bus=i2c0
+```
+
+The test profiles' sensors:
+
+| Profile | After `-device image-sensor,` |
+| --- | --- |
+| `qemu_t10n` | `model=jxh42,bus=i2c0` |
+| `qemu_t20x` | `model=jxf22,bus=i2c0` |
+| `qemu_t21n` | `model=sc2232h,bus=i2c0` |
+| `qemu_t23n` | `model=sc2336,bus=i2c0` |
+| `qemu_t30x` | `model=sc4236,bus=i2c0` |
+| `qemu_t31x*` | `model=gc2053,bus=i2c0` |
+| `qemu_t32nq` | `model=cv8001,bus=i2c0` |
+| `qemu_t40nn*` | `model=imx307,bus=i2c1` |
+| `qemu_t41nq` | `model=gc4023,bus=i2c0` |
+
+A real camera's image takes the sensor its defconfig names
+(`BR2_SENSOR_1_NAME`), if the fork has that model; the fork's
+`contrib/ingenic/README.md` lists them, with the sensor's options. The
+sensor sees colour bars that a white stripe crosses every two seconds.
+
+A recording and a snapshot can be fetched from any image, wired or not.
+`ringdump main -i` asks for a key frame and the recording starts with
+it, give or take a frame or two that the player skips; `ringdump sub`
+is the second stream:
+
+```bash
+scripts/qemu-dev sh -- 'ringdump main -i; ringdump main -d -s -n 60 > /tmp/main.h264'
+scripts/qemu-dev sh -- 'ringdump jpeg0 -d -s -n 1 > /tmp/snap.jpg'
+scripts/qemu-dev get /tmp/main.h264 main.h264
+scripts/qemu-dev get /tmp/snap.jpg snap.jpg
+ffplay main.h264
+```
+
+An image with a wired interface can be watched live over RTSP: `--fwd`
+forwards a camera port, and `info` shows where it went.
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth --fwd 554 -- -device image-sensor,model=gc2053,bus=i2c0
+scripts/qemu-dev info                  # forwards 34399 -> 554
+ffplay -rtsp_transport tcp rtsp://thingino:thingino@127.0.0.1:34399/ch0
+```
+
+If rvd logs `IMP_FrameSource_EnableChn(0) failed` or exits after
+`enc_create_channel`, the image keeps too little memory for video (`rmem`
+on the kernel command line). Give it more and reboot:
+
+```bash
+scripts/qemu-dev sh -- 'fw_setenv osmem 64M@0x0; fw_setenv rmem 64M@0x4000000'
+scripts/qemu-dev reboot
+```
+
+That is for an XBurst1 SoC with 128 MB, which test images built before
+the 128 MB profiles got 64 MB of rmem need. The T40 and T41 keep 8 MB of
+nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. The 64 MB T21
+needs `osmem 42M@0x0` and `rmem 22M@0x2a00000` even when built today.
+The encoders run on the host CPU, so a 4K stream may run below the
+sensor's frame rate.
+
 ## Iterating on a package
 
 A package change can be tried without building and booting a new image:
@@ -194,8 +263,9 @@ a session's console and another waits its turn; SSH copies run alongside.
 ## Limits
 
 - The `qemu_*` profiles in `configs/cameras-testing/` are built for QEMU.
-  Real camera images boot as well, but nothing emulates their sensor or
-  radio, and board details such as an SD card-detect pin may not match.
+  Real camera images boot as well, and stream with their sensor (see
+  Video), but nothing emulates their radio, and board details such as an
+  SD card-detect pin may not match.
 - The guest runs under TCG: its timing is not the hardware's.
 - The emulated NAND never wears: no bitflips, no bad blocks, and its
   spare areas are blank again whenever QEMU starts.
