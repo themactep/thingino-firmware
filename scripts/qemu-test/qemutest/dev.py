@@ -1447,13 +1447,18 @@ def cmd_gpio(args, words):
     the camera drives, every other pin what was last driven here (high
     until then); a driven change fires the pin's interrupt if it has
     one. --log, --watch and --vcd read the log of pin changes instead."""
-    if args.log or args.watch or args.vcd:
+    if args.log or args.watch or args.vcd or args.serve is not None:
         s = pick(args.name, live=False)
         trace = s.path("gpio.jsonl")
         if not os.path.exists(trace):
             die("this session logs no pin changes: its QEMU predates "
                 "ingenic-gpio's trace (a qemu-ingenic release newer than "
                 "ingenic-0.6.14, or --qemu with a newer build)")
+        if args.serve is not None:
+            from .gpioview import serve
+            serve(s, args.serve, pin_table(s.info.get("model")), clean,
+                  gpio_pin)
+            return 0
         if args.vcd:
             n = gpio_write_vcd(gpio_events(trace, False), args.vcd)
             print(f"{args.vcd}: {n} pins")
@@ -1733,6 +1738,9 @@ def main(argv=None):
                     help="as --log, then the changes as they happen")
     sp.add_argument("--vcd", metavar="FILE",
                     help="write the pin changes as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the pins on 127.0.0.1 "
+                         "(a free port unless PORT)")
 
     sp = add("adc", "read or set ADC channels", None,
              "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",

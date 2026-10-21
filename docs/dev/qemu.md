@@ -180,7 +180,14 @@ scripts/qemu-dev gpio --log
 #  12.041784  PA18   18  reset state -> out 1  0x80017874
 #  72.061851  PB28   60  in 1 -> in 0  ext
 scripts/qemu-dev gpio --vcd boot.vcd
+scripts/qemu-dev gpio --serve          # http://127.0.0.1:<port>/
 ```
+
+`gpio --serve` puts the same on a live page: the SoC's pins in its
+layout, coloured by what each is and flashing as it changes, a timeline,
+the changes as they come, the console, and for a pin its functions, its
+history and buttons that drive it from outside. The page can also set an
+ADC channel and pause the machine.
 
 ## Video
 
