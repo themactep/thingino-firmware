@@ -207,6 +207,22 @@ def sfc_type(family):
             else "ingenic-t31-sfc")
 
 
+_GPIO_TRACE = {}
+
+
+def gpio_trace_supported(qemu):
+    """Whether this QEMU can log pin changes (ingenic-gpio's trace)."""
+    if qemu not in _GPIO_TRACE:
+        try:
+            out = subprocess.run([qemu, "-device", "ingenic-gpio,help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _GPIO_TRACE[qemu] = "trace=" in out
+    return _GPIO_TRACE[qemu]
+
+
 def find_qemu(image, explicit):
     """--qemu or QEMU_BIN, else the QEMU package/qemu-ingenic pins: the
     one built beside the image if the build used that pin (a build tree
@@ -961,6 +977,9 @@ def cmd_up(args, extra):
         argv += ["-global", f"{soc_type(family)}.soc-variant={variant}"]
     if nand:
         argv += ["-global", f"{sfc_type(family)}.nand-id={NAND_ID:#x}"]
+    if gpio_trace_supported(qemu):
+        argv += ["-chardev", f"file,id=gpiotrace,path={s.path('gpio.jsonl')}",
+                 "-global", "ingenic-gpio.trace=gpiotrace"]
     if ports:
         argv += ["-netdev", "user,id=n0"]
     if args.sd:
@@ -1330,11 +1349,103 @@ def qom_props(q, path, want):
     return props
 
 
+def gpio_events(path, follow):
+    """The pin changes QEMU logged, and while following, those to come."""
+    with open(path) as f:
+        part = ""
+        while True:
+            part += f.readline()
+            if part.endswith("\n"):
+                yield json.loads(part)
+                part = ""
+            elif follow:
+                time.sleep(0.2)
+            else:
+                return
+
+
+def gpio_event_mode(e):
+    """A logged pin state in gpio_mode()'s words, with its level."""
+    if e["fn"] == "func":
+        return f"func{e['func']}"
+    if e["fn"] == "irq":
+        return (f"irq {e['trig']}" + (" masked" if e["mask"] else "")
+                + f" {e['lvl']}")
+    return f"{e['fn']} {e['lvl']}"
+
+
+def gpio_print_log(events):
+    state = {}
+    for e in events:
+        if e.get("reset"):
+            state.clear()
+            print(f"{e['t'] / 1e9:11.6f}  reset")
+            continue
+        now = gpio_event_mode(e)
+        was = state.get(e["pin"], "reset state")
+        state[e["pin"]] = now
+        who = e.get("pc") or e.get("src", "")
+        print(f"{e['t'] / 1e9:11.6f}  {e['pin']:<5}{e['gpio']:>4}  "
+              f"{was} -> {now}  {who}", flush=True)
+
+
+def gpio_write_vcd(events, path):
+    """Each pin's level for a waveform viewer; z while in a device
+    function; a reset wire pulses at each reset."""
+    events = list(events)
+    pins = list(dict.fromkeys(e["pin"] for e in events if "pin" in e))
+    ids = {}
+    for i, pin in enumerate(["reset"] + pins):
+        n, code = i, ""
+        while True:
+            n, r = divmod(n, 94)
+            code = chr(33 + r) + code
+            if not n:
+                break
+            n -= 1
+        ids[pin] = code
+    with open(path, "w") as f:
+        f.write("$timescale 1ns $end\n$scope module gpio $end\n")
+        for pin in ["reset"] + pins:
+            f.write(f"$var wire 1 {ids[pin]} {pin} $end\n")
+        f.write("$upscope $end\n$enddefinitions $end\n#0\n$dumpvars\n")
+        f.write("".join(f"x{ids[p]}\n" for p in pins) + f"0{ids['reset']}\n")
+        f.write("$end\n")
+        last = 0
+        for e in events:
+            t = max(e["t"], last)
+            if e.get("reset"):
+                f.write(f"#{t}\n1{ids['reset']}\n#{t + 1}\n"
+                        f"0{ids['reset']}\n")
+                last = t + 1
+                continue
+            value = "z" if e["fn"] == "func" else str(e["lvl"])
+            f.write(f"#{t}\n{value}{ids[e['pin']]}\n")
+            last = t
+    return len(pins)
+
+
 def cmd_gpio(args, words):
     """Read pins, or drive inputs from outside: GPIO outputs read what
     the camera drives, every other pin what was last driven here (high
     until then); a driven change fires the pin's interrupt if it has
-    one."""
+    one. --log, --watch and --vcd read the log of pin changes instead."""
+    if args.log or args.watch or args.vcd:
+        s = pick(args.name, live=False)
+        trace = s.path("gpio.jsonl")
+        if not os.path.exists(trace):
+            die("this session logs no pin changes: its QEMU predates "
+                "ingenic-gpio's trace (a qemu-ingenic release newer than "
+                "ingenic-0.6.14, or --qemu with a newer build)")
+        if args.vcd:
+            n = gpio_write_vcd(gpio_events(trace, False), args.vcd)
+            print(f"{args.vcd}: {n} pins")
+            return 0
+        try:
+            gpio_print_log(gpio_events(trace, args.watch))
+        except KeyboardInterrupt:
+            pass
+        return 0
     s = pick(args.name)
     path = "/machine/soc/gpio"
     q = Qmp(s.path("qmp"))
@@ -1598,6 +1709,12 @@ def main(argv=None):
     sp.add_argument("words", nargs="*", metavar="NAME")
     sp.add_argument("--all", action="store_true",
                     help="also list pins in device functions")
+    sp.add_argument("--log", action="store_true",
+                    help="every pin change since the session came up")
+    sp.add_argument("--watch", action="store_true",
+                    help="as --log, then the changes as they happen")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the pin changes as a VCD waveform")
 
     sp = add("adc", "read or set ADC channels", None,
              "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",

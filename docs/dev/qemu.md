@@ -165,6 +165,20 @@ scripts/qemu-dev gpio 50=0             # assert a card-detect pin, by GPIO numbe
 channel 0 read 150 of 4095, a dark room to a photoresistor (raptor's
 `ric` reads one in its adc trigger mode). Every channel starts at 2025.
 
+`gpio --log` lists every pin change since the session came up: when, the
+pin, what it was and now is, and the guest PC that changed it (`ext` when
+it was driven from outside). `--watch` goes on printing changes as they
+happen, and `--vcd FILE` writes them as a waveform for PulseView or
+GTKWave, where a pin in a device function reads `z`. Sessions log pin
+changes when their QEMU can, from the release after ingenic-0.6.14.
+
+```bash
+scripts/qemu-dev gpio --log
+#  12.041784  PA18   18  reset state -> out 1  0x80017874
+#  72.061851  PB28   60  in 1 -> in 0  ext
+scripts/qemu-dev gpio --vcd boot.vcd
+```
+
 ## Video
 
 The emulated camera streams once its session has the camera's image
