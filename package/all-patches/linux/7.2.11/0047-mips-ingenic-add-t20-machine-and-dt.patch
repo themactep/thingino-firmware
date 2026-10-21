@@ -1,0 +1,302 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: ingenic: add the T20 machine and device tree
+
+T20 is a separate XBurst1 SoC: identify it by its own compatible and
+build a board leaf for it instead of booting the T31 generic tree.
+The peripheral blocks shared with T31 (CGU, pinctrl, UART, MMC, SFC,
+I2C, USB, AIC) keep their existing bindings; only the machine type,
+memory size and the 16 MB flash layout differ.
+
+MACH_T20_PRIMARY puts the T20 leaf first in the built-in DTB list;
+the generic MIPS kernel boots the first entry when U-Boot passes no
+FDT, so every booted image needs the right leaf at the head.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/generic/board-ingenic.c
++++ b/arch/mips/generic/board-ingenic.c
+@@ -26,6 +26,8 @@
+ 	switch (machtype) {
+ 	case MACH_INGENIC_T31:
+ 		return "T31";
++	case MACH_INGENIC_T20:
++		return "T20";
+ 	case MACH_INGENIC_X2100:
+ 		return "X2100";
+ 	case MACH_INGENIC_X2000H:
+@@ -154,6 +156,7 @@
+ 	{ .compatible = "ingenic,x2000h", .data = (void *)MACH_INGENIC_X2000H },
+ 	{ .compatible = "ingenic,x2100", .data = (void *)MACH_INGENIC_X2100 },
+ 	{ .compatible = "ingenic,t31", .data = (void *)MACH_INGENIC_T31 },
++	{ .compatible = "ingenic,t20", .data = (void *)MACH_INGENIC_T20 },
+ 	{}
+ };
+ 
+--- a/arch/mips/include/asm/bootinfo.h
++++ b/arch/mips/include/asm/bootinfo.h
+@@ -87,6 +87,7 @@
+ 	MACH_INGENIC_X2000H,
+ 	MACH_INGENIC_X2100,
+ 	MACH_INGENIC_T31,
++	MACH_INGENIC_T20,
+ };
+ 
+ extern char *system_type;
+--- a/arch/mips/ingenic/Kconfig
++++ b/arch/mips/ingenic/Kconfig
+@@ -10,6 +10,7 @@
+ 	select MACH_X1000
+ 	select MACH_X1830
+ 	select MACH_T31
++	select MACH_T20
+ 
+ choice
+ 	prompt "Machine type"
+@@ -83,3 +84,17 @@
+ 	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T20
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T20_PRIMARY
++	bool "Prefer the T20 generic DTB"
++	depends on MACH_T20
++	help
++	  Put the T20 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
+--- a/arch/mips/boot/dts/ingenic/Makefile
++++ b/arch/mips/boot/dts/ingenic/Makefile
+@@ -6,3 +6,7 @@
+ dtb-$(CONFIG_X1000_CU1000_NEO)	+= cu1000-neo.dtb
+ dtb-$(CONFIG_X1830_CU1830_NEO)	+= cu1830-neo.dtb
+ dtb-$(CONFIG_MACH_T31)		+= thingino-t31.dtb
++dtb-$(CONFIG_MACH_T20)		+= thingino-t20.dtb
++ifeq ($(CONFIG_MACH_T20_PRIMARY),y)
++dtb-y := thingino-t20.dtb $(filter-out thingino-t20.dtb,$(dtb-y))
++endif
+--- /dev/null
++++ b/arch/mips/boot/dts/ingenic/t20.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t20";
++	model = "Ingenic T20";
++};
+--- /dev/null
++++ b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+@@ -0,0 +1,207 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t20.dtsi"
++
++/ {
++	compatible = "thingino,t20", "ingenic,t20";
++	model = "Thingino T20 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++
++	avpu: avpu@13200000 {
++		compatible = "t31,avpu";
++		reg = <0x13200000 0x100000>;
++		interrupt-parent = <&intc>;
++		interrupts = <62>;
++		clocks = <&cgu T31_CLK_EL150>,
++			 <&cgu T31_CLK_AHB1>,
++			 <&cgu T31_CLK_VPLL>;
++		clock-names = "el150", "ahb1", "vpll";
++		status = "okay";
++	};
++
++	isp: isp@13300000 {
++		compatible = "ingenic,t31-isp";
++		reg = <0x13300000 0x100000>;
++		status = "okay";
++	};
++
++	sound {
++		compatible = "simple-audio-card";
++		simple-audio-card,name = "t20-aic";
++
++		simple-audio-card,dai-link@0 {
++			link-name = "t31-aic";
++			format = "i2s";
++			bitclock-master = <&aic>;
++			frame-master = <&aic>;
++
++			cpu {
++				sound-dai = <&aic>;
++			};
++
++			dailink0_codec: codec {
++				sound-dai = <&codec>;
++			};
++		};
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x30000>;
++				read-only;
++			};
++
++			partition@30000 {
++				label = "env";
++				reg = <0x30000 0x10000>;
++			};
++
++			partition@40000 {
++				label = "backup";
++				reg = <0x40000 0x10000>;
++			};
++
++			partition@50000 {
++				label = "kernel";
++				reg = <0x50000 0x240000>;
++			};
++
++			partition@290000 {
++				label = "rootfs";
++				reg = <0x290000 0x600000>;
++			};
++
++			partition@890000 {
++				label = "data";
++				reg = <0x890000 0x770000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&efuse {
++	status = "okay";
++};
++
++&gpa {
++	compatible = "ingenic,t20-gpio";
++};
++
++&gpb {
++	compatible = "ingenic,t20-gpio";
++};
++
++&gpc {
++	compatible = "ingenic,t20-gpio";
++};
++
++&otg_phy {
++	status = "okay";
++};
++
++&otg {
++	status = "okay";
++	disable-over-current;
++};
++
++&pinctrl {
++	compatible = "ingenic,t20-pinctrl";
++
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
++
++#include "wyze_cam2_t20x_jxf23_rtl8189ftv.dtsi"
++
++#include "thingino-t20-thingino-usb.dtsi"

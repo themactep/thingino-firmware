@@ -958,8 +958,9 @@ config KERNEL_VERSION_7
 	# t31 defaults to 7.2 on this branch, so the default must not hide
 	# behind the experimental toggle (a user fragment that turns off
 	# BR2_THINGINO_DEV_PACKAGES would drop it and silently fall back to
-	# 4.4). Other families still opt in.
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL || BR2_SOC_FAMILY = "t31"
+	# 4.4). t20 has a 7.2 config as well and is opted in per camera.
+	# Other families still opt in.
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t20"
 endchoice
 
 config KERNEL_MODERN

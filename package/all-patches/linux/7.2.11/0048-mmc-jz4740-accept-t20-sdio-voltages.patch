@@ -1,0 +1,25 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mmc: jz4740: accept the T20 SDIO voltage window
+
+The Wyze Cam 2 T20 SDIO WiFi is powered from a 3.0 V rail and
+advertises only MMC_VDD_29_30/30_31. The host currently offers
+3.2-3.4 V, so CMD5 succeeds but mmc_select_voltage() rejects the
+card with 'no support for card's volts'.
+
+Accept the 3.0 V window as well.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/mmc/host/jz4740_mmc.c
++++ b/drivers/mmc/host/jz4740_mmc.c
+@@ -1146,7 +1146,9 @@
+ 		mmc->f_max = JZ_MMC_CLK_RATE;
+ 
+ 	mmc->f_min = mmc->f_max / 128;
+-	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
++	/* T20 SDIO WiFi cards advertise the 3.0 V window. */
++	mmc->ocr_avail = MMC_VDD_29_30 | MMC_VDD_30_31 |
++			 MMC_VDD_32_33 | MMC_VDD_33_34;
+ 
+ 	/*
+ 	 * We use a fixed timeout of 5s, hence inform the core about it. A

@@ -135,7 +135,7 @@ WIFI_SDIO_UNSUPPORTED_FLAG := 0
 WIFI_SDIO_MMC_RESET_FLAG := 0
 
 ifeq ($(KERNEL_VERSION_7),y)
-ifneq ($(filter $(SOC_FAMILY),t31),)
+ifneq ($(filter $(SOC_FAMILY),t20 t31),)
 WIFI_SDIO_MMC_RESET_FLAG := 1
 endif
 endif

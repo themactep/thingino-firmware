@@ -28,6 +28,24 @@
 	ingenic,cd-gpios = <&gpb 11 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;
 };
 
+/* SDIO WiFi; the T20 wires MSC1 to PC2-7. */
+&msc1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&msc1_pc>;
+	bus-width = <4>;
+	max-frequency = <24000000>;
+	ingenic,sdio_clk = <1>;
+	non-removable;
+};
+
+&pinctrl {
+	msc1_pc: msc1-pc {
+		function = "mmc1";
+		groups = "mmc1-pc-1bit", "mmc1-pc-4bit";
+	};
+};
+
 / {
 	gpio-keys {
 		compatible = "gpio-keys";
