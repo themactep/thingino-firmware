@@ -169,8 +169,11 @@ channel 0 read 150 of 4095, a dark room to a photoresistor (raptor's
 pin, what it was and now is, and the guest PC that changed it (`ext` when
 it was driven from outside). `--watch` goes on printing changes as they
 happen, and `--vcd FILE` writes them as a waveform for PulseView or
-GTKWave, where a pin in a device function reads `z`. Sessions log pin
-changes when their QEMU can, from the release after ingenic-0.6.14.
+GTKWave, where a pin in a device function reads `z`. A device function
+is named from Ingenic's pinout sheet when thingino has one for the SoC
+(T23 and T31; `scripts/qemu-test/make-pin-tables.py` makes them from
+ingenic-docs). Sessions log pin changes when their QEMU can, from the
+release after ingenic-0.6.14.
 
 ```bash
 scripts/qemu-dev gpio --log

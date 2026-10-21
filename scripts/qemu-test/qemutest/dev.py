@@ -1374,7 +1374,21 @@ def gpio_event_mode(e):
     return f"{e['fn']} {e['lvl']}"
 
 
-def gpio_print_log(events):
+PINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pins")
+
+
+def pin_table(model):
+    """The pins of a SoC from Ingenic's pinout sheet (make-pin-tables.py),
+    by name: functions 0-3, state out of reset, packages; {} if none."""
+    m = SOC.fullmatch(model or "")
+    try:
+        with open(os.path.join(PINS_DIR, f"{m.group(1)}.json")) as f:
+            return json.load(f)["pins"]
+    except (AttributeError, OSError, ValueError, KeyError):
+        return {}
+
+
+def gpio_print_log(events, pins):
     state = {}
     for e in events:
         if e.get("reset"):
@@ -1382,6 +1396,9 @@ def gpio_print_log(events):
             print(f"{e['t'] / 1e9:11.6f}  reset")
             continue
         now = gpio_event_mode(e)
+        if e["fn"] == "func":
+            name = pins.get(e["pin"], {}).get("func", [""] * 4)[e["func"]]
+            now += f" ({name})" if name else ""
         was = state.get(e["pin"], "reset state")
         state[e["pin"]] = now
         who = e.get("pc") or e.get("src", "")
@@ -1442,7 +1459,8 @@ def cmd_gpio(args, words):
             print(f"{args.vcd}: {n} pins")
             return 0
         try:
-            gpio_print_log(gpio_events(trace, args.watch))
+            gpio_print_log(gpio_events(trace, args.watch),
+                           pin_table(s.info.get("model")))
         except KeyboardInterrupt:
             pass
         return 0
