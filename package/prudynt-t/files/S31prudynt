@@ -45,6 +45,27 @@ stop_daemon() {
 	fi
 }
 
+# S98recorder sends the recorder its START only at boot.
+resume_recorder() {
+	(
+		trap '' HUP
+		ch=$(jct /etc/prudynt.json get recorder.channel 2>/dev/null | tr -d '"')
+		active="/run/prudynt/mp4ctl-ch${ch:-0}.active"
+		i=0
+		while [ $i -lt 30 ]; do
+			curl -s "http://127.0.0.1:8080/api/v1/config" >/dev/null 2>&1 && break
+			usleep 500000
+			i=$((i + 1))
+		done
+		n=0
+		while [ $n -lt 2 ] && [ ! -e "$active" ]; do
+			[ -p /run/prudynt/mp4ctl ] && timeout 15 /etc/init.d/S98recorder start
+			sleep 10
+			n=$((n + 1))
+		done
+	) </dev/null >/dev/null 2>&1 &
+}
+
 start() {
 	echo -c 15 "Starting Prudynt"
 	start_daemon
@@ -129,6 +150,7 @@ case "$1" in
 		r=0
 		while [ $r -lt 3 ]; do
 			if start; then
+				resume_recorder
 				exit 0
 			fi
 			r=$((r + 1))
