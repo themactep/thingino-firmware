@@ -171,9 +171,13 @@ pin, what it was and now is, and the guest PC that changed it (`ext` when
 it was driven from outside). `--watch` goes on printing changes as they
 happen, and `--vcd FILE` writes them as a waveform for PulseView or
 GTKWave, where a pin in a device function reads `z`. A device function
-is named from Ingenic's pinout sheet when thingino has one for the SoC
-(T23 and T31; `scripts/qemu-test/make-pin-tables.py` makes them from
-ingenic-docs). Sessions log pin changes from QEMU ingenic-0.6.15 on.
+is named from Ingenic's pinout sheet for the SoC, or its datasheet where
+there is no sheet: every SoC but the T20, which has neither in
+ingenic-docs (`scripts/qemu-test/make-pin-tables.py` makes the tables).
+The T10, T21 and T30 datasheets don't number the functions. The vendor
+kernels and the order the datasheets list them in fix most numbers; a
+name ending in `?` has its number guessed from the T31 and T23 sheets.
+Sessions log pin changes from QEMU ingenic-0.6.15 on.
 
 ```bash
 scripts/qemu-dev gpio --log

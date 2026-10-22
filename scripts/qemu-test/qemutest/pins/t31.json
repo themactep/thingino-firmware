@@ -9,7 +9,7 @@
     "MIPI_DATAP1",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "N2",
    "qfn": "29"
@@ -21,7 +21,7 @@
     "MIPI_DATAN1",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "N1",
    "qfn": "28"
@@ -33,7 +33,7 @@
     "MIPI_CLKP",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "M2",
    "qfn": "27"
@@ -45,7 +45,7 @@
     "MIPI_CLKN",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "M1",
    "qfn": "26"
@@ -57,7 +57,7 @@
     "MIPI_DATAP0",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "L2",
    "qfn": "25"
@@ -69,7 +69,7 @@
     "MIPI_DATAN0",
     ""
    ],
-   "reset": "note：analog IO",
+   "reset": "analog",
    "power": "MIPI_AVD18",
    "bga": "L1",
    "qfn": "24"
@@ -240,7 +240,7 @@
    "reset": "Pullup,Schmitt",
    "power": "VDDIO0",
    "bga": "D1",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PA23": {
    "func": [
@@ -276,7 +276,7 @@
    "reset": "Pullup",
    "power": "VDDIO1",
    "bga": "H15",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PA26": {
    "func": [
@@ -288,7 +288,7 @@
    "reset": "Pullup",
    "power": "VDDIO1",
    "bga": "J14",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PA27": {
    "func": [
@@ -708,7 +708,7 @@
    "reset": "Pulldown",
    "power": "VDDIO1",
    "bga": "A13",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC2": {
    "func": [
@@ -720,7 +720,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "R8",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC3": {
    "func": [
@@ -732,7 +732,7 @@
    "reset": "Pullup",
    "power": "VDDIO2",
    "bga": "N8",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC4": {
    "func": [
@@ -744,7 +744,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "P8",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC5": {
    "func": [
@@ -756,7 +756,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "R7",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC6": {
    "func": [
@@ -768,7 +768,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "P9",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC7": {
    "func": [
@@ -780,7 +780,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "R9",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC8": {
    "func": [
@@ -792,7 +792,7 @@
    "reset": "Pullup,",
    "power": "VDDIO2",
    "bga": "P12",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC9": {
    "func": [
@@ -804,7 +804,7 @@
    "reset": "Pullup,",
    "power": "VDDIO2",
    "bga": "R11",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC11": {
    "func": [
@@ -816,7 +816,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "P10",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC12": {
    "func": [
@@ -828,7 +828,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "P11",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC13": {
    "func": [
@@ -840,7 +840,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "R12",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC14": {
    "func": [
@@ -852,7 +852,7 @@
    "reset": "Pullup,",
    "power": "VDDIO2",
    "bga": "R10",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC15": {
    "func": [
@@ -864,7 +864,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "R14",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC16": {
    "func": [
@@ -876,7 +876,7 @@
    "reset": "Z",
    "power": "VDDIO2",
    "bga": "P13",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC17": {
    "func": [
@@ -888,7 +888,7 @@
    "reset": "Pulldown,Schmitt",
    "power": "VDDIO2",
    "bga": "R15",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC18": {
    "func": [
@@ -900,7 +900,7 @@
    "reset": "Pulldown,Schmitt",
    "power": "VDDIO2",
    "bga": "P14",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC19": {
    "func": [
@@ -912,7 +912,7 @@
    "reset": "Z,Schmitt",
    "power": "VDDIO2",
    "bga": "P15",
-   "qfn": "N.A."
+   "qfn": ""
   },
   "PC20": {
    "func": [
@@ -924,7 +924,7 @@
    "reset": "Z,Schmitt",
    "power": "VDDIO2",
    "bga": "R13",
-   "qfn": "N.A."
+   "qfn": ""
   }
  }
 }

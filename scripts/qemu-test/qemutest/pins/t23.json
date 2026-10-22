@@ -9,7 +9,7 @@
     "MIPI_DATAP1",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "29"
@@ -21,7 +21,7 @@
     "MIPI_DATAN1",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "28"
@@ -33,7 +33,7 @@
     "MIPI_CLKP",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "27"
@@ -45,7 +45,7 @@
     "MIPI_CLKN",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "26"
@@ -57,7 +57,7 @@
     "MIPI_DATAP0",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "25"
@@ -69,7 +69,7 @@
     "MIPI_DATAN0",
     ""
    ],
-   "reset": "Note: Analog IO, MIPI DVP multiplexing relationship",
+   "reset": "analog",
    "power": "MIPI18V",
    "bga": "",
    "qfn": "24"

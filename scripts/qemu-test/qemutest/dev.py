@@ -1379,13 +1379,16 @@ PINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pins")
 
 
 def pin_table(model):
-    """The pins of a SoC from Ingenic's pinout sheet (make-pin-tables.py),
-    by name: functions 0-3, state out of reset, packages; {} if none."""
-    m = SOC.fullmatch(model or "")
+    """The pins of a SoC from Ingenic's documents (make-pin-tables.py), by
+    name: functions 0-3, state out of reset, packages; {} if none. The
+    longest table name the model starts with wins: t32pro over t32."""
     try:
-        with open(os.path.join(PINS_DIR, f"{m.group(1)}.json")) as f:
+        names = [f[:-5] for f in os.listdir(PINS_DIR) if f.endswith(".json")]
+        name = max((n for n in names if (model or "").startswith(n)),
+                   key=len)
+        with open(os.path.join(PINS_DIR, f"{name}.json")) as f:
             return json.load(f)["pins"]
-    except (AttributeError, OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError):
         return {}
 
 
