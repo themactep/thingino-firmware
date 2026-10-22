@@ -30,6 +30,8 @@ SOURCES = {
     "c100": ("C100", ["HDK/C100_ IP Camera Solution GPIO Recommended*"]),
     "cw080": ("CW080", ["Datasheets/CW080SN_ds_*"]),
     "t10": ("T10", ["Datasheets/T10_DS_*"]),
+    # the T10 die with other clocks, in the same TFBGA181 package
+    "t20": ("T10", ["Datasheets/T10_DS_*"]),
     "t21": ("T21", ["Datasheets/T21_DS_20180807"]),
     "t23": ("T23", ["HDK/T23 PINOUT*_EN_*"]),
     "t30": ("T30", ["Datasheets/T30 Smart Video*"]),
@@ -342,8 +344,8 @@ def name_table(lines):
 
 # The function numbers the vendor 3.10 kernels select, which the older
 # datasheets leave out (soc-t*/include/mach/platform.h of the T20 3.12.0
-# SDK for the T10, the T21 1.0.33 and the T30 1.0.5 SDKs): a pin's name
-# that starts with, or has a part equal to, the prefix takes the number
+# SDK for the T10 and T20, the T21 1.0.33 and the T30 1.0.5 SDKs): a pin's
+# name that starts with, or has a part equal to, the prefix takes the number
 KERNEL = {
     "t10": "UART0 PB19-22 0, UART1 PB23-24 0, MSC0 PB0-5 0, MSC1 PC2-7 0, "
            "SSI0 PC11-16 0, SFC PA23-28 1, I2C0 PA12-13 1, I2C1 PB25-26 0, "
@@ -366,6 +368,8 @@ KERNEL = {
            "SLCD PD2-7 1, SLCD PD9 1, SLCD PD12-17 1, SLCD PD19 1, "
            "SLCD PD22-25 1, SLCD PD27 1",
 }
+# soc-t20 selects what soc-t10 does, but for the OTG VBUS pin
+KERNEL["t20"] = KERNEL["t10"]
 
 
 def kernel(soc):

@@ -172,8 +172,8 @@ it was driven from outside). `--watch` goes on printing changes as they
 happen, and `--vcd FILE` writes them as a waveform for PulseView or
 GTKWave, where a pin in a device function reads `z`. A device function
 is named from Ingenic's pinout sheet for the SoC, or its datasheet where
-there is no sheet: every SoC but the T20, which has neither in
-ingenic-docs (`scripts/qemu-test/make-pin-tables.py` makes the tables).
+there is no sheet; the T20, the T10 die with other clocks, uses the T10
+datasheet (`scripts/qemu-test/make-pin-tables.py` makes the tables).
 The T10, T21 and T30 datasheets don't number the functions. The vendor
 kernels and the order the datasheets list them in fix most numbers; a
 name ending in `?` has its number guessed from the T31 and T23 sheets.
