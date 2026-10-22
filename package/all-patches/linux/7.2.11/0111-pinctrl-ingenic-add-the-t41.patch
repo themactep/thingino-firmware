@@ -1,0 +1,302 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] pinctrl: ingenic: add the T41
+
+The T41 pin controller is the PAT0/PAT1 block of the older parts: a mux
+value of 0..3 per pin written through the pattern registers, no shadow
+window, and a pull-up/pull-down bit per pin in separate registers at
+0x110 and 0x120 rather than the shared pull-enable bit field the JZ4770
+and X1000 use.
+
+Register four banks 0x1000 apart (PA-PD, 128 pins), the pin groups and
+functions from the vendor device tree (each vendor group is a bank, a pin
+range and one function selector, which maps onto a group with a single
+mux value), and the T41 bias path in ingenic_set_bias() and
+ingenic_pinconf_get().
+
+The version value sits between JZ4780 and X1000: the mux programming then
+takes the direct PAT0/PAT1 path instead of X1000's shadow registers, and
+the X1830 schmitt/slew pinconf options stay off.
+
+Checked under QEMU: the SFC0 group (PA23-PA28, function 1) comes out as
+PAT0 = 0x1f800000 and PAT1 = 0, which is the expected bitmap.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -57,6 +57,10 @@
+ #define JZ4770_GPIO_FLAG			0x50
+ #define JZ4770_GPIO_PEN				0x70
+ 
++/* The T41 has a separate pull-up and pull-down bit per pin */
++#define T41_GPIO_PU				0x110
++#define T41_GPIO_PD				0x120
++
+ #define X1600_GPIO_PU				0x80
+ 
+ #define X1830_GPIO_PEL				0x110
+@@ -108,6 +112,7 @@
+ 	ID_JZ4770,
+ 	ID_JZ4775,
+ 	ID_JZ4780,
++	ID_T41,
+ 	ID_X1000,
+ 	ID_X1500,
+ 	ID_X1600,
+@@ -2972,6 +2977,212 @@
+ 	.access_table = &t31_access_table,
+ };
+ 
++static const u32 t41_pull_ups[4] = {
++	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
++};
++
++static const u32 t41_pull_downs[4] = {
++	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
++};
++
++static int t41_uart0_pb_pins[] = { 0x33, 0x34, 0x35, 0x36, };
++static int t41_uart0_pc_pins[] = { 0x48, 0x49, 0x4b, 0x4c, };
++static int t41_uart1_pb_pins[] = { 0x37, 0x38, };
++static int t41_uart2_pc_pins[] = { 0x4d, 0x4e, 0x53, 0x54, };
++static int t41_uart2_pd_pins[] = { 0x69, 0x6a, 0x6b, 0x6c, };
++static int t41_uart3_pb_pins[] = { 0x39, 0x3a, };
++static int t41_uart3_pd_pins[] = { 0x60, 0x61, };
++static int t41_uart4_pb_pins[] = { 0x3d, 0x3e, };
++static int t41_uart4_pd_pins[] = { 0x62, 0x63, };
++static int t41_uart5_pb_pins[] = { 0x26, 0x27, };
++static int t41_uart5_pd_pins[] = { 0x64, 0x65, };
++static int t41_i2c0_pa_pins[] = { 0xc, 0xd, };
++static int t41_i2c1_pb_pins[] = { 0x39, 0x3a, };
++static int t41_i2c1_pc_pins[] = { 0x53, 0x54, };
++static int t41_i2c1_pd_pins[] = { 0x66, 0x67, };
++static int t41_i2c2_pb_1_pins[] = { 0x2a, 0x2b, };
++static int t41_i2c2_pb_2_pins[] = { 0x3b, 0x3c, };
++static int t41_i2c2_pc_pins[] = { 0x48, 0x49, };
++static int t41_vo_pd_pins[] = { 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, };
++static int t41_msc0_pb_pins[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, };
++static int t41_msc1_pb_pins[] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, };
++static int t41_msc1_pc_pins[] = { 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, };
++static int t41_mac0_rmii_normal_pins[] = { 0x2f, 0x30, 0x29, };
++static int t41_mac0_rmii_p1_normal_pins[] = { 0x27, 0x2d, 0x2e, 0x28, 0x2a, 0x2b, 0x26, };
++static int t41_mac0_rmii_p1_nomdio_pins[] = { 0x27, 0x2d, 0x2e, 0x28, 0x26, };
++static int t41_pwm_pc_pins[] = { 0x4f, 0x50, 0x51, 0x52, };
++static int t41_sfc0_pa_pins[] = { 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, };
++static int t41_sfc1_pa_pins[] = { 0x14, 0x15, 0x16, 0x1d, 0x1e, 0x1f, };
++static int t41_vic_pa_low_10bit_pins[] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xc, 0xd, 0xe, };
++static int t41_vic_pa_high_10bit_pins[] = { 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, };
++static int t41_vic_pa_12bit_pins[] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, };
++static int t41_cim0_vic_mclk_pa_pins[] = { 0xf, };
++static int t41_smart_lcd_pd_pins[] = { 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, };
++static int t41_dmic_pb_pins[] = { 0x3c, 0x3d, 0x3e, };
++static int t41_dmic_pa_pins[] = { 0xe, 0x10, 0x11, };
++static int t41_spi0_pa_pins[] = { 0x6, 0x7, 0x8, 0x9, };
++static int t41_spi0_pc_pins[] = { 0x42, 0x43, 0x44, 0x45, };
++static int t41_spi1_pa_pins[] = { 0x14, 0x15, 0x16, };
++static int t41_spi1_pb_pins[] = { 0x3b, 0x3c, 0x3d, };
++static int t41_pwm0_pc_pins[] = { 0x4f, };
++static int t41_pwm0_pb_pins[] = { 0x31, };
++static int t41_pwm1_pb_pins[] = { 0x32, };
++static int t41_pwm1_pc_pins[] = { 0x50, };
++static int t41_pwm2_pb_pins[] = { 0x28, };
++static int t41_pwm2_pc_pins[] = { 0x51, };
++static int t41_pwm3_pb_pins[] = { 0x29, };
++static int t41_pwm3_pc_pins[] = { 0x52, };
++static int t41_pwm4_pb_pins[] = { 0x2d, };
++static int t41_pwm4_pd_pins[] = { 0x69, };
++static int t41_pwm5_pb_pins[] = { 0x2e, };
++static int t41_pwm5_pd_pins[] = { 0x6a, };
++static int t41_pwm6_pb_pins[] = { 0x2f, };
++static int t41_pwm6_pd_pins[] = { 0x6b, };
++static int t41_pwm7_pb_pins[] = { 0x30, };
++static int t41_pwm7_pd_pins[] = { 0x6c, };
++
++static const struct group_desc t41_groups[] = {
++	INGENIC_PIN_GROUP("uart0-pb", t41_uart0_pb, 0),
++	INGENIC_PIN_GROUP("uart0-pc", t41_uart0_pc, 0),
++	INGENIC_PIN_GROUP("uart1-pb", t41_uart1_pb, 0),
++	INGENIC_PIN_GROUP("uart2-pc", t41_uart2_pc, 0),
++	INGENIC_PIN_GROUP("uart2-pd", t41_uart2_pd, 1),
++	INGENIC_PIN_GROUP("uart3-pb", t41_uart3_pb, 1),
++	INGENIC_PIN_GROUP("uart3-pd", t41_uart3_pd, 2),
++	INGENIC_PIN_GROUP("uart4-pb", t41_uart4_pb, 1),
++	INGENIC_PIN_GROUP("uart4-pd", t41_uart4_pd, 2),
++	INGENIC_PIN_GROUP("uart5-pb", t41_uart5_pb, 1),
++	INGENIC_PIN_GROUP("uart5-pd", t41_uart5_pd, 2),
++	INGENIC_PIN_GROUP("i2c0-pa", t41_i2c0_pa, 1),
++	INGENIC_PIN_GROUP("i2c1-pb", t41_i2c1_pb, 0),
++	INGENIC_PIN_GROUP("i2c1-pc", t41_i2c1_pc, 1),
++	INGENIC_PIN_GROUP("i2c1-pd", t41_i2c1_pd, 2),
++	INGENIC_PIN_GROUP("i2c2-pb-1", t41_i2c2_pb_1, 2),
++	INGENIC_PIN_GROUP("i2c2-pb-2", t41_i2c2_pb_2, 1),
++	INGENIC_PIN_GROUP("i2c2-pc", t41_i2c2_pc, 1),
++	INGENIC_PIN_GROUP("vo-pd", t41_vo_pd, 1),
++	INGENIC_PIN_GROUP("msc0-pb", t41_msc0_pb, 0),
++	INGENIC_PIN_GROUP("msc1-pb", t41_msc1_pb, 1),
++	INGENIC_PIN_GROUP("msc1-pc", t41_msc1_pc, 0),
++	INGENIC_PIN_GROUP("mac0-rmii-normal", t41_mac0_rmii_normal, 0),
++	INGENIC_PIN_GROUP("mac0-rmii-p1-normal", t41_mac0_rmii_p1_normal, 0),
++	INGENIC_PIN_GROUP("mac0-rmii-p1-nomdio", t41_mac0_rmii_p1_nomdio, 0),
++	INGENIC_PIN_GROUP("pwm-pc", t41_pwm_pc, 2),
++	INGENIC_PIN_GROUP("sfc0-pa", t41_sfc0_pa, 1),
++	INGENIC_PIN_GROUP("sfc1-pa", t41_sfc1_pa, 1),
++	INGENIC_PIN_GROUP("vic-pa-low-10bit", t41_vic_pa_low_10bit, 0),
++	INGENIC_PIN_GROUP("vic-pa-high-10bit", t41_vic_pa_high_10bit, 0),
++	INGENIC_PIN_GROUP("vic-pa-12bit", t41_vic_pa_12bit, 0),
++	INGENIC_PIN_GROUP("cim0-vic-mclk-pa", t41_cim0_vic_mclk_pa, 1),
++	INGENIC_PIN_GROUP("smart-lcd-pd", t41_smart_lcd_pd, 0),
++	INGENIC_PIN_GROUP("dmic-pb", t41_dmic_pb, 0),
++	INGENIC_PIN_GROUP("dmic-pa", t41_dmic_pa, 2),
++	INGENIC_PIN_GROUP("spi0-pa", t41_spi0_pa, 2),
++	INGENIC_PIN_GROUP("spi0-pc", t41_spi0_pc, 1),
++	INGENIC_PIN_GROUP("spi1-pa", t41_spi1_pa, 0),
++	INGENIC_PIN_GROUP("spi1-pb", t41_spi1_pb, 2),
++	INGENIC_PIN_GROUP("pwm0-pc", t41_pwm0_pc, 2),
++	INGENIC_PIN_GROUP("pwm0-pb", t41_pwm0_pb, 0),
++	INGENIC_PIN_GROUP("pwm1-pb", t41_pwm1_pb, 0),
++	INGENIC_PIN_GROUP("pwm1-pc", t41_pwm1_pc, 2),
++	INGENIC_PIN_GROUP("pwm2-pb", t41_pwm2_pb, 2),
++	INGENIC_PIN_GROUP("pwm2-pc", t41_pwm2_pc, 2),
++	INGENIC_PIN_GROUP("pwm3-pb", t41_pwm3_pb, 2),
++	INGENIC_PIN_GROUP("pwm3-pc", t41_pwm3_pc, 2),
++	INGENIC_PIN_GROUP("pwm4-pb", t41_pwm4_pb, 2),
++	INGENIC_PIN_GROUP("pwm4-pd", t41_pwm4_pd, 2),
++	INGENIC_PIN_GROUP("pwm5-pb", t41_pwm5_pb, 2),
++	INGENIC_PIN_GROUP("pwm5-pd", t41_pwm5_pd, 2),
++	INGENIC_PIN_GROUP("pwm6-pb", t41_pwm6_pb, 2),
++	INGENIC_PIN_GROUP("pwm6-pd", t41_pwm6_pd, 2),
++	INGENIC_PIN_GROUP("pwm7-pb", t41_pwm7_pb, 2),
++	INGENIC_PIN_GROUP("pwm7-pd", t41_pwm7_pd, 2),
++};
++
++/* function name -> groups */
++static const char *t41_uart0_groups[] = { "uart0-pb", "uart0-pc", };
++static const char *t41_uart1_groups[] = { "uart1-pb", };
++static const char *t41_uart2_groups[] = { "uart2-pc", "uart2-pd", };
++static const char *t41_uart3_groups[] = { "uart3-pb", "uart3-pd", };
++static const char *t41_uart4_groups[] = { "uart4-pb", "uart4-pd", };
++static const char *t41_uart5_groups[] = { "uart5-pb", "uart5-pd", };
++static const char *t41_i2c0_groups[] = { "i2c0-pa", };
++static const char *t41_i2c1_groups[] = { "i2c1-pb", "i2c1-pc", "i2c1-pd", };
++static const char *t41_i2c2_groups[] = { "i2c2-pb-1", "i2c2-pb-2", "i2c2-pc", };
++static const char *t41_vo_groups[] = { "vo-pd", };
++static const char *t41_mmc0_groups[] = { "msc0-pb", };
++static const char *t41_mmc1_groups[] = { "msc1-pb", "msc1-pc", };
++static const char *t41_mac_groups[] = { "mac0-rmii-normal", "mac0-rmii-p1-normal", "mac0-rmii-p1-nomdio", };
++static const char *t41_pwm0_groups[] = { "pwm-pc", "pwm0-pc", "pwm0-pb", };
++static const char *t41_sfc0_groups[] = { "sfc0-pa", };
++static const char *t41_sfc1_groups[] = { "sfc1-pa", };
++static const char *t41_vic_groups[] = { "vic-pa-low-10bit", "vic-pa-high-10bit", "vic-pa-12bit", };
++static const char *t41_cim_groups[] = { "cim0-vic-mclk-pa", };
++static const char *t41_lcd_groups[] = { "smart-lcd-pd", };
++static const char *t41_dmic_groups[] = { "dmic-pb", "dmic-pa", };
++static const char *t41_spi0_groups[] = { "spi0-pa", "spi0-pc", };
++static const char *t41_spi1_groups[] = { "spi1-pa", "spi1-pb", };
++static const char *t41_pwm1_groups[] = { "pwm1-pb", "pwm1-pc", };
++static const char *t41_pwm2_groups[] = { "pwm2-pb", "pwm2-pc", };
++static const char *t41_pwm3_groups[] = { "pwm3-pb", "pwm3-pc", };
++static const char *t41_pwm4_groups[] = { "pwm4-pb", "pwm4-pd", };
++static const char *t41_pwm5_groups[] = { "pwm5-pb", "pwm5-pd", };
++static const char *t41_pwm6_groups[] = { "pwm6-pb", "pwm6-pd", };
++static const char *t41_pwm7_groups[] = { "pwm7-pb", "pwm7-pd", };
++
++static const struct pinfunction t41_functions[] = {
++	INGENIC_PIN_FUNCTION("uart0", t41_uart0),
++	INGENIC_PIN_FUNCTION("uart1", t41_uart1),
++	INGENIC_PIN_FUNCTION("uart2", t41_uart2),
++	INGENIC_PIN_FUNCTION("uart3", t41_uart3),
++	INGENIC_PIN_FUNCTION("uart4", t41_uart4),
++	INGENIC_PIN_FUNCTION("uart5", t41_uart5),
++	INGENIC_PIN_FUNCTION("i2c0", t41_i2c0),
++	INGENIC_PIN_FUNCTION("i2c1", t41_i2c1),
++	INGENIC_PIN_FUNCTION("i2c2", t41_i2c2),
++	INGENIC_PIN_FUNCTION("vo", t41_vo),
++	INGENIC_PIN_FUNCTION("mmc0", t41_mmc0),
++	INGENIC_PIN_FUNCTION("mmc1", t41_mmc1),
++	INGENIC_PIN_FUNCTION("mac", t41_mac),
++	INGENIC_PIN_FUNCTION("pwm0", t41_pwm0),
++	INGENIC_PIN_FUNCTION("sfc0", t41_sfc0),
++	INGENIC_PIN_FUNCTION("sfc1", t41_sfc1),
++	INGENIC_PIN_FUNCTION("vic", t41_vic),
++	INGENIC_PIN_FUNCTION("cim", t41_cim),
++	INGENIC_PIN_FUNCTION("lcd", t41_lcd),
++	INGENIC_PIN_FUNCTION("dmic", t41_dmic),
++	INGENIC_PIN_FUNCTION("spi0", t41_spi0),
++	INGENIC_PIN_FUNCTION("spi1", t41_spi1),
++	INGENIC_PIN_FUNCTION("pwm1", t41_pwm1),
++	INGENIC_PIN_FUNCTION("pwm2", t41_pwm2),
++	INGENIC_PIN_FUNCTION("pwm3", t41_pwm3),
++	INGENIC_PIN_FUNCTION("pwm4", t41_pwm4),
++	INGENIC_PIN_FUNCTION("pwm5", t41_pwm5),
++	INGENIC_PIN_FUNCTION("pwm6", t41_pwm6),
++	INGENIC_PIN_FUNCTION("pwm7", t41_pwm7),
++};
++
++static const struct regmap_range t41_access_ranges[] = {
++	regmap_reg_range(0x0000, 0x4000 - 4),
++};
++
++static const struct regmap_access_table t41_access_table = {
++	.yes_ranges = t41_access_ranges,
++	.n_yes_ranges = ARRAY_SIZE(t41_access_ranges),
++};
++
++static const struct ingenic_chip_info t41_chip_info = {
++	.num_chips = 4,
++	.reg_offset = 0x1000,
++	.version = ID_T41,
++	.groups = t41_groups,
++	.num_groups = ARRAY_SIZE(t41_groups),
++	.functions = t41_functions,
++	.num_functions = ARRAY_SIZE(t41_functions),
++	.pull_ups = t41_pull_ups,
++	.pull_downs = t41_pull_downs,
++	.access_table = &t41_access_table,
++};
+ static const u32 x2000_pull_ups[5] = {
+ 	0x0003ffff, 0xffffffff, 0x1ff0ffff, 0xc7fe3f3f, 0x8fff003f,
+ };
+@@ -4255,6 +4466,13 @@
+ 		pullup = (bias == GPIO_PULL_UP) && (jzpc->info->pull_ups[offt] & BIT(idx));
+ 		pulldown = (bias == GPIO_PULL_DOWN) && (jzpc->info->pull_downs[offt] & BIT(idx));
+ 
++	} else if (jzpc->info->version == ID_T41) {
++		pullup = ingenic_get_pin_config(jzpc, pin, T41_GPIO_PU) &&
++				!ingenic_get_pin_config(jzpc, pin, T41_GPIO_PD) &&
++				(jzpc->info->pull_ups[offt] & BIT(idx));
++		pulldown = ingenic_get_pin_config(jzpc, pin, T41_GPIO_PD) &&
++				!ingenic_get_pin_config(jzpc, pin, T41_GPIO_PU) &&
++				(jzpc->info->pull_downs[offt] & BIT(idx));
+ 	} else {
+ 		if (is_soc_or_above(jzpc, ID_X1600))
+ 			pull = ingenic_get_pin_config(jzpc, pin, X1600_GPIO_PU);
+@@ -4357,6 +4575,9 @@
+ 					REG_SET(X1830_GPIO_PEH), bias << idxh);
+ 		}
+ 
++	} else if (jzpc->info->version == ID_T41) {
++		ingenic_config_pin(jzpc, pin, T41_GPIO_PU, bias == GPIO_PULL_UP);
++		ingenic_config_pin(jzpc, pin, T41_GPIO_PD, bias == GPIO_PULL_DOWN);
+ 	} else if (is_soc_or_above(jzpc, ID_X1600)) {
+ 		ingenic_config_pin(jzpc, pin, X1600_GPIO_PU, bias);
+ 	} else if (is_soc_or_above(jzpc, ID_JZ4770)) {
+@@ -4551,6 +4772,7 @@
+ 	{ .compatible = "ingenic,jz4775-gpio" },
+ 	{ .compatible = "ingenic,jz4780-gpio" },
+ 	{ .compatible = "ingenic,t31-gpio" },
++	{ .compatible = "ingenic,t41-gpio" },
+ 	{ .compatible = "ingenic,t20-gpio" },
+ 	{ .compatible = "ingenic,x1000-gpio" },
+ 	{ .compatible = "ingenic,x1600-gpio" },
+@@ -4815,6 +5037,10 @@
+ 		.data = IF_ENABLED(CONFIG_MACH_T20, &t20_chip_info)
+ 	},
+ 	{
++		.compatible = "ingenic,t41-pinctrl",
++		.data = IF_ENABLED(CONFIG_MACH_T41, &t41_chip_info)
++	},
++	{
+ 		.compatible = "ingenic,x2000-pinctrl",
+ 		.data = IF_ENABLED(CONFIG_MACH_X2000, &x2000_chip_info)
+ 	},
+
