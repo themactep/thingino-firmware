@@ -125,9 +125,11 @@ thingino reads its Wi-Fi mode once, at boot, so the first `up` of a
 camera that was not set up for the SSID runs `wlan configure` and reboots
 it onto the access point; with `--keep` it is set up already. The camera
 then scans, associates, completes the WPA2 handshake and takes a DHCP
-address as it would at home. When it has no wired address, SSH, HTTP and
-HTTPS are forwarded over the Wi-Fi instead, and `put` and `get` go over
-SSH. A wrong passphrase fails the handshake as a real access point does.
+address as it would at home. A camera with a wired port too stops its
+Wi-Fi while the port has a link, so `--wifi` and `--portal` start it with
+the cable out. SSH, HTTP and HTTPS are then forwarded over the Wi-Fi,
+and `put` and `get` go over SSH. A wrong passphrase fails the handshake
+as a real access point does.
 
 `--portal` tests the setup portal instead: the camera keeps its first-boot
 Wi-Fi mode, an access point of its own, and an emulated phone joins it.

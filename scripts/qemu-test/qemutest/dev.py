@@ -1202,6 +1202,9 @@ def cmd_up(args, extra):
         s.info["pty"] = {c["label"][-1]: c["filename"][len("pty:"):]
                          for c in qmp(s, "query-chardev")
                          if re.fullmatch(r"uart[01]", c["label"])}
+        # thingino stops Wi-Fi on a camera whose wired port has a link
+        if wifi:
+            qmp(s, "set_link", name="n0", up=False)
         qmp(s, "cont")
         n = None
         while n is None:
