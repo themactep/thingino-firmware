@@ -12,6 +12,7 @@
 		vo = "/ahb0/vo@0x130c0000";
 		uart0 = "/apb/serial@0x10030000";
 		uart1 = "/apb/serial@0x10031000";
+		serial1 = "/apb/serial@0x10031000";
 		uart2 = "/apb/serial@0x10032000";
 		uart3 = "/apb/serial@0x10033000";
 		uart4 = "/apb/serial@0x10034000";
@@ -23,6 +24,10 @@
 		spi1 = "/apb/spi1@0x10044000";
 		sfc0 = "/ahb2/sfc0@0x13440000";
 		sfc1 = "/ahb2/sfc1@0x13450000";
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
 	};
 
 	cpus {
