@@ -81,7 +81,7 @@ WIFI_CHIPS = {
     "atbm6032": "atbm6032", "atbm6132u": "atbm6132u",
     "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
     "atbm6062u": "atbm6062u", "atbm6062cu": "atbm6062cu",
-    "atbm6132cu": "atbm6132cu",
+    "atbm6132cu": "atbm6132cu", "atbm6132cu_6162": "atbm6132cu-6162",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
 SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s"}
@@ -255,8 +255,10 @@ def wifi_model(image, cfg, explicit):
     .config, else the Wi-Fi in the camera name (release images)."""
     if explicit:
         return explicit
-    names = [k[len("BR2_PACKAGE_WIFI_"):].lower() for k, v in cfg.items()
-             if k.startswith("BR2_PACKAGE_WIFI_") and v == "y"]
+    names = sorted((k[len("BR2_PACKAGE_WIFI_"):].lower()
+                    for k, v in cfg.items()
+                    if k.startswith("BR2_PACKAGE_WIFI_") and v == "y"),
+                   key=len, reverse=True)       # ATBM6132CU_6162 first
     names += re.split(r"[_.+-]", os.path.basename(image).lower())
     hits = [WIFI_CHIPS[n] for n in names if n in WIFI_CHIPS]
     if not hits:
