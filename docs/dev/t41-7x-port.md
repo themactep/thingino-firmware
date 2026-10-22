@@ -81,9 +81,20 @@
   "ext", so the APB divider must be called `pclk` and the "ext"/"rtc"
   fixed-clock nodes must keep those names; and the CGU registers those
   two as clkdev aliases, which the channel clocks cannot see.
-- Still missing for QEMU: a pinctrl driver (`ingenic,t41-pinctrl` has
-  none, which is why `pinctrl-0` is dropped from UART1 and SFC0), the
-  camera stack (OS04D10 + open-tx-isp, DWC2, ATBM6062S, audio) and SMP.
+- The pinctrl driver is in (`0111`) and the board tree is on the
+  mainline binding (`t41: put the pin controller and its consumers on the
+  mainline binding`): four PAT0/PAT1 banks 0x1000 apart at 0x10010000
+  (PA-PD), 55 pin groups taken from the vendor groups (bank + pin range +
+  function selector, which is exactly one mainline group with one mux
+  value), and a pinmux state per consumer. The bank phandles, the
+  two-cell GPIO form and the shim header keep the per-camera fragment
+  working untouched.
+  Verified by reading the emulated registers back: the SFC0 group
+  (PA23-PA28, function 1) gives PAT0 = 0x1f800000.
+- Still missing: the camera stack (OS04D10 + open-tx-isp, DWC2,
+  ATBM6062S, audio) and SMP. Userspace's sysfs GPIO writes still collide
+  with the pins the device tree claims (gpb 29 is the mmc pwrseq reset),
+  which is a board-config question, not a driver one.
 - The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
   kernel 3072K, rootfs 6144K, data 6784K. The image table and the
   U-Boot `mtdparts` agree; the camera DTS carries the matching
