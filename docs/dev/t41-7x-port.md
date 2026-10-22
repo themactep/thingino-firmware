@@ -26,9 +26,14 @@
   `CONFIG_CMDLINE="earlycon keep_bootcon ..."`, but QEMU still stops
   before any kernel output. The 0104/0105 SCACHE experiment was
   negative: dropping `MIPS_CPU_SCACHE` from the T-series machines did
-  not change the early stop, so the SCACHE is not the hang. The
-  remaining early-boot differences are the 2026.10 U-Boot/CPU path and
-  the missing T41 core INTC/CGU.
+  not change the early stop, so the SCACHE is not the hang.
+- The T41 core INTC is added (`0106`, four banks at 0x100, parented by
+  `cpuintc`), but it does not change the early stop either. Both the
+  INTC and the CGU are downstream of whatever is hanging before the
+  early console.
+- The next investigation is the T41 early-boot/QEMU path: the 2026.10
+  U-Boot handoff, the initial DTB, and the XBurst2 CPU entry against
+  the working T31/T20 2013.07 reference.
 
 ## Fixed layout decision
 
