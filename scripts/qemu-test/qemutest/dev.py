@@ -90,6 +90,7 @@ WIFI_CHIPS = {
     "ssv6155": "ssv6155p", "ssv6155p": "ssv6155p",
     "ssv6x5x_sv6155p": "ssv6155p",
     "ssv6256p": "ssv6155p", "ssv6x5x_sv6256p": "ssv6155p",
+    "ssv6355": "ssv6355", "ssv6x5x_sv6355": "ssv6355",
     "ssv6158": "ssv6158",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
