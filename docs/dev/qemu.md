@@ -113,7 +113,8 @@ emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB (atbm6012b,
 atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu, atbm6132cu,
 atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and RTL8192FS on SDIO
 (rtl8189fs, rtl8189es, rtl8192fs; cameras named rtl8189ftv and rtl8189etv)
-and RTL8188FU on USB (rtl8188fu; cameras named rtl8188ftv); `up` stops
+and RTL8188FU on USB (rtl8188fu; cameras named rtl8188ftv), and the
+Broadcom/Synaptics BCM43438 of the syn4343 package on SDIO; `up` stops
 with a message when the QEMU it uses has no model for the chip, and
 `--qemu` picks one that has. atbm6132cu-6162 is
 the 6132CU part paired with Bluetooth, on USB id 0x6162: a build with
