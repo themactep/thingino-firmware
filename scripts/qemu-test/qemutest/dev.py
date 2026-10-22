@@ -85,6 +85,12 @@ WIFI_CHIPS = {
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
 SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s"}
+# thingino's setup portal network (S38wpa_supplicant). --portal's phone is
+# the user netdev's host address on it, and takes the MAC that netdev sends
+# from: 52:55, then the address.
+PORTAL_NET = "172.16.0"
+PORTAL_IP = PORTAL_NET + ".1"
+PORTAL_PHONE = PORTAL_NET + ".250"
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
 PROMPT = re.compile(r"root@[\w.-]+ \S*# ")
@@ -222,6 +228,7 @@ def sfc_type(family):
 
 _GPIO_TRACE = {}
 _DEVICES = {}
+_PROPS = {}
 
 
 def gpio_trace_supported(qemu):
@@ -248,6 +255,19 @@ def qemu_devices(qemu):
             out = ""
         _DEVICES[qemu] = set(re.findall(r'^name "([^"]+)"', out, re.M))
     return _DEVICES[qemu]
+
+
+def qemu_device_props(qemu, model):
+    """The properties of one of this QEMU's device types."""
+    if (qemu, model) not in _PROPS:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device",
+                                  f"{model},help"], capture_output=True,
+                                 text=True, timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _PROPS[qemu, model] = set(re.findall(r"^\s+([\w-]+)=", out, re.M))
+    return _PROPS[qemu, model]
 
 
 def wifi_model(image, cfg, explicit):
@@ -756,13 +776,15 @@ def attach_network(s, con):
     """Point the host forwards at the camera's slirp address and install
     the session's key, so file copies go over SSH. The address can change
     from boot to boot (the MAC does), so this runs after every login. A
-    wired interface carries them if it has an address, else the Wi-Fi."""
+    wired interface carries them if it has an address, else the Wi-Fi, else
+    the setup portal for --portal's phone."""
     s.info["ssh"] = False
     if not s.info.get("ports"):
         return
+    wifi = s.info.get("wifi") or {}
     joins = False                           # set up to join the AP
-    if s.info.get("wifi"):
-        conf = shlex.quote(f'ssid="{s.info["wifi"]["ssid"]}"')
+    if wifi.get("ssid"):
+        conf = shlex.quote(f'ssid="{wifi["ssid"]}"')
         rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
                            20)
         joins = rc == 0
@@ -771,14 +793,21 @@ def attach_network(s, con):
     while time.time() < deadline:
         _, out = serial_run(con, "ip -4 -o addr show; "
                                  "cat /sys/class/net/eth*/operstate", 20)
-        found = re.findall(r"^\d+: (\S+)\s+inet (10\.0\.2\.\d+)/",
-                           out, re.M)
-        wired = [a for i, a in found if not i.startswith("wlan")]
-        wlan = [a for i, a in found if i.startswith("wlan")]
+        found = re.findall(r"^\d+: (\S+)\s+inet ([\d.]+)/", out, re.M)
+        wired = [a for i, a in found
+                 if not i.startswith("wlan") and a.startswith("10.0.2.")]
+        wlan = [a for i, a in found
+                if i.startswith("wlan") and a.startswith("10.0.2.")]
+        portal = wifi.get("portal") and any(
+            i.startswith("wlan") and a == PORTAL_IP for i, a in found)
         if wired or (joins and wlan):
             ip, netdev = (wired[0], "n0") if wired else (wlan[0], "w0")
             break
-        if not joins and not re.search(r"^(up|unknown)$", out, re.M):
+        if portal and not joins:
+            ip, netdev = PORTAL_IP, "c0"
+            break
+        if not (joins or wifi.get("portal")) and \
+                not re.search(r"^(up|unknown)$", out, re.M):
             break                           # no wired interface up
         time.sleep(2)
     if not ip:
@@ -954,7 +983,9 @@ def describe(s, as_json=False):
            f"  run      {PROG} {run} {s.name} -- <command>"]
     if "ssh_command" in view:
         out.append(f"  ssh      {view['ssh_command']}")
-    if "web" in view:
+    if "web" in view and i.get("fwd_netdev") == "c0":
+        out.append(f"  portal   {view['web']}  (the camera's setup page)")
+    elif "web" in view:
         out.append(f"  web      {view['web']}  https://127.0.0.1:"
                    f"{ports['https']}/  (root / {i['password']})")
         extra = [f"{port} -> {svc}" for svc, port in ports.items()
@@ -964,11 +995,16 @@ def describe(s, as_json=False):
     elif i.get("state") == "shell":
         out.append("  network  none: no wired interface, so files go over "
                    "the serial console too")
-    if i.get("wifi"):
-        w = i["wifi"]
+    w = i.get("wifi")
+    if w and i.get("fwd_netdev") == "c0":
+        out.append(f"  wifi     {w['model']}, running the setup portal a "
+                   f"phone has joined (forwards go over it)")
+    elif w and w.get("ssid"):
         out.append(f"  wifi     {w['model']}, on the access point "
                    f"{w['ssid']}" + (" (forwards go over it)"
                                      if i.get("fwd_netdev") == "w0" else ""))
+    elif w:
+        out.append(f"  wifi     {w['model']}")
     out.append(f"  console  {s.log}")
     return "\n".join(out)
 
@@ -1019,16 +1055,20 @@ def cmd_up(args, extra):
         die(f"bad session name {name!r}; pass --name")
     qemu = find_qemu(image, args.qemu)
     wifi = None
-    if args.wifi:
-        ssid, _, psk = args.wifi.partition(":")
-        if not ssid or not 8 <= len(psk) <= 63:
+    if args.wifi or args.portal:
+        ssid, _, psk = (args.wifi or "").partition(":")
+        if args.wifi and (not ssid or not 8 <= len(psk) <= 63):
             die("--wifi wants SSID:PASSPHRASE, a passphrase of 8 to 63 "
                 "characters")
         wifi = {"model": wifi_model(image, cfg, args.wifi_chip),
-                "ssid": ssid}
+                "ssid": ssid or None, "portal": args.portal}
         if wifi["model"] not in qemu_devices(qemu):
             die(f"{qemu} has no {wifi['model']} model; pass --qemu with a "
                 f"newer build of the fork")
+        if args.portal and \
+                "client-netdev" not in qemu_device_props(qemu, wifi["model"]):
+            die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu with "
+                f"a newer build of the fork")
 
     s = Session(name)
     old_ports = {}
@@ -1080,10 +1120,19 @@ def cmd_up(args, extra):
         argv += ["-netdev", "user,id=n0"]
     if wifi:
         bus = "msc1" if wifi["model"] in SDIO_WIFI else "usb-bus.0,port=1"
-        ap = ",".join(f"{k}={v.replace(',', ',,')}"
-                      for k, v in (("ssid", ssid), ("psk", psk)))
-        argv += ["-netdev", "user,id=w0",
-                 "-device", f"{wifi['model']},bus={bus},netdev=w0,{ap}"]
+        dev = [wifi["model"], f"bus={bus}", "netdev=w0"]
+        argv += ["-netdev", "user,id=w0"]
+        if args.portal:
+            mac = "52:55:" + ":".join(f"{int(b):02x}"
+                                      for b in PORTAL_PHONE.split("."))
+            argv += ["-netdev", f"user,id=c0,net={PORTAL_NET}.0/24,"
+                     f"host={PORTAL_PHONE},ipv6=off"]
+            dev += ["client-netdev=c0", f"client-mac={mac}"]
+        # the passphrase last: the saved argv drops it from there on
+        if args.wifi:
+            dev += [f"{k}={v.replace(',', ',,')}"
+                    for k, v in (("ssid", ssid), ("psk", psk))]
+        argv += ["-device", ",".join(dev)]
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
@@ -1153,7 +1202,7 @@ def cmd_up(args, extra):
         die(f"{name}: no {'U-Boot prompt' if args.uboot else 'shell'} in "
             f"{args.timeout} s; the session is left running for a look "
             f"(`{PROG} log`, `{PROG} console`, `{PROG} down {name}`)", 2)
-    if wifi and not (args.no_wait or args.uboot):
+    if args.wifi and not (args.portal or args.no_wait or args.uboot):
         join_wifi(s, ssid, psk, args.timeout)
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
@@ -1770,6 +1819,10 @@ def main(argv=None):
                     "the camera is set up to join (a reboot the first time)")
     sp.add_argument("--wifi-chip", choices=sorted(set(WIFI_CHIPS.values())),
                     help="the Wi-Fi model, when the image cannot tell")
+    sp.add_argument("--portal", action="store_true",
+                    help="leave the camera in its setup portal, joined by "
+                    "an emulated phone the web forwards go through; --wifi "
+                    "then names the network to set it up on")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")

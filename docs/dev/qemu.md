@@ -69,6 +69,8 @@ again for a session that is already up replaces it. Other options:
 - `--sd card.img` puts an SD card in MSC0; that file is written in place.
 - `--wifi SSID:PASS` gives the camera its Wi-Fi chip and an access point to
   join (see Wi-Fi).
+- `--portal` leaves the camera in its setup portal, with an emulated phone
+  joined to it (see Wi-Fi).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - Anything after `--` goes to QEMU as it is.
@@ -122,6 +124,20 @@ then scans, associates, completes the WPA2 handshake and takes a DHCP
 address as it would at home. When it has no wired address, SSH, HTTP and
 HTTPS are forwarded over the Wi-Fi instead, and `put` and `get` go over
 SSH. A wrong passphrase fails the handshake as a real access point does.
+
+`--portal` tests the setup portal instead: the camera keeps its first-boot
+Wi-Fi mode, an access point of its own, and an emulated phone joins it.
+The forwards go through the phone, so the web address `up` prints is the
+portal, and SSH reaches the camera too. With `--wifi`, the portal's scan
+lists that network and can set the camera up on it:
+
+```sh
+scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --portal --wifi thingino:thingino123 \
+    -- -device image-sensor,model=gc2053,bus=i2c0
+```
+
+Saving in the portal reboots the camera; the next command logs in again,
+and once the camera has joined, the forwards move onto that network.
 
 ## Commands, files and reboots
 
@@ -327,9 +343,7 @@ a session's console and another waits its turn; SSH copies run alongside.
   Real camera images boot as well, and stream with their sensor (see
   Video), but only ATBM60xx radios are emulated (see Wi-Fi), and board
   details such as an SD card-detect pin may not match.
-- The emulated access point takes the camera as a station only: the
-  setup portal, which runs the camera as an access point, gets no
-  clients.
+- The emulated phone of `--portal` joins open portals only.
 - The guest runs under TCG: its timing is not the hardware's.
 - The emulated NAND never wears: no bitflips, no bad blocks, and its
   spare areas are blank again whenever QEMU starts.
