@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * JX JXF23 wiring for the T20 Wyze Cam 2.
+ *
+ * The T20 variant is a 10-bit DVP sensor on I2C0 at 0x40, held in reset by
+ * PA18. Board differences belong in the camera .dtsi as &sensor overrides.
+ */
+
+#include <dt-bindings/clock/ingenic,t31-cgu.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	sensor_iovdd: sensor-iovdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-iovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	sensor_avdd: sensor-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	sensor_dvdd: sensor-dvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "sensor-dvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+};
+
+&i2c0 {
+	sensor: camera@40 {
+		compatible = "jxf,jxf23";
+		reg = <0x40>;
+
+		reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
+
+		clocks = <&cgu T31_CLK_CIM>;
+		clock-names = "xclk";
+		assigned-clocks = <&cgu T31_CLK_CIM>;
+		assigned-clock-rates = <27000000>;
+
+		iovdd-supply = <&sensor_iovdd>;
+		avdd-supply = <&sensor_avdd>;
+		dvdd-supply = <&sensor_dvdd>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cim_pins>;
+
+		port {
+			sensor_ep: endpoint {
+				bus-type = <3>; /* V4L2_MBUS_PARALLEL */
+				bus-width = <10>;
+				data-shift = <0>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	cim_pins: cim {
+		function = "cim";
+		groups = "cim-data-10bit";
+	};
+};

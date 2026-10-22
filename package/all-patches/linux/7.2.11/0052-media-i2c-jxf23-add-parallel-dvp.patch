@@ -1,0 +1,127 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] media: i2c: jxf23: support the T20 10-bit parallel bus
+
+The T20 Wyze Cam 2 wires the JXF23 as a 10-bit DVP sensor on I2C0
+at 0x40 with PA18 as reset. Accept a parallel endpoint, use the
+BGGR10 media bus code for it, and keep the CSI-2 path for T31.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/media/i2c/jxf23.c
++++ b/drivers/media/i2c/jxf23.c
+@@ -293,8 +293,11 @@
+ 	struct jxf23_ctrls ctrls;
+ 
+ 	const struct jxf23_mode *mode;
++	u32 bus_type;
+ };
+ 
++static u32 jxf23_mbus_code(struct jxf23 *jxf23);
++
+ static inline struct jxf23 *to_jxf23(struct v4l2_subdev *sd)
+ {
+ 	return container_of(sd, struct jxf23, sd);
+@@ -305,10 +308,10 @@
+ 	return &container_of(ctrl->handler, struct jxf23, ctrls.handler)->sd;
+ }
+ 
+-static void jxf23_fill_format(const struct jxf23_mode *mode,
++static void jxf23_fill_format(const struct jxf23_mode *mode, u32 code,
+ 			       struct v4l2_mbus_framefmt *fmt)
+ {
+-	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	fmt->code = code;
+ 	fmt->width = mode->width;
+ 	fmt->height = mode->height;
+ 	fmt->field = V4L2_FIELD_NONE;
+@@ -325,7 +328,7 @@
+ 	struct v4l2_rect *crop;
+ 
+ 	fmt = v4l2_subdev_state_get_format(state, 0);
+-	jxf23_fill_format(&jxf23_modes[0], fmt);
++	jxf23_fill_format(&jxf23_modes[0], jxf23_mbus_code(to_jxf23(sd)), fmt);
+ 
+ 	crop = v4l2_subdev_state_get_crop(state, 0);
+ 	crop->left = 0;
+@@ -343,7 +346,7 @@
+ 	if (code->index != 0)
+ 		return -EINVAL;
+ 
+-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
++	code->code = jxf23_mbus_code(to_jxf23(sd));
+ 
+ 	return 0;
+ }
+@@ -355,7 +358,7 @@
+ 	if (fse->index >= ARRAY_SIZE(jxf23_modes))
+ 		return -EINVAL;
+ 
+-	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
++	if (fse->code != jxf23_mbus_code(to_jxf23(sd)))
+ 		return -EINVAL;
+ 
+ 	fse->min_width = jxf23_modes[fse->index].width;
+@@ -400,7 +403,7 @@
+ 				      width, height,
+ 				      fmt->format.width, fmt->format.height);
+ 
+-	jxf23_fill_format(mode, &fmt->format);
++	jxf23_fill_format(mode, jxf23_mbus_code(jxf23), &fmt->format);
+ 	framefmt = v4l2_subdev_state_get_format(state, fmt->pad);
+ 	*framefmt = fmt->format;
+ 
+@@ -566,10 +569,18 @@
+ 	return ret;
+ }
+ 
+-static int jxf23_check_hwcfg(struct device *dev)
++static u32 jxf23_mbus_code(struct jxf23 *jxf23)
++{
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL)
++		return MEDIA_BUS_FMT_SBGGR10_1X10;
++
++	return MEDIA_BUS_FMT_SRGGB10_1X10;
++}
++
++static int jxf23_check_hwcfg(struct device *dev, u32 *bus_type)
+ {
+ 	struct v4l2_fwnode_endpoint ep = {
+-		.bus_type = V4L2_MBUS_CSI2_DPHY,
++		.bus_type = V4L2_MBUS_UNKNOWN,
+ 	};
+ 	struct fwnode_handle *endpoint;
+ 	unsigned int i;
+@@ -586,6 +597,24 @@
+ 	if (ret)
+ 		return ret;
+ 
++	if (ep.bus_type == V4L2_MBUS_PARALLEL) {
++		if (ep.bus.parallel.bus_width != 10) {
++			dev_err(dev, "only 10-bit parallel bus is supported\n");
++			ret = -EINVAL;
++			goto out;
++		}
++		*bus_type = V4L2_MBUS_PARALLEL;
++		ret = 0;
++		goto out;
++	}
++
++	if (ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
++		dev_err(dev, "unsupported media bus type %u\n", ep.bus_type);
++		ret = -EINVAL;
++		goto out;
++	}
++	*bus_type = V4L2_MBUS_CSI2_DPHY;
++
+ 	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
+ 		dev_err(dev, "only 2 data lanes are currently supported\n");
+ 		ret = -EINVAL;
+@@ -770,7 +799,7 @@
+ 	v4l2_i2c_subdev_init(&jxf23->sd, client, &jxf23_subdev_ops);
+ 	jxf23->sd.internal_ops = &jxf23_subdev_internal_ops;
+ 
+-	ret = jxf23_check_hwcfg(dev);
++	ret = jxf23_check_hwcfg(dev, &jxf23->bus_type);
+ 	if (ret)
+ 		return ret;
+ 

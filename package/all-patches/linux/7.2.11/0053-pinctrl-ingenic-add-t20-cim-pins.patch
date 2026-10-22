@@ -1,0 +1,43 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] pinctrl: ingenic: add T20 CIM/DVP data pins
+
+The T20 DVP sensor drives PA0-9 as the CIM data bus (function 1).
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/pinctrl/pinctrl-ingenic.c
++++ b/drivers/pinctrl/pinctrl-ingenic.c
+@@ -2856,6 +2856,9 @@
+ static int t31_pwm_pwm1_pins[] = { 0x52, };
+ static int t31_pwm_pwm2_pins[] = { 0x53, };
+ static int t31_pwm_pwm3_pins[] = { 0x54, };
++static int t20_cim_pins[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
++			      0x05, 0x06, 0x07, 0x08, 0x09, };
++
+ static const struct group_desc t31_groups[] = {
+ 	INGENIC_PIN_GROUP("uart0-data-b", t31_uart0_data_b, 0),
+ 	INGENIC_PIN_GROUP("uart0-data-c", t31_uart0_data_c, 1),
+@@ -2884,6 +2887,7 @@
+ 	INGENIC_PIN_GROUP("pwm1", t31_pwm_pwm1, 0),
+ 	INGENIC_PIN_GROUP("pwm2", t31_pwm_pwm2, 0),
+ 	INGENIC_PIN_GROUP("pwm3", t31_pwm_pwm3, 0),
++	INGENIC_PIN_GROUP("cim-data-10bit", t20_cim, 1),
+ };
+ 
+ static const char *t31_uart0_groups[] = {
+@@ -2908,6 +2912,7 @@
+ static const char *t31_pwm1_groups[] = { "pwm1", };
+ static const char *t31_pwm2_groups[] = { "pwm2", };
+ static const char *t31_pwm3_groups[] = { "pwm3", };
++static const char *t20_cim_groups[] = { "cim-data-10bit", };
+ 
+ static const struct pinfunction t31_functions[] = {
+ 	INGENIC_PIN_FUNCTION("uart0", t31_uart0),
+@@ -2924,6 +2929,7 @@
+ 	INGENIC_PIN_FUNCTION("pwm1", t31_pwm1),
+ 	INGENIC_PIN_FUNCTION("pwm2", t31_pwm2),
+ 	INGENIC_PIN_FUNCTION("pwm3", t31_pwm3),
++	INGENIC_PIN_FUNCTION("cim", t20_cim),
+ };
+ 
+ static const u32 t31_pull_ups[3] = {
