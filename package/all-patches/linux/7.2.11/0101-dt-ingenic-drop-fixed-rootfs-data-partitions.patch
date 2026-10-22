@@ -1,0 +1,440 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] dt: ingenic: drop fixed rootfs/data partitions
+
+The rootfs and data sizes are computed at image build time and passed to
+the kernel through the U-Boot env mtdparts= argument. The DTS partition
+tables hardcode stale sizes (8 MB T31, 16 MB T20) that do not match the
+dynamic image and can win over the cmdline parser.
+
+Remove the fixed partitions nodes. CONFIG_MTD_CMDLINE_PARTS creates the
+partitions from mtdparts=, the same way the 4.4 trees do.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/boot/dts/ingenic/thingino-t31.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t31.dts
+@@ -82,45 +82,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x40000>;
+-				read-only;
+-			};
+-
+-			partition@40000 {
+-				label = "env";
+-				reg = <0x40000 0x10000>;
+-			};
+-
+-			partition@50000 {
+-				label = "kernel";
+-				reg = <0x50000 0x200000>;
+-			};
+-
+-			partition@250000 {
+-				label = "rootfs";
+-				reg = <0x250000 0x500000>;
+-			};
+-
+-			partition@750000 {
+-				label = "rootfs_data";
+-				reg = <0x750000 0xb0000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t20.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t20.dts
+@@ -82,50 +82,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x30000>;
+-				read-only;
+-			};
+-
+-			partition@30000 {
+-				label = "env";
+-				reg = <0x30000 0x10000>;
+-			};
+-
+-			partition@40000 {
+-				label = "backup";
+-				reg = <0x40000 0x10000>;
+-			};
+-
+-			partition@50000 {
+-				label = "kernel";
+-				reg = <0x50000 0x240000>;
+-			};
+-
+-			partition@290000 {
+-				label = "rootfs";
+-				reg = <0x290000 0x600000>;
+-			};
+-
+-			partition@890000 {
+-				label = "data";
+-				reg = <0x890000 0x770000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t10.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t10.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t21.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t21.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t23.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t23.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t30.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t30.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t32.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t32.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
+--- a/arch/mips/boot/dts/ingenic/thingino-t33.dts
++++ b/arch/mips/boot/dts/ingenic/thingino-t33.dts
+@@ -45,50 +45,7 @@
+ 	flash@0 {
+ 		compatible = "jedec,spi-nor";
+ 		reg = <0>;
+-		spi-max-frequency = <25000000>;
+-
+-		partitions {
+-			compatible = "fixed-partitions";
+-			#address-cells = <1>;
+-			#size-cells = <1>;
+-
+-			partition@0 {
+-				label = "boot";
+-				reg = <0x0 0x50000>;
+-				read-only;
+-			};
+-
+-			partition@50000 {
+-				label = "env";
+-				reg = <0x50000 0x10000>;
+-			};
+-
+-			partition@60000 {
+-				label = "backup";
+-				reg = <0x60000 0x10000>;
+-			};
+-
+-			partition@70000 {
+-				label = "kernel";
+-				reg = <0x70000 0x240000>;
+-			};
+-
+-			partition@2b0000 {
+-				label = "rootfs";
+-				reg = <0x2b0000 0x410000>;
+-			};
+-
+-			partition@6c0000 {
+-				label = "data";
+-				reg = <0x6c0000 0x940000>;
+-			};
+-
+-			partition@0_all {
+-				label = "all";
+-				reg = <0x0 0x1000000>;
+-			};
+-		};
+-	};
++		spi-max-frequency = <25000000>;	};
+ };
+ 
+ &msc0 {
