@@ -111,9 +111,10 @@ The chip comes from the build's `.config`, or from the camera name for a
 release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips are
 emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB (atbm6012b,
 atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu, atbm6132cu,
-atbm6132cu-6162), and Realtek's RTL8189FS and RTL8189ES on SDIO (rtl8189fs,
-rtl8189es; cameras named rtl8189ftv and rtl8189etv); `up` stops with a message when the QEMU it uses has no
-model for the chip, and `--qemu` picks one that has. atbm6132cu-6162 is
+atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and RTL8192FS on SDIO
+(rtl8189fs, rtl8189es, rtl8192fs; cameras named rtl8189ftv and rtl8189etv);
+`up` stops with a message when the QEMU it uses has no model for the chip,
+and `--qemu` picks one that has. atbm6132cu-6162 is
 the 6132CU part paired with Bluetooth, on USB id 0x6162: a build with
 `BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a release image of such a
 camera only with `--wifi-chip`, though its driver takes either id.
