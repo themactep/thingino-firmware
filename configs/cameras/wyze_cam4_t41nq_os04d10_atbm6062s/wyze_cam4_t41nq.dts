@@ -1,5 +1,7 @@
 /dts-v1/;
 
+#include <dt-bindings/clock/ingenic,tcu.h>
+
 / {
 	#address-cells = <0x01>;
 	#size-cells = <0x01>;
@@ -60,7 +62,7 @@
 		#address-cells = <0x00>;
 		#interrupt-cells = <0x01>;
 		interrupt-controller;
-		compatible = "ingenic,cpu-interrupt-controller";
+		compatible = "mti,cpu-interrupt-controller";
 		linux,phandle = <0x01>;
 		phandle = <0x01>;
 	};
@@ -88,7 +90,7 @@
 	};
 
 	extclk {
-		compatible = "ingenic,fixed-clock";
+		compatible = "fixed-clock";
 		clock-output-names = "ext";
 		#clock-cells = <0x00>;
 		clock-frequency = <0x16e3600>;
@@ -97,19 +99,31 @@
 	};
 
 	rtcclk {
-		compatible = "ingenic,fixed-clock";
-		clock-output-names = "rtc_ext";
+		compatible = "fixed-clock";
+		clock-output-names = "rtc";
 		#clock-cells = <0x00>;
 		clock-frequency = <0x8000>;
 		linux,phandle = <0x03>;
 		phandle = <0x03>;
 	};
 
+	/*
+	 * The TCU channel clocks are registered against these three names
+	 * and default to "ext". "pclk" is the APB clock the CGU will have
+	 * to provide; until its driver exists it is modelled as EXTAL.
+	 */
+	pclk: pclk {
+		compatible = "fixed-clock";
+		clock-output-names = "pclk";
+		#clock-cells = <0x00>;
+		clock-frequency = <0x16e3600>;
+	};
+
 	clock-controller@0x10000000 {
 		compatible = "ingenic,t41-clocks";
 		reg = <0x10000000 0x100>;
 		clocks = <0x02 0x03>;
-		clock-names = "ext", "rtc_ext";
+		clock-names = "ext", "rtc";
 		#clock-cells = <0x01>;
 		little-endian;
 	};
@@ -128,58 +142,38 @@
 		#size-cells = <0x01>;
 		ranges;
 
-		tcu@0x10002000 {
-			compatible = "ingenic,tcu";
-			reg = <0x10002000 0x200>;
-			interrupt-parent = <0x04>;
-			interrupt-names = "tcu_int0";
-			interrupts = <0x1b>;
+		tcu: timer@0x10002000 {
+			compatible = "ingenic,t41-tcu", "ingenic,jz4760-tcu",
+				     "simple-mfd";
+			reg = <0x10002000 0x100>;
+			#address-cells = <0x01>;
+			#size-cells = <0x01>;
+			ranges = <0x00 0x10002000 0x100>;
+
+			#clock-cells = <0x01>;
+
 			interrupt-controller;
-			status = "ok";
+			#interrupt-cells = <0x01>;
 
-			channel0 {
-				compatible = "ingenic,tcu_chn0";
-				ingenic,channel-info = <0x100>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x1b 0x1a 0x19>;
+
+			watchdog: watchdog@0x0 {
+				compatible = "ingenic,jz4780-watchdog";
+				reg = <0x00 0x10>;
+
+				clocks = <&tcu TCU_CLK_WDT>;
+				clock-names = "wdt";
 			};
 
-			channel1 {
-				compatible = "ingenic,tcu_chn1";
-				ingenic,channel-info = <0x201>;
-			};
+			ost: timer@0xe0 {
+				compatible = "ingenic,jz4760b-ost";
+				reg = <0xe0 0x20>;
 
-			channel2 {
-				compatible = "ingenic,tcu_chn2";
-				ingenic,channel-info = <0x202>;
-			};
+				clocks = <&tcu TCU_CLK_OST>;
+				clock-names = "ost";
 
-			channel3 {
-				compatible = "ingenic,tcu_chn3";
-				ingenic,channel-info = <0x103>;
-			};
-
-			channel4 {
-				compatible = "ingenic,tcu_chn4";
-				ingenic,channel-info = <0x104>;
-			};
-
-			channel5 {
-				compatible = "ingenic,tcu_chn5";
-				ingenic,channel-info = <0x105>;
-			};
-
-			channel6 {
-				compatible = "ingenic,tcu_chn6";
-				ingenic,channel-info = <0x106>;
-			};
-
-			channel7 {
-				compatible = "ingenic,tcu_chn7";
-				ingenic,channel-info = <0x107>;
-			};
-
-			channel16 {
-				compatible = "ingenic,watchdog";
-				ingenic,channel-info = <0x10>;
+				interrupts = <0x0f>;
 			};
 		};
 
@@ -650,8 +644,6 @@
 			reg-shift = <0x02>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x32>;
-			pinctrl-names = "default";
-			pinctrl-0 = <0x0a>;
 			status = "okay";
 		};
 
@@ -822,14 +814,14 @@
 		};
 
 		sfc0@0x13440000 {
-			compatible = "ingenic,sfc";
+			compatible = "ingenic,x2000-sfc";
 			reg = <0x13440000 0x10000>;
+			clocks = <&pclk>;
+			clock-names = "sfc";
 			#address-cells = <0x01>;
 			#size-cells = <0x00>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x07>;
-			pinctrl-names = "default";
-			pinctrl-0 = <0x11>;
 			status = "okay";
 			ingenic,sfc-max-frequency = <0x5f5e100>;
 			ingenic,use_board_info = [00];
