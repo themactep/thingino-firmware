@@ -7,10 +7,9 @@
 - The T41NQ SFC NOR U-Boot is trimmed to 239140 bytes and the boot
   partition is 256 KiB (`0004-t41nq-trim-uboot.patch`).
 - Kernel 7.2.11 build, image packing and `mtdparts` generation work.
-- QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000`, and
-  the kernel now reaches `calibrate_delay()` with a working early console
-  and the authored command line.
-- Two early-boot fixes were needed to get that far:
+- QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000` and
+  runs it to the login prompt.
+- Three early-boot fixes were needed to get that far:
   - `0107`: the fork's `XBurst2-MXU3.1` core reports PRID `0x00132100`
     (COMP `0x13`, IMP `0x2100`) and `cpu_probe_ingenic()` only knew the
     `0x2000` IMP for XBurst2, so it panicked with "Unknown Ingenic
@@ -25,15 +24,54 @@
     write check rejects those with a machine check (ExcCode 24) before
     `trap_init()` has installed a vector, so the guest looped through the
     handler U-Boot left at its own exception base (0x800f8000).
-- Current stop: `timer_probe: no matching timers found`, then
-  `calibrate_delay()` spins on `jiffies` forever. `of_irq_init` reports
-  "children remain, but no parents". Booting with the stock `lpj=`
-  parameter gets past the calibration and the kernel runs the rest of
-  `start_kernel()` and the initcalls -- memory, devtmpfs, NET, squashfs,
-  jffs2 -- until it stalls in the crypto self-tests, which have no
-  tick to complete. The next blockers are the CGU (clocks) and the
-  OST/TCU (clocksource and clockevents); the T41 core INTC from `0106`
-  is in place but is not binding yet.
+- **The image boots to userspace in QEMU**: kernel console on ttyS1,
+  clocksource `ingenic-ost`, clockevents on a TCU channel, the SFC with
+  its six MTD partitions, squashfs rootfs, and `/init` starting the
+  Thingino services up to the login prompt (about a minute of wall
+  time).
+- Device-tree work that got it there, all in the camera's own
+  `wyze_cam4_t41nq.dts` (which replaces the family DTS):
+  - `cpuintc` spelled `mti,cpu-interrupt-controller`, the only
+    compatible the MIPS CPU interrupt controller driver knows.
+    `arch_init_irq()` registers the CPU domain itself when the DT has
+    no such node, so the vendor compatible produced two domains on the
+    same virqs.
+  - `0106` corrected: `ingenic,core-intc` is the ordinary two-bank
+    JZ4780/T31 block (one 0x100 register window per core, two 32-source
+    banks at 0x20 stride), so it needs a compatible, not a driver.
+  - `extclk`/`rtcclk` are plain `fixed-clock` nodes with the output
+    names `ext` and `rtc`, because the TCU clock provider registers its
+    channel clocks against those names; a `pclk` fixed clock stands in
+    for the APB clock the CGU will have to provide.
+  - The vendor `ingenic,tcu` node became a mainline-shaped
+    `ingenic,t41-tcu`/`ingenic,jz4760-tcu` simple-mfd with the
+    `jz4780-watchdog` and `jz4760b-ost` children, so the mainline TCU,
+    watchdog and OST drivers bind.
+  - The SFC is `ingenic,x2000-sfc` (the V2 register layout, which QEMU
+    models) with `clocks = <&pclk>`.
+  - `pinctrl-0` was removed from the UART1 and SFC0 nodes: the vendor
+    pinctrl node has no mainline driver, so every consumer of it defers
+    forever. U-Boot leaves both blocks muxed.
+- Known QEMU defect, not a firmware bug: the fork's TCU model ticks the
+  embedded OST at 6 MHz (EXTAL / 4) while mainline's OST driver computes
+  its rate from the TCU clock tree, which gives EXTAL, 24 MHz. Guest
+  time therefore runs four times slow, and since the hardware watchdog
+  counts real time, the userspace `watchdog` daemon (pet interval half
+  the 60 s timeout, in slow guest time) lets it expire: the image boots,
+  then resets about a minute later, forever.
+  The fix is `OST_FREQ` in `hw/timer/ingenic-tcu.c`: with it set to
+  24 MHz and the fork rebuilt, the same image boots in about 40 s and
+  stays up. The released `ingenic-0.6.11` still has 6 MHz, so
+  `scripts/qemu-dev` runs of this image loop until the fork is fixed
+  upstream (the 6 MHz figure is the XBurst2 *Global* OST at
+  0x12000000, which the fork does not model; the kernel drives the TCU
+  OST, which mainline clocks from EXTAL).
+  To run a locally built fork, pass
+  `QEMU_BIN=/path/to/qemu-system-mipsel`. Note that `qemu-dev` adds
+  `-netdev user`, which needs libslirp, so a build without it has to be
+  driven with its own command line.
+- Still missing for QEMU: a CGU driver (`ingenic,t41-clocks` has none,
+  hence the fixed clocks), a pinctrl driver, and the camera stack.
 - The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
   kernel 3072K, rootfs 6144K, data 6784K. The image table and the
   U-Boot `mtdparts` agree; the camera DTS carries the matching
@@ -116,8 +154,8 @@ qemu-system-mipsel -M ingenic-t41 -m 128M -display none \
 ```
 
 UART1 is the second serial, which is why the first `-serial` is null.
-The current checkpoint is `calibrate_delay()`; the next one is the first
-timer tick, then the squashfs mount and `/init`.
+The image runs from U-Boot to the login prompt in about a minute of
+wall time.
 
 `scripts/qemu-dev up wyze_cam4_t41nq_os04d10_atbm6062s` boots the built
 image and `scripts/qemu-dev monitor -- 'info registers'` names the
@@ -125,10 +163,14 @@ instruction the guest is stuck on. When a panic happens before the
 console is up, the message is still in the printk ring buffer: dump
 RAM with QMP `pmemsave` and read `__log_buf` from `System.map`.
 
-Before the OST driver exists, `calibrate_delay()` never returns because
-`jiffies` does not move. Stop at the U-Boot prompt and boot by hand with
-`lpj=1000000` in `bootargs` to skip the calibration and reach the next
-blocker:
+`-d int` on the QEMU command line (after the `--` qemu-dev passes
+through) names every exception, which is how the FTLB machine-check
+loop was found.
+
+If the timer nodes are ever broken again, `calibrate_delay()` stops
+returning because `jiffies` does not move. Stop at the U-Boot prompt
+and boot by hand with `lpj=1000000` in `bootargs` to skip the
+calibration and reach the next blocker:
 
 ```sh
 scripts/qemu-dev up wyze_cam4_t41nq_os04d10_atbm6062s --uboot
