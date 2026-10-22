@@ -1,10 +1,18 @@
 // Cinnado D1 (T41NQ, SC5336, ATBM6132BU, PTZ) per-board GPIO definitions.
 // Injected into the kernel 4.4+ device tree; ignored on 3.10.
-// No SD card-detect pin on this board, so msc0 keeps the family default.
+// No SD card-detect pin on this board: msc0 drops the family card-detect
+// gpio and cd-inverted (the driver then waits for a pin that does not exist
+// and never probes the card) and is polled instead (broken-cd).
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+&msc0 {
+	/delete-property/ cd-inverted;
+	/delete-property/ ingenic,cd-gpios;
+	broken-cd;
+};
 
 / {
 	gpio-leds {
