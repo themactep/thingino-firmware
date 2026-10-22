@@ -107,8 +107,17 @@
   every consumer deferred forever without a message. The read-back that
   proves the mux is ours rather than U-Boot's is bank A PAT0 =
   0x1f803000: PA23-PA28 from sfc0 and PA12/PA13 from i2c0.
-- Still missing: the camera stack (OS04D10 + open-tx-isp, DWC2,
-  ATBM6062S, audio) and SMP. Userspace's sysfs GPIO writes still collide
+- The PDMA is up (`0112`): the 32-channel programmable engine the X1830
+  has. The driver insists on a second memory resource for the
+  controller registers, so the node splits them out 0x1000 above the
+  channel window, and the three DMA clients (spi0/1, des) moved to the
+  mainline two-cell specifier asking for any channel.
+- Still missing: the camera stack (OS04D10 + open-tx-isp, DWC2 + PHY,
+  ATBM6062S, audio) and SMP. For USB the shape is known: the PHY is the
+  XBurst2 block (`ingenic,x2000-phy`) whose USBPCR/USBPCR1 live at CPM
+  0x3c/0x48 exactly as the T31's PHY does inside its CGU, so the CGU
+  node has to become a bus (`simple-mfd` + ranges) to hold the PHY child
+  and the CGU has to grow an `otg_phy` gate (OPCR bit 23). Userspace's sysfs GPIO writes still collide
   with the pins the device tree claims (gpb 29 is the mmc pwrseq reset),
   which is a board-config question, not a driver one.
 - The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
