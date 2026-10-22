@@ -395,7 +395,7 @@
 				reg = <0x10043000 0x1000>;
 				interrupt-parent = <0x04>;
 				interrupts = <0x09>;
-				dmas = <0x0f 0x16 0x0f 0x17>;
+				dmas = <0x0f 0x16 0xffffffff 0x0f 0x17 0xffffffff>;
 				dma-names = "tx", "rx";
 				#address-cells = <0x01>;
 				#size-cells = <0x00>;
@@ -407,7 +407,7 @@
 				reg = <0x10044000 0x1000>;
 				interrupt-parent = <0x04>;
 				interrupts = <0x08>;
-				dmas = <0x0f 0x18 0x0f 0x19>;
+				dmas = <0x0f 0x18 0xffffffff 0x0f 0x19 0xffffffff>;
 				dma-names = "tx", "rx";
 				#address-cells = <0x01>;
 				#size-cells = <0x00>;
@@ -469,7 +469,7 @@
 			des@0x10061000 {
 				compatible = "ingenic,des";
 				reg = <0x10043000 0x1000>;
-				dmas = <0x0f 0x2e 0x0f 0x2f>;
+				dmas = <0x0f 0x2e 0xffffffff 0x0f 0x2f 0xffffffff>;
 				dma-names = "tx", "rx";
 				#address-cells = <0x01>;
 				#size-cells = <0x00>;
@@ -502,14 +502,16 @@
 			ranges;
 
 			dma@13420000 {
-				compatible = "ingenic,t41-pdma";
-				reg = <0x13420000 0x10000>;
+				compatible = "ingenic,t41-pdma", "ingenic,t41-dma";
+				reg = <0x13420000 0x1000 0x13421000 0x1000>;
 				interrupt-parent = <0x04>;
 				interrupt-names = "pdma", "pdmam";
 				interrupts = <0x0a 0x3d>;
-				#dma-channels = <0x20>;
-				#dma-cells = <0x01>;
-				ingenic,reserved-chs = <0x03>;
+				clocks = <&cgu T41_CLK_PDMA>;
+				clock-names = "pdma";
+				dma-channels = <0x20>;
+				#dma-cells = <0x02>;
+				ingenic,reserved-channels = <0x03>;
 				status = "okay";
 				linux,phandle = <0x0f>;
 				phandle = <0x0f>;

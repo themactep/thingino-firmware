@@ -1,0 +1,35 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] dma: jz4780: add the T41
+
+The T41's PDMA is the 32-channel programmable engine the X1830 has:
+descriptors in memory, the channel registers at 0x13420000 and the
+controller registers 0x1000 above them. Add the SoC data and the
+compatible.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/dma/dma-jz4780.c
++++ b/drivers/dma/dma-jz4780.c
+@@ -1102,6 +1102,13 @@
+ 	.flags = JZ_SOC_DATA_PROGRAMMABLE_DMA,
+ };
+ 
++/* The T41 has the same 32-channel programmable engine as the X1830 */
++static const struct jz4780_dma_soc_data t41_dma_soc_data = {
++	.nb_channels = 32,
++	.transfer_ord_max = 7,
++	.flags = JZ_SOC_DATA_PROGRAMMABLE_DMA,
++};
++
+ static const struct of_device_id jz4780_dma_dt_match[] = {
+ 	{ .compatible = "ingenic,jz4740-dma", .data = &jz4740_dma_soc_data },
+ 	{ .compatible = "ingenic,jz4725b-dma", .data = &jz4725b_dma_soc_data },
+@@ -1116,6 +1123,7 @@
+ 	{ .compatible = "ingenic,jz4780-dma", .data = &jz4780_dma_soc_data },
+ 	{ .compatible = "ingenic,x1000-dma", .data = &x1000_dma_soc_data },
+ 	{ .compatible = "ingenic,x1830-dma", .data = &x1830_dma_soc_data },
++	{ .compatible = "ingenic,t41-dma", .data = &t41_dma_soc_data },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, jz4780_dma_dt_match);
+
