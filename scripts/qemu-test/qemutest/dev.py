@@ -85,6 +85,7 @@ WIFI_CHIPS = {
     "rtl8189fs": "rtl8189fs", "rtl8189ftv": "rtl8189fs",
     "rtl8189es": "rtl8189es", "rtl8189etv": "rtl8189es",
     "rtl8192fs": "rtl8192fs",
+    "rtl8188fu": "rtl8188fu", "rtl8188ftv": "rtl8188fu",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
 SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s", "rtl8189fs", "rtl8189es",
