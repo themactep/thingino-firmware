@@ -556,15 +556,38 @@
 
   // Offcanvas entries navigate only after the panel has closed, so the page
   // swap does not happen behind a still-open menu. Action items already own
-  // their click (bindNavAction closes the panel itself).
-  function bindOffcanvasNavigation(anchor) {
+  // their click (bindNavAction closes the panel itself). Items carrying the
+  // "confirm" token ask the shared confirm dialog first and navigate only
+  // when it is accepted — Cancel must stay a no-op, because some of these
+  // hrefs (/x/reboot.cgi) act on any request that reaches them.
+  function bindOffcanvasNavigation(anchor, item) {
+    // main.js scans for ".confirm" and re-dispatches the click after the user
+    // confirms, which would double-prompt here and land back on plain anchor
+    // navigation. Take ownership of the confirmation, same as bindNavAction.
+    anchor.dataset.confirmSkip = "1";
     anchor.addEventListener("click", function (e) {
       if (this.dataset.navAction === "1") return;
+      const confirmOptions = item ? navActionConfirmOptions(item) : null;
       const href = this.getAttribute("href");
       if (!href || href === "#") return;
       e.preventDefault();
-      closeOffcanvasThen(function () {
+      const go = function () {
         window.location.href = href;
+      };
+      if (!confirmOptions) {
+        closeOffcanvasThen(go);
+        return;
+      }
+      const ask =
+        typeof window.thinginoConfirm === "function"
+          ? window.thinginoConfirm(confirmOptions)
+          : Promise.resolve(
+              typeof window.nativeConfirm === "function"
+                ? window.nativeConfirm(confirmOptions.message)
+                : true,
+            );
+      Promise.resolve(ask).then(function (confirmed) {
+        if (confirmed) closeOffcanvasThen(go);
       });
     });
   }
@@ -625,7 +648,7 @@
               "d-block py-1 text-decoration-none",
             );
             if (subItem.id) anchor.id = subItem.id + "-offcanvas";
-            bindOffcanvasNavigation(anchor);
+            bindOffcanvasNavigation(anchor, subItem);
             li.appendChild(anchor);
             subList.appendChild(li);
           }
@@ -640,7 +663,7 @@
           item,
           "d-block fw-bold text-decoration-none p-3",
         );
-        bindOffcanvasNavigation(anchor);
+        bindOffcanvasNavigation(anchor, item);
         li.appendChild(anchor);
         list.appendChild(li);
       }
