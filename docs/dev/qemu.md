@@ -114,10 +114,12 @@ atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu, atbm6132cu,
 atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and RTL8192FS on SDIO
 (rtl8189fs, rtl8189es, rtl8192fs; cameras named rtl8189ftv and rtl8189etv)
 and RTL8188FU on USB (rtl8188fu; cameras named rtl8188ftv), the
-Broadcom/Synaptics BCM43438 of the syn4343 package on SDIO, and
-iComm-semi's SSV6155P on USB (cameras named ssv6155 and ssv6155p, and the
-SSV6256P ones, whose driver is the same), SSV6355 on USB (ssv6355) and
-SSV6158 on SDIO (ssv6158); `up` stops with a message when the QEMU it
+Broadcom/Synaptics BCM43438 of the syn4343 package on SDIO, iComm-semi's
+SSV6155P on USB (cameras named ssv6155 and ssv6155p, and the SSV6256P
+ones, whose driver is the same), SSV6355 on USB (ssv6355) and SSV6158 on
+SDIO (ssv6158), and AICSemi's AIC8800D80 on USB (the aic8800 package's
+AIC8800D80 USB model, and cameras named aic8800u; an AIC8800D40, which its
+driver takes for one, too); `up` stops with a message when the QEMU it
 uses has no model for the chip, and `--qemu` picks one that has.
 atbm6132cu-6162 is the 6132CU part paired with Bluetooth, on USB id
 0x6162: a build with `BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a
