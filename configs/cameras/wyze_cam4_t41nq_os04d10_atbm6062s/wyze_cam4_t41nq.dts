@@ -317,11 +317,13 @@
 
 
 		rtc@0x10003000 {
-			compatible = "ingenic,rtc";
+			compatible = "ingenic,rtc", "ingenic,jz4780-rtc";
 			reg = <0x10003000 0x1000>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x03>;
-			status = "disable";
+			clocks = <&rtcclk>;
+			clock-names = "rtc";
+			status = "okay";
 		};
 
 		serial@0x10030000 {
@@ -474,11 +476,13 @@
 		};
 
 		dtrng@0x10072000 {
-			compatible = "ingenic,dtrng";
+			compatible = "ingenic,dtrng", "ingenic,t31-dtrng";
 			reg = <0x10072000 0x1000>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x22>;
-			status = "disabled";
+			clocks = <&cgu T41_CLK_DTRNG>;
+			clock-names = "dtrng";
+			status = "okay";
 		};
 	};
 
