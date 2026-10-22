@@ -509,9 +509,9 @@
   "PB17": {
    "func": [
     "PWM0?",
-    "SLCD_CS?",
     "",
-    ""
+    "",
+    "SLCD_CS?"
    ],
    "reset": "",
    "power": "VDDIO1",
@@ -521,9 +521,9 @@
   "PB18": {
    "func": [
     "PWM1?",
-    "SLCD_DC?",
     "",
-    ""
+    "",
+    "SLCD_DC?"
    ],
    "reset": "",
    "power": "VDDIO1",
@@ -640,10 +640,10 @@
   },
   "PB28": {
    "func": [
-    "SLCD_RDY?",
     "",
     "",
-    ""
+    "",
+    "SLCD_RDY?"
    ],
    "reset": "Schmitt-rst",
    "power": "VDDIO1",

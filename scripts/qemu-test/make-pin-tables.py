@@ -4,17 +4,18 @@ functions, its state out of reset, its voltage domain and its BGA ball and
 QFN pin, a blank one where that package leaves the pin out.
 
 A SoC's HDK pinout or GPIO allocation sheet comes first, else the pin
-chapter of its datasheet. The T10, T21 and T30 datasheets list a pin's
-functions in order but skip the empty ones: a function's number is
-certain where the vendor kernel selects it or the order leaves it only
-one, else it follows the T31 and T23 sheets for the same pin and name, or
-takes the first free number, and the name gets a trailing "?".
+chapter of its datasheet, which a reference schematic's ball names can
+add to. The T10, T21 and T30 datasheets list a pin's functions in order
+but skip the empty ones: a function's number is certain where the vendor
+kernel selects it or the order leaves it only one, else it is a guess
+and the name gets a trailing "?".
 
 usage: make-pin-tables.py INGENIC_DOCS_DIR [SOC ...]
 """
 import csv
 import glob
 import io
+import itertools
 import json
 import os
 import re
@@ -23,25 +24,26 @@ import sys
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "qemutest", "pins")
 
-# the ingenic-docs folder and sources, best first: a later source only
-# fills what the ones before it left blank; the newest English file wins
+# the sources under ingenic-docs/text, best first: a later sheet or
+# datasheet only fills what the ones before it left blank, a schematic adds
+# its ball names to a datasheet's; the newest English file wins
 SOURCES = {
-    "a1": ("A1", ["HDK/GPIO recommended allocation table of A1_*"]),
-    "c100": ("C100", ["HDK/C100_ IP Camera Solution GPIO Recommended*"]),
-    "cw080": ("CW080", ["Datasheets/CW080SN_ds_*"]),
-    "t10": ("T10", ["Datasheets/T10_DS_*"]),
+    "a1": ["A1/HDK/GPIO recommended allocation table of A1_*"],
+    "c100": ["C100/HDK/C100_ IP Camera Solution GPIO Recommended*"],
+    "cw080": ["CW080/Datasheets/CW080SN_ds_*"],
+    "t10": ["T10/Datasheets/T10_DS_*"],
     # the T10 die with other clocks, in the same TFBGA181 package
-    "t20": ("T10", ["Datasheets/T10_DS_*"]),
-    "t21": ("T21", ["Datasheets/T21_DS_20180807"]),
-    "t23": ("T23", ["HDK/T23 PINOUT*_EN_*"]),
-    "t30": ("T30", ["Datasheets/T30 Smart Video*"]),
-    "t31": ("T31", ["HDK/T31 PINOUT*_EN_20190823"]),
-    "t32": ("T32", ["HDK/T32_IP Camera Solution（Normal IPC）*"]),
-    "t32pro": ("T32Pro", ["Datasheets/T32ProVX_ds_*"]),
-    "t33": ("T33", ["HDK/T33_IP Camera Solution（Normal IPC）*"]),
-    "t40": ("T40", ["HDK/T40_IP Camera Solution GPIO*",
-                    "HDK/T40 PIN information description_*"]),
-    "t41": ("T41", ["HDK/T41_IP Camera Solution GPIO Recommended*"]),
+    "t20": ["T10/Datasheets/T10_DS_*", "T20/HDK/Schematics/RD_T20_BULL_*"],
+    "t21": ["T21/Datasheets/T21_DS_20180807"],
+    "t23": ["T23/HDK/T23 PINOUT*_EN_*"],
+    "t30": ["T30/Datasheets/T30 Smart Video*"],
+    "t31": ["T31/HDK/T31 PINOUT*_EN_20190823"],
+    "t32": ["T32/HDK/T32_IP Camera Solution（Normal IPC）*"],
+    "t32pro": ["T32Pro/Datasheets/T32ProVX_ds_*"],
+    "t33": ["T33/HDK/T33_IP Camera Solution（Normal IPC）*"],
+    "t40": ["T40/HDK/T40_IP Camera Solution GPIO*",
+            "T40/HDK/T40 PIN information description_*"],
+    "t41": ["T41/HDK/T41_IP Camera Solution GPIO Recommended*"],
 }
 # the sheets an older datasheet's function numbers are matched against
 REFERENCE = ["t31", "t23"]
@@ -386,77 +388,190 @@ def kernel(soc):
     return out
 
 
+JTAG = {"TDI", "TDO", "TCK", "TMS", "TRST"}
+
+
 def bare(name):
     return name.rstrip("_#?").upper()
 
 
+def interface(name):
+    first = bare(name).split("_")[0]
+    return "JTAG" if first in JTAG else first
+
+
 def numbered(soc, pins, refs):
     """Function numbers for an older datasheet's names, which come in order
-    with the empty ones left out: certain where the vendor kernel selects
-    one or the order leaves a name one number, else a guess."""
-    known, out = kernel(soc), {}
+    with the empty ones left out. A number is certain where the vendor
+    kernel selects it or the order leaves only one. The rest are guesses,
+    marked "?": the number a bus can keep across a port's pins (246 of the
+    sheets' 251 do; a signal placed on two pins, as PWMs are, needn't)
+    where only one fits or the T31 or T23 sheet backs it, else that sheet's
+    number for the pin, else the lowest."""
+    known, options, names = kernel(soc), {}, {}
     for pin, p in pins.items():
-        names = p["names"][:4]
-        k = len(names)
+        names[pin] = n = p["names"][:4]
         fixed = {}
         for prefix, f in known.get(pin, []):
             alias = re.sub(r"^I2C", "SMB", prefix)
-            hit = [j for j, x in enumerate(names)
+            hit = [j for j, x in enumerate(n)
                    if any(x.startswith(q) or q in x.split("_")
                           for q in (prefix, alias))]
             if len(hit) == 1:
                 fixed[hit[0]] = f
-        lo = [max([j] + [f + j - i for i, f in fixed.items() if i < j])
-              for j in range(k)]
-        hi = [min([3 - (k - 1 - j)] +
-                  [f - (i - j) for i, f in fixed.items() if i > j])
-              for j in range(k)]
-        if any(a > b for a, b in zip(lo, hi)):
-            print(f"{soc} {pin}: kernel numbers {fixed} don't fit {names}")
-            fixed, lo = {}, list(range(k))
-            hi = [3 - (k - 1 - j) for j in range(k)]
-        ref = [[bare(f) for f in r[pin]["func"]] for r in refs if pin in r]
-        func, prev = [""] * 4, -1
-        for j, x in enumerate(names):
-            if j in fixed or lo[j] == hi[j]:
-                i = fixed.get(j, lo[j])
-                func[i] = x
-            else:
-                i = next((r.index(bare(x)) for r in ref if bare(x) in r), -1)
-                if not lo[j] <= i <= hi[j] or i <= prev:
-                    i = max(lo[j], prev + 1)
-                func[i] = x + "?"
-            prev = i
+        every = list(itertools.combinations(range(4), len(n)))
+        options[pin] = [o for o in every
+                        if all(o[j] == f for j, f in fixed.items())]
+        if not options[pin]:
+            print(f"{soc} {pin}: kernel numbers {fixed} don't fit {n}")
+            options[pin] = every
+    sure = {(pin, j) for pin, o in options.items()
+            for j in range(len(names[pin])) if len({x[j] for x in o}) == 1}
+
+    def ref(pin, x):
+        return next((r[pin]["func"].index(f) for r in refs if pin in r
+                     for f in r[pin]["func"] if f and bare(f) == bare(x)),
+                    None)
+
+    def free(members):
+        return set.intersection(*[{o[j] for o in options[pin]}
+                                  for pin, j in members])
+
+    buses = {}
+    for pin in sorted(names, key=lambda k: (k[1], int(k[2:]))):
+        for j, x in enumerate(names[pin]):
+            buses.setdefault((pin[1], interface(x)), []).append((pin, j))
+    todo = {}
+    for key, members in buses.items():
+        seen = [bare(names[pin][j]) for pin, j in members]
+        members = [(pin, j) for pin, j in members if (pin, j) not in sure
+                   and seen.count(bare(names[pin][j])) == 1]
+        if members:
+            todo[key] = members
+    while todo:
+        # the interface on the most pins with the fewest numbers left first
+        key = min(todo, key=lambda k: (-len(todo[k]), len(free(todo[k])), k))
+        members = todo.pop(key)
+        can = free(members)
+        votes = [v for v in (ref(pin, names[pin][j]) for pin, j in members)
+                 if v in can]
+        if len(can) != 1 and not votes:
+            continue
+        g = max(sorted(can), key=votes.count)
+        for pin, j in members:
+            options[pin] = [o for o in options[pin] if o[j] == g]
+    out = {}
+    for pin, p in pins.items():
+        n = names[pin]
+        o = max(options[pin], key=lambda o: sum(
+            ref(pin, x) == o[j] for j, x in enumerate(n)))
+        func = [""] * 4
+        for j, x in enumerate(n):
+            func[o[j]] = x if (pin, j) in sure else x + "?"
         pkg = "bga" if re.match(r"[A-Z]", p["loc"]) else "qfn"
         out[pin] = entry(func, reset=p["cell"], power=p["power"],
                          **{pkg: p["loc"]})
     return out
 
 
-def newest(docs, folder, pattern):
-    found = [f for f in sorted(glob.glob(os.path.join(
-        docs, folder, pattern + ".md")))
-        if not f.endswith((".min.md", "_CN.md"))]
+def ball_names(text, known):
+    """A schematic's SoC symbol names each ball by its functions, in order,
+    then its GPIO: UART0_RXD_TDI_PB19, GPIO_PA18 for none. They split at
+    the longest known function names, else where a known one could start;
+    a name that starts with no known function is a net label."""
+    starts = {x.split("_")[0] for x in known}
+    out = {}
+    for m in re.finditer(r"\b((?:[A-Z][A-Z0-9]*_)+)P([A-F])(\d\d)\b", text):
+        toks = m.group(1).rstrip("_").split("_")
+        if toks == ["GPIO"]:
+            toks = []
+        elif toks[0] not in starts:
+            continue
+        funcs, i = [], 0
+        while i < len(toks):
+            k = next((k for k in range(len(toks), i, -1)
+                      if "_".join(toks[i:k]) in known), None)
+            if k:
+                funcs.append("_".join(toks[i:k]))
+                i = k
+                continue
+            if toks[i] in starts or not funcs:
+                funcs.append(toks[i])
+            else:
+                funcs[-1] += "_" + toks[i]
+            i += 1
+        out.setdefault(f"P{m.group(2)}{int(m.group(3))}", funcs)
+    return out
+
+
+def merge_names(a, b):
+    """Two in-order lists of a pin's functions, the second a schematic's:
+    where both fill the gap between two names they share, it wins (TDI for
+    TDO, SMB0_SDA for I2C0_SDA)."""
+    best = {}
+
+    def common(i, j):
+        if i == len(a) or j == len(b):
+            return []
+        if (i, j) not in best:
+            best[i, j] = max(
+                ([a[i]] + common(i + 1, j + 1)) if a[i] == b[j] else [],
+                common(i + 1, j), common(i, j + 1), key=len)
+        return best[i, j]
+
+    out, i, j = [], 0, 0
+    for c in common(0, 0) + [None]:
+        ga, gb = [], []
+        while i < len(a) and a[i] != c:
+            ga.append(a[i])
+            i += 1
+        while j < len(b) and b[j] != c:
+            gb.append(b[j])
+            j += 1
+        out += gb or ga
+        if c is not None:
+            out.append(c)
+            i, j = i + 1, j + 1
+    return out
+
+
+def newest(docs, pattern):
+    found = [f for f in sorted(glob.glob(os.path.join(docs, pattern + ".md")))
+             if not f.endswith((".min.md", "_CN.md"))]
     return found[-1] if found else None
 
 
 def build(docs, soc, refs):
-    folder, patterns = SOURCES[soc]
-    pins, used = {}, []
-    for pattern in patterns:
-        path = newest(docs, folder, pattern)
+    pins, lists, used = {}, {}, []
+    for pattern in SOURCES[soc]:
+        path = newest(docs, pattern)
         if not path:
             continue
         text = open(path, encoding="utf-8").read()
+        got = None
         if "```csv" in text:
             got = sheet_pins(path)
+            merge(pins, got)
         elif re.search(r"Func0\s+Func1", text):
             got = func_table(text.split("\n"))
-        else:
-            got = numbered(soc, name_table(text.split("\n")), refs)
-        if got:
             merge(pins, got)
+        elif "/Schematics/" in path:
+            known = {bare(x) for p in lists.values() for x in p["names"]}
+            known |= {bare(x) for r in refs for p in r.values()
+                      for x in p["func"] if x}
+            got = ball_names(text, known)
+            for pin, names in got.items():
+                if pin in lists:
+                    lists[pin]["names"] = merge_names(lists[pin]["names"],
+                                                      names)
+        else:
+            got = name_table(text.split("\n"))
+            for pin, p in got.items():
+                lists.setdefault(pin, p)
+        if got:
             used.append(os.path.basename(path)[:-3])
+    if lists:
+        merge(pins, numbered(soc, lists, refs))
     return pins, used
 
 

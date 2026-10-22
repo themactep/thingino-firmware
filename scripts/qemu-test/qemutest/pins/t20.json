@@ -1,6 +1,6 @@
 {
  "soc": "t20",
- "source": "T10_DS_20160614",
+ "source": "T10_DS_20160614; RD_T20_BULL_V10_20160912B",
  "pins": {
   "PA0": {
    "func": [
@@ -149,7 +149,7 @@
   "PA12": {
    "func": [
     "CS2",
-    "I2C0_SDA",
+    "SMB0_SDA",
     "",
     ""
    ],
@@ -161,7 +161,7 @@
   "PA13": {
    "func": [
     "RD",
-    "I2C0_SCL",
+    "SMB0_SCK",
     "",
     ""
    ],
@@ -426,7 +426,7 @@
    "func": [
     "GMAC_TXCLK",
     "",
-    "",
+    "SLCD_D0?",
     ""
    ],
    "reset": "pullup-pe",
@@ -438,7 +438,7 @@
    "func": [
     "GMAC_PHY_CLK",
     "",
-    "",
+    "SLCD_D1?",
     ""
    ],
    "reset": "pullup-pe",
@@ -450,8 +450,8 @@
    "func": [
     "GMAC_TXEN",
     "",
-    "",
-    ""
+    "SLCD_D2?",
+    "SSI1_DT?"
    ],
    "reset": "pullup-pe",
    "power": "VDDIO",
@@ -462,8 +462,8 @@
    "func": [
     "GMAC_RXDV",
     "",
-    "",
-    ""
+    "SLCD_D3?",
+    "SSI1_DR?"
    ],
    "reset": "pullup-pe",
    "power": "VDDIO",
@@ -474,8 +474,8 @@
    "func": [
     "GMAC_MDCK",
     "",
-    "",
-    ""
+    "SLCD_D4?",
+    "SSI1_GPC?"
    ],
    "reset": "",
    "power": "VDDIO",
@@ -486,8 +486,8 @@
    "func": [
     "GMAC_MDIO",
     "",
-    "",
-    ""
+    "SLCD_D5?",
+    "SSI1_CE1?"
    ],
    "reset": "",
    "power": "VDDIO",
@@ -498,8 +498,8 @@
    "func": [
     "GMAC_TXD0",
     "",
-    "",
-    ""
+    "SLCD_D6?",
+    "SSI1_CLK?"
    ],
    "reset": "pullup-pe",
    "power": "VDDIO",
@@ -510,8 +510,8 @@
    "func": [
     "GMAC_TXD1",
     "",
-    "",
-    ""
+    "SLCD_D7?",
+    "SSI1_CE0?"
    ],
    "reset": "pullup-pe",
    "power": "VDDIO",
@@ -522,7 +522,7 @@
    "func": [
     "GMAC_RXD0",
     "",
-    "",
+    "SLCD_WR?",
     ""
    ],
    "reset": "pullup-pe",
@@ -534,7 +534,7 @@
    "func": [
     "GMAC_RXD1",
     "",
-    "",
+    "SLCD_TE?",
     ""
    ],
    "reset": "pullup-pe",
@@ -569,7 +569,7 @@
   "PB19": {
    "func": [
     "UART0_RXD",
-    "TDO?",
+    "TDI?",
     "",
     ""
    ],
@@ -582,7 +582,7 @@
    "func": [
     "UART0_CTS",
     "",
-    "",
+    "SLCD_CS?",
     ""
    ],
    "reset": "pull-up",
@@ -594,7 +594,7 @@
    "func": [
     "UART0_RTS",
     "",
-    "",
+    "SLCD_DC?",
     ""
    ],
    "reset": "pull-up",
@@ -605,8 +605,8 @@
   "PB22": {
    "func": [
     "UART0_TXD",
-    "TDI?",
-    "",
+    "TDO?",
+    "SLCD_RDY?",
     ""
    ],
    "reset": "pull-up",
@@ -640,7 +640,7 @@
   },
   "PB25": {
    "func": [
-    "I2C1_SDA",
+    "SMB1_SDA",
     "",
     "",
     ""
@@ -652,7 +652,7 @@
   },
   "PB26": {
    "func": [
-    "I2C1_SCL",
+    "SMB1_SCK",
     "",
     "",
     ""
@@ -821,7 +821,7 @@
   "PC8": {
    "func": [
     "PWM2",
-    "FLASH_STORE_IN?",
+    "FLASH_STORBE_IN?",
     "",
     ""
    ],
