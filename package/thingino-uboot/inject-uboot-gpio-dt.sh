@@ -12,9 +12,10 @@
 #                 SPI (is_spi) and focus-only units have no phase pins.
 #
 #   gpio.wlan   - Wi-Fi module power/enable/reset lines at the final resting
-#                 level of the S36wireless.in sequence (S36 only replays it on
-#                 3.10 kernels, late in boot; SDIO modules must be powered for
-#                 the kernel MMC scan to see them). Accepts every shape S36
+#                 level of the S36wireless.in sequence (S36 replays it on 3.10
+#                 and 4.4 kernels, late in boot, after U-Boot has left the
+#                 pin at this level; SDIO modules must be powered for the
+#                 kernel MMC scan to see them). Accepts every shape S36
 #                 does: bare pin (high), suffixed token ("47o" low / "47O"
 #                 high / "47t" toggle), token sequences (last state per pin
 #                 wins), {pin, active_low, toggle, action/mode, state/value}
@@ -22,7 +23,9 @@
 #                 or lists of those. A pin whose last action is a toggle
 #                 depends on prior state and cannot be a static hog: skipped.
 #                 An object's toggle flag only prepends a pulse and does not
-#                 change the resting level.
+#                 change the resting level; the same goes for the optional
+#                 power_cycle flag, which only stretches that pulse (off,
+#                 1 s, on, 0.5 s) in S36 and is ignored here.
 #
 #   gpio.mmc_power (list form only) - boards whose SD slot needs more than one
 #                 supply/enable pin, [{pin, active_low}, ...], each driven at

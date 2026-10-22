@@ -65,6 +65,10 @@ emit_pin_command() {
 			printf '%s toggle\n' "$pin"
 			return 0
 			;;
+		delay)
+			printf '%s delay %s\n' "$pin" "$state"
+			return 0
+			;;
 		set | '')
 			case "$state" in
 				0 | 1)
@@ -114,7 +118,7 @@ parse_legacy_token() {
 }
 
 emit_wlan_object_path() {
-	local base="$1" pin active_low action state raw_state toggle_flag pre_state
+	local base="$1" pin active_low action state raw_state toggle_flag pre_state power_cycle
 	if pin=$(jct "$WLAN_CONFIG_JSON" get "$base.pin.pin" 2>/dev/null); then
 		if ! active_low=$(jct "$WLAN_CONFIG_JSON" get "$base.pin.active_low" 2>/dev/null); then
 			active_low=$(jct "$WLAN_CONFIG_JSON" get "$base.active_low" 2>/dev/null)
@@ -138,6 +142,10 @@ emit_wlan_object_path() {
 	fi
 	[ -n "$action" ] || action="set"
 	toggle_flag=$(jct "$WLAN_CONFIG_JSON" get "$base.toggle" 2>/dev/null)
+	# "power_cycle": true (together with toggle) opts in to a real power cycle:
+	# off, 1 s, on, 0.5 s. For USB chips that survive a warm reboot powered and
+	# then stop answering. Without it, toggle stays the plain immediate off-on.
+	power_cycle=$(jct "$WLAN_CONFIG_JSON" get "$base.power_cycle" 2>/dev/null)
 	if [ "toggle" = "$action" ]; then
 		if bool_is_true "$toggle_flag"; then
 			echo "Ignoring toggle flag at $base because action is already 'toggle'"
@@ -170,9 +178,15 @@ emit_wlan_object_path() {
 		esac
 		if [ -n "$pre_state" ]; then
 			emit_pin_command "$pin" "set" "$pre_state"
+			if bool_is_true "$power_cycle"; then
+				emit_pin_command "$pin" "delay" "1"
+			fi
 		fi
 	fi
 	emit_pin_command "$pin" "set" "$state"
+	if bool_is_true "$toggle_flag" && [ -n "$pre_state" ] && bool_is_true "$power_cycle"; then
+		emit_pin_command "$pin" "delay" "0.5"
+	fi
 }
 
 get_wlan_sequence() {
@@ -219,6 +233,10 @@ apply_wlan_sequence() {
 	while IFS=' ' read -r pin action state; do
 		[ -n "$pin" ] || continue
 		case "$action" in
+			delay)
+				sleep "$state"
+				continue
+				;;
 			toggle)
 				echo "Toggle GPIO $pin"
 				gpio toggle "$pin"

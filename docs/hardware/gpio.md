@@ -61,6 +61,11 @@ Additional object fields:
 |              |           | driven to the opposite level, then to the desired |
 |              |           | level. Useful for active-low reset lines that     |
 |              |           | require a rising edge without writing two objects.|
+| `power_cycle`| bool      | `wlan` only, together with `toggle`: hold the pin |
+|              |           | at the opposite level for 1 s, then wait 0.5 s    |
+|              |           | after the final write, for USB chips that need a  |
+|              |           | real power cycle after a warm reboot. Off by      |
+|              |           | default; `toggle` alone stays an immediate edge.  |
 
 Examples:
 

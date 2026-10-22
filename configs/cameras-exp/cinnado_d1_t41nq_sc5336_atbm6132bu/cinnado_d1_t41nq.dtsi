@@ -1,0 +1,36 @@
+// Cinnado D1 (T41NQ, SC5336, ATBM6132BU, PTZ) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+// No SD card-detect pin on this board, so msc0 keeps the family default.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpc 18 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 82 */
+			default-state = "off";
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpc 17 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;	/* GPIO 81 */
+			default-state = "off";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		label = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpb 30 GPIO_ACTIVE_LOW INGENIC_GPIO_PULLUP>;	/* GPIO 62 */
+		};
+	};
+};
