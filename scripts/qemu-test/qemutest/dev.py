@@ -75,6 +75,7 @@ SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
 # The fork's model of each Wi-Fi package, by package or camera-name suffix
 WIFI_CHIPS = {
+    "aic8800_usb_8800d80": "aic8800d80", "aic8800u": "aic8800d80",
     "atbm6031": "atbm6031", "atbm6031x": "atbm6031",
     "atbm6062s": "atbm6062s", "atbm6162s": "atbm6162s",
     "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
