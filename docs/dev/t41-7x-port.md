@@ -91,6 +91,22 @@
   working untouched.
   Verified by reading the emulated registers back: the SFC0 group
   (PA23-PA28, function 1) gives PAT0 = 0x1f800000.
+- The RTC and the DTRNG are up, both as mainline drivers with the vendor
+  compatible added: the RTC is the jz4780 layout with the 32 kHz
+  oscillator as its clock, the DTRNG is the T31/X1830 block gated by the
+  CGU. `rtc0` registers and the entropy pool now fills from hardware
+  (crng at 0.011 s instead of 1.2 s). RTC reads stay refused on a fresh
+  image because the driver wants the 0x12345678 scratchpad that only
+  set_time writes -- the upstream contract, not a T41 problem.
+- I2C0-I2C2 are up (`ingenic,t31-i2c`, CGU gate, 400 kHz); i2c0 is the
+  sensor bus.
+- A pinctrl trap worth remembering: pin states must be *children of the
+  pin controller*. `dt_to_map_one_config()` walks up from the state node
+  looking for a registered controller, and with the states as siblings
+  the walk hit the root, returned -EPROBE_DEFER (modules are enabled) and
+  every consumer deferred forever without a message. The read-back that
+  proves the mux is ours rather than U-Boot's is bank A PAT0 =
+  0x1f803000: PA23-PA28 from sfc0 and PA12/PA13 from i2c0.
 - Still missing: the camera stack (OS04D10 + open-tx-isp, DWC2,
   ATBM6062S, audio) and SMP. Userspace's sysfs GPIO writes still collide
   with the pins the device tree claims (gpb 29 is the mmc pwrseq reset),
