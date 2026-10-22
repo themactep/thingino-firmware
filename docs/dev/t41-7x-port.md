@@ -24,8 +24,11 @@
   24 MHz clock, and the T31 CGU/INTC/pinctrl.
 - The T41 has the `ingenic,8250-uart` earlycon entry and the T31-style
   `CONFIG_CMDLINE="earlycon keep_bootcon ..."`, but QEMU still stops
-  before any kernel output. The remaining early-boot differences are
-  the 2026.10 U-Boot/CPU path and the missing T41 core INTC/CGU.
+  before any kernel output. The 0104/0105 SCACHE experiment was
+  negative: dropping `MIPS_CPU_SCACHE` from the T-series machines did
+  not change the early stop, so the SCACHE is not the hang. The
+  remaining early-boot differences are the 2026.10 U-Boot/CPU path and
+  the missing T41 core INTC/CGU.
 
 ## Fixed layout decision
 

@@ -1,0 +1,19 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mips: ingenic: drop SCACHE from the T41 machine
+
+The T41 stops before the early console in QEMU. Try the machine
+without MIPS_CPU_SCACHE so the early cache setup is not the hang.
+T31/T20 keep the SCACHE.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/ingenic/Kconfig
++++ b/arch/mips/ingenic/Kconfig
+@@ -107,7 +107,6 @@
+ 
+ config MACH_T41
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 

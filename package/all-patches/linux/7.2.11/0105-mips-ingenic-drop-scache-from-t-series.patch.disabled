@@ -1,0 +1,94 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mips: ingenic: drop SCACHE from the T-series machines
+
+The generic Ingenic machine selects every T-series machine, so the
+T31/T20/T40 SCACHE selects keep CONFIG_MIPS_CPU_SCACHE=y in a T41
+build. Drop them to test the T41 early boot without the SCACHE; the
+T31/T20 can get it back once the T41 boot is understood.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/ingenic/Kconfig
++++ b/arch/mips/ingenic/Kconfig
+@@ -65,43 +65,36 @@
+ 
+ config MACH_JZ4770
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_JZ4780
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_X1000
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_X1830
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T31
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T20
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T40
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+@@ -112,37 +105,31 @@
+ 
+ config MACH_T10
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T21
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T23
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T30
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T32
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
+ config MACH_T33
+ 	bool
+-	select MIPS_CPU_SCACHE
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
