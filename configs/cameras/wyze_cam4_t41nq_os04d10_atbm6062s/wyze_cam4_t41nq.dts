@@ -1,5 +1,6 @@
 /dts-v1/;
 
+#include <dt-bindings/clock/ingenic,t41-cgu.h>
 #include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
@@ -107,25 +108,12 @@
 		phandle = <0x03>;
 	};
 
-	/*
-	 * The TCU channel clocks are registered against these three names
-	 * and default to "ext". "pclk" is the APB clock the CGU will have
-	 * to provide; until its driver exists it is modelled as EXTAL.
-	 */
-	pclk: pclk {
-		compatible = "fixed-clock";
-		clock-output-names = "pclk";
-		#clock-cells = <0x00>;
-		clock-frequency = <0x16e3600>;
-	};
-
-	clock-controller@0x10000000 {
-		compatible = "ingenic,t41-clocks";
+	cgu: clock-controller@0x10000000 {
+		compatible = "ingenic,t41-cgu";
 		reg = <0x10000000 0x100>;
 		clocks = <0x02 0x03>;
 		clock-names = "ext", "rtc";
 		#clock-cells = <0x01>;
-		little-endian;
 	};
 
 	aip@0x12b00000 {
@@ -151,6 +139,10 @@
 			ranges = <0x00 0x10002000 0x100>;
 
 			#clock-cells = <0x01>;
+
+			clocks = <&cgu T41_CLK_RTCLK>, <&cgu T41_CLK_EXCLK>,
+				 <&cgu T41_CLK_PCLK>, <&cgu T41_CLK_TCU>;
+			clock-names = "rtc", "ext", "pclk", "tcu";
 
 			interrupt-controller;
 			#interrupt-cells = <0x01>;
@@ -816,7 +808,7 @@
 		sfc0@0x13440000 {
 			compatible = "ingenic,x2000-sfc";
 			reg = <0x13440000 0x10000>;
-			clocks = <&pclk>;
+			clocks = <&cgu T41_CLK_SFC0>;
 			clock-names = "sfc";
 			#address-cells = <0x01>;
 			#size-cells = <0x00>;
