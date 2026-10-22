@@ -462,7 +462,18 @@ KERNEL_PARTITION_SIZE := 2359296  # 2304KB (7.x)
 else
 KERNEL_PARTITION_SIZE := 1769472  # 1728KB universal
 endif
+
+# Per-camera fixed sizes. The camera defconfig sets these in KB; the
+# generic defaults above stay dynamic for every other camera.
+ifneq ($(KERNEL_PARTITION_SIZE_KB),)
+KERNEL_PARTITION_SIZE := $(shell echo $$(($(KERNEL_PARTITION_SIZE_KB) * 1024)))
+endif
+
+ifneq ($(ROOTFS_PARTITION_SIZE_KB),)
+ROOTFS_PARTITION_SIZE = $(shell echo $$(($(ROOTFS_PARTITION_SIZE_KB) * 1024)))
+else
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
+endif
 
 export U_BOOT_PARTITION_SIZE
 export UB_ENV_PARTITION_SIZE

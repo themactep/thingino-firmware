@@ -8,8 +8,14 @@
   partition is 256 KiB (`0004-t41nq-trim-uboot.patch`).
 - Kernel 7.2.11 build, image packing and `mtdparts` generation work.
 - QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000` and
-  stops at `Starting kernel ...`. The kernel command line is empty, so
-  neither `mtdparts=` nor `root=` reaches the kernel.
+  stops at `Starting kernel ...`. The fixed layout is in the image and
+  in the camera DTS, but the kernel still has no console or command
+  line; the initial DTB/bootargs path and the core INTC/CGU are the
+  next blockers.
+- The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
+  kernel 3072K, rootfs 6144K, data 6784K. The image table and the
+  U-Boot `mtdparts` agree; the camera DTS carries the matching
+  `partitions` node and `/chosen/bootargs`.
 - The T41 UART has the `ingenic,8250-uart` compatible and a fixed
   24 MHz / polled bring-up path. The console still does not come up
   because the boot arguments and the T41 core INTC/CGU are missing.
@@ -37,12 +43,15 @@ use the same numbers; the camera `.dts` carries the matching
 
 ## Phases
 
-1. **Fixed layout and authored boot arguments** (in progress)
+1. **Fixed layout and authored boot arguments** (layout done; console pending)
    - camera `.dts`: fixed `partitions` node, `/chosen/bootargs` with
      `console=ttyS1,115200 root=/dev/mtdblock4 rootfstype=squashfs`.
+     Done, mirrored in the DTSI for the family tree.
    - image builder: pin kernel 3072 KiB, rootfs 6144 KiB, data 6784 KiB.
+     Done through `KERNEL_PARTITION_SIZE_KB`/`ROOTFS_PARTITION_SIZE_KB`.
    - U-Boot env: fixed `kern_addr`/`kern_size`, `rootfs`/`data`
-     addresses; no dependency on the dynamic `mtdparts`.
+     addresses; no dependency on the dynamic `mtdparts`. Done; the
+     kernel still has to consume the authored bootargs.
 2. **Core INTC** at `0x12300000` (`ingenic,core-intc`). Required by the
    UART, SFC, MMC and the timer blocks.
 3. **CGU** at `0x10000000` (`ingenic,t41-clocks`). Feeds UART

@@ -28,6 +28,7 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
+		bootargs = "console=ttyS1,115200 root=/dev/mtdblock4 rootfstype=squashfs init=/init mem=100M@0x0 rmem=20M@0x6400000 nmem=8M@0x7800000 panic=5";
 	};
 
 	cpus {
@@ -823,6 +824,8 @@
 		sfc0@0x13440000 {
 			compatible = "ingenic,sfc";
 			reg = <0x13440000 0x10000>;
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
 			interrupt-parent = <0x04>;
 			interrupts = <0x07>;
 			pinctrl-names = "default";
@@ -832,6 +835,49 @@
 			ingenic,use_board_info = [00];
 			ingenic,spiflash_param_offset = <0x00>;
 			ingenic,spiflash_type = <0x00>;
+
+			flash@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0x00>;
+				spi-max-frequency = <0x17d7840>;
+
+				partitions {
+					compatible = "fixed-partitions";
+					#address-cells = <0x01>;
+					#size-cells = <0x01>;
+
+					partition@0 {
+						label = "boot";
+						reg = <0x0 0x40000>;
+						read-only;
+					};
+
+					partition@40000 {
+						label = "env";
+						reg = <0x40000 0x10000>;
+					};
+
+					partition@50000 {
+						label = "backup";
+						reg = <0x50000 0x10000>;
+					};
+
+					partition@60000 {
+						label = "kernel";
+						reg = <0x60000 0x300000>;
+					};
+
+					partition@360000 {
+						label = "rootfs";
+						reg = <0x360000 0x600000>;
+					};
+
+					partition@960000 {
+						label = "data";
+						reg = <0x960000 0x6a0000>;
+					};
+				};
+			};
 		};
 
 		sfc1@0x13450000 {
