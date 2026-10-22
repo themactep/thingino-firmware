@@ -1,59 +1,23 @@
 From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] irqchip: ingenic: add the T41 core INTC
+Subject: [PATCH] irqchip: ingenic: bind the T41 core INTC as two banks
 
-The T41 core INTC at 0x12300000 has four banks at 0x100 stride and is
-parented by the CPU interrupt controller. Add a four-chip/0x100 variant
-of the existing Ingenic INTC driver and the ingenic,core-intc
-compatible. The T31/JZ machines keep their two-chip/0x20 setup.
+The T41's core interrupt controller at 0x12300000 is the same two-bank
+block the JZ4780 and T31 have, one 0x100 register window per CPU core,
+each window holding two 32-source banks at 0x20 stride. The vendor
+device tree's four `cpu-intc-map` entries are the CPU windows, not four
+banks: the T41 IRQ list ends at 63 and QEMU's model exposes exactly two
+banks per window (`hw/intc/ingenic-intc.c`).
+
+So the T41 needs no new driver, only the compatible. An earlier
+four-bank/0x100 variant put sources 32-63 in the second CPU window and
+reported IRQs the peripherals never raise.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- a/drivers/irqchip/irq-ingenic.c
 +++ b/drivers/irqchip/irq-ingenic.c
-@@ -58,7 +58,8 @@
- }
- 
- static int __init ingenic_intc_of_init(struct device_node *node,
--				       unsigned num_chips)
-+				       unsigned num_chips,
-+				       unsigned chip_size)
- {
- 	struct ingenic_intc_data *intc;
- 	struct irq_chip_generic *gc;
-@@ -109,7 +110,7 @@
- 		gc = irq_get_domain_generic_chip(domain, i * 32);
- 
- 		gc->wake_enabled = IRQ_MSK(32);
--		gc->reg_base = intc->base + (i * CHIP_SIZE);
-+		gc->reg_base = intc->base + (i * chip_size);
- 
- 		ct = gc->chip_types;
- 		ct->regs.enable = JZ_REG_INTC_CLEAR_MASK;
-@@ -144,7 +145,7 @@
- static int __init intc_1chip_of_init(struct device_node *node,
- 				     struct device_node *parent)
- {
--	return ingenic_intc_of_init(node, 1);
-+	return ingenic_intc_of_init(node, 1, CHIP_SIZE);
- }
- IRQCHIP_DECLARE(jz4740_intc, "ingenic,jz4740-intc", intc_1chip_of_init);
- IRQCHIP_DECLARE(jz4725b_intc, "ingenic,jz4725b-intc", intc_1chip_of_init);
-@@ -152,10 +153,17 @@
- static int __init intc_2chip_of_init(struct device_node *node,
- 	struct device_node *parent)
- {
--	return ingenic_intc_of_init(node, 2);
-+	return ingenic_intc_of_init(node, 2, CHIP_SIZE);
- }
- IRQCHIP_DECLARE(jz4760_intc, "ingenic,jz4760-intc", intc_2chip_of_init);
- IRQCHIP_DECLARE(jz4770_intc, "ingenic,jz4770-intc", intc_2chip_of_init);
+@@ -159,3 +159,4 @@
  IRQCHIP_DECLARE(jz4775_intc, "ingenic,jz4775-intc", intc_2chip_of_init);
  IRQCHIP_DECLARE(jz4780_intc, "ingenic,jz4780-intc", intc_2chip_of_init);
  IRQCHIP_DECLARE(t31_intc, "ingenic,t31-intc", intc_2chip_of_init);
-+
-+static int __init intc_4chip_of_init(struct device_node *node,
-+				     struct device_node *parent)
-+{
-+	return ingenic_intc_of_init(node, 4, 0x100);
-+}
-+IRQCHIP_DECLARE(t41_intc, "ingenic,core-intc", intc_4chip_of_init);
++IRQCHIP_DECLARE(t41_intc, "ingenic,core-intc", intc_2chip_of_init);
