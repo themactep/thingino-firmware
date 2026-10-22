@@ -1,0 +1,703 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] clk: ingenic: add the T41 CGU
+
+The T41 clock and power manager is the XBurst2 block: the X1000 register
+layout (CPCCR, APLL/MPLL, CLKGR/CLKGR1, the per-peripheral CDR registers
+and VPLL at 0xe0) with the T41's own mux sources, dividers and gates.
+The PLLs have two output dividers, OD0 and OD1:
+
+  f = ext * (m + 1) * 2 / ((n + 1) << od0) / (od1 + 1)
+
+which the generic PLL type cannot express, so each PLL is a read-only
+custom clock. Register the CPU/L2/AHB/APB tree, the peripheral mux,
+divider and gate combinations, and the remaining gates. Rates above the
+APB are marked critical and the peripheral gates are left alone
+(CLK_IGNORE_UNUSED) because U-Boot leaves the tree running and the
+drivers that own those gates do not ask for them yet.
+
+The APB divider is registered as "pclk" and the fixed inputs as "ext" and
+"rtc": the TCU clock provider and its channel clocks look their parents
+up by those names.
+
+The AIC, and with it the fractional I2S dividers, are left out until the
+audio driver is ported.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/clk/ingenic/Kconfig
++++ b/drivers/clk/ingenic/Kconfig
+@@ -95,6 +95,16 @@
+ 
+ 	  If building for a T31 SoC, you want to say Y here.
+ 
++config INGENIC_CGU_T41
++	bool "Ingenic T41 CGU driver"
++	default MACH_T41
++	select INGENIC_CGU_COMMON
++	help
++	  Support the clocks provided by the CGU hardware on Ingenic T41
++	  and compatible SoCs.
++
++	  If building for a T41 SoC, you want to say Y here.
++
+ config INGENIC_TCU_CLK
+ 	bool "Ingenic JZ47xx TCU clocks driver"
+ 	default MACH_INGENIC
+--- a/drivers/clk/ingenic/Makefile
++++ b/drivers/clk/ingenic/Makefile
+@@ -9,4 +9,5 @@
+ obj-$(CONFIG_INGENIC_CGU_X1000)		+= x1000-cgu.o
+ obj-$(CONFIG_INGENIC_CGU_X1830)		+= x1830-cgu.o
+ obj-$(CONFIG_INGENIC_CGU_T31)		+= t31-cgu.o
++obj-$(CONFIG_INGENIC_CGU_T41)		+= t41-cgu.o
+ obj-$(CONFIG_INGENIC_TCU_CLK)		+= tcu.o
+--- /dev/null
++++ b/drivers/clk/ingenic/t41-cgu.c
++++ b/drivers/clk/ingenic/t41-cgu.c
+@@ -0,0 +1,561 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * T41 SoC CGU driver
++ *
++ * The T41 clock and power manager is the XBurst2 block: the same register
++ * layout the XBurst1 X1000 uses (CPCCR, APLL, MPLL, CLKGR/CLKGR1, the
++ * per-peripheral CDR registers and VPLL at 0xe0), with the T41's own mux
++ * sources, dividers and gates. The PLLs take two output dividers, OD0 and
++ * OD1, so they do not fit the generic PLL type.
++ */
++
++#include <linux/clk-provider.h>
++#include <linux/io.h>
++#include <linux/of.h>
++
++#include <dt-bindings/clock/ingenic,t41-cgu.h>
++
++#include "cgu.h"
++#include "pm.h"
++
++/* CGU register offsets */
++#define CGU_REG_CPCCR		0x00
++#define CGU_REG_LCR		0x04
++#define CGU_REG_CPPCR		0x0c
++#define CGU_REG_APLL		0x10
++#define CGU_REG_MPLL		0x14
++#define CGU_REG_CLKGR		0x20
++#define CGU_REG_OPCR		0x24
++#define CGU_REG_CLKGR1		0x28
++#define CGU_REG_DDRCDR		0x2c
++#define CGU_REG_USBPCR		0x3c
++#define CGU_REG_USBRDT		0x40
++#define CGU_REG_USBPCR1		0x48
++#define CGU_REG_RSACDR		0x4c
++#define CGU_REG_SSI_SLVCDR	0x50
++#define CGU_REG_MACCDR		0x54
++#define CGU_REG_SFC0CDR		0x60
++#define CGU_REG_LPCDR		0x64
++#define CGU_REG_MSC0CDR		0x68
++#define CGU_REG_MSC1CDR		0x6c
++#define CGU_REG_SSICDR		0x74
++#define CGU_REG_SFC1CDR		0x7c
++#define CGU_REG_ISPMCDR		0x80
++#define CGU_REG_CIMCDR		0x90
++#define CGU_REG_LDCCDR		0xa0
++#define CGU_REG_ISPSCDR		0xa8
++#define CGU_REG_ISPACDR		0xac
++#define CGU_REG_BT0CDR		0xb8
++#define CGU_REG_EL200CDR	0xbc
++#define CGU_REG_CPCSR		0xd4
++#define CGU_REG_VPLL		0xe0
++#define CGU_REG_MACPHY		0xe8
++#define CGU_REG_PWMCDR		0xfc
++
++/* bits within the CPCCR register */
++#define CPCCR_PCS		BIT(22)	/* divider change strobe */
++
++/* PLL register fields: two output dividers, OD0 and OD1 */
++#define PLL_M_SHIFT		20
++#define PLL_M_BITS		9
++#define PLL_N_SHIFT		14
++#define PLL_N_BITS		6
++#define PLL_OD0_SHIFT		11
++#define PLL_OD0_BITS		3
++#define PLL_OD1_SHIFT		7
++#define PLL_OD1_BITS		4
++
++static struct ingenic_cgu *cgu;
++
++static unsigned long t41_pll_recalc_rate(struct clk_hw *hw,
++					 unsigned long parent_rate,
++					 unsigned int reg)
++{
++	u32 val = readl(cgu->base + reg);
++	unsigned int m, n, od0, od1;
++	u64 rate;
++
++	m = (val >> PLL_M_SHIFT) & GENMASK(PLL_M_BITS - 1, 0);
++	n = (val >> PLL_N_SHIFT) & GENMASK(PLL_N_BITS - 1, 0);
++	od0 = (val >> PLL_OD0_SHIFT) & GENMASK(PLL_OD0_BITS - 1, 0);
++	od1 = (val >> PLL_OD1_SHIFT) & GENMASK(PLL_OD1_BITS - 1, 0);
++
++	rate = (u64)parent_rate * (m + 1) * 2;
++	do_div(rate, (u64)(n + 1) << od0);
++	do_div(rate, od1 + 1);
++
++	return rate;
++}
++
++#define T41_PLL_OPS(_name, _reg)					\
++static unsigned long t41_##_name##_recalc_rate(struct clk_hw *hw,	\
++					       unsigned long parent_rate)\
++{									\
++	return t41_pll_recalc_rate(hw, parent_rate, _reg);		\
++}									\
++static const struct clk_ops t41_##_name##_ops = {			\
++	.recalc_rate	= t41_##_name##_recalc_rate,			\
++}
++
++T41_PLL_OPS(apll, CGU_REG_APLL);
++T41_PLL_OPS(mpll, CGU_REG_MPLL);
++T41_PLL_OPS(vpll, CGU_REG_VPLL);
++
++/*
++ * Everything above the modulo-64 kHz APB clock is marked critical: U-Boot
++ * leaves the clock tree running and nothing in the kernel changes CPU or
++ * bus rates, so the clock framework must not take them down as unused.
++ * The peripheral gates carry CLK_IGNORE_UNUSED until the drivers that own
++ * them ask for their clocks by name.
++ */
++static const struct ingenic_cgu_clk_info t41_cgu_clocks[] = {
++
++	/* External clocks */
++
++	[T41_CLK_EXCLK] = { "ext", CGU_CLK_EXT },
++	[T41_CLK_RTCLK] = { "rtc", CGU_CLK_EXT },
++
++	/* PLLs */
++
++	[T41_CLK_APLL] = {
++		"apll", CGU_CLK_CUSTOM,
++		.parents = { T41_CLK_EXCLK, -1, -1, -1 },
++		.custom = { &t41_apll_ops },
++	},
++
++	[T41_CLK_MPLL] = {
++		"mpll", CGU_CLK_CUSTOM,
++		.parents = { T41_CLK_EXCLK, -1, -1, -1 },
++		.custom = { &t41_mpll_ops },
++	},
++
++	[T41_CLK_VPLL] = {
++		"vpll", CGU_CLK_CUSTOM,
++		.parents = { T41_CLK_EXCLK, -1, -1, -1 },
++		.custom = { &t41_vpll_ops },
++	},
++
++	/* Muxes, dividers and gates */
++
++	[T41_CLK_SCLKA] = {
++		"sclka", CGU_CLK_MUX,
++		.parents = { -1, T41_CLK_EXCLK, T41_CLK_APLL, -1 },
++		.mux = { CGU_REG_CPCCR, 30, 2 },
++	},
++
++	[T41_CLK_CPUMUX] = {
++		"cpu_mux", CGU_CLK_MUX,
++		.parents = { -1, T41_CLK_SCLKA, T41_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 28, 2 },
++	},
++
++	[T41_CLK_CPU] = {
++		"cpu", CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T41_CLK_CPUMUX, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 16 },
++	},
++
++	[T41_CLK_L2CACHE] = {
++		"l2cache", CGU_CLK_DIV,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T41_CLK_CPUMUX, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
++	},
++
++	[T41_CLK_AHB0] = {
++		"ahb0", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { -1, T41_CLK_SCLKA, T41_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 26, 2 },
++		.div = { CGU_REG_CPCCR, 8, 1, 4, 21, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 10 },
++	},
++
++	[T41_CLK_AHB2] = {
++		"ahb2", CGU_CLK_MUX | CGU_CLK_DIV,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { -1, T41_CLK_SCLKA, T41_CLK_MPLL, -1 },
++		.mux = { CGU_REG_CPCCR, 24, 2 },
++		.div = { CGU_REG_CPCCR, 12, 1, 4, 20, -1, -1 },
++	},
++
++	[T41_CLK_PCLK] = {
++		"pclk", CGU_CLK_DIV,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.div = { CGU_REG_CPCCR, 16, 1, 4, 20, -1, -1 },
++	},
++
++	[T41_CLK_DDR] = {
++		"ddr", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_DDRCDR, 30, 2 },
++		.div = { CGU_REG_DDRCDR, 0, 1, 4, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 31 },
++	},
++
++	[T41_CLK_MAC] = {
++		"mac", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_MACCDR, 30, 2 },
++		.div = { CGU_REG_MACCDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR1, 4 },
++	},
++
++	[T41_CLK_SFC0] = {
++		"sfc0", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_SFC0CDR, 30, 2 },
++		.div = { CGU_REG_SFC0CDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 21 },
++	},
++
++	[T41_CLK_SFC1] = {
++		"sfc1", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_SFC1CDR, 30, 2 },
++		.div = { CGU_REG_SFC1CDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR1, 12 },
++	},
++
++	/* The MSC dividers are (value + 1) * 4, not value + 1 */
++	[T41_CLK_MSC0] = {
++		"msc0", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL,
++			     T41_CLK_EXCLK },
++		.mux = { CGU_REG_MSC0CDR, 30, 2 },
++		.div = { CGU_REG_MSC0CDR, 0, 4, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 4 },
++	},
++
++	[T41_CLK_MSC1] = {
++		"msc1", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL,
++			     T41_CLK_EXCLK },
++		.mux = { CGU_REG_MSC1CDR, 30, 2 },
++		.div = { CGU_REG_MSC1CDR, 0, 4, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 5 },
++	},
++
++	[T41_CLK_SSI] = {
++		"ssi", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_SSICDR, 30, 2 },
++		.div = { CGU_REG_SSICDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 6 },
++	},
++
++	[T41_CLK_SSI_SLV] = {
++		"ssi_slv", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_SSI_SLVCDR, 30, 2 },
++		.div = { CGU_REG_SSI_SLVCDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 10 },
++	},
++
++	[T41_CLK_CIM] = {
++		"cim", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_CIMCDR, 30, 2 },
++		.div = { CGU_REG_CIMCDR, 0, 1, 8, 28, 29, 27 },
++	},
++
++	[T41_CLK_LCD] = {
++		"lcd", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_LPCDR, 30, 2 },
++		.div = { CGU_REG_LPCDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 24 },
++	},
++
++	[T41_CLK_LDC] = {
++		"ldc", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_LDCCDR, 30, 2 },
++		.div = { CGU_REG_LDCCDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR1, 13 },
++	},
++
++	[T41_CLK_ISPM] = {
++		"ispm", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_ISPMCDR, 30, 2 },
++		.div = { CGU_REG_ISPMCDR, 0, 1, 4, 28, 29, 27 },
++	},
++
++	[T41_CLK_ISPS] = {
++		"isps", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_ISPSCDR, 30, 2 },
++		.div = { CGU_REG_ISPSCDR, 0, 1, 4, 28, 29, 27 },
++	},
++
++	[T41_CLK_ISPA] = {
++		"ispa", CGU_CLK_MUX | CGU_CLK_DIV,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_ISPACDR, 30, 2 },
++		.div = { CGU_REG_ISPACDR, 0, 1, 4, 28, 29, 27 },
++	},
++
++	[T41_CLK_VO] = {
++		"vo", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_BT0CDR, 30, 2 },
++		.div = { CGU_REG_BT0CDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 26 },
++	},
++
++	[T41_CLK_EL200] = {
++		"el200", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_EL200CDR, 30, 2 },
++		.div = { CGU_REG_EL200CDR, 0, 1, 4, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR1, 0 },
++	},
++
++	[T41_CLK_PWM] = {
++		"pwm", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_PWMCDR, 30, 2 },
++		.div = { CGU_REG_PWMCDR, 0, 1, 8, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR1, 7 },
++	},
++
++	[T41_CLK_RSA] = {
++		"rsa", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
++		.parents = { T41_CLK_SCLKA, T41_CLK_MPLL, T41_CLK_VPLL, -1 },
++		.mux = { CGU_REG_RSACDR, 30, 2 },
++		.div = { CGU_REG_RSACDR, 0, 1, 4, 28, 29, 27 },
++		.gate = { CGU_REG_CLKGR, 27 },
++	},
++
++	/* Gates */
++
++	[T41_CLK_TCU] = {
++		"tcu", CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,	/* the TCU MFD takes no clock */
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 30 },
++	},
++
++	[T41_CLK_RTC] = {
++		"rtc_gate", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 29 },
++	},
++
++	[T41_CLK_DES] = {
++		"des", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 28 },
++	},
++
++	[T41_CLK_CSI] = {
++		"csi", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 25 },
++	},
++
++	[T41_CLK_ISP] = {
++		"isp", CGU_CLK_GATE,
++		.parents = { T41_CLK_ISPM, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 23 },
++	},
++
++	[T41_CLK_PDMA] = {
++		"pdma", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 22 },
++	},
++
++	[T41_CLK_UART0] = {
++		"uart0", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 14 },
++	},
++
++	[T41_CLK_UART1] = {
++		"uart1", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 15 },
++	},
++
++	[T41_CLK_UART2] = {
++		"uart2", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 16 },
++	},
++
++	[T41_CLK_UART3] = {
++		"uart3", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 17 },
++	},
++
++	[T41_CLK_UART4] = {
++		"uart4", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 18 },
++	},
++
++	[T41_CLK_UART5] = {
++		"uart5", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 19 },
++	},
++
++	[T41_CLK_SADC] = {
++		"sadc", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 13 },
++	},
++
++	[T41_CLK_DMIC] = {
++		"dmic", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 12 },
++	},
++
++	[T41_CLK_I2C0] = {
++		"i2c0", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 7 },
++	},
++
++	[T41_CLK_I2C1] = {
++		"i2c1", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 8 },
++	},
++
++	[T41_CLK_I2C2] = {
++		"i2c2", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 9 },
++	},
++
++	[T41_CLK_OTG] = {
++		"otg", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 3 },
++	},
++
++	[T41_CLK_HASH] = {
++		"hash", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 2 },
++	},
++
++	[T41_CLK_EFUSE] = {
++		"efuse", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 1 },
++	},
++
++	[T41_CLK_NEMC] = {
++		"nemc", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR, 0 },
++	},
++
++	[T41_CLK_IVDC] = {
++		"ivdc", CGU_CLK_GATE,
++		.parents = { T41_CLK_ISPA, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 17 },
++	},
++
++	[T41_CLK_APB0] = {
++		"apb0", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 15 },
++	},
++
++	[T41_CLK_RJPEG] = {
++		"rjpeg", CGU_CLK_GATE,
++		.parents = { T41_CLK_ISPA, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 14 },
++	},
++
++	[T41_CLK_OST] = {
++		"ost_gate", CGU_CLK_GATE,
++		.flags = CLK_IS_CRITICAL,	/* the OST takes its clock from the TCU */
++		.parents = { T41_CLK_EXCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 11 },
++	},
++
++	[T41_CLK_MONITOR] = {
++		"monitor", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 9 },
++	},
++
++	[T41_CLK_I2D] = {
++		"i2d", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 8 },
++	},
++
++	[T41_CLK_DRAWBOX] = {
++		"drawbox", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 6 },
++	},
++
++	[T41_CLK_AES] = {
++		"aes", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB2, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 5 },
++	},
++
++	[T41_CLK_GMAC] = {
++		"gmac", CGU_CLK_GATE,
++		.parents = { T41_CLK_MAC, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 4 },
++	},
++
++	[T41_CLK_LZMA] = {
++		"lzma", CGU_CLK_GATE,
++		.parents = { T41_CLK_ISPA, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 3 },
++	},
++
++	[T41_CLK_IPU] = {
++		"ipu", CGU_CLK_GATE,
++		.parents = { T41_CLK_AHB0, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 2 },
++	},
++
++	[T41_CLK_DTRNG] = {
++		"dtrng", CGU_CLK_GATE,
++		.parents = { T41_CLK_PCLK, -1, -1, -1 },
++		.gate = { CGU_REG_CLKGR1, 1 },
++	},
++};
++
++static void __init t41_cgu_init(struct device_node *np)
++{
++	int ret;
++
++	cgu = ingenic_cgu_new(t41_cgu_clocks,
++			      ARRAY_SIZE(t41_cgu_clocks), np);
++	if (!cgu) {
++		pr_err("%s: failed to initialise CGU\n", __func__);
++		return;
++	}
++
++	ret = ingenic_cgu_register_clocks(cgu);
++	if (ret) {
++		pr_err("%s: failed to register CGU clocks\n", __func__);
++		return;
++	}
++
++	ingenic_cgu_register_syscore(cgu);
++}
++
++/*
++ * The CGU has children devices (the watchdog and the PWM block), so the
++ * node is a simple-mfd.
++ */
++CLK_OF_DECLARE_DRIVER(t41_cgu, "ingenic,t41-cgu", t41_cgu_init);
+--- /dev/null
++++ b/include/dt-bindings/clock/ingenic,t41-cgu.h
++++ b/include/dt-bindings/clock/ingenic,t41-cgu.h
+@@ -0,0 +1,81 @@
++/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
++/*
++ * This header provides clock numbers for the ingenic,t41-cgu DT binding.
++ *
++ * They are roughly ordered as:
++ *   - external clocks
++ *   - PLLs
++ *   - muxes and dividers in the order they appear in the T41 manual
++ *   - gates in order of their bit in the CLKGR* registers
++ */
++
++#ifndef __DT_BINDINGS_CLOCK_T41_CGU_H__
++#define __DT_BINDINGS_CLOCK_T41_CGU_H__
++
++#define T41_CLK_EXCLK		0
++#define T41_CLK_RTCLK		1
++#define T41_CLK_APLL		2
++#define T41_CLK_MPLL		3
++#define T41_CLK_VPLL		4
++#define T41_CLK_SCLKA		5
++#define T41_CLK_CPUMUX		6
++#define T41_CLK_CPU		7
++#define T41_CLK_L2CACHE		8
++#define T41_CLK_AHB0		9
++#define T41_CLK_AHB2		10
++#define T41_CLK_PCLK		11
++#define T41_CLK_DDR		12
++#define T41_CLK_MAC		13
++#define T41_CLK_SFC0		14
++#define T41_CLK_SFC1		15
++#define T41_CLK_MSC0		16
++#define T41_CLK_MSC1		17
++#define T41_CLK_SSI		18
++#define T41_CLK_SSI_SLV		19
++#define T41_CLK_CIM		20
++#define T41_CLK_LCD		21
++#define T41_CLK_LDC		22
++#define T41_CLK_ISPM		23
++#define T41_CLK_ISPS		24
++#define T41_CLK_ISPA		25
++#define T41_CLK_VO		26
++#define T41_CLK_EL200		27
++#define T41_CLK_PWM		28
++#define T41_CLK_RSA		29
++#define T41_CLK_TCU		30
++#define T41_CLK_RTC		31
++#define T41_CLK_DES		32
++#define T41_CLK_CSI		33
++#define T41_CLK_ISP		34
++#define T41_CLK_PDMA		35
++#define T41_CLK_UART0		36
++#define T41_CLK_UART1		37
++#define T41_CLK_UART2		38
++#define T41_CLK_UART3		39
++#define T41_CLK_UART4		40
++#define T41_CLK_UART5		41
++#define T41_CLK_SADC		42
++#define T41_CLK_DMIC		43
++#define T41_CLK_I2C0		44
++#define T41_CLK_I2C1		45
++#define T41_CLK_I2C2		46
++#define T41_CLK_OTG		47
++#define T41_CLK_HASH		48
++#define T41_CLK_EFUSE		49
++#define T41_CLK_NEMC		50
++#define T41_CLK_IVDC		51
++#define T41_CLK_APB0		52
++#define T41_CLK_RJPEG		53
++#define T41_CLK_OST		54
++#define T41_CLK_MONITOR		55
++#define T41_CLK_I2D		56
++#define T41_CLK_DRAWBOX		57
++#define T41_CLK_AES		58
++#define T41_CLK_GMAC		59
++#define T41_CLK_LZMA		60
++#define T41_CLK_IPU		61
++#define T41_CLK_DTRNG		62
++
++#define T41_CLK_NR		63
++
++#endif /* __DT_BINDINGS_CLOCK_T41_CGU_H__ */
