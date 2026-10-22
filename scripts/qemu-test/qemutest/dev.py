@@ -80,7 +80,8 @@ WIFI_CHIPS = {
     "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
     "atbm6032": "atbm6032", "atbm6132u": "atbm6132u",
     "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
-    "atbm6062u": "atbm6062u", "atbm6132cu": "atbm6132cu",
+    "atbm6062u": "atbm6062u", "atbm6062cu": "atbm6062cu",
+    "atbm6132cu": "atbm6132cu",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
 SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s"}
