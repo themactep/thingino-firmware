@@ -113,6 +113,20 @@ names replaced by spaces, sorted by name. Six names LuCI no longer lists
 America/Yellowknife, Asia/Choibalsan) are kept with the string of the zone tzdb links
 them to, so a camera that stored one of them still resolves.
 
+Thingino's libc, uClibc-ng, accepts less of the POSIX TZ syntax than glibc or musl:
+a rule time after `/` must be 0 to 24 hours with no sign. It discards any string it
+cannot parse and runs in UTC. Five tzdb rules need more than that, so these entries
+use the nearest string uClibc-ng accepts:
+
+| Zone | tzdb 2026e | tz.json | Difference |
+| --- | --- | --- | --- |
+| America/Nuuk, America/Scoresbysund | `<-02>2<-01>,M3.5.0/-1,M10.5.0/0` | `<-02>2<-01>,M3.5.0/0,M10.5.0/0` | DST starts 1 h late (02:00 instead of 01:00 UTC) |
+| Asia/Jerusalem | `IST-2IDT,M3.4.4/26,M10.5.0` | `IST-2IDT,M3.4.4/24,M10.5.0` | DST starts 2 h early (Friday 00:00 instead of 02:00) |
+| Asia/Gaza, Asia/Hebron | `EET-2EEST,M3.4.4/50,M10.4.4/50` | `EET-2EEST,M3.5.6/2,M10.5.6/2` | Exact, except in a March or October that ends on a Saturday, when the change comes a week late |
+
+`scripts/check-tz-json.sh` (part of `make lint`) fails on any `tz.json` string that
+uClibc-ng cannot parse.
+
 ### IANA Time Zone Database
 
 - [GitHub Repository](https://github.com/eggert/tz)
