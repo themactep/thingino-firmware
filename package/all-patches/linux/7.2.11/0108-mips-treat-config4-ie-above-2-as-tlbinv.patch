@@ -1,0 +1,38 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: treat every Config4.IE value above 1 as TLBINV
+
+decode_config4() sets MIPS_CPU_TLBINV only for IE == 2. The XBurst2 core
+that QEMU's ingenic-t41 machine models ("XBurst2-MXU3.1", PRID
+0x00132100) reports IE == 3 in Config4, and QEMU implements TLBINV,
+TLBINVF and EntryHi.EHINV for every IE >= 2.
+
+With TLBINV unset the kernel takes the legacy branch of
+r4k_tlb_configure() and calls r4k_tlb_uniquify(), which rewrites every
+TLB entry with a 4 KiB PageMask, FTLB indices included. QEMU's FTLB
+write check rejects an entry whose PageMask or set does not match the
+FTLB geometry with a machine check, so the first tlbwi in
+r4k_tlb_uniquify_write() raises ExcCode 24 before trap_init() has
+installed a vector, and the guest loops in the exception handler.
+
+The kernel already assumes an FTLB machine has TLBINV - tlbex.c has
+BUG_ON(!cpu_has_tlbinv) on the FTLB flush path - so accept the range.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/kernel/cpu-probe.c
++++ b/arch/mips/kernel/cpu-probe.c
+@@ -569,7 +569,13 @@
+ 	config4 = read_c0_config4();
+ 
+ 	if (cpu_has_tlb) {
+-		if (((config4 & MIPS_CONF4_IE) >> 29) == 2)
++		/*
++		 * IE 1 adds TLBINV/TLBINVF, IE 2 adds EntryHi.EHINV on top of
++		 * them and IE 3 is the whole set again. Anything above 1 has
++		 * the invalidation instructions, so accept the range instead
++		 * of the single value mainline names.
++		 */
++		if (((config4 & MIPS_CONF4_IE) >> 29) >= 2)
+ 			c->options |= MIPS_CPU_TLBINV;
+ 
+ 		/*
