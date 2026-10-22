@@ -1031,9 +1031,13 @@ def describe(s, as_json=False):
         out.append("  network  none: no wired interface, so files go over "
                    "the serial console too")
     w = i.get("wifi")
-    if w and i.get("fwd_netdev") == "c0":
+    if w and i.get("fwd_netdev") == "c0" and i.get("ssh"):
         out.append(f"  wifi     {w['model']}, running the setup portal a "
                    f"phone has joined (forwards go over it)")
+    elif w and i.get("fwd_netdev") == "c0":
+        out.append(f"  wifi     {w['model']}, running the setup portal; SSH "
+                   f"did not get through the phone, so files go over the "
+                   f"serial console")
     elif w and w.get("ssid"):
         out.append(f"  wifi     {w['model']}, on the access point "
                    f"{w['ssid']}" + (" (forwards go over it)"
