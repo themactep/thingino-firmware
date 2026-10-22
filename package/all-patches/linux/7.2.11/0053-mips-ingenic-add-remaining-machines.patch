@@ -1,0 +1,1117 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: ingenic: add the remaining T-series machines
+
+Add machine types and generic device trees for T10, T21, T23, T30,
+T32 and T33. The DTBs reuse the T31 peripheral description; the
+per-SoC clock, pinctrl and timer drivers still have to follow.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/ingenic/Kconfig
++++ b/arch/mips/ingenic/Kconfig
+@@ -13,6 +13,12 @@
+ 	select MACH_T20
+ 	select MACH_T40
+ 	select MACH_T41
++	select MACH_T10
++	select MACH_T21
++	select MACH_T23
++	select MACH_T30
++	select MACH_T32
++	select MACH_T33
+ 
+ choice
+ 	prompt "Machine type"
+@@ -105,6 +111,42 @@
+ 	select SYS_HAS_CPU_MIPS32_R2
+ 	select SYS_SUPPORTS_HIGHMEM
+ 
++config MACH_T10
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T21
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T23
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T30
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T32
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
++config MACH_T33
++	bool
++	select MIPS_CPU_SCACHE
++	select SYS_HAS_CPU_MIPS32_R2
++	select SYS_SUPPORTS_HIGHMEM
++
+ config MACH_T20_PRIMARY
+ 	bool "Prefer the T20 generic DTB"
+ 	depends on MACH_T20
+@@ -128,3 +170,51 @@
+ 	  Put the T41 generic DTB first in the built-in DTB list. The
+ 	  first entry is the one the generic kernel boots when the
+ 	  bootloader passes no FDT.
++
++config MACH_T10_PRIMARY
++	bool "Prefer the T10 generic DTB"
++	depends on MACH_T10
++	help
++	  Put the T10 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
++
++config MACH_T21_PRIMARY
++	bool "Prefer the T21 generic DTB"
++	depends on MACH_T21
++	help
++	  Put the T21 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
++
++config MACH_T23_PRIMARY
++	bool "Prefer the T23 generic DTB"
++	depends on MACH_T23
++	help
++	  Put the T23 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
++
++config MACH_T30_PRIMARY
++	bool "Prefer the T30 generic DTB"
++	depends on MACH_T30
++	help
++	  Put the T30 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
++
++config MACH_T32_PRIMARY
++	bool "Prefer the T32 generic DTB"
++	depends on MACH_T32
++	help
++	  Put the T32 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
++
++config MACH_T33_PRIMARY
++	bool "Prefer the T33 generic DTB"
++	depends on MACH_T33
++	help
++	  Put the T33 generic DTB first in the built-in DTB list. The
++	  first entry is the one the generic kernel boots when the
++	  bootloader passes no FDT.
+--- a/arch/mips/include/asm/bootinfo.h
++++ b/arch/mips/include/asm/bootinfo.h
+@@ -90,6 +90,12 @@
+ 	MACH_INGENIC_T20,
+ 	MACH_INGENIC_T40,
+ 	MACH_INGENIC_T41,
++	MACH_INGENIC_T10,
++	MACH_INGENIC_T21,
++	MACH_INGENIC_T23,
++	MACH_INGENIC_T30,
++	MACH_INGENIC_T32,
++	MACH_INGENIC_T33,
+ };
+ 
+ extern char *system_type;
+--- a/arch/mips/generic/board-ingenic.c
++++ b/arch/mips/generic/board-ingenic.c
+@@ -32,6 +32,18 @@
+ 		return "T40";
+ 	case MACH_INGENIC_T41:
+ 		return "T41";
++	case MACH_INGENIC_T10:
++		return "T10";
++	case MACH_INGENIC_T21:
++		return "T21";
++	case MACH_INGENIC_T23:
++		return "T23";
++	case MACH_INGENIC_T30:
++		return "T30";
++	case MACH_INGENIC_T32:
++		return "T32";
++	case MACH_INGENIC_T33:
++		return "T33";
+ 	case MACH_INGENIC_X2100:
+ 		return "X2100";
+ 	case MACH_INGENIC_X2000H:
+@@ -164,6 +176,16 @@
+ 	{ .compatible = "ingenic,t40", .data = (void *)MACH_INGENIC_T40 },
+ 	{ .compatible = "ingenic,t41", .data = (void *)MACH_INGENIC_T41 },
+ 	{ .compatible = "ingenic,marmot", .data = (void *)MACH_INGENIC_T41 },
++	{ .compatible = "ingenic,t10", .data = (void *)MACH_INGENIC_T10 },
++	{ .compatible = "ingenic,t21", .data = (void *)MACH_INGENIC_T21 },
++	{ .compatible = "ingenic,t23", .data = (void *)MACH_INGENIC_T23 },
++	{ .compatible = "ingenic,t30", .data = (void *)MACH_INGENIC_T30 },
++	{ .compatible = "ingenic,t32", .data = (void *)MACH_INGENIC_T32 },
++	{ .compatible = "ingenic,prj007", .data = (void *)MACH_INGENIC_T32 },
++	{ .compatible = "ingenic,PRJ007", .data = (void *)MACH_INGENIC_T32 },
++	{ .compatible = "ingenic,t33", .data = (void *)MACH_INGENIC_T33 },
++	{ .compatible = "ingenic,prj008", .data = (void *)MACH_INGENIC_T33 },
++	{ .compatible = "ingenic,PRJ008", .data = (void *)MACH_INGENIC_T33 },
+ 	{}
+ };
+ 
+--- a/arch/mips/boot/dts/ingenic/Makefile
++++ b/arch/mips/boot/dts/ingenic/Makefile
+@@ -7,12 +7,30 @@
+ dtb-$(CONFIG_X1830_CU1830_NEO)	+= cu1830-neo.dtb
+ dtb-$(CONFIG_MACH_T31)		+= thingino-t31.dtb
+ dtb-$(CONFIG_MACH_T20_PRIMARY)	+= thingino-t20.dtb
++dtb-$(CONFIG_MACH_T10_PRIMARY)	+= thingino-t10.dtb
++dtb-$(CONFIG_MACH_T21_PRIMARY)	+= thingino-t21.dtb
++dtb-$(CONFIG_MACH_T23_PRIMARY)	+= thingino-t23.dtb
++dtb-$(CONFIG_MACH_T30_PRIMARY)	+= thingino-t30.dtb
++dtb-$(CONFIG_MACH_T32_PRIMARY)	+= thingino-t32.dtb
++dtb-$(CONFIG_MACH_T33_PRIMARY)	+= thingino-t33.dtb
+ dtb-$(CONFIG_MACH_T40_PRIMARY)	+= shark.dtb
+ dtb-$(CONFIG_MACH_T41_PRIMARY)	+= marmot.dtb
+ ifeq ($(CONFIG_MACH_T41_PRIMARY),y)
+ dtb-y := marmot.dtb $(filter-out marmot.dtb,$(dtb-y))
+ else ifeq ($(CONFIG_MACH_T40_PRIMARY),y)
+ dtb-y := shark.dtb $(filter-out shark.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T33_PRIMARY),y)
++dtb-y := thingino-t33.dtb $(filter-out thingino-t33.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T32_PRIMARY),y)
++dtb-y := thingino-t32.dtb $(filter-out thingino-t32.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T30_PRIMARY),y)
++dtb-y := thingino-t30.dtb $(filter-out thingino-t30.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T23_PRIMARY),y)
++dtb-y := thingino-t23.dtb $(filter-out thingino-t23.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T21_PRIMARY),y)
++dtb-y := thingino-t21.dtb $(filter-out thingino-t21.dtb,$(dtb-y))
+ else ifeq ($(CONFIG_MACH_T20_PRIMARY),y)
+ dtb-y := thingino-t20.dtb $(filter-out thingino-t20.dtb,$(dtb-y))
++else ifeq ($(CONFIG_MACH_T10_PRIMARY),y)
++dtb-y := thingino-t10.dtb $(filter-out thingino-t10.dtb,$(dtb-y))
+ endif
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t10.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t10";
++	model = "Ingenic T10";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t21.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t21";
++	model = "Ingenic T21";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t23.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t23";
++	model = "Ingenic T23";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t30.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t30";
++	model = "Ingenic T30";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t32.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t32", "ingenic,PRJ007";
++	model = "Ingenic T32";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/t33.dtsi
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "t31.dtsi"
++
++/ {
++	compatible = "ingenic,t33", "ingenic,PRJ008";
++	model = "Ingenic T33";
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t10.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t10.dtsi"
++
++/ {
++	compatible = "thingino,t10", "ingenic,t10";
++	model = "Thingino T10 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t21.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t21.dtsi"
++
++/ {
++	compatible = "thingino,t21", "ingenic,t21";
++	model = "Thingino T21 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t23.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t23.dtsi"
++
++/ {
++	compatible = "thingino,t23", "ingenic,t23";
++	model = "Thingino T23 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t30.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t30.dtsi"
++
++/ {
++	compatible = "thingino,t30", "ingenic,t30";
++	model = "Thingino T30 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t32.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t32.dtsi"
++
++/ {
++	compatible = "thingino,t32", "ingenic,t32";
++	model = "Thingino T32 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
+--- /dev/null	2026-10-18 13:07:06.732419319 -0400
++++ b/arch/mips/boot/dts/ingenic/thingino-t33.dts
+@@ -0,0 +1,139 @@
++// SPDX-License-Identifier: GPL-2.0
++/dts-v1/;
++
++#include "t33.dtsi"
++
++/ {
++	compatible = "thingino,t33", "ingenic,t33";
++	model = "Thingino T33 Generic Board";
++
++	aic_12m: aic-clock {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12000000>;
++	};
++
++
++	aliases {
++		serial1 = &uart1;
++	};
++
++	chosen {
++		stdout-path = "serial1:115200n8";
++	};
++
++	memory@0 {
++		device_type = "memory";
++		reg = <0x0 0x8000000>;
++	};
++};
++
++&exclk {
++	clock-frequency = <24000000>;
++};
++
++&uart1 {
++	status = "okay";
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_uart1>;
++};
++
++&sfc {
++	status = "okay";
++
++	flash@0 {
++		compatible = "jedec,spi-nor";
++		reg = <0>;
++		spi-max-frequency = <25000000>;
++
++		partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "boot";
++				reg = <0x0 0x50000>;
++				read-only;
++			};
++
++			partition@50000 {
++				label = "env";
++				reg = <0x50000 0x10000>;
++			};
++
++			partition@60000 {
++				label = "backup";
++				reg = <0x60000 0x10000>;
++			};
++
++			partition@70000 {
++				label = "kernel";
++				reg = <0x70000 0x240000>;
++			};
++
++			partition@2b0000 {
++				label = "rootfs";
++				reg = <0x2b0000 0x410000>;
++			};
++
++			partition@6c0000 {
++				label = "data";
++				reg = <0x6c0000 0x940000>;
++			};
++
++			partition@0_all {
++				label = "all";
++				reg = <0x0 0x1000000>;
++			};
++		};
++	};
++};
++
++&msc0 {
++	status = "okay";
++	bus-width = <4>;
++	max-frequency = <24000000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_mmc0>;
++};
++
++&i2c0 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c0>;
++};
++
++&i2c1 {
++	status = "okay";
++	clock-frequency = <100000>;
++
++	pinctrl-names = "default";
++	pinctrl-0 = <&pins_i2c1>;
++};
++
++&pinctrl {
++	pins_uart1: uart1 {
++		function = "uart1";
++		groups = "uart1-data-b";
++	};
++
++	pins_mmc0: mmc0 {
++		function = "mmc0";
++		groups = "mmc0-1bit", "mmc0-4bit";
++	};
++
++	pins_i2c0: i2c0 {
++		function = "i2c0";
++		groups = "i2c0-data";
++	};
++
++	pins_i2c1: i2c1 {
++		function = "i2c1";
++		groups = "i2c1-data-b";
++	};
++};
