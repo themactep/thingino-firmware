@@ -137,8 +137,9 @@ as a real access point does.
 `--portal` tests the setup portal instead: the camera keeps its first-boot
 Wi-Fi mode, an access point of its own, and an emulated phone joins it.
 The forwards go through the phone, so the web address `up` prints is the
-portal, and SSH reaches the camera too. With `--wifi`, the portal's scan
-lists that network and can set the camera up on it:
+portal, and SSH reaches the camera too; when SSH cannot get through the
+phone, `up` says so and files go over the console. With `--wifi`, the
+portal's scan lists that network and can set the camera up on it:
 
 ```sh
 scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --portal --wifi thingino:thingino123 \
@@ -350,11 +351,12 @@ a session's console and another waits its turn; SSH copies run alongside.
 
 - The `qemu_*` profiles in `configs/cameras-testing/` are built for QEMU.
   Real camera images boot as well, and stream with their sensor (see
-  Video), but only ATBM60xx radios are emulated (see Wi-Fi), and board
+  Video), but only the radios under Wi-Fi are emulated, and board
   details such as an SD card-detect pin may not match.
 - The emulated phone of `--portal` joins open portals only.
 - The guest runs under TCG: its timing is not the hardware's.
 - The emulated NAND never wears: no bitflips, no bad blocks, and its
   spare areas are blank again whenever QEMU starts.
-- The console is UART1 on most cameras and UART0 on a few; `up` takes
-  whichever speaks first.
+- The console is UART1 on most cameras and UART0 on a few, and some run
+  U-Boot on one and Linux on the other; `up` follows the UART the
+  kernel prints its banner on.
