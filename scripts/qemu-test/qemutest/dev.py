@@ -82,9 +82,11 @@ WIFI_CHIPS = {
     "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
     "atbm6062u": "atbm6062u", "atbm6062cu": "atbm6062cu",
     "atbm6132cu": "atbm6132cu", "atbm6132cu_6162": "atbm6132cu-6162",
+    "rtl8189fs": "rtl8189fs", "rtl8189ftv": "rtl8189fs",
+    "rtl8189es": "rtl8189es", "rtl8189etv": "rtl8189es",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
-SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s"}
+SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s", "rtl8189fs", "rtl8189es"}
 # thingino's setup portal network (S38wpa_supplicant). --portal's phone is
 # the user netdev's host address on it, and takes the MAC that netdev sends
 # from: 52:55, then the address.
