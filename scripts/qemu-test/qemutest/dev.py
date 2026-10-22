@@ -610,6 +610,36 @@ def start_relay(s):
     s.save()
 
 
+def stop_relay(s):
+    with contextlib.suppress(OSError, KeyError, TypeError):
+        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
+            if b"qemutest.dev" in f.read():
+                os.kill(s.info["relay"], signal.SIGTERM)
+
+
+def follow_kernel(s, con, timeout):
+    """The console the shell is on: U-Boot can print on one UART and
+    Linux on the other, so the relay moves to whichever the kernel's banner
+    reaches. Returns the console to use."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for k in (0, 1):
+            with contextlib.suppress(OSError):
+                with open(s.path(f"uart{k}.log"), "rb") as f:
+                    if b"Linux version" not in f.read():
+                        continue
+                if k == s.info["uart"]:
+                    return con
+                con.close()
+                stop_relay(s)
+                s.info["uart"] = k
+                s.save()
+                start_relay(s)
+                return s.connect()
+        time.sleep(0.2)
+    return con
+
+
 def sessions():
     root = state_root()
     for name in sorted(os.listdir(root)) if os.path.isdir(root) else ():
@@ -650,10 +680,7 @@ def qmp(s, command, **args):
 
 def stop(s):
     # The relay ends with QEMU; this is for one whose QEMU was killed
-    with contextlib.suppress(OSError, KeyError, TypeError):
-        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
-            if b"qemutest.dev" in f.read():
-                os.kill(s.info["relay"], signal.SIGTERM)
+    stop_relay(s)
     if not s.alive():
         return
     try:
@@ -1199,6 +1226,7 @@ def cmd_up(args, extra):
             elif args.uboot:
                 ok = stop_in_uboot(s, con, args.timeout, gated=False)
             else:
+                con = follow_kernel(s, con, args.timeout)
                 ok = boot_to_shell(s, con, args.timeout)
         finally:
             con.close()
