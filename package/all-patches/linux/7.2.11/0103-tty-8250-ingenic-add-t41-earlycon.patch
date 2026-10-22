@@ -1,0 +1,22 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] tty: 8250: add the T41 earlycon
+
+The T41 uses the same early console as the T31/T20: the driver's
+early setup reads the /ext clock and programs the UART registers, so
+the console works before the UART driver, the CGU and the core INTC.
+Add the ingenic,8250-uart compatible to the earlycon table.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/tty/serial/8250/8250_ingenic.c
++++ b/drivers/tty/serial/8250/8250_ingenic.c
+@@ -172,6 +172,9 @@
+ OF_EARLYCON_DECLARE(t31_uart, "ingenic,t31-uart",
+ 		    ingenic_early_console_setup);
+ 
++OF_EARLYCON_DECLARE(t41_uart, "ingenic,8250-uart",
++		    ingenic_early_console_setup);
++
+ static void ingenic_uart_serial_out(struct uart_port *p, unsigned int offset, u32 value)
+ {
+ 	u32 ier;

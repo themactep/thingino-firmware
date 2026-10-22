@@ -17,8 +17,15 @@
   U-Boot `mtdparts` agree; the camera DTS carries the matching
   `partitions` node and `/chosen/bootargs`.
 - The T41 UART has the `ingenic,8250-uart` compatible and a fixed
-  24 MHz / polled bring-up path. The console still does not come up
-  because the boot arguments and the T41 core INTC/CGU are missing.
+  24 MHz / polled bring-up path.
+- The T31/T20 reference image (2013.07 U-Boot, 192K boot) boots to
+  userspace in QEMU. Their console path is the built-in `earlycon`
+  plus `OF_EARLYCON_DECLARE(..., "ingenic,t31-uart", ...)`, the `/ext`
+  24 MHz clock, and the T31 CGU/INTC/pinctrl.
+- The T41 has the `ingenic,8250-uart` earlycon entry and the T31-style
+  `CONFIG_CMDLINE="earlycon keep_bootcon ..."`, but QEMU still stops
+  before any kernel output. The remaining early-boot differences are
+  the 2026.10 U-Boot/CPU path and the missing T41 core INTC/CGU.
 
 ## Fixed layout decision
 
