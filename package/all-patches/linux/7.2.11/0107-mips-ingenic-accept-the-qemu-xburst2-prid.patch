@@ -1,0 +1,46 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] MIPS: ingenic: accept the QEMU T41 XBurst2 processor ID
+
+The kernel never reaches the console: cpu_probe_ingenic() panics with
+"Unknown Ingenic Processor ID!" before arch_mem_init() parses the
+command line and brings up the early console, so the panic is only
+visible in the printk ring buffer.
+
+The Ingenic QEMU fork's ingenic-t41 machine runs a core it calls
+"XBurst2-MXU3.1" (target/mips/cpu-defs.c.inc, branch ingenic-txx),
+reporting PRID 0x00132100: PRID_COMP_INGENIC_13 with IMP 0x2100.
+Mainline names only the 0x2000 IMP for XBurst2, so the probe takes the
+default arm. Measured on a booted image as well: the processor_id field
+of current_cpu_data in guest RAM holds 0x00132100.
+
+Accept the modelled IMP as the same core. Confirm the value against
+real T41 silicon when one is on the bench.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/arch/mips/include/asm/cpu.h
++++ b/arch/mips/include/asm/cpu.h
+@@ -191,6 +191,13 @@
+ #define PRID_IMP_XBURST2		0x2000	/* XBurst®2 with MXU2.1 SIMD ISA		*/
+ 
+ /*
++ * The XBurst2 core as the Ingenic QEMU fork models it (machine
++ * ingenic-t41, cpu XBurst2-MXU3.1): COMP 0x13, IMP 0x2100, so PRID
++ * reads 0x00132100. Mainline only names the 0x2000 IMP for XBurst2.
++ */
++#define PRID_IMP_XBURST2_QEMU	0x2100	/* XBurst2 core as modelled by qemu-ingenic */
++
++/*
+  * These are the PRID's for when 23:16 == PRID_COMP_NETLOGIC
+  */
+ #define PRID_IMP_NETLOGIC_XLR732	0x0000
+--- a/arch/mips/kernel/cpu-probe.c
++++ b/arch/mips/kernel/cpu-probe.c
+@@ -1823,6 +1823,7 @@
+ 		break;
+ 
+ 	/* XBurst®2 with MXU2.1 SIMD ISA */
++	case PRID_IMP_XBURST2_QEMU:
+ 	case PRID_IMP_XBURST2:
+ 		c->cputype = CPU_XBURST;
+ 		__cpu_name[cpu] = "Ingenic XBurst II";
