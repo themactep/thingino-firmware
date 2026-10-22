@@ -7,11 +7,33 @@
 - The T41NQ SFC NOR U-Boot is trimmed to 239140 bytes and the boot
   partition is 256 KiB (`0004-t41nq-trim-uboot.patch`).
 - Kernel 7.2.11 build, image packing and `mtdparts` generation work.
-- QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000` and
-  stops at `Starting kernel ...`. The fixed layout is in the image and
-  in the camera DTS, but the kernel still has no console or command
-  line; the initial DTB/bootargs path and the core INTC/CGU are the
-  next blockers.
+- QEMU `ingenic-t41` boots U-Boot, loads the kernel from `0x60000`, and
+  the kernel now reaches `calibrate_delay()` with a working early console
+  and the authored command line.
+- Two early-boot fixes were needed to get that far:
+  - `0107`: the fork's `XBurst2-MXU3.1` core reports PRID `0x00132100`
+    (COMP `0x13`, IMP `0x2100`) and `cpu_probe_ingenic()` only knew the
+    `0x2000` IMP for XBurst2, so it panicked with "Unknown Ingenic
+    Processor ID!" in `setup_arch()`, before `arch_mem_init()` parses
+    the command line and brings up the early console. The panic was
+    invisible on the wire and only findable in the printk ring buffer in
+    guest RAM.
+  - `0108`: the same core reports Config4.IE = 3, and `decode_config4()`
+    set `MIPS_CPU_TLBINV` only for IE == 2. Without TLBINV the kernel
+    took the legacy `r4k_tlb_uniquify()` path, which rewrites every TLB
+    entry with a 4 KiB PageMask, FTLB indices included. QEMU's FTLB
+    write check rejects those with a machine check (ExcCode 24) before
+    `trap_init()` has installed a vector, so the guest looped through the
+    handler U-Boot left at its own exception base (0x800f8000).
+- Current stop: `timer_probe: no matching timers found`, then
+  `calibrate_delay()` spins on `jiffies` forever. `of_irq_init` reports
+  "children remain, but no parents". Booting with the stock `lpj=`
+  parameter gets past the calibration and the kernel runs the rest of
+  `start_kernel()` and the initcalls -- memory, devtmpfs, NET, squashfs,
+  jffs2 -- until it stalls in the crypto self-tests, which have no
+  tick to complete. The next blockers are the CGU (clocks) and the
+  OST/TCU (clocksource and clockevents); the T41 core INTC from `0106`
+  is in place but is not binding yet.
 - The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
   kernel 3072K, rootfs 6144K, data 6784K. The image table and the
   U-Boot `mtdparts` agree; the camera DTS carries the matching
@@ -23,17 +45,17 @@
   plus `OF_EARLYCON_DECLARE(..., "ingenic,t31-uart", ...)`, the `/ext`
   24 MHz clock, and the T31 CGU/INTC/pinctrl.
 - The T41 has the `ingenic,8250-uart` earlycon entry and the T31-style
-  `CONFIG_CMDLINE="earlycon keep_bootcon ..."`, but QEMU still stops
-  before any kernel output. The 0104/0105 SCACHE experiment was
-  negative: dropping `MIPS_CPU_SCACHE` from the T-series machines did
-  not change the early stop, so the SCACHE is not the hang.
+  `CONFIG_CMDLINE="earlycon keep_bootcon ..."`, and with `0107` accepted
+  it prints from `OF: fdt` onwards. `MIPS_CMDLINE_DTB_EXTEND` means the
+  effective line is the DTS `/chosen/bootargs`, then the U-Boot
+  `bootargs`, then the built-in one; the `mem=`/`console=` arguments are
+  therefore printed twice, which is harmless but worth tidying.
+- The 0104/0105 SCACHE experiment was negative: dropping
+  `MIPS_CPU_SCACHE` from the T-series machines did not change the early
+  stop, so the SCACHE was never the hang.
 - The T41 core INTC is added (`0106`, four banks at 0x100, parented by
-  `cpuintc`), but it does not change the early stop either. Both the
-  INTC and the CGU are downstream of whatever is hanging before the
-  early console.
-- The next investigation is the T41 early-boot/QEMU path: the 2026.10
-  U-Boot handoff, the initial DTB, and the XBurst2 CPU entry against
-  the working T31/T20 2013.07 reference.
+  `cpuintc`). It does not change the early stop either: the stop was the
+  PRID panic and then the FTLB machine check, both upstream of the INTC.
 
 ## Fixed layout decision
 
@@ -94,8 +116,28 @@ qemu-system-mipsel -M ingenic-t41 -m 128M -display none \
 ```
 
 UART1 is the second serial, which is why the first `-serial` is null.
-The current checkpoint is `Starting kernel ...`; the next checkpoint is
-the kernel console, then the squashfs mount and `/init`.
+The current checkpoint is `calibrate_delay()`; the next one is the first
+timer tick, then the squashfs mount and `/init`.
+
+`scripts/qemu-dev up wyze_cam4_t41nq_os04d10_atbm6062s` boots the built
+image and `scripts/qemu-dev monitor -- 'info registers'` names the
+instruction the guest is stuck on. When a panic happens before the
+console is up, the message is still in the printk ring buffer: dump
+RAM with QMP `pmemsave` and read `__log_buf` from `System.map`.
+
+Before the OST driver exists, `calibrate_delay()` never returns because
+`jiffies` does not move. Stop at the U-Boot prompt and boot by hand with
+`lpj=1000000` in `bootargs` to skip the calibration and reach the next
+blocker:
+
+```sh
+scripts/qemu-dev up wyze_cam4_t41nq_os04d10_atbm6062s --uboot
+scripts/qemu-dev uboot -- 'sf probe; sf read 0x81000000 0x60000 0x300000'
+scripts/qemu-dev uboot -- 'setenv bootargs console=ttyS1,115200 \
+    root=/dev/mtdblock4 rootfstype=squashfs init=/init mem=100M@0x0 \
+    earlycon lpj=1000000'
+scripts/qemu-dev uboot -- 'bootm 0x81000000'
+```
 
 ## References
 
