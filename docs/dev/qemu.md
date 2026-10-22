@@ -67,6 +67,8 @@ again for a session that is already up replaces it. Other options:
 - `--keep` boots the flash as the last session left it, to test what
   survives a power cycle.
 - `--sd card.img` puts an SD card in MSC0; that file is written in place.
+- `--wifi SSID:PASS` gives the camera its Wi-Fi chip and an access point to
+  join (see Wi-Fi).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - Anything after `--` goes to QEMU as it is.
@@ -87,11 +89,36 @@ When the image has a wired interface, the camera's SSH, HTTP and HTTPS are
 also forwarded to ports on 127.0.0.1, and `put` and `get` use SSH with a
 key the session installs, which is far faster than the console. `info`
 prints the ports, the web UI address with its login, and an ssh command
-line for your own use. Images without a wired interface, Wi-Fi cameras
-among them, cannot be reached from the host (a Wi-Fi test image has a
-simulated radio inside, but nothing outside it), so files go over the
-console too: a few seconds per 100 KB instead of well under a second,
-still binary-safe and checked with md5sum.
+line for your own use. Images without a wired interface cannot be
+reached from the host unless they come up on Wi-Fi (`--wifi`), so files
+go over the console too: a few seconds per 100 KB instead of well under a
+second, still binary-safe and checked with md5sum.
+
+## Wi-Fi
+
+`--wifi SSID:PASS` adds the camera's Wi-Fi chip to the machine, with a
+WPA2 access point of that SSID and passphrase behind it, and sets the
+camera up to join it:
+
+```sh
+scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --wifi thingino:thingino123 \
+    -- -device image-sensor,model=gc2053,bus=i2c0
+```
+
+The chip comes from the build's `.config`, or from the camera name for a
+release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips are
+emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB (atbm6012b,
+atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6132cu); `up` stops with
+a message when the QEMU it uses has no model for the chip, and `--qemu`
+picks one that has.
+
+thingino reads its Wi-Fi mode once, at boot, so the first `up` of a
+camera that was not set up for the SSID runs `wlan configure` and reboots
+it onto the access point; with `--keep` it is set up already. The camera
+then scans, associates, completes the WPA2 handshake and takes a DHCP
+address as it would at home. When it has no wired address, SSH, HTTP and
+HTTPS are forwarded over the Wi-Fi instead, and `put` and `get` go over
+SSH. A wrong passphrase fails the handshake as a real access point does.
 
 ## Commands, files and reboots
 
@@ -222,7 +249,9 @@ The test profiles' sensors:
 
 A real camera's image takes the sensor its defconfig names
 (`BR2_SENSOR_1_NAME`), if the fork has that model; the fork's
-`contrib/ingenic/README.md` lists them, with the sensor's options. The
+`contrib/ingenic/README.md` lists them, with the sensor's options. Give
+it the sensor even when video is not the point: without one, the vendor
+ISP driver can oops as the streamer starts and hold up the boot. The
 sensor sees colour bars that a white stripe crosses every two seconds.
 
 A recording and a snapshot can be fetched from any image, wired or not.
@@ -293,8 +322,11 @@ a session's console and another waits its turn; SSH copies run alongside.
 
 - The `qemu_*` profiles in `configs/cameras-testing/` are built for QEMU.
   Real camera images boot as well, and stream with their sensor (see
-  Video), but nothing emulates their radio, and board details such as an
-  SD card-detect pin may not match.
+  Video), but only ATBM60xx radios are emulated (see Wi-Fi), and board
+  details such as an SD card-detect pin may not match.
+- The emulated access point takes the camera as a station only: the
+  setup portal, which runs the camera as an access point, gets no
+  clients.
 - The guest runs under TCG: its timing is not the hardware's.
 - The emulated NAND never wears: no bitflips, no bad blocks, and its
   spare areas are blank again whenever QEMU starts.

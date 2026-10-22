@@ -73,6 +73,17 @@ FORK_VARIANTS = set("""
 # cw080sn
 SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
+# The fork's model of each Wi-Fi package, by package or camera-name suffix
+WIFI_CHIPS = {
+    "atbm6031": "atbm6031", "atbm6031x": "atbm6031",
+    "atbm6062s": "atbm6062s", "atbm6162s": "atbm6162s",
+    "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
+    "atbm6032": "atbm6032", "atbm6132u": "atbm6132u",
+    "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
+    "atbm6062u": "atbm6062u", "atbm6132cu": "atbm6132cu",
+}
+# SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
+SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s"}
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
 PROMPT = re.compile(r"root@[\w.-]+ \S*# ")
@@ -209,6 +220,7 @@ def sfc_type(family):
 
 
 _GPIO_TRACE = {}
+_DEVICES = {}
 
 
 def gpio_trace_supported(qemu):
@@ -222,6 +234,34 @@ def gpio_trace_supported(qemu):
             out = ""
         _GPIO_TRACE[qemu] = "trace=" in out
     return _GPIO_TRACE[qemu]
+
+
+def qemu_devices(qemu):
+    """The device types this QEMU has."""
+    if qemu not in _DEVICES:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _DEVICES[qemu] = set(re.findall(r'^name "([^"]+)"', out, re.M))
+    return _DEVICES[qemu]
+
+
+def wifi_model(image, cfg, explicit):
+    """The model of the camera's Wi-Fi: --wifi-chip, else the build's
+    .config, else the Wi-Fi in the camera name (release images)."""
+    if explicit:
+        return explicit
+    names = [k[len("BR2_PACKAGE_WIFI_"):].lower() for k, v in cfg.items()
+             if k.startswith("BR2_PACKAGE_WIFI_") and v == "y"]
+    names += re.split(r"[_.+-]", os.path.basename(image).lower())
+    hits = [WIFI_CHIPS[n] for n in names if n in WIFI_CHIPS]
+    if not hits:
+        die("no Wi-Fi model for this image; pass --wifi-chip ("
+            + ", ".join(sorted(set(WIFI_CHIPS.values()))) + ")")
+    return hits[0]
 
 
 def find_qemu(image, explicit):
@@ -712,20 +752,30 @@ def serial_upload(con, data, remote, timeout):
 def attach_network(s, con):
     """Point the host forwards at the camera's slirp address and install
     the session's key, so file copies go over SSH. The address can change
-    from boot to boot (the MAC does), so this runs after every login."""
+    from boot to boot (the MAC does), so this runs after every login. A
+    wired interface carries them if it has an address, else the Wi-Fi."""
     s.info["ssh"] = False
     if not s.info.get("ports"):
         return
-    ip = None
-    deadline = time.time() + 30
+    joins = False                           # set up to join the AP
+    if s.info.get("wifi"):
+        conf = shlex.quote(f'ssid="{s.info["wifi"]["ssid"]}"')
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        joins = rc == 0
+    ip = netdev = None
+    deadline = time.time() + (60 if joins else 30)
     while time.time() < deadline:
         _, out = serial_run(con, "ip -4 -o addr show; "
                                  "cat /sys/class/net/eth*/operstate", 20)
-        m = re.search(r"inet (10\.0\.2\.\d+)/", out)
-        if m:
-            ip = m.group(1)
+        found = re.findall(r"^\d+: (\S+)\s+inet (10\.0\.2\.\d+)/",
+                           out, re.M)
+        wired = [a for i, a in found if not i.startswith("wlan")]
+        wlan = [a for i, a in found if i.startswith("wlan")]
+        if wired or (joins and wlan):
+            ip, netdev = (wired[0], "n0") if wired else (wlan[0], "w0")
             break
-        if not re.search(r"^(up|unknown)$", out, re.M):
+        if not joins and not re.search(r"^(up|unknown)$", out, re.M):
             break                           # no wired interface up
         time.sleep(2)
     if not ip:
@@ -735,10 +785,11 @@ def attach_network(s, con):
         for svc, port in s.info["ports"].items():
             if s.info.get("guest_ip"):
                 q.cmd("human-monitor-command", **{
-                    "command-line": f"hostfwd_remove n0 tcp:127.0.0.1:{port}"})
+                    "command-line": "hostfwd_remove "
+                    f"{s.info.get('fwd_netdev', 'n0')} tcp:127.0.0.1:{port}"})
             guest = GUEST_PORTS.get(svc) or int(svc)
             err = q.cmd("human-monitor-command", **{
-                "command-line": f"hostfwd_add n0 tcp:127.0.0.1:{port}-"
+                "command-line": f"hostfwd_add {netdev} tcp:127.0.0.1:{port}-"
                                 f"{ip}:{guest}"})
             if err.strip():
                 print(f"{PROG}: forwarding {svc}: {err.strip()}",
@@ -746,6 +797,7 @@ def attach_network(s, con):
     finally:
         q.close()
     s.info["guest_ip"] = ip
+    s.info["fwd_netdev"] = netdev
     if not (shutil.which("ssh") and os.path.exists(s.path("id_ed25519"))):
         return
     with open(s.path("id_ed25519.pub")) as f:
@@ -772,6 +824,30 @@ def boot_to_shell(s, con, timeout):
     s.info.update(state="shell", mark=s.log_size())
     s.save()
     return True
+
+
+def join_wifi(s, ssid, psk, timeout):
+    """Set the camera up to join the access point and reboot it onto it,
+    unless it already is: thingino picks its Wi-Fi mode at boot."""
+    conf = shlex.quote(f'ssid="{ssid}"')
+    with s.console(timeout) as con:
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        if rc == 0:
+            return
+        rc, out = serial_run(con, f"wlan configure {shlex.quote(ssid)} "
+                                  f"{shlex.quote(psk)}", 60)
+        if rc:
+            die(f"{s.name}: wlan configure failed: {out.strip()}")
+        con.drain()
+        con.write("reboot\n")
+        con.read(0.5)
+        con.state = "rebooting"
+        s.info.update(state="booting", ssh=False)
+        s.save()
+        if not boot_to_shell(s, con, timeout):
+            die(f"{s.name}: no shell after setting up the Wi-Fi "
+                f"(`{PROG} log {s.name}`)", 2)
 
 
 def stop_in_uboot(s, con, timeout, gated):
@@ -885,6 +961,11 @@ def describe(s, as_json=False):
     elif i.get("state") == "shell":
         out.append("  network  none: no wired interface, so files go over "
                    "the serial console too")
+    if i.get("wifi"):
+        w = i["wifi"]
+        out.append(f"  wifi     {w['model']}, on the access point "
+                   f"{w['ssid']}" + (" (forwards go over it)"
+                                     if i.get("fwd_netdev") == "w0" else ""))
     out.append(f"  console  {s.log}")
     return "\n".join(out)
 
@@ -934,6 +1015,17 @@ def cmd_up(args, extra):
     if not re.fullmatch(r"[\w.+-]+", name):
         die(f"bad session name {name!r}; pass --name")
     qemu = find_qemu(image, args.qemu)
+    wifi = None
+    if args.wifi:
+        ssid, _, psk = args.wifi.partition(":")
+        if not ssid or not 8 <= len(psk) <= 63:
+            die("--wifi wants SSID:PASSPHRASE, a passphrase of 8 to 63 "
+                "characters")
+        wifi = {"model": wifi_model(image, cfg, args.wifi_chip),
+                "ssid": ssid}
+        if wifi["model"] not in qemu_devices(qemu):
+            die(f"{qemu} has no {wifi['model']} model; pass --qemu with a "
+                f"newer build of the fork")
 
     s = Session(name)
     old_ports = {}
@@ -983,6 +1075,12 @@ def cmd_up(args, extra):
                  "-global", "ingenic-gpio.trace=gpiotrace"]
     if ports:
         argv += ["-netdev", "user,id=n0"]
+    if wifi:
+        bus = "msc1" if wifi["model"] in SDIO_WIFI else "usb-bus.0,port=1"
+        ap = ",".join(f"{k}={v.replace(',', ',,')}"
+                      for k, v in (("ssid", ssid), ("psk", psk)))
+        argv += ["-netdev", "user,id=w0",
+                 "-device", f"{wifi['model']},bus={bus},netdev=w0,{ap}"]
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
@@ -998,7 +1096,8 @@ def cmd_up(args, extra):
               "password": args.password
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
-              "started": int(time.time()), "argv": argv}
+              "wifi": wifi, "started": int(time.time()),
+              "argv": [re.sub(r",psk=.*", ",psk=...", a) for a in argv]}
     s.save()
 
     def failed(what):
@@ -1051,6 +1150,8 @@ def cmd_up(args, extra):
         die(f"{name}: no {'U-Boot prompt' if args.uboot else 'shell'} in "
             f"{args.timeout} s; the session is left running for a look "
             f"(`{PROG} log`, `{PROG} console`, `{PROG} down {name}`)", 2)
+    if wifi and not (args.no_wait or args.uboot):
+        join_wifi(s, ssid, psk, args.timeout)
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
     print(describe(s, args.json))
@@ -1661,6 +1762,11 @@ def main(argv=None):
                     metavar="PORT", help="also forward this guest TCP port")
     sp.add_argument("--sd", metavar="IMAGE", help="an SD card in MSC0 "
                     "(the image is written in place)")
+    sp.add_argument("--wifi", metavar="SSID:PASS",
+                    help="the camera's Wi-Fi chip, with a WPA2 access point "
+                    "the camera is set up to join (a reboot the first time)")
+    sp.add_argument("--wifi-chip", choices=sorted(set(WIFI_CHIPS.values())),
+                    help="the Wi-Fi model, when the image cannot tell")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")
