@@ -394,7 +394,15 @@ FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
 
 # fixed size partitions
-U_BOOT_SIZE_KB := 192
+# The 2026.07 U-Boot binary is ~257 KB and does not fit the 192 KB slot the
+# 2013.07 tree is padded to. Modern U-Boot defaults to the 320 KB boot
+# partition the master branch uses; a camera profile can pin a different
+# size with U_BOOT_SIZE_KB (the trimmed T41NQ image uses 256 KB).
+ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
+U_BOOT_SIZE_KB ?= 192
+else
+U_BOOT_SIZE_KB ?= 320
+endif
 UB_ENV_SIZE_KB := 64
 BACKUP_SIZE_KB := 64
 
