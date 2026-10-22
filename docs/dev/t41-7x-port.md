@@ -70,8 +70,20 @@
   `QEMU_BIN=/path/to/qemu-system-mipsel`. Note that `qemu-dev` adds
   `-netdev user`, which needs libslirp, so a build without it has to be
   driven with its own command line.
-- Still missing for QEMU: a CGU driver (`ingenic,t41-clocks` has none,
-  hence the fixed clocks), a pinctrl driver, and the camera stack.
+- The CGU is in (`0110`), so the clock tree is the real one: APLL
+  1104 MHz, MPLL 1400 MHz, VPLL 1080 MHz, CPU 1104 MHz, L2 368 MHz,
+  AHB0/AHB2 233.3 MHz, APB 19.4 MHz, SFC0 50 MHz. The T41 PLLs have two
+  output dividers (OD0 and OD1) and the vendor formula
+  `ext * (m + 1) * 2 / ((n + 1) << od0) / (od1 + 1)` does not fit the
+  generic PLL type, so they are read-only custom clocks.
+- Two details of the clock wiring worth remembering: the TCU's channel
+  clocks look their parents up by the *global* names "pclk", "rtc" and
+  "ext", so the APB divider must be called `pclk` and the "ext"/"rtc"
+  fixed-clock nodes must keep those names; and the CGU registers those
+  two as clkdev aliases, which the channel clocks cannot see.
+- Still missing for QEMU: a pinctrl driver (`ingenic,t41-pinctrl` has
+  none, which is why `pinctrl-0` is dropped from UART1 and SFC0), the
+  camera stack (OS04D10 + open-tx-isp, DWC2, ATBM6062S, audio) and SMP.
 - The fixed layout is built and packed: boot 256K, env 64K, backup 64K,
   kernel 3072K, rootfs 6144K, data 6784K. The image table and the
   U-Boot `mtdparts` agree; the camera DTS carries the matching
