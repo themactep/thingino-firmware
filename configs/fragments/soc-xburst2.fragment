@@ -6,3 +6,5 @@ BR2_MIPS_FP32_MODE_64=y
 # BR2_MIPS_FP32_MODE_XX is not set
 BR2_MIPS_OABI32=y
 BR2_SOC_INGENIC=y
+# T40/T41 U-Boot defconfigs (isvp_t40*/isvp_t41*) exist only in the 2026.07 tree.
+BR2_THINGINO_UBOOT_VERSION_2026_07=y
