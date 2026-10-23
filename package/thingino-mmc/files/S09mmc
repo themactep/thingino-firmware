@@ -155,9 +155,15 @@ set_power() {
 }
 
 load_module() {
-	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
-		echo "$MMC_MODULE is already loaded, reloading" >&2
-		rmmod "$MMC_MODULE" 2>/dev/null
+	if grep -q "^$MMC_MODULE " /proc/modules; then
+		if [ -z "$MMC_PARAM" ]; then
+			echo "$MMC_MODULE is already loaded, nothing to reload" >&2
+		else
+			echo "$MMC_MODULE is already loaded, reloading to apply $MMC_PARAM" >&2
+			if ! rmmod "$MMC_MODULE"; then
+				echo "Failed to unload $MMC_MODULE, keeping the current instance" >&2
+			fi
+		fi
 	fi
 
 	echo "Load $MMC_MODULE $MMC_PARAM"
