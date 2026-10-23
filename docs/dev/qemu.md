@@ -38,7 +38,7 @@ scripts/qemu-dev down                          # stop it
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
 | `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
-| `console [NAME]` | attach your terminal to the console; Ctrl-] detaches |
+| `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
 
 `NAME` can be left out while only one session runs. `images`, `ls`, `info`
@@ -81,6 +81,9 @@ again for a session that is already up replaces it. Other options:
   joined to it (see Wi-Fi).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
+- `--console` attaches your terminal to the console with all of the
+  boot, from the first line the SPL prints; for a stock image, which
+  qemu-dev cannot log into, this is how to watch it.
 - Anything after `--` goes to QEMU as it is.
 
 A SPI NAND image (its boot header says so) boots with a 128 MiB

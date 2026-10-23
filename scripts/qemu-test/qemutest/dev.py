@@ -1110,6 +1110,8 @@ def cmd_images(args):
 
 
 def cmd_up(args, extra):
+    if args.console:
+        args.no_wait = True
     if args.no_wait and args.uboot:
         die("--uboot needs to watch the boot, so it cannot be --no-wait")
     image = resolve_image(args.target)
@@ -1297,6 +1299,9 @@ def cmd_up(args, extra):
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
     print(describe(s, args.json))
+    if args.console:
+        args.name, args.all = name, True
+        return cmd_console(args)
     return 0
 
 
@@ -1794,8 +1799,16 @@ def cmd_console(args):
     if not sys.stdin.isatty():
         die(f"console needs a terminal; without one, `{PROG} sh`, "
             f"`send` and `uboot` do the same")
+    start = os.path.getsize(s.log) if args.all else 0
     with s.console(5) as con:
         print(f"{s.name}: attached, Ctrl-] detaches", file=sys.stderr)
+        skip = 0
+        if args.all:
+            # What the log gained while attaching also comes down the
+            # console: print the log, then drop that much of the stream
+            done = s.log_bytes(0)
+            os.write(1, done)
+            skip = max(len(done) - start, 0)
         saved = termios.tcgetattr(0)
         tty.setraw(0)
         try:
@@ -1814,6 +1827,7 @@ def cmd_console(args):
                         break
                     if not data:
                         break
+                    data, skip = data[skip:], max(skip - len(data), 0)
                     os.write(1, data)
         finally:
             termios.tcsetattr(0, termios.TCSADRAIN, saved)
@@ -1888,6 +1902,9 @@ def main(argv=None):
                     help="stop at the U-Boot prompt")
     sp.add_argument("--no-wait", action="store_true",
                     help="return once QEMU runs; `wait` logs in later")
+    sp.add_argument("--console", action="store_true",
+                    help="attach this terminal to the console from power-on "
+                    "(implies --no-wait)")
     sp.add_argument("--keep", action="store_true",
                     help="boot the session's flash as the last run left it "
                          "instead of a fresh copy of the image")
@@ -2017,6 +2034,8 @@ def main(argv=None):
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp = add("console", "attach this terminal to the console")
     sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--all", action="store_true",
+                    help="print everything since power-on first")
     sp = add("info", "show a session")
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp.add_argument("--json", action="store_true")
