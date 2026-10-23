@@ -1,10 +1,6 @@
-// timps-auth-gate.js - pre-paint session gate.
 (function () {
   "use strict";
 
-  /* Pages main.js does not gate either: the login form, the 401 page, the
-   * reboot splash, the Google Photos OAuth landing, and the empty
-   * meta-refresh stub at /. */
   var SKIP = {
     "/": 1,
     "/index.html": 1,
@@ -16,10 +12,10 @@
 
   if (SKIP[window.location.pathname]) return;
   if (window.__timpsAuthGate) return;
-  if (typeof window.fetch !== "function") return; /* nothing to gate with */
+  if (typeof window.fetch !== "function") return;
   window.__timpsAuthGate = true;
 
-  var REVEAL_MS = 1500; /* same-origin CGI measures ~30 ms on a LAN */
+  var REVEAL_MS = 1500;
   var root = document.documentElement;
   var prev = root.style.visibility;
   var settled = false;
@@ -36,8 +32,7 @@
     if (settled) return;
     settled = true;
     if (timer) clearTimeout(timer);
-    /* replace(), not href=: this fires before paint, so a history entry for
-     * a never-shown page would make Back bounce straight forward again. */
+    /* replace(): a history entry for a never-shown page breaks Back */
     window.location.replace("/login.html");
   }
 
@@ -50,7 +45,7 @@
 
     fetch("/x/session-status.cgi", {
       cache: "no-store",
-      credentials: "same-origin", /* HttpOnly session cookie rides along */
+      credentials: "same-origin",
       signal: ctl ? ctl.signal : undefined,
     })
       .then(function (res) {
@@ -58,7 +53,7 @@
           toLogin();
           return null;
         }
-        if (!res.ok) return null; /* 5xx etc - fail open */
+        if (!res.ok) return null;
         return res.json();
       })
       .then(function (data) {

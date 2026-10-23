@@ -10,3 +10,14 @@ config BR2_PACKAGE_THINGINO_IMP_TEST
 	    (no OSD/RTSP), with a caller-stack canary and a SIGSEGV handler
 	    that prints pc/ra/sp/gp. Takes an optional PollingStream timeout
 	    argument (0 = non-blocking).
+
+	  Also installs imp-test-expr: a libimp AE/exposure probe
+	  (dlsym-based, no IMP link-time dependency). Reports which AE
+	  APIs the running libimp exports, reads the current exposure
+	  state via GetExpr, and can pin the AE integration time with
+	  IMP_ISP_Tuning_SetExpr(MANUAL) (--manual-us/--manual-lines) or
+	  cap it with SetAe_IT_MAX (--cap-us/--cap-lines). --watch N
+	  samples whether the pinned exposure survives AE re-seizure.
+	  Generation note: SetExpr exists on T10/T20/T21/T23/T30/T31-class
+	  libs; T32/T40/T41-class libs use SetAeExprInfo instead (the
+	  probe reports which is present).

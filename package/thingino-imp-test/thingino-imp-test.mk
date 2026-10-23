@@ -51,6 +51,9 @@ define THINGINO_IMP_TEST_BUILD_CMDS
 		-limp -lalog \
 		-Wl,--no-as-needed $(THINGINO_IMP_TEST_SHIM) -Wl,--as-needed \
 		-lrt -lpthread -lm -ldl
+	$(TARGET_CC) $(TARGET_CFLAGS) -Wall -Wextra -o $(@D)/imp-test-expr \
+		$(@D)/imp-test-expr.c \
+		$(TARGET_LDFLAGS) -ldl
 	if [ "$(THINGINO_IMP_TEST_BUILD_FAAC)" = "yes" ]; then \
 		$(TARGET_CC) $(TARGET_CFLAGS) -Wall -Wextra \
 			-I$(STAGING_DIR)/usr/include \
@@ -67,6 +70,8 @@ define THINGINO_IMP_TEST_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/imp-test-audio
 	$(INSTALL) -D -m 0755 $(@D)/imp-test-video \
 		$(TARGET_DIR)/usr/bin/imp-test-video
+	$(INSTALL) -D -m 0755 $(@D)/imp-test-expr \
+		$(TARGET_DIR)/usr/bin/imp-test-expr
 	if [ -f $(@D)/imp-test-faac ]; then \
 		$(INSTALL) -D -m 0755 $(@D)/imp-test-faac \
 			$(TARGET_DIR)/usr/bin/imp-test-faac; \
