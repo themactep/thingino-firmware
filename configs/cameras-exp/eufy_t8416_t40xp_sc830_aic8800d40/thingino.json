@@ -4,6 +4,8 @@
     "ir850": 38,
     "ircut": "43 45",
     "ircut_2": "41 42",
+    "led_b": 46,
+    "led_r": 65,
     "mmc_cd": 112,
     "mmc_power": 47,
     "speaker": 63,
