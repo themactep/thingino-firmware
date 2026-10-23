@@ -9,12 +9,13 @@
     "enable_doorbell": false,
     "enable_firmware_timestamp": true,
     "enable_firmware_version": true,
+    "enable_floodlight": false,
     "enable_gain": false,
     "enable_ir850": true,
     "enable_ir940": true,
     "enable_ircut": true,
     "enable_lamp_socket": true,
-    "enable_live_view": true,
+    "enable_live_view": false,
     "enable_motion": true,
     "enable_motion_guard": true,
     "enable_ota": false,
@@ -35,7 +36,7 @@
       "username": ""
     },
     "ota_check_interval": 21600,
-    "state_interval": 15,
+    "state_interval": 30,
     "camera_interval": 60
   }
 }
