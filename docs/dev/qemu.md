@@ -49,9 +49,10 @@ lists every option.
 
 `up` takes a camera name, meaning its newest build under the output root
 (`THINGINO_OUTPUT_ROOT_DIR` and `THINGINO_OUTPUT_DIR` are honoured, as they
-are by make), or the path to any image, release images included. The SoC
-comes from the build's `.config`, or else from the SoC in the camera name;
-`--soc` overrides both. The QEMU machine and SoC variant follow from it.
+are by make), or the path to any image: a release image, or a stock
+firmware dump of 16, 32 or 64 MiB of NOR. The SoC comes from the build's
+`.config`, or else from the SoC in the camera name; `--soc` overrides both,
+and names it for a dump. The QEMU machine and SoC variant follow from it.
 
 QEMU is always the release `package/qemu-ingenic` pins. If the image's
 build tree was built with that pin, its QEMU is used; otherwise the
@@ -71,9 +72,9 @@ again for a session that is already up replaces it. Other options:
   U-Boot sees the card too: the pin is `gpio.mmc_cd` in the camera's
   thingino.json, or for a stock image MSC0's in its kernel's device tree
   (the 4.4 kernels have one). `--sd-cd PB26` names it when neither says,
-  `--sd-cd none` leaves it. This needs a qemu-ingenic newer than
-  ingenic-0.6.16; with that one, insert the card with `gpio` once Linux
-  is up.
+  `--sd-cd none` leaves it. The pinned QEMU does this from
+  ingenic-0.6.17 on; with an older one, insert the card with `gpio` once
+  Linux is up.
 - `--wifi SSID:PASS` gives the camera its Wi-Fi chip and an access point to
   join (see Wi-Fi).
 - `--portal` leaves the camera in its setup portal, with an emulated phone

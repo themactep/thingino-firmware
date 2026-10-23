@@ -1219,8 +1219,9 @@ def cmd_up(args, extra):
         elif cd:
             name = f"P{chr(ord('A') + cd[0])}{cd[1]}"
             print(f"{qemu} cannot hold the card-detect pin {name} low from "
-                  f"the start, so U-Boot will not see the card; `{PROG} "
-                  f"gpio {name}=0` inserts it for Linux", file=sys.stderr)
+                  f"the start (ingenic-0.6.17 can), so U-Boot will not see "
+                  f"the card; `{PROG} gpio {name}=0` inserts it for Linux",
+                  file=sys.stderr)
     argv += extra
 
     with open(s.path("qemu.log"), "wb") as log:
