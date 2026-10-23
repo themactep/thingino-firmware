@@ -67,6 +67,13 @@ again for a session that is already up replaces it. Other options:
 - `--keep` boots the flash as the last session left it, to test what
   survives a power cycle.
 - `--sd card.img` puts an SD card in MSC0; that file is written in place.
+  The slot's card-detect switch holds its pin low from power-on, so
+  U-Boot sees the card too: the pin is `gpio.mmc_cd` in the camera's
+  thingino.json, or for a stock image MSC0's in its kernel's device tree
+  (the 4.4 kernels have one). `--sd-cd PB26` names it when neither says,
+  `--sd-cd none` leaves it. This needs a qemu-ingenic newer than
+  ingenic-0.6.16; with that one, insert the card with `gpio` once Linux
+  is up.
 - `--wifi SSID:PASS` gives the camera its Wi-Fi chip and an access point to
   join (see Wi-Fi).
 - `--portal` leaves the camera in its setup portal, with an emulated phone
@@ -358,7 +365,7 @@ a session's console and another waits its turn; SSH copies run alongside.
 - The `qemu_*` profiles in `configs/cameras-testing/` are built for QEMU.
   Real camera images boot as well, and stream with their sensor (see
   Video), but only the radios under Wi-Fi are emulated, and board
-  details such as an SD card-detect pin may not match.
+  details may not match.
 - The emulated phone of `--portal` joins open portals only.
 - The guest runs under TCG: its timing is not the hardware's.
 - The emulated NAND never wears: no bitflips, no bad blocks, and its
