@@ -1106,12 +1106,12 @@ def cmd_up(args, extra):
         wifi = {"model": wifi_model(image, cfg, args.wifi_chip),
                 "ssid": ssid or None, "portal": args.portal}
         if wifi["model"] not in qemu_devices(qemu):
-            die(f"{qemu} has no {wifi['model']} model; pass --qemu with a "
-                f"newer build of the fork")
+            die(f"{qemu} has no {wifi['model']} model; pass --qemu with "
+                f"ingenic-0.6.16 or a newer build of the fork")
         if args.portal and \
                 "client-netdev" not in qemu_device_props(qemu, wifi["model"]):
-            die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu with "
-                f"a newer build of the fork")
+            die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu "
+                f"with ingenic-0.6.16 or a newer build of the fork")
 
     s = Session(name)
     old_ports = {}

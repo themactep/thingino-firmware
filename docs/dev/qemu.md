@@ -119,8 +119,9 @@ SSV6155P on USB (cameras named ssv6155 and ssv6155p, and the SSV6256P
 ones, whose driver is the same), SSV6355 on USB (ssv6355) and SSV6158 on
 SDIO (ssv6158), and AICSemi's AIC8800D80 on USB (the aic8800 package's
 AIC8800D80 USB model, and cameras named aic8800u; an AIC8800D40, which its
-driver takes for one, too); `up` stops with a message when the QEMU it
-uses has no model for the chip, and `--qemu` picks one that has.
+driver takes for one, too). The pinned QEMU has them all from
+ingenic-0.6.16 on; `up` stops with a message when the QEMU it uses has
+no model for the chip, and `--qemu` picks one that has.
 atbm6132cu-6162 is the 6132CU part paired with Bluetooth, on USB id
 0x6162: a build with `BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a
 release image of such a camera only with `--wifi-chip`, though its
@@ -279,11 +280,14 @@ The test profiles' sensors:
 | `qemu_t41nq` | `model=gc4023,bus=i2c0` |
 
 A real camera's image takes the sensor its defconfig names
-(`BR2_SENSOR_1_NAME`), if the fork has that model; the fork's
-`contrib/ingenic/README.md` lists them, with the sensor's options. Give
-it the sensor even when video is not the point: without one, the vendor
-ISP driver can oops as the streamer starts and hold up the boot. The
-sensor sees colour bars that a white stripe crosses every two seconds.
+(`BR2_SENSOR_1_NAME`). From QEMU ingenic-0.6.16 the fork has a model for
+the sensor of every one-sensor camera, at the I2C address its driver
+probes, and its `contrib/ingenic/README.md` lists them with the sensor's
+options; the imx327 of the T23, T30 and T31 drivers answers at 0x36, so
+give it `address=0x36`. Give it the sensor even when video is not the
+point: without one, the vendor ISP driver can oops as the streamer
+starts and hold up the boot. The sensor sees colour bars that a white
+stripe crosses every two seconds.
 
 A recording and a snapshot can be fetched from any image, wired or not.
 `ringdump main -i` asks for a key frame and the recording starts with
