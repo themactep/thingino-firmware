@@ -237,12 +237,15 @@ case "$target" in
 	speaker)
 		webui_log "send.cgi: target=speaker, verbose_flag='$verbose_flag'"
 		if [ -n "$verbose_flag" ]; then
-			webui_log "Running: playonspeaker $verbose_flag"
-			run_verbose playonspeaker $verbose_flag
+			webui_log "Running: playonspeaker chime_1"
+			run_verbose playonspeaker chime_1
 		else
-			webui_log "Running: playonspeaker"
-			playonspeaker >/dev/null &
-			json_ok "Speaker test sent"
+			webui_log "Running: playonspeaker chime_1"
+			if playonspeaker chime_1 >/dev/null 2>&1; then
+				json_ok "Speaker test played"
+			else
+				json_error "Speaker test failed"
+			fi
 		fi
 		;;
 	termbin)

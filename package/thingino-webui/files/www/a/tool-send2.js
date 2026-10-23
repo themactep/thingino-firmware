@@ -22,6 +22,9 @@
   const motionSensitivityValue = $("#motion_sensitivity_value");
   const motionCooldownInput = $("#motion_cooldown");
   const motionCooldownValue = $("#motion_cooldown_value");
+  const motionVideoLengthInput = $("#motion_video_length");
+  const motionPostTimeInput = $("#motion_post_time");
+  const motionMinTimeInput = $("#motion_min_time");
   const saveAllButton = $("#save_all");
 
   // Speaker elements
@@ -31,7 +34,6 @@
   const speakerGainInput = $("#speaker_gain");
   const speakerGainValue = $("#speaker_gain_value");
   const speakerLoopInput = $("#speaker_loop");
-  const testSpeakerButton = $("#test_speaker");
 
   // Update slider value displays
   if (motionSensitivityInput) {
@@ -120,6 +122,15 @@
           if (motionCooldownValue)
             motionCooldownValue.textContent = motionCooldownInput.value;
         }
+        if (motionVideoLengthInput)
+          motionVideoLengthInput.value =
+            data.motion.video_length != null ? data.motion.video_length : 10;
+        if (motionPostTimeInput)
+          motionPostTimeInput.value =
+            data.motion.post_time != null ? data.motion.post_time : 0;
+        if (motionMinTimeInput)
+          motionMinTimeInput.value =
+            data.motion.min_time != null ? data.motion.min_time : 1;
 
         // Update motion service checkboxes
         const services = [
@@ -237,6 +248,13 @@
           cooldown_time: motionCooldownInput
             ? Number(motionCooldownInput.value)
             : 15,
+          video_length: motionVideoLengthInput
+            ? Number(motionVideoLengthInput.value)
+            : 10,
+          post_time: motionPostTimeInput
+            ? Number(motionPostTimeInput.value)
+            : 0,
+          min_time: motionMinTimeInput ? Number(motionMinTimeInput.value) : 1,
         },
         speaker: {
           file: speakerFileInput ? speakerFileInput.value : "",
@@ -268,31 +286,6 @@
       hideBusy();
       saveAllButton.disabled = false;
     }
-  }
-
-  function testSpeaker() {
-    if (!testSpeakerButton) return;
-    testSpeakerButton.disabled = true;
-
-    const params = new URLSearchParams({ to: "speaker" });
-    fetch(`/x/send.cgi?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          showAlert(
-            "danger",
-            `Speaker test failed: ${data.error.message || data.error}`,
-          );
-        } else {
-          showAlert("success", "Speaker test played.", 3000);
-        }
-      })
-      .catch((err) => {
-        showAlert("danger", `Speaker test failed: ${err}`);
-      })
-      .finally(() => {
-        testSpeakerButton.disabled = false;
-      });
   }
 
   // Handle motion service toggles
@@ -376,10 +369,6 @@
 
   if (saveAllButton) {
     saveAllButton.addEventListener("click", saveAllSettings);
-  }
-
-  if (testSpeakerButton) {
-    testSpeakerButton.addEventListener("click", testSpeaker);
   }
 
   loadConfig();

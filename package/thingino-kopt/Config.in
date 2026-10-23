@@ -106,14 +106,6 @@ config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	help
 	  Enables Kernel Options for Development/Debugging (Valgrind, GDB, ltrace, etc)
 
-config BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG
-	bool "SLUB allocator debugging"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable SLUB allocator debugging (redzones, poisoning, use-after-free
-	  detection). Boots with slub_debug on by default to catch heap
-	  corruption at the point of the bad write/free.
-
 config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	bool "USB Gadget Serial"
 	depends on BR2_PACKAGE_THINGINO_KOPT
@@ -253,7 +245,7 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT
 	bool "MMC1 PC 4-Bit"
-	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21"
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t32"
 	help
 	  Enables 4-bit support for MMC1 on GPIO PC.
 
@@ -316,6 +308,15 @@ config BR2_PACKAGE_THINGINO_KOPT_UART_UART2
 	help
 	  Enables UART2 on the SoC
 
+config BR2_PACKAGE_THINGINO_KOPT_SLIP
+	bool "SLIP over a serial port"
+	depends on BR2_PACKAGE_THINGINO_KOPT_UART
+	help
+	  IP over a UART (kernel SLIP line discipline plus busybox slattach).
+	  Lets a host reach the camera over a serial line with no wired MAC,
+	  which is how the QEMU test profiles get host access while booting
+	  exactly like a WiFi-only camera.
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	bool "USB Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
@@ -329,14 +330,26 @@ choice
 	default BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
-	bool "Full USB support with OTG"
+	bool "USB host + networking (plug devices into the camera)"
 	select BR2_PACKAGE_USBNET
 	select BR2_PACKAGE_USBNET_CDC_ETHER
 	select BR2_PACKAGE_USBNET_CDC_NCM
 	select BR2_PACKAGE_USBNET_ASIX
 	help
-	  Enable the DWC2 USB driver with OTG support.
-	  Recommended for devices that have USB data ports.
+	  Host mode: attach a USB device to the camera (e.g. via an OTG
+	  adapter) - USB-Ethernet, storage, etc. Enables the usbnet drivers.
+	  No gadget/dual-role stack. The common "USB data port" case.
+
+config BR2_PACKAGE_THINGINO_KOPT_DWC2_DUAL_ROLE
+	bool "USB dual-role / device (webcam, usb-direct)"
+	select BR2_PACKAGE_USBNET
+	select BR2_PACKAGE_USBNET_CDC_ETHER
+	select BR2_PACKAGE_USBNET_CDC_NCM
+	select BR2_PACKAGE_USBNET_ASIX
+	help
+	  Dual-role + USB gadget stack, for cameras that themselves act as a
+	  USB device - UVC webcam or usb-direct network (NCM). Only needed
+	  when the camera plugs INTO a host.
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "USB Wi-Fi Module Only"
@@ -360,11 +373,58 @@ config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
 	help
 	  Enables I2C1 on the SoC
 
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
+
+choice
+	prompt "I2C1 Pin Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PA16_PA17 if BR2_SOC_FAMILY = "t23"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PB25_PB26
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PB25_PB26
+	bool "I2C1 on PB25/PB26"
+	help
+	  Routes I2C1 to GPIO PB25 and PB26.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1_PA16_PA17
+	bool "I2C1 on PA16/PA17"
+	depends on BR2_SOC_FAMILY = "t23"
+	help
+	  Routes I2C1 to GPIO PA16 and PA17. T23 only.
+
+	  PA16/PA17 are shared with MMC1 on port A and with the DVP
+	  sensor bus, so this cannot be combined with either.
+
+endchoice
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
 	bool "I2C2"
 	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
 	help
 	  Enables I2C2 on the SoC
+
+if BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2 && BR2_SOC_FAMILY = "t23"
+
+choice
+	prompt "I2C2 Pin Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB20_PB21
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB20_PB21
+	bool "I2C2 on PB20/PB21"
+	help
+	  Routes I2C2 to GPIO PB20 and PB21.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2_PB27_PB28
+	bool "I2C2 on PB27/PB28"
+	help
+	  Routes I2C2 to GPIO PB27 and PB28.
+
+	  PB27 is shared with the OTG DRVVBUS pin.
+
+endchoice
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE
 	bool "USB Storage"
@@ -383,5 +443,13 @@ config BR2_PACKAGE_THINGINO_KOPT_DMIC
 	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
 	help
 	  Enables I2S DMIC (Digital Microphone) support.
+
+config BR2_PACKAGE_THINGINO_KOPT_SLUB_DEBUG
+	bool "SLUB allocator debugging"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable SLUB allocator debugging (redzones, poisoning, use-after-free
+	  detection). Boots with slub_debug on by default to catch heap
+	  corruption at the point of the bad write/free.
 
 endmenu

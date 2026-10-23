@@ -144,7 +144,6 @@
                   <small class="text-secondary">The camera stores one calendar, not a choice between two, so picking one clears the other one's values on save. With &ldquo;Light level&rdquo; timps 1.10.1 and later ignore the calendar (1.10.0 used it to time the forced checks).</small>
                 </p>
 
-                <!-- Fixed time window (calendar=time) -->
                 <div id="daynight_time_fields" hidden>
                   <p>
                     <label for="daynight_time_night_start">Switch to night at</label>
@@ -157,7 +156,6 @@
                   <small class="text-secondary">Local camera clock. The night window may wrap past midnight (e.g. night 20:00, day 06:30).</small>
                 </div>
 
-                <!-- Sunrise / sunset (calendar=sun) -->
                 <div id="daynight_sun_fields" hidden>
                   <div class="row g-2">
                     <p class="col">
@@ -233,6 +231,16 @@
                   </span>
                 </p>
                 <small class="text-secondary d-block mb-3">How far the IR-lit night level must drop below its value at the last look (for 20 s) to count as new light and start a look. Lower reacts to weaker lamps but looks more often. Otherwise the camera looks every 45 min.</small>
+                </div>
+                <div id="dn-color-row" hidden>
+                <p class="number-range mb-1">
+                  <label for="daynight_color_pct">Look at once on a colour change (%)</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_color_pct" name="daynight_color_pct" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="50" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <small class="text-secondary d-block mb-3" id="dn-color-help">A weak lamp barely brightens the IR-lit picture but changes its colour. When the colour moves this much from the last look (for 20 s), the camera looks at once; at most every 5 min, less often while it finds nothing. 0 = off.</small>
                 </div>
                 <small class="text-secondary d-block mb-2" id="dn-live">Live: -</small>
                 <div class="d-flex flex-wrap gap-2 align-items-center">

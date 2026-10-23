@@ -209,4 +209,76 @@ UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_DISABLE_AUDIO
 endif
 endif
 
+# The SD bus width this board wires, taken from the same symbol the kernel
+# reads (thingino-kopt turns it into CONFIG_JZMMC_V12_MMC0_1BIT) so the two
+# cannot be declared apart. Boards that route only CLK/CMD/DAT0 have to tell
+# U-Boot as well: 4-bit negotiation succeeds on them anyway and every data
+# block then reads back corrupt, with no CRC error to notice it by. Left empty
+# on a normal board, where the per-SoC .dts already says bus-width = <4>.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT),y)
+THINGINO_UBOOT_MMC_BUS_WIDTH = 1
+endif
+
+# Inject this board's MMC card-detect, slot-power and bus width into the
+# per-SoC U-Boot device tree (board-specific, so none of it can live in the
+# shared .dts). The helper appends a vmmc-supply regulator and, on
+# pull-up-capable SoCs, cd-gpios, to this board's build copy of the leaf .dts -
+# so the mmc core powers and detects the slot natively, with no env gpio gate or
+# power-up. Card-detect comes from the camera dtsi fragment (MMC_CD_PIN); the
+# helper reads thingino.json with python3 (already a U-Boot build dependency via
+# binman) for the rest.
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_MMC_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-mmc-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT" "$(THINGINO_UBOOT_MMC_BUS_WIDTH)"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_MMC_DT
+endif
+
+# Inject boot-window GPIO presets (gpio-hogs) into this board's U-Boot leaf
+# .dts from thingino.json, and enable CONFIG_GPIO_HOG so U-Boot drives them
+# right after DM init: PTZ stepper phases parked de-energised (the coils cook
+# otherwise), Wi-Fi module power/enable lines at their runtime resting level
+# (S36wireless only replays them on 3.10 kernels, late in boot; SDIO modules
+# must be powered for the kernel MMC scan), multi-pin gpio.mmc_power lists at
+# their power-on level (the single-pin form becomes a vmmc-supply regulator
+# in the MMC inject above instead), IR-cut filter coil pins at the
+# /usr/sbin/ircut idle level so the solenoid is not left floating or
+# energised, and the speaker amp enable line held muted. The helper
+# self-skips per domain from the json content, so no per-domain config gate
+# is needed.
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_GPIO_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-gpio-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+	$(call KCONFIG_ENABLE_OPT,CONFIG_GPIO_HOG,$(@D)/.config)
+	$(UBOOT_KCONFIG_MAKE) olddefconfig
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_GPIO_DT
+endif
+
+# Inject this board's speaker-amp enable line into the U-Boot leaf .dts from
+# gpio.speaker in thingino.json. The codec driver drives ingenic,spk-gpio
+# around PIO playback, and the per-SoC .dtsi can only carry the ISVP reference
+# default (PB31), so every board either overrides it or - having no amp gpio
+# at all - has the inherited default deleted.
+ifeq ($(BR2_THINGINO_AUDIO),y)
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_AUDIO_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-audio-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_AUDIO_DT
+endif
+endif
+
 endif

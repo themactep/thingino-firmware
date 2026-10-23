@@ -1,4 +1,3 @@
-// config-photosensing.js - timps day/night (photosensing) settings.
 (function () {
   "use strict";
 
@@ -8,7 +7,7 @@
     return;
   }
 
-  var LEGACY = "/x/timps-dn-controls.cgi"; // daynight.controls for /usr/sbin/daynight
+  var LEGACY = "/x/timps-dn-controls.cgi";
   var CONTROLS = ["color", "ircut", "ir850", "ir940", "white"];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -20,8 +19,6 @@
     if (typeof window.showAlert === "function") window.showAlert(type, msg, ms);
     else console.log("[photosensing]", type + ":", msg);
   }
-
-  /* ---- calendar UI: show only the selected calendar's sub-fields ------- */
 
   function calValue() {
     var el = $("daynight_calendar");
@@ -42,7 +39,6 @@
     if (sunF) sunF.hidden = (cal !== "sun");
   }
 
-  // every way this column can be saved into a no-op.
   function calendarProblem() {
     var cal = calValue();
     var mode = $("daynight_mode");
@@ -58,19 +54,14 @@
     return null;
   }
 
-  /* ---- timps part: enabled + gain thresholds + decision source -------- */
-
   var INT_FIELDS = [
     "total_gain_night_threshold", "total_gain_day_threshold",
-    "day_confirm_s", "jump_pct",
+    "day_confirm_s", "jump_pct", "color_pct",
     "heartbeat_s", "heartbeat_max_s", "interval_ms",
   ];
   var STR_FIELDS = ["time_night_start", "time_day_start"];
-  // INT_FIELDS this timps reports; only these are POSTed (jump_pct is 1.10.1+)
   var reported = {};
 
-  // 1.10.1 engine: night_baseline = IR-lit level at the last look,
-  // day_trigger = bar for the reading without IR
   function lookEngine(dn) { return !!dn && typeof dn.jump_pct === "number"; }
 
   function fillTimps(dn) {
@@ -99,6 +90,11 @@
     });
     var jr = $("dn-jump-row");
     if (jr) jr.hidden = !reported.jump_pct;
+    var cr = $("dn-color-row");
+    if (cr) cr.hidden = !reported.color_pct;
+    var ch = $("dn-color-help");
+    if (ch && dn.color_trigger === "unavailable")
+      ch.textContent = "This camera's ISP gives no colour statistics: the setting has no effect here.";
     ["sun_latitude", "sun_longitude",
      "sun_sunrise_offset_min", "sun_sunset_offset_min"].forEach(function (k) {
       var el = $("daynight_" + k);
@@ -111,7 +107,6 @@
       if (el) el.value = dn[k] || "";
     });
 
-    // read-only computed sunrise/sunset feedback for the sun mode
     var sr = $("daynight_sun_computed_sunrise");
     var ss = $("daynight_sun_computed_sunset");
     if (sr) sr.textContent = dn.sun_computed_sunrise || "--:--";
@@ -128,7 +123,6 @@
     var mode = $("daynight_mode");
     if (mode) out.mode = mode.value;
 
-    // an older timps would reject keys it does not know
     if (idleShown) {
       var io = $("daynight_ir_idle_off");
       if (io) out.ir_idle_off = io.checked ? 1 : 0;
@@ -152,7 +146,7 @@
     if (cal === "time") {
       STR_FIELDS.forEach(function (k) {
         var el = $("daynight_" + k);
-        out[k] = el ? el.value : "";         // "HH:MM"
+        out[k] = el ? el.value : "";
       });
       out.sun_latitude = 0;
       out.sun_longitude = 0;
@@ -165,17 +159,13 @@
     ["sun_sunrise_offset_min", "sun_sunset_offset_min"].forEach(function (k) {
       var el = $("daynight_" + k);
       if (!el || el.value === "") return;
-      var v = parseInt(el.value, 10);      // negatives allowed
+      var v = parseInt(el.value, 10);
       if (!isNaN(v)) out[k] = v;
     });
     return out;
   }
 
-  /* ---- Idle-Dark (daynight.ir_idle_off) card --------------------------- */
-
-  // Pure: null = card hidden. ageS = seconds since dn arrived (the linger
-  // countdown is only pushed on state changes). Tested by timps's
-  // scripts/test_webui_idle.js, which extracts this function by name.
+  // pure: timps scripts/test_webui_idle.js extracts it by name
   function idleView(dn, caps, ageS) {
     var ii = dn && dn.ir_idle;
     if (!ii || typeof ii !== "object") return null;
@@ -230,8 +220,6 @@
     if (v.countdown) idleTimer = setTimeout(drawIdle, 1000);
   }
 
-  /* ---- legacy part: controls only (board daynight script) ------------- */
-
   function fillLegacy(dn) {
     dn = dn || {};
     if (dn.controls) CONTROLS.forEach(function (c) {
@@ -269,8 +257,6 @@
     });
   }
 
-  /* ---- load / save ----------------------------------------------------- */
-
   function load() {
     if (reloadBtn) reloadBtn.disabled = true;
     var t = window.timpsApi.get().then(function (json) {
@@ -293,7 +279,6 @@
     if (problem) { toast("danger", problem, 6000); return; }
     if (saveBtn) saveBtn.disabled = true;
     window.timpsApi.set({ daynight: collectTimps() }).then(function (r) {
-      // controls stay on the board-script backend; best-effort
       return saveLegacy().catch(function (e) {
         toast("warning", "Photosensing saved to timps.conf, but controls not saved (" +
           (e.message || e) + ").", 6000);
@@ -324,8 +309,6 @@
     });
   }
 
-  /* ---- live sync: another open tab/client changing a timps field ------- */
-
   var TIMPS_REVERSE = {
     "daynight.night_gain": "daynight_total_gain_night_threshold",
     "daynight.day_gain": "daynight_total_gain_day_threshold",
@@ -334,8 +317,6 @@
   var CAL_KEYS = ["daynight.time_night_start", "daynight.time_day_start",
                   "daynight.sun_latitude", "daynight.sun_longitude"];
 
-  // the section guard matters: without it a key like "record.enabled" would
-  // fall back onto "daynight_enabled"
   function fieldId(key) {
     if (key.indexOf("daynight.") !== 0) return null;
     return TIMPS_REVERSE[key] || "daynight_" + key.slice(9);
@@ -350,10 +331,8 @@
     } else if (id.indexOf("threshold") !== -1) {
       el.value = Math.round(Number(value));
     } else {
-      el.value = value;   // mode, times ("HH:MM"), lat/long, offsets, s/ms ints
+      el.value = value;
     }
-    // a remote change to any of the four calendar values can change which
-    // calendar timps will actually use, so re-derive the selector with them
     if (CAL_KEYS.indexOf(key) !== -1) {
       var cal = $("daynight_calendar");
       if (cal && document.activeElement !== cal) {
@@ -366,13 +345,9 @@
     }
   }
 
-  /* ---- "Now" box: mode, gain against both limits, what comes next ------ */
-
   var now = {};
   function drawNow() {
     var d = now, night = Number(d.mode) === 1;
-    // the decision runs on the exposure index (= gain in the dark); older
-    // timps only send total_gain
     var g = Number(d.exposure) >= 0 ? Number(d.exposure) : Number(d.total_gain);
     var lo = Number(d.day_gain), hi = Number(d.night_gain);
     $("dn-icon").className = night ? "bi bi-moon-stars" : "bi bi-sun";
@@ -385,7 +360,6 @@
     mk.style.opacity = "";
     var ns = night ? nightScale(d) : null;
     if (ns) {
-      // the IR-lit exposure is not comparable with the day thresholds
       var bar = ns.bar, ref = ns.ref;
       var span = Math.max(bar > 0 ? bar * 2 : 0, ref > 0 ? ref * 1.3 : 0,
                           ref > 0 ? Math.min(g * 1.05 || 0, ref * 2.5) : g * 1.05 || 0, 1),
@@ -396,7 +370,6 @@
           '<span class="lb" style="left:' + p(bar / 2) + ';color:#f0c040">' + ns.barName + '</span>' +
           '<span class="lb" style="left:' + p((bar + span) / 2) + ';color:#7b9cff">Night</span>' +
           '<span class="tk" style="left:' + p(bar) + '">' + Math.round(bar) + "</span>" +
-          // the two ticks overlap when the bar sits close to the reference
           (ref > 0 && (ref - bar) / span > 0.25 ? '<span class="tk" style="left:' + p(ref) + '">' + ns.refName + " " + Math.round(ref) + "</span>" : ""));
       } else {
         sc.style.background = "#3a5fcd";
@@ -424,10 +397,6 @@
     drawLive();
   }
 
-  // Night scale: what the night exposure is compared with.
-  // 1.10.1: lit level vs the jump bar (night_baseline × (1 - jump_pct)); while
-  // idle-dark the reading is without IR, so it is compared with day_trigger.
-  // 1.10.0: lit level vs day_trigger (probe bar from the night reference).
   function nightScale(d) {
     var A = Number(d.night_baseline), T = Number(d.day_trigger);
     var tTxt = T > 0 ? "; day if the look reads <b>&lt; " + Math.round(T) + "</b>" : "";
@@ -439,7 +408,6 @@
       return { bar: T, ref: -1, barName: "day check", pending: "idle, IR off",
                next: T > 0 ? "day check when exposure <b>&lt; " + Math.round(T) + "</b> for 30 s" : "reading the scene without IR",
                markTitle: "exposure without the IR light (idle-dark)" };
-    // only known while ir_idle_off is on; such cameras check instead of looking
     if (d.ir_idle && d.ir_idle.reason === "no_illuminator") {
       var H = A > 0 ? A * 0.5 : -1;
       return { bar: H, ref: A, barName: "day check", refName: "ref", pending: "level pending",
@@ -456,7 +424,6 @@
              markTitle: "night-pipeline exposure, lit by the camera's own IR: not comparable with the day thresholds" };
   }
 
-  // the numbers behind the night scale, as text (Settings tab)
   function drawLive() {
     var el = $("dn-live");
     if (!el) return;
@@ -465,7 +432,8 @@
     var night = Number(d.mode) === 1;
     if (lookEngine(d))
       el.textContent = night
-        ? "Live: IR-lit level at the last look " + n(A) + ", day check if the reading without IR is below " + n(T) + "."
+        ? "Live: IR-lit level at the last look " + n(A) + ", day check if the reading without IR is below " + n(T) + "." +
+          (Number(d.color_dev_pct) >= 0 ? " Colour change since the look " + Number(d.color_dev_pct).toFixed(1) + " %." : "")
         : "Live: looks run at night only.";
     else
       el.textContent = "Live: night reference " + (night ? n(A) : "-") + ", probe below " + (night ? n(T) : "-") + ".";
@@ -478,7 +446,6 @@
     }
   }
 
-  // {"daynight":{"probe":1}}: refused (409) without a switchable IR light
   var lookBusy = false;
   function lookNow() {
     var res = $("dn-look-res");
@@ -505,7 +472,6 @@
     drawIdle();
   }
 
-  // hour/minute reading next to the second-valued fields
   function durHints() {
     ["heartbeat_s", "heartbeat_max_s", "ir_idle_linger_s"].forEach(function (k) {
       var el = $("daynight_" + k), lab = el && document.querySelector('label[for="daynight_' + k + '"]');
@@ -523,7 +489,6 @@
     if (data.resync) { load(); return; }
     var id = fieldId(data.key);
     var el = id ? $(id) : null;
-    // don't fight the user mid-edit on this same field
     if (!el || document.activeElement === el) return;
     applyTimpsKV(data.key, data.value);
   }

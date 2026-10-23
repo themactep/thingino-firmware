@@ -1,0 +1,23 @@
+// Jooan F2T (T31X, GC4653, SSV6265P, ETH) per-board GPIO definitions.
+// Injected into the kernel 4.4+ device tree; ignored on 3.10.
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/ingenic-pinctrl.h>
+
+/ {
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_b {
+			label = "led_b";
+			gpios = <&gpb 17 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+
+		led_r {
+			label = "led_r";
+			gpios = <&gpc 26 GPIO_ACTIVE_LOW INGENIC_GPIO_NOBIAS>;
+			default-state = "off";
+		};
+	};
+};

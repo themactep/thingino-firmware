@@ -16,13 +16,6 @@
   <style>
     /* Preview canvas never grows past the ch1 substream width, so it is
        shown at native size instead of upscaled. */
-    /* Cameras without pan/tilt hardware still show the controls, greyed out,
-       so the layout is the same and the reason is visible above them. */
-    #ptz-controls.is-disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
     #ptz-preview-frame {
       max-width: 960px;
     }
@@ -142,7 +135,7 @@
 <nav data-app-nav></nav>
 
 <main class="pb-4">
-  <div class="container" style="min-height:80vh; max-width:1440px">
+  <div class="container" style="min-height:80vh">
     <div data-app-controls></div>
 
     <div class="row g-4">
@@ -155,6 +148,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
               <div class="preview-header-actions d-flex flex-wrap gap-2"></div>
+              <span id="fmp4-format" class="badge text-bg-secondary" hidden></span>
               <div class="btn-group btn-group-sm" role="group" aria-label="Stream channel">
                 <button type="button" class="btn btn-outline-secondary" id="fmp4-ch0">Main</button>
                 <button type="button" class="btn btn-outline-secondary active" id="fmp4-ch1">Sub</button>
@@ -186,7 +180,7 @@
               No pan/tilt hardware reported by the streamer.
             </div>
 
-            <div id="ptz-controls">
+            <div id="ptz-controls" hidden>
               <div class="text-muted small text-uppercase mb-2">Pan/Tilt</div>
               <div class="text-muted small mb-2">
                 Hold to move, release to stop. Shift-click for one fine step.
@@ -233,6 +227,21 @@
         </div>
       </div>
     </div>
+
+    <div class="row mt-4">
+      <div class="col-12">
+        <div class="preview-endpoints text-center" id="preview-endpoints">
+          <p class="x-small mb-0">Direct endpoints. Click a link to copy its URL to clipboard.</p>
+          <div class="dropdown d-lg-none mt-2" id="preview-endpoint-dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-link-45deg"></i> Endpoints
+            </button>
+            <ul class="dropdown-menu" id="preview-endpoint-dropdown-menu"></ul>
+          </div>
+          <div class="preview-endpoint-list m-3 d-none d-lg-inline-flex" id="preview-endpoint-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -240,9 +249,11 @@
   integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 <script src="/a/main.js"></script>
 <script src="/a/runtime-config.js"></script>
+<script src="/a/plugins.js"></script>
 <script src="/a/control-bar.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
+<script src="/a/preview-endpoints.js"></script>
 <script src="/a/preview-fmp4.js"></script>
 <script src="/a/sei-osd.js"></script>
 <script src="/a/preview-osd.js"></script>
@@ -715,6 +726,16 @@
       return !!(cfg.device && cfg.device.motors === true);
     }
 
+    // The PTZ settings modal (control mode, pan/tilt speed, preset editor) is
+    // a file owned by the thingino-motors plugin and only ships when that
+    // package is built. Load it on demand, keyed on the same flag, so cameras
+    // without motors do not 404 on it.
+    function loadMotorsSettings() {
+      var s = document.createElement("script");
+      s.src = "/a/preview-motors-settings.js";
+      document.head.appendChild(s);
+    }
+
     // Click the image to toggle fullscreen; the zoom trigger lives on the
     // picture itself instead of the card.
     function bindFullscreen() {
@@ -732,12 +753,15 @@
 
     function init() {
       bindFullscreen();
-      var controls = document.getElementById("ptz-controls");
       var unavailable = document.getElementById("ptz-unavailable");
       var flagged = hasMotors();
+      if (flagged) loadMotorsSettings();
 
       function enable(data) {
         if (data) params = data;
+        var controls = document.getElementById("ptz-controls");
+        if (controls) controls.hidden = false;
+        if (unavailable) unavailable.hidden = true;
         bindPad();
         bindButtons();
         bindKeyboard();
@@ -749,10 +773,7 @@
       function disable() {
         if (unavailable) unavailable.hidden = false;
         var controls = document.getElementById("ptz-controls");
-        if (!controls) return;
-        controls.classList.add("is-disabled");
-        var nodes = controls.querySelectorAll("button, input, select");
-        for (var i = 0; i < nodes.length; i++) nodes[i].disabled = true;
+        if (controls) controls.hidden = true;
       }
 
       // Prefer the live motor params as the source of truth, so the pad

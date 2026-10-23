@@ -55,6 +55,15 @@ wait_for_active_completion() {
 
 read_config
 
+# the action may lead or trail the options
+action="start"
+case "$1" in
+	start | stop)
+		action="$1"
+		shift
+		;;
+esac
+
 while getopts "c:m:n:s:t:x" flag; do
 	case "$flag" in
 		c) stream_number=$OPTARG ;;
@@ -71,7 +80,6 @@ while getopts "c:m:n:s:t:x" flag; do
 done
 shift "$((OPTIND - 1))"
 
-action="start"
 if [ -n "$1" ]; then
 	case "$1" in
 		start | stop)
