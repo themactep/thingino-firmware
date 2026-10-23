@@ -36,16 +36,19 @@
 };
 
 &i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&t20_i2c0_pins>;
+
 	sensor: camera@40 {
 		compatible = "jxf,jxf23";
 		reg = <0x40>;
 
-		reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpa 18 GPIO_ACTIVE_HIGH>;
 
 		clocks = <&cgu T31_CLK_CIM>;
 		clock-names = "xclk";
 		assigned-clocks = <&cgu T31_CLK_CIM>;
-		assigned-clock-rates = <27000000>;
+		assigned-clock-rates = <24000000>;
 
 		iovdd-supply = <&sensor_iovdd>;
 		avdd-supply = <&sensor_avdd>;
@@ -56,7 +59,7 @@
 
 		port {
 			sensor_ep: endpoint {
-				bus-type = <3>; /* V4L2_MBUS_PARALLEL */
+				bus-type = <5>; /* V4L2_MBUS_PARALLEL */
 				bus-width = <10>;
 				data-shift = <0>;
 				hsync-active = <0>;
@@ -68,6 +71,12 @@
 };
 
 &pinctrl {
+	t20_i2c0_pins: i2c0 {
+		function = "i2c0";
+		groups = "i2c0-data";
+		bias-pull-up;
+	};
+
 	cim_pins: cim {
 		function = "cim";
 		groups = "cim-data-10bit";

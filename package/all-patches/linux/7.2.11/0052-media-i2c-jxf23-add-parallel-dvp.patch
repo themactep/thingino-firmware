@@ -2,8 +2,9 @@ From: Paul Philippov <paul@themactep.com>
 Subject: [PATCH] media: i2c: jxf23: support the T20 10-bit parallel bus
 
 The T20 Wyze Cam 2 wires the JXF23 as a 10-bit DVP sensor on I2C0
-at 0x40 with PA18 as reset. Accept a parallel endpoint, use the
-BGGR10 media bus code for it, and keep the CSI-2 path for T31.
+at 0x40 with a 24 MHz cgu_cim clock. Accept a parallel endpoint,
+report the BGGR10 media bus code for it, and accept the 24 MHz
+clock window; the CSI-2 path used by T31 is unchanged.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -125,3 +126,23 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	if (ret)
  		return ret;
  
+@@ -780,7 +809,18 @@
+ 				     "failed to get xclk\n");
+ 
+ 	xclk_freq = clk_get_rate(jxf23->xclk);
+-	if (xclk_freq != JXF23_XCLK_FREQ)
++	/*
++	 * The T31 module runs from 27 MHz. The T20 Wyze Cam 2 runs the
++	 * sensor from the 24 MHz cgu_cim clock. Accept either window.
++	 */
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL) {
++		if (xclk_freq < 24000000UL * 95 / 100 ||
++		    xclk_freq > 24000000UL * 105 / 100)
++			return dev_err_probe(dev, -EINVAL,
++					     "xclk frequency %lu Hz not supported\n",
++					     xclk_freq);
++	} else if (xclk_freq < JXF23_XCLK_FREQ * 95UL / 100 ||
++		   xclk_freq > JXF23_XCLK_FREQ * 105UL / 100)
+ 		return dev_err_probe(dev, -EINVAL,
+ 				     "xclk frequency %lu Hz not supported\n",
+ 				     xclk_freq);
