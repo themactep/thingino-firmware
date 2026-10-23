@@ -74,6 +74,17 @@ endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
 
+# The pinned SDK's Kbuild still keys misc/motor off the exported
+# BR2_THINGINO_MOTORS (this repo's capability flag), not a menu symbol of
+# its own - upstream ingenic-sdk (10cbee9d) and thingino-firmware master
+# (87be0d0d2) already moved to an opt-in CONFIG_INGENIC_MOTOR switch, which
+# this mirrors ahead of the SDK bump that will require it. Command-line
+# make variables beat the exported environment through nested sub-makes
+# (verified), so this is authoritative over BR2_THINGINO_MOTORS regardless
+# of what a board's defconfig exports it as - see BR2_INGENIC_SDK_MOTOR's
+# help text for why this must NOT simply mirror BR2_THINGINO_MOTORS.
+INGENIC_SDK_MODULE_MAKE_OPTS += BR2_THINGINO_MOTORS=$(if $(BR2_INGENIC_SDK_MOTOR),y,n)
+
 # Per-camera IQ file overrides. A bare file name (no '/') is resolved against
 # the SDK's sensor-iq/<SOC_FAMILY>/ directory; anything else is a path relative
 # to the BR2_EXTERNAL root.
