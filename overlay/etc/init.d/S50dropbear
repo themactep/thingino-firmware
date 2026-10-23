@@ -27,10 +27,13 @@ stop_daemon() {
 start() {
 	log -c 15 "Starting dropbear sshd"
 
-	umask 077
-
+	# Keep the restrictive umask inside the key generation. Otherwise the
+	# daemon passes it to every SSH session.
 	if [ ! -f $DROPBEAR_KEY_FILE ]; then
-		dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
+		(
+			umask 077
+			dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
+		)
 	fi
 
 	# shellcheck disable=SC2086
