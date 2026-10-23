@@ -49,6 +49,7 @@ import tempfile
 import time
 
 from .config import REPO_ROOT, SCRIPT_DIR, SOC_MACHINES, SSH_OPTS
+from .fdt import msc0_card_detect
 from .qmp import Qmp
 from .serial import QemuSerial
 
@@ -297,6 +298,37 @@ def wifi_model(image, cfg, explicit):
         die("no Wi-Fi model for this image; pass --wifi-chip ("
             + ", ".join(sorted(set(WIFI_CHIPS.values()))) + ")")
     return hits[0]
+
+
+def card_detect(image, explicit):
+    """(port, pin) of the SD slot's card-detect switch, which holds the pin
+    low while a card is in: --sd-cd, else gpio.mmc_cd in the camera's
+    thingino.json (a bare number is active low, as U-Boot and S09mmc take
+    it), else MSC0's in the image's own device tree (stock 4.4 firmware).
+    None when there is none, or it reads high with a card in."""
+    if explicit:
+        return None if explicit == "none" else gpio_pin(explicit)
+    m = re.fullmatch(r"thingino-(.+)\.bin", os.path.basename(image))
+    found = glob.glob(os.path.join(REPO_ROOT, "configs", "cameras*",
+                                   m.group(1), "thingino.json")) if m else []
+    try:
+        with open(found[0]) as f:
+            cd = json.load(f).get("gpio", {}).get("mmc_cd")
+    except (IndexError, OSError, ValueError, AttributeError):
+        cd = None
+    if isinstance(cd, dict):
+        if cd.get("active_low") is False:
+            return None
+        cd = cd.get("pin")
+    if isinstance(cd, int) and not isinstance(cd, bool) and cd >= 0:
+        return cd // 32, cd % 32
+    tree = msc0_card_detect(image)
+    if tree:
+        return tree[:2] if tree[2] else None
+    if not found:
+        print(f"{PROG}: no card-detect pin known for this image; if the "
+              f"firmware waits for one, pass --sd-cd PIN", file=sys.stderr)
+    return None
 
 
 def find_qemu(image, explicit):
@@ -1179,6 +1211,16 @@ def cmd_up(args, extra):
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
+        cd = card_detect(image, args.sd_cd)
+        if cd and "in-pa" in qemu_device_props(qemu, "ingenic-gpio"):
+            port, pin = cd
+            argv += ["-global", f"ingenic-gpio.in-p{chr(ord('a') + port)}="
+                     f"{0xffffffff & ~(1 << pin):#x}"]
+        elif cd:
+            name = f"P{chr(ord('A') + cd[0])}{cd[1]}"
+            print(f"{qemu} cannot hold the card-detect pin {name} low from "
+                  f"the start, so U-Boot will not see the card; `{PROG} "
+                  f"gpio {name}=0` inserts it for Linux", file=sys.stderr)
     argv += extra
 
     with open(s.path("qemu.log"), "wb") as log:
@@ -1861,6 +1903,9 @@ def main(argv=None):
                     metavar="PORT", help="also forward this guest TCP port")
     sp.add_argument("--sd", metavar="IMAGE", help="an SD card in MSC0 "
                     "(the image is written in place)")
+    sp.add_argument("--sd-cd", metavar="PIN", help="the slot's card-detect "
+                    "pin, held low with --sd (PB26 or 58; default: gpio."
+                    "mmc_cd in the camera's thingino.json; none for no pin)")
     sp.add_argument("--wifi", metavar="SSID:PASS",
                     help="the camera's Wi-Fi chip, with a WPA2 access point "
                     "the camera is set up to join (a reboot the first time)")
