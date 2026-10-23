@@ -96,6 +96,49 @@ agent_daemon_status() {
 	raptorctl "$daemon" status 2>/dev/null || true
 }
 
+agent_exposure_status() {
+	command -v raptorctl >/dev/null 2>&1 || return 0
+	raptorctl rvd get-exposure 2>/dev/null || true
+}
+
+# log2 of a positive integer, in 1/256 steps
+agent_log2_q8() {
+	x=$1
+	n=0
+	while [ "$x" -ge 2 ]; do
+		x=$((x / 2))
+		n=$((n + 1))
+	done
+	m=$(($1 * 65536 >> n))
+	f=0
+	i=0
+	while [ "$i" -lt 8 ]; do
+		m=$((m * m / 65536))
+		if [ "$m" -ge 131072 ]; then
+			m=$((m / 2))
+			f=$((f * 2 + 1))
+		else
+			f=$((f * 2))
+		fi
+		i=$((i + 1))
+	done
+	printf '%s' $((n * 256 + f))
+}
+
+# Scene brightness in percent from exposure time x gain on a log scale:
+# 100 us at 1x is 100 %, 25 s at 1x (log2 = 6291/256) is 0 %.
+agent_exposure_brightness() {
+	us=$(agent_json_number_field exposure_us "$1")
+	gain=$(agent_json_number_field total_gain "$1")
+	[ -n "$us" ] && [ -n "$gain" ] || return 0
+	e=$((us * gain / 256))
+	[ "$e" -ge 1 ] || e=1
+	pct=$((((6291 - $(agent_log2_q8 "$e")) * 100 + 2295) / 4590))
+	[ "$pct" -ge 0 ] || pct=0
+	[ "$pct" -le 100 ] || pct=100
+	printf '%s' "$pct"
+}
+
 agent_streamer_running() {
 	pidof rvd >/dev/null 2>&1 && printf 'true' || printf 'false'
 }
@@ -1133,16 +1176,17 @@ agent_get_events() {
 			keepalive_counter=0
 		elif [ "$keepalive_counter" -ge 3 ]; then
 			agent_sse_emit keepalive "$(agent_sse_payload keepalive '')" || exit 0
-			# Sensor sample for timegraph / tooling (ric exposure metrics).
-			ric_status=$(agent_daemon_status ric)
-			ae_luma=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
-			ev=$(agent_json_number_field ev "$ric_status")
+			# Sensor sample for timegraph / tooling.
+			exposure_status=$(agent_exposure_status)
+			ae_luma=$(agent_json_number_field ae_luma "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
+			ev=$(agent_json_number_field ev "$exposure_status")
+			brightness=$(agent_exposure_brightness "$exposure_status")
 			daynight_mode=$(agent_daynight_running_mode)
 			sensor_fields=$(printf '"time_now":%s,"ae_luma":%s,"daynight_brightness":%s,"total_gain":%s,"ev":%s,"daynight_mode":%s' \
 				"$(date +%s)" \
 				"$(agent_json_value_or "$ae_luma" null)" \
-				"$(agent_json_value_or "$ae_luma" null)" \
+				"$(agent_json_value_or "$brightness" null)" \
 				"$(agent_json_value_or "$total_gain" null)" \
 				"$(agent_json_value_or "$ev" null)" \
 				"$(agent_json_string "$daynight_mode")")
@@ -1313,10 +1357,10 @@ agent_get_runtime() {
 				"$(agent_json_string_or_null "$([ "$has_snapshot" = true ] && [ "$stream1_enabled" = true ] && printf '/x/dl1.jpg')")"
 			;;
 		heartbeat)
-			ric_status=$(agent_daemon_status ric)
+			exposure_status=$(agent_exposure_status)
 			daynight_mode=$(agent_daynight_running_mode)
-			daynight_brightness=$(agent_json_number_field ae_luma "$ric_status")
-			total_gain=$(agent_json_number_field total_gain "$ric_status")
+			daynight_brightness=$(agent_exposure_brightness "$exposure_status")
+			total_gain=$(agent_json_number_field total_gain "$exposure_status")
 			case "$daynight_mode" in
 				day) color_mode=0 ;;
 				night) color_mode=1 ;;
