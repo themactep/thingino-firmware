@@ -30,7 +30,7 @@ BRIGHTNESS_SAMPLES = 10     # moving average window
 
 def ev_to_brightness(ev_log2: int) -> int:
     """Convert raw ev_log2 signal to brightness percentage (0-100)."""
-    if ev_log2 <= 0:
+    if ev_log2 < 0:
         return -1
     lo, hi = float(EV_LOG2_BRIGHT), float(EV_LOG2_DARK)
     ev = float(ev_log2)
@@ -92,7 +92,7 @@ class DaynightSim:
         initial = None  # None = hysteresis dead zone
         if sig > self.night_thr_ev:
             initial = "night"
-        elif sig > 0 and sig < self.day_thr_ev:
+        elif sig >= 0 and sig < self.day_thr_ev:
             initial = "day"
         # else: hysteresis dead zone → initial stays None
 

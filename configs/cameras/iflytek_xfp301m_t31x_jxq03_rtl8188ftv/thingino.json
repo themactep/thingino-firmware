@@ -1,10 +1,8 @@
 {
   "gpio": {
     "button_call": 8,
-    "button_reset": 50,
     "ir850": 59,
     "ircut": "57 58",
-    "mmc_cd": 49,
     "wlan": 10
   },
   "motors": {

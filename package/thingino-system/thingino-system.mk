@@ -37,6 +37,8 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/gpio
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/led \
 		$(TARGET_DIR)/usr/sbin/led
+	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/irled \
+		$(TARGET_DIR)/usr/sbin/irled
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/lssdio \
 		$(TARGET_DIR)/usr/sbin/lssdio
 	$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/send2termbin \

@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = e0974182df7e001ff76e6cdf25d36d593fde7ed4
+INGENIC_SDK_VERSION = 9bb8ad519947deac4282f322da1beb14e17060c0
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -61,6 +61,15 @@ INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_OWNED_BY_ISP
 ifneq ($(filter y,$(BR2_PACKAGE_THINGINO_ISP_OPEN_VENDOR_LIBIMP) $(BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT)),)
 INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_PROC_PUBLISH_FLAT_TREE
 endif
+else ifneq ($(filter $(SOC_FAMILY),t23 t31 t40 t41),)
+# Proprietary ISP: compile the SDK registry (common/isp/common/tx-isp-sinfo.c)
+# into tx-isp-<soc> and feed it from the sensor modules via the
+# SENSOR_REGISTRY_IN_SDK hook, the same sensorN/ ABI the open stack uses.
+# The vendor flat tree stays published by the sensor modules: prudynt reads
+# /proc/jz/sensor/{width,height,max_fps,min_fps}, which the registry cannot
+# supply for every family (the sensor attribute carries no min/max fps).
+INGENIC_SDK_EXTRA_CFLAGS += -DSENSOR_REGISTRY_IN_SDK
+INGENIC_SDK_MODULE_MAKE_OPTS += SENSOR_REGISTRY_IN_SDK=1
 endif
 
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS="$(INGENIC_SDK_EXTRA_CFLAGS)"
@@ -108,25 +117,17 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/usr/lib/modules/$(KERNEL_VERSION)$(call qstr
 # dependency (above) so the tool exists when this runs.
 INGENIC_SDK_JCT = $(HOST_DIR)/bin/jct
 
+# 3.10 buttons are read through the gpio-userkeys module, whose gpio_config
+# lists "code,gpio,active_low" entries. The pins come from the camera dtsi
+# fragment (BUTTON_PIN/CHIME_PIN, exported by thingino.mk) - the same gpio-keys
+# node the 4.4+ kernel and the U-Boot injection use. Codes match
+# thingino-button.conf: reset is KEY_ENTER, chime is KEY_1.
 define GENERATE_GPIO_USERKEYS_CONFIG
-	if [ -r $(TARGET_DIR)/etc/thingino.json ]; then \
-		if [ ! -x $(INGENIC_SDK_JCT) ]; then \
-			echo "ERROR: host jct tool missing: $(INGENIC_SDK_JCT)"; exit 1; \
-		fi; \
-		gpio_userkeys_config=""; \
-		button_reset=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.button_reset 2>/dev/null || true); \
-		if [ -n "$$button_reset" ] && [ "$$button_reset" != "null" ]; then \
-			gpio_userkeys_config="28,$${button_reset},1"; \
-		fi; \
-		button_chime=$$($(INGENIC_SDK_JCT) $(TARGET_DIR)/etc/thingino.json get gpio.chime 2>/dev/null || true); \
-		if [ -n "$$button_chime" ] && [ "$$button_chime" != "null" ]; then \
-			gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$${button_chime},1"; \
-		fi; \
-		if [ -n "$$gpio_userkeys_config" ]; then \
-			echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
-		else \
-			echo "WARNING: gpio-userkeys config not generated - no button_reset/chime found in thingino.json"; \
-		fi; \
+	gpio_userkeys_config=""; \
+	[ -n "$(BUTTON_PIN)" ] && gpio_userkeys_config="28,$(BUTTON_PIN),1"; \
+	[ -n "$(CHIME_PIN)" ] && gpio_userkeys_config="$${gpio_userkeys_config:+$$gpio_userkeys_config;}2,$(CHIME_PIN),1"; \
+	if [ -n "$$gpio_userkeys_config" ]; then \
+		echo "gpio-userkeys gpio_config=\"$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
 	fi
 endef
 
@@ -288,7 +289,9 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
+ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_ROOTFS_PRE_CMD_HOOKS += GENERATE_GPIO_USERKEYS_CONFIG
+endif
 
 $(eval $(kernel-module))
 

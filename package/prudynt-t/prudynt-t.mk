@@ -7,6 +7,18 @@ PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMER
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
+# The IMP headers come from the include submodule. The pinned prudynt-t commit
+# still records the commit before the T32 2.2.0 headers were added, so advance
+# the submodule to the one that carries them.
+PRUDYNT_T_HEADERS_REPO = https://github.com/gtxaspec/ingenic-headers
+PRUDYNT_T_HEADERS_VERSION = 5bacc0f6ed70221081fe3f0aaa5e7f47aff89deb
+define PRUDYNT_T_UPDATE_HEADERS
+	rm -rf $(@D)/include
+	git clone --quiet --no-checkout $(PRUDYNT_T_HEADERS_REPO) $(@D)/include
+	git -C $(@D)/include checkout --quiet $(PRUDYNT_T_HEADERS_VERSION)
+endef
+PRUDYNT_T_POST_EXTRACT_HOOKS += PRUDYNT_T_UPDATE_HEADERS
+
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
 ifeq ($(BR2_PACKAGE_OPENIMP),y)
 PRUDYNT_T_DEPENDENCIES += openimp
@@ -209,6 +221,7 @@ define PRUDYNT_T_BUILD_CMDS
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
 		SDK_VERSION="$(SDK_VERSION)" \
+		$(if $(filter t32,$(SOC_FAMILY)),LIBIMP_PLATFORM=T32,) \
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
@@ -481,12 +494,16 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/dl1.jpg
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/events.cgi \
 		$(TARGET_DIR)/var/www/x/events.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/fmp4.cgi \
+		$(TARGET_DIR)/var/www/x/fmp4.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-imaging.cgi \
 		$(TARGET_DIR)/var/www/x/json-imaging.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-osd-sei.cgi \
 		$(TARGET_DIR)/var/www/x/json-osd-sei.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-config-rtsp.cgi \
 		$(TARGET_DIR)/var/www/x/json-config-rtsp.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt-proxy.cgi \
+		$(TARGET_DIR)/var/www/x/json-prudynt-proxy.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/tool-record.cgi \
 		$(TARGET_DIR)/var/www/x/tool-record.cgi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/www/x/json-prudynt.cgi \

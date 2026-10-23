@@ -91,7 +91,7 @@ typedef enum {
 typedef struct {
     int64_t  time_now;
     int      ev;
-    int      ev_log2;           /* T31: ISP EV value log2; T20: ISP exposure log2 id */
+    int      ev_log2;           /* T31: ISP EV value log2; T20: ISP exposure log2 id; -1 = absent */
     int      ev_us;
     int      total_gain;        /* T20: ISP total gain (direct); T31: approximated from gains */
     int      integration_time;
@@ -111,7 +111,7 @@ typedef struct {
     int      day_threshold;     /* active day threshold */
     char     isp_mode[32];
     char     daynight_mode[16];
-    char     platform[8];       /* "t31" or "t20" */
+    char     platform[8];       /* SoC name, e.g. "t23" */
 } sensor_sample_t;
 
 /* Ring buffer */
@@ -636,13 +636,32 @@ static void init_sample(sensor_sample_t *s) {
     s->platform[0] = '\0';
 }
 
+/* SoC name from /etc/os-release; the ISP parser family is the fallback */
+static const char *soc_name(void) {
+    static char soc[8];
+    static bool looked_up = false;
+
+    if (!looked_up) {
+        FILE *fp = fopen("/etc/os-release", "r");
+        looked_up = true;
+        if (fp) {
+            char line[MAX_LINE_LEN];
+            while (fgets(line, sizeof(line), fp)) {
+                if (sscanf(line, "SOC=%7[a-zA-Z0-9]", soc) == 1) break;
+            }
+            fclose(fp);
+        }
+    }
+    return soc;
+}
+
 /* Parse /proc/jz/isp/isp-m0 — T31, T23, T21, T30 */
 static int parse_isp_m0(sensor_sample_t *s) {
     FILE *fp = fopen(ISP_M0_PATH, "r");
     if (!fp) return -1;
 
     char line[MAX_LINE_LEN];
-    strncpy(s->platform, "t31", sizeof(s->platform) - 1);
+    strncpy(s->platform, soc_name()[0] ? soc_name() : "t31", sizeof(s->platform) - 1);
 
     while (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "ISP Runing Mode :"))
@@ -679,7 +698,7 @@ static int parse_isp_m0(sensor_sample_t *s) {
     /* T31 does not expose ISP total gain; approximate from available gains.
      * Use EV log2 as the primary decision signal. */
     s->total_gain = -1;  /* not available in isp-m0 */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         s->primary_signal = s->ev_log2;
     } else if (s->integration_time >= 0 && s->max_integration_time > 0) {
         /*
@@ -701,7 +720,7 @@ static int parse_isp_info(sensor_sample_t *s) {
     if (!fp) return -1;
 
     char line[MAX_LINE_LEN];
-    strncpy(s->platform, "t20", sizeof(s->platform) - 1);
+    strncpy(s->platform, soc_name()[0] ? soc_name() : "t20", sizeof(s->platform) - 1);
 
     while (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "ISP Runing Mode :"))
@@ -736,7 +755,7 @@ static int parse_isp_info(sensor_sample_t *s) {
 
     /* T20: use exposure_log2_id as primary signal (combines gain+integration,
      * same metric as T31 ev_log2). */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         s->primary_signal = s->ev_log2;
     }
 
@@ -768,7 +787,7 @@ static int parse_isp(sensor_sample_t *s) {
 static int compute_brightness_pct(const sensor_sample_t *s) {
     /* Use ev_log2 for both T20 (exposure_log2_id) and T31 (ISP EV value log2).
      * Both are log2 of total exposure (integration × gain) and map the same way. */
-    if (s->ev_log2 > 0) {
+    if (s->ev_log2 >= 0) {
         double lo = 200000.0;   /* bright: 100% */
         double hi = 2000000.0;  /* dark: 0% */
         double ev = (double)s->ev_log2;
@@ -1096,7 +1115,7 @@ static int main_loop(void) {
     }
 
     log_message(LOG_INFO, "Starting main loop (platform=%s, signal=%s)",
-                g_state.use_total_gain ? "T20" : "T31",
+                soc_name()[0] ? soc_name() : (g_state.use_total_gain ? "t20" : "t31"),
                 g_state.use_total_gain ? "gain_log2" : "ev_log2");
 
     /* Apply brightness-% thresholds from config if set (> 0).
@@ -1289,7 +1308,7 @@ static int main_loop(void) {
 
             if (sig > night_thr) {
                 initial = MODE_NIGHT;
-            } else if (sig > 0 && sig < day_thr) {
+            } else if (sig >= 0 && sig < day_thr) {
                 initial = MODE_DAY;
             }
 
@@ -1363,7 +1382,7 @@ static int main_loop(void) {
                 if (g_state.night_count > 0) --g_state.night_count;
             }
         } else if (g_state.current_mode == MODE_NIGHT) {
-            if (sig > 0 && sig < day_thr) {
+            if (sig >= 0 && sig < day_thr) {
                 if (++g_state.day_count >= g_config.day_count_threshold)
                     target_mode = MODE_DAY;
             } else {
@@ -1372,7 +1391,7 @@ static int main_loop(void) {
         } else {
             if (sig > night_thr)
                 target_mode = MODE_NIGHT;
-            else if (sig > 0 && sig < day_thr)
+            else if (sig >= 0 && sig < day_thr)
                 target_mode = MODE_DAY;
         }
 

@@ -6,8 +6,8 @@
  * opens a modal with burn-in OSD settings (format, scale, colors), the SEI
  * elements editor, and SEI overlay visual settings (stored locally).
  *
- * Config reads/writes go through the prudynt config API on :8080 with the
- * X-API-Key header (same idiom as sei-osd.js / streamer-osd.html).  Saves
+ * Config reads/writes go through /x/json-prudynt-proxy.cgi (same origin) with
+ * the X-API-Key header (same idiom as sei-osd.js / streamer-osd.html).  Saves
  * include `action.save_config` + `restart_thread` so the OSD thread picks
  * up changes immediately.
  *
@@ -28,7 +28,7 @@
     uptime: { format: "%02lu:%02lu:%02lu", position: "-10,10" },
   };
 
-  var CFG = "http://" + location.hostname + ":8080/api/v1/config";
+  var CFG = "/x/json-prudynt-proxy.cgi?upstream_path=/api/v1/config";
   var API_KEY_PROMISE = fetch("/x/api-key.cgi", { cache: "no-store" })
     .then(function (r) {
       return r.json();
@@ -414,7 +414,9 @@
   }
 
   async function saveOsdConfig() {
-    var confirmed = await confirm("Save OSD elements to /etc/prudynt.user.json?");
+    var confirmed = await confirm(
+      "Save OSD elements to /etc/prudynt.user.json?",
+    );
     if (!confirmed) return;
     var btn = document.getElementById("osd-save");
     btn.disabled = true;

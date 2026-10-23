@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lu-Fi <lutz@fiebach.de>
+Date: Sun, 4 Oct 2026 11:39:39 +0200
+Subject: [PATCH 3/3] sensors: t31 sc4336p: sensor_set_vflip returns the real
+ i2c result
+
+sensor_set_vflip() started with ret = -1 and then added the results of the
+read and the write, so a fully successful flip returned -1 and the ISP
+driver logged "hvflip: sensor flip 0xN failed: -1" on every flip although
+register 0x3221 was written. Return the read error, or the write result.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ common/sensor/t31/sc4336p.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/common/sensor/t31/sc4336p.c b/common/sensor/t31/sc4336p.c
+index 1dd1a642..f99087a3 100644
+--- a/common/sensor/t31/sc4336p.c
++++ b/common/sensor/t31/sc4336p.c
+@@ -801,19 +801,18 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd, struct tx_isp_chip_iden
+ }
+ 
+ static int sensor_set_vflip(struct tx_isp_subdev *sd, int enable) {
+-	int ret = -1;
++	int ret;
+ 	unsigned char val = 0x00;
+ 
+-	ret += sensor_read(sd, 0x3221, &val);
++	ret = sensor_read(sd, 0x3221, &val);
++	if (ret)
++		return ret;
+ 	if (enable & 0x02)
+ 		val |= 0x60;
+ 	else
+ 		val &= 0x9f;
+-	ret += sensor_write(sd, 0x3221, val);
+-	if (0 != ret)
+-		return ret;
+ 
+-	return 0;
++	return sensor_write(sd, 0x3221, val);
+ }
+ 
+ static int sensor_sensor_ops_ioctl(struct tx_isp_subdev *sd, unsigned int cmd, void *arg) {

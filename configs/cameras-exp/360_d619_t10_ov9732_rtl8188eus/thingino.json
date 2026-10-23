@@ -3,9 +3,7 @@
     "ircut": "26 25",
     "sda": 57,
     "scl": 58,
-    "mmc_cd": 59,
     "ir850": 61,
-    "wlan": 62,
-    "button_reset": 64
+    "wlan": 62
   }
 }

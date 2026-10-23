@@ -34,7 +34,13 @@
         );
         if (!section || !section.items) continue;
         const items = section.items;
-        const newItems = contribution.items || [];
+        // Plugin file sections (prudynt.json, raptor.conf) now live as tabs
+        // inside info.html, so drop their dropdown links to avoid duplicates.
+        const newItems = (contribution.items || []).filter(function (it) {
+          if (!it || typeof it.href !== "string") return true;
+          const href = it.href.replace(/^\//, "");
+          return !(sectionId === "ddInfo" && href.indexOf("info.html") === 0);
+        });
         if (!newItems.length) continue;
         const position = contribution.position || "append";
         let idx;
@@ -112,17 +118,8 @@
         id: "ddInfo",
         label: "Information",
         items: [
-          { label: "File: crontab", href: "/info.html?crontab" },
-          { label: "File: onvif.json", href: "/info.html?onvif" },
-          { label: "File: thingino.json", href: "/info.html?thingino" },
-          { label: "Log: dmesg", href: "/info.html?dmesg" },
-          { label: "Log: logcat", href: "/info.html?logcat" },
-          { label: "Log: logread", href: "/info.html?logread" },
-          { label: "Info: lsmod", href: "/info.html?lsmod" },
-          { label: "Info: netstat", href: "/info.html?netstat" },
-          { label: "Info: os-release", href: "/info.html?release" },
-          { label: "Info: top", href: "/info.html?top" },
-          { label: "Info: status", href: "/info.html?status" },
+          { label: "Commands and logs", href: "/info.html" },
+          { type: "divider" },
           { label: "Overlay partition", href: "/info-overlay.html" },
           { label: "System usage", href: "/info-usage.html" },
           { label: "Diagnostic info", href: "/info-diagnostic.html" },
@@ -559,15 +556,38 @@
 
   // Offcanvas entries navigate only after the panel has closed, so the page
   // swap does not happen behind a still-open menu. Action items already own
-  // their click (bindNavAction closes the panel itself).
-  function bindOffcanvasNavigation(anchor) {
+  // their click (bindNavAction closes the panel itself). Items carrying the
+  // "confirm" token ask the shared confirm dialog first and navigate only
+  // when it is accepted — Cancel must stay a no-op, because some of these
+  // hrefs (/x/reboot.cgi) act on any request that reaches them.
+  function bindOffcanvasNavigation(anchor, item) {
+    // main.js scans for ".confirm" and re-dispatches the click after the user
+    // confirms, which would double-prompt here and land back on plain anchor
+    // navigation. Take ownership of the confirmation, same as bindNavAction.
+    anchor.dataset.confirmSkip = "1";
     anchor.addEventListener("click", function (e) {
       if (this.dataset.navAction === "1") return;
+      const confirmOptions = item ? navActionConfirmOptions(item) : null;
       const href = this.getAttribute("href");
       if (!href || href === "#") return;
       e.preventDefault();
-      closeOffcanvasThen(function () {
+      const go = function () {
         window.location.href = href;
+      };
+      if (!confirmOptions) {
+        closeOffcanvasThen(go);
+        return;
+      }
+      const ask =
+        typeof window.thinginoConfirm === "function"
+          ? window.thinginoConfirm(confirmOptions)
+          : Promise.resolve(
+              typeof window.nativeConfirm === "function"
+                ? window.nativeConfirm(confirmOptions.message)
+                : true,
+            );
+      Promise.resolve(ask).then(function (confirmed) {
+        if (confirmed) closeOffcanvasThen(go);
       });
     });
   }
@@ -628,7 +648,7 @@
               "d-block py-1 text-decoration-none",
             );
             if (subItem.id) anchor.id = subItem.id + "-offcanvas";
-            bindOffcanvasNavigation(anchor);
+            bindOffcanvasNavigation(anchor, subItem);
             li.appendChild(anchor);
             subList.appendChild(li);
           }
@@ -643,7 +663,7 @@
           item,
           "d-block fw-bold text-decoration-none p-3",
         );
-        bindOffcanvasNavigation(anchor);
+        bindOffcanvasNavigation(anchor, item);
         li.appendChild(anchor);
         list.appendChild(li);
       }
@@ -656,9 +676,17 @@
     const normalizedCurrent = normalizePath(
       currentPath || window.location.pathname + window.location.search,
     );
+    const currentBase = normalizedCurrent.split("?")[0];
     const anchors = nav.querySelectorAll("a[data-nav-path]");
     anchors.forEach((anchor) => {
-      if (anchor.dataset.navPath === normalizedCurrent) {
+      const navPath = anchor.dataset.navPath;
+      // A queryless landing link (e.g. /info.html) stays active for any
+      // query on that page (e.g. /info.html?dmesg).
+      const baseMatch =
+        navPath.indexOf("?") === -1 &&
+        navPath.split("?")[0] === currentBase &&
+        currentBase !== "/";
+      if (navPath === normalizedCurrent || baseMatch) {
         anchor.classList.add("active");
         const dropdown = anchor.closest(".dropdown");
         if (dropdown) {

@@ -1,15 +1,29 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2086
-# Play an audio file on the camera speaker (triggered by motion script)
+# Play an audio file on the camera speaker (motion events, manual test)
 
 . /usr/share/prudynt-helpers
 
 config_file="/etc/send2.json"
 
+# $1 names a bundled sound, without extension, to fall back to when no file is
+# configured, so the speaker test and motion alerts work out of the box.
+default_base=${1:-chime_1}
+
 file=$(jct "$config_file" get speaker.file 2>/dev/null)
 volume=$(jct "$config_file" get speaker.volume 2>/dev/null)
 gain=$(jct "$config_file" get speaker.gain 2>/dev/null)
 loop=$(jct "$config_file" get speaker.loop 2>/dev/null)
+
+if [ -z "$file" ]; then
+	for ext in opus ulaw; do
+		candidate="/usr/share/sounds/$default_base.$ext"
+		if [ -f "$candidate" ]; then
+			file="$candidate"
+			break
+		fi
+	done
+fi
 
 [ -z "$file" ] && echo_error "No speaker file configured" && exit 1
 [ ! -f "$file" ] && echo_error "Speaker file not found: $file" && exit 1
