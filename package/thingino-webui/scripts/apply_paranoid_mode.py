@@ -11,34 +11,41 @@ import re
 import sys
 
 # CDN → local mappings
+# Patterns match the whole tag regardless of attribute order, so they also match
+# after apply_cdn_fallback.py has appended integrity/crossorigin/onerror (the
+# fallback runs at install time, this runs later at rootfs time).
 REPLACEMENTS = [
     # Google Fonts preconnect (remove)
-    (re.compile(r'\s*<link rel="preconnect" href="https://fonts\.googleapis\.com">\s*'), ''),
-    (re.compile(r'\s*<link rel="preconnect" href="https://fonts\.gstatic\.com" crossorigin>\s*'), ''),
+    (re.compile(r'\s*<link\b[^>]*href="https://fonts\.googleapis\.com"[^>]*>', re.IGNORECASE), ''),
+    (re.compile(r'\s*<link\b[^>]*href="https://fonts\.gstatic\.com"[^>]*>', re.IGNORECASE), ''),
 
     # Google Fonts stylesheet → local Montserrat
     (re.compile(
-        r'<link\s+rel="stylesheet"\s+href="https://fonts\.googleapis\.com/css2\?family=Montserrat:wght@400;500;600;700&display=swap"\s*/?>'
-    ), '<link rel="stylesheet" href="/a/vendor/montserrat.css">'),
+        r'\s*<link\b[^>]*href="https://fonts\.googleapis\.com/css2[^"]*"[^>]*>', re.IGNORECASE
+    ), '\n<link rel="stylesheet" href="/a/vendor/montserrat.css">'),
 
     # Bootstrap CSS CDN → local
     (re.compile(
-        r'<link\s+rel="stylesheet"\s+href="https://cdn\.jsdelivr\.net/npm/bootstrap@5\.3\.\d+/dist/css/bootstrap\.min\.css"\s*\n?\s*integrity="[^"]*"\s+crossorigin="anonymous"\s*/?>'
+        r'<link\b[^>]*href="https://cdn\.jsdelivr\.net/npm/bootstrap@[^"]*?/dist/css/bootstrap(?:\.min)?\.css"[^>]*>',
+        re.IGNORECASE,
     ), '<link rel="stylesheet" href="/a/vendor/bootstrap.min.css">'),
 
     # Bootstrap Icons CSS CDN → local
     (re.compile(
-        r'<link\s+rel="stylesheet"\s+href="https://cdn\.jsdelivr\.net/npm/bootstrap-icons@1\.\d+\.\d+/font/bootstrap-icons\.min\.css"\s*/?>'
+        r'<link\b[^>]*href="https://cdn\.jsdelivr\.net/npm/bootstrap-icons@[^"]*?/font/bootstrap-icons(?:\.min)?\.css"[^>]*>',
+        re.IGNORECASE,
     ), '<link rel="stylesheet" href="/a/vendor/bootstrap-icons.min.css">'),
 
     # Bootstrap JS CDN → local
     (re.compile(
-        r'<script\s+src="https://cdn\.jsdelivr\.net/npm/bootstrap@5\.3\.\d+/dist/js/bootstrap\.bundle\.min\.js"\s*\n?\s*integrity="[^"]*"\s+crossorigin="anonymous"\s*></script>'
+        r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/bootstrap@[^"]*?/dist/js/bootstrap(?:\.bundle)?(?:\.min)?\.js"[^>]*></script>',
+        re.IGNORECASE,
     ), '<script src="/a/vendor/bootstrap.bundle.min.js"></script>'),
 
     # Chart.js UMD CDN → local
     (re.compile(
-        r'<script\s+src="https://cdn\.jsdelivr\.net/npm/chart\.js@[\d.]+/dist/chart\.umd\.min\.js"\s*></script>'
+        r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/chart\.js@[^"]*?/dist/chart\.umd(?:\.min)?\.js"[^>]*></script>',
+        re.IGNORECASE,
     ), '<script src="/a/vendor/chart.umd.min.js"></script>'),
 ]
 
