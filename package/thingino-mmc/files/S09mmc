@@ -162,13 +162,25 @@ load_module() {
 	# The MSC host is built into the kernel on some targets (e.g. T31 on 4.4)
 	# so there is no module file to modprobe; only load one when it exists.
 	if [ -n "$MMC_MODULE" ] &&
-		! grep -q "$MMC_MODULE" /proc/modules >/dev/null 2>&1 &&
 		find /lib/modules/"$(uname -r)" -name "$MMC_MODULE.ko*" 2>/dev/null | grep -q .; then
-		echo "Load $MMC_MODULE $MMC_PARAM"
+		if grep -q "^$MMC_MODULE " /proc/modules; then
+			if [ -z "$MMC_PARAM" ]; then
+				echo "$MMC_MODULE is already loaded, nothing to reload" >&2
+			else
+				echo "$MMC_MODULE is already loaded, reloading to apply $MMC_PARAM" >&2
+				if ! rmmod "$MMC_MODULE"; then
+					echo "Failed to unload $MMC_MODULE, keeping the current instance" >&2
+				fi
+			fi
+		fi
 
-		if ! modprobe $MMC_MODULE $MMC_PARAM; then
-			echo "Failed to load module!" >&2
-			exit 1
+		if ! grep -q "^$MMC_MODULE " /proc/modules; then
+			echo "Load $MMC_MODULE $MMC_PARAM"
+
+			if ! modprobe $MMC_MODULE $MMC_PARAM; then
+				echo "Failed to load module!" >&2
+				exit 1
+			fi
 		fi
 	fi
 
