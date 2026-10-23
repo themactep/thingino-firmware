@@ -21,4 +21,6 @@ command -v raptorctl >/dev/null 2>&1 || {
 	exit 1
 }
 
+# raptorctl takes a numeric channel and reads "all" as 0; no channel means all.
+[ "$channel" = all ] && exec raptorctl rod privacy "$state"
 exec raptorctl rod privacy "$state" "$channel"
