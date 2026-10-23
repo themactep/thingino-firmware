@@ -75,3 +75,6 @@ jobs:
 
       - name: Validate webui plugins
         run: scripts/check-plugins.sh
+
+      - name: Check tz.json TZ strings
+        run: scripts/check-tz-json.sh
