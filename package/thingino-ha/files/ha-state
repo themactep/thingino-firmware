@@ -192,16 +192,18 @@ fi
 if ha_entity_enabled rssi && ha_has_wifi; then
 	rssi=""
 
-	# Find the first wireless interface
-	for _if in /sys/class/net/*/wireless; do
-		iface="${_if%/wireless}"
-		iface="${iface##*/}"
-		break
-	done
-
-	# wpa_cli signal_poll (most reliable on Thingino cameras)
-	if [ -z "$rssi" ] && [ -n "$iface" ] && command -v wpa_cli >/dev/null 2>&1; then
-		rssi=$(wpa_cli -i "$iface" signal_poll 2>/dev/null | awk -F= '/^RSSI=/{print $2}')
+	# AP interfaces (ap0) also expose /sys/class/net/*/wireless but have no
+	# wpa_supplicant control socket, so probe every wireless interface and
+	# keep the first one that reports a signal instead of taking the first.
+	if command -v wpa_cli >/dev/null 2>&1; then
+		for _if in /sys/class/net/*/wireless; do
+			iface="${_if%/wireless}"
+			iface="${iface##*/}"
+			rssi=$(wpa_cli -i "$iface" signal_poll 2>/dev/null |
+				awk -F= '/^RSSI=/{print $2}')
+			[ -n "$rssi" ] && [ "$rssi" != "0" ] && break
+			rssi=""
+		done
 	fi
 
 	# /proc/net/wireless (legacy fallback)
