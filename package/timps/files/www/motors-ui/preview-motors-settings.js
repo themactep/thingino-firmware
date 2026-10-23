@@ -1,4 +1,3 @@
-// Preview-page PTZ settings modal (thingino-motors).
 (function () {
   "use strict";
 
@@ -55,7 +54,6 @@
     return (payload.message && payload.message.status) || "OK";
   }
 
-  // -- modal markup ----------------------------------------------------
   const MODAL_HTML =
     '<div class="modal fade" id="ptzModal" tabindex="-1" aria-labelledby="ptzModalLabel" aria-hidden="true">' +
     '  <div class="modal-dialog modal-lg">' +
@@ -113,7 +111,6 @@
     "  </div>" +
     "</div>";
 
-  // -- presets -----------------------------------------------------------
   let currentPresets = [];
 
   function renderPresets(presets) {
@@ -260,7 +257,6 @@
     renderFavorites();
   }
 
-  // -- favorites popover --------------------------------------------------
   const FAV_MENU_HTML =
     '<div class="dropdown-menu dropdown-menu-end p-0" id="ptz-fav-menu" aria-labelledby="preview-ptz-fav">' +
     '  <div id="ptz-fav-list" class="py-1"></div>' +
@@ -319,8 +315,6 @@
   }
 
   async function syncFavPosition(seedFromStream) {
-    // window.motorPosition lags: the stream only pushes while a move is in
-    // flight, so it is a first-paint seed only - d=j is the authority
     const latest = window.motorPosition;
     if (seedFromStream && latest && latest.xpos !== undefined) {
       favPosition = { xpos: latest.xpos, ypos: latest.ypos };
@@ -344,8 +338,6 @@
 
   function initFavorites(row, anchorBtn) {
     const wrap = document.createElement("div");
-    // plain "dropdown" doesn't stretch its button child to the row's
-    // height like the row's other direct-child buttons get by default
     wrap.className = "dropdown d-flex";
 
     const btn = document.createElement("button");
@@ -355,7 +347,6 @@
     btn.title = "PTZ favorites";
     btn.setAttribute("aria-label", "PTZ favorites");
     btn.setAttribute("data-bs-toggle", "dropdown");
-    // "outside" so typing a name in the save row does not dismiss the menu
     btn.setAttribute("data-bs-auto-close", "outside");
     btn.setAttribute("aria-expanded", "false");
     btn.innerHTML = '<i class="bi bi-star"></i>';
@@ -391,8 +382,6 @@
         nameInput.focus();
         return;
       }
-      // d=ps stores the live position itself (ptz_presets -a -1) and
-      // auto-assigns the lowest free id
       await runPresetAction("ps", { description });
       nameInput.value = "";
     };
@@ -433,7 +422,6 @@
     }
   }
 
-  // -- settings -----------------------------------------------------------
   function populateSettings(data) {
     const mode = $("#ptz-preview-control-mode");
     if (mode) mode.value = normalizeControlMode(data.preview_control_mode);
@@ -477,7 +465,6 @@
         if (data.speed_tilt !== undefined)
           window.motorParams.speed_tilt = data.speed_tilt;
       }
-      // tell preview-motors.js to rebind so the saved mode applies live
       const savedMode = normalizeControlMode(
         data.preview_control_mode !== undefined
           ? data.preview_control_mode
@@ -502,7 +489,6 @@
     }
   }
 
-  // -- bootstrap ----------------------------------------------------------
   function init() {
     const style = document.createElement("style");
     style.textContent =
@@ -518,8 +504,6 @@
 
     document.body.insertAdjacentHTML("beforeend", MODAL_HTML);
 
-    // anchor off #ms-stats-toggle's parent (that row has no class of its
-    // own); the old ".preview-header-actions" selector matched nothing
     const frame = $("#frame");
     const img = $("#preview");
     const statsBtn = $("#ms-stats-toggle");
@@ -531,7 +515,7 @@
     btn.type = "button";
     btn.className = "btn btn-outline-secondary";
     btn.id = "preview-ptz";
-    btn.title = "PTZ settings"; // icon-only button, so this carries the name
+    btn.title = "PTZ settings";
     btn.setAttribute("aria-label", "PTZ settings");
     btn.innerHTML = '<i class="bi bi-arrows-move"></i>';
     if (row && connectBtn && connectBtn.parentNode === row)
@@ -545,7 +529,6 @@
         console.error("Failed to load PTZ settings", err);
       }
       await refreshPresets();
-      // reset to Movement - "Edit favorites" leaves the Presets tab active
       bootstrap.Tab.getOrCreateInstance($("#ptz-settings-tab")).show();
       bootstrap.Modal.getOrCreateInstance($("#ptzModal")).show();
     });
