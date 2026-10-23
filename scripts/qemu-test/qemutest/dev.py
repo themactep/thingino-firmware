@@ -13,6 +13,7 @@ running in the background and driven one command at a time.
   qemu-dev send [NAME] -- TEXT             type at the console (--expect RE)
   qemu-dev monitor [NAME] -- COMMAND       a QEMU monitor command
   qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
+  qemu-dev gpio [NAME] --log|--serve       pin changes (--watch, --vcd FILE)
   qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
@@ -48,6 +49,7 @@ import tempfile
 import time
 
 from .config import REPO_ROOT, SCRIPT_DIR, SOC_MACHINES, SSH_OPTS
+from .fdt import msc0_card_detect
 from .qmp import Qmp
 from .serial import QemuSerial
 
@@ -64,11 +66,44 @@ FORK_VARIANTS = set("""
     t10 t10l t20n t20x t20l t21n t21l t21z t23n t23x t23dl t23zn
     t30n t30x t30l t30a t30z t31n t31x t31l t31a t31zl t31zx t31al t31zc
     t31lc t32nq t32lq t32xq t32zn t33n t40n t40nn t40xp t40a t41nq t41lq
-    t41zx a1n a1l a1x a1a a1nt""".split())
+    t41zx a1n a1l a1x a1a a1nt t10n t10a c100 t33zl t33zn t41xq t32prozl
+    t32prozn t32prozx t32provl t32provn t32provx t32provnp t32proa cw080sn
+    cw080snp""".split())
 
-# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100
-SOC = re.compile(r"(t[1-4]\d|a1|c100)[a-z]*")
+# An Ingenic model is its family plus letters: t31x, t21zn, a1nt, c100,
+# cw080sn
+SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
+# The fork's model of each Wi-Fi package, by package or camera-name suffix
+WIFI_CHIPS = {
+    "aic8800_usb_8800d80": "aic8800d80", "aic8800u": "aic8800d80",
+    "atbm6031": "atbm6031", "atbm6031x": "atbm6031",
+    "atbm6062s": "atbm6062s", "atbm6162s": "atbm6162s",
+    "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
+    "atbm6032": "atbm6032", "atbm6132u": "atbm6132u",
+    "atbm6132bu": "atbm6132u", "atbm6062": "atbm6062u",
+    "atbm6062u": "atbm6062u", "atbm6062cu": "atbm6062cu",
+    "atbm6132cu": "atbm6132cu", "atbm6132cu_6162": "atbm6132cu-6162",
+    "rtl8189fs": "rtl8189fs", "rtl8189ftv": "rtl8189fs",
+    "rtl8189es": "rtl8189es", "rtl8189etv": "rtl8189es",
+    "rtl8192fs": "rtl8192fs",
+    "rtl8188fu": "rtl8188fu", "rtl8188ftv": "rtl8188fu",
+    "syn4343": "bcm43438",
+    "ssv6155": "ssv6155p", "ssv6155p": "ssv6155p",
+    "ssv6x5x_sv6155p": "ssv6155p",
+    "ssv6256p": "ssv6155p", "ssv6x5x_sv6256p": "ssv6155p",
+    "ssv6355": "ssv6355", "ssv6x5x_sv6355": "ssv6355",
+    "ssv6158": "ssv6158",
+}
+# SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
+SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s", "rtl8189fs", "rtl8189es",
+             "rtl8192fs", "bcm43438", "bcm43436", "ssv6158"}
+# thingino's setup portal network (S38wpa_supplicant). --portal's phone is
+# the user netdev's host address on it, and takes the MAC that netdev sends
+# from: 52:55, then the address.
+PORTAL_NET = "172.16.0"
+PORTAL_IP = PORTAL_NET + ".1"
+PORTAL_PHONE = PORTAL_NET + ".250"
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
 PROMPT = re.compile(r"root@[\w.-]+ \S*# ")
@@ -202,6 +237,98 @@ def sfc_type(family):
     """The flash controller device -global nand-id= applies to."""
     return ("ingenic-a1-sfc" if family in ("t40", "t41", "a1")
             else "ingenic-t31-sfc")
+
+
+_GPIO_TRACE = {}
+_DEVICES = {}
+_PROPS = {}
+
+
+def gpio_trace_supported(qemu):
+    """Whether this QEMU can log pin changes (ingenic-gpio's trace)."""
+    if qemu not in _GPIO_TRACE:
+        try:
+            out = subprocess.run([qemu, "-device", "ingenic-gpio,help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _GPIO_TRACE[qemu] = "trace=" in out
+    return _GPIO_TRACE[qemu]
+
+
+def qemu_devices(qemu):
+    """The device types this QEMU has."""
+    if qemu not in _DEVICES:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _DEVICES[qemu] = set(re.findall(r'^name "([^"]+)"', out, re.M))
+    return _DEVICES[qemu]
+
+
+def qemu_device_props(qemu, model):
+    """The properties of one of this QEMU's device types."""
+    if (qemu, model) not in _PROPS:
+        try:
+            out = subprocess.run([qemu, "-M", "none", "-device",
+                                  f"{model},help"], capture_output=True,
+                                 text=True, timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _PROPS[qemu, model] = set(re.findall(r"^\s+([\w-]+)=", out, re.M))
+    return _PROPS[qemu, model]
+
+
+def wifi_model(image, cfg, explicit):
+    """The model of the camera's Wi-Fi: --wifi-chip, else the build's
+    .config, else the Wi-Fi in the camera name (release images)."""
+    if explicit:
+        return explicit
+    names = sorted((k[len("BR2_PACKAGE_WIFI_"):].lower()
+                    for k, v in cfg.items()
+                    if k.startswith("BR2_PACKAGE_WIFI_") and v == "y"),
+                   key=len, reverse=True)       # ATBM6132CU_6162 first
+    names += re.split(r"[_.+-]", os.path.basename(image).lower())
+    hits = [WIFI_CHIPS[n] for n in names if n in WIFI_CHIPS]
+    if not hits:
+        die("no Wi-Fi model for this image; pass --wifi-chip ("
+            + ", ".join(sorted(set(WIFI_CHIPS.values()))) + ")")
+    return hits[0]
+
+
+def card_detect(image, explicit):
+    """(port, pin) of the SD slot's card-detect switch, which holds the pin
+    low while a card is in: --sd-cd, else gpio.mmc_cd in the camera's
+    thingino.json (a bare number is active low, as U-Boot and S09mmc take
+    it), else MSC0's in the image's own device tree (stock 4.4 firmware).
+    None when there is none, or it reads high with a card in."""
+    if explicit:
+        return None if explicit == "none" else gpio_pin(explicit)
+    m = re.fullmatch(r"thingino-(.+)\.bin", os.path.basename(image))
+    found = glob.glob(os.path.join(REPO_ROOT, "configs", "cameras*",
+                                   m.group(1), "thingino.json")) if m else []
+    try:
+        with open(found[0]) as f:
+            cd = json.load(f).get("gpio", {}).get("mmc_cd")
+    except (IndexError, OSError, ValueError, AttributeError):
+        cd = None
+    if isinstance(cd, dict):
+        if cd.get("active_low") is False:
+            return None
+        cd = cd.get("pin")
+    if isinstance(cd, int) and not isinstance(cd, bool) and cd >= 0:
+        return cd // 32, cd % 32
+    tree = msc0_card_detect(image)
+    if tree:
+        return tree[:2] if tree[2] else None
+    if not found:
+        print(f"{PROG}: no card-detect pin known for this image; if the "
+              f"firmware waits for one, pass --sd-cd PIN", file=sys.stderr)
+    return None
 
 
 def find_qemu(image, explicit):
@@ -521,6 +648,36 @@ def start_relay(s):
     s.save()
 
 
+def stop_relay(s):
+    with contextlib.suppress(OSError, KeyError, TypeError):
+        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
+            if b"qemutest.dev" in f.read():
+                os.kill(s.info["relay"], signal.SIGTERM)
+
+
+def follow_kernel(s, con, timeout):
+    """The console the shell is on: U-Boot can print on one UART and
+    Linux on the other, so the relay moves to whichever the kernel's banner
+    reaches. Returns the console to use."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for k in (0, 1):
+            with contextlib.suppress(OSError):
+                with open(s.path(f"uart{k}.log"), "rb") as f:
+                    if b"Linux version" not in f.read():
+                        continue
+                if k == s.info["uart"]:
+                    return con
+                con.close()
+                stop_relay(s)
+                s.info["uart"] = k
+                s.save()
+                start_relay(s)
+                return s.connect()
+        time.sleep(0.2)
+    return con
+
+
 def sessions():
     root = state_root()
     for name in sorted(os.listdir(root)) if os.path.isdir(root) else ():
@@ -561,10 +718,7 @@ def qmp(s, command, **args):
 
 def stop(s):
     # The relay ends with QEMU; this is for one whose QEMU was killed
-    with contextlib.suppress(OSError, KeyError, TypeError):
-        with open(f"/proc/{s.info['relay']}/cmdline", "rb") as f:
-            if b"qemutest.dev" in f.read():
-                os.kill(s.info["relay"], signal.SIGTERM)
+    stop_relay(s)
     if not s.alive():
         return
     try:
@@ -692,20 +846,39 @@ def serial_upload(con, data, remote, timeout):
 def attach_network(s, con):
     """Point the host forwards at the camera's slirp address and install
     the session's key, so file copies go over SSH. The address can change
-    from boot to boot (the MAC does), so this runs after every login."""
+    from boot to boot (the MAC does), so this runs after every login. A
+    wired interface carries them if it has an address, else the Wi-Fi, else
+    the setup portal for --portal's phone."""
     s.info["ssh"] = False
     if not s.info.get("ports"):
         return
-    ip = None
-    deadline = time.time() + 30
+    wifi = s.info.get("wifi") or {}
+    joins = False                           # set up to join the AP
+    if wifi.get("ssid"):
+        conf = shlex.quote(f'ssid="{wifi["ssid"]}"')
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        joins = rc == 0
+    ip = netdev = None
+    deadline = time.time() + (60 if joins else 30)
     while time.time() < deadline:
         _, out = serial_run(con, "ip -4 -o addr show; "
                                  "cat /sys/class/net/eth*/operstate", 20)
-        m = re.search(r"inet (10\.0\.2\.\d+)/", out)
-        if m:
-            ip = m.group(1)
+        found = re.findall(r"^\d+: (\S+)\s+inet ([\d.]+)/", out, re.M)
+        wired = [a for i, a in found
+                 if not i.startswith("wlan") and a.startswith("10.0.2.")]
+        wlan = [a for i, a in found
+                if i.startswith("wlan") and a.startswith("10.0.2.")]
+        portal = wifi.get("portal") and any(
+            i.startswith("wlan") and a == PORTAL_IP for i, a in found)
+        if wired or (joins and wlan):
+            ip, netdev = (wired[0], "n0") if wired else (wlan[0], "w0")
             break
-        if not re.search(r"^(up|unknown)$", out, re.M):
+        if portal and not joins:
+            ip, netdev = PORTAL_IP, "c0"
+            break
+        if not (joins or wifi.get("portal")) and \
+                not re.search(r"^(up|unknown)$", out, re.M):
             break                           # no wired interface up
         time.sleep(2)
     if not ip:
@@ -715,10 +888,11 @@ def attach_network(s, con):
         for svc, port in s.info["ports"].items():
             if s.info.get("guest_ip"):
                 q.cmd("human-monitor-command", **{
-                    "command-line": f"hostfwd_remove n0 tcp:127.0.0.1:{port}"})
+                    "command-line": "hostfwd_remove "
+                    f"{s.info.get('fwd_netdev', 'n0')} tcp:127.0.0.1:{port}"})
             guest = GUEST_PORTS.get(svc) or int(svc)
             err = q.cmd("human-monitor-command", **{
-                "command-line": f"hostfwd_add n0 tcp:127.0.0.1:{port}-"
+                "command-line": f"hostfwd_add {netdev} tcp:127.0.0.1:{port}-"
                                 f"{ip}:{guest}"})
             if err.strip():
                 print(f"{PROG}: forwarding {svc}: {err.strip()}",
@@ -726,6 +900,7 @@ def attach_network(s, con):
     finally:
         q.close()
     s.info["guest_ip"] = ip
+    s.info["fwd_netdev"] = netdev
     if not (shutil.which("ssh") and os.path.exists(s.path("id_ed25519"))):
         return
     with open(s.path("id_ed25519.pub")) as f:
@@ -752,6 +927,30 @@ def boot_to_shell(s, con, timeout):
     s.info.update(state="shell", mark=s.log_size())
     s.save()
     return True
+
+
+def join_wifi(s, ssid, psk, timeout):
+    """Set the camera up to join the access point and reboot it onto it,
+    unless it already is: thingino picks its Wi-Fi mode at boot."""
+    conf = shlex.quote(f'ssid="{ssid}"')
+    with s.console(timeout) as con:
+        rc, _ = serial_run(con, f"grep -qF {conf} /etc/wpa_supplicant.conf",
+                           20)
+        if rc == 0:
+            return
+        rc, out = serial_run(con, f"wlan configure {shlex.quote(ssid)} "
+                                  f"{shlex.quote(psk)}", 60)
+        if rc:
+            die(f"{s.name}: wlan configure failed: {out.strip()}")
+        con.drain()
+        con.write("reboot\n")
+        con.read(0.5)
+        con.state = "rebooting"
+        s.info.update(state="booting", ssh=False)
+        s.save()
+        if not boot_to_shell(s, con, timeout):
+            die(f"{s.name}: no shell after setting up the Wi-Fi "
+                f"(`{PROG} log {s.name}`)", 2)
 
 
 def stop_in_uboot(s, con, timeout, gated):
@@ -855,7 +1054,9 @@ def describe(s, as_json=False):
            f"  run      {PROG} {run} {s.name} -- <command>"]
     if "ssh_command" in view:
         out.append(f"  ssh      {view['ssh_command']}")
-    if "web" in view:
+    if "web" in view and i.get("fwd_netdev") == "c0":
+        out.append(f"  portal   {view['web']}  (the camera's setup page)")
+    elif "web" in view:
         out.append(f"  web      {view['web']}  https://127.0.0.1:"
                    f"{ports['https']}/  (root / {i['password']})")
         extra = [f"{port} -> {svc}" for svc, port in ports.items()
@@ -865,6 +1066,20 @@ def describe(s, as_json=False):
     elif i.get("state") == "shell":
         out.append("  network  none: no wired interface, so files go over "
                    "the serial console too")
+    w = i.get("wifi")
+    if w and i.get("fwd_netdev") == "c0" and i.get("ssh"):
+        out.append(f"  wifi     {w['model']}, running the setup portal a "
+                   f"phone has joined (forwards go over it)")
+    elif w and i.get("fwd_netdev") == "c0":
+        out.append(f"  wifi     {w['model']}, running the setup portal; SSH "
+                   f"did not get through the phone, so files go over the "
+                   f"serial console")
+    elif w and w.get("ssid"):
+        out.append(f"  wifi     {w['model']}, on the access point "
+                   f"{w['ssid']}" + (" (forwards go over it)"
+                                     if i.get("fwd_netdev") == "w0" else ""))
+    elif w:
+        out.append(f"  wifi     {w['model']}")
     out.append(f"  console  {s.log}")
     return "\n".join(out)
 
@@ -895,6 +1110,8 @@ def cmd_images(args):
 
 
 def cmd_up(args, extra):
+    if args.console:
+        args.no_wait = True
     if args.no_wait and args.uboot:
         die("--uboot needs to watch the boot, so it cannot be --no-wait")
     image = resolve_image(args.target)
@@ -914,6 +1131,21 @@ def cmd_up(args, extra):
     if not re.fullmatch(r"[\w.+-]+", name):
         die(f"bad session name {name!r}; pass --name")
     qemu = find_qemu(image, args.qemu)
+    wifi = None
+    if args.wifi or args.portal:
+        ssid, _, psk = (args.wifi or "").partition(":")
+        if args.wifi and (not ssid or not 8 <= len(psk) <= 63):
+            die("--wifi wants SSID:PASSPHRASE, a passphrase of 8 to 63 "
+                "characters")
+        wifi = {"model": wifi_model(image, cfg, args.wifi_chip),
+                "ssid": ssid or None, "portal": args.portal}
+        if wifi["model"] not in qemu_devices(qemu):
+            die(f"{qemu} has no {wifi['model']} model; pass --qemu with "
+                f"ingenic-0.6.16 or a newer build of the fork")
+        if args.portal and \
+                "client-netdev" not in qemu_device_props(qemu, wifi["model"]):
+            die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu "
+                f"with ingenic-0.6.16 or a newer build of the fork")
 
     s = Session(name)
     old_ports = {}
@@ -958,11 +1190,40 @@ def cmd_up(args, extra):
         argv += ["-global", f"{soc_type(family)}.soc-variant={variant}"]
     if nand:
         argv += ["-global", f"{sfc_type(family)}.nand-id={NAND_ID:#x}"]
+    if gpio_trace_supported(qemu):
+        argv += ["-chardev", f"file,id=gpiotrace,path={s.path('gpio.jsonl')}",
+                 "-global", "ingenic-gpio.trace=gpiotrace"]
     if ports:
         argv += ["-netdev", "user,id=n0"]
+    if wifi:
+        bus = "msc1" if wifi["model"] in SDIO_WIFI else "usb-bus.0,port=1"
+        dev = [wifi["model"], f"bus={bus}", "netdev=w0"]
+        argv += ["-netdev", "user,id=w0"]
+        if args.portal:
+            mac = "52:55:" + ":".join(f"{int(b):02x}"
+                                      for b in PORTAL_PHONE.split("."))
+            argv += ["-netdev", f"user,id=c0,net={PORTAL_NET}.0/24,"
+                     f"host={PORTAL_PHONE},ipv6=off"]
+            dev += ["client-netdev=c0", f"client-mac={mac}"]
+        # the passphrase last: the saved argv drops it from there on
+        if args.wifi:
+            dev += [f"{k}={v.replace(',', ',,')}"
+                    for k, v in (("ssid", ssid), ("psk", psk))]
+        argv += ["-device", ",".join(dev)]
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
+        cd = card_detect(image, args.sd_cd)
+        if cd and "in-pa" in qemu_device_props(qemu, "ingenic-gpio"):
+            port, pin = cd
+            argv += ["-global", f"ingenic-gpio.in-p{chr(ord('a') + port)}="
+                     f"{0xffffffff & ~(1 << pin):#x}"]
+        elif cd:
+            name = f"P{chr(ord('A') + cd[0])}{cd[1]}"
+            print(f"{qemu} cannot hold the card-detect pin {name} low from "
+                  f"the start (ingenic-0.6.17 can), so U-Boot will not see "
+                  f"the card; `{PROG} gpio {name}=0` inserts it for Linux",
+                  file=sys.stderr)
     argv += extra
 
     with open(s.path("qemu.log"), "wb") as log:
@@ -975,7 +1236,8 @@ def cmd_up(args, extra):
               "password": args.password
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
-              "started": int(time.time()), "argv": argv}
+              "wifi": wifi, "started": int(time.time()),
+              "argv": [re.sub(r",psk=.*", ",psk=...", a) for a in argv]}
     s.save()
 
     def failed(what):
@@ -995,6 +1257,9 @@ def cmd_up(args, extra):
         s.info["pty"] = {c["label"][-1]: c["filename"][len("pty:"):]
                          for c in qmp(s, "query-chardev")
                          if re.fullmatch(r"uart[01]", c["label"])}
+        # thingino stops Wi-Fi on a camera whose wired port has a link
+        if wifi:
+            qmp(s, "set_link", name="n0", up=False)
         qmp(s, "cont")
         n = None
         while n is None:
@@ -1019,6 +1284,7 @@ def cmd_up(args, extra):
             elif args.uboot:
                 ok = stop_in_uboot(s, con, args.timeout, gated=False)
             else:
+                con = follow_kernel(s, con, args.timeout)
                 ok = boot_to_shell(s, con, args.timeout)
         finally:
             con.close()
@@ -1028,9 +1294,14 @@ def cmd_up(args, extra):
         die(f"{name}: no {'U-Boot prompt' if args.uboot else 'shell'} in "
             f"{args.timeout} s; the session is left running for a look "
             f"(`{PROG} log`, `{PROG} console`, `{PROG} down {name}`)", 2)
+    if args.wifi and not (args.portal or args.no_wait or args.uboot):
+        join_wifi(s, ssid, psk, args.timeout)
     if not args.no_wait:
         print(f"{name}: up in {time.time() - t0:.0f} s", file=sys.stderr)
     print(describe(s, args.json))
+    if args.console:
+        args.name, args.all = name, True
+        return cmd_console(args)
     return 0
 
 
@@ -1327,11 +1598,128 @@ def qom_props(q, path, want):
     return props
 
 
+def gpio_events(path, follow):
+    """The pin changes QEMU logged, and while following, those to come."""
+    with open(path) as f:
+        part = ""
+        while True:
+            part += f.readline()
+            if part.endswith("\n"):
+                yield json.loads(part)
+                part = ""
+            elif follow:
+                time.sleep(0.2)
+            else:
+                return
+
+
+def gpio_event_mode(e):
+    """A logged pin state in gpio_mode()'s words, with its level."""
+    if e["fn"] == "func":
+        return f"func{e['func']}"
+    if e["fn"] == "irq":
+        return (f"irq {e['trig']}" + (" masked" if e["mask"] else "")
+                + f" {e['lvl']}")
+    return f"{e['fn']} {e['lvl']}"
+
+
+PINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pins")
+
+
+def pin_table(model):
+    """The pins of a SoC from Ingenic's documents (make-pin-tables.py), by
+    name: functions 0-3, state out of reset, packages; {} if none. The
+    longest table name the model starts with wins: t32pro over t32."""
+    try:
+        names = [f[:-5] for f in os.listdir(PINS_DIR) if f.endswith(".json")]
+        name = max((n for n in names if (model or "").startswith(n)),
+                   key=len)
+        with open(os.path.join(PINS_DIR, f"{name}.json")) as f:
+            return json.load(f)["pins"]
+    except (OSError, ValueError, KeyError):
+        return {}
+
+
+def gpio_print_log(events, pins):
+    state = {}
+    for e in events:
+        if e.get("reset"):
+            state.clear()
+            print(f"{e['t'] / 1e9:11.6f}  reset")
+            continue
+        now = gpio_event_mode(e)
+        if e["fn"] == "func":
+            name = pins.get(e["pin"], {}).get("func", [""] * 4)[e["func"]]
+            now += f" ({name})" if name else ""
+        was = state.get(e["pin"], "reset state")
+        state[e["pin"]] = now
+        who = e.get("pc") or e.get("src", "")
+        print(f"{e['t'] / 1e9:11.6f}  {e['pin']:<5}{e['gpio']:>4}  "
+              f"{was} -> {now}  {who}", flush=True)
+
+
+def gpio_write_vcd(events, path):
+    """Each pin's level for a waveform viewer; z while in a device
+    function; a reset wire pulses at each reset."""
+    events = list(events)
+    pins = list(dict.fromkeys(e["pin"] for e in events if "pin" in e))
+    ids = {}
+    for i, pin in enumerate(["reset"] + pins):
+        n, code = i, ""
+        while True:
+            n, r = divmod(n, 94)
+            code = chr(33 + r) + code
+            if not n:
+                break
+            n -= 1
+        ids[pin] = code
+    with open(path, "w") as f:
+        f.write("$timescale 1ns $end\n$scope module gpio $end\n")
+        for pin in ["reset"] + pins:
+            f.write(f"$var wire 1 {ids[pin]} {pin} $end\n")
+        f.write("$upscope $end\n$enddefinitions $end\n#0\n$dumpvars\n")
+        f.write("".join(f"x{ids[p]}\n" for p in pins) + f"0{ids['reset']}\n")
+        f.write("$end\n")
+        last = 0
+        for e in events:
+            t = max(e["t"], last)
+            if e.get("reset"):
+                f.write(f"#{t}\n1{ids['reset']}\n#{t + 1}\n"
+                        f"0{ids['reset']}\n")
+                last = t + 1
+                continue
+            value = "z" if e["fn"] == "func" else str(e["lvl"])
+            f.write(f"#{t}\n{value}{ids[e['pin']]}\n")
+            last = t
+    return len(pins)
+
+
 def cmd_gpio(args, words):
     """Read pins, or drive inputs from outside: GPIO outputs read what
     the camera drives, every other pin what was last driven here (high
     until then); a driven change fires the pin's interrupt if it has
-    one."""
+    one. --log, --watch and --vcd read the log of pin changes instead."""
+    if args.log or args.watch or args.vcd or args.serve is not None:
+        s = pick(args.name, live=False)
+        trace = s.path("gpio.jsonl")
+        if not os.path.exists(trace):
+            die("this session logs no pin changes: its QEMU predates "
+                "ingenic-gpio's trace (ingenic-0.6.15)")
+        if args.serve is not None:
+            from .gpioview import serve
+            serve(s, args.serve, pin_table(s.info.get("model")), clean,
+                  gpio_pin)
+            return 0
+        if args.vcd:
+            n = gpio_write_vcd(gpio_events(trace, False), args.vcd)
+            print(f"{args.vcd}: {n} pins")
+            return 0
+        try:
+            gpio_print_log(gpio_events(trace, args.watch),
+                           pin_table(s.info.get("model")))
+        except KeyboardInterrupt:
+            pass
+        return 0
     s = pick(args.name)
     path = "/machine/soc/gpio"
     q = Qmp(s.path("qmp"))
@@ -1411,8 +1799,16 @@ def cmd_console(args):
     if not sys.stdin.isatty():
         die(f"console needs a terminal; without one, `{PROG} sh`, "
             f"`send` and `uboot` do the same")
+    start = os.path.getsize(s.log) if args.all else 0
     with s.console(5) as con:
         print(f"{s.name}: attached, Ctrl-] detaches", file=sys.stderr)
+        skip = 0
+        if args.all:
+            # What the log gained while attaching also comes down the
+            # console: print the log, then drop that much of the stream
+            done = s.log_bytes(0)
+            os.write(1, done)
+            skip = max(len(done) - start, 0)
         saved = termios.tcgetattr(0)
         tty.setraw(0)
         try:
@@ -1431,6 +1827,7 @@ def cmd_console(args):
                         break
                     if not data:
                         break
+                    data, skip = data[skip:], max(skip - len(data), 0)
                     os.write(1, data)
         finally:
             termios.tcsetattr(0, termios.TCSADRAIN, saved)
@@ -1505,6 +1902,9 @@ def main(argv=None):
                     help="stop at the U-Boot prompt")
     sp.add_argument("--no-wait", action="store_true",
                     help="return once QEMU runs; `wait` logs in later")
+    sp.add_argument("--console", action="store_true",
+                    help="attach this terminal to the console from power-on "
+                    "(implies --no-wait)")
     sp.add_argument("--keep", action="store_true",
                     help="boot the session's flash as the last run left it "
                          "instead of a fresh copy of the image")
@@ -1521,6 +1921,18 @@ def main(argv=None):
                     metavar="PORT", help="also forward this guest TCP port")
     sp.add_argument("--sd", metavar="IMAGE", help="an SD card in MSC0 "
                     "(the image is written in place)")
+    sp.add_argument("--sd-cd", metavar="PIN", help="the slot's card-detect "
+                    "pin, held low with --sd (PB26 or 58; default: gpio."
+                    "mmc_cd in the camera's thingino.json; none for no pin)")
+    sp.add_argument("--wifi", metavar="SSID:PASS",
+                    help="the camera's Wi-Fi chip, with a WPA2 access point "
+                    "the camera is set up to join (a reboot the first time)")
+    sp.add_argument("--wifi-chip", choices=sorted(set(WIFI_CHIPS.values())),
+                    help="the Wi-Fi model, when the image cannot tell")
+    sp.add_argument("--portal", action="store_true",
+                    help="leave the camera in its setup portal, joined by "
+                    "an emulated phone the web forwards go through; --wifi "
+                    "then names the network to set it up on")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")
@@ -1595,6 +2007,15 @@ def main(argv=None):
     sp.add_argument("words", nargs="*", metavar="NAME")
     sp.add_argument("--all", action="store_true",
                     help="also list pins in device functions")
+    sp.add_argument("--log", action="store_true",
+                    help="every pin change since the session came up")
+    sp.add_argument("--watch", action="store_true",
+                    help="as --log, then the changes as they happen")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the pin changes as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the pins on 127.0.0.1 "
+                         "(a free port unless PORT)")
 
     sp = add("adc", "read or set ADC channels", None,
              "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",
@@ -1613,6 +2034,8 @@ def main(argv=None):
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp = add("console", "attach this terminal to the console")
     sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--all", action="store_true",
+                    help="print everything since power-on first")
     sp = add("info", "show a session")
     sp.add_argument("name", nargs="?", metavar="NAME")
     sp.add_argument("--json", action="store_true")
