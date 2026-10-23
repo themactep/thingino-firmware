@@ -164,6 +164,10 @@ Default manifest (`/etc/cfg-backup.list`):
 /etc/dropbear                         # SSH host keys
 /root/.ssh/authorized_keys            # SSH access
 /etc/thingino.json                    # Thingino config
+/etc/timps.conf /etc/onvif.json       # streamer and ONVIF settings
+/etc/raptor.conf                      # raptor streamer settings
+/etc/prudynt.user.json                # prudynt settings over the image core
+/etc/hostname                         # camera name
 ```
 
 The list file itself is always included in the backup, so a restore gives you back the exact manifest that was used.
