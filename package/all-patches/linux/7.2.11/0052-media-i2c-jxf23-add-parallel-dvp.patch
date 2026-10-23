@@ -2,9 +2,11 @@ From: Paul Philippov <paul@themactep.com>
 Subject: [PATCH] media: i2c: jxf23: support the T20 10-bit parallel bus
 
 The T20 Wyze Cam 2 wires the JXF23 as a 10-bit DVP sensor on I2C0
-at 0x40 with a 24 MHz cgu_cim clock. Accept a parallel endpoint,
-report the BGGR10 media bus code for it, and accept the 24 MHz
-clock window; the CSI-2 path used by T31 is unchanged.
+at 0x40 with a 24 MHz cgu_cim clock and an active-low PA18 reset.
+Accept a parallel endpoint, use the BGGR10 media bus code, accept
+the 24 MHz clock window, pulse the reset like the vendor sensor
+module, and read the T20 chip ID from 0x0a/0x0b (0xf0/0xf1 is the
+T31 MIPI variant). The CSI-2 path used by T31 is unchanged.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -117,7 +119,52 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	if (ep.bus.mipi_csi2.num_data_lanes != 2) {
  		dev_err(dev, "only 2 data lanes are currently supported\n");
  		ret = -EINVAL;
-@@ -770,7 +799,7 @@
+@@ -629,10 +658,15 @@
+ 	if (ret)
+ 		goto err_regulators;
+ 
+-	/* The sensor needs MCLK while reset is released. */
++	/*
++	 * The sensor needs MCLK while reset is released. The vendor
++	 * sequence is high -> low (40 ms) -> high (100 ms).
++	 */
+ 	gpiod_set_value_cansleep(jxf23->powerdown_gpio, 0);
++	gpiod_set_value_cansleep(jxf23->reset_gpio, 1);
++	msleep(40);
+ 	gpiod_set_value_cansleep(jxf23->reset_gpio, 0);
+-	msleep(20);
++	msleep(100);
+ 
+ 	return 0;
+ 
+@@ -658,13 +692,24 @@
+ static int jxf23_identify_module(struct jxf23 *jxf23)
+ {
+ 	u64 id_h, id_l;
++	u32 reg_h = JXF23_REG_CHIP_ID_H;
++	u32 reg_l = JXF23_REG_CHIP_ID_L;
+ 	int ret;
+ 
+-	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_H, &id_h, NULL);
++	/*
++	 * The T31 MIPI variant reports its ID at 0xf0/0xf1. The T20 DVP
++	 * variant keeps it at 0x0a/0x0b (same values, different registers).
++	 */
++	if (jxf23->bus_type == V4L2_MBUS_PARALLEL) {
++		reg_h = CCI_REG8(0x0a);
++		reg_l = CCI_REG8(0x0b);
++	}
++
++	ret = cci_read(jxf23->regmap, reg_h, &id_h, NULL);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = cci_read(jxf23->regmap, JXF23_REG_CHIP_ID_L, &id_l, NULL);
++	ret = cci_read(jxf23->regmap, reg_l, &id_l, NULL);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -770,7 +815,7 @@
  	v4l2_i2c_subdev_init(&jxf23->sd, client, &jxf23_subdev_ops);
  	jxf23->sd.internal_ops = &jxf23_subdev_internal_ops;
  
@@ -126,7 +173,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	if (ret)
  		return ret;
  
-@@ -780,7 +809,18 @@
+@@ -780,7 +825,18 @@
  				     "failed to get xclk\n");
  
  	xclk_freq = clk_get_rate(jxf23->xclk);

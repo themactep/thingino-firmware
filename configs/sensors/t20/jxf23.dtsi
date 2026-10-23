@@ -45,7 +45,7 @@
 		compatible = "jxf,jxf23";
 		reg = <0x40>;
 
-		reset-gpios = <&gpa 18 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpa 18 GPIO_ACTIVE_LOW>;
 
 		clocks = <&cgu T31_CLK_CIM>;
 		clock-names = "xclk";
