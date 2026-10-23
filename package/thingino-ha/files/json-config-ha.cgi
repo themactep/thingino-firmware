@@ -198,7 +198,9 @@ handle_post() {
 	jct "$TMP_FILE" set "${DOMAIN}.enable_ir940" "$en_ir940" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_white_light" "$en_white" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_floodlight" "$en_floodlight" >/dev/null 2>&1
-	jct "$TMP_FILE" set "${DOMAIN}.enable_lamp_socket" "$en_lamp_socket" >/dev/null 2>&1
+	if command -v lamp_socket_ctl >/dev/null 2>&1; then
+		jct "$TMP_FILE" set "${DOMAIN}.enable_lamp_socket" "$en_lamp_socket" >/dev/null 2>&1
+	fi
 	jct "$TMP_FILE" set "${DOMAIN}.enable_gain" "$en_gain" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_rssi" "$en_rssi" >/dev/null 2>&1
 	jct "$TMP_FILE" set "${DOMAIN}.enable_snapshot" "$en_snapshot" >/dev/null 2>&1
