@@ -43,6 +43,7 @@
           <img id="preview" src="/a/nostream.svg" class="img-fluid d-block w-100" alt="Image: Preview" tabindex="-1" data-stream="ch0">
           <div id="osd-boxes"></div>
         </div>
+        <div id="tv-frame-note" class="small text-warning mt-1" hidden></div>
       </div>
       <div class="col-12 col-xl-7">
         <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 py-2 small mb-2 tv-link" style="--bs-alert-bg:rgb(255 136 0 / .08)">
@@ -114,6 +115,7 @@
             <p>Sensor crop selects a window of the sensor and scales it to the stream size. This is a digital zoom/pan that happens before encoding, so the zoomed picture keeps full stream resolution as long as the window is at least as large as the stream.</p>
             <p>Zoom and the pan sliders move the window; Left/Top/Width/Height are in sensor pixels (even values, at least 64&times;64 or the smallest window this camera takes). Drag the frame on the preview to pan, its corner to zoom; the mouse wheel over the frame zooms around the pointer. The preview is the whole sensor. While crop is off it shows the live picture with the frame on it. While crop is on the stream only contains the window, so the live picture is shown inside the frame and the rest of the sensor is dimmed: the last picture taken while crop was off (kept in this browser) or a grid if there is none.</p>
             <p>The zoom slider runs from 1&times; to the largest zoom this camera allows. Up to the white mark the window is at least as large as every zoomed stream: <b>Crop</b>, full resolution. Above it (amber) the stream scales the window up: <b>Crop + zoom</b>, a softer picture. Without the amber part the camera only crops.</p>
+            <p><b>Allow upscaling</b> (where the camera offers it) lets a stream scale the window up to 2&times;, so the smallest window is half the largest zoomed stream, e.g. 960&times;540 for a 1920&times;1080 stream. While it is on, the upscaling follows the frame: it rises when the frame gets smaller and comes down again when the frame gets larger, but never below the lowest step (1.1&times;) while the switch is on. For still more zoom, lower the stream resolution on the Video page (restart needed): on a 1920&times;1080 sensor 1280&times;720 allows 3&times;, 960&times;540 4&times;. Masks, overlays and ROI are in stream pixels, so check them after a resolution change.</p>
             <p>The lines under the fields show how each stream scales the window. A window smaller than the stream is upscaled and looks soft; a lower stream resolution lets you zoom tighter onto an object without upscaling.</p>
             <p>On some cameras only the substream is zoomed and the main stream keeps the full frame; some cameras apply the window only after a restart (see the badge). <b>State</b>: <i>on</i> = active; <i>off</i> = disabled; <i>waiting</i> = accepted, applies as soon as a stream that can show it is running; <i>rejected</i> = invalid window; <i>failed</i> = the camera refused it.</p>
           </details>
@@ -123,6 +125,14 @@
             <div class="form-check form-switch mb-3">
               <input type="checkbox" id="crop-en" role="switch" class="form-check-input">
               <label for="crop-en" class="form-check-label">Crop enabled</label>
+            </div>
+            <div id="crop-up-w" hidden>
+              <div class="form-check form-switch mb-1">
+                <input type="checkbox" id="crop-up" role="switch" class="form-check-input rc-up">
+                <label for="crop-up" class="form-check-label">Allow upscaling</label>
+              </div>
+              <div id="crop-up-r" hidden><label for="crop-up-v">Zoom up to <output id="crop-up-o"></output></label><input type="range" class="form-range rc-up" id="crop-up-v" min="10" max="100" step="10" value="50"></div>
+              <div class="small text-body-secondary mb-3" id="crop-up-h"></div>
             </div>
             <div class="tv-fields">
               <div class="grid-column-full"><label for="crop-zoom">Zoom <output id="crop-zoom-v"></output></label><input type="range" class="form-range rc-zoom" id="crop-zoom" min="1" max="8" step="any" value="1">

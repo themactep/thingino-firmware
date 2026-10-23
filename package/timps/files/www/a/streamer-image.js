@@ -1,10 +1,8 @@
-// streamer-image.js - Image Quality page (cards with sliders).
 (function () {
   "use strict";
 
   if (!document.body || document.body.id !== "page-streamer-image") return;
 
-  // page field id -> timps image.* key (ids are prudynt-era names)
   var FIELD_MAP = {
     brightness: "brightness",
     contrast: "contrast",
@@ -14,7 +12,7 @@
     wide_dynamic_range: "drc_strength",
     tone: "highlight_depress",
     defog: "defog_strength",
-    noise_reduction: "sinter_strength", // set() also mirrors temper_strength
+    noise_reduction: "sinter_strength",
     dpc: "dpc_strength",
     image_colorfx: "colorfx",
     image_scene: "scene",
@@ -37,7 +35,6 @@
   var LABEL = {};
   var unsupported = {};
 
-  // unsupported on this SoC: hidden and named under the preview
   function setEnabled(id, on) {
     var el = $id(id);
     if (!el) return;
@@ -52,7 +49,6 @@
     if (o && el) o.textContent = el.value;
   }
 
-  // RGB gains only act in manual/custom white balance
   function wbGate() {
     var mode = $id("image_core_wb_mode");
     var manual = mode && isManual(mode.value);
@@ -65,10 +61,6 @@
       "Red/blue gain apply in Manual or Custom mode.";
   }
 
-  // The T10/T20/T30 SDKs have no Custom white-balance mode (their isp_core_wb_mode
-  // ends at Warm fluorescent), and timps would clamp the 9 to 8. Hide it there
-  // rather than offer a choice that comes back as something else. An unknown SoC
-  // keeps every option.
   function hideCustomWb() {
     var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
       window.thinginoUIConfig.device.soc;
@@ -80,7 +72,6 @@
     });
   }
 
-  // Sepia is a T20 effect (the other drivers answer EINVAL), so only offer it there.
   function hideSepia() {
     var soc = window.thinginoUIConfig && window.thinginoUIConfig.device &&
       window.thinginoUIConfig.device.soc;
@@ -91,7 +82,6 @@
     });
   }
 
-  // the Effects card is pointless when neither control is supported
   function effectsCard() {
     var card = $id("img-effects-card");
     if (card) card.classList.toggle("d-none",
@@ -121,8 +111,6 @@
   function applyCorrections(r) {
     var corr = r && r.corrections;
     if (!corr) return;
-    // the single NR slider mirrors sinter -> temper; naming both in the toast
-    // would report the same knob twice
     if (corr["image.temper_strength"] !== undefined &&
         corr["image.sinter_strength"] !== undefined)
       delete corr["image.temper_strength"];
@@ -130,14 +118,10 @@
       var id = REVERSE[k];
       if (id) populate(id, corr[k]);
     });
-    // take-once: a debounced flush settles every queued waiter with the same
-    // result; the element writes above are idempotent, the toast is not
     var t = window.timpsApi.takeCorrections(r);
     if (t) toast("info", window.timpsApi.correctionsText(t));
   }
 
-  // one changed control -> debounced POST {"image":{key:val}} to timps.
-  // The page's single NR slider drives both spatial+temporal NR strengths.
   function send(id) {
     var el = $id(id);
     var key = FIELD_MAP[id];
@@ -165,7 +149,6 @@
 
   function isManual(v) { return v === "1" || v === "9"; }
 
-  // entering manual/custom: start from the gains AWB applies now, so the picture doesn't jump
   function wbEnterManual(el) {
     el.classList.add("opacity-75");
     window.timpsApi.get().then(function (json) {
@@ -190,7 +173,7 @@
       if (!el) return;
       var lab = document.querySelector('label[for="' + id + '"]');
       LABEL[id] = lab ? lab.textContent.replace(/\s+\d*\s*$/, "").trim() : id;
-      el.disabled = true; // until caps confirm support
+      el.disabled = true;
       el.addEventListener("input", function () { showValue(id); });
       if (id === "image_core_wb_mode")
         el.addEventListener("focus", function () { wbPrev = el.value; });
@@ -203,7 +186,6 @@
         }
         send(id);
       });
-      // double-click resets a numeric field to the midpoint of its range
       if (el.type !== "checkbox" && el.tagName !== "SELECT") {
         el.addEventListener("dblclick", function () {
           var min = Number(el.min || 0);
@@ -262,18 +244,14 @@
   Object.keys(FIELD_MAP).forEach(function (id) {
     REVERSE["image." + FIELD_MAP[id]] = id;
   });
-  REVERSE["image.temper_strength"] = "noise_reduction"; // after the loop: a
-  // future FIELD_MAP entry literally named "temper_strength" must not win
-  // over this intentional alias (mirrors send()'s special case).
+  REVERSE["image.temper_strength"] = "noise_reduction";
 
   function onConfigEvent(type, data) {
     if (!data) return;
-    if (data.resync) { load(); return; } // this client lapped an eviction
+    if (data.resync) { load(); return; }
     var id = REVERSE[data.key];
     if (!id) return;
     var el = $id(id);
-    // don't fight the user mid-drag on this same page; the value will
-    // land anyway once they let go and post their own change
     if (!el || document.activeElement === el) return;
     populate(id, data.value);
   }

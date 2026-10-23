@@ -1,14 +1,12 @@
 #!/bin/sh
 # shellcheck disable=SC1091
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 
 CONF="/etc/timps.conf"
 TOKEN_FILE="/run/timps.token"
 
-# honor a custom http.token_file / http.port from the timps config
 tf=$(sed -n 's/^[[:space:]]*http\.token_file[[:space:]]*=[[:space:]]*"\{0,1\}\([^"#]*\).*/\1/p' "$CONF" 2>/dev/null | head -n1 | tr -d ' \t')
 [ -n "$tf" ] && TOKEN_FILE="$tf"
 port=$(sed -n 's/^[[:space:]]*http\.port[[:space:]]*=[[:space:]]*\([0-9]\{1,\}\).*/\1/p' "$CONF" 2>/dev/null | head -n1)

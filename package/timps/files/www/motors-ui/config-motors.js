@@ -107,13 +107,11 @@
   function showAlert(variant, message, timeout = 6000) {
     if (!message) return;
 
-    // Use global alert system from main.js
     if (window.showAlert && typeof window.showAlert === "function") {
       window.showAlert(variant, message, timeout);
       return;
     }
 
-    // Fallback to local alert container if it exists
     if (!alertContainer) return;
     const alert = document.createElement("div");
     alert.className = `alert alert-${variant || "secondary"} alert-dismissible fade show`;
@@ -289,7 +287,6 @@
     const form = $("#motors-form");
     if (!form) return;
 
-    // Client-side validation to prevent 412 errors
     const requiredPanFields = [
       "gpio_pan_1",
       "gpio_pan_2",
@@ -306,7 +303,6 @@
     const formData = new FormData(form);
     const errors = [];
 
-    // Check GPIO fields (skip for SPI motor boards where pins are irrelevant)
     if (!motorIsSpi) {
       for (const field of requiredPanFields) {
         const value = formData.get(field);
@@ -317,9 +313,6 @@
         }
       }
 
-      // Detect whether the tilt axis is present: all GPIOs set to -1
-      // means the hardware has no tilt motor and tilt validation should
-      // be skipped entirely.
       const tiltGpioValues = requiredTiltFields.map((f) =>
         (formData.get(f) || "").trim(),
       );
@@ -337,15 +330,12 @@
       }
     }
 
-    // Check steps fields
     const stepsPan = formData.get("steps_pan");
     const stepsTilt = formData.get("steps_tilt");
     if (!stepsPan || parseInt(stepsPan) <= 0) {
       errors.push("Pan max steps must be a positive number");
     }
 
-    // Skip tilt steps validation when the tilt axis is disabled (all GPIOs -1).
-    // Pan-only cameras legitimately have steps_tilt = 0.
     const tiltGpioVals = requiredTiltFields.map((f) =>
       (formData.get(f) || "").trim(),
     );
@@ -522,7 +512,6 @@
   }
   const joystickSensitivitySlider = $("#joystick_sensitivity");
   if (joystickSensitivitySlider) {
-    // "input", not "change": track the thumb while dragging.
     joystickSensitivitySlider.addEventListener(
       "input",
       updateJoystickSensitivityInputs,
@@ -533,9 +522,6 @@
     dragStepsSlider.addEventListener("input", updateDragSensitivityInputs);
   }
 
-  // ------------------------------------------------------------------
-  // PTZ presets
-  // ------------------------------------------------------------------
   const presetNameInput = $("#ptz-preset-name");
   const presetSaveButton = $("#ptz-preset-save");
   const presetsList = $("#ptz-presets-list");
@@ -634,7 +620,6 @@
     }
   }
 
-  // The build version rides along in the same `motors -j` status the CGI already proxies, so no extra endpoint.
   async function loadMotorsVersion() {
     if (!versionBadge) return;
     try {

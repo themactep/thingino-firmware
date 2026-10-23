@@ -1,9 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2086,SC2119,SC2120,SC2329,SC3057
 # shellcheck disable=SC2039
-# timps's day/night + IR/white-light control bridge.
 
-# Check authentication
 . /var/www/x/auth.sh
 require_auth
 
@@ -71,10 +69,8 @@ bad_request() {
 	exit 1
 }
 
-# Read POST data
 read -r POST_DATA
 
-# Parse JSON (supports quoted or numeric val)
 cmd=$(printf '%s' "$POST_DATA" | awk -F'"' '/"cmd"/{for(i=1;i<=NF;i++){if($i=="cmd"){print $(i+2); exit}}}')
 val=$(printf '%s' "$POST_DATA" | sed -n 's/.*"val"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p')
 
@@ -83,8 +79,6 @@ val=$(printf '%s' "$POST_DATA" | sed -n 's/.*"val"[[:space:]]*:[[:space:]]*"\{0,
 
 case "$cmd" in
 	auto)
-		# toggle timps's native automatic day/night detection (the WebUI Auto
-		# button sends val 1 to enable and 0 to disable)
 		case "$val" in
 			0 | false) AUTO=false ;;
 			*) AUTO=true ;;
@@ -93,8 +87,6 @@ case "$cmd" in
 			-d "{\"daynight\":{\"enabled\":$AUTO}}" >/dev/null 2>&1
 		;;
 	color)
-		# manual override: disable auto detection, then set the ISP mode
-		# (0 = day/color, 1 = night/b&w)
 		case "$val" in
 			0 | 1) ;;
 			*) bad_request "invalid value for color" ;;
@@ -134,6 +126,4 @@ case "$cmd" in
 		;;
 esac
 
-# All state data is provided by the (timps-aware) heartbeat CGIs, no need to
-# build a payload here
 json_ok

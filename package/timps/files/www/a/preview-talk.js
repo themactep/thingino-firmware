@@ -1,4 +1,3 @@
-// preview-talk.js - push-to-talk (browser microphone -> camera speaker) for the timps preview page.
 (function () {
   "use strict";
 
@@ -11,16 +10,14 @@
   const WS_MAX_PAYLOAD = 1024;
   // Sample rates timps' talk_ws.c accepts via ?rate= (TALK_RATES there).
   const RATES_OK = [8000, 16000, 24000, 32000, 44100, 48000];
-  // Client-side backpressure.
   const MAX_BUFFERED = 10 * WS_MAX_PAYLOAD;
   const PROBE_MAX_BACKOFF_MS = 30000;
 
-  let base = null;    // http(s)://<host>:<port>
-  let wsBase = null;  // ws(s)://<host>:<port>, same scheme family as `base`
+  let base = null;
+  let wsBase = null;
   let token = null;
-  let tls = false;    // true once the scheme we actually dial is https/wss
+  let tls = false;
 
-  // http.https tri-state, as reported by timps-token.cgi's "scheme" field.
   function timpsScheme(info) {
     if (!info) return "http";
     if (info.scheme === "both") {
@@ -29,11 +26,10 @@
     if (info.scheme === "https" || info.scheme === "http") return info.scheme;
     return info.tls ? "https" : "http";
   }
-  let stopped = false; // set on pagehide; stops the probe retry loop
+  let stopped = false;
 
-  // live session state, all null/idle between presses
   let ws = null, ctx = null, spn = null, src = null, sink = null, mic = null;
-  let state = "idle"; // idle | connecting | talking | error
+  let state = "idle";
   let pending = null, pendN = 0, frameSamples = 0;
   let errTimer = null;
 
@@ -45,7 +41,6 @@
     statusEl.textContent = msg || "";
     statusEl.style.display = msg ? "" : "none";
     statusEl.classList.toggle("text-danger", !!isErr);
-    // errors are transient notices, not a permanent banner
     if (msg && isErr) errTimer = setTimeout(() => say(""), 6000);
   }
 
@@ -60,26 +55,23 @@
               : "Talk to the camera (microphone -> camera speaker)";
   }
 
-  // Reveal the control.
   function showBtn() {
     btn.style.display = "";
     setBtn();
   }
 
-  // float [-1,1] -> G.711 mu-law byte.
   function ulawEncode(f) {
     let s = (f < -1 ? -1 : f > 1 ? 1 : f) * 32767 | 0;
     const sign = (s >> 8) & 0x80;
     if (sign) s = -s;
-    if (s > 32635) s = 32635;      // CLIP
-    s += 132;                      // BIAS 0x84
+    if (s > 32635) s = 32635;
+    s += 132;
     let exp = 7;
     for (let m = 0x4000; (s & m) === 0 && exp > 0; m >>= 1) exp--;
     const mant = (s >> (exp + 3)) & 0x0F;
     return ~(sign | (exp << 4) | mant) & 0xFF;
   }
 
-  // ScriptProcessorNode wants a power-of-two buffer (256..16384).
   function bufSizeFor(rate) {
     let n = 256;
     while (n < 16384 && n * 2 <= rate * 0.03) n *= 2;
@@ -87,7 +79,6 @@
   }
 
   function teardown() {
-    // stop producing before closing the socket, so no frame races the close
     if (spn) { try { spn.disconnect(); } catch (e) {} spn.onaudioprocess = null; spn = null; }
     if (src) { try { src.disconnect(); } catch (e) {} src = null; }
     if (sink) { try { sink.disconnect(); } catch (e) {} sink = null; }
@@ -107,8 +98,6 @@
           w.close(1000, "bye");
       } catch (e) {}
     }
-    // Errors are surfaced by say() as transient red text, not by a stuck
-    // button: the control goes straight back to idle so it can be retried.
     state = "idle";
     setBtn();
     say(msg || "", isErr);
@@ -118,8 +107,6 @@
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     while (pendN >= frameSamples) {
       if (ws.bufferedAmount > MAX_BUFFERED) {
-        // socket is not draining: drop everything queued rather than grow a
-        // backlog the listener would hear as ever-increasing delay
         pendN = 0;
         return;
       }
@@ -149,7 +136,6 @@
     }
     if (stopped) { stop(""); return; }
 
-    // Ask for 8 kHz (mu-law's native rate, 64 kbit/s on the wire).
     const AC = window.AudioContext || window.webkitAudioContext;
     try {
       ctx = new AC({ sampleRate: 8000 });
@@ -157,8 +143,7 @@
       try { ctx = new AC(); } catch (e2) { stop("No Web Audio support.", true); return; }
     }
     if (!ctx.createScriptProcessor) { stop("No Web Audio support.", true); return; }
-    // iOS starts contexts suspended; we are inside a click handler, so this is
-    // the one moment resuming is allowed.
+    // iOS starts contexts suspended; only a click handler may resume them
     try { await ctx.resume(); } catch (e) {}
 
     const rate = Math.round(ctx.sampleRate);
@@ -210,8 +195,6 @@
     };
 
     ws.onmessage = (ev) => {
-      // talk_ws.c sends one hello: {"ok":1,"codec":"pcmu","rate":N}. Purely
-      // informational - it turns "no audio" into something diagnosable.
       if (typeof ev.data !== "string") return;
       try {
         const j = JSON.parse(ev.data);
@@ -223,8 +206,7 @@
     ws.onerror = () => { if (ws) stop("Talk channel failed.", true); };
 
     ws.onclose = (ev) => {
-      if (!ws) return; // our own stop() already cleaned up
-      // 1000 from the server side still means it ended this, not us
+      if (!ws) return;
       const why = ev.code === 1008 ? "Another talker holds the camera speaker."
                 : ev.code === 1001 ? "Talk channel timed out."
                 : "Talk channel closed (" + ev.code + ").";
@@ -254,11 +236,11 @@
   async function init() {
     let info;
     if (window.timpsTokenInfo) {
-      info = await window.timpsTokenInfo;   // shared single fetch (preview.html)
+      info = await window.timpsTokenInfo;
     } else {
       try {
         const res = await fetch("/x/timps-token.cgi", { cache: "no-store" });
-        if (!res.ok) return;                // no bridge -> feature silently off
+        if (!res.ok) return;
         info = await res.json();
       } catch (e) {
         return;
@@ -267,7 +249,7 @@
     if (!info || !info.token) return;
     token = info.token;
     let host = location.hostname || "127.0.0.1";
-    if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]"; // raw IPv6
+    if (host.indexOf(":") >= 0 && host[0] !== "[") host = "[" + host + "]";
     const port = info.port || 8880;
     const sch = timpsScheme(info);
     tls = sch === "https";
@@ -280,8 +262,6 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (!(window.AudioContext || window.webkitAudioContext)) return;
 
-    // Retry the capability probe with backoff rather than giving up forever on
-    // one transient failure (client pool full, cert not yet trusted).
     let usable = false;
     for (let delay = 1000; !stopped; delay = Math.min(PROBE_MAX_BACKOFF_MS, delay * 2)) {
       try {
