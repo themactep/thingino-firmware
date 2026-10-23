@@ -20,12 +20,19 @@ scripts/qemu-dev sh -- 'cat /proc/cmdline'     # run a command on it
 scripts/qemu-dev down                          # stop it
 ```
 
+To watch a boot from its first line and type at it, stock firmware
+included:
+
+```bash
+scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
+```
+
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `images` | the built images under the output root, with their SoCs |
-| `up CAMERA\|IMAGE` | boot an image; returns at a root shell (about a minute) |
+| `up CAMERA\|IMAGE` | boot an image; returns at a root shell (about a minute), or with `--console` attaches you from power-on |
 | `sh [NAME] -- CMD` | run `CMD` on the camera; exits with its status |
 | `put [NAME] LOCAL REMOTE` | copy a file onto the camera (`REMOTE` may be a directory) |
 | `get [NAME] REMOTE LOCAL` | copy a file off it |
