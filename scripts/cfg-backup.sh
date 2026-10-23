@@ -12,7 +12,8 @@
 #   md5=<32 hex>\n
 #   (padded with \n)
 #
-# Payload: tar (uncompressed - busybox tar lacks gzip)
+# Payload: tar, gzipped when gzip is available. Restore accepts both forms:
+# busybox tar cannot auto-detect compression, so the gzip magic decides.
 
 set -e
 
@@ -85,6 +86,11 @@ do_write() {
 
 	tar cf "$tmpd/payload" "$@" 2>/dev/null || die "tar failed"
 
+	if command -v gzip >/dev/null 2>&1; then
+		gzip -c "$tmpd/payload" >"$tmpd/payload.gz" || die "gzip failed"
+		mv "$tmpd/payload.gz" "$tmpd/payload"
+	fi
+
 	sz=$(stat -c%s "$tmpd/payload" 2>/dev/null) || sz=$(wc -c <"$tmpd/payload")
 	[ "$sz" -le "$MAX_PAYLOAD" ] ||
 		die "backup too large: $sz bytes (max $MAX_PAYLOAD)"
@@ -130,7 +136,15 @@ do_restore() {
 
 	[ "$stored_md5" = "$computed_md5" ] || die "MD5 mismatch - backup is corrupt"
 
-	tar xf "$tmpd/payload" -C / || die "tar extract failed"
+	payload="$tmpd/payload"
+	magic=$(dd if="$payload" bs=1 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')
+	if [ "$magic" = "1f8b" ]; then
+		gzip -dc "$payload" >"$tmpd/payload.tar" ||
+			die "gzip decompress failed"
+		payload="$tmpd/payload.tar"
+	fi
+
+	tar xf "$payload" -C / || die "tar extract failed"
 	echo "cfg-backup: $sz bytes restored from $MTD"
 }
 
