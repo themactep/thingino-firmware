@@ -1,0 +1,463 @@
+From: Claude <noreply@anthropic.com>
+Subject: [PATCH] motor (4.4.94): thingino module-param interface, tcu_chn2 binding, switch-less heads, lifetime fixes
+
+Backport of thingino/ingenic-sdk motor.c (4.4.94/misc/motor, lfiebach v3,
+PR thingino/ingenic-sdk#11 e9b33d7d, which sits on 343ae306 + 248c8345) to
+the old SDK layout pinned here (common/misc/motor):
+
+- hst*/vst*/hmaxstep/vmaxstep/nolimits/tcu_channels... module parameters,
+  of_match "ingenic,tcu_chn2"
+- no gpio_direction_output() in the step interrupt (supersedes the former
+  0003 step-IRQ patch)
+- switch-less (limit-less) heads, devm double free, fops .owner,
+  check_params y fix
+---
+--- a/common/misc/motor/motor.c
++++ b/common/misc/motor/motor.c	2026-10-22 18:53:21.530369155 +0200
+@@ -1,9 +1,17 @@
+-// SPDX-License-Identifier: GPL-2.0-only
+ /*
+  * motor.c - Ingenic motor driver
+  *
+  * Copyright (C) 2015 Ingenic Semiconductor Co.,Ltd
+  *       http://www.ingenic.com
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
+  */
+ 
+ #include <linux/mm.h>
+@@ -73,6 +81,113 @@
+ 	},
+ };
+ 
++/*
++ * thingino unified motor param interface. Names and semantics match the
++ * ingenic-sdk 3.10.14 motor driver and exactly what package/thingino-motors'
++ * S59motor passes to `modprobe motor` on the TCU (GPIO stepper) path:
++ *
++ *   hmaxstep=<pan> vmaxstep=<tilt> tcu_channels=2
++ *   hst1..hst4=<pan phases> vst1..vst4=<tilt phases>
++ *   [motor_switch_gpio=<n>] [invert_gpio_dir=1]
++ *
++ * plus the nolimits/debug knobs the motors-daemon syncs through
++ * /sys/module/motor/parameters/. All GPIOs are global linux numbers
++ * (bank*32 + offset); -1 = unset/none. thingino PTZ heads are switch-less
++ * (software step-count stops - the limit-switch config keys are dead), so
++ * hmin/hmax/vmin/vmax default DISABLED and never inherit motor.h.
++ */
++static char *motor_tcu_channels;
++module_param_named(tcu_channels, motor_tcu_channels, charp, 0644);
++MODULE_PARM_DESC(tcu_channels, "TCU channel(s) for motor (this driver binds tcu_chn2)");
++
++static int hst1 = -1, hst2 = -1, hst3 = -1, hst4 = -1;
++static int vst1 = -1, vst2 = -1, vst3 = -1, vst4 = -1;
++module_param(hst1, int, 0644); MODULE_PARM_DESC(hst1, "Pan motor phase A GPIO");
++module_param(hst2, int, 0644); MODULE_PARM_DESC(hst2, "Pan motor phase B GPIO");
++module_param(hst3, int, 0644); MODULE_PARM_DESC(hst3, "Pan motor phase C GPIO");
++module_param(hst4, int, 0644); MODULE_PARM_DESC(hst4, "Pan motor phase D GPIO");
++module_param(vst1, int, 0644); MODULE_PARM_DESC(vst1, "Tilt motor phase A GPIO");
++module_param(vst2, int, 0644); MODULE_PARM_DESC(vst2, "Tilt motor phase B GPIO");
++module_param(vst3, int, 0644); MODULE_PARM_DESC(vst3, "Tilt motor phase C GPIO");
++module_param(vst4, int, 0644); MODULE_PARM_DESC(vst4, "Tilt motor phase D GPIO");
++
++static int hmin = -1, hmax = -1, vmin = -1, vmax = -1;
++module_param(hmin, int, 0644); MODULE_PARM_DESC(hmin, "Pan min-limit GPIO (-1=none)");
++module_param(hmax, int, 0644); MODULE_PARM_DESC(hmax, "Pan max-limit GPIO (-1=none)");
++module_param(vmin, int, 0644); MODULE_PARM_DESC(vmin, "Tilt min-limit GPIO (-1=none)");
++module_param(vmax, int, 0644); MODULE_PARM_DESC(vmax, "Tilt max-limit GPIO (-1=none)");
++
++static int hmaxstep = -1, vmaxstep = -1;
++module_param(hmaxstep, int, 0644); MODULE_PARM_DESC(hmaxstep, "Max steps of pan motor");
++module_param(vmaxstep, int, 0644); MODULE_PARM_DESC(vmaxstep, "Max steps of tilt motor");
++
++static int motor_switch_gpio = -1;
++module_param(motor_switch_gpio, int, 0644); MODULE_PARM_DESC(motor_switch_gpio, "Motor direction/enable GPIO (-1=none)");
++static int invert_gpio_dir = 0;
++module_param(invert_gpio_dir, int, 0644); MODULE_PARM_DESC(invert_gpio_dir, "Invert coil drive level for active-low drivers (1=yes)");
++static int invert_direction_polarity = 1;
++module_param(invert_direction_polarity, int, 0644); MODULE_PARM_DESC(invert_direction_polarity, "motor_switch_gpio enable polarity");
++
++/*
++ * Runtime knobs the motors-daemon syncs via /sys/module/motor/parameters/
++ * (it writes "1"/"0"). nolimits skips the limit-switch reads on switch-less
++ * heads, which would otherwise sample an invalid GPIO and zero every move.
++ */
++static int nolimits = 0;
++static int debug = 0;
++module_param(nolimits, int, 0644); MODULE_PARM_DESC(nolimits, "Skip limit-switch checks for switch-less heads (1=limitless)");
++module_param(debug, int, 0644); MODULE_PARM_DESC(debug, "Verbose motor debug logging");
++
++/*
++ * Switch-less head: nolimits set, or any limit GPIO left at -1. Such heads
++ * have no reference to home against, so travel comes from hmaxstep/vmaxstep.
++ */
++static int motor_switchless(void)
++{
++	return nolimits ||
++		!gpio_is_valid((int)motors_pdata[HORIZONTAL_MOTOR].motor_min_gpio) ||
++		!gpio_is_valid((int)motors_pdata[HORIZONTAL_MOTOR].motor_max_gpio) ||
++		!gpio_is_valid((int)motors_pdata[VERTICAL_MOTOR].motor_min_gpio) ||
++		!gpio_is_valid((int)motors_pdata[VERTICAL_MOTOR].motor_max_gpio);
++}
++
++#define motor_dbg(fmt, ...) \
++	do { if (debug) pr_info("motor: " fmt, ##__VA_ARGS__); } while (0)
++
++/* Coil drive level, honouring invert_gpio_dir (active-low stepper drivers). */
++static inline int motor_coil_level(int on)
++{
++	return (!!on) ^ (invert_gpio_dir & 0x1);
++}
++
++static void motor_apply_gpio_params(void)
++{
++	struct motor_platform_data *h = &motors_pdata[HORIZONTAL_MOTOR];
++	struct motor_platform_data *v = &motors_pdata[VERTICAL_MOTOR];
++
++	/* Phase pins: a passed value (>=0) wins; -1 keeps the motor.h fallback
++	 * so a bare insmod still has valid (non -1) phase GPIOs. */
++	if (hst1 >= 0) h->motor_st1_gpio = hst1;
++	if (hst2 >= 0) h->motor_st2_gpio = hst2;
++	if (hst3 >= 0) h->motor_st3_gpio = hst3;
++	if (hst4 >= 0) h->motor_st4_gpio = hst4;
++	if (vst1 >= 0) v->motor_st1_gpio = vst1;
++	if (vst2 >= 0) v->motor_st2_gpio = vst2;
++	if (vst3 >= 0) v->motor_st3_gpio = vst3;
++	if (vst4 >= 0) v->motor_st4_gpio = vst4;
++
++	/* Limit pins: thingino heads are switch-less, so DISABLE (-1) unless a
++	 * real GPIO is passed; never inherit motor.h's limit defaults. */
++	h->motor_min_gpio = (hmin >= 0) ? (unsigned int)hmin : (unsigned int)-1;
++	h->motor_max_gpio = (hmax >= 0) ? (unsigned int)hmax : (unsigned int)-1;
++	v->motor_min_gpio = (vmin >= 0) ? (unsigned int)vmin : (unsigned int)-1;
++	v->motor_max_gpio = (vmax >= 0) ? (unsigned int)vmax : (unsigned int)-1;
++
++	if (motor_tcu_channels && strcmp(motor_tcu_channels, "2"))
++		printk(KERN_WARNING "motor: tcu_channels=%s but this driver binds tcu_chn2 only\n",
++		       motor_tcu_channels);
++}
++
+ static void motor_set_default(struct motor_device *mdev)
+ {
+ 	int index = 0;
+@@ -82,13 +197,13 @@
+ 		motor =  &mdev->motors[index];
+ 		motor->state = MOTOR_OPS_STOP;
+ 		if (motor->pdata->motor_st1_gpio)
+-			gpio_direction_output(motor->pdata->motor_st1_gpio, 0);
++			gpio_direction_output(motor->pdata->motor_st1_gpio, motor_coil_level(0));
+ 		if (motor->pdata->motor_st2_gpio)
+-			gpio_direction_output(motor->pdata->motor_st2_gpio, 0);
++			gpio_direction_output(motor->pdata->motor_st2_gpio, motor_coil_level(0));
+ 		if (motor->pdata->motor_st3_gpio)
+-			gpio_direction_output(motor->pdata->motor_st3_gpio, 0);
++			gpio_direction_output(motor->pdata->motor_st3_gpio, motor_coil_level(0));
+ 		if (motor->pdata->motor_st4_gpio)
+-			gpio_direction_output(motor->pdata->motor_st4_gpio, 0);
++			gpio_direction_output(motor->pdata->motor_st4_gpio, motor_coil_level(0));
+ 	}
+ 	return;
+ }
+@@ -116,22 +231,22 @@
+ 			step = motor->cur_steps % 8;
+ 			step = step < 0 ? step + 8 : step;
+ 			if (motor->pdata->motor_st1_gpio)
+-				gpio_direction_output(motor->pdata->motor_st1_gpio, step_8[step] & 0x8);
++				gpio_set_value(motor->pdata->motor_st1_gpio, motor_coil_level(step_8[step] & 0x8));
+ 			if (motor->pdata->motor_st2_gpio)
+-				gpio_direction_output(motor->pdata->motor_st2_gpio, step_8[step] & 0x4);
++				gpio_set_value(motor->pdata->motor_st2_gpio, motor_coil_level(step_8[step] & 0x4));
+ 			if (motor->pdata->motor_st3_gpio)
+-				gpio_direction_output(motor->pdata->motor_st3_gpio, step_8[step] & 0x2);
++				gpio_set_value(motor->pdata->motor_st3_gpio, motor_coil_level(step_8[step] & 0x2));
+ 			if (motor->pdata->motor_st4_gpio)
+-				gpio_direction_output(motor->pdata->motor_st4_gpio, step_8[step] & 0x1);
++				gpio_set_value(motor->pdata->motor_st4_gpio, motor_coil_level(step_8[step] & 0x1));
+ 		}else{
+ 			if (motor->pdata->motor_st1_gpio)
+-				gpio_direction_output(motor->pdata->motor_st1_gpio, 0);
++				gpio_set_value(motor->pdata->motor_st1_gpio, motor_coil_level(0));
+ 			if (motor->pdata->motor_st2_gpio)
+-				gpio_direction_output(motor->pdata->motor_st2_gpio, 0);
++				gpio_set_value(motor->pdata->motor_st2_gpio, motor_coil_level(0));
+ 			if (motor->pdata->motor_st3_gpio)
+-				gpio_direction_output(motor->pdata->motor_st3_gpio, 0);
++				gpio_set_value(motor->pdata->motor_st3_gpio, motor_coil_level(0));
+ 			if (motor->pdata->motor_st4_gpio)
+-				gpio_direction_output(motor->pdata->motor_st4_gpio, 0);
++				gpio_set_value(motor->pdata->motor_st4_gpio, motor_coil_level(0));
+ 		}
+ 		if(motor->state == MOTOR_OPS_RESET){
+ 			motor->total_steps++;
+@@ -153,6 +268,16 @@
+ 			&& motors[VERTICAL_MOTOR].state == MOTOR_OPS_STOP){
+ 		mdev->dev_state = MOTOR_OPS_STOP;
+ 		motor_move_step(mdev);
++		/*
++		 * thingino: halt the free-running TCU counter once idle. The
++		 * stock driver started the counter at probe and never stopped
++		 * it after a move, so this timer IRQ fired forever - wasted
++		 * cycles, and it wedged/panicked the SoC under repeated moves
++		 * and module reload. A new move re-arms it via
++		 * ingenic_tcu_counter_begin() in motor_ops_move(). Register
++		 * write only (tcu_disable_counter), safe from IRQ context.
++		 */
++		ingenic_tcu_counter_stop(mdev->tcu);
+ 		return IRQ_HANDLED;
+ 	}
+ 
+@@ -299,27 +424,40 @@
+ 	int times = 1;
+ 	int value = 0;
+ 
+-	/* check x value */
+-	if(x > 0){
+-		value = gpio_get_value(mdev->motors[HORIZONTAL_MOTOR].pdata->motor_max_gpio);
+-		if(value == mdev->motors[HORIZONTAL_MOTOR].pdata->motor_gpio_level)
+-			x = 0;
+-	}else{
+-		value = gpio_get_value(mdev->motors[HORIZONTAL_MOTOR].pdata->motor_min_gpio);
+-		if(value == mdev->motors[HORIZONTAL_MOTOR].pdata->motor_gpio_level)
+-			x = 0;
+-	}
+-	/* check y value */
+-	if(y > 0){
+-		value = gpio_get_value(mdev->motors[VERTICAL_MOTOR].pdata->motor_max_gpio);
+-		if(value == mdev->motors[VERTICAL_MOTOR].pdata->motor_gpio_level)
+-			y = 0;
+-	}else{
+-		value = gpio_get_value(mdev->motors[VERTICAL_MOTOR].pdata->motor_min_gpio);
+-		if(value == mdev->motors[VERTICAL_MOTOR].pdata->motor_gpio_level)
+-			y = 0;
++	motor_dbg("move x=%d y=%d cur=%d,%d max=%d,%d\n", x, y,
++		  motors[HORIZONTAL_MOTOR].cur_steps, motors[VERTICAL_MOTOR].cur_steps,
++		  motors[HORIZONTAL_MOTOR].max_steps, motors[VERTICAL_MOTOR].max_steps);
++
++	/*
++	 * Limit-switch gating. Skipped in nolimits mode (switch-less heads run
++	 * on software step-count stops); each read is also guarded by GPIO
++	 * validity so a disabled (-1) limit is never sampled and can never
++	 * wrongly zero the move.
++	 */
++	if (!nolimits) {
++		unsigned int gpio;
++
++		/* check x value */
++		gpio = (x > 0) ? mdev->motors[HORIZONTAL_MOTOR].pdata->motor_max_gpio
++			       : mdev->motors[HORIZONTAL_MOTOR].pdata->motor_min_gpio;
++		if (gpio_is_valid(gpio)) {
++			value = gpio_get_value(gpio);
++			if (value == mdev->motors[HORIZONTAL_MOTOR].pdata->motor_gpio_level)
++				x = 0;
++		}
++		/* check y value */
++		gpio = (y > 0) ? mdev->motors[VERTICAL_MOTOR].pdata->motor_max_gpio
++			       : mdev->motors[VERTICAL_MOTOR].pdata->motor_min_gpio;
++		if (gpio_is_valid(gpio)) {
++			value = gpio_get_value(gpio);
++			if (value == mdev->motors[VERTICAL_MOTOR].pdata->motor_gpio_level)
++				y = 0;
++		}
+ 	}
+ 
++	if (debug)
++		dev_info(mdev->dev, "motor_ops_move x=%d y=%d nolimits=%d\n", x, y, nolimits);
++
+ 	x_dir = x > 0 ? MOTOR_MOVE_RIGHT_UP : (x < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
+ 	y_dir = y > 0 ? MOTOR_MOVE_RIGHT_UP : (y < 0 ? MOTOR_MOVE_LEFT_DOWN: MOTOR_MOVE_STOP);
+ 	x1 = x < 0 ? 0 - x : x;
+@@ -418,7 +556,7 @@
+ 	if(rdata->x_max_steps == 0 || rdata->y_max_steps == 0){
+ 		return -1;
+ 	}
+-	if(rdata->x_max_steps < rdata->x_cur_step || rdata->x_max_steps < rdata->x_cur_step)
++	if(rdata->x_max_steps < rdata->x_cur_step || rdata->y_max_steps < rdata->y_cur_step)
+ 		return -1;
+ 	return 0;
+ }
+@@ -438,6 +576,10 @@
+ 		return -EPERM;
+ 	}
+ 
++	motor_dbg("reset max=%u,%u cur=%u,%u switchless=%d\n",
++		  rdata->x_max_steps, rdata->y_max_steps,
++		  rdata->x_cur_step, rdata->y_cur_step, motor_switchless());
++
+ 	if(motor_ops_reset_check_params(rdata) == 0){
+ 		/* app set max steps and current pos */
+ 		mutex_lock(&mdev->dev_mutex);
+@@ -448,6 +590,27 @@
+ 		mdev->motors[VERTICAL_MOTOR].cur_steps = rdata->y_cur_step;
+ 		spin_unlock_irqrestore(&mdev->slock, flags);
+ 		mutex_unlock(&mdev->dev_mutex);
++	}else if(motor_switchless()){
++		/*
++		 * No end switches to home against: the limit search below would
++		 * sample invalid GPIOs and wait for a completion that never comes.
++		 * Keep the hmaxstep/vmaxstep travel and assume the centre.
++		 */
++		if (hmaxstep <= 0 || vmaxstep <= 0)
++			return -EINVAL;
++		mutex_lock(&mdev->dev_mutex);
++		spin_lock_irqsave(&mdev->slock, flags);
++		mdev->motors[HORIZONTAL_MOTOR].max_steps = hmaxstep;
++		mdev->motors[HORIZONTAL_MOTOR].cur_steps = hmaxstep >> 1;
++		mdev->motors[VERTICAL_MOTOR].max_steps = vmaxstep;
++		mdev->motors[VERTICAL_MOTOR].cur_steps = vmaxstep >> 1;
++		spin_unlock_irqrestore(&mdev->slock, flags);
++		mutex_unlock(&mdev->dev_mutex);
++		rdata->x_max_steps = hmaxstep;
++		rdata->x_cur_step = hmaxstep >> 1;
++		rdata->y_max_steps = vmaxstep;
++		rdata->y_cur_step = vmaxstep >> 1;
++		return 0;
+ 	}else{
+ 		/* driver calculate max steps. */
+ 		mutex_lock(&mdev->dev_mutex);
+@@ -567,6 +730,8 @@
+ 		return -EPERM;
+ 	}
+ 
++	motor_dbg("ioctl cmd=0x%x\n", cmd);
++
+ 	switch (cmd) {
+ 		case MOTOR_STOP:
+ 			motor_ops_stop(mdev);
+@@ -653,6 +818,7 @@
+ }
+ 
+ static struct file_operations motor_fops = {
++	.owner = THIS_MODULE,	/* an open /dev/motor pins the module */
+ 	.open = motor_open,
+ 	.release = motor_release,
+ 	.unlocked_ioctl = motor_ioctl,
+@@ -691,6 +857,7 @@
+ }
+ 
+ static const struct file_operations motor_info_fops ={
++	.owner = THIS_MODULE,
+ 	.read = seq_read,
+ 	.open = motor_info_open,
+ 	.llseek = seq_lseek,
+@@ -718,6 +885,8 @@
+ 		goto error_devm_kzalloc;
+ 	}
+ 
++	motor_dbg("probe %s switchless=%d maxstep=%d,%d\n", dev_name(&pdev->dev),
++		  motor_switchless(), hmaxstep, vmaxstep);
+ 	mdev->dev = &pdev->dev;
+ 	mdev->tcu = (struct ingenic_tcu_chn *)mdev->cell->platform_data;
+ 	mdev->tcu->irq_type = FULL_IRQ_MODE;
+@@ -794,9 +963,17 @@
+ 		setup_timer(&motor->max_timer,
+ 			    gpio_keys_max_timer, (unsigned long)motor);
+ 	}
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<13);
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<14);
+-	jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<18);
++	/*
++	 * Pull-ups for the reference board's limit switches (PC13/PC14/PC18).
++	 * On switch-less heads these pins may be phase outputs (e.g. PC13 on
++	 * the Cinnado D1), so leave them alone there.
++	 */
++	if (!motor_switchless()) {
++		jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<13);
++		jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<14);
++		jzgpio_set_func(GPIO_PORT_C,GPIO_PULL_UP,1<<18);
++	}
++	motor_dbg("probe gpios done, tcu virq\n");
+ 	ingenic_tcu_channel_to_virq(mdev->tcu);
+ 	mdev->run_step_irq = mdev->tcu->virq[0];
+ 	if (mdev->run_step_irq < 0) {
+@@ -833,7 +1010,27 @@
+ 	proc_create_data("motor_info", S_IRUGO, proc, &motor_info_fops, (void *)mdev);
+ 
+ 	motor_set_default(mdev);
++
++	/*
++	 * thingino: seed software travel limits from hmaxstep/vmaxstep (the
++	 * steps_pan/steps_tilt keys S59motor forwards). The motors-daemon also
++	 * re-seeds via MOTOR_RESET, but this gives a sane range beforehand.
++	 * (motor_switch_gpio / invert_direction_polarity are accepted for
++	 * S59motor compatibility but not yet honoured on this 4.4.94 driver.)
++	 */
++	if (hmaxstep > 0) {
++		mdev->motors[HORIZONTAL_MOTOR].max_steps = hmaxstep;
++		mdev->motors[HORIZONTAL_MOTOR].cur_steps = hmaxstep >> 1;
++	}
++	if (vmaxstep > 0) {
++		mdev->motors[VERTICAL_MOTOR].max_steps = vmaxstep;
++		mdev->motors[VERTICAL_MOTOR].cur_steps = vmaxstep >> 1;
++	}
++
+ 	mdev->flag = 0;
++	motor_dbg("probe ok irq=%d cur=%d,%d\n", mdev->run_step_irq,
++		  mdev->motors[HORIZONTAL_MOTOR].cur_steps,
++		  mdev->motors[VERTICAL_MOTOR].cur_steps);
+ 	ingenic_tcu_counter_begin(mdev->tcu);
+ 
+ 	//printk("%s%d\n",__func__,__LINE__);
+@@ -874,7 +1071,6 @@
+ 		del_timer_sync(&motor->min_timer);
+ 		del_timer_sync(&motor->max_timer);
+ 	}
+-	kfree(mdev);
+ error_devm_kzalloc:
+ 	return ret;
+ }
+@@ -884,6 +1080,12 @@
+ 	int i;
+ 	struct motor_device *mdev = platform_get_drvdata(pdev);
+ 	struct motor_driver *motor = NULL;
++	motor_dbg("remove\n");
++	/* drop the user-facing entry points first, then the hardware */
++	misc_deregister(&mdev->misc_dev);
++	if (mdev->proc)
++		proc_remove(mdev->proc);
++
+ 	ingenic_tcu_counter_stop(mdev->tcu);
+ 	mutex_destroy(&mdev->dev_mutex);
+ 
+@@ -920,26 +1122,28 @@
+ 		del_timer_sync(&motor->max_timer);
+ 	}
+ 
+-	if (mdev->proc)
+-		proc_remove(mdev->proc);
+-
+-	misc_deregister(&mdev->misc_dev);
+-
+-	kfree(mdev);
++	/* mdev is devm-allocated and released with the device */
+ 	return 0;
+ }
+ 
++static struct of_device_id motor_match[] = {
++	{ .compatible = "ingenic,tcu_chn2", },
++	{}
++};
++
+ static struct platform_driver motor_driver = {
+ 	.probe = motor_probe,
+ 	.remove = motor_remove,
+ 	.driver = {
+-		.name	= "tcu_chn2",
++		.name	= "ingenic,tcu_chn2",
++		.of_match_table = motor_match,
+ 		.owner	= THIS_MODULE,
+ 	}
+ };
+ 
+ static int __init motor_init(void)
+ {
++	motor_apply_gpio_params();
+ 	return platform_driver_register(&motor_driver);
+ }
+ 
