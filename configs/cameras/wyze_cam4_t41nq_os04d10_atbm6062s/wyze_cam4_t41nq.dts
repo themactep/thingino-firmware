@@ -81,16 +81,27 @@
 		phandle = <0x04>;
 	};
 
-	core-ost@0x12000000 {
-		compatible = "ingenic,core-ost";
-		reg = <0x12000000 0x10000 0x12100000 0x10000>;
+	/*
+	 * The T41's OS timers live outside the TCU: a global counter at
+	 * 0x12000000 and a per-CPU compare timer at 0x12100000, 0x100
+	 * apart, raising the core's IP4. The TCU channels on this part do
+	 * not get a clock (EXT never reaches them).
+	 */
+	core_ost: timer@0x12000000 {
+		compatible = "ingenic,t41-ost";
+		reg = <0x12000000 0x1000 0x12100000 0x1000>;
 		interrupt-parent = <0x01>;
 		interrupt-names = "sys_ost";
 		interrupts = <0x04>;
-		cpu-ost-map = <0x00 0x00 0x01 0x100>;
+
+		clocks = <&extclk>;
+		clock-names = "ost";
+
+		#clock-cells = <0x01>;
 	};
 
-	extclk: extclk {
+	/* The 8250_ingenic early console reads the frequency from /ext. */
+	extclk: ext {
 		compatible = "fixed-clock";
 		clock-output-names = "ext";
 		#clock-cells = <0x00>;
@@ -151,7 +162,7 @@
 			interrupts = <0x1b 0x1a 0x19>;
 
 			watchdog: watchdog@0x0 {
-				compatible = "ingenic,jz4780-watchdog";
+				compatible = "ingenic,t41-watchdog", "ingenic,jz4780-watchdog";
 				reg = <0x00 0x10>;
 
 				clocks = <&tcu TCU_CLK_WDT>;
@@ -343,6 +354,11 @@
 				reg-shift = <0x02>;
 				interrupt-parent = <0x04>;
 				interrupts = <0x32>;
+				/* baud first, then the CGU module gate */
+				clocks = <&extclk>, <&cgu T41_CLK_UART1>;
+				clock-names = "baud", "module";
+				pinctrl-names = "default";
+				pinctrl-0 = <0x31>;
 				status = "okay";
 			};
 
@@ -526,7 +542,7 @@
 			};
 
 			sfc0@0x13440000 {
-				compatible = "ingenic,x2000-sfc";
+				compatible = "ingenic,t41-sfc", "ingenic,x2000-sfc";
 				reg = <0x13440000 0x10000>;
 				clocks = <&cgu T41_CLK_SFC0>;
 				clock-names = "sfc";

@@ -1,0 +1,59 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] clk: ingenic: open the T41 TCU and OST gates
+
+The bootloader keeps its timebase on the global OST and leaves the TCU
+and OST module gates closed. The TCU clock provider (watchdog) and the
+OST clocksource both live behind those gates and neither consumer asks
+for them by name, so open them in the CGU probe.
+
+The TCU's EXT and RTC inputs are gated separately in OPCR bits 20 and 21.
+With them closed the channels enable, hold a period and count nothing -
+and the watchdog, which runs from the RTC input, never advances. Clear
+them with the module gates.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/clk/ingenic/t41-cgu.c
++++ b/drivers/clk/ingenic/t41-cgu.c
+@@ -9,6 +9,7 @@
+  * OD1, so they do not fit the generic PLL type.
+  */
+ 
++#include <linux/clk.h>
+ #include <linux/clk-provider.h>
+ #include <linux/io.h>
+ #include <linux/of.h>
+@@ -552,6 +553,33 @@
+ 	}
+ 
+ 	ingenic_cgu_register_syscore(cgu);
++
++	/*
++	 * The bootloader keeps its timebase on the Global OST at 0x12000000,
++	 * not on the TCU, so it leaves the TCU and OST module gates closed.
++	 * The TCU holds both the clockevent channels and the embedded OST
++	 * clocksource this kernel uses, and neither consumer asks for these
++	 * gates by name yet (the TCU MFD has no tcu clock for jz4760-tcu, and
++	 * the OST takes its clock from the TCU provider), so open them here.
++	 */
++	clk_prepare_enable(cgu->clocks.clks[T41_CLK_TCU]);
++	clk_prepare_enable(cgu->clocks.clks[T41_CLK_OST]);
++
++	/*
++	 * The TCU's EXT and RTC inputs are gated in OPCR (bits 20 and 21)
++	 * separately from its module gate in CLKGR: with those closed the
++	 * channels enable, hold a period and still count nothing. The
++	 * bootloader leaves them closed, so open them with the module gate.
++	 */
++#define T41_OPCR_TCU_RTCCLK_GATE	BIT(21)
++#define T41_OPCR_TCU_EXCLK_GATE		BIT(20)
++	{
++		u32 opcr = readl(cgu->base + CGU_REG_OPCR);
++
++		writel(opcr & ~(T41_OPCR_TCU_RTCCLK_GATE |
++				T41_OPCR_TCU_EXCLK_GATE),
++		       cgu->base + CGU_REG_OPCR);
++	}
+ }
+ 
+ /*

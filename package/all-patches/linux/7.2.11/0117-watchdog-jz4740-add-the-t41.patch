@@ -1,0 +1,183 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] watchdog: jz4740: add the T41
+
+The T41 watchdog is not the JZ4740 one behind the TCU clock provider:
+
+  - Its counter runs from a fixed 24MHz/512 clock. A 4^n prescaler in
+    TCSR bits 5:3 scales it and bit 1 selects the TCU RTC input, so the
+    timeout has to be programmed as TDR = rate * seconds / 4^n.
+
+  - Writing TCNT does not reload the counter. Bit 10 of TCSR does, and
+    that is the ping.
+
+  - The bootloader may leave it counting with its own timeout. Adopt it
+    (WDOG_HW_RUNNING) so the core keeps it alive until userspace opens
+    the device instead of resetting the board a minute into every boot.
+
+Select the variant with an `ingenic,t41-watchdog` compatible.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/watchdog/jz4740_wdt.c
++++ b/drivers/watchdog/jz4740_wdt.c
+@@ -16,6 +16,7 @@
+ #include <linux/device.h>
+ #include <linux/clk.h>
+ #include <linux/slab.h>
++#include <linux/bitops.h>
+ #include <linux/err.h>
+ #include <linux/of.h>
+ #include <linux/regmap.h>
+@@ -41,17 +42,65 @@
+ 	struct regmap *map;
+ 	struct clk *clk;
+ 	unsigned long clk_rate;
++	bool t41;
+ };
+ 
++/*
++ * The T41 watchdog runs from a fixed 24MHz/512 clock and its counter is
++ * reloaded by setting bit 10 of TCSR, not by writing TCNT. The divider in
++ * TCSR bits 5:3 scales by 4 per step; bit 1 selects the TCU RTC input.
++ */
++#define T41_WDT_RAW_RATE	46875
++#define T41_WDT_TCSR_RESET	BIT(10)
++#define T41_WDT_TCSR_RTC	BIT(1)
++
+ static int jz4740_wdt_ping(struct watchdog_device *wdt_dev)
+ {
+ 	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
+ 
++	if (drvdata->t41)
++		return regmap_update_bits(drvdata->map, TCU_REG_WDT_TCSR,
++					  T41_WDT_TCSR_RESET,
++					  T41_WDT_TCSR_RESET);
++
+ 	regmap_write(drvdata->map, TCU_REG_WDT_TCNT, 0);
+ 
+ 	return 0;
+ }
+ 
++static int t41_wdt_set_timeout(struct watchdog_device *wdt_dev,
++			       unsigned int new_timeout)
++{
++	struct jz4740_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
++	unsigned long ticks = (unsigned long)T41_WDT_RAW_RATE * new_timeout;
++	unsigned int tcer, div = 0;
++	int ret;
++
++	while (ticks > 0xffff && div < 5) {
++		ticks >>= 2;
++		div++;
++	}
++	if (ticks > 0xffff)
++		ticks = 0xffff;
++
++	regmap_read(drvdata->map, TCU_REG_WDT_TCER, &tcer);
++	regmap_write(drvdata->map, TCU_REG_WDT_TCER, 0);
++
++	ret = regmap_write(drvdata->map, TCU_REG_WDT_TCSR,
++			   (div << 3) | T41_WDT_TCSR_RTC);
++	if (ret)
++		return ret;
++	regmap_write(drvdata->map, TCU_REG_WDT_TDR, ticks);
++	regmap_write(drvdata->map, TCU_REG_WDT_TCNT, 0);
++
++	if (tcer & TCU_WDT_TCER_TCEN)
++		regmap_write(drvdata->map, TCU_REG_WDT_TCER,
++			     TCU_WDT_TCER_TCEN);
++
++	wdt_dev->timeout = new_timeout;
++	return 0;
++}
++
+ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
+ 				    unsigned int new_timeout)
+ {
+@@ -59,6 +108,9 @@
+ 	u16 timeout_value = (u16)(drvdata->clk_rate * new_timeout);
+ 	unsigned int tcer;
+ 
++	if (drvdata->t41)
++		return t41_wdt_set_timeout(wdt_dev, new_timeout);
++
+ 	regmap_read(drvdata->map, TCU_REG_WDT_TCER, &tcer);
+ 	regmap_write(drvdata->map, TCU_REG_WDT_TCER, 0);
+ 
+@@ -129,6 +181,7 @@
+ static const struct of_device_id jz4740_wdt_of_matches[] = {
+ 	{ .compatible = "ingenic,jz4740-watchdog", },
+ 	{ .compatible = "ingenic,jz4780-watchdog", },
++	{ .compatible = "ingenic,t41-watchdog", .data = (void *)1 },
+ 	{ /* sentinel */ }
+ };
+ MODULE_DEVICE_TABLE(of, jz4740_wdt_of_matches);
+@@ -147,27 +200,35 @@
+ 	if (!drvdata)
+ 		return -ENOMEM;
+ 
++	drvdata->t41 = !!of_device_get_match_data(dev);
++
+ 	drvdata->clk = devm_clk_get(&pdev->dev, "wdt");
+ 	if (IS_ERR(drvdata->clk)) {
+ 		dev_err(&pdev->dev, "cannot find WDT clock\n");
+ 		return PTR_ERR(drvdata->clk);
+ 	}
+ 
+-	/* Set smallest clock possible */
+-	rate = clk_round_rate(drvdata->clk, 1);
+-	if (rate < 0)
+-		return rate;
+-
+-	ret = clk_set_rate(drvdata->clk, rate);
+-	if (ret)
+-		return ret;
++	if (drvdata->t41) {
++		drvdata->clk_rate = T41_WDT_RAW_RATE;
++		rate = drvdata->clk_rate;
++	} else {
++		/* Set smallest clock possible */
++		rate = clk_round_rate(drvdata->clk, 1);
++		if (rate < 0)
++			return rate;
++
++		ret = clk_set_rate(drvdata->clk, rate);
++		if (ret)
++			return ret;
+ 
+-	drvdata->clk_rate = rate;
++		drvdata->clk_rate = rate;
++	}
+ 	jz4740_wdt = &drvdata->wdt;
+ 	jz4740_wdt->info = &jz4740_wdt_info;
+ 	jz4740_wdt->ops = &jz4740_wdt_ops;
+ 	jz4740_wdt->min_timeout = 1;
+-	jz4740_wdt->max_timeout = 0xffff / rate;
++	jz4740_wdt->max_timeout = drvdata->t41 ?
++		(0xffff * 1024) / T41_WDT_RAW_RATE : 0xffff / rate;
+ 	jz4740_wdt->timeout = clamp(heartbeat,
+ 				    jz4740_wdt->min_timeout,
+ 				    jz4740_wdt->max_timeout);
+@@ -181,6 +242,22 @@
+ 		return PTR_ERR(drvdata->map);
+ 	}
+ 
++	/*
++	 * The bootloader leaves the watchdog counting with its own timeout
++	 * and nothing feeds it, so the board would reset a minute or so into
++	 * every boot. Tell the core it is running: it will keep it alive
++	 * until userspace opens the device, and stop it on reboot.
++	 */
++	{
++		unsigned int tcer;
++
++		if (!regmap_read(drvdata->map, TCU_REG_WDT_TCER, &tcer) &&
++		    (tcer & TCU_WDT_TCER_TCEN)) {
++			dev_info(dev, "watchdog already running, keeping it alive\n");
++			set_bit(WDOG_HW_RUNNING, &drvdata->wdt.status);
++		}
++	}
++
+ 	return devm_watchdog_register_device(dev, &drvdata->wdt);
+ }
+ 

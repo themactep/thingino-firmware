@@ -1,0 +1,318 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] clocksource: ingenic-sysost: add the T41
+
+The T41 keeps the global OS counter at 0x12000000 like the X1000 but
+moves each CPU's compare timer to its own page, 0x100 apart, starting at
+0x12100000, and wires it straight to the core's IP4 instead of muxing it
+through the TCU. Its prescale field is the low half of the per-CPU CCR,
+alone in the page, and the global page uses a different counter register
+(G_OSTCNTL at 0x10).
+
+The compare timer also resets with its interrupt masked (OSTMR bit 0),
+which is what kept the T41 from ticking until the vendor driver's clear
+was ported; do it at init and before every set_next.
+
+Map the second reg window for the per-CPU pages and key the differences
+off an `ingenic,t41-ost` variant so the X1000 path is unchanged.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/clocksource/ingenic-sysost.c
++++ b/drivers/clocksource/ingenic-sysost.c
+@@ -47,6 +47,24 @@
+ #define OSTMR_FMASK				BIT(0)
+ 
+ /* bits within the OSTESR register */
++/*
++ * The T41 (XBurst2) moves the per-CPU OS timers out of the global page into
++ * one page per CPU, 0x100 apart, each with its own prescale and enable:
++ *   global page: G_OSTCCR 0x00, G_OSTER 0x04, G_OSTCR 0x08,
++ *                G_OSTCNTH 0x0c, G_OSTCNTL 0x10
++ *   per-CPU page: OSTCCR 0x00, OSTER 0x04, OSTCR 0x08, OSTFR 0x0c,
++ *                 OSTMR 0x10, OSTDFR 0x14, OSTCNT 0x18
++ * The per-CPU timer interrupt goes straight to the core's IP4.
++ */
++#define T41_OST_REG_CCR			0x00
++#define T41_OST_REG_ER			0x04
++#define T41_OST_REG_CR			0x08
++#define T41_OST_REG_FR			0x0c
++#define T41_OST_REG_MR			0x10
++#define T41_OST_REG_DFR			0x14
++#define T41_OST_REG_G_CNTL		0x10
++#define T41_OST_CPU_STRIDE		0x100
++
+ #define OSTESR_OST1ENS			BIT(0)
+ #define OSTESR_OST2ENS			BIT(1)
+ 
+@@ -54,8 +72,14 @@
+ #define OSTECR_OST1ENC			BIT(0)
+ #define OSTECR_OST2ENC			BIT(1)
+ 
++enum ingenic_ost_variant {
++	OST_VARIANT_X1000,
++	OST_VARIANT_T41,
++};
++
+ struct ingenic_soc_info {
+ 	unsigned int num_channels;
++	enum ingenic_ost_variant variant;
+ };
+ 
+ struct ingenic_ost_clk_info {
+@@ -72,6 +96,7 @@
+ 
+ struct ingenic_ost {
+ 	void __iomem *base;
++	void __iomem *cpu_base;
+ 	const struct ingenic_soc_info *soc_info;
+ 	struct clk *clk, *percpu_timer_clk, *global_timer_clk;
+ 	struct clock_event_device cevt;
+@@ -83,6 +108,31 @@
+ 
+ static struct ingenic_ost *ingenic_ost;
+ 
++static inline bool ingenic_ost_is_t41(struct ingenic_ost *ost)
++{
++	return ost->soc_info->variant == OST_VARIANT_T41;
++}
++
++/* Page holding a timer's registers: the T41 per-CPU timer has its own. */
++static inline void __iomem *ingenic_ost_page(struct ingenic_ost *ost,
++					     unsigned int idx)
++{
++	if (ingenic_ost_is_t41(ost) && idx == OST_CLK_PERCPU_TIMER)
++		return ost->cpu_base + T41_OST_CPU_STRIDE * smp_processor_id();
++
++	return ost->base;
++}
++
++/* Prescale field: X1000 packs both timers into one CCR, the T41 does not. */
++static inline u32 ingenic_ost_prescale_mask(struct ingenic_ost *ost,
++					    unsigned int idx)
++{
++	if (ingenic_ost_is_t41(ost) || idx == OST_CLK_PERCPU_TIMER)
++		return OSTCCR_PRESCALE1_MASK;
++
++	return OSTCCR_PRESCALE2_MASK;
++}
++
+ static inline struct ingenic_ost_clk *to_ost_clk(struct clk_hw *hw)
+ {
+ 	return container_of(hw, struct ingenic_ost_clk, hw);
+@@ -95,8 +145,8 @@
+ 	const struct ingenic_ost_clk_info *info = ost_clk->info;
+ 	unsigned int prescale;
+ 
+-	prescale = readl(ost_clk->ost->base + info->ostccr_reg);
+-
++	prescale = readl(ingenic_ost_page(ost_clk->ost, ost_clk->idx) +
++			 info->ostccr_reg);
+ 	prescale = FIELD_GET(OSTCCR_PRESCALE1_MASK, prescale);
+ 
+ 	return parent_rate >> (prescale * 2);
+@@ -108,10 +158,12 @@
+ 	struct ingenic_ost_clk *ost_clk = to_ost_clk(hw);
+ 	const struct ingenic_ost_clk_info *info = ost_clk->info;
+ 	unsigned int prescale;
++	u32 mask;
+ 
+-	prescale = readl(ost_clk->ost->base + info->ostccr_reg);
+-
+-	prescale = FIELD_GET(OSTCCR_PRESCALE2_MASK, prescale);
++	mask = ingenic_ost_prescale_mask(ost_clk->ost, ost_clk->idx);
++	prescale = readl(ingenic_ost_page(ost_clk->ost, ost_clk->idx) +
++			 info->ostccr_reg) & mask;
++	prescale >>= ffs(mask) - 1;
+ 
+ 	return parent_rate >> (prescale * 2);
+ }
+@@ -152,12 +204,14 @@
+ 	struct ingenic_ost_clk *ost_clk = to_ost_clk(hw);
+ 	const struct ingenic_ost_clk_info *info = ost_clk->info;
+ 	u8 prescale = ingenic_ost_get_prescale(parent_rate, req_rate);
++	void __iomem *base;
+ 	int val;
+ 
+-	val = readl(ost_clk->ost->base + info->ostccr_reg);
++	base = ingenic_ost_page(ost_clk->ost, ost_clk->idx) + info->ostccr_reg;
++	val = readl(base);
+ 	val &= ~OSTCCR_PRESCALE1_MASK;
+ 	val |= FIELD_PREP(OSTCCR_PRESCALE1_MASK, prescale);
+-	writel(val, ost_clk->ost->base + info->ostccr_reg);
++	writel(val, base);
+ 
+ 	return 0;
+ }
+@@ -168,12 +222,14 @@
+ 	struct ingenic_ost_clk *ost_clk = to_ost_clk(hw);
+ 	const struct ingenic_ost_clk_info *info = ost_clk->info;
+ 	u8 prescale = ingenic_ost_get_prescale(parent_rate, req_rate);
++	void __iomem *base;
+ 	int val;
+ 
+-	val = readl(ost_clk->ost->base + info->ostccr_reg);
++	base = ingenic_ost_page(ost_clk->ost, ost_clk->idx) + info->ostccr_reg;
++	val = readl(base);
+ 	val &= ~OSTCCR_PRESCALE2_MASK;
+ 	val |= FIELD_PREP(OSTCCR_PRESCALE2_MASK, prescale);
+-	writel(val, ost_clk->ost->base + info->ostccr_reg);
++	writel(val, base);
+ 
+ 	return 0;
+ }
+@@ -221,7 +277,10 @@
+ 	struct ingenic_ost *ost = ingenic_ost;
+ 	unsigned int count;
+ 
+-	count = readl(ost->base + OST_REG_OST2CNTL);
++	if (ingenic_ost_is_t41(ost))
++		count = readl(ost->base + T41_OST_REG_G_CNTL);
++	else
++		count = readl(ost->base + OST_REG_OST2CNTL);
+ 
+ 	return count;
+ }
+@@ -240,7 +299,10 @@
+ {
+ 	struct ingenic_ost *ost = to_ingenic_ost(evt);
+ 
+-	writel(OSTECR_OST1ENC, ost->base + OST_REG_OSTECR);
++	if (ingenic_ost_is_t41(ost))
++		writel(0, ost->cpu_base + T41_OST_REG_ER);
++	else
++		writel(OSTECR_OST1ENC, ost->base + OST_REG_OSTECR);
+ 
+ 	return 0;
+ }
+@@ -250,6 +312,18 @@
+ {
+ 	struct ingenic_ost *ost = to_ingenic_ost(evt);
+ 
++	if (ingenic_ost_is_t41(ost)) {
++		void __iomem *cpu = ost->cpu_base +
++				    T41_OST_CPU_STRIDE * smp_processor_id();
++
++		writel(0, cpu + T41_OST_REG_MR);
++		writel(0, cpu + T41_OST_REG_FR);
++		writel(next, cpu + T41_OST_REG_DFR);
++		writel(1, cpu + T41_OST_REG_CR);
++		writel(1, cpu + T41_OST_REG_ER);
++		return 0;
++	}
++
+ 	writel((u32)~OSTFR_FFLAG, ost->base + OST_REG_OSTFR);
+ 	writel(next, ost->base + OST_REG_OST1DFR);
+ 	writel(OSTCR_OST1CLR, ost->base + OST_REG_OSTCR);
+@@ -264,7 +338,12 @@
+ 	struct clock_event_device *evt = dev_id;
+ 	struct ingenic_ost *ost = to_ingenic_ost(evt);
+ 
+-	writel(OSTECR_OST1ENC, ost->base + OST_REG_OSTECR);
++	if (ingenic_ost_is_t41(ost))
++		writel(0, ost->cpu_base +
++			    T41_OST_CPU_STRIDE * smp_processor_id() +
++			    T41_OST_REG_FR);
++	else
++		writel(OSTECR_OST1ENC, ost->base + OST_REG_OSTECR);
+ 
+ 	if (evt->event_handler)
+ 		evt->event_handler(evt);
+@@ -277,6 +356,7 @@
+ 			struct clk_hw_onecell_data *clocks)
+ {
+ 	struct ingenic_ost_clk *ost_clk;
++	void __iomem *base;
+ 	int val, err;
+ 
+ 	ost_clk = kzalloc_obj(*ost_clk);
+@@ -289,9 +369,10 @@
+ 	ost_clk->ost = ost;
+ 
+ 	/* Reset clock divider */
+-	val = readl(ost->base + info->ostccr_reg);
++	base = ingenic_ost_page(ost, idx) + info->ostccr_reg;
++	val = readl(base);
+ 	val &= ~(OSTCCR_PRESCALE1_MASK | OSTCCR_PRESCALE2_MASK);
+-	writel(val, ost->base + info->ostccr_reg);
++	writel(val, base);
+ 
+ 	err = clk_hw_register(NULL, &ost_clk->hw);
+ 	if (err) {
+@@ -344,6 +425,14 @@
+ 
+ 	snprintf(ost->name, sizeof(ost->name), "OST percpu timer");
+ 
++	/*
++	 * The T41 resets the compare timer with its interrupt masked, so
++	 * the flag latches but never reaches the core (IP4). U-Boot leaves
++	 * it masked too; the vendor driver clears OSTMR here as well.
++	 */
++	if (ingenic_ost_is_t41(ost))
++		writel(0, ost->cpu_base + T41_OST_REG_MR);
++
+ 	err = request_irq(timer_virq, ingenic_ost_cevt_cb, IRQF_TIMER,
+ 			  ost->name, &ost->cevt);
+ 	if (err)
+@@ -391,11 +480,17 @@
+ 		goto err_clk_disable;
+ 	}
+ 
+-	/* Clear counter CNT registers */
+-	writel(OSTCR_OST2CLR, ost->base + OST_REG_OSTCR);
++	if (ingenic_ost_is_t41(ost)) {
++		/* G_OSTCR clears the counter, G_OSTER enables it */
++		writel(1, ost->base + 0x08);
++		writel(1, ost->base + 0x04);
++	} else {
++		/* Clear counter CNT registers */
++		writel(OSTCR_OST2CLR, ost->base + OST_REG_OSTCR);
+ 
+-	/* Enable OST channel */
+-	writel(OSTESR_OST2ENS, ost->base + OST_REG_OSTESR);
++		/* Enable OST channel */
++		writel(OSTESR_OST2ENS, ost->base + OST_REG_OSTESR);
++	}
+ 
+ 	cs->name = "ingenic-ost";
+ 	cs->rating = 400;
+@@ -418,10 +513,17 @@
+ 
+ static const struct ingenic_soc_info x1000_soc_info = {
+ 	.num_channels = 2,
++	.variant = OST_VARIANT_X1000,
++};
++
++static const struct ingenic_soc_info t41_soc_info = {
++	.num_channels = 2,
++	.variant = OST_VARIANT_T41,
+ };
+ 
+ static const struct of_device_id __maybe_unused ingenic_ost_of_matches[] __initconst = {
+ 	{ .compatible = "ingenic,x1000-ost", .data = &x1000_soc_info },
++	{ .compatible = "ingenic,t41-ost", .data = &t41_soc_info },
+ 	{ /* sentinel */ }
+ };
+ 
+@@ -458,6 +560,17 @@
+ 
+ 	ost->soc_info = id->data;
+ 
++	if (ost->soc_info->variant == OST_VARIANT_T41) {
++		ost->cpu_base = of_io_request_and_map(np, 1,
++						of_node_full_name(np));
++		if (IS_ERR(ost->cpu_base)) {
++			ret = PTR_ERR(ost->cpu_base);
++			goto err_clk_disable;
++		}
++	} else {
++		ost->cpu_base = ost->base;
++	}
++
+ 	ost->clocks = kzalloc_flex(*ost->clocks, hws,
+ 				   ost->soc_info->num_channels);
+ 	if (!ost->clocks) {
+@@ -543,3 +656,4 @@
+ }
+ 
+ TIMER_OF_DECLARE(x1000_ost,  "ingenic,x1000-ost",  ingenic_ost_init);
++TIMER_OF_DECLARE(t41_ost,    "ingenic,t41-ost",    ingenic_ost_init);

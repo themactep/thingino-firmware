@@ -1,0 +1,355 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] spi: ingenic-sfc: fix the T41 data path
+
+Three things keep the T41's SFC from moving data reliably:
+
+  - A PIO read cannot complete. The RX FIFO threshold raises RREQ in the
+    middle of the transfer, nothing drains it, and END never comes. The
+    driver waited out the timeout, aborted the transfer and fell back to
+    DMA, but the aborted transfer leaves the controller in a state where
+    the next reads return stale data. Never start one on this part: use
+    DMA for every data phase from the first transfer.
+
+  - DMA writes its whole words into the destination. An unaligned or
+    short buffer is therefore written shifted or past its end. Run every
+    transfer through one uncached coherent buffer and copy in/out.
+
+  - The interrupt handler completed on any controller interrupt without
+    looking at SR, so the caller could read the buffer before the engine
+    finished. Only complete on END (or a FIFO error) and check SR_END
+    before using the data.
+
+The vendor sets the FIFO threshold to half its depth; do the same, and
+let DMA ops cover a whole page instead of one FIFO load. A new
+`ingenic,t41-sfc` compatible selects this behaviour.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/spi/spi-ingenic-sfc.c
++++ b/drivers/spi/spi-ingenic-sfc.c
+@@ -140,6 +140,9 @@
+ 	unsigned int max_bus_width;
+ 
+ 	const u32 tran_mode_mask;
++
++	/* Data phases must use the DMA engine; PIO cannot complete them. */
++	bool dma_only;
+ };
+ 
+ struct ingenic_sfc {
+@@ -151,15 +154,32 @@
+ 	int irq;
+ 
+ 	struct completion completion;
++	bool dma_fallback;
++	bool xfer_error;
++
++	void *dma_buf;
++	dma_addr_t dma_buf_phys;
+ };
+ 
+ static irqreturn_t ingenic_sfc_irq_handler(int irq, void *data)
+ {
+ 	struct ingenic_sfc *sfc = data;
++	u32 sr = readl(sfc->base + SFC_REG_SR);
+ 
++	if (sr & (SR_OVER | SR_UNDER))
++		sfc->xfer_error = true;
++
++	/* Mask everything; the end of the transfer is validated by the caller. */
+ 	writel(0x1f, sfc->base + SFC_REG_INTC);
+ 
+-	complete(&sfc->completion);
++	/*
++	 * On dma_only parts an interrupt is only meaningful when the transfer
++	 * ended (or failed); anything else would let the caller read a buffer
++	 * the engine has not finished filling. Other controllers still rely
++	 * on the FIFO requests to drive their PIO transfers.
++	 */
++	if (!sfc->soc_info->dma_only || (sr & (SR_END | SR_OVER | SR_UNDER)))
++		complete(&sfc->completion);
+ 
+ 	return IRQ_HANDLED;
+ }
+@@ -193,12 +213,14 @@
+ {
+ 	struct spi_device *spi = mem->spi;
+ 	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++	unsigned int max = sfc->soc_info->dma_only ? SZ_4K : 64 * 4;
+ 
+-	// if (!ingenic_sfc_dma_eligible(sfc, op)) {
+-
+-		if (op->data.nbytes > 64 * 4)
+-				op->data.nbytes = 64 * 4;
+-	// }
++	/*
++	 * A PIO transfer cannot drain the FIFO, so it is limited to one FIFO
++	 * load. DMA streams from the FIFO and can move a whole page at once.
++	 */
++	if (op->data.nbytes > max)
++		op->data.nbytes = max;
+ 
+ 	return 0;
+ }
+@@ -325,7 +347,7 @@
+ 
+ static int ingenic_sfc_exec_op_pio(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
+ {
+-	int ret, val;
++	int ret, val, err = 0;
+ 
+ 	val = readl(sfc->base + SFC_REG_GLB);
+ 	u32p_replace_bits(&val,
+@@ -378,28 +400,28 @@
+ 
+ 	if (op->data.dir == SPI_MEM_DATA_IN) {
+ 		ingenic_sfc_read_rxfifo(sfc, op->data.buf.in, op->data.nbytes);
+-		ret = readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10,
++		err = readl_poll_timeout(sfc->base + SFC_REG_SR, val, val & SR_END, 10,
+ 					 SFC_POLL_TIMEOUT_US);
+-		if (ret)
+-			dev_err(sfc->dev,
+-				"SFC read failed to see SR_END: SR=0x%08x GLB=0x%08x CONF=0x%08x len=%u\n",
+-				readl(sfc->base + SFC_REG_SR),
+-				readl(sfc->base + SFC_REG_GLB),
+-				readl(sfc->base + SFC_REG_TRAN_CONF(0)),
+-				op->data.nbytes);
+ 	}
+ 
+ 	writel(INTC_MASK_END | INTC_MASK_RREQ, sfc->base + SFC_REG_SCR);
+ 	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
+ 
+-	return 0;
++	return err;
+ }
+ 
+ static int ingenic_sfc_exec_op_dma(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
+ {
++	bool rd = (op->data.dir == SPI_MEM_DATA_IN);
++	void *buf = rd ? (void *)op->data.buf.in : (void *)op->data.buf.out;
+ 	int ret, val;
+ 
+-	// printk(KERN_INFO "sfc_dma: nbytes = %u, dir = %d, addr = 0x%08lx\n", op->data.nbytes, op->data.dir, op->data.dir == SPI_MEM_DATA_IN ? (uintptr_t)op->data.buf.in : (uintptr_t)op->data.buf.out);
++	/* The controller's DMA engine only moves data phases. */
++	if (op->data.dir == SPI_MEM_NO_DATA || !op->data.nbytes)
++		return -EINVAL;
++
++	if (op->data.nbytes > SZ_4K)
++		return -EINVAL;
+ 
+ 	val = readl(sfc->base + SFC_REG_GLB);
+ 	u32p_replace_bits(&val,
+@@ -430,58 +452,102 @@
+ 	writel(0x1f, sfc->base + SFC_REG_SCR);
+ 	writel(~INTC_MASK_END, sfc->base + SFC_REG_INTC);
+ 
+-	switch (op->data.dir) {
+-	case SPI_MEM_DATA_IN:
+-		writel(virt_to_phys(op->data.buf.in), sfc->base + SFC_REG_MEM_ADDR);
+-		dma_sync_single_for_device(sfc->dev, virt_to_phys(op->data.buf.in),
+-				op->data.nbytes, DMA_FROM_DEVICE);
+-		break;
+-
+-	case SPI_MEM_DATA_OUT:
+-		writel(virt_to_phys(op->data.buf.out), sfc->base + SFC_REG_MEM_ADDR);
+-		dma_sync_single_for_device(sfc->dev, virt_to_phys(op->data.buf.out),
+-				op->data.nbytes, DMA_TO_DEVICE);
+-		break;
++	/*
++	 * Run the transfer through one uncached coherent buffer. The engine
++	 * addresses memory in whole words and the T41 hands back stale cache
++	 * lines for cached destinations, so neither the caller's buffer nor
++	 * its alignment can be used directly.
++	 */
++	if (!rd)
++		memcpy(sfc->dma_buf, buf, op->data.nbytes);
+ 
+-	default:
+-		return -EINVAL;
+-	}
++	writel(sfc->dma_buf_phys, sfc->base + SFC_REG_MEM_ADDR);
+ 
++	/* Leftover FIFO bytes would be prepended to this transfer. */
++	writel(TRIG_FLUSH, sfc->base + SFC_REG_TRIG);
+ 	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
+ 
+ 	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
+ 	if (!ret) {
+-		writel(0x1f, sfc->base + SFC_REG_INTC);
+-		writel(0x1f, sfc->base + SFC_REG_SCR);
+-		dev_err(sfc->dev, "line:%d Timeout for ACK from SFC device\n", __LINE__);
+-		return -ETIMEDOUT;
++		dev_err(sfc->dev, "SFC DMA timeout: SR=0x%08x GLB=0x%08x\n",
++			readl(sfc->base + SFC_REG_SR),
++			readl(sfc->base + SFC_REG_GLB));
++		ret = -ETIMEDOUT;
++		goto out;
++	}
++
++	/*
++	 * The interrupt only says that the controller raised something; the
++	 * buffer is valid only when the transfer actually ended and no FIFO
++	 * error was reported.
++	 */
++	val = readl(sfc->base + SFC_REG_SR);
++	if (sfc->xfer_error || !(val & SR_END)) {
++		dev_err(sfc->dev, "SFC DMA did not end: SR=0x%08x GLB=0x%08x\n",
++			val, readl(sfc->base + SFC_REG_GLB));
++		ret = -EIO;
++		goto out;
+ 	}
+ 
+-	if (op->data.dir == SPI_MEM_DATA_IN)
+-		dma_sync_single_for_cpu(sfc->dev, virt_to_phys(op->data.buf.in),
+-				op->data.nbytes, DMA_FROM_DEVICE);
++	if (rd)
++		memcpy(buf, sfc->dma_buf, op->data.nbytes);
++
++	ret = 0;
+ 
++out:
+ 	writel(INTC_MASK_END, sfc->base + SFC_REG_SCR);
+ 	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
+ 
+-	return 0;
++	if (ret) {
++		writel(0x1f, sfc->base + SFC_REG_INTC);
++		writel(0x1f, sfc->base + SFC_REG_SCR);
++	}
++
++	return ret;
+ }
+ 
+ static int ingenic_sfc_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
+ {
+ 	struct spi_device *spi = mem->spi;
+ 	struct ingenic_sfc *sfc = spi_controller_get_devdata(spi->controller);
++	int ret;
+ 
+ 	reinit_completion(&sfc->completion);
++	sfc->xfer_error = false;
++
++	/*
++	 * The T41 (and its x2000-style controller) cannot complete a PIO data
++	 * transfer: the RX FIFO request fires mid-transfer, nobody drains the
++	 * FIFO and END never comes. Aborting that transfer leaves the
++	 * controller in a state where the data that follows is corrupt, so
++	 * never start one; the DMA engine moves data phases from the outset.
++	 */
++	if (sfc->soc_info->dma_only && op->data.dir != SPI_MEM_NO_DATA)
++		return ingenic_sfc_exec_op_dma(sfc, op);
++
++	if (sfc->dma_fallback && op->data.dir != SPI_MEM_NO_DATA)
++		return ingenic_sfc_exec_op_dma(sfc, op);
+ 
+-	return ingenic_sfc_exec_op_pio(sfc, op);
+-	// if (ingenic_sfc_dma_eligible(sfc, op))
+-	// 	return ingenic_sfc_exec_op_dma(sfc, op);
+-	// else
+-	// 	return ingenic_sfc_exec_op_pio(sfc, op);
++	ret = ingenic_sfc_exec_op_pio(sfc, op);
++
++	/*
++	 * Some parts (the T41 among them) raise the RX FIFO request in the
++	 * middle of a transfer and never assert END afterwards, so the PIO
++	 * read cannot complete. Once that has been seen, let the controller
++	 * move the data itself.
++	 */
++	if (ret && op->data.dir != SPI_MEM_NO_DATA &&
++	    sfc->soc_info->version >= ID_X1600 && !WARN_ON(sfc->dma_fallback)) {
++		sfc->dma_fallback = true;
++		dev_warn(sfc->dev, "PIO transfer does not complete, falling back to DMA\n");
++		reinit_completion(&sfc->completion);
++		return ingenic_sfc_exec_op_dma(sfc, op);
++	}
++
++	return ret;
+ }
+ 
+-static int ingenic_sfc_poll_status(struct spi_mem *mem, const struct spi_mem_op *op,
++static int __maybe_unused ingenic_sfc_poll_status(struct spi_mem *mem, const struct spi_mem_op *op,
+ 			u16 mask, u16 match, unsigned long initial_delay_us,
+ 			unsigned long polling_delay_us, unsigned long timeout_ms)
+ {
+@@ -524,6 +590,7 @@
+ 
+ 	writel(0, sfc->base + SFC_REG_MEM_ADDR);
+ 
++	writel(TRIG_FLUSH, sfc->base + SFC_REG_TRIG);
+ 	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
+ 
+ 	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
+@@ -544,7 +611,13 @@
+ 	.adjust_op_size = ingenic_sfc_adjust_op_size,
+ 	.supports_op = ingenic_sfc_supports_op,
+ 	.exec_op = ingenic_sfc_exec_op,
+-	.poll_status = ingenic_sfc_poll_status,
++	/*
++	 * No poll_status: this implementation commands the controller to poll
++	 * the status register, waits for the transfer to end and returns 0
++	 * without looking at the result, so spi-nor starts the next program or
++	 * erase while the flash is still busy and the partition rots. Software
++	 * polling below is slower but actually waits for the part.
++	 */
+ };
+ 
+ static int ingenic_sfc_setup(struct spi_device *spi)
+@@ -567,7 +640,12 @@
+ 	writel(0, sfc->base + SFC_REG_CGE);
+ 
+ 	val = readl(sfc->base + SFC_REG_GLB);
+-	u32p_replace_bits(&val, 64 - 1, GLB_THRESHOLD_MASK);
++	/*
++	 * Half the FIFO on DMA parts: a nearly full FIFO leaves no room for
++	 * the DMA burst. PIO keeps the FIFO loaded to its limit.
++	 */
++	u32p_replace_bits(&val, sfc->soc_info->dma_only ? 32 : 64 - 1,
++			  GLB_THRESHOLD_MASK);
+ 	u32p_replace_bits(&val, GLB_BURST_MD_INCR8, GLB_BURST_MD_MASK);
+ 	writel(val, sfc->base + SFC_REG_GLB);
+ 
+@@ -643,6 +721,17 @@
+ 
+ 	platform_set_drvdata(pdev, sfc);
+ 
++	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
++	if (ret) {
++		dev_err(&pdev->dev, "No suitable DMA available\n");
++		return ret;
++	}
++
++	sfc->dma_buf = dmam_alloc_coherent(&pdev->dev, SZ_4K,
++					   &sfc->dma_buf_phys, GFP_KERNEL);
++	if (!sfc->dma_buf)
++		return -ENOMEM;
++
+ 	/* Clear any pending interrupts from U-Boot */
+ 	writel(0x1f, sfc->base + SFC_REG_SCR);
+ 	writel(0x1f, sfc->base + SFC_REG_INTC);
+@@ -702,6 +791,18 @@
+ 	.tran_mode_mask = TRAN_CFG1_TRAN_MODE_MASK,
+ };
+ 
++static const struct ingenic_soc_info t41_soc_info = {
++	.version = ID_X2000,
++
++	.max_bus_width = 4,
++
++	.tran_mode_mask = TRAN_CFG1_TRAN_MODE_MASK,
++
++	.dma_only = true,
++};
++
++
++
+ static const struct of_device_id ingenic_sfc_of_matches[] = {
+ 	{ .compatible = "ingenic,x1000-sfc", .data = &x1000_soc_info },
+ 	{ .compatible = "ingenic,x1600-sfc", .data = &x1600_soc_info },
+@@ -709,6 +810,7 @@
+ 	{ .compatible = "ingenic,x1830-sfc", .data = &x1000_soc_info },
+ 	{ .compatible = "ingenic,t31-sfc", .data = &x1000_soc_info },
+ 	{ .compatible = "ingenic,x2000-sfc", .data = &x2000_soc_info },
++	{ .compatible = "ingenic,t41-sfc", .data = &t41_soc_info },
+ 	{ .compatible = "ingenic,x2500-sfc", .data = &x2000_soc_info },
+ 	{ /* sentinel */ }
+ };

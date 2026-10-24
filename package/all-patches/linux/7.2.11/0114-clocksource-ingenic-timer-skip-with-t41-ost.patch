@@ -1,0 +1,35 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] clocksource: ingenic-timer: leave timekeeping to the T41 OST
+
+The T41's TCU channels never get a clock: TER bits stick, TCNT stays
+zero, and the TCSR layout is not the T31's, so the timer driver would
+register a dead 16-bit sched_clock on top of the OST's working 32-bit one
+and freeze every timestamp. Keep the TCU clock provider for the watchdog
+and PWM, but stop before registering its clocksource and clockevent when
+an `ingenic,t41-ost` node is present.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/clocksource/ingenic-timer.c
++++ b/drivers/clocksource/ingenic-timer.c
+@@ -326,6 +326,20 @@
+ 					     soc_info->num_channels,
+ 					     last_bit + 1);
+ 
++	/*
++	 * Parts with a system OST (the T41) keep time with it: its counter
++	 * is 32 bits wide and already registered as the sched_clock, while
++	 * the TCU channels here are not even clocked. Registering the TCU
++	 * as well would replace that sched_clock with a dead 16 bit one and
++	 * freeze every timestamp. The TCU stays available for PWM and the
++	 * watchdog.
++	 */
++	if (of_find_compatible_node(NULL, NULL, "ingenic,t41-ost")) {
++		pr_info("%s: system OST present, TCU not used for timekeeping\n",
++			__func__);
++		return 0;
++	}
++
+ 	ret = ingenic_tcu_clocksource_init(np, tcu);
+ 	if (ret) {
+ 		pr_crit("%s: Unable to init clocksource: %d\n", __func__, ret);

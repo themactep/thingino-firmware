@@ -1,147 +1,20 @@
 From: Paul Philippov <paul@themactep.com>
 Subject: [PATCH] tty: 8250: add the T41 UART
 
-The T41 uses the same 16550-compatible Ingenic UART as the T31
-("ingenic,8250-uart" in the vendor tree). Add the compatible with the
-x1000 FIFO data.
-
-The T41 has no CGU or core INTC driver in this tree yet. Until they
-land, the T41 path uses the 24 MHz UART clock programmed by U-Boot and
-registers the port without an interrupt, which is enough for the
-console and for reading the first boot failures.
+The T41 uses the same 16550-compatible Ingenic UART as the T31, with the
+same FIFO sizes ("ingenic,8250-uart" in the vendor tree). Map the
+compatible onto the x1000 configuration so the driver handles the module
+and baud clocks and the port interrupt as it does on the T31.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- a/drivers/tty/serial/8250/8250_ingenic.c
 +++ b/drivers/tty/serial/8250/8250_ingenic.c
-@@ -24,6 +24,7 @@
- struct ingenic_uart_config {
- 	int tx_loadsz;
- 	int fifosize;
-+	unsigned int fixed_clock;
- };
- 
- struct ingenic_uart_data {
-@@ -265,9 +266,19 @@
- 	uart.tx_loadsz = cdata->tx_loadsz;
- 	uart.capabilities = UART_CAP_FIFO | UART_CAP_RTOIE;
- 
--	err = uart_read_port_properties(&uart.port);
--	if (err)
--		return err;
-+	if (cdata->fixed_clock) {
-+		uart.port.regshift = 2;
-+		uart.port.iotype = UPIO_MEM;
-+		uart.port.uartclk = cdata->fixed_clock;
-+		uart.port.irq = 0;
-+		uart.port.line = of_alias_get_id(pdev->dev.of_node, "serial");
-+		if (uart.port.line < 0)
-+			uart.port.line = 0;
-+	} else {
-+		err = uart_read_port_properties(&uart.port);
-+		if (err)
-+			return err;
-+	}
- 
- 	uart.port.regshift = 2;
- 	uart.port.fifosize = cdata->fifosize;
-@@ -277,28 +288,30 @@
- 	if (!uart.port.membase)
- 		return -ENOMEM;
- 
--	data->clk_module = devm_clk_get(&pdev->dev, "module");
--	if (IS_ERR(data->clk_module))
--		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_module),
--				     "unable to get module clock\n");
--
--	data->clk_baud = devm_clk_get(&pdev->dev, "baud");
--	if (IS_ERR(data->clk_baud))
--		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_baud),
--				     "unable to get baud clock\n");
--
--	err = clk_prepare_enable(data->clk_module);
--	if (err) {
--		dev_err(&pdev->dev, "could not enable module clock: %d\n", err);
--		goto out;
--	}
--
--	err = clk_prepare_enable(data->clk_baud);
--	if (err) {
--		dev_err(&pdev->dev, "could not enable baud clock: %d\n", err);
--		goto out_disable_moduleclk;
-+	if (!cdata->fixed_clock) {
-+		data->clk_module = devm_clk_get(&pdev->dev, "module");
-+		if (IS_ERR(data->clk_module))
-+			return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_module),
-+					     "unable to get module clock\n");
-+
-+		data->clk_baud = devm_clk_get(&pdev->dev, "baud");
-+		if (IS_ERR(data->clk_baud))
-+			return dev_err_probe(&pdev->dev, PTR_ERR(data->clk_baud),
-+					     "unable to get baud clock\n");
-+
-+		err = clk_prepare_enable(data->clk_module);
-+		if (err) {
-+			dev_err(&pdev->dev, "could not enable module clock: %d\n", err);
-+			goto out;
-+		}
-+
-+		err = clk_prepare_enable(data->clk_baud);
-+		if (err) {
-+			dev_err(&pdev->dev, "could not enable baud clock: %d\n", err);
-+			goto out_disable_moduleclk;
-+		}
-+		uart.port.uartclk = clk_get_rate(data->clk_baud);
- 	}
--	uart.port.uartclk = clk_get_rate(data->clk_baud);
- 
- 	data->line = serial8250_register_8250_port(&uart);
- 	if (data->line < 0) {
-@@ -310,9 +323,11 @@
- 	return 0;
- 
- out_disable_baudclk:
--	clk_disable_unprepare(data->clk_baud);
-+	if (data->clk_baud)
-+		clk_disable_unprepare(data->clk_baud);
- out_disable_moduleclk:
--	clk_disable_unprepare(data->clk_module);
-+	if (data->clk_module)
-+		clk_disable_unprepare(data->clk_module);
- out:
- 	return err;
- }
-@@ -322,8 +337,10 @@
- 	struct ingenic_uart_data *data = platform_get_drvdata(pdev);
- 
- 	serial8250_unregister_port(data->line);
--	clk_disable_unprepare(data->clk_module);
--	clk_disable_unprepare(data->clk_baud);
-+	if (data->clk_module)
-+		clk_disable_unprepare(data->clk_module);
-+	if (data->clk_baud)
-+		clk_disable_unprepare(data->clk_baud);
- }
- 
- static const struct ingenic_uart_config jz4740_uart_config = {
-@@ -346,6 +363,12 @@
- 	.fifosize = 64,
- };
- 
-+static const struct ingenic_uart_config t41_uart_config = {
-+	.tx_loadsz = 32,
-+	.fifosize = 64,
-+	.fixed_clock = 24000000,
-+};
-+
- static const struct of_device_id of_match[] = {
- 	{ .compatible = "ingenic,jz4740-uart", .data = &jz4740_uart_config },
- 	{ .compatible = "ingenic,jz4750-uart", .data = &jz4760_uart_config },
-@@ -355,6 +378,7 @@
+@@ -358,6 +358,7 @@
  	{ .compatible = "ingenic,jz4780-uart", .data = &jz4780_uart_config },
  	{ .compatible = "ingenic,x1000-uart", .data = &x1000_uart_config },
  	{ .compatible = "ingenic,t31-uart", .data = &x1000_uart_config },
-+	{ .compatible = "ingenic,8250-uart", .data = &t41_uart_config },
++	{ .compatible = "ingenic,8250-uart", .data = &x1000_uart_config },
  	{ /* sentinel */ }
  };
  MODULE_DEVICE_TABLE(of, of_match);
