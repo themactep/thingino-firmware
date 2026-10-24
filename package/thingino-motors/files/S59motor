@@ -136,8 +136,6 @@ start() {
 	speed_tilt=$(jct $MOTORS_CONFIG get motors.speed_tilt)
 	homing=$(jct $MOTORS_CONFIG get motors.homing)
 	is_spi=$(jct $MOTORS_CONFIG get motors.is_spi)
-	invert_x=$(jct $MOTORS_CONFIG get motors.invert_x)
-	invert_y=$(jct $MOTORS_CONFIG get motors.invert_y)
 
 	[ -z "$gpio_pan" ] && echo "gpio_pan is not set"
 	[ -z "$gpio_tilt" ] && echo "gpio_tilt is not set"
@@ -154,21 +152,7 @@ start() {
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
-		if [ "true" = "$is_spi" ]; then
-			# invert_x/invert_y are real module params only on the SPI driver.
-			# Kernel module expects integers (0/1), not booleans (true/false).
-			if [ "true" = "$invert_x" ]; then
-				modprobe_args="$modprobe_args invert_x=1"
-			elif [ -n "$invert_x" ]; then
-				modprobe_args="$modprobe_args invert_x=0"
-			fi
-
-			if [ "true" = "$invert_y" ]; then
-				modprobe_args="$modprobe_args invert_y=1"
-			elif [ -n "$invert_y" ]; then
-				modprobe_args="$modprobe_args invert_y=0"
-			fi
-		else
+		if [ "true" != "$is_spi" ]; then
 			modprobe_args="$modprobe_args tcu_channels=2"
 
 			echo "Set GPIO per motor phase"
