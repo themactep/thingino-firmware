@@ -38,6 +38,14 @@ start() {
 		# Ensure loopback is up (normally done by ifup -a)
 		ip addr add 127.0.0.1/8 dev lo 2>/dev/null || true
 		ip link set lo up 2>/dev/null || true
+
+		# Wired recovery: a freshly reflashed, unconfigured camera with an
+		# Ethernet port used to wake the PHY (see above) but never bring up
+		# eth0, so the portal was unreachable over the wire. Ifup eth0 here
+		# so the portal can be reached over a wired link; the portal handoff
+		# to a configured network goes through wlan, not eth.
+		ifup -v eth0 2>/dev/null || true
+
 		exit 0
 	fi
 
