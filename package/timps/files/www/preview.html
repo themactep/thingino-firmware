@@ -535,6 +535,11 @@
           e.queue.textContent = "encoder queue " + es.left_pics;
           e.queue.title = formatBytes(es.left_stream_bytes) + " / " + es.left_stream_frames + " stream frame(s) unclaimed";
         } else e.queue.textContent = "";
+        if (es && es.encode_us_avg >= 0 && es.encode_us_max >= 0) {
+          e.queue.textContent += " · encode " + (es.encode_us_avg / 1000).toFixed(1) + " ms (max " +
+            (es.encode_us_max / 1000).toFixed(1) + ")";
+          e.queue.title = (e.queue.title ? e.queue.title + "; " : "") + es.idr + " keyframes since the stream started";
+        }
       });
       renderSystem(j.system);
     }
