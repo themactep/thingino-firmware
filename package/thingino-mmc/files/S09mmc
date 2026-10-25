@@ -159,6 +159,10 @@ set_power() {
 }
 
 load_module() {
+	# The mmc-pwrseq-simple devices (SD card and SDIO resets) need this
+	# driver before the host probes, or the MMC probe defers forever.
+	modprobe pwrseq_simple 2>/dev/null || true
+
 	# The MSC host is built into the kernel on some targets (e.g. T31 on 4.4)
 	# so there is no module file to modprobe; only load one when it exists.
 	if [ -n "$MMC_MODULE" ] &&

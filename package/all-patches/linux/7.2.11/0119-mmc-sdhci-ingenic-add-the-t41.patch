@@ -1,0 +1,166 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mmc: sdhci-ingenic: add the T41 MSC host
+
+The T40/T41 MSC is a standard SDHCI block (0x13060000/0x13070000)
+whose card clock is the CGU MSC0/MSC1 mux and divider. The vendor
+4.4 driver is an sdhci_alloc_host implementation; provide the same
+glue on top of sdhci_pltfm so it builds on 7.2.11: the fixed vendor
+capabilities, card detect/power sequencing from the device tree,
+and the CGU clock left at its maximum so the SDHCI divider selects
+the card clock. The module is named ingenic_sdhci_sdio.ko, which is
+what thingino-mmc's S09mmc loads on XBurst2.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/mmc/host/Kconfig
++++ b/drivers/mmc/host/Kconfig
+@@ -917,6 +917,17 @@
+ 	  If you have a board based on such a SoC and with a SD/MMC slot,
+ 	  say Y or M here.
+ 
++config MMC_SDHCI_INGENIC
++	tristate "Ingenic MSC SDHCI support"
++	depends on MMC_SDHCI
++	select MMC_SDHCI_PLTFM
++	depends on MACH_T40 || MACH_T41 || COMPILE_TEST
++	help
++	  This selects the SDHCI glue for the Ingenic XBurst2 MSC
++	  controllers (T40/T41). The card clock comes from the CGU
++	  MSC clock and card detect/power sequencing from the device
++	  tree.
++
+ config MMC_VUB300
+ 	tristate "VUB300 USB to SDIO/SD/MMC Host Controller support"
+ 	depends on USB
+--- a/drivers/mmc/host/Makefile
++++ b/drivers/mmc/host/Makefile
+@@ -60,6 +60,8 @@
+ obj-$(CONFIG_MMC_DW_STARFIVE)	+= dw_mmc-starfive.o
+ obj-$(CONFIG_MMC_SH_MMCIF)	+= sh_mmcif.o
+ obj-$(CONFIG_MMC_JZ4740)	+= jz4740_mmc.o
++obj-$(CONFIG_MMC_SDHCI_INGENIC)	+= ingenic_sdhci_sdio.o
++ingenic_sdhci_sdio-y		:= sdhci-ingenic.o
+ obj-$(CONFIG_MMC_VUB300)	+= vub300.o
+ obj-$(CONFIG_MMC_USHC)		+= ushc.o
+ obj-$(CONFIG_MMC_WMT)		+= wmt-sdmmc.o
+--- /dev/null
++++ b/drivers/mmc/host/sdhci-ingenic.c
+@@ -0,0 +1,118 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Ingenic XBurst2 MSC SDHCI glue.
++ *
++ * The controller is a standard SDHCI block whose card clock comes from the
++ * CGU MSC0/MSC1 mux/divider and whose card-detect/reset GPIOs live in the
++ * board tree. Keep the host driver thin: the SDHCI core programs the
++ * divider, the CGU clock runs at its maximum, and mmc_of_parse() owns the
++ * bus width, card detect and power sequencing.
++ */
++
++#include <linux/clk.h>
++#include <linux/err.h>
++#include <linux/mmc/host.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++
++#include "sdhci.h"
++#include "sdhci-pltfm.h"
++
++/* Vendor capabilities: 200 MHz base clock, 3.3/1.8 V, 4-bit, high speed. */
++#define SDHCI_INGENIC_CAPS	0x276dc898
++#define SDHCI_INGENIC_MAX_CLK	200000000
++
++static const u32 sdhci_ingenic_caps = SDHCI_INGENIC_CAPS;
++static const u32 sdhci_ingenic_caps1;
++
++struct sdhci_ingenic {
++	struct clk *clk;
++};
++
++static const struct sdhci_pltfm_data sdhci_ingenic_pdata = {
++	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
++		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
++		  SDHCI_QUIRK_NO_HISPD_BIT |
++		  SDHCI_QUIRK_32BIT_DMA_ADDR |
++		  SDHCI_QUIRK_32BIT_DMA_SIZE,
++};
++
++static int sdhci_ingenic_probe(struct platform_device *pdev)
++{
++	struct sdhci_host *host;
++	struct sdhci_pltfm_host *pltfm_host;
++	struct sdhci_ingenic *priv;
++	unsigned long rate;
++	int ret;
++
++	host = sdhci_pltfm_init(pdev, &sdhci_ingenic_pdata, sizeof(*priv));
++	if (IS_ERR(host))
++		return PTR_ERR(host);
++
++	pltfm_host = sdhci_priv(host);
++	priv = sdhci_pltfm_priv(pltfm_host);
++
++	priv->clk = devm_clk_get(&pdev->dev, NULL);
++	if (IS_ERR(priv->clk))
++		return PTR_ERR(priv->clk);
++
++	ret = clk_prepare_enable(priv->clk);
++	if (ret)
++		return ret;
++
++	pltfm_host->clk = priv->clk;
++
++	/* The divider in the SDHCI block selects the card clock. */
++	rate = clk_round_rate(priv->clk, SDHCI_INGENIC_MAX_CLK);
++	if (!IS_ERR_VALUE(rate))
++		clk_set_rate(priv->clk, rate);
++	host->max_clk = clk_get_rate(priv->clk);
++
++	__sdhci_read_caps(host, NULL, &sdhci_ingenic_caps,
++			  &sdhci_ingenic_caps1);
++	host->timeout_clk = 24000;
++
++	ret = mmc_of_parse(host->mmc);
++	if (ret)
++		goto err_clk;
++
++	ret = sdhci_add_host(host);
++	if (ret)
++		goto err_clk;
++
++	return 0;
++
++err_clk:
++	clk_disable_unprepare(priv->clk);
++	return ret;
++}
++
++static void sdhci_ingenic_remove(struct platform_device *pdev)
++{
++	struct sdhci_host *host = platform_get_drvdata(pdev);
++	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
++	struct sdhci_ingenic *priv = sdhci_pltfm_priv(pltfm_host);
++
++	sdhci_pltfm_remove(pdev);
++	clk_disable_unprepare(priv->clk);
++}
++
++static const struct of_device_id sdhci_ingenic_of_match[] = {
++	{ .compatible = "ingenic,sdhci" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, sdhci_ingenic_of_match);
++
++static struct platform_driver sdhci_ingenic_driver = {
++	.driver = {
++		.name = "ingenic-sdhci",
++		.of_match_table = sdhci_ingenic_of_match,
++	},
++	.probe = sdhci_ingenic_probe,
++	.remove = sdhci_ingenic_remove,
++};
++module_platform_driver(sdhci_ingenic_driver);
++
++MODULE_DESCRIPTION("Ingenic XBurst2 MSC SDHCI driver");
++MODULE_LICENSE("GPL");

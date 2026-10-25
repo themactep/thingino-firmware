@@ -104,7 +104,9 @@ ifeq ($(BR2_PACKAGE_THINGINO_KOPT_MMC),y)
 #
 # KERNEL_VERSION_4 is a tristate-style "y"/"n" string, never empty, so it has to
 # be compared rather than concatenated.
-ifeq ($(KERNEL_VERSION_7),y)
+ifneq ($(filter t40 t41,$(SOC_FAMILY)),)
+KOPT_MMC_DRIVER = sdhci-ingenic
+else ifeq ($(KERNEL_VERSION_7),y)
 KOPT_MMC_DRIVER = jz4740-mmc
 else ifeq ($(KERNEL_VERSION_5),y)
 KOPT_MMC_DRIVER = ingenic-mmc
@@ -114,8 +116,6 @@ KOPT_MMC_DRIVER = sdhci-ingenic
 else
 KOPT_MMC_DRIVER = sdhci-jz
 endif
-else ifeq ($(BR2_mips_xburst2),y)
-KOPT_MMC_DRIVER = sdhci-ingenic
 else
 KOPT_MMC_DRIVER = jzmmc
 endif

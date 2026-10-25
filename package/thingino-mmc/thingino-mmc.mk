@@ -6,7 +6,15 @@ THINGINO_MMC_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-mmc
 # ships the jzmmc name, so patch it for those or the modprobe fails and the card
 # slot never comes up. S09mmc also keys the cd_gpio_pin parameter off this name;
 # only jzmmc takes it, the sdhci drivers get their pins from platform data.
-ifeq ($(BR2_mips_xburst2)$(if $(filter t32,$(SOC_FAMILY)),y),)
+ifeq ($(KERNEL_VERSION_7),y)
+# 7.x uses the mainline drivers: jz4740_mmc on XBurst1, sdhci-ingenic on
+# XBurst2 (T40/T41). The vendor jzmmc_v12 name is for 3.10/4.4 only.
+ifeq ($(filter t40 t41,$(SOC_FAMILY)),)
+THINGINO_MMC_MODULE = jz4740_mmc
+else
+THINGINO_MMC_MODULE = ingenic_sdhci_sdio
+endif
+else ifeq ($(filter t32 t40 t41,$(SOC_FAMILY)),)
 THINGINO_MMC_MODULE = jzmmc_v12
 else
 THINGINO_MMC_MODULE = ingenic_sdhci_sdio

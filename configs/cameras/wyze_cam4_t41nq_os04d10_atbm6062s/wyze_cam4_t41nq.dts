@@ -744,6 +744,7 @@
 			msc@0x13060000 {
 				compatible = "ingenic,sdhci";
 				reg = <0x13060000 0x10000>;
+				clocks = <&cgu T41_CLK_MSC0>;
 				status = "okay";
 				interrupt-parent = <0x04>;
 				interrupts = <0x25>;
@@ -754,6 +755,7 @@
 				bus-width = <0x04>;
 				voltage-ranges = <0x708 0xce4>;
 				cd-inverted;
+				cd-gpios = <0x05 0x1a 0x01>;
 				ingenic,wp-gpios = <0x00>;
 				ingenic,cd-gpios = <0x05 0x1a 0x01>;
 				ingenic,rst-gpios = <0x00>;
@@ -763,6 +765,7 @@
 			msc@0x13070000 {
 				compatible = "ingenic,sdhci";
 				reg = <0x13070000 0x10000>;
+				clocks = <&cgu T41_CLK_MSC1>;
 				status = "okay";
 				interrupt-parent = <0x04>;
 				interrupts = <0x24>;
@@ -775,6 +778,7 @@
 				non-removable;
 				ingenic,wp-gpios = <0x00>;
 				ingenic,rst-gpios = <0x06 0x0e 0x01>;
+				mmc-pwrseq = <&mmc1_pwrseq>;
 			};
 
 			ipu@0x13080000 {
@@ -829,7 +833,15 @@
 		mmc0_pwrseq {
 			compatible = "mmc-pwrseq-simple";
 			reset-gpios = <0x05 0x1d 0x01>;
+			post-power-on-delay-ms = <100>;
 			linux,phandle = <0x15>;
 			phandle = <0x15>;
 		};
+
+		mmc1_pwrseq: mmc1-pwrseq {
+			compatible = "mmc-pwrseq-simple";
+			reset-gpios = <0x06 0x0e 0x01>;
+			post-power-on-delay-ms = <200>;
+		};
+
 	};

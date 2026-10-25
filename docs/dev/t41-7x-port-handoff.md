@@ -128,15 +128,46 @@ counter (using the wrong rate) expired at ~42 s.
 - Networking: the board is Wi-Fi only (there is no Ethernet jack; the T41
   MAC would only matter for a USB-Ethernet adapter). `lsusb` and `lssdio`
   are both empty, so the camera is fully offline:
-  - Wi-Fi is SDIO-attached (ATBM6062S), but the SDIO host does not register.
-    The DTS declares the MSCs as `ingenic,sdhci` while 7.2.11 has no such
-    driver (`CONFIG_MMC_SDHCI` is off, only `jz4740_mmc` is built). Port the
-    SDHCI-based T41 host (or the vendor's MMC block) and set `lssdio`.
+  - Wi-Fi is SDIO-attached (ATBM6062S). The SDHCI host is now up (see the
+    MMC section); the card itself does not enumerate yet.
   - USB: the DWC2 core now probes (see below), but the PHY is not usable yet.
 - Camera stack: OS04D10 sensor + open-tx-isp on this SoC, ATBM6062S Wi-Fi,
   audio. `timpsd` starts and stops there.
 - SMP (secondary cores; the per-CPU OST pages are already described by the
   DT).
+
+## MMC / SDIO
+
+The T41 MSC is a standard SDHCI block at **0x13060000 / 0x13070000**; the
+card clock comes from the CGU `T41_CLK_MSC0/1` mux+divider (MSC0CDR/MSC1CDR,
+CLKGR bits 4/5) and the board carries card-detect and reset GPIOs. A thin
+`sdhci-ingenic` driver on top of `sdhci_pltfm` (fixed vendor capabilities,
+`mmc_of_parse()` for CD/pwrseq, the CGU clock left at its maximum so the
+SDHCI divider selects the card clock) is in `0119` and builds as
+`ingenic_sdhci_sdio.ko`, the name S09mmc already uses for XBurst2.
+
+On hardware both controllers register:
+
+```
+ingenic-sdhci 13060000.msc: Got CD GPIO
+ingenic-sdhci 13060000.msc: allocated mmc-pwrseq
+mmc0: SDHCI controller on 13060000.msc [13060000.msc] using ADMA
+ingenic-sdhci 13070000.msc: allocated mmc-pwrseq
+mmc1: SDHCI controller on 13070000.msc [13070000.msc] using ADMA
+mmc1: Failed to initialize a non-removable card
+```
+
+The SD slot (msc0) is up; the ATBM6062S on msc1 does not answer CMD5 yet
+(`lssdio` empty). The reset is wired through `mmc-pwrseq-simple`, but the
+Wi-Fi power/32 kHz clock sequence and the 7.x ATBM driver/DT node are still
+missing.
+
+Build-system fixes that came with this: the KOPT now maps XBurst2 to
+`sdhci-ingenic` on **every** kernel (the 7.x branch used to force
+`jz4740-mmc` for all SoCs), `thingino-mmc` picks `jz4740_mmc` for 7.x
+XBurst1 and `ingenic_sdhci_sdio` for XBurst2, and S09mmc loads
+`pwrseq_simple` before the host so the pwrseq suppliers do not leave the
+MSC probes deferred.
 
 ## USB (attempted, blocked)
 
