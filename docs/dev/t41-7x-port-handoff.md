@@ -200,6 +200,23 @@ XBurst1 and `ingenic_sdhci_sdio` for XBurst2, and S09mmc loads
 `pwrseq_simple` before the host so the pwrseq suppliers do not leave the
 MSC probes deferred.
 
+## Large ports still open (scoped)
+
+- **Camera.** open-tx-isp ships `driver/t41` and the OS04D10 IQ blob, but
+  the package marks t41 as 4.4-only: there is no `sensor-src/t41`, and
+  `driver/t41` is written against the vendor ABI. A 7.x port needs the
+  T41 ISP driver adapted to 7.2.11 plus an OS04D10 `sensor-src/t41`
+  rewrite in the T31 7.x sensor style.
+- **SMP.** `MACH_T41` has no `SYS_SUPPORTS_SMP` and the mainline tree has
+  no `xburst2_smp_ops`. The vendor 4.4 code (CCU reset-entry/mailbox, the
+  bounce trampoline, per-CPU IRQ/timer, `play_dead`) is the reference; the
+  per-CPU OST bases are already handled by the timer patch.
+- **ATBM Wi-Fi.** The card still does not answer CMD5 even with the
+  corrected rails and reset (remaining suspects: 32 kHz LPO/pinmux, rail
+  wiring). The driver package itself needs the bundled mac80211/cfg80211
+  ported from 4.x to 7.x (`wdev->mtx`, `net_device->ieee80211_ptr`,
+  timer APIs).
+
 ## USB
 
 The controller/CGU side is sound: with the CGU as `simple-mfd`, a
