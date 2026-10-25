@@ -1,0 +1,7 @@
+config BR2_PACKAGE_ATBM6441_TOOLS
+	bool "ATBM6441 IoT tools"
+	depends on BR2_PACKAGE_WIFI_ATBM6441
+	help
+	  ATBM6441 IoT supplicant and CLI tools.
+	  Provides atbm_iot_supplicant_demo (WiFi control daemon)
+	  and atbm_iot_cli (command-line WiFi manager).
