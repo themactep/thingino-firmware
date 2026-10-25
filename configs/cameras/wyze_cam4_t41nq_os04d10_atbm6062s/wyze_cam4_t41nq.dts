@@ -667,7 +667,8 @@
 			efuse@0x13540000 {
 				compatible = "ingenic,t41-efuse";
 				reg = <0x13540000 0x10000>;
-				status = "disabled";
+				clocks = <&cgu T41_CLK_EFUSE>;
+				status = "okay";
 			};
 		};
 

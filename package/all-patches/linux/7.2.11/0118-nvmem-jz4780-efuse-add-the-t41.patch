@@ -1,0 +1,22 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] nvmem: jz4780-efuse: add the T41
+
+The T41 efuse is the T31 block at 0x13540000: EFUCTRL/EFUCFG/
+EFUSTATE and the 32-byte data window are the same, and the serial
+number lives in the raw rows the userspace helpers read at +0x200.
+Bind it so the driver ungates T41_CLK_EFUSE and programs the read
+timing; without that the serial and SoC-type reads come back empty
+and the hostname loses its serial-derived suffix.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/nvmem/jz4780-efuse.c
++++ b/drivers/nvmem/jz4780-efuse.c
+@@ -232,6 +232,7 @@
+ static const struct of_device_id jz4780_efuse_match[] = {
+ 	{ .compatible = "ingenic,jz4780-efuse", .data = &jz4780_efuse_soc_data },
+ 	{ .compatible = "ingenic,t31-efuse",    .data = &t31_efuse_soc_data    },
++	{ .compatible = "ingenic,t41-efuse",    .data = &t31_efuse_soc_data    },
+ 	{ /* sentinel */ },
+ };
+ MODULE_DEVICE_TABLE(of, jz4780_efuse_match);

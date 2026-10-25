@@ -65,6 +65,12 @@ DFU gotchas:
   errors in the boot log.
 - Peripherals: `jz4740-rtc`, `ingenic-trng`, three `jz4780-i2c` at 400 kHz,
   four gpiochips, pinctrl.
+- Serial/MAC/hostname: the T41 efuse is the JZ4780/T31 controller at
+  0x13540000 (the vendor T41 boot code uses CTRL 0x0 / STATUS 0x8 /
+  DATA0 0xc). The node is enabled with `T41_CLK_EFUSE`, `t41-efuse` is
+  bound to the T31 nvmem data (`0118`) and the driver is built in. The
+  raw +0x200 window then returns the serial and the SoC-type words;
+  S04hostname generates `ing-wyze-cam4-<4 hex>` (`c7a5` on this unit).
 - Watchdog: counter runs from 24 MHz/512 with the TCSR prescaler; the
   userspace `watchdog -T 60 /dev/watchdog` daemon pings every ~30 s and the
   board stays up indefinitely. `TCER` bit 0 is the enable.
