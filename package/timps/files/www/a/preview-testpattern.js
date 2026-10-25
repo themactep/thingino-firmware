@@ -9,7 +9,19 @@
   const arrows = Array.from(panel.querySelectorAll(".tp-arr"));
   const NAMES = ["off", "still", "moving", "motion test", "sensor pattern", "mid-ISP"];
   const NOTE = "Pick a stage: its test picture enters the pipeline there and runs through every stage after it. Day/night stays in day mode meanwhile.";
-  let mode = -1, timer = null, busy = false, err = "", sensor = "";
+  const toggle = $("ms-tp-toggle");
+  let mode = -1, timer = null, busy = false, err = "", sensor = "", avail = false, live = false;
+  let want = false;
+  try { want = localStorage.getItem("ms.tp") === "1"; } catch (e) { /* no storage */ }
+
+  // shown on request, and always while a pattern runs
+  function place() {
+    if (toggle) {
+      toggle.hidden = !avail;
+      toggle.classList.toggle("active", avail && (want || live));
+    }
+    panel.hidden = !avail || !(want || live);
+  }
 
   // where each picture enters: the sensor's own (4) at the sensor, mid-ISP (5)
   // inside the ISP, the synthetic ones replace the ISP output (arrow ISP -> encoder)
@@ -28,10 +40,12 @@
 
   function show(j) {
     const caps = (j.caps && j.caps.testpattern) || {};
-    panel.hidden = !caps.available;
-    if (!caps.available) return false;
     const t = j.testpattern || {};
+    avail = !!caps.available;
     mode = +t.mode || 0;
+    live = avail && (mode !== 0 || !!t.pending);
+    place();
+    if (!avail) return false;
     const sb = $("tp-sensor");
     sb.disabled = busy || !caps.sensor;
     sb.title = caps.sensor ? "The sensor's own test pattern (" + (caps.sensor_name || "sensor") + "), through the whole ISP" :
@@ -99,6 +113,12 @@
     send(m && m === mode ? 0 : m);
   }));
   ["tp-ae", "tp-awb"].forEach((id) => $(id).addEventListener("change", () => { if (mode === 4) send(4); }));
+  if (toggle) toggle.addEventListener("click", () => {
+    want = !want;
+    try { localStorage.setItem("ms.tp", want ? "1" : "0"); } catch (e) { /* no storage */ }
+    place();
+    if (want) poll();
+  });
 
   if (window.timpsApiReady) poll();
 })();
