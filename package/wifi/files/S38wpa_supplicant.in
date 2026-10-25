@@ -72,7 +72,7 @@ determine_mode() {
 	PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
 	DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
 	case "$WLAN_MODULE_NAME" in
-		atbm6461*)
+		atbm6441* | atbm6461*)
 			DAEMON_ARGS="-D wext $DAEMON_ARGS"
 			;;
 	esac
@@ -110,9 +110,9 @@ prescan_for_portal() {
 	PRESCAN_DEADLINE=$(($(date +%s) + 25))
 	time_left() { [ "$(date +%s)" -lt "$PRESCAN_DEADLINE" ]; }
 
-	# ATBM6461 WiFi lives on the MCU; there is no wpa_supplicant to drive
+	# ATBM6441/ATBM6461 WiFi lives on the MCU; there is no wpa_supplicant to drive
 	case "$WLAN_MODULE_NAME" in
-		atbm6461*) return 0 ;;
+		atbm6441* | atbm6461*) return 0 ;;
 	esac
 
 	command -v wpa_supplicant >/dev/null 2>&1 || return 0
@@ -429,8 +429,51 @@ start() {
 
 	echo "Starting in $mode mode"
 
-	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
+	# ATBM6441: the MCU hosts the WiFi stack and atbm_iot_supplicant_demo
+	# was started by S09mmc. Push credentials when they changed; otherwise
+	# the MCU reconnects from its NVM.
 	case "$WLAN_MODULE_NAME" in
+		atbm6441*)
+			if [ "$mode" != "client" ]; then
+				echo "ATBM6441: no usable WiFi credentials ($mode mode); MCU keeps its stored network"
+				exit 0
+			fi
+
+			wifi_ssid=$(sed -n 's/.*ssid="\([^"]*\)".*/\1/p' "$CONFIG" | head -1)
+			wifi_pass=$(sed -n 's/.*psk="\([^"]*\)".*/\1/p' "$CONFIG" | head -1)
+			MARKER=/etc/atbm6441.provisioned
+
+			if [ -z "$wifi_ssid" ] || [ -z "$wifi_pass" ]; then
+				echo "ATBM6441: incomplete WiFi credentials; MCU keeps its stored network"
+				exit 0
+			fi
+
+			conf_sum=$(md5sum "$CONFIG" | cut -d' ' -f1)
+			if [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$conf_sum" ]; then
+				echo "ATBM6441: credentials unchanged; MCU reconnects from NVM"
+				exit 0
+			fi
+
+			n=20
+			while [ "$n" -gt 0 ] && [ ! -S /tmp/atbm_server_socket ]; do
+				n=$((n - 1))
+				sleep 0.5
+			done
+			if [ ! -S /tmp/atbm_server_socket ]; then
+				echo "ATBM6441: IoT supplicant socket missing; cannot provision" >&2
+				exit 1
+			fi
+
+			echo "ATBM6441: provisioning MCU with SSID '$wifi_ssid'"
+			atbm_iot_cli wifi_mode STA
+			atbm_iot_cli set_network ssid "$wifi_ssid"
+			atbm_iot_cli set_network key "$wifi_pass"
+			atbm_iot_cli set_network key_mgmt WPA2
+			atbm_iot_cli enable_network
+			echo "$conf_sum" >"$MARKER"
+			exit 0
+			;;
+		# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 		atbm6461*)
 			if [ "$mode" = "client" ]; then
 				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
