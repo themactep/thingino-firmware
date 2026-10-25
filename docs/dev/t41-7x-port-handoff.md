@@ -162,6 +162,13 @@ The SD slot (msc0) is up; the ATBM6062S on msc1 does not answer CMD5 yet
 Wi-Fi power/32 kHz clock sequence and the 7.x ATBM driver/DT node are still
 missing.
 
+The DTS pwrseq owns the SD reset (GPIO 61) and the SDIO reset (GPIO 78,
+the `wlan` pin); the kernel claims both at probe (`allocated mmc-pwrseq`).
+The camera `thingino.json` used to carry `gpio.mmc_power: 61` as well, so
+S09mmc's legacy sysfs export got EBUSY; that duplicate is gone. Leave
+`gpio.mmc_en` (SD power enable) and `gpio.wlan` alone - the latter is the
+same pin as `mmc1_pwrseq`'s reset.
+
 Build-system fixes that came with this: the KOPT now maps XBurst2 to
 `sdhci-ingenic` on **every** kernel (the 7.x branch used to force
 `jz4740-mmc` for all SoCs), `thingino-mmc` picks `jz4740_mmc` for 7.x
