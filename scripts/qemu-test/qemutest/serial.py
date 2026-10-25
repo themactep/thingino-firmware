@@ -122,9 +122,7 @@ class QemuSerial:
                 r"(change your password|Login incorrect|[#\$] )", 15)
             if m and "change your password" in m.group(1):
                 self.wait_for("Password:", 5)
-                self.write("\x03")
-                time.sleep(3)
-                self.read()
+                self._skip_chpasswd()
                 return True
             if m and m.group(1) != "Login incorrect":
                 # Let the shell profile finish (its size probe reads the
@@ -135,6 +133,22 @@ class QemuSerial:
             # wrong password: wait for the next login prompt and retry
             self.wait_for("login:", 10)
         return False
+
+    def _skip_chpasswd(self):
+        """Leave the first-login password change (/etc/profile.d/chpasswd).
+        Ctrl-C ends it where the console is the shell's controlling
+        terminal; where getty could not make it one, ^C is just a character
+        to the prompt, so empty answers run its attempts out instead."""
+        done = r"Interrupted!|No more attempts|root@[\w.-]+ \S*# "
+        self.write("\x03")
+        m, _ = self.wait_for_re(done, 3)
+        for _ in range(12):
+            if m and re.fullmatch(done, m.group(0)):
+                break
+            self.write("\n")
+            m, _ = self.wait_for_re(done + "|Password: |Confirm: ", 5)
+        time.sleep(3)
+        self.read()
 
     def close(self):
         os.close(self.fd)
