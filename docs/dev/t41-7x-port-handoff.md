@@ -176,11 +176,20 @@ the host. The card still reports `mmc1: Failed to initialize a
 non-removable card`, so the remaining suspects are the 32 kHz LPO/pinmux
 or the rail wiring, not the reset order.
 
-The ATBM driver package is 4.x-only: its bundled mac80211/cfg80211 does
-not compile on 7.2.11 (`wdev->mtx`, `net_device->ieee80211_ptr`, timer
-APIs). It stays disabled on 7.x until that port is done; Kconfig quote
-stripping and the `asm/unaligned.h` include are already fixed in the
-package.
+The master branch runs this camera's Wi-Fi on 4.4.94: the vendor SDHCI
+driver, the ATBM driver built against the kernel cfg80211, and no Linux
+GPIO driving (U-Boot's `wlan_78` hog holds the reset released and the
+rails are left floating). Our port now matches that power flow (no
+pwrseq, no S09 GPIO driving) but msc1 still fails CMD5.
+
+The ATBM driver on 7.2.11 is being ported: the package now enables the
+kernel cfg80211 (the branch used to disable it, which hid
+`wireless_dev`/`ieee80211_ptr` and broke the build), and
+`0001-7x-mac80211-locking.patch` maps the removed `wdev->mtx` to the
+wiphy lock and the renamed timer API. What remains is the cfg80211
+4.x-to-7.x call-site update (`cfg80211_tx_mlme_mgmt`,
+`cfg80211_rx_assoc_resp`, `cfg80211_new_sta`, `cfg80211_disassoc_request`,
+...). The package stays disabled on 7.x until it builds.
 
 The factory MMC map (master `cameras-exp`) is `mmc_en: 57` (power
 enable), `mmc_power: 61 + 59 active-low` (SD and SDIO rails) and

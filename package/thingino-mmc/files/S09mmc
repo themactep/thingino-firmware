@@ -244,9 +244,6 @@ start() {
 	else
 		MMC_PARAM=""
 	fi
-	set_mmc_enable
-	set_power
-	set_wlan_reset
 	load_module
 
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"

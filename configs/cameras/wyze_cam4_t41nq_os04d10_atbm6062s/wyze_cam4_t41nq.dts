@@ -840,10 +840,5 @@
 		};
 
 
-		mmc1_pwrseq: mmc1-pwrseq {
-			compatible = "mmc-pwrseq-simple";
-			reset-gpios = <0x06 0x0e 0x01>;
-			post-power-on-delay-ms = <200>;
-		};
 
 	};
