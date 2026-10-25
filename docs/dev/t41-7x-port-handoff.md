@@ -162,12 +162,16 @@ The SD slot (msc0) is up; the ATBM6062S on msc1 does not answer CMD5 yet
 Wi-Fi power/32 kHz clock sequence and the 7.x ATBM driver/DT node are still
 missing.
 
-The DTS pwrseq owns the SD reset (GPIO 61) and the SDIO reset (GPIO 78,
-the `wlan` pin); the kernel claims both at probe (`allocated mmc-pwrseq`).
-The camera `thingino.json` used to carry `gpio.mmc_power: 61` as well, so
-S09mmc's legacy sysfs export got EBUSY; that duplicate is gone. Leave
-`gpio.mmc_en` (SD power enable) and `gpio.wlan` alone - the latter is the
-same pin as `mmc1_pwrseq`'s reset.
+The factory MMC map (master `cameras-exp`) is `mmc_en: 57` (power
+enable), `mmc_power: 61 + 59 active-low` (SD and SDIO rails) and
+`mmc_cd: 58`. The feature-k7 copy had only a bare `mmc_power: 61`, which
+S09mmc drove high (off), and no 59; the rail was never on before the host
+probe. S09mmc now raises `mmc_en` and applies the power sequence before
+loading the host. The branch's `jct`/S09mmc does not parse the master's
+array form, so the camera JSON uses the equivalent legacy string
+`"61o 59o"`. GPIO 78 (`wlan`) is the SDIO reset, owned by `mmc1_pwrseq`;
+GPIO 61 is a power switch, not a reset, so the wrong msc0 `mmc-pwrseq`
+is gone.
 
 Build-system fixes that came with this: the KOPT now maps XBurst2 to
 `sdhci-ingenic` on **every** kernel (the 7.x branch used to force

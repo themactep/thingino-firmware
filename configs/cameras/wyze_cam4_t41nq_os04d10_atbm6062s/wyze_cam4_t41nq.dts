@@ -759,7 +759,6 @@
 				ingenic,wp-gpios = <0x00>;
 				ingenic,cd-gpios = <0x05 0x1a 0x01>;
 				ingenic,rst-gpios = <0x00>;
-				mmc-pwrseq = <0x15>;
 			};
 
 			msc@0x13070000 {
@@ -830,13 +829,6 @@
 			};
 		};
 
-		mmc0_pwrseq {
-			compatible = "mmc-pwrseq-simple";
-			reset-gpios = <0x05 0x1d 0x01>;
-			post-power-on-delay-ms = <100>;
-			linux,phandle = <0x15>;
-			phandle = <0x15>;
-		};
 
 		mmc1_pwrseq: mmc1-pwrseq {
 			compatible = "mmc-pwrseq-simple";

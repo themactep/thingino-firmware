@@ -138,6 +138,19 @@ get_mmc_power_sequence() {
 	return 1
 }
 
+set_mmc_enable() {
+	local pin
+
+	pin=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_en" 2>/dev/null) || return 0
+	case "$pin" in
+		'' | *[^0-9]*)
+			return 0
+			;;
+	esac
+	echo "Set MMC enable GPIO $pin to 1"
+	gpio set "$pin" 1 2>/dev/null || true
+}
+
 set_power() {
 	local sequence pin state
 
@@ -146,9 +159,8 @@ set_power() {
 		return
 	fi
 
-	# Set additional MMC GPIOs
-	# This needs to run AFTER the driver has been loaded
-	# for the SD card to mount during boot
+	# Set additional MMC GPIOs. This runs before the host module so the
+	# card sees power at its first probe; the pwrseq only owns the reset.
 	while IFS=' ' read -r pin state; do
 		[ -n "$pin" ] || continue
 		echo "Set GPIO $pin to $state"
@@ -197,8 +209,6 @@ load_module() {
 	modprobe mmc_block 2>/dev/null || true
 	modprobe vfat 2>/dev/null || true
 	modprobe exfat 2>/dev/null || true
-
-	set_power
 }
 
 start() {
@@ -216,6 +226,8 @@ start() {
 	else
 		MMC_PARAM=""
 	fi
+	set_mmc_enable
+	set_power
 	load_module
 
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"
