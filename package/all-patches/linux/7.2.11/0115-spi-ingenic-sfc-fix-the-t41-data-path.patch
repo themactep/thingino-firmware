@@ -91,7 +91,37 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  
  	return 0;
  }
-@@ -325,7 +347,7 @@
+@@ -221,15 +243,20 @@
+ 		return false;
+ 	}
+ 
+-	/* Max rx data length, check controller limits and alignment */
+-	if (op->data.dir == SPI_MEM_DATA_IN &&
+-	   (op->data.nbytes > 64 * 4 && !IS_ALIGNED(op->data.nbytes, 4))){
+-		return false;
+-}
+-
+-	/* Max tx data length, check controller limits */
+-	if (op->data.dir == SPI_MEM_DATA_OUT && op->data.nbytes > 64 * 4) {
+-		return false;
++	/*
++	 * The PIO-era limits do not apply to dma_only parts: the DMA engine
++	 * streams arbitrary lengths through the coherent bounce buffer, so a
++	 * 389-byte JFFS2 node read is fine.
++	 */
++	if (!sfc->soc_info->dma_only) {
++		/* Max rx data length, check controller limits and alignment */
++		if (op->data.dir == SPI_MEM_DATA_IN &&
++		   (op->data.nbytes > 64 * 4 && !IS_ALIGNED(op->data.nbytes, 4)))
++			return false;
++
++		/* Max tx data length, check controller limits */
++		if (op->data.dir == SPI_MEM_DATA_OUT && op->data.nbytes > 64 * 4)
++			return false;
+ 	}
+ 
+ 	/* Max 6 bytes address width supported */
+@@ -325,7 +352,7 @@
  
  static int ingenic_sfc_exec_op_pio(struct ingenic_sfc *sfc, const struct spi_mem_op *op)
  {
@@ -100,7 +130,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  
  	val = readl(sfc->base + SFC_REG_GLB);
  	u32p_replace_bits(&val,
-@@ -378,28 +400,28 @@
+@@ -378,28 +405,28 @@
  
  	if (op->data.dir == SPI_MEM_DATA_IN) {
  		ingenic_sfc_read_rxfifo(sfc, op->data.buf.in, op->data.nbytes);
@@ -139,7 +169,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  
  	val = readl(sfc->base + SFC_REG_GLB);
  	u32p_replace_bits(&val,
-@@ -430,58 +452,102 @@
+@@ -430,58 +457,102 @@
  	writel(0x1f, sfc->base + SFC_REG_SCR);
  	writel(~INTC_MASK_END, sfc->base + SFC_REG_INTC);
  
@@ -204,9 +234,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 -				op->data.nbytes, DMA_FROM_DEVICE);
 +	if (rd)
 +		memcpy(buf, sfc->dma_buf, op->data.nbytes);
-+
-+	ret = 0;
  
++	ret = 0;
++
 +out:
  	writel(INTC_MASK_END, sfc->base + SFC_REG_SCR);
  	writel(TRIG_STOP, sfc->base + SFC_REG_TRIG);
@@ -271,7 +301,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  			u16 mask, u16 match, unsigned long initial_delay_us,
  			unsigned long polling_delay_us, unsigned long timeout_ms)
  {
-@@ -524,6 +590,7 @@
+@@ -524,6 +595,7 @@
  
  	writel(0, sfc->base + SFC_REG_MEM_ADDR);
  
@@ -279,7 +309,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	writel(TRIG_START, sfc->base + SFC_REG_TRIG);
  
  	ret = wait_for_completion_timeout(&sfc->completion, msecs_to_jiffies(SFC_TRANSFER_TIMEOUT));
-@@ -544,7 +611,13 @@
+@@ -544,7 +616,13 @@
  	.adjust_op_size = ingenic_sfc_adjust_op_size,
  	.supports_op = ingenic_sfc_supports_op,
  	.exec_op = ingenic_sfc_exec_op,
@@ -294,7 +324,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  };
  
  static int ingenic_sfc_setup(struct spi_device *spi)
-@@ -567,7 +640,12 @@
+@@ -567,7 +645,12 @@
  	writel(0, sfc->base + SFC_REG_CGE);
  
  	val = readl(sfc->base + SFC_REG_GLB);
@@ -308,7 +338,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	u32p_replace_bits(&val, GLB_BURST_MD_INCR8, GLB_BURST_MD_MASK);
  	writel(val, sfc->base + SFC_REG_GLB);
  
-@@ -643,6 +721,17 @@
+@@ -643,6 +726,17 @@
  
  	platform_set_drvdata(pdev, sfc);
  
@@ -326,7 +356,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	/* Clear any pending interrupts from U-Boot */
  	writel(0x1f, sfc->base + SFC_REG_SCR);
  	writel(0x1f, sfc->base + SFC_REG_INTC);
-@@ -702,6 +791,18 @@
+@@ -702,6 +796,18 @@
  	.tran_mode_mask = TRAN_CFG1_TRAN_MODE_MASK,
  };
  
@@ -345,7 +375,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  static const struct of_device_id ingenic_sfc_of_matches[] = {
  	{ .compatible = "ingenic,x1000-sfc", .data = &x1000_soc_info },
  	{ .compatible = "ingenic,x1600-sfc", .data = &x1600_soc_info },
-@@ -709,6 +810,7 @@
+@@ -709,6 +815,7 @@
  	{ .compatible = "ingenic,x1830-sfc", .data = &x1000_soc_info },
  	{ .compatible = "ingenic,t31-sfc", .data = &x1000_soc_info },
  	{ .compatible = "ingenic,x2000-sfc", .data = &x2000_soc_info },

@@ -104,6 +104,16 @@ Root causes, in the order they were found:
 4. The FIFO threshold was set to 63 (nearly full). The T41 now uses 32,
    half the FIFO, like the vendor driver.
 5. The 256-byte op cap (fitted to PIO) is lifted for DMA parts to one page.
+6. `supports_op` still rejected unaligned RX reads above 256 bytes -- the
+   exact size of a JFFS2 node (389/262/275 bytes). The PIO limits are now
+   gated on `!dma_only`, so those reads run through the DMA bounce buffer.
+7. `data.jffs2` was built with the default 256-byte page size while the T41
+   SFC advertises `writesize 1`. It is now formatted with `--pagesize=1`
+   (`JFFS2_PAGE_SIZE` in the Makefile).
+
+Verified on hardware after a whole-flash erase: clean xattr build, zero
+`xdatum`/`xref`, and 389/275/262-byte reads from `/dev/mtd5` return valid
+data with no SPI or JFFS2 errors in dmesg.
 
 ## Resolved: silent resets (watchdog)
 
