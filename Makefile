@@ -374,6 +374,10 @@ JFFS2_ERASE_BLOCK := $(shell \
 	if grep -Eq '^CONFIG_(ERASE_SIZE_64K|MTD_SPI_NOR)=y' "$(KERNEL_CONFIG_FILE)" 2>/dev/null; then echo 65536; \
 	else echo 32768; fi)
 export JFFS2_ERASE_BLOCK
+# The SPI NOR MTD reports writesize=1 (no NAND page); mkfs.jffs2 must use
+# the same page size or the runtime node layout does not match.
+JFFS2_PAGE_SIZE := 1
+export JFFS2_PAGE_SIZE
 
 # JFFS2 needs at least 5 erase blocks (4 for garbage collection, 1 for data)
 JFFS2_MIN_SIZE := $(shell echo $$((5 * $(JFFS2_ERASE_BLOCK))))
