@@ -3,14 +3,16 @@ WIFI_ATBM6441_SITE = https://github.com/gtxaspec/atbm6441
 WIFI_ATBM6441_SITE_BRANCH = master
 WIFI_ATBM6441_VERSION = 5cd383d4dbef9b3fc035e53db5671430faaf5983
 
-ATBM6441_MODULE_NAME = atbm6441
+ATBM6441_MODULE_NAME = atbm6441_wifi_sdio
 ATBM6441_MODULE_OPTS = atbm_printk_mask=0
 
 WIFI_ATBM6441_LICENSE = GPL-2.0
 
-WIFI_ATBM6441_MODULE_MAKE_OPTS = \
-	KSRC=$(LINUX_DIR) \
-	KVERSION=$(LINUX_VERSION_PROBED)
+WIFI_ATBM6441_DEPENDENCIES = linux
+
+WIFI_ATBM6441_KERN_LOCALVER = $(call qstrip,$(shell \
+	awk -F= '/^CONFIG_LOCALVERSION=/ {v=$$2} END {print v}' \
+		$(LINUX_DIR)/.config 2>/dev/null))
 
 define WIFI_ATBM6441_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
@@ -27,5 +29,18 @@ define WIFI_ATBM6441_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
 
-$(eval $(kernel-module))
+define WIFI_ATBM6441_BUILD_CMDS
+	$(MAKE) -C $(@D) -f $(@D)/Makefile.build modules \
+		ARCH=mips \
+		CROSS_COMPILE=$(TARGET_CROSS) \
+		KDIR=$(LINUX_DIR) \
+		MODULES_NAME=atbm6441_wifi_sdio \
+		ATBM_WIFI__EXT_CCFLAGS="-DATBM_WIFI_PLATFORM=22 -DPLATFORM_INGENIC_T31=22"
+endef
+
+define WIFI_ATBM6441_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0644 $(@D)/hal_apollo/atbm6441_wifi_sdio.ko \
+		$(TARGET_DIR)/usr/lib/modules/3.10.14$(WIFI_ATBM6441_KERN_LOCALVER)/extra/atbm6441_wifi_sdio.ko
+endef
+
 $(eval $(generic-package))
