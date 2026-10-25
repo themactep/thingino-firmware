@@ -35,7 +35,19 @@ start() {
 		}
 		host_addr=$ethaddr
 		decrement_mac
-		usb-role -m device
+		# A mainline DWC2 owns the role through DT on XBurst2; the
+		# vendor poke touches a gated CPM register and hangs the T41.
+		case "$(soc -f)" in
+			t40 | t41 | a1) ;;
+			*) [ -n "$(ls /sys/class/udc 2>/dev/null)" ] || usb-role -m device ;;
+		esac
+		# The Ingenic USB PHY probes late; wait for the UDC before
+		# loading the gadget, or modprobe fails with no UDC to bind.
+		i=0
+		while [ $i -lt 120 ] && [ -z "$(ls /sys/class/udc 2>/dev/null)" ]; do
+			usleep 250000
+			i=$((i + 1))
+		done
 		modprobe g_ncm iManufacturer=thingino host_addr=$host_addr dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
 	fi
 	# Wait for usb0 to appear

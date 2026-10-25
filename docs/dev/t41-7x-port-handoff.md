@@ -140,7 +140,7 @@ counter (using the wrong rate) expired at ~42 s.
   are both empty, so the camera is fully offline:
   - Wi-Fi is SDIO-attached (ATBM6062S). The SDHCI host is now up (see the
     MMC section); the card itself does not enumerate yet.
-  - USB: the DWC2 core now probes (see below), but the PHY is not usable yet.
+  - USB: device mode works (CDC-NCM, see below); host mode untested.
 - Camera stack: OS04D10 sensor + open-tx-isp on this SoC, ATBM6062S Wi-Fi,
   audio. `timpsd` starts and stops there.
 - SMP (secondary cores; the per-CPU OST pages are already described by the
@@ -190,7 +190,7 @@ XBurst1 and `ingenic_sdhci_sdio` for XBurst2, and S09mmc loads
 `pwrseq_simple` before the host so the pwrseq suppliers do not leave the
 MSC probes deferred.
 
-## USB (attempted, blocked)
+## USB
 
 The controller/CGU side is sound: with the CGU as `simple-mfd`, a
 `usb-phy@3c` child and the DWC2 node wired to it, `dwc2` probes in both
@@ -203,22 +203,23 @@ USBPCR1 0x48, OPCR 0x24 (bit 7 SPENDN0, bit 23 PHY gate), **SRBC 0xc4**
 (the T31 uses 0x34), and the UTMI block at 0x10060000. Reusing the
 mainline `phy-ingenic-usb` T-series path is wrong for these offsets.
 
-What blocks it: every write that changes the PHY state - USBPCR bit 31
-(host mode) or the USBPCR1 D+/D- pulldown bits 28/29 - stalls the AHB and
-hangs the boot. The vendor BSP sequence does exactly these writes, so
-something it assumes (PHY power/clock, or a bootloader handshake) is
-missing on this board. `__raw_*` instead of `writel`/`readl` did not help;
-clearing OPCR bit 23 (PHY gate) first did not help; moving the init into
-the DWC2 `phy_init` chain did not help. The no-op PHY variant boots and
-probes the DWC2, but the host then sees no device and the port loops on
-"Overcurrent change detected".
+What looked like an AHB stall was the **OTG clock gate**: the T41 CGU
+gates the OTG block (CLKGR0 bit 3), `clk_disable_unused` turns it off, and
+any USBPCR/USBPCR1 write then hangs the bus. The mainline
+`phy-ingenic-usb` T-series init also wrote T31's SRBC (0x34); the T41's is
+0xc4. The T41 variant (`0120`, compatible `ingenic,t41-phy`) enables the
+clock, resets the OTG core through 0xc4, and only then touches the PHY.
+The PHY node's `reg` must be `0x1000003c` (USBPCR), not the CPM base.
 
-The port is a powered device port (the bootrom DFU uses it), so USB
-gadget/ECM is the plausible use; host mode additionally needs VBUS. The
-next step is the vendor `ingenic,innophy` driver (usb_phy API, CPM syscon
-plus the 0x10060000 UTMI block) or finding the missing PHY power/clock
-sequence, not the mainline T-series PHY path. The camera was restored to
-the last known-good image (f148de734) after these experiments.
+Host mode is still untested. Device mode works as a CDC-NCM gadget:
+`dwc2` in `dr_mode = "peripheral"` with `maximum-speed = "full-speed"`
+(the core's reset DPTXFSIZN reports 63-word FIFOs - too small for a
+512-byte high-speed bulk endpoint; full-speed uses 64-byte packets and
+fits). The `usbnet` NCM package starts `g_ncm`; the camera is
+172.16.0.1 and a Linux host binds `cdc_ncm` and gets an `enx...`
+interface (ping and SSH verified). S36cdcnet waits for the late-probing
+UDC and skips the vendor `usb-role` poke on XBurst2: the mainline DWC2
+owns the role through DT.
 
 ## Patch status
 

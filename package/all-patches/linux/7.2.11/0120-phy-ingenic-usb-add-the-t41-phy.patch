@@ -1,0 +1,121 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] phy: ingenic-usb: add the T41 variant
+
+The T41 CPM keeps the T31 USB register offsets but moves SRBC from
+0x34 to 0xc4. It also needs the OTG core reset after the clock is
+ungated and before the first PHY write; without it the AHB stalls.
+Add a dedicated soc_info for it and match "ingenic,t41-phy".
+
+The VBUS supply is optional: this port is always powered and the
+kernel need not carry the regulator framework for a fixed rail.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/drivers/phy/ingenic/phy-ingenic-usb.c
++++ b/drivers/phy/ingenic/phy-ingenic-usb.c
+@@ -86,6 +86,8 @@
+ struct ingenic_soc_info {
+ 	void (*usb_phy_init)(struct phy *phy);
+ 	bool handles_por;
++	bool early_reset;
++	s32 srbc_delta;
+ };
+ 
+ struct ingenic_usb_phy {
+@@ -134,7 +136,8 @@
+ 	struct ingenic_usb_phy *priv = phy_get_drvdata(phy);
+ 
+ 	clk_disable_unprepare(priv->clk);
+-	regulator_disable(priv->vcc_supply);
++	if (priv->vcc_supply)
++		regulator_disable(priv->vcc_supply);
+ 
+ 	return 0;
+ }
+@@ -144,6 +147,9 @@
+ 	struct ingenic_usb_phy *priv = phy_get_drvdata(phy);
+ 	int err;
+ 
++	if (!priv->vcc_supply)
++		return 0;
++
+ 	err = regulator_enable(priv->vcc_supply);
+ 	if (err) {
+ 		dev_err(&phy->dev, "Unable to enable VCC: %d\n", err);
+@@ -157,7 +163,8 @@
+ {
+ 	struct ingenic_usb_phy *priv = phy_get_drvdata(phy);
+ 
+-	regulator_disable(priv->vcc_supply);
++	if (priv->vcc_supply)
++		regulator_disable(priv->vcc_supply);
+ 
+ 	return 0;
+ }
+@@ -303,6 +310,14 @@
+ static const struct ingenic_soc_info t_series_soc_info = {
+ 	.usb_phy_init = t_series_usb_phy_init,
+ 	.handles_por = true,
++	.srbc_delta = -0x08,
++};
++
++static const struct ingenic_soc_info t41_soc_info = {
++	.usb_phy_init = t_series_usb_phy_init,
++	.handles_por = true,
++	.early_reset = true,
++	.srbc_delta = 0x88,
+ };
+ 
+ static void x2000_usb_phy_init(struct phy *phy)
+@@ -370,10 +385,13 @@
+ 		return dev_err_probe(dev, err, "Failed to get clock\n");
+ 	}
+ 
+-	priv->vcc_supply = devm_regulator_get(dev, "vcc");
++	priv->vcc_supply = devm_regulator_get_optional(dev, "vcc");
+ 	if (IS_ERR(priv->vcc_supply)) {
+ 		err = PTR_ERR(priv->vcc_supply);
+-		return dev_err_probe(dev, err, "Failed to get regulator\n");
++		if (err == -ENODEV)
++			priv->vcc_supply = NULL;
++		else
++			return dev_err_probe(dev, err, "Failed to get regulator\n");
+ 	}
+ 
+ 	priv->phy = devm_phy_create(dev, NULL, &ingenic_usb_phy_ops);
+@@ -390,7 +408,7 @@
+ 	 */
+ 	if (priv->soc_info->handles_por) {
+ 		void __iomem *reg_opcr = priv->base - 0x18;
+-		void __iomem *reg_srbc = priv->base - 0x08;
++		void __iomem *reg_srbc = priv->base + priv->soc_info->srbc_delta;
+ 		u32 reg;
+ 
+ 		err = clk_prepare_enable(priv->clk);
+@@ -407,6 +425,18 @@
+ 		__raw_writel(__raw_readl(priv->base - 0x1c) & ~BIT(3),
+ 			     priv->base - 0x1c);
+ 
++		/*
++		 * The T41 must have its OTG core reset after the clock is on
++		 * and before the first PHY write; without it the AHB stalls.
++		 * This mirrors the U-Boot t41_usb_phy_init() sequence.
++		 */
++		if (priv->soc_info->early_reset) {
++			msleep(100);
++			__raw_writel(__raw_readl(reg_srbc) | BIT(12), reg_srbc);
++			udelay(40);
++			__raw_writel(__raw_readl(reg_srbc) & ~BIT(12), reg_srbc);
++		}
++
+ 		reg = __raw_readl(priv->base + REG_USBPCR1_OFFSET);
+ 		reg |= BIT(8) | BIT(9) | BIT(28) | BIT(29) | BIT(30);
+ 		reg &= ~BIT(19);
+@@ -468,6 +498,7 @@
+ 	{ .compatible = "ingenic,jz4780-phy", .data = &jz4780_soc_info },
+ 	{ .compatible = "ingenic,x1000-phy", .data = &x1000_soc_info },
+ 	{ .compatible = "ingenic,t31-phy", .data = &t_series_soc_info },
++	{ .compatible = "ingenic,t41-phy", .data = &t41_soc_info },
+ 	{ .compatible = "ingenic,x1830-phy", .data = &x1830_soc_info },
+ 	{ .compatible = "ingenic,x2000-phy", .data = &x2000_soc_info },
+ 	{ /* sentinel */ }
