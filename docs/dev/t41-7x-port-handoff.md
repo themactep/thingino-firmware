@@ -126,13 +126,41 @@ counter (using the wrong rate) expired at ~42 s.
     The DTS declares the MSCs as `ingenic,sdhci` while 7.2.11 has no such
     driver (`CONFIG_MMC_SDHCI` is off, only `jz4740_mmc` is built). Port the
     SDHCI-based T41 host (or the vendor's MMC block) and set `lssdio`.
-  - USB: the CGU must become a `simple-mfd` so the `ingenic,x2000-phy` child
-    can live at CPM `0x3c`; the CGU needs an `otg_phy` gate at OPCR bit 23.
-    Until then the dwc2 node never probes and `lsusb` stays empty.
+  - USB: the DWC2 core now probes (see below), but the PHY is not usable yet.
 - Camera stack: OS04D10 sensor + open-tx-isp on this SoC, ATBM6062S Wi-Fi,
   audio. `timpsd` starts and stops there.
 - SMP (secondary cores; the per-CPU OST pages are already described by the
   DT).
+
+## USB (attempted, blocked)
+
+The controller/CGU side is sound: with the CGU as `simple-mfd`, a
+`usb-phy@3c` child and the DWC2 node wired to it, `dwc2` probes in both
+host and peripheral mode, registers 9 endpoints / SPRAM in gadget mode,
+and the userspace creates `usb0`. In host mode `lsusb` shows the root hub
+(`1d6b:0002 ... DWC OTG Controller`).
+
+The T41 CPM USB map differs from the T31's: USBPCR 0x3c, USBRDT 0x40,
+USBPCR1 0x48, OPCR 0x24 (bit 7 SPENDN0, bit 23 PHY gate), **SRBC 0xc4**
+(the T31 uses 0x34), and the UTMI block at 0x10060000. Reusing the
+mainline `phy-ingenic-usb` T-series path is wrong for these offsets.
+
+What blocks it: every write that changes the PHY state - USBPCR bit 31
+(host mode) or the USBPCR1 D+/D- pulldown bits 28/29 - stalls the AHB and
+hangs the boot. The vendor BSP sequence does exactly these writes, so
+something it assumes (PHY power/clock, or a bootloader handshake) is
+missing on this board. `__raw_*` instead of `writel`/`readl` did not help;
+clearing OPCR bit 23 (PHY gate) first did not help; moving the init into
+the DWC2 `phy_init` chain did not help. The no-op PHY variant boots and
+probes the DWC2, but the host then sees no device and the port loops on
+"Overcurrent change detected".
+
+The port is a powered device port (the bootrom DFU uses it), so USB
+gadget/ECM is the plausible use; host mode additionally needs VBUS. The
+next step is the vendor `ingenic,innophy` driver (usb_phy API, CPM syscon
+plus the 0x10060000 UTMI block) or finding the missing PHY power/clock
+sequence, not the mainline T-series PHY path. The camera was restored to
+the last known-good image (f148de734) after these experiments.
 
 ## Patch status
 
