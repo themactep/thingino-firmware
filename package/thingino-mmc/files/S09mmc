@@ -170,6 +170,24 @@ set_power() {
 	EOF
 }
 
+# The SDIO Wi-Fi reset is not owned by a pwrseq on this port: pwrseq-simple
+# leaves it asserted after power-on. Pulse it here, as the vendor board
+# glue does, before the host module scans the bus.
+set_wlan_reset() {
+	local pin
+
+	pin=$(jct "$MMC_CONFIG_JSON" get "gpio.wlan" 2>/dev/null) || return 0
+	case "$pin" in
+		'' | *[^0-9]*)
+			return 0
+			;;
+	esac
+	echo "Pulse WLAN reset GPIO $pin"
+	gpio set "$pin" 0 2>/dev/null || true
+	usleep 10000
+	gpio set "$pin" 1 2>/dev/null || true
+}
+
 load_module() {
 	# The mmc-pwrseq-simple devices (SD card and SDIO resets) need this
 	# driver before the host probes, or the MMC probe defers forever.
@@ -228,6 +246,7 @@ start() {
 	fi
 	set_mmc_enable
 	set_power
+	set_wlan_reset
 	load_module
 
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"

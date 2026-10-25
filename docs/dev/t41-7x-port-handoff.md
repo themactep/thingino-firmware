@@ -167,10 +167,20 @@ mmc1: SDHCI controller on 13070000.msc [13070000.msc] using ADMA
 mmc1: Failed to initialize a non-removable card
 ```
 
-The SD slot (msc0) is up; the ATBM6062S on msc1 does not answer CMD5 yet
-(`lssdio` empty). The reset is wired through `mmc-pwrseq-simple`, but the
-Wi-Fi power/32 kHz clock sequence and the 7.x ATBM driver/DT node are still
-missing.
+The SD slot (msc0) is up. The ATBM6062S on msc1 still does not answer
+CMD5 (`lssdio` empty). The pwrseq was the wrong owner for the reset: its
+active-low reset was left asserted after power-on, so the card never left
+reset. msc1 now has no pwrseq; S09mmc raises `mmc_en`, drives both
+active-low rails and pulses GPIO 78 (10 ms low, then high) before loading
+the host. The card still reports `mmc1: Failed to initialize a
+non-removable card`, so the remaining suspects are the 32 kHz LPO/pinmux
+or the rail wiring, not the reset order.
+
+The ATBM driver package is 4.x-only: its bundled mac80211/cfg80211 does
+not compile on 7.2.11 (`wdev->mtx`, `net_device->ieee80211_ptr`, timer
+APIs). It stays disabled on 7.x until that port is done; Kconfig quote
+stripping and the `asm/unaligned.h` include are already fixed in the
+package.
 
 The factory MMC map (master `cameras-exp`) is `mmc_en: 57` (power
 enable), `mmc_power: 61 + 59 active-low` (SD and SDIO rails) and
@@ -179,7 +189,7 @@ S09mmc drove high (off), and no 59; the rail was never on before the host
 probe. S09mmc now raises `mmc_en` and applies the power sequence before
 loading the host. The branch's `jct`/S09mmc does not parse the master's
 array form, so the camera JSON uses the equivalent legacy string
-`"61o 59o"`. GPIO 78 (`wlan`) is the SDIO reset, owned by `mmc1_pwrseq`;
+`"61o 59o"`. GPIO 78 (`wlan`) is the SDIO reset (pulsed by S09mmc);
 GPIO 61 is a power switch, not a reset, so the wrong msc0 `mmc-pwrseq`
 is gone.
 

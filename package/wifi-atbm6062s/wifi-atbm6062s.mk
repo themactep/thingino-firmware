@@ -48,6 +48,13 @@ define WIFI_ATBM6062S_COPY_CONFIG
 		$(@D)/.config
 	$(SED) 's/^# CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6 is not set/CONFIG_ATBM_FUNC_P2P_ENABLE_WIFI6=y/' \
 		$(@D)/.config
+	# The driver's Kbuild uses the raw Kconfig values; strip the quotes
+	# the .config carries so they do not end up in -D flags and obj-m.
+	$(SED) 's/^\(CONFIG_[A-Za-z0-9_]*\)="\(.*\)"$$/\1=\2/' $(@D)/.config
+	# Kernel 7.x removed asm/unaligned.h.
+	for f in $$(grep -rl 'asm/unaligned.h' $(@D) --include='*.c' --include='*.h'); do \
+		$(SED) 's|asm/unaligned.h|linux/unaligned.h|' $$f; \
+	done
 	cp $(@D)/Kbuild.4.4 $(@D)/Kbuild
 endef
 

@@ -788,7 +788,6 @@
 				non-removable;
 				ingenic,wp-gpios = <0x00>;
 				ingenic,rst-gpios = <0x06 0x0e 0x01>;
-				mmc-pwrseq = <&mmc1_pwrseq>;
 			};
 
 			ipu@0x13080000 {
