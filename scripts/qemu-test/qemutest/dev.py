@@ -620,7 +620,10 @@ def relay(name):
                 client.close()
             client = srv.accept()[0]
         elif client and client in ready:
-            data = client.recv(65536)
+            try:
+                data = client.recv(65536)
+            except OSError:
+                data = b""
             if not data:
                 client.close()
                 client = None
