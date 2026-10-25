@@ -7,7 +7,7 @@
 OPENIMP_SITE_METHOD = git
 OPENIMP_SITE = https://github.com/Lu-Fi/openimp
 # Release tag of the Lu-Fi open-stack fork (release candidate 1).
-OPENIMP_VERSION = v2026.10.11-rc1
+OPENIMP_VERSION = v2026.10.25-rc2
 
 # Upstream describes OpenIMP as MIT but does not currently ship a top-level
 # license file for legal-info to collect.
