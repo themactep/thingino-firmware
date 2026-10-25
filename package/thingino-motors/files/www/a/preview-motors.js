@@ -138,9 +138,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     $$(".jst a.s").forEach((el) => {
-      const stopHandler = () => stopContinuousMove();
+      // A second press on the same direction within this window belongs to a
+      // double tap, not to a new hold gesture.
+      const doubleTapMs = 300;
+      let lastReleaseAt = 0;
+      el.style.touchAction = "manipulation";
+
+      const stopHandler = () => {
+        stopContinuousMove();
+        lastReleaseAt = Date.now();
+      };
       el.addEventListener("pointerdown", (ev) => {
         ev.preventDefault();
+        if (Date.now() - lastReleaseAt < doubleTapMs) return;
         if (el.setPointerCapture && ev.pointerId !== undefined) {
           el.setPointerCapture(ev.pointerId);
         }
@@ -150,6 +160,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       el.addEventListener("pointerleave", stopHandler);
       el.addEventListener("pointercancel", stopHandler);
       el.addEventListener("lostpointercapture", stopHandler);
+      el.addEventListener("dblclick", (ev) => ev.preventDefault());
       el.addEventListener("contextmenu", (ev) => ev.preventDefault());
     });
   }
