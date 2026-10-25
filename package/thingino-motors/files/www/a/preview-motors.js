@@ -110,24 +110,32 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function bindContinuousControls() {
-    let holdInterval = null;
-    const intervalMs = 90;
+    // Press: one long relative move towards the end of travel.
+    // Release: stop. One motor command per gesture keeps the motion smooth,
+    // instead of a new 40-step request every 90 ms.
+    let moving = false;
 
     const stopContinuousMove = () => {
-      if (holdInterval) {
-        clearInterval(holdInterval);
-        holdInterval = null;
-      }
+      if (!moving) return;
+      moving = false;
+      runMotorCmd("d=s");
     };
 
     const startContinuousMove = (dir) => {
       if (!dir) return;
-      stopContinuousMove();
-      moveMotor(dir, 100);
-      holdInterval = setInterval(() => {
-        moveMotor(dir, 100);
-      }, intervalMs);
+      const motorParams = window.motorParams || {};
+      const xr = Number(motorParams.steps_pan) || 0;
+      const yr = Number(motorParams.steps_tilt) || 0;
+      const y = dir.includes("d") ? -yr : dir.includes("u") ? yr : 0;
+      const x = dir.includes("l") ? -xr : dir.includes("r") ? xr : 0;
+      moving = true;
+      runMotorCmd("d=g&x=" + x + "&y=" + y);
     };
+
+    window.addEventListener("blur", stopContinuousMove);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopContinuousMove();
+    });
 
     $$(".jst a.s").forEach((el) => {
       const stopHandler = () => stopContinuousMove();
