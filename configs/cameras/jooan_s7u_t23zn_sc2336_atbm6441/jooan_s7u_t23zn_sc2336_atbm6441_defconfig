@@ -1,0 +1,34 @@
+# NAME: Jooan S7-U (T23ZN, SC2336, ATBM6441)
+# FRAG: soc-xburst1 core
+#
+# SoC:    Ingenic T23ZN, XBurst1 MIPS32 R1, 64MB RAM (46M+18M split)
+# Sensor: SmartSens SC2336 wired at secondary I2C addr 0x32
+#         (ID 0xCB3A @ i2c0/0x32; plain sc2336 driver plus the raptor i2c_addr override)
+# WiFi:   AltoBeam ATBM6441, SDIO; the MCU runs its own WiFi stack
+# Flash:  16MB NOR SPI
+# UART:   ttyS1 console, ttyS0 to the ATBM6441 MCU (PIR/status)
+#
+# NOTES:
+#  - ATBM6441 driver source is fetched from github.com/gtxaspec/atbm6441.
+#  - The MCU is provisioned with atbm_iot_cli, not wpa_supplicant.
+#  - MMC0/MMC1 and the 1-bit MSC1 restriction are set in the kernel fragment.
+BR2_INGENIC_SOC_MODEL="t23zn"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/cameras/jooan_s7u_t23zn_sc2336_atbm6441/jooan_s7u_t23zn.kernel.config"
+BR2_PACKAGE_ATBM6441_TOOLS=y
+BR2_PACKAGE_THINGINO_KOPT_MMC=y
+BR2_PACKAGE_THINGINO_KOPT_MMC_BUILTIN=y
+BR2_PACKAGE_THINGINO_MMC=y
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT2="49"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRCUT="50"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_GPIO_IRLED="60"
+BR2_PACKAGE_THINGINO_RAPTOR_CONF_SENSOR_I2C_ADDR="0x32"
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6441=y
+BR2_SENSOR_1_NAME="sc2336"
+BR2_SENSOR_1_PARAMS="shvflip=1"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_GPIO=63
+BR2_THINGINO_MOTORS=y
+BR2_THINGINO_RMEM_MB=18
+BR2_THINGINO_SDCARD=y
+FLASH_SIZE_MB=16
