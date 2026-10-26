@@ -183,13 +183,23 @@ change on an enabled clock (`CLK_SET_PARENT_GATE`), hence the gate.
 
 Switching to MPLL or VPLL after identification makes the ATBM stop
 answering data commands (ETIMEDOUT on the first transfer), even at 1 MHz.
-The card therefore stays on EXTAL: the CGU divides it by 4 and the SDHCI
-divider caps the card clock at 3 MHz. Higher throughput needs a
-glitch-free parent switch or the vendor phase/tuning sequence.
+The card therefore stays on EXTAL with the CGU divider at /4 and the
+SDIO card clock capped at 1.5 MHz. Higher throughput needs a glitch-free
+parent switch or the vendor phase/tuning sequence.
 
-S09mmc now follows the vendor power order: `mmc_en`, load the host,
-apply the active-low rails (`61o 59o`), pulse the WLAN reset (GPIO 78),
-then let `broken-cd` polling find the card.
+S09mmc applies `mmc_en`, the active-low rails (`61o 59o`) and the WLAN
+reset (GPIO 78), loads the host, then rebinds the ingenic-sdhci
+controllers. The first host init leaves the card unable to complete the
+ATBM firmware download; the rebind enumerates it again (`address 0002`)
+and is the instance the driver should use.
+
+The ATBM probe still reports `chipver=0x0` and wedges in `D` on a fresh
+power-up even after the rebind, while manual tests on a card that had
+been through several soft reboots reached `chipver=0x5a` and created
+`wlan0`. Next step: reproduce the vendor bring-up sequence (CPU reset
+and firmware handshake) and the exact power-up timing, or find what the
+soft reboot preserves. ATBM loading is backgrounded so a wedged probe
+does not stall boot.
 
 Kernel-config trap: after a rebuild the output `.config` had lost
 `MACH_INGENIC_SOC`/`MACH_T41` (it selected MIPS32_R1), so `MIPS` no longer
