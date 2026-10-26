@@ -167,13 +167,26 @@ mmc1: SDHCI controller on 13070000.msc [13070000.msc] using ADMA
 mmc1: Failed to initialize a non-removable card
 ```
 
-The SD slot (msc0) is up. The ATBM6062S on msc1 still does not answer
-CMD5 (`lssdio` empty).
+The SD slot (msc0) is up and the ATBM6062S on msc1 **enumerates**:
+`mmc2: new high speed SDIO card at address 022d`, vendor `0x007a`,
+device `0x6011`. The ATBM driver loads, reads its firmware and creates
+`wlan0`.
 
 The MSC mux defaults to SCLKA (APLL/2, 552 MHz), which the 10-bit SDHCI
 divider cannot divide down to the 400 kHz identification clock. `0119`
-now switches the mux to EXTAL below 400 kHz and MPLL above it, like the
-vendor driver, and updates `host->max_clk` before `sdhci_set_clock()`.
+now gates the MSC, switches the parent to EXTAL (24 MHz), and restores
+`host->max_clk` before programming the divider. CCF refuses a parent
+change on an enabled clock (`CLK_SET_PARENT_GATE`), hence the gate.
+
+Switching to MPLL or VPLL after identification makes the ATBM stop
+answering data commands (ETIMEDOUT on the first transfer), even at 1 MHz.
+The card therefore stays on EXTAL: the CGU divides it by 4 and the SDHCI
+divider caps the card clock at 3 MHz. Higher throughput needs a
+glitch-free parent switch or the vendor phase/tuning sequence.
+
+S09mmc now follows the vendor power order: `mmc_en`, load the host,
+apply the active-low rails (`61o 59o`), pulse the WLAN reset (GPIO 78),
+then let `broken-cd` polling find the card.
 
 Kernel-config trap: after a rebuild the output `.config` had lost
 `MACH_INGENIC_SOC`/`MACH_T41` (it selected MIPS32_R1), so `MIPS` no longer
@@ -189,11 +202,10 @@ the host. The card still reports `mmc1: Failed to initialize a
 non-removable card`, so the remaining suspects are the 32 kHz LPO/pinmux
 or the rail wiring, not the reset order.
 
-The master branch runs this camera's Wi-Fi on 4.4.94: the vendor SDHCI
-driver, the ATBM driver built against the kernel cfg80211, and no Linux
-GPIO driving (U-Boot's `wlan_78` hog holds the reset released and the
-rails are left floating). Our port now matches that power flow (no
-pwrseq, no S09 GPIO driving) but msc1 still fails CMD5.
+The master branch runs this camera's Wi-Fi on 4.4.94 with the vendor
+SDHCI and ATBM drivers. Our 7.2 port now enumerates the same card with
+the mainline SDHCI core plus the T41 glue, and the ATBM driver binds to
+it. Association and throughput have not been tested yet.
 
 The working 7.x SDIO reference is the Cinnado D1 T31L (ATBM6031): it
 builds the driver from the `themactep/atbm-wifi` **`kernel-7.x`** branch

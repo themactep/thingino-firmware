@@ -305,7 +305,7 @@ start() {
 		sleep 2
 		@else@
 		echo "Send INSERT to MMC1"
-		mmc 1
+		mmc 1 2>/dev/null || true
 		@endif@
 		@endif@
 		@endif@

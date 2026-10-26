@@ -159,8 +159,9 @@ set_power() {
 		return
 	fi
 
-	# Set additional MMC GPIOs. This runs before the host module so the
-	# card sees power at its first probe; the pwrseq only owns the reset.
+	# Set additional MMC GPIOs. Like the vendor board flow this runs after
+	# the host is up; the card is seen by the broken-cd poll once the rails
+	# are on.
 	while IFS=' ' read -r pin state; do
 		[ -n "$pin" ] || continue
 		echo "Set GPIO $pin to $state"
@@ -244,6 +245,9 @@ start() {
 	else
 		MMC_PARAM=""
 	fi
+	set_mmc_enable
+	set_power
+	set_wlan_reset
 	load_module
 
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"
