@@ -182,14 +182,20 @@ GPIO driving (U-Boot's `wlan_78` hog holds the reset released and the
 rails are left floating). Our port now matches that power flow (no
 pwrseq, no S09 GPIO driving) but msc1 still fails CMD5.
 
-The ATBM driver on 7.2.11 is being ported: the package now enables the
-kernel cfg80211 (the branch used to disable it, which hid
-`wireless_dev`/`ieee80211_ptr` and broke the build), and
-`0001-7x-mac80211-locking.patch` maps the removed `wdev->mtx` to the
-wiphy lock and the renamed timer API. What remains is the cfg80211
-4.x-to-7.x call-site update (`cfg80211_tx_mlme_mgmt`,
-`cfg80211_rx_assoc_resp`, `cfg80211_new_sta`, `cfg80211_disassoc_request`,
-...). The package stays disabled on 7.x until it builds.
+The working 7.x SDIO reference is the Cinnado D1 T31L (ATBM6031): it
+builds the driver from the `themactep/atbm-wifi` **`kernel-7.x`** branch
+with `CONFIG_CFG80211=y` and the kernel's mac80211 disabled (the driver
+vendors its own), and its msc1 uses `broken-cd` polling because the ATBM
+needs 7-9 s after power before it answers CMD5 - a one-shot boot scan
+fails with OCR 0. The T31L is wired to PB8-11/PB13-14; the Wyze uses the
+PC group (PB14 is its IR LED).
+
+msc1 now polls (`broken-cd`) instead of scanning once, but the 6062S card
+still does not appear on the T41's PC pins. The ATBM6062S package should
+move to the `kernel-7.x` driver branch; that branch has no 6062S config
+or firmware yet (only 6012/6031/6032/6132), so the 606x chip support has
+to be brought over. The current `wifi-atbm6062s` 4.x package stays
+disabled on 7.x.
 
 The factory MMC map (master `cameras-exp`) is `mmc_en: 57` (power
 enable), `mmc_power: 61 + 59 active-low` (SD and SDIO rails) and

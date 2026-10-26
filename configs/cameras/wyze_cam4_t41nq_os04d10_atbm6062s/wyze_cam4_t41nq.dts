@@ -785,7 +785,7 @@
 				max-frequency = <0x17d7840>;
 				bus-width = <0x04>;
 				voltage-ranges = <0x708 0xce4>;
-				non-removable;
+				broken-cd;
 				ingenic,wp-gpios = <0x00>;
 				ingenic,rst-gpios = <0x06 0x0e 0x01>;
 			};
