@@ -465,13 +465,28 @@ start() {
 			fi
 
 			echo "ATBM6441: provisioning MCU with SSID '$wifi_ssid'"
+			atbm_iot_cli clear_network
 			atbm_iot_cli wifi_mode STA
 			atbm_iot_cli set_network ssid "$wifi_ssid"
 			atbm_iot_cli set_network key "$wifi_pass"
 			atbm_iot_cli set_network key_mgmt WPA2
 			atbm_iot_cli enable_network
-			echo "$conf_sum" >"$MARKER"
-			exit 0
+
+			n=20
+			while [ "$n" -gt 0 ]; do
+				if ip addr show dev wlan0 2>/dev/null | grep -q 'inet ' &&
+					ip route 2>/dev/null | grep -q '^default'; then
+					echo "$conf_sum" >"$MARKER"
+					echo "ATBM6441: associated, credentials stored"
+					exit 0
+				fi
+				n=$((n - 1))
+				sleep 1
+			done
+
+			rm -f "$MARKER"
+			echo "ATBM6441: association failed; will retry on next boot" >&2
+			exit 1
 			;;
 		# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 		atbm6461*)
