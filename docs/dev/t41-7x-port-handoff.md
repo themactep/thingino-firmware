@@ -196,10 +196,14 @@ and is the instance the driver should use.
 The ATBM probe still reports `chipver=0x0` and wedges in `D` on a fresh
 power-up even after the rebind, while manual tests on a card that had
 been through several soft reboots reached `chipver=0x5a` and created
-`wlan0`. Next step: reproduce the vendor bring-up sequence (CPU reset
-and firmware handshake) and the exact power-up timing, or find what the
-soft reboot preserves. ATBM loading is backgrounded so a wedged probe
-does not stall boot.
+`wlan0`. Verbose logging (`atbm_printk_mask=0xff`) shows the failure:
+`atbm_direct_read_reg_32: can't read config register` repeating with a
+timeout, then `chipver=0x0` and a stall before the firmware download.
+The card answers enumeration (CCCR/CIS) but not the driver's function-1
+config register reads. Next step: compare against the vendor SDIO
+bring-up (function enable, 32 kHz/LPO, voltage/phase) and the exact
+power-up timing. ATBM loading is backgrounded so a wedged probe does not
+stall boot.
 
 Kernel-config trap: after a rebuild the output `.config` had lost
 `MACH_INGENIC_SOC`/`MACH_T41` (it selected MIPS32_R1), so `MIPS` no longer
