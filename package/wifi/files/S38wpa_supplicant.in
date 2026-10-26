@@ -434,6 +434,8 @@ start() {
 	# the MCU reconnects from its NVM.
 	case "$WLAN_MODULE_NAME" in
 		atbm6441*)
+			# No host AP/portal path for the ATBM6441 yet. A WiFi-only board
+			# with no MCU NVM network needs an SD-card config to provision.
 			if [ "$mode" != "client" ]; then
 				echo "ATBM6441: no usable WiFi credentials ($mode mode); MCU keeps its stored network"
 				exit 0
@@ -474,8 +476,8 @@ start() {
 
 			n=20
 			while [ "$n" -gt 0 ]; do
-				if ip addr show dev wlan0 2>/dev/null | grep -q 'inet ' &&
-					ip route 2>/dev/null | grep -q '^default'; then
+				if ip addr show dev "$IFACE" 2>/dev/null | grep -q 'inet ' &&
+					ip route show default dev "$IFACE" 2>/dev/null | grep -q '^default'; then
 					echo "$conf_sum" >"$MARKER"
 					echo "ATBM6441: associated, credentials stored"
 					exit 0
