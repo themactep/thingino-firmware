@@ -2,5 +2,7 @@ config BR2_PACKAGE_WIFI_ATBM6441
 	bool "AltoBeam ATBM6441"
 	select BR2_LINUX_KERNEL
 	help
-	  Wireless driver atbm6441
-	  altobeam hare atbm6441 WiFi driver
+	  AltoBeam ATBM6441 SDIO WiFi driver.
+
+	  The board must select MMC support separately; this package no
+	  longer selects BR2_PACKAGE_THINGINO_KOPT_MMC.
