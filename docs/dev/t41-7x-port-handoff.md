@@ -169,8 +169,11 @@ mmc1: Failed to initialize a non-removable card
 
 The SD slot (msc0) is up and the ATBM6062S on msc1 **enumerates**:
 `mmc2: new high speed SDIO card at address 022d`, vendor `0x007a`,
-device `0x6011`. The ATBM driver loads, reads its firmware and creates
-`wlan0`.
+device `0x6011`. The ATBM driver binds to the function and reaches its firmware/probe
+path. `wlan0` is not created consistently yet: some boots report
+`atbm_get_chiptype, chipver=0x0` and the probe never completes, while
+manual reloads after enumeration reached `chipver=0x5a` and created
+`wlan0`. This is the next Wi-Fi item.
 
 The MSC mux defaults to SCLKA (APLL/2, 552 MHz), which the 10-bit SDHCI
 divider cannot divide down to the 400 kHz identification clock. `0119`
@@ -247,6 +250,10 @@ MSC probes deferred.
   `driver/t41` is written against the vendor ABI. A 7.x port needs the
   T41 ISP driver adapted to 7.2.11 plus an OS04D10 `sensor-src/t41`
   rewrite in the T31 7.x sensor style.
+  Hardware note from a user report: OS04D10 detection is marginal across
+  units and becomes reliable when PA15 drive strength is set to 2
+  (T41 PDS1 bit 15, via PxPDS1S/PxPDS1C at 0x144/0x148). Apply it with
+  the sensor/ISP port.
 - **SMP.** `MACH_T41` has no `SYS_SUPPORTS_SMP` and the mainline tree has
   no `xburst2_smp_ops`. The vendor 4.4 code (CCU reset-entry/mailbox, the
   bounce trampoline, per-CPU IRQ/timer, `play_dead`) is the reference; the
