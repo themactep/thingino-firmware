@@ -347,6 +347,16 @@ scripts/qemu-dev get /tmp/snap.jpg snap.jpg
 ffplay main.h264
 ```
 
+With the main stream over IVDC (`direct_mode=1` in
+`/etc/modules.d/20-isp`, `ivdc = true` under `[stream0]` in
+`/etc/raptor.conf`), the snapshot comes from the second stream as
+`jpeg1`, and the OSD has to be the ISP's (`isp_osd = true` under
+`[osd]`): the frames reach libimp with no buffer, at physical address 0,
+and the IPU's OSD writes over the kernel there. The T23's driver drops a
+picture its encoder starts too late (`valid_data_line` in dmesg), which
+a busy guest does as the streamer starts; the stream then predicts from
+the wrong rows until its next IDR.
+
 An image with a wired interface can be watched live over RTSP: `--fwd`
 forwards a camera port, and `info` shows where it went.
 
