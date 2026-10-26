@@ -327,7 +327,8 @@ start() {
 		echo "Module $WLAN_MODULE_NAME is already loaded"
 	else
 		echo "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
-		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
+		# A wedged SDIO probe must not stall the boot.
+		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS &
 	fi
 
 	m=50 # limit to 5 seconds

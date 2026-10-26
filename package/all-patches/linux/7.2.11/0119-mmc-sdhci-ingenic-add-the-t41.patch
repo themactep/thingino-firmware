@@ -45,7 +45,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  obj-$(CONFIG_MMC_WMT)		+= wmt-sdmmc.o
 --- /dev/null
 +++ b/drivers/mmc/host/sdhci-ingenic.c
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,174 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Ingenic XBurst2 MSC SDHCI glue.
@@ -131,7 +131,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static const struct sdhci_pltfm_data sdhci_ingenic_pdata = {
 +	.ops = &sdhci_ingenic_ops,
-+	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
++	.quirks = SDHCI_QUIRK_BROKEN_DMA |
++		  SDHCI_QUIRK_BROKEN_ADMA |
++		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 +		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
 +		  SDHCI_QUIRK_NO_HISPD_BIT |
 +		  SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -175,6 +177,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +	ret = mmc_of_parse(host->mmc);
 +	if (ret)
 +		goto err_clk;
++
++	host->mmc->caps &= ~(MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED);
++	host->mmc->f_max = 3000000;
 +
 +	ret = sdhci_add_host(host);
 +	if (ret)
