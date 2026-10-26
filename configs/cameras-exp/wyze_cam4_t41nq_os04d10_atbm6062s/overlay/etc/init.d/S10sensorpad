@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Raise the OS04D10 master-clock pad (PA15) drive strength before the sensor
+# comes up. At the power-on default (1) some OS04D10 units cannot be clocked
+# hard enough to answer on I2C; 2 is the measured floor on the failing unit.
+# Runs before S11modules so the clock is strong for the sensor's first probe.
+# (A drive-strength pincfg in the DTS is the eventual clean fix.)
+#
+# DS = bit 15 of PDS3:PDS2:PDS1:PDS0; PA pads at 0x10010000, Set +4 / Clear +8.
+case "$1" in
+	start | "")
+		devmem 0x10010138 32 0x8000 # PDS0 clr
+		devmem 0x10010144 32 0x8000 # PDS1 set  -> DS=2 (0b0010)
+		devmem 0x10010158 32 0x8000 # PDS2 clr
+		devmem 0x100101a8 32 0x8000 # PDS3 clr
+		;;
+	stop)
+		true
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+exit 0
