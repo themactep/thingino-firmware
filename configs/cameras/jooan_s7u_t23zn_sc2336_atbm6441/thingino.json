@@ -3,6 +3,7 @@
     "ircut": "50 49",
     "ir850": 60,
     "mmc_cd": 61,
+    "speaker": 63,
     "white": 59
   },
   "motors": {
