@@ -126,24 +126,44 @@ scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --wifi thingino:thingino123 \
 ```
 
 The chip comes from the build's `.config`, or from the camera name for a
-release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips are
-emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB (atbm6012b,
-atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu, atbm6132cu,
-atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and RTL8192FS on SDIO
-(rtl8189fs, rtl8189es, rtl8192fs; cameras named rtl8189ftv and rtl8189etv)
-and RTL8188FU on USB (rtl8188fu; cameras named rtl8188ftv), the
-Broadcom/Synaptics BCM43438 of the syn4343 package on SDIO, iComm-semi's
-SSV6155P on USB (cameras named ssv6155 and ssv6155p, and the SSV6256P
-ones, whose driver is the same), SSV6355 on USB (ssv6355) and SSV6158 on
-SDIO (ssv6158), and AICSemi's AIC8800D80 on USB (the aic8800 package's
-AIC8800D80 USB model, and cameras named aic8800u; an AIC8800D40, which its
-driver takes for one, too). The pinned QEMU has them all from
-ingenic-0.6.16 on; `up` stops with a message when the QEMU it uses has
-no model for the chip, and `--qemu` picks one that has.
-atbm6132cu-6162 is the 6132CU part paired with Bluetooth, on USB id
-0x6162: a build with `BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a
-release image of such a camera only with `--wifi-chip`, though its
-driver takes either id.
+release image; `--wifi-chip` overrides both. AltoBeam's ATBM60xx chips
+are emulated, on SDIO (atbm6031, atbm6062s, atbm6162s) and on USB
+(atbm6012b, atbm6012bx, atbm6032, atbm6132u, atbm6062u, atbm6062cu,
+atbm6132cu, atbm6132cu-6162), and Realtek's RTL8189FS, RTL8189ES and
+RTL8192FS on SDIO (rtl8189fs, rtl8189es, rtl8192fs; cameras named
+rtl8189ftv and rtl8189etv) and RTL8188FU, RTL8188EUS and RTL8733BU on
+USB (rtl8188fu, cameras named rtl8188ftv; rtl8188eu, cameras named
+rtl8188eu and rtl8188eus; rtl8733bu, cameras named rtl8731bu, rtl8731
+and rtl8131bu), the Broadcom/Synaptics BCM43438 of the syn4343 package
+on SDIO, iComm-semi's SSV6155P on USB (cameras named ssv6155 and
+ssv6155p, and the SSV6256P ones, whose driver is the same), SSV6355 on
+USB (ssv6355) and SSV6158 on SDIO (ssv6158), AICSemi's AIC8800D80 on USB
+(the aic8800 package's AIC8800D80 USB model, and cameras named aic8800u;
+an AIC8800D40, which its driver takes for one, too) and on SDIO (cameras
+named aic8800d40), AIC8800DC and AIC8800DW on USB (aic8800dc, aic8800dw)
+and the plain AIC8800 on USB (cameras named aic8800d), and MediaTek's
+MT7601U on USB (mt7601u; cameras named mt7601, mt7601u and mt7601sta),
+WuQi's WQ9001 on USB (wq9001; its own access point is wlan1),
+HiSilicon's Hi3881 on SDIO (hi3881; its access point is ap0),
+Huge-IC's TXW901U on USB (txw901u), HiSilicon's WS73V100 on USB
+(ws73v100) and Seekwave's SWT6621S on USB (swt6621s). The pinned QEMU
+has the first of them from ingenic-0.6.16 on; the AIC8800 variants,
+RTL8188EUS, RTL8733BU, MT7601U, WQ9001, Hi3881, TXW901U, WS73V100 and
+SWT6621S need a fork build newer than ingenic-0.6.18. A Hi3881 image
+needs a driver that terminates split_cmd_paras' copy and registers its
+management frames without P2P: without those it reboots in a loop as a
+station and its setup portal never comes up. A WS73V100 image needs a
+driver that vmallocs its firmware for the sha256 check and keeps the AP
+SME flag on 3.10.14: without those its radio never comes up on a 31 MB
+kernel and its setup portal never comes up. The Aobocam A12 (T23DL,
+TXW901U) gives its kernel
+22 MB: with the radio up it pages from flash all the time and boots
+several times slower than its siblings, so give `up` a longer
+`--timeout`. `up` stops with a message when the QEMU it uses has no
+model for the chip, and `--qemu` picks one that has. atbm6132cu-6162 is
+the 6132CU part paired with Bluetooth, on USB id 0x6162: a build with
+`BR2_PACKAGE_WIFI_ATBM6132CU_6162` gets it, a release image of such a
+camera only with `--wifi-chip`, though its driver takes either id.
 
 thingino reads its Wi-Fi mode once, at boot, so the first `up` of a
 camera that was not set up for the SSID runs `wlan configure` and reboots
@@ -155,12 +175,15 @@ the cable out. SSH, HTTP and HTTPS are then forwarded over the Wi-Fi,
 and `put` and `get` go over SSH. A wrong passphrase fails the handshake
 as a real access point does.
 
-`--portal` tests the setup portal instead: the camera keeps its first-boot
-Wi-Fi mode, an access point of its own, and an emulated phone joins it.
-The forwards go through the phone, so the web address `up` prints is the
-portal, and SSH reaches the camera too; when SSH cannot get through the
-phone, `up` says so and files go over the console. With `--wifi`, the
-portal's scan lists that network and can set the camera up on it:
+`--portal` tests the setup portal instead: the camera keeps its
+first-boot Wi-Fi mode, an access point of its own, and an emulated phone
+joins it. The forwards go through the phone, so the web address `up`
+prints is the portal, and SSH reaches the camera too; when SSH cannot
+get through the phone, `up` says so and files go over the console. The
+MT7601U cameras' portal takes a passphrase, as their driver runs no open
+access point (package/wifi/wifi.mk), and `up` gives the phone that one.
+With `--wifi`, the portal's scan lists that network and can set the
+camera up on it:
 
 ```sh
 scripts/qemu-dev up wyze_cam3_t31x_gc2053_atbm6031 --portal --wifi thingino:thingino123 \

@@ -76,7 +76,12 @@ SOC = re.compile(r"(t[1-4]\d|a1|c100|cw080)[a-z]*")
 GUEST_PORTS = {"ssh": 22, "http": 80, "https": 443}
 # The fork's model of each Wi-Fi package, by package or camera-name suffix
 WIFI_CHIPS = {
+    "aic8800_usb_8800": "aic8800", "aic8800d": "aic8800",
     "aic8800_usb_8800d80": "aic8800d80", "aic8800u": "aic8800d80",
+    "aic8800_sdio_8800d80": "aic8800d80-sdio",
+    "aic8800d40": "aic8800d80-sdio",
+    "aic8800_usb_8800dc": "aic8800dc", "aic8800dc": "aic8800dc",
+    "aic8800dw": "aic8800dw",
     "atbm6031": "atbm6031", "atbm6031x": "atbm6031",
     "atbm6062s": "atbm6062s", "atbm6162s": "atbm6162s",
     "atbm6012b": "atbm6012b", "atbm6012bx": "atbm6012bx",
@@ -88,6 +93,15 @@ WIFI_CHIPS = {
     "rtl8189es": "rtl8189es", "rtl8189etv": "rtl8189es",
     "rtl8192fs": "rtl8192fs",
     "rtl8188fu": "rtl8188fu", "rtl8188ftv": "rtl8188fu",
+    "rtl8188eus": "rtl8188eu", "rtl8188eu": "rtl8188eu",
+    "rtl8733bu": "rtl8733bu", "rtl8731bu": "rtl8733bu",
+    "rtl8131bu": "rtl8733bu", "rtl8731": "rtl8733bu",
+    "mt7601u": "mt7601u", "mt7601": "mt7601u", "mt7601sta": "mt7601u",
+    "wq9001": "wq9001",
+    "hi3881": "hi3881",
+    "txw901u": "txw901u",
+    "ws73v100": "ws73v100",
+    "swt6621s": "swt6621s",
     "syn4343": "bcm43438",
     "ssv6155": "ssv6155p", "ssv6155p": "ssv6155p",
     "ssv6x5x_sv6155p": "ssv6155p",
@@ -96,14 +110,16 @@ WIFI_CHIPS = {
     "ssv6158": "ssv6158",
 }
 # SDIO Wi-Fi sits on MSC1; the rest is USB, on the OTG port
-SDIO_WIFI = {"atbm6031", "atbm6062s", "atbm6162s", "rtl8189fs", "rtl8189es",
-             "rtl8192fs", "bcm43438", "bcm43436", "ssv6158"}
+SDIO_WIFI = {"aic8800d80-sdio", "atbm6031", "atbm6062s", "atbm6162s",
+             "rtl8189fs", "rtl8189es", "rtl8192fs", "bcm43438", "bcm43436",
+             "hi3881", "ssv6158"}
 # thingino's setup portal network (S38wpa_supplicant). --portal's phone is
 # the user netdev's host address on it, and takes the MAC that netdev sends
 # from: 52:55, then the address.
 PORTAL_NET = "172.16.0"
 PORTAL_IP = PORTAL_NET + ".1"
 PORTAL_PHONE = PORTAL_NET + ".250"
+PORTAL_PSK = "thingino"
 BANNER = re.compile(r"U-Boot SPL|Starting kernel|Restarting system")
 ANSI = re.compile(r"\x1b(?:\[[0-9;?]*[A-Za-z]|[78])")
 PROMPT = re.compile(r"root@[\w.-]+ \S*# ")
@@ -872,8 +888,10 @@ def attach_network(s, con):
                  if not i.startswith("wlan") and a.startswith("10.0.2.")]
         wlan = [a for i, a in found
                 if i.startswith("wlan") and a.startswith("10.0.2.")]
+        # the HI3881 runs its portal on ap0
         portal = wifi.get("portal") and any(
-            i.startswith("wlan") and a == PORTAL_IP for i, a in found)
+            i.startswith(("wlan", "ap")) and a == PORTAL_IP
+            for i, a in found)
         if wired or (joins and wlan):
             ip, netdev = (wired[0], "n0") if wired else (wlan[0], "w0")
             break
@@ -1208,6 +1226,10 @@ def cmd_up(args, extra):
             argv += ["-netdev", f"user,id=c0,net={PORTAL_NET}.0/24,"
                      f"host={PORTAL_PHONE},ipv6=off"]
             dev += ["client-netdev=c0", f"client-mac={mac}"]
+            # where the driver runs no open AP, the portal's passphrase
+            # (package/wifi/wifi.mk) for the phone
+            if "client-psk" in qemu_device_props(qemu, wifi["model"]):
+                dev += [f"client-psk={PORTAL_PSK}"]
         # the passphrase last: the saved argv drops it from there on
         if args.wifi:
             dev += [f"{k}={v.replace(',', ',,')}"
