@@ -250,6 +250,20 @@ start() {
 	set_wlan_reset
 	load_module
 
+	# The first probe at boot leaves the SDIO host unable to complete the
+	# ATBM firmware download. Rebind the MSC controller once with power and
+	# reset already applied so the card is initialised from a clean state.
+	if [ "$MMC_MODULE" = "ingenic_sdhci_sdio" ]; then
+		for dev in /sys/bus/platform/drivers/ingenic-sdhci/*.msc; do
+			[ -d "$dev" ] || continue
+			name=${dev##*/}
+			echo "$name" >/sys/bus/platform/drivers/ingenic-sdhci/unbind
+			sleep 1
+			echo "$name" >/sys/bus/platform/drivers/ingenic-sdhci/bind
+		done
+		sleep 1
+	fi
+
 	ATBM_MOD="/usr/lib/modules/$(uname -r)/extra/atbm6461_wifi_sdio.ko"
 	if [ -f "$ATBM_MOD" ]; then
 		echo "ATBM6461: setting SDIO pinmux (PB8-PB14)"

@@ -45,7 +45,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  obj-$(CONFIG_MMC_WMT)		+= wmt-sdmmc.o
 --- /dev/null
 +++ b/drivers/mmc/host/sdhci-ingenic.c
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,175 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Ingenic XBurst2 MSC SDHCI glue.
@@ -78,6 +78,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +struct sdhci_ingenic {
 +	struct clk *clk;
 +	void __iomem *cgu;
++	bool is_sdio;
 +};
 +
 +#define T41_CGU_BASE		0x10000000
@@ -175,6 +176,11 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +	ret = mmc_of_parse(host->mmc);
 +	if (ret)
 +		goto err_clk;
++
++	priv->is_sdio = platform_get_resource(pdev, IORESOURCE_MEM, 0)->start ==
++			0x13070000;
++	if (priv->is_sdio)
++		host->mmc->f_max = 1500000;
 +
 +	ret = sdhci_add_host(host);
 +	if (ret)
