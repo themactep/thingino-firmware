@@ -168,7 +168,20 @@ mmc1: Failed to initialize a non-removable card
 ```
 
 The SD slot (msc0) is up. The ATBM6062S on msc1 still does not answer
-CMD5 (`lssdio` empty). The pwrseq was the wrong owner for the reset: its
+CMD5 (`lssdio` empty).
+
+The MSC mux defaults to SCLKA (APLL/2, 552 MHz), which the 10-bit SDHCI
+divider cannot divide down to the 400 kHz identification clock. `0119`
+now switches the mux to EXTAL below 400 kHz and MPLL above it, like the
+vendor driver, and updates `host->max_clk` before `sdhci_set_clock()`.
+
+Kernel-config trap: after a rebuild the output `.config` had lost
+`MACH_INGENIC_SOC`/`MACH_T41` (it selected MIPS32_R1), so `MIPS` no longer
+had the machine and the KOPT `MMC_SDHCI_INGENIC=m` fixup was dropped.
+Always check `CONFIG_MACH_T41` and `CONFIG_MMC_SDHCI_INGENIC` after a
+kernel rebuild. Do not reload a module built against a different `.config`
+into the running kernel: an `insmod` of the new SDHCI module oopsed in the
+old kernel (different struct layout). Flash kernel and rootfs together. The pwrseq was the wrong owner for the reset: its
 active-low reset was left asserted after power-on, so the card never left
 reset. msc1 now has no pwrseq; S09mmc raises `mmc_en`, drives both
 active-low rails and pulses GPIO 78 (10 ms low, then high) before loading
@@ -226,11 +239,12 @@ MSC probes deferred.
   no `xburst2_smp_ops`. The vendor 4.4 code (CCU reset-entry/mailbox, the
   bounce trampoline, per-CPU IRQ/timer, `play_dead`) is the reference; the
   per-CPU OST bases are already handled by the timer patch.
-- **ATBM Wi-Fi.** The card still does not answer CMD5 even with the
-  corrected rails and reset (remaining suspects: 32 kHz LPO/pinmux, rail
-  wiring). The driver package itself needs the bundled mac80211/cfg80211
-  ported from 4.x to 7.x (`wdev->mtx`, `net_device->ieee80211_ptr`,
-  timer APIs).
+- **ATBM Wi-Fi.** The driver now builds on 7.2.11: fork
+  `themactep/atbm-wifi`, branch `kernel-7.x-atbm6062s` at `be198b36`,
+  uses the 606x WiFi6 tree with the 7.x mac80211 stack and the cfg80211
+  call sites ported (station/channel/tx-power ops, MLO disassoc helpers,
+  `rx_assoc_resp_data`). The package points at that commit. The card still
+  does not answer CMD5 even with the corrected rails and reset.
 
 ## USB
 
