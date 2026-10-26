@@ -1,5 +1,23 @@
-# NAME: Noorio T110 (T41NQ, GC4023, AIC8800D)
+# NAME: Noorio T110 pan-tilt (T41NQ, GC4023, AIC8800 USB) — ciao port
 # FRAG: soc-xburst2 core
+# Source: stock-firmware reverse engineering 2026-10-22 (Josh) + first-boot
+#         bench 2026-10-24 (WiFi enumerated on USB: lsusb a69c:8800 aicsemi,
+#         NOT SDIO) + U-Boot bench probe 2026-10-26 (gpio61/PB29 = SD power,
+#         active-low; was mis-listed as a wlan pwrseq pin and cutting SD
+#         power mid-boot).
+# NOTE: dir name still says "aic8800d" — historical, kept so board/dispatch
+#       names stay stable; bus+model are USB plain-8800.
+# CIAO PORT 2026-10-26 (branch gino/noorio-t110-ciao, from the validated
+#       master build gino/noorio-t110-build): ciao defaults to 2013.07 U-Boot,
+#       whose patch tree has NO isvp_t41nq board targets — without this pin
+#       the build dies in uboot-2013.07 with "No rule to make target
+#       'isvp_t41nq_sfcnor_config'", and the MMC/GPIO DT inject hooks are
+#       gated to non-2013.07 builds. 2026.07 is what every other T41NQ
+#       profile runs (master default); the in-tree
+#       cinnado_d1_t32lq defconfig already pins it on ciao the same way.
+#       wifi-aic8800 carries the CFG80211_WEXT fixup here via cherry-pick
+#       10188534b (same as master PR #1879). SDCARD=y keeps thingino-mmc in
+#       the image so S09mmc runs the gpio.mmc_power power-on sequence.
 BR2_INGENIC_SOC_MODEL="t41nq"
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
@@ -7,10 +25,16 @@ BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n
 BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0_NOR=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_AIC8800=y
+# BR2_PACKAGE_WIFI_AIC8800_SDIO is not set
 BR2_PACKAGE_WIFI_AIC8800_USB=y
+BR2_PACKAGE_WIFI_AIC8800_USB_8800=y
 BR2_SENSOR_1_NAME="gc4023"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_MOTORS=y
+BR2_THINGINO_NMEM_MB=8
 BR2_THINGINO_SDCARD=y
+# ciao default is 2013.07 (no T41NQ boards); force 2026.07 like the T32 profile does
+# BR2_THINGINO_UBOOT_VERSION_2013_07 is not set
+BR2_THINGINO_UBOOT_VERSION_2026_07=y
 FLASH_SIZE_MB=32
