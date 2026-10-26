@@ -337,6 +337,7 @@
 				i2c0-pa {
 					ingenic,pinmux = <0x08 0x0c 0x0d>;
 					ingenic,pinmux-funcsel = <0x01>;
+					ingenic,pincfg = <0x08 0x0f 0x0f 0x20009>; /* PA15 (MCLK) drive strength 2 */
 					linux,phandle = <0x10>;
 					phandle = <0x10>;
 				};
