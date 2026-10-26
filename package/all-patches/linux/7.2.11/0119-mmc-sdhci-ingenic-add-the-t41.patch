@@ -45,7 +45,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  obj-$(CONFIG_MMC_WMT)		+= wmt-sdmmc.o
 --- /dev/null
 +++ b/drivers/mmc/host/sdhci-ingenic.c
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,152 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Ingenic XBurst2 MSC SDHCI glue.
@@ -60,7 +60,6 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +#include <linux/clk.h>
 +#include <linux/err.h>
-+#include <linux/io.h>
 +#include <linux/mmc/host.h>
 +#include <linux/module.h>
 +#include <linux/of.h>
@@ -77,33 +76,20 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +struct sdhci_ingenic {
 +	struct clk *clk;
-+	void __iomem *cgu;
++	struct clk *clk_ext;
 +};
-+
-+#define T41_CGU_BASE		0x10000000
-+#define T41_CGU_MSC0CDR		0x68
-+#define T41_CGU_MSC1CDR		0x6c
-+#define T41_MSC_CDR_MUX_SHIFT	30
-+#define T41_MSC_CDR_DIV_MASK	0xf
-+#define T41_MSC_CDR_LOWPOWER	BIT(21)
-+#define T41_EXTAL_DIV4		6000000UL
 +
 +/*
 + * The MSC mux defaults to SCLKA (APLL/2, 552 MHz), which the 10-bit SDHCI
-+ * divider cannot divide down to 400 kHz. Switch the mux to EXTAL and clear
-+ * the divider, as the vendor driver does. The mux write is direct because
-+ * CCF refuses a parent change on an enabled clock, and gating the MSC to
-+ * make it legal wedges the controller ("Reset 0x4 never completed").
-+ *
-+ * MPLL/VPLL make the ATBM6062S stop answering data commands, so the card
-+ * stays on EXTAL: the CGU divides by 4 and the SDHCI divider caps the card
-+ * clock at 3 MHz.
++ * divider cannot divide down to 400 kHz. Switch to EXTAL as the vendor
++ * driver does. CCF refuses a parent change on an enabled clock
++ * (CLK_SET_PARENT_GATE), so gate the MSC, change the parent, and ungate it
++ * before touching SDHCI again.
 + */
 +static void sdhci_ingenic_set_clock(struct sdhci_host *host, unsigned int clock)
 +{
 +	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 +	struct sdhci_ingenic *priv = sdhci_pltfm_priv(pltfm_host);
-+	u32 v;
 +
 +	if (!clock) {
 +		sdhci_set_clock(host, 0);
@@ -111,14 +97,11 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +	}
 +
 +	sdhci_set_clock(host, 0);
-+	v = readl(priv->cgu + T41_CGU_MSC1CDR);
-+	v &= ~(3u << T41_MSC_CDR_MUX_SHIFT);
-+	v &= ~T41_MSC_CDR_DIV_MASK;
-+	v |= 3u << T41_MSC_CDR_MUX_SHIFT;	/* EXCLK */
-+	writel(v, priv->cgu + T41_CGU_MSC1CDR);
-+	writel(readl(priv->cgu + T41_CGU_MSC0CDR) | T41_MSC_CDR_LOWPOWER,
-+	       priv->cgu + T41_CGU_MSC0CDR);
-+	host->max_clk = T41_EXTAL_DIV4;
++	clk_disable_unprepare(priv->clk);
++	if (priv->clk_ext)
++		clk_set_parent(priv->clk, priv->clk_ext);
++	clk_prepare_enable(priv->clk);
++	host->max_clk = clk_get_rate(priv->clk);
 +	sdhci_set_clock(host, clock);
 +}
 +
@@ -131,9 +114,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +static const struct sdhci_pltfm_data sdhci_ingenic_pdata = {
 +	.ops = &sdhci_ingenic_ops,
-+	.quirks = SDHCI_QUIRK_BROKEN_DMA |
-+		  SDHCI_QUIRK_BROKEN_ADMA |
-+		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
++	.quirks = SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 +		  SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
 +		  SDHCI_QUIRK_NO_HISPD_BIT |
 +		  SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -164,9 +145,9 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +	pltfm_host->clk = priv->clk;
 +
-+	priv->cgu = devm_ioremap(&pdev->dev, T41_CGU_BASE, 0x1000);
-+	if (!priv->cgu)
-+		return -ENOMEM;
++	priv->clk_ext = clk_get(NULL, "ext");
++	if (IS_ERR(priv->clk_ext))
++		priv->clk_ext = NULL;
 +
 +	host->max_clk = clk_get_rate(priv->clk);
 +
@@ -177,9 +158,6 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +	ret = mmc_of_parse(host->mmc);
 +	if (ret)
 +		goto err_clk;
-+
-+	host->mmc->caps &= ~(MMC_CAP_4_BIT_DATA | MMC_CAP_SD_HIGHSPEED);
-+	host->mmc->f_max = 3000000;
 +
 +	ret = sdhci_add_host(host);
 +	if (ret)
