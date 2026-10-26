@@ -16,6 +16,10 @@ define ATBM6441_TOOLS_BUILD_CMDS
 		-Wno-error=return-mismatch -Wno-error=return-type \
 		$(@D)/tools_cli.c -lpthread \
 		-o $(@D)/atbm_iot_cli
+
+	$(TARGET_CC) $(TARGET_CFLAGS) -I$(@D) \
+		$(ATBM6441_TOOLS_PKGDIR)/files/pir_daemon.c \
+		-o $(@D)/pir_daemon
 endef
 
 define ATBM6441_TOOLS_INSTALL_TARGET_CMDS
@@ -23,6 +27,10 @@ define ATBM6441_TOOLS_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/bin/atbm_iot_supplicant_demo
 	$(INSTALL) -D -m 0755 $(@D)/atbm_iot_cli \
 		$(TARGET_DIR)/usr/bin/atbm_iot_cli
+	$(INSTALL) -D -m 0755 $(@D)/pir_daemon \
+		$(TARGET_DIR)/usr/bin/pir_daemon
+	$(INSTALL) -D -m 0755 $(ATBM6441_TOOLS_PKGDIR)/files/S32pir_daemon \
+		$(TARGET_DIR)/etc/init.d/S32pir_daemon
 endef
 
 $(eval $(generic-package))
