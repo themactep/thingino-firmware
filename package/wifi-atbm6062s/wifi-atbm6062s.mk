@@ -1,7 +1,7 @@
 WIFI_ATBM6062S_SITE_METHOD = git
-WIFI_ATBM6062S_SITE = https://github.com/gtxaspec/atbm-wifi
-WIFI_ATBM6062S_SITE_BRANCH = atbm-606x
-WIFI_ATBM6062S_VERSION = 8a10ce034592098d8a90f6e93b8fef50f77bb7b3
+WIFI_ATBM6062S_SITE = https://github.com/themactep/atbm-wifi
+WIFI_ATBM6062S_SITE_BRANCH = kernel-7.x-atbm6062s
+WIFI_ATBM6062S_VERSION = f2b914ab070c75437201f20eed0ca02151561c86
 
 WIFI_ATBM6062S_LICENSE = GPL-2.0
 
@@ -9,22 +9,23 @@ ATBM6062S_MODULE_NAME = atbm6062s
 ATBM6062S_MODULE_OPTS = atbm_printk_mask=0
 
 WIFI_ATBM6062S_MODULE_MAKE_OPTS = \
-	KDIR=$(LINUX_DIR)
+	KDIR=$(LINUX_DIR) \
+	INSTALL_MOD_STRIP=--strip-unneeded
 
 define WIFI_ATBM6062S_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	# wext compat so the interface shows up in /proc/net/wireless, which the
+	# wifi init polls to detect when the driver has come up.
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS_EXT)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,m)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,y)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_MINSTREL_HT)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_MAC80211_RC_DEFAULT_MINSTREL)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
+	# The driver vendors its own mac80211 (hal_apollo/mac80211) and references
+	# no kernel mac80211 symbol, only cfg80211. Building the kernel's mac80211
+	# as well just wastes ~300K of the tiny kernel partition.
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
@@ -51,11 +52,6 @@ define WIFI_ATBM6062S_COPY_CONFIG
 	# The driver's Kbuild uses the raw Kconfig values; strip the quotes
 	# the .config carries so they do not end up in -D flags and obj-m.
 	$(SED) 's/^\(CONFIG_[A-Za-z0-9_]*\)="\(.*\)"$$/\1=\2/' $(@D)/.config
-	# Kernel 7.x removed asm/unaligned.h.
-	for f in $$(grep -rl 'asm/unaligned.h' $(@D) --include='*.c' --include='*.h'); do \
-		$(SED) 's|asm/unaligned.h|linux/unaligned.h|' $$f; \
-	done
-	cp $(@D)/Kbuild.4.4 $(@D)/Kbuild
 endef
 
 WIFI_ATBM6062S_PRE_CONFIGURE_HOOKS += WIFI_ATBM6062S_COPY_CONFIG
