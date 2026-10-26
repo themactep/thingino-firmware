@@ -113,6 +113,19 @@ WIFI_CHIPS = {
 SDIO_WIFI = {"aic8800d80-sdio", "atbm6031", "atbm6062s", "atbm6162s",
              "rtl8189fs", "rtl8189es", "rtl8192fs", "bcm43438", "bcm43436",
              "hi3881", "ssv6158"}
+# --mic's digital microphone per family; every SoC's codec is ingenic-aic
+DMIC_TYPES = {"t30": "ingenic-dmic", "t31": "ingenic-dmic",
+              "t40": "ingenic-dmic", "t32": "ingenic-as-dmic",
+              "t33": "ingenic-as-dmic", "t41": "ingenic-as-dmic"}
+# --speaker names a host backend or a WAV file
+AUDIO_BACKENDS = {"alsa", "coreaudio", "dsound", "jack", "none", "oss", "pa",
+                  "pipewire", "sdl"}
+TONE = re.compile(r"tone(:\d+(\.\d+)?(:-?\d+(\.\d+)?)?)?")
+# --riscv's core machine per family (the T10, T20, T21 and T30 run none)
+RISCV_MACHINES = {"t23": "ingenic-t23-riscv", "t31": "ingenic-t31-riscv",
+                  "t32": "ingenic-t32-riscv", "t33": "ingenic-t32-riscv",
+                  "t40": "ingenic-t40-riscv", "t41": "ingenic-t41-riscv",
+                  "a1": "ingenic-a1-riscv"}
 # thingino's setup portal network (S38wpa_supplicant). --portal's phone is
 # the user netdev's host address on it, and takes the MAC that netdev sends
 # from: 52:55, then the address.
@@ -258,6 +271,7 @@ def sfc_type(family):
 _GPIO_TRACE = {}
 _DEVICES = {}
 _PROPS = {}
+_AUDIO = {}
 
 
 def gpio_trace_supported(qemu):
@@ -284,6 +298,19 @@ def qemu_devices(qemu):
             out = ""
         _DEVICES[qemu] = set(re.findall(r'^name "([^"]+)"', out, re.M))
     return _DEVICES[qemu]
+
+
+def qemu_audio_drivers(qemu):
+    """The audio drivers this QEMU was built with."""
+    if qemu not in _AUDIO:
+        try:
+            out = subprocess.run([qemu, "-audiodev", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _AUDIO[qemu] = set(out.partition("drivers:")[2].split())
+    return _AUDIO[qemu]
 
 
 def qemu_device_props(qemu, model):
@@ -735,9 +762,29 @@ def qmp(s, command, **args):
         q.close()
 
 
+def riscv_alive(s):
+    rv = s.info.get("riscv") or {}
+    try:
+        with open(f"/proc/{rv['pid']}/cmdline", "rb") as f:
+            return s.dir.encode() in f.read()
+    except (OSError, KeyError):
+        return False
+
+
 def stop(s):
     # The relay ends with QEMU; this is for one whose QEMU was killed
     stop_relay(s)
+    stop_qemu(s)
+    # The core quits with its SoC's QEMU; this is for one that did not
+    for _ in range(30):
+        if not riscv_alive(s):
+            return
+        time.sleep(0.1)
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(s.info["riscv"]["pid"], signal.SIGKILL)
+
+
+def stop_qemu(s):
     if not s.alive():
         return
     try:
@@ -1062,6 +1109,11 @@ def describe(s, as_json=False):
     view = {k: i.get(k) for k in ("name", "machine", "variant", "model",
                                   "image", "qemu", "pid", "password")}
     view.update(state=state, ssh=bool(i.get("ssh")), console_log=s.log)
+    if i.get("audio"):
+        view["audio"] = i["audio"]
+    if i.get("riscv"):
+        view["riscv"] = dict(i["riscv"], alive=riscv_alive(s),
+                             log=s.path("riscv.log"))
     if i.get("ssh"):
         view["ssh_command"] = " ".join(shlex.quote(a) for a in ssh_argv(s))
     if ports and i.get("guest_ip") and state != "uboot":
@@ -1101,6 +1153,16 @@ def describe(s, as_json=False):
                                      if i.get("fwd_netdev") == "w0" else ""))
     elif w:
         out.append(f"  wifi     {w['model']}")
+    a = i.get("audio")
+    if a:
+        out.append("  audio    " + ", ".join(
+            f"{k} {v}" for k, v in (("speaker", a.get("speaker")),
+                                    ("mic", a.get("mic"))) if v))
+    rv = i.get("riscv")
+    if rv:
+        out.append(f"  riscv    {rv['machine']} "
+                   + (f"(pid {rv['pid']})" if riscv_alive(s) else "(gone)")
+                   + f", log {s.path('riscv.log')}")
     out.append(f"  console  {s.log}")
     return "\n".join(out)
 
@@ -1128,6 +1190,43 @@ def cmd_images(args):
         print(f"{r['camera']:<{w}}  {r['soc']:<6} {r['machine']:<12} "
               f"{r['built_hours_ago']:>6.1f} h  {r['image']}")
     return 0
+
+
+def audio_argv(qemu, family, speaker, mic):
+    """--speaker's audiodev and --mic's microphone properties."""
+    argv = []
+    # a microphone alone plays to nowhere rather than to the host
+    if mic and not speaker:
+        speaker = "none"
+    if speaker in AUDIO_BACKENDS:
+        have = qemu_audio_drivers(qemu)
+        if speaker not in have:
+            die(f"{qemu} has no {speaker} audio driver (it has "
+                f"{', '.join(sorted(have)) or 'none'}); give --speaker a WAV "
+                f"file, or --qemu one built with {speaker}")
+        argv += ["-audiodev", f"{speaker},id=snd0"]
+    elif speaker:
+        path = os.path.abspath(speaker).replace(",", ",,")
+        argv += ["-audiodev", f"wav,id=snd0,path={path}"]
+    if speaker:
+        argv += ["-machine", "audiodev=snd0"]
+    if mic == "host":
+        if speaker not in AUDIO_BACKENDS - {"none"}:
+            die("--mic host records the --speaker backend's input; pass "
+                "--speaker pa, pipewire, alsa, ...")
+    elif mic:
+        if not TONE.fullmatch(mic):
+            if not os.path.isfile(mic):
+                die(f"--mic wants tone[:HZ[:DBFS]], a WAV file or host; "
+                    f"there is no file {mic}")
+            mic = os.path.abspath(mic).replace(",", ",,")
+        if "mic" not in qemu_device_props(qemu, "ingenic-aic"):
+            die(f"{qemu} has no microphone for --mic; pass --qemu with "
+                f"ingenic-0.6.12 or a newer build of the fork")
+        for dev in ("ingenic-aic", DMIC_TYPES.get(family)):
+            if dev:
+                argv += ["-global", f"{dev}.mic={mic}"]
+    return argv
 
 
 def cmd_up(args, extra):
@@ -1168,6 +1267,18 @@ def cmd_up(args, extra):
             die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu "
                 f"with ingenic-0.6.16 or a newer build of the fork")
 
+    rv_qemu = None
+    if args.riscv:
+        if family not in RISCV_MACHINES:
+            die(f"the {model} has no RISC-V core for --riscv")
+        rv_qemu = os.path.join(os.path.dirname(os.path.abspath(qemu)),
+                               "qemu-system-riscv32")
+        if not os.access(rv_qemu, os.X_OK):
+            die(f"no qemu-system-riscv32 beside {qemu} for --riscv; the "
+                f"fork's Linux and macOS builds ship one from ingenic-0.6.18")
+        if not (args.ram or ram):
+            die("--riscv shares the camera's RAM with the core; pass --ram")
+
     s = Session(name)
     old_ports = {}
     if os.path.exists(s.path("session.json")):
@@ -1177,14 +1288,14 @@ def cmd_up(args, extra):
             print(f"replacing the running {name} session", file=sys.stderr)
             stop(s)
     os.makedirs(s.dir, mode=0o700, exist_ok=True)
-    if len(s.path("qmp")) > 107:
+    if len(s.path("riscv.sock" if rv_qemu else "qmp")) > 107:
         die(f"{s.dir} is too long for a unix socket; set QEMU_DEV_DIR")
     flash = s.path("flash.bin")
     if not (args.keep and os.path.exists(flash)):
         shutil.copyfile(image, flash)
         if nand:
             pad_nand(flash)
-    for leaf in ("qmp", "uart0.log", "uart1.log"):
+    for leaf in ("qmp", "riscv.sock", "uart0.log", "uart1.log"):
         with contextlib.suppress(FileNotFoundError):
             os.unlink(s.path(leaf))
     if shutil.which("ssh-keygen") and not os.path.exists(s.path("id_ed25519")):
@@ -1235,6 +1346,15 @@ def cmd_up(args, extra):
             dev += [f"{k}={v.replace(',', ',,')}"
                     for k, v in (("ssid", ssid), ("psk", psk))]
         argv += ["-device", ",".join(dev)]
+    argv += audio_argv(qemu, family, args.speaker, args.mic)
+    if rv_qemu:
+        # The core shares the DDR and reaches the rest over the socket;
+        # this QEMU waits for it to connect before it starts
+        mb, sock = args.ram or ram, s.path("riscv.sock")
+        argv += ["-object", f"memory-backend-shm,id=ingenic-ddr,size={mb}M",
+                 "-machine", "memory-backend=ingenic-ddr",
+                 "-chardev", f"socket,id=ingenic-rv,path={sock},server=on,"
+                 "wait=on", "-global", "ingenic-riscv.chardev=ingenic-rv"]
     if args.sd:
         argv += ["-drive", f"if=sd,index=0,format=raw,"
                  f"file={os.path.abspath(args.sd)}"]
@@ -1262,6 +1382,10 @@ def cmd_up(args, extra):
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
               "wifi": wifi, "started": int(time.time()),
+              "audio": {"speaker": args.speaker
+                        if args.speaker in AUDIO_BACKENDS | {None}
+                        else os.path.abspath(args.speaker), "mic": args.mic}
+              if args.speaker or args.mic else None,
               "argv": [re.sub(r",psk=.*", ",psk=...", a) for a in argv]}
     s.save()
 
@@ -1271,6 +1395,24 @@ def cmd_up(args, extra):
         die(f"QEMU {what}; the command was: {shlex.join(argv)}", 2)
 
     t0 = time.time()
+    if rv_qemu:
+        while not os.path.exists(s.path("riscv.sock")):
+            if proc.poll() is not None:
+                failed("exited")
+            if time.time() - t0 > 15:
+                stop(s)
+                failed("did not open the RISC-V core's socket")
+            time.sleep(0.1)
+        rv_argv = [rv_qemu, "-M",
+                   f"{RISCV_MACHINES[family]},socket={s.path('riscv.sock')}",
+                   "-display", "none", "-monitor", "none", "-serial", "none"]
+        with open(s.path("riscv.log"), "wb") as log:
+            rv = subprocess.Popen(rv_argv, stdin=subprocess.DEVNULL,
+                                  stdout=log, stderr=subprocess.STDOUT,
+                                  start_new_session=True)
+        s.info["riscv"] = {"machine": RISCV_MACHINES[family], "pid": rv.pid,
+                           "argv": rv_argv}
+        s.save()
     with s.locked(10):
         while not os.path.exists(s.path("qmp")):
             if proc.poll() is not None:
@@ -1958,6 +2100,16 @@ def main(argv=None):
                     help="leave the camera in its setup portal, joined by "
                     "an emulated phone the web forwards go through; --wifi "
                     "then names the network to set it up on")
+    sp.add_argument("--speaker", metavar="FILE.wav|BACKEND",
+                    help="where the camera's speaker plays: a WAV file, or "
+                    "a host audio backend (pa, pipewire, alsa, sdl, ...)")
+    sp.add_argument("--mic", metavar="SPEC",
+                    help="what its microphones hear: tone[:HZ[:DBFS]] (1 kHz "
+                    "at -20 dBFS by default), a 16-bit PCM WAV file to loop, "
+                    "or host (the --speaker backend's input)")
+    sp.add_argument("--riscv", action="store_true",
+                    help="run the SoC's RISC-V core beside it in "
+                    "qemu-system-riscv32, for stock fast-boot firmware")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")

@@ -86,6 +86,10 @@ again for a session that is already up replaces it. Other options:
   join (see Wi-Fi).
 - `--portal` leaves the camera in its setup portal, with an emulated phone
   joined to it (see Wi-Fi).
+- `--speaker speaker.wav` records the camera's speaker, and `--mic` sets
+  what its microphones hear (see Audio).
+- `--riscv` runs the SoC's RISC-V core beside it, for stock firmware that
+  boots fast with one (see Fast boot).
 - `--uboot` stops at the U-Boot prompt instead of booting Linux.
 - `--no-wait` returns as soon as QEMU runs; `wait` logs in later.
 - `--console` attaches your terminal to the console with all of the
@@ -367,6 +371,45 @@ nmem at the top: `osmem 56M@0x0` and `rmem 64M@0x3800000`. The 64 MB T21
 needs `osmem 42M@0x0` and `rmem 22M@0x2a00000` even when built today.
 The encoders run on the host CPU, so a 4K stream may run below the
 sensor's frame rate.
+
+## Audio
+
+The SoC's audio controller and codec are emulated, as is the digital
+microphone of the T30, T31, T32, T33, T40 and T41, so rad and rac record
+and play as on the board. `--speaker` says where the speaker plays: a WAV
+file, or a host audio backend such as `pa`, `pipewire` or `alsa` to hear
+it live, when the QEMU has that driver (`qemu-system-mipsel -audiodev
+help`; the fork's release builds have none of them, only WAV files).
+`--mic` says what the microphones hear: a test tone, `tone[:HZ[:DBFS]]`
+(1 kHz at -20 dBFS by default), a 16-bit PCM WAV file to loop, or `host`,
+the input of the `--speaker` backend. With `--mic` alone the speaker
+plays to nowhere.
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth --speaker speaker.wav --mic tone:1000
+scripts/qemu-dev sh -- 'rac beep -f 440 -d 3000'
+```
+
+libimp adds 10 dB of gain of its own at raptor's default volume, so the
+default tone records at -10 dBFS. The microphones need QEMU
+ingenic-0.6.12, the A1's audio ingenic-0.6.20.
+
+## Fast boot
+
+Stock firmware built with Ingenic's fast-boot SDKs (Zeratul, and Tassadar
+for the T32 and T33) runs the camera's first exposure on the SoC's small
+RISC-V core while Linux loads, and Linux takes it over from there.
+`--riscv` runs that core's firmware in the `qemu-system-riscv32` beside
+the session's QEMU (the fork's Linux and macOS releases ship one from
+ingenic-0.6.18), linked to it over a socket in the session's directory;
+it ends with the session, and `info` shows its log. The T23, T31, T32,
+T33, T40, T41 and A1 have a core; the T10, T20, T21 and T30 have none.
+thingino's own images do not use it.
+
+```bash
+scripts/qemu-dev up stock.bin --soc t31zx --riscv --console -- \
+    -device image-sensor,model=sc5235,bus=i2c0
+```
 
 ## Iterating on a package
 
