@@ -217,7 +217,7 @@ start() {
 			/sbin/mmc_gpio
 			echo "ATBM6441: waiting for MCU to boot"
 			sleep 5
-			echo "INSERT" >/sys/devices/platform/jzmmc_v1.2.1/present
+			/usr/sbin/mmc 1
 			sleep 2
 			tries=3
 			while :; do
@@ -231,9 +231,9 @@ start() {
 				fi
 				echo "ATBM6441: probe failed, re-detecting card" >&2
 				rmmod atbm6441_wifi_sdio 2>/dev/null
-				echo "REMOVE" >/sys/devices/platform/jzmmc_v1.2.1/present
+				/usr/sbin/mmc 1 -r
 				sleep 2
-				echo "INSERT" >/sys/devices/platform/jzmmc_v1.2.1/present
+				/usr/sbin/mmc 1
 				sleep 2
 			done
 			if [ -d /sys/class/net/wlan0 ] && [ -x /usr/bin/atbm_iot_supplicant_demo ]; then
