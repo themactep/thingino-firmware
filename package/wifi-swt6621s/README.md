@@ -6,7 +6,7 @@ for Thingino. Vendor drop, version H25.34.7.1_F25.34.6.1, GPL-2.0.
 Driver source: https://github.com/WLTB-Gino/swt6621s (pinned by commit in
 `wifi-swt6621s.mk` — the firmware tree carries no driver source). Integrated
 for the Jooan W3-U 2026 hardware revision
-(`jooan_w3u_t23n_sc2336p_eth+sv6621`).
+(`jooan_w3u_t23n_sc2336p_eth+swt6621s`).
 
 ## Architecture
 
@@ -15,7 +15,7 @@ The driver repo builds TWO kernel modules from one kbuild tree:
 | Module | Kconfig | Role |
 |---|---|---|
 | `skw_usb_lite` | `SKW_USB` (BSP) | USB glue: claims the device, reads chipid, bootstraps the chip boot ROM, downloads firmware (IRAM/DRAM/NV) via request_firmware, power/wake GPIO handling, crash dump |
-| `swt6621s_wifi` | `WLAN_VENDOR_SWT6621S` | cfg80211 full-MAC core (`sv6621s_wireless1` platform driver) |
+| `swt6621s_wifi` | `WLAN_VENDOR_SWT6621S` | cfg80211 fullmac core (`sv6621s_wireless1` platform driver; firmware handles the MAC layer, driver talks cfg80211) |
 
 Data flow: USB probe (BSP) -> boot ROM handshake -> firmware download ->
 BSP registers `sv6621s_wireless1` platform device -> wifi core binds ->
@@ -59,7 +59,7 @@ binds. `SWT6621S_MODULE_NAME = skw_usb_lite` — S36wireless probes the BSP.
 
 ## Known limitations
 
-- Compile-verified: a full `CAMERA=jooan_w3u_t23n_sc2336p_eth+sv6621 make`
+- Compile-verified: a full `CAMERA=jooan_w3u_t23n_sc2336p_eth+swt6621s make`
   firmware build succeeds against 3.10.14; `swt6621s_wifi.ko` + firmware
   blobs land in the rootfs. On-hardware validation still pending.
 - 3.10.14 compatibility is carried by version guards in the driver repo

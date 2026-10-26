@@ -30,11 +30,12 @@ WIFI_SWT6621S_MODULE_MAKE_OPTS = \
 # its static-inline stub branch) -> duplicate-symbol errors; skw_dfs.c also
 # calls the 4-arg cfg80211_cac_event (4.17+). DFS off = stubs inline no-ops.
 
-# The driver is a full-mac (softmac) cfg80211 driver: its Kconfig says
+# The driver is a fullmac cfg80211 driver (MAC handled in firmware, host
+# side is cfg80211): its Kconfig says
 # depends on CFG80211, and without the kernel wireless core built-in the
 # module fails modpost with ~48 undefined wiphy/cfg80211 symbols and cannot
 # insmod. MAC80211 stays off: the undefined-symbol list contains no
-# ieee80211_alloc_hw-class symbols (this is a softmac, not full-mac, stack;
+# ieee80211_alloc_hw-class symbols (this is a fullmac, not softmac, stack;
 # the firmware handles the MAC layer). WEXT stays off too: the driver's
 # cfg80211_wext_* / wireless_handlers call sites are self-gated behind
 # CONFIG_CFG80211_WEXT_EXPORT / CONFIG_WIRELESS_EXT, neither of which we
