@@ -274,6 +274,9 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset ircut night_luma "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_NIGHT_LUMA))"; \
 	rset ircut night_gain "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_NIGHT_GAIN))"; \
 	rset ircut day_gain_pct "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_DAY_GAIN_PCT))"; \
+	rset ircut probe_gain_pct "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PROBE_GAIN_PCT))"; \
+	rset ircut probe_holdoff_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PROBE_HOLDOFF_SEC))"; \
+	rset ircut probe_recheck_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_PROBE_RECHECK_SEC))"; \
 	rset ircut night_fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_NIGHT_FPS))"; \
 	rset ircut adc_channel "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_ADC_CHANNEL))"; \
 	rset ircut adc_night "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_IRCUT_ADC_NIGHT))"; \
