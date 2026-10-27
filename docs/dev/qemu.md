@@ -151,10 +151,10 @@ MT7601U on USB (mt7601u; cameras named mt7601, mt7601u and mt7601sta),
 WuQi's WQ9001 on USB (wq9001; its own access point is wlan1),
 HiSilicon's Hi3881 on SDIO (hi3881; its access point is ap0),
 Huge-IC's TXW901U on USB (txw901u), HiSilicon's WS73V100 on USB
-(ws73v100) and Seekwave's SWT6621S on USB (swt6621s). The pinned QEMU
-has the first of them from ingenic-0.6.16 on; the AIC8800 variants,
+(ws73v100) and Seekwave's SWT6621S on USB (swt6621s). QEMU has the
+first of them from ingenic-0.6.16 on and the AIC8800 variants,
 RTL8188EUS, RTL8733BU, MT7601U, WQ9001, Hi3881, TXW901U, WS73V100 and
-SWT6621S need a fork build newer than ingenic-0.6.18. A Hi3881 image
+SWT6621S from ingenic-0.6.19 on. A Hi3881 image
 needs a driver that terminates split_cmd_paras' copy and registers its
 management frames without P2P: without those it reboots in a loop as a
 station and its setup portal never comes up. A WS73V100 image needs a
