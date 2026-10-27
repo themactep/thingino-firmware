@@ -14,6 +14,7 @@ running in the background and driven one command at a time.
   qemu-dev monitor [NAME] -- COMMAND       a QEMU monitor command
   qemu-dev gpio [NAME] [PB14[=0] ...]      read pins, or drive inputs
   qemu-dev gpio [NAME] --log|--serve       pin changes (--watch, --vcd FILE)
+  qemu-dev isp [NAME] --log|--serve        the ISP trace (up --isp-trace)
   qemu-dev adc [NAME] [0[=150] ...]        read or set ADC channels
   qemu-dev console [NAME]                  attach a terminal; Ctrl-] detaches
   qemu-dev ls | info [NAME] | down [NAME|--all]
@@ -285,6 +286,39 @@ def gpio_trace_supported(qemu):
             out = ""
         _GPIO_TRACE[qemu] = "trace=" in out
     return _GPIO_TRACE[qemu]
+
+
+_ISP_TRACE = {}
+
+# The ISP's, the Apical ISP's and the image sensor's events; their reads
+# would be most of the log
+ISP_TRACE_EVENTS = ("ingenic_isp_*", "-ingenic_isp_read", "ingenic_t20_isp_*",
+                    "-ingenic_t20_isp_read", "ingenic_t30_ncu_*",
+                    "image_sensor_*", "-image_sensor_read")
+
+
+def isp_trace_supported(qemu):
+    """Whether this QEMU traces its ISP (ingenic-0.6.23 on)."""
+    if qemu not in _ISP_TRACE:
+        try:
+            out = subprocess.run([qemu, "-trace", "help"],
+                                 capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        _ISP_TRACE[qemu] = "ingenic_isp_write" in out
+    return _ISP_TRACE[qemu]
+
+
+def isp_trace_tool(qemu):
+    """The fork's isp-trace.py for this QEMU: in a release's ingenic/, a
+    build's share/qemu-ingenic or a source tree's contrib/ingenic."""
+    d = os.path.dirname(os.path.abspath(qemu))
+    for rel in ("ingenic", "../share/qemu-ingenic", "../contrib/ingenic"):
+        tool = os.path.normpath(os.path.join(d, rel, "isp-trace.py"))
+        if os.path.exists(tool):
+            return tool
+    return None
 
 
 def qemu_devices(qemu):
@@ -1266,6 +1300,9 @@ def cmd_up(args, extra):
                 "client-netdev" not in qemu_device_props(qemu, wifi["model"]):
             die(f"{qemu} has no Wi-Fi client for --portal; pass --qemu "
                 f"with ingenic-0.6.16 or a newer build of the fork")
+    if args.isp_trace and not isp_trace_supported(qemu):
+        die(f"{qemu} has no ISP trace; pass --qemu with ingenic-0.6.23 or "
+            f"a newer build of the fork")
 
     rv_qemu = None
     if args.riscv:
@@ -1295,7 +1332,7 @@ def cmd_up(args, extra):
         shutil.copyfile(image, flash)
         if nand:
             pad_nand(flash)
-    for leaf in ("qmp", "riscv.sock", "uart0.log", "uart1.log"):
+    for leaf in ("qmp", "riscv.sock", "uart0.log", "uart1.log", "isp.log"):
         with contextlib.suppress(FileNotFoundError):
             os.unlink(s.path(leaf))
     if shutil.which("ssh-keygen") and not os.path.exists(s.path("id_ed25519")):
@@ -1325,6 +1362,10 @@ def cmd_up(args, extra):
     if gpio_trace_supported(qemu):
         argv += ["-chardev", f"file,id=gpiotrace,path={s.path('gpio.jsonl')}",
                  "-global", "ingenic-gpio.trace=gpiotrace"]
+    if args.isp_trace:
+        argv += ["-msg", "timestamp=on", "-D", s.path("isp.log")]
+        for ev in ISP_TRACE_EVENTS:
+            argv += ["-trace", ev]
     if ports:
         argv += ["-netdev", "user,id=n0"]
     if wifi:
@@ -1382,6 +1423,7 @@ def cmd_up(args, extra):
               or cfg.get("BR2_TARGET_GENERIC_ROOT_PASSWD") or "root",
               "state": "booting", "mark": 0, "uart": 1, "ssh": False,
               "wifi": wifi, "started": int(time.time()),
+              "isp_trace": args.isp_trace,
               "audio": {"speaker": args.speaker
                         if args.speaker in AUDIO_BACKENDS | {None}
                         else os.path.abspath(args.speaker), "mic": args.mic}
@@ -1861,6 +1903,44 @@ def gpio_write_vcd(events, path):
     return len(pins)
 
 
+def cmd_isp(args, extra):
+    """Read a session's ISP trace (up --isp-trace) with the fork's
+    isp-trace.py; arguments after -- go to it."""
+    s = pick(args.name, live=False)
+    trace = s.path("isp.log")
+    if not os.path.exists(trace):
+        die("this session traces no ISP: boot it with up --isp-trace "
+            "(QEMU ingenic-0.6.23 or newer)")
+    tool = isp_trace_tool(s.info["qemu"])
+    if not tool:
+        die(f"no isp-trace.py beside {s.info['qemu']}: the fork's releases "
+            f"carry it in ingenic/, its source tree in contrib/ingenic/")
+    opts = (["--match", args.match] if args.match else []) + \
+        (["--all"] if args.all else [])
+    if args.serve is not None:
+        cmd = ["serve", trace, "--port", str(args.serve)] + \
+            (["--all"] if args.all else [])
+    elif args.vcd:
+        cmd = ["vcd", trace, "-o", args.vcd] + opts
+    elif args.diff:
+        # another session's trace, or a trace file
+        other = args.diff
+        if re.fullmatch(r"[\w.+-]+", other) and \
+                os.path.isdir(Session(other).dir):
+            other = Session(other).path("isp.log")
+        if not os.path.exists(other):
+            die(f"{args.diff}: no session with an ISP trace, nor a trace file")
+        cmd = ["diff", trace, other, "--at", args.at or "stream",
+               "--no-addresses"] + opts
+    elif args.at:
+        cmd = ["snapshot", trace, "--at", args.at] + opts
+    else:
+        cmd = ["log", trace] + opts + (["-f"] if args.watch else []) + \
+            (["--pc"] if args.pc else [])
+    # the tool in this process: Ctrl-C and signals reach it, as --serve wants
+    os.execv(sys.executable, [sys.executable, tool] + cmd + extra)
+
+
 def cmd_gpio(args, words):
     """Read pins, or drive inputs from outside: GPIO outputs read what
     the camera drives, every other pin what was last driven here (high
@@ -2110,6 +2190,9 @@ def main(argv=None):
     sp.add_argument("--riscv", action="store_true",
                     help="run the SoC's RISC-V core beside it in "
                     "qemu-system-riscv32, for stock fast-boot firmware")
+    sp.add_argument("--isp-trace", action="store_true",
+                    help="trace the ISP and the image sensor into the "
+                    "session, for isp (QEMU ingenic-0.6.23 on)")
     sp.add_argument("--password", help="root password (default: the "
                     "build's, else root)")
     sp.add_argument("--json", action="store_true")
@@ -2194,6 +2277,39 @@ def main(argv=None):
                     help="serve a live page of the pins on 127.0.0.1 "
                          "(a free port unless PORT)")
 
+    sp = add("isp", "read the ISP trace", None,
+             "%(prog)s [NAME] [--log|--watch|--at POINT|--diff OTHER|"
+             "--vcd FILE|--serve [PORT]] [-- ARGS]",
+             "Read the trace of a session booted with up --isp-trace, with "
+             "the fork's isp-trace.py: what each frame changed (--log, the "
+             "default), the registers at a point (--at stream, frame:N or "
+             "end), where they differ from another session's or a trace "
+             "file's (--diff; at stream unless --at), a waveform or a live "
+             "page. Registers that hold no state are left out unless "
+             "--all; arguments after -- go to isp-trace.py.")
+    sp.add_argument("name", nargs="?", metavar="NAME")
+    sp.add_argument("--log", action="store_true",
+                    help="each frame's events, then the registers it changed")
+    sp.add_argument("--watch", action="store_true",
+                    help="as --log, then the frames as they come")
+    sp.add_argument("--at", metavar="POINT",
+                    help="the registers at stream (a VIC starts), frame:N or "
+                    "end")
+    sp.add_argument("--diff", metavar="OTHER",
+                    help="where they differ from another session's or a "
+                    "trace file's")
+    sp.add_argument("--vcd", metavar="FILE",
+                    help="write the registers that change as a VCD waveform")
+    sp.add_argument("--serve", nargs="?", type=int, const=0, metavar="PORT",
+                    help="serve a live page of the registers on 127.0.0.1 "
+                         "(a free port unless PORT)")
+    sp.add_argument("--match", metavar="RE",
+                    help="only registers whose name or offset matches")
+    sp.add_argument("--pc", action="store_true",
+                    help="the guest PC behind each change (--log)")
+    sp.add_argument("--all", action="store_true",
+                    help="also the registers that hold no state")
+
     sp = add("adc", "read or set ADC channels", None,
              "%(prog)s [NAME] [CHANNEL[=SAMPLE] ...]",
              "Show the samples the camera's SADC channels convert, or set "
@@ -2226,6 +2342,8 @@ def main(argv=None):
     try:
         if args.command == "up":
             return cmd_up(args, tail)
+        if args.command == "isp":
+            return cmd_isp(args, tail)
         if args.command in ("sh", "uboot", "send", "monitor", "gpio",
                             "adc"):
             # [NAME] -- WORDS, or [NAME] 'WORDS'

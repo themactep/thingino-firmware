@@ -44,6 +44,7 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `monitor [NAME] -- COMMAND` | a QEMU monitor command, such as `info registers` |
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
 | `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
+| `isp [NAME]` | the ISP trace of a session booted with `up --isp-trace`: each frame's changes, `--at` a point's registers, `--diff` another session's, `--serve` a live page; see Video |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
@@ -365,6 +366,28 @@ scripts/qemu-dev up qemu_t31x_eth --fwd 554 -- -device image-sensor,model=gc2053
 scripts/qemu-dev info                  # forwards 34399 -> 554
 ffplay -rtsp_transport tcp rtsp://thingino:thingino@127.0.0.1:34399/ch0
 ```
+
+From QEMU ingenic-0.6.23 on, `up --isp-trace` has the ISP and the image
+sensor trace what a driver programs and what the hardware does with it:
+register writes by name and the PC behind each, shadow-port pairs as the
+registers they set, frames, interrupts, channel buffers, why the VIC
+waits, and the sensor's register writes, gain and exposure (the T10's,
+T20's and T30's Apical ISP too). `isp` reads the trace with the fork's
+`isp-trace.py`, which comes with that QEMU:
+
+```bash
+scripts/qemu-dev up qemu_t31x_eth --isp-trace -- -device image-sensor,model=gc2053,bus=i2c0
+scripts/qemu-dev isp                     # each frame's events, then what it changed
+scripts/qemu-dev isp --at frame:30       # the registers as frame 30 starts
+scripts/qemu-dev isp --serve             # the registers on a live page
+scripts/qemu-dev isp mine --diff stock   # where two sessions' registers differ
+```
+
+`--diff` compares two sessions' registers at a point (as the VIC starts,
+unless `--at`), a driver of your own against the stock one, rather than
+the order they were written in. The trace is the session's `isp.log`,
+which `down` deletes; the fork's `contrib/ingenic/README.md` lists the
+events and `isp-trace.py`'s options, which `isp` passes on after `--`.
 
 If rvd logs `IMP_FrameSource_EnableChn(0) failed` or exits after
 `enc_create_channel`, the image keeps too little memory for video (`rmem`
