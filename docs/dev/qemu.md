@@ -335,6 +335,24 @@ point: without one, the vendor ISP driver can oops as the streamer
 starts and hold up the boot. The sensor sees colour bars that a white
 stripe crosses every two seconds.
 
+A camera with two sensors takes both, the second with `input=1`, which
+mirrors its scene so that a stream shows which sensor sent it. The eufy
+T8416 (T40) streams both from QEMU ingenic-0.6.22 on, and a T23 behind a
+MIPI switch such as the jooan W8U from ingenic-0.6.24 on, given the
+switch's GPIO; its sensors take turns, each at half the rate given. The
+W8U's profile needs no `[mipi_switch]` in raptor: tx-isp has the VIC flip
+the switch.
+
+```bash
+scripts/qemu-dev up eufy_t8416_t40xp_sc830_aic8800d40 -- \
+    -device image-sensor,model=sc830ai,bus=i2c1 \
+    -device image-sensor,model=sc3338,bus=i2c3,address=0x32,input=1
+scripts/qemu-dev up jooan_w8u_t23n_sc2336_atbm6132u -- \
+    -device image-sensor,model=sc2336p,bus=i2c0,fps=30 \
+    -device image-sensor,model=sc2336p,bus=i2c0,address=0x32,input=1,fps=30 \
+    -global ingenic-t31.mipi-switch=7
+```
+
 A recording and a snapshot can be fetched from any image, wired or not.
 `ringdump main -i` asks for a key frame and the recording starts with
 it, give or take a frame or two that the player skips; `ringdump sub`
