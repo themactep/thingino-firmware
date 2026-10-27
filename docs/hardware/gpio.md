@@ -16,6 +16,16 @@ Save the output for future reference.
 
 ### GPIO scanning
 
+`gpio scan` sets every pin to input and prints the pins whose state changes,
+which helps identify buttons and sensors. Pins used by the system are skipped:
+55, 56, any pin configured in `/etc/web.conf`, and any pin passed as an
+argument.
+
+```
+gpio scan          # scan all available pins
+gpio scan 12 13    # additionally exclude pins 12 and 13
+```
+
 Sweeping a range of pins can be done using the following simple
 one-liner, where 0 and 35 are the range of pins to toggle:
 
