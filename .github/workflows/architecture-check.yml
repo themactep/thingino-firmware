@@ -1,0 +1,133 @@
+name: architecture-check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    env:
+      TOOL: tools/thingino-arch
+      BASE_REF: ${{ github.base_ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch --no-tags origin "$BASE_REF"
+
+      - name: Prepare baseline
+        run: |
+          if git cat-file -e "origin/$BASE_REF:$TOOL/baseline.json" 2>/dev/null; then
+            git show "origin/$BASE_REF:$TOOL/baseline.json" > /tmp/thingino-arch-baseline.json
+          else
+            cp "$TOOL/baseline.json" /tmp/thingino-arch-baseline.json
+          fi
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run structural checks
+        id: structural
+        continue-on-error: true
+        run: |
+          set +e
+          "$TOOL/bin/thingino-arch" check \
+            --repo . \
+            --from "origin/$BASE_REF" \
+            --to "$HEAD_SHA" \
+            --changed \
+            --baseline /tmp/thingino-arch-baseline.json \
+            --format json > arch-check.json
+          status=$?
+          set -e
+          echo "$status" > arch-check.exit
+          exit 0
+
+      - name: Run impact analysis
+        run: |
+          "$TOOL/bin/thingino-arch" impact \
+            --repo . \
+            --from "origin/$BASE_REF" \
+            --to "$HEAD_SHA" \
+            --format text > arch-impact.txt
+
+      - name: Build review packet
+        run: |
+          "$TOOL/bin/thingino-arch" packet \
+            --repo . \
+            --from "origin/$BASE_REF" \
+            --to "$HEAD_SHA" \
+            --title "$PR_TITLE" \
+            --baseline /tmp/thingino-arch-baseline.json \
+            --brief "$TOOL/architecture/thingino.md" \
+            --prompt "$TOOL/prompts/architecture-review.md" \
+            --output arch-packet.md
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          {
+            echo "### Architecture impact"
+            echo
+            if [ -f arch-impact.txt ]; then
+              echo '```'
+              head -80 arch-impact.txt
+              echo '```'
+            else
+              echo "Impact analysis did not run."
+            fi
+            echo
+            echo "### Structural check"
+            echo
+            if [ -f arch-check.json ]; then
+              ruby -rjson -e 'd=JSON.parse(File.read("arch-check.json")); s=d["summary"]; puts "Errors: #{s["errors"]}, warnings: #{s["warnings"]}, info: #{s["info"]}, baselined: #{s["baselined"]}"; d["findings"].first(30).each { |f| puts "- **#{f["severity"]}** `#{f["id"]}` `#{f["path"]}`: #{f["message"]}" }'
+            else
+              echo "Structural check did not run."
+            fi
+            echo
+            echo "The full review packet is in the workflow artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-review-${{ env.PR_NUMBER }}-${{ github.run_attempt }}
+          path: |
+            arch-check.json
+            arch-check.exit
+            arch-impact.txt
+            arch-packet.md
+          if-no-files-found: warn
+
+      - name: Enforce structural findings
+        if: always()
+        run: |
+          if [ ! -f arch-check.exit ]; then
+            echo "Structural check did not produce an exit status."
+            exit 1
+          fi
+          status="$(cat arch-check.exit)"
+          if [ "$status" -eq 1 ]; then
+            echo "New structural errors were found. Review arch-check.json and arch-packet.md."
+            exit 1
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "Structural check failed with status $status."
+            exit "$status"
+          fi
