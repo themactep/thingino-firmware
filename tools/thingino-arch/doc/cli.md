@@ -32,11 +32,14 @@ The path must be a Thingino firmware tree: it must contain `thingino.mk` and a
 `impact`, `check`, and `packet` accept `--from REF` and `--to REF`. The default
 is `HEAD~1` to `HEAD`.
 
-For a PR, the usual range is the base branch to the PR head:
+For a PR, use the merge base to the PR head:
 
 ```sh
---from origin/master --to origin/pr-branch
+--from "$(git merge-base origin/master origin/pr-branch)" --to origin/pr-branch
 ```
+
+Using the current base tip as `--from` can include unrelated changes that
+landed after the PR branch was created or updated.
 
 or, in CI, the base branch to the PR SHA.
 
@@ -403,6 +406,8 @@ Options:
 | `--prompt FILE` | Review instructions; default `prompts/architecture-review.md` |
 | `--max-cameras N` | Camera rows and camera index entries; default 40 |
 | `--max-qemu-profiles N` | QEMU profiles in the verification plan; default 4 |
+| `--qemu-run RUN_ID` | Download and include QEMU results from a workflow run |
+| `--github-repo OWNER/REPO` | GitHub repository override for QEMU results |
 | `--max-diff-bytes N` | Diff cap; default 200000 |
 | `--all-findings` | Include baselined findings and ignore the changed scope |
 | `--output FILE` | Write the packet to a file instead of stdout |
@@ -415,11 +420,12 @@ Packet contents:
 4. affected entities;
 5. deterministic findings after baseline and changed-scope filtering;
 6. QEMU verification plan with build and run commands;
-7. relevant index slices: packages, camera profiles, WebUI plugins, init
+7. QEMU results when `--qemu-run` is supplied;
+8. relevant index slices: packages, camera profiles, WebUI plugins, init
    scripts, WiFi drivers, SoC families, fragments;
-8. architecture brief;
-9. review instructions;
-10. unified diff, truncated at the byte cap.
+9. architecture brief;
+10. review instructions;
+11. unified diff, truncated at the byte cap.
 
 `--all-findings` is for debugging the tool or the baseline. Normal reviews
 should use the baseline-filtered packet.

@@ -368,6 +368,7 @@ commands; `verify --dispatch` runs the native `qemu-test.yaml` workflow through
 - impact summary and camera table;
 - affected entities;
 - QEMU verification plan with build and run commands;
+- QEMU results from a workflow run when `--qemu-run` is supplied;
 - deterministic findings, capped at 80 rows in the packet;
 - index slices for affected packages, cameras, plugins, init scripts, WiFi
   drivers, SoC families, and fragments;
