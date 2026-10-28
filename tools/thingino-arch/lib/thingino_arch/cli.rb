@@ -227,7 +227,7 @@ module ThinginoArch
     def packet(argv)
       options = { format: "markdown" }
       parser = OptionParser.new do |opts|
-        opts.banner = "Usage: thingino-arch packet [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE] [--brief FILE] [--prompt FILE] [--max-cameras N] [--max-qemu-profiles N] [--max-diff-bytes N] [--all-findings]"
+        opts.banner = "Usage: thingino-arch packet [--repo PATH] [--from REF] [--to REF] [--title TITLE] [--output FILE] [--brief FILE] [--prompt FILE] [--max-cameras N] [--max-qemu-profiles N] [--qemu-run RUN_ID] [--github-repo OWNER/REPO] [--max-diff-bytes N] [--all-findings]"
         opts.on("--repo PATH", "Thingino firmware checkout") { |value| options[:repo] = value }
         opts.on("--from REF", "Base ref") { |value| options[:from] = value }
         opts.on("--to REF", "Head ref") { |value| options[:to] = value }
@@ -238,6 +238,8 @@ module ThinginoArch
         opts.on("--prompt FILE", "Review prompt") { |value| options[:prompt] = value }
         opts.on("--max-cameras N", Integer, "Camera rows to include") { |value| options[:max_cameras] = value }
         opts.on("--max-qemu-profiles N", Integer, "QEMU profiles to include") { |value| options[:max_qemu_profiles] = value }
+        opts.on("--qemu-run RUN_ID", "Include QEMU results from a workflow run") { |value| options[:qemu_run] = value }
+        opts.on("--github-repo OWNER/REPO", "GitHub repository override") { |value| options[:github_repo] = value }
         opts.on("--max-diff-bytes N", Integer, "Diff byte cap") { |value| options[:max_diff_bytes] = value }
         opts.on("--baseline FILE", "Baseline findings file") { |value| options[:baseline] = value }
         opts.on("--all-findings", "Include baselined findings and ignore the changed scope") { options[:all_findings] = true }
@@ -260,12 +262,21 @@ module ThinginoArch
         findings = filter_changed(findings, changed, index)
       end
       from, to = range(options)
+      qemu_results = if options[:qemu_run]
+                       QemuResults.new(
+                         repo: repo,
+                         run_id: options[:qemu_run],
+                         repo_slug: options[:github_repo] || repo.github_slug,
+                         profiles: verification.profiles.map { |profile| profile["profile"] }
+                       )
+                     end
       brief = read_optional(options[:brief] || DEFAULT_BRIEF)
       prompt = read_optional(options[:prompt] || DEFAULT_PROMPT)
       packet = Packet.new(
         index: index,
         impact: report,
         verification: verification,
+        qemu_results: qemu_results,
         findings: findings,
         brief: brief,
         prompt: prompt,

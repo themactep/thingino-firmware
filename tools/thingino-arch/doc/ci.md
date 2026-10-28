@@ -43,17 +43,19 @@ A new push cancels the previous run for the same PR.
 
 1. Check out the PR merge commit with full history.
 2. Fetch the base branch.
-3. Prepare the baseline:
+3. Resolve the merge base between the base branch and the PR head, so a moving
+   base tip does not add unrelated changes to the diff.
+4. Prepare the baseline:
    - if the base branch contains `tools/thingino-arch/baseline.json`, use that
      file;
    - otherwise, bootstrap from the PR's own baseline.
-4. Set up Ruby 3.3.
-5. Run `thingino-arch check --changed` into `arch-check.json`.
-6. Run `thingino-arch impact` into `arch-impact.txt`.
-7. Build `arch-packet.md`.
-8. Publish the impact and check summary.
-9. Upload the JSON, exit status, impact, and packet.
-10. Fail the job if the structural check exited 1.
+5. Set up Ruby 3.3.
+6. Run `thingino-arch check --changed` into `arch-check.json`.
+7. Run `thingino-arch impact` into `arch-impact.txt`.
+8. Build `arch-packet.md`.
+9. Publish the impact and check summary.
+10. Upload the JSON, exit status, impact, and packet.
+11. Fail the job if the structural check exited 1.
 
 ### Baseline extraction
 
@@ -234,6 +236,23 @@ changes use T31 and T41 by default. `--full` selects every affected family.
 The QEMU suite boots the real image and covers boot/services, network,
 WiFi portal, WebUI, ONVIF, USB, GPIO, and emulated sensors. It does not cover
 real hardware, RF, power, thermal, or unmodeled peripherals.
+
+### Results in the review packet
+
+After a run finishes, append its check summary to the packet:
+
+```sh
+bin/thingino-arch packet \
+  --repo ../firmware/master \
+  --from "$(git merge-base origin/master origin/<branch>)" \
+  --to origin/<branch> \
+  --qemu-run <run-id> \
+  --github-repo themactep/thingino-firmware \
+  --output out/packet.md
+```
+
+`--qemu-run` downloads the `qemu-test-report-<profile>` artifacts, parses the
+stable check names, and adds failures and Playwright stats to the packet.
 
 ### Artifacts
 

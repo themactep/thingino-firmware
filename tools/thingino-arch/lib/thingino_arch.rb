@@ -5,6 +5,7 @@ require_relative "thingino_arch/index"
 require_relative "thingino_arch/impact"
 require_relative "thingino_arch/checks"
 require_relative "thingino_arch/verification"
+require_relative "thingino_arch/qemu_results"
 require_relative "thingino_arch/packet"
 require_relative "thingino_arch/cli"
 

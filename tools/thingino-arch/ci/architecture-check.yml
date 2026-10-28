@@ -28,6 +28,11 @@ jobs:
       - name: Fetch base branch
         run: git fetch --no-tags origin "$BASE_REF"
 
+      - name: Resolve merge base
+        run: |
+          merge_base=$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")
+          echo "BASE_SHA=$merge_base" >> "$GITHUB_ENV"
+
       - name: Prepare baseline
         run: |
           if git cat-file -e "origin/$BASE_REF:$TOOL/baseline.json" 2>/dev/null; then
@@ -48,7 +53,7 @@ jobs:
           set +e
           "$TOOL/bin/thingino-arch" check \
             --repo . \
-            --from "origin/$BASE_REF" \
+            --from "$BASE_SHA" \
             --to "$HEAD_SHA" \
             --changed \
             --baseline /tmp/thingino-arch-baseline.json \
@@ -62,7 +67,7 @@ jobs:
         run: |
           "$TOOL/bin/thingino-arch" impact \
             --repo . \
-            --from "origin/$BASE_REF" \
+            --from "$BASE_SHA" \
             --to "$HEAD_SHA" \
             --format text > arch-impact.txt
 
@@ -70,7 +75,7 @@ jobs:
         run: |
           "$TOOL/bin/thingino-arch" packet \
             --repo . \
-            --from "origin/$BASE_REF" \
+            --from "$BASE_SHA" \
             --to "$HEAD_SHA" \
             --title "$PR_TITLE" \
             --baseline /tmp/thingino-arch-baseline.json \
