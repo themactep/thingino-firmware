@@ -6,15 +6,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-WWW_DIR="$REPO_ROOT/files/www"
+PKG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$PKG_DIR/../.." && pwd)"
+WWW_DIR="$PKG_DIR/files/www"
 VENDOR_DIR="$WWW_DIR/a/vendor"
 ICONS_VER="1.13.1"
 TMPDIR="$(mktemp -d)"
 trap "rm -rf $TMPDIR" EXIT
 
 echo "=== Finding used icons ==="
-ICONS=$(cd "$WWW_DIR" && grep -rohE '\bbi-[a-z0-9-]+\b' --include='*.html' --include='*.js' . | grep -v '/vendor/' | sort -u)
+# Scan every package web root: preview/plugin pages installed by other
+# packages use icon classes the webui itself does not reference.
+ICONS=$(cd "$REPO_ROOT" && grep -rohE '\bbi-[a-z0-9-]+\b' --include='*.html' --include='*.js' package/*/files/www | grep -v '/vendor/' | sort -u)
 COUNT=$(echo "$ICONS" | wc -l)
 echo "  $COUNT icons used"
 
@@ -34,7 +37,7 @@ codepoints = set()
 for icon in icons:
     if not icon:
         continue
-    pattern = re.escape('.' + icon) + r'::before\{content:"\\([0-9a-fA-F]+)"\}'
+    pattern = re.escape('.' + icon) + r'::before\{content:"\\\\([0-9a-fA-F]+)"\}'
     m = re.search(pattern, css)
     if m:
         codepoints.add(m.group(1))
