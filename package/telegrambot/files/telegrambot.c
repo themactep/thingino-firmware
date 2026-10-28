@@ -52,6 +52,9 @@ static CURL *acquire_curl(void) {
     curl_easy_reset(g_curl);
   else
     g_curl = curl_easy_init();
+  /* Cap at TLS 1.2: TLS 1.3 handshakes fail or hang on small MIPS SoCs. */
+  if (g_curl)
+    curl_easy_setopt(g_curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_MAX_TLSv1_2);
   return g_curl;
 }
 

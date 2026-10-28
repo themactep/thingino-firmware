@@ -6,7 +6,7 @@
 # and applies the configuration to the system
 #
 
-CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5 --tls-max 1.2"
 
 die() {
 	echo "$1" >&2

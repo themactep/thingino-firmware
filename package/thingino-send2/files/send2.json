@@ -23,6 +23,8 @@
     "port": 21,
     "username": "anonymous",
     "password": "anonymous",
+    "use_ssl": false,
+    "trust_cert": false,
     "path": "thingino",
     "template": "thingino-%Y%m%d-%H%M%S",
     "send_photo": false,

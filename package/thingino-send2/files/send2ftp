@@ -15,6 +15,8 @@ Where:
 	-P password  FTP password
 	-d path      Directory relative to FTP root
 	-f file      File to upload
+	-s           Use FTPS (explicit TLS)
+	-k           Ignore SSL certificate validity
 	-v           Verbose output
 	-S           Send photo
 	-V           Send video
@@ -30,6 +32,8 @@ read_config() {
 	password=$(get_value password)
 	port=$(get_value port)
 	template=$(get_value template)
+	trust_cert=$(get_value trust_cert)
+	use_ssl=$(get_value use_ssl)
 	username=$(get_value username)
 }
 
@@ -65,12 +69,14 @@ process_file() {
 read_config
 
 # order is important!
-while getopts d:h:p:u:vP:f:SV flag; do
+while getopts d:h:p:u:vP:f:skSV flag; do
 	case "$flag" in
 		d) path=$OPTARG ;;
 		h) host=$OPTARG ;;
 		p) port=$OPTARG ;;
 		u) username=$OPTARG ;;
+		s) use_ssl="true" ;;
+		k) trust_cert="true" ;;
 		v) verbose="true" ;;
 		P) password=$OPTARG ;;
 		# sending a file from the command line disables sending photo
@@ -108,6 +114,9 @@ if [ "true" = "$send_photo" ]; then
 	process_file "$(copy_photo)" photo
 fi
 
+# Explicit FTPS (AUTH TLS on the control port). Keep the ftp:// scheme:
+# curl's ftps:// scheme means implicit FTPS (port 990), which this does
+# not support. --ssl-reqd below performs the AUTH TLS upgrade instead.
 url="ftp://"
 [ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
 url="$url@$host:$port"
@@ -123,6 +132,10 @@ for local_file in $queue; do
 		command="$CURL --silent"
 	fi
 	command="$command --url $url/$(basename $local_file) --upload-file $local_file --ftp-create-dirs"
+	if [ "true" = "$use_ssl" ]; then
+		command="$command --ssl-reqd"
+		[ "true" = "$trust_cert" ] && command="$command --insecure"
+	fi
 
 	[ "true" = "$verbose" ] && echo_command "$command"
 

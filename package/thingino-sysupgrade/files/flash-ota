@@ -64,9 +64,31 @@ write_at() {
 
 # Point U-Boot's mtdparts at the new rootfs/data sizes so the kernel carves
 # the partitions we just flashed.
+#
+# The U-Boot environment is the usual source, but some devices boot with the
+# value present only on the kernel command line (env reset, or an installer
+# that never seeded it). Fall back to /proc/cmdline, which is what the running
+# kernel actually built its partitions from.
+current_mtdparts() {
+	local cur
+	cur=$(fw_printenv mtdparts 2>/dev/null | cut -d= -f2-)
+	if [ -z "$cur" ] && [ -r /proc/cmdline ]; then
+		read -r cur </proc/cmdline
+		case "$cur" in
+			*mtdparts=*)
+				cur=$(printf '%s\n' "$cur" | sed 's/.*mtdparts=//; s/ .*//')
+				;;
+			*)
+				cur=""
+				;;
+		esac
+	fi
+	printf '%s\n' "$cur"
+}
+
 set_mtdparts() {
 	local new_rootfs_k="$1" new_data_k="$2" cur new got
-	cur=$(fw_printenv mtdparts 2>/dev/null | cut -d= -f2-)
+	cur=$(current_mtdparts)
 	[ -n "$cur" ] || {
 		echo "ERROR: cannot read current mtdparts"
 		return 1

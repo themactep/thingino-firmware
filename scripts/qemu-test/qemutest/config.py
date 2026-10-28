@@ -22,12 +22,15 @@ SOC_MACHINES = {
     "t31x": ("ingenic-t31",  128),
     "t32":  ("ingenic-t32",  256),
     "t32nq":("ingenic-t32",  256),
+    "t33":  ("ingenic-t33",  256),
     "t40":  ("ingenic-t40",  256),
     "t40nn":("ingenic-t40",  256),
     "t41":  ("ingenic-t41",  256),
     "t41nq":("ingenic-t41",  256),
     "a1":   ("ingenic-a1",   256),
     "a1n":  ("ingenic-a1",   256),
+    "c100": ("ingenic-t31",  128),          # a die-shrunk T31
+    "cw080":("ingenic-t32",  128),          # the T32Pro's die
 }
 
 
@@ -38,6 +41,13 @@ WEBUI_PORT  = 19080
 
 
 SSH_FWD_PORT = 19022
+
+# USB direct: host ports into the camera over its emulated USB cable, and
+# the two ends of the dgram socket the usbpc host listens on.
+USB_HTTP_PORT = 19180
+USB_SSH_PORT = 19122
+USB_PC_PORT = 19190
+USB_PC_QEMU_PORT = 19191
 
 # IP over the guest's UART0 (SLIP), for profiles with no wired MAC at all:
 # the guest boots exactly like a WiFi-only camera and the host still gets in.

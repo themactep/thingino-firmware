@@ -27,3 +27,14 @@ define THINGINO_KOPT_SYNC_CAMERA_DTS
 endef
 LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_SYNC_CAMERA_DTS
 endif
+
+# The DWC2 driver needs its controller and PHY enabled in the 4.4 device
+# tree too, which most vendor trees ship disabled. Runs after the sync above
+# so a profile's own .dts is covered.
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_DWC2),y)
+define THINGINO_KOPT_USB_DT
+	sh $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-kopt/inject-usb-dt.sh \
+		$(LINUX_DIR) $(if $(BR2_PACKAGE_THINGINO_KOPT_DWC2_DUAL_ROLE),otg,host)
+endef
+LINUX_PRE_BUILD_HOOKS += THINGINO_KOPT_USB_DT
+endif

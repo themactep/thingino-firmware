@@ -70,8 +70,7 @@ image_starts_with_bootloader() {
 
 die() {
 	echo_c 160 "$1"
-	cleanup
-	exit 1
+	cleanup 1
 }
 
 bye() {
@@ -86,7 +85,7 @@ check_free_space() {
 	# $1 = URL, $2 = offset in remote file, $3 = optional explicit byte count
 	local dl_size dl_size_offsetted flash_size free_space offset
 
-	dl_size=$(curl -sIL "$1" |
+	dl_size=$(curl -sIL --tls-max 1.2 "$1" |
 		grep -i '^content-length:' |
 		tail -n 1 |
 		cut -d: -f2 |
@@ -186,7 +185,7 @@ partial_upgrade_partition_size() {
 cleanup() {
 	echo "Clean up temporary files."
 	rm -rf "$workdir"
-	exit 0
+	exit ${1:-0}
 }
 
 clone_app() {
@@ -198,8 +197,7 @@ clone_app() {
 	fi
 
 	if ! cp -vf "$1" "$workdir/$target"; then
-		echo "Error: Failed to copy $1 to $workdir/$target"
-		cleanup
+		die "Error: Failed to copy $1 to $workdir/$target"
 	fi
 	chmod +x "$workdir/$target"
 }
@@ -280,7 +278,7 @@ handle_payload() {
 			# Download only rootfs+data tail (uses HTTP Range)
 			offset=$(get_image_offset rootfs)
 			# Get total size for the Range end byte
-			dl_size=$(curl -sIL "$bin_url" | grep -i '^content-length:' | tail -1 | cut -d: -f2 | tr -d '\r[:space:]')
+			dl_size=$(curl -sIL --tls-max 1.2 "$bin_url" | grep -i '^content-length:' | tail -1 | cut -d: -f2 | tr -d '\r[:space:]')
 			[ -z "$dl_size" ] && die "Cannot determine remote file size for range request"
 			range_end=$((dl_size - 1))
 			curl_range="-r $offset-$range_end"
@@ -629,21 +627,45 @@ case "$upgrade" in
 	full | part | local | boot | rootfs | kernel) handle_payload "$@" ;;
 esac
 
+# Read the little-endian u32 at byte offset $2 of file $1 as decimal.
+# BusyBox od without DESKTOP has no -A/-t, so read the raw bytes with xxd
+# and swap them into big-endian order by hand.
+read_le32() {
+	local hex
+	hex=$(xxd -s "$2" -l 4 -p "$1")
+	case "$hex" in
+		[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+		*) return 1 ;;
+	esac
+	hex=$(printf '%s' "$hex" | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/')
+	echo $((0x$hex))
+}
+
 # Shared helper: parse squashfs superblock and split rootfs + data from a
 # file that starts with ROOTFS_MAGIC.  Sets $workdir/rootfs.bin (and
-# optionally $workdir/data.bin) relative to the caller's $rsz.
+# optionally $workdir/data.bin).  $rsz and $dsz are the target rootfs and
+# data partition sizes; all parsing and fit checks run before any write.
 extract_rootfs_data() {
 	local src="$1"
-	local sqfs_size sqfs_aligned src_size
-	sqfs_size=$(dd if="$src" bs=1 skip=40 count=8 2>/dev/null | od -An -td8 -v | tr -d ' \n')
+	local sqfs_size sqfs_hi sqfs_aligned src_size data_size
+	sqfs_size=$(read_le32 "$src" 40) || die "Cannot parse squashfs size in $src"
+	sqfs_hi=$(read_le32 "$src" 44) || sqfs_hi=1
+	[ "$sqfs_hi" -eq 0 ] || die "Implausible squashfs size in $src"
+	[ "$sqfs_size" -gt 0 ] || die "Invalid squashfs size in $src"
 	sqfs_aligned=$(((sqfs_size + 65535) / 65536 * 65536))
 	echo "Image rootfs: $sqfs_size bytes -> $sqfs_aligned aligned"
 	[ "$sqfs_aligned" -gt "$rsz" ] &&
 		die "Image rootfs ($sqfs_aligned) larger than partition ($rsz). Use -f."
-	dd if="$src" of="$workdir/rootfs.bin" bs=1 count=$sqfs_aligned 2>/dev/null
 	src_size=$(stat -c%s "$src")
+	data_size=0
 	if [ "$sqfs_aligned" -lt "$src_size" ]; then
-		echo "Appended data partition: $((src_size - sqfs_aligned)) bytes"
+		data_size=$((src_size - sqfs_aligned))
+		echo "Appended data partition: $data_size bytes"
+		[ "$data_size" -gt "$dsz" ] &&
+			die "Appended data ($data_size) larger than partition ($dsz). Use -f."
+	fi
+	dd if="$src" of="$workdir/rootfs.bin" bs=1 count=$sqfs_aligned 2>/dev/null
+	if [ "$data_size" -gt 0 ]; then
 		dd if="$src" of="$workdir/data.bin" bs=1 skip=$sqfs_aligned 2>/dev/null
 	else
 		echo "No appended data - data partition unchanged"
@@ -672,7 +694,11 @@ PARTLIST
 	die "Unknown partition: $target"
 }
 
-get_mtd_size() { awk "/\"$1\"$/{print \"0x\"\$2}" /proc/mtd; }
+get_mtd_size() {
+	local sz
+	sz=$(awk "/\"$1\"$/{print \$2}" /proc/mtd)
+	[ -n "$sz" ] && echo $((0x$sz))
+}
 get_mtd_dev() { awk -F: "/\"$1\"$/{print \$1}" /proc/mtd; }
 
 # Snapshot config files to the backup MTD partition before flashing.
@@ -770,6 +796,7 @@ if [ "rootfs" = "$upgrade" ]; then
 	rsz=$(get_mtd_size rootfs)
 	ddev=$(get_mtd_dev data)
 	[ -z "$ddev" ] && die "Data partition not found in /proc/mtd"
+	dsz=$(get_mtd_size data)
 
 	if [ "$U_BOOT_MAGIC" = "$img_magic" ]; then
 		# Full image: extract rootfs + data using /proc/mtd partition offsets
@@ -826,8 +853,7 @@ if [ -z "$mtd_dev" ]; then
 			[ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
 			if ! DO_BACKUP="$do_backup" WATCHDOG_DEV="$watchdog_device" \
 				exec "$workdir/busybox" sh "$workdir/$stage2app" full "$fw_file"; then
-				echo_c 160 "Error: Failed to execute $workdir/$stage2app"
-				cleanup
+				die "Error: Failed to execute $workdir/$stage2app"
 			fi
 			;;
 		"$KERNEL_MAGIC")
@@ -887,8 +913,7 @@ watchdog_device=$(jct /etc/thingino.json get watchdog.device 2>/dev/null)
 [ -n "$watchdog_device" ] || watchdog_device=$(fw_printenv -n watchdog_device 2>/dev/null)
 [ -n "$watchdog_device" ] || watchdog_device="/dev/watchdog"
 if ! WATCHDOG_DEV="$watchdog_device" PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
-	echo_c 160 "Error: Failed to execute $workdir/$stage2app"
-	cleanup
+	die "Error: Failed to execute $workdir/$stage2app"
 fi
 
 # If succeeded, do not clean up

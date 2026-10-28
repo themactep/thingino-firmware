@@ -26,11 +26,11 @@ def test_boot(ctx):
 
 
 def test_services(ctx):
-    guest, res, mode = ctx.guest, ctx.res, ctx.mode
+    guest, res = ctx.guest, ctx.res
     rc, out = guest.run("ps w")
     res.check("dropbear_running", "dropbear" in out)
     res.check("syslogd_running", "syslogd" in out)
-    if mode == "wifi":
+    if ctx.has("wifi") and ctx.has("nowired"):
         res.check("wpa_supplicant_running", "wpa_supplicant" in out)
 
 

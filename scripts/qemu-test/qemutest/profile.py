@@ -3,7 +3,8 @@
     {"soc": "t31x", "caps": ["wired", "wifi"], "net": "tap"}
 
 soc   key into config.SOC_MACHINES
-caps  what the camera has: "wired" (an uplink), "wifi" (a radio)
+caps  what the camera has: "wired" (an uplink), "wifi" (a radio),
+      "usb_direct" / "usb_direct_client" (an NCM gadget, server or client)
 net   default backend: "tap" for the full lab, "slirp" for port forwards
 """
 import glob
@@ -25,7 +26,7 @@ class Profile:
         """The modality, for the report and the checks that still key on it."""
         if "wired" in self.caps:
             return "ethwifi" if "wifi" in self.caps else "eth"
-        return "wifi"
+        return "wifi" if "wifi" in self.caps else "usb"
 
     def defaults(self):
         """The flags a plain run gets, per backend (what run.sh used to add):

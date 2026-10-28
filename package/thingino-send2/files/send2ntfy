@@ -1,4 +1,5 @@
 #!/bin/env sh
+# shellcheck disable=SC1091,SC2034
 # Sends data to ntfy.sh
 # https://docs.ntfy.sh/publish/
 
@@ -62,7 +63,7 @@ while getopts a:c:d:h:i:m:n:t:p:u:vz:P:T:f:SV flag; do
 	case "$flag" in
 		a) attach=$OPTARG ;;
 		c) click=$OPTARG ;;
-		d) delay==$OPTARG ;;
+		d) delay=$OPTARG ;;
 		h) host=$OPTARG ;;
 		i) icon=$OPTARG ;;
 		m) message=$OPTARG ;;
@@ -97,7 +98,7 @@ fi
 [ -z "$host" ] && host="ntfy.sh"
 [ -z "$port" ] && port=80
 
-command="curl -X POST -H p:${priority:-3}"
+command="curl --tls-max 1.2 -X POST -H p:${priority:-3}"
 
 if [ "true" = "$verbose" ]; then
 	command="$command --verbose"

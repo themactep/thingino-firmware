@@ -25,11 +25,17 @@ unload_wlan_module() {
 }
 
 has_wired_uplink() {
-	local iface="$1"
+	local iface="$1" own
 
 	[ -z "$iface" ] && return 1
 	ip link show "$iface" >/dev/null 2>&1 || return 1
-	ip -4 route show default dev "$iface" | grep -q . && return 0
+	# A route via one of our own addresses (USB direct's fallback on
+	# usb0) leads nowhere.
+	own=$(ip -4 addr show dev "$iface" | awk '$1 == "inet" { sub(/\/.*/, "", $2); printf " %s ", $2 }')
+	ip -4 route show default dev "$iface" | awk -v own="$own" '
+		{ gw = ""; for (i = 1; i < NF; i++) if ($i == "via") gw = $(i + 1) }
+		gw == "" || !index(own, " " gw " ") { up = 1 }
+		END { exit !up }' && return 0
 	ip -6 route show default dev "$iface" | grep -q . && return 0
 	return 1
 }

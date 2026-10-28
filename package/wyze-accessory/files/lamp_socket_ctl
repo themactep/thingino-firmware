@@ -1,0 +1,227 @@
+#!/bin/sh
+# Control the Wyze Lamp Socket (v1) over its CH34x USB serial link.
+# Protocol and command codes: docs/wyze-lamp-socket.md
+
+CONFIG_FILE="/etc/thingino.json"
+RUN_DIR="/run/lamp_socket"
+STATE_FILE="$RUN_DIR/state"
+LOCK_FILE="$RUN_DIR/lock"
+
+CMD_GET_STATE=0x2c
+CMD_SET_STATE=0x2e
+TARGET_ALL=0xff
+STATE_ON=1
+STATE_OFF=2
+
+VERBOSE=0
+
+usage() {
+	cat >&2 <<-EOF
+		usage: $0 [-v] <command>
+
+		  on | off | toggle   switch the lamp
+		  status              print on, off or unknown as reported by the socket
+		  restore             apply lamp_socket.boot_state (used at boot)
+		  device              print the detected serial device
+		  query               ask the socket for its state and dump the reply
+		  send <cmd> [b ...]  send a raw command with checksum, dump the reply
+		                      (bytes as 0xNN or decimal, e.g. send 0x2e 0xff 1)
+	EOF
+}
+
+log() {
+	[ "$VERBOSE" -eq 1 ] && echo "$1" >&2
+}
+
+cfg() {
+	jct "$CONFIG_FILE" get "lamp_socket.$1" 2>/dev/null | tr -d '"' | grep -v '^null$'
+}
+
+find_device() {
+	dev=$(cfg device)
+	if [ -n "$dev" ]; then
+		[ -c "$dev" ] && echo "$dev"
+		return
+	fi
+	for dev in /dev/ttyUSB*; do
+		[ -c "$dev" ] && {
+			echo "$dev"
+			return
+		}
+	done
+}
+
+require_device() {
+	DEVICE=$(find_device)
+	if [ -z "$DEVICE" ]; then
+		echo "Lamp Socket not detected (no USB serial device)" >&2
+		exit 1
+	fi
+	# Raw mode keeps 0x0a/0x0d intact; min 0 time 10 ends a read after 1s idle.
+	stty -F "$DEVICE" raw -echo min 0 time 10 2>/dev/null
+}
+
+# Build a frame from <cmd> [payload...] and print it as a printf format string.
+build_frame() {
+	sum=0
+	fmt=""
+	for b in 0xaa 0x55 0x43 $(($# + 2)) "$@"; do
+		b=$((b & 0xff))
+		sum=$((sum + b))
+		fmt="$fmt\\$(printf '%03o' "$b")"
+	done
+	fmt="$fmt\\$(printf '%03o' $(((sum >> 8) & 0xff)))"
+	fmt="$fmt\\$(printf '%03o' $((sum & 0xff)))"
+	echo "$fmt"
+}
+
+hex() {
+	xxd -p | tr -d '\n' | sed 's/../& /g'
+}
+
+frame_hex() {
+	# shellcheck disable=SC2059
+	printf "$(build_frame "$@")" | hex
+}
+
+# Send a frame; with listen=1, print the socket's reply as hex on stdout.
+send_frame() {
+	listen="$1"
+	shift
+	log "tx: $(frame_hex "$@")"
+	if [ "$listen" -eq 1 ]; then
+		reply=$(mktemp /tmp/lamp_socket.XXXXXX)
+		(timeout 3 cat "$DEVICE" >"$reply" || :) 2>/dev/null &
+		reader=$!
+		usleep 50000
+	fi
+	# shellcheck disable=SC2059
+	printf "$(build_frame "$@")" >"$DEVICE" || return 1
+	if [ "$listen" -eq 1 ]; then
+		wait "$reader"
+		hex <"$reply"
+		rm -f "$reply"
+	fi
+}
+
+# The state reply is 55 AA 43 <len> 2D <count> <8-char id> <state> ...
+read_state() {
+	send_frame 1 $CMD_GET_STATE $TARGET_ALL | tr -d ' ' |
+		sed -n 's/.*55aa43..2d0[1-9][0-9a-f]\{16\}\(0[12]\).*/\1/p'
+}
+
+save_state() {
+	echo "$1" >"$STATE_FILE"
+	if [ "$(cfg boot_state)" = "last" ] && [ "$(cfg last_state)" != "$1" ]; then
+		jct "$CONFIG_FILE" set lamp_socket.last_state "$1" >/dev/null 2>&1
+	fi
+}
+
+set_lamp() {
+	require_device
+	case "$1" in
+		on) send_frame 0 $CMD_SET_STATE $TARGET_ALL $STATE_ON ;;
+		off) send_frame 0 $CMD_SET_STATE $TARGET_ALL $STATE_OFF ;;
+	esac || {
+		echo "Failed to write to $DEVICE" >&2
+		exit 1
+	}
+	save_state "$1"
+	echo "$1"
+}
+
+get_status() {
+	DEVICE=$(find_device)
+	if [ -n "$DEVICE" ]; then
+		stty -F "$DEVICE" raw -echo min 0 time 10 2>/dev/null
+		case "$(read_state)" in
+			01) echo on >"$STATE_FILE" ;;
+			02) echo off >"$STATE_FILE" ;;
+		esac
+	fi
+	state=$(cat "$STATE_FILE" 2>/dev/null)
+	echo "${state:-unknown}"
+}
+
+while getopts "vh" flag; do
+	case "$flag" in
+		v) VERBOSE=1 ;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+done
+shift "$((OPTIND - 1))"
+
+[ $# -eq 0 ] && {
+	usage
+	exit 1
+}
+
+mkdir -p "$RUN_DIR"
+exec 9>"$LOCK_FILE"
+flock 9
+
+case "$1" in
+	on | ON)
+		set_lamp on
+		;;
+	off | OFF)
+		set_lamp off
+		;;
+	toggle)
+		if [ "$(get_status)" = "on" ]; then
+			set_lamp off
+		else
+			set_lamp on
+		fi
+		;;
+	status)
+		get_status
+		;;
+	restore)
+		case "$(cfg boot_state)" in
+			on) set_lamp on ;;
+			off) set_lamp off ;;
+			last)
+				last=$(cfg last_state)
+				[ "$last" = "on" ] || [ "$last" = "off" ] && set_lamp "$last"
+				;;
+		esac
+		;;
+	device)
+		dev=$(find_device)
+		[ -n "$dev" ] || exit 1
+		echo "$dev"
+		;;
+	query)
+		require_device
+		echo "rx: $(send_frame 1 $CMD_GET_STATE $TARGET_ALL)"
+		;;
+	send)
+		shift
+		[ $# -ge 1 ] || {
+			usage
+			exit 1
+		}
+		for b in "$@"; do
+			case "$b" in
+				0x[0-9a-fA-F] | 0x[0-9a-fA-F][0-9a-fA-F] | [0-9] | [0-9][0-9] | [0-9][0-9][0-9]) ;;
+				*)
+					echo "Invalid byte: $b" >&2
+					exit 1
+					;;
+			esac
+		done
+		require_device
+		VERBOSE=1
+		echo "rx: $(send_frame 1 "$@")"
+		;;
+	*)
+		usage
+		exit 1
+		;;
+esac
+
+exit 0

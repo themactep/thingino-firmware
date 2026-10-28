@@ -269,10 +269,10 @@ finish_portal() {
 	fi
 
 	echo "Start DHCP server"
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $PORTAL_IP /etc/udhcpd-portal.conf
+	start-stop-daemon -S -b -m -p /run/udhcpd.pid -x /sbin/udhcpd -- -f -S -I $PORTAL_IP /etc/udhcpd-portal.conf
 
 	echo "Start DNS server"
-	start-stop-daemon -S -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf -d
+	start-stop-daemon -S -b -m -p /run/dnsd_portal.pid -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf
 
 	echo "Portal started at $(ts)"
 	play /usr/share/sounds/configurationportalisup.@SOUND_EXT@
@@ -292,10 +292,12 @@ stop_portal() {
 	fi
 
 	echo "Stop udhcp"
-	start-stop-daemon -K -q -x /sbin/udhcpd
+	start-stop-daemon -K -q -p /run/udhcpd.pid -x /sbin/udhcpd
+	rm -f /run/udhcpd.pid
 
 	echo "Stop dnsd"
-	start-stop-daemon -K -q -x /sbin/dnsd
+	start-stop-daemon -K -q -p /run/dnsd_portal.pid -x /sbin/dnsd
+	rm -f /run/dnsd_portal.pid
 
 	echo "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x $DAEMON_FULL
@@ -348,10 +350,10 @@ start_access_point() {
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS -c "$CONFIG" 2>&1
 
 	echo "Start udhcpd"
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $WLANAP_IP /etc/udhcpd-ap.conf
+	start-stop-daemon -S -b -m -p /run/udhcpd_ap.pid -x /sbin/udhcpd -- -f -S -I $WLANAP_IP /etc/udhcpd-ap.conf
 
 	echo "Start dnsd"
-	start-stop-daemon -S -x /sbin/dnsd -- -i $WLANAP_IP -c /tmp/dnsd.conf -d
+	start-stop-daemon -S -b -m -p /run/dnsd_ap.pid -x /sbin/dnsd -- -i $WLANAP_IP -c /tmp/dnsd.conf
 
 	echo "WLAN Access Point started"
 	touch "$WLANAP_MODE_FLAG"
@@ -361,10 +363,12 @@ stop_access_point() {
 	echo -c 15 "WLAN Access Point"
 
 	echo "Stop udhcpd"
-	start-stop-daemon -K -q -x /sbin/udhcpd
+	start-stop-daemon -K -q -p /run/udhcpd_ap.pid -x /sbin/udhcpd
+	rm -f /run/udhcpd_ap.pid
 
 	echo "Stop dnsd"
-	start-stop-daemon -K -q -x /sbin/dnsd
+	start-stop-daemon -K -q -p /run/dnsd_ap.pid -x /sbin/dnsd
+	rm -f /run/dnsd_ap.pid
 
 	echo "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x $DAEMON_FULL

@@ -206,10 +206,12 @@ def main():
         lab.up()
 
     t_start = time.time()
+    usb = ("server" if "usb_direct" in args.caps else
+           "client" if "usb_direct_client" in args.caps else None)
     proc, pty, qmp_path, slip_pty = start_qemu(qemu, tmp_image, machine, ram,
                                      args.net, report_dir,
                                      tap_if=lab.tap if lab else "qtap0",
-                                     forwards=args.host_tests)
+                                     forwards=args.host_tests, usb=usb)
     ser = QemuSerial(proc, pty,
                      log_path=os.path.join(report_dir, "serial.log"))
     guest = Guest(ser)

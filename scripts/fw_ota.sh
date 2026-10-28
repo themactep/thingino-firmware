@@ -136,8 +136,10 @@ check_and_free_space() {
 	prepare_upload_memory
 
 	if [ "$REMOTE_FW_DIR" = "/tmp" ]; then
-		# Need room for the firmware plus sysupgrade working files in /tmp.
-		dir_needed_kb=$(( fw_size_kb + (fw_size_kb / 2) ))
+		# The image is moved into the workdir (same tmpfs rename) and
+		# streamed to flash, never duplicated, so only the ~1 MB busybox
+		# clone plus scripts/logs share the tmpfs with the firmware.
+		dir_needed_kb=$(( fw_size_kb + 2048 ))
 	else
 		# SD card staging does not require tmpfs working-space headroom.
 		dir_needed_kb=$fw_size_kb
