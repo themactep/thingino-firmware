@@ -1,0 +1,95 @@
+{
+  "include": [
+    "**/*.{sh,cgi,in,mk,patch,c,h,cpp,cc,cxx,hpp,hxx,js,jsx,ts,tsx,mjs,cjs,py,pyi,rb,json,dts,dtsi,config,hash,fragment,conf}",
+    "**/*_defconfig",
+    "package/*/files/**",
+    "overlay/**"
+  ],
+  "exclude": [
+    "docs/**",
+    "**/*.md",
+    "**/*.txt",
+    "**/*.{opus,ulaw,ttf,bmp,jpg,jpeg,png,gif,ico,svg,bin,img,gz,tgz,tar,xz,zip,pdf}",
+    "buildroot/**",
+    "output/**",
+    "dl/**",
+    "package/all-patches/**",
+    "**/__pycache__/**"
+  ],
+  "rules": [
+    {
+      "path": "**/Config*.in*",
+      "rule": "Thingino Kconfig review. This is Buildroot Kconfig, not a shell script.\n\nCheck only structural issues:\n- Every package Config.in is sourced from a reachable Config.in; a new package that is invisible to Kconfig is a defect.\n- Each symbol has a useful type, prompt, dependency, and default; selects do not create cycles.\n- A package's main symbol is not hidden behind an unrelated menu or dependency.\n- A new symbol is not a duplicate, and a renamed symbol updates every defconfig and fragment that uses it.\n- A select of another package's main symbol matches the package contract.\n- Choice blocks have a valid default and the alternatives are mutually exclusive.\n\nDo not comment on help text wording, indentation, or Kconfig style. The existing deterministic checks handle file layout."
+    },
+    {
+      "path": "**/*_defconfig",
+      "rule": "Thingino camera profile review. Check the profile as a whole, not as a sorted list of lines.\n\nVerify:\n- The profile declares a SoC model that exists in soc/<vendor>/*.mk.\n- The sensor name(s), WiFi driver, flash size, and # FRAG: set are consistent with the camera name and with the SoC family.\n- Exactly one main WiFi driver is selected, and it is registered in package/wifi/wifi.mk.\n- Every Thingino symbol used here is defined in the external tree.\n- The fragment list covers the required SoC, core, and flash behavior; do not add a fragment that contradicts the profile.\n- A production camera profile has thingino.json; a dev or test profile may intentionally omit it.\n\nDo not report sort order, comment wording, or formatting; pr-format already checks those. Do not invent GPIO, sensor, or hardware behavior."
+    },
+    {
+      "path": "**/configs/fragments/**/*.fragment",
+      "rule": "Thingino shared-fragment review. A fragment affects every camera profile that names it, so treat a change as broad by default.\n\nCheck:\n- The symbol belongs in a shared fragment rather than in one camera defconfig.\n- The change does not silently override a camera-specific value from a defconfig; fragments are applied before the camera defconfig.\n- The fragment does not select a package that is unavailable on the SoC families that use it.\n- New symbols are defined in the external Kconfig tree.\n- Defaults and choices still produce a valid configuration for every affected profile.\n\nReport the affected camera groups or profiles. Do not report formatting."
+    },
+    {
+      "path": "**/*.config",
+      "rule": "Thingino Buildroot/BusyBox config review. Check the config as a build contract.\n\nVerify:\n- Enabled options have the dependencies and libraries they require.\n- No accidental debug, size, or insecure option is enabled for a production profile.\n- The change matches the package definition, version, and the profile that selects it.\n- A removed option is not still referenced by a script, overlay, or package install rule.\n\nDo not report ordering, comments, or formatting; defconfig and config sorting are handled by CI."
+    },
+    {
+      "path": "**/thingino.json",
+      "rule": "Thingino camera runtime-metadata review. This file is merged with system and user configuration at build/runtime; the camera copy is not the only source.\n\nCheck:\n- Keys and value types match the consumers; GPIO references are valid pins for the declared SoC and do not conflict with another function.\n- Motor, button, LED, mmc, WiFi, and speaker settings agree with the camera defconfig and the package selection.\n- The file does not duplicate a value that is already derived from the SoC family or a shared default.\n- A missing or null value is intentional and has a code fallback.\n\nDo not claim a pin assignment is electrically correct without evidence. Put hardware verification under verification needed."
+    },
+    {
+      "path": "**/*.{dts,dtsi}",
+      "rule": "Thingino device-tree review. Check the tree against the SoC family and the camera profile.\n\nCheck:\n- Node names, compatible strings, reg ranges, interrupts, clocks, pinctrl, and GPIO references are internally consistent.\n- The tree matches the SoC family's kernel tree and the camera's declared model, sensor, WiFi, flash, and peripherals.\n- No duplicate or conflicting nodes, labels, or pinmux groups.\n- The file is placed in the camera profile that thingino.mk expects, and the SoC family has a DTS destination for it.\n\nDo not invent register addresses or electrical behavior. If the kernel source is not available, list the check as verification needed."
+    },
+    {
+      "path": "**/package/ingenic-sdk/*.patch",
+      "rule": "Thingino Ingenic SDK patch review. This patch applies to an external pinned SDK, not to the firmware tree.\n\nCheck:\n- The patch applies to the pinned INGENIC_SDK_VERSION.\n- The same code exists in every kernel tree the SDK ships, such as 3.10.14 and 4.4.94, and in alternate drivers such as misc/motor and misc/ms419xx.\n- A fix for one kernel tree or one driver is accompanied by the matching change for the other trees and drivers, or the PR explains why they are unaffected.\n- The patch does not remove a manual free of a devres-managed pointer without checking every copy of the code.\n\nIf the SDK source is not checked out, list the cross-tree check as verification needed."
+    },
+    {
+      "path": "**/*.patch",
+      "rule": "Thingino patch review. A patch is code plus provenance; review both.\n\nCheck:\n- The unified diff applies to the declared package version: paths, context, hunk order, and no fuzz-dependent hunks.\n- The patch does not include unrelated changes, generated files, secrets, or upstream noise.\n- A package-local patch lives under the owning package; a shared upstream patch belongs under package/all-patches and affects every package that uses that tree.\n- The package version, site, hash, and patch set agree.\n- A SoC-specific patch is checked against every family that builds the same component; a T32-only symbol must not break T40/T41/A1.\n\nDo not review the patched source as if it were present. If the patched tree is not in the workspace, say so and list the verification needed."
+    },
+    {
+      "path": "**/*.mk",
+      "rule": "Thingino Buildroot package review. Check the package contract, not Makefile style.\n\nVerify:\n- The package has a main Config.in symbol and is sourced from a reachable Kconfig file.\n- _VERSION, _SITE, _SITE_METHOD, _LICENSE, dependencies, and install rules agree with the source and the rest of the tree.\n- Remote sources have a hash, or the exception is intentional and documented.\n- A package that installs a service ships its init script and selects the right dependencies.\n- A package that ships a WebUI plugin installs the manifest and all referenced files.\n- A package that is selected by a camera is not invisible or orphaned.\n- A component bump also updates local patches, API users, and cross-repo pins.\n\nDo not comment on variable ordering, whitespace, or Makefile style. Do not duplicate shellcheck or buildroot check-package output."
+    },
+    {
+      "path": "**/*.{sh,cgi}",
+      "rule": "Thingino shell/CGI review. First determine whether the file is POSIX sh; if it is not shell, review its actual content instead.\n\nFor shell and CGI, check:\n- POSIX sh compatibility (no bashisms), correct quoting, and explicit handling of command failure.\n- start/stop/restart behavior is idempotent and cleans up PIDs, locks, and temporary files.\n- Untrusted CGI input is validated before use; no command, eval, path, or JSON injection.\n- Configuration is read from /etc/thingino.json or the documented package config, with a safe fallback.\n- Authentication and authorization are enforced where the CGI exposes device state or changes configuration.\n- No hardcoded credentials or secrets.\n- Init scripts have a unique S/K name and start after their dependencies.\n\nDo not report shellcheck-style issues that the existing shellcheck/shfmt gate already reports. Focus on logic, security, lifecycle, and integration."
+    },
+    {
+      "path": "**/files/**/*.in",
+      "rule": "Thingino shell-template review. package/<name>/files/*.in is usually a POSIX shell template rendered at build time, not Kconfig.\n\nCheck the rendered result, not only the template:\n- Template variables are defined and quoted; unknown variables do not produce an empty command or path.\n- The template preserves POSIX sh behavior, error handling, and idempotent start/stop.\n- The rendered file lands at the expected path and has the expected executable bit.\n- The template matches the package's SoC/WiFi/hardware variants.\n\nDo not confuse this with Config*.in. Do not report shellcheck-style findings already covered by CI."
+    },
+    {
+      "path": "**/init.d/**",
+      "rule": "Thingino init-script review. This is the boot contract, not a style file.\n\nCheck:\n- S/K naming and numeric order are consistent with the service's dependencies.\n- start, stop, restart, and status are idempotent and handle an absent service cleanly.\n- PID files, locks, mounts, and temporary files are cleaned up.\n- The script reads configuration from the documented path and tolerates a missing file.\n- The script does not start on a profile where the package or hardware is absent.\n- The script does not collide with another init script installed by a co-selectable package.\n\nDo not report indentation or shellcheck style. CI covers those."
+    },
+    {
+      "path": "**/files/**/{S,K}[0-9]*",
+      "rule": "Thingino service script review. Focus on boot/lifecycle integration.\n\nCheck:\n- The S/K name and number match the service's dependencies and do not collide with a co-selectable package.\n- start, stop, restart, and status are idempotent.\n- Configuration comes from /etc/thingino.json or the documented package config, with a safe fallback.\n- The script does not assume hardware that the selected camera profile may not have.\n- Cleanup of PIDs, locks, mounts, and temporary files is complete.\n\nDo not report shellcheck style. CI covers it."
+    },
+    {
+      "path": "**/*.{c,h,cpp,cc,cxx,hpp,hxx}",
+      "rule": "Thingino embedded C/C++ review. Check behavior and integration, not formatting.\n\nCheck:\n- Resource ownership and cleanup on every error path (fd, mmap, ioctl buffers, threads, mutexes).\n- Integer width, sign, overflow, endianness, alignment, and unaligned DMA/ISP buffer assumptions.\n- Thread-safety, signal-safety, and teardown ordering for daemons and streamers.\n- ABI/API compatibility with the pinned libimp, open-tx-isp, openimp, Ingenic SDK, or kernel interfaces.\n- Error codes are propagated and logged without leaking secrets.\n- SoC-family conditionals do not compile-time assume a symbol that exists only on T32, T40, T41, or A1.\n- Kernel/userspace boundary types and ioctl numbers are used correctly.\n\nDo not invent hardware register behavior. If the vendor header or patched source is absent, list the verification needed.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.{js,jsx,ts,tsx,mjs,cjs,py,pyi,rb}",
+      "rule": "Thingino userspace review. Check the integration boundary, not style.\n\nFor WebUI JavaScript:\n- The page/script/CGI contract matches the plugin manifest and the core navigation.\n- No direct hardware access; config goes through the documented CGI or runtime-config path.\n- Authentication, CSRF, and input validation are enforced where the UI changes device state.\n- Feature flags match the installed package; a missing flag does not leave a dead page or broken nav.\n\nFor Python/Ruby tooling:\n- The script consumes the actual repo formats and does not assume a different directory layout.\n- Error handling is explicit; a failed git/build/package step is not silently ignored.\n- Generated files and do-not-edit paths are respected.\n\nDo not report formatting or naming preferences. Prettier and the existing lint gates cover style.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.hash",
+      "rule": "Thingino package-integrity review. Check the hash file against the package definition.\n\nVerify:\n- The file names, hash algorithms, and versions match the package's _VERSION and downloaded artifacts.\n- A version bump updates every relevant hash and license file; a stale hash is a build break.\n- The license file is present when the package declares a license file.\n- The hash does not cover a local override or generated artifact that should not be hashed.\n\nDo not comment on ordering or formatting."
+    },
+    {
+      "path": "**/files/**",
+      "rule": "Thingino package payload review. This path can contain a shell script, an init script, a JSON/config file, a template, or an asset. Determine the file type from its content and shebang before applying a checklist.\n\nIf it is shell: check POSIX sh, quoting, error handling, input validation, idempotent lifecycle, config path, and secrets.\nIf it is config/JSON: check schema, consumer compatibility, duplicated values, and runtime merge behavior.\nIf it is a template: check variables, quoting, rendered path, and executable bit.\nIf it is an asset: do not review it as code.\n\nFocus on integration and behavior; do not duplicate shellcheck, Prettier, or file-format checks."
+    },
+    {
+      "path": "**/{S,K}[0-9]*",
+      "rule": "Thingino service script review. Focus on boot/lifecycle integration.\n\nCheck:\n- The S/K name and number match the service's dependencies and do not collide with a co-selectable package.\n- start, stop, restart, and status are idempotent.\n- Configuration comes from /etc/thingino.json or the documented package config, with a safe fallback.\n- The script does not assume hardware that the selected camera profile may not have.\n- Cleanup of PIDs, locks, mounts, and temporary files is complete.\n\nDo not report shellcheck style. CI covers it."
+    }
+  ]
+}
