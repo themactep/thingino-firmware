@@ -66,6 +66,7 @@ with open("$TMPDIR/full.css") as f:
 
 icons = """$ICONS""".strip().split('\n')
 fontface = re.search(r'@font-face\{[^}]+\}', css).group(0)
+base = re.search(r'\.bi::before[^{]*\{[^}]+\}', css).group(0)
 rules = []
 for icon in icons:
     if not icon:
@@ -80,6 +81,7 @@ subset = f"""/*!
  * Licensed under MIT
  */
 {fontface}
+{base}
 {chr(10).join(rules)}
 """
 with open("$VENDOR_DIR/bootstrap-icons.min.css", "w") as f:

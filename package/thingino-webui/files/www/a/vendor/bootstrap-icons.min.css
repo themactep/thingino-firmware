@@ -3,6 +3,7 @@
  * Licensed under MIT
  */
 @font-face{font-display:block;font-family:bootstrap-icons;src:url("fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a") format("woff2"),url("fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") format("woff")}
+.bi::before,[class*=" bi-"]::before,[class^=bi-]::before{display:inline-block;font-family:bootstrap-icons!important;font-style:normal;font-weight:400!important;font-variant:normal;text-transform:none;line-height:1;vertical-align:-.125em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .bi-arrow-clockwise::before{content:"\f116"}
 .bi-arrow-counterclockwise::before{content:"\f117"}
 .bi-arrow-down::before{content:"\f128"}
