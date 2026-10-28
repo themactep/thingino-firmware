@@ -1,0 +1,13 @@
+config BR2_PACKAGE_THINGINO_RAPTOR_CONFIG
+	bool "Raptor configuration (raptor.conf)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR
+	help
+	  Renders /etc/raptor.conf from a dedicated Kconfig, kept out of the
+	  camera defconfig. Edit with:
+
+	    make br-thingino-raptor-config-menuconfig
+	    make br-thingino-raptor-config-savedefconfig
+
+	  The per-camera delta lives in <camera>/raptor.fragment; shared
+	  defaults in configs/raptor/default.config.

@@ -1,0 +1,14 @@
+# Kconfig shim: the three targets Buildroot's pkg-kconfig invokes in a package
+# build dir. Frontend is Buildroot's own conf/mconf, so there is no extra
+# host dependency.
+export BR2_CONFIG = $(CURDIR)/.config
+export srctree = $(CURDIR)
+export RAPTOR_SENSOR_QTY RAPTOR_DEV_WEBCAM RAPTOR_IVS_DETECT RAPTOR_WEBRTC RAPTOR_RFS
+
+menuconfig:
+	$(MCONF) Kconfig
+olddefconfig:
+	$(CONF) --olddefconfig Kconfig
+savedefconfig:
+	$(CONF) --savedefconfig=defconfig Kconfig
+.PHONY: menuconfig olddefconfig savedefconfig

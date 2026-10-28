@@ -1,0 +1,37 @@
+THINGINO_RAPTOR_CONFIG_SITE_METHOD = local
+THINGINO_RAPTOR_CONFIG_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor-config
+THINGINO_RAPTOR_CONFIG_LICENSE = GPL-3.0
+
+# raptor installs the config/raptor.conf template this package then patches
+THINGINO_RAPTOR_CONFIG_DEPENDENCIES = thingino-raptor
+
+THINGINO_RAPTOR_CONFIG_SENSOR_QTY = $(or $(BR2_THINGINO_IMAGE_SENSOR_QTY),1)
+
+THINGINO_RAPTOR_CONFIG_KCONFIG_FILE = \
+	$(BR2_EXTERNAL_THINGINO_PATH)/configs/raptor/default.config
+THINGINO_RAPTOR_CONFIG_KCONFIG_FRAGMENT_FILES = \
+	$(wildcard $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/raptor.fragment)
+THINGINO_RAPTOR_CONFIG_KCONFIG_EDITORS = menuconfig
+THINGINO_RAPTOR_CONFIG_KCONFIG_SUPPORTS_DEFCONFIG = YES
+
+# Symbols the raptor Kconfig imports via "option env"; see Kconfig preamble.
+THINGINO_RAPTOR_CONFIG_KCONFIG_OPTS = \
+	-f Makefile.kconfig \
+	CONF=$(BUILD_DIR)/buildroot-config/conf \
+	MCONF=$(BUILD_DIR)/buildroot-config/mconf \
+	RAPTOR_SENSOR_QTY=$(THINGINO_RAPTOR_CONFIG_SENSOR_QTY) \
+	RAPTOR_DEV_WEBCAM=$(if $(BR2_THINGINO_DEV_WEBCAM),y,n) \
+	RAPTOR_IVS_DETECT=$(if $(BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT),y,n) \
+	RAPTOR_WEBRTC=$(if $(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),y,n) \
+	RAPTOR_RFS=$(if $(BR2_PACKAGE_THINGINO_RAPTOR_RFS),y,n)
+
+define THINGINO_RAPTOR_CONFIG_INSTALL_TARGET_CMDS
+	$(SHELL) $(@D)/gen-raptor-conf.sh $(@D)/.config $(@D)/conf-map \
+		$(TARGET_DIR)/etc/raptor.conf $(THINGINO_RAPTOR_CONFIG_SENSOR_QTY)
+endef
+
+$(eval $(kconfig-package))
+
+# _DIR is only defined by the eval above; mconf is built on demand by
+# Buildroot's own rule for the kconfig frontends.
+$(THINGINO_RAPTOR_CONFIG_DIR)/.kconfig_editor_menuconfig: | $(BUILD_DIR)/buildroot-config/mconf

@@ -158,6 +158,11 @@ Default on `master` is `raptor` (`BR2_PACKAGE_THINGINO_STREAMER_RAPTOR`).
 in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 `BR2_PACKAGE_THINGINO_STREAMER_RAPTOR=y` in a fragment.
 
+Raptor's runtime config (`/etc/raptor.conf`) has its own Kconfig and
+`.config`, not Buildroot symbols: `CAMERA=<cam> make raptor-menuconfig` and
+`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.fragment`.
+See [docs/dev/raptor-config.md](docs/dev/raptor-config.md).
+
 ## Firmware image
 
 Three flash types are supported:

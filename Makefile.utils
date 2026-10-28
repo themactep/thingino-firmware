@@ -12,6 +12,24 @@ br-%: check-config
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst br-,,$@)
 
+### Raptor runtime configuration (own Kconfig and .config)
+
+raptor-menuconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-menuconfig
+
+# Buildroot's own -update-defconfig refuses to run while KCONFIG_FRAGMENT_FILES
+# is set, so the minimal config is placed as the camera's fragment here.
+raptor-saveconfig: check-config
+	@$(TEAL) "$@"
+	$(BR2_MAKE) thingino-raptor-config-savedefconfig
+	@mkdir -p $(CAMERA_SUBDIR)/$(CAMERA)
+	@{ echo "# Raptor per-camera delta, merged over configs/raptor/default.config."; \
+	   echo "# Edit with: make CAMERA=$(CAMERA) raptor-menuconfig"; \
+	   cat $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig; \
+	 } > $(CAMERA_SUBDIR)/$(CAMERA)/raptor.fragment
+	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.fragment"
+
 # checkout buidroot submodule
 buildroot/Makefile:
 	@$(TEAL) "$@"

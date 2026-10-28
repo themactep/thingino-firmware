@@ -285,8 +285,6 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		ln -sf raptor-motion $(TARGET_DIR)/usr/sbin/motion; \
 	fi
 
-	# Patch raptor.conf with buildroot config overrides
-	$(call THINGINO_RAPTOR_PATCH_CONF)
 
 endef
 
@@ -314,6 +312,5 @@ define THINGINO_RAPTOR_INSTALL_SEND2COMMON
 endef
 THINGINO_RAPTOR_TARGET_FINALIZE_HOOKS += THINGINO_RAPTOR_INSTALL_SEND2COMMON
 
-include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 
 $(eval $(generic-package))

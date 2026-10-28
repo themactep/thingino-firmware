@@ -1,0 +1,2243 @@
+# Raptor runtime configuration. This file is the source of truth; it was
+# originally derived from the old package/thingino-raptor/Config.in.conf.
+#
+# Symbol names are the contract with configs/*/raptor.fragment, so renaming
+# one silently drops that setting from every camera that sets it.
+# Adding a setting means editing two files: this one and conf-map.
+# See docs/dev/raptor-config.md
+
+mainmenu "Raptor configuration"
+
+config RAPTOR_ENV_SENSOR_QTY
+	int
+	option env="RAPTOR_SENSOR_QTY"
+
+config RAPTOR_ENV_DEV_WEBCAM
+	string
+	option env="RAPTOR_DEV_WEBCAM"
+
+config RAPTOR_ENV_IVS_DETECT
+	string
+	option env="RAPTOR_IVS_DETECT"
+
+config RAPTOR_ENV_WEBRTC
+	string
+	option env="RAPTOR_WEBRTC"
+
+config RAPTOR_ENV_RFS
+	string
+	option env="RAPTOR_RFS"
+# Raptor configuration (raptor.conf)
+# Each setting maps to a raptor.conf key.
+# String settings: leave empty to use code default.
+# Bool settings: "default" leaves the line commented (code default).
+
+menu "Raptor configuration (raptor.conf)"
+
+menu "Sensor [sensor]"
+depends on RAPTOR_ENV_SENSOR_QTY < 2
+
+config RAPTOR_SENSOR_NAME
+	string "name (auto from procfs)"
+	default ""
+
+config RAPTOR_SENSOR_I2C_ADDR
+	string "i2c_addr (auto from procfs)"
+	default ""
+
+config RAPTOR_SENSOR_I2C_ADAPTER
+	string "i2c_adapter (auto from procfs, default 0)"
+	default ""
+
+config RAPTOR_SENSOR_FPS
+	string "fps (0=auto from procfs, default 25)"
+	default ""
+
+config RAPTOR_SENSOR_RST_GPIO
+	string "rst_gpio (-1=auto from procfs)"
+	default ""
+
+config RAPTOR_SENSOR_PWDN_GPIO
+	string "pwdn_gpio (-1=auto from procfs)"
+	default ""
+
+config RAPTOR_SENSOR_POWER_GPIO
+	string "power_gpio (default -1)"
+	default ""
+
+config RAPTOR_SENSOR_BOOT
+	string "boot - T40/T41 (0=linear, 1=WDR, 2=60fps)"
+	default ""
+
+config RAPTOR_SENSOR_MCLK
+	string "mclk - T40/T41 (0=MCLK0, 1=MCLK1, 2=MCLK2)"
+	default ""
+
+config RAPTOR_SENSOR_VIDEO_INTERFACE
+	string "video_interface (0=MIPI, 1=DVP)"
+	default ""
+
+config RAPTOR_SENSOR_ANTIFLICKER
+	string "antiflicker (0=off, 1=50Hz, 2=60Hz, default 2)"
+	default ""
+
+choice
+	prompt "low_latency (default false)"
+	default RAPTOR_SENSOR_LOW_LATENCY_TRUE if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default RAPTOR_SENSOR_LOW_LATENCY_DEFAULT
+
+config RAPTOR_SENSOR_LOW_LATENCY_DEFAULT
+	bool "default"
+
+config RAPTOR_SENSOR_LOW_LATENCY_TRUE
+	bool "true"
+
+config RAPTOR_SENSOR_LOW_LATENCY_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Sensor 0 [sensor0] (multi-sensor)"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_SENSOR0_NAME
+	string "name (sensor driver name)"
+	default ""
+
+config RAPTOR_SENSOR0_I2C_ADDR
+	string "i2c_addr"
+	default ""
+
+config RAPTOR_SENSOR0_I2C_ADAPTER
+	string "i2c_adapter (default 0)"
+	default ""
+
+config RAPTOR_SENSOR0_SENSOR_ID
+	string "sensor_id (default 0)"
+	default "0"
+
+config RAPTOR_SENSOR0_WIDTH
+	string "width (required for multi-sensor)"
+	default ""
+
+config RAPTOR_SENSOR0_HEIGHT
+	string "height (required for multi-sensor)"
+	default ""
+
+config RAPTOR_SENSOR0_FPS
+	string "fps (0=auto from procfs, default 25)"
+	default ""
+
+config RAPTOR_SENSOR0_RST_GPIO
+	string "rst_gpio (sensor reset GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR0_PWDN_GPIO
+	string "pwdn_gpio (sensor power-down GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR0_POWER_GPIO
+	string "power_gpio (sensor power GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR0_BOOT
+	string "boot (T40/T41: 0=linear, 1=WDR, 2=60fps crop)"
+	default ""
+
+config RAPTOR_SENSOR0_MCLK
+	string "mclk (T40/T41: 0=MCLK0, 1=MCLK1, 2=MCLK2)"
+	default ""
+
+config RAPTOR_SENSOR0_VIDEO_INTERFACE
+	string "video_interface (T40/T41: 0=MIPI CSI0, 1=MIPI CSI1, 2=DVP)"
+	default ""
+
+endmenu
+
+menu "Sensor 1 [sensor1] (multi-sensor)"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_SENSOR1_NAME
+	string "name (sensor driver name)"
+	default ""
+
+config RAPTOR_SENSOR1_I2C_ADDR
+	string "i2c_addr"
+	default ""
+
+config RAPTOR_SENSOR1_I2C_ADAPTER
+	string "i2c_adapter (default 0)"
+	default ""
+
+config RAPTOR_SENSOR1_SENSOR_ID
+	string "sensor_id (default 1)"
+	default "1"
+
+config RAPTOR_SENSOR1_WIDTH
+	string "width (required for multi-sensor)"
+	default ""
+
+config RAPTOR_SENSOR1_HEIGHT
+	string "height (required for multi-sensor)"
+	default ""
+
+config RAPTOR_SENSOR1_FPS
+	string "fps (0=auto, defaults to sensor0 fps)"
+	default ""
+
+config RAPTOR_SENSOR1_RST_GPIO
+	string "rst_gpio (sensor reset GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR1_PWDN_GPIO
+	string "pwdn_gpio (sensor power-down GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR1_POWER_GPIO
+	string "power_gpio (sensor power GPIO, -1 = none)"
+	default ""
+
+config RAPTOR_SENSOR1_BOOT
+	string "boot (T40/T41: 0=linear, 1=WDR, 2=60fps crop)"
+	default ""
+
+config RAPTOR_SENSOR1_MCLK
+	string "mclk (T40/T41: 0=MCLK0, 1=MCLK1, 2=MCLK2)"
+	default ""
+
+config RAPTOR_SENSOR1_VIDEO_INTERFACE
+	string "video_interface (T40/T41: 0=MIPI CSI0, 1=MIPI CSI1, 2=DVP)"
+	default ""
+
+endmenu
+
+menu "MIPI Switch [mipi_switch] (multi-sensor)"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_MIPI_SWITCH_ENABLED_DEFAULT
+
+config RAPTOR_MIPI_SWITCH_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_MIPI_SWITCH_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_MIPI_SWITCH_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_MIPI_SWITCH_GPIO
+	string "switch_gpio (GPIO controlling MIPI switch)"
+	default ""
+
+config RAPTOR_MIPI_SWITCH_MAIN_GSTATE
+	string "main_gstate (GPIO state for main sensor, default 0)"
+	default ""
+
+config RAPTOR_MIPI_SWITCH_SEC_GSTATE
+	string "sec_gstate (GPIO state for secondary sensor, default 1)"
+	default ""
+
+config RAPTOR_MIPI_SWITCH_GPIO2
+	string "switch_gpio2 (second MIPI switch GPIO, default 0)"
+	default ""
+
+endmenu
+
+menu "Stream 0 [stream0]"
+
+config RAPTOR_STREAM0_WIDTH
+	string "width (default: sensor width or 1920)"
+	default ""
+
+config RAPTOR_STREAM0_HEIGHT
+	string "height (default: sensor height or 1080)"
+	default ""
+
+config RAPTOR_STREAM0_FPS
+	string "fps (default 25)"
+	default ""
+
+config RAPTOR_STREAM0_CODEC
+	string "codec (h264/h265/jpeg, default h264)"
+	default ""
+
+config RAPTOR_STREAM0_PROFILE
+	string "profile (0=base, 1=main, 2=high, default 2)"
+	default ""
+
+config RAPTOR_STREAM0_BITRATE
+	string "bitrate (default 3000000)"
+	default ""
+
+config RAPTOR_STREAM0_MAX_BITRATE
+	string "max_bitrate (0=auto, default 0)"
+	default ""
+
+config RAPTOR_STREAM0_RC_MODE
+	string "rc_mode (cbr/vbr/capped_vbr/capped_quality/fixqp, default cbr)"
+	default ""
+
+config RAPTOR_STREAM0_GOP
+	string "gop (default 30)"
+	default ""
+
+config RAPTOR_STREAM0_MIN_QP
+	string "min_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_STREAM0_MAX_QP
+	string "max_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_STREAM0_INIT_QP
+	string "init_qp (-1=SDK default, required for fixqp, range 0-51)"
+	default ""
+
+config RAPTOR_STREAM0_NR_VBS
+	string "nr_vbs (default 2)"
+	default ""
+
+choice
+	prompt "ivdc (default false)"
+	default RAPTOR_STREAM0_IVDC_DEFAULT
+
+config RAPTOR_STREAM0_IVDC_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM0_IVDC_TRUE
+	bool "true"
+
+config RAPTOR_STREAM0_IVDC_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "osd_enabled (default true)"
+	default RAPTOR_STREAM0_OSD_ENABLED_DEFAULT
+
+config RAPTOR_STREAM0_OSD_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM0_OSD_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_STREAM0_OSD_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "jpeg snapshot (default true)"
+	default RAPTOR_STREAM0_JPEG_DEFAULT
+
+config RAPTOR_STREAM0_JPEG_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM0_JPEG_TRUE
+	bool "true"
+
+config RAPTOR_STREAM0_JPEG_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_STREAM0_JPEG_QUALITY
+	string "jpeg_quality (override [jpeg] quality)"
+	default ""
+
+config RAPTOR_STREAM0_JPEG_FPS
+	string "jpeg_fps (override [jpeg] fps)"
+	default ""
+
+endmenu
+
+menu "Stream 1 [stream1]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_STREAM1_ENABLED_DEFAULT
+
+config RAPTOR_STREAM1_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM1_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_STREAM1_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_STREAM1_WIDTH
+	string "width (default 640)"
+	default ""
+
+config RAPTOR_STREAM1_HEIGHT
+	string "height (default 360)"
+	default ""
+
+config RAPTOR_STREAM1_FPS
+	string "fps (default 25)"
+	default ""
+
+config RAPTOR_STREAM1_CODEC
+	string "codec (h264/h265/jpeg, default h264)"
+	default ""
+
+config RAPTOR_STREAM1_PROFILE
+	string "profile (0=base, 1=main, 2=high, default 2)"
+	default ""
+
+config RAPTOR_STREAM1_BITRATE
+	string "bitrate (default 1000000)"
+	default ""
+
+config RAPTOR_STREAM1_MAX_BITRATE
+	string "max_bitrate (0=auto, default 0)"
+	default ""
+
+config RAPTOR_STREAM1_RC_MODE
+	string "rc_mode (cbr/vbr/capped_vbr/capped_quality/fixqp, default cbr)"
+	default ""
+
+config RAPTOR_STREAM1_GOP
+	string "gop (default 30)"
+	default ""
+
+config RAPTOR_STREAM1_MIN_QP
+	string "min_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_STREAM1_MAX_QP
+	string "max_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_STREAM1_INIT_QP
+	string "init_qp (-1=SDK default, required for fixqp, range 0-51)"
+	default ""
+
+config RAPTOR_STREAM1_NR_VBS
+	string "nr_vbs (default 2)"
+	default ""
+
+choice
+	prompt "ivdc (default false)"
+	default RAPTOR_STREAM1_IVDC_DEFAULT
+
+config RAPTOR_STREAM1_IVDC_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM1_IVDC_TRUE
+	bool "true"
+
+config RAPTOR_STREAM1_IVDC_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "osd_enabled (default true)"
+	default RAPTOR_STREAM1_OSD_ENABLED_DEFAULT
+
+config RAPTOR_STREAM1_OSD_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM1_OSD_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_STREAM1_OSD_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "jpeg snapshot (default true)"
+	default RAPTOR_STREAM1_JPEG_DEFAULT
+
+config RAPTOR_STREAM1_JPEG_DEFAULT
+	bool "default"
+
+config RAPTOR_STREAM1_JPEG_TRUE
+	bool "true"
+
+config RAPTOR_STREAM1_JPEG_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_STREAM1_JPEG_QUALITY
+	string "jpeg_quality (override [jpeg] quality)"
+	default ""
+
+config RAPTOR_STREAM1_JPEG_FPS
+	string "jpeg_fps (override [jpeg] fps)"
+	default ""
+
+endmenu
+
+menu "Sensor 1 Stream 0 [sensor1_stream0]"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_S1S0_WIDTH
+	string "width (default: sensor width or 1920)"
+	default ""
+
+config RAPTOR_S1S0_HEIGHT
+	string "height (default: sensor height or 1080)"
+	default ""
+
+config RAPTOR_S1S0_FPS
+	string "fps (default 25)"
+	default ""
+
+config RAPTOR_S1S0_CODEC
+	string "codec (h264/h265/jpeg, default h264)"
+	default ""
+
+config RAPTOR_S1S0_PROFILE
+	string "profile (0=base, 1=main, 2=high, default 2)"
+	default ""
+
+config RAPTOR_S1S0_BITRATE
+	string "bitrate (default 2500000)"
+	default ""
+
+config RAPTOR_S1S0_RC_MODE
+	string "rc_mode (cbr/vbr/capped_vbr/capped_quality/fixqp, default cbr)"
+	default ""
+
+config RAPTOR_S1S0_GOP
+	string "gop (default 50)"
+	default ""
+
+config RAPTOR_S1S0_MIN_QP
+	string "min_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_S1S0_MAX_QP
+	string "max_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_S1S0_NR_VBS
+	string "nr_vbs (default 2)"
+	default ""
+
+choice
+	prompt "ivdc (default true for multi-sensor)"
+	default RAPTOR_S1S0_IVDC_DEFAULT
+
+config RAPTOR_S1S0_IVDC_DEFAULT
+	bool "default"
+
+config RAPTOR_S1S0_IVDC_TRUE
+	bool "true"
+
+config RAPTOR_S1S0_IVDC_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "osd_enabled (default true)"
+	default RAPTOR_S1S0_OSD_ENABLED_DEFAULT
+
+config RAPTOR_S1S0_OSD_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_S1S0_OSD_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_S1S0_OSD_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Sensor 1 Stream 1 [sensor1_stream1]"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_S1S1_ENABLED_DEFAULT
+
+config RAPTOR_S1S1_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_S1S1_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_S1S1_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_S1S1_WIDTH
+	string "width (default 640)"
+	default ""
+
+config RAPTOR_S1S1_HEIGHT
+	string "height (default 360)"
+	default ""
+
+config RAPTOR_S1S1_FPS
+	string "fps (default 25)"
+	default ""
+
+config RAPTOR_S1S1_CODEC
+	string "codec (h264/h265/jpeg, default h264)"
+	default ""
+
+config RAPTOR_S1S1_PROFILE
+	string "profile (0=base, 1=main, 2=high, default 2)"
+	default ""
+
+config RAPTOR_S1S1_BITRATE
+	string "bitrate (default 1000000)"
+	default ""
+
+config RAPTOR_S1S1_RC_MODE
+	string "rc_mode (cbr/vbr/capped_vbr/capped_quality/fixqp, default cbr)"
+	default ""
+
+config RAPTOR_S1S1_GOP
+	string "gop (default 50)"
+	default ""
+
+config RAPTOR_S1S1_MIN_QP
+	string "min_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_S1S1_MAX_QP
+	string "max_qp (-1=SDK default, default -1)"
+	default ""
+
+config RAPTOR_S1S1_NR_VBS
+	string "nr_vbs (default 2)"
+	default ""
+
+choice
+	prompt "osd_enabled (default true)"
+	default RAPTOR_S1S1_OSD_ENABLED_DEFAULT
+
+config RAPTOR_S1S1_OSD_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_S1S1_OSD_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_S1S1_OSD_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Image / ISP defaults [image]"
+
+config RAPTOR_IMAGE_BRIGHTNESS
+	string "brightness (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_CONTRAST
+	string "contrast (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_SATURATION
+	string "saturation (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_SHARPNESS
+	string "sharpness (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_HUE
+	string "hue (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_SINTER
+	string "sinter - spatial NR (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_TEMPER
+	string "temper - temporal NR (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_AE_COMP
+	string "ae_comp - AE compensation (0-255, default 128)"
+	default ""
+
+config RAPTOR_IMAGE_MAX_AGAIN
+	string "max_again - max analog gain (0-160, default 160)"
+	default ""
+
+config RAPTOR_IMAGE_MAX_DGAIN
+	string "max_dgain - max digital gain (0-160, default 80)"
+	default ""
+
+config RAPTOR_IMAGE_DPC_STRENGTH
+	string "dpc_strength - dead pixel correction (0-255, T23/T31)"
+	default ""
+
+config RAPTOR_IMAGE_DRC_STRENGTH
+	string "drc_strength - dynamic range (0-255, T21/T23/T31)"
+	default ""
+
+config RAPTOR_IMAGE_DEFOG_STRENGTH
+	string "defog_strength - dehaze (0-255, T23/T31)"
+	default ""
+
+config RAPTOR_IMAGE_HIGHLIGHT_DEPRESS
+	string "highlight_depress (0-255, default 0)"
+	default ""
+
+config RAPTOR_IMAGE_BACKLIGHT_COMP
+	string "backlight_comp (0-10, T23/T31, default 0)"
+	default ""
+
+config RAPTOR_IMAGE_HFLIP
+	string "hflip (0 or 1, default 0)"
+	default ""
+
+config RAPTOR_IMAGE_VFLIP
+	string "vflip (0 or 1, default 0)"
+	default ""
+
+endmenu
+
+menu "Sensor 1 Image [sensor1_image] (multi-sensor)"
+depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_S1_IMAGE_BRIGHTNESS
+	string "brightness (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_CONTRAST
+	string "contrast (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_SATURATION
+	string "saturation (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_SHARPNESS
+	string "sharpness (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_HUE
+	string "hue (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_SINTER
+	string "sinter (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_TEMPER
+	string "temper (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_AE_COMP
+	string "ae_comp (0-255, default 128)"
+	default ""
+
+config RAPTOR_S1_IMAGE_MAX_AGAIN
+	string "max_again (default 160)"
+	default ""
+
+config RAPTOR_S1_IMAGE_MAX_DGAIN
+	string "max_dgain (default 80)"
+	default ""
+
+config RAPTOR_S1_IMAGE_HFLIP
+	string "hflip (0 or 1, default 0)"
+	default ""
+
+config RAPTOR_S1_IMAGE_VFLIP
+	string "vflip (0 or 1, default 0)"
+	default ""
+
+endmenu
+
+menu "JPEG snapshots [jpeg]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_JPEG_ENABLED_DEFAULT
+
+config RAPTOR_JPEG_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_JPEG_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_JPEG_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_JPEG_QUALITY
+	string "quality (1-100, default 75)"
+	default ""
+
+config RAPTOR_JPEG_FPS
+	string "fps (default 1)"
+	default "25" if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default ""
+
+choice
+	prompt "bufshare (default false)"
+	default RAPTOR_JPEG_BUFSHARE_DEFAULT
+
+config RAPTOR_JPEG_BUFSHARE_DEFAULT
+	bool "default"
+
+config RAPTOR_JPEG_BUFSHARE_TRUE
+	bool "true"
+
+config RAPTOR_JPEG_BUFSHARE_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "idle (default true)"
+	default RAPTOR_JPEG_IDLE_FALSE if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default RAPTOR_JPEG_IDLE_DEFAULT
+
+config RAPTOR_JPEG_IDLE_DEFAULT
+	bool "default"
+
+config RAPTOR_JPEG_IDLE_TRUE
+	bool "true"
+
+config RAPTOR_JPEG_IDLE_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Ring buffers [ring]"
+
+choice
+	prompt "refmode - zero-copy (default true)"
+	default RAPTOR_RING_REFMODE_TRUE
+
+config RAPTOR_RING_REFMODE_DEFAULT
+	bool "default"
+
+config RAPTOR_RING_REFMODE_TRUE
+	bool "true"
+
+config RAPTOR_RING_REFMODE_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RING_MAIN_SLOTS
+	string "main_slots (default 32)"
+	default ""
+
+config RAPTOR_RING_MAIN_DATA_MB
+	string "main_data_mb (0=auto, default 0)"
+	default ""
+
+config RAPTOR_RING_SUB_SLOTS
+	string "sub_slots (default 32)"
+	default ""
+
+config RAPTOR_RING_SUB_DATA_MB
+	string "sub_data_mb (0=auto, default 0)"
+	default ""
+
+endmenu
+
+menu "Audio [audio]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_AUDIO_ENABLED_DEFAULT
+
+config RAPTOR_AUDIO_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_AUDIO_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_AUDIO_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_AUDIO_SAMPLE_RATE
+	string "sample_rate (default 16000)"
+	default ""
+
+config RAPTOR_AUDIO_CODEC
+	string "codec (pcmu/pcma/l16/aac/opus, default aac)"
+	default "l16" if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default "aac"
+
+config RAPTOR_AUDIO_OPUS_COMPLEXITY
+	string "opus_complexity (0-10, default 5)"
+	default ""
+
+config RAPTOR_AUDIO_BITRATE
+	string "bitrate - for aac/opus (default 128000)"
+	default ""
+
+config RAPTOR_AUDIO_VOLUME
+	string "volume (default 80)"
+	default ""
+
+config RAPTOR_AUDIO_GAIN
+	string "gain (default 25)"
+	default ""
+
+config RAPTOR_AUDIO_DEVICE
+	string "device number (default 1)"
+	default ""
+
+choice
+	prompt "ao_enabled - speaker/backchannel"
+	default RAPTOR_AUDIO_AO_ENABLED_FALSE if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default RAPTOR_AUDIO_AO_ENABLED_TRUE
+
+config RAPTOR_AUDIO_AO_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_AUDIO_AO_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_AUDIO_AO_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_AUDIO_AO_VOLUME
+	string "ao_volume (default 80)"
+	default ""
+
+config RAPTOR_AUDIO_AO_GAIN
+	string "ao_gain (default 25)"
+	default ""
+
+choice
+	prompt "ns_enabled - noise suppression (default false)"
+	default RAPTOR_AUDIO_NS_ENABLED_DEFAULT
+
+config RAPTOR_AUDIO_NS_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_AUDIO_NS_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_AUDIO_NS_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_AUDIO_NS_LEVEL
+	string "ns_level (low/moderate/high/veryhigh, default moderate)"
+	default ""
+
+choice
+	prompt "hpf_enabled - high-pass filter (default false)"
+	default RAPTOR_AUDIO_HPF_ENABLED_DEFAULT
+
+config RAPTOR_AUDIO_HPF_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_AUDIO_HPF_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_AUDIO_HPF_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "agc_enabled - auto gain control (default false)"
+	default RAPTOR_AUDIO_AGC_ENABLED_DEFAULT
+
+config RAPTOR_AUDIO_AGC_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_AUDIO_AGC_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_AUDIO_AGC_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_AUDIO_AGC_TARGET_DBFS
+	string "agc_target_dbfs (0-31, default 10)"
+	default ""
+
+config RAPTOR_AUDIO_AGC_COMPRESSION_DB
+	string "agc_compression_db (0-90, default 0)"
+	default ""
+
+endmenu
+
+menu "RTSP [rtsp]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_RTSP_ENABLED_DEFAULT
+
+config RAPTOR_RTSP_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_RTSP_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_RTSP_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RTSP_PORT
+	string "port (default 554)"
+	default ""
+
+config RAPTOR_RTSP_MAX_CLIENTS
+	string "max_clients (max 8, default 8)"
+	default "4"
+
+config RAPTOR_RTSP_ENDPOINT_MAIN
+	string "endpoint_main (default /stream0)"
+	default "ch0"
+
+config RAPTOR_RTSP_ENDPOINT_SUB
+	string "endpoint_sub (default /stream1)"
+	default "ch1"
+
+config RAPTOR_RTSP_ENDPOINT_S1_MAIN
+	string "endpoint_s1_main - sensor 1 main (default /stream2)"
+	default ""
+	depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_RTSP_ENDPOINT_S1_SUB
+	string "endpoint_s1_sub - sensor 1 sub (default /stream3)"
+	default ""
+	depends on RAPTOR_ENV_SENSOR_QTY > 1
+
+config RAPTOR_RTSP_ENDPOINT_S2_MAIN
+	string "endpoint_s2_main - sensor 2 main (default /stream4)"
+	default ""
+	depends on RAPTOR_ENV_SENSOR_QTY > 2
+
+config RAPTOR_RTSP_ENDPOINT_S2_SUB
+	string "endpoint_s2_sub - sensor 2 sub (default /stream5)"
+	default ""
+	depends on RAPTOR_ENV_SENSOR_QTY > 2
+
+config RAPTOR_RTSP_USERNAME
+	string "username (empty=no auth)"
+	default "thingino"
+
+config RAPTOR_RTSP_PASSWORD
+	string "password (empty=no auth)"
+	default "thingino"
+
+choice
+	prompt "tls (default false)"
+	default RAPTOR_RTSP_TLS_DEFAULT
+
+config RAPTOR_RTSP_TLS_DEFAULT
+	bool "default"
+
+config RAPTOR_RTSP_TLS_TRUE
+	bool "true"
+
+config RAPTOR_RTSP_TLS_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RTSP_TLS_CERT
+	string "tls_cert path"
+	default ""
+
+config RAPTOR_RTSP_TLS_KEY
+	string "tls_key path"
+	default ""
+
+config RAPTOR_RTSP_SESSION_NAME
+	string "session_name (default Raptor Live)"
+	default ""
+
+config RAPTOR_RTSP_SESSION_INFO
+	string "session_info"
+	default ""
+
+config RAPTOR_RTSP_SESSION_TIMEOUT
+	string "session_timeout seconds (default 60)"
+	default ""
+
+config RAPTOR_RTSP_TCP_SNDBUF
+	string "tcp_sndbuf bytes (default 65536)"
+	default ""
+
+choice
+	prompt "backchannel - two-way audio (default true)"
+	default RAPTOR_RTSP_BACKCHANNEL_TRUE
+	help
+	  RTSP backchannel for two-way audio (ONVIF Profile T).
+	  Clients can send PCMU, PCMA, opus, AAC or L16 audio to the
+	  camera speaker (the client picks by sending; TCP or UDP).
+
+config RAPTOR_RTSP_BACKCHANNEL_DEFAULT
+	bool "default"
+
+config RAPTOR_RTSP_BACKCHANNEL_TRUE
+	bool "true"
+
+config RAPTOR_RTSP_BACKCHANNEL_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RTSP_BACKCHANNEL_CODECS
+	string "backchannel_codecs (empty = all)"
+	default ""
+	help
+	  Restrict the offered talk-back codecs, e.g. "pcmu,opus".
+	  Empty offers everything the build carries. PCMU is the ONVIF
+	  Profile T baseline; excluding it is honored but warned.
+
+choice
+	prompt "sei_timecode - per-frame UTC timecode SEI (default false)"
+	default RAPTOR_RTSP_SEI_TIMECODE_DEFAULT
+	help
+	  Embed a MISB ST 0604 Precision Time Stamp SEI (absolute UTC
+	  capture time, microsecond precision) in every H.264/H.265
+	  frame sent to RTSP clients. ~36 bytes/frame; survives
+	  client-side copy recording (ffmpeg, NVRs).
+
+config RAPTOR_RTSP_SEI_TIMECODE_DEFAULT
+	bool "default"
+
+config RAPTOR_RTSP_SEI_TIMECODE_TRUE
+	bool "true"
+
+config RAPTOR_RTSP_SEI_TIMECODE_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "HTTP [http]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_HTTP_ENABLED_DEFAULT
+
+config RAPTOR_HTTP_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_HTTP_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_HTTP_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_HTTP_PORT
+	string "port (default 8443)"
+	default "8443"
+
+config RAPTOR_HTTP_MAX_CLIENTS
+	string "max_clients (max 8, default 8)"
+	default "4"
+
+config RAPTOR_HTTP_USERNAME
+	string "username (empty=no auth)"
+	default "thingino"
+
+config RAPTOR_HTTP_PASSWORD
+	string "password (empty=no auth)"
+	default "thingino"
+
+choice
+	prompt "https (default false)"
+	default RAPTOR_HTTP_HTTPS_TRUE
+
+config RAPTOR_HTTP_HTTPS_DEFAULT
+	bool "default"
+
+config RAPTOR_HTTP_HTTPS_TRUE
+	bool "true"
+
+config RAPTOR_HTTP_HTTPS_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_HTTP_CERT
+	string "cert path (default /etc/ssl/certs/uhttpd.crt)"
+	default ""
+
+config RAPTOR_HTTP_KEY
+	string "key path (default /etc/ssl/private/uhttpd.key)"
+	default ""
+
+choice
+	prompt "exif_timestamp - EXIF capture time in JPEGs (default false)"
+	default RAPTOR_HTTP_EXIF_TIMESTAMP_DEFAULT
+	help
+	  Embed the frame capture time (UTC, microsecond precision) as
+	  an EXIF DateTimeOriginal segment in /snap.jpg snapshots and
+	  MJPEG stream frames.
+
+config RAPTOR_HTTP_EXIF_TIMESTAMP_DEFAULT
+	bool "default"
+
+config RAPTOR_HTTP_EXIF_TIMESTAMP_TRUE
+	bool "true"
+
+config RAPTOR_HTTP_EXIF_TIMESTAMP_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "sign_snapshots - Ed25519-sign snapshots (default false)"
+	default RAPTOR_HTTP_SIGN_SNAPSHOTS_DEFAULT
+	help
+	  Append an Ed25519 provenance signature to /snap.jpg using the
+	  device signing key ([recording] sign_key, shared with RMR).
+	  Verify with rverify.
+
+config RAPTOR_HTTP_SIGN_SNAPSHOTS_DEFAULT
+	bool "default"
+
+config RAPTOR_HTTP_SIGN_SNAPSHOTS_TRUE
+	bool "true"
+
+config RAPTOR_HTTP_SIGN_SNAPSHOTS_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "OSD global [osd]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_OSD_ENABLED_DEFAULT
+
+config RAPTOR_OSD_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_OSD_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "isp_osd (default false)"
+	default RAPTOR_OSD_ISP_OSD_DEFAULT
+
+config RAPTOR_OSD_ISP_OSD_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_ISP_OSD_TRUE
+	bool "true"
+
+config RAPTOR_OSD_ISP_OSD_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_OSD_FONT
+	string "font path (default /usr/share/fonts/default.ttf)"
+	default ""
+
+config RAPTOR_OSD_FONT_SIZE
+	string "font_size (default 24)"
+	default ""
+
+config RAPTOR_OSD_FONT_COLOR
+	string "font_color (default 0xFFFFFFFF)"
+	default ""
+
+config RAPTOR_OSD_FONT_STROKE
+	string "font_stroke (default 1)"
+	default ""
+
+config RAPTOR_OSD_STROKE_COLOR
+	string "stroke_color (default 0xFF000000)"
+	default ""
+
+config RAPTOR_OSD_TIME_FORMAT
+	string "time_format (default %Y-%m-%d %H:%M:%S)"
+	default ""
+
+config RAPTOR_OSD_PRIVACY_COLOR
+	string "privacy_color (default 0xFF000000)"
+	default ""
+
+endmenu
+
+menu "OSD timestamp [osd.timestamp]"
+
+choice
+	prompt "visible (default true)"
+	default RAPTOR_OSD_TIMESTAMP_VISIBLE_TRUE
+
+config RAPTOR_OSD_TIMESTAMP_VISIBLE_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_TIMESTAMP_VISIBLE_TRUE
+	bool "true"
+
+config RAPTOR_OSD_TIMESTAMP_VISIBLE_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_OSD_TIMESTAMP_TEMPLATE
+	string "template (default %time%)"
+	default ""
+
+config RAPTOR_OSD_TIMESTAMP_POSITION
+	string "position (default top_left)"
+	default ""
+
+config RAPTOR_OSD_TIMESTAMP_MAX_CHARS
+	string "max_chars (default 22)"
+	default ""
+
+endmenu
+
+menu "OSD uptime [osd.uptime]"
+
+choice
+	prompt "visible (default true)"
+	default RAPTOR_OSD_UPTIME_VISIBLE_TRUE
+
+config RAPTOR_OSD_UPTIME_VISIBLE_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_UPTIME_VISIBLE_TRUE
+	bool "true"
+
+config RAPTOR_OSD_UPTIME_VISIBLE_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_OSD_UPTIME_TEMPLATE
+	string "template (default %uptime%)"
+	default ""
+
+config RAPTOR_OSD_UPTIME_POSITION
+	string "position (default top_right)"
+	default ""
+
+config RAPTOR_OSD_UPTIME_MAX_CHARS
+	string "max_chars (default 18)"
+	default ""
+
+endmenu
+
+menu "OSD camera name [osd.camera]"
+
+choice
+	prompt "visible (default true)"
+	default RAPTOR_OSD_CAMERA_VISIBLE_TRUE
+
+config RAPTOR_OSD_CAMERA_VISIBLE_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_CAMERA_VISIBLE_TRUE
+	bool "true"
+
+config RAPTOR_OSD_CAMERA_VISIBLE_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_OSD_CAMERA_TEMPLATE
+	string "template (default Camera)"
+	default ""
+
+config RAPTOR_OSD_CAMERA_POSITION
+	string "position (default top_center)"
+	default ""
+
+config RAPTOR_OSD_CAMERA_MAX_CHARS
+	string "max_chars (default 14)"
+	default ""
+
+endmenu
+
+menu "OSD logo [osd.logo]"
+
+choice
+	prompt "visible (default true)"
+	default RAPTOR_OSD_LOGO_VISIBLE_TRUE
+
+config RAPTOR_OSD_LOGO_VISIBLE_DEFAULT
+	bool "default"
+
+config RAPTOR_OSD_LOGO_VISIBLE_TRUE
+	bool "true"
+
+config RAPTOR_OSD_LOGO_VISIBLE_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_OSD_LOGO_PATH
+	string "path (default /usr/share/images/thingino_100x30.bgra)"
+	default ""
+
+config RAPTOR_OSD_LOGO_WIDTH
+	string "width (default 100)"
+	default ""
+
+config RAPTOR_OSD_LOGO_HEIGHT
+	string "height (default 30)"
+	default ""
+
+config RAPTOR_OSD_LOGO_POSITION
+	string "position (default bottom_right)"
+	default ""
+
+endmenu
+
+menu "IR-cut [ircut]"
+
+choice
+	prompt "enabled (default true)"
+	default RAPTOR_IRCUT_ENABLED_DEFAULT
+
+config RAPTOR_IRCUT_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_IRCUT_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_IRCUT_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_IRCUT_MODE
+	string "mode (auto/day/night, default auto)"
+	default ""
+
+config RAPTOR_IRCUT_TRIGGER
+	string "trigger (luma/gain/adc/photo, default luma)"
+	default ""
+
+config RAPTOR_IRCUT_NIGHT_LUMA
+	string "night_luma (0-255, default 20)"
+	default ""
+
+config RAPTOR_IRCUT_NIGHT_GAIN
+	string "night_gain (default 80000)"
+	default ""
+
+config RAPTOR_IRCUT_DAY_GAIN_PCT
+	string "day_gain_pct (default 25)"
+	default ""
+
+config RAPTOR_IRCUT_NIGHT_FPS
+	string "night_fps (night sensor rate, 0 = off, default 0)"
+	default ""
+	help
+	  Sensor rate while in night mode. Frame period bounds
+	  integration time, so a lower rate lets AE trade gain
+	  (noise) for photons; the boot rate is restored on day.
+	  Encoder rate control and GOP follow so IDR spacing holds
+	  in seconds. With trigger=gain, calibrate day_threshold
+	  with this enabled.
+
+config RAPTOR_IRCUT_ADC_CHANNEL
+	string "adc_channel (default 0)"
+	default ""
+
+config RAPTOR_IRCUT_ADC_NIGHT
+	string "adc_night (default 200)"
+	default ""
+
+config RAPTOR_IRCUT_ADC_DAY
+	string "adc_day (default 600)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_EV_DAY
+	string "photo_ev_day (photo trigger, default 188000)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_EV_1LUX
+	string "photo_ev_1lux (photo trigger, default 10000)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_EV_3LUX
+	string "photo_ev_3lux (photo trigger, default 3000)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_EV_6LUX
+	string "photo_ev_6lux (photo trigger, default 1200)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_RGAIN_REC
+	string "photo_rgain_rec (photo trigger, default 250)"
+	default ""
+
+config RAPTOR_IRCUT_PHOTO_BGAIN_REC
+	string "photo_bgain_rec (photo trigger, default 187)"
+	default ""
+
+config RAPTOR_IRCUT_NIGHT_THRESHOLD
+	string "night_threshold (gain trigger, default 40000)"
+	default ""
+
+config RAPTOR_IRCUT_DAY_THRESHOLD
+	string "day_threshold (gain trigger, default 25000)"
+	default ""
+
+config RAPTOR_IRCUT_HYSTERESIS_SEC
+	string "hysteresis_sec (default 5)"
+	default ""
+
+config RAPTOR_IRCUT_POLL_INTERVAL_MS
+	string "poll_interval_ms (default 1000)"
+	default ""
+
+config RAPTOR_IRCUT_GPIO_IRCUT
+	string "gpio_ircut (-1=auto, default -1)"
+	default ""
+
+config RAPTOR_IRCUT_GPIO_IRCUT2
+	string "gpio_ircut2 (default -1)"
+	default ""
+
+config RAPTOR_IRCUT_GPIO_IRLED
+	string "gpio_irled - 850nm LED pin (-1=auto, default -1)"
+	default ""
+
+config RAPTOR_IRCUT_GPIO_IRLED2
+	string "gpio_irled2 - 940nm LED pin (-1=auto, default -1)"
+	default ""
+
+config RAPTOR_IRCUT_PULSE_MS
+	string "pulse_ms - dual-GPIO coil pulse width in ms (1-1000, default 10)"
+	default ""
+
+choice
+	prompt "ir850 - enable 850nm IR LED (default true)"
+	default RAPTOR_IRCUT_IR850_DEFAULT
+
+config RAPTOR_IRCUT_IR850_DEFAULT
+	bool "default"
+
+config RAPTOR_IRCUT_IR850_TRUE
+	bool "true"
+
+config RAPTOR_IRCUT_IR850_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "ir940 - enable 940nm IR LED (default false)"
+	default RAPTOR_IRCUT_IR940_DEFAULT
+
+config RAPTOR_IRCUT_IR940_DEFAULT
+	bool "default"
+
+config RAPTOR_IRCUT_IR940_TRUE
+	bool "true"
+
+config RAPTOR_IRCUT_IR940_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Recording [recording]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_RECORDING_ENABLED_DEFAULT
+
+config RAPTOR_RECORDING_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_RECORDING_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_RECORDING_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RECORDING_MODE
+	string "mode (continuous/motion/both, default continuous)"
+	default ""
+
+config RAPTOR_RECORDING_STREAM
+	string "stream index (default 0)"
+	default ""
+
+choice
+	prompt "audio (default true)"
+	default RAPTOR_RECORDING_AUDIO_DEFAULT
+
+config RAPTOR_RECORDING_AUDIO_DEFAULT
+	bool "default"
+
+config RAPTOR_RECORDING_AUDIO_TRUE
+	bool "true"
+
+config RAPTOR_RECORDING_AUDIO_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RECORDING_SEGMENT_MINUTES
+	string "segment_minutes (default 5)"
+	default ""
+
+config RAPTOR_RECORDING_STORAGE_PATH
+	string "storage_path (default /mnt/mmcblk0p1/raptor)"
+	default ""
+
+config RAPTOR_RECORDING_MAX_STORAGE_MB
+	string "max_storage_mb (0=unlimited, default 0)"
+	default ""
+
+config RAPTOR_RECORDING_PREBUFFER_SEC
+	string "prebuffer_sec (0-5, default 5)"
+	default ""
+
+config RAPTOR_RECORDING_CLIP_LENGTH_SEC
+	string "clip_length_sec (default 60)"
+	default ""
+
+config RAPTOR_RECORDING_CLIP_MAX_MB
+	string "clip_max_mb (default 100)"
+	default ""
+
+choice
+	prompt "sei_timecode - per-frame UTC timecode SEI (default false)"
+	default RAPTOR_RECORDING_SEI_TIMECODE_DEFAULT
+	help
+	  Embed a MISB ST 0604 Precision Time Stamp SEI (absolute UTC
+	  capture time, microsecond precision) in every recorded
+	  H.264/H.265 frame. Pre-buffered motion footage keeps its true
+	  capture time.
+
+config RAPTOR_RECORDING_SEI_TIMECODE_DEFAULT
+	bool "default"
+
+config RAPTOR_RECORDING_SEI_TIMECODE_TRUE
+	bool "true"
+
+config RAPTOR_RECORDING_SEI_TIMECODE_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "sign - provenance signing (default false)"
+	default RAPTOR_RECORDING_SIGN_DEFAULT
+	help
+	  Sign recordings with an Ed25519 hash chain (uuid boxes per
+	  fragment). Tampering, frame removal, and truncation are
+	  detectable with rverify and the device public key. Device key
+	  is generated on first use. Costs ~2% CPU per Mbps recorded on
+	  T20-class SoCs.
+
+config RAPTOR_RECORDING_SIGN_DEFAULT
+	bool "default"
+
+config RAPTOR_RECORDING_SIGN_TRUE
+	bool "true"
+
+config RAPTOR_RECORDING_SIGN_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_RECORDING_SIGN_KEY
+	string "sign_key path (default /etc/raptor/sign_ed25519.key)"
+	default ""
+
+endmenu
+
+menu "Timelapse [timelapse]"
+
+choice
+	prompt "enabled"
+	default RAPTOR_TIMELAPSE_ENABLED_DEFAULT
+
+config RAPTOR_TIMELAPSE_ENABLED_DEFAULT
+	bool "default (false)"
+
+config RAPTOR_TIMELAPSE_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_TIMELAPSE_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_TIMELAPSE_INTERVAL
+	string "interval seconds (default 10, min 2)"
+	default ""
+
+config RAPTOR_TIMELAPSE_PLAYBACK_FPS
+	string "playback_fps (default 30, 1-120; live change rotates the file)"
+	default ""
+
+config RAPTOR_TIMELAPSE_FILE_FRAMES
+	string "file_frames (default 0 = one file per day; N >= 60 rotates per N frames)"
+	default ""
+
+config RAPTOR_TIMELAPSE_MAX_MB
+	string "max_mb quota for <storage_path>/timelapse (default 2048, 0 = unlimited)"
+	default ""
+
+endmenu
+
+menu "WebRTC [webrtc]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_WEBRTC_ENABLED_TRUE if (RAPTOR_ENV_WEBRTC = "y")
+	default RAPTOR_WEBRTC_ENABLED_DEFAULT
+
+config RAPTOR_WEBRTC_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBRTC_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_WEBRTC_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBRTC_UDP_PORT
+	string "udp_port (default 8443)"
+	default ""
+
+config RAPTOR_WEBRTC_HTTP_PORT
+	string "http_port (default 8554)"
+	default ""
+
+config RAPTOR_WEBRTC_MAX_CLIENTS
+	string "max_clients (default 2)"
+	default ""
+
+config RAPTOR_WEBRTC_CERT
+	string "cert path"
+	default "/etc/ssl/certs/uhttpd.crt"
+
+config RAPTOR_WEBRTC_KEY
+	string "key path"
+	default "/etc/ssl/private/uhttpd.key"
+
+choice
+	prompt "https (default true)"
+	default RAPTOR_WEBRTC_HTTPS_DEFAULT
+
+config RAPTOR_WEBRTC_HTTPS_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBRTC_HTTPS_TRUE
+	bool "true"
+
+config RAPTOR_WEBRTC_HTTPS_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBRTC_LOCAL_IP
+	string "local_ip (empty=auto-detect)"
+	default ""
+
+choice
+	prompt "audio_mode (default opus)"
+	default RAPTOR_WEBRTC_AUDIO_MODE_DEFAULT
+
+config RAPTOR_WEBRTC_AUDIO_MODE_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBRTC_AUDIO_MODE_OPUS
+	bool "opus"
+
+config RAPTOR_WEBRTC_AUDIO_MODE_AUTO
+	bool "auto"
+
+config RAPTOR_WEBRTC_AUDIO_MODE_PCMU
+	bool "pcmu"
+
+endchoice
+
+config RAPTOR_WEBRTC_OPUS_COMPLEXITY
+	string "opus_complexity (0-10, default 2)"
+	default ""
+
+config RAPTOR_WEBRTC_OPUS_BITRATE
+	string "opus_bitrate (default 64000)"
+	default ""
+
+config RAPTOR_WEBRTC_USERNAME
+	string "username (empty=no auth)"
+	default "thingino"
+
+config RAPTOR_WEBRTC_PASSWORD
+	string "password (empty=no auth)"
+	default "thingino"
+
+endmenu
+
+menu "Webcam [webcam]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_WEBCAM_ENABLED_TRUE if (RAPTOR_ENV_DEV_WEBCAM = "y")
+	default RAPTOR_WEBCAM_ENABLED_DEFAULT
+
+config RAPTOR_WEBCAM_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBCAM_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_WEBCAM_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBCAM_DEVICE
+	string "device (default /dev/video0)"
+	default ""
+
+config RAPTOR_WEBCAM_JPEG_STREAM
+	string "jpeg_stream (default jpeg0)"
+	default ""
+
+config RAPTOR_WEBCAM_H264_STREAM
+	string "h264_stream (default video0)"
+	default ""
+
+config RAPTOR_WEBCAM_BUFFERS
+	string "buffers (default 4)"
+	default ""
+
+choice
+	prompt "audio (default true)"
+	default RAPTOR_WEBCAM_AUDIO_DEFAULT
+
+config RAPTOR_WEBCAM_AUDIO_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBCAM_AUDIO_TRUE
+	bool "true"
+
+config RAPTOR_WEBCAM_AUDIO_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBCAM_AUDIO_STREAM
+	string "audio_stream (default audio)"
+	default ""
+
+endmenu
+
+menu "WebTorrent [webtorrent]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_WEBTORRENT_ENABLED_DEFAULT
+
+config RAPTOR_WEBTORRENT_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBTORRENT_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_WEBTORRENT_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBTORRENT_TRACKER
+	string "tracker URL"
+	default ""
+
+config RAPTOR_WEBTORRENT_STUN_SERVER
+	string "stun_server (default stun.l.google.com)"
+	default ""
+
+config RAPTOR_WEBTORRENT_STUN_PORT
+	string "stun_port (default 19302)"
+	default ""
+
+choice
+	prompt "tls_verify (default true)"
+	default RAPTOR_WEBTORRENT_TLS_VERIFY_DEFAULT
+
+config RAPTOR_WEBTORRENT_TLS_VERIFY_DEFAULT
+	bool "default"
+
+config RAPTOR_WEBTORRENT_TLS_VERIFY_TRUE
+	bool "true"
+
+config RAPTOR_WEBTORRENT_TLS_VERIFY_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_WEBTORRENT_VIEWER_URL
+	string "viewer_url"
+	default ""
+
+config RAPTOR_WEBTORRENT_SHARE_KEY
+	string "share_key (empty=auto-generated)"
+	default ""
+
+endmenu
+
+menu "Motion detection [motion]"
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_MOTION_ENABLED_DEFAULT
+
+config RAPTOR_MOTION_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_MOTION_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_MOTION_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_MOTION_ALGORITHM
+	string "algorithm (move/base_move/persondet/yolo, default move)"
+	default ""
+
+config RAPTOR_MOTION_SENSITIVITY
+	string "sensitivity (move: 0-4, persondet: 0-5, default 3)"
+	default ""
+
+config RAPTOR_MOTION_GRID
+	string "grid (default 4x4)"
+	default ""
+
+config RAPTOR_MOTION_COOLDOWN_SEC
+	string "cooldown_sec (default 10)"
+	default ""
+
+config RAPTOR_MOTION_POLL_INTERVAL_MS
+	string "poll_interval_ms (default 500)"
+	default ""
+
+config RAPTOR_MOTION_SKIP_FRAMES
+	string "skip_frames (default 5)"
+	default ""
+
+choice
+	prompt "record (default true)"
+	default RAPTOR_MOTION_RECORD_DEFAULT
+
+config RAPTOR_MOTION_RECORD_DEFAULT
+	bool "default"
+
+config RAPTOR_MOTION_RECORD_TRUE
+	bool "true"
+
+config RAPTOR_MOTION_RECORD_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_MOTION_RECORD_POST_SEC
+	string "record_post_sec (default 30)"
+	default ""
+
+config RAPTOR_MOTION_GPIO_PIN
+	string "gpio_pin (-1=disabled, default -1)"
+	default ""
+
+config RAPTOR_MOTION_DET_DISTANCE
+	string "det_distance (persondet only: 0=6m 1=8m 2=10m 3=11m 4=13m, default 2)"
+	default ""
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+choice
+	prompt "motion_trigger (persondet only, default false)"
+	default RAPTOR_MOTION_TRIGGER_DEFAULT
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+config RAPTOR_MOTION_TRIGGER_DEFAULT
+	bool "default"
+
+config RAPTOR_MOTION_TRIGGER_TRUE
+	bool "true"
+
+config RAPTOR_MOTION_TRIGGER_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_MOTION_MODEL
+	string "model path (yolo only, default /usr/share/models/magik_model_yolov5.bin)"
+	default ""
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+config RAPTOR_MOTION_NUM_CLASSES
+	string "num_classes (yolo only, default 4)"
+	default ""
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+config RAPTOR_MOTION_CONF_THRESHOLD
+	string "conf_threshold (yolo only, 0-100, default 40)"
+	default ""
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+config RAPTOR_MOTION_NMS_THRESHOLD
+	string "nms_threshold (yolo only, 0-100, default 50)"
+	default ""
+	depends on (RAPTOR_ENV_IVS_DETECT = "y")
+
+endmenu
+
+menu "File source [filesource]"
+depends on (RAPTOR_ENV_RFS = "y")
+
+choice
+	prompt "enabled (default false)"
+	default RAPTOR_FILESOURCE_ENABLED_DEFAULT
+
+config RAPTOR_FILESOURCE_ENABLED_DEFAULT
+	bool "default"
+
+config RAPTOR_FILESOURCE_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_FILESOURCE_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_FILESOURCE_VIDEO_FILE
+	string "video_file (path to .mp4/.h264/.h265)"
+	default ""
+
+config RAPTOR_FILESOURCE_AUDIO_FILE
+	string "audio_file (path to .pcm, ignored for MP4)"
+	default ""
+
+config RAPTOR_FILESOURCE_CODEC
+	string "codec (auto/h264/h265, default auto)"
+	default ""
+
+config RAPTOR_FILESOURCE_FPS
+	string "fps (default 25, ignored for MP4)"
+	default ""
+
+choice
+	prompt "loop (default true)"
+	default RAPTOR_FILESOURCE_LOOP_DEFAULT
+
+config RAPTOR_FILESOURCE_LOOP_DEFAULT
+	bool "default"
+
+config RAPTOR_FILESOURCE_LOOP_TRUE
+	bool "true"
+
+config RAPTOR_FILESOURCE_LOOP_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_FILESOURCE_AUDIO_CODEC
+	string "audio_codec (l16/pcmu/pcma/aac/opus, default l16)"
+	default ""
+
+config RAPTOR_FILESOURCE_AUDIO_SAMPLE_RATE
+	string "audio_sample_rate (default 16000)"
+	default ""
+
+endmenu
+
+menu "Stream Push [push]"
+
+choice
+	prompt "enabled"
+	default RAPTOR_PUSH_ENABLED_DEFAULT
+
+config RAPTOR_PUSH_ENABLED_DEFAULT
+	bool "default (false)"
+
+config RAPTOR_PUSH_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_PUSH_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_PUSH_URL
+	string "url (rtmp[s]://host/app/key or udp://host:port)"
+	default ""
+	help
+	  RTMP or RTMPS ingest URL with stream key, or a udp:// target
+	  for raw RTP push to a relay or custom receiver (video only,
+	  no session; the receiver is told the codec out of band).
+	  Examples:
+	    rtmps://a.rtmps.youtube.com/live2/xxxx-xxxx-xxxx
+	    rtmp://live.twitch.tv/app/live_xxxxx
+	    udp://192.168.1.50:5600
+	    udp://[fd00::50]:5600
+
+config RAPTOR_PUSH_STREAM
+	string "stream (0=main, 1=sub)"
+	default ""
+
+choice
+	prompt "audio"
+	default RAPTOR_PUSH_AUDIO_DEFAULT
+
+config RAPTOR_PUSH_AUDIO_DEFAULT
+	bool "default (true)"
+
+config RAPTOR_PUSH_AUDIO_TRUE
+	bool "true"
+
+config RAPTOR_PUSH_AUDIO_FALSE
+	bool "false"
+
+endchoice
+
+choice
+	prompt "autostart"
+	default RAPTOR_PUSH_AUTOSTART_DEFAULT
+
+config RAPTOR_PUSH_AUTOSTART_DEFAULT
+	bool "default (true)"
+
+config RAPTOR_PUSH_AUTOSTART_TRUE
+	bool "true"
+
+config RAPTOR_PUSH_AUTOSTART_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_PUSH_RECONNECT_MS
+	string "reconnect_ms (1000-60000)"
+	default ""
+
+config RAPTOR_PUSH_TCP_SNDBUF
+	string "tcp_sndbuf (bytes, default 262144)"
+	default ""
+	help
+	  TCP send buffer size. Larger values absorb WiFi stalls.
+	  Default 256KB (~1 second at 2Mbps). Set 524288 for flaky links.
+
+endmenu
+
+menu "SRT Listener [srt]"
+
+choice
+	prompt "enabled"
+	default RAPTOR_SRT_ENABLED_DEFAULT
+
+config RAPTOR_SRT_ENABLED_DEFAULT
+	bool "default (false)"
+
+config RAPTOR_SRT_ENABLED_TRUE
+	bool "true"
+
+config RAPTOR_SRT_ENABLED_FALSE
+	bool "false"
+
+endchoice
+
+config RAPTOR_SRT_PORT
+	string "port (default 9000)"
+	default ""
+
+config RAPTOR_SRT_LATENCY
+	string "latency ms (default 120)"
+	default ""
+
+config RAPTOR_SRT_PASSPHRASE
+	string "passphrase (empty = no encryption)"
+	default ""
+
+config RAPTOR_SRT_PBKEYLEN
+	string "pbkeylen (16/24/32, default 16)"
+	default ""
+
+config RAPTOR_SRT_MAX_CLIENTS
+	string "max_clients (default 4)"
+	default ""
+
+config RAPTOR_SRT_STREAM
+	string "stream (0=main, 1=sub)"
+	default ""
+
+choice
+	prompt "audio"
+	default RAPTOR_SRT_AUDIO_DEFAULT
+
+config RAPTOR_SRT_AUDIO_DEFAULT
+	bool "default (true)"
+
+config RAPTOR_SRT_AUDIO_TRUE
+	bool "true"
+
+config RAPTOR_SRT_AUDIO_FALSE
+	bool "false"
+
+endchoice
+
+endmenu
+
+menu "Logging [log]"
+
+config RAPTOR_LOG_LEVEL
+	string "level (fatal/error/warn/info/debug/trace)"
+	default "debug"
+
+config RAPTOR_LOG_TARGET
+	string "target (syslog/stderr/file)"
+	default ""
+
+config RAPTOR_LOG_FILE
+	string "file path (when target=file)"
+	default ""
+
+endmenu
+
+endmenu # Raptor configuration

@@ -231,6 +231,5 @@ config BR2_PACKAGE_THINGINO_RAPTOR_DEBUG
 
 endmenu
 
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in.conf"
 
 endif # BR2_PACKAGE_THINGINO_RAPTOR
