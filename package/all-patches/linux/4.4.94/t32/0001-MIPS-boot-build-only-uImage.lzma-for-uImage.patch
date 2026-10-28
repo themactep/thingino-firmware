@@ -1,0 +1,42 @@
+From: Esteban Uribe <estebanuribe@mac.com>
+Subject: [PATCH] MIPS: boot: build only uImage.lzma for uImage
+
+uImage is a symlink to its first prerequisite, so uImage.lzma is the only
+image ever shipped. uImage.lzo, uImage.zrt and uImage.jzlzma were built
+and discarded.
+
+jzlzma also breaks the build outright on non-x86 hosts: it runs the
+prebuilt x86-64 helpers scripts/ingenic_hardlzma/{lzma,ingenic_mkimage},
+which fail with "Exec format error" on aarch64 build hosts and CI runners.
+
+ingenic_lzmacomp.sh lacked set -e and ended in sync, so it returned 0 even
+when lzma failed. The caller's "|| (rm -f $@; false)" guard never fired and
+the build died later in mkimage with a misleading "Can't open ... .jzlzma".
+
+Same change as 5dad83aea6 on ingenic-t41-4.4.94, ported to the T32 tree.
+---
+--- a/arch/mips/boot/Makefile
++++ b/arch/mips/boot/Makefile
+@@ -117,6 +117,10 @@
+
+ targets += uImage
+ #$(obj)/uImage: $(obj)/uImage.lzma  $(obj)/uImage.lzo FORCE
+-$(obj)/uImage: $(obj)/uImage.lzma  $(obj)/uImage.lzo $(obj)/uImage.jzlzma FORCE $(obj)/uImage.zrt
++# uImage is a symlink to the first prerequisite, so only uImage.lzma is ever
++# shipped. Building uImage.lzo, uImage.zrt and uImage.jzlzma as well just
++# discards the result, and jzlzma additionally needs the x86-64-only helpers
++# under scripts/ingenic_hardlzma/, which do not run on non-x86 build hosts.
++$(obj)/uImage: $(obj)/uImage.lzma FORCE
+ 	@ln -sf $(notdir $<) $@
+ 	@echo '  Image $@ is ready'
+--- a/scripts/ingenic_hardlzma/ingenic_lzmacomp.sh
++++ b/scripts/ingenic_hardlzma/ingenic_lzmacomp.sh
+@@ -1,4 +1,8 @@
+ #!/bin/bash
++# Without this the final sync masks a failing lzma and the caller's
++# "|| (rm -f $@; false)" guard never fires, so the build dies later in mkimage
++# with a misleading "Can't open ... .jzlzma".
++set -e
+ cp $1 arch/mips/boot/vmlinux.bin.bk
+ ./scripts/ingenic_hardlzma/lzma -z -k -f -9 arch/mips/boot/vmlinux.bin.bk
+ cp jz_lzma_out.bin $2

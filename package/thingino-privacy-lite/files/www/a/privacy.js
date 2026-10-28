@@ -96,13 +96,29 @@
           }
           enabledEl.disabled = false;
         }
-        // save_state is not an agent leaf; hide when agent-backed.
+        // save_state is not an agent leaf. Read it from the streamer when
+        // the endpoint is available (prudynt); hide it otherwise (raptor).
         if (saveStateEl) {
           const wrap =
             saveStateEl.closest("p, .mb-3, .form-switch") ||
             saveStateEl.parentElement;
-          if (wrap) wrap.classList.add("d-none");
-          saveStateEl.disabled = true;
+          let saveState;
+          try {
+            const data = await requestFallback({
+              privacy: { save_state: null },
+            });
+            saveState = data?.privacy?.save_state;
+          } catch (err) {
+            saveState = undefined;
+          }
+          if (saveState !== undefined) {
+            saveStateEl.checked = !!saveState;
+            saveStateEl.disabled = false;
+            if (wrap) wrap.classList.remove("d-none");
+          } else {
+            if (wrap) wrap.classList.add("d-none");
+            saveStateEl.disabled = true;
+          }
         }
         return;
       }

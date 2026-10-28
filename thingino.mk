@@ -241,15 +241,7 @@ export ISP_ISPMEM_MB
 
 FOUND_NMEM_MB := $(BR2_THINGINO_NMEM_MB)
 ifeq ($(FOUND_NMEM_MB),)
-	ifeq ($(SOC_RAM_MB),64)
-		ISP_NMEM_MB := 23
-	else ifeq ($(SOC_RAM_MB),128)
-		ISP_NMEM_MB := 29
-	else ifeq ($(SOC_RAM_MB),256)
-		ISP_NMEM_MB := 64
-	else
-		ISP_NMEM_MB := 16
-	endif
+	ISP_NMEM_MB := 0
 else
 	ISP_NMEM_MB := $(FOUND_NMEM_MB)
 endif

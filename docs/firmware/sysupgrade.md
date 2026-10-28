@@ -164,8 +164,12 @@ Default manifest (`/etc/cfg-backup.list`):
 /etc/dropbear                         # SSH host keys
 /root/.ssh/authorized_keys            # SSH access
 /etc/thingino.json                    # Thingino config
+/etc/timps.conf /etc/onvif.json       # streamer and ONVIF settings
+/etc/raptor.conf                      # raptor streamer settings
+/etc/prudynt.user.json                # prudynt settings over the image core
+/etc/hostname                         # camera name
 ```
 
 The list file itself is always included in the backup, so a restore gives you back the exact manifest that was used.
 
-Format: 64-byte text header (magic `THNG_BCKUP`, size, MD5) followed by an uncompressed tar archive. Fits in one 64KB erase block.
+Format: 64-byte text header (magic `THNG_BCKUP`, size, MD5) followed by a tar archive, gzipped when `gzip` is present. Restore detects both forms by the gzip magic bytes, so backups written before compression still load. Fits in one 64KB erase block.

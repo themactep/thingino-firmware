@@ -2,7 +2,9 @@
 
 case "$1" in
 	bound)
-		[ -n "$tzdbstr" ] && timectl set-timezone --source dhcp "$tzdbstr"
+		# Option 101 carries tzdb names (America/Los_Angeles); tz.json
+		# spells them with spaces (America/Los Angeles).
+		[ -n "$tzdbstr" ] && timectl set-timezone --source dhcp "$(echo "$tzdbstr" | tr '_' ' ')"
 		;;
 esac
 

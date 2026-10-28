@@ -1,18 +1,19 @@
 #!/bin/sh
 # shellcheck disable=SC2162
 
-erase_mtd1=true
+reset_env=true
+ENV_SETTINGS="wlan_ssid wlan_pass hostname"
 
 while getopts "efh" opt; do
 	case $opt in
 		e)
-			erase_mtd1=false
+			reset_env=false
 			;;
 		f)
 			force_wipe=true
 			;;
 		h)
-			printf 'Usage: %s [options]\n  -e    Do not erase /dev/mtd1\n  -h    Show help information\n' "$0"
+			printf 'Usage: %s [options]\n  -e    Wipe the overlay only, keep the U-Boot ENV settings\n  -f    Do not ask for confirmation\n  -h    Show help information\n' "$0"
 			exit 0
 			;;
 		\?)
@@ -22,19 +23,33 @@ while getopts "efh" opt; do
 	esac
 done
 
+# Erasing the env bricks: the next fw_setenv saves its built-in bootcmd=bootp.
+clear_env_settings() {
+	command -v fw_setenv >/dev/null || return 0
+	if fw_printenv 2>&1 >/dev/null | grep -q "Bad CRC"; then
+		echo "U-Boot ENV is not valid, leaving it as is." >&2
+		return 0
+	fi
+	script=""
+	for name in $ENV_SETTINGS; do
+		fw_printenv -n "$name" >/dev/null 2>&1 && script="$script$name
+"
+	done
+	[ -n "$script" ] || return 0
+	echo "Clearing settings from U-Boot ENV..."
+	printf '%s' "$script" | fw_setenv -s -
+}
+
 wipe() {
 	data_dev=$(awk '$4 ~ /"data"/ {gsub(":","",$1); print $1}' /proc/mtd)
 	if [ -z "$data_dev" ]; then
 		echo "Overlay partition not found!" >&2
 		exit 1
 	fi
+	[ "$reset_env" = true ] && clear_env_settings
+
 	echo "Erasing overlay partition..."
 	flash_eraseall -j "/dev/${data_dev}"
-
-	if [ "$erase_mtd1" = true ]; then
-		echo "Erasing U-Boot ENV..."
-		flash_eraseall /dev/mtd1
-	fi
 	echo "Erase completed. Rebooting..."
 	reboot -f
 }

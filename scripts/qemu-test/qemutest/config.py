@@ -22,12 +22,15 @@ SOC_MACHINES = {
     "t31x": ("ingenic-t31",  128),
     "t32":  ("ingenic-t32",  256),
     "t32nq":("ingenic-t32",  256),
+    "t33":  ("ingenic-t33",  256),
     "t40":  ("ingenic-t40",  256),
     "t40nn":("ingenic-t40",  256),
     "t41":  ("ingenic-t41",  256),
     "t41nq":("ingenic-t41",  256),
     "a1":   ("ingenic-a1",   256),
     "a1n":  ("ingenic-a1",   256),
+    "c100": ("ingenic-t31",  128),          # a die-shrunk T31
+    "cw080":("ingenic-t32",  128),          # the T32Pro's die
 }
 
 

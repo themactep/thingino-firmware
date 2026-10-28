@@ -6,6 +6,7 @@ export PATH
 DAEMON="/usr/bin/prudynt"
 PIDFILE="/run/prudynt.pid"
 HEARTBEAT_INIT="/etc/init.d/S99heartbeat"
+API_URL="http://127.0.0.1:8080/api/v1/config"
 
 restart_heartbeat() {
 	if [ -x "$HEARTBEAT_INIT" ]; then
@@ -45,6 +46,36 @@ stop_daemon() {
 	fi
 }
 
+# Wait for prudynt's HTTP API to become available (up to 15 s).
+wait_for_api() {
+	i=0
+	while [ $i -lt 30 ]; do
+		curl -s --max-time 2 "$API_URL" >/dev/null 2>&1 && return 0
+		usleep 500000
+		i=$((i + 1))
+	done
+	return 1
+}
+
+# S98recorder sends the recorder its START only at boot.
+resume_recorder() {
+	(
+		trap '' HUP
+		ch=$(jct /etc/prudynt.json get recorder.channel 2>/dev/null | tr -d '"')
+		active="/run/prudynt/mp4ctl-ch${ch:-0}.active"
+		wait_for_api
+		n=0
+		while [ $n -lt 2 ] && [ ! -e "$active" ]; do
+			if [ -p /run/prudynt/mp4ctl ]; then
+				timeout 15 /etc/init.d/S98recorder start ||
+					logger -t prudynt "recorder resume failed"
+			fi
+			sleep 10
+			n=$((n + 1))
+		done
+	) </dev/null >/dev/null 2>&1 &
+}
+
 start() {
 	echo -c 15 "Starting Prudynt"
 	start_daemon
@@ -58,18 +89,9 @@ start() {
 		# prudynt's HTTP API wasn't listening yet.
 		(
 			MODE_FILE="/run/thingino/daynight_mode"
-			API_URL="http://127.0.0.1:8080/api/v1/config"
 			API_KEY_FILE="/etc/thingino-api.key"
 
-			# Wait for prudynt's HTTP API to be available (up to 15 s)
-			i=0
-			while [ $i -lt 30 ]; do
-				if curl -s "$API_URL" >/dev/null 2>&1; then
-					break
-				fi
-				usleep 500000
-				i=$((i + 1))
-			done
+			wait_for_api
 
 			if [ -f "$MODE_FILE" ] && [ -f "$API_KEY_FILE" ]; then
 				MODE=$(cat "$MODE_FILE" 2>/dev/null)
@@ -113,6 +135,10 @@ stop() {
 		fi
 		usleep 500000
 	fi
+
+	# prudynt clears /run/prudynt only on a clean exit, so a killed
+	# process leaves channel state files that block recorder resume.
+	rm -f /run/prudynt/mp4ctl-ch*.active
 }
 
 case "$1" in
@@ -129,6 +155,7 @@ case "$1" in
 		r=0
 		while [ $r -lt 3 ]; do
 			if start; then
+				resume_recorder
 				exit 0
 			fi
 			r=$((r + 1))

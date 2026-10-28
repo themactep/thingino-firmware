@@ -1,0 +1,930 @@
+{
+ "soc": "t31",
+ "source": "T31 PINOUT and IP Camera GPIO Recommended_V1.0_EN_20190823",
+ "pins": {
+  "PA0": {
+   "func": [
+    "",
+    "DVP_D0",
+    "MIPI_DATAP1",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "N2",
+   "qfn": "29"
+  },
+  "PA1": {
+   "func": [
+    "",
+    "DVP_D1",
+    "MIPI_DATAN1",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "N1",
+   "qfn": "28"
+  },
+  "PA2": {
+   "func": [
+    "",
+    "DVP_D2",
+    "MIPI_CLKP",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "M2",
+   "qfn": "27"
+  },
+  "PA3": {
+   "func": [
+    "",
+    "DVP_D3",
+    "MIPI_CLKN",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "M1",
+   "qfn": "26"
+  },
+  "PA4": {
+   "func": [
+    "",
+    "DVP_D4",
+    "MIPI_DATAP0",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "L2",
+   "qfn": "25"
+  },
+  "PA5": {
+   "func": [
+    "",
+    "DVP_D5",
+    "MIPI_DATAN0",
+    ""
+   ],
+   "reset": "analog",
+   "power": "MIPI_AVD18",
+   "bga": "L1",
+   "qfn": "24"
+  },
+  "PA6": {
+   "func": [
+    "",
+    "DVP_D6",
+    "UART1_TxD",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "K2",
+   "qfn": "23"
+  },
+  "PA7": {
+   "func": [
+    "",
+    "DVP_D7",
+    "UART1_RxD",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "K1",
+   "qfn": "22"
+  },
+  "PA8": {
+   "func": [
+    "",
+    "DVP_D8",
+    "UART2_CTS",
+    "MSC1_D0"
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "J2",
+   "qfn": "21"
+  },
+  "PA9": {
+   "func": [
+    "",
+    "DVP_D9",
+    "UART2_RTS",
+    "MSC1_D1"
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "J1",
+   "qfn": "20"
+  },
+  "PA10": {
+   "func": [
+    "",
+    "DVP_D10",
+    "UART2_TXD",
+    "MSC1_D2"
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "H3",
+   "qfn": "19"
+  },
+  "PA11": {
+   "func": [
+    "",
+    "DVP_D11",
+    "UART2_RXD",
+    "MSC1_D3"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO0",
+   "bga": "H1",
+   "qfn": "18"
+  },
+  "PA12": {
+   "func": [
+    "",
+    "I2C0_SDA",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO0",
+   "bga": "F2",
+   "qfn": "13"
+  },
+  "PA13": {
+   "func": [
+    "",
+    "I2C0_SCL",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO0",
+   "bga": "E1",
+   "qfn": "12"
+  },
+  "PA14": {
+   "func": [
+    "",
+    "DVP_PCLK",
+    "PWM0",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "H2",
+   "qfn": "17"
+  },
+  "PA15": {
+   "func": [
+    "",
+    "DVP_MCLK",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "G1",
+   "qfn": "16"
+  },
+  "PA16": {
+   "func": [
+    "",
+    "DVP_HSYNC",
+    "I2C1_SDA",
+    "MSC1_CLK"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO0",
+   "bga": "G2",
+   "qfn": "15"
+  },
+  "PA17": {
+   "func": [
+    "",
+    "DVP_VSYNC",
+    "I2C1_SCL",
+    "MSC1_CMD"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO0",
+   "bga": "F1",
+   "qfn": "14"
+  },
+  "PA18": {
+   "func": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO0",
+   "bga": "E2",
+   "qfn": "11"
+  },
+  "PA22": {
+   "func": [
+    "WAIT_",
+    "",
+    "PWM1",
+    ""
+   ],
+   "reset": "Pullup,Schmitt",
+   "power": "VDDIO0",
+   "bga": "D1",
+   "qfn": ""
+  },
+  "PA23": {
+   "func": [
+    "",
+    "SFC_DT",
+    "SIO0",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "J15",
+   "qfn": "47"
+  },
+  "PA24": {
+   "func": [
+    "",
+    "SFC_DR",
+    "SIO1",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "K15",
+   "qfn": "46"
+  },
+  "PA25": {
+   "func": [
+    "",
+    "SFC_GPC",
+    "HOLD#/SIO3",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "H15",
+   "qfn": ""
+  },
+  "PA26": {
+   "func": [
+    "",
+    "SFC_CE1_",
+    "WP#/SIO2",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "J14",
+   "qfn": ""
+  },
+  "PA27": {
+   "func": [
+    "",
+    "SFC_CLK",
+    "SCLK",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "H14",
+   "qfn": "48"
+  },
+  "PA28": {
+   "func": [
+    "",
+    "SFC_CE0_",
+    "CS#",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "K14",
+   "qfn": "45"
+  },
+  "PB0": {
+   "func": [
+    "MSC0_D0",
+    "SSI_SLV_DT",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "G15",
+   "qfn": "50"
+  },
+  "PB1": {
+   "func": [
+    "MSC0_D1",
+    "SSI_SLV_DR",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "H13",
+   "qfn": "49"
+  },
+  "PB2": {
+   "func": [
+    "MSC0_D2",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "E15",
+   "qfn": "54"
+  },
+  "PB3": {
+   "func": [
+    "MSC0_D3",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "F14",
+   "qfn": "53"
+  },
+  "PB4": {
+   "func": [
+    "MSC0_CLK",
+    "SSI_SLV_SERICLK",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "G14",
+   "qfn": "51"
+  },
+  "PB5": {
+   "func": [
+    "MSC0_CMD",
+    "SSI_SLV_CE0",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "F15",
+   "qfn": "52"
+  },
+  "PB6": {
+   "func": [
+    "GMAC_TXCLK",
+    "",
+    "",
+    "SLCD_D0"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "B15",
+   "qfn": "62"
+  },
+  "PB7": {
+   "func": [
+    "GMAC_PHY_CLK",
+    "",
+    "",
+    "SLCD_D1"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "A15",
+   "qfn": "63"
+  },
+  "PB8": {
+   "func": [
+    "GMAC_TXEN",
+    "MSC1_CLK",
+    "I2S_RMCLK",
+    "SLCD_D2"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "B13",
+   "qfn": "66"
+  },
+  "PB9": {
+   "func": [
+    "GMAC_RXDV",
+    "MSC1_CMD",
+    "I2S_SDTI",
+    "SLCD_D3"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "D14",
+   "qfn": "59"
+  },
+  "PB10": {
+   "func": [
+    "GMAC_MDCK",
+    "MSC1_D0",
+    "I2S_SDTO",
+    "SLCD_D4"
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "D15",
+   "qfn": "58"
+  },
+  "PB11": {
+   "func": [
+    "GMAC_MDIO",
+    "MSC1_D1",
+    "",
+    "SLCD_D5"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "E14",
+   "qfn": "57"
+  },
+  "PB13": {
+   "func": [
+    "GMAC_TXD0",
+    "MSC1_D2",
+    "I2S_ADC_LRCK",
+    "SLCD_D6"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "B14",
+   "qfn": "64"
+  },
+  "PB14": {
+   "func": [
+    "GMAC_TXD1",
+    "MSC1_D3",
+    "I2S_TMCLK",
+    "SLCD_D7"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "A14",
+   "qfn": "65"
+  },
+  "PB15": {
+   "func": [
+    "GMAC_RXD0",
+    "",
+    "I2S_DAC_LRCK",
+    "SLCD_WR"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "C15",
+   "qfn": "60"
+  },
+  "PB16": {
+   "func": [
+    "GMAC_RXD1",
+    "",
+    "",
+    "SLCD_TE"
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "C14",
+   "qfn": "61"
+  },
+  "PB17": {
+   "func": [
+    "PWM0",
+    "SSI1_DT",
+    "",
+    ""
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "A4",
+   "qfn": "1"
+  },
+  "PB18": {
+   "func": [
+    "PWM1",
+    "SSI1_DR",
+    "",
+    ""
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "B4",
+   "qfn": "2"
+  },
+  "PB19": {
+   "func": [
+    "UART0_RxD",
+    "TDI",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "B10",
+   "qfn": "71"
+  },
+  "PB20": {
+   "func": [
+    "UART0_CTS",
+    "",
+    "I2S_ADC_BCLK",
+    "SLCD_CS"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "B11",
+   "qfn": "69"
+  },
+  "PB21": {
+   "func": [
+    "UART0_RTS",
+    "",
+    "I2S_DAC_BCLK",
+    "SLCD_DC"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "A12",
+   "qfn": "68"
+  },
+  "PB22": {
+   "func": [
+    "UART0_TxD",
+    "TDO",
+    "",
+    "SLCD_RDY"
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "A11",
+   "qfn": "70"
+  },
+  "PB23": {
+   "func": [
+    "UART1_TxD",
+    "TCK",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO1",
+   "bga": "A10",
+   "qfn": "74"
+  },
+  "PB24": {
+   "func": [
+    "UART1_RxD",
+    "TMS",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "B9",
+   "qfn": "73"
+  },
+  "PB25": {
+   "func": [
+    "I2C1_SDA",
+    "SSI1_CE0_",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "B5",
+   "qfn": "88"
+  },
+  "PB26": {
+   "func": [
+    "I2C1_SCL",
+    "SSI1_CLK",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "A5",
+   "qfn": "87"
+  },
+  "PB27": {
+   "func": [
+    "DRV_VBUS",
+    "PWM2",
+    "SSI1_DT",
+    ""
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "A6",
+   "qfn": "86"
+  },
+  "PB28": {
+   "func": [
+    "",
+    "PWM3",
+    "SSI1_DR",
+    "DMIC_CLK"
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "B6",
+   "qfn": "85"
+  },
+  "PB29": {
+   "func": [
+    "",
+    "",
+    "SSI1_CLK",
+    "DMIC_DAT0"
+   ],
+   "reset": "Pullup,Schmitt",
+   "power": "VDDIO1",
+   "bga": "A7",
+   "qfn": "82"
+  },
+  "PB30": {
+   "func": [
+    "",
+    "",
+    "SSI1_CE0",
+    "DMIC_DAT1"
+   ],
+   "reset": "Pullup,Schmitt",
+   "power": "VDDIO1",
+   "bga": "B8",
+   "qfn": "81"
+  },
+  "PB31": {
+   "func": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "B7",
+   "qfn": "80"
+  },
+  "PC0": {
+   "func": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO1",
+   "bga": "B12",
+   "qfn": "67"
+  },
+  "PC1": {
+   "func": [
+    "",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Pulldown",
+   "power": "VDDIO1",
+   "bga": "A13",
+   "qfn": ""
+  },
+  "PC2": {
+   "func": [
+    "MSC1_CLK",
+    "SSI_SLV_SERICLK",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "R8",
+   "qfn": ""
+  },
+  "PC3": {
+   "func": [
+    "MSC1_CMD",
+    "SSI_SLV_CE0",
+    "",
+    ""
+   ],
+   "reset": "Pullup",
+   "power": "VDDIO2",
+   "bga": "N8",
+   "qfn": ""
+  },
+  "PC4": {
+   "func": [
+    "MSC1_D0",
+    "SSI_SLV_DT",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "P8",
+   "qfn": ""
+  },
+  "PC5": {
+   "func": [
+    "MSC1_D1",
+    "SSI_SLV_DR",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "R7",
+   "qfn": ""
+  },
+  "PC6": {
+   "func": [
+    "MSC1_D2",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "P9",
+   "qfn": ""
+  },
+  "PC7": {
+   "func": [
+    "MSC1_D3",
+    "",
+    "",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "R9",
+   "qfn": ""
+  },
+  "PC8": {
+   "func": [
+    "SSI0_GPC",
+    "UART0_TXD",
+    "",
+    "I2C1_SDA"
+   ],
+   "reset": "Pullup,",
+   "power": "VDDIO2",
+   "bga": "P12",
+   "qfn": ""
+  },
+  "PC9": {
+   "func": [
+    "SSI0_CE1_",
+    "UART0_RXD",
+    "",
+    "I2C1_SCL"
+   ],
+   "reset": "Pullup,",
+   "power": "VDDIO2",
+   "bga": "R11",
+   "qfn": ""
+  },
+  "PC11": {
+   "func": [
+    "SSI0_DR",
+    "",
+    "UART2_CTS",
+    "I2S_TMCLK"
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "P10",
+   "qfn": ""
+  },
+  "PC12": {
+   "func": [
+    "SSI0_DT",
+    "",
+    "UART2_RTS",
+    "I2S_RMCLK"
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "P11",
+   "qfn": ""
+  },
+  "PC13": {
+   "func": [
+    "SSI0_CLK",
+    "DMIC_DAT0",
+    "UART2_TXD",
+    ""
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "R12",
+   "qfn": ""
+  },
+  "PC14": {
+   "func": [
+    "SSI0_CE0_",
+    "DMIC_DAT1",
+    "UART2_RXD",
+    ""
+   ],
+   "reset": "Pullup,",
+   "power": "VDDIO2",
+   "bga": "R10",
+   "qfn": ""
+  },
+  "PC15": {
+   "func": [
+    "",
+    "UART0_CTS",
+    "",
+    "I2S_DAC_LRCK"
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "R14",
+   "qfn": ""
+  },
+  "PC16": {
+   "func": [
+    "",
+    "UART0_RTS",
+    "",
+    "I2S_DAC_BCLK"
+   ],
+   "reset": "Z",
+   "power": "VDDIO2",
+   "bga": "P13",
+   "qfn": ""
+  },
+  "PC17": {
+   "func": [
+    "PWM0",
+    "",
+    "",
+    "I2S_SDTI"
+   ],
+   "reset": "Pulldown,Schmitt",
+   "power": "VDDIO2",
+   "bga": "R15",
+   "qfn": ""
+  },
+  "PC18": {
+   "func": [
+    "PWM1",
+    "",
+    "",
+    "I2S_SDTO"
+   ],
+   "reset": "Pulldown,Schmitt",
+   "power": "VDDIO2",
+   "bga": "P14",
+   "qfn": ""
+  },
+  "PC19": {
+   "func": [
+    "PWM2",
+    "",
+    "",
+    "I2S_ADC_BCLK"
+   ],
+   "reset": "Z,Schmitt",
+   "power": "VDDIO2",
+   "bga": "P15",
+   "qfn": ""
+  },
+  "PC20": {
+   "func": [
+    "PWM3",
+    "DMIC_CLK",
+    "",
+    "I2S_ADC_LRCK"
+   ],
+   "reset": "Z,Schmitt",
+   "power": "VDDIO2",
+   "bga": "R13",
+   "qfn": ""
+  }
+ }
+}

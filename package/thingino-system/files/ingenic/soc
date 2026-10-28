@@ -4,6 +4,7 @@
 read_cpuid() {
 	cpuid_raw=$(devmem 0x1300002C)
 	cpuid=$((($cpuid_raw >> 12) & 0xFFFF))
+	cpuver=$(($cpuid_raw & 0xF))
 }
 
 read_cppsr() {
@@ -62,7 +63,11 @@ print_wiki_line() {
 print_soc_family() {
 	model=$(print_soc_model)
 
-	family=$(echo "$model" | sed 's/^qemu-//; s/\([at][0-9]*\).*/\1/')
+	case "$model" in
+		t32pro*) family="t32pro" ;;
+		cw080*) family="cw080" ;;
+		*) family=$(echo "$model" | sed 's/^qemu-//; s/\([at][0-9]*\).*/\1/') ;;
+	esac
 	echo $family
 }
 
@@ -109,11 +114,26 @@ print_soc_model() {
 			$((0x44))) soc="t33a" ;;
 			$((0x55))) soc="t33zl" ;;
 			$((0x77))) soc="t33zn" ;;
-			$((0x11))) soc="t33lq" ;;
+			$((0x11))) soc="t33dl" ;;
 			$((0xCC))) soc="t33vl" ;;
 			$((0xDD))) soc="t33vn" ;;
 			$((0xEE))) soc="qemu-t33" ;;
 			*) soc="unknown_t33" ;;
+		esac
+	elif [ "$cpuid" -eq $((0x32)) ] && [ "$cpuver" -eq 5 ]; then # T32Pro, CW080
+		read_type1
+		case "$type1" in
+			$((0x5555))) soc="t32prozl" ;;
+			$((0x7777))) soc="t32prozn" ;;
+			$((0x6666))) soc="t32prozx" ;;
+			$((0xCCCC))) soc="t32provl" ;;
+			$((0xDDDD))) soc="t32provn" ;;
+			$((0xFFFF))) soc="t32provx" ;;
+			$((0xBBBB))) soc="t32provnp" ;;
+			$((0x4444)) | 0) soc="t32proa" ;;
+			$((0x0111))) soc="cw080sn" ;;
+			$((0x0222))) soc="cw080snp" ;;
+			*) soc="unknown_t32pro" ;;
 		esac
 	else
 		# For all other chips, use type1
@@ -153,19 +173,21 @@ print_soc_model() {
 			0x0031CCCC) soc="t31al" ;;
 			0x0031DDDD) soc="t31zc" ;;
 			0x0031EEEE) soc="t31lc" ;;
-			0x00321111) soc="t32n" ;;
+			0x00320000) soc="t32a" ;;
+			0x00321111) soc="t32dl" ;;
 			0x00322222) soc="t32xq" ;;
-			0x00323333) soc="t32l" ;;
+			0x00323333) soc="t32nq" ;;
 			0x00324444) soc="t32a" ;;
 			0x00325555) soc="t32zl" ;;
 			0x00326666) soc="t32zx" ;;
 			0x00327777) soc="t32zn" ;;
-			0x00328888) soc="t32nn" ;;
+			0x00328888) soc="t32lqh" ;;
 			0x00329999) soc="t32lq" ;;
 			0x0032AAAA) soc="t32nq" ;;
-			0x0032BBBB) soc="t32zm" ;;
-			0x0032CCCC) soc="t32al" ;;
-			0x0032DDDD) soc="t32zc" ;;
+			0x0032BBBB) soc="t32vnp" ;;
+			0x0032CCCC) soc="t32vl" ;;
+			0x0032DDDD) soc="t32vn" ;;
+			0x0032FFFF) soc="t32vx" ;;
 			0x0005EE00) soc="qemu-t10" ;;
 			0x0020EE00) soc="qemu-t20" ;;
 			0x0021EE00) soc="qemu-t21" ;;

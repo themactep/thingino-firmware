@@ -159,7 +159,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.0
         with:
           name: qemu-test-image-${{ matrix.profile }}
-          path: ${{ github.workspace }}/output/master/${{ matrix.profile }}-*/images/thingino-${{ matrix.profile }}.bin
+          path: ${{ github.workspace }}/output/${{ github.ref_name }}/${{ matrix.profile }}-*/images/thingino-${{ matrix.profile }}.bin
 
   test:
     name: test ${{ matrix.profile }}
@@ -189,9 +189,9 @@ jobs:
           P="${{ matrix.profile }}"
           BIN=$(find staging -name "thingino-$P.bin" | head -1)
           [ -n "$BIN" ] || { echo "no image for $P in the build artifact"; exit 1; }
-          mkdir -p "output/master/$P-ci/images"
-          cp "$BIN" "output/master/$P-ci/images/"
-          ls -la "output/master/$P-ci/images/"
+          mkdir -p "output/${{ github.ref_name }}/$P-ci/images"
+          cp "$BIN" "output/${{ github.ref_name }}/$P-ci/images/"
+          ls -la "output/${{ github.ref_name }}/$P-ci/images/"
 
       - name: Install test dependencies
         run: |
@@ -227,12 +227,12 @@ jobs:
       - name: Fix report ownership after sudo tap run
         if: always()
         run: |
-          sudo chown -R "$(id -u):$(id -g)" output/*/qemu-test-reports 2>/dev/null || true
+          sudo chown -R "$(id -u):$(id -g)" output/**/qemu-test-reports 2>/dev/null || true
 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v7.0.0
         with:
           name: qemu-test-report-${{ matrix.profile }}
-          path: ${{ github.workspace }}/output/*/qemu-test-reports/${{ matrix.profile }}/
+          path: ${{ github.workspace }}/output/**/qemu-test-reports/${{ matrix.profile }}/
           if-no-files-found: warn
