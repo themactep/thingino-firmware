@@ -76,6 +76,40 @@ thingino_send2_raptor_newest_clip() {
 	printf '%s' "$newest"
 }
 
+thingino_send2_raptor_cfg_get() {
+	raptorctl config get recording "$1" 2>/dev/null | tr -d '\r\n"'
+}
+
+# rmr writes short clips only when recording.mode is motion/both, and it
+# never writes to the root filesystem. Pick a storage base and mode that
+# yield a clip: real storage keeps continuous recording alive with mode=both,
+# otherwise the clip goes to tmpfs in motion mode. Sets CLIP_STORAGE/CLIP_MODE.
+thingino_send2_raptor_clip_target() {
+	CLIP_STORAGE=$(thingino_send2_raptor_cfg_get storage_path)
+	[ -n "$CLIP_STORAGE" ] || CLIP_STORAGE=/mnt/mmcblk0p1/raptor
+	_mode=$(thingino_send2_raptor_cfg_get mode)
+	[ -n "$_mode" ] || _mode=continuous
+
+	if [ -d "$CLIP_STORAGE" ] && [ -w "$CLIP_STORAGE" ]; then
+		case "$_mode" in
+			motion | both) CLIP_MODE=$_mode ;;
+			*) CLIP_MODE=both ;;
+		esac
+	else
+		CLIP_STORAGE=/tmp/raptor
+		mkdir -p /tmp/raptor/clips 2>/dev/null
+		CLIP_MODE=motion
+	fi
+}
+
+thingino_send2_raptor_clip_restore() {
+	[ "$CLIP_RECONFIGURED" = yes ] || return 0
+	raptorctl config set recording storage_path "$CLIP_ORIG_STORAGE" >/dev/null 2>&1 || true
+	raptorctl config set recording mode "$CLIP_ORIG_MODE" >/dev/null 2>&1 || true
+	raptorctl rmr restart >/dev/null 2>&1 || true
+	CLIP_RECONFIGURED=no
+}
+
 thingino_send2_raptor_ensure_rmr() {
 	pidof rmr >/dev/null 2>&1 && return 0
 	# RMR only stays up when recording.enabled=true; enable and start if needed.
@@ -139,8 +173,29 @@ copy_video() {
 		echo "$tmpfile"
 		return 1
 	fi
+
+	# Point rmr at a writable clip location for the capture, then put the
+	# recording config back. No-op when storage is already usable and the
+	# mode already produces clips.
+	CLIP_ORIG_STORAGE=$(thingino_send2_raptor_cfg_get storage_path)
+	[ -n "$CLIP_ORIG_STORAGE" ] || CLIP_ORIG_STORAGE=/mnt/mmcblk0p1/raptor
+	CLIP_ORIG_MODE=$(thingino_send2_raptor_cfg_get mode)
+	[ -n "$CLIP_ORIG_MODE" ] || CLIP_ORIG_MODE=continuous
+	thingino_send2_raptor_clip_target
+	CLIP_RECONFIGURED=no
+	if [ "$CLIP_STORAGE" != "$CLIP_ORIG_STORAGE" ]; then
+		raptorctl config set recording storage_path "$CLIP_STORAGE" >/dev/null 2>&1 || true
+		CLIP_RECONFIGURED=yes
+	fi
+	if [ "$CLIP_MODE" != "$CLIP_ORIG_MODE" ]; then
+		raptorctl config set recording mode "$CLIP_MODE" >/dev/null 2>&1 || true
+		CLIP_RECONFIGURED=yes
+	fi
+	[ "$CLIP_RECONFIGURED" = yes ] && raptorctl rmr restart >/dev/null 2>&1
+
 	before=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
 	raptorctl rmr start >/dev/null 2>&1 || {
+		thingino_send2_raptor_clip_restore
 		echo "send2: failed to start raptor clip" >&2
 		echo "$tmpfile"
 		return 1
@@ -150,6 +205,7 @@ copy_video() {
 	# Allow the muxer to close the segment.
 	sleep 1
 	clip=$(thingino_send2_raptor_newest_clip 2>/dev/null || true)
+	thingino_send2_raptor_clip_restore
 	if [ -z "$clip" ] || [ "$clip" = "$before" ]; then
 		echo "send2: raptor clip capture failed (is recording storage writable?)" >&2
 		echo "$tmpfile"
@@ -165,6 +221,9 @@ copy_video() {
 		return 1
 	}
 	add_to_garbage "$tmpfile"
+	# The captured clip is throwaway. On the tmpfs fallback nothing rotates
+	# it away, so reclaim it; on real storage rmr's quota owns it.
+	[ "$CLIP_STORAGE" != "$CLIP_ORIG_STORAGE" ] && add_to_garbage "$clip"
 	echo "$tmpfile"
 }
 
