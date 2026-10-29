@@ -341,7 +341,7 @@ if [ "$ota_due" = "1" ]; then
 	[ "$retry_interval" -gt "$effective_interval" ] && retry_interval="$effective_interval"
 
 	latest=""
-	[ -f "$latest_cache" ] && latest=$(cat "$latest_cache" 2>/dev/null | tr -cd '[:alnum:]._-')
+	[ -f "$latest_cache" ] && latest=$(cat "$latest_cache" 2>/dev/null | tr -cd '[:alnum:]._+-')
 
 	if [ -z "$next_check" ] && [ "$now" -gt 0 ]; then
 		next_check=$((now + startup_jitter))
@@ -358,7 +358,7 @@ if [ "$ota_due" = "1" ]; then
 		fetched=$(curl -sf --max-time 10 --tls-max 1.2 \
 			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
 			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' |
-			tr -cd '[:alnum:]._-')
+			tr -cd '[:alnum:]._+-')
 		if [ -n "$fetched" ]; then
 			latest="$fetched"
 			check_ok=1
