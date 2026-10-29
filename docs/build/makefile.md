@@ -353,23 +353,28 @@ Interactive menu to edit various configuration files.
 make edit
 ```
 Presents a dialog menu with options:
-1. Camera Config (defconfig)
-2. Module Config
-3. System Config
-4. Camera U-Boot Environment
-5. Local Fragment
-6. Local Makefile
-7. Local U-Boot Environment
+1. Camera Config (`edit-defconfig`)
+2. Thingino Config (`edit-thingino`)
+3. Camera U-Boot Environment (`edit-uenv`)
+4. Raptor Config (`raptor-menuconfig`)
+5. Local Makefile (`edit-localmk`)
+6. Local Fragment (`edit-localfragment`)
+7. Local U-Boot Environment (`edit-localuenv`)
+
+Option 4 launches raptor's own Kconfig instead of opening a file, because the
+per-camera `raptor.config` is a generated artifact. See
+[../dev/raptor-config.md](../dev/raptor-config.md).
 
 #### Direct Edit Targets
 
 ```bash
 make edit-defconfig      # Edit camera's defconfig
-make edit-config         # Edit system config
+make edit-thingino       # Edit camera's thingino.json
 make edit-uenv           # Edit U-Boot environment
 make edit-localfragment  # Edit local.fragment
 make edit-localmk        # Edit local.mk
 make edit-localuenv      # Edit local.uenv.txt
+make raptor-menuconfig   # Edit raptor's runtime config (Kconfig)
 ```
 
 The system will use the first available editor from: `nano`, `vim`, `vi`, `ed`

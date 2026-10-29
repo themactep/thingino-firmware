@@ -19,6 +19,8 @@ target in this tree:
 GROUP=exp CAMERA=wyze_cam3pro_t40xp_gc4653_rtl8192fs make raptor-menuconfig
 ```
 
+It is also option 4 in the `make edit` menu.
+
 Buildroot's own package targets also work, via the `br-%` passthrough:
 
 ```bash
