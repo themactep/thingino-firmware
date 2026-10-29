@@ -189,7 +189,7 @@ if ha_entity_enabled ota; then
 	[ "$retry_interval" -gt "$effective_interval" ] && retry_interval="$effective_interval"
 
 	latest=""
-	[ -f "$latest_cache" ] && latest=$(cat "$latest_cache" 2>/dev/null | tr -cd '[:alnum:]._-')
+	[ -f "$latest_cache" ] && latest=$(cat "$latest_cache" 2>/dev/null | tr -cd '[:alnum:]._+-')
 
 	next_check=""
 	[ -f "$next_check_cache" ] && next_check=$(cat "$next_check_cache" 2>/dev/null)
@@ -211,7 +211,7 @@ if ha_entity_enabled ota; then
 		fetched=$(curl -sf --max-time 10 \
 			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
 			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' |
-			tr -cd '[:alnum:]._-')
+			tr -cd '[:alnum:]._+-')
 		if [ -n "$fetched" ]; then
 			latest="$fetched"
 			check_ok=1
