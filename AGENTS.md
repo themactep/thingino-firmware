@@ -160,7 +160,7 @@ in menuconfig, or set `BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT=y` /
 
 Raptor's runtime config (`/etc/raptor.conf`) has its own Kconfig and
 `.config`, not Buildroot symbols: `CAMERA=<cam> make raptor-menuconfig` and
-`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.fragment`.
+`raptor-saveconfig`, with the per-camera delta in `<camera>/raptor.config`.
 See [docs/dev/raptor-config.md](docs/dev/raptor-config.md).
 
 ## Firmware image

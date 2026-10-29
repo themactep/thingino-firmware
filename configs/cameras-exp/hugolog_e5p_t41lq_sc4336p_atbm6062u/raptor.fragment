@@ -1,4 +1,0 @@
-# Raptor per-camera delta, merged over configs/raptor/default.config.
-# Edit with: make br-thingino-raptor-config-menuconfig
-RAPTOR_SENSOR_NAME="sc4336p"
-RAPTOR_SENSOR_VIDEO_INTERFACE="0"

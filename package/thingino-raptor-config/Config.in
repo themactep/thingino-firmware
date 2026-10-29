@@ -9,5 +9,5 @@ config BR2_PACKAGE_THINGINO_RAPTOR_CONFIG
 	    make br-thingino-raptor-config-menuconfig
 	    make br-thingino-raptor-config-savedefconfig
 
-	  The per-camera delta lives in <camera>/raptor.fragment; shared
+	  The per-camera delta lives in <camera>/raptor.config; shared
 	  defaults in configs/raptor/default.config.

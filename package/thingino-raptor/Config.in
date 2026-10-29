@@ -22,6 +22,8 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 
 if BR2_PACKAGE_THINGINO_RAPTOR
 
+comment "Runtime settings (raptor.conf) live in: make raptor-menuconfig"
+
 menu "Daemon selection"
 
 config BR2_PACKAGE_THINGINO_RAPTOR_FULL

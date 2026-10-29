@@ -1,7 +1,7 @@
 # Raptor runtime configuration. This file is the source of truth; it was
 # originally derived from the old package/thingino-raptor/Config.in.conf.
 #
-# Symbol names are the contract with configs/*/raptor.fragment, so renaming
+# Symbol names are the contract with configs/*/raptor.config, so renaming
 # one silently drops that setting from every camera that sets it.
 # Adding a setting means editing two files: this one and conf-map.
 # See docs/dev/raptor-config.md
@@ -27,6 +27,34 @@ config RAPTOR_ENV_WEBRTC
 config RAPTOR_ENV_RFS
 	string
 	option env="RAPTOR_RFS"
+
+config RAPTOR_ENV_AAC
+	string
+	option env="RAPTOR_AAC"
+
+config RAPTOR_ENV_OPUS
+	string
+	option env="RAPTOR_OPUS"
+
+config RAPTOR_ENV_RSR
+	string
+	option env="RAPTOR_RSR"
+
+config RAPTOR_ENV_WEBTORRENT
+	string
+	option env="RAPTOR_WEBTORRENT"
+
+config RAPTOR_ENV_AUDIO_EFFECTS
+	string
+	option env="RAPTOR_AUDIO_EFFECTS"
+
+config RAPTOR_ENV_SOC_FAMILY
+	string
+	option env="RAPTOR_SOC_FAMILY"
+
+config RAPTOR_ENV_SOC_MODEL
+	string
+	option env="RAPTOR_SOC_MODEL"
 # Raptor configuration (raptor.conf)
 # Each setting maps to a raptor.conf key.
 # String settings: leave empty to use code default.
@@ -883,7 +911,9 @@ config RAPTOR_AUDIO_SAMPLE_RATE
 config RAPTOR_AUDIO_CODEC
 	string "codec (pcmu/pcma/l16/aac/opus, default aac)"
 	default "l16" if (RAPTOR_ENV_DEV_WEBCAM = "y")
-	default "aac"
+	default "aac" if (RAPTOR_ENV_AAC = "y")
+	default "opus" if (RAPTOR_ENV_OPUS = "y")
+	default "l16"
 
 config RAPTOR_AUDIO_OPUS_COMPLEXITY
 	string "opus_complexity (0-10, default 5)"
@@ -928,6 +958,8 @@ config RAPTOR_AUDIO_AO_VOLUME
 config RAPTOR_AUDIO_AO_GAIN
 	string "ao_gain (default 25)"
 	default ""
+
+if (RAPTOR_ENV_AUDIO_EFFECTS = "y")
 
 choice
 	prompt "ns_enabled - noise suppression (default false)"
@@ -986,6 +1018,8 @@ config RAPTOR_AUDIO_AGC_COMPRESSION_DB
 	string "agc_compression_db (0-90, default 0)"
 	default ""
 
+
+endif
 endmenu
 
 menu "RTSP [rtsp]"
@@ -1722,6 +1756,7 @@ config RAPTOR_TIMELAPSE_MAX_MB
 endmenu
 
 menu "WebRTC [webrtc]"
+depends on (RAPTOR_ENV_WEBRTC = "y")
 
 choice
 	prompt "enabled (default false)"
@@ -1870,6 +1905,7 @@ config RAPTOR_WEBCAM_AUDIO_STREAM
 endmenu
 
 menu "WebTorrent [webtorrent]"
+depends on (RAPTOR_ENV_WEBTORRENT = "y")
 
 choice
 	prompt "enabled (default false)"
@@ -2167,6 +2203,7 @@ config RAPTOR_PUSH_TCP_SNDBUF
 endmenu
 
 menu "SRT Listener [srt]"
+depends on (RAPTOR_ENV_RSR = "y")
 
 choice
 	prompt "enabled"

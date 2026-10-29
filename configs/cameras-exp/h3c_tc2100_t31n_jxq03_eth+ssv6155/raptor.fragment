@@ -1,4 +1,0 @@
-# Raptor per-camera delta, merged over configs/raptor/default.config.
-# Edit with: make br-thingino-raptor-config-menuconfig
-RAPTOR_IMAGE_HFLIP="1"
-RAPTOR_IMAGE_VFLIP="1"

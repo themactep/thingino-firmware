@@ -1,6 +1,0 @@
-# Raptor per-camera delta, merged over configs/raptor/default.config.
-# Edit with: make br-thingino-raptor-config-menuconfig
-RAPTOR_STREAM0_HEIGHT="1536"
-RAPTOR_STREAM0_WIDTH="2304"
-RAPTOR_STREAM1_HEIGHT="384"
-RAPTOR_STREAM1_WIDTH="576"

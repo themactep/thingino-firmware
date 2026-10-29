@@ -24,11 +24,9 @@ raptor-saveconfig: check-config
 	@$(TEAL) "$@"
 	$(BR2_MAKE) thingino-raptor-config-savedefconfig
 	@mkdir -p $(CAMERA_SUBDIR)/$(CAMERA)
-	@{ echo "# Raptor per-camera delta, merged over configs/raptor/default.config."; \
-	   echo "# Edit with: make CAMERA=$(CAMERA) raptor-menuconfig"; \
-	   cat $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig; \
-	 } > $(CAMERA_SUBDIR)/$(CAMERA)/raptor.fragment
-	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.fragment"
+	@install -m 0644 $(OUTPUT_DIR)/build/thingino-raptor-config/defconfig \
+		$(CAMERA_SUBDIR)/$(CAMERA)/raptor.config
+	@echo "saved $(CAMERA_SUBDIR)/$(CAMERA)/raptor.config"
 
 # checkout buidroot submodule
 buildroot/Makefile:
