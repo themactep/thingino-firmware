@@ -41,7 +41,7 @@ shell_staged_files=$(
 			*.patch) continue ;;
 		esac
 
-		if git show ":$file" 2>/dev/null | rg -q '^#!/bin/sh'; then
+		if git show ":$file" 2>/dev/null | rg -q '^#!(/usr)?/bin/(env )?(ba)?sh'; then
 			printf '%s\n' "$file"
 		fi
 	done
@@ -49,12 +49,12 @@ shell_staged_files=$(
 
 if [ -n "$shell_staged_files" ]; then
 	if ! command -v shfmt >/dev/null 2>&1; then
-		echo "pre-commit: shfmt is required to format /bin/sh scripts"
+		echo "pre-commit: shfmt is required to format shell scripts"
 		echo "Install shfmt, then commit again"
 		exit 1
 	fi
 
-	echo "pre-commit: formatting staged /bin/sh scripts with shfmt (tabs indentation)"
+	echo "pre-commit: formatting staged shell scripts with shfmt (tabs indentation)"
 
 	echo "$shell_staged_files" | while IFS= read -r file; do
 		[ -n "$file" ] || continue
@@ -69,7 +69,7 @@ shellcheck_staged_files=$(
 	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
 		[ -f "$file" ] || continue
 
-		if git show ":$file" 2>/dev/null | head -1 | grep -qE '^#!.*/(ba)?sh'; then
+		if git show ":$file" 2>/dev/null | head -1 | grep -qE '^#!(/usr)?/bin/(env )?(ba)?sh'; then
 			printf '%s\n' "$file"
 		fi
 	done
