@@ -14,8 +14,12 @@ trap 'rm -f "$TMP"' EXIT
 
 curl -fsSL "$URL" -o "$TMP"
 
-# Check
-openssl crl2pkcs7 -nocrl -certfile "$TMP" 2>/dev/null | openssl pkcs7 -print_certs -noout >/dev/null
+# Refuse empty, partial or non-PEM downloads.
+certs=$(grep -c -- '^-----BEGIN CERTIFICATE-----' "$TMP" || true)
+if [ "$certs" -lt 50 ] || [ "$(tail -n 1 "$TMP")" != "-----END CERTIFICATE-----" ]; then
+	echo "Refusing to install $TMP: not a CA bundle." >&2
+	exit 1
+fi
 
 install -m 0644 "$TMP" "$DEST"
 echo "Updated $DEST."
