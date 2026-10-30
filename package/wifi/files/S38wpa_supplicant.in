@@ -42,40 +42,44 @@ WLANAP_IP=${WLANAP_CNET}.1
 
 hostname=$(hostname)
 
-# Determine the wireless mode
-if ! grep -q 'ssid=' $CONFIG >/dev/null; then
-	echo "WiFi network missing" >&2
-	mode="portal"
-elif ! grep -q 'psk=' $CONFIG >/dev/null; then
-	echo "WiFi password missing" >&2
-	mode="portal"
-elif grep -q 'mode=2' $CONFIG >/dev/null; then
-	mode="ap"
-else
-	mode="client"
-fi
+# Resolve the wireless mode and everything derived from it. Called from
+# start() after the SD-card credentials are written, and from stop() and
+# portal_confirmed, which run in their own process and need the same IFACE.
+determine_mode() {
+	if ! grep -q 'ssid=' $CONFIG >/dev/null; then
+		echo "WiFi network missing" >&2
+		mode="portal"
+	elif ! grep -q 'psk=' $CONFIG >/dev/null; then
+		echo "WiFi password missing" >&2
+		mode="portal"
+	elif grep -q 'mode=2' $CONFIG >/dev/null; then
+		mode="ap"
+	else
+		mode="client"
+	fi
 
-case "$mode" in
-	portal | ap)
-		IFACE="$AP_IFACE"
-		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
-		;;
-	*)
-		IFACE="$STA_IFACE"
-		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
-		;;
-esac
+	case "$mode" in
+		portal | ap)
+			IFACE="$AP_IFACE"
+			WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+			;;
+		*)
+			IFACE="$STA_IFACE"
+			WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+			;;
+	esac
 
-PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
-case "$WLAN_MODULE_NAME" in
-	atbm6461*)
-		DAEMON_ARGS="-D wext $DAEMON_ARGS"
-		;;
-esac
-if [ "true" = "${debug:-}" ]; then
-	DAEMON_ARGS="$DAEMON_ARGS -dd"
-fi
+	PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
+	DAEMON_ARGS="-i $IFACE -P $PIDFILE -B"
+	case "$WLAN_MODULE_NAME" in
+		atbm6441* | atbm6461*)
+			DAEMON_ARGS="-D wext $DAEMON_ARGS"
+			;;
+	esac
+	if [ "true" = "${debug:-}" ]; then
+		DAEMON_ARGS="$DAEMON_ARGS -dd"
+	fi
+}
 
 credentials_from_card() {
 	# shellcheck disable=SC3043 # busybox ash supports local
@@ -106,9 +110,9 @@ prescan_for_portal() {
 	PRESCAN_DEADLINE=$(($(date +%s) + 25))
 	time_left() { [ "$(date +%s)" -lt "$PRESCAN_DEADLINE" ]; }
 
-	# ATBM6461 WiFi lives on the MCU; there is no wpa_supplicant to drive
+	# ATBM6441/ATBM6461 WiFi lives on the MCU; there is no wpa_supplicant to drive
 	case "$WLAN_MODULE_NAME" in
-		atbm6461*) return 0 ;;
+		atbm6441* | atbm6461*) return 0 ;;
 	esac
 
 	command -v wpa_supplicant >/dev/null 2>&1 || return 0
@@ -400,8 +404,10 @@ stop_client() {
 }
 
 start() {
-	# Credential from SD card
+	# Credentials from the SD card can create the network block, so read them
+	# before the mode decides which interface to bring up.
 	credentials_from_card
+	determine_mode
 
 	echo -c 15 "Starting WPA Supplicant"
 
@@ -423,8 +429,68 @@ start() {
 
 	echo "Starting in $mode mode"
 
-	# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
+	# ATBM6441: the MCU hosts the WiFi stack and atbm_iot_supplicant_demo
+	# was started by S09mmc. Push credentials when they changed; otherwise
+	# the MCU reconnects from its NVM.
 	case "$WLAN_MODULE_NAME" in
+		atbm6441*)
+			# No host AP/portal path for the ATBM6441 yet. A WiFi-only board
+			# with no MCU NVM network needs an SD-card config to provision.
+			if [ "$mode" != "client" ]; then
+				echo "ATBM6441: no usable WiFi credentials ($mode mode); MCU keeps its stored network"
+				exit 0
+			fi
+
+			wifi_ssid=$(sed -n 's/.*ssid="\([^"]*\)".*/\1/p' "$CONFIG" | head -1)
+			wifi_pass=$(sed -n 's/.*psk="\([^"]*\)".*/\1/p' "$CONFIG" | head -1)
+			MARKER=/etc/atbm6441.provisioned
+
+			if [ -z "$wifi_ssid" ] || [ -z "$wifi_pass" ]; then
+				echo "ATBM6441: incomplete WiFi credentials; MCU keeps its stored network"
+				exit 0
+			fi
+
+			conf_sum=$(md5sum "$CONFIG" | cut -d' ' -f1)
+			if [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$conf_sum" ]; then
+				echo "ATBM6441: credentials unchanged; MCU reconnects from NVM"
+				exit 0
+			fi
+
+			n=20
+			while [ "$n" -gt 0 ] && [ ! -S /tmp/atbm_server_socket ]; do
+				n=$((n - 1))
+				sleep 0.5
+			done
+			if [ ! -S /tmp/atbm_server_socket ]; then
+				echo "ATBM6441: IoT supplicant socket missing; cannot provision" >&2
+				exit 1
+			fi
+
+			echo "ATBM6441: provisioning MCU with SSID '$wifi_ssid'"
+			atbm_iot_cli clear_network
+			atbm_iot_cli wifi_mode STA
+			atbm_iot_cli set_network ssid "$wifi_ssid"
+			atbm_iot_cli set_network key "$wifi_pass"
+			atbm_iot_cli set_network key_mgmt WPA2
+			atbm_iot_cli enable_network
+
+			n=20
+			while [ "$n" -gt 0 ]; do
+				if ip addr show dev "$IFACE" 2>/dev/null | grep -q 'inet ' &&
+					ip route show default dev "$IFACE" 2>/dev/null | grep -q '^default'; then
+					echo "$conf_sum" >"$MARKER"
+					echo "ATBM6441: associated, credentials stored"
+					exit 0
+				fi
+				n=$((n - 1))
+				sleep 1
+			done
+
+			rm -f "$MARKER"
+			echo "ATBM6441: association failed; will retry on next boot" >&2
+			exit 1
+			;;
+		# ATBM6461: use mcu_test instead of wpa_supplicant for client mode
 		atbm6461*)
 			if [ "$mode" = "client" ]; then
 				wifi_ssid=$(grep 'ssid=' $CONFIG | head -1 | sed 's/.*ssid="\([^"]*\)".*/\1/')
@@ -483,6 +549,8 @@ start() {
 }
 
 stop() {
+	determine_mode
+
 	echo -c 15 "Stopping WPA Supplicant"
 
 	case "$mode" in
@@ -504,6 +572,7 @@ case "$1" in
 		start
 		;;
 	portal_confirmed)
+		determine_mode
 		prescan_for_portal
 		prepare_portal
 		finish_portal
