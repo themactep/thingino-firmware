@@ -33,6 +33,7 @@ define WIFI_AIC8800_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WIRELESS)
 	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,y)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
 	# aic8800 is a full-MAC cfg80211 driver (rwnx): the module imports zero
 	# mac80211 symbols, so the soft-MAC stack (~421 KB built-in) was dead
 	# weight that overflowed the NOR kernel partition. Keep cfg80211, drop
