@@ -1,4 +1,4 @@
-THINGINO_DFU_VERSION = 2.0.0
+THINGINO_DFU_VERSION = 2.0.1
 THINGINO_DFU_LICENSE = GPL-2.0-or-later
 
 # The published binaries rather than a source build. thingino-dfu is Rust, and it
