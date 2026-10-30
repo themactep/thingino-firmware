@@ -13,7 +13,7 @@ of it. The bridge also owns the AE gain model for each sensor.
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | Mainline V4L2 driver | `linux/drivers/media/i2c/<sensor>.c`, carried as a patch in `package/all-patches/linux/7.2.11/` | Register sequences, V4L2 controls, the index-to-register gain table |
-| V4L2 bridge | open-tx-isp `driver/t31/tx_isp_v4l2_sensor.c` | Finds the probed subdev, implements `tx_isp_sensor_attribute`, `alloc_again`, `alloc_dgain`, and the per-sensor Q10 gain model |
+| V4L2 bridge | open-tx-isp `driver/t31/tx_isp_v4l2_sensor.c` | Finds the probed subdev, implements `tx_isp_sensor_attribute`, `alloc_again`, `alloc_dgain`, and the per-sensor log2-Q16 gain model |
 | ISP core | open-tx-isp `driver/t31/tx_isp_module.c`, `tx_isp_core.c` | AE, CSI/ISP pipeline, frame production |
 | Sensor DT fragment | `configs/sensors/t31/<model>.dtsi` | I2C address, supplies, clock, MIPI endpoint; injected into the kernel leaf `.dts` before the camera fragment |
 | Camera selection | `configs/cameras/<camera>/<camera>_defconfig` | `BR2_SENSOR_1_NAME="<model>"`; drives `SENSOR_1_MODEL`, `CONFIG_VIDEO_<MODEL>`, and `SENSOR_DTSI_FILE` |
@@ -51,13 +51,14 @@ analog gain index.
 
 ## The AE gain model
 
-The Ingenic AE works in **Q10 linear gain**: `1024` is 1x, `2048` is 2x,
-`32768` is 32x. The bridge's LUT converts the V4L2 gain index into that Q10
-model. The LUT must describe the gain the sensor actually produces at each
-index.
+The Ingenic AE works in **log2(gain) in Q16**: `0` is 1x, `65536` is 2x,
+`131072` is 4x, `327680` is 32x. `alloc_again()` receives the requested gain
+in this unit and must return the applied gain in the same unit. `max_again`
+is also log2 Q16; the ISP core converts it internally with
+`exp2(value, 0x10, 0xa)`.
 
-The vendor SDK's `sensor_again_lut` is the source of truth. Its second column
-is **log2(gain) in Q16**, not a linear gain:
+The bridge LUT is therefore the vendor driver's gain column **verbatim**, one
+entry per V4L2 gain index:
 
 ```c
 struct again_lut sensor_again_lut[] = {
@@ -70,27 +71,29 @@ struct again_lut sensor_again_lut[] = {
 };
 ```
 
-Convert each row to Q10 with:
+Do **not** convert the column to linear Q10. A linear `32768` is read by the
+AE as `2^(32768 / 65536) = 1.41x`, not 32x, so the AE runs out of analogue
+gain early and makes up the rest with ISP digital gain, which is noisy at
+night. Do not derive the gain from the register coding
+`1 + coarse + (fine - 128) / 128` either: it only holds for coarse 0 and
+reports 9x, 10x and 12x where the sensor gives 2x, 4x and 8x.
 
-```python
-q10 = round(1024 * 2 ** (gain_log2_q16 / 65536))
-```
-
-Do **not** derive the gain from the register coding
-`1 + coarse + (fine - 128) / 128`. That only holds for coarse 0; it reports
-9x, 10x and 12x where the sensor actually gives 2x, 4x and 8x. That mistake
-caused the SC2336 AE to hunt across a fake 4.5x gap and produced the preview
-"breathing".
+The index is the V4L2 analogue-gain control value. Index 0 is **1.0x, not
+"no change"**: `tx_v4l2_sensor_set_expo()` must write the gain on every EXPO
+event. Skipping the write at index 0 leaves the sensor at the previous gain
+when the AE trades gain for integration time; that frame can be up to a stop
+too bright and the AE oscillates between anti-flicker steps. This was the
+actual SC2336 "breathing" fault.
 
 Current models in `tx_v4l2_gain_models[]`:
 
-| Sensor | Entries | Max index | Max gain |
-| --- | ---: | ---: | ---: |
-| `sc2336` | 161 | 160 | 32x |
-| `sc2336p` | 161 | 160 | 32x |
-| `sc4236` | 63 | 62 | 15x |
-| `gc2083` | 29 | 28 | 125x |
-| `gc4023` | 25 | 24 | 64x |
+| Sensor | Entries | Max index | Max gain | `max_again` |
+| --- | ---: | ---: | ---: | ---: |
+| `sc2336` | 161 | 160 | 32x | 327680 |
+| `sc2336p` | 161 | 160 | 32x | 327680 |
+| `sc4236` | 63 | 62 | 15x | 256041 |
+| `gc2083` | 29 | 28 | 125x | 456839 |
+| `gc4023` | 25 | 24 | 64x | 393216 |
 
 The bridge caps the index at `V4L2_CID_ANALOGUE_GAIN.maximum` and sets
 `attr->max_again` to the LUT value at that index. A model whose size does
@@ -108,9 +111,10 @@ above and a `*_gains[]` table whose control maximum is
 
 Keep the **log2 Q16 gain column** next to the register table, either as
 comments or as a second field. Future LUT generation depends on it. The
-SC2336 and SC4236 ports carry it in comments; GC2083 and GC4023 use decimal
-comments. A new port without this column cannot be modelled without going
-back to the vendor source.
+SC4236 port carries it in hex comments, GC2083 and GC4023 in decimal
+comments, and SC2336 uses the vendor `sensor_again_lut` directly. A new port
+without this column cannot be modelled without going back to the vendor
+source.
 
 Add the Kconfig symbol and Makefile entry in
 `0099-media-i2c-enable-thingino-t31-sensors.patch`. The symbol must be
@@ -147,12 +151,12 @@ the `SENSOR_DTSI_FILE` path, and the raptor config fallback. The fallback in
 
 ### 4. Add the AE gain model
 
-Add a Q10 LUT to the bridge and an entry in `tx_v4l2_gain_models[]`:
+Add a log2-Q16 LUT to the bridge and an entry in `tx_v4l2_gain_models[]`:
 
 ```c
 static const u32 tx_v4l2_<model>_gain_lut[] = {
-    /* q10 = round(1024 * 2^(gain_log2_q16 / 65536)) */
-    1024, ...
+    /* log2 Q16 gain at each V4L2 gain index */
+    0, 2886, ...
 };
 
 static const struct tx_v4l2_gain_model tx_v4l2_gain_models[] = {
@@ -169,7 +173,7 @@ import re
 src = open('drivers/media/i2c/sc4236.c').read()
 table = re.search(r'sc4236_gains\[\] = \{(.*?)\n\};', src, re.S).group(1)
 rows = re.findall(r'/\*\s*(0x[0-9a-fA-F]+|\d+)\s*\*/', table)
-vals = [round(1024 * 2 ** (int(x, 0) / 65536)) for x in rows]
+vals = [int(x, 0) for x in rows]
 print(', '.join(str(v) for v in vals))
 ```
 
@@ -207,7 +211,7 @@ The bridge should log the match and the model:
 
 ```text
 tx-isp-v4l2: matched <model> at 0x..
-tx-isp-v4l2: gain model <model> (N entries, max index M)
+tx-isp-v4l2: gain model <model> (N entries, max index M, max gain G)
 ```
 
 In `/proc/jz/isp/isp-m0`, check:
@@ -215,7 +219,8 @@ In `/proc/jz/isp/isp-m0`, check:
 - `SENSOR NAME` is the expected model,
 - `SENSOR Integration Time` and `SENSOR analog gain` are plausible,
 - `open-tx-isp attr analog gain` is the index in use,
-- `open-tx-isp attr max analog gain` equals the last LUT value,
+- `open-tx-isp attr max analog gain` equals the last LUT value in log2 Q16
+  (`327680` for the 32x models),
 - `ISP digital gain` is not carrying the loop.
 
 AE breathing test (20 s, stable scene):

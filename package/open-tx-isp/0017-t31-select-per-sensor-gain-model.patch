@@ -8,11 +8,12 @@ and reaches 125x, gc4023 has 25 entries and reaches 64x. Feeding them
 the SC2336 model made the AE see the wrong gain and, for sensors with
 fewer entries, clamp at the top of the V4L2 control.
 
-Add a gain model keyed by sensor name, with Q10 tables derived from
-the mainline drivers' log2-Q16 gain columns. Select it when the sensor
-is attached and cap the index at the V4L2 control maximum. Sensors
-without a model keep the SC2336 table capped at their control maximum,
-with a warning, until their table is added.
+Add a gain model keyed by sensor name. The tables are the log2 Q16
+gain columns from the sensor drivers, the unit the T31 AE uses, and
+max_again is taken from the selected table. Select the model when the
+sensor is attached and cap the index at the V4L2 control maximum.
+Sensors without a model keep the SC2336 table capped at their control
+maximum, with a warning, until their table is added.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
@@ -44,33 +45,33 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  
  /*
   * The mainline sc2336 driver maps the V4L2 analogue gain control to the
-@@ -104,27 +111,81 @@
- 	 28672,  29180,  29704,  30212,  30720,  31228,  31752,  32260,
- 	 32768
+@@ -107,26 +114,81 @@
+ 	327680,
  };
+ 
 +static const u32 tx_v4l2_sc4236_gain_lut[] = {
-+	  1024,   1088,   1152,   1216,   1280,   1344,   1408,   1472,
-+	  1536,   1600,   1664,   1728,   1792,   1856,   1920,   1984,
-+	  2048,   2176,   2304,   2432,   2560,   2688,   2816,   2944,
-+	  3072,   3200,   3328,   3456,   3584,   3712,   3840,   3968,
-+	  4096,   4352,   4608,   4864,   5120,   5376,   5632,   5888,
-+	  6144,   6400,   6656,   6912,   7168,   7424,   7680,   7936,
-+	  8192,   8704,   9216,   9728,  10240,  10752,  11264,  11776,
-+	 12288,  12800,  13312,  13824,  14336,  14848,  15360
++	     0,   5731,  11136,  16248,  21097,  25710,  30109,  34312,
++	 38336,  42195,  45904,  49472,  52910,  56228,  59433,  62534,
++	 65536,  71267,  76672,  81784,  86633,  91246,  95645,  99848,
++	103872, 107731, 111440, 115008, 118446, 121764, 124969, 128070,
++	131072, 136803, 142208, 147320, 152169, 156782, 161181, 165384,
++	169408, 173267, 176976, 180544, 183982, 187300, 190505, 193606,
++	196608, 202339, 207744, 212856, 217705, 222318, 226717, 230920,
++	234944, 238803, 242512, 246080, 249518, 252836, 256041,
 +};
 +
 +static const u32 tx_v4l2_gc2083_gain_lut[] = {
-+	  1024,   1216,   1440,   1712,   2048,   2432,   2864,   3408,
-+	  4096,   4880,   5728,   6832,   8192,   9760,  11472,  13664,
-+	 16384,  19520,  22944,  27311,  32768,  39024,  45871,  54639,
-+	 65536,  78047,  91743, 109278, 128447
++	     0,  16247,  32233,  48592,  65536,  81783,  97243, 113685,
++	131072, 147629, 162779, 179442, 196608, 213165, 228446, 244978,
++	262144, 278701, 293982, 310458, 327680, 344199, 359485, 376022,
++	393216, 409735, 425021, 441558, 456839,
 +};
 +
 +static const u32 tx_v4l2_gc4023_gain_lut[] = {
-+	  1024,   1215,   1440,   1696,   2048,   2432,   2863,   3391,
-+	  4096,   4848,   5727,   6799,   8192,   9712,  11472,  13583,
-+	 16384,  19408,  22944,  27183,  32768,  38831,  45871,  54367,
-+	 65536
++	     0,  16208,  32217,  47690,  65536,  81784,  97213, 113226,
++	131072, 147001, 162766, 178990, 196608, 212696, 228446, 244419,
++	262144, 278158, 293982, 310012, 327680, 343731, 359484, 375550,
++	393216,
 +};
 +
 +static const struct tx_v4l2_gain_model tx_v4l2_gain_models[] = {
@@ -92,7 +93,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +
 +	return NULL;
 +}
- 
++
  static unsigned int tx_v4l2_alloc_again(unsigned int isp_gain,
  					unsigned char shift,
  					unsigned int *sensor_again)
@@ -133,7 +134,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  }
  
  static unsigned int tx_v4l2_alloc_dgain(unsigned int isp_gain,
-@@ -533,6 +594,8 @@
+@@ -540,6 +602,8 @@
  	struct tx_isp_v4l2_sensor *s;
  	struct tx_isp_sensor *sensor;
  	struct tx_isp_sensor_attribute *attr;
@@ -142,7 +143,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	int ret;
  
  	if (!adapter || !name || !name[0])
-@@ -597,6 +660,23 @@
+@@ -604,6 +668,24 @@
  		return NULL;
  	}
  
@@ -160,13 +161,14 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 +	tx_v4l2_active_gain = gain_model;
 +	tx_v4l2_active_gain_max = gain_index_max;
 +	dev_info(&s->client->dev,
-+		 "tx-isp-v4l2: gain model %s (%u entries, max index %u)\n",
-+		 gain_model->name, gain_model->size, gain_index_max);
++		 "tx-isp-v4l2: gain model %s (%u entries, max index %u, max gain %u)\n",
++		 gain_model->name, gain_model->size, gain_index_max,
++		 gain_model->lut[gain_index_max]);
 +
  	if (tx_v4l2_parse_lanes(s)) {
  		dev_err(&s->client->dev, "failed to parse MIPI lanes\n");
  		tx_v4l2_sensor_free(s);
-@@ -620,7 +700,7 @@
+@@ -627,7 +709,7 @@
  	attr->mipi.mipi_sc.sensor_frame_mode = TX_SENSOR_DEFAULT_FRAME_MODE;
  	attr->mipi.mipi_sc.sensor_mode = TX_SENSOR_DEFAULT_MODE;
  	attr->data_type = TX_SENSOR_DATA_TYPE_LINEAR;
@@ -175,7 +177,7 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
  	attr->max_dgain = 0;
  	attr->min_integration_time = TX_V4L2_MIN_EXPOSURE;
  	attr->min_integration_time_native = TX_V4L2_MIN_EXPOSURE;
-@@ -673,6 +753,8 @@
+@@ -680,6 +762,8 @@
  
  	s = sd_to_v4l2_sensor(sd);
  	tx_isp_v4l2_sensor_sd = NULL;

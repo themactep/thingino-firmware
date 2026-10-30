@@ -53,7 +53,7 @@ Kernel focus:
 
 The T31 7.2 path uses in-tree V4L2 sensor drivers through the open-tx-isp
 V4L2 bridge. The driver layers, the AE gain-model contract, and the steps for
-adding a sensor (including its Q10 gain LUT) are documented in
+adding a sensor (including its log2-Q16 gain LUT) are documented in
 [t31-mainline-sensor-drivers.md](t31-mainline-sensor-drivers.md).
 
 ## Module completeness

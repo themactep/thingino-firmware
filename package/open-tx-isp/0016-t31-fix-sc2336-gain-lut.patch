@@ -1,22 +1,34 @@
-From: Paul Philippov <paul@themactep.com>
-Subject: [PATCH] t31: fix the SC2336 analogue gain model
+From: Lu-Fi <lutz@fiebach.de>
+Subject: [PATCH] t31: SC2336 gain model in the AE unit (vendor log2 Q16), always write the gain
 
-The V4L2 bridge derived the AE's Q10 gain table with
-1 + coarse + (fine - 128) / 128, which only holds for coarse 0. The
-vendor SDK's sensor_again_lut stores log2(gain) in Q16 next to each
-index; convert that column to Q10 linear with 1024 * 2^(gain / 65536).
-The real curve is 1x, 2x, 4x, 8x, 16x, 32x, and the current table
-claims 9x, 10x and 12x at the 2x, 4x and 8x boundaries, so the AE sees
-a 4.5x jump between indices 31 and 32 and limit-cycles between 1.97x
-and 9x.
+Replaces 0016-t31-fix-sc2336-gain-lut.patch. Apply after 0015.
 
+The T31 AE works in log2(gain) Q16 (alloc_again input, max_again ".16",
+exp2(x, 0x10, 0xa)), so the vendor sensor_again_lut gain column is used
+verbatim (0 = 1x ... 327680 = 32x) and max_again stays 327680.
+
+The flicker came from tx_v4l2_sensor_set_expo() skipping the gain write at
+index 0 (1.0x): write the gain on every EXPO like the vendor modules.
+
+Hardware: cinnado_d1_t31l_sc2336, 7.2.11, night: ISP digital gain 0,
+edge-noise 16.5 (with the Q10 table: dgain 38/80, edge-noise 98).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
 --- a/driver/t31/tx_isp_v4l2_sensor.c
 +++ b/driver/t31/tx_isp_v4l2_sensor.c
-@@ -76,35 +76,32 @@
-  * the V4L2 analogue-gain control values; the sensor writes
-  * {coarse, fine} = {index>>8, index&0xff} scaled through its own table.
+@@ -71,41 +71,40 @@ static struct tx_isp_subdev *tx_isp_v4l2_sensor_sd;
+  * the vendor driver so the AE algorithm behaves identically.
+  */
+ /*
+- * Q10 analogue gain actually produced by each index of the sensor driver's
+- * gain table, i.e. the model the AE uses to decide exposure.  The indexes are
+- * the V4L2 analogue-gain control values; the sensor writes
+- * {coarse, fine} = {index>>8, index&0xff} scaled through its own table.
++ * Gain model handed to the AE, one entry per index of the vendor sensor
++ * driver's gain table (the V4L2 analogue-gain control value; the sensor
++ * writes {coarse, fine} = {index>>8, index&0xff} through its own table).
   *
 - * Derived from the SC gain coding, gain = 1 + coarse + (fine - 128)/128, which
 - * is what the sensor does for the register table the driver ports from the
@@ -25,19 +37,19 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 - * where the sensor gives 1.97x and 0x where it gives 1.0x.  The AE trusted it,
 - * could not close its loop, and oscillated the integration time instead - see
 - * the observation behind this change: index 0 has to read 1.0x, never 0.
-+ * The SDK sensor_again_lut stores log2(gain) in Q16 next to each index.
-+ * Convert that column to Q10 linear with 1024 * 2^(gain / 65536).  Deriving
-+ * the gain from 1 + coarse + (fine - 128) / 128 is only valid for coarse 0,
-+ * and claims 9x, 10x and 12x where the sensor gives 2x, 4x and 8x.
++ * The values are the vendor sensor_again_lut gain column verbatim:
++ * log2(gain) in Q16, i.e. 0 = 1x, 65536 = 2x, 131072 = 4x ... 327680 = 32x.
++ * That is the unit the T31 AE works in - alloc_again() receives log2 Q16,
++ * max_again is ".16" and the core converts with exp2(x, 0x10, 0xa) - so the
++ * table must not be converted to linear Q10: a linear 32768 would read as
++ * 2^0.5 = 1.41x maximum, the AE would run out of sensor gain early and make
++ * up the rest with ISP digital gain (noise at night).
   */
  static const u32 tx_v4l2_gain_lut[] = {
 -	  1024,   1056,   1088,   1120,   1152,   1184,   1216,   1248,
 -	  1280,   1312,   1344,   1376,   1408,   1440,   1472,   1504,
 -	  1536,   1568,   1600,   1632,   1664,   1696,   1728,   1760,
-+	  1024,   1056,   1089,   1120,   1152,   1184,   1216,   1248,
-+	  1280,   1312,   1344,   1376,   1408,   1440,   1473,   1504,
-+	  1536,   1568,   1601,   1632,   1664,   1696,   1729,   1760,
- 	  1792,   1824,   1856,   1888,   1920,   1952,   1984,   2016,
+-	  1792,   1824,   1856,   1888,   1920,   1952,   1984,   2016,
 -	  9216,   9248,   9280,   9312,   9344,   9376,   9408,   9440,
 -	  9472,   9504,   9536,   9568,   9600,   9632,   9664,   9696,
 -	  9728,   9760,   9792,   9824,   9856,   9888,   9920,   9952,
@@ -54,22 +66,50 @@ Signed-off-by: Paul Philippov <paul@themactep.com>
 -	 16640,  16672,  16704,  16736,  16768,  16800,  16832,  16864,
 -	 16896,  16928,  16960,  16992,  17024,  17056,  17088,  17120,
 -	 17152,  17184,  17216,  17248,  17280,  17312,  17344,  17376,
-+	  2048,   2111,   2177,   2241,   2304,   2367,   2433,   2496,
-+	  2560,   2623,   2689,   2753,   2816,   2879,   2945,   3008,
-+	  3072,   3135,   3201,   3264,   3328,   3391,   3457,   3520,
-+	  3584,   3647,   3713,   3776,   3840,   3903,   3969,   4033,
-+	  4096,   4223,   4354,   4481,   4608,   4735,   4866,   4993,
-+	  5120,   5247,   5378,   5505,   5632,   5759,   5890,   6017,
-+	  6144,   6271,   6402,   6529,   6656,   6783,   6914,   7041,
-+	  7168,   7295,   7426,   7553,   7680,   7807,   7938,   8065,
-+	  8192,   8446,   8708,   8962,   9216,   9470,   9732,   9986,
-+	 10240,  10494,  10756,  11010,  11264,  11518,  11780,  12034,
-+	 12288,  12542,  12804,  13058,  13312,  13566,  13828,  14082,
-+	 14336,  14590,  14852,  15106,  15360,  15614,  15876,  16130,
-+	 16384,  16892,  17416,  17924,  18432,  18940,  19464,  19972,
-+	 20480,  20988,  21512,  22020,  22528,  23036,  23560,  24068,
-+	 24576,  25084,  25608,  26116,  26624,  27132,  27656,  28164,
-+	 28672,  29180,  29704,  30212,  30720,  31228,  31752,  32260,
- 	 32768
+-	 32768
++	0, 2886, 5776, 8494, 11136, 13706, 16287, 18723,
++	21097, 23414, 25746, 27953, 30109, 32217, 34345, 36361,
++	38336, 40270, 42226, 44082, 45904, 47690, 49500, 51220,
++	52910, 54571, 56254, 57857, 59433, 60984, 62558, 64059,
++	65536, 68422, 71312, 74030, 76672, 79242, 81823, 84259,
++	86633, 88950, 91282, 93489, 95645, 97753, 99881, 101897,
++	103872, 105806, 107762, 109618, 111440, 113226, 115036, 116756,
++	118446, 120107, 121790, 123393, 124969, 126520, 128094, 129595,
++	131072, 133958, 136848, 139566, 142208, 144778, 147359, 149795,
++	152169, 154486, 156818, 159025, 161181, 163289, 165417, 167433,
++	169408, 171342, 173298, 175154, 176976, 178762, 180572, 182292,
++	183982, 185643, 187326, 188929, 190505, 192056, 193630, 195131,
++	196608, 199494, 202384, 205102, 207744, 210314, 212895, 215331,
++	217705, 220022, 222354, 224561, 226717, 228825, 230953, 232969,
++	234944, 236878, 238834, 240690, 242512, 244298, 246108, 247828,
++	249518, 251179, 252862, 254465, 256041, 257592, 259166, 260667,
++	262144, 265030, 267920, 270638, 273280, 275850, 278431, 280867,
++	283241, 285558, 287890, 290097, 292253, 294361, 296489, 298505,
++	300480, 302414, 304370, 306226, 308048, 309834, 311644, 313364,
++	315054, 316715, 318398, 320001, 321577, 323128, 324702, 326203,
++	327680,
  };
  
+ static unsigned int tx_v4l2_alloc_again(unsigned int isp_gain,
+@@ -339,11 +338,16 @@ static int tx_v4l2_sensor_set_expo(struct tx_isp_subdev *sd, int value)
+ 			return ret;
+ 	}
+ 
+-	if (again) {
+-		ret = v4l2_ctrl_s_ctrl(s->gain, again);
+-		if (ret)
+-			return ret;
+-	}
++	/*
++	 * Index 0 is the 1.0x entry, not "no change": the vendor modules write
++	 * the gain on every EXPO event. Skipping it left the sensor at the
++	 * previous gain whenever the AE traded gain for integration time, so
++	 * that frame came out up to a stop too bright and the AE oscillated
++	 * between anti-flicker steps.
++	 */
++	ret = v4l2_ctrl_s_ctrl(s->gain, again);
++	if (ret)
++		return ret;
+ 
+ 	return 0;
+ }
