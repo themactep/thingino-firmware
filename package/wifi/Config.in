@@ -73,6 +73,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-syn4343/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-txw901u/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-wq9001/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ws73v100/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-swt6621s/Config.in"
 endmenu
 
 menu "Virtual"
