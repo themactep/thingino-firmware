@@ -24,10 +24,16 @@ ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE),y)
 UBOOT_MAKE_OPTS += CONFIG_BOOTARGS_EXTERNAL=1
 endif
 
+# Legacy 2013.07 tree only: the pre-refactor jz_sfc net init took the PHY
+# reset pin/polarity from CONFIG_GPIO_PHY_RESET make opts. The 2026.07 tree
+# has no such config; its dwmac_ingenic driver instead reads
+# ingenic,reset-gpio from the gmac DT node - injected per board below.
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG),y)
 UBOOT_MAKE_OPTS += CONFIG_PHY_RESET_AFTER_CONFIG=1
 UBOOT_MAKE_OPTS += CONFIG_GPIO_PHY_RESET=$(call qstrip,$(BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET))
 UBOOT_MAKE_OPTS += CONFIG_GPIO_PHY_RESET_ENLEVEL=$(call qstrip,$(BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET_ENLEVEL))
+endif
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
@@ -232,6 +238,24 @@ define THINGINO_UBOOT_INJECT_GPIO_DT
 	$(UBOOT_KCONFIG_MAKE) olddefconfig
 endef
 UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_GPIO_DT
+endif
+
+# Inject this board's wired-Ethernet PHY reset line into the U-Boot leaf .dts
+# from thingino.json (gpio.eth_phy_reset). The 2026.07 dwmac_ingenic driver
+# pulses the line at probe (every boot) when the gmac DT node carries
+# ingenic,reset-gpio; the per-SoC .dtsi can only carry the ISVP reference
+# default (PB28), right for the reference board and wrong for most cameras.
+# Boards with no key (or no GMAC node) are left untouched, so the MDIO
+# soft-reset fallback and existing behavior stand for every other board.
+ifneq ($(BR2_THINGINO_UBOOT_VERSION_2013_07),y)
+define THINGINO_UBOOT_INJECT_ETH_DT
+	@DT=$$(sed -n 's/^CONFIG_DEFAULT_DEVICE_TREE="\(.*\)"/\1/p' $(@D)/.config); \
+	[ -n "$$DT" ] && [ -f $(@D)/arch/mips/dts/$$DT.dts ] || exit 0; \
+	$(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-uboot/inject-uboot-eth-dt.sh \
+		$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json \
+		$(@D)/arch/mips/dts/$$DT.dts "$$DT"
+endef
+UBOOT_PRE_BUILD_HOOKS += THINGINO_UBOOT_INJECT_ETH_DT
 endif
 
 # Inject this board's speaker-amp enable line into the U-Boot leaf .dts from
