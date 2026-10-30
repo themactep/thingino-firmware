@@ -36,7 +36,9 @@
 };
 
 &i2c0 {
-	compatible = "ingenic,t20-i2c", "ingenic,jz4780-i2c";
+	compatible = "ingenic,t20-i2c";
+	/* mainline cgu reports 18 MHz for T20 pclk; 18 kHz -> ~100 kHz real */
+	clock-frequency = <18000>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&t20_i2c0_pins>;
