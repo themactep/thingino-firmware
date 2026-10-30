@@ -35,8 +35,8 @@ BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
 # Run dependency check before doing anything.
 # Skip when WORKFLOW=1, when .prereqs.done exists, or for `make update`.
 ifeq ($(WORKFLOW),)
-ifneq ($(filter update,$(MAKECMDGOALS)),)
-$(info Skipping dependency check for update target)
+ifneq ($(filter update update-certs,$(MAKECMDGOALS)),)
+$(info Skipping dependency check for update/update-certs target)
 else ifeq ($(wildcard $(CURDIR)/.prereqs.done),)
 _dep_check := $(shell $(SCRIPTS_DIR)/dep_check.sh>&2; echo $$?)
 ifneq ($(lastword $(_dep_check)),0)
@@ -454,7 +454,7 @@ endef
 
 .PHONY: all bootstrap build build_fast build-info clean clean-nfs-debug cleanbuild \
 	defconfig dev distclean fast help pack ram-build ram-dev ram-setup repack remove_bins \
-	sdk toolchain update br-% \
+	sdk toolchain update update-certs br-% \
 	check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs tftp-copy tftp-upload \
 	backup-overlay user-dirs user-push \
