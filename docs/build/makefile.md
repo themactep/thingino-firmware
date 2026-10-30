@@ -640,6 +640,14 @@ Downloads:
 - `docs/buildroot/manual.pdf`
 - `docs/buildroot/manual.txt`
 
+#### `update-certs`
+Refresh the static CA trust store shipped in the rootfs overlay.
+```bash
+make update-certs
+```
+- Downloads the current Mozilla root store extract from `https://curl.se/ca/cacert.pem`
+- Validates the bundle before replacing `overlay/etc/ssl/certs/ca-certificates.crt`
+
 ### Information and Debugging
 
 #### `info`
