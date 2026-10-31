@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000006 Mon Sep 17 00:00:00 2001
+From: Oskari Rauta <oskari.rauta@gmail.com>
+Date: Sun, 12 Jul 2026 03:04:38 +0300
+Subject: [PATCH] ingenic-sdk: gc5603 t41: apply shvflip at stream on
+
+`shvflip` was a plain static default with no module_param, so boards
+could not select their mounting orientation. It was also only copied to
+`sensor->video.shvflip`; this sensor never applied it at stream on, so
+even the VFLIP event path left the image unflipped until the ISP sent an
+explicit event.
+
+Expose it as a module parameter and apply it once from `sensor_init()`
+after stream on, where the registers can still be written. Boards that
+need a flip set it through `BR2_SENSOR_1_PARAMS`, e.g. "shvflip=3".
+
+Keep the default at 0. The value was inert before this change, so 0
+preserves the current output for existing GC5603 boards.
+
+Signed-off-by: Oskari Rauta <oskari.rauta@gmail.com>
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/4.4.94/sensor-src/t41/gc5603.c
++++ b/4.4.94/sensor-src/t41/gc5603.c
+@@ -41,6 +41,8 @@
+ static int pwdn_gpio = -1;
+ static int wdr_bufsize = 2 * 4800 * 400;//cache lines corrponding on VPB1
+-static int shvflip = 1;
++static int shvflip = 0;
++module_param(shvflip, int, 0644);
++MODULE_PARM_DESC(shvflip, "Sensor HV flip: 0=none 1=mirror(hflip) 2=flip(vflip) 3=mirror+flip(180)");
+ 
+ struct regval_list {
+ 	uint16_t reg_num;
+@@ -820,6 +822,7 @@
+ 	return 0;
+ }
+ 
++static int sensor_set_hvflip(struct tx_isp_subdev *sd, int enable);
+ static int sensor_init(struct tx_isp_subdev *sd, struct tx_isp_initarg *init)
+ {
+ 	struct tx_isp_sensor *sensor = sd_to_sensor_device(sd);
+@@ -850,6 +853,7 @@
+ 		}
+ 		if (sensor->video.state == TX_ISP_MODULE_INIT) {
+ 			ret = sensor_write_array(sd, sensor_stream_on);
++			sensor_set_hvflip(sd, shvflip);
+ 			sensor->video.state = TX_ISP_MODULE_RUNNING;
+ 			pr_debug("%s stream on\n", SENSOR_NAME);
+ 			sensor->video.state = TX_ISP_MODULE_RUNNING;
