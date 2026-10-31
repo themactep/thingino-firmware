@@ -54,7 +54,59 @@
     }
   }
 
+  // Encoder options per SoC family, same table as the prudynt page.
+  const SOC_MODES = {
+    t10: ["CBR", "VBR", "FIXQP", "SMART"],
+    t20: ["CBR", "VBR", "FIXQP", "SMART"],
+    t21: ["CBR", "VBR", "FIXQP", "SMART"],
+    t23: ["CBR", "VBR", "FIXQP", "SMART"],
+    t30: ["CBR", "VBR", "FIXQP", "SMART"],
+  };
+  const SOC_FORMATS = {
+    t10: ["H264"],
+    t20: ["H264"],
+    t21: ["H264"],
+    t23: ["H264"],
+  };
+
+  function populateSelect(selector, values, label) {
+    $$(selector).forEach((select) => {
+      const current = select.value;
+      select.innerHTML = '<option value="">- Select -</option>';
+      values.forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label ? label(value) : value;
+        select.appendChild(option);
+      });
+      if (values.includes(current)) select.value = current;
+    });
+  }
+
+  function populateEncoderSelects() {
+    const soc = String(
+      window.thinginoUIConfig?.device?.soc || "",
+    ).toLowerCase();
+    const family = (soc.match(/^(t\d+|c\d+)/) || [])[1];
+    populateSelect(
+      "#stream0_mode, #stream1_mode",
+      SOC_MODES[family] || [
+        "CBR",
+        "VBR",
+        "FIXQP",
+        "CAPPED_VBR",
+        "CAPPED_QUALITY",
+      ],
+      (mode) => mode.replace(/_/g, " "),
+    );
+    populateSelect(
+      "#stream0_format, #stream1_format",
+      SOC_FORMATS[family] || ["H264", "H265"],
+    );
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    populateEncoderSelects();
     const saveButton = $("#save-config");
     if (saveButton) {
       saveButton.addEventListener("click", saveStreamerConfig);
