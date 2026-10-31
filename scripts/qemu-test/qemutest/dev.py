@@ -911,6 +911,35 @@ def serial_run(con, cmd, timeout):
     return rc, out[:-1] if out.endswith("\n") else out
 
 
+@contextlib.contextmanager
+def console_unpaced(s):
+    """The fork's UARTs send at the line rate the guest sets, 115200 baud
+    on the console; a file copy over it goes unpaced, then pacing comes
+    back. An older QEMU has no switch and the copy keeps its pace."""
+    paced = []
+    q = None
+    try:
+        q = Qmp(s.path("qmp"))
+        for c in q.cmd("qom-list", path="/machine"):
+            path = "/machine/" + c["name"]
+            if (c.get("type") == "child<ingenic-uart>" and
+                    q.cmd("qom-get", path=path, property="line-rate")):
+                q.cmd("qom-set", path=path, property="line-rate", value=False)
+                paced.append(path)
+    except RuntimeError:
+        pass
+    try:
+        yield
+    finally:
+        for path in paced:
+            try:
+                q.cmd("qom-set", path=path, property="line-rate", value=True)
+            except RuntimeError:
+                pass
+        if q:
+            q.close()
+
+
 def serial_upload(con, data, remote, timeout):
     """Write data to a file on the camera, one line of base64 per shell
     command; returns the exit status. The console has no flow control:
@@ -1564,7 +1593,8 @@ def cmd_put(args):
         remote = args.remote
         if serial_run(con, f"[ -d {shlex.quote(remote)} ]", 20)[0] == 0:
             remote = remote.rstrip("/") + "/" + os.path.basename(args.local)
-        rc = serial_upload(con, data, remote, args.timeout)
+        with console_unpaced(s):
+            rc = serial_upload(con, data, remote, args.timeout)
         _, out = serial_run(con, f"chmod {mode:o} {shlex.quote(remote)} && "
                                  f"md5sum {shlex.quote(remote)}", 20)
         s.info["mark"] = s.log_size()
@@ -1596,7 +1626,8 @@ def cmd_get(args):
     with s.console(args.timeout) as con:
         if needs_settle(s):
             settle(s, con, args.timeout)
-        rc, out = serial_run(con, f"base64 {q}", args.timeout)
+        with console_unpaced(s):
+            rc, out = serial_run(con, f"base64 {q}", args.timeout)
         _, sums = serial_run(con, f"md5sum {q}", 20)
         s.info["mark"] = s.log_size()
         s.save()
