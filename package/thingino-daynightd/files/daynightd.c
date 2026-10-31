@@ -1140,6 +1140,7 @@ static int main_loop(void) {
     int last_bright_pct = -1;
     daynight_mode_t last_logged_mode = MODE_UNKNOWN;
     int log_counter = 0;
+    int reassert_wait = 0;
 
     while (g_state.running && !g_terminate_flag) {
         /* Handle signals */
@@ -1178,6 +1179,23 @@ static int main_loop(void) {
             log_message(LOG_ERR, "Failed to read ISP data");
             usleep(g_config.sample_interval_ms * 1000);
             continue;
+        }
+
+        /* The ISP running mode lives in the streamer, which resets it to
+           day when it restarts while IR-cut and LEDs stay in night: color
+           under IR until the next transition. Re-apply the current mode
+           when the ISP disagrees, at most every 10 samples. */
+        if (reassert_wait > 0) {
+            --reassert_wait;
+        } else if (g_config.controls_color && g_state.initial_mode_set &&
+                   g_state.current_mode != MODE_UNKNOWN && s.isp_mode[0] != '\0') {
+            bool isp_night = strcmp(s.isp_mode, "Night") == 0;
+            if (isp_night != (g_state.current_mode == MODE_NIGHT)) {
+                log_message(LOG_INFO, "ISP running mode is %s, re-applying %s",
+                            s.isp_mode, isp_night ? "DAY" : "NIGHT");
+                apply_mode(g_state.current_mode);
+                reassert_wait = 10;
+            }
         }
 
         /* Re-detect platform if it changed (shouldn't, but be safe) */
