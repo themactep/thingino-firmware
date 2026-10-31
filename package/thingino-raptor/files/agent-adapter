@@ -661,6 +661,58 @@ agent_privacy_enabled() {
 	printf 'false'
 }
 
+# ── Runtime stream fallback ────────────────────────────────────────────────
+# The Kconfig stream defaults are empty strings, so /etc/raptor.conf ships
+# streamN geometry keys commented out and the daemon runs on compiled-in
+# defaults. To show what the daemon is actually doing, fall back to the
+# live encoder state from `raptorctl rvd config` when a key is unset.
+
+agent_runtime_stream_json() {
+	command -v raptorctl >/dev/null 2>&1 || return 1
+	raptorctl rvd config 2>/dev/null | sed -n '/"streams"[[:space:]]*:/,$p' | tr -d '\n'
+}
+
+agent_runtime_stream_field() {
+	# $1 = stream id, $2 = field name; prints the value or nothing
+	json=$(agent_runtime_stream_json) || return 0
+	[ -n "$json" ] || return 0
+	value=$(printf '%s' "$json" | grep -o '"chn"[[:space:]]*:[[:space:]]*'"$1"'[^}]*}' | head -n 1 |
+		grep -o '"'"$2"'"[[:space:]]*:[[:space:]]*-\{0,1\}[0-9][0-9]*' |
+		head -n 1 | tr -dc '0-9-')
+	printf '%s' "$value"
+}
+
+agent_runtime_codec_name() {
+	codec=$(agent_runtime_stream_field "$1" codec)
+	case "$codec" in
+		0) printf 'H264' ;;
+		1) printf 'H265' ;;
+		2) printf 'JPEG' ;;
+		3) printf 'MJPEG' ;;
+	esac
+}
+
+agent_runtime_rc_mode_name() {
+	rc=$(agent_runtime_stream_field "$1" rc_mode)
+	case "$rc" in
+		0) printf 'FIXQP' ;;
+		1) printf 'CBR' ;;
+		2) printf 'VBR' ;;
+		3) printf 'SMART' ;;
+		4) printf 'CAPPED_VBR' ;;
+		5) printf 'CAPPED_QUALITY' ;;
+	esac
+}
+
+agent_runtime_profile_name() {
+	profile=$(agent_runtime_stream_field "$1" profile)
+	case "$profile" in
+		0) printf 'baseline' ;;
+		1) printf 'main' ;;
+		2) printf 'high' ;;
+	esac
+}
+
 agent_stream_section() {
 	printf 'stream%s' "$1"
 }
@@ -682,6 +734,18 @@ agent_stream_field() {
 	stream_id=$1
 	field=$2
 	agent_config_get "$(agent_stream_section "$stream_id")" "$field"
+}
+
+agent_stream_nr_vbs() {
+	# rvd treats an unset nr_vbs as "auto" and starts with 2 buffers
+	# (rvd_pipeline.c load_stream_config); report that effective default
+	# instead of null so the Buffers field is not blank.
+	value=$(agent_stream_field "$1" nr_vbs)
+	if [ -n "$value" ]; then
+		printf '%s' "$value"
+	else
+		printf '2'
+	fi
 }
 
 agent_stream_format() {
@@ -904,21 +968,46 @@ agent_print_stream_config() {
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$(agent_stream_enabled "$stream_id")"
 	printf '"audio_enabled":%s,' "$(agent_stream_audio_enabled)"
-	printf '"width":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" fps)" null)"
-	printf '"bitrate":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" bitrate)" null)"
-	printf '"gop":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" gop)" null)"
-	printf '"buffers":%s,' "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+	# Configured value wins; when the key is unset (commented out in
+	# /etc/raptor.conf), report the live encoder value from rvd so the
+	# WebUI shows what the daemon is actually running.
+	_width=$(agent_stream_field "$stream_id" width)
+	[ -n "$_width" ] || _width=$(agent_runtime_stream_field "$stream_id" w)
+	printf '"width":%s,' "$(agent_json_value_or "$_width" null)"
+	_height=$(agent_stream_field "$stream_id" height)
+	[ -n "$_height" ] || _height=$(agent_runtime_stream_field "$stream_id" h)
+	printf '"height":%s,' "$(agent_json_value_or "$_height" null)"
+	_fps=$(agent_stream_field "$stream_id" fps)
+	[ -n "$_fps" ] || _fps=$(agent_runtime_stream_field "$stream_id" fps)
+	printf '"fps":%s,' "$(agent_json_value_or "$_fps" null)"
+	_bitrate=$(agent_stream_field "$stream_id" bitrate)
+	[ -n "$_bitrate" ] || _bitrate=$(agent_runtime_stream_field "$stream_id" bitrate)
+	printf '"bitrate":%s,' "$(agent_json_value_or "$_bitrate" null)"
+	_gop=$(agent_stream_field "$stream_id" gop)
+	[ -n "$_gop" ] || _gop=$(agent_runtime_stream_field "$stream_id" gop)
+	printf '"gop":%s,' "$(agent_json_value_or "$_gop" null)"
+	printf '"buffers":%s,' "$(agent_stream_nr_vbs "$stream_id")"
 	_profile_raw=$(agent_stream_field "$stream_id" profile)
+	_profile_name=""
 	if [ -n "$_profile_raw" ]; then
-		printf '"profile":%s,' "$(agent_json_string "$(agent_profile_to_name "$_profile_raw")")"
+		_profile_name=$(agent_profile_to_name "$_profile_raw")
+	elif _profile_name=$(agent_runtime_profile_name "$stream_id") && [ -n "$_profile_name" ]; then
+		:
+	else
+		_profile_name=""
+	fi
+	if [ -n "$_profile_name" ]; then
+		printf '"profile":%s,' "$(agent_json_string "$_profile_name")"
 	else
 		printf '"profile":null,'
 	fi
 	printf '"rtsp_endpoint":%s,' "$(agent_json_string_or_null "$(agent_rtsp_endpoint "$stream_id")")"
-	printf '"format":%s,' "$(agent_json_string_or_null "$(agent_stream_format "$stream_id")")"
-	printf '"mode":%s,' "$(agent_json_string_or_null "$(agent_stream_mode "$stream_id")")"
+	_format=$(agent_stream_format "$stream_id")
+	[ -n "$_format" ] || _format=$(agent_runtime_codec_name "$stream_id")
+	printf '"format":%s,' "$(agent_json_string_or_null "$_format")"
+	_mode=$(agent_stream_mode "$stream_id")
+	[ -n "$_mode" ] || _mode=$(agent_runtime_rc_mode_name "$stream_id")
+	printf '"mode":%s,' "$(agent_json_string_or_null "$_mode")"
 	printf '"osd":'
 	agent_print_stream_osd "$stream_id"
 	printf '}'
@@ -1983,7 +2072,7 @@ agent_get_setting() {
 		streams/[01]/buffers)
 			stream_id=${path#streams/}
 			stream_id=${stream_id%/buffers}
-			agent_print_setting_leaf buffers "$(agent_json_value_or "$(agent_stream_field "$stream_id" nr_vbs)" null)"
+			agent_print_setting_leaf buffers "$(agent_stream_nr_vbs "$stream_id")"
 			;;
 		streams/[01]/profile)
 			stream_id=${path#streams/}
