@@ -230,9 +230,9 @@ THINGINO_UBOOT_FRAGMENT_FILE := configs/fragments/uboot/v$(THINGINO_UBOOT_VERSIO
 # Default U-Boot binary name per version; xiaomi/t31lc boards don't build the lzo variant
 # Deferred (=) so it evaluates after thingino.mk sets UBOOT_BOARDNAME
 ifeq ($(THINGINO_UBOOT_VERSION_TAG),2013-07)
- UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
+UBOOT_BIN_NAME = $(if $(filter isvp_t31_xiaomi% isvp_t31lc%,$(UBOOT_BOARDNAME)),u-boot-with-spl.bin,u-boot-lzo-with-spl.bin)
 else
- UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
+UBOOT_BIN_NAME = $(if $(filter custom-fork,$(THINGINO_UBOOT_VERSION_TAG)),u-boot-lzo-with-spl.bin,u-boot-with-spl-lzma.bin)
 endif
 # loaduenv must run AFTER autoupdate: a full autoupdate erases the whole chip
 # (env partition included) and resets, so an env imported before flashing would
