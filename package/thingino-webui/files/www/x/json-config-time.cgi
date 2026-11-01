@@ -54,6 +54,7 @@ json_error() {
 read_config() {
 	tz_name=""
 	tz_data=""
+	tz_override=""
 	ntp_server_0=""
 	ntp_server_1=""
 	ntp_server_2=""
@@ -70,6 +71,15 @@ read_config() {
 		dhcp_ignore_timezone="false"
 	fi
 
+	# A manual raw TZ override (set-timezone-raw) stores the same string
+	# in both files; a resolved zone always differs.
+	code=$(cat /etc/TZ 2>/dev/null)
+	if [ -n "$code" ] && [ "$code" = "$tz_name" ]; then
+		tz_override="true"
+	else
+		tz_override="false"
+	fi
+
 	if [ -f "$NTP_WORKING_FILE" ]; then
 		ntp_server_0="$(sed -n 1p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
 		ntp_server_1="$(sed -n 2p "$NTP_WORKING_FILE" | cut -d' ' -f2)"
@@ -84,7 +94,11 @@ read_config() {
 
 write_config() {
 	if [ -n "$tz_name" ]; then
-		timectl set-timezone --source user "$tz_name"
+		if [ "$tz_override" = "true" ]; then
+			timectl set-timezone-raw "$tz_data"
+		else
+			timectl set-timezone --source user "$tz_name"
+		fi
 	fi
 
 	if [ "$dhcp_ignore_timezone" = "true" ]; then
@@ -116,6 +130,7 @@ handle_get() {
 {
   "tz_name": "$(json_escape "$tz_name")",
   "tz_data": "$(json_escape "$tz_data")",
+  "tz_override": "$(json_escape "$tz_override")",
   "ntp_server_0": "$(json_escape "$ntp_server_0")",
   "ntp_server_1": "$(json_escape "$ntp_server_1")",
   "ntp_server_2": "$(json_escape "$ntp_server_2")",
@@ -155,6 +170,8 @@ handle_post() {
 
 		update)
 			tz_name=$(jct "$REQ_FILE" get tz_name 2>/dev/null)
+			tz_data=$(jct "$REQ_FILE" get tz_data 2>/dev/null)
+			tz_override=$(jct "$REQ_FILE" get tz_override 2>/dev/null)
 			ntp_server_0=$(jct "$REQ_FILE" get ntp_server_0 2>/dev/null)
 			ntp_server_1=$(jct "$REQ_FILE" get ntp_server_1 2>/dev/null)
 			ntp_server_2=$(jct "$REQ_FILE" get ntp_server_2 2>/dev/null)
@@ -163,6 +180,10 @@ handle_post() {
 
 			if [ -z "$tz_name" ]; then
 				json_error 422 "Timezone name cannot be empty" "422 Unprocessable Entity"
+			fi
+
+			if [ "$tz_override" = "true" ] && [ -z "$tz_data" ]; then
+				json_error 422 "Custom TZ string cannot be empty" "422 Unprocessable Entity"
 			fi
 
 			write_config
