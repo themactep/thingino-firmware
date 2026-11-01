@@ -119,17 +119,21 @@ def build_spl_image(
     64-byte aligned: ``(length & 0x3F) == 0``.  Read the size from +0x0C
     and round up to the next 64-byte boundary so the check passes.  The
     ROM hashes exactly size_field bytes, so write the aligned value back.
+    One extra 64-byte block is appended after the aligned payload for the
+    nonce: the bytes just before the old size field are live SPL data (e.g.
+    the end of cgu_clk_src[] and its terminator), so the nonce must never
+    overwrite them.
     """
     if tpl_mode:
         existing = struct.unpack_from("<I", uboot, 0x0C)[0]
         payload_len = existing - HEADER_SIZE
         payload_len = (payload_len + SHA_BLOCK - 1) & ~(SHA_BLOCK - 1)
-        total = HEADER_SIZE + payload_len
+        total = HEADER_SIZE + payload_len + SHA_BLOCK   # fresh nonce block
         if total < HEADER_SIZE + SHA_BLOCK or total > SPL_PAD_TO:
             raise ValueError(
                 f"TPL aligned size 0x{total:x} out of range "
                 f"(min 0x{HEADER_SIZE + SHA_BLOCK:x}, max SPL_PAD_TO 0x{SPL_PAD_TO:x})")
-        spl_data = uboot[:total]
+        spl_data = uboot[:existing]
     else:
         spl_data = uboot[:SPL_PAD_TO]
         if struct.unpack_from("<I", spl_data, 0)[0] != MSPL_MAGIC:
