@@ -181,9 +181,21 @@ remove_bins:
 repack: remove_bins pack
 	@$(TEAL) "$@"
 
+# Guard: only the Buildroot internal toolchain can be packaged as an SDK; the
+# external/local one already is an SDK and has no BR2_TOOLCHAIN_BUILDROOT_VENDOR,
+# so it would be renamed with the wrong "buildroot" tuple.
+define check_sdk_toolchain
+if [ "$(TOOLCHAIN_TYPE_RAW)" != "BUILDROOT" ]; then \
+	echo "ERROR: the SDK can only be built with the Buildroot internal toolchain."; \
+	echo "       Set BR2_THINGINO_TOOLCHAIN_TYPE_BUILDROOT=y (current type: $(TOOLCHAIN_TYPE_RAW))."; \
+	exit 1; \
+fi
+endef
+
 # build toolchain fast
 sdk: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) -j$(NPROC) sdk
 
 source: defconfig
@@ -193,6 +205,7 @@ source: defconfig
 # build toolchain
 toolchain: defconfig
 	@$(TEAL) "$@"
+	@$(check_sdk_toolchain)
 	$(BR2_MAKE) sdk
 
 .PHONY: check-image-fits
