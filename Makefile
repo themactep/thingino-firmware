@@ -16,7 +16,10 @@ endif
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
-BUILDROOT_DIR := $(BR2_EXTERNAL)/buildroot
+# Buildroot tree. Defaults to the in-tree buildroot/ (a submodule); set
+# THINGINO_BUILDROOT_DIR to point at an external checkout instead, so the
+# in-tree symlink/submodule is not needed.
+BUILDROOT_DIR := $(or $(THINGINO_BUILDROOT_DIR),$(BR2_EXTERNAL)/buildroot)
 
 # --- CI / automation fast-paths -------------------------------------
 #
@@ -461,7 +464,7 @@ export BACKUP_SIZE_KB
 export KERNEL_SIZE_KB
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
 	O=$(OUTPUT_DIR) \
 	BR2_DL_DIR=$(BR2_DL_DIR)
