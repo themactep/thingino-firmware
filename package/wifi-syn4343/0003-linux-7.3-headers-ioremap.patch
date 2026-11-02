@@ -1,0 +1,65 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] bcmdhd: use 7.3 headers and ioremap
+
+Use linux/unaligned.h, linux/pci.h, and ioremap where the old
+asm and asm-generic shims no longer exist.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/dhd.h	2026-11-02 09:08:12.237650334 -0500
++++ b/dhd.h	2026-11-02 09:08:12.272933955 -0500
+@@ -26,7 +26,11 @@
+ #include <linux/spinlock.h>
+ #include <linux/ethtool.h>
+ #include <asm/uaccess.h>
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/unaligned.h>
++#else
+ #include <asm/unaligned.h>
++#endif
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
+ #include <linux/wakelock.h>
+ #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined (CONFIG_HAS_WAKELOCK) */
+--- a/dhd_linux.c	2026-11-02 09:08:12.244347574 -0500
++++ b/dhd_linux.c	2026-11-02 09:08:12.273342431 -0500
+@@ -38,7 +38,11 @@
+ #endif /* ENABLE_ADAPTIVE_SCHED */
+ 
+ #include <asm/uaccess.h>
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/unaligned.h>
++#else
+ #include <asm/unaligned.h>
++#endif
+ 
+ #include <epivers.h>
+ #include <bcmutils.h>
+--- a/linux_osl.c	2026-11-02 09:08:12.250200758 -0500
++++ b/linux_osl.c	2026-11-02 09:08:12.273481830 -0500
+@@ -11,7 +11,11 @@
+ #include <typedefs.h>
+ #include <bcmendian.h>
+ #include <linuxver.h>
+-#include <asm-generic/pci-dma-compat.h> 
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/pci.h>
++#else
++#include <asm-generic/pci-dma-compat.h>
++#endif 
+ #include <bcmdefs.h>
+ 
+ #if defined(BCM47XX_CA9) && defined(__ARM_ARCH_7A__)
+--- a/include/linux_osl.h	2026-11-02 09:08:12.255027837 -0500
++++ b/include/linux_osl.h	2026-11-02 09:08:12.273521216 -0500
+@@ -322,7 +322,11 @@
+ 
+ /* map/unmap physical to virtual I/O */
+ #if !defined(CONFIG_MMC_MSM7X00A)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
++#define	REG_MAP(pa, size)	ioremap((unsigned long)(pa), (unsigned long)(size))
++#else
+ #define	REG_MAP(pa, size)	ioremap_nocache((unsigned long)(pa), (unsigned long)(size))
++#endif
+ #else
+ #define REG_MAP(pa, size)       (void *)(0)
+ #endif /* !defined(CONFIG_MMC_MSM7X00A */

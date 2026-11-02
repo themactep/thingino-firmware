@@ -1,0 +1,26 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] bcmdhd: feed the driver flags into kbuild
+
+Linux 7.3 no longer consumes EXTRA_CFLAGS, and src is not the
+module directory for external builds. Pass DHDCFLAGS through
+subdir-ccflags-y and anchor the includes at PWD.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 09:07:01.584399542 -0500
++++ b/Makefile	2026-11-02 09:07:01.600512721 -0500
+@@ -15,7 +15,7 @@
+ 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DRXFRAME_THREAD          \
+ 	-DBCMSDIOH_TXGLOM_EXT                                                 \
+ 	-DENABLE_INSMOD_NO_FW_LOAD                                            \
+-	-I$(src) -I$(src)/include
++	-I$(if $(PWD),$(PWD),$(src)) -I$(if $(PWD),$(PWD),$(src))/include
+ 
+ DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o \
+ 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o \
+@@ -100,3 +100,5 @@
+ else
+ DHDCFLAGS += -DBUILD_IN_KERNEL
+ endif
++
++subdir-ccflags-y += $(EXTRA_CFLAGS)

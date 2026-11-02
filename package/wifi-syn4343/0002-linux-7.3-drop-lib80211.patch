@@ -1,0 +1,18 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] bcmdhd: drop the removed lib80211 header
+
+net/lib80211.h is gone in 7.3 and the driver does not use it.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/linuxver.h	2026-11-02 09:07:33.696699363 -0500
++++ b/include/linuxver.h	2026-11-02 09:07:33.715328850 -0500
+@@ -150,7 +150,7 @@
+ #include <linux/sched/rt.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0) */
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29) && LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ #include <net/lib80211.h>
+ #endif
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
