@@ -45,6 +45,7 @@ scripts/qemu-dev up dump.bin --soc t31l --console   # Ctrl-] detaches
 | `gpio [NAME] [PIN[=0\|1] ...]` | the pins set up as GPIO, or drive an input from outside; see below |
 | `gpio [NAME] --log\|--watch\|--serve` | every pin change, listed, followed or on a live page; `--vcd FILE` writes a waveform; see below |
 | `isp [NAME]` | the ISP trace of a session booted with `up --isp-trace`: each frame's changes, `--at` a point's registers, `--diff` another session's, `--serve` a live page; see Video |
+| `pwm [NAME]` | the PWM outputs: each change with its frequency and duty, `--vcd FILE` every edge, `--serve` a live page; see below |
 | `adc [NAME] [CH[=SAMPLE] ...]` | the samples the ADC channels convert, or set one |
 | `console [NAME]` | attach your terminal to the console; Ctrl-] detaches, `--all` prints everything since power-on first |
 | `info [NAME]`, `ls`, `down [NAME\|--all]` | show, list and stop sessions |
@@ -298,6 +299,20 @@ layout, coloured by what each is and flashing as it changes, a timeline,
 the changes as they come, the console, and for a pin its functions, its
 history and buttons that drive it from outside. The page can also set an
 ADC channel and pause the machine.
+
+The PWM outputs, the timer unit's channels and (T32, T33, T41, A1) the
+PWM block's, are logged too, from the QEMU that traces them on, and read
+with the fork's `pin-trace.py`: each change with its frequency and share
+of time high, every edge as a waveform, or a live page. An IR LED's
+brightness is its output's duty.
+
+```bash
+scripts/qemu-dev pwm
+#  48.224695078  pwm0     263.214 Hz, 37.5% high, now 0, an edge in 2372209 ns  0x55ecd7c0
+#  49.269497394  pwm0     263.214 Hz, 62.5% high, now 0, an edge in 1396908 ns  hw
+scripts/qemu-dev pwm --vcd pwm.vcd
+scripts/qemu-dev pwm --serve           # http://127.0.0.1:<port>/
+```
 
 ## Video
 
