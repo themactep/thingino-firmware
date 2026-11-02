@@ -280,5 +280,13 @@ endef
 
 WIFI_AIC8800_POST_INSTALL_TARGET_HOOKS += WIFI_AIC8800_INSTALL_FIRMWARE
 
+# The VFS namespace hack is gone on 7.3; keep it for older kernels only.
+define WIFI_AIC8800_FIX_NS
+	$(SED) 's/^#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)/#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)) \&\& (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))/' \
+		$(@D)/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_bluetooth_main.c
+endef
+
+WIFI_AIC8800_POST_PATCH_HOOKS += WIFI_AIC8800_FIX_NS
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
