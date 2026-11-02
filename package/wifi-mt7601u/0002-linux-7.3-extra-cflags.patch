@@ -1,0 +1,16 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mt7601u: feed EXTRA_CFLAGS into kbuild
+
+Linux 7.3 no longer consumes EXTRA_CFLAGS. Pass the driver
+defines and include paths through subdir-ccflags-y.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 12:32:21.059217257 -0500
++++ b/Makefile	2026-11-02 12:32:21.078203843 -0500
+@@ -158,3 +158,5 @@
+ 
+ clean:
+ 	$(MAKE) -C $(KSRC) M=$(PWD) clean
++
++subdir-ccflags-y += $(EXTRA_CFLAGS)

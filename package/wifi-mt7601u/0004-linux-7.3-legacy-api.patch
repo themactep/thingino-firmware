@@ -1,0 +1,225 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mt7601u: adapt the first legacy APIs to 7.3
+
+Guard the driver's radiotap enum, remove mm_segment_t/set_fs,
+switch the file helpers to kernel_read/kernel_write, use
+linux/stdarg.h and provide the removed strncpy.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff --git a/common/mlme.c b/common/mlme.c
+index a17bb96..eb7e7b5 100644
+--- a/common/mlme.c
++++ b/common/mlme.c
+@@ -28,7 +28,11 @@
+ */
+ 
+ #include "rt_config.h"
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
++#include <linux/stdarg.h>
++#else
+ #include <stdarg.h>
++#endif
+ 
+ 
+ UCHAR CISCO_OUI[] = {0x00, 0x40, 0x96};
+diff --git a/include/os/rt_linux.h b/include/os/rt_linux.h
+index 9d08549..2ad5b44 100644
+--- a/include/os/rt_linux.h
++++ b/include/os/rt_linux.h
+@@ -60,6 +60,19 @@
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+ #include <linux/pid.h>
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0))
++static inline char *rtw_strncpy(char *dest, const char *src, size_t count)
++{
++	size_t i;
++
++	for (i = 0; i < count && src[i]; i++)
++		dest[i] = src[i];
++	for (; i < count; i++)
++		dest[i] = 0;
++	return dest;
++}
++#define strncpy rtw_strncpy
++#endif
+ #endif
+ 
+ #ifdef RT_CFG80211_SUPPORT
+@@ -334,7 +347,9 @@ typedef struct _OS_FS_INFO_
+ {
+ 	int				fsuid;
+ 	int				fsgid;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t	fs;
++#endif
+ } OS_FS_INFO;
+ 
+ #define IS_FILE_OPEN_ERR(_fd) 	((_fd == NULL) || IS_ERR((_fd)))
+diff --git a/include/rtmp.h b/include/rtmp.h
+index 369bc5b..a739b33 100644
+--- a/include/rtmp.h
++++ b/include/rtmp.h
+@@ -9421,6 +9421,7 @@ typedef struct GNU_PACKED _ieee80211_radiotap_header {
+ 					 */
+ }ieee80211_radiotap_header ;
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0))
+ enum ieee80211_radiotap_type {
+     IEEE80211_RADIOTAP_TSFT = 0,
+     IEEE80211_RADIOTAP_FLAGS = 1,
+@@ -9437,6 +9438,7 @@ enum ieee80211_radiotap_type {
+     IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
+     IEEE80211_RADIOTAP_DB_ANTNOISE = 13
+ };
++#endif
+ 
+ #define WLAN_RADIOTAP_PRESENT (			\
+ 	(1 << IEEE80211_RADIOTAP_TSFT)	|	\
+diff --git a/os/linux/rt_linux.c b/os/linux/rt_linux.c
+index 3bb7f1f..b43f502 100644
+--- a/os/linux/rt_linux.c
++++ b/os/linux/rt_linux.c
+@@ -1176,7 +1176,9 @@ void RtmpOSFileSeek(RTMP_OS_FD osfd, int offset)
+ 
+ int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
+ {
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++	return kernel_read(osfd, pDataPtr, readLen, &osfd->f_pos);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
+ 	return kernel_read(osfd, 0, pDataPtr, readLen);
+ #else
+ 	/* The object must have a read method */
+@@ -1191,7 +1193,11 @@ int RtmpOSFileRead(RTMP_OS_FD osfd, char *pDataPtr, int readLen)
+ 
+ int RtmpOSFileWrite(RTMP_OS_FD osfd, char *pDataPtr, int writeLen)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++	return kernel_write(osfd, pDataPtr, writeLen, &osfd->f_pos);
++#else
+ 	return osfd->f_op->write(osfd, pDataPtr, (size_t) writeLen, &osfd->f_pos);
++#endif
+ }
+ 
+ static inline void __RtmpOSFSInfoChange(OS_FS_INFO * pOSFSInfo, BOOLEAN bSet)
+@@ -1219,10 +1225,14 @@ static inline void __RtmpOSFSInfoChange(OS_FS_INFO * pOSFSInfo, BOOLEAN bSet)
+ 
+ #endif
+ #endif
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 		pOSFSInfo->fs = get_fs();
+ 		set_fs(KERNEL_DS);
++#endif
+ 	} else {
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 		set_fs(pOSFSInfo->fs);
++#endif
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+ 		current->fsuid = pOSFSInfo->fsuid;
+ 		current->fsgid = pOSFSInfo->fsgid;
+@@ -2100,7 +2110,9 @@ VOID RtmpDrvAllMacPrint(
+ {
+ 	struct file *file_w;
+ 	PSTRING fileName = "MacDump.txt";
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t orig_fs;
++#endif
+ 	STRING *msg;
+ 	UINT32 macAddr = 0, macValue = 0;
+ 
+@@ -2108,8 +2120,10 @@ VOID RtmpDrvAllMacPrint(
+ 	if (!msg)
+ 		return;
+ 	
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	orig_fs = get_fs();
+ 	set_fs(KERNEL_DS);
++#endif
+ 
+ 	/* open file */
+ 	file_w = filp_open(fileName, O_WRONLY | O_CREAT, 0);
+@@ -2128,7 +2142,11 @@ VOID RtmpDrvAllMacPrint(
+ 				sprintf(msg, "%04x = %08x\n", macAddr, macValue);
+ 
+ 				/* write data to file */
++	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++				kernel_write(file_w, msg, strlen(msg), &file_w->f_pos);
++#else
+ 				file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
++#endif
+ 
+ 				printk("%s", msg);
+ 				macAddr += AddrStep;
+@@ -2137,7 +2155,9 @@ VOID RtmpDrvAllMacPrint(
+ 		}
+ 		filp_close(file_w, NULL);
+ 	}
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	set_fs(orig_fs);
++#endif
+ 	os_free_mem(NULL, msg);
+ }
+ 
+@@ -2150,7 +2170,9 @@ VOID RtmpDrvAllE2PPrint(
+ {
+ 	struct file *file_w;
+ 	PSTRING fileName = "EEPROMDump.txt";
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	mm_segment_t orig_fs;
++#endif
+ 	STRING *msg;
+ 	USHORT eepAddr = 0;
+ 	USHORT eepValue;
+@@ -2178,7 +2200,11 @@ VOID RtmpDrvAllE2PPrint(
+ 				sprintf(msg, "%08x = %04x\n", eepAddr, eepValue);
+ 
+ 				/* write data to file */
++	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++				kernel_write(file_w, msg, strlen(msg), &file_w->f_pos);
++#else
+ 				file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
++#endif
+ 
+ 				printk("%s", msg);
+ 				eepAddr += AddrStep;
+@@ -2189,7 +2215,9 @@ VOID RtmpDrvAllE2PPrint(
+ 		}
+ 		filp_close(file_w, NULL);
+ 	}
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	set_fs(orig_fs);
++#endif
+ 	os_free_mem(NULL, msg);
+ }
+ 
+@@ -2204,8 +2232,10 @@ VOID RtmpDrvAllRFPrint(
+ 	mm_segment_t orig_fs;
+ 	/*UINT32 macAddr = 0, macValue = 0;*/
+ 	
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	orig_fs = get_fs();
+ 	set_fs(KERNEL_DS);
++#endif
+ 
+ 	/* open file */
+ 	file_w = filp_open(fileName, O_WRONLY | O_CREAT, 0);
+@@ -2217,11 +2247,17 @@ VOID RtmpDrvAllRFPrint(
+ 		if (file_w->f_op && file_w->f_op->write) {
+ 			file_w->f_pos = 0;
+ 			/* write data to file */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
++			kernel_write(file_w, (char*)pBuf, BufLen, &file_w->f_pos);
++#else
+ 			file_w->f_op->write(file_w, (char*)pBuf, BufLen, &file_w->f_pos);
++#endif
+ 		}
+ 		filp_close(file_w, NULL);
+ 	}
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+ 	set_fs(orig_fs);
++#endif
+ }
+ 
+ /*

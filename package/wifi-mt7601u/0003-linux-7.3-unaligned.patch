@@ -1,0 +1,21 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] mt7601u: use linux/unaligned.h on 7.3
+
+asm/unaligned.h is gone on MIPS in 7.3.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/os/rt_linux.h	2026-11-02 12:32:51.485587186 -0500
++++ b/include/os/rt_linux.h	2026-11-02 12:32:51.506644187 -0500
+@@ -52,7 +52,11 @@
+ #include <linux/unistd.h>
+ #include <asm/uaccess.h>
+ #include <asm/types.h>
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++#include <linux/unaligned.h>	/* for get_unaligned() */
++#else
+ #include <asm/unaligned.h>	/* for get_unaligned() */
++#endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+ #include <linux/pid.h>
