@@ -1,0 +1,41 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8733bu: use the 7.3 timer API
+
+Linux 7.3 renamed the timer helpers and from_timer.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/include/osdep_service_linux.h	2026-11-02 13:14:00.004171775 -0500
++++ b/include/osdep_service_linux.h	2026-11-02 13:14:00.025106703 -0500
+@@ -367,7 +367,9 @@
+ static inline void timer_hdl(unsigned long cntx)
+ #endif
+ {
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	_timer *ptimer = timer_container_of(ptimer, in_timer, timer);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+ 	_timer *ptimer = from_timer(ptimer, in_timer, timer);
+ #else
+ 	_timer *ptimer = (_timer *)cntx;
+@@ -397,12 +399,20 @@
+ 
+ __inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	*bcancelled = timer_delete_sync(&ptimer->timer) == 1 ? 1 : 0;
++#else
+ 	*bcancelled = del_timer_sync(&ptimer->timer) == 1 ? 1 : 0;
++#endif
+ }
+ 
+ __inline static void _cancel_timer_async(_timer *ptimer)
+ {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
++	timer_delete(&ptimer->timer);
++#else
+ 	del_timer(&ptimer->timer);
++#endif
+ }
+ 
+ static inline void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)

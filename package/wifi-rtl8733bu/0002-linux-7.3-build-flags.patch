@@ -1,0 +1,47 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8733bu: feed the driver flags into kbuild
+
+Anchor the include paths at PWD and pass EXTRA_CFLAGS through
+subdir-ccflags-y; 7.3 no longer consumes EXTRA_CFLAGS.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 13:13:19.074000998 -0500
++++ b/Makefile	2026-11-02 13:13:19.094097606 -0500
+@@ -33,7 +33,7 @@
+ EXTRA_CFLAGS += -Wno-date-time	# Fix compile error && warning on gcc 4.9 and later
+ endif
+ 
+-EXTRA_CFLAGS += -I$(src)/include
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/include
+ 
+ EXTRA_LDFLAGS += --strip-debug
+ 
+@@ -288,10 +288,10 @@
+ 			hal/led/hal_$(HCI_NAME)_led.o
+ 
+ 
+-EXTRA_CFLAGS += -I$(src)/platform
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/platform
+ _PLATFORM_FILES := platform/platform_ops.o
+ 
+-EXTRA_CFLAGS += -I$(src)/hal/btc
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/hal/btc
+ 
+ ########### HAL_RTL8188E #################################
+ ifeq ($(CONFIG_RTL8188E), y)
+@@ -2443,7 +2443,7 @@
+ rtk_core += core/rtw_sdio.o
+ endif
+ 
+-EXTRA_CFLAGS += -I$(src)/core/crypto
++EXTRA_CFLAGS += -I$(if $(PWD),$(PWD),$(src))/core/crypto
+ rtk_core += \
+ 		core/crypto/aes-internal.o \
+ 		core/crypto/aes-internal-enc.o \
+@@ -2581,3 +2581,5 @@
+ )
+ EXTRA_CFLAGS := $(_EXTRA_CFLAGS) $(_INC_CFLAGS)
+ endif
++
++subdir-ccflags-y += $(EXTRA_CFLAGS)

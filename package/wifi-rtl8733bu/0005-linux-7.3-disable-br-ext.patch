@@ -1,0 +1,19 @@
+From: Paul Philippov <paul@themactep.com>
+Subject: [PATCH] rtl8733bu: disable the bridge extension
+
+The bridge extension depends on the removed AppleTalk and
+PPPoE wire structures. Disable it on the 7.3 build.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+--- a/Makefile	2026-11-02 13:14:33.250857504 -0500
++++ b/Makefile	2026-11-02 13:14:33.253039844 -0500
+@@ -88,7 +88,7 @@
+ CONFIG_SIGNAL_SCALE_MAPPING = n
+ CONFIG_80211W = y
+ CONFIG_REDUCE_TX_CPU_LOADING = n
+-CONFIG_BR_EXT = y
++CONFIG_BR_EXT = n
+ CONFIG_TDLS = n
+ CONFIG_WIFI_MONITOR = n
+ CONFIG_MCC_MODE = n
