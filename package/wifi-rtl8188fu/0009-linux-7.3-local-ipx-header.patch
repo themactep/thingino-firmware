@@ -6,10 +6,13 @@ struct ipxhdr, so define the small wire structure locally.
 
 Signed-off-by: Paul Philippov <paul@themactep.com>
 ---
---- a/core/rtw_br_ext.c	2026-11-02 08:19:52.875036651 -0500
-+++ b/core/rtw_br_ext.c	2026-11-02 08:19:52.893192970 -0500
-@@ -17,7 +17,23 @@
+--- a/core/rtw_br_ext.c
++++ b/core/rtw_br_ext.c
+@@ -15,9 +15,26 @@
+ #define _RTW_BR_EXT_C_
+ 
  #ifdef __KERNEL__
++	#include <linux/version.h>
  	#include <linux/if_arp.h>
  	#include <net/ip.h>
 +#if (LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0))
